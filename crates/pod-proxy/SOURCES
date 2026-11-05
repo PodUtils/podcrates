@@ -11,8 +11,8 @@ dir crates/podssh-ws/src/http
 # proxy's answer stay here; the tests of the upgrade and of the frames go to
 # pod-ws.
 file a8438fa798831a4c29c5cf3048c0241e211f3751 crates/podssh-ws/src/client.rs -> crates/pod-proxy/src/client.rs
-file 3f7e8ea7b251a0a04c5d21dd79b416e577d71b30 crates/podssh-ws/src/cut.rs -> crates/pod-proxy/src/cut.rs
-file 2320d53a1a5e87f52783d5ba7d084b42628edcb6 crates/podssh-ws/src/dial.rs -> crates/pod-proxy/src/dial.rs
+file 3f7e8ea7b251a0a04c5d21dd79b416e577d71b30 crates/podssh-ws/src/cut.rs -> crates/pod-proxy/src/cut.rs crates/pod-proxy/src/cut_tests.rs
+file 2320d53a1a5e87f52783d5ba7d084b42628edcb6 crates/podssh-ws/src/dial.rs -> crates/pod-proxy/src/dial.rs crates/pod-proxy/src/env.rs crates/pod-proxy/src/connect.rs crates/pod-proxy/src/error.rs crates/pod-proxy/src/host.rs crates/pod-proxy/src/http.rs
 file 55ebe8fa5a9428df75cfbd96af01577d346c02f4 crates/podssh-ws/src/http.rs -> crates/pod-proxy/src/http.rs
 file 9f7a74678effce00bfad9ef0d3490b7e17bf63a1 crates/podssh-ws/src/http/request.rs -> crates/pod-proxy/src/http/request.rs
 file 9e37c0adacc64df22fd15d7e1507c335e8cd55a6 crates/podssh-ws/src/lowat.rs -> crates/pod-proxy/src/lowat.rs
