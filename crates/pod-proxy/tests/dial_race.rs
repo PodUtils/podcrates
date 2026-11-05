@@ -6,7 +6,7 @@
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use podssh_ws::dial::{dial, interleave, ProxyChoice};
+use podssh_ws::dial::{ProxyChoice, dial, interleave};
 use podssh_ws::resolve::set_pins;
 use tokio::net::TcpListener;
 

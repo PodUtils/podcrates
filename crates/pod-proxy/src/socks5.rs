@@ -13,7 +13,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
-use crate::dial::{authority, connect_direct, DialError, Proxy};
+use crate::dial::{DialError, Proxy, authority, connect_direct};
 
 const VERSION: u8 = 5;
 const NO_AUTHENTICATION: u8 = 0x00;
@@ -61,7 +61,7 @@ pub(crate) async fn connect(
     let target = match bare.parse::<IpAddr>() {
         Ok(addr) => Target::Addr(addr),
         Err(_) if host.len() > 255 => {
-            return Err(DialError::InvalidTarget(format!("{host:?} is longer than the 255 bytes of SOCKS5")))
+            return Err(DialError::InvalidTarget(format!("{host:?} is longer than the 255 bytes of SOCKS5")));
         }
         Err(_) => Target::Name(host),
     };
@@ -176,13 +176,13 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
         (NO_AUTHENTICATION, _) => {}
         (USER_PASSWORD, Some((user, password))) => authenticate(stream, user, password).await?,
         (NO_ACCEPTABLE_METHOD, None) => {
-            return Err(Step::Auth("it needs a user and a password, and the proxy URL has none".into()))
+            return Err(Step::Auth("it needs a user and a password, and the proxy URL has none".into()));
         }
         (NO_ACCEPTABLE_METHOD, Some(_)) => {
-            return Err(Step::Auth("it takes neither no authentication nor a user and a password".into()))
+            return Err(Step::Auth("it takes neither no authentication nor a user and a password".into()));
         }
         (other, _) => {
-            return Err(Step::Protocol(format!("it chose the method {other:#04x}, which podssh did not offer")))
+            return Err(Step::Protocol(format!("it chose the method {other:#04x}, which podssh did not offer")));
         }
     }
     let mut request = vec![VERSION, CONNECT, 0x00];

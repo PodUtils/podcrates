@@ -5,7 +5,7 @@
 
 pub mod request;
 
-pub use request::{read_request, Request, RequestError};
+pub use request::{Request, RequestError, read_request};
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 

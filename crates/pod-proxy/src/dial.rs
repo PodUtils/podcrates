@@ -338,11 +338,7 @@ pub fn parse_status_line(head: &str) -> Result<(u16, String), String> {
 
 /// `host:port`, with brackets around an IPv6 literal.
 pub fn authority(host: &str, port: u16) -> String {
-    if host.contains(':') && !host.starts_with('[') {
-        format!("[{host}]:{port}")
-    } else {
-        format!("{host}:{port}")
-    }
+    if host.contains(':') && !host.starts_with('[') { format!("[{host}]:{port}") } else { format!("{host}:{port}") }
 }
 
 /// Refuse a name that would break a request line or a header.

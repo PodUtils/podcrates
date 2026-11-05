@@ -12,7 +12,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use podssh_ws::dial::{dial_multipath, ProxyChoice};
+use podssh_ws::dial::{ProxyChoice, dial_multipath};
 use podssh_ws::mptcp::{self, Multipath};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};

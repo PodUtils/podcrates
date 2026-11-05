@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use podssh_ws::dial::{dial, no_proxy_matches, proxy_from_vars, DialError, HttpProxy, ProxyChoice};
+use podssh_ws::dial::{DialError, HttpProxy, ProxyChoice, dial, no_proxy_matches, proxy_from_vars};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 

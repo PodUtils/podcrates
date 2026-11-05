@@ -36,11 +36,7 @@ fn set_on(fd: std::os::fd::RawFd) -> Result<(), String> {
     let set = unsafe {
         libc::setsockopt(fd, libc::IPPROTO_TCP, TCP_NOTSENT_LOWAT, (&value as *const libc::c_int).cast(), len)
     };
-    if set == 0 {
-        Ok(())
-    } else {
-        Err(format!("the system refused it: {}", std::io::Error::last_os_error()))
-    }
+    if set == 0 { Ok(()) } else { Err(format!("the system refused it: {}", std::io::Error::last_os_error())) }
 }
 
 /// What the socket holds now, where the system tells it: for the tests.

@@ -12,7 +12,7 @@ use tokio::net::TcpStream;
 use tokio::time::Instant;
 
 use crate::cut::Cut;
-use crate::dial::{authority, DialError, ATTEMPT_DELAY};
+use crate::dial::{ATTEMPT_DELAY, DialError, authority};
 use crate::mptcp::Multipath;
 use crate::resolve::{self, SOURCE_WAIT};
 

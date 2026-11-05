@@ -8,7 +8,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::dial::{dial, proxy_from_vars, DialError, Proxy, ProxyChoice, ProxyKind};
+use podssh_ws::dial::{DialError, Proxy, ProxyChoice, ProxyKind, dial, proxy_from_vars};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 

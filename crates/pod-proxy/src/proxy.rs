@@ -90,13 +90,13 @@ impl Proxy {
                 return Err(format!(
                     "proxy scheme {scheme}:// is not supported: SOCKS4 has no authentication; podssh speaks SOCKS5 \
                      to a socks5:// or socks5h:// proxy, and HTTP CONNECT to an http:// one"
-                ))
+                ));
             }
             Some((scheme, _)) => {
                 return Err(format!(
                     "proxy scheme {scheme}:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy, and \
                      SOCKS5 to a socks5:// or socks5h:// one"
-                ))
+                ));
             }
             None => (ProxyKind::Http, url),
         };
