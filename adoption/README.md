@@ -46,3 +46,7 @@ What the consumers asked of the next patches:
   a git dependency with no version as a wildcard; `fuzz/Cargo.lock`
   follows (`cargo update -w` in fuzz/); the `.run` has
   `cargo deny --locked check bans sources`.
+* Both: a raise of `rust-version` must be checked against each toolchain
+  of the consumer's release workflow, not only against its CI (podnet's
+  armv7 job built with Alpine's packaged Rust 1.96.1, below the 1.99 of
+  podcrates; podnet `5535ffb` moved it into the pinned image).

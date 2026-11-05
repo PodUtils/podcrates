@@ -597,6 +597,9 @@ static binary.
    with zig and checks it with the static check of the consumer (else of
    podcrates).
 2. The podssh trial builds the features `tor` and `ts` too.
+3. Each trial checks the toolchain of each job of the consumer's release
+   workflow against the `rust-version` of podcrates (podnet's armv7 job
+   built with Alpine's Rust 1.96.1, below 1.99).
 
 ## Prove
 
