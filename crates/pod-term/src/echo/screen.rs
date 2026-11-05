@@ -17,7 +17,7 @@
 //! is not drawn right**: `ESC [ A` stops at the top row.
 
 use super::units::units;
-use super::{Discipline, Event, EL, PROMPT};
+use super::{Discipline, EL, Event, PROMPT};
 use crate::window::Size;
 
 /// A cell of the edit area: its row from the first row of the prompt, and

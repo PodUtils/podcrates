@@ -17,8 +17,8 @@
 //! terminal shows the same, so no state is carried from one chunk to the
 //! next. **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:624-641`.
 
-use super::screen::{csi, motion, ED};
-use super::{Discipline, Event, EL, PROMPT};
+use super::screen::{ED, csi, motion};
+use super::{Discipline, EL, Event, PROMPT};
 
 /// Each `\n` as `\r\n`, as `ONLCR` makes it.
 pub(crate) fn onlcr(bytes: &[u8]) -> Vec<u8> {

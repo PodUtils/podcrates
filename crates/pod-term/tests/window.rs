@@ -5,13 +5,13 @@
 //! so these tests pin the opposite: the size goes out at once when idle, waits
 //! for the end of a frame, and the last one always arrives.
 
-use podssh_terminal::echo::Event;
-use podssh_terminal::passthrough::Passthrough;
-use podssh_terminal::session::Session;
-use podssh_terminal::window::{Size, Window};
+use pod_term::echo::Event;
+use pod_term::passthrough::Passthrough;
+use pod_term::session::Session;
+use pod_term::window::{Size, Window};
 
 mod common;
-use common::{over_a_pty, LocalBytes};
+use common::{LocalBytes, over_a_pty};
 
 // ───────────────────────────────── window size: the plant and its control
 

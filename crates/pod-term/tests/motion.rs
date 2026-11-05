@@ -7,8 +7,8 @@
 //! cursor and never ends input. Each key is asserted in each form a terminal
 //! sends it, byte for byte.
 
-use podssh_terminal::echo::{Discipline, BELL, EL};
-use podssh_terminal::window::Size;
+use pod_term::echo::{BELL, Discipline, EL};
+use pod_term::window::Size;
 
 mod common;
 use common::{feed, has};

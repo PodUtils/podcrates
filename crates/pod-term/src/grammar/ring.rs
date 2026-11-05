@@ -70,10 +70,10 @@ impl Ring {
         while self.marks.front().is_some_and(|&m| m < from) {
             self.marks.pop_front();
         }
-        if self.marks.is_empty() {
-            if let Some(newest) = self.newest.filter(|&n| n >= from) {
-                self.marks.push_back(newest);
-            }
+        if self.marks.is_empty()
+            && let Some(newest) = self.newest.filter(|&n| n >= from)
+        {
+            self.marks.push_back(newest);
         }
         let to = self.marks.front().copied().unwrap_or(from);
         self.bytes.drain(..(to - self.first) as usize);

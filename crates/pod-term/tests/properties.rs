@@ -11,8 +11,8 @@
 //! `tests/properties.proptest-regressions`, committed with the repair:
 //! proptest tries those inputs first at each run.
 
-use podssh_terminal::echo::{Discipline, Event, HISTORY_CAP};
-use podssh_terminal::session::{Facts, Session};
+use pod_term::echo::{Discipline, Event, HISTORY_CAP};
+use pod_term::session::{Facts, Session};
 use proptest::collection::vec;
 use proptest::prelude::*;
 use proptest::sample::Index;

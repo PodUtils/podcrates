@@ -77,11 +77,7 @@ impl Screen {
     pub fn glyph(&self, row: u16, col: u16) -> String {
         let Some(cell) = self.parser.screen().cell(row, col) else { return String::new() };
         let text = cell.contents().to_string();
-        if text == " " {
-            String::new()
-        } else {
-            text
-        }
+        if text == " " { String::new() } else { text }
     }
 
     /// The first cell that holds `glyph`, row by row.

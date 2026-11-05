@@ -15,9 +15,9 @@
 mod screen;
 use screen::Screen;
 
-use podssh_terminal::bytes::quoted;
-use podssh_terminal::echo::{Discipline, Event, PROMPT};
-use podssh_terminal::window::Size;
+use pod_term::bytes::quoted;
+use pod_term::echo::{Discipline, Event, PROMPT};
+use pod_term::window::Size;
 
 /// One thing that happens to a session.
 #[derive(Clone, Copy)]

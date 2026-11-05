@@ -11,8 +11,8 @@
 
 #![allow(dead_code)] // each test file uses a subset; a shared harness is expected.
 
-use podssh_terminal::echo::{Discipline, Event, Sig};
-use podssh_terminal::window::Size;
+use pod_term::echo::{Discipline, Event, Sig};
+use pod_term::window::Size;
 
 /// Drive a discipline with bytes and collect both legs separately.
 pub fn feed(d: &mut Discipline, bytes: &[u8]) -> Legs {
@@ -48,13 +48,13 @@ pub fn legs(events: Vec<Event>) -> Legs {
 }
 
 /// The facts of a session that selected the discipline, with nothing below.
-pub fn selected() -> podssh_terminal::session::Facts {
-    podssh_terminal::session::Facts { selected: true, ..Default::default() }
+pub fn selected() -> pod_term::session::Facts {
+    pod_term::session::Facts { selected: true, ..Default::default() }
 }
 
 /// The facts of a session over a pty.
-pub fn over_a_pty() -> podssh_terminal::session::Facts {
-    podssh_terminal::session::Facts { pty_below: true, ..Default::default() }
+pub fn over_a_pty() -> pod_term::session::Facts {
+    pod_term::session::Facts { pty_below: true, ..Default::default() }
 }
 
 /// What one input produced, one field per destination.
@@ -78,8 +78,8 @@ impl Legs {
     pub fn show(&self) -> String {
         format!(
             "local={} remote={} signals={:?} eof={} sizes={:?}",
-            podssh_terminal::bytes::quoted(&self.local),
-            podssh_terminal::bytes::quoted(&self.remote),
+            pod_term::bytes::quoted(&self.local),
+            pod_term::bytes::quoted(&self.remote),
             self.signals,
             self.eof,
             self.sizes

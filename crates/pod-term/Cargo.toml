@@ -1,0 +1,22 @@
+[package]
+name = "pod-term"
+description = "A line discipline in user space for a host with no pty, and the grammar of a terminal's output with its ring."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+unicode-width = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+# The terminal oracle: a model terminal reads what the discipline writes,
+# and the tests compare its screens (tests/screen/).
+vt100 = "0.18"
+# Property tests of the line discipline (tests/properties.rs).
+proptest = { version = "1.11", default-features = false, features = ["std"] }
+# A terminal's parser of another project, for the tests of where a stream of
+# output may start: the state machine of vte.
+anstyle-parse = "1.0.0"

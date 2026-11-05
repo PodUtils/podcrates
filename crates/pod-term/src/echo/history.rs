@@ -17,7 +17,7 @@
 //! half-typed command is gone, with no bell and no way back.
 
 use super::Discipline;
-use crate::echo::{Event, BELL};
+use crate::echo::{BELL, Event};
 
 impl Discipline {
     /// History up: set the uncommitted line aside on first browse, then walk

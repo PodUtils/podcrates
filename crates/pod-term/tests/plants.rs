@@ -36,9 +36,9 @@
 //! entry as a clause that cannot execute from here, with the command and the
 //! reason.
 
-use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL};
-use podssh_terminal::session::{Mode, Session};
-use podssh_terminal::window::{Size, Window};
+use pod_term::echo::{BELL, Discipline, EL, Event, Sig};
+use pod_term::session::{Mode, Session};
+use pod_term::window::{Size, Window};
 
 mod common;
 

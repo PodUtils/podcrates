@@ -17,8 +17,8 @@
 //! bug, because the failure is the right bytes in the wrong direction or the
 //! wrong sequence substituted.
 
-use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP};
-use podssh_terminal::session::{Facts, Mode, Session};
+use pod_term::echo::{BELL, Discipline, EL, Event, HISTORY_CAP, Sig};
+use pod_term::session::{Facts, Mode, Session};
 
 mod common;
 use common::{feed, has, legs, over_a_pty, selected};

@@ -5,8 +5,8 @@
 //! the output written with each `\n` as `\r\n`, and the line drawn again
 //! below it. Output that stops inside a row waits for the next key.
 
-use podssh_terminal::session::Session;
-use podssh_terminal::window::Size;
+use pod_term::session::Session;
+use pod_term::window::Size;
 
 mod common;
 use common::{legs, selected};

@@ -80,11 +80,7 @@ impl Mode {
     /// echo shows each key twice, and a missing pty alone says nothing about
     /// the program.
     pub fn select(facts: Facts) -> Mode {
-        if facts.selected && !facts.pty_below && !facts.discipline_below {
-            Mode::Cooked
-        } else {
-            Mode::Transparent
-        }
+        if facts.selected && !facts.pty_below && !facts.discipline_below { Mode::Cooked } else { Mode::Transparent }
     }
 }
 

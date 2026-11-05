@@ -31,9 +31,9 @@
 //! and expanding again would stair-step every line. The `passthrough` tests
 //! pin that half.
 
-use podssh_terminal::echo::{Discipline, BELL, EL, LINE_CAP, PROMPT};
-use podssh_terminal::session::Session;
-use podssh_terminal::window::Size;
+use pod_term::echo::{BELL, Discipline, EL, LINE_CAP, PROMPT};
+use pod_term::session::Session;
+use pod_term::window::Size;
 
 mod common;
 use common::{feed, has, legs, selected};

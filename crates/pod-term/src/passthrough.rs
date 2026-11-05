@@ -66,11 +66,7 @@ impl Passthrough {
     /// the translation; expanding again would put a `\r` before every `\n` and
     /// stair-step the whole screen.
     pub fn forward_remote(&self, bytes: &[u8]) -> Vec<Event> {
-        if bytes.is_empty() {
-            vec![]
-        } else {
-            vec![Event::ToLocal(bytes.to_vec())]
-        }
+        if bytes.is_empty() { vec![] } else { vec![Event::ToLocal(bytes.to_vec())] }
     }
 
     /// **The whole of the forward leg: each byte goes on as it came.** The
@@ -85,11 +81,7 @@ impl Passthrough {
 
     /// The same for a chunk, as one event: nothing here reads a byte.
     pub fn forward_local_bytes(&mut self, bytes: &[u8]) -> Vec<Event> {
-        if bytes.is_empty() {
-            vec![]
-        } else {
-            vec![Event::ToRemote(bytes.to_vec())]
-        }
+        if bytes.is_empty() { vec![] } else { vec![Event::ToRemote(bytes.to_vec())] }
     }
 
     /// The signal characters, named. **Exposed so a caller can report them

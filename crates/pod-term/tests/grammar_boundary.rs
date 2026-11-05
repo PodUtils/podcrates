@@ -26,7 +26,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anstyle_parse::{DefaultCharAccumulator, Params, Parser, Perform};
-use podssh_terminal::grammar::{Ring, Tracker, BROKEN_AFTER};
+use pod_term::grammar::{BROKEN_AFTER, Ring, Tracker};
 
 /// The captures that must be here.
 const NAMED: [&str; 2] = ["prompt.bin", "vi.bin"];

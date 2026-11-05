@@ -31,10 +31,10 @@
 //! stay invisible outside the crate, so a caller cannot drive a half-finished
 //! edit that the byte rules never sanctioned.
 
-use super::screen::{csi, motion, ED};
-use super::units::{after, before, blank, units, utf8_len, Unit};
 use super::Discipline;
-use crate::echo::{Event, Sig, BELL, EL, LINE_CAP, PROMPT};
+use super::screen::{ED, csi, motion};
+use super::units::{Unit, after, before, blank, units, utf8_len};
+use crate::echo::{BELL, EL, Event, LINE_CAP, PROMPT, Sig};
 use crate::escape::{Intro, Param};
 
 impl Discipline {
@@ -92,11 +92,7 @@ impl Discipline {
         let to = self.place(self.cursor);
         let out = motion(self.shown, to);
         self.shown = to;
-        if out.is_empty() {
-            vec![]
-        } else {
-            vec![Event::ToLocal(out)]
-        }
+        if out.is_empty() { vec![] } else { vec![Event::ToLocal(out)] }
     }
 
     /// Erase the character left of the cursor, and the cells it took. At the
@@ -110,10 +106,10 @@ impl Discipline {
         self.line.drain(u.start..u.start + u.len);
         // At the end the triple suffices where `\b` reaches the cells;
         // mid-line the tail shifted and only a redraw puts every cell right.
-        if self.cursor == self.line.len() {
-            if let Some(out) = self.rubout_at_end(u.cells) {
-                return vec![Event::ToLocal(out)];
-            }
+        if self.cursor == self.line.len()
+            && let Some(out) = self.rubout_at_end(u.cells)
+        {
+            return vec![Event::ToLocal(out)];
         }
         vec![Event::ToLocal(self.redraw())]
     }
@@ -159,10 +155,10 @@ impl Discipline {
         let from = steps[i].start;
         self.line.drain(from..self.cursor);
         self.cursor = from;
-        if self.cursor == self.line.len() {
-            if let Some(out) = self.rubout_at_end(cells) {
-                return vec![Event::ToLocal(out)];
-            }
+        if self.cursor == self.line.len()
+            && let Some(out) = self.rubout_at_end(cells)
+        {
+            return vec![Event::ToLocal(out)];
         }
         vec![Event::ToLocal(self.redraw())]
     }
@@ -223,11 +219,7 @@ impl Discipline {
         let to = self.place(self.cursor);
         let out = motion(self.shown, to);
         self.shown = to;
-        if out.is_empty() {
-            vec![]
-        } else {
-            vec![Event::ToLocal(out)]
-        }
+        if out.is_empty() { vec![] } else { vec![Event::ToLocal(out)] }
     }
 
     /// An ordinary byte. With UTF-8, the byte of a character typed in parts

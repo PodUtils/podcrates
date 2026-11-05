@@ -80,8 +80,8 @@ pub mod refusal;
 pub mod session;
 pub mod window;
 
-pub use echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, IDLE, LINE_CAP, PROMPT};
+pub use echo::{BELL, Discipline, EL, Event, HISTORY_CAP, IDLE, LINE_CAP, PROMPT, Sig};
 pub use passthrough::Passthrough;
-pub use refusal::{Refusal, REFUSALS};
+pub use refusal::{REFUSALS, Refusal};
 pub use session::{Facts, Mode, Session};
 pub use window::{Size, Window};
