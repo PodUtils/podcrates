@@ -1,0 +1,8 @@
+# socks5:// sends the name to the proxy and socks5h:// resolves it here,
+# the rule of curl turned around; the test of the address of socks5://
+# must fail.
+ENTRY=T-014
+GROUP=proxy
+EXPECT='test a_socks5_url_sends_the_address_that_the_resolver_of_the_dialer_gives \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test socks5'
+LIMIT=1800

@@ -1,0 +1,7 @@
+# A proxy command (+exec:) is taken from any value, also from a variable
+# that other programs read; the test of the carriers must fail.
+ENTRY=T-014
+GROUP=proxy
+EXPECT='test proxy::tests::the_carriers_parse \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib'
+LIMIT=1800

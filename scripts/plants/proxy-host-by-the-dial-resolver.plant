@@ -1,0 +1,8 @@
+# The host of a proxy is resolved by the dialer's resolver, not by the
+# resolver of the proxy, so a resolver that asks DNS over HTTPS through
+# the proxy calls itself; the test of the proxy's resolver must fail.
+ENTRY=T-014
+GROUP=proxy
+EXPECT='test the_proxy_host_takes_the_resolver_of_the_proxy \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test egress'
+LIMIT=1800

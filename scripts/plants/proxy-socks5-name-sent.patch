@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/socks5.rs b/crates/pod-proxy/src/socks5.rs
+index 1f55d9d..525725f 100644
+--- a/crates/pod-proxy/src/socks5.rs
++++ b/crates/pod-proxy/src/socks5.rs
+@@ -68,7 +68,7 @@ pub(crate) async fn connect(
+     let bare = host.trim_start_matches('[').trim_end_matches(']');
+     let target = match bare.parse::<IpAddr>() {
+         Ok(addr) => Target::Addr(addr),
+-        Err(_) if proxy.kind == (ProxyKind::Socks5 { remote_dns: false }) => Target::Here(host),
++        Err(_) if proxy.kind == (ProxyKind::Socks5 { remote_dns: true }) => Target::Here(host),
+         Err(_) if host.len() > 255 => {
+             return Err(DialError::InvalidTarget(format!("{host:?} is longer than the 255 bytes of SOCKS5")));
+         }

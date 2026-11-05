@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/proxy/parse.rs b/crates/pod-proxy/src/proxy/parse.rs
+index 81af7e5..4ff106b 100644
+--- a/crates/pod-proxy/src/proxy/parse.rs
++++ b/crates/pod-proxy/src/proxy/parse.rs
+@@ -49,7 +49,7 @@ impl Proxy {
+         // a part of its user or its password.
+         let scheme_only = |scheme: &str| !scheme.is_empty() && !scheme.contains(['/', ':', '@']);
+         if let Some((scheme, command)) = spec.split_once("+exec:").filter(|(s, _)| scheme_only(s)) {
+-            if !commands {
++            if commands && !commands {
+                 return Err(
+                     "a proxy command (+exec:) is taken only from a value that the user gave on purpose, never \
+                             from a variable that other programs read"

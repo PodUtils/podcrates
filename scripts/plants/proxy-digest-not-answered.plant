@@ -1,0 +1,7 @@
+# A 407 with a Digest challenge after Basic is a refusal: no Digest answer
+# goes on a new connection; the test of the Digest proxy must fail.
+ENTRY=T-014
+GROUP=proxy
+EXPECT='test a_digest_proxy_takes_the_answer \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test egress'
+LIMIT=1800

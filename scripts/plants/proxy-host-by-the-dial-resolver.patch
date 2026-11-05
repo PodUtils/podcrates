@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/stream.rs b/crates/pod-proxy/src/stream.rs
+index 1827cb1..624e870 100644
+--- a/crates/pod-proxy/src/stream.rs
++++ b/crates/pod-proxy/src/stream.rs
+@@ -167,7 +167,7 @@ pub(crate) async fn open_proxy(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, Di
+     match proxy.carrier() {
+         Carrier::Tcp => {
+             check_name(&proxy.host)?;
+-            let own = Leg { resolve: leg.proxy_resolve, ..leg };
++            let own = leg;
+             connect_direct(own, &proxy.host, proxy.port).await.map(Stream::Tcp).map_err(|e| match e {
+                 DialError::Timeout { .. } => DialError::Timeout {
+                     step: format!("connecting to the proxy {proxy}"),
