@@ -1,0 +1,6 @@
+# Spaces that rustfmt removes.
+ENTRY=T-003
+GROUP=lint
+EXPECT='Diff in .*crates/pod-todo/src/main.rs'
+RUN='cargo fmt --all --check'
+LIMIT=120

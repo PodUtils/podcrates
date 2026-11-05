@@ -1,0 +1,6 @@
+# A comparison of a length with zero, which clippy refuses (len_zero).
+ENTRY=T-003
+GROUP=lint
+EXPECT='len_zero|length comparison to zero'
+RUN='cargo clippy --workspace --all-targets --all-features -- -D warnings'
+LIMIT=1200

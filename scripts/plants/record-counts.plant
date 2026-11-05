@@ -1,0 +1,6 @@
+# The counts line of the index says one open entry fewer than the rows.
+ENTRY=T-003
+GROUP=record
+EXPECT='TODO/INDEX.md:[0-9]+: the counts line says 40 entries'
+RUN='cargo run -q -p pod-todo -- check'
+LIMIT=900

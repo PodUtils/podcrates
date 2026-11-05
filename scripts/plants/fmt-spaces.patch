@@ -1,0 +1,11 @@
+diff --git a/crates/pod-todo/src/main.rs b/crates/pod-todo/src/main.rs
+index d9c6ba5..6e634d5 100644
+--- a/crates/pod-todo/src/main.rs
++++ b/crates/pod-todo/src/main.rs
+@@ -2,5 +2,5 @@
+ //! counts. See `TODO/RULES.md`.
+ 
+ fn main() {
+-    pod_todo::main()
++    pod_todo::main(   )
+ }

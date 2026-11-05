@@ -105,7 +105,7 @@ agrees. `cargo test -p pod-todo`: 114 passed.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -125,16 +125,16 @@ each push. A check is trusted only after it fails on a planted defect.
 
 ## Approach
 
-1. scripts/agent/check.sh: fmt, clippy, tests, `cargo todo check`, the
+1. `scripts/agent/check.sh`: fmt, clippy, tests, `cargo todo check`, the
    size check, the static probe of x86_64 musl (after T-004).
-2. scripts/check-size.py: each `.rs` file of `crates/`, examples/ and
-   fuzz/ has 500 lines or fewer; a floor of files read.
-3. scripts/check-sources.py: each `SOURCES` file against the `main` of
+2. `scripts/check-size.py`: each `.rs` file of the tree but vendor/
+   has 500 lines or fewer; a floor of files read.
+3. `scripts/check-sources.py`: each `SOURCES` file against the `main` of
    its repository: changed, new, removed files, with their commits.
-4. scripts/check-workflows.py: each action pinned by its commit, the
+4. `scripts/check-workflows.py`: each action pinned by its commit, the
    permissions of each job.
-5. scripts/plant.sh and scripts/plant-each.sh, and one plant for each
-   check in scripts/plants/.
+5. `scripts/plant-each.sh`, and one plant for each check in
+   `scripts/plants/`.
 
 ## Prove
 
@@ -148,6 +148,18 @@ Each plant makes its check fail; with no plant, each check passes.
 ## Start condition
 
 T-001 is done.
+
+## Done
+
+2026-11-05, commit of this entry. `sh scripts/agent/check.sh`: fmt 0,
+clippy 0, record 0, size 0, test 0 (the static probe waits for T-004).
+`sh scripts/plant-each.sh`: 6 caught, 0 missed or stale
+(`clippy-len-zero`, `fmt-spaces`, `record-counts`, `size-long-file`,
+`size-self-test`, `sources-change`). `scripts/check-sources.py` reads
+the mirror and a clone; `crates/pod-todo/SOURCES` has 22 files and no
+change. The plant of `scripts/check-workflows.py` comes with the first
+workflow (T-007), and the plant of the numbers of GitHub with the first
+issue: each needs a file that does not exist now.
 
 # T-004: The static probe on each target
 

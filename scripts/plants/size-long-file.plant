@@ -1,0 +1,6 @@
+# A Rust file of 501 lines.
+ENTRY=T-003
+GROUP=lint
+EXPECT='crates/pod-todo/src/plant_long.rs: 501 lines, over 500'
+RUN='python3 -I scripts/check-size.py'
+LIMIT=60

@@ -1,0 +1,31 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+dir crates/podssh-todo/src
+dir crates/podssh-todo/tests
+skip crates/podssh-todo/src/interop
+skip crates/podssh-todo/tests/interop.rs
+file 09277cd85e51e0243c7e8fe78f2b2a1de7c83589 crates/podssh-todo/src/check.rs -> crates/pod-todo/src/check.rs
+file 5f31dbb8ccbf2b65e268e3898efa011536a3ba8e crates/podssh-todo/src/claims.rs -> crates/pod-todo/src/claims.rs
+file 704e1953b553ec7967c2864932811570b241e8db crates/podssh-todo/src/diff.rs -> crates/pod-todo/src/diff.rs
+file 95faf729ce1dbeabb2bf08161c86efaa3aea0647 crates/podssh-todo/src/github.rs -> crates/pod-todo/src/github.rs
+file 2f59c2169fe83a4b2df414934f3f2b03e0d212ba crates/podssh-todo/src/lib.rs -> crates/pod-todo/src/lib.rs
+file c56a78eddbde18d0bf4519c4fd116e4ae295e009 crates/podssh-todo/src/main.rs -> crates/pod-todo/src/main.rs
+file 88011b9b8a475d532041b74944631b02a91c3b6d crates/podssh-todo/src/model.rs -> crates/pod-todo/src/model.rs
+file 4ff2569df737b0288988244105e358ebada1bff7 crates/podssh-todo/src/numbers.rs -> crates/pod-todo/src/numbers.rs
+file 6eab7ddb6c6b66d0e39855edc2ff93959c678167 crates/podssh-todo/src/parse.rs -> crates/pod-todo/src/parse.rs
+file 3662f99c7d583a2e90219d8ff08a846e9a01a693 crates/podssh-todo/src/prove.rs -> crates/pod-todo/src/prove.rs
+file a38e1ed0ecb85e834a631b34d94863d8bc4cd4cd crates/podssh-todo/src/refs.rs -> crates/pod-todo/src/refs.rs
+file aa016540cb8e7981f60599aca0cdd4fe2efde9dc crates/podssh-todo/src/remap.rs -> crates/pod-todo/src/remap.rs
+file 1d57840d455e7c7330175cd95e263b05fbe1b622 crates/podssh-todo/src/write.rs -> crates/pod-todo/src/write.rs
+file b2d196ebcc3d89a56c5395e6b2868079dc0627b7 crates/podssh-todo/tests/base.rs -> crates/pod-todo/tests/base.rs
+file 0433030d8e72d3cd2afe1aa6cff60edc797bd94f crates/podssh-todo/tests/claims.rs -> crates/pod-todo/tests/claims.rs
+file 37b68dfae380dbe4bd1887af1479b8369a8373fb crates/podssh-todo/tests/common/mod.rs -> crates/pod-todo/tests/common/mod.rs
+file 96959a46268c71d1a09e65383774c52e976f5b59 crates/podssh-todo/tests/github.rs -> crates/pod-todo/tests/github.rs
+file 2563c80fadff0e0f411170bd22a547270b19b392 crates/podssh-todo/tests/plants.rs -> crates/pod-todo/tests/plants.rs
+file fd701e1eaf5a5deb240385ce81fee12c03cc27c4 crates/podssh-todo/tests/prove.rs -> crates/pod-todo/tests/prove.rs
+file 948e88a38de76dafc90fe0d1875603893fe807c0 crates/podssh-todo/tests/remap.rs -> crates/pod-todo/tests/remap.rs
+file 7e18cbfd676817af58cc65d9ce266f8f9f46c312 crates/podssh-todo/tests/repository.rs -> crates/pod-todo/tests/repository.rs
+file f8c36108401ab94b8a5053d5e3dd3b226c25b0a0 crates/podssh-todo/tests/writer.rs -> crates/pod-todo/tests/writer.rs

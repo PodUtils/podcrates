@@ -1,0 +1,7 @@
+# One recorded blob of a SOURCES file differs from the source.
+ENTRY=T-003
+GROUP=network
+EXPECT='^pod-todo: changed '
+RUN='python3 -I scripts/check-sources.py --plant-change pod-todo'
+LIMIT=300
+SWITCH=1

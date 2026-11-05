@@ -1,0 +1,13 @@
+diff --git a/scripts/check-size.py b/scripts/check-size.py
+index 351e794..d7871f1 100755
+--- a/scripts/check-size.py
++++ b/scripts/check-size.py
+@@ -72,7 +72,7 @@ def self_test() -> int:
+ 
+     def control(root):
+         for i in range(3):
+-            plant(root, f"crates/a/src/f{i}.rs", LIMIT)
++            plant(root, f"crates/a/src/f{i}.rs", LIMIT + i)
+         plant(root, "target/debug/build/out.rs", 2000)
+         plant(root, ".claude/worktrees/x/src/big.rs", 2000)
+         plant(root, "vendor/fork/src/big.rs", 2000)

@@ -1,0 +1,14 @@
+diff --git a/crates/pod-todo/src/model.rs b/crates/pod-todo/src/model.rs
+index 6a90a1d..d31c44d 100644
+--- a/crates/pod-todo/src/model.rs
++++ b/crates/pod-todo/src/model.rs
+@@ -145,6 +145,9 @@ impl Counts {
+ 
+ /// True for an id of the form `T-NNN` (three digits or more).
+ pub fn is_id(s: &str) -> bool {
++    if s.len() == 0 {
++        return false;
++    }
+     s.len() >= 5 && s.starts_with("T-") && s[2..].bytes().all(|b| b.is_ascii_digit())
+ }
+ 

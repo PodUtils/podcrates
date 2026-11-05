@@ -1,0 +1,7 @@
+# The self-test of the size check with its control broken: a run with no
+# planted fault must not pass as a found fault.
+ENTRY=T-003
+GROUP=lint
+EXPECT='FAIL +control'
+RUN='python3 -I scripts/check-size.py --self-test'
+LIMIT=60
