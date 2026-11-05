@@ -278,14 +278,14 @@ loopback implementations pass. The design now says which parts come with
 which later crate (`docs/design.md`, section 3), and that `wire.rs` goes
 to `pod-ws`.
 
-# T-006: `pod-testkit`: the guards of the host and the SSH test server
+# T-006: `pod-testkit`: the guards of a test host
 
 **Source:** `docs/design.md`, section 4 (M0); `docs/decisions.md`, call C9.
 **Category:** chore
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -302,9 +302,15 @@ The tests that move to podcrates bind loopback sockets. A host can refuse
 ## Approach
 
 1. `need_loopback!` and `need_localhost!` as exported macros.
-2. The generic parts of the SSH harness behind the feature `ssh`.
-3. A stand-in takes no type of a pod crate, so that a crate can
+2. A stand-in takes no type of a pod crate, so that a crate can
    dev-depend on the kit.
+
+## Decision
+
+The SSH test server of podssh is T-041. Most of its 2,054 lines answer
+podssh's own commands (sudo, containers, health, X11, the podssh binary);
+no crate of M1 to M4 needs it. It moves when a crate or a consumer needs
+an SSH server in its tests.
 
 ## Prove
 
@@ -318,10 +324,10 @@ T-001 is done.
 
 ## Done
 
-2026-11-05, partial: the guards. `crates/pod-testkit` has
+2026-11-05, commit `3ff514f`. `crates/pod-testkit` has
 `need_loopback!` and `need_localhost!` (exported macros) and the probes
-of `host`; `cargo test -p pod-testkit`: 3 passed. The SSH test server
-(the feature `ssh`) is the rest of this entry.
+of `host`; `cargo test -p pod-testkit`: 3 passed. `pod-core` uses the
+guards in its tests.
 
 # T-007: The workflows of podcrates
 

@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**40 entries: 33 open, 1 partial, 1 blocked, 5 done.**
+**41 entries: 34 open, 0 partial, 1 blocked, 6 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 20 | 1 | 0 | 5 | 26 |
+| P1 | 20 | 0 | 0 | 6 | 26 |
 | P2 | 10 | 0 | 1 | 0 | 11 |
-| P3 | 3 | 0 | 0 | 0 | 3 |
-| **All** | 33 | 1 | 1 | 5 | 40 |
+| P3 | 4 | 0 | 0 | 0 | 4 |
+| **All** | 34 | 0 | 1 | 6 | 41 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -51,7 +51,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-003](foundation.md) | P1 | M | M0 | chore | done | The checks of each push, each with its plant |
 | [T-004](foundation.md) | P1 | M | M0 | chore | done | The static probe on each target |
 | [T-005](foundation.md) | P1 | M | M0 | feature | done | `pod-core`: the traits, the errors, the events and the helpers that each crate shares |
-| [T-006](foundation.md) | P1 | S | M0 | chore | partial | `pod-testkit`: the guards of the host and the SSH test server |
+| [T-006](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the guards of a test host |
 | [T-007](foundation.md) | P1 | M | M0 | chore | open | The workflows of podcrates |
 | [T-008](foundation.md) | P1 | M | M0 | chore | open | Adoption trials in CI, and the trial of `pod-todo` in podssh and podnet |
 | [T-009](foundation.md) | P1 | S | M0 | release | open | The first release |
@@ -86,3 +86,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-038](roads.md) | P3 | S | M4 | feature | open | `pod-tor`: the Tor road through arti |
 | [T-039](roads.md) | P2 | L | M4 | feature | open | `pod-ts`: a Tailscale node in the process |
 | [T-040](upkeep.md) | P2 | S | M5 | chore | blocked | The trial of podvm |
+| [T-041](transport.md) | P3 | S | M1 | chore | open | `pod-testkit`: the SSH test server of podssh (the feature `ssh`) |

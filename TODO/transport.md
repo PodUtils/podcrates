@@ -315,3 +315,41 @@ cargo check --manifest-path fuzz/Cargo.toml --bins
 ## Start condition
 
 T-013 is done.
+
+# T-041: `pod-testkit`: the SSH test server of podssh (the feature `ssh`)
+
+**Source:** `docs/design.md`, section 4 (M0); T-006, Decision.
+**Category:** chore
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's tests have an SSH server in the test process (russh). podnet's
+git hosting needs one in its tests too.
+
+## Premise
+
+- Read: `PodUtils/podssh:crates/podssh-cli/tests/ssh_harness/` (20 files,
+  2,054 lines): `serve.rs`, `shell.rs`, `pass.rs`, `ends.rs`, `eof.rs`,
+  `forward.rs`, `sftp.rs` are generic; the rest answers podssh's own
+  commands.
+
+## Approach
+
+The generic parts behind the feature `ssh` of `pod-testkit`, on russh
+0.65 of crates.io with ring (`docs/decisions.md`, call C9); the commands
+of podssh stay in podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --features ssh
+```
+
+## Start condition
+
+A crate of podcrates or a consumer needs an SSH server in its tests.
+
