@@ -1,12 +1,14 @@
-//! The little HTTP/1.1 podssh needs besides the WebSocket upgrade: one request
-//! and one response over an already-open stream, with bounded sizes. It reads
-//! `Content-Length`, `Transfer-Encoding: chunked`, and read-until-close bodies.
-//! The other side, a server's reading of a request, is [`request`] (T-367).
+//! The little HTTP/1.1 that the consumers need besides the WebSocket
+//! upgrade: one request and one response over an already-open stream, with
+//! bounded sizes. It reads `Content-Length`, `Transfer-Encoding: chunked`,
+//! and read-until-close bodies. The other side, a server's reading of a
+//! request, is [`request`].
 
 pub mod request;
 
 pub use request::{Request, RequestError, read_request};
 
+use pod_core::text::one_line;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// The longest response head accepted.
@@ -30,15 +32,15 @@ impl Response {
     }
 
     /// The body as text, for error messages: lossy UTF-8 made safe for a
-    /// terminal (see [`crate::text::one_line`]), cut to `max` characters.
+    /// terminal (see [`pod_core::text::one_line`]), cut to `max` characters.
     pub fn body_text(&self, max: usize) -> String {
-        cut(crate::text::one_line(&String::from_utf8_lossy(&self.body)), max)
+        cut(one_line(&String::from_utf8_lossy(&self.body)), max)
     }
 
     /// A header's first value as text for a line, as [`Self::body_text`]
-    /// makes the body: a peer's header reaches the terminal too (T-407).
+    /// makes the body: a peer's header reaches the terminal too.
     pub fn header_text(&self, name: &str, max: usize) -> Option<String> {
-        self.header(name).map(|value| cut(crate::text::one_line(value), max))
+        self.header(name).map(|value| cut(one_line(value), max))
     }
 }
 
@@ -50,11 +52,14 @@ fn cut(text: String, max: usize) -> String {
     }
 }
 
-/// Send one request and read the response, closing nothing. `extra_headers`
-/// must not contain CR or LF (they are refused). The response body is capped
-/// at `max_body` bytes.
+/// Send one request and read the response, closing nothing. `user_agent`
+/// (`podssh/VERSION`) goes in `User-Agent`, and none goes with an empty
+/// one. `extra_headers` must not contain CR or LF (they are refused). The
+/// response body is capped at `max_body` bytes.
+#[allow(clippy::too_many_arguments)]
 pub async fn exchange<S>(
     stream: &mut S,
+    user_agent: &str,
     method: &str,
     host: &str,
     path: &str,
@@ -65,15 +70,17 @@ pub async fn exchange<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    for part in [method, host, path].into_iter().chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v])) {
+    let parts = [user_agent, method, host, path].into_iter();
+    for part in parts.chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v])) {
         if part.contains(['\r', '\n']) {
             return Err(invalid("a request line or header contains CR or LF"));
         }
     }
-    let mut request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: podssh/{}\r\nConnection: close\r\n",
-        env!("CARGO_PKG_VERSION")
-    );
+    let mut request = format!("{method} {path} HTTP/1.1\r\nHost: {host}\r\n");
+    if !user_agent.is_empty() {
+        request.push_str(&format!("User-Agent: {user_agent}\r\n"));
+    }
+    request.push_str("Connection: close\r\n");
     for (name, value) in extra_headers {
         request.push_str(&format!("{name}: {value}\r\n"));
     }
@@ -123,7 +130,7 @@ pub type Head = (u16, String, Vec<(String, String)>);
 
 /// Parse a response head into status, reason and lower-cased headers.
 pub fn parse_head(head: &str) -> Result<Head, String> {
-    let (status, reason) = crate::dial::parse_status_line(head)?;
+    let (status, reason) = parse_status_line(head)?;
     let headers = head
         .split("\r\n")
         .skip(1)
@@ -131,6 +138,20 @@ pub fn parse_head(head: &str) -> Result<Head, String> {
         .map(|(n, v)| (n.trim().to_ascii_lowercase(), v.trim().to_string()))
         .collect();
     Ok((status, reason, headers))
+}
+
+/// `HTTP/1.1 200 Connection Established` → `(200, "Connection Established")`.
+pub fn parse_status_line(head: &str) -> Result<(u16, String), String> {
+    let line = head.lines().next().unwrap_or_default();
+    let mut parts = line.splitn(3, ' ');
+    let version = parts.next().unwrap_or_default();
+    if !version.starts_with("HTTP/") {
+        return Err(format!("not an HTTP status line: {line:?}"));
+    }
+    let status =
+        parts.next().and_then(|s| s.parse::<u16>().ok()).ok_or_else(|| format!("no status code in {line:?}"))?;
+    // The reason phrase is the proxy's text and ends up on the user's terminal.
+    Ok((status, one_line(parts.next().unwrap_or_default())))
 }
 
 async fn read_body<S>(stream: &mut S, head: &Response, mut have: Vec<u8>, max_body: usize) -> std::io::Result<Vec<u8>>

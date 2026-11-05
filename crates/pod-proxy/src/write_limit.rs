@@ -1,8 +1,7 @@
-//! A stream whose write fails when it makes no progress for a while
-//! (T-227): a peer that stops reading below SSH, as a TCP zero window that
-//! never opens, ends the session with the rule of the relay leg
-//! ([`crate::client::WRITE_TIMEOUT`]), never a wait for ever. Reads pass as
-//! they are: a quiet peer is not a stuck one.
+//! A stream whose write fails when it makes no progress for a while: a peer
+//! that stops reading below SSH, as a TCP zero window that never opens,
+//! ends the session at the limit (podssh's relay leg: 60 s), never a wait
+//! for ever. Reads pass as they are: a quiet peer is not a stuck one.
 
 use std::future::Future;
 use std::io;

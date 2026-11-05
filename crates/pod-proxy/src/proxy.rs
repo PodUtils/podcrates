@@ -1,8 +1,8 @@
-//! The proxy that a URL names (T-070): HTTP `CONNECT` (`http://`, or a bare
+//! The proxy that a URL names: HTTP `CONNECT` (`http://`, or a bare
 //! `host:port`) or SOCKS5 (`socks5://`, `socks5h://`), with the user and the
 //! password that it carries, which no message shows.
 
-use crate::dial::{authority, split_host_port};
+use crate::host::{authority, split_host_port};
 
 /// How a proxy tunnels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,7 +10,7 @@ pub enum ProxyKind {
     /// HTTP `CONNECT`: `http://`, or a bare `host:port`.
     Http,
     /// SOCKS5 (RFC 1928): `socks5://` and `socks5h://` alike. Both send the
-    /// host name, so that a host with no DNS needs none (T-070).
+    /// host name, so that a host with no DNS needs none.
     Socks5,
 }
 
@@ -52,7 +52,7 @@ pub struct Proxy {
     credentials: Option<(String, String)>,
 }
 
-/// The name of [`Proxy`] before SOCKS5 (T-070), kept for the crates and the
+/// The name of [`Proxy`] before SOCKS5, kept for the crates and the
 /// projects that name it.
 pub type HttpProxy = Proxy;
 
@@ -88,14 +88,14 @@ impl Proxy {
             }
             Some((scheme, _)) if scheme.eq_ignore_ascii_case("socks4") || scheme.eq_ignore_ascii_case("socks4a") => {
                 return Err(format!(
-                    "proxy scheme {scheme}:// is not supported: SOCKS4 has no authentication; podssh speaks SOCKS5 \
-                     to a socks5:// or socks5h:// proxy, and HTTP CONNECT to an http:// one"
+                    "proxy scheme {scheme}:// is not supported: SOCKS4 has no authentication; SOCKS5 goes to a \
+                     socks5:// or socks5h:// proxy, and HTTP CONNECT to an http:// one"
                 ));
             }
             Some((scheme, _)) => {
                 return Err(format!(
-                    "proxy scheme {scheme}:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy, and \
-                     SOCKS5 to a socks5:// or socks5h:// one"
+                    "proxy scheme {scheme}:// is not supported; HTTP CONNECT goes to an http:// proxy, and SOCKS5 \
+                     to a socks5:// or socks5h:// one"
                 ));
             }
             None => (ProxyKind::Http, url),
@@ -118,8 +118,8 @@ impl Proxy {
             return Err("the proxy URL names no host".into());
         }
         // A name or an address holds none of these, and `url()` could not
-        // write such a host back in a form that parses (T-198: the fuzz
-        // target `proxy_url` found `]_::`).
+        // write such a host back in a form that parses (the fuzz target
+        // `proxy_url` found `]_::`).
         let odd = |c: char| matches!(c, '[' | ']' | '@' | '/' | '?' | '#') || c.is_whitespace() || c.is_control();
         if let Some(c) = host.chars().find(|c| odd(*c)) {
             return Err(format!("the proxy URL's host holds {c:?}, which no host name or address holds"));
@@ -175,8 +175,8 @@ fn percent_encode(s: &str) -> String {
 }
 
 /// Decode `%XX` escapes in proxy credentials, and in the user of a second
-/// proxy's URL (`via`, T-439).
-pub(crate) fn percent_decode(s: &str) -> Result<String, String> {
+/// proxy's URL.
+pub fn percent_decode(s: &str) -> Result<String, String> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

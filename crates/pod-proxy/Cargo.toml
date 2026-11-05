@@ -6,3 +6,44 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+# The GET client seals its hello with Encrypted Client Hello where the TLS
+# context asks for it (pod-tls, feature ech), with the reader of HTTPS
+# records that the caller gives.
+ech = ["pod-tls/ech"]
+
+[dependencies]
+pod-core = { workspace = true }
+pod-tls = { workspace = true }
+# JoinSet and select! (the race of addresses), lookup_host (the system
+# resolver).
+tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros"] }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# The Basic credentials of a CONNECT.
+base64 = { workspace = true }
+# The diagnostics: how a connection was made, an option that a socket refused.
+tracing = { workspace = true }
+
+# The socket of Multipath TCP (Linux) and TCP_NOTSENT_LOWAT (Linux and
+# macOS): the socket call with IPPROTO_MPTCP, setsockopt and getsockopt.
+# libc compiles no C.
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
+# The tests of TLS run on ring.
+rustls = { workspace = true, features = ["ring"] }
+# The certificates of the tests of pod-tls (tests/get.rs), minted in pure
+# Rust with deterministic keys.
+p256 = { workspace = true }
+sha2 = { workspace = true }
+
+# cargo-fuzz builds with `--cfg fuzzing` (T-017), under which the SOCKS5
+# exchange, private here, is reachable by the fuzzer.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }

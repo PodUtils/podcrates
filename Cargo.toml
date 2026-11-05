@@ -21,6 +21,7 @@ crates-io = false
 [workspace.dependencies]
 pod-core = { path = "crates/pod-core", version = "0.2.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.2.0" }
+pod-proxy = { path = "crates/pod-proxy", version = "0.2.0" }
 pod-term = { path = "crates/pod-term", version = "0.2.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.2.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.2.0" }

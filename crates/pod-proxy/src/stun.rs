@@ -1,9 +1,9 @@
 //! STUN's messages (RFC 8489), the codec alone: a Binding Request, a Binding
 //! response as a server writes it, and the reading of any message, each
-//! attribute's length checked before its value is read. `podssh doctor`'s
-//! line `nat` asks two servers with it (T-641); the TURN road (T-621) builds
-//! its attributes and MESSAGE-INTEGRITY on the same reader. Pure Rust, no
-//! I/O: the caller owns the socket.
+//! attribute's length checked before its value is read. A doctor's line of
+//! the NAT asks two servers with it; a TURN road builds its attributes and
+//! MESSAGE-INTEGRITY on the same reader. Pure Rust, no I/O: the caller owns
+//! the socket.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 

@@ -1,6 +1,6 @@
-//! What a proxy's `407` asks for (T-320). RFC 9110, section 11.7.1: the
-//! answer carries `Proxy-Authenticate` with each scheme that the proxy takes.
-//! podssh sends Basic only, from the user and password of the proxy URL, as
+//! What a proxy's `407` asks for. RFC 9110, section 11.7.1: the answer
+//! carries `Proxy-Authenticate` with each scheme that the proxy takes. The
+//! dial sends Basic only, from the user and password of the proxy URL, as
 //! Go, wget, requests and reqwest do; an NTLM or Negotiate proxy refuses it,
 //! and the message must say why rather than only that it refused.
 
@@ -49,9 +49,10 @@ fn outside_quotes(value: &str) -> Vec<&str> {
     parts
 }
 
-/// The reason of a `407`, with what the proxy asks for and what podssh can
-/// give: `sent_basic` is whether the URL's user and password went with it.
-pub(crate) fn explain(reason: &str, head: &str, sent_basic: bool) -> String {
+/// The reason of a `407`, with what the proxy asks for and what the program
+/// `app` can give: `sent_basic` is whether the URL's user and password went
+/// with it.
+pub(crate) fn explain(reason: &str, head: &str, sent_basic: bool, app: &str) -> String {
     let asks = schemes(head);
     if asks.is_empty() {
         return reason.to_string();
@@ -65,9 +66,9 @@ pub(crate) fn explain(reason: &str, head: &str, sent_basic: bool) -> String {
     let what = match (takes_basic, sent_basic) {
         (true, true) => "and refused the user and password of the proxy URL (Basic)".to_string(),
         (true, false) => {
-            "and podssh sent none: put them in the proxy URL, http://USER:PASSWORD@HOST:PORT (Basic)".to_string()
+            format!("and {app} sent none: put them in the proxy URL, http://USER:PASSWORD@HOST:PORT (Basic)")
         }
-        (false, _) => "and podssh sends Basic only, from the user and password of the proxy URL".to_string(),
+        (false, _) => format!("and {app} sends Basic only, from the user and password of the proxy URL"),
     };
     format!("{reason}; it asks for {list}, {what}")
 }

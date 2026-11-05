@@ -1,19 +1,21 @@
 //! A tunnel through a SOCKS5 proxy (RFC 1928), with the user and the
-//! password of RFC 1929 when the proxy URL has them (T-070). The host name
-//! goes to the proxy (address type 3), so this host needs no DNS: the hosts
-//! that podssh is made for often have none. A proxy that takes no names
-//! (reply 8) gets one more try, with an address that podssh resolves in its
-//! own order. The reply is read to exactly its length: the bytes after it
-//! belong to TLS.
+//! password of RFC 1929 when the proxy URL has them. The host name goes to
+//! the proxy (address type 3), for `socks5://` and `socks5h://` alike, so
+//! this host needs no DNS: the hosts that the consumers are made for often
+//! have none. A proxy that takes no names (reply 8) gets one more try, with
+//! an address from the caller's resolver, in its order. The reply is read
+//! to exactly its length: the bytes after it belong to TLS.
 
 use std::net::IpAddr;
-use std::time::Duration;
 
+use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::time::Instant;
 
-use crate::dial::{DialError, Proxy, authority, connect_direct};
+use crate::error::DialError;
+use crate::host::{authority, check_name};
+use crate::proxy::Proxy;
+use crate::race::{Leg, connect_direct, interleave};
 
 const VERSION: u8 = 5;
 const NO_AUTHENTICATION: u8 = 0x00;
@@ -42,21 +44,22 @@ enum Step {
     Io(std::io::Error),
     /// The proxy broke the protocol.
     Protocol(String),
-    /// No method that podssh offered, or the user and password, refused.
+    /// No method that the dial offered, or the user and password, refused.
     Auth(String),
     /// A reply other than success.
     Reply(u8),
 }
 
-/// A tunnel to `host:port` through `proxy`, the whole within `deadline`.
+/// A tunnel to `host:port` through `proxy`, the whole within the deadline
+/// of `leg`; `app` names the program in the words of a refusal.
 pub(crate) async fn connect(
+    leg: Leg<'_>,
+    app: &str,
     proxy: &Proxy,
     host: &str,
     port: u16,
-    deadline: Instant,
-    budget: Duration,
 ) -> Result<TcpStream, DialError> {
-    crate::dial::check_name(&proxy.host)?;
+    check_name(&proxy.host)?;
     let bare = host.trim_start_matches('[').trim_end_matches(']');
     let target = match bare.parse::<IpAddr>() {
         Ok(addr) => Target::Addr(addr),
@@ -65,36 +68,37 @@ pub(crate) async fn connect(
         }
         Err(_) => Target::Name(host),
     };
-    match attempt(proxy, target, port, deadline, budget).await {
+    match attempt(leg, app, proxy, target, port).await {
         Err(Some(Step::Reply(ADDRESS_TYPE_NOT_SUPPORTED))) if matches!(target, Target::Name(_)) => {
             // The proxy takes no names: once more, with an address of ours.
-            let addrs = crate::resolve::resolve(host, port, deadline)
+            let addrs = leg
+                .resolve
+                .resolve(host, port, leg.deadline)
                 .await
-                .map_err(|detail| DialError::Resolve { host: host.to_string(), detail })?;
-            let addr = crate::dial::interleave(addrs)
+                .map_err(|e| DialError::Resolve { host: host.to_string(), detail: e.chain() })?;
+            let addr = interleave(addrs)
                 .first()
                 .map(|a| a.ip())
                 .ok_or_else(|| DialError::Resolve { host: host.to_string(), detail: "no address".into() })?;
-            attempt(proxy, Target::Addr(addr), port, deadline, budget)
+            attempt(leg, app, proxy, Target::Addr(addr), port)
                 .await
-                .map_err(|e| failure(proxy, &authority(&addr.to_string(), port), e, budget))
+                .map_err(|e| failure(proxy, &authority(&addr.to_string(), port), e, leg))
         }
-        result => result.map_err(|e| failure(proxy, &authority(host, port), e, budget)),
+        result => result.map_err(|e| failure(proxy, &authority(host, port), e, leg)),
     }
 }
 
 /// One connection to the proxy and one exchange. `Err(None)`: the time ran
 /// out during the exchange.
 async fn attempt(
+    leg: Leg<'_>,
+    app: &str,
     proxy: &Proxy,
     target: Target<'_>,
     port: u16,
-    deadline: Instant,
-    budget: Duration,
 ) -> Result<TcpStream, Option<Step>> {
-    let mut stream =
-        connect_direct(&proxy.host, proxy.port, deadline, budget).await.map_err(|e| Some(Step::Unreachable(e)))?;
-    match tokio::time::timeout_at(deadline, exchange(&mut stream, proxy, target, port)).await {
+    let mut stream = connect_direct(leg, &proxy.host, proxy.port).await.map_err(|e| Some(Step::Unreachable(e)))?;
+    match tokio::time::timeout_at(leg.deadline, exchange(&mut stream, app, proxy, target, port)).await {
         Ok(Ok(())) => Ok(stream),
         Ok(Err(step)) => Err(Some(step)),
         Err(_) => Err(None),
@@ -103,12 +107,13 @@ async fn attempt(
 
 /// The error of a failed attempt, in the terms of an HTTP proxy's, so that
 /// the failover and the exit codes treat both the same.
-fn failure(proxy: &Proxy, target: &str, step: Option<Step>, budget: Duration) -> DialError {
+fn failure(proxy: &Proxy, target: &str, step: Option<Step>, leg: Leg<'_>) -> DialError {
     let proxy_name = proxy.to_string();
+    let (after, stage) = (leg.budget, Stage::Proxy);
     match step {
-        None => DialError::Timeout { step: format!("the SOCKS5 exchange with {proxy_name}"), after: budget },
+        None => DialError::Timeout { step: format!("the SOCKS5 exchange with {proxy_name}"), after, stage },
         Some(Step::Unreachable(DialError::Timeout { .. })) => {
-            DialError::Timeout { step: format!("connecting to the SOCKS5 proxy {proxy_name}"), after: budget }
+            DialError::Timeout { step: format!("connecting to the SOCKS5 proxy {proxy_name}"), after, stage }
         }
         Some(Step::Unreachable(e)) => DialError::ProxyUnreachable { proxy: proxy_name, detail: e.to_string() },
         Some(Step::Io(e)) => DialError::ProxyProtocol { proxy: proxy_name, detail: format!("SOCKS5: {e}") },
@@ -129,7 +134,7 @@ fn failure(proxy: &Proxy, target: &str, step: Option<Step>, budget: Duration) ->
             proxy: proxy_name,
             target: target.into(),
             // Its rules refused: as an HTTP proxy's 403. The rest is the far
-            // side, as a 502, and another relay host may get through.
+            // side, as a 502, and another host may get through.
             status: if reply == 0x02 { 403 } else { 502 },
             reason: format!("SOCKS5 reply {reply}, {}", reply_text(reply)),
         },
@@ -152,9 +157,11 @@ fn reply_text(reply: u8) -> &'static str {
 }
 
 /// The greeting, the user and password when the proxy asks for them, and
-/// CONNECT. Any stream, so that the fuzzer can play the proxy.
+/// CONNECT. Any stream, so that the fuzzer can play the proxy; `app` names
+/// the program in the words of a method that it did not offer.
 async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
     stream: &mut S,
+    app: &str,
     proxy: &Proxy,
     target: Target<'_>,
     port: u16,
@@ -182,7 +189,7 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
             return Err(Step::Auth("it takes neither no authentication nor a user and a password".into()));
         }
         (other, _) => {
-            return Err(Step::Protocol(format!("it chose the method {other:#04x}, which podssh did not offer")));
+            return Err(Step::Protocol(format!("it chose the method {other:#04x}, which {app} did not offer")));
         }
     }
     let mut request = vec![VERSION, CONNECT, 0x00];
@@ -212,7 +219,7 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
         // A refusal: what follows is not read, as the stream is not used.
         return Err(Step::Reply(head[1]));
     }
-    // The bound address, which podssh does not use, to exactly its end.
+    // The bound address, which the dial does not use, to exactly its end.
     let rest = match head[3] {
         IPV4 => 4 + 2,
         IPV6 => 16 + 2,
@@ -292,7 +299,7 @@ pub fn fuzz_exchange(answer: &[u8], credentials: bool, by_name: bool) -> bool {
     let proxy = Proxy::parse(url).expect("a SOCKS5 URL");
     let target = if by_name { Target::Name("relay.invalid") } else { Target::Addr(IpAddr::from([192, 0, 2, 1])) };
     let mut stream = Scripted(answer);
-    let mut exchange = std::pin::pin!(exchange(&mut stream, &proxy, target, 443));
+    let mut exchange = std::pin::pin!(exchange(&mut stream, "pod-proxy", &proxy, target, 443));
     match exchange.as_mut().poll(&mut Context::from_waker(Waker::noop())) {
         Poll::Ready(done) => done.is_ok(),
         Poll::Pending => panic!("the SOCKS5 exchange waited on a proxy that is always ready"),

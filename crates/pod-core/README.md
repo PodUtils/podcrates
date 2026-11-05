@@ -7,7 +7,7 @@ this crate depends on no other pod crate.
 
 | Module | What |
 | --- | --- |
-| `dial` | `Target` (a name and a port, or an address), `Dial` (a way out: `dial`, `dial_addrs`, `names_inside`, `datagrams`), `Resolve` (`resolve_from` with the order of its sources, `pinned`, `note_dialed`), `Connected`, `BoxedIo`, `BoxFuture` |
+| `dial` | `Target` (a name and a port, or an address), `Dial` (a way out: `dial`, `dial_addrs`, `names_inside`, `datagrams`), `Resolve` (`resolve_from` with the order of its sources, `pinned`, `note_dialed`), `Found` (the addresses, their source, and `more` when a source after it may give more), `SOURCE_WAIT` (the time of a source with more after it in the race of addresses), `Connected`, `BoxedIo`, `BoxFuture` |
 | `datagrams` | `Datagrams` in the shape of the UDP socket of quinn and noq, `SystemDatagrams`, `send_to`, `recv_from` |
 | `failure` | `Failure` with its `Stage` (where the path broke) and its `Class` (what a caller can do) |
 | `event` | `Event` (a line for the user), `Events`, `Observer` (the count of decisions), `Report` |

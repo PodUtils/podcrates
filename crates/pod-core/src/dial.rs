@@ -9,6 +9,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::Instant;
@@ -159,12 +160,24 @@ pub struct Source {
     pub name: &'static str,
 }
 
-/// The addresses of a name, and the source that gave them.
+/// The addresses of a name, the source that gave them, and whether a source
+/// after it may give more when none of them connects.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Found {
     pub addrs: Vec<SocketAddr>,
     pub source: Source,
+    /// True when the resolver asks a source after this one when none of
+    /// these addresses connects (a cache that can be stale, DNS over HTTPS
+    /// before the old addresses). The race of addresses then gives them
+    /// [`SOURCE_WAIT`] to connect, and asks again with `after: Some(source)`.
+    pub more: bool,
 }
+
+/// How long the addresses of a source with another after it have to
+/// connect before the race of addresses asks the next source: a stale
+/// address does not hold the dial. A resolver that waits for a slow source
+/// before an old one uses the same time.
+pub const SOURCE_WAIT: Duration = Duration::from_secs(4);
 
 /// The addresses of a name. `pod-dns` implements it; `pod-proxy` dials
 /// through it, so neither crate depends on the other.
@@ -174,7 +187,7 @@ pub trait Resolve: Send + Sync {
     /// The addresses of `host`, from the first source after `after` (from
     /// the first source with `None`) that has some, before `deadline`. A
     /// race of addresses asks again with the source of the last answer when
-    /// none of its addresses connected.
+    /// none of its addresses connected and the answer said [`Found::more`].
     fn resolve_from<'a>(
         &'a self,
         host: &'a str,

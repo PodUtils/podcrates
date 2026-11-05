@@ -27,7 +27,7 @@ pub mod names;
 pub mod text;
 
 pub use datagrams::{Datagrams, RecvMeta, SystemDatagrams, Transmit};
-pub use dial::{BoxFuture, BoxedIo, Connected, Dial, Found, Io, Resolve, Source, Target};
+pub use dial::{BoxFuture, BoxedIo, Connected, Dial, Found, Io, Resolve, SOURCE_WAIT, Source, Target};
 pub use event::{Event, Events, Level, NoEvents, NoObserver, Observer, Report};
 pub use failure::{Class, Failure, Stage};
 pub use metered::Metered;

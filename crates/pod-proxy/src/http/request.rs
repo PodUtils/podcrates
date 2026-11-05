@@ -1,11 +1,12 @@
-//! The head of an HTTP/1 request, as a server of podssh reads it (T-367): the
-//! CONNECT of `podssh pipe http-listen:`, and the upgrade of `ws-listen:`
-//! (T-368). The request line and its headers within 16 KiB, as a response's
-//! head is read. A line ends with CRLF or a bare LF (RFC 9112 section 2.2);
-//! a bare CR, a space before a header's colon, a folded line and a control
-//! byte are refused, as a head that two readers would read two ways is how a
-//! request is smuggled past one of them.
+//! The head of an HTTP/1 request, as a server of a consumer reads it: the
+//! CONNECT of podssh's `pipe http-listen:`, and the upgrade of its
+//! `ws-listen:`. The request line and its headers within 16 KiB, as a
+//! response's head is read. A line ends with CRLF or a bare LF (RFC 9112
+//! section 2.2); a bare CR, a space before a header's colon, a folded line
+//! and a control byte are refused, as a head that two readers would read
+//! two ways is how a request is smuggled past one of them.
 
+use pod_core::text::one_line;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// The longest request head read, as the longest response head.
@@ -234,13 +235,13 @@ pub fn connect_target(target: &str) -> Result<(String, u16), String> {
     if target.starts_with('[') && host.parse::<std::net::Ipv6Addr>().is_err() {
         return Err(format!("{target:?}: brackets hold an IPv6 address"));
     }
-    crate::names::check_target(host)?;
+    pod_core::names::check_target(host)?;
     Ok((host.to_string(), port))
 }
 
-/// The reason phrase of each status that podssh's servers send, by RFC
-/// 9110's names; the relay role sends 404, 409, 413 and 429 through
-/// [`refusal`] too (T-639).
+/// The reason phrase of each status that the servers of the consumers send,
+/// by RFC 9110's names; podssh's relay role sends 404, 409, 413 and 429
+/// through [`refusal`] too.
 pub fn reason(status: u16) -> &'static str {
     match status {
         101 => "Switching Protocols",
@@ -271,7 +272,7 @@ pub fn reason(status: u16) -> &'static str {
 /// made one line, as the words may be a peer's. The connection closes after
 /// it: these servers answer one request on a connection.
 pub fn refusal(status: u16, words: &str, headers: &[(&str, &str)]) -> Vec<u8> {
-    let words = crate::text::one_line(words);
+    let words = one_line(words);
     let mut phrase = reason(status).to_string();
     if !words.is_empty() {
         phrase.push_str(": ");
@@ -280,7 +281,7 @@ pub fn refusal(status: u16, words: &str, headers: &[(&str, &str)]) -> Vec<u8> {
     let body = if words.is_empty() { String::new() } else { format!("{words}\n") };
     let mut out = format!("HTTP/1.1 {status} {phrase}\r\n");
     for (name, value) in headers {
-        out.push_str(&format!("{}: {}\r\n", crate::text::one_line(name), crate::text::one_line(value)));
+        out.push_str(&format!("{}: {}\r\n", one_line(name), one_line(value)));
     }
     if !body.is_empty() {
         out.push_str("Content-Type: text/plain; charset=utf-8\r\n");
@@ -291,13 +292,13 @@ pub fn refusal(status: u16, words: &str, headers: &[(&str, &str)]) -> Vec<u8> {
 
 /// A whole answer of `status` whose body `body` is of the type `kind`, after
 /// which the connection closes, as after [`refusal`]: the pages of
-/// `ws-listen:`'s `--cover` (T-639). With `head_only`, the answer to a HEAD:
+/// podssh's `ws-listen:` `--cover`. With `head_only`, the answer to a HEAD:
 /// the same head, its length the body's, and no body (RFC 9110 section
 /// 9.3.2). `nosniff`, so that a browser takes the type that the name gave.
 pub fn answer(status: u16, kind: &str, body: &[u8], head_only: bool) -> Vec<u8> {
     // [`reason`]'s 200 is a CONNECT's; a page's is OK.
     let phrase = if status == 200 { "OK" } else { reason(status) };
-    let kind = crate::text::one_line(kind);
+    let kind = one_line(kind);
     let mut out = format!(
         "HTTP/1.1 {status} {phrase}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\n\
          X-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",

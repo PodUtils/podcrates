@@ -1,11 +1,12 @@
-//! `TCP_NOTSENT_LOWAT` on podssh's own TCP sockets (T-661): the kernel then
-//! keeps at most [`LOWAT`] bytes that it has not sent, so a key written
-//! after a bulk write waits behind those, not behind the whole send buffer
-//! (megabytes, as the kernel tunes it). A probe and not an assumption: the
-//! call is tried, and a system that has no such option, or refuses it,
-//! keeps its buffer as it was.
+//! `TCP_NOTSENT_LOWAT` on each dialed TCP socket: the kernel then keeps at
+//! most so many bytes that it has not sent ([`LOWAT`] by default), so a key
+//! written after a bulk write waits behind those, not behind the whole send
+//! buffer (megabytes, as the kernel tunes it). A probe and not an
+//! assumption: the call is tried, and a system that has no such option, or
+//! refuses it, keeps its buffer as it was.
 
-/// The bytes that the kernel may hold unsent: osewa's, a few packets.
+/// The bytes that the kernel may hold unsent by default: osewa's, a few
+/// packets.
 pub const LOWAT: u32 = 16 * 1024;
 
 #[cfg(target_os = "linux")]
@@ -13,23 +14,25 @@ const TCP_NOTSENT_LOWAT: libc::c_int = 25;
 #[cfg(target_os = "macos")]
 const TCP_NOTSENT_LOWAT: libc::c_int = 0x201;
 
-/// Set [`LOWAT`] on `tcp`; the system's words when it did not take it.
+/// Let the kernel hold at most `bytes` unsent on `tcp`; the system's words
+/// when it did not take it.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-pub fn set(tcp: &tokio::net::TcpStream) -> Result<(), String> {
+pub fn set(tcp: &tokio::net::TcpStream, bytes: u32) -> Result<(), String> {
     use std::os::fd::AsRawFd;
-    set_on(tcp.as_raw_fd())
+    set_on(tcp.as_raw_fd(), bytes)
 }
 
 /// Elsewhere nothing is set: Windows has no such option, and the crate reads
 /// no other system's number for it.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-pub fn set(_tcp: &tokio::net::TcpStream) -> Result<(), String> {
+pub fn set(_tcp: &tokio::net::TcpStream, _bytes: u32) -> Result<(), String> {
     Err("this system has no such option".into())
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn set_on(fd: std::os::fd::RawFd) -> Result<(), String> {
-    let value = LOWAT as libc::c_int;
+fn set_on(fd: std::os::fd::RawFd, bytes: u32) -> Result<(), String> {
+    // A value past the range of the option is the most that it holds.
+    let value = libc::c_int::try_from(bytes).unwrap_or(libc::c_int::MAX);
     let len = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
     // SAFETY: the descriptor of a socket that the caller holds open, and a
     // value of the length given, which setsockopt only reads.
@@ -64,14 +67,14 @@ mod tests {
     async fn a_linux_tcp_socket_takes_16_kib_unsent() {
         let socket = tokio::net::TcpSocket::new_v4().expect("a TCP socket");
         assert_ne!(get_on(socket.as_raw_fd()), Some(LOWAT), "not the kernel's default");
-        assert_eq!(set_on(socket.as_raw_fd()), Ok(()));
+        assert_eq!(set_on(socket.as_raw_fd(), LOWAT), Ok(()));
         assert_eq!(get_on(socket.as_raw_fd()), Some(LOWAT));
     }
 
     /// A descriptor that is no socket: the system's refusal, in words.
     #[test]
     fn a_refusal_is_said() {
-        let refused = set_on(-1).expect_err("no socket");
+        let refused = set_on(-1, LOWAT).expect_err("no socket");
         assert!(refused.starts_with("the system refused it: "), "{refused}");
     }
 }

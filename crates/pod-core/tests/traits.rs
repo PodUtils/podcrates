@@ -54,8 +54,8 @@ impl Resolve for TwoSources {
     ) -> BoxFuture<'a, Result<Found, Failure>> {
         Box::pin(async move {
             match after {
-                None => Ok(Found { addrs: self.system.clone(), source: SYSTEM }),
-                Some(s) if s == SYSTEM => Ok(Found { addrs: self.doh.clone(), source: DOH }),
+                None => Ok(Found { addrs: self.system.clone(), source: SYSTEM, more: true }),
+                Some(s) if s == SYSTEM => Ok(Found { addrs: self.doh.clone(), source: DOH, more: false }),
                 Some(_) => Err(Failure::new(Stage::Dns, Class::Unavailable, format!("no other source for {host}"))),
             }
         })

@@ -1,5 +1,5 @@
-//! Multipath TCP on the direct road (T-172), on request. A connection with
-//! no proxy asks Linux for a socket of `IPPROTO_MPTCP`: where the server
+//! Multipath TCP on the direct road, on request. A connection with no
+//! proxy asks Linux for a socket of `IPPROTO_MPTCP`: where the server
 //! speaks MPTCP too, the connection can go on over another network of this
 //! host when one goes. Linux makes one from 5.6, when the switch of
 //! [`ENABLED_FILE`] is 1, and a server that does not speak it gets plain TCP
@@ -7,7 +7,8 @@
 //!
 //! The probe is the switch, then the socket call. Where either says no, the
 //! connection is plain TCP: the same stream, so the fallback changes nothing
-//! but the paths. The caller learns which it got, and why, for `-v`.
+//! but the paths. The caller learns which it got, and why, for a verbose
+//! line.
 
 use std::io;
 use std::net::SocketAddr;

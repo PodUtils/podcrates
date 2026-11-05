@@ -1,4 +1,4 @@
-//! The tests of STUN's codec (T-641): RFC 5769's test vectors, bytes that
+//! The tests of STUN's codec: RFC 5769's test vectors, bytes that
 //! the RFC's authors' software wrote, read field by field; the writer held to
 //! the same bytes; and each form that is no message refused before a byte
 //! past it is read.

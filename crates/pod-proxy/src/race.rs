@@ -1,29 +1,37 @@
 //! The direct connection to a name: the addresses of the first source of the
-//! resolver that gives any ([`crate::resolve`]), raced as RFC 8305 says
-//! (T-265); when none of them connects and the source falls back (the cache's
-//! addresses, those of DNS over HTTPS), the addresses of the sources after it
-//! (T-344). A source with another after it has [`SOURCE_WAIT`] to connect, so
-//! that a remembered address that no longer answers does not hold the dial.
+//! resolver that gives any, raced as RFC 8305 says; when none of them
+//! connects and the source says that more may follow ([`Found::more`]: the
+//! addresses of a cache, those of DNS over HTTPS), the addresses of the
+//! sources after it. A source with another after it has [`SOURCE_WAIT`] to
+//! connect, so that a remembered address that no longer answers does not
+//! hold the dial.
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use pod_core::{Found, Resolve, SOURCE_WAIT, Stage};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
 use crate::cut::Cut;
-use crate::dial::{ATTEMPT_DELAY, DialError, authority};
+use crate::error::DialError;
+use crate::host::authority;
 use crate::mptcp::Multipath;
-use crate::resolve::{self, SOURCE_WAIT};
+
+/// What each step of one dial takes: the resolver, the delay between two
+/// attempts of the race, and the bounds.
+#[derive(Clone, Copy)]
+pub(crate) struct Leg<'a> {
+    pub resolve: &'a dyn Resolve,
+    pub attempt_delay: Duration,
+    pub deadline: Instant,
+    /// The whole bound, for the words of a timeout.
+    pub budget: Duration,
+}
 
 /// Resolve and connect, with plain TCP: [`connect_race`].
-pub(crate) async fn connect_direct(
-    host: &str,
-    port: u16,
-    deadline: Instant,
-    budget: Duration,
-) -> Result<TcpStream, DialError> {
-    connect_race(host, port, deadline, budget, None).await.map(|(stream, _)| stream)
+pub(crate) async fn connect_direct(leg: Leg<'_>, host: &str, port: u16) -> Result<TcpStream, DialError> {
+    connect_race(leg, host, port, None).await.map(|(stream, _)| stream)
 }
 
 /// One attempt of the race: plain TCP, or with `ask`, the probe's answer,
@@ -35,39 +43,38 @@ async fn attempt(addr: SocketAddr, ask: Option<Result<(), String>>) -> std::io::
     }
 }
 
-/// [`connect_direct`], each attempt as `ask` says. The source of the address
-/// that connected is kept, for `podssh doctor` and for the cache.
+/// [`connect_direct`], each attempt as `ask` says. The resolver hears the
+/// source of the address that connected ([`Resolve::note_dialed`]), for a
+/// doctor and for its cache.
 pub(crate) async fn connect_race(
+    leg: Leg<'_>,
     host: &str,
     port: u16,
-    deadline: Instant,
-    budget: Duration,
     ask: Option<Result<(), String>>,
 ) -> Result<(TcpStream, Multipath), DialError> {
     let target = authority(host, port);
-    // Pinned addresses, the system resolver, the addresses that carried a
-    // session, then DNS over HTTPS: a host with a broken resolver but working
-    // TCP egress still gets there.
-    let mut found = resolve::resolve_from(host, port, deadline, None)
-        .await
-        .map_err(|detail| DialError::Resolve { host: host.to_string(), detail })?;
+    let resolve_error = |e: pod_core::Failure| DialError::Resolve { host: host.to_string(), detail: e.chain() };
+    // The resolver's order: pins, the system resolver, the addresses that
+    // carried a session, DNS over HTTPS. A host with a broken resolver but
+    // working TCP egress still gets there.
+    let mut found: Found = leg.resolve.resolve_from(host, port, leg.deadline, None).await.map_err(resolve_error)?;
     let mut tried: Vec<SocketAddr> = Vec::new();
     loop {
-        if Instant::now() >= deadline {
-            return Err(DialError::Timeout { step: format!("resolving {host}"), after: budget });
+        if Instant::now() >= leg.deadline {
+            return Err(DialError::Timeout { step: format!("resolving {host}"), after: leg.budget, stage: Stage::Dns });
         }
         let addrs: Vec<SocketAddr> = found.addrs.iter().copied().filter(|a| !tried.contains(a)).collect();
         tried.extend(addrs.iter().copied());
-        let until = if found.more { deadline.min(Instant::now() + SOURCE_WAIT) } else { deadline };
-        match race(&target, addrs, until, deadline, budget, &ask).await {
+        let until = if found.more { leg.deadline.min(Instant::now() + SOURCE_WAIT) } else { leg.deadline };
+        match race(leg, &target, addrs, until, &ask).await {
             Ok((stream, how)) => {
                 if let Ok(peer) = stream.peer_addr() {
-                    resolve::note_dialed(host, peer, found.source);
+                    leg.resolve.note_dialed(host, peer, found.source);
                 }
                 return Ok((stream, how));
             }
-            Err(failed) if found.more && Instant::now() < deadline => {
-                match resolve::resolve_from(host, port, deadline, Some(found.source)).await {
+            Err(failed) if found.more && Instant::now() < leg.deadline => {
+                match leg.resolve.resolve_from(host, port, leg.deadline, Some(found.source)).await {
                     Ok(next) => found = next,
                     Err(_) => return Err(failed),
                 }
@@ -78,15 +85,14 @@ pub(crate) async fn connect_race(
 }
 
 /// The addresses in the order of [`interleave`], each started
-/// [`ATTEMPT_DELAY`] after the one before, or at once when the one before
+/// `leg.attempt_delay` after the one before, or at once when the one before
 /// failed; the first that connects wins, and the others stop. Past `until`,
-/// short of `deadline`, they failed, and another source may have more.
-async fn race(
+/// short of the deadline, they failed, and another source may have more.
+pub(crate) async fn race(
+    leg: Leg<'_>,
     target: &str,
     addrs: Vec<SocketAddr>,
     until: Instant,
-    deadline: Instant,
-    budget: Duration,
     ask: &Option<Result<(), String>>,
 ) -> Result<(TcpStream, Multipath), DialError> {
     let mut waiting = interleave(addrs).into_iter();
@@ -94,14 +100,14 @@ async fn race(
     let mut running = tokio::task::JoinSet::new();
     let mut next_at = Instant::now();
     let mut last = String::from("each address of this source was tried already");
-    // The kind of the last attempt's error, beside its words (T-487).
+    // The kind of the last attempt's error, beside its words.
     let mut cut = None;
     loop {
         if running.is_empty() || Instant::now() >= next_at {
             if let Some(addr) = waiting.next() {
                 let ask = ask.clone();
                 running.spawn(async move { (addr, attempt(addr, ask).await) });
-                next_at = Instant::now() + ATTEMPT_DELAY;
+                next_at = Instant::now() + leg.attempt_delay;
                 continue;
             }
             if running.is_empty() {
@@ -125,8 +131,9 @@ async fn race(
                 None => {}
             },
             _ = tokio::time::sleep_until(wake) => {
-                if Instant::now() >= deadline {
-                    return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget });
+                if Instant::now() >= leg.deadline {
+                    let step = format!("connecting to {target}");
+                    return Err(DialError::Timeout { step, after: leg.budget, stage: Stage::Connect });
                 }
                 if Instant::now() >= until {
                     let detail = format!("no address of this source answered within {} s", SOURCE_WAIT.as_secs());
@@ -140,7 +147,7 @@ async fn race(
 /// The addresses with the families taking turns, the first family first
 /// (RFC 8305, section 4): a family that does not work costs one attempt
 /// delay, not each of its addresses in a row.
-pub fn interleave(addrs: Vec<std::net::SocketAddr>) -> Vec<std::net::SocketAddr> {
+pub fn interleave(addrs: Vec<SocketAddr>) -> Vec<SocketAddr> {
     let Some(first) = addrs.first().map(|a| a.is_ipv6()) else { return addrs };
     let (mut lead, mut other): (Vec<_>, Vec<_>) = addrs.into_iter().partition(|a| a.is_ipv6() == first);
     let mut out = Vec::with_capacity(lead.len() + other.len());
