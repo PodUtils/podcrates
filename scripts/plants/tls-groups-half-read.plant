@@ -1,0 +1,8 @@
+# The file of the TLS groups read in part, a line that does not read passed
+# by, where the whole file is set aside; the test of the files that do not
+# read must fail.
+ENTRY=T-012
+GROUP=tls
+EXPECT='test groups::tests::a_file_that_does_not_read_is_refused_whole \.\.\. FAILED'
+RUN='cargo test -p pod-tls --lib -- groups::tests'
+LIMIT=1800

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/groups.rs b/crates/pod-tls/src/groups.rs
+index 9cbb058..043efb8 100644
+--- a/crates/pod-tls/src/groups.rs
++++ b/crates/pod-tls/src/groups.rs
+@@ -65,7 +65,7 @@ impl Groups {
+             let number = at + 2;
+             let fields: Vec<&str> = line.split(' ').collect();
+             let [name, group, taken] = fields[..] else {
+-                return Err(format!("line {number} does not hold a name, a group and a time"));
++                continue;
+             };
+             let group: u16 = group.parse().map_err(|_| format!("line {number} holds no group"))?;
+             let taken: i64 = taken.parse().map_err(|_| format!("line {number} holds no time"))?;

@@ -1,0 +1,8 @@
+# The file of the TLS groups written as any file, readable by others, where
+# the files of a cache are the user's alone (mode 0600); the test that reads
+# its mode must fail.
+ENTRY=T-012
+GROUP=tls
+EXPECT='test groups::dirs::tests::the_group_goes_to_a_private_file_and_back \.\.\. FAILED'
+RUN='cargo test -p pod-tls --lib -- groups::dirs::tests'
+LIMIT=1800

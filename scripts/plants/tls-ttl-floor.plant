@@ -1,0 +1,8 @@
+# A name's list kept for its record's TTL with no floor of 30 s, so a TTL of
+# 5 s sends a read of the HTTPS record before each connection after 5 s; the
+# test of a TTL of 5 s served 30 s must fail.
+ENTRY=T-012
+GROUP=tls
+EXPECT='test ech::cache::tests::a_ttl_of_5_s_is_served_for_30_s \.\.\. FAILED'
+RUN='cargo test -p pod-tls --all-features --lib -- ech::cache::tests'
+LIMIT=1800

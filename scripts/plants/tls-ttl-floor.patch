@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/ech/cache.rs b/crates/pod-tls/src/ech/cache.rs
+index 2667586..c0ab157 100644
+--- a/crates/pod-tls/src/ech/cache.rs
++++ b/crates/pod-tls/src/ech/cache.rs
+@@ -96,7 +96,7 @@ impl Default for Cache {
+ pub fn kept_for(ttl: Option<u32>) -> Duration {
+     match ttl {
+         None => NO_TTL,
+-        Some(secs) => Duration::from_secs(u64::from(secs)).clamp(FLOOR, CEILING),
++        Some(secs) => Duration::from_secs(u64::from(secs)).min(CEILING),
+     }
+ }
+ 

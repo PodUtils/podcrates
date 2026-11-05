@@ -82,6 +82,7 @@ shares it.
 | `the_websocket_keys_report_a_source_that_gives_no_bytes` | it goes with the WebSocket handshake (`pod-ws`) |
 | `the_binary_never_takes_a_callers_configuration` (it scans podssh-cli) | it stays in podssh |
 | The fuzz target `pem_bundle` | T-017 |
+| The plants `t642-hello-unsealed`, `t642-nonce-unsequenced`, `t642-ttl-floor`, `t664-group-file-open`, `t664-group-not-kept`, `t664-groups-half-read` | [x] `scripts/plants/tls-hello-unsealed`, `tls-nonce-unsequenced`, `tls-ttl-floor`, `tls-group-file-open`, `tls-group-not-kept`, `tls-groups-half-read`: the same defects, caught by the same tests |
 
 | Capability of podnet `src/trust.rs` and `src/tls_fragment.rs` at `b7682c5` | Here |
 | --- | --- |

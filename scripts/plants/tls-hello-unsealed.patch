@@ -1,0 +1,15 @@
+diff --git a/crates/pod-tls/src/ech/road.rs b/crates/pod-tls/src/ech/road.rs
+index 37c25a0..bd93a14 100644
+--- a/crates/pod-tls/src/ech/road.rs
++++ b/crates/pod-tls/src/ech/road.rs
+@@ -123,8 +123,9 @@ async fn unsealed(
+ 
+ /// One sealed hello with `list`, on a connection of its own.
+ async fn attempt(context: &Context, list: &[u8], route: &Route<'_>) -> Result<(TlsStream, Option<SocketAddr>), Failed> {
+-    let config = config::sealed(context, route.trust, route.server_name, list, route.alpn)
++    let _ = config::sealed(context, route.trust, route.server_name, list, route.alpn)
+         .map_err(|why| Failed::Next(Next::Refused(why)))?;
++    let config = context.config_for(route.trust).map_err(|e| Failed::Next(Next::Refused(e.to_string())))?;
+     let name = crate::wrap::server_name(route.server_name).map_err(Failed::Dial)?;
+     let tcp = route.dial.dial(route.target, Instant::now() + route.limit).await.map_err(Failed::Dial)?;
+     let peer = tcp.peer;
