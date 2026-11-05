@@ -1,6 +1,6 @@
 //! Who an end of a road is: one Ed25519 key for each role, the same
 //! on each road. A node has one for each label, a client one for each user,
-//! in the key files of the older names ([`file`]). A key is shown by its SHA256
+//! in the key files of the older names ([`file`](mod@file)). A key is shown by its SHA256
 //! fingerprint, in OpenSSH's form, and named by it or by the key itself
 //! ([`KeyName`]): in a node's allowlist ([`allow`]), an operator's pins
 //! ([`pins`]), or a flag.
