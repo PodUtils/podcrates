@@ -3,6 +3,9 @@
 # with the main branch of its repository.
 
 repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+taken 8caf2d131ba42581a7ff450d0abfe2832b7f3129 crates/podssh-relay/src/cache.rs crates/podssh-relay/src/session/secret.rs
+# podssh's own places for pod-core, after the adoption: no file of this crate.
+skip crates/podssh-relay/src/cache/pod.rs
 dir crates/podssh-relay/src/cache
 dir crates/podssh-relay/tests/cleanup
 file b9b5d6bc067adfab38fa0431035bf5ea5aaa7a3a crates/podssh-relay/src/cache.rs -> crates/pod-core/src/files.rs

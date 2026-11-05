@@ -23,6 +23,11 @@ moves on, a session raises `commit` and makes the patch again.
 
 When the consumer takes a crate, its trial leaves this directory: the
 consumer's own CI runs the crate from then on, and git keeps the patch.
+The block of the consumer in `crates/CRATE/SOURCES` gets the line
+`taken COMMIT` (or `taken COMMIT PATH...` when the adoption replaced only
+some files): `scripts/check-sources.py` then compares those files with
+the parent of the adoption, so that a fix that came before it is still
+found, and the files that the adoption removed are no change.
 Taken: podssh `pod-todo`, `pod-term`, `pod-identity` (podssh `04f4551`)
 and `pod-tls` (podssh `6ece2ff`); podnet `pod-todo` (podnet `6c210ed`)
 and `pod-tls` (podnet `a5894fe`, `a2af228`).

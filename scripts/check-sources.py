@@ -15,6 +15,12 @@ Each crate that holds code of another repository has crates/CRATE/SOURCES:
                                   did not take
   file BLOB PATH -> LOCAL...      an imported file, its git blob id at COMMIT,
                                   and the files of the crate that it became
+  taken TAKEN [PATH...]           the consumer took the crate at TAKEN: the
+                                  files of the block (or the PATHs, files or
+                                  directories) are compared with the parent
+                                  of TAKEN, not with main, so that a fix
+                                  before the adoption is still found and the
+                                  adoption itself is no change
 
 A SOURCES file can hold more than one `repo` block. `#` starts a comment.
 
@@ -56,6 +62,14 @@ class Block:
     def __init__(self, repo, commit, line):
         self.repo, self.commit, self.line = repo, commit, line
         self.dirs, self.skips, self.files = [], [], {}
+        self.taken = []  # (commit, [path...]); no path: the whole block
+
+    def taken_at(self, rel: str):
+        """The commit at which the consumer took `rel`, or None."""
+        for commit, paths in self.taken:
+            if not paths or any(rel == p or rel.startswith(p + "/") for p in paths):
+                return commit
+        return None
 
 
 def parse(path: Path) -> list[Block]:
@@ -78,6 +92,11 @@ def parse(path: Path) -> list[Block]:
             b.dirs.append(rest.strip().rstrip("/"))
         elif word == "skip":
             b.skips.append(rest.strip().rstrip("/"))
+        elif word == "taken":
+            parts = rest.split()
+            if not parts:
+                raise Unreadable(f"{path}:{n}: `taken COMMIT [PATH...]`")
+            b.taken.append((parts[0], [x.rstrip("/") for x in parts[1:]]))
         elif word == "file":
             left, arrow, right = rest.partition(" -> ")
             parts = left.split()
@@ -85,7 +104,7 @@ def parse(path: Path) -> list[Block]:
                 raise Unreadable(f"{path}:{n}: `file BLOB PATH -> LOCAL...`")
             b.files[parts[1]] = (parts[0], right.split())
         else:
-            raise Unreadable(f"{path}:{n}: `{word}` is not repo, dir, skip or file")
+            raise Unreadable(f"{path}:{n}: `{word}` is not repo, dir, skip, file or taken")
     return blocks
 
 
@@ -109,11 +128,21 @@ class Mirror:
 
     def __init__(self, repo: str):
         self.repo = repo
+        self.parents = {}
 
-    def tree(self, path: str) -> dict:
+    def rev(self, taken) -> str:
+        """main, or the parent of the commit of an adoption."""
+        if taken is None:
+            return "main"
+        if taken not in self.parents:
+            data = get_json(f"{API}/repos/{self.repo}/commits/{taken}")
+            self.parents[taken] = data["parents"][0]["sha"]
+        return self.parents[taken]
+
+    def tree(self, path: str, rev: str = "main") -> dict:
         """{file: blob} under a directory, or {path: blob} for a file."""
         quoted = urllib.parse.quote(path)
-        data = get_json(f"{API}/repos/{self.repo}/contents/{quoted}?ref=main")
+        data = get_json(f"{API}/repos/{self.repo}/contents/{quoted}?ref={rev}")
         if isinstance(data, dict):
             if data.get("type") == "file":
                 return {data["path"]: data["sha"]}
@@ -123,12 +152,12 @@ class Mirror:
             if e["type"] == "file":
                 out[e["path"]] = e["sha"]
             elif e["type"] == "dir":
-                out.update(self.tree(e["path"]))
+                out.update(self.tree(e["path"], rev))
         return out
 
-    def commits(self, path: str, since: str) -> list[str]:
+    def commits(self, path: str, since: str, rev: str = "main") -> list[str]:
         quoted = urllib.parse.quote(path)
-        data = get_json(f"{API}/repos/{self.repo}/commits?path={quoted}&sha=main&per_page=20")
+        data = get_json(f"{API}/repos/{self.repo}/commits?path={quoted}&sha={rev}&per_page=20")
         out = []
         for c in data:
             if c["sha"].startswith(since) or since.startswith(c["sha"]):
@@ -149,6 +178,10 @@ class Clone:
             raise Unreadable(f"git {' '.join(args)} in {self.path}: {r.stderr.strip()}")
         return r.stdout
 
+    def rev(self, taken) -> str:
+        """origin/main, or the parent of the commit of an adoption."""
+        return "origin/main" if taken is None else f"{taken}^"
+
     def tree(self, path: str, rev: str = "origin/main") -> dict:
         out = {}
         for line in self.git("ls-tree", "-r", rev, "--", path).splitlines():
@@ -158,18 +191,22 @@ class Clone:
                 out[name] = blob
         return out
 
-    def commits(self, path: str, since: str) -> list[str]:
-        return self.git("log", "--format=%h %s", f"{since}..origin/main", "--", path).splitlines()
+    def commits(self, path: str, since: str, rev: str = "origin/main") -> list[str]:
+        return self.git("log", "--format=%h %s", f"{since}..{rev}", "--", path).splitlines()
 
 
 def compare(b: Block, source) -> list[str]:
+    # Each path is read at main, or before the adoption that took it.
+    def rev(rel: str) -> str:
+        return source.rev(b.taken_at(rel))
+
     seen = {}
     for d in b.dirs:
-        seen.update(source.tree(d))
+        seen.update(source.tree(d, rev(d)))
     for rel in b.files:
         if not any(rel == d or rel.startswith(d + "/") for d in b.dirs):
             try:
-                seen.update(source.tree(rel))
+                seen.update(source.tree(rel, rev(rel)))
             except Unreadable:
                 pass
     lines = []
@@ -179,11 +216,11 @@ def compare(b: Block, source) -> list[str]:
             lines.append(f"removed {b.repo}:{rel} (was {', '.join(local)})")
         elif now != blob:
             lines.append(f"changed {b.repo}:{rel} -> {', '.join(local)}")
-            lines += [f"    {c}" for c in source.commits(rel, b.commit)]
+            lines += [f"    {c}" for c in source.commits(rel, b.commit, rev(rel))]
     for rel in sorted(seen):
         if rel not in b.files and not skipped(b, rel):
             lines.append(f"new     {b.repo}:{rel}")
-            lines += [f"    {c}" for c in source.commits(rel, b.commit)]
+            lines += [f"    {c}" for c in source.commits(rel, b.commit, rev(rel))]
     return lines
 
 
@@ -210,7 +247,8 @@ def check(crates: list[str], clones: dict, plant: bool) -> int:
                 for line in lines:
                     print(f"{crate}: {line}")
                 changes += sum(1 for line in lines if not line.startswith(" "))
-                print(f"check-sources: {crate}: {b.repo} at {b.commit[:7]}: {len(b.files)} files, "
+                taken = "".join(f", taken at {c[:7]}" + (f" ({len(ps)} paths)" if ps else "") for c, ps in b.taken)
+                print(f"check-sources: {crate}: {b.repo} at {b.commit[:7]}{taken}: {len(b.files)} files, "
                       f"{sum(1 for line in lines if not line.startswith(' '))} changes")
     except Unreadable as e:
         print(f"check-sources: {e}", file=sys.stderr)
