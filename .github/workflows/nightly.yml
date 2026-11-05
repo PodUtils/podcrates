@@ -39,6 +39,46 @@ jobs:
         run: sh scripts/retry.sh rustup toolchain install
       - name: Test
         run: cargo test --locked --workspace --all-features
+      # The store of Windows: the test's root in the machine's ROOT store
+      # lets a server that it signs through with the default trust; the same
+      # server with the root out of the store is the control. The root
+      # leaves the store in each case. The user's ROOT store would ask its
+      # user in a dialog, which a runner cannot answer.
+      - name: A root in the store of Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          POD_TLS_TEST_STORE_ROOT: ${{ runner.temp }}\store-root.cer
+        run: |
+          $test = "a_server_that_the_root_signs_is_trusted_through_the_store_alone"
+          cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact the_root_is_written
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $env:POD_TLS_TEST_STORE_HOLDS = "0"
+          cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact --nocapture $test
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $added = Import-Certificate -FilePath $env:POD_TLS_TEST_STORE_ROOT -CertStoreLocation Cert:\LocalMachine\Root
+          try {
+            $env:POD_TLS_TEST_STORE_HOLDS = "1"
+            cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact --nocapture $test
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          } finally {
+            Remove-Item -Path ("Cert:\LocalMachine\Root\" + $added.Thumbprint)
+          }
+      # The trust settings of macOS: a runner cannot add a root (the right
+      # com.apple.trust-settings.admin needs a dialog, and granting it fails
+      # as root too), so the step reads the user's and the administrator's
+      # settings with no root of the test in them: a server that the root
+      # signs is refused.
+      - name: The trust settings of macOS, read
+        if: runner.os == 'macOS'
+        timeout-minutes: 15
+        env:
+          POD_TLS_TEST_STORE_ROOT: ${{ runner.temp }}/store-root.cer
+        run: |
+          set -eu
+          test=a_server_that_the_root_signs_is_trusted_through_the_store_alone
+          cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact the_root_is_written
+          POD_TLS_TEST_STORE_HOLDS=0 cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact --nocapture "$test"
 
   cross:
     runs-on: ubuntu-24.04
