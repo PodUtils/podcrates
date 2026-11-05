@@ -488,7 +488,7 @@ of `docs/releases/v0.1.0.md`: `pod-todo`, `pod-core`, `pod-testkit`,
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -540,6 +540,16 @@ gh workflow run publish.yml --ref main
 ```
 
 The dry run passes on `main`.
+
+## Done
+
+2026-11-05, commits `9540df9` and `256c09e` (`publish.yml` as the spec of
+the owner's setup gives it, the switch `crates-io = false`, the library
+crates publishable). `python3 -I scripts/check-workflows.py`: 10 files, 0
+faults. The dry run on `main`, run 42032844195 at `256c09e`: the job
+`dry-run` packed and built the 6 crates, and the job `publish` was
+skipped (the switch is false). The ci run 42033640639 at `18eb667` is
+green.
 
 # T-043: The names of the crates on crates.io and their trusted publishers (GitHub #1)
 

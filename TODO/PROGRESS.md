@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 43 entries: 29 open, 1 partial, 2 blocked, 11 done.
+`TODO/INDEX.md` holds 43 entries: 28 open, 1 partial, 2 blocked, 12 done.
 
 ## State
 
@@ -11,7 +11,13 @@
   hand-off: podssh takes `pod-todo`, `pod-term`, `pod-identity`
   (PodUtils/podssh@T-684); podnet takes `pod-todo`
   (PodUtils/podnet@T-137).
-- `pod-tls` (T-012) is under way: the podssh base first.
+- `pod-tls` (T-012) is under way: the podssh base and the merge of podnet
+  are in; the trials in podssh and podnet are next, then v0.2.0.
+- `publish.yml` is in place (T-042); the switch `crates-io` is false
+  while Q1 stands. The names on crates.io wait for the owner (T-043,
+  GitHub #1).
+- The sessions of podssh and podnet run the rename and the migration
+  only, with the briefing of this session.
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -22,15 +28,14 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M0, the foundation:** T-042 (`publish.yml`).
-2. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
+1. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
    T-017 after T-013; T-041 when a crate or a consumer needs it.
-3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
+2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
-4. **M3, the adapters:** T-027, T-028, T-029, T-030.
-5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+3. **M3, the adapters:** T-027, T-028, T-029, T-030.
+4. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-6. **M5, the upkeep:** T-040 when the owner gives the repository of podvm;
+5. **M5, the upkeep:** T-040 when the owner gives the repository of podvm;
    a "port" entry for each change that scripts/check-sources.py finds.
 
 ## Calls made without a ruling
