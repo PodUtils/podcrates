@@ -7,13 +7,13 @@
 - The owner gave the go-ahead on 2026-11-05. Done: `pod-todo`, the
   record, the checks, `pod-core`, `pod-testkit`, the trials (M0), and
   `pod-term`, `pod-identity` (M1). Each workflow is green.
-- Released: `v0.1.0` (T-009). The patches of `adoption/` are the
-  hand-off: podssh takes `pod-todo`, `pod-term`, `pod-identity`
-  (PodUtils/podssh@T-684); podnet takes `pod-todo`
-  (PodUtils/podnet@T-137).
+- Released: `v0.1.0` (T-009) and `v0.2.0` (`pod-tls`, Rust 1.99; the run
+  42057101369 of `release.yml` and the dry run 42057132368 of
+  `publish.yml` on the tag). podssh took each crate of v0.1.0 (`04f4551`),
+  podnet took `pod-todo` (`6c210ed`). The patches of `pod-tls` went to
+  both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
 - `pod-tls` is done (T-012), with its trials on podssh `85d4e9d` and
-  podnet `c7a31f3`. v0.2.0 is next; then the patches go to the sessions
-  of podssh and podnet.
+  podnet `c7a31f3`. Next: `pod-proxy` (T-013).
 - `publish.yml` is in place (T-042); the switch `crates-io` is false
   while Q1 stands. The names on crates.io wait for the owner (T-043,
   GitHub #1).
@@ -29,9 +29,8 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M1, the transport:** the release v0.2.0, then T-013, T-014, T-015,
-   T-016; T-017 after T-013; T-044, T-045; T-041 when a crate or a
-   consumer needs it.
+1. **M1, the transport:** T-013, T-014, T-015, T-016; T-017 after
+   T-013; T-044, T-045; T-041 when a crate or a consumer needs it.
 2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
 3. **M3, the adapters:** T-027, T-028, T-029, T-030.
