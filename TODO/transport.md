@@ -581,8 +581,9 @@ in their code, and scripts and workflows that measure or watch them.
   hosts, the code that measures or watches them, the workflows, the
   scripts and the data files, with the file and lines, the source of each
   value and the code that reads it.
-- Read: the inventory of podssh, `docs/research/services/podssh.md`.
-- Not read yet: the inventory of podnet.
+- Read: the inventories of podssh (`docs/research/services/podssh.md`, at
+  podssh `9d0623d`) and of podnet (`docs/research/services/podnet.md`, at
+  podnet `aaf6f4c`).
 
 ## Approach
 
