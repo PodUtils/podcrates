@@ -302,7 +302,7 @@ T-005 and T-012 are done.
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -324,6 +324,36 @@ tool, and its HTTP client under DoH and the mint of the relay.
 
 Each capability of podnet with its tests, behind a feature when it
 changes a behaviour; the parity list; the trials of podssh and podnet.
+
+The merge is done: the commits `4b22d84` to `16dd70b` (import at podnet
+`a8071b1`; the proxy URLs, the rules of the variables, the proxy of a
+tool; the dial with `socks5://` resolved here, Digest, a proxy on a Unix
+socket or at a command; the credentials of a served proxy; the HTTP
+client; the README; the plants). `cargo test -p pod-proxy --all-features`:
+139 passed, 1 ignored, with the 33 tests of podnet by their names;
+`plant-each.sh --group proxy`: 9 caught. Next: the trials of podssh and
+podnet, then the release.
+
+## Decision
+
+- What differs between the consumers (the order of the variables, an
+  unusable URL passed over, the default port of `http://` (80 or 8080),
+  the ports of `NO_PROXY`, the rule of the loopback) is a field of
+  `env::Rules`, not a cargo feature: features unify in one binary.
+  podssh's values are the default; the README gives podnet's.
+- `socks5://` resolves the name here, after the greeting; `socks5h://`
+  sends it (the rule of curl). podssh's tests that sent a name take
+  `socks5h://`.
+- The words of a 407 are podnet's (they name Digest), with the program of
+  `Settings::app`.
+- The Digest client nonce comes from `OsEntropy`, and no random bytes is
+  an error (podnet sent zeros); the credentials file is read with
+  `pod_core::files::read_own` (no symbolic link, no file of another user).
+- `read_response` passes over up to 5 interim (1xx) answers and takes a
+  TLS end with no close_notify as the end of the stream, for both
+  consumers: it corrects the reading.
+- A `+exec:` proxy only from `Origin::User` (podnet's rule); the plant
+  `proxy-command-from-a-variable` proves it.
 
 ## Prove
 
