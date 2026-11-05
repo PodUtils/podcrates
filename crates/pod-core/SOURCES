@@ -3,7 +3,19 @@
 # with the main branch of its repository.
 
 repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+dir crates/podssh-relay/src/cache
+dir crates/podssh-relay/tests/cleanup
+file b9b5d6bc067adfab38fa0431035bf5ea5aaa7a3a crates/podssh-relay/src/cache.rs -> crates/pod-core/src/files.rs
+file 745f73f5caad490526f749491a7571c3899d11cb crates/podssh-relay/src/cache/closed.rs -> crates/pod-core/src/files/closed.rs
+file edabdb0cb2bb205f53a76ac5cfc9a83dc19da5df crates/podssh-relay/src/cache/closed_win.rs -> crates/pod-core/src/files/closed_win.rs
+file 1afcf628db0cca8dd4dca55dfda85fff75bb7fad crates/podssh-relay/src/cache/dirs.rs -> crates/pod-core/src/files/dirs.rs
+file 1b8e2a1deea467c32fda240fcda94aee65d1365b crates/podssh-relay/src/cache/own.rs -> crates/pod-core/src/files/own.rs
+file 1748b834e14fa8c40070d80e57012d2ca2d8b9be crates/podssh-relay/src/cache/owner.rs -> crates/pod-core/src/files/owner.rs
+file 0baf4955041a21592a4f9cff5ec762fa6dfcf80f crates/podssh-relay/src/cache/owner_tests.rs -> crates/pod-core/src/files/owner_tests.rs
 file fdd54ef6a0a569fc48770895534858e106bc504c crates/podssh-relay/src/open.rs -> crates/pod-core/src/backoff.rs
+file 520f899220059f295b2bbaa191246787e312426b crates/podssh-relay/src/session/secret.rs -> crates/pod-core/src/entropy.rs
+file d48cc0d426fb6140ba5e3d7726117c322948941f crates/podssh-relay/tests/cache.rs -> crates/pod-core/tests/files.rs
+file b56b20ac3ae7da9f400d96dd9e0cd82993f663d0 crates/podssh-relay/tests/cleanup/mod.rs -> crates/pod-core/tests/cleanup/mod.rs
 file 1b1cf086411b13ac47d46ab31f52701d787c3ef1 crates/podssh-ws/src/clock.rs -> crates/pod-core/src/clock.rs
 file 5db08596d7c4630eaf8f9e013e27960746932626 crates/podssh-ws/src/names.rs -> crates/pod-core/src/names.rs
 file 860d37176b0f904c6037e9cc65f43b762497968a crates/podssh-ws/src/text.rs -> crates/pod-core/src/text.rs

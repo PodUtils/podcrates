@@ -1,5 +1,5 @@
-//! The key file of each end (T-163, T-087), in temporary directories: a
-//! private file made once and read again, under the names of T-163 too;
+//! The key file of each end, in temporary directories: a
+//! private file made once and read again, under the older names too;
 //! never shown; and a file that is not private, that is a symbolic link or
 //! that holds no key, refused with the reason and kept, as a new key would
 //! give the node a new identity.
@@ -9,14 +9,14 @@ mod cleanup;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Barrier};
 
-use podssh_relay::identity::file::{self, Key, Place};
-use podssh_relay::session::{Entropy, NoRandom, OsEntropy};
+use pod_core::entropy::{Entropy, NoRandom, OsEntropy};
+use pod_identity::file::{self, Key, Place};
 
 /// A fresh, empty scratch directory unique to one test.
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-identity-file-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    podssh_relay::cache::private_dir(&dir).unwrap();
+    pod_core::files::private_dir(&dir).unwrap();
     cleanup::at_test_end(&dir);
     dir
 }
@@ -106,7 +106,7 @@ fn a_key_under_the_name_of_t163_stays_the_identity() {
     let base = scratch("old-name");
     let (a, b) = (base.join("a"), base.join("b"));
     std::fs::create_dir_all(&b).unwrap();
-    // A node key that the iroh road made before T-087, in the second directory.
+    // A node key that the iroh road made before the shared key files, in the second directory.
     let old = b.join(file::old_node_file("lab"));
     assert_eq!(file::old_node_file("lab"), "iroh-node-lab.key");
     let before = file::load_in(&[], &Place::File(old.clone()), &mut Fixed(0x11)).unwrap();
@@ -123,7 +123,7 @@ fn a_key_under_the_name_of_t163_stays_the_identity() {
     let found = file::load_in(&dirs, &file::node_place("lab"), &mut OsEntropy).unwrap();
     assert_eq!(found.identity.public(), new.identity.public());
 
-    // The client's key of T-163 too.
+    // The client's key of the older name too.
     let c = base.join("c");
     std::fs::create_dir_all(&c).unwrap();
     let old_client = file::load_in(&[], &Place::File(c.join(file::OLD_CLIENT_FILE)), &mut OsEntropy).unwrap();
@@ -131,7 +131,7 @@ fn a_key_under_the_name_of_t163_stays_the_identity() {
     assert_eq!(found.identity.public(), old_client.identity.public());
 }
 
-/// What a node reads to ask its net about its key (T-452): the key where it
+/// What a node reads to ask its net about its key: the key where it
 /// is kept, and none where there is none, with no file made either way.
 #[test]
 fn an_existing_key_is_read_where_it_is_kept_and_none_is_made() {
@@ -234,7 +234,7 @@ fn a_symbolic_link_is_refused_and_not_followed() {
     // A link that points nowhere: no key is made at its target.
     let why = file::load_in(&[], &Place::File(link.clone()), &mut OsEntropy).unwrap_err();
     assert!(why.contains("symbolic link"), "{why}");
-    // The way out, as a process substitution gives a link (T-512).
+    // The way out, as a process substitution gives a link.
     assert!(why.contains("name a regular file (a process substitution, <(...), gives a link)"), "{why}");
     assert!(!elsewhere.exists(), "the link was followed");
 

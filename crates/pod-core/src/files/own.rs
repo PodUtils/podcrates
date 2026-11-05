@@ -1,4 +1,4 @@
-//! A private file that the user names, or that podssh keeps for good, such
+//! A private file that the user names, or that a program keeps for good, such
 //! as a key: read with each refusal's reason, where the cache ignores a file
 //! that it can make again; and made whole, never over another file.
 
@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{closed, create_new_private, make_private_dir, open_no_follow, MAX_FILE};
+use super::{MAX_FILE, closed, create_new_private, make_private_dir, open_no_follow};
 
 /// What users other than the owner may do with a file that [`read_own`]
 /// reads.
@@ -31,16 +31,16 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
         // None, and none can be where a part of the path is not a directory
         // (Linux says so; Windows says that the path is not found).
         Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => {
-            return Ok(None)
+            return Ok(None);
         }
         Err(e) => return Err(format!("{shown}: {e}")),
         // A process substitution, as `--allow <(...)`, gives such a link
         // (`/dev/fd/63` on Linux), which a user finds only by trial.
         Ok(meta) if meta.file_type().is_symlink() => {
             return Err(format!(
-                "{shown} is a symbolic link, which podssh does not follow here: name a regular file (a \
+                "{shown} is a symbolic link, which is not followed here: name a regular file (a \
                  process substitution, <(...), gives a link)"
-            ))
+            ));
         }
         Ok(_) => {}
     }

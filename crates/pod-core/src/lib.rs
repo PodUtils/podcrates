@@ -8,6 +8,9 @@
 //! * [`failure`]: a [`Failure`] with its [`Stage`] and its [`Class`];
 //! * [`event`]: [`Event`]s for the user and an [`Observer`] of decisions, in
 //!   place of output of a crate's own;
+//! * [`files`]: the private files of a program and of a user, in the
+//!   places of its [`files::App`];
+//! * [`entropy`]: the random source, which a test can plant;
 //! * [`metered`], [`backoff`], [`clock`], [`text`], [`names`]: the small
 //!   helpers.
 
@@ -15,8 +18,10 @@ pub mod backoff;
 pub mod clock;
 pub mod datagrams;
 pub mod dial;
+pub mod entropy;
 pub mod event;
 pub mod failure;
+pub mod files;
 pub mod metered;
 pub mod names;
 pub mod text;

@@ -138,8 +138,8 @@ holds:
   `Missed`), with `pod-tls` and `pod-proxy`;
 * the private files and the cache directories (podssh `cache.rs` and
   `cache/`: a capped read, a 0600 write, refuse a file that others can
-  read, `read_dirs`, `store_file_in_first`, `safe_name`), with the
-  directory given by the caller, with `pod-identity`;
+  read, the places of an `App`, `store_file_in_first`, `safe_name`), and
+  the entropy source (`Entropy`, `OsEntropy`), with `pod-identity`;
 * `RelayBudget`, with `pod-netstack` and `pod-relay`.
 
 podssh-ws `wire.rs` writes and reads WebSocket frames: it goes to `pod-ws`.
@@ -165,7 +165,7 @@ with its tests (section 8, step 5).
 
 | Crate | Source | Lines | Pod deps |
 | --- | --- | --- | --- |
-| `pod-identity` | podssh-relay `identity/`; `Entropy`, `OsEntropy` of `session/` | 900 | pod-core |
+| `pod-identity` | podssh-relay `identity/` (the entropy of `session/` and the private files of `cache` go to `pod-core`) | 900 | pod-core |
 | `pod-term` | podssh `crates/podssh-terminal` | 3,700 | none |
 | `pod-tls` | podssh-ws `crypto/` (feature `pure`), `tls.rs`, `tls/`, `stores/`, `tls_server.rs`, `tls_server/`, `tls_wrap.rs`, `bundle.rs`, `ech/` (feature `ech`; the HTTPS record through `Resolve`); podssh-relay `tls_groups.rs`; podnet `src/trust.rs` (roots, pins, `SSL_CERT_FILE` as a setting; the edge roots of Cloudflare come from `pod-cloudflare` as extra roots; no `init_crypto`), `src/tls_fragment.rs` | 6,300 | pod-core |
 | `pod-proxy` | podssh-ws `dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs` (the race of addresses), `cut.rs`, `lowat.rs`, `write_limit.rs`, `stun.rs`, `http.rs` and `http/` (the HTTP/1.1 heads), the GET client of `client.rs` (`https_get_accepting`); podnet `src/egress.rs`, `src/proxy_auth.rs` (Digest), `src/fetch.rs` (the HTTP client under DoH, the mint of the relay and the API of the quick tunnels). Dial, race and SOCKS take `&dyn Resolve`; the bypass of a pinned loopback moves to the caller | 5,500 | pod-core, pod-tls |

@@ -1,4 +1,4 @@
-//! The key files of each end (T-163, T-087): one Ed25519 seed for each role,
+//! The key files of each end: one Ed25519 seed for each role,
 //! a node's for each label and a client's for each user, in a private file
 //! made when it is missing. Both roads read the same file, so a node has one
 //! identity whichever road an operator takes.
@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use zeroize::Zeroizing;
 
 use super::Identity;
-use crate::cache::{self, Others};
-use crate::session::Entropy;
+use pod_core::entropy::Entropy;
+use pod_core::files::{self as cache, Others, Places};
 
 /// Where a key is kept.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub enum Place {
 /// The client's key file in the cache: one for each user, whichever node it
 /// reaches, so that one line in each node's allowlist lets it in.
 pub const CLIENT_FILE: &str = "client.key";
-/// The client's key file of T-163, still read.
+/// The client's key file of the older name, still read.
 pub const OLD_CLIENT_FILE: &str = "iroh-client.key";
 
 /// The node's key file in the cache for the label `label`.
@@ -42,7 +42,7 @@ pub fn node_file(label: &str) -> String {
     format!("node-{}.key", cache::safe_name(label))
 }
 
-/// The node's key file of T-163 for `label`, still read.
+/// The node's key file of the older name for `label`, still read.
 pub fn old_node_file(label: &str) -> String {
     format!("iroh-node-{}.key", cache::safe_name(label))
 }
@@ -76,12 +76,11 @@ impl std::fmt::Debug for Key {
     }
 }
 
-/// The key kept at `place`, made when there is none. A key that podssh kept
-/// before in a place of the cache that is in another user's tree is read
-/// there, and a new one is never made there (T-593); `cache::kept_note`
-/// says what the run says of it.
-pub fn load(place: &Place, entropy: &mut dyn Entropy) -> Result<Key, String> {
-    let places = cache::places();
+/// The key kept at `place`, made when there is none, in the `places` of the
+/// caller's app (`pod_core::files::places_from`). A key kept before in a
+/// place that is in another user's tree is read there, and a new one is
+/// never made there; `Places::kept_note` says what the run says of it.
+pub fn load(places: &Places, place: &Place, entropy: &mut dyn Entropy) -> Result<Key, String> {
     load_split(&places.read(), &places.dirs, place, entropy)
 }
 
@@ -123,10 +122,10 @@ pub fn load_split(kept: &[PathBuf], dirs: &[PathBuf], place: &Place, entropy: &m
 }
 
 /// The key kept at `place`, read and never made: a node asks its net whether
-/// it names the key before anything is made (T-452), as a key made then is
-/// in no net. `None` where there is no file, and for an ephemeral key.
-pub fn existing(place: &Place) -> Result<Option<Identity>, String> {
-    existing_in(&cache::read_dirs(), place)
+/// it names the key before anything is made, as a key made then is in no
+/// net. `None` where there is no file, and for an ephemeral key.
+pub fn existing(places: &Places, place: &Place) -> Result<Option<Identity>, String> {
+    existing_in(&places.read(), place)
 }
 
 /// [`existing`], with `dirs` as the cache's directories (for tests). It
@@ -167,7 +166,7 @@ fn read(path: &Path) -> Result<Option<Identity>, String> {
     let text = Zeroizing::new(text);
     let word = text.trim();
     // The error names the file only: no part of a secret goes into a message.
-    let bad = || format!("{}: not a key (64 hex digits); move it away and podssh makes a new one", path.display());
+    let bad = || format!("{}: not a key (64 hex digits); move it away and a new one is made", path.display());
     if word.len() != 64 {
         return Err(bad());
     }

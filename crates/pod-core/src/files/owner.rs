@@ -1,4 +1,4 @@
-//! Whose tree a directory of the cache is in (T-593, GitHub #118). A process
+//! Whose tree a directory of the cache is in. A process
 //! that runs with the `HOME` of another user, as root in a container or a
 //! notebook often does, must neither keep its files there, a node's key
 //! among them, nor make a missing `.cache` there that would then be its own
@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// The user database, read as a file, as T-500 reads it: a static binary has
+/// The user database, read as a file: a static binary has
 /// no NSS, and the file is what each C library reads first.
 const PASSWD: &str = "/etc/passwd";
 
@@ -86,7 +86,7 @@ pub fn make_dirs(dir: &Path, host: &Host) -> std::io::Result<Vec<PathBuf>> {
         if at != dir {
             let parent = at.parent().unwrap_or(at);
             if let Some(why) = not_ours(parent, host) {
-                let why = format!("{why}, and podssh makes no directory there but the cache's own");
+                let why = format!("{why}, and no directory is made there but the cache's own");
                 return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, why));
             }
         }
@@ -126,7 +126,7 @@ fn owner_of(path: &Path) -> Result<Option<u32>, String> {
 /// The home of `uid`'s first entry in the text of a passwd file, whose lines
 /// are `name:password:uid:gid:gecos:home:shell`, when it is absolute. A
 /// comment, a line of NIS (`+` or `-`), a line with too few fields and a name
-/// with a blank or a control character are passed over, as T-500 and the C
+/// with a blank or a control character are passed over, as the C
 /// library pass them over.
 pub fn passwd_home(text: &str, uid: u32) -> Option<PathBuf> {
     let entry = text.lines().filter(|line| !line.starts_with(['#', '+', '-'])).find_map(|line| {
@@ -157,7 +157,7 @@ fn entry_home(uid: u32) -> Option<PathBuf> {
 }
 
 /// On macOS the users are in the system's directory, which `getpwuid_r`
-/// reads, as T-500 reads the login name; the file, which holds the system's
+/// reads, as for the login name; the file, which holds the system's
 /// own accounts and root's, is the fallback.
 #[cfg(target_os = "macos")]
 fn entry_home(uid: u32) -> Option<PathBuf> {

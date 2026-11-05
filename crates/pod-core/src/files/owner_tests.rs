@@ -58,11 +58,7 @@ fn the_walk_stops_at_the_home_and_takes_root_s_directories_on_the_way() {
 #[test]
 fn a_directory_whose_owner_cannot_be_read_is_passed_over_with_why() {
     let owner = |path: &Path| -> Result<Option<u32>, String> {
-        if path == Path::new("/root") {
-            Err("/root: Permission denied".to_string())
-        } else {
-            Ok(Some(ROOT))
-        }
+        if path == Path::new("/root") { Err("/root: Permission denied".to_string()) } else { Ok(Some(ROOT)) }
     };
     let home_of = |_: u32| -> Option<PathBuf> { None };
     let host = Host { uid: ME, owner: &owner, home_of: &home_of };

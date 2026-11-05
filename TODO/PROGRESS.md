@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 41 entries: 33 open, 0 partial, 1 blocked, 7 done.
+`TODO/INDEX.md` holds 41 entries: 32 open, 0 partial, 1 blocked, 8 done.
 
 ## State
 
@@ -20,7 +20,7 @@ order. A crate is released on the day that its entry is done
 
 1. **M0, the foundation:** T-007, T-008, then
    the first release T-009.
-2. **M1, the transport:** T-010, T-012, T-013, T-014, T-015, T-016;
+2. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
    T-017 after T-013; T-041 when a crate or a consumer needs it.
 3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.

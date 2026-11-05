@@ -1,0 +1,25 @@
+[package]
+name = "pod-identity"
+description = "The Ed25519 identity of a node: its seed, its public key and fingerprint, its key files, the pins of the keys it saw and the allowlist of the keys it lets in."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+pod-core = { workspace = true }
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+sha2 = { version = "0.11", default-features = false, features = ["oid", "zeroize"] }
+hkdf = { version = "0.13", default-features = false }
+base64 = { version = "0.23", default-features = false, features = ["std"] }
+zeroize = "1"
+# The X25519 key of the Noise channel, derived from the seed.
+x25519-dalek = { version = "3", default-features = false, features = ["static_secrets", "zeroize"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+pod-testkit = { workspace = true }

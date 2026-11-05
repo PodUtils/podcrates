@@ -1,5 +1,5 @@
 //! Whether a file of Windows is closed to the other users of the host
-//! (T-274): its owner, and whom its access list lets in. The rules are
+//!: its owner, and whom its access list lets in. The rules are
 //! those of OpenSSH for Windows (`check_secure_file_permission` in
 //! `contrib/win32/win32compat/w32-sshfileperm.c`): the owner is the user,
 //! SYSTEM, the Administrators or TrustedInstaller; an entry that lets

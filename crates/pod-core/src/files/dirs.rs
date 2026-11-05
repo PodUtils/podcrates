@@ -1,33 +1,38 @@
-//! Where the cache lives (T-243): the directory that `PODSSH_CACHE_DIR`
+//! Where the files of an [`App`] live: the directory that its variable
 //! names, the user's cache directory, the user's runtime directory, the
 //! temporary directory, and the working directory, each from the
-//! environment; `none` gives no directory. Only the temporary directory's
-//! fixed places of Unix are written here, and tried last (the operator,
-//! 2026-10-08).
+//! environment that the caller gives; `none` gives no directory. Only the
+//! fixed places of the temporary directory of Unix are written here, and
+//! tried last.
 //!
 //! On Unix the user's cache and runtime directories count only in a tree of
-//! the effective uid or of root (T-593): one in another user's tree is passed
-//! over, and still read for what podssh kept there before, and the home of
-//! the uid's entry in the user database gives the user's cache in its place.
+//! the effective uid or of root: one in another user's tree is passed over,
+//! and still read for what the app kept there before, and the home of the
+//! uid's entry in the user database gives the user's cache in its place.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-/// The variable that names the cache's directory, or `none` for no cache
-/// (T-243).
-pub const DIR_ENV: &str = "PODSSH_CACHE_DIR";
+/// The program whose files these are: its name (the directories are
+/// `DIR/NAME`, `TMP/NAME-UID` and `.NAME`), and the variable that names its
+/// directory, or `none` for no file (podssh: `PODSSH_CACHE_DIR`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct App<'a> {
+    pub name: &'a str,
+    pub dir_env: &'a str,
+}
 
 /// The temporary directory's fixed places on Unix, tried only when no
-/// variable names it, and last (the operator, 2026-10-08).
+/// variable names it, and last.
 #[cfg(unix)]
 const FIXED_TEMPORARY: &[&str] = &["/tmp", "/dev/shm"];
 
-/// What `PODSSH_CACHE_DIR` says.
+/// What the variable of the app says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Chosen {
     /// Not set, or empty: the usual places.
     Unset,
-    /// `none`: podssh keeps no file between runs.
+    /// `none`: the app keeps no file between runs.
     Nothing,
     /// An absolute directory, tried first.
     Dir(PathBuf),
@@ -36,14 +41,9 @@ pub enum Chosen {
     Relative(String),
 }
 
-/// What `PODSSH_CACHE_DIR` says in this process's environment.
-pub fn chosen() -> Chosen {
-    chosen_from(&|name| std::env::var_os(name))
-}
-
-/// [`chosen`] with the environment given (for tests).
-pub fn chosen_from(var: &dyn Fn(&str) -> Option<OsString>) -> Chosen {
-    match var(DIR_ENV) {
+/// What the variable of `app` says in the environment that `var` reads.
+pub fn chosen_from(app: &App, var: &dyn Fn(&str) -> Option<OsString>) -> Chosen {
+    match var(app.dir_env) {
         None => Chosen::Unset,
         Some(value) if value.is_empty() => Chosen::Unset,
         Some(value) if value.eq_ignore_ascii_case("none") => Chosen::Nothing,
@@ -52,7 +52,7 @@ pub fn chosen_from(var: &dyn Fn(&str) -> Option<OsString>) -> Chosen {
     }
 }
 
-/// The cache's places (T-593): the directories that podssh writes in, in
+/// The places of the files: the directories that the app writes in, in
 /// order, and each usual place that it passed over, with why.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Places {
@@ -62,19 +62,22 @@ pub struct Places {
     pub user: Option<PathBuf>,
     /// Each usual place in another user's tree.
     pub passed: Vec<Passed>,
+    /// The name and the variable of the app, for the notes.
+    pub app: String,
+    pub dir_env: String,
 }
 
 /// A usual place of the cache that is in another user's tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Passed {
-    /// The cache's directory that it would be, `DIR/podssh`.
+    /// The directory of the app that it would be, `DIR/NAME`.
     pub dir: PathBuf,
     /// Why: the directory on the way and its owner.
     pub why: String,
 }
 
 impl Places {
-    /// Where a kept file is looked for: the directories that podssh writes
+    /// Where a kept file is looked for: the directories that the app writes
     /// in, then each place passed over, so that a key, a pin, a pair or a
     /// token kept there before is still found, and a newer copy in this
     /// user's own cache wins.
@@ -88,92 +91,80 @@ impl Places {
     }
 
     /// What a run says once of a file at `path` that is in a place passed
-    /// over: where it is, why, and where to move it to keep it; podssh moves
-    /// nothing.
+    /// over: where it is, why, and where to move it to keep it; nothing is
+    /// moved.
     pub fn kept_note(&self, path: &Path) -> Option<String> {
         let passed = self.passed_for(path)?;
         let to = match (&self.user, path.file_name()) {
             (Some(dir), Some(name)) => {
                 format!("move it to {} to keep it in this user's own cache", dir.join(name).display())
             }
-            _ => format!("move it to a directory of this user's that lasts, and name that directory in {DIR_ENV}"),
+            _ => {
+                format!("move it to a directory of this user's that lasts, and name that directory in {}", self.dir_env)
+            }
         };
         Some(format!(
-            "{} is in another user's tree ({}): podssh reads it there and writes nothing more there; {to}",
+            "{} is in another user's tree ({}): {} reads it there and writes nothing more there; {to}",
             path.display(),
-            passed.why
+            passed.why,
+            self.app
         ))
     }
 }
 
-/// The cache's places in this process's environment, on this host.
-pub fn places() -> Places {
-    places_from(&|name| std::env::var_os(name), std::env::current_dir().ok())
-}
-
-/// [`places`] with the environment and the working directory given; the
-/// owners and the user database are this host's.
-pub fn places_from(var: &dyn Fn(&str) -> Option<OsString>, cwd: Option<PathBuf>) -> Places {
+/// The places of the files of `app` in the environment that `var` reads,
+/// with the working directory `cwd`; the owners and the user database are
+/// this host's. A consumer passes `&|name| std::env::var_os(name)`.
+pub fn places_from(app: &App, var: &dyn Fn(&str) -> Option<OsString>, cwd: Option<PathBuf>) -> Places {
     #[cfg(unix)]
     {
-        places_with(var, cwd, &super::owner::Host::this())
+        places_with(app, var, cwd, &super::owner::Host::this())
     }
     #[cfg(not(unix))]
     {
         // No owner is read: a profile of another user is no report there.
-        collect(var, cwd, &|_, _| None, &|| None)
+        collect(app, var, cwd, &|_, _| None, &|| None)
     }
 }
 
-/// [`places`] with the environment, the working directory, the owners and
-/// the user database given (for tests, which then run as any user).
+/// [`places_from`] with the owners and the user database given (for tests,
+/// which then run as any user).
 #[cfg(unix)]
-pub fn places_with(var: &dyn Fn(&str) -> Option<OsString>, cwd: Option<PathBuf>, host: &super::owner::Host) -> Places {
+pub fn places_with(
+    app: &App,
+    var: &dyn Fn(&str) -> Option<OsString>,
+    cwd: Option<PathBuf>,
+    host: &super::owner::Host,
+) -> Places {
     let foreign = |dir: &Path, top: Option<&Path>| super::owner::foreign(dir, top, host);
-    collect(var, cwd, &foreign, &|| (host.home_of)(host.uid))
+    collect(app, var, cwd, &foreign, &|| (host.home_of)(host.uid))
 }
 
-/// The directories tried, in order: the one of `PODSSH_CACHE_DIR`, the
+/// The directories tried, in order: the one of the variable of `app`, the
 /// user's cache directory, the user's runtime directory, the temporary
 /// directory, the working directory. `none` gives no directory.
-pub fn candidate_dirs() -> Vec<PathBuf> {
-    places().dirs
-}
-
-/// [`candidate_dirs`] with the environment and the working directory given
-/// (for tests).
-pub fn candidate_dirs_from(var: &dyn Fn(&str) -> Option<OsString>, cwd: Option<PathBuf>) -> Vec<PathBuf> {
-    places_from(var, cwd).dirs
-}
-
-/// Where a kept file is looked for in this process's environment: see
-/// [`Places::read`].
-pub fn read_dirs() -> Vec<PathBuf> {
-    places().read()
-}
-
-/// What a run says once of a file found at `path`: see [`Places::kept_note`].
-pub fn kept_note(path: &Path) -> Option<String> {
-    places().kept_note(path)
+pub fn candidate_dirs_from(app: &App, var: &dyn Fn(&str) -> Option<OsString>, cwd: Option<PathBuf>) -> Vec<PathBuf> {
+    places_from(app, var, cwd).dirs
 }
 
 /// The list, with `foreign` saying why a directory is in another user's tree
 /// (`top` is its home), and `entry` giving the home of the uid's entry in the
 /// user database.
 fn collect(
+    app: &App,
     var: &dyn Fn(&str) -> Option<OsString>,
     cwd: Option<PathBuf>,
     foreign: &dyn Fn(&Path, Option<&Path>) -> Option<String>,
     entry: &dyn Fn() -> Option<PathBuf>,
 ) -> Places {
     let absolute = |name: &str| var(name).map(PathBuf::from).filter(|p| p.is_absolute());
-    let mut places = Places::default();
-    match chosen_from(var) {
+    let mut places = Places { app: app.name.to_string(), dir_env: app.dir_env.to_string(), ..Places::default() };
+    match chosen_from(app, var) {
         Chosen::Nothing => return places,
         Chosen::Dir(dir) => places.dirs.push(dir),
         Chosen::Unset | Chosen::Relative(_) => {}
     }
-    if let Some(dir) = user_cache(&absolute, foreign, entry, &mut places.passed) {
+    if let Some(dir) = user_cache(app.name, &absolute, foreign, entry, &mut places.passed) {
         places.user = Some(dir.clone());
         places.dirs.push(dir);
     }
@@ -181,32 +172,33 @@ fn collect(
     // user's own by the XDG spec.
     if let Some(dir) = absolute("XDG_RUNTIME_DIR") {
         match foreign(&dir, None) {
-            None => places.dirs.push(dir.join("podssh")),
-            Some(why) => places.passed.push(Passed { dir: dir.join("podssh"), why }),
+            None => places.dirs.push(dir.join(app.name)),
+            Some(why) => places.passed.push(Passed { dir: dir.join(app.name), why }),
         }
     }
     let tag = user_tag_from(var);
     for dir in temporary_dirs(var) {
-        places.dirs.push(dir.join(format!("podssh-{tag}")));
+        places.dirs.push(dir.join(format!("{}-{tag}", app.name)));
     }
     if let Some(cwd) = cwd {
-        places.dirs.push(cwd.join(".podssh"));
+        places.dirs.push(cwd.join(format!(".{}", app.name)));
     }
     places
 }
 
-/// The user's cache directory, `DIR/podssh`: on Windows `LOCALAPPDATA`; else
+/// The user's cache directory, `DIR/NAME`: on Windows `LOCALAPPDATA`; else
 /// the first of `XDG_CACHE_HOME` and `HOME/.cache` that is in this user's
 /// tree, else, once one was passed over, the `.cache` of the home of the
 /// uid's entry in the user database. Each place passed over goes to `passed`.
 fn user_cache(
+    name: &str,
     absolute: &dyn Fn(&str) -> Option<PathBuf>,
     foreign: &dyn Fn(&Path, Option<&Path>) -> Option<String>,
     entry: &dyn Fn() -> Option<PathBuf>,
     passed: &mut Vec<Passed>,
 ) -> Option<PathBuf> {
     if cfg!(windows) {
-        return absolute("LOCALAPPDATA").map(|dir| dir.join("podssh"));
+        return absolute("LOCALAPPDATA").map(|dir| dir.join(name));
     }
     let home = absolute("HOME");
     let offered = absolute("XDG_CACHE_HOME")
@@ -214,12 +206,12 @@ fn user_cache(
         .into_iter()
         .chain(home.clone().map(|home| (home.join(".cache"), Some(home))));
     for (dir, top) in offered {
-        if passed.iter().any(|p| p.dir == dir.join("podssh")) {
+        if passed.iter().any(|p| p.dir == dir.join(name)) {
             continue;
         }
         match foreign(&dir, top.as_deref()) {
-            None => return Some(dir.join("podssh")),
-            Some(why) => passed.push(Passed { dir: dir.join("podssh"), why }),
+            None => return Some(dir.join(name)),
+            Some(why) => passed.push(Passed { dir: dir.join(name), why }),
         }
     }
     // With no variable that names a place, none is guessed.
@@ -228,13 +220,13 @@ fn user_cache(
     }
     let home = entry()?;
     let dir = home.join(".cache");
-    if passed.iter().any(|p| p.dir == dir.join("podssh")) {
+    if passed.iter().any(|p| p.dir == dir.join(name)) {
         return None;
     }
     match foreign(&dir, Some(&home)) {
-        None => Some(dir.join("podssh")),
+        None => Some(dir.join(name)),
         Some(why) => {
-            passed.push(Passed { dir: dir.join("podssh"), why });
+            passed.push(Passed { dir: dir.join(name), why });
             None
         }
     }

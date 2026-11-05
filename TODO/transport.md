@@ -10,7 +10,7 @@ first (`docs/design.md`, section 5).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -31,16 +31,41 @@ The procedure of `docs/design.md`, section 8: import `identity/` and
 `Entropy`, `OsEntropy` of `session/`; edition; adapt to `pod-core`; the
 tests; the README with the adoption map of podssh.
 
+## Decision
+
+The entropy source goes to `pod-core`, not here: `pod-session` and
+`pod-e2e` take it too. The generic part of podssh's `cache` (the private
+files, the places, the owners and the access lists) goes to
+`pod_core::files`, with the name of the app and its variable as an `App`;
+the token cache waits for `pod-relay`. A function that read the places of
+the process takes the `Places` of the caller.
+
 ## Prove
 
 ```sh
-cargo test -p pod-identity
+cargo test -p pod-identity -p pod-core
 sh scripts/agent/check.sh
+sh scripts/adoption.sh podssh pod-identity
 ```
 
 ## Start condition
 
 T-005 is done.
+
+## Done
+
+2026-11-05, the commits of this entry (import, adaptation). The import
+could not build before its adaptation (it named the modules of
+podssh-relay), so the edition 2024 came with the adaptation; clippy is
+clean on Linux, Windows and macOS. `cargo test -p pod-identity -p
+pod-core`: 70 passed (identity 10, key files 10, foreign trees 3; the
+files of `pod-core` 9 and its unit tests). The trial in podssh at
+`d4e186d` (`adoption/podssh/pod-identity.patch`): `podssh-relay` re-exports
+the crate in its module `identity` with podssh's places; `podssh-relay`
+builds with each feature, its tests `identity` (7 without the feature
+`pair`), `identity_file` (10), `cache` (21), `e2e` (10) and `e2e_faults`
+(10) pass, and `podssh-cli` and `podssh-iroh` build with the features
+`iroh` and `warp`.
 
 # T-011: `pod-term`: the line discipline and the grammar of a terminal's output
 

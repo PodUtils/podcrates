@@ -1,6 +1,6 @@
-//! The Windows side of [`super::closed`] (T-274): the owner and the access
+//! The Windows side of [`super::closed`]: the owner and the access
 //! list of an opened file, read from its security descriptor; and the files
-//! and directories that podssh makes, with an access list of their own that
+//! and directories that a crate makes, with an access list of their own that
 //! lets in the user, SYSTEM and the Administrators alone, whatever the
 //! directory above them lets in, as OpenSSH for Windows makes its files.
 
@@ -14,24 +14,24 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, LocalFree, ERROR_SUCCESS, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE,
+    CloseHandle, ERROR_SUCCESS, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
 };
 use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
-    SetNamedSecurityInfoW, SDDL_REVISION_1, SE_FILE_OBJECT,
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SDDL_REVISION_1,
+    SE_FILE_OBJECT, SetNamedSecurityInfoW,
 };
 use windows_sys::Win32::Security::{
-    GetAce, GetSecurityDescriptorDacl, GetTokenInformation, TokenUser, ACCESS_ALLOWED_ACE, ACE_HEADER, ACL,
-    DACL_SECURITY_INFORMATION, INHERIT_ONLY_ACE, OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
-    PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
+    ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, DACL_SECURITY_INFORMATION, GetAce, GetSecurityDescriptorDacl,
+    GetTokenInformation, INHERIT_ONLY_ACE, OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
 };
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
-use super::closed::{judge, Acl, Entry};
 use super::Others;
+use super::closed::{Acl, Entry, judge};
 
 /// `ACCESS_ALLOWED_ACE_TYPE` and `ACCESS_DENIED_ACE_TYPE`: the entries of a
 /// file's list; another type (an object's, a callback's) is not a file's.
@@ -172,7 +172,7 @@ impl Drop for Descriptor {
     }
 }
 
-/// The access list of what podssh makes: full control for SYSTEM, the
+/// The access list of what a crate makes: full control for SYSTEM, the
 /// Administrators and the user, and none for anyone else, protected from
 /// the entries of the directory above; `inherit` for a directory, whose new
 /// files and directories get the same.
@@ -184,7 +184,7 @@ fn private_descriptor(inherit: bool) -> io::Result<Descriptor> {
 
 /// The access list of a file that each may read and only those of the
 /// private list may change, as OpenSSH for Windows makes a `.pub` file
-/// (T-288): the private list, and reading for Everyone.
+///: the private list, and reading for Everyone.
 fn public_descriptor() -> io::Result<Descriptor> {
     let user = user_sid().map_err(io::Error::other)?;
     descriptor(&format!("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;{user})(A;;FR;;;WD)"))
@@ -220,7 +220,7 @@ pub(crate) fn create_new_private(path: &Path) -> io::Result<File> {
 }
 
 /// A new file of this user that each may read and nobody else may change,
-/// never one that exists (T-288).
+/// never one that exists.
 pub(crate) fn create_new_public(path: &Path) -> io::Result<File> {
     create_new(path, &public_descriptor()?)
 }

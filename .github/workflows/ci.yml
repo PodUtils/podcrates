@@ -141,7 +141,8 @@ jobs:
         run: |
           set -eu
           exe=target/${{ matrix.target }}/release/static-probe
-          [ -f "$exe" ] || exe="$exe.exe"
+          # Git Bash finds NAME.exe for a test of NAME: look for the .exe first.
+          if [ -f "$exe.exe" ]; then exe="$exe.exe"; fi
           sh scripts/check-static.sh "$exe"
           echo "| ${{ matrix.target }} | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
 

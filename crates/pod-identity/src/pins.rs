@@ -1,4 +1,4 @@
-//! The node keys that an operator has met (T-087), kept as `known_hosts`
+//! The node keys that an operator has met, kept as `known_hosts`
 //! keeps host keys: one line for each key of a label, `LABEL KEY`, the key
 //! as its fingerprint (or as the key itself), in the file `known-nodes` of
 //! the cache's directories. The first sight of a label's node pins its key
@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{KeyName, PublicKey};
-use crate::cache::{self, Others};
+use pod_core::files::{self as cache, Others, Places};
 
 /// The file's name in the cache's directories.
 pub const FILE: &str = "known-nodes";
@@ -51,10 +51,9 @@ impl std::fmt::Display for PinError {
 }
 
 /// Check the key of the node of `label` against the pins, and pin it at the
-/// first sight. The pins that podssh kept before in a place of the cache in
-/// another user's tree are read there (T-593).
-pub fn check(label: &str, key: &PublicKey) -> Result<Seen, PinError> {
-    let places = cache::places();
+/// first sight, in the `places` of the caller's app. The pins kept before in
+/// a place in another user's tree are read there.
+pub fn check(places: &Places, label: &str, key: &PublicKey) -> Result<Seen, PinError> {
     check_split(&places.read(), &places.dirs, label, key)
 }
 

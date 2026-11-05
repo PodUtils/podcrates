@@ -1,21 +1,21 @@
-//! The cache in another user's tree (T-593, GitHub #118): a home of another
-//! uid is passed over for the home of the uid's entry in the user database,
-//! no directory but the cache's own is made there, and what podssh kept
-//! there before is read and said, never moved. Each test gives the list the
+//! The files of a node in another user's tree: a home of another uid is
+//! passed over for the home of the uid's entry in the user database, no
+//! directory but the cache's own is made there, and what the app kept there
+//! before is read and said, never moved. Each test gives the list the
 //! owner of the directories that it calls another user's, so that it runs as
 //! any user, root or not, with no second account.
 
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use podssh_relay::cache::{
-    load_from, make_dirs_with, places_with, private_dir, store_in_first, store_noting, Host, Places, MIN_REMAINING_MS,
+use pod_core::entropy::OsEntropy;
+use pod_core::files::{
+    Host, Places, load_file_from, make_dirs_with, places_with, private_dir, store_file_in_first, store_noting,
 };
-use podssh_relay::identity::file::{self, Place};
-use podssh_relay::identity::pins::{self, Seen};
-use podssh_relay::session::OsEntropy;
+use pod_identity::file::{self, Place};
+use pod_identity::pins::{self, Seen};
 
-use super::{env, scratch, NOW, TOKEN};
+use super::{APP, TOKEN, TOKEN_FILE, env, scratch};
 
 /// This user's uid, as the owner of a directory that the test made, and
 /// another uid that is not root's.
@@ -34,13 +34,7 @@ fn with_host<R>(uid: u32, given: &[(PathBuf, u32)], home: Option<PathBuf>, f: im
             Ok(meta) => Ok(Some(given.iter().find(|(p, _)| p.as_path() == path).map_or(meta.uid(), |(_, u)| *u))),
         }
     };
-    let home_of = |asked: u32| -> Option<PathBuf> {
-        if asked == uid {
-            home.clone()
-        } else {
-            None
-        }
-    };
+    let home_of = |asked: u32| -> Option<PathBuf> { if asked == uid { home.clone() } else { None } };
     f(&Host { uid, owner: &owner, home_of: &home_of })
 }
 
@@ -50,7 +44,7 @@ fn places_of(home: &Path, theirs: &Path, entry: Option<&Path>, root: &Path) -> (
     let (me, other) = uids(root);
     let pairs = [("HOME", home.to_path_buf()), ("TMPDIR", root.join("tmp"))];
     let given = [(theirs.to_path_buf(), other)];
-    (with_host(me, &given, entry.map(Path::to_path_buf), |host| places_with(&env(&pairs), None, host)), other)
+    (with_host(me, &given, entry.map(Path::to_path_buf), |host| places_with(&APP, &env(&pairs), None, host)), other)
 }
 
 fn cache_of(home: &Path) -> PathBuf {
@@ -84,7 +78,7 @@ fn a_home_of_another_uid_is_passed_over_for_the_passwd_home() {
     let (me, other) = uids(&root);
     let pairs = [("HOME", theirs.clone()), ("XDG_CACHE_HOME", theirs.join("xdg")), ("TMPDIR", root.join("tmp"))];
     let given = [(theirs.clone(), other)];
-    let places = with_host(me, &given, Some(mine.clone()), |host| places_with(&env(&pairs), None, host));
+    let places = with_host(me, &given, Some(mine.clone()), |host| places_with(&APP, &env(&pairs), None, host));
     assert_eq!(places.dirs.first(), Some(&cache_of(&mine)), "{places:?}");
     let passed: Vec<&PathBuf> = places.passed.iter().map(|p| &p.dir).collect();
     assert_eq!(passed, [&theirs.join("xdg").join("podssh"), &cache_of(&theirs)], "{places:?}");
@@ -154,8 +148,7 @@ fn a_key_kept_there_before_is_read_and_said() {
     private_dir(&mine).unwrap();
     let before = file::load_in(std::slice::from_ref(&old), &file::node_place("lab"), &mut OsEntropy).unwrap();
     assert!(before.made);
-    store_in_first(std::slice::from_ref(&old), "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
-        .unwrap();
+    store_file_in_first(std::slice::from_ref(&old), TOKEN_FILE, TOKEN.as_bytes()).unwrap();
     let pinned = before.identity.public();
     std::fs::write(old.join(pins::FILE), format!("a {}\n", pinned.fingerprint())).unwrap();
     std::fs::set_permissions(old.join(pins::FILE), std::fs::Permissions::from_mode(0o600)).unwrap();
@@ -174,7 +167,7 @@ fn a_key_kept_there_before_is_read_and_said() {
     assert!(note.contains(&format!("uid {other} owns {}", theirs.display())), "{note}");
     assert!(note.contains(&format!("move it to {}", to.display())), "{note}");
     // The token kept there is used.
-    assert!(load_from(&places.read(), "relay.example", NOW).is_some(), "the token is read there");
+    assert!(load_file_from(&places.read(), TOKEN_FILE).is_some(), "the token is read there");
     // The pins kept there are checked; a new pin goes into a copy in this
     // user's own cache, with the old lines.
     assert_eq!(pins::check_split(&places.read(), &places.dirs, "a", &pinned), Ok(Seen::Known));

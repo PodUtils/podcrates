@@ -1,0 +1,14 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+dir crates/podssh-relay/src/identity
+dir crates/podssh-relay/tests/cache_owner
+file 13c6d9d06f41cab7a54ee11e74af5bde0a5b6bc2 crates/podssh-relay/src/identity/allow.rs -> crates/pod-identity/src/allow.rs
+file a5e8d1f8f25b41fbad1e40661e2a6af5fefaa3f2 crates/podssh-relay/src/identity/file.rs -> crates/pod-identity/src/file.rs
+file aef968af5274a9ff5a9bc8c55423fef32d93551e crates/podssh-relay/src/identity/mod.rs -> crates/pod-identity/src/lib.rs
+file 116361d0f83463d0e3d41d1370d5d5bfe114f326 crates/podssh-relay/src/identity/pins.rs -> crates/pod-identity/src/pins.rs
+file fb55dbc85d0000a9822a25782db0ce2347aaaf16 crates/podssh-relay/tests/cache_owner/mod.rs -> crates/pod-identity/tests/cache_owner/mod.rs
+file b0a5a1028c9d7898a216294da40f284556403f62 crates/podssh-relay/tests/identity.rs -> crates/pod-identity/tests/identity.rs
+file 392655c8499c3612e3b5989a051575efb9816be3 crates/podssh-relay/tests/identity_file.rs -> crates/pod-identity/tests/identity_file.rs

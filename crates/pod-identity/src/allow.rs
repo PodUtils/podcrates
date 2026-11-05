@@ -1,16 +1,16 @@
-//! Who may reach a node (T-163, T-087): the client keys in an allowlist
+//! Who may reach a node: the client keys in an allowlist
 //! file, as sshd's `authorized_keys` gives access by key, on each road. The
 //! file holds one key on each line, as its fingerprint (`SHA256:...`) or as
 //! the key in iroh's hex or base32, then an optional comment; a line that
 //! starts with `#` is a comment. A line that is not a key lets nobody in,
 //! and is named. A word `routes=A,B` right after the key lets it use those
-//! routes of the node (T-089), `routes=*` each one; a key with no such word
+//! routes of the node, `routes=*` each one; a key with no such word
 //! reaches the node's target that has no route, and no route.
 
 use std::path::Path;
 
 use super::{KeyName, PublicKey};
-use crate::cache::{self, Others};
+use pod_core::files::{self as cache, Others};
 
 /// The keys of an allowlist.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -45,7 +45,7 @@ impl Allowlist {
                 Some("*") => Some((Vec::new(), true)),
                 Some(list) => {
                     let routes: Vec<String> = list.split(',').map(str::to_string).collect();
-                    routes.iter().all(|r| podssh_ws::names::check_node_name(r).is_ok()).then_some((routes, false))
+                    routes.iter().all(|r| pod_core::names::check_node_name(r).is_ok()).then_some((routes, false))
                 }
             };
             match (name, routes) {
@@ -112,7 +112,7 @@ pub fn admits(path: &Path, key: &PublicKey) -> Result<(), String> {
 }
 
 /// Whether the client `key` may use `route` of the node, by the allowlist at
-/// `path`, read again for each session (T-089).
+/// `path`, read again for each session.
 pub fn grants(path: &Path, key: &PublicKey, route: &str) -> Result<(), String> {
     match Allowlist::read(path) {
         Ok(list) if list.grants(key, route) => Ok(()),

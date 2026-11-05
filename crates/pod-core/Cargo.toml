@@ -12,6 +12,18 @@ publish = false
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync"] }
 rand = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Threading",
+] }
+
 [dev-dependencies]
 pod-testkit = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros", "test-util"] }

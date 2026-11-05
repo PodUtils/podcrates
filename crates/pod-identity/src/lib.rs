@@ -1,6 +1,6 @@
-//! Who an end of a road is (T-087): one Ed25519 key for each role, the same
+//! Who an end of a road is: one Ed25519 key for each role, the same
 //! on each road. A node has one for each label, a client one for each user,
-//! in the key files of T-163 ([`file`]). A key is shown by its SHA256
+//! in the key files of the older names ([`file`]). A key is shown by its SHA256
 //! fingerprint, in OpenSSH's form, and named by it or by the key itself
 //! ([`KeyName`]): in a node's allowlist ([`allow`]), an operator's pins
 //! ([`pins`]), or a flag.
@@ -77,7 +77,7 @@ impl Identity {
     }
 
     /// The Ed25519 key's signature of `message`, for a proof that names its
-    /// own purpose in its first bytes (the relay's mint, T-448), so that no
+    /// own purpose in its first bytes (the relay's mint), so that no
     /// signature serves two.
     pub fn sign(&self, message: &[u8]) -> [u8; 64] {
         self.signing.sign(message).to_bytes()
