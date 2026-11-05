@@ -5,9 +5,9 @@ mod common;
 
 use std::collections::HashMap;
 
-use common::{Tree, SOURCE};
-use podssh_todo::check::check_with;
-use podssh_todo::remap::{remap, Report};
+use common::{SOURCE, Tree};
+use pod_todo::check::check_with;
+use pod_todo::remap::{Report, remap};
 
 const LIB: &str = "crates/x/src/lib.rs";
 const TWO: &str = "crates/x/src/two.rs";
@@ -250,7 +250,7 @@ fn an_edit_with_no_remap_is_found_by_the_check() {
 
 /// The problems of the check that name a remap, given the files changed and
 /// their texts in the base.
-fn unmoved(t: &Tree, changed: &[&str], get: &podssh_todo::remap::Head) -> Vec<String> {
+fn unmoved(t: &Tree, changed: &[&str], get: &pod_todo::remap::Head) -> Vec<String> {
     let changed = Some(changed.iter().map(|c| c.to_string()).collect());
     check_with(t.path(), changed, get, "HEAD")
         .problems

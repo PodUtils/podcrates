@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::model::{
-    Counts, Entry, Problem, Row, CATEGORIES, EFFORTS, FIELDS, MILESTONES, PRIORITIES, RECORD_FILES, REQUIRED_SECTIONS,
+    CATEGORIES, Counts, EFFORTS, Entry, FIELDS, MILESTONES, PRIORITIES, Problem, RECORD_FILES, REQUIRED_SECTIONS, Row,
     SECTIONS, STATUSES,
 };
 use crate::parse;

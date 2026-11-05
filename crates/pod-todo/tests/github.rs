@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use podssh_todo::github::{agree, read_list, read_map};
+use pod_todo::github::{agree, read_list, read_map};
 
 fn record(file: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../TODO").join(file);

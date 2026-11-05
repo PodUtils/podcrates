@@ -9,7 +9,7 @@ mod common;
 use std::path::Path;
 use std::process::Command;
 
-use common::{Tree, SOURCE};
+use common::{SOURCE, Tree};
 
 const LIB: &str = "crates/x/src/lib.rs";
 
@@ -54,7 +54,7 @@ fn committed(name: &str) -> Tree {
 fn run(args: &[&str]) -> (i32, String, String) {
     let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let code = podssh_todo::run(&args, &mut out, &mut err);
+    let code = pod_todo::run(&args, &mut out, &mut err);
     (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
 }
 

@@ -7,8 +7,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use crate::check::{read, Record, PROGRESS};
-use crate::model::{ids_in, Problem};
+use crate::check::{PROGRESS, Record, read};
+use crate::model::{Problem, ids_in};
 use crate::parse::{code_spans, doc_section, lines_with_fences};
 
 pub const ROADMAP: &str = "docs/ROADMAP.md";

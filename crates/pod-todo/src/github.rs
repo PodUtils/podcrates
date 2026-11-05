@@ -146,10 +146,10 @@ pub fn check(root: &Path, p: &mut Vec<Problem>) {
         (Err(_), Err(_)) => return,
         (Ok(map), Ok(list)) => (map, list),
         (Ok(_), Err(e)) => {
-            return p.push(Problem::new(LIST, 0, format!("the map has no list of GitHub's numbers: {e}")))
+            return p.push(Problem::new(LIST, 0, format!("the map has no list of GitHub's numbers: {e}")));
         }
         (Err(e), Ok(_)) => {
-            return p.push(Problem::new(MAP, 0, format!("the list of GitHub's numbers has no map: {e}")))
+            return p.push(Problem::new(MAP, 0, format!("the list of GitHub's numbers has no map: {e}")));
         }
     };
     let list = read_list(&list_text, p);

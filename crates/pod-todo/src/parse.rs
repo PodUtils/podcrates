@@ -2,7 +2,7 @@
 //! number or a status that one file quotes can be compared with the file
 //! that owns it.
 
-use crate::model::{Counts, Entry, Field, Problem, Row, Section, FIELDS};
+use crate::model::{Counts, Entry, FIELDS, Field, Problem, Row, Section};
 
 /// The lines of a text with their numbers, and whether each is inside a
 /// fenced code block (a fence line itself counts as inside).

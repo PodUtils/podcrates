@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::model::{ids_in, Problem};
+use crate::model::{Problem, ids_in};
 
 /// The statuses that a reader may write beside an id.
 const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];

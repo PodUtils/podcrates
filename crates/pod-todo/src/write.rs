@@ -5,8 +5,8 @@
 use std::fs;
 use std::path::Path;
 
-use crate::check::{read, INDEX, PROGRESS};
-use crate::model::{Counts, Row, PRIORITIES, STATUSES};
+use crate::check::{INDEX, PROGRESS, read};
+use crate::model::{Counts, PRIORITIES, Row, STATUSES};
 use crate::parse;
 
 /// Write a text back with the line endings that the file had.
@@ -35,11 +35,7 @@ fn set_field(text: &str, id: &str, field: &str, value: &str) -> Result<String, S
         }
         out.push('\n');
     }
-    if done {
-        Ok(out)
-    } else {
-        Err(format!("{id} has no **{field}:** line"))
-    }
+    if done { Ok(out) } else { Err(format!("{id} has no **{field}:** line")) }
 }
 
 /// Rewrite the counts phrase, the counts table and the progress line from
@@ -97,7 +93,7 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
     let entry = entries.iter().find(|e| e.id == id).ok_or(format!("{id} is not an entry of {area}"))?;
     match status {
         "done" if !entry.section("Done").is_some_and(|d| crate::check::has_date(&d.body)) => {
-            return Err(format!("{id}: write the evidence first, in `## Done` with its date"))
+            return Err(format!("{id}: write the evidence first, in `## Done` with its date"));
         }
         // A Prove that names what the tree does not hold did not run (T-361).
         "done" => {
@@ -107,13 +103,13 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
             }
         }
         "blocked" if entry.section("Blocker").is_none() => {
-            return Err(format!("{id}: write what blocks it first, in `## Blocker`"))
+            return Err(format!("{id}: write what blocks it first, in `## Blocker`"));
         }
         s if s != "blocked" && entry.section("Blocker").is_some() => {
-            return Err(format!("{id}: the entry still has `## Blocker`; record how it cleared, then remove it"))
+            return Err(format!("{id}: the entry still has `## Blocker`; record how it cleared, then remove it"));
         }
         s if !matches!(s, "done" | "partial") && entry.section("Done").is_some() => {
-            return Err(format!("{id}: the entry has `## Done`; move that text to `## Correction` to open it again"))
+            return Err(format!("{id}: the entry has `## Done`; move that text to `## Correction` to open it again"));
         }
         _ => {}
     }

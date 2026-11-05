@@ -56,8 +56,8 @@ fn set_refuses_to_close_an_entry_whose_prove_names_a_missing_target() {
     t.plant("TODO/area.md", "\ncargo test -p x\n", "\ncargo test -p x --test gone\n");
     t.plant("TODO/area.md", "```\n\n# T-002", "```\n\n## Done\n\n2026-10-31: planted.\n\n# T-002");
     let refused =
-        podssh_todo::write::set_status(t.path(), "T-001", "done").expect_err("a Prove that names a missing target");
+        pod_todo::write::set_status(t.path(), "T-001", "done").expect_err("a Prove that names a missing target");
     assert!(refused.contains("T-001: its Prove names the test target gone"), "{refused}");
     t.plant("TODO/area.md", "\ncargo test -p x --test gone\n", "\ncargo test -p x --test third\n");
-    podssh_todo::write::set_status(t.path(), "T-001", "done").expect("a Prove whose targets exist");
+    pod_todo::write::set_status(t.path(), "T-001", "done").expect("a Prove whose targets exist");
 }
