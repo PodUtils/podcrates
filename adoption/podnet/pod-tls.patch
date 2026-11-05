@@ -1,12 +1,13 @@
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index 1a0534d..a050c7f 100644
+index a960426..a050c7f 100644
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -108,8 +108,9 @@ jobs:
+@@ -108,9 +108,9 @@ jobs:
            grep -m1 PermissionDenied "$RUNNER_TEMP/plant.log" || { cat "$RUNNER_TEMP/plant.log"; echo "the plant failed for another cause"; exit 1; }
            git checkout -- src/ports.rs
  
--  # The rust-version of Cargo.toml builds the workspace. Then a planted call
+-  # The rust-version of Cargo.toml builds the workspace, but the record tool
+-  # podnet-todo (it ships in no release; pod-todo needs Rust 1.97). Then a planted call
 -  # of an API that is newer than that version must fail to build.
 +  # The rust-version of Cargo.toml builds the workspace. It is the Rust of
 +  # pod-tls (PodUtils/podcrates), the toolchain of CI: no stable API is newer,
@@ -14,10 +15,11 @@ index 1a0534d..a050c7f 100644
    msrv:
      runs-on: ubuntu-24.04
      timeout-minutes: 30
-@@ -126,17 +127,6 @@ jobs:
+@@ -126,18 +126,7 @@ jobs:
+           sh scripts/retry.sh rustup toolchain install "$msrv" --profile minimal
            echo "MSRV=$msrv" >> "$GITHUB_ENV"
        - name: Check with rust-version
-         run: cargo +"$MSRV" check --locked --workspace
+-        run: cargo +"$MSRV" check --locked --workspace --exclude podnet-todo
 -      - name: A newer API fails with rust-version
 -        run: |
 -          set -u
@@ -29,11 +31,12 @@ index 1a0534d..a050c7f 100644
 -          fi
 -          grep -E 'E0658|unstable' msrv.log || { cat msrv.log; echo "the build failed for another cause"; exit 1; }
 -          git checkout -- src/lib.rs
++        run: cargo +"$MSRV" check --locked --workspace
  
    static:
      runs-on: ubuntu-24.04
 diff --git a/Cargo.toml b/Cargo.toml
-index 49cbe41..42a2aad 100644
+index aa4814e..2aa061a 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -2,7 +2,7 @@
@@ -45,7 +48,7 @@ index 49cbe41..42a2aad 100644
  license = "0BSD"
  build = "build.rs"
  description = "podnet: bring your own network to restricted hosts. Tunnels, WARP, relays, pods, virtual networks, file serving and transfer, from one static binary."
-@@ -50,6 +50,11 @@ path = "src/main.rs"
+@@ -56,6 +56,11 @@ path = "src/main.rs"
  
  [dependencies]
  podnet-netns = { path = "crates/podnet-netns", version = "0.3.0-beta.12" }
