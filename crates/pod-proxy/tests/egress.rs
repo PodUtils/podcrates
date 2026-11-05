@@ -284,3 +284,25 @@ async fn a_silent_address_does_not_hold_the_dial() {
     assert_eq!(index, 1);
     assert!(took < Duration::from_millis(1000), "the dial took {took:?}");
 }
+
+/// A dial that no address takes keeps the kind of the last error of I/O
+/// whole, beside its cut: podnet's doctor reads a refusal of this host (an
+/// unreachable network or host, its rules) by the kind.
+#[tokio::test]
+async fn a_failed_dial_keeps_the_kind_of_its_last_error() {
+    pod_testkit::need_loopback!();
+    let closed = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap();
+    let err = pod_proxy::dial_addrs(&[closed], Duration::from_secs(5)).await.unwrap_err();
+    match err {
+        DialError::Connect { kind, cut, .. } => {
+            assert_eq!(kind, Some(std::io::ErrorKind::ConnectionRefused));
+            assert_eq!(cut, Some(pod_proxy::Cut::Refused));
+        }
+        other => panic!("{other:?}"),
+    }
+    let direct = dialer(ProxyChoice::Direct).tcp("127.0.0.1", closed.port(), Duration::from_secs(5)).await;
+    assert!(
+        matches!(direct, Err(DialError::Connect { kind: Some(std::io::ErrorKind::ConnectionRefused), .. })),
+        "{direct:?}"
+    );
+}

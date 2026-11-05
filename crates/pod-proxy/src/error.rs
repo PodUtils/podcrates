@@ -20,8 +20,11 @@ pub enum DialError {
     BadProxy(String),
     /// The name did not resolve (direct connections only).
     Resolve { host: String, detail: String },
-    /// Every address failed; the cut of the last one, by its kind.
-    Connect { target: String, detail: String, cut: Option<Cut> },
+    /// Every address failed; the cut of the last one, and the kind of its
+    /// error of I/O whole, for a caller that tells more kinds apart than
+    /// the cuts (an unreachable network or host, a refusal of this host's
+    /// rules).
+    Connect { target: String, detail: String, cut: Option<Cut>, kind: Option<std::io::ErrorKind> },
     /// A step did not finish in time: the stage of the step (the proxy, the
     /// connection, the resolution).
     Timeout { step: String, after: Duration, stage: Stage },
@@ -113,7 +116,8 @@ mod tests {
         let late =
             DialError::Timeout { step: "resolving relay.example".into(), after: Duration::ZERO, stage: Stage::Dns };
         assert_eq!(late.stage_and_class(), (Stage::Dns, Class::Timeout));
-        let silent = DialError::Connect { target: "t:2".into(), detail: "d".into(), cut: Some(Cut::TimedOut) };
+        let silent =
+            DialError::Connect { target: "t:2".into(), detail: "d".into(), cut: Some(Cut::TimedOut), kind: None };
         assert_eq!(silent.stage_and_class(), (Stage::Connect, Class::Timeout));
         assert_eq!(DialError::InvalidTarget("x".into()).stage_and_class(), (Stage::Connect, Class::Usage));
         assert_eq!(DialError::BadProxy("x".into()).stage_and_class(), (Stage::Proxy, Class::Config));

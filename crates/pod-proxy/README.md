@@ -35,9 +35,10 @@ to each crate that opens a connection.
 | `Proxy` (`parse`, `parse_trusted`, `parse_with(spec, commands, http_port)`, `secret_parts`, `url`, `url_at`, `label`, `kind()`, `carrier()`, `address()`, `has_credentials()`, `scheme()`, `kind_text()`, `outcome()`, `host`, `port`, `kind`), `ProxyKind` (`Http`, `Socks5 { remote_dns }`; `scheme`, `name`, `request`), `Carrier` (`Tcp`, `Unix`, `Exec`), `HttpProxy`, `proxy::{percent_decode, HTTP_PORT, SOCKS_PORT}` | the proxy that a URL names; its credentials never show in `Display`, `label` or `Debug`, nor more than the first word of a command |
 | `Stream` (`Tcp`, `Unix`, `Exec`; `tcp`, `into_tcp`, `peer_addr`, `local_addr`), `ChildIo` (`spawn`, `exited`) | the stream of a dial; a command's stdin and stdout as one stream |
 | `digest::{parse_challenge, challenge_in, authorization, cnonce, md5, Challenge, ALGORITHMS}` | HTTP Digest (RFC 7616) for a `CONNECT` |
+| `proxy_auth::schemes(head)` | the schemes of each `Proxy-Authenticate` of a `407`, in order, once each: for a caller that speaks to a proxy of its own |
 | `Credentials` (`new`, `load`, `user`, `basic_header`, `check`, `check_basic`) | the user and the password that a client of a served proxy gives |
 | `dial_addrs(&addrs, timeout)`, `group_errors(&errors)`, `hint::open_files(&err)` | a race of given addresses with no proxy, and the index of the one that won; the errors of many addresses, one entry for each text; the words of too many open files |
-| `DialError` (`stage_and_class`, `cut`), `From<DialError> for Failure` | why a connection could not be opened, and its stage and class |
+| `DialError` (`stage_and_class`, `cut`), `From<DialError> for Failure` | why a connection could not be opened, and its stage and class; `DialError::Connect` keeps the cut and the kind of the error of I/O of the last address |
 | `Cut` (`of`, `of_failure`, `words`), `TlsFailure::of(&err, &words)`, `Missed` (`words`, `tls`) | how a connection ended, by the kind of its error of I/O |
 | `Client::new(context, dial)`, `with_user_agent`, `with_records` (feature `ech`), `https_get`, `https_get_accepting` | a GET over HTTPS through the caller's dial and TLS context; a `Failure` at the stage of the step that failed |
 | `Client::send(request)`, `client::Request` (`new`, `header`, `body`, `json`, `timeout`, `via`, `trust`, `max_body`), `client::{MAX_BODY, MAX_HEAD, TIMEOUT}` | one request of any method to an `http://` or `https://` URL, under one time limit; `https://` offers ALPN `http/1.1` over the roots of the context unless the request gives a trust; a handshake that the network ended is at `Stage::Network` |
@@ -121,7 +122,7 @@ The bypass of a name pinned to loopback addresses alone is the caller's:
 | HTTP/1.1: a request and its response, `Content-Length`, chunks, the close, the bounds, a body and a header made safe text, a server's request head, its refusals and answers | [x] `http`, `http::request` |
 | The GET client: the configuration and the name checked first, the dial, the handshake (sealed with ECH where asked), the exchange, each bounded | [x] `Client` (ECH with the feature `ech`) |
 | The rest of `client.rs`: the WebSocket client, `https_post_json`, `https_with_token`, `doctor`, the frames | `pod-ws` (T-016) |
-| The tests: unit (27) and `tests/{dial,dial_pinned,dial_race,socks5,mptcp,http,limits}.rs`, with their names | [x] with the tests of podnet and the new tests: 139 passed, 1 ignored (the live test of MPTCP); the tests changed for the merge are in the changes for podssh |
+| The tests: unit (27) and `tests/{dial,dial_pinned,dial_race,socks5,mptcp,http,limits}.rs`, with their names | [x] with the tests of podnet and the new tests: 141 passed, 1 ignored (the live test of MPTCP); the tests changed for the merge are in the changes for podssh |
 | `tests/limits.rs`: the tests of the upgrade and of the frames | `pod-ws` (T-016) |
 | `doh_wire.rs` `the_dialer_hands_a_cached_address_that_does_not_connect_to_the_next_source` (the cache of podssh's resolver) | `pod-dns` (T-015); the race's part is `dial_race` `a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next` |
 | The fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | T-017 (`socks5::fuzz_exchange` stays behind `cfg(fuzzing)`) |
@@ -160,7 +161,7 @@ New tests: `env` (3), `error` (1), `resolve` (2), `dial_race`
 | The counters of the decisions (`egress`: `direct`, `none`, `no_proxy`, `via`, `http`, `socks5`, `unix`, `exec`) | [x] `Dialer::with_observer`; also `loopback` and `unusable` |
 | A direct dial: each address of the name, the attempts 250 ms apart, the families in turns, `TCP_NODELAY` | [x] `race`, `Settings::attempt_delay` |
 | `dial_addrs(addrs, timeout)` with the index of the address | [x] `dial_addrs` |
-| The errors of many addresses, one entry for each text (`group_errors`); the kind of the last error kept | [x] `group_errors` in `race`; the kind is `DialError::Connect::cut` |
+| The errors of many addresses, one entry for each text (`group_errors`); the kind of the last error kept | [x] `group_errors` in `race`; the kind is `DialError::Connect::kind`, beside its `cut` |
 | The hint of too many open files (`rlimit::hint`) | [x] `hint::open_files`, the same words |
 | The client: one request of any method, `http://` and `https://`, its headers, a JSON body, a time limit (30 s), `Connection: close`, `Accept-Encoding: identity`, `Host` with the port when not the default, a user agent, `Content-Length`; a header with a line break refused; the words `METHOD URL` with no query | [x] `Client::send`, `client::Request` (`json` takes the text) |
 | A proxy for one request only (`Request::via`) | [x] `Request::via` takes a dial (`Arc<dyn Dial>`), as a `Dialer` with `ProxyChoice::Via` |
@@ -196,6 +197,12 @@ New tests of the merge: `the_secret_parts_of_a_url`,
 `a_close_in_the_tls_handshake_is_the_network`,
 `a_request_over_https_takes_its_trust_or_the_roots_of_the_context`.
 
+New tests of the adoption trials: `tests/http.rs`
+`the_schemes_of_a_407_are_read_for_a_caller_that_speaks_to_its_proxy`
+(podssh's second proxy reads the schemes of its `407`), `tests/egress.rs`
+`a_failed_dial_keeps_the_kind_of_its_last_error` (podnet's doctor reads a
+refusal of this host by the kind of its error).
+
 ## Changes for podssh
 
 The merge changes these behaviours of podssh's code:
@@ -220,7 +227,11 @@ The merge changes these behaviours of podssh's code:
   password`.
 * A proxy URL with a path, a query or a fragment is refused (podssh
   passed over the path), and so are the port 0, a host in brackets that
-  is not IPv6, and a `%` or `\` in a name.
+  is not IPv6, and a `%` or `\` in a name. The words of a refused scheme
+  name no program: `the proxy scheme ftp:// is not supported; HTTP CONNECT
+  goes to an http:// proxy, and SOCKS5 to a socks5:// or socks5h:// one`
+  (podssh: `proxy scheme ftp:// is not supported; podssh speaks HTTP
+  CONNECT ...`).
 * `Proxy`'s Debug shows `<hidden>` for the credentials, and a carrier.
   `Display` stays `host:port`; `Proxy::label` gives the scheme form.
 * `http::read_response` passes over up to 5 interim answers (1xx but
@@ -244,7 +255,7 @@ The merge changes these behaviours of podssh's code:
 | podssh | `podssh_ws::dial::{PROXY_VARS, NO_PROXY_VARS, is_loopback, no_proxy_matches, no_proxy_entry}` | `pod_proxy::env::*` (and `PROXY_VARS`, `NO_PROXY_VARS` at the root); the variable of each value is `environment.proxy.origin`, `environment.no_proxy.origin` |
 | podssh | `podssh_ws::dial::{parse_status_line}` | `pod_proxy::http::parse_status_line` |
 | podssh | `podssh_ws::dial::{authority, split_host_port, check_name}`, `ATTEMPT_DELAY`, `interleave` | `pod_proxy::host::*`, `pod_proxy::{ATTEMPT_DELAY, interleave}` |
-| podssh | `podssh_ws::{DialError, dial::DialError}` | `pod_proxy::DialError`; `Timeout` has a `stage`; `Failure::from(e)`; from a `Failure`, `e.source().downcast_ref::<DialError>()` |
+| podssh | `podssh_ws::{DialError, dial::DialError}` | `pod_proxy::DialError`; `Timeout` has a `stage`, `Connect` a `kind` (the kind of the last error of I/O, or `None`); `Failure::from(e)`; from a `Failure`, `e.source().downcast_ref::<DialError>()` |
 | podssh | `podssh_ws::{Proxy, HttpProxy, ProxyKind}`, `podssh_ws::proxy::*` | `pod_proxy::{Proxy, HttpProxy, ProxyKind}`; `proxy::percent_decode` is public; `ProxyKind::Socks5` is `ProxyKind::Socks5 { remote_dns }` (`{ .. }` in a pattern); `format!("{}://{p}", p.kind.scheme())` is `p.label()` |
 | podssh | `podssh_ws::resolve::{set_pins, pinned}` as the dial reads them | the resolver of the dialer: `Resolve::pinned`; `resolve::System::with_pins(pins)` until `pod-dns` |
 | podssh | `podssh_ws::resolve::{resolve, resolve_from, Found, SOURCE_WAIT}` as the race reads them | `pod_core::{Resolve, Found, SOURCE_WAIT}`; `Found` has `more` |
@@ -253,6 +264,7 @@ The merge changes these behaviours of podssh's code:
 | podssh | `podssh_ws::client::{https_get, https_get_accepting}(host, port, path, .., &trust, &proxy, timeout)` | `Client::new(context, dial).with_user_agent(..)` once, then `client.https_get(host, port, path, max_body, &trust, timeout)`, `client.https_get_accepting(..)`; `Err(Failure)` with the same words (`the HTTPS request failed: ..`, `the HTTPS request timed out after Ns`) |
 | podssh | `podssh_ws::http::exchange(stream, method, ..)` | `pod_proxy::http::exchange(stream, user_agent, method, ..)` |
 | podssh | `podssh_ws::http::*`, `podssh_ws::http::request::*` | `pod_proxy::http::*`, `pod_proxy::http::request::*` |
+| podssh | `podssh_ws::proxy_auth::schemes` (the 407 of its second proxy, `via`) | `pod_proxy::proxy_auth::schemes` |
 | podssh | `podssh_ws::mptcp::*`, `podssh_ws::write_limit::WriteLimit`, `podssh_ws::stun::*` | `pod_proxy::mptcp::*`, `pod_proxy::write_limit::WriteLimit`, `pod_proxy::stun::*` |
 | podssh | `podssh_ws::lowat::set(&tcp)` | `pod_proxy::lowat::set(&tcp, pod_proxy::lowat::LOWAT)` |
 | podssh | `podssh_ws::fuzz_exchange` (`cfg(fuzzing)`) | `pod_proxy::fuzz_exchange` |
@@ -274,6 +286,7 @@ The merge changes these behaviours of podssh's code:
 | podnet | `egress::Refusal { status, text }`, `egress::refusal(err)` (`doctor.rs`, `report.rs`) | `DialError::ProxyRefused { proxy, target, status, reason }` found in the causes of the `Failure` (`std::error::Error::source` and `downcast_ref::<DialError>()`); podnet writes its words `the proxy refused CONNECT with HTTP {status}: {reason}`; a SOCKS5 refusal is the one whose `reason` starts with `SOCKS5` (podnet's status 0) |
 | podnet | `hop::at(Hop::Proxy, e)`, `hop::at(Hop::Dns, e)` of the dial, `hop::tls_hop` of `fetch.rs` | `Failure::stage` (`Stage::Proxy`, `Stage::Dns`, `Stage::Network`); podnet maps a `Stage` to its `Hop` |
 | podnet | `decisions::count("egress", outcome)` | `Dialer::with_observer(observer)`, whose `decision("egress", outcome)` calls `decisions::count` |
+| podnet | the kind of the error of I/O of a failed direct dial (`podnet doctor`: a refusal of this host, issue 180) | `DialError::Connect::kind` |
 | podnet | `rlimit::hint(&err)` in the dial | `pod_proxy::hint::open_files(&err)`, in the detail of `DialError::Connect` |
 | podnet | `resolve::resolve(host)`, `resolve::resolve_no_doh(host)` of the dial | the resolver of `Dialer::new` and of `Dialer::with_proxy_resolver` (`pod-dns`, T-015) |
 | podnet | `report::hide` of `Proxy::secret_parts(spec)`, `report::clean` of a refusal's words | podnet keeps `hide`; the crate's words are made safe with `pod_core::text::one_line` |

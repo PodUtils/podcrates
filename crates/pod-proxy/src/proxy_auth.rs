@@ -3,7 +3,9 @@
 //! dial sends Basic from the user and password of the proxy URL, and answers
 //! a Digest challenge ([`crate::digest`]) on a new connection; an NTLM or
 //! Negotiate proxy refuses both, and the message must say why rather than
-//! only that it refused.
+//! only that it refused. [`schemes`] is public for a caller that speaks to
+//! a proxy of its own (podssh's second proxy over TLS) and says its `407`
+//! in its own words.
 
 /// What the dial sent with the `CONNECT` that got the `407`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +22,7 @@ pub(crate) enum Sent {
 /// each once. A header can hold more than one challenge, apart at commas,
 /// with parameters after a scheme (`Basic realm="corp", NTLM`): a part is a
 /// scheme when its first word is a token with no `=` after it.
-pub(crate) fn schemes(head: &str) -> Vec<String> {
+pub fn schemes(head: &str) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     for line in head.split("\r\n").skip(1) {
         let Some((name, value)) = line.split_once(':') else { continue };

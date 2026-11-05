@@ -2,6 +2,7 @@
 //! upgrade was refused.
 
 use pod_proxy::http::{decode_chunked, exchange, read_response};
+use pod_proxy::proxy_auth::schemes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[test]
@@ -190,4 +191,16 @@ fn status_parsing() {
     assert_eq!(status("HTTP/1.1 200 Connection established\r\n\r\n").unwrap(), 200);
     assert_eq!(status("HTTP/1.0 407 Proxy Auth\r\n\r\n").unwrap(), 407);
     assert!(status("SSH-2.0-OpenSSH\r\n").is_err());
+}
+
+/// The schemes of a `407` for a caller that reads the answer of a proxy
+/// itself (podssh's second proxy over TLS): each scheme of each
+/// `Proxy-Authenticate`, in order, once in any case; a comma inside a
+/// quoted parameter splits nothing, and another header names none.
+#[test]
+fn the_schemes_of_a_407_are_read_for_a_caller_that_speaks_to_its_proxy() {
+    let head = "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: NTLM, Negotiate\r\n\
+                proxy-authenticate: Basic realm=\"a, b\", ntlm\r\nX-Other: Digest\r\n\r\n";
+    assert_eq!(schemes(head), ["NTLM", "Negotiate", "Basic"]);
+    assert!(schemes("HTTP/1.1 407 Proxy Authentication Required\r\n\r\n").is_empty());
 }

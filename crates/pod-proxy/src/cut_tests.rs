@@ -41,7 +41,7 @@ fn a_handshake_s_refusal_has_no_cut() {
     assert_eq!(Cut::of_failure(&tls), Some(Cut::Reset));
     let late = Failure::new(Stage::Tls, Class::Timeout, "the TLS handshake timed out after 10s");
     assert_eq!(Cut::of_failure(&late), Some(Cut::TimedOut));
-    let dial = DialError::Connect { target: "t:443".into(), detail: "d".into(), cut: Some(Cut::Refused) };
+    let dial = DialError::Connect { target: "t:443".into(), detail: "d".into(), cut: Some(Cut::Refused), kind: None };
     assert_eq!(Cut::of_failure(&Failure::from(dial)), Some(Cut::Refused));
     let status = Failure::new(Stage::WebSocket, Class::Refused, "the relay refused the session: HTTP 403");
     assert_eq!(Cut::of_failure(&status), None);

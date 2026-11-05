@@ -107,7 +107,7 @@ pub(crate) async fn race(
     let mut errors: Vec<(SocketAddr, String)> = Vec::new();
     let mut last = String::from("each address of this source was tried already");
     // The kind of the last attempt's error, beside its words.
-    let mut cut = None;
+    let (mut cut, mut kind) = (None, None);
     loop {
         if running.is_empty() || Instant::now() >= next_at {
             if let Some(addr) = waiting.next() {
@@ -118,7 +118,7 @@ pub(crate) async fn race(
             }
             if running.is_empty() {
                 let detail = if errors.is_empty() { last } else { group_errors(&errors) };
-                return Err(DialError::Connect { target: target.to_string(), detail, cut });
+                return Err(DialError::Connect { target: target.to_string(), detail, cut, kind });
             }
         }
         let wake = if waiting.len() > 0 { next_at.min(until) } else { until };
@@ -127,14 +127,14 @@ pub(crate) async fn race(
                 Some(Ok((addr, Ok((stream, how))))) => return Ok((stream, how, addr)),
                 Some(Ok((addr, Err(e)))) => {
                     errors.push((addr, crate::hint::open_files(&e).unwrap_or_else(|| e.to_string())));
-                    cut = Some(Cut::of(e.kind()));
+                    (cut, kind) = (Some(Cut::of(e.kind())), Some(e.kind()));
                     next_at = Instant::now();
                 }
                 // An attempt that panicked counts as one that failed.
                 Some(Err(e)) => {
                     errors.clear();
                     last = e.to_string();
-                    cut = None;
+                    (cut, kind) = (None, None);
                 }
                 None => {}
             },
@@ -145,7 +145,8 @@ pub(crate) async fn race(
                 }
                 if Instant::now() >= until {
                     let detail = format!("no address of this source answered within {} s", SOURCE_WAIT.as_secs());
-                    return Err(DialError::Connect { target: target.to_string(), detail, cut: Some(Cut::TimedOut) });
+                    let cut = Some(Cut::TimedOut);
+                    return Err(DialError::Connect { target: target.to_string(), detail, cut, kind: None });
                 }
             }
         }
@@ -188,6 +189,7 @@ pub async fn dial_addrs(addrs: &[SocketAddr], timeout: Duration) -> Result<(usiz
             target: "no address".into(),
             detail: "no address to connect to".into(),
             cut: None,
+            kind: None,
         });
     }
     let system = crate::resolve::System::new();

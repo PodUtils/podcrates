@@ -4,7 +4,7 @@
 //! * [`Dialer`] ([`dial`]): directly, with the race of the addresses that
 //!   the caller's resolver gives (RFC 8305) and Multipath TCP on request
 //!   ([`mptcp`]); or through an HTTP CONNECT proxy, with Basic or Digest
-//!   ([`digest`]) and the words of a 407, or a SOCKS5 proxy (`socks5://`
+//!   ([`digest`]) and the words of a 407 ([`proxy_auth`]), or a SOCKS5 proxy (`socks5://`
 //!   resolves the name here, `socks5h://` sends it). It implements
 //!   [`pod_core::Dial`]; a proxy on a Unix socket or at a command gives a
 //!   [`Stream`] of its own kind.
@@ -47,7 +47,7 @@ pub mod http;
 pub mod lowat;
 pub mod mptcp;
 pub mod proxy;
-mod proxy_auth;
+pub mod proxy_auth;
 mod race;
 pub mod resolve;
 mod socks5;
