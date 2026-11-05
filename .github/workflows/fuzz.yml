@@ -1,0 +1,69 @@
+name: fuzz
+
+# The fuzz targets of fuzz/ (T-017; docs/design.md, section 9): each target
+# for `seconds` (60 by default) with libFuzzer and the address sanitizer,
+# on the nightly Rust that scripts/fuzz.sh pins, each week and by hand.
+# ci.yml builds the targets on stable Rust and runs their stable test on
+# each push. A crash, a hang or a large allocation fails the job, and its
+# input is kept as an artifact: it becomes a unit test first, then the
+# repair.
+#
+# libFuzzer needs glibc: the runner is ubuntu-24.04, not musl.
+
+on:
+  schedule:
+    - cron: "29 3 * * 4"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "the run time of each target, in seconds"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "4"
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      # The run must be able to fail: with the plant fuzz-one-line-escape,
+      # pod_core::text::one_line keeps ESC, and the target one_line must
+      # crash on it.
+      - name: A planted defect is found
+        timeout-minutes: 40
+        run: |
+          set -u
+          git apply scripts/plants/fuzz-one-line-escape.patch
+          rc=0
+          sh scripts/fuzz.sh 30 one_line > "$RUNNER_TEMP/plant.log" 2>&1 || rc=$?
+          git apply -R scripts/plants/fuzz-one-line-escape.patch
+          rm -rf fuzz/artifacts
+          if [ "$rc" -ne 1 ] || ! grep -q '^FAIL  one_line' "$RUNNER_TEMP/plant.log"; then
+            echo "the planted defect was not found (exit $rc):"
+            tail -40 "$RUNNER_TEMP/plant.log"
+            exit 1
+          fi
+          echo "the planted defect was found"
+      - name: Each target
+        timeout-minutes: 75
+        env:
+          SECONDS_EACH: ${{ inputs.seconds || '60' }}
+        run: sh scripts/fuzz.sh "$SECONDS_EACH"
+      - name: Keep the input of each crash
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore

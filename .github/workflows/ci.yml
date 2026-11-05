@@ -3,9 +3,10 @@ name: ci
 # The checks of each push to main and each pull request (docs/design.md,
 # section 9):
 #
-# * lint: format, clippy, docs, the size of the Rust files, the rules of
-#   the workflows.
-# * test: the tests of the workspace on Linux x86_64.
+# * lint: format, clippy, docs, the build of the fuzz targets, the size of
+#   the Rust files, the rules of the workflows.
+# * test: the tests of the workspace on Linux x86_64, and the stable test
+#   of the fuzz targets.
 # * record: the tests of pod-todo, and `cargo todo check`.
 # * static: the probe of each crate (examples/static-probe) on each target
 #   of the consumers, checked by scripts/check-static.sh.
@@ -46,6 +47,17 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Docs
         run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace --all-features
+      # The fuzz targets (fuzz/, a workspace of its own, which the steps
+      # above do not read) build on stable Rust; the build script of
+      # libFuzzer needs the C++ compiler of the runner. No --locked:
+      # fuzz/Cargo.lock follows the root lock file when a version of the
+      # workspace changes. fuzz.yml runs the targets.
+      - name: The fuzz targets build
+        run: |
+          set -eu
+          cargo fmt --manifest-path fuzz/Cargo.toml --check
+          cargo check --manifest-path fuzz/Cargo.toml --bins
+          cargo clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
       - name: The size of the Rust files
         run: |
           python3 -I scripts/check-size.py
@@ -64,6 +76,10 @@ jobs:
         run: sh scripts/retry.sh rustup toolchain install
       - name: Test
         run: cargo test --locked --workspace --all-features
+      # Each fuzz target on its seeds and on their mutations, with no
+      # libFuzzer (fuzz/src/tests.rs).
+      - name: The stable test of the fuzz targets
+        run: cargo test --manifest-path fuzz/Cargo.toml --lib
 
   record:
     runs-on: ubuntu-24.04
