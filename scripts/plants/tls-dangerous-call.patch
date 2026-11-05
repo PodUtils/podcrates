@@ -1,0 +1,23 @@
+diff --git a/crates/pod-tls/src/kept.rs b/crates/pod-tls/src/kept.rs
+index 8629dd6..c3a4259 100644
+--- a/crates/pod-tls/src/kept.rs
++++ b/crates/pod-tls/src/kept.rs
+@@ -97,10 +97,17 @@ mod tests {
+         let configs = Configs::default();
+         let made = || -> Result<Arc<ClientConfig>, Error> {
+             let provider = Arc::new(rustls::crypto::ring::default_provider());
++            let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(
++                Arc::new(rustls::RootCertStore::empty()),
++                provider.clone(),
++            )
++            .build()
++            .map_err(|e| Error::Config(e.to_string()))?;
+             let config = ClientConfig::builder_with_provider(provider)
+                 .with_safe_default_protocol_versions()
+                 .map_err(|e| Error::Config(e.to_string()))?
+-                .with_root_certificates(rustls::RootCertStore::empty())
++                .dangerous()
++                .with_custom_certificate_verifier(verifier)
+                 .with_no_client_auth();
+             Ok(Arc::new(config))
+         };

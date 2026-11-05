@@ -1,0 +1,7 @@
+# A configuration of pod-tls that calls dangerous() outside the files that
+# the verifier scan allows.
+ENTRY=T-012
+GROUP=lint
+EXPECT='test no_other_code_sets_its_own_verifier \.\.\. FAILED'
+RUN='cargo test -p pod-tls --test no_permissive_verifier no_other_code_sets_its_own_verifier'
+LIMIT=900
