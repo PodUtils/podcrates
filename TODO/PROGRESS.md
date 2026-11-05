@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 41 entries: 31 open, 0 partial, 1 blocked, 9 done.
+`TODO/INDEX.md` holds 41 entries: 30 open, 0 partial, 1 blocked, 10 done.
 
 ## State
 
 - The owner gave the go-ahead on 2026-11-05. Done: `pod-todo`, the
   record, the checks, `pod-core`, `pod-testkit`, the trials (M0), and
-  `pod-term`, `pod-identity` (M1). The nightly run waits for the fix of
-  its QEMU handler of arm64 (T-007).
+  `pod-term`, `pod-identity` (M1). Each workflow is green (T-007). The
+  first release, v0.1.0, is next (T-009).
 - `pod-tls` (T-012) is under way: the podssh base first.
 - No crate is released. The consumers wait: podssh
   (PodUtils/podssh@T-684), podnet (PodUtils/podnet@T-137).
@@ -21,7 +21,7 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M0, the foundation:** T-007, then the first release T-009.
+1. **M0, the foundation:** the first release T-009.
 2. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
    T-017 after T-013; T-041 when a crate or a consumer needs it.
 3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,

@@ -336,7 +336,7 @@ guards in its tests.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -370,6 +370,18 @@ The runs of the push are green on GitHub (`scripts/agent/watch-runs.sh`).
 ## Start condition
 
 T-003 and T-004 are done.
+
+## Done
+
+2026-11-05, commit `9c337f4` (the workflows), with the repairs `371b447`
+(the static check of Windows reads `NAME.exe` first), `6633ddf`
+(`retry.sh` tries 5 times) and `345c227` (the QEMU handler of arm64 is
+`qemu-aarch64`). `python3 -I scripts/check-workflows.py` passes. The runs
+at `345c227`: ci 42026381365 (lint, test, record, the static probe on 12
+targets), deny 42026381387, secrets 42026381328, plants 42026381369,
+nightly 42026387870 (the tests on macOS, Windows and 7 Linux targets
+under QEMU). The runs at `1ec8c15` and `6633ddf`: upstream 42025312191,
+record-issues 42025317405, the dry run of release 42026164788.
 
 # T-008: Adoption trials in CI, and the trial of `pod-todo` in podssh and podnet
 

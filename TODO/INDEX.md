@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**41 entries: 31 open, 0 partial, 1 blocked, 9 done.**
+**41 entries: 30 open, 0 partial, 1 blocked, 10 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 18 | 0 | 0 | 8 | 26 |
+| P1 | 17 | 0 | 0 | 9 | 26 |
 | P2 | 9 | 0 | 1 | 1 | 11 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 31 | 0 | 1 | 9 | 41 |
+| **All** | 30 | 0 | 1 | 10 | 41 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-004](foundation.md) | P1 | M | M0 | chore | done | The static probe on each target |
 | [T-005](foundation.md) | P1 | M | M0 | feature | done | `pod-core`: the traits, the errors, the events and the helpers that each crate shares |
 | [T-006](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the guards of a test host |
-| [T-007](foundation.md) | P1 | M | M0 | chore | open | The workflows of podcrates |
+| [T-007](foundation.md) | P1 | M | M0 | chore | done | The workflows of podcrates |
 | [T-008](foundation.md) | P1 | M | M0 | chore | done | Adoption trials in CI, and the trial of `pod-todo` in podssh and podnet |
 | [T-009](foundation.md) | P1 | S | M0 | release | open | The first release |
 | [T-010](transport.md) | P1 | S | M1 | feature | done | `pod-identity`: the Ed25519 identity, the key files and the entropy |
