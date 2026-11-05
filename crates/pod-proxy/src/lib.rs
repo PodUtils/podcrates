@@ -26,6 +26,7 @@
 
 pub mod client;
 mod connect;
+pub mod credentials;
 pub mod cut;
 pub mod detect;
 pub mod dial;
@@ -48,6 +49,7 @@ pub mod write_limit;
 
 pub use client::Client;
 pub use connect::MAX_PROXY_RESPONSE;
+pub use credentials::Credentials;
 pub use cut::{Cut, Missed, TlsFailure};
 pub use dial::{ATTEMPT_DELAY, Dialer, ProxyChoice, Settings};
 pub use env::{
