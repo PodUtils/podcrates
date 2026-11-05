@@ -5,6 +5,10 @@ name: upstream
 # and by hand. The job is red when a source changed: a session writes a
 # record entry "port" for each change (TODO/RULES.md). Then a planted change
 # must fail the check.
+#
+# The job `mirrors`: the mirrors of zig that scripts/fetch-zig.sh reads (a
+# script that podnet and podssh call from here) against ziglang.org's list;
+# a planted mirror must fail the check.
 
 on:
   schedule:
@@ -41,3 +45,19 @@ jobs:
           cat plant.log
           test "$rc" -eq 1 || { echo "the check exited $rc on a planted change, not 1"; exit 1; }
           grep -q ': changed ' plant.log
+
+  mirrors:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The mirrors of zig against ziglang.org's list
+        run: sh scripts/retry.sh python3 -I scripts/check-zig-mirrors.py
+      - name: A planted mirror fails the check
+        run: |
+          set -u
+          rc=0
+          python3 -I scripts/check-zig-mirrors.py --plant-mirror || rc=$?
+          [ "$rc" -eq 1 ] || { echo "the planted mirror gave exit $rc, not 1"; exit 1; }

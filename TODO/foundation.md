@@ -605,3 +605,83 @@ Each name is on crates.io with the repository of podcrates.
 The owner reserves the 12 names that wait in the queue of GitHub #1
 (crates.io takes about one new crate every 10 minutes) and sets the
 trusted publisher of each.
+
+# T-046: The shared CI scripts: the zig fetch, its mirrors and their weekly check
+
+**Source:** the owner, 2026-11-05 (`PodUtils/podnet:docs/decisions.md`, Shared CI scripts; PodUtils/podnet@T-133).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner's ruling: "A CI script that podnet and podssh share (the zig
+fetch with its mirrors, PodUtils/podnet@T-133) lives in `PodUtils/podcrates`. podnet calls
+it from there; it does not copy it." podssh has the same script and a
+weekly check of its mirror list (`PodUtils/podssh:scripts/check-release-tools.py`).
+
+## Premise
+
+- Read: `scripts/fetch-zig.sh` and `scripts/zig-mirrors.txt` of podcrates;
+  podssh's at `6ece2ff` differ in comments, in wget for curl, and in the
+  `source` of the request; the mirror lists are the same.
+- Read: `PodUtils/podssh:scripts/check-release-tools.py` (the mirrors part) and its
+  weekly job in `upstream.yml`.
+- podnet's release builds in its image `PodUtils/podnet:images/build` (Alpine), which has
+  wget and maybe no curl.
+
+## Approach
+
+1. `fetch-zig.sh`: curl, else wget; the `source` of the request from
+   `ZIG_SOURCE` (default `podcrates`).
+2. A new script, check-zig-mirrors.py: `zig-mirrors.txt` against ziglang.org's
+   list, with a planted mirror that must fail; a job of `upstream.yml`.
+3. `docs/maintenance.md`: how a consumer calls the script from podcrates
+   at a pinned commit.
+
+## Prove
+
+```sh
+python3 -I scripts/check-zig-mirrors.py
+sh scripts/fetch-zig.sh 0.16.0 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00 /tmp/zig.tar.xz
+```
+
+The job of `upstream.yml` passes, and fails on the planted mirror.
+
+# T-047: The weekly watch of the relay contract, in `pod-relay`
+
+**Source:** the owner, 2026-11-05 (`PodUtils/podnet:docs/decisions.md`, Relay contract watch; PodUtils/podnet@T-134).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner's ruling: "The weekly watch of the relay contract belongs to
+`pod-relay` in `PodUtils/podcrates` (PodUtils/podnet@T-134), not to podnet." The contract
+is at <https://tcp.ssh.relay.ajam.dev/llms-full.txt>.
+
+## Premise
+
+- Not read yet: podnet's watch (PodUtils/podnet@T-134) and podssh's checks
+  of the contract; read them when `pod-relay` starts.
+
+## Approach
+
+A weekly workflow that reads the contract and compares it with the
+words, the routes and the limits that `pod-relay` holds; a planted change
+of the contract must fail it.
+
+## Prove
+
+```sh
+gh workflow run relay-contract.yml
+```
+
+## Start condition
+
+T-025 is done.

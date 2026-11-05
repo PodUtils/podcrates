@@ -103,6 +103,33 @@ Facts for a session:
   brings them online): the crate, the tag, the adoption map of its
   README.
 
+## Shared CI scripts
+
+The owner's ruling (2026-11-05): a CI script that podnet and podssh share
+lives here, and they call it from here, at a pinned commit; they do not
+copy it. Now: `scripts/fetch-zig.sh` with `scripts/zig-mirrors.txt` (zig
+from the community mirrors, checked against its SHA-256). The job
+`mirrors` of `upstream.yml` compares the mirror list with ziglang.org's
+each day (`scripts/check-zig-mirrors.py`).
+
+A consumer's workflow takes both files at a commit of podcrates:
+
+```yaml
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  with:
+    repository: PodUtils/podcrates
+    ref: COMMIT
+    path: .podcrates
+    sparse-checkout: scripts
+    persist-credentials: false
+- run: ZIG_SOURCE=podnet sh .podcrates/scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" zig.tar.xz
+```
+
+In a container with no checkout of its own, `curl` (or `wget`) of
+`https://raw.githubusercontent.com/PodUtils/podcrates/COMMIT/scripts/fetch-zig.sh`
+and of `.../scripts/zig-mirrors.txt` into one directory does the same; the
+fourth argument of the script names the list when it is elsewhere.
+
 ## A release
 
 1. Write `docs/releases/vX.Y.Z.md` (the crates that changed, each breaking
