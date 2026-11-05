@@ -1200,6 +1200,7 @@ version = "0.2.0"
 dependencies = [
  "pod-core",
  "pod-identity",
+ "pod-proxy",
  "pod-term",
  "pod-tls",
 ]

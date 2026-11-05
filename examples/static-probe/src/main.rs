@@ -12,6 +12,9 @@ fn main() {
     let tls = pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("static-probe")));
     let roots = pod_tls::roots_from_compiled_set();
     let tls_config = tls.client_config(&roots).expect("a client configuration");
+    let environment = pod_proxy::Environment::read(&|_| None);
+    let settings = pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::FromEnvironment(environment));
+    let dialer = pod_proxy::Dialer::new(settings, std::sync::Arc::new(pod_proxy::resolve::System::new()));
     let lines = [
         format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0)),
         format!("pod-term: {typed} events for a typed line"),
@@ -21,6 +24,12 @@ fn main() {
             roots.count,
             tls_config.crypto_provider().cipher_suites.len(),
             tls.ech().mode().word()
+        ),
+        format!(
+            "pod-proxy: {}, {} names inside, MPTCP: {}",
+            pod_core::Dial::label(&dialer),
+            if pod_core::Dial::names_inside(&dialer) { "with" } else { "no" },
+            pod_proxy::mptcp::probe().map_or_else(|why| why, |()| "offered".into())
         ),
     ];
     for line in lines {
