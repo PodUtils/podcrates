@@ -470,7 +470,7 @@ A crate of podcrates or a consumer needs an SSH server in its tests.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -504,6 +504,17 @@ planted defect (a store that is not read).
 ## Start condition
 
 T-012 is done.
+
+## Done
+
+2026-11-05, commit `6939b31` (`nightly.yml`). The nightly run 42057509096:
+on windows-2025 and windows-11-arm the test passed with the root out of
+the store (the control) and passed with the root in the machine's ROOT
+store ("the root comes from the current user's ROOT store", 1 passed in
+each step); on macos-15 and macos-15-intel the trust settings were read
+and the server that the root signs was refused. The control of the first
+step is the planted defect: the same test with the root out of the store
+must not find it.
 
 # T-045: The adoption trials check the static binaries of the consumer and build each feature
 
