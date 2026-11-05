@@ -201,3 +201,20 @@ async fn a_silent_server_ends_at_the_time_limit() {
     assert_eq!(failed.class, Class::Timeout);
     assert_eq!(failed.text(), format!("GET http://name.test:{port}/x: no answer in 0 s"));
 }
+
+/// A server that ends the connection in the TLS handshake: the failure of
+/// the request is the network's, not TLS's.
+#[tokio::test]
+async fn a_close_in_the_tls_handshake_is_the_network() {
+    pod_testkit::need_loopback!();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut s, _) = listener.accept().await.unwrap();
+        let mut hello = [0u8; 5];
+        let _ = s.read_exact(&mut hello).await;
+        drop(s);
+    });
+    let failed = client(pinned()).send(Request::new("GET", format!("https://name.test:{port}/"))).await.unwrap_err();
+    assert_eq!(failed.stage, Stage::Network, "{failed}");
+}

@@ -170,8 +170,8 @@ impl Client {
                 Some(trust) => trust.clone(),
                 None => self.roots()?,
             };
-            let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await?;
-            exchange(tls, &head, body, reading).await
+            let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await;
+            exchange(tls.map_err(network_or_tls)?, &head, body, reading).await
         } else {
             let deadline = tokio::time::Instant::now() + request.timeout;
             let tcp = dial.dial(&Target::new(&target.host, target.port), deadline).await?;
@@ -229,6 +229,31 @@ impl Client {
             pod_tls::tls_over(tcp.io, host, Arc::new(config), timeout, self.context.words()).await
         }
     }
+}
+
+/// A handshake that the network ended (a reset, an abort, a close, a
+/// refusal, a time limit of I/O) is at [`Stage::Network`]: a policy of the
+/// host or of its network ended it, not trust or the clock. A refusal of
+/// rustls (a certificate, a name) stays at [`Stage::Tls`].
+fn network_or_tls(failure: Failure) -> Failure {
+    use std::io::ErrorKind as K;
+    if failure.stage != Stage::Tls {
+        return failure;
+    }
+    let mut next = std::error::Error::source(&failure);
+    while let Some(e) = next {
+        if let Some(io) = e.downcast_ref::<std::io::Error>() {
+            return match io.kind() {
+                K::ConnectionReset | K::ConnectionAborted | K::BrokenPipe | K::UnexpectedEof | K::TimedOut => {
+                    failure.at(Stage::Network)
+                }
+                K::ConnectionRefused => failure.at(Stage::Network),
+                _ => failure,
+            };
+        }
+        next = e.source();
+    }
+    failure
 }
 
 /// Write the head and the body of a request on `io`, and read the answer.

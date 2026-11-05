@@ -172,6 +172,11 @@ impl Environment {
             .no_proxy_vars
             .iter()
             .find_map(|name| set(name).map(|value| Given { value, origin: Origin::Variable(name.to_string()) }));
+        if let Some(list) = &env.no_proxy {
+            for entry in no_proxy::unreadable(&list.value) {
+                tracing::warn!(%entry, variable = %list.origin, "a NO_PROXY entry that cannot be read matches nothing");
+            }
+        }
         env
     }
 

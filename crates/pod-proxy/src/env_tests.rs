@@ -169,3 +169,10 @@ fn the_proxy_of_a_tool_comes_through_the_readers_of_the_caller() {
     assert_eq!(env.skipped[0].origin, Origin::File(PathBuf::from("/etc/pip.conf")));
     assert_eq!(env.decide("relay.example", Some(443), &[]).1, "none");
 }
+
+/// The entries of a list that match nothing, for a warning.
+#[test]
+fn the_entries_that_cannot_be_read() {
+    let list = "*, .example.com, *.corp, internal:8443, 10.0.0.0/8, [::1]:22, ::1, 127.0.0.1, exa_mple.com, a:b:c/x, :";
+    assert_eq!(no_proxy::unreadable(list), ["exa_mple.com", "a:b:c/x", ":"]);
+}

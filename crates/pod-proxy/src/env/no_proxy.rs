@@ -59,6 +59,29 @@ pub fn no_proxy_entry_at<'a>(list: &'a str, host: &str, port: Option<u16>) -> Op
     })
 }
 
+/// The entries of a `no_proxy` list that are neither `*`, a block, an
+/// address nor a name (with a port or not): no host matches them.
+pub(crate) fn unreadable(list: &str) -> Vec<&str> {
+    let name = |s: &str| {
+        let s = s.trim_start_matches("*.").trim_start_matches('.').trim_end_matches('.');
+        !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
+    };
+    let block = |raw: &str| {
+        raw.split_once('/').is_some_and(|(net, bits)| {
+            net.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>().is_ok() && bits.parse::<u8>().is_ok()
+        })
+    };
+    list.split(|c: char| c == ',' || c.is_whitespace())
+        .map(str::trim)
+        .filter(|e| !e.is_empty())
+        .filter(|raw| match split_host_port(raw) {
+            _ if *raw == "*" || block(raw) => false,
+            Ok((host, _)) => host.parse::<IpAddr>().is_err() && !name(&host),
+            Err(_) => true,
+        })
+        .collect()
+}
+
 /// An IPv4 address written as IPv6 (`::ffff:10.1.2.3`) is the IPv4 address.
 fn unmapped(addr: IpAddr) -> IpAddr {
     match addr {
