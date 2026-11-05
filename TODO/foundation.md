@@ -483,7 +483,7 @@ of `docs/releases/v0.1.0.md`: `pod-todo`, `pod-core`, `pod-testkit`,
 
 # T-042: `publish.yml`: the publish to crates.io, apart from the release
 
-**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Publish workflow).
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Publish workflow); GitHub #1.
 **Category:** chore
 **Milestone:** M0
 **Priority:** P1
@@ -540,3 +540,58 @@ gh workflow run publish.yml --ref main
 ```
 
 The dry run passes on `main`.
+
+# T-043: The names of the crates on crates.io and their trusted publishers (GitHub #1)
+
+**Source:** GitHub #1.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+GitHub #1 (the owner, 2026-11-05), "crates.io: reserved pod-* names and
+trusted publishing": "Every `pod-*` name of `docs/design.md` section 4 is
+reserved on crates.io as a `0.0.0` placeholder owned by the owner. This
+issue tracks the reservations; it is updated as each name is published
+(crates.io allows about one new crate every 10 minutes). **Trusted
+publishing** (set on each crate once it exists): repository
+`PodUtils/podcrates`, workflow `.github/workflows/publish.yml`, environment
+`crates-io` (deployable from `v*` tags only). Token publishing stays
+allowed until each crate's first release from CI; then the owner turns on
+"Require trusted publishing". This does not change the Q1 ruling:
+podcrates publishes nothing to crates.io until the owner says so. The
+placeholders only hold the names." The table of the issue: 22 of 34
+reserved, 12 queued.
+
+## Premise
+
+- Measured: `python3 -I scripts/check-crates-io-names.py` reads the 28
+  crates and the 8 held names of `docs/design.md`, section 4, and finds
+  24 of 36 on crates.io (the 22 of the issue, `podcrates` and
+  `podutils`); 12 are missing, as the issue says.
+- Not measured: the trusted publisher of each crate (it needs the owner's
+  login on crates.io).
+
+## Approach
+
+The owner reserves each name and sets its trusted publisher. This
+repository keeps `publish.yml` as the trusted publisher wants it (T-042)
+and checks the names with `scripts/check-crates-io-names.py`. A new crate
+of `docs/design.md` gets its name from the owner before its first publish.
+
+## Prove
+
+```sh
+python3 -I scripts/check-crates-io-names.py
+```
+
+Each name is on crates.io with the repository of podcrates.
+
+## Blocker
+
+The owner reserves the 12 names that wait in the queue of GitHub #1
+(crates.io takes about one new crate every 10 minutes) and sets the
+trusted publisher of each.

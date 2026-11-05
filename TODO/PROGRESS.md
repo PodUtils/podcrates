@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 42 entries: 29 open, 1 partial, 1 blocked, 11 done.
+`TODO/INDEX.md` holds 43 entries: 29 open, 1 partial, 2 blocked, 11 done.
 
 ## State
 
@@ -44,7 +44,7 @@ C19), and the work goes on with it until the owner rules otherwise.
 | --- | --- |
 | T-040 | The repository of podvm, and access for this session |
 | Each release | Tell the consumer sessions to take the crates |
-| T-042 | crates.io has no placeholder yet for `pod-piping`, `pod-opentunnel`, `pod-egress`, `pod-iroh`, `pod-tor`, `pod-ts` and the held names `pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `pod-utils` (read 2026-11-05) |
+| T-043 | Reserve the 12 names that wait in the queue of GitHub #1, and set the trusted publisher of each (`python3 -I scripts/check-crates-io-names.py` lists them) |
 
 ## Questions for the owner
 

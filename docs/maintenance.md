@@ -65,6 +65,8 @@ the tools.
   * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
   * `check-github-numbers.py`: `TODO/github.txt` against GitHub.
+  * `check-crates-io-names.py`: each name of `docs/design.md`, section 4,
+    on crates.io with the repository of podcrates (GitHub #1).
 
 ## The issue loop
 

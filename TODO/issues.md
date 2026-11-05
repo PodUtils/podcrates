@@ -6,3 +6,4 @@ numbers. `TODO/RULES.md` gives the rules.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
+| #1 | crates.io: reserved pod-* names and trusted publishing | open | T-042, T-043 |
