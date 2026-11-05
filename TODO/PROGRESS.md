@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 51 entries: 32 open, 1 partial, 2 blocked, 16 done.
+`TODO/INDEX.md` holds 51 entries: 31 open, 1 partial, 3 blocked, 16 done.
 
 ## State
 
@@ -60,6 +60,14 @@ C19), and the work goes on with it until the owner rules otherwise.
   the ruling of podnet of 2026-11-05; the dry run of each release keeps
   the packaging ready (`docs/decisions.md`).
 
+- **Q5.** May the sessions of podssh and podnet open and amend a
+  `COORD-NNN` issue in their own repository when the podcrates session
+  asks for it, with no word of the owner each time? podnet's session did
+  (PodUtils/podnet#317); podssh's session waits for the owner, as its
+  rules make a public post only on its own user's word. It blocks the
+  podssh half of T-051. Recommendation: yes, for `COORD-NNN` issues only,
+  and tell podssh's session so once.
+
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q5
+blocks and a recommendation. Number the questions in sequence from Q6
 (the owner ruled Q1 to Q3: `docs/decisions.md`).

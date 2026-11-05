@@ -107,12 +107,23 @@ Facts for a session:
 
 The sessions of podcrates, podssh and podnet send each other messages
 (`send_message` of the remote sessions). When a message cannot go, the
-fallback is a GitHub issue of PodUtils/podcrates: its title starts with a
-unique id (`COORD-NNN: subject`), each session amends its own section of
-the body (not a comment), and each session polls the issue for changes
-(`curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podcrates/issues/N?n=$RANDOM"`).
-The issue is mapped in `TODO/issues.md` as any issue, and closed when its
-subject is done.
+fallback is a GitHub issue, one mailbox for each writer (the test of
+GitHub #2, T-051):
+
+* Each session writes only to issues of its own repository: the GitHub
+  access of a consumer session covers its own repository, and this
+  session writes nothing to podssh or podnet. The title starts with a
+  unique id and names the reader: `COORD-NNN: subject (to podnet)`.
+* The writer amends its own body (not a comment), with a line
+  `state: ... at TIME (UTC)` that the reader can poll for.
+* The reader polls through the read-only mirror:
+  `curl -qfsS "https://forge.web.pkgforge.dev/github/repos/OWNER/REPO/issues?state=open&n=$RANDOM"`
+  and `.../issues/N?n=$RANDOM`.
+* An issue is a public post. podnet's session posts one on a request of
+  this session; podssh's session posts only when its own user asks (its
+  rules), so its side of the fallback waits for the owner's word (Q5).
+* An issue of podcrates is mapped in `TODO/issues.md` as any issue, and
+  closed when its subject is done.
 
 ## Shared CI scripts
 

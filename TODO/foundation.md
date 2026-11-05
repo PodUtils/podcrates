@@ -704,7 +704,7 @@ T-025 is done.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -727,6 +727,14 @@ body; the podcrates session polls it.
 2. `docs/maintenance.md`, "Talk between sessions", gives the way that
    worked.
 
+The test, 2026-11-05: podnet's session cannot write to PodUtils/podcrates
+(its access covers PodUtils/podnet only) and wrote PodUtils/podnet#317,
+which this session read through the mirror ("state: received at
+2026-11-05T17:02Z"). podssh's session made no post: its rules allow a
+public post only on its own user's word, and it asked the owner. So the
+fallback is one mailbox for each writer (`docs/maintenance.md`, "Talk
+between sessions"); podssh's half waits for Q5.
+
 ## Prove
 
 ```sh
@@ -734,3 +742,9 @@ curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podcrates/issue
 ```
 
 Each section of the body was amended by its session.
+
+## Blocker
+
+The owner: Q5 (may podssh's session post a `COORD-NNN` issue on a request
+of this session). Then podssh's session amends its side, and this entry
+closes.
