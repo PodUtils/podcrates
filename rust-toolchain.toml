@@ -3,6 +3,6 @@
 # comes out, together with rust-version in Cargo.toml. A pinned nightly
 # goes here only when an entry needs it, with the gain that it measured.
 [toolchain]
-channel = "1.97"
+channel = "1.99"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

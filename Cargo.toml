@@ -7,7 +7,7 @@ version = "0.2.0"
 edition = "2024"
 # The stable Rust of the day (docs/decisions.md, Toolchain). Raise it with
 # rust-toolchain.toml when a new stable comes out.
-rust-version = "1.97"
+rust-version = "1.99"
 license = "0BSD"
 repository = "https://github.com/PodUtils/podcrates"
 homepage = "https://github.com/PodUtils/podcrates"

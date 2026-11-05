@@ -26,7 +26,7 @@ apply to them.
    `CoreFoundation`, `Security`; Apple allows no static `libSystem`). A
    C dependency is allowed when it links static on each target.
 2. **Modern Rust.** Edition 2024 and the current stable Rust. The
-   `rust-version` is the stable of the day (1.97 on 2026-11-05), and a
+   `rust-version` is the stable of the day (1.99 on 2026-11-05), and a
    session raises it when a new stable comes out. A nightly feature is
    allowed when it gives a necessary gain (speed, security); the entry
    names the gain and its measurement, and `rust-toolchain.toml` then
