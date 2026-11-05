@@ -704,7 +704,7 @@ T-025 is done.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -730,10 +730,10 @@ body; the podcrates session polls it.
 The test, 2026-11-05: podnet's session cannot write to PodUtils/podcrates
 (its access covers PodUtils/podnet only) and wrote PodUtils/podnet#317,
 which this session read through the mirror ("state: received at
-2026-11-05T17:02Z"). podssh's session made no post: its rules allow a
-public post only on its own user's word, and it asked the owner. So the
-fallback is one mailbox for each writer (`docs/maintenance.md`, "Talk
-between sessions"); podssh's half waits for Q5.
+2026-11-05T17:02Z"). podssh's session asked the owner first (its rules allow a public post only
+on its own user's word), then wrote PodUtils/podssh#151. So the fallback
+is one mailbox for each writer (`docs/maintenance.md`, "Talk between
+sessions").
 
 ## Prove
 
@@ -743,8 +743,13 @@ curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podcrates/issue
 
 Each section of the body was amended by its session.
 
-## Blocker
+## Done
 
-The owner: Q5 (may podssh's session post a `COORD-NNN` issue on a request
-of this session). Then podssh's session amends its side, and this entry
-closes.
+2026-11-05. GitHub #2 (COORD-001): neither consumer session can write to
+PodUtils/podcrates (podssh: "Access denied: repository
+"podutils/podcrates" is not configured for this session"); each wrote its
+side in its own repository, PodUtils/podnet#317 (17:02 UTC) and
+PodUtils/podssh#151 (17:05 UTC, with the owner's word in that session),
+and this session read both through the mirror. `docs/maintenance.md`,
+"Talk between sessions" (`d2bab56`), gives the procedure: one mailbox for
+each writer. Q5 stays open for a standing permission of the posts.

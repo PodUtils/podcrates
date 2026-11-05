@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**51 entries: 31 open, 1 partial, 3 blocked, 16 done.**
+**51 entries: 31 open, 1 partial, 2 blocked, 17 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 16 | 1 | 1 | 13 | 31 |
+| P1 | 16 | 1 | 0 | 14 | 31 |
 | P2 | 11 | 0 | 2 | 3 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 31 | 1 | 3 | 16 | 51 |
+| **All** | 31 | 1 | 2 | 17 | 51 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -96,4 +96,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-048](transport.md) | P1 | S | M1 | research | done | `pod-services`: the inventory of the relays and services of other parties in podssh and podnet |
 | [T-049](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the schema, the data of each service and the library |
 | [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
-| [T-051](foundation.md) | P1 | S | M0 | chore | blocked | The fallback channel between the sessions, tested (GitHub #2) |
+| [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |

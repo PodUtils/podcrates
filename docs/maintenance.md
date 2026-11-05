@@ -121,7 +121,7 @@ GitHub #2, T-051):
   and `.../issues/N?n=$RANDOM`.
 * An issue is a public post. podnet's session posts one on a request of
   this session; podssh's session posts only when its own user asks (its
-  rules), so its side of the fallback waits for the owner's word (Q5).
+  rules): the owner said yes for the test; a standing yes is Q5.
 * An issue of podcrates is mapped in `TODO/issues.md` as any issue, and
   closed when its subject is done.
 
