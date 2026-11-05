@@ -28,7 +28,12 @@ targets = [
 version = 2
 yanked = "deny"
 # Each ignored advisory has its reason and the date it was read.
-ignore = []
+ignore = [
+  # rsa 0.9, feature rsa of pod-tls (read 2026-11-05): a timing attack on
+  # the operations with a private key. pod-tls verifies signatures with
+  # public keys only (docs/design.md, section 2).
+  { id = "RUSTSEC-2023-0071", reason = "pod-tls verifies with RSA public keys only; the advisory concerns private-key operations" },
+]
 
 [licenses]
 version = 2
