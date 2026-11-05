@@ -5,7 +5,7 @@
 
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
@@ -16,6 +16,7 @@ use crate::error::Error;
 use crate::groups::Kept;
 use crate::hint::{Words, handshake_failure};
 use crate::kept::Configs;
+use crate::roots::{CaFile, Roots};
 use crate::trust::{self, TlsRoots, Trust};
 
 /// The settings of a [`Context`], which the consumer fills once: in place of
@@ -25,23 +26,30 @@ pub struct Settings {
     /// The names of the consumer in the words of a failure.
     pub words: Words,
     /// A PEM bundle that adds to the default roots; podssh's is
-    /// `podssh-ca.pem` next to its binary (found with
-    /// `std::env::current_exe`, never `argv[0]`). Unreadable, it is passed
-    /// over.
+    /// `podssh-ca.pem` next to its binary, podnet's `podnet-ca.pem` beside
+    /// its binary (found with `std::env::current_exe`, never `argv[0]`). A
+    /// missing one is passed over. In [`Trust::Default`] an unreadable one
+    /// is passed over too; in [`Context::roots`] a file that cannot be read
+    /// or parsed is an error.
     pub extra_bundle: Option<PathBuf>,
     /// The system bundles of the default trust, most common first: the first
     /// readable one is used. [`trust::SYSTEM_BUNDLES`] by default.
     pub system_bundles: Vec<PathBuf>,
+    /// The CA file of the user for [`Context::roots`], used alone (podnet:
+    /// `--ca-file`, else `SSL_CERT_FILE`, which it reads itself). `None`:
+    /// the extra bundle, a system bundle and the compiled-in roots.
+    pub ca_file: Option<CaFile>,
 }
 
 impl Settings {
-    /// The settings with `words`, no extra bundle and the system bundles of
-    /// [`trust::SYSTEM_BUNDLES`].
+    /// The settings with `words`, no extra bundle, no CA file and the system
+    /// bundles of [`trust::SYSTEM_BUNDLES`].
     pub fn new(words: Words) -> Settings {
         Settings {
             words,
             extra_bundle: None,
             system_bundles: trust::SYSTEM_BUNDLES.iter().map(PathBuf::from).collect(),
+            ca_file: None,
         }
     }
 }
@@ -51,6 +59,8 @@ pub struct Context {
     provider: Arc<CryptoProvider>,
     settings: Settings,
     configs: Configs,
+    /// The roots of [`Context::roots`], read one time.
+    pub(crate) roots: OnceLock<Result<Arc<Roots>, Error>>,
     groups: Arc<Kept>,
     #[cfg(feature = "ech")]
     pub(crate) ech: crate::ech::Ech,
@@ -73,6 +83,7 @@ impl Context {
             provider,
             settings,
             configs: Configs::default(),
+            roots: OnceLock::new(),
             groups: Arc::new(Kept::new()),
             #[cfg(feature = "ech")]
             ech: crate::ech::Ech::new(),
@@ -186,10 +197,19 @@ pub fn client_config(
     provider: Arc<CryptoProvider>,
     groups: Arc<Kept>,
 ) -> Result<Arc<ClientConfig>, Error> {
-    let verifier =
-        rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots.roots.clone()), provider.clone())
-            .build()
-            .map_err(|e| Error::Config(format!("server certificate verifier: {e}")))?;
+    config_over(roots.roots.clone(), provider, groups).map(Arc::new)
+}
+
+/// [`client_config`] over the store `roots`, as a value that the caller can
+/// still change (its ALPN, for example).
+pub(crate) fn config_over(
+    roots: rustls::RootCertStore,
+    provider: Arc<CryptoProvider>,
+    groups: Arc<Kept>,
+) -> Result<ClientConfig, Error> {
+    let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots), provider.clone())
+        .build()
+        .map_err(|e| Error::Config(format!("server certificate verifier: {e}")))?;
 
     let mut config = ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
@@ -204,5 +224,5 @@ pub fn client_config(
     // data: `enable_early_data` stays off.
     config.resumption = rustls::client::Resumption::store(Arc::new(crate::store::Store::new(groups)));
 
-    Ok(Arc::new(config))
+    Ok(config)
 }

@@ -1,5 +1,5 @@
-//! Why a trust, a configuration, the pair of a server or a split of the
-//! ClientHello cannot be used. A handshake that failed is a [`pod_core::Failure`] at
+//! Why a trust, the roots, a configuration, the pair of a server or a split
+//! of the ClientHello cannot be used. A handshake that failed is a [`pod_core::Failure`] at
 //! [`pod_core::Stage::Tls`]; each error here becomes one with the class
 //! [`pod_core::Class::Config`].
 
@@ -19,6 +19,11 @@ pub enum Error {
     /// The `ClientConfig` could not be made, or a caller's configuration
     /// cannot be used.
     Config(String),
+    /// The roots of a context cannot be read ([`crate::Context::roots`]).
+    /// The words start with the file, and with where its path came from
+    /// when the user gave it: `--ca-file /etc/corp.pem: the file has no
+    /// certificate`.
+    Roots(String),
     /// The certificate or the key of a server cannot be used ([`crate::server`]).
     Server(String),
     /// A value of a split of the ClientHello that cannot be used
@@ -33,6 +38,7 @@ impl fmt::Display for Error {
         match self {
             Error::Bundle { path, why } => write!(f, "CA bundle {path}: {why}"),
             Error::Config(why) => write!(f, "TLS configuration: {why}"),
+            Error::Roots(why) => f.write_str(why),
             Error::Server(why) => f.write_str(why),
             Error::Split { part, value } => write!(f, "{value:?} is no {}: give {}", part.what(), part.accepted()),
         }
@@ -60,5 +66,8 @@ mod tests {
         assert_eq!(failure.text(), "CA bundle /etc/ca.pem: no such file");
         assert_eq!(Error::Config("no roots".into()).to_string(), "TLS configuration: no roots");
         assert_eq!(Error::Server("the key is encrypted".into()).to_string(), "the key is encrypted");
+        let roots = Error::Roots("--ca-file /etc/corp.pem: the file has no certificate".into());
+        assert_eq!(roots.to_string(), "--ca-file /etc/corp.pem: the file has no certificate");
+        assert_eq!(Failure::from(roots).class, Class::Config);
     }
 }

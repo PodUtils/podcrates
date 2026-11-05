@@ -1,5 +1,6 @@
 //! TLS for the crates of podcrates and their binaries: where the trust
-//! anchors come from ([`Trust`]), the rustls configuration of a client over
+//! anchors come from ([`Trust`] for each connection, or the [`roots`] of a
+//! context in podnet's order), the rustls configuration of a client over
 //! them, with the provider that the caller gives ([`Context`]), the words
 //! of a failed handshake ([`Words`]), a TLS server with a P-256 key
 //! ([`server`]), the split of a ClientHello into records ([`fragment`]),
@@ -20,9 +21,11 @@
 //! brings its whole configuration ([`Trust::caller`]), and it is used as it
 //! is.
 //!
-//! **No process state.** The configurations kept for each trust, the
-//! groups that servers took and the state of ECH are fields of a
-//! [`Context`], which the binary makes once and shares.
+//! **No process state.** The configurations kept for each trust, the roots
+//! of the context, the groups that servers took and the state of ECH are
+//! fields of a [`Context`], which the binary makes once and shares. A split
+//! of the ClientHello is a value that the caller gives to
+//! [`fragment::wrap`].
 
 #[cfg(feature = "pure")]
 pub mod crypto;
@@ -36,6 +39,7 @@ pub mod fragment;
 pub mod groups;
 mod hint;
 mod kept;
+pub mod roots;
 pub mod server;
 mod store;
 pub mod stores;
@@ -45,6 +49,7 @@ mod wrap;
 pub use context::{Context, Settings, client_config};
 pub use error::Error;
 pub use hint::{Words, clock_refused, handshake_error, handshake_failure, handshake_hint};
+pub use roots::{CaFile, Roots};
 pub use trust::{
     CallerConfig, ROOTS_PUBLISHED, ROOTS_VERSION, SYSTEM_BUNDLES, TlsRoots, Trust, roots_from_bundle,
     roots_from_compiled_set,
