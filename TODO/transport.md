@@ -535,7 +535,7 @@ static binary.
 
 ## Premise
 
-- Read: `adoption/podssh/pod-tls.run`, `adoption/podnet/pod-tls.run`.
+- Read: the run files of the trials of `pod-tls` (podssh at `8dc1fb5`; `adoption/podnet/pod-tls.run`).
 - Read: podssh has `scripts/check-static.sh` (PodUtils/podssh@T-685); this repository has
   `scripts/check-static.sh` for the probe.
 
