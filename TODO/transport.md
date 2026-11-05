@@ -241,7 +241,7 @@ the ci run 42048395812 at `00568db` (Rust 1.99).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -295,6 +295,15 @@ sh scripts/agent/check.sh
 
 T-005 and T-012 are done.
 
+## Done
+
+2026-11-05. The podssh base `614f68a` to `17ff19a` and the trial commits
+`04848e9` to `fb71265` (with T-014). `cargo test -p pod-proxy
+--all-features`: 141 passed, 1 ignored; the plants of the group `proxy`:
+9 caught. The trial in podssh at `d3745ab`: its record, `check-repo.py`,
+the builds of the features of its gate, clippy, rustfmt, and 2,237 tests
+of podssh-ws (342), podssh-relay (669) and podssh-cli (1,226), 0 failed.
+CI: the adoption run 42108955836 at `1ca1c6e`, the ci run 42089986177.
 # T-014: `pod-proxy`: podnet's proxy chain, Digest and fetch
 
 **Source:** `docs/design.md`, section 8, step 5.
@@ -302,7 +311,7 @@ T-005 and T-012 are done.
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -366,6 +375,16 @@ sh scripts/agent/check.sh
 
 T-013 is done.
 
+## Done
+
+2026-11-05. The merge `4b22d84` to `16dd70b`, the allow list `237d0da`,
+and the trial commits `04848e9` to `fb71265`. The 33 tests of podnet in
+`pod-proxy` by their names. The trial in podnet at `95d1cf2`: its record,
+`check-size.py`, the build, `cargo deny --locked check bans sources`,
+clippy, the fuzz workspace, rustfmt, `cargo test --lib` (687) and the
+targets `api_surface`, `cli`, `connect`, `docs`, `doctor`, `egress`,
+`relay_reverse`, `tls`, `update_umask` (97), 0 failed. CI: the adoption run
+42108955836 at `1ca1c6e`.
 # T-015: `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records
 
 **Source:** `docs/design.md`, section 4 (M1).
