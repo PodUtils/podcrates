@@ -4,9 +4,8 @@
 
 fn main() {
     let target: pod_core::Target = "probe.example:443".parse().expect("a target");
-    let lines = [
-        format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0)),
-    ];
+    let lines =
+        [format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0))];
     for line in lines {
         println!("{line}");
     }
