@@ -1,0 +1,74 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+dir crates/podssh-ws/src/crypto
+dir crates/podssh-ws/src/tls
+dir crates/podssh-ws/src/stores
+dir crates/podssh-ws/src/tls_server
+dir crates/podssh-ws/src/ech
+dir crates/podssh-ws/tests/common
+dir crates/podssh-ws/tests/fixtures/rsa
+file e8373a3912d0da8ab9e3352f678a2e055b6d6c1a crates/podssh-relay/src/tls_groups.rs -> crates/pod-tls/src/tls_groups.rs
+file 29bd75d65cc3391482487c69fc6625ffdb4e58a2 crates/podssh-ws/src/bundle.rs -> crates/pod-tls/src/bundle.rs
+file a1991f02245e609a98f8b716337da21b5477c49c crates/podssh-ws/src/crypto/aead.rs -> crates/pod-tls/src/crypto/aead.rs
+file 29387ed5672e3892af785c84b6247248ea4803f4 crates/podssh-ws/src/crypto/hash.rs -> crates/pod-tls/src/crypto/hash.rs
+file a8ef1ab39f1d01d3440677424f505c8a05d55397 crates/podssh-ws/src/crypto/hkdf.rs -> crates/pod-tls/src/crypto/hkdf.rs
+file 801ffdd4bba3c4bcc405e68e239546ee56a3b8d7 crates/podssh-ws/src/crypto/hmac.rs -> crates/pod-tls/src/crypto/hmac.rs
+file 2854d2544b47a1767e5887883abcd6a50bec54a8 crates/podssh-ws/src/crypto/hpke.rs -> crates/pod-tls/src/crypto/hpke.rs
+file 0c6ff876c0206857ddb1b65e14525f6dba75117a crates/podssh-ws/src/crypto/hpke_tests.rs -> crates/pod-tls/src/crypto/hpke_tests.rs
+file 2ea8340b631b64cf4135cd0eb69c2dd4231a801c crates/podssh-ws/src/crypto/kx.rs -> crates/pod-tls/src/crypto/kx.rs
+file ce5031afdadc295665039aa3b3249abc2048f05f crates/podssh-ws/src/crypto/mod.rs -> crates/pod-tls/src/crypto/mod.rs
+file 2379adb4b69e226d3ef47ff539330a22884cab65 crates/podssh-ws/src/crypto/quic.rs -> crates/pod-tls/src/crypto/quic.rs
+file dd55dec39d3b7fdd3905173eeeb8e0100377d65d crates/podssh-ws/src/crypto/random.rs -> crates/pod-tls/src/crypto/random.rs
+file 0b4fd3168bee8759936e259c6f05590d6131081e crates/podssh-ws/src/crypto/rsa_sig.rs -> crates/pod-tls/src/crypto/rsa_sig.rs
+file cc8b4edefbf6e5ad7ef70ffb13852cca2ee85898 crates/podssh-ws/src/crypto/sign.rs -> crates/pod-tls/src/crypto/sign.rs
+file 78b986dc1a9b6cbd71a203368ce9d289e54679ab crates/podssh-ws/src/crypto/suites.rs -> crates/pod-tls/src/crypto/suites.rs
+file 220fc31d7361e3c604b673d57d4ca2064905f2fd crates/podssh-ws/src/crypto/tls12.rs -> crates/pod-tls/src/crypto/tls12.rs
+file 152d822884cbf14d636de5720839b6dd635f6f66 crates/podssh-ws/src/ech/cache.rs -> crates/pod-tls/src/ech/cache.rs
+file 9d15649d8db6702ae71eff586b93ec476cb6bffa crates/podssh-ws/src/ech/cache_tests.rs -> crates/pod-tls/src/ech/cache_tests.rs
+file 21c81e7e480d42d9498c9611da38b31cfe657193 crates/podssh-ws/src/ech/config.rs -> crates/pod-tls/src/ech/config.rs
+file d54a48134f91707128b100fe636ca9d1cb0ad451 crates/podssh-ws/src/ech/mod.rs -> crates/pod-tls/src/ech/mod.rs
+file 0aebef4cc3533d2ea3bed18662e16c99fca6f6ce crates/podssh-ws/src/ech/road.rs -> crates/pod-tls/src/ech/road.rs
+file 50834c6760e8d529bc186280cde24c035302e923 crates/podssh-ws/src/ech/road_tests.rs -> crates/pod-tls/src/ech/road_tests.rs
+file 760e3132745a478ea3ee965ac959bd22c1b86a5e crates/podssh-ws/src/ech/tests.rs -> crates/pod-tls/src/ech/tests.rs
+file 37a72cd43fa736f75c20f377602921518bafe2fa crates/podssh-ws/src/stores/macos.rs -> crates/pod-tls/src/stores/macos.rs
+file ebe186b64cfab92b9bf4f4442e81732c3d9e7311 crates/podssh-ws/src/stores/mod.rs -> crates/pod-tls/src/stores/mod.rs
+file 0af8945fd3f61458a019d373eac6e01d8b44ae49 crates/podssh-ws/src/stores/windows.rs -> crates/pod-tls/src/stores/windows.rs
+file e201da742e5cab25badb42b6415c7d8f0e3badd5 crates/podssh-ws/src/tls.rs -> crates/pod-tls/src/tls.rs
+file fe5e281155d798bb3cc5eb075343f818cc996fd3 crates/podssh-ws/src/tls/groups.rs -> crates/pod-tls/src/tls/groups.rs
+file ffb8df15d47e21df605287c55af9447bd5118a48 crates/podssh-ws/src/tls/groups_tests.rs -> crates/pod-tls/src/tls/groups_tests.rs
+file 7677aff9250228de7e8acfdc66da7b7b018e9403 crates/podssh-ws/src/tls/kept.rs -> crates/pod-tls/src/tls/kept.rs
+file f83762f37a311ef718076eda38482f84878b9b20 crates/podssh-ws/src/tls/store.rs -> crates/pod-tls/src/tls/store.rs
+file 9e0e6fb24fdc150d4fb8ebc073e076fe75e7470a crates/podssh-ws/src/tls_server.rs -> crates/pod-tls/src/tls_server.rs
+file 8a9d917e2f32a563715521916621c48bd8d14b5b crates/podssh-ws/src/tls_server/served.rs -> crates/pod-tls/src/tls_server/served.rs
+file 2c6f436bcc2dd5366a7b27b6e963e44d20978a94 crates/podssh-ws/src/tls_wrap.rs -> crates/pod-tls/src/tls_wrap.rs
+file 9eafe9d012b523483c7f1ae6c64d680502658af7 crates/podssh-ws/tests/bundle.rs -> crates/pod-tls/tests/bundle.rs
+file ddffccd305e18fe944f2f2194d0dd219ff2392e3 crates/podssh-ws/tests/caller_tls.rs -> crates/pod-tls/tests/caller_tls.rs
+file 2b6d02900b0031ebb1113f07f9da9cf4de980fcc crates/podssh-ws/tests/certificate_structure.rs -> crates/pod-tls/tests/certificate_structure.rs
+file 9dee4fb133ea44aefff3db29a0ad5f10905f5e84 crates/podssh-ws/tests/common/cert_encoding.rs -> crates/pod-tls/tests/common/cert_encoding.rs
+file 35091f0dfaa17dfe3eac5704a188cb8e97f0408a crates/podssh-ws/tests/common/cert_for_test.rs -> crates/pod-tls/tests/common/cert_for_test.rs
+file f2fe2b3878660316df7ef03f271d23bab463c85a crates/podssh-ws/tests/common/cert_server.rs -> crates/pod-tls/tests/common/cert_server.rs
+file fefb2181988e132fa752db7c50a3e7ce971dec67 crates/podssh-ws/tests/common/spki_walk.rs -> crates/pod-tls/tests/common/spki_walk.rs
+file 81d0588155397750ca6aa86d15db7cc5ed906d79 crates/podssh-ws/tests/crypto_vectors.rs -> crates/pod-tls/tests/crypto_vectors.rs
+file d4784b582d008e198e307c01289ea241b0db7a1e crates/podssh-ws/tests/ech_handshake.rs -> crates/pod-tls/tests/ech_handshake.rs
+file 931473cbb5796aa83fa50d40039176d021939fd7 crates/podssh-ws/tests/fixtures/rsa/README.md -> crates/pod-tls/tests/fixtures/rsa/README.md
+file cbccabca85dab65e84d68c9cee100ddf73990eb3 crates/podssh-ws/tests/fixtures/rsa/msg -> crates/pod-tls/tests/fixtures/rsa/msg
+file 2d25f089e8e582f3a43b21a6f7850f6d992b265d crates/podssh-ws/tests/fixtures/rsa/pkcs1.sig -> crates/pod-tls/tests/fixtures/rsa/pkcs1.sig
+file 697ef8191b0b956579148413ca4f28ab69cebc20 crates/podssh-ws/tests/fixtures/rsa/pss384.sig -> crates/pod-tls/tests/fixtures/rsa/pss384.sig
+file c4a1d534d9444711864ae4fe6a77f934ed321491 crates/podssh-ws/tests/fixtures/rsa/pub.der -> crates/pod-tls/tests/fixtures/rsa/pub.der
+file b591b18861266f35eac2183dc3663523286a8b9f crates/podssh-ws/tests/fixtures/rsa/small.der -> crates/pod-tls/tests/fixtures/rsa/small.der
+file f0b9fd5df988cd2e6ff0f800db27a219f54f14de crates/podssh-ws/tests/fixtures/rsa/small.sig -> crates/pod-tls/tests/fixtures/rsa/small.sig
+file 0b2f42e616319bff2ffe399e387d0fd98afab10c crates/podssh-ws/tests/hostname_verification.rs -> crates/pod-tls/tests/hostname_verification.rs
+file e3bad81ff0b6c2fefa20f698f7dc8bc27a8636f9 crates/podssh-ws/tests/live_handshake.rs -> crates/pod-tls/tests/live_handshake.rs
+file 5dc45fbb6e1295ff3e3b83faedacdf4f061ec8e3 crates/podssh-ws/tests/no_permissive_verifier.rs -> crates/pod-tls/tests/no_permissive_verifier.rs
+file 4e76cc36105bcce2375ddc54af8f5d406bf1911c crates/podssh-ws/tests/quic_keys.rs -> crates/pod-tls/tests/quic_keys.rs
+file 6370f53851d7e2dbbde492446375de154e34e161 crates/podssh-ws/tests/random_source.rs -> crates/pod-tls/tests/random_source.rs
+file b587b996a91d5b7208a526833e2a9a711e1b80d2 crates/podssh-ws/tests/roots_version.rs -> crates/pod-tls/tests/roots_version.rs
+file f211a4f3f9a54c6c798a45a49ee50bad1fdcac29 crates/podssh-ws/tests/rsa.rs -> crates/pod-tls/tests/rsa.rs
+file bd14a56534dffe7468d65ff3a63975f232ecd987 crates/podssh-ws/tests/signatures.rs -> crates/pod-tls/tests/signatures.rs
+file 6b25347d57455c0ccbbaf21888e63b23bce79ccf crates/podssh-ws/tests/system_store.rs -> crates/pod-tls/tests/system_store.rs
+file 2a0d9b48ebfb89aebf2d22eeb6e199afb7d9cd1c crates/podssh-ws/tests/tls12.rs -> crates/pod-tls/tests/tls12.rs
+file 4f82f2973f28dba533ab67c9c41930edb0c7ef5f crates/podssh-ws/tests/tls_group.rs -> crates/pod-tls/tests/tls_group.rs
+file 52d71eac1d8bc4af0f79484b8eb922bb89232d21 crates/podssh-ws/tests/tls_resume.rs -> crates/pod-tls/tests/tls_resume.rs

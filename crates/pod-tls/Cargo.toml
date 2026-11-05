@@ -1,0 +1,9 @@
+[package]
+name = "pod-tls"
+description = "Trust, the TLS configurations, the pure-Rust crypto provider and ECH."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
