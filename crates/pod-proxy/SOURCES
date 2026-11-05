@@ -31,3 +31,11 @@ file 5555dcd01e26aafd90534e85633274c7b361cfbd crates/podssh-ws/tests/http.rs -> 
 file b1d2dd8325f100badd160c5c81efd0520785b99b crates/podssh-ws/tests/limits.rs -> crates/pod-proxy/tests/limits.rs
 file 1d946e27b10767d5dca4ae448894bf32a0a9e01b crates/podssh-ws/tests/mptcp.rs -> crates/pod-proxy/tests/mptcp.rs
 file 979353cf9848246d39b4a9c7d63cb95ccc4bd199 crates/podssh-ws/tests/socks5.rs -> crates/pod-proxy/tests/socks5.rs
+
+repo PodUtils/podnet a8071b1112bed34688db1841d5f5ec7daf898639
+file 24ee21b70c8334edcb5d0063b6c0b8cb3433925d src/egress.rs -> crates/pod-proxy/src/podnet_import/egress.rs
+file f1ae2f3db7724c278e8a3a86903abac203984c29 src/fetch.rs -> crates/pod-proxy/src/podnet_import/fetch.rs
+file e3b0edaacc64cfd8942e807ff82005762d06002d src/proxy_auth.rs -> crates/pod-proxy/src/podnet_import/proxy_auth.rs
+# tests/egress.rs: only the test a_silent_address_does_not_hold_the_dial
+# comes here; the other tests run the podnet binary and stay in podnet.
+file e5eef5428e0f59403566e7bd9df7cdaae241b90b tests/egress.rs -> crates/pod-proxy/src/podnet_import/tests/egress.rs
