@@ -1,10 +1,10 @@
 // **The DER encoding and the certificate minted from it.** Included by
 // `cert_for_test.rs`; not a test target of its own.
 //
-// **Five structural faults lived in here before it produced a certificate
-// webpki accepts**, and each is recorded beside the line that fixes it. Four
-// presented as `InvalidCertificate(BadEncoding)` and one as `BadSignature`,
-// and neither error names the field that was wrong.
+// **Each structural rule that webpki holds a certificate to is written
+// beside the line that keeps it.** A broken rule shows as
+// `InvalidCertificate(BadEncoding)` or as `BadSignature`, and neither error
+// names the field that was wrong.
 
 use p256::ecdsa::signature::Signer;
 use p256::ecdsa::{Signature, SigningKey};
@@ -21,15 +21,10 @@ pub(crate) fn der_len(len: usize) -> Vec<u8> {
     } else if len <= 0xffff {
         vec![0x82, (len >> 8) as u8, len as u8]
     } else {
-        // **The 3-byte form exists.** MEASURED 2026-10-02: this had only
-        // the three branches above, and once the extensions made the
-        // certificate pass 255 bytes it wrote a TWO-byte length of
-        // `(len >> 8)` — declaring 258 bytes of content while carrying 343.
-        // Every parse of the certificate then failed, and the error was
-        // `BadEncoding` from a *length field* five lines from where the
-        // defect was. It was found by printing the DER and reading the two
-        // numbers side by side, not by reading the code: the branch looked
-        // correct for every value under 256.
+        // **The 3-byte form exists.** With the three branches above alone, a
+        // certificate past 255 bytes gets a wrong length, and each parse of it
+        // fails with `BadEncoding` from a *length field*, away from the
+        // defect.
         vec![0x83, (len >> 16) as u8, (len >> 8) as u8, len as u8]
     }
 }
@@ -99,23 +94,20 @@ pub fn self_signed(dns_name: &str) -> TestCert {
     self_signed_inner(dns_name, false)
 }
 
-/// MEASURED 2026-10-02: webpki refused the certificate with
-/// `OtherError(CaUsedAsEndEntity)`. A certificate with `basicConstraints
-/// CA:TRUE` IS a CA, and a server may not present a CA as its end-entity
-/// certificate. The first version of this file minted ONE self-signed
-/// certificate carrying CA:TRUE and used it as both the trust anchor and the
-/// server's certificate; it has to be two certificates, with the anchor one
-/// level up.
-/// The seed for a role's key. **The anchor and the leaf get DIFFERENT
-/// seeds**, so they are different keys and the leaf's signature genuinely
-/// needs the anchor's public key to verify.
-/// The name `server_for` gives the anchor, in one place, because the leaf's
-/// issuer and the anchor's subject must be built from the same string and two
-/// copies of `{name}-anchor` is how they drifted apart.
+/// The name `server_for` gives the anchor, in one place: the leaf's issuer
+/// and the anchor's subject must be built from the same string.
+///
+/// A certificate with `basicConstraints CA:TRUE` IS a CA, and a server may
+/// not present a CA as its end-entity certificate (webpki:
+/// `OtherError(CaUsedAsEndEntity)`). So the anchor and the leaf are two
+/// certificates, with the anchor one level up.
 pub(crate) fn anchor_name(dns_name: &str) -> String {
     format!("{dns_name}-anchor")
 }
 
+/// The seed for a role's key. **The anchor and the leaf get DIFFERENT
+/// seeds**, so they are different keys and the leaf's signature needs the
+/// anchor's public key to verify.
 fn role_seed(dns_name: &str, is_ca: bool) -> Vec<u8> {
     let mut s = dns_name.as_bytes().to_vec();
     s.push(if is_ca { 0xca } else { 0xee });
@@ -123,25 +115,13 @@ fn role_seed(dns_name: &str, is_ca: bool) -> Vec<u8> {
 }
 
 pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
-    // MEASURED 2026-10-02: this file went through five distinct `BadEncoding`
-    // and `BadSignature` failures before it produced a certificate webpki
-    // accepts, and every one of them is recorded at the line that fixed it.
-    //
     // **The SPKI publishes this certificate's OWN key; the signature below is
     // made by the ISSUER's key, and for an anchor those are the same one.**
-    // An earlier version signed every certificate with its own key while its
-    // `issuer` field named the anchor, and every handshake answered
-    // `BadSignature`.
-    //
-    // **This comment once said the opposite**, and it is recorded here
-    // because it was the reason that fault survived: it claimed "a client
-    // verifies an end-entity certificate with the key in its own SPKI, not
-    // with its issuer's", which is true of the peer's `CertificateVerify` and
-    // false of the chain. MEASURED 2026-10-02: `verify_cert.rs:148`
-    // (`check_signed_chain`) verifies each `SignedData` against the *issuer's*
-    // SPKI, and the leaf publishes its own — so a self-signed leaf has a
-    // signature nobody in the chain can check. Two different keys, two
-    // different verifications, and the error names neither.
+    // A client verifies the peer's `CertificateVerify` with the key of the
+    // leaf's own SPKI, but the chain with the *issuer's*: webpki's
+    // `check_signed_chain` (`verify_cert.rs`) verifies each `SignedData`
+    // against the issuer's SPKI. A leaf signed with its own key, under an
+    // `issuer` that names the anchor, ends each handshake in `BadSignature`.
     let own = SigningKey::from_bytes(&sha256(&role_seed(dns_name, is_ca)).into()).expect("a P-256 scalar");
 
     let spki = own.verifying_key().to_sec1_point(false);
@@ -158,42 +138,36 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     ]);
 
     let name = seq(&[set_of(&[seq(&[oid(&[2, 5, 4, 3]), tlv(0x0c, dns_name.as_bytes())])])]);
-    // **The leaf's ISSUER is the anchor's SUBJECT.** MEASURED
-    // 2026-10-02: with both set to the leaf's own name, webpki answered
-    // `UnknownIssuer` — the signature was fine and the *path* was not, because
-    // a chain is walked by matching the leaf's issuer against the next
-    // certificate's subject. The anchor is minted with
-    // `{dns_name}-anchor` as its subject, so the leaf's issuer names that.
+    // **The leaf's ISSUER is the anchor's SUBJECT.** A chain is walked by
+    // matching the leaf's issuer against the next certificate's subject; with
+    // the leaf's own name in both, webpki answers `UnknownIssuer`. The anchor
+    // is minted with `{dns_name}-anchor` as its subject, so the leaf's issuer
+    // names that.
     let issuer_name = if is_ca {
         name.clone()
     } else {
         seq(&[set_of(&[seq(&[oid(&[2, 5, 4, 3]), tlv(0x0c, anchor_name(dns_name).as_bytes())])])])
     };
-    // **`GeneralNames` is `SEQUENCE OF`, tag `0x30`.** MEASURED
-    // 2026-10-02: this wrapped the entries in `set_of`, which emits `0x31`
-    // (SET OF), and every handshake against this locally-minted server answered
-    // `InvalidCertificate(BadEncoding)`. webpki reads the extension's
-    // `extnValue` (an OCTET STRING) as the `GeneralNames` sequence's contents
-    // and then calls `GeneralName::from_der` on the next element directly — so
-    // it met a `0x31` where it required a `0x82` (`dNSName`, context-specific
-    // primitive 2). RFC 5280 §4.2.1.6 spells `GeneralNames ::= SEQUENCE SIZE
-    // (1..MAX) OF GeneralName`; it is never a SET.
+    // **`GeneralNames` is `SEQUENCE OF`, tag `0x30`, never SET OF (`0x31`).**
+    // webpki reads the extension's `extnValue` (an OCTET STRING) as the
+    // `GeneralNames` sequence's contents and then calls `GeneralName::from_der`
+    // on the next element directly: a `0x31` where it requires a `0x82`
+    // (`dNSName`, context-specific primitive 2) is
+    // `InvalidCertificate(BadEncoding)`. RFC 5280 §4.2.1.6 spells
+    // `GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName`.
     let san = seq(&[oid(&[2, 5, 29, 17]), tlv(0x04, &seq(&[tlv(0x82, dns_name.as_bytes())]))]);
-    // **`basicConstraints: CA:TRUE` and it is critical.** This
-    // certificate is its own trust anchor, and a v3 anchor with no
-    // `basicConstraints` is a leaf by RFC 5280's rules. MEASURED
-    // 2026-10-02: without them webpki refused it with `BadEncoding`.
-    // **`CA:TRUE` only on the anchor.** MEASURED 2026-10-02: with it set on
-    // the end-entity certificate, webpki refused the handshake with
-    // `OtherError(CaUsedAsEndEntity)`. That is a *different* error from the
-    // `BadEncoding` this file spent most of its length chasing: the parse was
-    // correct and the certificate's **role** was wrong. A leaf carries an empty
-    // `SEQUENCE` here — `30 00` — which is how RFC 5280 spells "not a CA".
-    // **`keyUsage` is not emitted at all.** MEASURED 2026-10-02: a first
-    // version carried `digitalSignature | keyCertSign`, and webpki refused the
-    // leaf with `BadEncoding` — a BIT STRING whose unused-bits byte and named
-    // bits disagree with the length webpki computes for them. Nothing here
-    // needs it, so the extension that was wrong is the one removed.
+    // **`basicConstraints: CA:TRUE`, critical, on the anchor.** The anchor is
+    // its own trust anchor, and a v3 anchor with no `basicConstraints` is a
+    // leaf by RFC 5280's rules (webpki: `BadEncoding`).
+    // **`CA:TRUE` only on the anchor.** On the end-entity certificate webpki
+    // refuses the handshake with `OtherError(CaUsedAsEndEntity)`: the parse is
+    // correct and the certificate's **role** is wrong. A leaf would carry an
+    // empty `SEQUENCE` here — `30 00` — which is how RFC 5280 spells "not a
+    // CA"; the leaf below carries no `basicConstraints` at all.
+    // **`keyUsage` is not emitted at all.** `digitalSignature | keyCertSign`
+    // written by hand is easy to get wrong (a BIT STRING whose unused-bits
+    // byte and named bits disagree with the length that webpki computes is
+    // `BadEncoding`), and nothing here needs it.
     let basic_constraints = seq(&[
         oid(&[2, 5, 29, 19]),
         tlv(0x01, &[0xff]),
@@ -201,11 +175,9 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     ]);
 
     // **The `signatureAlgorithm` is `ecdsa-with-SHA256`, and that is not
-    // cosmetic.** The first version declared
-    // `sha256WithRSAEncryption` (1.2.840.113549.1.1.11) over an EC public key,
-    // and webpki refused the whole certificate with `BadEncoding` — a
-    // certificate whose signature algorithm contradicts its key is not a
-    // certificate.
+    // cosmetic.** A certificate whose signature algorithm contradicts its key
+    // (`sha256WithRSAEncryption` over an EC public key) is refused whole with
+    // `BadEncoding`.
     let sig_alg = oid(&[1, 2, 840, 10045, 4, 3, 2]);
 
     let mut tbs_body = vec![0xa0, 0x03, 0x02, 0x01, 0x02]; // [0] { INTEGER 2 } = v3
@@ -213,31 +185,22 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     tbs_body.extend_from_slice(&seq(std::slice::from_ref(&sig_alg))); // signature
     tbs_body.extend_from_slice(&issuer_name); // issuer
     tbs_body.extend_from_slice(&seq(&[
-        // **Both dates are UTCTime, and the year width follows the tag.**
-        // MEASURED 2026-10-02: an earlier version asked for the years 2188
-        // and 2100, which are `GeneralizedTime` (tag 0x18, fourteen
-        // characters), and formatted them with a two-digit year — and 2188
-        // was really 4188, because the test had passed 70 000 000 000 seconds.
-        // webpki's `BadEncoding` again. 2020-01-01 to 2040-01-01 is UTCTime
-        // on both ends and is unambiguous.
+        // **Both dates are UTCTime, and the year width follows the tag.** A
+        // year from 2050 on is `GeneralizedTime` (tag 0x18, fourteen
+        // characters); with a two-digit year it is `BadEncoding`. 2020-01-01
+        // to 2040-01-01 is UTCTime on both ends and is unambiguous.
         tlv(0x17, b"200101000000Z"),
         tlv(0x17, b"400101000000Z"),
     ]));
     tbs_body.extend_from_slice(&name); // subject
     tbs_body.extend_from_slice(&spki_der);
-    // **`[3]` holds the extensions, at the end of `tbsCertificate`.** The
-    // first version wrapped the entire structure in one `[0]` and then added a
-    // `[3]`, which is not a `TBSCertificate` at all.
+    // **`[3]` holds the extensions, at the end of `tbsCertificate`.**
     // **The end-entity certificate has NO `basicConstraints` at all.**
-    // webpki's `check_basic_constraints` (`verify_cert.rs:418`) calls
+    // webpki's `check_basic_constraints` (`verify_cert.rs`) calls
     // `bool::from_der` unconditionally when the extension is present, so the
     // empty `SEQUENCE` that spells "not a CA" is a parse error, and a leaf
-    // carrying one answers `BadEncoding`.
-    //
-    // MEASURED 2026-10-02: this emitted `basicConstraints` on both roles
-    // and the handshake answered `BadEncoding` after the signature fault was
-    // fixed. An absent extension means "not a CA" as well, and it is the
-    // form every real end-entity certificate uses.
+    // carrying one answers `BadEncoding`. An absent extension means "not a
+    // CA" as well, and it is the form every real end-entity certificate uses.
     let mut extensions = Vec::new();
     if is_ca {
         extensions.push(basic_constraints);
@@ -254,44 +217,28 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     // RFC 5280 §4.1.1.2 says the signature is over the DER encoding of
     // `TBSCertificate`, which includes its own header.
     //
-    // MEASURED 2026-10-02, on two counts, and this line is where both were
-    // wrong at once. First, `rustls-webpki` reaches
-    // `SignatureVerificationAlgorithm::verify_signature` with the bytes that
-    // `untrusted::Reader::read_partial` reports as **consumed**, and that is
-    // the whole TLV, not the stripped value `expect_tag_and_get_value_limited`
-    // returns — signing the stripped contents produced `BadSignature`.
-    // Second, and this is the fault that survived every other fix: an earlier
-    // version called
-    // `SigningKey::sign(&ecdsa_sha256_digest_info(&tbs))`. `DigestInfo` is the
-    // *signer's* internal prehash format, not a message — `Signer::sign`
-    // hashes whatever it is given, so that call signed
-    // `SHA256(DigestInfo(SHA256(tbs)))` while every verifier hashed `tbs` once.
-    // The two can never agree, and the failure is a `BadSignature` with
-    // nothing in it pointing at the extra hash.
+    // `rustls-webpki` reaches `SignatureVerificationAlgorithm::verify_signature`
+    // with the bytes that `untrusted::Reader::read_partial` reports as
+    // **consumed**: the whole TLV, not the stripped value. And `DigestInfo`
+    // is the *signer's* internal prehash format, not a message:
+    // `Signer::sign` hashes whatever it is given, so a signature over
+    // `DigestInfo(SHA256(tbs))` never agrees with a verifier that hashes `tbs`
+    // once. Each fault is a `BadSignature` that names nothing.
     // **Signed by the ISSUER's key, which for an end-entity certificate is
-    // not its own.** MEASURED 2026-10-02: this signed with `own`, the leaf's
-    // own key, while the leaf's `issuer` names the anchor — so webpki verified
-    // it with the *anchor's* public key and answered `BadSignature` on every
-    // one of the three hostname tests.
+    // not its own.** webpki verifies the leaf with the *anchor's* public key.
     //
     // **The signature being self-consistent is not the same as the chain
     // being consistent.** `certificate_structure.rs` verifies this signature
-    // against this certificate's own SPKI, which is exactly the check that
-    // passed while the handshake failed. `check_signed_chain`
-    // (`verify_cert.rs:148`) verifies each `SignedData` against the *issuer's*
-    // SPKI and only then advances, so the two checks are looking at different
-    // keys and a leaf can satisfy one while failing the other.
+    // against this certificate's own SPKI; `check_signed_chain`
+    // (`verify_cert.rs`) verifies each `SignedData` against the *issuer's*
+    // SPKI and only then advances. A leaf can satisfy one and fail the other.
     //
     // The two roles get different seeds (`role_seed`), so the anchor's key is
-    // genuinely a different key and this line cannot accidentally succeed.
-    // **The issuer's seed is derived from the issuer's NAME.** MEASURED
-    // 2026-10-02: this used `role_seed(dns_name, true)` — the leaf's own name
-    // with the CA byte — while `server_for` mints the anchor as
-    // `{dns_name}-anchor`. The leaf was therefore signed by a third key that
-    // appears nowhere in the chain: not the leaf's, not the anchor's, and not
-    // in any trust store. `BadSignature` is the correct answer and names
-    // nothing, and a fresh signature over the same bytes verifies — which is
-    // what says the bytes were right and the key was wrong.
+    // a different key and this line cannot succeed by accident.
+    // **The issuer's seed is derived from the issuer's NAME**, the one that
+    // `server_for` mints the anchor with (`{dns_name}-anchor`): a seed of
+    // the leaf's own name signs with a third key that is nowhere in the
+    // chain.
     let issuer_key = if is_ca {
         own.clone()
     } else {
@@ -300,15 +247,10 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     let signature: Signature = issuer_key.sign(&tbs);
     eprintln!("BUILDER sig={} key-is-own={}", signature.to_der().as_bytes().len(), is_ca);
     // **The certificate is `SEQUENCE { tbs, algId, signatureValue }`, and
-    // the SEQUENCE is a NEW header around all three.**
-    // MEASURED 2026-10-02: the first version started from `tbs` and
-    // appended the two outer fields to it, so the bytes on the wire were
-    // `tbs-with-its-own-length-header` + `algId` + `sigValue`. The leading
-    // `30 82 01 02` was the **TBS's** length — 258 — while the buffer held
-    // 347, and webpki reported `BadEncoding` about a length five lines away
-    // from the only place it was wrong. It was found by printing the DER and
-    // comparing the declared content length against the byte count, which is
-    // the check `der_length_covers_the_certificate` below now keeps.
+    // the SEQUENCE is a NEW header around all three.** The two outer fields
+    // appended to `tbs` leave the TBS's length as the certificate's, and
+    // webpki reports `BadEncoding`; `der_length_covers_the_certificate`
+    // checks the declared length against the byte count.
     let cert = seq(&[tbs, seq(&[sig_alg]), tlv(0x03, &[&[0x00][..], signature.to_der().as_bytes()].concat())]);
 
     TestCert { der: cert, key_der: own.to_bytes().to_vec() }
@@ -323,17 +265,11 @@ fn sha256(data: &[u8]) -> [u8; 32] {
     arr
 }
 
-/// **The declared length must cover the bytes.** MEASURED 2026-10-02:
-/// the certificate declared 258 bytes of content and carried 347, because the
-/// TBS's own SEQUENCE header was standing in for the certificate's. That
-/// one byte of structure made every field unreadable and webpki reported
-/// `BadEncoding` — a name that points at the certificate rather than at the
-/// length, which is why it took a printed hex dump to find rather than a
-/// reading of the code.
-///
-/// This is the check that would have caught it on the first run, and it is
-/// here rather than in a comment because the same class of defect is the
-/// reason a hand-written encoder deserves a test.
+/// **The declared length must cover the bytes.** A header of the wrong
+/// structure (the TBS's own SEQUENCE header in place of the certificate's)
+/// makes each field unreadable, and webpki reports `BadEncoding`, a name
+/// that points at the certificate rather than at the length. A
+/// hand-written encoder gets this check.
 pub fn der_length_covers_the_certificate(der: &[u8]) {
     assert_eq!(der[0], 0x30, "a certificate is a SEQUENCE");
     let (declared, header) = read_len(der, 1);

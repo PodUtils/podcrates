@@ -1,20 +1,24 @@
-//! **The TLS connector's second plant, proven against podssh's own verifier, with no
-//! relay involved.**
+//! **The TLS connector's second plant, proven against the crate's own
+//! verifier, with no relay involved**, on each provider of the tests.
 //!
-//! **Why this file exists, and the measurement that forced it.** The plant
-//! is "a certificate for the wrong hostname must be rejected". MEASURED
-//! 2026-10-02 in `rust:1-alpine`: the *live* plant does **not** discriminate.
-//! Replacing `tls::client_config`'s verifier with one that accepts everything
-//! left the live suite at **4 passed, exit 0**, and with `--nocapture` the
-//! chain was still being presented while the handshake failed — the relay's
-//! edge refuses the SNI itself and never sends a certificate for the client
-//! to reject locally. A plant that cannot fail is a guard nobody has
-//! checked, and this repository has shipped six of those.
+//! **Why this file exists.** The plant is "a certificate for the wrong
+//! hostname must be rejected", and the *live* plant does **not**
+//! discriminate: with a verifier that accepts everything in place of the one
+//! of `pod_tls::client_config`, the live suite still passes, because the
+//! relay's edge refuses the SNI itself and never sends a certificate for the
+//! client to reject locally. A plant that cannot fail is a guard nobody has
+//! checked.
 //!
-//! So the proof lives here: a server podssh controls, serving a certificate
-//! for one name, asked for by another. The live test keeps its own claim — the
-//! *peer* accepts the right name and rejects the wrong one. Together they are
-//! the plant's sentence; neither alone is.
+//! So the proof lives here: a server that the test controls, serving a
+//! certificate for one name, asked for by another. The live test keeps its
+//! own claim — the *peer* accepts the right name and rejects the wrong one.
+//! Together they are the plant's sentence; neither alone is.
+
+use std::sync::Arc;
+
+use pod_tls::groups::Kept;
+use pod_tls::{TlsRoots, Trust};
+use rustls::crypto::CryptoProvider;
 
 // Shared test support; this file uses part of it.
 #[allow(dead_code)]
@@ -24,11 +28,30 @@ mod cert {
 
 use cert::server_for;
 
+#[allow(dead_code)]
+mod tls {
+    include!("common/tls_for_test.rs");
+}
+
+/// The crate's configuration over `roots`, on `provider`.
+fn client_config(roots: rustls::RootCertStore, provider: Arc<CryptoProvider>) -> Arc<rustls::ClientConfig> {
+    let roots = TlsRoots { count: roots.len(), roots, source: "the test's own generated root".into() };
+    pod_tls::client_config(&roots, provider, Arc::new(Kept::new())).expect("a config from a non-empty store")
+}
+
 /// **THE PLANT.** A valid certificate, chaining to a root in the store,
 /// presented by a working TLS server — carrying `wrong.example`, asked for as
 /// `podssh.invalid`. The handshake must fail, in the name check.
 #[tokio::test]
 async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        plant_on(provider).await;
+    }
+}
+
+async fn plant_on(provider: Arc<CryptoProvider>) {
     let (acceptor, roots) = server_for("wrong.example").expect("a server for the name under test");
     let leaf = cert::encoding::self_signed("wrong.example");
     let anchor = cert::encoding::self_signed_inner("wrong.example-anchor", true);
@@ -43,14 +66,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
         store.add(rustls_pki_types::CertificateDer::from(leaf.der.clone())).is_ok()
     };
     eprintln!("LEAF-ACCEPTED-AS-TRUST-ANCHOR: {leaf_as_anchor}");
-    let client = tokio_rustls::TlsConnector::from(
-        podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots {
-            count: roots.len(),
-            roots,
-            source: "the test's own generated root".into(),
-        })
-        .expect("a config from a non-empty store"),
-    );
+    let client = tokio_rustls::TlsConnector::from(client_config(roots, provider));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("an address");
@@ -92,15 +108,16 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
 /// makes the rejection above attributable to the name check.
 #[tokio::test]
 async fn the_control_the_right_hostname_is_accepted() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        control_on(provider).await;
+    }
+}
+
+async fn control_on(provider: Arc<CryptoProvider>) {
     let (acceptor, roots) = server_for("wrong.example").expect("a server for the name under test");
-    let client = tokio_rustls::TlsConnector::from(
-        podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots {
-            count: roots.len(),
-            roots,
-            source: "the test's own generated root".into(),
-        })
-        .expect("a config"),
-    );
+    let client = tokio_rustls::TlsConnector::from(client_config(roots, provider));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("an address");
@@ -125,24 +142,22 @@ async fn the_control_the_right_hostname_is_accepted() {
 /// permissive verifier, which is what was planted, cannot satisfy both.
 #[tokio::test]
 async fn a_permissive_verifier_could_not_satisfy_both() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        both_on(provider).await;
+    }
+}
+
+async fn both_on(provider: Arc<CryptoProvider>) {
     // The two tests above are the halves. This asserts the property that
     // binds them, using the real verifier both times, so a future edit that
     // made one of them vacuous is caught here rather than by a reader.
     let (acceptor_ok, roots_ok) = server_for("right.example").expect("a server for the right name");
     let (acceptor_bad, roots_bad) = server_for("right.example").expect("the same server again");
 
-    let ok_config = podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots {
-        count: roots_ok.len(),
-        roots: roots_ok,
-        source: "generated".into(),
-    })
-    .expect("a config");
-    let bad_config = podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots {
-        count: roots_bad.len(),
-        roots: roots_bad,
-        source: "generated".into(),
-    })
-    .expect("a config");
+    let ok_config = client_config(roots_ok, provider.clone());
+    let bad_config = client_config(roots_bad, provider);
 
     let right = rustls_pki_types::ServerName::try_from("right.example").expect("a name");
     let wrong = rustls_pki_types::ServerName::try_from("podssh.invalid").expect("a name");
@@ -180,13 +195,21 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
     );
 }
 
-/// T-340: a certificate whose root is in no store that podssh reads, as a
+/// A certificate whose root is in no store that the context reads, as a
 /// proxy's that re-signs TLS is, ends with rustls's `UnknownIssuer` and the
-/// hint that names `--ca-file`; the same server through a file that holds
-/// its root is the control.
+/// hint that names `--ca-file` (podssh's words); the same server through a
+/// file that holds its root is the control.
 #[tokio::test]
 async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
-    use podssh_ws::tls::{Trust, connect_over};
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        issuer_on(provider).await;
+    }
+}
+
+async fn issuer_on(provider: Arc<CryptoProvider>) {
+    let context = tls::context(provider);
     let limit = std::time::Duration::from_secs(10);
     let (acceptor, _roots) = server_for("issuer.example").expect("a server for the name");
     let serve = |acceptor: tokio_rustls::TlsAcceptor, listener: tokio::net::TcpListener| {
@@ -201,9 +224,9 @@ async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
     let addr = listener.local_addr().expect("an address");
     let server = serve(acceptor.clone(), listener);
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
-    let refused = connect_over(tcp, "issuer.example", &Trust::Default, limit).await.err();
+    let refused = context.connect_over(tcp, "issuer.example", &Trust::Default, limit).await.err();
     let _ = server.await;
-    let refused = refused.expect("no root of the default trust signs the test's certificate");
+    let refused = refused.expect("no root of the default trust signs the test's certificate").to_string();
     assert!(
         refused.contains("UnknownIssuer") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
         "the failure must be the unknown issuer, with the hint: {refused}"
@@ -211,7 +234,7 @@ async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
 
     // The control: the test's root in a file, as --ca-file gives it. Its key
     // comes from its name, so the root minted again is the server's.
-    let dir = std::env::temp_dir().join(format!("podssh-issuer-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pod-tls-issuer-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("a directory for the root");
     let pem_path = dir.join("root.pem");
     let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name("issuer.example"), true).der;
@@ -220,7 +243,7 @@ async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
     let addr = listener.local_addr().expect("an address");
     let server = serve(acceptor, listener);
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
-    let through = connect_over(tcp, "issuer.example", &Trust::File(pem_path.clone()), limit).await;
+    let through = context.connect_over(tcp, "issuer.example", &Trust::File(pem_path.clone()), limit).await;
     let _ = server.await;
     let _ = std::fs::remove_dir_all(&dir);
     if let Err(why) = through {

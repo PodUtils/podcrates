@@ -1,12 +1,10 @@
 // **A minimal X.509 certificate, minted here, in pure Rust.**
 //
-// **Why this exists, and why not `rcgen`.** MEASURED 2026-10-02 in
-// `rust:1-alpine`, in this order:
+// **Why this exists, and why not `rcgen`.** Measured in `rust:1-alpine`:
 //
 // 1. `rcgen 0.14` with **default features** pulls in `ring 0.17`, which
-//    needs `cc`: `cargo tree -i ring` prints `ring -> rcgen -> podssh-ws
-//    [dev-dependencies]` and the build fails with *"failed to run custom
-//    build command for `ring v0.17.14`"*.
+//    needs `cc`, and the build with no C compiler fails with *"failed to run
+//    custom build command for `ring v0.17.14`"*.
 // 2. `rcgen` with **`default-features = false, features = ["crypto","pem"]`**
 //    resolves to zero `ring` and zero `aws-lc-sys` — and then fails to
 //    compile: `compile_error!("At least one of the 'ring' or 'aws_lc_rs'
@@ -19,10 +17,8 @@
 //
 // **Two subjects, two files, and this file is only the seam.**
 // `cert_encoding.rs` writes the DER and mints the certificate;
-// `cert_server.rs` is the rustls server that presents it. MEASURED
-// 2026-10-02: the failures in this area were never "the bytes are wrong" and
-// "the server is wrong" at the same time — one file holding both is what made
-// each look like the other.
+// `cert_server.rs` is the rustls server that presents it. A fault in the
+// bytes and a fault in the server look alike in one file.
 
 pub mod encoding {
     include!("cert_encoding.rs");

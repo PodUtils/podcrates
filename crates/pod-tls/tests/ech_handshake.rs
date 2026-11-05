@@ -1,13 +1,15 @@
-//! Encrypted Client Hello against a TLS server of rustls's on the loopback
-//! (T-642). rustls serves no ECH, so the server is one that does not take
+//! Encrypted Client Hello (feature `ech`) against a TLS server of rustls's on
+//! the loopback. rustls serves no ECH, so the server is one that does not take
 //! it, as most are: it holds a certificate for each name, presents the one
 //! that its hello asks for, and keeps each ClientHello as it read it.
 //!
 //! What this shows: the sealed hello names the list's public name and never
 //! the host's; the host's name is inside it, under the list's key, which
-//! podssh's HPKE opens with the AAD and the info that rustls's ECH made; the
-//! server's refusal goes on with one plain hello, after which the name is
-//! left alone; `strict` sends no plain hello; a name with no list goes plain.
+//! the crate's HPKE opens with the AAD and the info that rustls's ECH made;
+//! the server's refusal goes on with one plain hello, after which the name
+//! is left alone; `strict` sends no plain hello; a name with no list goes
+//! plain. Each test runs on each provider of the tests.
+#![cfg(feature = "ech")]
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -16,9 +18,11 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use podssh_ws::crypto::hpke::{X25519_SHA256_AES_128_GCM, derive_key_pair};
-use podssh_ws::ech::{self, Cache, Dial, Mode, Outcome};
-use podssh_ws::{ProxyChoice, Trust};
+use pod_core::{BoxFuture, Class, Connected, Dial, Failure, Stage, Target};
+use pod_tls::Trust;
+use pod_tls::crypto::hpke::{X25519_SHA256_AES_128_GCM, derive_key_pair};
+use pod_tls::ech::{self, Cache, Mode, NoRecords, Outcome, Route};
+use rustls::crypto::CryptoProvider;
 use rustls::crypto::hpke::{EncapsulatedSecret, Hpke, HpkePrivateKey};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
@@ -27,6 +31,38 @@ use tokio::net::{TcpListener, TcpStream};
 #[allow(dead_code)]
 mod cert {
     include!("common/cert_for_test.rs");
+}
+
+#[allow(dead_code)]
+mod tls {
+    include!("common/tls_for_test.rs");
+}
+
+/// TCP to an address on the loopback, as a direct dial makes it.
+struct Loopback;
+
+impl Dial for Loopback {
+    fn label(&self) -> String {
+        "loopback".into()
+    }
+
+    fn dial<'a>(
+        &'a self,
+        target: &'a Target,
+        deadline: tokio::time::Instant,
+    ) -> BoxFuture<'a, Result<Connected, Failure>> {
+        Box::pin(async move {
+            let Target::Addr(addr) = target else {
+                return Err(Failure::new(Stage::Connect, Class::Usage, "the loopback dialer takes addresses"));
+            };
+            let tcp = tokio::time::timeout_at(deadline, TcpStream::connect(addr))
+                .await
+                .map_err(|_| Failure::new(Stage::Connect, Class::Timeout, "no connection in time"))?
+                .map_err(|e| Failure::io(Stage::Connect, e))?;
+            let (peer, local) = (tcp.peer_addr().ok(), tcp.local_addr().ok());
+            Ok(Connected { io: Box::new(tcp), peer, local })
+        })
+    }
 }
 
 /// The public name of the test's list, which the sealed hello names.
@@ -113,7 +149,7 @@ impl Drop for Scratch {
 
 /// A trust of the roots of `names`' certificates, in a file under `tag`.
 fn trust(tag: &str, names: &[&str]) -> (Trust, Scratch) {
-    let dir = std::env::temp_dir().join(format!("podssh-ech-{}-{tag}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pod-tls-ech-{}-{tag}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("a directory for the roots");
     let path = dir.join("roots.pem");
     let pems: String = names
@@ -179,22 +215,31 @@ fn sealed_part(record: &[u8]) -> (Vec<u8>, Vec<u8>, std::ops::Range<usize>) {
     panic!("the ClientHello holds no ECH extension");
 }
 
-fn dial<'a>(addr: SocketAddr, name: &'a str, trust: &'a Trust, proxy: &'a ProxyChoice) -> Dial<'a> {
-    Dial { host: "127.0.0.1", port: addr.port(), server_name: name, trust, proxy, limit: LIMIT, alpn: &[] }
+fn route<'a>(target: &'a Target, name: &'a str, trust: &'a Trust, dial: &'a Loopback) -> Route<'a> {
+    Route { target, server_name: name, trust, dial, records: &NoRecords, limit: LIMIT, alpn: &[] }
 }
 
 #[tokio::test]
 async fn a_sealed_hello_names_the_public_name_alone_and_a_refusal_goes_on_plain() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        refused_goes_on_plain(provider).await;
+    }
+}
+
+async fn refused_goes_on_plain(provider: Arc<CryptoProvider>) {
     const NAME: &str = "relay.ech.test";
+    let context = tls::context(provider);
     let (addr, hellos) = server(&[PUBLIC, NAME]).await;
     let (trust, _scratch) = trust("refused", &[PUBLIC, NAME]);
     let (sk, pk) = derive_key_pair(b"the key of the test's list").expect("a key pair");
     let (list, config) = list(&pk);
     let cache = Cache::new();
     cache.remember(NAME, list, Duration::from_secs(300));
-    let direct = ProxyChoice::Direct;
+    let target = Target::Addr(addr);
 
-    let opened = ech::open_with(&cache, Mode::On, &dial(addr, NAME, &trust, &direct)).await;
+    let opened = ech::open_with(&context, &cache, Mode::On, &route(&target, NAME, &trust, &Loopback)).await;
     assert!(opened.is_ok(), "the plain hello after the refusal: {:?}", opened.err());
     let seen = hellos.lock().unwrap().clone();
     let asked: Vec<Option<&str>> = seen.iter().map(|(name, _)| name.as_deref()).collect();
@@ -212,52 +257,70 @@ async fn a_sealed_hello_names_the_public_name_alone_and_a_refusal_goes_on_plain(
         .open(&EncapsulatedSecret(enc), &info, &aad, &body[payload], &key)
         .expect("the sealed hello opens with the key of the list");
     assert!(contains(&inner, NAME.as_bytes()), "the inner hello names the host");
-    match ech::outcome(NAME) {
+    match context.ech().outcome(NAME) {
         Some(Outcome::Refused(why)) => assert!(why.contains("no retry configs"), "{why}"),
         other => panic!("the refusal was not noted: {other:?}"),
     }
 
     // Within 5 minutes, the name goes plain at once.
-    let again = ech::open_with(&cache, Mode::On, &dial(addr, NAME, &trust, &direct)).await;
+    let again = ech::open_with(&context, &cache, Mode::On, &route(&target, NAME, &trust, &Loopback)).await;
     assert!(again.is_ok(), "{:?}", again.err());
     let asked: Vec<Option<String>> = hellos.lock().unwrap().iter().map(|(name, _)| name.clone()).collect();
     assert_eq!(asked.last().cloned().flatten().as_deref(), Some(NAME));
     assert_eq!(asked.len(), 3, "one hello more, and plain");
-    assert_eq!(ech::outcome(NAME), Some(Outcome::Cooled));
+    assert_eq!(context.ech().outcome(NAME), Some(Outcome::Cooled));
 }
 
 #[tokio::test]
 async fn strict_sends_no_plain_hello() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        strict_on(provider).await;
+    }
+}
+
+async fn strict_on(provider: Arc<CryptoProvider>) {
     const NAME: &str = "strict.ech.test";
+    let context = tls::context(provider);
     let (addr, hellos) = server(&[PUBLIC, NAME]).await;
     let (trust, _scratch) = trust("strict", &[PUBLIC, NAME]);
     let (_, pk) = derive_key_pair(b"the key of the strict list").expect("a key pair");
     let cache = Cache::new();
     cache.remember(NAME, list(&pk).0, Duration::from_secs(300));
-    let direct = ProxyChoice::Direct;
-    match ech::open_with(&cache, Mode::Strict, &dial(addr, NAME, &trust, &direct)).await {
+    let target = Target::Addr(addr);
+    match ech::open_with(&context, &cache, Mode::Strict, &route(&target, NAME, &trust, &Loopback)).await {
         Err(e) => assert!(e.to_string().contains("PODSSH_ECH=strict"), "{e}"),
         Ok(_) => panic!("strict went on with a plain hello"),
     }
     let asked: Vec<Option<String>> = hellos.lock().unwrap().iter().map(|(name, _)| name.clone()).collect();
     assert_eq!(asked, [Some(PUBLIC.to_string())], "the sealed hello alone");
-    assert!(matches!(ech::outcome(NAME), Some(Outcome::Strict(_))));
+    assert!(matches!(context.ech().outcome(NAME), Some(Outcome::Strict(_))));
 }
 
 #[tokio::test]
 async fn a_name_with_no_list_goes_plain_and_strict_refuses_it() {
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        eprintln!("the provider: {each}");
+        no_list_on(provider).await;
+    }
+}
+
+async fn no_list_on(provider: Arc<CryptoProvider>) {
     const NAME: &str = "plain.ech.test";
+    let context = tls::context(provider);
     let (addr, hellos) = server(&[NAME]).await;
     let (trust, _scratch) = trust("plain", &[NAME]);
     let cache = Cache::new();
     // The name's record holds no list, as the read said.
     let read = cache.lookup(NAME, || std::future::ready(Ok(None))).await;
     assert_eq!(read, ech::Lookup::None(ech::Why::NotPublished));
-    let direct = ProxyChoice::Direct;
-    let opened = ech::open_with(&cache, Mode::On, &dial(addr, NAME, &trust, &direct)).await;
+    let target = Target::Addr(addr);
+    let opened = ech::open_with(&context, &cache, Mode::On, &route(&target, NAME, &trust, &Loopback)).await;
     assert!(opened.is_ok(), "{:?}", opened.err());
-    assert_eq!(ech::outcome(NAME), Some(Outcome::NotPublished));
-    assert!(ech::open_with(&cache, Mode::Strict, &dial(addr, NAME, &trust, &direct)).await.is_err());
+    assert_eq!(context.ech().outcome(NAME), Some(Outcome::NotPublished));
+    assert!(ech::open_with(&context, &cache, Mode::Strict, &route(&target, NAME, &trust, &Loopback)).await.is_err());
     let asked: Vec<Option<String>> = hellos.lock().unwrap().iter().map(|(name, _)| name.clone()).collect();
     assert_eq!(asked, [Some(NAME.to_string())], "one plain hello, and none in strict");
 }

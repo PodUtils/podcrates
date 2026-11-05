@@ -3,18 +3,20 @@
 //! handshake with nobody and passes every test written by the same author.
 //!
 //! Every vector here is cited: RFC 6234 for SHA, RFC 5869 appendix A for
-//! HKDF, RFC 7748 for X25519, RFC 8032 for Ed25519, and the RFC 6455 §1.3
-//! worked example for the WebSocket accept value.
+//! HKDF, RFC 7748 for X25519, RFC 8032 for Ed25519. The provider is the
+//! pure one (feature `pure`); its counts hold with RSA (feature `rsa`).
+#![cfg(feature = "pure")]
 
-use podssh_ws::crypto::aead::AeadId;
-use podssh_ws::crypto::hash::HashAlgorithmId;
-use podssh_ws::crypto::hash::{SHA256, SHA384};
-use podssh_ws::crypto::hkdf::PureHkdf;
-use podssh_ws::crypto::hmac::{HMAC_SHA256, HMAC_SHA384};
-use podssh_ws::crypto::kx::{SECP256R1, X25519};
+use pod_tls::crypto::aead::AeadId;
+use pod_tls::crypto::hash::HashAlgorithmId;
+use pod_tls::crypto::hash::{SHA256, SHA384};
+use pod_tls::crypto::hkdf::PureHkdf;
+use pod_tls::crypto::hmac::{HMAC_SHA256, HMAC_SHA384};
+use pod_tls::crypto::kx::{SECP256R1, X25519};
 // The signature algorithms are asserted in `signatures.rs`; this file
 // keeps the provider as a whole.
-use podssh_ws::crypto::sign::signature_algorithms;
+#[cfg(feature = "rsa")]
+use pod_tls::crypto::sign::signature_algorithms;
 use rustls::crypto::hmac::Hmac as _;
 use rustls::crypto::tls13::Hkdf as _;
 
@@ -189,7 +191,7 @@ fn hkdf_sha256_matches_rfc5869_case_1() {
 
 #[test]
 fn every_aead_round_trips_and_rejects_a_flipped_bit() {
-    use podssh_ws::crypto::aead::Aead;
+    use pod_tls::crypto::aead::Aead;
     for id in [AeadId::Aes128Gcm, AeadId::Aes256Gcm, AeadId::ChaCha20Poly1305] {
         let key = vec![0xABu8; id.key_len()];
         let aead = Aead::new(id, &key).expect("a key of key_len bytes");
@@ -224,7 +226,7 @@ fn every_aead_round_trips_and_rejects_a_flipped_bit() {
 
 #[test]
 fn an_aead_refuses_a_key_of_the_wrong_length() {
-    use podssh_ws::crypto::aead::Aead;
+    use pod_tls::crypto::aead::Aead;
     // **AES-128's key is 16 bytes and AES-256's is 32.** A provider that
     // accepted either length for both would let a peer negotiate AES-128 and
     // then encrypt with a key the wrong size.
@@ -308,15 +310,14 @@ fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
 
 // ── the provider as a whole ─────────────────────────────────────────────────
 
+#[cfg(feature = "rsa")]
 #[test]
 fn the_provider_offers_only_what_it_implements() {
-    let p = podssh_ws::crypto::provider();
-    // **Two suites, both TLS 1.3, until T-067.** The `tls12` feature was on
-    // because rustls's builder needs it, and a TLS 1.2 suite listed here
-    // would have been one podssh could not complete. Since 2026-10-11 six
-    // TLS 1.2 suites follow them, each of which completed a handshake and
-    // moved data with OpenSSL's `s_server` (`tests/tls12.rs`): ECDHE, with
-    // AES-GCM or ChaCha20-Poly1305, and nothing else.
+    let p = pod_tls::crypto::provider();
+    // **Two TLS 1.3 suites, then six TLS 1.2 suites**, each of which
+    // completed a handshake and moved data with OpenSSL's `s_server`
+    // (`tests/tls12.rs`): ECDHE, with AES-GCM or ChaCha20-Poly1305, and
+    // nothing else. The three RSA suites need the feature `rsa`.
     assert_eq!(p.cipher_suites.len(), 8);
     let tls13: Vec<bool> =
         p.cipher_suites.iter().map(|s| matches!(s, rustls::SupportedCipherSuite::Tls13(_))).collect();
@@ -329,37 +330,27 @@ fn the_provider_offers_only_what_it_implements() {
         }
     }
     assert_eq!(p.kx_groups.len(), 2);
-    // **THREE signature algorithms, and the third was added because a
-    // measurement demanded it.** This assertion said `2` when the first
-    // version of the provider offered P-256/SHA-256 and Ed25519, and the live
-    // handshake then failed with
+    // **Eleven signature algorithms, each because a measurement demanded
+    // it.** P-384/SHA-384: the live relay's second intermediate certificate
+    // is signed with `ecdsa-with-SHA384` (1.2.840.10045.4.3.3), and with
+    // P-256/SHA-256 and Ed25519 alone its handshake fails with
     // `UnsupportedSignatureAlgorithmContext { signature_algorithm_id:
-    // [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }` — that OID is
-    // `ecdsa-with-SHA384` (1.2.840.10045.4.3.3), the algorithm the relay's
-    // second intermediate certificate is signed with. MEASURED 2026-10-02 in
-    // `rust:1-alpine` against `tcp.ssh.relay.ajam.dev:443`. P-384/SHA-384
-    // was implemented in response and the handshake completed, so the count
-    // here is three and the count is the *result* of a measurement rather than
-    // a preference.
-    //
-    // Six more on 2026-10-08, for the same reason: Google's DNS-over-HTTPS
-    // resolvers (8.8.8.8, 8.8.4.4) ended the handshake with a
-    // `HandshakeFailure` alert until RSA could be verified (MEASURED,
-    // `tests/live_doh.rs`), so RSA PKCS #1 v1.5 and PSS with SHA-256, -384 and
-    // -512 joined; `tests/rsa.rs` checks them against OpenSSL's signatures.
-    //
-    // Two more on 2026-10-11 (T-067): in TLS 1.2 the hash of an ECDSA
-    // signature is not bound to the curve, and OpenSSL's `s_server` signed
-    // its key exchange with a P-256 key and SHA-384, which failed as
-    // `BadSignature` until P-256/SHA-384 joined, with P-384/SHA-256 beside it.
+    // [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }`. RSA PKCS #1 v1.5 and PSS with
+    // SHA-256, -384 and -512: Google's DNS-over-HTTPS resolvers (8.8.8.8,
+    // 8.8.4.4) end the handshake with a `HandshakeFailure` alert unless RSA
+    // verifies; `tests/rsa.rs` checks them against OpenSSL's signatures.
+    // P-256/SHA-384 and P-384/SHA-256: in TLS 1.2 the hash of an ECDSA
+    // signature is not bound to the curve, and OpenSSL's `s_server` signs its
+    // key exchange with a P-256 key and SHA-384 (`BadSignature` without it).
     assert_eq!(
         p.signature_verification_algorithms.all.len(),
         11,
         "ECDSA on each curve with each hash, Ed25519, and RSA PKCS #1 and PSS with three hashes"
     );
-    assert!(podssh_ws::crypto::suites::self_check().is_ok());
+    assert!(pod_tls::crypto::suites::self_check().is_ok());
 }
 
+#[cfg(feature = "rsa")]
 #[test]
 fn the_signature_mapping_covers_every_algorithm_it_lists() {
     let algs = signature_algorithms();
@@ -381,15 +372,13 @@ fn the_signature_mapping_covers_every_algorithm_it_lists() {
             );
         }
     }
-    // **Six mapped schemes, then nine.** The third is ECDSA_NISTP384_SHA384,
-    // added after the live handshake named `ecdsa-with-SHA384` as the
-    // algorithm it could not verify; see
-    // `the_provider_offers_only_what_it_implements` for the measurement. The
-    // next three are RSA-PSS with SHA-256, -384 and -512: TLS 1.3 signs its
-    // handshake with RSA-PSS only (RFC 8446 4.2.3), while PKCS #1 v1.5 was for
-    // certificate chains and needed no scheme. Since T-067, a TLS 1.2 server
-    // may sign its key exchange with PKCS #1 v1.5, so it has its three
-    // schemes, which rustls takes for TLS 1.2 only.
+    // **Nine mapped schemes.** ECDSA_NISTP384_SHA384 is here because the live
+    // handshake named `ecdsa-with-SHA384` as the algorithm it could not
+    // verify; see `the_provider_offers_only_what_it_implements`. Three are
+    // RSA-PSS with SHA-256, -384 and -512: TLS 1.3 signs its handshake with
+    // RSA-PSS only (RFC 8446 4.2.3). A TLS 1.2 server may sign its key
+    // exchange with PKCS #1 v1.5, so it has its three schemes, which rustls
+    // takes for TLS 1.2 only.
     assert_eq!(
         algs.mapping.len(),
         9,

@@ -1,17 +1,19 @@
-//! The group that a TLS server took, kept across runs (T-664): a server that
-//! takes P-256 alone answers podssh's first offer, X25519, with a
+//! The group that a TLS server took, kept across runs: a server that takes
+//! P-256 alone answers the first offer of each provider, X25519, with a
 //! HelloRetryRequest; a later run, with a configuration of its own whose
 //! groups come from the file that the first run kept, offers P-256 at once,
 //! and the server's side says that no retry came. The server is rustls's
-//! own; each run's configuration is new, so no ticket resumes it.
+//! own; each run's configuration is new, so no ticket resumes it. Each test
+//! runs on each provider of the tests.
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::crypto::kx::SECP256R1;
-use podssh_ws::tls::groups::{GroupFile, Kept};
-use podssh_ws::tls::{TlsRoots, client_config_keeping};
+use pod_tls::TlsRoots;
+use pod_tls::groups::{GroupFile, HEADER, Kept};
+use rustls::crypto::CryptoProvider;
+use rustls::crypto::ring::kx_group::SECP256R1;
 use rustls::{ClientConfig, HandshakeKind, RootCertStore};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -22,7 +24,12 @@ mod cert {
     include!("common/cert_for_test.rs");
 }
 
-const NAME: &str = "group.podssh.test";
+#[allow(dead_code)]
+mod tls {
+    include!("common/tls_for_test.rs");
+}
+
+const NAME: &str = "group.pod-tls.test";
 const LIMIT: Duration = Duration::from_secs(10);
 
 /// A file of the test's memory, as the cache keeps one between runs.
@@ -40,11 +47,11 @@ impl GroupFile for Memory {
 }
 
 /// One run: groups of its own over `file`, and a configuration made for it.
-fn run(file: &Memory, roots: &RootCertStore) -> (Arc<ClientConfig>, Arc<Kept>) {
+fn run(file: &Memory, roots: &RootCertStore, provider: &Arc<CryptoProvider>) -> (Arc<ClientConfig>, Arc<Kept>) {
     let kept = Arc::new(Kept::new());
     assert!(kept.keep_in(Box::new(file.clone())));
     let roots = TlsRoots { roots: roots.clone(), source: "the test's root".into(), count: roots.len() };
-    let config = client_config_keeping(&roots, podssh_ws::crypto::provider(), kept.clone()).expect("a configuration");
+    let config = pod_tls::client_config(&roots, provider.clone(), kept.clone()).expect("a configuration");
     (config, kept)
 }
 
@@ -90,42 +97,52 @@ async fn kinds(served: JoinHandle<Vec<Option<HandshakeKind>>>) -> Vec<Option<Han
 
 #[tokio::test]
 async fn a_later_run_offers_the_group_that_the_server_took() {
-    let (addr, roots, served) = server(2).await;
-    let file = Memory::default();
-    connect(addr, run(&file, &roots).0).await;
-    let kept = file.load().expect("the group is kept");
-    assert!(kept.contains(&format!("{NAME} 23 ")), "{kept}");
-    connect(addr, run(&file, &roots).0).await;
-    assert_eq!(
-        kinds(served).await,
-        vec![Some(HandshakeKind::FullWithHelloRetryRequest), Some(HandshakeKind::Full)],
-        "a later run that does not read the group offers X25519 again, and the server asks for P-256 again"
-    );
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        let (addr, roots, served) = server(2).await;
+        let file = Memory::default();
+        connect(addr, run(&file, &roots, &provider).0).await;
+        let kept = file.load().expect("the group is kept");
+        assert!(kept.contains(&format!("{NAME} 23 ")), "{each}: {kept}");
+        connect(addr, run(&file, &roots, &provider).0).await;
+        assert_eq!(
+            kinds(served).await,
+            vec![Some(HandshakeKind::FullWithHelloRetryRequest), Some(HandshakeKind::Full)],
+            "{each}: a later run that does not read the group offers X25519 again, and the server asks for P-256 again"
+        );
+    }
 }
 
 /// The control: runs with no file between them retry each time.
 #[tokio::test]
 async fn runs_with_no_file_between_them_retry_each_time() {
-    let (addr, roots, served) = server(2).await;
-    connect(addr, run(&Memory::default(), &roots).0).await;
-    connect(addr, run(&Memory::default(), &roots).0).await;
-    assert_eq!(
-        kinds(served).await,
-        vec![Some(HandshakeKind::FullWithHelloRetryRequest), Some(HandshakeKind::FullWithHelloRetryRequest)]
-    );
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        let (addr, roots, served) = server(2).await;
+        connect(addr, run(&Memory::default(), &roots, &provider).0).await;
+        connect(addr, run(&Memory::default(), &roots, &provider).0).await;
+        assert_eq!(
+            kinds(served).await,
+            vec![Some(HandshakeKind::FullWithHelloRetryRequest), Some(HandshakeKind::FullWithHelloRetryRequest)],
+            "{each}"
+        );
+    }
 }
 
 /// A file that does not read is set aside, said once, and made again: the
 /// run connects as with no file.
 #[tokio::test]
 async fn a_file_that_does_not_read_is_set_aside() {
-    let (addr, roots, served) = server(1).await;
-    let file = Memory(Arc::new(Mutex::new(Some("podssh tls groups 1\nno fields\n".into()))));
-    let (config, kept) = run(&file, &roots);
-    connect(addr, config).await;
-    assert_eq!(kinds(served).await, vec![Some(HandshakeKind::FullWithHelloRetryRequest)]);
-    let note = kept.take_note().expect("the note of -v");
-    assert!(note.contains("set aside") && note.contains("line 2"), "{note}");
-    let made = file.load().expect("the file");
-    assert!(made.starts_with("podssh tls groups 1\n") && made.contains(NAME), "{made}");
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        let (addr, roots, served) = server(1).await;
+        let file = Memory(Arc::new(Mutex::new(Some(format!("{HEADER}\nno fields\n")))));
+        let (config, kept) = run(&file, &roots, &provider);
+        connect(addr, config).await;
+        assert_eq!(kinds(served).await, vec![Some(HandshakeKind::FullWithHelloRetryRequest)], "{each}");
+        let note = kept.take_note().expect("the note of -v");
+        assert!(note.contains("set aside") && note.contains("line 2"), "{each}: {note}");
+        let made = file.load().expect("the file");
+        assert!(made.starts_with(&format!("{HEADER}\n")) && made.contains(NAME), "{each}: {made}");
+    }
 }

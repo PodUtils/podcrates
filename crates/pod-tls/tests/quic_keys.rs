@@ -1,11 +1,12 @@
-//! The keys of QUIC from podssh's own provider (T-301), against vectors that
-//! podssh did not write: RFC 9001's Initial packets (appendix A, QUIC v1),
-//! RFC 9369's for QUIC v2 (as rustls's own tests hold them), FIPS-197's AES-256
-//! for the header mask, and the GCM specification's test case 14 for an
+//! The keys of QUIC from the pure provider (feature `pure`), against vectors
+//! that this crate did not write: RFC 9001's Initial packets (appendix A,
+//! QUIC v1), RFC 9369's for QUIC v2 (as rustls's own tests hold them),
+//! FIPS-197's AES-256 for the header mask, and the GCM specification's test case 14 for an
 //! AES-256-GCM packet. Each goes through rustls's public QUIC interface, as a
 //! QUIC stack calls it.
+#![cfg(feature = "pure")]
 
-use podssh_ws::crypto::quic::{AES_128_GCM, AES_256_GCM};
+use pod_tls::crypto::quic::{AES_128_GCM, AES_256_GCM};
 use rustls::crypto::cipher::{AeadKey, Iv};
 use rustls::quic::{Algorithm, Keys, Version};
 use rustls::{SupportedCipherSuite, Tls13CipherSuite};
@@ -16,7 +17,7 @@ fn hex(text: &str) -> Vec<u8> {
 }
 
 fn aes_128_suite() -> &'static Tls13CipherSuite {
-    match podssh_ws::crypto::suites::TLS13_AES_128_GCM_SHA256 {
+    match pod_tls::crypto::suites::TLS13_AES_128_GCM_SHA256 {
         SupportedCipherSuite::Tls13(suite) => suite,
         _ => unreachable!("a TLS 1.3 suite"),
     }

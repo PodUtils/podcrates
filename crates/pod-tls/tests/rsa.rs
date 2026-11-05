@@ -1,7 +1,8 @@
-//! RSA verification in podssh's TLS provider, against signatures OpenSSL made
-//! (tests/fixtures/rsa/README.md).
+//! RSA verification in the pure provider (feature `rsa`), against
+//! signatures that OpenSSL made (tests/fixtures/rsa/README.md).
+#![cfg(feature = "rsa")]
 
-use podssh_ws::crypto::rsa_sig::{RSA_PKCS1_SHA256, RSA_PKCS1_SHA384, RSA_PSS_SHA256, RSA_PSS_SHA384};
+use pod_tls::crypto::rsa_sig::{RSA_PKCS1_SHA256, RSA_PKCS1_SHA384, RSA_PSS_SHA256, RSA_PSS_SHA384};
 
 const MSG: &[u8] = include_bytes!("fixtures/rsa/msg");
 const KEY: &[u8] = include_bytes!("fixtures/rsa/pub.der");

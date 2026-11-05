@@ -1,13 +1,11 @@
 //! **Signature verification, against published vectors and against a live
 //! chain.**
 //!
-//! **Why this is a second file.** `crypto_vectors.rs` reached 510 lines when
-//! the provider grew a third signature algorithm, and the 500-line cap is a
-//! gate rather than advice. The block moved here whole; no comment was
-//! deleted to make room, because a file that only fits because its comments
-//! were removed is not a split.
+//! A file of its own, apart from `crypto_vectors.rs`, for the 500-line cap.
+//! The verifiers are the pure provider's (feature `pure`).
+#![cfg(feature = "pure")]
 
-use podssh_ws::crypto::sign::{ECDSA_P256_SHA256, ECDSA_P256_SHA384, ECDSA_P384_SHA256, ECDSA_P384_SHA384, ED25519};
+use pod_tls::crypto::sign::{ECDSA_P256_SHA256, ECDSA_P256_SHA384, ECDSA_P384_SHA256, ECDSA_P384_SHA384, ED25519};
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -104,7 +102,7 @@ fn ed25519_matches_rfc8032_vector_1() {
 // ── ECDSA P-384 with SHA-384 ────────────────────────────────────────────────
 
 /// **P-384/SHA-384, and this algorithm exists because a measurement named
-/// it.** MEASURED 2026-10-02 in `rust:1-alpine`: the live handshake failed
+/// it.** With P-256 and Ed25519 alone, the live handshake fails
 /// with `UnsupportedSignatureAlgorithmContext { signature_algorithm_id:
 /// [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }`, and that OID is
 /// `ecdsa-with-SHA384` (1.2.840.10045.4.3.3) — the algorithm the relay's
@@ -148,7 +146,7 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
         "P-384 accepted a truncated signature"
     );
     // One byte of `s` changed, the DER still well formed: the check of the
-    // curve itself must refuse it, not the parser (T-355, the curves' 0.14).
+    // curve itself must refuse it, not the parser (the curves' 0.14).
     let mut changed = der.as_bytes().to_vec();
     let last = changed.len() - 1;
     changed[last] ^= 0x01;
@@ -176,7 +174,7 @@ fn a_p256_signature_does_not_verify_as_p384() {
     assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, sig.to_der().as_bytes()).is_err());
 }
 
-/// **In TLS 1.2 the hash of an ECDSA signature is not the curve's** (T-067):
+/// **In TLS 1.2 the hash of an ECDSA signature is not the curve's**:
 /// P-256 with SHA-384 and P-384 with SHA-256 each verify under their own
 /// algorithm, and neither under the curve's usual hash.
 #[test]

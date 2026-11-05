@@ -1,10 +1,11 @@
-//! The TLS 1.2 suites of podssh's provider (T-067), each against OpenSSL's
-//! `s_server` held to TLS 1.2 and to that one suite: the handshake, then
-//! lines that the server sends back reversed, so that records go each way
-//! after the handshake. A server that also speaks TLS 1.3 gets 1.3, and a
-//! TLS 1.2 server with only a CBC suite gets no handshake. The checks say
-//! that they did not run when this host has no openssl, and fail instead
-//! with `PODSSH_TEST_OPENSSL` set, as the gate sets it.
+//! The TLS 1.2 suites of the pure provider (feature `pure`; the RSA suites
+//! with `rsa`), each against OpenSSL's `s_server` held to TLS 1.2 and to that
+//! one suite: the handshake, then lines that the server sends back
+//! reversed, so that records go each way after the handshake. A server that
+//! also speaks TLS 1.3 gets 1.3, and a TLS 1.2 server with only a CBC suite
+//! gets no handshake. The checks say that they did not run when this host
+//! has no openssl, and fail instead with `POD_TLS_TEST_OPENSSL` set.
+#![cfg(feature = "pure")]
 
 use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
@@ -14,14 +15,20 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use podssh_ws::Trust;
+use pod_tls::Trust;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio_rustls::rustls::{CipherSuite, ProtocolVersion};
 
 const LIMIT: Duration = Duration::from_secs(20);
 
+#[allow(dead_code)]
+mod tls {
+    include!("common/tls_for_test.rs");
+}
+
 /// The key of a leaf certificate.
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum Key {
     Ecdsa,
     Rsa,
@@ -47,14 +54,14 @@ fn openssl(args: &[&str]) -> Result<(), String> {
 }
 
 /// A directory of the temporary directory, removed when it is dropped: the
-/// gate fails a run of the tests that leaves one (T-272).
+/// gate fails a run of the tests that leaves one.
 struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(what: &str) -> Result<Scratch, String> {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("podssh-tls12-{}-{what}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pod-tls-tls12-{}-{what}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         Ok(Scratch(dir))
@@ -87,8 +94,8 @@ fn certificates() -> Option<&'static [(&'static str, Vec<u8>)]> {
                 .collect()
         });
         if let Err(why) = &made {
-            if std::env::var_os("PODSSH_TEST_OPENSSL").is_some() {
-                panic!("PODSSH_TEST_OPENSSL is set, and openssl could not make the certificates: {why}");
+            if std::env::var_os("POD_TLS_TEST_OPENSSL").is_some() {
+                panic!("POD_TLS_TEST_OPENSSL is set, and openssl could not make the certificates: {why}");
             }
             eprintln!("did not run: {why}");
         }
@@ -122,7 +129,7 @@ fn make(dir: &Path) -> Result<(), String> {
         "-days",
         "2",
         "-subj",
-        "/CN=podssh-tls12-ca",
+        "/CN=pod-tls-tls12-ca",
         "-addext",
         "basicConstraints=critical,CA:TRUE",
         "-addext",
@@ -236,7 +243,8 @@ fn listen(dir: &Path, key: Key, extra: &[&str]) -> Result<(Server, u16), String>
 /// and the suite that were agreed.
 async fn exchange(port: u16, ca: PathBuf) -> Result<(ProtocolVersion, CipherSuite), String> {
     let tcp = tokio::net::TcpStream::connect(("127.0.0.1", port)).await.map_err(|e| e.to_string())?;
-    let tls = podssh_ws::tls::connect_over(tcp, "localhost", &Trust::File(ca), LIMIT).await?;
+    let context = tls::context(std::sync::Arc::new(pod_tls::crypto::provider()));
+    let tls = context.connect_over(tcp, "localhost", &Trust::File(ca), LIMIT).await.map_err(|e| e.to_string())?;
     let (_, connection) = tls.get_ref();
     let version = connection.protocol_version().ok_or("no version")?;
     let suite = connection.negotiated_cipher_suite().ok_or("no suite")?.suite();
@@ -285,16 +293,19 @@ fn suite_works(key: Key, name: &str, want: CipherSuite) {
 
 #[test]
 fn ecdhe_ecdsa_with_aes_256_gcm_sha384() {
+    pod_testkit::need_loopback!();
     suite_works(Key::Ecdsa, "ECDHE-ECDSA-AES256-GCM-SHA384", CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384);
 }
 
 #[test]
 fn ecdhe_ecdsa_with_aes_128_gcm_sha256() {
+    pod_testkit::need_loopback!();
     suite_works(Key::Ecdsa, "ECDHE-ECDSA-AES128-GCM-SHA256", CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 }
 
 #[test]
 fn ecdhe_ecdsa_with_chacha20_poly1305_sha256() {
+    pod_testkit::need_loopback!();
     suite_works(
         Key::Ecdsa,
         "ECDHE-ECDSA-CHACHA20-POLY1305",
@@ -302,25 +313,33 @@ fn ecdhe_ecdsa_with_chacha20_poly1305_sha256() {
     );
 }
 
+#[cfg(feature = "rsa")]
 #[test]
 fn ecdhe_rsa_with_aes_256_gcm_sha384() {
+    pod_testkit::need_loopback!();
     suite_works(Key::Rsa, "ECDHE-RSA-AES256-GCM-SHA384", CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384);
 }
 
+#[cfg(feature = "rsa")]
 #[test]
 fn ecdhe_rsa_with_aes_128_gcm_sha256() {
+    pod_testkit::need_loopback!();
     suite_works(Key::Rsa, "ECDHE-RSA-AES128-GCM-SHA256", CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
 }
 
+#[cfg(feature = "rsa")]
 #[test]
 fn ecdhe_rsa_with_chacha20_poly1305_sha256() {
+    pod_testkit::need_loopback!();
     suite_works(Key::Rsa, "ECDHE-RSA-CHACHA20-POLY1305", CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256);
 }
 
 /// The server's PKCS #1 v1.5 signature of its key exchange, which a TLS 1.2
 /// server may make when the client offers it.
+#[cfg(feature = "rsa")]
 #[test]
 fn an_rsa_key_exchange_signed_with_pkcs1_is_taken() {
+    pod_testkit::need_loopback!();
     let Some(agreed) =
         agreed(Key::Rsa, &["-tls1_2", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-sigalgs", "RSA+SHA256"])
     else {
@@ -332,6 +351,7 @@ fn an_rsa_key_exchange_signed_with_pkcs1_is_taken() {
 
 #[test]
 fn a_server_that_speaks_tls13_gets_tls13() {
+    pod_testkit::need_loopback!();
     let Some(agreed) = agreed(Key::Ecdsa, &[]) else { return };
     let (version, _) = agreed.unwrap_or_else(|why| panic!("{why}"));
     assert_eq!(version, ProtocolVersion::TLSv1_3);
@@ -339,6 +359,7 @@ fn a_server_that_speaks_tls13_gets_tls13() {
 
 #[test]
 fn a_tls12_server_with_only_a_cbc_suite_gets_no_handshake() {
+    pod_testkit::need_loopback!();
     let Some(agreed) = agreed(Key::Ecdsa, &["-tls1_2", "-cipher", "ECDHE-ECDSA-AES128-SHA256"]) else { return };
     assert!(agreed.is_err(), "a CBC suite was agreed: {agreed:?}");
 }

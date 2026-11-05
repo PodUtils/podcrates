@@ -2,7 +2,9 @@
 //! one.** Every test here exists because a hand-built DER encoder fails
 //! silently: a wrong offset produces a chain that looks fine and a signature
 //! that verifies nowhere, and the only error a caller sees is `BadSignature`
-//! or `BadEncoding`, neither of which names the field.
+//! or `BadEncoding`, neither of which names the field. The verifier is the
+//! pure provider's (feature `pure`).
+#![cfg(feature = "pure")]
 
 // Shared test support; this file uses part of it.
 #[allow(dead_code)]
@@ -40,15 +42,13 @@ fn a_minted_certificate_has_a_length_that_covers_its_bytes() {
 /// **The certificate's signature verifies under the key that must have
 /// made it.** Pull the public key out of the SPKI, the tbs out as
 /// `read_partial` consumes it, and the signature out of the last BIT STRING,
-/// then ask podssh's own verifier whether the three go together.
+/// then ask the pure provider's verifier whether the three go together.
 ///
-/// MEASURED 2026-10-02: the first version of this file verified each
-/// certificate against its **own** SPKI and passed while every handshake
-/// answered `BadSignature`. "Self-consistent" and "chains to the issuer"
-/// are different properties and only the second is what a client requires:
-/// `check_signed_chain` (`verify_cert.rs:148`) verifies each `SignedData`
-/// against the *issuer's* SPKI, so a leaf can satisfy one check and fail the
-/// other. This is the check that would have caught it on the first run.
+/// "Self-consistent" and "chains to the issuer" are different properties,
+/// and only the second is what a client requires: `check_signed_chain`
+/// (`verify_cert.rs`) verifies each `SignedData` against the *issuer's*
+/// SPKI, so a leaf can satisfy a check against its own SPKI and fail the
+/// chain.
 #[test]
 fn each_certificate_verifies_under_the_key_that_signed_it() {
     // The anchor signs itself, and the leaf is signed by the anchor's key. The
@@ -74,15 +74,15 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
         let fresh: Signature = signer.sign(&tbs);
         eprintln!(
             "SELF-CHECK {name}: verify-fresh={} verify-stored={} sig-in-cert-is-der={}",
-            podssh_ws::crypto::sign::ECDSA_P256_SHA256
+            pod_tls::crypto::sign::ECDSA_P256_SHA256
                 .verify_signature(point.as_bytes(), &tbs, fresh.to_der().as_bytes())
                 .is_ok(),
-            podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
+            pod_tls::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
             p256::ecdsa::Signature::from_der(&sig).is_ok()
         );
 
         assert!(
-            podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
+            pod_tls::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
             "{name}: does not verify. tbs {} bytes head {}, signature {} bytes \
              head {}",
             tbs.len(),
@@ -94,7 +94,7 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
 }
 
 /// **Which half is wrong: the builder or the verifier?**
-/// podssh's own ECDSA verifier is asked to check a signature made by the
+/// The pure provider's ECDSA verifier is asked to check a signature made by the
 /// `p256` crate directly, over a plain message. If that passes, the verifier
 /// hashes and encodes correctly and any failure above is in the certificate
 /// builder; if it fails, the verifier is the thing that is wrong, and the
@@ -108,8 +108,8 @@ fn podsshs_ecdsa_verifier_accepts_a_directly_made_signature() {
 
     let der = sig.to_der();
     assert!(
-        podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok(),
-        "podssh's ECDSA verifier rejects a valid signature from the p256 crate: \
+        pod_tls::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok(),
+        "the pure ECDSA verifier rejects a valid signature from the p256 crate: \
          the verifier, not the certificate builder, is what is broken"
     );
 
@@ -119,24 +119,20 @@ fn podsshs_ecdsa_verifier_accepts_a_directly_made_signature() {
 }
 
 /// **The certificate builder signs the message, and does not hash it
-/// first.** MEASURED 2026-10-02: the builder called
-/// `SigningKey::sign(&ecdsa_sha256_digest_info(&tbs))`, so the signature was
-/// over `SHA256(DigestInfo(SHA256(tbs)))` while the verifier hashes `tbs`
-/// once. `DigestInfo` is the signer's internal prehash format, not a message,
-/// and `Signer::sign` hashes whatever it is given — so wrapping it introduced a
-/// second hash that no verifier could undo. The symptom was a handshake that
-/// answered `BadSignature` no matter which field was corrected, because the
-/// bytes were never wrong: the arithmetic was performed on the wrong input.
+/// first.** A signature by `SigningKey::sign(&digest_info(&tbs))` is over
+/// `SHA256(DigestInfo(SHA256(tbs)))`, while the verifier hashes `tbs` once:
+/// `DigestInfo` is the signer's internal prehash format, not a message, and
+/// `Signer::sign` hashes whatever it is given. The handshake then answers
+/// `BadSignature` whichever field is corrected.
 ///
-/// This is the regression test for it. It signs the extracted tbs the same
-/// way the builder does and requires the verifier to accept — which fails the
-/// moment anyone reintroduces the wrapper.
+/// This test signs the extracted tbs the same way the builder does and
+/// requires the verifier to accept: it fails when the wrapper comes back.
 #[test]
 fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
     // The anchor, whose SPKI and signature key are the same one — so the two
-    // roles cannot be confused here. MEASURED 2026-10-02: the first version
-    // used a leaf, signing with the issuer's key and verifying with the leaf's
-    // own SPKI, and failed for that reason rather than for the one it names.
+    // roles cannot be confused here. A leaf is signed with the issuer's key,
+    // and its own SPKI would refuse it for that reason, not for the one that
+    // this test names.
     let cert = cert::encoding::self_signed_inner("right.example-anchor", true);
     let point = sec1_point(&spki_point(&cert.der));
     let tbs = tbs_tlv_of(&cert.der);
@@ -144,9 +140,7 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
     let key = role_key("right.example-anchor", true);
     let as_message: Signature = key.sign(&tbs);
     assert!(
-        podssh_ws::crypto::sign::ECDSA_P256_SHA256
-            .verify_signature(&point, &tbs, as_message.to_der().as_bytes())
-            .is_ok(),
+        pod_tls::crypto::sign::ECDSA_P256_SHA256.verify_signature(&point, &tbs, as_message.to_der().as_bytes()).is_ok(),
         "signing the tbs as a message must verify; this is the path the \
          builder uses"
     );
@@ -157,7 +151,7 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
     let prehashed_digest_info = digest_info(&tbs);
     let double: Signature = key.sign(&prehashed_digest_info);
     assert!(
-        podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(&point, &tbs, double.to_der().as_bytes()).is_err(),
+        pod_tls::crypto::sign::ECDSA_P256_SHA256.verify_signature(&point, &tbs, double.to_der().as_bytes()).is_err(),
         "a signature made over a pre-wrapped DigestInfo should NOT verify \
          against the raw tbs; if it does, this test proves nothing"
     );
@@ -165,12 +159,10 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
 
 /// **The key the SPKI publishes is the key that signed the certificate.**
 /// For an **anchor** these are the same key, because an anchor signs itself.
-/// MEASURED 2026-10-02: the first version of this test asserted the same
-/// thing for every certificate, and it passed while every handshake answered
-/// `BadSignature` — the leaf is signed by its *issuer's* key, not its own, and
-/// a self-signed assertion cannot see that difference. Deriving the expected
-/// scalar from the certificate's own name and role, rather than from the
-/// builder, means a change to either one shows up here.
+/// The leaf is signed by its *issuer's* key, not its own, so this holds for
+/// an anchor alone. Deriving the expected scalar from the certificate's own
+/// name and role, rather than from the builder, means a change to either one
+/// shows up here.
 #[test]
 fn the_anchor_spkis_own_key_is_the_key_that_signed_it() {
     for name in ["right.example", "wrong.example"] {
@@ -210,12 +202,9 @@ fn the_leaf_publishes_its_own_key_while_its_issuer_signs_it() {
     }
 }
 
-/// The key for a role, from the name and the role. MEASURED 2026-10-02:
-/// this ignored `is_ca` and always used the end-entity seed, so every check
-/// that asked for the **anchor's** key was handed a third key that exists
-/// nowhere in the chain — the same shape of fault as the one it was written to
-/// catch, one function down. The seed byte is the whole difference between
-/// the two roles, and a helper that drops it cannot tell them apart.
+/// The key for a role, from the name and the role. The seed byte is the
+/// whole difference between the two roles: a helper that drops it gives a
+/// third key that exists nowhere in the chain.
 fn role_key(dns_name: &str, is_ca: bool) -> SigningKey {
     SigningKey::from_bytes(&key_scalar(dns_name, is_ca).into()).expect("a scalar")
 }

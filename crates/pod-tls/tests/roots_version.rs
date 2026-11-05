@@ -1,5 +1,5 @@
 //! The recorded version of the compiled-in roots is the one that Cargo.lock
-//! builds, so the date that `podssh doctor` gives them stays true.
+//! builds, so the date that a doctor gives them stays true.
 
 #[test]
 fn the_recorded_roots_are_the_ones_built() {
@@ -14,7 +14,7 @@ fn the_recorded_roots_are_the_ones_built() {
     }
     assert_eq!(
         versions,
-        vec![podssh_ws::tls::ROOTS_VERSION.to_string()],
+        vec![pod_tls::ROOTS_VERSION.to_string()],
         "Cargo.lock builds other roots: update ROOTS_VERSION, and ROOTS_PUBLISHED to the day crates.io published them"
     );
 }

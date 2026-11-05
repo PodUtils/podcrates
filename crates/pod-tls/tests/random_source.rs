@@ -1,16 +1,16 @@
-//! The random source (T-064): a source that gives no bytes is an error and
-//! never a panic, at each place that draws, and no other path draws. A panic
-//! ends the whole process where an error ends one session.
+//! The random source of the pure provider (feature `pure`): a source that
+//! gives no bytes is an error and never a panic, at each place that draws,
+//! and no other path draws. A panic ends the whole process where an error
+//! ends one session.
+#![cfg(feature = "pure")]
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p256::elliptic_curve::Generate;
 use p256::elliptic_curve::sec1::ToSec1Point;
-use podssh_ws::WsError;
-use podssh_ws::crypto::kx::start_with;
-use podssh_ws::crypto::random::{OsRandom, fill_from};
-use podssh_ws::handshake::{generate_key_from, masking_key_from};
+use pod_tls::crypto::kx::start_with;
+use pod_tls::crypto::random::{OsRandom, fill_from};
 use rustls::NamedGroup;
 use rustls::crypto::{GetRandomFailed, SecureRandom};
 
@@ -81,13 +81,6 @@ fn a_source_that_gives_no_bytes_is_an_error() {
 }
 
 #[test]
-fn the_websocket_keys_report_a_source_that_gives_no_bytes() {
-    assert!(matches!(generate_key_from(&Failing), Err(WsError::Handshake(_))));
-    assert!(matches!(masking_key_from(&Failing), Err(WsError::Frame(_))));
-    assert_eq!(generate_key_from(&OsRandom).unwrap().len(), 24, "16 bytes in base64");
-}
-
-#[test]
 fn each_key_exchange_reports_a_source_that_gives_no_bytes() {
     for group in [NamedGroup::X25519, NamedGroup::secp256r1] {
         let error = start_with(group, &Failing).err().expect("no bytes, no key exchange");
@@ -108,8 +101,8 @@ fn p256_draws_again_when_a_draw_is_out_of_range() {
     assert_eq!(source.0.load(Ordering::SeqCst), 0, "three draws were refused first");
 }
 
-/// podssh's P-256 exchange agrees with `p256`'s own `EphemeralSecret`, which
-/// podssh did not write, on the shared secret.
+/// The pure P-256 exchange agrees with `p256`'s own `EphemeralSecret`, which
+/// this crate did not write, on the shared secret.
 #[test]
 fn p256_agrees_with_an_exchange_that_podssh_did_not_write() {
     let theirs = p256::ecdh::EphemeralSecret::generate();
@@ -149,7 +142,7 @@ fn only_the_random_module_reads_the_os_and_nothing_can_panic() {
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     rust_files(&src, &mut files);
-    // 23 files on 2026-10-09; a scan that reads nothing passes on any tree.
+    // A scan that reads nothing passes on any tree.
     assert!(files.len() > 15, "the scan read {} files", files.len());
     let mut found = Vec::new();
     for file in &files {

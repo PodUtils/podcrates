@@ -1,16 +1,17 @@
-//! One TLS configuration for each trust in a process (T-444): rustls keeps
-//! its cache of sessions in the configuration, so the second connection of a
+//! One TLS configuration for each trust in a context: rustls keeps its
+//! cache of sessions in the configuration, so the second connection of a
 //! trust resumes TLS, as the server's side says; a session that one trust
 //! verified is never resumed under another; and a CA file is read again only
 //! when it changed. The server is rustls's own, with its own cache of
-//! sessions, which podssh did not write.
+//! sessions, which this crate did not write. Each test runs on each provider
+//! of the tests.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::tls::{Trust, config_for, connect_over};
+use pod_tls::{Context, Trust};
 use rustls::HandshakeKind;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -21,7 +22,12 @@ mod cert {
     include!("common/cert_for_test.rs");
 }
 
-const NAME: &str = "resume.podssh.test";
+#[allow(dead_code)]
+mod tls {
+    include!("common/tls_for_test.rs");
+}
+
+const NAME: &str = "resume.pod-tls.test";
 const LIMIT: Duration = Duration::from_secs(10);
 
 /// A test's directory of its own, gone when the test ends, pass or fail: the
@@ -38,7 +44,7 @@ impl Drop for Scratch {
 /// under `tag`: its key comes from its name, so the root minted again is the
 /// server's. The directory goes with the [`Scratch`].
 fn root_file(tag: &str) -> (PathBuf, Scratch) {
-    let dir = std::env::temp_dir().join(format!("podssh-tls-resume-{}-{tag}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pod-tls-resume-{}-{tag}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("a directory for the root");
     let path = dir.join("root.pem");
     let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name(NAME), true).der;
@@ -75,9 +81,9 @@ async fn server(count: usize) -> (SocketAddr, JoinHandle<Vec<Option<HandshakeKin
 
 /// One connection through `trust`: the handshake, the server's byte, and the
 /// end.
-async fn connect(addr: SocketAddr, trust: &Trust) {
+async fn connect(context: &Context, addr: SocketAddr, trust: &Trust) {
     let tcp = TcpStream::connect(addr).await.expect("connect");
-    let mut tls = connect_over(tcp, NAME, trust, LIMIT).await.expect("the handshake");
+    let mut tls = context.connect_over(tcp, NAME, trust, LIMIT).await.expect("the handshake");
     let mut byte = [0u8; 1];
     tokio::time::timeout(LIMIT, tls.read_exact(&mut byte)).await.expect("the byte in time").expect("the byte");
     let _ = tls.shutdown().await;
@@ -89,17 +95,21 @@ async fn kinds(served: JoinHandle<Vec<Option<HandshakeKind>>>) -> Vec<Option<Han
 
 #[tokio::test]
 async fn the_second_connection_of_a_trust_resumes_tls() {
-    let (path, _scratch) = root_file("same");
-    let trust = Trust::File(path);
-    let (addr, served) = server(2).await;
-    connect(addr, &trust).await;
-    connect(addr, &trust).await;
-    let kinds = kinds(served).await;
-    assert_eq!(
-        kinds,
-        vec![Some(HandshakeKind::Full), Some(HandshakeKind::Resumed)],
-        "a configuration made again for the second connection resumes nothing"
-    );
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        let context = tls::context(provider);
+        let (path, _scratch) = root_file(&format!("same-{each}"));
+        let trust = Trust::File(path);
+        let (addr, served) = server(2).await;
+        connect(&context, addr, &trust).await;
+        connect(&context, addr, &trust).await;
+        let kinds = kinds(served).await;
+        assert_eq!(
+            kinds,
+            vec![Some(HandshakeKind::Full), Some(HandshakeKind::Resumed)],
+            "{each}: a configuration made again for the second connection resumes nothing"
+        );
+    }
 }
 
 /// A resumed handshake checks no certificate, so a session is resumed under
@@ -107,18 +117,25 @@ async fn the_second_connection_of_a_trust_resumes_tls() {
 /// another trust, and its handshake is whole.
 #[tokio::test]
 async fn another_trust_does_not_resume_the_session_of_the_first() {
-    let ((one, _first), (other, _second)) = (root_file("one"), root_file("other"));
-    let (one, other) = (Trust::File(one), Trust::File(other));
-    let (addr, served) = server(2).await;
-    connect(addr, &one).await;
-    connect(addr, &other).await;
-    assert_eq!(kinds(served).await, vec![Some(HandshakeKind::Full), Some(HandshakeKind::Full)]);
+    pod_testkit::need_loopback!();
+    for (each, provider) in tls::providers() {
+        let context = tls::context(provider);
+        let ((one, _first), (other, _second)) =
+            (root_file(&format!("one-{each}")), root_file(&format!("other-{each}")));
+        let (one, other) = (Trust::File(one), Trust::File(other));
+        let (addr, served) = server(2).await;
+        connect(&context, addr, &one).await;
+        connect(&context, addr, &other).await;
+        assert_eq!(kinds(served).await, vec![Some(HandshakeKind::Full), Some(HandshakeKind::Full)], "{each}");
+    }
 }
 
 /// A trust's configuration is made once, and its CA file read once; another
 /// trust has its own; a file that changed is read again.
 #[test]
 fn a_trust_keeps_one_configuration_until_its_file_changes() {
+    let context = tls::context(tls::providers()[0].1.clone());
+    let config_for = |trust: &Trust| context.config_for(trust);
     let (path, _scratch) = root_file("changed");
     let trust = Trust::File(path.clone());
     let first = config_for(&trust).expect("a configuration");
