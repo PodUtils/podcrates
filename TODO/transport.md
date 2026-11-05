@@ -60,7 +60,7 @@ podssh-relay), so the edition 2024 came with the adaptation; clippy is
 clean on Linux, Windows and macOS. `cargo test -p pod-identity -p
 pod-core`: 70 passed (identity 10, key files 10, foreign trees 3; the
 files of `pod-core` 9 and its unit tests). The trial in podssh at
-`d4e186d` (`adoption/podssh/pod-identity.patch`): `podssh-relay` re-exports
+`d4e186d` (its patch is in git at `371b447`; podssh took it in `8caf2d1`): `podssh-relay` re-exports
 the crate in its module `identity` with podssh's places; `podssh-relay`
 builds with each feature, its tests `identity` (7 without the feature
 `pair`), `identity_file` (10), `cache` (21), `e2e` (10) and `e2e_faults`
@@ -115,7 +115,7 @@ source of podvm; the test switches are `POD_TERM_PLANT` and
 `pod-testkit` (feature `screen`), because the tests of podssh-ws,
 podssh-ssh and podssh-cli read it too. The plants C, D and E are caught
 (`scripts/plants/term-plant-*.plant`). `examples/static-probe` links it.
-The trial in podssh at `d4e186d` (`adoption/podssh/pod-term.patch`):
+The trial in podssh at `d4e186d` (its patch is in git at `2ad40ad`; podssh took it in `bbd4038`):
 the record agrees (640 entries), `terminal_oracle` of podssh-ws (3) and
 of podssh-ssh (5), `silent_notice` of podssh-ssh (4) and of podssh-cli
 (1), and the 17 tests of `session::` of podssh-cli pass.
@@ -160,8 +160,17 @@ adaptation, tests, README, static probe). Step 2 is done: the commits
 `6040431` to `7923ab7` (import of podnet, the module `fragment`, the
 roots of podnet, the clock hint and the notAfter dates, the verifier
 scan, the README). `cargo test -p pod-tls --all-features`: 154 passed, 7
-ignored (live and system-store tests). Next: the trials of podssh and
-podnet (step 3).
+ignored (live and system-store tests). Step 3 is done: the commits
+`de95d00` to `97d32f5` (the 6 plants of podssh's TLS as
+`scripts/plants/tls-*`, all caught; the trials). The trial in podssh at
+`d4e186d` passes its record, `check-repo.py`, the library crates with no
+C compiler, the builds of the default features and of `iroh,warp`,
+clippy, and the tests of each crate that uses TLS: podssh-ws 405,
+podssh-relay 623, podssh-ssh 2, podssh-cli 1111, 0 failed. The trial in
+podnet at `b7682c5` passes its record, the build, clippy, `cargo test
+--lib` (716) and the tests `tls`, `egress`, `relay_reverse`, `cli`,
+`doctor`, `api_surface`. No trial needed a change of `pod-tls`. Next: the
+patches again on the newer commits of the consumers, and v0.2.0.
 
 ## Decision
 
@@ -437,3 +446,88 @@ cargo test -p pod-testkit --features ssh
 
 A crate of podcrates or a consumer needs an SSH server in its tests.
 
+
+# T-044: The tests of the system stores of `pod-tls` with a root in the store, on Windows and macOS
+
+**Source:** the trial of `pod-tls` in podssh (T-012).
+**Category:** chore
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests `system_store` of `pod-tls` (the stores of Windows and macOS)
+are ignored: they need a root in the store of the host. podssh's
+`build.yml` put a root in the store and ran them; its trial of `pod-tls`
+drops those steps, as the tests are in `pod-tls` now. No CI of podcrates
+runs them.
+
+## Premise
+
+- Read: `crates/pod-tls/tests/system_store.rs` (2 ignored tests, the
+  switches `POD_TLS_TEST_STORE_ROOT` and `POD_TLS_TEST_STORE_HOLDS`) and the
+  steps of podssh's `build.yml` at `d4e186d` that add a root to the store.
+
+## Approach
+
+A job of `nightly.yml` on Windows and on macOS: add a test root to the
+store of the runner, run the ignored tests of `system_store` with the
+switches, and remove the root.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --test system_store -- --ignored
+```
+
+The job of `nightly.yml` passes on Windows and on macOS, and fails on a
+planted defect (a store that is not read).
+
+## Start condition
+
+T-012 is done.
+
+# T-045: The adoption trials check the static binaries of the consumer and build each feature
+
+**Source:** `docs/design.md`, section 8, step 7; the trial of `pod-tls`.
+**Category:** chore
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Step 7 of the procedure asks each trial for "the static check of the
+consumer binary on its targets" and "a build with the consumer's
+features". The trials of `pod-tls` build the default features and the
+features of podssh's gate, but not `tor` and `ts`, and no `.run` checks a
+static binary.
+
+## Premise
+
+- Read: `adoption/podssh/pod-tls.run`, `adoption/podnet/pod-tls.run`.
+- Read: podssh has `scripts/check-static.sh` (PodUtils/podssh@T-685); this repository has
+  `scripts/check-static.sh` for the probe.
+
+## Approach
+
+1. Each `.run` builds the consumer's binary for `x86_64-unknown-linux-musl`
+   with zig and checks it with the static check of the consumer (else of
+   podcrates).
+2. The podssh trial builds the features `tor` and `ts` too.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podssh pod-tls
+sh scripts/adoption.sh podnet pod-tls
+```
+
+Each trial checks a static binary of the consumer.
+
+## Start condition
+
+T-012 is done.

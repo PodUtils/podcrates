@@ -1,9 +1,0 @@
-# The trial of pod-identity (and of the files and the entropy of pod-core)
-# in podssh: podssh-relay re-exports pod-identity in its module identity,
-# with podssh's places; each user of the module still builds, and the
-# tests of the identity, the key files, the cache and the e2e channel pass.
-cargo check -q -p podssh-relay --all-features --tests
-cargo test -q -p podssh-relay --test identity --test identity_file --test cache --test e2e --test e2e_faults
-cargo check -q -p podssh-cli -p podssh-iroh --tests --features iroh,warp
-# rustfmt of the crates that the patch changes.
-cargo fmt -p podssh-relay --check

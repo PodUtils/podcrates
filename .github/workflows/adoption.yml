@@ -31,7 +31,7 @@ env:
 jobs:
   adoption:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:

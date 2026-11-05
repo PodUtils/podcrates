@@ -1,5 +1,0 @@
-# The trial of pod-todo in podnet: the record of podnet with pod-todo.
-cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
-cargo run -q -p podnet-todo -- check
-# rustfmt of the crates that the patch changes.
-cargo fmt -p podnet-todo --check

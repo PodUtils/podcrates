@@ -20,3 +20,12 @@ only the first patch of a consumer adds podcrates to `allow-git` of its
 `sh scripts/adoption.sh CONSUMER CRATE` runs one trial;
 `.github/workflows/adoption.yml` runs each one in CI. When the consumer
 moves on, a session raises `commit` and makes the patch again.
+
+When the consumer takes a crate, its trial leaves this directory: the
+consumer's own CI runs the crate from then on, and git keeps the patch.
+Taken: podssh `pod-todo`, `pod-term`, `pod-identity` (podssh `04f4551`);
+podnet `pod-todo` (podnet `6c210ed`).
+
+A `.run` file runs the checks of the consumer's repository too (its
+record, its file rules, rustfmt of the crates that the patch changes), so
+that the patch is what the consumer session can commit as it is.

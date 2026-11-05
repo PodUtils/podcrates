@@ -1,8 +1,0 @@
-# The trial of pod-todo in podssh: the record of podssh with pod-todo, the
-# interop command that stays in podssh-todo, and the tests of podssh-todo.
-cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
-cargo run -q -p podssh-todo -- check
-cargo run -q -p podssh-todo -- interop
-cargo test -q -p podssh-todo
-# rustfmt of the crates that the patch changes.
-cargo fmt -p podssh-todo --check
