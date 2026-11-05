@@ -444,7 +444,7 @@ its interop pass. The runs of `adoption.yml` on a push: 42022006523
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -471,3 +471,12 @@ gh workflow run release.yml -f version=0.1.0
 ## Start condition
 
 T-005, T-006, T-007 and T-008 are done.
+
+## Done
+
+2026-11-05, the tag `v0.1.0` at `57a731e`, from the run 42027912474 of
+`release.yml` (the dry run 42026164788 before it), with the ci run
+42027429221 green at that commit. The release
+<https://github.com/PodUtils/podcrates/releases/tag/v0.1.0> has the notes
+of `docs/releases/v0.1.0.md`: `pod-todo`, `pod-core`, `pod-testkit`,
+`pod-term`, `pod-identity`, and the trials of `adoption/`.

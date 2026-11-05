@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**41 entries: 30 open, 0 partial, 1 blocked, 10 done.**
+**41 entries: 29 open, 0 partial, 1 blocked, 11 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 17 | 0 | 0 | 9 | 26 |
+| P1 | 16 | 0 | 0 | 10 | 26 |
 | P2 | 9 | 0 | 1 | 1 | 11 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 30 | 0 | 1 | 10 | 41 |
+| **All** | 29 | 0 | 1 | 11 | 41 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -54,7 +54,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-006](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the guards of a test host |
 | [T-007](foundation.md) | P1 | M | M0 | chore | done | The workflows of podcrates |
 | [T-008](foundation.md) | P1 | M | M0 | chore | done | Adoption trials in CI, and the trial of `pod-todo` in podssh and podnet |
-| [T-009](foundation.md) | P1 | S | M0 | release | open | The first release |
+| [T-009](foundation.md) | P1 | S | M0 | release | done | The first release |
 | [T-010](transport.md) | P1 | S | M1 | feature | done | `pod-identity`: the Ed25519 identity, the key files and the entropy |
 | [T-011](transport.md) | P2 | S | M1 | feature | done | `pod-term`: the line discipline and the grammar of a terminal's output |
 | [T-012](transport.md) | P1 | L | M1 | feature | open | `pod-tls`: trust, the TLS configurations, the pure-Rust provider and ECH |
