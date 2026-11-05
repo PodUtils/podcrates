@@ -1,0 +1,23 @@
+# The trial of pod-tls in podssh: podssh-ws takes its TLS from pod-tls (the
+# trust, the configurations, the pure provider, the stores, the server's
+# side, ECH) with podssh's settings in one context, and podssh-relay the
+# file of the TLS groups. The record with its citations moved, and the
+# repository checks; the library crates with no C compiler; the builds of
+# the default features and of the features of the gate; the tests of each
+# crate that uses TLS, with the scans of verifiers, of random sources and of
+# RSA that stay in podssh.
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+python3 scripts/check-repo.py
+env CC=/nonexistent CXX=/nonexistent cargo check -q -p podssh-ws -p podssh-relay -p podssh-core -p podssh-probe -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
+cargo build -q
+cargo build -q -p podssh-cli --features iroh,warp
+cargo check -q --all-targets -p podssh-cli -p podssh-iroh -p podssh-warp -p podssh-relay --features podssh-cli/iroh-test,podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in
+cargo clippy -q --all-targets -p podssh-ws -p podssh-relay -p podssh-cli -p podssh-ssh -- -D warnings
+cargo clippy -q --all-targets -p podssh-relay --features serve,plain-ws,quick,quic -- -D warnings
+cargo test -q -p podssh-ws --features plain-ws
+cargo test -q -p podssh-relay --all-features --lib --test derp_link --test opentunnel_interop --test opentunnel_link --test quick_edge_warp --test quick_relay --test quick_tunnel --test quick_tunnel_quic --test relay_serve_cleartext --test relay_serve_h2 --test relay_serve_once --test relay_serve_publish --test relay_serve_quic --test relay_serve_reverse --test relay_serve_spares --test relay_serve_sshd --test reverse_carrier --test reverse_dialect --test reverse_restart --test transit
+cargo test -q -p podssh-ssh --test no_rsa_private_op
+cargo test -q -p podssh-cli --lib --test chat_irc_server --test derp_road --test doctor --test doctor_stream --test doctor_tls --test doctor_upgrade --test opentunnel_road --test ping --test pipe_ws --test relay_serve --test relay_serve_node --test settings --test ssh_tls_hop --test update
+# rustfmt of the crates that the patch changes.
+cargo fmt -p podssh-ws -p podssh-relay -p podssh-cli -p podssh-ssh --check
