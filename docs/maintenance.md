@@ -103,6 +103,17 @@ Facts for a session:
   brings them online): the crate, the tag, the adoption map of its
   README.
 
+## Talk between sessions
+
+The sessions of podcrates, podssh and podnet send each other messages
+(`send_message` of the remote sessions). When a message cannot go, the
+fallback is a GitHub issue of PodUtils/podcrates: its title starts with a
+unique id (`COORD-NNN: subject`), each session amends its own section of
+the body (not a comment), and each session polls the issue for changes
+(`curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podcrates/issues/N?n=$RANDOM"`).
+The issue is mapped in `TODO/issues.md` as any issue, and closed when its
+subject is done.
+
 ## Shared CI scripts
 
 The owner's ruling (2026-11-05): a CI script that podnet and podssh share

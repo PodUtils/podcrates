@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**50 entries: 32 open, 1 partial, 2 blocked, 15 done.**
+**50 entries: 31 open, 1 partial, 2 blocked, 16 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 16 | 1 | 0 | 13 | 30 |
-| P2 | 12 | 0 | 2 | 2 | 16 |
+| P2 | 11 | 0 | 2 | 3 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 32 | 1 | 2 | 15 | 50 |
+| **All** | 31 | 1 | 2 | 16 | 50 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -91,7 +91,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-043](foundation.md) | P2 | S | M0 | chore | blocked | The names of the crates on crates.io and their trusted publishers (GitHub #1) |
 | [T-044](transport.md) | P2 | S | M1 | chore | done | The tests of the system stores of `pod-tls` with a root in the store, on Windows and macOS |
 | [T-045](transport.md) | P2 | M | M1 | chore | open | The adoption trials check the static binaries of the consumer and build each feature |
-| [T-046](foundation.md) | P2 | S | M0 | chore | open | The shared CI scripts: the zig fetch, its mirrors and their weekly check |
+| [T-046](foundation.md) | P2 | S | M0 | chore | done | The shared CI scripts: the zig fetch, its mirrors and their weekly check |
 | [T-047](foundation.md) | P2 | S | M2 | chore | open | The weekly watch of the relay contract, in `pod-relay` |
 | [T-048](transport.md) | P1 | S | M1 | research | done | `pod-services`: the inventory of the relays and services of other parties in podssh and podnet |
 | [T-049](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the schema, the data of each service and the library |

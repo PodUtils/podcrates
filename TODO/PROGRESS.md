@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 50 entries: 32 open, 1 partial, 2 blocked, 15 done.
+`TODO/INDEX.md` holds 50 entries: 31 open, 1 partial, 2 blocked, 16 done.
 
 ## State
 
@@ -30,7 +30,7 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **M1, the transport:** T-013, T-014, T-015, T-016; T-017 after
-   T-013; T-045; T-046; T-049, then T-050 (`pod-services`); T-041 when a crate or a consumer needs it.
+   T-013; T-045; T-049, then T-050 (`pod-services`); T-041 when a crate or a consumer needs it.
 2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
 3. **M3, the adapters:** T-027, T-028, T-029, T-030.

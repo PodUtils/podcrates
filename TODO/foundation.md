@@ -613,7 +613,7 @@ trusted publisher of each.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -649,6 +649,17 @@ sh scripts/fetch-zig.sh 0.16.0 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588
 ```
 
 The job of `upstream.yml` passes, and fails on the planted mirror.
+
+## Done
+
+2026-11-05, commits `4ed7792` (`fetch-zig.sh` with curl or wget and
+`ZIG_SOURCE`; `check-zig-mirrors.py`; the job `mirrors` of `upstream.yml`;
+`docs/maintenance.md`, "Shared CI scripts") and `dabb073` (the check of the
+sources reads a taken block before its adoption). Here: the check found
+the 17 mirrors of ziglang.org, the planted mirror gave exit 1, and
+`fetch-zig.sh` fetched zig 0.16.0 with its SHA-256 through curl and
+through wget alone. The run 42066432619 of `upstream.yml` at `dabb073`:
+the jobs `sources` and `mirrors` green.
 
 # T-047: The weekly watch of the relay contract, in `pod-relay`
 
