@@ -40,10 +40,14 @@ sh "$here/scripts/retry.sh" git fetch -q --depth 1 origin "$commit"
 git -c advice.detachedHead=false checkout -q FETCH_HEAD
 git apply "$dir/$crate.patch"
 # Each `pod-X = { git = "https://github.com/PodUtils/podcrates", ... }` of
-# the patch becomes a path into this tree.
+# the patch becomes a path into this tree, and a `version` beside it the
+# version of this tree: the patch names the version of its tag, which the
+# tree has only from the commit of the release on.
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$here/Cargo.toml" | head -n 1)
 for manifest in $(git ls-files -m -o --exclude-standard | grep 'Cargo.toml$' || true) $(git diff --name-only | grep 'Cargo.toml$' || true); do
     [ -f "$manifest" ] || continue
     sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$here/crates/\\1\"|" "$manifest"
+    sed -i -E "/^pod-[a-z-]+ = \\{ path = \"/s|, version = \"[0-9.]+\"|, version = \"$version\"|" "$manifest"
 done
 echo "adoption: $consumer at ${commit%"${commit#???????}"} with $crate of $(git -C "$here" rev-parse --short HEAD)"
 grep -v '^#' "$dir/$crate.run" | while IFS= read -r step; do

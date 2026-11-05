@@ -6,7 +6,9 @@ each crate that the consumer takes:
 
 * `CRATE.patch`: the change of the consumer that takes the crate in place
   of its own module (`git apply` at `commit`). It names the git tag of
-  podcrates; the trial points it to the crates of this tree. It is the
+  podcrates (and its version, for a publishable crate of the consumer);
+  the trial points it to the crates of this tree, with the version of the
+  tree. It is the
   hand-off to the consumer session. `Cargo.lock` is not in it: cargo
   writes it again, and the consumer runs `cargo todo remap Cargo.lock`.
 * `CRATE.run`: the commands of the trial, one on each line, run in the
