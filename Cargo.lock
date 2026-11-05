@@ -713,7 +713,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "libc",
  "pod-testkit",
@@ -724,7 +724,7 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -739,7 +739,7 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "libc",
@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "pod-term"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anstyle-parse",
  "pod-testkit",
@@ -767,14 +767,14 @@ dependencies = [
 
 [[package]]
 name = "pod-testkit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "vt100",
 ]
 
 [[package]]
 name = "pod-tls"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "pod-todo"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "poly1305"
@@ -1216,7 +1216,7 @@ dependencies = [
 
 [[package]]
 name = "static-probe"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pod-core",
  "pod-identity",
