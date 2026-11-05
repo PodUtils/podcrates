@@ -5,14 +5,22 @@
 //! name read to its end; and a proxy that takes no names, which gets one more
 //! try with an address.
 
+use std::ffi::OsString;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::dial::{DialError, Proxy, ProxyChoice, ProxyKind, dial, proxy_from_vars};
+use pod_proxy::env::proxy_from_vars;
+use pod_proxy::resolve::System;
+use pod_proxy::{DialError, Dialer, Proxy, ProxyChoice, ProxyKind, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 const LIMIT: Duration = Duration::from_secs(5);
+
+/// The dial of podssh, as a dialer of its settings gives it.
+async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration) -> Result<TcpStream, DialError> {
+    Dialer::new(Settings::new("podssh", proxy.clone()), Arc::new(System::new())).tcp(host, port, timeout).await
+}
 
 /// What the stand-in does on one connection.
 #[derive(Clone, Copy)]
@@ -151,13 +159,14 @@ fn socks5_urls_parse_with_their_port_and_their_credentials() {
     // RFC 1929: a user and a password of 1 to 255 bytes each.
     assert!(Proxy::parse("socks5://alice@proxy.example").unwrap_err().contains("RFC 1929"));
     assert!(Proxy::parse(&format!("socks5://{}:pw@proxy.example", "u".repeat(256))).unwrap_err().contains("RFC 1929"));
-    let set = |name: &str| (name == "ALL_PROXY").then(|| "socks5h://proxy.example:1080".to_string());
-    let chosen = proxy_from_vars("relay.example", set).unwrap().expect("a proxy");
+    let set = |name: &str| (name == "ALL_PROXY").then(|| OsString::from("socks5h://proxy.example:1080"));
+    let chosen = proxy_from_vars("relay.example", &set).unwrap().expect("a proxy");
     assert_eq!(chosen.kind, ProxyKind::Socks5);
 }
 
 #[tokio::test]
 async fn a_tunnel_goes_by_name_and_needs_no_dns() {
+    pod_testkit::need_loopback!();
     let (port, seen) = stand_in(vec![PLAIN]).await;
     // `relay.invalid` cannot resolve: the name must reach the proxy as text.
     let stream =
@@ -173,6 +182,7 @@ async fn a_tunnel_goes_by_name_and_needs_no_dns() {
 
 #[tokio::test]
 async fn credentials_go_as_the_user_and_password_of_rfc_1929() {
+    pod_testkit::need_loopback!();
     let (port, seen) = stand_in(vec![Script { method: 0x02, ..PLAIN }]).await;
     let stream = dial("relay.invalid", 443, &proxy(format!("socks5h://alice:s3cret@127.0.0.1:{port}")), LIMIT)
         .await
@@ -185,6 +195,7 @@ async fn credentials_go_as_the_user_and_password_of_rfc_1929() {
 
 #[tokio::test]
 async fn a_refused_password_is_a_407_that_does_not_show_it() {
+    pod_testkit::need_loopback!();
     let (port, _) = stand_in(vec![Script { method: 0x02, auth_ok: false, ..PLAIN }]).await;
     let err =
         dial("relay.invalid", 443, &proxy(format!("socks5://alice:s3cret@127.0.0.1:{port}")), LIMIT).await.unwrap_err();
@@ -197,6 +208,7 @@ async fn a_refused_password_is_a_407_that_does_not_show_it() {
 /// as curl takes it, and any other version breaks the protocol.
 #[tokio::test]
 async fn an_answer_to_the_password_with_the_version_5_is_taken() {
+    pod_testkit::need_loopback!();
     let (port, _) = stand_in(vec![Script { method: 0x02, auth_version: 5, ..PLAIN }]).await;
     let url = format!("socks5://alice:s3cret@127.0.0.1:{port}");
     echoes(dial("relay.invalid", 443, &proxy(url), LIMIT).await.expect("a tunnel")).await;
@@ -209,6 +221,7 @@ async fn an_answer_to_the_password_with_the_version_5_is_taken() {
 
 #[tokio::test]
 async fn a_proxy_that_needs_a_password_when_none_is_given_is_a_407() {
+    pod_testkit::need_loopback!();
     let (port, _) = stand_in(vec![Script { method: 0xff, ..PLAIN }]).await;
     let err = dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
     assert!(matches!(&err, DialError::ProxyRefused { status: 407, .. }), "{err:?}");
@@ -217,6 +230,7 @@ async fn a_proxy_that_needs_a_password_when_none_is_given_is_a_407() {
 
 #[tokio::test]
 async fn each_reply_maps_to_the_case_of_an_http_proxy() {
+    pod_testkit::need_loopback!();
     for (reply, status) in [(0x02, 403), (0x01, 502), (0x04, 502), (0x05, 502)] {
         let (port, _) = stand_in(vec![Script { reply, ..PLAIN }]).await;
         let err = dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
@@ -236,6 +250,7 @@ async fn each_reply_maps_to_the_case_of_an_http_proxy() {
 
 #[tokio::test]
 async fn a_bound_name_and_an_ipv6_address_are_read_to_their_end() {
+    pod_testkit::need_loopback!();
     for bound in [3, 4] {
         let (port, _) = stand_in(vec![Script { bound, ..PLAIN }]).await;
         let stream =
@@ -247,6 +262,8 @@ async fn a_bound_name_and_an_ipv6_address_are_read_to_their_end() {
 
 #[tokio::test]
 async fn a_proxy_that_takes_no_names_gets_one_more_try_with_an_address() {
+    pod_testkit::need_loopback!();
+    pod_testkit::need_localhost!();
     let (port, seen) = stand_in(vec![Script { reply: 0x08, ..PLAIN }, Script { reply: 0x08, ..PLAIN }]).await;
     let stream = dial("localhost", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
     echoes(stream).await;

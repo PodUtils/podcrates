@@ -1,4 +1,4 @@
-//! Multipath TCP on the direct road (T-172). Asked for where the kernel
+//! Multipath TCP on the direct road. Asked for where the kernel
 //! refuses it, the connection is plain TCP and carries the same bytes: a
 //! dial that failed instead fails here. The direct dial that asks for it
 //! carries the same bytes on each host, as MPTCP where the host offers it
@@ -10,12 +10,26 @@
 
 use std::io;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::dial::{ProxyChoice, dial_multipath};
-use podssh_ws::mptcp::{self, Multipath};
+use pod_proxy::mptcp::{self, Multipath};
+use pod_proxy::resolve::System;
+use pod_proxy::{DialError, Dialer, ProxyChoice, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
+
+/// The dial of podssh's `--direct` with Multipath TCP asked for, as a
+/// dialer of its settings gives it.
+async fn dial_multipath(
+    host: &str,
+    port: u16,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<(TcpStream, Multipath), DialError> {
+    let settings = Settings { multipath: true, ..Settings::new("podssh", proxy.clone()) };
+    Dialer::new(settings, Arc::new(System::new())).tcp_multipath(host, port, timeout).await
+}
 
 const SENT: &[u8] = b"the same bytes on either kind of socket";
 
@@ -56,6 +70,7 @@ fn refused(_: &SocketAddr) -> io::Result<TcpSocket> {
 
 #[tokio::test]
 async fn a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes() {
+    pod_testkit::need_loopback!();
     let (addr, server) = plain_echo().await;
     let (mut stream, how) = mptcp::connect_with(addr, Ok(()), refused).await.expect("plain TCP, not a failure");
     match &how {
@@ -69,6 +84,7 @@ async fn a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes() {
 
 #[tokio::test]
 async fn a_host_that_offers_no_mptcp_gives_plain_tcp_and_the_probe_s_reason() {
+    pod_testkit::need_loopback!();
     let (addr, server) = plain_echo().await;
     let offer = Err("no Multipath TCP here (planted)".to_string());
     let (mut stream, how) = mptcp::connect_with(addr, offer, mptcp::socket).await.expect("plain TCP");
@@ -81,6 +97,7 @@ async fn a_host_that_offers_no_mptcp_gives_plain_tcp_and_the_probe_s_reason() {
 /// The dial of `--direct` with Multipath TCP asked for, on each host.
 #[tokio::test]
 async fn the_direct_dial_that_asks_for_mptcp_carries_the_same_bytes() {
+    pod_testkit::need_loopback!();
     let (addr, server) = plain_echo().await;
     let dialled = dial_multipath("127.0.0.1", addr.port(), &ProxyChoice::Direct, Duration::from_secs(5)).await;
     let (mut stream, how) = dialled.expect("a direct connection");
@@ -100,6 +117,7 @@ async fn the_direct_dial_that_asks_for_mptcp_carries_the_same_bytes() {
 /// Both ends of MPTCP on the loopback, where the host offers it.
 #[tokio::test]
 async fn a_socket_of_mptcp_carries_the_bytes_where_the_host_offers_one() {
+    pod_testkit::need_loopback!();
     if let Err(why) = mptcp::probe() {
         eprintln!("did not run: {why}");
         return;
@@ -128,9 +146,9 @@ async fn a_socket_of_mptcp_carries_the_bytes_where_the_host_offers_one() {
     echoing.await.unwrap();
 }
 
-/// Whether the edge of the relay takes MPTCP (T-172, step 4): one direct
-/// connection to the relay's port 443, asked for MPTCP. It asserts only the
-/// connection; the answer is printed, for docs/design.md.
+/// Whether the edge of the relay takes MPTCP: one direct connection to the
+/// relay's port 443, asked for MPTCP. It asserts only the connection; the
+/// answer is printed.
 #[tokio::test]
 #[ignore = "live: the relay's edge, from a Linux host that offers Multipath TCP"]
 async fn live_the_relay_s_edge_answers_a_socket_of_mptcp() {

@@ -1,7 +1,7 @@
 //! The minimal HTTP/1.1 client used for minting tokens and for reading why an
 //! upgrade was refused.
 
-use podssh_ws::http::{decode_chunked, exchange, read_response};
+use pod_proxy::http::{decode_chunked, exchange, read_response};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[test]
@@ -19,7 +19,7 @@ fn chunked_bodies_decode_and_incomplete_ones_ask_for_more() {
 /// chunk or alone, under each cap, is refused and wraps nothing. The sums
 /// that it passed overflowed: a panic in a build with overflow checks, and
 /// in the release build a slice that ends before it starts, which aborts
-/// (found by the fuzz target `http_chunked`, T-198).
+/// (found by the fuzz target `http_chunked`).
 #[test]
 fn a_chunk_size_near_the_largest_number_is_refused() {
     let huge = format!("{:x}", usize::MAX);
@@ -96,6 +96,7 @@ async fn exchange_writes_a_well_formed_request_and_reads_the_reply() {
     });
     let r = exchange(
         &mut client,
+        "podssh/0.0.0",
         "POST",
         "relay.example",
         "/v1/mint",
@@ -118,7 +119,9 @@ async fn exchange_writes_a_well_formed_request_and_reads_the_reply() {
 #[tokio::test]
 async fn a_header_with_a_line_break_is_refused_before_anything_is_sent() {
     let (mut client, _server) = tokio::io::duplex(1024);
-    let err = exchange(&mut client, "POST", "h", "/", &[("X", "a\r\nInjected: 1")], b"", 1024).await.unwrap_err();
+    let err = exchange(&mut client, "podssh/0.0.0", "POST", "h", "/", &[("X", "a\r\nInjected: 1")], b"", 1024)
+        .await
+        .unwrap_err();
     assert!(err.to_string().contains("CR or LF"), "{err}");
 }
 
@@ -126,7 +129,7 @@ async fn a_header_with_a_line_break_is_refused_before_anything_is_sent() {
 /// `body_text`; escape sequences, BEL and a bare CR must not survive it.
 #[test]
 fn an_error_body_cannot_carry_terminal_controls() {
-    let r = podssh_ws::http::Response {
+    let r = pod_proxy::http::Response {
         status: 403,
         reason: "Forbidden".into(),
         headers: Vec::new(),
@@ -135,11 +138,11 @@ fn an_error_body_cannot_carry_terminal_controls() {
     assert_eq!(r.body_text(200), "denied[2J FAKE PROMPT$");
 }
 
-/// A header shown in a line (a relay's Retry-After of 429, T-407) is made
+/// A header shown in a line (a relay's Retry-After of 429) is made
 /// safe as the body is, and cut.
 #[test]
 fn a_header_shown_in_a_line_cannot_carry_terminal_controls() {
-    let r = podssh_ws::http::Response {
+    let r = pod_proxy::http::Response {
         status: 429,
         reason: "Too Many Requests".into(),
         headers: vec![("retry-after".into(), "30\x1b]0;owned\x07 then\x1b[2J more".into())],
@@ -148,4 +151,34 @@ fn a_header_shown_in_a_line_cannot_carry_terminal_controls() {
     assert_eq!(r.header_text("Retry-After", 200).as_deref(), Some("30]0;owned then[2J more"));
     assert_eq!(r.header_text("retry-after", 4).as_deref(), Some("30]0…"));
     assert_eq!(r.header_text("date", 10), None);
+}
+
+/// The user agent of the caller goes in `User-Agent`; an empty one sends
+/// none, and one with a line break is refused before anything is sent.
+#[tokio::test]
+async fn the_user_agent_goes_in_its_header_and_an_empty_one_sends_none() {
+    for (agent, line) in [("podssh/1.2.3", Some("\r\nUser-Agent: podssh/1.2.3\r\n")), ("", None)] {
+        let (mut client, mut server) = tokio::io::duplex(64 * 1024);
+        let peer = tokio::spawn(async move {
+            let mut seen = Vec::new();
+            let mut chunk = [0u8; 1024];
+            while !seen.ends_with(b"\r\n\r\n") {
+                let n = server.read(&mut chunk).await.unwrap();
+                assert!(n > 0);
+                seen.extend_from_slice(&chunk[..n]);
+            }
+            server.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await.unwrap();
+            String::from_utf8(seen).unwrap()
+        });
+        let r = exchange(&mut client, agent, "GET", "relay.example", "/health", &[], b"", 1024).await.unwrap();
+        assert_eq!(r.status, 204);
+        let request = peer.await.unwrap();
+        match line {
+            Some(line) => assert!(request.contains(line), "{request}"),
+            None => assert!(!request.contains("User-Agent"), "{request}"),
+        }
+    }
+    let (mut client, _server) = tokio::io::duplex(1024);
+    let err = exchange(&mut client, "a\r\nX: y", "GET", "h", "/", &[], b"", 1024).await.unwrap_err();
+    assert!(err.to_string().contains("CR or LF"), "{err}");
 }

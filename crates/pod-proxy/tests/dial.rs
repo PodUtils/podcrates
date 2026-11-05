@@ -1,14 +1,23 @@
 //! The proxy-aware dialer: proxy settings from the environment, `no_proxy`,
 //! and the CONNECT exchange against a stand-in proxy on a local socket.
 
+use std::ffi::OsString;
+use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::dial::{DialError, HttpProxy, ProxyChoice, dial, no_proxy_matches, proxy_from_vars};
+use pod_proxy::env::{no_proxy_matches, proxy_from_vars};
+use pod_proxy::resolve::System;
+use pod_proxy::{DialError, Dialer, HttpProxy, ProxyChoice, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-fn vars(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
-    move |name| pairs.iter().find(|(n, _)| *n == name).map(|(_, v)| v.to_string())
+fn vars(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<OsString> {
+    move |name| pairs.iter().find(|(n, _)| *n == name).map(|(_, v)| OsString::from(v))
+}
+
+/// The dial of podssh, as a dialer of its settings gives it.
+async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration) -> Result<TcpStream, DialError> {
+    Dialer::new(Settings::new("podssh", proxy.clone()), Arc::new(System::new())).tcp(host, port, timeout).await
 }
 
 #[test]
@@ -99,27 +108,27 @@ fn no_proxy_blocks_match_the_addresses_inside_them() {
     for bad in ["10.0.0.0/33", "fd7a::/129", "10.0.0.0/x", "example.com/8", "10.0.0.0/"] {
         assert!(!no_proxy_matches(bad, "10.1.2.3"), "{bad}");
     }
-    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "100.100.1.1"), Some("100.64.0.0/10"));
-    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "localhost"), Some("localhost"));
-    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "relay.example"), None);
+    assert_eq!(pod_proxy::env::no_proxy_entry(list, "100.100.1.1"), Some("100.64.0.0/10"));
+    assert_eq!(pod_proxy::env::no_proxy_entry(list, "localhost"), Some("localhost"));
+    assert_eq!(pod_proxy::env::no_proxy_entry(list, "relay.example"), None);
 }
 
 #[test]
 fn environment_precedence_and_exclusions() {
     let lower_wins = vars(&[("https_proxy", "http://a:1"), ("HTTPS_PROXY", "http://b:2")]);
-    assert_eq!(proxy_from_vars("relay.example", lower_wins).unwrap().unwrap().host, "a");
+    assert_eq!(proxy_from_vars("relay.example", &lower_wins).unwrap().unwrap().host, "a");
 
     let all_proxy = vars(&[("ALL_PROXY", "http://c:3")]);
-    assert_eq!(proxy_from_vars("relay.example", all_proxy).unwrap().unwrap().host, "c");
+    assert_eq!(proxy_from_vars("relay.example", &all_proxy).unwrap().unwrap().host, "c");
 
     let empty_is_unset = vars(&[("https_proxy", "  "), ("HTTPS_PROXY", "http://d:4")]);
-    assert_eq!(proxy_from_vars("relay.example", empty_is_unset).unwrap().unwrap().host, "d");
+    assert_eq!(proxy_from_vars("relay.example", &empty_is_unset).unwrap().unwrap().host, "d");
 
     let excluded = vars(&[("HTTPS_PROXY", "http://e:5"), ("NO_PROXY", ".example")]);
-    assert_eq!(proxy_from_vars("relay.example", excluded).unwrap(), None);
+    assert_eq!(proxy_from_vars("relay.example", &excluded).unwrap(), None);
 
-    assert_eq!(proxy_from_vars("relay.example", vars(&[])).unwrap(), None);
-    assert!(proxy_from_vars("relay.example", vars(&[("HTTPS_PROXY", "ftp://x:1")])).is_err());
+    assert_eq!(proxy_from_vars("relay.example", &vars(&[])).unwrap(), None);
+    assert!(proxy_from_vars("relay.example", &vars(&[("HTTPS_PROXY", "ftp://x:1")])).is_err());
 }
 
 /// A stand-in proxy: accepts one connection, returns the request head it
@@ -151,6 +160,7 @@ async fn stand_in_proxy(reply: &'static str) -> (HttpProxy, tokio::task::JoinHan
 
 #[tokio::test]
 async fn connect_tunnels_by_name_without_resolving_the_target() {
+    pod_testkit::need_loopback!();
     let (proxy, seen) = stand_in_proxy("HTTP/1.1 200 Connection Established\r\n\r\n").await;
     // `relay.invalid` cannot resolve: the name must reach the proxy as text.
     let mut stream =
@@ -168,6 +178,7 @@ async fn connect_tunnels_by_name_without_resolving_the_target() {
 
 #[tokio::test]
 async fn credentials_go_in_a_basic_proxy_authorization_header() {
+    pod_testkit::need_loopback!();
     let (proxy, seen) = stand_in_proxy("HTTP/1.1 200 OK\r\n\r\n").await;
     let with_auth = HttpProxy::parse(&format!("http://user:pass@{proxy}")).unwrap();
     let mut s = dial("relay.invalid", 443, &ProxyChoice::Via(with_auth), Duration::from_secs(5)).await.unwrap();
@@ -181,6 +192,7 @@ async fn credentials_go_in_a_basic_proxy_authorization_header() {
 /// of it (T-320).
 #[tokio::test]
 async fn a_407_names_what_the_proxy_asks_for() {
+    pod_testkit::need_loopback!();
     let refused = |reply: &'static str, url_credentials: bool| async move {
         let (proxy, _seen) = stand_in_proxy(reply).await;
         let proxy =
@@ -208,6 +220,7 @@ async fn a_407_names_what_the_proxy_asks_for() {
 
 #[tokio::test]
 async fn a_refusal_carries_the_status_and_the_proxys_reason() {
+    pod_testkit::need_loopback!();
     let (proxy, _seen) = stand_in_proxy("HTTP/1.1 403 not on the egress allowlist\r\n\r\n").await;
     let err = dial("example.com", 22, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err();
     match &err {
@@ -223,6 +236,7 @@ async fn a_refusal_carries_the_status_and_the_proxys_reason() {
 
 #[tokio::test]
 async fn an_unreachable_proxy_is_named() {
+    pod_testkit::need_loopback!();
     // Bind and drop a listener to find a port with nothing on it.
     let port = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
     let proxy = HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
@@ -232,6 +246,7 @@ async fn an_unreachable_proxy_is_named() {
 
 #[tokio::test]
 async fn a_silent_proxy_times_out_within_the_budget() {
+    pod_testkit::need_loopback!();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let _hold = tokio::spawn(async move {
@@ -248,6 +263,7 @@ async fn a_silent_proxy_times_out_within_the_budget() {
 
 #[tokio::test]
 async fn direct_connections_ignore_the_environment() {
+    pod_testkit::need_loopback!();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let accept = tokio::spawn(async move { listener.accept().await.map(|_| ()) });
@@ -268,7 +284,7 @@ async fn names_that_would_break_a_request_are_refused() {
 /// A proxy's reason phrase ends up in the refusal message.
 #[test]
 fn a_proxy_reason_phrase_cannot_carry_terminal_controls() {
-    let (status, reason) = podssh_ws::dial::parse_status_line("HTTP/1.1 403 not\x1b[31m allowed\x07\r\n\r\n").unwrap();
+    let (status, reason) = pod_proxy::http::parse_status_line("HTTP/1.1 403 not\x1b[31m allowed\x07\r\n\r\n").unwrap();
     assert_eq!(status, 403);
     assert_eq!(reason, "not[31m allowed");
 }
@@ -278,11 +294,11 @@ fn a_proxy_reason_phrase_cannot_carry_terminal_controls() {
 /// podvm). Anything else still does.
 #[test]
 fn loopback_targets_bypass_the_proxy() {
-    let vars = |name: &str| (name == "https_proxy").then(|| "http://proxy.example:3128".to_string());
+    let vars = |name: &str| (name == "https_proxy").then(|| OsString::from("http://proxy.example:3128"));
     for host in ["localhost", "LOCALHOST", "api.localhost", "127.0.0.1", "127.8.9.10", "::1", "[::1]"] {
-        assert!(proxy_from_vars(host, vars).unwrap().is_none(), "{host} must not be proxied");
+        assert!(proxy_from_vars(host, &vars).unwrap().is_none(), "{host} must not be proxied");
     }
     for host in ["example.org", "10.0.0.1", "localhost.example.org", "128.0.0.1"] {
-        assert!(proxy_from_vars(host, vars).unwrap().is_some(), "{host} must be proxied");
+        assert!(proxy_from_vars(host, &vars).unwrap().is_some(), "{host} must be proxied");
     }
 }
