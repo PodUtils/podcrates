@@ -1,0 +1,4102 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 82bfd54..474669c 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -58,9 +58,15 @@ path = "src/main.rs"
+ podnet-netns = { path = "crates/podnet-netns", version = "0.3.0-beta.12" }
+ # TLS of PodUtils/podcrates: the roots, the client configurations and the
+ # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", version = "0.2.0" }
+-# The HTTP date of a time (the log of detach, the tests of the clock).
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", version = "0.2.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", version = "0.3.0" }
++# The HTTP date of a time (the log of detach, the tests of the clock); the
++# dial, the resolver and the failures of pod-proxy.
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", version = "0.3.0" }
++# The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
++# race of addresses, the proxy of a tool's file), the HTTP client
++# (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
++# with podnet's settings.
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0", version = "0.3.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ base64 = "0.23"
+diff --git a/TODO/crates.md b/TODO/crates.md
+index 645887f..59f6f75 100644
+--- a/TODO/crates.md
++++ b/TODO/crates.md
+@@ -122,7 +122,7 @@ T-046 is done.
+ ## Correction
+ 
+ 2026-11-05, the module tls_fragment is gone (the split of the ClientHello is in `pod-tls`), and
+-`src/trust.rs` is glue over `pod-tls`. `src/egress.rs`, `src/proxy_auth.rs` and `src/fetch.rs` move to
++`src/trust.rs` is glue over `pod-tls`. `src/egress.rs`, `PodUtils/podnet:src/proxy_auth.rs` and `src/fetch.rs` move to
+ `pod-proxy`, `src/resolve.rs` to `pod-dns`, and the WebSocket bridge of `src/ws.rs` to `pod-ws`
+ (T-137). Extract `podnet-core` from what stays in podnet after these takes. Recount the module list
+ when the entry starts. Step 4 names the MSRV job: it stays, and its plant step is gone.
+@@ -323,7 +323,7 @@ T-047 is done.
+ 
+ ## Correction
+ 
+-2026-11-05, `podnet-serve` stays in podnet. The modules that use `src/proxy_auth.rs`, `src/egress.rs` or
++2026-11-05, `podnet-serve` stays in podnet. The modules that use `PodUtils/podnet:src/proxy_auth.rs`, `src/egress.rs` or
+ `src/ws.rs` use `pod-proxy` and `pod-ws` after T-137. Recount the module list when the entry starts.
+ 
+ # T-052: Move the Cloudflare adapter to the shared crate `pod-cloudflare` in `PodUtils/podcrates`
+@@ -559,7 +559,7 @@ Done so far:
+   extra roots); the module `tls_fragment` is gone (the split is in `pod-tls`). Each `pod-*`
+   dependency names `tag = "v0.2.0"`. The `rust-version` is 1.99 and each toolchain pin is 1.99.1;
+   the `msrv` job has no plant step (no stable API is newer than 1.99).
+-- Next: `pod-proxy` (`src/egress.rs`, `src/proxy_auth.rs`, `src/fetch.rs`), `pod-dns`
++- Next: `pod-proxy` (`src/egress.rs`, `PodUtils/podnet:src/proxy_auth.rs`, `src/fetch.rs`), `pod-dns`
+   (`src/resolve.rs`), `pod-ws` (`src/ws.rs`).
+ - The owner, 2026-11-05 (`docs/decisions.md`, Services crate): the lists of services of other
+   parties, their measurements and the watch workflows move to `pod-services`. podnet takes it
+diff --git a/TODO/services.md b/TODO/services.md
+index 3a3a5fa..12a9a98 100644
+--- a/TODO/services.md
++++ b/TODO/services.md
+@@ -84,7 +84,7 @@ authentication.
+ 
+ ## Premise
+ 
+-- Read: the Basic check is in `src/proxy.rs`, and its credentials in `src/proxy_auth.rs`
++- Read: the Basic check is in `src/proxy.rs`, and its credentials in `PodUtils/podnet:src/proxy_auth.rs`
+   (`Credentials`).
+ - Read: `serve --local` refuses `--auth-user` (`src/main.rs`).
+ - The PIN gate is `src/gate.rs`.
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index fb3c15d..eb2120a 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -9,4 +9,4 @@ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
+diff --git a/docs/maintenance.md b/docs/maintenance.md
+index 2621bc1..1a322a3 100644
+--- a/docs/maintenance.md
++++ b/docs/maintenance.md
+@@ -185,15 +185,16 @@ At the first stable release (no `-beta.N`), also:
+ | `src/ws_relay.rs`, `src/relay_reverse.rs` | the WebSocket relay: the forward leg, and `podnet relay` (reverse mode) |
+ | `src/detach.rs`, `src/instances.rs` | `--detach`, the supervisor, `ps`, `stop`, `logs`, `wait` |
+ | `src/agent.rs` | `doctor --agent`, `agent up` |
+-| `src/egress.rs`, `src/proxy_auth.rs`, `src/fetch.rs`, `src/resolve.rs`, `src/ws.rs` | the egress proxy, Digest, the fetch client, the resolver chain (system, DoH, pins), the WebSocket client. They move to `pod-proxy`, `pod-dns` and `pod-ws` of `PodUtils/podcrates` (T-137) |
++| `src/egress.rs`, `src/fetch.rs` | glue over `pod-proxy`: the dial of each connection (the proxy of `--proxy`, the variables or a tool's file, `NO_PROXY`, Digest, the race of addresses) and the HTTP client, with podnet's settings, words, hops and counters |
++| `src/resolve.rs`, `src/ws.rs` | the resolver chain (system, DoH, pins), the WebSocket client. They move to `pod-dns` and `pod-ws` of `PodUtils/podcrates` (T-137) |
+ | `src/trust.rs` | glue over `pod-tls`: one TLS context of the process on ring, with the edge roots of Cloudflare as extra roots |
+ | `crates/podnet-todo/` | `cargo todo`: a wrapper over `pod-todo`; the facts of podnet are in `TODO/todo.toml` |
+ | `src/vnet/` | `podnet net`: the userspace networks, the LD_PRELOAD shim |
+ | `src/manual/` | `podnet man`; `facts.rs` lists each environment variable |
+ | `crates/podnet-netns/` | `podnet pod`: the netns, seccomp and raw backends |
+ 
+-Shared crates: `pod-todo`, `pod-core` and `pod-tls` come from
+-`PodUtils/podcrates` by the git tag `v0.2.0` (T-137). `deny.toml` allows
++Shared crates: `pod-todo`, `pod-core`, `pod-tls` and `pod-proxy` come from
++`PodUtils/podcrates` by the git tag `v0.3.0` (T-137). `deny.toml` allows
+ that git source. Once podnet takes a crate, a change of its code goes to
+ `PodUtils/podcrates` (under its `AGENTS.md`) or into an issue there, not
+ into podnet. The toolchain is Rust 1.99.1 and `rust-version` is 1.99.
+diff --git a/docs/target-environment.md b/docs/target-environment.md
+index db15919..e899eab 100644
+--- a/docs/target-environment.md
++++ b/docs/target-environment.md
+@@ -107,13 +107,13 @@ fail that check. The steps:
+ | The state directory is read-only | podnet tries the next directory of the chain; a WARP registration does not start when no directory can be written | measured (test) | `src/state.rs`; `src/warp/mod.rs` `register_or_load` |
+ | The proxy re-terminates TLS | Give its root with `--ca-file` or `SSL_CERT_FILE` for the API and DoH. The edge and MASQUE cannot pass through it: they need the Cloudflare chain, and MASQUE needs a client certificate | inferred | `src/trust.rs`; `tests/tls.rs` |
+ | The proxy refuses `CONNECT` to an IP address | DoH by name (`cloudflare-dns.com`, `dns.google`) through the proxy | measured | `src/resolve.rs` `doh_servers` |
+-| The proxy answers 407 | The error names each scheme of `Proxy-Authenticate`; podnet answers Basic and Digest (MD5, MD5-sess, SHA-256, SHA-256-sess), and the advice follows what it sent | measured (test) | `src/egress.rs` `a_407_names_the_schemes`, `a_407_with_digest_does_not_say_basic_only` |
++| The proxy answers 407 | The error names each scheme of `Proxy-Authenticate`; podnet answers Basic and Digest (MD5, MD5-sess, SHA-256, SHA-256-sess), and the advice follows what it sent | measured (test) | `PodUtils/podcrates:crates/pod-proxy/src/proxy_auth.rs` `a_407_names_the_schemes`, `a_407_with_digest_does_not_say_basic_only`; `tests/egress.rs` `a_407_names_the_schemes` |
+ | No `/proc` | The seccomp backend of `podnet pod` cannot read the memory of the program; `podnet pod doctor` reports it | inferred | `crates/podnet-netns/src/seccomp.rs` |
+ | `/proc/<pid>/mem` and `process_vm_writev` are refused | `getsockname` and `getpeername` answer `EOPNOTSUPP` under the seccomp backend; QUIC clients fail, and a program that reads its own address can crash (a Go `LocalAddr()` type assertion). A warning and the `write program memory` row of `pod doctor` say so; `--backend netns` avoids it | measured (issue 186) | `crates/podnet-netns/src/seccomp.rs` `handle_sockname`; `tests/pod_seccomp.rs` `getpeername_is_the_inet_address_or_eopnotsupp` |
+ | The clock is wrong | A certificate error gives the clock of the host | measured (test) | `tests/tls.rs` `an_expired_certificate_names_the_host_clock` |
+ | `bind` is allowed and `listen` is refused | `podnet net doctor` gives `listen(...) FAIL`; only `warp proxy`, `connect` and `net proxy` need a listener | measured (test) | `src/vnet/doctor.rs`; `tests/cli.rs` `doctor_tells_listen_from_bind` |
+ | Outbound UDP is refused (EPERM, ICMP) | `--protocol auto` does not try QUIC on UDP 7844 | measured (test) | `src/udp.rs`; `tunnel::plan_with_udp` |
+-| No IPv6 (`EAFNOSUPPORT`) | Direct dials alternate the families and go on to the next address after 250 ms | inferred | `src/egress.rs` `dial_addrs` |
++| No IPv6 (`EAFNOSUPPORT`) | Direct dials alternate the families and go on to the next address after 250 ms | inferred | `PodUtils/podcrates:crates/pod-proxy/src/race.rs` `dial_addrs` |
+ 
+ ## Other networks to the front door
+ 
+@@ -163,7 +163,7 @@ session.
+ ## Rules of podnet
+ 
+ 1. Use one egress path for each connection: the proxy of `--proxy` or the
+-   variables, with `NO_PROXY`. Code: `src/egress.rs`. Followed by each
++   variables, with `NO_PROXY`. Code: `src/egress.rs`, over `pod-proxy`. Followed by each
+    command; `podnet pod` has its own upstream list (`podnet pod -x`).
+ 2. Do not send UDP around a proxy. Code: `tunnel::plan_with_proxy`.
+ 3. Resolve names with a chain that works with no system resolver. Code:
+diff --git a/scripts/size-allow.txt b/scripts/size-allow.txt
+index 3739714..e9b4287 100644
+--- a/scripts/size-allow.txt
++++ b/scripts/size-allow.txt
+@@ -10,27 +10,26 @@
+ 1123 src/cloudflare/http2.rs
+ 1207 src/config.rs
+ 1210 src/detach.rs
+-1308 src/doctor.rs
+-1736 src/edge_h2.rs
+-1707 src/egress.rs
++1307 src/doctor.rs
++1734 src/edge_h2.rs
+ 2142 src/feature/mod.rs
+-7136 src/main.rs
++7133 src/main.rs
+ 2034 src/proxy.rs
+-892 src/quicktunnel.rs
++891 src/quicktunnel.rs
+ 1139 src/relay_reverse.rs
+ 1901 src/share.rs
+ 1599 src/tunnel.rs
+-1192 src/update.rs
++1191 src/update.rs
+ 2103 src/vnet/stack.rs
+ 1072 src/vnet/switch.rs
+ 1680 src/warp/ip.rs
+ 1105 src/warp/mod.rs
+-1994 src/warp/proxy.rs
+-936 src/warp/register.rs
++1993 src/warp/proxy.rs
++932 src/warp/register.rs
+ 1211 src/warp/session.rs
+ 1048 src/warp/up.rs
+ 1078 src/warp/wg.rs
+-995 src/ws_relay.rs
++994 src/ws_relay.rs
+ 2314 tests/cli.rs
+ 812 tests/detach.rs
+ 2021 tests/pod_seccomp.rs
+diff --git a/src/agent.rs b/src/agent.rs
+index e6f233c..f5955ac 100644
+--- a/src/agent.rs
++++ b/src/agent.rs
+@@ -195,7 +195,7 @@ async fn dial(path: Path, host: &str, port: u16, timeout: Duration) -> Result<Bo
+         )),
+         Path::Proxy => {
+             let proxy = crate::egress::proxy_for(host, port).context("no proxy")?;
+-            proxy.connect(host, port, timeout).await
++            crate::egress::dial(host, port, Some(&proxy), timeout).await
+         }
+         Path::Warp => {
+             let io = tokio::time::timeout(timeout, crate::warp::nc::via_running(host, port))
+@@ -357,7 +357,7 @@ async fn localhost() -> Outcome {
+ 
+ /// Run each check, at the same time.
+ pub async fn run(timeout: Duration) -> Report {
+-    let proxy = crate::egress::proxy_for("github.com", 443).map(|p| p.to_string());
++    let proxy = crate::egress::proxy_for("github.com", 443).map(|p| p.label());
+     let warp_up = crate::warp::up::socket_path()
+         .map(|s| std::os::unix::net::UnixStream::connect(s).is_ok())
+         .unwrap_or(false);
+diff --git a/src/doctor.rs b/src/doctor.rs
+index fa2ee35..17029c0 100644
+--- a/src/doctor.rs
++++ b/src/doctor.rs
+@@ -517,10 +517,8 @@ async fn clock(paths: &[Path], timeout: Duration) -> Clock {
+         };
+     };
+     let url = format!("https://{}/", path.target.authority());
+-    let answer = crate::fetch::Request::new("HEAD", url.clone())
+-        .timeout(timeout)
+-        .send()
+-        .await;
++    let answer =
++        crate::fetch::send(crate::fetch::Request::new("HEAD", url.clone()).timeout(timeout)).await;
+     let date = match &answer {
+         Ok(r) => r.header("date").map(str::to_string),
+         Err(_) => None,
+@@ -607,7 +605,8 @@ fn proxy_report(targets: &[Target]) -> Value {
+         None => "none: each connection is direct".to_string(),
+         Some(p) => {
+             let mut text = format!(
+-                "{p} (credentials: {})",
++                "{} (credentials: {})",
++                p.label(),
+                 if p.has_credentials() {
+                     "present"
+                 } else {
+@@ -621,7 +620,7 @@ fn proxy_report(targets: &[Target]) -> Value {
+         }
+     };
+     json!({
+-        "url": first.as_ref().map(|p| p.to_string()),
++        "url": first.as_ref().map(|p| p.label()),
+         "credentials": first.as_ref().map(|p| p.has_credentials()),
+         "direct": direct,
+         "text": text,
+@@ -629,7 +628,7 @@ fn proxy_report(targets: &[Target]) -> Value {
+ }
+ 
+ async fn path(target: Target, options: Options, start: Instant) -> Path {
+-    let via = crate::egress::proxy_for(&target.host, target.port).map(|p| p.to_string());
++    let via = crate::egress::proxy_for(&target.host, target.port).map(|p| p.label());
+     // Issue 128: the answer of the resolver chain, before the samples.
+     let dns = if via.is_none() && target.host.parse::<std::net::IpAddr>().is_err() {
+         let took = Instant::now();
+diff --git a/src/edge_h2.rs b/src/edge_h2.rs
+index f541787..eae629c 100644
+--- a/src/edge_h2.rs
++++ b/src/edge_h2.rs
+@@ -845,10 +845,8 @@ async fn dial(addrs: &[SocketAddr]) -> Result<(usize, crate::net::BoxedIo)> {
+     if let Some(proxy) = crate::egress::proxy_for(&first.ip().to_string(), first.port()) {
+         let mut last = None;
+         for (i, addr) in addrs.iter().enumerate() {
+-            match proxy
+-                .connect(&addr.ip().to_string(), addr.port(), DIAL_TIMEOUT)
+-                .await
+-            {
++            let host = addr.ip().to_string();
++            match crate::egress::dial(&host, addr.port(), Some(&proxy), DIAL_TIMEOUT).await {
+                 Ok(io) => return Ok((i, io)),
+                 Err(err) => last = Some(err.context(format!("TCP to the edge at {addr}"))),
+             }
+diff --git a/src/egress.rs b/src/egress.rs
+index 24ee21b..982d6ec 100644
+--- a/src/egress.rs
++++ b/src/egress.rs
+@@ -1,586 +1,278 @@
+-//! Each outbound TCP connection of podnet: directly, or through a proxy.
++//! Each outbound TCP connection of podnet: the dial of `pod-proxy`
++//! (PodUtils/podcrates) with podnet's settings, directly or through a proxy.
+ //!
+-//! [`dial`] is the one path. It takes the proxy of [`ProxyChoice`]:
++//! [`dial`] is the one path. It takes the proxy of the choice of the process:
+ //!
+-//! * `--proxy URL` (or [`set_choice`] with [`ProxyChoice::Via`]);
+-//! * `--no-proxy` ([`ProxyChoice::Direct`]);
++//! * `--proxy URL` or `PODNET_PROXY` ([`set_proxy`]), a value of the user
++//!   that can be a command;
++//! * `--no-proxy` ([`set_direct`]);
+ //! * else the variables, in the order of curl: `HTTPS_PROXY`, `https_proxy`,
+-//!   `ALL_PROXY`, `all_proxy`.
++//!   `ALL_PROXY`, `all_proxy`; else the proxy of a tool's file (git, npm,
++//!   pip, `/etc/environment`).
+ //!
+ //! `NO_PROXY` (or `no_proxy`) names the targets that do not use the proxy,
+-//! with the rules of [`NoProxy`]. A proxy can be HTTP (`CONNECT`) or SOCKS5
+-//! (`socks5://` resolves the name on this host, `socks5h://` gives the name
+-//! to the proxy). A direct dial resolves the name with the chain of
+-//! [`crate::resolve`], tries each address of the name, and starts
+-//! the next attempt [`ATTEMPT_DELAY`] after the one before (RFC 8305), so an
+-//! address with no route does not hold the dial.
++//! `--proxy`'s too, by the rules of [`rules`]. A proxy can be HTTP
++//! (`CONNECT`, Basic or Digest) or SOCKS5 (`socks5://` resolves the name on
++//! this host, `socks5h://` gives the name to the proxy), on TCP, on a Unix
++//! socket or at a command. A direct dial resolves the name with the chain
++//! of [`crate::resolve`] and races its addresses (RFC 8305). Each dial is
++//! one decision `egress` of [`crate::decisions`].
++//!
++//! The words and the hops of a failure are podnet's: a proxy's refusal is a
++//! [`Refusal`], and a failure through a proxy is at the hop `proxy`.
+ 
+ use std::net::{IpAddr, SocketAddr};
+-use std::sync::OnceLock;
++use std::sync::{Arc, OnceLock};
+ use std::time::Duration;
+ 
+-use anyhow::{bail, Context as _, Result};
+-use base64::Engine;
+-use tokio::io::{AsyncReadExt, AsyncWriteExt};
++use anyhow::Result;
++use pod_core::{BoxFuture, Class, Connected, Dial, Failure, Found, Resolve, Source, Stage, Target};
++use pod_proxy::{Dialer, Environment, Origin, Rules, Settings};
+ use tokio::net::TcpStream;
++use tokio::time::Instant;
+ 
++use crate::hop::{self, Hop};
+ use crate::net::BoxedIo;
+ 
+-/// Largest `CONNECT` response header block accepted. A well-behaved proxy
+-/// answers in under 300 bytes; anything larger is a misconfiguration or an
+-/// attempt to make the caller allocate without bound.
+-const MAX_HEADER_BYTES: usize = 8 * 1024;
+-
+-/// The time between the start of two attempts of a direct dial (RFC 8305).
+-pub const ATTEMPT_DELAY: Duration = Duration::from_millis(250);
++pub use pod_proxy::{
++    group_errors, Carrier, ChildIo, DialError, NoProxy, Proxy, ProxyKind, ATTEMPT_DELAY,
++};
+ 
+ /// The variables of the proxy, in the order that podnet reads them.
+-pub const PROXY_VARIABLES: &[&str] = &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
++pub const PROXY_VARIABLES: &[&str] = &pod_proxy::PROXY_VARS_UPPER_FIRST;
+ /// The variables of the list of targets that do not use the proxy.
+-pub const NO_PROXY_VARIABLES: &[&str] = &["NO_PROXY", "no_proxy"];
+-
+-/// The protocol of a proxy.
+-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+-pub enum ProxyKind {
+-    /// An HTTP proxy that answers `CONNECT`.
+-    Http,
+-    /// A SOCKS5 proxy. With `remote_dns`, the proxy resolves the name
+-    /// (`socks5h://`); else this host resolves it (`socks5://`).
+-    Socks5 { remote_dns: bool },
+-}
++pub const NO_PROXY_VARIABLES: &[&str] = &pod_proxy::NO_PROXY_VARS_UPPER_FIRST;
++/// The port of an `http://` proxy URL with no port, as in curl.
++pub const HTTP_PORT: u16 = 8080;
+ 
+-/// How podnet reaches the proxy (issue 129).
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub enum Carrier {
+-    /// TCP to the host and the port of the proxy.
+-    Tcp,
+-    /// A unix socket: `socks5h+unix:/path` or `socks5h://unix:/path`.
+-    Unix(std::path::PathBuf),
+-    /// The stdin and the stdout of a command (`sh -c`), one process for
+-    /// each connection, as the ProxyCommand of SSH: `http+exec:COMMAND`.
+-    /// Only from `--proxy` and `PODNET_PROXY`.
+-    Exec(String),
++/// podnet's rules of the proxy settings: the upper case first, a URL that
++/// cannot be used passed over with a warning, `http://` on port 8080, an
++/// entry `host:port` of `NO_PROXY` for that port only, and the loopback
++/// through the proxy unless `NO_PROXY` names it.
++pub fn rules() -> Rules {
++    Rules {
++        proxy_vars: &pod_proxy::PROXY_VARS_UPPER_FIRST,
++        no_proxy_vars: &pod_proxy::NO_PROXY_VARS_UPPER_FIRST,
++        skip_unusable: true,
++        http_port: HTTP_PORT,
++        no_proxy_ports: true,
++        loopback_direct: false,
++    }
+ }
+ 
+-/// A proxy for TCP connections.
+-#[derive(Clone, PartialEq, Eq)]
+-pub struct Proxy {
+-    kind: ProxyKind,
+-    host: String,
+-    port: u16,
+-    auth: Option<(String, String)>,
+-    via: Carrier,
++/// The proxy of a URL by podnet's rules, as a variable gives it: no command.
++pub fn parse(spec: &str) -> Result<Proxy> {
++    Proxy::parse_with(spec, false, HTTP_PORT).map_err(anyhow::Error::msg)
+ }
+ 
+-/// The Debug form shows no credentials: they go to logs and reports.
+-impl std::fmt::Debug for Proxy {
+-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        f.debug_struct("Proxy")
+-            .field("kind", &self.kind)
+-            .field("host", &self.host)
+-            .field("port", &self.port)
+-            .field("via", &self.via_text())
+-            .field(
+-                "credentials",
+-                &if self.auth.is_some() {
+-                    "<hidden>"
+-                } else {
+-                    "none"
+-                },
+-            )
+-            .finish()
+-    }
++/// How podnet reaches the network, as `podnet status` names it.
++#[derive(Clone, Debug, Default, PartialEq, Eq)]
++pub enum ProxyChoice {
++    /// The proxy of the variables, if one is set (the default).
++    #[default]
++    FromEnvironment,
++    /// No proxy (`--no-proxy`).
++    Direct,
++    /// This proxy (`--proxy URL`).
++    Via(Proxy),
+ }
+ 
+-/// `scheme://host:port`, with no credentials: the form for a message. A
+-/// command shows its first word only (it can hold a secret).
+-impl std::fmt::Display for Proxy {
+-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        if self.via != Carrier::Tcp {
+-            return write!(f, "{}+{}", self.scheme(), self.via_text());
+-        }
+-        let host = if self.host.contains(':') {
+-            format!("[{}]", self.host)
+-        } else {
+-            self.host.clone()
+-        };
+-        write!(f, "{}://{host}:{}", self.scheme(), self.port)
+-    }
++/// The choice of the process and its dialer.
++struct Way {
++    choice: ProxyChoice,
++    dialer: Arc<Dialer>,
+ }
+ 
+-impl Proxy {
+-    /// The host of the proxy (no port, no credentials). Empty for a proxy
+-    /// on a unix socket or a command.
+-    pub fn host(&self) -> &str {
+-        &self.host
+-    }
+-
+-    /// How podnet reaches the proxy.
+-    pub fn carrier(&self) -> &Carrier {
+-        &self.via
+-    }
++static WAY: OnceLock<Way> = OnceLock::new();
+ 
+-    fn via_text(&self) -> String {
+-        match &self.via {
+-            Carrier::Tcp => "tcp".into(),
+-            Carrier::Unix(path) => format!("unix:{}", path.display()),
+-            Carrier::Exec(command) => format!(
+-                "exec:{} ...",
+-                command.split_whitespace().next().unwrap_or_default()
+-            ),
++/// The way of the process: the one set, else the variables and the proxy
++/// of a tool's file, read at the first use.
++fn way() -> &'static Way {
++    WAY.get_or_init(|| {
++        let var = |name: &str| std::env::var_os(name);
++        let env =
++            Environment::read_with(&var, rules()).or_detected(&var, &pod_proxy::detect::read_file);
++        Way {
++            choice: ProxyChoice::FromEnvironment,
++            dialer: Arc::new(dialer(pod_proxy::ProxyChoice::FromEnvironment(env))),
+         }
+-    }
+-
+-    /// Parse the value of `--proxy` or `PODNET_PROXY`: [`parse`](Self::parse),
+-    /// and also `SCHEME+exec:COMMAND` (issue 129). A command in the proxy
+-    /// variables of other tools is refused: a variable must not start a
+-    /// program.
+-    pub fn parse_trusted(spec: &str) -> Result<Self> {
+-        let spec = spec.trim();
+-        if let Some((scheme, command)) = spec.split_once("+exec:") {
+-            if command.trim().is_empty() {
+-                bail!("{scheme}+exec: has no command");
+-            }
+-            let mut proxy = Self::parse(&format!("{scheme}://exec.invalid"))?;
+-            proxy.host.clear();
+-            proxy.port = 0;
+-            proxy.via = Carrier::Exec(command.trim().to_string());
+-            return Ok(proxy);
+-        }
+-        Self::parse(spec)
+-    }
++    })
++}
+ 
+-    /// The parts of the proxy URL `spec` that are secret, for
+-    /// [`crate::report::hide`]: the user and password text, the password
+-    /// as written and percent-decoded. A URL with no user part has no
+-    /// secret (issue 274: the whole URL was hidden). The command of a
+-    /// `+exec:` proxy is secret as a whole.
+-    pub fn secret_parts(spec: &str) -> Vec<String> {
+-        let spec = spec.trim();
+-        if let Some((_, command)) = spec.split_once("+exec:") {
+-            return vec![spec.to_string(), command.trim().to_string()];
+-        }
+-        let rest = spec.split_once("://").map_or(spec, |(_, rest)| rest);
+-        let authority = rest.split('/').next().unwrap_or(rest);
+-        let Some((userinfo, _)) = authority.rsplit_once('@') else {
+-            return Vec::new();
+-        };
+-        let mut parts = vec![userinfo.to_string()];
+-        if let Some((_, pass)) = userinfo.split_once(':') {
+-            parts.push(pass.to_string());
+-            if let Ok(decoded) = percent_decode(pass) {
+-                parts.push(decoded);
+-            }
+-        }
+-        parts
+-    }
++/// Use the proxy that the user gave (`--proxy`, `PODNET_PROXY`): it can be
++/// a command, and `NO_PROXY` still applies. Call it before the first
++/// connection; a later call has no effect. The proxy, or why `spec` cannot
++/// be used.
++pub fn set_proxy(spec: &str) -> Result<Proxy> {
++    let var = |name: &str| std::env::var_os(name);
++    let env =
++        Environment::read_with(&var, rules()).with_proxy(spec, Origin::User("--proxy".into()));
++    let proxy = match env.proxy.as_ref().map(|given| &given.value) {
++        Some(Ok(proxy)) => proxy.clone(),
++        Some(Err(why)) => anyhow::bail!("{why}"),
++        None => anyhow::bail!("the value names no proxy"),
++    };
++    let dialer = Arc::new(dialer(pod_proxy::ProxyChoice::FromEnvironment(env)));
++    let _ = WAY.set(Way {
++        choice: ProxyChoice::Via(proxy.clone()),
++        dialer,
++    });
++    Ok(proxy)
++}
+ 
+-    /// Read the proxy from the variables of [`PROXY_VARIABLES`]. Returns
+-    /// `None` when no variable is set. A value that cannot be parsed is
+-    /// skipped with a warning.
+-    pub fn from_env() -> Option<Self> {
+-        for key in PROXY_VARIABLES {
+-            if let Ok(spec) = std::env::var(key) {
+-                if spec.trim().is_empty() {
+-                    continue;
+-                }
+-                match Self::parse(&spec) {
+-                    Ok(proxy) => return Some(proxy),
+-                    Err(err) => {
+-                        tracing::warn!(%key, error = %err, "ignoring unparsable proxy variable");
+-                    }
+-                }
+-            }
+-        }
+-        None
+-    }
++/// Connect directly (`--no-proxy`). Call it before the first connection.
++pub fn set_direct() {
++    let dialer = Arc::new(dialer(pod_proxy::ProxyChoice::Direct));
++    let _ = WAY.set(Way {
++        choice: ProxyChoice::Direct,
++        dialer,
++    });
++}
+ 
+-    /// Parse `[scheme://][user[:password]@]host[:port]`. The schemes are
+-    /// `http` (the default; port 8080 when missing, as in curl), `socks5`
+-    /// and `socks5h` (port 1080 when missing). The user and the password are
+-    /// percent-decoded; a bad escape is an error.
+-    pub fn parse(spec: &str) -> Result<Self> {
+-        let spec = spec.trim();
+-        if spec.is_empty() {
+-            bail!("empty proxy URL");
+-        }
+-        // Issue 129: a proxy on a unix socket.
+-        let unix = spec
+-            .split_once("+unix:")
+-            .or_else(|| spec.split_once("://unix:"));
+-        if let Some((scheme, path)) = unix.filter(|(s, _)| !s.contains('/')) {
+-            if !path.starts_with('/') {
+-                bail!("the unix socket of a proxy is an absolute path: {scheme}+unix:/PATH");
+-            }
+-            let mut proxy = Self::parse(&format!("{scheme}://unix.invalid"))?;
+-            proxy.host.clear();
+-            proxy.port = 0;
+-            proxy.via = Carrier::Unix(path.into());
+-            return Ok(proxy);
+-        }
+-        if spec.contains("+exec:") {
+-            bail!("a proxy command (+exec:) is only taken from --proxy or PODNET_PROXY");
+-        }
+-        let (scheme, rest) = match spec.split_once("://") {
+-            Some((scheme, rest)) => (scheme.to_ascii_lowercase(), rest),
+-            None => ("http".to_string(), spec),
+-        };
+-        let (kind, default_port) = match scheme.as_str() {
+-            "http" => (ProxyKind::Http, 8080),
+-            "socks5" => (ProxyKind::Socks5 { remote_dns: false }, 1080),
+-            "socks5h" => (ProxyKind::Socks5 { remote_dns: true }, 1080),
+-            "https" => bail!(
+-                "https:// proxies (TLS to the proxy) are not supported; use http:// or socks5h://"
+-            ),
+-            "socks4" | "socks4a" => {
+-                bail!("SOCKS4 is not supported: it has no IPv6 and no password; use socks5h://")
+-            }
+-            other => bail!("the proxy scheme {other}:// is not supported; use http://, socks5:// or socks5h://"),
+-        };
+-        let rest = rest.trim_end_matches('/');
+-        if rest.contains(['/', '?', '#']) {
+-            bail!("a proxy URL has no path, query or fragment (percent-encode / ? # @ : in the user and the password, for example %2F for /)");
+-        }
+-        let (auth, authority) = match rest.rsplit_once('@') {
+-            Some((auth, authority)) => (Some(auth), authority),
+-            None => (None, rest),
+-        };
+-        let (host, port) = split_host_port(authority, default_port)?;
+-        let auth = match auth {
+-            Some(auth) => {
+-                let (user, pass) = auth.split_once(':').unwrap_or((auth, ""));
+-                let user = percent_decode(user).context("the user of the proxy URL")?;
+-                let pass = percent_decode(pass).context("the password of the proxy URL")?;
+-                if let ProxyKind::Socks5 { .. } = kind {
+-                    if user.is_empty() || user.len() > 255 || pass.is_empty() || pass.len() > 255 {
+-                        bail!(
+-                            "a SOCKS5 user and password must each have 1 to 255 bytes (RFC 1929)"
+-                        );
+-                    }
+-                }
+-                Some((user, pass))
+-            }
+-            None => None,
+-        };
+-        Ok(Self {
+-            kind,
+-            host,
+-            port,
+-            auth,
+-            via: Carrier::Tcp,
+-        })
+-    }
++/// The choice of this process.
++pub fn choice() -> ProxyChoice {
++    way().choice.clone()
++}
+ 
+-    /// Open the byte stream to the proxy.
+-    async fn open(&self, timeout: Duration) -> Result<BoxedIo> {
+-        match &self.via {
+-            // The proxy host is resolved with no DoH: a DoH query can go
+-            // through this proxy (issue 259).
+-            Carrier::Tcp => Ok(Box::new(
+-                dial_resolved(&self.host, self.port, timeout, false)
+-                    .await
+-                    .with_context(|| format!("the proxy host {}", self.host))?,
+-            )),
+-            Carrier::Unix(path) => {
+-                let stream = tokio::time::timeout(timeout, tokio::net::UnixStream::connect(path))
+-                    .await
+-                    .map_err(|_| anyhow::anyhow!("no connect in {} s", timeout.as_secs()))??;
+-                Ok(Box::new(stream))
+-            }
+-            Carrier::Exec(command) => Ok(Box::new(ChildIo::spawn(command)?)),
+-        }
+-    }
++/// A dialer with podnet's settings: its program, no user agent and no
++/// `TCP_NOTSENT_LOWAT`, its resolver (with no DoH for a proxy's own host:
++/// a DoH query can need the same proxy), and its counters.
++fn dialer(proxy: pod_proxy::ProxyChoice) -> Dialer {
++    let mut settings = Settings::new("podnet", proxy);
++    settings.lowat = None;
++    Dialer::new(settings, Arc::new(Resolver { doh: true }))
++        .with_proxy_resolver(Arc::new(Resolver { doh: false }))
++        .with_observer(Arc::new(Counters))
++}
+ 
+-    /// The protocol of the proxy.
+-    pub fn kind(&self) -> ProxyKind {
+-        self.kind
+-    }
++/// The proxy for `host:port`, after `NO_PROXY`, or `None` for a direct
++/// connection.
++pub fn proxy_for(host: &str, port: u16) -> Option<Proxy> {
++    way().dialer.proxy_at(host, port).ok().flatten()
++}
+ 
+-    /// The kind of the proxy as podnet dials it: the scheme, with `+unix` or
+-    /// `+exec` for a proxy that is not on TCP.
+-    pub fn kind_text(&self) -> String {
+-        match &self.via {
+-            Carrier::Tcp => self.scheme().to_string(),
+-            Carrier::Unix(_) => format!("{}+unix", self.scheme()),
+-            Carrier::Exec(_) => format!("{}+exec", self.scheme()),
++/// Connect to `host:port`: through `via` when it is given, else through the
++/// proxy of [`proxy_for`], else directly.
++pub async fn dial(
++    host: &str,
++    port: u16,
++    via: Option<&Proxy>,
++    timeout: Duration,
++) -> Result<BoxedIo> {
++    match via {
++        Some(proxy) => {
++            open(
++                &dialer(pod_proxy::ProxyChoice::Via(proxy.clone())),
++                host,
++                port,
++                timeout,
++            )
++            .await
+         }
++        None => open(&way().dialer, host, port, timeout).await,
+     }
++}
+ 
+-    /// `http`, `socks5` or `socks5h`.
+-    pub fn scheme(&self) -> &'static str {
+-        match self.kind {
+-            ProxyKind::Http => "http",
+-            ProxyKind::Socks5 { remote_dns: false } => "socks5",
+-            ProxyKind::Socks5 { remote_dns: true } => "socks5h",
+-        }
+-    }
++/// Connect to `host:port` with no proxy: each address of the name, with
++/// [`ATTEMPT_DELAY`] between the starts.
++pub async fn dial_direct(host: &str, port: u16, timeout: Duration) -> Result<TcpStream> {
++    dialer(pod_proxy::ProxyChoice::Direct)
++        .tcp(host, port, timeout)
++        .await
++        .map_err(|e| failed(e, host, port, None))
++}
+ 
+-    /// The proxy's own address. Connecting here is direct, never proxied.
+-    pub fn address(&self) -> (&str, u16) {
+-        (&self.host, self.port)
+-    }
++/// Connect to the first of `addrs` that answers, with no proxy. The
++/// attempts start [`ATTEMPT_DELAY`] apart, or at once when the attempt
++/// before fails. Gives the index of the address and the stream.
++pub async fn dial_addrs(addrs: &[SocketAddr], timeout: Duration) -> Result<(usize, TcpStream)> {
++    pod_proxy::dial_addrs(addrs, timeout)
++        .await
++        .map_err(|e| error_of(&e))
++}
+ 
+-    /// True when the proxy URL holds a user and a password.
+-    pub fn has_credentials(&self) -> bool {
+-        self.auth.is_some()
++/// [`dial`] with `dialer`, and podnet's words of a failure.
++async fn open(dialer: &Dialer, host: &str, port: u16, timeout: Duration) -> Result<BoxedIo> {
++    let proxy = dialer.proxy_at(host, port).ok().flatten();
++    match dialer.stream(host, port, timeout).await {
++        Ok((stream, _)) => Ok(Box::new(stream)),
++        Err(e) => Err(failed(e, host, port, proxy.as_ref())),
+     }
++}
+ 
+-    /// Open a connection to `host:port` through the proxy, and return the
+-    /// stream after the answer of the proxy.
+-    pub async fn connect(&self, host: &str, port: u16, timeout: Duration) -> Result<BoxedIo> {
+-        let work = async {
+-            let mut stream = self
+-                .open(timeout)
+-                .await
+-                .with_context(|| format!("connecting to the proxy {self}"))?;
+-            match self.kind {
+-                ProxyKind::Http => {
+-                    let basic = self.auth.as_ref().map(|(user, pass)| {
+-                        let raw = format!("{user}:{pass}");
+-                        format!(
+-                            "Basic {}",
+-                            base64::engine::general_purpose::STANDARD.encode(raw.as_bytes())
+-                        )
+-                    });
+-                    if let Some(challenge) = self
+-                        .http_connect(&mut stream, host, port, timeout, basic)
+-                        .await?
+-                    {
+-                        // A Digest proxy (issue 83): answer the challenge on
+-                        // a new connection.
+-                        let (user, pass) =
+-                            self.auth.as_ref().expect("a challenge needs credentials");
+-                        let authority = authority_of(host, port);
+-                        let value = crate::proxy_auth::authorization(
+-                            &challenge,
+-                            user,
+-                            pass,
+-                            "CONNECT",
+-                            &authority,
+-                            &crate::proxy_auth::cnonce(),
+-                            1,
+-                        );
+-                        stream = self
+-                            .open(timeout)
+-                            .await
+-                            .with_context(|| format!("connecting to the proxy {self} again"))?;
+-                        if self
+-                            .http_connect(&mut stream, host, port, timeout, Some(value))
+-                            .await?
+-                            .is_some()
+-                        {
+-                            bail!("the proxy {self} refused the Digest answer (407)");
+-                        }
+-                    }
+-                }
+-                ProxyKind::Socks5 { remote_dns } => {
+-                    self.socks5_connect(&mut stream, host, port, remote_dns, timeout)
+-                        .await?
++/// A failed dial in podnet's words: through a proxy, `HOST:PORT through
++/// the proxy URL`, at the hop `proxy`, with its [`Refusal`]; directly,
++/// `connecting to HOST:PORT`, at the hop `dns` when the name did not
++/// resolve.
++fn failed(e: DialError, host: &str, port: u16, proxy: Option<&Proxy>) -> anyhow::Error {
++    let at = pod_proxy::authority(host, port);
++    match proxy {
++        Some(proxy) => {
++            let err = match &e {
++                DialError::ProxyRefused { status, reason, .. } => {
++                    anyhow::Error::new(Refusal::of(*status, reason))
+                 }
+-            }
+-            Ok::<BoxedIo, anyhow::Error>(stream)
+-        };
+-        work.await
+-            .with_context(|| format!("{host}:{port} through the proxy {self}"))
+-            .map_err(|e| crate::hop::at(crate::hop::Hop::Proxy, e))
+-    }
+-
+-    /// One CONNECT with `authorization` (the value of
+-    /// `Proxy-Authorization`). Gives the Digest challenge of a 407 when the
+-    /// first try was not Digest and credentials are there.
+-    async fn http_connect(
+-        &self,
+-        stream: &mut BoxedIo,
+-        host: &str,
+-        port: u16,
+-        timeout: Duration,
+-        authorization: Option<String>,
+-    ) -> Result<Option<crate::proxy_auth::Challenge>> {
+-        let authority = authority_of(host, port);
+-        let digest_tried = authorization
+-            .as_deref()
+-            .is_some_and(|a| a.starts_with("Digest "));
+-        let mut request = format!(
+-            "CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\nProxy-Connection: keep-alive\r\n"
+-        );
+-        if let Some(value) = &authorization {
+-            request.push_str(&format!("Proxy-Authorization: {value}\r\n"));
+-        }
+-        request.push_str("\r\n");
+-        tokio::time::timeout(timeout, stream.write_all(request.as_bytes()))
+-            .await
+-            .context("writing the CONNECT request: timed out")?
+-            .context("writing the CONNECT request")?;
+-
+-        let head = read_head(stream, timeout).await?;
+-        let status = parse_status(&head)?;
+-        if status == 407 && self.auth.is_some() && !digest_tried {
+-            let text = String::from_utf8_lossy(&head).to_string();
+-            let challenge = text.lines().find_map(|line| {
+-                let (name, value) = line.split_once(':')?;
+-                name.trim()
+-                    .eq_ignore_ascii_case("proxy-authenticate")
+-                    .then(|| crate::proxy_auth::parse_challenge(value))
+-                    .flatten()
+-            });
+-            if challenge.is_some() {
+-                return Ok(challenge);
+-            }
+-        }
+-        if status == 407 {
+-            return Err(Refusal {
+-                status,
+-                text: explain_407(&head, self.auth.is_some(), digest_tried),
+-            }
+-            .into());
++                _ => error_of(&e),
++            };
++            hop::at(
++                Hop::Proxy,
++                err.context(format!("{at} through the proxy {}", proxy.label())),
++            )
+         }
+-        if !(200..300).contains(&status) {
+-            let reason = reply_reason(stream, &head).await;
+-            return Err(Refusal {
+-                status,
+-                text: format!("the proxy refused CONNECT with HTTP {status}{reason}"),
++        None => {
++            let stage = e.stage_and_class().0;
++            let err = error_of(&e).context(format!("connecting to {at}"));
++            match stage {
++                Stage::Dns => hop::at(Hop::Dns, err),
++                Stage::Proxy => hop::at(Hop::Proxy, err),
++                _ => err,
+             }
+-            .into());
+         }
+-        Ok(None)
+     }
++}
+ 
+-    async fn socks5_connect(
+-        &self,
+-        stream: &mut BoxedIo,
+-        host: &str,
+-        port: u16,
+-        remote_dns: bool,
+-        timeout: Duration,
+-    ) -> Result<()> {
+-        let work = async {
+-            // The greeting: no authentication, and user and password when the
+-            // URL has them.
+-            let greeting: &[u8] = if self.auth.is_some() {
+-                &[5, 2, 0, 2]
+-            } else {
+-                &[5, 1, 0]
+-            };
+-            stream.write_all(greeting).await?;
+-            let mut choice = [0u8; 2];
+-            stream.read_exact(&mut choice).await?;
+-            if choice[0] != 5 {
+-                bail!("the proxy did not answer as SOCKS5");
+-            }
+-            match choice[1] {
+-                0 => {}
+-                2 => {
+-                    let (user, pass) = self.auth.as_ref().context(
+-                        "the proxy asks for a user and a password, and the URL has none",
+-                    )?;
+-                    let mut req = vec![1, user.len() as u8];
+-                    req.extend_from_slice(user.as_bytes());
+-                    req.push(pass.len() as u8);
+-                    req.extend_from_slice(pass.as_bytes());
+-                    stream.write_all(&req).await?;
+-                    let mut status = [0u8; 2];
+-                    stream.read_exact(&mut status).await?;
+-                    if status[1] != 0 {
+-                        bail!(
+-                            "the proxy refused the user and the password (SOCKS5 status {})",
+-                            status[1]
+-                        );
+-                    }
+-                }
+-                0xff => {
+-                    bail!(
+-                    "the proxy accepts none of the methods that podnet offers (no authentication{})",
+-                    if self.auth.is_some() { ", user and password" } else { "" }
+-                )
+-                }
+-                other => bail!("the proxy chose the method {other}, which podnet did not offer"),
+-            }
+-
+-            let mut req = vec![5, 1, 0];
+-            match host.parse::<IpAddr>() {
+-                Ok(IpAddr::V4(ip)) => {
+-                    req.push(1);
+-                    req.extend_from_slice(&ip.octets());
+-                }
+-                Ok(IpAddr::V6(ip)) => {
+-                    req.push(4);
+-                    req.extend_from_slice(&ip.octets());
+-                }
+-                Err(_) if remote_dns => {
+-                    if host.len() > 255 {
+-                        bail!("the name {host} is longer than 255 bytes");
+-                    }
+-                    req.push(3);
+-                    req.push(host.len() as u8);
+-                    req.extend_from_slice(host.as_bytes());
+-                }
+-                Err(_) => {
+-                    // The chain of podnet: --resolve pins, the system
+-                    // resolver, DoH (issue 274).
+-                    let ip = *crate::resolve::resolve(host)
+-                        .await
+-                        .with_context(|| format!("resolving {host} for socks5:// (use socks5h:// to let the proxy resolve it)"))?
+-                        .first()
+-                        .with_context(|| format!("{host} has no address"))?;
+-                    match ip {
+-                        IpAddr::V4(ip) => {
+-                            req.push(1);
+-                            req.extend_from_slice(&ip.octets());
+-                        }
+-                        IpAddr::V6(ip) => {
+-                            req.push(4);
+-                            req.extend_from_slice(&ip.octets());
+-                        }
+-                    }
+-                }
+-            }
+-            req.extend_from_slice(&port.to_be_bytes());
+-            stream.write_all(&req).await?;
+-
+-            let mut reply = [0u8; 4];
+-            stream.read_exact(&mut reply).await?;
+-            if reply[0] != 5 {
+-                bail!("the proxy did not answer the SOCKS5 CONNECT");
+-            }
+-            if reply[1] != 0 {
+-                return Err(Refusal {
+-                    status: 0,
+-                    text: format!(
+-                        "the proxy refused the SOCKS5 CONNECT: {}",
+-                        socks5_reply(reply[1])
+-                    ),
+-                }
+-                .into());
+-            }
+-            let skip = match reply[3] {
+-                1 => 4,
+-                4 => 16,
+-                3 => {
+-                    let mut len = [0u8; 1];
+-                    stream.read_exact(&mut len).await?;
+-                    len[0] as usize
+-                }
+-                other => bail!("the SOCKS5 reply has the address type {other}"),
+-            };
+-            let mut bound = vec![0u8; skip + 2];
+-            stream.read_exact(&mut bound).await?;
+-            Ok(())
+-        };
+-        tokio::time::timeout(timeout, work)
+-            .await
+-            .context("the SOCKS5 exchange timed out")?
++/// The error of a dial: when every address failed, the error of I/O of the
++/// last one, with its kind and the words of each address (`podnet doctor`
++/// reads a refusal of this host by the kind); else the error of the dial.
++fn error_of(e: &DialError) -> anyhow::Error {
++    match e {
++        DialError::Connect {
++            kind: Some(kind),
++            detail,
++            ..
++        } => anyhow::Error::new(std::io::Error::new(*kind, detail.clone())),
++        _ => anyhow::Error::new(e.clone()),
+     }
+ }
+ 
+ /// A proxy answered and refused the connection: an HTTP status that is not
+ /// 2xx (`status`), or a SOCKS5 refusal (`status` 0). A lost connection is
+ /// not a refusal.
+-#[derive(Debug)]
++#[derive(Debug, Clone)]
+ pub struct Refusal {
+     pub status: u16,
+     pub text: String,
+ }
+ 
++impl Refusal {
++    /// The refusal of a proxy's `status` and `reason` (`pod-proxy` gives a
++    /// SOCKS5 refusal the status of its HTTP case, and a reason that starts
++    /// with `SOCKS5`).
++    fn of(status: u16, reason: &str) -> Refusal {
++        if reason.starts_with("SOCKS5") {
++            return Refusal {
++                status: 0,
++                text: reason.to_string(),
++            };
++        }
++        let text = match reason.trim() {
++            "" => format!("the proxy refused CONNECT with HTTP {status}"),
++            reason => format!("the proxy refused CONNECT with HTTP {status}: {reason}"),
++        };
++        Refusal { status, text }
++    }
++}
++
+ impl std::fmt::Display for Refusal {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         f.write_str(&self.text)
+@@ -594,1114 +286,236 @@ pub fn refusal(err: &anyhow::Error) -> Option<&Refusal> {
+     // An error with a hop holds the refusal in its own chain.
+     err.chain().find_map(|e| {
+         e.downcast_ref::<Refusal>().or_else(|| {
+-            e.downcast_ref::<crate::hop::AtHop>()
++            e.downcast_ref::<hop::AtHop>()
+                 .and_then(|h| refusal(h.inner()))
+         })
+     })
+ }
+ 
+-/// The reason of a refusal: the reason phrase of the status line, and the
+-/// first line of the body (for example "not on the egress allowlist"),
+-/// with no control characters. Reads at most 512 bytes of the body, for
+-/// at most 2 s.
+-async fn reply_reason(stream: &mut BoxedIo, head: &[u8]) -> String {
+-    let text = String::from_utf8_lossy(head);
+-    let phrase = text
+-        .lines()
+-        .next()
+-        .and_then(|l| l.splitn(3, ' ').nth(2))
+-        .unwrap_or("")
+-        .trim()
+-        .to_string();
+-    let length = text.lines().find_map(|l| {
+-        let (name, value) = l.split_once(':')?;
+-        name.trim()
+-            .eq_ignore_ascii_case("content-length")
+-            .then(|| value.trim().parse::<usize>().ok())?
+-    });
+-    let mut body = Vec::new();
+-    let want = length.unwrap_or(512).min(512);
+-    let mut chunk = [0u8; 512];
+-    while body.len() < want {
+-        match tokio::time::timeout(Duration::from_secs(2), stream.read(&mut chunk)).await {
+-            Ok(Ok(n)) if n > 0 => body.extend_from_slice(&chunk[..n]),
+-            _ => break,
+-        }
+-    }
+-    body.truncate(want);
+-    let first = String::from_utf8_lossy(&body)
+-        .lines()
+-        .map(str::trim)
+-        .find(|l| !l.is_empty())
+-        .unwrap_or("")
+-        .to_string();
+-    let mut parts = Vec::new();
+-    for part in [phrase, first] {
+-        let part = crate::report::clean(&part);
+-        if !part.is_empty() && !parts.contains(&part) {
+-            parts.push(part);
+-        }
+-    }
+-    if parts.is_empty() {
+-        String::new()
+-    } else {
+-        format!(": {}", parts.join(": "))
+-    }
+-}
+-
+-fn socks5_reply(code: u8) -> &'static str {
+-    match code {
+-        1 => "general failure",
+-        2 => "not allowed by the rules of the proxy",
+-        3 => "network unreachable",
+-        4 => "host unreachable",
+-        5 => "connection refused",
+-        6 => "TTL expired",
+-        7 => "command not supported",
+-        8 => "address type not supported",
+-        _ => "unknown reply code",
+-    }
+-}
+-
+-/// The text for a `407` answer: the schemes in the `Proxy-Authenticate`
+-/// headers, and what podnet sent.
+-fn explain_407(head: &[u8], sent_basic: bool, digest_tried: bool) -> String {
+-    let text = String::from_utf8_lossy(head);
+-    let mut schemes: Vec<String> = Vec::new();
+-    for line in text.lines().skip(1) {
+-        let Some((name, value)) = line.split_once(':') else {
+-            continue;
+-        };
+-        if !name.trim().eq_ignore_ascii_case("proxy-authenticate") {
+-            continue;
+-        }
+-        for scheme in auth_schemes(value) {
+-            if !schemes.iter().any(|s| s.eq_ignore_ascii_case(&scheme)) {
+-                schemes.push(scheme);
+-            }
+-        }
+-    }
+-    let asks = if schemes.is_empty() {
+-        "it names no scheme (no Proxy-Authenticate header)".to_string()
+-    } else {
+-        format!("it asks for {}", schemes.join(" or "))
+-    };
+-    // Issue 180: podnet answers Digest too; the advice follows what podnet
+-    // sent and what the proxy asks for.
+-    let sent = if digest_tried {
+-        "podnet sent a Digest answer with the user and the password of the proxy URL, and the proxy refused it: check the user and the password"
+-    } else if sent_basic {
+-        "podnet sent Basic with the user and the password of the proxy URL"
+-    } else {
+-        "podnet sent no credentials (put user:password@ in the proxy URL)"
+-    };
+-    let has = |name: &str| schemes.iter().any(|s| s.eq_ignore_ascii_case(name));
+-    let advice = if schemes.is_empty() || has("basic") {
+-        ""
+-    } else if has("digest") {
+-        if sent_basic && !digest_tried {
+-            "; the Digest challenge has an algorithm or a qop that podnet does not answer (podnet answers MD5, MD5-sess, SHA-256 and SHA-256-sess with qop auth)"
+-        } else {
+-            ""
+-        }
+-    } else {
+-        "; podnet supports Basic and Digest only: ask for such an account, or use a local proxy that speaks the scheme (for example cntlm for NTLM)"
+-    };
+-    format!("the proxy requires authentication (HTTP 407): {asks}; {sent}{advice}")
+-}
+-
+-/// The scheme names of a `Proxy-Authenticate` value. One header can hold
+-/// several challenges: `NTLM, Negotiate, Basic realm="a, b"`.
+-fn auth_schemes(value: &str) -> Vec<String> {
+-    let mut schemes = Vec::new();
+-    let mut in_quotes = false;
+-    let mut token = String::new();
+-    let mut at_start = true;
+-    let mut chars = value.chars().peekable();
+-    while let Some(c) = chars.next() {
+-        if in_quotes {
+-            if c == '\\' {
+-                chars.next();
+-            } else if c == '"' {
+-                in_quotes = false;
+-            }
+-            continue;
+-        }
+-        match c {
+-            '"' => in_quotes = true,
+-            ',' => {
+-                if at_start && !token.is_empty() {
+-                    schemes.push(std::mem::take(&mut token));
+-                }
+-                token.clear();
+-                at_start = true;
+-            }
+-            ' ' | '\t' => {
+-                if at_start && !token.is_empty() {
+-                    schemes.push(std::mem::take(&mut token));
+-                    at_start = false;
+-                }
+-            }
+-            '=' => {
+-                // A parameter (`realm=...`) of the challenge before.
+-                token.clear();
+-                at_start = false;
+-            }
+-            c if at_start => token.push(c),
+-            _ => {}
+-        }
+-    }
+-    if at_start && !token.is_empty() {
+-        schemes.push(token);
+-    }
+-    schemes
+-}
+-
+-/// The targets that do not use the proxy: the value of `NO_PROXY`, entries
+-/// separated by commas or spaces.
+-///
+-/// * `*` matches each target.
+-/// * `example.com` and `.example.com` match `example.com` and each name
+-///   under it.
+-/// * An IP address matches that address; `10.0.0.0/8` matches the network.
+-/// * An entry with `:port` matches that port only.
+-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+-pub struct NoProxy {
+-    entries: Vec<NoProxyEntry>,
++/// The dial of podnet for a crate that takes a [`Dial`] (the HTTP client of
++/// [`crate::fetch`]): [`dial`], through `via` or the choice of the process,
++/// with podnet's words; the error is the cause of the failure.
++pub struct Egress {
++    via: Option<Proxy>,
+ }
+ 
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-enum NoProxyEntry {
+-    All,
+-    Name {
+-        name: String,
+-        port: Option<u16>,
+-    },
+-    Net {
+-        ip: IpAddr,
+-        prefix: u8,
+-        port: Option<u16>,
+-    },
++/// The dial of the process, or through `via` alone.
++pub fn egress(via: Option<Proxy>) -> Arc<dyn Dial> {
++    Arc::new(Egress { via })
+ }
+ 
+-impl NoProxy {
+-    /// Read `NO_PROXY`, else `no_proxy`.
+-    pub fn from_env() -> Self {
+-        NO_PROXY_VARIABLES
+-            .iter()
+-            .find_map(|key| std::env::var(key).ok().filter(|v| !v.trim().is_empty()))
+-            .map(|v| Self::parse(&v))
+-            .unwrap_or_default()
+-    }
+-
+-    /// Parse a list. An entry that cannot be read is skipped with a warning.
+-    pub fn parse(list: &str) -> Self {
+-        let mut entries = Vec::new();
+-        for raw in list
+-            .split([',', ' ', '\t'])
+-            .map(str::trim)
+-            .filter(|e| !e.is_empty())
+-        {
+-            match parse_no_proxy_entry(raw) {
+-                Some(entry) => entries.push(entry),
+-                None => {
+-                    tracing::warn!(entry = %raw, "ignoring a NO_PROXY entry that cannot be read")
+-                }
+-            }
+-        }
+-        Self { entries }
+-    }
+-
+-    /// True when `host:port` does not use the proxy.
+-    pub fn matches(&self, host: &str, port: u16) -> bool {
+-        let host = host
+-            .trim_start_matches('[')
+-            .trim_end_matches(']')
+-            .trim_end_matches('.')
+-            .to_ascii_lowercase();
+-        let ip = host.parse::<IpAddr>().ok();
+-        self.entries.iter().any(|entry| match entry {
+-            NoProxyEntry::All => true,
+-            NoProxyEntry::Name { name, port: p } => {
+-                p.is_none_or(|p| p == port)
+-                    && (host == *name || host.ends_with(&format!(".{name}")))
+-            }
+-            NoProxyEntry::Net {
+-                ip: net,
+-                prefix,
+-                port: p,
+-            } => p.is_none_or(|p| p == port) && ip.is_some_and(|ip| in_net(ip, *net, *prefix)),
+-        })
+-    }
+-}
+-
+-fn parse_no_proxy_entry(raw: &str) -> Option<NoProxyEntry> {
+-    if raw == "*" {
+-        return Some(NoProxyEntry::All);
+-    }
+-    let raw = raw.to_ascii_lowercase();
+-    // `[v6]:port`, `v4:port`, `name:port`; a bare IPv6 address has no port.
+-    let (body, port) = if let Some(rest) = raw.strip_prefix('[') {
+-        let (addr, tail) = rest.split_once(']')?;
+-        let port = match tail.strip_prefix(':') {
+-            Some(p) => Some(p.parse().ok()?),
+-            None if tail.is_empty() => None,
+-            None => return None,
+-        };
+-        (addr.to_string(), port)
+-    } else if raw.matches(':').count() == 1 && !raw.contains('/') {
+-        let (body, p) = raw.rsplit_once(':')?;
+-        (body.to_string(), Some(p.parse().ok()?))
+-    } else {
+-        (raw.clone(), None)
+-    };
+-    if let Some((addr, prefix)) = body.split_once('/') {
+-        let ip: IpAddr = addr.parse().ok()?;
+-        let prefix: u8 = prefix.parse().ok()?;
+-        let max = if ip.is_ipv4() { 32 } else { 128 };
+-        return (prefix <= max).then_some(NoProxyEntry::Net { ip, prefix, port });
+-    }
+-    if let Ok(ip) = body.parse::<IpAddr>() {
+-        let prefix = if ip.is_ipv4() { 32 } else { 128 };
+-        return Some(NoProxyEntry::Net { ip, prefix, port });
+-    }
+-    let name = body
+-        .trim_start_matches("*.")
+-        .trim_start_matches('.')
+-        .trim_end_matches('.');
+-    if name.is_empty()
+-        || !name
+-            .chars()
+-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
+-    {
+-        return None;
+-    }
+-    Some(NoProxyEntry::Name {
+-        name: name.to_string(),
+-        port,
+-    })
++/// The way out of one request through `proxy`, or the client's with none
++/// ([`pod_proxy::client::Request::via`]).
++pub fn via(proxy: Option<&Proxy>) -> Option<Arc<dyn Dial>> {
++    proxy.map(|p| egress(Some(p.clone())))
+ }
+ 
+-fn in_net(ip: IpAddr, net: IpAddr, prefix: u8) -> bool {
+-    match (ip, net) {
+-        (IpAddr::V4(ip), IpAddr::V4(net)) => {
+-            let mask = if prefix == 0 {
+-                0
+-            } else {
+-                u32::MAX << (32 - prefix)
+-            };
+-            u32::from(ip) & mask == u32::from(net) & mask
+-        }
+-        (IpAddr::V6(ip), IpAddr::V6(net)) => {
+-            let mask = if prefix == 0 {
+-                0
+-            } else {
+-                u128::MAX << (128 - prefix)
+-            };
+-            u128::from(ip) & mask == u128::from(net) & mask
+-        }
+-        _ => false,
+-    }
+-}
+-
+-/// `host:port`, or `[host]:port` for an IPv6 address.
+-fn authority_of(host: &str, port: u16) -> String {
+-    if host.contains(':') {
+-        format!("[{host}]:{port}")
+-    } else {
+-        format!("{host}:{port}")
+-    }
+-}
+-
+-/// The proxy of the tool configs of this host (issue 83), read one time:
+-/// used when no proxy variable is set.
+-fn detected_proxy() -> Option<Proxy> {
+-    static DETECTED: OnceLock<Option<Proxy>> = OnceLock::new();
+-    DETECTED
+-        .get_or_init(|| {
+-            let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+-            let (spec, path) = crate::proxy_auth::detect(home.as_deref())?;
+-            match Proxy::parse(&spec) {
+-                Ok(proxy) => {
+-                    tracing::info!(proxy = %proxy, from = %path.display(), "no proxy variable; the proxy of a tool config is used (--no-proxy turns it off)");
+-                    Some(proxy)
+-                }
+-                Err(err) => {
+-                    tracing::warn!(from = %path.display(), error = %err, "a tool config names a proxy that cannot be parsed");
+-                    None
++impl Dial for Egress {
++    fn label(&self) -> String {
++        match &self.via {
++            Some(proxy) => proxy.label(),
++            None => way().dialer.label(),
++        }
++    }
++
++    fn dial<'a>(
++        &'a self,
++        target: &'a Target,
++        deadline: Instant,
++    ) -> BoxFuture<'a, Result<Connected, Failure>> {
++        Box::pin(async move {
++            let limit = deadline.saturating_duration_since(Instant::now());
++            match dial(&target.host(), target.port(), self.via.as_ref(), limit).await {
++                Ok(io) => Ok(Connected::new(Box::new(io))),
++                Err(e) => {
++                    let stage = match hop::of(&e) {
++                        Some(Hop::Proxy) => Stage::Proxy,
++                        Some(Hop::Dns) => Stage::Dns,
++                        _ => Stage::Connect,
++                    };
++                    Err(Failure::caused(
++                        stage,
++                        Class::Unavailable,
++                        format!("{e:#}"),
++                        e,
++                    ))
+                 }
+             }
+         })
+-        .clone()
+-}
+-
+-/// How podnet reaches the network.
+-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+-pub enum ProxyChoice {
+-    /// The proxy of the variables, if one is set (the default).
+-    #[default]
+-    FromEnvironment,
+-    /// No proxy (`--no-proxy`).
+-    Direct,
+-    /// This proxy (`--proxy URL`).
+-    Via(Proxy),
+-}
+-
+-static CHOICE: OnceLock<ProxyChoice> = OnceLock::new();
+-
+-/// Set the choice of this process. Call it before the first connection; a
+-/// later call has no effect.
+-pub fn set_choice(choice: ProxyChoice) {
+-    let _ = CHOICE.set(choice);
+-}
+-
+-/// The choice of this process.
+-pub fn choice() -> ProxyChoice {
+-    CHOICE.get().cloned().unwrap_or_default()
+-}
+-
+-/// The proxy for `host:port`, after `NO_PROXY`, or `None` for a direct
+-/// connection.
+-pub fn proxy_for(host: &str, port: u16) -> Option<Proxy> {
+-    proxy_decision(host, port).0
+-}
+-
+-/// [`proxy_for`], and the name of the decision (issue 137): `direct`
+-/// (`--no-proxy`), `none` (no proxy is set), `no_proxy` (a `NO_PROXY`
+-/// match), or the kind of the proxy.
+-fn proxy_decision(host: &str, port: u16) -> (Option<Proxy>, &'static str) {
+-    let proxy = match choice() {
+-        ProxyChoice::Direct => return (None, "direct"),
+-        ProxyChoice::Via(proxy) => proxy,
+-        ProxyChoice::FromEnvironment => match Proxy::from_env().or_else(detected_proxy) {
+-            Some(proxy) => proxy,
+-            None => return (None, "none"),
+-        },
+-    };
+-    if NoProxy::from_env().matches(host, port) {
+-        return (None, "no_proxy");
+     }
+-    let kind = proxy.decision_name();
+-    (Some(proxy), kind)
+-}
+ 
+-impl Proxy {
+-    /// The name of the proxy for the decision counters: `unix`, `exec`,
+-    /// `http` or `socks5`.
+-    fn decision_name(&self) -> &'static str {
+-        match (&self.via, &self.kind) {
+-            (Carrier::Unix(_), _) => "unix",
+-            (Carrier::Exec(_), _) => "exec",
+-            (Carrier::Tcp, ProxyKind::Http) => "http",
+-            (Carrier::Tcp, ProxyKind::Socks5 { .. }) => "socks5",
++    fn names_inside(&self) -> bool {
++        match &self.via {
++            Some(proxy) => proxy.kind() != (ProxyKind::Socks5 { remote_dns: false }),
++            None => way().dialer.names_inside(),
+         }
+     }
+ }
+ 
+-/// Connect to `host:port`: through `via` when it is given, else through the
+-/// proxy of [`proxy_for`], else directly.
+-pub async fn dial(
+-    host: &str,
+-    port: u16,
+-    via: Option<&Proxy>,
+-    timeout: Duration,
+-) -> Result<BoxedIo> {
+-    let (proxy, outcome) = match via {
+-        Some(proxy) => (Some(proxy.clone()), "via"),
+-        None => proxy_decision(host, port),
+-    };
+-    crate::decisions::count("egress", outcome);
+-    match proxy {
+-        Some(proxy) => proxy.connect(host, port, timeout).await,
+-        None => Ok(Box::new(dial_direct(host, port, timeout).await?)),
+-    }
+-}
+-
+-/// Connect to `host:port` with no proxy: each address of the name, with
+-/// [`ATTEMPT_DELAY`] between the starts.
+-pub async fn dial_direct(host: &str, port: u16, timeout: Duration) -> Result<TcpStream> {
+-    dial_resolved(host, port, timeout, true).await
++/// podnet's resolver as the dial asks it: the chain of [`crate::resolve`]
++/// (an IP address, the pins, the system resolver, DoH), one source; with no
++/// DoH for the host of a proxy.
++struct Resolver {
++    doh: bool,
+ }
+ 
+-/// [`dial_direct`]; with `doh` false, the chain does not ask DoH.
+-async fn dial_resolved(host: &str, port: u16, timeout: Duration, doh: bool) -> Result<TcpStream> {
+-    let host = host.trim_start_matches('[').trim_end_matches(']');
+-    let lookup = if doh {
+-        crate::resolve::resolve(host)
+-    } else {
+-        crate::resolve::resolve_no_doh(host)
+-    };
+-    let addrs: Vec<SocketAddr> = tokio::time::timeout(timeout, lookup)
+-        .await
+-        .with_context(|| {
+-            format!(
+-                "resolving {host}: no answer in {:.1} s",
+-                timeout.as_secs_f64()
+-            )
+-        })
+-        .and_then(|r| r)
+-        .map_err(|e| crate::hop::at(crate::hop::Hop::Dns, e))?
+-        .into_iter()
+-        .map(|ip| SocketAddr::new(ip, port))
+-        .collect();
+-    let (_, stream) = dial_addrs(&interleave(addrs), timeout)
+-        .await
+-        .with_context(|| format!("connecting to {host}:{port}"))?;
+-    Ok(stream)
+-}
++/// The one source of podnet's chain.
++const CHAIN: Source = Source {
++    rank: 0,
++    name: "chain",
++};
+ 
+-/// The errors of a dial to more than one address, one entry for each
+-/// text (issue 95: the doctor showed 20 errors on one line):
+-/// `198.41.192.7:7844: refused` or `20 addresses (198.41.192.7:7844,
+-/// 198.41.192.27:7844, ...): Permission denied (os error 13)`.
+-pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
+-    let mut groups: Vec<(&str, Vec<SocketAddr>)> = Vec::new();
+-    for (addr, text) in errors {
+-        match groups.iter_mut().find(|(t, _)| *t == text.as_str()) {
+-            Some((_, addrs)) => addrs.push(*addr),
+-            None => groups.push((text, vec![*addr])),
+-        }
+-    }
+-    groups
+-        .iter()
+-        .map(|(text, addrs)| match addrs.as_slice() {
+-            [one] => format!("{one}: {text}"),
+-            many => {
+-                let shown: Vec<String> = many.iter().take(2).map(|a| a.to_string()).collect();
+-                let more = if many.len() > 2 { ", ..." } else { "" };
+-                format!(
+-                    "{} addresses ({}{more}): {text}",
+-                    many.len(),
+-                    shown.join(", ")
+-                )
+-            }
+-        })
+-        .collect::<Vec<_>>()
+-        .join("; ")
+-}
+-
+-/// Alternate IPv6 and IPv4 addresses, the first family first (RFC 8305).
+-fn interleave(addrs: Vec<SocketAddr>) -> Vec<SocketAddr> {
+-    let Some(first) = addrs.first().copied() else {
+-        return addrs;
+-    };
+-    let (same, other): (Vec<_>, Vec<_>) = addrs
+-        .into_iter()
+-        .partition(|a| a.is_ipv6() == first.is_ipv6());
+-    let mut out = Vec::with_capacity(same.len() + other.len());
+-    let (mut a, mut b) = (same.into_iter(), other.into_iter());
+-    loop {
+-        match (a.next(), b.next()) {
+-            (None, None) => break,
+-            (x, y) => out.extend(x.into_iter().chain(y)),
++impl Resolve for Resolver {
++    fn label(&self) -> String {
++        if self.doh {
++            "the chain of podnet".into()
++        } else {
++            "the chain of podnet with no DoH".into()
+         }
+     }
+-    out
+-}
+ 
+-/// Connect to the first of `addrs` that answers. The attempts start
+-/// [`ATTEMPT_DELAY`] apart, or at once when the attempt before fails. Gives
+-/// the index of the address and the stream.
+-pub async fn dial_addrs(addrs: &[SocketAddr], timeout: Duration) -> Result<(usize, TcpStream)> {
+-    use futures::stream::{FuturesUnordered, StreamExt};
+-    if addrs.is_empty() {
+-        bail!("no address to connect to");
+-    }
+-    let work = async {
+-        let attempt = |i: usize| {
+-            let addr = addrs[i];
+-            async move { (i, TcpStream::connect(addr).await) }
+-        };
+-        let mut pending = FuturesUnordered::new();
+-        let mut next = 0;
+-        let mut errors = Vec::new();
+-        loop {
+-            if next < addrs.len() && (pending.is_empty() || next == 0) {
+-                pending.push(attempt(next));
+-                next += 1;
++    fn resolve_from<'a>(
++        &'a self,
++        host: &'a str,
++        port: u16,
++        deadline: Instant,
++        after: Option<Source>,
++    ) -> BoxFuture<'a, Result<Found, Failure>> {
++        Box::pin(async move {
++            if after.is_some() {
++                return Err(Failure::new(
++                    Stage::Dns,
++                    Class::Unavailable,
++                    "no source after the chain of podnet",
++                ));
+             }
+-            let delay = tokio::time::sleep(ATTEMPT_DELAY);
+-            tokio::select! {
+-                Some((i, result)) = pending.next() => match result {
+-                    Ok(stream) => {
+-                        let _ = stream.set_nodelay(true);
+-                        return Ok((i, stream));
+-                    }
+-                    Err(err) => {
+-                        // Issue 126: EMFILE names the limit.
+-                        let text = crate::rlimit::hint(&err).unwrap_or_else(|| err.to_string());
+-                        let kind = err.kind();
+-                        errors.push((addrs[i], text));
+-                        if pending.is_empty() && next >= addrs.len() {
+-                            // Issue 180: the kind of the error stays (a
+-                            // refusal is an answer for podnet doctor).
+-                            return Err(anyhow::Error::new(std::io::Error::new(
+-                                kind,
+-                                group_errors(&errors),
+-                            )));
+-                        }
+-                    }
+-                },
+-                _ = delay, if next < addrs.len() => {
+-                    pending.push(attempt(next));
+-                    next += 1;
++            let lookup = if self.doh {
++                crate::resolve::resolve(host)
++            } else {
++                crate::resolve::resolve_no_doh(host)
++            };
++            let left = deadline.saturating_duration_since(Instant::now());
++            let ips: Vec<IpAddr> = match tokio::time::timeout_at(deadline, lookup).await {
++                Ok(Ok(ips)) => ips,
++                Ok(Err(e)) => {
++                    // The chain names the host itself; the dial names it too.
++                    let text = format!("{e:#}");
++                    let bare = host.trim_start_matches('[').trim_end_matches(']');
++                    let text = text
++                        .strip_prefix(&format!("resolving {bare}: "))
++                        .unwrap_or(&text)
++                        .to_string();
++                    return Err(Failure::new(Stage::Dns, Class::Unavailable, text));
++                }
++                Err(_) => {
++                    let text = format!("no answer in {:.1} s", left.as_secs_f64());
++                    return Err(Failure::new(Stage::Dns, Class::Timeout, text));
+                 }
+-            }
+-        }
+-    };
+-    tokio::time::timeout(timeout, work)
+-        .await
+-        .with_context(|| format!("no address answered in {} s", timeout.as_secs()))?
+-}
+-
+-/// The stdin and the stdout of a command as one byte stream (issue 129).
+-/// The command runs with `sh -c`; its stderr is the stderr of podnet. The
+-/// end of the stream closes its stdin; a drop kills it.
+-pub struct ChildIo {
+-    child: tokio::process::Child,
+-    stdin: Option<tokio::process::ChildStdin>,
+-    stdout: tokio::process::ChildStdout,
+-}
+-
+-impl ChildIo {
+-    pub fn spawn(command: &str) -> Result<Self> {
+-        let mut child = tokio::process::Command::new("sh")
+-            .arg("-c")
+-            .arg(command)
+-            .stdin(std::process::Stdio::piped())
+-            .stdout(std::process::Stdio::piped())
+-            .stderr(std::process::Stdio::inherit())
+-            .kill_on_drop(true)
+-            .spawn()
+-            .context("starting the proxy command (sh -c)")?;
+-        let stdin = child.stdin.take();
+-        let stdout = child
+-            .stdout
+-            .take()
+-            .context("the stdout of the proxy command")?;
+-        Ok(Self {
+-            child,
+-            stdin,
+-            stdout,
+-        })
+-    }
+-
+-    /// The exit status, when the command has ended.
+-    pub fn exited(&mut self) -> Option<std::process::ExitStatus> {
+-        self.child.try_wait().ok().flatten()
+-    }
+-}
+-
+-impl tokio::io::AsyncRead for ChildIo {
+-    fn poll_read(
+-        mut self: std::pin::Pin<&mut Self>,
+-        cx: &mut std::task::Context<'_>,
+-        buf: &mut tokio::io::ReadBuf<'_>,
+-    ) -> std::task::Poll<std::io::Result<()>> {
+-        std::pin::Pin::new(&mut self.stdout).poll_read(cx, buf)
+-    }
+-}
+-
+-impl tokio::io::AsyncWrite for ChildIo {
+-    fn poll_write(
+-        mut self: std::pin::Pin<&mut Self>,
+-        cx: &mut std::task::Context<'_>,
+-        data: &[u8],
+-    ) -> std::task::Poll<std::io::Result<usize>> {
+-        match self.stdin.as_mut() {
+-            Some(stdin) => std::pin::Pin::new(stdin).poll_write(cx, data),
+-            None => std::task::Poll::Ready(Err(std::io::ErrorKind::BrokenPipe.into())),
+-        }
+-    }
+-
+-    fn poll_flush(
+-        mut self: std::pin::Pin<&mut Self>,
+-        cx: &mut std::task::Context<'_>,
+-    ) -> std::task::Poll<std::io::Result<()>> {
+-        match self.stdin.as_mut() {
+-            Some(stdin) => std::pin::Pin::new(stdin).poll_flush(cx),
+-            None => std::task::Poll::Ready(Ok(())),
+-        }
+-    }
+-
+-    fn poll_shutdown(
+-        mut self: std::pin::Pin<&mut Self>,
+-        _cx: &mut std::task::Context<'_>,
+-    ) -> std::task::Poll<std::io::Result<()>> {
+-        self.stdin = None;
+-        std::task::Poll::Ready(Ok(()))
+-    }
+-}
+-
+-/// Split `host:port`, `[v6]:port` or a bare host. Refuse a host with a
+-/// character that has no place in a host name.
+-fn split_host_port(authority: &str, default_port: u16) -> Result<(String, u16)> {
+-    if authority.is_empty() {
+-        bail!("proxy URL has no host");
+-    }
+-    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+-        let (host, tail) = rest
+-            .split_once(']')
+-            .context("proxy IPv6 address is missing its closing bracket")?;
+-        let port = match tail.strip_prefix(':') {
+-            Some(port) => port.parse().context("proxy port is not a number")?,
+-            None if tail.is_empty() => default_port,
+-            None => bail!("text after the IPv6 address of the proxy"),
+-        };
+-        host.parse::<std::net::Ipv6Addr>()
+-            .context("the proxy host in brackets is not an IPv6 address")?;
+-        (host.to_string(), port)
+-    } else {
+-        match authority.rsplit_once(':') {
+-            Some((host, port)) => (
+-                host.to_string(),
+-                port.parse().context("proxy port is not a number")?,
+-            ),
+-            None => (authority.to_string(), default_port),
+-        }
+-    };
+-    if host.is_empty() {
+-        bail!("proxy URL has no host");
+-    }
+-    if host
+-        .chars()
+-        .any(|c| c.is_control() || c.is_whitespace() || "[]@/?#\\%".contains(c))
+-        && !host.contains(':')
+-    {
+-        bail!("the proxy host has a character that a host name cannot have");
+-    }
+-    if port == 0 {
+-        bail!("the proxy port is 0");
+-    }
+-    Ok((host, port))
+-}
+-
+-/// Decode `%XX` escapes. A bad escape, or bytes that are not UTF-8, are an
+-/// error: a changed password gives a 407 with no cause.
+-fn percent_decode(input: &str) -> Result<String> {
+-    let bytes = input.as_bytes();
+-    let mut out = Vec::with_capacity(bytes.len());
+-    let mut i = 0;
+-    while i < bytes.len() {
+-        if bytes[i] == b'%' {
+-            let (Some(hi), Some(lo)) = (
+-                bytes.get(i + 1).and_then(|b| hex_val(*b)),
+-                bytes.get(i + 2).and_then(|b| hex_val(*b)),
+-            ) else {
+-                bail!("a bad percent escape at byte {i}");
+             };
+-            out.push(hi * 16 + lo);
+-            i += 3;
+-            continue;
+-        }
+-        out.push(bytes[i]);
+-        i += 1;
++            let addrs = ips
++                .into_iter()
++                .map(|ip| SocketAddr::new(ip, port))
++                .collect();
++            Ok(Found {
++                addrs,
++                source: CHAIN,
++                more: false,
++            })
++        })
+     }
+-    String::from_utf8(out).context("the decoded text is not UTF-8")
+ }
+ 
+-fn hex_val(b: u8) -> Option<u8> {
+-    match b {
+-        b'0'..=b'9' => Some(b - b'0'),
+-        b'a'..=b'f' => Some(b - b'a' + 10),
+-        b'A'..=b'F' => Some(b - b'A' + 10),
+-        _ => None,
+-    }
+-}
++/// The counters of the decisions of [`crate::decisions`].
++struct Counters;
+ 
+-/// Read bytes until the blank line that ends the response head.
+-async fn read_head(stream: &mut BoxedIo, timeout: Duration) -> Result<Vec<u8>> {
+-    let mut buf = Vec::with_capacity(512);
+-    let mut byte = [0u8; 1];
+-    // One byte at a time: no byte after the head is taken from the caller.
+-    loop {
+-        let n = tokio::time::timeout(timeout, stream.read(&mut byte))
+-            .await
+-            .context("reading the CONNECT response: timed out")?
+-            .context("reading the CONNECT response")?;
+-        if n == 0 {
+-            bail!("the proxy closed the connection before answering CONNECT");
+-        }
+-        buf.push(byte[0]);
+-        if buf.ends_with(b"\r\n\r\n") {
+-            return Ok(buf);
+-        }
+-        if buf.len() > MAX_HEADER_BYTES {
+-            bail!("the proxy response header exceeds {MAX_HEADER_BYTES} bytes");
+-        }
++impl pod_core::Observer for Counters {
++    fn decision(&self, decision: &'static str, outcome: &str) {
++        crate::decisions::count(decision, outcome);
+     }
+ }
+ 
+-/// Parse `HTTP/1.1 200 Connection established`.
++/// The status line of a proxy answer to `CONNECT` (the fuzz target).
+ pub(crate) fn parse_status(head: &[u8]) -> Result<u16> {
+-    let text = String::from_utf8_lossy(head);
+-    let line = text
+-        .lines()
+-        .next()
+-        .context("the proxy sent an empty response")?;
+-    let mut parts = line.split_whitespace();
+-    let version = parts.next().context("missing HTTP version")?;
+-    if !version.starts_with("HTTP/") {
+-        bail!("the proxy did not answer with HTTP");
+-    }
+-    let code = parts.next().context("missing HTTP status code")?;
+-    code.parse::<u16>()
+-        .context("the proxy status is not a number")
++    let line = String::from_utf8_lossy(head);
++    let (status, _) = pod_proxy::http::parse_status_line(&line).map_err(anyhow::Error::msg)?;
++    Ok(status)
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+-    /// Issue 83: a proxy that asks for Digest. The first CONNECT (Basic)
+-    /// gets 407 with a challenge; the second connection carries the Digest
+-    /// answer, and the proxy checks it.
+-    #[tokio::test]
+-    async fn a_digest_proxy_takes_the_answer() {
+-        crate::test_host::need_loopback!();
+-        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+-        let addr = listener.local_addr().unwrap();
+-        let server = tokio::spawn(async move {
+-            let read_head = |mut s: tokio::net::TcpStream| async move {
+-                let mut head = Vec::new();
+-                let mut b = [0u8; 1];
+-                while !head.ends_with(b"\r\n\r\n") {
+-                    s.read_exact(&mut b).await.unwrap();
+-                    head.push(b[0]);
+-                }
+-                (s, String::from_utf8(head).unwrap())
+-            };
+-            let (first, _) = listener.accept().await.unwrap();
+-            let (mut first, head) = read_head(first).await;
+-            assert!(head.contains("Proxy-Authorization: Basic "), "{head}");
+-            first
+-                .write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Digest realm=\"podnet-test\", nonce=\"abc123\", qop=\"auth\", algorithm=MD5\r\nContent-Length: 0\r\n\r\n")
+-                .await
+-                .unwrap();
+-            drop(first);
+-            let (second, _) = listener.accept().await.unwrap();
+-            let (mut second, head) = read_head(second).await;
+-            let line = head
+-                .lines()
+-                .find(|l| l.starts_with("Proxy-Authorization: Digest "))
+-                .expect("a Digest answer")
+-                .to_string();
+-            let field = |name: &str| {
+-                let start = line.find(&format!("{name}=")).unwrap() + name.len() + 1;
+-                let rest = &line[start..];
+-                let rest = rest.trim_start_matches('"');
+-                rest[..rest.find(['"', ',']).unwrap_or(rest.len())].to_string()
+-            };
+-            let challenge = crate::proxy_auth::parse_challenge(
+-                "Digest realm=\"podnet-test\", nonce=\"abc123\", qop=\"auth\", algorithm=MD5",
+-            )
+-            .unwrap();
+-            let want = crate::proxy_auth::authorization(
+-                &challenge,
+-                "user",
+-                "pa:ss",
+-                "CONNECT",
+-                "example.test:443",
+-                &field("cnonce"),
+-                1,
+-            );
+-            assert_eq!(&line["Proxy-Authorization: ".len()..], want);
+-            second
+-                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+-                .await
+-                .unwrap();
+-            second.write_all(b"through").await.unwrap();
+-        });
+-        let proxy = super::Proxy::parse(&format!("http://user:pa%3Ass@{addr}")).unwrap();
+-        let mut io = proxy
+-            .connect("example.test", 443, std::time::Duration::from_secs(5))
+-            .await
+-            .unwrap();
+-        let mut got = [0u8; 7];
+-        io.read_exact(&mut got).await.unwrap();
+-        assert_eq!(&got, b"through");
+-        server.await.unwrap();
+-    }
+-
+     use super::*;
+ 
+-    // Issue 129: a proxy on a unix socket, or at a command.
++    /// podnet's words of a refusal: the status and the reason, and a SOCKS5
++    /// refusal with the status 0.
+     #[test]
+-    fn the_carriers_parse() {
+-        for spec in ["socks5h+unix:/run/w.sock", "socks5h://unix:/run/w.sock"] {
+-            let p = Proxy::parse(spec).unwrap();
+-            assert_eq!(p.carrier(), &Carrier::Unix("/run/w.sock".into()), "{spec}");
+-            assert_eq!(p.kind(), ProxyKind::Socks5 { remote_dns: true });
+-            assert_eq!(p.to_string(), "socks5h+unix:/run/w.sock");
+-        }
+-        assert!(Proxy::parse("http+unix:relative.sock").is_err());
+-        let spec = "http+exec:ssh -i /secret/key gw nc 127.0.0.1 3128";
+-        assert!(
+-            Proxy::parse(spec).is_err(),
+-            "a variable does not start a command"
+-        );
+-        let p = Proxy::parse_trusted(spec).unwrap();
+-        assert_eq!(p.kind(), ProxyKind::Http);
+-        assert!(matches!(p.carrier(), Carrier::Exec(c) if c.starts_with("ssh -i")));
+-        assert_eq!(p.to_string(), "http+exec:ssh ...");
+-        assert!(!format!("{p:?}").contains("secret"));
+-        assert!(Proxy::parse_trusted("http+exec:  ").is_err());
+-    }
+-
+-    /// An HTTP CONNECT proxy on a unix socket that answers 200 and echoes.
+-    async fn unix_connect_echo(path: std::path::PathBuf) {
+-        let listener = tokio::net::UnixListener::bind(&path).unwrap();
+-        tokio::spawn(async move {
+-            while let Ok((mut s, _)) = listener.accept().await {
+-                tokio::spawn(async move {
+-                    let mut head = Vec::new();
+-                    let mut b = [0u8; 1];
+-                    while !head.ends_with(b"\r\n\r\n") {
+-                        if s.read_exact(&mut b).await.is_err() {
+-                            return;
+-                        }
+-                        head.push(b[0]);
+-                    }
+-                    assert!(head.starts_with(b"CONNECT echo.test:7 HTTP/1.1"));
+-                    s.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await.unwrap();
+-                    let (mut r, mut w) = s.split();
+-                    let _ = tokio::io::copy(&mut r, &mut w).await;
+-                });
+-            }
+-        });
+-    }
+-
+-    async fn round_trip(proxy: &Proxy) -> Vec<u8> {
+-        let mut io = proxy
+-            .connect("echo.test", 7, Duration::from_secs(5))
+-            .await
+-            .unwrap();
+-        io.write_all(b"ping").await.unwrap();
+-        let mut back = [0u8; 4];
+-        tokio::time::timeout(Duration::from_secs(5), io.read_exact(&mut back))
+-            .await
+-            .unwrap()
+-            .unwrap();
+-        back.to_vec()
+-    }
+-
+-    #[tokio::test]
+-    async fn a_proxy_on_a_unix_socket_carries_a_connection() {
+-        let dir = tempfile::tempdir().unwrap();
+-        let path = dir.path().join("p.sock");
+-        unix_connect_echo(path.clone()).await;
+-        let proxy = Proxy::parse(&format!("http+unix:{}", path.display())).unwrap();
+-        assert_eq!(round_trip(&proxy).await, b"ping");
+-    }
+-
+-    // Issue 129: the proxy is at the stdin and the stdout of a command: a
+-    // shell script reads the CONNECT, answers 200, then echoes.
+-    #[tokio::test]
+-    async fn a_proxy_command_carries_a_connection() {
+-        let script = r#"http+exec:while IFS= read -r l; do [ "$l" = "$(printf '\r')" ] && break; done; printf 'HTTP/1.1 200 OK\r\n\r\n'; exec cat"#;
+-        let proxy = Proxy::parse_trusted(script).unwrap();
+-        assert_eq!(round_trip(&proxy).await, b"ping");
+-        let proxy = Proxy::parse_trusted("http+exec:exit 3").unwrap();
+-        let Err(err) = proxy.connect("echo.test", 7, Duration::from_secs(5)).await else {
+-            panic!("a command that exits is no proxy");
+-        };
++    fn a_refusal_has_podnet_s_words() {
++        let refused = Refusal::of(403, "Forbidden: not on the egress allowlist");
++        assert_eq!(refused.status, 403);
+         assert_eq!(
+-            crate::hop::of(&err),
+-            Some(crate::hop::Hop::Proxy),
+-            "{err:#}"
++            refused.text,
++            "the proxy refused CONNECT with HTTP 403: Forbidden: not on the egress allowlist"
+         );
+-    }
+-
+-    #[test]
+-    fn the_same_error_of_many_addresses_is_one_entry() {
+-        let a = |s: &str| s.parse::<SocketAddr>().unwrap();
+-        let denied = "Permission denied (os error 13)".to_string();
+-        let mut errors: Vec<(SocketAddr, String)> = (1..=20)
+-            .map(|i| (a(&format!("198.41.192.{i}:7844")), denied.clone()))
+-            .collect();
+-        errors.push((a("1.2.3.4:7844"), "refused".into()));
+         assert_eq!(
+-            group_errors(&errors),
+-            "20 addresses (198.41.192.1:7844, 198.41.192.2:7844, ...): \
+-             Permission denied (os error 13); 1.2.3.4:7844: refused"
++            Refusal::of(502, " ").text,
++            "the proxy refused CONNECT with HTTP 502"
+         );
++        let socks = Refusal::of(407, "SOCKS5: the proxy refused the user and the password");
+         assert_eq!(
+-            group_errors(&errors[..1]),
+-            format!("198.41.192.1:7844: {denied}")
++            (socks.status, socks.text.as_str()),
++            (0, "SOCKS5: the proxy refused the user and the password")
+         );
+     }
+ 
++    /// A dial that no address took keeps the kind of its last error and
++    /// the words of each address, as podnet's dial gave them.
+     #[test]
+-    fn parses_a_full_url() {
+-        let p = Proxy::parse("http://user:p%40ss@10.0.0.1:3128").unwrap();
+-        assert_eq!(p.address(), ("10.0.0.1", 3128));
+-        assert_eq!(p.auth, Some(("user".into(), "p@ss".into())));
+-        assert_eq!(p.to_string(), "http://10.0.0.1:3128");
+-    }
+-
+-    #[test]
+-    fn debug_and_display_hold_no_password() {
+-        let p = Proxy::parse("http://u:secret@h:3128").unwrap();
+-        let debug = format!("{p:?}");
+-        assert!(
+-            !debug.contains("secret") && debug.contains("<hidden>"),
+-            "{debug}"
+-        );
+-        assert!(!p.to_string().contains("secret"));
+-        let s = Proxy::parse("socks5h://u:secret@h").unwrap();
+-        assert!(!format!("{s:?}").contains("secret"));
+-        assert_eq!(s.to_string(), "socks5h://h:1080");
+-    }
+-
+-    #[test]
+-    fn the_default_ports() {
+-        assert_eq!(
+-            Proxy::parse("http://proxy.example").unwrap().address(),
+-            ("proxy.example", 8080)
+-        );
++    fn a_failed_dial_keeps_the_kind_of_its_error() {
++        let e = DialError::Connect {
++            target: "h:1".into(),
++            detail: "192.0.2.1:1: No route to host".into(),
++            cut: None,
++            kind: Some(std::io::ErrorKind::HostUnreachable),
++        };
++        let err = failed(e, "h", 1, None);
+         assert_eq!(
+-            Proxy::parse("proxy.example:3128").unwrap().address(),
+-            ("proxy.example", 3128)
++            format!("{err:#}"),
++            "connecting to h:1: 192.0.2.1:1: No route to host"
+         );
++        let io = err.chain().find_map(|e| e.downcast_ref::<std::io::Error>());
+         assert_eq!(
+-            Proxy::parse("socks5://127.0.0.1").unwrap().address(),
+-            ("127.0.0.1", 1080)
++            io.map(|e| e.kind()),
++            Some(std::io::ErrorKind::HostUnreachable)
+         );
+     }
+ 
++    /// podnet's rules: the upper case first, port 8080 for `http://`, the
++    /// port of a `NO_PROXY` entry, and the loopback through the proxy.
+     #[test]
+-    fn parses_a_bracketed_ipv6_authority() {
+-        let p = Proxy::parse("http://[::1]:9000").unwrap();
+-        assert_eq!(p.address(), ("::1", 9000));
+-        assert_eq!(p.to_string(), "http://[::1]:9000");
+-    }
+-
+-    #[test]
+-    fn the_schemes() {
+-        assert_eq!(
+-            Proxy::parse("socks5://127.0.0.1:1080").unwrap().kind(),
+-            ProxyKind::Socks5 { remote_dns: false }
+-        );
++    fn the_rules_are_podnet_s() {
++        let set = |name: &str| match name {
++            "HTTPS_PROXY" => Some("proxy.example".into()),
++            "https_proxy" => Some("http://lower.example:3128".into()),
++            "NO_PROXY" => Some("internal.example:8443".into()),
++            _ => None,
++        };
++        let env = Environment::read_with(&set, rules());
++        let proxy = env.proxy_at("relay.example", 443, &[]).unwrap().unwrap();
+         assert_eq!(
+-            Proxy::parse("SOCKS5H://127.0.0.1:1080").unwrap().kind(),
+-            ProxyKind::Socks5 { remote_dns: true }
+-        );
+-        for (spec, want) in [
+-            ("socks4://h:1080", "SOCKS4 is not supported"),
+-            ("https://h:443", "https:// proxies"),
+-            ("ftp://h:21", "ftp:// is not supported"),
+-        ] {
+-            let err = Proxy::parse(spec).unwrap_err().to_string();
+-            assert!(err.contains(want), "{spec}: {err}");
+-        }
+-    }
+-
+-    #[test]
+-    fn bad_urls_are_refused() {
+-        for spec in [
+-            "http://u:p%4@h:1",
+-            "http://u:p%zz@h:1",
+-            "http://u:%ff%fe@h:1",
+-            "http://h:1/path",
+-            "http://h:notaport",
+-            "http://h:0",
+-            "http://[::1",
+-            "http://h st:1",
+-            "socks5://:p@h:1",
+-        ] {
+-            assert!(Proxy::parse(spec).is_err(), "{spec} was accepted");
+-        }
+-        // An escaped colon stays in the user.
+-        let p = Proxy::parse("http://a%3Ab:c@h:1").unwrap();
+-        assert_eq!(p.auth, Some(("a:b".into(), "c".into())));
+-    }
+-
+-    #[test]
+-    fn no_proxy_rules() {
+-        let list = NoProxy::parse("127.0.0.1, .example.com,internal:8443 10.0.0.0/8,[::1],*.corp");
+-        assert!(list.matches("127.0.0.1", 80));
+-        assert!(!list.matches("127.0.0.2", 80));
+-        assert!(list.matches("example.com", 443));
+-        assert!(list.matches("api.example.com", 443));
+-        assert!(!list.matches("badexample.com", 443));
+-        assert!(list.matches("internal", 8443));
+-        assert!(!list.matches("internal", 443));
+-        assert!(list.matches("10.20.30.40", 1));
+-        assert!(!list.matches("11.0.0.1", 1));
+-        assert!(list.matches("::1", 1));
+-        assert!(list.matches("[::1]", 1));
+-        assert!(list.matches("a.corp", 1));
+-        assert!(NoProxy::parse("*").matches("anything", 1));
+-        assert!(!NoProxy::default().matches("anything", 1));
+-    }
+-
+-    #[test]
+-    fn a_407_names_the_schemes() {
+-        let head = b"HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: NTLM, Negotiate\r\nproxy-authenticate: Basic realm=\"a, b\", Digest realm=\"x\", qop=\"auth\"\r\n\r\n";
+-        let text = explain_407(head, true, false);
+-        assert!(
+-            text.contains("it asks for NTLM or Negotiate or Basic or Digest"),
+-            "{text}"
+-        );
+-        assert!(text.contains("podnet sent Basic"), "{text}");
+-        let text = explain_407(
+-            b"HTTP/1.1 407 x\r\nProxy-Authenticate: NTLM, Negotiate\r\n\r\n",
+-            false,
+-            false,
++            (proxy.host.as_str(), proxy.port),
++            ("proxy.example", HTTP_PORT)
+         );
++        assert!(env
++            .proxy_at("internal.example", 8443, &[])
++            .unwrap()
++            .is_none());
++        assert!(env
++            .proxy_at("internal.example", 443, &[])
++            .unwrap()
++            .is_some());
+         assert!(
+-            text.contains("NTLM or Negotiate")
+-                && text.contains("podnet supports Basic and Digest only"),
+-            "{text}"
+-        );
+-        assert!(text.contains("sent no credentials"), "{text}");
+-    }
+-
+-    // Issue 180: a Digest 407 does not get the advice of Basic only.
+-    #[test]
+-    fn a_407_with_digest_does_not_say_basic_only() {
+-        let head = b"HTTP/1.1 407 x\r\nProxy-Authenticate: Digest realm=\"r\", nonce=\"n\", algorithm=MD5, qop=\"auth\"\r\n\r\n";
+-        let text = explain_407(head, true, true);
+-        assert!(!text.contains("Basic and Digest only"), "{text}");
+-        assert!(text.contains("check the user and the password"), "{text}");
+-        let text = explain_407(head, false, false);
+-        assert!(!text.contains("only"), "{text}");
+-        assert!(text.contains("sent no credentials"), "{text}");
+-        let odd = b"HTTP/1.1 407 x\r\nProxy-Authenticate: Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256\r\n\r\n";
+-        let text = explain_407(odd, true, false);
+-        assert!(text.contains("does not answer"), "{text}");
+-    }
+-
+-    #[test]
+-    fn status_parsing() {
+-        assert_eq!(
+-            parse_status(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap(),
+-            200
+-        );
+-        assert_eq!(
+-            parse_status(b"HTTP/1.0 407 Proxy Auth\r\n\r\n").unwrap(),
+-            407
+-        );
+-        assert!(parse_status(b"SSH-2.0-OpenSSH\r\n").is_err());
+-    }
+-
+-    #[test]
+-    fn interleave_alternates_the_families() {
+-        let a: Vec<SocketAddr> = ["[::1]:1", "[::2]:1", "1.1.1.1:1", "2.2.2.2:1"]
+-            .iter()
+-            .map(|s| s.parse().unwrap())
+-            .collect();
+-        let got: Vec<String> = interleave(a).iter().map(|a| a.to_string()).collect();
+-        assert_eq!(got, ["[::1]:1", "1.1.1.1:1", "[::2]:1", "2.2.2.2:1"]);
+-    }
+-
+-    // Issue 181: an unencoded / in the password names the fix.
+-    #[test]
+-    fn a_slash_in_the_password_names_the_encoding() {
+-        let err = format!(
+-            "{:#}",
+-            Proxy::parse("http://user:pa/ss@proxy:3128").unwrap_err()
++            env.proxy_at("127.0.0.1", 80, &[]).unwrap().is_some(),
++            "the loopback takes the proxy"
+         );
+-        assert!(err.contains("percent-encode"), "{err}");
+-        assert!(Proxy::parse("http://user:pa%2Fss@proxy:3128").is_ok());
++        assert_eq!(parse("http://127.0.0.1").unwrap().port, HTTP_PORT);
+     }
+ }
+diff --git a/src/fetch.rs b/src/fetch.rs
+index f1ae2f3..fc243c2 100644
+--- a/src/fetch.rs
++++ b/src/fetch.rs
+@@ -1,548 +1,88 @@
+ //! A small HTTP/1.1 client for the requests of podnet: the quick-tunnel API,
+ //! DNS over HTTPS, the WARP API and the fetch of the public URL.
+ //!
+-//! Each request opens one connection with [`crate::egress::dial`] (so each
+-//! request takes the proxy, `NO_PROXY` and the attempt delay of that
+-//! module), adds TLS with the roots of [`crate::trust`] for `https://`, and
+-//! sends `Connection: close`. The body of the answer is read by
+-//! `Content-Length`, by chunks, or to the end of the connection, up to
+-//! [`MAX_BODY`] bytes, or up to the limit of [`Request::max_body`].
+-
+-use std::time::Duration;
+-
+-use anyhow::{bail, Context as _, Result};
+-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+-
+-use crate::egress::Proxy;
+-
+-/// The largest body of an answer.
+-pub const MAX_BODY: usize = 16 << 20;
+-/// The largest head of an answer.
+-const MAX_HEAD: usize = 64 << 10;
+-
+-/// One request.
+-#[derive(Clone, Debug)]
+-pub struct Request {
+-    pub method: &'static str,
+-    pub url: String,
+-    pub headers: Vec<(String, String)>,
+-    pub body: Option<Vec<u8>>,
+-    /// The time limit of the whole request.
+-    pub timeout: Duration,
+-    /// A proxy for this request only, in place of the choice of the process.
+-    pub via: Option<Proxy>,
+-    /// The largest body of the answer.
+-    pub max_body: usize,
+-}
+-
+-impl Request {
+-    pub fn new(method: &'static str, url: impl Into<String>) -> Self {
+-        Self {
+-            method,
+-            url: url.into(),
+-            headers: Vec::new(),
+-            body: None,
+-            timeout: Duration::from_secs(30),
+-            via: None,
+-            max_body: MAX_BODY,
+-        }
+-    }
+-
+-    pub fn header(mut self, name: &str, value: impl Into<String>) -> Self {
+-        self.headers.push((name.to_string(), value.into()));
+-        self
+-    }
+-
+-    pub fn json(mut self, value: &serde_json::Value) -> Self {
+-        self.body = Some(value.to_string().into_bytes());
+-        self.header("Content-Type", "application/json")
+-    }
+-
+-    pub fn timeout(mut self, timeout: Duration) -> Self {
+-        self.timeout = timeout;
+-        self
+-    }
+-
+-    pub fn via(mut self, proxy: Option<Proxy>) -> Self {
+-        self.via = proxy;
+-        self
+-    }
+-
+-    /// Set the largest body of the answer, in place of [`MAX_BODY`].
+-    pub fn max_body(mut self, max: usize) -> Self {
+-        self.max_body = max;
+-        self
+-    }
+-
+-    /// Send the request and read the answer.
+-    pub async fn send(self) -> Result<Response> {
+-        let timeout = self.timeout;
+-        let what = format!("{} {}", self.method, without_query(&self.url));
+-        tokio::time::timeout(timeout, send(self))
+-            .await
+-            .map_err(|_| anyhow::anyhow!("{what}: no answer in {} s", timeout.as_secs()))?
+-            .with_context(|| what)
+-    }
+-}
+-
+-/// The answer.
+-#[derive(Clone, Debug)]
+-pub struct Response {
+-    pub status: u16,
+-    /// Names in lower case.
+-    pub headers: Vec<(String, String)>,
+-    pub body: Vec<u8>,
++//! It is the client of `pod-proxy` (PodUtils/podcrates) over the dial of
++//! [`crate::egress`] (so each request takes the proxy, `NO_PROXY` and the
++//! attempt delay of that module), with the roots of [`crate::trust`] for
++//! `https://` (ALPN `http/1.1`) and podnet's user agent. Each request sends
++//! `Connection: close`; the body of the answer is read by `Content-Length`,
++//! by chunks, or to the end of the connection, up to [`MAX_BODY`] bytes, or
++//! up to the limit of [`Request::max_body`]. [`send`] gives a failure
++//! podnet's words and its hop.
++
++use std::sync::OnceLock;
++
++use anyhow::{Context as _, Result};
++use pod_core::{Failure, Stage};
++
++pub use pod_proxy::client::{Request, MAX_BODY};
++pub use pod_proxy::http::Response;
++
++use crate::egress::Refusal;
++use crate::hop::{self, AtHop, Hop};
++
++/// The client of the process.
++fn client() -> &'static pod_proxy::Client {
++    static CLIENT: OnceLock<pod_proxy::Client> = OnceLock::new();
++    CLIENT.get_or_init(|| {
++        pod_proxy::Client::new(crate::trust::context().clone(), crate::egress::egress(None))
++            .with_user_agent(format!("podnet/{}", env!("CARGO_PKG_VERSION")))
++    })
+ }
+ 
+-impl Response {
+-    pub fn is_success(&self) -> bool {
+-        (200..300).contains(&self.status)
+-    }
+-
+-    pub fn text(&self) -> String {
+-        String::from_utf8_lossy(&self.body).into_owned()
+-    }
+-
+-    pub fn json<T: serde::de::DeserializeOwned>(&self) -> Result<T> {
+-        serde_json::from_slice(&self.body).context("decoding the JSON body")
+-    }
+-
+-    pub fn header(&self, name: &str) -> Option<&str> {
+-        self.headers
+-            .iter()
+-            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+-            .map(|(_, v)| v.as_str())
+-    }
++/// Send `request` and read the answer, the whole within its time limit.
++pub async fn send(request: Request) -> Result<Response> {
++    let what = format!("{} {}", request.method, without_query(&request.url));
++    client()
++        .send(request)
++        .await
++        .map_err(|failure| failed(failure, &what))
+ }
+ 
+-/// The parts of a URL that a request needs.
+-#[derive(Debug, PartialEq, Eq)]
+-struct Target {
+-    tls: bool,
+-    host: String,
+-    port: u16,
+-    /// The path and the query, from `/`.
+-    path: String,
+-}
+-
+-fn target(url: &str) -> Result<Target> {
+-    let (tls, rest) = if let Some(rest) = url.strip_prefix("https://") {
+-        (true, rest)
+-    } else if let Some(rest) = url.strip_prefix("http://") {
+-        (false, rest)
+-    } else {
+-        bail!("the URL is not http:// or https://");
+-    };
+-    // The fragment is not sent, and it can come before a path (issue 242).
+-    let rest = rest.split('#').next().unwrap_or(rest);
+-    let (authority, path) = match rest.find(['/', '?']) {
+-        Some(i) if rest.as_bytes()[i] == b'/' => (&rest[..i], rest[i..].to_string()),
+-        Some(i) => (&rest[..i], format!("/{}", &rest[i..])),
+-        None => (rest, "/".to_string()),
+-    };
+-    let path = path.split('#').next().unwrap_or("/").to_string();
+-    if authority.contains('@') {
+-        bail!("the URL has a user part, which podnet does not send");
+-    }
+-    let default = if tls { 443 } else { 80 };
+-    let (host, port) = if let Some(v6) = authority.strip_prefix('[') {
+-        let (host, tail) = v6.split_once(']').context("no ] in the URL")?;
+-        let port = match tail.strip_prefix(':') {
+-            Some(p) => p.parse().context("the port of the URL")?,
+-            None => default,
+-        };
+-        (host.to_string(), port)
+-    } else {
+-        match authority.rsplit_once(':') {
+-            Some((h, p)) => (h.to_string(), p.parse().context("the port of the URL")?),
+-            None => (authority.to_string(), default),
+-        }
+-    };
+-    if host.is_empty() {
+-        bail!("the URL has no host");
+-    }
+-    // The host and the path go in the request head as they are.
+-    if !host
+-        .bytes()
+-        .chain(path.bytes())
+-        .all(|b| b > b' ' && b != 0x7f)
+-    {
+-        bail!("the URL has a space or a control character");
+-    }
+-    Ok(Target {
+-        tls,
+-        host,
+-        port,
+-        path,
+-    })
++/// The JSON of the body of an answer.
++pub fn json<T: serde::de::DeserializeOwned>(response: &Response) -> Result<T> {
++    serde_json::from_slice(&response.body).context("decoding the JSON body")
+ }
+ 
+ fn without_query(url: &str) -> &str {
+     url.split(['?', '#']).next().unwrap_or(url)
+ }
+ 
+-async fn send(request: Request) -> Result<Response> {
+-    let target = target(&request.url)?;
+-    let io = crate::egress::dial(
+-        &target.host,
+-        target.port,
+-        request.via.as_ref(),
+-        request.timeout,
+-    )
+-    .await?;
+-    if target.tls {
+-        let config = crate::trust::context().client_config_with(&[], &[b"http/1.1"])?;
+-        let name = rustls::pki_types::ServerName::try_from(target.host.clone())
+-            .context("the host of the URL is not a TLS name")?;
+-        let tls = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config))
+-            .connect(name, io)
+-            .await
+-            .map_err(|e| {
+-                crate::hop::at(
+-                    crate::hop::tls_hop(&e),
+-                    anyhow::anyhow!(
+-                        "TLS with {}:{}: {}",
+-                        target.host,
+-                        target.port,
+-                        crate::hop::tls_text(&e)
+-                    ),
+-                )
+-            })?;
+-        exchange(tls, &target, &request).await
+-    } else {
+-        exchange(io, &target, &request).await
+-    }
+-}
+-
+-async fn exchange<S>(mut io: S, target: &Target, request: &Request) -> Result<Response>
+-where
+-    S: AsyncRead + tokio::io::AsyncWrite + Unpin,
+-{
+-    let host = if target.host.contains(':') {
+-        format!("[{}]", target.host)
+-    } else {
+-        target.host.clone()
+-    };
+-    let default = if target.tls { 443 } else { 80 };
+-    let host = if target.port == default {
+-        host
+-    } else {
+-        format!("{host}:{}", target.port)
+-    };
+-    let mut head = format!(
+-        "{} {} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nAccept-Encoding: identity\r\n",
+-        request.method, target.path
+-    );
+-    let mut has_agent = false;
+-    for (name, value) in &request.headers {
+-        if name.contains(['\r', '\n', ':']) || value.contains(['\r', '\n']) {
+-            bail!("a request header has a line break");
+-        }
+-        has_agent |= name.eq_ignore_ascii_case("user-agent");
+-        head.push_str(&format!("{name}: {value}\r\n"));
+-    }
+-    if !has_agent {
+-        head.push_str(&format!(
+-            "User-Agent: podnet/{}\r\n",
+-            env!("CARGO_PKG_VERSION")
+-        ));
+-    }
+-    let body = request.body.as_deref().unwrap_or_default();
+-    if request.body.is_some() || matches!(request.method, "POST" | "PUT" | "PATCH") {
+-        head.push_str(&format!("Content-Length: {}\r\n", body.len()));
+-    }
+-    head.push_str("\r\n");
+-    io.write_all(head.as_bytes())
+-        .await
+-        .context("sending the request")?;
+-    io.write_all(body).await.context("sending the body")?;
+-    io.flush().await.context("sending the request")?;
+-    read_response(&mut io, request.method == "HEAD", request.max_body).await
+-}
+-
+-/// The most interim (1xx) answers before the answer (issue 237).
+-const MAX_INTERIM: usize = 5;
+-
+-/// Read one answer from `io`.
+-async fn read_response<S: AsyncRead + Unpin>(
+-    io: &mut S,
+-    head_only: bool,
+-    max_body: usize,
+-) -> Result<Response> {
+-    let mut buf = Vec::with_capacity(4096);
+-    let mut chunk = [0u8; 8192];
+-    let mut interim = 0;
+-    let (status, headers, start) = loop {
+-        if !buf.windows(4).any(|w| w == b"\r\n\r\n") {
+-            let n = read_some(io, &mut chunk).await?;
+-            if n == 0 {
+-                bail!("the server closed the connection before it answered");
+-            }
+-            buf.extend_from_slice(&chunk[..n]);
+-        }
+-        let mut slots = [httparse::EMPTY_HEADER; crate::proxy::MAX_HEADERS];
+-        let mut parsed = httparse::Response::new(&mut slots);
+-        match parsed.parse(&buf).context("the answer is not HTTP")? {
+-            httparse::Status::Complete(len) => {
+-                let status = parsed.code.context("the answer has no status")?;
+-                // 1xx answers come before the real one.
+-                if (100..200).contains(&status) && status != 101 {
+-                    interim += 1;
+-                    if interim > MAX_INTERIM {
+-                        bail!("the server sent more than {MAX_INTERIM} interim answers");
+-                    }
+-                    buf.drain(..len);
+-                    continue;
+-                }
+-                let headers = parsed
+-                    .headers
+-                    .iter()
+-                    .map(|h| {
+-                        (
+-                            h.name.to_ascii_lowercase(),
+-                            String::from_utf8_lossy(h.value).into_owned(),
+-                        )
+-                    })
+-                    .collect::<Vec<_>>();
+-                break (status, headers, len);
+-            }
+-            httparse::Status::Partial if buf.len() > MAX_HEAD => {
+-                bail!("the head of the answer is larger than {MAX_HEAD} bytes")
+-            }
+-            httparse::Status::Partial => {}
++/// A failed request in podnet's words: the request and why, each cause
++/// once. The dial's refusal and hop stay as [`crate::egress`] made them; a
++/// handshake that the network ended is at the hop `network`, in the words of
++/// [`hop::tls_text`], and one that TLS refused at the hop `tls`.
++fn failed(failure: Failure, what: &str) -> anyhow::Error {
++    let (mut refusal, mut dialed, mut io) = (None, None, None);
++    let mut next: Option<&(dyn std::error::Error + 'static)> = Some(&failure);
++    while let Some(e) = next {
++        refusal = refusal.or_else(|| e.downcast_ref::<Refusal>().cloned());
++        dialed = dialed.or_else(|| e.downcast_ref::<AtHop>().map(|h| h.hop));
++        io = io.or_else(|| e.downcast_ref::<std::io::Error>());
++        next = e.source();
++    }
++    let text = match (failure.stage, io) {
++        (Stage::Network, Some(io)) if dialed.is_none() => {
++            format!("{what}: TLS: {}", hop::tls_text(io))
+         }
++        _ => failure.chain(),
+     };
+-    let mut rest = buf.split_off(start);
+-    let find = |name: &str| {
+-        headers
+-            .iter()
+-            .find(|(n, _)| n == name)
+-            .map(|(_, v)| v.trim().to_ascii_lowercase())
++    let hop = dialed.or(match failure.stage {
++        Stage::Tls => Some(Hop::Tls),
++        Stage::Network => Some(Hop::Network),
++        Stage::Proxy => Some(Hop::Proxy),
++        Stage::Dns => Some(Hop::Dns),
++        _ => None,
++    });
++    let err = match refusal {
++        Some(refused) => anyhow::Error::new(Refusal {
++            status: refused.status,
++            text,
++        }),
++        None => anyhow::anyhow!(text),
+     };
+-    let body = if head_only || status == 204 || status == 304 {
+-        Vec::new()
+-    } else if find("transfer-encoding").is_some_and(|v| v.contains("chunked")) {
+-        read_chunked(io, rest, max_body).await?
+-    } else if let Some(len) = find("content-length") {
+-        let len: usize = len.parse().context("the Content-Length is not a number")?;
+-        if len > max_body {
+-            bail!("the body has {len} bytes, more than {max_body}");
+-        }
+-        while rest.len() < len {
+-            let n = read_some(io, &mut chunk).await?;
+-            if n == 0 {
+-                bail!(
+-                    "the server closed the connection after {} of {len} bytes",
+-                    rest.len()
+-                );
+-            }
+-            rest.extend_from_slice(&chunk[..n]);
+-        }
+-        rest.truncate(len);
+-        rest
+-    } else {
+-        loop {
+-            // The bytes that came with the head count too.
+-            if rest.len() > max_body {
+-                bail!("the body is larger than {max_body} bytes");
+-            }
+-            let n = read_some(io, &mut chunk).await?;
+-            if n == 0 {
+-                break rest;
+-            }
+-            rest.extend_from_slice(&chunk[..n]);
+-        }
+-    };
+-    Ok(Response {
+-        status,
+-        headers,
+-        body,
+-    })
+-}
+-
+-/// Read some bytes. The end of a TLS connection with no close_notify is the
+-/// end of the stream: the length of the body is checked on its own.
+-async fn read_some<S: AsyncRead + Unpin>(io: &mut S, buf: &mut [u8]) -> Result<usize> {
+-    match io.read(buf).await {
+-        Ok(n) => Ok(n),
+-        Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => Ok(0),
+-        Err(err) => Err(err).context("reading the answer"),
+-    }
+-}
+-
+-async fn read_chunked<S: AsyncRead + Unpin>(
+-    io: &mut S,
+-    mut buf: Vec<u8>,
+-    max_body: usize,
+-) -> Result<Vec<u8>> {
+-    let mut body = Vec::new();
+-    let mut chunk = [0u8; 8192];
+-    let mut pos = 0;
+-    loop {
+-        // The size line.
+-        let line_end = loop {
+-            if let Some(i) = buf[pos..].windows(2).position(|w| w == b"\r\n") {
+-                break pos + i;
+-            }
+-            let n = read_some(io, &mut chunk).await?;
+-            if n == 0 {
+-                bail!("the chunked body ends early");
+-            }
+-            buf.extend_from_slice(&chunk[..n]);
+-        };
+-        let line = std::str::from_utf8(&buf[pos..line_end]).context("a chunk size is not text")?;
+-        let size = usize::from_str_radix(line.split(';').next().unwrap_or("").trim(), 16)
+-            .context("a chunk size is not hexadecimal")?;
+-        pos = line_end + 2;
+-        if size == 0 {
+-            return Ok(body);
+-        }
+-        // A size from the server can be near usize::MAX: each sum is checked.
+-        let too_large = || anyhow::anyhow!("the body is larger than {max_body} bytes");
+-        if body.len().checked_add(size).is_none_or(|t| t > max_body) {
+-            return Err(too_large());
+-        }
+-        let end = pos.checked_add(size).ok_or_else(too_large)?;
+-        let next = end.checked_add(2).ok_or_else(too_large)?;
+-        while buf.len() < next {
+-            let n = read_some(io, &mut chunk).await?;
+-            if n == 0 {
+-                bail!("the chunked body ends early");
+-            }
+-            buf.extend_from_slice(&chunk[..n]);
+-        }
+-        body.extend_from_slice(&buf[pos..end]);
+-        pos = next;
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn urls() {
+-        assert_eq!(
+-            target("https://api.trycloudflare.com/tunnel").unwrap(),
+-            Target {
+-                tls: true,
+-                host: "api.trycloudflare.com".into(),
+-                port: 443,
+-                path: "/tunnel".into()
+-            }
+-        );
+-        let t = target("http://[::1]:8080?x=1#frag").unwrap();
+-        assert_eq!(
+-            (t.host.as_str(), t.port, t.path.as_str()),
+-            ("::1", 8080, "/?x=1")
+-        );
+-        assert!(target("ftp://x").is_err());
+-        assert!(target("https://user:pw@x/").is_err());
+-    }
+-
+-    /// Issue 242: a fragment after the host is not part of the host, and
+-    /// a control character or a space in the URL is an error.
+-    #[test]
+-    fn a_fragment_is_not_part_of_the_host() {
+-        let t = target("https://host#frag").unwrap();
+-        assert_eq!(
+-            (t.host.as_str(), t.port, t.path.as_str()),
+-            ("host", 443, "/")
+-        );
+-        let t = target("https://host:8443#f/x").unwrap();
+-        assert_eq!(
+-            (t.host.as_str(), t.port, t.path.as_str()),
+-            ("host", 8443, "/")
+-        );
+-        for bad in [
+-            "https://ho\rst/",
+-            "https://host/a b",
+-            "https://host/a\r\nX: y",
+-            "http://host/\x7f",
+-        ] {
+-            assert!(target(bad).is_err(), "{bad:?}");
+-        }
+-    }
+-
+-    async fn parse(raw: &[u8]) -> Result<Response> {
+-        let mut io = raw;
+-        read_response(&mut io, false, MAX_BODY).await
+-    }
+-
+-    #[tokio::test]
+-    async fn the_body_limit_is_set_for_each_request() {
+-        let sized = b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n0123456789";
+-        let chunked =
+-            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\na\r\n0123456789\r\n0\r\n\r\n";
+-        let to_end = b"HTTP/1.1 200 OK\r\n\r\n0123456789";
+-        for raw in [&sized[..], &chunked[..], &to_end[..]] {
+-            let mut io = raw;
+-            assert!(read_response(&mut io, false, 9).await.is_err());
+-            let mut io = raw;
+-            let answer = read_response(&mut io, false, 10).await.unwrap();
+-            assert_eq!(answer.body, b"0123456789");
+-        }
+-        let request = Request::new("GET", "https://example.com/");
+-        assert_eq!(request.max_body, MAX_BODY);
+-        assert_eq!(request.max_body(1 << 30).max_body, 1 << 30);
+-    }
+-
+-    /// Issue 238: an answer with more than 64 headers passes.
+-    #[tokio::test]
+-    async fn an_answer_with_many_headers_passes() {
+-        let mut raw = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n".to_vec();
+-        for i in 0..100 {
+-            raw.extend_from_slice(format!("X-H{i}: v\r\n").as_bytes());
+-        }
+-        raw.extend_from_slice(b"\r\nok");
+-        let r = parse(&raw).await.unwrap();
+-        assert_eq!((r.headers.len(), r.body.as_slice()), (101, &b"ok"[..]));
+-    }
+-
+-    /// Issue 237: a few interim answers pass; an endless row of them is
+-    /// an error.
+-    #[tokio::test]
+-    async fn interim_answers_have_a_limit() {
+-        let three = "HTTP/1.1 100 Continue\r\n\r\n".repeat(3)
+-            + "HTTP/1.1 201 Created\r\nContent-Length: 0\r\n\r\n";
+-        assert_eq!(parse(three.as_bytes()).await.unwrap().status, 201);
+-        let many = "HTTP/1.1 100 Continue\r\n\r\n".repeat(10)
+-            + "HTTP/1.1 201 Created\r\nContent-Length: 0\r\n\r\n";
+-        let err = parse(many.as_bytes()).await.unwrap_err();
+-        assert!(err.to_string().contains("interim"), "{err:#}");
+-    }
+-
+-    #[tokio::test]
+-    async fn a_chunk_size_that_overflows_is_an_error() {
+-        for size in ["ffffffffffffffff", "fffffffffffffffe", "fffffffffffffff0"] {
+-            let raw = format!(
+-                "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n{size}\r\n"
+-            );
+-            let err = parse(raw.as_bytes()).await.unwrap_err();
+-            assert!(format!("{err:#}").contains("larger than"), "{err:#}");
+-        }
+-    }
+-
+-    #[tokio::test]
+-    async fn bodies_by_length_by_chunks_and_to_the_end() {
+-        let r = parse(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhelloEXTRA")
+-            .await
+-            .unwrap();
+-        assert_eq!((r.status, r.body.as_slice()), (200, &b"hello"[..]));
+-        let r = parse(b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 201 Created\r\nTransfer-Encoding: chunked\r\n\r\n5;x=y\r\nhello\r\n6\r\n world\r\n0\r\n\r\n")
+-            .await
+-            .unwrap();
+-        assert_eq!((r.status, r.text().as_str()), (201, "hello world"));
+-        let r = parse(b"HTTP/1.0 404 Not Found\r\nX-A: b\r\n\r\nall of it")
+-            .await
+-            .unwrap();
+-        assert_eq!(
+-            (r.status, r.text().as_str(), r.header("x-a")),
+-            (404, "all of it", Some("b"))
+-        );
+-        assert!(parse(b"HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nshort")
+-            .await
+-            .is_err());
+-        assert!(parse(b"SSH-2.0-x\r\n\r\n").await.is_err());
++    match hop {
++        Some(hop) => hop::at(hop, err),
++        None => err,
+     }
+ }
+diff --git a/src/fuzzing.rs b/src/fuzzing.rs
+index d1beaa8..a6f19a8 100644
+--- a/src/fuzzing.rs
++++ b/src/fuzzing.rs
+@@ -120,7 +120,7 @@ fn text(data: &[u8]) -> Option<&str> {
+ pub fn proxy_url(data: &[u8]) {
+     let Some(spec) = text(data) else { return };
+     if let Ok(proxy) = crate::egress::Proxy::parse(spec) {
+-        let shown = proxy.to_string();
++        let shown = proxy.label();
+         assert!(!shown.contains('@'), "{shown}");
+     }
+ }
+diff --git a/src/ingress.rs b/src/ingress.rs
+index bd87bc6..7089deb 100644
+--- a/src/ingress.rs
++++ b/src/ingress.rs
+@@ -312,13 +312,20 @@ fn hostname_matches(pattern: &str, hostname: &str) -> bool {
+     pattern == hostname
+ }
+ 
++/// The user and the password that a client gives (`--auth-user`,
++/// `--proxy-user`): the password from `file`, a file of this user that
++/// others cannot read.
++pub fn credentials(user: &str, file: &std::path::Path) -> anyhow::Result<pod_proxy::Credentials> {
++    pod_proxy::Credentials::load(user, file).map_err(anyhow::Error::msg)
++}
++
+ /// An ordered rule set. The last rule is normally a catch-all.
+ #[derive(Clone, Debug, Default)]
+ pub struct Ingress {
+     pub rules: Vec<IngressRule>,
+     /// Issue 205: each request must give this user and password (HTTP
+     /// Basic) before it reaches a rule (`--auth-user`).
+-    pub auth: Option<crate::proxy_auth::Credentials>,
++    pub auth: Option<pod_proxy::Credentials>,
+ }
+ 
+ impl Ingress {
+diff --git a/src/lib.rs b/src/lib.rs
+index fefc064..6acea42 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -103,7 +103,6 @@ pub mod origin;
+ pub mod ports;
+ pub mod preflight;
+ pub mod proxy;
+-pub mod proxy_auth;
+ pub mod qr;
+ pub mod quicktunnel;
+ pub mod race;
+diff --git a/src/main.rs b/src/main.rs
+index 6da41c8..8a2f3af 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -510,7 +510,7 @@ impl TunnelOpts {
+                 ));
+             }
+             config.ingress.auth = Some(
+-                podnet::proxy_auth::Credentials::load(user, file)
++                podnet::ingress::credentials(user, file)
+                     .context("--auth-password-file")
+                     .fault(Fault::Config)?,
+             );
+@@ -2374,7 +2374,7 @@ fn detach_of(command: &Command) -> Option<&DetachArgs> {
+ 
+ /// Apply --proxy, --no-proxy and --resolve.
+ fn network_options(cli: &Cli) -> Result<()> {
+-    use podnet::egress::{set_choice, Proxy, ProxyChoice};
++    use podnet::egress::Proxy;
+     if let Some(spec) = &cli.proxy {
+         // Issue 95: a value with no scheme (PODNET_PROXY=notaurl) became
+         // http://notaurl:8080, and each leg then failed on a name. The
+@@ -2391,11 +2391,9 @@ fn network_options(cli: &Cli) -> Result<()> {
+         for secret in Proxy::secret_parts(spec) {
+             podnet::report::hide(&secret);
+         }
+-        set_choice(ProxyChoice::Via(
+-            Proxy::parse_trusted(spec).context("--proxy")?,
+-        ));
++        podnet::egress::set_proxy(spec).context("--proxy")?;
+     } else if cli.no_proxy {
+-        set_choice(ProxyChoice::Direct);
++        podnet::egress::set_direct();
+     }
+     if let Some(list) = &cli.resolve {
+         podnet::resolve::set_pins(list).context("--resolve")?;
+@@ -3024,7 +3022,7 @@ async fn connect(args: ConnectArgs) -> Result<()> {
+     // Issue 205: the credential of a tunnel with --auth-user.
+     let auth: Option<Arc<str>> = match (&args.auth_user, &args.auth_password_file) {
+         (Some(user), Some(file)) => Some(Arc::from(
+-            podnet::proxy_auth::Credentials::load(user, file)
++            podnet::ingress::credentials(user, file)
+                 .context("--auth-password-file")
+                 .fault(Fault::Config)?
+                 .basic_header(),
+@@ -5274,8 +5272,7 @@ async fn warp(mut args: WarpArgs) -> Result<()> {
+             }
+             // Issue 146: the credentials of the clients.
+             if let (Some(user), Some(file)) = (&proxy_user, &proxy_password_file) {
+-                let credentials =
+-                    podnet::proxy_auth::Credentials::load(user, file).fault(Fault::Config)?;
++                let credentials = podnet::ingress::credentials(user, file).fault(Fault::Config)?;
+                 podnet::warp::proxy::set_credentials(credentials);
+             }
+             // Issue 117: the DNS listener is bound before the session, as
+@@ -5554,7 +5551,7 @@ async fn warp(mut args: WarpArgs) -> Result<()> {
+                 // outside the TUN; the relay of a later session should,
+                 // where a route to it exists.
+                 let session_host = match podnet::egress::proxy_for(&endpoint, 443) {
+-                    Some(proxy) => proxy.host().to_string(),
++                    Some(proxy) => proxy.host,
+                     None => endpoint.clone(),
+                 };
+                 let mut relay_host = String::new();
+@@ -5563,7 +5560,7 @@ async fn warp(mut args: WarpArgs) -> Result<()> {
+                         // Issue 105: a relay that is reached through the
+                         // proxy needs no route of its own.
+                         relay_host = match podnet::egress::proxy_for(relay.host(), relay.port()) {
+-                            Some(proxy) => proxy.host().to_string(),
++                            Some(proxy) => proxy.host,
+                             None => relay.host().to_string(),
+                         };
+                     }
+diff --git a/src/proxy.rs b/src/proxy.rs
+index 9d30d7c..56003e0 100644
+--- a/src/proxy.rs
++++ b/src/proxy.rs
+@@ -1745,7 +1745,7 @@ mod tests {
+             }
+         });
+         let mut ingress = Ingress::new().catch_all(Service::Http(origin));
+-        let creds = crate::proxy_auth::Credentials::new("u", "secret").unwrap();
++        let creds = pod_proxy::Credentials::new("u", "secret").unwrap();
+         ingress.auth = Some(creds.clone());
+         let runtime = ServiceRuntime::build(&ingress, Metrics::new()).unwrap();
+         let run = |auth: Option<String>| {
+diff --git a/src/proxy_auth.rs b/src/proxy_auth.rs
+deleted file mode 100644
+index e3b0eda..0000000
+--- a/src/proxy_auth.rs
++++ /dev/null
+@@ -1,615 +0,0 @@
+-//! Proxy configuration beyond the variables (issue 83): HTTP Digest
+-//! authentication (RFC 7616) for a `CONNECT`, and the proxy of the tool
+-//! configs of the host when no proxy variable is set.
+-
+-use std::path::{Path, PathBuf};
+-
+-/// MD5 (RFC 1321), for the `MD5` algorithm of Digest. Digest needs it; it
+-/// is not a check of integrity here.
+-pub fn md5(input: &[u8]) -> [u8; 16] {
+-    const S: [u32; 64] = [
+-        7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5,
+-        9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10,
+-        15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+-    ];
+-    let k: Vec<u32> = (0..64)
+-        .map(|i| ((i as f64 + 1.0).sin().abs() * 4_294_967_296.0) as u32)
+-        .collect();
+-    let (mut a0, mut b0, mut c0, mut d0) =
+-        (0x67452301u32, 0xefcdab89u32, 0x98badcfeu32, 0x10325476u32);
+-    let mut msg = input.to_vec();
+-    let bits = (input.len() as u64).wrapping_mul(8);
+-    msg.push(0x80);
+-    while msg.len() % 64 != 56 {
+-        msg.push(0);
+-    }
+-    msg.extend_from_slice(&bits.to_le_bytes());
+-    for chunk in msg.chunks(64) {
+-        let m: Vec<u32> = chunk
+-            .chunks(4)
+-            .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
+-            .collect();
+-        let (mut a, mut b, mut c, mut d) = (a0, b0, c0, d0);
+-        for i in 0..64 {
+-            let (f, g) = match i / 16 {
+-                0 => ((b & c) | (!b & d), i),
+-                1 => ((d & b) | (!d & c), (5 * i + 1) % 16),
+-                2 => (b ^ c ^ d, (3 * i + 5) % 16),
+-                _ => (c ^ (b | !d), (7 * i) % 16),
+-            };
+-            let f = f.wrapping_add(a).wrapping_add(k[i]).wrapping_add(m[g]);
+-            a = d;
+-            d = c;
+-            c = b;
+-            b = b.wrapping_add(f.rotate_left(S[i]));
+-        }
+-        a0 = a0.wrapping_add(a);
+-        b0 = b0.wrapping_add(b);
+-        c0 = c0.wrapping_add(c);
+-        d0 = d0.wrapping_add(d);
+-    }
+-    let mut out = [0u8; 16];
+-    for (i, v) in [a0, b0, c0, d0].iter().enumerate() {
+-        out[i * 4..i * 4 + 4].copy_from_slice(&v.to_le_bytes());
+-    }
+-    out
+-}
+-
+-fn hex(bytes: &[u8]) -> String {
+-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+-}
+-
+-/// A Digest challenge of a `Proxy-Authenticate` header.
+-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+-pub struct Challenge {
+-    pub realm: String,
+-    pub nonce: String,
+-    pub opaque: Option<String>,
+-    /// `MD5`, `MD5-sess`, `SHA-256` or `SHA-256-sess`.
+-    pub algorithm: String,
+-    /// `auth` when the server offers it.
+-    pub qop: Option<String>,
+-}
+-
+-/// Split a list of a header value at the commas that are not in quotes.
+-fn split_list(value: &str) -> Vec<&str> {
+-    let mut items = Vec::new();
+-    let (mut start, mut in_quotes, mut escaped) = (0, false, false);
+-    for (i, c) in value.char_indices() {
+-        if escaped {
+-            escaped = false;
+-        } else if in_quotes && c == '\\' {
+-            escaped = true;
+-        } else if c == '"' {
+-            in_quotes = !in_quotes;
+-        } else if c == ',' && !in_quotes {
+-            items.push(&value[start..i]);
+-            start = i + 1;
+-        }
+-    }
+-    items.push(&value[start..]);
+-    items
+-}
+-
+-/// The challenges of a `Proxy-Authenticate` value: the scheme and the
+-/// parameters of each. One value can hold several challenges:
+-/// `Basic realm="a", Digest realm="b", nonce="n"` (RFC 9110 section 11.6.1).
+-fn challenges(value: &str) -> Vec<(&str, Vec<&str>)> {
+-    let mut out: Vec<(&str, Vec<&str>)> = Vec::new();
+-    for item in split_list(value) {
+-        let item = item.trim();
+-        if item.is_empty() {
+-            continue;
+-        }
+-        let end = item.find([' ', '\t', '=']).unwrap_or(item.len());
+-        let after = item[end..].trim_start();
+-        if after.starts_with('=') {
+-            // A parameter of the challenge before.
+-            if let Some((_, params)) = out.last_mut() {
+-                params.push(item);
+-            }
+-        } else {
+-            let params = if after.is_empty() {
+-                Vec::new()
+-            } else {
+-                vec![after]
+-            };
+-            out.push((&item[..end], params));
+-        }
+-    }
+-    out
+-}
+-
+-/// The Digest challenge of a `Proxy-Authenticate` value. The scheme name
+-/// has any case, and the value can hold other challenges before or after
+-/// it (issue 274). `None` when the value has no Digest challenge, or the
+-/// challenge names an algorithm that podnet does not have.
+-pub fn parse_challenge(value: &str) -> Option<Challenge> {
+-    let (_, params) = challenges(value)
+-        .into_iter()
+-        .find(|(scheme, _)| scheme.eq_ignore_ascii_case("digest"))?;
+-    parse_digest_params(&params.join(", "))
+-}
+-
+-/// Parse the parameters `a="b", c=d, ...` of a Digest challenge.
+-fn parse_digest_params(rest: &str) -> Option<Challenge> {
+-    let mut c = Challenge {
+-        algorithm: "MD5".into(),
+-        ..Challenge::default()
+-    };
+-    let mut chars = rest.chars().peekable();
+-    loop {
+-        while matches!(chars.peek(), Some(' ' | ',' | '\t')) {
+-            chars.next();
+-        }
+-        let key: String = chars.by_ref().take_while(|ch| *ch != '=').collect();
+-        if key.is_empty() {
+-            break;
+-        }
+-        let value: String = if chars.peek() == Some(&'"') {
+-            chars.next();
+-            let mut v = String::new();
+-            while let Some(ch) = chars.next() {
+-                match ch {
+-                    '\\' => {
+-                        if let Some(n) = chars.next() {
+-                            v.push(n);
+-                        }
+-                    }
+-                    '"' => break,
+-                    other => v.push(other),
+-                }
+-            }
+-            v
+-        } else {
+-            chars
+-                .by_ref()
+-                .take_while(|ch| *ch != ',')
+-                .collect::<String>()
+-                .trim()
+-                .to_string()
+-        };
+-        match key.trim().to_ascii_lowercase().as_str() {
+-            "realm" => c.realm = value,
+-            "nonce" => c.nonce = value,
+-            "opaque" => c.opaque = Some(value),
+-            "algorithm" => c.algorithm = value,
+-            "qop" if value.split(',').any(|q| q.trim() == "auth") => {
+-                c.qop = Some("auth".into());
+-            }
+-            _ => {}
+-        }
+-    }
+-    let known = ["MD5", "MD5-sess", "SHA-256", "SHA-256-sess"];
+-    (!c.nonce.is_empty() && known.iter().any(|a| a.eq_ignore_ascii_case(&c.algorithm))).then_some(c)
+-}
+-
+-fn digest_hex(algorithm: &str, text: &str) -> String {
+-    if algorithm.to_ascii_uppercase().starts_with("SHA-256") {
+-        hex(ring::digest::digest(&ring::digest::SHA256, text.as_bytes()).as_ref())
+-    } else {
+-        hex(&md5(text.as_bytes()))
+-    }
+-}
+-
+-/// The value of `Proxy-Authorization` for `challenge`, `method` and
+-/// `uri`, with the client nonce `cnonce` and the count `nc` (1 for the
+-/// first request).
+-pub fn authorization(
+-    challenge: &Challenge,
+-    user: &str,
+-    password: &str,
+-    method: &str,
+-    uri: &str,
+-    cnonce: &str,
+-    nc: u32,
+-) -> String {
+-    let alg = &challenge.algorithm;
+-    let mut ha1 = digest_hex(alg, &format!("{user}:{}:{password}", challenge.realm));
+-    if alg.to_ascii_lowercase().ends_with("-sess") {
+-        ha1 = digest_hex(alg, &format!("{ha1}:{}:{cnonce}", challenge.nonce));
+-    }
+-    let ha2 = digest_hex(alg, &format!("{method}:{uri}"));
+-    let nc = format!("{nc:08x}");
+-    let response = match &challenge.qop {
+-        Some(qop) => digest_hex(
+-            alg,
+-            &format!("{ha1}:{}:{nc}:{cnonce}:{qop}:{ha2}", challenge.nonce),
+-        ),
+-        None => digest_hex(alg, &format!("{ha1}:{}:{ha2}", challenge.nonce)),
+-    };
+-    let quote = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+-    let mut out = format!(
+-        "Digest username=\"{}\", realm=\"{}\", nonce=\"{}\", uri=\"{}\", algorithm={}, response=\"{response}\"",
+-        quote(user),
+-        quote(&challenge.realm),
+-        quote(&challenge.nonce),
+-        quote(uri),
+-        challenge.algorithm,
+-    );
+-    if let Some(qop) = &challenge.qop {
+-        out.push_str(&format!(
+-            ", qop={qop}, nc={nc}, cnonce=\"{}\"",
+-            quote(cnonce)
+-        ));
+-    }
+-    if let Some(opaque) = &challenge.opaque {
+-        out.push_str(&format!(", opaque=\"{}\"", quote(opaque)));
+-    }
+-    out
+-}
+-
+-/// A client nonce: 16 random bytes in hex.
+-pub fn cnonce() -> String {
+-    let mut bytes = [0u8; 16];
+-    let _ = ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut bytes);
+-    hex(&bytes)
+-}
+-
+-// ── the proxy of the tool configs ──────────────────────────────────────────
+-
+-/// `http.proxy` (or `https.proxy`) of a git config file.
+-pub fn proxy_in_gitconfig(text: &str) -> Option<String> {
+-    let mut section = String::new();
+-    for line in text.lines() {
+-        let line = line.trim();
+-        if line.starts_with('#') || line.starts_with(';') || line.is_empty() {
+-            continue;
+-        }
+-        if line.starts_with('[') {
+-            section = line
+-                .trim_matches(|c| c == '[' || c == ']')
+-                .trim()
+-                .to_ascii_lowercase();
+-            continue;
+-        }
+-        if section == "http" || section == "https" {
+-            if let Some((k, v)) = line.split_once('=') {
+-                if k.trim().eq_ignore_ascii_case("proxy") {
+-                    let v = v.trim().trim_matches('"').to_string();
+-                    if !v.is_empty() {
+-                        return Some(v);
+-                    }
+-                }
+-            }
+-        }
+-    }
+-    None
+-}
+-
+-/// `https-proxy` (else `proxy`) of an npmrc file.
+-pub fn proxy_in_npmrc(text: &str) -> Option<String> {
+-    let mut plain = None;
+-    for line in text.lines() {
+-        let line = line.trim();
+-        let Some((k, v)) = line.split_once('=') else {
+-            continue;
+-        };
+-        let v = v.trim().trim_matches('"').to_string();
+-        if v.is_empty() || v == "null" {
+-            continue;
+-        }
+-        match k.trim().to_ascii_lowercase().as_str() {
+-            "https-proxy" => return Some(v),
+-            "proxy" => plain = Some(v),
+-            _ => {}
+-        }
+-    }
+-    plain
+-}
+-
+-/// `proxy` of a pip config file (any section).
+-pub fn proxy_in_pipconf(text: &str) -> Option<String> {
+-    text.lines().find_map(|line| {
+-        let (k, v) = line.trim().split_once(['=', ':'])?;
+-        (k.trim().eq_ignore_ascii_case("proxy") && !v.trim().is_empty())
+-            .then(|| v.trim().to_string())
+-    })
+-}
+-
+-/// A proxy variable of `/etc/environment`.
+-pub fn proxy_in_environment_file(text: &str) -> Option<String> {
+-    for key in [
+-        "HTTPS_PROXY",
+-        "https_proxy",
+-        "ALL_PROXY",
+-        "all_proxy",
+-        "HTTP_PROXY",
+-        "http_proxy",
+-    ] {
+-        for line in text.lines() {
+-            let line = line.trim().trim_start_matches("export ").trim();
+-            if let Some(v) = line.strip_prefix(key).and_then(|r| r.strip_prefix('=')) {
+-                let v = v.trim().trim_matches('"').trim_matches('\'').to_string();
+-                if !v.is_empty() {
+-                    return Some(v);
+-                }
+-            }
+-        }
+-    }
+-    None
+-}
+-
+-/// A parser of a tool config: the proxy that it names.
+-type Parser = fn(&str) -> Option<String>;
+-
+-/// The files that the detection reads, in order, with their parser.
+-fn sources(home: Option<&Path>) -> Vec<(PathBuf, Parser)> {
+-    let mut out: Vec<(PathBuf, Parser)> = Vec::new();
+-    if let Some(home) = home {
+-        out.push((home.join(".gitconfig"), proxy_in_gitconfig));
+-        out.push((home.join(".config/git/config"), proxy_in_gitconfig));
+-        out.push((home.join(".npmrc"), proxy_in_npmrc));
+-        out.push((home.join(".config/pip/pip.conf"), proxy_in_pipconf));
+-        out.push((home.join(".pip/pip.conf"), proxy_in_pipconf));
+-    }
+-    out.push((PathBuf::from("/etc/gitconfig"), proxy_in_gitconfig));
+-    out.push((PathBuf::from("/etc/pip.conf"), proxy_in_pipconf));
+-    out.push((PathBuf::from("/etc/environment"), proxy_in_environment_file));
+-    out
+-}
+-
+-/// The proxy of the first tool config that names one, and the file.
+-pub fn detect(home: Option<&Path>) -> Option<(String, PathBuf)> {
+-    sources(home).into_iter().find_map(|(path, parse)| {
+-        let text = std::fs::read_to_string(&path).ok()?;
+-        parse(&text).map(|proxy| (proxy, path))
+-    })
+-}
+-
+-/// The user and the password that a client of a proxy of podnet must give
+-/// (issue 146): SOCKS5 RFC 1929, or HTTP `Proxy-Authorization: Basic`.
+-#[derive(Clone)]
+-pub struct Credentials {
+-    user: String,
+-    pass: String,
+-}
+-
+-impl std::fmt::Debug for Credentials {
+-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        write!(f, "Credentials({}, <hidden>)", self.user)
+-    }
+-}
+-
+-/// Equal bytes, in a time that does not depend on where they differ.
+-fn same(a: &[u8], b: &[u8]) -> bool {
+-    let mut diff = (a.len() != b.len()) as u8;
+-    for (i, x) in a.iter().enumerate() {
+-        diff |= x ^ b.get(i).copied().unwrap_or(0);
+-    }
+-    diff == 0
+-}
+-
+-impl Credentials {
+-    pub fn new(user: &str, pass: &str) -> anyhow::Result<Self> {
+-        if user.is_empty() || user.len() > 255 || pass.is_empty() || pass.len() > 255 {
+-            anyhow::bail!("a proxy user and password must each have 1 to 255 bytes (RFC 1929)");
+-        }
+-        if user.contains(':') {
+-            anyhow::bail!("a proxy user has no ':' (HTTP Basic)");
+-        }
+-        Ok(Self {
+-            user: user.into(),
+-            pass: pass.into(),
+-        })
+-    }
+-
+-    /// The user, and the password from the first line of `path`. The file
+-    /// must belong to this user and have no access for others (0600).
+-    pub fn load(user: &str, path: &Path) -> anyhow::Result<Self> {
+-        use anyhow::Context as _;
+-        use std::os::unix::fs::MetadataExt as _;
+-        let meta = std::fs::metadata(path).with_context(|| format!("{}", path.display()))?;
+-        if meta.mode() & 0o077 != 0 {
+-            anyhow::bail!(
+-                "{} has mode {:04o}: other users may read the password. Run: chmod 600 {}",
+-                path.display(),
+-                meta.mode() & 0o777,
+-                path.display()
+-            );
+-        }
+-        let text = std::fs::read_to_string(path).with_context(|| format!("{}", path.display()))?;
+-        let pass = text
+-            .lines()
+-            .next()
+-            .unwrap_or_default()
+-            .trim_end_matches('\r');
+-        Self::new(user, pass)
+-    }
+-
+-    pub fn user(&self) -> &str {
+-        &self.user
+-    }
+-
+-    /// The value `Basic BASE64(user:pass)` of an Authorization header.
+-    pub fn basic_header(&self) -> String {
+-        use base64::Engine as _;
+-        let token = base64::engine::general_purpose::STANDARD
+-            .encode(format!("{}:{}", self.user, self.pass));
+-        format!("Basic {token}")
+-    }
+-
+-    /// True for the right user and password.
+-    pub fn check(&self, user: &str, pass: &str) -> bool {
+-        same(user.as_bytes(), self.user.as_bytes()) & same(pass.as_bytes(), self.pass.as_bytes())
+-    }
+-
+-    /// True for a `Proxy-Authorization` value `Basic BASE64(user:pass)` of
+-    /// the right user and password.
+-    pub fn check_basic(&self, value: Option<&str>) -> bool {
+-        use base64::Engine as _;
+-        let Some(value) = value else { return false };
+-        let Some((scheme, token)) = value.trim().split_once(' ') else {
+-            return false;
+-        };
+-        if !scheme.eq_ignore_ascii_case("basic") {
+-            return false;
+-        }
+-        let Ok(raw) = base64::engine::general_purpose::STANDARD.decode(token.trim()) else {
+-            return false;
+-        };
+-        let raw = String::from_utf8_lossy(&raw);
+-        let Some((user, pass)) = raw.split_once(':') else {
+-            return false;
+-        };
+-        self.check(user, pass)
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    // Issue 146: the check of the credentials of a client.
+-    #[test]
+-    fn credentials_are_checked() {
+-        let c = Credentials::new("alice", "s3cret").unwrap();
+-        assert!(c.check("alice", "s3cret"));
+-        assert!(!c.check("alice", "s3cre"));
+-        assert!(!c.check("bob", "s3cret"));
+-        assert!(c.check_basic(Some("Basic YWxpY2U6czNjcmV0")));
+-        assert!(c.check_basic(Some("basic   YWxpY2U6czNjcmV0")));
+-        assert!(!c.check_basic(Some("Basic YWxpY2U6d3Jvbmc=")));
+-        assert!(!c.check_basic(Some("Bearer x")));
+-        assert!(!c.check_basic(None));
+-        assert!(!format!("{c:?}").contains("s3cret"));
+-        assert!(Credentials::new("a:b", "p").is_err());
+-        assert!(Credentials::new("", "p").is_err());
+-    }
+-
+-    #[test]
+-    fn a_password_file_must_be_private() {
+-        use std::os::unix::fs::PermissionsExt as _;
+-        let dir = tempfile::tempdir().unwrap();
+-        let file = dir.path().join("pass");
+-        std::fs::write(&file, "s3cret\n").unwrap();
+-        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+-        assert!(Credentials::load("alice", &file).is_err());
+-        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).unwrap();
+-        assert!(Credentials::load("alice", &file)
+-            .unwrap()
+-            .check("alice", "s3cret"));
+-    }
+-
+-    #[test]
+-    fn md5_vectors_of_rfc_1321() {
+-        assert_eq!(hex(&md5(b"")), "d41d8cd98f00b204e9800998ecf8427e");
+-        assert_eq!(hex(&md5(b"abc")), "900150983cd24fb0d6963f7d28e17f72");
+-        assert_eq!(
+-            hex(&md5(
+-                b"12345678901234567890123456789012345678901234567890123456789012345678901234567890"
+-            )),
+-            "57edf4a22be3c955ac49da2e2107b67a"
+-        );
+-    }
+-
+-    /// The example of RFC 7616 section 3.9.1.
+-    #[test]
+-    fn digest_responses_of_rfc_7616() {
+-        let header = "Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm=SHA-256, nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\", opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\"";
+-        let challenge = parse_challenge(header).unwrap();
+-        assert_eq!(challenge.qop.as_deref(), Some("auth"));
+-        let value = authorization(
+-            &challenge,
+-            "Mufasa",
+-            "Circle of Life",
+-            "GET",
+-            "/dir/index.html",
+-            "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ",
+-            1,
+-        );
+-        assert!(
+-            value.contains(
+-                "response=\"753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1\""
+-            ),
+-            "{value}"
+-        );
+-        let md5_challenge = Challenge {
+-            algorithm: "MD5".into(),
+-            ..challenge
+-        };
+-        let value = authorization(
+-            &md5_challenge,
+-            "Mufasa",
+-            "Circle of Life",
+-            "GET",
+-            "/dir/index.html",
+-            "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ",
+-            1,
+-        );
+-        assert!(
+-            value.contains("response=\"8ca523f5e9506fed4657c9700eebdbec\""),
+-            "{value}"
+-        );
+-        assert!(value.contains("nc=00000001"));
+-        assert!(value.contains("opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\""));
+-    }
+-
+-    /// Issue 274: the scheme has any case, and a value with more than one
+-    /// challenge gives its Digest challenge.
+-    #[test]
+-    fn a_digest_challenge_among_others() {
+-        let lower = parse_challenge("digest realm=\"x\", nonce=\"n\", qop=\"auth\"").unwrap();
+-        assert_eq!((lower.realm.as_str(), lower.nonce.as_str()), ("x", "n"));
+-        assert_eq!(lower.qop.as_deref(), Some("auth"));
+-        let both = parse_challenge(
+-            "Basic realm=\"a, b\", Digest realm=\"x\", nonce=\"n\", qop=\"auth,auth-int\", algorithm=MD5",
+-        )
+-        .unwrap();
+-        assert_eq!(
+-            (
+-                both.realm.as_str(),
+-                both.nonce.as_str(),
+-                both.algorithm.as_str()
+-            ),
+-            ("x", "n", "MD5")
+-        );
+-        assert_eq!(both.qop.as_deref(), Some("auth"));
+-        let after = parse_challenge("NTLM, Negotiate, DIGEST nonce=\"n2\", realm=\"y\"").unwrap();
+-        assert_eq!((after.realm.as_str(), after.nonce.as_str()), ("y", "n2"));
+-        // The parameters of the Digest challenge stop at the next scheme.
+-        let before = parse_challenge("Digest realm=\"x\", nonce=\"n\", Basic realm=\"z\"").unwrap();
+-        assert_eq!(before.realm, "x");
+-    }
+-
+-    #[test]
+-    fn challenges_that_podnet_does_not_take() {
+-        assert!(parse_challenge("Basic realm=\"x\"").is_none());
+-        assert!(
+-            parse_challenge("Digest realm=\"x\", nonce=\"n\", algorithm=SHA-512-256").is_none()
+-        );
+-        assert!(parse_challenge("Digest realm=\"x\"").is_none(), "no nonce");
+-    }
+-
+-    #[test]
+-    fn the_proxy_of_each_tool_config() {
+-        let git = "[core]\n\tbare = false\n[http]\n\tproxy = http://gw:3128\n";
+-        assert_eq!(proxy_in_gitconfig(git).as_deref(), Some("http://gw:3128"));
+-        assert_eq!(proxy_in_gitconfig("[user]\nproxy = x\n"), None);
+-        let npm = "registry=https://r\nproxy=http://a:1\nhttps-proxy=http://b:2\n";
+-        assert_eq!(proxy_in_npmrc(npm).as_deref(), Some("http://b:2"));
+-        assert_eq!(proxy_in_npmrc("proxy=null\n"), None);
+-        let pip = "[global]\nproxy = http://p:8080\n";
+-        assert_eq!(proxy_in_pipconf(pip).as_deref(), Some("http://p:8080"));
+-        let env = "PATH=/usr/bin\nhttps_proxy=\"http://e:3128\"\n";
+-        assert_eq!(
+-            proxy_in_environment_file(env).as_deref(),
+-            Some("http://e:3128")
+-        );
+-    }
+-
+-    #[test]
+-    fn detection_takes_the_first_file() {
+-        let home = tempfile::tempdir().unwrap();
+-        std::fs::write(home.path().join(".npmrc"), "proxy=http://npm:1\n").unwrap();
+-        let (proxy, path) = detect(Some(home.path())).unwrap();
+-        assert_eq!(proxy, "http://npm:1");
+-        assert!(path.ends_with(".npmrc"));
+-        std::fs::write(
+-            home.path().join(".gitconfig"),
+-            "[http]\nproxy = http://git:2\n",
+-        )
+-        .unwrap();
+-        assert_eq!(detect(Some(home.path())).unwrap().0, "http://git:2");
+-    }
+-}
+diff --git a/src/quicktunnel.rs b/src/quicktunnel.rs
+index 45ff7cd..5a1b7f6 100644
+--- a/src/quicktunnel.rs
++++ b/src/quicktunnel.rs
+@@ -247,11 +247,10 @@ pub async fn request_quick_tunnel(
+         .header("Content-Type", "application/json")
+         .header("User-Agent", user_agent)
+         .timeout(timeout)
+-        .via(proxy.cloned());
+-    if let Some(body) = auth_mode.request_body() {
+-        request.body = Some(body.into());
+-    }
+-    let response = request.send().await.map_err(ProvisionError::Http)?;
++        .via(crate::egress::via(proxy));
++    request.body = auth_mode.request_body().map(Into::into);
++    let response = crate::fetch::send(request).await;
++    let response = response.map_err(ProvisionError::Http)?;
+     let status = response.status;
+     let text = response.text();
+     let retry_after = response.header("retry-after").and_then(parse_retry_after);
+diff --git a/src/resolve.rs b/src/resolve.rs
+index 7073d1f..2c386d5 100644
+--- a/src/resolve.rs
++++ b/src/resolve.rs
+@@ -415,11 +415,11 @@ async fn doh_query_at(server: &DohServer, name: &str, rtype: &str) -> Result<Doh
+         .timeout(STEP_TIMEOUT);
+     // The DoH server is an IP address, or a name that the proxy resolves.
+     // The dial of a proxy can resolve the proxy host: not by DoH again.
+-    let response = NO_DOH.scope((), request.send()).await?;
++    let response = NO_DOH.scope((), crate::fetch::send(request)).await?;
+     if !response.is_success() {
+         bail!("HTTP {}", response.status);
+     }
+-    response.json()
++    crate::fetch::json(&response)
+ }
+ 
+ #[cfg(test)]
+diff --git a/src/status.rs b/src/status.rs
+index 5c3bfd9..02e0f51 100644
+--- a/src/status.rs
++++ b/src/status.rs
+@@ -6,8 +6,8 @@
+ 
+ use serde_json::{json, Value};
+ 
+-/// The variables of the proxy, in the order that podnet reads them.
+-const PROXY_VARIABLES: &[&str] = &["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
++// The variables of the proxy, in the order that podnet reads them.
++use crate::egress::PROXY_VARIABLES;
+ 
+ /// The proxy that podnet uses, by the choice of the dial: `--no-proxy`,
+ /// `--proxy` (or `PODNET_PROXY`), else the first proxy variable that is set.
+@@ -21,7 +21,7 @@ fn proxy() -> Value {
+             "source": source,
+             "address": match p.carrier() {
+                 Carrier::Tcp => format!("{}:{}", p.address().0, p.address().1),
+-                _ => p.to_string(),
++                _ => p.label(),
+             },
+             "kind": p.kind_text(),
+             "credentials": p.has_credentials(),
+@@ -40,7 +40,7 @@ fn proxy() -> Value {
+         if value.trim().is_empty() {
+             continue;
+         }
+-        return match Proxy::parse(&value) {
++        return match crate::egress::parse(&value) {
+             Ok(p) => {
+                 let mut doc = describe(&p, key);
+                 // The key of beta.11 and before.
+diff --git a/src/tunnel.rs b/src/tunnel.rs
+index 39843e6..b29e4be 100644
+--- a/src/tunnel.rs
++++ b/src/tunnel.rs
+@@ -610,7 +610,7 @@ pub fn plan_with_proxy(
+     protocol: Protocol,
+     proxy: Option<&crate::egress::Proxy>,
+ ) -> (Vec<LegKind>, Option<String>) {
+-    let Some(proxy) = proxy else {
++    let Some(proxy) = proxy.map(|p| p.label()) else {
+         return (plan, None);
+     };
+     if !plan.contains(&LegKind::QuicDirect) {
+@@ -1242,7 +1242,7 @@ async fn verify_fetch(
+     loop {
+         attempt += 1;
+         let request = crate::fetch::Request::new("GET", url).timeout(Duration::from_secs(15));
+-        match request.send().await {
++        match crate::fetch::send(request).await {
+             Ok(response) => {
+                 let body = response.text();
+                 let ok = response.is_success()
+diff --git a/src/update.rs b/src/update.rs
+index 824da04..258dba1 100644
+--- a/src/update.rs
++++ b/src/update.rs
+@@ -123,12 +123,11 @@ impl std::error::Error for HttpStatus {}
+ async fn get(url: &str, timeout: Duration, max_body: usize) -> Result<Vec<u8>> {
+     let mut url = url.to_string();
+     for _ in 0..6 {
+-        let response = crate::fetch::Request::new("GET", url.clone())
++        let request = crate::fetch::Request::new("GET", url.clone())
+             .header("Accept", "application/octet-stream, application/json")
+             .timeout(timeout)
+-            .max_body(max_body)
+-            .send()
+-            .await?;
++            .max_body(max_body);
++        let response = crate::fetch::send(request).await?;
+         match response.status {
+             200 => return Ok(response.body),
+             301 | 302 | 303 | 307 | 308 => {
+diff --git a/src/warp/proxy.rs b/src/warp/proxy.rs
+index b862982..13cc714 100644
+--- a/src/warp/proxy.rs
++++ b/src/warp/proxy.rs
+@@ -593,12 +593,11 @@ where
+ 
+ /// The credentials that each client of the proxies of this process must
+ /// give (issue 146), when they are set.
+-static CREDENTIALS: std::sync::OnceLock<crate::proxy_auth::Credentials> =
+-    std::sync::OnceLock::new();
++static CREDENTIALS: std::sync::OnceLock<pod_proxy::Credentials> = std::sync::OnceLock::new();
+ 
+ /// Set the credentials of the clients (issue 146). Call it before the first
+ /// client.
+-pub fn set_credentials(credentials: crate::proxy_auth::Credentials) {
++pub fn set_credentials(credentials: pod_proxy::Credentials) {
+     let _ = CREDENTIALS.set(credentials);
+ }
+ 
+@@ -616,7 +615,7 @@ pub async fn handle_client_auth<S, D, F>(
+     stream: S,
+     dial: D,
+     udp: Option<Arc<WarpStack>>,
+-    auth: Option<&crate::proxy_auth::Credentials>,
++    auth: Option<&pod_proxy::Credentials>,
+ ) -> Result<()>
+ where
+     S: AsyncRead + AsyncWrite + Unpin,
+@@ -1878,7 +1877,7 @@ mod tests {
+ 
+     #[tokio::test]
+     async fn a_socks5_client_gives_its_credentials() {
+-        let creds = crate::proxy_auth::Credentials::new("alice", "pw").unwrap();
++        let creds = pod_proxy::Credentials::new("alice", "pw").unwrap();
+         for (user, pass, ok) in [("alice", "pw", true), ("alice", "no", false)] {
+             let seen = Arc::new(std::sync::Mutex::new(None));
+             let (mut client, server) = tokio::io::duplex(1024);
+@@ -1934,7 +1933,7 @@ mod tests {
+     // gets 200.
+     #[tokio::test]
+     async fn an_http_client_gives_its_credentials() {
+-        let creds = crate::proxy_auth::Credentials::new("alice", "pw").unwrap();
++        let creds = pod_proxy::Credentials::new("alice", "pw").unwrap();
+         for (header, want) in [
+             ("", "407"),
+             ("Proxy-Authorization: Basic YWxpY2U6cHc=\r\n", "200"),
+diff --git a/src/warp/register.rs b/src/warp/register.rs
+index 394132c..c0e03a4 100644
+--- a/src/warp/register.rs
++++ b/src/warp/register.rs
+@@ -19,6 +19,7 @@ use anyhow::{bail, Context, Result};
+ use serde::{Deserialize, Serialize};
+ 
+ use crate::egress::Proxy;
++use crate::fetch::{Request, Response};
+ 
+ /// API host. Reachable on TCP 443, which is the point of this module.
+ pub const API_BASE: &str = "https://api.cloudflareclient.com";
+@@ -58,17 +59,14 @@ pub fn api_bases(value: Option<&str>) -> Result<Vec<String>> {
+ 
+ /// Send `request` (made for [`API_BASE`]) to each API base in turn, until
+ /// one answers with a status under 500. The error names each base.
+-async fn send_api(request: crate::fetch::Request) -> Result<crate::fetch::Response> {
++async fn send_api(request: Request) -> Result<Response> {
+     let bases = api_bases(std::env::var(API_VARIABLE).ok().as_deref())
+         .map_err(|e| crate::exit::fault(crate::exit::Fault::Config, e))?;
+     send_api_to(request, &bases).await
+ }
+ 
+ /// [`send_api`] with the bases `bases`.
+-async fn send_api_to(
+-    request: crate::fetch::Request,
+-    bases: &[String],
+-) -> Result<crate::fetch::Response> {
++async fn send_api_to(request: Request, bases: &[String]) -> Result<Response> {
+     let path = request
+         .url
+         .strip_prefix(API_BASE)
+@@ -79,7 +77,7 @@ async fn send_api_to(
+     for (i, base) in bases.iter().enumerate() {
+         let mut attempt = request.clone();
+         attempt.url = format!("{base}{path}");
+-        match attempt.send().await {
++        match crate::fetch::send(attempt).await {
+             Ok(response) if response.status < 500 || i + 1 == count => return Ok(response),
+             Ok(response) => failures.push(format!("{base}: HTTP {}", response.status)),
+             Err(err) if i + 1 == count => {
+@@ -399,13 +397,13 @@ fn request(
+     path: &str,
+     bearer: Option<&str>,
+     proxy: Option<&Proxy>,
+-) -> crate::fetch::Request {
+-    let mut request = crate::fetch::Request::new(method, format!("{API_BASE}/{API_VERSION}{path}"))
++) -> Request {
++    let mut request = Request::new(method, format!("{API_BASE}/{API_VERSION}{path}"))
+         .header("User-Agent", USER_AGENT)
+         .header("CF-Client-Version", CLIENT_VERSION)
+         .header("Content-Type", "application/json; charset=UTF-8")
+         .timeout(std::time::Duration::from_secs(30))
+-        .via(proxy.cloned());
++        .via(crate::egress::via(proxy));
+     if let Some(token) = bearer {
+         request = request.header("Authorization", format!("Bearer {token}"));
+     }
+@@ -414,25 +412,23 @@ fn request(
+ 
+ /// The send of an API request: see [`send_api`].
+ trait SendApi {
+-    async fn send_api(self) -> Result<crate::fetch::Response>;
++    async fn send_api(self) -> Result<Response>;
+ }
+ 
+-impl SendApi for crate::fetch::Request {
+-    async fn send_api(self) -> Result<crate::fetch::Response> {
++impl SendApi for Request {
++    async fn send_api(self) -> Result<Response> {
+         send_api(self).await
+     }
+ }
+ 
+-fn with_json<T: Serialize>(
+-    request: crate::fetch::Request,
+-    body: &T,
+-) -> Result<crate::fetch::Request> {
+-    Ok(request.json(&serde_json::to_value(body).context("encoding the WARP API body")?))
++fn with_json<T: Serialize>(request: Request, body: &T) -> Result<Request> {
++    let body = serde_json::to_value(body).context("encoding the WARP API body")?;
++    Ok(request.json(body.to_string()))
+ }
+ 
+ /// The device of an answer. A body that cannot be decoded is not shown: the
+ /// answer of `POST /reg` holds the token.
+-fn check(resp: crate::fetch::Response) -> Result<Device> {
++fn check(resp: Response) -> Result<Device> {
+     if !resp.is_success() {
+         bail!("WARP API answered HTTP {}: {}", resp.status, resp.text());
+     }
+@@ -590,7 +586,7 @@ pub async fn set_license(
+         Some(token),
+         proxy,
+     )
+-    .json(&serde_json::json!({ "license": license }))
++    .json(serde_json::json!({ "license": license }).to_string())
+     .send_api()
+     .await
+     .context("PUT /reg/{id}/account")?;
+@@ -631,7 +627,7 @@ pub fn api_status(err: &anyhow::Error) -> Option<u16> {
+         .map(|e| e.status)
+ }
+ 
+-fn json_body(resp: crate::fetch::Response) -> Result<serde_json::Value> {
++fn json_body(resp: Response) -> Result<serde_json::Value> {
+     if !resp.is_success() {
+         return Err(ApiError {
+             status: resp.status,
+@@ -800,7 +796,7 @@ mod tests {
+         let busy = answering(503).await;
+         let refused = answering(403).await;
+         let request = || {
+-            crate::fetch::Request::new("GET", format!("{API_BASE}/{API_VERSION}/reg/x"))
++            Request::new("GET", format!("{API_BASE}/{API_VERSION}/reg/x"))
+                 .timeout(std::time::Duration::from_secs(5))
+                 .via(None)
+         };
+diff --git a/src/ws_relay.rs b/src/ws_relay.rs
+index eefec65..231a0fd 100644
+--- a/src/ws_relay.rs
++++ b/src/ws_relay.rs
+@@ -401,7 +401,7 @@ impl Relay {
+             let request = crate::fetch::Request::new("GET", format!("{}/relays.json", at.url()))
+                 .timeout(Duration::from_secs(20))
+                 .max_body(crate::relay_pool::MAX_BODY);
+-            let hosts = match request.send().await {
++            let hosts = match crate::fetch::send(request).await {
+                 Ok(response) if response.status == 200 => {
+                     crate::relay_pool::parse_pool(response.text().as_bytes(), &primary)
+                 }
+@@ -575,12 +575,12 @@ impl Relay {
+         token: Option<&str>,
+     ) -> Result<std::result::Result<serde_json::Value, (u16, String)>> {
+         let mut request = crate::fetch::Request::new("POST", format!("{}{path}", self.url()))
+-            .json(&serde_json::json!({}))
++            .json(serde_json::json!({}).to_string())
+             .timeout(Duration::from_secs(20));
+         if let Some(token) = token {
+             request = request.header("X-Relay-Token", token);
+         }
+-        let response = request.send().await?;
++        let response = crate::fetch::send(request).await?;
+         if response.status != 200 {
+             let retry = response.header("retry-after").map(str::to_string);
+             let mut text: String = response.text().chars().take(200).collect();
+@@ -589,7 +589,7 @@ impl Relay {
+             }
+             return Ok(Err((response.status, text)));
+         }
+-        Ok(Ok(response.json()?))
++        Ok(Ok(crate::fetch::json(&response)?))
+     }
+ }
+ 
+@@ -687,10 +687,10 @@ enum MintError {
+ 
+ async fn mint_at(host: &Host) -> std::result::Result<Minted, MintError> {
+     let url = format!("{}/v1/mint", host.url());
+-    let response = crate::fetch::Request::new("POST", url)
+-        .json(&serde_json::json!({}))
+-        .timeout(Duration::from_secs(20))
+-        .send()
++    let request = crate::fetch::Request::new("POST", url)
++        .json(serde_json::json!({}).to_string())
++        .timeout(Duration::from_secs(20));
++    let response = crate::fetch::send(request)
+         .await
+         .context("minting a relay token")
+         .map_err(MintError::Next)?;
+@@ -713,8 +713,7 @@ async fn mint_at(host: &Host) -> std::result::Result<Minted, MintError> {
+             )))
+         }
+     }
+-    let body: serde_json::Value = response
+-        .json()
++    let body: serde_json::Value = crate::fetch::json(&response)
+         .context("the mint answer")
+         .map_err(MintError::Next)?;
+     let token = body
+diff --git a/tests/egress.rs b/tests/egress.rs
+index e5eef54..6a0172f 100644
+--- a/tests/egress.rs
++++ b/tests/egress.rs
+@@ -9,7 +9,6 @@ use std::net::{TcpListener, TcpStream};
+ use std::process::Command;
+ use std::sync::atomic::{AtomicUsize, Ordering};
+ use std::sync::{Arc, Mutex};
+-use std::time::{Duration, Instant};
+ 
+ /// A quick-tunnel API on plain HTTP. With `ok`, it gives a tunnel; else 503.
+ fn api(ok: bool) -> (u16, Arc<AtomicUsize>) {
+@@ -312,24 +311,6 @@ fn a_407_names_the_schemes() {
+     );
+ }
+ 
+-/// An address that does not answer delays the dial by one attempt delay,
+-/// not by its own time-out.
+-#[tokio::test]
+-async fn a_silent_address_does_not_hold_the_dial() {
+-    test_host::need_loopback!();
+-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+-    let good = listener.local_addr().unwrap();
+-    // TEST-NET-1: no host answers there.
+-    let silent: std::net::SocketAddr = "192.0.2.1:9".parse().unwrap();
+-    let start = Instant::now();
+-    let (index, _stream) = podnet::egress::dial_addrs(&[silent, good], Duration::from_secs(10))
+-        .await
+-        .unwrap();
+-    let took = start.elapsed();
+-    assert_eq!(index, 1);
+-    assert!(took < Duration::from_millis(1000), "the dial took {took:?}");
+-}
+-
+ /// A proxy that refuses with a text: the error line keeps the text, and
+ /// the second line names the proxy hop.
+ #[test]

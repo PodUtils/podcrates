@@ -1,0 +1,21 @@
+# The trial of pod-proxy in podnet: the way out of each connection
+# (src/egress.rs), the HTTP client (src/fetch.rs) and the credentials of a
+# served proxy take pod-proxy, with podnet's rules of the variables, its
+# --proxy, its resolver chain, its counters, and its words and hops of a
+# failure. The record, the size of the files, the build, the bans and the
+# sources of cargo-deny, clippy, the tests of the library, the integration
+# tests that read the way out, the fuzz targets with their lock, which
+# follows the crates of the tree (at the tag, the consumer runs the same
+# `cargo update -w` in fuzz/), and rustfmt.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo clippy -q --all-targets -p podnet -p podnet-netns -- -D warnings
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test egress --test tls --test relay_reverse --test cli --test doctor --test api_surface --test connect --test docs --test update_umask
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
