@@ -1,0 +1,4487 @@
+diff --git a/TODO/RULES.md b/TODO/RULES.md
+index 0ca0a0e..2efb6a5 100644
+--- a/TODO/RULES.md
++++ b/TODO/RULES.md
+@@ -37,7 +37,7 @@ recorded one.
+   and Status, and the sections Problem, Premise, Approach and Prove. It can
+   also have Decision, Blocker, Start condition, Correction and Done, in that
+   order. `TODO/INDEX.md` gives the meaning of each value.
+-  `crates/podssh-todo/src/model.rs` is the list that the checker accepts.
++  `TODO/todo.toml` and the defaults of `pod-todo` (PodUtils/podcrates) are the lists that the checker accepts.
+ - To close an entry: run its Prove, write `## Done` with the date, the commit
+   and the result, then run `cargo todo set T-NNN done`.
+ - A premise that a measurement disproves keeps its title. Write a
+diff --git a/TODO/repo.md b/TODO/repo.md
+index 43ac1d6..d0a724e 100644
+--- a/TODO/repo.md
++++ b/TODO/repo.md
+@@ -2539,7 +2539,7 @@ Read:
+ - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
+   lowercase duplicate of AGENTS.md created by the filesystem".
+ - The record's checker reads `AGENTS.md` for ids, and drops a missing file
+-  with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
++  with no word (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:43-48`). It accepts
+   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
+   container (`scripts/gate.sh:341-348`). 22 lines of `TODO/` cite `AGENTS.md`.
+ - The area file that was TODO/agents.md is `TODO/machine.md` now.
+@@ -2714,7 +2714,7 @@ starts the work from a false premise.
+ 
+ ## Premise
+ 
+-- Read: `citations` (`crates/podssh-todo/src/refs.rs:94-137`) tests that the
++- Read: `citations` (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:94-137`) tests that the
+   path exists with its exact case, and that the last line is not past the end
+   of the file. It does not test what the line says.
+ - Measured on 2026-10-08: a script outside the repository moved the
+@@ -2761,7 +2761,7 @@ The session that built it (2026-10-08) made these calls:
+   file in its paragraph (the record writes `` `FILE:12` and `:40` ``). Only
+   `TODO/`, as the Approach says, lost: a stale citation in `docs/` misleads
+   as much.
+-- **A line diff of its own** (`crates/podssh-todo/src/diff.rs`): the longest
++- **A line diff of its own** (`PodUtils/podssh:crates/podssh-todo/src/diff.rs`): the longest
+   common subsequence after the common head and tail, with no dependency.
+ 
+ ## Prove
+@@ -2775,6 +2775,10 @@ cargo todo remap docs/ROADMAP.md         # on a clean tree: nothing moves
+ Planted defects: add a line above a cited line and skip the remap, then
+ change a quoted line; each test that guards it fails.
+ 
++## Correction
++
++The test targets `remap`, `plants` of `podssh-todo` moved to `pod-todo` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-todo` there runs them.
++
+ ## Done
+ 
+ 2026-10-08, in the commit "podssh-todo: remap moves the citations of an
+@@ -2831,7 +2835,7 @@ table, then a row of the doctor) without a remap of that file. 45 citations of i
+ neighbouring row: the entries of IRC named the row of `podssh-cli` instead of `podssh-core`, and
+ those of Tailscale the row of `podssh-core`. Each one was found by tracing its line through the
+ history of its file to the row that it named when it was written. The check of a cited line
+-(`crates/podssh-todo/src/refs.rs`) tests that the line exists; a quote is checked only where an
++(`PodUtils/podssh:crates/podssh-todo/src/refs.rs`) tests that the line exists; a quote is checked only where an
+ entry quotes.
+ 
+ ## Approach
+@@ -2867,15 +2871,19 @@ cargo clippy -p podssh-todo --all-targets -- -D warnings
+ Plant on this repository: one line added at the top of a cited file, with no remap; `cargo todo
+ check` must exit 1 and name each citation of it, and exit 0 again when the file is restored.
+ 
++## Correction
++
++The test targets `remap` of `podssh-todo` moved to `pod-todo` of PodUtils/podcrates when podssh took the crate: `cargo test -p pod-todo` there runs them.
++
+ ## Done
+ 
+ 2026-10-09, in the commit "cargo todo check finds a citation that a forgotten remap left".
+ 
+-- `crates/podssh-todo/src/remap.rs`: `changed_since_head` (the files that differ from `HEAD` and
+-  exist; `None` when git cannot say). `crates/podssh-todo/src/check.rs`: `check` passes them to
++- `PodUtils/podssh:crates/podssh-todo/src/remap.rs`: `changed_since_head` (the files that differ from `HEAD` and
++  exist; `None` when git cannot say). `PodUtils/podssh:crates/podssh-todo/src/check.rs`: `check` passes them to
+   `check_with`, which runs `remap` without writing and reports each citation that would move:
+   "cites FILE N -> M, as FILE changed since HEAD: run `cargo todo remap FILE`".
+-- `crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
++- `PodUtils/podssh:crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
+   line 0 at `4e817d7`, is a problem; two plant tests.
+ - `TODO/RULES.md` (citations), `docs/development.md` (checks) and the rows of `podssh-todo` and of
+   the work record in `docs/STATUS.md` say so.
+@@ -2884,11 +2892,11 @@ check` must exit 1 and name each citation of it, and exit 0 again when the file
+   `cargo test -p podssh-todo`: 65 passed. `cargo clippy -p podssh-todo --all-targets -- -D
+   warnings`: no warning. `cargo test --no-fail-fast`: 795 passed, 0 failed, 7 ignored.
+ - Plants: a range `4-2` and a line `0`, planted in the record of
+-  `crates/podssh-todo/tests/plants.rs`, are found.
++  `PodUtils/podssh:crates/podssh-todo/tests/plants.rs`, are found.
+   `// planted` added at the top of `crates/podssh-ws/src/names.rs` with no remap: `cargo
+   todo check` exited 1 with 6 problems, one for each citation of the file, each naming `cargo todo
+   remap crates/podssh-ws/src/names.rs`; restored, it exited 0. While this entry was written, the
+-  check found its own missing remap of `crates/podssh-todo/src/refs.rs`.
++  check found its own missing remap of `PodUtils/podssh:crates/podssh-todo/src/refs.rs`.
+ 
+ # T-258: Line numbers written as plain text in the record are not moved
+ 
+@@ -2913,7 +2921,7 @@ right for that commit only.
+ 
+ Measured on 2026-10-09 with a scan of `TODO/` and `docs/`: 42 numbers
+ written as plain text follow a citation of a Rust file that the format of
+-T-215 changed. `crates/podssh-todo/src/refs.rs` reads citations in backticks
++T-215 changed. `PodUtils/podssh:crates/podssh-todo/src/refs.rs` reads citations in backticks
+ only.
+ 
+ ## Approach
+@@ -2950,7 +2958,7 @@ names, as `remap` does.
+ 2026-10-09, in the commit "The record's checker finds a line number in plain
+ text after a citation, and reads each bare :N".
+ 
+-- `crates/podssh-todo/src/numbers.rs`: in each paragraph of `TODO/`, a
++- `PodUtils/podssh:crates/podssh-todo/src/numbers.rs`: in each paragraph of `TODO/`, a
+   "line N" or "lines N-M" (also "lines 3 and 5") outside code spans and
+   quotes, after a citation, with no "at `COMMIT`" after it and no reading at
+   a named commit before it, is a problem that names the two forms. Each
+@@ -3415,8 +3423,8 @@ file was checked for no file.
+ 
+ ## Premise
+ 
+-Read, at `832149e`: `crates/podssh-todo/src/check.rs` lines 80-83 give the check the files
+-changed since `HEAD` and their texts there, from `crates/podssh-todo/src/remap.rs` lines 51-67
++Read, at `832149e`: `PodUtils/podssh:crates/podssh-todo/src/check.rs` lines 80-83 give the check the files
++changed since `HEAD` and their texts there, from `PodUtils/podssh:crates/podssh-todo/src/remap.rs` lines 51-67
+ (`git show HEAD:FILE`) and lines 72-84 (`git diff --name-only HEAD`). The check's `unmoved`
+ returns with no problem when the remap fails (`check.rs` line 114), and the remap fails on a file
+ that `fs::read_to_string` cannot read (`remap.rs` line 94). The gate runs the check on its
+@@ -3473,7 +3481,7 @@ and a remap that fails in the check is a problem. CI's job `checks` checks out t
+ runs `cargo todo check --base HEAD~1` (`.github/workflows/build.yml`). `TODO/RULES.md` and
+ `docs/development.md` say how to repair a commit made without the remap.
+ - Native, Windows 11: `cargo test -p podssh-todo`: 15 unit tests, 2 tests with a real repository
+-  (`crates/podssh-todo/tests/base.rs`), 37 plant tests, 13 tests of the remap, the test of this
++  (`PodUtils/podssh:crates/podssh-todo/tests/base.rs`), 37 plant tests, 13 tests of the remap, the test of this
+   record and 7 tests of the writer: all pass. Planted, each fails its test: `--base` ignored
+   (`HEAD` used); a base that git cannot read let pass; a changed binary file failing the remap
+   again; a failed remap passed over.
+@@ -4549,7 +4557,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
+ 
+ - Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
+   podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
+-  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3877-3880` says why:
++  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3885-3888` says why:
+   the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
+   T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
+ - Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy
+@@ -4694,8 +4702,8 @@ red: a session that reads the map to learn which requests wait does not see them
+ - Read: `TODO/RULES.md:96-97` says "Map each GitHub issue to its entries in"; an issue closes
+   when each of its entries is done, and the map then says so (`TODO/RULES.md:99-104`).
+ - Read: the checker knows `issues.md` as a file of the record that holds no entries
+-  (`crates/podssh-todo/src/model.rs:23`); it reads its ids and its citations, as in each file of
+-  `TODO/` (`crates/podssh-todo/src/refs.rs:22-35`), and no number of an issue.
++  (`PodUtils/podssh:crates/podssh-todo/src/model.rs:23`); it reads its ids and its citations, as in each file of
++  `TODO/` (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`), and no number of an issue.
+ - Read, on GitHub on 2026-10-31: #59 is a survey of the carriers that need no relay of the
+   operator's, and #60 to #63 are its four requests (a relay template, SSH on port 443 as a hop, a
+   Shadowsocks road, and WARP and Arti). The map names none of them, and its line of pull requests
+@@ -4753,7 +4761,7 @@ the row is the place.
+ 
+ 2026-10-31: `TODO/github.txt` lists each of GitHub's 77 numbers (53 issues, 24 pull requests)
+ with its state, made from GitHub's own lists of the day; `cargo todo check` holds the map to it
+-(`crates/podssh-todo/src/github.rs`): each issue in one place, a row of a table or the bold head
++(`PodUtils/podssh:crates/podssh-todo/src/github.rs`): each issue in one place, a row of a table or the bold head
+ of a paragraph; each pull request in the map's line of them, its ranges read; the State of a row
+ beginning with the issue's state; and no number that the list does not hold.
+ 
+@@ -4791,8 +4799,8 @@ that does not exist today.
+ ## Premise
+ 
+ - Read: the check of a Prove is that its body holds a backtick
+-  (`crates/podssh-todo/src/check.rs:325-329`); a line in a fenced block is no citation
+-  (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
++  (`PodUtils/podssh:crates/podssh-todo/src/check.rs:325-329`); a line in a fenced block is no citation
++  (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
+ - Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
+   `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
+   each `scripts/` path. Five done entries name `-p podssh-transport` (T-071, T-072, T-073, T-075
+@@ -4847,7 +4855,7 @@ where the triage's script read its commands. Each has a Correction for the move
+ ## Done
+ 
+ 2026-10-31: `cargo todo check` reads the Prove of each done entry
+-(`crates/podssh-todo/src/prove.rs`): each `-p`/`--package` of its `cargo test` commands is a
++(`PodUtils/podssh:crates/podssh-todo/src/prove.rs`): each `-p`/`--package` of its `cargo test` commands is a
+ package of the tree (the workspace's crates, `fuzz/`, `vendor/` and its crates), each `--test` a
+ file of a `tests/` of one of them or a `[[test]]` of its manifest, and each `scripts/` path
+ exists; a target that the entry's `## Correction` names is taken. `cargo todo set T-NNN done`
+@@ -4855,7 +4863,7 @@ refuses a Prove whose target does not exist, with its name.
+ 
+ - Its first run named the eight entries of the Correction above; each got a Correction for the
+   move of T-082 into `podssh-relay`. T-136's `cp_resume` is taken, as its Correction names it.
+-- Tests (`crates/podssh-todo/tests/prove.rs`, on the checker's own tree, which now holds the
++- Tests (`PodUtils/podssh:crates/podssh-todo/tests/prove.rs`, on the checker's own tree, which now holds the
+   manifest and a test of its package `x`): the control, and a `--test` that exists, pass; planted,
+   a `--test gone` ("TODO/area.md:84: T-003: its Prove names the test target gone"), and a
+   script that does not exist (check.sh of the tree's scripts), are named; a target that the Correction names is taken;
+@@ -4899,7 +4907,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
+   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
+   (`docs/cli.md:2000`) and "did not act on yet" (`docs/cli.md:1627`).
+ - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
+-  (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
++  (`PodUtils/podssh:crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
+ - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
+   cap is never compiled in, is T-342's: its Premise reads that line, and its Approach item 5
+   corrects it with the code (`TODO/relay.md:2137-2140`).
+@@ -4945,7 +4953,7 @@ check names both.
+ ## Done
+ 
+ 2026-10-31: `cargo todo check` reads the claims of `docs/`, `README.md`, `AGENTS.md` and
+-`SECURITY.md` (`crates/podssh-todo/src/claims.rs`): each "yet" outside fenced blocks and code
++`SECURITY.md` (`PodUtils/podssh:crates/podssh-todo/src/claims.rs`): each "yet" outside fenced blocks and code
+ spans is in a unit, a paragraph, an item of a list or a row of a table, that names an entry that is
+ not done, or a date or a commit, and a done entry beside it is named; each status beside an id
+ agrees with the index, unless its unit reads at a date or a commit. The release notes are
+diff --git a/TODO/ssh.md b/TODO/ssh.md
+index 08f4c26..009bf4b 100644
+--- a/TODO/ssh.md
++++ b/TODO/ssh.md
+@@ -537,7 +537,7 @@ Read:
+   `crates/podssh-ssh/src/hostkey.rs:228-235` (no terminal). `accept-new`
+   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
+   cites line 91 at `22c3b88`, which builds the question about other key types.
+-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5521-5522`).
++- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5528-5529`).
+   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
+   the CA and the validity window. The caller must check the certificate type,
+   the principals and the critical options (the crate's documentation).
+diff --git a/TODO/todo.toml b/TODO/todo.toml
+new file mode 100644
+index 0000000..3838d72
+--- /dev/null
++++ b/TODO/todo.toml
+@@ -0,0 +1,4 @@
++# The facts of this repository for the checker of the record (pod-todo of
++# PodUtils/podcrates). The other facts are the defaults of pod-todo, which
++# are podssh's.
++tool = "podssh-todo"
+diff --git a/crates/podssh-todo/Cargo.toml b/crates/podssh-todo/Cargo.toml
+index 4ba33ec..ee2e30a 100644
+--- a/crates/podssh-todo/Cargo.toml
++++ b/crates/podssh-todo/Cargo.toml
+@@ -7,6 +7,7 @@ rust-version.workspace = true
+ license.workspace = true
+ publish.workspace = true
+ 
+-# No dependencies: the record is Markdown with fixed lines, and the gate
+-# builds this crate on every push.
++# The checker of the record is pod-todo of PodUtils/podcrates; the facts of
++# podssh are in TODO/todo.toml.
+ [dependencies]
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
+diff --git a/crates/podssh-todo/src/check.rs b/crates/podssh-todo/src/check.rs
+deleted file mode 100644
+index 09277cd..0000000
+--- a/crates/podssh-todo/src/check.rs
++++ /dev/null
+@@ -1,398 +0,0 @@
+-//! The reader: it reads the index, each entry and the progress record, and
+-//! asserts that they agree. It derives each count from the rows and trusts
+-//! no number that a file states.
+-
+-use std::collections::HashMap;
+-use std::fs;
+-use std::path::Path;
+-
+-use crate::model::{
+-    Counts, Entry, Problem, Row, CATEGORIES, EFFORTS, FIELDS, MILESTONES, PRIORITIES, RECORD_FILES, REQUIRED_SECTIONS,
+-    SECTIONS, STATUSES,
+-};
+-use crate::parse;
+-
+-pub const INDEX: &str = "TODO/INDEX.md";
+-pub const PROGRESS: &str = "TODO/PROGRESS.md";
+-
+-/// What the reader found, and the counts that the rows give.
+-pub struct Report {
+-    pub problems: Vec<Problem>,
+-    pub counts: Counts,
+-}
+-
+-/// The record as files: the rows of the index and the entries of each area.
+-pub struct Record {
+-    pub rows: Vec<Row>,
+-    pub entries: Vec<Entry>,
+-    pub index: String,
+-    pub progress: String,
+-}
+-
+-/// Read a file of the tree as text, with `\r\n` read as `\n`.
+-pub fn read(root: &Path, rel: &str) -> Option<String> {
+-    fs::read_to_string(root.join(rel)).ok().map(|t| t.replace("\r\n", "\n"))
+-}
+-
+-/// The area files of `TODO/`: each Markdown file that is not a record file.
+-pub fn area_files(root: &Path) -> Vec<String> {
+-    let mut out: Vec<String> = fs::read_dir(root.join("TODO"))
+-        .map(|d| {
+-            d.filter_map(|e| e.ok())
+-                .map(|e| e.file_name().to_string_lossy().into_owned())
+-                .filter(|n| n.ends_with(".md") && !RECORD_FILES.contains(&n.as_str()))
+-                .collect()
+-        })
+-        .unwrap_or_default();
+-    out.sort();
+-    out
+-}
+-
+-/// Load the record. Problems of form go to `problems`.
+-pub fn load(root: &Path, problems: &mut Vec<Problem>) -> Option<Record> {
+-    let Some(index) = read(root, INDEX) else {
+-        problems.push(Problem::new(INDEX, 0, "the index is missing"));
+-        return None;
+-    };
+-    let progress = read(root, PROGRESS).unwrap_or_else(|| {
+-        problems.push(Problem::new(PROGRESS, 0, "the progress record is missing"));
+-        String::new()
+-    });
+-    let (rows, mut p) = parse::rows(INDEX, &index);
+-    problems.append(&mut p);
+-    let mut entries = Vec::new();
+-    for name in area_files(root) {
+-        let rel = format!("TODO/{name}");
+-        let text = read(root, &rel).unwrap_or_default();
+-        let (mut e, mut p) = parse::entries(&rel, &text);
+-        for entry in &mut e {
+-            entry.file = name.clone();
+-        }
+-        entries.append(&mut e);
+-        problems.append(&mut p);
+-    }
+-    Some(Record { rows, entries, index, progress })
+-}
+-
+-/// Run every check of the reader on the tree at `root`, and, when git can
+-/// say which files changed since the base, the check that no citation of
+-/// them was left behind by a forgotten `remap`. The base is `HEAD`, or the
+-/// revision that `base` names: `HEAD~1` checks a commit that was made
+-/// without the check, as CI does. A base that is named and that git cannot
+-/// read is a problem: the check that it asks for did not run.
+-pub fn check(root: &Path, base: Option<&str>) -> Report {
+-    let rev = base.unwrap_or("HEAD");
+-    let head = |rel: &str| crate::remap::git_at(root, rev, rel);
+-    let changed = crate::remap::changed_since(root, rev);
+-    let unread = base.is_some() && changed.is_none();
+-    let mut report = check_with(root, changed, &head, rev);
+-    if unread {
+-        report.problems.push(Problem::new(
+-            "--base",
+-            0,
+-            format!(
+-                "git cannot compare the tree with `{rev}` here, so no citation that a change left behind can be found"
+-            ),
+-        ));
+-    }
+-    report
+-}
+-
+-/// [`check`], given the files changed since the base `rev` (`None`:
+-/// unknown) and their texts in it, so a test needs no git.
+-pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap::Head, rev: &str) -> Report {
+-    let mut problems = Vec::new();
+-    let Some(record) = load(root, &mut problems) else {
+-        return Report { problems, counts: Counts::default() };
+-    };
+-    if record.rows.is_empty() {
+-        problems.push(Problem::new(INDEX, 0, "the index has no rows"));
+-    }
+-    check_rows(&record.rows, &mut problems);
+-    check_agreement(&record.rows, &record.entries, &mut problems);
+-    for e in &record.entries {
+-        check_entry(e, &mut problems);
+-    }
+-    check_counts(&record, &mut problems);
+-    crate::refs::check(root, &record, &mut problems);
+-    // GitHub's numbers in the map (T-360).
+-    crate::github::check(root, &mut problems);
+-    // The claims of "yet", and a status beside an id (T-362).
+-    let status: std::collections::HashMap<&str, &str> =
+-        record.rows.iter().map(|r| (r.id.as_str(), r.status.as_str())).collect();
+-    crate::claims::check(root, &status, &mut problems);
+-    check_proves(root, &record.entries, &mut problems);
+-    if let Some(files) = changed.filter(|f| !f.is_empty()) {
+-        unmoved(root, &files, head, rev, &mut problems);
+-    }
+-    Report { problems, counts: Counts::of(&record.rows, None) }
+-}
+-
+-/// A citation of a file that changed since the base `rev` which a remap
+-/// would still move: the file was edited and its citations were not moved,
+-/// so they name other lines now. The check of a cited line cannot see this,
+-/// because the line still exists. A citation that a person must read is not
+-/// counted: only `remap` decides those, and it lists them. A remap that
+-/// fails is a problem, not a pass.
+-fn unmoved(root: &Path, files: &[String], head: &crate::remap::Head, rev: &str, p: &mut Vec<Problem>) {
+-    let r = match crate::remap::remap(root, files, head, false) {
+-        Ok(r) => r,
+-        Err(e) => {
+-            p.push(Problem::new(
+-                "remap",
+-                0,
+-                format!("the check of the citations of the files changed since {rev} could not run: {e}"),
+-            ));
+-            return;
+-        }
+-    };
+-    let command = if rev == "HEAD" { "cargo todo remap".to_string() } else { format!("cargo todo remap --base {rev}") };
+-    for moved in r.moved {
+-        let Some((at, rest)) = moved.split_once(": ") else { continue };
+-        let path = rest.split(' ').next().unwrap_or(rest);
+-        p.push(Problem {
+-            at: at.to_string(),
+-            what: format!("cites {rest}, as {path} changed since {rev}: run `{command} {path}`"),
+-        });
+-    }
+-}
+-
+-fn check_rows(rows: &[Row], p: &mut Vec<Problem>) {
+-    let allowed = |what: &str, value: &str, set: &[&str], line: usize, p: &mut Vec<Problem>| {
+-        if !set.contains(&value) {
+-            p.push(Problem::new(INDEX, line, format!("{what} `{value}` is not one of {}", set.join(", "))));
+-        }
+-    };
+-    let mut last = 0;
+-    let mut seen: HashMap<&str, usize> = HashMap::new();
+-    for r in rows {
+-        if !crate::model::is_id(&r.id) {
+-            p.push(Problem::new(INDEX, r.line, format!("`{}` is not an id (T-NNN)", r.id)));
+-        }
+-        if let Some(first) = seen.insert(&r.id, r.line) {
+-            p.push(Problem::new(INDEX, r.line, format!("{} has a row already, on line {first}", r.id)));
+-        }
+-        let n = crate::model::id_number(&r.id);
+-        if n <= last {
+-            p.push(Problem::new(INDEX, r.line, format!("{} is out of order: the rows are sorted by id", r.id)));
+-        }
+-        last = last.max(n);
+-        allowed("the priority", &r.priority, &PRIORITIES, r.line, p);
+-        allowed("the effort", &r.effort, &EFFORTS, r.line, p);
+-        allowed("the milestone", &r.milestone, &MILESTONES, r.line, p);
+-        allowed("the category", &r.category, &CATEGORIES, r.line, p);
+-        allowed("the status", &r.status, &STATUSES, r.line, p);
+-        if RECORD_FILES.contains(&r.file.as_str()) || r.file.contains('/') || !r.file.ends_with(".md") {
+-            p.push(Problem::new(
+-                INDEX,
+-                r.line,
+-                format!("{} links `{}`, which is not an area file of TODO/", r.id, r.file),
+-            ));
+-        }
+-        if r.title.is_empty() {
+-            p.push(Problem::new(INDEX, r.line, format!("{} has no title", r.id)));
+-        }
+-    }
+-}
+-
+-/// Each row names an entry in the file it links, with the same fields; each
+-/// entry has a row; no id is used twice.
+-fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
+-    let mut by_id: HashMap<&str, &Entry> = HashMap::new();
+-    for e in entries {
+-        if let Some(first) = by_id.insert(&e.id, e) {
+-            p.push(Problem::new(
+-                &format!("TODO/{}", e.file),
+-                e.line,
+-                format!("{} is also an entry in TODO/{}:{}", e.id, first.file, first.line),
+-            ));
+-        }
+-    }
+-    for r in rows {
+-        let Some(e) = by_id.get(r.id.as_str()) else {
+-            p.push(Problem::new(INDEX, r.line, format!("{} has a row and no entry in TODO/{}", r.id, r.file)));
+-            continue;
+-        };
+-        let at = format!("TODO/{}", e.file);
+-        if e.file != r.file {
+-            p.push(Problem::new(
+-                &at,
+-                e.line,
+-                format!("{} is in TODO/{}, but its row links TODO/{}", r.id, e.file, r.file),
+-            ));
+-        }
+-        if e.title != r.title {
+-            p.push(Problem::new(&at, e.line, format!("{}: the title differs from the row's: \"{}\"", r.id, r.title)));
+-        }
+-        for (name, want) in [
+-            ("Priority", &r.priority),
+-            ("Effort", &r.effort),
+-            ("Milestone", &r.milestone),
+-            ("Category", &r.category),
+-            ("Status", &r.status),
+-        ] {
+-            if let Some(have) = e.field(name) {
+-                if have != want {
+-                    p.push(Problem::new(
+-                        &at,
+-                        e.line,
+-                        format!("{}: the entry says {name} {have}, the index says {want}", r.id),
+-                    ));
+-                }
+-            }
+-        }
+-    }
+-    let with_row: std::collections::HashSet<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+-    for e in entries {
+-        if !with_row.contains(e.id.as_str()) {
+-            p.push(Problem::new(&format!("TODO/{}", e.file), e.line, format!("{} has no row in the index", e.id)));
+-        }
+-    }
+-}
+-
+-/// The targets of each done Prove (T-361): what it names must exist, but a
+-/// target that its Correction names, which moved since the entry closed.
+-fn check_proves(root: &Path, entries: &[Entry], p: &mut Vec<Problem>) {
+-    let packages = crate::prove::Packages::of(root);
+-    for e in entries.iter().filter(|e| e.field("Status") == Some("done")) {
+-        for (line, what) in prove_gaps(root, &packages, e) {
+-            p.push(Problem::new(&format!("TODO/{}", e.file), line, format!("{}: {what}", e.id)));
+-        }
+-    }
+-}
+-
+-/// What the Prove of `e` names and the tree does not hold, each with its
+-/// line and its words.
+-pub fn prove_gaps(root: &Path, packages: &crate::prove::Packages, e: &Entry) -> Vec<(usize, String)> {
+-    let Some(prove) = e.section("Prove") else { return Vec::new() };
+-    let correction = e.section("Correction").map(|c| c.body.as_str()).unwrap_or("");
+-    crate::prove::missing(root, packages, &prove.body, prove.line, correction)
+-        .into_iter()
+-        .map(|(line, what)| (line, format!("its Prove names {what}; a target that moved is named in `## Correction`")))
+-        .collect()
+-}
+-
+-/// The form of one entry: its fields, its sections, and what its status
+-/// requires.
+-fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
+-    let at = format!("TODO/{}", e.file);
+-    for name in FIELDS {
+-        match e.fields.iter().filter(|f| f.name == name).count() {
+-            0 => p.push(Problem::new(&at, e.line, format!("{}: the field {name} is missing", e.id))),
+-            1 => {}
+-            _ => p.push(Problem::new(&at, e.line, format!("{}: the field {name} is given more than once", e.id))),
+-        }
+-    }
+-    for f in &e.fields {
+-        let set: &[&str] = match f.name.as_str() {
+-            "Category" => &CATEGORIES,
+-            "Milestone" => &MILESTONES,
+-            "Priority" => &PRIORITIES,
+-            "Effort" => &EFFORTS,
+-            "Status" => &STATUSES,
+-            _ => continue,
+-        };
+-        if !set.contains(&f.value.as_str()) {
+-            p.push(Problem::new(
+-                &at,
+-                f.line,
+-                format!("{}: {} `{}` is not one of {}", e.id, f.name, f.value, set.join(", ")),
+-            ));
+-        }
+-    }
+-    if e.field("Source").is_some_and(str::is_empty) {
+-        p.push(Problem::new(&at, e.line, format!("{}: the source is empty", e.id)));
+-    }
+-    let mut last = None;
+-    for s in &e.sections {
+-        let Some(pos) = SECTIONS.iter().position(|n| *n == s.name) else {
+-            p.push(Problem::new(&at, s.line, format!("{}: `## {}` is not a section of an entry", e.id, s.name)));
+-            continue;
+-        };
+-        if last.is_some_and(|l| pos <= l) {
+-            p.push(Problem::new(&at, s.line, format!("{}: `## {}` is out of order or repeated", e.id, s.name)));
+-        }
+-        last = Some(pos);
+-        if s.body.trim().is_empty() {
+-            p.push(Problem::new(&at, s.line, format!("{}: `## {}` is empty", e.id, s.name)));
+-        }
+-    }
+-    for name in REQUIRED_SECTIONS {
+-        if e.section(name).is_none() {
+-            p.push(Problem::new(&at, e.line, format!("{}: the section `## {name}` is missing", e.id)));
+-        }
+-    }
+-    if let Some(prove) = e.section("Prove") {
+-        if !prove.body.contains('`') {
+-            p.push(Problem::new(&at, prove.line, format!("{}: a Prove with no command is a paragraph", e.id)));
+-        }
+-    }
+-    let status = e.field("Status").unwrap_or("");
+-    match (status, e.section("Blocker")) {
+-        ("blocked", None) => p.push(Problem::new(&at, e.line, format!("{}: blocked, with no `## Blocker`", e.id))),
+-        (s, Some(b)) if s != "blocked" => {
+-            p.push(Problem::new(&at, b.line, format!("{}: a `## Blocker` on an entry that is {s}", e.id)))
+-        }
+-        _ => {}
+-    }
+-    match (status, e.section("Done")) {
+-        ("done", None) => p.push(Problem::new(&at, e.line, format!("{}: done, with no `## Done` evidence", e.id))),
+-        ("done" | "partial", Some(d)) if !has_date(&d.body) => {
+-            p.push(Problem::new(&at, d.line, format!("{}: `## Done` gives no date (YYYY-MM-DD)", e.id)))
+-        }
+-        ("open" | "blocked", Some(d)) => {
+-            p.push(Problem::new(&at, d.line, format!("{}: a `## Done` on an entry that is {status}", e.id)))
+-        }
+-        _ => {}
+-    }
+-}
+-
+-/// True when a text holds a date of the form YYYY-MM-DD.
+-pub fn has_date(text: &str) -> bool {
+-    let b = text.as_bytes();
+-    (0..b.len().saturating_sub(9)).any(|i| {
+-        let d = |k: usize| b[i + k].is_ascii_digit();
+-        d(0) && d(1) && d(2) && d(3) && b[i + 4] == b'-' && d(5) && d(6) && b[i + 7] == b'-' && d(8) && d(9)
+-    })
+-}
+-
+-/// The counts that the index and the progress record state, against the rows.
+-fn check_counts(r: &Record, p: &mut Vec<Problem>) {
+-    let all = Counts::of(&r.rows, None);
+-    match parse::find_counts(&r.index) {
+-        Some((line, total, c)) if total != all.total() || c != all => p.push(Problem::new(
+-            INDEX,
+-            line,
+-            format!("the counts line says {total} entries ({c:?}); the rows give {}", all.phrase()),
+-        )),
+-        Some(_) => {}
+-        None => p.push(Problem::new(INDEX, 0, format!("no counts line; it reads: {}", all.phrase()))),
+-    }
+-    for label in PRIORITIES.iter().copied().chain(["All"]) {
+-        let want = Counts::of(&r.rows, (label != "All").then_some(label));
+-        let found = parse::lines_with_fences(&r.index).into_iter().find_map(|(no, line, fenced)| {
+-            (!fenced).then(|| parse::counts_row(line)).flatten().filter(|(l, ..)| l == label).map(|x| (no, x))
+-        });
+-        match found {
+-            Some((no, (_, c, total))) if c != want || total != want.total() => p.push(Problem::new(
+-                INDEX,
+-                no,
+-                format!(
+-                    "the {label} row of the counts table disagrees with the rows; it reads: {}",
+-                    want.table_row(label)
+-                ),
+-            )),
+-            Some(_) => {}
+-            None => p.push(Problem::new(INDEX, 0, format!("the counts table has no {label} row"))),
+-        }
+-    }
+-    match parse::find_counts(&r.progress) {
+-        Some((line, total, c)) if total != all.total() || c != all => p.push(Problem::new(
+-            PROGRESS,
+-            line,
+-            format!("the counts line says {total} entries ({c:?}); the rows give {}", all.phrase()),
+-        )),
+-        Some(_) => {}
+-        None => p.push(Problem::new(PROGRESS, 0, format!("no counts line; it reads: {}", all.phrase()))),
+-    }
+-}
+diff --git a/crates/podssh-todo/src/claims.rs b/crates/podssh-todo/src/claims.rs
+deleted file mode 100644
+index 5f31dbb..0000000
+--- a/crates/podssh-todo/src/claims.rs
++++ /dev/null
+@@ -1,247 +0,0 @@
+-//! The claims of the pages that a session reads first (T-362). A "yet" says
+-//! that something is not built, and it goes stale on the day its work is
+-//! done, in a file that the work did not touch; so does a status written
+-//! beside an id. Each "yet" of the documents (`docs/`, `README.md`,
+-//! `AGENTS.md`, `SECURITY.md`), outside fenced blocks, is in a unit that
+-//! names an entry that is not done, or a date; a done entry beside it is
+-//! named. Each status beside an id (`T-NNN, partial`) agrees with the index,
+-//! unless its unit reads at a date or at a commit. A unit is a paragraph, a
+-//! list item or a row of a table: an id in another item covers no claim.
+-//! The release notes (`docs/releases/`) are readings at their tags.
+-
+-use std::collections::HashMap;
+-use std::path::Path;
+-
+-use crate::model::{ids_in, Problem};
+-
+-/// The statuses that a reader may write beside an id.
+-const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];
+-
+-/// The documents whose claims are read.
+-fn files(root: &Path) -> Vec<String> {
+-    crate::refs::documents(root)
+-        .into_iter()
+-        .filter(|rel| !rel.starts_with("TODO/") && !rel.starts_with("docs/releases/"))
+-        .collect()
+-}
+-
+-/// Whether `line` starts a unit of its own: a heading, an item of a list, a
+-/// row of a table.
+-fn starts_unit(line: &str) -> bool {
+-    let t = line.trim_start();
+-    let numbered = t.split_once(". ").is_some_and(|(n, _)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+-    t.starts_with('#')
+-        || t.starts_with("- ")
+-        || t.starts_with("* ")
+-        || t.starts_with("+ ")
+-        || t.starts_with('|')
+-        || numbered
+-}
+-
+-/// The units of `text` outside fenced blocks: each its first line (from 1)
+-/// and its lines.
+-pub fn units(text: &str) -> Vec<(usize, Vec<&str>)> {
+-    let mut out: Vec<(usize, Vec<&str>)> = Vec::new();
+-    let mut fenced = false;
+-    let mut open = false;
+-    for (i, line) in text.lines().enumerate() {
+-        if line.trim_start().starts_with("```") {
+-            fenced = !fenced;
+-            open = false;
+-            continue;
+-        }
+-        if fenced || line.trim().is_empty() {
+-            open = false;
+-            continue;
+-        }
+-        if !open || starts_unit(line) || line.trim_start().starts_with('|') {
+-            out.push((i + 1, Vec::new()));
+-            open = true;
+-        }
+-        if let Some((_, lines)) = out.last_mut() {
+-            lines.push(line);
+-        }
+-    }
+-    out
+-}
+-
+-/// `line` with each code span blanked: a span quotes what a program
+-/// prints, as `(not implemented yet)`, and claims nothing.
+-fn prose(line: &str) -> String {
+-    line.split('`')
+-        .enumerate()
+-        .map(|(i, part)| if i % 2 == 1 { " ".repeat(part.len()) } else { part.to_string() })
+-        .collect()
+-}
+-
+-/// Whether `word` is in the prose of `line` as a word, in any case.
+-fn has_word(line: &str, word: &str) -> bool {
+-    let lower = prose(line).to_ascii_lowercase();
+-    let bytes = lower.as_bytes();
+-    let mut at = 0;
+-    while let Some(pos) = lower[at..].find(word) {
+-        let start = at + pos;
+-        let end = start + word.len();
+-        let before = start == 0 || !bytes[start - 1].is_ascii_alphanumeric();
+-        let after = end == bytes.len() || !bytes[end].is_ascii_alphanumeric();
+-        if before && after {
+-            return true;
+-        }
+-        at = end;
+-    }
+-    false
+-}
+-
+-/// Whether `text` holds a date (`YYYY-MM-DD`) or a commit in a code span
+-/// (seven to forty hexadecimal digits): a reading at a time.
+-pub fn dated(text: &str) -> bool {
+-    let b = text.as_bytes();
+-    let date = (0..b.len().saturating_sub(9)).any(|i| {
+-        let w = &b[i..i + 10];
+-        let shape = w.iter().enumerate().all(|(k, c)| if k == 4 || k == 7 { *c == b'-' } else { c.is_ascii_digit() });
+-        let edge = |j: usize| j >= b.len() || !b[j].is_ascii_alphanumeric();
+-        shape && (i == 0 || edge(i - 1)) && edge(i + 10)
+-    });
+-    let commit = text.split('`').skip(1).step_by(2).any(|span| {
+-        (7..=40).contains(&span.len()) && span.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+-    });
+-    date || commit
+-}
+-
+-/// Each status written beside an id in `line`: `T-NNN, STATUS`.
+-fn statuses(line: &str) -> Vec<(String, &'static str)> {
+-    let mut out = Vec::new();
+-    for (id, _) in ids_in(line) {
+-        let mut at = 0;
+-        while let Some(pos) = line[at..].find(&id) {
+-            let rest = &line[at + pos + id.len()..];
+-            if let Some(after) = rest.strip_prefix(", ") {
+-                if let Some(status) = STATUSES.iter().find(|s| {
+-                    after.starts_with(**s) && !after[s.len()..].starts_with(|c: char| c.is_ascii_alphanumeric())
+-                }) {
+-                    out.push((id.clone(), *status));
+-                }
+-            }
+-            at += pos + id.len();
+-        }
+-    }
+-    out
+-}
+-
+-/// The claims of the text of `rel`, against the status of each id.
+-pub fn check_text(rel: &str, text: &str, status: &HashMap<&str, &str>, p: &mut Vec<Problem>) {
+-    for (first, lines) in units(text) {
+-        let joined = lines.join("\n");
+-        let reading = dated(&joined);
+-        let ids: Vec<String> = ids_in(&joined).into_iter().map(|(id, _)| id).collect();
+-        let pending = ids.iter().any(|id| status.get(id.as_str()).is_some_and(|s| *s != "done"));
+-        for (k, line) in lines.iter().enumerate() {
+-            let at = first + k;
+-            if has_word(line, "yet") && !reading {
+-                let beside: Vec<String> = ids_in(line).into_iter().map(|(id, _)| id).collect();
+-                let done: Vec<&String> = beside.iter().filter(|id| status.get(id.as_str()) == Some(&"done")).collect();
+-                if !beside.is_empty() && done.len() == beside.len() {
+-                    let named: Vec<&str> = done.iter().map(|id| id.as_str()).collect();
+-                    p.push(Problem::new(
+-                        rel,
+-                        at,
+-                        format!(
+-                            "\"yet\" beside {}, done: the claim is stale, or it names the wrong entry",
+-                            named.join(", ")
+-                        ),
+-                    ));
+-                } else if !pending {
+-                    p.push(Problem::new(
+-                        rel,
+-                        at,
+-                        "\"yet\" with no entry that is not done and no date in its paragraph: name its entry or \
+-                         its date, or say it with no \"yet\"",
+-                    ));
+-                }
+-            }
+-            if reading {
+-                continue;
+-            }
+-            for (id, said) in statuses(line) {
+-                match status.get(id.as_str()) {
+-                    Some(actual) if *actual != said => p.push(Problem::new(
+-                        rel,
+-                        at,
+-                        format!("{id}, {said}: the index says {actual}; a reading of a past state names its date"),
+-                    )),
+-                    _ => {}
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-/// The claims of each document of `root`.
+-pub fn check(root: &Path, status: &HashMap<&str, &str>, p: &mut Vec<Problem>) {
+-    for rel in files(root) {
+-        if let Ok(text) = std::fs::read_to_string(root.join(&rel)) {
+-            check_text(&rel, &text, status, p);
+-        }
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    fn found(text: &str) -> Vec<String> {
+-        let status: HashMap<&str, &str> = [("T-001", "open"), ("T-002", "done"), ("T-003", "partial")].into();
+-        let mut p = Vec::new();
+-        check_text("docs/x.md", text, &status, &mut p);
+-        p.iter().map(|p| p.to_string()).collect()
+-    }
+-
+-    #[test]
+-    fn a_yet_needs_an_entry_that_is_not_done_or_a_date() {
+-        assert_eq!(found("It does not exist yet.\n").len(), 1);
+-        assert!(found("It does not exist yet (T-001).\n").is_empty());
+-        assert!(found("It is not built yet;\nT-003 builds it.\n").is_empty(), "the entry may be on another line");
+-        assert!(found("On 2026-10-10 it was not built yet.\n").is_empty());
+-        assert!(found("At `8554930` it was not built yet.\n").is_empty());
+-    }
+-
+-    #[test]
+-    fn a_done_entry_beside_a_yet_is_named() {
+-        let said = found("It does not exist yet (T-002).\n");
+-        assert!(said.len() == 1 && said[0].contains("T-002, done"), "{said:?}");
+-    }
+-
+-    #[test]
+-    fn each_item_of_a_list_and_each_row_is_its_own_unit() {
+-        // The id of the next item covers no claim of this one.
+-        assert_eq!(found("- It does not exist yet.\n- T-001 is another.\n").len(), 1);
+-        assert_eq!(found("| a | not yet |\n| b | T-001 |\n").len(), 1);
+-        assert!(found("- It does not exist yet,\n  and T-001 builds it.\n").is_empty(), "a continued item");
+-    }
+-
+-    #[test]
+-    fn a_fenced_block_is_no_claim_and_yet_is_a_word() {
+-        assert!(found("```\nnot yet\n```\n").is_empty());
+-        assert!(found("It prints `(not implemented yet)`.\n").is_empty(), "a span quotes output");
+-        assert!(found("The yeti and the eyetest.\n").is_empty());
+-        assert_eq!(found("Yet it is not built.\n").len(), 1);
+-    }
+-
+-    #[test]
+-    fn a_status_beside_an_id_agrees_with_the_index_unless_it_is_a_reading() {
+-        let said = found("Over IRC too (T-002, partial).\n");
+-        assert!(said.len() == 1 && said[0].contains("T-002, partial: the index says done"), "{said:?}");
+-        assert!(found("Over IRC too (T-003, partial).\n").is_empty());
+-        assert!(found("On 2026-10-10, T-002, partial, carried it.\n").is_empty());
+-        assert!(found("T-002, partially so.\n").is_empty(), "partially is no status");
+-    }
+-
+-    #[test]
+-    fn a_date_is_a_whole_date() {
+-        assert!(dated("2026-10-31"));
+-        assert!(dated("(at `1a46970`)"));
+-        assert!(!dated("version 1.0.0-beta.2"));
+-        assert!(!dated("12026-10-31x"));
+-        assert!(!dated("`main`"));
+-    }
+-}
+diff --git a/crates/podssh-todo/src/diff.rs b/crates/podssh-todo/src/diff.rs
+deleted file mode 100644
+index 704e195..0000000
+--- a/crates/podssh-todo/src/diff.rs
++++ /dev/null
+@@ -1,120 +0,0 @@
+-//! A line diff with no dependency: the longest common subsequence of the
+-//! lines of two texts, after their common head and tail are set aside. It
+-//! gives each unchanged old line its new number; `remap` moves citations by
+-//! it.
+-
+-/// Above this many cells (old lines times new lines, after the common head
+-/// and tail), the middle is not aligned and counts as changed: the table
+-/// would need more than 64 MiB.
+-const MAX_CELLS: usize = 16 * 1024 * 1024;
+-
+-/// For each line of `old` (index 0 is line 1), its line number in `new`, or
+-/// `None` when the edit removed or changed it.
+-pub fn line_map(old: &[&str], new: &[&str]) -> Vec<Option<usize>> {
+-    let (n, m) = (old.len(), new.len());
+-    let mut map = vec![None; n];
+-    let mut head = 0;
+-    while head < n && head < m && old[head] == new[head] {
+-        map[head] = Some(head + 1);
+-        head += 1;
+-    }
+-    let mut tail = 0;
+-    while tail < n - head && tail < m - head && old[n - 1 - tail] == new[m - 1 - tail] {
+-        map[n - 1 - tail] = Some(m - tail);
+-        tail += 1;
+-    }
+-    let a = &old[head..n - tail];
+-    let b = &new[head..m - tail];
+-    if a.is_empty() || b.is_empty() || a.len().saturating_mul(b.len()) > MAX_CELLS {
+-        slide_up(&mut map, new);
+-        return map;
+-    }
+-    // lcs[i * w + j] is the length of a longest common subsequence of a[i..]
+-    // and b[j..].
+-    let w = b.len() + 1;
+-    let mut lcs = vec![0u32; (a.len() + 1) * w];
+-    for i in (0..a.len()).rev() {
+-        for j in (0..b.len()).rev() {
+-            lcs[i * w + j] =
+-                if a[i] == b[j] { lcs[(i + 1) * w + j + 1] + 1 } else { lcs[(i + 1) * w + j].max(lcs[i * w + j + 1]) };
+-        }
+-    }
+-    // Two equal lines can always be matched: some longest subsequence does.
+-    let (mut i, mut j) = (0, 0);
+-    while i < a.len() && j < b.len() {
+-        if a[i] == b[j] {
+-            map[head + i] = Some(head + j + 1);
+-            i += 1;
+-            j += 1;
+-        } else if lcs[(i + 1) * w + j] >= lcs[i * w + j + 1] {
+-            i += 1;
+-        } else {
+-            j += 1;
+-        }
+-    }
+-    slide_up(&mut map, new);
+-    map
+-}
+-
+-/// Each unchanged line at the earliest place where the same text allows it.
+-/// The common tail is matched from the end, so new functions added after
+-/// the closing `}` of a cited one would take that `}` as theirs; when the
+-/// first added line has the same text as the line after the addition, the
+-/// addition can be read as coming after it, and the citation keeps its own
+-/// lines.
+-fn slide_up(map: &mut [Option<usize>], new: &[&str]) {
+-    let mut before = 0;
+-    for slot in map.iter_mut() {
+-        if let Some(at) = *slot {
+-            if at > before + 1 && new[before] == new[at - 1] {
+-                *slot = Some(before + 1);
+-            }
+-            before = slot.unwrap_or(at);
+-        }
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    fn map(old: &str, new: &str) -> Vec<Option<usize>> {
+-        let o: Vec<&str> = old.lines().collect();
+-        let n: Vec<&str> = new.lines().collect();
+-        line_map(&o, &n)
+-    }
+-
+-    #[test]
+-    fn an_unchanged_text_maps_to_itself() {
+-        assert_eq!(map("a\nb\nc\n", "a\nb\nc\n"), vec![Some(1), Some(2), Some(3)]);
+-        assert_eq!(map("", ""), Vec::<Option<usize>>::new());
+-    }
+-
+-    #[test]
+-    fn a_line_added_above_moves_each_line_below() {
+-        assert_eq!(map("a\nb\nc\n", "new\na\nb\nc\n"), vec![Some(2), Some(3), Some(4)]);
+-        assert_eq!(map("a\nb\nc\n", "a\nnew\nnew\nb\nc\n"), vec![Some(1), Some(4), Some(5)]);
+-    }
+-
+-    #[test]
+-    fn a_changed_or_removed_line_has_no_new_number() {
+-        assert_eq!(map("a\nb\nc\n", "a\nB\nc\n"), vec![Some(1), None, Some(3)]);
+-        assert_eq!(map("a\nb\nc\nd\n", "a\nd\n"), vec![Some(1), None, None, Some(2)]);
+-    }
+-
+-    /// New code after a closing line, with a change above it: the old
+-    /// closing line stays with its own part, not with the new code.
+-    #[test]
+-    fn an_addition_after_a_closing_line_comes_after_it() {
+-        let old = "top\nfn a {\nx\n}\n}\n";
+-        let new = "TOP\nfn a {\nx\n}\nfn b {\ny\n}\n}\n";
+-        assert_eq!(map(old, new), vec![None, Some(2), Some(3), Some(4), Some(8)]);
+-    }
+-
+-    #[test]
+-    fn the_middle_is_aligned_around_a_change() {
+-        let old = "h\nx\n1\n2\n3\ny\nt\n";
+-        let new = "h\nX\n0\n1\n2\n3\nY\nt\n";
+-        assert_eq!(map(old, new), vec![Some(1), None, Some(4), Some(5), Some(6), None, Some(8)]);
+-    }
+-}
+diff --git a/crates/podssh-todo/src/github.rs b/crates/podssh-todo/src/github.rs
+deleted file mode 100644
+index 95faf72..0000000
+--- a/crates/podssh-todo/src/github.rs
++++ /dev/null
+@@ -1,277 +0,0 @@
+-//! The map of GitHub's numbers (T-360): `TODO/github.txt` lists each number
+-//! of the repository, an issue or a pull request, with its state, as GitHub
+-//! gives them, and `TODO/issues.md` must agree with it. Each issue has one
+-//! place in the map: the first cell of a row of a table, or the bold head of
+-//! a paragraph (`**#18, ...**`); each pull request is in the map's line of
+-//! them (`#37 to #50, #52 ... are pull requests`); and the State of a row
+-//! begins with its issue's state. The list is held to GitHub each day by a
+-//! job of CI (`.github/workflows/record-issues.yml`), as the gate has no
+-//! network.
+-
+-use std::collections::BTreeMap;
+-use std::path::Path;
+-
+-use crate::model::Problem;
+-
+-/// The list, in `TODO/`.
+-pub const LIST: &str = "github.txt";
+-/// The map, in `TODO/`.
+-pub const MAP: &str = "issues.md";
+-
+-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+-pub enum Kind {
+-    Issue,
+-    Pull,
+-}
+-
+-/// One number of the list: what it is, whether it is open, whether GitHub
+-/// no longer has it (an issue that its owner deleted), and its line.
+-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+-pub struct Number {
+-    pub kind: Kind,
+-    pub open: bool,
+-    pub deleted: bool,
+-    pub line: usize,
+-}
+-
+-/// A place of an issue in the map: its line, and the State of its row, when
+-/// it is a row.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Place {
+-    pub line: usize,
+-    pub state: Option<String>,
+-}
+-
+-/// What the map names: each issue's places, and the line that names the
+-/// pull requests, with each that it names.
+-#[derive(Debug, Default)]
+-pub struct Map {
+-    pub issues: BTreeMap<u32, Vec<Place>>,
+-    pub pulls: Option<(usize, Vec<u32>)>,
+-}
+-
+-/// The list: `NUMBER issue|pull open|closed` on each line, or `NUMBER issue
+-/// deleted` for an issue that GitHub no longer has; `#` a comment.
+-pub fn read_list(text: &str, p: &mut Vec<Problem>) -> BTreeMap<u32, Number> {
+-    let mut list = BTreeMap::new();
+-    for (i, raw) in text.lines().enumerate() {
+-        let line = raw.trim();
+-        if line.is_empty() || line.starts_with('#') {
+-            continue;
+-        }
+-        let words: Vec<&str> = line.split_whitespace().collect();
+-        let parsed = match words.as_slice() {
+-            [n, kind, state] => match (n.parse::<u32>(), *kind, *state) {
+-                (Ok(n), "issue" | "pull", "open" | "closed") => {
+-                    Some((n, if *kind == "issue" { Kind::Issue } else { Kind::Pull }, *state == "open", false))
+-                }
+-                // Only an issue can be deleted on GitHub; a pull request stays.
+-                (Ok(n), "issue", "deleted") => Some((n, Kind::Issue, false, true)),
+-                _ => None,
+-            },
+-            _ => None,
+-        };
+-        let Some((n, kind, open, deleted)) = parsed else {
+-            p.push(Problem::new(
+-                LIST,
+-                i + 1,
+-                format!("not NUMBER issue|pull open|closed, or NUMBER issue deleted: {line:?}"),
+-            ));
+-            continue;
+-        };
+-        if list.insert(n, Number { kind, open, deleted, line: i + 1 }).is_some() {
+-            p.push(Problem::new(LIST, i + 1, format!("#{n} is listed twice")));
+-        }
+-    }
+-    list
+-}
+-
+-/// `#N` at the start of `text`: its number.
+-fn number_at(text: &str) -> Option<u32> {
+-    let digits: String = text.strip_prefix('#')?.chars().take_while(|c| c.is_ascii_digit()).collect();
+-    digits.parse().ok()
+-}
+-
+-/// Each number of `text`, a range `#A to #B` as each number in it.
+-fn numbers_in(text: &str) -> Vec<u32> {
+-    let mut out = Vec::new();
+-    let words: Vec<&str> = text.split(|c: char| c.is_whitespace() || c == ',').filter(|w| !w.is_empty()).collect();
+-    let mut i = 0;
+-    while i < words.len() {
+-        if let Some(a) = number_at(words[i]) {
+-            match (words.get(i + 1), words.get(i + 2).and_then(|w| number_at(w))) {
+-                (Some(&"to"), Some(b)) if b >= a => {
+-                    out.extend(a..=b);
+-                    i += 3;
+-                    continue;
+-                }
+-                _ => out.push(a),
+-            }
+-        }
+-        i += 1;
+-    }
+-    out
+-}
+-
+-/// The places of the map: the rows whose first cell is `#N`, the bold heads
+-/// `**#N, ...**`, and the line that ends its numbers with "are pull
+-/// requests".
+-pub fn read_map(text: &str) -> Map {
+-    let mut map = Map::default();
+-    for (i, raw) in text.lines().enumerate() {
+-        let line = raw.trim_start();
+-        if let Some(rest) = line.strip_prefix('|') {
+-            let cells: Vec<&str> = rest.split('|').map(str::trim).collect();
+-            if let Some(n) = cells.first().and_then(|c| number_at(c)).filter(|_| cells[0].len() > 1) {
+-                if cells[0][1..].chars().all(|c| c.is_ascii_digit()) {
+-                    let state = cells.get(2).map(|s| s.to_string());
+-                    map.issues.entry(n).or_default().push(Place { line: i + 1, state });
+-                }
+-            }
+-        } else if let Some(n) = line.strip_prefix("**").and_then(number_at) {
+-            map.issues.entry(n).or_default().push(Place { line: i + 1, state: None });
+-        } else if let Some((before, _)) = line.split_once("are pull requests") {
+-            map.pulls = Some((i + 1, numbers_in(before)));
+-        }
+-    }
+-    map
+-}
+-
+-/// The map against the list; nothing to hold where the tree has neither.
+-pub fn check(root: &Path, p: &mut Vec<Problem>) {
+-    let dir = root.join("TODO");
+-    let map_text = std::fs::read_to_string(dir.join(MAP));
+-    let list_text = std::fs::read_to_string(dir.join(LIST));
+-    let (map_text, list_text) = match (map_text, list_text) {
+-        (Err(_), Err(_)) => return,
+-        (Ok(map), Ok(list)) => (map, list),
+-        (Ok(_), Err(e)) => {
+-            return p.push(Problem::new(LIST, 0, format!("the map has no list of GitHub's numbers: {e}")))
+-        }
+-        (Err(e), Ok(_)) => {
+-            return p.push(Problem::new(MAP, 0, format!("the list of GitHub's numbers has no map: {e}")))
+-        }
+-    };
+-    let list = read_list(&list_text, p);
+-    agree(&list, &read_map(&map_text), p);
+-}
+-
+-/// Each disagreement of `map` with `list`, by number.
+-pub fn agree(list: &BTreeMap<u32, Number>, map: &Map, p: &mut Vec<Problem>) {
+-    let (pull_line, pulls) = map.pulls.clone().unwrap_or((0, Vec::new()));
+-    for (n, number) in list {
+-        match number.kind {
+-            Kind::Issue => match map.issues.get(n).map(Vec::as_slice) {
+-                None | Some([]) => p.push(Problem::new(MAP, 0, format!("issue #{n} has no place in the map"))),
+-                Some([one]) => {
+-                    let want = match (number.deleted, number.open) {
+-                        (true, _) => "deleted",
+-                        (false, true) => "open",
+-                        (false, false) => "closed",
+-                    };
+-                    if let Some(state) = one.state.as_deref().filter(|s| !s.starts_with(want)) {
+-                        p.push(Problem::new(
+-                            MAP,
+-                            one.line,
+-                            format!("issue #{n} is {want} on GitHub, and its row says {state:?}"),
+-                        ));
+-                    }
+-                }
+-                Some(many) => p.push(Problem::new(
+-                    MAP,
+-                    many[1].line,
+-                    format!("issue #{n} has {} places in the map, at lines {}", many.len(), lines(many)),
+-                )),
+-            },
+-            Kind::Pull => {
+-                if !pulls.contains(n) {
+-                    p.push(Problem::new(
+-                        MAP,
+-                        pull_line,
+-                        format!("pull request #{n} is not in the line of pull requests"),
+-                    ));
+-                }
+-                if let Some(places) = map.issues.get(n) {
+-                    p.push(Problem::new(
+-                        MAP,
+-                        places[0].line,
+-                        format!("#{n} is a pull request, and has a place as an issue"),
+-                    ));
+-                }
+-            }
+-        }
+-    }
+-    for (n, places) in &map.issues {
+-        if !list.contains_key(n) {
+-            p.push(Problem::new(MAP, places[0].line, format!("the map names #{n}, which TODO/{LIST} does not hold")));
+-        }
+-    }
+-    for n in &pulls {
+-        match list.get(n) {
+-            None => p.push(Problem::new(
+-                MAP,
+-                pull_line,
+-                format!("the line of pull requests names #{n}, which TODO/{LIST} does not hold"),
+-            )),
+-            Some(number) if number.kind == Kind::Issue => {
+-                p.push(Problem::new(MAP, pull_line, format!("the line of pull requests names #{n}, an issue")))
+-            }
+-            Some(_) => {}
+-        }
+-    }
+-}
+-
+-fn lines(places: &[Place]) -> String {
+-    places.iter().map(|place| place.line.to_string()).collect::<Vec<_>>().join(", ")
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn a_range_is_each_number_in_it() {
+-        assert_eq!(numbers_in("#37 to #40, #52, #57 and #77"), [37, 38, 39, 40, 52, 57, 77]);
+-    }
+-
+-    #[test]
+-    fn the_map_s_places_are_rows_heads_and_the_line_of_pull_requests() {
+-        let map = read_map(
+-            "| Issue | Subject | State | Entries |\n| --- | --- | --- | --- |\n| #1 | a | closed (`f502fba`) | T-1 |\n\
+-             **#18, transports.** text\n#37 to #39 and #41 are pull requests; more\n| Report | Entries |\n| lablup | T-1 |\n",
+-        );
+-        assert_eq!(map.issues[&1], [Place { line: 3, state: Some("closed (`f502fba`)".into()) }]);
+-        assert_eq!(map.issues[&18], [Place { line: 4, state: None }]);
+-        assert_eq!(map.pulls, Some((5, vec![37, 38, 39, 41])));
+-        assert_eq!(map.issues.len(), 2, "a report's row is no issue");
+-    }
+-
+-    #[test]
+-    fn a_line_of_the_list_that_is_not_its_form_is_named() {
+-        let mut p = Vec::new();
+-        let list = read_list("# a comment\n1 issue open\n2 pull closed\nthree issue open\n1 issue closed\n", &mut p);
+-        assert_eq!(list.len(), 2);
+-        assert_eq!(p.len(), 2, "{p:?}");
+-    }
+-
+-    /// An issue that GitHub no longer has is `deleted`, and its row says so;
+-    /// a pull request cannot be.
+-    #[test]
+-    fn a_deleted_issue_is_listed_and_its_row_must_say_so() {
+-        let mut p = Vec::new();
+-        let list = read_list("15 issue deleted\n16 pull deleted\n", &mut p);
+-        assert_eq!(list.len(), 1, "{p:?}");
+-        assert!(list[&15].deleted && !list[&15].open);
+-        assert_eq!(p.len(), 1, "a deleted pull request is no form: {p:?}");
+-        let map = |state: &str| {
+-            read_map(&format!(
+-                "| Issue | Subject | State | Entries |\n| --- | --- | --- | --- |\n| #15 | a | {state} | T-1 |\n"
+-            ))
+-        };
+-        let mut p = Vec::new();
+-        agree(&list, &map("deleted (closed before)"), &mut p);
+-        assert!(p.is_empty(), "{p:?}");
+-        agree(&list, &map("closed"), &mut p);
+-        assert_eq!(p.len(), 1, "a row that still says closed: {p:?}");
+-    }
+-}
+diff --git a/crates/podssh-todo/src/interop/mod.rs b/crates/podssh-todo/src/interop/mod.rs
+index 755aa86..83b3eef 100644
+--- a/crates/podssh-todo/src/interop/mod.rs
++++ b/crates/podssh-todo/src/interop/mod.rs
+@@ -14,7 +14,7 @@ use std::path::Path;
+ 
+ pub use score::{score, Log};
+ 
+-use crate::model::Problem;
++use pod_todo::model::Problem;
+ 
+ /// The baseline, relative to the root.
+ pub const BASELINE: &str = "scripts/interop-baseline.txt";
+diff --git a/crates/podssh-todo/src/interop/score.rs b/crates/podssh-todo/src/interop/score.rs
+index abbda9f..8cae789 100644
+--- a/crates/podssh-todo/src/interop/score.rs
++++ b/crates/podssh-todo/src/interop/score.rs
+@@ -6,7 +6,7 @@
+ use std::collections::BTreeMap;
+ 
+ use super::{is_id, Baseline, Want, BASELINE};
+-use crate::model::Problem;
++use pod_todo::model::Problem;
+ 
+ const VERDICTS: &[&str] = &["ok", "FAIL", "skip", "env"];
+ 
+diff --git a/crates/podssh-todo/src/interop/words.rs b/crates/podssh-todo/src/interop/words.rs
+index 0d33e92..c121b60 100644
+--- a/crates/podssh-todo/src/interop/words.rs
++++ b/crates/podssh-todo/src/interop/words.rs
+@@ -7,7 +7,7 @@
+ 
+ use std::collections::BTreeMap;
+ 
+-use crate::model::Problem;
++use pod_todo::model::Problem;
+ 
+ /// The helpers that can print `ok` for their id, and those that can print
+ /// `FAIL`; `expect_rc` and `no_part` print one or the other.
+diff --git a/crates/podssh-todo/src/lib.rs b/crates/podssh-todo/src/lib.rs
+index 2f59c21..b5d900c 100644
+--- a/crates/podssh-todo/src/lib.rs
++++ b/crates/podssh-todo/src/lib.rs
+@@ -1,157 +1,32 @@
+-//! The checker of podssh's work record (`TODO/`).
+-//!
+-//! The record is the index (`TODO/INDEX.md`), the progress record with the
+-//! work order (`TODO/PROGRESS.md`) and the entries (`TODO/<area>.md`).
+-//! Closing one entry moves several numbers in two files, so no number is
+-//! typed by hand: the writer moves a status and derives the counts, and the
+-//! reader, which the gate runs, checks that the files agree. When a cited
+-//! file changes, `remap` moves its citations by a line diff against `HEAD`,
+-//! or against the revision that `--base` names.
++//! podssh's checker of the work record: `pod-todo` of PodUtils/podcrates
++//! with the facts of podssh (`TODO/todo.toml`), and podssh's own command
++//! `interop`: the ids of the interop harnesses against
++//! `scripts/interop-baseline.txt`, and with logs, each run's results.
+ 
+-pub mod check;
+-pub mod claims;
+-pub mod diff;
+-pub mod github;
+ pub mod interop;
+-pub mod model;
+-pub mod numbers;
+-pub mod parse;
+-pub mod prove;
+-pub mod refs;
+-pub mod remap;
+-pub mod write;
+ 
+-use std::path::{Path, PathBuf};
++use std::path::Path;
+ 
+-pub const USAGE: &str = "usage: podssh-todo check
+-       podssh-todo set T-NNN open|partial|blocked|done
+-       podssh-todo counts
+-       podssh-todo next
+-       podssh-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
+-       podssh-todo interop [--logs LOG...]     (the ids of the interop harnesses against scripts/interop-baseline.txt,
+-                                                and with logs, each run's results; a log's file stem names its run)
+-Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)
+-         --base REV (default: HEAD): check and remap compare each file with its text in REV,
+-                    as HEAD~1 for a commit that was made without them";
++pub use pod_todo::{check, model, run as run_record};
+ 
+-/// The nearest directory at or above `start` that has `TODO/INDEX.md`.
+-pub fn find_root(start: &Path) -> Option<PathBuf> {
+-    start.ancestors().find(|d| d.join("TODO").join("INDEX.md").is_file()).map(Path::to_path_buf)
+-}
+-
+-/// Run the command line; returns the exit code (0, 1 for a disagreement, 64
+-/// for a usage error).
++/// Run the command line: `interop` here, each other command in `pod-todo`.
+ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+-    let mut words: Vec<&str> = Vec::new();
+-    let mut root: Option<PathBuf> = None;
+-    let mut base: Option<&str> = None;
+-    let mut it = args.iter();
+-    while let Some(a) = it.next() {
+-        match a.as_str() {
+-            "--root" => match it.next() {
+-                Some(d) => root = Some(PathBuf::from(d)),
+-                None => return usage(err, "--root needs a directory"),
+-            },
+-            // A revision that starts with `-` would reach git as an option.
+-            "--base" => match it.next() {
+-                Some(r) if !r.is_empty() && !r.starts_with('-') => base = Some(r.as_str()),
+-                _ => return usage(err, "--base needs a revision, as HEAD~1"),
+-            },
+-            "-h" | "--help" => {
+-                let _ = writeln!(out, "{USAGE}");
+-                return 0;
+-            }
+-            w => words.push(w),
+-        }
+-    }
+-    let root = match root.or_else(|| std::env::current_dir().ok().and_then(|d| find_root(&d))) {
+-        Some(r) => r,
+-        None => return usage(err, "no TODO/INDEX.md here or above; give --root"),
+-    };
++    let words: Vec<&str> = args.iter().map(String::as_str).collect();
++    let root = || std::env::current_dir().ok().and_then(|d| pod_todo::find_root(&d));
+     match words.as_slice() {
+-        ["check"] => report(&root, base, out, err),
+-        ["set", id, status] => match write::set_status(&root, id, status) {
+-            Ok(()) => report(&root, base, out, err),
+-            Err(e) => {
+-                let _ = writeln!(err, "podssh-todo: {e}");
+-                1
+-            }
++        ["interop"] => match root() {
++            Some(r) => interop_command(&r, &[], out, err),
++            None => pod_todo::run(args, out, err),
+         },
+-        ["counts"] => match write::counts(&root) {
+-            Ok(()) => report(&root, base, out, err),
+-            Err(e) => {
+-                let _ = writeln!(err, "podssh-todo: {e}");
+-                1
+-            }
++        ["interop", "--logs", logs @ ..] if !logs.is_empty() => match root() {
++            Some(r) => interop_command(&r, logs, out, err),
++            None => pod_todo::run(args, out, err),
+         },
+-        ["next"] => match write::next_id(&root) {
+-            Ok(id) => {
+-                let _ = writeln!(out, "{id}");
+-                0
+-            }
+-            Err(e) => {
+-                let _ = writeln!(err, "podssh-todo: {e}");
+-                1
+-            }
+-        },
+-        ["remap", rest @ ..] => {
+-            let dry = rest.iter().any(|w| *w == "--dry-run" || *w == "-n");
+-            let files: Vec<String> = rest.iter().filter(|w| !w.starts_with('-')).map(|w| w.to_string()).collect();
+-            if files.is_empty() || rest.iter().any(|w| w.starts_with('-') && *w != "--dry-run" && *w != "-n") {
+-                return usage(err, "remap needs one FILE or more, and takes only --dry-run");
+-            }
+-            remap_command(&root, &files, dry, base, out, err)
+-        }
+-        ["interop"] => interop_command(&root, &[], out, err),
+-        ["interop", "--logs", logs @ ..] if !logs.is_empty() => interop_command(&root, logs, out, err),
+-        ["interop", ..] => usage(err, "interop takes only --logs LOG..."),
+-        _ => usage(err, "unknown command"),
+-    }
+-}
+-
+-/// Move the citations of `files`, print what moved and what a person must
+-/// read, then check the record (unless nothing was written).
+-fn remap_command(
+-    root: &Path,
+-    files: &[String],
+-    dry: bool,
+-    base: Option<&str>,
+-    out: &mut dyn std::io::Write,
+-    err: &mut dyn std::io::Write,
+-) -> i32 {
+-    let rev = base.unwrap_or("HEAD");
+-    let head = |rel: &str| remap::git_at(root, rev, rel);
+-    let r = match remap::remap(root, files, &head, !dry) {
+-        Ok(r) => r,
+-        Err(e) => {
+-            let _ = writeln!(err, "podssh-todo: remap: {e}");
+-            return 1;
++        ["interop", ..] => {
++            let _ = writeln!(err, "podssh-todo: interop takes only --logs LOG...");
++            64
+         }
+-    };
+-    for line in &r.notes {
+-        let _ = writeln!(out, "note: {line}");
+-    }
+-    for line in &r.moved {
+-        let _ = writeln!(out, "moved: {line}");
+-    }
+-    for line in &r.kept {
+-        let _ = writeln!(out, "kept (new in this change): {line}");
+-    }
+-    for line in &r.review {
+-        let _ = writeln!(out, "REVIEW: {line}");
+-    }
+-    let verb = if dry { "would move" } else { "moved" };
+-    let _ = writeln!(
+-        out,
+-        "podssh-todo: remap: {verb} {} citations; {} to review; {} on new lines kept",
+-        r.moved.len(),
+-        r.review.len(),
+-        r.kept.len()
+-    );
+-    if dry {
+-        0
+-    } else {
+-        report(root, base, out, err)
++        _ => pod_todo::run(args, out, err),
+     }
+ }
+ 
+@@ -167,7 +42,7 @@ fn interop_command(root: &Path, logs: &[&str], out: &mut dyn std::io::Write, err
+             let run = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+             match std::fs::read_to_string(path) {
+                 Ok(text) => runs.push(interop::Log { shown: log.to_string(), run, text }),
+-                Err(e) => problems.push(model::Problem::new(log, 0, format!("cannot be read: {e}"))),
++                Err(e) => problems.push(pod_todo::model::Problem::new(log, 0, format!("cannot be read: {e}"))),
+             }
+         }
+         let (rows, more) = interop::score(&checked.baseline, &runs);
+@@ -195,22 +70,3 @@ fn interop_command(root: &Path, logs: &[&str], out: &mut dyn std::io::Write, err
+     }
+ }
+ 
+-fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {
+-    let _ = writeln!(err, "podssh-todo: {why}\n{USAGE}");
+-    64
+-}
+-
+-/// Run the reader and print what it found.
+-fn report(root: &Path, base: Option<&str>, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+-    let r = check::check(root, base);
+-    if r.problems.is_empty() {
+-        let _ = writeln!(out, "podssh-todo: the record agrees: {}", r.counts.phrase());
+-        0
+-    } else {
+-        for p in &r.problems {
+-            let _ = writeln!(err, "{p}");
+-        }
+-        let _ = writeln!(err, "podssh-todo: {} problems in the record", r.problems.len());
+-        1
+-    }
+-}
+diff --git a/crates/podssh-todo/src/main.rs b/crates/podssh-todo/src/main.rs
+index c56a78e..6bf047c 100644
+--- a/crates/podssh-todo/src/main.rs
++++ b/crates/podssh-todo/src/main.rs
+@@ -1,5 +1,5 @@
+ //! `podssh-todo`: check the work record, or move a status and derive the
+-//! counts. See `TODO/RULES.md`.
++//! counts (`pod-todo`), or check the interop harnesses. See `TODO/RULES.md`.
+ 
+ fn main() {
+     let args: Vec<String> = std::env::args().skip(1).collect();
+diff --git a/crates/podssh-todo/src/model.rs b/crates/podssh-todo/src/model.rs
+deleted file mode 100644
+index 88011b9..0000000
+--- a/crates/podssh-todo/src/model.rs
++++ /dev/null
+@@ -1,197 +0,0 @@
+-//! The words of the record: the values that an entry's fields can take, and
+-//! the shapes that the reader and the writer share. `TODO/INDEX.md` gives the
+-//! meaning of each value; this file is the list the checker accepts.
+-
+-use std::fmt;
+-
+-pub const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];
+-pub const PRIORITIES: [&str; 4] = ["P0", "P1", "P2", "P3"];
+-/// No `XL`: an entry that big is two entries.
+-pub const EFFORTS: [&str; 3] = ["S", "M", "L"];
+-pub const MILESTONES: [&str; 10] = ["M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "backlog", "none"];
+-pub const CATEGORIES: [&str; 7] = ["defect", "feature", "measurement", "release", "chore", "research", "docs"];
+-
+-/// The header fields of an entry, each given once.
+-pub const FIELDS: [&str; 6] = ["Source", "Category", "Milestone", "Priority", "Effort", "Status"];
+-
+-/// The sections an entry can have, in this order.
+-pub const SECTIONS: [&str; 9] =
+-    ["Problem", "Premise", "Approach", "Decision", "Prove", "Blocker", "Start condition", "Correction", "Done"];
+-pub const REQUIRED_SECTIONS: [&str; 4] = ["Problem", "Premise", "Approach", "Prove"];
+-
+-/// The files of `TODO/` that hold no entries.
+-pub const RECORD_FILES: [&str; 4] = ["INDEX.md", "PROGRESS.md", "RULES.md", "issues.md"];
+-
+-/// One finding of the reader: where, and what is wrong.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Problem {
+-    pub at: String,
+-    pub what: String,
+-}
+-
+-impl Problem {
+-    pub fn new(file: &str, line: usize, what: impl Into<String>) -> Self {
+-        let at = if line == 0 { file.to_string() } else { format!("{file}:{line}") };
+-        Self { at, what: what.into() }
+-    }
+-}
+-
+-impl fmt::Display for Problem {
+-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        write!(f, "{}: {}", self.at, self.what)
+-    }
+-}
+-
+-/// A row of the table of entries in `TODO/INDEX.md`.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Row {
+-    pub id: String,
+-    pub file: String,
+-    pub priority: String,
+-    pub effort: String,
+-    pub milestone: String,
+-    pub category: String,
+-    pub status: String,
+-    pub title: String,
+-    pub line: usize,
+-}
+-
+-/// A header field of an entry, with the line where it starts.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Field {
+-    pub name: String,
+-    pub value: String,
+-    pub line: usize,
+-}
+-
+-/// A `## Name` section of an entry, with its body.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Section {
+-    pub name: String,
+-    pub line: usize,
+-    pub body: String,
+-}
+-
+-/// One entry: `# T-NNN: Title`, its fields and its sections.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-pub struct Entry {
+-    pub id: String,
+-    pub title: String,
+-    pub file: String,
+-    pub line: usize,
+-    pub fields: Vec<Field>,
+-    pub sections: Vec<Section>,
+-}
+-
+-impl Entry {
+-    /// The value of a field, when the entry gives it.
+-    pub fn field(&self, name: &str) -> Option<&str> {
+-        self.fields.iter().find(|f| f.name == name).map(|f| f.value.as_str())
+-    }
+-
+-    pub fn section(&self, name: &str) -> Option<&Section> {
+-        self.sections.iter().find(|s| s.name == name)
+-    }
+-}
+-
+-/// The entries in each status. The total is their sum, never a stored number.
+-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+-pub struct Counts {
+-    pub open: usize,
+-    pub partial: usize,
+-    pub blocked: usize,
+-    pub done: usize,
+-}
+-
+-impl Counts {
+-    pub fn total(&self) -> usize {
+-        self.open + self.partial + self.blocked + self.done
+-    }
+-
+-    pub fn add(&mut self, status: &str) {
+-        match status {
+-            "open" => self.open += 1,
+-            "partial" => self.partial += 1,
+-            "blocked" => self.blocked += 1,
+-            "done" => self.done += 1,
+-            _ => {}
+-        }
+-    }
+-
+-    /// The counts of the rows, for one priority or (with `None`) for all.
+-    pub fn of(rows: &[Row], priority: Option<&str>) -> Self {
+-        let mut c = Self::default();
+-        for r in rows.iter().filter(|r| priority.is_none_or(|p| r.priority == p)) {
+-            c.add(&r.status);
+-        }
+-        c
+-    }
+-
+-    /// The fixed phrase that the index and the progress record carry, so a
+-    /// checker can read it: `N entries: A open, B partial, C blocked, D done.`
+-    pub fn phrase(&self) -> String {
+-        format!(
+-            "{} entries: {} open, {} partial, {} blocked, {} done.",
+-            self.total(),
+-            self.open,
+-            self.partial,
+-            self.blocked,
+-            self.done
+-        )
+-    }
+-
+-    /// A row of the table of counts in the index.
+-    pub fn table_row(&self, label: &str) -> String {
+-        format!("| {label} | {} | {} | {} | {} | {} |", self.open, self.partial, self.blocked, self.done, self.total())
+-    }
+-}
+-
+-/// True for an id of the form `T-NNN` (three digits or more).
+-pub fn is_id(s: &str) -> bool {
+-    s.len() >= 5 && s.starts_with("T-") && s[2..].bytes().all(|b| b.is_ascii_digit())
+-}
+-
+-/// The number of an id, for ordering.
+-pub fn id_number(id: &str) -> u32 {
+-    id.get(2..).and_then(|n| n.parse().ok()).unwrap_or(0)
+-}
+-
+-/// Each `T-NNN` in a text, with the line where it is.
+-pub fn ids_in(text: &str) -> Vec<(String, usize)> {
+-    let mut out = Vec::new();
+-    for (i, line) in text.lines().enumerate() {
+-        let bytes = line.as_bytes();
+-        let mut at = 0;
+-        while let Some(pos) = line[at..].find("T-") {
+-            let start = at + pos;
+-            let before_ok = start == 0 || !(bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'-');
+-            let digits = bytes[start + 2..].iter().take_while(|b| b.is_ascii_digit()).count();
+-            let end = start + 2 + digits;
+-            let after_ok = end == bytes.len() || !bytes[end].is_ascii_alphanumeric();
+-            if before_ok && digits >= 3 && after_ok {
+-                out.push((line[start..end].to_string(), i + 1));
+-            }
+-            at = start + 2;
+-        }
+-    }
+-    out
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn ids_are_found_as_words_only() {
+-        let found: Vec<String> =
+-            ids_in("T-001 and (T-012), not XT-003, not T-04, T-1234.").into_iter().map(|(id, _)| id).collect();
+-        assert_eq!(found, ["T-001", "T-012", "T-1234"]);
+-    }
+-
+-    #[test]
+-    fn the_phrase_is_derived_from_the_counts() {
+-        let c = Counts { open: 3, partial: 1, blocked: 2, done: 4 };
+-        assert_eq!(c.phrase(), "10 entries: 3 open, 1 partial, 2 blocked, 4 done.");
+-        assert_eq!(c.table_row("P1"), "| P1 | 3 | 1 | 2 | 4 | 10 |");
+-    }
+-}
+diff --git a/crates/podssh-todo/src/numbers.rs b/crates/podssh-todo/src/numbers.rs
+deleted file mode 100644
+index 4ff2569..0000000
+--- a/crates/podssh-todo/src/numbers.rs
++++ /dev/null
+@@ -1,314 +0,0 @@
+-//! Line numbers in the text of the record. A citation `FILE:N` moves with
+-//! FILE (`remap`) and is read (`check`), and so does a bare `:N` that follows
+-//! a citation of FILE in its paragraph. A number written as plain text after
+-//! a citation ("line 12", "lines 3-4") does neither, so it can come to name a
+-//! line that holds other code. "line 12 at `COMMIT`" is a reading of a past
+-//! tree, which needs no move, and so is each number of a paragraph that reads
+-//! at a named commit.
+-
+-use std::fs;
+-use std::ops::Range;
+-use std::path::Path;
+-
+-use crate::model::Problem;
+-use crate::parse::lines_with_fences;
+-use crate::refs::citation;
+-
+-/// The bare `:N` of each paragraph, read in the file that it follows, and
+-/// each line number in plain text after a citation.
+-pub fn check(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
+-    for para in paragraphs(text) {
+-        let (joined, starts) = join(&para);
+-        let line_at = |at: usize| starts.iter().rev().find(|(o, _)| *o <= at).map_or(0, |(_, no)| *no);
+-        let spans = spans_of(&para, &starts);
+-        bare(root, rel, &spans, &line_at, p);
+-        for (range, words) in plain(&joined, &spans) {
+-            let cited = spans.iter().any(|s| s.range.end <= range.start && s.cites.is_some());
+-            let read = spans.iter().any(|s| s.range.end <= range.start && s.commit_read);
+-            if cited && !read && !at_commit(&joined[range.end..]) {
+-                p.push(Problem::new(
+-                    rel,
+-                    line_at(range.start),
+-                    format!(
+-                        "\"{words}\" follows a citation as plain text, which remap does not move and check \
+-                         does not read: write `:N`, or \"{words} at `COMMIT`\" for a reading of a past tree"
+-                    ),
+-                ));
+-            }
+-        }
+-    }
+-}
+-
+-/// A code span of a paragraph: where it is in the joined text, what it
+-/// holds, the file that it cites, and whether it is a commit after "at".
+-struct Span {
+-    range: Range<usize>,
+-    inner: String,
+-    cites: Option<String>,
+-    commit_read: bool,
+-}
+-
+-/// The paragraphs of a text, as `remap` reads them: a blank line, a
+-/// heading or a fence ends one.
+-fn paragraphs(text: &str) -> Vec<Vec<(usize, &str)>> {
+-    let mut out = Vec::new();
+-    let mut cur = Vec::new();
+-    for (no, line, fenced) in lines_with_fences(text) {
+-        if fenced || line.trim().is_empty() || line.starts_with('#') {
+-            if !cur.is_empty() {
+-                out.push(std::mem::take(&mut cur));
+-            }
+-            continue;
+-        }
+-        cur.push((no, line));
+-    }
+-    if !cur.is_empty() {
+-        out.push(cur);
+-    }
+-    out
+-}
+-
+-/// A paragraph as one text, and the offset and number of each of its lines.
+-fn join(para: &[(usize, &str)]) -> (String, Vec<(usize, usize)>) {
+-    let mut joined = String::new();
+-    let mut starts = Vec::new();
+-    for &(no, line) in para {
+-        starts.push((joined.len(), no));
+-        joined.push_str(line);
+-        joined.push('\n');
+-    }
+-    (joined, starts)
+-}
+-
+-/// The code spans of each line, as CommonMark reads them: a run of backticks
+-/// opens a span that the next run of the same length closes, so that
+-/// `` `FILE:12` and `:40` `` is one span, which cites nothing.
+-fn spans_of(para: &[(usize, &str)], starts: &[(usize, usize)]) -> Vec<Span> {
+-    let mut out: Vec<Span> = Vec::new();
+-    for (&(_, line), &(offset, _)) in para.iter().zip(starts) {
+-        let b = line.as_bytes();
+-        let mut i = 0;
+-        while i < b.len() {
+-            if b[i] != b'`' {
+-                i += 1;
+-                continue;
+-            }
+-            let open = i;
+-            while i < b.len() && b[i] == b'`' {
+-                i += 1;
+-            }
+-            let run = i - open;
+-            let mut j = i;
+-            let mut close = None;
+-            while j < b.len() {
+-                if b[j] != b'`' {
+-                    j += 1;
+-                    continue;
+-                }
+-                let s = j;
+-                while j < b.len() && b[j] == b'`' {
+-                    j += 1;
+-                }
+-                if j - s == run {
+-                    close = Some((s, j));
+-                    break;
+-                }
+-            }
+-            // A run that nothing closes is text.
+-            let Some((s, e)) = close else { continue };
+-            let inner = if run == 1 { &line[i..s] } else { line[i..s].trim_matches(' ') };
+-            let before = line[..open].trim_end();
+-            let after_at = before.ends_with(" at") || before == "at" || before.ends_with("(at");
+-            out.push(Span {
+-                range: offset + open..offset + e,
+-                inner: inner.to_string(),
+-                cites: citation(inner).map(|(path, _)| path.to_string()),
+-                commit_read: after_at && is_commit(inner),
+-            });
+-            i = e;
+-        }
+-    }
+-    out
+-}
+-
+-/// Each bare `:N` names a line of the file that the last citation before it
+-/// in its paragraph names. A bare `:N` that follows no citation names no
+-/// file, as for `remap`, and is not read.
+-fn bare(root: &Path, rel: &str, spans: &[Span], line_at: &dyn Fn(usize) -> usize, p: &mut Vec<Problem>) {
+-    let mut context: Option<&str> = None;
+-    for s in spans {
+-        if let Some(path) = &s.cites {
+-            context = Some(path.as_str());
+-            continue;
+-        }
+-        let (Some(path), Some((first, last))) = (context, s.inner.strip_prefix(':').and_then(numbers)) else {
+-            continue;
+-        };
+-        let at = line_at(s.range.start);
+-        if first == 0 || first > last {
+-            p.push(Problem::new(
+-                rel,
+-                at,
+-                format!("`{}`: a range runs from line 1 or later to a line at or after its start", s.inner),
+-            ));
+-            continue;
+-        }
+-        let Ok(cited) = fs::read_to_string(root.join(path)) else { continue };
+-        let count = cited.lines().count();
+-        if last > count {
+-            p.push(Problem::new(rel, at, format!("`{}` after `{path}`: {path} has {count} lines", s.inner)));
+-        }
+-    }
+-}
+-
+-/// `N` or `N-M`, digits only: the first line and the last.
+-fn numbers(s: &str) -> Option<(usize, usize)> {
+-    let digits = |t: &str| !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit());
+-    match s.split_once('-') {
+-        Some((a, b)) if digits(a) && digits(b) => Some((a.parse().ok()?, b.parse().ok()?)),
+-        None if digits(s) => {
+-            let n = s.parse().ok()?;
+-            Some((n, n))
+-        }
+-        _ => None,
+-    }
+-}
+-
+-/// A commit as the record writes one: 7 to 40 lower-case hex digits.
+-fn is_commit(s: &str) -> bool {
+-    (7..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+-}
+-
+-/// The text after a number begins "at `COMMIT`", on the same line or the next.
+-fn at_commit(rest: &str) -> bool {
+-    let Some(r) = rest.trim_start().strip_prefix("at") else { return false };
+-    let Some(r) = r.trim_start().strip_prefix('`') else { return false };
+-    r.split_once('`').is_some_and(|(inner, _)| is_commit(inner))
+-}
+-
+-/// Each "line N" or "lines N-M" (also "lines 3 and 5", "lines 3, 5 or 7")
+-/// in the plain text of a paragraph: outside code spans and outside double
+-/// quotes, which quote text rather than name a line.
+-fn plain(joined: &str, spans: &[Span]) -> Vec<(Range<usize>, String)> {
+-    let b = joined.as_bytes();
+-    let mut text = vec![true; b.len()];
+-    for s in spans {
+-        text[s.range.clone()].iter_mut().for_each(|t| *t = false);
+-    }
+-    let mut quoted = false;
+-    for (i, t) in text.iter_mut().enumerate() {
+-        if *t && b[i] == b'"' {
+-            quoted = !quoted;
+-            *t = false;
+-        } else if quoted {
+-            *t = false;
+-        }
+-    }
+-    let mut out = Vec::new();
+-    let mut i = 0;
+-    while i < b.len() {
+-        // A byte inside a character of more than one byte starts no word.
+-        if !joined.is_char_boundary(i) {
+-            i += 1;
+-            continue;
+-        }
+-        let word_start = i == 0 || !b[i - 1].is_ascii_alphanumeric();
+-        let rest = &joined[i..];
+-        let head = ["line ", "lines ", "Line ", "Lines "].iter().find(|w| rest.starts_with(**w));
+-        let (true, true, Some(head)) = (text[i], word_start, head) else {
+-            i += 1;
+-            continue;
+-        };
+-        let mut e = i + head.len();
+-        let Some(end) = number_list(joined, e, &text) else {
+-            i += 1;
+-            continue;
+-        };
+-        e = end;
+-        out.push((i..e, joined[i..e].to_string()));
+-        i = e;
+-    }
+-    out
+-}
+-
+-/// The end of a list of numbers that starts at `at`: "12", "3-4", "3 and
+-/// 5", "3, 5 or 7-9". None when no number starts there.
+-fn number_list(s: &str, at: usize, text: &[bool]) -> Option<usize> {
+-    let b = s.as_bytes();
+-    let number = |from: usize| -> Option<usize> {
+-        let mut k = from;
+-        while k < b.len() && b[k].is_ascii_digit() && text[k] {
+-            k += 1;
+-        }
+-        if k == from {
+-            return None;
+-        }
+-        if k + 1 < b.len() && b[k] == b'-' && b[k + 1].is_ascii_digit() {
+-            k += 1;
+-            while k < b.len() && b[k].is_ascii_digit() {
+-                k += 1;
+-            }
+-        }
+-        Some(k)
+-    };
+-    let mut end = number(at)?;
+-    loop {
+-        let more = [", and ", ", or ", " and ", " or ", ", "].iter().find(|sep| s[end..].starts_with(**sep));
+-        let Some(sep) = more else { break };
+-        match number(end + sep.len()) {
+-            Some(next) => end = next,
+-            None => break,
+-        }
+-    }
+-    // A number that runs into a word or a decimal point is not a line.
+-    let next = b.get(end).copied().unwrap_or(b' ');
+-    (!next.is_ascii_alphanumeric() && !(next == b'.' && b.get(end + 1).is_some_and(u8::is_ascii_digit))).then_some(end)
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    fn found(text: &str) -> Vec<String> {
+-        let mut p = Vec::new();
+-        check(Path::new("."), "TODO/t.md", text, &mut p);
+-        p.into_iter().map(|x| x.to_string()).collect()
+-    }
+-
+-    #[test]
+-    fn a_plain_number_after_a_citation_is_found() {
+-        let p = found("Read `crates/podssh-todo/src/lib.rs:3`, and lines 5 and 7-8.\n");
+-        assert_eq!(p.len(), 1, "{p:?}");
+-        assert!(p[0].contains("\"lines 5 and 7-8\" follows a citation"), "{p:?}");
+-        // A character of more than one byte before it.
+-        let p = found("Read `crates/podssh-todo/src/lib.rs:3` — and line 5.\n");
+-        assert_eq!(p.len(), 1, "{p:?}");
+-    }
+-
+-    #[test]
+-    fn readings_quotes_and_other_numbers_pass() {
+-        for text in [
+-            "Read `crates/podssh-todo/src/lib.rs:3`, line 5 at `0123abc`.\n",
+-            "Read `crates/podssh-todo/src/lib.rs:3`, line 5\nat `0123abc`.\n",
+-            "Read, at `0123abc`: `crates/podssh-todo/src/lib.rs:3`, and line 5.\n",
+-            "Read `crates/podssh-todo/src/lib.rs:3`; it says \"line 5\".\n",
+-            "Line 5 of the output, before any citation: `crates/podssh-todo/src/lib.rs:3`.\n",
+-            "Read `crates/podssh-todo/src/lib.rs:3`.\n\nA new paragraph: line 5 of a log.\n",
+-            "Read `crates/podssh-todo/src/lib.rs:3`, in 5 lines, with a pipeline 2.5 long.\n",
+-        ] {
+-            assert_eq!(found(text), Vec::<String>::new(), "{text:?}");
+-        }
+-    }
+-
+-    #[test]
+-    fn a_double_backtick_span_is_one_span() {
+-        let mut p = Vec::new();
+-        let para = vec![(1, "(the record writes `` `FILE:12` and `:40` ``)")];
+-        let (_, starts) = join(&para);
+-        let spans = spans_of(&para, &starts);
+-        assert_eq!(spans.len(), 1);
+-        assert_eq!(spans[0].inner, "`FILE:12` and `:40`");
+-        bare(Path::new("."), "TODO/t.md", &spans, &|_| 1, &mut p);
+-        assert!(p.is_empty(), "{p:?}");
+-    }
+-}
+diff --git a/crates/podssh-todo/src/parse.rs b/crates/podssh-todo/src/parse.rs
+deleted file mode 100644
+index 6eab7dd..0000000
+--- a/crates/podssh-todo/src/parse.rs
++++ /dev/null
+@@ -1,250 +0,0 @@
+-//! Reading the record's Markdown. Each shape is a fixed line, so that a
+-//! number or a status that one file quotes can be compared with the file
+-//! that owns it.
+-
+-use crate::model::{Counts, Entry, Field, Problem, Row, Section, FIELDS};
+-
+-/// The lines of a text with their numbers, and whether each is inside a
+-/// fenced code block (a fence line itself counts as inside).
+-pub fn lines_with_fences(text: &str) -> Vec<(usize, &str, bool)> {
+-    let mut out = Vec::new();
+-    let mut fenced = false;
+-    for (i, line) in text.lines().enumerate() {
+-        let t = line.trim_start();
+-        if t.starts_with("```") || t.starts_with("~~~") {
+-            fenced = !fenced;
+-            out.push((i + 1, line, true));
+-        } else {
+-            out.push((i + 1, line, fenced));
+-        }
+-    }
+-    out
+-}
+-
+-/// The cells of a Markdown table line, trimmed, without the outer pipes.
+-pub fn cells(line: &str) -> Vec<String> {
+-    let t = line.trim();
+-    let inner = t.strip_prefix('|').unwrap_or(t);
+-    let inner = inner.strip_suffix('|').unwrap_or(inner);
+-    inner.split('|').map(|c| c.trim().to_string()).collect()
+-}
+-
+-/// The rows of the table of entries: each line that starts with `| [T-`.
+-pub fn rows(file: &str, index: &str) -> (Vec<Row>, Vec<Problem>) {
+-    let mut rows = Vec::new();
+-    let mut problems = Vec::new();
+-    for (line_no, line, fenced) in lines_with_fences(index) {
+-        if fenced || !line.trim_start().starts_with("| [T-") {
+-            continue;
+-        }
+-        let c = cells(line);
+-        let link = c.first().map(String::as_str).unwrap_or("");
+-        let parsed = link
+-            .strip_prefix('[')
+-            .and_then(|s| s.split_once("]("))
+-            .and_then(|(id, rest)| rest.strip_suffix(')').map(|f| (id.to_string(), f.to_string())));
+-        match parsed {
+-            Some((id, target)) if c.len() == 7 => rows.push(Row {
+-                id,
+-                file: target,
+-                priority: c[1].clone(),
+-                effort: c[2].clone(),
+-                milestone: c[3].clone(),
+-                category: c[4].clone(),
+-                status: c[5].clone(),
+-                title: c[6].clone(),
+-                line: line_no,
+-            }),
+-            _ => problems.push(Problem::new(
+-                file,
+-                line_no,
+-                "a row must be | [T-NNN](area.md) | priority | effort | milestone | category | status | title | (7 cells, no `|` in the title)",
+-            )),
+-        }
+-    }
+-    (rows, problems)
+-}
+-
+-/// The entries of an area file. Problems are reported for an H1 that is not
+-/// an entry, and for a header line that is not a known field.
+-pub fn entries(file: &str, text: &str) -> (Vec<Entry>, Vec<Problem>) {
+-    let mut entries: Vec<Entry> = Vec::new();
+-    let mut problems = Vec::new();
+-    // Inside an entry: in the header (before the first `##`), or in a section.
+-    let mut in_header = false;
+-    for (line_no, line, fenced) in lines_with_fences(text) {
+-        if !fenced && line.starts_with("# ") {
+-            match line[2..].split_once(": ") {
+-                Some((id, title)) if crate::model::is_id(id) => {
+-                    entries.push(Entry {
+-                        id: id.to_string(),
+-                        title: title.trim().to_string(),
+-                        file: file.to_string(),
+-                        line: line_no,
+-                        fields: Vec::new(),
+-                        sections: Vec::new(),
+-                    });
+-                    in_header = true;
+-                }
+-                _ => problems.push(Problem::new(file, line_no, "an H1 that is not an entry (`# T-NNN: Title`)")),
+-            }
+-            continue;
+-        }
+-        let Some(entry) = entries.last_mut() else { continue };
+-        if !fenced && line.starts_with("## ") {
+-            entry.sections.push(Section { name: line[3..].trim().to_string(), line: line_no, body: String::new() });
+-            in_header = false;
+-            continue;
+-        }
+-        if in_header {
+-            header_line(entry, line, line_no, file, &mut problems);
+-        } else if let Some(section) = entry.sections.last_mut() {
+-            section.body.push_str(line);
+-            section.body.push('\n');
+-        }
+-    }
+-    (entries, problems)
+-}
+-
+-/// One line of an entry's header: `**Name:** value`, or the continuation of
+-/// the field above it.
+-fn header_line(entry: &mut Entry, line: &str, line_no: usize, file: &str, problems: &mut Vec<Problem>) {
+-    if line.trim().is_empty() {
+-        return;
+-    }
+-    if let Some(rest) = line.strip_prefix("**") {
+-        if let Some((name, value)) = rest.split_once(":**") {
+-            if FIELDS.contains(&name) {
+-                entry.fields.push(Field { name: name.to_string(), value: value.trim().to_string(), line: line_no });
+-            } else {
+-                problems.push(Problem::new(file, line_no, format!("`{name}` is not a field of an entry")));
+-            }
+-            return;
+-        }
+-    }
+-    match entry.fields.last_mut() {
+-        Some(f) => {
+-            f.value.push(' ');
+-            f.value.push_str(line.trim());
+-        }
+-        None => problems.push(Problem::new(file, line_no, "text before the first field of the entry")),
+-    }
+-}
+-
+-/// The counts phrase `N entries: A open, B partial, C blocked, D done.` in a
+-/// line: the counts, and the byte range of the phrase.
+-pub fn counts_phrase(line: &str) -> Option<(usize, Counts, std::ops::Range<usize>)> {
+-    let key = " entries: ";
+-    let at = line.find(key)?;
+-    let start = line[..at].rfind(|c: char| !c.is_ascii_digit()).map_or(0, |i| i + 1);
+-    let total: usize = line[start..at].parse().ok()?;
+-    let rest = &line[at + key.len()..];
+-    let end_rel = rest.find('.')?;
+-    let mut c = Counts::default();
+-    for (part, want) in rest[..end_rel].split(", ").zip(["open", "partial", "blocked", "done"]) {
+-        let (n, word) = part.split_once(' ')?;
+-        if word != want {
+-            return None;
+-        }
+-        let n: usize = n.parse().ok()?;
+-        match want {
+-            "open" => c.open = n,
+-            "partial" => c.partial = n,
+-            "blocked" => c.blocked = n,
+-            _ => c.done = n,
+-        }
+-    }
+-    if rest[..end_rel].split(", ").count() != 4 {
+-        return None;
+-    }
+-    let end = at + key.len() + end_rel + 1;
+-    Some((total, c, start..end))
+-}
+-
+-/// The first line that carries the counts phrase, with its number.
+-pub fn find_counts(text: &str) -> Option<(usize, usize, Counts)> {
+-    lines_with_fences(text)
+-        .into_iter()
+-        .filter(|(_, _, fenced)| !fenced)
+-        .find_map(|(no, line, _)| counts_phrase(line).map(|(total, c, _)| (no, total, c)))
+-}
+-
+-/// A row of the table of counts: `| P1 | a | b | c | d | total |`, or the
+-/// `| **All** | ... |` row. Returns the label, the counts and the total.
+-pub fn counts_row(line: &str) -> Option<(String, Counts, usize)> {
+-    let c = cells(line);
+-    if c.len() != 6 {
+-        return None;
+-    }
+-    let n: Vec<usize> = c[1..].iter().map(|v| v.parse().ok()).collect::<Option<_>>()?;
+-    let label = c[0].trim_matches('*').to_string();
+-    Some((label, Counts { open: n[0], partial: n[1], blocked: n[2], done: n[3] }, n[4]))
+-}
+-
+-/// The body of the `## Heading` section of a document, up to the next `## `.
+-pub fn doc_section<'a>(text: &'a str, heading: &str) -> Option<(usize, Vec<(usize, &'a str)>)> {
+-    let mut out = None;
+-    for (no, line, fenced) in lines_with_fences(text) {
+-        if !fenced && line.starts_with("## ") {
+-            if out.is_some() {
+-                break;
+-            }
+-            if line[3..].trim() == heading {
+-                out = Some((no, Vec::new()));
+-            }
+-            continue;
+-        }
+-        if let Some((_, body)) = out.as_mut() {
+-            body.push((no, line));
+-        }
+-    }
+-    out
+-}
+-
+-/// The backtick code spans of a line (single backticks).
+-pub fn code_spans(line: &str) -> Vec<&str> {
+-    let mut out = Vec::new();
+-    let mut rest = line;
+-    while let Some(open) = rest.find('`') {
+-        let after = &rest[open + 1..];
+-        let Some(close) = after.find('`') else { break };
+-        out.push(&after[..close]);
+-        rest = &after[close + 1..];
+-    }
+-    out
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn the_counts_phrase_is_read_where_it_stands() {
+-        let line = "**12 entries: 5 open, 1 partial, 2 blocked, 4 done.**";
+-        let (total, c, range) = counts_phrase(line).unwrap();
+-        assert_eq!(total, 12);
+-        assert_eq!((c.open, c.partial, c.blocked, c.done), (5, 1, 2, 4));
+-        assert_eq!(&line[range], "12 entries: 5 open, 1 partial, 2 blocked, 4 done.");
+-        let line = "`TODO/INDEX.md` holds 7 entries: 1 open, 2 partial, 3 blocked, 1 done.";
+-        assert_eq!(counts_phrase(line).unwrap().0, 7);
+-        assert!(counts_phrase("7 entries: 1 open, 2 partial, 3 done.").is_none());
+-    }
+-
+-    #[test]
+-    fn a_heading_in_a_fence_is_not_an_entry() {
+-        let text = "# T-001: One\n\n**Status:** open\n\n## Prove\n\n```sh\n# T-002: not an entry\n## Done\n```\n";
+-        let (e, p) = entries("a.md", text);
+-        assert!(p.is_empty(), "{p:?}");
+-        assert_eq!(e.len(), 1);
+-        assert_eq!(e[0].sections.len(), 1);
+-        assert!(e[0].sections[0].body.contains("# T-002"));
+-    }
+-
+-    #[test]
+-    fn a_field_can_wrap() {
+-        let text = "# T-001: One\n\n**Source:** the operator,\nin two lines.\n**Status:** open\n";
+-        let (e, _) = entries("a.md", text);
+-        assert_eq!(e[0].field("Source"), Some("the operator, in two lines."));
+-        assert_eq!(e[0].field("Status"), Some("open"));
+-    }
+-}
+diff --git a/crates/podssh-todo/src/prove.rs b/crates/podssh-todo/src/prove.rs
+deleted file mode 100644
+index 3662f99..0000000
+--- a/crates/podssh-todo/src/prove.rs
++++ /dev/null
+@@ -1,198 +0,0 @@
+-//! The targets of a done entry's Prove (T-361): each `-p CRATE` of a
+-//! `cargo test` command is a package of the tree, of the workspace, of
+-//! `fuzz/` or of `vendor/`, and each `--test NAME` a target of one of them,
+-//! a file of its `tests/` or a `[[test]]` of its manifest; each `scripts/`
+-//! path exists. A done Prove is what ran when its entry closed, so a target
+-//! that moved since is named, with where it went, in the entry's
+-//! `## Correction`, and a target that the Correction names is taken.
+-
+-use std::collections::BTreeMap;
+-use std::path::{Path, PathBuf};
+-
+-/// The packages of the tree, by name: each one's directory and the names of
+-/// its `[[test]]` targets.
+-#[derive(Debug, Default)]
+-pub struct Packages {
+-    by_name: BTreeMap<String, (PathBuf, Vec<String>)>,
+-}
+-
+-impl Packages {
+-    /// The manifests of `crates/*`, `fuzz/`, `vendor/*` and `vendor/*/*`.
+-    pub fn of(root: &Path) -> Packages {
+-        let mut manifests = vec![root.join("fuzz/Cargo.toml")];
+-        for dir in ["crates", "vendor"] {
+-            for first in children(&root.join(dir)) {
+-                manifests.push(first.join("Cargo.toml"));
+-                if dir == "vendor" {
+-                    manifests.extend(children(&first).into_iter().map(|d| d.join("Cargo.toml")));
+-                }
+-            }
+-        }
+-        let mut packages = Packages::default();
+-        for manifest in manifests {
+-            let Ok(text) = std::fs::read_to_string(&manifest) else { continue };
+-            let (name, tests) = read_manifest(&text);
+-            if let (Some(name), Some(dir)) = (name, manifest.parent()) {
+-                packages.by_name.insert(name, (dir.to_path_buf(), tests));
+-            }
+-        }
+-        packages
+-    }
+-
+-    fn has_test(&self, package: &str, test: &str) -> bool {
+-        let Some((dir, named)) = self.by_name.get(package) else { return false };
+-        named.iter().any(|n| n == test)
+-            || dir.join("tests").join(format!("{test}.rs")).is_file()
+-            || dir.join("tests").join(test).join("main.rs").is_file()
+-    }
+-}
+-
+-fn children(dir: &Path) -> Vec<PathBuf> {
+-    let Ok(read) = std::fs::read_dir(dir) else { return Vec::new() };
+-    let mut out: Vec<PathBuf> = read.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+-    out.sort();
+-    out
+-}
+-
+-/// The `name` of `[package]`, and the name of each `[[test]]`.
+-fn read_manifest(text: &str) -> (Option<String>, Vec<String>) {
+-    let (mut section, mut name, mut tests) = (String::new(), None, Vec::new());
+-    for raw in text.lines() {
+-        let line = raw.trim();
+-        if line.starts_with('[') {
+-            section = line.to_string();
+-            continue;
+-        }
+-        let Some(value) = line.strip_prefix("name").map(str::trim_start).and_then(|r| r.strip_prefix('=')) else {
+-            continue;
+-        };
+-        let value = value.trim().trim_matches('"').to_string();
+-        match section.as_str() {
+-            "[package]" if name.is_none() => name = Some(value),
+-            "[[test]]" => tests.push(value),
+-            _ => {}
+-        }
+-    }
+-    (name, tests)
+-}
+-
+-/// The packages and the test targets of each `cargo test` command in
+-/// `text`: `-p`/`--package` and `--test`, up to a `--`.
+-fn targets(text: &str) -> Vec<(usize, Vec<String>, Vec<String>)> {
+-    let mut out = Vec::new();
+-    for (i, line) in text.lines().enumerate() {
+-        let words: Vec<&str> =
+-            line.split(|c: char| c.is_whitespace() || c == '`' || c == ';').filter(|w| !w.is_empty()).collect();
+-        let mut at = 0;
+-        while let Some(start) = (at..words.len()).find(|&k| words[k] == "cargo") {
+-            let mut k = start + 1;
+-            if words.get(k).is_some_and(|w| w.starts_with('+')) {
+-                k += 1;
+-            }
+-            if words.get(k) != Some(&"test") {
+-                at = start + 1;
+-                continue;
+-            }
+-            let (mut packages, mut tests) = (Vec::new(), Vec::new());
+-            k += 1;
+-            while k < words.len() && words[k] != "--" && words[k] != "cargo" && words[k] != "&&" && words[k] != "||" {
+-                let word = words[k];
+-                match word {
+-                    "-p" | "--package" => packages.extend(words.get(k + 1).map(|w| w.to_string())),
+-                    "--test" => tests.extend(words.get(k + 1).map(|w| w.to_string())),
+-                    _ => {
+-                        if let Some(v) = word.strip_prefix("--package=").or_else(|| word.strip_prefix("-p")) {
+-                            if !v.is_empty() {
+-                                packages.push(v.to_string());
+-                            }
+-                        }
+-                        if let Some(v) = word.strip_prefix("--test=") {
+-                            tests.push(v.to_string());
+-                        }
+-                    }
+-                }
+-                k += 1;
+-            }
+-            out.push((i, packages, tests));
+-            at = k;
+-        }
+-    }
+-    out
+-}
+-
+-/// Each `scripts/` path of `text`, its line.
+-fn scripts(text: &str) -> Vec<(usize, String)> {
+-    let mut out = Vec::new();
+-    for (i, line) in text.lines().enumerate() {
+-        let mut rest = line;
+-        while let Some(at) = rest.find("scripts/") {
+-            let tail = &rest[at..];
+-            let len = tail.find(|c: char| !(c.is_ascii_alphanumeric() || "_./-".contains(c))).unwrap_or(tail.len());
+-            let path = tail[..len].trim_end_matches(['.', '/']);
+-            // A path of another tree (`.tmp/x/scripts/...`) is not this one's.
+-            let ours = at == 0 || !rest[..at].ends_with(|c: char| c.is_ascii_alphanumeric() || "_./-".contains(c));
+-            if ours && path.len() > "scripts/".len() {
+-                out.push((i, path.to_string()));
+-            }
+-            rest = &tail[len.max(1)..];
+-        }
+-    }
+-    out
+-}
+-
+-/// What of `prove` (a section's body, at `line`) does not exist, each with
+-/// its line: a package, a test target or a script; none that `correction`
+-/// names.
+-pub fn missing(root: &Path, packages: &Packages, prove: &str, line: usize, correction: &str) -> Vec<(usize, String)> {
+-    let mut out = Vec::new();
+-    for (i, named, tests) in targets(prove) {
+-        let known: Vec<&String> = named.iter().filter(|p| packages.by_name.contains_key(*p)).collect();
+-        for package in named.iter().filter(|p| !packages.by_name.contains_key(*p) && !correction.contains(p.as_str())) {
+-            out.push((line + 1 + i, format!("the package {package}, which the tree does not hold")));
+-        }
+-        for test in tests.iter().filter(|t| !correction.contains(t.as_str())) {
+-            let found = if known.is_empty() && named.is_empty() {
+-                packages.by_name.keys().any(|p| packages.has_test(p, test))
+-            } else {
+-                known.iter().any(|p| packages.has_test(p, test))
+-            };
+-            if !found && !(known.is_empty() && !named.is_empty()) {
+-                out.push((line + 1 + i, format!("the test target {test}, which no package of its command has")));
+-            }
+-        }
+-    }
+-    for (i, path) in scripts(prove) {
+-        if !root.join(&path).exists() && !correction.contains(path.as_str()) {
+-            out.push((line + 1 + i, format!("{path}, which does not exist")));
+-        }
+-    }
+-    out
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn the_commands_give_their_packages_and_targets() {
+-        let found =
+-            targets("x\ncargo test -p a --test b -- --ignored\n`cargo +1.89 test --package=c --test=d`; cargo test");
+-        assert_eq!(found[0], (1, vec!["a".into()], vec!["b".into()]));
+-        assert_eq!(found[1], (2, vec!["c".into()], vec!["d".into()]));
+-        assert_eq!(found[2], (2, vec![], vec![]));
+-    }
+-
+-    #[test]
+-    fn a_script_s_path_is_read_and_another_tree_s_is_not() {
+-        let found = scripts("sh scripts/dev.sh check, then `scripts/plant.sh`; .tmp/x/scripts/y.sh");
+-        assert_eq!(found, [(0, "scripts/dev.sh".into()), (0, "scripts/plant.sh".into())]);
+-    }
+-
+-    #[test]
+-    fn a_manifest_gives_its_name_and_its_test_targets() {
+-        let (name, tests) =
+-            read_manifest("[package]\nname = \"podssh-x\"\n[dependencies]\nname = \"no\"\n[[test]]\nname = \"t1\"\n");
+-        assert_eq!(name.as_deref(), Some("podssh-x"));
+-        assert_eq!(tests, ["t1"]);
+-    }
+-}
+diff --git a/crates/podssh-todo/src/refs.rs b/crates/podssh-todo/src/refs.rs
+deleted file mode 100644
+index a38e1ed..0000000
+--- a/crates/podssh-todo/src/refs.rs
++++ /dev/null
+@@ -1,290 +0,0 @@
+-//! The references of the record: each `T-NNN` that a document names, each
+-//! repository path and line that an entry cites, the work order, the
+-//! questions that blocked entries wait for, and the milestones of
+-//! `docs/ROADMAP.md`.
+-
+-use std::collections::{HashMap, HashSet};
+-use std::fs;
+-use std::path::Path;
+-
+-use crate::check::{read, Record, PROGRESS};
+-use crate::model::{ids_in, Problem};
+-use crate::parse::{code_spans, doc_section, lines_with_fences};
+-
+-pub const ROADMAP: &str = "docs/ROADMAP.md";
+-
+-/// The top-level directories and the root files of this repository. A code
+-/// span that starts with one of them is a citation that must exist; another
+-/// project's file is written `owner/repo:path`, which never starts so.
+-const TOP_DIRS: [&str; 6] = ["crates", "scripts", "docs", ".github", "TODO", "vendor"];
+-const ROOT_FILES: [&str; 6] = ["Cargo.toml", "Cargo.lock", "README.md", "AGENTS.md", "SECURITY.md", "LICENSE"];
+-
+-pub fn check(root: &Path, r: &Record, p: &mut Vec<Problem>) {
+-    let status: HashMap<&str, &str> = r.rows.iter().map(|row| (row.id.as_str(), row.status.as_str())).collect();
+-    for rel in documents(root) {
+-        let Some(text) = read(root, &rel) else { continue };
+-        for (id, line) in ids_in(&text) {
+-            if !status.contains_key(id.as_str()) {
+-                p.push(Problem::new(&rel, line, format!("{id} is not an entry of the index")));
+-            }
+-        }
+-        if rel.starts_with("TODO/") {
+-            citations(root, &rel, &text, p);
+-            crate::numbers::check(root, &rel, &text, p);
+-        }
+-    }
+-    work_order(r, &status, p);
+-    questions(r, p);
+-    roadmap(root, r, p);
+-}
+-
+-/// The Markdown files whose `T-NNN` references must resolve, and whose
+-/// citations `remap` moves.
+-pub fn documents(root: &Path) -> Vec<String> {
+-    let mut out: Vec<String> = ["README.md", "AGENTS.md", "SECURITY.md"].iter().map(|s| s.to_string()).collect();
+-    for dir in ["TODO", "docs"] {
+-        walk(root, dir, &mut out);
+-    }
+-    out.retain(|rel| root.join(rel).is_file());
+-    out.sort();
+-    out
+-}
+-
+-fn walk(root: &Path, rel: &str, out: &mut Vec<String>) {
+-    let Ok(dir) = fs::read_dir(root.join(rel)) else { return };
+-    for e in dir.filter_map(|e| e.ok()) {
+-        let name = e.file_name().to_string_lossy().into_owned();
+-        let child = format!("{rel}/{name}");
+-        if e.path().is_dir() {
+-            walk(root, &child, out);
+-        } else if name.ends_with(".md") {
+-            out.push(child);
+-        }
+-    }
+-}
+-
+-/// A code span that cites a path of this repository: the path, and the last
+-/// line it names (`path:N` or `path:N-M`).
+-pub fn citation(span: &str) -> Option<(&str, Option<usize>)> {
+-    if span.is_empty() || span.contains(char::is_whitespace) || span.contains(['*', '{', '}', '<', '>', '?', '[', '|'])
+-    {
+-        return None;
+-    }
+-    let (path, suffix) = match span.split_once(':') {
+-        Some((p, s)) => (p, Some(s)),
+-        None => (span, None),
+-    };
+-    let path = path.split('#').next().unwrap_or(path);
+-    let first = path.split('/').next().unwrap_or("");
+-    let repo_path = (TOP_DIRS.contains(&first) && path.contains('/')) || ROOT_FILES.contains(&path);
+-    if !repo_path {
+-        return None;
+-    }
+-    let line = suffix.and_then(|s| {
+-        let last = s.rsplit('-').next()?;
+-        let ok = s.split('-').all(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+-        ok.then(|| last.parse().ok()).flatten()
+-    });
+-    Some((path, line))
+-}
+-
+-/// Each repository path in a code span of a record file exists, with the
+-/// exact case of each name, and has the line that it names. A citation that
+-/// quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there.
+-fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
+-    let lines = lines_with_fences(text);
+-    for (k, &(no, line, fenced)) in lines.iter().enumerate() {
+-        if fenced {
+-            continue;
+-        }
+-        for span in code_spans(line) {
+-            let Some((path, last)) = citation(span) else { continue };
+-            if !exists_exactly(root, path.trim_end_matches('/')) {
+-                p.push(Problem::new(rel, no, format!("`{path}` does not exist in this repository")));
+-                continue;
+-            }
+-            let Some(n) = last else { continue };
+-            let first: usize =
+-                span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
+-            // A range that ends before it starts, or a line 0, names no line:
+-            // a half-moved range looks like this.
+-            if first == 0 || first > n {
+-                p.push(Problem::new(
+-                    rel,
+-                    no,
+-                    format!("`{span}`: a range runs from line 1 or later to a line at or after its start"),
+-                ));
+-                continue;
+-            }
+-            let cited = fs::read_to_string(root.join(path)).unwrap_or_default();
+-            let count = cited.lines().count();
+-            if n > count {
+-                p.push(Problem::new(rel, no, format!("`{span}`: {path} has {count} lines")));
+-                continue;
+-            }
+-            let Some(quote) = quote_after(line, span, &lines[k + 1..]) else { continue };
+-            let (a, b) = (first.max(1), n.max(1));
+-            let held: Vec<&str> = cited.lines().skip(a - 1).take(b.saturating_sub(a) + 1).collect();
+-            if !squash(&held.join(" ")).contains(&squash(&quote)) {
+-                p.push(Problem::new(
+-                    rel,
+-                    no,
+-                    format!("`{span}` says \"{quote}\", but the cited lines do not hold that text"),
+-                ));
+-            }
+-        }
+-    }
+-}
+-
+-/// The text that a citation quotes: `` `SPAN` says "TEXT" ``, where TEXT
+-/// can go on over the next two lines of the paragraph.
+-fn quote_after(line: &str, span: &str, next: &[(usize, &str, bool)]) -> Option<String> {
+-    let at = line.find(&format!("`{span}` says \""))? + span.len() + 9;
+-    let mut quote = line[at..].to_string();
+-    for &(_, more, fenced) in next.iter().take(2) {
+-        if quote.contains('"') || fenced || more.trim().is_empty() {
+-            break;
+-        }
+-        quote.push(' ');
+-        quote.push_str(more.trim());
+-    }
+-    let end = quote.find('"')?;
+-    Some(quote[..end].to_string())
+-}
+-
+-/// A text with each run of white space made one space.
+-fn squash(s: &str) -> String {
+-    s.split_whitespace().collect::<Vec<_>>().join(" ")
+-}
+-
+-/// True when each part of `rel` exists with exactly that name, so that a
+-/// path with the wrong case fails on Windows as it fails on Linux.
+-fn exists_exactly(root: &Path, rel: &str) -> bool {
+-    let mut at = root.to_path_buf();
+-    for part in rel.split('/') {
+-        let Ok(dir) = fs::read_dir(&at) else { return false };
+-        if !dir.filter_map(|e| e.ok()).any(|e| e.file_name().to_string_lossy() == part) {
+-            return false;
+-        }
+-        at.push(part);
+-    }
+-    true
+-}
+-
+-/// The work order names only entries that are not done.
+-fn work_order(r: &Record, status: &HashMap<&str, &str>, p: &mut Vec<Problem>) {
+-    let Some((head, body)) = doc_section(&r.progress, "Work order") else {
+-        p.push(Problem::new(PROGRESS, 0, "no `## Work order` section"));
+-        return;
+-    };
+-    let mut named = 0;
+-    for (no, line) in body {
+-        for (id, _) in ids_in(line) {
+-            named += 1;
+-            if status.get(id.as_str()) == Some(&"done") {
+-                p.push(Problem::new(PROGRESS, no, format!("the work order names {id}, which is done")));
+-            }
+-        }
+-    }
+-    if named == 0 && r.rows.iter().any(|row| row.status != "done") {
+-        p.push(Problem::new(PROGRESS, head, "the work order names no entry, but some entries are not done"));
+-    }
+-}
+-
+-/// Each question `Qn` that a `## Blocker` names is in the progress record's
+-/// `## Questions for the operator`.
+-fn questions(r: &Record, p: &mut Vec<Problem>) {
+-    let asked: HashSet<String> = doc_section(&r.progress, "Questions for the operator")
+-        .map(|(_, body)| body.iter().flat_map(|(_, l)| q_tokens(l)).collect())
+-        .unwrap_or_default();
+-    for e in &r.entries {
+-        let Some(b) = e.section("Blocker") else { continue };
+-        for q in q_tokens(&b.body) {
+-            if !asked.contains(&q) {
+-                p.push(Problem::new(
+-                    &format!("TODO/{}", e.file),
+-                    b.line,
+-                    format!(
+-                        "{}: the blocker names {q}, which is not in {PROGRESS}, `## Questions for the operator`",
+-                        e.id
+-                    ),
+-                ));
+-            }
+-        }
+-    }
+-}
+-
+-/// The words `Q1`, `Q2`, ... of a text.
+-fn q_tokens(text: &str) -> Vec<String> {
+-    text.split(|c: char| !c.is_ascii_alphanumeric())
+-        .filter(|w| w.len() >= 2 && w.starts_with('Q') && w[1..].bytes().all(|b| b.is_ascii_digit()))
+-        .map(str::to_string)
+-        .collect()
+-}
+-
+-/// The roadmap keeps no list of open items (`- [ ]`): open work is an
+-/// entry. An entry that it names under a milestone has that milestone.
+-fn roadmap(root: &Path, r: &Record, p: &mut Vec<Problem>) {
+-    // A missing roadmap must not pass as a roadmap with nothing wrong in it.
+-    let Some(text) = read(root, ROADMAP) else {
+-        p.push(Problem::new(
+-            ROADMAP,
+-            0,
+-            "the roadmap is missing; the milestones of the entries are checked against it",
+-        ));
+-        return;
+-    };
+-    let milestone: HashMap<&str, &str> = r.rows.iter().map(|row| (row.id.as_str(), row.milestone.as_str())).collect();
+-    let mut current: Option<String> = None;
+-    for (no, line, fenced) in lines_with_fences(&text) {
+-        if fenced {
+-            continue;
+-        }
+-        if let Some(h) = line.strip_prefix("## ") {
+-            // A done milestone (M0 to M2) may name the later entry that
+-            // finished its exit criteria; only an open milestone is checked.
+-            let m = h.split([':', ' ']).next().unwrap_or("");
+-            current = crate::model::MILESTONES.contains(&m).then(|| m.to_string());
+-            continue;
+-        }
+-        if line.trim_start().starts_with("- [ ]") {
+-            p.push(Problem::new(
+-                ROADMAP,
+-                no,
+-                "an open item `- [ ]`: open work is an entry in TODO/, named here by its id",
+-            ));
+-        }
+-        let Some(m) = &current else { continue };
+-        for (id, _) in ids_in(line) {
+-            if let Some(have) = milestone.get(id.as_str()) {
+-                if have != m {
+-                    p.push(Problem::new(ROADMAP, no, format!("{id} is listed under {m}, but its milestone is {have}")));
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    #[test]
+-    fn only_paths_of_this_repository_are_citations() {
+-        assert_eq!(citation("crates/podssh-cli/src/tree.rs:52"), Some(("crates/podssh-cli/src/tree.rs", Some(52))));
+-        assert_eq!(citation("crates/x.rs:36-38"), Some(("crates/x.rs", Some(38))));
+-        assert_eq!(citation("docs/cli.md#the-manual"), Some(("docs/cli.md", None)));
+-        assert_eq!(citation("Cargo.toml"), Some(("Cargo.toml", None)));
+-        assert_eq!(citation("crates/podssh-cli/src/flags.rs:VERBS"), Some(("crates/podssh-cli/src/flags.rs", None)));
+-        assert_eq!(citation("lablup/bssh:crates/bssh-russh-sftp/x.patch"), None);
+-        assert_eq!(citation("src/noise.rs:1-92"), None);
+-        assert_eq!(citation("podssh ssh -G"), None);
+-        assert_eq!(citation("crates/podssh-ts/src/{pipe,node}.rs"), None);
+-        assert_eq!(citation("crates"), None);
+-    }
+-
+-    #[test]
+-    fn questions_are_words() {
+-        assert_eq!(q_tokens("question Q1 in `TODO/PROGRESS.md` (Q12); not QA, not Q"), ["Q1", "Q12"]);
+-    }
+-}
+diff --git a/crates/podssh-todo/src/remap.rs b/crates/podssh-todo/src/remap.rs
+deleted file mode 100644
+index aa01654..0000000
+--- a/crates/podssh-todo/src/remap.rs
++++ /dev/null
+@@ -1,374 +0,0 @@
+-//! `remap FILE...`: after an edit of FILE, move each citation of it in the
+-//! documents by a line diff of FILE against its version in the base: `HEAD`,
+-//! or the revision that `--base` names, as `HEAD~1` for a commit that was
+-//! made without a remap. A citation is `FILE:N` or `FILE:N-M` in a code
+-//! span, or a bare `:N` that follows a citation of FILE in the same
+-//! paragraph.
+-//!
+-//! Each document is compared with the base too, and a line of it is rebuilt
+-//! from its line in the base, where the numbers are the base's. So a second
+-//! run after a second edit gives the right numbers, not a second shift. A
+-//! line that is new in this change is kept as it is: its writer used the new
+-//! numbers.
+-
+-use std::collections::{HashMap, HashSet};
+-use std::fs;
+-use std::ops::Range;
+-use std::path::Path;
+-
+-use crate::diff::line_map;
+-use crate::parse::lines_with_fences;
+-use crate::refs::{citation, documents};
+-
+-/// The text of a file in the base; `Ok(None)` when the base has no such file.
+-pub type Head<'a> = dyn Fn(&str) -> Result<Option<String>, String> + 'a;
+-
+-/// What a run moved, and what a person must read.
+-#[derive(Debug, Default)]
+-pub struct Report {
+-    /// Each citation that moved: `doc:line: old -> new`.
+-    pub moved: Vec<String>,
+-    /// Each citation of a line that this change removed or changed. It is
+-    /// not moved.
+-    pub review: Vec<String>,
+-    /// Each line that is new in this change and cites FILE. Its numbers are
+-    /// taken to be the new ones.
+-    pub kept: Vec<String>,
+-    pub notes: Vec<String>,
+-}
+-
+-/// One citation on a line: the byte range of its numbers in the line, the
+-/// file, the first and the last line, and whether this run moves it (its
+-/// file is one of the files given).
+-#[derive(Debug, Clone)]
+-struct Cite {
+-    range: Range<usize>,
+-    path: String,
+-    first: usize,
+-    last: Option<usize>,
+-    moves: bool,
+-}
+-
+-/// The line map of a file: each old line's new number, and which old lines
+-/// are blank. A blank line is no anchor: a diff may match it with any other
+-/// blank line, also one in a part that the edit added.
+-struct FileMap {
+-    to: Vec<Option<usize>>,
+-    blank: Vec<bool>,
+-}
+-
+-type Maps = HashMap<String, FileMap>;
+-
+-/// The text of `rel` in the revision `rev`, read with `git show`; `Ok(None)`
+-/// when the revision has no such file, or none that is UTF-8 text, which no
+-/// citation could name by its lines.
+-pub fn git_at(root: &Path, rev: &str, rel: &str) -> Result<Option<String>, String> {
+-    let out = std::process::Command::new("git")
+-        .arg("-C")
+-        .arg(root)
+-        .args(["show", &format!("{rev}:{rel}")])
+-        .output()
+-        .map_err(|e| format!("git cannot run here ({e}); remap needs each file as it is in {rev}"))?;
+-    if out.status.success() {
+-        return Ok(String::from_utf8(out.stdout).ok());
+-    }
+-    let why = String::from_utf8_lossy(&out.stderr);
+-    if why.contains("does not exist in") || why.contains("exists on disk, but not in") {
+-        Ok(None)
+-    } else {
+-        Err(format!("git show {rev}:{rel}: {}", why.trim()))
+-    }
+-}
+-
+-/// The files of the tree that differ from the revision `rev` and still
+-/// exist, by `git diff --name-only REV`; `None` when git cannot say (no git,
+-/// no repository, no such revision).
+-pub fn changed_since(root: &Path, rev: &str) -> Option<Vec<String>> {
+-    let out =
+-        std::process::Command::new("git").arg("-C").arg(root).args(["diff", "--name-only", rev, "--"]).output().ok()?;
+-    if !out.status.success() {
+-        return None;
+-    }
+-    let text = String::from_utf8(out.stdout).ok()?;
+-    Some(text.lines().filter(|l| !l.is_empty() && root.join(l).is_file()).map(str::to_string).collect())
+-}
+-
+-/// Move the citations of `files` in each document. With `write` false,
+-/// only report what would move.
+-pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<Report, String> {
+-    let mut report = Report::default();
+-    let mut maps: Maps = HashMap::new();
+-    for f in files {
+-        let rel = f.replace('\\', "/");
+-        let rel = rel.trim_start_matches("./").to_string();
+-        let bytes = fs::read(root.join(&rel)).map_err(|e| format!("{rel}: {e}"))?;
+-        // A file that is not text, as a binary fixture, has no lines to
+-        // cite. It is passed over, so that the other files still move and
+-        // the check of a commit that changed it still runs.
+-        let Ok(now) = String::from_utf8(bytes) else {
+-            report.notes.push(format!("{rel} is not UTF-8 text: it has no lines to move"));
+-            continue;
+-        };
+-        match head(&rel)? {
+-            None => report.notes.push(format!("{rel} has no text in the base: a new file has no old line numbers")),
+-            Some(old) => {
+-                let old: Vec<&str> = old.lines().collect();
+-                let now: Vec<&str> = now.lines().collect();
+-                let blank = old.iter().map(|l| l.trim().is_empty()).collect();
+-                maps.insert(rel, FileMap { to: line_map(&old, &now), blank });
+-            }
+-        }
+-    }
+-    let names: HashSet<&str> = maps.keys().map(String::as_str).collect();
+-    if names.is_empty() {
+-        return Ok(report);
+-    }
+-    for doc in documents(root) {
+-        let Ok(now) = fs::read_to_string(root.join(&doc)) else { continue };
+-        // A bare `:N` needs a full citation earlier in its paragraph, so a
+-        // document that names no file has nothing to move.
+-        if !names.iter().any(|f| now.contains(f)) {
+-            continue;
+-        }
+-        let old = head(&doc)?.unwrap_or_default();
+-        if let Some(text) = remap_doc(&doc, &now, &old, &names, &maps, &mut report) {
+-            if write {
+-                let crlf = now.contains("\r\n");
+-                let mut out = if crlf { text.replace('\n', "\r\n") } else { text };
+-                if !now.ends_with('\n') && out.ends_with('\n') {
+-                    out.pop();
+-                    if crlf {
+-                        out.pop();
+-                    }
+-                }
+-                fs::write(root.join(&doc), out).map_err(|e| format!("{doc}: {e}"))?;
+-            }
+-        }
+-    }
+-    Ok(report)
+-}
+-
+-/// The new text of one document, when a citation in it moved.
+-fn remap_doc(
+-    doc: &str,
+-    now: &str,
+-    old: &str,
+-    names: &HashSet<&str>,
+-    maps: &Maps,
+-    report: &mut Report,
+-) -> Option<String> {
+-    let now_lines: Vec<&str> = now.lines().collect();
+-    let old_lines: Vec<&str> = old.lines().collect();
+-    let now_cites = cites(now, names);
+-    let old_cites = cites(old, names);
+-    // For each line of the document now, its line in HEAD when unchanged.
+-    let mut from: Vec<Option<usize>> = vec![None; now_lines.len()];
+-    for (o, n) in line_map(&old_lines, &now_lines).iter().enumerate() {
+-        if let Some(n) = n {
+-            from[n - 1] = Some(o);
+-        }
+-    }
+-    let mut used = HashSet::new();
+-    let mut moved = false;
+-    let mut out = String::with_capacity(now.len());
+-    for (i, line) in now_lines.iter().enumerate() {
+-        let mine = &now_cites[i];
+-        let source = if !mine.iter().any(|c| c.moves) {
+-            None
+-        } else {
+-            from[i].or_else(|| same_line(i, &from, &old_lines, &old_cites, &key(line, mine), &mut used))
+-        };
+-        let new_line = match source {
+-            Some(o) => rebuild(line, mine, old_lines[o], &old_cites[o], maps, &format!("{doc}:{}", i + 1), report),
+-            None => {
+-                for c in mine.iter().filter(|c| c.moves) {
+-                    report.kept.push(format!("{doc}:{}: {} {}", i + 1, c.path, &line[c.range.clone()]));
+-                }
+-                line.to_string()
+-            }
+-        };
+-        moved |= new_line != *line;
+-        out.push_str(&new_line);
+-        out.push('\n');
+-    }
+-    moved.then_some(out)
+-}
+-
+-/// A line of HEAD for a changed line `i`: in the block of HEAD between the
+-/// unchanged lines around `i`, the first unused line with the same text when
+-/// the numbers of the citations are set aside. Such a line is one that a
+-/// remap moved before; another kind of change makes it a new line.
+-fn same_line(
+-    i: usize,
+-    from: &[Option<usize>],
+-    old_lines: &[&str],
+-    old_cites: &[Vec<Cite>],
+-    want: &str,
+-    used: &mut HashSet<usize>,
+-) -> Option<usize> {
+-    let lo = from[..i].iter().rev().find_map(|o| *o).map_or(0, |o| o + 1);
+-    let hi = from[i + 1..].iter().find_map(|o| *o).unwrap_or(old_lines.len());
+-    let found = (lo..hi)
+-        .find(|&o| !used.contains(&o) && !old_cites[o].is_empty() && key(old_lines[o], &old_cites[o]) == want)?;
+-    used.insert(found);
+-    Some(found)
+-}
+-
+-/// A line with the numbers of each citation set aside, also of the files
+-/// that this run does not move: an earlier run in the same change can have
+-/// moved those.
+-fn key(line: &str, cites: &[Cite]) -> String {
+-    let mut out = String::with_capacity(line.len());
+-    let mut at = 0;
+-    for c in cites {
+-        out.push_str(&line[at..c.range.start]);
+-        out.push('#');
+-        at = c.range.end;
+-    }
+-    out.push_str(&line[at..]);
+-    out
+-}
+-
+-/// A line with each citation moved by its numbers in HEAD (`was`, the same
+-/// line in HEAD). A citation of a line that this change removed or changed
+-/// keeps the numbers that it has now: when they are still HEAD's, it is
+-/// listed for review; else a person moved it already.
+-fn rebuild(
+-    line: &str,
+-    mine: &[Cite],
+-    was: &str,
+-    theirs: &[Cite],
+-    maps: &Maps,
+-    at: &str,
+-    report: &mut Report,
+-) -> String {
+-    let mut out = String::with_capacity(line.len());
+-    let mut from = 0;
+-    for (c, h) in mine.iter().zip(theirs) {
+-        out.push_str(&line[from..c.range.start]);
+-        let now = &line[c.range.clone()];
+-        if !c.moves {
+-            out.push_str(now);
+-            from = c.range.end;
+-            continue;
+-        }
+-        let then = &was[h.range.clone()];
+-        match moved_range(h, maps) {
+-            Some((a, b)) => {
+-                let new = b.map_or_else(|| a.to_string(), |b| format!("{a}-{b}"));
+-                if new != now {
+-                    report.moved.push(format!("{at}: {} {now} -> {new}", c.path));
+-                }
+-                if changed_inside(h, maps) {
+-                    report.review.push(format!(
+-                        "{at}: {} {new}: moved by its ends, but a line inside it changed; read it",
+-                        c.path
+-                    ));
+-                }
+-                out.push_str(&new);
+-            }
+-            None => {
+-                if now == then {
+-                    report.review.push(format!(
+-                        "{at}: {} {now}: names a line that this change removed or changed; read it, and move the citation by hand",
+-                        c.path
+-                    ));
+-                }
+-                out.push_str(now);
+-            }
+-        }
+-        from = c.range.end;
+-    }
+-    out.push_str(&line[from..]);
+-    out
+-}
+-
+-/// The new first and last line of a citation, when the lines at its ends
+-/// are unchanged: a range moves by its ends, also when a line inside it
+-/// changed (`changed_inside` lists that for review), so that it keeps naming
+-/// the same part of the file.
+-fn moved_range(c: &Cite, maps: &Maps) -> Option<(usize, Option<usize>)> {
+-    let map = maps.get(&c.path)?;
+-    let end = c.last.unwrap_or(c.first);
+-    if c.first == 0 || end < c.first || end > map.to.len() {
+-        return None;
+-    }
+-    // A range moves by its first and last lines with text, and keeps its
+-    // blank margins: a blank end could have matched any blank line.
+-    let text = |n: &usize| !map.blank[n - 1];
+-    let first = (c.first..=end).find(text).unwrap_or(c.first);
+-    let start = map.to[first - 1]?.checked_sub(first - c.first).filter(|n| *n > 0)?;
+-    let last = match c.last {
+-        Some(l) => {
+-            let at = (c.first..=l).rev().find(text).unwrap_or(l);
+-            Some(map.to[at - 1]? + (l - at))
+-        }
+-        None => None,
+-    };
+-    Some((start, last))
+-}
+-
+-/// Whether the change removed or changed a line inside a cited range.
+-fn changed_inside(c: &Cite, maps: &Maps) -> bool {
+-    let Some(map) = maps.get(&c.path) else { return false };
+-    let end = c.last.unwrap_or(c.first).min(map.to.len());
+-    (c.first.max(1)..=end).any(|n| map.to[n - 1].is_none())
+-}
+-
+-/// The citations on each line of a text; those of `names` move. A blank
+-/// line, a heading or a fence ends a paragraph, and with it the file that a
+-/// bare `:N` means.
+-fn cites(text: &str, names: &HashSet<&str>) -> Vec<Vec<Cite>> {
+-    let mut out = Vec::new();
+-    let mut context: Option<String> = None;
+-    for (_, line, fenced) in lines_with_fences(text) {
+-        let mut here = Vec::new();
+-        if fenced || line.trim().is_empty() || line.starts_with('#') {
+-            context = None;
+-            out.push(here);
+-            continue;
+-        }
+-        for (start, span) in spans(line) {
+-            if let Some(nums) = span.strip_prefix(':') {
+-                if let (Some(path), Some((first, last))) = (context.as_ref(), numbers(nums)) {
+-                    let moves = names.contains(path.as_str());
+-                    here.push(Cite { range: start + 1..start + span.len(), path: path.clone(), first, last, moves });
+-                }
+-                continue;
+-            }
+-            let Some((path, _)) = citation(span) else { continue };
+-            context = Some(path.to_string());
+-            let Some((_, nums)) = span.split_once(':') else { continue };
+-            if let Some((first, last)) = numbers(nums) {
+-                let end = start + span.len();
+-                let moves = names.contains(path);
+-                here.push(Cite { range: end - nums.len()..end, path: path.to_string(), first, last, moves });
+-            }
+-        }
+-        out.push(here);
+-    }
+-    out
+-}
+-
+-/// `N` or `N-M`, digits only.
+-fn numbers(s: &str) -> Option<(usize, Option<usize>)> {
+-    let digits = |t: &str| !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit());
+-    match s.split_once('-') {
+-        Some((a, b)) if digits(a) && digits(b) => Some((a.parse().ok()?, Some(b.parse().ok()?))),
+-        None if digits(s) => Some((s.parse().ok()?, None)),
+-        _ => None,
+-    }
+-}
+-
+-/// The code spans of a line, each with the byte offset of its text.
+-fn spans(line: &str) -> Vec<(usize, &str)> {
+-    let mut out = Vec::new();
+-    let mut at = 0;
+-    while let Some(open) = line[at..].find('`') {
+-        let start = at + open + 1;
+-        let Some(close) = line[start..].find('`') else { break };
+-        out.push((start, &line[start..start + close]));
+-        at = start + close + 1;
+-    }
+-    out
+-}
+diff --git a/crates/podssh-todo/src/write.rs b/crates/podssh-todo/src/write.rs
+deleted file mode 100644
+index 1d57840..0000000
+--- a/crates/podssh-todo/src/write.rs
++++ /dev/null
+@@ -1,159 +0,0 @@
+-//! The writer: it moves the status of an entry in the entry and in its row,
+-//! then derives each count from the rows again. No count is ever typed by
+-//! hand. The reader then checks the result on its own.
+-
+-use std::fs;
+-use std::path::Path;
+-
+-use crate::check::{read, INDEX, PROGRESS};
+-use crate::model::{Counts, Row, PRIORITIES, STATUSES};
+-use crate::parse;
+-
+-/// Write a text back with the line endings that the file had.
+-fn write_like(root: &Path, rel: &str, text: &str) -> Result<(), String> {
+-    let path = root.join(rel);
+-    let crlf = fs::read(&path).map(|b| b.windows(2).any(|w| w == b"\r\n")).unwrap_or(false);
+-    let out = if crlf { text.replace('\n', "\r\n") } else { text.to_string() };
+-    fs::write(&path, out).map_err(|e| format!("{rel}: {e}"))
+-}
+-
+-/// Replace the value of one header field of one entry in an area file.
+-fn set_field(text: &str, id: &str, field: &str, value: &str) -> Result<String, String> {
+-    let mut out = String::with_capacity(text.len());
+-    let mut in_entry = false;
+-    let mut done = false;
+-    for (_, line, fenced) in parse::lines_with_fences(text) {
+-        if !fenced && line.starts_with("# ") {
+-            in_entry = line[2..].split_once(": ").is_some_and(|(i, _)| i == id);
+-        }
+-        let prefix = format!("**{field}:**");
+-        if in_entry && !done && !fenced && line.starts_with(&prefix) {
+-            out.push_str(&format!("{prefix} {value}"));
+-            done = true;
+-        } else {
+-            out.push_str(line);
+-        }
+-        out.push('\n');
+-    }
+-    if done {
+-        Ok(out)
+-    } else {
+-        Err(format!("{id} has no **{field}:** line"))
+-    }
+-}
+-
+-/// Rewrite the counts phrase, the counts table and the progress line from
+-/// the rows. Returns the new index and progress texts.
+-pub fn recount(index: &str, progress: &str, rows: &[Row]) -> (String, String) {
+-    let all = Counts::of(rows, None);
+-    let fix_phrase = |text: &str| -> String {
+-        let mut done = false;
+-        let mut out = String::with_capacity(text.len());
+-        for (_, line, fenced) in parse::lines_with_fences(text) {
+-            match (!fenced && !done).then(|| parse::counts_phrase(line)).flatten() {
+-                Some((_, _, range)) => {
+-                    out.push_str(&line[..range.start]);
+-                    out.push_str(&all.phrase());
+-                    out.push_str(&line[range.end..]);
+-                    done = true;
+-                }
+-                None => out.push_str(line),
+-            }
+-            out.push('\n');
+-        }
+-        out
+-    };
+-    let mut new_index = String::with_capacity(index.len());
+-    for (_, line, fenced) in parse::lines_with_fences(&fix_phrase(index)) {
+-        match (!fenced).then(|| parse::counts_row(line)).flatten() {
+-            Some((label, ..)) if PRIORITIES.contains(&label.as_str()) => {
+-                new_index.push_str(&Counts::of(rows, Some(&label)).table_row(&label))
+-            }
+-            Some((label, ..)) if label == "All" => new_index.push_str(&all.table_row("**All**")),
+-            _ => new_index.push_str(line),
+-        }
+-        new_index.push('\n');
+-    }
+-    (new_index, fix_phrase(progress))
+-}
+-
+-/// Move the status of `id` to `status`, in its entry and its row, and derive
+-/// the counts again. `done` needs the evidence first, and `blocked` the
+-/// blocker: the writer refuses a status that the entry cannot support.
+-pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
+-    if !STATUSES.contains(&status) {
+-        return Err(format!("`{status}` is not a status; use one of {}", STATUSES.join(", ")));
+-    }
+-    let index = read(root, INDEX).ok_or("TODO/INDEX.md is missing")?;
+-    let progress = read(root, PROGRESS).ok_or("TODO/PROGRESS.md is missing")?;
+-    let (mut rows, problems) = parse::rows(INDEX, &index);
+-    if let Some(p) = problems.first() {
+-        return Err(format!("the index must be read first: {p}"));
+-    }
+-    let row = rows.iter_mut().find(|r| r.id == id).ok_or(format!("{id} has no row in the index"))?;
+-    let area = format!("TODO/{}", row.file);
+-    let text = read(root, &area).ok_or(format!("{area} is missing"))?;
+-    let (entries, _) = parse::entries(&area, &text);
+-    let entry = entries.iter().find(|e| e.id == id).ok_or(format!("{id} is not an entry of {area}"))?;
+-    match status {
+-        "done" if !entry.section("Done").is_some_and(|d| crate::check::has_date(&d.body)) => {
+-            return Err(format!("{id}: write the evidence first, in `## Done` with its date"))
+-        }
+-        // A Prove that names what the tree does not hold did not run (T-361).
+-        "done" => {
+-            let packages = crate::prove::Packages::of(root);
+-            if let Some((_, what)) = crate::check::prove_gaps(root, &packages, entry).into_iter().next() {
+-                return Err(format!("{id}: {what}"));
+-            }
+-        }
+-        "blocked" if entry.section("Blocker").is_none() => {
+-            return Err(format!("{id}: write what blocks it first, in `## Blocker`"))
+-        }
+-        s if s != "blocked" && entry.section("Blocker").is_some() => {
+-            return Err(format!("{id}: the entry still has `## Blocker`; record how it cleared, then remove it"))
+-        }
+-        s if !matches!(s, "done" | "partial") && entry.section("Done").is_some() => {
+-            return Err(format!("{id}: the entry has `## Done`; move that text to `## Correction` to open it again"))
+-        }
+-        _ => {}
+-    }
+-    let old_line = index.lines().nth(row.line - 1).unwrap_or_default().to_string();
+-    let mut cells = parse::cells(&old_line);
+-    cells[5] = status.to_string();
+-    let new_line = format!("| {} |", cells.join(" | "));
+-    row.status = status.to_string();
+-
+-    let new_area = set_field(&text, id, "Status", status)?;
+-    let index_with_row: String = index
+-        .lines()
+-        .enumerate()
+-        .map(|(i, l)| if i + 1 == row.line { new_line.clone() } else { l.to_string() })
+-        .collect::<Vec<_>>()
+-        .join("\n")
+-        + "\n";
+-    let (new_index, new_progress) = recount(&index_with_row, &progress, &rows);
+-    write_like(root, &area, &new_area)?;
+-    write_like(root, INDEX, &new_index)?;
+-    write_like(root, PROGRESS, &new_progress)
+-}
+-
+-/// Derive the counts again after rows were added or removed by hand.
+-pub fn counts(root: &Path) -> Result<(), String> {
+-    let index = read(root, INDEX).ok_or("TODO/INDEX.md is missing")?;
+-    let progress = read(root, PROGRESS).ok_or("TODO/PROGRESS.md is missing")?;
+-    let (rows, problems) = parse::rows(INDEX, &index);
+-    if let Some(p) = problems.first() {
+-        return Err(format!("the index must be read first: {p}"));
+-    }
+-    let (new_index, new_progress) = recount(&index, &progress, &rows);
+-    write_like(root, INDEX, &new_index)?;
+-    write_like(root, PROGRESS, &new_progress)
+-}
+-
+-/// The next free id.
+-pub fn next_id(root: &Path) -> Result<String, String> {
+-    let index = read(root, INDEX).ok_or("TODO/INDEX.md is missing")?;
+-    let (rows, _) = parse::rows(INDEX, &index);
+-    let max = rows.iter().map(|r| crate::model::id_number(&r.id)).max().unwrap_or(0);
+-    Ok(format!("T-{:03}", max + 1))
+-}
+diff --git a/crates/podssh-todo/tests/base.rs b/crates/podssh-todo/tests/base.rs
+deleted file mode 100644
+index b2d196e..0000000
+--- a/crates/podssh-todo/tests/base.rs
++++ /dev/null
+@@ -1,108 +0,0 @@
+-//! `--base REV` against a real repository (T-277): a commit made without a
+-//! remap leaves citations that the check against `HEAD` cannot see, as the
+-//! tree has no change then; against the commit's parent the check finds
+-//! them, and `remap --base` moves them. With no git on PATH (the build
+-//! image), the tests say so and pass: the Windows job of CI runs them.
+-
+-mod common;
+-
+-use std::path::Path;
+-use std::process::Command;
+-
+-use common::{Tree, SOURCE};
+-
+-const LIB: &str = "crates/x/src/lib.rs";
+-
+-/// git with no global or system configuration, so that no hook, signing
+-/// key or line-end rule of this machine reaches the test's repository.
+-fn git(root: &Path, args: &[&str]) {
+-    let status = Command::new("git")
+-        .arg("-C")
+-        .arg(root)
+-        .args(args)
+-        .env("GIT_CONFIG_GLOBAL", root.join("no-such-config"))
+-        .env("GIT_CONFIG_NOSYSTEM", "1")
+-        .env("GIT_AUTHOR_NAME", "podssh-todo test")
+-        .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
+-        .env("GIT_COMMITTER_NAME", "podssh-todo test")
+-        .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
+-        .env_remove("GIT_DIR")
+-        .env_remove("GIT_WORK_TREE")
+-        .env_remove("GIT_INDEX_FILE")
+-        .status()
+-        .expect("git runs");
+-    assert!(status.success(), "git {args:?}: {status}");
+-}
+-
+-fn have_git() -> bool {
+-    let found = Command::new("git").arg("--version").output().is_ok_and(|o| o.status.success());
+-    if !found {
+-        eprintln!("git is not on PATH: this test needs it, and did not run");
+-    }
+-    found
+-}
+-
+-/// A tree of the record in a repository of its own, with one commit.
+-fn committed(name: &str) -> Tree {
+-    let t = Tree::new(name);
+-    git(t.path(), &["init", "-q"]);
+-    git(t.path(), &["add", "-A"]);
+-    git(t.path(), &["commit", "-q", "-m", "the record"]);
+-    t
+-}
+-
+-fn run(args: &[&str]) -> (i32, String, String) {
+-    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+-    let (mut out, mut err) = (Vec::new(), Vec::new());
+-    let code = podssh_todo::run(&args, &mut out, &mut err);
+-    (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
+-}
+-
+-/// The lines of the check's report that ask for the remap of LIB.
+-fn asks(err: &str, command: &str) -> usize {
+-    err.lines().filter(|l| l.contains(&format!("run `{command} {LIB}`"))).count()
+-}
+-
+-#[test]
+-fn a_commit_made_without_a_remap_is_found_against_its_parent() {
+-    if !have_git() {
+-        return;
+-    }
+-    let t = committed("base-commit");
+-    let root = t.path().to_str().unwrap();
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    git(t.path(), &["commit", "-q", "-a", "-m", "an edit with no remap"]);
+-
+-    // Against HEAD the tree has no change, so no citation left behind shows.
+-    let (_, _, err) = run(&["check", "--root", root]);
+-    assert_eq!(asks(&err, "cargo todo remap"), 0, "{err}");
+-    // Against the commit's parent, each of the three.
+-    let (code, _, err) = run(&["check", "--root", root, "--base", "HEAD~1"]);
+-    assert_eq!(code, 1, "{err}");
+-    assert_eq!(asks(&err, "cargo todo remap --base HEAD~1"), 3, "{err}");
+-
+-    // remap --base moves them, and the check against the parent agrees.
+-    let (code, out, err) = run(&["remap", "--root", root, "--base", "HEAD~1", LIB]);
+-    assert_eq!(code, 0, "{out}{err}");
+-    let area = t.read("TODO/area.md");
+-    assert!(area.contains("`crates/x/src/lib.rs:3-5`"), "{area}");
+-    let (code, out, err) = run(&["check", "--root", root, "--base", "HEAD~1"]);
+-    assert_eq!(code, 0, "{out}{err}");
+-}
+-
+-#[test]
+-fn a_base_that_git_cannot_read_fails_the_check() {
+-    if !have_git() {
+-        return;
+-    }
+-    let t = committed("base-unread");
+-    let root = t.path().to_str().unwrap();
+-    let (code, _, err) = run(&["check", "--root", root]);
+-    assert_eq!(code, 0, "{err}");
+-    let (code, _, err) = run(&["check", "--root", root, "--base", "no-such-revision"]);
+-    assert_eq!(code, 1, "{err}");
+-    assert!(err.contains("--base: git cannot compare the tree with `no-such-revision`"), "{err}");
+-    // A revision that would reach git as an option is refused.
+-    let (code, _, err) = run(&["check", "--root", root, "--base", "--output=x"]);
+-    assert_eq!(code, 64, "{err}");
+-}
+diff --git a/crates/podssh-todo/tests/claims.rs b/crates/podssh-todo/tests/claims.rs
+deleted file mode 100644
+index 0433030..0000000
+--- a/crates/podssh-todo/tests/claims.rs
++++ /dev/null
+@@ -1,49 +0,0 @@
+-//! The claims of the documents (T-362), on the checker's own tree: a "yet"
+-//! with no entry that is not done and no date, a "yet" beside a done entry,
+-//! and a status beside an id that the index does not give, are each named
+-//! with their line; each passes once its entry, its date or its status is
+-//! right.
+-
+-mod common;
+-
+-use common::Tree;
+-
+-fn names(t: &Tree, says: &str) -> bool {
+-    t.problems().iter().any(|p| p.contains(says))
+-}
+-
+-#[test]
+-fn the_control_has_no_claim() {
+-    let t = Tree::new("claims-control");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn a_yet_with_no_entry_or_date_is_named_with_its_line() {
+-    let t = Tree::new("claims-yet");
+-    t.write("docs/design.md", "# Design\n\nReverse mode does not exist yet.\n");
+-    let found = t.problems();
+-    assert!(found.iter().any(|p| p.starts_with("docs/design.md:3: \"yet\" with no entry")), "{found:#?}");
+-    t.write("docs/design.md", "# Design\n\nReverse mode does not exist yet (T-001).\n");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-    t.write("docs/design.md", "# Design\n\nOn 2026-10-08 reverse mode did not exist yet.\n");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn a_yet_beside_a_done_entry_is_named() {
+-    let t = Tree::new("claims-done");
+-    t.write("docs/irc.md", "# IRC\n\nNo command uses the IRC client yet (T-003).\n");
+-    assert!(names(&t, "docs/irc.md:3: \"yet\" beside T-003, done"), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn a_status_beside_an_id_agrees_with_the_index() {
+-    let t = Tree::new("claims-status");
+-    t.write("docs/status.md", "# Status\n\nOver IRC too (T-003, partial).\n");
+-    assert!(names(&t, "docs/status.md:3: T-003, partial: the index says done"), "{:#?}", t.problems());
+-    t.write("docs/status.md", "# Status\n\nOver IRC too (T-003, done).\n");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-    t.write("docs/status.md", "# Status\n\nOn 2026-10-10, over IRC too (T-003, partial).\n");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+diff --git a/crates/podssh-todo/tests/common/mod.rs b/crates/podssh-todo/tests/common/mod.rs
+index 37b68df..802c482 100644
+--- a/crates/podssh-todo/tests/common/mod.rs
++++ b/crates/podssh-todo/tests/common/mod.rs
+@@ -186,7 +186,7 @@ impl Tree {
+     }
+ 
+     pub fn problems(&self) -> Vec<String> {
+-        podssh_todo::check::check(&self.root, None).problems.iter().map(|p| p.to_string()).collect()
++        pod_todo::check::check(&self.root, None).problems.iter().map(|p| p.to_string()).collect()
+     }
+ 
+     pub fn path(&self) -> &Path {
+diff --git a/crates/podssh-todo/tests/github.rs b/crates/podssh-todo/tests/github.rs
+deleted file mode 100644
+index 96959a4..0000000
+--- a/crates/podssh-todo/tests/github.rs
++++ /dev/null
+@@ -1,59 +0,0 @@
+-//! The check of GitHub's numbers in the map (T-360), on the record's own
+-//! `TODO/issues.md` and `TODO/github.txt`: they agree, and each planted
+-//! disagreement is named.
+-
+-use std::path::Path;
+-
+-use podssh_todo::github::{agree, read_list, read_map};
+-
+-fn record(file: &str) -> String {
+-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../TODO").join(file);
+-    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+-}
+-
+-fn problems(list: &str, map: &str) -> Vec<String> {
+-    let mut p = Vec::new();
+-    let list = read_list(list, &mut p);
+-    agree(&list, &read_map(map), &mut p);
+-    p.iter().map(ToString::to_string).collect()
+-}
+-
+-fn names(found: &[String], says: &str) -> bool {
+-    found.iter().any(|p| p.contains(says))
+-}
+-
+-#[test]
+-fn the_record_s_map_agrees_with_its_list() {
+-    let found = problems(&record("github.txt"), &record("issues.md"));
+-    assert!(found.is_empty(), "{found:#?}");
+-}
+-
+-#[test]
+-fn each_planted_disagreement_is_named() {
+-    let (list, map) = (record("github.txt"), record("issues.md"));
+-    let row = map.lines().find(|l| l.starts_with("| #70 |")).expect("the row of #70").to_string();
+-
+-    let gone = map.replacen(&format!("{row}\n"), "", 1);
+-    let found = problems(&list, &gone);
+-    assert!(names(&found, "issue #70 has no place in the map"), "{found:#?}");
+-
+-    let twice = map.replacen(&format!("{row}\n"), &format!("{row}\n{row}\n"), 1);
+-    let found = problems(&list, &twice);
+-    assert!(names(&found, "issue #70 has 2 places in the map"), "{found:#?}");
+-
+-    let open = map.replacen(&row, &row.replacen("| closed |", "| open |", 1), 1);
+-    let found = problems(&list, &open);
+-    assert!(names(&found, "issue #70 is closed on GitHub, and its row says \"open\""), "{found:#?}");
+-
+-    // #77 leaves the line of pull requests, whatever words stand around it.
+-    let line = map.lines().find(|l| l.contains("are pull requests")).expect("the line of pull requests");
+-    let out = map.replacen(line, &line.replacen("#77", "#76", 1), 1);
+-    assert_ne!(out, map, "the plant of the line of pull requests applies");
+-    let found = problems(&list, &out);
+-    assert!(names(&found, "pull request #77 is not in the line of pull requests"), "{found:#?}");
+-
+-    let unlisted = list.replacen("\n70 issue closed\n", "\n", 1);
+-    assert_ne!(unlisted, list, "the plant of the list applies");
+-    let found = problems(&unlisted, &map);
+-    assert!(names(&found, "the map names #70, which TODO/github.txt does not hold"), "{found:#?}");
+-}
+diff --git a/crates/podssh-todo/tests/plants.rs b/crates/podssh-todo/tests/plants.rs
+deleted file mode 100644
+index 2563c80..0000000
+--- a/crates/podssh-todo/tests/plants.rs
++++ /dev/null
+@@ -1,296 +0,0 @@
+-//! The reader against planted defects. Each test plants one disagreement
+-//! into a record that agrees with itself, and the reader must name it. The
+-//! first test is the control: the record as written has no problem.
+-
+-mod common;
+-
+-use common::Tree;
+-
+-fn assert_found(t: &Tree, what: &str) {
+-    let p = t.problems();
+-    assert!(p.iter().any(|x| x.contains(what)), "no problem mentions {what:?}; the reader found: {p:#?}");
+-}
+-
+-#[test]
+-fn the_control_record_agrees() {
+-    let t = Tree::new("control");
+-    assert_eq!(t.problems(), Vec::<String>::new());
+-}
+-
+-#[test]
+-fn a_wrong_counts_line_is_found() {
+-    let t = Tree::new("counts-line");
+-    t.plant("TODO/INDEX.md", "**3 entries: 1 open", "**3 entries: 2 open");
+-    assert_found(&t, "TODO/INDEX.md:3: the counts line says 3 entries");
+-}
+-
+-#[test]
+-fn a_wrong_priority_row_is_found() {
+-    let t = Tree::new("priority-row");
+-    t.plant("TODO/INDEX.md", "| P1 | 1 | 0 | 0 | 1 | 2 |", "| P1 | 0 | 0 | 0 | 1 | 1 |");
+-    assert_found(&t, "the P1 row of the counts table");
+-}
+-
+-#[test]
+-fn a_wrong_all_row_is_found() {
+-    let t = Tree::new("all-row");
+-    t.plant("TODO/INDEX.md", "| **All** | 1 | 0 | 1 | 1 | 3 |", "| **All** | 7 | 0 | 1 | 1 | 9 |");
+-    assert_found(&t, "the All row of the counts table");
+-}
+-
+-#[test]
+-fn a_wrong_progress_count_is_found() {
+-    let t = Tree::new("progress-count");
+-    t.plant("TODO/PROGRESS.md", "holds 3 entries: 1 open", "holds 3 entries: 0 open");
+-    assert_found(&t, "TODO/PROGRESS.md:3: the counts line");
+-}
+-
+-#[test]
+-fn a_status_that_differs_from_the_row_is_found() {
+-    let t = Tree::new("status");
+-    t.plant("TODO/area.md", "**Status:** open", "**Status:** partial");
+-    assert_found(&t, "T-001: the entry says Status partial, the index says open");
+-}
+-
+-#[test]
+-fn a_title_that_differs_from_the_row_is_found() {
+-    let t = Tree::new("title");
+-    t.plant("TODO/area.md", "# T-001: The first entry", "# T-001: The first entry, renamed");
+-    assert_found(&t, "T-001: the title differs");
+-}
+-
+-#[test]
+-fn an_entry_with_no_row_is_found() {
+-    let t = Tree::new("no-row");
+-    let extra = common::AREA.split("# T-003").nth(1).unwrap().replace(": The third entry", ": A fourth");
+-    t.write("TODO/more.md", &format!("More.\n\n# T-004{extra}"));
+-    assert_found(&t, "T-004 has no row in the index");
+-}
+-
+-#[test]
+-fn a_row_with_no_entry_is_found() {
+-    let t = Tree::new("no-entry");
+-    t.plant(
+-        "TODO/INDEX.md",
+-        "| [T-003](area.md) | P1 | S | M3 | defect | done | The third entry |",
+-        "| [T-003](area.md) | P1 | S | M3 | defect | done | The third entry |\n| [T-005](area.md) | P1 | S | M3 | defect | done | Gone |",
+-    );
+-    assert_found(&t, "T-005 has a row and no entry");
+-}
+-
+-#[test]
+-fn an_id_used_twice_is_found() {
+-    let t = Tree::new("twice");
+-    let third = common::AREA.split("# T-003").nth(1).unwrap();
+-    t.write("TODO/other.md", &format!("Other.\n\n# T-003{third}"));
+-    assert_found(&t, "T-003 is also an entry");
+-}
+-
+-#[test]
+-fn rows_out_of_order_are_found() {
+-    let t = Tree::new("order");
+-    let r1 = "| [T-001](area.md) | P1 | S | M3 | defect | open | The first entry |";
+-    let r2 = "| [T-002](area.md) | P2 | M | M4 | feature | blocked | The second entry |";
+-    t.plant("TODO/INDEX.md", &format!("{r1}\n{r2}"), &format!("{r2}\n{r1}"));
+-    assert_found(&t, "T-001 is out of order");
+-}
+-
+-#[test]
+-fn an_effort_of_xl_is_refused() {
+-    let t = Tree::new("xl");
+-    t.plant("TODO/INDEX.md", "| P2 | M | M4 | feature | blocked |", "| P2 | XL | M4 | feature | blocked |");
+-    t.plant("TODO/area.md", "**Effort:** M", "**Effort:** XL");
+-    assert_found(&t, "the effort `XL` is not one of S, M, L");
+-}
+-
+-#[test]
+-fn a_missing_section_is_found() {
+-    let t = Tree::new("no-premise");
+-    t.plant("TODO/area.md", "## Premise\n\nRead: `crates/x/src/lib.rs:3`.\n\n", "");
+-    assert_found(&t, "T-001: the section `## Premise` is missing");
+-}
+-
+-#[test]
+-fn an_unknown_section_is_found() {
+-    let t = Tree::new("tasks");
+-    t.plant("TODO/area.md", "## Approach\n\nBound the wait.", "## Tasks\n\nBound the wait.");
+-    assert_found(&t, "`## Tasks` is not a section of an entry");
+-}
+-
+-#[test]
+-fn a_prove_with_no_command_is_found() {
+-    let t = Tree::new("prove");
+-    t.plant("TODO/area.md", "Run `cargo test -p x -- second`.", "Run the tests.");
+-    assert_found(&t, "T-002: a Prove with no command");
+-}
+-
+-#[test]
+-fn a_done_entry_needs_dated_evidence() {
+-    let t = Tree::new("done-date");
+-    t.plant("TODO/area.md", "2026-10-08, commit", "Today, commit");
+-    assert_found(&t, "T-003: `## Done` gives no date");
+-}
+-
+-#[test]
+-fn a_blocked_entry_needs_its_blocker() {
+-    let t = Tree::new("blocker");
+-    t.plant("TODO/area.md", "## Blocker\n\nThe operator's ruling on question Q1 in `TODO/PROGRESS.md`.\n", "");
+-    assert_found(&t, "T-002: blocked, with no `## Blocker`");
+-}
+-
+-#[test]
+-fn a_blocker_names_a_question_that_was_asked() {
+-    let t = Tree::new("question");
+-    t.plant("TODO/area.md", "question Q1 in", "question Q9 in");
+-    assert_found(&t, "the blocker names Q9");
+-}
+-
+-#[test]
+-fn the_work_order_names_no_done_entry() {
+-    let t = Tree::new("work-order");
+-    t.plant("TODO/PROGRESS.md", "1. T-001.", "1. T-003.");
+-    assert_found(&t, "the work order names T-003, which is done");
+-}
+-
+-#[test]
+-fn a_reference_to_no_entry_is_found() {
+-    let t = Tree::new("dangling");
+-    t.plant("README.md", "(T-001 first)", "(T-099 first)");
+-    assert_found(&t, "README.md:3: T-099 is not an entry of the index");
+-}
+-
+-#[test]
+-fn a_cited_path_must_exist() {
+-    let t = Tree::new("path");
+-    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/nope.rs`.");
+-    assert_found(&t, "`crates/x/src/nope.rs` does not exist");
+-}
+-
+-#[test]
+-fn a_cited_line_must_exist() {
+-    let t = Tree::new("line");
+-    t.plant("TODO/area.md", "`crates/x/src/lib.rs:2-4`", "`crates/x/src/lib.rs:2-40`");
+-    assert_found(&t, "crates/x/src/lib.rs has 5 lines");
+-}
+-
+-#[test]
+-fn a_quote_that_the_cited_line_does_not_hold_is_found() {
+-    let t = Tree::new("quote");
+-    t.plant("TODO/area.md", "says \"line 4\"", "says \"line 9\"");
+-    assert_found(&t, "`crates/x/src/lib.rs:4` says \"line 9\", but the cited lines do not hold that text");
+-}
+-
+-#[test]
+-fn a_quote_over_two_lines_of_a_range_holds() {
+-    let t = Tree::new("quote-wrapped");
+-    t.plant(
+-        "TODO/area.md",
+-        "It fails; `crates/x/src/lib.rs:4` says \"line 4\".",
+-        "It fails; `crates/x/src/lib.rs:3-4` says \"line 3\nline 4\".",
+-    );
+-    assert_eq!(t.problems(), Vec::<String>::new());
+-    t.plant("TODO/area.md", "says \"line 3\nline 4\"", "says \"line 3\nline 5\"");
+-    assert_found(&t, "says \"line 3 line 5\", but the cited lines do not hold that text");
+-}
+-
+-#[test]
+-fn a_cited_path_must_have_its_exact_case() {
+-    let t = Tree::new("case");
+-    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/X/src/lib.rs:3`.");
+-    assert_found(&t, "`crates/X/src/lib.rs` does not exist");
+-}
+-
+-#[test]
+-fn the_roadmap_keeps_no_open_items() {
+-    let t = Tree::new("roadmap-open");
+-    t.plant("docs/ROADMAP.md", "- T-002.", "- [ ] Something to do.");
+-    assert_found(&t, "docs/ROADMAP.md:10: an open item");
+-}
+-
+-#[test]
+-fn the_roadmap_agrees_with_the_milestones() {
+-    let t = Tree::new("roadmap-milestone");
+-    t.plant("docs/ROADMAP.md", "- T-001: the first entry.", "- T-002: in the wrong milestone.");
+-    assert_found(&t, "T-002 is listed under M3, but its milestone is M4");
+-}
+-
+-#[test]
+-fn an_h1_that_is_not_an_entry_is_found() {
+-    let t = Tree::new("h1");
+-    t.plant("TODO/area.md", "The entries of one area.", "# Notes\n\nThe entries of one area.");
+-    assert_found(&t, "an H1 that is not an entry");
+-}
+-
+-#[test]
+-fn an_unknown_field_is_found() {
+-    let t = Tree::new("field");
+-    t.plant("TODO/area.md", "**Effort:** S\n**Status:** open", "**Effort:** S\n**Owner:** someone\n**Status:** open");
+-    assert_found(&t, "`Owner` is not a field of an entry");
+-}
+-
+-// A reader that finds nothing to check must fail, not pass (GitHub #33).
+-#[test]
+-fn an_index_with_no_rows_is_found() {
+-    let t = Tree::new("no-rows");
+-    let index = t.read("TODO/INDEX.md");
+-    let kept: Vec<&str> = index.lines().filter(|l| !l.starts_with("| [T-")).collect();
+-    t.write("TODO/INDEX.md", &(kept.join("\n") + "\n"));
+-    assert_found(&t, "TODO/INDEX.md: the index has no rows");
+-}
+-
+-#[test]
+-fn a_missing_roadmap_is_found() {
+-    let t = Tree::new("no-roadmap");
+-    std::fs::remove_file(t.path().join("docs/ROADMAP.md")).unwrap();
+-    assert_found(&t, "docs/ROADMAP.md: the roadmap is missing");
+-}
+-
+-#[test]
+-fn a_blocker_on_an_open_entry_is_found() {
+-    let t = Tree::new("stale-blocker");
+-    t.plant("TODO/area.md", "**Status:** blocked", "**Status:** open");
+-    t.plant("TODO/INDEX.md", "| feature | blocked |", "| feature | open |");
+-    t.plant("TODO/INDEX.md", "**3 entries: 1 open, 0 partial, 1 blocked", "**3 entries: 2 open, 0 partial, 0 blocked");
+-    assert_found(&t, "a `## Blocker` on an entry that is open");
+-}
+-
+-#[test]
+-fn a_range_that_ends_before_it_starts_is_found() {
+-    // A remap that moved only the start of a range left `155-154` once (T-254).
+-    let t = Tree::new("range-backwards");
+-    t.plant("TODO/area.md", "`crates/x/src/lib.rs:2-4`", "`crates/x/src/lib.rs:4-2`");
+-    assert_found(&t, "`crates/x/src/lib.rs:4-2`: a range runs from line 1 or later");
+-}
+-
+-#[test]
+-fn a_line_0_is_found() {
+-    let t = Tree::new("line-zero");
+-    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:0`.");
+-    assert_found(&t, "`crates/x/src/lib.rs:0`: a range runs from line 1 or later");
+-}
+-
+-#[test]
+-fn a_plain_line_number_after_a_citation_is_found() {
+-    // remap moves neither "line 5" nor its file's other numbers (T-258).
+-    let t = Tree::new("plain-number");
+-    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:3`, and line 5.");
+-    assert_found(&t, "\"line 5\" follows a citation as plain text");
+-}
+-
+-#[test]
+-fn a_bare_number_names_a_line_of_its_file() {
+-    let t = Tree::new("bare-number");
+-    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:3` and `:9`.");
+-    assert_found(&t, "`:9` after `crates/x/src/lib.rs`: crates/x/src/lib.rs has 5 lines");
+-}
+-
+-#[test]
+-fn a_reading_at_a_commit_and_a_bare_number_agree() {
+-    let t = Tree::new("number-forms");
+-    t.plant(
+-        "TODO/area.md",
+-        "Read: `crates/x/src/lib.rs:3`.",
+-        "Read: `crates/x/src/lib.rs:3`, line 9 at `0123abc`, and `:4`.",
+-    );
+-    assert_eq!(t.problems(), Vec::<String>::new());
+-}
+diff --git a/crates/podssh-todo/tests/prove.rs b/crates/podssh-todo/tests/prove.rs
+deleted file mode 100644
+index fd701e1..0000000
+--- a/crates/podssh-todo/tests/prove.rs
++++ /dev/null
+@@ -1,63 +0,0 @@
+-//! The targets of a done Prove (T-361): a test target or a script that the
+-//! tree does not hold is named, with the entry and the line, unless the
+-//! entry's Correction names it; and `set` refuses to close an entry whose
+-//! Prove names one.
+-
+-mod common;
+-
+-use common::Tree;
+-
+-fn names(t: &Tree, says: &str) -> bool {
+-    t.problems().iter().any(|p| p.contains(says))
+-}
+-
+-#[test]
+-fn the_control_and_a_test_target_that_exists_pass() {
+-    let t = Tree::new("prove-control");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-    t.plant("TODO/area.md", "`cargo test -p x -- third`\n\n## Done", "`cargo test -p x --test third`\n\n## Done");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn a_test_target_that_does_not_exist_is_named_with_its_entry_and_line() {
+-    let t = Tree::new("prove-target");
+-    t.plant("TODO/area.md", "`cargo test -p x -- third`\n\n## Done", "`cargo test -p x --test gone`\n\n## Done");
+-    let found = t.problems();
+-    assert!(
+-        found.iter().any(|p| p.starts_with("TODO/area.md:84: T-003: its Prove names the test target gone")),
+-        "{found:#?}"
+-    );
+-}
+-
+-#[test]
+-fn a_script_that_does_not_exist_is_named() {
+-    let t = Tree::new("prove-script");
+-    t.plant("TODO/area.md", "`cargo test -p x -- third`\n\n## Done", "`sh scripts/check.sh`\n\n## Done");
+-    assert!(names(&t, "T-003: its Prove names scripts/check.sh, which does not exist"), "{:#?}", t.problems());
+-    t.write("scripts/check.sh", "true\n");
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn a_target_that_the_correction_names_is_taken() {
+-    let t = Tree::new("prove-correction");
+-    t.plant(
+-        "TODO/area.md",
+-        "`cargo test -p x -- third`\n\n## Done",
+-        "`cargo test -p y --test gone`\n\n## Correction\n\n2026-10-31: `y` and its `gone` moved into `x`.\n\n## Done",
+-    );
+-    assert!(t.problems().is_empty(), "{:#?}", t.problems());
+-}
+-
+-#[test]
+-fn set_refuses_to_close_an_entry_whose_prove_names_a_missing_target() {
+-    let t = Tree::new("prove-set");
+-    t.plant("TODO/area.md", "\ncargo test -p x\n", "\ncargo test -p x --test gone\n");
+-    t.plant("TODO/area.md", "```\n\n# T-002", "```\n\n## Done\n\n2026-10-31: planted.\n\n# T-002");
+-    let refused =
+-        podssh_todo::write::set_status(t.path(), "T-001", "done").expect_err("a Prove that names a missing target");
+-    assert!(refused.contains("T-001: its Prove names the test target gone"), "{refused}");
+-    t.plant("TODO/area.md", "\ncargo test -p x --test gone\n", "\ncargo test -p x --test third\n");
+-    podssh_todo::write::set_status(t.path(), "T-001", "done").expect("a Prove whose targets exist");
+-}
+diff --git a/crates/podssh-todo/tests/remap.rs b/crates/podssh-todo/tests/remap.rs
+deleted file mode 100644
+index 948e88a..0000000
+--- a/crates/podssh-todo/tests/remap.rs
++++ /dev/null
+@@ -1,329 +0,0 @@
+-//! The remap writer against edits of a cited file. HEAD is a closure over
+-//! the texts before the edit, so no test needs git.
+-
+-mod common;
+-
+-use std::collections::HashMap;
+-
+-use common::{Tree, SOURCE};
+-use podssh_todo::check::check_with;
+-use podssh_todo::remap::{remap, Report};
+-
+-const LIB: &str = "crates/x/src/lib.rs";
+-const TWO: &str = "crates/x/src/two.rs";
+-
+-/// Each file of the tree, as HEAD has it.
+-fn snapshot(t: &Tree) -> HashMap<String, String> {
+-    let mut out = HashMap::new();
+-    for rel in ["TODO/INDEX.md", "TODO/PROGRESS.md", "TODO/area.md", "docs/ROADMAP.md", "README.md", LIB] {
+-        out.insert(rel.to_string(), t.read(rel));
+-    }
+-    for rel in ["docs/notes.md", TWO] {
+-        if t.path().join(rel).is_file() {
+-            out.insert(rel.to_string(), t.read(rel));
+-        }
+-    }
+-    out
+-}
+-
+-fn run(t: &Tree, head: &HashMap<String, String>, write: bool) -> Report {
+-    run_on(t, head, LIB, write)
+-}
+-
+-fn run_on(t: &Tree, head: &HashMap<String, String>, file: &str, write: bool) -> Report {
+-    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+-    remap(t.path(), &[file.to_string()], &get, write).unwrap()
+-}
+-
+-#[test]
+-fn a_line_added_above_a_cited_line_moves_the_citation() {
+-    let t = Tree::new("remap-above");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let r = run(&t, &head, true);
+-    let area = t.read("TODO/area.md");
+-    assert!(area.contains("`crates/x/src/lib.rs:4`."), "{area}");
+-    assert!(area.contains("`crates/x/src/lib.rs:3-5`"), "{area}");
+-    assert!(area.contains("`crates/x/src/lib.rs:5` says \"line 4\""), "{area}");
+-    assert_eq!(r.moved.len(), 3, "{r:#?}");
+-    assert!(r.review.is_empty() && r.kept.is_empty(), "{r:#?}");
+-    // The record agrees, the quote included: line 5 says "line 4" now.
+-    assert_eq!(t.problems(), Vec::<String>::new());
+-}
+-
+-#[test]
+-fn a_change_inside_a_cited_range_is_listed_and_not_moved() {
+-    let t = Tree::new("remap-inside");
+-    let head = snapshot(&t);
+-    t.write(LIB, &SOURCE.replace("line 3", "line three"));
+-    let r = run(&t, &head, true);
+-    let area = t.read("TODO/area.md");
+-    assert!(area.contains("`crates/x/src/lib.rs:3`."), "{area}");
+-    assert!(area.contains("`crates/x/src/lib.rs:2-4`"), "{area}");
+-    assert_eq!(r.review.len(), 2, "{r:#?}");
+-    assert!(r.review.iter().any(|l| l.contains("lib.rs 3:") && l.contains("move the citation by hand")), "{r:#?}");
+-    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-4:") && l.contains("a line inside it changed")), "{r:#?}");
+-    assert!(r.moved.is_empty(), "{r:#?}");
+-}
+-
+-/// A range names a part of a file; it moves by its ends when a line inside
+-/// it changed, so it keeps naming that part, and it is listed for review.
+-#[test]
+-fn a_range_moves_by_its_ends_when_a_line_inside_changed() {
+-    let t = Tree::new("remap-range-ends");
+-    let head = snapshot(&t);
+-    t.write(
+-        LIB,
+-        &format!(
+-            "line 0
+-{}",
+-            SOURCE.replace("line 3", "line three")
+-        ),
+-    );
+-    let r = run(&t, &head, true);
+-    let area = t.read("TODO/area.md");
+-    assert!(area.contains("`crates/x/src/lib.rs:3-5`"), "{area}");
+-    assert!(area.contains("`crates/x/src/lib.rs:3`."), "a changed single line stays: {area}");
+-    assert!(r.review.iter().any(|l| l.contains("lib.rs 3-5: moved by its ends")), "{r:#?}");
+-    // An end that changed keeps the range where it was.
+-    let t = Tree::new("remap-range-end-changed");
+-    let head = snapshot(&t);
+-    t.write(
+-        LIB,
+-        &format!(
+-            "line 0
+-{}",
+-            SOURCE.replace("line 4", "line four")
+-        ),
+-    );
+-    let r = run(&t, &head, true);
+-    assert!(t.read("TODO/area.md").contains("`crates/x/src/lib.rs:2-4`"));
+-    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-4:") && l.contains("by hand")), "{r:#?}");
+-}
+-
+-#[test]
+-fn a_second_run_after_a_second_edit_moves_from_head_not_twice() {
+-    let t = Tree::new("remap-twice");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    run(&t, &head, true);
+-    t.write(LIB, &format!("line -1\nline 0\n{SOURCE}"));
+-    run(&t, &head, true);
+-    let area = t.read("TODO/area.md");
+-    assert!(area.contains("`crates/x/src/lib.rs:5`."), "{area}");
+-    assert!(area.contains("`crates/x/src/lib.rs:4-6`"), "{area}");
+-    // A third run with no edit moves nothing.
+-    let r = run(&t, &head, true);
+-    assert!(r.moved.is_empty(), "{r:#?}");
+-    assert_eq!(t.read("TODO/area.md"), area);
+-}
+-
+-#[test]
+-fn a_citation_moved_by_hand_is_kept_on_the_next_run() {
+-    let t = Tree::new("remap-by-hand");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{}", SOURCE.replace("line 3", "line three")));
+-    let first = run(&t, &head, true);
+-    assert!(first.review.iter().any(|l| l.contains("lib.rs 3:")), "{first:#?}");
+-    // The person reads the changed line and moves the citation to it.
+-    t.plant("TODO/area.md", "`crates/x/src/lib.rs:3`.", "`crates/x/src/lib.rs:4`.");
+-    let second = run(&t, &head, true);
+-    assert!(t.read("TODO/area.md").contains("`crates/x/src/lib.rs:4`."));
+-    assert!(!second.review.iter().any(|l| l.contains("lib.rs 4:")), "{second:#?}");
+-}
+-
+-#[test]
+-fn a_bare_line_after_a_citation_moves_and_a_fence_does_not() {
+-    let t = Tree::new("remap-bare");
+-    t.write(
+-        "docs/notes.md",
+-        "# Notes\n\nSee `crates/x/src/lib.rs:2` and\n`:4-5`.\n\n```sh\nsed -n 3p `crates/x/src/lib.rs:3`\n```\n\nAlone: `:3`.\n",
+-    );
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    run(&t, &head, true);
+-    let notes = t.read("docs/notes.md");
+-    assert!(notes.contains("See `crates/x/src/lib.rs:3` and\n`:5-6`."), "{notes}");
+-    assert!(notes.contains("sed -n 3p `crates/x/src/lib.rs:3`"), "a fenced line moved: {notes}");
+-    assert!(notes.contains("Alone: `:3`."), "a bare span with no citation before it moved: {notes}");
+-}
+-
+-#[test]
+-fn a_line_new_in_this_change_is_kept() {
+-    let t = Tree::new("remap-new-line");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    // Written after the edit, with the new numbers.
+-    t.plant("TODO/area.md", "Bound the wait.", "Bound the wait at `crates/x/src/lib.rs:6`.");
+-    let r = run(&t, &head, true);
+-    assert!(t.read("TODO/area.md").contains("Bound the wait at `crates/x/src/lib.rs:6`."));
+-    assert_eq!(r.kept.len(), 1, "{r:#?}");
+-}
+-
+-#[test]
+-fn line_endings_are_kept_and_a_dry_run_writes_nothing() {
+-    let t = Tree::new("remap-crlf");
+-    t.write("docs/notes.md", "# Notes\r\n\r\nSee `crates/x/src/lib.rs:2`.\r\n");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let dry = run(&t, &head, false);
+-    assert_eq!(dry.moved.len(), 4, "{dry:#?}");
+-    assert_eq!(t.read("docs/notes.md"), "# Notes\r\n\r\nSee `crates/x/src/lib.rs:2`.\r\n");
+-    run(&t, &head, true);
+-    assert_eq!(t.read("docs/notes.md"), "# Notes\r\n\r\nSee `crates/x/src/lib.rs:3`.\r\n");
+-}
+-
+-#[test]
+-fn a_file_that_is_not_in_head_moves_nothing() {
+-    let t = Tree::new("remap-new-file");
+-    let mut head = snapshot(&t);
+-    head.remove(LIB);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let r = run(&t, &head, true);
+-    assert!(r.moved.is_empty(), "{r:#?}");
+-    assert!(r.notes.iter().any(|n| n.contains("no text in the base")), "{r:#?}");
+-}
+-
+-#[test]
+-fn a_line_that_cites_two_files_moves_in_a_run_for_each() {
+-    let t = Tree::new("remap-two-files");
+-    t.write(TWO, SOURCE);
+-    t.write(
+-        "docs/notes.md",
+-        "# Notes
+-
+-See `crates/x/src/lib.rs:2` and `crates/x/src/two.rs:3`.
+-",
+-    );
+-    let head = snapshot(&t);
+-    t.write(
+-        LIB,
+-        &format!(
+-            "line 0
+-{SOURCE}"
+-        ),
+-    );
+-    run_on(&t, &head, LIB, true);
+-    assert!(t.read("docs/notes.md").contains("`crates/x/src/lib.rs:3` and `crates/x/src/two.rs:3`"));
+-    // The line differs from HEAD now; the run for the second file still
+-    // finds it, and keeps what the first run did.
+-    t.write(
+-        TWO,
+-        &format!(
+-            "line -1
+-line 0
+-{SOURCE}"
+-        ),
+-    );
+-    let r = run_on(&t, &head, TWO, true);
+-    let notes = t.read("docs/notes.md");
+-    assert!(notes.contains("`crates/x/src/lib.rs:3` and `crates/x/src/two.rs:5`"), "{notes}");
+-    assert!(r.kept.is_empty(), "{r:#?}");
+-}
+-
+-/// A cited file edited with no remap: the check names each citation that
+-/// would move, with the command. After the remap it agrees, and with no git
+-/// (`None`) it says nothing of the kind.
+-#[test]
+-fn an_edit_with_no_remap_is_found_by_the_check() {
+-    let t = Tree::new("remap-forgotten");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+-    let forgotten = |changed: Option<Vec<String>>| -> Vec<String> {
+-        check_with(t.path(), changed, &get, "HEAD")
+-            .problems
+-            .iter()
+-            .map(|p| p.to_string())
+-            .filter(|p| p.contains("cargo todo remap"))
+-            .collect()
+-    };
+-    let found = forgotten(Some(vec![LIB.to_string()]));
+-    assert_eq!(found.len(), 3, "{found:#?}");
+-    assert!(found[0].starts_with("TODO/area.md:"), "{found:#?}");
+-    assert!(found.iter().all(|p| p.contains("run `cargo todo remap crates/x/src/lib.rs`")), "{found:#?}");
+-    assert!(forgotten(None).is_empty(), "no git: nothing to say");
+-
+-    remap(t.path(), &[LIB.to_string()], &get, true).unwrap();
+-    assert!(forgotten(Some(vec![LIB.to_string(), "TODO/area.md".to_string()])).is_empty());
+-}
+-
+-/// The problems of the check that name a remap, given the files changed and
+-/// their texts in the base.
+-fn unmoved(t: &Tree, changed: &[&str], get: &podssh_todo::remap::Head) -> Vec<String> {
+-    let changed = Some(changed.iter().map(|c| c.to_string()).collect());
+-    check_with(t.path(), changed, get, "HEAD")
+-        .problems
+-        .iter()
+-        .map(|p| p.to_string())
+-        .filter(|p| p.contains("remap"))
+-        .collect()
+-}
+-
+-/// A changed file that is not text, as a binary fixture, is passed over with
+-/// a note, so that the check still finds what an edit of another file left
+-/// behind. The whole check stopped there before, and said nothing.
+-#[test]
+-fn a_changed_file_that_is_not_text_leaves_the_check_running() {
+-    let t = Tree::new("remap-binary");
+-    let head = snapshot(&t);
+-    let bin = "crates/x/tests/fixture.bin";
+-    std::fs::create_dir_all(t.path().join("crates/x/tests")).unwrap();
+-    std::fs::write(t.path().join(bin), [0xff, 0xfe, 0x00, 0x80]).unwrap();
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+-    let found = unmoved(&t, &[bin, LIB], &get);
+-    assert_eq!(found.len(), 3, "{found:#?}");
+-    assert!(found.iter().all(|p| p.contains("run `cargo todo remap crates/x/src/lib.rs`")), "{found:#?}");
+-    let r = remap(t.path(), &[bin.to_string(), LIB.to_string()], &get, false).unwrap();
+-    assert!(r.notes.iter().any(|n| n.contains("fixture.bin is not UTF-8 text")), "{r:#?}");
+-    assert_eq!(r.moved.len(), 3, "{r:#?}");
+-}
+-
+-/// A blank line is no anchor: here the diff can match the blank first line
+-/// of the cited range with a blank line of the new part above it. The range
+-/// moves by its first and last lines with text, and keeps its blank margin.
+-#[test]
+-fn a_range_that_starts_at_a_blank_line_moves_by_its_first_line_with_text() {
+-    let t = Tree::new("remap-blank-start");
+-    // The last line changes too, so that the blank line is not in the
+-    // common tail, which would anchor it.
+-    t.write(LIB, "intro\n\n## Servers\nbody 1\nbody 2\nfooter\n");
+-    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:2-5`.\n");
+-    let head = snapshot(&t);
+-    t.write(LIB, "a new intro\n\na new part\n\nits end\n\n## Servers\nbody 1\nbody 2\na new footer\n");
+-    let r = run(&t, &head, true);
+-    let notes = t.read("docs/notes.md");
+-    assert!(notes.contains("The servers: `crates/x/src/lib.rs:6-9`."), "{notes} {r:#?}");
+-    assert!(r.review.is_empty(), "{r:#?}");
+-}
+-
+-/// When the first line with text of a range changed, the range is listed for
+-/// review and not moved; a person's move of it then stands.
+-#[test]
+-fn a_range_whose_first_line_with_text_changed_is_listed_for_review() {
+-    let t = Tree::new("remap-blank-review");
+-    t.write(LIB, "intro\n\n## Servers\nbody 1\nbody 2\n");
+-    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:2-5`.\n");
+-    let head = snapshot(&t);
+-    t.write(LIB, "a new intro\n\na new part\n\nits end\n\n## The servers\nbody 1\nbody 2\n");
+-    let r = run(&t, &head, true);
+-    assert!(t.read("docs/notes.md").contains("`crates/x/src/lib.rs:2-5`"), "{r:#?}");
+-    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-5:") && l.contains("by hand")), "{r:#?}");
+-    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:6-9`.\n");
+-    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+-    assert!(unmoved(&t, &[LIB], &get).is_empty(), "a person's move is taken for a stale citation");
+-}
+-
+-/// A remap that cannot run is a problem of the check, not a pass.
+-#[test]
+-fn a_remap_that_fails_is_a_problem_of_the_check() {
+-    let t = Tree::new("remap-fails");
+-    let head = snapshot(&t);
+-    t.write(LIB, &format!("line 0\n{SOURCE}"));
+-    let get =
+-        |rel: &str| if rel == LIB { Err("planted: git show failed".to_string()) } else { Ok(head.get(rel).cloned()) };
+-    let found = unmoved(&t, &[LIB], &get);
+-    assert_eq!(found.len(), 1, "{found:#?}");
+-    assert!(found[0].starts_with("remap: ") && found[0].contains("could not run: planted"), "{found:#?}");
+-}
+diff --git a/crates/podssh-todo/tests/repository.rs b/crates/podssh-todo/tests/repository.rs
+deleted file mode 100644
+index 7e18cbf..0000000
+--- a/crates/podssh-todo/tests/repository.rs
++++ /dev/null
+@@ -1,11 +0,0 @@
+-//! The record of this repository agrees with itself. This is the reader that
+-//! the gate runs; `cargo run -p podssh-todo -- check` prints the same
+-//! problems.
+-
+-#[test]
+-fn the_record_of_this_repository_agrees() {
+-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+-    let report = podssh_todo::check::check(&root, None);
+-    let problems: Vec<String> = report.problems.iter().map(|p| p.to_string()).collect();
+-    assert!(problems.is_empty(), "{} problems in TODO/:\n{}", problems.len(), problems.join("\n"));
+-}
+diff --git a/crates/podssh-todo/tests/writer.rs b/crates/podssh-todo/tests/writer.rs
+deleted file mode 100644
+index f8c3610..0000000
+--- a/crates/podssh-todo/tests/writer.rs
++++ /dev/null
+@@ -1,96 +0,0 @@
+-//! The writer moves a status in the entry and its row, derives each count
+-//! again, and refuses a status that the entry cannot support yet. After each
+-//! move, the reader finds no problem.
+-
+-mod common;
+-
+-use common::Tree;
+-
+-fn run(t: &Tree, args: &[&str]) -> (i32, String, String) {
+-    let mut a: Vec<String> = vec!["--root".into(), t.path().display().to_string()];
+-    a.extend(args.iter().map(|s| s.to_string()));
+-    let (mut out, mut err) = (Vec::new(), Vec::new());
+-    let code = podssh_todo::run(&a, &mut out, &mut err);
+-    (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
+-}
+-
+-#[test]
+-fn a_status_moves_in_the_entry_the_row_and_every_count() {
+-    let t = Tree::new("w-partial");
+-    let (code, out, err) = run(&t, &["set", "T-001", "partial"]);
+-    assert_eq!(code, 0, "{out}{err}");
+-    assert!(t.read("TODO/area.md").contains("**Status:** partial"));
+-    let index = t.read("TODO/INDEX.md");
+-    assert!(index.contains("| [T-001](area.md) | P1 | S | M3 | defect | partial | The first entry |"));
+-    assert!(index.contains("**3 entries: 0 open, 1 partial, 1 blocked, 1 done.**"));
+-    assert!(index.contains("| P1 | 0 | 1 | 0 | 1 | 2 |"));
+-    assert!(index.contains("| **All** | 0 | 1 | 1 | 1 | 3 |"));
+-    assert!(t.read("TODO/PROGRESS.md").contains("holds 3 entries: 0 open, 1 partial, 1 blocked, 1 done."));
+-    assert_eq!(t.problems(), Vec::<String>::new());
+-    assert!(out.contains("the record agrees: 3 entries: 0 open, 1 partial, 1 blocked, 1 done."), "{out}");
+-}
+-
+-#[test]
+-fn done_needs_the_evidence_first() {
+-    let t = Tree::new("w-done");
+-    let (code, _, err) = run(&t, &["set", "T-001", "done"]);
+-    assert_eq!(code, 1);
+-    assert!(err.contains("write the evidence first"), "{err}");
+-    assert!(t.read("TODO/area.md").contains("**Status:** open"), "nothing was written");
+-}
+-
+-#[test]
+-fn blocked_needs_the_blocker_first() {
+-    let t = Tree::new("w-blocked");
+-    let (code, _, err) = run(&t, &["set", "T-001", "blocked"]);
+-    assert_eq!(code, 1);
+-    assert!(err.contains("write what blocks it first"), "{err}");
+-}
+-
+-#[test]
+-fn an_unknown_id_or_status_is_refused() {
+-    let t = Tree::new("w-unknown");
+-    assert_eq!(run(&t, &["set", "T-077", "done"]).0, 1);
+-    assert_eq!(run(&t, &["set", "T-001", "finished"]).0, 1);
+-    assert_eq!(run(&t, &["set", "T-001"]).0, 64);
+-    assert_eq!(run(&t, &["frobnicate"]).0, 64);
+-}
+-
+-#[test]
+-fn counts_are_derived_after_a_row_is_added_by_hand() {
+-    let t = Tree::new("w-counts");
+-    let area = t.read("TODO/area.md");
+-    let first = area.split("# T-002").next().unwrap().split("# T-001").nth(1).unwrap();
+-    t.write("TODO/more.md", &format!("More.\n\n# T-004{}", first.replace(": The first entry", ": A fourth entry")));
+-    t.plant(
+-        "TODO/INDEX.md",
+-        "| [T-003](area.md) | P1 | S | M3 | defect | done | The third entry |",
+-        "| [T-003](area.md) | P1 | S | M3 | defect | done | The third entry |\n| [T-004](more.md) | P1 | S | M3 | defect | open | A fourth entry |",
+-    );
+-    assert!(!t.problems().is_empty(), "the counts are stale before `counts`");
+-    let (code, out, err) = run(&t, &["counts"]);
+-    assert_eq!(code, 0, "{out}{err}");
+-    assert!(t.read("TODO/INDEX.md").contains("**4 entries: 2 open, 0 partial, 1 blocked, 1 done.**"));
+-    assert_eq!(run(&t, &["next"]).1.trim(), "T-005");
+-}
+-
+-#[test]
+-fn the_check_command_exits_one_on_a_disagreement() {
+-    let t = Tree::new("w-check");
+-    assert_eq!(run(&t, &["check"]).0, 0);
+-    t.plant("TODO/area.md", "**Status:** open", "**Status:** done");
+-    let (code, _, err) = run(&t, &["check"]);
+-    assert_eq!(code, 1);
+-    assert!(err.contains("problems in the record"), "{err}");
+-}
+-
+-#[test]
+-fn crlf_files_keep_their_line_endings() {
+-    let t = Tree::new("w-crlf");
+-    t.write("TODO/area.md", &common::AREA.replace('\n', "\r\n"));
+-    let (code, out, err) = run(&t, &["set", "T-001", "partial"]);
+-    assert_eq!(code, 0, "{out}{err}");
+-    let bytes = std::fs::read(t.path().join("TODO/area.md")).unwrap();
+-    assert!(bytes.windows(2).filter(|w| w == b"\r\n").count() > 50);
+-    assert!(!String::from_utf8(bytes).unwrap().replace("\r\n", "").contains('\n'), "a bare LF crept in");
+-}
+diff --git a/deny.toml b/deny.toml
+index a9d1c73..c132708 100644
+--- a/deny.toml
++++ b/deny.toml
+@@ -83,4 +83,4 @@ allow-wildcard-paths = true
+ unknown-registry = "deny"
+ unknown-git = "deny"
+ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+-allow-git = []
++allow-git = ["https://github.com/PodUtils/podcrates"]

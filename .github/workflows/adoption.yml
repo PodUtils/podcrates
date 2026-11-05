@@ -1,0 +1,70 @@
+name: adoption
+
+# The adoption trials (docs/design.md, section 8, step 7): each consumer at
+# its pinned commit, with each crate of podcrates in the place of its own
+# module (adoption/CONSUMER/CRATE.patch), runs its own checks and tests
+# (adoption/CONSUMER/CRATE.run, through scripts/adoption.sh). On each push
+# that changes a crate or a trial, and by hand.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "adoption/**"
+      - "scripts/adoption.sh"
+      - ".github/workflows/adoption.yml"
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: "One crate (empty: each trial)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "4"
+
+jobs:
+  adoption:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        consumer: [podssh, podnet]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          sh scripts/retry.sh rustup toolchain install
+          # The checkout of a consumer has no toolchain file of its own here.
+          rustup default "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+      - name: Each trial of the consumer
+        env:
+          ONE: ${{ inputs.crate }}
+        run: |
+          set -u
+          failed=0
+          ran=0
+          for patch in adoption/${{ matrix.consumer }}/*.patch; do
+            [ -f "$patch" ] || continue
+            crate=$(basename "$patch" .patch)
+            [ -z "$ONE" ] || [ "$ONE" = "$crate" ] || continue
+            ran=$((ran + 1))
+            echo "::group::${{ matrix.consumer }} takes $crate"
+            if sh scripts/adoption.sh ${{ matrix.consumer }} "$crate" "$RUNNER_TEMP/adoption"; then
+              echo "| ${{ matrix.consumer }} | $crate | passed |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              failed=$((failed + 1))
+              echo "| ${{ matrix.consumer }} | $crate | FAILED |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "::endgroup::"
+          done
+          echo "trials: $ran, failed: $failed"
+          test "$failed" -eq 0

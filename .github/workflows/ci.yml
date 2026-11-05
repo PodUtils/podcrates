@@ -134,7 +134,9 @@ jobs:
         run: |
           sh scripts/retry.sh rustup component add llvm-tools
           host=$(rustc -vV | sed -n 's/^host: //p')
-          echo "OBJDUMP=$(rustc --print sysroot)/lib/rustlib/$host/bin/llvm-objdump.exe" >> "$GITHUB_ENV"
+          sysroot=$(cygpath -u "$(rustc --print sysroot)")
+          ls "$sysroot/lib/rustlib/$host/bin/"
+          echo "OBJDUMP=$sysroot/lib/rustlib/$host/bin/llvm-objdump.exe" >> "$GITHUB_ENV"
       - name: The probe is static
         run: |
           set -eu
