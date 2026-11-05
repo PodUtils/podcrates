@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::tls::{config_for, connect_over, Trust};
+use podssh_ws::tls::{Trust, config_for, connect_over};
 use rustls::HandshakeKind;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};

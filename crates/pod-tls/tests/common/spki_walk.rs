@@ -51,17 +51,11 @@ pub fn spki_point(der: &[u8]) -> Vec<u8> {
     // not move when optional fields are added, which is the property a walk
     // needs.
     const SPKI_FIELD: usize = 6;
-    assert!(
-        fields.len() > SPKI_FIELD,
-        "a tbsCertificate has a subjectPublicKeyInfo at field {SPKI_FIELD}"
-    );
+    assert!(fields.len() > SPKI_FIELD, "a tbsCertificate has a subjectPublicKeyInfo at field {SPKI_FIELD}");
     eprintln!(
         "TBS-FIELDS {} tags {:?}",
         fields.len(),
-        fields
-            .iter()
-            .map(|f| inner_contents[f.1.start])
-            .collect::<Vec<u8>>()
+        fields.iter().map(|f| inner_contents[f.1.start]).collect::<Vec<u8>>()
     );
     let (spki_contents, _) = read_sequence(&inner_contents, fields[SPKI_FIELD].1.start);
     let inner = tlv_fields(&spki_contents, "a SubjectPublicKeyInfo");

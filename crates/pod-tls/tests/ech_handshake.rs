@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use podssh_ws::crypto::hpke::{derive_key_pair, X25519_SHA256_AES_128_GCM};
+use podssh_ws::crypto::hpke::{X25519_SHA256_AES_128_GCM, derive_key_pair};
 use podssh_ws::ech::{self, Cache, Dial, Mode, Outcome};
 use podssh_ws::{ProxyChoice, Trust};
 use rustls::crypto::hpke::{EncapsulatedSecret, Hpke, HpkePrivateKey};

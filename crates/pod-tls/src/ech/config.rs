@@ -9,8 +9,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::SystemTime;
 
-use rustls::client::{EchConfig, EchMode};
 use rustls::ClientConfig;
+use rustls::client::{EchConfig, EchMode};
 use rustls_pki_types::EchConfigListBytes;
 
 use crate::tls::{self, Trust};

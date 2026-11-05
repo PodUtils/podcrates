@@ -6,8 +6,8 @@
 
 use std::fmt;
 
-use p256::elliptic_curve::sec1::ToSec1Point;
 use p256::PublicKey;
+use p256::elliptic_curve::sec1::ToSec1Point;
 use rustls::crypto::{ActiveKeyExchange, GetRandomFailed, SecureRandom, SharedSecret, SupportedKxGroup};
 use rustls::{Error, NamedGroup, PeerMisbehaved};
 use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};

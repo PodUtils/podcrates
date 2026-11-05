@@ -8,13 +8,10 @@
 
 use std::sync::Arc;
 
-use p256::ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
+use p256::ecdsa::signature::Signer;
 
-use super::encoding::{
-    der_length_covers_the_certificate, read_len, self_signed_inner, TestCert,
-};
-
+use super::encoding::{TestCert, der_length_covers_the_certificate, read_len, self_signed_inner};
 
 /// **A `TlsAcceptor` serving `dns_name`, and a root store that trusts it.**
 ///
@@ -24,9 +21,7 @@ use super::encoding::{
 /// a step that could fail was never actually compiled, let alone exercised.
 /// A test helper that cannot fail should say so; one that can should not hide
 /// it.
-pub fn server_for(
-    dns_name: &str,
-) -> Result<(tokio_rustls::TlsAcceptor, rustls::RootCertStore), String> {
+pub fn server_for(dns_name: &str) -> Result<(tokio_rustls::TlsAcceptor, rustls::RootCertStore), String> {
     server_for_groups(dns_name, None)
 }
 
@@ -85,10 +80,7 @@ pub fn server_for_groups(
         .with_single_cert(chain, key)
         .map_err(|e| format!("the server cannot present its own certificate: {e}"))?;
 
-    Ok((
-        tokio_rustls::TlsAcceptor::from(Arc::new(server_config)),
-        roots,
-    ))
+    Ok((tokio_rustls::TlsAcceptor::from(Arc::new(server_config)), roots))
 }
 
 /// **The key is the LEAF's own key**, because the leaf is the certificate
@@ -130,9 +122,7 @@ fn key_for(leaf: &TestCert) -> Result<rustls_pki_types::PrivateKeyDer<'static>, 
     body.extend_from_slice(&tlv(0xa0, &oid(&[1, 2, 840, 10045, 3, 1, 7])));
     body.extend_from_slice(&tlv(0xa1, &tlv(0x03, &[&[0x00][..], point].concat())));
 
-    Ok(rustls_pki_types::PrivateKeyDer::from(
-        rustls_pki_types::PrivateSec1KeyDer::from(seq(&[body])),
-    ))
+    Ok(rustls_pki_types::PrivateKeyDer::from(rustls_pki_types::PrivateSec1KeyDer::from(seq(&[body]))))
 }
 
 /// **A `KeyProvider` for the test's server side only.**
@@ -172,9 +162,7 @@ impl rustls::crypto::KeyProvider for TestKeyProvider {
         // with INTEGER 1"*, which is the correct complaint about a container
         // that does not start with one.
         if fields.len() < 2 || fields[0] != [0x01] {
-            return Err(rustls::Error::General(
-                "an ECPrivateKey starts with INTEGER 1".into(),
-            ));
+            return Err(rustls::Error::General("an ECPrivateKey starts with INTEGER 1".into()));
         }
         // The tag is checked by the *length*, not by a prefix on the value:
         // `tlv_fields` strips headers, so the scalar is all 32 bytes.
@@ -183,8 +171,8 @@ impl rustls::crypto::KeyProvider for TestKeyProvider {
         // was one — the guard and the parser had been written against two
         // different shapes of the same buffer.
         let secret: &[u8] = &fields[1];
-        let bytes: [u8; 32] = <[u8; 32]>::try_from(secret)
-            .map_err(|_| rustls::Error::General("the test key is not 32 bytes".into()))?;
+        let bytes: [u8; 32] =
+            <[u8; 32]>::try_from(secret).map_err(|_| rustls::Error::General("the test key is not 32 bytes".into()))?;
         let signing = SigningKey::from_bytes(&bytes.into())
             .map_err(|_| rustls::Error::General("the test key is not a valid scalar".into()))?;
         Ok(Arc::new(TestSigningKey { signing }))
@@ -197,10 +185,7 @@ struct TestSigningKey {
 }
 
 impl rustls::sign::SigningKey for TestSigningKey {
-    fn choose_scheme(
-        &self,
-        offered: &[rustls::SignatureScheme],
-    ) -> Option<Box<dyn rustls::sign::Signer>> {
+    fn choose_scheme(&self, offered: &[rustls::SignatureScheme]) -> Option<Box<dyn rustls::sign::Signer>> {
         // **A scheme this key can actually produce, chosen by preference.**
         //
         // MEASURED 2026-10-02: the earlier version returned
@@ -220,14 +205,9 @@ impl rustls::sign::SigningKey for TestSigningKey {
         // **This key is P-256 and this certificate is on P-256, so P-384 is
         // not an option here** however the peer prefers it, and saying so
         // plainly is what keeps a future edit from returning one.
-        let offered = offered
-            .iter()
-            .find(|s| **s == rustls::SignatureScheme::ECDSA_NISTP256_SHA256);
+        let offered = offered.iter().find(|s| **s == rustls::SignatureScheme::ECDSA_NISTP256_SHA256);
         match offered {
-            Some(scheme) => Some(Box::new(TestSigner {
-                signing: self.signing.clone(),
-                scheme: *scheme,
-            })),
+            Some(scheme) => Some(Box::new(TestSigner { signing: self.signing.clone(), scheme: *scheme })),
             None => None,
         }
     }
@@ -267,17 +247,11 @@ impl rustls::sign::Signer for TestSigner {
 fn read_sequence(der: &[u8], at: usize) -> Result<Vec<u8>, rustls::Error> {
     match der.get(at) {
         Some(0x30) => {}
-        other => {
-            return Err(rustls::Error::General(format!(
-                "expected a SEQUENCE at offset {at}, found {other:02x?}"
-            )))
-        }
+        other => return Err(rustls::Error::General(format!("expected a SEQUENCE at offset {at}, found {other:02x?}"))),
     }
     let (len, start) = read_len(der, at + 1);
     if start + len > der.len() {
-        return Err(rustls::Error::General(
-            "the private key's declared length overruns the container".into(),
-        ));
+        return Err(rustls::Error::General("the private key's declared length overruns the container".into()));
     }
     Ok(der[start..start + len].to_vec())
 }

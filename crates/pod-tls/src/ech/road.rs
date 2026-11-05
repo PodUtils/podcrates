@@ -14,7 +14,7 @@ use rustls::{ClientConfig, PeerIncompatible};
 use rustls_pki_types::ServerName;
 
 use super::cache::{self, Cache, Lookup, Why};
-use super::{config, note, Mode, Outcome};
+use super::{Mode, Outcome, config, note};
 use crate::client::{ConnectError, RelayStream};
 use crate::cut::TlsFailure;
 use crate::dial::{self, ProxyChoice};

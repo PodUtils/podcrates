@@ -21,7 +21,7 @@ mod cert {
 use std::path::Path;
 use std::time::Duration;
 
-use podssh_ws::tls::{connect_over, Trust};
+use podssh_ws::tls::{Trust, connect_over};
 
 /// The name that the test's server holds; its root's key comes from it, so
 /// each run mints the same root.

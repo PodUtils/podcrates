@@ -6,9 +6,9 @@
 
 use std::time::Duration;
 
+use podssh_ws::WsError;
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::tls::{self, TlsRoots, Trust};
-use podssh_ws::WsError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[allow(dead_code)]

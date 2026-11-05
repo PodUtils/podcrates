@@ -164,8 +164,8 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
 /// cross-check here is what says it does not.
 #[test]
 fn a_p256_signature_does_not_verify_as_p384() {
-    use p256::ecdsa::signature::Signer;
     use p256::ecdsa::SigningKey as P256Signing;
+    use p256::ecdsa::signature::Signer;
 
     let key = P256Signing::from_bytes(&[0x61u8; 32].into()).expect("a scalar");
     let message = b"cross-curve";

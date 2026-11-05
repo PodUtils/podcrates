@@ -6,7 +6,6 @@
 // presented as `InvalidCertificate(BadEncoding)` and one as `BadSignature`,
 // and neither error names the field that was wrong.
 
-
 use p256::ecdsa::signature::Signer;
 use p256::ecdsa::{Signature, SigningKey};
 use sha2::{Digest, Sha256};
@@ -47,9 +46,7 @@ pub(crate) fn read_len(der: &[u8], at: usize) -> (usize, usize) {
         (first as usize, at + 1)
     } else {
         let n = (first & 0x7f) as usize;
-        let v = der[at + 1..at + 1 + n]
-            .iter()
-            .fold(0usize, |a, b| (a << 8) | *b as usize);
+        let v = der[at + 1..at + 1 + n].iter().fold(0usize, |a, b| (a << 8) | *b as usize);
         (v, at + 1 + n)
     }
 }
@@ -145,8 +142,7 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     // SPKI, and the leaf publishes its own — so a self-signed leaf has a
     // signature nobody in the chain can check. Two different keys, two
     // different verifications, and the error names neither.
-    let own = SigningKey::from_bytes(&sha256(&role_seed(dns_name, is_ca)).into())
-        .expect("a P-256 scalar");
+    let own = SigningKey::from_bytes(&sha256(&role_seed(dns_name, is_ca)).into()).expect("a P-256 scalar");
 
     let spki = own.verifying_key().to_sec1_point(false);
     let point = spki.as_bytes();
@@ -182,10 +178,7 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     // it met a `0x31` where it required a `0x82` (`dNSName`, context-specific
     // primitive 2). RFC 5280 §4.2.1.6 spells `GeneralNames ::= SEQUENCE SIZE
     // (1..MAX) OF GeneralName`; it is never a SET.
-    let san = seq(&[
-        oid(&[2, 5, 29, 17]),
-        tlv(0x04, &seq(&[tlv(0x82, dns_name.as_bytes())])),
-    ]);
+    let san = seq(&[oid(&[2, 5, 29, 17]), tlv(0x04, &seq(&[tlv(0x82, dns_name.as_bytes())]))]);
     // **`basicConstraints: CA:TRUE` and it is critical.** This
     // certificate is its own trust anchor, and a v3 anchor with no
     // `basicConstraints` is a leaf by RFC 5280's rules. MEASURED
@@ -204,10 +197,7 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     let basic_constraints = seq(&[
         oid(&[2, 5, 29, 19]),
         tlv(0x01, &[0xff]),
-        tlv(
-            0x04,
-            &seq(&[if is_ca { tlv(0x01, &[0xff]) } else { Vec::new() }]),
-        ),
+        tlv(0x04, &seq(&[if is_ca { tlv(0x01, &[0xff]) } else { Vec::new() }])),
     ]);
 
     // **The `signatureAlgorithm` is `ecdsa-with-SHA256`, and that is not
@@ -305,15 +295,10 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     let issuer_key = if is_ca {
         own.clone()
     } else {
-        SigningKey::from_bytes(&sha256(&role_seed(&anchor_name(dns_name), true)).into())
-            .expect("a P-256 scalar")
+        SigningKey::from_bytes(&sha256(&role_seed(&anchor_name(dns_name), true)).into()).expect("a P-256 scalar")
     };
     let signature: Signature = issuer_key.sign(&tbs);
-    eprintln!(
-        "BUILDER sig={} key-is-own={}",
-        signature.to_der().as_bytes().len(),
-        is_ca
-    );
+    eprintln!("BUILDER sig={} key-is-own={}", signature.to_der().as_bytes().len(), is_ca);
     // **The certificate is `SEQUENCE { tbs, algId, signatureValue }`, and
     // the SEQUENCE is a NEW header around all three.**
     // MEASURED 2026-10-02: the first version started from `tbs` and
@@ -324,16 +309,9 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     // from the only place it was wrong. It was found by printing the DER and
     // comparing the declared content length against the byte count, which is
     // the check `der_length_covers_the_certificate` below now keeps.
-    let cert = seq(&[
-        tbs,
-        seq(&[sig_alg]),
-        tlv(0x03, &[&[0x00][..], signature.to_der().as_bytes()].concat()),
-    ]);
+    let cert = seq(&[tbs, seq(&[sig_alg]), tlv(0x03, &[&[0x00][..], signature.to_der().as_bytes()].concat())]);
 
-    TestCert {
-        der: cert,
-        key_der: own.to_bytes().to_vec(),
-    }
+    TestCert { der: cert, key_der: own.to_bytes().to_vec() }
 }
 
 fn sha256(data: &[u8]) -> [u8; 32] {

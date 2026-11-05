@@ -10,9 +10,9 @@
 use aes::cipher::{BlockCipherEncrypt, KeyInit};
 use aes_gcm::aead::AeadInOut;
 use aes_gcm::{Aes128Gcm, Aes256Gcm};
+use rustls::Error;
 use rustls::crypto::cipher::{AeadKey, Iv, Nonce};
 use rustls::quic;
-use rustls::Error;
 
 /// The sample of section 5.4.2, and the tag of each AEAD here.
 const SAMPLE_LEN: usize = 16;

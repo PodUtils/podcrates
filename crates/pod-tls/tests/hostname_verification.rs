@@ -186,7 +186,7 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
 /// its root is the control.
 #[tokio::test]
 async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
-    use podssh_ws::tls::{connect_over, Trust};
+    use podssh_ws::tls::{Trust, connect_over};
     let limit = std::time::Duration::from_secs(10);
     let (acceptor, _roots) = server_for("issuer.example").expect("a server for the name");
     let serve = |acceptor: tokio_rustls::TlsAcceptor, listener: tokio::net::TcpListener| {

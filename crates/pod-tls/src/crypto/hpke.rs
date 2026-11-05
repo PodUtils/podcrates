@@ -19,12 +19,12 @@
 use std::fmt;
 
 use hkdf::Hkdf;
+use rustls::Error;
 use rustls::crypto::hpke::{
     EncapsulatedSecret, Hpke, HpkeOpener, HpkePrivateKey, HpkePublicKey, HpkeSealer, HpkeSuite,
 };
 use rustls::internal::msgs::enums::{HpkeAead, HpkeKdf, HpkeKem};
 use rustls::internal::msgs::handshake::HpkeSymmetricCipherSuite;
-use rustls::Error;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 use zeroize::Zeroizing;

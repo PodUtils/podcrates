@@ -19,7 +19,7 @@ use super::hash::HashAlgorithmId;
 use super::hkdf::PureHkdf;
 use super::kx::{SECP256R1, X25519};
 use super::random::OsRandom;
-use super::sign::{signature_algorithms, NoClientKeys};
+use super::sign::{NoClientKeys, signature_algorithms};
 use super::tls12;
 
 /// `confidentiality_limit` is `2^24` for AES-GCM, the value rustls's own

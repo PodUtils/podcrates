@@ -5,14 +5,14 @@
 use std::collections::HashSet;
 use std::ffi::CStr;
 
-use windows_sys::Win32::Foundation::{SetLastError, CRYPT_E_NOT_FOUND};
+use windows_sys::Win32::Foundation::{CRYPT_E_NOT_FOUND, SetLastError};
 use windows_sys::Win32::Security::Cryptography::{
-    CertCloseStore, CertEnumCertificatesInStore, CertGetEnhancedKeyUsage, CertOpenStore, CertVerifyTimeValidity,
     CERT_CONTEXT, CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_W, CERT_STORE_READONLY_FLAG,
-    CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE, CTL_USAGE, X509_ASN_ENCODING,
+    CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE, CTL_USAGE, CertCloseStore,
+    CertEnumCertificatesInStore, CertGetEnhancedKeyUsage, CertOpenStore, CertVerifyTimeValidity, X509_ASN_ENCODING,
 };
 
-use super::{sort, Held, Store};
+use super::{Held, Store, sort};
 
 /// Server authentication, the usage that a root for TLS needs (RFC 5280,
 /// 4.2.1.12).

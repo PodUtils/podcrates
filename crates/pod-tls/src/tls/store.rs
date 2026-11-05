@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use rustls::client::{ClientSessionMemoryCache, ClientSessionStore, Tls12ClientSessionValue, Tls13ClientSessionValue};
 use rustls::NamedGroup;
+use rustls::client::{ClientSessionMemoryCache, ClientSessionStore, Tls12ClientSessionValue, Tls13ClientSessionValue};
 use rustls_pki_types::ServerName;
 
 use super::groups::Kept;

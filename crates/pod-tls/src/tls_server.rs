@@ -16,7 +16,7 @@ use p256::ecdsa::{DerSignature, SigningKey};
 use rustls::sign::CertifiedKey;
 use rustls::{SignatureAlgorithm, SignatureScheme};
 use rustls_pki_types::{CertificateDer, SubjectPublicKeyInfoDer};
-pub use served::{Served, ACME_TLS_1};
+pub use served::{ACME_TLS_1, Served};
 pub use tokio_rustls::TlsAcceptor;
 
 /// The ALPN of a relay's upgrade: HTTP/1.1, which the WebSocket of RFC 6455
