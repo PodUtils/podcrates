@@ -1,4 +1,4 @@
-//! The SOCKS5 road to the relay (T-070), against a stand-in SOCKS5 server
+//! The SOCKS5 road to the relay, against a stand-in SOCKS5 server
 //! on a local socket that records each byte it gets: the greeting, the user
 //! and password of RFC 1929, and a CONNECT with the address type 3 and the
 //! relay's name; the replies of RFC 1928 as the failover reads them; a bound
@@ -140,7 +140,7 @@ async fn echoes(mut stream: TcpStream) {
 #[test]
 fn socks5_urls_parse_with_their_port_and_their_credentials() {
     // A host that no name or address holds is refused, and each proxy's URL
-    // parses back to it (T-198: the fuzz target `proxy_url` found `]_::`).
+    // parses back to it (the fuzz target `proxy_url` found `]_::`).
     for odd in ["]_::", "http://[a]b]:1", "socks5://a b:1", "http://a\u{7}b:1"] {
         assert!(Proxy::parse(odd).is_err(), "{odd:?}");
     }

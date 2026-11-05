@@ -58,7 +58,7 @@ fn a_proxy_as_a_url_at_its_address_keeps_its_credentials() {
 
 #[test]
 fn unsupported_proxy_schemes_are_refused_by_name() {
-    // SOCKS5 is taken since T-070 (`tests/socks5.rs`); SOCKS4 is refused by name.
+    // SOCKS5 is taken (`tests/socks5.rs`); SOCKS4 is refused by name.
     for url in [
         "https://proxy.example:443",
         "socks4://proxy.example:1080",
@@ -88,7 +88,7 @@ fn no_proxy_lists_match_names_suffixes_and_wildcards() {
 
 /// A block `ADDR/BITS` matches each address inside it, and never a name: the
 /// `NO_PROXY` of a Claude Code cloud container lists `10.0.0.0/8` and
-/// `100.64.0.0/10` (T-316).
+/// `100.64.0.0/10`.
 #[test]
 fn no_proxy_blocks_match_the_addresses_inside_them() {
     let list = "localhost,10.0.0.0/8,172.16.0.0/12,100.64.0.0/10,fd7a::/16";
@@ -189,7 +189,7 @@ async fn credentials_go_in_a_basic_proxy_authorization_header() {
 }
 
 /// A `407` names each scheme that the proxy takes, and what podssh can give
-/// of it (T-320).
+/// of it.
 #[tokio::test]
 async fn a_407_names_what_the_proxy_asks_for() {
     pod_testkit::need_loopback!();
