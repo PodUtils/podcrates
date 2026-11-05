@@ -1545,10 +1545,10 @@ index 2f59c21..b5d900c 100644
              }
          }
          let (rows, more) = interop::score(&checked.baseline, &runs);
-@@ -195,22 +70,3 @@ fn interop_command(root: &Path, logs: &[&str], out: &mut dyn std::io::Write, err
+@@ -195,22 +70,2 @@ fn interop_command(root: &Path, logs: &[&str], out: &mut dyn std::io::Write, err
      }
  }
- 
+-
 -fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {
 -    let _ = writeln!(err, "podssh-todo: {why}\n{USAGE}");
 -    64

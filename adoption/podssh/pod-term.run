@@ -7,3 +7,5 @@ cargo test -q -p podssh-ws --test terminal_oracle
 cargo test -q -p podssh-ssh --test terminal_oracle --test silent_notice
 cargo test -q -p podssh-cli --test silent_notice
 cargo test -q -p podssh-cli --lib session::
+# rustfmt of the crates that the patch changes (podssh-terminal goes).
+cargo fmt -p podssh-cli -p podssh-ssh -p podssh-ws --check
