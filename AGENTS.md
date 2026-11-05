@@ -143,5 +143,6 @@ in `vendor/` keeps its own licence.
 
 ## 10. Current state
 
-The plan (`docs/plan.md`) waits for the rulings of its questions and for
-the go-ahead of the owner. Do not start step M0 before the go-ahead.
+The owner ruled the questions of the plan (`docs/plan.md`, section 13).
+The plan waits for the go-ahead of the owner. Do not start step M0
+before the go-ahead.
