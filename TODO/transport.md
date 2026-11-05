@@ -610,7 +610,7 @@ must not find it.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -635,6 +635,12 @@ static binary.
 3. Each trial checks the toolchain of each job of the consumer's release
    workflow against the `rust-version` of podcrates (podnet's armv7 job
    built with Alpine's Rust 1.96.1, below 1.99).
+
+The infrastructure is in: `adoption.yml` gives each trial the musl
+target, zig and cargo-zigbuild (the versions of `ci.yml`), and
+`adoption/README.md` asks each `.run` for the static build and the check.
+The lines of the `.run` files come with the next trials (`pod-dns`,
+T-015), as the trials of `pod-proxy` leave when the consumers take it.
 
 ## Prove
 

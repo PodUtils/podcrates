@@ -38,6 +38,13 @@ A `.run` file runs the checks of the consumer's repository too (its
 record, its file rules, rustfmt of the crates that the patch changes), so
 that the patch is what the consumer session can commit as it is.
 
+A `.run` file also builds the binary of the consumer for
+`x86_64-unknown-linux-musl` with `cargo zigbuild`, with each feature of
+the consumer in one build, and checks it with the consumer's own
+`scripts/check-static.sh`. `adoption.yml` gives the trials the musl
+target, zig and cargo-zigbuild; in a session, `sh scripts/cloud-setup.sh`
+gives them.
+
 What the consumers asked of the next patches:
 
 * podssh: each name of a module that leaves goes too (scripts/gate.sh,
