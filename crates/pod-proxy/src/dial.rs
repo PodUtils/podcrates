@@ -168,7 +168,7 @@ impl Dialer {
         let ask = Ask { app: &self.settings.app, user_agent: self.settings.user_agent.as_deref() };
         let (stream, how) = match proxy {
             None => connect_race(leg, host, port, self.ask()).await?,
-            Some(p) if p.kind == ProxyKind::Socks5 => {
+            Some(p) if matches!(p.kind, ProxyKind::Socks5 { .. }) => {
                 (crate::socks5::connect(leg, &self.settings.app, &p, host, port).await?, proxied())
             }
             Some(p) => (connect_via(leg, ask, &p, host, port).await?, proxied()),
@@ -203,13 +203,12 @@ impl Dialer {
 
 impl Dial for Dialer {
     fn label(&self) -> String {
-        let named = |p: &Proxy| format!("{}://{p}", p.kind.scheme());
         match &self.settings.proxy {
             ProxyChoice::Direct => "direct".into(),
-            ProxyChoice::Via(proxy) => named(proxy),
+            ProxyChoice::Via(proxy) => proxy.label(),
             ProxyChoice::FromEnvironment(env) => match &env.proxy {
                 Some(given) => match &given.value {
-                    Ok(proxy) => format!("{} of {}", named(proxy), given.origin),
+                    Ok(proxy) => format!("{} of {}", proxy.label(), given.origin),
                     Err(_) => format!("the proxy of {}, which cannot be used", given.origin),
                 },
                 None => "direct".into(),

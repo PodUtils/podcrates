@@ -27,7 +27,7 @@ fn each_choice_has_its_label_and_says_who_resolves_names() {
     let direct = dialer(ProxyChoice::Direct);
     assert_eq!((direct.label(), direct.names_inside()), ("direct".to_string(), false));
     let socks = dialer(ProxyChoice::Via(Proxy::parse("socks5://user:secret@proxy.example").unwrap()));
-    assert_eq!((socks.label(), socks.names_inside()), ("socks5h://proxy.example:1080".to_string(), true));
+    assert_eq!((socks.label(), socks.names_inside()), ("socks5://proxy.example:1080".to_string(), true));
     let var = |name: &str| (name == "HTTPS_PROXY").then(|| OsString::from("http://proxy.example:3128"));
     let env = dialer(ProxyChoice::FromEnvironment(Environment::read(&var)));
     assert_eq!(env.label(), "http://proxy.example:3128 of HTTPS_PROXY");

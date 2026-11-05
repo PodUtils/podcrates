@@ -149,9 +149,9 @@ fn socks5_urls_parse_with_their_port_and_their_credentials() {
         assert_eq!(Proxy::parse(&p.url()), Ok(p.clone()), "{good:?}");
     }
     let p = Proxy::parse("socks5://proxy.example").unwrap();
-    assert_eq!((p.host.as_str(), p.port, p.kind), ("proxy.example", 1080, ProxyKind::Socks5));
+    assert_eq!((p.host.as_str(), p.port, p.kind), ("proxy.example", 1080, ProxyKind::Socks5 { remote_dns: false }));
     let p = Proxy::parse("SOCKS5H://alice:s%40cret@[::1]:9050").unwrap();
-    assert_eq!((p.host.as_str(), p.port, p.kind), ("::1", 9050, ProxyKind::Socks5));
+    assert_eq!((p.host.as_str(), p.port, p.kind), ("::1", 9050, ProxyKind::Socks5 { remote_dns: true }));
     assert_eq!(p.to_string(), "[::1]:9050", "Display never shows credentials");
     let debug = format!("{p:?}");
     assert!(!debug.contains("alice") && !debug.contains("cret"), "{debug}");
@@ -161,7 +161,7 @@ fn socks5_urls_parse_with_their_port_and_their_credentials() {
     assert!(Proxy::parse(&format!("socks5://{}:pw@proxy.example", "u".repeat(256))).unwrap_err().contains("RFC 1929"));
     let set = |name: &str| (name == "ALL_PROXY").then(|| OsString::from("socks5h://proxy.example:1080"));
     let chosen = proxy_from_vars("relay.example", &set).unwrap().expect("a proxy");
-    assert_eq!(chosen.kind, ProxyKind::Socks5);
+    assert_eq!(chosen.kind, ProxyKind::Socks5 { remote_dns: true });
 }
 
 #[tokio::test]
