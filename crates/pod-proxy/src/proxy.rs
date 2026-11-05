@@ -4,7 +4,7 @@
 //! password that it carries, which no message shows. The proxy is on TCP,
 //! on a Unix socket (`SCHEME+unix:/PATH`, `SCHEME://unix:/PATH`), or at the
 //! stdin and the stdout of a command (`SCHEME+exec:COMMAND`), which only a
-//! value that the user gave on purpose can name ([`parse`] has the forms).
+//! value that the user gave on purpose can name ([`Proxy::parse_with`]).
 
 mod parse;
 #[cfg(test)]

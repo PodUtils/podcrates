@@ -182,3 +182,12 @@ async fn the_user_agent_goes_in_its_header_and_an_empty_one_sends_none() {
     let err = exchange(&mut client, "a\r\nX: y", "GET", "h", "/", &[], b"", 1024).await.unwrap_err();
     assert!(err.to_string().contains("CR or LF"), "{err}");
 }
+
+// podnet's test of the status line of a proxy's answer to CONNECT.
+#[test]
+fn status_parsing() {
+    let status = |head: &str| pod_proxy::http::parse_status_line(head).map(|(status, _)| status);
+    assert_eq!(status("HTTP/1.1 200 Connection established\r\n\r\n").unwrap(), 200);
+    assert_eq!(status("HTTP/1.0 407 Proxy Auth\r\n\r\n").unwrap(), 407);
+    assert!(status("SSH-2.0-OpenSSH\r\n").is_err());
+}
