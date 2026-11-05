@@ -13,6 +13,10 @@ default = []
 # context asks for it (pod-tls, feature ech), with the reader of HTTPS
 # records that the caller gives.
 ech = ["pod-tls/ech"]
+# The SOCKS5 exchange with a scripted proxy (`fuzz_exchange`), for the fuzz
+# targets of fuzz/ (T-017). The `--cfg fuzzing` of cargo-fuzz also exposes
+# it. No consumer turns this on.
+fuzzing = []
 
 [dependencies]
 pod-core = { workspace = true }
@@ -46,6 +50,7 @@ p256 = { workspace = true }
 sha2 = { workspace = true }
 
 # cargo-fuzz builds with `--cfg fuzzing` (T-017), under which the SOCKS5
-# exchange, private here, is reachable by the fuzzer.
+# exchange, private here, is reachable by the fuzzer, as with the feature
+# `fuzzing`.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }

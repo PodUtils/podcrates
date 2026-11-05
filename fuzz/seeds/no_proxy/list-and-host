@@ -1,0 +1,2 @@
+localhost *.example.com ::ffff:10.0.0.0/104,internal:8443
+sub.example.com

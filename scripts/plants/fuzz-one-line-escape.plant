@@ -1,0 +1,8 @@
+# pod_core::text::one_line keeps ESC, which repaints a terminal; the stable
+# test of the fuzz targets must fail on the seed of one_line that holds an
+# escape. fuzz.yml applies the same patch, and libFuzzer must find it too.
+ENTRY=T-017
+GROUP=fuzz
+EXPECT='test tests::each_target_survives_mutations \.\.\. FAILED'
+RUN='cargo test --manifest-path fuzz/Cargo.toml --lib'
+LIMIT=1800

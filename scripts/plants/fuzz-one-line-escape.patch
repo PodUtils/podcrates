@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/text.rs b/crates/pod-core/src/text.rs
+index edbbef0..469bc1b 100644
+--- a/crates/pod-core/src/text.rs
++++ b/crates/pod-core/src/text.rs
+@@ -15,7 +15,7 @@ pub fn one_line(text: &str) -> String {
+     for c in text.chars() {
+         if c.is_whitespace() {
+             space = true;
+-        } else if c.is_control() || is_bidi_control(c) {
++        } else if (c.is_control() && c != '\x1b') || is_bidi_control(c) {
+             continue;
+         } else {
+             if space && !out.is_empty() {

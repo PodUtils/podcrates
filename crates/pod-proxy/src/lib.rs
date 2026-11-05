@@ -69,6 +69,6 @@ pub use host::authority;
 pub use mptcp::Multipath;
 pub use proxy::{Carrier, HttpProxy, Proxy, ProxyKind};
 pub use race::{dial_addrs, group_errors, interleave};
-#[cfg(fuzzing)]
+#[cfg(any(fuzzing, feature = "fuzzing"))]
 pub use socks5::fuzz_exchange;
 pub use stream::{ChildIo, Stream};

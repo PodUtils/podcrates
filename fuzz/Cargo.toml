@@ -1,0 +1,92 @@
+# The fuzz targets of the crates of podcrates (cargo-fuzz, libFuzzer;
+# docs/design.md, section 8, step 4; T-017). README.md lists each target,
+# its crate and its source, and the targets that wait for their crate.
+#
+# A workspace of its own: the root workspace excludes this directory, so
+# the library crates do not build libFuzzer's C++. A run needs a nightly
+# Rust and glibc (scripts/fuzz.sh); a check needs stable Rust and a C++
+# compiler:
+#
+#   cargo check --manifest-path fuzz/Cargo.toml --bins
+#   cargo test --manifest-path fuzz/Cargo.toml --lib
+
+[package]
+name = "podcrates-fuzz"
+description = "The fuzz targets of the parsers of podcrates, for cargo-fuzz and libFuzzer."
+version = "0.0.0"
+edition = "2024"
+license = "0BSD"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+pod-core = { path = "../crates/pod-core" }
+pod-tls = { path = "../crates/pod-tls" }
+# The feature `fuzzing` exposes the SOCKS5 exchange with a scripted proxy.
+pod-proxy = { path = "../crates/pod-proxy", features = ["fuzzing"] }
+
+# A crash names its line.
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "one_line"
+path = "fuzz_targets/one_line.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pem_bundle"
+path = "fuzz_targets/pem_bundle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http_head"
+path = "fuzz_targets/http_head.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http_chunked"
+path = "fuzz_targets/http_chunked.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "socks5_answer"
+path = "fuzz_targets/socks5_answer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proxy_url"
+path = "fuzz_targets/proxy_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "no_proxy"
+path = "fuzz_targets/no_proxy.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connect_status"
+path = "fuzz_targets/connect_status.rs"
+test = false
+doc = false
+bench = false

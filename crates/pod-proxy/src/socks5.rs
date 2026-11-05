@@ -287,7 +287,7 @@ async fn authenticate<S: AsyncRead + AsyncWrite + Unpin>(
 /// The exchange with a proxy that answers `answer` and then ends, for the
 /// fuzzer (`fuzz/`): whether a tunnel came of it. The proxy's side is always
 /// ready, so one poll ends the exchange; a second would be a wait on nothing.
-#[cfg(fuzzing)]
+#[cfg(any(fuzzing, feature = "fuzzing"))]
 pub fn fuzz_exchange(answer: &[u8], credentials: bool, by_name: bool) -> bool {
     use std::future::Future;
     use std::pin::Pin;

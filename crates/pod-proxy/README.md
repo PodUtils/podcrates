@@ -56,6 +56,7 @@ to each crate that opens a connection.
 | --- | --- |
 | none (default) | everything above; the GET client's hello is plain |
 | `ech` | the GET client opens through `pod_tls::ech::open`: sealed where the TLS context asks for ECH and the name publishes a list, with the reader of HTTPS records of `Client::with_records` (`pod-dns` gives one) |
+| `fuzzing` | `fuzz_exchange`: the SOCKS5 exchange with a scripted proxy, for the fuzz target `socks5_answer` (`fuzz/`). The `--cfg fuzzing` of cargo-fuzz also exposes it. No consumer turns it on |
 
 ## Settings
 
@@ -125,7 +126,7 @@ The bypass of a name pinned to loopback addresses alone is the caller's:
 | The tests: unit (27) and `tests/{dial,dial_pinned,dial_race,socks5,mptcp,http,limits}.rs`, with their names | [x] with the tests of podnet and the new tests: 141 passed, 1 ignored (the live test of MPTCP); the tests changed for the merge are in the changes for podssh |
 | `tests/limits.rs`: the tests of the upgrade and of the frames | `pod-ws` (T-016) |
 | `doh_wire.rs` `the_dialer_hands_a_cached_address_that_does_not_connect_to_the_next_source` (the cache of podssh's resolver) | `pod-dns` (T-015); the race's part is `dial_race` `a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next` |
-| The fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | T-017 (`socks5::fuzz_exchange` stays behind `cfg(fuzzing)`) |
+| The fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | [x] `fuzz/` (T-017), with their names and their checks; `fuzz_exchange` behind the feature `fuzzing` or `cfg(fuzzing)` |
 | The plants `t172-no-fallback`, `t639-reason-of-429`, `t641-length-trusted` | [x] `scripts/plants/proxy-mptcp-no-fallback`, `proxy-reason-of-429`, `proxy-stun-length-trusted`: the same defects, caught by the same tests |
 
 New tests: `env` (3), `error` (1), `resolve` (2), `dial_race`
@@ -173,7 +174,7 @@ New tests: `env` (3), `error` (1), `resolve` (2), `dial_race`
 | `Credentials` of a client of a served proxy: 1 to 255 bytes, no `:` in the user, a password file of this user that others cannot read, a check in constant time, Basic | [x] `Credentials`; the file through `pod_core::files::read_own` (also refuses a link and another user's file) |
 | The unit tests of the three files and `a_silent_address_does_not_hold_the_dial` of `tests/egress.rs`, with their names | [x] 33: `src/proxy/tests.rs` (8), `src/env_tests.rs` (1), `src/race.rs` (2), `src/proxy_auth.rs` (2), `tests/http.rs` (`status_parsing`), `tests/egress.rs` (4), `src/digest_tests.rs` (4), `src/detect.rs` (2), `src/credentials.rs` (2), `src/client/url.rs` (2), `tests/fetch.rs` (5) |
 | The other tests of `tests/egress.rs` (they run the podnet binary) | they stay in podnet (the adoption map) |
-| The fuzz targets `proxy_url`, `no_proxy`, `connect_response_head` (podnet `src/fuzzing.rs`) | T-017, with podssh's `proxy_url`, `no_proxy`, `connect_status`, which they overlap |
+| The fuzz targets `proxy_url`, `no_proxy`, `connect_response_head` (podnet `src/fuzzing.rs`) | [x] `fuzz/` (T-017): one target each with podssh's `proxy_url`, `no_proxy`, `connect_status`, with the checks and the seeds of both (`fuzz/README.md`) |
 
 New tests of the merge: `the_secret_parts_of_a_url`,
 `a_carrier_word_after_the_scheme_is_no_carrier`,
@@ -286,7 +287,8 @@ counters):
 | podssh | `podssh_ws::proxy_auth::schemes` (the 407 of its second proxy, `via`) | `pod_proxy::proxy_auth::schemes` |
 | podssh | `podssh_ws::mptcp::*`, `podssh_ws::write_limit::WriteLimit`, `podssh_ws::stun::*` | `pod_proxy::mptcp::*`, `pod_proxy::write_limit::WriteLimit`, `pod_proxy::stun::*` |
 | podssh | `podssh_ws::lowat::set(&tcp)` | `pod_proxy::lowat::set(&tcp, pod_proxy::lowat::LOWAT)` |
-| podssh | `podssh_ws::fuzz_exchange` (`cfg(fuzzing)`) | `pod_proxy::fuzz_exchange` |
+| podssh | `podssh_ws::fuzz_exchange` (`cfg(fuzzing)`) | `pod_proxy::fuzz_exchange` (`cfg(fuzzing)`, or the feature `fuzzing`) |
+| podssh | the fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | the targets of the same names in `fuzz/` of podcrates; podssh removes its own |
 | podssh | the variables `https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, `no_proxy`, `NO_PROXY` | podssh keeps them and reads them once: `Environment::read(&\|n\| std::env::var_os(n))` |
 | podssh | `User-Agent: podssh/VERSION` (CONNECT, `http::exchange`) | `Settings::user_agent`, `Client::with_user_agent`, the argument of `http::exchange` |
 | podssh | the words "podssh sends Basic only", "podssh sent none", "which podssh did not offer" | `Settings::app = "podssh"`; the words of a 407 are those of the changes for podssh |
@@ -320,7 +322,7 @@ counters):
 | podnet | `trust::context().client_config_with(&[], &[b"http/1.1"])` of `fetch.rs` | the `pod_tls::Context` of `Client::new`; `send` offers ALPN `http/1.1` over its roots |
 | podnet | `net::BoxedIo` of the dial | `pod_core::BoxedIo` (`Connected::io`), or `pod_proxy::Stream` |
 | podnet | `egress::ChildIo` | `pod_proxy::ChildIo` |
-| podnet | `fuzzing.rs` `proxy_url`, `no_proxy`, `connect_response_head` (`Proxy::parse`, `NoProxy::parse`, `parse_status`) | T-017; until then `pod_proxy::{Proxy::parse, NoProxy::parse, http::parse_status_line}` (a `&str`) |
+| podnet | `fuzzing.rs` `proxy_url`, `no_proxy`, `connect_response_head` (`Proxy::parse`, `NoProxy::parse`, `parse_status`) | the targets `proxy_url`, `no_proxy`, `connect_status` in `fuzz/` of podcrates; podnet removes its three, and `parse_status` calls `pod_proxy::http::parse_status_line` (a `&str`) |
 | podnet | the variables `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY`, `all_proxy`, `NO_PROXY`, `no_proxy`, `HOME`, `PODNET_PROXY` | podnet keeps them and reads them through its reader once; `PODNET_PROXY` is a value of the user (`Origin::User`) |
 | podnet | `tests/egress.rs`: `socks5_carries_the_api_and_the_edge`, `no_proxy_bypasses_the_proxy`, `a_407_names_the_schemes`, `a_proxy_refusal_names_the_hop_and_keeps_the_text`, `a_proxy_host_that_does_not_resolve_is_an_error_not_a_crash`, `socks5_resolves_the_target_with_the_pins`, `a_proxy_url_with_no_password_is_shown` | they stay in podnet: they run the binary; the words that they read come from the crate (`NTLM or Negotiate`, `podnet supports Basic and Digest only`, `the proxy refused the user and the password`, `the proxy host podnet-proxy.invalid`) and from podnet's glue (`HTTP 403`, `through the proxy http://127.0.0.1:9`) |
 | podnet | `tests/egress.rs` `a_silent_address_does_not_hold_the_dial` | it moved here (`tests/egress.rs`); podnet removes it |
