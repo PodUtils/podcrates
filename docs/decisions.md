@@ -50,6 +50,7 @@ has the detail.
 | 2026-11-05 | C15 | An adoption trial for each crate and each consumer, in CI (`docs/design.md`). |
 | 2026-11-05 | C16 | podvm: `pod-relay` (feature `blocking`) and `pod-term` build for each target of podssh. |
 | 2026-11-05 | C17 | podcrates adds `pod-core` (`docs/design.md`) and `pod-quic` (the QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both names were free on crates.io on 2026-11-05. Without them, the agreed crates depend on each other in loops. |
+| 2026-11-05 | C18 | `pod-tls`: one `Context` that the binary owns holds the kept TLS configurations, the groups and the state of ECH; `ech` turns on `pure`; RUSTSEC-2023-0071 is ignored, as `pod-tls` verifies with RSA public keys only (T-012, Decision). |
 
 ## Questions for the owner
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 41 entries: 29 open, 0 partial, 1 blocked, 11 done.
+`TODO/INDEX.md` holds 41 entries: 28 open, 1 partial, 1 blocked, 11 done.
 
 ## State
 
@@ -35,7 +35,7 @@ order. A crate is released on the day that its entry is done
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C17), and the work goes on with it until the owner rules otherwise.
+C18), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

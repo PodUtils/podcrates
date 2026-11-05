@@ -127,7 +127,7 @@ of podssh-ssh (5), `silent_notice` of podssh-ssh (4) and of podssh-cli
 **Milestone:** M1
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -154,6 +154,30 @@ a ClientHello) are two implementations of one layer.
    ClientHello fragments, extra roots from the caller (the edge roots go
    to `pod-cloudflare`), no process default provider.
 3. The parity list; the trials of podssh and podnet.
+
+Step 1 is done: the commits `2bc2e06` to `6ec42f5` (import, edition,
+adaptation, tests, README, static probe). `cargo test -p pod-tls
+--all-features`: 137 passed, 7 ignored (live and system-store tests).
+Next: the merge of podnet (step 2), then the trials (step 3).
+
+## Decision
+
+- One `pod_tls::Context` (the provider, the `Settings`, the kept
+  configurations, the groups, the state of ECH) replaces the six process
+  statics of the source. The consumer makes it once and shares it.
+- `Settings.words` (`Words`: the app name and the words of its options)
+  makes the hints of a failed handshake; with podssh's words the text is
+  the same as before.
+- The feature `ech` turns on `pure`: the HPKE of the sealed hello is in
+  the pure provider (rustls has HPKE only from aws-lc). The ECDHE_RSA
+  suites of TLS 1.2 follow the feature `rsa`, and a check refuses a suite
+  whose signature the provider cannot verify.
+- The read of a name's HTTPS record is the trait `ech::Records`; `pod-dns`
+  implements it (T-015).
+- The file of the TLS groups has the header `pod-tls groups 1`; a file of
+  podssh is set aside once, with a note, and written again.
+- `deny.toml` ignores RUSTSEC-2023-0071 (rsa 0.9): `pod-tls` verifies
+  with RSA public keys only.
 
 ## Prove
 
