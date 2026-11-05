@@ -12,6 +12,12 @@ license = "0BSD"
 repository = "https://github.com/PodUtils/podcrates"
 homepage = "https://github.com/PodUtils/podcrates"
 
+# The switch of the publish to crates.io (.github/workflows/publish.yml):
+# false while the ruling Q1 stands (the consumers take the git tag; publish
+# nothing). An agent sets it to true only when the owner rules so.
+[workspace.metadata.podcrates]
+crates-io = false
+
 [workspace.dependencies]
 pod-core = { path = "crates/pod-core", version = "0.1.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.1.0" }

@@ -26,6 +26,9 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Issues | GitHub issues are an inbox. Each issue becomes record entries. Close each issue with evidence (commits, CI runs, test output). |
 | 2026-11-05 | Dependabot | Apply each judged update as an own commit on `main` (checks green). Close the pull request with a link to the commit. Do not merge the Dependabot branch. |
 | 2026-11-05 | Publish workflow | "publish.yml everywhere: a dedicated publish workflow, separate from the existing release.yml. The agents must create publish.yml." The owner set by the API: the environment `crates-io` (only a tag `v*` deploys to it), the ruleset "release tags" (a tag `v*` cannot be deleted, moved or forced), and the names of the crates on crates.io (0.0.0 placeholders). |
+| 2026-11-05 | Publish trigger | `publish.yml` runs on a tag push `v*` and by dispatch; `release.yml` dispatches it on its tag, as a push with `GITHUB_TOKEN` starts no workflow. The publish job has `environment: crates-io` and only `id-token: write` and `contents: read`; the top level has `permissions: {}`; the token comes from `rust-lang/crates-io-auth-action`, pinned by its commit. |
+| 2026-11-05 | Publish gate | While Q1 stands, each run does the dry run only. The switch `crates-io` of `[workspace.metadata.podcrates]` in `Cargo.toml` turns the publish on; an agent sets it only when the owner rules so. |
+| 2026-11-05 | crates.io names | The owner reserves each name with a 0.0.0 placeholder before its first publish; trusted publishing does not work for another name. `pod-*` is of podcrates; podnet, podssh and podvm use `podnet-*`, `podssh-*`, `podvm-*`. After the first publish of a crate from CI, the owner turns on "Require trusted publishing" for it: keep `publish.yml` working. |
 
 ## Calls made without a ruling
 
@@ -52,15 +55,16 @@ has the detail.
 | 2026-11-05 | C16 | podvm: `pod-relay` (feature `blocking`) and `pod-term` build for each target of podssh. |
 | 2026-11-05 | C17 | podcrates adds `pod-core` (`docs/design.md`) and `pod-quic` (the QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both names were free on crates.io on 2026-11-05. Without them, the agreed crates depend on each other in loops. |
 | 2026-11-05 | C18 | `pod-tls`: one `Context` that the binary owns holds the kept TLS configurations, the groups and the state of ECH; `ech` turns on `pure`; RUSTSEC-2023-0071 is ignored, as `pod-tls` verifies with RSA public keys only (T-012, Decision). |
-| 2026-11-05 | C19 | `publish.yml` publishes with trusted publishing; `scripts/crates-io-publish.py` changes the OIDC token of the job for a token of crates.io and revokes it after, with no third-party action. `release.yml` starts its dry run on each new tag. The library crates are publishable (no `publish = false`); `static-probe` is not. A real version is published only after the ruling of Q4. |
+| 2026-11-05 | C19 | The library crates are publishable (no `publish = false`); `static-probe` is not. The publish job does not build again (`--no-verify`): the dry run of the same commit built each package, and the token lasts 30 minutes. |
 
 ## Questions for the owner
 
 - **Q4.** When does `publish.yml` publish real versions of the `pod-*`
   crates to crates.io? It blocks nothing: the consumers take the git tag
-  (Q1), and the dry run of each release keeps the packaging ready.
-  Recommendation: not yet, as the ruling of podnet of 2026-11-05 ("Publish
-  no real version yet"); publish from the release that the owner names.
+  (Q1), and the dry run of each release keeps the packaging ready. The
+  answer sets the switch `crates-io` of `Cargo.toml`. Recommendation: not
+  yet, as the ruling of podnet of 2026-11-05 ("Publish no real version
+  yet"); publish from the release that the owner names.
 
 ## Superseded
 

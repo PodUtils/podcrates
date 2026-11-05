@@ -44,7 +44,7 @@ C19), and the work goes on with it until the owner rules otherwise.
 | --- | --- |
 | T-040 | The repository of podvm, and access for this session |
 | Each release | Tell the consumer sessions to take the crates |
-| T-042 | Reserve on crates.io the names that are free (`pod-quic`, `pod-piping`, `pod-opentunnel`, `pod-egress`, `pod-iroh`, `pod-tor`, `pod-ts`), with the trusted publisher of `publish.yml` |
+| T-042 | crates.io has no placeholder yet for `pod-piping`, `pod-opentunnel`, `pod-egress`, `pod-iroh`, `pod-tor`, `pod-ts` and the held names `pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `pod-utils` (read 2026-11-05) |
 
 ## Questions for the owner
 

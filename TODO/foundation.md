@@ -514,20 +514,23 @@ the crates on crates.io (0.0.0 placeholders, repository
 
 ## Approach
 
-1. `.github/workflows/publish.yml`: the job `dry-run`
-   (`cargo publish --workspace --dry-run`, on any ref) and the job
-   `publish` (the input `publish`, a tag `vX.Y.Z` with a green `ci` run,
-   the environment `crates-io`, `id-token: write`).
-2. `scripts/crates-io-publish.py`: the OIDC token of the job for a token
-   of crates.io, `cargo publish --workspace --locked`, the revocation of
-   the token. No third-party action.
-3. `release.yml` starts the dry run on each new tag. The library crates
-   lose `publish = false`.
+1. `.github/workflows/publish.yml`, as the spec of the owner's setup
+   gives it: a tag push `v*` and a dispatch start it; `permissions: {}`
+   at the top; the job `dry-run` (`cargo publish --workspace --dry-run`,
+   the switch, the version of the tag, the green `ci` run); the job
+   `publish` (`environment: crates-io`, `id-token: write`, `contents:
+   read`, `rust-lang/crates-io-auth-action` pinned by its commit).
+2. The switch `crates-io` of `[workspace.metadata.podcrates]` in
+   `Cargo.toml`, false while Q1 stands.
+3. `release.yml` dispatches it on each new tag. The library crates lose
+   `publish = false`.
 
 ## Decision
 
-A real version waits for the ruling of Q4; the dry run of each release
-keeps the packaging ready (`docs/decisions.md`, C19).
+The owner chose the trigger (a tag push and a dispatch) and the gate (the
+switch in `Cargo.toml`). A real version waits for the ruling of Q4; the
+dry run of each release keeps the packaging ready (`docs/decisions.md`,
+Publish trigger, Publish gate, C19).
 
 ## Prove
 

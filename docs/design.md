@@ -406,9 +406,15 @@ The consumers take the crates by a git tag (Q1).
   crates.io works. The owner reserved the names on crates.io (0.0.0
   placeholders).
 * `publish.yml` is the publish to crates.io, apart from `release.yml`
-  (the ruling "publish.yml everywhere"). It uses trusted publishing: the
-  environment `crates-io` (only a tag `v*` deploys to it) and an OIDC
-  token of the job; no token is stored. `release.yml` starts its dry run
-  (`cargo publish --workspace --dry-run`) on each new tag. The publish of
-  a real version (the input `publish`) waits for the ruling of Q4.
+  (the ruling "publish.yml everywhere"). crates.io trusts this file name
+  in the environment `crates-io` (only a tag `v*` deploys to it): no
+  token is stored, and `rust-lang/crates-io-auth-action` gets a token for
+  30 minutes. A tag push starts it, and `release.yml` dispatches it on its
+  tag (a push with `GITHUB_TOKEN` starts no workflow). Each run does the
+  dry run (`cargo publish --workspace --dry-run`); the publish runs only
+  when the switch `crates-io` of `[workspace.metadata.podcrates]` in
+  `Cargo.toml` is true at the tag. It stays false while Q1 stands.
+* A new crate name is reserved by the owner on crates.io before its first
+  publish; trusted publishing does not work for a name that is not
+  reserved. `pod-*` names are of podcrates only.
 
