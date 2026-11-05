@@ -7,8 +7,10 @@
 #
 #   sh scripts/adoption.sh CONSUMER CRATE [WORKDIR]
 #
-# WORKDIR (default target/adoption) holds the checkout. The patch is the
-# hand-off to the consumer session: it names the git tag of podcrates.
+# WORKDIR (default ${TMPDIR:-/tmp}/podcrates-adoption) holds the checkout,
+# outside each directory named `target`: a scan of the consumer passes over
+# each path under one (podssh's check-repo.py). The patch is the hand-off to
+# the consumer session: it names the git tag of podcrates.
 set -eu
 consumer=${1:-}
 crate=${2:-}
@@ -20,7 +22,11 @@ for f in repo commit "$crate.patch" "$crate.run"; do
 done
 repo=$(tr -d '\r\n' < "$dir/repo")
 commit=$(tr -d '\r\n' < "$dir/commit")
-work=${3:-$here/target/adoption}/$consumer-$crate
+work=${3:-${TMPDIR:-/tmp}/podcrates-adoption}/$consumer-$crate
+# The consumer builds with the toolchain of podcrates, as adoption.yml sets
+# it: the checkout is outside this tree and its rust-toolchain.toml.
+: "${RUSTUP_TOOLCHAIN:=$(sed -n 's/^channel = "\(.*\)"/\1/p' "$here/rust-toolchain.toml")}"
+export RUSTUP_TOOLCHAIN
 rm -rf "$work"
 mkdir -p "$work"
 cd "$work"
