@@ -156,9 +156,12 @@ a ClientHello) are two implementations of one layer.
 3. The parity list; the trials of podssh and podnet.
 
 Step 1 is done: the commits `2bc2e06` to `6ec42f5` (import, edition,
-adaptation, tests, README, static probe). `cargo test -p pod-tls
---all-features`: 137 passed, 7 ignored (live and system-store tests).
-Next: the merge of podnet (step 2), then the trials (step 3).
+adaptation, tests, README, static probe). Step 2 is done: the commits
+`6040431` to `7923ab7` (import of podnet, the module `fragment`, the
+roots of podnet, the clock hint and the notAfter dates, the verifier
+scan, the README). `cargo test -p pod-tls --all-features`: 154 passed, 7
+ignored (live and system-store tests). Next: the trials of podssh and
+podnet (step 3).
 
 ## Decision
 
@@ -178,6 +181,22 @@ Next: the merge of podnet (step 2), then the trials (step 3).
   podssh is set aside once, with a note, and written again.
 - `deny.toml` ignores RUSTSEC-2023-0071 (rsa 0.9): `pod-tls` verifies
   with RSA public keys only.
+- podnet's order of roots (a CA file alone; else the file beside the
+  binary, the first system bundle and the compiled roots) is its own
+  road: `Context::roots()` with `Settings::ca_file`. The tests of each
+  source want other texts of the sources and another answer to a bad
+  certificate in a CA file (podssh refuses the file; podnet skips the
+  certificate), so one road cannot hold both. The roots of the road are
+  read once for each `Context`, and a failure is kept, as in podnet.
+- The split of the ClientHello is an argument, `fragment::wrap(io,
+  Option<Split>)`: podnet parses it after the `Context` exists. A bad
+  value is `Error::Split { part, value }`, from which the consumer writes
+  the words of its flag.
+- `client_config_with(extra, alpn)` gives an owned `ClientConfig` for each
+  call, as podnet changes it for quinn.
+- `pod_core::clock::hint` gives a clock before the epoch as it reads, as
+  podnet did (`the_hint_gives_a_clock_before_the_epoch`, which fails on
+  the code before the fix).
 
 ## Prove
 

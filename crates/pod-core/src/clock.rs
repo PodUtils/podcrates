@@ -12,7 +12,12 @@ const DAYS: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
 /// The words for a certificate that this host's clock refused, with the
 /// clock's reading `now`.
 pub fn hint(now: SystemTime) -> String {
-    let secs = now.duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    // A clock before the epoch is given as it reads, as that is the reason
+    // of the refusal: the second that holds `now`, rounded down.
+    let secs = match now.duration_since(UNIX_EPOCH) {
+        Ok(after) => after.as_secs() as i64,
+        Err(e) => -(e.duration().as_secs() as i64) - i64::from(e.duration().subsec_nanos() > 0),
+    };
     format!("certificates are checked against this host's clock, which reads {}", http_date(secs))
 }
 
@@ -148,6 +153,15 @@ mod tests {
             said,
             "certificates are checked against this host's clock, which reads Thu, 08 Oct 2026 06:29:49 GMT"
         );
+    }
+
+    #[test]
+    fn the_hint_gives_a_clock_before_the_epoch() {
+        let day = std::time::Duration::from_secs(86_400);
+        let text = hint(UNIX_EPOCH - day);
+        assert!(text.ends_with("Wed, 31 Dec 1969 00:00:00 GMT"), "{text}");
+        let text = hint(UNIX_EPOCH - std::time::Duration::from_millis(500));
+        assert!(text.ends_with("Wed, 31 Dec 1969 23:59:59 GMT"), "{text}");
     }
 
     #[test]
