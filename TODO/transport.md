@@ -127,7 +127,7 @@ of podssh-ssh (5), `silent_notice` of podssh-ssh (4) and of podssh-cli
 **Milestone:** M1
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -169,8 +169,7 @@ clippy, and the tests of each crate that uses TLS: podssh-ws 405,
 podssh-relay 623, podssh-ssh 2, podssh-cli 1111, 0 failed. The trial in
 podnet at `b7682c5` passes its record, the build, clippy, `cargo test
 --lib` (716) and the tests `tls`, `egress`, `relay_reverse`, `cli`,
-`doctor`, `api_surface`. No trial needed a change of `pod-tls`. Next: the
-patches again on the newer commits of the consumers, and v0.2.0.
+`doctor`, `api_surface`. No trial needed a change of `pod-tls`.
 
 ## Decision
 
@@ -217,6 +216,23 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-005 is done.
+
+## Done
+
+2026-11-05. The podssh base `2bc2e06` to `6ec42f5`, the merge of podnet
+`6040431` to `7923ab7`, the clock hint of `pod-core` `01c2a8c`, the plants
+and the trials `de95d00` to `97d32f5`, and the patches on the newer
+commits of the consumers `83b5d03` and `35cc732` (podnet `c7a31f3`, podssh
+`85d4e9d`, with Rust 1.99 and the tag `v0.2.0`). `cargo test -p pod-tls
+--all-features`: 154 passed, 7 ignored; `sh scripts/agent/check.sh`
+passes on Rust 1.99. `scripts/plant-each.sh --group tls`: 6 caught. The
+trials: podssh at `85d4e9d` (podssh-ws 405, podssh-relay 623, podssh-ssh
+2, podssh-cli 1113, 0 failed; its record, `check-repo.py`, clippy and
+rustfmt) and podnet at `c7a31f3` (716 tests of the library and the
+targets `tls` 3, `egress` 8, `relay_reverse` 10, `cli` 55, `doctor` 3,
+`api_surface` 2) pass here. CI: the adoption runs 42044831717 (podssh at
+`d4e186d`, podnet at `b7682c5`) and 42047077773 (podnet at `c493a27`);
+the ci run 42048395812 at `00568db` (Rust 1.99).
 
 # T-013: `pod-proxy`: the dial, the proxies, the race of addresses and the HTTP client (the base of podssh)
 

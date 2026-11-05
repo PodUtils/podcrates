@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 45 entries: 30 open, 1 partial, 2 blocked, 12 done.
+`TODO/INDEX.md` holds 45 entries: 30 open, 0 partial, 2 blocked, 13 done.
 
 ## State
 
@@ -11,8 +11,9 @@
   hand-off: podssh takes `pod-todo`, `pod-term`, `pod-identity`
   (PodUtils/podssh@T-684); podnet takes `pod-todo`
   (PodUtils/podnet@T-137).
-- `pod-tls` (T-012) is under way: the podssh base and the merge of podnet
-  are in; the trials in podssh and podnet are next, then v0.2.0.
+- `pod-tls` is done (T-012), with its trials on podssh `85d4e9d` and
+  podnet `c7a31f3`. v0.2.0 is next; then the patches go to the sessions
+  of podssh and podnet.
 - `publish.yml` is in place (T-042); the switch `crates-io` is false
   while Q1 stands. The names on crates.io wait for the owner (T-043,
   GitHub #1).
@@ -28,9 +29,9 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
-   T-017 after T-013; T-044 and T-045 after T-012; T-041 when a crate or
-   a consumer needs it.
+1. **M1, the transport:** the release v0.2.0, then T-013, T-014, T-015,
+   T-016; T-017 after T-013; T-044, T-045; T-041 when a crate or a
+   consumer needs it.
 2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
 3. **M3, the adapters:** T-027, T-028, T-029, T-030.
