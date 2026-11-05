@@ -1,17 +1,17 @@
-//! Encrypted Client Hello (T-642): the name of a host that publishes a list
-//! in its HTTPS record goes sealed inside the ClientHello, and the hello in
-//! the clear names the list's public name (`cloudflare-ech.com` in
-//! Cloudflare's), so that what reads hellos on the way learns that alone.
+//! Encrypted Client Hello (feature `ech`): the name of a host that
+//! publishes a list in its HTTPS record goes sealed inside the ClientHello,
+//! and the hello in the clear names the list's public name
+//! (`cloudflare-ech.com` in Cloudflare's), so that what reads hellos on the
+//! way learns that alone.
 //!
-//! **Only when the user asks for it** (`PODSSH_ECH`, or the settings file's
-//! `ECH`): the record is read before the session's connection, which behind
-//! a proxy no resolver of podssh's makes otherwise (the call of T-642's
-//! Decision, for the operator to confirm under Q86). Then, for each TLS
-//! connection that podssh opens by a name ([`open`]):
+//! **Only when the consumer asks for it** ([`Ech::set_mode`], from its own
+//! variable or settings, read with [`Mode::parse`]): the record is read
+//! before the connection, which behind a proxy no resolver makes otherwise.
+//! Then, for each TLS connection opened by a name ([`open`]):
 //!
-//! 1. the name's list, kept in the process ([`Cache`]), else read from the
-//!    resolvers of DNS over HTTPS through the same proxy
-//!    ([`crate::resolve::https`]), once for each name and TTL;
+//! 1. the name's list, kept in the [`Cache`], else read through the
+//!    caller's [`Records`] (DNS over HTTPS through the same way out), once
+//!    for each name and TTL;
 //! 2. a hello sealed with it; a server that refuses it with retry configs
 //!    gets one more, with those, which then replace the list;
 //! 3. a refusal with none, or any other failure of a sealed hello, cools the
@@ -24,23 +24,24 @@
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Mutex, MutexGuard, PoisonError, RwLock};
-use std::time::Duration;
 
-use crate::client::{ConnectError, RelayStream};
-use crate::dial::ProxyChoice;
-use crate::tls::Trust;
+use pod_core::{BoxFuture, BoxedIo, Failure};
+use tokio::time::Instant;
+
+use crate::context::Context;
+use crate::trust::Trust;
 
 pub mod cache;
 mod config;
 mod road;
 
 pub use cache::{Cache, Clock, Lookup, Why};
-pub use road::{Dial, READ_WITHIN, SEALED_WAIT};
+pub use road::{READ_WITHIN, Route, SEALED_WAIT};
 
-/// The variable that asks for ECH.
-pub const ECH_ENV: &str = "PODSSH_ECH";
+/// A TLS stream that [`open`] gives, over the stream of the caller's dial.
+pub type TlsStream = tokio_rustls::client::TlsStream<BoxedIo>;
 
-/// Whether a run seals the names that publish a list.
+/// Whether the connections seal the names that publish a list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Mode {
     /// Each hello names its host, as before: the default.
@@ -55,9 +56,9 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// The word of [`ECH_ENV`] or of the settings file's `ECH`: `None` for
-    /// none or an empty one; another word is refused, with the words that
-    /// it takes.
+    /// The word of the consumer's variable or setting (podssh: `PODSSH_ECH`,
+    /// or the settings file's `ECH`): `None` for none or an empty one;
+    /// another word is refused, with the words that it takes.
     pub fn parse(value: Option<&str>) -> Result<Option<Mode>, String> {
         match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
             None | Some("") => Ok(None),
@@ -66,11 +67,6 @@ impl Mode {
             Some("strict") => Ok(Some(Mode::Strict)),
             Some(_) => Err("give yes, no or strict".into()),
         }
-    }
-
-    /// [`Mode::parse`] of this process's variable, its name in a refusal.
-    pub fn from_env() -> Result<Option<Mode>, String> {
-        Mode::parse(std::env::var(ECH_ENV).ok().as_deref()).map_err(|why| format!("{ECH_ENV}: {why}"))
     }
 
     /// The word, as the variable takes it.
@@ -83,82 +79,42 @@ impl Mode {
     }
 }
 
-/// The mode that a command set, once it read its variable and its settings.
-static SET: RwLock<Option<Mode>> = RwLock::new(None);
-
-/// Set the process's mode: a command does, from [`ECH_ENV`], then its
-/// settings file.
-pub fn set_mode(mode: Mode) {
-    *SET.write().unwrap_or_else(PoisonError::into_inner) = Some(mode);
-}
-
-/// The process's mode: the one set, else the variable's, else off.
-pub fn mode() -> Mode {
-    chosen(*SET.read().unwrap_or_else(PoisonError::into_inner), Mode::from_env())
-}
-
-/// The mode of `set`, else of the variable; a word of the variable that is
-/// none of its own is off here, as a command refuses it before (78), and a
-/// library's caller gets what it set.
-fn chosen(set: Option<Mode>, env: Result<Option<Mode>, String>) -> Mode {
+/// The mode of `set`, else of the variable (its [`Mode::parse`]); a word of
+/// the variable that is none of its own is off here, as a command refuses
+/// it before, and a library's caller gets what it set. The rule of podssh,
+/// for a consumer that keeps it.
+pub fn chosen(set: Option<Mode>, env: Result<Option<Mode>, String>) -> Mode {
     set.or_else(|| env.ok().flatten()).unwrap_or_default()
 }
 
-/// Whether a connection to `server_name` under `trust` is to be sealed in
-/// this process.
-pub fn wanted(server_name: &str, trust: &Trust) -> bool {
-    asks(mode(), server_name, trust)
+/// A name's list, as its HTTPS record gives it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Published {
+    /// The ECHConfigList, as the record holds it.
+    pub list: Vec<u8>,
+    /// The TTL of the answer, when it gave one.
+    pub ttl: Option<u32>,
 }
 
-/// Whether `mode` seals a hello to `server_name` under `trust`: a name and
-/// not an address, which rustls seals no hello for; of two labels at least,
-/// as a host of a local network publishes no list; and podssh's own trust,
-/// as a caller's configuration cannot be made again with a list.
-fn asks(mode: Mode, server_name: &str, trust: &Trust) -> bool {
-    let name = server_name.trim_end_matches('.');
-    mode != Mode::Off
-        && !matches!(trust, Trust::Caller(_))
-        && name.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>().is_err()
-        && name.contains('.')
+/// The read of a name's HTTPS record, which the caller gives: `pod-dns`
+/// reads it by DNS over HTTPS, through the way out of the connection.
+pub trait Records: Send + Sync {
+    /// The ECHConfigList of `name`'s HTTPS record, before `deadline`;
+    /// `None` when the record holds none; why when it could not be read.
+    fn ech_list<'a>(&'a self, name: &'a str, deadline: Instant) -> BoxFuture<'a, Result<Option<Published>, String>>;
 }
 
-/// TCP to `host:port` through `proxy`, then TLS for `server_name` with the
-/// roots of `trust`, offering `alpn`: sealed where the process asks for it
-/// and the name publishes a list, else a plain hello as always; and the
-/// address that the TCP reached.
-pub async fn open(
-    host: &str,
-    port: u16,
-    server_name: &str,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    limit: Duration,
-    alpn: &[&[u8]],
-) -> Result<(RelayStream, Option<SocketAddr>), ConnectError> {
-    let dial = Dial { host, port, server_name, trust, proxy, limit, alpn };
-    let mode = mode();
-    if !asks(mode, server_name, trust) {
-        return road::plain(&dial).await;
+/// No reader: each read fails, so each name goes plain (and `strict`
+/// refuses it).
+pub struct NoRecords;
+
+impl Records for NoRecords {
+    fn ech_list<'a>(&'a self, _name: &'a str, _deadline: Instant) -> BoxFuture<'a, Result<Option<Published>, String>> {
+        Box::pin(async { Err("no reader of HTTPS records was given".to_string()) })
     }
-    // On the heap: the sealed road's future (a read of the name's record,
-    // then a sealed hello and its fallbacks) is large, and on the stack of
-    // each dial, ECH asked or not, it overflowed a test's thread.
-    Box::pin(road::sealed(cache::process(), mode, &dial)).await
 }
 
-/// [`open`] in `mode` with the lists of `cache`, as a test holds them.
-pub async fn open_with(
-    cache: &Cache,
-    mode: Mode,
-    dial: &Dial<'_>,
-) -> Result<(RelayStream, Option<SocketAddr>), ConnectError> {
-    if !asks(mode, dial.server_name, dial.trust) {
-        return road::plain(dial).await;
-    }
-    Box::pin(road::sealed(cache, mode, dial)).await
-}
-
-/// What ECH did for a name's last connection, as `podssh doctor` says it.
+/// What ECH did for a name's last connection, as a doctor says it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
     /// The server opened the sealed hello; `retried` when it took the retry
@@ -177,14 +133,15 @@ pub enum Outcome {
 }
 
 impl Outcome {
-    /// The outcome in words.
-    pub fn words(&self) -> String {
+    /// The outcome in words; `strict` is how the user asks for strict ECH
+    /// ([`crate::Words::ech_strict`], podssh's `PODSSH_ECH=strict`).
+    pub fn words(&self, strict: &str) -> String {
         match self {
             Outcome::Sealed { retried: false } => "the name went sealed, and the server opened it".into(),
             Outcome::Sealed { retried: true } => {
                 "the name went sealed with the retry configs of the server, which opened it".into()
             }
-            Outcome::Strict(why) => format!("{why}; with {ECH_ENV}=strict no plain hello went"),
+            Outcome::Strict(why) => format!("{why}; with {strict} no plain hello went"),
             other => format!("{}, so a plain hello named it", other.reason()),
         }
     }
@@ -210,30 +167,117 @@ impl Outcome {
 /// The names whose outcome is kept; past it, the oldest goes.
 const OUTCOMES: usize = 64;
 
-static KEPT: Mutex<Vec<(String, Outcome)>> = Mutex::new(Vec::new());
-
-fn kept() -> MutexGuard<'static, Vec<(String, Outcome)>> {
-    KEPT.lock().unwrap_or_else(PoisonError::into_inner)
+/// The state of ECH in a [`Context`]: the mode that the consumer set, the
+/// lists of the names, the sealed configurations, and the outcome of each
+/// name.
+pub struct Ech {
+    mode: RwLock<Mode>,
+    cache: Cache,
+    configs: config::Configs,
+    outcomes: Mutex<Vec<(String, Outcome)>>,
 }
 
-/// `name`'s last connection had `outcome`.
-fn note(name: &str, outcome: Outcome) {
-    let name = key(name);
-    let mut kept = kept();
-    kept.retain(|(n, _)| *n != name);
-    if kept.len() >= OUTCOMES {
-        kept.remove(0);
+impl Default for Ech {
+    fn default() -> Self {
+        Ech::new()
     }
-    kept.push((name, outcome));
 }
 
-/// What ECH did for `name`'s last connection in this process.
-pub fn outcome(name: &str) -> Option<Outcome> {
-    let name = key(name);
-    kept().iter().find(|(n, _)| *n == name).map(|(_, outcome)| outcome.clone())
+impl Ech {
+    /// ECH off, with a cache on the system's clock.
+    pub fn new() -> Ech {
+        Ech {
+            mode: RwLock::new(Mode::Off),
+            cache: Cache::new(),
+            configs: config::Configs::default(),
+            outcomes: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Set the mode: a consumer does, from its variable, then its settings.
+    pub fn set_mode(&self, mode: Mode) {
+        *self.mode.write().unwrap_or_else(PoisonError::into_inner) = mode;
+    }
+
+    /// The mode set, else off.
+    pub fn mode(&self) -> Mode {
+        *self.mode.read().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The lists of the names.
+    pub fn cache(&self) -> &Cache {
+        &self.cache
+    }
+
+    /// Whether a connection to `server_name` under `trust` is to be sealed.
+    pub fn wanted(&self, server_name: &str, trust: &Trust) -> bool {
+        asks(self.mode(), server_name, trust)
+    }
+
+    /// What ECH did for `name`'s last connection.
+    pub fn outcome(&self, name: &str) -> Option<Outcome> {
+        let name = key(name);
+        self.kept().iter().find(|(n, _)| *n == name).map(|(_, outcome)| outcome.clone())
+    }
+
+    /// `name`'s last connection had `outcome`.
+    fn note(&self, name: &str, outcome: Outcome) {
+        let name = key(name);
+        let mut kept = self.kept();
+        kept.retain(|(n, _)| *n != name);
+        if kept.len() >= OUTCOMES {
+            kept.remove(0);
+        }
+        kept.push((name, outcome));
+    }
+
+    fn kept(&self) -> MutexGuard<'_, Vec<(String, Outcome)>> {
+        self.outcomes.lock().unwrap_or_else(PoisonError::into_inner)
+    }
 }
 
-/// A name as the process keeps it: lower case, with no final dot.
+/// Whether `mode` seals a hello to `server_name` under `trust`: a name and
+/// not an address, which rustls seals no hello for; of two labels at least,
+/// as a host of a local network publishes no list; and the crate's own
+/// trust, as a caller's configuration cannot be made again with a list.
+fn asks(mode: Mode, server_name: &str, trust: &Trust) -> bool {
+    let name = server_name.trim_end_matches('.');
+    mode != Mode::Off
+        && !matches!(trust, Trust::Caller(_))
+        && name.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>().is_err()
+        && name.contains('.')
+}
+
+/// TCP to the target of `route` through its dialer, then TLS for its server
+/// name with the roots of its trust, offering its ALPN: sealed where the
+/// context asks for it and the name publishes a list, else a plain hello as
+/// always; and the address that the TCP reached.
+pub async fn open(context: &Context, route: &Route<'_>) -> Result<(TlsStream, Option<SocketAddr>), Failure> {
+    let mode = context.ech.mode();
+    if !asks(mode, route.server_name, route.trust) {
+        return road::plain(context, route).await;
+    }
+    // On the heap: the sealed road's future (a read of the name's record,
+    // then a sealed hello and its fallbacks) is large, and on the stack of
+    // each dial, ECH asked or not, it overflowed a test's thread.
+    Box::pin(road::sealed(context, &context.ech.cache, mode, route)).await
+}
+
+/// [`open`] in `mode` with the lists of `cache`, as a test holds them. The
+/// outcome goes to the context's ECH, as [`open`]'s does.
+pub async fn open_with(
+    context: &Context,
+    cache: &Cache,
+    mode: Mode,
+    route: &Route<'_>,
+) -> Result<(TlsStream, Option<SocketAddr>), Failure> {
+    if !asks(mode, route.server_name, route.trust) {
+        return road::plain(context, route).await;
+    }
+    Box::pin(road::sealed(context, cache, mode, route)).await
+}
+
+/// A name as the state keeps it: lower case, with no final dot.
 fn key(name: &str) -> String {
     name.trim_end_matches('.').to_ascii_lowercase()
 }

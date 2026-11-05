@@ -51,8 +51,7 @@ impl AeadId {
 }
 
 /// `Debug` names the algorithm and never the key. A `Debug` that prints key
-/// material is a credential in a log, and this repository has a rule about
-/// exactly that.
+/// material is a credential in a log.
 pub struct Aead {
     id: AeadId,
     inner: Inner,
@@ -170,7 +169,7 @@ impl Tls13AeadAlgorithm for PureAead {
     }
 
     fn extract_keys(&self, key: AeadKey, iv: Iv) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
-        // The keys of a kernel's TLS, which podssh never hands over. QUIC
+        // The keys of a kernel's TLS, which the crate never hands over. QUIC
         // takes its keys from `quic.rs`, not from here.
         let _ = (key, iv);
         Err(UnsupportedOperationError)

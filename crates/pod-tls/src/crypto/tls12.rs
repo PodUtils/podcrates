@@ -1,4 +1,4 @@
-//! TLS 1.2 suites and their record protection, in pure Rust (T-067), for
+//! TLS 1.2 suites and their record protection, in pure Rust, for
 //! the proxies that intercept TLS and speak only 1.2. Each is ECDHE with
 //! AES-GCM or ChaCha20-Poly1305: no CBC, no RSA key exchange, no SHA-1.
 //! The PRF is rustls's own over this provider's HMAC.
@@ -159,8 +159,8 @@ impl Tls12AeadAlgorithm for Gcm {
         iv: &[u8],
         explicit: &[u8],
     ) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
-        // Not used: podssh hands its keys to no kernel and to no QUIC stack,
-        // as `PureAead::extract_keys` says for TLS 1.3.
+        // Not used: the crate hands its keys to no kernel and to no QUIC
+        // stack, as `PureAead::extract_keys` says for TLS 1.3.
         let _ = (key, iv, explicit);
         Err(UnsupportedOperationError)
     }

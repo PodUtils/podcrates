@@ -1,9 +1,79 @@
 [package]
 name = "pod-tls"
-description = "Trust, the TLS configurations, the pure-Rust crypto provider and ECH."
+description = "Trust and the TLS configurations of a client and of a server, with the provider of the caller; the pure-Rust crypto provider; Encrypted Client Hello."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
+
+[features]
+# No feature by default: a configuration takes the provider of its caller.
+default = []
+# The pure-Rust `CryptoProvider` (`pod_tls::crypto`): no C compiler.
+pure = [
+    "dep:sha2",
+    "dep:hmac",
+    "dep:hkdf",
+    "dep:aes-gcm",
+    "dep:aes",
+    "dep:chacha20poly1305",
+    "dep:x25519-dalek",
+    "dep:ed25519-dalek",
+    "dep:p384",
+    "dep:rand",
+    "dep:zeroize",
+    "p256/ecdh",
+]
+# RSA signatures in the pure provider: PKCS #1 v1.5 and PSS, verify only.
+# RUSTSEC-2023-0071 concerns the operations with the private key of rsa 0.9.
+rsa = ["pure", "dep:rsa", "dep:sha2-rsa"]
+# Encrypted Client Hello. The HPKE of the sealed hello is the one of the
+# pure provider: rustls has HPKE only from aws-lc.
+ech = ["pure"]
+
+[dependencies]
+pod-core = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync"] }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+webpki-roots = { workspace = true }
+# The P-256 key of a server (`server`), signed here for each provider.
+p256 = { workspace = true }
+base64 = { workspace = true }
+
+sha2 = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+hkdf = { workspace = true, optional = true }
+aes-gcm = { workspace = true, optional = true }
+aes = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
+x25519-dalek = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, optional = true }
+p384 = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+zeroize = { workspace = true, optional = true }
+rsa = { workspace = true, optional = true }
+sha2-rsa = { workspace = true, optional = true }
+
+# The stores of trust that are not files: crypt32 on Windows and the
+# Security framework on macOS. Each links a library of the system.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "3.7", default-features = false }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
+# The tests that are not about the pure provider run on ring.
+rustls = { workspace = true, features = ["ring"] }
+# The test certificates are minted and signed here, in pure Rust.
+p256 = { workspace = true, features = ["getrandom"] }
+p384 = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }

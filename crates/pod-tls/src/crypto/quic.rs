@@ -1,5 +1,5 @@
 //! The keys of QUIC (RFC 9001, section 5), for the two TLS 1.3 suites of
-//! `suites.rs` (T-301): a packet key, AES-GCM with the nonce of section 5.3,
+//! `suites.rs`: a packet key, AES-GCM with the nonce of section 5.3,
 //! and the header protection of section 5.4, AES on a sample of the
 //! ciphertext. The quick tunnel's QUIC connection takes them through rustls.
 //!

@@ -15,23 +15,23 @@ use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls_pki_types::alg_id;
 use rustls_pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm};
 
+#[cfg(feature = "rsa")]
 use super::rsa_sig;
 
-/// Only three algorithms, and **each one is here because the live relay's
-/// certificate chain required it.** An algorithm nobody has exchanged a
-/// certificate with is a claim.
+/// **Each algorithm is here because a chain or a handshake of a real peer
+/// required it.** An algorithm that nobody has exchanged a certificate with
+/// is a claim.
 pub static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sha256;
-/// **P-384 with SHA-384, and the measurement demanded it.** The first
-/// version of this provider offered P-256/SHA-256 and Ed25519 only, and the
-/// live handshake failed with
+/// **P-384 with SHA-384, because a measurement demanded it.** With
+/// P-256/SHA-256 and Ed25519 alone, the handshake with the live relay
+/// (`tcp.ssh.relay.ajam.dev:443`) fails with
 /// `UnsupportedSignatureAlgorithmContext { signature_algorithm_id:
-/// [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }` — that OID is
-/// `ecdsa-with-SHA384` (1.2.840.10045.4.3.3), and it is the algorithm the
-/// relay's second intermediate certificate is signed with. MEASURED
-/// 2026-10-02 in `rust:1-alpine` against `tcp.ssh.relay.ajam.dev:443`.
+/// [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }`: that OID is
+/// `ecdsa-with-SHA384` (1.2.840.10045.4.3.3), the algorithm of the relay's
+/// second intermediate certificate.
 pub static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha384;
 pub static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
-/// **ECDSA with the other hash, for TLS 1.2 (T-067).** TLS 1.2 does not bind
+/// **ECDSA with the other hash, for TLS 1.2.** TLS 1.2 does not bind
 /// the hash of an ECDSA signature to the curve (TLS 1.3 does), so a server
 /// with a P-256 key signs with SHA-384 when the client offers that first, as
 /// OpenSSL's `s_server` did: with P-256/SHA-256 alone in its place, each
@@ -40,9 +40,9 @@ pub static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
 pub static ECDSA_P256_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sha384;
 pub static ECDSA_P384_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha256;
 
-/// RSA joined on 2026-10-08, when a measurement needed it (see
-/// [`super::rsa_sig`]): Google's DNS-over-HTTPS resolvers refuse a client
-/// that cannot verify RSA, and TLS-intercepting proxies often use RSA.
+/// RSA (feature `rsa`, `rsa_sig.rs`) is here because a measurement needed
+/// it: Google's DNS-over-HTTPS resolvers refuse a client that cannot verify
+/// RSA, and TLS-intercepting proxies often use RSA.
 static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
     all: &[
         ECDSA_P384_SHA384,
@@ -50,11 +50,17 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
         ECDSA_P256_SHA384,
         ECDSA_P384_SHA256,
         ED25519,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PKCS1_SHA256,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PKCS1_SHA384,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PKCS1_SHA512,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PSS_SHA256,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PSS_SHA384,
+        #[cfg(feature = "rsa")]
         rsa_sig::RSA_PSS_SHA512,
     ],
     // **The order is the preference sent to the peer, and it came from the
@@ -71,13 +77,19 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
         (SignatureScheme::ECDSA_NISTP256_SHA256, &[ECDSA_P256_SHA256, ECDSA_P384_SHA256]),
         (SignatureScheme::ED25519, &[ED25519]),
         // TLS 1.3 signs the handshake with RSA-PSS only (RFC 8446 4.2.3).
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PSS_SHA256, &[rsa_sig::RSA_PSS_SHA256]),
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PSS_SHA384, &[rsa_sig::RSA_PSS_SHA384]),
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PSS_SHA512, &[rsa_sig::RSA_PSS_SHA512]),
-        // A TLS 1.2 server may sign its key exchange with PKCS #1 v1.5
-        // (T-067); rustls takes these for TLS 1.2 only.
+        // A TLS 1.2 server may sign its key exchange with PKCS #1 v1.5;
+        // rustls takes these for TLS 1.2 only.
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PKCS1_SHA256, &[rsa_sig::RSA_PKCS1_SHA256]),
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PKCS1_SHA384, &[rsa_sig::RSA_PKCS1_SHA384]),
+        #[cfg(feature = "rsa")]
         (SignatureScheme::RSA_PKCS1_SHA512, &[rsa_sig::RSA_PKCS1_SHA512]),
     ],
 };
@@ -146,19 +158,16 @@ fn p256_key(public_key: &[u8]) -> Result<VerifyingKey, InvalidSignature> {
     // coordinate pair is refused and the refusal is indistinguishable from
     // a bad signature: both are `InvalidSignature`.
     //
-    // MEASURED 2026-10-02 in `rust:1-alpine`: this is not theoretical.
-    // `rustls-webpki` hands the `SignatureVerificationAlgorithm` the
-    // content of the SPKI's BIT STRING *with the unused-bits byte still
-    // attached* — `signed_data.rs:241` passes `spki.key_value`, and
-    // `der.rs:344` builds that by `read_byte()` for the unused-bit count
-    // and then `read_bytes_to_end()`. So the live relay's certificate
-    // chain verified because its `0x04` happened to sit one position before
-    // `from_sec1_bytes` found a point it accepted, while podssh's own
-    // hand-minted certificate — whose point also starts `04` — was refused
-    // with `BadSignature` in every one of the three hostname tests.
-    // Two forms are accepted, and both are a real encoding: the SEC1
-    // point, and the point with the tag removed (RFC 5480 §2.2 and RFC 5915
-    // carry them in that order and both occur in the wild).
+    // MEASURED: `rustls-webpki` gives the `SignatureVerificationAlgorithm`
+    // the content of the SPKI's BIT STRING *with the unused-bits byte still
+    // attached*: `signed_data.rs` passes `spki.key_value`, and `der.rs`
+    // builds that by `read_byte()` for the unused-bit count and then
+    // `read_bytes_to_end()`. A parser of one form alone verifies some chains
+    // by chance and refuses a hand-minted certificate whose point also
+    // starts `04` with `BadSignature` (the hostname tests show it). Two forms
+    // are accepted, and both are a real encoding: the SEC1 point, and the
+    // point with the tag removed (RFC 5480 §2.2 and RFC 5915 carry them in
+    // that order and both occur in the wild).
     match public_key.first() {
         Some(0x04) => VerifyingKey::from_sec1_bytes(public_key),
         _ => {
@@ -246,12 +255,13 @@ impl SignatureVerificationAlgorithm for Ed25519Verify {
     }
 }
 
-// ── the private-key side, which a client never uses ────────────────────────
+// ── the private-key side, which nothing uses ───────────────────────────────
 
-/// podssh is a client. It never presents a certificate, so `load_private_key`
-/// has no legitimate caller and returns an error rather than a key nobody can
-/// use. A `KeyProvider` that parsed a key it could never sign with would be a
-/// second, unreachable signing path.
+/// The provider verifies and holds no key: a client presents no
+/// certificate, and a server of [`crate::server`] signs with its own P-256
+/// key. So `load_private_key` has no legitimate caller and returns an error
+/// rather than a key nobody can use. A `KeyProvider` that parsed a key it
+/// could never sign with would be a second, unreachable signing path.
 pub struct NoClientKeys;
 
 impl fmt::Debug for NoClientKeys {
@@ -265,6 +275,6 @@ impl rustls::crypto::KeyProvider for NoClientKeys {
         &self,
         _key_der: rustls_pki_types::PrivateKeyDer<'static>,
     ) -> Result<Arc<dyn rustls::sign::SigningKey>, rustls::Error> {
-        Err(rustls::Error::General("podssh is a client and holds no private keys".into()))
+        Err(rustls::Error::General("the pure provider loads no private key: it verifies only".into()))
     }
 }

@@ -1,8 +1,8 @@
 //! RSA signature verification: PKCS #1 v1.5 (certificate chains) and PSS
 //! (TLS 1.3 handshakes, and chains that use it), with SHA-256, -384 and -512.
 //!
-//! Added 2026-10-08 because a measurement needed it: Google's DNS-over-HTTPS
-//! resolvers (8.8.8.8) end the handshake unless the client can verify RSA, and
+//! Here because a measurement needed it: Google's DNS-over-HTTPS resolvers
+//! (8.8.8.8) end the handshake unless the client can verify RSA, and
 //! TLS-intercepting proxies commonly present RSA certificates. Verification
 //! uses public keys only, so the `rsa` crate's private-key timing issue
 //! (RUSTSEC-2023-0071) does not apply. Keys must be 2048 to 4096 bits.

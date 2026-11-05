@@ -1,26 +1,28 @@
-//! The key exchange group that each TLS server took, kept across runs
-//! (T-664). podssh offers X25519 first; a server that takes P-256 alone, as a
-//! proxy that re-signs TLS under FIPS rules may, answers that offer with a
-//! HelloRetryRequest: a round trip more on each run's first connection.
-//! rustls asks its store of sessions which group to offer first (the store
-//! of `tls/store.rs`), so the group that a server took is kept in a private
-//! file of the cache, and the next run offers it at once.
+//! The key exchange group that each TLS server took, kept across runs. The
+//! configurations of the crate offer X25519 first (the pure provider's
+//! order); a server that takes P-256 alone, as a proxy that re-signs TLS
+//! under FIPS rules may, answers that offer with a HelloRetryRequest: a
+//! round trip more on each run's first connection. rustls asks its store of
+//! sessions which group to offer first (the store of `store.rs`), so the
+//! group that a server took is kept in a private file ([`GroupFile`],
+//! [`Dirs`]), and the next run offers it at once.
 //!
 //! A group is no secret and checks nothing: a server that changed its choice
 //! asks again, as with no hint, and its new group is kept. The tickets, which
-//! are secrets, stay in memory (T-444): rustls 0.23 gives a client no way to
-//! write one (T-672).
+//! are secrets, stay in memory: rustls 0.23 gives a client no way to write
+//! one.
 //!
 //! The file is text: the line [`HEADER`], then one line for each server,
-//! `NAME GROUP AT_MS`. A file that does not read is set aside whole, said once
-//! at `-v`, and made again by the next group taken.
+//! `NAME GROUP AT_MS`. A file that does not read is set aside whole, with a
+//! note that the consumer says once ([`Kept::take_note`]), and made again by
+//! the next group taken.
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The first line of the file: its format.
-pub const HEADER: &str = "podssh tls groups 1";
+pub const HEADER: &str = "pod-tls groups 1";
 /// The servers kept; past it, the one that took its group longest ago goes.
 pub const MOST: usize = 64;
 /// A group taken longer ago than this is forgotten: a server's choice can
@@ -32,8 +34,8 @@ const REFRESH_MS: i64 = 24 * 3600 * 1000;
 /// The longest name kept, as DNS's.
 const NAME_MAX: usize = 253;
 
-/// Where the file is kept. The private cache is podssh-relay's
-/// (`podssh_relay::tls_groups`); this crate keeps no file of its own.
+/// Where the file is kept: [`Dirs`], the first of the consumer's
+/// directories, or a test's memory.
 pub trait GroupFile: Send + Sync {
     /// The file's text; `None` when there is none, or it is not ours to read.
     fn load(&self) -> Option<String>;
@@ -56,7 +58,7 @@ impl Groups {
     pub fn read(text: &str, now_ms: i64) -> Result<Groups, String> {
         let mut lines = text.lines();
         if lines.next() != Some(HEADER) {
-            return Err("its first line is not podssh's".into());
+            return Err(format!("its first line is not {HEADER:?}"));
         }
         let mut groups = Groups::default();
         for (at, line) in lines.enumerate() {
@@ -132,8 +134,8 @@ fn valid_name(name: &str) -> bool {
         && name.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b':' | b'_'))
 }
 
-/// The groups of a process, read from their file at the first use after the
-/// file is given, and written when a server took another group.
+/// The groups of a [`crate::Context`], read from their file at the first use
+/// after the file is given, and written when a server took another group.
 pub struct Kept {
     file: OnceLock<Box<dyn GroupFile>>,
     state: Mutex<State>,
@@ -162,7 +164,7 @@ impl Default for Kept {
 }
 
 impl Kept {
-    /// Groups with no file yet: a hint lives as long as the process.
+    /// Groups with no file yet: a hint lives as long as the value.
     pub fn new() -> Kept {
         Kept { file: OnceLock::new(), state: Mutex::new(State::default()) }
     }
@@ -173,7 +175,7 @@ impl Kept {
         self.file.set(file).is_ok()
     }
 
-    /// The group that `name` took last, in this process or a run before.
+    /// The group that `name` took last, in this run or a run before.
     pub fn group(&self, name: &str) -> Option<u16> {
         self.read().groups.group(name)
     }
@@ -181,14 +183,15 @@ impl Kept {
     /// `name` took `group`: kept, and the file written when it changed.
     pub fn took(&self, name: &str, group: u16) {
         let mut state = self.read();
-        if state.groups.took(name, group, now_ms()) {
-            if let Some(file) = self.file.get() {
-                file.store(state.groups.text().as_bytes());
-            }
+        if state.groups.took(name, group, now_ms())
+            && let Some(file) = self.file.get()
+        {
+            file.store(state.groups.text().as_bytes());
         }
     }
 
-    /// Why the file was set aside, once: a run says it at `-v`.
+    /// Why the file was set aside, once: a consumer says it at its verbose
+    /// level.
     pub fn take_note(&self) -> Option<String> {
         self.lock().note.take()
     }
@@ -203,7 +206,7 @@ impl Kept {
         state.read = true;
         if let Some(text) = file.load() {
             match Groups::read(&text, now_ms()) {
-                // A group taken in this process before the file came wins.
+                // A group taken in this run before the file came wins.
                 Ok(groups) => {
                     for (name, kept) in groups.servers {
                         state.groups.servers.entry(name).or_insert(kept);
@@ -223,26 +226,13 @@ impl Kept {
     }
 }
 
-/// The process's groups, which each of podssh's own TLS configurations
-/// shares ([`super::client_config`]).
-pub fn process() -> Arc<Kept> {
-    static PROCESS: OnceLock<Arc<Kept>> = OnceLock::new();
-    PROCESS.get_or_init(|| Arc::new(Kept::new())).clone()
-}
-
-/// Keep the process's groups in `file`, once a run (`podssh_relay::tls_groups`).
-pub fn keep_in(file: Box<dyn GroupFile>) -> bool {
-    process().keep_in(file)
-}
-
-/// Why the process's file was set aside, once.
-pub fn take_note() -> Option<String> {
-    process().take_note()
-}
-
 fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
+
+mod dirs;
+
+pub use dirs::{Dirs, FILE};
 
 #[cfg(test)]
 #[path = "groups_tests.rs"]

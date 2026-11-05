@@ -1,10 +1,10 @@
-//! TLS for a server of podssh's (T-169, `podssh relay serve`): a certificate
-//! chain and a P-256 key from PEM files, served with podssh's own provider,
-//! so that the server needs no C either. podssh's provider verifies and holds
-//! no key (`crypto::sign`), so the key is signed here with `p256`, as the
-//! tests' servers sign theirs. Only P-256: the key that `openssl req -newkey
-//! ec` and an ACME client make by default; another key is refused by name.
-//! The pair served can change while the server runs ([`served`], T-447).
+//! TLS for a server: a certificate chain and a P-256 key from PEM files,
+//! served with the provider that the caller gives. The key is signed here
+//! with `p256`, so that a server needs no key loader of the provider: the
+//! pure provider verifies and holds no key (`crypto::sign`), and a server on
+//! it needs no C either. Only P-256: the key that `openssl req -newkey ec`
+//! and an ACME client make by default; another key is refused by name. The
+//! pair served can change while the server runs ([`served`]).
 
 pub mod served;
 
@@ -19,23 +19,31 @@ use rustls_pki_types::{CertificateDer, SubjectPublicKeyInfoDer};
 pub use served::{ACME_TLS_1, Served};
 pub use tokio_rustls::TlsAcceptor;
 
+use rustls::crypto::CryptoProvider;
+
+use crate::error::Error;
+
 /// The ALPN of a relay's upgrade: HTTP/1.1, which the WebSocket of RFC 6455
 /// needs (the relay's contract offers no h2 for it).
 pub const HTTP1: &[u8] = b"http/1.1";
 
-/// A TLS acceptor that presents `cert_pem`'s chain with `key_pem`'s key,
-/// over TLS 1.3 and 1.2, offering `alpn`.
-pub fn acceptor(cert_pem: &[u8], key_pem: &[u8], alpn: &[&[u8]]) -> Result<TlsAcceptor, String> {
-    acceptor_for(Served::new(Some(certified(cert_pem, key_pem)?)), alpn)
+/// A TLS acceptor on `provider` that presents `cert_pem`'s chain with
+/// `key_pem`'s key, over TLS 1.3 and 1.2, offering `alpn`.
+pub fn acceptor(
+    provider: Arc<CryptoProvider>,
+    cert_pem: &[u8],
+    key_pem: &[u8],
+    alpn: &[&[u8]],
+) -> Result<TlsAcceptor, Error> {
+    acceptor_for(provider, Served::new(Some(certified(cert_pem, key_pem)?)), alpn)
 }
 
-/// A TLS acceptor that presents what `served` holds at each handshake, over
-/// TLS 1.3 and 1.2, offering `alpn`.
-pub fn acceptor_for(served: Arc<Served>, alpn: &[&[u8]]) -> Result<TlsAcceptor, String> {
-    let provider = crate::crypto::provider();
-    let mut config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
+/// A TLS acceptor on `provider` that presents what `served` holds at each
+/// handshake, over TLS 1.3 and 1.2, offering `alpn`.
+pub fn acceptor_for(provider: Arc<CryptoProvider>, served: Arc<Served>, alpn: &[&[u8]]) -> Result<TlsAcceptor, Error> {
+    let mut config = rustls::ServerConfig::builder_with_provider(provider)
         .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
-        .map_err(|e| format!("the TLS versions: {e}"))?
+        .map_err(|e| Error::Server(format!("the TLS versions: {e}")))?
         .with_no_client_auth()
         .with_cert_resolver(served);
     config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
@@ -44,18 +52,19 @@ pub fn acceptor_for(served: Arc<Served>, alpn: &[&[u8]]) -> Result<TlsAcceptor, 
 
 /// `cert_pem`'s chain with `key_pem`'s key, which must be the leaf's: a pair
 /// read while a renewal had written one file of two is refused, so that the
-/// server keeps the pair of before (T-447). The two may be one file, a key
-/// and a chain, as ACME's is kept.
-pub fn certified(cert_pem: &[u8], key_pem: &[u8]) -> Result<Arc<CertifiedKey>, String> {
-    let chain = crate::bundle::pem_certificates(cert_pem).map_err(|e| format!("the certificate: {e}"))?;
+/// server keeps the pair of before. The two may be one file, a key and a
+/// chain, as ACME's is kept.
+pub fn certified(cert_pem: &[u8], key_pem: &[u8]) -> Result<Arc<CertifiedKey>, Error> {
+    let chain =
+        crate::bundle::pem_certificates(cert_pem).map_err(|e| Error::Server(format!("the certificate: {e}")))?;
     if chain.is_empty() {
-        return Err("the certificate file holds no CERTIFICATE block".into());
+        return Err(Error::Server("the certificate file holds no CERTIFICATE block".into()));
     }
-    let key = signing_key(key_pem)?;
+    let key = signing_key(key_pem).map_err(Error::Server)?;
     let certified = CertifiedKey::new(chain, Arc::new(P256Key(key)));
     match certified.keys_match() {
         Err(rustls::Error::InconsistentKeys(rustls::InconsistentKeys::KeyMismatch)) => {
-            Err("the key is not the one of the certificate's first block (its leaf)".into())
+            Err(Error::Server("the key is not the one of the certificate's first block (its leaf)".into()))
         }
         // A leaf that webpki does not read is served as before, unchecked:
         // TLS-ALPN-01's, whose acmeIdentifier is a critical extension.
@@ -124,11 +133,11 @@ fn pkcs8_inner(der: &[u8]) -> Result<Vec<u8>, String> {
     let (_, algorithm, rest) = element(rest)?;
     let (_, oid, params) = element(algorithm)?;
     if oid != EC_PUBLIC_KEY {
-        return Err("the key is not an elliptic-curve key; podssh serves a P-256 key".into());
+        return Err("the key is not an elliptic-curve key; the server takes a P-256 key".into());
     }
     let (_, curve, _) = element(params)?;
     if curve != PRIME256V1 {
-        return Err("the key's curve is not P-256 (prime256v1), the one that podssh serves".into());
+        return Err("the key's curve is not P-256 (prime256v1), the one that the server takes".into());
     }
     let (tag, key, _) = element(rest)?;
     if tag != 0x04 {
@@ -152,7 +161,7 @@ fn sec1_scalar(der: &[u8]) -> Result<[u8; 32], String> {
     if let Ok((0xa0, params, _)) = element(rest) {
         let (_, curve, _) = element(params)?;
         if curve != PRIME256V1 {
-            return Err("the key's curve is not P-256 (prime256v1), the one that podssh serves".into());
+            return Err("the key's curve is not P-256 (prime256v1), the one that the server takes".into());
         }
     }
     <[u8; 32]>::try_from(scalar).map_err(|_| "the EC key is not 32 bytes: not a P-256 key".to_string())
@@ -163,7 +172,7 @@ struct P256Key(SigningKey);
 
 impl rustls::sign::SigningKey for P256Key {
     fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn rustls::sign::Signer>> {
-        // SHA-256 is P-256's hash in TLS 1.3, and the one podssh signs with.
+        // SHA-256 is P-256's hash in TLS 1.3, and the one that this key signs with.
         offered
             .contains(&SignatureScheme::ECDSA_NISTP256_SHA256)
             .then(|| Box::new(P256Signer(self.0.clone())) as Box<dyn rustls::sign::Signer>)

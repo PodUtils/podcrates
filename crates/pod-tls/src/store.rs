@@ -1,8 +1,8 @@
-//! The store of sessions of podssh's own TLS configurations (T-664): the
+//! The store of sessions of the crate's own TLS configurations: the
 //! tickets in rustls's own cache in memory, one for each configuration, so
-//! that TLS resumes within a process under the trust that verified it alone
-//! (T-444); and the group that each server took, from the process's
-//! [`Kept`], so that a later run offers it at once.
+//! that TLS resumes within a process under the trust that verified it
+//! alone; and the group that each server took, from the [`Kept`] of the
+//! [`crate::Context`], so that a later run offers it at once.
 
 use std::sync::Arc;
 
@@ -10,20 +10,20 @@ use rustls::NamedGroup;
 use rustls::client::{ClientSessionMemoryCache, ClientSessionStore, Tls12ClientSessionValue, Tls13ClientSessionValue};
 use rustls_pki_types::ServerName;
 
-use super::groups::Kept;
+use crate::groups::Kept;
 
 /// The sessions kept in memory, as rustls's default store keeps them.
 const SESSIONS: usize = 256;
 
 /// rustls's cache in memory, with the groups kept across runs.
 #[derive(Debug)]
-pub(super) struct Store {
+pub(crate) struct Store {
     memory: ClientSessionMemoryCache,
     kept: Arc<Kept>,
 }
 
 impl Store {
-    pub(super) fn new(kept: Arc<Kept>) -> Store {
+    pub(crate) fn new(kept: Arc<Kept>) -> Store {
         Store { memory: ClientSessionMemoryCache::new(SESSIONS), kept }
     }
 }

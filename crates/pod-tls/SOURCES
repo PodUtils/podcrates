@@ -10,7 +10,7 @@ dir crates/podssh-ws/src/tls_server
 dir crates/podssh-ws/src/ech
 dir crates/podssh-ws/tests/common
 dir crates/podssh-ws/tests/fixtures/rsa
-file e8373a3912d0da8ab9e3352f678a2e055b6d6c1a crates/podssh-relay/src/tls_groups.rs -> crates/pod-tls/src/tls_groups.rs
+file e8373a3912d0da8ab9e3352f678a2e055b6d6c1a crates/podssh-relay/src/tls_groups.rs -> crates/pod-tls/src/groups/dirs.rs
 file 29bd75d65cc3391482487c69fc6625ffdb4e58a2 crates/podssh-ws/src/bundle.rs -> crates/pod-tls/src/bundle.rs
 file a1991f02245e609a98f8b716337da21b5477c49c crates/podssh-ws/src/crypto/aead.rs -> crates/pod-tls/src/crypto/aead.rs
 file 29387ed5672e3892af785c84b6247248ea4803f4 crates/podssh-ws/src/crypto/hash.rs -> crates/pod-tls/src/crypto/hash.rs
@@ -36,14 +36,14 @@ file 760e3132745a478ea3ee965ac959bd22c1b86a5e crates/podssh-ws/src/ech/tests.rs 
 file 37a72cd43fa736f75c20f377602921518bafe2fa crates/podssh-ws/src/stores/macos.rs -> crates/pod-tls/src/stores/macos.rs
 file ebe186b64cfab92b9bf4f4442e81732c3d9e7311 crates/podssh-ws/src/stores/mod.rs -> crates/pod-tls/src/stores/mod.rs
 file 0af8945fd3f61458a019d373eac6e01d8b44ae49 crates/podssh-ws/src/stores/windows.rs -> crates/pod-tls/src/stores/windows.rs
-file e201da742e5cab25badb42b6415c7d8f0e3badd5 crates/podssh-ws/src/tls.rs -> crates/pod-tls/src/tls.rs
-file fe5e281155d798bb3cc5eb075343f818cc996fd3 crates/podssh-ws/src/tls/groups.rs -> crates/pod-tls/src/tls/groups.rs
-file ffb8df15d47e21df605287c55af9447bd5118a48 crates/podssh-ws/src/tls/groups_tests.rs -> crates/pod-tls/src/tls/groups_tests.rs
-file 7677aff9250228de7e8acfdc66da7b7b018e9403 crates/podssh-ws/src/tls/kept.rs -> crates/pod-tls/src/tls/kept.rs
-file f83762f37a311ef718076eda38482f84878b9b20 crates/podssh-ws/src/tls/store.rs -> crates/pod-tls/src/tls/store.rs
-file 9e0e6fb24fdc150d4fb8ebc073e076fe75e7470a crates/podssh-ws/src/tls_server.rs -> crates/pod-tls/src/tls_server.rs
-file 8a9d917e2f32a563715521916621c48bd8d14b5b crates/podssh-ws/src/tls_server/served.rs -> crates/pod-tls/src/tls_server/served.rs
-file 2c6f436bcc2dd5366a7b27b6e963e44d20978a94 crates/podssh-ws/src/tls_wrap.rs -> crates/pod-tls/src/tls_wrap.rs
+file e201da742e5cab25badb42b6415c7d8f0e3badd5 crates/podssh-ws/src/tls.rs -> crates/pod-tls/src/context.rs crates/pod-tls/src/trust.rs crates/pod-tls/src/hint.rs
+file fe5e281155d798bb3cc5eb075343f818cc996fd3 crates/podssh-ws/src/tls/groups.rs -> crates/pod-tls/src/groups.rs
+file ffb8df15d47e21df605287c55af9447bd5118a48 crates/podssh-ws/src/tls/groups_tests.rs -> crates/pod-tls/src/groups_tests.rs
+file 7677aff9250228de7e8acfdc66da7b7b018e9403 crates/podssh-ws/src/tls/kept.rs -> crates/pod-tls/src/kept.rs
+file f83762f37a311ef718076eda38482f84878b9b20 crates/podssh-ws/src/tls/store.rs -> crates/pod-tls/src/store.rs
+file 9e0e6fb24fdc150d4fb8ebc073e076fe75e7470a crates/podssh-ws/src/tls_server.rs -> crates/pod-tls/src/server.rs
+file 8a9d917e2f32a563715521916621c48bd8d14b5b crates/podssh-ws/src/tls_server/served.rs -> crates/pod-tls/src/server/served.rs
+file 2c6f436bcc2dd5366a7b27b6e963e44d20978a94 crates/podssh-ws/src/tls_wrap.rs -> crates/pod-tls/src/wrap.rs
 file 9eafe9d012b523483c7f1ae6c64d680502658af7 crates/podssh-ws/tests/bundle.rs -> crates/pod-tls/tests/bundle.rs
 file ddffccd305e18fe944f2f2194d0dd219ff2392e3 crates/podssh-ws/tests/caller_tls.rs -> crates/pod-tls/tests/caller_tls.rs
 file 2b6d02900b0031ebb1113f07f9da9cf4de980fcc crates/podssh-ws/tests/certificate_structure.rs -> crates/pod-tls/tests/certificate_structure.rs

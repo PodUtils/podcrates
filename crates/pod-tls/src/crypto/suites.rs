@@ -1,10 +1,11 @@
-//! The cipher suites podssh offers, and the `CryptoProvider` they form.
+//! The cipher suites that the pure provider offers, and the
+//! `CryptoProvider` that they form.
 //!
-//! **Every suite here has completed a handshake with the live relay.** A
+//! **Every suite here has completed a handshake with a real peer.** A
 //! suite that has not is worse than absent: the peer can select it, and the
 //! failure arrives in the record layer rather than during negotiation.
 //!
-//! **The TLS 1.2 suites (T-067) come after the TLS 1.3 ones**, for the
+//! **The TLS 1.2 suites come after the TLS 1.3 ones**, for the
 //! proxies that intercept TLS and speak only 1.2. Each completed a handshake
 //! and moved data with OpenSSL's `s_server` (`tests/tls12.rs`). A server
 //! that speaks 1.3 still gets 1.3: rustls offers both versions in one
@@ -34,7 +35,7 @@ pub static TLS13_AES_256_GCM_SHA384: SupportedCipherSuite = SupportedCipherSuite
     },
     hkdf_provider: &PureHkdf(HashAlgorithmId::Sha384),
     aead_alg: &PureAead(AeadId::Aes256Gcm),
-    // The quick tunnel's QUIC (T-301): its own keys, from `quic.rs`, and
+    // QUIC (the quick tunnel's): its own keys, from `quic.rs`, and
     // checked against RFC 9001's vectors (`tests/quic_keys.rs`).
     quic: Some(&super::quic::AES_256_GCM),
 });
@@ -60,16 +61,22 @@ static ALL_CIPHER_SUITES: &[SupportedCipherSuite] = &[
     tls12::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     tls12::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
     tls12::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+    // An RSA suite only where RSA signatures verify (feature `rsa`): a
+    // server that chose one would sign its key exchange with RSA.
+    #[cfg(feature = "rsa")]
     tls12::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+    #[cfg(feature = "rsa")]
     tls12::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    #[cfg(feature = "rsa")]
     tls12::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 ];
 
 static ALL_KX_GROUPS: &[&'static dyn rustls::crypto::SupportedKxGroup] = &[X25519, SECP256R1];
 
 /// **This is the whole of the provider.** Five fields, all of them supplied
-/// by this crate: no built-in provider is reachable because the `ring` and
-/// `aws_lc_rs` features are off, and `rustls` refuses to guess without one.
+/// by this crate. The binary gives it to each configuration
+/// (`Arc::new(pod_tls::crypto::provider())`); nothing installs it as the
+/// process default.
 pub fn provider() -> CryptoProvider {
     CryptoProvider {
         cipher_suites: ALL_CIPHER_SUITES.to_vec(),
@@ -85,7 +92,10 @@ pub fn provider() -> CryptoProvider {
 /// rather than discovering it as a handshake failure is the difference between
 /// a provider that is checked and one that is merely built.
 pub fn self_check() -> Result<(), String> {
-    let p = provider();
+    check(&provider())
+}
+
+fn check(p: &CryptoProvider) -> Result<(), String> {
     if p.cipher_suites.is_empty() {
         return Err("the provider offers no cipher suites".into());
     }
@@ -122,8 +132,48 @@ pub fn self_check() -> Result<(), String> {
                 if s.sign.is_empty() {
                     return Err(format!("suite {:?} can verify no signature", s.common.suite));
                 }
+                // A suite whose server signs with a scheme that the provider
+                // cannot verify fails after the server chose it.
+                let mapped = |scheme: &rustls::SignatureScheme| {
+                    p.signature_verification_algorithms.mapping.iter().any(|(m, _)| m == scheme)
+                };
+                if let Some(scheme) = s.sign.iter().find(|scheme| !mapped(scheme)) {
+                    return Err(format!(
+                        "suite {:?} signs with {scheme:?}, which no algorithm verifies",
+                        s.common.suite
+                    ));
+                }
             }
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The provider of this build passes its own check, with RSA or with no
+    /// RSA: an RSA suite comes only with the RSA verifier.
+    #[test]
+    fn the_provider_of_each_build_passes_its_check() {
+        assert_eq!(self_check(), Ok(()));
+        let p = provider();
+        let rsa_suites = p.cipher_suites.iter().filter(|s| format!("{:?}", s.suite()).contains("_RSA_")).count();
+        assert_eq!(rsa_suites, if cfg!(feature = "rsa") { 3 } else { 0 });
+    }
+
+    /// A TLS 1.2 suite whose server signs with a scheme that no algorithm of
+    /// the provider verifies fails the check.
+    #[test]
+    fn a_suite_that_signs_with_a_scheme_that_nothing_verifies_fails_the_check() {
+        static NO_ECDSA: rustls::crypto::WebPkiSupportedAlgorithms = rustls::crypto::WebPkiSupportedAlgorithms {
+            all: &[super::super::sign::ED25519],
+            mapping: &[(rustls::SignatureScheme::ED25519, &[super::super::sign::ED25519])],
+        };
+        let mut p = provider();
+        p.signature_verification_algorithms = NO_ECDSA;
+        let refused = check(&p).expect_err("the ECDSA suites sign with ECDSA");
+        assert!(refused.contains("ECDSA_NISTP384_SHA384"), "{refused}");
+    }
 }

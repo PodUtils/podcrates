@@ -1,5 +1,5 @@
 //! HPKE against RFC 9180's vectors of the base mode (appendix A.1.1 and
-//! A.2.1, read from the RFC's text on 2026-11-05): each step apart, so that a
+//! A.2.1, read from the RFC's text): each step apart, so that a
 //! wrong key pair, a wrong KEM and a wrong schedule fail in tests of their own,
 //! then each sealed message the RFC lists, at sequence numbers 0 to 256.
 

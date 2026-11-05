@@ -1,6 +1,6 @@
-//! The stores of trust that a system keeps outside files (T-340). An
+//! The stores of trust that a system keeps outside files. An
 //! administrator's group policy or MDM puts the root of a proxy that re-signs
-//! TLS there, and no bundle of [`crate::tls::SYSTEM_BUNDLES`] holds it.
+//! TLS there, and no bundle of [`crate::SYSTEM_BUNDLES`] holds it.
 //!
 //! - Windows: `ROOT` of the current user and of the machine, through crypt32.
 //!   A certificate counts when Windows would let it sign for a server: its
@@ -48,7 +48,7 @@ pub struct Store {
 }
 
 /// The stores of this system, in their order; none where the system keeps its
-/// roots in the files of [`crate::tls::SYSTEM_BUNDLES`].
+/// roots in the files of [`crate::SYSTEM_BUNDLES`].
 pub fn read() -> Vec<Store> {
     system::read()
 }

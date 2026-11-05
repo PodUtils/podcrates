@@ -154,13 +154,16 @@ impl Failure {
         &self.text
     }
 
-    /// The text and the text of each cause, joined with `: `.
+    /// The text and the text of each cause, joined with `: `. A cause whose
+    /// text is in the chain already is not named again: a text that quotes
+    /// its cause and adds what to do (the hint of a TLS failure) stays as it
+    /// is.
     pub fn chain(&self) -> String {
         let mut out = self.text.clone();
         let mut next = self.source.as_deref().map(|e| e as &(dyn Error + 'static));
         while let Some(e) = next {
             let more = e.to_string();
-            if !out.ends_with(&more) {
+            if !out.contains(&more) {
                 out.push_str(": ");
                 out.push_str(&more);
             }
@@ -210,6 +213,10 @@ mod tests {
         assert!(f.source().is_some());
         let same = Failure::caused(Stage::Dns, Class::Unavailable, "no answer", io::Error::other("no answer"));
         assert_eq!(same.chain(), "no answer");
+        let quoted = io::Error::other("invalid peer certificate: UnknownIssuer");
+        let hinted = "invalid peer certificate: UnknownIssuer; give the CA of the proxy";
+        let f = Failure::caused(Stage::Tls, Class::Protocol, hinted, quoted);
+        assert_eq!(f.chain(), hinted);
     }
 
     #[test]

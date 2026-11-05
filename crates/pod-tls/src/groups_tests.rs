@@ -29,7 +29,7 @@ fn the_file_reads_back_what_it_kept() {
     assert!(groups.took("Relay.Example.", P256, NOW));
     assert!(groups.took("2001:db8::1", X25519, NOW - 5));
     let text = groups.text();
-    assert!(text.starts_with("podssh tls groups 1\n"), "{text}");
+    assert!(text.starts_with(&format!("{HEADER}\n")), "{text}");
     assert!(text.contains("relay.example 23 1790000000000\n"), "{text}");
     assert_eq!(Groups::read(&text, NOW), Ok(groups.clone()));
     assert_eq!(groups.group("RELAY.example"), Some(P256));
@@ -78,14 +78,15 @@ fn an_old_group_is_forgotten() {
 #[test]
 fn a_file_that_does_not_read_is_refused_whole() {
     for (text, why) in [
-        ("", "first line"),
-        ("not the format\n", "first line"),
-        ("podssh tls groups 1\nrelay.example 23\n", "line 2"),
-        ("podssh tls groups 1\nok.example 23 1\nrelay.example x 1\n", "line 3"),
-        ("podssh tls groups 1\nrelay.example 23 soon\n", "line 2"),
-        ("podssh tls groups 1\nrelay/example 23 1\n", "line 2"),
-        ("podssh tls groups 1\nrelay.example 65536 1\n", "line 2"),
+        (String::new(), "first line"),
+        ("not the format\n".to_string(), "first line"),
+        (format!("{HEADER}\nrelay.example 23\n"), "line 2"),
+        (format!("{HEADER}\nok.example 23 1\nrelay.example x 1\n"), "line 3"),
+        (format!("{HEADER}\nrelay.example 23 soon\n"), "line 2"),
+        (format!("{HEADER}\nrelay/example 23 1\n"), "line 2"),
+        (format!("{HEADER}\nrelay.example 65536 1\n"), "line 2"),
     ] {
+        let text = text.as_str();
         let refused = Groups::read(text, NOW).expect_err(text);
         assert!(refused.contains(why), "{text:?}: {refused}");
     }

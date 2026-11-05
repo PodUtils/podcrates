@@ -1,43 +1,25 @@
-//! Where the CA bundle is, resolved from `/proc/self/exe` and never `argv[0]`.
+//! The PEM bundles of trust: a file of `CERTIFICATE` blocks, read with a
+//! small reader of this crate.
 //!
-//! **`argv[0]` is where the binary was *launched from*, not where it *is*.**
-//! A binary started through `PATH`, through a symlink in `/usr/bin`, or by an
-//! absolute path from another directory resolves a different bundle in each
-//! case. The sibling project made exactly this mistake, and
-//! its own record of the toolchain names three tools that it broke —
-//! `ld.lld`, `zig`, `node`/`bun` — because of it.
-//!
-//! **A missing bundle is `Failed`, with the path in the message.** It is
+//! **A missing bundle is an error, with the path in the message.** It is
 //! never a silent fallback to a compiled-in set and never an empty store: an
 //! empty `RootCertStore` rejects every chain, and it does so with a message
 //! that reads like a network fault.
+//!
+//! **A bundle next to a binary is found from the binary's own path, never
+//! from `argv[0]`.** `argv[0]` is where the binary was *launched from*, not
+//! where it *is*: a binary started through `PATH`, through a symlink in
+//! `/usr/bin`, or by an absolute path from another directory resolves a
+//! different bundle in each case. `std::env::current_exe` reads the path
+//! through the platform's own mechanism on each target, and resolves
+//! symlinks on Linux. The consumer finds the path and gives it
+//! ([`crate::Settings::extra_bundle`]).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use rustls_pki_types::CertificateDer;
 
-/// The name of the file podssh looks for beside the executable. A single
-/// name, so a deployment either has a bundle or does not, and the doctor can
-/// say which.
-pub const BUNDLE_FILE_NAME: &str = "podssh-ca.pem";
-
-/// **Windows has no `/proc/self/exe`.** `std::env::current_exe` reads the
-/// same fact through the platform's own mechanism on every target, and it
-/// resolves symlinks on Linux. Naming the file literally here would make this
-/// module a Linux-only one inside a multi-platform client.
-pub fn executable_path() -> Result<PathBuf, String> {
-    std::env::current_exe().map_err(|e| format!("cannot read this process's own path: {e}"))
-}
-
-/// The default bundle path: beside the executable, named [`BUNDLE_FILE_NAME`].
-pub fn default_bundle_path() -> Result<PathBuf, String> {
-    let exe = executable_path()?;
-    let dir =
-        exe.parent().ok_or_else(|| format!("{} has no parent directory to hold {BUNDLE_FILE_NAME}", exe.display()))?;
-    Ok(dir.join(BUNDLE_FILE_NAME))
-}
-
-/// **A missing file and an unparseable file are different failures** and the
+/// **A missing file and an unparseable file are different failures** and a
 /// doctor reports the path in both. The path is in the error because a
 /// deployment that cannot find its trust store cannot be diagnosed from "TLS
 /// failed".
@@ -61,9 +43,8 @@ pub fn parse_bundle(path: &Path, bytes: &[u8]) -> Result<Vec<CertificateDer<'sta
 
 /// **A deliberately small PEM reader, written here rather than pulled in.**
 /// A CA bundle is a sequence of `-----BEGIN CERTIFICATE-----` / base64 /
-/// `-----END CERTIFICATE-----` blocks and nothing else. The alternative was a
-/// dependency for forty lines, and this repository's central rule is about
-/// what a build pulls in, not about saving them. The decoder is asserted
+/// `-----END CERTIFICATE-----` blocks and nothing else: a dependency for
+/// forty lines is not worth what a build pulls in. The decoder is asserted
 /// byte-exactly against a known certificate in the tests.
 ///
 /// It accepts ONLY `CERTIFICATE` blocks. A `PRIVATE KEY` block in a trust
@@ -77,10 +58,8 @@ pub fn pem_certificates(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, St
     let mut out = Vec::new();
     // **`\r` is stripped from every line before decoding.** A PEM file
     // written on Windows carries CRLF, and `body.trim()` removes it only at the
-    // two ends of the block — every interior line kept its `\r`, and the
-    // decoder then rejected the whole bundle as "not valid base64". This was
-    // found by a test holding a real certificate in a file this repository's
-    // own line-ending rules make CRLF, not by reading the code.
+    // two ends of the block: each interior line keeps its `\r`, and the
+    // decoder then refuses the whole bundle as "not valid base64".
     let normalised = text.replace("\r\n", "\n");
     let mut rest = normalised.as_str();
 
@@ -94,10 +73,7 @@ pub fn pem_certificates(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, St
 
         // **Whitespace is removed before decoding.** A PEM body is one
         // base64 string wrapped at 64 columns, so it arrives with embedded
-        // newlines. The first version passed it to the decoder as-is, and the
-        // length check failed at once — the decoder had never been given
-        // single-line input, which is why every real certificate was rejected
-        // as "not valid base64" and no unit test had caught it.
+        // newlines, which the decoder refuses as "not valid base64".
         let der = base64_decode(&strip_whitespace(body))?;
         if der.is_empty() {
             return Err("a CERTIFICATE block is empty".into());
@@ -130,11 +106,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
 
         out.push((hi << 2) | (mid >> 4));
 
-        // **The padding is checked BEFORE the sextets it pads are read.**
-        // The first version read all four characters first and so rejected
-        // every block containing `=`, which is every block with a length that
-        // is not a multiple of three — that is, most of a real certificate.
-        // It was found by a test holding a real root, not by reading the code.
+        // **The padding is checked BEFORE the sextets it pads are read.** A
+        // decoder that reads all four characters first refuses each block
+        // that holds `=`: each block whose length is not a multiple of three,
+        // most real certificates.
         if chunk[2] == b'=' {
             // `xx==` is the last block of the input: padding may not appear
             // anywhere else, and a `=` here followed by more data is a bundle

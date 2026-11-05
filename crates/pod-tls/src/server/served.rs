@@ -1,7 +1,7 @@
-//! The certificate that a server of podssh's presents, changed while it
-//! serves (T-447): a pair read again on SIGHUP, or one that ACME renewed,
-//! is taken by the handshakes after the change, and a connection that is
-//! open keeps the pair of its own handshake. Beside it, the certificates of
+//! The certificate that a server presents, changed while it serves: a pair
+//! read again on SIGHUP, or one that ACME renewed, is taken by the
+//! handshakes after the change, and a connection that is open keeps the
+//! pair of its own handshake. Beside it, the certificates of
 //! TLS-ALPN-01 (RFC 8737): a CA's validation offers `acme-tls/1` alone, and
 //! gets the challenge's certificate for the name that it asks for, never the
 //! served one; any other client never gets a challenge's.

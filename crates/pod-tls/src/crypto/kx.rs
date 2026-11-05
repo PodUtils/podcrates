@@ -81,9 +81,11 @@ pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dy
         // Unreachable: the only two values of this type are the statics
         // above. This is a *local* configuration fault, not a peer fault,
         // so it is a `General` error and deliberately not one of the
-        // `PeerMisbehaved` variants — blaming the relay for a bug in
-        // podssh's own provider is how a real fault gets misdiagnosed.
-        _ => Err(Error::General("podssh: a key exchange group with no implementation was constructed".into())),
+        // `PeerMisbehaved` variants — blaming the peer for a bug in this
+        // provider is how a real fault gets misdiagnosed.
+        _ => {
+            Err(Error::General("the pure provider: a key exchange group with no implementation was constructed".into()))
+        }
     }
 }
 

@@ -1,10 +1,10 @@
-//! The lists of the names that ECH seals, kept in the process (T-642), so
-//! that the record is read once for each name and TTL, never once for each
-//! connection: a list for its record's TTL, 30 s at least, 300 s where the
-//! answer gave none, and a day at most; a name that publishes none, or whose
-//! read failed, for 30 s; and a name whose sealed hello failed is left alone
-//! for 5 minutes, after which its record is read again, so that a list
-//! published later is taken with no restart.
+//! The lists of the names that ECH seals, kept in the [`super::Ech`] of a
+//! context, so that the record is read once for each name and TTL, never
+//! once for each connection: a list for its record's TTL, 30 s at least,
+//! 300 s where the answer gave none, and a day at most; a name that
+//! publishes none, or whose read failed, for 30 s; and a name whose sealed
+//! hello failed is left alone for 5 minutes, after which its record is read
+//! again, so that a list published later is taken with no restart.
 //!
 //! The clock is a field, so that a test moves it and sleeps not at all. One
 //! read of a name goes at a time: a run that opens its sessions at once asks
@@ -13,10 +13,10 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
-use crate::resolve::https::Published;
+use super::Published;
 
 /// The least time that a list is kept, whatever its TTL says.
 pub const FLOOR: Duration = Duration::from_secs(30);
@@ -194,12 +194,6 @@ impl Cache {
     fn lock(&self) -> MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
-}
-
-/// The process's cache, on the system's clock.
-pub fn process() -> &'static Cache {
-    static PROCESS: OnceLock<Cache> = OnceLock::new();
-    PROCESS.get_or_init(Cache::new)
 }
 
 #[cfg(test)]

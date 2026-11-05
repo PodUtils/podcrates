@@ -1,6 +1,5 @@
-//! The switch of ECH, the names that it seals, and the outcomes kept for
-//! `podssh doctor`. No test here sets the process's mode, which each other
-//! test of the crate would then see.
+//! The switch of ECH, the names that it seals, and the outcomes kept for a
+//! doctor. Each test holds its own state.
 
 use super::*;
 
@@ -28,9 +27,9 @@ fn a_mode_set_wins_over_the_variable_and_a_bad_word_is_off() {
     assert_eq!(chosen(None, Err("PODSSH_ECH: give yes, no or strict".into())), Mode::Off);
 }
 
-/// A name of two labels at least, under podssh's own trust, is sealed when
-/// asked for; an address, a name of one label and a caller's configuration
-/// never are.
+/// A name of two labels at least, under the crate's own trust, is sealed
+/// when asked for; an address, a name of one label and a caller's
+/// configuration never are.
 #[test]
 fn only_a_name_under_podssh_s_own_trust_is_sealed() {
     let own = Trust::Default;
@@ -40,7 +39,9 @@ fn only_a_name_under_podssh_s_own_trust_is_sealed() {
     for address in ["127.0.0.1", "::1", "[2001:db8::1]", "localhost"] {
         assert!(!asks(Mode::On, address, &own), "{address}");
     }
-    let config = crate::tls::client_config(&crate::tls::roots_from_compiled_set()).expect("a configuration");
+    let provider = std::sync::Arc::new(rustls::crypto::ring::default_provider());
+    let groups = std::sync::Arc::new(crate::groups::Kept::new());
+    let config = crate::client_config(&crate::roots_from_compiled_set(), provider, groups).expect("a configuration");
     let caller = Trust::caller(config).expect("no ALPN");
     assert!(!asks(Mode::On, "relay.example.org", &caller), "a caller's configuration cannot be sealed");
 }
@@ -58,21 +59,34 @@ fn each_outcome_says_whether_the_name_went_sealed() {
         Outcome::Strict("relay.example: a reset".into()),
     ] {
         assert!(!outcome.sealed(), "{outcome:?}");
-        assert!(!outcome.words().is_empty());
+        assert!(!outcome.words("PODSSH_ECH=strict").is_empty());
     }
-    assert!(Outcome::Strict("x".into()).words().contains("PODSSH_ECH=strict"));
+    assert!(Outcome::Strict("x".into()).words("PODSSH_ECH=strict").contains("PODSSH_ECH=strict"));
 }
 
 /// The last outcome of each name is kept, by its name in any case, and the
 /// names kept are bounded.
 #[test]
 fn the_last_outcome_of_each_name_is_kept_within_a_bound() {
-    note("Outcome-Kept.example.", Outcome::NotPublished);
-    note("outcome-kept.example", Outcome::Sealed { retried: false });
-    assert_eq!(outcome("OUTCOME-KEPT.example"), Some(Outcome::Sealed { retried: false }));
+    let ech = Ech::new();
+    ech.note("Outcome-Kept.example.", Outcome::NotPublished);
+    ech.note("outcome-kept.example", Outcome::Sealed { retried: false });
+    assert_eq!(ech.outcome("OUTCOME-KEPT.example"), Some(Outcome::Sealed { retried: false }));
     for at in 0..OUTCOMES {
-        note(&format!("outcome-{at}.example"), Outcome::Cooled);
+        ech.note(&format!("outcome-{at}.example"), Outcome::Cooled);
     }
-    assert_eq!(outcome("outcome-kept.example"), None, "the oldest went");
-    assert!(kept().len() <= OUTCOMES);
+    assert_eq!(ech.outcome("outcome-kept.example"), None, "the oldest went");
+    assert!(ech.kept().len() <= OUTCOMES);
+}
+
+/// The mode is off until a consumer sets it, and a set mode decides what
+/// is sealed.
+#[test]
+fn the_mode_is_off_until_it_is_set() {
+    let ech = Ech::new();
+    assert_eq!(ech.mode(), Mode::Off);
+    assert!(!ech.wanted("relay.example.org", &Trust::Default));
+    ech.set_mode(Mode::Strict);
+    assert_eq!(ech.mode(), Mode::Strict);
+    assert!(ech.wanted("relay.example.org", &Trust::Default));
 }

@@ -1,25 +1,23 @@
-//! The TLS configuration of a sealed hello (T-642): podssh's own provider
-//! and verifier over the roots of the trust, as `tls::client_config` makes
-//! them; TLS 1.3 alone, which ECH needs; and one name's list, with HPKE of
-//! podssh's provider (`crypto::hpke`). One for each trust, name, list and
-//! ALPN, kept for the process, so that a second connection resumes TLS
-//! inside its sealed hello; a CA file that changed gets a new one.
+//! The TLS configuration of a sealed hello: the context's provider and the
+//! crate's verifier over the roots of the trust, as
+//! [`crate::Context::client_config`] makes them; TLS 1.3 alone, which ECH
+//! needs; and one name's list, sealed with the HPKE of the pure provider
+//! (`crypto::hpke`). One for each trust, name, list and ALPN, kept in the
+//! context, so that a second connection resumes TLS inside its sealed
+//! hello; a CA file that changed gets a new one.
 
-use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::SystemTime;
 
 use rustls::ClientConfig;
 use rustls::client::{EchConfig, EchMode};
 use rustls_pki_types::EchConfigListBytes;
 
-use crate::tls::{self, Trust};
+use crate::context::Context;
+use crate::kept::{Stamp, stamp};
+use crate::trust::Trust;
 
 /// The configurations kept; past it, the oldest goes.
 const MOST: usize = 16;
-
-/// What tells that a CA file changed: its time and its length.
-type Stamp = Option<(Option<SystemTime>, u64)>;
 
 struct Kept {
     trust: Trust,
@@ -30,36 +28,38 @@ struct Kept {
     config: Arc<ClientConfig>,
 }
 
-static KEPT: Mutex<Vec<Kept>> = Mutex::new(Vec::new());
-
-fn lock() -> MutexGuard<'static, Vec<Kept>> {
-    KEPT.lock().unwrap_or_else(PoisonError::into_inner)
+/// The sealed configurations of a context.
+#[derive(Default)]
+pub(super) struct Configs {
+    kept: Mutex<Vec<Kept>>,
 }
 
-fn stamp(trust: &Trust) -> Stamp {
-    match trust {
-        Trust::File(path) => file_stamp(path),
-        Trust::Default | Trust::Caller(_) => None,
+impl Configs {
+    fn lock(&self) -> MutexGuard<'_, Vec<Kept>> {
+        self.kept.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
-fn file_stamp(path: &Path) -> Stamp {
-    std::fs::metadata(path).ok().map(|m| (m.modified().ok(), m.len()))
-}
-
 /// The configuration that seals `name` with `list` under `trust`, offering
-/// `alpn`; why where the list holds no config that podssh can seal with.
-pub(super) fn sealed(trust: &Trust, name: &str, list: &[u8], alpn: &[&[u8]]) -> Result<Arc<ClientConfig>, String> {
+/// `alpn`; why where the list holds no config that the crate can seal with.
+pub(super) fn sealed(
+    context: &Context,
+    trust: &Trust,
+    name: &str,
+    list: &[u8],
+    alpn: &[&[u8]],
+) -> Result<Arc<ClientConfig>, String> {
+    let configs = &context.ech.configs;
     let (name, stamp) = (super::key(name), stamp(trust));
     let alpn: Vec<Vec<u8>> = alpn.iter().map(|p| p.to_vec()).collect();
     let same = |k: &&Kept| k.trust == *trust && k.stamp == stamp && k.name == name && k.list == list && k.alpn == alpn;
-    if let Some(found) = lock().iter().find(same) {
+    if let Some(found) = configs.lock().iter().find(same) {
         return Ok(found.config.clone());
     }
     // Made outside the lock: the roots of the default trust are read from
     // the system's stores.
-    let config = make(trust, list, &alpn)?;
-    let mut kept = lock();
+    let config = make(context, trust, list, &alpn)?;
+    let mut kept = configs.lock();
     if let Some(found) = kept.iter().find(same) {
         return Ok(found.config.clone());
     }
@@ -70,13 +70,13 @@ pub(super) fn sealed(trust: &Trust, name: &str, list: &[u8], alpn: &[&[u8]]) -> 
     Ok(config)
 }
 
-/// A configuration that seals with `list`, of podssh's provider over the
-/// roots of `trust`.
-fn make(trust: &Trust, list: &[u8], alpn: &[Vec<u8>]) -> Result<Arc<ClientConfig>, String> {
+/// A configuration that seals with `list`, of the context's provider over
+/// the roots of `trust`.
+fn make(context: &Context, trust: &Trust, list: &[u8], alpn: &[Vec<u8>]) -> Result<Arc<ClientConfig>, String> {
     let ech = EchConfig::new(EchConfigListBytes::from(list.to_vec()), crate::crypto::hpke::SUITES)
-        .map_err(|e| format!("the list holds no config that podssh can seal with ({e})"))?;
-    let roots = tls::roots_for(trust).map_err(|e| e.to_string())?;
-    let provider = Arc::new(crate::crypto::provider());
+        .map_err(|e| format!("the list holds no config that this client can seal with ({e})"))?;
+    let roots = context.roots_for(trust).map_err(|e| e.to_string())?;
+    let provider = context.provider().clone();
     let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots.roots), provider.clone())
         .build()
         .map_err(|e| format!("server certificate verifier: {e}"))?;

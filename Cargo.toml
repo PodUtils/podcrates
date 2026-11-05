@@ -17,9 +17,40 @@ pod-core = { path = "crates/pod-core", version = "0.1.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.1.0" }
 pod-term = { path = "crates/pod-term", version = "0.1.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.1.0" }
+pod-tls = { path = "crates/pod-tls", version = "0.1.0" }
 tokio = { version = "1.53.3", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+# TLS (pod-tls). No crypto provider feature: the binary gives the provider
+# (docs/design.md, section 1, rule 4). The default of tokio-rustls is
+# aws_lc_rs, which needs a C compiler; it stays off.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "tls12"] }
+rustls-pki-types = "1"
+# The compiled-in Mozilla roots. pod_tls::ROOTS_VERSION names the version
+# that Cargo.lock holds, and a test compares them.
+webpki-roots = "1"
+
+# The pure-Rust crypto of pod-tls (feature pure), with the features of
+# podssh. `zeroize` wipes the state of each hash, HMAC, AEAD and block
+# cipher when it is dropped.
+sha2 = { version = "0.11", default-features = false, features = ["oid", "zeroize"] }
+hmac = { version = "0.13", default-features = false, features = ["zeroize"] }
+hkdf = { version = "0.13", default-features = false }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc", "zeroize"] }
+aes = { version = "0.9", default-features = false, features = ["zeroize"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc", "zeroize"] }
+x25519-dalek = { version = "3", default-features = false, features = ["static_secrets", "zeroize"] }
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic"] }
+p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic"] }
+# The RSA verifier of pod-tls (feature rsa): public keys only. rsa 0.9 takes
+# SHA-2 of the digest 0.10 line, under a name of its own.
+rsa = { version = "0.9", default-features = false, features = ["std"] }
+sha2-rsa = { package = "sha2", version = "0.10", default-features = false, features = ["oid"] }
+base64 = { version = "0.23", default-features = false, features = ["std"] }
+zeroize = "1"
 
 # Debug builds keep line tables for the crates of the workspace and no
 # debug info for dependencies: test binaries link with less memory and

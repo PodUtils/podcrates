@@ -1,12 +1,12 @@
-//! HPKE (RFC 9180) in its base mode, for Encrypted Client Hello (T-642):
+//! HPKE (RFC 9180) in its base mode, for Encrypted Client Hello:
 //! DHKEM(X25519, HKDF-SHA256), the KDF HKDF-SHA256, and the AEAD
 //! AES-128-GCM or ChaCha20-Poly1305.
 //!
 //! **Why it is here.** rustls's client seals the inner ClientHello through
 //! `rustls::crypto::hpke::Hpke`, and the one implementation that rustls
-//! ships is aws-lc's, which is C and may not be in this crate (rule 4 of
-//! `AGENTS.md`). This one is made of the crates that the provider uses
-//! already: x25519-dalek, hkdf with sha2, and the AEADs of `aead.rs`.
+//! ships is aws-lc's, which is C: a build of the pure provider has no C
+//! compiler. This one is made of the crates that the provider uses already:
+//! x25519-dalek, hkdf with sha2, and the AEADs of `aead.rs`.
 //!
 //! **Checked against RFC 9180's vectors, not against itself**
 //! (`hpke_tests.rs`: A.1.1 and A.2.1, the keys, the schedule and each
@@ -31,8 +31,8 @@ use zeroize::Zeroizing;
 
 use super::aead::{Aead, AeadId, NONCE_LEN};
 
-/// The suites that podssh seals with, in order. Cloudflare's lists offer
-/// X25519 with AES-128-GCM (read 2026-11-05), so that one is first.
+/// The suites that a sealed hello takes, in order. Cloudflare's lists offer
+/// X25519 with AES-128-GCM, so that one is first.
 pub static SUITES: &[&dyn Hpke] = &[X25519_SHA256_AES_128_GCM, X25519_SHA256_CHACHA20_POLY1305];
 
 /// DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM: RFC 9180's A.1.
