@@ -42,6 +42,8 @@ webpki-roots = { workspace = true }
 # The P-256 key of a server (`server`), signed here for each provider.
 p256 = { workspace = true }
 base64 = { workspace = true }
+# The diagnostics: a root that is skipped, a ClientHello that is split.
+tracing = { workspace = true }
 
 sha2 = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }

@@ -1,11 +1,13 @@
-//! Why a trust, a configuration or the pair of a server cannot be used. A
-//! handshake that failed is a [`pod_core::Failure`] at
+//! Why a trust, a configuration, the pair of a server or a split of the
+//! ClientHello cannot be used. A handshake that failed is a [`pod_core::Failure`] at
 //! [`pod_core::Stage::Tls`]; each error here becomes one with the class
 //! [`pod_core::Class::Config`].
 
 use std::fmt;
 
 use pod_core::{Class, Failure, Stage};
+
+use crate::fragment::Part;
 
 /// A trust, a configuration or the pair of a server that cannot be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +21,11 @@ pub enum Error {
     Config(String),
     /// The certificate or the key of a server cannot be used ([`crate::server`]).
     Server(String),
+    /// A value of a split of the ClientHello that cannot be used
+    /// ([`crate::fragment::Split::parse`]): its part and the value as the
+    /// user gave it. [`crate::fragment::Part::accepted`] gives the accepted
+    /// values; the consumer adds the name of its flag.
+    Split { part: Part, value: String },
 }
 
 impl fmt::Display for Error {
@@ -27,6 +34,7 @@ impl fmt::Display for Error {
             Error::Bundle { path, why } => write!(f, "CA bundle {path}: {why}"),
             Error::Config(why) => write!(f, "TLS configuration: {why}"),
             Error::Server(why) => f.write_str(why),
+            Error::Split { part, value } => write!(f, "{value:?} is no {}: give {}", part.what(), part.accepted()),
         }
     }
 }

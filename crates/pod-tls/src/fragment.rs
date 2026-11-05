@@ -1,4 +1,4 @@
-//! Split the TLS ClientHello into records (issue 135).
+//! Split the TLS ClientHello into records.
 //!
 //! A ClientHello is one handshake message. TLS permits a handshake message
 //! in more than one record (RFC 8446, section 5.1), and a server joins them.
@@ -8,14 +8,18 @@
 //!
 //! The split applies to the first record that a connection writes, when it
 //! is a ClientHello. Any other first record, or one larger than 16 KiB, goes
-//! out unchanged. `podnet warp` applies it to the MASQUE connection.
+//! out unchanged. The split is a value that the caller holds and gives to
+//! [`wrap`] for each connection that it wants split (podnet: its MASQUE
+//! connection); with no split, nothing changes.
 
 use std::pin::Pin;
-use std::sync::OnceLock;
 use std::task::{Context, Poll};
 
-use anyhow::{bail, Result};
+use pod_core::BoxedIo;
+use pod_core::entropy::{Entropy, OsEntropy};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+use crate::error::Error;
 
 /// Where the records end.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,25 +44,52 @@ pub struct Split {
 /// The size range when none is given.
 pub const DEFAULT_SIZE: (usize, usize) = (64, 160);
 
+/// The part of a split that [`Split::parse`] refused, in
+/// [`Error::Split`]. The words name no option of a consumer: the consumer
+/// adds the name of its flag or its variable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Part {
+    /// The mode: `off`, `record` or `sni`.
+    Mode,
+    /// The size of a record: `N` or `MIN-MAX`.
+    Size,
+}
+
+impl Part {
+    /// The values that this part accepts, in words.
+    pub fn accepted(self) -> &'static str {
+        match self {
+            Part::Mode => "off, record or sni",
+            Part::Size => "16 to 4096 bytes, MIN-MAX or one number",
+        }
+    }
+
+    /// What this part is, in words.
+    pub fn what(self) -> &'static str {
+        match self {
+            Part::Mode => "split mode of the ClientHello",
+            Part::Size => "record size of the split ClientHello",
+        }
+    }
+}
+
 impl Split {
-    /// `mode` is `off`, `record` or `sni` (`off` gives `None`); `size` is
-    /// `N` or `MIN-MAX`, each 16 to 4096. A bad size is an error also with
-    /// `off` (issue 252: `--fragment-size abc` was ignored).
-    pub fn parse(mode: &str, size: Option<&str>) -> Result<Option<Self>> {
+    /// `mode` is `off`, `record` or `sni` (`off` and an empty text give
+    /// `None`); `size` is `N` or `MIN-MAX`, each 16 to 4096, or [`DEFAULT_SIZE`]
+    /// when it is not given. A bad size is an error also with `off`: a value
+    /// that the user gave is never ignored. The error is [`Error::Split`],
+    /// with the part and the value.
+    pub fn parse(mode: &str, size: Option<&str>) -> Result<Option<Self>, Error> {
         let mode = match mode.trim().to_ascii_lowercase().as_str() {
             "" | "off" => None,
             "record" => Some(Mode::Record),
             "sni" => Some(Mode::Sni),
-            other => bail!("--fragment-client-hello={other:?}: give off, record or sni"),
+            other => return Err(Error::Split { part: Part::Mode, value: other.to_string() }),
         };
         let (min, max) = match size.map(str::trim).filter(|s| !s.is_empty()) {
             None => DEFAULT_SIZE,
             Some(text) => {
-                let bad = || {
-                    anyhow::anyhow!(
-                        "--fragment-size={text}: give 16 to 4096 bytes, MIN-MAX or one number"
-                    )
-                };
+                let bad = || Error::Split { part: Part::Size, value: text.to_string() };
                 let (a, b) = text.split_once('-').unwrap_or((text, text));
                 let a: usize = a.trim().parse().map_err(|_| bad())?;
                 let b: usize = b.trim().parse().map_err(|_| bad())?;
@@ -72,35 +103,23 @@ impl Split {
     }
 }
 
-static ACTIVE: OnceLock<Split> = OnceLock::new();
-
-/// Set the split of this process. A later call does nothing.
-pub fn set(split: Split) {
-    if ACTIVE.set(split).is_ok() {
-        tracing::info!(mode = ?split.mode, min = split.min, max = split.max, "the first ClientHello of each MASQUE connection is split across records");
-    }
-}
-
-/// The split of this process, when one is set.
-pub fn active() -> Option<Split> {
-    ACTIVE.get().copied()
-}
-
-/// Wrap `io` with the split of this process, when one is set.
-pub fn wrap(io: crate::net::BoxedIo) -> crate::net::BoxedIo {
-    match active() {
+/// `io` with its first ClientHello split by `split`, when there is one; else
+/// `io` as it is.
+pub fn wrap(io: BoxedIo, split: Option<Split>) -> BoxedIo {
+    match split {
         Some(split) => Box::new(Fragmenting::new(io, split)),
         None => io,
     }
 }
 
-/// A random number in `min..=max`.
+/// A random number in `min..=max`, from the random source of the system.
 fn random_in(min: usize, max: usize) -> usize {
     if max <= min {
         return min;
     }
     let mut b = [0u8; 4];
-    let _ = getrandom::fill(&mut b);
+    // With no random bytes the size is `min`: the records stay valid.
+    let _ = OsEntropy.fill(&mut b);
     min + (u32::from_le_bytes(b) as usize) % (max - min + 1)
 }
 
@@ -110,9 +129,7 @@ fn server_name_at(hs: &[u8]) -> Option<(usize, usize)> {
     if *hs.first()? != 1 {
         return None;
     }
-    let u16_at = |i: usize| -> Option<usize> {
-        Some(u16::from_be_bytes([*hs.get(i)?, *hs.get(i + 1)?]) as usize)
-    };
+    let u16_at = |i: usize| -> Option<usize> { Some(u16::from_be_bytes([*hs.get(i)?, *hs.get(i + 1)?]) as usize) };
     // type (1), length (3), version (2), random (32).
     let mut i = 4 + 2 + 32;
     i += 1 + *hs.get(i)? as usize; // session id
@@ -139,11 +156,7 @@ fn server_name_at(hs: &[u8]) -> Option<(usize, usize)> {
 
 /// The records of a first record `record` (header and data), when it is a
 /// ClientHello of at most 16 KiB. `random(min, max)` gives the sizes.
-pub fn fragment_with(
-    record: &[u8],
-    split: &Split,
-    mut random: impl FnMut(usize, usize) -> usize,
-) -> Option<Vec<u8>> {
+pub fn fragment_with(record: &[u8], split: &Split, mut random: impl FnMut(usize, usize) -> usize) -> Option<Vec<u8>> {
     if record.len() < 6 || record[0] != 0x16 || record[1] != 3 {
         return None;
     }
@@ -154,11 +167,11 @@ pub fn fragment_with(
     }
     let mut cuts = Vec::new();
     let mut at = 0;
-    if split.mode == Mode::Sni {
-        if let Some((name, name_len)) = server_name_at(hs) {
-            at = name + (name_len / 2).max(1);
-            cuts.push(at);
-        }
+    if split.mode == Mode::Sni
+        && let Some((name, name_len)) = server_name_at(hs)
+    {
+        at = name + (name_len / 2).max(1);
+        cuts.push(at);
     }
     while at < len {
         at = (at + random(split.min, split.max)).min(len);
@@ -192,14 +205,7 @@ pub struct Fragmenting<S> {
 
 impl<S> Fragmenting<S> {
     pub fn new(inner: S, split: Split) -> Self {
-        Fragmenting {
-            inner,
-            split,
-            head: Vec::new(),
-            out: Vec::new(),
-            sent: 0,
-            done: false,
-        }
+        Fragmenting { inner, split, head: Vec::new(), out: Vec::new(), sent: 0, done: false }
     }
 }
 
@@ -207,9 +213,7 @@ impl<S: AsyncWrite + Unpin> Fragmenting<S> {
     /// Write the bytes of `out`.
     fn drain(&mut self, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         while self.sent < self.out.len() {
-            let n = std::task::ready!(
-                Pin::new(&mut self.inner).poll_write(cx, &self.out[self.sent..])
-            )?;
+            let n = std::task::ready!(Pin::new(&mut self.inner).poll_write(cx, &self.out[self.sent..]))?;
             if n == 0 {
                 return Poll::Ready(Err(std::io::ErrorKind::WriteZero.into()));
             }
@@ -245,11 +249,7 @@ impl<S: AsyncWrite + Unpin> Fragmenting<S> {
 }
 
 impl<S: AsyncWrite + Unpin> AsyncWrite for Fragmenting<S> {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
         let this = &mut *self;
         std::task::ready!(this.drain(cx))?;
         if this.done {
@@ -287,11 +287,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for Fragmenting<S> {
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Fragmenting<S> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 }
@@ -299,16 +295,18 @@ impl<S: AsyncRead + Unpin> AsyncRead for Fragmenting<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     /// A ClientHello of rustls for `name`, as the first record.
     fn client_hello(name: &str) -> Vec<u8> {
-        crate::net::init_crypto();
-        let roots = rustls::RootCertStore::empty();
-        let config = rustls::ClientConfig::builder()
-            .with_root_certificates(roots)
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let config = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(rustls::RootCertStore::empty())
             .with_no_client_auth();
-        let name = rustls::pki_types::ServerName::try_from(name.to_string()).unwrap();
-        let mut conn = rustls::ClientConnection::new(std::sync::Arc::new(config), name).unwrap();
+        let name = rustls_pki_types::ServerName::try_from(name.to_string()).unwrap();
+        let mut conn = rustls::ClientConnection::new(Arc::new(config), name).unwrap();
         let mut out = Vec::new();
         conn.write_tls(&mut out).unwrap();
         out
@@ -335,9 +333,7 @@ mod tests {
         let (data, sizes) = join(&records);
         assert_eq!(data, hello[5..]);
         assert!(sizes.len() > 3);
-        assert!(sizes[..sizes.len() - 1]
-            .iter()
-            .all(|s| (16..=40).contains(s)));
+        assert!(sizes[..sizes.len() - 1].iter().all(|s| (16..=40).contains(s)));
     }
 
     #[test]
@@ -355,6 +351,7 @@ mod tests {
         assert!(!first.windows(name.len()).any(|w| w == name.as_bytes()));
     }
 
+    /// A bad size is an error also with `off`.
     #[test]
     fn other_records_and_bad_values() {
         let split = Split::parse("record", None).unwrap().unwrap();
@@ -364,14 +361,32 @@ mod tests {
         assert_eq!(Split::parse("off", Some("64")).unwrap(), None);
         assert!(Split::parse("off", Some("abc")).is_err());
         assert!(Split::parse("", Some("15")).is_err());
-        for (mode, size) in [
-            ("fast", None),
-            ("record", Some("4-9000")),
-            ("record", Some("200-100")),
-            ("sni", Some("x")),
-        ] {
+        for (mode, size) in
+            [("fast", None), ("record", Some("4-9000")), ("record", Some("200-100")), ("sni", Some("x"))]
+        {
             assert!(Split::parse(mode, size).is_err(), "{mode} {size:?}");
         }
+    }
+
+    /// The error of a bad value names the part, the value and the accepted
+    /// values, and no option of a consumer; the consumer can make its own
+    /// words from the part and the value.
+    #[test]
+    fn a_bad_value_names_its_part_and_the_accepted_values() {
+        let mode = Split::parse(" Fast ", None).unwrap_err();
+        assert_eq!(mode, Error::Split { part: Part::Mode, value: "fast".into() });
+        assert_eq!(mode.to_string(), "\"fast\" is no split mode of the ClientHello: give off, record or sni");
+        let size = Split::parse("off", Some(" 4-9000 ")).unwrap_err();
+        assert_eq!(size, Error::Split { part: Part::Size, value: "4-9000".into() });
+        assert_eq!(
+            size.to_string(),
+            "\"4-9000\" is no record size of the split ClientHello: give 16 to 4096 bytes, MIN-MAX or one number"
+        );
+        for e in [mode, size] {
+            assert!(!e.to_string().contains("--"), "{e}");
+        }
+        let failure = pod_core::Failure::from(Split::parse("sni", Some("x")).unwrap_err());
+        assert_eq!(failure.class, pod_core::Class::Config);
     }
 
     #[tokio::test]
@@ -393,5 +408,28 @@ mod tests {
         let (data, sizes) = join(&got[..got.len() - 6]);
         assert_eq!(data, hello[5..]);
         assert!(sizes.len() > 1);
+    }
+
+    /// [`wrap`] with no split gives the stream as it is; with a split, the
+    /// first ClientHello goes out in more than one record.
+    #[tokio::test]
+    async fn wrap_splits_only_when_the_caller_gives_a_split() {
+        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+        let hello = client_hello("example.com");
+        for split in [None, Split::parse("record", Some("16")).unwrap()] {
+            let (a, mut b) = tokio::io::duplex(64 * 1024);
+            let mut io = wrap(Box::new(a), split);
+            io.write_all(&hello).await.unwrap();
+            io.shutdown().await.unwrap();
+            drop(io);
+            let mut got = Vec::new();
+            b.read_to_end(&mut got).await.unwrap();
+            let (data, sizes) = join(&got);
+            assert_eq!(data, hello[5..]);
+            match split {
+                None => assert_eq!(got, hello),
+                Some(_) => assert!(sizes.iter().all(|s| *s <= 16) && sizes.len() > 1, "{sizes:?}"),
+            }
+        }
     }
 }

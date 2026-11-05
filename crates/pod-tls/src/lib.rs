@@ -2,7 +2,8 @@
 //! anchors come from ([`Trust`]), the rustls configuration of a client over
 //! them, with the provider that the caller gives ([`Context`]), the words
 //! of a failed handshake ([`Words`]), a TLS server with a P-256 key
-//! ([`server`]), and, behind features, the pure-Rust crypto provider
+//! ([`server`]), the split of a ClientHello into records ([`fragment`]),
+//! and, behind features, the pure-Rust crypto provider
 //! ([`crypto`], feature `pure`) and Encrypted Client Hello ([`ech`],
 //! feature `ech`).
 //!
@@ -31,6 +32,7 @@ pub mod ech;
 pub mod bundle;
 mod context;
 mod error;
+pub mod fragment;
 pub mod groups;
 mod hint;
 mod kept;
