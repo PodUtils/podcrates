@@ -72,3 +72,7 @@ file 6b25347d57455c0ccbbaf21888e63b23bce79ccf crates/podssh-ws/tests/system_stor
 file 2a0d9b48ebfb89aebf2d22eeb6e199afb7d9cd1c crates/podssh-ws/tests/tls12.rs -> crates/pod-tls/tests/tls12.rs
 file 4f82f2973f28dba533ab67c9c41930edb0c7ef5f crates/podssh-ws/tests/tls_group.rs -> crates/pod-tls/tests/tls_group.rs
 file 52d71eac1d8bc4af0f79484b8eb922bb89232d21 crates/podssh-ws/tests/tls_resume.rs -> crates/pod-tls/tests/tls_resume.rs
+
+repo PodUtils/podnet b7682c5d62da73c772749088e52770a4390e9583
+file 47df1a760bd17b11cedb8e70345f1cb58ffeff03 src/tls_fragment.rs -> crates/pod-tls/src/podnet_import/tls_fragment.rs
+file 1332f55827b61b5a30c7eb78c3913e2f4866b878 src/trust.rs -> crates/pod-tls/src/podnet_import/trust.rs
