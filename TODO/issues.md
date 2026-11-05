@@ -7,3 +7,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
 | #1 | crates.io: reserved pod-* names and trusted publishing | open | T-042, T-043 |
+| #2 | COORD-001: a test of the fallback channel between the sessions | open | T-051 |

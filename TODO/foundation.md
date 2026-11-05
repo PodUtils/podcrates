@@ -696,3 +696,41 @@ gh workflow run relay-contract.yml
 ## Start condition
 
 T-025 is done.
+
+# T-051: The fallback channel between the sessions, tested (GitHub #2)
+
+**Source:** GitHub #2; the owner, 2026-11-05: "please exercise the backup issue way of communication in case it doesn't work, suggest/use something else".
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner, before a night away: "in case your or they aren't able to msg
+each other, please use a github issue with unique id each & amend it,
+poll it for changes", then "please exercise the backup issue way of
+communication in case it doesn't work, suggest/use something else". GitHub
+#2 (COORD-001) is the test: each session amends its own section of the
+body; the podcrates session polls it.
+
+## Premise
+
+- The sessions of podssh and podnet have GitHub tools for their own
+  repository; writing to PodUtils/podcrates is not measured yet.
+
+## Approach
+
+1. Each session amends its section of GitHub #2, or, when it cannot write
+   to podcrates, its own `COORD-001` issue, and says which way worked.
+2. `docs/maintenance.md`, "Talk between sessions", gives the way that
+   worked.
+
+## Prove
+
+```sh
+curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podcrates/issues/2?n=1"
+```
+
+Each section of the body was amended by its session.
