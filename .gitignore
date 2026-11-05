@@ -1,0 +1,14 @@
+/target
+**/*.rs.bk
+__pycache__/
+*.pyc
+*.sock
+
+# Scratch of agents and probes. Never committed.
+/.work/
+/.tmp/
+
+# Claude Code: the worktrees of parallel agents and the overrides of each
+# machine. .claude/settings.json is shared and committed.
+/.claude/worktrees/
+/.claude/settings.local.json
