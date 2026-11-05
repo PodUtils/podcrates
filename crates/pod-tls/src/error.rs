@@ -1,7 +1,7 @@
 //! Why a trust, the roots, a configuration, the pair of a server or a split
-//! of the ClientHello cannot be used. A handshake that failed is a [`pod_core::Failure`] at
-//! [`pod_core::Stage::Tls`]; each error here becomes one with the class
-//! [`pod_core::Class::Config`].
+//! of the ClientHello cannot be used. A handshake that failed is a
+//! [`pod_core::Failure`] at [`pod_core::Stage::Tls`]; each error here
+//! becomes one with the class [`pod_core::Class::Config`].
 
 use std::fmt;
 
@@ -9,7 +9,8 @@ use pod_core::{Class, Failure, Stage};
 
 use crate::fragment::Part;
 
-/// A trust, a configuration or the pair of a server that cannot be used.
+/// A trust, the roots, a configuration, the pair of a server or a split of
+/// the ClientHello that cannot be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// The trust bundle could not be used. The path is always in the

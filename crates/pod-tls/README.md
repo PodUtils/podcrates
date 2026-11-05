@@ -91,7 +91,7 @@ shares it.
 | The roots read one time, a failure too (the statics `CA_FILE`, `ROOTS`) | [x] a field of the `Context` |
 | A configuration over the roots with extra roots (PEM texts) and ALPN; no process default provider (`init_crypto`) | [x] `Context::client_config_with`, `Roots::with_extra`; the provider of the context |
 | The edge roots of Cloudflare (`cf-edge-roots.pem`, `EDGE_ROOTS_FIRST_END`) and their test `the_first_end_of_the_edge_roots` | they wait for `pod-cloudflare`, which gives them as extra roots |
-| The hint of the clock for a certificate that is expired or not valid yet | [x] `clock_hint(chain)`, with the words of `pod_core::clock::hint` |
+| The hint of the clock for a certificate that its time refuses (expired, or before its start) | [x] `clock_hint(chain)`, with the words of `pod_core::clock::hint` |
 | `imf_fixdate`, `civil_from_days` | [x] `pod_core::clock::{http_date, civil_from_days}`; the test `the_dates_of_imf_fixdate` |
 | `not_after_dates`, its DER reader | [x] `not_after_dates`; a time that is too short is an error, where podnet's slice panicked |
 | `ROOTS_CRATE_VERSION` against Cargo.lock (`the_roots_version_is_the_one_of_cargo_lock`) | [x] `ROOTS_VERSION`, `tests/roots_version.rs`: one webpki-roots in Cargo.lock, at this version, covers both claims |
