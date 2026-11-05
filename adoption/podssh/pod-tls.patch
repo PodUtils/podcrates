@@ -13,10 +13,10 @@ index 8c27505..6d03812 100644
        - ".github/workflows/acme-interop.yml"
  
 diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
-index 61babb3..435daac 100644
+index de21d59..b2eb08e 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -274,38 +274,21 @@ jobs:
+@@ -275,38 +275,21 @@ jobs:
          env:
            PODSSH_TEST_SFTP_SERVER: C:\Program Files\Git\usr\lib\ssh\sftp-server.exe
          run: cargo test --locked --no-fail-fast
@@ -68,7 +68,7 @@ index 61babb3..435daac 100644
            }
        - name: repository checks
          run: python scripts/check-repo.py
-@@ -337,22 +320,13 @@ jobs:
+@@ -338,22 +321,13 @@ jobs:
        - name: the default tests
          run: cargo test --locked --no-fail-fast
        # T-340: podssh reads the trust settings of the user and of the
@@ -95,7 +95,7 @@ index 61babb3..435daac 100644
            # Offline, doctor runs the checks that open nothing; its exit code
            # also counts the network's ????, so only its lines are read.
 diff --git a/AGENTS.md b/AGENTS.md
-index d1a0f7d..ddcaaf8 100644
+index bdb08d3..5e1223b 100644
 --- a/AGENTS.md
 +++ b/AGENTS.md
 @@ -191,7 +191,7 @@ current.
@@ -114,23 +114,54 @@ index d1a0f7d..ddcaaf8 100644
 -| `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
 +| `crates/podssh-ws` | TLS (`pod-tls` of PodUtils/podcrates with its pure-Rust rustls provider, in podssh's settings: `tls.rs`), proxies, DNS fallbacks, the WebSocket client |
  | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
- | `crates/podssh-terminal` | A line discipline (not used yet: T-111); the grammar of a terminal's output and its ring, which `podssh session` reads |
  | `crates/podssh-probe` | Facts about the relay document (tests only) |
+ | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 diff --git a/Cargo.toml b/Cargo.toml
-index 9cc7211..2f1512c 100644
+index f2cd30f..806ff8d 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -72,7 +72,7 @@ repository = "https://github.com/Azathothas/podssh"
- # `ring` and `aws-lc-sys` both fail under `CC=/nonexistent` (measured
- # 2026-10-01: "failed to run custom build command ... failed to find tool"),
- # so `rustls` below carries no default crypto provider; podssh supplies its own
--# pure-Rust one in crates/podssh-ws/src/crypto/.
-+# pure-Rust one, the feature `pure` of pod-tls (PodUtils/podcrates).
+@@ -49,9 +49,9 @@ exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "vendor/s
+ version = "1.1.0-beta.3"
+ edition = "2024"
+ # The newest stable Rust of the day, for each crate (the operator, 2026-11-05;
+-# T-685): 1.97, as the crates of PodUtils/podcrates declare. A session raises it
++# T-685): 1.99, as the crates of PodUtils/podcrates declare. A session raises it
+ # with podcrates'; no crate keeps an older minimum for another's sake.
+-rust-version = "1.97"
++rust-version = "1.99"
+ license = "0BSD"
+ publish = false
+ repository = "https://github.com/PodUtils/podssh"
+@@ -62,10 +62,10 @@ repository = "https://github.com/PodUtils/podssh"
+ # `scripts/plant.sh` proves that the check refuses a dynamic one (T-685).
  #
- # The binary is the exception: podssh-ssh uses russh with aws-lc-rs (operator
- # decision 2026-10-08), and the opt-in `ts` feature links the vendored
+ # The library crates were built with no C compiler until 2026-11-05, so
+-# `rustls` below carries no default crypto provider: podssh supplies its own
+-# pure-Rust one in crates/podssh-ws/src/crypto/. podssh-ssh uses russh with
+-# aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts` feature links
+-# the vendored tailscale-rs fork, which needs cc and cmake.
++# `rustls` below carries no default crypto provider: podssh takes the
++# pure-Rust one of pod-tls (PodUtils/podcrates, its feature `pure`). podssh-ssh
++# uses russh with aws-lc-rs (operator decision 2026-10-08), and the opt-in `ts`
++# feature links the vendored tailscale-rs fork, which needs cc and cmake.
+ # The switch of .github/workflows/publish.yml (T-686): the crates go to
+ # crates.io from a tag only when it is true at that tag. It stays false until
+ # the owner rules that podssh publishes (T-687).
+diff --git a/README.md b/README.md
+index 5b0078a..327037c 100644
+--- a/README.md
++++ b/README.md
+@@ -303,7 +303,7 @@ that session lasts; `usbip detach` ends it.
+ 
+ ## Build
+ 
+-podssh is a Rust workspace (`crates/`). It needs Rust 1.97 or later and a C
++podssh is a Rust workspace (`crates/`). It needs Rust 1.99 or later and a C
+ compiler: the SSH client uses aws-lc (through `russh`). Each released
+ binary is statically compiled, and the gate checks it.
+ 
 diff --git a/TODO/beta.md b/TODO/beta.md
-index 34e35ac..b40e891 100644
+index 619d5f1..3fa25ad 100644
 --- a/TODO/beta.md
 +++ b/TODO/beta.md
 @@ -98,9 +98,9 @@ certificate chain needs is missing from them.
@@ -142,11 +173,24 @@ index 34e35ac..b40e891 100644
  `--ca-file` or `SSL_CERT_FILE` replaces them, and a `podssh-ca.pem` next to the
 -binary is read (`crates/podssh-ws/src/bundle.rs:22-37`). The roots come from
 +binary is read (`crates/podssh-ws/src/bundle.rs:23-38`). The roots come from
- the crate `webpki-roots` (`Cargo.toml:108`). `podssh doctor` prints the number
+ the crate `webpki-roots` (`Cargo.toml:103`). `podssh doctor` prints the number
  of compiled-in roots, not their date.
  
+diff --git a/TODO/config.md b/TODO/config.md
+index a8ae5c8..2628cd6 100644
+--- a/TODO/config.md
++++ b/TODO/config.md
+@@ -694,7 +694,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
+    variable, apart from the `PODSSH_SSH_CONFIG` of T-043), `$XDG_CONFIG_HOME/podssh/settings`
+    (else `~/.config/podssh/settings`, and `%APPDATA%\podssh\settings` on Windows), then
+    `podssh.settings` next to the binary, found as `podssh-ca.pem` is
+-   (`crates/podssh-ws/src/bundle.rs:32-38`). Never the working directory or `/tmp`: a file that
++   (`crates/podssh-ws/src/bundle.rs:33-39`). Never the working directory or `/tmp`: a file that
+    names relay hosts decides where tokens go.
+ 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
+    that names it. Check the opened file, as `read_own` does with `Others::Read`
 diff --git a/TODO/machine.md b/TODO/machine.md
-index 295342b..52f1d02 100644
+index 8991136..cda1da6 100644
 --- a/TODO/machine.md
 +++ b/TODO/machine.md
 @@ -410,7 +410,7 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
@@ -159,7 +203,7 @@ index 295342b..52f1d02 100644
  (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
  against 64 MiB for each session (`docs/relay.md:475`). The stand-in relay answers pings
 diff --git a/TODO/mesh.md b/TODO/mesh.md
-index e6abaef..2cec2d7 100644
+index 6667073..6757f57 100644
 --- a/TODO/mesh.md
 +++ b/TODO/mesh.md
 @@ -2531,7 +2531,7 @@ file is read again each time.
@@ -235,7 +279,7 @@ index e6abaef..2cec2d7 100644
    order"), as a Connect names an address, not a name.
  - No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a
 diff --git a/TODO/pipe.md b/TODO/pipe.md
-index cfd1f8c..311e0a2 100644
+index d5386fb..e417090 100644
 --- a/TODO/pipe.md
 +++ b/TODO/pipe.md
 @@ -1545,14 +1545,14 @@ user who needs `websocat` must bring it, and a cage may not run it.
@@ -257,7 +301,7 @@ index cfd1f8c..311e0a2 100644
    the binary never enables, as the relay's token over plain TCP must not leave the host
    (`crates/podssh-ws/src/plain.rs:1-6`).
 diff --git a/TODO/relay.md b/TODO/relay.md
-index 1f70f79..2e8a996 100644
+index db24c7a..6ade071 100644
 --- a/TODO/relay.md
 +++ b/TODO/relay.md
 @@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
@@ -300,13 +344,13 @@ index 1f70f79..2e8a996 100644
  - A list fetched over HTTPS exists for Shadowsocks: a cap of 1 MiB
    (`crates/podssh-cli/src/shadowsocks/subscription.rs:19`), a day kept (`:21`), 20 s (`:23`), three
    redirects (`:25`), `https://` alone (`:48`), through `podssh_ws::client::https_get`
--  (`crates/podssh-ws/src/client.rs:280`), kept by `crates/podssh-relay/src/cache.rs:153`.
-+  (`crates/podssh-ws/src/client.rs:294`), kept by `crates/podssh-relay/src/cache.rs:153`.
+-  (`crates/podssh-ws/src/client.rs:280`), kept by `crates/podssh-relay/src/cache.rs:155`.
++  (`crates/podssh-ws/src/client.rs:294`), kept by `crates/podssh-relay/src/cache.rs:155`.
  
  ## Approach
  
 diff --git a/TODO/repo.md b/TODO/repo.md
-index 43ac1d6..1c26736 100644
+index a09bae2..b56c901 100644
 --- a/TODO/repo.md
 +++ b/TODO/repo.md
 @@ -1369,7 +1369,7 @@ Read:
@@ -318,7 +362,7 @@ index 43ac1d6..1c26736 100644
  - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
    crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
    `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
-@@ -2187,7 +2187,7 @@ listener or a bind. `crates/podssh-cli/src/doctor/unix.rs` line 151 at `48a8744`
+@@ -2188,7 +2188,7 @@ listener or a bind. `crates/podssh-cli/src/doctor/unix.rs` line 151 at `48a8744`
  are the bind probes of `doctor`, which close at once and never listen
  (`crates/podssh-cli/src/doctor/mod.rs` lines 15-16 at `48a8744`). The test servers are in
  `crates/podssh-ws/tests/dial.rs:129` and
@@ -327,7 +371,7 @@ index 43ac1d6..1c26736 100644
  `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
  that skips comments and test modules is
  `crates/podssh-relay/tests/default_relay.rs:21-59`.
-@@ -2987,7 +2987,7 @@ text after a citation, and reads each bare :N".
+@@ -2996,7 +2996,7 @@ text after a citation, and reads each bare :N".
  
  ## Problem
  
@@ -336,7 +380,7 @@ index 43ac1d6..1c26736 100644
  and in CI, each with one TCP connection and one handshake to the relay. The
  relay's side drops connections at random (T-255), so one drop fails the
  test, the step `libs`, and the whole gate, for no defect of podssh.
-@@ -2996,10 +2996,10 @@ test, the step `libs`, and the whole gate, for no defect of podssh.
+@@ -3005,10 +3005,10 @@ test, the step `libs`, and the whole gate, for no defect of podssh.
  
  Measured on 2026-10-09: in `sh scripts/dev.sh check`, the test
  `the_negotiated_parameters_are_ones_this_provider_implements` failed with
@@ -349,7 +393,7 @@ index 43ac1d6..1c26736 100644
  
  ## Approach
  
-@@ -3023,12 +3023,16 @@ Each passes. Planted defect: a helper that retries a refused certificate
+@@ -3032,12 +3032,16 @@ Each passes. Planted defect: a helper that retries a refused certificate
  must make the wrong-hostname plant pass on its third attempt; the test that
  counts the attempts on a verdict must fail.
  
@@ -367,7 +411,7 @@ index 43ac1d6..1c26736 100644
    live test connects: TCP and the handshake, each bounded, in up to three
    attempts (`with_attempts`), with a pause of 1 s; an attempt that ended in
    EOF, a reset, an abort, a refusal of the connection, a broken pipe or a
-@@ -3860,7 +3864,7 @@ ship with these.
+@@ -3869,7 +3873,7 @@ ship with these.
  Read in the advisories and in podssh's code (the research of 2026-10-30):
  
  - rustls: podssh's client sets no ECH, has no session store, no brotli, and
@@ -376,20 +420,20 @@ index 43ac1d6..1c26736 100644
    not affected; 0.23.46 adds no crate.
  - rustls-webpki builds the chains, and webpki-roots is the compiled-in
    trust: affected. 1.0.11 drops the emSign roots; the test of the roots
-@@ -3960,10 +3964,10 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
+@@ -3969,10 +3973,10 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
    `known_hosts`): Inferred.
- - Read: the root `Cargo.toml:154` asks for `aes-gcm` 0.10 and
-   `Cargo.toml:163` for `x25519-dalek` 2;
+ - Read: the root `Cargo.toml:148` asks for `aes-gcm` 0.10 and
+   `Cargo.toml:157` for `x25519-dalek` 2;
 -  `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
 +  `PodUtils/podssh:crates/podssh-ws/src/crypto/aead.rs` and `PodUtils/podssh:crates/podssh-ws/src/crypto/kx.rs`
-   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
+   hold the calls, with `PodUtils/podssh:crates/podssh-relay/src/identity/mod.rs` and
    `crates/podssh-relay/src/session/secret.rs`, and
 -  `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
 +  `PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
- - Read: `vt100` 0.15 (`Cargo.toml:119`) is the model of the terminal
+ - Read: `vt100` 0.15 (`Cargo.toml:114`) is the model of the terminal
    oracle (T-200) and of `podssh session` (T-186).
  
-@@ -4007,10 +4011,12 @@ of each new crate, not of the crates that they bring. aes 0.9.2 and ctutils
+@@ -4016,10 +4020,12 @@ of each new crate, not of the crates that they bring. aes 0.9.2 and ctutils
  0.4.2 hold 1.85, but ctutils before 0.4.7 has RUSTSEC-2026-0385 (T-312),
  and the lock that russh's aes-gcm 0.11 shares would take the repair out of
  each binary. So podssh-ws keeps aes-gcm 0.10 and chacha20poly1305 0.10,
@@ -403,7 +447,7 @@ index 43ac1d6..1c26736 100644
  ## Done
  
  2026-10-30, in three steps.
-@@ -4099,7 +4105,7 @@ T-330's second Correction (2026-10-30): the gate's step `msrv` refuses it.
+@@ -4108,7 +4114,7 @@ T-330's second Correction (2026-10-30): the gate's step `msrv` refuses it.
  ## Problem
  
  Dependabot's #47 waits: aes-gcm 0.11.1, and chacha20poly1305 0.11 with it,
@@ -412,7 +456,7 @@ index 43ac1d6..1c26736 100644
  `aead` traits. Until then the binary holds two lines of AES and of GHASH:
  0.10 for podssh's TLS provider and the layer's AEAD, 0.11 for russh's.
  
-@@ -4141,13 +4147,15 @@ client first, and that no legacy constraint, such as podbox's older minimum
+@@ -4150,13 +4156,15 @@ client first, and that no legacy constraint, such as podbox's older minimum
  Rust, holds a dependency back (`docs/decisions.md`). The library crates
  declare Rust 1.89.
  
@@ -429,16 +473,16 @@ index 43ac1d6..1c26736 100644
    as T-330's first step had it: the nonce an `Array` from its 12 bytes.
    `Cargo.lock` and `fuzz/Cargo.lock` take chacha20poly1305 0.11.0 again,
    and podssh-ws the line of 0.11 that russh already brought.
-@@ -4549,7 +4557,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
+@@ -4558,7 +4566,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
  
  - Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
    podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
--  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3877-3880` says why:
-+  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3881-3884` says why:
+-  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3885-3888` says why:
++  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3889-3892` says why:
    the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
    T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
  - Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy
-@@ -4989,7 +4997,7 @@ headscale names.
+@@ -4998,7 +5006,7 @@ headscale names.
    `rand` 0.10 on their own, with a comment that the workspace's line stays for ed25519-dalek 2
    and snow. Each new version is in `Cargo.lock` already, for russh or the curves.
  - Read: podssh-ws's RSA verifier takes `rsa` 0.9, whose `Pkcs1v15Sign::new` and `Pss::new` take a
@@ -447,7 +491,7 @@ index 43ac1d6..1c26736 100644
  - Read: `images/tailscale/Dockerfile` pins v1.98.10, "the newest release whose capability version
    headscale 0.29.7 names in its table of client versions".
  - Inferred: each pull request is closed by Dependabot once `main` holds its version, as T-355's
-@@ -5001,7 +5009,7 @@ headscale names.
+@@ -5010,7 +5018,7 @@ headscale names.
     keys, toml for the facts and Arti's configuration).
  2. #81 with #82 and `hkdf` 0.13 together, in one step: each crate that hashes, MACs or derives;
     the RSA verifier keeps a hash of rsa 0.9's digest line under a name of its own until `rsa`
@@ -456,9 +500,9 @@ index 43ac1d6..1c26736 100644
     the live relay, the DERP keys and the resumable layer's secrets.
  3. #80: the workspace's `rand` 0.10 with the features that give the generator of the operating
     system and the thread's generator, one version for each crate.
-@@ -5376,7 +5384,7 @@ each free of `podssh-ws`'s types, serves the three.
+@@ -5409,7 +5417,7 @@ each free of `podssh-ws`'s types, serves the three.
  
- - Read: `crates/podssh-relay/Cargo.toml:13` depends on `podssh-ws` with no feature; each road of
+ - Read: `crates/podssh-relay/Cargo.toml:15` depends on `podssh-ws` with no feature; each road of
    the relay crate takes `podssh-ws`'s dial, TLS and WebSocket.
 -- Read: `crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
 +- Read: `PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
@@ -466,7 +510,7 @@ index 43ac1d6..1c26736 100644
  - Read: `Cargo.toml` sets `publish = false` for the workspace, and `vendor/russh` and
    `vendor/ssh-key` are patched in by `[patch.crates-io]`, which a published crate cannot carry.
 diff --git a/TODO/resume.md b/TODO/resume.md
-index 4e19c25..c6e0c07 100644
+index 924498a..a575552 100644
 --- a/TODO/resume.md
 +++ b/TODO/resume.md
 @@ -815,7 +815,7 @@ keepalives must not end a session that the layer would resume.
@@ -488,7 +532,7 @@ index 4e19c25..c6e0c07 100644
     limit of 90 s also holds on reverse sockets.
  3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
 diff --git a/TODO/reverse.md b/TODO/reverse.md
-index 82919fd..c9650ac 100644
+index 7424840..30284ee 100644
 --- a/TODO/reverse.md
 +++ b/TODO/reverse.md
 @@ -162,7 +162,7 @@ no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd
@@ -517,11 +561,11 @@ index 82919fd..c9650ac 100644
 -`crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 +tests of primitives (`PodUtils/podssh:crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 +`PodUtils/podssh:crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
- issue's "rule 8" is rule 6 (`docs/architecture.md:313-318`), and its "section 2" sentence about an allowlist of
+ issue's "rule 8" is rule 6 (`docs/architecture.md:314-319`), and its "section 2" sentence about an allowlist of
  keys is in section 7 (`docs/design.md:1387-1388`). Read in the report (not verified here): syq signs a grant in a
  fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 diff --git a/TODO/roads.md b/TODO/roads.md
-index 162189c..28c1a56 100644
+index 4604e58..03e2401 100644
 --- a/TODO/roads.md
 +++ b/TODO/roads.md
 @@ -1357,7 +1357,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
@@ -688,7 +732,7 @@ index 162189c..28c1a56 100644
    4).
  - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
 diff --git a/TODO/robustness.md b/TODO/robustness.md
-index 4007ff8..f5fd545 100644
+index 55fe61f..755156b 100644
 --- a/TODO/robustness.md
 +++ b/TODO/robustness.md
 @@ -33,7 +33,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
@@ -739,18 +783,9 @@ index 4007ff8..f5fd545 100644
  - Relay lists and paths (`crates/podssh-relay/src/relay.rs:146-239`, `crates/podssh-ws/src/names.rs:8-85`).
  - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 diff --git a/TODO/ssh.md b/TODO/ssh.md
-index 08f4c26..578b961 100644
+index a5cba12..25b4f87 100644
 --- a/TODO/ssh.md
 +++ b/TODO/ssh.md
-@@ -537,7 +537,7 @@ Read:
-   `crates/podssh-ssh/src/hostkey.rs:228-235` (no terminal). `accept-new`
-   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
-   cites line 91 at `22c3b88`, which builds the question about other key types.
--- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5521-5522`).
-+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5553-5554`).
-   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
-   the CA and the validity window. The caller must check the certificate type,
-   the principals and the critical options (the crate's documentation).
 @@ -1508,10 +1508,10 @@ Read:
    only the write can end the wait.
  - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
@@ -820,7 +855,7 @@ index 08f4c26..578b961 100644
     trust that verified the session (T-444's rule: a resumed handshake checks no certificate), at
     most a few tickets a server, each used once and removed when it is taken, none past its
 diff --git a/TODO/transport.md b/TODO/transport.md
-index 2d944dd..3b28c36 100644
+index 95ad1a9..e00806e 100644
 --- a/TODO/transport.md
 +++ b/TODO/transport.md
 @@ -30,7 +30,7 @@ Read, at `692b3b0`: `WsSocket::send_text` calls `self.session.send(text)`
@@ -842,7 +877,7 @@ index 2d944dd..3b28c36 100644
  (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 136-164). A read error becomes
  `Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
 diff --git a/TODO/ws.md b/TODO/ws.md
-index a42f3d5..4ccc392 100644
+index 7c73505..5165e20 100644
 --- a/TODO/ws.md
 +++ b/TODO/ws.md
 @@ -115,14 +115,14 @@ returning an error. Its callers expect an error: the comment of the masking key
@@ -1075,7 +1110,7 @@ index a42f3d5..4ccc392 100644
     with this host's clock in UTC, in doctor's words.
  2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
 -   (`crates/podssh-ws/src/client.rs:223`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
-+   (`crates/podssh-ws/src/client.rs:223`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
++   (`crates/podssh-ws/src/client.rs:237`), `tls::connect_over` (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:151`)
     and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
     calls it, so that the words are the same.
  3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
@@ -1093,7 +1128,7 @@ index a42f3d5..4ccc392 100644
 @@ -3063,7 +3075,7 @@ Read at `2042200`:
    (`crates/podssh-ws/src/resolve.rs:10`). So the issue's "ride the query that the name already causes"
    holds for few runs: in the target host, behind its proxy, no query is made at all.
- - TLS has podssh's own provider and no other: `Cargo.toml:87` says "default-features = false and NO
+ - TLS has podssh's own provider and no other: `Cargo.toml:82` says "default-features = false and NO
 -  crypto provider feature."; its parts (`crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
 +  crypto provider feature."; its parts (`PodUtils/podssh:crates/podssh-ws/src/crypto/`) hold no HPKE, which rustls's ECH
    needs, and aws-lc's is C, which `podssh-ws` may not hold (rule 4 of `AGENTS.md`).
@@ -1132,6 +1167,28 @@ index a42f3d5..4ccc392 100644
    keeps each ClientHello: the sealed hello names the public name and not the host, its sealed part
    opens with the list's key (podssh's HPKE, with the AAD and the info that rustls's ECH made) to a hello
    that names the host, the refusal goes on with one plain hello and then the name goes plain at once;
+diff --git a/crates/podssh-cli/Cargo.toml b/crates/podssh-cli/Cargo.toml
+index 3070b1c..7ec07ac 100644
+--- a/crates/podssh-cli/Cargo.toml
++++ b/crates/podssh-cli/Cargo.toml
+@@ -111,7 +111,7 @@ zeroize = { workspace = true }
+ futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+ # `podssh session` (T-186): where a kept stream of output may start, and its
+ # ring (the grammar of T-221), and when the output has stopped.
+-pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
++pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
+ # `podssh session capture`: the screen that a terminal shows after the
+ # session's output. The model of the terminal oracle (T-200), pure Rust over
+ # vte, with no build script that compiles C; the lock has it already.
+@@ -163,7 +163,7 @@ windows-sys = { version = "0.61", features = [
+ ] }
+ 
+ [dev-dependencies]
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
+ # `test-util` gives the tests a paused clock: the limit of a stuck write is
+ # 60 s (tests/direct_write_limit.rs).
+ tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 diff --git a/crates/podssh-cli/src/doctor/ech.rs b/crates/podssh-cli/src/doctor/ech.rs
 index 9b65e4c..1ef3a90 100644
 --- a/crates/podssh-cli/src/doctor/ech.rs
@@ -1186,6 +1243,21 @@ index 7a69399..38518fb 100644
          return Ok(mode);
      }
      let Some(value) = &file.ech else { return Ok(podssh_ws::ech::Mode::Off) };
+diff --git a/crates/podssh-relay/Cargo.toml b/crates/podssh-relay/Cargo.toml
+index 91744d2..f7b5e3b 100644
+--- a/crates/podssh-relay/Cargo.toml
++++ b/crates/podssh-relay/Cargo.toml
+@@ -10,8 +10,8 @@ publish.workspace = true
+ # A library other projects (podvm) use; its crates move to PodUtils/podcrates
+ # (T-684).
+ [dependencies]
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
+-pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
++pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
+ podssh-ws = { path = "../podssh-ws" }
+ tokio = { workspace = true }
+ serde = { workspace = true }
 diff --git a/crates/podssh-relay/src/health.rs b/crates/podssh-relay/src/health.rs
 index c2b2caa..4332585 100644
 --- a/crates/podssh-relay/src/health.rs
@@ -1333,6 +1405,19 @@ index e8373a3..095a361 100644
 -        assert_eq!(kept.take_note(), None, "no file read, nothing set aside");
 -    }
 -}
+diff --git a/crates/podssh-ssh/Cargo.toml b/crates/podssh-ssh/Cargo.toml
+index eca5a2c..83fb948 100644
+--- a/crates/podssh-ssh/Cargo.toml
++++ b/crates/podssh-ssh/Cargo.toml
+@@ -88,7 +88,7 @@ windows-sys = { version = "0.61", features = [
+ pageant = { version = "0.2.4", default-features = false, features = ["wmmessage"] }
+ 
+ [dev-dependencies]
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
+ # `test-util` gives the tests a paused clock: a hop's 10 s of silence (T-462)
+ # and the relay's idle cut at 180 s (T-463) pass at once.
+ tokio = { workspace = true, features = ["macros", "rt", "signal", "process", "test-util"] }
 diff --git a/crates/podssh-ssh/tests/no_rsa_private_op.rs b/crates/podssh-ssh/tests/no_rsa_private_op.rs
 index f1dda3b..dd80f5f 100644
 --- a/crates/podssh-ssh/tests/no_rsa_private_op.rs
@@ -1360,8 +1445,18 @@ index f1dda3b..dd80f5f 100644
      ("podssh-ws/src/crypto/rsa_sig.rs", "rsa::"),
  ];
  
+diff --git a/crates/podssh-todo/Cargo.toml b/crates/podssh-todo/Cargo.toml
+index ee2e30a..371916a 100644
+--- a/crates/podssh-todo/Cargo.toml
++++ b/crates/podssh-todo/Cargo.toml
+@@ -10,4 +10,4 @@ publish.workspace = true
+ # The checker of the record is pod-todo of PodUtils/podcrates; the facts of
+ # podssh are in TODO/todo.toml.
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
 diff --git a/crates/podssh-ws/Cargo.toml b/crates/podssh-ws/Cargo.toml
-index 0e7ede8..e065d5e 100644
+index 7c4a775..e236842 100644
 --- a/crates/podssh-ws/Cargo.toml
 +++ b/crates/podssh-ws/Cargo.toml
 @@ -1,6 +1,6 @@
@@ -1417,7 +1512,16 @@ index 0e7ede8..e065d5e 100644
  # TCP_NOTSENT_LOWAT on each dialed socket (T-661, lowat.rs), which macOS has
  # too. libc compiles no C.
  libc = { workspace = true }
-@@ -77,15 +62,16 @@ tokio = { workspace = true, features = ["macros", "rt"] }
+@@ -69,7 +54,7 @@ libc = { workspace = true }
+ plain-ws = []
+ 
+ [dev-dependencies]
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0", features = ["screen"] }
+ # The doctor is async because it may be asked to perform a handshake, and
+ # the plants that assert `????` rather than `ok` have to drive it as a caller
+ # would. `macros` is what makes `#[tokio::test]` exist.
+@@ -78,15 +63,16 @@ tokio = { workspace = true, features = ["macros", "rt"] }
  # library uses, rather than re-deriving one, so what is proven is what ships.
  tokio-rustls = { workspace = true }
  rustls-pki-types = { workspace = true }
@@ -10809,7 +10913,7 @@ index 52d71ea..0000000
 -    assert!(Arc::ptr_eq(&again, &config_for(&trust).unwrap()), "and kept again");
 -}
 diff --git a/docs/STATUS.md b/docs/STATUS.md
-index 580cd28..f4701e9 100644
+index a540e2c..0c05ad3 100644
 --- a/docs/STATUS.md
 +++ b/docs/STATUS.md
 @@ -316,7 +316,7 @@ in [ROADMAP.md](ROADMAP.md).
@@ -10822,7 +10926,7 @@ index 580cd28..f4701e9 100644
  | IPv6 addresses (T-007, GitHub #2), offline and through the live relay | `u@V6`, `u@[V6]:PORT`, `ssh://u@[V6]:PORT`, and the same in `-J` and `-W`, pass each check of the client (`cargo test -p podssh-cli --test ssh_args -- ipv6`); `-4` with an IPv6 address and `-6` with an IPv4 address exit 64. Through the relay, the session to `[2001:4860:4860::8888]:853` opened and the relay closed it at once with 1011 "target closed before sending anything"; podssh adds a note on the relay's IPv6 route and names `--direct` (T-253). |
  | A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux; the box) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. In the box, with such a `/dev/tty`, `keygen` and the host-key prompt refuse within 1 s ("In a box like the target sandbox"). |
 diff --git a/docs/architecture.md b/docs/architecture.md
-index 42d5ff3..57d80b4 100644
+index 6345ab3..fac6c1c 100644
 --- a/docs/architecture.md
 +++ b/docs/architecture.md
 @@ -151,7 +151,7 @@ the user gives. For each host, `podssh-ws` connects:
@@ -10863,18 +10967,18 @@ index 42d5ff3..57d80b4 100644
 -| `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
 +| `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with the pure-Rust provider of `pod-tls`, PodUtils/podcrates), the WebSocket client | `pod-tls` |
  | `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
- | `podssh-terminal` | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |
+ | `pod-term` (PodUtils/podcrates, T-684; until then `podssh-terminal`) | A line discipline in the process, for `podssh serve` with no pty (not used yet, T-111); the grammar of a terminal's output and its ring, which `podssh session` reads | none |
  | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
-@@ -301,7 +301,7 @@ These rules apply to each change. The reasons are in
-    under Q86).
- 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
-    `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
--   podssh's own provider and RustCrypto crates. The gate
-+   the pure-Rust provider of `pod-tls` and RustCrypto crates. The gate
-    makes sure of this with `CC=/nonexistent` and `CXX=/nonexistent`. The
-    binary links aws-lc through `russh` for SSH, and the Tailscale fork with
-    the feature `ts`.
-@@ -349,7 +349,7 @@ session whose output nobody reads.
+@@ -304,7 +304,7 @@ These rules apply to each change. The reasons are in
+    each released binary is statically compiled, which the gate's step
+    `release` and the release workflow check (`scripts/check-static.sh`,
+    T-685). `podssh-ws`, `podssh-relay`, `podssh-core` and `podssh-probe` use
+-   rustls with podssh's own provider and RustCrypto crates. The binary links aws-lc through `russh` for SSH, and the
++   rustls with the pure-Rust provider of `pod-tls` and RustCrypto crates. The binary links aws-lc through `russh` for SSH, and the
+    Tailscale fork with the feature `ts`.
+ 5. **No `LD_PRELOAD`, no helper processes.** podssh does in its own process
+    what the host cannot supply (a pty, a line discipline). A tty in user
+@@ -350,7 +350,7 @@ session whose output nobody reads.
  | A file of the cache: a token, the pool, the addresses | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, the pool is fetched at the next mint, and the next session's address is kept |
  | The addresses kept for each relay host; the hosts | 4; 32 | `PER_HOST`, `HOSTS`, `crates/podssh-relay/src/addresses.rs` | The host's oldest address goes; the host that carried no session for the longest goes |
  | An answer of DNS over HTTPS | 64 KiB | `MAX_ANSWER`, `crates/podssh-ws/src/resolve.rs` | "the response body is larger than allowed", and the next resolver |
@@ -10883,7 +10987,7 @@ index 42d5ff3..57d80b4 100644
  | A `known_hosts` file | 16 MiB | `MAX_FILE`, `crates/podssh-ssh/src/known_hosts.rs` | "FILE cannot be read (it is larger than 16 MiB, which no known_hosts file is)": no key of it is trusted, and a user file past it records no new key, so `accept-new` refuses an unknown one (exit 255) |
  | An `ssh_config` file | 4 MiB | `MAX_FILE`, `crates/podssh-cli/src/ssh/config.rs` | "FILE is larger than 4 MiB, which no ssh_config is", exit 78 |
  | The SSH window of a channel | 512 KiB to start; then as the path asks: its rate times its least round trip plus 40 ms for 2 s after a key, plus 200 ms idle, and a third more, topped up once a quarter is used, in the server's messages of 8 KiB at most (T-670), 16 KiB at least (T-661), at most the road's cap, which the channels that carry bulk share, each 512 KiB at least: 16 MiB on `--direct`, the iroh road and podssh's relay role; 1.5 MiB through the default relay; 768 KiB on the pair road; 512 KiB on each other road (T-662) | `WINDOW`, `crates/podssh-ssh/src/run.rs`; `crates/podssh-ssh/src/pace/` | The server waits until podssh reads: a session whose output nobody read for 30 s, while the server wrote 50 MB, peaked at 7460 KiB, and one whose reader took each byte at 6884 KiB (`scripts/interop-limits.sh`) |
-@@ -375,7 +375,7 @@ session whose output nobody reads.
+@@ -376,7 +376,7 @@ session whose output nobody reads.
  | Each step of reaching a relay host: the proxy and TCP, TLS, the upgrade, a mint | 20 s | `CONNECT_TIMEOUT`, `crates/podssh-relay/src/open.rs` | The next relay host |
  | One relay host, its mint included | 45 s | `HOST_DEADLINE`, `crates/podssh-relay/src/open.rs` | "the relay host did not answer within 45 s", and the next relay host |
  | The connection to one resolver of DNS over HTTPS; its answers | 3 s; 5 s | `DOH_CONNECT`, `DOH_EACH`, `crates/podssh-ws/src/resolve.rs` | "no connection within 3 s" or "timed out", and the next resolver |
@@ -10893,7 +10997,7 @@ index 42d5ff3..57d80b4 100644
  | The SSH handshake, the time of the host key's question left out (T-588) | `ConnectTimeout`, 60 s when none is set; a line 10 s in | `crates/podssh-ssh/src/handshake.rs` | "HOST: the SSH handshake did not finish within N s: " and what came (no byte, another service's line, or the version line and the last message each way; through a node, the bytes of its layer and its channel), exit 255 |
  | Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |
 diff --git a/docs/design.md b/docs/design.md
-index 4820948..a13025a 100644
+index 724d063..ce84714 100644
 --- a/docs/design.md
 +++ b/docs/design.md
 @@ -355,14 +355,14 @@ since a quick tunnel has none.
@@ -10913,6 +11017,28 @@ index 4820948..a13025a 100644
    handshake with each (measured, below).
  - The prechecks of cloudflared at startup
    (`cloudflare/cloudflared:prechecks/probes.go`: for each region DNS, QUIC,
+@@ -564,7 +564,7 @@ threads carry each session, so a blocking read stalls no other session. A
+ call from a thread that runs a tokio runtime is refused, and nothing panics.
+ Its offline tests run against a stand-in relay over plain `ws://` (feature
+ `plain-ws`), as podvm's can. Each crate declares the newest stable Rust of
+-the day, 1.97 with edition 2024, as the crates of PodUtils/podcrates do
++the day, 1.99 with edition 2024, as the crates of PodUtils/podcrates do
+ (the operator, 2026-11-05; T-685): podvm builds them with that Rust or a
+ later one.
+ 
+diff --git a/docs/development.md b/docs/development.md
+index 04c912a..48acff2 100644
+--- a/docs/development.md
++++ b/docs/development.md
+@@ -5,7 +5,7 @@ target sandbox, and release it.
+ 
+ ## Requirements
+ 
+-- Rust 1.97 or later, edition 2024: each crate declares the newest stable Rust
++- Rust 1.99 or later, edition 2024: each crate declares the newest stable Rust
+   of the day, as the crates of PodUtils/podcrates do (the operator,
+   2026-11-05; T-685). The gate runs the build image's stable Rust.
+ - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
 diff --git a/docs/research/forward-carriers.md b/docs/research/forward-carriers.md
 index 9a7c875..0e5c6be 100644
 --- a/docs/research/forward-carriers.md
@@ -10952,7 +11078,7 @@ index d09c86b..a12a691 100644
  | One sample | `doctor`'s samples: nine tries over at least a second, best, median, p95, jitter and loss, a refusal counted apart | `crates/podssh-cli/src/doctor/samples.rs:1-25` |
  | The relay's side | `podssh relay trace` (the relay's dial and first byte), `relay status` (each host's `/health` and edge), `relay info` (the pool and the limits) | `crates/podssh-cli/src/relay_diag.rs:1-7` |
 diff --git a/docs/tor-transports.md b/docs/tor-transports.md
-index 2ffd511..8ae2226 100644
+index 61bc19b..1cf7d58 100644
 --- a/docs/tor-transports.md
 +++ b/docs/tor-transports.md
 @@ -372,7 +372,7 @@ T-353's Done).
@@ -10965,11 +11091,11 @@ index 2ffd511..8ae2226 100644
       `Host`, `X-Session-Id` (32 hex digits), `Content-Length` and no
       `User-Agent`, each body at most 64 KiB, and each response capped at
 diff --git a/scripts/gate.sh b/scripts/gate.sh
-index 29fc838..c1846ea 100644
+index 026dee8..21f242a 100644
 --- a/scripts/gate.sh
 +++ b/scripts/gate.sh
-@@ -177,12 +177,12 @@ step_libs() {
-         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp \
+@@ -178,12 +178,12 @@ step_libs() {
+         cargo build --locked $LIBS -p podssh-warp \
              --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
  
 -    # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
@@ -10979,9 +11105,9 @@ index 29fc838..c1846ea 100644
 +    # one fails. The TLS 1.2 checks against OpenSSL's s_server are pod-tls's.
 +    run "tmux, for the terminal oracle" retry3 apk add --no-cache tmux
      # shellcheck disable=SC2086
-     tests "library crates: tests, no C compiler" \
--        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
-+        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_TMUX=/usr/bin/tmux \
+     tests "library crates: tests" \
+-        env PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
++        env PODSSH_TEST_TMUX=/usr/bin/tmux \
          cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
              --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp-stand-in
  
