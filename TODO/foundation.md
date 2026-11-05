@@ -154,7 +154,7 @@ T-001 is done.
 2026-11-05, commit of this entry. `sh scripts/agent/check.sh`: fmt 0,
 clippy 0, record 0, size 0, test 0 (the static probe waits for T-004).
 `sh scripts/plant-each.sh`: 6 caught, 0 missed or stale
-(`clippy-len-zero`, `fmt-spaces`, `record-counts`, `size-long-file`,
+(`clippy-len-zero`, `fmt-spaces`, `record-milestone`, `size-long-file`,
 `size-self-test`, `sources-change`). `scripts/check-sources.py` reads
 the mirror and a clone; `crates/pod-todo/SOURCES` has 22 files and no
 change. The plant of `scripts/check-workflows.py` comes with the first

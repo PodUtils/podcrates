@@ -1,0 +1,7 @@
+# The configuration of the record drops a milestone that an entry has. The
+# patch changes TODO/todo.toml, which a status change does not touch.
+ENTRY=T-003
+GROUP=record
+EXPECT='the milestone `M5` is not one of M0, M1, M2, M3, M4'
+RUN='cargo run -q -p pod-todo -- check'
+LIMIT=900
