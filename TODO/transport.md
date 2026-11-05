@@ -241,7 +241,7 @@ the ci run 42048395812 at `00568db` (Rust 1.99).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -261,6 +261,28 @@ SOCKS5, its race of addresses and its HTTP GET client are the base.
 
 The procedure of `docs/design.md`, section 8, with podssh's files only.
 The merge of podnet's code is T-014.
+
+Steps 1 to 4 and 6 are done: the commits `614f68a` to `17ff19a` (import at
+podssh `6ece2ff`, edition, adaptation, tests, the plants `proxy-*`, the
+README, the static probe). `cargo test -p pod-proxy --all-features`: 85
+passed, 1 ignored (a live test); `plant-each.sh --group proxy`: 5 caught.
+The trial in podssh and the release come with T-014: its change of
+`socks5://` (the rule of curl) changes podssh too, so podssh takes the
+crate once.
+
+## Decision
+
+- `pod_core::Found` has `more` and `pod_core::SOURCE_WAIT` (4 s): the race
+  gives a source of names 4 s, then asks the next one.
+- `DialError` stays an enum of `pod-proxy` (the tests match on it); it
+  converts into `Failure` with itself as the cause. A refusal of a proxy
+  with a 5xx status is `Unavailable`, another refusal `Refused`.
+- `resolve::System` is the system resolver with the caller's pins; the
+  bypass of a pinned loopback takes the pins of the dialer's resolver.
+- The user agent is a setting with no default; the words of a 407 take
+  `Settings::app`.
+- The feature `ech`: the GET client opens through `pod_tls::ech::open`,
+  as podssh's `https_get` did.
 
 ## Prove
 

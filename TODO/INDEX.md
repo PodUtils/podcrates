@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**50 entries: 33 open, 0 partial, 2 blocked, 15 done.**
+**50 entries: 32 open, 1 partial, 2 blocked, 15 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 17 | 0 | 0 | 13 | 30 |
+| P1 | 16 | 1 | 0 | 13 | 30 |
 | P2 | 12 | 0 | 2 | 2 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 33 | 0 | 2 | 15 | 50 |
+| **All** | 32 | 1 | 2 | 15 | 50 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -58,7 +58,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-010](transport.md) | P1 | S | M1 | feature | done | `pod-identity`: the Ed25519 identity, the key files and the entropy |
 | [T-011](transport.md) | P2 | S | M1 | feature | done | `pod-term`: the line discipline and the grammar of a terminal's output |
 | [T-012](transport.md) | P1 | L | M1 | feature | done | `pod-tls`: trust, the TLS configurations, the pure-Rust provider and ECH |
-| [T-013](transport.md) | P1 | M | M1 | feature | open | `pod-proxy`: the dial, the proxies, the race of addresses and the HTTP client (the base of podssh) |
+| [T-013](transport.md) | P1 | M | M1 | feature | partial | `pod-proxy`: the dial, the proxies, the race of addresses and the HTTP client (the base of podssh) |
 | [T-014](transport.md) | P1 | M | M1 | feature | open | `pod-proxy`: podnet's proxy chain, Digest and fetch |
 | [T-015](transport.md) | P1 | M | M1 | feature | open | `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records |
 | [T-016](transport.md) | P1 | M | M1 | feature | open | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
