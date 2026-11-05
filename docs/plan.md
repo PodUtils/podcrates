@@ -157,7 +157,7 @@ source's capabilities and tests come in at step 4 of section 8.
 | --- | --- | --- | --- | --- |
 | `pod-identity` | podssh-relay `identity/`; `Entropy`, `OsEntropy` of `session/`; the private-file helpers of `cache.rs`, `cache/` | 1,200 | podssh | none |
 | `pod-term` | podssh `crates/podssh-terminal` (consumers: podssh, podvm) | 3,700 | podssh | none |
-| `pod-proxy` | podssh-ws `dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs`, `names.rs`, `text.rs`, `cut.rs`, `lowat.rs`, `write_limit.rs`; podnet `src/egress.rs` (CONNECT with Basic and Digest, SOCKS5 and 5h, `unix:`, `+exec:`, `NO_PROXY`, RFC 8305), `src/proxy_auth.rs`, `src/race.rs`. The `Dial`, `Resolve` and `Datagrams` traits | 4,000 | merge: podnet's proxy chain, podssh's dial | none |
+| `pod-proxy` | podssh-ws `dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs`, `names.rs`, `text.rs`, `cut.rs`, `lowat.rs`, `write_limit.rs`, `stun.rs` (the UDP probe); podnet `src/egress.rs` (CONNECT with Basic and Digest, SOCKS5 and 5h, `unix:`, `+exec:`, `NO_PROXY`, RFC 8305), `src/proxy_auth.rs`, `src/race.rs`. The `Dial`, `Resolve` and `Datagrams` traits | 4,000 | merge: podnet's proxy chain, podssh's dial | none |
 | `pod-tls` | podssh-ws `crypto/` (feature `pure`), `tls.rs`, `tls/`, `stores/`, `tls_server.rs`, `tls_server/`, `tls_wrap.rs`, `bundle.rs`; podssh-relay `tls_groups.rs`; podnet `src/trust.rs` (roots, pins), `src/tls_fragment.rs` | 5,300 | merge: podssh | none |
 | `pod-dns` | podssh-ws `resolve.rs`, `resolve/`; podnet `src/resolve.rs` (pins, system, DoH by address and by name through the proxy) | 2,800 | merge: podssh | pod-proxy, pod-tls |
 | `pod-ws` | podssh-ws `client.rs`, `frame.rs`, `handshake.rs`, `session.rs`, `url.rs`, `close.rs`, `error.rs`, `plain.rs`, `http.rs`, `http/`, `server.rs`, `clock.rs`, `wake.rs`; podnet `src/ws.rs`, `src/transport/websocket.rs` | 4,500 | merge: podssh | pod-tls, pod-proxy, pod-dns |
@@ -170,7 +170,7 @@ source's capabilities and tests come in at step 4 of section 8.
 | `pod-e2e` | podssh-relay `e2e/` (Noise XX on snow 0.10) | 3,400 | podssh | pod-identity, pod-session |
 | `pod-netstack` | podnet `src/warp/ip.rs`, `src/vnet/device.rs`, `src/vnet/framing.rs`; the TCP of podssh-warp as the smoltcp 0.14 reference | 2,600 | podnet | none |
 | `pod-wg` | podnet `src/warp/wg.rs` (on ring, as now) | 1,100 | podnet | pod-proxy (`Datagrams`) |
-| `pod-relay` | podssh-relay `relay.rs`, `open.rs`, `pool.rs`, `pool/`, `failover.rs`, `failures.rs`, `gate.rs`, `rank*.rs`, `token.rs`, `health.rs`, `addresses.rs`, `answer.rs`, `keyed.rs`, `forward_layer/`, `pair.rs`, `pair/`, `grant/`, `reverse/`, `http_road/`, `quic_road/`, `h2_road.rs`, `cleartext.rs`, `blocking/` (feature `blocking`, podvm), the relay hosts of `cache/`; podssh-ws `h2_road/`, `cleartext/`, `stun.rs`; podnet `src/ws_relay.rs`, `src/relay_pool.rs`, `src/relay_reverse.rs`; the relay stand-in into `pod-testkit` | 18,000 | merge: podssh | pod-ws, pod-tls, pod-dns, pod-proxy, pod-identity, pod-session, pod-e2e |
+| `pod-relay` | podssh-relay `relay.rs`, `open.rs`, `pool.rs`, `pool/`, `failover.rs`, `failures.rs`, `gate.rs`, `rank*.rs`, `token.rs`, `health.rs`, `addresses.rs`, `answer.rs`, `keyed.rs`, `forward_layer/`, `pair.rs`, `pair/`, `grant/`, `reverse/`, `http_road/`, `quic_road/`, `h2_road.rs`, `cleartext.rs`, `blocking/` (feature `blocking`, podvm), the relay hosts of `cache/`; podssh-ws `h2_road/`, `cleartext/`; podnet `src/ws_relay.rs`, `src/relay_pool.rs`, `src/relay_reverse.rs`; the relay stand-in into `pod-testkit` | 18,000 | merge: podssh | pod-ws, pod-tls, pod-dns, pod-proxy, pod-identity, pod-session, pod-e2e |
 
 ### M3: wave 3
 
@@ -209,9 +209,14 @@ Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 * `Resolve`: a name to addresses. `pod-dns` implements it and takes a
   `Dial` for DoH, so the two crates do not depend on each other in a
   loop.
-* `Datagrams`: poll-based send and receive of datagrams, so that a QUIC
-  socket can wrap them (UDP over WARP, QUIC over WARP, UDP through the
-  relay).
+* `Datagrams`: poll-based send and receive of datagrams, in the shape of
+  the `AsyncUdpSocket` of quinn and noq (`poll_send` of several transmits,
+  `poll_recv` into several buffers, `local_addr`, one segment for each
+  transmit when there is no GSO). Thus QUIC goes over WARP or through the
+  relay. The system socket is one implementation; `pod-iroh` can still
+  give iroh the system sockets.
+* A probe that tells whether UDP leaves the host (STUN, podssh-ws
+  `stun.rs`, in `pod-proxy`), so that a consumer uses UDP only after a probe.
 
 The binary makes the chain (direct, a proxy, WARP, the relay, a road of
 `pod-egress`). A crate makes a dialer of its own only when the caller
@@ -227,7 +232,7 @@ The union of the release targets of the consumers:
 | `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | podssh |
 | `x86_64-apple-darwin`, `aarch64-apple-darwin` | podssh |
 | `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc` | podssh |
-| (to confirm) | podvm |
+| the same as podssh (C16) | podvm |
 
 CI builds the test binaries and the `examples/` of each crate for each
 target (cargo-zigbuild for the Linux targets), checks that each one is
@@ -395,6 +400,9 @@ until the owner rules otherwise:
 - **C14.** podnet `src/proxy.rs` and `src/config.rs` go into
   `pod-cloudflare` (podnet's architecture study, section 4.1), not into
   `pod-egress`.
+- **C16.** podvm: `pod-relay` (feature `blocking`) and `pod-term` build
+  for each target of section 7. podssh's record does not give podvm's
+  targets; podvm is a container runtime, so Linux is certain.
 - **C15.** An adoption trial for each crate and each consumer (section
   8, step 6), in a scratch copy that is never pushed.
 
