@@ -135,6 +135,12 @@ impl Proxy {
         if hostport.starts_with('[') && address.parse::<std::net::Ipv6Addr>().is_err() {
             return Err("the proxy host in brackets is not an IPv6 address".into());
         }
+        // Only an IPv6 address has a colon. A name with one took the default
+        // port, and `url()` wrote it in brackets, which do not parse back
+        // (the fuzz target `proxy_url` found `pr:xy:8080`).
+        if v6 && address.parse::<std::net::Ipv6Addr>().is_err() {
+            return Err("the proxy host has a colon but is not an IPv6 address; write HOST:PORT or [IPV6]:PORT".into());
+        }
         if let (ProxyKind::Socks5 { .. }, Some((user, password))) = (kind, &credentials) {
             // RFC 1929 gives each one a length byte, and 0 is no length.
             for (what, value) in [("user", user), ("password", password)] {

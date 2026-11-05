@@ -58,6 +58,20 @@ fn parses_a_bracketed_ipv6_authority() {
     assert_eq!(p.label(), "http://[::1]:9000");
 }
 
+// Only an IPv6 address has a colon in its host. A name with a colon took
+// the default port, and its URL did not parse back (the fuzz target
+// `proxy_url`, T-017).
+#[test]
+fn a_host_with_a_colon_is_an_ipv6_address() {
+    for spec in ["http://pr:xy:8080", "socks5://a:b:c", "h:x:1"] {
+        assert!(Proxy::parse(spec).is_err(), "{spec} was accepted");
+    }
+    for spec in ["::1", "http://2001:db8::1", "socks5h://fe80::1%25eth0"] {
+        let p = Proxy::parse(spec).unwrap_or_else(|e| panic!("{spec}: {e}"));
+        assert_eq!(Proxy::parse(&p.url()), Ok(p.clone()), "{spec}");
+    }
+}
+
 #[test]
 fn the_schemes() {
     assert_eq!(Proxy::parse("socks5://127.0.0.1:1080").unwrap().kind(), ProxyKind::Socks5 { remote_dns: false });
