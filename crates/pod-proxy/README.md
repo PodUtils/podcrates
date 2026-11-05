@@ -242,6 +242,25 @@ The merge changes these behaviours of podssh's code:
 * The detail of `DialError::Connect` groups the errors of the addresses
   by their words.
 
+## Changes for podnet
+
+The merge changes these behaviours of podnet's code, as its trial shows
+them (podnet's glue keeps its words of a refusal, its hops and its
+counters):
+
+* The words of a 407: `the proxy refused CONNECT with HTTP 407: Proxy
+  Authentication Required; it asks for NTLM or Negotiate; podnet sent ...`
+  (podnet: `the proxy requires authentication (HTTP 407): ...`).
+* A SOCKS5 refusal has the reason `SOCKS5: ...` or `SOCKS5 reply N, ...`,
+  and the status of its HTTP case in `DialError::ProxyRefused`; podnet's
+  `Refusal` keeps the status 0 for it.
+* The head of a proxy's answer is read up to 16 KiB (podnet: 8 KiB); the
+  Digest client nonce comes from the system, and none is an error (podnet:
+  zeros); the credentials file is refused when it is a link or a file of
+  another user.
+* A handshake of a request that the network ended has the stage
+  `Network`; podnet says it in the words of its `hop::tls_text`.
+
 ## Adoption map
 
 | Consumer | Old path | New path |
