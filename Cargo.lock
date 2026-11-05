@@ -728,6 +728,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-proxy"
+version = "0.2.0"
+
+[[package]]
 name = "pod-term"
 version = "0.2.0"
 dependencies = [

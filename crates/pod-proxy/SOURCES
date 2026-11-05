@@ -1,0 +1,33 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo PodUtils/podssh 6ece2ff6e16817a0434eb19617cc511aaa3994b0
+dir crates/podssh-ws/src/http
+# client.rs: the GET client alone stays here (https_get,
+# https_get_accepting, and the https_request and open_tls under them); the
+# WebSocket client, the other requests and the doctor go to pod-ws.
+# tests/limits.rs: the tests of the HTTP head, the HTTP body and the
+# proxy's answer stay here; the tests of the upgrade and of the frames go to
+# pod-ws.
+file a8438fa798831a4c29c5cf3048c0241e211f3751 crates/podssh-ws/src/client.rs -> crates/pod-proxy/src/client.rs
+file 3f7e8ea7b251a0a04c5d21dd79b416e577d71b30 crates/podssh-ws/src/cut.rs -> crates/pod-proxy/src/cut.rs
+file 2320d53a1a5e87f52783d5ba7d084b42628edcb6 crates/podssh-ws/src/dial.rs -> crates/pod-proxy/src/dial.rs
+file 55ebe8fa5a9428df75cfbd96af01577d346c02f4 crates/podssh-ws/src/http.rs -> crates/pod-proxy/src/http.rs
+file 9f7a74678effce00bfad9ef0d3490b7e17bf63a1 crates/podssh-ws/src/http/request.rs -> crates/pod-proxy/src/http/request.rs
+file 9e37c0adacc64df22fd15d7e1507c335e8cd55a6 crates/podssh-ws/src/lowat.rs -> crates/pod-proxy/src/lowat.rs
+file 254021b30dfcf7db8e38cd4f44d8fc9d60ec5373 crates/podssh-ws/src/mptcp.rs -> crates/pod-proxy/src/mptcp.rs
+file 01edf9bbe9826e04767241fa051d1f0af92a8bf2 crates/podssh-ws/src/proxy.rs -> crates/pod-proxy/src/proxy.rs
+file 9c36033393f90188237ea1803edc9df2c56a77ea crates/podssh-ws/src/proxy_auth.rs -> crates/pod-proxy/src/proxy_auth.rs
+file 0e0f1549216dbc741c1edb4e4fadc93abba8ccab crates/podssh-ws/src/race.rs -> crates/pod-proxy/src/race.rs
+file 0c3931d19f493c0a926a3561beff5e2ab35546b5 crates/podssh-ws/src/socks5.rs -> crates/pod-proxy/src/socks5.rs
+file 0206eef1a77eae227bf4b48ea502641399a66451 crates/podssh-ws/src/stun.rs -> crates/pod-proxy/src/stun.rs
+file 62cee4c95596ab8a1196325ddd4003cf2d7e4d2f crates/podssh-ws/src/stun_tests.rs -> crates/pod-proxy/src/stun_tests.rs
+file d248b4a494f08d7b3cf4d52600d3ac72622b9bb4 crates/podssh-ws/src/write_limit.rs -> crates/pod-proxy/src/write_limit.rs
+file 5dd6a151de5492023c34dfef8079f9799a72a89d crates/podssh-ws/tests/dial.rs -> crates/pod-proxy/tests/dial.rs
+file 260a81db10def4a3128a508026c7597d25f21fed crates/podssh-ws/tests/dial_pinned.rs -> crates/pod-proxy/tests/dial_pinned.rs
+file 725bdfa2501b48eeeb40a957210eb435cbadf557 crates/podssh-ws/tests/dial_race.rs -> crates/pod-proxy/tests/dial_race.rs
+file 5555dcd01e26aafd90534e85633274c7b361cfbd crates/podssh-ws/tests/http.rs -> crates/pod-proxy/tests/http.rs
+file b1d2dd8325f100badd160c5c81efd0520785b99b crates/podssh-ws/tests/limits.rs -> crates/pod-proxy/tests/limits.rs
+file 1d946e27b10767d5dca4ae448894bf32a0a9e01b crates/podssh-ws/tests/mptcp.rs -> crates/pod-proxy/tests/mptcp.rs
+file 979353cf9848246d39b4a9c7d63cb95ccc4bd199 crates/podssh-ws/tests/socks5.rs -> crates/pod-proxy/tests/socks5.rs

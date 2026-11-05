@@ -1,0 +1,8 @@
+[package]
+name = "pod-proxy"
+description = "The dial: directly with a race of addresses and Multipath TCP, or through an HTTP CONNECT or SOCKS5 proxy; the HTTP/1.1 heads and a GET client over TLS."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
