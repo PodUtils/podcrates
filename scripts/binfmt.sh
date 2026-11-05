@@ -1,9 +1,9 @@
 #!/bin/sh
-# Register QEMU's handler of binfmt_misc for ARCH (riscv64, arm, loong64,
-# ppc64le), so that
-# this host runs a static binary of ARCH: what docker/setup-qemu-action does,
-# from the image of images/binfmt, pinned to its digest and pulled through
-# the mirrors of scripts/pull-image.sh, with no third-party action .
+# Register QEMU's handler of binfmt_misc for ARCH (arm64, riscv64, arm,
+# loong64, ppc64le), so that this host runs a static binary of ARCH: what
+# docker/setup-qemu-action does, from the image of images/binfmt, pinned to
+# its digest and pulled through the mirrors of scripts/pull-image.sh, with
+# no third-party action.
 #
 #   sh scripts/binfmt.sh riscv64
 set -eu
@@ -37,6 +37,7 @@ docker run --privileged --rm "$image" --install "$arch"
 # The kernel lists each handler that it took. The name of the handler is the
 # name of the QEMU binary, which differs from the platform name for some.
 case "$arch" in
+    arm64) name=aarch64 ;;
     loong64) name=loongarch64 ;;
     *) name=$arch ;;
 esac

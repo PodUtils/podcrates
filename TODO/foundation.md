@@ -379,7 +379,7 @@ call C15.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -414,6 +414,16 @@ problem.
 ## Start condition
 
 T-007 is done.
+
+## Done
+
+2026-11-05, commit `dc31b4a` (adoption.yml, scripts/adoption.sh, the
+trials of `pod-todo`), with the trials of `pod-term` (`2ad40ad`) and
+`pod-identity` (`371b447`). In podnet at `b7682c5`, `cargo todo check`
+with `pod-todo` agrees with the record (137 entries, no problem). In
+podssh at `d4e186d`, the record agrees (640 entries) and the 11 tests of
+its interop pass. The runs of `adoption.yml` on a push: 42022006523
+(`2ad40ad`) and 42023409486 (`1ec8c15`), each trial green.
 
 # T-009: The first release
 
