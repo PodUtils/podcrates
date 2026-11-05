@@ -149,11 +149,11 @@ pub struct Tree {
 
 impl Tree {
     /// Each call has a directory of its own: two tests that run at once
-    /// with one name must not remove each other's tree (T-286).
+    /// with one name must not remove each other's tree.
     pub fn new(name: &str) -> Self {
         static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!("podssh-todo-{}-{name}-{call}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("pod-todo-{}-{name}-{call}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let t = Self { root };
         t.write("TODO/INDEX.md", INDEX);
@@ -161,7 +161,7 @@ impl Tree {
         t.write("TODO/area.md", AREA);
         t.write("docs/ROADMAP.md", ROADMAP);
         t.write("crates/x/src/lib.rs", SOURCE);
-        // The package that the Proves name, with a test target (T-361).
+        // The package that the Proves name, with a test target.
         t.write("crates/x/Cargo.toml", "[package]\nname = \"x\"\n");
         t.write("crates/x/tests/third.rs", "#[test]\nfn third() {}\n");
         t.write("README.md", "# x\n\nThe work order is in `TODO/PROGRESS.md` (T-001 first).\n");

@@ -1,7 +1,8 @@
 //! The references of the record: each `T-NNN` that a document names, each
 //! repository path and line that an entry cites, the work order, the
-//! questions that blocked entries wait for, and the milestones of
-//! `docs/ROADMAP.md`.
+//! questions that blocked entries wait for, and the milestones of the
+//! roadmap. The configuration of the tree (`crate::config`) names the
+//! roadmap, the documents and the paths that a citation can name.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -10,14 +11,6 @@ use std::path::Path;
 use crate::check::{PROGRESS, Record, read};
 use crate::model::{Problem, ids_in};
 use crate::parse::{code_spans, doc_section, lines_with_fences};
-
-pub const ROADMAP: &str = "docs/ROADMAP.md";
-
-/// The top-level directories and the root files of this repository. A code
-/// span that starts with one of them is a citation that must exist; another
-/// project's file is written `owner/repo:path`, which never starts so.
-const TOP_DIRS: [&str; 6] = ["crates", "scripts", "docs", ".github", "TODO", "vendor"];
-const ROOT_FILES: [&str; 6] = ["Cargo.toml", "Cargo.lock", "README.md", "AGENTS.md", "SECURITY.md", "LICENSE"];
 
 pub fn check(root: &Path, r: &Record, p: &mut Vec<Problem>) {
     let status: HashMap<&str, &str> = r.rows.iter().map(|row| (row.id.as_str(), row.status.as_str())).collect();
@@ -39,14 +32,28 @@ pub fn check(root: &Path, r: &Record, p: &mut Vec<Problem>) {
 }
 
 /// The Markdown files whose `T-NNN` references must resolve, and whose
-/// citations `remap` moves.
+/// citations `remap` moves: the documents and the document directories of
+/// the configuration, without its readings at a time.
 pub fn documents(root: &Path) -> Vec<String> {
-    let mut out: Vec<String> = ["README.md", "AGENTS.md", "SECURITY.md"].iter().map(|s| s.to_string()).collect();
-    for dir in ["TODO", "docs"] {
+    let config = crate::config::current();
+    let mut out = Vec::new();
+    for pattern in &config.documents {
+        match pattern.split_once("/*/") {
+            Some((dir, rest)) => {
+                let Ok(read) = fs::read_dir(root.join(dir)) else { continue };
+                for e in read.flatten() {
+                    out.push(format!("{dir}/{}/{rest}", e.file_name().to_string_lossy()));
+                }
+            }
+            None => out.push(pattern.clone()),
+        }
+    }
+    for dir in &config.document_dirs {
         walk(root, dir, &mut out);
     }
-    out.retain(|rel| root.join(rel).is_file());
+    out.retain(|rel| root.join(rel).is_file() && !config.is_reading(rel));
     out.sort();
+    out.dedup();
     out
 }
 
@@ -76,7 +83,11 @@ pub fn citation(span: &str) -> Option<(&str, Option<usize>)> {
     };
     let path = path.split('#').next().unwrap_or(path);
     let first = path.split('/').next().unwrap_or("");
-    let repo_path = (TOP_DIRS.contains(&first) && path.contains('/')) || ROOT_FILES.contains(&path);
+    // Another project's file is written `owner/repo:path`, which never
+    // starts with a top directory of this tree.
+    let config = crate::config::current();
+    let repo_path = (config.top_dirs.iter().any(|d| d == first) && path.contains('/'))
+        || config.root_files.iter().any(|f| f == path);
     if !repo_path {
         return None;
     }
@@ -192,9 +203,10 @@ fn work_order(r: &Record, status: &HashMap<&str, &str>, p: &mut Vec<Problem>) {
 }
 
 /// Each question `Qn` that a `## Blocker` names is in the progress record's
-/// `## Questions for the operator`.
+/// questions heading of the configuration.
 fn questions(r: &Record, p: &mut Vec<Problem>) {
-    let asked: HashSet<String> = doc_section(&r.progress, "Questions for the operator")
+    let heading = crate::config::current().questions.clone();
+    let asked: HashSet<String> = doc_section(&r.progress, &heading)
         .map(|(_, body)| body.iter().flat_map(|(_, l)| q_tokens(l)).collect())
         .unwrap_or_default();
     for e in &r.entries {
@@ -204,10 +216,7 @@ fn questions(r: &Record, p: &mut Vec<Problem>) {
                 p.push(Problem::new(
                     &format!("TODO/{}", e.file),
                     b.line,
-                    format!(
-                        "{}: the blocker names {q}, which is not in {PROGRESS}, `## Questions for the operator`",
-                        e.id
-                    ),
+                    format!("{}: the blocker names {q}, which is not in {PROGRESS}, `## {heading}`", e.id),
                 ));
             }
         }
@@ -225,10 +234,12 @@ fn q_tokens(text: &str) -> Vec<String> {
 /// The roadmap keeps no list of open items (`- [ ]`): open work is an
 /// entry. An entry that it names under a milestone has that milestone.
 fn roadmap(root: &Path, r: &Record, p: &mut Vec<Problem>) {
+    let config = crate::config::current();
+    let roadmap = config.roadmap.as_str();
     // A missing roadmap must not pass as a roadmap with nothing wrong in it.
-    let Some(text) = read(root, ROADMAP) else {
+    let Some(text) = read(root, roadmap) else {
         p.push(Problem::new(
-            ROADMAP,
+            roadmap,
             0,
             "the roadmap is missing; the milestones of the entries are checked against it",
         ));
@@ -244,22 +255,22 @@ fn roadmap(root: &Path, r: &Record, p: &mut Vec<Problem>) {
             // A done milestone (M0 to M2) may name the later entry that
             // finished its exit criteria; only an open milestone is checked.
             let m = h.split([':', ' ']).next().unwrap_or("");
-            current = crate::model::MILESTONES.contains(&m).then(|| m.to_string());
+            current = config.has_milestone(m).then(|| m.to_string());
             continue;
         }
         if line.trim_start().starts_with("- [ ]") {
             p.push(Problem::new(
-                ROADMAP,
+                roadmap,
                 no,
                 "an open item `- [ ]`: open work is an entry in TODO/, named here by its id",
             ));
         }
         let Some(m) = &current else { continue };
         for (id, _) in ids_in(line) {
-            if let Some(have) = milestone.get(id.as_str()) {
-                if have != m {
-                    p.push(Problem::new(ROADMAP, no, format!("{id} is listed under {m}, but its milestone is {have}")));
-                }
+            if let Some(have) = milestone.get(id.as_str())
+                && have != m
+            {
+                p.push(Problem::new(roadmap, no, format!("{id} is listed under {m}, but its milestone is {have}")));
             }
         }
     }

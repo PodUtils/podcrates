@@ -256,7 +256,7 @@ fn a_blocker_on_an_open_entry_is_found() {
 
 #[test]
 fn a_range_that_ends_before_it_starts_is_found() {
-    // A remap that moved only the start of a range left `155-154` once (T-254).
+    // A remap that moved only the start of a range left `155-154` once.
     let t = Tree::new("range-backwards");
     t.plant("TODO/area.md", "`crates/x/src/lib.rs:2-4`", "`crates/x/src/lib.rs:4-2`");
     assert_found(&t, "`crates/x/src/lib.rs:4-2`: a range runs from line 1 or later");
@@ -271,7 +271,7 @@ fn a_line_0_is_found() {
 
 #[test]
 fn a_plain_line_number_after_a_citation_is_found() {
-    // remap moves neither "line 5" nor its file's other numbers (T-258).
+    // remap moves neither "line 5" nor its file's other numbers.
     let t = Tree::new("plain-number");
     t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:3`, and line 5.");
     assert_found(&t, "\"line 5\" follows a citation as plain text");

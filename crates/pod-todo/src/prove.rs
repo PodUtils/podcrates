@@ -1,6 +1,6 @@
-//! The targets of a done entry's Prove (T-361): each `-p CRATE` of a
-//! `cargo test` command is a package of the tree, of the workspace, of
-//! `fuzz/` or of `vendor/`, and each `--test NAME` a target of one of them,
+//! The targets of a done entry's Prove: each `-p CRATE` of a `cargo test`
+//! command is a package of the tree (the root package, a member of the
+//! workspace, `fuzz/` or `vendor/`), and each `--test NAME` a target of one of them,
 //! a file of its `tests/` or a `[[test]]` of its manifest; each `scripts/`
 //! path exists. A done Prove is what ran when its entry closed, so a target
 //! that moved since is named, with where it went, in the entry's
@@ -17,16 +17,25 @@ pub struct Packages {
 }
 
 impl Packages {
-    /// The manifests of `crates/*`, `fuzz/`, `vendor/*` and `vendor/*/*`.
+    /// The manifests of the root package, of each member of the workspace
+    /// that the root `Cargo.toml` names (a member `DIR/*` is each directory
+    /// of DIR), of `crates/*`, of `fuzz/`, and of `vendor/*` and
+    /// `vendor/*/*`. No package
+    /// name is written here, so a rename of a package needs no change.
     pub fn of(root: &Path) -> Packages {
-        let mut manifests = vec![root.join("fuzz/Cargo.toml")];
-        for dir in ["crates", "vendor"] {
-            for first in children(&root.join(dir)) {
-                manifests.push(first.join("Cargo.toml"));
-                if dir == "vendor" {
-                    manifests.extend(children(&first).into_iter().map(|d| d.join("Cargo.toml")));
-                }
+        let top = std::fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default();
+        let mut manifests = vec![root.join("Cargo.toml"), root.join("fuzz/Cargo.toml")];
+        for member in workspace_members(&top) {
+            match member.strip_suffix("/*") {
+                Some(dir) => manifests.extend(children(&root.join(dir)).into_iter().map(|d| d.join("Cargo.toml"))),
+                None => manifests.push(root.join(&member).join("Cargo.toml")),
             }
+        }
+        // A tree with no root manifest keeps its packages in `crates/`.
+        manifests.extend(children(&root.join("crates")).into_iter().map(|d| d.join("Cargo.toml")));
+        for first in children(&root.join("vendor")) {
+            manifests.push(first.join("Cargo.toml"));
+            manifests.extend(children(&first).into_iter().map(|d| d.join("Cargo.toml")));
         }
         let mut packages = Packages::default();
         for manifest in manifests {
@@ -45,6 +54,38 @@ impl Packages {
             || dir.join("tests").join(format!("{test}.rs")).is_file()
             || dir.join("tests").join(test).join("main.rs").is_file()
     }
+}
+
+/// The `members` of `[workspace]` in a root manifest.
+fn workspace_members(text: &str) -> Vec<String> {
+    let mut section = "";
+    let mut list: Option<String> = None;
+    for raw in text.lines() {
+        // A path of a member holds no `#`: the rest of the line is a comment.
+        let line = raw.split('#').next().unwrap_or("").trim();
+        if let Some(acc) = list.as_mut() {
+            acc.push_str(line);
+            if line.contains(']') {
+                break;
+            }
+            continue;
+        }
+        if line.starts_with('[') {
+            section = line;
+            continue;
+        }
+        let value = line.strip_prefix("members").map(str::trim_start).and_then(|r| r.strip_prefix('='));
+        if let (Some(value), "[workspace]") = (value, section) {
+            let value = value.trim().to_string();
+            let closed = value.contains(']');
+            list = Some(value);
+            if closed {
+                break;
+            }
+        }
+    }
+    let list = list.unwrap_or_default().replace('\'', "\"");
+    list.split('"').skip(1).step_by(2).map(str::to_string).collect()
 }
 
 fn children(dir: &Path) -> Vec<PathBuf> {
@@ -101,10 +142,10 @@ fn targets(text: &str) -> Vec<(usize, Vec<String>, Vec<String>)> {
                     "-p" | "--package" => packages.extend(words.get(k + 1).map(|w| w.to_string())),
                     "--test" => tests.extend(words.get(k + 1).map(|w| w.to_string())),
                     _ => {
-                        if let Some(v) = word.strip_prefix("--package=").or_else(|| word.strip_prefix("-p")) {
-                            if !v.is_empty() {
-                                packages.push(v.to_string());
-                            }
+                        if let Some(v) = word.strip_prefix("--package=").or_else(|| word.strip_prefix("-p"))
+                            && !v.is_empty()
+                        {
+                            packages.push(v.to_string());
                         }
                         if let Some(v) = word.strip_prefix("--test=") {
                             tests.push(v.to_string());

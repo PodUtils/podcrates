@@ -1,12 +1,12 @@
-//! The map of GitHub's numbers (T-360): `TODO/github.txt` lists each number
+//! The map of GitHub's numbers: `TODO/github.txt` lists each number
 //! of the repository, an issue or a pull request, with its state, as GitHub
 //! gives them, and `TODO/issues.md` must agree with it. Each issue has one
 //! place in the map: the first cell of a row of a table, or the bold head of
 //! a paragraph (`**#18, ...**`); each pull request is in the map's line of
 //! them (`#37 to #50, #52 ... are pull requests`); and the State of a row
 //! begins with its issue's state. The list is held to GitHub each day by a
-//! job of CI (`.github/workflows/record-issues.yml`), as the gate has no
-//! network.
+//! job of CI (`.github/workflows/record-issues.yml`), as this check reads
+//! no network.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -122,11 +122,11 @@ pub fn read_map(text: &str) -> Map {
         let line = raw.trim_start();
         if let Some(rest) = line.strip_prefix('|') {
             let cells: Vec<&str> = rest.split('|').map(str::trim).collect();
-            if let Some(n) = cells.first().and_then(|c| number_at(c)).filter(|_| cells[0].len() > 1) {
-                if cells[0][1..].chars().all(|c| c.is_ascii_digit()) {
-                    let state = cells.get(2).map(|s| s.to_string());
-                    map.issues.entry(n).or_default().push(Place { line: i + 1, state });
-                }
+            if let Some(n) = cells.first().and_then(|c| number_at(c)).filter(|_| cells[0].len() > 1)
+                && cells[0][1..].chars().all(|c| c.is_ascii_digit())
+            {
+                let state = cells.get(2).map(|s| s.to_string());
+                map.issues.entry(n).or_default().push(Place { line: i + 1, state });
             }
         } else if let Some(n) = line.strip_prefix("**").and_then(number_at) {
             map.issues.entry(n).or_default().push(Place { line: i + 1, state: None });

@@ -1,4 +1,4 @@
-//! `--base REV` against a real repository (T-277): a commit made without a
+//! `--base REV` against a real repository: a commit made without a
 //! remap leaves citations that the check against `HEAD` cannot see, as the
 //! tree has no change then; against the commit's parent the check finds
 //! them, and `remap --base` moves them. With no git on PATH (the build
@@ -22,9 +22,9 @@ fn git(root: &Path, args: &[&str]) {
         .args(args)
         .env("GIT_CONFIG_GLOBAL", root.join("no-such-config"))
         .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_AUTHOR_NAME", "podssh-todo test")
+        .env("GIT_AUTHOR_NAME", "pod-todo test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "podssh-todo test")
+        .env("GIT_COMMITTER_NAME", "pod-todo test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         .env_remove("GIT_DIR")
         .env_remove("GIT_WORK_TREE")

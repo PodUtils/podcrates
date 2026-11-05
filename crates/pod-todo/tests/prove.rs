@@ -1,4 +1,4 @@
-//! The targets of a done Prove (T-361): a test target or a script that the
+//! The targets of a done Prove: a test target or a script that the
 //! tree does not hold is named, with the entry and the line, unless the
 //! entry's Correction names it; and `set` refuses to close an entry whose
 //! Prove names one.

@@ -96,6 +96,10 @@ pub fn changed_since(root: &Path, rev: &str) -> Option<Vec<String>> {
 /// Move the citations of `files` in each document. With `write` false,
 /// only report what would move.
 pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<Report, String> {
+    let (_scope, unread) = crate::config::enter(root);
+    if let Some(p) = unread {
+        return Err(p.to_string());
+    }
     let mut report = Report::default();
     let mut maps: Maps = HashMap::new();
     for f in files {
@@ -131,18 +135,18 @@ pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<
             continue;
         }
         let old = head(&doc)?.unwrap_or_default();
-        if let Some(text) = remap_doc(&doc, &now, &old, &names, &maps, &mut report) {
-            if write {
-                let crlf = now.contains("\r\n");
-                let mut out = if crlf { text.replace('\n', "\r\n") } else { text };
-                if !now.ends_with('\n') && out.ends_with('\n') {
+        if let Some(text) = remap_doc(&doc, &now, &old, &names, &maps, &mut report)
+            && write
+        {
+            let crlf = now.contains("\r\n");
+            let mut out = if crlf { text.replace('\n', "\r\n") } else { text };
+            if !now.ends_with('\n') && out.ends_with('\n') {
+                out.pop();
+                if crlf {
                     out.pop();
-                    if crlf {
-                        out.pop();
-                    }
                 }
-                fs::write(root.join(&doc), out).map_err(|e| format!("{doc}: {e}"))?;
             }
+            fs::write(root.join(&doc), out).map_err(|e| format!("{doc}: {e}"))?;
         }
     }
     Ok(report)

@@ -77,6 +77,10 @@ pub fn recount(index: &str, progress: &str, rows: &[Row]) -> (String, String) {
 /// the counts again. `done` needs the evidence first, and `blocked` the
 /// blocker: the writer refuses a status that the entry cannot support.
 pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
+    let (_scope, unread) = crate::config::enter(root);
+    if let Some(p) = unread {
+        return Err(p.to_string());
+    }
     if !STATUSES.contains(&status) {
         return Err(format!("`{status}` is not a status; use one of {}", STATUSES.join(", ")));
     }
@@ -95,7 +99,7 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
         "done" if !entry.section("Done").is_some_and(|d| crate::check::has_date(&d.body)) => {
             return Err(format!("{id}: write the evidence first, in `## Done` with its date"));
         }
-        // A Prove that names what the tree does not hold did not run (T-361).
+        // A Prove that names what the tree does not hold did not run.
         "done" => {
             let packages = crate::prove::Packages::of(root);
             if let Some((_, what)) = crate::check::prove_gaps(root, &packages, entry).into_iter().next() {
@@ -135,6 +139,10 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
 
 /// Derive the counts again after rows were added or removed by hand.
 pub fn counts(root: &Path) -> Result<(), String> {
+    let (_scope, unread) = crate::config::enter(root);
+    if let Some(p) = unread {
+        return Err(p.to_string());
+    }
     let index = read(root, INDEX).ok_or("TODO/INDEX.md is missing")?;
     let progress = read(root, PROGRESS).ok_or("TODO/PROGRESS.md is missing")?;
     let (rows, problems) = parse::rows(INDEX, &index);

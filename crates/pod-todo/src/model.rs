@@ -8,8 +8,8 @@ pub const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];
 pub const PRIORITIES: [&str; 4] = ["P0", "P1", "P2", "P3"];
 /// No `XL`: an entry that big is two entries.
 pub const EFFORTS: [&str; 3] = ["S", "M", "L"];
-pub const MILESTONES: [&str; 10] = ["M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "backlog", "none"];
-pub const CATEGORIES: [&str; 7] = ["defect", "feature", "measurement", "release", "chore", "research", "docs"];
+// The milestones, the categories and the record files of a repository are
+// in its configuration (`crate::config`).
 
 /// The header fields of an entry, each given once.
 pub const FIELDS: [&str; 6] = ["Source", "Category", "Milestone", "Priority", "Effort", "Status"];
@@ -18,9 +18,6 @@ pub const FIELDS: [&str; 6] = ["Source", "Category", "Milestone", "Priority", "E
 pub const SECTIONS: [&str; 9] =
     ["Problem", "Premise", "Approach", "Decision", "Prove", "Blocker", "Start condition", "Correction", "Done"];
 pub const REQUIRED_SECTIONS: [&str; 4] = ["Problem", "Premise", "Approach", "Prove"];
-
-/// The files of `TODO/` that hold no entries.
-pub const RECORD_FILES: [&str; 4] = ["INDEX.md", "PROGRESS.md", "RULES.md", "issues.md"];
 
 /// One finding of the reader: where, and what is wrong.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,7 +153,9 @@ pub fn id_number(id: &str) -> u32 {
     id.get(2..).and_then(|n| n.parse().ok()).unwrap_or(0)
 }
 
-/// Each `T-NNN` in a text, with the line where it is.
+/// Each `T-NNN` in a text, with the line where it is. An id of another
+/// repository's record is written `REPO@T-NNN` (`PodUtils/podssh@T-684`),
+/// and it is not an id of this record.
 pub fn ids_in(text: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
@@ -164,7 +163,8 @@ pub fn ids_in(text: &str) -> Vec<(String, usize)> {
         let mut at = 0;
         while let Some(pos) = line[at..].find("T-") {
             let start = at + pos;
-            let before_ok = start == 0 || !(bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'-');
+            let before_ok =
+                start == 0 || !(bytes[start - 1].is_ascii_alphanumeric() || matches!(bytes[start - 1], b'-' | b'@'));
             let digits = bytes[start + 2..].iter().take_while(|b| b.is_ascii_digit()).count();
             let end = start + 2 + digits;
             let after_ok = end == bytes.len() || !bytes[end].is_ascii_alphanumeric();
@@ -183,8 +183,10 @@ mod tests {
 
     #[test]
     fn ids_are_found_as_words_only() {
-        let found: Vec<String> =
-            ids_in("T-001 and (T-012), not XT-003, not T-04, T-1234.").into_iter().map(|(id, _)| id).collect();
+        let found: Vec<String> = ids_in("T-001 and (T-012), not XT-003, not T-04, T-1234, not PodUtils/podssh@T-684.")
+            .into_iter()
+            .map(|(id, _)| id)
+            .collect();
         assert_eq!(found, ["T-001", "T-012", "T-1234"]);
     }
 

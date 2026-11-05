@@ -1,6 +1,6 @@
-//! The check of GitHub's numbers in the map (T-360), on the record's own
-//! `TODO/issues.md` and `TODO/github.txt`: they agree, and each planted
-//! disagreement is named.
+//! The check of GitHub's numbers in the map: the record's own
+//! `TODO/issues.md` and `TODO/github.txt` agree, and each planted
+//! disagreement in a small map and list is named.
 
 use std::path::Path;
 
@@ -28,9 +28,21 @@ fn the_record_s_map_agrees_with_its_list() {
     assert!(found.is_empty(), "{found:#?}");
 }
 
+/// A list and a map that agree: two issues and two pull requests.
+const LIST: &str = "# A list.\n70 issue closed\n71 issue open\n76 pull closed\n77 pull closed\n";
+const MAP: &str = "| Issue | Subject | State | Entries |\n| --- | --- | --- | --- |\n\
+| #70 | A defect | closed, in `0000000` | T-001 |\n| #71 | A request | open | T-002 |\n\n\
+#76 and #77 are pull requests.\n";
+
+#[test]
+fn the_fixture_agrees() {
+    let found = problems(LIST, MAP);
+    assert!(found.is_empty(), "{found:#?}");
+}
+
 #[test]
 fn each_planted_disagreement_is_named() {
-    let (list, map) = (record("github.txt"), record("issues.md"));
+    let (list, map) = (LIST.to_string(), MAP.to_string());
     let row = map.lines().find(|l| l.starts_with("| #70 |")).expect("the row of #70").to_string();
 
     let gone = map.replacen(&format!("{row}\n"), "", 1);

@@ -1,15 +1,18 @@
-//! The checker of podssh's work record (`TODO/`).
+//! The checker of a work record (`TODO/`), as podssh, podnet and podcrates
+//! keep it. The facts of each repository are in its `TODO/todo.toml`
+//! (`config`).
 //!
 //! The record is the index (`TODO/INDEX.md`), the progress record with the
 //! work order (`TODO/PROGRESS.md`) and the entries (`TODO/<area>.md`).
 //! Closing one entry moves several numbers in two files, so no number is
 //! typed by hand: the writer moves a status and derives the counts, and the
-//! reader, which the gate runs, checks that the files agree. When a cited
+//! reader, which CI runs, checks that the files agree. When a cited
 //! file changes, `remap` moves its citations by a line diff against `HEAD`,
 //! or against the revision that `--base` names.
 
 pub mod check;
 pub mod claims;
+pub mod config;
 pub mod diff;
 pub mod github;
 pub mod model;
@@ -22,14 +25,25 @@ pub mod write;
 
 use std::path::{Path, PathBuf};
 
-pub const USAGE: &str = "usage: podssh-todo check
-       podssh-todo set T-NNN open|partial|blocked|done
-       podssh-todo counts
-       podssh-todo next
-       podssh-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
+/// The usage text. A consumer's member crate that adds commands (podssh:
+/// `interop`) dispatches them before it calls [`run`].
+pub const USAGE: &str = "usage: pod-todo check
+       pod-todo set T-NNN open|partial|blocked|done
+       pod-todo counts
+       pod-todo next
+       pod-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
 Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)
          --base REV (default: HEAD): check and remap compare each file with its text in REV,
                     as HEAD~1 for a commit that was made without them";
+
+/// The program: run the command line of the process and exit with its code.
+/// A consumer keeps a small member crate whose `main` calls this, so that
+/// its `cargo todo` alias and its lock stay its own.
+pub fn main() -> ! {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let code = run(&args, &mut std::io::stdout(), &mut std::io::stderr());
+    std::process::exit(code)
+}
 
 /// The nearest directory at or above `start` that has `TODO/INDEX.md`.
 pub fn find_root(start: &Path) -> Option<PathBuf> {
@@ -55,7 +69,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 _ => return usage(err, "--base needs a revision, as HEAD~1"),
             },
             "-h" | "--help" => {
-                let _ = writeln!(out, "{USAGE}");
+                let _ = writeln!(out, "{}", usage_text());
                 return 0;
             }
             w => words.push(w),
@@ -65,19 +79,24 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         Some(r) => r,
         None => return usage(err, "no TODO/INDEX.md here or above; give --root"),
     };
+    let (_scope, unread) = config::enter(&root);
+    if let Some(p) = unread {
+        let _ = writeln!(err, "{}: {p}", tool());
+        return 1;
+    }
     match words.as_slice() {
         ["check"] => report(&root, base, out, err),
         ["set", id, status] => match write::set_status(&root, id, status) {
             Ok(()) => report(&root, base, out, err),
             Err(e) => {
-                let _ = writeln!(err, "podssh-todo: {e}");
+                let _ = writeln!(err, "{}: {e}", tool());
                 1
             }
         },
         ["counts"] => match write::counts(&root) {
             Ok(()) => report(&root, base, out, err),
             Err(e) => {
-                let _ = writeln!(err, "podssh-todo: {e}");
+                let _ = writeln!(err, "{}: {e}", tool());
                 1
             }
         },
@@ -87,7 +106,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 0
             }
             Err(e) => {
-                let _ = writeln!(err, "podssh-todo: {e}");
+                let _ = writeln!(err, "{}: {e}", tool());
                 1
             }
         },
@@ -118,7 +137,7 @@ fn remap_command(
     let r = match remap::remap(root, files, &head, !dry) {
         Ok(r) => r,
         Err(e) => {
-            let _ = writeln!(err, "podssh-todo: remap: {e}");
+            let _ = writeln!(err, "{}: remap: {e}", tool());
             return 1;
         }
     };
@@ -137,7 +156,8 @@ fn remap_command(
     let verb = if dry { "would move" } else { "moved" };
     let _ = writeln!(
         out,
-        "podssh-todo: remap: {verb} {} citations; {} to review; {} on new lines kept",
+        "{}: remap: {verb} {} citations; {} to review; {} on new lines kept",
+        tool(),
         r.moved.len(),
         r.review.len(),
         r.kept.len()
@@ -145,8 +165,18 @@ fn remap_command(
     if dry { 0 } else { report(root, base, out, err) }
 }
 
+/// The name of the tool in the configuration of the tree.
+fn tool() -> String {
+    config::current().tool.clone()
+}
+
+/// The usage text with the name of the tool.
+pub fn usage_text() -> String {
+    USAGE.replace("pod-todo", &tool())
+}
+
 fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {
-    let _ = writeln!(err, "podssh-todo: {why}\n{USAGE}");
+    let _ = writeln!(err, "{}: {why}\n{}", tool(), usage_text());
     64
 }
 
@@ -154,13 +184,13 @@ fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {
 fn report(root: &Path, base: Option<&str>, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
     let r = check::check(root, base);
     if r.problems.is_empty() {
-        let _ = writeln!(out, "podssh-todo: the record agrees: {}", r.counts.phrase());
+        let _ = writeln!(out, "{}: the record agrees: {}", tool(), r.counts.phrase());
         0
     } else {
         for p in &r.problems {
             let _ = writeln!(err, "{p}");
         }
-        let _ = writeln!(err, "podssh-todo: {} problems in the record", r.problems.len());
+        let _ = writeln!(err, "{}: {} problems in the record", tool(), r.problems.len());
         1
     }
 }

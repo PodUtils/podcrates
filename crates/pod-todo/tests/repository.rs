@@ -1,5 +1,5 @@
 //! The record of this repository agrees with itself. This is the reader that
-//! the gate runs; `cargo run -p podssh-todo -- check` prints the same
+//! CI runs; `cargo run -p pod-todo -- check` prints the same
 //! problems.
 
 #[test]

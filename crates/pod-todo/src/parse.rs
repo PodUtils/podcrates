@@ -112,15 +112,15 @@ fn header_line(entry: &mut Entry, line: &str, line_no: usize, file: &str, proble
     if line.trim().is_empty() {
         return;
     }
-    if let Some(rest) = line.strip_prefix("**") {
-        if let Some((name, value)) = rest.split_once(":**") {
-            if FIELDS.contains(&name) {
-                entry.fields.push(Field { name: name.to_string(), value: value.trim().to_string(), line: line_no });
-            } else {
-                problems.push(Problem::new(file, line_no, format!("`{name}` is not a field of an entry")));
-            }
-            return;
+    if let Some(rest) = line.strip_prefix("**")
+        && let Some((name, value)) = rest.split_once(":**")
+    {
+        if FIELDS.contains(&name) {
+            entry.fields.push(Field { name: name.to_string(), value: value.trim().to_string(), line: line_no });
+        } else {
+            problems.push(Problem::new(file, line_no, format!("`{name}` is not a field of an entry")));
         }
+        return;
     }
     match entry.fields.last_mut() {
         Some(f) => {

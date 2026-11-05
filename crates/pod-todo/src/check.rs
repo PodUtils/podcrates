@@ -6,10 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use crate::model::{
-    CATEGORIES, Counts, EFFORTS, Entry, FIELDS, MILESTONES, PRIORITIES, Problem, RECORD_FILES, REQUIRED_SECTIONS, Row,
-    SECTIONS, STATUSES,
-};
+use crate::model::{Counts, EFFORTS, Entry, FIELDS, PRIORITIES, Problem, REQUIRED_SECTIONS, Row, SECTIONS, STATUSES};
 use crate::parse;
 
 pub const INDEX: &str = "TODO/INDEX.md";
@@ -36,11 +33,12 @@ pub fn read(root: &Path, rel: &str) -> Option<String> {
 
 /// The area files of `TODO/`: each Markdown file that is not a record file.
 pub fn area_files(root: &Path) -> Vec<String> {
+    let record = crate::config::current().record_files();
     let mut out: Vec<String> = fs::read_dir(root.join("TODO"))
         .map(|d| {
             d.filter_map(|e| e.ok())
                 .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|n| n.ends_with(".md") && !RECORD_FILES.contains(&n.as_str()))
+                .filter(|n| n.ends_with(".md") && !record.contains(n))
                 .collect()
         })
         .unwrap_or_default();
@@ -101,7 +99,8 @@ pub fn check(root: &Path, base: Option<&str>) -> Report {
 /// [`check`], given the files changed since the base `rev` (`None`:
 /// unknown) and their texts in it, so a test needs no git.
 pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap::Head, rev: &str) -> Report {
-    let mut problems = Vec::new();
+    let (_scope, unread) = crate::config::enter(root);
+    let mut problems: Vec<Problem> = unread.into_iter().collect();
     let Some(record) = load(root, &mut problems) else {
         return Report { problems, counts: Counts::default() };
     };
@@ -115,9 +114,9 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
     }
     check_counts(&record, &mut problems);
     crate::refs::check(root, &record, &mut problems);
-    // GitHub's numbers in the map (T-360).
+    // GitHub's numbers in the map.
     crate::github::check(root, &mut problems);
-    // The claims of "yet", and a status beside an id (T-362).
+    // The claims of "yet", and a status beside an id.
     let status: std::collections::HashMap<&str, &str> =
         record.rows.iter().map(|r| (r.id.as_str(), r.status.as_str())).collect();
     crate::claims::check(root, &status, &mut problems);
@@ -158,6 +157,10 @@ fn unmoved(root: &Path, files: &[String], head: &crate::remap::Head, rev: &str, 
 }
 
 fn check_rows(rows: &[Row], p: &mut Vec<Problem>) {
+    let config = crate::config::current();
+    let milestones: Vec<&str> = config.milestones.iter().map(String::as_str).collect();
+    let categories: Vec<&str> = config.categories.iter().map(String::as_str).collect();
+    let record = config.record_files();
     let allowed = |what: &str, value: &str, set: &[&str], line: usize, p: &mut Vec<Problem>| {
         if !set.contains(&value) {
             p.push(Problem::new(INDEX, line, format!("{what} `{value}` is not one of {}", set.join(", "))));
@@ -179,10 +182,10 @@ fn check_rows(rows: &[Row], p: &mut Vec<Problem>) {
         last = last.max(n);
         allowed("the priority", &r.priority, &PRIORITIES, r.line, p);
         allowed("the effort", &r.effort, &EFFORTS, r.line, p);
-        allowed("the milestone", &r.milestone, &MILESTONES, r.line, p);
-        allowed("the category", &r.category, &CATEGORIES, r.line, p);
+        allowed("the milestone", &r.milestone, &milestones, r.line, p);
+        allowed("the category", &r.category, &categories, r.line, p);
         allowed("the status", &r.status, &STATUSES, r.line, p);
-        if RECORD_FILES.contains(&r.file.as_str()) || r.file.contains('/') || !r.file.ends_with(".md") {
+        if record.contains(&r.file) || r.file.contains('/') || !r.file.ends_with(".md") {
             p.push(Problem::new(
                 INDEX,
                 r.line,
@@ -231,14 +234,14 @@ fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
             ("Category", &r.category),
             ("Status", &r.status),
         ] {
-            if let Some(have) = e.field(name) {
-                if have != want {
-                    p.push(Problem::new(
-                        &at,
-                        e.line,
-                        format!("{}: the entry says {name} {have}, the index says {want}", r.id),
-                    ));
-                }
+            if let Some(have) = e.field(name)
+                && have != want
+            {
+                p.push(Problem::new(
+                    &at,
+                    e.line,
+                    format!("{}: the entry says {name} {have}, the index says {want}", r.id),
+                ));
             }
         }
     }
@@ -250,7 +253,7 @@ fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
     }
 }
 
-/// The targets of each done Prove (T-361): what it names must exist, but a
+/// The targets of each done Prove: what it names must exist, but a
 /// target that its Correction names, which moved since the entry closed.
 fn check_proves(root: &Path, entries: &[Entry], p: &mut Vec<Problem>) {
     let packages = crate::prove::Packages::of(root);
@@ -275,6 +278,9 @@ pub fn prove_gaps(root: &Path, packages: &crate::prove::Packages, e: &Entry) -> 
 /// The form of one entry: its fields, its sections, and what its status
 /// requires.
 fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
+    let config = crate::config::current();
+    let milestones: Vec<&str> = config.milestones.iter().map(String::as_str).collect();
+    let categories: Vec<&str> = config.categories.iter().map(String::as_str).collect();
     let at = format!("TODO/{}", e.file);
     for name in FIELDS {
         match e.fields.iter().filter(|f| f.name == name).count() {
@@ -285,8 +291,8 @@ fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
     }
     for f in &e.fields {
         let set: &[&str] = match f.name.as_str() {
-            "Category" => &CATEGORIES,
-            "Milestone" => &MILESTONES,
+            "Category" => &categories,
+            "Milestone" => &milestones,
             "Priority" => &PRIORITIES,
             "Effort" => &EFFORTS,
             "Status" => &STATUSES,
@@ -322,10 +328,10 @@ fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
             p.push(Problem::new(&at, e.line, format!("{}: the section `## {name}` is missing", e.id)));
         }
     }
-    if let Some(prove) = e.section("Prove") {
-        if !prove.body.contains('`') {
-            p.push(Problem::new(&at, prove.line, format!("{}: a Prove with no command is a paragraph", e.id)));
-        }
+    if let Some(prove) = e.section("Prove")
+        && !prove.body.contains('`')
+    {
+        p.push(Problem::new(&at, prove.line, format!("{}: a Prove with no command is a paragraph", e.id)));
     }
     let status = e.field("Status").unwrap_or("");
     match (status, e.section("Blocker")) {

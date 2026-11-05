@@ -1,13 +1,14 @@
-//! The claims of the pages that a session reads first (T-362). A "yet" says
+//! The claims of the pages that a session reads first. A "yet" says
 //! that something is not built, and it goes stale on the day its work is
 //! done, in a file that the work did not touch; so does a status written
-//! beside an id. Each "yet" of the documents (`docs/`, `README.md`,
-//! `AGENTS.md`, `SECURITY.md`), outside fenced blocks, is in a unit that
+//! beside an id. Each "yet" of the documents (the documents of the
+//! configuration), outside fenced blocks, is in a unit that
 //! names an entry that is not done, or a date; a done entry beside it is
 //! named. Each status beside an id (`T-NNN, partial`) agrees with the index,
 //! unless its unit reads at a date or at a commit. A unit is a paragraph, a
 //! list item or a row of a table: an id in another item covers no claim.
-//! The release notes (`docs/releases/`) are readings at their tags.
+//! The readings at a time of the configuration (release notes, reports,
+//! studies) are not read.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -19,10 +20,7 @@ const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];
 
 /// The documents whose claims are read.
 fn files(root: &Path) -> Vec<String> {
-    crate::refs::documents(root)
-        .into_iter()
-        .filter(|rel| !rel.starts_with("TODO/") && !rel.starts_with("docs/releases/"))
-        .collect()
+    crate::refs::documents(root).into_iter().filter(|rel| !rel.starts_with("TODO/")).collect()
 }
 
 /// Whether `line` starts a unit of its own: a heading, an item of a list, a
@@ -115,12 +113,12 @@ fn statuses(line: &str) -> Vec<(String, &'static str)> {
         let mut at = 0;
         while let Some(pos) = line[at..].find(&id) {
             let rest = &line[at + pos + id.len()..];
-            if let Some(after) = rest.strip_prefix(", ") {
-                if let Some(status) = STATUSES.iter().find(|s| {
+            if let Some(after) = rest.strip_prefix(", ")
+                && let Some(status) = STATUSES.iter().find(|s| {
                     after.starts_with(**s) && !after[s.len()..].starts_with(|c: char| c.is_ascii_alphanumeric())
-                }) {
-                    out.push((id.clone(), *status));
-                }
+                })
+            {
+                out.push((id.clone(), *status));
             }
             at += pos + id.len();
         }
