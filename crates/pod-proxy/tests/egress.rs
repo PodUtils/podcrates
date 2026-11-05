@@ -3,6 +3,8 @@
 //! refusal with its words in the body, the decisions of an observer, the
 //! resolver of the proxy's own name, and a silent address in a race.
 
+mod closed;
+
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -291,7 +293,7 @@ async fn a_silent_address_does_not_hold_the_dial() {
 #[tokio::test]
 async fn a_failed_dial_keeps_the_kind_of_its_last_error() {
     pod_testkit::need_loopback!();
-    let closed = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap();
+    let (_held, closed) = closed::port();
     let err = pod_proxy::dial_addrs(&[closed], Duration::from_secs(5)).await.unwrap_err();
     match err {
         DialError::Connect { kind, cut, .. } => {

@@ -3,6 +3,8 @@
 //! method to an `http://` URL over the caller's dial, with its head, its
 //! body, its own way out and its time limit.
 
+mod closed;
+
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -168,7 +170,7 @@ async fn a_request_takes_its_own_way_out_and_its_own_user_agent() {
     let (port, seen) = server(b"HTTP/1.1 204 No Content\r\n\r\n", 0).await;
     let url = format!("http://name.test:{port}/x");
     // The client's own way: a proxy where nothing listens.
-    let closed = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap();
+    let (_held, closed) = closed::port();
     let proxy = pod_proxy::Proxy::parse(&format!("http://{closed}")).unwrap();
     let blocked = || Dialer::new(Settings::new("podnet", ProxyChoice::Via(proxy.clone())), Arc::new(System::new()));
     let failed = client(blocked()).send(Request::new("GET", &url)).await.unwrap_err();

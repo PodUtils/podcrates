@@ -3,6 +3,8 @@
 //! dial's error as its cause, the race of the addresses that a caller
 //! resolved, the user agent of a CONNECT, and the write limit.
 
+mod closed;
+
 use std::ffi::OsString;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -73,7 +75,8 @@ async fn a_dial_gives_the_stream_and_its_addresses() {
 #[tokio::test]
 async fn a_failure_keeps_the_dial_error_as_its_cause() {
     pod_testkit::need_loopback!();
-    let port = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
+    let (_held, closed) = closed::port();
+    let port = closed.port();
     let via = dialer(ProxyChoice::Via(Proxy::parse(&format!("http://127.0.0.1:{port}")).unwrap()));
     let failed: Failure = via.dial(&Target::new("relay.invalid", 443), deadline()).await.unwrap_err();
     assert_eq!((failed.stage, failed.class), (Stage::Proxy, Class::Unavailable), "{failed}");

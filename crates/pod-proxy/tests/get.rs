@@ -3,6 +3,8 @@
 //! a name that TLS cannot check is refused before a connection, and a
 //! failure keeps its stage: the dial's, the handshake's, the exchange's.
 
+mod closed;
+
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -112,7 +114,8 @@ async fn each_failure_keeps_its_stage() {
     let tls = client(context.clone()).https_get(NAME, port, "/", 16, &trust, LIMIT).await.unwrap_err();
     assert_eq!(tls.stage, Stage::Tls, "{tls}");
 
-    let gone = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
+    let (_held, gone) = closed::port();
+    let gone = gone.port();
     let dial = client(context).https_get(NAME, gone, "/", 16, &trust, LIMIT).await.unwrap_err();
     assert_eq!((dial.stage, pod_proxy::Cut::of_failure(&dial)), (Stage::Connect, Some(pod_proxy::Cut::Refused)));
 }

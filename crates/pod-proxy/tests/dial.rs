@@ -1,6 +1,8 @@
 //! The proxy-aware dialer: proxy settings from the environment, `no_proxy`,
 //! and the CONNECT exchange against a stand-in proxy on a local socket.
 
+mod closed;
+
 use std::ffi::OsString;
 use std::sync::Arc;
 use std::time::Duration;
@@ -243,8 +245,9 @@ async fn a_refusal_carries_the_status_and_the_proxys_reason() {
 #[tokio::test]
 async fn an_unreachable_proxy_is_named() {
     pod_testkit::need_loopback!();
-    // Bind and drop a listener to find a port with nothing on it.
-    let port = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
+    // A port with nothing on it, held for the test.
+    let (_held, closed) = closed::port();
+    let port = closed.port();
     let proxy = HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
     let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err();
     assert!(matches!(err, DialError::ProxyUnreachable { .. }), "{err:?}");
