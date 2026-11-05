@@ -80,6 +80,18 @@ pub fn clock_refused(text: &str) -> bool {
     lower.contains("expired") || lower.contains("notvalidyet") || lower.contains("not valid yet")
 }
 
+/// For the text of an error chain that says that a certificate is expired
+/// or not valid yet: the clock's words, with this host's reading; else
+/// `None`. A wrong clock is a frequent cause on a small host or in a
+/// container. The text must name a certificate: an expired token is no
+/// fault of the clock. The caller gives the whole chain, with each cause
+/// and its `Debug` (podnet: `format!("{err:#} {err:?}")`), so that a
+/// wrapper that hides rustls's error does not hide its words.
+pub fn clock_hint(chain: &str) -> Option<String> {
+    (clock_refused(chain) && chain.to_ascii_lowercase().contains("cert"))
+        .then(|| pod_core::clock::hint(std::time::SystemTime::now()))
+}
+
 /// The text of a failed handshake, with its hint when it has one.
 pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
     match handshake_hint(error, words) {
@@ -172,6 +184,32 @@ mod tests {
         assert!(handshake_hint(&text, &words).is_some_and(|h| h.contains("this host's clock")));
         let name = std::io::Error::other("invalid peer certificate: NotValidForName");
         assert_eq!(handshake_hint(&name, &words), None);
+    }
+
+    /// The hint of an error chain that names an expired certificate gives the
+    /// date of this host; another error, and an expired thing that is not a
+    /// certificate, get none.
+    #[test]
+    fn the_clock_hint_names_the_host_date() {
+        // podnet's text of `anyhow!("invalid peer certificate: Expired").context("TLS handshake")`.
+        let err = "TLS handshake: invalid peer certificate: Expired \
+                   TLS handshake\n\nCaused by:\n    invalid peer certificate: Expired";
+        let hint = clock_hint(err).unwrap();
+        assert!(hint.contains("which reads ") && hint.ends_with(" GMT"), "{hint}");
+        assert!(clock_hint("connection refused").is_none());
+        assert!(clock_hint("the session token expired").is_none());
+        assert!(clock_hint("invalid peer certificate: NotValidYet").is_some());
+    }
+
+    /// podnet's `imf_fixdate` of a time is `pod_core::clock::http_date` of its
+    /// seconds since the epoch: the same dates.
+    #[test]
+    fn the_dates_of_imf_fixdate() {
+        let at = pod_core::clock::http_date;
+        assert_eq!(at(0), "Thu, 01 Jan 1970 00:00:00 GMT");
+        assert_eq!(at(784_111_777), "Sun, 06 Nov 1994 08:49:37 GMT");
+        assert_eq!(at(951_782_400), "Tue, 29 Feb 2000 00:00:00 GMT");
+        assert_eq!(at(2_208_988_800), "Sun, 01 Jan 2040 00:00:00 GMT");
     }
 
     /// The failure of a handshake keeps the words, the class of the kind, and
