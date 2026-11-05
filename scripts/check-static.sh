@@ -5,7 +5,7 @@
 # * Mach-O (macOS): only the libraries of the system (otool -L): Apple
 #   allows no static libSystem;
 # * PE (Windows): only the DLLs of the system, and no DLL of the C runtime
-#   (objdump -p, or dumpbin /dependents).
+#   (objdump -p, OBJDUMP=llvm-objdump, or dumpbin /dependents).
 #
 #   sh scripts/check-static.sh BINARY...
 #
@@ -53,8 +53,9 @@ for b in "$@"; do
             fi
             ;;
         pe)
-            if command -v objdump > /dev/null && objdump -p "$b" > /dev/null 2>&1; then
-                dlls=$(objdump -p "$b" | awk '/DLL Name:/ {print $3}')
+            od=${OBJDUMP:-objdump}
+            if command -v "$od" > /dev/null && "$od" -p "$b" > /dev/null 2>&1; then
+                dlls=$("$od" -p "$b" | awk '/DLL Name:/ {print $3}')
             elif command -v dumpbin > /dev/null; then
                 dlls=$(dumpbin /dependents "$b" | awk '/\.dll/ {print $1}')
             else

@@ -1,0 +1,96 @@
+name: nightly
+
+# The tests of the workspace on each other platform of the consumers, each
+# night, by hand, and before a release (docs/design.md, section 7): macOS
+# and Windows on their runners; the other Linux targets built with
+# cargo-zigbuild and run under QEMU user mode (scripts/binfmt.sh). Linux
+# x86_64 runs in ci.yml on each push.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  ZIG_VERSION: 0.16.0
+  ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+  ZIGBUILD_VERSION: 0.23.4
+
+jobs:
+  test:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel, windows-2025, windows-11-arm]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Test
+        run: cargo test --locked --workspace --all-features
+
+  cross:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-unknown-linux-musl, qemu: arm64 }
+          - { target: armv7-unknown-linux-musleabihf, qemu: arm }
+          - { target: arm-unknown-linux-musleabihf, qemu: arm }
+          - { target: riscv64gc-unknown-linux-musl, qemu: riscv64 }
+          - { target: i686-unknown-linux-musl, qemu: "" }
+          - { target: loongarch64-unknown-linux-musl, qemu: loong64 }
+          - { target: powerpc64le-unknown-linux-musl, qemu: ppc64le }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain and target
+        run: |
+          sh scripts/retry.sh rustup toolchain install
+          sh scripts/retry.sh rustup target add ${{ matrix.target }}
+      - name: zig and cargo-zigbuild
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/zig"
+          sh scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" "$RUNNER_TEMP/zig.tar.xz"
+          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig/zig-x86_64-linux-$ZIG_VERSION" >> "$GITHUB_PATH"
+          sh scripts/retry.sh cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+      - name: QEMU for the target
+        if: matrix.qemu != ''
+        run: sh scripts/binfmt.sh ${{ matrix.qemu }}
+      - name: Build the tests
+        run: |
+          set -eu
+          cargo zigbuild --locked --workspace --all-features --tests --target ${{ matrix.target }} \
+            --message-format=json > "$RUNNER_TEMP/build.json"
+          python3 -c 'import json,sys
+          for line in open(sys.argv[1]):
+              m = json.loads(line) if line.startswith("{") else {}
+              if m.get("reason") == "compiler-artifact" and m.get("executable") and m["profile"]["test"]:
+                  print(m["manifest_path"].rsplit("/", 1)[0], m["executable"])' "$RUNNER_TEMP/build.json" > "$RUNNER_TEMP/tests.txt"
+          wc -l < "$RUNNER_TEMP/tests.txt"
+      - name: Run the tests
+        run: |
+          set -u
+          failed=0
+          while read -r dir exe; do
+            echo "== $exe"
+            (cd "$dir" && "$exe") || failed=$((failed + 1))
+          done < "$RUNNER_TEMP/tests.txt"
+          echo "test binaries that failed: $failed"
+          test "$failed" -eq 0

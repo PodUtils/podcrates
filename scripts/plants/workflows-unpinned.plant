@@ -1,0 +1,6 @@
+# An action named by its tag, not by a commit.
+ENTRY=T-007
+GROUP=lint
+EXPECT='actions/checkout@v7 is not pinned to a commit'
+RUN='python3 scripts/check-workflows.py'
+LIMIT=60

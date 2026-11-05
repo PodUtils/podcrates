@@ -1,0 +1,157 @@
+name: ci
+
+# The checks of each push to main and each pull request (docs/design.md,
+# section 9):
+#
+# * lint: format, clippy, docs, the size of the Rust files, the rules of
+#   the workflows.
+# * test: the tests of the workspace on Linux x86_64.
+# * record: the tests of pod-todo, and `cargo todo check`.
+# * static: the probe of each crate (examples/static-probe) on each target
+#   of the consumers, checked by scripts/check-static.sh.
+# * all: the one status to require. It fails when a job failed or was
+#   skipped.
+#
+# Each action is pinned by its commit. No job may write to the repository.
+# The toolchain comes from rust-toolchain.toml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  ZIG_VERSION: 0.16.0
+  ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+  ZIGBUILD_VERSION: 0.23.4
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - name: Docs
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace --all-features
+      - name: The size of the Rust files
+        run: |
+          python3 -I scripts/check-size.py
+          python3 -I scripts/check-size.py --self-test
+      - name: The rules of the workflows
+        run: python3 scripts/check-workflows.py
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Test
+        run: cargo test --locked --workspace --all-features
+
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The parent of the commit: a citation that a change left behind.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The tests of the checker
+        run: cargo test --locked -p pod-todo
+      - name: The record agrees
+        run: cargo run --locked -q -p pod-todo -- check
+      - name: No citation left behind by the last commit
+        if: github.event_name == 'push'
+        run: cargo run --locked -q -p pod-todo -- check --base HEAD~1
+
+  static:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: armv7-unknown-linux-musleabihf, runner: ubuntu-24.04, zig: true }
+          - { target: arm-unknown-linux-musleabihf, runner: ubuntu-24.04, zig: true }
+          - { target: riscv64gc-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: i686-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: loongarch64-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: powerpc64le-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
+          - { target: aarch64-apple-darwin, runner: macos-15, zig: false }
+          - { target: x86_64-apple-darwin, runner: macos-15-intel, zig: false }
+          - { target: x86_64-pc-windows-msvc, runner: windows-2025, zig: false }
+          - { target: aarch64-pc-windows-msvc, runner: windows-11-arm, zig: false }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain and target
+        run: |
+          sh scripts/retry.sh rustup toolchain install
+          sh scripts/retry.sh rustup target add ${{ matrix.target }}
+      - name: zig and cargo-zigbuild
+        if: matrix.zig
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/zig"
+          sh scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" "$RUNNER_TEMP/zig.tar.xz"
+          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig/zig-x86_64-linux-$ZIG_VERSION" >> "$GITHUB_PATH"
+          sh scripts/retry.sh cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+      - name: Build the probe (zig)
+        if: matrix.zig
+        run: cargo zigbuild --locked --release --target ${{ matrix.target }} -p static-probe
+      - name: Build the probe
+        if: '!matrix.zig'
+        run: cargo build --locked --release --target ${{ matrix.target }} -p static-probe
+      - name: llvm-objdump for a PE file
+        if: runner.os == 'Windows'
+        run: |
+          sh scripts/retry.sh rustup component add llvm-tools
+          host=$(rustc -vV | sed -n 's/^host: //p')
+          echo "OBJDUMP=$(rustc --print sysroot)/lib/rustlib/$host/bin/llvm-objdump.exe" >> "$GITHUB_ENV"
+      - name: The probe is static
+        run: |
+          set -eu
+          exe=target/${{ matrix.target }}/release/static-probe
+          [ -f "$exe" ] || exe="$exe.exe"
+          sh scripts/check-static.sh "$exe"
+          echo "| ${{ matrix.target }} | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+
+  all:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: always()
+    needs: [lint, test, record, static]
+    steps:
+      - name: Each job passed
+        run: |
+          set -eu
+          for r in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.record.result }}" "${{ needs.static.result }}"; do
+            [ "$r" = success ] || { echo "a job ended: $r"; exit 1; }
+          done

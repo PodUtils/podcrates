@@ -1,0 +1,57 @@
+name: release
+
+# A release of podcrates (docs/design.md, section 10): a git tag vX.Y.Z of
+# main, which each consumer names in its Cargo.toml, and a GitHub release
+# with the notes of docs/releases/vX.Y.Z.md. With no input, a dry run that
+# checks each condition and tags nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version X.Y.Z of [workspace.package] (empty: a dry run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: The conditions of a release
+        run: |
+          set -eu
+          have=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          want=${VERSION:-$have}
+          echo "the version of the workspace: $have; the release: $want"
+          [ "$have" = "$want" ] || { echo "Cargo.toml says $have, not $want"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$want" > /dev/null; then
+            echo "the tag v$want exists: a tag never moves"
+            [ -z "$VERSION" ] || exit 1
+          fi
+          [ -f "docs/releases/v$want.md" ] || { echo "no notes: docs/releases/v$want.md"; exit 1; }
+          sha=$(git rev-parse HEAD)
+          state=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$sha" \
+            --jq '[.workflow_runs[] | select(.status == "completed")][0].conclusion // "none"')
+          echo "ci at $sha: $state"
+          [ "$state" = success ] || { echo "ci is not green at $sha"; exit 1; }
+      - name: Tag and publish
+        if: inputs.version != ''
+        run: |
+          set -eu
+          git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "v$VERSION" -m "podcrates v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" --verify-tag --title "podcrates v$VERSION" --notes-file "docs/releases/v$VERSION.md"
