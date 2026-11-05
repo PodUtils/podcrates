@@ -1,8 +1,20 @@
 //! What a proxy's `407` asks for. RFC 9110, section 11.7.1: the answer
 //! carries `Proxy-Authenticate` with each scheme that the proxy takes. The
-//! dial sends Basic only, from the user and password of the proxy URL, as
-//! Go, wget, requests and reqwest do; an NTLM or Negotiate proxy refuses it,
-//! and the message must say why rather than only that it refused.
+//! dial sends Basic from the user and password of the proxy URL, and answers
+//! a Digest challenge ([`crate::digest`]) on a new connection; an NTLM or
+//! Negotiate proxy refuses both, and the message must say why rather than
+//! only that it refused.
+
+/// What the dial sent with the `CONNECT` that got the `407`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Sent {
+    /// No credentials: the proxy URL has none.
+    Nothing,
+    /// Basic, with the user and password of the proxy URL.
+    Basic,
+    /// A Digest answer to the proxy's challenge.
+    Digest,
+}
 
 /// The schemes of each `Proxy-Authenticate` of a response head, in order,
 /// each once. A header can hold more than one challenge, apart at commas,
@@ -49,26 +61,82 @@ fn outside_quotes(value: &str) -> Vec<&str> {
     parts
 }
 
-/// The reason of a `407`, with what the proxy asks for and what the program
-/// `app` can give: `sent_basic` is whether the URL's user and password went
-/// with it.
-pub(crate) fn explain(reason: &str, head: &str, sent_basic: bool, app: &str) -> String {
+/// The reason of a `407`, with what the proxy asks for, what the program
+/// `app` sent, and what can be done: a Digest answer that the proxy refused
+/// names the user and the password; a Digest challenge that `app` did not
+/// answer names the algorithms that it answers; a scheme other than Basic
+/// and Digest names a local proxy that speaks it.
+pub(crate) fn explain(reason: &str, head: &str, sent: Sent, app: &str) -> String {
     let asks = schemes(head);
     if asks.is_empty() {
         return reason.to_string();
     }
-    let list = match asks.as_slice() {
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-        [] => unreachable!(),
+    let what = match sent {
+        Sent::Digest => format!(
+            "{app} sent a Digest answer with the user and the password of the proxy URL, and the proxy refused it: \
+             check the user and the password"
+        ),
+        Sent::Basic => format!("{app} sent Basic with the user and the password of the proxy URL"),
+        Sent::Nothing => format!("{app} sent no credentials (put user:password@ in the proxy URL)"),
     };
-    let takes_basic = asks.iter().any(|s| s.eq_ignore_ascii_case("basic"));
-    let what = match (takes_basic, sent_basic) {
-        (true, true) => "and refused the user and password of the proxy URL (Basic)".to_string(),
-        (true, false) => {
-            format!("and {app} sent none: put them in the proxy URL, http://USER:PASSWORD@HOST:PORT (Basic)")
+    let has = |name: &str| asks.iter().any(|s| s.eq_ignore_ascii_case(name));
+    let advice = if has("basic") {
+        String::new()
+    } else if has("digest") {
+        match sent {
+            Sent::Basic => format!(
+                "; the Digest challenge has an algorithm or a qop that {app} does not answer ({app} answers MD5, \
+                 MD5-sess, SHA-256 and SHA-256-sess with qop auth)"
+            ),
+            _ => String::new(),
         }
-        (false, _) => format!("and {app} sends Basic only, from the user and password of the proxy URL"),
+    } else {
+        format!(
+            "; {app} supports Basic and Digest only: ask for such an account, or use a local proxy that speaks the \
+             scheme (for example cntlm for NTLM)"
+        )
     };
-    format!("{reason}; it asks for {list}, {what}")
+    format!("{reason}; it asks for {}; {what}{advice}", asks.join(" or "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// podnet's words of a `407`, as the dial makes them for its program.
+    fn explain_407(head: &[u8], sent_basic: bool, digest_tried: bool) -> String {
+        let sent = match (sent_basic, digest_tried) {
+            (_, true) => Sent::Digest,
+            (true, false) => Sent::Basic,
+            (false, false) => Sent::Nothing,
+        };
+        explain("Proxy Authentication Required", &String::from_utf8_lossy(head), sent, "podnet")
+    }
+
+    #[test]
+    fn a_407_names_the_schemes() {
+        let head = b"HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: NTLM, Negotiate\r\nproxy-authenticate: Basic realm=\"a, b\", Digest realm=\"x\", qop=\"auth\"\r\n\r\n";
+        let text = explain_407(head, true, false);
+        assert!(text.contains("it asks for NTLM or Negotiate or Basic or Digest"), "{text}");
+        assert!(text.contains("podnet sent Basic"), "{text}");
+        let text = explain_407(b"HTTP/1.1 407 x\r\nProxy-Authenticate: NTLM, Negotiate\r\n\r\n", false, false);
+        assert!(text.contains("NTLM or Negotiate") && text.contains("podnet supports Basic and Digest only"), "{text}");
+        assert!(text.contains("sent no credentials"), "{text}");
+    }
+
+    // A Digest 407 does not get the advice of Basic only.
+    #[test]
+    fn a_407_with_digest_does_not_say_basic_only() {
+        let head = b"HTTP/1.1 407 x\r\nProxy-Authenticate: Digest realm=\"r\", nonce=\"n\", algorithm=MD5, qop=\"auth\"\r\n\r\n";
+        let text = explain_407(head, true, true);
+        assert!(!text.contains("Basic and Digest only"), "{text}");
+        assert!(text.contains("check the user and the password"), "{text}");
+        let text = explain_407(head, false, false);
+        assert!(!text.contains("only"), "{text}");
+        assert!(text.contains("sent no credentials"), "{text}");
+        let odd =
+            b"HTTP/1.1 407 x\r\nProxy-Authenticate: Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256\r\n\r\n";
+        let text = explain_407(odd, true, false);
+        assert!(text.contains("does not answer"), "{text}");
+    }
 }

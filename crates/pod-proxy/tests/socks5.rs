@@ -1,9 +1,10 @@
 //! The SOCKS5 road to the relay, against a stand-in SOCKS5 server
 //! on a local socket that records each byte it gets: the greeting, the user
 //! and password of RFC 1929, and a CONNECT with the address type 3 and the
-//! relay's name; the replies of RFC 1928 as the failover reads them; a bound
-//! name read to its end; and a proxy that takes no names, which gets one more
-//! try with an address.
+//! relay's name for `socks5h://`, or with the address that the dialer's
+//! resolver gives for `socks5://`; the replies of RFC 1928 as the failover
+//! reads them; a bound name read to its end; and a proxy that takes no
+//! names, which gets one more try with an address.
 
 use std::ffi::OsString;
 use std::sync::{Arc, Mutex};
@@ -170,7 +171,7 @@ async fn a_tunnel_goes_by_name_and_needs_no_dns() {
     let (port, seen) = stand_in(vec![PLAIN]).await;
     // `relay.invalid` cannot resolve: the name must reach the proxy as text.
     let stream =
-        dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
+        dial("relay.invalid", 443, &proxy(format!("socks5h://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
     echoes(stream).await;
     let seen = seen.lock().unwrap()[0].clone();
     assert_eq!(seen.greeting, [5, 1, 0], "no authentication alone, with no credentials");
@@ -210,7 +211,7 @@ async fn a_refused_password_is_a_407_that_does_not_show_it() {
 async fn an_answer_to_the_password_with_the_version_5_is_taken() {
     pod_testkit::need_loopback!();
     let (port, _) = stand_in(vec![Script { method: 0x02, auth_version: 5, ..PLAIN }]).await;
-    let url = format!("socks5://alice:s3cret@127.0.0.1:{port}");
+    let url = format!("socks5h://alice:s3cret@127.0.0.1:{port}");
     echoes(dial("relay.invalid", 443, &proxy(url), LIMIT).await.expect("a tunnel")).await;
     let (port, _) = stand_in(vec![Script { method: 0x02, auth_version: 7, ..PLAIN }]).await;
     let url = format!("socks5://alice:s3cret@127.0.0.1:{port}");
@@ -233,7 +234,7 @@ async fn each_reply_maps_to_the_case_of_an_http_proxy() {
     pod_testkit::need_loopback!();
     for (reply, status) in [(0x02, 403), (0x01, 502), (0x04, 502), (0x05, 502)] {
         let (port, _) = stand_in(vec![Script { reply, ..PLAIN }]).await;
-        let err = dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
+        let err = dial("relay.invalid", 443, &proxy(format!("socks5h://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
         match &err {
             DialError::ProxyRefused { status: got, reason, target, .. } => {
                 assert_eq!(*got, status, "reply {reply}");
@@ -244,7 +245,7 @@ async fn each_reply_maps_to_the_case_of_an_http_proxy() {
         }
     }
     let (port, _) = stand_in(vec![Script { reply: 0x07, ..PLAIN }]).await;
-    let err = dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
+    let err = dial("relay.invalid", 443, &proxy(format!("socks5h://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
     assert!(matches!(err, DialError::ProxyProtocol { .. }), "a proxy with no CONNECT: {err:?}");
 }
 
@@ -254,7 +255,7 @@ async fn a_bound_name_and_an_ipv6_address_are_read_to_their_end() {
     for bound in [3, 4] {
         let (port, _) = stand_in(vec![Script { bound, ..PLAIN }]).await;
         let stream =
-            dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
+            dial("relay.invalid", 443, &proxy(format!("socks5h://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
         // An extra or a missing byte would break the echo.
         echoes(stream).await;
     }
@@ -265,10 +266,49 @@ async fn a_proxy_that_takes_no_names_gets_one_more_try_with_an_address() {
     pod_testkit::need_loopback!();
     pod_testkit::need_localhost!();
     let (port, seen) = stand_in(vec![Script { reply: 0x08, ..PLAIN }, Script { reply: 0x08, ..PLAIN }]).await;
-    let stream = dial("localhost", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
+    let stream = dial("localhost", 443, &proxy(format!("socks5h://127.0.0.1:{port}")), LIMIT).await.expect("a tunnel");
     echoes(stream).await;
     let seen = seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 2, "{seen:?}");
     assert_eq!(seen[0].connect[3], 3, "the name first");
     assert!(matches!(seen[1].connect[3], 1 | 4), "then an address: {:?}", seen[1].connect);
+}
+
+/// `socks5://` resolves the name with the dialer's resolver, its pins too,
+/// after the greeting, and sends the address (the rule of curl); the
+/// dialer says that the far end resolves no names.
+#[tokio::test]
+async fn a_socks5_url_sends_the_address_that_the_resolver_of_the_dialer_gives() {
+    pod_testkit::need_loopback!();
+    let (port, seen) = stand_in(vec![PLAIN]).await;
+    let pins = System::with_pins(vec![("pinned.test".into(), "127.0.0.1".parse().unwrap())]);
+    let dialer = Dialer::new(Settings::new("podssh", proxy(format!("socks5://127.0.0.1:{port}"))), Arc::new(pins));
+    assert!(!pod_core::Dial::names_inside(&dialer));
+    echoes(dialer.tcp("pinned.test", 443, LIMIT).await.expect("a tunnel")).await;
+    let seen = seen.lock().unwrap()[0].clone();
+    assert_eq!(seen.greeting, [5, 1, 0]);
+    let mut want = vec![5, 1, 0, 1, 127, 0, 0, 1];
+    want.extend_from_slice(&443u16.to_be_bytes());
+    assert_eq!(seen.connect, want, "CONNECT with the address type 1 and the pinned address");
+}
+
+/// A name that does not resolve here fails the dial for `socks5://`, and
+/// the words name `socks5h://`, which lets the proxy resolve it.
+#[tokio::test]
+async fn a_socks5_url_with_a_name_that_does_not_resolve_names_socks5h() {
+    pod_testkit::need_loopback!();
+    let (port, seen) = stand_in(vec![PLAIN]).await;
+    let err = dial("relay.invalid", 443, &proxy(format!("socks5://127.0.0.1:{port}")), LIMIT).await.unwrap_err();
+    assert!(matches!(&err, DialError::Resolve { host, .. } if host == "relay.invalid"), "{err:?}");
+    assert!(err.to_string().contains("socks5h://"), "{err}");
+    // The greeting went first; no CONNECT followed.
+    tokio::time::timeout(LIMIT, async {
+        while seen.lock().unwrap().is_empty() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the stand-in ends its connection");
+    let seen = seen.lock().unwrap()[0].clone();
+    assert_eq!((seen.greeting.as_slice(), seen.connect.len()), (&[5u8, 1, 0][..], 0));
 }

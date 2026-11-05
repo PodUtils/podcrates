@@ -29,8 +29,10 @@ mod connect;
 pub mod cut;
 pub mod detect;
 pub mod dial;
+pub mod digest;
 pub mod env;
 mod error;
+pub mod hint;
 pub mod host;
 pub mod http;
 pub mod lowat;
@@ -40,6 +42,7 @@ mod proxy_auth;
 mod race;
 pub mod resolve;
 mod socks5;
+pub mod stream;
 pub mod stun;
 pub mod write_limit;
 
@@ -55,6 +58,7 @@ pub use error::DialError;
 pub use host::authority;
 pub use mptcp::Multipath;
 pub use proxy::{Carrier, HttpProxy, Proxy, ProxyKind};
-pub use race::interleave;
+pub use race::{dial_addrs, group_errors, interleave};
 #[cfg(fuzzing)]
 pub use socks5::fuzz_exchange;
+pub use stream::{ChildIo, Stream};

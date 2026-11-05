@@ -18,12 +18,14 @@ ech = ["pod-tls/ech"]
 pod-core = { workspace = true }
 pod-tls = { workspace = true }
 # JoinSet and select! (the race of addresses), lookup_host (the system
-# resolver).
-tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros"] }
+# resolver), process (a proxy at the stdin and the stdout of a command).
+tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros", "process"] }
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 # The Basic credentials of a CONNECT.
 base64 = { workspace = true }
+# SHA-256 of a Digest answer (pure Rust; MD5 is in src/digest.rs).
+sha2 = { workspace = true }
 # The diagnostics: how a connection was made, an option that a socket refused.
 tracing = { workspace = true }
 

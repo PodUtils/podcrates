@@ -18,11 +18,14 @@ use crate::error::DialError;
 use crate::host::authority;
 use crate::mptcp::Multipath;
 
-/// What each step of one dial takes: the resolver, the delay between two
+/// What each step of one dial takes: the resolvers, the delay between two
 /// attempts of the race, and the bounds.
 #[derive(Clone, Copy)]
 pub(crate) struct Leg<'a> {
     pub resolve: &'a dyn Resolve,
+    /// The resolver of a proxy's own host: one that asks no source through
+    /// that proxy.
+    pub proxy_resolve: &'a dyn Resolve,
     pub attempt_delay: Duration,
     pub deadline: Instant,
     /// The whole bound, for the words of a timeout.
@@ -67,7 +70,7 @@ pub(crate) async fn connect_race(
         tried.extend(addrs.iter().copied());
         let until = if found.more { leg.deadline.min(Instant::now() + SOURCE_WAIT) } else { leg.deadline };
         match race(leg, &target, addrs, until, &ask).await {
-            Ok((stream, how)) => {
+            Ok((stream, how, _)) => {
                 if let Ok(peer) = stream.peer_addr() {
                     leg.resolve.note_dialed(host, peer, found.source);
                 }
@@ -86,19 +89,22 @@ pub(crate) async fn connect_race(
 
 /// The addresses in the order of [`interleave`], each started
 /// `leg.attempt_delay` after the one before, or at once when the one before
-/// failed; the first that connects wins, and the others stop. Past `until`,
-/// short of the deadline, they failed, and another source may have more.
+/// failed; the first that connects wins, with its address, and the others
+/// stop. Past `until`, short of the deadline, they failed, and another
+/// source may have more. The errors of the addresses that failed are
+/// grouped by their words ([`group_errors`]).
 pub(crate) async fn race(
     leg: Leg<'_>,
     target: &str,
     addrs: Vec<SocketAddr>,
     until: Instant,
     ask: &Option<Result<(), String>>,
-) -> Result<(TcpStream, Multipath), DialError> {
+) -> Result<(TcpStream, Multipath, SocketAddr), DialError> {
     let mut waiting = interleave(addrs).into_iter();
     // Dropped at the return: each attempt that still runs stops.
     let mut running = tokio::task::JoinSet::new();
     let mut next_at = Instant::now();
+    let mut errors: Vec<(SocketAddr, String)> = Vec::new();
     let mut last = String::from("each address of this source was tried already");
     // The kind of the last attempt's error, beside its words.
     let mut cut = None;
@@ -111,20 +117,22 @@ pub(crate) async fn race(
                 continue;
             }
             if running.is_empty() {
-                return Err(DialError::Connect { target: target.to_string(), detail: last, cut });
+                let detail = if errors.is_empty() { last } else { group_errors(&errors) };
+                return Err(DialError::Connect { target: target.to_string(), detail, cut });
             }
         }
         let wake = if waiting.len() > 0 { next_at.min(until) } else { until };
         tokio::select! {
             joined = running.join_next() => match joined {
-                Some(Ok((_, Ok(stream)))) => return Ok(stream),
+                Some(Ok((addr, Ok((stream, how))))) => return Ok((stream, how, addr)),
                 Some(Ok((addr, Err(e)))) => {
-                    last = format!("{addr}: {e}");
+                    errors.push((addr, crate::hint::open_files(&e).unwrap_or_else(|| e.to_string())));
                     cut = Some(Cut::of(e.kind()));
                     next_at = Instant::now();
                 }
                 // An attempt that panicked counts as one that failed.
                 Some(Err(e)) => {
+                    errors.clear();
                     last = e.to_string();
                     cut = None;
                 }
@@ -144,6 +152,63 @@ pub(crate) async fn race(
     }
 }
 
+/// The errors of a dial to more than one address, one entry for each
+/// text: `198.41.192.7:7844: refused`, or `20 addresses (198.41.192.7:7844,
+/// 198.41.192.27:7844, ...): Permission denied (os error 13)`.
+pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
+    let mut groups: Vec<(&str, Vec<SocketAddr>)> = Vec::new();
+    for (addr, text) in errors {
+        match groups.iter_mut().find(|(t, _)| *t == text.as_str()) {
+            Some((_, addrs)) => addrs.push(*addr),
+            None => groups.push((text, vec![*addr])),
+        }
+    }
+    groups
+        .iter()
+        .map(|(text, addrs)| match addrs.as_slice() {
+            [one] => format!("{one}: {text}"),
+            many => {
+                let shown: Vec<String> = many.iter().take(2).map(|a| a.to_string()).collect();
+                let more = if many.len() > 2 { ", ..." } else { "" };
+                format!("{} addresses ({}{more}): {text}", many.len(), shown.join(", "))
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+/// Connect to the first of `addrs` that answers, with no proxy and no
+/// resolver: the attempts start [`crate::ATTEMPT_DELAY`] apart, or at once
+/// when the attempt before fails, the families taking turns. Gives the
+/// index of the address in `addrs`, and the stream. The whole is bounded by
+/// `timeout`.
+pub async fn dial_addrs(addrs: &[SocketAddr], timeout: Duration) -> Result<(usize, TcpStream), DialError> {
+    if addrs.is_empty() {
+        return Err(DialError::Connect {
+            target: "no address".into(),
+            detail: "no address to connect to".into(),
+            cut: None,
+        });
+    }
+    let system = crate::resolve::System::new();
+    let deadline = Instant::now() + timeout;
+    let leg = Leg {
+        resolve: &system,
+        proxy_resolve: &system,
+        attempt_delay: crate::ATTEMPT_DELAY,
+        deadline,
+        budget: timeout,
+    };
+    let target = match addrs {
+        [one] => one.to_string(),
+        [first, ..] => format!("{first} and {} more", addrs.len() - 1),
+        [] => unreachable!(),
+    };
+    let (stream, _, won) = race(leg, &target, addrs.to_vec(), deadline, &None).await?;
+    let _ = stream.set_nodelay(true);
+    Ok((addrs.iter().position(|a| *a == won).unwrap_or_default(), stream))
+}
+
 /// The addresses with the families taking turns, the first family first
 /// (RFC 8305, section 4): a family that does not work costs one attempt
 /// delay, not each of its addresses in a row.
@@ -158,5 +223,33 @@ pub fn interleave(addrs: Vec<SocketAddr>) -> Vec<SocketAddr> {
             (None, None) => return out,
             (a, b) => out.extend(a.into_iter().chain(b)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_same_error_of_many_addresses_is_one_entry() {
+        let a = |s: &str| s.parse::<SocketAddr>().unwrap();
+        let denied = "Permission denied (os error 13)".to_string();
+        let mut errors: Vec<(SocketAddr, String)> =
+            (1..=20).map(|i| (a(&format!("198.41.192.{i}:7844")), denied.clone())).collect();
+        errors.push((a("1.2.3.4:7844"), "refused".into()));
+        assert_eq!(
+            group_errors(&errors),
+            "20 addresses (198.41.192.1:7844, 198.41.192.2:7844, ...): \
+             Permission denied (os error 13); 1.2.3.4:7844: refused"
+        );
+        assert_eq!(group_errors(&errors[..1]), format!("198.41.192.1:7844: {denied}"));
+    }
+
+    #[test]
+    fn interleave_alternates_the_families() {
+        let a: Vec<SocketAddr> =
+            ["[::1]:1", "[::2]:1", "1.1.1.1:1", "2.2.2.2:1"].iter().map(|s| s.parse().unwrap()).collect();
+        let got: Vec<String> = interleave(a).iter().map(|a| a.to_string()).collect();
+        assert_eq!(got, ["[::1]:1", "1.1.1.1:1", "[::2]:1", "2.2.2.2:1"]);
     }
 }

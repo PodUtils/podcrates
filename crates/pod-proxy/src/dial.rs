@@ -1,29 +1,32 @@
-//! The TCP connection to a target: directly, with the race of its addresses
-//! and Multipath TCP on request, or through an HTTP CONNECT proxy or a
-//! SOCKS5 proxy that the settings choose. A [`Dialer`] is made once from
-//! its [`Settings`] and the caller's resolver, and implements
-//! [`pod_core::Dial`].
+//! The connection to a target: directly over TCP, with the race of its
+//! addresses and Multipath TCP on request, or through an HTTP CONNECT proxy
+//! or a SOCKS5 proxy that the settings choose, on TCP, on a Unix socket or
+//! at a command. A [`Dialer`] is made once from its [`Settings`] and the
+//! caller's resolver, and implements [`pod_core::Dial`].
 //!
-//! The proxy path sends the target's name, never an address, and needs no
-//! DNS: the proxy resolves the name. The direct path asks the caller's
-//! resolver ([`pod_core::Resolve`]) for the addresses.
+//! An HTTP proxy and a `socks5h://` proxy get the target's name, never an
+//! address, and this host needs no DNS: the proxy resolves the name. A
+//! `socks5://` proxy and the direct path ask the caller's resolver
+//! ([`pod_core::Resolve`]) for the addresses. Each choice of a proxy is one
+//! decision `egress` of the caller's [`Observer`].
 
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use pod_core::{BoxFuture, BoxedIo, Connected, Dial, Failure, Resolve, Target};
+use pod_core::{BoxFuture, BoxedIo, Connected, Dial, Failure, NoObserver, Observer, Resolve, Target};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
 use crate::connect::{Ask, connect_via};
-use crate::env::Environment;
+use crate::env::{Decision, Environment};
 use crate::error::DialError;
 use crate::host::{authority, check_name};
 use crate::mptcp::Multipath;
 use crate::proxy::{Proxy, ProxyKind};
 use crate::race::{Leg, connect_race, race};
+use crate::stream::Stream;
 use crate::write_limit::WriteLimit;
 
 /// How long one address may take to connect before the next is tried as
@@ -85,15 +88,23 @@ impl Settings {
     }
 }
 
-/// The dial of a consumer: its [`Settings`] and its resolver.
+/// The dial of a consumer: its [`Settings`], its resolvers and its
+/// observer.
 pub struct Dialer {
     settings: Settings,
     resolve: Arc<dyn Resolve>,
+    /// The resolver of a proxy's own host; `None`: `resolve`.
+    proxy_resolve: Option<Arc<dyn Resolve>>,
+    observer: Arc<dyn Observer>,
 }
 
 impl fmt::Debug for Dialer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Dialer").field("settings", &self.settings).field("resolve", &self.resolve.label()).finish()
+        f.debug_struct("Dialer")
+            .field("settings", &self.settings)
+            .field("resolve", &self.resolve.label())
+            .field("proxy_resolve", &self.proxy_resolve.as_ref().map(|r| r.label()))
+            .finish()
     }
 }
 
@@ -101,7 +112,26 @@ impl Dialer {
     /// A dialer with `settings`, which asks `resolve` for the addresses of
     /// a direct connection and for the pins of a name.
     pub fn new(settings: Settings, resolve: Arc<dyn Resolve>) -> Dialer {
-        Dialer { settings, resolve }
+        Dialer { settings, resolve, proxy_resolve: None, observer: Arc::new(NoObserver) }
+    }
+
+    /// The resolver of the host of a proxy on TCP. A consumer whose
+    /// resolver asks DNS over HTTPS through this dialer gives one that does
+    /// not (the pins and the system), so that the proxy's own name does not
+    /// need the proxy.
+    pub fn with_proxy_resolver(mut self, resolve: Arc<dyn Resolve>) -> Dialer {
+        self.proxy_resolve = Some(resolve);
+        self
+    }
+
+    /// The counter of the decisions: one `egress` decision for each
+    /// connection, with the outcome `direct` (the settings choose no
+    /// proxy), `via` (the settings choose one proxy), `none` (the
+    /// environment names no proxy), `loopback`, `no_proxy`, `unusable`, or
+    /// the word of the proxy (`http`, `socks5`, `unix`, `exec`).
+    pub fn with_observer(mut self, observer: Arc<dyn Observer>) -> Dialer {
+        self.observer = observer;
+        self
     }
 
     pub fn settings(&self) -> &Settings {
@@ -116,17 +146,29 @@ impl Dialer {
     /// direct connection; why when the proxy of the environment cannot be
     /// used. The environment's proxy is passed over for a name that the
     /// resolver pins to loopback addresses alone ([`Environment::proxy_for`]).
+    /// With no port, the port of a `NO_PROXY` entry is passed over.
     pub fn proxy_for(&self, host: &str) -> Result<Option<Proxy>, String> {
+        self.decide(host, None).0
+    }
+
+    /// [`Dialer::proxy_for`] for `host:port` ([`Environment::proxy_at`]).
+    pub fn proxy_at(&self, host: &str, port: u16) -> Result<Option<Proxy>, String> {
+        self.decide(host, Some(port)).0
+    }
+
+    fn decide(&self, host: &str, port: Option<u16>) -> Decision {
         match &self.settings.proxy {
-            ProxyChoice::Direct => Ok(None),
-            ProxyChoice::Via(proxy) => Ok(Some(proxy.clone())),
-            ProxyChoice::FromEnvironment(env) => env.proxy_for(host, &self.resolve.pinned(host)),
+            ProxyChoice::Direct => (Ok(None), "direct"),
+            ProxyChoice::Via(proxy) => (Ok(Some(proxy.clone())), "via"),
+            ProxyChoice::FromEnvironment(env) => env.decide(host, port, &self.resolve.pinned(host)),
         }
     }
 
     /// Open a TCP connection to `host:port`, through the proxy that the
     /// settings select. The whole operation (resolution, connect, and the
-    /// exchange with a proxy) is bounded by `timeout`.
+    /// exchange with a proxy) is bounded by `timeout`. A proxy on a Unix
+    /// socket or at a command gives no TCP connection: [`Dialer::stream`]
+    /// gives each kind.
     pub async fn tcp(&self, host: &str, port: u16, timeout: Duration) -> Result<TcpStream, DialError> {
         self.tcp_multipath(host, port, timeout).await.map(|(stream, _)| stream)
     }
@@ -141,11 +183,25 @@ impl Dialer {
         port: u16,
         timeout: Duration,
     ) -> Result<(TcpStream, Multipath), DialError> {
+        let (stream, how) = self.stream(host, port, timeout).await?;
+        match stream.into_tcp() {
+            Ok(tcp) => Ok((tcp, how)),
+            Err(_) => Err(DialError::BadProxy(format!(
+                "the proxy for {} is not on TCP, and this caller takes a TCP connection only",
+                authority(host, port)
+            ))),
+        }
+    }
+
+    /// The stream to `host:port` as [`Dialer::tcp_multipath`] opens it, of
+    /// any kind: TCP, or through a proxy on a Unix socket or at a command.
+    pub async fn stream(&self, host: &str, port: u16, timeout: Duration) -> Result<(Stream, Multipath), DialError> {
         self.open(host, port, Instant::now() + timeout, timeout).await
     }
 
     fn leg(&self, deadline: Instant, budget: Duration) -> Leg<'_> {
-        Leg { resolve: &*self.resolve, attempt_delay: self.settings.attempt_delay, deadline, budget }
+        let proxy_resolve = self.proxy_resolve.as_deref().unwrap_or(&*self.resolve);
+        Leg { resolve: &*self.resolve, proxy_resolve, attempt_delay: self.settings.attempt_delay, deadline, budget }
     }
 
     fn ask(&self) -> Option<Result<(), String>> {
@@ -158,16 +214,21 @@ impl Dialer {
         port: u16,
         deadline: Instant,
         budget: Duration,
-    ) -> Result<(TcpStream, Multipath), DialError> {
+    ) -> Result<(Stream, Multipath), DialError> {
         check_name(host)?;
-        let proxy = self.proxy_for(host).map_err(DialError::BadProxy)?;
+        let (proxy, outcome) = self.decide(host, Some(port));
+        self.observer.decision("egress", outcome);
+        let proxy = proxy.map_err(DialError::BadProxy)?;
         let leg = self.leg(deadline, budget);
         // Through a proxy, MPTCP could reach the proxy only, never the target.
         let proxied =
             || Multipath::Plain("a proxy carries the connection, and Multipath TCP would reach it only".into());
         let ask = Ask { app: &self.settings.app, user_agent: self.settings.user_agent.as_deref() };
         let (stream, how) = match proxy {
-            None => connect_race(leg, host, port, self.ask()).await?,
+            None => {
+                let (tcp, how) = connect_race(leg, host, port, self.ask()).await?;
+                (Stream::Tcp(tcp), how)
+            }
             Some(p) if matches!(p.kind, ProxyKind::Socks5 { .. }) => {
                 (crate::socks5::connect(leg, &self.settings.app, &p, host, port).await?, proxied())
             }
@@ -178,11 +239,13 @@ impl Dialer {
 
     /// A keystroke and an echo must not wait for Nagle, nor behind the
     /// megabytes that the kernel would hold unsent: a probe, and a system
-    /// that refuses the option keeps its buffer.
-    fn tuned(&self, stream: TcpStream) -> TcpStream {
-        let _ = stream.set_nodelay(true);
+    /// that refuses the option keeps its buffer. A stream that is not TCP
+    /// stays as it is.
+    fn tuned(&self, stream: Stream) -> Stream {
+        let Some(tcp) = stream.tcp() else { return stream };
+        let _ = tcp.set_nodelay(true);
         if let Some(bytes) = self.settings.lowat
-            && let Err(why) = crate::lowat::set(&stream, bytes)
+            && let Err(why) = crate::lowat::set(tcp, bytes)
         {
             tracing::debug!(%why, "TCP_NOTSENT_LOWAT is not set");
         }
@@ -191,8 +254,8 @@ impl Dialer {
 
     /// The stream as [`Dial`] gives it: with the write limit of the
     /// settings.
-    fn connected(&self, stream: TcpStream) -> Connected {
-        let (peer, local) = (stream.peer_addr().ok(), stream.local_addr().ok());
+    fn connected(&self, stream: Stream) -> Connected {
+        let (peer, local) = (stream.peer_addr(), stream.local_addr());
         let io: BoxedIo = match self.settings.write_limit {
             Some(limit) => Box::new(WriteLimit::new(stream, limit)),
             None => Box::new(stream),
@@ -236,7 +299,9 @@ impl Dial for Dialer {
         deadline: Instant,
     ) -> BoxFuture<'a, Result<Connected, Failure>> {
         Box::pin(async move {
-            if addrs.is_empty() || !matches!(self.proxy_for(host), Ok(None)) {
+            let direct =
+                addrs.first().map(|a| self.decide(host, Some(a.port()))).filter(|(p, _)| matches!(p, Ok(None)));
+            let Some((_, outcome)) = direct else {
                 let mut last = None;
                 for addr in addrs {
                     match self.dial(&Target::Addr(*addr), deadline).await {
@@ -251,21 +316,27 @@ impl Dial for Dialer {
                         format!("{host} has no address to connect to"),
                     )
                 }));
-            }
+            };
+            self.observer.decision("egress", outcome);
             let budget = deadline.saturating_duration_since(Instant::now());
             let target = authority(host, addrs[0].port());
-            let (stream, how) =
+            let (stream, how, _) =
                 race(self.leg(deadline, budget), &target, addrs.to_vec(), deadline, &self.ask()).await?;
             tracing::debug!(%target, %how, "connected");
-            Ok(self.connected(self.tuned(stream)))
+            Ok(self.connected(self.tuned(Stream::Tcp(stream))))
         })
     }
 
+    /// True through an HTTP proxy and a `socks5h://` proxy; a `socks5://`
+    /// proxy takes addresses that this host resolves.
     fn names_inside(&self) -> bool {
+        let resolves = |p: &Proxy| p.kind != (ProxyKind::Socks5 { remote_dns: false });
         match &self.settings.proxy {
             ProxyChoice::Direct => false,
-            ProxyChoice::Via(_) => true,
-            ProxyChoice::FromEnvironment(env) => env.proxy.as_ref().is_some_and(|given| given.value.is_ok()),
+            ProxyChoice::Via(proxy) => resolves(proxy),
+            ProxyChoice::FromEnvironment(env) => {
+                env.proxy.as_ref().is_some_and(|given| given.value.as_ref().is_ok_and(resolves))
+            }
         }
     }
 }

@@ -203,16 +203,22 @@ async fn a_407_names_what_the_proxy_asks_for() {
                 proxy-authenticate: Negotiate\r\nContent-Length: 0\r\n\r\n";
     let err = refused(ntlm, true).await;
     assert!(
-        err.contains("407 Proxy Authentication Required; it asks for NTLM and Negotiate, and podssh sends Basic only"),
+        err.contains(
+            "407 Proxy Authentication Required; it asks for NTLM or Negotiate; podssh sent Basic with the user and the \
+             password of the proxy URL; podssh supports Basic and Digest only"
+        ),
         "{err}"
     );
     // Two challenges in one header, a parameter with a comma in its quotes.
     let basic = "HTTP/1.1 407 Proxy Authentication Required\r\n\
                  Proxy-Authenticate: Basic realm=\"corp, east wing\", Digest realm=\"x\", qop=\"auth\"\r\n\r\n";
     let err = refused(basic, false).await;
-    assert!(err.contains("it asks for Basic and Digest, and podssh sent none: put them in the proxy URL"), "{err}");
+    assert!(
+        err.contains("it asks for Basic or Digest; podssh sent no credentials (put user:password@ in the proxy URL)"),
+        "{err}"
+    );
     let err = refused(basic, true).await;
-    assert!(err.contains("and refused the user and password of the proxy URL (Basic)"), "{err}");
+    assert!(err.contains("podssh sent Basic with the user and the password of the proxy URL"), "{err}");
     // No header: the reason as the proxy gave it.
     let err = refused("HTTP/1.1 407 Proxy Authentication Required\r\n\r\n", false).await;
     assert!(err.ends_with("407 Proxy Authentication Required"), "{err}");
