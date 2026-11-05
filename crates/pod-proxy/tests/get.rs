@@ -116,3 +116,23 @@ async fn each_failure_keeps_its_stage() {
     let dial = client(context).https_get(NAME, gone, "/", 16, &trust, LIMIT).await.unwrap_err();
     assert_eq!((dial.stage, pod_proxy::Cut::of_failure(&dial)), (Stage::Connect, Some(pod_proxy::Cut::Refused)));
 }
+
+/// A request of `send` over HTTPS takes the trust that it gives; with none,
+/// the roots of the context, which do not hold the test's own CA.
+#[tokio::test]
+async fn a_request_over_https_takes_its_trust_or_the_roots_of_the_context() {
+    pod_testkit::need_loopback!();
+    let (addr, trust, context, seen) = server(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok").await;
+    let url = format!("https://{NAME}:{}/v1?k=v", addr.port());
+    let request = pod_proxy::client::Request::new("GET", &url).trust(trust);
+    let answer = client(context.clone()).send(request).await.expect("an answer");
+    assert_eq!((answer.status, answer.text().as_str()), (200, "ok"));
+    let head = seen.await.unwrap();
+    assert!(head.starts_with("GET /v1?k=v HTTP/1.1\r\n"), "{head}");
+    assert!(head.contains(&format!("\r\nHost: {NAME}:{}\r\n", addr.port())), "{head}");
+
+    let (addr, _trust, context, _seen) = server(b"HTTP/1.1 200 OK\r\n\r\n").await;
+    let url = format!("https://{NAME}:{}/", addr.port());
+    let refused = client(context).send(pod_proxy::client::Request::new("GET", &url)).await.unwrap_err();
+    assert_eq!(refused.stage, Stage::Tls, "{refused}");
+}

@@ -1,28 +1,50 @@
-//! A GET over HTTPS through the same path as each connection of the
-//! consumer: its dial (a proxy, the race of addresses), TLS verified with
-//! its context, and bounded waits. Each step (the dial, the handshake, the
-//! exchange) has the bound of the call, and each failure says which step
-//! failed and why.
+//! The HTTP client of a consumer, over the same path as each of its
+//! connections: its dial (a proxy, the race of addresses, a resolver that
+//! the caller gives, as DNS over HTTPS), TLS verified with its context, and
+//! bounded waits.
+//!
+//! * [`Client::https_get`] and [`Client::https_get_accepting`]: a GET over
+//!   HTTPS with the trust of the call. Each step (the dial, the handshake,
+//!   the exchange) has the bound of the call, and each failure says which
+//!   step failed and why.
+//! * [`Client::send`]: one [`Request`] of any method to an `http://` or
+//!   `https://` URL, with its headers and its body, under one time limit;
+//!   `https://` offers ALPN `http/1.1` and takes the roots of the context
+//!   ([`pod_tls::Context::roots`]) unless the request gives a trust. The
+//!   answer's head is bounded by [`request::MAX_HEAD`], its body by the
+//!   request.
 
-use std::sync::Arc;
+mod request;
+mod url;
+
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use pod_core::{BoxedIo, Class, Dial, Failure, Stage, Target};
 use pod_tls::{Context, Trust};
 use rustls_pki_types::ServerName;
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio_rustls::client::TlsStream;
 
-use crate::host::authority;
-use crate::http::{self, Response};
+pub use request::{MAX_BODY, MAX_HEAD, Request, TIMEOUT};
 
-/// The GET client of a consumer: its TLS context, its dial and its user
-/// agent; with the feature `ech`, the reader of the HTTPS records that a
-/// sealed hello needs.
+use crate::host::authority;
+use crate::http::{self, Reading, Response};
+
+/// The ALPN of [`Client::send`] over TLS.
+const HTTP1: &[&[u8]] = &[b"http/1.1"];
+
+/// The client of a consumer: its TLS context, its dial and its user agent;
+/// with the feature `ech`, the reader of the HTTPS records that a sealed
+/// hello needs.
 #[derive(Clone)]
 pub struct Client {
     context: Arc<Context>,
     dial: Arc<dyn Dial>,
     user_agent: String,
+    /// The trust of the roots of the context, made at the first request
+    /// that needs it, a failure too.
+    roots: Arc<OnceLock<Result<Trust, pod_tls::Error>>>,
     #[cfg(feature = "ech")]
     records: Arc<dyn pod_tls::ech::Records>,
 }
@@ -40,12 +62,14 @@ impl Client {
             context,
             dial,
             user_agent: String::new(),
+            roots: Arc::new(OnceLock::new()),
             #[cfg(feature = "ech")]
             records: Arc::new(pod_tls::ech::NoRecords),
         }
     }
 
-    /// The `User-Agent` of each request (`podssh/VERSION`).
+    /// The `User-Agent` of each request (`podssh/VERSION`); a request that
+    /// gives its own keeps it.
     pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Client {
         self.user_agent = user_agent.into();
         self
@@ -102,7 +126,7 @@ impl Client {
         trust: &Trust,
         timeout: Duration,
     ) -> Result<Response, Failure> {
-        let mut tls = self.open_tls(host, port, trust, timeout).await?;
+        let mut tls = self.open_tls(&*self.dial, host, port, trust, timeout, &[]).await?;
         let host_header = if port == 443 { host.to_string() } else { authority(host, port) };
         let exchange = http::exchange(&mut tls, &self.user_agent, "GET", &host_header, path, headers, b"", max_body);
         tokio::time::timeout(timeout, exchange)
@@ -117,36 +141,109 @@ impl Client {
             })
     }
 
-    /// The dial and a verified TLS handshake for `host`. The configuration
-    /// and the name are checked before anything connects.
+    /// Send `request` and read its answer, the whole within its time limit.
+    /// A failure says the method and the URL with no query, then why, at
+    /// the stage of the step that failed.
+    pub async fn send(&self, request: Request) -> Result<Response, Failure> {
+        let what = format!("{} {}", request.method, url::without_query(&request.url));
+        let timeout = request.timeout;
+        match tokio::time::timeout(timeout, self.send_now(&request)).await {
+            Ok(Ok(response)) => Ok(response),
+            Ok(Err(e)) => Err(Failure::caused(e.stage, e.class, format!("{what}: {}", e.text()), e)),
+            Err(_) => Err(Failure::new(
+                Stage::Connect,
+                Class::Timeout,
+                format!("{what}: no answer in {} s", timeout.as_secs()),
+            )),
+        }
+    }
+
+    async fn send_now(&self, request: &Request) -> Result<Response, Failure> {
+        let target = url::target(&request.url).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
+        let head =
+            request.head(&target, &self.user_agent).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
+        let dial = request.via.as_deref().unwrap_or(&*self.dial);
+        let reading = Reading { max_head: MAX_HEAD, max_body: request.max_body, head_only: request.method == "HEAD" };
+        let body = request.body.as_deref().unwrap_or_default();
+        if target.tls {
+            let trust = match &request.trust {
+                Some(trust) => trust.clone(),
+                None => self.roots()?,
+            };
+            let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await?;
+            exchange(tls, &head, body, reading).await
+        } else {
+            let deadline = tokio::time::Instant::now() + request.timeout;
+            let tcp = dial.dial(&Target::new(&target.host, target.port), deadline).await?;
+            exchange(tcp.io, &head, body, reading).await
+        }
+    }
+
+    /// The trust of the roots of the context, with no ALPN, so that a hello
+    /// offers what the call asks for.
+    fn roots(&self) -> Result<Trust, Failure> {
+        let made = self.roots.get_or_init(|| {
+            let config = self.context.client_config_with(&[], &[])?;
+            Trust::caller(Arc::new(config))
+        });
+        made.clone().map_err(Failure::from)
+    }
+
+    /// The dial and a verified TLS handshake for `host` that offers `alpn`.
+    /// The configuration and the name are checked before anything connects.
     async fn open_tls(
         &self,
+        dial: &dyn Dial,
         host: &str,
         port: u16,
         trust: &Trust,
         timeout: Duration,
+        alpn: &[&[u8]],
     ) -> Result<TlsStream<BoxedIo>, Failure> {
-        self.context.config_for(trust)?;
+        let config = self.context.config_for(trust)?;
         ServerName::try_from(host.to_string())
             .map_err(|e| Failure::new(Stage::Tls, Class::Usage, format!("{host:?} is not a valid server name: {e}")))?;
         let target = Target::new(host, port);
         #[cfg(feature = "ech")]
         {
+            let _ = config;
             let route = pod_tls::ech::Route {
                 target: &target,
                 server_name: host,
                 trust,
-                dial: &*self.dial,
+                dial,
                 records: &*self.records,
                 limit: timeout,
-                alpn: &[],
+                alpn,
             };
             pod_tls::ech::open(&self.context, &route).await.map(|(tls, _)| tls)
         }
         #[cfg(not(feature = "ech"))]
         {
-            let tcp = self.dial.dial(&target, tokio::time::Instant::now() + timeout).await?;
-            self.context.tls_over(tcp.io, host, trust, timeout).await
+            let tcp = dial.dial(&target, tokio::time::Instant::now() + timeout).await?;
+            if alpn.is_empty() {
+                return self.context.tls_over(tcp.io, host, trust, timeout).await;
+            }
+            let mut config = (*config).clone();
+            config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
+            pod_tls::tls_over(tcp.io, host, Arc::new(config), timeout, self.context.words()).await
         }
     }
+}
+
+/// Write the head and the body of a request on `io`, and read the answer.
+async fn exchange<S>(mut io: S, head: &str, body: &[u8], reading: Reading) -> Result<Response, Failure>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let sent = async {
+        io.write_all(head.as_bytes()).await?;
+        io.write_all(body).await?;
+        io.flush().await
+    };
+    sent.await
+        .map_err(|e| Failure::caused(Stage::Connect, Class::of_io(e.kind()), format!("sending the request: {e}"), e))?;
+    http::read_answer(&mut io, Vec::new(), reading)
+        .await
+        .map_err(|e| Failure::caused(Stage::Connect, Class::of_io(e.kind()), format!("reading the answer: {e}"), e))
 }

@@ -1,8 +1,9 @@
 //! The little HTTP/1.1 that the consumers need besides the WebSocket
 //! upgrade: one request and one response over an already-open stream, with
 //! bounded sizes. It reads `Content-Length`, `Transfer-Encoding: chunked`,
-//! and read-until-close bodies. The other side, a server's reading of a
-//! request, is [`request`].
+//! and read-until-close bodies, passes over a few interim (1xx) answers, and
+//! takes the end of a TLS stream with no close_notify as the end of the
+//! stream. The other side, a server's reading of a request, is [`request`].
 
 pub mod request;
 
@@ -11,8 +12,22 @@ pub use request::{Request, RequestError, read_request};
 use pod_core::text::one_line;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-/// The longest response head accepted.
-const MAX_HEAD: usize = 16 * 1024;
+/// The longest response head accepted by [`read_response`].
+pub const MAX_HEAD: usize = 16 * 1024;
+
+/// The most interim (1xx) answers before the answer.
+pub const MAX_INTERIM: usize = 5;
+
+/// The bounds of the reading of one response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reading {
+    /// The longest head, of each interim answer and of the answer.
+    pub max_head: usize,
+    /// The longest body.
+    pub max_body: usize,
+    /// The answer to a `HEAD`: a head with no body.
+    pub head_only: bool,
+}
 
 /// One HTTP response.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +40,16 @@ pub struct Response {
 }
 
 impl Response {
+    /// A status of 2xx.
+    pub fn is_success(&self) -> bool {
+        (200..300).contains(&self.status)
+    }
+
+    /// The body as lossy UTF-8.
+    pub fn text(&self) -> String {
+        String::from_utf8_lossy(&self.body).into_owned()
+    }
+
     /// The first value of a header, by case-insensitive name.
     pub fn header(&self, name: &str) -> Option<&str> {
         let name = name.to_ascii_lowercase();
@@ -94,34 +119,68 @@ where
     read_response(stream, Vec::new(), max_body).await
 }
 
-/// Read a response whose first bytes may already be in `buffered`.
-pub async fn read_response<S>(stream: &mut S, mut buffered: Vec<u8>, max_body: usize) -> std::io::Result<Response>
+/// Read a response whose first bytes may already be in `buffered`, with a
+/// head of [`MAX_HEAD`] at most and a body of `max_body`.
+pub async fn read_response<S>(stream: &mut S, buffered: Vec<u8>, max_body: usize) -> std::io::Result<Response>
+where
+    S: AsyncRead + Unpin,
+{
+    read_answer(stream, buffered, Reading { max_head: MAX_HEAD, max_body, head_only: false }).await
+}
+
+/// Read a response whose first bytes may already be in `buffered`, within
+/// the bounds of `reading`. Up to [`MAX_INTERIM`] interim answers (1xx but
+/// 101) come before it and are passed over; 101 is the answer.
+pub async fn read_answer<S>(stream: &mut S, mut buffered: Vec<u8>, reading: Reading) -> std::io::Result<Response>
 where
     S: AsyncRead + Unpin,
 {
     let mut chunk = [0u8; 4096];
-    let head_end = loop {
-        if let Some(end) = find(&buffered, b"\r\n\r\n") {
-            break end + 4;
+    let mut interim = 0;
+    loop {
+        let head_end = loop {
+            if let Some(end) = find(&buffered, b"\r\n\r\n") {
+                break end + 4;
+            }
+            if buffered.len() > reading.max_head {
+                let kib = reading.max_head / 1024;
+                return Err(invalid(format!("no end of the response headers within {kib} KiB")));
+            }
+            let n = read_some(stream, &mut chunk).await?;
+            if n == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "the connection closed before the response headers ended",
+                ));
+            }
+            buffered.extend_from_slice(&chunk[..n]);
+        };
+        let rest = buffered.split_off(head_end);
+        let head = String::from_utf8_lossy(&buffered).into_owned();
+        let (status, reason, headers) = parse_head(&head).map_err(invalid)?;
+        if (100..200).contains(&status) && status != 101 {
+            interim += 1;
+            if interim > MAX_INTERIM {
+                return Err(invalid(format!("the server sent more than {MAX_INTERIM} interim answers")));
+            }
+            buffered = rest;
+            continue;
         }
-        if buffered.len() > MAX_HEAD {
-            return Err(invalid("no end of the response headers within 16 KiB"));
+        let mut response = Response { status, reason, headers, body: Vec::new() };
+        if !reading.head_only {
+            response.body = read_body(stream, &response, rest, reading.max_body).await?;
         }
-        let n = stream.read(&mut chunk).await?;
-        if n == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "the connection closed before the response headers ended",
-            ));
-        }
-        buffered.extend_from_slice(&chunk[..n]);
-    };
-    let rest = buffered.split_off(head_end);
-    let head = String::from_utf8_lossy(&buffered).into_owned();
-    let (status, reason, headers) = parse_head(&head).map_err(invalid)?;
-    let mut response = Response { status, reason, headers, body: Vec::new() };
-    response.body = read_body(stream, &response, rest, max_body).await?;
-    Ok(response)
+        return Ok(response);
+    }
+}
+
+/// Read some bytes. The end of a TLS stream with no close_notify is the end
+/// of the stream: the length of a framed body is checked on its own.
+async fn read_some<S: AsyncRead + Unpin>(stream: &mut S, buf: &mut [u8]) -> std::io::Result<usize> {
+    match stream.read(buf).await {
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => Ok(0),
+        other => other,
+    }
 }
 
 /// A response head: the status, the reason, and the headers, names in lower
@@ -181,7 +240,7 @@ where
         } else if have.len() > max_body {
             return Err(invalid("the response body is larger than allowed"));
         }
-        let n = stream.read(&mut chunk).await?;
+        let n = read_some(stream, &mut chunk).await?;
         if n == 0 {
             // A read-until-close body ends here; a framed one was cut short.
             return if chunked || length.is_some() {
@@ -210,7 +269,12 @@ pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, St
         let size_line =
             std::str::from_utf8(&raw[at..at + line_end]).map_err(|_| "a chunk size line is not text".to_string())?;
         let size_hex = size_line.split(';').next().unwrap_or_default().trim();
-        let size = usize::from_str_radix(size_hex, 16).map_err(|_| format!("bad chunk size {size_hex:?}"))?;
+        let size = match usize::from_str_radix(size_hex, 16) {
+            Ok(size) => size,
+            // Hex digits past the width of usize: a size larger than any bound.
+            Err(_) if !size_hex.is_empty() && size_hex.bytes().all(|b| b.is_ascii_hexdigit()) => usize::MAX,
+            Err(_) => return Err(format!("bad chunk size {size_hex:?}")),
+        };
         at += line_end + 2;
         if size == 0 {
             // Optional trailers, then the final CRLF.
