@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**51 entries: 30 open, 0 partial, 2 blocked, 19 done.**
+**52 entries: 29 open, 0 partial, 2 blocked, 21 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 15 | 0 | 0 | 16 | 31 |
-| P2 | 11 | 0 | 2 | 3 | 16 |
+| P1 | 15 | 0 | 0 | 17 | 32 |
+| P2 | 10 | 0 | 2 | 4 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 30 | 0 | 2 | 19 | 51 |
+| **All** | 29 | 0 | 2 | 21 | 52 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-014](transport.md) | P1 | M | M1 | feature | done | `pod-proxy`: podnet's proxy chain, Digest and fetch |
 | [T-015](transport.md) | P1 | M | M1 | feature | open | `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records |
 | [T-016](transport.md) | P1 | M | M1 | feature | open | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
-| [T-017](transport.md) | P2 | S | M1 | chore | open | The fuzz workspace and its weekly workflow |
+| [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | open | One QUIC stack: quinn against noq, measured |
 | [T-019](relay.md) | P1 | M | M2 | feature | open | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
 | [T-020](relay.md) | P1 | L | M2 | feature | open | `pod-session`: the resumable layer and UDP in a stream |
@@ -97,3 +97,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-049](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the schema, the data of each service and the library |
 | [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
+| [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |

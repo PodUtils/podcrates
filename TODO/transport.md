@@ -468,7 +468,7 @@ T-015 is done.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -495,6 +495,22 @@ cargo check --manifest-path fuzz/Cargo.toml --bins
 ## Start condition
 
 T-013 is done.
+
+## Done
+
+2026-11-05, commits `942372b` to `19e8394`. `fuzz/` is its own workspace
+(the root excludes it) with 8 targets: `one_line` (pod-core),
+`pem_bundle` (pod-tls), `http_head`, `http_chunked`, `socks5_answer`,
+`proxy_url`, `no_proxy`, `connect_status` (pod-proxy; the last three join
+the targets of podssh and podnet). Each ran 61 s here on
+nightly-2026-11-01 with cargo-fuzz 0.13.2 and the address sanitizer, with
+no crash (0.66 to 4.49 million runs). The stable test of the targets runs
+in `ci.yml`; `fuzz.yml` runs each target each week; the plant
+`fuzz-one-line-escape` is caught. A defect that the stable test of
+`proxy_url` found is fixed in `942372b`: a proxy host with a colon is an
+IPv6 address (`a_host_with_a_colon_is_an_ipv6_address` fails on the code
+before). `fuzz/README.md` names each target that waits, with its crate.
+
 
 # T-041: `pod-testkit`: the SSH test server of podssh (the feature `ssh`)
 
@@ -775,3 +791,42 @@ sh scripts/plant-each.sh --group services
 ## Start condition
 
 T-049 is done.
+
+# T-052: The tests of a closed port of `pod-proxy` race with the other tests
+
+**Source:** the run of the targets of T-017 (300 runs of the binary of `tests/egress.rs`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`a_failed_dial_keeps_the_kind_of_its_last_error` bound a listener, dropped
+it and dialed the freed port; a parallel test of the same binary could
+bind the port first, and the dial then reached it. Four other tests of
+`pod-proxy` (`dial`, `fetch`, `get`, `dialer`) find a closed port the same
+way.
+
+## Premise
+
+- Measured: the binary of `tests/egress.rs` failed 26 of 300 runs.
+
+## Approach
+
+`tests/closed/mod.rs`: a socket bound to the port that does not listen,
+held until the test ends; a connection to it is refused, and no other
+test takes the port. The five tests use it.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test egress --test dial --test fetch --test get --test dialer
+```
+
+## Done
+
+2026-11-05, commit `df023da`. The binary of `tests/egress.rs` failed 26 of
+300 runs before and 0 of 300 after; the binaries of `dial`, `fetch`, `get`
+and `dialer` 0 of 100 each.
