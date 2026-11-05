@@ -32,6 +32,10 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Shared CI scripts | "A CI script that podnet and podssh share (the zig fetch with its mirrors) lives in `PodUtils/podcrates`. podnet calls it from there; it does not copy it." (podnet's record, `PodUtils/podnet:docs/decisions.md`.) T-046. |
 | 2026-11-05 | Relay contract watch | "The weekly watch of the relay contract belongs to `pod-relay` in `PodUtils/podcrates`, not to podnet." (podnet's record.) T-047. |
 | 2026-11-05 | Services crate | "they hardcode/measure many relays/third party services, it risks drift and staleness, so we move that code & related script here as a new crate". The crate is `pod-services` (the owner chose the name). T-048, T-049. |
+| 2026-11-05 | Services: the own relay | The defaults of the owner's relay (the host `tcp.ssh.relay.ajam.dev`, the SEED of the regional hosts, the ts relay, the limits of `/relays.json`) move to `pod-services` as data; the client logic (pool, rank, tokens) goes to `pod-relay`. |
+| 2026-11-05 | Services: the facts of probes | `github.com:22` with GitHub's SSH host keys and the default ACME directory (Let's Encrypt) move to `pod-services` as data, with a watch. |
+| 2026-11-05 | Services: the design | "we will soon add other relay/services, so design in a way it's pluggable, maintainable, agnostic" (the owner's answer on the facts of Cloudflare). `docs/design.md`, section 4, `pod-services`: one schema for each service, a new service is a new file, watch kinds are plugins; the facts of Cloudflare are data of `pod-services`, and its protocol code stays in `pod-cloudflare`. |
+| 2026-11-05 | Services: what stays | The release identity of `podssh update` and `podnet update` stays with that code; the cloud endpoints of the user's own accounts (GCP IAP and OAuth, AWS EICE) go with their features. |
 
 ## Calls made without a ruling
 

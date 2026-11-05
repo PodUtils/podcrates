@@ -210,6 +210,50 @@ target, the fork. A study can change its row.
 | `pod-tor` | podssh `crates/podssh-tor` (arti, SQLite linked static) | 900 | pod-core, pod-proxy, pod-tls, pod-egress |
 | `pod-ts` | podssh `crates/podssh-ts`; `vendor/tailscale-rs` with its patches; the headscale harness | 900 | pod-core, pod-proxy |
 
+### `pod-services`: the services of other parties
+
+The owner's rulings of 2026-11-05: the lists of relays and services that
+podssh and podnet hardcode, and their measurements and watches, move here
+(`docs/decisions.md`, Services crate); and "we will soon add other
+relay/services, so design in a way it's pluggable, maintainable,
+agnostic". So the crate knows no provider in its code:
+
+* **One schema for each service.** A service is one data file,
+  `crates/pod-services/services/ID.toml`: its id, its kind (relay, doh,
+  stun, derp, iroh-relay, mailbox, transit, piping, opentunnel,
+  forwarder, tunnel-edge, warp, acme, ssh-host, and others: a kind is a
+  word, so a new kind needs no change of the schema), its party, its
+  endpoints (scheme, host, port, path, addresses, SNI, ALPN), its facts
+  (keys, pins, limits, versions, as typed values), and for each value its
+  source (a URL or a measurement) and the date it was read.
+* **No parse at run time.** `build.rs` reads the files, checks each one
+  against the schema (each value has a source and a date; each service has
+  a watch), and writes Rust constants. The library depends on `pod-core`
+  only. A new relay or service is a new file, with no change of code.
+* **The consumer reads by id or by kind** (`pod_services::get("ID")`,
+  `pod_services::of_kind("doh")`) and can lay its own files of the same
+  schema over the built-in set (a setting, rule 6), so that a user's own
+  relay needs no new release.
+* **Watches are plugins.** Each file names its watches (`[[watch]]`: a
+  watch kind and its arguments: an HTTP document and a JSON pointer, a DNS
+  SRV name, the SHA-256 of a text, a GitHub release, the RDAP of a domain,
+  GitHub's SSH keys of `api.github.com/meta`, a TLS root set). Each watch
+  kind is one implementation of a `Watch` trait in the member crate
+  `pod-services-watch` (a binary, `publish = false`, which may use
+  `pod-proxy`, `pod-dns` and `pod-tls`). A new watch kind is one
+  implementation and its plant.
+* **Workflows of podcrates** run the watches (each day) and the
+  measurements (by hand); a fact that moved fails the run with the file,
+  the value, the new value and the source. The measurement scripts of the
+  consumers go to `scripts/services/`.
+* **What stays out** (the owner's rulings): the release identity of
+  `podssh update` and `podnet update`; the cloud endpoints of the user's
+  own accounts (GCP IAP and OAuth, AWS EICE), which go with their
+  features; the protocol code of each adapter (the Cloudflare edge's
+  protocol in `pod-cloudflare`, which reads its hosts, roots and pins as
+  data from `pod-services`); the relay contract (`pod-relay`, T-047); the
+  supply chain of CI (T-046).
+
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`.
 

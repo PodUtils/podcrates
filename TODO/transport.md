@@ -566,7 +566,7 @@ T-012 is done.
 **Milestone:** M1
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -593,6 +593,16 @@ in their code, and scripts and workflows that measure or watch them.
 3. Write the design of the crate in `docs/design.md` (its API, its
    dependencies, where each watch runs) and the entry of the move (T-049).
 
+## Decision
+
+The owner's answers of 2026-11-05 (`docs/decisions.md`, Services): the
+defaults of the own relay and the facts of the probes (GitHub's SSH keys,
+the ACME directory) move as data, with watches; the design is pluggable
+and agnostic ("we will soon add other relay/services"); the release
+identity of `update` and the cloud endpoints of the user's accounts stay
+with their code. `docs/design.md`, section 4, `pod-services`, has the
+design.
+
 ## Prove
 
 ```sh
@@ -602,13 +612,21 @@ cargo todo check
 The inventory and the choices are in this entry, and `docs/design.md`
 has the row of `pod-services` with its sources.
 
-# T-049: `pod-services`: the lists, the watches and their scripts, moved from podssh and podnet
+## Done
+
+2026-11-05. The inventories of podssh (`docs/research/services/podssh.md`)
+and of podnet (`docs/research/services/podnet.md`) are in this repository;
+the owner ruled each group that the sessions left open; `docs/design.md`
+has the design of `pod-services`. The move is T-049 (the library and the
+data) and T-050 (the watches, the workflows, the scripts).
+
+# T-049: `pod-services`: the schema, the data of each service and the library
 
 **Source:** the owner, 2026-11-05 (`docs/decisions.md`, Services crate).
 **Category:** feature
 **Milestone:** M1
 **Priority:** P1
-**Effort:** M
+**Effort:** L
 **Status:** open
 
 ## Problem
@@ -623,10 +641,15 @@ repositories.
 
 ## Approach
 
-The procedure of `docs/design.md`, section 8: import, edition, adapt (no
-global, settings, events, typed failures), tests, the merge of the two
-sources, the README with the parity list and the adoption map, the trials
-of podssh and podnet; the watches as workflows of podcrates.
+`docs/design.md`, section 4, `pod-services`: the schema and its check in
+`build.rs`; one data file for each service of the inventories (A of
+podssh, 1 of podnet), each value with its source and its date; the API by
+id and by kind, and the overlay of the consumer's files; the tests of the
+constants that the consumers had (for example podssh's test that ties
+the relay's limits to `relay-limits.toml`, and the test that the n0
+relays are iroh's list); the README with the parity list and the
+adoption map of each place of the inventories; the trials of podssh and
+podnet.
 
 ## Prove
 
@@ -638,3 +661,43 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-048 is done, and the owner reserved `pod-services` on crates.io.
+
+# T-050: `pod-services`: the watches, their workflows and the measurement scripts
+
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Services crate, Services: the design).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The consumers watch and measure the services of other parties in their own
+workflows and scripts (the inventories, B, C and D of podssh, 2, 3 and 4
+of podnet). The watches must run in one place, on the data of
+`pod-services`.
+
+## Premise
+
+- Read: `docs/research/services/podssh.md`, `docs/research/services/podnet.md`.
+
+## Approach
+
+The member crate `pod-services-watch` (`docs/design.md`, section 4): the
+`Watch` trait and one implementation for each watch kind that the
+inventories need, each with a plant; the workflows of podcrates that run
+the watches each day and the measurements by hand; the measurement scripts
+of the consumers in a directory services of `scripts/`; the trials of podssh and podnet
+(their workflows and scripts of watches leave them).
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch
+sh scripts/plant-each.sh --group services
+```
+
+## Start condition
+
+T-049 is done.
