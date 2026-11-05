@@ -49,7 +49,7 @@ T-005 is done.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -73,11 +73,27 @@ whole move: it is the test of the procedure.
 ```sh
 cargo test -p pod-term
 sh scripts/agent/check.sh
+sh scripts/adoption.sh podssh pod-term
 ```
 
 ## Start condition
 
 T-003 is done.
+
+## Done
+
+2026-11-05, the commits of this entry (import, edition 2024, the
+adaptation). `cargo test -p pod-term`: 176 passed, the same tests with
+their names. The comments name no record of podssh and no line of the
+source of podvm; the test switches are `POD_TERM_PLANT` and
+`POD_TERM_TEST_TMUX`. The terminal oracle of its tests moved to
+`pod-testkit` (feature `screen`), because the tests of podssh-ws,
+podssh-ssh and podssh-cli read it too. The plants C, D and E are caught
+(`scripts/plants/term-plant-*.plant`). `examples/static-probe` links it.
+The trial in podssh at `d4e186d` (`adoption/podssh/pod-term.patch`):
+the record agrees (640 entries), `terminal_oracle` of podssh-ws (3) and
+of podssh-ssh (5), `silent_notice` of podssh-ssh (4) and of podssh-cli
+(1), and the 17 tests of `session::` of podssh-cli pass.
 
 # T-012: `pod-tls`: trust, the TLS configurations, the pure-Rust provider and ECH
 

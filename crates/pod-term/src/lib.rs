@@ -1,19 +1,19 @@
 //! The userspace line discipline, for a host with no pty.
 //!
 //! **This crate never touches the network.** It owns echo, line editing,
-//! history, signal characters, and window size. The bytes
-//! arrive over SSH from [`podssh-core`] and leave again; nothing here dials,
+//! history, signal characters, and window size. The bytes arrive over SSH
+//! from the SSH layer of the consumer and leave again; nothing here dials,
 //! reads a socket, or knows a relay exists.
 //!
 //! ## Where the bytes come from
 //!
-//! The relay has no pty, tty, terminal, isatty or termios concept anywhere in
-//! its 15 477 bytes — **MEASURED**, grep over the live `llms-full.txt` (see the
-//! entry's Premise). So the pty question is never "what does the relay give us"
-//! but "does the SSH **server** grant a pty, and can podssh present one
-//! locally". When `/dev/ptmx` does not open on the local host, the answer has to
-//! be yes: podssh implements the terminal itself, in userspace, in Rust, with
-//! no `LD_PRELOAD` and no C compiler.
+//! The relay has no pty, tty, terminal, isatty or termios concept: its
+//! documentation (`llms-full.txt`) names none of them. So the pty question
+//! is never "what does the relay give us" but "does the SSH **server** grant
+//! a pty, and can the client present one locally". When `/dev/ptmx` does not
+//! open on the local host, the answer has to be yes: this crate implements
+//! the terminal itself, in userspace, in Rust, with no `LD_PRELOAD` and no C
+//! compiler.
 //!
 //! ## Two disciplines, one binary
 //!
@@ -24,29 +24,30 @@
 //!
 //! | Mode | When | Who owns the screen |
 //! | --- | --- | --- |
-//! | [`echo::Discipline`] | selected, with no pty and no discipline below | podssh: echo, editing, history, a static prompt |
+//! | [`echo::Discipline`] | selected, with no pty and no discipline below | this crate: echo, editing, history, a static prompt |
 //! | [`passthrough::Passthrough`] | each other case | the program, the pty or the discipline below: each byte as it came |
 //!
 //! **A full-screen program is a separate mode, not a richer cooked mode.** The
 //! echo discipline **drops** cursor addressing, because a discipline that
 //! interprets sequences it has not tested corrupts somebody's terminal. A `vi`
-//! cannot run under those rules, so `vi` gets the other mode — where podssh
-//! owns only window size and signals, and touches no other byte.
+//! cannot run under those rules, so `vi` gets the other mode, where this
+//! crate owns only window size and signals, and touches no other byte.
 //!
 //! ## What was transcribed, and what was not
 //!
-//! **The echo discipline is a transcription, not an invention.** podvm ships
-//! this exact discipline server-side and its byte rules are pinned by ~40 named
-//! tests — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1`. Every
-//! constant here cites the line it came from, and every refusal is in the
-//! catalogue below.
+//! **The echo discipline is a transcription, not an invention.** The SSH
+//! server of podvm uses this same discipline, and about 40 named tests pin
+//! its byte rules. Each constant here cites the line of that server's
+//! `session.rs` that it comes from, and each refusal is in the catalogue
+//! below. A citation `session.rs:NN` names a line of that file, not of
+//! [`session`].
 //!
-//! **One behaviour is deliberately NOT transcribed.** The sibling *refuses*
-//! window size, because `sshd`'s `ForceCommand` consumes size changes before any
-//! byte reaches it — **READ**, `session.rs:47-50`. podssh is not behind
-//! `ForceCommand`: podssh issues `window-change` itself. So [`window`] honours
-//! a resize and **defers** one that arrives mid-frame rather than dropping it.
-//! Copying the sibling's refusal would have shipped that bug.
+//! **One behaviour is deliberately NOT transcribed.** That server *refuses*
+//! window size, because `sshd`'s `ForceCommand` consumes size changes before
+//! any byte reaches it (the server of podvm). A client that is not behind
+//! `ForceCommand` issues `window-change` itself. So [`window`] honours a
+//! resize and **defers** one that arrives mid-frame, and does not drop it. A
+//! copy of the refusal would give a window that cannot be resized.
 //!
 //! ## The refusal rule
 //!
@@ -56,8 +57,8 @@
 //!
 //! ## The 500-line rule
 //!
-//! The reference is 1132 lines in one file and is not to be copied as one. Each
-//! module below holds one thing and names it:
+//! The `session.rs` of that server is 1132 lines in one file, and this crate
+//! does not copy it as one. Each module below holds one thing and names it:
 //!
 //! - [`bytes`] — rendering bytes legibly, so a failing assertion names them
 //! - [`echo`] — the line under edit: the byte rules, transcribed
@@ -68,8 +69,6 @@
 //! - [`passthrough`] — the second discipline, for a program that owns the screen
 //! - [`refusal`] — the refusal catalogue that the cooked discipline answers from
 //! - [`session`] — the driver that chooses between them
-//!
-//! [`podssh-core`]: https://docs.rs/podssh-core
 
 pub mod bytes;
 pub mod echo;

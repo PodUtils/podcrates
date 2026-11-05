@@ -32,7 +32,8 @@ git apply "$dir/$crate.patch"
 # Each `pod-X = { git = "https://github.com/PodUtils/podcrates", ... }` of
 # the patch becomes a path into this tree.
 for manifest in $(git ls-files -m -o --exclude-standard | grep 'Cargo.toml$' || true) $(git diff --name-only | grep 'Cargo.toml$' || true); do
-    sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\" \\}|\\1 = { path = \"$here/crates/\\1\" }|" "$manifest"
+    [ -f "$manifest" ] || continue
+    sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$here/crates/\\1\"|" "$manifest"
 done
 echo "adoption: $consumer at ${commit%"${commit#???????}"} with $crate of $(git -C "$here" rev-parse --short HEAD)"
 grep -v '^#' "$dir/$crate.run" | while IFS= read -r step; do

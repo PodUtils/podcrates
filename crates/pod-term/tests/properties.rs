@@ -1,11 +1,11 @@
-//! Properties of the line discipline (T-202, with T-125 to T-129), each
+//! Properties of the line discipline, each
 //! checked on the inputs that proptest makes, 256 by default, and shrunk to
 //! the smallest that fails: keys cut into reads at any points give the same
 //! events as the keys read one at a time; and after any keys, the cursor is
 //! within the line and, with IUTF8, between characters of a line of UTF-8;
 //! each line sent ends with its one LF; the history holds no empty line and
 //! no repeat of the line before. What the screen shows is the terminal
-//! oracle's (`tests/oracle.rs`, T-200).
+//! oracle's (`tests/oracle.rs`).
 //!
 //! A property that fails writes its input to
 //! `tests/properties.proptest-regressions`, committed with the repair:

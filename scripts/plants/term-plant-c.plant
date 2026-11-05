@@ -1,0 +1,7 @@
+# The defect arm of plant c of pod-term (crates/pod-term/tests/plants.rs).
+ENTRY=T-011
+GROUP=term
+EXPECT='test plant_c_a_resize_mid_frame \.\.\. FAILED'
+RUN='POD_TERM_PLANT=drop_resize_mid_frame cargo test -p pod-term --test plants plant_c_a_resize_mid_frame'
+LIMIT=900
+SWITCH=1

@@ -15,7 +15,7 @@
 //! writes to a pipe, and the client's terminal is raw, so a bare `\n` would
 //! step down the screen like stairs. A `\r\n` becomes `\r\r\n`, which a
 //! terminal shows the same, so no state is carried from one chunk to the
-//! next. **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:624-641`.
+//! next. The SSH server of podvm does the same (the server of podvm).
 
 use super::screen::{ED, csi, motion};
 use super::{Discipline, EL, Event, PROMPT};

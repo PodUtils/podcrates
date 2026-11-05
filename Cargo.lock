@@ -137,14 +137,17 @@ name = "pod-term"
 version = "0.1.0"
 dependencies = [
  "anstyle-parse",
+ "pod-testkit",
  "proptest",
  "unicode-width",
- "vt100",
 ]
 
 [[package]]
 name = "pod-testkit"
 version = "0.1.0"
+dependencies = [
+ "vt100",
+]
 
 [[package]]
 name = "pod-todo"
@@ -237,6 +240,7 @@ name = "static-probe"
 version = "0.1.0"
 dependencies = [
  "pod-core",
+ "pod-term",
 ]
 
 [[package]]

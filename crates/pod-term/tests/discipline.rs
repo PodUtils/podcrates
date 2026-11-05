@@ -1,17 +1,17 @@
 //! **Echo, erasing and submission: byte for byte, on both legs.**
 //!
-//! **Every assertion in this file names the exact bytes.** The entry's rule is
-//! explicit: *"A test that only checks that 'something was echoed' cannot catch
-//! this class of bug, because the failure is the right bytes in the wrong
-//! direction or the wrong sequence substituted."* So a test here asserts on
+//! **Every assertion in this file names the exact bytes.** A test that only
+//! checks that "something was echoed" cannot catch this class of bug, because
+//! the failure is the right bytes in the wrong direction or the wrong
+//! sequence substituted. So a test here asserts on
 //! `ToLocal` and `ToRemote` **separately and exactly**, and never on "the output
 //! contains something".
 //!
-//! **Every rule below is transcribed**, and each test names the line of
-//! `.tmp/podbox/crates/podbox-ssh/src/session.rs` it came from, read with
-//! `sed -n` on 2026-10-02. The sibling's own suite is at `session.rs:752-1132`
-//! and roughly twenty of these are the same assertions, because a transcription
-//! that re-derives its own numbers is an invention.
+//! **Every rule below is transcribed**, and each test names the line of the
+//! `session.rs` of the SSH server of podvm that it came from. That server's
+//! own suite is at the server of podvm, and about twenty of these are the
+//! same assertions, because a transcription that re-derives its own numbers
+//! is an invention.
 //!
 //! ## What this file holds, and why it is not all of it
 //!
@@ -26,9 +26,9 @@
 //! ## Where a rule is deliberately NOT the sibling's
 //!
 //! **No `onlcr`.** The sibling expands a lone `\n` to `\r\n` on the way out
-//! (`session.rs:629-642`) because its shell runs on a pipe with no `OPOST`.
-//! podssh's far side is a real pty which has already done that translation,
-//! and expanding again would stair-step every line. The `passthrough` tests
+//! (the server of podvm) because its shell runs on a pipe with no `OPOST`.
+//! In the transparent mode the far side is a real pty, which has already done
+//! that translation, and a second expansion would stair-step every line. The `passthrough` tests
 //! pin that half.
 
 use pod_term::echo::{BELL, Discipline, EL, LINE_CAP, PROMPT};
@@ -46,7 +46,7 @@ fn typing_echoes_byte_for_byte_and_enter_submits_once() {
     // prompt the shell never prints; `remote` is the submitted line and nothing
     // else. If the two were merged into one buffer this test would still pass
     // and the *wrong direction* would be undetectable — which is the class of
-    // bug the entry names. Transcribed: `session.rs:781-787`.
+    // bug that the header names. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"hi\n");
     assert_eq!(got.local, b"hi\r\n$ ", "the echo and the next prompt");
@@ -58,7 +58,7 @@ fn typing_echoes_byte_for_byte_and_enter_submits_once() {
 #[test]
 fn a_crlf_pair_is_one_enter_and_not_two_commands() {
     // **A client speaking CRLF must not run every command twice.**
-    // Transcribed from `session.rs:789-797` and its own comment. The `\n`
+    // Transcribed from the server of podvm and its own comment. The `\n`
     // half is swallowed and produces **no event at all** — not an empty submit.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"a\r\n");
@@ -80,7 +80,7 @@ fn a_key_between_cr_and_lf_ends_the_pair() {
 #[test]
 fn a_lone_cr_and_a_lone_lf_both_submit() {
     // **Each alone, in a fresh discipline** — back to back they would be a
-    // `\r\n` pair, which is the case above. Transcribed: `session.rs:799-809`.
+    // `\r\n` pair, which is the case above. Transcribed: the server of podvm.
     let mut cr = Discipline::new();
     assert_eq!(feed(&mut cr, b"\r").remote, b"\n");
     let mut lf = Discipline::new();
@@ -90,7 +90,7 @@ fn a_lone_cr_and_a_lone_lf_both_submit() {
 #[test]
 fn the_prompt_is_the_transcribed_one() {
     // The prompt is `$ `, byte for byte, because a prompt is a byte sequence
-    // every redraw embeds. Transcribed: `session.rs:102`.
+    // every redraw embeds. Transcribed: the server of podvm.
     assert_eq!(PROMPT, b"$ ");
     assert_eq!(EL, b"\x1b[K");
     assert_eq!(BELL, b"\x07");
@@ -103,7 +103,7 @@ fn backspace_rubs_out_one_cell_with_three_bytes() {
     // **The rubout triple, exactly.** Not "the character went away" — the
     // three bytes `\b`, space, `\b` are what a real terminal answers to, and a
     // redraw here instead of the triple would be a visible difference at the end
-    // of a line. Transcribed: `session.rs:811-817`, `189-198`.
+    // of a line. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"ab\x7f\n");
     assert_eq!(got.local, b"ab\x08 \x08\r\n$ ", "{}", got.show());
@@ -112,7 +112,7 @@ fn backspace_rubs_out_one_cell_with_three_bytes() {
 
 #[test]
 fn ctrl_h_backspace_erases_exactly_as_del_does() {
-    // **`0x08` and `0x7f` are one arm** (`session.rs:278`), so they must be
+    // **`0x08` and `0x7f` are one arm** (the server of podvm), so they must be
     // indistinguishable — a user on a terminal that sends either gets the same
     // bytes back.
     let mut del = Discipline::new();
@@ -124,7 +124,7 @@ fn ctrl_h_backspace_erases_exactly_as_del_does() {
 #[test]
 fn erase_at_the_start_of_the_line_bells() {
     // **The refusal half**, and it is a bell rather than silence: silence
-    // reads as acceptance. Transcribed: `session.rs:819-825`.
+    // reads as acceptance. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"\x7f");
     assert_eq!(got.local, BELL, "{}", got.show());
@@ -136,7 +136,7 @@ fn ctrl_u_erases_the_line_with_one_fixed_shape() {
     // **`\r`, prompt, `EL` — and nothing else**, whatever the line's length.
     // That is the whole point of the shape: one byte sequence for every length
     // is something a terminal and a test can both rely on. And the line is
-    // gone afterwards, which the submit proves. Transcribed: `session.rs:827-839`.
+    // gone afterwards, which the submit proves. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"hello\x15");
     let mut expect = b"hello".to_vec();
@@ -151,8 +151,7 @@ fn ctrl_u_erases_the_line_with_one_fixed_shape() {
 #[test]
 fn ctrl_w_erases_blanks_then_one_word() {
     // **Trailing blanks go first, then the word**, and the boundary is the
-    // space — what a shell word means here. Transcribed: `session.rs:841-846`
-    // and `354-376`.
+    // space — what a shell word means here, as in the server of podvm.
     let mut d = Discipline::new();
     assert_eq!(feed(&mut d, b"foo bar\x17\n").remote, b"foo \n");
 
@@ -192,7 +191,7 @@ fn a_line_past_the_cap_drops_bytes_with_a_bell_each() {
     // **Exactly one bell per rejected byte, and the accepted bytes still
     // echo themselves.** An unbounded line buffer is the defect the cap
     // exists to prevent, so the cap's arithmetic is asserted, not its existence.
-    // Transcribed: `session.rs:957-968`, `108`.
+    // Transcribed: the server of podvm.
     assert_eq!(LINE_CAP, 65536);
     let mut d = Discipline::new();
     let big = vec![b'y'; LINE_CAP + 5];

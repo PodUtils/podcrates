@@ -1,30 +1,29 @@
 //! Erasing, moving, and inserting: the edits a key makes to a line.
 //!
-//! **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** and
-//! each method names the line it came from. This is a split of [`super`], not
+//! **Transcribed from the `session.rs` of the SSH server of podvm.** Each
+//! method names the line it came from. This is a split of [`super`], not
 //! a second implementation: **the reference is 1132 lines in one file and
 //! this repository's gate forbids a source file over 500 lines**, so the
 //! transcription is cut by responsibility and **not one byte rule was
-//! re-derived or dropped to make it fit.** The suite is the same 96 tests
-//! before and after the split.
+//! re-derived or dropped to make it fit.**
 //!
 //! ## What is here
 //!
-//! - [`Discipline::signal_key`] — Ctrl-C and Ctrl-\: drop the line, echo the
+//! - `Discipline::signal_key` — Ctrl-C and Ctrl-\: drop the line, echo the
 //!   caret notation, report the signal. The interrupted line never ran, so
-//!   history never saw it. **`session.rs:297-308`**
-//! - [`Discipline::eof_or_delete`] — Ctrl-D at three positions, three answers.
-//!   **`session.rs:310-321`**
-//! - [`Discipline::erase_left`] — DEL and BS, one character. **`session.rs:323-338`**
-//! - [`Discipline::erase_line`] — Ctrl-U. **`session.rs:340-352`**
-//! - [`Discipline::erase_word`] — Ctrl-W: blanks first, then the word.
-//!   **`session.rs:354-376`**
-//! - [`Discipline::escape`] — the final byte of a sequence, `ESC [` or `ESC O`.
-//!   **`session.rs:378-403`**
-//! - [`Discipline::home`] and [`Discipline::end`] — the line's cursor and the
-//!   screen's together; [`Discipline::delete_under`] — Delete.
-//! - [`Discipline::insert`] — an ordinary byte, or a refusal at the cap.
-//!   **`session.rs:437-453`**
+//!   history never saw it. **the server of podvm**
+//! - `Discipline::eof_or_delete` — Ctrl-D at three positions, three answers.
+//!   **the server of podvm**
+//! - `Discipline::erase_left` — DEL and BS, one character. **the server of podvm**
+//! - `Discipline::erase_line` — Ctrl-U. **the server of podvm**
+//! - `Discipline::erase_word` — Ctrl-W: blanks first, then the word.
+//!   **the server of podvm**
+//! - `Discipline::escape` — the final byte of a sequence, `ESC [` or `ESC O`.
+//!   **the server of podvm**
+//! - `Discipline::home` and `Discipline::end` — the line's cursor and the
+//!   screen's together; `Discipline::delete_under` — Delete.
+//! - `Discipline::insert` — an ordinary byte, or a refusal at the cap.
+//!   **the server of podvm**
 //!
 //! **`pub(crate)`, not `pub`.** These are called from [`super::Discipline::key`]
 //! in another module, and `pub(crate)` is the whole of what that needs: they
@@ -41,7 +40,7 @@ impl Discipline {
     /// A signal character: drop the line being edited, echo the caret notation a
     /// terminal shows, print a fresh prompt, and report the signal. The
     /// interrupted line never ran, so history never saw it.
-    /// **READ**, `session.rs:297-308`.
+    /// as in the server of podvm.
     pub(crate) fn signal_key(&mut self, sig: Sig, caret: &[u8]) -> Vec<Event> {
         // Over several rows the caret goes after the line, not over it.
         let mut echo = if self.drawn_end.row > 0 { motion(self.shown, self.drawn_end) } else { Vec::new() };
@@ -57,7 +56,7 @@ impl Discipline {
 
     /// Ctrl-D: end of input on an empty line, delete the character under the
     /// cursor on a live one, and nothing at all at the very end.
-    /// **READ**, `session.rs:310-321`.
+    /// as in the server of podvm.
     pub(crate) fn eof_or_delete(&mut self) -> Vec<Event> {
         if self.line.is_empty() {
             return vec![Event::Eof];
@@ -97,7 +96,7 @@ impl Discipline {
 
     /// Erase the character left of the cursor, and the cells it took. At the
     /// very start there is nothing to erase, and the bell says so.
-    /// **READ**, `session.rs:323-338`.
+    /// as in the server of podvm.
     pub(crate) fn erase_left(&mut self) -> Vec<Event> {
         let Some(u) = before(&self.line, self.utf8, self.cursor) else {
             return vec![Event::ToLocal(BELL.to_vec())];
@@ -115,8 +114,8 @@ impl Discipline {
     }
 
     /// Erase the whole line, wherever the cursor sits: `\r`, prompt, and clear,
-    /// which is one fixed shape for every length on one row. **READ**,
-    /// `session.rs:340-352`. Over several rows, up to the first row first, and
+    /// which is one fixed shape for every length on one row, as in the
+    /// server of podvm. Over several rows, up to the first row first, and
     /// `ESC [ J` clears the rows below too.
     pub(crate) fn erase_line(&mut self) -> Vec<Event> {
         if self.line.is_empty() {
@@ -136,7 +135,7 @@ impl Discipline {
 
     /// Erase back over one word: trailing blanks, then non-blanks. The boundary
     /// rule is spaces, matching what a shell word means here.
-    /// **READ**, `session.rs:354-376`.
+    /// as in the server of podvm.
     pub(crate) fn erase_word(&mut self) -> Vec<Event> {
         if self.cursor == 0 {
             return vec![Event::ToLocal(BELL.to_vec())];
@@ -171,19 +170,19 @@ impl Discipline {
     /// cursor exactly where the local cursor went, and Home and End move it
     /// too. The VT220 editing keys come as `ESC [ n ~`: 1 and 7 are Home, 4
     /// and 8 End, and 3 Delete. **Everything else bells and drops**, and that is
-    /// not an omission — see `session.rs:54-55`, *"any escape sequence outside
+    /// not an omission — see the server of podvm, *"any escape sequence outside
     /// arrows, Home, and End is dropped"*. A discipline that passes an
     /// untested sequence to a client that is *not* full-screen corrupts the
-    /// scrollback. **READ**, `session.rs:378-403`.
+    /// scrollback. as in the server of podvm.
     ///
     /// **The parameter is load-bearing.** **`ESC [ 1 C` is a real sequence** —
     /// "cursor forward one" — and **it is refused rather than treated as a
     /// plain `C`.** Handling it as `C` would move the cursor as though the `1`
     /// had never been sent, and a discipline that interprets sequences it has
-    /// not tested is a discipline that will corrupt somebody's terminal. This
-    /// is the entry's rule applied to a sequence the reference never met: *"a
-    /// discipline that silently drops a sequence its client was promised is worse
-    /// than one that rings a bell"*.
+    /// not tested is a discipline that will corrupt somebody's terminal. The
+    /// rule also applies to a sequence that the reference never met: a
+    /// discipline that silently drops a sequence its client was promised is
+    /// worse than one that rings a bell.
     pub(crate) fn escape(&mut self, intro: Intro, b: u8, param: Param) -> Vec<Event> {
         match (intro, b, param) {
             (Intro::Csi, b'~', Param::Number(1 | 7)) => return self.home(),
@@ -224,8 +223,8 @@ impl Discipline {
 
     /// An ordinary byte. With UTF-8, the byte of a character typed in parts
     /// waits until the character is whole; a byte that starts none, or a
-    /// character that is not valid, goes in as bytes. **READ**,
-    /// `session.rs:437-453`.
+    /// character that is not valid, goes in as bytes, as in the server of
+    /// podvm.
     pub(crate) fn insert(&mut self, b: u8) -> Vec<Event> {
         if !self.utf8 {
             return self.insert_unit(&[b]);

@@ -1,19 +1,19 @@
-# The corpus of the terminal oracle (T-200): sequences that tmux and the
-# model of tests/screen/mod.rs must show alike before the model judges the
-# bytes that podssh writes (tests/calibration.rs). Each is a kind of
-# sequence that podssh writes: text, line breaks with and without CR, the
-# cursor's motions and where they stop, the clears, a rubout, wide
-# characters and accents, rows that wrap, a screen that scrolls, the shapes
-# of the line discipline's redraws, and what the sanitizer leaves of
-# hostile text.
+# The corpus of the terminal oracle: sequences that tmux and the model of
+# tests/screen/mod.rs must show alike before the model judges the bytes
+# that the line discipline writes (tests/calibration.rs). Each is a kind of
+# sequence that the discipline or its caller writes: text, line breaks with
+# and without CR, the cursor's motions and where they stop, the clears, a
+# rubout, wide characters and accents, rows that wrap, a screen that
+# scrolls, the shapes of the line discipline's redraws, and what a
+# sanitizer leaves of hostile text.
 #
 # One case a line: a name, one space, and the bytes. \e is ESC; \r, \n, \b,
 # \t and \a are CR, LF, BS, TAB and BEL; \\ is a backslash and \xHH a byte;
 # {N*TEXT} is TEXT N times, TEXT with these escapes too; each other
 # character stands for itself, in UTF-8. The panes are 80 columns wide. No
 # case ends with the cursor past the last column, a state that tmux and the
-# model each report in their own way, and that podssh never leaves: a row
-# that the line discipline fills ends with CR LF.
+# model each report in their own way, and that the discipline never
+# leaves: a row that the discipline fills ends with CR LF.
 text hello, world
 crlf-lines one\r\ntwo\r\nthree
 lf-keeps-the-column one\ntwo\nthree

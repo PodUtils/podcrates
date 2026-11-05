@@ -3,11 +3,10 @@
 //! **A full-screen program is a separate mode, not a richer cooked mode.**
 //! The cooked discipline in [`crate::echo`] **drops cursor addressing**, and
 //! that is not a bug to be softened for `vi` — it is a refusal, transcribed:
-//! **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:54-55`, *"any escape
-//! sequence outside arrows, Home, and End is dropped"*. A discipline that
-//! passed `ESC[?1049h` to a client that is *not* full-screen would corrupt the
-//! scrollback; one that dropped it from a client that *is* would leave `vi`
-//! drawing over the scrollback. **There is no middle. Two modes, and the mode
+//! any escape sequence outside arrows, Home, and End is dropped
+//! (the server of podvm). A discipline that passed `ESC[?1049h` to a client
+//! that is *not* full-screen would corrupt the scrollback; one that dropped
+//! it from a client that *is* would leave `vi` drawing over the scrollback. **There is no middle. Two modes, and the mode
 //! is chosen from what lies below the session** — see [`crate::session::Session`].
 //!
 //! ## What the local side still owns
@@ -23,9 +22,9 @@
 //! **Nothing else.** **No alternate screen is entered or left here.** The
 //! program does that itself: it is the thing that knows when it is about to
 //! take the screen, and a local side that did it too would restore a screen the
-//! program never left. Whether podssh's local terminal implements `1049` is
-//! **`UNKNOWN`** and is recorded on the entry; it does not need to be settled
-//! for this mode, because **this mode never asks**.
+//! program never left. This mode does not need to know whether the local
+//! terminal of the client implements `1049`, because **this mode never
+//! asks**.
 //!
 //! ## Nothing is refused here
 //!
@@ -59,9 +58,9 @@ impl Passthrough {
     /// this crate is not one.
     ///
     /// **Transcribed in spirit from the sibling's `ShellOut::Bytes`
-    /// path** (`session.rs:478-480`, `565-568`) and **deliberately different
+    /// path** (the server of podvm) and **deliberately different
     /// in one respect: no `onlcr`.** The sibling expands lone `\n` to `\r\n` —
-    /// **READ**, `session.rs:629-642` — because its shell runs on a pipe with no
+    /// as in the server of podvm — because its shell runs on a pipe with no
     /// `OPOST`/`ONLCR`. Here the far side is a real pty, which already did
     /// the translation; expanding again would put a `\r` before every `\n` and
     /// stair-step the whole screen.
@@ -86,7 +85,7 @@ impl Passthrough {
 
     /// The signal characters, named. **Exposed so a caller can report them
     /// without duplicating the byte values**, which are the cooked module's
-    /// (`session.rs:268-269`) and must not drift from them.
+    /// (the server of podvm) and must not drift from them.
     pub fn signal_bytes() -> [(u8, Sig); 2] {
         [(0x03, Sig::Int), (0x1c, Sig::Quit)]
     }

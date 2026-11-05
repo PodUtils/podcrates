@@ -9,9 +9,8 @@
 //! **The terminal's rules, as xterm and VTE apply them**: writing past the
 //! last column wraps to the next row; a wide character that does not fit in
 //! the rest of a row starts the next one, and the rest of the row keeps what
-//! it held (the `vt100` crate's model does so), so a redraw erases it first
-//! (T-200); `CUU`,
-//! `CUD`, `CUF` and `CUB` stop at the margins, and a backspace does not go
+//! it held (the `vt100` crate's model does so), so a redraw erases it first;
+//! `CUU`, `CUD`, `CUF` and `CUB` stop at the margins, and a backspace does not go
 //! up a row. A full row is left at once (the discipline writes `\r\n` there),
 //! so a place never waits on a pending wrap. **A line taller than the screen
 //! is not drawn right**: `ESC [ A` stops at the top row.

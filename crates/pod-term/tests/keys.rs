@@ -1,10 +1,8 @@
 //! **The keys: escapes, history, signals, and the two modes.** Window size
 //! is in `window.rs`, and a byte past the line cap in `discipline.rs`.
 //!
-//! **Byte-exact on both legs, exactly as the entry demands**, and every
-//! rule below names the line of
-//! `.tmp/podbox/crates/podbox-ssh/src/session.rs` it was transcribed from,
-//! read with `sed -n` on 2026-10-02.
+//! **Byte-exact on both legs**, and each rule below names the line of the
+//! `session.rs` of the SSH server of podvm that it was transcribed from.
 //!
 //! **What separates this file from `discipline.rs`** is the subject, not the
 //! rigour: that file pins echo, erasing and submission — **what a byte typed
@@ -28,7 +26,7 @@ use common::{feed, has, legs, over_a_pty, selected};
 #[test]
 fn up_and_down_walk_history_and_enter_reruns() {
     // **A redraw on every recall**, and the recalled bytes are the whole line.
-    // Transcribed: `session.rs:897-914`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     assert_eq!(feed(&mut d, b"one\ntwo\n").remote, b"one\ntwo\n");
     assert!(feed(&mut d, b"\x1b[A").local.ends_with(b"two"), "newest first");
@@ -42,7 +40,7 @@ fn up_and_down_walk_history_and_enter_reruns() {
 fn history_skips_empty_lines_and_consecutive_duplicates() {
     // **"Up must reach a command, not blank air"** — the reference's own
     // reason, and it is the reason this assertion exists.
-    // Transcribed: `session.rs:916-925`, `200-214`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     feed(&mut d, b"\nx\nx\n");
     assert!(feed(&mut d, b"\x1b[A").local.ends_with(b"x"));
@@ -53,7 +51,7 @@ fn history_skips_empty_lines_and_consecutive_duplicates() {
 fn history_forgets_past_the_cap_and_the_oldest_goes_first() {
     // **The cap is 100 and the oldest leaves**, so `Up` from a full history
     // reaches back exactly `HISTORY_CAP` entries and then rings.
-    // Transcribed: `session.rs:1069-1086`, `105`.
+    // Transcribed: the server of podvm.
     assert_eq!(HISTORY_CAP, 100);
     let mut d = Discipline::new();
     for i in 0..HISTORY_CAP + 5 {
@@ -80,7 +78,7 @@ fn down_past_the_newest_restores_the_line_the_browse_set_aside() {
     // **The parked line.** Type something, browse up, browse back past
     // the newest: the uncommitted line **returns**, and Enter runs *it* rather
     // than the recalled entry. Without the `saved` slot, Up would silently
-    // destroy what the user was typing. Transcribed: `session.rs:1088-1103`.
+    // destroy what the user was typing. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     feed(&mut d, b"one\n");
     feed(&mut d, b"tw");
@@ -91,7 +89,7 @@ fn down_past_the_newest_restores_the_line_the_browse_set_aside() {
 
 #[test]
 fn down_with_no_browse_in_progress_bells_and_keeps_the_line() {
-    // **A refusal that damages nothing.** Transcribed: `session.rs:1021-1032`.
+    // **A refusal that damages nothing.** Transcribed: the server of podvm.
     let mut d = Discipline::new();
     feed(&mut d, b"one\n");
     feed(&mut d, b"tw");
@@ -108,7 +106,7 @@ fn ctrl_c_signals_the_group_and_discards_the_line() {
     // signal is reported, the echo is the caret notation plus a fresh prompt,
     // and **history never saw the interrupted line** — the third is what a
     // signal that also "helpfully" submitted the line would break.
-    // Transcribed: `session.rs:848-858`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"abc\x03");
     assert_eq!(got.signals, vec![Sig::Int], "{}", got.show());
@@ -121,7 +119,7 @@ fn ctrl_c_signals_the_group_and_discards_the_line() {
 fn ctrl_backslash_signals_quit() {
     // **The caret is a backslash**, which is the one byte that has to be
     // escaped in a Rust byte literal and is easy to get wrong.
-    // Transcribed: `session.rs:860-866`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"\x1c");
     assert_eq!(got.signals, vec![Sig::Quit], "{}", got.show());
@@ -135,7 +133,7 @@ fn suspend_and_flow_control_bell_and_change_nothing() {
     // **The catalogue's refused half, pinned as refused.** A bell, no
     // signal, and **the line intact underneath** — that last clause is the
     // plant: a refusal that cleared the buffer would pass a test checking only
-    // the bell. Transcribed: `session.rs:868-881`, `271`.
+    // the bell. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     feed(&mut d, b"ab");
     for b in [0x1au8, 0x11, 0x13] {
@@ -149,7 +147,7 @@ fn suspend_and_flow_control_bell_and_change_nothing() {
 
 #[test]
 fn ctrl_u_and_ctrl_w_on_an_empty_line_bell() {
-    // Two more refusals, same shape. Transcribed: `session.rs:1046-1055`.
+    // Two more refusals, same shape. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     for b in [0x15u8, 0x17] {
         let got = feed(&mut d, &[b]);
@@ -162,7 +160,7 @@ fn ctrl_u_and_ctrl_w_on_an_empty_line_bell() {
 fn ctrl_d_is_eof_on_an_empty_line_and_delete_inside_one() {
     // **Three positions, three answers**, and they are different answers:
     // end of input, a deletion with a redraw, and nothing at all.
-    // Transcribed: `session.rs:310-321`, `883-895`, `1034-1044`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"\x04");
     assert!(got.eof, "on an empty line: {}", got.show());
@@ -176,7 +174,7 @@ fn ctrl_d_is_eof_on_an_empty_line_and_delete_inside_one() {
     assert!(has(&got.local, EL), "and the redraw happened: {}", got.show());
 
     // **The silent one.** Past the last cell there is nothing to delete: no
-    // bell, no redraw, no shell bytes. Transcribed: `session.rs:1034-1044`.
+    // bell, no redraw, no shell bytes. Transcribed: the server of podvm.
     let mut d = Discipline::new();
     feed(&mut d, b"ab");
     let got = feed(&mut d, b"\x04");
@@ -209,10 +207,10 @@ fn the_same_guard_accepts_the_sequences_it_must() {
     // everything is indistinguishable from a good one until it is asked about
     // something it must accept. `ESC [ C` must move the cursor, and every
     // one of the six recognised finals must be consumed rather than inserted.
-    // Transcribed: `session.rs:381-403`.
+    // Transcribed: the server of podvm.
     //
     // **The left move first, and it is load-bearing.** Right is guarded by
-    // `if cursor < line.len()` — **READ**, `session.rs:385` — so on `"ac"` with
+    // `if cursor < line.len()` — as in the server of podvm — so on `"ac"` with
     // the cursor at the end, `ESC [ C` is **the at-bound refusal**, not an
     // acceptance, and a test that asked for a move there would be testing the
     // wrong thing. The bound refusal is asserted separately, in
@@ -251,7 +249,7 @@ fn the_same_guard_accepts_the_sequences_it_must() {
 #[test]
 fn an_escape_that_is_not_a_csi_bells() {
     // **An Alt key**: `ESC x` with no pause is Alt+x, refused whole, and the
-    // `x` is consumed with it, as in the reference (`session.rs:247-253`).
+    // `x` is consumed with it, as in the reference (the server of podvm).
     // `ESC O`, a control byte and a second `ESC` are not Alt keys: see the
     // `escape_` tests.
     let mut d = Discipline::new();

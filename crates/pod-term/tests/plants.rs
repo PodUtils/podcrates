@@ -1,9 +1,8 @@
 //! **The line discipline's plants, and the controls that prove they are not guards that
 //! refuse everything.**
 //!
-//! The entry's `Prove` block named five defects. Plants A and B were of the
-//! crate's own `TERM` rule, which is gone: the client's `TERM` rule
-//! (`podssh-ssh`) is the one that reaches the `pty-req`. Three remain:
+//! The plants are C, D and E. The `TERM` rule that reaches the `pty-req` is
+//! the SSH layer's, not this crate's, so this file has no plant for it:
 //!
 //! | Plant | Defect | What must happen |
 //! | --- | --- | --- |
@@ -14,27 +13,23 @@
 //! ## How a plant is run here, and why
 //!
 //! **Each plant has two arms, and the defect arm is selected by an
-//! environment variable.** With `PODSSH_PLANT=<name>` set, the arm asserts what
+//! environment variable.** With `POD_TERM_PLANT=<name>` set, the arm asserts what
 //! a client **carrying the defect** would expect — which makes it **fail** and
 //! print the defect. With the variable unset, the correct path runs and passes.
 //!
 //! **An unknown name is the control too.** A typo in a plant's name would
 //! otherwise silently run the correct path and the plant would look proven
-//! forever — which is the exact defect this repository shipped when a plant
-//! stopped planting.
+//! forever.
 //!
 //! ```sh
-//! PODSSH_PLANT=drop_resize_mid_frame cargo test -p podssh-terminal --test plants plant_c
-//! cargo test -p podssh-terminal --test plants plant_c     # the control
+//! POD_TERM_PLANT=drop_resize_mid_frame cargo test -p pod-term --test plants plant_c
+//! cargo test -p pod-term --test plants plant_c     # the control
 //! ```
 //!
-//! **One of the three cannot be run as the entry wrote it, and the reason is
-//! in its body.** E names a real command dying against a real shell. **No command uses this crate yet,
-//! and there is no constrained host on this machine**, so what
-//! is asserted here is the **unit-level** form of each defect — and that
-//! substitution is named rather than glossed over: the real run is named on the
-//! entry as a clause that cannot execute from here, with the command and the
-//! reason.
+//! **Plant E is asserted in its unit-level form.** E names a real command
+//! that dies against a real shell. This crate spawns no process and has no
+//! remote shell, so the test asserts the defect at the boundary that this
+//! crate owns. A run against a real shell belongs to a consumer.
 
 use pod_term::echo::{BELL, Discipline, EL, Event, Sig};
 use pod_term::session::{Mode, Session};
@@ -46,7 +41,7 @@ mod common;
 /// and **an unknown name is the control too** — a typo must not silently
 /// plant something.
 fn planted(name: &str) -> bool {
-    std::env::var("PODSSH_PLANT").as_deref() == Ok(name)
+    std::env::var("POD_TERM_PLANT").as_deref() == Ok(name)
 }
 
 /// **The control arms, one per plant, each on the case it must accept.**
@@ -78,7 +73,7 @@ fn control_d_the_accepted_escape_still_moves_the_cursor() {
     let mut d = Discipline::new();
     let mut local = Vec::new();
     // **The left move first, and it is load-bearing.** Right is guarded by
-    // `if cursor < line.len()` — **READ**, `session.rs:385` — so with the
+    // `if cursor < line.len()` — as in the server of podvm — so with the
     // cursor at the end, **`ESC [ C` is the at-bound refusal, not an
     // acceptance**, and this control would be asserting the opposite of what it
     // exists to prove. **A control that accidentally tests the refusal is
@@ -130,9 +125,8 @@ fn control_e_a_signal_that_is_not_pressed_changes_nothing() {
 #[test]
 fn plant_c_a_resize_mid_frame() {
     // **THE PLANT: a resize delivered while a frame is half-drawn.** The
-    // entry's words: *"Assert the SSH stream stays well-formed and the frame is
-    // intact afterwards. Then resize while `vi` is idle and assert it propagates
-    // immediately."*
+    // claim: the SSH stream stays well-formed and the frame is intact
+    // afterwards; a resize while `vi` is idle propagates immediately.
     //
     // **Two claims, and the second is the one a deferral usually gets wrong.**
     // **A resize must not be interleaved into the frame** — a program seeing a
@@ -145,9 +139,8 @@ fn plant_c_a_resize_mid_frame() {
     let released = w.end_frame();
 
     if planted("drop_resize_mid_frame") {
-        // **The defect arm: the resize is dropped.** This is what copying
-        // the sibling's refusal would produce, and the entry says so:
-        // *"copying its code alone would ship this bug."*
+        // **The defect arm: the resize is dropped.** A copy of the
+        // sibling's refusal gives this defect.
         assert_eq!(
             sent_mid_frame, None,
             "the DEFECT arm is reached: a resize was sent into a half-drawn \
@@ -171,8 +164,8 @@ fn plant_c_a_resize_mid_frame() {
 
 #[test]
 fn plant_d_an_unknown_escape() {
-    // **THE PLANT: `ESC [ 1 5 ~`.** The entry's words: *"Assert a bell
-    // and no state change. Then `ESC [ C` and assert the cursor moves."*
+    // **THE PLANT: `ESC [ 1 5 ~`.** The claim: a bell and no state
+    // change; then `ESC [ C` moves the cursor.
     // **`ESC [ 1 5 ~` is a real F5 keypress**, and the cooked discipline
     // does not implement function keys. It says so with a bell rather than
     // inserting `1` and `~` into the user's command line, which is what a
@@ -223,15 +216,13 @@ fn plant_d_an_unknown_escape() {
 #[test]
 fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
     // **THE PLANT: `Ctrl-C` against a command that is not the shell.**
-    // The entry's words: *"Assert the command dies, the session survives, and
-    // the exit status is reported."*
+    // The claim: the command dies, the session survives, and the exit
+    // status is reported.
     //
     // **What is asserted here, and what is not — the whole honest shape of
     // this plant.** **No process is killed and no shell exits, because this
     // crate never spawns one**: the process that must die is the *remote*
-    // side's, reached over a channel, and **this machine has no remote
-    // shell and no command uses this crate yet (T-111).** The entry keeps that
-    // clause open with the command that cannot run.
+    // side's, reached over a channel, and **the test has no remote shell.**
     //
     // **What IS asserted is all three halves of the claim, at the boundary
     // this crate owns**: **(1)** the signal is *reported* as a named event
@@ -247,8 +238,8 @@ fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
 
     if planted("ctrl_c_kills_the_session") {
         // **The defect arm: Ctrl-C ends the session.** This is the failure
-        // named in the entry's Problem section — *"A session where `Ctrl-C`
-        // kills the whole session instead of the command."*
+        // of a session where `Ctrl-C` kills the whole session instead of the
+        // command.
         assert!(
             s.ended(),
             "the DEFECT arm is reached: Ctrl-C ended the session, and a command \
@@ -322,7 +313,7 @@ fn the_redraw_is_the_transcribed_shape() {
 #[test]
 fn the_cooked_mode_has_no_alternate_screen_and_says_so() {
     // **The refusal that keeps a cooked session from corrupting somebody's
-    // terminal.** **READ**, `session.rs:54-55`: *"Cursor addressing: any
+    // terminal.** as in the server of podvm: *"Cursor addressing: any
     // escape sequence outside arrows, Home, and End is dropped."*
     //
     // A discipline that passed `ESC[?1049h` to a client that is **not**

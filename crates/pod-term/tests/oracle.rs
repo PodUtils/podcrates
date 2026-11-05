@@ -1,19 +1,18 @@
-//! The line discipline as a terminal shows it (T-200). After each key, the
-//! screen of a model terminal (`tests/screen/`) must show the prompt and
+//! The line discipline as a terminal shows it. After each key, the
+//! screen of a model terminal (`pod_testkit::screen`) must show the prompt and
 //! the line from the first column of a row, wrapped as the terminal wraps
 //! them, with nothing after them; and the cursor in the cell where the
 //! next character after the text before the line's cursor would land. What
 //! the screen must show is the model's own drawing of the prompt and the
 //! line, from an empty screen: the discipline's bytes never judge
-//! themselves. These are the regression tests of T-127 (the cursor counts
-//! cells, not bytes) and of T-129 (Home, End, Delete, and output over the
-//! line under edit), on a screen.
+//! themselves. These tests pin two rules on a screen: the cursor counts
+//! cells, not bytes; and Home, End, Delete, and output over the line under
+//! edit draw the line right.
 //!
 //! The runs of keys come from a fixed xorshift, so that a failure repeats;
 //! its message names the seed, the steps so far and both screens.
 
-mod screen;
-use screen::Screen;
+use pod_testkit::screen::Screen;
 
 use pod_term::bytes::quoted;
 use pod_term::echo::{Discipline, Event, PROMPT};
@@ -259,8 +258,8 @@ const WIDE: &[&[u8]] = &["\u{e9}".as_bytes(), "\u{fc}".as_bytes(), "\u{4e2d}".as
 /// The keys that edit, in each form a terminal sends. A control byte that
 /// the discipline types into the line (TAB, VT, FF and the like) is left
 /// out: its echo moves a terminal's cursor in a way of its own, where the
-/// discipline counts one cell for it (T-127's decision). A table: one kind
-/// of key to a row (rustfmt::skip).
+/// discipline counts one cell for it. A table: one kind of key to a row
+/// (rustfmt::skip).
 #[rustfmt::skip]
 const EDITS: &[&[u8]] = &[
     b"\x7f", b"\x08", b"\x15", b"\x17", b"\x01", b"\x05", b"\x04", b"\x03", b"\x1c",
@@ -299,7 +298,7 @@ fn run_of(seed: u32, utf8: bool, len: usize) -> Vec<Step> {
 
 /// Runs of up to 48 steps on one terminal, one for each seed. The screens
 /// hold the longest line that 48 steps can make: a line taller than the
-/// screen is not drawn right, as `docs/terminal.md` says.
+/// screen is not drawn right (`src/echo/screen.rs`).
 fn runs(rows: u16, cols: u16, utf8: bool, width: bool, seeds: std::ops::Range<u32>) {
     for seed in seeds {
         let mut run = Run::new(rows, cols, utf8, width);

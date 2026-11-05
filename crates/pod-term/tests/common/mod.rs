@@ -4,9 +4,9 @@
 //! never by touching internal state**, so no assertion can read something the
 //! bytes did not produce.
 //!
-//! **The two legs are separate fields and never merged.** The entry names
-//! the failure this prevents: *"the failure is the right bytes in the wrong
-//! direction or the wrong sequence substituted."* A single merged buffer
+//! **The two legs are separate fields and never merged.** The failure this
+//! prevents is the right bytes in the wrong direction or the wrong sequence
+//! substituted. A single merged buffer
 //! cannot tell those apart, so neither can a test that reads one.
 
 #![allow(dead_code)] // each test file uses a subset; a shared harness is expected.
@@ -112,7 +112,7 @@ impl LocalBytes for Vec<Event> {
 ///
 /// **`Vec::contains` takes an element, not a slice**, so every subsequence
 /// check in this suite goes through here. The reference has the same helper
-/// and the same reason for it — **READ**, `session.rs:770-774`, *"so
+/// and the same reason for it — as in the server of podvm, *"so
 /// subsequence checks go through here"* — and **a test written as
 /// `hay.contains(&b'\x1b')` does not compile, which is how this error is caught
 /// rather than asserted around.**

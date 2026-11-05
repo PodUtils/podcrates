@@ -1,0 +1,7 @@
+# The defect arm of plant e of pod-term (crates/pod-term/tests/plants.rs).
+ENTRY=T-011
+GROUP=term
+EXPECT='test plant_e_ctrl_c_kills_the_command_and_not_the_session \.\.\. FAILED'
+RUN='POD_TERM_PLANT=ctrl_c_kills_the_session cargo test -p pod-term --test plants plant_e_ctrl_c_kills_the_command_and_not_the_session'
+LIMIT=900
+SWITCH=1

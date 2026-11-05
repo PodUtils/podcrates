@@ -1,15 +1,14 @@
-//! The model of the terminal oracle against a real terminal (T-200): each
+//! The model of the terminal oracle against a real terminal: each
 //! sequence of `tests/screen/corpus.txt` goes through tmux, in a pane of its
-//! own, and through the model of `tests/screen/mod.rs`; the rows and the
-//! cursor must be the same before the model judges podssh's bytes.
+//! own, and through the model of `pod_testkit::screen`; the rows and the
+//! cursor must be the same before the model judges the discipline's bytes.
 //!
-//! `PODSSH_TEST_TMUX` names tmux: the gate installs it and names it. A name
+//! `POD_TERM_TEST_TMUX` names tmux: the gate installs it and names it. A name
 //! with no program there fails. With no name, a tmux at a usual place runs
 //! the check, and with none the test says that it did not run. The corpus
 //! itself is read on each host.
 
-mod screen;
-use screen::Screen;
+use pod_testkit::screen::Screen;
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -98,10 +97,10 @@ fn the_corpus_reads_and_the_model_draws_each_case() {
 }
 
 fn tmux_path() -> Option<PathBuf> {
-    match std::env::var_os("PODSSH_TEST_TMUX") {
+    match std::env::var_os("POD_TERM_TEST_TMUX") {
         Some(named) => {
             let path = PathBuf::from(named);
-            assert!(path.is_file(), "PODSSH_TEST_TMUX names {}, and no program is there", path.display());
+            assert!(path.is_file(), "POD_TERM_TEST_TMUX names {}, and no program is there", path.display());
             Some(path)
         }
         None => USUAL.iter().map(PathBuf::from).find(|p| p.is_file()),
@@ -128,7 +127,7 @@ fn tabs_as_blanks(row: &str) -> String {
 
 /// A tmux server on a socket of a scratch directory: the server is killed
 /// and the directory removed when it is dropped, as the gate fails a run of
-/// the tests that leaves one (T-272).
+/// the tests that leaves one.
 struct Tmux {
     program: PathBuf,
     dir: PathBuf,
@@ -195,8 +194,8 @@ impl Tmux {
         let file = self.dir.join(format!("case-{i}"));
         std::fs::write(&file, &case.bytes).unwrap();
         let pane = format!("c{i}");
-        // The pane writes the case raw, with no ONLCR, as podssh's terminal
-        // is in a session; then it signals the test and waits to be killed.
+        // The pane writes the case raw, with no ONLCR, as the client's
+        // terminal is in a session; then it signals the test and waits to be killed.
         let script = format!(
             "stty raw -echo; cat '{}'; '{}' -S '{}' wait-for -S {pane}; exec sleep 600",
             file.display(),
@@ -240,7 +239,7 @@ impl Drop for Tmux {
 #[test]
 fn the_model_and_tmux_show_the_same_screens() {
     let Some(program) = tmux_path() else {
-        eprintln!("did not run: no tmux here; PODSSH_TEST_TMUX names one");
+        eprintln!("did not run: no tmux here; POD_TERM_TEST_TMUX names one");
         return;
     };
     let tmux = Tmux::new(program);

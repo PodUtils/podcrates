@@ -2,10 +2,8 @@
 //!
 //! **A refusal answers with a bell and changes nothing.** Silence would read
 //! as acceptance, and a user who cannot tell "not supported" from "did nothing"
-//! files the bug in the wrong place. This is the sibling's rule verbatim —
-//! **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:37-40`: *"Refusals
-//! answer with a bell and change nothing, never with silence that could read as
-//! acceptance."*
+//! files the bug in the wrong place. The SSH server of podvm has the same
+//! rule (the server of podvm).
 //!
 //! ## Why the catalogue is data and not only behaviour
 //!
@@ -18,16 +16,16 @@
 //! ## One list, one mode
 //!
 //! **The byte-level refusals live in [`refuses`].** Ctrl-Z, Ctrl-Q and Ctrl-S
-//! are refused in the cooked mode — **READ**, `session.rs:271`, which refuses
+//! are refused in the cooked mode — as in the server of podvm, which refuses
 //! `0x1a | 0x11 | 0x13` in a single match arm. The transparent mode refuses
 //! nothing: a pty or a line discipline below owns those keys, and there job
-//! control and flow control work (T-125). A list written twice is a list that
+//! control and flow control work. A list written twice is a list that
 //! drifts.
 
 use crate::echo::BELL;
 
 /// **The byte-level refusals, in one place.** Transcribed from
-/// `session.rs:271`. **A function and not a `const` array** so that a module
+/// The server of podvm. **A function and not a `const` array** so that a module
 /// which needs the test — the cooked discipline, and the tests of the other —
 /// cannot hold a copy that has drifted from this one.
 pub fn refuses(b: u8) -> bool {
@@ -46,17 +44,17 @@ pub fn refusal_bytes() -> Vec<u8> {
 pub enum Refusal {
     /// Ctrl-Z: suspend. No job control without a terminal, and a stopped
     /// shell with no foreground to return to is a wedged session.
-    /// **READ**, `session.rs:44-45`.
+    /// as in the server of podvm.
     Suspend,
     /// Ctrl-Q / Ctrl-S: flow control. No `IXON` below, so there is nothing
-    /// to stop. **READ**, `session.rs:46`.
+    /// to stop. as in the server of podvm.
     FlowControl,
     /// An escape sequence other than the arrows, Home and End (`ESC [` or
     /// `ESC O`, then `A B C D H F`), the editing keys `ESC [ n ~` for Home,
     /// End and Delete, and the keypad's `ESC O` keys, in the cooked mode: F1
     /// to F4, Insert and the page keys among them. Dropped rather than interpreted: a
     /// discipline that passes an untested sequence to a client that is *not*
-    /// full-screen corrupts the scrollback. **READ**, `session.rs:54-55`.
+    /// full-screen corrupts the scrollback. as in the server of podvm.
     CursorAddressing,
     /// A lone Escape, an Alt key (`ESC` and a key), or a key cut short: no
     /// key is bound to them. The lone one rings once no byte came for
@@ -65,18 +63,18 @@ pub enum Refusal {
     /// An erase at the very start of the line, or `Ctrl-U`/`Ctrl-W` on an empty
     /// one. There is nothing to erase, and the bell says so rather than
     /// leaving the user pressing a key that does nothing.
-    /// **READ**, `session.rs:325-327`, `342-344`, `357-359`.
+    /// as in the server of podvm.
     NothingToErase,
-    /// History walked past either end. **READ**, `session.rs:416-417`, `425-426`.
+    /// History walked past either end. as in the server of podvm.
     NoMoreHistory,
-    /// A cursor move at either bound. **READ**, `session.rs:385`, `389`.
+    /// A cursor move at either bound. as in the server of podvm.
     AtLineBound,
     /// A byte past [`crate::echo::LINE_CAP`].
-    /// **READ**, `session.rs:441-443`.
+    /// as in the server of podvm.
     LineTooLong,
     /// `Ctrl-D` or Delete past the last cell of a line: not end of input, and
     /// not a deletion either. This one is **silent**, and deliberately so —
-    /// **READ**, `session.rs:1035-1044`: *"Past the last cell there is nothing to
+    /// as in the server of podvm: *"Past the last cell there is nothing to
     /// delete: no bell, no redraw, no shell bytes."* It is listed here anyway,
     /// because **a documented silence is a decision and an undocumented one is
     /// a bug** — and because a reader who needs the whole set has one place to
@@ -100,13 +98,13 @@ impl Refusal {
 
     /// Why, in words a user could be told.
     ///
-    /// **Short enough to print and specific enough to act on**, which is the
-    /// bar the entry sets: *"the user can hear the refusal and can act on it"*.
+    /// **Short enough to print and specific enough to act on**: the user can
+    /// hear the refusal and can act on it.
     pub fn reason(self) -> &'static str {
         match self {
             Refusal::Suspend => "suspend is refused: no job control without a terminal",
             Refusal::FlowControl => "flow control is refused: there is no IXON to stop",
-            Refusal::CursorAddressing => "this escape sequence is refused: it is not a key podssh interprets",
+            Refusal::CursorAddressing => "this escape sequence is refused: it is not a key this discipline interprets",
             Refusal::EscapeKey => "Escape, and Alt with a key, are refused: no key is bound to them",
             Refusal::NothingToErase => "there is nothing to erase here",
             Refusal::NoMoreHistory => "history does not go further in that direction",
@@ -118,7 +116,7 @@ impl Refusal {
 
     /// **Whether this refusal rings the bell.** **Exactly one does not**,
     /// and it is the one the sibling is silent about on purpose
-    /// (`session.rs:1035-1044`). A method rather than an assumption inside the
+    /// (the server of podvm). A method rather than an assumption inside the
     /// bell code, because **an implementation that rang a bell for
     /// `Ctrl-D`-at-end would be a behaviour change to a transcribed rule**, and
     /// it would be invisible in a diff of the byte rules.
@@ -172,7 +170,7 @@ mod tests {
     fn exactly_one_refusal_is_silent_and_that_one_is_documented() {
         // **The transcription's own asymmetry, pinned.** The sibling
         // answers a `Ctrl-D` past the last cell with nothing at all
-        // (`session.rs:1035-1044`), and every other refusal rings. If a
+        // (the server of podvm), and every other refusal rings. If a
         // refactor made `NothingToDelete` ring, a user pressing Ctrl-D at the
         // end of a line would start hearing a bell that the tested reference
         // never rang — a behaviour change hidden inside a tidy-up.

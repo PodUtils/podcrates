@@ -1,6 +1,6 @@
-//! Where a stream of terminal output may start (T-221, GitHub #31).
+//! Where a stream of terminal output may start.
 //!
-//! A kept shell's ring of output drops its oldest bytes (T-159), and a
+//! A kept shell's ring of output drops its oldest bytes, and a
 //! client that attaches gets the rest from its first byte. If that byte is
 //! inside an escape sequence or a UTF-8 character, the terminal shows the
 //! end of the sequence as text: a full-screen program draws wrongly, or a
@@ -40,8 +40,7 @@ pub mod ring;
 
 pub use ring::Ring;
 
-/// A sequence that waits this long for its next byte is broken (the rule of
-/// GitHub #31).
+/// A sequence that waits this long for its next byte is broken.
 pub const BROKEN_AFTER: Duration = Duration::from_secs(10);
 
 /// The bytes after an `ESC` that start the stream again after a broken
@@ -137,8 +136,8 @@ impl Tracker {
     }
 
     /// Whether a sequence or a character is open, so that a long wait
-    /// breaks it; and so that output that pauses inside one has not
-    /// stopped yet (`podssh session wait --idle`, T-186).
+    /// breaks it; and so that a caller that waits for idle output knows that
+    /// output that pauses inside one has not stopped yet.
     pub fn open(&self) -> bool {
         !matches!(self.state, State::Ground | State::Broken { .. })
     }

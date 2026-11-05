@@ -1,24 +1,22 @@
 //! The escape-sequence parser: what counts as a sequence, and what it decides.
 //!
-//! **This module exists because the reference's parser cannot satisfy this
-//! entry's own plant**, and the reason is worth reading.
+//! **This module exists because the reference's parser cannot give a bell
+//! and no state change for an unknown escape.**
 //!
-//! **The reference reads exactly two bytes.** **READ**,
-//! `.tmp/podbox/crates/podbox-ssh/src/session.rs:142-150` and `244-262`: `ESC`
-//! then `[`, then **the very next byte is dispatched** and the sequence is
-//! over. So `ESC [ 1 5 ~` — **a real F5 keypress**, and the exact sequence
-//! this entry's `Prove` block names — is dispatched on `1`, which is unknown, so
-//! it rings a bell **and then `5` and `~` arrive as ordinary characters and
-//! land in the user's command line.**
+//! **The reference reads exactly two bytes** (the SSH server of podvm,
+//! The server of podvm): `ESC` then `[`, then **the very next
+//! byte is dispatched** and the sequence is over. So `ESC [ 1 5 ~` — **a real
+//! F5 keypress** — is dispatched on `1`, which is unknown, so it rings a bell
+//! **and then `5` and `~` arrive as ordinary characters and land in the
+//! user's command line.**
 //!
-//! **That contradicts the entry's own acceptance clause**, which reads: *"an
-//! unknown escape, `ESC [ 1 5 ~`. Assert a bell and **no state change**."*
-//! A transcription that stopped at the reference's parser would ring the bell,
-//! pass a test that only checks the bell, **and silently corrupt the command
-//! a user is typing** every time they press a function key. **MEASURED** — a
-//! test of this module runs the reference's own parser over `ESC [ 1 5 ~` and
-//! asserts what it produces, so the divergence is a recorded measurement
-//! rather than an argument.
+//! **That breaks the rule for an unknown escape such as `ESC [ 1 5 ~`: a
+//! bell and no state change.** A transcription that stopped at the
+//! reference's parser would ring the bell, pass a test that only checks the
+//! bell, **and silently corrupt the command a user is typing** each time they
+//! press a function key. A test of this module runs the reference's own
+//! parser over `ESC [ 1 5 ~` and asserts what it produces, so the divergence
+//! is a measurement and not an argument.
 //!
 //! ## What this parser reads instead
 //!
@@ -31,9 +29,8 @@
 //! `ESC [ 1 C` is a real sequence meaning "cursor forward 1" — the cooked
 //! discipline does not implement parameterised cursor motion, and a discipline
 //! that interprets sequences it has not tested is a discipline that will corrupt
-//! somebody's terminal. So it rings a bell, and that is the entry's rule:
-//! *"a discipline that silently drops a sequence its client was promised is worse
-//! than one that rings a bell"*.
+//! somebody's terminal. So it rings a bell: a discipline that silently drops
+//! a sequence its client was promised is worse than one that rings a bell.
 //!
 //! ## The keys that are not a CSI
 //!
@@ -74,7 +71,7 @@
 use crate::echo::units::utf8_len;
 
 /// The longest parameter/intermediate run a CSI sequence may accumulate before
-/// podssh stops counting.
+/// the parser stops counting.
 ///
 /// **A bound for the same reason [`crate::echo::LINE_CAP`] is one.** A
 /// client that sends `ESC [` and then bytes forever would otherwise grow this
@@ -93,7 +90,7 @@ pub enum Esc {
     #[default]
     None,
     /// **`ESC` seen, and the next byte decides what follows.**
-    /// **READ**, `session.rs:148`.
+    /// as in the server of podvm.
     Escape,
     /// **`ESC [` seen**, with the parameter and intermediate bytes so far.
     Csi(Vec<u8>),
@@ -226,7 +223,7 @@ impl Esc {
     }
 
     /// The byte after a lone `ESC`. The reference refuses each byte that is
-    /// not `[` (`session.rs:248-251`); this one also reads SS3, lets a control
+    /// not `[` (the server of podvm); this one also reads SS3, lets a control
     /// byte through, and refuses an Alt key whole.
     fn after_escape(&mut self, b: u8) -> Step {
         match b {

@@ -12,6 +12,11 @@ each crate that the consumer takes:
 * `CRATE.run`: the commands of the trial, one on each line, run in the
   checkout of the consumer. Each must exit 0.
 
+Each trial starts from `commit` alone, with its one patch. A consumer
+session applies the patches of its crates in the order of the releases;
+only the first patch of a consumer adds podcrates to `allow-git` of its
+`deny.toml`.
+
 `sh scripts/adoption.sh CONSUMER CRATE` runs one trial;
 `.github/workflows/adoption.yml` runs each one in CI. When the consumer
 moves on, a session raises `commit` and makes the patch again.

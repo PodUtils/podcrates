@@ -12,9 +12,9 @@ publish = false
 unicode-width = { version = "0.2", default-features = false }
 
 [dev-dependencies]
-# The terminal oracle: a model terminal reads what the discipline writes,
-# and the tests compare its screens (tests/screen/).
-vt100 = "0.18"
+# The terminal oracle of the test kit: a model terminal reads what the
+# discipline writes, and the tests compare its screens.
+pod-testkit = { workspace = true, features = ["screen"] }
 # Property tests of the line discipline (tests/properties.rs).
 proptest = { version = "1.11", default-features = false, features = ["std"] }
 # A terminal's parser of another project, for the tests of where a stream of

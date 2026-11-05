@@ -1,0 +1,7 @@
+# The defect arm of plant d of pod-term (crates/pod-term/tests/plants.rs).
+ENTRY=T-011
+GROUP=term
+EXPECT='test plant_d_an_unknown_escape \.\.\. FAILED'
+RUN='POD_TERM_PLANT=swallow_unknown_escape cargo test -p pod-term --test plants plant_d_an_unknown_escape'
+LIMIT=900
+SWITCH=1

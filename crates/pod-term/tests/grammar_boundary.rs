@@ -1,4 +1,4 @@
-//! Where a stream of terminal output may start (T-221), against bytes that
+//! Where a stream of terminal output may start, against bytes that
 //! real programs wrote and a terminal's parser of another project.
 //!
 //! The captures in `fixtures/` are what each program wrote for a terminal

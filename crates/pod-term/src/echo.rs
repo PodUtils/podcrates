@@ -1,42 +1,42 @@
 //! The line under edit: the byte rules, transcribed.
 //!
-//! **This module is a transcription.** podvm ships this exact discipline
-//! server-side — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1` —
-//! and its bytes are pinned by ~40 named tests, so re-deriving them would only
-//! produce a second thing to be wrong. Each constant and each byte rule below
-//! cites the line it came from, read with `sed -n` on 2026-10-02.
+//! **This module is a transcription.** The SSH server of podvm uses this
+//! same discipline, and about 40 named tests pin its bytes, so a second
+//! derivation would only give a second thing to be wrong. Each constant and
+//! each byte rule below cites the line of that server's `session.rs` that it
+//! comes from.
 //!
 //! **The one deliberate difference is the destination names, not the bytes.**
-//! The sibling names them `ToShell` and `ToClient` because it supervises a local
-//! `/bin/sh` under `ForceCommand`. podssh is the SSH *client*, so the forward
-//! leg is an SSH channel rather than a pipe. **The byte sequence produced for
-//! every input is identical**, and the tests assert those bytes, not the names.
+//! That server names them `ToShell` and `ToClient` because it supervises a
+//! local `/bin/sh` under `ForceCommand`. Here the forward leg is an SSH
+//! channel and not a pipe. **The byte sequence produced for every input is
+//! identical**, and the tests assert those bytes, not the names.
 //!
 //! ## The byte rules, and where each one is transcribed from
 //!
 //! | Rule | Reference |
 //! | --- | --- |
-//! | prompt, `$ ` | `session.rs:102` |
-//! | history cap, 100 lines, consecutive duplicates skipped | `session.rs:105`, `202-214` |
-//! | line cap, 65536 bytes, past it a byte drops with a bell | `session.rs:108`, `440-453` |
-//! | erase-in-line `EL` | `session.rs:114` |
-//! | `BELL` | `session.rs:115` |
-//! | redraw on one row: `\r`, prompt, buffer, `EL`, `\r`, prompt, line-to-cursor | `session.rs:177-187` |
-//! | `\r` and `\n` both submit; the `\n` of a `\r\n` pair is swallowed | `session.rs:260-266`, `273-277` |
-//! | recognised escapes: `ESC [ A B C D H F`, the same keys after `ESC O`, and the keypad's `ESC O` keys | `session.rs:381-403`, for `ESC [` |
-//! | the key dispatch itself | `session.rs:267-294` |
+//! | prompt, `$ ` | the server of podvm |
+//! | history cap, 100 lines, consecutive duplicates skipped | the server of podvm |
+//! | line cap, 65536 bytes, past it a byte drops with a bell | the server of podvm |
+//! | erase-in-line `EL` | the server of podvm |
+//! | `BELL` | the server of podvm |
+//! | redraw on one row: `\r`, prompt, buffer, `EL`, `\r`, prompt, line-to-cursor | the server of podvm |
+//! | `\r` and `\n` both submit; the `\n` of a `\r\n` pair is swallowed | the server of podvm |
+//! | recognised escapes: `ESC [ A B C D H F`, the same keys after `ESC O`, and the keypad's `ESC O` keys | the server of podvm, for `ESC [` |
+//! | the key dispatch itself | the server of podvm |
 //!
 //! ## What is deliberately absent
 //!
 //! **No `onlcr` in the transparent mode.** The sibling expands `\n` to `\r\n`
-//! on the way out — **READ**, `session.rs:629-642` — because the shell below
+//! on the way out — as in the server of podvm — because the shell below
 //! it runs on a pipe and its `OPOST`/`ONLCR` is absent. The cooked mode runs
-//! in that same case, with nothing below (T-125), so it does the same to the
+//! in that same case, with nothing below, so it does the same to the
 //! program's output (`output`). Over a real pty, the transparent mode's
 //! case, the pty already translated, and an extra `\r` would be a second one.
 //!
-//! **No supervisor, no shell, no process group.** `session.rs:456-744` spawns
-//! and supervises a child. podssh has no child to spawn: the remote program is
+//! **No supervisor, no shell, no process group.** The server of podvm spawns
+//! and supervises a child. This crate has no child to spawn: the remote program is
 //! the SSH server's, and the signal characters are channel bytes here, resolved
 //! into `SIGINT`/`SIGQUIT` by the core that owns the connection.
 
@@ -51,7 +51,7 @@
 //! | file | holds |
 //! | --- | --- |
 //! | [`echo.rs`](self) | the constants, the events, the line state, the key dispatch |
-//! | [`editing`](editing) | erasing, moving, and the byte a key inserts |
+//! | [`editing`] | erasing, moving, and the byte a key inserts |
 //! | [`history`] | recall, the cap, and the parked line |
 //! | [`inspect`] | the read-only accessors a caller and a test need |
 //! | `units` | characters and cells: where the cursor stops, and how far it moves |
@@ -78,19 +78,19 @@ pub(crate) mod units;
 
 /// The prompt, printed before every line. Static on purpose, and transcribed:
 /// the sibling prints one because the shell below it runs non-interactive and
-/// prints none of its own. **READ**, `session.rs:102`.
+/// prints none of its own. as in the server of podvm.
 pub const PROMPT: &[u8] = b"$ ";
 /// Lines of history kept per session, in memory. Past this the oldest line
-/// leaves. **READ**, `session.rs:105`.
+/// leaves. as in the server of podvm.
 pub const HISTORY_CAP: usize = 100;
 /// Longest single line, in bytes. Past this a byte drops with a bell: an
 /// unbounded line buffer is the defect this cap exists to prevent.
-/// **READ**, `session.rs:108`.
+/// as in the server of podvm.
 pub const LINE_CAP: usize = 65536;
 /// Erase in Line: clear from the cursor to the end, ECMA-48.
-/// **READ**, `session.rs:114`.
+/// as in the server of podvm.
 pub const EL: &[u8] = b"\x1b[K";
-/// The bell. **READ**, `session.rs:115`.
+/// The bell. as in the server of podvm.
 pub const BELL: &[u8] = b"\x07";
 /// How long a caller waits with no byte, while [`Discipline::waiting`], before
 /// it calls [`Discipline::idle`]. A terminal writes the bytes of one key at
@@ -100,14 +100,14 @@ pub const IDLE: std::time::Duration = std::time::Duration::from_millis(50);
 
 /// A signal character, translated. **Named, not delivered.** This crate
 /// never calls `kill`: the process that must die is the remote side's, and the
-/// remote side is reached over a channel. `Sig` is the boundary — podssh-core
+/// remote side is reached over a channel. `Sig` is the boundary: the caller
 /// turns it into an SSH channel request or a terminal byte, according to what
 /// the server granted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sig {
-    /// Ctrl-C, `0x03`. **READ**, `session.rs:268`.
+    /// Ctrl-C, `0x03`. as in the server of podvm.
     Int,
-    /// Ctrl-backslash, `0x1c`. **READ**, `session.rs:269`.
+    /// Ctrl-backslash, `0x1c`. as in the server of podvm.
     Quit,
 }
 
@@ -119,7 +119,7 @@ pub enum Sig {
 ///
 /// **A byte can echo and submit at once** — Enter echoes `\r\n` and emits the
 /// line in the same call — so this is a list, never a single value.
-/// **READ**, `session.rs:127-140`.
+/// as in the server of podvm.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// The submitted line for the **forward leg**, with its terminating `\n`.
@@ -155,7 +155,7 @@ impl fmt::Display for Event {
 ///
 /// **Pure state.** Every method is deterministic in its arguments, which is
 /// the only reason the tests can assert exact bytes rather than "something was
-/// echoed". **READ**, `session.rs:152-168`.
+/// echoed". as in the server of podvm.
 pub struct Discipline {
     /// **`pub(crate)`, not `pub`.** The fields below are private to the
     /// crate because **the submodules write them and nothing outside may**:
@@ -174,19 +174,18 @@ pub struct Discipline {
     /// the line and the screen never hold half of one.
     pub(crate) partial: Vec<u8>,
     /// The uncommitted line set aside while browsing history, restored when the
-    /// browse returns past the newest entry. **READ**, `session.rs:159-161`.
+    /// browse returns past the newest entry. as in the server of podvm.
     pub(crate) saved: Option<Vec<u8>>,
     /// History index under view, or `None` when editing a fresh line.
     pub(crate) hpos: Option<usize>,
     /// **The escape parser, and it is not the reference's.** The reference
-    /// reads two bytes and dispatches on the third (`session.rs:142-150`,
-    /// `244-262`); this reads a whole CSI sequence, because **the entry's
-    /// own plant — `ESC [ 1 5 ~` must produce a bell and no state change — cannot
-    /// be satisfied by that parser.** See [`crate::escape`], which carries the
-    /// measurement.
+    /// reads two bytes and dispatches on the third (the server of podvm);
+    /// this reads a whole CSI sequence, because **`ESC [ 1 5 ~`
+    /// must produce a bell and no state change, and that parser cannot do
+    /// it.** See [`crate::escape`], which carries the measurement.
     esc: Esc,
     /// A `\r` just submitted: a `\n` arriving next is its pair, not a second
-    /// line. **READ**, `session.rs:164-167`.
+    /// line. as in the server of podvm.
     last_was_cr: bool,
     /// The terminal's width in cells, or `None` while no size is known: the
     /// redraw then stays on one row, as the reference's does.
@@ -256,7 +255,7 @@ impl Discipline {
     /// Redraw the line: `\r`, the prompt, the buffer, clear the rest, and the
     /// cursor back where the edit left it.
     ///
-    /// **Transcribed byte for byte**, `session.rs:177-187`, **while the area
+    /// **Transcribed byte for byte**, the server of podvm, **while the area
     /// stays on one row**. ECMA-48 sequences a terminal from the last fifty
     /// years answers, and fixed bytes a pipe can assert — which is the whole
     /// reason the shape is not "whatever looks right". When the old area or
@@ -286,7 +285,7 @@ impl Discipline {
 
     /// The `\b`, space, `\b` triple that rubbed out `n` cells. Terminals move
     /// the cursor back, blank the cell, and move back again: three bytes, no
-    /// ANSI needed. **READ**, `session.rs:189-198`.
+    /// ANSI needed. as in the server of podvm.
     ///
     /// **`pub` because a test asserts against it directly.** A test that
     /// rebuilt the triple as a literal would be a second copy of the rule, and
@@ -301,7 +300,7 @@ impl Discipline {
 
     /// Store the line in history. Empty lines and repeats of the newest entry
     /// are not history: Up must reach a command, not blank air.
-    /// **READ**, `session.rs:200-214`.
+    /// as in the server of podvm.
     pub(crate) fn commit(&mut self) {
         if self.line.is_empty() {
             return;
@@ -320,7 +319,7 @@ impl Discipline {
     /// **The prompt travels with the echo, not after the output** — the shell
     /// runs non-interactive and prints none of its own. The order reads
     /// prompt-first on a busy session; the bytes stay deterministic, which a
-    /// readiness heuristic could never promise. **READ**, `session.rs:216-232`.
+    /// readiness heuristic could never promise. as in the server of podvm.
     pub(crate) fn submit(&mut self) -> Vec<Event> {
         self.commit();
         let mut forward = std::mem::take(&mut self.line);
@@ -341,7 +340,7 @@ impl Discipline {
     }
 
     /// Recall history entry `idx`: replace the buffer, park the cursor at the
-    /// end, and redraw. **READ**, `session.rs:234-241`.
+    /// end, and redraw. as in the server of podvm.
     pub(crate) fn recall(&mut self, idx: usize) -> Vec<Event> {
         self.line = self.history[idx].clone();
         self.cursor = self.line.len();
@@ -351,7 +350,7 @@ impl Discipline {
 
     /// One client byte in, its consequences out.
     ///
-    /// **The dispatch is transcribed from `session.rs:244-295`**, including
+    /// **The dispatch is transcribed from the server of podvm**, including
     /// the order: an escape in progress owns the byte before anything else does,
     /// and the `\n` of a `\r\n` pair is swallowed before the byte is read as a
     /// submission.
@@ -398,7 +397,7 @@ impl Discipline {
         // first, so the pair ends at each byte.
         let after_cr = std::mem::take(&mut self.last_was_cr);
         // An escape in progress owns the byte before anything else does —
-        // **READ**, `session.rs:246`. **The parser is [`crate::escape`]'s, not
+        // as in the server of podvm. **The parser is [`crate::escape`]'s, not
         // the reference's**, and the difference is the plant: the
         // reference dispatches on the byte after `ESC [` and drops the rest of
         // the sequence on the floor, where `ESC [ 1 5 ~` puts `5` and `~` into
@@ -421,7 +420,7 @@ impl Discipline {
         match b {
             0x03 => self.signal_key(Sig::Int, b"^C\r\n"),
             0x1c => self.signal_key(Sig::Quit, b"^\\\r\n"),
-            // Refused, loudly. `session.rs:271` refuses `0x1a` (Ctrl-Z),
+            // Refused, loudly. the server of podvm refuses `0x1a` (Ctrl-Z),
             // `0x11` (Ctrl-Q) and `0x13` (Ctrl-S) in one arm, and this crate
             // keeps that: one shape, one reason, one bell. The predicate is
             // [`crate::refusal::refuses`], the one list; the transparent mode

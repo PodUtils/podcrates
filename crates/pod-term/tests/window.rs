@@ -1,9 +1,10 @@
 //! **Window size: a resize is held while a frame is drawn, and never lost.**
 //!
-//! The sibling refuses window size, because `sshd`'s `ForceCommand` takes the
-//! size changes before a byte reaches it. podssh sends `window-change` itself,
-//! so these tests pin the opposite: the size goes out at once when idle, waits
-//! for the end of a frame, and the last one always arrives.
+//! The SSH server of podvm refuses window size, because `sshd`'s
+//! `ForceCommand` takes the size changes before a byte reaches it. A client
+//! that sends `window-change` itself needs the opposite, and these tests pin
+//! it: the size goes out at once when idle, waits for the end of a frame,
+//! and the last one always arrives.
 
 use pod_term::echo::Event;
 use pod_term::passthrough::Passthrough;
@@ -17,7 +18,7 @@ use common::{LocalBytes, over_a_pty};
 
 #[test]
 fn a_resize_mid_frame_is_deferred_and_the_frame_survives_intact() {
-    // **THE PLANT, and it is stated in the terms the entry uses.**
+    // **THE PLANT.**
     //
     // The claim: a resize that arrives while a full-screen program is drawing
     // must not be interleaved into the frame, because a program that sees a size

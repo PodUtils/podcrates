@@ -1,0 +1,43 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+dir crates/podssh-terminal/src
+dir crates/podssh-terminal/tests
+file eba1b037226d915299d94856ed5b7578d0be18e0 crates/podssh-terminal/src/bytes.rs -> crates/pod-term/src/bytes.rs
+file 4a23e0fa3151a51c2253787fb115fab0f7041d31 crates/podssh-terminal/src/echo.rs -> crates/pod-term/src/echo.rs
+file d48c8a96af380b15716eb8412cf83efcf63e8b21 crates/podssh-terminal/src/echo/editing.rs -> crates/pod-term/src/echo/editing.rs
+file dd8ea51bf0d3714b68a2f65c8cacacf3e19046e7 crates/podssh-terminal/src/echo/history.rs -> crates/pod-term/src/echo/history.rs
+file 8980a47d6532b07a4cf66aa7a38637b829b93e4a crates/podssh-terminal/src/echo/inspect.rs -> crates/pod-term/src/echo/inspect.rs
+file 273dad99ddd1c065f2d751fb4e5f63633d457b8a crates/podssh-terminal/src/echo/output.rs -> crates/pod-term/src/echo/output.rs
+file f4eb613e0d0b8a5d05d79d50aaa30365bf0a82d1 crates/podssh-terminal/src/echo/screen.rs -> crates/pod-term/src/echo/screen.rs
+file b83b344121f4aaea0161d525e77df23b3ec1c098 crates/podssh-terminal/src/echo/units.rs -> crates/pod-term/src/echo/units.rs
+file 6cbf6eea5963f612c49441c8b2b7dcafd956f590 crates/podssh-terminal/src/escape.rs -> crates/pod-term/src/escape.rs
+file b240c9fe09f3fb88e07fe0c770563e989968f3fd crates/podssh-terminal/src/escape/tests.rs -> crates/pod-term/src/escape/tests.rs
+file 70001d78565df2aca604327145ffabbf31f0a1dd crates/podssh-terminal/src/grammar.rs -> crates/pod-term/src/grammar.rs
+file 90201ba711cbe1d57055c12e57fc463d3a9702b8 crates/podssh-terminal/src/grammar/ring.rs -> crates/pod-term/src/grammar/ring.rs
+file 9eebc46e882519460c794915b293502e01b01d2c crates/podssh-terminal/src/grammar/tests.rs -> crates/pod-term/src/grammar/tests.rs
+file 8300c9105e8adc9862c48b65957c96584a425732 crates/podssh-terminal/src/lib.rs -> crates/pod-term/src/lib.rs
+file 12f5127e310a9e33ea6b20722b47ac8ef0a4dfb2 crates/podssh-terminal/src/passthrough.rs -> crates/pod-term/src/passthrough.rs
+file 9876022643489e1a5eecd8828cb7cc81ba711b46 crates/podssh-terminal/src/refusal.rs -> crates/pod-term/src/refusal.rs
+file 94e4767983ae9884b19597d8ca18f0c4d1e697ae crates/podssh-terminal/src/session.rs -> crates/pod-term/src/session.rs
+file 1bca70e3aa1384c919e40b06ca8240079f77ab46 crates/podssh-terminal/src/window.rs -> crates/pod-term/src/window.rs
+file 0f7aca2b5ca347eadd24b63cb4468272730c2f49 crates/podssh-terminal/tests/calibration.rs -> crates/pod-term/tests/calibration.rs
+file 8792cb4647f763687c0ee0d4a1b0513688c79122 crates/podssh-terminal/tests/common/mod.rs -> crates/pod-term/tests/common/mod.rs
+file 89a9705b85f090b514aaf9c267c14914228a251c crates/podssh-terminal/tests/discipline.rs -> crates/pod-term/tests/discipline.rs
+file d5d93212740739f09b9c5f5eca44bb7e3653bbb1 crates/podssh-terminal/tests/fixtures/less.bin -> crates/pod-term/tests/fixtures/less.bin
+file 8536f1175fc303828a797bffa7b951ded1e8f068 crates/podssh-terminal/tests/fixtures/prompt.bin -> crates/pod-term/tests/fixtures/prompt.bin
+file fdc04e393cf0d78a043e84cccc67357735094781 crates/podssh-terminal/tests/fixtures/top.bin -> crates/pod-term/tests/fixtures/top.bin
+file 865201c33d2f89c3f3e6512f4eae5c8536c11d90 crates/podssh-terminal/tests/fixtures/vi-pty.bin -> crates/pod-term/tests/fixtures/vi-pty.bin
+file b0154e2a103c8861df2e701632665f4236ce5ab2 crates/podssh-terminal/tests/fixtures/vi.bin -> crates/pod-term/tests/fixtures/vi.bin
+file 10ec49d3990847f41dae0a8f332b719f7a48f737 crates/podssh-terminal/tests/grammar_boundary.rs -> crates/pod-term/tests/grammar_boundary.rs
+file e6961d39896b11a872b3dfe3465089ec7b627346 crates/podssh-terminal/tests/keys.rs -> crates/pod-term/tests/keys.rs
+file 46a7d769db2d9d1a06366a302a5ea1e0a538568d crates/podssh-terminal/tests/motion.rs -> crates/pod-term/tests/motion.rs
+file 041bce56375873c1c238a51eb2767e8da2a2f6ea crates/podssh-terminal/tests/oracle.rs -> crates/pod-term/tests/oracle.rs
+file d027495c52f577bb7a23f6aa4480197accd2d6d9 crates/podssh-terminal/tests/output.rs -> crates/pod-term/tests/output.rs
+file 81bdc1f6cff8171d5699effe5e83f8c9d04764fc crates/podssh-terminal/tests/plants.rs -> crates/pod-term/tests/plants.rs
+file 80d1e3824b31dd41a63cd3c0b94c15f56956eb19 crates/podssh-terminal/tests/properties.rs -> crates/pod-term/tests/properties.rs
+file f132f4e8a1ebae8ea989f54d2b3f651e11c0c04d crates/podssh-terminal/tests/screen/corpus.txt -> crates/pod-term/tests/screen/corpus.txt
+file 157693d4e00339667ac0ee4f82d3ce3a2cf59cdd crates/podssh-terminal/tests/screen/mod.rs -> crates/pod-testkit/src/screen.rs
+file f527664ba970026a00cc1ca66f96d861641e7d46 crates/podssh-terminal/tests/window.rs -> crates/pod-term/tests/window.rs

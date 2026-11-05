@@ -53,15 +53,17 @@ for b in "$@"; do
             fi
             ;;
         pe)
-            od=${OBJDUMP:-objdump}
-            if command -v "$od" > /dev/null && "$od" -p "$b" > /dev/null 2>&1; then
-                dlls=$("$od" -p "$b" | awk '/DLL Name:/ {print $3}')
-            elif command -v dumpbin > /dev/null; then
+            tool=${OBJDUMP:-objdump}
+            if out=$("$tool" -p "$b" 2>&1); then
+                dlls=$(printf '%s\n' "$out" | awk '/DLL Name:/ {print $3}')
+            elif command -v dumpbin > /dev/null 2>&1; then
                 dlls=$(dumpbin /dependents "$b" | awk '/\.dll/ {print $1}')
             else
-                echo "check-static: no objdump and no dumpbin" >&2
+                echo "check-static: $tool -p $b failed, and there is no dumpbin:" >&2
+                printf '%s\n' "$out" | head -5 >&2
                 exit 2
             fi
+            [ -n "$dlls" ] || { echo "$b: the import table names no DLL; the tool read nothing" >&2; exit 2; }
             bad=$(printf '%s\n' "$dlls" | tr 'A-Z' 'a-z' | grep -E "$WINDOWS_CRT" || true)
             if [ -n "$bad" ]; then
                 echo "$b: dynamic dependencies of the C runtime:" >&2

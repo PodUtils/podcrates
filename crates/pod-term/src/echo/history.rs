@@ -1,16 +1,16 @@
 //! Recall: history, the cap, and the line set aside while browsing it.
 //!
-//! **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** each
-//! method naming the line it came from. A split of [`super`], for the reason
+//! **Transcribed from the `session.rs` of the SSH server of podvm.** Each
+//! method names the line it came from. A split of [`super`], for the reason
 //! given there: the 500-line gate is why these are separate files, **and no
 //! history rule was re-derived or dropped to make the split fit.**
 //!
 //! ## What is here
 //!
-//! - [`Discipline::history_up`] — walk older, parking the uncommitted line on
-//!   the first press. **`session.rs:405-420`**
-//! - [`Discipline::history_down`] — walk newer, and past the newest restore the
-//!   parked line. **`session.rs:422-435`**
+//! - `Discipline::history_up` — walk older, parking the uncommitted line on
+//!   the first press. **the server of podvm**
+//! - `Discipline::history_down` — walk newer, and past the newest restore the
+//!   parked line. **the server of podvm**
 //!
 //! **The parked line is load-bearing.** Without it, `Up` would silently
 //! destroy what the user was typing: press Up on a half-typed command and the
@@ -21,7 +21,7 @@ use crate::echo::{BELL, Event};
 
 impl Discipline {
     /// History up: set the uncommitted line aside on first browse, then walk
-    /// older. Both ends answer with a bell. **READ**, `session.rs:405-420`.
+    /// older. Both ends answer with a bell. as in the server of podvm.
     pub(crate) fn history_up(&mut self) -> Vec<Event> {
         if self.history.is_empty() {
             return vec![Event::ToLocal(BELL.to_vec())];
@@ -38,7 +38,7 @@ impl Discipline {
     }
 
     /// History down: walk newer, and past the newest restore the line the
-    /// browse set aside. **READ**, `session.rs:422-435`.
+    /// browse set aside. as in the server of podvm.
     pub(crate) fn history_down(&mut self) -> Vec<Event> {
         match self.hpos {
             None => vec![Event::ToLocal(BELL.to_vec())],

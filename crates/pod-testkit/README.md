@@ -22,3 +22,14 @@ pod crate, so that each crate can dev-depend on the kit.
 | --- | --- | --- |
 | podnet | `test_host::need_loopback!()` (`tests/test_host/mod.rs`, `#[path]`) | `pod_testkit::need_loopback!()` |
 | podnet | `test_host::need_localhost!()` | `pod_testkit::need_localhost!()` |
+
+## The terminal oracle (feature `screen`)
+
+`pod_testkit::screen::Screen`: a model of a VT terminal (vt100) that reads
+the bytes of a program and tells what a person sees: each row, the
+cursor, the colors and the attributes of a cell. `pod-term` checks the
+model against tmux (`crates/pod-term/tests/calibration.rs`).
+
+| Consumer | Old path | New path |
+| --- | --- | --- |
+| podssh | `#[path = "../../podssh-terminal/tests/screen/mod.rs"] mod screen;` (tests of podssh-ws, podssh-ssh, podssh-cli) | `use pod_testkit::screen;` with `pod-testkit = { git = ..., tag = ..., features = ["screen"] }` as a dev-dependency |

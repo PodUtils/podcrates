@@ -1,19 +1,15 @@
-//! The terminal oracle (T-200): bytes in, a screen out. A model of a VT
-//! terminal, the `vt100` crate, reads the bytes that podssh writes to a
+//! The terminal oracle: bytes in, a screen out. A model of a VT terminal,
+//! the `vt100` crate, reads the bytes that the line discipline writes to a
 //! terminal, and a test asks what a person would see: each row, where the
 //! cursor is, and whether a cell took a color or an attribute. A test that
 //! compares bytes with bytes that a person wrote passes when both share a
 //! mistake: a wrong cursor column, or lines that step down like stairs.
 //!
-//! The model is a terminal in raw mode, as podssh's own is in a session: a
-//! line feed moves down and keeps the column, since no `ONLCR` turns it into
-//! CR LF. `tests/calibration.rs` of podssh-terminal checks the model against
-//! tmux on a fixed corpus (`tests/screen/corpus.txt`), in the gate's
-//! container. The tests of podssh-ws and podssh-ssh read this file through
-//! `#[path]`, so that there is one model.
-
-// Each test binary uses a part of it.
-#![allow(dead_code)]
+//! The model is a terminal in raw mode, as the client's own is in a session:
+//! a line feed moves down and keeps the column, since no `ONLCR` turns it
+//! into CR LF. The tests of `pod-term` (`tests/calibration.rs`) check the
+//! model against tmux on a fixed corpus. Each crate and each consumer takes
+//! this one model through the feature `screen` of this kit.
 
 /// `n`, or 1 for none: a terminal has a row and a column at least.
 fn at_least_one(n: u16) -> std::num::NonZeroU16 {

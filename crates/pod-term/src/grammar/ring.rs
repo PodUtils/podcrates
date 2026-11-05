@@ -1,8 +1,7 @@
-//! A ring of a kept shell's output (T-159): the last bytes, at most its
-//! capacity, given from a boundary of the grammar (T-221). It drops its
-//! oldest bytes only up to a boundary, so the first byte that it gives after
-//! dropped bytes starts clean, and a client that attaches sees no part of a
-//! sequence as text.
+//! A ring of a kept shell's output: the last bytes, at most its capacity,
+//! given from a boundary of the grammar. It drops its oldest bytes only up
+//! to a boundary, so the first byte that it gives after dropped bytes starts
+//! clean, and a client that attaches sees no part of a sequence as text.
 
 use std::collections::VecDeque;
 use std::time::Instant;

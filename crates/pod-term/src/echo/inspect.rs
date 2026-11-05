@@ -22,7 +22,7 @@ impl Discipline {
 
     /// Where the cursor sits, as a byte offset into the line. With UTF-8 it
     /// stops only between characters; without it, as in the reference
-    /// (**READ**, `session.rs:31-32`), between bytes.
+    /// (as in the server of podvm), between bytes.
     pub fn cursor(&self) -> usize {
         self.cursor
     }
@@ -35,11 +35,11 @@ impl Discipline {
 
     /// Submit whatever is on the line and end input, as client EOF does.
     ///
-    /// **Transcribed from the EOF arm of the supervisor**, `session.rs:530-536`:
+    /// **Transcribed from the EOF arm of the supervisor**, the server of podvm:
     /// a partial line is submitted first, and then input ends the same way
     /// Ctrl-D on an empty line does. **The line is submitted even when it is
     /// empty**, because the sibling's own tests pin that: an empty submit is
-    /// `b"\n"` on the forward leg (`session.rs:836-838`).
+    /// `b"\n"` on the forward leg (the server of podvm).
     pub fn submit_and_end(&mut self) -> Vec<Event> {
         let mut events = self.unhide();
         events.extend(self.submit());

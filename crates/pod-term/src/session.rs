@@ -4,9 +4,9 @@
 //! them.** A pty below the session, or a line discipline below it (as in
 //! podvm's server), already echoes and edits; a second echo here shows each
 //! key twice. So the discipline runs only when the caller selected it and
-//! nothing below echoes: `podssh serve` with no `/dev/ptmx` selects it
-//! (T-111), and a client flag may later. **A missing pty alone never selects
-//! it**: it says nothing of what the program on the other side expects.
+//! nothing below echoes: a server with no `/dev/ptmx` selects it, and a
+//! client flag can select it. **A missing pty alone never selects it**: it
+//! says nothing of what the program on the other side expects.
 //!
 //! ## The two modes
 //!
@@ -21,7 +21,7 @@
 //! mode each byte of the program passes as it came. In the cooked mode the
 //! program writes to a pipe while the user edits a line, so its output is
 //! written around the line, with each `\n` as `\r\n` ([`crate::echo`]'s
-//! `output`). And one difference is the sharpest thing this entry has to say:
+//! `output`). And one difference is the sharpest:
 //!
 //! > A `\r\n` pair means **two different things** in the two modes. In cooked it
 //! > is a user's Enter and its pair, and the `\n` is swallowed so a command does
@@ -37,12 +37,12 @@
 //!
 //! **Ignored signal dispositions are inherited across `fork` and `exec`**, so a
 //! command started under a trap-ignoring shell ignores the signal too, and no
-//! inner `trap -` undoes an ignore inherited on entry. **READ**,
-//! `podbox/crates/podbox-ssh/src/session.rs:75-80`, verbatim: *"Killing the
-//! command while the shell survives needs a trap handler: trapped signals reset
-//! to the default in children while the shell itself runs the handler."*
-//! **podssh inherits this and does not solve it**: it is a property of the remote
-//! shell, and the fix is a trap on the remote side, which is not this crate's to
+//! inner `trap -` undoes an ignore inherited on entry. To kill the command
+//! while the shell survives, the shell needs a trap handler: trapped signals
+//! reset to the default in children while the shell itself runs the handler
+//! (the SSH server of podvm, the server of podvm). **This crate inherits the
+//! limit and does not solve it**: it is a property of the remote shell, and
+//! the fix is a trap on the remote side, which is not this crate's to
 //! install.
 
 use crate::echo::{Discipline, Event};
@@ -53,12 +53,12 @@ use crate::window::Size;
 /// facts that choose the mode.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Facts {
-    /// A pty is below: a kernel pty, or a tty that podssh answers for.
+    /// A pty is below: a kernel pty, or a tty that the caller answers for.
     pub pty_below: bool,
     /// A line discipline with no pty is below, as in podvm's server.
     pub discipline_below: bool,
-    /// The caller selected this discipline: `podssh serve` with no
-    /// `/dev/ptmx`, or a flag.
+    /// The caller selected this discipline: a server with no `/dev/ptmx`,
+    /// or a flag.
     pub selected: bool,
 }
 
@@ -211,7 +211,7 @@ impl Session {
 
     /// Client EOF: submit a partial line, then end input.
     ///
-    /// **Transcribed**, `session.rs:530-536`. There is no line to submit in
+    /// **Transcribed**, the server of podvm. There is no line to submit in
     /// the transparent mode, so that list carries only the end.
     pub fn on_eof(&mut self) -> Vec<Event> {
         self.ended = true;

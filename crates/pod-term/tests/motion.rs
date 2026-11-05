@@ -101,7 +101,7 @@ fn left_and_right_echo_their_own_sequences_and_only_those() {
     // terminal's cursor to exactly where the discipline's cursor went; sending
     // anything else — or nothing — leaves the two out of step, and the first
     // insert afterwards then redraws at the wrong place.
-    // Transcribed: `session.rs:980-990`, `381-392`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     assert_eq!(feed(&mut d, b"ac\x1b[D").local, b"ac\x1b[D", "left echoes ESC [ D");
     assert!(has(&feed(&mut d, b"b").local, EL), "insert redraws");
@@ -118,7 +118,7 @@ fn an_arrow_at_its_bound_bells_and_the_line_survives() {
     // **Two refusals and a survivor.** Left at column zero and right at the
     // end of the line ring, and **the line underneath is untouched** — that
     // last half is what a refusal that damaged state would fail.
-    // Transcribed: `session.rs:1105-1118`.
+    // Transcribed: the server of podvm.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"\x1b[D");
     assert_eq!(got.local, BELL, "{}", got.show());

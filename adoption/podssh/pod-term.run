@@ -1,0 +1,9 @@
+# The trial of pod-term in podssh: the record, the session model of
+# podssh-cli on the grammar of pod-term, and the tests that read the
+# terminal oracle of pod-testkit.
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+cargo test -q -p podssh-ws --test terminal_oracle
+cargo test -q -p podssh-ssh --test terminal_oracle --test silent_notice
+cargo test -q -p podssh-cli --test silent_notice
+cargo test -q -p podssh-cli --lib session::

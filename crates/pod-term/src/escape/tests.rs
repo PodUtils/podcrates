@@ -85,14 +85,14 @@ fn the_plant_sequence_is_consumed_whole_and_never_becomes_text() {
 fn the_reference_parser_produces_the_defect_this_module_fixes() {
     // **The measurement behind the divergence, kept as a test so it
     // cannot be quietly forgotten.** This is the sibling's parser,
-    // transcribed exactly from `session.rs:244-262`: `ESC` then `[`, then
+    // transcribed exactly from the server of podvm: `ESC` then `[`, then
     // **the next byte is dispatched and the sequence is over.**
     //
     // Fed `ESC [ 1 5 ~`, it dispatches on `1` (unknown, bell) and then
     // **`5` and `~` fall through to the line as ordinary characters.**
-    // That is what the entry's plant forbids — *"a bell and no state
-    // change"* — and it is why the transcription stops at the byte rules
-    // and not at the parser.
+    // An unknown escape must give a bell and no state change, so this
+    // parser fails that rule. That is why the transcription stops at the
+    // byte rules and not at the parser.
     fn reference(bytes: &[u8]) -> Vec<u8> {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum State {
@@ -171,7 +171,7 @@ fn a_control_byte_abandons_the_sequence_so_a_signal_still_signals() {
 fn an_escape_that_is_not_a_csi_is_refused_and_the_byte_is_consumed() {
     // **An Alt key**: `ESC x` is how a terminal sends Alt+x, and no Alt key
     // is bound. So it is a bell, and the `x` does not become text either, as
-    // in the reference (`session.rs:248-251`).
+    // in the reference (the server of podvm).
     assert_eq!(run(b"\x1bx"), vec![Step::Continue, Step::Refused], "the 'x' is consumed with the refused sequence");
     assert_eq!(after(b"\x1bx"), Esc::None, "and the next byte is a key");
 }

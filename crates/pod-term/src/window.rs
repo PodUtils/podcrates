@@ -1,20 +1,15 @@
 //! Window size: honoured, deferred while a frame is half-drawn, never dropped.
 //!
 //! **This is the one behaviour that is deliberately NOT transcribed from the
-//! sibling, and the entry says why.** The reference *refuses* window size,
-//! with a reason that does not apply to podssh — **READ**,
-//! `.tmp/podbox/crates/podbox-ssh/src/session.rs:47-50`, verbatim:
+//! SSH server of podvm.** That server *refuses* window size: size changes
+//! arrive as SSH channel requests, which `sshd` consumes under `ForceCommand`
+//! before any byte reaches its discipline. A program there reads `$LINES` and
+//! `$COLUMNS`, and the server sets neither (the server of podvm).
 //!
-//! > - Window size (pass-through): size changes arrive as SSH channel requests,
-//! >   which `sshd` consumes before any byte reaches this module, so there is
-//! >   no refusal path here to ring. Programs that need a size read `$LINES`
-//! >   and `$COLUMNS`; the module sets neither.
-//!
-//! **podssh is not behind `sshd`'s `ForceCommand`.** podssh issues the
-//! `window-change` channel request itself, so it is the component that must
-//! honour `SIGWINCH` locally and propagate it. **Copying the sibling's refusal
-//! would have shipped a window that cannot be resized while a program is
-//! running**, which is one of the four failures in the entry's Problem section.
+//! **A client that is not behind `sshd`'s `ForceCommand` issues the
+//! `window-change` channel request itself**, so it is the component that must
+//! honour `SIGWINCH` locally and propagate it. **A copy of the refusal would
+//! give a window that cannot be resized while a program is running.**
 //!
 //! ## Why a resize is deferred rather than sent
 //!
@@ -38,10 +33,10 @@
 //! caller's job — the CLI owns the terminal — and doing it here would make this
 //! crate depend on a file descriptor it does not have. **It never sends
 //! anything.** `Window` decides *when* a size change is safe to emit and hands
-//! the caller the value; the caller turns it into the SSH channel request, which
-//! `podssh-ssh` and not this crate owns.
-//!
-//! `docs/terminal.md`, "`pty-req` (RFC 4254, section 6.2)", says when it is sent.
+//! the caller the value; the caller turns it into the SSH channel request,
+//! which the SSH layer of the caller and not this crate owns. RFC 4254,
+//! section 6.2 (`pty-req`) and section 6.7 (`window-change`), gives the
+//! requests.
 
 /// A window size in rows and columns, as `TIOCGWINSZ` names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
