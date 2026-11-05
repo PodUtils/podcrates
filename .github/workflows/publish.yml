@@ -1,0 +1,78 @@
+name: publish
+
+# The publish of the crates of the workspace to crates.io (docs/design.md,
+# section 10). It is apart from release.yml, which tags and makes the
+# GitHub release, and which starts the dry run of this file on its tag.
+#
+# * dry-run: `cargo publish --workspace --dry-run`: each crate is packed
+#   and its package builds. On any ref; no right to write.
+# * publish: only with the input `publish` and on a tag vX.Y.Z of the
+#   workspace version whose ci run is green. Trusted publishing: crates.io
+#   trusts this file in the environment crates-io, which only a tag v* can
+#   deploy to. No token is stored; scripts/crates-io-publish.py changes the
+#   OIDC token of the job for a token of crates.io and revokes it after.
+#
+#   gh workflow run publish.yml --ref vX.Y.Z                  # a dry run
+#   gh workflow run publish.yml --ref vX.Y.Z -f publish=true  # the publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to crates.io (else a dry run only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The tag names the version of the workspace
+        if: github.ref_type == 'tag'
+        run: |
+          set -eu
+          have=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          [ "$GITHUB_REF_NAME" = "v$have" ] || { echo "the tag $GITHUB_REF_NAME is not v$have"; exit 1; }
+      - name: Pack and build each crate
+        run: cargo publish --workspace --locked --dry-run
+
+  publish:
+    needs: dry-run
+    if: inputs.publish && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: crates-io
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The ci run of the tag is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          sha=$(git rev-parse HEAD)
+          state=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$sha" \
+            --jq '[.workflow_runs[] | select(.status == "completed")][0].conclusion // "none"')
+          echo "ci at $sha: $state"
+          [ "$state" = success ] || { echo "ci is not green at $sha"; exit 1; }
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Publish
+        run: python3 -I scripts/crates-io-publish.py

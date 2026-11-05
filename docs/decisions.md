@@ -25,6 +25,7 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Crypto crates | `snow` 0.10, `spake2` 0.4 and `crypto_secretbox` 0.1 are accepted. (podnet, "Crypto crates".) |
 | 2026-11-05 | Issues | GitHub issues are an inbox. Each issue becomes record entries. Close each issue with evidence (commits, CI runs, test output). |
 | 2026-11-05 | Dependabot | Apply each judged update as an own commit on `main` (checks green). Close the pull request with a link to the commit. Do not merge the Dependabot branch. |
+| 2026-11-05 | Publish workflow | "publish.yml everywhere: a dedicated publish workflow, separate from the existing release.yml. The agents must create publish.yml." The owner set by the API: the environment `crates-io` (only a tag `v*` deploys to it), the ruleset "release tags" (a tag `v*` cannot be deleted, moved or forced), and the names of the crates on crates.io (0.0.0 placeholders). |
 
 ## Calls made without a ruling
 
@@ -51,11 +52,15 @@ has the detail.
 | 2026-11-05 | C16 | podvm: `pod-relay` (feature `blocking`) and `pod-term` build for each target of podssh. |
 | 2026-11-05 | C17 | podcrates adds `pod-core` (`docs/design.md`) and `pod-quic` (the QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both names were free on crates.io on 2026-11-05. Without them, the agreed crates depend on each other in loops. |
 | 2026-11-05 | C18 | `pod-tls`: one `Context` that the binary owns holds the kept TLS configurations, the groups and the state of ECH; `ech` turns on `pure`; RUSTSEC-2023-0071 is ignored, as `pod-tls` verifies with RSA public keys only (T-012, Decision). |
+| 2026-11-05 | C19 | `publish.yml` publishes with trusted publishing; `scripts/crates-io-publish.py` changes the OIDC token of the job for a token of crates.io and revokes it after, with no third-party action. `release.yml` starts its dry run on each new tag. The library crates are publishable (no `publish = false`); `static-probe` is not. A real version is published only after the ruling of Q4. |
 
 ## Questions for the owner
 
-None now. Write each new question here, with the part of the work that
-it blocks and a recommendation.
+- **Q4.** When does `publish.yml` publish real versions of the `pod-*`
+  crates to crates.io? It blocks nothing: the consumers take the git tag
+  (Q1), and the dry run of each release keeps the packaging ready.
+  Recommendation: not yet, as the ruling of podnet of 2026-11-05 ("Publish
+  no real version yet"); publish from the release that the owner names.
 
 ## Superseded
 

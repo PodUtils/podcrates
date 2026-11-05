@@ -3,7 +3,8 @@ name: release
 # A release of podcrates (docs/design.md, section 10): a git tag vX.Y.Z of
 # main, which each consumer names in its Cargo.toml, and a GitHub release
 # with the notes of docs/releases/vX.Y.Z.md. With no input, a dry run that
-# checks each condition and tags nothing.
+# checks each condition and tags nothing. After the tag, it starts the dry
+# run of publish.yml on the tag; the publish to crates.io is apart.
 
 on:
   workflow_dispatch:
@@ -22,7 +23,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-      actions: read
+      actions: write
     env:
       VERSION: ${{ inputs.version }}
       GH_TOKEN: ${{ github.token }}
@@ -55,3 +56,4 @@ jobs:
           git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "v$VERSION" -m "podcrates v$VERSION"
           git push origin "v$VERSION"
           gh release create "v$VERSION" --verify-tag --title "podcrates v$VERSION" --notes-file "docs/releases/v$VERSION.md"
+          gh workflow run publish.yml --ref "v$VERSION"

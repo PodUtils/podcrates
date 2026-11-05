@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 41 entries: 28 open, 1 partial, 1 blocked, 11 done.
+`TODO/INDEX.md` holds 42 entries: 29 open, 1 partial, 1 blocked, 11 done.
 
 ## State
 
@@ -22,20 +22,21 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
+1. **M0, the foundation:** T-042 (`publish.yml`).
+2. **M1, the transport:** T-012, T-013, T-014, T-015, T-016;
    T-017 after T-013; T-041 when a crate or a consumer needs it.
-2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
+3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
-3. **M3, the adapters:** T-027, T-028, T-029, T-030.
-4. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+4. **M3, the adapters:** T-027, T-028, T-029, T-030.
+5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-5. **M5, the upkeep:** T-040 when the owner gives the repository of podvm;
+6. **M5, the upkeep:** T-040 when the owner gives the repository of podvm;
    a "port" entry for each change that scripts/check-sources.py finds.
 
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C18), and the work goes on with it until the owner rules otherwise.
+C19), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
@@ -43,9 +44,15 @@ C18), and the work goes on with it until the owner rules otherwise.
 | --- | --- |
 | T-040 | The repository of podvm, and access for this session |
 | Each release | Tell the consumer sessions to take the crates |
+| T-042 | Reserve on crates.io the names that are free (`pod-quic`, `pod-piping`, `pod-opentunnel`, `pod-egress`, `pod-iroh`, `pod-tor`, `pod-ts`), with the trusted publisher of `publish.yml` |
 
 ## Questions for the owner
 
-None now. Write each question as `- **Qn.** QUESTION`, with the entries
-that it blocks and a recommendation. Number the questions in sequence
-from Q4 (the owner ruled Q1 to Q3: `docs/decisions.md`).
+- **Q4.** When does `publish.yml` publish real versions of the `pod-*`
+  crates to crates.io? It blocks no entry. Recommendation: not yet, as
+  the ruling of podnet of 2026-11-05; the dry run of each release keeps
+  the packaging ready (`docs/decisions.md`).
+
+Write each question as `- **Qn.** QUESTION`, with the entries that it
+blocks and a recommendation. Number the questions in sequence from Q5
+(the owner ruled Q1 to Q3: `docs/decisions.md`).

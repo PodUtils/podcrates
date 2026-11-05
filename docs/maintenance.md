@@ -62,8 +62,11 @@ the tools.
   * `cloud-setup.sh [TARGET...]`: the rustup targets, zig (from the
     mirrors of `zig-mirrors.txt`, through `fetch-zig.sh`) and
     cargo-zigbuild.
-  * `retry.sh COMMAND...`: a command up to 3 times, for the steps of CI
+  * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
+  * `crates-io-publish.py`: the publish of `publish.yml` with trusted
+    publishing (the OIDC token of the job for a token of crates.io, then
+    `cargo publish --workspace`, then the revocation of the token).
   * `check-github-numbers.py`: `TODO/github.txt` against GitHub.
 
 ## The issue loop
@@ -100,6 +103,21 @@ Facts for a session:
 * After the release of a crate, tell the consumer sessions (the owner
   brings them online): the crate, the tag, the adoption map of its
   README.
+
+## A release
+
+1. Write `docs/releases/vX.Y.Z.md` (the crates that changed, each breaking
+   change), and set `version` of `[workspace.package]` to `X.Y.Z`.
+2. Push, and wait for the green `ci` run of the commit.
+3. Run `release.yml` with no input (a dry run), then with
+   `version=X.Y.Z`. It tags `vX.Y.Z`, makes the GitHub release and starts
+   the dry run of `publish.yml` on the tag.
+4. Watch the dry run of `publish.yml`. A failure is a defect of the
+   packaging: fix it in the next release.
+5. Do not run `publish.yml` with `publish=true` until the owner rules Q4
+   (`TODO/PROGRESS.md`).
+6. Tell the consumer sessions (the owner brings them online): the crates,
+   the tag, the adoption map of each README.
 
 ## This sandbox
 

@@ -402,7 +402,13 @@ The consumers take the crates by a git tag (Q1).
   writes `docs/releases/vX.Y.Z.md`: the crates that changed and each
   breaking change. A release is unattended. A change of a public API or
   of a wire format raises the minor version (0.x).
-* Each `pod-*` dependency has `path` and `version`, so that a later
-  publish to crates.io stays possible. podcrates publishes nothing to
-  crates.io now.
+* Each `pod-*` dependency has `path` and `version`, so that a publish to
+  crates.io works. The owner reserved the names on crates.io (0.0.0
+  placeholders).
+* `publish.yml` is the publish to crates.io, apart from `release.yml`
+  (the ruling "publish.yml everywhere"). It uses trusted publishing: the
+  environment `crates-io` (only a tag `v*` deploys to it) and an OIDC
+  token of the job; no token is stored. `release.yml` starts its dry run
+  (`cargo publish --workspace --dry-run`) on each new tag. The publish of
+  a real version (the input `publish`) waits for the ruling of Q4.
 

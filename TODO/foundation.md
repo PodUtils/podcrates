@@ -480,3 +480,60 @@ T-005, T-006, T-007 and T-008 are done.
 <https://github.com/PodUtils/podcrates/releases/tag/v0.1.0> has the notes
 of `docs/releases/v0.1.0.md`: `pod-todo`, `pod-core`, `pod-testkit`,
 `pod-term`, `pod-identity`, and the trials of `adoption/`.
+
+# T-042: `publish.yml`: the publish to crates.io, apart from the release
+
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Publish workflow).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner chose "publish.yml everywhere": "A dedicated publish workflow,
+separate from the existing release.yml. The agents must create
+publish.yml." The owner set by the API the environment `crates-io` (only
+a tag `v*` deploys to it), the ruleset "release tags" and the names of
+the crates on crates.io (0.0.0 placeholders, repository
+`PodUtils/podcrates`).
+
+## Premise
+
+- Read: the environments and the rulesets of podcrates, podnet and
+  podssh through the API mirror: each has the environment `crates-io`
+  with the branch policy `v*` (a tag); none has a `publish.yml` yet.
+- Read: crates.io has 0.0.0 of `pod-todo`, `pod-core`, `pod-testkit`,
+  `pod-term`, `pod-identity`, `pod-tls`, `pod-proxy`, `pod-dns`, `pod-ws`
+  and the names of M2 to M4, except `pod-quic`, `pod-piping`,
+  `pod-opentunnel`, `pod-egress`, `pod-iroh`, `pod-tor`, `pod-ts`, which
+  are free.
+- Not read: the trusted publishers on crates.io (that needs the owner's
+  login).
+
+## Approach
+
+1. `.github/workflows/publish.yml`: the job `dry-run`
+   (`cargo publish --workspace --dry-run`, on any ref) and the job
+   `publish` (the input `publish`, a tag `vX.Y.Z` with a green `ci` run,
+   the environment `crates-io`, `id-token: write`).
+2. `scripts/crates-io-publish.py`: the OIDC token of the job for a token
+   of crates.io, `cargo publish --workspace --locked`, the revocation of
+   the token. No third-party action.
+3. `release.yml` starts the dry run on each new tag. The library crates
+   lose `publish = false`.
+
+## Decision
+
+A real version waits for the ruling of Q4; the dry run of each release
+keeps the packaging ready (`docs/decisions.md`, C19).
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+gh workflow run publish.yml --ref main
+```
+
+The dry run passes on `main`.
