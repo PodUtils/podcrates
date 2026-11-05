@@ -29,6 +29,9 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Publish trigger | `publish.yml` runs on a tag push `v*` and by dispatch; `release.yml` dispatches it on its tag, as a push with `GITHUB_TOKEN` starts no workflow. The publish job has `environment: crates-io` and only `id-token: write` and `contents: read`; the top level has `permissions: {}`; the token comes from `rust-lang/crates-io-auth-action`, pinned by its commit. |
 | 2026-11-05 | Publish gate | While Q1 stands, each run does the dry run only. The switch `crates-io` of `[workspace.metadata.podcrates]` in `Cargo.toml` turns the publish on; an agent sets it only when the owner rules so. |
 | 2026-11-05 | crates.io names | The owner reserves each name with a 0.0.0 placeholder before its first publish; trusted publishing does not work for another name. `pod-*` is of podcrates; podnet, podssh and podvm use `podnet-*`, `podssh-*`, `podvm-*`. After the first publish of a crate from CI, the owner turns on "Require trusted publishing" for it: keep `publish.yml` working. |
+| 2026-11-05 | Shared CI scripts | "A CI script that podnet and podssh share (the zig fetch with its mirrors) lives in `PodUtils/podcrates`. podnet calls it from there; it does not copy it." (podnet's record, `PodUtils/podnet:docs/decisions.md`.) T-046. |
+| 2026-11-05 | Relay contract watch | "The weekly watch of the relay contract belongs to `pod-relay` in `PodUtils/podcrates`, not to podnet." (podnet's record.) T-047. |
+| 2026-11-05 | Services crate | "they hardcode/measure many relays/third party services, it risks drift and staleness, so we move that code & related script here as a new crate". The crate is `pod-services` (the owner chose the name). T-048, T-049. |
 
 ## Calls made without a ruling
 

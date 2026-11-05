@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 47 entries: 31 open, 0 partial, 2 blocked, 14 done.
+`TODO/INDEX.md` holds 49 entries: 33 open, 0 partial, 2 blocked, 14 done.
 
 ## State
 
@@ -30,7 +30,8 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **M1, the transport:** T-013, T-014, T-015, T-016; T-017 after
-   T-013; T-045; T-041 when a crate or a consumer needs it.
+   T-013; T-045; T-046; T-048 when the inventories of podssh and podnet
+   come, then T-049; T-041 when a crate or a consumer needs it.
 2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
 3. **M3, the adapters:** T-027, T-028, T-029, T-030.
@@ -51,6 +52,7 @@ C19), and the work goes on with it until the owner rules otherwise.
 | T-040 | The repository of podvm, and access for this session |
 | Each release | Tell the consumer sessions to take the crates |
 | T-043 | Reserve the 12 names that wait in the queue of GitHub #1, and set the trusted publisher of each (`python3 -I scripts/check-crates-io-names.py` lists them) |
+| T-049 | Reserve `pod-services` on crates.io, with the trusted publisher of `publish.yml` (the owner chose the name, 2026-11-05) |
 
 ## Questions for the owner
 

@@ -558,3 +558,81 @@ Each trial checks a static binary of the consumer.
 ## Start condition
 
 T-012 is done.
+
+# T-048: `pod-services`: the inventory of the relays and services of other parties in podssh and podnet
+
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Services crate).
+**Category:** research
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner: "they hardcode/measure many relays/third party services, it
+risks drift and staleness, so we move that code & related script here as
+a new crate". podssh and podnet each hold lists of hosts of other parties
+in their code, and scripts and workflows that measure or watch them.
+
+## Premise
+
+- Asked: the sessions of podssh and podnet send an inventory: each list of
+  hosts, the code that measures or watches them, the workflows, the
+  scripts and the data files, with the file and lines, the source of each
+  value and the code that reads it.
+- Not read yet: the inventories.
+
+## Approach
+
+1. Join both inventories; read each item at the consumer's main.
+2. Choose, for each item, what moves to `pod-services` (a list with its
+   source and date; a watch; a script) and what stays, with why.
+3. Write the design of the crate in `docs/design.md` (its API, its
+   dependencies, where each watch runs) and the entry of the move (T-049).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The inventory and the choices are in this entry, and `docs/design.md`
+has the row of `pod-services` with its sources.
+
+# T-049: `pod-services`: the lists, the watches and their scripts, moved from podssh and podnet
+
+**Source:** the owner, 2026-11-05 (`docs/decisions.md`, Services crate).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The lists of relays and services of other parties, and their watches,
+must have one home, so that they do not drift and do not go stale in two
+repositories.
+
+## Premise
+
+- The inventory of T-048.
+
+## Approach
+
+The procedure of `docs/design.md`, section 8: import, edition, adapt (no
+global, settings, events, typed failures), tests, the merge of the two
+sources, the README with the parity list and the adoption map, the trials
+of podssh and podnet; the watches as workflows of podcrates.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+sh scripts/agent/check.sh
+```
+
+## Start condition
+
+T-048 is done, and the owner reserved `pod-services` on crates.io.
