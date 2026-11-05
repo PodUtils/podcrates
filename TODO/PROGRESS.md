@@ -4,21 +4,21 @@
 
 ## State
 
-- The owner gave the go-ahead on 2026-11-05. Done: `pod-todo`, the
-  record, the checks, `pod-core`, `pod-testkit`, the trials (M0), and
-  `pod-term`, `pod-identity` (M1). Each workflow is green.
-- Released: `v0.1.0` (T-009) and `v0.2.0` (`pod-tls`, Rust 1.99; the run
-  42057101369 of `release.yml` and the dry run 42057132368 of
-  `publish.yml` on the tag). podssh took each crate of v0.1.0 (`04f4551`),
-  podnet took `pod-todo` (`6c210ed`). The patches of `pod-tls` went to
+- The owner gave the go-ahead on 2026-11-05. Done: M0 (`pod-todo`, the
+  record, the checks, `pod-core`, `pod-testkit`, the trials, the
+  workflows, `publish.yml`, the shared zig fetch) and, of M1, `pod-term`,
+  `pod-identity`, `pod-tls`, `pod-proxy`.
+- Released: `v0.1.0`, `v0.2.0` (`pod-tls`, Rust 1.99) and `v0.3.0`
+  (`pod-proxy`; the run 42113384858 of `release.yml`, the dry run
+  42113413975 of `publish.yml`). podssh took each crate of v0.2.0
+  (`6ece2ff`), podnet too (`a5894fe`). The patches of `pod-proxy` went to
   both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
-- `pod-tls` is done (T-012), with its trials on podssh `85d4e9d` and
-  podnet `c7a31f3`. Next: `pod-proxy` (T-013).
-- `publish.yml` is in place (T-042); the switch `crates-io` is false
-  while Q1 stands. The names on crates.io wait for the owner (T-043,
-  GitHub #1).
+- `pod-services` (T-049, T-050) has its design; the owner reserves its
+  name. The names on crates.io wait for the owner (T-043, GitHub #1);
+  the switch `crates-io` is false while Q1 stands.
 - The sessions of podssh and podnet run the rename and the migration
-  only, with the briefing of this session.
+  only, with the briefing of this session; between sessions, messages,
+  else one issue mailbox for each writer (`docs/maintenance.md`).
 - Keep this section short. Write the current state only; git keeps the
   history.
 
