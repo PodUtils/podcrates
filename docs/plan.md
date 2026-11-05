@@ -1,7 +1,7 @@
 # The plan of podcrates
 
-Status: draft for review. The owner reads it, rules the questions of
-section 13, and gives the go-ahead. After the go-ahead, step M0 writes
+Status: ready for the go-ahead. The owner ruled the questions of
+section 13 on 2026-11-05. After the go-ahead, step M0 writes
 this plan into the record `TODO/`, `docs/design.md` keeps sections 3 to
 8, and this file is removed.
 
@@ -30,7 +30,8 @@ The goal is reached when:
 
 podcrates does not edit podssh, podnet or podvm. Each consumer replaces
 its own modules in its own repository (podssh T-684 and podnet T-137 in
-their records). Q3 rules who changes a crate after its adoption.
+their records). After its adoption, a consumer session can also change
+the crate in podcrates (Q3).
 
 ## 2. Inputs
 
@@ -111,8 +112,8 @@ apply to them.
     loopback only and starts with the `need_loopback!` guard of
     `pod-testkit` when it binds. A live test is `#[ignore]` and runs in a
     live workflow. A test does not set a process variable.
-12. **Size.** A source file has at most N lines (Q2: 500 or 800). A file
-    that is longer is split at import. There is no allowlist.
+12. **Size.** A source file has at most 500 lines (Q2). A file that is
+    longer is split at import. There is no allowlist.
 
 ## 4. Repository
 
@@ -145,7 +146,8 @@ Toolchain facts:
   `socket-tcp-reno`, `socket-tcp-cubic`, `assembler-max-segment-count-32`;
   each exists in 0.14).
 * `deny.toml`: the targets of section 9; `multiple-versions = "warn"`;
-  git sources as Q1 rules; one ignored advisory, RUSTSEC-2023-0071 (`rsa`
+  `allow-git` holds only the upstreams of the forks when a fork is not
+  in `vendor/`; one ignored advisory, RUSTSEC-2023-0071 (`rsa`
   0.9, feature `rsa` of `pod-tls`: verify only; the advisory is a timing
   attack on operations with the private key). It runs with all features.
 
@@ -257,9 +259,12 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
 * The quiet code goes first (`pod-term`, the TLS, DNS and proxy code).
 * The window between the import of a crate and its adoption is short:
   each crate is released when its entry is done, and the consumer takes
-  it at once (Q3).
+  it on the day of the release (Q3).
 * From the import to the adoption, the consumer changes the module only
-  for fixes (Q3). `check-sources.py` finds each change (section 11).
+  for fixes, and podcrates ports each fix (Q3). `check-sources.py` finds
+  each change (section 11). The import tells the consumer session (a
+  message, or an issue in the consumer's repository written by the
+  owner) that the freeze starts.
 
 ## 8. The shared traits (in `pod-core`)
 
@@ -408,57 +413,40 @@ pushes. No worktree branch is pushed.
 
 ## 12. Versions and releases
 
-The form follows Q1.
+The consumers take the crates by a git tag (Q1).
 
-* **A git tag (the recommendation of Q1).** One version for the
-  workspace, from `0.1.0`. The tag `vX.Y.Z` releases each crate. A
-  consumer writes `pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }`;
-  its `Cargo.lock` holds the commit. A fork in `vendor/` is a path
-  dependency inside the repository, and cargo follows it through the git
-  dependency. A `[patch]` of podcrates does not reach a consumer; a
-  `[patch.crates-io]` of a consumer reaches the crates.io dependencies
-  of podcrates. `release.yml` tags when a crate is done and `main` is
-  green, and writes `docs/releases/vX.Y.Z.md` (the crates that changed,
-  each breaking change).
-* **crates.io.** Each crate has its own version; `scripts/release.sh`
-  publishes, in dependency order, each crate whose version is not on
-  crates.io, and tags `pod-X-vVERSION`. A fork must first be published
-  as a crate of its own name.
-* In both forms: a change of a public API or of a wire format is a new
-  minor version (0.x). A release is unattended when its checks are
-  green.
+* One version for the workspace, from `0.1.0`. The tag `vX.Y.Z` releases
+  each crate. A consumer writes
+  `pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }`,
+  adds `https://github.com/PodUtils/podcrates` to `allow-git` in its
+  `deny.toml`, and its `Cargo.lock` holds the commit.
+* A fork in `vendor/` is a path dependency inside the repository, and
+  cargo follows it through the git dependency. A `[patch]` of podcrates
+  does not reach a consumer; a `[patch.crates-io]` of a consumer reaches
+  the crates.io dependencies of podcrates.
+* `release.yml` tags when a crate is done and `main` is green, and
+  writes `docs/releases/vX.Y.Z.md`: the crates that changed and each
+  breaking change. A release is unattended. A change of a public API or
+  of a wire format raises the minor version (0.x).
+* Each `pod-*` dependency has `path` and `version`, so that a later
+  publish to crates.io stays possible. podcrates publishes nothing to
+  crates.io now.
 
-## 13. Questions for the owner
+## 13. Rulings of the questions (2026-11-05)
 
-Each question has a recommendation. Q1 and Q2 block M0; Q3 blocks the
-first adoption.
-
-- **Q1. Git tag or crates.io?** The earlier rulings of podnet and podssh
-  said "crates.io only", and reserved names. Recommendation: a git
-  dependency on a tag of podcrates now (section 12); crates.io later if
-  wanted. Reasons: (a) `pod-ts` needs the patched tailscale-rs fork (40
-  crates, 29 patches) and `pod-iroh` the patched iroh-relay; a crate on
-  crates.io cannot carry a fork or a `[patch]`, a git dependency can;
-  (b) no token, no publish order, no rate limit for new crates; (c) no
-  risk under the rule of crates.io against name squatting (26 crates and
-  8 held names as empty 0.0.0 versions). Cost: each consumer adds
-  `https://github.com/PodUtils/podcrates` to `allow-git` in its
-  `deny.toml`, and cargo fetches the whole repository. If crates.io: a
-  token with the scope `pod-*` (`publish-new`, `publish-update`) as the
-  secret `CARGO_REGISTRY_TOKEN` of a GitHub environment `crates-io` for
-  the first version of each crate, then trusted publishing; `pod-ts` and
-  `pod-iroh` wait for published forks.
-- **Q2. File size.** podssh: 500 lines (for agents that read the code);
-  podnet: 800. Recommendation: 500, as both earlier sessions recommend.
-  podssh's code fits; podnet's longer files split when they move.
-- **Q3. Who changes a crate, and the freeze.** The ruling now: the
-  sessions of podssh and podnet do not edit podcrates. podssh changes
-  `session/`, `reverse/`, `e2e/` and `serve/` each day, so a crate chases
-  it until podssh takes it. Recommendation: (a) from the import of a
-  module until its consumer takes the crate, the consumer changes that
-  module only for fixes, and podcrates ports each fix; (b) a consumer
-  takes each crate on the day of its release; (c) after that, a consumer
-  session may change the crate in podcrates (on `main`, under the
+- **Q1. Git tag.** The consumers take the crates by a git tag of
+  podcrates (section 12). crates.io later, when the owner wants it. The
+  reasons: the forks of `pod-ts` (tailscale-rs: 40 crates, 29 patches)
+  and `pod-iroh` (iroh-relay) need a git source; no token, no publish
+  order, no rate limit; no risk under the rule of crates.io against name
+  squatting.
+- **Q2. 500 lines** for each source file (podssh's rule). podnet's longer
+  files split when they move.
+- **Q3. The freeze and the edits.** (a) From the import of a module
+  until its consumer takes the crate, the consumer changes that module
+  only for fixes, and podcrates ports each fix. (b) The consumer takes
+  each crate on the day of its release. (c) After that, a consumer
+  session can change the crate in podcrates (on `main`, under the
   `AGENTS.md` of podcrates, with its checks green), or it opens an issue
   in podcrates for the podcrates session.
 
@@ -471,7 +459,8 @@ until the owner rules otherwise:
   pinned nightly when an entry needs it (section 3, rule 2).
 - **C2.** rustfmt of podssh (`max_width = 120`, `Max`).
 - **C3.** `tracing` for the diagnostics of each crate.
-- **C4.** The version scheme follows Q1 (section 12).
+- **C4.** One version for the workspace and one tag for each release
+  (section 12).
 - **C5.** `pod-todo` keeps no external dependency. It reads the facts of
   a repository from `TODO/todo.toml`: the milestones, the areas, the
   categories, the top directories and the root files, the documents that
@@ -517,10 +506,8 @@ until the owner rules otherwise:
 
 | When | Action |
 | --- | --- |
-| Before M0 | Q1, Q2 |
-| Before the first adoption | Q3; tell the session of podssh about the freeze |
-| If Q1 is crates.io, before the first release | the token of Q1 |
-| Before the trial of podvm | the repository of podvm |
+| Before the first adoption | Tell the session of podssh about the freeze of Q3 |
+| Before the trial of podvm | The repository of podvm |
 | After each release | Tell the consumer sessions to take the crates (podssh T-684, podnet T-137) |
 
 ## 16. Order of M0 (after the go-ahead)

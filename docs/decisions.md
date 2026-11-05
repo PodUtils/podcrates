@@ -11,7 +11,9 @@ form of the rulings that apply to each session.
 | Date | Area | Ruling |
 | --- | --- | --- |
 | 2026-11-05 | Repository | `PodUtils/podcrates` holds the crates that the PodUtils projects share (prefix `pod-`). podssh, podnet and podvm (formerly podbox) take their shared code from it. The code of podssh comes to podnet through these crates, not as copies. (Rulings "Shared crates" of podnet and Q101 of podssh.) |
-| 2026-11-05 | Who edits | One session in `PodUtils/podcrates` builds the crates. The sessions of podssh and podnet do not edit podcrates; the session of podcrates does not edit podssh, podnet or podvm. |
+| 2026-11-05 | Who edits | The session of podcrates builds the crates and does not edit podssh, podnet or podvm. From the import of a module until its consumer takes the crate, the consumer changes that module only for fixes, and podcrates ports each fix. The consumer takes each crate on the day of its release. After that, a consumer session can change the crate in podcrates (on `main`, under `AGENTS.md`, with the checks green), or open an issue in podcrates. (Q3.) |
+| 2026-11-05 | Delivery | The consumers take the crates by a git tag of podcrates (`tag = "vX.Y.Z"`), not from crates.io. One version for the workspace. The forks that a crate needs are in `vendor/`. podcrates publishes nothing to crates.io now; each `pod-*` dependency keeps `path` and `version` for a later publish. (Q1.) |
+| 2026-11-05 | File size | A source file has at most 500 lines. A longer file is split at import. No allowlist. (Q2.) |
 | 2026-11-05 | The crates | The list agreed by the sessions of podssh and podnet: 26 crates in four waves, and 8 names held with no crate (`pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`). The WARP and Cloudflare adapters of podnet move here as `pod-warp` and `pod-cloudflare`; `podnet-relay` merges into `pod-relay`. `docs/plan.md`, section 6, has the list; call C17 of the plan adds `pod-core` and `pod-quic`. |
 | 2026-11-05 | Static, C, Rust | "We use whatever is necessary, including C, zig, modern Rust, no backwards compat. Our users and clients do not care about building the tool, they care about downloading and using it. The only rule is: everything must be statically compiled." It supersedes the rules "no C" and "MSRV 1.89" of the agreed design. |
 | 2026-11-05 | Toolchain | Modern and stable Rust, "even nightly/bleeding edge if its necessary to maintain performance, security whatever we need". The `rust-version` is the stable of the day. A consumer moves its toolchain to match; podcrates does not hold back for the toolchain of a consumer. |
@@ -31,13 +33,13 @@ move here at step M0.
 
 ## Questions for the owner
 
-`docs/plan.md`, section 13: Q1 (git tag or crates.io) and Q2 (500 or 800
-lines for each source file) block step M0; Q3 (who changes a crate after
-its adoption, and the freeze of a module from its import to its
-adoption) blocks the first adoption.
+None now. Write each new question here, with the part of the work that
+it blocks and a recommendation.
 
 ## Superseded
 
 | Date | Ruling | Superseded by |
 | --- | --- | --- |
-| 2026-11-05 | The agreed design: no C in a library crate; Rust 1.89 (1.91 for the crates on smoltcp 0.14). | 2026-11-05, Static, C, Rust. |
+| 2026-11-05 | The agreed design: no C in a library crate; Rust 1.89 (1.91 for the crates on smoltcp 0.14). | 2026-11-05, Static, C, Rust; and Toolchain. |
+| 2026-11-05 | The agreed design (podnet "podcrates design", podssh Q101): the crates come from crates.io only; the names are reserved there. | 2026-11-05, Delivery (Q1). |
+| 2026-11-05 | The agreed design: podnet and podssh do not edit podcrates. | 2026-11-05, Who edits (Q3). |

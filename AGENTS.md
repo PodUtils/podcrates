@@ -19,9 +19,16 @@ The code of the crates comes from podssh and podnet. The list of the
 crates, their sources and their waves is in `docs/plan.md` (until step
 M0 moves it into `TODO/` and `docs/design.md`).
 
-A session of podcrates does not edit podssh, podnet or podvm. A session
-of a consumer does not edit podcrates. A consumer replaces its own module
-with a crate in its own repository.
+A session of podcrates does not edit podssh, podnet or podvm. A consumer
+replaces its own module with a crate in its own repository, on the day
+of the release of the crate. From the import of a module until that day,
+the consumer changes the module only for fixes, and podcrates ports each
+fix. After that day, a consumer session can change the crate here, under
+these rules and with the checks green, or open an issue here.
+
+The consumers take the crates by a git tag of this repository
+(`tag = "vX.Y.Z"`), not from crates.io. A source file has at most 500
+lines.
 
 ## 2. The rule of the owner
 
