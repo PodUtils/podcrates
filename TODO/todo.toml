@@ -1,0 +1,24 @@
+# The facts of this repository for the checker of the record
+# (crates/pod-todo/src/config.rs). TODO/RULES.md gives the rules.
+
+tool = "pod-todo"
+
+# TODO/ROADMAP.md: M0 Foundation, M1 Transport, M2 Relay, M3 Adapters,
+# M4 Roads, M5 Upkeep.
+milestones = ["M0", "M1", "M2", "M3", "M4", "M5"]
+categories = ["defect", "feature", "measurement", "release", "chore", "research", "docs"]
+roadmap = "TODO/ROADMAP.md"
+questions = "Questions for the owner"
+
+# A code span that starts with one of these is a path of this repository.
+top_dirs = ["crates", "scripts", "docs", ".github", "TODO", "vendor", "fuzz", "examples", "images", "adoption"]
+root_files = [
+  "Cargo.toml", "Cargo.lock", "README.md", "AGENTS.md", "CLAUDE.md", "SECURITY.md", "LICENSE",
+  "deny.toml", "rustfmt.toml", "rust-toolchain.toml",
+]
+
+# The documents whose ids must resolve, and the readings at a time that
+# keep the ids and the paths of their time.
+documents = ["README.md", "AGENTS.md", "SECURITY.md", "crates/*/README.md"]
+document_dirs = ["TODO", "docs"]
+readings = ["docs/releases/", "docs/reports/", "docs/research/"]

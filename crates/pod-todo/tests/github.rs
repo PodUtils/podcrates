@@ -31,7 +31,7 @@ fn the_record_s_map_agrees_with_its_list() {
 /// A list and a map that agree: two issues and two pull requests.
 const LIST: &str = "# A list.\n70 issue closed\n71 issue open\n76 pull closed\n77 pull closed\n";
 const MAP: &str = "| Issue | Subject | State | Entries |\n| --- | --- | --- | --- |\n\
-| #70 | A defect | closed, in `0000000` | T-001 |\n| #71 | A request | open | T-002 |\n\n\
+| #70 | A defect | closed | T-001 |\n| #71 | A request | open | T-002 |\n\n\
 #76 and #77 are pull requests.\n";
 
 #[test]

@@ -1,0 +1,7 @@
+# The numbers of GitHub (issues and pull requests) of this repository, with
+# their states. One on each line: NUMBER issue|pull open|closed, or
+# NUMBER issue deleted for an issue that GitHub deleted.
+#
+# The list holds each number from 1 on. `cargo todo check` holds
+# TODO/issues.md to this list. scripts/check-github-numbers.py holds this
+# list to GitHub (.github/workflows/record-issues.yml, each day).

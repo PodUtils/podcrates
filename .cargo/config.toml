@@ -1,0 +1,13 @@
+# `cargo todo check` reads the record in TODO/; `cargo todo set T-NNN
+# STATUS` moves a status and derives the counts; `cargo todo next` gives
+# the next free id; `cargo todo remap FILE` moves the citations of an
+# edited file (TODO/RULES.md).
+[alias]
+todo = "run -q -p pod-todo --"
+
+# The userspace stack of pod-netstack owns more than two addresses (the
+# local address, the gateway, their IPv6 forms, each virtual listener).
+# smoltcp defaults IFACE_MAX_ADDR_COUNT to 2. Cargo does not read the
+# config of a dependency: each consumer of pod-netstack sets this line too.
+[env]
+SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"

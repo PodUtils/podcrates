@@ -1,53 +1,11 @@
-# The plan of podcrates
+# Design
 
-Status: ready for the go-ahead. The owner ruled the questions of
-section 13 on 2026-11-05. After the go-ahead, step M0 writes
-this plan into the record `TODO/`, `docs/design.md` keeps sections 3 to
-8, and this file is removed.
+The rules of the crates of podcrates, their sources, the shared traits,
+the targets, the procedure for one crate, the checks and the releases.
+`AGENTS.md` has the rules of each session; `docs/decisions.md` has the
+rulings of the owner; `TODO/` has the work.
 
-## 1. Goal
-
-`PodUtils/podcrates` holds the Rust crates that the PodUtils projects
-share. The consumers are:
-
-| Consumer | Repository | Takes from podcrates |
-| --- | --- | --- |
-| podssh | `PodUtils/podssh` | each library crate; it keeps its CLI, its SSH client (`podssh-ssh`, on its patched russh and ssh-key), its IRC and `podssh-probe` |
-| podnet | `PodUtils/podnet` | TLS, DNS, proxies, HTTP fetch, WebSocket, relay, the layer, WARP, Cloudflare, transfer; it keeps `podnet`, `podnet-core`, `podnet-netns`, `podnet-vnet`, `podnet-serve` |
-| podvm | (formerly podbox) | `pod-relay` through its blocking facade (no async runtime), `pod-term` |
-
-The goal is reached when:
-
-1. Each crate of section 6 exists, passes its checks, links static on
-   each target of section 9, and has a released version (section 12).
-2. Each crate has the tests, the plants and the fuzz targets of its
-   source code, and they pass.
-3. No feature or capability of the source code is lost. Each crate has a
-   parity list with one line for each capability of each source, and
-   each line is ticked.
-4. Each crate passed its adoption trial for each consumer (section 10,
-   step 7). The trial patch is ready for the consumer session.
-
-podcrates does not edit podssh, podnet or podvm. Each consumer replaces
-its own modules in its own repository (podssh T-684 and podnet T-137 in
-their records). After its adoption, a consumer session can also change
-the crate in podcrates (Q3).
-
-## 2. Inputs
-
-* The design agreed by the sessions of podssh and podnet on 2026-11-05
-  (podssh Q101 and T-684 at `1915a9f`; podnet "podcrates design" at
-  `b7682c5`), and the answers of the podssh session to this session.
-* podnet: `docs/decisions.md`, `TODO/crates.md`,
-  `docs/research/podnet/architecture.md` (section 3.3: the 18 edges to
-  cut; section 4: the crates and the traits), `docs/research/podnet/podssh-copy.md`.
-* The rulings of the owner for podcrates and podssh (2026-11-05; podssh
-  `d4e186d0`): C, zig and modern Rust; no backwards compatibility; the
-  only rule is a statically compiled binary.
-* Three reviews of the first draft against the code (sources, tooling,
-  consumers). Each defect they found has its fix in this version.
-
-## 3. Rules for each crate
+## 1. Rules for each crate
 
 The ruling of the owner, 2026-11-05: "we use whatever is necessary,
 including c, zig, modern rust, no backwards compat. our users & clients
@@ -61,7 +19,7 @@ crates. `pod-todo` and `pod-testkit` are tools: rules 4 to 10 do not
 apply to them.
 
 1. **Static.** Each crate links into a static binary on each target of
-   section 9. Linux: no `NEEDED` entry and no program interpreter (musl;
+   section 7. Linux: no `NEEDED` entry and no program interpreter (musl;
    zig cc through cargo-zigbuild for the cross targets). Windows: the C
    runtime linked in (`+crt-static`), only the DLLs of the system.
    macOS: only the libraries of the system (`libSystem`, `libiconv`,
@@ -82,7 +40,7 @@ apply to them.
    install a process default. The tests use ring. `pod-tls` keeps
    podssh's pure-Rust provider (feature `pure`).
 5. **The caller gives the way out.** A crate that opens a connection
-   takes an `Arc<dyn Dial>` (section 8). `pod-proxy` has a function that
+   takes an `Arc<dyn Dial>` (section 6). `pod-proxy` has a function that
    reads `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` when the caller asks;
    it keeps the origin of each value (a `+exec:` proxy only from a value
    that the user gave on purpose, as podnet does now).
@@ -115,7 +73,8 @@ apply to them.
 12. **Size.** A source file has at most 500 lines (Q2). A file that is
     longer is split at import. There is no allowlist.
 
-## 4. Repository
+
+## 2. Repository
 
 | Path | What |
 | --- | --- |
@@ -123,14 +82,14 @@ apply to them.
 | `rust-toolchain.toml` | the toolchain (stable, or a pinned nightly when an entry needs it), the targets and the components |
 | `crates/pod-*` | `Cargo.toml`, `README.md` (purpose, API, features, settings, the parity list, the adoption map), `LICENSE`, `SOURCES`, `src/`, `tests/` |
 | `vendor/` | the patched forks that a crate needs (tailscale-rs, iroh-relay), each with its patches, its upstream commit and its licence (as podssh `vendor/README.md`) |
-| `adoption/CONSUMER/` | the pinned commit of each consumer, its `todo.toml`, and for each crate the trial patch (section 10, step 7) |
+| `adoption/CONSUMER/` | the pinned commit of each consumer, its `todo.toml`, and for each crate the trial patch (section 8, step 7) |
 | `TODO/` | the record (the podssh model): `RULES.md`, `ROADMAP.md`, `INDEX.md`, `PROGRESS.md`, `issues.md`, `github.txt`, `todo.toml`, one area file for each milestone |
 | `docs/` | `design.md`, `decisions.md`, `development.md`, `maintenance.md`, `releases/` |
 | `scripts/` | `agent/` (`check.sh`, `watch-issues.sh`, `watch-runs.sh`); `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh` with `zig-mirrors.txt`; `retry.sh`; `binfmt.sh`; `check-size.py`; `check-static.sh`; `check-sources.py`; `check-vendored.py`; `check-workflows.py`; `check-github-numbers.py`; `plant.sh`, `plant-each.sh`, `plants/`; `release.sh`; the stand-in servers of the moved tests (`fake-*.py`); `check-relay-spec.py` |
 | `fuzz/` | the fuzz targets of the moved code (cargo-fuzz, its own workspace); `fuzz.sh`, `fuzz-seeds.py` |
-| `examples/` | `static-probe` (section 9) and the binaries of the live workflows (ring provider; `publish = false`) |
+| `examples/` | `static-probe` (section 7) and the binaries of the live workflows (ring provider; `publish = false`) |
 | `images/` | the build and test images, pinned by digest |
-| `.github/` | `workflows/` (section 11), `dependabot.yml`, `secrets-allow.txt` |
+| `.github/` | `workflows/` (section 9), `dependabot.yml`, `secrets-allow.txt` |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/` | the rules for each session; the settings and the session-start hook |
 
 Toolchain facts:
@@ -145,13 +104,14 @@ Toolchain facts:
   (`medium-ip`, `proto-ipv4`, `proto-ipv6`, `socket-tcp`, `socket-udp`,
   `socket-tcp-reno`, `socket-tcp-cubic`, `assembler-max-segment-count-32`;
   each exists in 0.14).
-* `deny.toml`: the targets of section 9; `multiple-versions = "warn"`;
+* `deny.toml`: the targets of section 7; `multiple-versions = "warn"`;
   `allow-git` holds only the upstreams of the forks when a fork is not
   in `vendor/`; one ignored advisory, RUSTSEC-2023-0071 (`rsa`
   0.9, feature `rsa` of `pod-tls`: verify only; the advisory is a timing
   attack on operations with the private key). It runs with all features.
 
-## 5. `pod-core`: the bottom crate
+
+## 3. `pod-core`: the bottom crate
 
 The agreed list has no crate below `pod-proxy`. The review of the code
 found cycles that only a bottom crate breaks: in podssh-ws, `dial.rs:129`
@@ -164,7 +124,7 @@ takes `exit`, `hop`, `decisions` and `fetch` of the core of podnet.
 Thus podcrates adds `pod-core` (C17). It has no pod dependency, and it
 holds:
 
-* the traits `Dial`, `Resolve`, `Datagrams` (section 8);
+* the traits `Dial`, `Resolve`, `Datagrams` (section 6);
 * the stream type (`BoxedIo`), the shared error types (`ConnectError`,
   `Cut`, `Missed`), the stage and the class of a failure, `Event`,
   `Observer`;
@@ -177,20 +137,21 @@ holds:
   read, `read_dirs`, `store_file_in_first`, `safe_name`), with the
   directory given by the caller.
 
-## 6. The crates
+
+## 4. The crates
 
 "Lines" are of `.rs` files with comments and tests. "Base" is the source
 whose code the crate starts from. For a crate with two sources, the
 first commits move the base alone; the capabilities of the other source
 come after it, each behind a feature when it changes a behaviour, each
-with its tests (section 10, step 5).
+with its tests (section 8, step 5).
 
 ### M0: the foundation
 
 | Crate | Source | Lines | Pod deps |
 | --- | --- | --- | --- |
 | `pod-todo` | podssh `crates/podssh-todo` without `interop/` (base); the adaptations of podnet `crates/podnet-todo` as configuration (C5) | 3,600 | none; no external dependency |
-| `pod-core` | section 5 | 1,500 | none |
+| `pod-core` | section 3 | 1,500 | none |
 | `pod-testkit` | podnet `tests/test_host/mod.rs` (`need_loopback!`, `need_localhost!`); podssh `crates/podssh-cli/tests/ssh_harness/` (feature `ssh`, russh 0.65 on ring). Later waves add the stand-ins, each behind a feature; a stand-in speaks bytes and HTTP only and takes no type of a pod crate, so that a crate can dev-depend on it | 2,200 | none |
 
 ### M1: wave 1, the transport (in this order)
@@ -249,7 +210,8 @@ service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,
 `instances` and `detach` (they implement the traits of `pod-core` or
 give the settings). podssh-ws `wire.rs` goes to `pod-core`.
 
-## 7. Churn and order
+
+## 5. Churn and order
 
 podssh changes each day. In its last 50 commits: `serve/` 100 file
 changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
@@ -262,11 +224,12 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
   it on the day of the release (Q3).
 * From the import to the adoption, the consumer changes the module only
   for fixes, and podcrates ports each fix (Q3). `check-sources.py` finds
-  each change (section 11). The import tells the consumer session (a
+  each change (section 9). The import tells the consumer session (a
   message, or an issue in the consumer's repository written by the
   owner) that the freeze starts.
 
-## 8. The shared traits (in `pod-core`)
+
+## 6. The shared traits (in `pod-core`)
 
 * `Dial`: a target (a name and a port, or an address) to a connected
   stream with its peer and local addresses; `dial_addrs` for a given
@@ -282,12 +245,13 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
   no GSO. Implementations: the system socket, WARP (`pod-warp`), UDP in
   a stream of the relay (`pod-session`, an adapter). `pod-iroh` gives
   iroh the system sockets.
-* `Observer`, `Event`: section 3, rules 8 and 9.
+* `Observer`, `Event`: section 1, rules 8 and 9.
 * `ServiceDispatch` (in `pod-cloudflare`), `PacketTap` (in
   `pod-netstack`), `Door` (in `pod-relay`): the traits that cut the
   edges to the code of a consumer.
 
-## 9. Targets and the static check
+
+## 7. Targets and the static check
 
 | Targets | Consumer | Build |
 | --- | --- | --- |
@@ -315,13 +279,14 @@ The check:
   zig builds. A crate that cannot link static on a target of a consumer
   is a blocked entry with a question for the owner.
 
-## 10. The procedure for one crate
+
+## 8. The procedure for one crate
 
 Each crate is one record entry, or more for a large merge. Its commits:
 
 1. **Import.** Copy the source files with no change. The message names
    each source: `pod-session: import podssh crates/podssh-relay/src/session at COMMIT`.
-   Write `SOURCES` (section 11). The import commit is pushed together
+   Write `SOURCES` (section 9). The import commit is pushed together
    with the next ones, so that each push is green.
 2. **Edition.** `cargo fix --edition` to 2024, in its own commit, then a
    review of the risky changes: the drop order of tail expressions and
@@ -329,7 +294,7 @@ Each crate is one record entry, or more for a large merge. Its commits:
    capture of lifetimes by `impl Trait`, `unsafe_op_in_unsafe_fn`,
    `unsafe extern`, `static_mut_refs`, `env::set_var` in tests, `gen` as
    a name.
-3. **Adapt.** Make the crate follow section 3: the paths, `pod-core`,
+3. **Adapt.** Make the crate follow section 1: the paths, `pod-core`,
    the dialer and the provider, the settings, the events, the typed
    failures, no globals, the size limit (split the files), rustfmt.
    Remove dated history from the comments, and keep each technical fact.
@@ -369,14 +334,15 @@ Each crate is one record entry, or more for a large merge. Its commits:
    repository (owner action).
 8. **Check, close, release.** `sh scripts/agent/check.sh`; the CI of the
    push is green; write the Done section (date, commits, test counts,
-   CI runs, the trial run); release (section 12).
+   CI runs, the trial run); release (section 10).
 
 Agents that work in parallel use local worktrees under
 `.claude/worktrees/`, one crate each. At most one cargo build runs at a
 time (`CARGO_BUILD_JOBS=4`). The main session merges, builds, tests and
 pushes. No worktree branch is pushed.
 
-## 11. Checks, plants, drift and workflows
+
+## 9. Checks, plants, drift and workflows
 
 * `scripts/agent/check.sh`: `cargo fmt --all --check`, `cargo clippy
   --workspace --all-targets --all-features -- -D warnings`, `cargo test
@@ -404,14 +370,15 @@ pushes. No worktree branch is pushed.
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |
-| `adoption.yml` | each push that changes a crate with a trial, by hand | section 10, step 7 |
-| `release.yml` | when a crate is done, by hand | section 12; a dry run with no input |
+| `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |
+| `release.yml` | when a crate is done, by hand | section 10; a dry run with no input |
 | `upstream.yml` | each day | `check-sources.py`; `check-vendored.py`; the cloudflared pin |
 | `record-issues.yml` | each day | `TODO/github.txt` against GitHub |
 | `fuzz.yml` | each week | the fuzz targets |
 | the live and interop workflows of the moved code | each day, by hand | podssh's `doh-live`, `relay-live`, `relay-layer-live`, `warp-live`, `quick-tunnel-*`, `transit-live`, `pair-code`, `piping`, `via`, `vless` and `wstunnel` interop, `forwarder-live`, `opentunnel-*`, `tor-live`, `ts-headscale`, `acme-interop`, `reverse-drops`; podnet's live steps of WARP and of the edge. Each moves with its crate |
 
-## 12. Versions and releases
+
+## 10. Versions and releases
 
 The consumers take the crates by a git tag (Q1).
 
@@ -432,103 +399,3 @@ The consumers take the crates by a git tag (Q1).
   publish to crates.io stays possible. podcrates publishes nothing to
   crates.io now.
 
-## 13. Rulings of the questions (2026-11-05)
-
-- **Q1. Git tag.** The consumers take the crates by a git tag of
-  podcrates (section 12). crates.io later, when the owner wants it. The
-  reasons: the forks of `pod-ts` (tailscale-rs: 40 crates, 29 patches)
-  and `pod-iroh` (iroh-relay) need a git source; no token, no publish
-  order, no rate limit; no risk under the rule of crates.io against name
-  squatting.
-- **Q2. 500 lines** for each source file (podssh's rule). podnet's longer
-  files split when they move.
-- **Q3. The freeze and the edits.** (a) From the import of a module
-  until its consumer takes the crate, the consumer changes that module
-  only for fixes, and podcrates ports each fix. (b) The consumer takes
-  each crate on the day of its release. (c) After that, a consumer
-  session can change the crate in podcrates (on `main`, under the
-  `AGENTS.md` of podcrates, with its checks green), or it opens an issue
-  in podcrates for the podcrates session.
-
-## 14. Calls made without a ruling
-
-Each call goes into `docs/decisions.md`, and the work goes on with it
-until the owner rules otherwise:
-
-- **C1.** Edition 2024; `rust-version` = the stable of the day; a
-  pinned nightly when an entry needs it (section 3, rule 2).
-- **C2.** rustfmt of podssh (`max_width = 120`, `Max`).
-- **C3.** `tracing` for the diagnostics of each crate.
-- **C4.** One version for the workspace and one tag for each release
-  (section 12).
-- **C5.** `pod-todo` keeps no external dependency. It reads the facts of
-  a repository from `TODO/todo.toml`: the milestones, the areas, the
-  categories, the top directories and the root files, the documents that
-  it reads and the ones that it does not read (podnet `READINGS`), the
-  roadmap file, the first GitHub number (now in podnet's
-  `check-github-numbers.py`), and the manifests (a virtual workspace has
-  no root package). A consumer keeps a small member crate
-  (`podnet-todo`, `podssh-todo`) whose `main` calls `pod_todo::main()`,
-  so that `cargo todo` stays the same; podssh's `interop` command stays
-  in its member crate through an extension hook. A foreign id is written
-  `PodUtils/podssh@T-684`, and the checker does not look it up; a
-  foreign file is `owner/repo:path`. Its tests run on the real `TODO/` of
-  podssh and podnet (in `adoption.yml`).
-- **C6.** The record of podcrates starts at T-001. Milestones: M0
-  (foundation), M1 to M4 (the waves), M5 (maintenance: ports, the
-  reports of the consumers).
-- **C7.** The full test matrix runs each night and before a release;
-  the static probe runs on each target on each push (section 9).
-- **C8.** `pod-wg` keeps podnet's code on ring.
-- **C9.** `pod-testkit` has russh 0.65 from crates.io, on ring, behind
-  its feature `ssh`, a dev-dependency only.
-- **C10.** One QUIC stack (quinn or noq), chosen by measurement in the
-  first entry of M2, before `pod-quic` and the `quic_road/` of
-  `pod-relay`.
-- **C11.** A C dependency is allowed when it links static on each
-  target; the static probe proves it.
-- **C12.** The forks go into `vendor/` with their patches, their
-  upstream commit and a weekly check (podssh `check-vendored.py`).
-- **C13.** snow 0.10, spake2 0.4 and crypto_secretbox 0.1 stay (podnet,
-  "Crypto crates").
-- **C14.** podnet `src/proxy.rs`, `src/config.rs` and `src/race.rs` go
-  into `pod-cloudflare`.
-- **C15.** An adoption trial for each crate and each consumer, in CI
-  (section 10, step 7).
-- **C16.** podvm: `pod-relay` (feature `blocking`) and `pod-term` build
-  for each target of podssh.
-- **C17.** podcrates adds `pod-core` (section 5) and `pod-quic` (the
-  QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both
-  names were free on crates.io on 2026-11-05. Without them, the agreed
-  crates depend on each other in loops.
-
-## 15. Owner actions
-
-| When | Action |
-| --- | --- |
-| Before the first adoption | Tell the session of podssh about the freeze of Q3 |
-| Before the trial of podvm | The repository of podvm |
-| After each release | Tell the consumer sessions to take the crates (podssh T-684, podnet T-137) |
-
-## 16. Order of M0 (after the go-ahead)
-
-1. The core documents: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `README.md`,
-   `LICENSE`, `SECURITY.md`, `docs/decisions.md` (done before the
-   go-ahead).
-2. The workspace: `Cargo.toml`, `rust-toolchain.toml`, `rustfmt.toml`,
-   `.cargo/config.toml`, `deny.toml`; `scripts/cloud-setup.sh`,
-   `fetch-zig.sh`, `retry.sh`.
-3. `pod-todo`: import, edition, adapt (C5), tests. The record:
-   `TODO/RULES.md`, `ROADMAP.md`, `todo.toml`, `PROGRESS.md` (with the
-   questions), `issues.md` and `github.txt` (from #1), and an entry for
-   each step of this plan.
-4. The checks: `scripts/agent/check.sh`, `check-size.py`,
-   `check-static.sh`, `check-sources.py`, `check-workflows.py`, the plant
-   scripts; each check with its plant.
-5. `pod-core` and `pod-testkit`; `examples/static-probe`.
-6. The workflows: `ci.yml`, `nightly.yml`, `deny.yml`, `secrets.yml`,
-   `plants.yml`, `adoption.yml`, `record-issues.yml`, `upstream.yml`,
-   `release.yml` (dry run).
-7. The first release (`pod-todo`, `pod-core`, `pod-testkit`), and the
-   first trial: `pod-todo` in podssh and podnet.
-8. Then M1.

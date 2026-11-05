@@ -1,0 +1,5 @@
+# The style of podssh: lines up to 120 characters, and short items on one
+# line. Most of the code comes from podssh.
+max_width = 120
+use_small_heuristics = "Max"
+style_edition = "2024"

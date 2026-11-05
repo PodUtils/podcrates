@@ -1,0 +1,8 @@
+# The toolchain of podcrates: the stable Rust of the day
+# (docs/decisions.md, Toolchain). A session raises it when a new stable
+# comes out, together with rust-version in Cargo.toml. A pinned nightly
+# goes here only when an entry needs it, with the gain that it measured.
+[toolchain]
+channel = "1.97"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

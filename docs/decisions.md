@@ -14,7 +14,7 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Who edits | The session of podcrates builds the crates and does not edit podssh, podnet or podvm. From the import of a module until its consumer takes the crate, the consumer changes that module only for fixes, and podcrates ports each fix. The consumer takes each crate on the day of its release. After that, a consumer session can change the crate in podcrates (on `main`, under `AGENTS.md`, with the checks green), or open an issue in podcrates. (Q3.) |
 | 2026-11-05 | Delivery | The consumers take the crates by a git tag of podcrates (`tag = "vX.Y.Z"`), not from crates.io. One version for the workspace. The forks that a crate needs are in `vendor/`. podcrates publishes nothing to crates.io now; each `pod-*` dependency keeps `path` and `version` for a later publish. (Q1.) |
 | 2026-11-05 | File size | A source file has at most 500 lines. A longer file is split at import. No allowlist. (Q2.) |
-| 2026-11-05 | The crates | The list agreed by the sessions of podssh and podnet: 26 crates in four waves, and 8 names held with no crate (`pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`). The WARP and Cloudflare adapters of podnet move here as `pod-warp` and `pod-cloudflare`; `podnet-relay` merges into `pod-relay`. `docs/plan.md`, section 6, has the list; call C17 of the plan adds `pod-core` and `pod-quic`. |
+| 2026-11-05 | The crates | The list agreed by the sessions of podssh and podnet: 26 crates in four waves, and 8 names held with no crate (`pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`). The WARP and Cloudflare adapters of podnet move here as `pod-warp` and `pod-cloudflare`; `podnet-relay` merges into `pod-relay`. `docs/design.md`, section 4, has the list; call C17 of the plan adds `pod-core` and `pod-quic`. |
 | 2026-11-05 | Static, C, Rust | "We use whatever is necessary, including C, zig, modern Rust, no backwards compat. Our users and clients do not care about building the tool, they care about downloading and using it. The only rule is: everything must be statically compiled." It supersedes the rules "no C" and "MSRV 1.89" of the agreed design. |
 | 2026-11-05 | Toolchain | Modern and stable Rust, "even nightly/bleeding edge if its necessary to maintain performance, security whatever we need". The `rust-version` is the stable of the day. A consumer moves its toolchain to match; podcrates does not hold back for the toolchain of a consumer. |
 | 2026-11-05 | Compatibility | No compatibility with released binaries for now. A name or a format of the wire (AppIDs, variables, the words of the relay contract) can change. No test against a released binary. (podssh, 2026-11-05.) |
@@ -28,8 +28,28 @@ form of the rulings that apply to each session.
 
 ## Calls made without a ruling
 
-`docs/plan.md`, section 14, lists the calls C1 to C17 of the plan. They
-move here at step M0.
+Each call stays in force until the owner rules otherwise. `docs/design.md`
+has the detail.
+
+| Date | Call | What |
+| --- | --- | --- |
+| 2026-11-05 | C1 | Edition 2024; `rust-version` = the stable of the day; a pinned nightly when an entry needs it (`docs/design.md`). |
+| 2026-11-05 | C2 | rustfmt of podssh (`max_width = 120`, `Max`). |
+| 2026-11-05 | C3 | `tracing` for the diagnostics of each crate. |
+| 2026-11-05 | C4 | One version for the workspace and one tag for each release (`docs/design.md`). |
+| 2026-11-05 | C5 | `pod-todo` keeps no external dependency. It reads the facts of a repository from `TODO/todo.toml`: the milestones, the areas, the categories, the top directories and the root files, the documents that it reads and the ones that it does not read (podnet `READINGS`), the roadmap file, the first GitHub number (now in podnet's `check-github-numbers.py`), and the manifests (a virtual workspace has no root package). A consumer keeps a small member crate (`podnet-todo`, `podssh-todo`) whose `main` calls `pod_todo::main()`, so that `cargo todo` stays the same; podssh's `interop` command stays in its member crate through an extension hook. A foreign id is written `PodUtils/podssh@T-684`, and the checker does not look it up; a foreign file is `owner/repo:path`. Its tests run on the real `TODO/` of podssh and podnet (in `adoption.yml`). |
+| 2026-11-05 | C6 | The record of podcrates starts at T-001. Milestones: M0 (foundation), M1 to M4 (the waves), M5 (maintenance: ports, the reports of the consumers). |
+| 2026-11-05 | C7 | The full test matrix runs each night and before a release; the static probe runs on each target on each push (`docs/design.md`). |
+| 2026-11-05 | C8 | `pod-wg` keeps podnet's code on ring. |
+| 2026-11-05 | C9 | `pod-testkit` has russh 0.65 from crates.io, on ring, behind its feature `ssh`, a dev-dependency only. |
+| 2026-11-05 | C10 | One QUIC stack (quinn or noq), chosen by measurement in the first entry of M2, before `pod-quic` and the `quic_road/` of `pod-relay`. |
+| 2026-11-05 | C11 | A C dependency is allowed when it links static on each target; the static probe proves it. |
+| 2026-11-05 | C12 | The forks go into `vendor/` with their patches, their upstream commit and a weekly check (podssh `check-vendored.py`). |
+| 2026-11-05 | C13 | snow 0.10, spake2 0.4 and crypto_secretbox 0.1 stay (podnet, "Crypto crates"). |
+| 2026-11-05 | C14 | podnet `src/proxy.rs`, `src/config.rs` and `src/race.rs` go into `pod-cloudflare`. |
+| 2026-11-05 | C15 | An adoption trial for each crate and each consumer, in CI (`docs/design.md`). |
+| 2026-11-05 | C16 | podvm: `pod-relay` (feature `blocking`) and `pod-term` build for each target of podssh. |
+| 2026-11-05 | C17 | podcrates adds `pod-core` (`docs/design.md`) and `pod-quic` (the QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both names were free on crates.io on 2026-11-05. Without them, the agreed crates depend on each other in loops. |
 
 ## Questions for the owner
 

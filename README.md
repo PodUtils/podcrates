@@ -10,14 +10,15 @@ into a static binary on each target of the consumers.
 
 ## State
 
-The plan is in [docs/plan.md](docs/plan.md). No crate exists now. The
-work starts when the owner gives the go-ahead.
+The work is in the record [TODO/](TODO/PROGRESS.md) (milestone M0, the
+foundation, runs now). `pod-todo`, the checker of the record, exists. The
+first release follows M0.
 
 ## The crates
 
 | Wave | Crates |
 | --- | --- |
-| 0 | `pod-todo`, `pod-core`, `pod-testkit` |
+| 0 | `pod-todo` (exists), `pod-core`, `pod-testkit` |
 | 1 | `pod-identity`, `pod-term`, `pod-tls`, `pod-proxy`, `pod-dns`, `pod-ws` |
 | 2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
 | 3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
@@ -28,7 +29,9 @@ work starts when the owner gives the go-ahead.
 | Document | What |
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | the rules for each session |
-| [docs/plan.md](docs/plan.md) | the plan: the crates, their sources, the rules, the order |
+| [docs/design.md](docs/design.md) | the rules of each crate, the crates and their sources, the traits, the targets, the procedure for one crate |
+| [TODO/PROGRESS.md](TODO/PROGRESS.md) | the state, the work order and the questions for the owner |
+| [docs/maintenance.md](docs/maintenance.md), [docs/development.md](docs/development.md) | the procedures, the tools, the rules of the code and the tests |
 | [docs/decisions.md](docs/decisions.md) | the rulings of the owner, the calls and the questions |
 | [SECURITY.md](SECURITY.md) | how to report a vulnerability |
 

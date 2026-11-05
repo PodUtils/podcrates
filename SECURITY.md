@@ -21,7 +21,7 @@ Only the latest version of each crate and `main` get fixes.
 
 ## Dependencies
 
-* `.github/workflows/deny.yml` (step M0 of `docs/plan.md`) runs
+* The workflow `deny.yml` (T-007) runs
   `cargo deny` on each push and each day: advisories, licenses, bans and
   sources (`deny.toml`).
 * An advisory stops CI. Update the crate, or replace it. If no fixed
