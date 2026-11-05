@@ -1,0 +1,8 @@
+# The race of addresses ends with the first source when none of its
+# addresses connects, though the source says that more may follow; the
+# test of the next source must fail.
+ENTRY=T-013
+GROUP=proxy
+EXPECT='test a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test dial_race -- a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next'
+LIMIT=1800

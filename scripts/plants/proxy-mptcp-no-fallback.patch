@@ -1,0 +1,16 @@
+diff --git a/crates/pod-proxy/src/mptcp.rs b/crates/pod-proxy/src/mptcp.rs
+index b53b61c..fb6d6eb 100644
+--- a/crates/pod-proxy/src/mptcp.rs
++++ b/crates/pod-proxy/src/mptcp.rs
+@@ -88,10 +88,7 @@ pub async fn connect_with(
+         // sandbox's seccomp, that refuses the protocol. Any other error of
+         // the call goes the same way: a plain socket gives it again when its
+         // cause is not MPTCP (no descriptor left, say).
+-        Err(e) => {
+-            let stream = TcpStream::connect(addr).await?;
+-            Ok((stream, Multipath::Plain(format!("the kernel refused a socket of Multipath TCP: {e}"))))
+-        }
++        Err(e) => Err(e),
+     }
+ }
+ 

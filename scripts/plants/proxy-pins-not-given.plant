@@ -1,0 +1,8 @@
+# The dialer gives no pins to the choice of the environment's proxy, so a
+# name pinned to loopback goes through the proxy, whose loopback is not
+# this host's; the test of the pinned names must fail.
+ENTRY=T-013
+GROUP=proxy
+EXPECT='test a_name_pinned_to_loopback_alone_goes_with_no_proxy \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test dial_pinned'
+LIMIT=1800

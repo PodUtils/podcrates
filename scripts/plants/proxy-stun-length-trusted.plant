@@ -1,0 +1,8 @@
+# STUN's codec trusts an attribute's length and cuts it at the end of the
+# message, so an attribute that runs past the message reads as one; the
+# test of what is no message must fail.
+ENTRY=T-013
+GROUP=proxy
+EXPECT='test stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib -- stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read'
+LIMIT=1800

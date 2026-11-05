@@ -1,0 +1,7 @@
+# A refused socket of Multipath TCP returns the error instead of falling
+# back to plain TCP; the test of the planted refusal must fail.
+ENTRY=T-013
+GROUP=proxy
+EXPECT='test a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test mptcp -- a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes'
+LIMIT=1800
