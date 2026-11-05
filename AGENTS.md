@@ -32,7 +32,11 @@ everything must be statically compiled." (the owner, 2026-11-05)
 
 * Each crate must link into a static binary on each target of the
   consumers (`docs/plan.md`, sections 3 and 7). CI proves it.
-* C, zig and the newest stable Rust are allowed. Edition 2024.
+* C, zig and the newest stable Rust are allowed. Edition 2024. The
+  owner, later the same day: modern and stable Rust, "even
+  nightly/bleeding edge if its necessary to maintain performance,
+  security whatever we need". The consumers move their toolchains to
+  match podcrates; podcrates does not hold back for a consumer.
 * A public API, a name or a format of the wire can change in any
   version. No compatibility with released binaries is necessary.
 

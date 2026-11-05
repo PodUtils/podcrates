@@ -17,9 +17,10 @@ work starts when the owner gives the go-ahead.
 
 | Wave | Crates |
 | --- | --- |
-| 1 | `pod-todo`, `pod-testkit`, `pod-identity`, `pod-term`, `pod-proxy`, `pod-tls`, `pod-dns`, `pod-ws` |
-| 2 | `pod-session`, `pod-e2e`, `pod-netstack`, `pod-wg`, `pod-relay` |
-| 3 | `pod-wormhole`, `pod-transit`, `pod-warp`, `pod-cloudflare` |
+| 0 | `pod-todo`, `pod-core`, `pod-testkit` |
+| 1 | `pod-identity`, `pod-term`, `pod-tls`, `pod-proxy`, `pod-dns`, `pod-ws` |
+| 2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
+| 3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
 | 4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts` |
 
 ## Documents

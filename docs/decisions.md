@@ -12,8 +12,9 @@ form of the rulings that apply to each session.
 | --- | --- | --- |
 | 2026-11-05 | Repository | `PodUtils/podcrates` holds the crates that the PodUtils projects share (prefix `pod-`). podssh, podnet and podvm (formerly podbox) take their shared code from it. The code of podssh comes to podnet through these crates, not as copies. (Rulings "Shared crates" of podnet and Q101 of podssh.) |
 | 2026-11-05 | Who edits | One session in `PodUtils/podcrates` builds the crates. The sessions of podssh and podnet do not edit podcrates; the session of podcrates does not edit podssh, podnet or podvm. |
-| 2026-11-05 | The crates | The list agreed by the sessions of podssh and podnet: 26 crates in four waves, and 8 names held with no crate (`pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`). The WARP and Cloudflare adapters of podnet move here as `pod-warp` and `pod-cloudflare`; `podnet-relay` merges into `pod-relay`. `docs/plan.md`, section 5, has the list. |
+| 2026-11-05 | The crates | The list agreed by the sessions of podssh and podnet: 26 crates in four waves, and 8 names held with no crate (`pod-wireguard`, `pod-quick`, `pod-udp`, `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`). The WARP and Cloudflare adapters of podnet move here as `pod-warp` and `pod-cloudflare`; `podnet-relay` merges into `pod-relay`. `docs/plan.md`, section 6, has the list; call C17 of the plan adds `pod-core` and `pod-quic`. |
 | 2026-11-05 | Static, C, Rust | "We use whatever is necessary, including C, zig, modern Rust, no backwards compat. Our users and clients do not care about building the tool, they care about downloading and using it. The only rule is: everything must be statically compiled." It supersedes the rules "no C" and "MSRV 1.89" of the agreed design. |
+| 2026-11-05 | Toolchain | Modern and stable Rust, "even nightly/bleeding edge if its necessary to maintain performance, security whatever we need". The `rust-version` is the stable of the day. A consumer moves its toolchain to match; podcrates does not hold back for the toolchain of a consumer. |
 | 2026-11-05 | Compatibility | No compatibility with released binaries for now. A name or a format of the wire (AppIDs, variables, the words of the relay contract) can change. No test against a released binary. (podssh, 2026-11-05.) |
 | 2026-11-05 | Capabilities | No feature or capability of the source code may be lost. Compatibility for users is not required. (podnet, "Regressions".) |
 | 2026-11-05 | License | 0BSD. Code from podssh, podnet (cfrs), `talaria0101/cfrs` and `nemo-010/cfrs` is 0BSD and needs no credit. |
@@ -25,13 +26,15 @@ form of the rulings that apply to each session.
 
 ## Calls made without a ruling
 
-`docs/plan.md`, section 13, lists the calls C1 to C15 of the plan. They
+`docs/plan.md`, section 14, lists the calls C1 to C17 of the plan. They
 move here at step M0.
 
 ## Questions for the owner
 
-`docs/plan.md`, section 12: Q1 (git tag or crates.io) and Q2 (500 or 800
-lines for each source file). Both block step M0.
+`docs/plan.md`, section 13: Q1 (git tag or crates.io) and Q2 (500 or 800
+lines for each source file) block step M0; Q3 (who changes a crate after
+its adoption, and the freeze of a module from its import to its
+adoption) blocks the first adoption.
 
 ## Superseded
 
