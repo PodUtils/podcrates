@@ -1,0 +1,6 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo PodUtils/podnet b7682c5d62da73c772749088e52770a4390e9583
+file 7809394bc0037adbb38e500fc07cfd24a8d9717a tests/test_host/mod.rs -> crates/pod-testkit/src/host.rs

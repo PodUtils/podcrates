@@ -1,0 +1,13 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo Azathothas/podssh d4e186d0bf930e2e7c917aeeb45b4faba2c45e4f
+file fdd54ef6a0a569fc48770895534858e106bc504c crates/podssh-relay/src/open.rs -> crates/pod-core/src/backoff.rs
+file 1b1cf086411b13ac47d46ab31f52701d787c3ef1 crates/podssh-ws/src/clock.rs -> crates/pod-core/src/clock.rs
+file 5db08596d7c4630eaf8f9e013e27960746932626 crates/podssh-ws/src/names.rs -> crates/pod-core/src/names.rs
+file 860d37176b0f904c6037e9cc65f43b762497968a crates/podssh-ws/src/text.rs -> crates/pod-core/src/text.rs
+
+repo PodUtils/podnet b7682c5d62da73c772749088e52770a4390e9583
+file f541787a7844508011cef46bbc4ad7cb134a1fc7 src/edge_h2.rs -> crates/pod-core/src/metered.rs
+file 394132cfc12e1106bedd7b5e857fbd9695d7e48f src/warp/register.rs -> crates/pod-core/src/clock.rs

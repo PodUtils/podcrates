@@ -2,7 +2,7 @@
 //! name of a reverse pair. Each one is checked, never encoded: a `/`, `?`,
 //! `#`, `..`, a space or a line break would change the request (another path,
 //! a query string, a fragment, a broken request line), and a percent-encoded
-//! `/` hides a different path. One definition, for `podssh-relay`, which
+//! `/` hides a different path. One definition, for `pod-relay`, which
 //! builds the relay paths.
 
 /// A host name or IPv4 literal: letters, digits, `.`, `-` and `_`, not
@@ -18,8 +18,8 @@ pub fn check_host(host: &str) -> Result<(), String> {
         return Err(format!("{host:?} is not a host name"));
     }
     if let Some(bad) = host.chars().find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))) {
-        // A proxy and the relay take a name in ASCII, and podssh has no
-        // IDNA of its own: the name's ASCII form is the remedy (T-503).
+        // A proxy and the relay take a name in ASCII, and the crates have no
+        // IDNA of its own: the name's ASCII form is the remedy.
         if !bad.is_ascii() {
             return Err(format!(
                 "{host:?} is not a host name ({bad:?} is not allowed: give the name in its ASCII form, whose \
@@ -48,7 +48,7 @@ pub fn check_target(host: &str) -> Result<(), String> {
 /// an interface's name is 15 bytes on Linux, its index a few digits.
 const MOST_ZONE: usize = 64;
 
-/// A host that this host dials itself, or an SSH server for it (T-503):
+/// A host that this host dials itself, or an SSH server for it:
 /// what [`check_target`] accepts, or an IPv6 literal with a zone
 /// (`fe80::1%eth0`, `fe80::1%12`), whose interface only a dial from that
 /// host can name. The zone is letters, digits, `.`, `-` and `_`.
@@ -67,7 +67,7 @@ pub fn check_direct_target(host: &str) -> Result<(), String> {
 /// The name of a reverse pair, in `/v1/node/<name>` and `/v1/connect/<name>`:
 /// 1 to 128 bytes of letters, digits, `.`, `-` and `_`, not starting with
 /// `-` or `.` (so never `.` or `..`). The contract gives no form for a pair
-/// name; this is podvm's rule, which works against the live relay.
+/// name, which works against the live relay.
 pub fn check_node_name(name: &str) -> Result<(), String> {
     if name.is_empty() {
         return Err("the pair name is empty".into());
@@ -88,7 +88,7 @@ pub fn check_node_name(name: &str) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    /// One rule on each road (T-503): the relay's names, and on the direct
+    /// One rule on each road: the relay's names, and on the direct
     /// road also the zone of an IPv6 literal; each other character, a blank
     /// and a control character are refused, and a name beyond ASCII is told
     /// its ASCII form.

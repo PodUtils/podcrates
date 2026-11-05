@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 40 entries: 36 open, 0 partial, 1 blocked, 3 done.
+`TODO/INDEX.md` holds 40 entries: 33 open, 1 partial, 1 blocked, 5 done.
 
 ## State
 
@@ -18,7 +18,7 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M0, the foundation:** T-005, T-006, T-004, T-007, T-008, then
+1. **M0, the foundation:** T-006, T-007, T-008, then
    the first release T-009.
 2. **M1, the transport:** T-011, T-010, T-012, T-013, T-014, T-015, T-016;
    T-017 after T-013.

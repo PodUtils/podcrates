@@ -225,10 +225,14 @@ def record(args) -> int:
     b.skips = [s.rstrip("/") for s in args.skip]
     lines = [f"repo {args.repo} {args.commit}"]
     files = {}
+    dirs = 0
     for d in args.dirs:
         d = d.rstrip("/")
-        lines.append(f"dir {d}")
-        files.update(clone.tree(d, args.commit))
+        found = clone.tree(d, args.commit)
+        if list(found) != [d]:
+            lines.append(f"dir {d}")
+            dirs += 1
+        files.update(found)
     lines += [f"skip {s}" for s in b.skips]
     for rel, blob in sorted(files.items()):
         if skipped(b, rel):
@@ -245,7 +249,7 @@ def record(args) -> int:
             "# with the main branch of its repository.\n")
     old = out.read_text(encoding="utf-8") if out.exists() else head
     out.write_text(old.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n", encoding="utf-8")
-    print(f"check-sources: {out.relative_to(ROOT)}: {len(lines) - len(args.dirs) - len(b.skips) - 1} files")
+    print(f"check-sources: {out.relative_to(ROOT)}: {len(lines) - dirs - len(b.skips) - 1} files")
     return 0
 
 

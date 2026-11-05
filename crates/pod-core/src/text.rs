@@ -2,7 +2,7 @@
 //!
 //! A relay's error body, a WebSocket close reason, a proxy's status line or an
 //! SSH banner can carry ESC, BEL or a bare CR, which repaint the line, ring the
-//! bell or overwrite what the user is reading. Everything podssh prints from a
+//! bell or overwrite what the user is reading. Everything a crate shows from a
 //! peer goes through one of these two functions, so there is one definition of
 //! "safe" (a sibling project ended up with two that disagreed).
 

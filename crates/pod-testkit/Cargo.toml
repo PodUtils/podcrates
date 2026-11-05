@@ -1,0 +1,11 @@
+[package]
+name = "pod-testkit"
+description = "The test kit of podcrates: the guards of a test host and the stand-ins of the services that the tests need."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]

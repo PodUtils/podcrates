@@ -1,0 +1,17 @@
+[package]
+name = "pod-core"
+description = "The bottom crate of podcrates: the dial, resolve and datagram traits, the typed failure, the events and the observer, and the small helpers that each crate shares."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync"] }
+rand = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros", "test-util"] }

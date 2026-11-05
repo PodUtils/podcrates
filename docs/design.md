@@ -124,18 +124,25 @@ takes `exit`, `hop`, `decisions` and `fetch` of the core of podnet.
 Thus podcrates adds `pod-core` (C17). It has no pod dependency, and it
 holds:
 
-* the traits `Dial`, `Resolve`, `Datagrams` (section 6);
-* the stream type (`BoxedIo`), the shared error types (`ConnectError`,
-  `Cut`, `Missed`), the stage and the class of a failure, `Event`,
-  `Observer`;
-* `Metered` (a stream that counts bytes), `RelayBudget`, `backoff`,
-  `CONNECT_TIMEOUT`, the time helpers (`utc_minutes`), `clock`;
-* `text` (bounded display of untrusted text), `names` (name checks),
-  `wire`;
+* the traits `Dial`, `Resolve`, `Datagrams` (section 6), the `Target`,
+  the stream type (`BoxedIo`);
+* the `Failure` with its `Stage` and its `Class`, the `Event`s and the
+  `Observer` of a `Report`;
+* `Metered` (a stream that counts bytes), `backoff` and
+  `CONNECT_TIMEOUT`, `clock` (with `utc_minutes`), `text` (untrusted text
+  made safe to print), `names` (name checks).
+
+`pod-core` grows with the crate that needs a part first:
+
+* the shared error types of a dial (podssh-ws `ConnectError`, `Cut`,
+  `Missed`), with `pod-tls` and `pod-proxy`;
 * the private files and the cache directories (podssh `cache.rs` and
   `cache/`: a capped read, a 0600 write, refuse a file that others can
   read, `read_dirs`, `store_file_in_first`, `safe_name`), with the
-  directory given by the caller.
+  directory given by the caller, with `pod-identity`;
+* `RelayBudget`, with `pod-netstack` and `pod-relay`.
+
+podssh-ws `wire.rs` writes and reads WebSocket frames: it goes to `pod-ws`.
 
 
 ## 4. The crates
@@ -163,7 +170,7 @@ with its tests (section 8, step 5).
 | `pod-tls` | podssh-ws `crypto/` (feature `pure`), `tls.rs`, `tls/`, `stores/`, `tls_server.rs`, `tls_server/`, `tls_wrap.rs`, `bundle.rs`, `ech/` (feature `ech`; the HTTPS record through `Resolve`); podssh-relay `tls_groups.rs`; podnet `src/trust.rs` (roots, pins, `SSL_CERT_FILE` as a setting; the edge roots of Cloudflare come from `pod-cloudflare` as extra roots; no `init_crypto`), `src/tls_fragment.rs` | 6,300 | pod-core |
 | `pod-proxy` | podssh-ws `dial.rs`, `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs` (the race of addresses), `cut.rs`, `lowat.rs`, `write_limit.rs`, `stun.rs`, `http.rs` and `http/` (the HTTP/1.1 heads), the GET client of `client.rs` (`https_get_accepting`); podnet `src/egress.rs`, `src/proxy_auth.rs` (Digest), `src/fetch.rs` (the HTTP client under DoH, the mint of the relay and the API of the quick tunnels). Dial, race and SOCKS take `&dyn Resolve`; the bypass of a pinned loopback moves to the caller | 5,500 | pod-core, pod-tls |
 | `pod-dns` | podssh-ws `resolve.rs`, `resolve/` (RFC 8484 wire over HTTP/2, HTTPS and SVCB records); podnet `src/resolve.rs` (DoH JSON, pins, the query by name through a proxy). Both DoH forms stay | 2,800 | pod-core, pod-tls, pod-proxy |
-| `pod-ws` | podssh-ws `client.rs`, `frame.rs`, `handshake.rs`, `session.rs`, `url.rs`, `close.rs`, `error.rs`, `plain.rs`, `server.rs` (the WebTunnel hook as a trait), `h2_road/`, `cleartext/`, `wake.rs`; podnet `src/ws.rs` (`bridge`, `dial`, `connect_bridge`, `accept_key`, the close codes, `close_hint`; podnet edges 8 and 18). The limits are settings (podssh: 16 MiB a message; podnet now: the defaults of tokio-tungstenite) | 4,700 | pod-core, pod-tls, pod-proxy, pod-dns |
+| `pod-ws` | podssh-ws `client.rs`, `frame.rs`, `handshake.rs`, `session.rs`, `wire.rs`, `url.rs`, `close.rs`, `error.rs`, `plain.rs`, `server.rs` (the WebTunnel hook as a trait), `h2_road/`, `cleartext/`, `wake.rs`; podnet `src/ws.rs` (`bridge`, `dial`, `connect_bridge`, `accept_key`, the close codes, `close_hint`; podnet edges 8 and 18). The limits are settings (podssh: 16 MiB a message; podnet now: the defaults of tokio-tungstenite) | 4,700 | pod-core, pod-tls, pod-proxy, pod-dns |
 
 ### M2: wave 2, the relay
 
@@ -208,7 +215,7 @@ Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 What stays in the consumers: podnet `src/transport/websocket.rs` (a
 service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,
 `instances` and `detach` (they implement the traits of `pod-core` or
-give the settings). podssh-ws `wire.rs` goes to `pod-core`.
+give the settings). podssh-ws `wire.rs` goes to `pod-ws`.
 
 
 ## 5. Churn and order

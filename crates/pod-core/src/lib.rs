@@ -1,0 +1,28 @@
+//! The bottom crate of podcrates. Each crate of the workspace shares these
+//! parts, and no part here depends on another pod crate:
+//!
+//! * [`dial`]: the [`Target`], the [`Dial`] and [`Resolve`] traits and the
+//!   boxed stream ([`BoxedIo`]);
+//! * [`datagrams`]: the [`Datagrams`] trait, in the shape of the UDP socket
+//!   of quinn and noq, and the system socket;
+//! * [`failure`]: a [`Failure`] with its [`Stage`] and its [`Class`];
+//! * [`event`]: [`Event`]s for the user and an [`Observer`] of decisions, in
+//!   place of output of a crate's own;
+//! * [`metered`], [`backoff`], [`clock`], [`text`], [`names`]: the small
+//!   helpers.
+
+pub mod backoff;
+pub mod clock;
+pub mod datagrams;
+pub mod dial;
+pub mod event;
+pub mod failure;
+pub mod metered;
+pub mod names;
+pub mod text;
+
+pub use datagrams::{Datagrams, RecvMeta, SystemDatagrams, Transmit};
+pub use dial::{BoxFuture, BoxedIo, Connected, Dial, Found, Io, Resolve, Source, Target};
+pub use event::{Event, Events, Level, NoEvents, NoObserver, Observer, Report};
+pub use failure::{Class, Failure, Stage};
+pub use metered::Metered;

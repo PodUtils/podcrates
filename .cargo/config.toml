@@ -11,3 +11,11 @@ todo = "run -q -p pod-todo --"
 # config of a dependency: each consumer of pod-netstack sets this line too.
 [env]
 SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
+
+# The C runtime goes into each Windows binary: the only rule of the owner
+# is a statically compiled binary (docs/decisions.md).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

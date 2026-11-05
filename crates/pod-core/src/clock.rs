@@ -1,8 +1,8 @@
-//! This host's clock, in the words of a TLS failure (T-345). A certificate
+//! This host's clock, in the words of a TLS failure. A certificate
 //! that is expired, or not valid yet, at each host usually means that this
 //! host's clock is wrong: certificates are checked against it, so the hint
-//! gives its reading. And HTTP's dates both ways, so that each crate reads
-//! and writes them with one calendar.
+//! gives its reading. And HTTP's dates both ways, and a time to the minute
+//! for a person, so that each crate reads and writes them with one calendar.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -33,7 +33,7 @@ pub fn http_date(secs: i64) -> String {
 }
 
 /// Seconds since the Unix epoch for an IMF-fixdate, or `None` for anything
-/// else: the obsolete forms are sent by none of the servers that podssh
+/// else: the obsolete forms are sent by none of the servers that a crate
 /// reads a date of (the relay's `Date`, an API's `Retry-After`).
 pub fn parse_http_date(text: &str) -> Option<i64> {
     let parts: Vec<&str> = text.split_whitespace().collect();
@@ -77,6 +77,15 @@ pub fn civil_from_days(z: i64) -> (i64, i64, i64) {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     (yoe + era * 400 + i64::from(m <= 2), m, d)
+}
+
+/// A UTC time to the minute for a person, `2026-11-05 09:30 UTC`, for
+/// seconds since the Unix epoch (the expiry of a token or of a pair).
+pub fn utc_minutes(secs: u64) -> String {
+    let secs = secs as i64;
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
+    let rest = secs.rem_euclid(86_400);
+    format!("{y:04}-{m:02}-{d:02} {:02}:{:02} UTC", rest / 3600, rest % 3600 / 60)
 }
 
 #[cfg(test)]
@@ -139,5 +148,12 @@ mod tests {
             said,
             "certificates are checked against this host's clock, which reads Thu, 08 Oct 2026 06:29:49 GMT"
         );
+    }
+
+    #[test]
+    fn a_time_to_the_minute_is_in_utc() {
+        assert_eq!(utc_minutes(0), "1970-01-01 00:00 UTC");
+        assert_eq!(utc_minutes(1_793_871_059), "2026-11-05 09:30 UTC");
+        assert_eq!(utc_minutes(951_782_400), "2000-02-29 00:00 UTC");
     }
 }

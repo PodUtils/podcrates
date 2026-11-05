@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "examples/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,6 +13,11 @@ repository = "https://github.com/PodUtils/podcrates"
 homepage = "https://github.com/PodUtils/podcrates"
 
 [workspace.dependencies]
+pod-core = { path = "crates/pod-core", version = "0.1.0" }
+pod-testkit = { path = "crates/pod-testkit", version = "0.1.0" }
+tokio = { version = "1.53.3", default-features = false }
+rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 # Debug builds keep line tables for the crates of the workspace and no
 # debug info for dependencies: test binaries link with less memory and

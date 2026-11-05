@@ -169,7 +169,7 @@ rule is: everything must be statically compiled".
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -204,6 +204,19 @@ sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 
 T-005 is done.
 
+## Done
+
+2026-11-05, commit of this entry. `examples/static-probe` links
+`pod-core` (each new crate adds itself there). `scripts/check-static.sh`
+reads ELF (readelf), Mach-O (otool, with the libraries of the system) and
+PE (objdump or dumpbin, with the DLLs of the C runtime refused);
+`.cargo/config.toml` links the C runtime into each Windows binary. The
+probe for `x86_64-unknown-linux-musl` from cargo-zigbuild (zig 0.16.0):
+`static: target/x86_64-unknown-linux-musl/release/static-probe (389824
+bytes)`. The plant `static-dynamic` (the probe for the glibc target of the
+host) is caught: `dynamic dependencies: libgcc_s.so.1, libc.so.6`. The
+build on each target in CI is the work of T-007.
+
 # T-005: `pod-core`: the traits, the errors, the events and the helpers that each crate shares
 
 **Source:** `docs/design.md`, sections 3 and 6; `docs/decisions.md`, call
@@ -212,7 +225,7 @@ C17.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -252,6 +265,19 @@ sh scripts/agent/check.sh
 
 T-001 is done.
 
+## Done
+
+2026-11-05, commit of this entry. `crates/pod-core`: `dial` (`Target`,
+`Dial`, `Resolve` with its sources, `Connected`, `BoxedIo`), `datagrams`
+(`Datagrams` in the shape of the UDP socket of quinn and noq,
+`SystemDatagrams`), `failure` (`Failure`, `Stage`, `Class`), `event`
+(`Event`, `Events`, `Observer`, `Report`), `metered`, `backoff`, and the
+imported `clock` (with `utc_minutes`), `text`, `names`.
+`cargo test -p pod-core`: 24 unit tests and 4 tests of the traits with
+loopback implementations pass. The design now says which parts come with
+which later crate (`docs/design.md`, section 3), and that `wire.rs` goes
+to `pod-ws`.
+
 # T-006: `pod-testkit`: the guards of the host and the SSH test server
 
 **Source:** `docs/design.md`, section 4 (M0); `docs/decisions.md`, call C9.
@@ -259,7 +285,7 @@ T-001 is done.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -289,6 +315,13 @@ cargo test -p pod-testkit --all-features
 ## Start condition
 
 T-001 is done.
+
+## Done
+
+2026-11-05, partial: the guards. `crates/pod-testkit` has
+`need_loopback!` and `need_localhost!` (exported macros) and the probes
+of `host`; `cargo test -p pod-testkit`: 3 passed. The SSH test server
+(the feature `ssh`) is the rest of this entry.
 
 # T-007: The workflows of podcrates
 

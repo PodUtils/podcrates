@@ -1,0 +1,13 @@
+[package]
+name = "static-probe"
+description = "A binary that links each crate of podcrates with each feature, so that CI can check that it is static on each target."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Each crate of the workspace, with each feature (docs/design.md, section 7).
+[dependencies]
+pod-core = { workspace = true }

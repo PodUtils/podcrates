@@ -1,0 +1,7 @@
+# The probe built for the target of the host (glibc): a dynamic binary.
+ENTRY=T-004
+GROUP=static
+EXPECT='dynamic dependencies'
+RUN='cargo build -q --release -p static-probe && sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/release/static-probe"'
+LIMIT=1200
+SWITCH=1
