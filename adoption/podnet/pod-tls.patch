@@ -1,7 +1,16 @@
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index a960426..a050c7f 100644
+index a960426..8e0b746 100644
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
+@@ -26,7 +26,7 @@ permissions:
+ 
+ env:
+   # The toolchain of each job but msrv. Change it here only.
+-  RUST_TOOLCHAIN: "1.97.0"
++  RUST_TOOLCHAIN: "1.99.1"
+   CARGO_TERM_COLOR: never
+ 
+ jobs:
 @@ -108,9 +108,9 @@ jobs:
            grep -m1 PermissionDenied "$RUNNER_TEMP/plant.log" || { cat "$RUNNER_TEMP/plant.log"; echo "the plant failed for another cause"; exit 1; }
            git checkout -- src/ports.rs
@@ -35,8 +44,61 @@ index a960426..a050c7f 100644
  
    static:
      runs-on: ubuntu-24.04
+diff --git a/.github/workflows/fuzz.yml b/.github/workflows/fuzz.yml
+index 1cbc726..013ab9c 100644
+--- a/.github/workflows/fuzz.yml
++++ b/.github/workflows/fuzz.yml
+@@ -26,7 +26,7 @@ permissions:
+ env:
+   NIGHTLY: nightly-2026-10-15
+   CARGO_FUZZ: "0.13.1"
+-  STABLE: "1.97.0"
++  STABLE: "1.99.1"
+   CARGO_TERM_COLOR: never
+ 
+ jobs:
+diff --git a/.github/workflows/live.yml b/.github/workflows/live.yml
+index 5ed1c09..9c04740 100644
+--- a/.github/workflows/live.yml
++++ b/.github/workflows/live.yml
+@@ -36,7 +36,7 @@ concurrency:
+   cancel-in-progress: false
+ 
+ env:
+-  RUST_TOOLCHAIN: "1.97.0"
++  RUST_TOOLCHAIN: "1.99.1"
+   CARGO_TERM_COLOR: never
+   RUST_LOG: podnet=info
+ 
+diff --git a/.github/workflows/publish.yml b/.github/workflows/publish.yml
+index f6c0726..20c237e 100644
+--- a/.github/workflows/publish.yml
++++ b/.github/workflows/publish.yml
+@@ -30,7 +30,7 @@ permissions: {}
+ env:
+   CARGO_TERM_COLOR: never
+   # The toolchain of ci.yml.
+-  RUST_TOOLCHAIN: "1.97.0"
++  RUST_TOOLCHAIN: "1.99.1"
+ 
+ jobs:
+   dry-run:
+diff --git a/.github/workflows/upstream.yml b/.github/workflows/upstream.yml
+index fd671e1..8fb17cc 100644
+--- a/.github/workflows/upstream.yml
++++ b/.github/workflows/upstream.yml
+@@ -37,7 +37,7 @@ jobs:
+           grep -q 'tunnelrpc.capnp' plant.log
+       - name: Toolchain
+         run: |
+-          sh scripts/retry.sh rustup toolchain install 1.97.0 --profile minimal
+-          rustup default 1.97.0
++          sh scripts/retry.sh rustup toolchain install 1.99.1 --profile minimal
++          rustup default 1.99.1
+       - name: The header encoding against the Go code of cloudflared
+         run: sh tools/check-header-oracle.sh
 diff --git a/Cargo.toml b/Cargo.toml
-index aa4814e..2aa061a 100644
+index aa4814e..87bd700 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -2,7 +2,7 @@
@@ -44,7 +106,7 @@ index aa4814e..2aa061a 100644
  version.workspace = true
  edition = "2021"
 -rust-version = "1.89"
-+rust-version = "1.97"
++rust-version = "1.99"
  license = "0BSD"
  build = "build.rs"
  description = "podnet: bring your own network to restricted hosts. Tunnels, WARP, relays, pods, virtual networks, file serving and transfer, from one static binary."
@@ -61,7 +123,7 @@ index aa4814e..2aa061a 100644
  axum = { version = "0.8", features = ["multipart"] }
  base64 = "0.23"
 diff --git a/README.md b/README.md
-index 73550ee..7519cfa 100644
+index 73550ee..74af7a5 100644
 --- a/README.md
 +++ b/README.md
 @@ -1298,7 +1298,7 @@ cargo build --release
@@ -69,12 +131,12 @@ index 73550ee..7519cfa 100644
  
  The binary is `target/release/podnet`. Rust
 -1.89 or newer is necessary.
-+1.97 or newer is necessary.
++1.99 or newer is necessary.
  
  A static binary has no run-time dependency on the C library of the host:
  
 diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
-index f474c15..f878e12 100644
+index f474c15..0395aa4 100644
 --- a/crates/podnet-netns/Cargo.toml
 +++ b/crates/podnet-netns/Cargo.toml
 @@ -3,7 +3,7 @@ name = "podnet-netns"
@@ -82,10 +144,29 @@ index f474c15..f878e12 100644
  build = "build.rs"
  edition = "2021"
 -rust-version = "1.89"
-+rust-version = "1.97"
++rust-version = "1.99"
  license = "0BSD"
  description = "Run a program with all its network traffic sent through a SOCKS5, HTTP or tailnet upstream, with no LD_PRELOAD. The library of `podnet pod`."
  repository = "https://github.com/PodUtils/podnet"
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index 49f2a1d..fb3c15d 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -3,11 +3,10 @@ name = "podnet-todo"
+ description = "The checker of the work record in TODO/: pod-todo of PodUtils/podcrates with the facts of podnet (TODO/todo.toml)."
+ version = "0.0.0"
+ edition = "2021"
+-# pod-todo of PodUtils/podcrates needs Rust 1.97. The tool ships in no
+-# release: the rust-version of podnet (the root) does not follow it.
+-rust-version = "1.97"
++# pod-todo of PodUtils/podcrates needs Rust 1.99, as the root does.
++rust-version = "1.99"
+ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.1.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.2.0" }
 diff --git a/scripts/size-allow.txt b/scripts/size-allow.txt
 index f86025b..3739714 100644
 --- a/scripts/size-allow.txt
