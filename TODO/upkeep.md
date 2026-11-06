@@ -90,7 +90,7 @@ at podvm `b917f97` or later: podvm splits its files to 500 lines
 (PodUtils/podvm@T-1674), and the files of M6 are split already.
 
 2026-11-06, partial. The trial of `pod-proxy` (feature `blocking`) at
-podvm `f9eae80` (`adoption/podvm/pod-proxy.patch`, 6 files, 277 lines in,
+podvm `f9eae80` (the patch of the trial of `pod-proxy` (`27f8688`), 6 files, 277 lines in,
 3 out). `podvm-ssh` takes `pod-proxy` at `v0.4.0`. `transport::Dialer`
 gets `from_environment` and `with_environment`: when a proxy variable is
 set, `transport/egress.rs` makes a `blocking::Dialer` with
@@ -118,3 +118,9 @@ the system resolver that its timeout left behind (`Runtime` drop waits for
 `spawn_blocking`); a `blocking::Stream::Exec` has no read limit. Left: the
 take of this patch by podvm, the registry client, then the other crates of
 the order of PodUtils/podvm#194.
+
+podvm took `pod-proxy` (feature `blocking`) for the relay legs in podvm
+`b1138c2` (PodUtils/podvm#205): each line of the `.run` passed there,
+`mux_two_client` too; podvm accepts the size, the refusal of an unusable
+variable and of a proxy at a command (its call C10). podvm's registry and
+image pulls wait for T-069.
