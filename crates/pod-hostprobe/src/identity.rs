@@ -1,12 +1,11 @@
-//! `TODO/probe.md` T-0105: read the ID maps directly rather than inferring
-//! them.
+//! Read the ID maps directly; do not infer them.
 //!
 //! A dozen probes infer what one read answers, and the inference is wrong in
 //! the case that matters: `groups=0,65534` looks like a supplementary group
 //! and is `overflowgid`, which is what `getgroups(2)` returns for a group with
 //! no mapping.
 //!
-//! ⚠ A full `CapEff` proves nothing on its own. A process that is root in a new
+//! A full `CapEff` proves nothing on its own. A process that is root in a new
 //! user namespace receives the complete set by construction, whatever its
 //! parent held.
 
@@ -30,14 +29,14 @@ pub struct Identity {
     pub seccomp_filters: Option<String>,
     pub no_new_privs: Option<String>,
     pub threads: Option<String>,
-    /// Every read that did not happen, and why. ⛔ An absent value is reported
+    /// Every read that did not happen, and why. An absent value is reported
     /// as absent, never as a zero or an empty string that reads like one.
     pub unreadable: Vec<String>,
 }
 
 /// True when the map is a single range covering exactly one id, which is the
 /// fact that explains every `EINVAL` from `chown` and `setuid` on this class of
-/// runtime. `TOOL.md` section 6.9 quotes it in the diagnostic for that reason.
+/// runtime. A diagnostic quotes it for that reason.
 pub fn is_single_id_map(map: &str) -> bool {
     let mut ranges = 0;
     for line in map.lines() {
@@ -80,9 +79,7 @@ pub fn read() -> Identity {
             g.sort_unstable();
             id.groups = g;
         }
-        Err(e) => id
-            .unreadable
-            .push(format!("getgroups(2): {} ({})", e.name(), e.0)),
+        Err(e) => id.unreadable.push(format!("getgroups(2): {} ({})", e.name(), e.0)),
     }
 
     for (path, slot) in [
@@ -103,8 +100,8 @@ pub fn read() -> Identity {
                     continue;
                 };
                 let value = value.trim().to_string();
-                // ⚠ Selected by NAME. docs/conventions/code.md: anything
-                // consuming structured output selects by name, never position.
+                // Selected by NAME: a reader of structured output selects
+                // by name, never by position.
                 let slot = match key {
                     "CapEff" => &mut id.cap_eff,
                     "CapPrm" => &mut id.cap_prm,
@@ -123,26 +120,24 @@ pub fn read() -> Identity {
     id
 }
 
-/// `/proc/sys/kernel/random/boot_id`. ⚠ It is the **kernel's**, so every
-/// namespace on one kernel reads the same value. That is the measurement
-/// `TODO/probe.md` T-0111 records against `TOOL.md` section 6.1's cache key.
+/// `/proc/sys/kernel/random/boot_id`. It is the **kernel's**, so each
+/// namespace on one kernel reads the same value: alone it is not a good key
+/// for a cache of verdicts.
 pub const BOOT_ID_PATH: &str = "/proc/sys/kernel/random/boot_id";
 /// `readlink` of this is `mnt:[<inode>]`, and it is the one component that
-/// actually differs between the host, the reconstruction and a plain docker
-/// container. T-0111.
+/// differs between a host, a confined container and a plain docker
+/// container.
 pub const MNT_NS_PATH: &str = "/proc/self/ns/mnt";
 
-/// Everything a probe verdict depends on that podvm can read without
-/// re-running the probe.
+/// All that a probe verdict depends on and that a caller can read without
+/// a new run of the probe.
 ///
-/// ⛔ **A cache keyed wrongly is worse than no cache.** `TOOL.md` section 6.1
-/// says to key on the boot id and re-probe when it changes; measured on
-/// 2026-09-08, the host, `experiments/20-enter-target.sh` and a plain docker
-/// container read one boot id and produce two different rungs. A cache keyed on
-/// it alone would serve the host's `namespace` verdict to a confined process,
-/// which is podvm telling the exact lie it exists to refuse.
+/// **A cache with a wrong key is worse than no cache.** A host, a confined
+/// container and a plain docker container read one boot id and give two
+/// different rungs. A cache with the boot id as its only key serves the
+/// `namespace` verdict of the host to a confined process.
 ///
-/// ⛔ A component that could not be read is `None`, and
+/// A component that could not be read is `None`, and
 /// [`ConfinementKey::is_complete`] is then false. A key with a hole in it never
 /// matches, because two `None`s comparing equal is a cache hit established by
 /// the absence of evidence.
@@ -155,24 +150,23 @@ pub struct ConfinementKey {
     pub setgroups: Option<String>,
     pub seccomp: Option<String>,
     pub seccomp_filters: Option<String>,
-    /// TODO/probe.md T-1333. The capability sets the verdicts turn on. The
+    /// The capability sets that the verdicts turn on. The
     /// chroot verdict is a live `chroot(2)` turning on `CAP_SYS_CHROOT`, so a
     /// process that drops capabilities under the same mount namespace and
     /// seccomp filter would otherwise be served the stale verdict. Read from
     /// `id`, which already carries them; never re-read here (one reader).
     pub cap_eff: Option<String>,
     pub cap_bnd: Option<String>,
-    /// ⛔ WHICH INSTRUMENT ANSWERED. TODO/enter.md T-0506 point 5: a probe run
-    /// under `qemu-user` measures the emulator, so an answer taken there must
-    /// never be served to a process that was not. `none` where podvm found no
-    /// interpreter, which is the absence of evidence rather than a claim of
-    /// nativeness; `crates/podvm-probe/src/interp.rs` says what it checked.
+    /// WHICH INSTRUMENT ANSWERED. A probe run under `qemu-user` measures the
+    /// emulator, so an answer taken there must never go to a process that
+    /// was not. `none` where no interpreter was found, which is the absence
+    /// of evidence and not a claim of nativeness; [`crate::interp`] says
+    /// what it checked.
     pub interpreter: Option<String>,
 }
 
 impl ConfinementKey {
-    /// The ten components of T-0111's `Approach` plus T-1333's capability
-    /// pair, as `(name, value)`, in a fixed order so two renderings of one
+    /// The ten components, as `(name, value)`, in a fixed order so two renderings of one
     /// key are byte-identical.
     pub fn components(&self) -> [(&'static str, Option<&str>); 10] {
         [
@@ -196,14 +190,10 @@ impl ConfinementKey {
     /// Which components a reader could not establish, for the message that
     /// says why the cache was not used.
     pub fn missing(&self) -> Vec<&'static str> {
-        self.components()
-            .iter()
-            .filter(|(_, v)| v.is_none())
-            .map(|(k, _)| *k)
-            .collect()
+        self.components().iter().filter(|(_, v)| v.is_none()).map(|(k, _)| *k).collect()
     }
 
-    /// The names whose values differ. ⛔ An incomplete key on either side
+    /// The names whose values differ. An incomplete key on either side
     /// differs in every component it is missing, so a hole never reads as a
     /// match.
     pub fn differences(&self, other: &ConfinementKey) -> Vec<&'static str> {
@@ -216,13 +206,14 @@ impl ConfinementKey {
     }
 }
 
-/// Read the key. The three of T-0111's four that this module already reads come
-/// from `id`; the boot id and the mount-namespace inode are read here.
+/// Read the key. The components that [`read`] reads come from `id`; the
+/// boot id and the inode of the mount namespace are read here. `interpreter`
+/// is the answer of [`crate::interp::detect`].
 ///
-/// ⛔ One reader, called by the writer of the cache and by the reader that
+/// One reader, called by the writer of the cache and by the reader that
 /// checks it. Two readers of one file drift, and the copy the check trusts is
 /// the wrong one.
-pub fn confinement_key(id: &Identity) -> ConfinementKey {
+pub fn confinement_key(id: &Identity, interpreter: &crate::interp::Interpreter) -> ConfinementKey {
     ConfinementKey {
         boot_id: read_trimmed(BOOT_ID_PATH).ok(),
         mnt_ns: crate::sys::CBuf::new(MNT_NS_PATH).and_then(|p| crate::sys::readlink(&p).ok()),
@@ -233,11 +224,11 @@ pub fn confinement_key(id: &Identity) -> ConfinementKey {
         seccomp_filters: id.seccomp_filters.clone(),
         cap_eff: id.cap_eff.clone(),
         cap_bnd: id.cap_bnd.clone(),
-        // ⛔ Always `Some`. T-0506 point 5: the key must name the instrument, and
-        // an unset component would let an emulated answer match a native one by
-        // both being unreadable. `interp::detect` has no failure state, only two
+        // Always `Some`: the key must name the instrument, and an unset
+        // component would let an emulated answer match a native one when both
+        // are unreadable. `interp::detect` has no failure state, only two
         // answers, and one of them is "no evidence" spelled `none`.
-        interpreter: Some(crate::interp::detect().key()),
+        interpreter: Some(interpreter.key()),
     }
 }
 
@@ -247,7 +238,7 @@ mod tests {
 
     #[test]
     fn a_single_range_of_one_id_is_recognised() {
-        // The target's map, `references/Azathothas__container-research/tree/verification/real/identity.txt`.
+        // The map of the confined target, as the Go reference instrument read it.
         assert!(is_single_id_map("0 1000 1"));
         assert!(is_single_id_map("         0       1000          1"));
     }
@@ -261,8 +252,7 @@ mod tests {
 
     #[test]
     fn this_process_can_read_its_own_maps() {
-        // The production default of the seam, not an injected double:
-        // docs/conventions/code.md requires the shipping branch be tested.
+        // The real path, not an injected double.
         let id = read();
         assert!(id.uid >= 0);
         assert!(id.cap_eff.is_some(), "unreadable: {:?}", id.unreadable);
@@ -270,9 +260,9 @@ mod tests {
 
     #[test]
     fn the_confinement_key_reads_the_mount_namespace_this_process_is_in() {
-        let key = confinement_key(&read());
+        let key = confinement_key(&read(), &crate::interp::detect(&|_| false));
         let mnt = key.mnt_ns.as_deref().expect("readlink /proc/self/ns/mnt");
-        // ⚠ The shape, not a particular inode: the number is this machine's.
+        // The shape, not a particular inode: the number is this machine's.
         assert!(mnt.starts_with("mnt:["), "{mnt}");
         assert!(mnt.ends_with(']'), "{mnt}");
         assert!(key.is_complete(), "missing: {:?}", key.missing());
@@ -280,12 +270,9 @@ mod tests {
 
     #[test]
     fn a_key_with_a_hole_in_it_never_matches_another_with_the_same_hole() {
-        // ⛔ Two `None`s comparing equal would be a cache hit established by
-        // the absence of evidence, which is the failure T-0111 is about.
-        let hole = ConfinementKey {
-            boot_id: Some("b".into()),
-            ..Default::default()
-        };
+        // Two `None`s comparing equal would be a cache hit established by
+        // the absence of evidence.
+        let hole = ConfinementKey { boot_id: Some("b".into()), ..Default::default() };
         assert!(!hole.is_complete());
         assert_eq!(hole.missing().len(), 9);
         assert_eq!(hole.differences(&hole).len(), 9);
@@ -293,7 +280,7 @@ mod tests {
 
     #[test]
     fn two_keys_differing_only_in_the_mount_namespace_report_that_component() {
-        // ⭐ The measured case: the host and the reconstruction read ONE boot
+        // The measured case: a host and a confined container read ONE boot
         // id and differ here. Keying on the boot id alone would call these
         // equal and serve the host's rung to a confined process.
         let host = ConfinementKey {
@@ -308,15 +295,12 @@ mod tests {
             cap_bnd: Some("000001ffffffffff".into()),
             interpreter: Some("none".into()),
         };
-        let confined = ConfinementKey {
-            mnt_ns: Some("mnt:[4026532567]".into()),
-            ..host.clone()
-        };
+        let confined = ConfinementKey { mnt_ns: Some("mnt:[4026532567]".into()), ..host.clone() };
         assert_eq!(host.differences(&confined), vec!["mnt_ns"]);
         assert!(host.differences(&host).is_empty());
     }
 
-    /// TODO/probe.md T-1333. The capability set is part of the key: two
+    /// The capability set is part of the key: two
     /// identities differing only in `cap_eff` are different keys, so a
     /// process that drops capabilities under the same mount namespace and
     /// seccomp filter is never served the stale verdict.
@@ -336,15 +320,10 @@ mod tests {
         };
         b.cap_eff = flip(&a.cap_eff);
         b.cap_bnd = flip(&a.cap_bnd);
-        let ka = confinement_key(&a);
-        let kb = confinement_key(&b);
-        assert!(
-            !ka.differences(&kb).is_empty(),
-            "a dropped capability set reads as the same key"
-        );
-        assert!(kb
-            .differences(&ka)
-            .iter()
-            .any(|k| *k == "cap_eff" || *k == "cap_bnd"));
+        let native = crate::interp::detect(&|_| false);
+        let ka = confinement_key(&a, &native);
+        let kb = confinement_key(&b, &native);
+        assert!(!ka.differences(&kb).is_empty(), "a dropped capability set reads as the same key");
+        assert!(kb.differences(&ka).iter().any(|k| *k == "cap_eff" || *k == "cap_bnd"));
     }
 }

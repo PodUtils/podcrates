@@ -1,5 +1,5 @@
-//! `140-space-precheck.sh` clause 4 as an integration test: inodes are
-//! checked as well as blocks, on a real filesystem rather than a double.
+//! The space precheck as an integration test: inodes are checked as well
+//! as blocks, on a real filesystem and not a double.
 //!
 //! Two halves. The first always runs: `space::require` refuses an
 //! impossible byte ask and an impossible inode ask on an ordinary temp
@@ -8,25 +8,24 @@
 //! pressure on a fresh tmpfs inside a forked child (user and mount
 //! namespaces, so the test process never mounts anything itself) and
 //! refuses a modest ask there. Where pressure is unreachable under the
-//! fill cap the drive reports SKIP with its reason and passes, which is the
-//! script's own exit-2 contract: an unarranged fixture is not a failure.
-//! Measured in the lane 2026-10-01: a fresh tmpfs carries 4,082,283 inodes
-//! and fills 20,000 files in 0.09 s, so the 30,000-file cap below always
-//! takes the SKIP arm there. Filling 4M files would take ~20 s and ~3 GiB
+//! fill cap the drive reports SKIP with its reason and passes (exit 2 of the
+//! child): an unarranged fixture is not a failure. Measured on one host: a
+//! fresh tmpfs carries 4,082,283 inodes and fills 20,000 files in 0.09 s, so
+//! the 30,000-file cap below takes the SKIP arm there. Filling 4M files would take ~20 s and ~3 GiB
 //! of kernel slab per runner, which is not a polite test, so the cap stays
 //! and the refusal under true pressure is covered by the first half's
 //! inode arm through the same code path.
 
-use podvm_image::space;
-use podvm_probe::sys;
+use pod_hostprobe::space;
+use pod_hostprobe::sys;
 
-/// ⛔ Both tests in this binary run under one lock. `clone_fork`'s contract
+/// Both tests in this binary run under one lock. `clone_fork`'s contract
 /// (`sys.rs`) allows the child async-signal-safe work only: no allocation,
 /// no format, no lock. The pressure child below allocates (`CBuf`, `fs`,
 /// `space`), so a sibling thread inside the allocator at the fork instant
 /// would hang the child on its first allocation. Holding this across the
 /// fork leaves only the harness's idle threads outside it, which is the
-/// same reason `store.rs` serialises its forking test behind `STORE_TESTS`.
+/// same reason that a store serialises its forking test.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn fresh_tmp(prefix: &str) -> std::path::PathBuf {
@@ -38,25 +37,26 @@ fn fresh_tmp(prefix: &str) -> std::path::PathBuf {
     dir
 }
 
-/// Clause 4's arms, on an ordinary filesystem: bytes short, then inodes
+/// The two arms, on an ordinary filesystem: bytes short, then inodes
 /// short while bytes are roomy. Both refusals name the destination.
 #[test]
 fn require_refuses_short_bytes_and_short_inodes_naming_the_destination() {
     let _serialised = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let dir = fresh_tmp("roomy");
     let at = dir.to_string_lossy().into_owned();
-    let e = space::require(&at, "test-image", u64::MAX / 4, 0, 0).unwrap_err();
+    let settings = pod_hostprobe::Settings::default();
+    let e = space::require(&settings, &at, "test-image", u64::MAX / 4, 0, 0).unwrap_err();
     let text = format!("{e}");
     assert!(text.contains(&at), "{text}");
     assert!(text.contains("free"), "{text}");
-    let e = space::require(&at, "test-image", 1, u64::MAX / 2, 0).unwrap_err();
+    let e = space::require(&settings, &at, "test-image", 1, u64::MAX / 2, 0).unwrap_err();
     let text = format!("{e}");
     assert!(text.contains(&at), "{text}");
     assert!(text.contains("inodes"), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The true clause-4 drive: a tmpfs filled to inode pressure refuses a
+/// The true drive: a tmpfs filled to inode pressure refuses a
 /// modest ask it would grant roomy. Runs in a forked child under user and
 /// mount namespaces; the child exits 0 on a driven refusal, 1 on a wrong
 /// outcome, and 2 where the fixture cannot be arranged (no userns, no
@@ -93,10 +93,9 @@ fn child_drive(at: &str) -> ! {
     if sys::unshare(sys::CLONE_NEWUSER | sys::CLONE_NEWNS).is_err() {
         fail(2);
     }
-    // ⛔ A raw `unshare(2)` writes no id maps, unlike `unshare(1)`. Until
-    // they exist the child is nobody and the tmpfs mount is refused, which
-    // the lane proved: without these three writes the drive always takes
-    // the SKIP arm below in 0.00 s. Root maps to itself; nothing here
+    // A raw `unshare(2)` writes no id maps, unlike `unshare(1)`. Until
+    // they exist the child is nobody and the tmpfs mount is refused:
+    // without these three writes the drive always takes the SKIP arm. Root maps to itself; nothing here
     // grants what the parent did not already hold.
     if std::fs::write("/proc/self/uid_map", "0 0 1\n").is_err() {
         fail(2);
@@ -141,7 +140,7 @@ fn child_drive(at: &str) -> ! {
     if roomy {
         fail(2);
     }
-    match space::require(at, "test-image", 1, 1_000, 0) {
+    match space::require(&pod_hostprobe::Settings::default(), at, "test-image", 1, 1_000, 0) {
         Err(e) if format!("{e}").contains("inodes") => fail(0),
         other => {
             let _ = other;

@@ -1,15 +1,15 @@
 // ------------------------------------------------- stat, which has three names
 //
-// ⛔ **The same syscall is called three different things by the kernel, and on
-// two architectures it writes a different struct.** Measured against the
-// kernel's own tables on 2026-09-09:
+// **The same syscall is called three different things by the kernel, and on
+// two architectures it writes a different struct.** From the tables of the
+// kernel:
 //
 //   newfstatat + struct stat     x86_64, riscv64, powerpc64, s390x
 //   fstatat    + struct stat     aarch64, loongarch64
 //   fstatat64  + struct stat64   arm, x86        (32-bit: `stat` is the narrow
 //                                                 form and would truncate)
 //
-// ⚠ The pairing is the point. Taking `fstatat64`'s number with `struct stat`'s
+// The pairing is the point. Taking `fstatat64`'s number with `struct stat`'s
 // buffer is a kernel write of the wrong shape into the right-sized hole, which
 // is silent. The type and the number move together here so they cannot drift.
 
@@ -27,11 +27,7 @@ mod stat_call {
     pub const SYS_FSTATAT: i64 = nr!(newfstatat, __NR_newfstatat);
 }
 
-#[cfg(any(
-    target_arch = "aarch64",
-    target_arch = "loongarch64",
-    target_arch = "csky"
-))]
+#[cfg(any(target_arch = "aarch64", target_arch = "loongarch64", target_arch = "csky"))]
 mod stat_call {
     pub use linux_raw_sys::general::stat as KernelStat;
     pub const SYS_FSTATAT: i64 = nr!(fstatat, __NR_fstatat);
@@ -53,7 +49,7 @@ pub use stat_call::{KernelStat, SYS_FSTATAT};
 
 // -------------------------------------------- the three that ARE the question
 //
-// ⭐ `TODO/probe.md` T-0101 measures the errno of a NAMED syscall, so for these
+// A probe measures the errno of a NAMED syscall, so for these
 // three the entry point is not an implementation detail: it is what the row
 // says was asked. On an architecture whose kernel has no `chown(2)` the honest
 // answer is not to quietly call `fchownat(2)` and print `chown`, it is to call
@@ -64,7 +60,7 @@ pub use stat_call::{KernelStat, SYS_FSTATAT};
 #[derive(Clone, Copy)]
 pub struct Entry {
     pub nr: i64,
-    /// The name the row prints. ⛔ Always the name of the syscall that was
+    /// The name the row prints. Always the name of the syscall that was
     /// really issued, never the one the probe set is called after.
     pub name: &'static str,
     /// True where this kernel has no dedicated entry point and the `*at` form
@@ -72,11 +68,11 @@ pub struct Entry {
     pub via_at: bool,
 }
 
-/// ⚠ **The one list in podvm that is a claim about the kernel rather than a
+/// **The one list in this crate that is a claim about the kernel and not a
 /// value read from it**: the architectures taking their table from
 /// `asm-generic/unistd.h`, which defines only the `*at` forms.
 ///
-/// ⛔ It is written exactly twice, positive and negated, on adjacent lines, and
+/// It is written exactly twice, positive and negated, on adjacent lines, and
 /// the compiler checks it in both directions. Name an architecture here that
 /// does have `chown` and nothing is lost but a more specific row; fail to name
 /// one that does not and the build fails on `Sysno::chown`, which has no
@@ -91,21 +87,10 @@ pub struct Entry {
 ))]
 mod entry_points {
     use super::Entry;
-    pub const CHOWN: Entry = Entry {
-        nr: nr!(fchownat, __NR_fchownat),
-        name: "fchownat",
-        via_at: true,
-    };
-    pub const LCHOWN: Entry = Entry {
-        nr: nr!(fchownat, __NR_fchownat),
-        name: "fchownat(AT_SYMLINK_NOFOLLOW)",
-        via_at: true,
-    };
-    pub const MKNOD: Entry = Entry {
-        nr: nr!(mknodat, __NR_mknodat),
-        name: "mknodat",
-        via_at: true,
-    };
+    pub const CHOWN: Entry = Entry { nr: nr!(fchownat, __NR_fchownat), name: "fchownat", via_at: true };
+    pub const LCHOWN: Entry =
+        Entry { nr: nr!(fchownat, __NR_fchownat), name: "fchownat(AT_SYMLINK_NOFOLLOW)", via_at: true };
+    pub const MKNOD: Entry = Entry { nr: nr!(mknodat, __NR_mknodat), name: "mknodat", via_at: true };
 }
 
 #[cfg(not(any(
@@ -117,21 +102,9 @@ mod entry_points {
 )))]
 mod entry_points {
     use super::Entry;
-    pub const CHOWN: Entry = Entry {
-        nr: nr!(chown, __NR_chown),
-        name: "chown",
-        via_at: false,
-    };
-    pub const LCHOWN: Entry = Entry {
-        nr: nr!(lchown, __NR_lchown),
-        name: "lchown",
-        via_at: false,
-    };
-    pub const MKNOD: Entry = Entry {
-        nr: nr!(mknod, __NR_mknod),
-        name: "mknod",
-        via_at: false,
-    };
+    pub const CHOWN: Entry = Entry { nr: nr!(chown, __NR_chown), name: "chown", via_at: false };
+    pub const LCHOWN: Entry = Entry { nr: nr!(lchown, __NR_lchown), name: "lchown", via_at: false };
+    pub const MKNOD: Entry = Entry { nr: nr!(mknod, __NR_mknod), name: "mknod", via_at: false };
 }
 
 pub use entry_points::{CHOWN, LCHOWN, MKNOD};

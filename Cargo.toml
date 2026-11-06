@@ -26,6 +26,7 @@ crates-io = false
 # (its feature `async`) names it, so that pod-tls builds with no tokio.
 pod-core = { path = "crates/pod-core", version = "0.5.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.5.0" }
+pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.5.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.5.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.5.0" }
 pod-services = { path = "crates/pod-services", version = "0.5.0" }
@@ -46,6 +47,13 @@ serde_json = "1"
 h2 = "0.4"
 http = "1"
 bytes = "1"
+
+# The raw system calls of pod-hostprobe (Linux only). linux-raw-sys gives
+# the layouts of the structs of the kernel and, where syscalls does not
+# build, the numbers of the calls; syscalls gives the numbers and the trap
+# on the other architectures.
+linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "no_std"] }
+syscalls = { version = "0.8", default-features = false }
 
 # TLS (pod-tls). No crypto provider feature: the binary gives the provider
 # (docs/design.md, section 1, rule 4). The default of tokio-rustls is

@@ -1,26 +1,23 @@
-//! The disposable child. `TODO/probe.md` T-0101: every probe runs in a freshly
-//! forked child, because a successful `unshare`, `chroot` or `setuid` mutates
-//! the prober and several of them have no undo.
+//! The disposable child. Each probe runs in a newly forked child, because a
+//! successful `unshare`, `chroot` or `setuid` changes the prober and several
+//! of them have no undo.
 //!
-//! The shape is `references/compforge__pathshim/tree/src/main.rs:103-118`:
-//! re-exec `/proc/self/exe` with a private argument and take the verdict from
-//! the child. podvm adds one thing pathshim does not need: the child speaks
-//! its errno on stdout as well as setting its exit status, and the parent
-//! **cross-checks the two**. `TODO/probe.md` T-0109's first rule is that a
-//! child sets its exit status from the operation or the parent does not read a
-//! verdict from it; a child that disagrees with itself has not established one
+//! The child starts `/proc/self/exe` again with a private argument, and the
+//! parent takes the verdict from the child. The child writes its errno on
+//! stdout and sets its exit status, and the parent **cross-checks the two**.
+//! A child sets its exit status from the operation, or the parent reads no
+//! verdict from it; a child that disagrees with itself gives no verdict
 //! either, so that is a `skip` and never a denial.
 //!
-//! ⛔ The fork is `clone(2)` with no `CLONE_VM`, not `std::process::Command`.
-//! `TOOL.md` section 6.1's minimum set needs `clone(CLONE_NEWNS)` and
-//! `clone(CLONE_NEWUSER)` to be *attempted with those flags*, and the standard
-//! library offers no way to set them. One spawn path serves both kinds of
-//! probe rather than two that would drift.
+//! The fork is `clone(2)` with no `CLONE_VM`, not `std::process::Command`.
+//! The probe set must *attempt* `clone(CLONE_NEWNS)` and
+//! `clone(CLONE_NEWUSER)` with those flags, and the standard library cannot
+//! set them. One spawn path serves both kinds of probe, not two that drift.
 
 use std::os::unix::ffi::OsStrExt;
 
 use crate::sys::{self, CBuf, Errno};
-use crate::verdict::{decode, Outcome, Verdict};
+use crate::verdict::{Outcome, Verdict, decode};
 
 /// How a child ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,11 +28,7 @@ pub enum Status {
 
 impl Status {
     fn from_wait(status: i32) -> Status {
-        if status & 0x7f == 0 {
-            Status::Exited((status >> 8) & 0xff)
-        } else {
-            Status::Signalled(status & 0x7f)
-        }
+        if status & 0x7f == 0 { Status::Exited((status >> 8) & 0xff) } else { Status::Signalled(status & 0x7f) }
     }
 
     fn describe(self) -> String {
@@ -60,10 +53,16 @@ pub struct Spawner {
     exe: Option<CBuf>,
     pub exe_source: String,
     envp_owned: Vec<CBuf>,
+    /// `Settings::child_flag` and `Settings::child_name`, made before any
+    /// fork. `None` where the value holds a NUL.
+    child_flag: Option<CBuf>,
+    child_name: Option<CBuf>,
 }
 
 impl Spawner {
-    pub fn new() -> Spawner {
+    /// The environment of this process goes to each child as it is: the
+    /// child must see the same `PATH` and the same variables as the caller.
+    pub fn new(settings: &crate::Settings) -> Spawner {
         let (exe, source) = Self::find_self();
         let envp_owned = std::env::vars_os()
             .filter_map(|(k, v)| {
@@ -83,6 +82,8 @@ impl Spawner {
             exe,
             exe_source: source,
             envp_owned,
+            child_flag: CBuf::new(&settings.child_flag),
+            child_name: CBuf::new(&settings.child_name),
         }
     }
 
@@ -122,8 +123,8 @@ impl Spawner {
         };
         match reap(pid) {
             Ok(Status::Exited(0)) => Outcome::ok(),
-            // ⛔ The clone was accepted, so this is not a denial of the thing
-            // probed. Saying so is the whole of T-0109's rule 1.
+            // The clone was accepted, so this is not a denial of the thing
+            // probed: the skip says so.
             Ok(other) => Outcome::skip(
                 None,
                 format!(
@@ -141,7 +142,7 @@ impl Spawner {
     /// `ns_flags` places the child in the namespaces the probe needs. A clone
     /// the flags make fail is a **failed precondition**, so the row is a
     /// `skip` carrying the clone's errno: the probe never ran, and
-    /// `TODO/probe.md` T-0109 rule 2 is that this may not read as a denial.
+    /// this must not read as a denial.
     pub fn run_probe(&self, name: &str, ns_flags: u64) -> Outcome {
         let exe = match &self.exe {
             Some(e) => e,
@@ -150,41 +151,26 @@ impl Spawner {
                     None,
                     "no path to re-execute this binary: /proc/self/exe is not \
                      readable and argv[0] does not name a path",
-                )
+                );
             }
         };
-        let arg_flag = match CBuf::new(crate::CHILD_FLAG) {
-            Some(c) => c,
-            None => return Outcome::skip(None, "internal: child flag is not a C string"),
+        let Some(arg_flag) = &self.child_flag else {
+            return Outcome::skip(None, "the child flag of the settings is not a C string");
         };
         let arg_name = match CBuf::new(name) {
             Some(c) => c,
-            None => {
-                return Outcome::skip(
-                    None,
-                    "internal: probe name contains a NUL and cannot cross execve",
-                )
-            }
+            None => return Outcome::skip(None, "internal: probe name contains a NUL and cannot cross execve"),
         };
-        let argv0 = match CBuf::new("podvm") {
-            Some(c) => c,
-            None => return Outcome::skip(None, "internal: argv[0] is not a C string"),
+        let Some(argv0) = &self.child_name else {
+            return Outcome::skip(None, "the child name of the settings is not a C string");
         };
 
-        // ⛔ Everything the child touches after the clone exists before it.
+        // Everything the child touches after the clone exists before it.
         // Between clone and execve only async-signal-safe work is permitted,
         // so no allocation may happen there.
-        let argv: Vec<*const u8> = vec![
-            argv0.ptr() as *const u8,
-            arg_flag.ptr() as *const u8,
-            arg_name.ptr() as *const u8,
-            std::ptr::null(),
-        ];
-        let mut envp: Vec<*const u8> = self
-            .envp_owned
-            .iter()
-            .map(|c| c.ptr() as *const u8)
-            .collect();
+        let argv: Vec<*const u8> =
+            vec![argv0.ptr() as *const u8, arg_flag.ptr() as *const u8, arg_name.ptr() as *const u8, std::ptr::null()];
+        let mut envp: Vec<*const u8> = self.envp_owned.iter().map(|c| c.ptr() as *const u8).collect();
         envp.push(std::ptr::null());
 
         let run = match self.exec_child(exe, ns_flags, &argv, &envp) {
@@ -203,19 +189,18 @@ impl Spawner {
         envp: &[*const u8],
     ) -> Result<Run, (String, Errno)> {
         let mut fds = [0i32; 2];
-        // ⛔ NOT `O_CLOEXEC`. The child closes the read end itself, so the flag
+        // NOT `O_CLOEXEC`. The child closes the read end itself, so the flag
         // buys nothing, and it introduces a case that loses the verdict: where
-        // the caller invoked podvm with fd 1 closed, `pipe2` hands out fd 1
+        // the caller started this process with fd 1 closed, `pipe2` hands out fd 1
         // for one end, and a close-on-exec fd 1 is a child that writes its
         // answer into a descriptor the exec has already taken away.
-        sys::pipe2(&mut fds, 0)
-            .map_err(|e| ("pipe2 for the child's verdict failed".to_string(), e))?;
+        sys::pipe2(&mut fds, 0).map_err(|e| ("pipe2 for the child's verdict failed".to_string(), e))?;
         let (r, w) = (fds[0] as i64, fds[1] as i64);
 
         let pid = match unsafe { sys::clone_fork(ns_flags | sys::SIGCHLD) } {
             Ok(0) => {
                 // ---- child. Async-signal-safe work only, then execve. ----
-                // ⚠ Both guards are for the same case: `pipe2` returns the
+                // Both guards are for the same case: `pipe2` returns the
                 // lowest free descriptors, so with fd 1 closed one end lands on
                 // it. `dup2(1, 1)` is a no-op that returns 1 WITHOUT closing,
                 // and the unconditional `close` after it would then shut the
@@ -258,13 +243,11 @@ impl Spawner {
         Ok(Run { stdout, status })
     }
 
-    /// ⭐ Where the two halves of T-0109's rule 1 meet. The spoken verdict and
+    /// Where the two halves meet. The spoken verdict and
     /// the exit status must agree; anything else is "could not run".
     fn interpret(name: &str, run: Run) -> Outcome {
         let text = String::from_utf8_lossy(&run.stdout);
-        let line = text
-            .lines()
-            .find(|l| l.starts_with(crate::verdict::WIRE_MAGIC));
+        let line = text.lines().find(|l| l.starts_with(crate::verdict::WIRE_MAGIC));
         let Some(line) = line else {
             return Outcome::skip(
                 None,
@@ -281,7 +264,7 @@ impl Spawner {
                 return Outcome::skip(
                     None,
                     format!("the child for {name:?} spoke a line this parent cannot read: {why}"),
-                )
+                );
             }
         };
         let Status::Exited(code) = run.status else {
@@ -307,12 +290,6 @@ impl Spawner {
                 ),
             ),
         }
-    }
-}
-
-impl Default for Spawner {
-    fn default() -> Self {
-        Spawner::new()
     }
 }
 
@@ -359,10 +336,7 @@ mod tests {
 
     #[test]
     fn a_child_that_says_nothing_is_a_skip_and_not_a_denial() {
-        let run = Run {
-            stdout: Vec::new(),
-            status: Status::Exited(1),
-        };
+        let run = Run { stdout: Vec::new(), status: Status::Exited(1) };
         let out = Spawner::interpret("mount(tmpfs,/mnt)", run);
         assert_eq!(out.verdict, Verdict::Skip);
     }
@@ -370,10 +344,7 @@ mod tests {
     #[test]
     fn a_child_whose_status_contradicts_its_line_establishes_nothing() {
         let line = crate::verdict::encode(&Outcome::denied(crate::sys::EPERM));
-        let run = Run {
-            stdout: line.into_bytes(),
-            status: Status::Exited(0),
-        };
+        let run = Run { stdout: line.into_bytes(), status: Status::Exited(0) };
         let out = Spawner::interpret("chroot(/tmp)", run);
         assert_eq!(out.verdict, Verdict::Skip);
         assert!(out.reason.contains("disagree"));
@@ -382,10 +353,7 @@ mod tests {
     #[test]
     fn an_agreeing_child_is_taken_at_its_word() {
         let line = crate::verdict::encode(&Outcome::denied(crate::sys::EPERM));
-        let run = Run {
-            stdout: line.into_bytes(),
-            status: Status::Exited(1),
-        };
+        let run = Run { stdout: line.into_bytes(), status: Status::Exited(1) };
         let out = Spawner::interpret("chroot(/tmp)", run);
         assert_eq!(out.verdict, Verdict::Denied);
         assert_eq!(out.errno, Some(crate::sys::EPERM));

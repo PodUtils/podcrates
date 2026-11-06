@@ -7,11 +7,10 @@ pub(super) fn p_unshare_newns() -> Outcome {
 }
 
 pub(super) fn p_unshare_newuser() -> Outcome {
-    // ⛔ TODO/probe.md T-0101: the kernel refuses `unshare(CLONE_NEWUSER)` to a
-    // multithreaded caller with EINVAL regardless of policy, so an EINVAL from
-    // a threaded prober is the prober's own answer and not the machine's.
-    // podvm is single-threaded by construction (`TOOL.md` section 4.2) and
-    // this child was freshly execed, so the invariant holds. It is checked
+    // The kernel refuses `unshare(CLONE_NEWUSER)` to a multithreaded caller
+    // with EINVAL whatever the policy, so an EINVAL from a threaded prober is
+    // the prober's own answer and not the machine's. This child was newly
+    // execed and has one thread, so the invariant holds. It is checked
     // rather than assumed, because the day somebody adds a thread pool the
     // check is what says so.
     match threads_of_self() {
@@ -23,7 +22,7 @@ pub(super) fn p_unshare_newuser() -> Outcome {
                          unshare(CLONE_NEWUSER) to any multithreaded caller with \
                          EINVAL whatever the policy; the machine was not asked"
                 ),
-            )
+            );
         }
         _ => {}
     }
@@ -36,35 +35,27 @@ pub(super) fn p_unshare_newpid() -> Outcome {
 
 fn threads_of_self() -> Option<usize> {
     let status = std::fs::read_to_string("/proc/self/status").ok()?;
-    status
-        .lines()
-        .find_map(|l| l.strip_prefix("Threads:"))
-        .and_then(|v| v.trim().parse().ok())
+    status.lines().find_map(|l| l.strip_prefix("Threads:")).and_then(|v| v.trim().parse().ok())
 }
 
 pub(super) fn p_sethostname() -> Outcome {
     // Runs inside clone(CLONE_NEWUTS), so a success renames that namespace's
     // host and nothing else. Without the namespace the row is a `skip`, which
     // the child harness produces from the clone's own errno.
-    let name = c("podvm-probe");
-    Outcome::from(unsafe { sys::sys(sys::SYS_SETHOSTNAME, [name.ptr(), 11, 0, 0, 0, 0]) })
+    const NAME: &str = "pod-hostprobe";
+    let name = c(NAME);
+    Outcome::from(unsafe { sys::sys(sys::SYS_SETHOSTNAME, [name.ptr(), NAME.len() as u64, 0, 0, 0, 0]) })
 }
 
 pub(super) fn p_mount_tmpfs() -> Outcome {
-    // ⛔ The target is NOT checked before the call, and that is the point. A
+    // The target is NOT checked before the call, and that is the point. A
     // seccomp filter runs before the syscall body, so a filtered mount(2)
     // answers EPERM whether or not /mnt exists; a `stat` first would turn that
     // measurement into a skip and this machine's policy would go unmeasured.
     // The precondition is separated afterwards instead, from the errno: only
     // ENOENT is a statement about the target rather than about the mount.
-    // TOOL.md section 2.1 is the same argument, used the other way round.
     let (src, tgt, fs, data) = (c("none"), c("/mnt"), c("tmpfs"), sys::cempty());
-    let r = unsafe {
-        sys::sys(
-            sys::SYS_MOUNT,
-            [src.ptr(), tgt.ptr(), fs.ptr(), 0, data.ptr(), 0],
-        )
-    };
+    let r = unsafe { sys::sys(sys::SYS_MOUNT, [src.ptr(), tgt.ptr(), fs.ptr(), 0, data.ptr(), 0]) };
     match r {
         Err(sys::ENOENT) => Outcome::skip(
             Some(sys::ENOENT),
@@ -91,21 +82,10 @@ pub(super) fn p_mount_tmpfs() -> Outcome {
 pub(super) fn p_mount_slave() -> Outcome {
     // Only ever reached inside clone(CLONE_NEWNS): see the module header. This
     // is bubblewrap's `MS_SLAVE` remount, the one whose failure it reports as
-    // "Failed to make / slave"
-    // (`references/containers__bubblewrap/tree/bubblewrap.c:3257-3258`).
+    // "Failed to make / slave".
     let (src, tgt, fs, data) = (sys::cempty(), c("/"), sys::cempty(), sys::cempty());
     Outcome::from(unsafe {
-        sys::sys(
-            sys::SYS_MOUNT,
-            [
-                src.ptr(),
-                tgt.ptr(),
-                fs.ptr(),
-                sys::MS_SLAVE | sys::MS_REC,
-                data.ptr(),
-                0,
-            ],
-        )
+        sys::sys(sys::SYS_MOUNT, [src.ptr(), tgt.ptr(), fs.ptr(), sys::MS_SLAVE | sys::MS_REC, data.ptr(), 0])
     })
 }
 
@@ -126,7 +106,7 @@ pub(super) fn p_mknod_real() -> Outcome {
 pub(super) fn p_mknod_whiteout() -> Outcome {
     // makedev(0,0) is WHITEOUT_DEV and `vfs_mknod` exempts it from the
     // capability check, which is why it tests nothing on its own and why
-    // TODO/probe.md T-0106 requires the pair.
+    // the census needs the pair.
     mknod_at("/tmp/wprobe", 0)
 }
 
@@ -135,10 +115,9 @@ fn mknod_at(path: &str, dev: u64) -> Outcome {
         return already_there(path);
     }
     let p = c(path);
-    // ⛔ `sys::MKNOD` and not a bare number: on an architecture whose kernel has
+    // `sys::MKNOD` and not a bare number: on an architecture whose kernel has
     // no `mknod(2)` this is `mknodat(2)`, with the directory descriptor first,
-    // and the row says which was issued. `TODO/probe.md` T-0101 measures a
-    // NAMED syscall, so calling one and printing another would be the exact
+    // and the row says which was issued. A probe measures a NAMED syscall, so calling one and printing another would be the exact
     // dishonesty this probe set exists to avoid.
     let e = sys::MKNOD;
     let args = if e.via_at {
@@ -171,7 +150,7 @@ pub(super) fn p_setgroups() -> Outcome {
 
 const CHOWN_TARGET: &str = "/tmp/chown-probe-target";
 
-/// ⛔ The entry point is part of the measurement, so it is passed in rather
+/// The entry point is part of the measurement, so it is passed in rather
 /// than assumed. Where the kernel has no `chown(2)`, every architecture taking
 /// its table from `asm-generic/unistd.h`, [`sys::CHOWN`] is `fchownat(2)` and
 /// the row prints that name. The **verdict** is about the operation (may this
@@ -182,16 +161,8 @@ fn chown_probe(e: sys::Entry, uid: u64, gid: u64) -> Outcome {
         return o;
     }
     let p = c(CHOWN_TARGET);
-    let at_flags = if e.name.contains("AT_SYMLINK_NOFOLLOW") {
-        sys::AT_SYMLINK_NOFOLLOW
-    } else {
-        0
-    };
-    let args = if e.via_at {
-        [sys::AT_FDCWD, p.ptr(), uid, gid, at_flags, 0]
-    } else {
-        [p.ptr(), uid, gid, 0, 0, 0]
-    };
+    let at_flags = if e.name.contains("AT_SYMLINK_NOFOLLOW") { sys::AT_SYMLINK_NOFOLLOW } else { 0 };
+    let args = if e.via_at { [sys::AT_FDCWD, p.ptr(), uid, gid, at_flags, 0] } else { [p.ptr(), uid, gid, 0, 0, 0] };
     let r = unsafe { sys::sys(e.nr, args) };
     unscratch(CHOWN_TARGET);
     Outcome::from(r)
@@ -219,7 +190,7 @@ pub(super) fn p_chroot() -> Outcome {
 }
 
 fn memfd(name: &str) -> Result<i64, Errno> {
-    // ⛔ No MFD_CLOEXEC: the descriptor has to survive a fork and exec for
+    // No MFD_CLOEXEC: the descriptor has to survive a fork and exec for
     // /proc/self/fd/N to name it in the payload.
     let n = c(name);
     unsafe { sys::sys(sys::SYS_MEMFD_CREATE, [n.ptr(), 0, 0, 0, 0, 0]) }
@@ -259,10 +230,7 @@ pub(super) fn p_setsid() -> Outcome {
 
 pub(super) fn p_pdeathsig() -> Outcome {
     Outcome::from(unsafe {
-        sys::sys(
-            sys::SYS_PRCTL,
-            [sys::PR_SET_PDEATHSIG, 15 /* SIGTERM */, 0, 0, 0, 0],
-        )
+        sys::sys(sys::SYS_PRCTL, [sys::PR_SET_PDEATHSIG, 15 /* SIGTERM */, 0, 0, 0, 0])
     })
 }
 
@@ -293,15 +261,10 @@ pub(super) fn p_exec_file() -> Outcome {
 
 pub(super) fn p_getrandom() -> Outcome {
     let mut buf = [0u8; 16];
-    Outcome::from(unsafe {
-        sys::sys(
-            sys::SYS_GETRANDOM,
-            [buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0, 0],
-        )
-    })
+    Outcome::from(unsafe { sys::sys(sys::SYS_GETRANDOM, [buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0, 0]) })
 }
 
-/// ⭐ The one probe whose failure to create a file IS the measurement, which
+/// The one probe whose failure to create a file IS the measurement, which
 /// is why it does not go through `make_scratch`. An `EEXIST` is still a skip:
 /// the file that was in the way was somebody else's, and nothing about the
 /// write policy was learned.
@@ -322,7 +285,7 @@ pub(super) fn p_write_etc() -> Outcome {
 /// in this user namespace is unwritable even with `CAP_DAC_OVERRIDE`.
 ///
 /// The fixture cannot be built from inside the confinement, because `chown` to
-/// an unmapped id is exactly what is denied. `experiments/20-enter-target.sh`
+/// an unmapped id is exactly what is denied. A setup outside the confinement
 /// stages it; the Go instrument looks for its own copy under `/tmp`.
 pub(super) fn p_write_squash() -> Outcome {
     const CANDIDATES: [&str; 2] = ["/workspace/.fixtures/squash-probe", "/tmp/squash-probe"];
@@ -336,7 +299,7 @@ pub(super) fn p_write_squash() -> Outcome {
             ),
         );
     };
-    let path = format!("{dir}/podvm-write-probe");
+    let path = format!("{dir}/pod-hostprobe-write");
     match create_exclusive(&path, 0o600) {
         Ok(fd) => {
             let _ = sys::close(fd);

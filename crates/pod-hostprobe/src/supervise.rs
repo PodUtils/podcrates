@@ -1,4 +1,4 @@
-//! `TODO/supervise.md` T-0606: the supervise tier as legs, and the refusal rule.
+//! The supervise tier as legs, and the refusal rule.
 //!
 //! One leg per fact the tier needs, each measured, never inferred from
 //! another leg and never borrowed from another group's contract. Mediation
@@ -14,12 +14,11 @@
 //! [`crate::probes::SUPERVISION_LEGS`], so a rename moves the rows, the
 //! constants and this assessment together.
 //!
-//! ⛔ A row that is absent is a missing leg, not a passing one. Reading that
-//! absence as anything but missing would be the silent non-mediation T-0606
-//! exists to refuse.
+//! A row that is absent is a missing leg, not a passing one. Reading that
+//! absence as anything but missing would be silent non-mediation.
 
-use crate::verdict::Outcome;
 use crate::Findings;
+use crate::verdict::Outcome;
 
 /// One leg's verdict. `None` where the findings carry no such row: the leg
 /// was never measured, which is missing rather than any verdict.
@@ -109,23 +108,9 @@ pub fn assess_supervision(f: &Findings) -> Assessment {
 }
 
 fn assess_through(f: &Findings, legs: &[&'static str], scope: &'static str) -> Assessment {
-    let legs: Vec<Leg> = legs
-        .iter()
-        .map(|&name| Leg {
-            name,
-            outcome: f.get(name).cloned(),
-        })
-        .collect();
-    let missing: Vec<&'static str> = legs
-        .iter()
-        .filter(|l| l.missing())
-        .map(|l| l.name)
-        .collect();
-    Assessment {
-        legs,
-        missing,
-        scope,
-    }
+    let legs: Vec<Leg> = legs.iter().map(|&name| Leg { name, outcome: f.get(name).cloned() }).collect();
+    let missing: Vec<&'static str> = legs.iter().filter(|l| l.missing()).map(|l| l.name).collect();
+    Assessment { legs, missing, scope }
 }
 
 #[cfg(test)]
@@ -134,24 +119,15 @@ mod tests {
     use crate::sys;
 
     fn findings(rows: &[(&'static str, Outcome)]) -> Findings {
-        Findings {
-            rows: rows.to_vec(),
-            ..Findings::empty()
-        }
+        Findings { rows: rows.to_vec(), ..Findings::empty() }
     }
 
     fn all_ok() -> Vec<(&'static str, Outcome)> {
-        crate::probes::SUPERVISE_LEGS
-            .iter()
-            .map(|&name| (name, Outcome::ok()))
-            .collect()
+        crate::probes::SUPERVISE_LEGS.iter().map(|&name| (name, Outcome::ok())).collect()
     }
 
     fn supervision_ok() -> Vec<(&'static str, Outcome)> {
-        crate::probes::SUPERVISION_LEGS
-            .iter()
-            .map(|&name| (name, Outcome::ok()))
-            .collect()
+        crate::probes::SUPERVISION_LEGS.iter().map(|&name| (name, Outcome::ok())).collect()
     }
 
     #[test]
@@ -166,18 +142,12 @@ mod tests {
     #[test]
     fn a_denied_leg_refuses_and_names_its_errno() {
         let mut rows = all_ok();
-        rows[0] = (
-            "seccomp(NEW_LISTENER) [supervise]",
-            Outcome::denied(sys::EACCES),
-        );
+        rows[0] = ("seccomp(NEW_LISTENER) [supervise]", Outcome::denied(sys::EACCES));
         let a = assess(&findings(&rows));
         assert!(a.refused());
         assert_eq!(a.missing, vec!["seccomp(NEW_LISTENER) [supervise]"]);
         let refusal = a.refusal().expect("a refusal prints");
-        assert!(
-            refusal.contains("seccomp(NEW_LISTENER) [supervise]=EACCES"),
-            "{refusal}"
-        );
+        assert!(refusal.contains("seccomp(NEW_LISTENER) [supervise]=EACCES"), "{refusal}");
     }
 
     #[test]
@@ -185,10 +155,7 @@ mod tests {
         // The shape on a machine where the leg could not run: missing rather
         // than any verdict about the tier.
         let mut rows = all_ok();
-        rows[1] = (
-            "process_vm_readv(own pid) [supervise]",
-            Outcome::skip(Some(sys::ENOENT), "no readv here"),
-        );
+        rows[1] = ("process_vm_readv(own pid) [supervise]", Outcome::skip(Some(sys::ENOENT), "no readv here"));
         let a = assess(&findings(&rows));
         assert!(a.refused());
         assert_eq!(a.missing, vec!["process_vm_readv(own pid) [supervise]"]);
@@ -207,47 +174,23 @@ mod tests {
         assert!(a.refused());
         assert_eq!(a.missing, vec!["ptrace(PTRACE_TRACEME) [supervise]"]);
         let refusal = a.refusal().expect("a refusal prints");
-        assert!(
-            refusal.contains("ptrace(PTRACE_TRACEME) [supervise]=(not probed)"),
-            "{refusal}"
-        );
+        assert!(refusal.contains("ptrace(PTRACE_TRACEME) [supervise]=(not probed)"), "{refusal}");
     }
 
     #[test]
     fn the_refusal_names_every_missing_leg_in_run_order() {
         let mut rows = all_ok();
-        rows[0] = (
-            "seccomp(NEW_LISTENER) [supervise]",
-            Outcome::denied(sys::EACCES),
-        );
-        rows[2] = (
-            "ptrace(PTRACE_TRACEME) [supervise]",
-            Outcome::skip(Some(sys::ENOENT), "no ptrace here"),
-        );
+        rows[0] = ("seccomp(NEW_LISTENER) [supervise]", Outcome::denied(sys::EACCES));
+        rows[2] = ("ptrace(PTRACE_TRACEME) [supervise]", Outcome::skip(Some(sys::ENOENT), "no ptrace here"));
         let a = assess(&findings(&rows));
-        assert_eq!(
-            a.missing,
-            vec![
-                "seccomp(NEW_LISTENER) [supervise]",
-                "ptrace(PTRACE_TRACEME) [supervise]",
-            ]
-        );
+        assert_eq!(a.missing, vec!["seccomp(NEW_LISTENER) [supervise]", "ptrace(PTRACE_TRACEME) [supervise]",]);
         let refusal = a.refusal().expect("a refusal prints");
-        assert!(
-            refusal.contains("seccomp(NEW_LISTENER) [supervise]=EACCES"),
-            "{refusal}"
-        );
-        assert!(
-            refusal.contains("ptrace(PTRACE_TRACEME) [supervise]=skip"),
-            "{refusal}"
-        );
-        assert!(
-            refusal.find("seccomp").unwrap() < refusal.find("ptrace").unwrap(),
-            "{refusal}"
-        );
+        assert!(refusal.contains("seccomp(NEW_LISTENER) [supervise]=EACCES"), "{refusal}");
+        assert!(refusal.contains("ptrace(PTRACE_TRACEME) [supervise]=skip"), "{refusal}");
+        assert!(refusal.find("seccomp").unwrap() < refusal.find("ptrace").unwrap(), "{refusal}");
     }
 
-    /// TODO/supervise.md T-0606. Two clear legs hold supervision: the
+    /// Two clear legs hold supervision: the
     /// lifecycle's own pair, read through its own names.
     #[test]
     fn two_clear_legs_hold_supervision() {
@@ -263,18 +206,12 @@ mod tests {
     #[test]
     fn a_denied_supervision_leg_refuses_supervision() {
         let mut rows = supervision_ok();
-        rows[0] = (
-            "pidfd_open(own pid) [supervise]",
-            Outcome::denied(sys::EPERM),
-        );
+        rows[0] = ("pidfd_open(own pid) [supervise]", Outcome::denied(sys::EPERM));
         let a = assess_supervision(&findings(&rows));
         assert!(a.refused());
         let refusal = a.refusal().expect("a refusal prints");
         assert!(refusal.starts_with("supervision refused:"), "{refusal}");
-        assert!(
-            refusal.contains("pidfd_open(own pid) [supervise]=EPERM"),
-            "{refusal}"
-        );
+        assert!(refusal.contains("pidfd_open(own pid) [supervise]=EPERM"), "{refusal}");
     }
 
     /// The split itself, on the target shape: mediation refused where
@@ -284,25 +221,13 @@ mod tests {
     #[test]
     fn denied_notify_legs_refuse_mediation_beside_available_supervision() {
         let notify = vec![
-            (
-                "seccomp(NEW_LISTENER) [supervise]",
-                Outcome::denied(sys::EPERM),
-            ),
-            (
-                "process_vm_readv(own pid) [supervise]",
-                Outcome::denied(sys::EPERM),
-            ),
-            (
-                "ptrace(PTRACE_TRACEME) [supervise]",
-                Outcome::denied(sys::EPERM),
-            ),
+            ("seccomp(NEW_LISTENER) [supervise]", Outcome::denied(sys::EPERM)),
+            ("process_vm_readv(own pid) [supervise]", Outcome::denied(sys::EPERM)),
+            ("ptrace(PTRACE_TRACEME) [supervise]", Outcome::denied(sys::EPERM)),
         ];
         let mediation = assess(&findings(&notify));
         assert!(mediation.refused());
-        assert!(mediation
-            .refusal()
-            .expect("a refusal prints")
-            .starts_with("supervise tier refused:"),);
+        assert!(mediation.refusal().expect("a refusal prints").starts_with("supervise tier refused:"),);
         let supervision = assess_supervision(&findings(&supervision_ok()));
         assert!(!supervision.refused());
         assert!(supervision.refusal().is_none());

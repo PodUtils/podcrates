@@ -1,24 +1,16 @@
 use super::*;
 
-/// ⛔ The worst failure available to this module is a wrong number or a
+/// The worst failure available to this module is a wrong number or a
 /// wrong ABI: it would report a verdict for a syscall nobody named, and it
 /// would look exactly like a measurement. Two cross-checks against facts
 /// this process already knows by another route.
 ///
-/// ⚠ Neither proves the whole table. The table itself was checked once
-/// against `<sys/syscall.h>` on 2026-09-08 and the command is recorded in
-/// `TODO/probe.md` T-0101 so it can be re-run; the sixteen attribution
-/// numbers are additionally exercised on every run of
-/// `experiments/130-probe-parity.sh`, which compares them against a reading
-/// the reference instrument took.
+/// Neither proves the whole table. The table comes from the `syscalls` and
+/// `linux-raw-sys` crates, which take it from the source of the kernel.
 #[test]
 fn the_trap_and_the_abi_agree_with_what_this_process_already_knows() {
     let raw = unsafe { syscall6(SYS_GETPID, 0, 0, 0, 0, 0, 0) };
-    assert_eq!(
-        raw,
-        std::process::id() as i64,
-        "SYS_GETPID or the syscall ABI is wrong"
-    );
+    assert_eq!(raw, std::process::id() as i64, "SYS_GETPID or the syscall ABI is wrong");
 }
 
 #[test]
@@ -28,7 +20,7 @@ fn a_negative_return_decodes_as_the_errno_and_not_as_a_value() {
     assert_eq!(close(-1), Err(EBADF));
     assert_eq!(split(-1), Err(EPERM));
     assert_eq!(split(-4095), Err(Errno(4095)));
-    // ⚠ Outside the window is a VALUE, including a large negative one from
+    // Outside the window is a VALUE, including a large negative one from
     // a syscall that returns a signed quantity.
     assert_eq!(split(-4096), Ok(-4096));
     assert_eq!(split(0), Ok(0));
@@ -40,21 +32,18 @@ fn a_path_with_an_interior_nul_is_refused_rather_than_truncated() {
     assert!(CBuf::new("/tmp/ab").is_some());
 }
 
-/// ⛔ A short buffer is a kernel write past the end of it, and the shape is
+/// A short buffer is a kernel write past the end of it, and the shape is
 /// **not the same on two architectures**: 144 bytes on x86_64 and 128 on
-/// aarch64. Until 2026-09-09 this asserted `144` against a hand-written
-/// struct, which is correct on exactly one architecture and is the reason
-/// the file refused to build anywhere else rather than be wrong.
+/// aarch64.
 ///
-/// ⚠ Both numbers below were **measured, not read from a header**: the
-/// x86_64 one on this host, the aarch64 one by cross-building the same
-/// `size_of` and running it under `qemu-aarch64`. `experiments/260-multiarch.sh`
-/// re-takes both.
+/// Both numbers below were **measured, not read from a header**: the
+/// x86_64 one on a host, the aarch64 one with the same `size_of` built for
+/// aarch64 and run under `qemu-aarch64`.
 ///
-/// ⭐ An architecture with no number here is not skipped: it asserts the
-/// buffer is at least as large as every field the kernel is told about,
-/// which is the property that actually matters and which podvm now gets by
-/// construction, because the buffer IS the kernel's own generated struct.
+/// An architecture with no number here is not skipped: it asserts that the
+/// buffer is at least as large as the view read from it. The crate gets
+/// that by construction, because the buffer IS the struct that the crate
+/// generates from the headers of the kernel.
 #[test]
 fn the_stat_buffer_is_the_size_the_kernel_writes() {
     let n = core::mem::size_of::<KernelStat>();
@@ -62,10 +51,7 @@ fn the_stat_buffer_is_the_size_the_kernel_writes() {
     assert_eq!(n, 144, "x86_64 struct stat");
     #[cfg(target_arch = "aarch64")]
     assert_eq!(n, 128, "aarch64 struct stat");
-    assert!(
-        n >= core::mem::size_of::<Stat>(),
-        "the kernel's buffer is smaller than the view podvm reads from it"
-    );
+    assert!(n >= core::mem::size_of::<Stat>(), "the kernel's buffer is smaller than the view this crate reads from it");
 }
 
 #[test]
@@ -75,7 +61,7 @@ fn a_char_device_reads_as_one_and_its_numbers_come_back() {
     assert!(st.is_chardev(), "mode {:o}", st.st_mode);
     assert_eq!(st.kind(), "chardev");
     assert_eq!((st.rdev_major(), st.rdev_minor()), (1, 3));
-    // ⭐ TODO/enter.md T-1339: the (d,i) guard reads these two fields.
+    // The (device, inode) guard of an entry reads these two fields.
     // A zero here is a field the kernel never filled, and the guard
     // would compare nothing.
     assert_ne!(st.st_dev, 0, "the device /dev/null is on");
@@ -95,16 +81,15 @@ fn an_unknown_errno_names_its_number_rather_than_guessing_a_name() {
     assert_eq!(Errno(4093).name(), "E4093");
 }
 
-/// ⛔ **[`shed_after_fork`]'s positive control, and it carries its own
+/// **[`shed_after_fork`]'s positive control, and it carries its own
 /// negative one in the same test.**
 ///
-/// [`TODO/image.md`](../../../TODO/image.md) T-0215 measured that the hook
-/// changes nothing about the store lock race. ⚠ **An absence is not a
-/// zero**: a hook that never ran would report exactly the same nothing, so
-/// the measurement is worth only as much as the proof that the hook fires.
-/// `docs/methodology/experiments.md` asks for this of every instrument.
+/// A measurement found that the hook changes nothing about the race of the
+/// store lock. **An absence is not a zero**: a hook that never ran gives
+/// the same nothing, so the measurement is worth only as much as the proof
+/// that the hook fires.
 ///
-/// ⭐ It asks the CHILD rather than the parent, because the parent cannot
+/// It asks the CHILD rather than the parent, because the parent cannot
 /// see the child's descriptor table. The pipe is made without `O_CLOEXEC`,
 /// so the write end survives the `execve` and only the hook can take it
 /// away, and `/bin/sh` then says whether the number is still open in it.
@@ -114,13 +99,11 @@ fn an_unknown_errno_names_its_number_rather_than_guessing_a_name() {
 #[test]
 fn a_spawn_through_the_hook_sheds_a_registered_fd_and_one_without_it_does_not() {
     fn ask_the_child(w: i64, hook: bool) -> String {
-        // ⚠ The number is the parent's, and a `fork` copies the table, so
+        // The number is the parent's, and a `fork` copies the table, so
         // it is the child's number as well.
         let script = format!("if [ -e /proc/self/fd/{w} ]; then echo open; else echo shed; fi");
         let mut cmd = std::process::Command::new("/bin/sh");
-        cmd.arg("-c")
-            .arg(script)
-            .stdout(std::process::Stdio::piped());
+        cmd.arg("-c").arg(script).stdout(std::process::Stdio::piped());
         if hook {
             shed_after_fork(&mut cmd);
         }
@@ -132,13 +115,10 @@ fn a_spawn_through_the_hook_sheds_a_registered_fd_and_one_without_it_does_not() 
     pipe2(&mut fds, 0).expect("pipe2");
     let (r, w) = (fds[0] as i64, fds[1] as i64);
 
-    // ⛔ The negative leg first, and it runs before anything is registered,
+    // The negative leg first, and it runs before anything is registered,
     // so it measures the descriptor and not the table.
     let without = ask_the_child(w, false);
-    assert!(
-        close_in_children(w),
-        "no free slot to register the control's own fd in"
-    );
+    assert!(close_in_children(w), "no free slot to register the control's own fd in");
     let with = ask_the_child(w, true);
     stop_closing_in_children(w);
     let _ = close(w);

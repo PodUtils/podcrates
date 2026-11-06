@@ -1,4 +1,4 @@
-//! `TODO/machine.md` T-1301: the machine tier as legs, and the refusal rule.
+//! The machine tier as legs, and the refusal rule.
 //!
 //! One leg per fact the tier needs, each measured, never inferred from
 //! another leg. The legs run as [`crate::probes`] rows in
@@ -14,13 +14,12 @@
 //! so. Refusal stays only where no profile holds: no usable accelerator
 //! at all, or no space, or the emulator missing.
 //!
-//! ⛔ A row that is absent is a missing leg, not a passing one. A document
+//! A row that is absent is a missing leg, not a passing one. A document
 //! written before the legs existed carries no verdict for them, and reading
-//! that absence as anything but missing would be the silent non-isolation
-//! T-1301 exists to refuse.
+//! that absence as anything but missing would be silent non-isolation.
 
-use crate::verdict::{Outcome, Verdict};
 use crate::Findings;
+use crate::verdict::{Outcome, Verdict};
 
 /// Which machine profile the legs establish.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,9 +56,8 @@ impl Leg {
         }
     }
 
-    /// One leg's verdict in words. Public for `podvm doctor`
-    /// (TODO/cli.md T-1337), which prints the legs: a second renderer
-    /// would drift from this one.
+    /// One leg's verdict in words. Public for a doctor command that prints
+    /// the legs: a second renderer would drift from this one.
     pub fn detail(&self) -> String {
         match &self.outcome {
             Some(o) => match (o.verdict, o.errno) {
@@ -141,7 +139,7 @@ impl Assessment {
 /// debug assertion on each, so a drift fails fast in tests rather than
 /// assessing the wrong legs.
 ///
-/// ⭐ Public for `podvm doctor` (TODO/cli.md T-1337), which classifies
+/// Public for a doctor command, which classifies
 /// and remedies by leg: matching its own copies of these strings would
 /// be a second list that drifts, and the one nobody reads is the one
 /// that does.
@@ -173,8 +171,8 @@ fn leg_ok(legs: &[Leg], name: &str) -> bool {
 
 /// Whether the named accelerator is both listed by the emulator and, for
 /// `kvm`, opened on its node. The list alone cannot say the caller may
-/// use it, and the node alone cannot say the build carries it: leg 6 of
-/// the entry's Approach asks the emulator, leg 2 opens the node, and the
+/// use it, and the node alone cannot say the build carries it: the accel
+/// leg asks the emulator, the kvm leg opens the node, and the
 /// profile needs both halves of each claim.
 fn accel_usable(legs: &[Leg], accel: &str) -> bool {
     let listed = legs
@@ -197,23 +195,11 @@ fn accel_usable(legs: &[Leg], accel: &str) -> bool {
 /// Read the machine legs out of a finished run.
 pub fn assess(f: &Findings) -> Assessment {
     for name in [EMU_LEG, KVM_LEG, FSIZE_LEG, TUN_LEG, SPACE_LEG, ACCEL_LEG] {
-        debug_assert!(
-            crate::probes::MACHINE_LEGS.contains(&name),
-            "{name} is not a machine leg"
-        );
+        debug_assert!(crate::probes::MACHINE_LEGS.contains(&name), "{name} is not a machine leg");
     }
-    let legs: Vec<Leg> = crate::probes::MACHINE_LEGS
-        .iter()
-        .map(|&name| Leg {
-            name,
-            outcome: f.get(name).cloned(),
-        })
-        .collect();
-    let missing: Vec<&'static str> = legs
-        .iter()
-        .filter(|l| l.missing())
-        .map(|l| l.name)
-        .collect();
+    let legs: Vec<Leg> =
+        crate::probes::MACHINE_LEGS.iter().map(|&name| Leg { name, outcome: f.get(name).cloned() }).collect();
+    let missing: Vec<&'static str> = legs.iter().filter(|l| l.missing()).map(|l| l.name).collect();
     let kvm = accel_usable(&legs, "kvm");
     let tcg = accel_usable(&legs, "tcg");
     // The TCG blockers, in run order: the emulator, its `tcg`
@@ -239,12 +225,7 @@ pub fn assess(f: &Findings) -> Assessment {
     } else {
         None
     };
-    Assessment {
-        legs,
-        missing,
-        profile,
-        tcg_blocked_by,
-    }
+    Assessment { legs, missing, profile, tcg_blocked_by }
 }
 
 /// The refusal line for one blocking leg. The leg's own detail, except
@@ -255,11 +236,7 @@ fn refusal_detail(legs: &[Leg], leg: &Leg) -> String {
         && o.verdict == Verdict::Ok
     {
         if leg.name == ACCEL_LEG && !accelerators_in(&o.reason).contains(&"tcg") {
-            let listed = o
-                .reason
-                .strip_prefix("accelerators:")
-                .unwrap_or(&o.reason)
-                .trim();
+            let listed = o.reason.strip_prefix("accelerators:").unwrap_or(&o.reason).trim();
             let listed = if listed.is_empty() { "no list" } else { listed };
             return format!("{}: tcg not listed ({listed})", leg.name);
         }
@@ -276,10 +253,7 @@ mod tests {
     use crate::sys;
 
     fn findings(rows: &[(&'static str, Outcome)]) -> Findings {
-        Findings {
-            rows: rows.to_vec(),
-            ..Findings::empty()
-        }
+        Findings { rows: rows.to_vec(), ..Findings::empty() }
     }
 
     fn all_ok() -> Vec<(&'static str, Outcome)> {
@@ -336,23 +310,14 @@ mod tests {
     fn an_accelerator_list_without_tcg_blocks_every_profile() {
         let mut rows = all_ok();
         rows[1] = ("open(/dev/kvm, O_RDWR)", Outcome::denied(sys::ENOENT));
-        rows[5] = (
-            "qemu-system-x86_64 -accel help",
-            Outcome::ok_with("accelerators: kvm"),
-        );
+        rows[5] = ("qemu-system-x86_64 -accel help", Outcome::ok_with("accelerators: kvm"));
         let a = assess(&findings(&rows));
         assert_eq!(a.profile, None);
         assert!(a.refused());
         let refusal = a.refusal().expect("a refusal prints");
         assert!(refusal.contains("tcg not listed"), "{refusal}");
-        assert!(
-            refusal.contains("open(/dev/kvm, O_RDWR)=ENOENT"),
-            "{refusal}"
-        );
-        assert!(
-            refusal.find("kvm").unwrap() < refusal.find("accel").unwrap(),
-            "{refusal}"
-        );
+        assert!(refusal.contains("open(/dev/kvm, O_RDWR)=ENOENT"), "{refusal}");
+        assert!(refusal.find("kvm").unwrap() < refusal.find("accel").unwrap(), "{refusal}");
     }
 
     #[test]
@@ -360,10 +325,7 @@ mod tests {
         // The node opens but the build carries no kvm: full claims
         // acceleration it cannot drive, so the profile is TCG.
         let mut rows = all_ok();
-        rows[5] = (
-            "qemu-system-x86_64 -accel help",
-            Outcome::ok_with("accelerators: tcg"),
-        );
+        rows[5] = ("qemu-system-x86_64 -accel help", Outcome::ok_with("accelerators: tcg"));
         let a = assess(&findings(&rows));
         assert_eq!(a.profile, Some(Profile::Tcg));
         assert!(a.refusal().is_none());
@@ -376,10 +338,7 @@ mod tests {
         // legs could not run, which is missing rather than any verdict
         // about acceleration.
         let mut rows = all_ok();
-        rows[0] = (
-            "qemu-system-x86_64 --version",
-            Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH"),
-        );
+        rows[0] = ("qemu-system-x86_64 --version", Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH"));
         rows[5] = (
             "qemu-system-x86_64 -accel help",
             Outcome::skip(
@@ -390,18 +349,9 @@ mod tests {
         let a = assess(&findings(&rows));
         assert_eq!(a.profile, None);
         assert!(a.refused());
-        assert_eq!(
-            a.tcg_blocked_by,
-            vec![
-                "qemu-system-x86_64 --version",
-                "qemu-system-x86_64 -accel help"
-            ]
-        );
+        assert_eq!(a.tcg_blocked_by, vec!["qemu-system-x86_64 --version", "qemu-system-x86_64 -accel help"]);
         let refusal = a.refusal().expect("a refusal prints");
-        assert!(
-            refusal.contains("no qemu-system-x86_64 on PATH"),
-            "{refusal}"
-        );
+        assert!(refusal.contains("no qemu-system-x86_64 on PATH"), "{refusal}");
     }
 
     #[test]
@@ -416,18 +366,12 @@ mod tests {
         assert!(a.refused());
         assert_eq!(a.missing, vec!["qemu-system-x86_64 -accel help"]);
         let refusal = a.refusal().expect("a refusal prints");
-        assert!(
-            refusal.contains("qemu-system-x86_64 -accel help=(not probed)"),
-            "{refusal}"
-        );
+        assert!(refusal.contains("qemu-system-x86_64 -accel help=(not probed)"), "{refusal}");
     }
 
     #[test]
     fn the_accelerator_list_reads_words_not_substrings() {
-        assert_eq!(
-            accelerators_in("accelerators: kvm tcg xen"),
-            vec!["kvm", "tcg", "xen"]
-        );
+        assert_eq!(accelerators_in("accelerators: kvm tcg xen"), vec!["kvm", "tcg", "xen"]);
         assert_eq!(accelerators_in(""), Vec::<&str>::new());
         // `tcg-3d` is not `tcg`: a substring match would arm TCG on a
         // list that never offered it.

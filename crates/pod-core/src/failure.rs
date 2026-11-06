@@ -39,6 +39,8 @@ pub enum Stage {
     Session,
     /// A rendezvous: a mailbox or a transit relay.
     Rendezvous,
+    /// The local host: a probe of it, its file systems, its limits.
+    Host,
 }
 
 impl Stage {
@@ -58,6 +60,7 @@ impl Stage {
             Stage::Warp => "warp",
             Stage::Session => "session",
             Stage::Rendezvous => "rendezvous",
+            Stage::Host => "host",
         }
     }
 }

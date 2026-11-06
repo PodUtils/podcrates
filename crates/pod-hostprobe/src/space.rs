@@ -1,31 +1,34 @@
-//! `TODO/image.md` T-0203: check blocks **and inodes**, before any download and
-//! again before any extraction, and name the destination in the message.
+//! Check blocks **and inodes**, before a download and again before an
+//! extraction, and name the destination in the message.
 //!
-//! ⭐ The defect this exists to avoid is in the corpus at file and line.
-//! `references/mhx__dwarfs/tree/src/utility/filesystem_extractor.cpp:544-552`
-//! takes `rv` from `write_range_data`, which returns a libarchive
-//! `la_ssize_t`, then formats it into `"short write: {} != {}"` as though it
-//! were a byte count. `-20` is `ARCHIVE_WARN`, a status code; the underlying
-//! `archive_errno` is `ENOSPC`. The message names neither the errno nor the
-//! path, so the reader learns nothing they can act on.
+//! The defect to avoid: an extractor (dwarfs) formats a libarchive status
+//! code (`-20`, `ARCHIVE_WARN`) as a byte count in `"short write: {} != {}"`.
+//! The errno under it is `ENOSPC`. The message names neither the errno nor
+//! the path, so the reader learns nothing to act on.
 //!
-//! ⚠ The same trap is in the corpus as a shipped default:
-//! `references/VHSgunzo__memfd-exec/tree/src/executable.rs:580-584` falls back
-//! to `env::temp_dir()`, then `/dev/shm`, then `$HOME/.cache`, with no space
+//! The same trap as a shipped default: a loader (memfd-exec) falls back to
+//! `env::temp_dir()`, then `/dev/shm`, then `$HOME/.cache`, with no space
 //! check on any of them.
 //!
-//! ⛔ Refuse up front rather than streaming until `ENOSPC`. A partial
-//! extraction has to be cleaned up on a filesystem that is already full, which
-//! is the state in which cleanup is least likely to work.
+//! Refuse at the start; do not stream until `ENOSPC`. A partial extraction
+//! must be cleaned up on a file system that is full already, which is the
+//! state in which a cleanup is least likely to work.
+//!
+//! A failure is a [`Failure`] at [`Stage::Host`]: [`Class::Usage`] for a path
+//! that cannot reach the kernel, [`Class::Unavailable`] for no space or an
+//! unknown free space.
 
-use podvm_probe::sys::{self, CBuf};
+use pod_core::{Class, Failure, Stage};
 
-use crate::error::{Error, Result};
+use crate::Settings;
+use crate::sys::{self, CBuf};
+
+type Result<T> = std::result::Result<T, Failure>;
 
 /// This process's file-size ceiling (`RLIMIT_FSIZE`), or `None` where
 /// there is none (infinity) or it could not be read.
 ///
-/// ⚠ Unlike free space, which the whole pull shares, the ceiling binds
+/// Unlike free space, which the whole pull shares, the ceiling binds
 /// every blob on its own: one file may never pass it, however much room
 /// the filesystem has. An unreadable ceiling means no bound rather than
 /// a refusal: the pull worked without one before this check existed,
@@ -38,8 +41,8 @@ pub fn file_ceiling() -> Option<u64> {
 }
 
 /// What one filesystem has left. `statfs(2)` is the syscall behind `statvfs(3)`
-/// and is what `crates/podvm-probe/src/writable.rs` already calls, so there is
-/// one read path for free space in this tree and not two.
+/// and is what [`crate::writable`] calls too, so there is one read path for
+/// free space in the crate and not two.
 #[derive(Debug, Clone, Copy)]
 pub struct Free {
     pub bytes: u64,
@@ -47,7 +50,7 @@ pub struct Free {
     pub block_size: u64,
 }
 
-/// ⚠ Some filesystems report `f_files == 0`, meaning inodes are allocated
+/// Some filesystems report `f_files == 0`, meaning inodes are allocated
 /// dynamically and there is no fixed count. `f_ffree` is then meaningless
 /// rather than zero, and a check that read it as zero would refuse every write
 /// on tmpfs.
@@ -59,26 +62,28 @@ pub struct Have {
 
 pub fn read(path: &str) -> Result<Have> {
     let Some(c) = CBuf::new(path) else {
-        return Err(Error::Store(format!(
-            "{path:?} contains a NUL and cannot reach the kernel"
-        )));
+        return Err(Failure::new(
+            Stage::Host,
+            Class::Usage,
+            format!("{path:?} contains a NUL and cannot reach the kernel"),
+        ));
     };
     let s = sys::statfs(&c).map_err(|e| {
-        Error::NoSpace(format!(
-            "statfs({path}) failed with {} ({}), so the free space at the \
-             destination is unknown and podvm will not start a download it \
-             cannot size",
-            e.name(),
-            e.0
-        ))
+        Failure::new(
+            Stage::Host,
+            Class::Unavailable,
+            format!(
+                "statfs({path}) failed with {} ({}), so the free space at the \
+                 destination is unknown, and a download that cannot be sized \
+                 does not start",
+                e.name(),
+                e.0
+            ),
+        )
     })?;
     let block_size = if s.f_bsize > 0 { s.f_bsize as u64 } else { 0 };
     Ok(Have {
-        free: Free {
-            bytes: s.f_bavail.saturating_mul(block_size),
-            inodes: s.f_ffree,
-            block_size,
-        },
+        free: Free { bytes: s.f_bavail.saturating_mul(block_size), inodes: s.f_ffree, block_size },
         inodes_are_counted: s.f_files > 0,
     })
 }
@@ -86,9 +91,9 @@ pub fn read(path: &str) -> Result<Have> {
 /// The bytes under a directory, counted by walking it. Symlinks are
 /// never followed: a rootfs holds absolute links into itself (which
 /// would double-count) and relative links out of it (which would escape
-/// the store). An unreadable entry counts nothing rather than failing
-/// the report: TODO/cli.md T-1337's `system df` never exits non-zero
-/// for accounting alone.
+/// the store). An unreadable entry counts nothing and does not fail
+/// the report: a `df` command does not exit non-zero for accounting
+/// alone.
 pub fn dir_bytes(path: &std::path::Path) -> u64 {
     use std::collections::HashSet;
     use std::os::unix::fs::MetadataExt;
@@ -118,9 +123,8 @@ pub fn dir_bytes(path: &std::path::Path) -> u64 {
     total
 }
 
-/// Bytes rendered in the unit they are in. ⚠ `docs/conventions/code.md`: binary
-/// units where they are binary, and never a value printed in one unit and
-/// labelled the other.
+/// Bytes rendered in the unit they are in: binary units where they are
+/// binary, and never a value printed in one unit and labelled the other.
 pub fn mib(bytes: u64) -> String {
     if bytes < 1024 {
         return format!("{bytes} B");
@@ -130,20 +134,17 @@ pub fn mib(bytes: u64) -> String {
         return format!("{kib:.1} KiB");
     }
     let m = kib / 1024.0;
-    if m < 1024.0 {
-        format!("{m:.1} MiB")
-    } else {
-        format!("{:.2} GiB", m / 1024.0)
-    }
+    if m < 1024.0 { format!("{m:.1} MiB") } else { format!("{:.2} GiB", m / 1024.0) }
 }
 
-/// ⛔ The precheck. Both halves, and the message names the destination, the
+/// The precheck. Both halves, and the message names the destination, the
 /// free amount, the required amount and the unit.
 ///
 /// `headroom_bytes` is what is asked for beyond the payload, so a store is not
 /// filled to its last block by a pull that then leaves nothing for the
-/// extraction M2 performs.
+/// extraction after it. The message names `settings.directory_setting`.
 pub fn require(
+    settings: &Settings,
     destination: &str,
     what: &str,
     need_bytes: u64,
@@ -153,25 +154,37 @@ pub fn require(
     let have = read(destination)?;
     let want = need_bytes.saturating_add(headroom_bytes);
     if have.free.bytes < want {
-        return Err(Error::NoSpace(format!(
-            "not enough space at {destination} for {what}: {} free, {} needed \
-             ({} of payload plus {} of headroom). Set $PODVM_STORE to a \
-             directory with room, or free space at {destination}",
-            mib(have.free.bytes),
-            mib(want),
-            mib(need_bytes),
-            mib(headroom_bytes),
-        )));
+        let remedy = match &settings.directory_setting {
+            Some(name) => format!("Set {name} to a directory with room"),
+            None => "Choose a directory with room".to_string(),
+        };
+        return Err(Failure::new(
+            Stage::Host,
+            Class::Unavailable,
+            format!(
+                "not enough space at {destination} for {what}: {} free, {} needed \
+                 ({} of payload plus {} of headroom). {remedy}, or free space at \
+                 {destination}",
+                mib(have.free.bytes),
+                mib(want),
+                mib(need_bytes),
+                mib(headroom_bytes),
+            ),
+        ));
     }
     if have.inodes_are_counted && have.free.inodes < need_inodes {
-        return Err(Error::NoSpace(format!(
-            "not enough inodes at {destination} for {what}: {} free, {need_inodes} \
-             needed. This filesystem has {} of free space and cannot create the \
-             files anyway, which is the failure that otherwise arrives as ENOSPC \
-             with plenty of bytes left",
-            have.free.inodes,
-            mib(have.free.bytes),
-        )));
+        return Err(Failure::new(
+            Stage::Host,
+            Class::Unavailable,
+            format!(
+                "not enough inodes at {destination} for {what}: {} free, {need_inodes} \
+                 needed. This filesystem has {} of free space and cannot create the \
+                 files anyway, which is the failure that otherwise arrives as ENOSPC \
+                 with plenty of bytes left",
+                have.free.inodes,
+                mib(have.free.bytes),
+            ),
+        ));
     }
     Ok(have)
 }
@@ -183,35 +196,22 @@ pub struct Candidate {
     pub have: Have,
 }
 
-/// ⛔ Choose by free space among paths a probe **obtained by writing**, rather
-/// than taking `$TMPDIR`. On the runtime podvm targets `/tmp` is 64 MiB, which
-/// almost no image fits in, and it is exactly what `$TMPDIR` names.
+/// Choose by free space among paths a probe **obtained by writing**, rather
+/// than taking `$TMPDIR`. On a confined target `/tmp` is 64 MiB, which almost
+/// no image fits in, and it is exactly what `$TMPDIR` names.
 ///
 /// `writable` is `(path, source)` from the probe's write allowlist; a path that
 /// cannot be `statfs`'d is dropped with its reason rather than ranked last,
 /// because an unknown free space is not a small one.
-pub fn choose<'a>(
-    writable: impl IntoIterator<Item = (&'a str, &'a str)>,
-    dropped: &mut Vec<String>,
-) -> Vec<Candidate> {
+pub fn choose<'a>(writable: impl IntoIterator<Item = (&'a str, &'a str)>, dropped: &mut Vec<String>) -> Vec<Candidate> {
     let mut out: Vec<Candidate> = Vec::new();
     for (path, source) in writable {
         match read(path) {
-            Ok(have) => out.push(Candidate {
-                path: path.to_string(),
-                source: source.to_string(),
-                have,
-            }),
+            Ok(have) => out.push(Candidate { path: path.to_string(), source: source.to_string(), have }),
             Err(e) => dropped.push(format!("{path}: {e}")),
         }
     }
-    out.sort_by(|a, b| {
-        b.have
-            .free
-            .bytes
-            .cmp(&a.have.free.bytes)
-            .then(a.path.cmp(&b.path))
-    });
+    out.sort_by(|a, b| b.have.free.bytes.cmp(&a.have.free.bytes).then(a.path.cmp(&b.path)));
     out
 }
 
@@ -244,8 +244,8 @@ mod tests {
 
     #[test]
     fn a_requirement_over_the_free_space_names_all_four_things() {
-        // ⭐ The whole point of the entry: destination, free, required, unit.
-        let e = require("/tmp", "alpine:latest", u64::MAX / 4, 1, 0).unwrap_err();
+        // Destination, free, required, unit.
+        let e = require(&Settings::default(), "/tmp", "alpine:latest", u64::MAX / 4, 1, 0).unwrap_err();
         let text = format!("{e}");
         assert!(text.contains("/tmp"), "{text}");
         assert!(text.contains("free"), "{text}");
@@ -254,18 +254,28 @@ mod tests {
     }
 
     #[test]
+    fn a_requirement_over_the_free_space_names_the_setting_of_the_caller() {
+        let named = Settings { directory_setting: Some("$STORE".to_string()), ..Settings::default() };
+        let text = format!("{}", require(&named, "/tmp", "x", u64::MAX / 4, 1, 0).unwrap_err());
+        assert!(text.contains("Set $STORE to a directory with room"), "{text}");
+        let text = format!("{}", require(&Settings::default(), "/tmp", "x", u64::MAX / 4, 1, 0).unwrap_err());
+        assert!(text.contains("Choose a directory with room"), "{text}");
+        assert!(!text.contains('$'), "{text}");
+    }
+
+    #[test]
     fn a_requirement_the_machine_can_meet_returns_what_it_has() {
-        let have = require("/tmp", "one byte", 1, 1, 0).unwrap();
+        let have = require(&Settings::default(), "/tmp", "one byte", 1, 1, 0).unwrap();
         assert!(have.free.bytes >= 1);
     }
 
     #[test]
     fn an_inode_requirement_is_checked_only_where_inodes_are_counted() {
-        // ⚠ tmpfs reports f_files == 0. Reading f_ffree as zero there would
+        // tmpfs reports f_files == 0. Reading f_ffree as zero there would
         // refuse every write on a filesystem with room.
         let have = read("/dev/shm").or_else(|_| read("/tmp")).unwrap();
         if !have.inodes_are_counted {
-            assert!(require("/dev/shm", "x", 0, u64::MAX, 0).is_ok());
+            assert!(require(&Settings::default(), "/dev/shm", "x", 0, u64::MAX, 0).is_ok());
         }
     }
 
@@ -273,10 +283,7 @@ mod tests {
     fn candidates_come_back_largest_first_and_an_unreadable_one_is_dropped_with_its_reason() {
         let mut dropped = Vec::new();
         let got = choose(
-            [
-                ("/tmp", "the candidate list"),
-                ("/proc/self/no-such-directory", "the candidate list"),
-            ],
+            [("/tmp", "the candidate list"), ("/proc/self/no-such-directory", "the candidate list")],
             &mut dropped,
         );
         assert_eq!(got.len(), 1);
@@ -293,11 +300,11 @@ mod tests {
         assert_eq!(mib(2 * 1024 * 1024 * 1024), "2.00 GiB");
     }
 
-    /// T-1337: the walk counts file bytes once each, never follows a
-    /// link, and never fails the report for one bad entry.
+    /// The walk counts file bytes once each, never follows a link, and
+    /// never fails the report for one bad entry.
     #[test]
     fn dir_bytes_counts_once_and_never_follows() {
-        let d = std::env::temp_dir().join(format!("podvm-du-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("pod-hostprobe-du-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(d.join("sub")).unwrap();
         std::fs::write(d.join("a"), vec![7u8; 10]).unwrap();

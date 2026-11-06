@@ -17,9 +17,9 @@ enum EmuAnswer {
 
 /// Run the emulator with `args` and take its stdout.
 ///
-/// ⛔ Through [`sys::shed_after_fork`], like [`run_payload`]: libstd forks
+/// Through [`sys::shed_after_fork`], like [`run_payload`]: libstd forks
 /// inside `output()`, and without the hook every lock another thread holds is
-/// duplicated into the child at the fork. `TODO/image.md` T-0215.
+/// duplicated into the child at the fork.
 fn qemu_output(args: &[&str]) -> EmuAnswer {
     let mut cmd = std::process::Command::new(QEMU);
     cmd.args(args);
@@ -45,15 +45,11 @@ pub(super) fn m_qemu_version() -> Outcome {
     match qemu_output(&["--version"]) {
         EmuAnswer::Said(out) => match out.lines().next().map(str::trim).filter(|l| !l.is_empty()) {
             Some(line) => Outcome::ok_with(line.chars().take(160).collect::<String>()),
-            None => Outcome::skip(
-                None,
-                "qemu-system-x86_64 --version ran and answered nothing",
-            ),
+            None => Outcome::skip(None, "qemu-system-x86_64 --version ran and answered nothing"),
         },
-        EmuAnswer::Absent => Outcome::skip(
-            Some(sys::ENOENT),
-            "no qemu-system-x86_64 on PATH, so the emulator leg could not run",
-        ),
+        EmuAnswer::Absent => {
+            Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH, so the emulator leg could not run")
+        }
         EmuAnswer::Unusable(e) => Outcome::denied(e),
         EmuAnswer::Exited(code) => Outcome::skip(
             None,
@@ -67,30 +63,23 @@ pub(super) fn m_qemu_version() -> Outcome {
 }
 
 pub(super) fn m_kvm() -> Outcome {
-    // ⛔ OPENED, not stat-ed. A node that exists and answers EACCES on open is
-    // not acceleration. T-1301. Absence is the answer too, so ENOENT is a
+    // OPENED, not stat-ed. A node that exists and answers EACCES on open is
+    // not acceleration. Absence is the answer too, so ENOENT is a
     // denial rather than a missing precondition, like `stat(/dev/ptmx)`.
     open_probe("/dev/kvm", sys::O_RDWR | sys::O_CLOEXEC)
 }
 
 pub(super) fn m_fsize() -> Outcome {
     match sys::prlimit(sys::RLIMIT_FSIZE) {
-        Ok((cur, max)) => {
-            Outcome::ok_with(format!("RLIMIT_FSIZE cur={} max={}", rlim(cur), rlim(max)))
-        }
+        Ok((cur, max)) => Outcome::ok_with(format!("RLIMIT_FSIZE cur={} max={}", rlim(cur), rlim(max))),
         Err(e) => Outcome::denied(e),
     }
 }
 
-/// An rlimit value in words. `RLIM64_INFINITY` is not a size, so printing it
-/// as digits would be the plausible-looking number AGENTS.md absolute 3
-/// refuses.
+/// An rlimit value in words. `RLIM64_INFINITY` is not a size, so digits
+/// would be a number that looks plausible and is not.
 fn rlim(v: u64) -> String {
-    if v == u64::MAX {
-        "infinity".to_string()
-    } else {
-        v.to_string()
-    }
+    if v == u64::MAX { "infinity".to_string() } else { v.to_string() }
 }
 
 pub(super) fn m_tun() -> Outcome {
@@ -100,9 +89,9 @@ pub(super) fn m_tun() -> Outcome {
 }
 
 pub(super) fn m_space() -> Outcome {
-    // Blocks and inodes both, per `TODO/RULES.md` section 8, for the directory
-    // the caller runs in, named in the row. A destination the tier will use is
-    // not known at probe time; T-1302's consumer checks its own.
+    // Blocks and inodes both, for the directory the caller runs in, named in
+    // the row. The destination that the tier will use is not known when the
+    // probe runs; its consumer checks its own.
     let cwd = match std::env::current_dir() {
         Ok(p) => p,
         Err(e) => match e.raw_os_error() {
@@ -110,22 +99,14 @@ pub(super) fn m_space() -> Outcome {
                 return Outcome::skip(
                     Some(Errno(n)),
                     "the working directory could not be read, so no space was measured",
-                )
+                );
             }
-            None => {
-                return Outcome::skip(
-                    None,
-                    format!("the working directory could not be read: {e}"),
-                )
-            }
+            None => return Outcome::skip(None, format!("the working directory could not be read: {e}")),
         },
     };
     let path = cwd.to_string_lossy().into_owned();
     let Some(p) = CBuf::new(&path) else {
-        return Outcome::skip(
-            None,
-            "the working directory contains a NUL and cannot reach the kernel",
-        );
+        return Outcome::skip(None, "the working directory contains a NUL and cannot reach the kernel");
     };
     match sys::statfs(&p) {
         Ok(s) => Outcome::ok_with(format!(
@@ -137,34 +118,25 @@ pub(super) fn m_space() -> Outcome {
 }
 
 pub(super) fn m_accel() -> Outcome {
-    // ⭐ Ask the emulator rather than deciding from the kvm leg. An
+    // Ask the emulator rather than deciding from the kvm leg. An
     // accelerator the build was compiled without is as absent as a missing
     // node, and the node alone cannot say which builds carry what.
     match qemu_output(&["-accel", "help"]) {
         EmuAnswer::Said(out) => {
-            let accels: Vec<&str> = out
-                .lines()
-                .map(str::trim)
-                .filter(|l| !l.is_empty() && !l.ends_with(':'))
-                .collect();
+            let accels: Vec<&str> = out.lines().map(str::trim).filter(|l| !l.is_empty() && !l.ends_with(':')).collect();
             if accels.is_empty() {
-                Outcome::skip(
-                    None,
-                    "qemu-system-x86_64 -accel help ran and listed no accelerator",
-                )
+                Outcome::skip(None, "qemu-system-x86_64 -accel help ran and listed no accelerator")
             } else {
                 Outcome::ok_with(format!("accelerators: {}", accels.join(" ")))
             }
         }
-        EmuAnswer::Absent => Outcome::skip(
-            Some(sys::ENOENT),
-            "no qemu-system-x86_64 on PATH, so the accelerator list could not be read",
-        ),
+        EmuAnswer::Absent => {
+            Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH, so the accelerator list could not be read")
+        }
         EmuAnswer::Unusable(e) => Outcome::denied(e),
-        EmuAnswer::Exited(code) => Outcome::skip(
-            None,
-            format!("qemu-system-x86_64 -accel help ran and exited {code}; the list is unread"),
-        ),
+        EmuAnswer::Exited(code) => {
+            Outcome::skip(None, format!("qemu-system-x86_64 -accel help ran and exited {code}; the list is unread"))
+        }
         EmuAnswer::Failed(why) => Outcome::skip(None, why),
     }
 }

@@ -1,34 +1,33 @@
-//! `TODO/probe.md` T-0107: mode selection, and one switch that turns every
-//! degradation into a refusal.
+//! Mode selection, and one switch that turns each degradation into a
+//! refusal.
 //!
-//! ⛔ **A weaker mode must never satisfy a stronger request.** A user who
+//! **A weaker mode must never satisfy a stronger request.** A user who
 //! believes they have namespaces when they have a `chroot` is worse off than
 //! one who is told the truth, and an automated user cannot notice the
 //! difference the way a human skimming a log might.
 //!
 //! The rung is derived from the probe results, never from a privilege that
-//! usually implies them. Two mechanisms are taken from the corpus and neither
-//! project's architecture is:
+//! usually implies them. Two mechanisms come from other projects, and the
+//! architecture of neither:
 //!
-//! - `references/RuriOSS__ruri/tree/src/include/ruri.h:237-248`.
-//!   `ruri_warn_on_error` is non-fatal by default and, under
+//! - ruri (`src/include/ruri.h`): `ruri_warn_on_error` is non-fatal by
+//!   default and, under
 //!   `ruri_flag(force_panic)`, warns and then exits at the same site. **One
 //!   switch converts every degradation into a refusal.** [`Strictness`] is
-//!   that switch. ⚠ `ruri`'s `show` argument is
+//!   that switch. `ruri`'s `show` argument is
 //!   `!ruri_flag(disable_warnings)`, so a flag can silence its degradation
-//!   notices; podvm suppresses the banner by configuration and never by
+//!   notices; a caller suppresses its banner by configuration and never by
 //!   default, because a silenced degradation is `sandlock`'s failure mode with
 //!   a flag in front of it.
-//! - `references/indigo-dc__udocker/tree/udocker/engine/execmode.py:43-56`.
-//!   `get_mode()`'s precedence is force, then the per-container file, then a
+//! - udocker (`udocker/engine/execmode.py`): `get_mode()`'s precedence is force, then the per-container file, then a
 //!   config override, then a per-architecture default, then `DEFAULT`.
-//!   [`Selection::choose`] is the same precedence with podvm's sources.
+//!   [`Selection::choose`] is the same precedence with the probe as its source.
 
+use crate::Findings;
 use crate::probes::Group;
 use crate::verdict::{Outcome, Verdict};
-use crate::Findings;
 
-/// `TOOL.md` section 4.1's ladder, strongest first. ⛔ The order is the
+/// The ladder of modes, strongest first. The order is the
 /// comparison: `Rung::Namespace < Rung::Chroot` is what "a weaker mode must
 /// never satisfy a stronger request" is enforced with.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -38,7 +37,7 @@ pub enum Rung {
     Chroot,
     /// Entered without `chroot(2)`: the payload runs with the host's root,
     /// its working directory inside the image. Weaker than chroot, which
-    /// is what the order says. TODO/enter.md T-1317.
+    /// is what the order says.
     Userland,
     Interpose,
     Unsupported,
@@ -56,25 +55,25 @@ impl Rung {
         }
     }
 
-    /// What the rung must never claim, per `TOOL.md` section 4.1's last column.
+    /// What the rung must never claim.
     pub fn must_never_claim(self) -> &'static str {
         match self {
-            // ⭐ TODO/enter.md T-1339. The rung is mount-only, so this
+            // The rung is mount-only, so this
             // guards what it must never imply: user, pid or network
             // isolation, or a /proc it does not mount.
             Rung::Namespace => "user, pid or network isolation, or a /proc filesystem",
-            Rung::Supervise => {
-                "anything whose arguments it cannot read; on this runtime, exec remapping"
-            }
+            Rung::Supervise => "anything whose arguments it cannot read; on this runtime, exec remapping",
             Rung::Chroot => "process, network, IPC or mount isolation, or a /proc filesystem",
-            Rung::Userland => "isolation of any kind, a private root, or host-absolute paths resolving inside the image",
+            Rung::Userland => {
+                "isolation of any kind, a private root, or host-absolute paths resolving inside the image"
+            }
             Rung::Interpose => "any security property whatsoever",
             Rung::Unsupported => "",
         }
     }
 }
 
-/// ⭐ `ruri`'s inversion, as one switch. Under [`Strictness::Refuse`] a rung
+/// `ruri`'s inversion, as one switch. Under [`Strictness::Refuse`] a rung
 /// below the requested floor is an error rather than a notice.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Strictness {
@@ -96,10 +95,9 @@ pub struct Rejection {
 pub struct Selection {
     pub rung: Rung,
     pub rejected: Vec<Rejection>,
-    /// ⭐ True only when every control in the attribution set answered. A
+    /// True only when every control in the attribution set answered. A
     /// probe whose control has stopped answering has stopped discriminating,
-    /// and `TODO/probe.md` T-0102 rules that it must say so rather than
-    /// reporting a mechanism.
+    /// and it must say so and not report a mechanism.
     pub controls_answered: bool,
     pub control_notes: Vec<String>,
 }
@@ -131,16 +129,12 @@ fn evidence(f: &Findings, name: &str) -> String {
 }
 
 fn evidence_of(f: &Findings, names: &[&str]) -> String {
-    names
-        .iter()
-        .map(|n| evidence(f, n))
-        .collect::<Vec<_>>()
-        .join(" ")
+    names.iter().map(|n| evidence(f, n)).collect::<Vec<_>>().join(" ")
 }
 
 impl Selection {
-    /// Derive the rung. ⛔ Each rung's requirement is the **operation**, never
-    /// a privilege that usually implies it: `TOOL.md` section 6.1 rule 1.
+    /// Derive the rung. Each rung's requirement is the **operation**, never
+    /// a privilege that usually implies it.
     pub fn choose(f: &Findings) -> Selection {
         let mut rejected = Vec::new();
 
@@ -148,15 +142,11 @@ impl Selection {
         //
         // "mounts" is the attach half and not the create half. A machine where
         // fsmount succeeds and move_mount is denied has detached mounts it
-        // cannot use, which is TODO/probe.md T-0103's whole point.
+        // cannot use.
         let ns_created = ok(f, "unshare(CLONE_NEWNS)") || ok(f, "clone(CLONE_NEWNS)");
         let mounts = ok(f, "mount(tmpfs,/mnt)") || ok(f, "mount(tmpfs,/mnt) in clone(NEWNS)");
         if ns_created && mounts {
-            return Selection {
-                rung: Rung::Namespace,
-                rejected,
-                ..Selection::controls(f)
-            };
+            return Selection { rung: Rung::Namespace, rejected, ..Selection::controls(f) };
         }
         rejected.push(Rejection {
             rung: Rung::Namespace,
@@ -174,23 +164,18 @@ impl Selection {
 
         // -- supervise: three legs, and the tier is refused if any is missing
         //
-        // ⛔ TODO/supervise.md T-0606: never fall back per call. The third leg
-        // is not in `TOOL.md` section 4.1's row and is established by
-        // `references/multikernel__sandlock` issue #27: the only known fix for
+        // Never fall back per call. The third leg comes from sandlock issue
+        // #27: the only known fix for
         // seccomp-notify's TOCTOU race needs PTRACE_SEIZE on every thread of
         // every process in the sandbox before a Continue, so a runtime where
         // ptrace is filtered has no way to make the tier race-safe.
-        // ⛔ The legs are the tier's own rows (`Group::Supervise`), never the
+        // The legs are the tier's own rows (`Group::Supervise`), never the
         // census and attribution rows that answer other groups' contracts.
         let listener = ok(f, "seccomp(NEW_LISTENER) [supervise]");
         let arg_channel = ok(f, "process_vm_readv(own pid) [supervise]");
         let race_safe = ok(f, "ptrace(PTRACE_TRACEME) [supervise]");
         if listener && arg_channel && race_safe {
-            return Selection {
-                rung: Rung::Supervise,
-                rejected,
-                ..Selection::controls(f)
-            };
+            return Selection { rung: Rung::Supervise, rejected, ..Selection::controls(f) };
         }
         rejected.push(Rejection {
             rung: Rung::Supervise,
@@ -208,11 +193,7 @@ impl Selection {
 
         // -- chroot ---------------------------------------------------------
         if ok(f, "chroot(/tmp)") {
-            return Selection {
-                rung: Rung::Chroot,
-                rejected,
-                ..Selection::controls(f)
-            };
+            return Selection { rung: Rung::Chroot, rejected, ..Selection::controls(f) };
         }
         rejected.push(Rejection {
             rung: Rung::Chroot,
@@ -226,11 +207,7 @@ impl Selection {
         // coverage, neither of which exists until there is a payload. What the
         // probe can establish is that this machine can execute one at all.
         if ok(f, "exec(/tmp/execprobe)") || ok(f, "memfd_create+exec") {
-            return Selection {
-                rung: Rung::Interpose,
-                rejected,
-                ..Selection::controls(f)
-            };
+            return Selection { rung: Rung::Interpose, rejected, ..Selection::controls(f) };
         }
         rejected.push(Rejection {
             rung: Rung::Interpose,
@@ -238,22 +215,17 @@ impl Selection {
             evidence: evidence_of(f, &["exec(/tmp/execprobe)", "memfd_create+exec"]),
         });
 
-        Selection {
-            rung: Rung::Unsupported,
-            rejected,
-            ..Selection::controls(f)
-        }
+        Selection { rung: Rung::Unsupported, rejected, ..Selection::controls(f) }
     }
 
-    /// ⭐ TODO/probe.md T-0102's discipline, evaluated over the controls that
+    /// The discipline of the discriminator, evaluated over the controls that
     /// travelled in this same run.
     fn controls(f: &Findings) -> Selection {
         let mut notes = Vec::new();
         let mut answered = true;
-        for (name, want) in [
-            ("pidfd_getfd(-1,-1) [control]", crate::sys::EBADF),
-            ("kcmp(-1,-1,...) [control]", crate::sys::ESRCH),
-        ] {
+        for (name, want) in
+            [("pidfd_getfd(-1,-1) [control]", crate::sys::EBADF), ("kcmp(-1,-1,...) [control]", crate::sys::ESRCH)]
+        {
             match row(f, name) {
                 None => {
                     answered = false;
@@ -275,12 +247,7 @@ impl Selection {
                 }
             }
         }
-        Selection {
-            rung: Rung::Unsupported,
-            rejected: Vec::new(),
-            controls_answered: answered,
-            control_notes: notes,
-        }
+        Selection { rung: Rung::Unsupported, rejected: Vec::new(), controls_answered: answered, control_notes: notes }
     }
 
     /// The floor `--strict` holds to: nothing below `namespace` satisfies a
@@ -291,18 +258,16 @@ impl Selection {
         self.rung <= floor
     }
 
-    /// Exit code for `podvm probe`. ⛔ `TODO/probe.md` T-0110: 0 always for a
-    /// plain run, because the probe ran and answered; non-zero under `--strict`
+    /// Exit code for a probe command: 0 always for a plain run, because the probe ran and answered; non-zero under `--strict`
     /// when the rung is below the floor, so a caller can gate without parsing.
     ///
-    /// ⚠ **This code carries the rung and only the rung.**
+    /// **This code carries the rung and only the rung.**
     /// [`Selection::controls_answered`] is a separate statement about the
     /// diagnostic and it does not move this number. Folding the two together
     /// would make `--strict` fail on every kernel built without
-    /// `CONFIG_CHECKPOINT_RESTORE`, where `kcmp(2)` is absent and podvm is
+    /// `CONFIG_CHECKPOINT_RESTORE`, where `kcmp(2)` is absent and the host is
     /// otherwise fully capable, and a caller could no longer tell the two
-    /// apart from one exit code. `controls_answered` is in the JSON and the
-    /// shortfall is on stderr on every run.
+    /// apart from one exit code. A caller reports `controls_answered` apart.
     pub fn exit_code(&self, strictness: Strictness) -> i32 {
         match strictness {
             Strictness::Warn => 0,
@@ -313,7 +278,7 @@ impl Selection {
 }
 
 /// What the selected rung provides, derived from the probes rather than
-/// asserted. `TOOL.md` section 6.8's banner is these six fields.
+/// asserted. The banner of a caller is these six fields.
 pub struct Provides {
     pub namespaces: String,
     pub mounts: String,
@@ -325,11 +290,10 @@ pub struct Provides {
 
 impl Provides {
     pub fn of(rung: Rung, f: &Findings) -> Provides {
-        // ⭐ TODO/enter.md T-1339. The namespace rung is mount-only: one
-        // mount namespace with a private tmpfs on /tmp, and no user, pid
-        // or network namespace. The cells state the rung, not the
-        // machine: "as configured" here once passed a chroot off as
-        // namespaces, which is the incident T-0804 rule 4 exists for.
+        // The namespace rung is mount-only: one mount namespace with a
+        // private tmpfs on /tmp, and no user, pid or network namespace. The
+        // cells state the rung, not the machine: "as configured" here can
+        // pass a chroot off as namespaces.
         let namespaces = if rung == Rung::Namespace {
             "mount-only".to_string()
         } else if ok(f, "clone(CLONE_NEWUTS)") && ok(f, "sethostname(in NEWUTS)") {
@@ -337,33 +301,21 @@ impl Provides {
         } else {
             "none".to_string()
         };
-        // ⛔ What the RUNG provides, not what the machine permits. Only the
+        // What the RUNG provides, not what the machine permits. Only the
         // `namespace` rung sets a mount topology up, so at every rung below it
-        // podvm mounts nothing, however attachable this machine's mounts turn
-        // out to be. `TOOL.md` section 4.1: report the mode you achieved. The
+        // the caller mounts nothing, however attachable this machine's mounts
+        // turn out to be. Report the mode that you achieved. The
         // machine's own four verdicts are in the evidence block beneath, where
         // they are a measurement rather than a claim about the mode.
         //
-        // ⭐ T-1339: the rung's topology is fixed (private, tmpfs on
+        // The rung's topology is fixed (private, tmpfs on
         // `/tmp`), so the cell names it rather than the machine's mount
         // verdicts, which would read as the rung providing them.
-        let mounts = if rung == Rung::Namespace {
-            "private, tmpfs on /tmp".to_string()
-        } else {
-            "none".to_string()
-        };
-        let devices = if ok(f, "mknod(chr 1:3 /tmp/nodprobe)") {
-            "real".to_string()
-        } else {
-            "shimmed".to_string()
-        };
-        let ownership = if ok(f, "chown(f,0,42)") {
-            "real".to_string()
-        } else {
-            "virtualized+sidecar".to_string()
-        };
-        // ⛔ Not measured, and stated as what the rung does rather than as a
-        // reading. The namespace rung is mount-only (T-1339): no network
+        let mounts = if rung == Rung::Namespace { "private, tmpfs on /tmp".to_string() } else { "none".to_string() };
+        let devices = if ok(f, "mknod(chr 1:3 /tmp/nodprobe)") { "real".to_string() } else { "shimmed".to_string() };
+        let ownership = if ok(f, "chown(f,0,42)") { "real".to_string() } else { "virtualized+sidecar".to_string() };
+        // Not measured, and stated as what the rung does rather than as a
+        // reading. The namespace rung is mount-only: no network
         // or pid namespace is created at any rung, so both are always the
         // caller's.
         Provides {
@@ -374,39 +326,6 @@ impl Provides {
             network: "host-shared".to_string(),
             pids: "host-shared".to_string(),
         }
-    }
-}
-
-/// The probe rows the banner's `probes:` line quotes, in `TOOL.md`
-/// section 6.8's order.
-pub const BANNER_ROWS: &[&str] = &[
-    "clone(CLONE_NEWNS)",
-    "mount(tmpfs,/mnt)",
-    "fsmount(tmpfs)",
-    "move_mount(-> /tmp/mm-probe)",
-    "clone(CLONE_NEWUTS)",
-    "sethostname(in NEWUTS)",
-    "chroot(/tmp)",
-    "ptrace(PTRACE_TRACEME)",
-];
-
-/// `clone(CLONE_NEWNS)=ok`, `mount=EPERM`, `chroot=skip`: the banner's
-/// shorthand, which is the verdict for `ok` and the errno name otherwise.
-pub fn banner_cell(f: &Findings, name: &str) -> String {
-    let short = name
-        .strip_prefix("clone(CLONE_")
-        .and_then(|r| r.strip_suffix(')'))
-        .map(|r| format!("clone({r})"))
-        .unwrap_or_else(|| name.split(['(', ' ']).next().unwrap_or(name).to_string());
-    match row(f, name) {
-        None => format!("{short}=(not probed)"),
-        Some(o) => match (o.verdict, o.errno) {
-            (Verdict::Ok, _) => format!("{short}=ok"),
-            (Verdict::Denied, Some(e)) => format!("{short}={}", e.name()),
-            (Verdict::Denied, None) => format!("{short}=denied"),
-            (Verdict::Skip, Some(e)) => format!("{short}=skip({})", e.name()),
-            (Verdict::Skip, None) => format!("{short}=skip"),
-        },
     }
 }
 

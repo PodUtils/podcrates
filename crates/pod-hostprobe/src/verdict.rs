@@ -1,9 +1,8 @@
 //! The verdict type, and the line a probe child speaks to its parent.
 //!
-//! `TODO/probe.md` T-0109: a verdict is the operation's, and "could not run"
-//! never reads as "denied". Three variants, not a boolean plus a comment,
-//! because a boolean cannot carry "not measured" and every instance of this
-//! defect in the corpus is a boolean that had to.
+//! A verdict is the operation's, and "could not run" never reads as
+//! "denied". Three variants, not a boolean and a comment, because a boolean
+//! cannot carry "not measured".
 
 use crate::sys::Errno;
 
@@ -13,7 +12,7 @@ pub enum Verdict {
     Ok,
     /// The operation ran and the kernel refused it. Always carries an errno.
     Denied,
-    /// The operation did not run. ⛔ Never rendered as a denial.
+    /// The operation did not run. Never rendered as a denial.
     Skip,
 }
 
@@ -26,8 +25,7 @@ impl Verdict {
         }
     }
 
-    /// The process-level code a probe child exits with, per `TODO/RULES.md`
-    /// section 6: 0 ran and matched, 1 ran and something failed, 2 could not
+    /// The exit status of a probe child: 0 ran and matched, 1 ran and something failed, 2 could not
     /// run. The parent cross-checks this against the spoken verdict, so a
     /// child that disagrees with itself is caught rather than believed.
     pub fn exit_code(self) -> i32 {
@@ -50,7 +48,7 @@ impl Verdict {
 
 /// One probe's answer.
 ///
-/// ⛔ `errno` is the record, and the verdict is derived from it. A `Denied`
+/// `errno` is the record, and the verdict is derived from it. A `Denied`
 /// without an errno cannot be constructed through [`Outcome::denied`].
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -63,38 +61,22 @@ pub struct Outcome {
 
 impl Outcome {
     pub fn ok() -> Outcome {
-        Outcome {
-            verdict: Verdict::Ok,
-            errno: None,
-            reason: String::new(),
-        }
+        Outcome { verdict: Verdict::Ok, errno: None, reason: String::new() }
     }
 
     pub fn ok_with(reason: impl Into<String>) -> Outcome {
-        Outcome {
-            verdict: Verdict::Ok,
-            errno: None,
-            reason: reason.into(),
-        }
+        Outcome { verdict: Verdict::Ok, errno: None, reason: reason.into() }
     }
 
     pub fn denied(errno: Errno) -> Outcome {
-        Outcome {
-            verdict: Verdict::Denied,
-            errno: Some(errno),
-            reason: String::new(),
-        }
+        Outcome { verdict: Verdict::Denied, errno: Some(errno), reason: String::new() }
     }
 
     /// A precondition was missing. The errno that established it travels with
-    /// the skip: `TODO/probe.md` T-0101's acceptance is that nothing reports a
-    /// non-`ok` verdict without saying, in errno terms, what happened.
+    /// the skip: no verdict other than `ok` is given without the errno of
+    /// what happened, where there is one.
     pub fn skip(errno: Option<Errno>, reason: impl Into<String>) -> Outcome {
-        Outcome {
-            verdict: Verdict::Skip,
-            errno,
-            reason: reason.into(),
-        }
+        Outcome { verdict: Verdict::Skip, errno, reason: reason.into() }
     }
 
     /// The shape every probe body ends in: the kernel's answer, unmodified.
@@ -109,9 +91,9 @@ impl Outcome {
         self.errno.map(|e| e.name())
     }
 
-    /// The reference harness's row format, so a podvm run and a
-    /// `verification/probe` run diff against each other line by line:
-    /// `references/Azathothas__container-research/tree/verification/probe/main.go:201-221`.
+    /// The row format of the Go reference instrument (`verification/probe`
+    /// of container-research), so that a run of this crate and a run of the
+    /// instrument diff against each other line by line.
     pub fn row(&self, name: &str) -> String {
         match self.verdict {
             Verdict::Ok => format!("{name:<34} OK"),
@@ -126,31 +108,23 @@ impl Outcome {
 
 // ------------------------------------------------------------------ the wire
 //
-// ⭐ Self-describing and versioned, per docs/conventions/code.md. A positional
-// record mis-reads silently the day a field is inserted; these are selected by
+// Self-describing and versioned. A positional record mis-reads silently the day a field is inserted; these are selected by
 // name and carry the version that names their shape.
 
-pub const WIRE_MAGIC: &str = "podvm-probe/1";
+pub const WIRE_MAGIC: &str = "pod-hostprobe/1";
 
 /// One line, no trailing newline. Tabs and newlines are folded to spaces so
 /// the record stays one line whatever a reason string contains.
 pub fn encode(out: &Outcome) -> String {
-    let reason: String = out
-        .reason
-        .chars()
-        .map(|c| if c.is_control() { ' ' } else { c })
-        .collect();
+    let reason: String = out.reason.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
     let errno = match out.errno {
         Some(e) => e.0.to_string(),
         None => "-".to_string(),
     };
-    format!(
-        "{WIRE_MAGIC} verdict={} errno={errno} reason={reason}",
-        out.verdict.word()
-    )
+    format!("{WIRE_MAGIC} verdict={} errno={errno} reason={reason}", out.verdict.word())
 }
 
-/// The parse. ⛔ Anything it cannot read becomes a `Skip` naming the shortfall,
+/// The parse. Anything it cannot read becomes a `Skip` naming the shortfall,
 /// never a `Denied`: a parent that cannot read its child has not measured a
 /// denial.
 pub fn decode(line: &str) -> Result<Outcome, String> {
@@ -166,9 +140,7 @@ pub fn decode(line: &str) -> Result<Outcome, String> {
             Some(i) => (&cursor[..i], cursor[i + 1..].trim_start()),
             None => (cursor, ""),
         };
-        let (key, value) = tok
-            .split_once('=')
-            .ok_or_else(|| format!("field {tok:?} is not key=value"))?;
+        let (key, value) = tok.split_once('=').ok_or_else(|| format!("field {tok:?} is not key=value"))?;
         match key {
             "verdict" => {
                 verdict = Some(match value {
@@ -182,11 +154,7 @@ pub fn decode(line: &str) -> Result<Outcome, String> {
                 errno = Some(if value == "-" {
                     None
                 } else {
-                    Some(Errno(
-                        value
-                            .parse::<i32>()
-                            .map_err(|_| format!("errno {value:?} is not a number"))?,
-                    ))
+                    Some(Errno(value.parse::<i32>().map_err(|_| format!("errno {value:?} is not a number"))?))
                 })
             }
             // `reason` is last and takes the remainder, so it may hold spaces.
@@ -205,11 +173,7 @@ pub fn decode(line: &str) -> Result<Outcome, String> {
     if verdict == Verdict::Denied && errno.is_none() {
         return Err("a denial with no errno is not a measurement".to_string());
     }
-    Ok(Outcome {
-        verdict,
-        errno,
-        reason,
-    })
+    Ok(Outcome { verdict, errno, reason })
 }
 
 fn first_token(line: &str) -> &str {
@@ -251,7 +215,7 @@ mod tests {
 
     #[test]
     fn an_unknown_protocol_version_is_refused() {
-        assert!(decode("podvm-probe/2 verdict=ok errno=- reason=").is_err());
+        assert!(decode("pod-hostprobe/2 verdict=ok errno=- reason=").is_err());
     }
 
     #[test]
@@ -260,9 +224,6 @@ mod tests {
             Outcome::denied(crate::sys::ENOENT).row("mount(2) bogus target"),
             "mount(2) bogus target              FAIL errno=2 ENOENT"
         );
-        assert_eq!(
-            Outcome::ok().row("openat(detached tmpfs, O_DIRECTORY)"),
-            "openat(detached tmpfs, O_DIRECTORY) OK"
-        );
+        assert_eq!(Outcome::ok().row("openat(detached tmpfs, O_DIRECTORY)"), "openat(detached tmpfs, O_DIRECTORY) OK");
     }
 }

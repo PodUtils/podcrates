@@ -22,30 +22,19 @@ pub(super) fn a_process_vm_readv() -> Outcome {
     let local = [buf.as_mut_ptr() as u64, 1u64];
     let remote = [0x1000u64, 1u64];
     Outcome::from(unsafe {
-        sys::sys(
-            sys::SYS_PROCESS_VM_READV,
-            [
-                999_999,
-                local.as_ptr() as u64,
-                1,
-                remote.as_ptr() as u64,
-                1,
-                0,
-            ],
-        )
+        sys::sys(sys::SYS_PROCESS_VM_READV, [999_999, local.as_ptr() as u64, 1, remote.as_ptr() as u64, 1, 0])
     })
 }
 
-/// The supervise tier's argument channel, T-0606.
+/// The supervise tier's argument channel.
 ///
-/// ⛔ Not the discriminator above. A bogus pid separates a filter from a
+/// Not the discriminator above. A bogus pid separates a filter from a
 /// later policy; it never copies a byte. This aims the remote end at one
 /// byte of our own memory and copies it: the returned count is the
 /// integrity check, so an `Ok` answers the channel carries arguments and a
-/// denial answers it is filtered or absent. `references/multikernel__sandlock`
-/// reads the child's arguments through exactly this call and has no
-/// `/proc/pid/mem` fallback anywhere in its tree.
-/// ⚠ The count is read through `Outcome::from` beside every other body: for
+/// denial answers it is filtered or absent. sandlock reads the arguments of
+/// the child through exactly this call and has no `/proc/pid/mem` fallback.
+/// The count is read through `Outcome::from` beside every other body: for
 /// a valid single-byte iov the kernel answers 1 or an errno, and a short
 /// count has no errno to carry, so there is no honest third verdict for it.
 pub(super) fn s_read_channel() -> Outcome {
@@ -56,14 +45,7 @@ pub(super) fn s_read_channel() -> Outcome {
     Outcome::from(unsafe {
         sys::sys(
             sys::SYS_PROCESS_VM_READV,
-            [
-                sys::getpid() as u64,
-                local.as_ptr() as u64,
-                1,
-                remote.as_ptr() as u64,
-                1,
-                0,
-            ],
+            [sys::getpid() as u64, local.as_ptr() as u64, 1, remote.as_ptr() as u64, 1, 0],
         )
     })
 }
@@ -73,7 +55,7 @@ pub(super) fn a_pidfd_getfd() -> Outcome {
     Outcome::from(unsafe { sys::sys(sys::SYS_PIDFD_GETFD, [m1, m1, 0, 0, 0, 0]) })
 }
 
-/// TODO/supervise.md T-0606. Supervision's first leg: a pidfd for the
+/// Supervision's first leg: a pidfd for the
 /// caller's own pid, which answers wherever the number exists. ENOSYS is
 /// "this kernel cannot answer" (pidfd_open needs 5.3), not a refusal.
 pub(super) fn s_pidfd_self() -> Outcome {
@@ -90,9 +72,8 @@ pub(super) fn s_pidfd_self() -> Outcome {
     }
 }
 
-/// TODO/supervise.md T-0606. Supervision's second leg: a trivial child
-/// reaped through its pidfd, the composition the launcher runs (T-0601,
-/// T-0602). The verdict comes from waitid answering, never from the
+/// Supervision's second leg: a trivial child reaped through its pidfd,
+/// the composition that a launcher runs. The verdict comes from waitid answering, never from the
 /// reap: WNOHANG returns at once, so nothing here waits, and a child
 /// that outruns the cap is reaped by init with the mechanism proven.
 pub(super) fn s_waitid_child() -> Outcome {
@@ -132,7 +113,7 @@ pub(super) fn a_kcmp() -> Outcome {
     let m1 = -1i64 as u64;
     let r = unsafe { sys::sys(sys::SYS_KCMP, [m1, m1, 0, 0, 0, 0]) };
     match r {
-        // ⭐ TODO/probe.md T-0102's correction. `kcmp(2)` exists only where the
+        // `kcmp(2)` exists only where the
         // kernel was built with CONFIG_CHECKPOINT_RESTORE. ENOSYS is that
         // kernel saying the control is unavailable, which is not the same
         // statement as "the control answered". A control that cannot answer is
@@ -162,7 +143,7 @@ pub(super) fn a_fsmount() -> Outcome {
     match detached_tmpfs() {
         Ok(mfd) => {
             let _ = sys::close(mfd);
-            // ⭐ TODO/probe.md T-0103: fsmount runs the same may_mount() check
+            // fsmount runs the same may_mount() check
             // move_mount and unshare(CLONE_NEWNS) use, so its success proves no
             // mount denial on this machine is a capability problem. Saying so
             // in the row stops the next reader hunting for a capability.
@@ -175,12 +156,7 @@ pub(super) fn a_fsmount() -> Outcome {
 
 pub(super) fn a_open_tree() -> Outcome {
     let p = c("/tmp");
-    match unsafe {
-        sys::sys(
-            sys::SYS_OPEN_TREE,
-            [sys::AT_FDCWD, p.ptr(), sys::OPEN_TREE_CLONE, 0, 0, 0],
-        )
-    } {
+    match unsafe { sys::sys(sys::SYS_OPEN_TREE, [sys::AT_FDCWD, p.ptr(), sys::OPEN_TREE_CLONE, 0, 0, 0]) } {
         Ok(fd) => {
             let _ = sys::close(fd);
             Outcome::ok()
@@ -198,14 +174,7 @@ pub(super) fn a_move_mount_bogus() -> Outcome {
     let r = unsafe {
         sys::sys(
             sys::SYS_MOVE_MOUNT,
-            [
-                mfd as u64,
-                empty.ptr(),
-                sys::AT_FDCWD,
-                dest.ptr(),
-                sys::MOVE_MOUNT_F_EMPTY_PATH,
-                0,
-            ],
+            [mfd as u64, empty.ptr(), sys::AT_FDCWD, dest.ptr(), sys::MOVE_MOUNT_F_EMPTY_PATH, 0],
         )
     };
     let _ = sys::close(mfd);
@@ -229,14 +198,7 @@ pub(super) fn a_move_mount_real() -> Outcome {
     let r = unsafe {
         sys::sys(
             sys::SYS_MOVE_MOUNT,
-            [
-                mfd as u64,
-                empty.ptr(),
-                sys::AT_FDCWD,
-                dest.ptr(),
-                sys::MOVE_MOUNT_F_EMPTY_PATH,
-                0,
-            ],
+            [mfd as u64, empty.ptr(), sys::AT_FDCWD, dest.ptr(), sys::MOVE_MOUNT_F_EMPTY_PATH, 0],
         )
     };
     let _ = sys::close(mfd);
@@ -260,19 +222,7 @@ pub(super) fn a_openat_detached() -> Outcome {
         Err((e, step)) => return precondition(step.label(), e),
     };
     let dot = c(".");
-    let r = unsafe {
-        sys::sys(
-            sys::SYS_OPENAT,
-            [
-                mfd as u64,
-                dot.ptr(),
-                sys::O_RDONLY | sys::O_DIRECTORY,
-                0,
-                0,
-                0,
-            ],
-        )
-    };
+    let r = unsafe { sys::sys(sys::SYS_OPENAT, [mfd as u64, dot.ptr(), sys::O_RDONLY | sys::O_DIRECTORY, 0, 0, 0]) };
     if let Ok(fd) = r {
         let _ = sys::close(fd);
     }
@@ -301,17 +251,8 @@ struct SockFprog {
 pub(super) fn a_seccomp_listener() -> Outcome {
     // BPF_RET|BPF_K with SECCOMP_RET_ALLOW: a filter that permits everything
     // and exists only to carry the notification listener.
-    let filter = [SockFilter {
-        code: 0x06,
-        jt: 0,
-        jf: 0,
-        k: 0x7fff_0000,
-    }];
-    let prog = SockFprog {
-        len: 1,
-        pad: [0; 6],
-        filter: filter.as_ptr(),
-    };
+    let filter = [SockFilter { code: 0x06, jt: 0, jf: 0, k: 0x7fff_0000 }];
+    let prog = SockFprog { len: 1, pad: [0; 6], filter: filter.as_ptr() };
     if let Err(e) = unsafe { sys::sys(sys::SYS_PRCTL, [sys::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0]) } {
         return precondition("prctl(PR_SET_NO_NEW_PRIVS)", e);
     }
@@ -359,7 +300,7 @@ pub(super) fn a_mem_rdwr() -> Outcome {
 pub(super) fn a_landlock() -> Outcome {
     // (NULL, 0, LANDLOCK_CREATE_RULESET_VERSION) returns the ABI rather than a
     // ruleset fd. This row reports whether an LSM of the class that explains
-    // mechanism M is present at all, which is not a verdict about podvm.
+    // mechanism M is present at all, which is not a verdict about the caller.
     match unsafe { sys::sys(sys::SYS_LANDLOCK_CREATE_RULESET, [0, 0, 1, 0, 0, 0]) } {
         Ok(abi) => Outcome::ok_with(format!("ABI {abi}")),
         Err(e) => Outcome::denied(e),

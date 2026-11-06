@@ -1,20 +1,19 @@
 use super::*;
 
-/// ⛔ Refuse a symlink anywhere in the walk, including a trailing one. This is
+/// Refuse a symlink anywhere in the walk, including a trailing one. This is
 /// what makes the check immune to a symlink the same layer created a moment
-/// ago, which is the defect `TODO/extract.md` T-0304 exists for.
+/// ago.
 pub const RESOLVE_NO_SYMLINKS: u64 = 0x04;
-/// ⛔ Refuse anything resolving outside the directory the descriptor names,
+/// Refuse anything resolving outside the directory the descriptor names,
 /// `..` and an absolute path included. The kernel enforces it; a lexical check
 /// alone can be defeated by a component created between the check and the use.
 pub const RESOLVE_BENEATH: u64 = 0x08;
 
 /// `openat2`'s "treat the starting descriptor as `/`".
 ///
-/// ⭐ Symlinks ARE followed and an absolute target is rebased onto that
+/// Symlinks ARE followed and an absolute target is rebased onto that
 /// descriptor, so nothing resolves outside it and `..` at the top stays at the
-/// top. [`TODO/complete.md`](../../../TODO/complete.md) T-0405 turns on the
-/// difference between this and [`RESOLVE_BENEATH`] `| ` [`RESOLVE_NO_SYMLINKS`]:
+/// top. The completion of a rootfs turns on the difference between this and [`RESOLVE_BENEATH`] `| ` [`RESOLVE_NO_SYMLINKS`]:
 /// during extraction a symlink is the attack, and afterwards a rootfs's own
 /// internal links are how its files are reached.
 pub const RESOLVE_IN_ROOT: u64 = 0x10;
@@ -27,9 +26,9 @@ pub const S_IFDIR: u32 = 0o040000;
 pub const S_IFREG: u32 = 0o100000;
 pub const S_IFLNK: u32 = 0o120000;
 
-/// `flock(2)` operations. ⚠ `LOCK_NB` is not optional anywhere in this tree:
-/// `RULES.md` section 8 forbids an unbounded wait, and a blocking `flock` on a
-/// lock another process holds through an exec is exactly one.
+/// `flock(2)` operations. Always give `LOCK_NB`: a wait must have a bound,
+/// and a blocking `flock` on a lock that another process holds through an
+/// exec has none.
 pub const LOCK_SH: u64 = 1;
 pub const LOCK_EX: u64 = 2;
 pub const LOCK_NB: u64 = 4;
@@ -37,10 +36,9 @@ pub const LOCK_UN: u64 = 8;
 
 /// `fcntl(2)`'s descriptor-flag commands, and the only flag that lives there.
 ///
-/// ⭐ `FD_CLOEXEC` is a property of the DESCRIPTOR, not of the open file
+/// `FD_CLOEXEC` is a property of the DESCRIPTOR, not of the open file
 /// description, which is why it can be cleared on one fd immediately before an
-/// exec without affecting any other fd onto the same file.
-/// [`TODO/image.md`](../../../TODO/image.md) T-0211 is that distinction: an fd
+/// exec without affecting any other fd onto the same file. An fd
 /// opened inheritable is inherited by every fork, and an fd made inheritable
 /// one call before `execve` is inherited by exactly the payload.
 pub const F_GETFD: u64 = 1;
@@ -62,17 +60,17 @@ pub const MOVE_MOUNT_F_EMPTY_PATH: u64 = 0x0000_0004;
 
 // ---------------------------------------------------------------- the trap
 //
-// ⛔ The instruction and the register convention are per architecture, x86_64
+// The instruction and the register convention are per architecture, x86_64
 // puts the number in rax and the arguments in rdi rsi rdx r10 r8 r9, aarch64
 // puts them in x8 and x0..x5, and each has its own clobber set, and getting
 // one wrong is not a build failure, it is a syscall with the arguments in the
 // wrong places. `syscalls::raw` carries the correct sequence for every
-// architecture it supports, which is why podvm no longer writes one.
+// architecture it supports, so this crate writes none for them.
 //
-// ⚠ The raw return value is still read the same way: `split` below turns the
+// The raw return value is still read the same way: `split` below turns the
 // kernel's `-4095..=-1` window into an `Errno`. Nothing passes through libc's
-// `errno` thread-local, which is `TODO/probe.md` T-0101's requirement and is
-// the reason `syscalls::raw` is taken rather than its `Result`-returning API.
+// `errno` thread-local. That is why the crate takes `syscalls::raw` and not
+// its API that returns a `Result`.
 
 /// # Safety
 /// The caller states that this syscall with these arguments is sound: any
@@ -99,20 +97,18 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
     }
 }
 
-// ------------------------------------------- podvm's own trap, T-0912
+// ------------------------------------------------------ the crate's own trap
 //
-// ⭐ **Two architectures, and both are RUN rather than only compiled.**
-// `experiments/260-multiarch.sh` builds `podvm` for
-// `powerpc64le-unknown-linux-musl` and `s390x-unknown-linux-musl` and executes
-// it under `qemu-ppc64le-static` and `qemu-s390x-static`, so the register
-// conventions below are measured and not asserted. ⛔ That distinction is the
-// whole reason these two are here and `mips` is not: getting a convention wrong
-// is not a build failure, it is a syscall with the arguments in the wrong
-// places, and asm nobody has executed is a claim.
+// **Two architectures, and both RAN under an emulator, not only compiled.**
+// A binary for `powerpc64le-unknown-linux-musl` and one for
+// `s390x-unknown-linux-musl` ran under `qemu-ppc64le-static` and
+// `qemu-s390x-static`, so the register conventions below are measured. That
+// is why these two are here and `mips` is not: a wrong convention is not a
+// build failure, it is a syscall with the arguments in the wrong places.
 
 /// powerpc64, both endiannesses.
 ///
-/// ⛔ **The error convention is NOT x86_64's and this is where that is
+/// **The error convention is NOT x86_64's and this is where that is
 /// handled.** powerpc does not return `-errno` in `r3`: it returns the positive
 /// errno there and sets **CR0.SO** to say the call failed. `split` upstream
 /// reads the kernel's `-4095..=-1` window, so the value is negated here when SO
@@ -126,7 +122,7 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
     unsafe {
         core::arch::asm!(
             "sc",
-            // ⚠ `bns` is "branch if not summary overflow", on cr0. A local
+            // `bns` is "branch if not summary overflow", on cr0. A local
             // numeric label, because a named one would collide when this is
             // inlined twice into one function.
             "bns 2f",
@@ -151,7 +147,7 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
 
 /// s390x.
 ///
-/// ⚠ r1 carries the number and r2 through r7 the six arguments; `svc 0` is the
+/// r1 carries the number and r2 through r7 the six arguments; `svc 0` is the
 /// trap and the result comes back in r2 as `-errno`, which is the convention
 /// `split` already reads.
 #[cfg(target_arch = "s390x")]
@@ -173,36 +169,28 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
     ret as i64
 }
 
-/// ⛔ **mips and mips64 are still gated, and this says so at compile time
+/// **mips and mips64 are still gated, and this says so at compile time
 /// rather than shipping a convention nobody has run.**
 ///
-/// T-0912's Approach names three families; two of them are here and executed
-/// under an emulator by `experiments/260-multiarch.sh`. mips is not, and the
-/// reason is not effort: `qemu-mips*-static` is installed on this host, but
-/// o32 passes arguments five and six **on the caller's stack**, which
+/// Two of three families are here, and they ran under an emulator. mips is
+/// not: o32 passes arguments five and six **on the caller's stack**, which
 /// `options(nostack)` forbids and which a wrong frame layout gets wrong
-/// silently. ⚠ What would clear it is the same thing that cleared these two: a
-/// clause in `260-multiarch.sh` that builds for a mips target and RUNS the
-/// binary under the emulator.
+/// silently. To add it, build for a mips target and RUN the binary under the
+/// emulator, as for these two.
 #[cfg(any(target_arch = "mips", target_arch = "mips64", target_arch = "powerpc"))]
 compile_error!(
-    "podvm has no measured syscall trap for this architecture. TODO/deps.md \
-     T-0912: powerpc64 and s390x carry podvm's own, executed under an emulator; \
-     mips, mips64 and 32-bit powerpc do not, and shipping a register convention \
-     nobody has run is what that entry refuses."
+    "pod-hostprobe has no measured syscall trap for this architecture: powerpc64 and \
+     s390x have their own, run under an emulator; mips, mips64 and 32-bit powerpc \
+     do not, and a register convention that nobody ran is not shipped."
 );
 
 /// Split the raw return into a value and an errno.
 ///
-/// ⛔ The `-4095..=-1` window is the kernel's own convention. A return outside
+/// The `-4095..=-1` window is the kernel's own convention. A return outside
 /// it is a value, including a large negative one from a syscall that returns a
 /// signed quantity.
 pub fn split(ret: i64) -> Sysres {
-    if (-4095..0).contains(&ret) {
-        Err(Errno(-ret as i32))
-    } else {
-        Ok(ret)
-    }
+    if (-4095..0).contains(&ret) { Err(Errno(-ret as i32)) } else { Ok(ret) }
 }
 
 /// # Safety
@@ -213,22 +201,24 @@ pub unsafe fn sys(nr: i64, args: [u64; 6]) -> Sysres {
 
 // -------------------------------------------------- fds that a fork must shed
 //
-// ⛔ `O_CLOEXEC` is close-on-EXEC and there is no close-on-FORK. A `fork`
+// `O_CLOEXEC` is close-on-EXEC and there is no close-on-FORK. A `fork`
 // duplicates every descriptor, and `flock(2)` is held on the OPEN FILE
 // DESCRIPTION the duplicates share, so the lock lives until the last of them is
-// closed. A child that never execs, and this tree makes one per `clone`
+// closed. A child that never execs, and this crate makes one per `clone`
 // probe, therefore holds an image lock that `O_CLOEXEC` cannot take from it.
-// [`TODO/image.md`](../../../TODO/image.md) T-0211.
 //
-// ⭐ The list is exact rather than a blanket close of everything above stderr:
-// podvm knows which descriptors these are, and closing a range would also shut
-// fds a caller handed podvm deliberately.
+// The list is exact, not a close of each fd above stderr: the caller knows
+// which descriptors these are, and a close of a range would also shut fds
+// that a caller gave on purpose.
+//
+// The list is process state on purpose: a descriptor belongs to the process,
+// and the child between `clone` and `execve` can read no value of a caller.
 
-/// How many such fds may be registered at once. ⚠ Fixed, because the child
+/// How many such fds may be registered at once. Fixed, because the child
 /// drains this between `clone` and `execve`, where allocation is not permitted.
-/// podvm holds one image lock per container; sixteen is far past what any
-/// single process does, and a seventeenth is refused by name rather than
-/// dropped silently.
+/// An image store holds one lock for each container; sixteen is far past
+/// what one process does, and a seventeenth is refused, not dropped
+/// silently.
 pub const FORK_CLOSE_SLOTS: usize = 16;
 
 static FORK_CLOSE: [core::sync::atomic::AtomicI64; FORK_CLOSE_SLOTS] =
@@ -241,10 +231,7 @@ static FORK_CLOSE: [core::sync::atomic::AtomicI64; FORK_CLOSE_SLOTS] =
 pub fn close_in_children(fd: i64) -> bool {
     use core::sync::atomic::Ordering;
     for slot in &FORK_CLOSE {
-        if slot
-            .compare_exchange(-1, fd, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
-        {
+        if slot.compare_exchange(-1, fd, Ordering::AcqRel, Ordering::Acquire).is_ok() {
             return true;
         }
     }
@@ -260,10 +247,10 @@ pub fn stop_closing_in_children(fd: i64) {
     }
 }
 
-/// Close every registered fd. ⛔ Called in the child, by [`clone_fork`] and by
+/// Close every registered fd. Called in the child, by [`clone_fork`] and by
 /// [`shed_after_fork`], and nowhere else.
 ///
-/// ⚠ Async-signal-safe: an atomic load and a `close(2)` per slot, no allocation
+/// Async-signal-safe: an atomic load and a `close(2)` per slot, no allocation
 /// and no lock.
 pub(super) fn shed_registered_fds() {
     use core::sync::atomic::Ordering;
@@ -275,22 +262,21 @@ pub(super) fn shed_registered_fds() {
     }
 }
 
-/// ⛔ **The second drain, and `std::process::Command` is why it exists.**
-/// [`clone_fork`] is podvm's own fork and it sheds before it returns in the
-/// child. libstd forks inside `Command::spawn`, never passes through
+/// **The second drain, and `std::process::Command` is why it exists.**
+/// [`clone_fork`] is the fork of this crate, and it sheds before it returns
+/// in the child. libstd forks inside `Command::spawn`, never passes through
 /// [`clone_fork`], and the shed list therefore cannot reach that child.
 ///
-/// ⚠ **`O_CLOEXEC` does not cover the gap, because it acts at the `execve` and
+/// **`O_CLOEXEC` does not cover the gap, because it acts at the `execve` and
 /// not at the `fork`.** Between the two the child holds a duplicate of every
 /// open file description the parent had, and `flock(2)` is held on the
 /// description. So a lock ANY OTHER THREAD releases inside that window stays
 /// held by the child's copy until the child execs, and `in_use` reads an image
 /// as in use with no holder anywhere.
-/// [`TODO/image.md`](../../../TODO/image.md) T-0215.
 ///
-/// ⭐ The hook runs in the child after the `fork` and before the `execve`, so
+/// The hook runs in the child after the `fork` and before the `execve`, so
 /// it shortens the window to the instructions between those two points rather
-/// than removing it. ⚠ It cannot be removed: the duplication happens in the
+/// than removing it. It cannot be removed: the duplication happens in the
 /// kernel at the `fork`, and there is no close-on-fork.
 ///
 /// # Safety
@@ -345,7 +331,7 @@ pub fn close(fd: i64) -> Sysres {
 
 /// `fcntl(2)`, for the commands whose argument is an integer.
 ///
-/// ⚠ Restricted to `F_GETFD`, `F_SETFD` and `F_DUPFD_CLOEXEC` by its own
+/// Restricted to `F_GETFD`, `F_SETFD` and `F_DUPFD_CLOEXEC` by its own
 /// callers rather than by its signature: the commands taking a pointer argument
 /// (`F_GETLK`, `F_SETLK`, `F_GETOWN_EX`) need a struct this takes no room for,
 /// and calling one through here would hand the kernel an integer where it reads
@@ -369,17 +355,17 @@ pub const F_SEAL_WRITE: u64 = 0x0008;
 
 /// A second descriptor for the same open file description, at an unused number.
 ///
-/// ⛔ **Why this and not [`dup2`].** A caller that wants the child's stdout to
+/// **Why this and not [`dup2`].** A caller that wants the child's stdout to
 /// be its stderr cannot pass `(1, 2)` to a `dup2`-then-`close` loop: the close
 /// would take the child's stderr with it. It dups first, hands over the
 /// duplicate, and the loop closes the duplicate instead.
 ///
-/// ⚠ `O_CLOEXEC` on the duplicate is deliberate and is not inherited by the
+/// `O_CLOEXEC` on the duplicate is deliberate and is not inherited by the
 /// `dup2` that installs it: a duplicate the caller forgot would otherwise reach
-/// the payload, and a payload holding an extra descriptor onto podvm's own
-/// stderr is a difference from docker nobody asked for.
+/// the payload, and a payload that holds an extra descriptor onto the
+/// stderr of its launcher is a difference from docker that nobody asked for.
 pub fn dup_cloexec(fd: i64) -> Sysres {
-    // ⚠ From 3 upwards: below that are the standard descriptors, and a
+    // From 3 upwards: below that are the standard descriptors, and a
     // duplicate landing on one of them is the bug this function exists to
     // avoid.
     fcntl(fd, F_DUPFD_CLOEXEC, 3)

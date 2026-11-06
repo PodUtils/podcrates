@@ -1,23 +1,21 @@
 //! What this machine's `binfmt_misc` registrations say, read rather than assumed.
 //!
-//! [`TODO/enter.md`](../../../TODO/enter.md) T-0506.
+//! **This is the mechanism that docker and podman use.** `binfmt_misc` lets
+//! the kernel hand an ELF that it cannot execute to a registered interpreter,
+//! which for a foreign architecture is `qemu-user`. This module reads the
+//! registrations out of `/proc/sys/fs/binfmt_misc` and reports what it found.
+//! It never registers one: a registration is a change of the whole machine,
+//! and the caller is not the owner of the machine.
 //!
-//! ⭐ **This is the mechanism docker and podman use.** `binfmt_misc` lets the
-//! kernel hand an ELF it cannot execute to a registered interpreter, which for a
-//! foreign architecture is `qemu-user`. podvm reads the registrations out of
-//! `/proc/sys/fs/binfmt_misc` and reports what it found; it never registers one,
-//! because registering is a machine-wide change and podvm is not the machine's
-//! owner.
-//!
-//! ⛔ **It lives in `podvm-probe` because two very different callers need it,
-//! and a second copy would be the copy that drifts.** `podvm-enter` asks "can
-//! this machine execute a foreign image, and how" ([`super::interp`] does not);
+//! **It is in this crate because two different callers need it, and a
+//! second copy drifts.** The entry of a payload asks "can this machine
+//! execute a foreign image, and how" ([`super::interp`] does not);
 //! [`super::interp`] asks the mirror-image question, "is an interpreter
 //! registered for MY OWN architecture, so is this measurement the emulator's".
 //!
-//! ⭐ **`/proc/sys/fs/binfmt_misc` is a real host file and `qemu-user` does not
+//! **`/proc/sys/fs/binfmt_misc` is a real host file and `qemu-user` does not
 //! emulate it**, which is what makes the second question answerable at all.
-//! Measured on 2026-09-09: under `qemu-aarch64-static`, `/proc/cpuinfo` reports
+//! Measured: under `qemu-aarch64-static`, `/proc/cpuinfo` reports
 //! an ARMv8 processor and `readlink /proc/self/exe` names the guest binary, so
 //! both are the emulator's answers; `/proc/sys/fs/binfmt_misc` is the host's.
 
@@ -26,22 +24,22 @@ use std::path::Path;
 /// Where the kernel exposes its registrations.
 pub const BINFMT_DIR: &str = "/proc/sys/fs/binfmt_misc";
 
-/// One registration, as podvm reads it.
+/// One registration, as this module reads it.
 #[derive(Debug, Clone)]
 pub struct Registration {
     pub name: String,
     pub interpreter: String,
     pub enabled: bool,
-    /// ⭐ The `F` flag: the interpreter is opened at registration time and held
+    /// The `F` flag: the interpreter is opened at registration time and held
     /// open, so it is reachable from inside a chroot that does not contain it.
     pub fix_binary: bool,
-    /// The ELF `e_machine` the magic selects on, where podvm could read one.
+    /// The ELF `e_machine` the magic selects on, where the module could read one.
     pub machine: Option<u16>,
 }
 
 /// The ELF machine number for an OCI architecture name.
 ///
-/// ⚠ These are the ELF specification's `EM_*` values, and they are what a
+/// These are the ELF specification's `EM_*` values, and they are what a
 /// `binfmt_misc` magic actually matches on. Mapping an OCI name to one is the
 /// only way to answer "is there an interpreter for THIS image" rather than
 /// "is there any interpreter at all".
@@ -82,7 +80,7 @@ fn parse_one(path: &Path) -> Option<Registration> {
             offset = v.trim().parse().unwrap_or(0);
         }
     }
-    // ⚠ `e_machine` is a little-endian u16 at byte 18 of an ELF header, so it
+    // `e_machine` is a little-endian u16 at byte 18 of an ELF header, so it
     // is hex characters 36 and 37 of the magic when the registration starts at
     // offset 0. A magic shorter than that does not select on the architecture
     // at all, which is worth knowing rather than guessing at.
@@ -100,13 +98,7 @@ fn parse_one(path: &Path) -> Option<Registration> {
             _ => None,
         }
     };
-    Some(Registration {
-        name,
-        interpreter,
-        enabled,
-        fix_binary: flags.contains('F'),
-        machine,
-    })
+    Some(Registration { name, interpreter, enabled, fix_binary: flags.contains('F'), machine })
 }
 
 /// Every enabled registration this machine carries.
@@ -118,7 +110,7 @@ pub fn registrations() -> Vec<Registration> {
     let mut out = Vec::new();
     for e in dir.flatten() {
         let name = e.file_name();
-        // ⚠ `register` and `status` are the control files, not registrations.
+        // `register` and `status` are the control files, not registrations.
         if name == "register" || name == "status" {
             continue;
         }
@@ -133,13 +125,11 @@ pub fn registrations() -> Vec<Registration> {
 
 /// The ELF `e_machine` of the binary you are reading this in.
 ///
-/// ⛔ **podvm's OWN machine number**, which is a different question from the
-/// image's and is the one [`super::interp`] asks. It is derived from
-/// `target_arch` here, in one place; `podvm-image`'s
-/// `machine_for_the_host_agrees_with_this_binarys_own` asserts it agrees with
-/// [`machine_for`] applied to the host platform's OCI name, because a value in
-/// two places with no check that they agree is what
-/// `docs/conventions/forbidden-patterns.md` forbids.
+/// **The OWN machine number of this binary**, which is a different question
+/// from the image's and is the one [`super::interp`] asks. It comes from
+/// `target_arch` here, in one place. A caller that maps the OCI name of the
+/// host platform with [`machine_for`] must check that the two agree: a value
+/// in two places with no check is the value that drifts.
 pub const SELF_MACHINE: u16 = self_machine();
 
 const fn self_machine() -> u16 {
@@ -175,9 +165,8 @@ const fn self_machine() -> u16 {
     {
         0x16
     }
-    // ⛔ No fallback. An architecture podvm cannot name its own machine number
-    // for is one where the emulator check would silently answer "native", which
-    // is the lie T-0506 is about. TODO/deps.md T-0911 holds the same list.
+    // No fallback. On an architecture with no machine number here, the
+    // emulator check would silently answer "native".
     #[cfg(not(any(
         target_arch = "x86_64",
         target_arch = "aarch64",
@@ -189,7 +178,7 @@ const fn self_machine() -> u16 {
         target_arch = "s390x",
     )))]
     {
-        compile_error!("podvm has no ELF machine number for this target_arch; add it to crates/podvm-probe/src/binfmt.rs beside TODO/deps.md T-0911's table")
+        compile_error!("pod-hostprobe has no ELF machine number for this target_arch; add it to src/binfmt.rs")
     }
 }
 
@@ -199,18 +188,17 @@ mod tests {
 
     #[test]
     fn the_elf_machine_numbers_are_the_specifications() {
-        // ⛔ Measured against real binaries rather than recalled: 0xb7 is what
-        // `readelf -h` prints for an aarch64 ELF and 0x3e for x86-64, and
-        // experiments/260-multiarch.sh registers a magic carrying 0xb7.
+        // Measured against real binaries, not recalled: 0xb7 is what
+        // `readelf -h` prints for an aarch64 ELF and 0x3e for x86-64.
         assert_eq!(machine_for("arm64"), Some(0xb7));
         assert_eq!(machine_for("amd64"), Some(0x3e));
         assert_eq!(machine_for("riscv64"), Some(0xf3));
         assert_eq!(machine_for("nope"), None);
     }
 
-    /// ⚠ Reads the real `/proc/sys/fs/binfmt_misc` where it is mounted and
+    /// Reads the real `/proc/sys/fs/binfmt_misc` where it is mounted and
     /// asserts only what is true either way. A test that required a
-    /// registration would be a test about this machine and not about podvm.
+    /// registration would be a test about this machine and not about the crate.
     #[test]
     fn reading_the_registrations_is_never_a_panic() {
         for r in registrations() {

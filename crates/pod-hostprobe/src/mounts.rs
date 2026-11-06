@@ -1,15 +1,15 @@
-//! `TODO/probe.md` T-0103: probe creation and attachment separately.
+//! Probe the creation and the attachment of a mount apart.
 //!
 //! A runtime that asks only "does `mount(2)` work" learns less than one
 //! syscall's worth more effort would have told it, and then reports "no
 //! mounts" where the truth is "mounts you can create and never attach".
 //!
-//! ⭐ Four verdicts, not one. **Use** is the fourth and is the one a runtime
+//! Four verdicts, not one. **Use** is the fourth and is the one a runtime
 //! that stops at "creatable" gets wrong: a detached mount that cannot be
 //! opened through is not a usable private filesystem.
 
-use crate::verdict::{Outcome, Verdict};
 use crate::Findings;
+use crate::verdict::{Outcome, Verdict};
 
 pub struct Mounts {
     pub create: Outcome,
@@ -31,9 +31,7 @@ fn take(f: &Findings, name: &str) -> Outcome {
         .iter()
         .find(|(n, _)| *n == name)
         .map(|(_, o)| o.clone())
-        .unwrap_or_else(|| {
-            Outcome::skip(None, format!("the probe set carries no row named {name:?}"))
-        })
+        .unwrap_or_else(|| Outcome::skip(None, format!("the probe set carries no row named {name:?}")))
 }
 
 impl Mounts {
@@ -47,12 +45,7 @@ impl Mounts {
     }
 
     pub fn rows(&self) -> [(&'static str, &Outcome); 4] {
-        [
-            ("create", &self.create),
-            ("configure", &self.configure),
-            ("attach", &self.attach),
-            ("use", &self.r#use),
-        ]
+        [("create", &self.create), ("configure", &self.configure), ("attach", &self.attach), ("use", &self.r#use)]
     }
 
     /// The banner's `mounts=` field.
@@ -68,8 +61,7 @@ impl Mounts {
         }
     }
 
-    /// ⭐ The free attribution `TOOL.md` section 6.1 rule 8 asks for, and the
-    /// sentence that stops the next reader hunting for a capability to acquire.
+    /// The attribution that comes free, and the sentence that stops the next reader hunting for a capability to acquire.
     pub fn capability_note(&self) -> Option<&'static str> {
         if self.configure.verdict == Verdict::Ok && self.attach.verdict != Verdict::Ok {
             Some(
@@ -90,10 +82,7 @@ mod tests {
     use crate::sys;
 
     fn f(rows: &[(&'static str, Outcome)]) -> Findings {
-        Findings {
-            rows: rows.to_vec(),
-            ..Findings::empty()
-        }
+        Findings { rows: rows.to_vec(), ..Findings::empty() }
     }
 
     #[test]
@@ -113,10 +102,7 @@ mod tests {
         let m = Mounts::of(&f(&[
             (CREATE_ROW, Outcome::denied(sys::EPERM)),
             (CONFIGURE_ROW, Outcome::denied(sys::EPERM)),
-            (
-                ATTACH_ROW,
-                Outcome::skip(Some(sys::EPERM), "fsmount failed"),
-            ),
+            (ATTACH_ROW, Outcome::skip(Some(sys::EPERM), "fsmount failed")),
             (USE_ROW, Outcome::skip(Some(sys::EPERM), "fsmount failed")),
         ]));
         assert_eq!(m.summary(), "none");

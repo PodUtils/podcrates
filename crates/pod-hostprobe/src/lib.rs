@@ -1,33 +1,32 @@
-//! `TOOL.md` section 6.1: the probe set, disposable children, mode selection.
-//! The work is in [`TODO/probe.md`](../../../TODO/probe.md), T-0101 to T-0110.
+//! The probes of a Linux host, and the raw system calls under them.
 //!
-//! ⭐ **Four rules decide whether this crate is right rather than merely
-//! finished**, and each is one entry:
+//! Four rules make the probes correct:
 //!
-//! 1. every probe runs in a disposable child ([`child`], T-0101);
-//! 2. the errno is recorded, never a boolean ([`sys::Errno`], T-0101);
-//! 3. "could not run" is a third state and never reads as "denied"
-//!    ([`verdict::Verdict::Skip`], T-0109);
-//! 4. the controls travel with the bogus-argument discriminator, so a probe
-//!    that has stopped discriminating says so ([`select::Selection`], T-0102).
+//! 1. Each probe runs in a disposable child ([`child`]).
+//! 2. A probe records the errno, never a boolean ([`sys::Errno`]).
+//! 3. "Could not run" is a third state, and it never reads as "denied"
+//!    ([`verdict::Verdict::Skip`]).
+//! 4. The controls run with the bogus-argument discriminator, so that a
+//!    probe that stops to discriminate says so ([`select::Selection`]).
 //!
-//! ⛔ No dependencies. `TODO/deps.md` T-0901 rules that the section 6.1 probe
-//! set is declared by hand first and the binary measured, before a syscall
-//! crate is considered against that number.
+//! The crate is Linux only. On another target it is empty.
+//!
+//! [`sys`] uses no libc wrapper: a wrapper (`setuid(3)` of glibc or musl)
+//! gives the errno of the library, and a probe needs the errno of the
+//! kernel.
+#![cfg(target_os = "linux")]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod binfmt;
 pub mod child;
-pub mod exit;
+pub mod exec;
 pub mod identity;
 pub mod interp;
-pub mod json;
 pub mod machine;
 pub mod mounts;
-pub mod nongoals;
 pub mod probes;
-pub mod report;
 pub mod select;
+pub mod space;
 pub mod supervise;
 pub mod sys;
 pub mod verdict;
@@ -35,25 +34,44 @@ pub mod writable;
 
 use verdict::Outcome;
 
-/// The private argument a probe child is re-executed with.
-///
-/// ⚠ It is not a public verb. `podvm probe --help` names it as internal, and
-/// the CLI dispatches it before anything else so a child cannot fall into the
-/// ordinary argument surface.
-pub const CHILD_FLAG: &str = "--probe-child";
+/// The values that the caller gives to the probes. The caller fills it one
+/// time and gives it to each call that needs it.
+#[derive(Clone, Debug)]
+pub struct Settings {
+    /// The private argument with which a probe child starts. The binary
+    /// must read it before all other arguments, and then call
+    /// [`run_child`] with the name that follows it.
+    pub child_flag: String,
+    /// The `argv[0]` of a probe child.
+    pub child_name: String,
+    /// The name of the setting with which the user gives a different
+    /// directory, for example `$STORE`. The messages of [`space`] and
+    /// [`exec`] name it. `None`: they name no setting.
+    pub directory_setting: Option<String>,
+}
 
-/// Everything one run measured.
+impl Default for Settings {
+    fn default() -> Settings {
+        Settings {
+            child_flag: "--hostprobe-child".to_string(),
+            child_name: "pod-hostprobe".to_string(),
+            directory_setting: None,
+        }
+    }
+}
+
+/// All that one run measured.
 pub struct Findings {
-    /// Every probe, in the fixed order of [`probes::PROBES`].
+    /// Each probe, in the fixed order of [`probes::PROBES`].
     pub rows: Vec<(&'static str, Outcome)>,
     pub identity: identity::Identity,
     pub writable: Vec<writable::WriteProbe>,
-    /// Where the probe children were re-executed from, for the report.
+    /// The path from which the probe children started, for the report.
     pub self_exe: String,
 }
 
 impl Findings {
-    /// An empty set, for building one field at a time in a test.
+    /// An empty set, for a test that builds one field at a time.
     pub fn empty() -> Findings {
         Findings {
             rows: Vec::new(),
@@ -68,9 +86,11 @@ impl Findings {
     }
 }
 
-/// Run the whole set. One disposable child per probe, in a fixed order.
-pub fn run() -> Findings {
-    let spawner = child::Spawner::new();
+/// Run the whole set: one disposable child for each probe, in a fixed
+/// order. `candidates` are the directories of the write probe, as
+/// [`writable::candidates`] gives them.
+pub fn run(settings: &Settings, candidates: &[(String, String)]) -> Findings {
+    let spawner = child::Spawner::new(settings);
     let rows = probes::PROBES
         .iter()
         .map(|p| {
@@ -84,33 +104,32 @@ pub fn run() -> Findings {
     Findings {
         rows,
         identity: identity::read(),
-        writable: writable::probe(),
+        writable: writable::probe(candidates),
         self_exe: spawner.exe_source.clone(),
     }
 }
 
-/// What a probe child does: run exactly one probe, in this process, and report
-/// it on stdout and in the exit status.
+/// The work of a probe child: run one probe in this process, write its line
+/// to `out` (the standard output of the child), and return the exit status.
 ///
-/// ⛔ Both, and they must agree. [`child::Spawner`] refuses a child whose line
-/// and exit status disagree, because a child that contradicts itself has
-/// established no verdict. `TODO/probe.md` T-0109 rule 1.
-pub fn run_child(name: &str) -> i32 {
-    let Some(probe) = probes::find(name) else {
-        eprintln!("podvm: no probe named {name:?}");
-        return 2;
+/// The line and the exit status must agree. [`child::Spawner`] refuses a
+/// child whose line and exit status do not agree: such a child gives no
+/// verdict. A name that is not a probe gives a skip line and status 2.
+pub fn run_child(name: &str, out: &mut dyn std::io::Write) -> i32 {
+    let outcome = match probes::find(name) {
+        None => Outcome::skip(None, format!("no probe named {name:?}")),
+        Some(probe) => match probe.kind {
+            probes::Kind::Child { body, .. } => body(),
+            // The measurement of a `Clone` probe is the clone of the
+            // parent, so a child has nothing to run. The parent and the
+            // table do not agree: that is a defect, not a denial.
+            probes::Kind::Clone(_) => {
+                Outcome::skip(None, format!("{name:?} is measured by the parent's clone(2) and has no child body"))
+            }
+        },
     };
-    let outcome = match probe.kind {
-        probes::Kind::Child { body, .. } => body(),
-        // A `Clone` probe's measurement is the clone the parent performed, so
-        // there is nothing for a child to run. Reaching here means the parent
-        // and this table disagree, which is a defect and not a denial.
-        probes::Kind::Clone(_) => Outcome::skip(
-            None,
-            format!("{name:?} is measured by the parent's clone(2) and has no child body"),
-        ),
-    };
-    println!("{}", verdict::encode(&outcome));
+    let _ = writeln!(out, "{}", verdict::encode(&outcome));
+    let _ = out.flush();
     outcome.verdict.exit_code()
 }
 
@@ -120,10 +139,10 @@ mod tests {
 
     #[test]
     fn every_child_probe_runs_and_answers_in_a_child() {
-        // ⭐ Reality as the acceptance gate: this drives the shipping path,
-        // one real forked child per probe, and asserts the shape of what comes
-        // back rather than that any particular machine permits anything.
-        let f = run();
+        // The real path: one real child for each probe. The test checks the
+        // shape of the answers, not that this host permits a thing. libtest
+        // does not know the child flag, so each child row is a skip here.
+        let f = run(&Settings::default(), &writable::candidates(&[]));
         assert_eq!(f.rows.len(), probes::PROBES.len());
         for (name, o) in &f.rows {
             if o.verdict == verdict::Verdict::Denied {
@@ -134,6 +153,11 @@ mod tests {
 
     #[test]
     fn a_probe_name_that_does_not_exist_exits_two() {
-        assert_eq!(run_child("no such probe"), 2);
+        let mut out = Vec::new();
+        assert_eq!(run_child("no such probe", &mut out), 2);
+        let line = String::from_utf8(out).unwrap();
+        let got = verdict::decode(line.trim_end()).unwrap();
+        assert_eq!(got.verdict, verdict::Verdict::Skip);
+        assert!(got.reason.contains("no such probe"), "{line}");
     }
 }

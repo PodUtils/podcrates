@@ -23,7 +23,7 @@ fn main() {
     // pod-services.
     let resolver = pod_dns::Resolver::new(pod_dns::Settings::default());
     let first = resolver.settings().resolvers.first().map_or_else(String::new, |r| format!("{} ({})", r.ip, r.name));
-    let lines = [
+    let mut lines = vec![
         format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0)),
         format!("pod-term: {typed} events for a typed line"),
         format!("pod-identity: {}", identity.public().fingerprint()),
@@ -49,6 +49,15 @@ fn main() {
             resolver.settings().resolvers.len()
         ),
     ];
+    // pod-hostprobe is Linux only: on another target the crate is empty.
+    #[cfg(target_os = "linux")]
+    lines.push(format!(
+        "pod-hostprobe: pid {}, ELF machine 0x{:x}, {} probes, {} free inodes at /",
+        pod_hostprobe::sys::getpid(),
+        pod_hostprobe::binfmt::SELF_MACHINE,
+        pod_hostprobe::probes::PROBES.len(),
+        pod_hostprobe::space::read("/").map_or_else(|e| e.to_string(), |h| h.free.inodes.to_string())
+    ));
     for line in lines {
         println!("{line}");
     }

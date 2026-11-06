@@ -1,12 +1,7 @@
 use super::*;
 
 pub fn wait4(pid: i64, status: &mut i32) -> Sysres {
-    unsafe {
-        sys(
-            SYS_WAIT4,
-            [pid as u64, status as *mut i32 as u64, 0, 0, 0, 0],
-        )
-    }
+    unsafe { sys(SYS_WAIT4, [pid as u64, status as *mut i32 as u64, 0, 0, 0, 0]) }
 }
 
 pub fn kill(pid: i64, sig: i64) -> Sysres {
@@ -16,9 +11,9 @@ pub fn kill(pid: i64, sig: i64) -> Sysres {
 /// Start a new session, so a detached supervisor outlives the shell that
 /// started it and holds no controlling terminal.
 ///
-/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0603's other half. A
-/// launcher still attached to the caller's session takes that terminal's
-/// signals, and `podvm run -d` would then die with the shell that started it.
+/// A launcher still attached to the session of the caller takes the signals
+/// of that terminal, and a detached run then stops with the shell that
+/// started it.
 pub fn setsid() -> Sysres {
     unsafe { sys(SYS_SETSID, [0, 0, 0, 0, 0, 0]) }
 }
@@ -29,9 +24,8 @@ pub fn getpid() -> i64 {
 
 /// A descriptor for a process, which cannot be redirected by pid reuse.
 ///
-/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0601. A pid plus a
-/// start time is a heuristic; a pidfd names one process for as long as it is
-/// held and answers `ESRCH` for one that has been reaped. ⚠ Say what it is not:
+/// A pid plus a start time is a heuristic; a pidfd names one process for as long as it is
+/// held and answers `ESRCH` for one that has been reaped. Say what it is not:
 /// it addresses ONE process. It does not contain descendants and it is not a PID
 /// namespace, so a grandchild that reparents is outside its reach.
 pub fn pidfd_open(pid: i64) -> Sysres {
@@ -39,39 +33,21 @@ pub fn pidfd_open(pid: i64) -> Sysres {
 }
 
 /// Block the two shutdown signals and report the previous mask, so the
-/// caller reads them from a signalfd instead of dying on them.
-/// TODO/supervise.md T-1335.
+/// caller reads them from a signalfd and does not stop on them.
 ///
-/// ⛔ The mask is one `u64` and not a libc `sigset_t`: the raw call sizes the
+/// The mask is one `u64` and not a libc `sigset_t`: the raw call sizes the
 /// set in bytes, 8 covers signals 1..64, and SIGINT (2) and SIGTERM (15) are
 /// both inside it. A 128-byte libc set handed with size 8 would leave the
 /// kernel reading the caller's first 8 bytes, which happen to be the same two
 /// bits, but "happens to be" is not an argument.
 pub fn sigblock_shutdown(old: &mut u64) -> Sysres {
     let set: u64 = SHUTDOWN_SIGNALS;
-    unsafe {
-        sys(
-            SYS_RT_SIGPROCMASK,
-            [
-                SIG_BLOCK,
-                &set as *const u64 as u64,
-                old as *mut u64 as u64,
-                8,
-                0,
-                0,
-            ],
-        )
-    }
+    unsafe { sys(SYS_RT_SIGPROCMASK, [SIG_BLOCK, &set as *const u64 as u64, old as *mut u64 as u64, 8, 0, 0]) }
 }
 
 /// Restore a mask [`sigblock_shutdown`] reported.
 pub fn sigrestore(old: u64) -> Sysres {
-    unsafe {
-        sys(
-            SYS_RT_SIGPROCMASK,
-            [SIG_SETMASK, &old as *const u64 as u64, 0, 8, 0, 0],
-        )
-    }
+    unsafe { sys(SYS_RT_SIGPROCMASK, [SIG_SETMASK, &old as *const u64 as u64, 0, 8, 0, 0]) }
 }
 
 /// A descriptor that reads as the blocked shutdown signals, `CLOEXEC` so an
@@ -80,19 +56,7 @@ pub fn sigrestore(old: u64) -> Sysres {
 /// a pointer and the value itself is an address the kernel must not read.
 pub fn signalfd_shutdown() -> Sysres {
     let mask: u64 = SHUTDOWN_SIGNALS;
-    unsafe {
-        sys(
-            SYS_SIGNALFD4,
-            [
-                -1i64 as u64,
-                &mask as *const u64 as u64,
-                8,
-                SFD_CLOEXEC,
-                0,
-                0,
-            ],
-        )
-    }
+    unsafe { sys(SYS_SIGNALFD4, [-1i64 as u64, &mask as *const u64 as u64, 8, SFD_CLOEXEC, 0, 0]) }
 }
 
 /// `waitid(P_PIDFD, ...)`: a child's status, addressed by descriptor.
@@ -102,7 +66,7 @@ pub const WNOHANG: u64 = 0x0000_0001;
 
 /// What `waitid` fills in, of the kernel's `siginfo_t`, and nothing more.
 ///
-/// ⛔ **The kernel's own buffer, sized generously and read by offset.**
+/// **The kernel's own buffer, sized generously and read by offset.**
 /// `siginfo_t` is 128 bytes on every Linux architecture and its layout after the
 /// first three words is a union; the two fields wanted here (`si_code` and
 /// `si_status`) sit at fixed offsets in the `SIGCHLD` arm. A hand-written
@@ -124,13 +88,8 @@ pub fn waitid_pidfd(pidfd: i64, nohang: bool) -> Result<Option<Exited>, Errno> {
     // 128 bytes, zeroed, so a short read leaves zeros rather than stack noise.
     let mut buf = [0u8; 128];
     let opts = WEXITED | if nohang { WNOHANG } else { 0 };
-    unsafe {
-        sys(
-            SYS_WAITID,
-            [P_PIDFD, pidfd as u64, buf.as_mut_ptr() as u64, opts, 0, 0],
-        )
-    }?;
-    // ⚠ `si_signo` is the first word and is zero when WNOHANG found nothing,
+    unsafe { sys(SYS_WAITID, [P_PIDFD, pidfd as u64, buf.as_mut_ptr() as u64, opts, 0, 0]) }?;
+    // `si_signo` is the first word and is zero when WNOHANG found nothing,
     // which is how "still running" is told from "exited with 0".
     let signo = i32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]);
     if signo == 0 {
@@ -138,13 +97,13 @@ pub fn waitid_pidfd(pidfd: i64, nohang: bool) -> Result<Option<Exited>, Errno> {
     }
     // si_signo, si_errno, si_code are the first three 32-bit words.
     let code = i32::from_ne_bytes([buf[8], buf[9], buf[10], buf[11]]);
-    // ⛔ THE UNION STARTS AT 16, NOT AT 12. `__ARCH_SI_PREAMBLE_SIZE` is
+    // THE UNION STARTS AT 16, NOT AT 12. `__ARCH_SI_PREAMBLE_SIZE` is
     // `3*sizeof(int) + sizeof(long)`-aligned, so on a 64-bit architecture the
     // three leading ints are followed by four bytes of padding and `_sifields`
     // begins at 16. The SIGCHLD arm is `{ pid_t si_pid; uid_t si_uid; int
     // si_status; ... }`, which puts `si_status` at 24.
-    // ⚠ Measured on 2026-09-09 by reading 20 instead: a SIGTERMed payload
-    // reported exit 128 rather than 143, because the field read was `si_uid`.
+    // A read at 20 gives `si_uid`: a payload stopped by SIGTERM then
+    // reports exit 128 and not 143.
     let status = i32::from_ne_bytes([buf[24], buf[25], buf[26], buf[27]]);
     Ok(Some(Exited { code, status }))
 }
@@ -168,20 +127,12 @@ struct Timespec {
 
 /// Wait until one of `fds` is ready, or until `timeout_ms`.
 ///
-/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0602: this is what a
-/// supervisor waits on instead of sleeping and looking. Every wait has an upper
-/// bound and a distinct outcome for reaching it, per `TODO/RULES.md` section 8:
-/// `Ok(0)` is the bound, and it is not an error and not a readiness.
+/// A supervisor waits on this, not on a sleep and a look. Each wait has an
+/// upper bound and a distinct outcome when it gets there: `Ok(0)` is the
+/// bound, and it is not an error and not a readiness.
 pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
-    let ts = Timespec {
-        sec: timeout_ms / 1000,
-        nsec: (timeout_ms % 1000) * 1_000_000,
-    };
-    let tsp = if timeout_ms < 0 {
-        0
-    } else {
-        &ts as *const Timespec as u64
-    };
+    let ts = Timespec { sec: timeout_ms / 1000, nsec: (timeout_ms % 1000) * 1_000_000 };
+    let tsp = if timeout_ms < 0 { 0 } else { &ts as *const Timespec as u64 };
     unsafe {
         sys(
             SYS_PPOLL,
@@ -199,7 +150,7 @@ pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
 
 /// The four `statfs` fields this project reads, widened to one shape.
 ///
-/// ⛔ **The kernel's own `struct statfs64` is the buffer**, taken per
+/// **The kernel's own `struct statfs64` is the buffer**, taken per
 /// architecture from `linux_raw_sys`, and this is a normalised view built from
 /// it. The two are different things on purpose: the kernel's layout and field
 /// widths differ by architecture, and a hand-written `#[repr(C)]` that is one
@@ -212,15 +163,12 @@ pub struct Statfs {
     pub f_ffree: u64,
 }
 
-/// `flock(2)`. Used by `TODO/image.md` T-0204 to hold a rootfs against a
-/// concurrent GC.
+/// `flock(2)`. An image store uses it to hold a rootfs against a concurrent
+/// garbage collection.
 ///
-/// ⭐ An advisory lock on an **fd**, not a pid file. The mechanism is read out
-/// of the corpus at
-/// `references/qaidvoid__onelf/tree/crates/onelf-rt/src/main.rs:275-278`, where
-/// the cache lock guard is held through exec with its fd left inheritable so a
-/// concurrent process's GC cannot delete the package while it is still in use.
-/// A pid file is stale the moment a process dies unexpectedly, and the check
+/// An advisory lock on an **fd**, not a pid file. The lock is held through
+/// exec with its fd inheritable, so the collection of a concurrent process
+/// cannot delete the rootfs while it is in use. A pid file is stale the moment a process dies unexpectedly, and the check
 /// that clears a stale one is the race this closes.
 pub fn flock(fd: i64, op: u64) -> Sysres {
     unsafe { sys(SYS_FLOCK, [fd as u64, op, 0, 0, 0, 0]) }
@@ -228,25 +176,14 @@ pub fn flock(fd: i64, op: u64) -> Sysres {
 
 /// `readlink(2)` into a caller-sized buffer, returned as a `String`.
 ///
-/// ⚠ The kernel does not NUL-terminate and does not report truncation, so a
+/// The kernel does not NUL-terminate and does not report truncation, so a
 /// return equal to the buffer size is reported as an error rather than as a
 /// value: a silently truncated namespace identity would compare unequal to
 /// itself and invalidate a cache on every run.
 pub fn readlink(path: &CBuf) -> Result<String, Errno> {
     let mut buf = [0u8; 256];
-    let n = unsafe {
-        sys(
-            SYS_READLINKAT,
-            [
-                AT_FDCWD,
-                path.ptr(),
-                buf.as_mut_ptr() as u64,
-                buf.len() as u64,
-                0,
-                0,
-            ],
-        )?
-    } as usize;
+    let n = unsafe { sys(SYS_READLINKAT, [AT_FDCWD, path.ptr(), buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0])? }
+        as usize;
     if n >= buf.len() {
         return Err(ENAMETOOLONG);
     }
@@ -254,25 +191,13 @@ pub fn readlink(path: &CBuf) -> Result<String, Errno> {
 }
 
 pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
-    // ⚠ `statfs64` and not `statfs`: on a 32-bit architecture the narrow form
+    // `statfs64` and not `statfs`: on a 32-bit architecture the narrow form
     // truncates a filesystem larger than 4 GiB of blocks, and a free-space
     // check that silently wraps is worse than none. The syscall takes the
     // buffer's size so the kernel refuses a shape it does not know.
     let mut raw = unsafe { core::mem::zeroed::<linux_raw_sys::general::statfs64>() };
-    unsafe {
-        sys(
-            SYS_STATFS,
-            [
-                path.ptr(),
-                &mut raw as *mut linux_raw_sys::general::statfs64 as u64,
-                0,
-                0,
-                0,
-                0,
-            ],
-        )?
-    };
-    // ⚠ As `Stat::from_kernel`: redundant here, load-bearing elsewhere.
+    unsafe { sys(SYS_STATFS, [path.ptr(), &mut raw as *mut linux_raw_sys::general::statfs64 as u64, 0, 0, 0, 0])? };
+    // As `Stat::from_kernel`: redundant here, load-bearing elsewhere.
     #[allow(clippy::unnecessary_cast)]
     Ok(Statfs {
         f_bsize: raw.f_bsize as i64,
@@ -285,25 +210,13 @@ pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
 /// `prlimit64(0, resource, NULL, &old)`: read this process's own limit
 /// without changing it.
 ///
-/// ⛔ As [`Statfs`]: the kernel's own `struct rlimit64` is the buffer, taken
+/// As [`Statfs`]: the kernel's own `struct rlimit64` is the buffer, taken
 /// per architecture from `linux_raw_sys`, because a hand-written pair of the
 /// wrong width is a kernel write past the end of it.
 pub fn prlimit(resource: u64) -> Result<(u64, u64), Errno> {
     let mut raw = unsafe { core::mem::zeroed::<linux_raw_sys::general::rlimit64>() };
-    unsafe {
-        sys(
-            SYS_PRLIMIT64,
-            [
-                0,
-                resource,
-                0,
-                &mut raw as *mut linux_raw_sys::general::rlimit64 as u64,
-                0,
-                0,
-            ],
-        )?
-    };
-    // ⚠ As `Stat::from_kernel`: redundant on this architecture and
+    unsafe { sys(SYS_PRLIMIT64, [0, resource, 0, &mut raw as *mut linux_raw_sys::general::rlimit64 as u64, 0, 0])? };
+    // As `Stat::from_kernel`: redundant on this architecture and
     // load-bearing on one whose `__u64` is not `u64`.
     #[allow(clippy::unnecessary_cast)]
     Ok((raw.rlim_cur as u64, raw.rlim_max as u64))
@@ -311,7 +224,7 @@ pub fn prlimit(resource: u64) -> Result<(u64, u64), Errno> {
 
 // ------------------------------------------------------- sockets
 //
-// `TODO/machine.md` T-1306: the spec target answers EPERM to every TCP bind,
+// Some confined hosts answer EPERM to each TCP bind,
 // loopback or wildcard, which kills every hostfwd-based manager. The probe
 // binds 127.0.0.1 port 0 (the kernel picks the port, so no fixture can
 // collide) and listens once; nothing is ever accepted on it.
@@ -340,7 +253,7 @@ pub fn listen(fd: i64, backlog: u64) -> Sysres {
 
 /// The `stat` fields this project reads, widened to one shape.
 ///
-/// ⛔ As [`Statfs`]: **the kernel's own `struct stat` is the buffer**, taken
+/// As [`Statfs`]: **the kernel's own `struct stat` is the buffer**, taken
 /// per architecture from `linux_raw_sys`, and this is a normalised view built
 /// from it. It is 144 bytes on x86_64 and 128 on aarch64, and a buffer short by
 /// one field is a kernel write past the end of it, which is exactly what a
@@ -357,7 +270,7 @@ pub struct Stat {
 }
 
 impl Stat {
-    /// ⚠ **Every cast below is redundant on x86_64 and load-bearing somewhere
+    /// **Every cast below is redundant on x86_64 and load-bearing somewhere
     /// else.** The kernel's field widths differ by architecture, `st_mode` and
     /// `st_uid` are not the same type on every one of them, so clippy's
     /// `unnecessary_cast` is correct for the architecture it was run on and
@@ -409,10 +322,10 @@ impl Stat {
 
 /// `stat(2)` by name, `newfstatat(2)` in fact.
 ///
-/// ⚠ Identical by definition: `stat(path)` is `newfstatat(AT_FDCWD, path, 0)`.
+/// Identical by definition: `stat(path)` is `newfstatat(AT_FDCWD, path, 0)`.
 /// Routing through the `*at` form is what lets this compile on an architecture
 /// whose kernel has no `stat` entry point at all, and it changes nothing on one
-/// that does. ⛔ It is a **utility** call and not a probe: nothing in the report
+/// that does. It is a **utility** call and not a probe: nothing in the report
 /// says the word `stat`, so the entry point is not the measurement. The three
 /// calls where it is are [`CHOWN`], [`LCHOWN`] and [`MKNOD`].
 pub fn stat(path: &CBuf) -> Result<Stat, Errno> {
@@ -427,12 +340,7 @@ pub fn getgroups() -> Result<Vec<i32>, Errno> {
         return Ok(Vec::new());
     }
     let mut buf = vec![0i32; n as usize];
-    let got = unsafe {
-        sys(
-            SYS_GETGROUPS,
-            [n as u64, buf.as_mut_ptr() as u64, 0, 0, 0, 0],
-        )?
-    };
+    let got = unsafe { sys(SYS_GETGROUPS, [n as u64, buf.as_mut_ptr() as u64, 0, 0, 0, 0])? };
     buf.truncate(got as usize);
     Ok(buf)
 }
