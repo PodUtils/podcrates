@@ -1251,7 +1251,7 @@ cargo test -p pod-proxy --all-features
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1274,6 +1274,19 @@ hangs and returns at once.
 ```sh
 cargo test -p pod-proxy --features blocking --test blocking
 ```
+
+## Done
+
+2026-11-06. The runtime of the blocking face shuts down in the background
+when the last value that holds it drops (`blocking::Background`). The
+test found a second fault under the first: the dial of `race.rs` gave the
+deadline to the resolver and trusted it, so a resolver that did not keep to
+it held the dial past its time limit (30 s for a limit of 200 ms). The dial
+now bounds each call of the resolver by the deadline (the async face too).
+`the_drop_of_a_dialer_does_not_wait_for_a_lookup_that_the_dial_left`:
+without the change of `blocking.rs` the drop waited 29.8 s; with both
+changes the test ends in 0.2 s. `cargo test -p pod-proxy --all-features`
+passes, clippy too.
 
 
 # T-071: `pod-proxy`: a read limit for `blocking::Stream::Exec`

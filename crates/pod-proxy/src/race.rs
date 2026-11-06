@@ -60,11 +60,15 @@ pub(crate) async fn connect_race(
     // The resolver's order: pins, the system resolver, the addresses that
     // carried a session, DNS over HTTPS. A host with a broken resolver but
     // working TCP egress still gets there.
-    let mut found: Found = leg.resolve.resolve_from(host, port, leg.deadline, None).await.map_err(resolve_error)?;
+    // The deadline bounds the resolver too: a resolver that does not keep
+    // to it does not hold the dial past its time limit.
+    let timed_out = || DialError::Timeout { step: format!("resolving {host}"), after: leg.budget, stage: Stage::Dns };
+    let first = tokio::time::timeout_at(leg.deadline, leg.resolve.resolve_from(host, port, leg.deadline, None));
+    let mut found: Found = first.await.map_err(|_| timed_out())?.map_err(resolve_error)?;
     let mut tried: Vec<SocketAddr> = Vec::new();
     loop {
         if Instant::now() >= leg.deadline {
-            return Err(DialError::Timeout { step: format!("resolving {host}"), after: leg.budget, stage: Stage::Dns });
+            return Err(timed_out());
         }
         let addrs: Vec<SocketAddr> = found.addrs.iter().copied().filter(|a| !tried.contains(a)).collect();
         tried.extend(addrs.iter().copied());
@@ -77,9 +81,10 @@ pub(crate) async fn connect_race(
                 return Ok((stream, how));
             }
             Err(failed) if found.more && Instant::now() < leg.deadline => {
-                match leg.resolve.resolve_from(host, port, leg.deadline, Some(found.source)).await {
-                    Ok(next) => found = next,
-                    Err(_) => return Err(failed),
+                let next = leg.resolve.resolve_from(host, port, leg.deadline, Some(found.source));
+                match tokio::time::timeout_at(leg.deadline, next).await {
+                    Ok(Ok(next)) => found = next,
+                    Ok(Err(_)) | Err(_) => return Err(failed),
                 }
             }
             Err(failed) => return Err(failed),

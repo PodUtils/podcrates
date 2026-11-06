@@ -25,15 +25,38 @@ use crate::{ChildIo, DialError, Multipath, Proxy, Settings};
 /// The private runtime of a blocking value. One thread, the caller's: the
 /// I/O driver and the timers serve the dial, and the process driver serves a
 /// proxy at a command.
-fn runtime() -> io::Result<Arc<Runtime>> {
-    tokio::runtime::Builder::new_current_thread().enable_all().build().map(Arc::new)
+fn runtime() -> io::Result<Arc<Background>> {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+    Ok(Arc::new(Background(Some(runtime))))
+}
+
+/// A runtime that shuts down in the background when the last value that
+/// holds it drops: a dial that its time limit ended can leave a system name
+/// lookup on a thread of the runtime, and a plain drop waits for it.
+#[derive(Debug)]
+pub(crate) struct Background(Option<Runtime>);
+
+impl std::ops::Deref for Background {
+    type Target = Runtime;
+
+    fn deref(&self) -> &Runtime {
+        self.0.as_ref().expect("the runtime lives until the drop")
+    }
+}
+
+impl Drop for Background {
+    fn drop(&mut self) {
+        if let Some(runtime) = self.0.take() {
+            runtime.shutdown_background();
+        }
+    }
 }
 
 /// [`crate::Dialer`], blocking.
 #[derive(Clone)]
 pub struct Dialer {
     inner: Arc<crate::Dialer>,
-    runtime: Arc<Runtime>,
+    runtime: Arc<Background>,
 }
 
 impl std::fmt::Debug for Dialer {
@@ -156,7 +179,7 @@ impl Stream {
 /// drives.
 pub struct Exec {
     child: Box<ChildIo>,
-    runtime: Arc<Runtime>,
+    runtime: Arc<Background>,
 }
 
 impl std::fmt::Debug for Exec {
@@ -238,7 +261,7 @@ impl Write for Stream {
 #[derive(Clone, Debug)]
 pub struct Client {
     inner: crate::Client,
-    runtime: Arc<Runtime>,
+    runtime: Arc<Background>,
 }
 
 impl Client {

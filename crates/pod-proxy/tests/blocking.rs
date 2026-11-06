@@ -148,3 +148,41 @@ fn the_client_gets_an_answer_over_a_verified_handshake() {
     assert!(head.starts_with("GET /health HTTP/1.1\r\n"), "{head}");
     assert!(head.contains("\r\nUser-Agent: podvm/1.2.3\r\n"), "{head}");
 }
+
+/// A resolver whose lookup blocks a thread of the runtime for 30 s, as a
+/// system lookup that gets no answer does.
+struct Stuck;
+
+impl pod_core::Resolve for Stuck {
+    fn label(&self) -> String {
+        "stuck".into()
+    }
+
+    fn resolve_from<'a>(
+        &'a self,
+        _host: &'a str,
+        _port: u16,
+        _deadline: tokio::time::Instant,
+        _after: Option<pod_core::Source>,
+    ) -> pod_core::BoxFuture<'a, Result<pod_core::Found, pod_core::Failure>> {
+        Box::pin(async {
+            let _ = tokio::task::spawn_blocking(|| thread::sleep(Duration::from_secs(30))).await;
+            Err(pod_core::Failure::new(pod_core::Stage::Dns, pod_core::Class::Timeout, "stuck"))
+        })
+    }
+}
+
+/// The time limit of the dial bounds a resolver that does not keep to it, and
+/// the lookup that it leaves on a thread of the runtime does not hold the
+/// drop of the dialer.
+#[test]
+fn the_drop_of_a_dialer_does_not_wait_for_a_lookup_that_the_dial_left() {
+    let dialer = Dialer::new(Settings::new("podvm", ProxyChoice::Direct), Arc::new(Stuck)).expect("a runtime");
+    let dialed = std::time::Instant::now();
+    let failed = dialer.tcp("relay.invalid", 443, Duration::from_millis(200));
+    assert!(failed.is_err(), "the lookup never answers");
+    assert!(dialed.elapsed() < Duration::from_secs(5), "the dial waited {:?}", dialed.elapsed());
+    let start = std::time::Instant::now();
+    drop(dialer);
+    assert!(start.elapsed() < Duration::from_secs(5), "the drop waited {:?}", start.elapsed());
+}
