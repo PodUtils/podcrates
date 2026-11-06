@@ -34,8 +34,8 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
-   the release v0.4.0 and its hand-off to podssh, podnet and podvm; the
-   release v0.5.0 (the synchronous face is on `main`); T-040 (the trials of
+   the release v0.4.0 (with the synchronous face) and its hand-off
+   to podssh, podnet and podvm; T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); T-066; then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.

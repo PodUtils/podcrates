@@ -6,11 +6,11 @@ has the work order; this page has only what is in flight.
 
 ## In flight: v0.4.0
 
-**Blocked: GitHub Actions is off for the pushing account** (Q6 of
-`TODO/PROGRESS.md`). The release commit is `0319009` (version 0.4.0, the
-notes, the Done sections); it passed `scripts/agent/check.sh` here. When
-Actions is on: the CI of `main`, then `release.yml` with `version=0.4.0`,
-then the hand-off (item 5).
+**GitHub Actions is off for the pushing account** (Q6 of
+`TODO/PROGRESS.md`). The owner's account dispatches `ci.yml` and
+`release.yml` on request (PodUtils/podvm#198): ask with a COORD issue
+`(to podvm)` in PodUtils/podcrates, with the workflow, the ref and the
+version. v0.4.0 is the head of `main`, with the synchronous face (T-063).
 
 The crates are on `main`: `pod-dns` (T-015), `pod-services` (T-049), the
 fix of vectored writes in `pod-proxy` and `pod-tls` (T-065, `161a4d0`), and
@@ -44,13 +44,6 @@ takes `pod-dns` and `pod-services` together.
    of the watcher in `docs/session-protocol.md` (`54427f6`, T-064).
 6. Before each push of a patch: `python3 -I scripts/agent/secrets_like.py
    PATCH` finds the lines that `.github/secrets-allow.txt` must list.
-
-## Done, not released: T-063, the synchronous face (for podvm)
-
-On `main`: the default feature `async` of `pod-core` and `pod-tls`, the
-blocking handshake, the feature `blocking` of `pod-proxy`. Its release is
-v0.5.0, after v0.4.0; then the podvm trials of `pod-tls` and `pod-proxy`
-(T-040).
 
 ## podvm
 
