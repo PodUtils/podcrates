@@ -88,3 +88,33 @@ too (15 against sshd); podvm accepts the three changes of behaviour (its
 call C9). The trial leaves the directory of podvm. The next hand-offs start
 at podvm `b917f97` or later: podvm splits its files to 500 lines
 (PodUtils/podvm@T-1674), and the files of M6 are split already.
+
+2026-11-06, partial. The trial of `pod-proxy` (feature `blocking`) at
+podvm `f9eae80` (`adoption/podvm/pod-proxy.patch`, 6 files, 277 lines in,
+3 out). `podvm-ssh` takes `pod-proxy` at `v0.4.0`. `transport::Dialer`
+gets `from_environment` and `with_environment`: when a proxy variable is
+set, `transport/egress.rs` makes a `blocking::Dialer` with
+`Settings::new("podvm", ProxyChoice::FromEnvironment(..))` and
+`resolve::System`; `proxy_at` decides, and `stream` carries a dial through
+the proxy. A direct target (the loopback, `NO_PROXY`) keeps podvm's direct
+dial, with its bound on the resolution and each address in turn. With no
+proxy variable, no runtime starts. The relay legs (`dial_ws`: the node and
+the operator) use it; the `proxy` binary (an SSH `ProxyCommand`) stays
+direct. An unusable proxy variable now fails the relay dial. Six new tests
+(`transport/egress/tests.rs`): a stand-in CONNECT proxy on the loopback for
+`HTTPS_PROXY` and `ALL_PROXY`, the loopback and `NO_PROXY` around it, an
+unusable setting refused, no runtime with no proxy. Each step of
+`sh scripts/adoption.sh podvm pod-proxy` passed: podvm-ssh 107 tests,
+clippy, rustfmt, the record gate, the toolchains, the static `node`,
+`operator` and `podvm`; `mux_two_client` runs only where sshd is. tokio
+comes to `podvm-ssh` only (`pod-core`, `pod-tls`, `pod-proxy`); `podvm`
+has none. Release sizes, x86_64 musl: `podvm` 3314744 bytes, no change;
+`node` 1672024 to 1913816 (+241792); `operator` 1635224 to 1864728
+(+229504). `podvm-image` and `podvm-complete` keep ureq 2 and podvm's own
+proxy rules: `blocking::Client` reads each body into memory, and a blob of
+a registry is streamed to disk. Gaps of pod-proxy: no streamed body in
+`blocking::Client`; the drop of a `blocking::Dialer` waits for a lookup of
+the system resolver that its timeout left behind (`Runtime` drop waits for
+`spawn_blocking`); a `blocking::Stream::Exec` has no read limit. Left: the
+take of this patch by podvm, the registry client, then the other crates of
+the order of PodUtils/podvm#194.
