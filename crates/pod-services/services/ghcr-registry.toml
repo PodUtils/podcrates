@@ -1,0 +1,44 @@
+# The GitHub Container Registry: podvm's default test image, because ghcr
+# has no anonymous quota that another party can use up.
+id = "ghcr-registry"
+kind = "oci-registry"
+party = "GitHub"
+about = "The GitHub Container Registry"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "ghcr.io"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527", read = 2026-11-06, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-06" }
+
+[[fact]]
+name = "token-realm"
+value = "https://ghcr.io/token"
+source = { measured = "the realm of the Bearer challenge of GET https://ghcr.io/v2/ (service ghcr.io)", read = 2026-11-06 }
+
+# An anonymous pull has no quota for each address.
+[[fact]]
+name = "anonymous-quota"
+value = false
+source = { measured = "podvm and docker pulled ghcr.io/pkgforge-dev/archlinux:latest with no login (PodUtils/podvm experiments/150-image-acquisition.sh and 270-multiarch-image.sh, at 0249527)", read = 2026-09-09 }
+
+# The images of the M5 matrix of podvm: REPOSITORY:TAG@DIGEST.
+[[fact]]
+name = "images"
+value = [
+    "pkgforge-dev/archlinux:latest@sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b",
+    "void-linux/void-musl:latest@sha256:af9308c79fd14ddc7b53e181caee312d182c89186792dc1ef5b8215865b444ac",
+]
+source = { measured = "a HEAD of /v2/REPOSITORY/manifests/DIGEST answered 200 with the same digest for each image", read = 2026-11-06, note = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527; podvm resolved each tag with docker buildx imagetools inspect on 2026-09-09" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]

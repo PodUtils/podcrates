@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 66 entries: 35 open, 1 partial, 1 blocked, 29 done.
+`TODO/INDEX.md` holds 66 entries: 34 open, 1 partial, 1 blocked, 30 done.
 
 ## State
 
@@ -36,7 +36,7 @@ order. A crate is released on the day that its entry is done
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
    the release v0.4.0 (with the synchronous face) and its hand-off
    to podssh, podnet and podvm; T-040 (the trials of
-   `pod-tls` and `pod-proxy` in podvm); T-066; then M6 (item 7).
+   `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.
 3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
@@ -49,8 +49,7 @@ order. A crate is released on the day that its entry is done
    scripts/check-sources.py finds.
 7. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `0249527`): T-055 (`pod-hostprobe`) first; then T-061 and T-059;
-   T-060; T-056; T-057; T-058. T-066 (the data of podvm in `pod-services`)
-   before podvm takes `pod-proxy`.
+   T-060; T-056; T-057; T-058.
 8. **M7, the widened scope of podvm:** T-062 after M6.
 
 ## Calls made without a ruling

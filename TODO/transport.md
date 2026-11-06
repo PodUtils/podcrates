@@ -1070,7 +1070,7 @@ PodUtils/podssh@T-690).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1103,3 +1103,24 @@ cargo test -p pod-services
 ## Start condition
 
 T-049 is released (v0.4.0).
+
+## Done
+
+2026-11-06, the commit of this entry. Eight files in
+`crates/pod-services/services/`: `docker-hub-registry`,
+`ecr-public-registry`, `ghcr-registry`, `quay-registry`,
+`opensuse-registry` (kind `oci-registry`) and `alpine-netboot`,
+`freedos-image`, `microsoft-validationos` (kind `guest-image`). The kinds
+are words of the data: the schema did not change. Each value was read in
+podvm at `0249527` and measured on 2026-11-06: each of the 27 pinned
+digests answered a HEAD of its manifest with the same digest; the token
+realms are the challenges of `/v2/`; the FreeDOS zip, its member and the
+VHDX extent of the ISO (a range read) have podvm's sums and lengths. The
+Alpine pins are the files of 3.22.6; `netboot/` of v3.22 now holds 3.22.8,
+with other sums, so podvm's experiments fail on their sum. The watches
+name the new kinds `oci-ping`, `oci-digest` and `http-sha256` (T-050).
+The README has the services, the watch kinds, podvm's parity and its
+adoption map; `SOURCES` has podvm's 23 files (`scripts/check-sources.py
+--clone PodUtils/podvm=...`: 0 changes). `cargo test -p pod-services
+--all-features`: 40 passed (schema 12, api 9, moved 8, overlay 5, podvm 6).
+The trial in podvm is T-040.

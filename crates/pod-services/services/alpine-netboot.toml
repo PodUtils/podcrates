@@ -1,0 +1,48 @@
+# The netboot files of Alpine Linux: the kernel of podvm's guest and its
+# modules. The pins are the files of the release 3.22.6. The directory
+# netboot/ holds the files of the newest point release, with other sums
+# (the notes of the facts): the watch then fails. The archive of 3.22.6
+# keeps the pinned files.
+id = "alpine-netboot"
+kind = "guest-image"
+party = "Alpine Linux"
+about = "The netboot kernel and modules of Alpine Linux 3.22 for x86_64"
+
+[[endpoint]]
+name = "netboot"
+scheme = "https"
+host = "dl-cdn.alpinelinux.org"
+port = 443
+path = "/alpine/v3.22/releases/x86_64/netboot/"
+source = { ruling = "PodUtils/podvm crates/podvm-measure/src/workload.rs KURL and experiments/361-guest-usernet.sh MURL, at 0249527", read = 2026-11-06 }
+
+[[endpoint]]
+name = "archive"
+scheme = "https"
+host = "dl-cdn.alpinelinux.org"
+port = 443
+path = "/alpine/v3.22/releases/x86_64/alpine-netboot-3.22.6-x86_64.tar.gz"
+source = { measured = "the members boot/vmlinuz-virt and boot/modloop-virt of the archive have the SHA-256 of the facts", read = 2026-11-06 }
+
+# The point release whose files podvm pinned.
+[[fact]]
+name = "release"
+value = "3.22.6"
+source = { measured = "the SHA-256 of boot/vmlinuz-virt and boot/modloop-virt of alpine-netboot-3.22.6-x86_64.tar.gz; 3.22.7 has other sums", read = 2026-11-06 }
+
+[[fact]]
+name = "vmlinuz-virt-sha256"
+value = "6b58e5d779e44e57c9efa20232da18650415eceb9d4f544e5c165c1f392c5d51"
+source = { measured = "sha256sum of boot/vmlinuz-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-06, note = "PodUtils/podvm crates/podvm-measure/src/workload.rs KERNEL_SHA256 and experiments/146, 147, 360, 361, 390, at 0249527; netboot/vmlinuz-virt of 3.22.8 has 8ce908a8cb28d55adcacacf8a16609fa400e07a8826f0084ae5b13b8cb91b9ab" }
+
+[[fact]]
+name = "modloop-virt-sha256"
+value = "9a5252fa3e49f908fa7bc796a38b7ce57c9a930c91670324278a352effa5c30f"
+source = { measured = "sha256sum of boot/modloop-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-06, note = "PodUtils/podvm experiments/361-guest-usernet.sh MODLOOP_SHA256, at 0249527; netboot/modloop-virt of 3.22.8 has 34e9118b3932de15962a35d3b9adc59982a577d74d25418575e1ec596f4ef969" }
+
+# The files that podvm gets from the directory netboot/.
+[[watch]]
+kind = "http-sha256"
+endpoint = "netboot"
+files = ["vmlinuz-virt", "modloop-virt"]
+facts = ["vmlinuz-virt-sha256", "modloop-virt-sha256"]

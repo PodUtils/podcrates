@@ -4,8 +4,9 @@ The relays and the services of other parties that the PodUtils binaries
 use: the owner's relay, DNS over HTTPS, plain DNS, STUN, DERP and the DERP
 map, iroh's relays and pkarr, Piping, the magic-wormhole mailboxes and
 transit, OpenTunnel, the edge of Cloudflare's tunnels and its quick
-tunnels, WARP, ACME, the public forwarders, Pinggy, and GitHub's SSH host
-keys. Each service is one data file, and each value of a file has its
+tunnels, WARP, ACME, the public forwarders, Pinggy, GitHub's SSH host
+keys, the OCI registries with the images that podvm pins, and the guest
+images of podvm with their sums. Each service is one data file, and each value of a file has its
 source and the date when it was read.
 
 The crate knows no provider in its code. A new relay or service is a new
@@ -108,6 +109,9 @@ new kind is one implementation there. The kinds that the files name now:
 | `github-file` | `repo`, `path`; `endpoint` or `facts` | the file on the default branch holds the values |
 | `crate-file` | `crate`, `path`; `endpoint` or `role` | the file of the newest release of the crate holds the hosts |
 | `rdap` | `domain` | the registration of the domain does not end soon |
+| `oci-ping` | `endpoint`; `fact`, if any | `GET /v2/` answers 200, or 401 with a `Bearer` challenge whose realm is `https://` and equals the fact |
+| `oci-digest` | `endpoint`, `facts` | each `REPOSITORY[:TAG]@sha256:DIGEST` of the facts pulls by its digest; the tag that moved is reported |
+| `http-sha256` | `endpoint`; `fact`, or `files` with `facts`; for a range `start`, `sector`, `bytes` (facts), and `length` (a fact) if any | the SHA-256 of the file (or of each file under the path, or of the range) equals the fact; the length equals `length` |
 
 An example:
 
@@ -213,6 +217,17 @@ let relay = services.of_kind("relay").next();
 | `letsencrypt-acme` | `acme` | `directory` | |
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
 | `pinggy` | `ssh-tunnel` | `ssh` | `dashboard-host` |
+| `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
+| `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
+| `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |
+| `quay-registry` | `oci-registry` | `registry` | `token-realm`, `images` |
+| `opensuse-registry` | `oci-registry` | `registry` | `images` (no token: `/v2/` answers 200) |
+| `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256` |
+| `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
+| `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
+
+An image fact is `REPOSITORY[:TAG]@sha256:DIGEST`, with no host: the host
+is the endpoint `registry`.
 
 ## Where the consumers differed
 
@@ -357,6 +372,43 @@ The inventory of podnet (`docs/research/services/podnet.md`, 1 and 5), at
 | 5: `scripts/box/report.txt` | stays: the facts of a box of a test |
 | 2 (the code that measures or watches), 3 (the workflows), 4 (the scripts and the tools) | T-050; the doctor, the probes and the pool are code of the consumers (and of pod-relay, pod-cloudflare, pod-warp) |
 
+The inventory of podvm (`docs/research/services/podvm.md`, H and I, and
+podvm's own rows in `docs/research/services/podvm-inventory.md`), at
+`0249527`:
+
+| Place | Here |
+| --- | --- |
+| `crates/podvm-image/src/reference.rs` `DEFAULT_DOMAIN`, `DEFAULT_ENDPOINT`, `OFFICIAL_PREFIX`, the alias `index.docker.io` of `Reference::endpoint` (C01) | [x] `docker-hub-registry` facts `domain`, `official-prefix`, `aliases`; endpoint `registry` (`host`) |
+| `reference.rs` `DEFAULT_TAG`, the parse of a reference and its tests | stay: the rules of a reference (pod-oci, T-056) |
+| `crates/podvm/src/images.rs` the default server of `podvm login` and `podvm logout`; `crates/podvm-image/src/credentials.rs` `server_host` (C05) | [x] `docker-hub-registry` fact `credential-key`; the files of the user's logins stay (pod-oci) |
+| `crates/podvm-image/src/registry.rs` the realm of a token (C03) | stays: the realm comes from the registry's challenge (pod-oci); the fact `token-realm` of each registry is for the watch only |
+| `registry.rs`, `transport.rs`, `tls.rs` (C02, C04, C06, C07) | stay: the client, the policy and the trust paths (pod-oci, pod-tls) |
+| `crates/podvm-measure/src/workload.rs` `ALPINE_REF` (E06) | [x] `ecr-public-registry` fact `guest-userland` |
+| `workload.rs` `KURL`, `KERNEL_SHA256` (E06) | [x] `alpine-netboot` endpoint `netboot` and fact `vmlinuz-virt-sha256` |
+| `experiments/146`, `147`, `360`, `361`, `390`: `ALPINE_REF`, `KURL`, `KERNEL_SHA256` (E06) | [x] the same facts; the experiments read them from the files (a `scripts/services/` export, T-050) |
+| `experiments/361-guest-usernet.sh` `MURL`, `MODLOOP_SHA256` (E06) | [x] `alpine-netboot` endpoint `netboot`, fact `modloop-virt-sha256` |
+| `experiments/290-microvm.sh` the Alpine `v3.21` netboot with no sum (E07) | stays: a setting of an experiment with no pin |
+| `experiments/369-windows-tcg-dos.sh` `FD_URL`, `FD_SHA256`, `FD_IMG_BYTES` (E04) | [x] `freedos-image` endpoint `zip`, facts `sha256`, `image-bytes` |
+| `crates/podvm/src/windows/dos.rs`, `windows/doctor.rs` the text that names FreeDOS 1.4 (E03) | stays: podvm's text |
+| `experiments/371-validationos-stream.sh` `URL`, `ISO_LEN`, `VHDX_LBA`, `VHDX_LEN`, `VHDX_SHA256`; `experiments/lib/kvm-guest-base.sh` `VHDX_LEN`, `VHDX_SHA256` (E05) | [x] `microsoft-validationos` endpoint `iso`, facts `iso-bytes`, `vhdx-lba`, `vhdx-bytes`, `vhdx-sha256` |
+| `podvm windows fetch --url`, `--sha256`; the cache paths of the bases (E01, E02, E09) | stay: the user's own data |
+| `scripts/common/distro-matrix.sh` `DISTRO_ROWS_NSSWITCH` (the hosts and the digests) | [x] `docker-hub-registry` fact `images`; the row names and the libc column stay in podvm |
+| `distro-matrix.sh` `DISTRO_ROWS_M5` (the hosts and the digests) (F01) | [x] the facts `images` of `ecr-public-registry`, `ghcr-registry`, `quay-registry`, `opensuse-registry`; the row names and the libc column stay in podvm |
+| `distro-matrix.sh` `distro_qualify` | stays: a rule of a reference (`docker-hub-registry` fact `official-prefix` holds its prefix) |
+| `experiments/70`, `80`, `90`, `220`: `alpine@sha256:d9e853e8...` on Docker Hub (F02) | [x] `docker-hub-registry` fact `experiment-images` |
+| `experiments/105`, `106`: `quay.io/fedora/fedora@sha256:e78cd1a6...` (F02) | [x] `quay-registry` fact `images` (the same digest as `fedora:42`) |
+| `experiments/367-qemu-user-aarch64.sh` `ALPINE_AA64` (F05) | [x] `ecr-public-registry` fact `aarch64-image` |
+| `experiments/280-insecure-registry.sh` `REGISTRY_IMG` (F05) | [x] `ecr-public-registry` fact `registry-image` |
+| `experiments/150-image-acquisition.sh`, `270-multiarch-image.sh`: the choice of ghcr (no anonymous quota) (F03) | [x] `ghcr-registry` fact `anonymous-quota` |
+| `experiments/150`, `270`, `crates/podvm/tests/detached_stdio.rs`: the default `ghcr.io/pkgforge-dev/archlinux:latest` with no digest (F03); the tags with no digest of F04 and F05 | stay: settings of the tests with no pin; the digest of that tag is in `ghcr-registry` `images` |
+| `experiments/250-negative-tests.sh` `registry.opensuse.org/opensuse/leap:15.6` | [x] `opensuse-registry` fact `images` |
+| `experiments/180-driver.Dockerfile`, `Dockerfile.target`: `debian:bookworm@sha256:6ebd97fa...` (F10) | stay: the base image of a build of a test (T-046) |
+| The relay: `crates/podvm-ssh/src/mux.rs`, `experiments/387`, `389` (A01 to A10) | `ajam-relay` (no new endpoint); the contract is pod-relay's (T-047); podvm has no default relay |
+| The release identity: `crates/podvm-release/` (B01 to B04) | stays: the ruling "Services: what stays" |
+| The rootfs completion: `crates/podvm-complete/` (D01 to D06) | stays: the mirrors are the image's, the resolver is the host's; no host of another party |
+| The supply chain: zig, trufflehog, the actions, zot, Nix, nixpkgs, dropbear, `rust:1.98.1-bookworm` (F06, F07, G, H) | the supply chain of CI (T-046) |
+| `mine-repo.sh`, `check-github-numbers.py`, `doctor.sh` `example.com` (H07, I01, I02) | stay: the tools of podvm's own repository |
+
 ## Tests
 
 * `src/schema_tests.rs` (12): each rule of the schema refuses its fault
@@ -375,6 +427,11 @@ The inventory of podnet (`docs/research/services/podnet.md`, 1 and 5), at
   `the_embedded_edge_roots_are_real_certificates`,
   `quic_alpn_and_sni_are_different_strings`,
   `the_servers_are_ip_addresses_of_two_operators`.
+* `tests/podvm.rs` (6): the constants of podvm come back from the files
+  (`reference.rs`, `images.rs`, `workload.rs`, `371-validationos-stream.sh`);
+  each registry answers at `/v2/`; each image is a repository and a
+  SHA-256 digest; each sum of a guest image is a SHA-256. podvm has no
+  test of these values to move.
 * The plant `scripts/plants/services-no-source` (group `services`): a
   service file whose fact names no source; the build must fail with the
   file and the field.
@@ -460,9 +517,27 @@ podnet:
 | `tools/check-upstream.py` `REPO` | `cloudflare-tunnel-edge` fact `cloudflared-repository`; the check moves to the watches (T-050) |
 | a relay of the user's own (`PODNET_RELAY`, `PODNET_WARP_API`, `PODNET_EDGE`, `--resolve`) | the variables stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
 
+podvm:
+
+| Old | New |
+| --- | --- |
+| `podvm_image::reference::DEFAULT_DOMAIN` | `pod_services::get("docker-hub-registry").unwrap().text("domain").unwrap()` |
+| `reference::DEFAULT_ENDPOINT` | `get("docker-hub-registry")...endpoint("registry").unwrap().host()` |
+| `reference::OFFICIAL_PREFIX` | `get("docker-hub-registry")...text("official-prefix")` |
+| the alias `index.docker.io` in `Reference::endpoint` | `get("docker-hub-registry")...texts("aliases")` |
+| the default server of `podvm login` and `podvm logout` | `get("docker-hub-registry")...text("credential-key")` |
+| `podvm_measure::workload::ALPINE_REF` | `format!("{}/{}", get("ecr-public-registry")...endpoint("registry").host(), ...text("guest-userland"))` |
+| `workload::KURL`, `KERNEL_SHA256` | `format!("{}vmlinuz-virt", get("alpine-netboot")...endpoint("netboot").url())`, `...text("vmlinuz-virt-sha256")` |
+| `ALPINE_REF`, `KURL`, `KERNEL_SHA256`, `MURL`, `MODLOOP_SHA256` of `experiments/146`, `147`, `360`, `361`, `390` | the same reads, through the export of the files (T-050) |
+| `FD_URL`, `FD_SHA256`, `FD_IMG_BYTES` of `experiments/369` | `get("freedos-image")...endpoint("zip").url()`, `text("sha256")`, `int("image-bytes")` |
+| `URL`, `ISO_LEN`, `VHDX_LBA`, `VHDX_LEN`, `VHDX_SHA256` of `experiments/371` and `lib/kvm-guest-base.sh` | `get("microsoft-validationos")...endpoint("iso").url()`, `int("iso-bytes")`, `int("vhdx-lba")`, `int("vhdx-bytes")`, `text("vhdx-sha256")`; the offset is `vhdx-lba` times `sector-bytes` |
+| the hosts and the digests of `DISTRO_ROWS_NSSWITCH` and `DISTRO_ROWS_M5` | `of_kind("oci-registry")`: for each, `endpoint("registry").host()` and each item of `texts("images")`; the row names and the libc column stay in `distro-matrix.sh` |
+| the pins of `experiments/70`, `80`, `90`, `220`, `105`, `106`, `280`, `367` | `docker-hub-registry` `experiment-images`, `quay-registry` `images`, `ecr-public-registry` `registry-image`, `aarch64-image` |
+| a registry, a login or a guest image of the user's own (`--insecure-registry`, `podvm login SERVER`, `windows fetch --url`) | the flags stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
+
 ## Sources
 
-`SOURCES` lists each file of podssh (at `d3745ab`) and of podnet (at
-`380d9a4`) that held a moved value, with the service files that it
+`SOURCES` lists each file of podssh (at `d3745ab`), of podnet (at
+`380d9a4`) and of podvm (at `0249527`) that held a moved value, with the service files that it
 became. Only some lines of each file moved: a change of such a file may
 change a value, and `scripts/check-sources.py` reports it.

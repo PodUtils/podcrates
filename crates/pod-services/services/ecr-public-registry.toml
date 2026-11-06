@@ -1,0 +1,58 @@
+# Amazon ECR Public: podvm's registry of the guest userland and of the
+# images of its experiments, with no quota on a shared address.
+id = "ecr-public-registry"
+kind = "oci-registry"
+party = "Amazon Web Services"
+about = "Amazon ECR Public, an OCI registry with a mirror of Docker's official images"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "public.ecr.aws"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527", read = 2026-11-06, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-06" }
+
+[[fact]]
+name = "token-realm"
+value = "https://public.ecr.aws/token/"
+source = { measured = "the realm of the Bearer challenge of GET https://public.ecr.aws/v2/ (service public.ecr.aws)", read = 2026-11-06 }
+
+# The images of the M5 matrix of podvm: REPOSITORY:TAG@DIGEST. The image
+# of debian is also the driver image of many experiments.
+[[fact]]
+name = "images"
+value = [
+    "docker/library/alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+    "debian/debian:bookworm-slim@sha256:833d7afe7d42e2fc552740ebdb947218770eb6f0a533927ed2a04b4d453e4f0a",
+    "ubuntu/ubuntu:24.04@sha256:41938337738ac39ec015eecf7ac5ed9add869fffeb394f2b90819ba6793d889b",
+]
+source = { measured = "a HEAD of /v2/REPOSITORY/manifests/DIGEST answered 200 with the same digest for each image", read = 2026-11-06, note = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527; podvm resolved each tag with docker buildx imagetools inspect on 2026-09-09" }
+
+# The userland of the guest initramfs.
+[[fact]]
+name = "guest-userland"
+value = "docker/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764"
+source = { measured = "a HEAD of /v2/docker/library/alpine/manifests/DIGEST answered 200 with the same digest", read = 2026-11-06, note = "PodUtils/podvm crates/podvm-measure/src/workload.rs ALPINE_REF and experiments/146, 147, 360, 361, 390, at 0249527" }
+
+# The aarch64 image of the test of qemu-user.
+[[fact]]
+name = "aarch64-image"
+value = "docker/library/alpine:3.20@sha256:45e09956dc667c5eff3583c9d94830261fb1ca0be10a0a7db36266edf5de9e1d"
+source = { measured = "a HEAD of /v2/docker/library/alpine/manifests/DIGEST answered 200 with the same digest", read = 2026-11-06, note = "PodUtils/podvm experiments/367-qemu-user-aarch64.sh ALPINE_AA64, at 0249527" }
+
+# The image of the local registry of the test of an insecure registry.
+[[fact]]
+name = "registry-image"
+value = "docker/library/registry@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373"
+source = { measured = "a HEAD of /v2/docker/library/registry/manifests/DIGEST answered 200 with the same digest", read = 2026-11-06, note = "PodUtils/podvm experiments/280-insecure-registry.sh REGISTRY_IMG, at 0249527" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images", "guest-userland", "aarch64-image", "registry-image"]

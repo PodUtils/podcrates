@@ -1,0 +1,29 @@
+# The registry of openSUSE: openSUSE publishes Leap there.
+id = "opensuse-registry"
+kind = "oci-registry"
+party = "openSUSE"
+about = "The OCI registry of openSUSE"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "registry.opensuse.org"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527", read = 2026-11-06, note = "GET /v2/ answered 200 with no challenge on 2026-11-06" }
+
+# The images of the M5 matrix of podvm: REPOSITORY:TAG@DIGEST. The negative
+# tests pull the same tag.
+[[fact]]
+name = "images"
+value = ["opensuse/leap:15.6@sha256:e4d84bbc5e0fa0df64381e95ad7ea8e3867cc34f3b1d174e9948d0f559d223e2"]
+source = { measured = "a HEAD of /v2/opensuse/leap/manifests/DIGEST answered 200 with the same digest", read = 2026-11-06, note = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5 and experiments/250-negative-tests.sh, at 0249527; podvm resolved the tag with docker buildx imagetools inspect on 2026-09-09" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]

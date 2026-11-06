@@ -1,0 +1,41 @@
+# Quay: the registry where AlmaLinux, Rocky Linux and Fedora publish their
+# own images.
+id = "quay-registry"
+kind = "oci-registry"
+party = "Red Hat"
+about = "Quay, an OCI registry"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "quay.io"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5, at 0249527", read = 2026-11-06, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-06" }
+
+[[fact]]
+name = "token-realm"
+value = "https://quay.io/v2/auth"
+source = { measured = "the realm of the Bearer challenge of GET https://quay.io/v2/ (service quay.io)", read = 2026-11-06 }
+
+# The images of the M5 matrix of podvm: REPOSITORY:TAG@DIGEST. The image
+# of fedora is also the second image of the interposer experiments.
+[[fact]]
+name = "images"
+value = [
+    "almalinuxorg/almalinux:9@sha256:3da647417303590fea18439c87421a886d4245fef358cf131d0e0ce7b23f4236",
+    "rockylinux/rockylinux:9@sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f",
+    "rockylinux/rockylinux:9-minimal@sha256:e1d0a9f5ed99d52e7faf03afe7ee32e48b231c4dd9586808b3d1aedf894dff04",
+    "fedora/fedora:42@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c",
+]
+source = { measured = "a HEAD of /v2/REPOSITORY/manifests/DIGEST answered 200 with the same digest for each image", read = 2026-11-06, note = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_M5 and experiments/105-interpose-ownership.sh, 106-interpose-identity.sh, at 0249527; podvm resolved each tag with docker buildx imagetools inspect on 2026-09-09" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]

@@ -1,0 +1,59 @@
+# Windows Validation OS: the ISO of the Windows guest of podvm. The VHDX in
+# the ISO is one UDF extent; a client reads that range alone. A new master
+# of the ISO moves the extent: the watch then fails.
+id = "microsoft-validationos"
+kind = "guest-image"
+party = "Microsoft"
+about = "The ISO of Windows Validation OS 26100.9278 for amd64, and the VHDX in it"
+
+[[endpoint]]
+name = "iso"
+scheme = "https"
+host = "software-static.download.prss.microsoft.com"
+port = 443
+path = "/dbazure/26100.9278.260824-2119.ge_release_svc_prod3_amd64fre_en-us_VALIDATIONOS.iso"
+source = { ruling = "PodUtils/podvm experiments/371-validationos-stream.sh URL, at 0249527", read = 2026-11-06, note = "a HEAD with no login answered 200 with Accept-Ranges: bytes on 2026-11-06" }
+
+[[fact]]
+name = "iso-bytes"
+value = 2460880896
+unit = "bytes"
+source = { measured = "the Content-Length of a HEAD of the endpoint", read = 2026-11-06, note = "PodUtils/podvm experiments/371-validationos-stream.sh ISO_LEN, at 0249527" }
+
+# The first sector of the VHDX extent; a sector of the ISO is 2048 bytes.
+[[fact]]
+name = "vhdx-lba"
+value = 1010
+source = { measured = "the bytes from 2068480 (sector 1010) start with the magic vhdxfile and have the SHA-256 of the fact vhdx-sha256", read = 2026-11-06, note = "PodUtils/podvm experiments/371-validationos-stream.sh VHDX_LBA, read from the UDF file entries of the ISO, at 0249527" }
+
+[[fact]]
+name = "sector-bytes"
+value = 2048
+unit = "bytes"
+source = { ruling = "PodUtils/podvm experiments/371-validationos-stream.sh, the UDF sector of the ISO, at 0249527", read = 2026-11-06 }
+
+[[fact]]
+name = "vhdx-bytes"
+value = 910163968
+unit = "bytes"
+source = { measured = "a range read of the extent from the endpoint gave this many bytes", read = 2026-11-06, note = "PodUtils/podvm experiments/371-validationos-stream.sh VHDX_LEN and experiments/lib/kvm-guest-base.sh, at 0249527" }
+
+[[fact]]
+name = "vhdx-sha256"
+value = "063442aa9f71f2faeebf49cd960003ce315abd556b52c696e1b994ec5a80fe7f"
+source = { measured = "the SHA-256 of a range read of vhdx-bytes bytes from sector vhdx-lba of the endpoint", read = 2026-11-06, note = "PodUtils/podvm experiments/371-validationos-stream.sh VHDX_SHA256 and experiments/lib/kvm-guest-base.sh, at 0249527" }
+
+[[fact]]
+name = "vhdx-magic"
+value = "vhdxfile"
+source = { measured = "the first 8 bytes of the extent", read = 2026-11-06, note = "PodUtils/podvm experiments/371-validationos-stream.sh, at 0249527" }
+
+# The length of the ISO, then the extent by a range.
+[[watch]]
+kind = "http-sha256"
+endpoint = "iso"
+length = "iso-bytes"
+start = "vhdx-lba"
+sector = "sector-bytes"
+bytes = "vhdx-bytes"
+fact = "vhdx-sha256"

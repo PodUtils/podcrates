@@ -1,0 +1,42 @@
+# FreeDOS 1.4 LiteUSB: the guest of podvm's DOS lane (podvm windows run
+# --guest dos). The zip holds a disk image of 32 MiB.
+id = "freedos-image"
+kind = "guest-image"
+party = "The FreeDOS Project"
+about = "The FreeDOS 1.4 LiteUSB disk image"
+
+[[endpoint]]
+name = "zip"
+scheme = "https"
+host = "download.freedos.org"
+port = 443
+path = "/1.4/FD14-LiteUSB.zip"
+source = { ruling = "PodUtils/podvm experiments/369-windows-tcg-dos.sh FD_URL, at 0249527", read = 2026-11-06 }
+
+[[fact]]
+name = "sha256"
+value = "857dcd2ebf9d3d094320154db5fb5b830acba6fb98f981a95a0ca7ab3350338b"
+source = { measured = "sha256sum of the zip from the endpoint", read = 2026-11-06, note = "PodUtils/podvm experiments/369-windows-tcg-dos.sh FD_SHA256, at 0249527" }
+
+[[fact]]
+name = "zip-bytes"
+value = 17671175
+unit = "bytes"
+source = { measured = "the length of the zip from the endpoint", read = 2026-11-06 }
+
+# The member of the zip that is the disk, and its length.
+[[fact]]
+name = "image-member"
+value = "FD14LITE.img"
+source = { measured = "the list of the members of the zip", read = 2026-11-06, note = "PodUtils/podvm experiments/369-windows-tcg-dos.sh, at 0249527" }
+
+[[fact]]
+name = "image-bytes"
+value = 33554432
+unit = "bytes"
+source = { measured = "the uncompressed length of FD14LITE.img in the zip", read = 2026-11-06, note = "PodUtils/podvm experiments/369-windows-tcg-dos.sh FD_IMG_BYTES, at 0249527" }
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "zip"
+fact = "sha256"

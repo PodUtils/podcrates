@@ -1,0 +1,82 @@
+# Docker Hub: the registry of a reference with no domain. docker prints the
+# name docker.io and sends each /v2/ request to registry-1.docker.io. The
+# parse of a reference and the realm of a token are code of pod-oci: the
+# registry names the realm in its challenge.
+id = "docker-hub-registry"
+kind = "oci-registry"
+party = "Docker"
+about = "Docker Hub, the default OCI registry of a name with no domain"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "registry-1.docker.io"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm crates/podvm-image/src/reference.rs DEFAULT_ENDPOINT, at 0249527", read = 2026-11-06, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-06" }
+
+# The name that docker prints for the registry.
+[[fact]]
+name = "domain"
+value = "docker.io"
+source = { ruling = "PodUtils/podvm crates/podvm-image/src/reference.rs DEFAULT_DOMAIN, at 0249527", read = 2026-11-06 }
+
+# Other domains that name the same registry.
+[[fact]]
+name = "aliases"
+value = ["index.docker.io"]
+source = { ruling = "PodUtils/podvm crates/podvm-image/src/reference.rs Reference::endpoint, at 0249527", read = 2026-11-06 }
+
+# The prefix of a name of one component (alpine is library/alpine).
+[[fact]]
+name = "official-prefix"
+value = "library"
+source = { ruling = "PodUtils/podvm crates/podvm-image/src/reference.rs OFFICIAL_PREFIX, at 0249527", read = 2026-11-06 }
+
+# The key of a login for this registry in the credential files of docker.
+[[fact]]
+name = "credential-key"
+value = "https://index.docker.io/v1/"
+source = { ruling = "PodUtils/podvm crates/podvm/src/images.rs, the default SERVER of podvm login and podvm logout, at 0249527", read = 2026-11-06, note = "crates/podvm-image/src/credentials.rs server_host gives index.docker.io for this key" }
+
+# For the watch only: a client takes the realm from the challenge.
+[[fact]]
+name = "token-realm"
+value = "https://auth.docker.io/token"
+source = { measured = "the realm of the Bearer challenge of GET https://registry-1.docker.io/v2/ (service registry.docker.io)", read = 2026-11-06 }
+
+# The images of the nsswitch matrix of podvm: REPOSITORY:TAG@DIGEST. The
+# committed readings of podvm name these digests; the tags moved since.
+[[fact]]
+name = "images"
+value = [
+    "library/alpine:3.22@sha256:7c8cb692ae09657cbc4a3f3cbd0e8d5a2690ba38386aaaf252dbb060bf5eb2e6",
+    "library/alpine:3.20@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e",
+    "library/alpine:3.10@sha256:e515aad2ed234a5072c4d2ef86a1cb77d5bfe4b11aa865d9214875734c4eeb3c",
+    "voidlinux/voidlinux-musl:latest@sha256:d5c970d0015c3aa2559a2b5a87b158839969fbb1941a9ef52cc484a5392554cd",
+    "library/debian:11@sha256:c0a2ad73611131275b0e9a2e7544cfe3725f4268d4085d8c6f61fdd55aef7917",
+    "library/debian:12@sha256:2f65600e1252c5649d2213e1d1ea4d74253d26514dc6530102a875e429245929",
+    "library/ubuntu:20.04@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a",
+    "library/rockylinux:8@sha256:2d05a9266523bbf24f33ebc3a9832e4d5fd74b973c220f2204ca802286aa275d",
+    "opensuse/leap:15.6@sha256:ca2942f9510c3e30fd322017782cdf6c067b2183dd7d56b39d0c697a9808ce2a",
+    "library/fedora:42@sha256:7c63468daf71fdc5bda3699cd483b169bb995b5137265d5ffe8f04e2ce87fbb8",
+    "library/archlinux:latest@sha256:818793c894d94534c22f2149154a39ebaee57e4e67321023b0866a1d5722036c",
+]
+source = { measured = "a HEAD of /v2/REPOSITORY/manifests/DIGEST answered 200 with the same digest for each image", read = 2026-11-06, note = "PodUtils/podvm scripts/common/distro-matrix.sh DISTRO_ROWS_NSSWITCH, at 0249527; podvm read the digests on 2026-09-08" }
+
+# The images that experiments pull by a name with no domain and a digest
+# alone.
+[[fact]]
+name = "experiment-images"
+value = ["library/alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"]
+source = { measured = "a HEAD of /v2/library/alpine/manifests/DIGEST answered 200 with the same digest; library/alpine:3.20 resolved to it", read = 2026-11-06, note = "PodUtils/podvm experiments/70-whiteout-contract.sh, 80-interposer-abi.sh, 90-nsswitch-contract.sh, 220-extract-path-safety.sh, at 0249527" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images", "experiment-images"]
