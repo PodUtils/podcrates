@@ -296,6 +296,12 @@ the base of the relay crate of the three consumers.
 The procedure of `docs/design.md`, section 8, with podssh's files only;
 the blocking facade behind the feature `blocking`.
 
+## Decision
+
+The owner, 2026-11-06 (Q103): podvm takes the feature `blocking` of
+`pod-relay` from podcrates by a tag; podssh's test of two clients at once
+comes with the facade.
+
 ## Prove
 
 ```sh

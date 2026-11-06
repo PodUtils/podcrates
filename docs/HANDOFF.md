@@ -19,12 +19,6 @@ has the work order; this page has only what is in flight.
   cause. If it is in `pod-proxy`: a fix with a test that fails before it,
   and a patch release. `write_limit.rs` is the same as podssh's;
   `lowat::set` takes the byte count from its caller now.
-- **Rulings of the owner that podssh reported (2026-11-06)**, to record in
-  `docs/decisions.md` when they are on podssh's `main` (its
-  `docs/decisions.md`): Q5 (a standing yes for COORD issues of podssh);
-  Q103 (podvm takes the blocking facade from `pod-relay` by a tag; the test
-  of two clients at once goes with the facade into `pod-relay`); no podssh
-  release until the migration is done.
 
 ## Channels
 

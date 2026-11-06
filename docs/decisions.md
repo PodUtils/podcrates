@@ -36,6 +36,10 @@ form of the rulings that apply to each session.
 | 2026-11-05 | Services: the facts of probes | `github.com:22` with GitHub's SSH host keys and the default ACME directory (Let's Encrypt) move to `pod-services` as data, with a watch. |
 | 2026-11-05 | Services: the design | "we will soon add other relay/services, so design in a way it's pluggable, maintainable, agnostic" (the owner's answer on the facts of Cloudflare). `docs/design.md`, section 4, `pod-services`: one schema for each service, a new service is a new file, watch kinds are plugins; the facts of Cloudflare are data of `pod-services`, and its protocol code stays in `pod-cloudflare`. |
 | 2026-11-05 | Services: what stays | The release identity of `podssh update` and `podnet update` stays with that code; the cloud endpoints of the user's own accounts (GCP IAP and OAuth, AWS EICE) go with their features. |
+| 2026-11-06 | Q5: COORD issues | A standing yes: a podssh session may open and amend `COORD-NNN: subject (to READER)` issues in PodUtils/podssh with no new yes each time (podssh `docs/decisions.md`, 2026-11-06, at `eea8c63`). podnet's session has the same protocol (podnet `cf1b9f6`). `docs/session-protocol.md` is the text for each repository. |
+| 2026-11-06 | Q103: the facade of podvm | podvm takes `pod-relay`'s feature `blocking` from podcrates by a tag; the test of two clients at once goes with the facade into `pod-relay` (podssh `docs/decisions.md`, 2026-11-06). T-025 takes it. |
+| 2026-11-06 | The releases of the consumers | podssh makes no release and no beta until it took each crate that it shares; podnet makes no release now (podssh `eea8c63`, podnet "Order" of 2026-11-06). podcrates' releases go on. |
+| 2026-11-06 | The sessions of the consumers | podssh's migration session takes each crate on its release day; a session of podssh's own work changes a frozen module for fixes only. podnet's sessions send and take no messages; podnet's work goes on beside the takes. Each reaches podcrates by COORD issues of its own repository (`docs/maintenance.md`). |
 
 ## Calls made without a ruling
 
