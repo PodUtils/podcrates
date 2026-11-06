@@ -1211,3 +1211,99 @@ cargo test -p pod-tls --lib hint
 with the 6 tests of the hint. podvm sets `replace_roots` empty and
 `add_roots` to its host bundle from the release after v0.4.0.
 
+# T-069: `pod-proxy`: a streamed body for `blocking::Client` (and the async one)
+
+**Source:** the trial of `pod-proxy` in podvm (T-040, `27f8688`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm's registry client streams each blob to disk. `blocking::Client`
+reads each body into memory, so podvm keeps ureq for its registry and
+image pulls (the trial of `pod-proxy` in podvm, `27f8688`).
+
+## Premise
+
+- Read: `crates/pod-proxy/src/blocking.rs`, `crates/pod-proxy/src/client.rs`.
+
+## Approach
+
+A response whose body is a reader (`Read` for the blocking face, a stream
+for the async face), with the same caps and the same errors; the GET of
+today stays a convenience over it. A test streams a body larger than the
+cap of the buffered GET.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
+
+# T-070: `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left
+
+**Source:** the trial of `pod-proxy` in podvm (T-040, `27f8688`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The runtime of a `blocking::Dialer` waits, when it drops, for a system
+name lookup that the time limit of a dial already abandoned (a proxy given
+by its name; the trial of `pod-proxy` in podvm, `27f8688`).
+
+## Premise
+
+- Read: `crates/pod-proxy/src/blocking.rs`, `crates/pod-proxy/src/client.rs`.
+
+## Approach
+
+The drop shuts the runtime down in the background
+(`Runtime::shutdown_background`). A test drops a dialer whose lookup
+hangs and returns at once.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --features blocking --test blocking
+```
+
+
+# T-071: `pod-proxy`: a read limit for `blocking::Stream::Exec`
+
+**Source:** the trial of `pod-proxy` in podvm (T-040, `27f8688`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`blocking::Stream::set_timeouts` sets no limit for a proxy at a command,
+and podvm's pump needs one; podvm refuses such a proxy now (the trial of
+`pod-proxy` in podvm, `27f8688`).
+
+## Premise
+
+- Read: `crates/pod-proxy/src/blocking.rs`, `crates/pod-proxy/src/client.rs`.
+
+## Approach
+
+The read and the write of `Exec` take the limit with `tokio::time::timeout`
+on the runtime of the dialer, and give `TimedOut` at the limit, as a
+socket does. A test with a command that writes nothing.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --features blocking --test blocking
+```
+

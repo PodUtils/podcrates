@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**68 entries: 34 open, 1 partial, 0 blocked, 33 done.**
+**71 entries: 37 open, 1 partial, 0 blocked, 33 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 1 | 0 | 11 | 28 |
-| P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 34 | 1 | 0 | 33 | 68 |
+| P2 | 18 | 1 | 0 | 11 | 30 |
+| P3 | 6 | 0 | 0 | 0 | 6 |
+| **All** | 37 | 1 | 0 | 33 | 71 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -114,3 +114,6 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-066](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the data files of podvm |
 | [T-067](transport.md) | P1 | S | M1 | defect | done | Two tests fail on macOS and Windows in the nightly |
 | [T-068](transport.md) | P2 | S | M1 | defect | done | The hint of an unknown issuer names a CA that replaces the roots, which podvm has not |
+| [T-069](transport.md) | P2 | M | M1 | feature | open | `pod-proxy`: a streamed body for `blocking::Client` (and the async one) |
+| [T-070](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left |
+| [T-071](transport.md) | P3 | S | M1 | feature | open | `pod-proxy`: a read limit for `blocking::Stream::Exec` |
