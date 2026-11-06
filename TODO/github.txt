@@ -9,5 +9,6 @@
 2 issue closed
 3 issue open
 4 issue open
-5 issue open
+5 issue closed
 6 issue open
+7 issue open

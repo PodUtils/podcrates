@@ -10,5 +10,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #2 | COORD-001: a test of the fallback channel between the sessions | closed (`d2bab56`) | T-051 |
 | #3 | COORD-002: the answer to podvm's COORD-001 (to podvm) | open | T-040, T-054, T-063 |
 | #4 | COORD-003: podvm can take pod-term now; the synchronous face is on main (to podvm) | open | T-040, T-063, T-066 |
-| #5 | [gh action] requested: ci.yml and release.yml (v0.4.0) on main | open | T-015, T-049, T-063 |
+| #5 | [gh action] requested: ci.yml and release.yml (v0.4.0) on main | closed (release 42207811181) | T-015, T-049, T-063 |
 | #6 | COORD-004: the Alpine netboot pins of podvm (to podvm) | open | T-066 |
+| #7 | COORD-005: podcrates v0.4.0 is released: the takes of podssh, podnet and podvm (to all) | open | T-040, T-015, T-049 |
