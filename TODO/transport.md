@@ -1038,6 +1038,9 @@ services crate holds the hosts of other parties of each consumer.
 ## Premise
 
 - Read: `docs/research/services/podvm.md`, sections H and I.
+- Read: `docs/research/services/podvm-inventory.md`, podvm's own
+  inventory (PodUtils/podvm#196, 67 rows), with the rootfs completion
+  (mirrors, DNS, CAs) that `podvm.md` does not list.
 
 ## Approach
 
