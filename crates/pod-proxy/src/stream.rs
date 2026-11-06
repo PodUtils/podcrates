@@ -91,6 +91,25 @@ impl AsyncWrite for Stream {
         each!(self, s => Pin::new(s).poll_write(cx, data))
     }
 
+    // rustls writes its records with one vectored write; the default sends
+    // only the first buffer of each call, and an upload over TLS stalls.
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        each!(self, s => Pin::new(s).poll_write_vectored(cx, bufs))
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        match self {
+            Stream::Tcp(s) => s.is_write_vectored(),
+            #[cfg(unix)]
+            Stream::Unix(s) => s.is_write_vectored(),
+            Stream::Exec(s) => s.is_write_vectored(),
+        }
+    }
+
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         each!(self, s => Pin::new(s).poll_flush(cx))
     }
@@ -143,6 +162,21 @@ impl AsyncWrite for ChildIo {
             Some(stdin) => Pin::new(stdin).poll_write(cx, data),
             None => Poll::Ready(Err(io::ErrorKind::BrokenPipe.into())),
         }
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        match self.stdin.as_mut() {
+            Some(stdin) => Pin::new(stdin).poll_write_vectored(cx, bufs),
+            None => Poll::Ready(Err(io::ErrorKind::BrokenPipe.into())),
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.stdin.as_ref().is_some_and(|stdin| stdin.is_write_vectored())
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {

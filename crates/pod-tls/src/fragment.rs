@@ -269,6 +269,26 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for Fragmenting<S> {
         Poll::Ready(Ok(buf.len()))
     }
 
+    // rustls writes its records with one vectored write: after the first
+    // record, each buffer goes to the stream under it in one call.
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        if !self.done {
+            let first = bufs.iter().find(|b| !b.is_empty()).map_or(&[][..], |b| &**b);
+            return self.poll_write(cx, first);
+        }
+        let this = &mut *self;
+        std::task::ready!(this.drain(cx))?;
+        Pin::new(&mut this.inner).poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
+
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         let this = &mut *self;
         if !this.done && !this.head.is_empty() {
@@ -408,6 +428,26 @@ mod tests {
         let (data, sizes) = join(&got[..got.len() - 6]);
         assert_eq!(data, hello[5..]);
         assert!(sizes.len() > 1);
+    }
+
+    /// After the first record, one vectored write takes each buffer: rustls
+    /// writes its records with one vectored write.
+    #[tokio::test]
+    async fn after_the_first_record_a_vectored_write_takes_each_buffer() {
+        use tokio::io::{AsyncReadExt as _, AsyncWrite as _, AsyncWriteExt as _};
+        let hello = client_hello("example.com");
+        let split = Split::parse("record", Some("16-32")).unwrap().unwrap();
+        let (a, mut b) = tokio::io::duplex(64 * 1024);
+        let mut w = Fragmenting::new(a, split);
+        w.write_all(&hello).await.unwrap();
+        let parts: [&[u8]; 2] = [&[0x17, 3, 3, 0, 1, 9], &[0x17, 3, 3, 0, 2, 7, 8]];
+        assert!(w.is_write_vectored());
+        assert_eq!(w.write_vectored(&parts.map(std::io::IoSlice::new)).await.unwrap(), 13);
+        w.shutdown().await.unwrap();
+        drop(w);
+        let mut got = Vec::new();
+        b.read_to_end(&mut got).await.unwrap();
+        assert!(got.ends_with(&parts.concat()));
     }
 
     /// [`wrap`] with no split gives the stream as it is; with a split, the

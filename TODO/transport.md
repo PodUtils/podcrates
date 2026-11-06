@@ -952,3 +952,47 @@ cargo check -p pod-tls --no-default-features
 cargo test -p pod-proxy --features blocking
 ```
 
+
+# T-065: A vectored write through `pod_proxy::Stream` sends only its first buffer
+
+**Source:** the podssh session, 2026-11-06: the step `resume.cut.up.sftp` of
+podssh's release gate after podssh took `pod-proxy` (podssh `a791553`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P0
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh: "pod_proxy::Stream (stream.rs, AsyncWrite) does not forward
+poll_write_vectored / is_write_vectored (WriteLimit and pod_core::Metered
+do); rustls writes its records with write_vectored, so each call sends one
+buffer, and a write that the far end holds keeps the TLS session from
+reading." An upload through a stand-in relay that cuts each 1.5 MB gets no
+answer after 0.12 s, and no write is acknowledged. `ChildIo` and
+`pod_tls::fragment::Fragmenting` do not forward them either.
+
+## Premise
+
+- Measured by podssh: podssh `d3745ab` (before `pod-proxy`) reads the
+  answers of the server at 0.53 s; `a791553` reads nothing after 0.12 s;
+  a `Dial` that gives the bare `TcpStream` finishes the upload. The socket
+  options are the same in both (`TCP_NODELAY`, `TCP_NOTSENT_LOWAT` 16384).
+- Read: the default `AsyncWrite::poll_write_vectored` of tokio writes the
+  first buffer that is not empty; `TcpStream`, `UnixStream`, `ChildStdin`
+  and `DuplexStream` write each buffer.
+
+## Approach
+
+`Stream`, `ChildIo` and `Fragmenting` (after the first record) forward
+`poll_write_vectored` and `is_write_vectored`. A test of each stream kind
+makes one vectored write of three buffers and expects each byte in one
+call.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test stream
+cargo test -p pod-tls --all-features --lib fragment
+```

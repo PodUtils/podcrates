@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**64 entries: 37 open, 3 partial, 1 blocked, 23 done.**
+**65 entries: 38 open, 3 partial, 1 blocked, 23 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 0 | 0 | 0 | 0 | 0 |
+| P0 | 1 | 0 | 0 | 0 | 1 |
 | P1 | 13 | 2 | 0 | 18 | 33 |
 | P2 | 19 | 1 | 1 | 5 | 26 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 37 | 3 | 1 | 23 | 64 |
+| **All** | 38 | 3 | 1 | 23 | 65 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -110,3 +110,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |
 | [T-063](transport.md) | P2 | M | M1 | feature | open | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |
 | [T-064](foundation.md) | P1 | S | M0 | defect | done | `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195) |
+| [T-065](transport.md) | P0 | S | M1 | defect | open | A vectored write through `pod_proxy::Stream` sends only its first buffer |
