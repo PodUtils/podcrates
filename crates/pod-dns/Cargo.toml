@@ -1,0 +1,8 @@
+[package]
+name = "pod-dns"
+description = "The resolver: an IP literal, the pins, the system, the cache of addresses and DNS over HTTPS in the JSON and the wire form; the SRV and HTTPS records."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true

@@ -1,0 +1,37 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo PodUtils/podssh a7915535bc373644050d036a2c1cc1052c4888e5
+dir crates/podssh-ws/src/resolve
+dir crates/podssh-ws/tests/fixtures/doh
+file 000da908fca642945374ac0a75dad5f8908b683e crates/podssh-ws/src/resolve.rs -> crates/pod-dns/src/resolve.rs
+file 7853e6ebb09053eedb611c124b1d7b7e5e099fda crates/podssh-ws/src/resolve/direct.rs -> crates/pod-dns/src/resolve/direct.rs
+file ee1b9f2409f35a33f60b70bf4bcfc359034743fc crates/podssh-ws/src/resolve/h2.rs -> crates/pod-dns/src/resolve/h2.rs
+file 41dccadf6f57374482148c5228861f9cf6f13839 crates/podssh-ws/src/resolve/https.rs -> crates/pod-dns/src/resolve/https.rs
+file 43454312e5aadce7390e04649f3cdddb26103c4e crates/podssh-ws/src/resolve/https_tests.rs -> crates/pod-dns/src/resolve/https_tests.rs
+file beb5cfa14fd43a5dead8c4b246642b1be74938f7 crates/podssh-ws/src/resolve/memory.rs -> crates/pod-dns/src/resolve/memory.rs
+file 7730bf6250ed490b0606c2b7a0bf2fcebec2f316 crates/podssh-ws/src/resolve/order.rs -> crates/pod-dns/src/resolve/order.rs
+file 90b215fc7612c8c761955aef3ed3e36d6e6da09c crates/podssh-ws/src/resolve/tests.rs -> crates/pod-dns/src/resolve/tests.rs
+file d902a88647a53a8330a79b0d5266a24abba997e6 crates/podssh-ws/src/resolve/tests/cuts.rs -> crates/pod-dns/src/resolve/tests/cuts.rs
+file 428e22d0f1352f74cba319ef8c163d1bb72c0a9c crates/podssh-ws/src/resolve/wire.rs -> crates/pod-dns/src/resolve/wire.rs
+file 6bea3d68fa865c126643657f0994acc06aac2dc5 crates/podssh-ws/tests/doh_h2.rs -> crates/pod-dns/tests/doh_h2.rs
+file 1db2e8b20263e8a27599b23812f0365cfa4c505f crates/podssh-ws/tests/doh_names.rs -> crates/pod-dns/tests/doh_names.rs
+file b468785d120815bef62def612a5fe7796d9efc95 crates/podssh-ws/tests/doh_wire.rs -> crates/pod-dns/tests/doh_wire.rs
+file f53c1ed9eed77b0775103b8fe74f7ebffe616822 crates/podssh-ws/tests/fixtures/doh/README.md -> crates/pod-dns/tests/fixtures/doh/README.md
+file 39a9b20326640099697fde8cc43158eebbe5ebfe crates/podssh-ws/tests/fixtures/doh/cloudflare-a.bin -> crates/pod-dns/tests/fixtures/doh/cloudflare-a.bin
+file a0cc8c296d517fcd2a0443aab548c29a0dcb30d0 crates/podssh-ws/tests/fixtures/doh/cloudflare-aaaa.bin -> crates/pod-dns/tests/fixtures/doh/cloudflare-aaaa.bin
+file 6952ce907b088bd2a745347ea5b449fe8e1de8b2 crates/podssh-ws/tests/fixtures/doh/cloudflare-cname.bin -> crates/pod-dns/tests/fixtures/doh/cloudflare-cname.bin
+file 49790bc052d7e3fdb5dd1d27d01085f081839d7d crates/podssh-ws/tests/fixtures/doh/cloudflare-nxdomain.bin -> crates/pod-dns/tests/fixtures/doh/cloudflare-nxdomain.bin
+file 30fa34c7d1694de44b36ab355140d016b5fc58b7 crates/podssh-ws/tests/fixtures/doh/cloudflare-srv.bin -> crates/pod-dns/tests/fixtures/doh/cloudflare-srv.bin
+file 16cfb4a3df27c588a0a649b0f6f7afcb7f953214 crates/podssh-ws/tests/fixtures/doh/google-a.bin -> crates/pod-dns/tests/fixtures/doh/google-a.bin
+file a0cc8c296d517fcd2a0443aab548c29a0dcb30d0 crates/podssh-ws/tests/fixtures/doh/google-aaaa.bin -> crates/pod-dns/tests/fixtures/doh/google-aaaa.bin
+file ea8495d33231da1666fbcb9a3a79bd845534beed crates/podssh-ws/tests/fixtures/doh/google-cname.bin -> crates/pod-dns/tests/fixtures/doh/google-cname.bin
+file e7444bf813ea74fe06c63f90a6c1ec45206d1cdf crates/podssh-ws/tests/fixtures/doh/google-nxdomain.bin -> crates/pod-dns/tests/fixtures/doh/google-nxdomain.bin
+file 8e032db242a3e992af0bb7866a26443876be4e45 crates/podssh-ws/tests/fixtures/doh/google-srv.bin -> crates/pod-dns/tests/fixtures/doh/google-srv.bin
+file 16cfb4a3df27c588a0a649b0f6f7afcb7f953214 crates/podssh-ws/tests/fixtures/doh/quad9-a.bin -> crates/pod-dns/tests/fixtures/doh/quad9-a.bin
+file 58c3744abadb04b40f3910731bf35879ff728caf crates/podssh-ws/tests/fixtures/doh/quad9-aaaa.bin -> crates/pod-dns/tests/fixtures/doh/quad9-aaaa.bin
+file 1eaf56af5a660876a1316924bd072f645e38a036 crates/podssh-ws/tests/fixtures/doh/quad9-cname.bin -> crates/pod-dns/tests/fixtures/doh/quad9-cname.bin
+file 0ab402b50ba1b21ec9cb40ac525e188063904fc1 crates/podssh-ws/tests/fixtures/doh/quad9-nxdomain.bin -> crates/pod-dns/tests/fixtures/doh/quad9-nxdomain.bin
+file 004c8cf1470679789faad90ce1561d13ad73e738 crates/podssh-ws/tests/fixtures/doh/quad9-srv.bin -> crates/pod-dns/tests/fixtures/doh/quad9-srv.bin
+file 7350fa26f813f109ad8c9cb42cc86626fdf49006 crates/podssh-ws/tests/live_doh.rs -> crates/pod-dns/tests/live_doh.rs
