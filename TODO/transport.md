@@ -885,3 +885,70 @@ cargo test -p pod-proxy --all-features --test egress --test dial --test fetch --
 2026-11-05, commit `df023da`. The binary of `tests/egress.rs` failed 26 of
 300 runs before and 0 of 300 after; the binaries of `dial`, `fetch`, `get`
 and `dialer` 0 of 100 each.
+# T-054: `pod-services`: the inventory of podvm
+
+**Source:** PodUtils/podvm#194; the owner, 2026-11-05 (`docs/decisions.md`, Services crate).
+**Category:** research
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm compiles in the URL of the relay, the endpoints of registries and
+the sources of guest images (PodUtils/podvm#194). The services crate holds
+the hosts of other parties of each consumer.
+
+## Premise
+
+- Not read yet: podvm's inventory, asked in the answer to
+  PodUtils/podvm#194.
+
+## Approach
+
+podvm's inventory in a page podvm.md of `docs/research/services/`, as T-048 did for
+podssh and podnet; its data files join T-049.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+# T-063: The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy`
+
+**Source:** PodUtils/podvm#194, question 1; `docs/decisions.md`, call C20.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm is synchronous and measures the size of each dependency. It asks
+for a synchronous face of `pod-proxy` and `pod-tls`.
+
+## Premise
+
+- Read: `pod-tls` uses tokio for `tls_over`, the ECH road and the server's
+  acceptor; its configurations, roots and stores need none.
+
+## Approach
+
+1. `pod-tls`: tokio behind a default feature `async`; with
+   `default-features = false` the configurations, roots, stores and the
+   server's configuration build with no tokio.
+2. `pod-proxy`: a feature `blocking`: `blocking::Dialer` and
+   `blocking::Client` over a private current-thread runtime, the same code
+   path; a test of each over a loopback server.
+3. The size of each in podvm's binary, measured.
+
+## Prove
+
+```sh
+cargo check -p pod-tls --no-default-features
+cargo test -p pod-proxy --features blocking
+```
+

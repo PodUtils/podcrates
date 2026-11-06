@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**52 entries: 26 open, 3 partial, 1 blocked, 22 done.**
+**63 entries: 37 open, 3 partial, 1 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 13 | 2 | 0 | 17 | 32 |
-| P2 | 9 | 1 | 1 | 5 | 16 |
-| P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 26 | 3 | 1 | 22 | 52 |
+| P2 | 19 | 1 | 1 | 5 | 26 |
+| P3 | 5 | 0 | 0 | 0 | 5 |
+| **All** | 37 | 3 | 1 | 22 | 63 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -85,7 +85,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-037](roads.md) | P2 | M | M4 | feature | open | `pod-iroh`: the iroh road |
 | [T-038](roads.md) | P3 | S | M4 | feature | open | `pod-tor`: the Tor road through arti |
 | [T-039](roads.md) | P2 | L | M4 | feature | open | `pod-ts`: a Tailscale node in the process |
-| [T-040](upkeep.md) | P2 | S | M5 | chore | blocked | The trial of podvm |
+| [T-040](upkeep.md) | P2 | S | M5 | chore | open | The trial of podvm |
 | [T-041](transport.md) | P3 | S | M1 | chore | open | `pod-testkit`: the SSH test server of podssh (the feature `ssh`) |
 | [T-042](foundation.md) | P1 | S | M0 | chore | done | `publish.yml`: the publish to crates.io, apart from the release |
 | [T-043](foundation.md) | P2 | S | M0 | chore | done | The names of the crates on crates.io and their trusted publishers (GitHub #1) |
@@ -98,3 +98,14 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
+| [T-053](foundation.md) | P2 | S | M6 | chore | blocked | The names of the crates of podvm on crates.io (GitHub #1) |
+| [T-054](transport.md) | P2 | S | M1 | research | open | `pod-services`: the inventory of podvm |
+| [T-055](podvm.md) | P2 | M | M6 | feature | open | `pod-hostprobe`: the host probes of podvm |
+| [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |
+| [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
+| [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
+| [T-059](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: the entry of a payload |
+| [T-060](podvm.md) | P2 | M | M6 | feature | open | `pod-supervise`: detached payloads |
+| [T-061](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: a disposable QEMU guest |
+| [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |
+| [T-063](transport.md) | P2 | M | M1 | feature | open | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |

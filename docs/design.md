@@ -254,8 +254,43 @@ agnostic". So the crate knows no provider in its code:
   data from `pod-services`); the relay contract (`pod-relay`, T-047); the
   supply chain of CI (T-046).
 
+### M6: the crates of podvm (now)
+
+The owner's rulings of 2026-11-06: each generic crate of podvm moves here
+with the prefix `pod-`, also where podvm is its only consumer today; a
+crate that only podvm needs stays in podvm with the prefix `podvm-`. The
+sources are the crates of podvm after its rename from `podbox-*` to
+`podvm-*` (PodUtils/podvm#194). `pod-hostprobe` comes first: four of the
+others read its raw system calls.
+
+| Crate | Source | Lines | Pod deps |
+| --- | --- | --- | --- |
+| `pod-hostprobe` | podvm `crates/podvm-probe` (part: one disposable child for each probe, the errno and never a boolean, "could not run" as a third state, the raw system calls); podnet `crates/podnet-netns/src/doctor.rs` probes the same way | 4,500 | pod-core |
+| `pod-oci` | podvm `crates/podvm-image` (part: reference, platform, credentials, registry, transport, digest, the OCI types, layout, pull; the content store stays in podvm) | 4,500 | pod-core, pod-tls, pod-proxy |
+| `pod-extract` | podvm `crates/podvm-extract`: the rootless apply of a layer (order, whiteouts, path containment, an ownership sidecar in place of chown) | 3,000 | pod-core, pod-hostprobe |
+| `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system (device nodes, accounts, the package configuration, the resolver, the CA data from `pod-tls`) | 4,600 | pod-core, pod-hostprobe, pod-tls |
+| `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the class of an ELF file, the launch modes: loader, memfd) | 7,800 | pod-core, pod-hostprobe |
+| `pod-supervise` | podvm `crates/podvm-supervise`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle) | 2,100 | pod-core, pod-hostprobe |
+| `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (FAT16 mailbox, guest agent, the fetch of a disk with digests, QMP, the boot plan) | 3,400 | pod-core, pod-proxy |
+
+### M7: the widened scope of podvm (later)
+
+The owner, 2026-11-06: "podvm will make everything that sand-net does,
+but without root, in the environment we target". Each crate of M7 starts
+with a study entry, as M4 does.
+
+| Crate | Topic | Pod deps |
+| --- | --- | --- |
+| `pod-microvm` | fast disposable microVMs from an OCI image, on KVM or TCG (kernel, initramfs, virtio devices, boot): PodUtils/podvm#168 | pod-oci, pod-guest |
+| `pod-sud` | an in-process interceptor of system calls on Syscall User Dispatch, with paths resolved in a root (`openat2(RESOLVE_IN_ROOT)`); no ptrace, no privilege: PodUtils/podvm#109, PodUtils/podvm#169 | pod-core |
+| `pod-confine` | confinement with no privilege: Landlock, seccomp filters, rlimits (podnet `crates/podnet-netns/src/seccomp.rs` does a part): PodUtils/podvm#170 | pod-core |
+| `pod-netlab` | network labs in a guest or a namespace: NAT44, NAT66, NAT64 with DNS64, CGNAT, IPv6 only, firewall policy, impairment: PodUtils/podvm#178 | pod-netstack |
+| `pod-pcap` | packet capture, counters and connection logs with no `CAP_NET_RAW`; a pcap writer: PodUtils/podvm#182 | pod-core |
+| `pod-sandprobe` | the security probe inside a payload, and the compare of two reports against a list of expected differences: PodUtils/podvm#186 | pod-core, pod-hostprobe |
+
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
-`pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`.
+`pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
+`pod-probe`.
 
 What stays in the consumers: podnet `src/transport/websocket.rs` (a
 service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,

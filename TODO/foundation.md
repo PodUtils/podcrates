@@ -755,3 +755,41 @@ PodUtils/podssh#151 (17:05 UTC, with the owner's word in that session),
 and this session read both through the mirror. `docs/maintenance.md`,
 "Talk between sessions" (`d2bab56`), gives the procedure: one mailbox for
 each writer. Q5 stays open for a standing permission of the posts.
+# T-053: The names of the crates of podvm on crates.io (GitHub #1)
+
+**Source:** GitHub #1 (reopened 2026-11-06); the owner, 2026-11-06 (`docs/decisions.md`, The crates of podvm).
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+GitHub #1, reopened for podvm: "reserve now each name that podvm needs
+now or later, because a reservation takes time". The 13 `pod-*` crates of
+M6 and M7 and the held name `pod-probe` are in `docs/design.md`, section
+4; the 7 `podvm-*` names are podvm's (repository PodUtils/podvm).
+
+## Premise
+
+- Measured: `python3 -I scripts/check-crates-io-names.py` reads the new
+  rows and reports each new name as missing until it is reserved.
+
+## Approach
+
+The owner reserves the 14 names with the repository of podcrates and the
+trusted publisher of `publish.yml`; the script finds each one.
+
+## Prove
+
+```sh
+python3 -I scripts/check-crates-io-names.py
+```
+
+## Blocker
+
+The owner reserves `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`,
+`pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`,
+`pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` and `pod-probe`.
+

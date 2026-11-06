@@ -5,5 +5,5 @@
 # The list holds each number from 1 on. `cargo todo check` holds
 # TODO/issues.md to this list. scripts/check-github-numbers.py holds this
 # list to GitHub (.github/workflows/record-issues.yml, each day).
-1 issue closed
+1 issue open
 2 issue closed

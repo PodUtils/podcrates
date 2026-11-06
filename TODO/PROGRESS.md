@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 52 entries: 26 open, 3 partial, 1 blocked, 22 done.
+`TODO/INDEX.md` holds 63 entries: 37 open, 3 partial, 1 blocked, 22 done.
 
 ## State
 
@@ -36,8 +36,14 @@ order. A crate is released on the day that its entry is done
 3. **M3, the adapters:** T-027, T-028, T-029, T-030.
 4. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-5. **M5, the upkeep:** T-040 when the owner gives the repository of podvm;
-   a "port" entry for each change that scripts/check-sources.py finds.
+5. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
+   commit of its rename; a "port" entry for each change that
+   scripts/check-sources.py finds.
+6. **M6, the crates of podvm:** T-055 (`pod-hostprobe`) first, then T-056,
+   T-057, T-058, T-059, T-060, T-061, when podvm gave the commit of its
+   rename; T-063 (the synchronous face) and T-054 before podvm takes
+   `pod-proxy`.
+7. **M7, the widened scope of podvm:** T-062 after M6.
 
 ## Calls made without a ruling
 
@@ -48,7 +54,7 @@ C19), and the work goes on with it until the owner rules otherwise.
 
 | Entry | Action |
 | --- | --- |
-| T-040 | The repository of podvm, and access for this session |
+| T-053 | Reserve the 14 names of the crates of podvm (GitHub #1): `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe`, `pod-probe` |
 | Each release | Tell the consumer sessions to take the crates |
 
 ## Questions for the owner

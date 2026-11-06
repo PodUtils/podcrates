@@ -37,3 +37,14 @@ after its study.
 
 The ports of source changes until each consumer takes its crates, the
 reports of the consumers, the trial of podvm.
+
+## M6: The crates of podvm
+
+`pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter`,
+`pod-supervise` and `pod-guest`, cut from the code of podvm, are released;
+podvm takes them.
+
+## M7: The widened scope of podvm
+
+`pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap` and
+`pod-sandprobe` are released, each after its study.

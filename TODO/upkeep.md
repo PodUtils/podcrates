@@ -9,7 +9,7 @@ call C16.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -18,7 +18,11 @@ needs its repository.
 
 ## Premise
 
-- podvm (formerly podbox) is not in the repositories of this session.
+- PodUtils/podvm is public: this session reads it through the mirror and
+  a clone, which a trial needs; it writes nothing there. podvm takes
+  `pod-term`, `pod-tls`, `pod-proxy`, `pod-relay` (feature `blocking`),
+  `pod-services`, `pod-egress`, `pod-netstack` and `pod-todo`, in this
+  order (PodUtils/podvm#194).
 
 ## Approach
 
@@ -30,6 +34,7 @@ adoption/podvm/: the commit, the patch; `adoption.yml` runs it.
 gh workflow run adoption.yml -f consumer=podvm -f crate=pod-relay
 ```
 
-## Blocker
+## Start condition
 
-The owner: the repository of podvm, and access for this session.
+podvm gave the commit of its rename from `podbox-*` to `podvm-*`
+(PodUtils/podvm#194), and moved to the stable Rust and edition 2024.

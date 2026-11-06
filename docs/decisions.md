@@ -40,6 +40,7 @@ form of the rulings that apply to each session.
 | 2026-11-06 | Q103: the facade of podvm | podvm takes `pod-relay`'s feature `blocking` from podcrates by a tag; the test of two clients at once goes with the facade into `pod-relay` (podssh `docs/decisions.md`, 2026-11-06). T-025 takes it. |
 | 2026-11-06 | The releases of the consumers | podssh makes no release and no beta until it took each crate that it shares; podnet makes no release now (podssh `eea8c63`, podnet "Order" of 2026-11-06). podcrates' releases go on. |
 | 2026-11-06 | The sessions of the consumers | podssh's migration session takes each crate on its release day; a session of podssh's own work changes a frozen module for fixes only. podnet's sessions send and take no messages; podnet's work goes on beside the takes. Each reaches podcrates by COORD issues of its own repository (`docs/maintenance.md`). |
+| 2026-11-06 | The crates of podvm | Each generic crate of podvm moves to podcrates with the prefix `pod-`, also where podvm is its only consumer today; a crate that only podvm needs stays in podvm as `podvm-*`. podvm's scope widens: "podvm will make everything that sand-net does, but without root, in the environment we target". The owner confirmed both in this session. `docs/design.md`, section 4, M6 and M7; `pod-probe` is held. |
 
 ## Calls made without a ruling
 
@@ -67,6 +68,7 @@ has the detail.
 | 2026-11-05 | C17 | podcrates adds `pod-core` (`docs/design.md`) and `pod-quic` (the QUIC code that `pod-relay`, `pod-warp` and `pod-cloudflare` share). Both names were free on crates.io on 2026-11-05. Without them, the agreed crates depend on each other in loops. |
 | 2026-11-05 | C18 | `pod-tls`: one `Context` that the binary owns holds the kept TLS configurations, the groups and the state of ECH; `ech` turns on `pure`; RUSTSEC-2023-0071 is ignored, as `pod-tls` verifies with RSA public keys only (T-012, Decision). |
 | 2026-11-05 | C19 | The library crates are publishable (no `publish = false`); `static-probe` is not. The publish job does not build again (`--no-verify`): the dry run of the same commit built each package, and the token lasts 30 minutes. |
+| 2026-11-06 | C20 | The synchronous face for podvm: `pod-tls` makes its configurations, roots and stores with no tokio (tokio behind a default feature), so podvm drives rustls's own synchronous stream; `pod-proxy` gets a feature `blocking` over a private current-thread runtime. One code path: a new capability is written once (the owner asked for the design that a later feature does not make heavy to keep). When the size of tokio must go, the protocol parts become I/O-free state machines that a synchronous driver runs, not a second copy of the code. T-063. |
 
 ## Questions for the owner
 
