@@ -129,11 +129,7 @@ async fn system(host: &str, port: u16, deadline: Instant) -> Result<Vec<SocketAd
     match tokio::time::timeout_at(deadline, tokio::net::lookup_host((host, port))).await {
         Ok(Ok(addrs)) => {
             let addrs: Vec<SocketAddr> = addrs.collect();
-            if addrs.is_empty() {
-                Err("no addresses".to_string())
-            } else {
-                Ok(addrs)
-            }
+            if addrs.is_empty() { Err("no addresses".to_string()) } else { Ok(addrs) }
         }
         Ok(Err(e)) => Err(e.to_string()),
         Err(_) => Err("timed out".to_string()),

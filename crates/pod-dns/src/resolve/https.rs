@@ -15,7 +15,7 @@ use std::time::Duration;
 use base64::Engine as _;
 use tokio::time::Instant;
 
-use super::{dns_safe, h2, read, way, wire, Doh, Form, Miss, DOH_EACH, DOH_RESOLVERS, MAX_ANSWER, NXDOMAIN};
+use super::{DOH_EACH, DOH_RESOLVERS, Doh, Form, MAX_ANSWER, Miss, NXDOMAIN, dns_safe, h2, read, way, wire};
 use crate::dial::ProxyChoice;
 use crate::http;
 use crate::tls::{self, Trust};
@@ -45,7 +45,7 @@ pub fn from_json(body: &[u8]) -> Result<Option<Published>, String> {
         Some(0) => {}
         Some(3) => return Err(NXDOMAIN.to_string()),
         other => {
-            return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into())))
+            return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into())));
         }
     }
     let mut found = Vec::new();

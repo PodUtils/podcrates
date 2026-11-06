@@ -9,7 +9,7 @@
 
 use std::time::Duration;
 
-use podssh_ws::resolve::{doh_ask, doh_lookup, doh_lookup_with, doh_srv, Doh, Form, DOH_RESOLVERS, NXDOMAIN};
+use podssh_ws::resolve::{DOH_RESOLVERS, Doh, Form, NXDOMAIN, doh_ask, doh_lookup, doh_lookup_with, doh_srv};
 use podssh_ws::{HttpProxy, ProxyChoice};
 use tokio::time::Instant;
 

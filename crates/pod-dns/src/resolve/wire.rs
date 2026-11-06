@@ -10,7 +10,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use base64::Engine as _;
 
-use super::{dns_safe, Srv, NXDOMAIN};
+use super::{NXDOMAIN, Srv, dns_safe};
 
 /// The record types that podssh asks for (RFC 1035, RFC 3596, RFC 2782).
 pub const A: u16 = 1;

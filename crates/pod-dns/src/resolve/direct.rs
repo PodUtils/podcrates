@@ -11,7 +11,7 @@ use rustls::ClientConfig;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
-use super::{h2, parse_answer, read, way, wire, Doh, Form, Miss, DOH_CONNECT, DOH_EACH, MAX_ANSWER, NXDOMAIN};
+use super::{DOH_CONNECT, DOH_EACH, Doh, Form, MAX_ANSWER, Miss, NXDOMAIN, h2, parse_answer, read, way, wire};
 use crate::cut::{Cut, Missed};
 use crate::http;
 use crate::tls::{self, Trust};

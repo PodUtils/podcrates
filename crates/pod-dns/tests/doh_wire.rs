@@ -11,7 +11,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use podssh_ws::client::open_tls;
-use podssh_ws::resolve::{self, wire, Remembered, Source, Srv, NXDOMAIN};
+use podssh_ws::resolve::{self, NXDOMAIN, Remembered, Source, Srv, wire};
 use podssh_ws::{ConnectError, ProxyChoice, Trust};
 use tokio::net::TcpListener;
 use tokio::time::Instant;

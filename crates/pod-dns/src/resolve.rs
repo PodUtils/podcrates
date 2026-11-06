@@ -38,8 +38,8 @@ pub mod wire;
 
 pub use direct::{doh_ask, doh_ask_kept};
 pub(crate) use memory::note_dialed;
-pub use memory::{dialed, last_dialed, remembered, set_remembered, split, Remembered, FRESH};
-pub use order::{resolve, resolve_from, Found, Source, ORDER, SOURCE_WAIT};
+pub use memory::{FRESH, Remembered, dialed, last_dialed, remembered, set_remembered, split};
+pub use order::{Found, ORDER, SOURCE_WAIT, Source, resolve, resolve_from};
 
 /// A public resolver of DNS over HTTPS, by IP literal (a resolver needs no
 /// resolver), whose certificate names that address.
@@ -256,7 +256,7 @@ fn answers(body: &[u8], want: u64) -> Result<Vec<String>, String> {
         Some(0) => {}
         Some(3) => return Err(NXDOMAIN.to_string()),
         other => {
-            return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into())))
+            return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into())));
         }
     }
     Ok(doc

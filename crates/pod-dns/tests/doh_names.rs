@@ -9,7 +9,7 @@ use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::resolve::{doh_srv_with, Doh, Srv};
+use podssh_ws::resolve::{Doh, Srv, doh_srv_with};
 use podssh_ws::{HttpProxy, ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};

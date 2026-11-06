@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use tokio::time::Instant;
 
-use super::super::direct::ask_at;
 use super::super::Doh;
+use super::super::direct::ask_at;
 use crate::cut::Cut;
 
 /// How the stand-in ends a connection, once the ClientHello came.

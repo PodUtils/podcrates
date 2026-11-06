@@ -4,8 +4,8 @@
 //! `h2`; its answer is the one that Quad9 sent (`tests/fixtures/doh/`).
 
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
