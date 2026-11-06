@@ -23,7 +23,7 @@ watches them.
    mkdir -p .work/podcrates-agent
    for f in watch-org.sh org-issues.py; do
      curl -qfsSL -o ".work/podcrates-agent/$f" \
-       "https://raw.githubusercontent.com/PodUtils/podcrates/8114a159bfda83b987d193f856cc44ca172cd917/scripts/agent/$f"
+       "https://raw.githubusercontent.com/PodUtils/podcrates/54427f6677b17cc96638f0fafc44b615e467fb4f/scripts/agent/$f"
    done
    sh .work/podcrates-agent/watch-org.sh 90 .work/agent ME
    ```

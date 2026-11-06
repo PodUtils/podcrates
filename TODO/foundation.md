@@ -801,7 +801,7 @@ The owner reserves `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`,
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -829,3 +829,10 @@ sh -n scripts/agent/watch-org.sh
 
 With the CRLF stand-in, the watcher records the messages of podcrates and
 podvm.
+
+## Done
+
+2026-11-06, commit `54427f6`. With a stand-in of `python3` that ends each
+line with CRLF, the watcher recorded 0 messages at `367db93` and the
+messages of podcrates and podvm after the fix. `docs/session-protocol.md`
+pins the commit of the fix.
