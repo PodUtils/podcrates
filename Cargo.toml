@@ -6,7 +6,7 @@ members = ["crates/*", "examples/*"]
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 # The stable Rust of the day (docs/decisions.md, Toolchain). Raise it with
 # rust-toolchain.toml when a new stable comes out.
@@ -22,14 +22,14 @@ homepage = "https://github.com/PodUtils/podcrates"
 crates-io = false
 
 [workspace.dependencies]
-pod-core = { path = "crates/pod-core", version = "0.3.0" }
-pod-dns = { path = "crates/pod-dns", version = "0.3.0" }
-pod-identity = { path = "crates/pod-identity", version = "0.3.0" }
-pod-proxy = { path = "crates/pod-proxy", version = "0.3.0" }
-pod-services = { path = "crates/pod-services", version = "0.3.0" }
-pod-term = { path = "crates/pod-term", version = "0.3.0" }
-pod-testkit = { path = "crates/pod-testkit", version = "0.3.0" }
-pod-tls = { path = "crates/pod-tls", version = "0.3.0" }
+pod-core = { path = "crates/pod-core", version = "0.4.0" }
+pod-dns = { path = "crates/pod-dns", version = "0.4.0" }
+pod-identity = { path = "crates/pod-identity", version = "0.4.0" }
+pod-proxy = { path = "crates/pod-proxy", version = "0.4.0" }
+pod-services = { path = "crates/pod-services", version = "0.4.0" }
+pod-term = { path = "crates/pod-term", version = "0.4.0" }
+pod-testkit = { path = "crates/pod-testkit", version = "0.4.0" }
+pod-tls = { path = "crates/pod-tls", version = "0.4.0" }
 tokio = { version = "1.53.3", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }

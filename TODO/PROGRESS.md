@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 66 entries: 36 open, 4 partial, 1 blocked, 25 done.
+`TODO/INDEX.md` holds 66 entries: 36 open, 1 partial, 1 blocked, 28 done.
 
 ## State
 
@@ -13,9 +13,10 @@
   42113413975 of `publish.yml`). podssh took each crate of v0.2.0
   (`6ece2ff`), podnet too (`a5894fe`). The patches of `pod-proxy` went to
   both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
-- On `main`, not released: `pod-dns` (T-015), `pod-services` (T-049),
-  the fix of vectored writes (T-065), the check of the consumers'
-  toolchains (T-045). Their release is v0.4.0 (`docs/HANDOFF.md`).
+- v0.4.0: `pod-dns` (T-015), `pod-services` (T-049), the fix of vectored
+  writes (T-065), the static builds and the toolchains in each trial
+  (T-045); the trials of podssh, podnet and podvm (`pod-term`, T-040)
+  pass. podvm's rename is on its `main` at `0249527` (C21).
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.
@@ -32,22 +33,25 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-1. **M1, the transport:** v0.4.0 first (`docs/HANDOFF.md`): T-015 and
-   T-049 with their trials, T-045; then T-016; T-050 (`pod-services`);
-   T-041 when a crate or a consumer needs it.
-2. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
+1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
+   the release v0.4.0 and its hand-off to podssh, podnet and podvm; T-063
+   (the synchronous face, v0.5.0); T-040 (the trials of `pod-tls` and
+   `pod-proxy` in podvm); T-066; then M6 (item 7).
+2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
+   crate or a consumer needs it.
+3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
-3. **M3, the adapters:** T-027, T-028, T-029, T-030.
-4. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+4. **M3, the adapters:** T-027, T-028, T-029, T-030.
+5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-5. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
+6. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
    commit of its rename; a "port" entry for each change that
    scripts/check-sources.py finds.
-6. **M6, the crates of podvm:** T-055 (`pod-hostprobe`) first, then T-056,
+7. **M6, the crates of podvm:** T-055 (`pod-hostprobe`) first, then T-056,
    T-057, T-058, T-059, T-060, T-061, when podvm gave the commit of its
    rename; T-063 (the synchronous face) and T-066 (the data of podvm in
    `pod-services`) before podvm takes `pod-proxy`.
-7. **M7, the widened scope of podvm:** T-062 after M6.
+8. **M7, the widened scope of podvm:** T-062 after M6.
 
 ## Calls made without a ruling
 

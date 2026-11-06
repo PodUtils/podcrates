@@ -392,7 +392,7 @@ targets `api_surface`, `cli`, `connect`, `docs`, `doctor`, `egress`,
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -447,6 +447,16 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-014 is done.
+
+## Done
+
+2026-11-06. The crate is on `main` (`be940fd` and before). The trials of
+v0.4.0 pass each step: podssh at `fd261a1` (`8847ba3`: 2,356 tests, the
+features `tor` and `ts`, the static binary) and podnet at `57cfc0b`
+(`e1c2f15`: 773 tests, cargo-deny, clippy, the fuzz targets, the static
+binary). The podnet trial found two faults of its glue, fixed in the
+patch: the step of an IP literal is `literal`, and `-v` showed no line of
+the pod crates (`report::log_filter`).
 
 # T-016: `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads
 
@@ -636,7 +646,7 @@ must not find it.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -680,6 +690,14 @@ Each trial checks a static binary of the consumer.
 ## Start condition
 
 T-012 is done.
+
+## Done
+
+2026-11-06. The `.run` files of v0.4.0 build each consumer's binary for
+`x86_64-unknown-linux-musl` and check it static (podssh, podnet, and
+podvm's `shell`); the podssh trial builds the features `tor` and `ts`;
+each trial runs `scripts/check-consumer-toolchains.py` (`794d065`). The
+podvm trial raised podvm's `rust-version` from 1.85 to 1.99 on its fault.
 
 # T-048: `pod-services`: the inventory of the relays and services of other parties in podssh and podnet
 
@@ -749,7 +767,7 @@ data) and T-050 (the watches, the workflows, the scripts).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -806,6 +824,12 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-048 is done, and the owner reserved `pod-services` on crates.io.
+
+## Done
+
+2026-11-06. The same trials as T-015: one patch for each consumer takes
+`pod-dns` and `pod-services`; each moved constant of the adoption maps is a
+read of `pod-services`. The data of podvm is T-066.
 
 # T-050: `pod-services`: the watches, their workflows and the measurement scripts
 
