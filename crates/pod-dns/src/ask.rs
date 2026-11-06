@@ -17,9 +17,9 @@ use crate::way::Way;
 use crate::{NXDOMAIN, wire};
 
 /// One resolver at `at`, its address or its name: A, then AAAA when A gave
-/// none, each in the first of its forms that answers in its form, within
-/// [`crate::Settings::each`] and `deadline`. The addresses and the form that
-/// gave them, or why
+/// none (or always, with [`crate::Settings::both`]), each in the first of its
+/// forms that answers in its form, within [`crate::Settings::each`] and
+/// `deadline`. The addresses (each once) and the form that gave them, or why
 /// none came, each reason after `at`, with the cut of the failure that ended
 /// the asking, where no answer came before it. A resolver that answered once
 /// completed a handshake, so a later cut says nothing of the way to it.
@@ -38,8 +38,12 @@ pub(crate) async fn ask_kept(
     'kinds: for kind in ["A", "AAAA"] {
         while let Some(&form) = forms.first() {
             match tokio::time::timeout_at(each, ask_one(way, resolver, at, form, host, kind)).await {
-                Ok(Ok(mut ips)) => {
-                    found.append(&mut ips);
+                Ok(Ok(ips)) => {
+                    for ip in ips {
+                        if !found.contains(&ip) {
+                            found.push(ip);
+                        }
+                    }
                     by = Some(form);
                     answered = true;
                     break;
@@ -70,7 +74,7 @@ pub(crate) async fn ask_kept(
                 }
             }
         }
-        if !found.is_empty() {
+        if !found.is_empty() && !way.settings.both {
             break;
         }
     }

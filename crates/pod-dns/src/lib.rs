@@ -21,13 +21,16 @@
 //! fails the handshake instead of connecting somewhere else.
 //!
 //! The same resolvers, through the same way or another ([`Way`]), give the
-//! SRV records of a name ([`Way::srv`]) and its HTTPS record for Encrypted
-//! Client Hello ([`https`], [`Way::https`]).
+//! SRV records of a name ([`Way::srv`]), its HTTPS record for Encrypted
+//! Client Hello ([`https`], [`Way::https`]) and an answer of the JSON form
+//! ([`Way::query`]).
 //!
 //! **No process state, no output.** The settings, the pins, the cache of
 //! addresses ([`Memory`]) and the way out are values of the [`Resolver`]
-//! that the consumer owns. The crate reads no variable and no file, prints
-//! nothing, and writes its diagnostics to `tracing`.
+//! that the consumer owns. The crate reads no variable and no file unless
+//! the caller asks ([`route::has_default_route`]), prints nothing, writes
+//! its diagnostics to `tracing` and counts its answers with the caller's
+//! [`pod_core::Observer`].
 
 mod ask;
 pub mod doh;
@@ -41,24 +44,25 @@ mod miss;
 mod order;
 mod question;
 mod resolver;
+pub mod route;
 mod settings;
 mod way;
 pub mod wire;
 
-pub use doh::{Doh, Form};
+pub use doh::{Doh, Form, Names};
 pub use json::Srv;
 pub use memory::{FRESH, Memory, Remembered, split};
 pub use order::{Found, Source};
 pub use pod_core::SOURCE_WAIT;
 pub use resolver::Resolver;
-pub use settings::{CONNECT, EACH, Settings, parse_pins};
+pub use settings::{CONNECT, EACH, Nxdomain, Settings, parse_pins};
 pub use way::Way;
 
 /// The largest answer read: a DNS message is at most 64 KiB.
 pub const MAX_ANSWER: usize = 64 * 1024;
 
 /// A resolver's answer that the name does not exist (DNS status 3). It holds
-/// for every record type and every resolver, so the lookup stops there.
+/// for every record type and every resolver of its operator.
 pub const NXDOMAIN: &str = "no such name (NXDOMAIN)";
 
 /// Letters, digits, `.`, `-` and `_` only: safe in a query string and in DNS.

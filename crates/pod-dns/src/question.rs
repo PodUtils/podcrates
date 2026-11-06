@@ -1,8 +1,8 @@
 //! One question to the resolvers in turn, through a way, each in the first
 //! of its forms that answers in its form: the first resolver that answers
 //! wins. Through a way whose far end resolves names, each is asked by its
-//! name first, then by its address; a name that two addresses share is
-//! asked once.
+//! name and by its address, in the order of [`crate::Names`]; a name that
+//! two addresses share is asked once.
 
 use std::time::Duration;
 
@@ -35,7 +35,7 @@ pub(crate) async fn first<T>(
     let mut reasons = Vec::new();
     // The resolvers whose own status came: their other hosts would say it.
     let mut done = vec![false; resolvers.len()];
-    for (i, host) in doh::order(resolvers, way.dial.names_inside()) {
+    for (i, host) in doh::order(resolvers, way.settings.names, way.dial.names_inside()) {
         if done[i] {
             continue;
         }

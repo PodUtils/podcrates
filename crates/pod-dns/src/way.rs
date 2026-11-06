@@ -37,17 +37,17 @@ impl std::fmt::Debug for Way<'_> {
 
 impl Way<'_> {
     /// The addresses of `host` from the resolvers of the settings in turn,
-    /// A, then AAAA when A gave none; the first resolver that answers with
-    /// addresses wins, and the first that says that the name does not exist
-    /// ends the lookup.
+    /// A, then AAAA ([`Settings::both`]); the first resolver that answers
+    /// with addresses wins, and NXDOMAIN does what [`Settings::nxdomain`]
+    /// says.
     pub async fn lookup(&self, host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
         self.lookup_with(&self.settings.resolvers, host, deadline).await
     }
 
     /// [`Way::lookup`] over a given list of resolvers.
     pub async fn lookup_with(&self, resolvers: &[Doh], host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
-        let order = doh::order(resolvers, self.dial.names_inside());
-        lookup::over(order, deadline, |i, at| {
+        let order = doh::order(resolvers, self.settings.names, self.dial.names_inside());
+        lookup::over(resolvers, order, self.settings.nxdomain, host, deadline, |i, at| {
             let resolver = &resolvers[i];
             async move { ask::ask_kept(self, resolver, &at, host, deadline).await }
         })
@@ -94,6 +94,17 @@ impl Way<'_> {
             Form::Wire => https::from_wire(body, name.trim_end_matches('.')),
         };
         question::first(self, resolvers, name, "HTTPS", None, parse, deadline).await
+    }
+
+    /// The JSON answer to the question of `kind` (`A`, `AAAA`, `SRV`, ...)
+    /// for `name`, from the resolvers of the settings that serve the JSON
+    /// form, in turn, until one answers; an answer that the name does not
+    /// exist is an answer (podnet's `doh_query`).
+    pub async fn query(&self, name: &str, kind: &str, deadline: Instant) -> Result<json::Answer, String> {
+        let parse = |_, body: &[u8]| json::parse(body);
+        question::first(self, &self.settings.resolvers, name, kind, Some(Form::Json), parse, deadline)
+            .await
+            .map_err(|e| format!("DNS over HTTPS {kind} {name}: {e}"))
     }
 }
 

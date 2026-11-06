@@ -15,7 +15,8 @@ use crate::wire;
 /// through a proxy that resolves names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Doh {
-    /// Who runs it: the operators take turns in podssh's order ([`turns`]).
+    /// Who runs it: [`crate::Nxdomain::NextOperator`] passes over the other
+    /// addresses of an operator that says that a name does not exist.
     pub operator: String,
     /// Its address, which its certificate names.
     pub ip: IpAddr,
@@ -58,6 +59,19 @@ impl Form {
             Form::Wire => "application/dns-message",
         }
     }
+}
+
+/// Where the names of the resolvers go in the order, through a way whose far
+/// end resolves names ([`pod_core::Dial::names_inside`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Names {
+    /// Each resolver by its name, then by its address (podssh): a proxy that
+    /// takes names alone refuses an address, and one that takes addresses
+    /// alone refuses the name at once.
+    #[default]
+    First,
+    /// Each resolver by its address, then each name (podnet).
+    Last,
 }
 
 impl Doh {
@@ -159,15 +173,28 @@ impl Doh {
 }
 
 /// The hosts to ask of `resolvers`, in order, each with the index of its
-/// resolver: each by [`Doh::hosts`], with the names only when `by_name`, and
-/// each name once.
-pub fn order(resolvers: &[Doh], by_name: bool) -> Vec<(usize, String)> {
+/// resolver: by [`Names`], with the names only when `by_name`, and each name
+/// once.
+pub fn order(resolvers: &[Doh], names: Names, by_name: bool) -> Vec<(usize, String)> {
     let mut out: Vec<(usize, String)> = Vec::new();
     let mut asked: Vec<String> = Vec::new();
-    for (i, resolver) in resolvers.iter().enumerate() {
-        for host in resolver.hosts(by_name, &asked) {
-            asked.push(host.clone());
-            out.push((i, host));
+    match names {
+        Names::First => {
+            for (i, resolver) in resolvers.iter().enumerate() {
+                for host in resolver.hosts(by_name, &asked) {
+                    asked.push(host.clone());
+                    out.push((i, host));
+                }
+            }
+        }
+        Names::Last => {
+            out.extend(resolvers.iter().enumerate().map(|(i, r)| (i, r.ip.to_string())));
+            for (i, resolver) in resolvers.iter().enumerate() {
+                if by_name && !asked.contains(&resolver.name) {
+                    asked.push(resolver.name.clone());
+                    out.push((i, resolver.name.clone()));
+                }
+            }
         }
     }
     out
@@ -218,6 +245,25 @@ pub fn defaults() -> Vec<Doh> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// podnet's order: the servers by address first, in their order; the
+    /// servers by name after them, and only through a way whose far end
+    /// resolves names (a proxy).
+    #[test]
+    fn the_servers_by_name_need_a_proxy() {
+        let services = ["cloudflare-doh", "google-doh"].map(|id| pod_services::get(id).expect(id));
+        let servers = of_services(services, &["v4", "v6"]);
+        let direct = order(&servers, Names::Last, false);
+        let addresses: Vec<String> = servers.iter().map(|s| s.ip.to_string()).collect();
+        assert_eq!(direct.iter().map(|(_, host)| host.clone()).collect::<Vec<_>>(), addresses);
+        let proxied = order(&servers, Names::Last, true);
+        assert_eq!(proxied[..servers.len()], direct[..]);
+        let names: Vec<&str> = proxied[servers.len()..].iter().map(|(_, host)| host.as_str()).collect();
+        assert_eq!(names, ["cloudflare-dns.com", "dns.google", "dns.google.com"]);
+        for (i, name) in &proxied[servers.len()..] {
+            assert_eq!(servers[*i].name, *name, "each name with its resolver");
+        }
+    }
 
     /// podssh's order of the default resolvers: Cloudflare's and Google's
     /// addresses take turns, then Quad9's, which serve the wire form alone.
