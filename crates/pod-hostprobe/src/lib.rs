@@ -141,7 +141,8 @@ mod tests {
     fn every_child_probe_runs_and_answers_in_a_child() {
         // The real path: one real child for each probe. The test checks the
         // shape of the answers, not that this host permits a thing. libtest
-        // does not know the child flag, so each child row is a skip here.
+        // does not know the child flag, so each child row is a skip here;
+        // tests/children.rs runs the rows.
         let f = run(&Settings::default(), &writable::candidates(&[]));
         assert_eq!(f.rows.len(), probes::PROBES.len());
         for (name, o) in &f.rows {

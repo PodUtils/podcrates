@@ -23,3 +23,11 @@ linux-raw-sys = { workspace = true }
 [target.'cfg(all(target_os = "linux", not(any(target_arch = "mips", target_arch = "mips64", target_arch = "s390x", target_arch = "powerpc", target_arch = "powerpc64"))))'.dependencies]
 syscalls = { workspace = true }
 
+[dev-dependencies]
+pod-testkit = { workspace = true }
+
+# The probe children of the whole set: a test binary with no libtest, so
+# that it reads the flag of a child before anything else.
+[[test]]
+name = "children"
+harness = false

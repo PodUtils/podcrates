@@ -11,6 +11,7 @@
 //! ns-4 and ns-5 need a live image store and lifecycle, so the consumer
 //! owns those drives and this file pins the predicates they assert. No live
 //! engine, no mounts outside self-created namespaces.
+#![cfg(target_os = "linux")]
 
 use pod_hostprobe::select::{Provides, Rung, Selection, Strictness};
 use pod_hostprobe::verdict::Outcome;
@@ -133,19 +134,21 @@ fn mount_table_has(target: &str) -> bool {
 /// mounts cannot propagate to the host, then its private tmpfs on the
 /// target. Exit 0 drove the isolation, 1 a wrong outcome, 2 the fixture
 /// cannot be arranged. No unwrap inside: a panic past the fork may hang on
-/// a duplicated lock, so every shortfall exits by number.
+/// a duplicated lock, so every shortfall exits by number. `maps` are the
+/// lines of `uid_map` and `gid_map`, made before the fork: the ids of the
+/// caller map to 0, so the drive runs as root and as another user.
 #[cfg(target_os = "linux")]
-fn child_drive(at: &str) -> ! {
+fn child_drive(at: &str, maps: &(String, String)) -> ! {
     use pod_hostprobe::sys;
     let fail = |n: i32| -> ! { sys::exit_group(n) };
     if sys::unshare(sys::CLONE_NEWUSER | sys::CLONE_NEWNS).is_err() {
         fail(2);
     }
-    if std::fs::write("/proc/self/uid_map", "0 0 1\n").is_err() {
+    if std::fs::write("/proc/self/uid_map", &maps.0).is_err() {
         fail(2);
     }
     let _ = std::fs::write("/proc/self/setgroups", "deny");
-    if std::fs::write("/proc/self/gid_map", "0 0 1\n").is_err() {
+    if std::fs::write("/proc/self/gid_map", &maps.1).is_err() {
         fail(2);
     }
     let empty = sys::cempty();
@@ -183,18 +186,23 @@ fn child_drive(at: &str) -> ! {
 
 /// ns-3. The payload writes and reads its own tmp file, the host rootfs
 /// holds no mark afterwards, and no payload mount leaks into the host
-/// mount table. Where unshare or mounts refuse, the drive reports SKIP
-/// with its reason and passes: an unarranged fixture is not a failure.
+/// mount table. A host that refuses a user and a mount namespace skips the
+/// test (`need_userns!`); where a later step of the fixture is refused, the
+/// drive reports a skip with its reason and passes: an unarranged fixture
+/// is not a failure.
 #[cfg(target_os = "linux")]
 #[test]
 fn payload_tmp_is_invisible_from_the_host() {
     use pod_hostprobe::sys;
+    pod_testkit::need_userns!();
     let _serialised = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let dir = fresh_tmp("ns-isolation");
     let at = dir.to_string_lossy().into_owned();
+    let id = pod_hostprobe::identity::read();
+    let maps = (format!("0 {} 1\n", id.uid), format!("0 {} 1\n", id.gid));
     let pid = unsafe { sys::clone_fork(sys::SIGCHLD) }.expect("fork for the mount child");
     if pid == 0 {
-        child_drive(&at);
+        child_drive(&at, &maps);
     }
     let mut status = 0;
     sys::wait4(pid, &mut status).expect("wait for the mount child");
@@ -209,17 +217,9 @@ fn payload_tmp_is_invisible_from_the_host() {
             assert!(marker_gone, "the payload file leaked into the host rootfs");
             assert!(!mount_leaked, "a payload mount leaked into the host mount table");
         }
-        2 => {
-            eprintln!("SKIP: unshare or mounts are refused here, so the isolation drive cannot be arranged");
-        }
+        2 => pod_testkit::host::skip_line(
+            "unshare or mounts are refused here, so the isolation drive cannot be arranged",
+        ),
         c => panic!("the mount child exited {c}"),
     }
-}
-
-/// ns-3 off Linux. The isolation drive needs user and mount namespaces,
-/// so elsewhere it reports SKIP with its reason and passes.
-#[cfg(not(target_os = "linux"))]
-#[test]
-fn payload_tmp_is_invisible_from_the_host() {
-    eprintln!("SKIP: the isolation drive needs Linux user and mount namespaces");
 }

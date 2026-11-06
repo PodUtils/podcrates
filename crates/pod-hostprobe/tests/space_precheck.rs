@@ -11,10 +11,12 @@
 //! fill cap the drive reports SKIP with its reason and passes (exit 2 of the
 //! child): an unarranged fixture is not a failure. Measured on one host: a
 //! fresh tmpfs carries 4,082,283 inodes and fills 20,000 files in 0.09 s, so
-//! the 30,000-file cap below takes the SKIP arm there. Filling 4M files would take ~20 s and ~3 GiB
-//! of kernel slab per runner, which is not a polite test, so the cap stays
+//! the 30,000-file cap below takes the SKIP arm there. A fill of 4M files
+//! takes ~20 s and ~3 GiB of kernel slab per runner, which is not a polite
+//! test, so the cap stays
 //! and the refusal under true pressure is covered by the first half's
 //! inode arm through the same code path.
+#![cfg(target_os = "linux")]
 
 use pod_hostprobe::space;
 use pod_hostprobe::sys;
@@ -61,14 +63,18 @@ fn require_refuses_short_bytes_and_short_inodes_naming_the_destination() {
 /// mount namespaces; the child exits 0 on a driven refusal, 1 on a wrong
 /// outcome, and 2 where the fixture cannot be arranged (no userns, no
 /// mount, or a tmpfs too roomy to exhaust under the fill cap).
+/// A host that refuses a user and a mount namespace skips the test.
 #[test]
 fn inode_pressure_on_a_fresh_tmpfs_refuses_a_modest_ask() {
+    pod_testkit::need_userns!();
     let _serialised = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let dir = fresh_tmp("pressure");
     let at = dir.to_string_lossy().into_owned();
+    let id = pod_hostprobe::identity::read();
+    let maps = (format!("0 {} 1\n", id.uid), format!("0 {} 1\n", id.gid));
     let pid = unsafe { sys::clone_fork(sys::SIGCHLD) }.expect("fork for the mount child");
     if pid == 0 {
-        child_drive(&at);
+        child_drive(&at, &maps);
     }
     let mut status = 0;
     sys::wait4(pid, &mut status).expect("wait for the mount child");
@@ -77,7 +83,7 @@ fn inode_pressure_on_a_fresh_tmpfs_refuses_a_modest_ask() {
         match (status >> 8) & 0xff {
             0 => return,
             2 => {
-                eprintln!("SKIP: the tmpfs drive cannot be arranged here; see the child log");
+                pod_testkit::host::skip_line("the tmpfs drive cannot be arranged here; see the child log");
                 return;
             }
             c => panic!("the mount child exited {c}"),
@@ -86,7 +92,8 @@ fn inode_pressure_on_a_fresh_tmpfs_refuses_a_modest_ask() {
     panic!("the mount child died by signal");
 }
 
-fn child_drive(at: &str) -> ! {
+/// `maps` are the lines of `uid_map` and `gid_map`, made before the fork.
+fn child_drive(at: &str, maps: &(String, String)) -> ! {
     let fail = |n: i32| -> ! {
         sys::exit_group(n);
     };
@@ -95,13 +102,14 @@ fn child_drive(at: &str) -> ! {
     }
     // A raw `unshare(2)` writes no id maps, unlike `unshare(1)`. Until
     // they exist the child is nobody and the tmpfs mount is refused:
-    // without these three writes the drive always takes the SKIP arm. Root maps to itself; nothing here
-    // grants what the parent did not already hold.
-    if std::fs::write("/proc/self/uid_map", "0 0 1\n").is_err() {
+    // without these three writes the drive always takes the SKIP arm. The
+    // ids of the caller map to 0; nothing here grants what the parent did
+    // not already hold.
+    if std::fs::write("/proc/self/uid_map", &maps.0).is_err() {
         fail(2);
     }
     let _ = std::fs::write("/proc/self/setgroups", "deny");
-    if std::fs::write("/proc/self/gid_map", "0 0 1\n").is_err() {
+    if std::fs::write("/proc/self/gid_map", &maps.1).is_err() {
         fail(2);
     }
     let source = sys::CBuf::new("tmpfs").unwrap();

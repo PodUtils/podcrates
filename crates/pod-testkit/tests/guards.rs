@@ -24,3 +24,39 @@ fn the_probes_agree_with_the_host() {
         assert!(("localhost", 0).to_socket_addrs().unwrap().next().is_some());
     }
 }
+
+fn reached_after_need_tool(tool: &str, reached: &std::cell::Cell<bool>) {
+    pod_testkit::need_tool!(tool);
+    reached.set(true);
+}
+
+#[test]
+fn need_tool_returns_for_a_tool_that_the_host_lacks_and_runs_for_one_it_has() {
+    let reached = std::cell::Cell::new(false);
+    reached_after_need_tool("/no/such/dir/no-such-tool", &reached);
+    assert!(!reached.get(), "the guard let a test run with no tool");
+    reached_after_need_tool("no-such-tool-of-pod-testkit", &reached);
+    assert!(!reached.get(), "the guard found a name that is in no directory of PATH");
+    let me = std::env::current_exe().expect("the path of this test binary");
+    reached_after_need_tool(me.to_str().expect("a UTF-8 path"), &reached);
+    assert!(reached.get(), "the guard refused this test binary, which executes");
+}
+
+fn reached_after_need_userns(reached: &std::cell::Cell<bool>) {
+    pod_testkit::need_userns!();
+    reached.set(true);
+}
+
+#[test]
+fn need_userns_agrees_with_its_probe() {
+    let reached = std::cell::Cell::new(false);
+    reached_after_need_userns(&reached);
+    match pod_testkit::host::userns() {
+        Ok(()) => assert!(reached.get(), "the probe passed and the guard returned"),
+        Err(why) => {
+            assert!(!reached.get(), "the probe failed and the guard let the test run");
+            assert!(!why.is_empty());
+        }
+    }
+    assert_eq!(pod_testkit::host::userns(), pod_testkit::host::userns(), "the probe runs one time");
+}

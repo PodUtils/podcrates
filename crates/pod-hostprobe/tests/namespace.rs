@@ -7,6 +7,7 @@
 //! EnteredRung chroot. Direct assertions on the probe library: the lane
 //! shape is built with the real mount row names, so the mount legs decide
 //! by the names the banner quotes. No live engine, no mounts.
+#![cfg(target_os = "linux")]
 
 use pod_hostprobe::select::{Provides, Rung, Selection, Strictness};
 use pod_hostprobe::verdict::Outcome;

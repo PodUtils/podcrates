@@ -69,15 +69,33 @@ const PROBE_SCRIPT: &[u8] = b"#!/bin/sh\nexit 0\n";
 /// whatever status it exits with, because the kernel already answered the
 /// only question asked. Anything else (no file, no interpreter, no memory)
 /// is an `Error` naming the path, never a verdict.
+///
+/// `ETXTBSY` is tried again, for at most [`BUSY_TRIES`] times: a fork of
+/// another thread holds a copy of the descriptor that wrote the file until
+/// that child execs or exits, and the kernel refuses the exec of a file
+/// that is open for writing.
 pub fn try_exec(path: &Path) -> Result<ExecVerdict> {
-    match std::process::Command::new(path).status() {
-        Ok(_) => Ok(ExecVerdict::Executable),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            Ok(ExecVerdict::Denied { reason: format!("{}: execve refused with EACCES ({e})", path.display()) })
+    let mut tries = 1;
+    loop {
+        match std::process::Command::new(path).status() {
+            Ok(_) => return Ok(ExecVerdict::Executable),
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                let reason = format!("{}: execve refused with EACCES ({e})", path.display());
+                return Ok(ExecVerdict::Denied { reason });
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < BUSY_TRIES => {
+                tries += 1;
+                std::thread::sleep(BUSY_PAUSE);
+            }
+            Err(e) => return Err(io(path, e)),
         }
-        Err(e) => Err(io(path, e)),
     }
 }
+
+/// The bound of the tries of [`try_exec`] on `ETXTBSY`: 250 tries, 2 ms
+/// apart, so at most about 0.5 s.
+pub const BUSY_TRIES: u32 = 250;
+const BUSY_PAUSE: std::time::Duration = std::time::Duration::from_millis(2);
 
 /// Probe whether files created under `dir` execute.
 ///
@@ -136,6 +154,7 @@ mod tests {
     /// the probe leaves nothing behind.
     #[test]
     fn a_writable_directory_probes_executable_and_litters_nothing() {
+        pod_testkit::need_tool!("/bin/sh");
         let d = scratch("executable");
         let probe = probe_dir_exec(&Settings::default(), &d).unwrap();
         assert!(probe.ok, "a writable directory executes: {}", probe.detail);
@@ -169,6 +188,7 @@ mod tests {
     /// is the kernel answering and not the script failing.
     #[test]
     fn the_same_bytes_with_the_bit_execute() {
+        pod_testkit::need_tool!("/bin/sh");
         use std::os::unix::fs::PermissionsExt;
         let d = scratch("mirror");
         let path = d.join("exec.sh");
@@ -177,6 +197,29 @@ mod tests {
         perms.set_mode(0o755);
         std::fs::set_permissions(&path, perms).unwrap();
         assert_eq!(try_exec(&path).unwrap(), ExecVerdict::Executable);
+    }
+
+    /// A writer of the file that closes a moment later (as the copy of the
+    /// descriptor in the fork of another thread does) does not make the run
+    /// an error: the run waits for it, within a bound.
+    #[test]
+    fn a_file_busy_for_a_moment_executes_after_the_writer_closes() {
+        pod_testkit::need_tool!("/bin/sh");
+        use std::os::unix::fs::PermissionsExt;
+        let d = scratch("busy");
+        let path = d.join("busy.sh");
+        std::fs::write(&path, PROBE_SCRIPT).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let writer = std::fs::OpenOptions::new().append(true).open(&path).unwrap();
+        let (held, wait) = std::sync::mpsc::channel();
+        let closer = std::thread::spawn(move || {
+            held.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            drop(writer);
+        });
+        wait.recv().unwrap();
+        assert_eq!(try_exec(&path).unwrap(), ExecVerdict::Executable);
+        closer.join().unwrap();
     }
 
     /// A probe that cannot write is an error naming the path, never a `no`
@@ -193,6 +236,7 @@ mod tests {
     /// defect of a store.
     #[test]
     fn two_probes_in_one_process_take_two_names() {
+        pod_testkit::need_tool!("/bin/sh");
         let d = scratch("two-names");
         let first = probe_dir_exec(&Settings::default(), &d).unwrap();
         let second = probe_dir_exec(&Settings::default(), &d).unwrap();

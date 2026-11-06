@@ -98,6 +98,7 @@ fn an_unknown_errno_names_its_number_rather_than_guessing_a_name() {
 /// child at all.
 #[test]
 fn a_spawn_through_the_hook_sheds_a_registered_fd_and_one_without_it_does_not() {
+    pod_testkit::need_tool!("/bin/sh");
     fn ask_the_child(w: i64, hook: bool) -> String {
         // The number is the parent's, and a `fork` copies the table, so
         // it is the child's number as well.

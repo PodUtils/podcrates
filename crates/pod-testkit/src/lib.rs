@@ -4,6 +4,9 @@
 //! * [`need_loopback!`] and [`need_localhost!`]: a test that needs TCP or
 //!   UDP on 127.0.0.1, or the name `localhost`, skips with a reason on a
 //!   host that has none.
+//! * [`need_userns!`] and [`need_tool!`]: a test that needs a user and a
+//!   mount namespace, or a tool of the host, skips with a reason on a host
+//!   that has none.
 //! * [`screen`] (feature `screen`): the terminal oracle, a model of a VT
 //!   terminal that tells what a person sees after a stream of bytes.
 //!

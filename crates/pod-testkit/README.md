@@ -10,8 +10,13 @@ consumer that wants it. It is never a dependency of a release binary.
   stderr, on a host that refuses `bind(AF_INET)` or has no loopback.
 * `need_localhost!()`: the same for a host that does not resolve
   `localhost`.
-* `host::loopback()`, `host::localhost()`: the probes, each run once for
-  each test binary.
+* `need_userns!()`: the same for a host that refuses a user and a mount
+  namespace with a tmpfs mount in them (Linux only; elsewhere the test
+  skips).
+* `need_tool!(TOOL)`: the same for a host with no `TOOL` that can execute.
+  `TOOL` is a path (`"/bin/sh"`) or a name in `PATH` (`"qemu-img"`).
+* `host::loopback()`, `host::localhost()`, `host::userns()`: the probes,
+  each run once for each test binary. `host::tool(TOOL)` looks each time.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
 pod crate, so that each crate can dev-depend on the kit.
@@ -22,6 +27,7 @@ pod crate, so that each crate can dev-depend on the kit.
 | --- | --- | --- |
 | podnet | `test_host::need_loopback!()` (`tests/test_host/mod.rs`, `#[path]`) | `pod_testkit::need_loopback!()` |
 | podnet | `test_host::need_localhost!()` | `pod_testkit::need_localhost!()` |
+| podvm | a test that forks, calls `unshare(CLONE_NEWUSER\|CLONE_NEWNS)` and skips on exit 2 | `pod_testkit::need_userns!()` first |
 
 ## The terminal oracle (feature `screen`)
 
