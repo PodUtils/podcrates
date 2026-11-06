@@ -11,6 +11,7 @@ publish = false
 # Each crate of the workspace, with each feature (docs/design.md, section 7).
 [dependencies]
 pod-core = { workspace = true }
+pod-dns = { workspace = true, features = ["ech"] }
 pod-identity = { workspace = true }
 pod-proxy = { workspace = true, features = ["ech"] }
 pod-services = { workspace = true, features = ["overlay"] }

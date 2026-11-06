@@ -1354,6 +1354,7 @@ name = "static-probe"
 version = "0.3.0"
 dependencies = [
  "pod-core",
+ "pod-dns",
  "pod-identity",
  "pod-proxy",
  "pod-services",

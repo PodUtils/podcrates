@@ -19,6 +19,10 @@ fn main() {
     // An empty file of the overlay: the TOML reader runs, and refuses it.
     let empty = services.lay("probe.toml", "").map_or_else(|e| e.field, |s| s.id().to_string());
     let doh = services.of_kind("doh").next().and_then(|s| s.endpoints().first()).map_or_else(String::new, |e| e.url());
+    // A resolver of the default settings, whose resolvers are the data of
+    // pod-services.
+    let resolver = pod_dns::Resolver::new(pod_dns::Settings::default());
+    let first = resolver.settings().resolvers.first().map_or_else(String::new, |r| format!("{} ({})", r.ip, r.name));
     let lines = [
         format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0)),
         format!("pod-term: {typed} events for a typed line"),
@@ -38,6 +42,11 @@ fn main() {
         format!(
             "pod-services: {} services, the first DoH resolver {doh}, an empty overlay refused at {empty}",
             services.iter().count()
+        ),
+        format!(
+            "pod-dns: {}, {} resolvers, the first {first}",
+            pod_core::Resolve::label(&resolver),
+            resolver.settings().resolvers.len()
         ),
     ];
     for line in lines {
