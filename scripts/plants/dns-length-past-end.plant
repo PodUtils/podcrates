@@ -1,0 +1,9 @@
+# An HTTPS record's parameter taken up to the record's end where its
+# length runs past it, so a record cut short gives a list cut short, or
+# none, where it must be an error that says so; the test of the cuts must
+# fail (podssh's plant t642-length-past-end).
+ENTRY=T-015
+GROUP=dns
+EXPECT='test https::tests::a_record_cut_short_is_an_error_that_says_so \.\.\. FAILED'
+RUN='cargo test -p pod-dns --all-features --lib -- https::tests::a_record_cut_short_is_an_error_that_says_so'
+LIMIT=1800
