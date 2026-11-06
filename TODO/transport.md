@@ -1409,3 +1409,131 @@ cargo test -p pod-dns --lib way
 podnet's check greps `server="https://8\.8\.` in the line `doh answered`
 from the release after v0.5.0.
 
+# T-074: `pod-proxy`: the words of a failed dial name the target twice
+
+**Source:** the trial of the registry of podvm on `pod-proxy` (T-040, `44d1bd0`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The trial of the registry in podvm (`44d1bd0`): a failed dial reads
+`could not connect to H: H: Connection refused`; podvm's glue removes the
+repeats, as its tests pin each host once.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/client.rs`, `src/env.rs`, `src/error.rs`.
+
+## Approach
+
+The words of `DialError::Connect` name the target once; a test pins the
+text of a refused dial.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test dial
+```
+
+
+# T-075: `pod-proxy`: `HTTP_PROXY` for a target of `http://`
+
+**Source:** the trial of the registry of podvm on `pod-proxy` (T-040, `44d1bd0`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The trial of the registry in podvm (`44d1bd0`): the client reads
+`HTTPS_PROXY` and `ALL_PROXY`, not `HTTP_PROXY`/`http_proxy` for a request
+of `http://` (ureq did; podvm's insecure registries fall back to plain
+HTTP). A host with only `HTTP_PROXY` set loses its proxy there.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/client.rs`, `src/env.rs`, `src/error.rs`.
+
+## Approach
+
+`Environment::proxy_for` takes the scheme of the request: `http://`
+reads `http_proxy`/`HTTP_PROXY` (then `ALL_PROXY`), `https://` as now; the
+rules of each consumer (`env::Rules`) say the order. Tests of each
+variable for each scheme.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --lib env
+```
+
+
+# T-076: `pod-proxy`: redirects in the client
+
+**Source:** the trial of the registry of podvm on `pod-proxy` (T-040, `44d1bd0`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The client follows no redirect. podvm's glue follows 301/302/303/307/308
+for GET and HEAD, five at most, with `Authorization` kept to its host and no
+step from `https://` to `http://` (the registry trial, `44d1bd0`); each
+consumer would write the same.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/client.rs`, `src/env.rs`, `src/error.rs`.
+
+## Approach
+
+`Request::redirects(n)` (0 by default): the client follows them for GET
+and HEAD with podvm's rules; podvm's glue then goes. Tests of each rule.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test streamed
+```
+
+
+# T-077: `pod-proxy`: keep-alive connections in the client
+
+**Source:** the trial of the registry of podvm on `pod-proxy` (T-040, `44d1bd0`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each request of the client is a new TCP and TLS connection
+(`Connection: close`); ureq kept a pool (the registry trial in podvm,
+`44d1bd0`). A pull of many blobs from one registry pays a handshake each.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/client.rs`, `src/env.rs`, `src/error.rs`.
+
+## Approach
+
+A small pool of idle connections for each host and port in `Client`,
+with a limit of idle time; a streamed body returns its connection when it
+was read to its end. A test counts the connections of three requests.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
