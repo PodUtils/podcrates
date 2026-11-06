@@ -1124,3 +1124,51 @@ adoption map; `SOURCES` has podvm's 23 files (`scripts/check-sources.py
 --clone PodUtils/podvm=...`: 0 changes). `cargo test -p pod-services
 --all-features`: 40 passed (schema 12, api 9, moved 8, overlay 5, podvm 6).
 The trial in podvm is T-040.
+
+# T-067: Two tests fail on macOS and Windows in the nightly
+
+**Source:** the run 42195081977 of `nightly.yml` at `f08ddaf`.
+**Category:** defect
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The nightly at `f08ddaf` failed: `pod-dns`'s
+`a_close_a_silence_and_a_refusal_are_kept_apart` on macOS ("127.0.0.1: no
+connection within 3 s": `TimedOut`, not `Refused`), and `pod-proxy`'s
+`the_proxy_of_a_tool_comes_through_the_readers_of_the_caller` on both
+Windows hosts (the origin was `/etc/environment`, not the `.npmrc` of
+`HOME`). Both tests came after the last green nightly (`6939b31`).
+
+## Premise
+
+- Read: macOS drops a SYN to a port that a socket holds and does not
+  listen on, so the dial times out. `pod-proxy`'s `tests/closed/mod.rs`
+  holds a port the same way.
+- Read: the code joins `HOME` and the name of a tool's file with the
+  separator of the host; the test's reader matched the text
+  `/home/u/.npmrc`, which Windows does not make.
+
+## Approach
+
+On macOS the refused port is free (a listener bound and dropped), in the
+test of `pod-dns` and in `pod-proxy`'s `closed::port`. The test of the
+tool's file builds the path with `Path::join`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --lib cuts
+cargo test -p pod-proxy --lib env
+cargo test -p pod-proxy --test egress --test dial --test fetch --test get --test dialer
+```
+
+The nightly proves macOS and Windows.
+
+## Done
+
+2026-11-06. Linux: the tests pass. macOS and Windows: the next nightly.
+

@@ -145,14 +145,21 @@ fn a_proxy_of_the_user_can_be_a_command_and_keeps_no_proxy() {
 #[test]
 fn the_proxy_of_a_tool_comes_through_the_readers_of_the_caller() {
     let home = vars(&[("HOME", "/home/u")]);
-    let files = |path: &Path| match path.to_str() {
-        Some("/home/u/.npmrc") => Some("https-proxy=http://npm.example:3128\n".to_string()),
-        Some("/etc/environment") => Some("https_proxy=http://etc.example:3128\n".to_string()),
-        _ => None,
+    // The file of a tool is HOME joined to its name, with the separator of
+    // the host (`\` on Windows).
+    let npmrc = Path::new("/home/u").join(".npmrc");
+    let files = |path: &Path| {
+        if path == npmrc {
+            Some("https-proxy=http://npm.example:3128\n".to_string())
+        } else if path == Path::new("/etc/environment") {
+            Some("https_proxy=http://etc.example:3128\n".to_string())
+        } else {
+            None
+        }
     };
     let env = Environment::read(&home).or_detected(&home, &files);
     let given = env.proxy.as_ref().unwrap();
-    assert_eq!(given.origin, Origin::File(PathBuf::from("/home/u/.npmrc")));
+    assert_eq!(given.origin, Origin::File(npmrc.clone()));
     assert_eq!(given.value.as_ref().unwrap().host, "npm.example");
     assert_eq!(env.decide("relay.example", Some(443), &[]).1, "http");
 

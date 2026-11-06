@@ -108,10 +108,12 @@ async fn a_close_a_silence_and_a_refusal_are_kept_apart() {
     assert_eq!(silent.cut, Some(Cut::TimedOut), "{silent}");
     assert_eq!(silent.why, "127.0.0.1: timed out");
     // A port where nothing listens, held for the test by a socket that does
-    // not listen, so that no other test takes it.
+    // not listen, so that no other test takes it. macOS drops a SYN to such
+    // a port (a timeout, not a refusal): there the port is free.
     let held = tokio::net::TcpSocket::new_v4().unwrap();
     held.bind("127.0.0.1:0".parse().unwrap()).unwrap();
     let port = held.local_addr().unwrap().port();
+    let _held = (!cfg!(target_os = "macos")).then_some(held);
     let refused = ask_at(false, port, Duration::from_secs(4)).await.unwrap_err();
     assert_eq!(refused.cut, Some(Cut::Refused), "{refused}");
 }
