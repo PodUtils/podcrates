@@ -13,12 +13,13 @@
   42113413975 of `publish.yml`). podssh took each crate of v0.2.0
   (`6ece2ff`), podnet too (`a5894fe`). The patches of `pod-proxy` went to
   both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
-- Released v0.4.0 at `ad0f265` (the run 42207811181 of `release.yml`,
-  after the CI run 42207327373; the owner's account dispatched both,
-  PodUtils/podcrates#5): `pod-dns`, `pod-services` with the data of podvm,
-  the fix of vectored writes, the synchronous face (T-063). podvm took
-  `pod-term` (podvm `75ed306`); the trial of `pod-tls` in podvm passes
-  (T-040).
+- Released v0.5.0 at `7e73344` (CI 42217942520, nightly 42217950045,
+  release 42220040866; the owner's account dispatched them,
+  PodUtils/podcrates#8): the streamed body (T-069), the dial bounds its
+  resolver and the blocking runtime drops in the background (T-070), the
+  limit of a proxy at a command (T-071), the hint for podvm (T-068), the
+  tests of macOS and Windows (T-067). Each consumer took v0.4.0 (podssh
+  `72fb94d`, podnet `bf0c7ca`, podvm `b917f97` and `b1138c2`).
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.
@@ -36,7 +37,7 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
-   the release v0.5.0 (the fixes since v0.4.0); T-040 (the trials of
+   the hand-off of v0.5.0; T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.

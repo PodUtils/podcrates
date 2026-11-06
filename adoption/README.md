@@ -42,6 +42,10 @@ and `pod-tls` (podnet `a5894fe`, `a2af228`) and `pod-proxy` (podnet
 `380d9a4`) and `pod-dns` with `pod-services` (podnet `bf0c7ca`); podvm `pod-term` (podvm `75ed306`) and `pod-tls` (podvm
 `b917f97`) and `pod-proxy` with `blocking` (podvm `b1138c2`).
 
+A `.run` of podssh that moves a value of a service names the test
+`cargo test -p podssh-relay --test default_relay` too: the take of v0.4.0
+broke it, and the trial did not run it (PodUtils/podssh#154).
+
 A `.run` file runs the checks of the consumer's repository too (its
 record, its file rules, rustfmt of the crates that the patch changes), so
 that the patch is what the consumer session can commit as it is.

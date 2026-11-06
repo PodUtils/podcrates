@@ -12,5 +12,5 @@
 5 issue closed
 6 issue open
 7 issue closed
-8 issue open
+8 issue closed
 9 issue closed
