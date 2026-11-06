@@ -1,0 +1,23 @@
+# The trial of pod-term in podvm: the line discipline of podvm's SSH server
+# with no pty (crates/podvm-ssh/src/session.rs) is pod_term::echo, and the
+# supervisor of the shell stays in podvm. Home and End move the screen's
+# cursor with the line's, as pod-term does (podvm's two tests of them follow).
+# The patch raises podvm's rust-version to the 1.99 of podcrates, with the
+# three fixes that clippy then asks (`as_chunks`, `is_multiple_of`). podvm's own tests of the
+# discipline run against pod-term; the integration test of an interactive
+# session runs where sshd is; clippy of the workspace and rustfmt of
+# podvm-ssh, as podvm's gate.yml runs them; podvm's record gate; each Rust
+# toolchain of the workflows against the rust-version of podcrates; and the
+# binary `shell` for x86_64 musl (podvm's .cargo/config.toml: zig cc, static
+# CRT), with podcrates' static check.
+cargo test -q -p podvm-ssh --lib session
+if command -v sshd > /dev/null || [ -x /usr/sbin/sshd ]; then cargo test -q -p podvm-ssh --test session_interactive; else echo "adoption: no sshd: the test session_interactive does not run"; fi
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo fmt -p podvm-ssh --check
+# podvm's gate finds the root of the repository from the path of its binary,
+# so it runs from target/release/, with document-state beside it (gate.yml).
+cargo build -q --release -p podvm-gate && cargo build -q --release -p podvm-release --bin document-state
+mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-gate" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/document-state" target/release/ && ./target/release/podvm-gate
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo build -q -p podvm-ssh --bin shell
+sh "$PODCRATES/scripts/check-static.sh" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/shell"

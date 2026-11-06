@@ -9,7 +9,7 @@ call C16.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -26,7 +26,8 @@ needs its repository.
 
 ## Approach
 
-adoption/podvm/: the commit, the patch; `adoption.yml` runs it.
+adoption/podvm/: the commit, the patch; `adoption.yml` runs it. The first
+trial is `pod-term` (podvm's line discipline), at podvm `0249527` (C21).
 
 ## Prove
 
@@ -36,5 +37,19 @@ gh workflow run adoption.yml -f consumer=podvm -f crate=pod-relay
 
 ## Start condition
 
-podvm gave the commit of its rename from `podbox-*` to `podvm-*`
-(PodUtils/podvm#194), and moved to the stable Rust and edition 2024.
+podvm gave the commit of its rename (PodUtils/podvm#194: `0249527`). The
+edition of podvm is not a condition: a crate of edition 2021 takes a
+dependency of edition 2024; the patch raises podvm's `rust-version`.
+
+## Done
+
+2026-11-06, partial. `adoption/podvm/pod-term.patch` at podvm `0249527`:
+`PodUtils/podvm:crates/podvm-ssh/src/session.rs` takes `pod_term::echo` and keeps its
+supervisor; podvm's own 29 tests of the discipline pass on pod-term, with
+two of them changed to pod-term's Home and End (the screen's cursor moves
+with the line's); clippy of podvm's workspace, rustfmt, podvm's record
+gate, the toolchains and the static binary `shell` pass
+(`sh scripts/adoption.sh podvm pod-term`). Left: the trials of `pod-tls`
+and `pod-proxy` (after T-063), then the other crates of the order of
+PodUtils/podvm#194.
+

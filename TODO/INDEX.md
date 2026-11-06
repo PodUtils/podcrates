@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**66 entries: 37 open, 3 partial, 1 blocked, 25 done.**
+**66 entries: 36 open, 4 partial, 1 blocked, 25 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 2 | 0 | 18 | 33 |
-| P2 | 19 | 1 | 1 | 6 | 27 |
+| P2 | 18 | 2 | 1 | 6 | 27 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 37 | 3 | 1 | 25 | 66 |
+| **All** | 36 | 4 | 1 | 25 | 66 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -85,7 +85,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-037](roads.md) | P2 | M | M4 | feature | open | `pod-iroh`: the iroh road |
 | [T-038](roads.md) | P3 | S | M4 | feature | open | `pod-tor`: the Tor road through arti |
 | [T-039](roads.md) | P2 | L | M4 | feature | open | `pod-ts`: a Tailscale node in the process |
-| [T-040](upkeep.md) | P2 | S | M5 | chore | open | The trial of podvm |
+| [T-040](upkeep.md) | P2 | S | M5 | chore | partial | The trial of podvm |
 | [T-041](transport.md) | P3 | S | M1 | chore | open | `pod-testkit`: the SSH test server of podssh (the feature `ssh`) |
 | [T-042](foundation.md) | P1 | S | M0 | chore | done | `publish.yml`: the publish to crates.io, apart from the release |
 | [T-043](foundation.md) | P2 | S | M0 | chore | done | The names of the crates on crates.io and their trusted publishers (GitHub #1) |
