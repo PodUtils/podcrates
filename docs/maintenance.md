@@ -132,6 +132,12 @@ GitHub #2, T-051):
 * An issue of podcrates is mapped in `TODO/issues.md` as any issue, and
   closed when its subject is done.
 
+`docs/session-protocol.md` is the text of this protocol for the
+`AGENTS.md` of each repository of PodUtils: the watcher of the
+organization (`scripts/agent/watch-org.sh` from podcrates at a pinned
+commit, with the name of the repository), the COORD issues to a reader or
+`(to all)`, and the freeze and the hand-off of podcrates.
+
 ### The channel of a consumer session with no messages
 
 podnet's sessions from 2026-11-06 on send and take no messages (the
