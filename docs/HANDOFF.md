@@ -34,7 +34,7 @@ has the work order; this page has only what is in flight.
 - podnet: no messages from 2026-11-06 on: SOURCES blocks, the patches at
   the tags, COORD issues (`docs/maintenance.md`, "The channel of a consumer
   session with no messages").
-- `scripts/agent/watch-org.sh` reports each message to podcrates.
+- `scripts/agent/watch-org.sh` (each 90 s) reports each message to podcrates.
 
 ## Local state of this session (not in git)
 

@@ -1,11 +1,12 @@
 """Read the issue lists of the repositories of PodUtils (one JSON array of
 the GitHub API for each repository, on stdin, each line `REPO<TAB>JSON`) and
-print one line for each message to podcrates that is new or changed since
-the last run:
+print one line for each message to ME (a repository name of PodUtils:
+podcrates, podssh, podnet, podvm) that is new or changed since the last
+run:
 
-* each issue of PodUtils/podcrates;
+* each issue of PodUtils/ME;
 * each issue of another repository of the organization whose title holds
-  `(to podcrates)`, or that has the label `podcrates`.
+  `(to ME)` or `(to all)`, or that has the label ME.
 
 A message is changed when its `updated_at` moved: the writer amended its
 body (docs/maintenance.md, "Talk between sessions"). STATE keeps
@@ -14,25 +15,27 @@ records and prints nothing (the first run). Each message is kept in
 issues/OWNER_REPO_NUMBER.json beside STATE, as GitHub deletes the issues of
 a suspended account.
 
-    python3 -I scripts/agent/org-issues.py STATE ANNOUNCE
+    python3 -I scripts/agent/org-issues.py STATE ANNOUNCE [ME]
+
+ME is podcrates when it is not given.
 """
 
 import json
 import os
 import sys
 
-HOME = "PodUtils/podcrates"
 
-
-def meant(repo: str, issue: dict) -> bool:
-    if repo == HOME:
+def meant(me: str, repo: str, issue: dict) -> bool:
+    if repo == f"PodUtils/{me}":
         return True
     labels = [label.get("name") for label in issue.get("labels") or []]
-    return "(to podcrates)" in (issue.get("title") or "") or "podcrates" in labels
+    title = issue.get("title") or ""
+    return f"(to {me})" in title or "(to all)" in title or me in labels
 
 
 def main() -> int:
     state_path, announce = sys.argv[1], sys.argv[2] == "1"
+    me = sys.argv[3] if len(sys.argv) > 3 else "podcrates"
     seen = {}
     if os.path.exists(state_path):
         for line in open(state_path, encoding="utf-8"):
@@ -50,7 +53,7 @@ def main() -> int:
         if not isinstance(items, list):
             continue
         for i in items:
-            if not isinstance(i, dict) or "pull_request" in i or not meant(repo, i):
+            if not isinstance(i, dict) or "pull_request" in i or not meant(me, repo, i):
                 continue
             key = f"{repo}#{i['number']}"
             stamp = i.get("updated_at") or ""

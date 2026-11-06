@@ -50,12 +50,13 @@ the tools.
   `cargo todo next`, `cargo todo counts`, `cargo todo remap FILE`
   (`TODO/RULES.md`).
 * **Helper scripts of the agent** (in `scripts/agent/`):
-  * `watch-org.sh [SECONDS] [STATE_DIR]`: one line for each message to
-    podcrates in the repositories of PodUtils: each new or amended issue of
-    podcrates, and each issue of another repository with
-    `(to podcrates)` in its title or the label `podcrates`
+  * `watch-org.sh [SECONDS] [STATE_DIR] [ME]`: one line for each message
+    to ME (default podcrates) in the repositories of PodUtils, each 90 s:
+    each new or amended issue of PodUtils/ME, and each issue of another
+    repository with `(to ME)` or `(to all)` in its title or the label ME
     (`org-issues.py` reads the lists). It keeps a copy of each message in
-    `STATE_DIR/issues/`. Start it at the start of each session.
+    `STATE_DIR/issues/`. Start it at the start of each session. The
+    consumers run the same two files from podcrates at a pinned commit.
   * `watch-issues.sh [STATE_DIR]`: one line for each new issue of
     podcrates only (`new-issues.py` reads the issue list). It keeps a copy
     of each issue in `STATE_DIR/issues/NUMBER.json`.
