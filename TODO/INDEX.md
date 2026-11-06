@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**71 entries: 35 open, 1 partial, 0 blocked, 35 done.**
+**71 entries: 34 open, 1 partial, 0 blocked, 36 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
 | P2 | 16 | 1 | 0 | 13 | 30 |
-| P3 | 6 | 0 | 0 | 0 | 6 |
-| **All** | 35 | 1 | 0 | 35 | 71 |
+| P3 | 5 | 0 | 0 | 1 | 6 |
+| **All** | 34 | 1 | 0 | 36 | 71 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -116,4 +116,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-068](transport.md) | P2 | S | M1 | defect | done | The hint of an unknown issuer names a CA that replaces the roots, which podvm has not |
 | [T-069](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: a streamed body for `blocking::Client` (and the async one) |
 | [T-070](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left |
-| [T-071](transport.md) | P3 | S | M1 | feature | open | `pod-proxy`: a read limit for `blocking::Stream::Exec` |
+| [T-071](transport.md) | P3 | S | M1 | feature | done | `pod-proxy`: a read limit for `blocking::Stream::Exec` |

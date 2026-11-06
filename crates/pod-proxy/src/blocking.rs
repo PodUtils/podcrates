@@ -109,7 +109,9 @@ impl Dialer {
                 unix.set_nonblocking(false).map_err(|e| lost(host, port, e))?;
                 Stream::Unix(unix)
             }
-            crate::Stream::Exec(child) => Stream::Exec(Exec { child, runtime: self.runtime.clone() }),
+            crate::Stream::Exec(child) => {
+                Stream::Exec(Exec { child, runtime: self.runtime.clone(), limit: Default::default() })
+            }
         };
         Ok((stream, how))
     }
@@ -157,8 +159,9 @@ impl Stream {
         self.tcp().and_then(|tcp| tcp.peer_addr().ok())
     }
 
-    /// The limit of each read and each write, on a socket. A command has
-    /// none: its read waits for the command.
+    /// The limit of each read and each write. At the limit the call fails
+    /// with the kind that a socket gives (`WouldBlock` on Unix, `TimedOut`
+    /// elsewhere), on each kind of stream.
     pub fn set_timeouts(&self, limit: Option<Duration>) -> io::Result<()> {
         match self {
             Stream::Tcp(tcp) => {
@@ -170,7 +173,10 @@ impl Stream {
                 unix.set_read_timeout(limit)?;
                 unix.set_write_timeout(limit)
             }
-            Stream::Exec(_) => Ok(()),
+            Stream::Exec(exec) => {
+                *exec.limit.lock().unwrap_or_else(|e| e.into_inner()) = limit;
+                Ok(())
+            }
         }
     }
 }
@@ -180,6 +186,8 @@ impl Stream {
 pub struct Exec {
     child: Box<ChildIo>,
     runtime: Arc<Background>,
+    /// The limit of each read and each write ([`Stream::set_timeouts`]).
+    limit: std::sync::Mutex<Option<Duration>>,
 }
 
 impl std::fmt::Debug for Exec {
@@ -197,22 +205,44 @@ impl Exec {
 
 impl Read for Exec {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.runtime.block_on(self.child.read(buf))
+        let child = &mut self.child;
+        let limit = *self.limit.lock().unwrap_or_else(|e| e.into_inner());
+        bounded_on(&self.runtime, limit, child.read(buf))
     }
 }
 
 impl Write for Exec {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.runtime.block_on(self.child.write(buf))
+        let limit = *self.limit.lock().unwrap_or_else(|e| e.into_inner());
+        bounded_on(&self.runtime, limit, self.child.write(buf))
     }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        self.runtime.block_on(self.child.write_vectored(bufs))
+        let limit = *self.limit.lock().unwrap_or_else(|e| e.into_inner());
+        bounded_on(&self.runtime, limit, self.child.write_vectored(bufs))
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.runtime.block_on(self.child.flush())
+        let limit = *self.limit.lock().unwrap_or_else(|e| e.into_inner());
+        bounded_on(&self.runtime, limit, self.child.flush())
     }
+}
+
+/// `io` on `runtime`, within `limit`. The reads and the writes of a pipe give
+/// up nothing when they are cancelled, so a call that the limit ends loses no
+/// byte. At the limit, the kind of a socket's limit, so that a caller's check
+/// of it holds for a command too.
+fn bounded_on<T>(
+    runtime: &Background,
+    limit: Option<Duration>,
+    io: impl std::future::Future<Output = io::Result<T>>,
+) -> io::Result<T> {
+    let Some(limit) = limit else { return runtime.block_on(io) };
+    // The timer is made on the runtime: it needs its clock.
+    runtime.block_on(async { tokio::time::timeout(limit, io).await }).unwrap_or_else(|_| {
+        let kind = if cfg!(unix) { io::ErrorKind::WouldBlock } else { io::ErrorKind::TimedOut };
+        Err(io::Error::new(kind, "the proxy command sent nothing within the limit"))
+    })
 }
 
 impl Read for Stream {

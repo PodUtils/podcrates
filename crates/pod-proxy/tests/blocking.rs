@@ -186,3 +186,19 @@ fn the_drop_of_a_dialer_does_not_wait_for_a_lookup_that_the_dial_left() {
     drop(dialer);
     assert!(start.elapsed() < Duration::from_secs(5), "the drop waited {:?}", start.elapsed());
 }
+
+/// The command answers the CONNECT and then sends nothing: a read with a
+/// limit ends at the limit with the kind of a socket's limit.
+#[cfg(unix)]
+#[test]
+fn a_read_from_a_proxy_at_a_command_ends_at_its_limit() {
+    let command = r#"while IFS= read -r l && [ "$l" != "$(printf '\r')" ]; do :; done; printf 'HTTP/1.1 200 OK\r\n\r\n'; exec sleep 30"#;
+    let proxy = Proxy::parse_trusted(&format!("http+exec:{command}")).expect("a proxy at a command");
+    let (mut stream, _) = dialer(ProxyChoice::Via(proxy)).stream("relay.invalid", 443, LIMIT).expect("a tunnel");
+    stream.set_timeouts(Some(Duration::from_millis(300))).expect("the limit");
+    let start = std::time::Instant::now();
+    let mut byte = [0u8; 1];
+    let failed = stream.read(&mut byte).expect_err("the command sends nothing");
+    assert_eq!(failed.kind(), std::io::ErrorKind::WouldBlock, "{failed}");
+    assert!(start.elapsed() < Duration::from_secs(5), "the read waited {:?}", start.elapsed());
+}

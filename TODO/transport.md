@@ -1336,7 +1336,7 @@ passes, clippy too.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1360,3 +1360,12 @@ socket does. A test with a command that writes nothing.
 cargo test -p pod-proxy --features blocking --test blocking
 ```
 
+## Done
+
+2026-11-06. `blocking::Stream::set_timeouts` sets the limit of a proxy at a
+command too: each read and each write of `Exec` runs within it, and at the
+limit fails with the kind of a socket's limit (`WouldBlock` on Unix,
+`TimedOut` elsewhere); a cancelled read or write of a pipe loses no byte.
+`a_read_from_a_proxy_at_a_command_ends_at_its_limit`: without the change
+the read waited 30 s; with it the test ends in 0.3 s. podvm can take a proxy
+at a command for its pump.
