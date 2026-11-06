@@ -49,16 +49,25 @@ fn main() {
             resolver.settings().resolvers.len()
         ),
     ];
-    // pod-hostprobe is Linux only: on another target the crate is empty.
-    #[cfg(target_os = "linux")]
-    lines.push(format!(
+    lines.extend(hostprobe());
+    for line in lines {
+        println!("{line}");
+    }
+}
+
+/// pod-hostprobe is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn hostprobe() -> Option<String> {
+    Some(format!(
         "pod-hostprobe: pid {}, ELF machine 0x{:x}, {} probes, {} free inodes at /",
         pod_hostprobe::sys::getpid(),
         pod_hostprobe::binfmt::SELF_MACHINE,
         pod_hostprobe::probes::PROBES.len(),
         pod_hostprobe::space::read("/").map_or_else(|e| e.to_string(), |h| h.free.inodes.to_string())
-    ));
-    for line in lines {
-        println!("{line}");
-    }
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn hostprobe() -> Option<String> {
+    None
 }
