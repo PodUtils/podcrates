@@ -18,4 +18,5 @@
 11 issue open
 12 issue open
 13 issue closed
-14 issue open
+14 issue closed
+15 issue closed

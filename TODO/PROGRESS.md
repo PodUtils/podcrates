@@ -13,14 +13,14 @@
   42113413975 of `publish.yml`). podssh took each crate of v0.2.0
   (`6ece2ff`), podnet too (`a5894fe`). The patches of `pod-proxy` went to
   both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
-- Released v0.5.0 at `7e73344` (CI 42217942520, nightly 42217950045,
-  release 42220040866; the owner's account dispatched them,
-  PodUtils/podcrates#8): the streamed body (T-069), the dial bounds its
-  resolver and the blocking runtime drops in the background (T-070), the
-  limit of a proxy at a command (T-071), the hint for podvm (T-068), the
-  tests of macOS and Windows (T-067). Each consumer took v0.4.0 (podssh
-  `72fb94d`, podnet `bf0c7ca`, podvm `b917f97` and `b1138c2`); podvm
-  (`cec4bcb`) and podnet (`dfd8bd8`) moved to v0.5.0.
+- Released v0.6.0 at `4aa2ee0` (CI 42259199860, nightly 42259205555 with
+  the 32-bit and the cross targets, release 42261756998, the dry run of
+  `publish.yml` 42261783602; PodUtils/podcrates#15): `pod-hostprobe` (T-055),
+  the errno and `statfs64` of a 32-bit target (T-080, T-072), the DoH server
+  in the diagnostics (T-073), the redirects (T-076), `HTTP_PROXY` for
+  `http://` (T-075), a dial's words (T-074), the services of podssh (T-078,
+  T-079). Each consumer is on v0.5.0 (podssh `486c001`, podnet `dfd8bd8`,
+  podvm `cec4bcb`).
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.

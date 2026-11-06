@@ -158,6 +158,16 @@ the repositories:
   of each repository of PodUtils for `(to podcrates)`
   (`scripts/agent/watch-org.sh`).
 
+### A run of a workflow (GitHub Actions is off for the session)
+
+The session's pushes start no workflow (Q6). For each run that the session
+needs, open a new issue titled exactly `[gh action] requested`: one line of
+why, and one `sh` block with each `gh` command in full (`-R` and each flag),
+`set -e` first. The owner's local agent runs the block once and writes the
+output or the error back. Never amend the block or add a second block to an
+open request: close it and open a new issue. Push nothing to `main` that the
+block's guard of the head would refuse until it ran.
+
 ## Shared CI scripts
 
 The owner's ruling (2026-11-05): a CI script that podnet and podssh share
