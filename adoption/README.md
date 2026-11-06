@@ -31,7 +31,7 @@ some files): `scripts/check-sources.py` then compares those files with
 the parent of the adoption, so that a fix that came before it is still
 found, and the files that the adoption removed are no change.
 Taken: podssh `pod-todo`, `pod-term`, `pod-identity` (podssh `04f4551`)
-and `pod-tls` (podssh `6ece2ff`); podnet `pod-todo` (podnet `6c210ed`)
+and `pod-tls` (podssh `6ece2ff`) and `pod-proxy` (podssh `a791553`); podnet `pod-todo` (podnet `6c210ed`)
 and `pod-tls` (podnet `a5894fe`, `a2af228`) and `pod-proxy` (podnet
 `380d9a4`).
 

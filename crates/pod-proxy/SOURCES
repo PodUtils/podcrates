@@ -3,6 +3,7 @@
 # with the main branch of its repository.
 
 repo PodUtils/podssh 6ece2ff6e16817a0434eb19617cc511aaa3994b0
+taken a7915535bc373644050d036a2c1cc1052c4888e5
 dir crates/podssh-ws/src/http
 # client.rs: the GET client alone stays here (https_get,
 # https_get_accepting, and the https_request and open_tls under them); the
