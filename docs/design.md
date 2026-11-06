@@ -265,7 +265,7 @@ others read its raw system calls.
 
 | Crate | Source | Lines | Pod deps |
 | --- | --- | --- | --- |
-| `pod-hostprobe` | podvm `crates/podvm-probe` (part: one disposable child for each probe, the errno and never a boolean, "could not run" as a third state, the raw system calls); podnet `crates/podnet-netns/src/doctor.rs` probes the same way | 4,500 | pod-core |
+| `pod-hostprobe` | podvm `crates/podvm-probe` (part: one disposable child for each probe, the errno and never a boolean, "could not run" as a third state, the raw system calls) and `crates/podvm-image/src/{space.rs,exec_probe.rs}`; podnet `crates/podnet-netns/src/doctor.rs` probes the same way | 7,200 | pod-core |
 | `pod-oci` | podvm `crates/podvm-image` (part: reference, platform, credentials, registry, transport, digest, the OCI types, layout, pull; the content store stays in podvm) | 4,500 | pod-core, pod-tls, pod-proxy |
 | `pod-extract` | podvm `crates/podvm-extract`: the rootless apply of a layer (order, whiteouts, path containment, an ownership sidecar in place of chown) | 3,000 | pod-core, pod-hostprobe |
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system (device nodes, accounts, the package configuration, the resolver, the CA data from `pod-tls`) | 4,600 | pod-core, pod-hostprobe, pod-tls |

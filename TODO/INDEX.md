@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**71 entries: 34 open, 1 partial, 0 blocked, 36 done.**
+**71 entries: 33 open, 2 partial, 0 blocked, 36 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 1 | 0 | 13 | 30 |
+| P2 | 15 | 2 | 0 | 13 | 30 |
 | P3 | 5 | 0 | 0 | 1 | 6 |
-| **All** | 34 | 1 | 0 | 36 | 71 |
+| **All** | 33 | 2 | 0 | 36 | 71 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -100,7 +100,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
 | [T-053](foundation.md) | P2 | S | M6 | chore | done | The names of the crates of podvm on crates.io (GitHub #1) |
 | [T-054](transport.md) | P2 | S | M1 | research | done | `pod-services`: the inventory of podvm |
-| [T-055](podvm.md) | P2 | M | M6 | feature | open | `pod-hostprobe`: the host probes of podvm |
+| [T-055](podvm.md) | P2 | M | M6 | feature | partial | `pod-hostprobe`: the host probes of podvm |
 | [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
