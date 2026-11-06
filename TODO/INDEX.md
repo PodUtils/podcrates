@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**63 entries: 37 open, 3 partial, 1 blocked, 22 done.**
+**64 entries: 38 open, 3 partial, 1 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 13 | 2 | 0 | 17 | 32 |
+| P1 | 14 | 2 | 0 | 17 | 33 |
 | P2 | 19 | 1 | 1 | 5 | 26 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 37 | 3 | 1 | 22 | 63 |
+| **All** | 38 | 3 | 1 | 22 | 64 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -109,3 +109,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-061](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: a disposable QEMU guest |
 | [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |
 | [T-063](transport.md) | P2 | M | M1 | feature | open | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |
+| [T-064](foundation.md) | P1 | S | M0 | defect | open | `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195) |

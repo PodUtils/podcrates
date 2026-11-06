@@ -793,3 +793,39 @@ The owner reserves `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`,
 `pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`,
 `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` and `pod-probe`.
 
+
+# T-064: `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195)
+
+**Source:** PodUtils/podvm#195 (COORD-002 of podvm, to podcrates).
+**Category:** defect
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm, 2026-11-06: "On Windows (Git Bash with the native Python),
+`python3` prints each repository name with a CRLF line ending. The names
+in `repos` then end in `\r`, and every issue URL but the last one is
+wrong. `curl -f` fails for each, `|| continue` passes over it, and
+`org-issues.py` gets only `PodUtils/.github`. The watcher prints nothing
+and records an empty `org-seen.txt`, with no error."
+
+## Premise
+
+- Measured: with a stand-in of `python3` that ends each line with CRLF,
+  the watcher at `367db93` recorded 0 messages.
+
+## Approach
+
+`tr -d '\r'` after the Python that lists the repositories.
+
+## Prove
+
+```sh
+sh -n scripts/agent/watch-org.sh
+```
+
+With the CRLF stand-in, the watcher records the messages of podcrates and
+podvm.

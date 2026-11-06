@@ -31,7 +31,10 @@ n=0
 while true; do
     n=$((n + 1))
     repos=$(curl -qfsS --max-time 30 "$api/orgs/PodUtils/repos?per_page=100&n=$n$$" 2> /dev/null |
-        python3 -I -c 'import json, sys; [print(r["full_name"]) for r in json.load(sys.stdin)]' 2> /dev/null)
+        python3 -I -c 'import json, sys; [print(r["full_name"]) for r in json.load(sys.stdin)]' 2> /dev/null |
+        tr -d '\r')
+    # A Python of Windows ends each line with CRLF: a name with a carriage
+    # return gives a wrong URL, which curl refuses, so tr takes them out.
     [ -n "$repos" ] || repos="PodUtils/podcrates PodUtils/podssh PodUtils/podnet PodUtils/podvm"
     for repo in $repos; do
         body=$(curl -qfsS --max-time 30 "$api/repos/$repo/issues?state=all&sort=updated&direction=desc&per_page=50&n=$n$$" 2> /dev/null) || continue
