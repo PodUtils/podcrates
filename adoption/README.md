@@ -38,7 +38,7 @@ found, and the files that the adoption removed are no change.
 Taken: podssh `pod-todo`, `pod-term`, `pod-identity` (podssh `04f4551`)
 and `pod-tls` (podssh `6ece2ff`) and `pod-proxy` (podssh `a791553`); podnet `pod-todo` (podnet `6c210ed`)
 and `pod-tls` (podnet `a5894fe`, `a2af228`) and `pod-proxy` (podnet
-`380d9a4`); podvm `pod-term` (podvm `75ed306`) and `pod-tls` (podvm
+`380d9a4`) and `pod-dns` with `pod-services` (podnet `bf0c7ca`); podvm `pod-term` (podvm `75ed306`) and `pod-tls` (podvm
 `b917f97`).
 
 A `.run` file runs the checks of the consumer's repository too (its
