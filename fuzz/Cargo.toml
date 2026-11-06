@@ -30,6 +30,7 @@ pod-core = { path = "../crates/pod-core" }
 pod-tls = { path = "../crates/pod-tls" }
 # The feature `fuzzing` exposes the SOCKS5 exchange with a scripted proxy.
 pod-proxy = { path = "../crates/pod-proxy", features = ["fuzzing"] }
+pod-dns = { path = "../crates/pod-dns" }
 
 # A crash names its line.
 [profile.release]
@@ -87,6 +88,13 @@ bench = false
 [[bin]]
 name = "connect_status"
 path = "fuzz_targets/connect_status.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dns_wire"
+path = "fuzz_targets/dns_wire.rs"
 test = false
 doc = false
 bench = false
