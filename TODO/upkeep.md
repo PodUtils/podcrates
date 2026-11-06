@@ -43,13 +43,16 @@ dependency of edition 2024; the patch raises podvm's `rust-version`.
 
 ## Done
 
-2026-11-06, partial. `adoption/podvm/pod-term.patch` at podvm `0249527`:
+2026-11-06, partial. The patch of the trial of `pod-term` (`784469a`), at podvm `0249527`:
 `PodUtils/podvm:crates/podvm-ssh/src/session.rs` takes `pod_term::echo` and keeps its
 supervisor; podvm's own 29 tests of the discipline pass on pod-term, with
 two of them changed to pod-term's Home and End (the screen's cursor moves
 with the line's); clippy of podvm's workspace, rustfmt, podvm's record
 gate, the toolchains and the static binary `shell` pass
-(`sh scripts/adoption.sh podvm pod-term`). Left: the trials of `pod-tls`
-and `pod-proxy` (after T-063), then the other crates of the order of
+(`sh scripts/adoption.sh podvm pod-term`). podvm took `pod-term` at
+`v0.3.0` in podvm `75ed306` (PodUtils/podvm#197): each line of the `.run`
+passed there, `session_interactive` too (12 passed against sshd); the trial
+leaves the directory of podvm. Left: the trials of `pod-tls` and `pod-proxy`
+(the synchronous face, T-063), then the other crates of the order of
 PodUtils/podvm#194.
 

@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**66 entries: 34 open, 1 partial, 1 blocked, 30 done.**
+**66 entries: 34 open, 1 partial, 0 blocked, 31 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 20 | 33 |
-| P2 | 16 | 1 | 1 | 9 | 27 |
+| P2 | 16 | 1 | 0 | 10 | 27 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 34 | 1 | 1 | 30 | 66 |
+| **All** | 34 | 1 | 0 | 31 | 66 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -98,7 +98,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
-| [T-053](foundation.md) | P2 | S | M6 | chore | blocked | The names of the crates of podvm on crates.io (GitHub #1) |
+| [T-053](foundation.md) | P2 | S | M6 | chore | done | The names of the crates of podvm on crates.io (GitHub #1) |
 | [T-054](transport.md) | P2 | S | M1 | research | done | `pod-services`: the inventory of podvm |
 | [T-055](podvm.md) | P2 | M | M6 | feature | open | `pod-hostprobe`: the host probes of podvm |
 | [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |

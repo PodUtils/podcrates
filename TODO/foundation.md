@@ -762,7 +762,7 @@ each writer. Q5 stays open for a standing permission of the posts.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -787,12 +787,11 @@ trusted publisher of `publish.yml`; the script finds each one.
 python3 -I scripts/check-crates-io-names.py
 ```
 
-## Blocker
+## Done
 
-The owner reserves `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`,
-`pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`,
-`pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` and `pod-probe`.
-
+2026-11-06. `python3 -I scripts/check-crates-io-names.py`: 51 names, 0
+faults; each of the 14 names is a `0.0.0` placeholder with the repository of
+podcrates.
 
 # T-064: `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195)
 
