@@ -52,7 +52,7 @@ fn each_pinned_image_is_a_repository_and_a_sha256_digest() {
     }
 }
 
-/// podvm `crates/podvm-image/src/reference.rs` and `crates/podvm/src/images.rs`.
+/// podvm `crates/podvm-image/src/reference.rs` and `crates/podvm/src/images/` (`images.rs` before podvm `0d4b943`).
 #[test]
 fn the_hub_of_podvm_s_references_is_the_docker_hub_file() {
     let hub = service("docker-hub-registry");

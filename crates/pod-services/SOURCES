@@ -71,10 +71,11 @@ file 231a0fd5892a18b18a3f3cf06a6746158e720125 src/ws_relay.rs -> crates/pod-serv
 # the other lines stay in podvm. A change of such a file may change a
 # value: the session reads the change, and moves the value with its source
 # here.
-repo PodUtils/podvm 5209adb756298b9beda1770e70ecb751317594a3
+repo PodUtils/podvm 6a6d730205b428619f1ff4775ee1cdcd86ce1783
 file 5c9e1e095e6905c744b3a8445195980fb14b0d66 crates/podvm-image/src/reference.rs -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/tests/podvm.rs
-file 62426e33034fe8d251cdfd6962252f08aface1a6 crates/podvm/src/images.rs -> crates/pod-services/services/docker-hub-registry.toml
-file 29c62e1dad5d19ef95d74ab7c9851e5b15fc9d29 crates/podvm-measure/src/workload.rs -> crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/alpine-netboot.toml crates/pod-services/tests/podvm.rs
+file 4f7352e225526be911cd24ad61f718a81206056e crates/podvm/src/images/list.rs -> crates/pod-services/services/docker-hub-registry.toml
+file eb007d2644f7056908b84bec52ab4bc99e217366 crates/podvm/src/images/login_extract.rs -> crates/pod-services/services/docker-hub-registry.toml
+file 85b77a681d63ccdb3c195e344cae761bb4d02914 crates/podvm-measure/src/workload.rs -> crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/alpine-netboot.toml crates/pod-services/tests/podvm.rs
 file af9c09dc0c3bd42fa68e2d1c0cd7b4d14560baaa scripts/common/distro-matrix.sh -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/ghcr-registry.toml crates/pod-services/services/quay-registry.toml crates/pod-services/services/opensuse-registry.toml
 file 5438dd9f680697216193b8210529f6aba4e4935a experiments/70-whiteout-contract.sh -> crates/pod-services/services/docker-hub-registry.toml
 file eb09ea5995f07aef9d67a131811d9f471c6ca33c experiments/80-interposer-abi.sh -> crates/pod-services/services/docker-hub-registry.toml

@@ -380,7 +380,7 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 | --- | --- |
 | `crates/podvm-image/src/reference.rs` `DEFAULT_DOMAIN`, `DEFAULT_ENDPOINT`, `OFFICIAL_PREFIX`, the alias `index.docker.io` of `Reference::endpoint` (C01) | [x] `docker-hub-registry` facts `domain`, `official-prefix`, `aliases`; endpoint `registry` (`host`) |
 | `reference.rs` `DEFAULT_TAG`, the parse of a reference and its tests | stay: the rules of a reference (pod-oci, T-056) |
-| `crates/podvm/src/images.rs` the default server of `podvm login` and `podvm logout`; `crates/podvm-image/src/credentials.rs` `server_host` (C05) | [x] `docker-hub-registry` fact `credential-key`; the files of the user's logins stay (pod-oci) |
+| `crates/podvm/src/images/list.rs` and `images/login_extract.rs` (`images.rs` before podvm `0d4b943`) the default server of `podvm login` and `podvm logout`; `crates/podvm-image/src/credentials.rs` `server_host` (C05) | [x] `docker-hub-registry` fact `credential-key`; the files of the user's logins stay (pod-oci) |
 | `crates/podvm-image/src/registry.rs` the realm of a token (C03) | stays: the realm comes from the registry's challenge (pod-oci); the fact `token-realm` of each registry is for the watch only |
 | `registry.rs`, `transport.rs`, `tls.rs` (C02, C04, C06, C07) | stay: the client, the policy and the trust paths (pod-oci, pod-tls) |
 | `crates/podvm-measure/src/workload.rs` `ALPINE_REF` (E06) | [x] `ecr-public-registry` fact `guest-userland` |
