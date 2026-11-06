@@ -387,3 +387,45 @@ is the wide one. `statfs_reads_the_wide_struct_on_each_width`, run as an
 i686 musl binary on this host: without the change it failed with
 `f_ffree 17729625001984, f_files 1097445294077`; with it, it passes, and on
 x86_64 too. clippy is clean for x86_64, i686 and armv7.
+
+# T-080: `pod-hostprobe`: a failed system call reads as a success on a 32-bit target
+
+**Source:** the nightly run 42242987001 at `68a714b` (job `cross (i686-unknown-linux-musl)`).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P0
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`a_negative_return_decodes_as_the_errno_and_not_as_a_value` failed on
+i686: `close(-1)` gave `Ok(4294967287)`, not `Err(EBADF)`. Each failed
+system call read as a success, so the tests of `space`, `writable` and
+`tests/children.rs` failed too. The fault came with the source
+(`PodUtils/podvm:crates/podvm-probe/src/sys/raw.rs`).
+
+## Premise
+
+- Read: `syscall6` casts the `usize` of `syscalls::raw::syscall6` to `i64`;
+  on a 32-bit target that cast keeps the 32-bit word positive, and `split`
+  finds no value in `-4095..=-1`.
+
+## Approach
+
+The cast goes through `isize`, which keeps the sign of the 32-bit word.
+
+## Prove
+
+```sh
+cargo zigbuild --tests -p pod-hostprobe --target i686-unknown-linux-musl  # then run each test binary
+```
+
+## Done
+
+2026-11-06. On this host, as i686 musl binaries: the unit tests 93
+passed, `space_precheck` 2, `namespace` 3, `namespace_base` 5, and
+`children` (66 rows: 53 ok, 10 denied, 3 skipped); before the change the
+nightly's job failed as above. clippy is clean for x86_64 and i686. podvm
+has the same fault in its frozen `PodUtils/podvm:crates/podvm-probe/src/sys/raw.rs`.
+

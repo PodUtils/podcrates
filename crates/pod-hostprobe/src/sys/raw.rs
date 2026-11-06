@@ -84,6 +84,8 @@ pub const MOVE_MOUNT_F_EMPTY_PATH: u64 = 0x0000_0004;
     target_arch = "powerpc64",
 )))]
 pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
+    // Through `isize`: on a 32-bit target the kernel's -4095..=-1 is a
+    // 32-bit word, and a cast of `usize` to `i64` would read it as positive.
     unsafe {
         syscalls::raw::syscall6(
             nr as usize,
@@ -93,7 +95,7 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
             a3 as usize,
             a4 as usize,
             a5 as usize,
-        ) as i64
+        ) as isize as i64
     }
 }
 
