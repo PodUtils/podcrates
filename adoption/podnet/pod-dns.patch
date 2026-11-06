@@ -1,160 +1,5 @@
-diff --git a/Cargo.lock b/Cargo.lock
-index 2d91b56..06d67fd 100644
---- a/Cargo.lock
-+++ b/Cargo.lock
-@@ -2088,7 +2088,6 @@ dependencies = [
- [[package]]
- name = "pod-core"
- version = "0.3.0"
--source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
- dependencies = [
-  "libc",
-  "rand",
-@@ -2096,10 +2095,29 @@ dependencies = [
-  "windows-sys 0.61.2",
- ]
- 
-+[[package]]
-+name = "pod-dns"
-+version = "0.3.0"
-+dependencies = [
-+ "base64",
-+ "bytes",
-+ "h2",
-+ "http",
-+ "pod-core",
-+ "pod-proxy",
-+ "pod-services",
-+ "pod-tls",
-+ "rustls",
-+ "rustls-pki-types",
-+ "serde_json",
-+ "tokio",
-+ "tokio-rustls",
-+ "tracing",
-+]
-+
- [[package]]
- name = "pod-proxy"
- version = "0.3.0"
--source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
- dependencies = [
-  "base64",
-  "libc",
-@@ -2112,10 +2130,17 @@ dependencies = [
-  "tracing",
- ]
- 
-+[[package]]
-+name = "pod-services"
-+version = "0.3.0"
-+dependencies = [
-+ "pod-core",
-+ "toml",
-+]
-+
- [[package]]
- name = "pod-tls"
- version = "0.3.0"
--source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
- dependencies = [
-  "base64",
-  "p256",
-@@ -2133,7 +2158,6 @@ dependencies = [
- [[package]]
- name = "pod-todo"
- version = "0.3.0"
--source = "git+https://github.com/PodUtils/podcrates?tag=v0.3.0#c0d62b8d64c0ddde0ab9727adca62307d17213dd"
- 
- [[package]]
- name = "podnet"
-@@ -2155,7 +2179,9 @@ dependencies = [
-  "httparse",
-  "libc",
-  "pod-core",
-+ "pod-dns",
-  "pod-proxy",
-+ "pod-services",
-  "pod-tls",
-  "podnet-netns",
-  "qrcode",
-@@ -2848,6 +2874,15 @@ dependencies = [
-  "serde_core",
- ]
- 
-+[[package]]
-+name = "serde_spanned"
-+version = "1.1.2"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "4e7523beb55eece201a2356bee0bbca0d1ab466c14c07703b2e0ee6d42cb0c2c"
-+dependencies = [
-+ "serde_core",
-+]
-+
- [[package]]
- name = "serde_urlencoded"
- version = "0.7.1"
-@@ -3333,6 +3368,45 @@ dependencies = [
-  "tokio",
- ]
- 
-+[[package]]
-+name = "toml"
-+version = "1.2.0+spec-1.1.0"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "c5ffcdf8f50436dbbfd675c1fe1b8e0854f42b7defea8584bdebe1aee900e561"
-+dependencies = [
-+ "indexmap",
-+ "serde_core",
-+ "serde_spanned",
-+ "toml_datetime",
-+ "toml_parser",
-+ "toml_writer",
-+ "winnow",
-+]
-+
-+[[package]]
-+name = "toml_datetime"
-+version = "1.1.2+spec-1.1.0"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "2b86d767906c6c42421dcba507eb9d203e779497710a47782a224bb871653053"
-+dependencies = [
-+ "serde_core",
-+]
-+
-+[[package]]
-+name = "toml_parser"
-+version = "1.1.5+spec-1.1.0"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
-+dependencies = [
-+ "winnow",
-+]
-+
-+[[package]]
-+name = "toml_writer"
-+version = "1.2.0+spec-1.1.0"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "009dbb7700f11c55ef83aebbe4c0e9cf1f1ac0844bd8d6f00dc38f302026e13a"
-+
- [[package]]
- name = "tower"
- version = "0.5.3"
-@@ -3894,6 +3968,12 @@ version = "0.52.6"
- source = "registry+https://github.com/rust-lang/crates.io-index"
- checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
- 
-+[[package]]
-+name = "winnow"
-+version = "1.0.5"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
-+checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
-+
- [[package]]
- name = "wit-bindgen"
- version = "0.57.1"
 diff --git a/Cargo.toml b/Cargo.toml
-index 474669c..15507e3 100644
+index 474669cd..15507e3f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -58,15 +58,22 @@ path = "src/main.rs"
@@ -184,7 +29,7 @@ index 474669c..15507e3 100644
  axum = { version = "0.8", features = ["multipart"] }
  base64 = "0.23"
 diff --git a/SECURITY.md b/SECURITY.md
-index 3597b4c..c8b619d 100644
+index 3597b4c2..c8b619d6 100644
 --- a/SECURITY.md
 +++ b/SECURITY.md
 @@ -130,9 +130,11 @@ the host name. `src/trust.rs` gives the roots:
@@ -203,7 +48,7 @@ index 3597b4c..c8b619d 100644
  connect without one.
  
 diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
-index eb2120a..93fb45e 100644
+index eb2120a1..93fb45e9 100644
 --- a/crates/podnet-todo/Cargo.toml
 +++ b/crates/podnet-todo/Cargo.toml
 @@ -9,4 +9,4 @@ license = "0BSD"
@@ -213,10 +58,10 @@ index eb2120a..93fb45e 100644
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.3.0" }
 +pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.4.0" }
 diff --git a/docs/maintenance.md b/docs/maintenance.md
-index 1a322a3..345d45b 100644
+index ee324625..005d6e13 100644
 --- a/docs/maintenance.md
 +++ b/docs/maintenance.md
-@@ -186,7 +186,8 @@ At the first stable release (no `-beta.N`), also:
+@@ -236,7 +236,8 @@ At the first stable release (no `-beta.N`), also:
  | `src/detach.rs`, `src/instances.rs` | `--detach`, the supervisor, `ps`, `stop`, `logs`, `wait` |
  | `src/agent.rs` | `doctor --agent`, `agent up` |
  | `src/egress.rs`, `src/fetch.rs` | glue over `pod-proxy`: the dial of each connection (the proxy of `--proxy`, the variables or a tool's file, `NO_PROXY`, Digest, the race of addresses) and the HTTP client, with podnet's settings, words, hops and counters |
@@ -227,7 +72,7 @@ index 1a322a3..345d45b 100644
  | `crates/podnet-todo/` | `cargo todo`: a wrapper over `pod-todo`; the facts of podnet are in `TODO/todo.toml` |
  | `src/vnet/` | `podnet net`: the userspace networks, the LD_PRELOAD shim |
 diff --git a/docs/protocol.md b/docs/protocol.md
-index 10d5376..4b1065b 100644
+index 10d5376b..4b1065b1 100644
 --- a/docs/protocol.md
 +++ b/docs/protocol.md
 @@ -56,8 +56,10 @@ The edge addresses come from the SRV record
@@ -244,7 +89,7 @@ index 10d5376..4b1065b 100644
    TLS 1.2, and its chain does not end at the edge roots (section 6). So
    podnet uses 7844 only, and carries the edge on TCP 443 inside WARP
 diff --git a/docs/target-environment.md b/docs/target-environment.md
-index e899eab..e13814b 100644
+index e899eab6..e13814b2 100644
 --- a/docs/target-environment.md
 +++ b/docs/target-environment.md
 @@ -106,7 +106,7 @@ fail that check. The steps:
@@ -257,7 +102,7 @@ index e899eab..e13814b 100644
  | No `/proc` | The seccomp backend of `podnet pod` cannot read the memory of the program; `podnet pod doctor` reports it | inferred | `crates/podnet-netns/src/seccomp.rs` |
  | `/proc/<pid>/mem` and `process_vm_writev` are refused | `getsockname` and `getpeername` answer `EOPNOTSUPP` under the seccomp backend; QUIC clients fail, and a program that reads its own address can crash (a Go `LocalAddr()` type assertion). A warning and the `write program memory` row of `pod doctor` say so; `--backend netns` avoids it | measured (issue 186) | `crates/podnet-netns/src/seccomp.rs` `handle_sockname`; `tests/pod_seccomp.rs` `getpeername_is_the_inet_address_or_eopnotsupp` |
 diff --git a/fuzz/Cargo.toml b/fuzz/Cargo.toml
-index 2aa3dac..f55a7e0 100644
+index 2aa3dacc..f55a7e03 100644
 --- a/fuzz/Cargo.toml
 +++ b/fuzz/Cargo.toml
 @@ -94,13 +94,6 @@ test = false
@@ -276,15 +121,45 @@ index 2aa3dac..f55a7e0 100644
  path = "fuzz_targets/acl_rule.rs"
 diff --git a/fuzz/fuzz_targets/doh_json.rs b/fuzz/fuzz_targets/doh_json.rs
 deleted file mode 100644
-index 62280fc..0000000
+index 62280fcc..00000000
 --- a/fuzz/fuzz_targets/doh_json.rs
 +++ /dev/null
 @@ -1,3 +0,0 @@
 -#![no_main]
 -
 -libfuzzer_sys::fuzz_target!(|data: &[u8]| podnet::fuzzing::doh_json(data));
+diff --git a/scripts/size-allow.txt b/scripts/size-allow.txt
+index e9b42878..1ec4f875 100644
+--- a/scripts/size-allow.txt
++++ b/scripts/size-allow.txt
+@@ -10,12 +10,12 @@
+ 1123 src/cloudflare/http2.rs
+ 1207 src/config.rs
+ 1210 src/detach.rs
+-1307 src/doctor.rs
++1305 src/doctor.rs
+ 1734 src/edge_h2.rs
+ 2142 src/feature/mod.rs
+ 7133 src/main.rs
+ 2034 src/proxy.rs
+-891 src/quicktunnel.rs
++890 src/quicktunnel.rs
+ 1139 src/relay_reverse.rs
+ 1901 src/share.rs
+ 1599 src/tunnel.rs
+@@ -24,8 +24,8 @@
+ 1072 src/vnet/switch.rs
+ 1680 src/warp/ip.rs
+ 1105 src/warp/mod.rs
+-1993 src/warp/proxy.rs
+-932 src/warp/register.rs
++1990 src/warp/proxy.rs
++908 src/warp/register.rs
+ 1211 src/warp/session.rs
+ 1048 src/warp/up.rs
+ 1078 src/warp/wg.rs
 diff --git a/src/agent.rs b/src/agent.rs
-index f5955ac..f5c02ed 100644
+index f5955ace..f5c02edf 100644
 --- a/src/agent.rs
 +++ b/src/agent.rs
 @@ -314,7 +314,8 @@ async fn udp_dns(timeout: Duration) -> Outcome {
@@ -298,7 +173,7 @@ index f5955ac..f5c02ed 100644
      }
      let mut buf = [0u8; 512];
 diff --git a/src/cloudflare/http2.rs b/src/cloudflare/http2.rs
-index 9c261e0..a4e2502 100644
+index 9c261e05..a4e2502e 100644
 --- a/src/cloudflare/http2.rs
 +++ b/src/cloudflare/http2.rs
 @@ -34,7 +34,7 @@ use std::time::Duration;
@@ -333,10 +208,10 @@ index 9c261e0..a4e2502 100644
  
      #[test]
 diff --git a/src/cloudflare/mod.rs b/src/cloudflare/mod.rs
-index f165ca6..e3d49d0 100644
+index f165ca6e..4f80b4ef 100644
 --- a/src/cloudflare/mod.rs
 +++ b/src/cloudflare/mod.rs
-@@ -42,14 +42,28 @@ use std::sync::Arc;
+@@ -42,14 +42,32 @@ use std::sync::Arc;
  #[allow(unused_imports)]
  use std::time::Duration;
  
@@ -346,7 +221,10 @@ index f165ca6..e3d49d0 100644
 +/// the role of `cloudflare-tunnel-edge` (`pod-services`).
 +fn edge_endpoint(role: &str) -> &'static crate::services::Endpoint {
 +    let endpoints = crate::services::endpoints_of(crate::services::EDGE, role);
-+    endpoints.first().copied().unwrap_or_else(|| panic!("the edge of pod-services has no role {role}"))
++    endpoints
++        .first()
++        .copied()
++        .unwrap_or_else(|| panic!("the edge of pod-services has no role {role}"))
 +}
  
 -/// SNI for the QUIC transport. Deliberately not the same as [`QUIC_ALPN`].
@@ -354,7 +232,8 @@ index f165ca6..e3d49d0 100644
 +/// ALPN for the QUIC transport: the ALPN of the role `quic`.
 +pub fn quic_alpn() -> &'static [u8] {
 +    let alpn = edge_endpoint("quic").alpn();
-+    alpn.first().map_or(b"argotunnel".as_slice(), |a| a.as_bytes())
++    alpn.first()
++        .map_or(b"argotunnel".as_slice(), |a| a.as_bytes())
 +}
 +
 +/// SNI for the QUIC transport. Deliberately not the same as [`quic_alpn`].
@@ -370,7 +249,7 @@ index f165ca6..e3d49d0 100644
  
  /// The most streams that the edge can open at the same time, on QUIC and
  /// on HTTP/2. The edge opens one stream for each visitor request, and a
-@@ -57,17 +71,20 @@ pub const H2_SNI: &str = "h2.cftunnel.com";
+@@ -57,17 +75,20 @@ pub const H2_SNI: &str = "h2.cftunnel.com";
  /// is 100.
  pub const MAX_EDGE_STREAMS: u32 = 256;
  
@@ -401,7 +280,7 @@ index f165ca6..e3d49d0 100644
  
  /// The six-byte preamble on a data stream, from `tunnelrpc/quic/protocol.go`.
  pub const DATA_STREAM_SIGNATURE: [u8; 6] = [0x0A, 0x36, 0xCD, 0x12, 0xA1, 0x3E];
-@@ -280,7 +297,7 @@ impl std::error::Error for EdgeError {}
+@@ -280,7 +301,7 @@ impl std::error::Error for EdgeError {}
  pub fn edge_tls_config(alpn: &[u8]) -> Result<Arc<rustls::ClientConfig>, String> {
      let alpns: &[&[u8]] = if alpn.is_empty() { &[] } else { &[alpn] };
      crate::trust::context()
@@ -410,7 +289,7 @@ index f165ca6..e3d49d0 100644
          .map(Arc::new)
          .map_err(|e| format!("{e:#}"))
  }
-@@ -339,25 +356,8 @@ mod tests {
+@@ -339,25 +360,8 @@ mod tests {
  
      #[test]
      fn speaks_names_the_tag_of_the_pin() {
@@ -438,7 +317,7 @@ index f165ca6..e3d49d0 100644
      }
  
      #[test]
-@@ -414,30 +414,10 @@ mod tests {
+@@ -414,30 +418,10 @@ mod tests {
          assert_eq!(creds.tunnel_id_bytes().unwrap()[0], 0xc1);
      }
  
@@ -470,7 +349,7 @@ index f165ca6..e3d49d0 100644
              "QUIC config should build with the argotunnel ALPN"
          );
          let h2 = edge_tls_config(&[]).expect("h2 config");
-@@ -445,7 +425,7 @@ mod tests {
+@@ -445,7 +429,7 @@ mod tests {
              h2.alpn_protocols.is_empty(),
              "the HTTP/2 transport must send no ALPN"
          );
@@ -480,7 +359,7 @@ index f165ca6..e3d49d0 100644
      }
  }
 diff --git a/src/cloudflare/quic.rs b/src/cloudflare/quic.rs
-index 58234f6..45c153a 100644
+index 58234f6a..f6015d76 100644
 --- a/src/cloudflare/quic.rs
 +++ b/src/cloudflare/quic.rs
 @@ -13,7 +13,7 @@
@@ -510,7 +389,7 @@ index 58234f6..45c153a 100644
          .map_err(|e| anyhow::anyhow!("could not start connecting to {socket}: {e}"))?;
      match tokio::time::timeout(HANDSHAKE_TIMEOUT, connecting).await {
          Ok(Ok(conn)) => Ok(conn),
-@@ -228,9 +228,9 @@ mod tests {
+@@ -228,9 +228,12 @@ mod tests {
  
      #[test]
      fn alpn_and_sni_are_distinct() {
@@ -519,12 +398,15 @@ index 58234f6..45c153a 100644
 -        assert_ne!(super::super::QUIC_SNI.as_bytes(), super::super::QUIC_ALPN);
 +        assert_eq!(super::super::quic_alpn(), b"argotunnel");
 +        assert_eq!(super::super::quic_sni(), "quic.cftunnel.com");
-+        assert_ne!(super::super::quic_sni().as_bytes(), super::super::quic_alpn());
++        assert_ne!(
++            super::super::quic_sni().as_bytes(),
++            super::super::quic_alpn()
++        );
      }
  
      #[test]
 diff --git a/src/cloudflare/rpc.rs b/src/cloudflare/rpc.rs
-index d1da6ce..bf662df 100644
+index d1da6ce7..bf662dfe 100644
 --- a/src/cloudflare/rpc.rs
 +++ b/src/cloudflare/rpc.rs
 @@ -44,7 +44,7 @@ impl std::fmt::Display for Refused {
@@ -551,7 +433,7 @@ index d1da6ce..bf662df 100644
          }
      }
 diff --git a/src/config.rs b/src/config.rs
-index 6c8f451..6273844 100644
+index 6c8f4515..62738446 100644
 --- a/src/config.rs
 +++ b/src/config.rs
 @@ -293,7 +293,7 @@ pub struct Config {
@@ -564,34 +446,19 @@ index 6c8f451..6273844 100644
              credentials: Credentials::Quick,
              protocol: Protocol::Auto,
 diff --git a/src/doctor.rs b/src/doctor.rs
-index 17029c0..e16bf60 100644
+index 17029c0d..dd121ec1 100644
 --- a/src/doctor.rs
 +++ b/src/doctor.rs
-@@ -105,31 +105,45 @@ impl Target {
+@@ -105,31 +105,29 @@ impl Target {
      }
  }
  
 -/// The address of the MASQUE front door.
 -pub const MASQUE_ADDRESS: &str = "162.159.198.2";
-+/// The first address of the endpoint `name` of WARP (`pod-services`).
-+fn warp_address(name: &str) -> &'static str {
-+    let endpoint = crate::services::endpoint(crate::services::WARP, name);
-+    let first = endpoint.addresses().first();
-+    first.map(|a| a.as_ref()).unwrap_or_else(|| panic!("{name} of WARP has no address"))
-+}
-+
-+/// The address of the MASQUE front door: the endpoint `masque-v4`.
-+pub fn masque_address() -> &'static str {
-+    warp_address("masque-v4")
-+}
- /// The IPv6 address of the MASQUE front door (the IPv6-only kit: the doctor
+-/// The IPv6 address of the MASQUE front door (the IPv6-only kit: the doctor
 -/// gave "0 of 3 legs" on a host where the tunnel worked over IPv6).
 -pub const MASQUE_ADDRESS_V6: &str = "2606:4700:103::2";
-+/// gave "0 of 3 legs" on a host where the tunnel worked over IPv6): the
-+/// endpoint `masque-v6`.
-+pub fn masque_address_v6() -> &'static str {
-+    warp_address("masque-v6")
-+}
++pub use crate::services::{masque_address, masque_address_v6};
  
  /// The targets: the APIs, the edge by name and by address, and MASQUE.
  pub fn targets() -> Vec<Target> {
@@ -622,7 +489,7 @@ index 17029c0..e16bf60 100644
              port: 7844,
              tls: Tls::Edge,
          },
-@@ -141,20 +155,20 @@ pub fn targets() -> Vec<Target> {
+@@ -141,20 +139,20 @@ pub fn targets() -> Vec<Target> {
          },
          Target {
              id: "masque",
@@ -648,7 +515,7 @@ index 17029c0..e16bf60 100644
              tls: Tls::Masque,
          }),
      )
-@@ -900,7 +914,7 @@ fn issuer_of(der: &[u8]) -> Option<String> {
+@@ -900,7 +898,7 @@ fn issuer_of(der: &[u8]) -> Option<String> {
  fn verifier(tls: Tls) -> Result<Option<Arc<dyn ServerCertVerifier>>, String> {
      let extra: &[&[u8]] = match tls {
          Tls::Web => &[],
@@ -657,7 +524,7 @@ index 17029c0..e16bf60 100644
          Tls::Masque => return Ok(None),
      };
      let context = crate::trust::context();
-@@ -937,10 +951,10 @@ async fn tls(target: &Target, timeout: Duration) -> TlsResult {
+@@ -937,10 +935,10 @@ async fn tls(target: &Target, timeout: Duration) -> TlsResult {
          .with_no_client_auth();
      let sni = match target.tls {
          Tls::Web => target.host.clone(),
@@ -670,7 +537,7 @@ index 17029c0..e16bf60 100644
          }
      };
      let Ok(name) = ServerName::try_from(sni.clone()) else {
-@@ -1044,7 +1058,7 @@ fn names(paths: &[Path]) -> Option<String> {
+@@ -1044,7 +1042,7 @@ fn names(paths: &[Path]) -> Option<String> {
  
  fn legs(paths: &[Path], udp: &Egress) -> Vec<Leg> {
      let find = |id: &str| paths.iter().find(|p| p.target.id == id);
@@ -679,7 +546,7 @@ index 17029c0..e16bf60 100644
      let udp_off = crate::udp::Choice::from_env().ok() == Some(crate::udp::Choice::Off);
      let quic = if udp_off {
          Leg {
-@@ -1204,8 +1218,8 @@ mod tests {
+@@ -1204,8 +1202,8 @@ mod tests {
      fn the_ipv6_front_door_makes_quic_warp_work() {
          let udp = Egress::Unknown("x".into());
          let paths = vec![
@@ -690,7 +557,7 @@ index 17029c0..e16bf60 100644
              path("warp-api", "api.cloudflareclient.com", 443, true),
          ];
          let warp = legs(&paths, &udp)
-@@ -1215,7 +1229,7 @@ mod tests {
+@@ -1215,7 +1213,7 @@ mod tests {
          assert_eq!(warp.verdict, Verdict::Ok, "{}", warp.reason);
          assert!(warp.reason.contains("2606:4700:103::2"), "{}", warp.reason);
          let paths = vec![
@@ -700,7 +567,7 @@ index 17029c0..e16bf60 100644
          ];
          let warp = legs(&paths, &udp)
 diff --git a/src/edge_discovery.rs b/src/edge_discovery.rs
-index 5b36363..d28aa55 100644
+index 5b363639..f21d8df4 100644
 --- a/src/edge_discovery.rs
 +++ b/src/edge_discovery.rs
 @@ -10,7 +10,7 @@
@@ -712,7 +579,7 @@ index 5b36363..d28aa55 100644
  //!    when one is configured.
  //! 2. The system resolver.
  //! 3. A short list of anycast addresses, for a host where DNS is entirely
-@@ -19,36 +19,42 @@
+@@ -19,36 +19,44 @@
  //! The port comes from the SRV record, not from a constant, so a future change
  //! at Cloudflare is followed rather than guessed. An SRV answer of another
  //! shape (more than two targets, a target outside `argotunnel.com`, two
@@ -749,7 +616,9 @@ index 5b36363..d28aa55 100644
 -    "198.41.200.53",
 -];
 +fn static_edge_ips() -> Vec<&'static str> {
-+    let ips = services::get(EDGE).texts("static-addresses").unwrap_or_default();
++    let ips = services::get(EDGE)
++        .texts("static-addresses")
++        .unwrap_or_default();
 +    ips.iter().map(|ip| ip.as_ref()).collect()
 +}
  
@@ -771,7 +640,7 @@ index 5b36363..d28aa55 100644
  pub fn checked_targets(targets: Vec<(String, u16)>) -> Vec<(String, u16)> {
      let mut ports: Vec<u16> = targets.iter().map(|(_, p)| *p).collect();
      ports.sort();
-@@ -59,9 +65,9 @@ pub fn checked_targets(targets: Vec<(String, u16)>) -> Vec<(String, u16)> {
+@@ -59,9 +67,9 @@ pub fn checked_targets(targets: Vec<(String, u16)>) -> Vec<(String, u16)> {
          Some(format!("it has {} targets, not 1 or 2", targets.len()))
      } else if let Some((name, _)) = targets
          .iter()
@@ -783,7 +652,7 @@ index 5b36363..d28aa55 100644
      } else if ports.len() > 1 {
          Some(format!("it has the ports {ports:?}, not one port"))
      } else {
-@@ -75,19 +81,23 @@ pub fn checked_targets(targets: Vec<(String, u16)>) -> Vec<(String, u16)> {
+@@ -75,19 +83,23 @@ pub fn checked_targets(targets: Vec<(String, u16)>) -> Vec<(String, u16)> {
              targets
          }
          Some(reason) => {
@@ -814,7 +683,7 @@ index 5b36363..d28aa55 100644
  
  /// Resolve the edge, preferring DoH, then the system resolver, then the
  /// static list. Returns at least one address or an error naming every attempt.
-@@ -125,9 +135,9 @@ pub async fn discover_system(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
+@@ -125,9 +137,9 @@ pub async fn discover_system(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
          .build()
          .context("starting the system resolver")?;
      let srv = resolver
@@ -826,7 +695,7 @@ index 5b36363..d28aa55 100644
      let targets: Vec<(String, u16)> = srv
          .answers()
          .iter()
-@@ -157,10 +167,10 @@ pub async fn discover_system(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
+@@ -157,10 +169,10 @@ pub async fn discover_system(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
  
  /// Resolve through Cloudflare's DNS-over-HTTPS JSON API.
  pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
@@ -840,7 +709,7 @@ index 5b36363..d28aa55 100644
              continue;
          }
          if let Some((target, port)) = parse_srv(&answer.data) {
-@@ -171,7 +181,7 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
+@@ -171,7 +183,7 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
  
      let mut edges = Vec::new();
      for (region, (target, port)) in (0u8..).zip(targets) {
@@ -849,7 +718,7 @@ index 5b36363..d28aa55 100644
              IpVersionFilter::V4Only => &[("A", 1)],
              IpVersionFilter::V6Only => &[("AAAA", 28)],
              IpVersionFilter::Auto => &[("A", 1), ("AAAA", 28)],
-@@ -184,8 +194,8 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
+@@ -184,8 +196,8 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
                      continue;
                  }
              };
@@ -860,7 +729,7 @@ index 5b36363..d28aa55 100644
                      continue;
                  }
                  let Ok(ip) = entry.data.trim().parse::<IpAddr>() else {
-@@ -209,8 +219,9 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
+@@ -209,8 +221,9 @@ pub async fn discover_doh(filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
  
  async fn query(name: &str, rtype: &str) -> Result<crate::resolve::DohAnswer> {
      let answer = crate::resolve::doh_query(name, rtype).await?;
@@ -872,7 +741,7 @@ index 5b36363..d28aa55 100644
      }
      Ok(answer)
  }
-@@ -230,7 +241,7 @@ pub(crate) fn parse_srv(data: &str) -> Option<(String, u16)> {
+@@ -230,7 +243,7 @@ pub(crate) fn parse_srv(data: &str) -> Option<(String, u16)> {
  
  fn static_edges(filter: IpVersionFilter) -> Vec<EdgeAddr> {
      let mut out = Vec::new();
@@ -881,7 +750,7 @@ index 5b36363..d28aa55 100644
          let Ok(ip) = text.parse::<IpAddr>() else {
              continue;
          };
-@@ -247,7 +258,7 @@ fn static_edges(filter: IpVersionFilter) -> Vec<EdgeAddr> {
+@@ -247,7 +260,7 @@ fn static_edges(filter: IpVersionFilter) -> Vec<EdgeAddr> {
          if keep {
              out.push(EdgeAddr {
                  ip,
@@ -890,7 +759,7 @@ index 5b36363..d28aa55 100644
                  version,
                  // The first two are in region1, the others in region2.
                  region: u8::from(!text.starts_with("198.41.192.")),
-@@ -273,10 +284,10 @@ mod tests {
+@@ -273,10 +286,10 @@ mod tests {
      #[test]
      fn decodes_a_cloudflare_doh_answer() {
          let body = r#"{"Status":0,"Answer":[{"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":300,"data":"2 1 7844 region2.v2.argotunnel.com"}]}"#;
@@ -905,7 +774,7 @@ index 5b36363..d28aa55 100644
      }
  
      #[test]
-@@ -284,7 +295,7 @@ mod tests {
+@@ -284,7 +297,7 @@ mod tests {
          let t = |list: &[(&str, u16)]| -> Vec<(String, u16)> {
              list.iter().map(|(n, p)| (n.to_string(), *p)).collect()
          };
@@ -915,7 +784,7 @@ index 5b36363..d28aa55 100644
              ("region1.v2.argotunnel.com", 7844),
              ("region2.v2.argotunnel.com", 7844),
 diff --git a/src/edge_h2.rs b/src/edge_h2.rs
-index eae629c..74d616c 100644
+index eae629c2..74d616c0 100644
 --- a/src/edge_h2.rs
 +++ b/src/edge_h2.rs
 @@ -40,7 +40,7 @@ use crate::cloudflare::http2::{
@@ -937,7 +806,7 @@ index eae629c..74d616c 100644
      let tls = tokio::time::timeout(
          DIAL_TIMEOUT,
 diff --git a/src/egress.rs b/src/egress.rs
-index 982d6ec..e5e0db3 100644
+index 982d6ec7..e5e0db34 100644
 --- a/src/egress.rs
 +++ b/src/egress.rs
 @@ -21,12 +21,12 @@
@@ -1134,7 +1003,7 @@ index 982d6ec..e5e0db3 100644
      fn decision(&self, decision: &'static str, outcome: &str) {
          crate::decisions::count(decision, outcome);
 diff --git a/src/fuzzing.rs b/src/fuzzing.rs
-index a6f19a8..2c9caf8 100644
+index a6f19a84..2c9caf8e 100644
 --- a/src/fuzzing.rs
 +++ b/src/fuzzing.rs
 @@ -24,7 +24,6 @@ pub const TARGETS: &[(&str, Target)] = &[
@@ -1174,7 +1043,7 @@ index a6f19a8..2c9caf8 100644
          "ingress_rule" => s(&[
              "http://127.0.0.1:8080",
 diff --git a/src/lib.rs b/src/lib.rs
-index 6acea42..a226ccd 100644
+index 6acea42a..a226ccd5 100644
 --- a/src/lib.rs
 +++ b/src/lib.rs
 @@ -113,6 +113,7 @@ pub mod report;
@@ -1186,7 +1055,7 @@ index 6acea42..a226ccd 100644
  pub mod state;
  pub mod status;
 diff --git a/src/main.rs b/src/main.rs
-index 8a2f3af..16980b2 100644
+index 8a2f3af6..5ed4616b 100644
 --- a/src/main.rs
 +++ b/src/main.rs
 @@ -395,7 +395,7 @@ struct TunnelOpts {
@@ -1207,32 +1076,67 @@ index 8a2f3af..16980b2 100644
      relay: String,
      #[command(subcommand)]
      command: RelayCommand,
-@@ -2375,6 +2375,13 @@ fn detach_of(command: &Command) -> Option<&DetachArgs> {
+@@ -1014,21 +1014,21 @@ fn main() {
+         unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+     }
+     let level = if cli.quiet {
+-        "podnet=warn"
++        podnet::report::log_filter("warn")
+     } else {
+         match cli.verbose {
+-            0 => "podnet=info",
+-            1 => "podnet=debug",
+-            _ => "podnet=trace",
++            0 => podnet::report::log_filter("info"),
++            1 => podnet::report::log_filter("debug"),
++            _ => podnet::report::log_filter("trace"),
+         }
+     };
+     let filter = match std::env::var("RUST_LOG") {
+         Ok(value) if !value.is_empty() => EnvFilter::try_new(&value).unwrap_or_else(|e| {
+             // Before, a bad RUST_LOG gave the default level with no word.
+             eprintln!("podnet: RUST_LOG={value:?} does not parse ({e}); the log level is {level}");
+-            EnvFilter::new(level)
++            EnvFilter::new(&level)
+         }),
+-        _ => EnvFilter::new(level),
++        _ => EnvFilter::new(&level),
+     };
+     // Colours only on a terminal: a log file or a pipe gets plain text.
+     let ansi = match cli.color.as_str() {
+@@ -2375,6 +2375,15 @@ fn detach_of(command: &Command) -> Option<&DetachArgs> {
  /// Apply --proxy, --no-proxy and --resolve.
  fn network_options(cli: &Cli) -> Result<()> {
      use podnet::egress::Proxy;
-+    // The pins go into the resolver of the first dialer, which --proxy and
-+    // --no-proxy make: they are set first, and a bad value is told after a
-+    // bad proxy, as before.
-+    let pins = cli
-+        .resolve
-+        .as_ref()
-+        .map(|list| podnet::resolve::set_pins(list).context("--resolve"));
++    // The pins first: the first dialer, of --proxy or --no-proxy, takes them.
++    if let Some(list) = &cli.resolve {
++        podnet::resolve::set_pins(list).context("--resolve")?;
++    } else if let Ok(list) = std::env::var(podnet::resolve::PINS_VARIABLE) {
++        // Issue 252: a bad PODNET_RESOLVE is an error here, not a warning at the first dial.
++        podnet::resolve::parse_pins(&list)
++            .context(podnet::resolve::PINS_VARIABLE)
++            .fault(Fault::Config)?;
++    }
      if let Some(spec) = &cli.proxy {
          // Issue 95: a value with no scheme (PODNET_PROXY=notaurl) became
          // http://notaurl:8080, and each leg then failed on a name. The
-@@ -2395,8 +2402,8 @@ fn network_options(cli: &Cli) -> Result<()> {
+@@ -2395,15 +2404,6 @@ fn network_options(cli: &Cli) -> Result<()> {
      } else if cli.no_proxy {
          podnet::egress::set_direct();
      }
 -    if let Some(list) = &cli.resolve {
 -        podnet::resolve::set_pins(list).context("--resolve")?;
-+    if let Some(set) = pins {
-+        set?;
-     } else if let Ok(list) = std::env::var(podnet::resolve::PINS_VARIABLE) {
-         // Issue 252: a bad PODNET_RESOLVE was a warning at the first dial
-         // (and none for a command with no dial).
-@@ -4350,7 +4357,7 @@ enum WarpCommand {
+-    } else if let Ok(list) = std::env::var(podnet::resolve::PINS_VARIABLE) {
+-        // Issue 252: a bad PODNET_RESOLVE was a warning at the first dial
+-        // (and none for a command with no dial).
+-        podnet::resolve::parse_pins(&list)
+-            .context(podnet::resolve::PINS_VARIABLE)
+-            .fault(Fault::Config)?;
+-    }
+     Ok(())
+ }
+ 
+@@ -4350,7 +4350,7 @@ enum WarpCommand {
          #[arg(long, env = "PODNET_WARP_L4", hide_env_values = true, conflicts_with_all = ["dns", "listen_identity"])]
          l4: bool,
          /// The TLS name of the L4 door.
@@ -1241,16 +1145,16 @@ index 8a2f3af..16980b2 100644
          l4_sni: String,
          /// LISTEN=PATH: a listener whose clients use the WARP device of the
          /// identity file PATH (made when it does not exist: that registers
-@@ -5156,7 +5163,7 @@ async fn warp(mut args: WarpArgs) -> Result<()> {
+@@ -5156,7 +5156,7 @@ async fn warp(mut args: WarpArgs) -> Result<()> {
          }
          WarpCommand::Probe { target } => {
              let targets = if target.is_empty() {
 -                vec!["1.1.1.1:443".to_string(), "198.41.192.27:7844".to_string()]
-+                podnet::warp::probe_targets()
++                podnet::services::probe_targets()
              } else {
                  target
              };
-@@ -5795,7 +5802,7 @@ async fn warp_run_raw(
+@@ -5795,7 +5795,7 @@ async fn warp_run_raw(
          v4,
          v6: client.device().ipv6(),
          mtu: podnet::warp::ip::TUNNEL_MTU,
@@ -1260,7 +1164,7 @@ index 8a2f3af..16980b2 100644
      let pid = pod.pid;
      let tun = podnet::warp::tun::Tun::from_fd(pod.tun, "eth0")?;
 diff --git a/src/preflight.rs b/src/preflight.rs
-index e9853b8..a03a22a 100644
+index e9853b83..a03a22a3 100644
 --- a/src/preflight.rs
 +++ b/src/preflight.rs
 @@ -32,7 +32,7 @@ fn edge_row(found: anyhow::Result<usize>) -> (Status, String) {
@@ -1282,27 +1186,21 @@ index e9853b8..a03a22a 100644
                  crate::tunnel::plan_with_proxy(plan, config.protocol, proxy.as_ref());
              // The check sends no UDP probe: only PODNET_UDP=off applies here.
 diff --git a/src/quicktunnel.rs b/src/quicktunnel.rs
-index 5a1b7f6..facac8b 100644
+index 5a1b7f66..6137070d 100644
 --- a/src/quicktunnel.rs
 +++ b/src/quicktunnel.rs
-@@ -24,8 +24,13 @@
+@@ -24,8 +24,7 @@
  
  use serde::{Deserialize, Serialize};
  
 -/// Default provisioning endpoint, matching cloudflared's `quick-service` flag.
 -pub const DEFAULT_QUICK_SERVICE: &str = "https://api.trycloudflare.com";
-+/// Default provisioning endpoint, matching cloudflared's `quick-service` flag:
-+/// `https://` and the host of the endpoint `api` of `trycloudflare`
-+/// (`pod-services`).
-+pub fn default_quick_service() -> String {
-+    let api = crate::services::endpoint(crate::services::QUICK, "api");
-+    format!("https://{}", api.host())
-+}
++pub use crate::services::default_quick_service;
  
  /// The anonymous provisioning response. Only the fields podnet uses are modelled;
  /// cloudflared's `QuickTunnel` also carries `name`, which is unused here.
 diff --git a/src/relay.rs b/src/relay.rs
-index 674dcc8..8bd7634 100644
+index 674dcc86..8bd76341 100644
 --- a/src/relay.rs
 +++ b/src/relay.rs
 @@ -37,8 +37,11 @@ use tokio::net::UnixStream;
@@ -1338,7 +1236,7 @@ index 674dcc8..8bd7634 100644
          }
      }
 diff --git a/src/relay_pool.rs b/src/relay_pool.rs
-index bc6c12b..2011df5 100644
+index bc6c12b2..2011df51 100644
 --- a/src/relay_pool.rs
 +++ b/src/relay_pool.rs
 @@ -4,7 +4,7 @@
@@ -1489,8 +1387,35 @@ index bc6c12b..2011df5 100644
      }
  
      #[test]
+diff --git a/src/report.rs b/src/report.rs
+index c7d784ce..632d30c3 100644
+--- a/src/report.rs
++++ b/src/report.rs
+@@ -477,6 +477,22 @@ pub fn send(command: Option<&str>, exit: i32, error: Option<&anyhow::Error>) {
+     }
+ }
+ 
++/// The log filter of `level` (`warn`, `info`, `debug`, `trace`): podnet and
++/// the crates of PodUtils/podcrates that write its diagnostics (the resolver,
++/// the dial, TLS), so that `-v` shows their lines too.
++pub fn log_filter(level: &str) -> String {
++    [
++        "podnet",
++        "pod_core",
++        "pod_dns",
++        "pod_proxy",
++        "pod_tls",
++        "pod_services",
++    ]
++    .map(|target| format!("{target}={level}"))
++    .join(",")
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
 diff --git a/src/resolve.rs b/src/resolve.rs
-index 2c386d5..d1a6d9d 100644
+index 2c386d5d..d1a6d9d6 100644
 --- a/src/resolve.rs
 +++ b/src/resolve.rs
 @@ -1,4 +1,6 @@
@@ -2210,10 +2135,10 @@ index 2c386d5..d1a6d9d 100644
  }
 diff --git a/src/services.rs b/src/services.rs
 new file mode 100644
-index 0000000..4974745
+index 00000000..e92367e0
 --- /dev/null
 +++ b/src/services.rs
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,168 @@
 +//! The services of other parties that podnet uses (the relay, the edge of
 +//! Cloudflare's tunnels and its roots, the quick tunnels, WARP, 1.1.1.1 and
 +//! Pinggy): the data of `pod-services` (PodUtils/podcrates), each value with
@@ -2261,8 +2186,129 @@ index 0000000..4974745
 +pub fn edge_port() -> u16 {
 +    endpoints_of(EDGE, "h2").first().map_or(7844, |e| e.port())
 +}
++
++/// The default provisioning endpoint of the quick tunnels, as cloudflared's
++/// flag `quick-service`: `https://` and the host of the endpoint `api`.
++pub fn default_quick_service() -> String {
++    format!("https://{}", endpoint(QUICK, "api").host())
++}
++
++/// A name of the edge, for the choice of the proxy (`NO_PROXY` may name it):
++/// the host of the endpoint `h2-region1`.
++pub fn edge_region_name() -> &'static str {
++    endpoint(EDGE, "h2-region1").host()
++}
++
++/// The default targets of `warp probe`: the trace of 1.1.1.1 on its IPv4
++/// address, and the edge at the fact `warp-probe-address` on the port of the
++/// role `h2`.
++pub fn probe_targets() -> Vec<String> {
++    let v4 = endpoint(ONE, "trace")
++        .socket_addrs()
++        .into_iter()
++        .find(|a| a.is_ipv4());
++    let edge = format!("{}:{}", text(EDGE, "warp-probe-address"), edge_port());
++    v4.map(|a| a.to_string())
++        .into_iter()
++        .chain([edge])
++        .collect()
++}
++
++/// The relay of `--transport relay` when no other is given: the URL of the
++/// endpoint `default` of `ajam-relay`.
++pub fn default_relay() -> &'static str {
++    static URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
++    URL.get_or_init(|| endpoint("ajam-relay", "default").url())
++}
++
++/// The resolver that names go to through the WARP tunnel: the endpoint
++/// `udp-1` of 1.1.1.1.
++pub fn tunnel_resolver() -> std::net::SocketAddr {
++    let addrs = endpoint(ONE, "udp-1").socket_addrs();
++    addrs
++        .first()
++        .copied()
++        .expect("udp-1 of pod-services is an address")
++}
++
++/// The name of the DNS query of the check of WARP's data path: the fact
++/// `check-name` of 1.1.1.1.
++pub fn check_name() -> &'static str {
++    text(ONE, "check-name")
++}
++
++/// The first address of the endpoint `name` of WARP.
++fn warp_address(name: &str) -> &'static str {
++    let first = endpoint(WARP, name).addresses().first();
++    first
++        .map(|a| a.as_ref())
++        .unwrap_or_else(|| panic!("{name} of WARP has no address"))
++}
++
++/// The address of the MASQUE front door: the endpoint `masque-v4` of WARP.
++pub fn masque_address() -> &'static str {
++    warp_address("masque-v4")
++}
++
++/// The IPv6 address of the MASQUE front door (the IPv6-only kit: the doctor
++/// gave "0 of 3 legs" on a host where the tunnel worked over IPv6): the
++/// endpoint `masque-v6` of WARP.
++pub fn masque_address_v6() -> &'static str {
++    warp_address("masque-v6")
++}
++
++/// The values of WARP's API and of its MASQUE front door.
++pub mod warp {
++    use super::{endpoint, text, WARP};
++
++    /// The API host, on TCP 443: the endpoint `api`.
++    pub fn api_base() -> String {
++        endpoint(WARP, "api").url()
++    }
++
++    /// A second name of the same API: podnet tries it after a dial, TLS or
++    /// 5xx failure of the first. A proxy allowlist can have one name and not
++    /// the other. The endpoint `api-second`.
++    pub fn api_second() -> String {
++        endpoint(WARP, "api-second").url()
++    }
++
++    /// The version segment of the API. It must agree with the build number
++    /// of [`client_version`]; the service refuses a pair that does not. The
++    /// fact `api-version`.
++    pub fn api_version() -> &'static str {
++        text(WARP, "api-version")
++    }
++
++    /// The value of `CF-Client-Version`: the fact `client-version`.
++    pub fn client_version() -> &'static str {
++        text(WARP, "client-version")
++    }
++
++    /// The `User-Agent` of the Android client, which the service expects:
++    /// the fact `user-agent`.
++    pub fn user_agent() -> &'static str {
++        text(WARP, "user-agent")
++    }
++
++    /// The SNI of the MASQUE front door (the endpoint `masque-v4`).
++    pub fn masque_sni() -> &'static str {
++        endpoint(WARP, "masque-v4").server_name()
++    }
++
++    /// The MASQUE port of the front door: 443; the API may give others.
++    pub fn masque_port() -> u16 {
++        endpoint(WARP, "masque-v4").port()
++    }
++
++    /// The `:authority` of the CONNECT-IP request. Only the host matters:
++    /// Cloudflare reads it as a hint of routing. The fact `connect-uri`.
++    pub fn connect_uri() -> &'static str {
++        text(WARP, "connect-uri")
++    }
++}
 diff --git a/src/transport/ssh.rs b/src/transport/ssh.rs
-index 65273c0..1242fc0 100644
+index 65273c05..1242fc0f 100644
 --- a/src/transport/ssh.rs
 +++ b/src/transport/ssh.rs
 @@ -50,7 +50,7 @@ pub struct SshRelay {
@@ -2275,7 +2321,7 @@ index 65273c0..1242fc0 100644
              username: "podnet".to_string(),
              private_key: None,
 diff --git a/src/trust.rs b/src/trust.rs
-index d6737bd..8aae88b 100644
+index d6737bd9..e5876ebf 100644
 --- a/src/trust.rs
 +++ b/src/trust.rs
 @@ -12,7 +12,8 @@
@@ -2288,7 +2334,7 @@ index d6737bd..8aae88b 100644
  //! no option that accepts each certificate for these connections; only an
  //! origin can turn off the check (`noTLSVerify`, `--no-tls-verify`).
  //!
-@@ -29,8 +30,12 @@ use pod_tls::{CaFile, Context, Settings, Words};
+@@ -29,8 +30,14 @@ use pod_tls::{CaFile, Context, Settings, Words};
  pub const CA_FILE_VARIABLE: &str = "SSL_CERT_FILE";
  /// The name of the file of roots beside the binary.
  pub const BESIDE_BINARY: &str = "podnet-ca.pem";
@@ -2298,12 +2344,23 @@ index d6737bd..8aae88b 100644
 +/// `roots-first-end` of the edge (`pod-services`).
 +pub fn edge_roots_first_end() -> String {
 +    let edge = crate::services::get(crate::services::EDGE);
-+    edge.date("roots-first-end").map(|d| d.to_string()).unwrap_or_default()
++    edge.date("roots-first-end")
++        .map(|d| d.to_string())
++        .unwrap_or_default()
 +}
  
  static CA_FILE: OnceLock<PathBuf> = OnceLock::new();
  
-@@ -100,19 +105,6 @@ mod tests {
+@@ -76,8 +83,6 @@ pub fn unix_secs(time: std::time::SystemTime) -> i64 {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::*;
+-
+     /// The roots of pod-tls are the version of webpki-roots in Cargo.lock.
+     #[test]
+     fn the_roots_version_is_the_one_of_cargo_lock() {
+@@ -100,20 +105,6 @@ mod tests {
          assert_eq!(*newest, pod_tls::ROOTS_VERSION);
      }
  
@@ -2320,11 +2377,12 @@ index d6737bd..8aae88b 100644
 -        let end: i32 = EDGE_ROOTS_FIRST_END[..4].parse().unwrap();
 -        assert!(end >= year, "an edge root ends on {EDGE_ROOTS_FIRST_END}");
 -    }
- 
+-
      /// Only these files may set a certificate verifier of their own: the
      /// origin option noTLSVerify (util/tls.rs, net.rs), the MASQUE key pin
+     /// (warp/session.rs, which always compares the key), and the doctor
 diff --git a/src/tunnel.rs b/src/tunnel.rs
-index b29e4be..3971348 100644
+index b29e4beb..03bc85a1 100644
 --- a/src/tunnel.rs
 +++ b/src/tunnel.rs
 @@ -199,7 +199,7 @@ impl Tunnel {
@@ -2336,21 +2394,17 @@ index b29e4be..3971348 100644
          let (plan, note) = plan_with_proxy(plan, protocol, proxy.as_ref());
          if let Some(note) = note {
              if matches!(protocol, Protocol::Auto) {
-@@ -598,8 +598,11 @@ pub fn leg_plan(protocol: Protocol, transport: Transport) -> Result<Vec<LegKind>
+@@ -598,8 +598,7 @@ pub fn leg_plan(protocol: Protocol, transport: Transport) -> Result<Vec<LegKind>
      })
  }
  
 -/// A name of the edge, for the choice of the proxy (`NO_PROXY` may name it).
 -pub(crate) const EDGE_REGION_NAME: &str = "region1.v2.argotunnel.com";
-+/// A name of the edge, for the choice of the proxy (`NO_PROXY` may name it):
-+/// the host of the endpoint `h2-region1` of the edge (`pod-services`).
-+pub(crate) fn edge_region_name() -> &'static str {
-+    crate::services::endpoint(crate::services::EDGE, "h2-region1").host()
-+}
++pub(crate) use crate::services::edge_region_name;
  
  /// With a proxy, `--protocol auto` does not try QUIC on UDP 7844: no proxy
  /// carries UDP, so the packets go around the proxy or are lost. QUIC inside
-@@ -1321,7 +1324,8 @@ const VERIFY_INTERVAL: Duration = Duration::from_secs(2);
+@@ -1321,7 +1320,8 @@ const VERIFY_INTERVAL: Duration = Duration::from_secs(2);
  #[derive(Clone, Copy, Debug)]
  pub struct Verified {
      /// The step of the resolver chain that resolves the public name now:
@@ -2360,11 +2414,20 @@ index b29e4be..3971348 100644
      pub dns: &'static str,
  }
  
+@@ -1525,7 +1525,7 @@ mod tests {
+     #[tokio::test]
+     async fn the_dns_step_of_a_url() {
+         crate::test_host::need_localhost!();
+-        assert_eq!(public_dns("https://127.0.0.1:8443/s/x/").await, "system");
++        assert_eq!(public_dns("https://127.0.0.1:8443/s/x/").await, "literal");
+         assert_eq!(public_dns("https://localhost/").await, "system");
+         assert_eq!(public_dns("https:///x").await, "none");
+     }
 diff --git a/src/udp.rs b/src/udp.rs
-index cd31a41..58e6407 100644
+index cd31a410..aac89e9a 100644
 --- a/src/udp.rs
 +++ b/src/udp.rs
-@@ -29,8 +29,13 @@ pub const DOCTOR_DEADLINE: Duration = Duration::from_secs(3);
+@@ -29,8 +29,15 @@ pub const DOCTOR_DEADLINE: Duration = Duration::from_secs(3);
  pub const START_DEADLINE: Duration = Duration::from_millis(150);
  
  /// The edge address of the probe when `PODNET_EDGE` is not set: an anycast
@@ -2374,13 +2437,15 @@ index cd31a41..58e6407 100644
 +/// of the edge of `pod-services`, on the port of the role `h2`).
 +pub fn default_probe_target() -> SocketAddr {
 +    let address = crate::services::text(crate::services::EDGE, "probe-address");
-+    let ip: std::net::IpAddr = address.parse().expect("the probe address of pod-services is an address");
++    let ip: std::net::IpAddr = address
++        .parse()
++        .expect("the probe address of pod-services is an address");
 +    SocketAddr::new(ip, crate::services::edge_port())
 +}
  
  /// The result of a probe.
  #[derive(Clone, Debug, PartialEq, Eq)]
-@@ -106,7 +111,7 @@ pub fn check_edge_env() -> Result<()> {
+@@ -106,7 +113,7 @@ pub fn check_edge_env() -> Result<()> {
  }
  
  /// The target of the probe: the first address of `PODNET_EDGE`, else
@@ -2389,7 +2454,7 @@ index cd31a41..58e6407 100644
  pub fn probe_target() -> SocketAddr {
      std::env::var("PODNET_EDGE")
          .ok()
-@@ -115,7 +120,7 @@ pub fn probe_target() -> SocketAddr {
+@@ -115,7 +122,7 @@ pub fn probe_target() -> SocketAddr {
                  .map(str::trim)
                  .find_map(|item| item.parse().ok())
          })
@@ -2399,7 +2464,7 @@ index cd31a41..58e6407 100644
  
  /// One QUIC long-header packet with the reserved version 0x?a?a?a?a and a
 diff --git a/src/util/mod.rs b/src/util/mod.rs
-index 54783bf..bbcc279 100644
+index 54783bf8..bbcc279b 100644
 --- a/src/util/mod.rs
 +++ b/src/util/mod.rs
 @@ -115,8 +115,9 @@ pub fn validate_quick_hostname(raw: &str) -> Result<String> {
@@ -2415,10 +2480,10 @@ index 54783bf..bbcc279 100644
      if sub.is_empty()
          || sub.contains('.')
 diff --git a/src/warp/exit.rs b/src/warp/exit.rs
-index 4e65c6d..71c7af7 100644
+index 4e65c6d0..29b67c51 100644
 --- a/src/warp/exit.rs
 +++ b/src/warp/exit.rs
-@@ -10,15 +10,38 @@ use std::time::{Duration, Instant};
+@@ -10,15 +10,41 @@ use std::time::{Duration, Instant};
  use anyhow::{bail, Context as _, Result};
  use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
  
@@ -2430,7 +2495,10 @@ index 4e65c6d..71c7af7 100644
 +
 +/// The address of the trace of the family `v6`.
 +fn trace_address_of(v6: bool) -> std::net::IpAddr {
-+    let found = trace_endpoint().ip_addrs().into_iter().find(|ip| ip.is_ipv6() == v6);
++    let found = trace_endpoint()
++        .ip_addrs()
++        .into_iter()
++        .find(|ip| ip.is_ipv6() == v6);
 +    found.expect("the trace of pod-services has an address of each family")
 +}
 +
@@ -2463,7 +2531,7 @@ index 4e65c6d..71c7af7 100644
  /// The time limit of the trace.
  pub const TRACE_TIMEOUT: Duration = Duration::from_secs(15);
  /// The most bytes of the answer.
-@@ -85,7 +108,7 @@ pub fn parse(body: &str, rtt: Duration) -> Option<Exit> {
+@@ -85,7 +111,7 @@ pub fn parse(body: &str, rtt: Duration) -> Option<Exit> {
  
  /// The exit of the session of `stack`.
  pub async fn trace(stack: &super::WarpStack) -> Result<Exit> {
@@ -2472,7 +2540,7 @@ index 4e65c6d..71c7af7 100644
  }
  
  /// The IPv6 egress address of the session of `stack` (issue 184): the
-@@ -93,7 +116,7 @@ pub async fn trace(stack: &super::WarpStack) -> Result<Exit> {
+@@ -93,7 +119,7 @@ pub async fn trace(stack: &super::WarpStack) -> Result<Exit> {
  /// the IPv6 resolver of Cloudflare.
  pub async fn egress_v6(stack: &super::WarpStack) -> Result<String> {
      let mut errors = Vec::new();
@@ -2481,7 +2549,7 @@ index 4e65c6d..71c7af7 100644
          Ok(exit) => match exit.ip {
              Some(ip) if ip.contains(':') => return Ok(ip),
              other => errors.push(format!(
-@@ -105,7 +128,7 @@ pub async fn egress_v6(stack: &super::WarpStack) -> Result<String> {
+@@ -105,7 +131,7 @@ pub async fn egress_v6(stack: &super::WarpStack) -> Result<String> {
      }
      match whoami_v6(stack).await {
          Ok(ip) => Ok(ip),
@@ -2490,7 +2558,7 @@ index 4e65c6d..71c7af7 100644
      }
  }
  
-@@ -114,7 +137,7 @@ pub fn whoami_query(id: u16) -> Vec<u8> {
+@@ -114,7 +140,7 @@ pub fn whoami_query(id: u16) -> Vec<u8> {
      let mut q = Vec::with_capacity(40);
      q.extend_from_slice(&id.to_be_bytes());
      q.extend_from_slice(&[0x01, 0x00, 0, 1, 0, 0, 0, 0, 0, 0]);
@@ -2499,7 +2567,7 @@ index 4e65c6d..71c7af7 100644
          q.push(label.len() as u8);
          q.extend_from_slice(label.as_bytes());
      }
-@@ -166,7 +189,7 @@ pub fn first_txt(message: &[u8]) -> Option<String> {
+@@ -166,7 +192,7 @@ pub fn first_txt(message: &[u8]) -> Option<String> {
  }
  
  async fn whoami_v6(stack: &super::WarpStack) -> Result<String> {
@@ -2508,7 +2576,7 @@ index 4e65c6d..71c7af7 100644
      let query = whoami_query(0x7e57);
      let answer = super::proxy::forward_dns_to(stack, server, &query).await?;
      let text = first_txt(&answer).context("the answer has no TXT record")?;
-@@ -187,14 +210,16 @@ async fn trace_at(stack: &super::WarpStack, address: std::net::IpAddr) -> Result
+@@ -187,14 +213,16 @@ async fn trace_at(stack: &super::WarpStack, address: std::net::IpAddr) -> Result
          )
          .await?;
          let config = crate::trust::context().client_config_with(&[], &[b"http/1.1"])?;
@@ -2528,7 +2596,7 @@ index 4e65c6d..71c7af7 100644
          tls.write_all(request.as_bytes()).await?;
          tls.flush().await?;
 diff --git a/src/warp/l4.rs b/src/warp/l4.rs
-index 3c2e7f5..31dd21f 100644
+index 3c2e7f54..31dd21f8 100644
 --- a/src/warp/l4.rs
 +++ b/src/warp/l4.rs
 @@ -13,7 +13,9 @@ use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _, DuplexStream};
@@ -2551,49 +2619,23 @@ index 3c2e7f5..31dd21f 100644
          let mut pipe = door.dial("example.com", 443).await.unwrap();
          pipe.write_all(b"ping through L4").await.unwrap();
          let mut back = [0u8; 15];
-diff --git a/src/warp/mod.rs b/src/warp/mod.rs
-index 763bf16..7909ea5 100644
---- a/src/warp/mod.rs
-+++ b/src/warp/mod.rs
-@@ -932,6 +932,17 @@ pub(crate) fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Re
-     result
- }
- 
-+/// The default targets of `warp probe`: the trace of 1.1.1.1 on its IPv4
-+/// address (`cloudflare-dns`), and the edge at the fact `warp-probe-address`
-+/// on the port of the role `h2` (`cloudflare-tunnel-edge`), of `pod-services`.
-+pub fn probe_targets() -> Vec<String> {
-+    let trace = crate::services::endpoint(crate::services::ONE, "trace");
-+    let v4 = trace.socket_addrs().into_iter().find(|a| a.is_ipv4());
-+    let edge = crate::services::text(crate::services::EDGE, "warp-probe-address");
-+    let edge = format!("{edge}:{}", crate::services::edge_port());
-+    v4.map(|a| a.to_string()).into_iter().chain([edge]).collect()
-+}
-+
- /// `write_private` for the commands of the binary.
- pub fn write_private_file(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-     write_private(path, bytes)
 diff --git a/src/warp/proxy.rs b/src/warp/proxy.rs
-index 13cc714..5768713 100644
+index 13cc7143..09666965 100644
 --- a/src/warp/proxy.rs
 +++ b/src/warp/proxy.rs
-@@ -21,9 +21,12 @@ use tracing::{debug, info, warn};
+@@ -21,9 +21,8 @@ use tracing::{debug, info, warn};
  
  use super::ip::{TcpConn, WarpStack};
  
 -/// The resolver that names are sent to through the tunnel.
 -pub const TUNNEL_RESOLVER: SocketAddr =
 -    SocketAddr::new(IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1)), 53);
-+/// The resolver that names are sent to through the tunnel: the endpoint
-+/// `udp-1` of `cloudflare-dns` (`pod-services`).
-+pub fn tunnel_resolver() -> SocketAddr {
-+    let endpoint = crate::services::endpoint(crate::services::ONE, "udp-1");
-+    endpoint.socket_addrs().first().copied().expect("udp-1 of pod-services is an address")
-+}
++use crate::services::check_name;
++pub use crate::services::tunnel_resolver;
  /// The longest time for a DNS answer through the tunnel.
  const DNS_TIMEOUT: Duration = Duration::from_secs(5);
  /// The longest time for a TCP connect through the tunnel.
-@@ -186,7 +189,7 @@ pub fn health_log(live: Arc<super::Live<WarpStack>>) {
+@@ -186,7 +185,7 @@ pub fn health_log(live: Arc<super::Live<WarpStack>>) {
  }
  
  /// A DNS forwarder (issue 117): each query that comes to `socket` goes
@@ -2602,7 +2644,7 @@ index 13cc714..5768713 100644
  /// answer goes back. For a program that sends its own DNS on UDP (a host
  /// with a fake or broken resolver).
  pub fn serve_dns(live: Arc<super::Live<WarpStack>>, socket: tokio::net::UdpSocket) {
-@@ -321,13 +324,13 @@ fn env_resolvers() -> Option<Vec<Resolver>> {
+@@ -321,13 +320,13 @@ fn env_resolvers() -> Option<Vec<Resolver>> {
  }
  
  /// The resolvers of the tunnel: the ones that were set (`--resolver`),
@@ -2618,26 +2660,23 @@ index 13cc714..5768713 100644
  }
  
  /// True when resolvers were set (not the default).
-@@ -1116,8 +1119,11 @@ const DNS_RESEND: Duration = Duration::from_millis(1200);
+@@ -1116,9 +1115,6 @@ const DNS_RESEND: Duration = Duration::from_millis(1200);
  /// session (issue 120), for a measurement.
  pub const NO_CHECK_VARIABLE: &str = "PODNET_WARP_NO_CHECK";
  
 -/// The name of the DNS query of the check of the data path.
 -const CHECK_NAME: &str = "cloudflare.com";
-+/// The name of the DNS query of the check of the data path: the fact
-+/// `check-name` of `cloudflare-dns` (`pod-services`).
-+fn check_name() -> &'static str {
-+    crate::services::text(crate::services::ONE, "check-name")
-+}
- 
+-
  /// Check that a packet crosses a new session (issue 120): a DNS query to
  /// the resolver of the tunnel gets an answer. Before, a session was "up"
-@@ -1127,14 +1133,14 @@ pub async fn check_data_path(stack: &WarpStack, ipv4: bool) -> Result<Duration>
+ /// after the HTTP/2 answer 200, and a front door that carried no data gave
+@@ -1127,14 +1123,15 @@ pub async fn check_data_path(stack: &WarpStack, ipv4: bool) -> Result<Duration>
      if resolvers_set() {
          // Issue 145: the resolvers that were set.
          let start = std::time::Instant::now();
 -        let query = podnet_netns::dns::build_query(0x5a5a, CHECK_NAME, podnet_netns::dns::TYPE_A)?;
-+        let query = podnet_netns::dns::build_query(0x5a5a, check_name(), podnet_netns::dns::TYPE_A)?;
++        let query =
++            podnet_netns::dns::build_query(0x5a5a, check_name(), podnet_netns::dns::TYPE_A)?;
          exchange_any(stack, &resolvers(), &query)
              .await
              .context("the MASQUE session is open, and no resolver answered through it")?;
@@ -2649,7 +2688,7 @@ index 13cc714..5768713 100644
      } else {
          "[2606:4700:4700::1111]:53".parse().expect("an address")
      };
-@@ -1143,7 +1149,7 @@ pub async fn check_data_path(stack: &WarpStack, ipv4: bool) -> Result<Duration>
+@@ -1143,7 +1140,7 @@ pub async fn check_data_path(stack: &WarpStack, ipv4: bool) -> Result<Duration>
  
  async fn check_data_path_at(stack: &WarpStack, server: SocketAddr) -> Result<Duration> {
      let start = std::time::Instant::now();
@@ -2658,7 +2697,7 @@ index 13cc714..5768713 100644
          .await
          .map_err(|e| {
              e.context(format!(
-@@ -1155,7 +1161,7 @@ async fn check_data_path_at(stack: &WarpStack, server: SocketAddr) -> Result<Dur
+@@ -1155,7 +1152,7 @@ async fn check_data_path_at(stack: &WarpStack, server: SocketAddr) -> Result<Dur
  
  async fn query(stack: &WarpStack, name: &str, kind: u16) -> Result<Vec<IpAddr>> {
      if !resolvers_set() {
@@ -2668,7 +2707,7 @@ index 13cc714..5768713 100644
      // Issue 145: the resolvers that were set, one after the other.
      let id = (std::process::id() as u16) ^ (name.len() as u16).rotate_left(7) ^ kind;
 diff --git a/src/warp/quic.rs b/src/warp/quic.rs
-index 8d5bcbe..066ccbe 100644
+index 8d5bcbe4..066ccbe4 100644
 --- a/src/warp/quic.rs
 +++ b/src/warp/quic.rs
 @@ -258,8 +258,8 @@ pub async fn endpoint(stack: &WarpStack) -> Result<quinn::Endpoint> {
@@ -2683,35 +2722,25 @@ index 8d5bcbe..066ccbe 100644
      let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls)
          .map_err(|err| anyhow::anyhow!("rustls to quinn: {err}"))?;
 diff --git a/src/warp/register.rs b/src/warp/register.rs
-index c0e03a4..32ebae8 100644
+index c0e03a49..baf43d45 100644
 --- a/src/warp/register.rs
 +++ b/src/warp/register.rs
-@@ -21,24 +21,34 @@ use serde::{Deserialize, Serialize};
+@@ -21,24 +21,20 @@ use serde::{Deserialize, Serialize};
  use crate::egress::Proxy;
  use crate::fetch::{Request, Response};
  
 -/// API host. Reachable on TCP 443, which is the point of this module.
 -pub const API_BASE: &str = "https://api.cloudflareclient.com";
-+/// A text fact of WARP (`pod-services`).
-+fn fact(name: &str) -> &'static str {
-+    crate::services::text(crate::services::WARP, name)
-+}
-+
-+/// API host. Reachable on TCP 443, which is the point of this module: the
-+/// endpoint `api` of WARP.
-+pub fn api_base() -> String {
-+    crate::services::endpoint(crate::services::WARP, "api").url()
-+}
- 
- /// A second name of the same API (podssh): podnet tries it after a dial, TLS
- /// or 5xx failure of the first. It resolved on 2026-11-02 to other
- /// Cloudflare addresses. A proxy allowlist can have one name and not the
+-
+-/// A second name of the same API (podssh): podnet tries it after a dial, TLS
+-/// or 5xx failure of the first. It resolved on 2026-11-02 to other
+-/// Cloudflare addresses. A proxy allowlist can have one name and not the
 -/// other.
 -pub const API_SECOND: &str = "https://api.devices.cloudflare.com";
-+/// other. The endpoint `api-second` of WARP.
-+pub fn api_second() -> String {
-+    crate::services::endpoint(crate::services::WARP, "api-second").url()
-+}
++pub use crate::services::warp::{
++    api_base, api_second, api_version, client_version, connect_uri, masque_port, masque_sni,
++    user_agent,
++};
  
  /// The environment variable with the one API base to use
  /// (`https://HOST[:PORT]`).
@@ -2727,7 +2756,7 @@ index c0e03a4..32ebae8 100644
      };
      let value = value.trim_end_matches('/');
      let rest = value
-@@ -57,7 +67,7 @@ pub fn api_bases(value: Option<&str>) -> Result<Vec<String>> {
+@@ -57,7 +53,7 @@ pub fn api_bases(value: Option<&str>) -> Result<Vec<String>> {
      Ok(vec![value.to_string()])
  }
  
@@ -2736,7 +2765,7 @@ index c0e03a4..32ebae8 100644
  /// one answers with a status under 500. The error names each base.
  async fn send_api(request: Request) -> Result<Response> {
      let bases = api_bases(std::env::var(API_VARIABLE).ok().as_deref())
-@@ -69,7 +79,7 @@ async fn send_api(request: Request) -> Result<Response> {
+@@ -69,7 +65,7 @@ async fn send_api(request: Request) -> Result<Response> {
  async fn send_api_to(request: Request, bases: &[String]) -> Result<Response> {
      let path = request
          .url
@@ -2745,61 +2774,34 @@ index c0e03a4..32ebae8 100644
          .unwrap_or(&request.url)
          .to_string();
      let mut failures = Vec::new();
-@@ -95,24 +105,43 @@ async fn send_api_to(request: Request, bases: &[String]) -> Result<Response> {
+@@ -94,26 +90,6 @@ async fn send_api_to(request: Request, bases: &[String]) -> Result<Response> {
+     unreachable!("the last base returns")
  }
  
- /// API version segment. It must agree with the build number in
+-/// API version segment. It must agree with the build number in
 -/// [`CLIENT_VERSION`]; the service rejects a mismatched pair.
 -pub const API_VERSION: &str = "v0a5641";
-+/// [`client_version`]; the service rejects a mismatched pair. The fact
-+/// `api-version` of WARP.
-+pub fn api_version() -> &'static str {
-+    fact("api-version")
-+}
-+
-+/// `CF-Client-Version` header value: the fact `client-version`.
-+pub fn client_version() -> &'static str {
-+    fact("client-version")
-+}
- 
+-
 -/// `CF-Client-Version` header value.
 -pub const CLIENT_VERSION: &str = "a-6.38.9-5641";
-+/// `User-Agent` the Android client sends, and the one the service expects:
-+/// the fact `user-agent`.
-+pub fn user_agent() -> &'static str {
-+    fact("user-agent")
-+}
- 
+-
 -/// `User-Agent` the Android client sends, and the one the service expects.
 -pub const USER_AGENT: &str = "WARP for Android";
-+/// The MASQUE front door: the endpoint `masque-v4` of WARP.
-+fn front_door() -> &'static crate::services::Endpoint {
-+    crate::services::endpoint(crate::services::WARP, "masque-v4")
-+}
- 
- /// SNI the MASQUE front door presents.
+-
+-/// SNI the MASQUE front door presents.
 -pub const MASQUE_SNI: &str = "consumer-masque.cloudflareclient.com";
-+pub fn masque_sni() -> &'static str {
-+    front_door().server_name()
-+}
- 
- /// Default MASQUE port. 443 everywhere; the API may advertise others.
+-
+-/// Default MASQUE port. 443 everywhere; the API may advertise others.
 -pub const MASQUE_PORT: u16 = 443;
-+pub fn masque_port() -> u16 {
-+    front_door().port()
-+}
- 
- /// The `:authority` of the CONNECT-IP request. Only the host matters; Cloudflare
+-
+-/// The `:authority` of the CONNECT-IP request. Only the host matters; Cloudflare
 -/// uses it as a routing hint, not a real endpoint.
 -pub const CONNECT_URI: &str = "https://cloudflareaccess.com";
-+/// uses it as a routing hint, not a real endpoint. The fact `connect-uri`.
-+pub fn connect_uri() -> &'static str {
-+    fact("connect-uri")
-+}
- 
+-
  /// The device as the API reports it.
  ///
-@@ -398,9 +427,9 @@ fn request(
+ /// `Serialize` is not for the wire (the API only takes the two bodies below);
+@@ -398,9 +374,9 @@ fn request(
      bearer: Option<&str>,
      proxy: Option<&Proxy>,
  ) -> Request {
@@ -2812,7 +2814,7 @@ index c0e03a4..32ebae8 100644
          .header("Content-Type", "application/json; charset=UTF-8")
          .timeout(std::time::Duration::from_secs(30))
          .via(crate::egress::via(proxy));
-@@ -659,12 +688,12 @@ impl Device {
+@@ -659,12 +635,12 @@ impl Device {
          let peer = self.config.peers.first()?;
          let v4 = peer.endpoint.v4.split(':').next().unwrap_or("").trim();
          if let Ok(ip) = v4.parse::<std::net::Ipv4Addr>() {
@@ -2827,7 +2829,7 @@ index c0e03a4..32ebae8 100644
          }
          None
      }
-@@ -686,12 +715,12 @@ impl Device {
+@@ -686,12 +662,12 @@ impl Device {
          let mut out = Vec::new();
          let v4 = peer.endpoint.v4.split(':').next().unwrap_or("").trim();
          if let Ok(ip) = v4.parse::<std::net::Ipv4Addr>() {
@@ -2842,7 +2844,7 @@ index c0e03a4..32ebae8 100644
          }
          out
      }
-@@ -746,11 +775,11 @@ mod tests {
+@@ -746,11 +722,11 @@ mod tests {
  
      #[test]
      fn the_api_bases() {
@@ -2857,7 +2859,7 @@ index c0e03a4..32ebae8 100644
          );
          assert_eq!(
              api_bases(Some("http://127.0.0.1:8080")).unwrap(),
-@@ -796,7 +825,7 @@ mod tests {
+@@ -796,7 +772,7 @@ mod tests {
          let busy = answering(503).await;
          let refused = answering(403).await;
          let request = || {
@@ -2867,7 +2869,7 @@ index c0e03a4..32ebae8 100644
                  .via(None)
          };
 diff --git a/src/warp/route.rs b/src/warp/route.rs
-index 4ca4aae..312d172 100644
+index 4ca4aae2..312d1727 100644
 --- a/src/warp/route.rs
 +++ b/src/warp/route.rs
 @@ -552,10 +552,17 @@ pub fn nameservers() -> Vec<std::net::IpAddr> {
@@ -2890,7 +2892,7 @@ index 4ca4aae..312d172 100644
  pub fn resolv_text(servers: &[std::net::IpAddr]) -> String {
      let mut text = String::from("# podnet warp tun --default-route: DNS through WARP\n");
 diff --git a/src/warp/session.rs b/src/warp/session.rs
-index 5a478eb..749bd41 100644
+index 5a478ebb..749bd410 100644
 --- a/src/warp/session.rs
 +++ b/src/warp/session.rs
 @@ -23,7 +23,7 @@ use tokio_rustls::TlsConnector;
@@ -2986,34 +2988,31 @@ index 5a478eb..749bd41 100644
              .unwrap();
          let (response, send) = client.send_request(request, false).unwrap();
 diff --git a/src/ws_relay.rs b/src/ws_relay.rs
-index 231a0fd..3db3017 100644
+index 231a0fd5..2777a70e 100644
 --- a/src/ws_relay.rs
 +++ b/src/ws_relay.rs
-@@ -35,8 +35,12 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+@@ -35,8 +35,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
  
  use crate::net::BoxedIo;
  
 -/// The relay of `--transport relay` when no other is given.
 -pub const DEFAULT_RELAY: &str = "https://tcp.ssh.relay.ajam.dev";
-+/// The relay of `--transport relay` when no other is given: the URL of the
-+/// endpoint `default` of `ajam-relay` (`pod-services`).
-+pub fn default_relay() -> &'static str {
-+    static URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-+    URL.get_or_init(|| crate::services::endpoint("ajam-relay", "default").url())
-+}
++pub use crate::services::default_relay;
  /// The environment variable with the relay URL.
  pub const RELAY_VARIABLE: &str = "PODNET_RELAY";
  /// The environment variable with a token for the relay.
-@@ -127,7 +131,7 @@ impl Host {
+@@ -126,8 +125,9 @@ impl Host {
+         } else {
              bail!("the relay URL {url:?} does not start with https://");
          };
++        let example = default_relay();
          if rest.contains('/') || rest.contains('?') || rest.contains('@') || rest.is_empty() {
 -            bail!("the relay URL {url:?} must be only a scheme and a host, for example {DEFAULT_RELAY}");
-+            bail!("the relay URL {url:?} must be only a scheme and a host, for example {}", default_relay());
++            bail!("the relay URL {url:?} must be only a scheme and a host, for example {example}");
          }
          let default = if tls { 443 } else { 80 };
          let port_of = |text: &str| {
-@@ -249,7 +253,7 @@ impl Relay {
+@@ -249,7 +249,7 @@ impl Relay {
              }
          }
          if hosts.is_empty() {
@@ -3022,7 +3021,7 @@ index 231a0fd..3db3017 100644
          }
          let listed = hosts.len() > 1;
          if !listed && hosts[0].tls && hosts[0].port == 443 {
-@@ -299,7 +303,7 @@ impl Relay {
+@@ -299,7 +299,7 @@ impl Relay {
          self.hosts.iter().map(Host::url).collect()
      }
  
@@ -3031,7 +3030,7 @@ index 231a0fd..3db3017 100644
      /// with the token of [`TOKEN_VARIABLE`].
      pub fn from_env(url: Option<&str>) -> Result<Self> {
          let from_env = std::env::var(RELAY_VARIABLE)
-@@ -307,7 +311,7 @@ impl Relay {
+@@ -307,7 +307,7 @@ impl Relay {
              .filter(|v| !v.trim().is_empty());
          let url = url.map(str::to_string).or(from_env);
          Self::new(
@@ -3040,7 +3039,7 @@ index 231a0fd..3db3017 100644
              std::env::var(TOKEN_VARIABLE).ok(),
          )
      }
-@@ -819,7 +823,7 @@ mod tests {
+@@ -819,7 +819,7 @@ mod tests {
  
      #[test]
      fn the_token_is_not_in_debug_or_url() {
