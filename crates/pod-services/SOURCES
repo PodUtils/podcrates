@@ -7,6 +7,7 @@
 # them stays in podssh. A change of such a file may change a value: the
 # session reads the change, and moves the value with its source here.
 repo PodUtils/podssh d3745abd31857a6ecea218be047c033c73d32a4e
+taken 72fb94d1ddf6f0fd2b495982e1ea82f950ceceb9
 file 00748b6a850767865331da3efa4caa04bc880a0b crates/podssh-cli/src/acme/mod.rs -> crates/pod-services/services/letsencrypt-acme.toml
 file dd5e7518f24ec7492760cf5ada8a65db25da0abe crates/podssh-cli/src/doctor/nat.rs -> crates/pod-services/services/cloudflare-stun.toml crates/pod-services/services/google-stun.toml
 file a2f7b1d389a29b6d0a4998f52e377b4699bb3d38 crates/podssh-cli/src/doctor/relay_checks.rs -> crates/pod-services/services/ajam-relay.toml crates/pod-services/services/github-ssh.toml crates/pod-services/tests/moved.rs

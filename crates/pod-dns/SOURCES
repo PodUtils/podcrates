@@ -3,6 +3,7 @@
 # with the main branch of its repository.
 
 repo PodUtils/podssh a7915535bc373644050d036a2c1cc1052c4888e5
+taken 72fb94d1ddf6f0fd2b495982e1ea82f950ceceb9
 # The tests that use the certificates of tests/common/ include the copy of
 # pod-tls (crates/pod-tls/tests/common/); the fixtures of DoH come whole.
 dir crates/podssh-ws/src/resolve
