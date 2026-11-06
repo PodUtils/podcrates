@@ -19,6 +19,11 @@ session applies the patches of its crates in the order of the releases;
 only the first patch of a consumer adds podcrates to `allow-git` of its
 `deny.toml`.
 
+One patch can take more than one crate, when the crates change the same
+files: `pod-dns.patch` takes `pod-dns` and `pod-services` (v0.4.0), as
+`pod-dns` reads its default resolvers from `pod-services`, and both take the
+place of constants in the same files of each consumer.
+
 `sh scripts/adoption.sh CONSUMER CRATE` runs one trial;
 `.github/workflows/adoption.yml` runs each one in CI. When the consumer
 moves on, a session raises `commit` and makes the patch again.
@@ -40,11 +45,20 @@ record, its file rules, rustfmt of the crates that the patch changes), so
 that the patch is what the consumer session can commit as it is.
 
 A `.run` file also builds the binary of the consumer for
-`x86_64-unknown-linux-musl` with `cargo zigbuild`, with each feature of
-the consumer in one build, and checks it with the consumer's own
-`scripts/check-static.sh`. `adoption.yml` gives the trials the musl
-target, zig and cargo-zigbuild; in a session, `sh scripts/cloud-setup.sh`
-gives them.
+`x86_64-unknown-linux-musl` with `cargo zigbuild`, with the features of the
+consumer's release (podssh: `RELEASE_FEATURES` of its `release.yml`; the
+other features are checked with `cargo check`), and checks it with the
+consumer's own `scripts/check-static.sh`. A debug build is enough: the
+check reads the ELF headers, and the release profile takes LTO.
+`adoption.yml` gives the trials the musl target, zig and cargo-zigbuild; in
+a session, `sh scripts/cloud-setup.sh` gives them.
+
+A `.run` file checks each Rust toolchain that the consumer pins in its
+workflows and build images against the `rust-version` of podcrates:
+`python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"` (adoption.sh
+sets `PODCRATES` to this tree). A pin below it is a fault; a pin that the
+script cannot read (a channel, `rust:1-alpine`, Alpine's packaged Rust) is
+a note.
 
 What the consumers asked of the next patches:
 
