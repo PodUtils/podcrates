@@ -58,8 +58,6 @@ C19), and the work goes on with it until the owner rules otherwise.
   the ruling of podnet of 2026-11-05; the dry run of each release keeps
   the packaging ready (`docs/decisions.md`).
 
-None now.
-
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q6
 (the owner ruled Q1 to Q5: `docs/decisions.md`).
