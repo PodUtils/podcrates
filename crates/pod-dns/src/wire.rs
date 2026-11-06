@@ -184,7 +184,7 @@ fn skip_name(msg: &[u8], mut at: usize) -> Result<usize, String> {
 /// after it where it is: after its zero byte, or after its first pointer
 /// (RFC 1035, section 4.1.4). Each pointer must go back before the start of
 /// the run of labels that holds it, so that the walk ends; a name is at most
-/// [`MAX_NAME`] bytes in its wire form, and a label holds printable ASCII
+/// 255 bytes (`MAX_NAME`) in its wire form, and a label holds printable ASCII
 /// and no dot, as each host name does.
 pub fn read_name(msg: &[u8], start: usize) -> Result<(String, usize), String> {
     let mut name = String::new();
