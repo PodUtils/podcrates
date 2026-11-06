@@ -49,7 +49,16 @@ impl Way<'_> {
         let order = doh::order(resolvers, self.settings.names, self.dial.names_inside());
         lookup::over(resolvers, order, self.settings.nxdomain, host, deadline, |i, at| {
             let resolver = &resolvers[i];
-            async move { ask::ask_kept(self, resolver, &at, host, deadline).await }
+            async move {
+                let answer = ask::ask_kept(self, resolver, &at, host, deadline).await;
+                // The server that answered: a check of a fall back to a second
+                // operator reads it in the diagnostics.
+                if let Ok((_, form)) = &answer {
+                    let server = server_url(resolver, &at, *form);
+                    tracing::debug!(%host, %server, operator = %resolver.operator, "doh answered");
+                }
+                answer
+            }
         })
         .await
     }
@@ -117,5 +126,39 @@ impl pod_tls::ech::Records for Way<'_> {
         deadline: Instant,
     ) -> pod_core::BoxFuture<'a, Result<Option<pod_tls::ech::Published>, String>> {
         Box::pin(async move { self.https(name, deadline).await.map(|found| found.map(Into::into)) })
+    }
+}
+
+/// The URL of `resolver` at `at` (its address or its name) in `form`, with
+/// no query: `https://8.8.8.8/resolve`.
+fn server_url(resolver: &Doh, at: &str, form: Form) -> String {
+    let path = match form {
+        Form::Json => resolver.json.as_deref(),
+        Form::Wire => resolver.wire.as_deref(),
+    };
+    let path = path.unwrap_or("/").split('?').next().unwrap_or("/");
+    let host = if at.contains(':') { format!("[{at}]") } else { at.to_string() };
+    match resolver.port {
+        443 => format!("https://{host}{path}"),
+        port => format!("https://{host}:{port}{path}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The URL names the address or the name that was asked, the port when
+    /// it is not 443, and the path of the form, with no query.
+    #[test]
+    fn the_server_url_names_the_resolver_that_was_asked() {
+        let google = crate::doh::defaults().into_iter().find(|d| d.ip.to_string() == "8.8.8.8").expect("8.8.8.8");
+        let url = server_url(&google, "8.8.8.8", Form::Json);
+        assert!(url.starts_with("https://8.8.8.8/"), "{url}");
+        assert!(!url.contains('?'), "{url}");
+        let v6 = Doh { port: 8443, ..google.clone() };
+        assert!(
+            server_url(&v6, "2001:4860:4860::8888", Form::Wire).starts_with("https://[2001:4860:4860::8888]:8443/")
+        );
     }
 }

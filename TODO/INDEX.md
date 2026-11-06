@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**72 entries: 34 open, 2 partial, 0 blocked, 36 done.**
+**73 entries: 34 open, 2 partial, 0 blocked, 37 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 2 | 0 | 13 | 31 |
+| P2 | 16 | 2 | 0 | 14 | 32 |
 | P3 | 5 | 0 | 0 | 1 | 6 |
-| **All** | 34 | 2 | 0 | 36 | 72 |
+| **All** | 34 | 2 | 0 | 37 | 73 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -118,3 +118,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-070](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left |
 | [T-071](transport.md) | P3 | S | M1 | feature | done | `pod-proxy`: a read limit for `blocking::Stream::Exec` |
 | [T-072](podvm.md) | P2 | S | M6 | defect | open | `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets |
+| [T-073](transport.md) | P2 | S | M1 | feature | done | `pod-dns` names the DoH server that answered in its diagnostics |

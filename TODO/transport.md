@@ -1369,3 +1369,43 @@ limit fails with the kind of a socket's limit (`WouldBlock` on Unix,
 `a_read_from_a_proxy_at_a_command_ends_at_its_limit`: without the change
 the read waited 30 s; with it the test ends in 0.3 s. podvm can take a proxy
 at a command for its pump.
+
+# T-073: `pod-dns` names the DoH server that answered in its diagnostics
+
+**Source:** PodUtils/podnet#322 (COORD-004 of podnet).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "The live check of podnet (`live.yml`, step 'Quick tunnel with no
+system DNS, then with 1.1.1.1 blocked') proves that DoH falls to a second
+operator ... before the take it read `server=\"https://8.8.…\"` in the debug
+line of `podnet::resolve` ... since the take, the line is `pod_dns::resolver`
+`resolved` with `host`, `source` and `addrs`, and no server."
+
+## Premise
+
+- Read: `crates/pod-dns/src/way.rs` (`Way::lookup_with`), `resolver.rs`.
+
+## Approach
+
+Each answer of DNS over HTTPS writes a debug line `doh answered` of the
+target `pod_dns::way` with `host`, `server` (the URL with no query:
+`https://8.8.8.8/resolve`) and `operator`, before the line `resolved`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --lib way
+```
+
+## Done
+
+2026-11-06. `the_server_url_names_the_resolver_that_was_asked` passes;
+podnet's check greps `server="https://8\.8\.` in the line `doh answered`
+from the release after v0.5.0.
+
