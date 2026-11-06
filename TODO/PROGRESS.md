@@ -13,10 +13,12 @@
   42113413975 of `publish.yml`). podssh took each crate of v0.2.0
   (`6ece2ff`), podnet too (`a5894fe`). The patches of `pod-proxy` went to
   both sessions (PodUtils/podssh@T-684, PodUtils/podnet@T-137).
-- v0.4.0: `pod-dns` (T-015), `pod-services` (T-049), the fix of vectored
-  writes (T-065), the static builds and the toolchains in each trial
-  (T-045); the trials of podssh, podnet and podvm (`pod-term`, T-040)
-  pass. podvm's rename is on its `main` at `0249527` (C21).
+- Released v0.4.0 at `ad0f265` (the run 42207811181 of `release.yml`,
+  after the CI run 42207327373; the owner's account dispatched both,
+  PodUtils/podcrates#5): `pod-dns`, `pod-services` with the data of podvm,
+  the fix of vectored writes, the synchronous face (T-063). podvm took
+  `pod-term` (podvm `75ed306`); the trial of `pod-tls` in podvm passes
+  (T-040).
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.
@@ -34,8 +36,8 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
-   the release v0.4.0 (with the synchronous face) and its hand-off
-   to podssh, podnet and podvm; T-040 (the trials of
+   the hand-off of v0.4.0 to podssh, podnet and podvm (the patch of
+   `pod-tls` to podvm); T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.
@@ -72,13 +74,12 @@ C19), and the work goes on with it until the owner rules otherwise.
   the packaging ready (`docs/decisions.md`).
 
 - **Q6.** GitHub Actions is off for the account that pushes ("Actions has
-  been disabled for this user", the dispatch of `ci.yml` on 2026-11-06):
-  no workflow ran for a push after 03:01 UTC. The release v0.4.0 (its
-  commit `0319009` passed `scripts/agent/check.sh` here) waits for
-  `release.yml`, and each push for its CI. Recommendation: turn Actions on
-  again; then this session runs `release.yml` with `version=0.4.0`. The
-  other way, a tag `v0.4.0` pushed by hand, skips the GitHub release and the
-  dry run of `publish.yml`, and a tag cannot move: only on the owner's word.
+  been disabled for this user"): no push starts a workflow. The way now: an
+  issue `[gh action] requested` with the gh commands, which the owner's
+  account runs (PodUtils/podcrates#5 released v0.4.0 so). It blocks no
+  entry, and each push waits for its CI. Recommendation: turn Actions on
+  for the account of the sessions.
+
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q6
