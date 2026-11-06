@@ -37,3 +37,6 @@ file 1eaf56af5a660876a1316924bd072f645e38a036 crates/podssh-ws/tests/fixtures/do
 file 0ab402b50ba1b21ec9cb40ac525e188063904fc1 crates/podssh-ws/tests/fixtures/doh/quad9-nxdomain.bin -> crates/pod-dns/tests/fixtures/doh/quad9-nxdomain.bin
 file 004c8cf1470679789faad90ce1561d13ad73e738 crates/podssh-ws/tests/fixtures/doh/quad9-srv.bin -> crates/pod-dns/tests/fixtures/doh/quad9-srv.bin
 file 7350fa26f813f109ad8c9cb42cc86626fdf49006 crates/podssh-ws/tests/live_doh.rs -> crates/pod-dns/tests/live_doh.rs
+
+repo PodUtils/podnet 380d9a4090465038124df32c4a29fd898649db99
+file 2c386d5dcbf3777c003d0e64474a73358af5bb16 src/resolve.rs -> crates/pod-dns/src/podnet_import/resolve.rs
