@@ -13,3 +13,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #5 | [gh action] requested: ci.yml and release.yml (v0.4.0) on main | closed (release 42207811181) | T-015, T-049, T-063 |
 | #6 | COORD-004: the Alpine netboot pins of podvm (to podvm) | open | T-066 |
 | #7 | COORD-005: podcrates v0.4.0 is released: the takes of podssh, podnet and podvm (to all) | open | T-040, T-015, T-049 |
+| #8 | [gh action] requested: ci.yml and nightly.yml on main after v0.4.0 | open | T-067, T-068 |
