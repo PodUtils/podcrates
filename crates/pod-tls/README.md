@@ -167,7 +167,11 @@ shares it.
 | podnet | `tls_fragment::active()` | the split that podnet keeps |
 | podnet | `tls_fragment::wrap(io)` (`warp/session.rs`, two calls) | `pod_tls::fragment::wrap(io, split)`; `net::BoxedIo` has the bounds of `pod_core::BoxedIo` (`AsyncRead + AsyncWrite + Send + Unpin`): podnet takes `pod_core::BoxedIo`, or boxes its stream again |
 | podnet | the tests of `tests/tls.rs` | they stay in podnet; with the adoption they run on the roots of `pod-tls` |
-| podvm | `crates/podvm-ssh/src/tls.rs`, `crates/podvm-image/src/tls.rs`: the roots (host bundle first, then `webpki-roots`) and the client configuration | `pod-tls` with `default-features = false`: `Context::client_config` over its roots, `Context::tls_over_blocking` over a `TcpStream` |
+| podvm | `podvm-image` `tls::client_config()`: the store of the host bundle (the first of `$SSL_CERT_FILE`, `$CURL_CA_BUNDLE`, `$REQUESTS_CA_BUNDLE`, then five paths, with a certificate), else `webpki-roots`; `ClientConfig::builder_with_provider(ring)` | podvm keeps its choice of the bundle (`host_bundle_bytes`) and its words; `pod_tls::roots::load(Some(&CaFile::new(source, path)), None, &[])` reads the bundle alone, else `pod_tls::roots_from_compiled_set()`; `Context::new(ring, Settings::new(Words::new("podvm"))).client_config(&roots)` |
+| podvm | `podvm-image` `tls::load_bundle` (`rustls_pemfile::certs`) | `pod_tls::bundle::pem_certificates` |
+| podvm | `podvm-image` `tls::client_config_unverified()`, `AcceptAny` (a registry named insecure) | podvm keeps them: pod-tls builds no permissive verifier, and ureq takes the configuration as it is |
+| podvm | `podvm-ssh` `tls::TlsConfig::load()`: each of `HOST_BUNDLES`, else `webpki-roots`; `ClientConfig::builder()` | a `Context` over ring with `Settings::system_bundles = HOST_BUNDLES` and `Words::replace_roots` = the first host bundle; `Trust::Default` (the first usable host bundle and the compiled-in roots) |
+| podvm | `podvm-ssh` `tls::Tls::connect(base, host, &cfg)`: `ServerName::try_from`, `StreamOwned::new` (the handshake at the first frame) | `context.tls_over_blocking(base, host, &Trust::Default)` (the handshake before the WebSocket upgrade; the write bound of `mux.rs` is set before TLS); a bad name gives `"…" is not a valid server name` |
 
 ## Sources
 
