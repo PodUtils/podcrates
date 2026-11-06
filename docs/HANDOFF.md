@@ -53,6 +53,14 @@ consumer takes `pod-dns` and `pod-services` together.
   T-053): the owner reserves the 14 names of podvm.
 - podssh was told about T-065 on 2026-11-06: the fix comes with v0.4.0,
   and podssh keeps its workaround until then.
+- The consumer sessions paused on 2026-11-06. Their next sessions take no
+  messages: they read COORD issues `(to podssh)` and `(to podnet)` of
+  PodUtils/podcrates, and they write COORD issues `(to podcrates)` in their
+  own repository. podssh's checkpoint is its `TODO/PROGRESS.md`,
+  "Checkpoint, 2026-11-06" (`ccfef9e`; PodUtils/podssh@T-684 is partial
+  at v0.3.0). podnet's checkpoint is its `docs/HANDOFF.md`, after
+  `ef55f3a`. Both wait for v0.4.0. Make each patch on that head, not on
+  the base of the trial.
 
 ## Local state
 
