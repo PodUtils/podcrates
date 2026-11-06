@@ -19,7 +19,8 @@
   resolver and the blocking runtime drops in the background (T-070), the
   limit of a proxy at a command (T-071), the hint for podvm (T-068), the
   tests of macOS and Windows (T-067). Each consumer took v0.4.0 (podssh
-  `72fb94d`, podnet `bf0c7ca`, podvm `b917f97` and `b1138c2`).
+  `72fb94d`, podnet `bf0c7ca`, podvm `b917f97` and `b1138c2`); podvm
+  (`cec4bcb`) and podnet (`dfd8bd8`) moved to v0.5.0.
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.
