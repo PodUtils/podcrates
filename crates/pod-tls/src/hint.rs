@@ -12,7 +12,8 @@ pub struct Words {
     /// The name of the program, as its user knows it (`podssh`).
     pub app: String,
     /// Where the user puts a CA that replaces the roots (podssh:
-    /// `--ca-file FILE or SSL_CERT_FILE`).
+    /// `--ca-file FILE or SSL_CERT_FILE`); empty when there is no such
+    /// place (podvm: its host bundle adds to the roots).
     pub replace_roots: String,
     /// Where the user puts a CA that adds to the roots (podssh:
     /// `podssh-ca.pem next to the binary`); `None` when there is no such
@@ -34,6 +35,13 @@ impl Words {
     /// re-signs TLS gives.
     pub fn unknown_issuer_hint(&self) -> String {
         let app = &self.app;
+        if self.replace_roots.is_empty() {
+            let place = self.add_roots.as_deref().unwrap_or("a CA file");
+            return format!(
+                "no root that {app} trusts here signs the certificate: a proxy that re-signs TLS needs its CA, in \
+                 {place}, which adds to {app}'s roots"
+            );
+        }
         let mut hint = format!(
             "no root that {app} trusts here signs the certificate: a proxy that re-signs TLS needs its CA, in {}, \
              which replace {app}'s roots",
@@ -127,6 +135,17 @@ mod tests {
 
     /// podssh's words give podssh's hint, word for word; with no place that
     /// adds to the roots, the hint names the one that replaces them.
+    /// With no place that replaces the roots, the hint names only the place
+    /// that adds to them, and says so.
+    #[test]
+    fn a_consumer_with_only_a_place_that_adds_gets_no_word_of_replace() {
+        let words =
+            Words { replace_roots: String::new(), add_roots: Some("the host CA bundle".into()), ..Words::new("podvm") };
+        let hint = words.unknown_issuer_hint();
+        assert!(hint.ends_with("in the host CA bundle, which adds to podvm's roots"), "{hint}");
+        assert!(!hint.contains("replace"), "{hint}");
+    }
+
     #[test]
     fn the_words_of_a_consumer_give_its_hint() {
         assert_eq!(

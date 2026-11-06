@@ -1172,3 +1172,42 @@ The nightly proves macOS and Windows.
 
 2026-11-06. Linux: the tests pass. macOS and Windows: the next nightly.
 
+# T-068: The hint of an unknown issuer names a CA that replaces the roots, which podvm has not
+
+**Source:** the trial of `pod-tls` in podvm (T-040, `87a1338`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Words::unknown_issuer_hint` always names a place for a CA that replaces
+the roots. podvm has only its host bundle, which adds to them: its hint
+said "which replace podvm's roots", and that is wrong.
+
+## Premise
+
+- Read: `crates/pod-tls/src/hint.rs`; podssh and podnet set
+  `replace_roots` to a flag and a variable.
+
+## Approach
+
+An empty `replace_roots` means that there is no such place: the hint then
+names `add_roots` (else "a CA file") as the place that adds to the roots.
+The field keeps its type, so the patches of v0.4.0 do not change.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --lib hint
+```
+
+## Done
+
+2026-11-06. The test
+`a_consumer_with_only_a_place_that_adds_gets_no_word_of_replace` passes
+with the 6 tests of the hint. podvm sets `replace_roots` empty and
+`add_roots` to its host bundle from the release after v0.4.0.
+

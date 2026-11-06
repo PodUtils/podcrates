@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**67 entries: 34 open, 1 partial, 0 blocked, 32 done.**
+**68 entries: 34 open, 1 partial, 0 blocked, 33 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 1 | 0 | 10 | 27 |
+| P2 | 16 | 1 | 0 | 11 | 28 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 34 | 1 | 0 | 32 | 67 |
+| **All** | 34 | 1 | 0 | 33 | 68 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -113,3 +113,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-065](transport.md) | P0 | S | M1 | defect | done | A vectored write through `pod_proxy::Stream` sends only its first buffer |
 | [T-066](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the data files of podvm |
 | [T-067](transport.md) | P1 | S | M1 | defect | done | Two tests fail on macOS and Windows in the nightly |
+| [T-068](transport.md) | P2 | S | M1 | defect | done | The hint of an unknown issuer names a CA that replaces the roots, which podvm has not |
