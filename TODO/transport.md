@@ -892,7 +892,7 @@ and `dialer` 0 of 100 each.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -902,19 +902,33 @@ the hosts of other parties of each consumer.
 
 ## Premise
 
-- Not read yet: podvm's inventory, asked in the answer to
-  PodUtils/podvm#194.
+- podvm sent no inventory. This session read podvm itself, at
+  `ecf61c0` of its branch `migrate/podvm`, after its rename `98112cb`.
 
 ## Approach
 
 podvm's inventory in a page podvm.md of `docs/research/services/`, as T-048 did for
-podssh and podnet; its data files join T-049.
+podssh and podnet; its data files are T-066.
 
 ## Prove
 
 ```sh
 cargo todo check
 ```
+
+## Done
+
+2026-11-06. `docs/research/services/podvm.md`: the hosts in the Rust
+code (A), the guest images and their digests (B), the pinned OCI images of
+the test corpus (C), the trust data (D), the code that measures (E), the
+workflows (F), the scripts (G), the proposed data files (H) and what stays
+in podvm (I). Findings: podvm's code has no default relay (`--relay` is
+required); only `tcp.ssh.relay.ajam.dev` is in `pod-services` already. The
+new data are five OCI registries and three guest images, with the kinds
+`oci-registry` and `guest-image` and the watch kinds `oci-ping`,
+`oci-digest` and `http-sha256` (T-050). podvm's facts of the relay
+(document `r12`, a hello frame cap of 65504) differ from
+`ajam-relay.toml` (`2026-10-03-r2`, 262144): T-047 takes them.
 
 # T-063: The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy`
 
@@ -1005,3 +1019,41 @@ cargo test -p pod-tls --all-features --lib fragment
 patch removes podssh's workaround
 `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs` (podssh `ccfef9e`,
 PodUtils/podssh@T-690).
+
+# T-066: `pod-services`: the data files of podvm
+
+**Source:** T-054 (`docs/research/services/podvm.md`, section H).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm compiles in the endpoints of five OCI registries and the sources and
+digests of three guest images (`docs/research/services/podvm.md`). The
+services crate holds the hosts of other parties of each consumer.
+
+## Premise
+
+- Read: `docs/research/services/podvm.md`, sections H and I.
+
+## Approach
+
+1. The kinds `oci-registry` and `guest-image` in the schema of
+   `pod-services`.
+2. One data file for each service of section H, with its facts and their
+   sources.
+3. The adoption map of podvm in the README of `pod-services`; the trial of
+   podvm (T-040).
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Start condition
+
+T-049 is released (v0.4.0).

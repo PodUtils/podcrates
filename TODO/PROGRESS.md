@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 65 entries: 37 open, 3 partial, 1 blocked, 24 done.
+`TODO/INDEX.md` holds 66 entries: 37 open, 3 partial, 1 blocked, 25 done.
 
 ## State
 
@@ -45,8 +45,8 @@ order. A crate is released on the day that its entry is done
    scripts/check-sources.py finds.
 6. **M6, the crates of podvm:** T-055 (`pod-hostprobe`) first, then T-056,
    T-057, T-058, T-059, T-060, T-061, when podvm gave the commit of its
-   rename; T-063 (the synchronous face) and T-054 before podvm takes
-   `pod-proxy`.
+   rename; T-063 (the synchronous face) and T-066 (the data of podvm in
+   `pod-services`) before podvm takes `pod-proxy`.
 7. **M7, the widened scope of podvm:** T-062 after M6.
 
 ## Calls made without a ruling

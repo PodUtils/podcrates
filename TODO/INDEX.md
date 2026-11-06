@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**65 entries: 37 open, 3 partial, 1 blocked, 24 done.**
+**66 entries: 37 open, 3 partial, 1 blocked, 25 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 2 | 0 | 18 | 33 |
-| P2 | 19 | 1 | 1 | 5 | 26 |
+| P2 | 19 | 1 | 1 | 6 | 27 |
 | P3 | 5 | 0 | 0 | 0 | 5 |
-| **All** | 37 | 3 | 1 | 24 | 65 |
+| **All** | 37 | 3 | 1 | 25 | 66 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -99,7 +99,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
 | [T-053](foundation.md) | P2 | S | M6 | chore | blocked | The names of the crates of podvm on crates.io (GitHub #1) |
-| [T-054](transport.md) | P2 | S | M1 | research | open | `pod-services`: the inventory of podvm |
+| [T-054](transport.md) | P2 | S | M1 | research | done | `pod-services`: the inventory of podvm |
 | [T-055](podvm.md) | P2 | M | M6 | feature | open | `pod-hostprobe`: the host probes of podvm |
 | [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
@@ -111,3 +111,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-063](transport.md) | P2 | M | M1 | feature | open | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |
 | [T-064](foundation.md) | P1 | S | M0 | defect | done | `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195) |
 | [T-065](transport.md) | P0 | S | M1 | defect | done | A vectored write through `pod_proxy::Stream` sends only its first buffer |
+| [T-066](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the data files of podvm |
