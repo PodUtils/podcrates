@@ -55,7 +55,7 @@ passed there, `session_interactive` too (12 passed against sshd); the trial
 leaves the directory of podvm.
 
 2026-11-06, partial. The trial of `pod-tls` at podvm `b5473a2`
-(`adoption/podvm/pod-tls.patch`, 8 files, 119 lines in, 148 out, with no
+(the patch of the trial of `pod-tls`, `87a1338`, 8 files, 119 lines in, 148 out, with no
 default feature: no tokio). `podvm-image` keeps its choice of the host
 bundle, its words and its verifier for a registry named insecure; pod-tls
 reads the bundle alone as a `CaFile`, else the compiled-in roots, and makes
@@ -82,3 +82,9 @@ to the roots (`podvm-ssh`: the host bundle); its hint says "replace". Left:
 the trial of `pod-proxy` (the synchronous face, T-063), then the other
 crates of the order of PodUtils/podvm#194.
 
+podvm took `pod-tls` 0.4.0 with no tokio in podvm `b917f97`
+(PodUtils/podvm#203): each line of the `.run` passed there, `mux_two_client`
+too (15 against sshd); podvm accepts the three changes of behaviour (its
+call C9). The trial leaves the directory of podvm. The next hand-offs start
+at podvm `b917f97` or later: podvm splits its files to 500 lines
+(PodUtils/podvm@T-1674), and the files of M6 are split already.

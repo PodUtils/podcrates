@@ -4,6 +4,10 @@ The plan for the entries T-055 to T-061 (`docs/design.md`, section 4, M6; the pr
 `PodUtils/podvm` at `ecf61c08fdaf28db079e0939895e18e5f9440c5f` (`ecf61c0`, after the rename `98112cb`). Each path below
 is a path of that repository, unless it starts with `crates/pod-`.
 
+A change of the source: podvm split each file of these crates to 500 lines at `b917f97`, with the tests in `tests.rs`
+files beside them (PodUtils/podvm#203). An import reads `b917f97` or later; the splits of section 1 to 7 are then
+podvm's, and the classes of the files stay.
+
 ## 0. Conventions and the rules for all seven crates
 
 Classes: **M** moves (generic), **S** stays in podvm, **P** splits (the row names the part that moves). "Rec" is the
