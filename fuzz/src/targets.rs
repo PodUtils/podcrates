@@ -149,7 +149,8 @@ pub fn dns_wire(data: &[u8]) {
     match wire::srv(data, SRV_NAME) {
         Ok(records) => {
             for r in records {
-                let safe = r.target.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"-._".contains(&b));
+                let safe =
+                    r.target.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"-._".contains(&b));
                 assert!(safe && !r.target.is_empty() && r.target.len() <= 253, "{r:?}");
             }
         }
@@ -168,4 +169,41 @@ pub fn dns_wire(data: &[u8]) {
     if let Ok((name, end)) = wire::read_name(data, start) {
         assert!(end <= data.len() && name.len() <= 253, "{name:?} ends at {end}");
     }
+}
+
+/// An answer of DNS over HTTPS in the JSON form (`pod_dns::json`,
+/// `pod_dns::https::from_json`; podnet `doh_json`), as a resolver sends it:
+/// podnet's reading of each record's data as an address and as an SRV
+/// record (64 records at most), with no panic; the status of an answer
+/// decides NXDOMAIN for each type; an SRV target is a name in lower case
+/// that a resolver can be asked for; an ECH list is whole by its own
+/// lengths, within its bound.
+pub fn doh_json(data: &[u8]) {
+    use pod_dns::{NXDOMAIN, https, json};
+    if let Ok(answer) = json::parse(data) {
+        for record in answer.records.iter().take(64) {
+            let _ = record.data.parse::<std::net::IpAddr>();
+            if let Some(srv) = json::srv_of(&record.data) {
+                assert!(is_safe_name(&srv.target), "{srv:?}");
+            }
+        }
+        for want in [1, 28, 33, 65] {
+            let said = answer.of(want).err();
+            assert_eq!(said.as_deref() == Some(NXDOMAIN), answer.status == Some(3), "{said:?}");
+        }
+    }
+    if let Ok(records) = json::parse_srv(data) {
+        assert!(records.iter().all(|r| is_safe_name(&r.target)), "{records:?}");
+    }
+    if let Ok(Some(found)) = https::from_json(data) {
+        assert!(https::check_list(&found.list).is_ok() && found.list.len() <= https::MAX_LIST, "{found:?}");
+    }
+}
+
+/// A name in lower case that a resolver can be asked for: letters, digits,
+/// `-`, `.` and `_`, 1 to 253 bytes.
+fn is_safe_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 253
+        && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"-._".contains(&b))
 }

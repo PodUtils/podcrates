@@ -48,6 +48,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `no_proxy` | `pod-proxy` | `env::no_proxy_matches`, `NoProxy` | podssh `no_proxy` and podnet `no_proxy`, one target |
 | `connect_status` | `pod-proxy` | `http::parse_status_line`, `digest::challenge_in`, `proxy_auth::schemes` | podssh `connect_status` and podnet `connect_response_head`, one target |
 | `dns_wire` | `pod-dns` | `wire::{addrs, srv, read_name}`, `https::{from_wire, from_rdata, check_list}` | podssh `dns_wire` (at `a791553`) |
+| `doh_json` | `pod-dns` | `json::{parse, srv_of, parse_srv}`, `json::Answer::of`, `https::from_json` | podnet `doh_json` (at `380d9a4`); its SRV part reads `pod_dns::json::srv_of`, and podnet's `edge_discovery::parse_srv` goes with `pod-cloudflare` |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:
@@ -67,14 +68,15 @@ The sources have no other seed for these targets (podssh's
 `scripts/fuzz-seeds.py` writes seeds for the targets that wait); the
 other seeds are small inputs written here. The seeds of `dns_wire` are
 answers of `crates/pod-dns/tests/fixtures/doh/` and the HTTPS answer of
-`crates/pod-dns/src/https_tests.rs`, as resolvers sent them.
+`crates/pod-dns/src/https_tests.rs`, as resolvers sent them; those of
+`doh_json` are podnet's two seeds, an NXDOMAIN and the HTTPS answer of
+Cloudflare's JSON form.
 
 ## The targets that wait for their crate
 
 | Target | Source | Parser | Crate |
 | --- | --- | --- | --- |
 | `ws_frame`, `ws_upgrade`, `close_reason` | podssh | `podssh_ws::frame`, `handshake::check_response`, `session::close_code_and_reason` | `pod-ws` (T-016) |
-| `doh_json` | podnet | `resolve::DohAnswer` | `pod-dns` (T-015); its SRV part with `pod-cloudflare` |
 | `relay_list`, `relay_pool` | podssh | `podssh_relay::relay::parse_relay_list`, `pool::parse_pool` | `pod-relay` (T-025) |
 | `vnet_frame` | podnet | `vnet::framing::read_frame` | `pod-netstack` (T-023) |
 | `warp_capsule` | podssh | `podssh_warp::capsule` | `pod-warp` (T-028), one target with podnet's `capsule` |

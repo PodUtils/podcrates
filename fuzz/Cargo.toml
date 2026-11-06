@@ -98,3 +98,10 @@ path = "fuzz_targets/dns_wire.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "doh_json"
+path = "fuzz_targets/doh_json.rs"
+test = false
+doc = false
+bench = false

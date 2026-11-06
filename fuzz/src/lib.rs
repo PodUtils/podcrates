@@ -25,6 +25,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("no_proxy", targets::no_proxy),
     ("connect_status", targets::connect_status),
     ("dns_wire", targets::dns_wire),
+    ("doh_json", targets::doh_json),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as
