@@ -83,9 +83,13 @@ registry pays one TCP and TLS handshake, not one for each blob.
   a new connection. Another method does not: the server can have done it.
 * `with_keep_alive(false)` sends `Connection: close` and opens a new
   connection for each request, as before.
-* A pooled connection belongs to the tokio runtime that opened it. Give
-  each runtime its own client, or turn keep-alive off. The blocking client
-  runs each request on the runtime of its dialer.
+* A pooled connection belongs to the tokio runtime that opened it. A
+  client shared by two runtimes stays correct: the check before a reuse
+  drops a connection whose runtime is gone, and the request opens a new
+  one (`a_connection_stays_with_its_runtime`, with a POST, which is not
+  tried again). Each runtime then keeps its own connections only when it
+  has its own client. The blocking client runs each request on the runtime
+  of its dialer.
 * A connection through a proxy stays open in the pool too: the proxy sees
   the tunnel until the idle limit or the drop of the client.
 * `Client::https_get` and `https_get_accepting` do not use the pool: they

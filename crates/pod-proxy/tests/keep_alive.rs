@@ -201,3 +201,20 @@ async fn two_trusts_never_share_a_connection() {
     let answer = client(&kept).send(https(&one)).await.expect("an answer");
     assert_eq!((answer.text().as_str(), kept.accepted()), ("c3r1", 3));
 }
+
+/// A connection of one runtime is not given to a request on another: the
+/// first runtime may shut down, and its connection with it.
+#[test]
+fn a_connection_stays_with_its_runtime() {
+    pod_testkit::need_loopback!();
+    let kept = plain(marked);
+    let client = client(&kept);
+    let runtime = || tokio::runtime::Builder::new_current_thread().enable_all().build().expect("a runtime");
+    let first = runtime().block_on(client.send(get(&kept, "/a"))).expect("an answer");
+    // A POST is not tried again: on a connection of the first runtime it
+    // would fail.
+    let post = Request::new("POST", url(&kept, "/b")).body(b"x".to_vec()).timeout(WAIT);
+    let second = runtime().block_on(client.send(post)).expect("an answer");
+    assert_eq!((first.text(), second.text()), ("c1r1".to_string(), "c2r1".to_string()));
+    assert_eq!(kept.accepted(), 2);
+}
