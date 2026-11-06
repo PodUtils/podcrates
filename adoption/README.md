@@ -32,7 +32,8 @@ the parent of the adoption, so that a fix that came before it is still
 found, and the files that the adoption removed are no change.
 Taken: podssh `pod-todo`, `pod-term`, `pod-identity` (podssh `04f4551`)
 and `pod-tls` (podssh `6ece2ff`); podnet `pod-todo` (podnet `6c210ed`)
-and `pod-tls` (podnet `a5894fe`, `a2af228`).
+and `pod-tls` (podnet `a5894fe`, `a2af228`) and `pod-proxy` (podnet
+`380d9a4`).
 
 A `.run` file runs the checks of the consumer's repository too (its
 record, its file rules, rustfmt of the crates that the patch changes), so

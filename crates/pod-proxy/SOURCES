@@ -33,6 +33,7 @@ file 1d946e27b10767d5dca4ae448894bf32a0a9e01b crates/podssh-ws/tests/mptcp.rs ->
 file 979353cf9848246d39b4a9c7d63cb95ccc4bd199 crates/podssh-ws/tests/socks5.rs -> crates/pod-proxy/tests/socks5.rs
 
 repo PodUtils/podnet a8071b1112bed34688db1841d5f5ec7daf898639
+taken 380d9a4090465038124df32c4a29fd898649db99
 # The unit tests of src/egress.rs are in src/proxy/tests.rs, src/env_tests.rs,
 # src/race.rs, src/proxy_auth.rs and tests/egress.rs; those of
 # src/proxy_auth.rs in src/digest_tests.rs, src/detect.rs and
