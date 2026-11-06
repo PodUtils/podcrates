@@ -1,0 +1,19 @@
+# The Piping Server that its author runs and that needs no account: the
+# default server of podssh's Piping road.
+id = "ppng-piping"
+kind = "piping"
+party = "nwtgck, the author of Piping Server"
+about = "A public Piping Server"
+
+[[endpoint]]
+name = "server"
+scheme = "https"
+host = "ppng.io"
+port = 443
+source = { url = "https://raw.githubusercontent.com/nwtgck/piping-server/develop/README.md", read = 2026-11-06, note = "the README's examples use https://ppng.io" }
+
+[[watch]]
+kind = "http-status"
+endpoint = "server"
+path = "/version"
+status = 200

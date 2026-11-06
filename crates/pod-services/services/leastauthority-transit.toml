@@ -1,0 +1,17 @@
+# Least Authority's transit relay as a WebSocket on port 443: the default
+# relay of podssh's transit road.
+id = "leastauthority-transit"
+kind = "transit"
+party = "Least Authority"
+about = "The magic-wormhole transit relay of Least Authority's Winden, over WebSocket"
+
+[[endpoint]]
+name = "relay"
+scheme = "wss"
+host = "relay.mw.leastauthority.com"
+port = 443
+source = { url = "https://github.com/LeastAuthority/winden/blob/0082e5aeef7eef5d4ae163f2ce61906bd2ee4e0a/client/src/app/components/pages/static/FaqPage.tsx", read = 2026-11-06, note = "Winden's FAQ: Transit relay URL, tcp://relay.mw.leastauthority.com:4001 and wss://relay.mw.leastauthority.com" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "relay"

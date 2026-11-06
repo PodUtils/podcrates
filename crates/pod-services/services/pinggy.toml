@@ -1,0 +1,24 @@
+# Pinggy's free SSH relay: the default relay of podnet's transport ssh (a
+# remote forward through an SSH server on port 443).
+id = "pinggy"
+kind = "ssh-tunnel"
+party = "Pinggy"
+about = "The free tier of Pinggy's SSH tunnels, with an anonymous login"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "free.pinggy.io"
+port = 443
+source = { url = "https://pinggy.io/docs/", read = 2026-11-06, note = "ssh -p 443 -R0:localhost:8000 free.pinggy.io" }
+
+# The banner names the dashboard beside the tunnel's URL: the URL of the
+# tunnel is the one that is not on this host.
+[[fact]]
+name = "dashboard-host"
+value = "dashboard.pinggy.io"
+source = { url = "https://pinggy.io/docs/", read = 2026-11-06, note = "PodUtils/podnet src/relay.rs passes it over in the banner" }
+
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"

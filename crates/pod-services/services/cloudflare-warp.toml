@@ -1,0 +1,109 @@
+# Cloudflare's WARP: the API of a device's registration, the MASQUE front
+# doors, and the identity of the client that the API accepts.
+id = "cloudflare-warp"
+kind = "warp"
+party = "Cloudflare"
+about = "WARP: the registration API and the MASQUE front doors, as usque and the Android app speak them"
+
+[[endpoint]]
+name = "api"
+role = "api"
+scheme = "https"
+host = "api.cloudflareclient.com"
+port = 443
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "ApiUrl" }
+
+# A second name of the same API, tried after the first: a proxy's allow
+# list can hold one name and not the other.
+[[endpoint]]
+name = "api-second"
+role = "api"
+scheme = "https"
+host = "api.devices.cloudflare.com"
+port = 443
+source = { measured = "the name resolves to other addresses of Cloudflare than api.cloudflareclient.com (DNS over HTTPS, JSON form, at cloudflare-dns.com: 162.159.137.105 and 162.159.138.105)", read = 2026-11-06, note = "podssh resolved it on 2026-11-02 (T-562); podnet's live.yml registers through it" }
+
+# The MASQUE front door over HTTP/2 (and HTTP/3): the name has no address
+# record, so the door is dialled by its address with this TLS name.
+[[endpoint]]
+name = "masque-v4"
+role = "masque"
+scheme = "https"
+host = "consumer-masque.cloudflareclient.com"
+port = 443
+addresses = ["162.159.198.2"]
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/config/endpoints.go", read = 2026-11-06, note = "DefaultEndpointH2V4, and ConnectSNI of internal/consts.go; the name had no A record on 2026-11-06" }
+
+[[endpoint]]
+name = "masque-v6"
+role = "masque"
+scheme = "https"
+host = "consumer-masque.cloudflareclient.com"
+port = 443
+addresses = ["2606:4700:103::2"]
+source = { measured = "the tunnel of podnet's IPv6-only kit worked through this address (PodUtils/podnet src/doctor.rs MASQUE_ADDRESS_V6)", read = 2026-11-05, note = "the source names no date: the date of podnet 380d9a4" }
+
+# The TLS name of the L4 front door; its address comes from the device's
+# record of the API.
+[[endpoint]]
+name = "masque-l4"
+scheme = "https"
+host = "consumer-masque-proxy.cloudflareclient.com"
+port = 443
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "L4ConnectSNI" }
+
+# The :authority of the CONNECT-IP request: a routing hint, not a host that
+# the client dials.
+[[fact]]
+name = "connect-uri"
+value = "https://cloudflareaccess.com"
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "ConnectURI; podssh writes it cloudflareaccess.com:443, with the port that connect-ip-go adds" }
+
+[[fact]]
+name = "user-agent"
+value = "WARP for Android"
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "Headers: User-Agent" }
+
+# The API refuses a version of the API and a version of the client whose
+# build numbers differ: each pair goes together.
+[[fact]]
+name = "api-version"
+value = "v0a5641"
+source = { measured = "PodUtils/podnet src/warp/register.rs registers WARP devices with this pair (its nightly live.yml, step WARP account and probe)", read = 2026-11-05, note = "the source names no date: the date of podnet 380d9a4" }
+
+[[fact]]
+name = "client-version"
+value = "a-6.38.9-5641"
+source = { measured = "PodUtils/podnet src/warp/register.rs registers WARP devices with this pair (its nightly live.yml, step WARP account and probe)", read = 2026-11-05, note = "the source names no date: the date of podnet 380d9a4; CF-Client-Version" }
+
+[[fact]]
+name = "usque-api-version"
+value = "v0a4471"
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "ApiVersion; PodUtils/podssh crates/podssh-warp/src/register.rs holds this pair" }
+
+[[fact]]
+name = "usque-client-version"
+value = "a-6.35-4471"
+source = { url = "https://raw.githubusercontent.com/Diniboy1123/usque/main/internal/consts.go", read = 2026-11-06, note = "Headers: CF-Client-Version" }
+
+# The Terms that a registration accepts, which the user accepts first.
+[[fact]]
+name = "terms-url"
+value = "https://www.cloudflare.com/application/terms/"
+source = { url = "https://www.cloudflare.com/application/terms/", read = 2026-11-06, note = "a GET answered 200" }
+
+[[watch]]
+kind = "github-file"
+repo = "Diniboy1123/usque"
+path = "internal/consts.go"
+facts = ["usque-api-version", "usque-client-version", "user-agent", "connect-uri"]
+
+[[watch]]
+kind = "github-file"
+repo = "Diniboy1123/usque"
+path = "config/endpoints.go"
+endpoint = "masque-v4"
+
+[[watch]]
+kind = "tls-name"
+role = "api"

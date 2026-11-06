@@ -1,0 +1,21 @@
+# Google's STUN server: the second server of the NAT check of podssh's
+# doctor.
+id = "google-stun"
+kind = "stun"
+party = "Google"
+about = "The STUN server that WebRTC's samples name"
+
+[rank]
+value = 2
+source = { ruling = "PodUtils/podssh, the operator's call Q86: Cloudflare's server, then Google's, two operators (crates/podssh-cli/src/doctor/nat.rs)", read = 2026-11-05 }
+
+[[endpoint]]
+name = "udp"
+scheme = "stun"
+host = "stun.l.google.com"
+port = 19302
+source = { url = "https://raw.githubusercontent.com/webrtc/samples/gh-pages/src/content/peerconnection/trickle-ice/js/main.js", read = 2026-11-06, note = "stun:stun.l.google.com:19302" }
+
+[[watch]]
+kind = "stun-binding"
+endpoint = "udp"

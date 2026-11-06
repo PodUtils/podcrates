@@ -1,0 +1,49 @@
+# Quad9's DNS over HTTPS by IP address: the wire form alone (the JSON
+# query got 400), over HTTP/2 alone (HTTP/1.1 got 505). It has no fact
+# json-path.
+id = "quad9-doh"
+kind = "doh"
+party = "Quad9"
+about = "9.9.9.9: DNS over HTTPS in RFC 8484's wire form, over HTTP/2"
+
+[rank]
+value = 3
+source = { ruling = "the order of PodUtils/podssh crates/podssh-ws/src/resolve.rs (DOH_RESOLVERS): Quad9 after Cloudflare and Google", read = 2026-11-05 }
+
+[[endpoint]]
+name = "v4-1"
+role = "v4"
+scheme = "https"
+host = "dns.quad9.net"
+port = 443
+addresses = ["9.9.9.9"]
+source = { measured = "the TLS certificate at this address on port 443 names the host and the address (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://www.quad9.net/service/service-addresses-and-features/ lists the address; podssh read the name on 2026-11-01" }
+
+[[endpoint]]
+name = "v4-2"
+role = "v4"
+scheme = "https"
+host = "dns9.quad9.net"
+port = 443
+addresses = ["149.112.112.112"]
+source = { measured = "the TLS certificate at this address on port 443 names the host and the address (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://www.quad9.net/service/service-addresses-and-features/ lists the address" }
+
+[[fact]]
+name = "wire-path"
+value = "/dns-query"
+source = { url = "https://www.quad9.net/service/service-addresses-and-features/", read = 2026-11-06 }
+
+[[fact]]
+name = "http2-only"
+value = true
+source = { measured = "a query over HTTP/1.1 got 505, and a JSON query got 400 (PodUtils/podssh crates/podssh-ws/src/resolve.rs, T-405)", read = 2026-10-31 }
+
+[[watch]]
+kind = "tls-names"
+role = "v4"
+
+[[watch]]
+kind = "doh-answer"
+form = "wire"
+name = "example.com"
+type = "A"

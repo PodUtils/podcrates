@@ -1,0 +1,42 @@
+# An older copy of Mudlet's Worker, under workers.dev: the third built-in
+# forwarder of podssh, after a second provider.
+id = "mudix-forwarder"
+kind = "forwarder"
+party = "delwing (one person, on workers.dev)"
+about = "An older copy of the WebSocket proxy of Mudlet's web client"
+
+[rank]
+value = 3
+source = { ruling = "PodUtils/podssh, the operator ruling Q56: the three forwarders that GitHub #59 measured, a second provider before a second copy of the first (crates/podssh-ws/src/forwarder/builtin.rs)", read = 2026-10-31 }
+
+[[endpoint]]
+name = "forwarder"
+scheme = "wss"
+host = "mudix.delwing.workers.dev"
+port = 443
+path = "/"
+source = { measured = "a tester forwarded to github.com:22 through it and got the banner of GitHub, from a host with direct egress (PodUtils/podssh GitHub #59)", read = 2026-10-31 }
+
+[[fact]]
+name = "word"
+value = "mudix"
+source = { ruling = "PodUtils/podssh, the operator ruling Q56: the three forwarders that GitHub #59 measured, a second provider before a second copy of the first (crates/podssh-ws/src/forwarder/builtin.rs)", read = 2026-10-31 }
+
+[[fact]]
+name = "template"
+value = "wss://mudix.delwing.workers.dev/?host={host}&port={port}"
+source = { measured = "a tester forwarded to github.com:22 through it and got the banner of GitHub, from a host with direct egress (PodUtils/podssh GitHub #59)", read = 2026-10-31 }
+
+[[fact]]
+name = "note"
+value = "an older copy of Mudlet's Worker, on one person's name under workers.dev"
+source = { measured = "a tester forwarded to github.com:22 through it and got the banner of GitHub, from a host with direct egress (PodUtils/podssh GitHub #59)", read = 2026-10-31 }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "forwarder"
+
+[[watch]]
+kind = "forward-banner"
+template = "template"
+target = "github-ssh"

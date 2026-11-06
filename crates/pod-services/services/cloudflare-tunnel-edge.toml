@@ -1,0 +1,161 @@
+# The edge of Cloudflare's tunnels: the SRV record of its regions, the
+# regions on port 7844 over TLS (HTTP/2) and over QUIC, its TLS names and
+# ALPN, the anycast addresses of a host with no DNS, its roots, and the
+# release of cloudflared whose protocol the adapter speaks. The protocol
+# code is pod-cloudflare's; it reads these values.
+id = "cloudflare-tunnel-edge"
+kind = "tunnel-edge"
+party = "Cloudflare"
+about = "The edge of Cloudflare's tunnels (Argo Tunnel)"
+
+# HTTP/2 over TLS: the name h2.cftunnel.com and no ALPN at all.
+[[endpoint]]
+name = "h2-region1"
+role = "h2"
+scheme = "tls"
+host = "region1.v2.argotunnel.com"
+port = 7844
+sni = "h2.cftunnel.com"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/connection/protocol.go", read = 2026-11-06, note = "edgeH2TLSServerName; the host and the port are the first target of the SRV record, measured by DNS over HTTPS on 2026-11-06" }
+
+[[endpoint]]
+name = "h2-region2"
+role = "h2"
+scheme = "tls"
+host = "region2.v2.argotunnel.com"
+port = 7844
+sni = "h2.cftunnel.com"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/connection/protocol.go", read = 2026-11-06, note = "edgeH2TLSServerName; the host and the port are the second target of the SRV record, measured by DNS over HTTPS on 2026-11-06" }
+
+# QUIC: the name quic.cftunnel.com and the ALPN argotunnel, two other words.
+[[endpoint]]
+name = "quic-region1"
+role = "quic"
+scheme = "quic"
+host = "region1.v2.argotunnel.com"
+port = 7844
+sni = "quic.cftunnel.com"
+alpn = ["argotunnel"]
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/connection/protocol.go", read = 2026-11-06, note = "edgeQUICServerName and quicProtos" }
+
+[[endpoint]]
+name = "quic-region2"
+role = "quic"
+scheme = "quic"
+host = "region2.v2.argotunnel.com"
+port = 7844
+sni = "quic.cftunnel.com"
+alpn = ["argotunnel"]
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/connection/protocol.go", read = 2026-11-06, note = "edgeQUICServerName and quicProtos" }
+
+[[fact]]
+name = "srv-name"
+value = "_v2-origintunneld._tcp.argotunnel.com"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/edgediscovery/allregions/discovery.go", read = 2026-11-06, note = "srvService v2-origintunneld, srvProto tcp, srvName argotunnel.com; the record answered region1 and region2.v2.argotunnel.com on port 7844 by DNS over HTTPS on 2026-11-06" }
+
+# Each target of the record is a name under this zone, or the answer is
+# not used.
+[[fact]]
+name = "srv-target-zone"
+value = "argotunnel.com"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/edgediscovery/allregions/discovery.go", read = 2026-11-06, note = "srvName" }
+
+# The last resort of a host with no DNS: two addresses of each region.
+[[fact]]
+name = "static-addresses"
+value = ["198.41.192.167", "198.41.192.227", "198.41.200.13", "198.41.200.53"]
+source = { measured = "the A records of region1.v2.argotunnel.com and region2.v2.argotunnel.com hold each address (DNS over HTTPS, JSON form, at cloudflare-dns.com)", read = 2026-11-06, note = "PodUtils/podnet src/edge_discovery.rs STATIC_EDGE_IPS" }
+
+# The address of the UDP probe and of the doctor's edge by address.
+[[fact]]
+name = "probe-address"
+value = "198.41.192.167"
+source = { measured = "an A record of region1.v2.argotunnel.com (DNS over HTTPS, JSON form, at cloudflare-dns.com)", read = 2026-11-06, note = "PodUtils/podnet src/udp.rs PROBE_TARGET" }
+
+# The edge target of podnet's warp probe.
+[[fact]]
+name = "warp-probe-address"
+value = "198.41.192.27"
+source = { measured = "an A record of region1.v2.argotunnel.com (DNS over HTTPS, JSON form, at cloudflare-dns.com)", read = 2026-11-06, note = "PodUtils/podnet src/main.rs, the default targets of warp probe" }
+
+# The roots that cloudflared adds for the edge (three; the edge chains to
+# the first), and the first day when one of them ends.
+[[fact]]
+name = "roots"
+file = "files/cloudflare-edge-roots.pem"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/tlsconfig/cloudflare_ca.go", read = 2026-11-06, note = "the same certificates as at 2026.10.6; PodUtils/podssh quick/cloudflare-roots.pem and PodUtils/podnet cf-edge-roots.pem" }
+
+[[fact]]
+name = "roots-first-end"
+value = 2029-08-15
+source = { measured = "the first notAfter of the roots (openssl x509 -enddate of each certificate)", read = 2026-11-06 }
+
+# The release of cloudflared whose protocol the adapter speaks, and the
+# SHA-256 of each file of it that holds a part of that protocol: ROLE PATH
+# SHA256. A copy holds the same bytes as a file of the adapter, roots the
+# same certificates as the fact roots, and source a behaviour that the
+# adapter follows.
+[[fact]]
+name = "cloudflared-repository"
+value = "cloudflare/cloudflared"
+source = { url = "https://github.com/cloudflare/cloudflared", read = 2026-11-06 }
+
+[[fact]]
+name = "cloudflared-tag"
+value = "2026.10.7"
+source = { ruling = "the pins of the consumers: PodUtils/podnet src/cloudflare/cloudflared-pin.txt (2026.10.7); PodUtils/podssh crates/podssh-relay/src/quick/cloudflared-pin.txt (2026.10.6, and the sum of features.go of 2026.10.7, judged the same for podssh)", read = 2026-11-05 }
+
+[[fact]]
+name = "cloudflared-commit"
+value = "872b241f94871665c1c157adefcf90c11f0ead96"
+source = { url = "https://api.github.com/repos/cloudflare/cloudflared/commits/2026.10.7", read = 2026-11-06, note = "read through the mirror forge.web.pkgforge.dev/github" }
+
+[[fact]]
+name = "cloudflared-released"
+value = 2026-10-30
+source = { url = "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/2026.10.7", read = 2026-11-06, note = "published_at 2026-10-30T17:11:03Z, read through the mirror forge.web.pkgforge.dev/github" }
+
+[[fact]]
+name = "cloudflared-files"
+value = [
+    "copy tunnelrpc/proto/tunnelrpc.capnp 448aa30f4e251dc8810aba1a16c60ebeaaa5e000f88c46a8a28ba29f73e3bc3c",
+    "copy tunnelrpc/proto/quic_metadata_protocol.capnp 639d0b0ac9501bd4c3e2af8d52d3b7692805c825e3e14edd113a2f2263f8091f",
+    "roots tlsconfig/cloudflare_ca.go 2cbafae6d85350392221a06d77cdab9223767b791dbca07d18a28de320b99321",
+    "source connection/protocol.go a8adb832cc252397bebcd04ff3a40b37ed10d5573a1a7637f8313fcc3f377000",
+    "source connection/header.go 597a7a4c789019921e5743ea7e320f09b386eed9511d9cd9efc038cd3d4d28ec",
+    "source connection/http2.go 801f23ed2b42c0eb918b349b9a4574c3f54a4cb277efc16643f8a0ce51c82b30",
+    "source connection/control.go 280bbf5a7da15cc0e32131e10aac173fe8706ca460aade01277e448f2f09f963",
+    "source connection/quic_connection.go 977a1b6504981931bcbb295776ec3b06605a3717a8b9579bf53fc82bbc6e65bb",
+    "source tunnelrpc/registration_client.go d6799df9e3f598542671c1c86b25f06d5ac389aed543d3bf942078254b65c991",
+    "source cmd/cloudflared/tunnel/quick_tunnel.go 637457fc155436876ccf51407148dc5c74c4c8117a5ad23b8647428460b8082a",
+    "source features/features.go 098fb887e189ac0640046ee1a7e71c7e74a44d35eea2e02f8f49cfbb219fcfd0",
+]
+source = { measured = "the SHA-256 of each file at the tag 2026.10.7 (raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/PATH)", read = 2026-11-06, note = "each sum is the sum of the consumers' pins; connection/protocol.go is podssh's line, and is the same at 2026.10.6 and 2026.10.7" }
+
+[[watch]]
+kind = "dns-srv"
+fact = "srv-name"
+role = "h2"
+
+[[watch]]
+kind = "dns-addresses"
+role = "h2"
+facts = ["static-addresses", "probe-address", "warp-probe-address"]
+
+[[watch]]
+kind = "github-release"
+repo = "cloudflare/cloudflared"
+fact = "cloudflared-tag"
+max-age-days = 274
+
+[[watch]]
+kind = "github-files"
+repo = "cloudflare/cloudflared"
+tag = "cloudflared-tag"
+fact = "cloudflared-files"
+
+[[watch]]
+kind = "tls-roots"
+repo = "cloudflare/cloudflared"
+path = "tlsconfig/cloudflare_ca.go"
+fact = "roots"

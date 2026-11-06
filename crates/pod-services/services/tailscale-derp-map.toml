@@ -1,0 +1,19 @@
+# Where Tailscale publishes its default DERP map: podssh's Tailscale road
+# reads it, and the tests of the fork read it from there.
+id = "tailscale-derp-map"
+kind = "derp-map"
+party = "Tailscale"
+about = "Tailscale's default DERP map"
+
+[[endpoint]]
+name = "map"
+scheme = "https"
+host = "login.tailscale.com"
+port = 443
+path = "/derpmap/default"
+source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "a GET answered 200 with a map; podssh's fixture is the map of 2026-10-10" }
+
+[[watch]]
+kind = "http-json"
+url = "https://login.tailscale.com/derpmap/default"
+pointer = "/Regions"

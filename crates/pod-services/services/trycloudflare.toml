@@ -1,0 +1,30 @@
+# The API of Cloudflare's quick tunnels, which need no account, and the
+# zone of the names that it gives.
+id = "trycloudflare"
+kind = "quick-tunnel"
+party = "Cloudflare"
+about = "The API of quick tunnels (trycloudflare.com), as cloudflared calls it"
+
+[[endpoint]]
+name = "api"
+scheme = "https"
+host = "api.trycloudflare.com"
+port = 443
+path = "/tunnel"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/cmd/cloudflared/tunnel/cmd.go", read = 2026-11-06, note = "the default of the flag quick-service; quick_tunnel.go POSTs to it at /tunnel" }
+
+# A name of a quick tunnel is one label under this zone.
+[[fact]]
+name = "tunnel-zone"
+value = "trycloudflare.com"
+source = { url = "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/cmd/cloudflared/tunnel/quick_tunnel.go", read = 2026-11-06, note = "quick tunnels on trycloudflare.com" }
+
+[[watch]]
+kind = "github-file"
+repo = "cloudflare/cloudflared"
+path = "cmd/cloudflared/tunnel/cmd.go"
+endpoint = "api"
+
+[[watch]]
+kind = "tls-name"
+endpoint = "api"

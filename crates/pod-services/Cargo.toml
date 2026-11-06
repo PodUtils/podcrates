@@ -1,0 +1,30 @@
+[package]
+name = "pod-services"
+description = "The relays and the services of other parties that the PodUtils binaries use: one data file for each service, each value with its source and the date it was read, checked when the crate builds; the lookup by id and by kind; the overlay of a consumer's own files."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+# The data files go into the package: build.rs reads them.
+include = ["Cargo.toml", "README.md", "LICENSE", "build.rs", "src/**", "services/**"]
+
+[features]
+default = []
+# The overlay: a consumer lays files of the same schema over the built-in
+# set at run time (`Catalog::lay`). It parses TOML at run time.
+overlay = ["dep:toml"]
+
+[dependencies]
+pod-core = { workspace = true }
+toml = { workspace = true, optional = true }
+
+[build-dependencies]
+# build.rs reads each file of services/ and checks it against the schema.
+toml = { workspace = true }
+
+[dev-dependencies]
+# The tests of the schema run with or without the feature overlay.
+toml = { workspace = true }
+# The tests of the edge roots read the dates of the certificates.
+pod-tls = { workspace = true }

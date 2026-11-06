@@ -1,0 +1,30 @@
+# GitHub's SSH server and the fingerprints of its host keys: the fixed
+# target of a forward session of podssh's doctor, and of the check of each
+# forwarder.
+id = "github-ssh"
+kind = "ssh-host"
+party = "GitHub"
+about = "github.com on port 22, identified by the host keys that GitHub publishes"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "github.com"
+port = 22
+source = { ruling = "PodUtils/podcrates docs/decisions.md, 2026-11-05, Services: the facts of probes", read = 2026-11-05 }
+
+# Ed25519, ECDSA, RSA, as OpenSSH writes a fingerprint.
+[[fact]]
+name = "host-key-sha256"
+value = [
+    "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+    "SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM",
+    "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
+]
+source = { url = "https://api.github.com/meta", read = 2026-11-06, note = "ssh_key_fingerprints, read through the mirror forge.web.pkgforge.dev/github/meta; podssh read the same on 2026-10-08" }
+
+[[watch]]
+kind = "github-ssh-keys"
+url = "https://api.github.com/meta"
+pointer = "/ssh_key_fingerprints"
+fact = "host-key-sha256"

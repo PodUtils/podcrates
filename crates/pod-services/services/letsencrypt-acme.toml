@@ -1,0 +1,18 @@
+# Let's Encrypt: the default ACME directory of podssh's relay role.
+id = "letsencrypt-acme"
+kind = "acme"
+party = "Let's Encrypt (ISRG)"
+about = "The ACME directory of Let's Encrypt's production CA"
+
+[[endpoint]]
+name = "directory"
+scheme = "https"
+host = "acme-v02.api.letsencrypt.org"
+port = 443
+path = "/directory"
+source = { url = "https://acme-v02.api.letsencrypt.org/directory", read = 2026-11-06, note = "the directory answered with newAccount, newNonce and newOrder" }
+
+[[watch]]
+kind = "http-json"
+url = "https://acme-v02.api.letsencrypt.org/directory"
+pointer = "/newOrder"

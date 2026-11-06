@@ -1,0 +1,53 @@
+# Cloudflare's resolver in plain DNS and its trace page: the resolver of
+# a WARP tunnel, the fallback nameservers of `warp tun`, the exit address
+# of a WARP session, and the target of a probe through the tunnel.
+id = "cloudflare-dns"
+kind = "dns"
+party = "Cloudflare"
+about = "1.1.1.1 and 1.0.0.1: DNS on UDP port 53, and /cdn-cgi/trace of one.one.one.one on port 443"
+
+[[endpoint]]
+name = "udp-1"
+role = "udp"
+scheme = "udp"
+host = "1.1.1.1"
+port = 53
+source = { url = "https://developers.cloudflare.com/1.1.1.1/ip-addresses/", read = 2026-11-06 }
+
+[[endpoint]]
+name = "udp-2"
+role = "udp"
+scheme = "udp"
+host = "1.0.0.1"
+port = 53
+source = { url = "https://developers.cloudflare.com/1.1.1.1/ip-addresses/", read = 2026-11-06 }
+
+# The trace of the exit (podnet) and the target of a probe through WARP
+# (podssh): an address of each family, on the port of TLS.
+[[endpoint]]
+name = "trace"
+scheme = "https"
+host = "one.one.one.one"
+port = 443
+path = "/cdn-cgi/trace"
+addresses = ["1.1.1.1", "2606:4700:4700::1111"]
+source = { measured = "GET https://one.one.one.one/cdn-cgi/trace answered h=one.one.one.one, and the TLS certificate of 1.1.1.1:443 names one.one.one.one and both addresses (curl and openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06 }
+
+[[fact]]
+name = "whoami-name"
+value = "whoami.cloudflare"
+source = { measured = "a TXT query of this name in class CH through a WARP session gives the exit address (PodUtils/podnet src/warp/exit.rs, podnet issue 184)", read = 2026-11-05, note = "the source names no date: the date of podnet 380d9a4" }
+
+[[fact]]
+name = "check-name"
+value = "cloudflare.com"
+source = { measured = "a query of type A through a new WARP session gets an answer (PodUtils/podnet src/warp/proxy.rs, the check of the data path of podnet issue 120)", read = 2026-11-05, note = "the source names no date: the date of podnet 380d9a4" }
+
+[[watch]]
+kind = "http-text"
+endpoint = "trace"
+contains = "h=one.one.one.one"
+
+[[watch]]
+kind = "tls-names"
+endpoint = "trace"

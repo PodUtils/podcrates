@@ -1,0 +1,51 @@
+# n0's public relays of iroh, in order: North America east and west,
+# Europe, Asia and Pacific. Each host is fully qualified (a last dot), as
+# iroh writes it.
+id = "n0-iroh-relay"
+kind = "iroh-relay"
+party = "n0 (number 0)"
+about = "The public relays of iroh (iroh's defaults::prod)"
+
+[[endpoint]]
+name = "na-east"
+role = "relay"
+scheme = "https"
+host = "use1-1.relay.n0.iroh.link."
+port = 443
+source = { url = "https://raw.githubusercontent.com/n0-computer/iroh/v1.4.1/iroh/src/defaults.rs", read = 2026-11-06, note = "NA_EAST_RELAY_HOSTNAME; podssh read the same in iroh 1.3.0 and 1.4.1" }
+
+[[endpoint]]
+name = "na-west"
+role = "relay"
+scheme = "https"
+host = "usw1-1.relay.n0.iroh.link."
+port = 443
+source = { url = "https://raw.githubusercontent.com/n0-computer/iroh/v1.4.1/iroh/src/defaults.rs", read = 2026-11-06, note = "NA_WEST_RELAY_HOSTNAME" }
+
+[[endpoint]]
+name = "eu"
+role = "relay"
+scheme = "https"
+host = "euc1-1.relay.n0.iroh.link."
+port = 443
+source = { url = "https://raw.githubusercontent.com/n0-computer/iroh/v1.4.1/iroh/src/defaults.rs", read = 2026-11-06, note = "EU_RELAY_HOSTNAME" }
+
+[[endpoint]]
+name = "ap"
+role = "relay"
+scheme = "https"
+host = "aps1-1.relay.n0.iroh.link."
+port = 443
+source = { url = "https://raw.githubusercontent.com/n0-computer/iroh/v1.4.1/iroh/src/defaults.rs", read = 2026-11-06, note = "AP_RELAY_HOSTNAME" }
+
+[[watch]]
+kind = "crate-file"
+crate = "iroh"
+path = "src/defaults.rs"
+role = "relay"
+
+[[watch]]
+kind = "http-status"
+role = "relay"
+path = "/ping"
+status = 200

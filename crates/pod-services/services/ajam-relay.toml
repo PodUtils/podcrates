@@ -1,0 +1,131 @@
+# The relay of the owner of PodUtils: the default relay of podssh and of
+# podnet, its pool's seed and the limits of its /relays.json. The client
+# logic (the pool, the rank, the tokens) and the contract are pod-relay's.
+id = "ajam-relay"
+kind = "relay"
+party = "ajam.dev, the owner of PodUtils"
+about = "The WebSocket relay that podssh and podnet use with no setup, and the hosts of its pool"
+
+[rank]
+value = 0
+source = { ruling = "PodUtils/podcrates docs/decisions.md, 2026-11-05, Services: the own relay", read = 2026-11-05 }
+
+[[endpoint]]
+name = "default"
+role = "default"
+scheme = "https"
+host = "tcp.ssh.relay.ajam.dev"
+port = 443
+source = { ruling = "the operator's decision of 2026-10-08 (PodUtils/podssh crates/podssh-relay/src/relay.rs)", read = 2026-10-08 }
+
+# The seed of the pool: the alternates of the default host until a pool is
+# cached. The same six hosts in podssh and in podnet.
+[[endpoint]]
+name = "seed-us-east-1"
+role = "seed"
+scheme = "https"
+host = "tcp-us-east-1.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool; podssh read the seed on 2026-10-08, and podnet measured each seed host on 2026-11-04 (/trace?target=198.41.192.167:7844 reached TCP 7844 of the edge)" }
+
+[[endpoint]]
+name = "seed-eu-west-3"
+role = "seed"
+scheme = "https"
+host = "tcp-eu-west-3.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
+
+[[endpoint]]
+name = "seed-ap-southeast-1"
+role = "seed"
+scheme = "https"
+host = "tcp-ap-southeast-1.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
+
+[[endpoint]]
+name = "seed-azure-westeurope"
+role = "seed"
+scheme = "https"
+host = "tcp-azure-westeurope.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
+
+[[endpoint]]
+name = "seed-us-central1"
+role = "seed"
+scheme = "https"
+host = "tcp-us-central1.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
+
+[[endpoint]]
+name = "seed-ap-south-1"
+role = "seed"
+scheme = "https"
+host = "tcp-ap-south-1.ssh.relay.ajam.dev"
+port = 443
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
+
+# The limits of /relays.json (podssh crates/podssh-probe/facts/relay-limits.toml).
+[[fact]]
+name = "connect-timeout-ms"
+value = 10000
+unit = "ms"
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22", read = 2026-11-06, note = "the member connect_timeout_ms of limits; podssh relay-limits.toml read the same on 2026-10-31" }
+
+[[fact]]
+name = "idle-timeout-ms"
+value = 180000
+unit = "ms"
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22", read = 2026-11-06, note = "the member idle_timeout_ms of limits; podssh relay-limits.toml read the same on 2026-10-31" }
+
+[[fact]]
+name = "max-session-ms"
+value = 43200000
+unit = "ms"
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22", read = 2026-11-06, note = "the member max_session_ms of limits; podssh relay-limits.toml read the same on 2026-10-31" }
+
+[[fact]]
+name = "max-session-bytes"
+value = 67108864
+unit = "bytes"
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22", read = 2026-11-06, note = "the member max_session_bytes of limits; podssh relay-limits.toml read the same on 2026-10-31" }
+
+[[fact]]
+name = "max-frame-bytes"
+value = 262144
+unit = "bytes"
+source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22", read = 2026-11-06, note = "the member max_frame_bytes of limits; podssh relay-limits.toml read the same on 2026-10-31" }
+
+# The version of the relay that podssh's doctor names.
+[[fact]]
+name = "measured-version"
+value = "2026-10-03-r2"
+source = { url = "https://tcp.ssh.relay.ajam.dev/health", read = 2026-11-06, note = "the member version; podssh docs/relay.md names the same, read on 2026-10-08" }
+
+# The keys of the signed list of deployments that a binary trusts with no
+# setting. The operator published none: the list is empty.
+[[fact]]
+name = "signed-list-keys"
+type = "texts"
+value = []
+source = { ruling = "PodUtils/podssh docs/relay-operator.md, item 14: a signed /relays.json is optional for the operator, who published no key", read = 2026-11-05 }
+
+[[watch]]
+kind = "http-json"
+url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22"
+pointer = "/limits"
+facts = ["connect-timeout-ms", "idle-timeout-ms", "max-session-ms", "max-session-bytes", "max-frame-bytes"]
+members = ["connect_timeout_ms", "idle_timeout_ms", "max_session_ms", "max_session_bytes", "max_frame_bytes"]
+
+[[watch]]
+kind = "http-json"
+url = "https://tcp.ssh.relay.ajam.dev/health"
+pointer = "/version"
+fact = "measured-version"
+
+[[watch]]
+kind = "rdap"
+domain = "ajam.dev"

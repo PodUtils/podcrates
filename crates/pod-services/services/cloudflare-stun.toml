@@ -1,0 +1,21 @@
+# Cloudflare's STUN server: the first server of the NAT check of podssh's
+# doctor.
+id = "cloudflare-stun"
+kind = "stun"
+party = "Cloudflare"
+about = "The STUN server of Cloudflare's Realtime TURN service"
+
+[rank]
+value = 1
+source = { ruling = "PodUtils/podssh, the operator's call Q86: Cloudflare's server, then Google's, two operators (crates/podssh-cli/src/doctor/nat.rs)", read = 2026-11-05 }
+
+[[endpoint]]
+name = "udp"
+scheme = "stun"
+host = "stun.cloudflare.com"
+port = 3478
+source = { url = "https://developers.cloudflare.com/realtime/turn/", read = 2026-11-06, note = "STUN over UDP, stun.cloudflare.com, 3478/udp" }
+
+[[watch]]
+kind = "stun-binding"
+endpoint = "udp"

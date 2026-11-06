@@ -1,0 +1,43 @@
+# The Worker of Mudlet's web client: a public WebSocket forwarder that
+# takes the target in its query. The first built-in forwarder of podssh.
+id = "mudlet-forwarder"
+kind = "forwarder"
+party = "Mudlet"
+about = "The WebSocket proxy of Mudlet's web client, a Worker on Cloudflare"
+
+[rank]
+value = 1
+source = { ruling = "PodUtils/podssh, the operator ruling Q56: the three forwarders that GitHub #59 measured, a second provider before a second copy of the first (crates/podssh-ws/src/forwarder/builtin.rs)", read = 2026-10-31 }
+
+[[endpoint]]
+name = "forwarder"
+scheme = "wss"
+host = "web-proxy.mudlet.org"
+port = 443
+path = "/"
+source = { measured = "a tester forwarded to github.com:22 through it and got the banner of GitHub, from a host with direct egress (PodUtils/podssh GitHub #59)", read = 2026-10-31 }
+
+# The word that selects it (--forwarder mudlet).
+[[fact]]
+name = "word"
+value = "mudlet"
+source = { ruling = "PodUtils/podssh, the operator ruling Q56: the three forwarders that GitHub #59 measured, a second provider before a second copy of the first (crates/podssh-ws/src/forwarder/builtin.rs)", read = 2026-10-31 }
+
+[[fact]]
+name = "template"
+value = "wss://web-proxy.mudlet.org/?host={host}&port={port}"
+source = { measured = "a tester forwarded to github.com:22 through it and got the banner of GitHub, from a host with direct egress (PodUtils/podssh GitHub #59)", read = 2026-10-31 }
+
+[[fact]]
+name = "note"
+value = "the Worker of Mudlet's web client, on Cloudflare, whose runtime refuses port 25, private addresses and Cloudflare's own; each of its users shares the requests of its plan"
+source = { url = "https://github.com/Mudlet/mudlet-web", read = 2026-10-31, note = "worker/index.js (PodUtils/podssh docs/carriers.md)" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "forwarder"
+
+[[watch]]
+kind = "forward-banner"
+template = "template"
+target = "github-ssh"

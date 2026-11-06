@@ -1,0 +1,72 @@
+# Google's DNS over HTTPS by IP address, with the name that its
+# certificate holds. podssh asks 8.8.4.4 by the second name of the
+# certificate, so that through a proxy two addresses are two names.
+id = "google-doh"
+kind = "doh"
+party = "Google"
+about = "8.8.8.8: DNS over HTTPS in RFC 8484's wire form and in Google's JSON form"
+
+[rank]
+value = 2
+source = { ruling = "the order of both consumers: PodUtils/podssh crates/podssh-ws/src/resolve.rs (DOH_RESOLVERS) and PodUtils/podnet src/resolve.rs (DOH_SERVERS)", read = 2026-11-05 }
+
+[[endpoint]]
+name = "v4-1"
+role = "v4"
+scheme = "https"
+host = "dns.google"
+port = 443
+addresses = ["8.8.8.8"]
+source = { measured = "the TLS certificate of 8.8.4.4:443 names dns.google, dns.google.com and the addresses 8.8.8.8, 8.8.4.4, 2001:4860:4860::8888 and 2001:4860:4860::8844 (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://developers.google.com/speed/public-dns/docs/using lists the addresses; podssh read the names on 2026-11-01" }
+
+[[endpoint]]
+name = "v4-2"
+role = "v4"
+scheme = "https"
+host = "dns.google.com"
+port = 443
+addresses = ["8.8.4.4"]
+source = { measured = "the TLS certificate of 8.8.4.4:443 names dns.google, dns.google.com and this address (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://developers.google.com/speed/public-dns/docs/using lists the address" }
+
+[[endpoint]]
+name = "v6-1"
+role = "v6"
+scheme = "https"
+host = "dns.google"
+port = 443
+addresses = ["2001:4860:4860::8888"]
+source = { measured = "the TLS certificate of 8.8.4.4:443 names dns.google and this address (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://developers.google.com/speed/public-dns/docs/using lists the address" }
+
+[[endpoint]]
+name = "v6-2"
+role = "v6"
+scheme = "https"
+host = "dns.google"
+port = 443
+addresses = ["2001:4860:4860::8844"]
+source = { measured = "the TLS certificate of 8.8.4.4:443 names dns.google and this address (openssl s_client through the HTTPS proxy of the session)", read = 2026-11-06, note = "https://developers.google.com/speed/public-dns/docs/using lists the address" }
+
+[[fact]]
+name = "json-path"
+value = "/resolve"
+source = { url = "https://developers.google.com/speed/public-dns/docs/doh", read = 2026-11-06 }
+
+[[fact]]
+name = "wire-path"
+value = "/dns-query"
+source = { url = "https://developers.google.com/speed/public-dns/docs/doh", read = 2026-11-06 }
+
+[[fact]]
+name = "http2-only"
+value = false
+source = { measured = "a query over HTTP/1.1 got an answer (PodUtils/podssh crates/podssh-ws/src/resolve.rs, T-405)", read = 2026-10-31 }
+
+[[watch]]
+kind = "tls-names"
+role = "v4"
+
+[[watch]]
+kind = "doh-answer"
+form = "json"
+name = "example.com"
+type = "A"

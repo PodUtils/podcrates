@@ -1,0 +1,20 @@
+# n0's server of pkarr: where podssh's iroh road publishes and reads a
+# node's signed record.
+id = "n0-pkarr"
+kind = "pkarr"
+party = "n0 (number 0)"
+about = "The pkarr relay of iroh's DNS (N0_DNS_PKARR_RELAY_PROD)"
+
+[[endpoint]]
+name = "relay"
+scheme = "https"
+host = "dns.iroh.link"
+port = 443
+path = "/pkarr"
+source = { url = "https://raw.githubusercontent.com/n0-computer/iroh/v1.4.1/iroh/src/address_lookup/pkarr.rs", read = 2026-11-06, note = "N0_DNS_PKARR_RELAY_PROD of iroh 1.4.1" }
+
+[[watch]]
+kind = "crate-file"
+crate = "iroh"
+path = "src/address_lookup/pkarr.rs"
+endpoint = "relay"

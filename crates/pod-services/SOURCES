@@ -1,0 +1,66 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+# Only some lines of each file below moved: the values of other parties
+# (docs/research/services/podssh.md, A; README, Parity). The code around
+# them stays in podssh. A change of such a file may change a value: the
+# session reads the change, and moves the value with its source here.
+repo PodUtils/podssh d3745abd31857a6ecea218be047c033c73d32a4e
+file 00748b6a850767865331da3efa4caa04bc880a0b crates/podssh-cli/src/acme/mod.rs -> crates/pod-services/services/letsencrypt-acme.toml
+file dd5e7518f24ec7492760cf5ada8a65db25da0abe crates/podssh-cli/src/doctor/nat.rs -> crates/pod-services/services/cloudflare-stun.toml crates/pod-services/services/google-stun.toml
+file a2f7b1d389a29b6d0a4998f52e377b4699bb3d38 crates/podssh-cli/src/doctor/relay_checks.rs -> crates/pod-services/services/ajam-relay.toml crates/pod-services/services/github-ssh.toml crates/pod-services/tests/moved.rs
+file 4c0da8689aa989fabf107282f7806802709aacdb crates/podssh-cli/src/ssh/opentunnel.rs -> crates/pod-services/services/opentunnel.toml
+file 71fa889eaf1caca40d4e116ccb88e1723e032540 crates/podssh-cli/src/ts.rs -> crates/pod-services/services/ajam-ts-relay.toml
+file 0a996d1f68079b9f627bbe7843b42628df9e41ad crates/podssh-cli/src/ts/probe.rs -> crates/pod-services/services/tailscale-derp-map.toml
+file 9aa060710052c1087668d29bc46cc8907b1d3e13 crates/podssh-iroh/src/pkarr.rs -> crates/pod-services/services/n0-pkarr.toml
+file fb35313cdb3700573bf1247d2f8d9c3e71eef31e crates/podssh-iroh/src/pkarr_record.rs -> crates/pod-services/services/trycloudflare.toml
+file 96e9ef081e3ce5e1f7afe409092c1a1bf4764f0c crates/podssh-iroh/src/relays.rs -> crates/pod-services/services/n0-iroh-relay.toml
+file 43ff05179a785040f23c1a3ca0c7bac2d18ddc87 crates/podssh-probe/facts/relay-limits.toml -> crates/pod-services/services/ajam-relay.toml
+file 2c7760f23842bb1f86a6023a923d995fec4f892f crates/podssh-relay/src/code/mod.rs -> crates/pod-services/services/magic-wormhole-mailbox.toml crates/pod-services/services/leastauthority-mailbox.toml
+file cf02b0db212d583dc9d660c705e00ede4d067f3e crates/podssh-relay/src/derp/servers.rs -> crates/pod-services/services/tailcat-derp.toml
+file f0d798b4318adaf1ad74b47de9f44e63c2693577 crates/podssh-relay/src/opentunnel/mod.rs -> crates/pod-services/services/opentunnel.toml
+file 9fcd2e27b02b9f944033a9d0b70ded8d7cd726f3 crates/podssh-relay/src/piping/server.rs -> crates/pod-services/services/ppng-piping.toml
+file 613262a0f5d445811b03120fdd59102d052df656 crates/podssh-relay/src/pool.rs -> crates/pod-services/services/ajam-relay.toml crates/pod-services/tests/moved.rs
+file 927761ea9bb0a9316334dd24b32bdacfe0b05139 crates/podssh-relay/src/pool/signed.rs -> crates/pod-services/services/ajam-relay.toml
+file f06595ee716cbbdfafd6126d581114d679a6a578 crates/podssh-relay/src/quick/api.rs -> crates/pod-services/services/trycloudflare.toml
+file ce212906592a0e3fbeb604ca61ef31fabe18714b crates/podssh-relay/src/quick/cloudflare-roots.pem -> crates/pod-services/services/files/cloudflare-edge-roots.pem
+file 5f4f49b826156ae6ba34f0159f6a4772ba10642c crates/podssh-relay/src/quick/cloudflared-pin.txt -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file ce926c683b5ba04c3e59080aee44d636c0a5d1bf crates/podssh-relay/src/quick/edge.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml crates/pod-services/tests/moved.rs
+file 027f7e36288f25232a036b509410fc792ae24931 crates/podssh-relay/src/quick/quic.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file dcf9d66c89edd527ffd107bc673eed03f0db7be4 crates/podssh-relay/src/relay.rs -> crates/pod-services/services/ajam-relay.toml crates/pod-services/tests/moved.rs
+file 2171361609065ef92921ce96f9c83378f92fbbc5 crates/podssh-relay/src/transit/mod.rs -> crates/pod-services/services/leastauthority-transit.toml
+file 18c25eff744ce4108ba627098692a1149b02fb91 crates/podssh-ts/src/config.rs -> crates/pod-services/services/ajam-ts-relay.toml
+file 9a833a9b165ab15aa41560e864f8fb56a0533075 crates/podssh-warp/src/lib.rs -> crates/pod-services/services/cloudflare-warp.toml
+file 581306d55bb17dc1e6ed8844826fc058cab7cf34 crates/podssh-warp/src/probe.rs -> crates/pod-services/services/cloudflare-dns.toml
+file 25cb5e2c14c097947dcdaf2e088e9793f27d4d6a crates/podssh-warp/src/register.rs -> crates/pod-services/services/cloudflare-warp.toml
+file 8c1c58a0d52e0080ebfac39a43619250aa44528a crates/podssh-ws/src/forwarder/builtin.rs -> crates/pod-services/services/mudlet-forwarder.toml crates/pod-services/services/ssheasy-forwarder.toml crates/pod-services/services/mudix-forwarder.toml crates/pod-services/services/wisp-forwarder.toml
+file 000da908fca642945374ac0a75dad5f8908b683e crates/podssh-ws/src/resolve.rs -> crates/pod-services/services/cloudflare-doh.toml crates/pod-services/services/google-doh.toml crates/pod-services/services/quad9-doh.toml
+
+# Only some lines of each file below moved: the values of other parties
+# (docs/research/services/podnet.md, 1; README, Parity). The code around
+# them stays in podnet. A change of such a file may change a value: the
+# session reads the change, and moves the value with its source here.
+repo PodUtils/podnet 380d9a4090465038124df32c4a29fd898649db99
+file f5955acef82e109e4d784f986e2ee76786673d03 src/agent.rs -> crates/pod-services/services/cloudflare-dns.toml
+file c9c4819f7635a24f60c6b142f817e14ca3b2080e src/cloudflare/cf-edge-roots.pem -> crates/pod-services/services/files/cloudflare-edge-roots.pem
+file 0adf018ec9a2630f8fdee9b7b4c416d1ac15c7e4 src/cloudflare/cloudflared-pin.txt -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file f165ca6ef3a66d2bc4326684d57c9650e362b3c3 src/cloudflare/mod.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml crates/pod-services/tests/moved.rs
+file 17029c0dca39c7785fa3859e5a9d7fc671cebc2e src/doctor.rs -> crates/pod-services/services/cloudflare-warp.toml crates/pod-services/services/trycloudflare.toml
+file 5b3636395c366e124e05d38ffe2712aa616bf17d src/edge_discovery.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file 8a2f3af61bbf6e2ac7eedf9506047b36281ca668 src/main.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml crates/pod-services/services/cloudflare-dns.toml
+file 5a1b7f663650b97fb313b2f8b07dedaf563fbabe src/quicktunnel.rs -> crates/pod-services/services/trycloudflare.toml
+file 674dcc866eddc356a97729cf39728579e4175e6f src/relay.rs -> crates/pod-services/services/pinggy.toml
+file bc6c12b279138b9f3e8682d5c407c5cee804e8e7 src/relay_pool.rs -> crates/pod-services/services/ajam-relay.toml
+file 2c386d5dcbf3777c003d0e64474a73358af5bb16 src/resolve.rs -> crates/pod-services/services/cloudflare-doh.toml crates/pod-services/services/google-doh.toml crates/pod-services/tests/moved.rs
+file 65273c056543a614faf56eb5e80cc9058b408396 src/transport/ssh.rs -> crates/pod-services/services/pinggy.toml
+file d6737bd97bc14680ec8a191f38764fb9a9284660 src/trust.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml crates/pod-services/tests/moved.rs
+file b29e4beb2ad61ba2478aa18270f473ce31b34d3f src/tunnel.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file cd31a4105a6c4ad6f1517ab683a7b019e5ad95ac src/udp.rs -> crates/pod-services/services/cloudflare-tunnel-edge.toml
+file 54783bf8519768e82158981876c29961187169ba src/util/mod.rs -> crates/pod-services/services/trycloudflare.toml
+file 4e65c6d060aa22ca9dc54a6711d66def3f37e7f6 src/warp/exit.rs -> crates/pod-services/services/cloudflare-dns.toml
+file 3c2e7f54f8cd8e64181d273f77f90d7cbd528654 src/warp/l4.rs -> crates/pod-services/services/cloudflare-warp.toml
+file 13cc7143bc09933b7e341b679c9d4c52cd9062bd src/warp/proxy.rs -> crates/pod-services/services/cloudflare-dns.toml
+file c0e03a494694a8331d3fdf6e73fe5f0385da3e1c src/warp/register.rs -> crates/pod-services/services/cloudflare-warp.toml
+file 4ca4aae28951373c19bfabf7de83ab806b4c458d src/warp/route.rs -> crates/pod-services/services/cloudflare-dns.toml
+file 231a0fd5892a18b18a3f3cf06a6746158e720125 src/ws_relay.rs -> crates/pod-services/services/ajam-relay.toml

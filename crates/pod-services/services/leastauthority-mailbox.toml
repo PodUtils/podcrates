@@ -1,0 +1,22 @@
+# Least Authority's mailbox, which its Winden and Destiny use: the second
+# mailbox of podssh's pairing by code.
+id = "leastauthority-mailbox"
+kind = "mailbox"
+party = "Least Authority"
+about = "The magic-wormhole mailbox of Least Authority's Winden and Destiny"
+
+[rank]
+value = 2
+source = { ruling = "the order of PodUtils/podssh crates/podssh-relay/src/code/mod.rs (MAILBOXES): magic-wormhole's, then Least Authority's", read = 2026-11-05 }
+
+[[endpoint]]
+name = "mailbox"
+scheme = "wss"
+host = "mailbox.mw.leastauthority.com"
+port = 443
+path = "/v1"
+source = { url = "https://github.com/LeastAuthority/winden/blob/0082e5aeef7eef5d4ae163f2ce61906bd2ee4e0a/client/src/app/components/pages/static/FaqPage.tsx", read = 2026-11-06, note = "Winden's FAQ: Mailbox URL; Destiny's lib/main_la.dart names the same" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "mailbox"

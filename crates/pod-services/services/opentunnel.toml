@@ -1,0 +1,30 @@
+# OpenTunnel's hosted service: its API and its bridges at its own name,
+# and its tunnels as names under it.
+id = "opentunnel"
+kind = "opentunnel"
+party = "Anomaly (anomalyco), on Fly.io"
+about = "The hosted service of OpenTunnel, which needs no account"
+
+[[endpoint]]
+name = "api"
+scheme = "https"
+host = "opentunnel.xyz"
+port = 443
+source = { measured = "a throwaway tunnel through it, 256 KiB echoed, then deleted (PodUtils/podssh opentunnel-live.yml, run 41679059624)", read = 2026-11-03, note = "https://opentunnel.xyz/ answered 200 on 2026-11-06" }
+
+# The domain of the hosted tunnels, ID.opentunnel.xyz, whose certificates
+# are public.
+[[fact]]
+name = "tunnel-zone"
+value = "opentunnel.xyz"
+source = { url = "https://github.com/anomalyco/opentunnel/blob/main/docs/protocol.md", read = 2026-11-02, note = "POST /api/tunnel gives a tunnel ID.opentunnel.xyz (PodUtils/podssh docs/carriers.md)" }
+
+[[watch]]
+kind = "http-status"
+endpoint = "api"
+path = "/"
+status = 200
+
+[[watch]]
+kind = "rdap"
+domain = "opentunnel.xyz"

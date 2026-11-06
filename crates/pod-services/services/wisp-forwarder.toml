@@ -1,0 +1,42 @@
+# Mercury Workshop's demo server of the Wisp protocol: the last built-in
+# forwarder of podssh.
+id = "wisp-forwarder"
+kind = "forwarder"
+party = "Mercury Workshop"
+about = "The public demo server of the Wisp protocol, for demo and testing"
+
+[rank]
+value = 4
+source = { ruling = "PodUtils/podssh, the operator ruling Q65: the demo server of the Wisp protocol comes after the three forwarders of Q56, and never first", read = 2026-11-02 }
+
+[[endpoint]]
+name = "forwarder"
+scheme = "wisp+wss"
+host = "wisp.mercurywork.shop"
+port = 443
+path = "/"
+source = { url = "https://wisp.mercurywork.shop/", read = 2026-11-02, note = "a forward to github.com:22 gave GitHub's version line (PodUtils/podssh live_wisp_gives_github_s_version_line)" }
+
+[[fact]]
+name = "word"
+value = "wisp"
+source = { ruling = "PodUtils/podssh, the operator ruling Q65: the demo server of the Wisp protocol comes after the three forwarders of Q56, and never first", read = 2026-11-02 }
+
+[[fact]]
+name = "template"
+value = "wisp+wss://wisp.mercurywork.shop/"
+source = { url = "https://wisp.mercurywork.shop/", read = 2026-11-02 }
+
+[[fact]]
+name = "note"
+value = "Mercury Workshop's demo server of the Wisp protocol, for demo and testing, 500 kB/s for each address, whose names resolve through a resolver that blocks malware and adult names; last, by the ruling Q65"
+source = { url = "https://wisp.mercurywork.shop/", read = 2026-11-02, note = "PodUtils/podssh docs/carriers.md, N2" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "forwarder"
+
+[[watch]]
+kind = "forward-banner"
+template = "template"
+target = "github-ssh"

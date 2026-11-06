@@ -1,0 +1,57 @@
+# The DERP servers of tailcat, which need no account: the homes of
+# podssh's DERP road, in the order of the regions of the map.
+id = "tailcat-derp"
+kind = "derp"
+party = "Tailscale, for tailcat"
+about = "Four DERP servers of Tailscale's fleet, one in each region of tailcat's map"
+
+[[endpoint]]
+name = "new-york"
+role = "region"
+scheme = "https"
+host = "tc301a.ipn.dev"
+port = 443
+source = { url = "https://tailcat.dev/derpmap.json", read = 2026-11-06, note = "region New York City; podssh read the map on 2026-10-31" }
+
+[[endpoint]]
+name = "san-francisco"
+role = "region"
+scheme = "https"
+host = "tc302a.ipn.dev"
+port = 443
+source = { url = "https://tailcat.dev/derpmap.json", read = 2026-11-06, note = "region San Francisco" }
+
+[[endpoint]]
+name = "frankfurt"
+role = "region"
+scheme = "https"
+host = "tc303a.ipn.dev"
+port = 443
+source = { url = "https://tailcat.dev/derpmap.json", read = 2026-11-06, note = "region Frankfurt" }
+
+[[endpoint]]
+name = "tokyo"
+role = "region"
+scheme = "https"
+host = "tc304a.ipn.dev"
+port = 443
+source = { url = "https://tailcat.dev/derpmap.json", read = 2026-11-06, note = "region Tokyo" }
+
+# derper's probe of latency: an empty answer to a GET.
+[[fact]]
+name = "probe-path"
+value = "/derp/probe"
+source = { url = "https://raw.githubusercontent.com/tailscale/tailscale/v1.104.4/cmd/derper/derper.go", read = 2026-11-06 }
+
+[[watch]]
+kind = "http-json"
+url = "https://tailcat.dev/derpmap.json"
+pointer = "/Regions"
+member = "HostName"
+role = "region"
+
+[[watch]]
+kind = "http-status"
+role = "region"
+path = "/derp/probe"
+status = 200

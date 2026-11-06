@@ -1,0 +1,21 @@
+# The relay of the owner for the Tailscale road of podssh: DERP over
+# WebSocket on port 443, the default of `podssh ts`.
+id = "ajam-ts-relay"
+kind = "ts-relay"
+party = "ajam.dev, the owner of PodUtils"
+about = "The DERP relay over WebSocket that podssh's Tailscale road uses with no setup"
+
+[[endpoint]]
+name = "default"
+scheme = "https"
+host = "tcp.ts.relay.ajam.dev"
+port = 443
+source = { ruling = "PodUtils/podcrates docs/decisions.md, 2026-11-05, Services: the own relay (the ts relay of PodUtils/podssh crates/podssh-ts/src/config.rs)", read = 2026-11-05 }
+
+[[watch]]
+kind = "tls-name"
+endpoint = "default"
+
+[[watch]]
+kind = "rdap"
+domain = "ajam.dev"

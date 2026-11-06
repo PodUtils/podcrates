@@ -1,0 +1,28 @@
+# magic-wormhole's public mailbox: the first mailbox of podssh's pairing
+# by code.
+id = "magic-wormhole-mailbox"
+kind = "mailbox"
+party = "magic-wormhole (its author's server)"
+about = "The public mailbox (rendezvous) server of magic-wormhole, on port 443"
+
+[rank]
+value = 1
+source = { ruling = "the order of PodUtils/podssh crates/podssh-relay/src/code/mod.rs (MAILBOXES): magic-wormhole's, then Least Authority's", read = 2026-11-05 }
+
+[[endpoint]]
+name = "mailbox"
+scheme = "wss"
+host = "relay.magic-wormhole.io"
+port = 443
+path = "/v1"
+source = { url = "https://raw.githubusercontent.com/magic-wormhole/magic-wormhole/master/src/wormhole/cli/public_relay.py", read = 2026-11-06, note = "MAILBOX_RELAY; on port 443 since the commit public_relay.py: use TLS (2026-05-13)" }
+
+[[watch]]
+kind = "github-file"
+repo = "magic-wormhole/magic-wormhole"
+path = "src/wormhole/cli/public_relay.py"
+endpoint = "mailbox"
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "mailbox"
