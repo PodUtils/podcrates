@@ -16,3 +16,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #8 | [gh action] requested: the release v0.5.0 (ci.yml, nightly.yml, release.yml) | closed (release 42220040866) | T-067, T-068 |
 | #9 | COORD-006: take pod-proxy (feature blocking) (to podvm) | closed (podvm `b1138c2`) | T-040, T-069, T-070, T-071 |
 | #10 | COORD-007: podcrates v0.5.0 is released: each tag to v0.5.0 (to all) | open | T-040, T-069 |
+| #11 | COORD-008: pod-hostprobe is imported from podvm-probe; the freeze; a statfs defect (to podvm) | open | T-055, T-072 |
