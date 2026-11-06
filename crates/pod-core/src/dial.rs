@@ -115,6 +115,13 @@ pub trait Dial: Send + Sync {
     /// Connect to `target` before `deadline`.
     fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>>;
 
+    /// Connect to `target` for a request of plain `http://`: a way that
+    /// chooses its proxy by the scheme (`http_proxy`) overrides it. The
+    /// default is [`Dial::dial`].
+    fn dial_http<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
+        self.dial(target, deadline)
+    }
+
     /// Connect to the first of `addrs` that answers, for a caller that
     /// resolved `host` itself. The default tries them in their order.
     fn dial_addrs<'a>(

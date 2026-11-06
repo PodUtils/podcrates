@@ -63,8 +63,8 @@ pub use credentials::Credentials;
 pub use cut::{Cut, Missed, TlsFailure};
 pub use dial::{ATTEMPT_DELAY, Dialer, ProxyChoice, Settings};
 pub use env::{
-    Environment, Given, NO_PROXY_VARS, NO_PROXY_VARS_UPPER_FIRST, NoProxy, Origin, PROXY_VARS, PROXY_VARS_UPPER_FIRST,
-    Rules,
+    Environment, Given, HTTP_PROXY_VARS, HTTP_PROXY_VARS_LOWER, HTTP_PROXY_VARS_UPPER_FIRST, NO_PROXY_VARS,
+    NO_PROXY_VARS_UPPER_FIRST, NoProxy, Origin, PROXY_VARS, PROXY_VARS_UPPER_FIRST, Rules, Scheme,
 };
 pub use error::DialError;
 pub use host::authority;

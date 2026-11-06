@@ -1,8 +1,10 @@
 //! The proxy that the variables of an environment name: `https_proxy`,
-//! `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, minus what `no_proxy` or
-//! `NO_PROXY` excludes, and minus the loopback; or, when no variable names
-//! one, the proxy of a tool's configuration ([`crate::detect`]); or a value
-//! that the user gave the consumer on purpose ([`Environment::with_proxy`]).
+//! `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, and for a request of plain
+//! `http://` ([`Scheme::Http`]) `http_proxy`, `HTTP_PROXY`, `all_proxy`,
+//! `ALL_PROXY`; minus what `no_proxy` or `NO_PROXY` excludes, and minus the
+//! loopback; or, when no variable names one, the proxy of a tool's
+//! configuration ([`crate::detect`]); or a value that the user gave the
+//! consumer on purpose ([`Environment::with_proxy`]).
 //!
 //! The crate reads no variable and no file of its own:
 //! [`Environment::read_with`] reads the variables through the reader that
@@ -33,6 +35,18 @@ use crate::proxy::Proxy;
 /// curl reads `https_proxy`.
 pub const PROXY_VARS: [&str; 4] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"];
 
+/// The variables of the proxy of a request of plain `http://`, in the order
+/// that they are read: lower case first, as curl reads `http_proxy`. A
+/// consumer that runs as a CGI program takes [`HTTP_PROXY_VARS_LOWER`]: there
+/// a client of the server sets `HTTP_PROXY` with its header `Proxy:`.
+pub const HTTP_PROXY_VARS: [&str; 4] = ["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"];
+
+/// [`HTTP_PROXY_VARS`] with no `HTTP_PROXY`, as curl reads them.
+pub const HTTP_PROXY_VARS_LOWER: [&str; 3] = ["http_proxy", "all_proxy", "ALL_PROXY"];
+
+/// [`HTTP_PROXY_VARS`] with the upper case first (podnet).
+pub const HTTP_PROXY_VARS_UPPER_FIRST: [&str; 4] = ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"];
+
 /// The variables that list the hosts that bypass the proxy, in the order
 /// that they are read.
 pub const NO_PROXY_VARS: [&str; 2] = ["no_proxy", "NO_PROXY"];
@@ -43,6 +57,17 @@ pub const PROXY_VARS_UPPER_FIRST: [&str; 4] = ["HTTPS_PROXY", "https_proxy", "AL
 
 /// [`NO_PROXY_VARS`] with the upper case first.
 pub const NO_PROXY_VARS_UPPER_FIRST: [&str; 2] = ["NO_PROXY", "no_proxy"];
+
+/// The scheme of a connection, which chooses the variables of its proxy.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum Scheme {
+    /// A request of plain `http://`: [`Rules::http_proxy_vars`].
+    Http,
+    /// Each other connection (`https://`, `wss://`, a TCP dial):
+    /// [`Rules::proxy_vars`].
+    #[default]
+    Https,
+}
 
 /// Where a value of the proxy settings came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +106,9 @@ pub struct Given<T> {
 pub struct Rules {
     /// The variables of the proxy, in the order that they are read.
     pub proxy_vars: &'static [&'static str],
+    /// The variables of the proxy of a request of plain `http://`
+    /// ([`Scheme::Http`]), in the order that they are read.
+    pub http_proxy_vars: &'static [&'static str],
     /// The variables of the `NO_PROXY` list, in the order that they are read.
     pub no_proxy_vars: &'static [&'static str],
     /// A variable whose URL cannot be used is passed over, kept in
@@ -102,6 +130,7 @@ impl Default for Rules {
     fn default() -> Rules {
         Rules {
             proxy_vars: &PROXY_VARS,
+            http_proxy_vars: &HTTP_PROXY_VARS,
             no_proxy_vars: &NO_PROXY_VARS,
             skip_unusable: false,
             http_port: crate::proxy::HTTP_PORT,
@@ -126,6 +155,10 @@ pub struct Environment {
     /// empty, or why its URL cannot be used; or the proxy that the user gave
     /// or that a tool's file names.
     pub proxy: Option<Given<Result<Proxy, String>>>,
+    /// The proxy of the first variable of [`Rules::http_proxy_vars`] that is
+    /// set and not empty, or why its URL cannot be used: the proxy of a
+    /// request of plain `http://`.
+    pub http_proxy: Option<Given<Result<Proxy, String>>>,
     /// The list of the first variable of the rules that is set and not
     /// empty.
     pub no_proxy: Option<Given<String>>,
@@ -141,7 +174,7 @@ pub struct Environment {
 pub(crate) type Decision = (Result<Option<Proxy>, String>, &'static str);
 
 impl Environment {
-    /// Read [`PROXY_VARS`] and [`NO_PROXY_VARS`] through `var` with the
+    /// Read [`PROXY_VARS`], [`HTTP_PROXY_VARS`] and [`NO_PROXY_VARS`] through `var` with the
     /// default [`Rules`]: a consumer passes `&|name| std::env::var_os(name)`.
     /// Lower-case names win over upper-case ones, as in curl; an empty
     /// value, and one that is not UTF-8, counts as unset.
@@ -153,20 +186,8 @@ impl Environment {
     pub fn read_with(var: &dyn Fn(&str) -> Option<OsString>, rules: Rules) -> Environment {
         let set = |name: &str| var(name)?.into_string().ok().filter(|v| !v.trim().is_empty());
         let mut env = Environment { rules, ..Environment::default() };
-        for name in env.rules.proxy_vars {
-            let Some(value) = set(name) else { continue };
-            let origin = Origin::Variable(name.to_string());
-            match env.rules.parse(&value, &origin) {
-                Err(why) if env.rules.skip_unusable => {
-                    tracing::warn!(variable = %name, error = %why, "a proxy variable that cannot be used is passed over");
-                    env.skipped.push(Given { value: why, origin });
-                }
-                value => {
-                    env.proxy = Some(Given { value, origin });
-                    break;
-                }
-            }
-        }
+        env.proxy = env.first(env.rules.proxy_vars, &set);
+        env.http_proxy = env.first(env.rules.http_proxy_vars, &set);
         env.no_proxy = env
             .rules
             .no_proxy_vars
@@ -178,6 +199,42 @@ impl Environment {
             }
         }
         env
+    }
+
+    /// The proxy of the first of `vars` that `set` gives; with
+    /// [`Rules::skip_unusable`], each URL that cannot be used before it goes
+    /// into [`Environment::skipped`], once.
+    fn first(&mut self, vars: &[&str], set: &dyn Fn(&str) -> Option<String>) -> Option<Given<Result<Proxy, String>>> {
+        for name in vars {
+            let Some(value) = set(name) else { continue };
+            let origin = Origin::Variable(name.to_string());
+            match self.rules.parse(&value, &origin) {
+                Err(why) if self.rules.skip_unusable => {
+                    // `ALL_PROXY` is in both lists: one warning for it.
+                    if !self.skipped.iter().any(|s| s.origin == origin) {
+                        tracing::warn!(variable = %name, error = %why, "a proxy variable that cannot be used is passed over");
+                        self.skipped.push(Given { value: why, origin });
+                    }
+                }
+                value => return Some(Given { value, origin }),
+            }
+        }
+        None
+    }
+
+    /// The proxy of a connection of `scheme`, before the loopback and
+    /// `NO_PROXY`. A proxy that the user gave holds for each scheme. For
+    /// [`Scheme::Http`], the variables of [`Rules::http_proxy_vars`], else
+    /// the proxy of a tool's file; a variable of [`Rules::proxy_vars`] alone
+    /// (`HTTPS_PROXY`) is not for `http://`, as in curl.
+    pub fn proxy_of(&self, scheme: Scheme) -> Option<&Given<Result<Proxy, String>>> {
+        match (scheme, &self.proxy) {
+            (Scheme::Https, proxy) => proxy.as_ref(),
+            (Scheme::Http, Some(user)) if matches!(user.origin, Origin::User(_)) => Some(user),
+            (Scheme::Http, _) if self.http_proxy.is_some() => self.http_proxy.as_ref(),
+            (Scheme::Http, Some(file)) if matches!(file.origin, Origin::File(_)) => Some(file),
+            (Scheme::Http, _) => None,
+        }
     }
 
     /// This environment with the proxy that the user gave on purpose,
@@ -222,7 +279,20 @@ impl Environment {
     /// The proxy for `target_host`, or none, with no port known: the port
     /// of a `NO_PROXY` entry is passed over. See [`Environment::proxy_at`].
     pub fn proxy_for(&self, target_host: &str, pinned: &[IpAddr]) -> Result<Option<Proxy>, String> {
-        self.decide(target_host, None, pinned).0
+        self.decide(Scheme::Https, target_host, None, pinned).0
+    }
+
+    /// [`Environment::proxy_at`] for a connection of `scheme`
+    /// ([`Environment::proxy_of`]), with the port when it is known. The
+    /// loopback and `NO_PROXY` hold for each scheme.
+    pub fn proxy_for_scheme(
+        &self,
+        scheme: Scheme,
+        target_host: &str,
+        port: Option<u16>,
+        pinned: &[IpAddr],
+    ) -> Result<Option<Proxy>, String> {
+        self.decide(scheme, target_host, port, pinned).0
     }
 
     /// The proxy for `target_host:port`, or none. With
@@ -235,14 +305,14 @@ impl Environment {
     /// what the `NO_PROXY` list excludes. `Err` when the URL of the proxy
     /// cannot be used, with why.
     pub fn proxy_at(&self, target_host: &str, port: u16, pinned: &[IpAddr]) -> Result<Option<Proxy>, String> {
-        self.decide(target_host, Some(port), pinned).0
+        self.decide(Scheme::Https, target_host, Some(port), pinned).0
     }
 
-    /// [`Environment::proxy_at`], and the outcome for an observer: `none`
+    /// [`Environment::proxy_for_scheme`], and the outcome for an observer: `none`
     /// (no proxy is set), `loopback`, `no_proxy`, `unusable`, or the word of
     /// the proxy ([`Proxy::outcome`]).
-    pub(crate) fn decide(&self, target_host: &str, port: Option<u16>, pinned: &[IpAddr]) -> Decision {
-        let Some(proxy) = &self.proxy else { return (Ok(None), "none") };
+    pub(crate) fn decide(&self, scheme: Scheme, target_host: &str, port: Option<u16>, pinned: &[IpAddr]) -> Decision {
+        let Some(proxy) = self.proxy_of(scheme) else { return (Ok(None), "none") };
         if self.rules.loopback_direct
             && (is_loopback(target_host) || (!pinned.is_empty() && pinned.iter().all(IpAddr::is_loopback)))
         {

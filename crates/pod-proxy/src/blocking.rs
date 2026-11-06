@@ -88,6 +88,16 @@ impl Dialer {
         self.inner.proxy_at(host, port)
     }
 
+    /// [`crate::Dialer::proxy_for_scheme`].
+    pub fn proxy_for_scheme(
+        &self,
+        scheme: crate::Scheme,
+        host: &str,
+        port: Option<u16>,
+    ) -> Result<Option<Proxy>, String> {
+        self.inner.proxy_for_scheme(scheme, host, port)
+    }
+
     /// A TCP connection to `host:port` ([`crate::Dialer::tcp`]), in blocking
     /// mode, with no read or write limit set.
     pub fn tcp(&self, host: &str, port: u16, timeout: Duration) -> Result<std::net::TcpStream, DialError> {

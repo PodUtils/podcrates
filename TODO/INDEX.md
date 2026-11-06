@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**77 entries: 36 open, 2 partial, 0 blocked, 39 done.**
+**77 entries: 35 open, 2 partial, 0 blocked, 40 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 2 | 0 | 16 | 34 |
+| P2 | 15 | 2 | 0 | 17 | 34 |
 | P3 | 7 | 0 | 0 | 1 | 8 |
-| **All** | 36 | 2 | 0 | 39 | 77 |
+| **All** | 35 | 2 | 0 | 40 | 77 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -120,6 +120,6 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-072](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets |
 | [T-073](transport.md) | P2 | S | M1 | feature | done | `pod-dns` names the DoH server that answered in its diagnostics |
 | [T-074](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the words of a failed dial name the target twice |
-| [T-075](transport.md) | P2 | S | M1 | feature | open | `pod-proxy`: `HTTP_PROXY` for a target of `http://` |
+| [T-075](transport.md) | P2 | S | M1 | feature | done | `pod-proxy`: `HTTP_PROXY` for a target of `http://` |
 | [T-076](transport.md) | P3 | M | M1 | feature | open | `pod-proxy`: redirects in the client |
 | [T-077](transport.md) | P3 | M | M1 | feature | open | `pod-proxy`: keep-alive connections in the client |

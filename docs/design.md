@@ -319,7 +319,8 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
 ## 6. The shared traits (in `pod-core`)
 
 * `Dial`: a target (a name and a port, or an address) to a connected
-  stream with its peer and local addresses; `dial_addrs` for a given
+  stream with its peer and local addresses; `dial_http` for a request
+  of plain `http://` (the proxy of `http_proxy`); `dial_addrs` for a given
   address list (podnet `egress::dial_addrs`); a deadline; typed errors
   (`ConnectError`, `Cut`, `Missed`) that the race and the failover read;
   a label; `names_inside()` (the far end resolves the name).

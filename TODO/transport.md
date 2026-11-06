@@ -1456,7 +1456,7 @@ attempt after the name.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1481,6 +1481,32 @@ variable for each scheme.
 ```sh
 cargo test -p pod-proxy --lib env
 ```
+
+## Done
+
+2026-11-06. The proxy decision takes the scheme of the connection
+(`env::Scheme`: `Http`, `Https`). `Rules::http_proxy_vars` gives the
+variables of a request of plain `http://`: `HTTP_PROXY_VARS` (the
+default: `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY`),
+`HTTP_PROXY_VARS_LOWER` (curl, no `HTTP_PROXY`) or
+`HTTP_PROXY_VARS_UPPER_FIRST` (podnet). `Environment::http_proxy`,
+`proxy_of(scheme)` and `proxy_for_scheme(scheme, host, port, &pins)`;
+`Dialer::proxy_for_scheme` and `blocking::Dialer::proxy_for_scheme`;
+`pod_core::Dial::dial_http` (the default is `dial`), which `Dialer`
+implements and which `Client::send` and `send_streamed` call for an
+`http://` URL. An HTTP proxy gets `CONNECT host:port` for each scheme.
+`HTTPS_PROXY` alone no longer serves `http://`, as in curl. The loopback
+rule and `NO_PROXY` hold for each scheme. Tests:
+`the_scheme_chooses_the_variables_of_the_proxy` and
+`the_user_and_a_file_hold_for_each_scheme` (`src/env_tests.rs`), 3 in
+`tests/http_proxy.rs`, and `a_request_of_http_takes_the_proxy_of_http_proxy`
+in `tests/blocking_streamed.rs`. On the old code,
+`a_request_of_http_takes_the_proxy_of_http_proxy` failed (`GET
+http://name.test:42861/v2/: could not reach the proxy 127.0.0.1:47215`:
+the request took `HTTPS_PROXY`), and so did
+`a_request_of_http_goes_directly_when_only_https_proxy_is_set`.
+`cargo test -p pod-proxy --all-features` (168 tests, 6 new),
+`cargo test -p pod-dns --all-features` (59), clippy, fmt, `cargo todo check` and `check-size.py` pass.
 
 
 # T-076: `pod-proxy`: redirects in the client

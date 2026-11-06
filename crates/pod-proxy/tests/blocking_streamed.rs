@@ -144,3 +144,44 @@ fn a_host_that_no_proxy_names_goes_directly() {
     let mut streamed = client.send_streamed(request(&served)).expect("an answer");
     assert_eq!(sha256(&read_all(&mut streamed).expect("the body")), sha256(&sent));
 }
+
+/// A request of plain `http://` takes the proxy of `http_proxy` on the
+/// blocking face too, by a CONNECT; `HTTPS_PROXY` is for `https://`.
+#[test]
+fn a_request_of_http_takes_the_proxy_of_http_proxy() {
+    pod_testkit::need_loopback!();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("its address").port();
+    let target = thread::spawn(move || {
+        let (mut sock, _) = listener.accept().expect("a connection");
+        let mut head = String::new();
+        let mut reader = BufReader::new(sock.try_clone().expect("a clone"));
+        while !head.ends_with("\r\n\r\n") && reader.read_line(&mut head).expect("the head") > 0 {}
+        sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok").expect("the answer");
+        head
+    });
+    let (proxy, seen) = connect_proxy();
+    let (_held, gone) = closed::port();
+    let var = move |name: &str| match name {
+        "http_proxy" => Some(OsString::from(format!("http://{}:{}", proxy.host, proxy.port))),
+        "HTTPS_PROXY" => Some(OsString::from(format!("http://{gone}"))),
+        _ => None,
+    };
+    let rules = Rules { loopback_direct: false, ..Rules::default() };
+    let choice = ProxyChoice::FromEnvironment(Environment::read_with(&var, rules));
+    let dialer = Dialer::new(Settings::new("podvm", choice), Arc::new(pins())).expect("a runtime");
+    let http = dialer.proxy_for_scheme(pod_proxy::Scheme::Http, NAME, Some(port)).expect("usable");
+    assert_eq!(http.map(|p| p.port), Some(proxy.port));
+    let context = Arc::new(pod_tls::Context::new(
+        Arc::new(rustls::crypto::ring::default_provider()),
+        pod_tls::Settings::new(pod_tls::Words::new("podvm")),
+    ));
+    let client = Client::new(context, &dialer);
+    let mut streamed =
+        client.send_streamed(Request::new("GET", format!("http://{NAME}:{port}/v2/"))).expect("an answer");
+    assert_eq!(read_all(&mut streamed).expect("the body"), b"ok");
+    drop(streamed);
+    assert!(target.join().expect("the target").starts_with("GET /v2/ HTTP/1.1\r\n"));
+    let head = seen.join().expect("the proxy");
+    assert!(head.starts_with(&format!("CONNECT {NAME}:{port} HTTP/1.1\r\n")), "{head}");
+}

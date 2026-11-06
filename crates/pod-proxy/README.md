@@ -24,12 +24,13 @@ to each crate that opens a connection.
 | `Dialer::new(settings, resolve)` | the dial of a consumer: its `Settings` and its `Arc<dyn pod_core::Resolve>`; it implements `pod_core::Dial` |
 | `Dial::dial(&target, deadline)` | a `Connected` (the stream, its peer and local addresses); the stream has the write limit of the settings; a failure is a `pod_core::Failure` whose cause is the `DialError` |
 | `Dial::dial_addrs(host, &addrs, deadline)` | a direct dial races the given addresses as a name's; through a proxy, each address in turn |
+| `Dial::dial_http(&target, deadline)` | the dial of a request of plain `http://`: through the proxy of `Scheme::Http` (`http_proxy`); `Client::send` and `send_streamed` use it for an `http://` URL |
 | `Dial::label()`, `Dial::names_inside()` | `direct`, `socks5h://proxy.example:1080`, `http://proxy.example:3128 of HTTPS_PROXY`; true when the far end resolves the names (HTTP, `socks5h://`), false for `socks5://` |
 | `Dialer::with_proxy_resolver(resolve)`, `Dialer::with_observer(observer)` | the resolver of a proxy's own host; the counter of the decision `egress` of each connection (`direct`, `via`, `none`, `loopback`, `no_proxy`, `unusable`, `http`, `socks5`, `unix`, `exec`) |
 | `Dialer::tcp(host, port, timeout)`, `Dialer::tcp_multipath(..)`, `Dialer::stream(..)` | the `TcpStream` (and how Multipath TCP went), with `DialError`; `stream` gives a `Stream` of each kind (TCP, through a proxy on a Unix socket or at a command) |
-| `Dialer::proxy_for(host)`, `Dialer::proxy_at(host, port)` | the proxy of the settings for a host, or none: the loopback and a name that the resolver pins to loopback alone (by the rules), and what `NO_PROXY` names go directly |
+| `Dialer::proxy_for(host)`, `Dialer::proxy_at(host, port)`, `Dialer::proxy_for_scheme(scheme, host, port)` | the proxy of the settings for a host, or none: the loopback and a name that the resolver pins to loopback alone (by the rules), and what `NO_PROXY` names go directly; `proxy_for` and `proxy_at` are for `Scheme::Https` |
 | `Settings::new(app, proxy)`, `ProxyChoice` (`FromEnvironment(Environment)`, `Direct`, `Via(Proxy)`), `ATTEMPT_DELAY` | the settings (below) |
-| `Environment::read(&reader)`, `Environment::read_with(&reader, rules)`, `with_proxy(spec, origin)`, `or_detected(&reader, &read_file)`, `proxy_for(host, &pins)`, `proxy_at(host, port, &pins)`, `no_proxy_entry(host)`, `no_proxy_entry_at(host, port)`, `skipped`, `Given`, `Origin` (`Variable`, `User`, `File`), `Rules`, `PROXY_VARS`, `NO_PROXY_VARS`, `PROXY_VARS_UPPER_FIRST`, `NO_PROXY_VARS_UPPER_FIRST` | the proxy and the `NO_PROXY` list of the variables that the caller's reader gives, by the rules of the consumer, each with where it came from; the proxy that the user gave; the proxy of a tool's file |
+| `Environment::read(&reader)`, `Environment::read_with(&reader, rules)`, `with_proxy(spec, origin)`, `or_detected(&reader, &read_file)`, `proxy_for(host, &pins)`, `proxy_at(host, port, &pins)`, `proxy_for_scheme(scheme, host, port, &pins)`, `proxy_of(scheme)`, `no_proxy_entry(host)`, `no_proxy_entry_at(host, port)`, `proxy`, `http_proxy`, `skipped`, `Given`, `Origin` (`Variable`, `User`, `File`), `Scheme` (`Http`, `Https`), `Rules`, `PROXY_VARS`, `HTTP_PROXY_VARS`, `HTTP_PROXY_VARS_LOWER`, `NO_PROXY_VARS`, `PROXY_VARS_UPPER_FIRST`, `HTTP_PROXY_VARS_UPPER_FIRST`, `NO_PROXY_VARS_UPPER_FIRST` | the proxy and the `NO_PROXY` list of the variables that the caller's reader gives, by the rules of the consumer, each with where it came from; the proxy that the user gave; the proxy of a tool's file |
 | `env::{proxy_from_vars, is_loopback, no_proxy_matches, no_proxy_entry, no_proxy_entry_at}`, `NoProxy` (`parse`, `matches(host, port)`) | the rules of a `NO_PROXY` list (names, suffixes, `*`, addresses in any form, blocks `ADDR/BITS`, ports), and the loopback |
 | `detect::{detect, sources, read_file, proxy_in_gitconfig, proxy_in_npmrc, proxy_in_pipconf, proxy_in_environment_file}` | the proxy of git, npm, pip and `/etc/environment`, through the caller's reader of files |
 | `Proxy` (`parse`, `parse_trusted`, `parse_with(spec, commands, http_port)`, `secret_parts`, `url`, `url_at`, `label`, `kind()`, `carrier()`, `address()`, `has_credentials()`, `scheme()`, `kind_text()`, `outcome()`, `host`, `port`, `kind`), `ProxyKind` (`Http`, `Socks5 { remote_dns }`; `scheme`, `name`, `request`), `Carrier` (`Tcp`, `Unix`, `Exec`), `HttpProxy`, `proxy::{percent_decode, HTTP_PORT, SOCKS_PORT}` | the proxy that a URL names; its credentials never show in `Display`, `label` or `Debug`, nor more than the first word of a command |
@@ -73,6 +74,7 @@ to each crate that opens a connection.
 | `Settings::write_limit` | the limit of a write of a stream of `Dial::dial` | `None` in the dial; podssh wraps its SSH transport in `WriteLimit::new(tcp, WRITE_TIMEOUT)` itself | `None` |
 | `Settings::attempt_delay` | the attempt delay of the race | `ATTEMPT_DELAY` (250 ms, the default) | `ATTEMPT_DELAY` (podnet's is 250 ms too) |
 | `Rules::proxy_vars`, `Rules::no_proxy_vars` | the variables, in their order | `PROXY_VARS`, `NO_PROXY_VARS` (lower case first, the default) | `PROXY_VARS_UPPER_FIRST`, `NO_PROXY_VARS_UPPER_FIRST` |
+| `Rules::http_proxy_vars` | the variables of a request of plain `http://`, in their order | `HTTP_PROXY_VARS` (the default): `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY` | `HTTP_PROXY_VARS_UPPER_FIRST`: `HTTP_PROXY`, `http_proxy`, `ALL_PROXY`, `all_proxy` |
 | `Rules::skip_unusable` | a URL that cannot be used is passed over to the next variable, into `Environment::skipped` (with a warning to `tracing`) | `false` | `true` |
 | `Rules::http_port` | the port of `http://` with no port | `HTTP_PORT` (80) | `8080` |
 | `Rules::no_proxy_ports` | an entry `host:port` of `NO_PROXY` excludes that port only | `false` (the port is passed over) | `true` |
@@ -85,8 +87,28 @@ to each crate that opens a connection.
 
 The variables of the environment that `Environment::read` reads through
 the caller's reader, in this order: `https_proxy`, `HTTPS_PROXY`,
-`all_proxy`, `ALL_PROXY` (the first that is set and not empty), then
-`no_proxy`, `NO_PROXY`; `read_with` reads those of its `Rules`. A value
+`all_proxy`, `ALL_PROXY` (the first that is set and not empty) into
+`proxy`; `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY` into
+`http_proxy`; then `no_proxy`, `NO_PROXY`; `read_with` reads those of its
+`Rules`.
+
+The proxy of each scheme (`Environment::proxy_of`):
+
+| Connection | `Scheme` | The proxy |
+| --- | --- | --- |
+| a request of plain `http://` (`Client::send`, `send_streamed`) | `Http` | the proxy of the user (`with_proxy`); else `http_proxy` (`Rules::http_proxy_vars`); else the proxy of a tool's file. `https_proxy` and `HTTPS_PROXY` alone are not for `http://`, as in curl: such a request goes directly |
+| `https://`, `wss://`, each TCP dial (`Dial::dial`, `Dialer::tcp`, `stream`) | `Https` | `proxy` (`Rules::proxy_vars`, the proxy of the user, or of a tool's file), as before |
+
+The loopback rule and `NO_PROXY` hold for each scheme. A request of
+`http://` reaches an HTTP proxy by `CONNECT host:port`, as `https://`
+does: the client sends no absolute URI (`GET http://host/path`). A proxy
+that refuses `CONNECT` to a port that is not 443 (the default of Squid)
+refuses such a request. curl reads no `HTTP_PROXY`: in a CGI program, a
+client of the server sets `HTTP_PROXY` with its header `Proxy:`. A
+consumer that runs as a CGI program takes `HTTP_PROXY_VARS_LOWER`. The
+default reads `HTTP_PROXY` after `http_proxy`, as `ureq` did for podvm.
+`ureq` read `ALL_PROXY` before `HTTPS_PROXY`; pod-proxy reads
+`HTTPS_PROXY` first, as curl. A value
 that is not UTF-8 is unset. `or_detected` reads `HOME` through the same
 reader, and the files of `detect::sources` (`~/.gitconfig`,
 `~/.config/git/config`, `~/.npmrc`, `~/.config/pip/pip.conf`,
@@ -292,7 +314,7 @@ counters):
 | podssh | `podssh_ws::lowat::set(&tcp)` | `pod_proxy::lowat::set(&tcp, pod_proxy::lowat::LOWAT)` |
 | podssh | `podssh_ws::fuzz_exchange` (`cfg(fuzzing)`) | `pod_proxy::fuzz_exchange` (`cfg(fuzzing)`, or the feature `fuzzing`) |
 | podssh | the fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | the targets of the same names in `fuzz/` of podcrates; podssh removes its own |
-| podssh | the variables `https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, `no_proxy`, `NO_PROXY` | podssh keeps them and reads them once: `Environment::read(&\|n\| std::env::var_os(n))` |
+| podssh | the variables `https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, `no_proxy`, `NO_PROXY` | podssh keeps them and reads them once: `Environment::read(&\|n\| std::env::var_os(n))`. `Environment::read` reads `http_proxy`, `HTTP_PROXY` too, for a request of `http://` alone: podssh's dials are TLS, WebSocket and TCP, so no behaviour changes |
 | podssh | `User-Agent: podssh/VERSION` (CONNECT, `http::exchange`) | `Settings::user_agent`, `Client::with_user_agent`, the argument of `http::exchange` |
 | podssh | the words "podssh sends Basic only", "podssh sent none", "which podssh did not offer" | `Settings::app = "podssh"`; the words of a 407 are those of the changes for podssh |
 | podssh | a `socks5://` URL of a user who needs the name sent | `socks5h://` (the changes for podssh) |
@@ -326,12 +348,12 @@ counters):
 | podnet | `net::BoxedIo` of the dial | `pod_core::BoxedIo` (`Connected::io`), or `pod_proxy::Stream` |
 | podnet | `egress::ChildIo` | `pod_proxy::ChildIo` |
 | podnet | `fuzzing.rs` `proxy_url`, `no_proxy`, `connect_response_head` (`Proxy::parse`, `NoProxy::parse`, `parse_status`) | the targets `proxy_url`, `no_proxy`, `connect_status` in `fuzz/` of podcrates; podnet removes its three, and `parse_status` calls `pod_proxy::http::parse_status_line` (a `&str`) |
-| podnet | the variables `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY`, `all_proxy`, `NO_PROXY`, `no_proxy`, `HOME`, `PODNET_PROXY` | podnet keeps them and reads them through its reader once; `PODNET_PROXY` is a value of the user (`Origin::User`) |
+| podnet | the variables `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY`, `all_proxy`, `NO_PROXY`, `no_proxy`, `HOME`, `PODNET_PROXY` | podnet keeps them and reads them through its reader once; `PODNET_PROXY` is a value of the user (`Origin::User`). `HTTP_PROXY`, `http_proxy` serve a request of `http://` alone. `rules()` sets the new field `http_proxy_vars: &pod_proxy::HTTP_PROXY_VARS_UPPER_FIRST`. podnet's `egress::Egress` (its own `Dial` over the `Dialer`) keeps the default `Dial::dial_http`, which is `dial`: its requests of `http://` (a relay or an API base of `http://`) keep `HTTPS_PROXY`, and no behaviour changes. To read `HTTP_PROXY` for them, `Egress` forwards `dial_http` to the `Dialer` |
 | podnet | `tests/egress.rs`: `socks5_carries_the_api_and_the_edge`, `no_proxy_bypasses_the_proxy`, `a_407_names_the_schemes`, `a_proxy_refusal_names_the_hop_and_keeps_the_text`, `a_proxy_host_that_does_not_resolve_is_an_error_not_a_crash`, `socks5_resolves_the_target_with_the_pins`, `a_proxy_url_with_no_password_is_shown` | they stay in podnet: they run the binary; the words that they read come from the crate (`NTLM or Negotiate`, `podnet supports Basic and Digest only`, `the proxy refused the user and the password`, `the proxy host podnet-proxy.invalid`) and from podnet's glue (`HTTP 403`, `through the proxy http://127.0.0.1:9`) |
 | podnet | `tests/egress.rs` `a_silent_address_does_not_hold_the_dial` | it moved here (`tests/egress.rs`); podnet removes it |
 | podvm | `podvm-ssh` `transport::Dialer::dial_tcp` of a relay leg (`mux/node.rs` `dial_ws`, the node and the operator): `resolve_bounded`, then `TcpStream::connect_timeout` for each address; no proxy | `Dialer::from_environment(timeout)`: `transport/egress.rs` makes a `blocking::Dialer::new(Settings::new("podvm", ProxyChoice::FromEnvironment(Environment::read(&\|n\| std::env::var_os(n)))), Arc::new(resolve::System::new()))` when a proxy variable is set; `proxy_at(host, port)` decides; `stream(host, port, timeout)` carries a dial through the proxy (`Stream::Tcp`, `Stream::Unix`); a direct target (the loopback, `NO_PROXY`) keeps podvm's direct dial |
 | podvm | `podvm-ssh` `Dialer::new(timeout)` (the `proxy` binary, an SSH `ProxyCommand`) | it stays direct: SSH chooses the proxy of a `ProxyCommand` |
-| podvm | `podvm-image` `registry::Client` (`ureq` 2, `try_proxy_from_env`), `transport::Policy::use_proxy` (its own loopback and `NO_PROXY` rules), the Windows guest-image fetch of `podvm` (`windows/setup.rs`, `ureq` 2 with no proxy) | `podvm-image/src/net.rs`: one `blocking::Client::new(context, &dialer).with_user_agent("podvm/VERSION")` over a `blocking::Dialer::new(Settings::new("podvm", ProxyChoice::FromEnvironment(..)), Arc::new(resolve::System::with_pins(..)))` for each registry client; `send_streamed(Request::new("GET", url).header(..).timeout(..).body_idle(..).trust(Trust::caller(config)))`, and podvm reads each blob through `blocking::Streamed` (`std::io::Read`) into its verifier and the staged file, with `status()` and `header(..)` for the token challenge, `Retry-After`, `Link` and the digest. podvm follows a redirect of a GET or a HEAD in its glue (five at most; `Authorization` only to the same host; no redirect from `https://` to `http://`). The trust of each request is podvm's own configuration: the verified one, or the one that accepts any certificate for a registry named insecure. The environment reader joins `NO_PROXY` and `no_proxy`, and the resolver pins `ip6-localhost` to `::1`: podvm's own rules hold, and `Policy::use_proxy` goes. podvm names the host of a transport failure once: it takes the repeats of the host out of the words of the crate |
+| podvm | `podvm-image` `registry::Client` (`ureq` 2, `try_proxy_from_env`), `transport::Policy::use_proxy` (its own loopback and `NO_PROXY` rules), the Windows guest-image fetch of `podvm` (`windows/setup.rs`, `ureq` 2 with no proxy) | `podvm-image/src/net.rs`: one `blocking::Client::new(context, &dialer).with_user_agent("podvm/VERSION")` over a `blocking::Dialer::new(Settings::new("podvm", ProxyChoice::FromEnvironment(..)), Arc::new(resolve::System::with_pins(..)))` for each registry client; `send_streamed(Request::new("GET", url).header(..).timeout(..).body_idle(..).trust(Trust::caller(config)))`, and podvm reads each blob through `blocking::Streamed` (`std::io::Read`) into its verifier and the staged file, with `status()` and `header(..)` for the token challenge, `Retry-After`, `Link` and the digest. podvm follows a redirect of a GET or a HEAD in its glue (five at most; `Authorization` only to the same host; no redirect from `https://` to `http://`). The trust of each request is podvm's own configuration: the verified one, or the one that accepts any certificate for a registry named insecure. The environment reader joins `NO_PROXY` and `no_proxy`, and the resolver pins `ip6-localhost` to `::1`: podvm's own rules hold, and `Policy::use_proxy` goes. A request of `http://` (an insecure registry) takes `http_proxy`, then `HTTP_PROXY`, then `ALL_PROXY`, as `ureq` read them: podvm needs no glue for `HTTP_PROXY`. `HTTPS_PROXY` alone no longer serves such a request (as in curl). podvm names the host of a transport failure once: it takes the repeats of the host out of the words of the crate |
 | podvm | `podvm-complete` `reach.rs` (`ureq` 2, `try_proxy_from_env`, a HEAD with 2 s bounds) | the same `net.rs`: `send("HEAD", ..)`; a status is an answer. ureq leaves podvm |
 
 ## Sources

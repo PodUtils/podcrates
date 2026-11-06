@@ -20,7 +20,7 @@ use tokio::net::TcpStream;
 use tokio::time::Instant;
 
 use crate::connect::{Ask, connect_via};
-use crate::env::{Decision, Environment};
+use crate::env::{Decision, Environment, Scheme};
 use crate::error::DialError;
 use crate::host::{authority, check_name};
 use crate::mptcp::Multipath;
@@ -36,6 +36,10 @@ pub const ATTEMPT_DELAY: Duration = Duration::from_millis(250);
 
 /// How to reach a target.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a consumer makes one for each dialer; a box would change each consumer's call"
+)]
 pub enum ProxyChoice {
     /// The proxy that the caller read from its environment
     /// ([`Environment::read`]), for each target that the loopback, the pins
@@ -148,19 +152,27 @@ impl Dialer {
     /// resolver pins to loopback addresses alone ([`Environment::proxy_for`]).
     /// With no port, the port of a `NO_PROXY` entry is passed over.
     pub fn proxy_for(&self, host: &str) -> Result<Option<Proxy>, String> {
-        self.decide(host, None).0
+        self.decide(Scheme::Https, host, None).0
     }
 
     /// [`Dialer::proxy_for`] for `host:port` ([`Environment::proxy_at`]).
     pub fn proxy_at(&self, host: &str, port: u16) -> Result<Option<Proxy>, String> {
-        self.decide(host, Some(port)).0
+        self.decide(Scheme::Https, host, Some(port)).0
     }
 
-    fn decide(&self, host: &str, port: Option<u16>) -> Decision {
+    /// [`Dialer::proxy_for`] for a connection of `scheme`, with the port
+    /// when it is known ([`Environment::proxy_for_scheme`]): for
+    /// [`Scheme::Http`], the proxy of `http_proxy`. [`ProxyChoice::Direct`]
+    /// and [`ProxyChoice::Via`] hold for each scheme.
+    pub fn proxy_for_scheme(&self, scheme: Scheme, host: &str, port: Option<u16>) -> Result<Option<Proxy>, String> {
+        self.decide(scheme, host, port).0
+    }
+
+    fn decide(&self, scheme: Scheme, host: &str, port: Option<u16>) -> Decision {
         match &self.settings.proxy {
             ProxyChoice::Direct => (Ok(None), "direct"),
             ProxyChoice::Via(proxy) => (Ok(Some(proxy.clone())), "via"),
-            ProxyChoice::FromEnvironment(env) => env.decide(host, port, &self.resolve.pinned(host)),
+            ProxyChoice::FromEnvironment(env) => env.decide(scheme, host, port, &self.resolve.pinned(host)),
         }
     }
 
@@ -196,7 +208,7 @@ impl Dialer {
     /// The stream to `host:port` as [`Dialer::tcp_multipath`] opens it, of
     /// any kind: TCP, or through a proxy on a Unix socket or at a command.
     pub async fn stream(&self, host: &str, port: u16, timeout: Duration) -> Result<(Stream, Multipath), DialError> {
-        self.open(host, port, Instant::now() + timeout, timeout).await
+        self.open(Scheme::Https, host, port, Instant::now() + timeout, timeout).await
     }
 
     fn leg(&self, deadline: Instant, budget: Duration) -> Leg<'_> {
@@ -210,13 +222,14 @@ impl Dialer {
 
     async fn open(
         &self,
+        scheme: Scheme,
         host: &str,
         port: u16,
         deadline: Instant,
         budget: Duration,
     ) -> Result<(Stream, Multipath), DialError> {
         check_name(host)?;
-        let (proxy, outcome) = self.decide(host, Some(port));
+        let (proxy, outcome) = self.decide(scheme, host, Some(port));
         self.observer.decision("egress", outcome);
         let proxy = proxy.map_err(DialError::BadProxy)?;
         let leg = self.leg(deadline, budget);
@@ -235,6 +248,13 @@ impl Dialer {
             Some(p) => (connect_via(leg, ask, &p, host, port).await?, proxied()),
         };
         Ok((self.tuned(stream), how))
+    }
+
+    async fn dial_scheme(&self, scheme: Scheme, target: &Target, deadline: Instant) -> Result<Connected, Failure> {
+        let budget = deadline.saturating_duration_since(Instant::now());
+        let (stream, how) = self.open(scheme, &target.host(), target.port(), deadline, budget).await?;
+        tracing::debug!(%target, %how, "connected");
+        Ok(self.connected(stream))
     }
 
     /// A keystroke and an echo must not wait for Nagle, nor behind the
@@ -282,12 +302,12 @@ impl Dial for Dialer {
     /// The error of the dial is the cause of the failure, so that a caller
     /// reads it back ([`crate::Cut::of_failure`]).
     fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
-        Box::pin(async move {
-            let budget = deadline.saturating_duration_since(Instant::now());
-            let (stream, how) = self.open(&target.host(), target.port(), deadline, budget).await?;
-            tracing::debug!(%target, %how, "connected");
-            Ok(self.connected(stream))
-        })
+        Box::pin(self.dial_scheme(Scheme::Https, target, deadline))
+    }
+
+    /// [`Dial::dial`] through the proxy of [`Scheme::Http`].
+    fn dial_http<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
+        Box::pin(self.dial_scheme(Scheme::Http, target, deadline))
     }
 
     /// A direct connection races the addresses, as a name's; through a
@@ -299,8 +319,10 @@ impl Dial for Dialer {
         deadline: Instant,
     ) -> BoxFuture<'a, Result<Connected, Failure>> {
         Box::pin(async move {
-            let direct =
-                addrs.first().map(|a| self.decide(host, Some(a.port()))).filter(|(p, _)| matches!(p, Ok(None)));
+            let direct = addrs
+                .first()
+                .map(|a| self.decide(Scheme::Https, host, Some(a.port())))
+                .filter(|(p, _)| matches!(p, Ok(None)));
             let Some((_, outcome)) = direct else {
                 let mut last = None;
                 for addr in addrs {

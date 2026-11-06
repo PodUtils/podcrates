@@ -14,6 +14,7 @@ fn vars(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Opti
 fn podnet() -> Rules {
     Rules {
         proxy_vars: &PROXY_VARS_UPPER_FIRST,
+        http_proxy_vars: &HTTP_PROXY_VARS_UPPER_FIRST,
         no_proxy_vars: &NO_PROXY_VARS_UPPER_FIRST,
         skip_unusable: true,
         http_port: 8080,
@@ -130,7 +131,7 @@ fn a_proxy_of_the_user_can_be_a_command_and_keeps_no_proxy() {
     assert_eq!(given.origin.to_string(), "--proxy");
     assert!(matches!(given.value.as_ref().unwrap().carrier(), Carrier::Exec(c) if c == "nc gw 3128"));
     assert_eq!(user.proxy_at("db.internal", 5432, &[]), Ok(None));
-    assert_eq!(user.decide("relay.example", Some(443), &[]).1, "exec");
+    assert_eq!(user.decide(Scheme::Https, "relay.example", Some(443), &[]).1, "exec");
 
     let refused = Environment::read(&vars(&[("ALL_PROXY", "http+exec:nc gw 3128")]));
     assert!(refused.proxy_for("relay.example", &[]).unwrap_err().contains("+exec:"));
@@ -161,7 +162,7 @@ fn the_proxy_of_a_tool_comes_through_the_readers_of_the_caller() {
     let given = env.proxy.as_ref().unwrap();
     assert_eq!(given.origin, Origin::File(npmrc.clone()));
     assert_eq!(given.value.as_ref().unwrap().host, "npm.example");
-    assert_eq!(env.decide("relay.example", Some(443), &[]).1, "http");
+    assert_eq!(env.decide(Scheme::Https, "relay.example", Some(443), &[]).1, "http");
 
     let no_home = Environment::read(&vars(&[])).or_detected(&vars(&[]), &files);
     assert_eq!(no_home.proxy.unwrap().origin, Origin::File(PathBuf::from("/etc/environment")));
@@ -174,7 +175,7 @@ fn the_proxy_of_a_tool_comes_through_the_readers_of_the_caller() {
     let env = Environment::read(&home).or_detected(&home, &bad);
     assert_eq!(env.proxy, None);
     assert_eq!(env.skipped[0].origin, Origin::File(PathBuf::from("/etc/pip.conf")));
-    assert_eq!(env.decide("relay.example", Some(443), &[]).1, "none");
+    assert_eq!(env.decide(Scheme::Https, "relay.example", Some(443), &[]).1, "none");
 }
 
 /// The entries of a list that match nothing, for a warning.
@@ -182,4 +183,72 @@ fn the_proxy_of_a_tool_comes_through_the_readers_of_the_caller() {
 fn the_entries_that_cannot_be_read() {
     let list = "*, .example.com, *.corp, internal:8443, 10.0.0.0/8, [::1]:22, ::1, 127.0.0.1, exa_mple.com, a:b:c/x, :";
     assert_eq!(no_proxy::unreadable(list), ["exa_mple.com", "a:b:c/x", ":"]);
+}
+
+/// The host of the proxy of `scheme` for `relay.example:80`, or none.
+fn host_of(env: &Environment, scheme: Scheme) -> Option<String> {
+    env.proxy_for_scheme(scheme, "relay.example", Some(80), &[]).unwrap().map(|p| p.host)
+}
+
+/// Each variable for each scheme: `http_proxy` and `HTTP_PROXY` for
+/// `http://` alone, `https_proxy` and `HTTPS_PROXY` for the rest, and
+/// `ALL_PROXY` for both; the order of the rules; `NO_PROXY` for both.
+#[test]
+fn the_scheme_chooses_the_variables_of_the_proxy() {
+    use Scheme::{Http, Https};
+    let lower = vars(&[("http_proxy", "http://lower.example:3128")]);
+    let env = Environment::read(&lower);
+    assert_eq!(host_of(&env, Http).as_deref(), Some("lower.example"));
+    assert_eq!((host_of(&env, Https), env.proxy_for("relay.example", &[])), (None, Ok(None)));
+    assert_eq!(env.decide(Https, "relay.example", Some(443), &[]).1, "none");
+    assert_eq!(env.http_proxy.as_ref().map(|g| g.origin.to_string()).as_deref(), Some("http_proxy"));
+
+    let upper = vars(&[("HTTP_PROXY", "http://upper.example:3128")]);
+    assert_eq!(host_of(&Environment::read(&upper), Http).as_deref(), Some("upper.example"));
+    let curl = Rules { http_proxy_vars: &HTTP_PROXY_VARS_LOWER, ..Rules::default() };
+    assert_eq!(host_of(&Environment::read_with(&upper, curl.clone()), Http), None, "curl reads no HTTP_PROXY");
+    assert_eq!(host_of(&Environment::read_with(&lower, curl), Http).as_deref(), Some("lower.example"));
+
+    let both = vars(&[("http_proxy", "http://lower.example:1"), ("HTTP_PROXY", "http://upper.example:1")]);
+    assert_eq!(host_of(&Environment::read(&both), Http).as_deref(), Some("lower.example"));
+    assert_eq!(host_of(&Environment::read_with(&both, podnet()), Http).as_deref(), Some("upper.example"));
+
+    let https = vars(&[("HTTPS_PROXY", "http://tls.example:3128"), ("ALL_PROXY", "socks5h://all.example")]);
+    let env = Environment::read(&https);
+    assert_eq!(
+        (host_of(&env, Http).as_deref(), host_of(&env, Https).as_deref()),
+        (Some("all.example"), Some("tls.example"))
+    );
+    let only = Environment::read(&vars(&[("HTTPS_PROXY", "http://tls.example:3128")]));
+    assert_eq!(host_of(&only, Http), None, "HTTPS_PROXY is not for http://, as in curl");
+
+    let all = Environment::read(&vars(&[("all_proxy", "http://all.example:3128"), ("NO_PROXY", ".internal")]));
+    for scheme in [Http, Https] {
+        assert_eq!(host_of(&all, scheme).as_deref(), Some("all.example"), "{scheme:?}");
+        assert_eq!(all.proxy_for_scheme(scheme, "db.internal", Some(80), &[]), Ok(None), "{scheme:?}");
+        assert_eq!(all.decide(scheme, "localhost", Some(80), &[]).1, "loopback", "{scheme:?}");
+    }
+}
+
+/// The proxy of the user holds for `http://` too, over `http_proxy`; the
+/// proxy of a tool's file when no variable names one; a URL that cannot be
+/// used in `ALL_PROXY`, which both lists read, is passed over once.
+#[test]
+fn the_user_and_a_file_hold_for_each_scheme() {
+    let env = Environment::read(&vars(&[("http_proxy", "http://variable.example:3128")]));
+    let user = env.with_proxy("socks5h://user.example", Origin::User("--proxy".into()));
+    assert_eq!(host_of(&user, Scheme::Http).as_deref(), Some("user.example"));
+
+    let home = vars(&[("HOME", "/home/u")]);
+    let files = |path: &Path| {
+        (path == Path::new("/etc/environment")).then(|| "https_proxy=http://etc.example:3128\n".to_string())
+    };
+    let file = Environment::read(&home).or_detected(&home, &files);
+    assert_eq!(host_of(&file, Scheme::Http).as_deref(), Some("etc.example"));
+
+    let bad = vars(&[("ALL_PROXY", "ftp://bad.example"), ("HTTP_PROXY", "http://good.example:1")]);
+    let env = Environment::read_with(&bad, podnet());
+    assert_eq!(env.skipped.len(), 1, "{:?}", env.skipped);
+    assert_eq!(host_of(&env, Scheme::Http).as_deref(), Some("good.example"));
+    assert_eq!(env.proxy, None);
 }

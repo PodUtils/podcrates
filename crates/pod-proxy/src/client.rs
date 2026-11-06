@@ -183,7 +183,8 @@ impl Client {
             streamed::start(tls.map_err(network_or_tls)?, &head, body, bounds).await
         } else {
             let deadline = tokio::time::Instant::now() + request.timeout;
-            let tcp = dial.dial(&Target::new(&target.host, target.port), deadline).await?;
+            // The proxy of `http_proxy`, not of `https_proxy`.
+            let tcp = dial.dial_http(&Target::new(&target.host, target.port), deadline).await?;
             streamed::start(tcp.io, &head, body, bounds).await
         }
     }
