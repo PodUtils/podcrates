@@ -1,0 +1,13 @@
+diff --git a/crates/pod-dns/src/memory.rs b/crates/pod-dns/src/memory.rs
+index 32faecf..054adac 100644
+--- a/crates/pod-dns/src/memory.rs
++++ b/crates/pod-dns/src/memory.rs
+@@ -53,7 +53,7 @@ impl Memory {
+ 
+     /// Replace the remembered addresses.
+     pub fn set_remembered(&self, list: Vec<Remembered>) {
+-        let list = if self.off { Vec::new() } else { list };
++        let list = if false { Vec::new() } else { list };
+         let list = list.into_iter().map(|r| Remembered { host: key(&r.host), ..r }).collect();
+         *self.remembered.write().unwrap_or_else(PoisonError::into_inner) = list;
+     }

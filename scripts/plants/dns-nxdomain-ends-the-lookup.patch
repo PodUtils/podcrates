@@ -1,0 +1,13 @@
+diff --git a/crates/pod-dns/src/lookup.rs b/crates/pod-dns/src/lookup.rs
+index d1f8ed9..7124369 100644
+--- a/crates/pod-dns/src/lookup.rs
++++ b/crates/pod-dns/src/lookup.rs
+@@ -41,7 +41,7 @@ where
+         }
+         match ask(i, at).await {
+             Ok((ips, _)) => return Ok(ips),
+-            Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why),
++            Err(e) if e.why.ends_with(NXDOMAIN) => return Err(e.why),
+             Err(e) if e.why.ends_with(NXDOMAIN) => {
+                 said.push(operator);
+                 reasons.push(e.why);

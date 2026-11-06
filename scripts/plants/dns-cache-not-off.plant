@@ -1,0 +1,9 @@
+# The cache of addresses keeps what it is given when the settings turn it
+# off, so a resolver that must remember nothing gives remembered
+# addresses (docs/design.md, section 1, rule 7); the test of a cache that
+# is off must fail.
+ENTRY=T-015
+GROUP=dns
+EXPECT='test memory::tests::a_cache_that_is_off_keeps_nothing \.\.\. FAILED'
+RUN='cargo test -p pod-dns --all-features --lib -- memory::tests'
+LIMIT=1800
