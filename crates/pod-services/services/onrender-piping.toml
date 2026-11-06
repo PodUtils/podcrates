@@ -1,0 +1,37 @@
+# A second public Piping Server, which the README of Piping Server lists:
+# a consumer asks it when ppng.io failed.
+id = "onrender-piping"
+kind = "piping"
+party = "nwtgck, the author of Piping Server, on Render"
+about = "A public Piping Server on a free service of Render"
+
+[rank]
+value = 1
+source = { ruling = "PodUtils/podssh#158: after ppng.io", read = 2026-11-06 }
+
+[[endpoint]]
+name = "server"
+scheme = "https"
+host = "piping.onrender.com"
+port = 443
+source = { url = "https://raw.githubusercontent.com/nwtgck/piping-server/develop/README.md", read = 2026-11-02, note = "the README lists ppng.io, piping.onrender.com and piping.glitch.me; /version answered 1.12.9, piping.glitch.me answered 410 (podssh)" }
+
+# The server gives the body of a request to the receiver only when the
+# request ends: a road through it sends numbered pieces, not a stream.
+[[fact]]
+name = "streams-request-body"
+value = false
+source = { measured = "a POST's lines reached the GET only after the POST ended (the owner's archive ff-relay, PodUtils/podssh#158)", read = 2026-11-04 }
+
+# Render can stop a free service after 15 minutes with no traffic: the first
+# request after it waits for the start.
+[[fact]]
+name = "idle-stop-minutes"
+value = 15
+source = { url = "https://render.com/docs/free", read = 2026-11-06, note = "a free web service spins down after 15 minutes with no inbound traffic" }
+
+[[watch]]
+kind = "http-status"
+endpoint = "server"
+path = "/version"
+status = 200

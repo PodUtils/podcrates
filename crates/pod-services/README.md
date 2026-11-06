@@ -208,6 +208,7 @@ let relay = services.of_kind("relay").next();
 | `n0-iroh-relay` | `iroh-relay` | `na-east`, `na-west`, `eu`, `ap` (role `relay`) | |
 | `n0-pkarr` | `pkarr` | `relay` | |
 | `ppng-piping` | `piping` | `server` | |
+| `onrender-piping` | `piping` | `server` | `streams-request-body`, `idle-stop-minutes` |
 | `magic-wormhole-mailbox`, `leastauthority-mailbox` | `mailbox` | `mailbox` | |
 | `leastauthority-transit` | `transit` | `relay` | |
 | `opentunnel` | `opentunnel` | `api` | `tunnel-zone` |

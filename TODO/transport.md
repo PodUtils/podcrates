@@ -1608,3 +1608,45 @@ was read to its end. A test counts the connections of three requests.
 ```sh
 cargo test -p pod-proxy --all-features
 ```
+
+# T-078: `pod-services`: a second public Piping Server
+
+**Source:** PodUtils/podssh#158 (COORD-004 of podssh, for PodUtils/podssh@T-497).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh: "podssh's PodUtils/podssh@T-497 wants a second public Piping Server after
+`ppng.io`, tried only once the first failed. A host of another party is
+pod-services' data now, so podssh asks it of podcrates rather than
+compiling it in."
+
+## Premise
+
+- Read: the README of Piping Server lists `ppng.io`, `piping.onrender.com`
+  and `piping.glitch.me`; podssh measured `/version` 1.12.9 on the second
+  and 410 on the third; the owner's archive `ff-relay` found that the second
+  holds a streamed request body until its end.
+
+## Approach
+
+`services/onrender-piping.toml` (kind `piping`, rank 1) with the facts
+`streams-request-body` (false) and `idle-stop-minutes` (15, Render's free
+services), and `ppng-piping` gets rank 0.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```
+
+## Done
+
+2026-11-06. `the_piping_servers_come_in_their_order` passes, with each test
+of `pod-services`. podssh reads `of_kind("piping")` from the release after
+v0.6.0.
+

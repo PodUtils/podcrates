@@ -5,6 +5,10 @@ kind = "piping"
 party = "nwtgck, the author of Piping Server"
 about = "A public Piping Server"
 
+[rank]
+value = 0
+source = { ruling = "PodUtils/podssh#158: ppng.io first, the other public servers after it", read = 2026-11-06 }
+
 [[endpoint]]
 name = "server"
 scheme = "https"
