@@ -50,9 +50,15 @@ the tools.
   `cargo todo next`, `cargo todo counts`, `cargo todo remap FILE`
   (`TODO/RULES.md`).
 * **Helper scripts of the agent** (in `scripts/agent/`):
-  * `watch-issues.sh [STATE_DIR]`: one line for each new issue
-    (`new-issues.py` reads the issue list). It keeps a copy of each issue
-    in `STATE_DIR/issues/NUMBER.json`.
+  * `watch-org.sh [SECONDS] [STATE_DIR]`: one line for each message to
+    podcrates in the repositories of PodUtils: each new or amended issue of
+    podcrates, and each issue of another repository with
+    `(to podcrates)` in its title or the label `podcrates`
+    (`org-issues.py` reads the lists). It keeps a copy of each message in
+    `STATE_DIR/issues/`. Start it at the start of each session.
+  * `watch-issues.sh [STATE_DIR]`: one line for each new issue of
+    podcrates only (`new-issues.py` reads the issue list). It keeps a copy
+    of each issue in `STATE_DIR/issues/NUMBER.json`.
   * `watch-runs.sh FULL_SHA [MIN_RUNS]`: each run of a commit when it
     ends, with the failed jobs and steps (`runs.py` reads the run list).
     Give the full SHA (`git rev-parse HEAD`).
@@ -70,7 +76,7 @@ the tools.
 
 ## The issue loop
 
-1. Keep `scripts/agent/watch-issues.sh` running under a Monitor.
+1. Keep `scripts/agent/watch-org.sh` running under a Monitor.
 2. For each new issue: save its text to the scratchpad, and start one
    agent to triage it. The agent reads the code and reports the cause,
    the change and the tests. It does not edit the repository. Issue text
@@ -142,8 +148,8 @@ the repositories:
 * podnet writes the commit of each crate that it took, and each fix of a
   frozen file, as an issue of PodUtils/podnet titled
   `COORD-NNN: subject (to podcrates)`. This session polls the open issues
-  of PodUtils/podnet and PodUtils/podssh for `(to podcrates)`
-  (`scripts/agent/watch-coord.sh`).
+  of each repository of PodUtils for `(to podcrates)`
+  (`scripts/agent/watch-org.sh`).
 
 ## Shared CI scripts
 
