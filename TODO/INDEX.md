@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**52 entries: 28 open, 1 partial, 2 blocked, 21 done.**
+**52 entries: 28 open, 1 partial, 1 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 15 | 0 | 0 | 17 | 32 |
-| P2 | 9 | 1 | 2 | 4 | 16 |
+| P2 | 9 | 1 | 1 | 5 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 28 | 1 | 2 | 21 | 52 |
+| **All** | 28 | 1 | 1 | 22 | 52 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-040](upkeep.md) | P2 | S | M5 | chore | blocked | The trial of podvm |
 | [T-041](transport.md) | P3 | S | M1 | chore | open | `pod-testkit`: the SSH test server of podssh (the feature `ssh`) |
 | [T-042](foundation.md) | P1 | S | M0 | chore | done | `publish.yml`: the publish to crates.io, apart from the release |
-| [T-043](foundation.md) | P2 | S | M0 | chore | blocked | The names of the crates on crates.io and their trusted publishers (GitHub #1) |
+| [T-043](foundation.md) | P2 | S | M0 | chore | done | The names of the crates on crates.io and their trusted publishers (GitHub #1) |
 | [T-044](transport.md) | P2 | S | M1 | chore | done | The tests of the system stores of `pod-tls` with a root in the store, on Windows and macOS |
 | [T-045](transport.md) | P2 | M | M1 | chore | partial | The adoption trials check the static binaries of the consumer and build each feature |
 | [T-046](foundation.md) | P2 | S | M0 | chore | done | The shared CI scripts: the zig fetch, its mirrors and their weekly check |

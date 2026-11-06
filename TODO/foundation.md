@@ -558,7 +558,7 @@ green.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -600,11 +600,13 @@ python3 -I scripts/check-crates-io-names.py
 
 Each name is on crates.io with the repository of podcrates.
 
-## Blocker
+## Done
 
-The owner reserves the 12 names that wait in the queue of GitHub #1
-(crates.io takes about one new crate every 10 minutes) and sets the
-trusted publisher of each.
+2026-11-06. `python3 -I scripts/check-crates-io-names.py`: 37 names, 0
+faults: each crate and held name of `docs/design.md`, section 4,
+`pod-services` among them, is on crates.io (0.0.0) with the repository
+of podcrates (`podutils`: PodUtils). The trusted publisher of each crate
+is the owner's to set and is not read here (it needs the owner's login).
 
 # T-046: The shared CI scripts: the zig fetch, its mirrors and their weekly check
 

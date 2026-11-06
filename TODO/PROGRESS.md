@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 52 entries: 28 open, 1 partial, 2 blocked, 21 done.
+`TODO/INDEX.md` holds 52 entries: 28 open, 1 partial, 1 blocked, 22 done.
 
 ## State
 
@@ -50,8 +50,6 @@ C19), and the work goes on with it until the owner rules otherwise.
 | --- | --- |
 | T-040 | The repository of podvm, and access for this session |
 | Each release | Tell the consumer sessions to take the crates |
-| T-043 | Reserve the 12 names that wait in the queue of GitHub #1, and set the trusted publisher of each (`python3 -I scripts/check-crates-io-names.py` lists them) |
-| T-049 | Reserve `pod-services` on crates.io, with the trusted publisher of `publish.yml` (the owner chose the name, 2026-11-05) |
 
 ## Questions for the owner
 
