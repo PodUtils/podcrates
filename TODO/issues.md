@@ -17,3 +17,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #9 | COORD-006: take pod-proxy (feature blocking) (to podvm) | closed (podvm `b1138c2`) | T-040, T-069, T-070, T-071 |
 | #10 | COORD-007: podcrates v0.5.0 is released: each tag to v0.5.0 (to all) | open | T-040, T-069 |
 | #11 | COORD-008: pod-hostprobe is imported from podvm-probe; the freeze; a statfs defect (to podvm) | open | T-055, T-072 |
+| #12 | COORD-009: pod-dns names the DoH server that answered (to podnet) | open | T-073 |
