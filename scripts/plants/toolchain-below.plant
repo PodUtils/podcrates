@@ -1,0 +1,8 @@
+# A workflow of a consumer whose job builds with Rust 1.96.1, below the
+# rust-version of podcrates: the check of the toolchains of a trial must
+# fail and name the pin.
+ENTRY=T-045
+GROUP=lint
+EXPECT='^FAULT +\.github/workflows/plant-toolchain\.yml:[0-9]+: RUST_TOOLCHAIN 1\.96\.1: 1\.96\.1 is below 1\.99$'
+RUN='python3 -I scripts/check-consumer-toolchains.py .'
+LIMIT=60

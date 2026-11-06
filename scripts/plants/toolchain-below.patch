@@ -1,0 +1,29 @@
+diff --git a/.github/workflows/plant-toolchain.yml b/.github/workflows/plant-toolchain.yml
+new file mode 100644
+index 0000000..e59b400
+--- /dev/null
++++ b/.github/workflows/plant-toolchain.yml
+@@ -0,0 +1,23 @@
++name: release armv7
++
++# A copy of a release job that builds with its own toolchain: Alpine's Rust
++# 1.96.1 (podnet's armv7 job before podnet 5535ffb). The pin is below the
++# rust-version of podcrates: check-consumer-toolchains.py must refuse it.
++
++on:
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++env:
++  RUST_TOOLCHAIN: "1.96.1"
++
++jobs:
++  armv7:
++    runs-on: ubuntu-24.04-arm
++    timeout-minutes: 60
++    container: docker.io/library/rust:1.96.1-alpine
++    steps:
++      - run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
++      - run: cargo build --locked --release

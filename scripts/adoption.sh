@@ -27,6 +27,10 @@ done
 repo=$(tr -d '\r\n' < "$dir/repo")
 commit=$(tr -d '\r\n' < "$dir/commit")
 work=${3:-${XDG_CACHE_HOME:-$HOME/.cache}/podcrates-adoption}/$consumer-$crate
+# The steps of a .run name this tree as $PODCRATES: its scripts check the
+# consumer (scripts/check-consumer-toolchains.py).
+PODCRATES=$here
+export PODCRATES
 # The consumer builds with the toolchain of podcrates, as adoption.yml sets
 # it, not with the rust-toolchain.toml of its checkout.
 : "${RUSTUP_TOOLCHAIN:=$(sed -n 's/^channel = "\(.*\)"/\1/p' "$here/rust-toolchain.toml")}"
