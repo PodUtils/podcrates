@@ -204,6 +204,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-dns` | `dns` | `udp-1`, `udp-2` (role `udp`), `trace` | `whoami-name`, `check-name` |
 | `cloudflare-stun`, `google-stun` | `stun` | `udp` | |
 | `tailcat-derp` | `derp` | `new-york`, `san-francisco`, `frankfurt`, `tokyo` (role `region`) | `probe-path` |
+| `tailscale-derp` | `derp` | one for each server, its role the code of its region (`nyc-1`, ...: 91 in 28 regions) | |
 | `tailscale-derp-map` | `derp-map` | `map` | |
 | `n0-iroh-relay` | `iroh-relay` | `na-east`, `na-west`, `eu`, `ap` (role `relay`) | |
 | `n0-pkarr` | `pkarr` | `relay` | |

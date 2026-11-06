@@ -157,3 +157,17 @@ fn the_piping_servers_come_in_their_order() {
     let render = pod_services::get("onrender-piping").expect("onrender-piping");
     assert_eq!(render.endpoint("server").map(|e| e.host()), Some("piping.onrender.com"));
 }
+
+/// DERP: tailcat's servers first, then Tailscale's main fleet in the order
+/// of its regions, the first server of each region first
+/// (PodUtils/podssh#159).
+#[test]
+fn the_derp_fleets_come_in_their_order() {
+    let derp: Vec<&str> = pod_services::of_kind("derp").map(|s| s.id()).collect();
+    assert_eq!(derp, ["tailcat-derp", "tailscale-derp"]);
+    let main = pod_services::get("tailscale-derp").expect("tailscale-derp");
+    let first = main.endpoints().first().expect("a server");
+    assert_eq!((first.role(), first.host()), (Some("nyc"), "derp1f.tailscale.com"));
+    let regions: std::collections::BTreeSet<_> = main.endpoints().iter().filter_map(|e| e.role()).collect();
+    assert_eq!(regions.len(), 28, "{regions:?}");
+}

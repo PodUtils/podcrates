@@ -5,6 +5,10 @@ kind = "derp"
 party = "Tailscale, for tailcat"
 about = "Four DERP servers of Tailscale's fleet, one in each region of tailcat's map"
 
+[rank]
+value = 0
+source = { ruling = "PodUtils/podssh#159: tailcat's servers first, Tailscale's main fleet after them", read = 2026-11-06 }
+
 [[endpoint]]
 name = "new-york"
 role = "region"

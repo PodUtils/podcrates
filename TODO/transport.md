@@ -1650,3 +1650,45 @@ cargo test -p pod-services --all-features
 of `pod-services`. podssh reads `of_kind("piping")` from the release after
 v0.6.0.
 
+# T-079: `pod-services`: Tailscale's main DERP fleet after tailcat's
+
+**Source:** PodUtils/podssh#159 (COORD-005 of podssh, for PodUtils/podssh@T-534).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh: "Q74 asks podssh to try Tailscale's main DERP fleet after tailcat's
+four servers, once a short test shows that it lets podssh in. ... 27 of 28
+relayed; `derp24b.tailscale.com` (hnl) was reset during TLS on this host,
+likely by its proxy." The ask: a service beside `tailcat-derp`, in the order
+of the regions' ids and each region's first server first, with the map's
+URL and its date as the source.
+
+## Premise
+
+- Read: `https://login.tailscale.com/derpmap/default` on 2026-11-06: 28
+  regions, 91 servers, none marked `Avoid` or `NoMeasureNoHome`.
+
+## Approach
+
+`services/tailscale-derp.toml` (kind `derp`, rank 1): one endpoint for each
+server (`CODE-N`), its role the code of its region, its IPv4 and IPv6
+addresses, in the order of the regions' ids and of the servers in each;
+`tailcat-derp` gets rank 0. The watch reads `/Regions` of the map.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```
+
+## Done
+
+2026-11-06. `the_derp_fleets_come_in_their_order` passes (tailcat first;
+the first server `derp1f.tailscale.com` of `nyc`; 28 regions), with each test
+of `pod-services`. podssh reads it from the release after v0.6.0.
+
