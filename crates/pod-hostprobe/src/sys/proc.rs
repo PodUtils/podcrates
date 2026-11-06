@@ -196,7 +196,17 @@ pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
     // check that silently wraps is worse than none. The syscall takes the
     // buffer's size so the kernel refuses a shape it does not know.
     let mut raw = unsafe { core::mem::zeroed::<linux_raw_sys::general::statfs64>() };
-    unsafe { sys(SYS_STATFS, [path.ptr(), &mut raw as *mut linux_raw_sys::general::statfs64 as u64, 0, 0, 0, 0])? };
+    let buf = &mut raw as *mut linux_raw_sys::general::statfs64 as u64;
+    // A 64-bit kernel has one form, whose struct is the wide one.
+    #[cfg(target_pointer_width = "64")]
+    unsafe {
+        sys(SYS_STATFS, [path.ptr(), buf, 0, 0, 0, 0])?
+    };
+    #[cfg(target_pointer_width = "32")]
+    unsafe {
+        let size = core::mem::size_of::<linux_raw_sys::general::statfs64>() as u64;
+        sys(crate::sys::SYS_STATFS64, [path.ptr(), size, buf, 0, 0, 0])?
+    };
     // As `Stat::from_kernel`: redundant here, load-bearing elsewhere.
     #[allow(clippy::unnecessary_cast)]
     Ok(Statfs {

@@ -352,7 +352,7 @@ The crates of M6 are released.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -376,6 +376,14 @@ as a COORD issue (the file is frozen in podvm).
 
 ```sh
 cargo test -p pod-hostprobe --lib sys
-cargo check -p pod-hostprobe --target i686-unknown-linux-musl
+cargo zigbuild --tests -p pod-hostprobe --lib --target i686-unknown-linux-musl  # then run the test binary
 ```
 
+## Done
+
+2026-11-06. On a 32-bit target `sys::statfs` calls `statfs64` with the size
+of the buffer (`SYS_STATFS64`); a 64-bit target keeps `statfs`, whose struct
+is the wide one. `statfs_reads_the_wide_struct_on_each_width`, run as an
+i686 musl binary on this host: without the change it failed with
+`f_ffree 17729625001984, f_files 1097445294077`; with it, it passes, and on
+x86_64 too. clippy is clean for x86_64, i686 and armv7.

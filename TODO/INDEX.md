@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**77 entries: 38 open, 2 partial, 0 blocked, 37 done.**
+**77 entries: 37 open, 2 partial, 0 blocked, 38 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 18 | 2 | 0 | 14 | 34 |
+| P2 | 17 | 2 | 0 | 15 | 34 |
 | P3 | 7 | 0 | 0 | 1 | 8 |
-| **All** | 38 | 2 | 0 | 37 | 77 |
+| **All** | 37 | 2 | 0 | 38 | 77 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -117,7 +117,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-069](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: a streamed body for `blocking::Client` (and the async one) |
 | [T-070](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left |
 | [T-071](transport.md) | P3 | S | M1 | feature | done | `pod-proxy`: a read limit for `blocking::Stream::Exec` |
-| [T-072](podvm.md) | P2 | S | M6 | defect | open | `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets |
+| [T-072](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets |
 | [T-073](transport.md) | P2 | S | M1 | feature | done | `pod-dns` names the DoH server that answered in its diagnostics |
 | [T-074](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: the words of a failed dial name the target twice |
 | [T-075](transport.md) | P2 | S | M1 | feature | open | `pod-proxy`: `HTTP_PROXY` for a target of `http://` |

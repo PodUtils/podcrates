@@ -186,6 +186,10 @@ pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
 pub const SYS_GETGROUPS: i64 = nr!(getgroups, __NR_getgroups);
 pub const SYS_SETGROUPS: i64 = nr!(setgroups, __NR_setgroups);
 pub const SYS_STATFS: i64 = nr!(statfs, __NR_statfs);
+/// The wide form of a 32-bit kernel: `statfs` there writes the narrow
+/// struct into a buffer of the wide one.
+#[cfg(target_pointer_width = "32")]
+pub const SYS_STATFS64: i64 = nr!(statfs64, __NR_statfs64);
 pub const SYS_FLOCK: i64 = nr!(flock, __NR_flock);
 pub const SYS_FCNTL: i64 = nr!(fcntl, __NR_fcntl);
 pub const SYS_PIVOT_ROOT: i64 = nr!(pivot_root, __NR_pivot_root);

@@ -136,3 +136,16 @@ fn a_spawn_through_the_hook_sheds_a_registered_fd_and_one_without_it_does_not() 
              every measurement that rests on this hook rests on nothing"
     );
 }
+
+/// The four values of `statfs` are those of the kernel on each width: a
+/// block size that is a power of two and a count of free inodes that is not
+/// above the count of inodes. A 32-bit build that read the narrow struct
+/// into the wide buffer broke both.
+#[test]
+fn statfs_reads_the_wide_struct_on_each_width() {
+    let root = CBuf::new("/").expect("a path");
+    let fs = statfs(&root).expect("statfs of /");
+    let (bsize, files, ffree) = (fs.f_bsize, fs.f_files, fs.f_ffree);
+    assert!(bsize > 0 && (bsize as u64).is_power_of_two(), "f_bsize {bsize}");
+    assert!(ffree <= files, "f_ffree {ffree}, f_files {files}");
+}
