@@ -122,7 +122,12 @@ pub(crate) async fn race(
                 continue;
             }
             if running.is_empty() {
-                let detail = if errors.is_empty() { last } else { group_errors(&errors) };
+                let detail = match errors.as_slice() {
+                    [] => last,
+                    // The one address is the target: the words name it once.
+                    [(addr, text)] if addr.to_string() == target => text.clone(),
+                    _ => group_errors(&errors),
+                };
                 return Err(DialError::Connect { target: target.to_string(), detail, cut, kind });
             }
         }

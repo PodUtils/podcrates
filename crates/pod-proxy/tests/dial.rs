@@ -311,3 +311,16 @@ fn loopback_targets_bypass_the_proxy() {
         assert!(proxy_from_vars(host, &vars).unwrap().is_some(), "{host} must be proxied");
     }
 }
+
+/// A refused dial of an address names the address once: the target and the
+/// one address that was tried are the same.
+#[tokio::test]
+async fn a_refused_dial_of_an_address_names_it_once() {
+    pod_testkit::need_loopback!();
+    let (_held, closed) = closed::port();
+    let err = dial("127.0.0.1", closed.port(), &ProxyChoice::Direct, Duration::from_secs(5)).await.unwrap_err();
+    let text = err.to_string();
+    let target = format!("127.0.0.1:{}", closed.port());
+    assert_eq!(text.matches(&target).count(), 1, "{text}");
+    assert!(text.starts_with(&format!("could not connect to {target}: ")), "{text}");
+}

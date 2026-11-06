@@ -1416,7 +1416,7 @@ from the release after v0.5.0.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1438,6 +1438,15 @@ text of a refused dial.
 ```sh
 cargo test -p pod-proxy --all-features --test dial
 ```
+
+## Done
+
+2026-11-06. When the one address that was tried is the target (a dial of
+an address), the words name it once. `a_refused_dial_of_an_address_names_it_once`
+failed on the old code (`could not connect to 127.0.0.1:50891:
+127.0.0.1:50891: Connection refused`) and passes; `cargo test -p pod-proxy
+--all-features` and clippy pass. A dial of a name keeps the address of each
+attempt after the name.
 
 
 # T-075: `pod-proxy`: `HTTP_PROXY` for a target of `http://`
