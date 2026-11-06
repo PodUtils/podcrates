@@ -80,10 +80,11 @@ fn the_wire_answer_gives_the_same_list_and_ttl() {
 
 /// rustls takes the list with podssh's own HPKE suites, and with none it
 /// finds no config that it can use: the suites are the ones that matter.
+#[cfg(feature = "ech")]
 #[test]
 fn rustls_takes_the_list_with_podssh_s_suites() {
     let bytes = || rustls_pki_types::EchConfigListBytes::from(unhex(LIST));
-    assert!(rustls::client::EchConfig::new(bytes(), crate::crypto::hpke::SUITES).is_ok());
+    assert!(rustls::client::EchConfig::new(bytes(), pod_tls::crypto::hpke::SUITES).is_ok());
     match rustls::client::EchConfig::new(bytes(), &[]) {
         Err(rustls::Error::InvalidEncryptedClientHello(rustls::EncryptedClientHelloError::NoCompatibleConfig)) => {}
         other => panic!("no suite should find no config: {:?}", other.map(|_| "a config")),

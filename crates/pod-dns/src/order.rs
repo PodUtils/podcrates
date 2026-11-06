@@ -1,38 +1,33 @@
-//! The order in which [`resolve`] asks the sources of a name's addresses, as
-//! the module comment of `resolve` gives it (T-344), apart from the asking of
-//! the two sources that need the network, so that a test stands in for them.
+//! The order in which a [`crate::Resolver`] asks the sources of a name's
+//! addresses, as the crate's comment gives it, apart from the asking of the
+//! two sources that need the network, so that a test stands in for them.
 
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
-use std::time::Duration;
 
-use tokio::time::Instant;
-
-use super::memory;
-
-/// Where an address came from, in the order that [`resolve`] asks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Where an address came from, in the order that a resolver asks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Source {
     /// The name is an IP address.
     Literal,
-    /// An address pinned for the name ([`super::set_pins`]).
+    /// An address pinned for the name ([`crate::Settings::pins`]).
     Pin,
     /// The system resolver.
     System,
-    /// An address that carried a session, younger than [`memory::FRESH`].
+    /// An address that carried a session, younger than [`crate::FRESH`].
     Cache,
     /// DNS over HTTPS.
     Doh,
-    /// An address that carried a session, older than [`memory::FRESH`].
+    /// An address that carried a session, older than [`crate::FRESH`].
     OldCache,
 }
 
-/// The sources, in the order asked.
-pub const ORDER: [Source; 6] =
-    [Source::Literal, Source::Pin, Source::System, Source::Cache, Source::Doh, Source::OldCache];
-
 impl Source {
-    /// The source in a few words, as `podssh doctor` names it.
+    /// The sources, in the order asked.
+    pub const ORDER: [Source; 6] =
+        [Source::Literal, Source::Pin, Source::System, Source::Cache, Source::Doh, Source::OldCache];
+
+    /// The source in a few words, as a doctor names it.
     pub fn words(self) -> &'static str {
         match self {
             Source::Literal => "an IP address in place of the name",
@@ -44,12 +39,38 @@ impl Source {
         }
     }
 
+    /// The source in one word, for a log line and a counter (podnet's words
+    /// of its steps: `pin`, `system`, `doh`).
+    pub fn name(self) -> &'static str {
+        match self {
+            Source::Literal => "literal",
+            Source::Pin => "pin",
+            Source::System => "system",
+            Source::Cache => "cache",
+            Source::Doh => "doh",
+            Source::OldCache => "old-cache",
+        }
+    }
+
     /// Whether a dial asks the sources after this one when none of its
     /// addresses connects: the cache's may be stale, and DNS over HTTPS
     /// leaves the old addresses their turn. The system resolver's answer is
     /// the system's, and a pin or an IP address is the user's.
     pub fn falls_back(self) -> bool {
         matches!(self, Source::Cache | Source::Doh)
+    }
+
+    /// The source as `pod-core` names it: its place in [`Source::ORDER`],
+    /// and its [`Source::name`]. The first three are those of `pod-proxy`'s
+    /// system resolver.
+    pub fn core(self) -> pod_core::Source {
+        let rank = Source::ORDER.iter().position(|s| *s == self).unwrap_or_default() as u8;
+        pod_core::Source { rank, name: self.name() }
+    }
+
+    /// The source of a `pod-core` source, by its place in the order.
+    pub fn of(source: pod_core::Source) -> Option<Source> {
+        Source::ORDER.get(usize::from(source.rank)).copied()
     }
 }
 
@@ -61,11 +82,6 @@ pub struct Found {
     pub source: Source,
     pub more: bool,
 }
-
-/// How long the addresses of a source with another after it have to
-/// connect, and how long DNS over HTTPS leaves the old addresses: a stale
-/// address does not hold the dial.
-pub const SOURCE_WAIT: Duration = Duration::from_secs(4);
 
 /// What is known of a name before the network is asked.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -79,12 +95,6 @@ pub(crate) struct Known {
 }
 
 impl Known {
-    fn of(host: &str) -> Known {
-        let bare = host.trim_start_matches('[').trim_end_matches(']');
-        let (fresh, old) = memory::split(&memory::remembered(host), memory::now_ms());
-        Known { literal: bare.parse().ok(), pins: super::pinned(host), fresh, old, asks: super::dns_safe(host) }
-    }
-
     fn has(&self, source: Source) -> bool {
         match source {
             Source::Literal => self.literal.is_some(),
@@ -104,42 +114,15 @@ pub(crate) fn next(after: Option<Source>, known: &Known) -> Option<Source> {
     if matches!(after, Some(Source::Literal | Source::Pin)) {
         return None;
     }
-    let start = after.and_then(|s| ORDER.iter().position(|o| *o == s)).map_or(0, |i| i + 1);
-    ORDER[start..].iter().copied().find(|s| known.has(*s))
+    let start = after.and_then(|s| Source::ORDER.iter().position(|o| *o == s)).map_or(0, |i| i + 1);
+    Source::ORDER[start..].iter().copied().find(|s| known.has(*s))
 }
 
-/// The addresses to try for `host:port`, by the order in the module comment
-/// of `resolve`. The error names every source that was tried.
-pub async fn resolve(host: &str, port: u16, deadline: Instant) -> Result<Vec<SocketAddr>, String> {
-    resolve_from(host, port, deadline, None).await.map(|found| found.addrs)
-}
-
-/// The addresses of the first source after `after` (from the start with
-/// none) that gives any: the dialer asks again when the addresses of a
-/// source that [falls back](Source::falls_back) did not connect.
-pub async fn resolve_from(host: &str, port: u16, deadline: Instant, after: Option<Source>) -> Result<Found, String> {
-    let known = Known::of(host);
-    // DNS over HTTPS leaves the old addresses their turn.
-    let doh_by = if known.old.is_empty() { deadline } else { deadline.checked_sub(SOURCE_WAIT).unwrap_or(deadline) };
-    resolve_in(&known, port, after, system(host, port, deadline), super::doh_lookup(host, doh_by)).await
-}
-
-/// The system resolver, within `deadline`.
-async fn system(host: &str, port: u16, deadline: Instant) -> Result<Vec<SocketAddr>, String> {
-    match tokio::time::timeout_at(deadline, tokio::net::lookup_host((host, port))).await {
-        Ok(Ok(addrs)) => {
-            let addrs: Vec<SocketAddr> = addrs.collect();
-            if addrs.is_empty() { Err("no addresses".to_string()) } else { Ok(addrs) }
-        }
-        Ok(Err(e)) => Err(e.to_string()),
-        Err(_) => Err("timed out".to_string()),
-    }
-}
-
-/// [`resolve_from`] over what is `known`, with the asking of the system
-/// resolver and of DNS over HTTPS given: each is awaited at most once, and
-/// only when the order reaches it. The caller names the host ("could not
-/// resolve HOST: ..."), so the error says only what each source answered.
+/// The addresses of the first source after `after` over what is `known`,
+/// with the asking of the system resolver and of DNS over HTTPS given: each
+/// is awaited at most once, and only when the order reaches it. The caller
+/// names the host ("could not resolve HOST: ..."), so the error says only
+/// what each source answered.
 pub(crate) async fn resolve_in<S, D>(
     known: &Known,
     port: u16,

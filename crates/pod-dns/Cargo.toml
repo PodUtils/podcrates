@@ -1,8 +1,49 @@
 [package]
 name = "pod-dns"
-description = "The resolver: an IP literal, the pins, the system, the cache of addresses and DNS over HTTPS in the JSON and the wire form; the SRV and HTTPS records."
+description = "The resolver: an IP literal, the pins, the system, the cache of addresses and DNS over HTTPS in the JSON and the wire form, over HTTP/1.1 or HTTP/2, through the caller's dial; the SRV and HTTPS records."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+# The reader of a name's ECH list for pod-tls (`pod_tls::ech::Records`) on
+# the resolver and on a way. It turns on the ECH of pod-tls, with its pure
+# provider.
+ech = ["pod-tls/ech"]
+
+[dependencies]
+pod-core = { workspace = true }
+pod-tls = { workspace = true }
+# The cut of a connection, the words of a miss, the HTTP/1.1 exchange.
+pod-proxy = { workspace = true }
+# The resolvers of the default settings: the services of the kind `doh`.
+pod-services = { workspace = true }
+# lookup_host (the system resolver), spawn (the HTTP/2 connection), the
+# bounds of each step.
+tokio = { workspace = true, features = ["net", "time", "rt", "io-util"] }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# The `dns` parameter of the wire form, and the `ech` value of the JSON form.
+base64 = { workspace = true }
+# The JSON form.
+serde_json = { workspace = true }
+# HTTP/2 for a resolver that serves no HTTP/1.1.
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
+# The diagnostics: the source of each answer.
+tracing = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "rt", "rt-multi-thread", "io-util", "macros", "sync"] }
+# The tests of TLS run on ring.
+rustls = { workspace = true, features = ["ring"] }
+# The certificates of the tests of pod-tls (tests/common/cert_for_test.rs),
+# minted in pure Rust.
+p256 = { workspace = true }
+sha2 = { workspace = true }

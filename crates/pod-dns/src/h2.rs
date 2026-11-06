@@ -2,17 +2,16 @@
 //! answered a GET of HTTP/1.1 with `505`, and the same GET over HTTP/2 with
 //! its answer (2026-10-31, from GitHub's runners and through a proxy). RFC
 //! 8484 asks for HTTP/2 at least (section 5.2); the other resolvers serve
-//! HTTP/1.1 too, which podssh's own client speaks.
+//! HTTP/1.1 too, which `pod-proxy`'s exchange speaks.
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use pod_proxy::Missed;
+use pod_proxy::http::Response;
+use pod_tls::Words;
 use rustls::ClientConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
-
-use crate::cut::Missed;
-use crate::dial::{self, ProxyChoice};
-use crate::http::Response;
 
 /// `config` offering `h2` alone, so that a server that chose another
 /// protocol is refused before a byte of HTTP is sent.
@@ -23,7 +22,8 @@ pub fn config_h2(config: &Arc<ClientConfig>) -> Arc<ClientConfig> {
 }
 
 /// TLS for `name` (a resolver's address, or its name through a proxy) with
-/// ALPN `h2` over `stream`, then one GET of `target`.
+/// ALPN `h2` over `stream`, then one GET of `target`. A failed handshake has
+/// the `words` of the consumer.
 pub async fn get_over<S>(
     config: &Arc<ClientConfig>,
     stream: S,
@@ -31,22 +31,24 @@ pub async fn get_over<S>(
     target: &str,
     accept: &str,
     max: usize,
+    words: &Words,
 ) -> Result<Response, String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    get_over_kept(config, stream, name, target, accept, max).await.map_err(|missed| missed.why)
+    get_over_kept(config, stream, name, target, accept, max, words).await.map_err(|missed| missed.why)
 }
 
-/// [`get_over`], with the cut of a failed handshake beside its words
-/// (T-604); a failure after the handshake has none.
-pub(super) async fn get_over_kept<S>(
+/// [`get_over`], with the cut of a failed handshake beside its words; a
+/// failure after the handshake has none.
+pub(crate) async fn get_over_kept<S>(
     config: &Arc<ClientConfig>,
     stream: S,
     name: &str,
     target: &str,
     accept: &str,
     max: usize,
+    words: &Words,
 ) -> Result<Response, Missed>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -55,29 +57,11 @@ where
     let tls = tokio_rustls::TlsConnector::from(config_h2(config))
         .connect(server, stream)
         .await
-        .map_err(|e| Missed::tls(&e, crate::tls::context().words()))?;
+        .map_err(|e| Missed::tls(&e, words))?;
     if tls.get_ref().1.alpn_protocol() != Some(b"h2") {
         return Err(Missed::words("the resolver did not take HTTP/2"));
     }
     get(tls, name, target, accept, max).await.map_err(Missed::words)
-}
-
-/// The same through `proxy` when one is set: the proxy is asked for `host`,
-/// the resolver's name or its address (T-405), and TLS checks the same.
-pub(super) async fn get_via(
-    config: &Arc<ClientConfig>,
-    host: &str,
-    target: &str,
-    accept: &str,
-    max: usize,
-    proxy: &ProxyChoice,
-    limit: Duration,
-) -> Result<Response, String> {
-    let ask = async {
-        let stream = dial::dial(host, 443, proxy, limit).await.map_err(|e| e.to_string())?;
-        get_over(config, stream, host, target, accept, max).await
-    };
-    tokio::time::timeout(limit, ask).await.map_err(|_| format!("no answer within {} s", limit.as_secs()))?
 }
 
 /// One GET over an HTTP/2 connection of its own. The connection is driven in
@@ -115,7 +99,8 @@ async fn ask(
     max: usize,
 ) -> Result<Response, String> {
     let mut client = client.ready().await.map_err(|e| format!("HTTP/2: {e}"))?;
-    let request = ::http::Request::get(format!("https://{name}{target}"))
+    let authority = if name.contains(':') { format!("[{name}]") } else { name.to_string() };
+    let request = ::http::Request::get(format!("https://{authority}{target}"))
         .header("accept", accept)
         .body(())
         .map_err(|e| format!("HTTP/2: {e}"))?;
@@ -142,7 +127,9 @@ mod tests {
     /// The configuration offers `h2` alone, and the caller's is unchanged.
     #[test]
     fn only_h2_is_offered() {
-        let config = crate::tls::config_for(&crate::Trust::Default).unwrap();
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let context = pod_tls::Context::new(provider, pod_tls::Settings::new(Words::new("podssh")));
+        let config = context.config_for(&pod_tls::Trust::Default).unwrap();
         let h2 = config_h2(&config);
         assert_eq!(h2.alpn_protocols, vec![b"h2".to_vec()]);
         assert!(config.alpn_protocols.is_empty());

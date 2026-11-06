@@ -1,24 +1,18 @@
 //! A name's HTTPS record (RFC 9460, type 65), read for its `ech` parameter
-//! (key 5): the ECHConfigList that Encrypted Client Hello seals the name with
-//! (T-642). From either form of DNS over HTTPS: the JSON API's `data`, in
-//! RFC 9460's presentation form, as Cloudflare's and Google's write it (read
+//! (key 5): the ECHConfigList that Encrypted Client Hello seals the name with.
+//! From either form of DNS over HTTPS: the JSON form's `data`, in RFC 9460's
+//! presentation form, as Cloudflare's and Google's write it (read
 //! 2026-11-05), or in RFC 3597's generic form (`\# LEN HEX`); and RFC 8484's
 //! wire form. Each length is checked before what it covers is read, as
 //! `wire.rs` checks its own.
 //!
 //! The question goes to the same resolvers, in the same order and through the
-//! same proxy as the dialer's fallback (`doh_srv`): only when ECH was asked
-//! for, and once for each name and TTL (`crate::ech`).
-
-use std::time::Duration;
+//! same way as the other questions ([`crate::Way::https`]): only when ECH was
+//! asked for, and once for each name and TTL (`pod_tls::ech`).
 
 use base64::Engine as _;
-use tokio::time::Instant;
 
-use super::{DOH_EACH, DOH_RESOLVERS, Doh, Form, MAX_ANSWER, Miss, NXDOMAIN, dns_safe, h2, read, way, wire};
-use crate::dial::ProxyChoice;
-use crate::http;
-use crate::tls::{self, Trust};
+use crate::{NXDOMAIN, wire};
 
 /// The key of the `ech` parameter (RFC 9460, section 14.3.2).
 pub const ECH_KEY: u16 = 5;
@@ -31,8 +25,20 @@ const LIST_CUT: &str = "an ech parameter's ECHConfigList is not as long as its l
 
 /// What a name's record gives Encrypted Client Hello: the ECHConfigList,
 /// its own length first, as rustls takes it, and the record's TTL in seconds,
-/// where the answer gave one.
-pub use pod_tls::ech::Published;
+/// where the answer gave one. With the feature `ech` it becomes
+/// `pod_tls::ech::Published`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Published {
+    pub list: Vec<u8>,
+    pub ttl: Option<u32>,
+}
+
+#[cfg(feature = "ech")]
+impl From<Published> for pod_tls::ech::Published {
+    fn from(published: Published) -> pod_tls::ech::Published {
+        pod_tls::ech::Published { list: published.list, ttl: published.ttl }
+    }
+}
 
 /// The list of a JSON answer: the record of the lowest priority that holds
 /// one; `None` where no record of type 65 holds one (none at all, an alias,
@@ -242,100 +248,6 @@ fn generic_bytes(rest: &str) -> Result<Vec<u8>, String> {
         return Err("an HTTPS record in RFC 3597's form is not as long as it says".into());
     }
     Ok(bytes)
-}
-
-/// The list that `name` publishes, from the [`DOH_RESOLVERS`] in turn,
-/// through `proxy` when one is set, as [`super::doh_srv`] asks: `None` where
-/// the first resolver that answers gives none.
-pub async fn doh_https(name: &str, proxy: &ProxyChoice, deadline: Instant) -> Result<Option<Published>, String> {
-    doh_https_with(DOH_RESOLVERS, name, &Trust::Default, proxy, deadline).await
-}
-
-/// [`doh_https`] over a given list of resolvers, whose certificates `trust`
-/// verifies: a stand-in's, in a test.
-pub async fn doh_https_with(
-    resolvers: &[Doh],
-    name: &str,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    deadline: Instant,
-) -> Result<Option<Published>, String> {
-    let name = name.trim_end_matches('.');
-    if !dns_safe(name) {
-        return Err(format!("{name:?} is not a name to ask a resolver for"));
-    }
-    let mut reasons = Vec::new();
-    let mut asked: Vec<&str> = Vec::new();
-    for resolver in resolvers {
-        'hosts: for host in resolver.hosts(proxy, &asked) {
-            asked.push(host);
-            for form in resolver.forms() {
-                let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
-                if left.is_zero() {
-                    reasons.push("out of time".to_string());
-                    return Err(reasons.join("; "));
-                }
-                match https_at(resolver, host, form, name, trust, proxy, left).await {
-                    Ok(found) => return Ok(found),
-                    Err(Miss::Said(e)) if e == NXDOMAIN => return Err(format!("{host}: {e}")),
-                    Err(Miss::Form(e)) => reasons.push(format!("{host} ({}): {e}", form.words())),
-                    Err(Miss::Way(e, _)) => {
-                        reasons.push(format!("{host}: {e}"));
-                        continue 'hosts;
-                    }
-                    Err(Miss::Said(e)) => {
-                        reasons.push(format!("{host}: {e}"));
-                        break 'hosts;
-                    }
-                }
-            }
-        }
-    }
-    Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
-}
-
-/// One question for the HTTPS record of `name` in `form`, to `host`, the
-/// resolver's name or address.
-async fn https_at(
-    resolver: &Doh,
-    host: &str,
-    form: Form,
-    name: &str,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    left: Duration,
-) -> Result<Option<Published>, Miss> {
-    let target = resolver.target(form, name, "HTTPS").map_err(way)?;
-    let answer = if resolver.http2 {
-        let config = tls::config_for(trust).map_err(|e| way(e.to_string()))?;
-        h2::get_via(&config, host, &target, form.accept(), MAX_ANSWER, proxy, left).await
-    } else {
-        get_plain(host, &target, form.accept(), trust, proxy, left).await
-    };
-    read(&answer.map_err(way)?, |body| match form {
-        Form::Json => from_json(body),
-        Form::Wire => from_wire(body, name),
-    })
-}
-
-/// A GET of HTTP/1.1 with a plain hello: the read for a name's list is no
-/// connection of `crate::ech`'s, so that it never waits on a read of its own.
-async fn get_plain(
-    host: &str,
-    target: &str,
-    accept: &str,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    left: Duration,
-) -> Result<http::Response, String> {
-    let ask = async {
-        let tcp = crate::dial::dial(host, 443, proxy, left).await.map_err(|e| e.to_string())?;
-        let mut tls = crate::tls_wrap::tls_over(tcp, host, trust, left).await.map_err(|e| e.to_string())?;
-        http::exchange(&mut tls, "GET", host, target, &[("Accept", accept)], b"", MAX_ANSWER)
-            .await
-            .map_err(|e| e.to_string())
-    };
-    tokio::time::timeout(left, ask).await.map_err(|_| format!("no answer within {} s", left.as_secs()))?
 }
 
 #[cfg(test)]

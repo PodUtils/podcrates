@@ -3,18 +3,20 @@
 # with the main branch of its repository.
 
 repo PodUtils/podssh a7915535bc373644050d036a2c1cc1052c4888e5
+# The tests that use the certificates of tests/common/ include the copy of
+# pod-tls (crates/pod-tls/tests/common/); the fixtures of DoH come whole.
 dir crates/podssh-ws/src/resolve
 dir crates/podssh-ws/tests/fixtures/doh
-file 000da908fca642945374ac0a75dad5f8908b683e crates/podssh-ws/src/resolve.rs -> crates/pod-dns/src/resolve.rs
-file 7853e6ebb09053eedb611c124b1d7b7e5e099fda crates/podssh-ws/src/resolve/direct.rs -> crates/pod-dns/src/resolve/direct.rs
-file ee1b9f2409f35a33f60b70bf4bcfc359034743fc crates/podssh-ws/src/resolve/h2.rs -> crates/pod-dns/src/resolve/h2.rs
-file 41dccadf6f57374482148c5228861f9cf6f13839 crates/podssh-ws/src/resolve/https.rs -> crates/pod-dns/src/resolve/https.rs
-file 43454312e5aadce7390e04649f3cdddb26103c4e crates/podssh-ws/src/resolve/https_tests.rs -> crates/pod-dns/src/resolve/https_tests.rs
-file beb5cfa14fd43a5dead8c4b246642b1be74938f7 crates/podssh-ws/src/resolve/memory.rs -> crates/pod-dns/src/resolve/memory.rs
-file 7730bf6250ed490b0606c2b7a0bf2fcebec2f316 crates/podssh-ws/src/resolve/order.rs -> crates/pod-dns/src/resolve/order.rs
-file 90b215fc7612c8c761955aef3ed3e36d6e6da09c crates/podssh-ws/src/resolve/tests.rs -> crates/pod-dns/src/resolve/tests.rs
-file d902a88647a53a8330a79b0d5266a24abba997e6 crates/podssh-ws/src/resolve/tests/cuts.rs -> crates/pod-dns/src/resolve/tests/cuts.rs
-file 428e22d0f1352f74cba319ef8c163d1bb72c0a9c crates/podssh-ws/src/resolve/wire.rs -> crates/pod-dns/src/resolve/wire.rs
+file 000da908fca642945374ac0a75dad5f8908b683e crates/podssh-ws/src/resolve.rs -> crates/pod-dns/src/lib.rs crates/pod-dns/src/doh.rs crates/pod-dns/src/settings.rs crates/pod-dns/src/json.rs crates/pod-dns/src/miss.rs crates/pod-dns/src/lookup.rs crates/pod-dns/src/question.rs crates/pod-dns/src/way.rs crates/pod-dns/src/resolver.rs
+file 7853e6ebb09053eedb611c124b1d7b7e5e099fda crates/podssh-ws/src/resolve/direct.rs -> crates/pod-dns/src/ask.rs crates/pod-dns/src/get.rs
+file ee1b9f2409f35a33f60b70bf4bcfc359034743fc crates/podssh-ws/src/resolve/h2.rs -> crates/pod-dns/src/h2.rs crates/pod-dns/src/get.rs
+file 41dccadf6f57374482148c5228861f9cf6f13839 crates/podssh-ws/src/resolve/https.rs -> crates/pod-dns/src/https.rs crates/pod-dns/src/way.rs crates/pod-dns/src/question.rs crates/pod-dns/src/get.rs
+file 43454312e5aadce7390e04649f3cdddb26103c4e crates/podssh-ws/src/resolve/https_tests.rs -> crates/pod-dns/src/https_tests.rs
+file beb5cfa14fd43a5dead8c4b246642b1be74938f7 crates/podssh-ws/src/resolve/memory.rs -> crates/pod-dns/src/memory.rs
+file 7730bf6250ed490b0606c2b7a0bf2fcebec2f316 crates/podssh-ws/src/resolve/order.rs -> crates/pod-dns/src/order.rs crates/pod-dns/src/resolver.rs
+file 90b215fc7612c8c761955aef3ed3e36d6e6da09c crates/podssh-ws/src/resolve/tests.rs -> crates/pod-dns/src/tests.rs
+file d902a88647a53a8330a79b0d5266a24abba997e6 crates/podssh-ws/src/resolve/tests/cuts.rs -> crates/pod-dns/src/tests/cuts.rs
+file 428e22d0f1352f74cba319ef8c163d1bb72c0a9c crates/podssh-ws/src/resolve/wire.rs -> crates/pod-dns/src/wire.rs
 file 6bea3d68fa865c126643657f0994acc06aac2dc5 crates/podssh-ws/tests/doh_h2.rs -> crates/pod-dns/tests/doh_h2.rs
 file 1db2e8b20263e8a27599b23812f0365cfa4c505f crates/podssh-ws/tests/doh_names.rs -> crates/pod-dns/tests/doh_names.rs
 file b468785d120815bef62def612a5fe7796d9efc95 crates/podssh-ws/tests/doh_wire.rs -> crates/pod-dns/tests/doh_wire.rs

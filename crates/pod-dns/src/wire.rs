@@ -1,23 +1,23 @@
 //! RFC 1035's messages as RFC 8484 carries them over HTTPS
 //! (`application/dns-message`): a query of one question, and the A, AAAA and
-//! SRV records of an answer (T-344), and the data of HTTPS records, which
-//! `https.rs` reads for Encrypted Client Hello (T-642). By hand, for four
-//! record types: a parser of untrusted bytes that the fuzzer reaches
+//! SRV records of an answer, and the data of HTTPS records, which
+//! `https.rs` reads for Encrypted Client Hello. By hand, for four record
+//! types: a parser of untrusted bytes that the fuzzer reaches
 //! (`fuzz/fuzz_targets/dns_wire.rs`), where a general DNS crate would be a
-//! large one that podssh does not fuzz.
+//! large one that the fuzzer does not reach.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use base64::Engine as _;
 
-use super::{NXDOMAIN, Srv, dns_safe};
+use crate::{NXDOMAIN, Srv, dns_safe};
 
-/// The record types that podssh asks for (RFC 1035, RFC 3596, RFC 2782).
+/// The record types that the crate asks for (RFC 1035, RFC 3596, RFC 2782).
 pub const A: u16 = 1;
 pub const AAAA: u16 = 28;
 pub const SRV: u16 = 33;
 /// The HTTPS record (RFC 9460), whose `ech` parameter Encrypted Client Hello
-/// needs (T-642).
+/// needs.
 pub const HTTPS: u16 = 65;
 /// The class of each question and record here: the Internet.
 const IN: u16 = 1;
@@ -122,8 +122,8 @@ fn records(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize)>, Str
 }
 
 /// [`records`], with the TTL of each record in seconds (RFC 1035, section
-/// 4.1.3): a name's list for Encrypted Client Hello is kept for it (T-642).
-pub(super) fn records_kept(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize, u32)>, String> {
+/// 4.1.3): a name's list for Encrypted Client Hello is kept for it.
+pub(crate) fn records_kept(msg: &[u8], name: &str, kind: u16) -> Result<Vec<(usize, usize, u32)>, String> {
     let header = msg.get(..HEADER).ok_or("not a DNS message: shorter than its header")?;
     let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
     if (word(2) & RESPONSE) == 0 {

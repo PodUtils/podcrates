@@ -1,8 +1,17 @@
 //! The pins, the JSON form's answers, the resolvers' forms and the fallback
-//! from one form to the other (T-344); how a resolver's connection ended
-//! (T-604).
+//! from one form to the other; how a resolver's connection ended.
 
-use super::*;
+use std::net::IpAddr;
+use std::sync::Arc;
+use std::time::Duration;
+
+use pod_proxy::http;
+use tokio::time::Instant;
+
+use crate::doh::Form;
+use crate::json::{parse_answer, parse_srv};
+use crate::miss::{Miss, read};
+use crate::{Doh, NXDOMAIN, Resolver, Settings, Srv, dns_safe, parse_pins, wire};
 
 mod cuts;
 
@@ -20,8 +29,8 @@ fn pins_parse_and_reject_garbage() {
 
 #[test]
 fn srv_answers_parse_and_drop_what_does_not_read() {
-    // The answer that 1.1.1.1 gave for the edge's record (T-299), and
-    // the forms that must not read as a record.
+    // The answer that 1.1.1.1 gave for the edge's record, and the forms
+    // that must not read as a record.
     let body = br#"{"Status":0,"Answer":[
         {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"1 1 7844 region1.v2.argotunnel.com."},
         {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"2 1 7844 REGION2.v2.argotunnel.com"},
@@ -60,11 +69,15 @@ fn dns_json_answers_parse_by_type() {
 #[tokio::test]
 async fn literals_and_pins_need_no_resolver() {
     let soon = Instant::now() + Duration::from_secs(1);
-    assert_eq!(resolve("192.0.2.1", 443, soon).await.unwrap(), vec!["192.0.2.1:443".parse().unwrap()]);
-    assert_eq!(resolve("[2001:db8::1]", 22, soon).await.unwrap(), vec!["[2001:db8::1]:22".parse().unwrap()]);
-    set_pins(parse_pins("pinned.invalid=192.0.2.9").unwrap());
-    assert_eq!(resolve("PINNED.invalid", 443, soon).await.unwrap(), vec!["192.0.2.9:443".parse().unwrap()]);
-    set_pins(Vec::new());
+    let pins = parse_pins("pinned.invalid=192.0.2.9").unwrap();
+    let resolver = Resolver::new(Settings { pins, ..Settings::default() });
+    let resolve = |host: &'static str, port| {
+        let resolver = &resolver;
+        async move { resolver.find(host, port, soon, None).await.map(|found| found.addrs) }
+    };
+    assert_eq!(resolve("192.0.2.1", 443).await.unwrap(), vec!["192.0.2.1:443".parse().unwrap()]);
+    assert_eq!(resolve("[2001:db8::1]", 22).await.unwrap(), vec!["[2001:db8::1]:22".parse().unwrap()]);
+    assert_eq!(resolve("PINNED.invalid", 443).await.unwrap(), vec!["192.0.2.9:443".parse().unwrap()]);
 }
 
 /// Today's four resolvers first, then Quad9's two, each address once; the
@@ -72,15 +85,15 @@ async fn literals_and_pins_need_no_resolver() {
 /// its form writes it.
 #[test]
 fn each_resolver_is_asked_in_its_forms() {
-    let ips: Vec<&str> = DOH_RESOLVERS.iter().map(|r| r.ip).collect();
+    let resolvers = crate::doh::defaults();
+    let ips: Vec<String> = resolvers.iter().map(|r| r.ip.to_string()).collect();
     assert_eq!(ips, ["1.1.1.1", "8.8.8.8", "1.0.0.1", "8.8.4.4", "9.9.9.9", "149.112.112.112"]);
-    for resolver in DOH_RESOLVERS {
-        assert!(resolver.ip.parse::<IpAddr>().is_ok(), "a resolver needs no resolver: {}", resolver.ip);
+    for resolver in &resolvers {
         let forms = resolver.forms();
         assert_eq!(forms.last(), Some(&Form::Wire), "{}: the wire form is each one's fallback", resolver.ip);
         assert_eq!(forms.len(), 1 + usize::from(resolver.json.is_some()));
     }
-    let cloudflare = DOH_RESOLVERS[0];
+    let cloudflare = &resolvers[0];
     assert_eq!(
         cloudflare.target(Form::Json, "relay.example", "AAAA").unwrap(),
         "/dns-query?name=relay.example&type=AAAA"
@@ -88,20 +101,24 @@ fn each_resolver_is_asked_in_its_forms() {
     // RFC 8484's own query of section 4.1.1.
     let wire = cloudflare.target(Form::Wire, "www.example.com", "A").unwrap();
     assert_eq!(wire, "/dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB");
-    let quad9 = DOH_RESOLVERS[4];
+    let quad9 = &resolvers[4];
     assert_eq!(quad9.target(Form::Json, "www.example.com", "A").unwrap(), wire, "no JSON: the wire form");
     assert!(cloudflare.target(Form::Wire, "bad name", "A").is_err());
 }
 
 /// Through a proxy each resolver is asked by its name, then by its address,
-/// and a name that two addresses share once; with none, by its address alone
-/// (T-405). Each name is a name, which TLS checks as it checks a name.
+/// and a name that two addresses share once; with none, by its address alone.
+/// Each name is a name, which TLS checks as it checks a name.
 #[test]
 fn through_a_proxy_a_resolver_is_asked_by_its_name_first() {
-    let proxy = ProxyChoice::Via(crate::dial::Proxy::parse("http://192.0.2.1:3128").unwrap());
-    let mut asked: Vec<&str> = Vec::new();
-    for resolver in DOH_RESOLVERS {
-        let hosts = resolver.hosts(&proxy, &asked);
+    let proxy = pod_proxy::Proxy::parse("http://192.0.2.1:3128").unwrap();
+    let settings = pod_proxy::Settings::new("podssh", pod_proxy::ProxyChoice::Via(proxy));
+    let dialer = pod_proxy::Dialer::new(settings, Arc::new(pod_proxy::resolve::System::new()));
+    let by_name = pod_core::Dial::names_inside(&dialer);
+    let resolvers = crate::doh::defaults();
+    let mut asked: Vec<String> = Vec::new();
+    for resolver in &resolvers {
+        let hosts = resolver.hosts(by_name, &asked);
         asked.extend(hosts);
     }
     let want = [
@@ -118,9 +135,9 @@ fn through_a_proxy_a_resolver_is_asked_by_its_name_first() {
         "149.112.112.112",
     ];
     assert_eq!(asked, want);
-    for resolver in DOH_RESOLVERS {
-        assert_eq!(resolver.hosts(&ProxyChoice::Direct, &[]), [resolver.ip], "no proxy: no name");
-        let name = resolver.name;
+    for resolver in &resolvers {
+        assert_eq!(resolver.hosts(false, &[]), [resolver.ip.to_string()], "no proxy: no name");
+        let name = resolver.name.as_str();
         assert!(dns_safe(name) && name.parse::<IpAddr>().is_err() && name == name.to_ascii_lowercase(), "{name}");
         assert!(rustls_pki_types::ServerName::try_from(name).is_ok(), "{name}");
     }
@@ -149,4 +166,23 @@ fn a_miss_of_the_form_falls_back_and_the_others_do_not() {
     // A JSON body where the wire form was asked is no DNS message.
     let as_wire = |body: &[u8]| wire::addrs(body, "relay.example", wire::A);
     assert!(matches!(read(&answer(200, one), as_wire), Err(Miss::Form(_))));
+}
+
+/// A resolver of the settings is data: each field of a service of the kind
+/// `doh` comes to it.
+#[test]
+fn a_resolver_is_the_data_of_its_service() {
+    let quad9 = Doh::of_service(pod_services::get("quad9-doh").unwrap(), &["v4"]);
+    let first = &quad9[0];
+    assert_eq!(
+        (first.operator.as_str(), first.ip.to_string(), first.name.as_str()),
+        ("Quad9", "9.9.9.9".into(), "dns.quad9.net")
+    );
+    assert_eq!(
+        (first.port, first.json.as_deref(), first.wire.as_deref(), first.http2),
+        (443, None, Some("/dns-query"), true)
+    );
+    let google = Doh::of_service(pod_services::get("google-doh").unwrap(), &["v6"]);
+    assert_eq!(google.len(), 2);
+    assert!(google.iter().all(|g| g.ip.is_ipv6() && g.json.as_deref() == Some("/resolve")));
 }
