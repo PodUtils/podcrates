@@ -8,10 +8,13 @@ run:
 * each issue of another repository of the organization whose title holds
   `(to ME)` or `(to all)`, or that has the label ME.
 
-A message is changed when its `updated_at` moved: the writer amended its
-body (docs/maintenance.md, "Talk between sessions"). STATE keeps
-`REPO#NUMBER UPDATED_AT` for each message seen; with ANNOUNCE=0 the run
-records and prints nothing (the first run). Each message is kept in
+A COORD issue (its title starts with `COORD-` or holds `(to `) is changed
+when its `updated_at` moved: the writer amended its body
+(docs/maintenance.md, "Talk between sessions"). Another issue is changed
+only when it has a new comment: an edit of its body (a table that its
+writer keeps) is no message. STATE keeps `REPO#NUMBER UPDATED_AT
+COMMENTS` for each message seen; with ANNOUNCE=0 the run records and
+prints nothing (the first run). Each message is kept in
 issues/OWNER_REPO_NUMBER.json beside STATE, as GitHub deletes the issues of
 a suspended account.
 
@@ -39,9 +42,9 @@ def main() -> int:
     seen = {}
     if os.path.exists(state_path):
         for line in open(state_path, encoding="utf-8"):
-            key, _, stamp = line.strip().partition(" ")
-            if key:
-                seen[key] = stamp
+            parts = line.split()
+            if parts:
+                seen[parts[0]] = (parts[1] if len(parts) > 1 else "", parts[2] if len(parts) > 2 else "")
     keep = os.path.join(os.path.dirname(os.path.abspath(state_path)), "issues")
     os.makedirs(keep, exist_ok=True)
     for line in sys.stdin:
@@ -57,6 +60,9 @@ def main() -> int:
                 continue
             key = f"{repo}#{i['number']}"
             stamp = i.get("updated_at") or ""
+            comments = str(i.get("comments") or 0)
+            title = i.get("title") or ""
+            coord = title.startswith("COORD-") or "(to " in title
             copy = {k: i.get(k) for k in ("number", "title", "body", "state", "created_at", "updated_at", "html_url")}
             copy["repo"] = repo
             copy["user"] = (i.get("user") or {}).get("login")
@@ -65,15 +71,16 @@ def main() -> int:
             with open(path + ".tmp", "w", encoding="utf-8") as f:
                 json.dump(copy, f, indent=1)
             os.replace(path + ".tmp", path)
-            if seen.get(key) == stamp:
+            before = seen.get(key)
+            seen[key] = (stamp, comments)
+            if before is not None and (before[0] == stamp or (not coord and before[1] == comments)):
                 continue
-            word = "NEW" if key not in seen else "AMENDED"
-            seen[key] = stamp
+            word = "NEW" if before is None else ("AMENDED" if coord else "COMMENTED")
             if announce:
                 print(f"{word} {key} [{i.get('state')}] by {copy['user']}: {i.get('title')}", flush=True)
     with open(state_path + ".tmp", "w", encoding="utf-8") as f:
         for key in sorted(seen):
-            f.write(f"{key} {seen[key]}\n")
+            f.write(f"{key} {seen[key][0]} {seen[key][1]}\n")
     os.replace(state_path + ".tmp", state_path)
     return 0
 
