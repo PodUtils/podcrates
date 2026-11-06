@@ -470,13 +470,12 @@ pod-hostprobe is larger than the estimate: it takes all of `probes.rs` and `sys.
 
 * **Q1 (answered).** podvm's `main` has the rename at `0249527` (PodUtils/podvm#194); `ecf61c0` is its parent, and
   `0249527` changes only `crates/podvm/src/run.rs`. The imports read `0249527`.
-* **Q2 (podvm session).** The variables that a payload and podvm-interpose read (`PODVM_ACTIVE_MODE`, `PODVM_MODE`,
-  `PODVM_CACHE`, `PODVM_GUEST_EXE`, `PODVM_MAPS`, `PODVM_DEVICE_SPEC`, `PODVM_DEVICE_FDS`, `PODVM_MEMO_FD`) become
-  settings of pod-enter and pod-supervise with podvm's values; podvm-interpose and the memo format stay in podvm.
-  Confirm.
-* **Q3 (podvm session).** The download of a guest base image (`crates/podvm/src/windows/setup.rs`) stays in podvm's CLI,
-  or moves to pod-guest (then pod-guest takes pod-proxy `blocking` and rows of pod-services)? Recommendation: it stays
-  for M6.
+* **Q2 (answered, PodUtils/podvm#197).** Yes: the eight `PODVM_*` variables are settings of `pod-enter` and
+  `pod-supervise` (a struct or a builder that the caller fills); podvm passes its names and values. podvm-interpose
+  and the memo format stay in podvm. A crate holds no `PODVM_` name (podvm's call C8).
+* **Q3 (answered, PodUtils/podvm#197).** Yes: the download of a guest base image stays in podvm's CLI for M6.
+  `pod-guest` takes the mailbox, the agent, QMP, the boot plan, and the fetch with its digest check; the choice of the
+  image, its terms and its source stay in podvm.
 
 ### First commit of each crate
 
