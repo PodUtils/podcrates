@@ -282,7 +282,7 @@ pub(super) fn shed_registered_fds() {
 /// # Safety
 /// `pre_exec` runs between `fork` and `execve` in a process that may hold locks
 /// another thread owns, so the hook has to be async-signal-safe.
-/// [`shed_registered_fds`] is atomic loads and `close(2)`, which is.
+/// `shed_registered_fds` is atomic loads and `close(2)`, which is.
 pub fn shed_after_fork(cmd: &mut std::process::Command) -> &mut std::process::Command {
     use std::os::unix::process::CommandExt;
     unsafe {
