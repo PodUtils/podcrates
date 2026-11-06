@@ -15,3 +15,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #7 | COORD-005: podcrates v0.4.0 is released: the takes of podssh, podnet and podvm (to all) | closed (each took it) | T-040, T-015, T-049 |
 | #8 | [gh action] requested: the release v0.5.0 (ci.yml, nightly.yml, release.yml) | closed (release 42220040866) | T-067, T-068 |
 | #9 | COORD-006: take pod-proxy (feature blocking) (to podvm) | closed (podvm `b1138c2`) | T-040, T-069, T-070, T-071 |
+| #10 | COORD-007: podcrates v0.5.0 is released: each tag to v0.5.0 (to all) | open | T-040, T-069 |
