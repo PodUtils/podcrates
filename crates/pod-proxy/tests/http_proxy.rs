@@ -18,6 +18,7 @@ use pod_proxy::{Client, Dialer, Environment, ProxyChoice, Rules, Settings};
 use pod_tls::{Context, Words};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 const ANSWER: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
@@ -40,11 +41,13 @@ async fn server() -> (u16, JoinHandle<String>) {
 
 /// A stand-in HTTP proxy that answers one CONNECT, connects to the port of
 /// its target on the loopback, and carries the bytes both ways; it gives
-/// the head that it got.
-async fn connect_proxy() -> (u16, JoinHandle<String>) {
+/// the head that it got when it reads it, as the client can keep the tunnel
+/// open.
+async fn connect_proxy() -> (u16, oneshot::Receiver<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let seen = tokio::spawn(async move {
+    let (told, seen) = oneshot::channel();
+    tokio::spawn(async move {
         let (s, _) = listener.accept().await.unwrap();
         let mut reader = BufReader::new(s);
         let mut head = String::new();
@@ -54,8 +57,8 @@ async fn connect_proxy() -> (u16, JoinHandle<String>) {
         let mut far = TcpStream::connect(("127.0.0.1", far_port)).await.unwrap();
         let mut near = reader.into_inner();
         near.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n").await.unwrap();
+        let _ = told.send(head);
         let _ = tokio::io::copy_bidirectional(&mut near, &mut far).await;
-        head
     });
     (port, seen)
 }

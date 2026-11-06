@@ -44,9 +44,10 @@ to each crate that opens a connection.
 | `Client::new(context, dial)`, `with_user_agent`, `with_records` (feature `ech`), `https_get`, `https_get_accepting` | a GET over HTTPS through the caller's dial and TLS context; a `Failure` at the stage of the step that failed |
 | `Client::send(request)`, `client::Request` (`new`, `header`, `body`, `json`, `timeout`, `body_idle`, `via`, `trust`, `max_body`, `redirects`), `client::{MAX_BODY, MAX_HEAD, TIMEOUT, BODY_IDLE}`, `Response::url` | one request of any method to an `http://` or `https://` URL, under one time limit; `https://` offers ALPN `http/1.1` over the roots of the context unless the request gives a trust; a handshake that the network ended is at `Stage::Network`. `url` is the URL of the answer: after redirects, the last one |
 | `Request::redirects(n)` (0 by default: none) | `send` and `send_streamed` follow 301, 302, 303, 307 and 308 of a `GET` or a `HEAD`, at most `n`; another method gets the 3xx as it is, and so does a 3xx with no `Location`. The `Location` resolves against the URL that gave it (absolute, `//host/path`, `/path`, a relative path with `.` and `..`, `?query`); its fragment goes. Each hop takes the proxy of its own URL and the trust of the request; `Request::timeout` covers the heads of all hops, `body_idle` the body of the last. `Authorization`, `Proxy-Authorization` and `Cookie` go only to the scheme, the host and the port of the first URL. A step from `https://` to `http://` is an error (`a redirect from https:// to http:// is refused: FROM to TO`), and so is one more redirect than `n` (`more than N redirects; the last one to URL`); a failure of a hop says `redirected to URL`. The URLs in the words have no query |
-| `Client::send_streamed(request) -> Result<client::Streamed, Failure>`, `Streamed` (`status`, `reason`, `headers`, `url`, `header`, `is_success`, `tokio::io::AsyncRead`) | the same request; the head of the answer within `Request::timeout`, then the body as a reader that owns the connection: by `Content-Length`, by chunks or to the close, with no bound of its size; each wait for bytes within `Request::body_idle` (30 s by default), else `TimedOut`; a body that ends before its length or its last chunk is `UnexpectedEof`; a `HEAD`, 1xx, 204 and 304 have no body. `send` reads its answer through it, with `max_body` and no idle limit |
+| `Client::send_streamed(request) -> Result<client::Streamed, Failure>`, `Streamed` (`status`, `reason`, `headers`, `url`, `header`, `is_success`, `tokio::io::AsyncRead`) | the same request; the head of the answer within `Request::timeout`, then the body as a reader that owns the connection: by `Content-Length`, by chunks or to the close, with no bound of its size; each wait for bytes within `Request::body_idle` (30 s by default), else `TimedOut`; a body that ends before its length or its last chunk is `UnexpectedEof`; a `HEAD`, 1xx, 204 and 304 have no body. `send` reads its answer through it, with `max_body` and no idle limit. A drop after the end of the body gives the connection to the pool (below); a drop before it closes the connection |
+| `Client::with_keep_alive(on)` (`true` by default), `client::pool::{IDLE, PER_KEY, TOTAL}` | the idle connections of `send` and `send_streamed` ("Keep-alive", below); `false`: `Connection: close` and a new connection for each request |
 | `http::{exchange, read_response, read_answer, Reading, parse_head, parse_status_line, decode_chunked, Response, Head, MAX_HEAD, MAX_INTERIM}`, `Response::{is_success, text}` | one HTTP/1.1 request and its response over an open stream, bounded (a head of 16 KiB or of the caller's `Reading`, the body of the caller), with up to 5 interim answers passed over |
-| `http::{read_head, Body, Framing, Idle}` | the head of a response, and its body as a reader (`Body::new(stream, rest, framing, limit)`, `to_end`), with a limit for each wait (`Idle`); `read_answer` reads through them |
+| `http::{read_head, Body, Framing, Idle}` | the head of a response, and its body as a reader (`Body::new(stream, rest, framing, limit)`, `to_end`, `is_done`, `into_reusable`: the stream after a body read to its end by its length or its chunks), with a limit for each wait (`Idle`, `into_inner`); `read_answer` reads through them |
 | `http::request::{read_request, parse_request, connect_target, reason, refusal, answer, established, Request, RequestError, MAX_HEAD}` | a server's reading of a request head, and its answers |
 | `host::{authority, check_name, split_host_port}`, `interleave`, `MAX_PROXY_RESPONSE` | `host:port`, the check of a name, the order of the families |
 | `mptcp::{probe, enabled, connect, connect_with, socket, Multipath, ENABLED_FILE}` | Multipath TCP (Linux) |
@@ -54,13 +55,50 @@ to each crate that opens a connection.
 | `stun` | STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message |
 | `resolve::System` (`new`, `with_pins`), `resolve::{LITERAL, PIN, SYSTEM}` | the system resolver after the IP literals and the caller's pins, for a consumer with no DNS over HTTPS and for the tests |
 
+## Keep-alive
+
+`Client::send` and `send_streamed` (and the redirects that they follow)
+keep a connection open after its answer, and send the next request with
+the same key on it. The default is on: a pull of many blobs from one
+registry pays one TCP and TLS handshake, not one for each blob.
+
+* The key: the scheme, the host (in lower case), the port, the way out
+  (the same `Arc<dyn Dial>`: the client's dial or the request's `via`,
+  compared by its pointer) and the trust (`Trust::Default`, the same path
+  of `Trust::File`, or the same `Arc` of a caller's `ClientConfig`). A
+  connection never serves another trust or another way out. Two
+  configurations with the same roots are two keys. Two clients made with
+  `Client::new` have two pools; the clones of one client share its pool.
+* A connection goes back to the pool when its answer is of `HTTP/1.1`,
+  has no `Connection: close`, is not a 1xx, and its body was read to its
+  end by its `Content-Length` or its chunks, with no byte after it. A
+  body read to the close, a body dropped before its end, and a request
+  with its own `Connection: close` close the connection.
+* The limits: an idle connection stays at most `IDLE` (30 s); at most
+  `PER_KEY` (4) for each key and `TOTAL` (16) for each client; the oldest
+  goes first.
+* An idle connection that the server closed, or that has bytes that no
+  request asked for, is dropped before use. A `GET` or a `HEAD` on an idle
+  connection that fails before a byte of the answer goes again, once, on
+  a new connection. Another method does not: the server can have done it.
+* `with_keep_alive(false)` sends `Connection: close` and opens a new
+  connection for each request, as before.
+* A pooled connection belongs to the tokio runtime that opened it. Give
+  each runtime its own client, or turn keep-alive off. The blocking client
+  runs each request on the runtime of its dialer.
+* A connection through a proxy stays open in the pool too: the proxy sees
+  the tunnel until the idle limit or the drop of the client.
+* `Client::https_get` and `https_get_accepting` do not use the pool: they
+  send `Connection: close` through `http::exchange`, which works on a
+  stream that the caller opened.
+
 ## Features
 
 | Feature | What |
 | --- | --- |
 | none (default) | everything above; the GET client's hello is plain |
 | `ech` | the GET client opens through `pod_tls::ech::open`: sealed where the TLS context asks for ECH and the name publishes a list, with the reader of HTTPS records of `Client::with_records` (`pod-dns` gives one) |
-| `blocking` | `blocking::Dialer` (`tcp`, `stream`) and `blocking::Client` (`https_get`, `send`, `send_streamed`): the same code on a private current-thread runtime, for a synchronous consumer. A TCP connection comes back as the standard `TcpStream`; a stream through a proxy at a command, and the body of `blocking::Streamed` (`status`, `reason`, `headers`, `url`, `header`, `is_success`, `std::io::Read`), are read on that runtime. Do not call it from a task of a tokio runtime |
+| `blocking` | `blocking::Dialer` (`tcp`, `stream`) and `blocking::Client` (`https_get`, `send`, `send_streamed`, `with_keep_alive`): the same code on a private current-thread runtime, for a synchronous consumer. A TCP connection comes back as the standard `TcpStream`; a stream through a proxy at a command, and the body of `blocking::Streamed` (`status`, `reason`, `headers`, `url`, `header`, `is_success`, `std::io::Read`), are read on that runtime. Do not call it from a task of a tokio runtime |
 | `fuzzing` | `fuzz_exchange`: the SOCKS5 exchange with a scripted proxy, for the fuzz target `socks5_answer` (`fuzz/`). The `--cfg fuzzing` of cargo-fuzz also exposes it. No consumer turns it on |
 
 ## Settings

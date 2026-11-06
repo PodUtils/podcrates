@@ -1585,7 +1585,7 @@ adoption map).
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1608,6 +1608,44 @@ was read to its end. A test counts the connections of three requests.
 ```sh
 cargo test -p pod-proxy --all-features
 ```
+
+## Done
+
+2026-11-06, the commit of this entry. `Client::with_keep_alive(on)` (and
+`blocking::Client::with_keep_alive`), on by default: the registry pull
+of podvm is the reason, and no test of a consumer shows a reason against
+it. `Client::send`, `send_streamed` and each redirect take an idle
+connection of the pool (`src/client/pool.rs`), shared by the clones of a
+client. The key: the scheme, the host, the port, the way out (the same
+`Arc<dyn Dial>`) and the trust (`Default`, the path of `File`, the `Arc`
+of a caller's configuration). A connection goes back after an answer of
+`HTTP/1.1` with no `Connection: close`, not 1xx, whose body was read to
+its end by its length or its chunks (on the drop of `Streamed`); a body
+dropped before its end closes it. Limits: `IDLE` 30 s, `PER_KEY` 4,
+`TOTAL` 16. An idle connection that is closed, or has stray bytes, is
+dropped before use; a `GET` or a `HEAD` that fails on an idle connection
+before a byte of the answer goes again once on a new connection, another
+method does not. With keep-alive on, the head has no `Connection` line;
+off, `Connection: close`. `https_get` and `https_get_accepting` keep
+`http::exchange` with `Connection: close` (a stream that the caller
+opened), out of the pool. Tests: `tests/keep_alive.rs` (9) and
+`tests/blocking_keep_alive.rs` (1), over a counting server
+(`tests/kept/`). With keep-alive off by default (a plant), 7 of the 9 and
+the blocking test failed, for example
+`three_requests_to_one_host_use_one_connection` and
+`the_blocking_client_keeps_its_connection` (`left: ("c1r1", "c2r1",
+"c3r1")`); `with_keep_alive_off_each_request_opens_a_connection` does not
+compile on the old code, and
+`a_connection_that_the_server_closed_is_not_used` keeps the old
+behaviour. With the retry off (a plant),
+`a_get_on_a_stale_connection_goes_again_once` failed. Three tests that
+waited for the close of a tunnel now drop the client
+(`tests/blocking_streamed.rs`) or take the head of the proxy when it
+comes (`tests/http_proxy.rs`); `tests/fetch.rs` checks that the head has
+no `Connection` line. `cargo test -p pod-proxy --all-features` (188),
+`cargo test -p pod-dns --all-features` (59), 30 loops of the tests of the
+pool, clippy, fmt, rustdoc with `-D warnings`, `cargo todo check` and
+`check-size.py` pass.
 
 # T-078: `pod-services`: a second public Piping Server
 

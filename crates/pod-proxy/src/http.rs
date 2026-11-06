@@ -154,11 +154,20 @@ where
 /// `buffered`, each head of `max_head` bytes at most, past up to
 /// [`MAX_INTERIM`] interim answers. The answer comes with no body, and with
 /// the bytes after its head that were read.
-pub async fn read_head<S>(
+pub async fn read_head<S>(stream: &mut S, buffered: Vec<u8>, max_head: usize) -> std::io::Result<(Response, Vec<u8>)>
+where
+    S: AsyncRead + Unpin,
+{
+    read_head_versioned(stream, buffered, max_head).await.map(|(answer, rest, _)| (answer, rest))
+}
+
+/// [`read_head`], and whether the answer is of `HTTP/1.1`: only such a
+/// connection can carry a next request.
+pub(crate) async fn read_head_versioned<S>(
     stream: &mut S,
     mut buffered: Vec<u8>,
     max_head: usize,
-) -> std::io::Result<(Response, Vec<u8>)>
+) -> std::io::Result<(Response, Vec<u8>, bool)>
 where
     S: AsyncRead + Unpin,
 {
@@ -193,7 +202,8 @@ where
             buffered = rest;
             continue;
         }
-        return Ok((Response { status, reason, headers, body: Vec::new(), url: String::new() }, rest));
+        let http11 = head.starts_with("HTTP/1.1 ");
+        return Ok((Response { status, reason, headers, body: Vec::new(), url: String::new() }, rest, http11));
     }
 }
 

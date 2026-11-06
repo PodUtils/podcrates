@@ -19,7 +19,11 @@
 //!   through it.
 //! * Both follow redirects when the request asks
 //!   ([`Request::redirects`]); the answer gives the URL that it came from.
+//! * Both keep a connection open after its answer and send the next request
+//!   of the same key on it ([`Client::with_keep_alive`], on by default).
+//!   [`Client::https_get`] does not: it sends `Connection: close`.
 
+pub mod pool;
 mod redirect;
 mod request;
 mod streamed;
@@ -28,7 +32,7 @@ mod url;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use pod_core::{BoxedIo, Class, Dial, Failure, Stage, Target};
+use pod_core::{BoxedIo, Class, Dial, Failure, Stage};
 use pod_tls::{Context, Trust};
 use rustls_pki_types::ServerName;
 use tokio_rustls::client::TlsStream;
@@ -38,6 +42,7 @@ pub use streamed::Streamed;
 
 use crate::host::authority;
 use crate::http::{self, Response};
+use pool::{Key, Pool};
 use streamed::Bounds;
 
 /// The ALPN of [`Client::send`] over TLS.
@@ -54,13 +59,22 @@ pub struct Client {
     /// The trust of the roots of the context, made at the first request
     /// that needs it, a failure too.
     roots: Arc<OnceLock<Result<Trust, pod_tls::Error>>>,
+    /// Send each request of [`Client::send`] and [`Client::send_streamed`]
+    /// on an idle connection of the same key when the pool has one.
+    keep_alive: bool,
+    /// The idle connections, shared by the clones.
+    pool: Arc<Pool>,
     #[cfg(feature = "ech")]
     records: Arc<dyn pod_tls::ech::Records>,
 }
 
 impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Client").field("dial", &self.dial.label()).field("user_agent", &self.user_agent).finish()
+        f.debug_struct("Client")
+            .field("dial", &self.dial.label())
+            .field("user_agent", &self.user_agent)
+            .field("keep_alive", &self.keep_alive)
+            .finish()
     }
 }
 
@@ -72,9 +86,21 @@ impl Client {
             dial,
             user_agent: String::new(),
             roots: Arc::new(OnceLock::new()),
+            keep_alive: true,
+            pool: Arc::new(Pool::default()),
             #[cfg(feature = "ech")]
             records: Arc::new(pod_tls::ech::NoRecords),
         }
+    }
+
+    /// Keep connections open for the next requests (`true`, the default),
+    /// or send `Connection: close` and open a new connection for each
+    /// request (`false`). The clones share the idle connections
+    /// ([`pool`]). A connection belongs to the tokio runtime that opened
+    /// it: give each runtime its own client.
+    pub fn with_keep_alive(mut self, on: bool) -> Client {
+        self.keep_alive = on;
+        self
     }
 
     /// The `User-Agent` of each request (`podssh/VERSION`); a request that
@@ -170,25 +196,59 @@ impl Client {
     }
 
     /// The connection of `request`, the request sent on it, and the head of
-    /// the answer.
+    /// the answer. An idle connection of the same key goes first; when it
+    /// fails before a byte of the answer, a `GET` or a `HEAD` goes again,
+    /// once, on a new connection.
     async fn open(&self, request: &Request, bounds: Bounds) -> Result<Streamed, Failure> {
         let target = url::target(&request.url).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
+        let keep = self.keep_alive && !request.says_close();
         let head =
-            request.head(&target, &self.user_agent).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
-        let dial = request.via.as_deref().unwrap_or(&*self.dial);
+            request.head(&target, &self.user_agent, keep).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
+        let dial = request.via.clone().unwrap_or_else(|| self.dial.clone());
         let body = request.body.as_deref().unwrap_or_default();
-        if target.tls {
-            let trust = match &request.trust {
-                Some(trust) => trust.clone(),
-                None => self.roots()?,
-            };
-            let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await;
-            streamed::start(tls.map_err(network_or_tls)?, &request.url, &head, body, bounds).await
-        } else {
-            let deadline = tokio::time::Instant::now() + request.timeout;
-            // The proxy of `http_proxy`, not of `https_proxy`.
-            let tcp = dial.dial_http(&Target::new(&target.host, target.port), deadline).await?;
-            streamed::start(tcp.io, &request.url, &head, body, bounds).await
+        let trust = match (&request.trust, target.tls) {
+            (_, false) => None,
+            (Some(trust), true) => Some(trust.clone()),
+            (None, true) => Some(self.roots()?),
+        };
+        let key = keep.then(|| Key::new(&target, &dial, trust.as_ref()));
+        if let Some(key) = &key
+            && let Some(io) = self.pool.take(key)
+        {
+            match streamed::start(io, &request.url, &head, body, bounds).await {
+                Ok(answer) => return Ok(answer.homed(&self.pool, key.clone())),
+                Err(failed) if failed.silent && matches!(request.method, "GET" | "HEAD") => {
+                    tracing::debug!(why = %failed.failure, "an idle connection failed; the request goes on a new one");
+                }
+                Err(failed) => return Err(failed.failure),
+            }
+        }
+        let io = self.connect(&*dial, &target, trust.as_ref(), request.timeout).await?;
+        let answer = streamed::start(io, &request.url, &head, body, bounds).await.map_err(|failed| failed.failure)?;
+        Ok(match key {
+            Some(key) => answer.homed(&self.pool, key),
+            None => answer,
+        })
+    }
+
+    /// A new connection to `target`: TLS with `trust`, or plain TCP through
+    /// the proxy of `http_proxy`, not of `https_proxy`.
+    async fn connect(
+        &self,
+        dial: &dyn Dial,
+        target: &url::Target,
+        trust: Option<&Trust>,
+        timeout: Duration,
+    ) -> Result<BoxedIo, Failure> {
+        match trust {
+            Some(trust) => {
+                let tls = self.open_tls(dial, &target.host, target.port, trust, timeout, HTTP1).await;
+                Ok(Box::new(tls.map_err(network_or_tls)?))
+            }
+            None => {
+                let deadline = tokio::time::Instant::now() + timeout;
+                Ok(dial.dial_http(&pod_core::Target::new(&target.host, target.port), deadline).await?.io)
+            }
         }
     }
 
@@ -216,7 +276,7 @@ impl Client {
         let config = self.context.config_for(trust)?;
         ServerName::try_from(host.to_string())
             .map_err(|e| Failure::new(Stage::Tls, Class::Usage, format!("{host:?} is not a valid server name: {e}")))?;
-        let target = Target::new(host, port);
+        let target = pod_core::Target::new(host, port);
         #[cfg(feature = "ech")]
         {
             let _ = config;

@@ -150,7 +150,6 @@ async fn a_request_sends_its_head_and_its_body() {
     assert!(head.starts_with("POST /tunnel?token=x HTTP/1.1\r\n"), "{head}");
     for line in [
         format!("Host: name.test:{port}"),
-        "Connection: close".into(),
         "Accept-Encoding: identity".into(),
         "Content-Type: application/json".into(),
         format!("Content-Length: {}", body.len()),
@@ -159,6 +158,7 @@ async fn a_request_sends_its_head_and_its_body() {
         assert!(head.contains(&format!("\r\n{line}\r\n")), "{line} is not in {head}");
     }
     assert_eq!(sent, body.as_bytes());
+    assert!(!head.contains("\r\nConnection:"), "HTTP/1.1 keeps the connection by default: {head}");
 }
 
 /// A request's own user agent, and its own way out; a header with a line

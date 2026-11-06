@@ -132,7 +132,8 @@ fn a_body_streams_through_a_connect_proxy() {
     let client = client(&served, ProxyChoice::Via(proxy), System::new());
     let mut streamed = client.send_streamed(request(&served)).expect("an answer");
     assert_eq!(sha256(&read_all(&mut streamed).expect("the body")), sha256(&sent));
-    drop(streamed);
+    // The client keeps the idle connection: the proxy ends with the client.
+    drop((streamed, client));
     let head = seen.join().expect("the proxy");
     assert!(head.starts_with(&format!("CONNECT {NAME}:{} HTTP/1.1\r\n", served.port)), "{head}");
 }
@@ -197,7 +198,7 @@ fn a_request_of_http_takes_the_proxy_of_http_proxy() {
     let mut streamed =
         client.send_streamed(Request::new("GET", format!("http://{NAME}:{port}/v2/"))).expect("an answer");
     assert_eq!(read_all(&mut streamed).expect("the body"), b"ok");
-    drop(streamed);
+    drop((streamed, client));
     assert!(target.join().expect("the target").starts_with("GET /v2/ HTTP/1.1\r\n"));
     let head = seen.join().expect("the proxy");
     assert!(head.starts_with(&format!("CONNECT {NAME}:{port} HTTP/1.1\r\n")), "{head}");

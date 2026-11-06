@@ -315,6 +315,12 @@ impl Client {
         Client { inner: self.inner.with_user_agent(user_agent), runtime: self.runtime }
     }
 
+    /// [`crate::Client::with_keep_alive`]. The idle connections live on the
+    /// runtime of the dialer, as each request of this client does.
+    pub fn with_keep_alive(self, on: bool) -> Client {
+        Client { inner: self.inner.with_keep_alive(on), runtime: self.runtime }
+    }
+
     /// [`crate::Client::https_get`].
     pub fn https_get(
         &self,

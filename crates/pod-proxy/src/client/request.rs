@@ -145,19 +145,28 @@ impl Request {
         self
     }
 
+    /// A header of the request asks the server to close the connection.
+    pub(crate) fn says_close(&self) -> bool {
+        self.headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("connection"))
+            .flat_map(|(_, value)| value.split(','))
+            .any(|token| token.trim().eq_ignore_ascii_case("close"))
+    }
+
     /// The head of the request to `target`: `Host` with the port when it
-    /// is not the default of the scheme, `Connection: close`, `Accept-Encoding:
+    /// is not the default of the scheme, `Connection: close` unless `keep`
+    /// (HTTP/1.1 keeps the connection by default), `Accept-Encoding:
     /// identity`, the headers, `user_agent` when no header gives one and it
     /// is not empty, and `Content-Length` with a body or a method that has
     /// one. A header with a line break, or a `:` in its name, is refused.
-    pub(crate) fn head(&self, target: &Target, user_agent: &str) -> Result<String, String> {
+    pub(crate) fn head(&self, target: &Target, user_agent: &str, keep: bool) -> Result<String, String> {
         let host = if target.host.contains(':') { format!("[{}]", target.host) } else { target.host.clone() };
         let default = if target.tls { 443 } else { 80 };
         let host = if target.port == default { host } else { format!("{host}:{}", target.port) };
-        let mut head = format!(
-            "{} {} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nAccept-Encoding: identity\r\n",
-            self.method, target.path
-        );
+        let close = if keep { "" } else { "Connection: close\r\n" };
+        let mut head =
+            format!("{} {} HTTP/1.1\r\nHost: {host}\r\n{close}Accept-Encoding: identity\r\n", self.method, target.path);
         let mut has_agent = false;
         for (name, value) in &self.headers {
             if name.contains(['\r', '\n', ':']) || value.contains(['\r', '\n']) {

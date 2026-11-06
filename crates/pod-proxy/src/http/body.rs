@@ -73,6 +73,8 @@ pub struct Body<S> {
     state: State,
     /// The bytes that the body may still have; `None`: no bound.
     left: Option<u64>,
+    /// The end of the body is known before the end of the stream.
+    framed: bool,
 }
 
 impl<S: AsyncRead + Unpin> Body<S> {
@@ -87,7 +89,20 @@ impl<S: AsyncRead + Unpin> Body<S> {
             Framing::Chunked => State::ChunkSize,
             Framing::ToEnd => State::ToEnd,
         };
-        Ok(Body { stream, buf: rest, at: 0, state, left: limit })
+        let framed = framing != Framing::ToEnd;
+        Ok(Body { stream, buf: rest, at: 0, state, left: limit, framed })
+    }
+
+    /// The body was read to its end.
+    pub fn is_done(&self) -> bool {
+        self.state == State::Done
+    }
+
+    /// The stream after a body that was read to its end by its length or
+    /// its chunks, with no byte after it: the stream can carry a next
+    /// answer. `None` for each other body.
+    pub fn into_reusable(self) -> Option<S> {
+        (self.state == State::Done && self.framed && self.at == self.buf.len()).then_some(self.stream)
     }
 
     /// Each byte of the body.
@@ -284,6 +299,11 @@ impl<S> Idle<S> {
     /// `stream` with `limit` for each read; `None`: no limit.
     pub fn new(stream: S, limit: Option<Duration>) -> Idle<S> {
         Idle { stream, limit, wait: None }
+    }
+
+    /// The stream, with no limit.
+    pub fn into_inner(self) -> S {
+        self.stream
     }
 }
 
