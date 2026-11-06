@@ -46,6 +46,19 @@ index 4a825987..00000000
 -          grep -Eq "^200 CONNECT $resolvers:443 " "$RUNNER_TEMP/names.log" ||
 -            { echo "FAIL the proxy took no resolver's name"; exit 1; }
 -          exit $rc
+diff --git a/TODO/PROGRESS.md b/TODO/PROGRESS.md
+index 0508ea2c..23496bc6 100644
+--- a/TODO/PROGRESS.md
++++ b/TODO/PROGRESS.md
+@@ -18,7 +18,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
+      hand-off is podcrates' `v0.4.0`: `pod-dns` and `pod-services` in one patch,
+      `adoption/podssh/pod-dns.patch` and `.run` at the tag, rebased on podssh's head; it also brings
+      pod-proxy's fix of vectored writes (podcrates T-065) and removes podssh's workaround
+-     `crates/podssh-ws/src/dial/bare.rs` and its use in `ech::open` (T-690): keep the workaround until
++     `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs` and its use in `ech::open` (T-690): keep the workaround until
+      then. Then `pod-ws`, then the waves of Q101. The steps of a take are those of `AGENTS.md`
+      ("Talk with the other sessions", item 4) and T-684's `## Done`: apply with `git apply --3way`,
+      run each line of the `.run`, add clippy with the features `ts` and `tor` (podcrates' trial
 diff --git a/TODO/cli.md b/TODO/cli.md
 index 67d3f4b4..74765973 100644
 --- a/TODO/cli.md
@@ -188,10 +201,10 @@ index 7bdf2068..ffc0778f 100644
  - Read: the report prints the sections in a fixed order, which `--json` keeps (T-049).
  - Read: rule 2 of `AGENTS.md`: one outbound connection, with the exceptions of the operator's
 diff --git a/TODO/mesh.md b/TODO/mesh.md
-index aff28f6a..ce60e5e8 100644
+index a1b8ff58..da280ac7 100644
 --- a/TODO/mesh.md
 +++ b/TODO/mesh.md
-@@ -4459,7 +4459,7 @@ Read again on 2026-11-03 at the cited lines and in the code:
+@@ -4461,7 +4461,7 @@ Read again on 2026-11-03 at the cited lines and in the code:
  
  - Approach, item 1: "its record names the road once T-445 is done". T-445 is done, but its record
    names three roads, the iroh home relay, the DERP home and the quick tunnel
@@ -200,7 +213,7 @@ index aff28f6a..ce60e5e8 100644
    races those three alone. Naming the OpenTunnel name there is a new kind of road in that record,
    in its reader and in the client's race: T-611.
  - Approach, item 3: the operator's ruling Q76 answered question 3: the unasked fallback, for a node
-@@ -5137,7 +5137,7 @@ proxy that refuses the WebSocket upgrade has no server.
+@@ -5139,7 +5139,7 @@ proxy that refuses the WebSocket upgrade has no server.
  
  ## Premise
  
@@ -209,7 +222,7 @@ index aff28f6a..ce60e5e8 100644
  - Read on 2026-11-02 (docs/carriers.md, the reverse road, item 5): Piping Server's README lists
    `ppng.io`, `piping.onrender.com` and `piping.glitch.me` as public servers;
    `piping.onrender.com/version` answered `1.12.9`, the version of `ppng.io`; `piping.glitch.me`
-@@ -5570,8 +5570,8 @@ that they let podssh in.
+@@ -5572,8 +5572,8 @@ that they let podssh in.
  ## Premise
  
  - `docs/decisions.md:36` says "Q74: Tailscale's main DERP fleet, after tailcat's".
@@ -220,7 +233,7 @@ index aff28f6a..ce60e5e8 100644
    for_client(home: &Server) -> Vec<Server> {": a client tries the ticket's server, then the
    rest of tailcat's four.
  - `docs/carriers.md:485` says "88 servers in 28 regions in Tailscale's map, 85 of which
-@@ -7013,7 +7013,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
+@@ -7015,7 +7015,7 @@ last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.c
  - `docs/decisions.md:32` says "Q78: each service is a last fallback, whatever its terms".
  - `docs/carriers.md:962` says "The last runs on serv00, whose terms forbid to", of
    `p.kokoro.serv00.net`.
@@ -229,7 +242,7 @@ index aff28f6a..ce60e5e8 100644
  
  ## Approach
  
-@@ -7290,7 +7290,7 @@ the roads over TCP.
+@@ -7292,7 +7292,7 @@ the roads over TCP.
    with a request of ID 0x401 and the address; `docs/carriers.md:1136` says "UDP alone, which the
    hosts of podssh's design do not have".
  - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
@@ -238,7 +251,7 @@ index aff28f6a..ce60e5e8 100644
    QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the": a probe of UDP and a QUIC with no C
    exist.
  
-@@ -7356,7 +7356,7 @@ road with no relay. podssh does not speak it (Q82).
+@@ -7358,7 +7358,7 @@ road with no relay. podssh does not speak it (Q82).
  - `docs/carriers.md:1147-1148` says "a token of 32 bytes that the TLS keying material exporter
    derives", and `docs/carriers.md:1150-1151` says "as the server never answers a command";
    `docs/carriers.md:1153` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
@@ -247,7 +260,7 @@ index aff28f6a..ce60e5e8 100644
    T-301): noq, the QUIC of the".
  
  ## Approach
-@@ -8413,7 +8413,7 @@ way to it: the node's record of pkarr names its other roads alone.
+@@ -8415,7 +8415,7 @@ way to it: the node's record of pkarr names its other roads alone.
  
  ## Premise
  
@@ -256,9 +269,9 @@ index aff28f6a..ce60e5e8 100644
    DERP home and the quick tunnel's name, which `crates/podssh-cli/src/node_record.rs` keeps up to
    date (`Tell`, its `derp` and `quick`).
  - `crates/podssh-cli/src/node_opentunnel.rs` knows the node's name once its tunnel is ready.
-@@ -8831,8 +8831,8 @@ through an HTTP CONNECT proxy.
+@@ -8833,8 +8833,8 @@ through an HTTP CONNECT proxy.
    its file crates/podssh-ws/src/turn/mod.rs, and its docs/poc.md: "proxy logs 2 CONNECTs").
-   `AGENTS.md:280` says "Make one outbound connection", with five exceptions, none for this road.
+   `AGENTS.md:338` says "Make one outbound connection", with five exceptions, none for this road.
  - podssh-ws holds the parts of TURN's long-term credential in pure Rust: `hmac`
 -  (`crates/podssh-ws/Cargo.toml:24`), and `md5` and `sha1` (`crates/podssh-ws/Cargo.toml:41-42`);
 -  and a resolver order of its own (`crates/podssh-ws/src/resolve.rs:2` says "resolver works. In
@@ -267,7 +280,7 @@ index aff28f6a..ce60e5e8 100644
    order"), as a Connect names an address, not a name.
  - No code of podssh names TURN: `crates/podssh-ws/src/forwarder/template.rs:65` says "a
    forwarder's template is a ws:// or wss:// URL".
-@@ -9054,7 +9054,7 @@ say of it, need podssh's own number.
+@@ -9056,7 +9056,7 @@ say of it, need podssh's own number.
  
  - `docs/carriers.md:619` says "Limits: not published, and not determined."
  - `docs/carriers.md:226` says "500kB/s bandwidth", of the demo server, and
@@ -276,7 +289,7 @@ index aff28f6a..ce60e5e8 100644
  - Read in the archive, 2026-11-04, through an HTTP CONNECT proxy: through `ppng.io`, with curl,
    1 MiB in 5.08 s, 8 MiB at 0.12 MiB/s, four transfers at once 0.59 MiB/s in all, and one transfer
    of 4 MiB that moved no byte (results/http-piping.json); through the demo server, one stream on
-@@ -9275,7 +9275,7 @@ podssh's relay role speaks TCP alone.
+@@ -9277,7 +9277,7 @@ podssh's relay role speaks TCP alone.
  2026-11-05, with the draft (read in noq 1.4.0 and the crates that `Cargo.lock` holds):
  
  1. **QUIC is noq in podssh-relay, behind a feature `quic`.** The quick tunnel's QUIC (T-301) is noq
@@ -286,7 +299,7 @@ index aff28f6a..ce60e5e8 100644
     own, is needless; `quic` is `quick` with the role's endpoint and the client's race, and takes its
     noq, its endpoint and its probe. Lost: quinn, which is not in the lock and which noq forks.
 diff --git a/TODO/relay.md b/TODO/relay.md
-index 37052f4f..120bcae3 100644
+index af82cb0a..8d8f3e2a 100644
 --- a/TODO/relay.md
 +++ b/TODO/relay.md
 @@ -40,7 +40,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
@@ -457,7 +470,7 @@ index 66e47d6b..c3ab667a 100644
  ## Approach
  
 diff --git a/TODO/repo.md b/TODO/repo.md
-index 7d28a6eb..17ff1930 100644
+index 8b1ff6d7..949dfbee 100644
 --- a/TODO/repo.md
 +++ b/TODO/repo.md
 @@ -458,7 +458,7 @@ Read:
@@ -505,7 +518,7 @@ index 7d28a6eb..17ff1930 100644
    the relay crate takes `podssh-ws`'s dial, TLS and WebSocket.
  - Read: `PodUtils/podssh:crates/podssh-ws/src/crypto/rsa_sig.rs` is the one user of `rsa` 0.9, to verify RSA
    signatures; RUSTSEC-2023-0071 is a timing attack on the private key's operations.
-@@ -5734,7 +5734,7 @@ the same job.
+@@ -5738,7 +5738,7 @@ the same job.
  ## Premise
  
  - Read: `crates/podssh-cli/tests/pipe_seen/mod.rs:125` fails with "no end within 10 s".
@@ -514,6 +527,15 @@ index 7d28a6eb..17ff1930 100644
    expect a connect or a TLS refusal, and got a timeout of the resolver.
  
  ## Approach
+@@ -5840,7 +5840,7 @@ at each acknowledged offset before. And `podssh-ts`'s test of a SOCKS5 proxy fai
+ 
+ ## Approach
+ 
+-1. `crates/podssh-ws/src/dial/bare.rs`: a `Dial` over podssh's dialer that gives a TCP connection as
++1. `PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs`: a `Dial` over podssh's dialer that gives a TCP connection as
+    the bare stream; `ech::open` dials through it. The cause goes to PodUtils/podcrates (a `Stream`
+    that passes vectored writes on), and this way stays until podssh takes that fix.
+ 2. `podssh-ts`'s `TsProxy::url` writes `socks5h://` for a SOCKS5 proxy: the fork sends the name.
 diff --git a/TODO/resume.md b/TODO/resume.md
 index ec56de20..d6f6302c 100644
 --- a/TODO/resume.md
@@ -537,25 +559,25 @@ index ec56de20..d6f6302c 100644
     rounds (`crates/podssh-relay/src/open.rs:421-435`). Do not fork it (T-077).
  2. A `CLOSE` record never reconnects; each other loss reconnects first
 diff --git a/TODO/reverse.md b/TODO/reverse.md
-index 3ce9a384..3bf96c53 100644
+index 703b4821..9b1a9467 100644
 --- a/TODO/reverse.md
 +++ b/TODO/reverse.md
 @@ -196,7 +196,7 @@ verified here).
     stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
     any other close, connect again with `open::backoff`.
  7. A clean stop (SIGTERM or Ctrl-C): `close {id}` with a reason for each session, a Close `1000`, then exit 0.
--8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:90`), which keeps loopback
+-8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:94`), which keeps loopback
 +8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:86`), which keeps loopback
     off the proxy (`PodUtils/podssh:crates/podssh-ws/src/dial.rs:105-109`).
  9. Record each rule in `docs/reverse.md`, and each measurement in `docs/STATUS.md`.
  10. The runner takes a `RelaySession` over any stream, not only TLS, so that the tests of podbox
 @@ -595,7 +595,7 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs
-    each file at 500 lines or fewer (`AGENTS.md:312-313`).
+    each file at 500 lines or fewer (`AGENTS.md:370-371`).
  3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
     (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
 -   `crates/podssh-relay/src/relay.rs:80-102`).
 +   `crates/podssh-relay/src/relay.rs:101-123`).
- 4. Rewrite the comments of the moved code to `AGENTS.md:314-315`: why, in few words; no markers, no
+ 4. Rewrite the comments of the moved code to `AGENTS.md:372-373`: why, in few words; no markers, no
     history, no line numbers. Keep the check of the close rows against the pinned copy as a test
     (T-060 decides where the copy lives).
 @@ -754,7 +754,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5)
@@ -568,7 +590,7 @@ index 3ce9a384..3bf96c53 100644
     (`crates/podssh-cli/tests/flag_table.rs:110-144`). New variables go in `VARIABLES`
     (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:314` there), examples in
 diff --git a/TODO/roads.md b/TODO/roads.md
-index d04665cc..3f94e445 100644
+index 4cbf7ae4..df9be2d9 100644
 --- a/TODO/roads.md
 +++ b/TODO/roads.md
 @@ -164,7 +164,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
@@ -753,7 +775,7 @@ index 57002696..4c03d545 100644
  - The escape filter, which keeps its state from one read to the next
    (`crates/podssh-ssh/src/escape.rs:94-138`).
 diff --git a/TODO/ssh.md b/TODO/ssh.md
-index aa585866..4d315d72 100644
+index 6a0e045b..2749531b 100644
 --- a/TODO/ssh.md
 +++ b/TODO/ssh.md
 @@ -537,7 +537,7 @@ Read:
@@ -784,14 +806,14 @@ index aa585866..4d315d72 100644
    (`crates/podssh-ssh/src/relay_stream.rs:133-137`), and keeps the time of the relay's last frame
    of any kind, keepalives among them (`crates/podssh-ws/src/session.rs:291-294`,
 diff --git a/TODO/ts.md b/TODO/ts.md
-index ab03930c..d77aec83 100644
+index 8c201890..d77aec83 100644
 --- a/TODO/ts.md
 +++ b/TODO/ts.md
 @@ -246,7 +246,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
  1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
     `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:17-18`): for `tcp`, a TLS handshake to
     a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
--   `crates/podssh-ws/src/dial.rs:87-90`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+-   `crates/podssh-ws/src/dial.rs:91-94`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 +   `crates/podssh-ws/src/dial.rs:83-86`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
  2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
     message and `Device::logout(timeout)`, as a new patch with its row in
@@ -4234,7 +4256,7 @@ index 08ad04bb..03e5bf30 100644
  zeroize.workspace = true
  tailscale = { path = "../../vendor/tailscale-rs" }
 diff --git a/crates/podssh-ts/src/config.rs b/crates/podssh-ts/src/config.rs
-index 18c25eff..eb974488 100644
+index e9a38d97..4a2d0674 100644
 --- a/crates/podssh-ts/src/config.rs
 +++ b/crates/podssh-ts/src/config.rs
 @@ -22,10 +22,20 @@ pub enum TsMode {
@@ -4827,7 +4849,7 @@ index 338be497..aa700c21 100644
  # the plants that assert `????` rather than `ok` have to drive it as a caller
  # would. `macros` is what makes `#[tokio::test]` exist.
 diff --git a/crates/podssh-ws/src/dial.rs b/crates/podssh-ws/src/dial.rs
-index b4c3352a..bbca6458 100644
+index 9f399326..bbca6458 100644
 --- a/crates/podssh-ws/src/dial.rs
 +++ b/crates/podssh-ws/src/dial.rs
 @@ -1,6 +1,6 @@
@@ -4854,7 +4876,7 @@ index b4c3352a..bbca6458 100644
  
  pub use pod_proxy::env::{is_loopback, no_proxy_entry, no_proxy_matches, NO_PROXY_VARS, PROXY_VARS};
  pub use pod_proxy::host::{authority, check_name, split_host_port};
-@@ -69,9 +65,9 @@ fn environment() -> Environment {
+@@ -69,15 +65,11 @@ fn environment() -> Environment {
      Environment::read(&|name| std::env::var_os(name))
  }
  
@@ -4865,8 +4887,14 @@ index b4c3352a..bbca6458 100644
 +    Dialer::new(settings(proxy, multipath), resolve::resolver())
  }
  
+-// The dial of the TLS roads, which gives rustls the bare TCP stream.
+-mod bare;
+-pub use bare::Bare;
+-
  /// The proxy, if any, the process environment selects for `target_host`. A
-@@ -104,79 +100,10 @@ pub async fn dial_multipath(
+ /// loopback target never goes through a proxy (as in Go's net/http): the
+ /// proxy's loopback is not this host's, and podvm measured a proxy answering
+@@ -108,79 +100,10 @@ pub async fn dial_multipath(
      dialer(proxy, true).tcp_multipath(host, port, timeout).await
  }
  
@@ -4946,8 +4974,65 @@ index b4c3352a..bbca6458 100644
      /// podssh's words and its user agent: a refusal names podssh.
      #[test]
      fn the_settings_are_podssh_s() {
+diff --git a/crates/podssh-ws/src/dial/bare.rs b/crates/podssh-ws/src/dial/bare.rs
+deleted file mode 100644
+index b5656305..00000000
+--- a/crates/podssh-ws/src/dial/bare.rs
++++ /dev/null
+@@ -1,51 +0,0 @@
+-//! The way out of the TLS roads: [`super::dialer`]'s connection handed to
+-//! rustls as the bare `TcpStream`, not inside `pod_proxy::Stream`.
+-//!
+-//! rustls writes its records with `write_vectored`. `pod_proxy::Stream`
+-//! (v0.3.0) does not pass vectored writes on, so each call sends one buffer,
+-//! and a write that the far end holds keeps a TLS session from reading: an
+-//! upload through a relay that ends each session after 1.5 MB then lost the
+-//! answers of the writes that the server took, on every try (the interop
+-//! check `resume.cut.up.sftp`). A connection through a proxy on a Unix
+-//! socket or at a command is no TCP and goes as it is.
+-
+-use std::net::SocketAddr;
+-
+-use pod_core::{BoxFuture, Connected, Dial, Failure, Target};
+-use pod_proxy::Dialer;
+-use tokio::time::Instant;
+-
+-/// [`Dialer`], giving a TCP connection as the bare stream.
+-pub struct Bare(pub Dialer);
+-
+-impl Dial for Bare {
+-    fn label(&self) -> String {
+-        self.0.label()
+-    }
+-
+-    fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
+-        Box::pin(async move {
+-            let budget = deadline.saturating_duration_since(Instant::now());
+-            let (stream, _) = self.0.stream(&target.host(), target.port(), budget).await?;
+-            let (peer, local) = (stream.peer_addr(), stream.local_addr());
+-            let io: pod_core::BoxedIo = match stream.into_tcp() {
+-                Ok(tcp) => Box::new(tcp),
+-                Err(other) => Box::new(other),
+-            };
+-            Ok(Connected { io, peer, local })
+-        })
+-    }
+-
+-    fn dial_addrs<'a>(
+-        &'a self,
+-        host: &'a str,
+-        addrs: &'a [SocketAddr],
+-        deadline: Instant,
+-    ) -> BoxFuture<'a, Result<Connected, Failure>> {
+-        self.0.dial_addrs(host, addrs, deadline)
+-    }
+-
+-    fn names_inside(&self) -> bool {
+-        self.0.names_inside()
+-    }
+-}
 diff --git a/crates/podssh-ws/src/ech.rs b/crates/podssh-ws/src/ech.rs
-index 4b3e944c..4132a1a0 100644
+index 36281288..4132a1a0 100644
 --- a/crates/podssh-ws/src/ech.rs
 +++ b/crates/podssh-ws/src/ech.rs
 @@ -9,7 +9,8 @@
@@ -4960,6 +5045,15 @@ index 4b3e944c..4132a1a0 100644
  //! podssh's ([`crate::dial::dialer`]).
  
  use std::net::SocketAddr;
+@@ -73,7 +74,7 @@ pub async fn open(
+     let target = Target::new(host, port);
+     // The dial's error goes as the cause, so that the road gives it back as
+     // it was ([`tls::connect_error`]).
+-    let dial = crate::dial::Bare(crate::dial::dialer(proxy, false));
++    let dial = crate::dial::dialer(proxy, false);
+     let records = Records(proxy.clone());
+     let route =
+         pod_tls::ech::Route { target: &target, server_name, trust, dial: &dial, records: &records, limit, alpn };
 @@ -87,6 +88,6 @@ pub struct Records(pub ProxyChoice);
  
  impl pod_tls::ech::Records for Records {
@@ -8249,7 +8343,7 @@ index 7350fa26..00000000
 -    assert!(!records.is_empty() && records.iter().all(|r| r.port == 7844), "{records:?}");
 -}
 diff --git a/docs/STATUS.md b/docs/STATUS.md
-index cc8a1639..75f0161d 100644
+index 9448ce43..95f6fe06 100644
 --- a/docs/STATUS.md
 +++ b/docs/STATUS.md
 @@ -364,7 +364,7 @@ in [ROADMAP.md](ROADMAP.md).
@@ -8332,7 +8426,7 @@ index 484ec462..4094e419 100644
  cargo test -p podssh-relay --features pair --test pair_live -- --ignored     # a pair, made and stopped
  cargo test -p podssh-relay --features pair --test reverse_live -- --ignored  # a node and its operators
 diff --git a/docs/research/forward-carriers.md b/docs/research/forward-carriers.md
-index ece6e252..3bbc7cd8 100644
+index 1572550f..3bbc7cd8 100644
 --- a/docs/research/forward-carriers.md
 +++ b/docs/research/forward-carriers.md
 @@ -322,7 +322,7 @@ in the entry); "new" that the record does not hold it.
@@ -8349,7 +8443,7 @@ index ece6e252..3bbc7cd8 100644
  - podssh has: none of TURN (no code names it); the parts that it takes,
    each pure Rust: `hmac`, `md5` and `sha1` in podssh-ws
 -  (`crates/podssh-ws/Cargo.toml:24`, `crates/podssh-ws/Cargo.toml:41-42`),
--  the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:90`) and TLS
+-  the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:94`) and TLS
 +  (`crates/podssh-ws/Cargo.toml:30`, `crates/podssh-ws/Cargo.toml:47-48`),
 +  the dial through `HTTPS_PROXY` (`crates/podssh-ws/src/dial.rs:86`) and TLS
    over it (`PodUtils/podssh:crates/podssh-ws/src/tls.rs:135`), and its own resolver order
