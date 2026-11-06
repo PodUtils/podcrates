@@ -125,6 +125,26 @@ GitHub #2, T-051):
 * An issue of podcrates is mapped in `TODO/issues.md` as any issue, and
   closed when its subject is done.
 
+### The channel of a consumer session with no messages
+
+podnet's sessions from 2026-11-06 on send and take no messages (the
+owner's word; podnet's ruling "Order" of 2026-11-06). The channel is then
+the repositories:
+
+* `crates/*/SOURCES`: a block `repo PodUtils/podnet ...` is podnet's list
+  of frozen files; a `taken` line ends the freeze. Keep the block of each
+  import current. For `pod-services` and `pod-core` only the moved lines
+  of a file are frozen (the comment of the block says which).
+* `adoption/podnet/CRATE.patch` and `.run` at the tag of each release is
+  the hand-off.
+* Anything else for podnet: an issue of PodUtils/podcrates titled
+  `COORD-NNN: subject (to podnet)`.
+* podnet writes the commit of each crate that it took, and each fix of a
+  frozen file, as an issue of PodUtils/podnet titled
+  `COORD-NNN: subject (to podcrates)`. This session polls the open issues
+  of PodUtils/podnet and PodUtils/podssh for `(to podcrates)`
+  (`scripts/agent/watch-coord.sh`).
+
 ## Shared CI scripts
 
 The owner's ruling (2026-11-05): a CI script that podnet and podssh share
