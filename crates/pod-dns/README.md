@@ -149,10 +149,12 @@ New tests: `memory::tests::a_cache_that_is_off_keeps_nothing`,
 `route::tests::a_default_route_is_read_from_the_text_of_the_routes`,
 `resolver::tests::each_lookup_is_one_decision_of_the_observer`, and
 `tests/doh_json.rs` (podnet's chain and its query against a loopback
-stand-in of the JSON form: 2). New plants: `dns-nxdomain-ends-the-lookup`,
+stand-in of the JSON form: 3, with
+`an_nxdomain_of_aaaa_after_the_addresses_of_a_keeps_them`, which failed on
+the first merge). New plants: `dns-nxdomain-ends-the-lookup`,
 `dns-cache-not-off`.
 
-`cargo test -p pod-dns --all-features`: 42 unit, doh_h2 3, doh_json 2,
+`cargo test -p pod-dns --all-features`: 42 unit, doh_h2 3, doh_json 3,
 doh_names 2, doh_wire 8; live_doh 4 ignored.
 
 ## Changes for podssh

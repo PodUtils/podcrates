@@ -31,7 +31,7 @@ type Asked = Arc<Mutex<Vec<(String, String, String)>>>;
 
 /// The JSON answer of the stand-in to the request target `path`.
 fn answer_to(path: &str) -> &'static str {
-    if path.contains("name=gone.test") {
+    if path.contains("name=gone.test") || path == "/resolve?name=half.test&type=AAAA" {
         r#"{"Status":3,"Answer":[]}"#
     } else if path.ends_with("type=AAAA") {
         r#"{"Status":0,"Answer":[{"name":"relay.test.","type":28,"TTL":60,"data":"2001:db8::1"}]}"#
@@ -179,4 +179,21 @@ async fn a_query_takes_the_first_answer_with_its_status() {
     // A name that no resolver may be asked for is refused before a question.
     let refused = way.query("bad name", "A", Instant::now() + LIMIT).await.unwrap_err();
     assert!(refused.contains("is not a name to ask a resolver for"), "{refused}");
+}
+
+/// With A and AAAA both, an answer of AAAA that says NXDOMAIN after the
+/// addresses of A keeps them: podnet's chain took NXDOMAIN only when no
+/// question gave an address.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_nxdomain_of_aaaa_after_the_addresses_of_a_keeps_them() {
+    pod_testkit::need_loopback!();
+    let (port, trust, asked) = stand_in().await;
+    let settings = podnet(trust);
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let context = Context::new(provider, pod_tls::Settings::new(Words::new("podnet")));
+    let dial = NamesAlone { port, targets: Mutex::new(Vec::new()) };
+    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let found = way.lookup("half.test", Instant::now() + LIMIT).await;
+    assert_eq!(found, Ok(vec!["192.0.2.1".parse().unwrap()]));
+    assert_eq!(asked.lock().unwrap().len(), 2, "A, then AAAA");
 }

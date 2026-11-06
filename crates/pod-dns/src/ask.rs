@@ -48,7 +48,11 @@ pub(crate) async fn ask_kept(
                     answered = true;
                     break;
                 }
-                Ok(Err(Miss::Said(e))) if e == NXDOMAIN => return Err(Missed::words(format!("{at}: {e}"))),
+                // NXDOMAIN holds for each type, unless an address came
+                // already (with `both`, AAAA after A).
+                Ok(Err(Miss::Said(e))) if e == NXDOMAIN && found.is_empty() => {
+                    return Err(Missed::words(format!("{at}: {e}")));
+                }
                 // The other form would say the same.
                 Ok(Err(Miss::Said(e))) => {
                     reasons.push(format!("{at}: {e}"));
