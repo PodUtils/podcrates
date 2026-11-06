@@ -835,3 +835,38 @@ podvm.
 line with CRLF, the watcher recorded 0 messages at `367db93` and the
 messages of podcrates and podvm after the fix. `docs/session-protocol.md`
 pins the commit of the fix.
+
+# T-081: `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable"
+
+**Source:** the trial of `pod-hostprobe` in podvm (T-055, `c39f20f`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm keeps an I/O error of the space and exec probes as its own
+`Error::Io` with its path and kind. `pod_core::Failure` cannot give up its
+cause, and `Class::of_io(NotFound)` is `Unavailable`, the class of "no
+space": podvm's glue downcasts the source and strips the cause from the
+text to tell them apart.
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs`.
+
+## Approach
+
+`Failure::io_cause(&self) -> Option<&std::io::Error>` (the cause when it is
+one), and a class `NotFound` that `Class::of_io` gives for
+`ErrorKind::NotFound`; the words and each consumer's `match` follow (a new
+variant: a `match` with no `_` arm adds it). Tests of both.
+
+## Prove
+
+```sh
+cargo test -p pod-core
+```
+
