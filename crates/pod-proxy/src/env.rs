@@ -36,16 +36,21 @@ use crate::proxy::Proxy;
 pub const PROXY_VARS: [&str; 4] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"];
 
 /// The variables of the proxy of a request of plain `http://`, in the order
-/// that they are read: lower case first, as curl reads `http_proxy`. A
-/// consumer that runs as a CGI program takes [`HTTP_PROXY_VARS_LOWER`]: there
-/// a client of the server sets `HTTP_PROXY` with its header `Proxy:`.
-pub const HTTP_PROXY_VARS: [&str; 4] = ["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"];
+/// that they are read: lower case first, as curl reads `http_proxy`; the
+/// proxy of `https://` last, so that a host that names only that one keeps
+/// its proxy for `http://` too, as the dial did before. A consumer that runs
+/// as a CGI program takes [`HTTP_PROXY_VARS_LOWER`]: there a client of the
+/// server sets `HTTP_PROXY` with its header `Proxy:`.
+pub const HTTP_PROXY_VARS: [&str; 6] =
+    ["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY", "https_proxy", "HTTPS_PROXY"];
 
-/// [`HTTP_PROXY_VARS`] with no `HTTP_PROXY`, as curl reads them.
+/// The variables of curl for `http://`: no `HTTP_PROXY` and no proxy of
+/// `https://`.
 pub const HTTP_PROXY_VARS_LOWER: [&str; 3] = ["http_proxy", "all_proxy", "ALL_PROXY"];
 
 /// [`HTTP_PROXY_VARS`] with the upper case first (podnet).
-pub const HTTP_PROXY_VARS_UPPER_FIRST: [&str; 4] = ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"];
+pub const HTTP_PROXY_VARS_UPPER_FIRST: [&str; 6] =
+    ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy"];
 
 /// The variables that list the hosts that bypass the proxy, in the order
 /// that they are read.

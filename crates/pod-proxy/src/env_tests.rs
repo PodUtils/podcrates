@@ -219,8 +219,12 @@ fn the_scheme_chooses_the_variables_of_the_proxy() {
         (host_of(&env, Http).as_deref(), host_of(&env, Https).as_deref()),
         (Some("all.example"), Some("tls.example"))
     );
-    let only = Environment::read(&vars(&[("HTTPS_PROXY", "http://tls.example:3128")]));
-    assert_eq!(host_of(&only, Http), None, "HTTPS_PROXY is not for http://, as in curl");
+    // The default falls back to the proxy of https:// last, so that a host
+    // that names only that one keeps it; curl's list does not.
+    let only = vars(&[("HTTPS_PROXY", "http://tls.example:3128")]);
+    assert_eq!(host_of(&Environment::read(&only), Http).as_deref(), Some("tls.example"));
+    let curl = Rules { http_proxy_vars: &crate::HTTP_PROXY_VARS_LOWER, ..Rules::default() };
+    assert_eq!(host_of(&Environment::read_with(&only, curl), Http), None, "curl reads no HTTPS_PROXY for http://");
 
     let all = Environment::read(&vars(&[("all_proxy", "http://all.example:3128"), ("NO_PROXY", ".internal")]));
     for scheme in [Http, Https] {

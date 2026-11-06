@@ -1504,10 +1504,14 @@ in `tests/blocking_streamed.rs`. On the old code,
 `a_request_of_http_takes_the_proxy_of_http_proxy` failed (`GET
 http://name.test:42861/v2/: could not reach the proxy 127.0.0.1:47215`:
 the request took `HTTPS_PROXY`), and so did
-`a_request_of_http_goes_directly_when_only_https_proxy_is_set`.
+`a_request_of_http_takes_https_proxy_when_it_is_the_only_one`.
 `cargo test -p pod-proxy --all-features` (168 tests, 6 new),
 `cargo test -p pod-dns --all-features` (59), clippy, fmt, `cargo todo check` and `check-size.py` pass.
 
+The default list for `http://` ends with `https_proxy` and `HTTPS_PROXY`:
+a host that names only the proxy of `https://` keeps it for `http://`, as
+the dial and podvm's ureq did (no capability is lost); curl's list
+`HTTP_PROXY_VARS_LOWER` does not read them.
 
 # T-076: `pod-proxy`: redirects in the client
 
@@ -1571,4 +1575,3 @@ was read to its end. A test counts the connections of three requests.
 ```sh
 cargo test -p pod-proxy --all-features
 ```
-

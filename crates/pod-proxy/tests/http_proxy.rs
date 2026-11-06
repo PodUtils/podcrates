@@ -97,14 +97,12 @@ async fn a_request_of_http_takes_the_proxy_of_http_proxy() {
 }
 
 #[tokio::test]
-async fn a_request_of_http_goes_directly_when_only_https_proxy_is_set() {
+async fn a_request_of_http_takes_https_proxy_when_it_is_the_only_one() {
     pod_testkit::need_loopback!();
-    let (port, served) = server().await;
     let (_held, gone) = closed::port();
     let client = client(vec![("HTTPS_PROXY", format!("http://{gone}"))]);
-    let answer = client.send(get(format!("http://name.test:{port}/v2/"))).await.expect("a direct answer");
-    assert_eq!(answer.status, 200);
-    assert!(served.await.unwrap().starts_with("GET /v2/ HTTP/1.1\r\n"));
+    let failed = client.send(get("http://name.test:1/v2/".into())).await.unwrap_err();
+    assert_eq!(failed.stage, Stage::Proxy, "the request went to the proxy: {failed}");
 }
 
 /// `ALL_PROXY` takes the place of `http_proxy`, and `NO_PROXY` excludes a
