@@ -1,23 +1,25 @@
-//! DNS over HTTPS through a proxy that takes names alone (T-405), as a
-//! sandbox's proxy refuses CONNECT to an address literal (cfrs's GitHub #9
-//! and #21) and `scripts/box/proxy.py --take names` does: each resolver is
+//! DNS over HTTPS through a proxy that takes names alone, as a sandbox's
+//! proxy refuses CONNECT to an address literal (cfrs's GitHub #9 and #21)
+//! and podssh's `scripts/box/proxy.py --take names` does: each resolver is
 //! asked by its name first, then by its address, and a name once. The
-//! resolver is h2's own server, which podssh did not write, with the answer
-//! that Quad9 sent for the edge's SRV record (`tests/fixtures/doh/`).
+//! resolver is h2's own server, which this crate did not write, with the
+//! answer that Quad9 sent for the edge's SRV record (`tests/fixtures/doh/`).
 
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::resolve::{Doh, Srv, doh_srv_with};
-use podssh_ws::{HttpProxy, ProxyChoice, Trust};
+use pod_dns::{Doh, Settings, Srv, Way};
+use pod_proxy::{Dialer, Proxy, ProxyChoice};
+use pod_tls::{Context, TlsRoots, Trust, Words};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::Instant;
 
+// The certificates of the tests of pod-tls, minted in pure Rust.
 #[allow(dead_code)]
 mod cert {
-    include!("common/cert_for_test.rs");
+    include!("../../pod-tls/tests/common/cert_for_test.rs");
 }
 
 /// The stand-in resolver's name, which its certificate names.
@@ -25,9 +27,22 @@ const NAME: &str = "doh.test";
 const SRV_NAME: &str = "_v2-origintunneld._tcp.argotunnel.com";
 const LIMIT: Duration = Duration::from_secs(10);
 
-/// The stand-in, as `DOH_RESOLVERS` lists Quad9's: the wire form alone,
-/// over HTTP/2; its address is one that no proxy here takes.
-const STAND_IN: Doh = Doh { ip: "192.0.2.53", name: NAME, json: None, wire: "/dns-query", http2: true };
+/// The stand-in, as the default resolvers list Quad9's: the wire form
+/// alone, over HTTP/2; its address is one that no proxy here takes.
+fn stand_in() -> Doh {
+    Doh::new([192, 0, 2, 53].into(), NAME).wire("/dns-query").http2(true)
+}
+
+/// The TLS context of the tests, on ring.
+fn context() -> Context {
+    Context::new(Arc::new(rustls::crypto::ring::default_provider()), pod_tls::Settings::new(Words::new("podssh")))
+}
+
+/// A dial through `proxy` alone.
+fn via(proxy: Proxy) -> Dialer {
+    let settings = pod_proxy::Settings::new("podssh", ProxyChoice::Via(proxy));
+    Dialer::new(settings, Arc::new(pod_proxy::resolve::System::new()))
+}
 
 fn quad9_srv() -> Vec<u8> {
     std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/doh/quad9-srv.bin")).unwrap()
@@ -35,8 +50,8 @@ fn quad9_srv() -> Vec<u8> {
 
 /// A trust of the test's root alone.
 fn trust(roots: rustls::RootCertStore) -> Trust {
-    let roots = podssh_ws::tls::TlsRoots { count: roots.len(), roots, source: "the test's own root".into() };
-    Trust::caller(podssh_ws::tls::client_config(&roots).unwrap()).unwrap()
+    let roots = TlsRoots { count: roots.len(), roots, source: "the test's own root".into() };
+    Trust::caller(context().client_config(&roots).unwrap()).unwrap()
 }
 
 /// h2's server for one connection, for `NAME`, offering `h2`: Quad9's
@@ -70,7 +85,7 @@ async fn resolver() -> (u16, rustls::RootCertStore, tokio::task::JoinHandle<Opti
 /// 403 to an address literal, a tunnel to the stand-in resolver at
 /// `resolver_port` for `NAME`, 502 for any other name. It keeps each target
 /// that it was asked, in order.
-async fn names_alone(resolver_port: u16) -> (HttpProxy, Arc<Mutex<Vec<String>>>) {
+async fn names_alone(resolver_port: u16) -> (Proxy, Arc<Mutex<Vec<String>>>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let asked = Arc::new(Mutex::new(Vec::new()));
@@ -80,7 +95,7 @@ async fn names_alone(resolver_port: u16) -> (HttpProxy, Arc<Mutex<Vec<String>>>)
             tokio::spawn(tunnel(client, resolver_port, kept.clone()));
         }
     });
-    (HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap(), asked)
+    (Proxy::parse(&format!("http://127.0.0.1:{port}")).unwrap(), asked)
 }
 
 async fn tunnel(mut client: TcpStream, resolver_port: u16, asked: Arc<Mutex<Vec<String>>>) {
@@ -118,10 +133,13 @@ async fn tunnel(mut client: TcpStream, resolver_port: u16, asked: Arc<Mutex<Vec<
 /// asked at all.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name() {
+    pod_testkit::need_loopback!();
     let (port, roots, served) = resolver().await;
     let (proxy, asked) = names_alone(port).await;
-    let (trust, via) = (trust(roots), ProxyChoice::Via(proxy));
-    let lookup = doh_srv_with(&[STAND_IN], SRV_NAME, &trust, &via, Instant::now() + LIMIT);
+    let (settings, context, dial) = (Settings { trust: trust(roots), ..Settings::default() }, context(), via(proxy));
+    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let resolvers = [stand_in()];
+    let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
     let records = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect("the records, by the name");
     let region = |n: u16| Srv { priority: n, weight: 1, port: 7844, target: format!("region{n}.v2.argotunnel.com") };
     assert_eq!(records, [region(2), region(1)], "Quad9's answer, in its order");
@@ -135,12 +153,14 @@ async fn a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name() {
 /// asked, the name's refusal and the address's.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_address_follows_a_name_refused_and_a_name_is_asked_once() {
+    pod_testkit::need_loopback!();
     // No resolver behind it: the name below is not the stand-in's.
     let (proxy, asked) = names_alone(0).await;
-    let other = |ip| Doh { ip, name: "other.test", json: Some("/dns-query"), wire: "/dns-query", http2: false };
-    let resolvers = [other("192.0.2.53"), other("192.0.2.54")];
-    let via = ProxyChoice::Via(proxy);
-    let lookup = doh_srv_with(&resolvers, SRV_NAME, &Trust::Default, &via, Instant::now() + LIMIT);
+    let other = |ip: [u8; 4]| Doh::new(ip.into(), "other.test").json("/dns-query").wire("/dns-query");
+    let resolvers = [other([192, 0, 2, 53]), other([192, 0, 2, 54])];
+    let (settings, context, dial) = (Settings::default(), context(), via(proxy));
+    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
     let failed = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect_err("no way to any");
     assert_eq!(*asked.lock().unwrap(), ["other.test:443", "192.0.2.53:443", "192.0.2.54:443"]);
     for host in ["other.test", "192.0.2.53", "192.0.2.54"] {

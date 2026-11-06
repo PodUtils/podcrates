@@ -1,7 +1,7 @@
-//! DNS over HTTPS over HTTP/2 (T-344), for a resolver that serves no
-//! HTTP/1.1, as Quad9 answers a GET of HTTP/1.1 with `505` (2026-10-31). The
-//! server is h2's own, which podssh did not write, behind TLS that offers
-//! `h2`; its answer is the one that Quad9 sent (`tests/fixtures/doh/`).
+//! DNS over HTTPS over HTTP/2, for a resolver that serves no HTTP/1.1, as
+//! Quad9 answers a GET of HTTP/1.1 with `505` (2026-10-31). The server is
+//! h2's own, which this crate did not write, behind TLS that offers `h2`;
+//! its answer is the one that Quad9 sent (`tests/fixtures/doh/`).
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -9,13 +9,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use podssh_ws::resolve::{h2 as doh_h2, wire};
+use pod_dns::{h2 as doh_h2, wire};
+use pod_tls::{TlsRoots, Words};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
 
+// The certificates of the tests of pod-tls, minted in pure Rust.
 #[allow(dead_code)]
 mod cert {
-    include!("common/cert_for_test.rs");
+    include!("../../pod-tls/tests/common/cert_for_test.rs");
 }
 
 const NAME: &str = "doh.test";
@@ -27,12 +29,14 @@ fn quad9_a() -> Vec<u8> {
 
 /// A client configuration that trusts the test's root alone.
 fn client(roots: rustls::RootCertStore) -> Arc<rustls::ClientConfig> {
-    podssh_ws::tls::client_config(&podssh_ws::tls::TlsRoots {
-        count: roots.len(),
-        roots,
-        source: "the test's own root".into(),
-    })
-    .unwrap()
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let context = pod_tls::Context::new(provider, pod_tls::Settings::new(Words::new("podssh")));
+    context.client_config(&TlsRoots { count: roots.len(), roots, source: "the test's own root".into() }).unwrap()
+}
+
+/// The words of a failed handshake.
+fn words() -> Words {
+    Words::new("podssh")
 }
 
 /// What the server saw: the path and the `accept` that it was asked, once
@@ -119,13 +123,14 @@ async fn server(alpn: Vec<Vec<u8>>, body: Vec<u8>) -> (u16, Arc<rustls::RootCert
 /// addresses; the server was asked the path and the type of RFC 8484.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_answer_comes_over_http2() {
+    pod_testkit::need_loopback!();
     let answer = quad9_a();
     let (port, roots, served) = server(vec![b"h2".to_vec()], answer.clone()).await;
     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
     let target = "/dns-query?dns=AAABAAABAAAAAAAAA3RjcANzc2gFcmVsYXkEYWphbQNkZXYAAAEAAQ";
     let got = tokio::time::timeout(
         LIMIT,
-        doh_h2::get_over(&client((*roots).clone()), tcp, NAME, target, "application/dns-message", 64 * 1024),
+        doh_h2::get_over(&client((*roots).clone()), tcp, NAME, target, "application/dns-message", 64 * 1024, &words()),
     )
     .await
     .expect("in time")
@@ -147,11 +152,20 @@ async fn an_answer_comes_over_http2() {
 /// A server that does not take `h2` is refused at TLS, before any request.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_server_of_http1_alone_is_refused() {
+    pod_testkit::need_loopback!();
     let (port, roots, served) = server(vec![b"http/1.1".to_vec()], quad9_a()).await;
     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
     let got = tokio::time::timeout(
         LIMIT,
-        doh_h2::get_over(&client((*roots).clone()), tcp, NAME, "/dns-query?dns=AA", "application/dns-message", 1024),
+        doh_h2::get_over(
+            &client((*roots).clone()),
+            tcp,
+            NAME,
+            "/dns-query?dns=AA",
+            "application/dns-message",
+            1024,
+            &words(),
+        ),
     )
     .await
     .expect("in time");
@@ -166,11 +180,20 @@ async fn a_server_of_http1_alone_is_refused() {
 /// An answer over the bound is refused, as over HTTP/1.1.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_answer_over_the_bound_is_refused() {
+    pod_testkit::need_loopback!();
     let (port, roots, _served) = server(vec![b"h2".to_vec()], vec![0u8; 4096]).await;
     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
     let got = tokio::time::timeout(
         LIMIT,
-        doh_h2::get_over(&client((*roots).clone()), tcp, NAME, "/dns-query?dns=AA", "application/dns-message", 1024),
+        doh_h2::get_over(
+            &client((*roots).clone()),
+            tcp,
+            NAME,
+            "/dns-query?dns=AA",
+            "application/dns-message",
+            1024,
+            &words(),
+        ),
     )
     .await
     .expect("in time");
