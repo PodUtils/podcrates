@@ -22,3 +22,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #14 | [gh action] requested: the release v0.6.0 (ci.yml, nightly.yml, release.yml) | closed (replaced by #15) | T-055, T-072, T-073, T-074, T-075 |
 | #15 | [gh action] requested: the release v0.6.0 from 4aa2ee0 | closed (release 42261756998) | T-055, T-072 to T-076, T-078 to T-080 |
 | #16 | COORD-011: podcrates v0.6.0 is released: each tag to v0.6.0 (to all) | open | T-055, T-073, T-075, T-076, T-078, T-079, T-080 |
+| #17 | COORD-012: take pod-hostprobe (to podvm) | open | T-055, T-040, T-081 |
