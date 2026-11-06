@@ -11,7 +11,10 @@ has the work order; this page has only what is in flight.
   for each consumer, `adoption/CONSUMER/pod-dns.patch`, which takes both
   crates) are made on podssh `c880c86` and podnet `a0e1ffb`. Then: CI's
   adoption run, the Done sections, the version 0.4.0 and its notes,
-  `release.yml`, the hand-off of each patch.
+  `release.yml`, the hand-off of each patch. The hand-off also gives
+  podssh and podnet the pin of the watcher of `docs/session-protocol.md`
+  (`54427f6`, the fix for a Python of Windows, T-064); podvm has it in
+  PodUtils/podcrates#3.
 - **A regression in podssh after it took `pod-proxy`**: the interop step
   `resume.cut.up.sftp` of podssh's release gate (a `cp` up through a
   stand-in relay that cuts each 1.5 MB fails at write 0, exit 70; it
