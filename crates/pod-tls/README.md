@@ -20,6 +20,7 @@ shares it.
 | `Context::config_for(&trust)`, `roots_for`, `default_roots`, `client_config(&roots)` | the configuration of a trust, kept so that TLS resumes; the roots of a trust |
 | `Context::tls_over(stream, name, &trust, limit)`, `connect_over(..)` | a verified handshake over an open stream; a `pod_core::Failure` at `Stage::Tls` on failure |
 | `client_config(&roots, provider, groups)`, `tls_over(stream, name, config, limit, &words)` | the same with no context |
+| `Context::tls_over_blocking(stream, name, &trust)`, `tls_over_blocking(stream, name, config, &words)` | the same over a blocking `Read + Write` stream, with no tokio: rustls's `StreamOwned`; the time limit is the caller's, on its socket |
 | `Trust` (`File`, `Default`, `Caller`), `Trust::caller(config)`, `CallerConfig` | where the anchors come from, for each connection; a caller's own configuration, refused with ALPN, used as it is |
 | `Context::roots()`, `Context::client_config_with(extra, alpn)`, `roots::load`, `Roots` (`store`, `sources`, `with_extra`), `CaFile` | the roots of the settings in podnet's order: the CA file alone, else the extra bundle, the first system bundle with a usable root and the compiled-in roots; each source named with its counts (`2 roots, 1 skipped`); read one time in the context, a failure too; a new configuration over them with extra roots (PEM texts) and the caller's ALPN |
 | `TlsRoots`, `roots_from_bundle`, `roots_from_compiled_set`, `SYSTEM_BUNDLES`, `ROOTS_VERSION`, `ROOTS_PUBLISHED` | the roots and their sources |
@@ -30,7 +31,7 @@ shares it.
 | `bundle` | `load_bundle`, `parse_bundle`, `pem_certificates`: the PEM reader of `CERTIFICATE` blocks |
 | `stores` | `read`, `summary`, `Store`: the roots of the stores of Windows (crypt32) and macOS (Security framework) |
 | `fragment` | `Split` (`mode`, `min`, `max`), `Split::parse(mode, size)`, `Mode` (`Record`, `Sni`), `Part` (`accepted`, `what`), `DEFAULT_SIZE`, `wrap(io, split)`, `fragment_with`, `Fragmenting`: the first ClientHello of a stream in records of a random size, or cut in the server name |
-| `server` | `acceptor(provider, cert, key, alpn)`, `acceptor_for(provider, served, alpn)`, `certified`, `signing_key`, `certificates`, `Served` (the pair changed while the server runs, the challenges of TLS-ALPN-01), `ACME_TLS_1`, `HTTP1` |
+| `server` | `acceptor(provider, cert, key, alpn)`, `acceptor_for(provider, served, alpn)` (feature `async`), `server_config`, `server_config_for` (their configurations, with no tokio), `certified`, `signing_key`, `certificates`, `Served` (the pair changed while the server runs, the challenges of TLS-ALPN-01), `ACME_TLS_1`, `HTTP1` |
 | `crypto` (feature `pure`) | `provider()`, `suites::self_check`, `aead`, `hash`, `hkdf`, `hmac`, `kx`, `quic`, `random`, `sign`, `tls12`, `hpke`, `rsa_sig` (feature `rsa`) |
 | `ech` (feature `ech`) | `Ech` (`set_mode`, `mode`, `wanted`, `outcome`, `cache`), `Mode` (`parse`, `word`), `chosen`, `open(&context, &route)`, `open_with`, `Route`, `Records`, `NoRecords`, `Published`, `Outcome`, `Cache`, `Clock`, `Lookup`, `Why`, `READ_WITHIN`, `SEALED_WAIT` |
 
@@ -38,10 +39,11 @@ shares it.
 
 | Feature | What |
 | --- | --- |
-| none (default) | the configurations, the trust, the roots, the stores, the server, the split of a ClientHello (it changes nothing unless the caller gives a split); the binary gives a provider (ring, aws-lc or the pure one) |
+| `async` (default) | the handshake over a tokio stream (`tls_over`, `Context::tls_over`, `Context::connect_over`), the split of a ClientHello on a stream (`fragment::wrap`; it changes nothing unless the caller gives a split), the acceptor of a server (`server::acceptor`) |
+| none | with `default-features = false`: no tokio. The configurations, the trust, the roots, the stores, the configuration of a server (`server::server_config`), the parse of a split, and the blocking handshake (`tls_over_blocking`, `Context::tls_over_blocking`: rustls's own `StreamOwned` over a `Read + Write` stream). The binary gives a provider (ring, aws-lc or the pure one) |
 | `pure` | the pure-Rust `CryptoProvider`: TLS 1.3 and TLS 1.2 (ECDHE with AES-GCM or ChaCha20-Poly1305), X25519 and P-256, ECDSA and Ed25519, the keys of QUIC; no C compiler |
 | `rsa` | `pure` with the RSA verifier (PKCS #1 v1.5 and PSS, 2048 to 4096 bits) and the ECDHE_RSA suites. Verify only: RUSTSEC-2023-0071 concerns the operations of `rsa` 0.9 with a private key (`deny.toml` ignores it) |
-| `ech` | ECH, with the HPKE of `pure` (rustls has HPKE only from aws-lc) |
+| `ech` | ECH, with the HPKE of `pure` (rustls has HPKE only from aws-lc); it turns on `async` |
 
 ## Settings
 
@@ -165,6 +167,7 @@ shares it.
 | podnet | `tls_fragment::active()` | the split that podnet keeps |
 | podnet | `tls_fragment::wrap(io)` (`warp/session.rs`, two calls) | `pod_tls::fragment::wrap(io, split)`; `net::BoxedIo` has the bounds of `pod_core::BoxedIo` (`AsyncRead + AsyncWrite + Send + Unpin`): podnet takes `pod_core::BoxedIo`, or boxes its stream again |
 | podnet | the tests of `tests/tls.rs` | they stay in podnet; with the adoption they run on the roots of `pod-tls` |
+| podvm | `crates/podvm-ssh/src/tls.rs`, `crates/podvm-image/src/tls.rs`: the roots (host bundle first, then `webpki-roots`) and the client configuration | `pod-tls` with `default-features = false`: `Context::client_config` over its roots, `Context::tls_over_blocking` over a `TcpStream` |
 
 ## Sources
 

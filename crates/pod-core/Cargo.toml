@@ -7,8 +7,15 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["async"]
+# The dial, the resolver, the datagrams and the metered stream, on tokio.
+# With no default feature, the failure, the events, the files, the entropy
+# and the small helpers build with no tokio (a synchronous consumer).
+async = ["dep:tokio"]
+
 [dependencies]
-tokio = { workspace = true, features = ["io-util", "net", "time", "sync"] }
+tokio = { workspace = true, optional = true, features = ["io-util", "net", "time", "sync"] }
 rand = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]

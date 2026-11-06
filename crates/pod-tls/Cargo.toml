@@ -8,8 +8,14 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-# No feature by default: a configuration takes the provider of its caller.
-default = []
+# A configuration takes the provider of its caller, whatever the features.
+default = ["async"]
+# The handshake over a tokio stream (`tls_over`, `Context::connect_over`),
+# the split of a hello on a stream (`fragment::wrap`) and the acceptor of a
+# server. With no default feature, the configurations, the roots, the stores,
+# the blocking handshake (`tls_over_blocking`) and the configuration of a
+# server build with no tokio.
+async = ["dep:tokio", "dep:tokio-rustls", "pod-core/async"]
 # The pure-Rust `CryptoProvider` (`pod_tls::crypto`): no C compiler.
 pure = [
     "dep:sha2",
@@ -30,13 +36,13 @@ pure = [
 rsa = ["pure", "dep:rsa", "dep:sha2-rsa"]
 # Encrypted Client Hello. The HPKE of the sealed hello is the one of the
 # pure provider: rustls has HPKE only from aws-lc.
-ech = ["pure"]
+ech = ["pure", "async"]
 
 [dependencies]
 pod-core = { workspace = true }
-tokio = { workspace = true, features = ["io-util", "net", "time", "sync"] }
+tokio = { workspace = true, optional = true, features = ["io-util", "net", "time", "sync"] }
 rustls = { workspace = true }
-tokio-rustls = { workspace = true }
+tokio-rustls = { workspace = true, optional = true }
 rustls-pki-types = { workspace = true }
 webpki-roots = { workspace = true }
 # The P-256 key of a server (`server`), signed here for each provider.

@@ -15,7 +15,7 @@ default = []
 ech = ["pod-tls/ech"]
 
 [dependencies]
-pod-core = { workspace = true }
+pod-core = { workspace = true, features = ["async"] }
 pod-tls = { workspace = true }
 # The cut of a connection, the words of a miss, the HTTP/1.1 exchange.
 pod-proxy = { workspace = true }

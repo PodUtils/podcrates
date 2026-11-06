@@ -1,21 +1,61 @@
 //! A verified TLS handshake over a stream that is open already: a TCP
 //! connection, or an SSH channel that reaches a hop inside TLS. Each road
-//! takes the same configuration and the same words of failure.
+//! takes the same configuration and the same words of failure. The async
+//! form is on tokio (feature `async`); the blocking form drives rustls's own
+//! synchronous stream, with no tokio.
 
+use std::io::{Read, Write};
 use std::sync::Arc;
+#[cfg(feature = "async")]
 use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
-use rustls::ClientConfig;
+use rustls::{ClientConfig, ClientConnection, StreamOwned};
 use rustls_pki_types::ServerName;
 
 use crate::context::Context;
 use crate::hint::{Words, handshake_error};
 use crate::trust::Trust;
 
+/// A verified TLS handshake for `server_name` over the blocking `stream`
+/// with `config`, as [`tls_over`] does on tokio. The time limit is the
+/// caller's, on its stream (`TcpStream::set_read_timeout`). A refusal has the
+/// words of [`crate::handshake_failure`].
+pub fn tls_over_blocking<S: Read + Write>(
+    mut stream: S,
+    server_name: &str,
+    config: Arc<ClientConfig>,
+    words: &Words,
+) -> Result<StreamOwned<ClientConnection, S>, Failure> {
+    let name = self::server_name(server_name)?;
+    let mut tls = ClientConnection::new(config, name)
+        .map_err(|e| Failure::new(Stage::Tls, Class::Config, format!("the TLS client: {e}")))?;
+    // complete_io gives UnexpectedEof when the far end closes in the
+    // handshake, so the loop ends.
+    while tls.is_handshaking() {
+        tls.complete_io(&mut stream).map_err(|e| handshake_error(e, words))?;
+    }
+    Ok(StreamOwned::new(tls, stream))
+}
+
+impl Context {
+    /// [`tls_over_blocking`] with the configuration of `trust` in this
+    /// context.
+    pub fn tls_over_blocking<S: Read + Write>(
+        &self,
+        stream: S,
+        server_name: &str,
+        trust: &Trust,
+    ) -> Result<StreamOwned<ClientConnection, S>, Failure> {
+        let config = self.config_for(trust)?;
+        tls_over_blocking(stream, server_name, config, self.words())
+    }
+}
+
 /// A verified TLS handshake for `server_name` over `stream` with `config`,
 /// within `timeout`. A refusal has the words of
 /// [`crate::handshake_failure`] and the error of the handshake as its cause.
+#[cfg(feature = "async")]
 pub async fn tls_over<S>(
     stream: S,
     server_name: &str,
@@ -38,6 +78,7 @@ where
         .map_err(|e| handshake_error(e, words))
 }
 
+#[cfg(feature = "async")]
 impl Context {
     /// [`tls_over`] with the configuration of `trust` in this context.
     pub async fn tls_over<S>(
@@ -62,11 +103,12 @@ pub(crate) fn server_name(server_name: &str) -> Result<ServerName<'static>, Fail
 }
 
 /// A handshake that did not end within `timeout`.
+#[cfg(feature = "async")]
 pub(crate) fn timed_out(timeout: Duration) -> Failure {
     Failure::new(Stage::Tls, Class::Timeout, format!("the TLS handshake timed out after {}s", timeout.as_secs()))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "async"))]
 mod tests {
     use super::*;
     use std::io::ErrorKind;

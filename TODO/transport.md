@@ -961,7 +961,7 @@ new data are five OCI registries and three guest images, with the kinds
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -986,9 +986,28 @@ for a synchronous face of `pod-proxy` and `pod-tls`.
 ## Prove
 
 ```sh
-cargo check -p pod-tls --no-default-features
-cargo test -p pod-proxy --features blocking
+cargo clippy -p pod-core -p pod-tls --no-default-features --features pod-tls/pure,pod-tls/rsa -- -D warnings
+cargo test -p pod-proxy --features blocking --test blocking
+cargo test -p pod-tls --test blocking
 ```
+
+## Done
+
+2026-11-06. `pod-core` and `pod-tls` have the default feature `async`; with
+no default feature neither has tokio (`cargo tree`: 0 tokio, 4 with the
+defaults), and `ci.yml` runs their clippy so. `pod-tls` adds
+`tls_over_blocking` (rustls's `StreamOwned` over a `Read + Write` stream,
+with the words of a failure) and `server::server_config`. `pod-proxy`'s
+feature `blocking` gives `blocking::Dialer` and `blocking::Client` on a
+private current-thread runtime: a TCP connection comes back as the
+standard `TcpStream`. Tests: 4 of `pod-proxy` (direct, CONNECT, a proxy at
+a command, a GET over HTTPS) and 2 of `pod-tls` (a handshake, a wrong name),
+on a thread with no runtime; `scripts/agent/check.sh` passes. The size of a
+static musl program (release, LTO, stripped) that makes one HTTPS GET:
+rustls with ring and webpki-roots 1,310,800 bytes; with `pod-tls` and no
+tokio 1,376,128 (+64 KiB); with `pod-proxy`'s `blocking` (tokio, the
+proxies, the client) 1,710,144 (+390 KiB). The I/O-free state machines of
+C20 wait for a measurement of podvm that asks for no tokio.
 
 
 # T-065: A vectored write through `pod_proxy::Stream` sends only its first buffer

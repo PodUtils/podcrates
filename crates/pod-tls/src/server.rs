@@ -17,6 +17,7 @@ use rustls::sign::CertifiedKey;
 use rustls::{SignatureAlgorithm, SignatureScheme};
 use rustls_pki_types::{CertificateDer, SubjectPublicKeyInfoDer};
 pub use served::{ACME_TLS_1, Served};
+#[cfg(feature = "async")]
 pub use tokio_rustls::TlsAcceptor;
 
 use rustls::crypto::CryptoProvider;
@@ -29,25 +30,47 @@ pub const HTTP1: &[u8] = b"http/1.1";
 
 /// A TLS acceptor on `provider` that presents `cert_pem`'s chain with
 /// `key_pem`'s key, over TLS 1.3 and 1.2, offering `alpn`.
+#[cfg(feature = "async")]
 pub fn acceptor(
     provider: Arc<CryptoProvider>,
     cert_pem: &[u8],
     key_pem: &[u8],
     alpn: &[&[u8]],
 ) -> Result<TlsAcceptor, Error> {
-    acceptor_for(provider, Served::new(Some(certified(cert_pem, key_pem)?)), alpn)
+    Ok(TlsAcceptor::from(server_config(provider, cert_pem, key_pem, alpn)?))
 }
 
 /// A TLS acceptor on `provider` that presents what `served` holds at each
 /// handshake, over TLS 1.3 and 1.2, offering `alpn`.
+#[cfg(feature = "async")]
 pub fn acceptor_for(provider: Arc<CryptoProvider>, served: Arc<Served>, alpn: &[&[u8]]) -> Result<TlsAcceptor, Error> {
+    Ok(TlsAcceptor::from(server_config_for(provider, served, alpn)?))
+}
+
+/// The configuration of [`acceptor`], with no tokio: a synchronous server
+/// gives it to rustls's own `ServerConnection`.
+pub fn server_config(
+    provider: Arc<CryptoProvider>,
+    cert_pem: &[u8],
+    key_pem: &[u8],
+    alpn: &[&[u8]],
+) -> Result<Arc<rustls::ServerConfig>, Error> {
+    server_config_for(provider, Served::new(Some(certified(cert_pem, key_pem)?)), alpn)
+}
+
+/// The configuration of [`acceptor_for`], with no tokio.
+pub fn server_config_for(
+    provider: Arc<CryptoProvider>,
+    served: Arc<Served>,
+    alpn: &[&[u8]],
+) -> Result<Arc<rustls::ServerConfig>, Error> {
     let mut config = rustls::ServerConfig::builder_with_provider(provider)
         .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
         .map_err(|e| Error::Server(format!("the TLS versions: {e}")))?
         .with_no_client_auth()
         .with_cert_resolver(served);
     config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-    Ok(TlsAcceptor::from(Arc::new(config)))
+    Ok(Arc::new(config))
 }
 
 /// `cert_pem`'s chain with `key_pem`'s key, which must be the leaf's: a pair

@@ -22,7 +22,9 @@ homepage = "https://github.com/PodUtils/podcrates"
 crates-io = false
 
 [workspace.dependencies]
-pod-core = { path = "crates/pod-core", version = "0.4.0" }
+# No default feature here: a crate that needs the async parts of pod-core
+# (its feature `async`) names it, so that pod-tls builds with no tokio.
+pod-core = { path = "crates/pod-core", version = "0.4.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.4.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.4.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.4.0" }

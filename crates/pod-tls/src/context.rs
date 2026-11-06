@@ -6,15 +6,19 @@
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
+#[cfg(feature = "async")]
 use std::time::Duration;
 
+#[cfg(feature = "async")]
 use pod_core::{Class, Failure, Stage};
 use rustls::ClientConfig;
 use rustls::crypto::CryptoProvider;
 
 use crate::error::Error;
 use crate::groups::Kept;
-use crate::hint::{Words, handshake_failure};
+use crate::hint::Words;
+#[cfg(feature = "async")]
+use crate::hint::handshake_failure;
 use crate::kept::Configs;
 use crate::roots::{CaFile, Roots};
 use crate::trust::{self, TlsRoots, Trust};
@@ -150,6 +154,7 @@ impl Context {
         }
     }
 
+    #[cfg(feature = "async")]
     /// A TLS client over `stream`, a connection that is open already (a relay
     /// session to an IRC server, for example): the certificate is checked
     /// against `server_name` and the roots of `trust`, within `limit`. A

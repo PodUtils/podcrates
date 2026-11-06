@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 66 entries: 36 open, 1 partial, 1 blocked, 28 done.
+`TODO/INDEX.md` holds 66 entries: 35 open, 1 partial, 1 blocked, 29 done.
 
 ## State
 
@@ -34,9 +34,9 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
-   the release v0.4.0 and its hand-off to podssh, podnet and podvm; T-063
-   (the synchronous face, v0.5.0); T-040 (the trials of `pod-tls` and
-   `pod-proxy` in podvm); T-066; then M6 (item 7).
+   the release v0.4.0 and its hand-off to podssh, podnet and podvm; the
+   release v0.5.0 (the synchronous face is on `main`); T-040 (the trials of
+   `pod-tls` and `pod-proxy` in podvm); T-066; then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.
 3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
@@ -47,10 +47,10 @@ order. A crate is released on the day that its entry is done
 6. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
    commit of its rename; a "port" entry for each change that
    scripts/check-sources.py finds.
-7. **M6, the crates of podvm:** T-055 (`pod-hostprobe`) first, then T-056,
-   T-057, T-058, T-059, T-060, T-061, when podvm gave the commit of its
-   rename; T-063 (the synchronous face) and T-066 (the data of podvm in
-   `pod-services`) before podvm takes `pod-proxy`.
+7. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
+   podvm `0249527`): T-055 (`pod-hostprobe`) first; then T-061 and T-059;
+   T-060; T-056; T-057; T-058. T-066 (the data of podvm in `pod-services`)
+   before podvm takes `pod-proxy`.
 8. **M7, the widened scope of podvm:** T-062 after M6.
 
 ## Calls made without a ruling

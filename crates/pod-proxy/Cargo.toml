@@ -9,6 +9,10 @@ repository.workspace = true
 
 [features]
 default = []
+# The blocking face (`pod_proxy::blocking`): the dialer and the client of a
+# synchronous consumer, on a private current-thread runtime, the same code
+# as the async face.
+blocking = []
 # The GET client seals its hello with Encrypted Client Hello where the TLS
 # context asks for it (pod-tls, feature ech), with the reader of HTTPS
 # records that the caller gives.
@@ -19,7 +23,7 @@ ech = ["pod-tls/ech"]
 fuzzing = []
 
 [dependencies]
-pod-core = { workspace = true }
+pod-core = { workspace = true, features = ["async"] }
 pod-tls = { workspace = true }
 # JoinSet and select! (the race of addresses), lookup_host (the system
 # resolver), process (a proxy at the stdin and the stdout of a command).
@@ -54,3 +58,7 @@ sha2 = { workspace = true }
 # `fuzzing`.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
+
+[[test]]
+name = "blocking"
+required-features = ["blocking"]

@@ -47,6 +47,10 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Docs
         run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace --all-features
+      # A synchronous consumer (podvm) takes pod-core and pod-tls with no
+      # default feature, so with no tokio (T-063).
+      - name: The crates with no tokio
+        run: cargo clippy --locked -p pod-core -p pod-tls --no-default-features --features pod-tls/pure,pod-tls/rsa -- -D warnings
       # The fuzz targets (fuzz/, a workspace of its own, which the steps
       # above do not read) build on stable Rust; the build script of
       # libFuzzer needs the C++ compiler of the runner. No --locked:

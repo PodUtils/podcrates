@@ -12,11 +12,16 @@
 //! [`wrap`] for each connection that it wants split (podnet: its MASQUE
 //! connection); with no split, nothing changes.
 
+#[cfg(feature = "async")]
 use std::pin::Pin;
+#[cfg(feature = "async")]
 use std::task::{Context, Poll};
 
+#[cfg(feature = "async")]
 use pod_core::BoxedIo;
+#[cfg(feature = "async")]
 use pod_core::entropy::{Entropy, OsEntropy};
+#[cfg(feature = "async")]
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::error::Error;
@@ -105,6 +110,7 @@ impl Split {
 
 /// `io` with its first ClientHello split by `split`, when there is one; else
 /// `io` as it is.
+#[cfg(feature = "async")]
 pub fn wrap(io: BoxedIo, split: Option<Split>) -> BoxedIo {
     match split {
         Some(split) => Box::new(Fragmenting::new(io, split)),
@@ -113,6 +119,7 @@ pub fn wrap(io: BoxedIo, split: Option<Split>) -> BoxedIo {
 }
 
 /// A random number in `min..=max`, from the random source of the system.
+#[cfg(feature = "async")]
 fn random_in(min: usize, max: usize) -> usize {
     if max <= min {
         return min;
@@ -192,6 +199,7 @@ pub fn fragment_with(record: &[u8], split: &Split, mut random: impl FnMut(usize,
 }
 
 /// A stream whose first record is split by [`fragment_with`].
+#[cfg(feature = "async")]
 pub struct Fragmenting<S> {
     inner: S,
     split: Split,
@@ -203,12 +211,14 @@ pub struct Fragmenting<S> {
     done: bool,
 }
 
+#[cfg(feature = "async")]
 impl<S> Fragmenting<S> {
     pub fn new(inner: S, split: Split) -> Self {
         Fragmenting { inner, split, head: Vec::new(), out: Vec::new(), sent: 0, done: false }
     }
 }
 
+#[cfg(feature = "async")]
 impl<S: AsyncWrite + Unpin> Fragmenting<S> {
     /// Write the bytes of `out`.
     fn drain(&mut self, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
@@ -248,6 +258,7 @@ impl<S: AsyncWrite + Unpin> Fragmenting<S> {
     }
 }
 
+#[cfg(feature = "async")]
 impl<S: AsyncWrite + Unpin> AsyncWrite for Fragmenting<S> {
     fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
         let this = &mut *self;
@@ -306,6 +317,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for Fragmenting<S> {
     }
 }
 
+#[cfg(feature = "async")]
 impl<S: AsyncRead + Unpin> AsyncRead for Fragmenting<S> {
     fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_read(cx, buf)
@@ -409,6 +421,7 @@ mod tests {
         assert_eq!(failure.class, pod_core::Class::Config);
     }
 
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn the_stream_splits_the_first_record_only() {
         use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
@@ -432,6 +445,7 @@ mod tests {
 
     /// After the first record, one vectored write takes each buffer: rustls
     /// writes its records with one vectored write.
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn after_the_first_record_a_vectored_write_takes_each_buffer() {
         use tokio::io::{AsyncReadExt as _, AsyncWrite as _, AsyncWriteExt as _};
@@ -452,6 +466,7 @@ mod tests {
 
     /// [`wrap`] with no split gives the stream as it is; with a split, the
     /// first ClientHello goes out in more than one record.
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn wrap_splits_only_when_the_caller_gives_a_split() {
         use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};

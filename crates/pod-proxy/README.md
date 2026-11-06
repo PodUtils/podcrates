@@ -56,6 +56,7 @@ to each crate that opens a connection.
 | --- | --- |
 | none (default) | everything above; the GET client's hello is plain |
 | `ech` | the GET client opens through `pod_tls::ech::open`: sealed where the TLS context asks for ECH and the name publishes a list, with the reader of HTTPS records of `Client::with_records` (`pod-dns` gives one) |
+| `blocking` | `blocking::Dialer` (`tcp`, `stream`) and `blocking::Client` (`https_get`, `send`): the same code on a private current-thread runtime, for a synchronous consumer. A TCP connection comes back as the standard `TcpStream`; a stream through a proxy at a command is read and written on that runtime. Do not call it from a task of a tokio runtime |
 | `fuzzing` | `fuzz_exchange`: the SOCKS5 exchange with a scripted proxy, for the fuzz target `socks5_answer` (`fuzz/`). The `--cfg fuzzing` of cargo-fuzz also exposes it. No consumer turns it on |
 
 ## Settings
@@ -326,6 +327,7 @@ counters):
 | podnet | the variables `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY`, `all_proxy`, `NO_PROXY`, `no_proxy`, `HOME`, `PODNET_PROXY` | podnet keeps them and reads them through its reader once; `PODNET_PROXY` is a value of the user (`Origin::User`) |
 | podnet | `tests/egress.rs`: `socks5_carries_the_api_and_the_edge`, `no_proxy_bypasses_the_proxy`, `a_407_names_the_schemes`, `a_proxy_refusal_names_the_hop_and_keeps_the_text`, `a_proxy_host_that_does_not_resolve_is_an_error_not_a_crash`, `socks5_resolves_the_target_with_the_pins`, `a_proxy_url_with_no_password_is_shown` | they stay in podnet: they run the binary; the words that they read come from the crate (`NTLM or Negotiate`, `podnet supports Basic and Digest only`, `the proxy refused the user and the password`, `the proxy host podnet-proxy.invalid`) and from podnet's glue (`HTTP 403`, `through the proxy http://127.0.0.1:9`) |
 | podnet | `tests/egress.rs` `a_silent_address_does_not_hold_the_dial` | it moved here (`tests/egress.rs`); podnet removes it |
+| podvm | the direct dial of `podvm-ssh`, `crates/podvm-image/src/transport.rs`, the fetch of a guest image | `pod_proxy::blocking::Dialer::new(Settings::new("podvm", ProxyChoice::FromEnvironment(..)), resolver)`: `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` come with it; `blocking::Client` for a GET over HTTPS |
 
 ## Sources
 

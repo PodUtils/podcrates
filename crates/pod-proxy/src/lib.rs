@@ -32,6 +32,8 @@
 //! [`pod_core::Observer`]. The names of the consumer (the program in the
 //! words, the user agent) are settings.
 
+#[cfg(feature = "blocking")]
+pub mod blocking;
 pub mod client;
 mod connect;
 pub mod credentials;

@@ -56,4 +56,6 @@ pub use trust::{
     roots_from_compiled_set,
 };
 pub use validity::not_after_dates;
+#[cfg(feature = "async")]
 pub use wrap::tls_over;
+pub use wrap::tls_over_blocking;

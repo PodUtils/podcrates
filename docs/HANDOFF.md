@@ -45,16 +45,12 @@ takes `pod-dns` and `pod-services` together.
 6. Before each push of a patch: `python3 -I scripts/agent/secrets_like.py
    PATCH` finds the lines that `.github/secrets-allow.txt` must list.
 
-## In flight: T-063, the synchronous face (for podvm)
+## Done, not released: T-063, the synchronous face (for podvm)
 
-The code is in the local worktree `.claude/worktrees/t063` (branch `t063`,
-not pushed, not compiled): `pod-core` and `pod-tls` get a default
-feature `async` (tokio); with no default feature they build with no tokio;
-`pod-tls` gets `tls_over_blocking` and `server::server_config`;
-`pod-proxy` gets the feature `blocking` (`src/blocking.rs`,
-`tests/blocking.rs`); a CI step runs clippy of `pod-core` and `pod-tls` with
-no default feature. After v0.4.0: compile, test, measure the size, merge,
-release as v0.5.0.
+On `main`: the default feature `async` of `pod-core` and `pod-tls`, the
+blocking handshake, the feature `blocking` of `pod-proxy`. Its release is
+v0.5.0, after v0.4.0; then the podvm trials of `pod-tls` and `pod-proxy`
+(T-040).
 
 ## podvm
 

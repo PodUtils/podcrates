@@ -13,21 +13,31 @@
 //! * [`entropy`]: the random source, which a test can plant;
 //! * [`metered`], [`backoff`], [`clock`], [`text`], [`names`]: the small
 //!   helpers.
+//!
+//! The feature `async` (on by default) gives [`dial`], [`datagrams`] and
+//! [`metered`], which are on tokio. With no default feature, the other
+//! parts build with no tokio, for a synchronous consumer.
 
 pub mod backoff;
 pub mod clock;
+#[cfg(feature = "async")]
 pub mod datagrams;
+#[cfg(feature = "async")]
 pub mod dial;
 pub mod entropy;
 pub mod event;
 pub mod failure;
 pub mod files;
+#[cfg(feature = "async")]
 pub mod metered;
 pub mod names;
 pub mod text;
 
+#[cfg(feature = "async")]
 pub use datagrams::{Datagrams, RecvMeta, SystemDatagrams, Transmit};
+#[cfg(feature = "async")]
 pub use dial::{BoxFuture, BoxedIo, Connected, Dial, Found, Io, Resolve, SOURCE_WAIT, Source, Target};
 pub use event::{Event, Events, Level, NoEvents, NoObserver, Observer, Report};
 pub use failure::{Class, Failure, Stage};
+#[cfg(feature = "async")]
 pub use metered::Metered;
