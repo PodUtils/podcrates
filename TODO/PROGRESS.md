@@ -19,8 +19,8 @@
   the errno and `statfs64` of a 32-bit target (T-080, T-072), the DoH server
   in the diagnostics (T-073), the redirects (T-076), `HTTP_PROXY` for
   `http://` (T-075), a dial's words (T-074), the services of podssh (T-078,
-  T-079). Each consumer is on v0.5.0 (podssh `486c001`, podnet `dfd8bd8`,
-  podvm `cec4bcb`).
+  T-079). Each consumer took v0.5.0 (podssh `486c001`, podnet `dfd8bd8`,
+  podvm `cec4bcb`); podnet is on v0.6.0 (`872a276`).
 - `pod-services` (T-049, T-050) has its design; the owner reserves its
   name. The names on crates.io wait for the owner (T-043, GitHub #1);
   the switch `crates-io` is false while Q1 stands.
