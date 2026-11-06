@@ -821,6 +821,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-hostprobe"
+version = "0.5.0"
+
+[[package]]
 name = "pod-identity"
 version = "0.5.0"
 dependencies = [

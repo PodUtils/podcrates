@@ -1,0 +1,47 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo PodUtils/podvm 2c03085f857719d8f35341bd251c6bee90414a8f
+dir crates/podvm-probe/src
+dir crates/podvm-probe/tests
+# exit.rs, json.rs, report.rs, report/ and nongoals.rs are the CLI and the
+# report of podvm: they stay in podvm. Of lib.rs, select.rs and writable.rs
+# a part comes: lib.rs gives Findings, run and run_child; select.rs gives
+# all but BANNER_ROWS and banner_cell; writable.rs gives the write probe,
+# with the list of candidates from the caller. space.rs, exec_probe.rs and
+# tests/space_precheck.rs of podvm-image come whole.
+skip crates/podvm-probe/src/exit.rs
+skip crates/podvm-probe/src/json.rs
+skip crates/podvm-probe/src/report.rs
+skip crates/podvm-probe/src/report
+skip crates/podvm-probe/src/nongoals.rs
+file 2aa9bc7d7c2e3628b1dabf00dca08ec5056a124a crates/podvm-image/src/exec_probe.rs -> crates/pod-hostprobe/src/exec.rs
+file 4c35b9a04e8caa5f55c23f26a05af69c6c781415 crates/podvm-image/src/space.rs -> crates/pod-hostprobe/src/space.rs
+file cb02b4b99908d29c6cb1e95b655bd2053bdca4b3 crates/podvm-image/tests/space_precheck.rs -> crates/pod-hostprobe/tests/space_precheck.rs
+file d8adc6bc31c9a7ce5bcf340a20081b03490309a8 crates/podvm-probe/src/binfmt.rs -> crates/pod-hostprobe/src/binfmt.rs
+file acee2e8aeef7382b58e6f5d19e070d601e3723ab crates/podvm-probe/src/child.rs -> crates/pod-hostprobe/src/child.rs
+file ecba851c98adc1830516d9ec0d5114e1390e998b crates/podvm-probe/src/identity.rs -> crates/pod-hostprobe/src/identity.rs
+file c7be999b7a566273a3f307a3adba6e200591d177 crates/podvm-probe/src/interp.rs -> crates/pod-hostprobe/src/interp.rs
+file 1f95e456cb6919bd3b803200d2822ea11f4ad282 crates/podvm-probe/src/lib.rs -> crates/pod-hostprobe/src/lib.rs
+file 20b3633a29887ab9064e266c2a047b6246488ad5 crates/podvm-probe/src/machine.rs -> crates/pod-hostprobe/src/machine.rs
+file 7bf7558a36c2e22a940a73a9a57bc4a15078d260 crates/podvm-probe/src/mounts.rs -> crates/pod-hostprobe/src/mounts.rs
+file c212f421c4af2554eaae616fb3af8287cbe16473 crates/podvm-probe/src/probes.rs -> crates/pod-hostprobe/src/probes.rs
+file e01b77163042dd33c1b32743178159c83864e8b6 crates/podvm-probe/src/probes/access.rs -> crates/pod-hostprobe/src/probes/access.rs
+file 82eac9bfc44c797a28cbb6925105d84c24258e21 crates/podvm-probe/src/probes/attribution.rs -> crates/pod-hostprobe/src/probes/attribution.rs
+file f3f45fb498f8bd33cc08f61b998438fac23335fe crates/podvm-probe/src/probes/census.rs -> crates/pod-hostprobe/src/probes/census.rs
+file 4bdf36208e70487ccec81b7930b432313a6252dd crates/podvm-probe/src/probes/machine.rs -> crates/pod-hostprobe/src/probes/machine.rs
+file 081895ae306d85dac65dd6d85e2dd9e282a7ca84 crates/podvm-probe/src/probes/tests.rs -> crates/pod-hostprobe/src/probes/tests.rs
+file d84891992206ca9d3355fb4bca08ba02095d635c crates/podvm-probe/src/select.rs -> crates/pod-hostprobe/src/select.rs
+file 8f13d439755a0157205fcd1fe0fc4a65e84b96a1 crates/podvm-probe/src/select/tests.rs -> crates/pod-hostprobe/src/select/tests.rs
+file d54eccb4bdbf8ab87678ad387d73561331bbad18 crates/podvm-probe/src/supervise.rs -> crates/pod-hostprobe/src/supervise.rs
+file c8d45ef798ef8294aaacbf9f78451b2f6d47b8c6 crates/podvm-probe/src/sys.rs -> crates/pod-hostprobe/src/sys.rs
+file 5d4ca1b3b58fa6ad9c508ec21eb0cb88d9ec711d crates/podvm-probe/src/sys/arch.rs -> crates/pod-hostprobe/src/sys/arch.rs
+file 0c9ce6dc4a999003d4aa8e9d203c84d58a34242c crates/podvm-probe/src/sys/fs.rs -> crates/pod-hostprobe/src/sys/fs.rs
+file 0ea3ef605b690c321a57e53de8b13a4569333565 crates/podvm-probe/src/sys/proc.rs -> crates/pod-hostprobe/src/sys/proc.rs
+file 71dd62b5e7adde0a83ff2082045e7072b0862471 crates/podvm-probe/src/sys/raw.rs -> crates/pod-hostprobe/src/sys/raw.rs
+file 33560a50e85aea1f3702c83cae711c5a720ca9de crates/podvm-probe/src/sys/tests.rs -> crates/pod-hostprobe/src/sys/tests.rs
+file 9abd9098ad4a21491441a5c150ead2ae05eea9a0 crates/podvm-probe/src/verdict.rs -> crates/pod-hostprobe/src/verdict.rs
+file d34d402a4b3c0a067bcad909daf131afeaeb370a crates/podvm-probe/src/writable.rs -> crates/pod-hostprobe/src/writable.rs
+file e3d67a593fa41017ac785296cdf5e0c619d52e20 crates/podvm-probe/tests/namespace.rs -> crates/pod-hostprobe/tests/namespace.rs
+file 0b0fefd7ac6ae59bc9d259141c7b6278c8ec28c8 crates/podvm-probe/tests/namespace_base.rs -> crates/pod-hostprobe/tests/namespace_base.rs

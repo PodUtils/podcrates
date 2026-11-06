@@ -1,0 +1,8 @@
+[package]
+name = "pod-hostprobe"
+description = "The probes of a Linux host: one disposable child for each probe, the errno and never a boolean, \"could not run\" as a third state, and the raw system calls."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
