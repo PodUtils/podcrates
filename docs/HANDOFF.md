@@ -42,7 +42,7 @@ takes `pod-dns` and `pod-services` together.
 ## In flight: T-063, the synchronous face (for podvm)
 
 The code is in the local worktree `.claude/worktrees/t063` (branch `t063`,
-not pushed, not compiled yet): `pod-core` and `pod-tls` get a default
+not pushed, not compiled): `pod-core` and `pod-tls` get a default
 feature `async` (tokio); with no default feature they build with no tokio;
 `pod-tls` gets `tls_over_blocking` and `server::server_config`;
 `pod-proxy` gets the feature `blocking` (`src/blocking.rs`,
