@@ -723,7 +723,7 @@ data) and T-050 (the watches, the workflows, the scripts).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -746,6 +746,29 @@ the relay's limits to `relay-limits.toml`, and the test that the n0
 relays are iroh's list); the README with the parity list and the
 adoption map of each place of the inventories; the trials of podssh and
 podnet.
+
+The crate is in: the commits `5b347c4` to `8518632`: 27 services in 19
+kinds (`crates/pod-services/services/`), the schema and its check in
+`build.rs`, the API by id and by kind, the overlay (feature `overlay`),
+the README with the parity list and the adoption maps. `cargo test -p
+pod-services --all-features`: 34 passed, 8 of them the tests of the
+consumers by their names; the plant `services-no-source` is caught. The
+trials of podssh and podnet come with `pod-dns` and the release v0.4.0.
+
+## Decision
+
+- A source has one of `url`, `measured` or `ruling`, a `read` date and an
+  optional note; a value read again on 2026-11-06 keeps the consumer's
+  read in the note.
+- Where the consumers differed: both WARP version pairs are kept
+  (`usque-api-version`/`usque-client-version` of podssh,
+  `api-version`/`client-version` of podnet; the API refuses a pair that
+  does not match); the cloudflared pin is podnet's 2026.10.7 with the
+  files of both; both edge addresses are kept (each is an A record of
+  `region1.v2.argotunnel.com`); the DoH lists are joined.
+- An optional `[rank]` with its source orders the services of a kind.
+- An overlay file replaces a whole service by id; a second overlay of the
+  same id is an error of the class `Config`.
 
 ## Prove
 

@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**52 entries: 28 open, 1 partial, 1 blocked, 22 done.**
+**52 entries: 27 open, 2 partial, 1 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 15 | 0 | 0 | 17 | 32 |
+| P1 | 14 | 1 | 0 | 17 | 32 |
 | P2 | 9 | 1 | 1 | 5 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 28 | 1 | 1 | 22 | 52 |
+| **All** | 27 | 2 | 1 | 22 | 52 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -94,7 +94,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-046](foundation.md) | P2 | S | M0 | chore | done | The shared CI scripts: the zig fetch, its mirrors and their weekly check |
 | [T-047](foundation.md) | P2 | S | M2 | chore | open | The weekly watch of the relay contract, in `pod-relay` |
 | [T-048](transport.md) | P1 | S | M1 | research | done | `pod-services`: the inventory of the relays and services of other parties in podssh and podnet |
-| [T-049](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the schema, the data of each service and the library |
+| [T-049](transport.md) | P1 | L | M1 | feature | partial | `pod-services`: the schema, the data of each service and the library |
 | [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
