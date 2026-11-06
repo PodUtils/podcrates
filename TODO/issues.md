@@ -8,3 +8,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | --- | --- | --- | --- |
 | #1 | crates.io: reserved pod-* names and trusted publishing | open (reopened for the names of podvm) | T-042, T-043, T-053 |
 | #2 | COORD-001: a test of the fallback channel between the sessions | closed (`d2bab56`) | T-051 |
+| #3 | COORD-002: the answer to podvm's COORD-001 (to podvm) | open | T-040, T-054, T-063 |
