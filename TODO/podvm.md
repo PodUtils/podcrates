@@ -345,3 +345,37 @@ cargo todo check
 
 The crates of M6 are released.
 
+# T-072: `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets
+
+**Source:** the import of `pod-hostprobe` (T-055, `cbb0525`).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`sys::statfs` calls the system call `statfs` with a buffer of the shape of
+`statfs64`. On a 32-bit target (i686, arm) the kernel writes the narrow
+`statfs` there, so the sizes and the counts that the probes read are wrong.
+The fault came with the source (`PodUtils/podvm:crates/podvm-probe/src/sys/fs.rs`).
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/sys/fs.rs` and `sys/arch.rs`.
+
+## Approach
+
+On the 32-bit targets, call `statfs64` with the size of the buffer, as the
+kernel asks; a test checks the block size and the counts of a known
+directory against `df`'s view of the same file system. podvm gets the fix
+as a COORD issue (the file is frozen in podvm).
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --lib sys
+cargo check -p pod-hostprobe --target i686-unknown-linux-musl
+```
+
