@@ -124,3 +124,10 @@ podvm took `pod-proxy` (feature `blocking`) for the relay legs in podvm
 `mux_two_client` too; podvm accepts the size, the refusal of an unusable
 variable and of a proxy at a command (its call C10). podvm's registry and
 image pulls can move to `blocking::Client::send_streamed` (T-069).
+
+podvm moved to v0.5.0 in podvm `cec4bcb` (PodUtils/podvm#207): its podcrates
+dependencies name `v0.5.0`, and podvm-ssh's `Words` set `replace_roots`
+empty and `add_roots` to the host bundle (T-068). podvm asks podcrates for
+the next trial: podvm-image's registry transport and the guest image fetch
+on `blocking::Client::send_streamed`, at podvm `cec4bcb` or later, with a
+pull through a local CONNECT stand-in and its `NO_PROXY` bypass.
