@@ -134,7 +134,7 @@ pull through a local CONNECT stand-in and its `NO_PROXY` bypass.
 
 2026-11-06, partial. The trial of `pod-proxy`'s streamed client in podvm
 (PodUtils/podvm@T-1677, PodUtils/podvm#207) at podvm `f3eccd8`
-(`adoption/podvm/pod-proxy-registry.patch`, 16 files, 896 lines in, 353
+(the patch of the trial of the registry (`8b30023`), 16 files, 896 lines in, 353
 out). `podvm-image` takes `pod-proxy` (feature `blocking`) and `pod-core` at
 `v0.5.0`. The new module `net.rs` carries each HTTP request of podvm through
 `blocking::Client::send_streamed`: the registry (manifests, tags, blobs, the
@@ -170,3 +170,9 @@ request is a new TCP and TLS connection; one limit for the dial and the head;
 `HTTP_PROXY` is not read; the words of a dial failure repeat the target.
 podvm's `docs/decisions.md` C10 ("never into the `podvm` binary") needs a
 new call of podvm. Left: the take of this patch by podvm.
+
+podvm took the registry patch in podvm `06f2427` (PodUtils/podvm#208):
+each HTTP request of podvm goes through `blocking::Client::send_streamed`,
+and ureq leaves; each line of the `.run` passed there, `mux_two_client`
+too. podvm's call C10 now lets the private runtime of `pod-proxy` into its
+binaries. podvm waits for T-075 and T-077 and the trial of `pod-hostprobe`.
