@@ -206,6 +206,20 @@ mod tests {
         (found, asked.into_inner())
     }
 
+    /// Each source of the order keeps its place through `pod-core`
+    /// (podssh's glue of pod-proxy, `podssh-ws/src/dial.rs`).
+    #[test]
+    fn each_source_of_the_order_comes_back_as_it_went() {
+        for source in Source::ORDER {
+            assert_eq!(Source::of(source.core()), Some(source), "{source:?}");
+        }
+        assert_eq!(Source::of(pod_core::Source { rank: 6, name: "other" }), None);
+        // The first three are those of pod-proxy's system resolver.
+        assert_eq!(Source::Literal.core(), pod_proxy::resolve::LITERAL);
+        assert_eq!(Source::Pin.core(), pod_proxy::resolve::PIN);
+        assert_eq!(Source::System.core(), pod_proxy::resolve::SYSTEM);
+    }
+
     fn cached() -> Known {
         Known { fresh: ips(&["192.0.2.7"]), old: ips(&["192.0.2.8"]), asks: true, ..Known::default() }
     }
