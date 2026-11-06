@@ -80,6 +80,9 @@ pub enum Class {
     Config,
     /// A service or a path is not available.
     Unavailable,
+    /// A path or a name that does not exist: apart from `Unavailable`, so
+    /// that a caller tells it from no space or a closed service.
+    NotFound,
     /// A service refused for now; a later try can work.
     TempFail,
     /// A wait ended at its time limit.
@@ -96,6 +99,7 @@ impl Class {
             Class::Usage => "usage",
             Class::Config => "config",
             Class::Unavailable => "unavailable",
+            Class::NotFound => "notfound",
             Class::TempFail => "tempfail",
             Class::Timeout => "timeout",
             Class::Protocol => "protocol",
@@ -111,6 +115,7 @@ impl Class {
             K::InvalidInput => Class::Usage,
             K::InvalidData | K::UnexpectedEof => Class::Protocol,
             K::PermissionDenied => Class::Refused,
+            K::NotFound => Class::NotFound,
             _ => Class::Unavailable,
         }
     }
@@ -132,6 +137,19 @@ pub struct Failure {
 }
 
 impl Failure {
+    /// The error of I/O of the chain of causes, when one is: a caller keeps
+    /// its kind (and the path that its text names) with no parse of words.
+    pub fn io_cause(&self) -> Option<&io::Error> {
+        let mut next = self.source.as_deref().map(|e| e as &(dyn Error + 'static));
+        while let Some(e) = next {
+            if let Some(io) = e.downcast_ref::<io::Error>() {
+                return Some(io);
+            }
+            next = e.source();
+        }
+        None
+    }
+
     pub fn new(stage: Stage, class: Class, text: impl Into<String>) -> Failure {
         Failure { stage, class, text: text.into(), source: None }
     }
@@ -198,6 +216,18 @@ impl Error for Failure {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The cause of I/O comes back from a chain, and "not found" has its
+    /// own class.
+    #[test]
+    fn the_io_cause_comes_back_and_not_found_has_its_class() {
+        let missing = io::Error::new(io::ErrorKind::NotFound, "/store: no such directory");
+        assert_eq!(Class::of_io(missing.kind()), Class::NotFound);
+        let f = Failure::caused(Stage::Host, Class::of_io(missing.kind()), "the store", missing);
+        assert_eq!(f.io_cause().map(|e| e.kind()), Some(io::ErrorKind::NotFound));
+        assert_eq!(f.class.name(), "notfound");
+        assert!(Failure::new(Stage::Host, Class::Unavailable, "no space").io_cause().is_none());
+    }
 
     #[test]
     fn an_io_error_keeps_its_kind_as_a_class() {

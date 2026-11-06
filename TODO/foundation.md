@@ -843,7 +843,7 @@ pins the commit of the fix.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -870,3 +870,12 @@ variant: a `match` with no `_` arm adds it). Tests of both.
 cargo test -p pod-core
 ```
 
+## Done
+
+2026-11-06. `Failure::io_cause` gives the error of I/O of the chain of
+causes; `Class::NotFound` ("notfound") is the class of
+`ErrorKind::NotFound` in `Class::of_io`. Each `match` on `Class` in podssh,
+podnet and the crates has a `_` arm. The test
+`the_io_cause_comes_back_and_not_found_has_its_class` passes, and
+`scripts/agent/check.sh` passes. podvm's glue of the space and exec checks
+can read `io_cause()` and `Class::NotFound` from the next release.

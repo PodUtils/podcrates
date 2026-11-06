@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**81 entries: 35 open, 2 partial, 0 blocked, 44 done.**
+**81 entries: 34 open, 2 partial, 0 blocked, 45 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 0 | 0 | 21 | 34 |
-| P2 | 16 | 2 | 0 | 19 | 37 |
+| P2 | 15 | 2 | 0 | 20 | 37 |
 | P3 | 6 | 0 | 0 | 2 | 8 |
-| **All** | 35 | 2 | 0 | 44 | 81 |
+| **All** | 34 | 2 | 0 | 45 | 81 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -126,4 +126,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-078](transport.md) | P2 | S | M1 | feature | done | `pod-services`: a second public Piping Server |
 | [T-079](transport.md) | P2 | S | M1 | feature | done | `pod-services`: Tailscale's main DERP fleet after tailcat's |
 | [T-080](podvm.md) | P0 | S | M6 | defect | done | `pod-hostprobe`: a failed system call reads as a success on a 32-bit target |
-| [T-081](foundation.md) | P2 | S | M1 | feature | open | `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable" |
+| [T-081](foundation.md) | P2 | S | M1 | feature | done | `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable" |
