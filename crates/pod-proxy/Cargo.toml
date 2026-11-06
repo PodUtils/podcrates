@@ -62,3 +62,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
 [[test]]
 name = "blocking"
 required-features = ["blocking"]
+
+[[test]]
+name = "blocking_streamed"
+required-features = ["blocking"]

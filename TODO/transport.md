@@ -1218,7 +1218,7 @@ with the 6 tests of the hint. podvm sets `replace_roots` empty and
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1242,6 +1242,46 @@ cap of the buffered GET.
 ```sh
 cargo test -p pod-proxy --all-features
 ```
+
+## Done
+
+2026-11-06. `Client::send_streamed(request) -> Result<client::Streamed,
+Failure>` sends the request and reads the head of the answer within
+`Request::timeout`. `Streamed` has `status`, `reason`, `headers`, `header`
+and `is_success`, and implements `tokio::io::AsyncRead` over the body; it
+owns the connection. The body has no bound of its size. Each wait for
+bytes has the limit `Request::body_idle` (`client::BODY_IDLE`, 30 s), else
+`TimedOut`. A body that ends before its `Content-Length` or its last chunk
+is `UnexpectedEof`; a `HEAD`, 1xx, 204 and 304 have no body. The client
+follows no redirect, as `send`. The blocking face:
+`blocking::Client::send_streamed(request) -> Result<blocking::Streamed,
+Failure>`; `blocking::Streamed` has `status()`, `reason()`, `headers()`,
+`header()` and `is_success()`, and implements `std::io::Read` with
+`block_on` on the runtime of the client.
+
+One code path (call C20): `http::read_head` reads the head and
+`http::Body` (`src/http/body.rs`) reads each body, by length, by chunks or
+to the close, with an optional bound and an optional idle limit
+(`http::Idle`). `Client::send` is `send_streamed` with the bound
+`max_body`, no idle limit and the body read whole, under its one time
+limit; `http::read_answer` (under `https_get` and `http::exchange`) reads
+through `read_head` and `Body`. The words and the caps of `send`,
+`https_get` and `read_answer` did not change: their tests pass with no
+change.
+
+Tests: `tests/streamed.rs` (5) and `tests/blocking_streamed.rs` (5), with
+the TLS server of `tests/served/`: a body of 17 MiB (more than `MAX_BODY`)
+by `Content-Length` and by chunks of many sizes, read in reads of 7919
+bytes, with its SHA-256 equal to the server's (async and blocking); the
+buffered `send` refuses the same answer; a body cut at half its length is
+`UnexpectedEof`; a server that stops in the middle of the body gives
+`TimedOut` within 5 s for a `body_idle` of 300 ms; a `HEAD` has no body;
+the blocking face through a CONNECT stand-in (`ProxyChoice::Via`), and
+directly where `NO_PROXY` names the host while the proxy of the
+environment fails (the rules of podnet, no loopback rule). Without the
+change the new tests do not compile (no `send_streamed`, no `Streamed`).
+`cargo test -p pod-proxy --all-features` passes (each test target), clippy
+and fmt too.
 
 
 # T-070: `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left

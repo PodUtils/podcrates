@@ -123,4 +123,4 @@ podvm took `pod-proxy` (feature `blocking`) for the relay legs in podvm
 `b1138c2` (PodUtils/podvm#205): each line of the `.run` passed there,
 `mux_two_client` too; podvm accepts the size, the refusal of an unusable
 variable and of a proxy at a command (its call C10). podvm's registry and
-image pulls wait for T-069.
+image pulls can move to `blocking::Client::send_streamed` (T-069).

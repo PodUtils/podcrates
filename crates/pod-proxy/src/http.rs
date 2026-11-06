@@ -3,10 +3,14 @@
 //! bounded sizes. It reads `Content-Length`, `Transfer-Encoding: chunked`,
 //! and read-until-close bodies, passes over a few interim (1xx) answers, and
 //! takes the end of a TLS stream with no close_notify as the end of the
-//! stream. The other side, a server's reading of a request, is [`request`].
+//! stream. [`read_head`] and [`Body`] read a body as it comes, with a limit
+//! for each wait ([`Idle`]); [`read_answer`] reads it whole through them.
+//! The other side, a server's reading of a request, is [`request`].
 
+mod body;
 pub mod request;
 
+pub use body::{Body, Framing, Idle};
 pub use request::{Request, RequestError, read_request};
 
 use pod_core::text::one_line;
@@ -131,7 +135,26 @@ where
 /// Read a response whose first bytes may already be in `buffered`, within
 /// the bounds of `reading`. Up to [`MAX_INTERIM`] interim answers (1xx but
 /// 101) come before it and are passed over; 101 is the answer.
-pub async fn read_answer<S>(stream: &mut S, mut buffered: Vec<u8>, reading: Reading) -> std::io::Result<Response>
+pub async fn read_answer<S>(stream: &mut S, buffered: Vec<u8>, reading: Reading) -> std::io::Result<Response>
+where
+    S: AsyncRead + Unpin,
+{
+    let (mut response, rest) = read_head(stream, buffered, reading.max_head).await?;
+    let framing = Framing::of(&response, reading.head_only);
+    let limit = u64::try_from(reading.max_body).unwrap_or(u64::MAX);
+    response.body = Body::new(stream, rest, framing, Some(limit))?.to_end().await?;
+    Ok(response)
+}
+
+/// Read the head of a response whose first bytes may already be in
+/// `buffered`, each head of `max_head` bytes at most, past up to
+/// [`MAX_INTERIM`] interim answers. The answer comes with no body, and with
+/// the bytes after its head that were read.
+pub async fn read_head<S>(
+    stream: &mut S,
+    mut buffered: Vec<u8>,
+    max_head: usize,
+) -> std::io::Result<(Response, Vec<u8>)>
 where
     S: AsyncRead + Unpin,
 {
@@ -142,8 +165,8 @@ where
             if let Some(end) = find(&buffered, b"\r\n\r\n") {
                 break end + 4;
             }
-            if buffered.len() > reading.max_head {
-                let kib = reading.max_head / 1024;
+            if buffered.len() > max_head {
+                let kib = max_head / 1024;
                 return Err(invalid(format!("no end of the response headers within {kib} KiB")));
             }
             let n = read_some(stream, &mut chunk).await?;
@@ -166,11 +189,7 @@ where
             buffered = rest;
             continue;
         }
-        let mut response = Response { status, reason, headers, body: Vec::new() };
-        if !reading.head_only {
-            response.body = read_body(stream, &response, rest, reading.max_body).await?;
-        }
-        return Ok(response);
+        return Ok((Response { status, reason, headers, body: Vec::new() }, rest));
     }
 }
 
@@ -211,52 +230,6 @@ pub fn parse_status_line(head: &str) -> Result<(u16, String), String> {
         parts.next().and_then(|s| s.parse::<u16>().ok()).ok_or_else(|| format!("no status code in {line:?}"))?;
     // The reason phrase is the proxy's text and ends up on the user's terminal.
     Ok((status, one_line(parts.next().unwrap_or_default())))
-}
-
-async fn read_body<S>(stream: &mut S, head: &Response, mut have: Vec<u8>, max_body: usize) -> std::io::Result<Vec<u8>>
-where
-    S: AsyncRead + Unpin,
-{
-    // No body for 1xx, 204 and 304.
-    if head.status < 200 || head.status == 204 || head.status == 304 {
-        return Ok(Vec::new());
-    }
-    let chunked = head.header("transfer-encoding").is_some_and(|v| v.to_ascii_lowercase().contains("chunked"));
-    let length = head.header("content-length").and_then(|v| v.parse::<usize>().ok());
-    let mut chunk = [0u8; 4096];
-    loop {
-        if chunked {
-            if let Some(body) = decode_chunked(&have, max_body).map_err(invalid)? {
-                return Ok(body);
-            }
-        } else if let Some(len) = length {
-            if len > max_body {
-                return Err(invalid("the response body is larger than allowed"));
-            }
-            if have.len() >= len {
-                have.truncate(len);
-                return Ok(have);
-            }
-        } else if have.len() > max_body {
-            return Err(invalid("the response body is larger than allowed"));
-        }
-        let n = read_some(stream, &mut chunk).await?;
-        if n == 0 {
-            // A read-until-close body ends here; a framed one was cut short.
-            return if chunked || length.is_some() {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::UnexpectedEof,
-                    "the connection closed in the middle of the response body",
-                ))
-            } else {
-                Ok(have)
-            };
-        }
-        have.extend_from_slice(&chunk[..n]);
-        if have.len() > max_body.saturating_mul(2).saturating_add(MAX_HEAD) {
-            return Err(invalid("the response body is larger than allowed"));
-        }
-    }
 }
 
 /// Decode a complete chunked body. `Ok(None)` means more bytes are needed.

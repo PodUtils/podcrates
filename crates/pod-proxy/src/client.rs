@@ -13,8 +13,13 @@
 //!   ([`pod_tls::Context::roots`]) unless the request gives a trust. The
 //!   answer's head is bounded by [`request::MAX_HEAD`], its body by the
 //!   request.
+//! * [`Client::send_streamed`]: the same request; the head of the answer
+//!   within the time limit, and its body as a reader ([`Streamed`]) with no
+//!   bound of its size and a limit for each wait. [`Client::send`] reads
+//!   through it.
 
 mod request;
+mod streamed;
 mod url;
 
 use std::sync::{Arc, OnceLock};
@@ -23,13 +28,14 @@ use std::time::Duration;
 use pod_core::{BoxedIo, Class, Dial, Failure, Stage, Target};
 use pod_tls::{Context, Trust};
 use rustls_pki_types::ServerName;
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio_rustls::client::TlsStream;
 
-pub use request::{MAX_BODY, MAX_HEAD, Request, TIMEOUT};
+pub use request::{BODY_IDLE, MAX_BODY, MAX_HEAD, Request, TIMEOUT};
+pub use streamed::Streamed;
 
 use crate::host::authority;
-use crate::http::{self, Reading, Response};
+use crate::http::{self, Response};
+use streamed::Bounds;
 
 /// The ALPN of [`Client::send`] over TLS.
 const HTTP1: &[&[u8]] = &[b"http/1.1"];
@@ -145,25 +151,28 @@ impl Client {
     /// A failure says the method and the URL with no query, then why, at
     /// the stage of the step that failed.
     pub async fn send(&self, request: Request) -> Result<Response, Failure> {
-        let what = format!("{} {}", request.method, url::without_query(&request.url));
-        let timeout = request.timeout;
-        match tokio::time::timeout(timeout, self.send_now(&request)).await {
-            Ok(Ok(response)) => Ok(response),
-            Ok(Err(e)) => Err(Failure::caused(e.stage, e.class, format!("{what}: {}", e.text()), e)),
-            Err(_) => Err(Failure::new(
-                Stage::Connect,
-                Class::Timeout,
-                format!("{what}: no answer in {} s", timeout.as_secs()),
-            )),
-        }
+        let limit = u64::try_from(request.max_body).unwrap_or(u64::MAX);
+        let bounds = Bounds { head_only: request.method == "HEAD", limit: Some(limit), idle: None };
+        within(&request, async { self.open(&request, bounds).await?.into_response().await }).await
     }
 
-    async fn send_now(&self, request: &Request) -> Result<Response, Failure> {
+    /// Send `request` and read the head of its answer within its time
+    /// limit; the caller reads the body from the [`Streamed`] as it comes,
+    /// with no bound of its size, each read within
+    /// [`Request::body_idle`]. A failure has the words of
+    /// [`Client::send`].
+    pub async fn send_streamed(&self, request: Request) -> Result<Streamed, Failure> {
+        let bounds = Bounds { head_only: request.method == "HEAD", limit: None, idle: Some(request.body_idle) };
+        within(&request, self.open(&request, bounds)).await
+    }
+
+    /// The connection of `request`, the request sent on it, and the head of
+    /// the answer.
+    async fn open(&self, request: &Request, bounds: Bounds) -> Result<Streamed, Failure> {
         let target = url::target(&request.url).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
         let head =
             request.head(&target, &self.user_agent).map_err(|e| Failure::new(Stage::Connect, Class::Usage, e))?;
         let dial = request.via.as_deref().unwrap_or(&*self.dial);
-        let reading = Reading { max_head: MAX_HEAD, max_body: request.max_body, head_only: request.method == "HEAD" };
         let body = request.body.as_deref().unwrap_or_default();
         if target.tls {
             let trust = match &request.trust {
@@ -171,11 +180,11 @@ impl Client {
                 None => self.roots()?,
             };
             let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await;
-            exchange(tls.map_err(network_or_tls)?, &head, body, reading).await
+            streamed::start(tls.map_err(network_or_tls)?, &head, body, bounds).await
         } else {
             let deadline = tokio::time::Instant::now() + request.timeout;
             let tcp = dial.dial(&Target::new(&target.host, target.port), deadline).await?;
-            exchange(tcp.io, &head, body, reading).await
+            streamed::start(tcp.io, &head, body, bounds).await
         }
     }
 
@@ -256,19 +265,17 @@ fn network_or_tls(failure: Failure) -> Failure {
     failure
 }
 
-/// Write the head and the body of a request on `io`, and read the answer.
-async fn exchange<S>(mut io: S, head: &str, body: &[u8], reading: Reading) -> Result<Response, Failure>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    let sent = async {
-        io.write_all(head.as_bytes()).await?;
-        io.write_all(body).await?;
-        io.flush().await
-    };
-    sent.await
-        .map_err(|e| Failure::caused(Stage::Connect, Class::of_io(e.kind()), format!("sending the request: {e}"), e))?;
-    http::read_answer(&mut io, Vec::new(), reading)
-        .await
-        .map_err(|e| Failure::caused(Stage::Connect, Class::of_io(e.kind()), format!("reading the answer: {e}"), e))
+/// `work` within the time limit of `request`. A failure says the method
+/// and the URL with no query, then why.
+async fn within<T>(request: &Request, work: impl Future<Output = Result<T, Failure>>) -> Result<T, Failure> {
+    let what = format!("{} {}", request.method, url::without_query(&request.url));
+    match tokio::time::timeout(request.timeout, work).await {
+        Ok(Ok(done)) => Ok(done),
+        Ok(Err(e)) => Err(Failure::caused(e.stage, e.class, format!("{what}: {}", e.text()), e)),
+        Err(_) => Err(Failure::new(
+            Stage::Connect,
+            Class::Timeout,
+            format!("{what}: no answer in {} s", request.timeout.as_secs()),
+        )),
+    }
 }

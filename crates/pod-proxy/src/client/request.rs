@@ -1,6 +1,7 @@
-//! One request of [`super::Client::send`]: its method, URL, headers and
-//! body, its time limit, the bound of its answer's body, and, for this
-//! request only, a way out and a trust.
+//! One request of [`super::Client::send`] and
+//! [`super::Client::send_streamed`]: its method, URL, headers and body, its
+//! time limits, the bound of its answer's body, and, for this request only,
+//! a way out and a trust.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,6 +20,10 @@ pub const MAX_HEAD: usize = 64 << 10;
 /// The time limit of a request, unless it sets its own.
 pub const TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The longest wait for the next bytes of a streamed body, unless a request
+/// sets its own.
+pub const BODY_IDLE: Duration = Duration::from_secs(30);
+
 /// One request.
 #[derive(Clone)]
 pub struct Request {
@@ -26,14 +31,21 @@ pub struct Request {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Option<Vec<u8>>,
-    /// The time limit of the whole request.
+    /// The time limit of the whole request of [`super::Client::send`]; of
+    /// the request and the head of the answer of
+    /// [`super::Client::send_streamed`].
     pub timeout: Duration,
+    /// The longest wait for the next bytes of the body of
+    /// [`super::Client::send_streamed`]: a large body takes long, so no
+    /// limit applies to the whole of it.
+    pub body_idle: Duration,
     /// A way out for this request only, in place of the client's dial.
     pub via: Option<Arc<dyn Dial>>,
     /// The trust of `https://` for this request only; `None`: the roots of
     /// the client's TLS context ([`pod_tls::Context::roots`]).
     pub trust: Option<Trust>,
-    /// The largest body of the answer.
+    /// The largest body of the answer of [`super::Client::send`]. A
+    /// streamed body has no bound: its reader takes what it needs.
     pub max_body: usize,
 }
 
@@ -46,6 +58,7 @@ impl std::fmt::Debug for Request {
             .field("headers", &self.headers.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>())
             .field("body", &self.body.as_ref().map(Vec::len))
             .field("timeout", &self.timeout)
+            .field("body_idle", &self.body_idle)
             .field("via", &self.via.as_ref().map(|d| d.label()))
             .field("max_body", &self.max_body)
             .finish_non_exhaustive()
@@ -60,6 +73,7 @@ impl Request {
             headers: Vec::new(),
             body: None,
             timeout: TIMEOUT,
+            body_idle: BODY_IDLE,
             via: None,
             trust: None,
             max_body: MAX_BODY,
@@ -85,6 +99,13 @@ impl Request {
 
     pub fn timeout(mut self, timeout: Duration) -> Request {
         self.timeout = timeout;
+        self
+    }
+
+    /// The longest wait for the next bytes of a streamed body, in place of
+    /// [`BODY_IDLE`].
+    pub fn body_idle(mut self, idle: Duration) -> Request {
+        self.body_idle = idle;
         self
     }
 

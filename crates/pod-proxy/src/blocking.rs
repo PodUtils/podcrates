@@ -292,4 +292,50 @@ impl Client {
     pub fn send(&self, request: Request) -> Result<Response, Failure> {
         self.runtime.block_on(self.inner.send(request))
     }
+
+    /// [`crate::Client::send_streamed`]: the head of the answer, and its
+    /// body as a reader on the runtime of the client.
+    pub fn send_streamed(&self, request: Request) -> Result<Streamed, Failure> {
+        let inner = self.runtime.block_on(self.inner.send_streamed(request))?;
+        Ok(Streamed { inner, runtime: self.runtime.clone() })
+    }
+}
+
+/// [`crate::client::Streamed`], blocking: each read of the body runs on the
+/// runtime of its client.
+#[derive(Debug)]
+pub struct Streamed {
+    inner: crate::client::Streamed,
+    runtime: Arc<Background>,
+}
+
+impl Streamed {
+    pub fn status(&self) -> u16 {
+        self.inner.status
+    }
+
+    pub fn reason(&self) -> &str {
+        &self.inner.reason
+    }
+
+    /// Header names lower-cased, values trimmed, in arrival order.
+    pub fn headers(&self) -> &[(String, String)] {
+        &self.inner.headers
+    }
+
+    /// The first value of a header, by case-insensitive name.
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.inner.header(name)
+    }
+
+    /// A status of 2xx.
+    pub fn is_success(&self) -> bool {
+        self.inner.is_success()
+    }
+}
+
+impl Read for Streamed {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.runtime.block_on(self.inner.read(buf))
+    }
 }

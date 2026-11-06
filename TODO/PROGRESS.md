@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 71 entries: 36 open, 1 partial, 0 blocked, 34 done.
+`TODO/INDEX.md` holds 71 entries: 35 open, 1 partial, 0 blocked, 35 done.
 
 ## State
 
@@ -36,8 +36,7 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
-   T-069 (podvm's pulls wait for it), T-071 (the gaps of the blocking
-   face); T-040 (the trials of
+   T-071 (the gaps of the blocking face); T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
 2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
    crate or a consumer needs it.
