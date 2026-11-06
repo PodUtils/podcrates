@@ -110,6 +110,48 @@ Remains:
   there, so the values are wrong; the fix calls `statfs64` with the size
   on those targets. It came from podvm as it is.
 
+2026-11-06, partial. The adoption trial of podvm at `b32b19c`
+(`adoption/podvm/pod-hostprobe.patch`: 50 files, 253 lines in, 8,024
+out; 39 files of `crates/`). podvm removes 26 files: 24 of
+`PodUtils/podvm:crates/podvm-probe` (each but `lib.rs` and `select.rs` of `src/` and of
+`src/sys/`, `src/probes/`, `src/select/tests.rs`, and `tests/`) and
+`PodUtils/podvm:crates/podvm-image/{src/exec_probe.rs,tests/space_precheck.rs}`, whose
+new `exec_probe.rs` is a call. `podvm-probe` keeps `exit`, `json`,
+`report`, `nongoals`, and re-exports `binfmt`, `child`, `identity`,
+`interp`, `machine`, `mounts`, `probes`, `supervise`, `sys`, `verdict`,
+`writable`, `Findings` and `Settings` of the crate, so each other crate
+of podvm keeps its `podvm_probe::X` paths. Its `select.rs` re-exports
+`pod_hostprobe::select` and keeps `BANNER_ROWS`, `banner_cell` and the
+test of the banner cell. Its `lib.rs` gives `settings()`
+(`--probe-child`, `podvm`, `Some("$PODVM_STORE")`), `candidates()`
+(`PODVM_STORE`, then `writable::VARIABLES`), `interpreter()` (the
+variables of the process), `confinement_key(&id)`, `run()` and
+`run_child(name)` (a name that is not a probe keeps podvm's message on
+stderr and 2; else the line goes to stdout). `podvm-image`'s `space.rs`
+and `exec_probe.rs` call the crate with podvm's settings and map a
+`Failure` to podvm's errors: an I/O cause to `Io` (its kind and path),
+`Class::Unavailable` to `NoSpace`, the rest to `Store`. Each podcrates
+tag moves to `v0.6.0`. Changed in podvm besides: the plant pins of the
+three moved test files (`podvm-gate`), the `Rung` line of
+`document-state`, the rows of `PodUtils/podvm:docs/runtime-state.md` (`linux-raw-sys`
+leaves, `pod-hostprobe` comes), and 58 citations of the moved files in
+`TODO/`, `experiments/260-multiarch.sh` and
+`PodUtils/podvm:vendor/userland-execve`,
+which name `pod_hostprobe::MODULE` (the record gate refuses a path that
+git does not track). No test or fixture of podvm pins `podvm-probe/1`.
+New tests in podvm: the settings, the order of the candidates, the
+mapping of each class and of an I/O failure; the other tests of the moved
+files are the crate's. The `.run` runs the tests of each user of
+`podvm-probe`, store_gates (the exec probe and the noexec refusal that
+names `PODVM_STORE`), the probe children through the binary (`podvm
+probe --rows`: 66 rows, 54 ok, 9 denied, 3 skipped, none "the child for";
+`--probe-child` speaks `pod-hostprobe/1`), clippy, rustfmt, the
+runtime-state rows, the record gate, the toolchains and the static
+`node` and `podvm`. It skips `abi::tests::resolve_past_a_denied_listing`
+of podvm-enter: it runs the test binary as nobody, which cannot read a
+target directory under a home of mode 0700. Each step passed. Remains:
+the release of v0.6.0 and the take by podvm.
+
 
 # T-056: `pod-oci`: the OCI registry client of podvm
 
