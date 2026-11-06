@@ -72,6 +72,15 @@ C19), and the work goes on with it until the owner rules otherwise.
   the ruling of podnet of 2026-11-05; the dry run of each release keeps
   the packaging ready (`docs/decisions.md`).
 
+- **Q6.** GitHub Actions is off for the account that pushes ("Actions has
+  been disabled for this user", the dispatch of `ci.yml` on 2026-11-06):
+  no workflow ran for a push after 03:01 UTC. The release v0.4.0 (its
+  commit `0319009` passed `scripts/agent/check.sh` here) waits for
+  `release.yml`, and each push for its CI. Recommendation: turn Actions on
+  again; then this session runs `release.yml` with `version=0.4.0`. The
+  other way, a tag `v0.4.0` pushed by hand, skips the GitHub release and the
+  dry run of `publish.yml`, and a tag cannot move: only on the owner's word.
+
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q6
 (the owner ruled Q1 to Q5: `docs/decisions.md`).

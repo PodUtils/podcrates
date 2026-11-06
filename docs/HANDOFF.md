@@ -6,6 +6,12 @@ has the work order; this page has only what is in flight.
 
 ## In flight: v0.4.0
 
+**Blocked: GitHub Actions is off for the pushing account** (Q6 of
+`TODO/PROGRESS.md`). The release commit is `0319009` (version 0.4.0, the
+notes, the Done sections); it passed `scripts/agent/check.sh` here. When
+Actions is on: the CI of `main`, then `release.yml` with `version=0.4.0`,
+then the hand-off (item 5).
+
 The crates are on `main`: `pod-dns` (T-015), `pod-services` (T-049), the
 fix of vectored writes in `pod-proxy` and `pod-tls` (T-065, `161a4d0`), and
 the check of the consumers' toolchains (T-045). One patch for each consumer
