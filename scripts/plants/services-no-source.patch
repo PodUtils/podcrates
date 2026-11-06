@@ -1,0 +1,28 @@
+diff --git a/crates/pod-services/services/plant-relay.toml b/crates/pod-services/services/plant-relay.toml
+new file mode 100644
+index 0000000..f32bb95
+--- /dev/null
++++ b/crates/pod-services/services/plant-relay.toml
+@@ -0,0 +1,22 @@
++# A planted service: its fact has no source. The build must fail.
++id = "plant-relay"
++kind = "relay"
++party = "A plant"
++about = "A relay whose limit names no source"
++
++[[endpoint]]
++name = "default"
++scheme = "https"
++host = "relay.example"
++port = 443
++source = { url = "https://relay.example/relays.json", read = 2026-11-06 }
++
++[[fact]]
++name = "idle-timeout-ms"
++value = 180000
++unit = "ms"
++
++[[watch]]
++kind = "http-json"
++url = "https://relay.example/relays.json"
++pointer = "/limits"

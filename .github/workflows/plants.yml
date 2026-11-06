@@ -10,6 +10,8 @@ on:
     paths:
       - "scripts/**"
       - "crates/pod-todo/**"
+      - "crates/pod-services/build.rs"
+      - "crates/pod-services/src/schema.rs"
       - "examples/static-probe/**"
       - "TODO/todo.toml"
       - ".github/workflows/plants.yml"

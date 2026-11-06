@@ -1,0 +1,7 @@
+# A service file whose fact names no source: the build of pod-services must
+# fail with the file and the field.
+ENTRY=T-049
+GROUP=services
+EXPECT='error: pod-services: services/plant-relay\.toml: fact "idle-timeout-ms": no source'
+RUN='cargo build -q -p pod-services'
+LIMIT=1800
