@@ -1,0 +1,49 @@
+# The trial of pod-proxy's streamed client in podvm (podvm T-1677,
+# PodUtils/podvm#207): podvm-image takes pod-proxy with the feature
+# `blocking`, and its new module net.rs carries each HTTP request of podvm
+# through `blocking::Client::send_streamed`: the registry (manifests, tags,
+# blobs, the token realm), the Windows guest image fetch of podvm and the
+# mirror probe of podvm-complete (reach.rs). The proxy is the environment's
+# (`https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, `NO_PROXY`) by the
+# rules of pod-proxy; podvm joins both spellings of NO_PROXY and pins
+# `ip6-localhost` to `::1`, so its own rules hold. A variable cannot name a
+# proxy at a command. net.rs follows a redirect of a GET or a HEAD (five at
+# most), keeps the Authorization header on its host, and refuses a redirect
+# from https:// to http://. Each request takes podvm's own TLS configuration
+# by `Trust::caller`: the verified one, or the one that accepts any
+# certificate for a registry that the caller named insecure. ureq leaves
+# podvm. transport.rs loses its own loopback and NO_PROXY rules.
+# podvm's tests of podvm-image (with the new net:: tests and
+# tests/proxy_pull.rs: a pull of the T-1531 fixture through a stand-in
+# CONNECT proxy that HTTPS_PROXY names, and its NO_PROXY bypass), the
+# Windows fetch of podvm, the probe of reach.rs and the host bundle of
+# pkg.rs, the CLI's transport words (store_gates); podvm-ssh, which keeps its
+# pod-proxy of the git tag, and its relay test where sshd is; clippy of the
+# workspace and rustfmt of the crates, as podvm's gate.yml runs them; podvm's
+# record gate; each Rust toolchain of the workflows against the rust-version
+# of podcrates; and the binaries `node` and `podvm` for x86_64 musl (podvm's
+# .cargo/config.toml: zig cc, static CRT), with podcrates' static check.
+cargo test -q -p podvm-image
+cargo test -q -p podvm --bin podvm -- windows::
+cargo test -q -p podvm --test store_gates
+cargo test -q -p podvm-complete --lib -- pkg:: reach::
+cargo test -q -p podvm-ssh --lib
+if command -v sshd > /dev/null || [ -x /usr/sbin/sshd ]; then cargo test -q -p podvm-ssh --test mux_two_client; else echo "adoption: no sshd: the test mux_two_client does not run"; fi
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo fmt -p podvm-image -p podvm-complete -p podvm --check
+# podvm's gate finds the root of the repository from the path of its binary,
+# so it runs from target/release/, with document-state beside it (gate.yml).
+cargo build -q --release -p podvm-gate && cargo build -q --release -p podvm-release --bin document-state
+mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-gate" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/document-state" target/release/
+# docs/runtime-state.md lists each direct git or registry dependency with its
+# locked version. The patch gives the rows of the git form (pod-core,
+# pod-proxy, pod-term and pod-tls at 0.5.0); the trial's path form has no row
+# for them. Each other row of the patch must be the generated one: ureq and
+# base64 0.22.1 leave.
+grep -v '^| .pod-' docs/runtime-state.md > target/runtime-state.patch.md && python3 scripts/document-state.py --write && grep -v '^| .pod-' docs/runtime-state.md | diff target/runtime-state.patch.md -
+./target/release/podvm-gate
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+! cargo tree -q -e normal -i ureq 2> /dev/null | grep -q ureq
+cargo build -q -p podvm-ssh --bin node && cargo build -q -p podvm --bin podvm
+sh "$PODCRATES/scripts/check-static.sh" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/node"
+sh "$PODCRATES/scripts/check-static.sh" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podvm"

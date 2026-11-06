@@ -131,3 +131,42 @@ empty and `add_roots` to the host bundle (T-068). podvm asks podcrates for
 the next trial: podvm-image's registry transport and the guest image fetch
 on `blocking::Client::send_streamed`, at podvm `cec4bcb` or later, with a
 pull through a local CONNECT stand-in and its `NO_PROXY` bypass.
+
+2026-11-06, partial. The trial of `pod-proxy`'s streamed client in podvm
+(PodUtils/podvm@T-1677, PodUtils/podvm#207) at podvm `f3eccd8`
+(`adoption/podvm/pod-proxy-registry.patch`, 16 files, 896 lines in, 353
+out). `podvm-image` takes `pod-proxy` (feature `blocking`) and `pod-core` at
+`v0.5.0`. The new module `net.rs` carries each HTTP request of podvm through
+`blocking::Client::send_streamed`: the registry (manifests, tags, blobs, the
+token realm), the Windows guest image fetch of `podvm` and the mirror probe
+of `podvm-complete` (`reach.rs`). Each blob streams through
+`blocking::Streamed` into podvm's verifier and the staged file. The proxy is
+the environment's by the rules of `pod-proxy`; podvm joins `NO_PROXY` and
+`no_proxy` and pins `ip6-localhost` to `::1`, so its own rules hold, and
+`Policy::use_proxy` goes. Each request takes podvm's TLS configuration by
+`Trust::caller` (verified, or accept-any for a registry named insecure).
+`net.rs` follows a redirect of a GET or a HEAD (five at most), keeps
+`Authorization` on its host and refuses `https://` to `http://`: the crate
+follows none. podvm names the host of a transport failure once
+(PodUtils/podvm@T-1420): it takes the repeats of the host out of the words
+of the crate (`could not connect to H: H: Connection refused`). ureq leaves
+podvm. New tests: `net::` (the loopback and `NO_PROXY` decisions, a command
+refused, redirects and the credential, a status) and `tests/proxy_pull.rs`
+(a pull of the fixture of PodUtils/podvm@T-1531 through a stand-in CONNECT
+proxy that `HTTPS_PROXY` names, by a name that only the proxy resolves, and
+its `NO_PROXY` bypass, each in a child process). Changed tests: `registry::tests` (the origin, the refused port and
+the lowercase causes through `net`), the loopback test moves from
+`transport.rs` to `net::tests`, and `windows::setup`'s hung origin; only
+ureq's types differ. Each step of `sh scripts/adoption.sh podvm
+pod-proxy-registry` passed: podvm-image 173 tests, the Windows fetch,
+store_gates, pkg:: and reach::, podvm-ssh 107 tests, clippy, rustfmt, the
+runtime-state rows, the record gate, the toolchains, no ureq in the graph,
+the static `node` and `podvm`; `mux_two_client` runs only where sshd is.
+Release size of `podvm`, x86_64 musl: 3314744 to
+3282072 bytes (-32672): tokio comes in (`pod-core`, `pod-tls`, `pod-proxy`,
+`tokio-rustls` under `podvm-image`), and ureq, `url`, the ICU crates and
+base64 0.22 go. Gaps of pod-proxy: no redirect; no keep-alive, so each
+request is a new TCP and TLS connection; one limit for the dial and the head;
+`HTTP_PROXY` is not read; the words of a dial failure repeat the target.
+podvm's `docs/decisions.md` C10 ("never into the `podvm` binary") needs a
+new call of podvm. Left: the take of this patch by podvm.
