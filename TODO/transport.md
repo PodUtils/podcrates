@@ -392,7 +392,7 @@ targets `api_surface`, `cli`, `connect`, `docs`, `doctor`, `egress`,
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -410,6 +410,32 @@ proxy. Each consumer needs both.
 
 The base of podssh, then podnet's DoH JSON, pins and query by name; one
 `Resolve` implementation; the parity list; the trials.
+
+The crate is in: the commits `f8902e2` to `1276611` (import of podssh at
+`a791553`, edition, adaptation, tests, the plant `dns-length-past-end`,
+the target `dns_wire`; import of podnet at `380d9a4`, the merge, the
+target `doh_json`, the plants `dns-nxdomain-ends-the-lookup` and
+`dns-cache-not-off`; README; static probe). `cargo test -p pod-dns
+--all-features`: 58 passed, 4 ignored (live), 8 of them podnet's by
+their names; 70 runs with no failure. A defect of the merge is fixed in
+`1276611`: an NXDOMAIN of AAAA after the addresses of A kept no address
+(`an_nxdomain_of_aaaa_after_the_addresses_of_a_keeps_them` fails before).
+The trials come with v0.4.0.
+
+## Decision
+
+- The resolvers are data of `pod-services`: the default settings take the
+  services of kind `doh` (role `v4`), the operators in turns, the
+  wire-only ones last, which gives podssh's list.
+- `Resolver::new` asks no DoH (podnet's `resolve_no_doh`): the dial of the
+  DoH questions takes such a resolver, so no question recurses.
+- The differences of the consumers are settings, not features: `system`,
+  `both`, `nxdomain`, `names` (`First` for podssh, `Last` for podnet),
+  `connect`, `trust`, `user_agent`, `memory`; the defaults are podssh's.
+- A resolver is asked by name when the dial resolves names inside
+  (`Dial::names_inside`).
+- The feature `ech`: `Resolver` and `Way` read the ECH list of a name for
+  `pod-tls`.
 
 ## Prove
 

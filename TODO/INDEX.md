@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**52 entries: 27 open, 2 partial, 1 blocked, 22 done.**
+**52 entries: 26 open, 3 partial, 1 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 14 | 1 | 0 | 17 | 32 |
+| P1 | 13 | 2 | 0 | 17 | 32 |
 | P2 | 9 | 1 | 1 | 5 | 16 |
 | P3 | 4 | 0 | 0 | 0 | 4 |
-| **All** | 27 | 2 | 1 | 22 | 52 |
+| **All** | 26 | 3 | 1 | 22 | 52 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-012](transport.md) | P1 | L | M1 | feature | done | `pod-tls`: trust, the TLS configurations, the pure-Rust provider and ECH |
 | [T-013](transport.md) | P1 | M | M1 | feature | done | `pod-proxy`: the dial, the proxies, the race of addresses and the HTTP client (the base of podssh) |
 | [T-014](transport.md) | P1 | M | M1 | feature | done | `pod-proxy`: podnet's proxy chain, Digest and fetch |
-| [T-015](transport.md) | P1 | M | M1 | feature | open | `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records |
+| [T-015](transport.md) | P1 | M | M1 | feature | partial | `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records |
 | [T-016](transport.md) | P1 | M | M1 | feature | open | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | open | One QUIC stack: quinn against noq, measured |
