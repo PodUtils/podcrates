@@ -961,7 +961,7 @@ podssh's release gate after podssh took `pod-proxy` (podssh `a791553`).
 **Milestone:** M1
 **Priority:** P0
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -996,3 +996,12 @@ call.
 cargo test -p pod-proxy --all-features --test stream
 cargo test -p pod-tls --all-features --lib fragment
 ```
+
+## Done
+
+2026-11-06, commit `161a4d0`. The four tests failed before the change
+(no stream said that it writes vectored) and pass after it; the checks of
+`scripts/agent/check.sh` pass. The fix goes to podssh with v0.4.0, whose
+patch removes podssh's workaround
+`PodUtils/podssh:crates/podssh-ws/src/dial/bare.rs` (podssh `ccfef9e`,
+PodUtils/podssh@T-690).
