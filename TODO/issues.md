@@ -18,4 +18,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #10 | COORD-007: podcrates v0.5.0 is released: each tag to v0.5.0 (to all) | open | T-040, T-069 |
 | #11 | COORD-008: pod-hostprobe is imported from podvm-probe; the freeze; a statfs defect (to podvm) | open | T-055, T-072 |
 | #12 | COORD-009: pod-dns names the DoH server that answered (to podnet) | open | T-073 |
-| #13 | COORD-010: the registry patch of podvm on pod-proxy (to podvm) | open | T-040, T-074, T-075, T-076, T-077 |
+| #13 | COORD-010: the registry patch of podvm on pod-proxy (to podvm) | closed (podvm `06f2427`) | T-040, T-074, T-075, T-076, T-077 |
