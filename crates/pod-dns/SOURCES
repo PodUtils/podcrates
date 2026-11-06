@@ -39,4 +39,8 @@ file 004c8cf1470679789faad90ce1561d13ad73e738 crates/podssh-ws/tests/fixtures/do
 file 7350fa26f813f109ad8c9cb42cc86626fdf49006 crates/podssh-ws/tests/live_doh.rs -> crates/pod-dns/tests/live_doh.rs
 
 repo PodUtils/podnet 380d9a4090465038124df32c4a29fd898649db99
-file 2c386d5dcbf3777c003d0e64474a73358af5bb16 src/resolve.rs -> crates/pod-dns/src/podnet_import/resolve.rs
+# The unit tests of src/resolve.rs are in src/settings.rs, src/doh.rs,
+# src/route.rs, src/lookup.rs and src/resolver.rs; the test
+# the_servers_are_ip_addresses_of_two_operators is in pod-services
+# (tests/moved.rs). The DoH servers are the data of pod-services.
+file 2c386d5dcbf3777c003d0e64474a73358af5bb16 src/resolve.rs -> crates/pod-dns/src/settings.rs crates/pod-dns/src/doh.rs crates/pod-dns/src/route.rs crates/pod-dns/src/lookup.rs crates/pod-dns/src/resolver.rs crates/pod-dns/src/json.rs crates/pod-dns/src/way.rs crates/pod-dns/src/ask.rs
