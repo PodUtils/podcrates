@@ -135,6 +135,7 @@ fn an_error_body_cannot_carry_terminal_controls() {
         reason: "Forbidden".into(),
         headers: Vec::new(),
         body: b"denied\x1b[2J\x07\r\nFAKE PROMPT$ ".to_vec(),
+        url: String::new(),
     };
     assert_eq!(r.body_text(200), "denied[2J FAKE PROMPT$");
 }
@@ -148,6 +149,7 @@ fn a_header_shown_in_a_line_cannot_carry_terminal_controls() {
         reason: "Too Many Requests".into(),
         headers: vec![("retry-after".into(), "30\x1b]0;owned\x07 then\x1b[2J more".into())],
         body: Vec::new(),
+        url: String::new(),
     };
     assert_eq!(r.header_text("Retry-After", 200).as_deref(), Some("30]0;owned then[2J more"));
     assert_eq!(r.header_text("retry-after", 4).as_deref(), Some("30]0…"));

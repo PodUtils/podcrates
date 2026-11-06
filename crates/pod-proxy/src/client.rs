@@ -17,7 +17,10 @@
 //!   within the time limit, and its body as a reader ([`Streamed`]) with no
 //!   bound of its size and a limit for each wait. [`Client::send`] reads
 //!   through it.
+//! * Both follow redirects when the request asks
+//!   ([`Request::redirects`]); the answer gives the URL that it came from.
 
+mod redirect;
 mod request;
 mod streamed;
 mod url;
@@ -147,23 +150,23 @@ impl Client {
             })
     }
 
-    /// Send `request` and read its answer, the whole within its time limit.
-    /// A failure says the method and the URL with no query, then why, at
-    /// the stage of the step that failed.
+    /// Send `request` and read its answer, the whole within its time limit,
+    /// each redirect that it asks for too. A failure says the method and the
+    /// URL with no query, then why, at the stage of the step that failed.
     pub async fn send(&self, request: Request) -> Result<Response, Failure> {
         let limit = u64::try_from(request.max_body).unwrap_or(u64::MAX);
         let bounds = Bounds { head_only: request.method == "HEAD", limit: Some(limit), idle: None };
-        within(&request, async { self.open(&request, bounds).await?.into_response().await }).await
+        within(&request, async { self.follow(&request, bounds).await?.into_response().await }).await
     }
 
     /// Send `request` and read the head of its answer within its time
-    /// limit; the caller reads the body from the [`Streamed`] as it comes,
+    /// limit, the heads of each redirect that it asks for too; the caller reads the body from the [`Streamed`] as it comes,
     /// with no bound of its size, each read within
     /// [`Request::body_idle`]. A failure has the words of
     /// [`Client::send`].
     pub async fn send_streamed(&self, request: Request) -> Result<Streamed, Failure> {
         let bounds = Bounds { head_only: request.method == "HEAD", limit: None, idle: Some(request.body_idle) };
-        within(&request, self.open(&request, bounds)).await
+        within(&request, self.follow(&request, bounds)).await
     }
 
     /// The connection of `request`, the request sent on it, and the head of
@@ -180,12 +183,12 @@ impl Client {
                 None => self.roots()?,
             };
             let tls = self.open_tls(dial, &target.host, target.port, &trust, request.timeout, HTTP1).await;
-            streamed::start(tls.map_err(network_or_tls)?, &head, body, bounds).await
+            streamed::start(tls.map_err(network_or_tls)?, &request.url, &head, body, bounds).await
         } else {
             let deadline = tokio::time::Instant::now() + request.timeout;
             // The proxy of `http_proxy`, not of `https_proxy`.
             let tcp = dial.dial_http(&Target::new(&target.host, target.port), deadline).await?;
-            streamed::start(tcp.io, &head, body, bounds).await
+            streamed::start(tcp.io, &request.url, &head, body, bounds).await
         }
     }
 

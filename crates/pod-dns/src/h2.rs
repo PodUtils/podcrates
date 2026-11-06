@@ -117,7 +117,7 @@ async fn ask(
         }
         out.extend_from_slice(&chunk);
     }
-    Ok(Response { status, reason: String::new(), headers: Vec::new(), body: out })
+    Ok(Response { status, reason: String::new(), headers: Vec::new(), body: out, url: String::new() })
 }
 
 #[cfg(test)]

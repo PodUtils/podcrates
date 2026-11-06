@@ -47,6 +47,9 @@ pub struct Request {
     /// The largest body of the answer of [`super::Client::send`]. A
     /// streamed body has no bound: its reader takes what it needs.
     pub max_body: usize,
+    /// The most redirects that a `GET` or a `HEAD` follows; 0: none, the
+    /// 3xx answer comes back as it is ([`Request::redirects`]).
+    pub redirects: u8,
 }
 
 impl std::fmt::Debug for Request {
@@ -61,6 +64,7 @@ impl std::fmt::Debug for Request {
             .field("body_idle", &self.body_idle)
             .field("via", &self.via.as_ref().map(|d| d.label()))
             .field("max_body", &self.max_body)
+            .field("redirects", &self.redirects)
             .finish_non_exhaustive()
     }
 }
@@ -77,6 +81,7 @@ impl Request {
             via: None,
             trust: None,
             max_body: MAX_BODY,
+            redirects: 0,
         }
     }
 
@@ -124,6 +129,19 @@ impl Request {
     /// Set the largest body of the answer, in place of [`MAX_BODY`].
     pub fn max_body(mut self, max: usize) -> Request {
         self.max_body = max;
+        self
+    }
+
+    /// Follow at most `most` redirects (301, 302, 303, 307, 308) of a `GET`
+    /// or a `HEAD`; another method gets the 3xx answer as it is. The
+    /// `Location` resolves against the URL that gave it. Each hop takes the
+    /// proxy of its own URL and the trust of this request, and the time
+    /// limit covers the heads of all hops. `Authorization`,
+    /// `Proxy-Authorization` and `Cookie` go only to the scheme, the host and
+    /// the port of the first URL. A step from `https://` to `http://`, and
+    /// one more redirect than `most`, are errors.
+    pub fn redirects(mut self, most: u8) -> Request {
+        self.redirects = most;
         self
     }
 

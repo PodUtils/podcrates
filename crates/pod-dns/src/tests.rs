@@ -144,7 +144,7 @@ fn through_a_proxy_a_resolver_is_asked_by_its_name_first() {
 }
 
 fn answer(status: u16, body: &[u8]) -> http::Response {
-    http::Response { status, reason: String::new(), headers: Vec::new(), body: body.to_vec() }
+    http::Response { status, reason: String::new(), headers: Vec::new(), body: body.to_vec(), url: String::new() }
 }
 
 /// An answer that is not of the form asked goes to the other form; the status

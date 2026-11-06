@@ -1520,7 +1520,7 @@ the dial and podvm's ureq did (no capability is lost); curl's list
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1543,6 +1543,39 @@ and HEAD with podvm's rules; podvm's glue then goes. Tests of each rule.
 ```sh
 cargo test -p pod-proxy --all-features --test streamed
 ```
+
+## Done
+
+2026-11-06. `Request::redirects(n)` (the field `redirects: u8`, 0 by
+default: no change for a request that does not ask). `Client::send` and
+`send_streamed` go through one loop (`src/client/redirect.rs`), and the
+blocking face through them. With n > 0 a `GET` or a `HEAD` follows 301,
+302, 303, 307 and 308, at most n; another method, and a 3xx with no
+`Location`, give the 3xx as it is. The `Location` resolves against the URL
+that gave it (absolute, `//host/path`, `/path`, a relative path with `.`
+and `..`, `?query`; the fragment goes). Each hop takes the proxy of its own
+URL and the trust of the request; `Request::timeout` covers the heads of
+the chain, `body_idle` the last body. `Authorization`,
+`Proxy-Authorization` and `Cookie` go only to the scheme, host and port of
+the first URL. A step from `https://` to `http://` is a `Failure`
+(`a redirect from https:// to http:// is refused: FROM to TO`), and so is
+one more redirect than n (`more than N redirects; the last one to URL`);
+the URLs in the words have no query. `Response::url`, `Streamed::url` and
+`blocking::Streamed::url()` give the URL of the answer (after redirects,
+the last one); an answer of `http::exchange` has an empty `url`. Tests:
+`tests/redirect.rs` (8: a 302 on the same host, each status, the
+credentials and another port, a redirect over HTTPS with the trust of the
+request, https to http refused, n=2 with 3 redirects, a `POST` and the
+default, a relative `Location`), `a_redirect_is_followed` in
+`tests/blocking_streamed.rs`, and `a_location_joins_its_base`
+(`src/client/redirect.rs`). With the loop off, 7 of the 8 failed, for
+example `a_302_to_another_path_of_the_host_is_followed` (`left: (302, "")`,
+`right: (200, "ok")`); `a_post_and_the_default_get_the_redirect_as_it_is`
+keeps the old behaviour. `cargo test -p pod-proxy --all-features` (178),
+`cargo test -p pod-dns --all-features` (59), clippy, fmt, rustdoc with
+`-D warnings`, `cargo todo check` and `check-size.py` pass. podvm's
+redirect glue goes with `Request::redirects(5)` (`crates/pod-proxy/README.md`,
+adoption map).
 
 
 # T-077: `pod-proxy`: keep-alive connections in the client

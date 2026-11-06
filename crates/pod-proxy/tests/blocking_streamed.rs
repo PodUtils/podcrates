@@ -2,7 +2,7 @@
 //! runtime of the caller: a body larger than the bound of a buffered one,
 //! by length and by chunks; a body cut before its length; a peer that stops
 //! sending; through a CONNECT proxy, and directly where `NO_PROXY` names the
-//! host.
+//! host; a redirect that the request asks to follow.
 
 mod closed;
 #[allow(dead_code)]
@@ -80,6 +80,23 @@ fn a_body_that_stops_ends_at_the_idle_limit() {
     let stopped = read_all(&mut streamed).unwrap_err();
     assert_eq!(stopped.kind(), std::io::ErrorKind::TimedOut, "{stopped}");
     assert!(start.elapsed() < Duration::from_secs(5), "the read waited {:?}", start.elapsed());
+}
+
+/// The blocking face follows a redirect through the async one, and gives
+/// the URL of the answer.
+#[test]
+fn a_redirect_is_followed() {
+    pod_testkit::need_loopback!();
+    let sent = body(1 << 16);
+    let served = serve(Answer::Redirect("/v2/moved"), sent.clone());
+    let client = client(&served, ProxyChoice::Direct, pins());
+    let mut streamed = client.send_streamed(request(&served).redirects(1)).expect("an answer");
+    assert_eq!(streamed.status(), 200);
+    assert_eq!(streamed.url(), format!("https://{NAME}:{}/v2/moved", served.port));
+    assert_eq!(sha256(&read_all(&mut streamed).expect("the body")), sha256(&sent));
+    let followed = client.send(request(&served).redirects(1)).expect("an answer");
+    assert_eq!((followed.status, followed.url.ends_with("/v2/moved")), (200, true));
+    assert_eq!(client.send(request(&served)).expect("an answer").status, 302);
 }
 
 /// A stand-in HTTP proxy that answers one CONNECT, connects to the port of

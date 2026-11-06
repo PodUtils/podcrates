@@ -372,6 +372,11 @@ impl Streamed {
     pub fn is_success(&self) -> bool {
         self.inner.is_success()
     }
+
+    /// The URL that gave this answer: after redirects, the last one.
+    pub fn url(&self) -> &str {
+        &self.inner.url
+    }
 }
 
 impl Read for Streamed {

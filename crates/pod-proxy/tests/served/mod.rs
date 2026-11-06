@@ -37,6 +37,10 @@ pub enum Answer {
     /// A `Content-Length` and no body (the answer to a `HEAD`), and no
     /// more bytes.
     HeadOnly,
+    /// A 302 to this location; a `GET` of this path gets the body with its
+    /// `Content-Length`.
+    #[allow(dead_code, reason = "only the tests of redirects use it")]
+    Redirect(&'static str),
 }
 
 /// The server: its port, the trust of its CA, a TLS context, and the heads
@@ -95,7 +99,12 @@ pub fn serve(answer: Answer, body: Arc<Vec<u8>>) -> Served {
                             _ => return,
                         }
                     }
-                    let _ = told.send(String::from_utf8_lossy(&head).into_owned());
+                    let head = String::from_utf8_lossy(&head).into_owned();
+                    let answer = match answer {
+                        Answer::Redirect(to) if head.starts_with(&format!("GET {to} ")) => Answer::Length,
+                        answer => answer,
+                    };
+                    let _ = told.send(head);
                     let _ = answer_with(&mut tls, answer, &body).await;
                 });
             }
@@ -145,6 +154,10 @@ where
             }
             tls.flush().await?;
             tokio::time::sleep(Duration::from_secs(30)).await;
+        }
+        Answer::Redirect(to) => {
+            let head = format!("HTTP/1.1 302 Found\r\nLocation: {to}\r\nContent-Length: 0\r\n\r\n");
+            tls.write_all(head.as_bytes()).await?;
         }
     }
     tls.shutdown().await

@@ -41,6 +41,10 @@ pub struct Response {
     /// Header names lower-cased, values trimmed, in arrival order.
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+    /// The URL that gave the answer of [`crate::Client::send`]: after
+    /// redirects, the last one. Empty for the answer of an exchange over a
+    /// stream that the caller opened.
+    pub url: String,
 }
 
 impl Response {
@@ -189,7 +193,7 @@ where
             buffered = rest;
             continue;
         }
-        return Ok((Response { status, reason, headers, body: Vec::new() }, rest));
+        return Ok((Response { status, reason, headers, body: Vec::new(), url: String::new() }, rest));
     }
 }
 

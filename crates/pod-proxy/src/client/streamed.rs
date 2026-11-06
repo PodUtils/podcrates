@@ -26,6 +26,8 @@ pub struct Streamed {
     pub reason: String,
     /// Header names lower-cased, values trimmed, in arrival order.
     pub headers: Vec<(String, String)>,
+    /// The URL that gave this answer: after redirects, the last one.
+    pub url: String,
     body: Body<Idle<Reader>>,
 }
 
@@ -49,9 +51,9 @@ impl Streamed {
 
     /// The whole answer, its body read into memory.
     pub(super) async fn into_response(self) -> Result<Response, Failure> {
-        let Streamed { status, reason, headers, body } = self;
+        let Streamed { status, reason, headers, url, body } = self;
         let body = body.to_end().await.map_err(reading_failure)?;
-        Ok(Response { status, reason, headers, body })
+        Ok(Response { status, reason, headers, body, url })
     }
 }
 
@@ -62,6 +64,7 @@ impl AsyncRead for Streamed {
 }
 
 /// How the body of an answer is read.
+#[derive(Clone, Copy)]
 pub(super) struct Bounds {
     pub head_only: bool,
     /// The largest body; `None`: no bound.
@@ -70,9 +73,9 @@ pub(super) struct Bounds {
     pub idle: Option<Duration>,
 }
 
-/// Write the head and the body of a request on `io`, and read the head of
-/// the answer.
-pub(super) async fn start<S>(mut io: S, head: &str, body: &[u8], bounds: Bounds) -> Result<Streamed, Failure>
+/// Write the head and the body of a request to `url` on `io`, and read the
+/// head of the answer.
+pub(super) async fn start<S>(mut io: S, url: &str, head: &str, body: &[u8], bounds: Bounds) -> Result<Streamed, Failure>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
@@ -87,7 +90,8 @@ where
     let (answer, rest) = http::read_head(&mut io, Vec::new(), MAX_HEAD).await.map_err(reading_failure)?;
     let framing = Framing::of(&answer, bounds.head_only);
     let body = Body::new(Idle::new(io, bounds.idle), rest, framing, bounds.limit).map_err(reading_failure)?;
-    Ok(Streamed { status: answer.status, reason: answer.reason, headers: answer.headers, body })
+    let (status, reason, headers, url) = (answer.status, answer.reason, answer.headers, url.to_string());
+    Ok(Streamed { status, reason, headers, url, body })
 }
 
 fn reading_failure(e: io::Error) -> Failure {
