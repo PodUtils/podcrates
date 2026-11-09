@@ -2304,4 +2304,4 @@ cargo test -p pod-services
 
 ## Done
 
-2026-11-09, COMMIT. `crates/pod-services/services/pinggy.toml` holds the two endpoints, the three facts and the watch `ssh-host-key`. `crates/pod-services/README.md` lists `ssh+tls`, `min` and the kind. `cargo test -p pod-services`: `pinggy_has_ssh_inside_tls_and_its_host_key` passes.
+2026-11-09, `48539d2`. `crates/pod-services/services/pinggy.toml` holds the two endpoints, the three facts and the watch `ssh-host-key`. `crates/pod-services/README.md` lists `ssh+tls`, `min` and the kind. `cargo test -p pod-services`: `pinggy_has_ssh_inside_tls_and_its_host_key` passes.
