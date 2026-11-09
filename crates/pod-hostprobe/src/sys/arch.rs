@@ -102,7 +102,15 @@ mod entry_points {
 )))]
 mod entry_points {
     use super::Entry;
+    // x86 and arm: plain `chown` takes 16-bit ids, so the `*32` form is the
+    // one that can name an id above 65535.
+    #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+    pub const CHOWN: Entry = Entry { nr: nr!(chown32, __NR_chown32), name: "chown32", via_at: false };
+    #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+    pub const LCHOWN: Entry = Entry { nr: nr!(lchown32, __NR_lchown32), name: "lchown32", via_at: false };
+    #[cfg(not(any(target_arch = "x86", target_arch = "arm")))]
     pub const CHOWN: Entry = Entry { nr: nr!(chown, __NR_chown), name: "chown", via_at: false };
+    #[cfg(not(any(target_arch = "x86", target_arch = "arm")))]
     pub const LCHOWN: Entry = Entry { nr: nr!(lchown, __NR_lchown), name: "lchown", via_at: false };
     pub const MKNOD: Entry = Entry { nr: nr!(mknod, __NR_mknod), name: "mknod", via_at: false };
 }

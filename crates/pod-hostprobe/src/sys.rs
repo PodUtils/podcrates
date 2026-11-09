@@ -178,13 +178,33 @@ pub const SYS_EXECVEAT: i64 = nr!(execveat, __NR_execveat);
 pub const SYS_WAIT4: i64 = nr!(wait4, __NR_wait4);
 pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
 pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
-pub const SYS_GETUID: i64 = nr!(getuid, __NR_getuid);
-pub const SYS_GETGID: i64 = nr!(getgid, __NR_getgid);
-pub const SYS_SETUID: i64 = nr!(setuid, __NR_setuid);
-pub const SYS_SETGID: i64 = nr!(setgid, __NR_setgid);
 pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
-pub const SYS_GETGROUPS: i64 = nr!(getgroups, __NR_getgroups);
-pub const SYS_SETGROUPS: i64 = nr!(setgroups, __NR_setgroups);
+
+// The id calls. On x86 and arm the plain `getuid` family is the 16-bit
+// form: an id above 65535 reads as 65534. The 32-bit kernel has the `*32`
+// form of each. Every other target has only the 32-bit form under the
+// plain name.
+#[cfg(any(target_arch = "x86", target_arch = "arm"))]
+mod id_calls {
+    pub const SYS_GETUID: i64 = nr!(getuid32, __NR_getuid32);
+    pub const SYS_GETGID: i64 = nr!(getgid32, __NR_getgid32);
+    pub const SYS_SETUID: i64 = nr!(setuid32, __NR_setuid32);
+    pub const SYS_SETGID: i64 = nr!(setgid32, __NR_setgid32);
+    pub const SYS_GETGROUPS: i64 = nr!(getgroups32, __NR_getgroups32);
+    pub const SYS_SETGROUPS: i64 = nr!(setgroups32, __NR_setgroups32);
+}
+
+#[cfg(not(any(target_arch = "x86", target_arch = "arm")))]
+mod id_calls {
+    pub const SYS_GETUID: i64 = nr!(getuid, __NR_getuid);
+    pub const SYS_GETGID: i64 = nr!(getgid, __NR_getgid);
+    pub const SYS_SETUID: i64 = nr!(setuid, __NR_setuid);
+    pub const SYS_SETGID: i64 = nr!(setgid, __NR_setgid);
+    pub const SYS_GETGROUPS: i64 = nr!(getgroups, __NR_getgroups);
+    pub const SYS_SETGROUPS: i64 = nr!(setgroups, __NR_setgroups);
+}
+
+pub use id_calls::{SYS_GETGID, SYS_GETGROUPS, SYS_GETUID, SYS_SETGID, SYS_SETGROUPS, SYS_SETUID};
 pub const SYS_STATFS: i64 = nr!(statfs, __NR_statfs);
 /// The wide form of a 32-bit kernel: `statfs` there writes the narrow
 /// struct into a buffer of the wide one.

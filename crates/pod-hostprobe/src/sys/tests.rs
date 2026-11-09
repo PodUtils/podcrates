@@ -149,3 +149,77 @@ fn statfs_reads_the_wide_struct_on_each_width() {
     assert!(bsize > 0 && (bsize as u64).is_power_of_two(), "f_bsize {bsize}");
     assert!(ffree <= files, "f_ffree {ffree}, f_files {files}");
 }
+
+/// The id calls are the 32-bit form on each target. On x86 and arm the plain
+/// name is the 16-bit call, and an id above 65535 reads wrong through it.
+#[test]
+fn the_id_calls_are_the_32_bit_form_on_each_target() {
+    let n = [SYS_GETUID, SYS_GETGID, SYS_SETUID, SYS_SETGID, SYS_GETGROUPS, SYS_SETGROUPS];
+    // kernel numbers: i386 and arm EABI share these.
+    #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+    assert_eq!(n, [199, 200, 213, 214, 205, 206], "32-bit id calls");
+    #[cfg(target_arch = "x86_64")]
+    assert_eq!(n, [102, 104, 105, 106, 115, 116], "x86_64 id calls");
+    #[cfg(target_arch = "aarch64")]
+    assert_eq!(n, [174, 176, 146, 144, 158, 159], "aarch64 id calls");
+    #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+    assert_eq!([CHOWN.nr, LCHOWN.nr], [212, 198], "32-bit chown calls");
+    #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+    assert_eq!([CHOWN.name, LCHOWN.name], ["chown32", "lchown32"]);
+    assert!(n.iter().all(|&x| x > 0));
+}
+
+fn status_ids(key: &str) -> Vec<u32> {
+    let s = std::fs::read_to_string("/proc/self/status").expect("status");
+    let l = s.lines().find(|l| l.starts_with(key)).expect("line");
+    l[key.len()..].split_whitespace().map(|v| v.parse().expect("id")).collect()
+}
+
+#[test]
+fn the_ids_match_proc_self_status() {
+    let uid = unsafe { syscall6(SYS_GETUID, 0, 0, 0, 0, 0, 0) };
+    let gid = unsafe { syscall6(SYS_GETGID, 0, 0, 0, 0, 0, 0) };
+    assert_eq!(uid as u32, status_ids("Uid:")[0]);
+    assert_eq!(gid as u32, status_ids("Gid:")[0]);
+    let mut got: Vec<u32> = getgroups().expect("getgroups").into_iter().map(|g| g as u32).collect();
+    let mut want = status_ids("Groups:");
+    got.sort_unstable();
+    want.sort_unstable();
+    assert_eq!(got, want);
+}
+
+/// A child with an id above 65535 reads it whole. Needs root; skipped
+/// otherwise.
+#[test]
+fn an_id_above_65535_reads_whole() {
+    use std::os::unix::process::CommandExt;
+    if unsafe { syscall6(SYS_GETUID, 0, 0, 0, 0, 0, 0) } != 0 {
+        return;
+    }
+    const HIGH: u32 = 100_000;
+    let mut cmd = std::process::Command::new("true");
+    unsafe {
+        cmd.pre_exec(|| {
+            let list = [HIGH];
+            let set = syscall6(SYS_SETGROUPS, 1, list.as_ptr() as u64, 0, 0, 0, 0)
+                | syscall6(SYS_SETGID, HIGH as u64, 0, 0, 0, 0, 0)
+                | syscall6(SYS_SETUID, HIGH as u64, 0, 0, 0, 0, 0);
+            if set != 0 {
+                return Err(std::io::Error::from_raw_os_error(4243));
+            }
+            let uid = syscall6(SYS_GETUID, 0, 0, 0, 0, 0, 0);
+            let gid = syscall6(SYS_GETGID, 0, 0, 0, 0, 0, 0);
+            let mut buf = [0u32; 4];
+            let n = syscall6(SYS_GETGROUPS, 4, buf.as_mut_ptr() as u64, 0, 0, 0, 0);
+            if uid == HIGH as i64 && gid == HIGH as i64 && n == 1 && buf[0] == HIGH {
+                Ok(())
+            } else {
+                Err(std::io::Error::from_raw_os_error(4242))
+            }
+        });
+    }
+    if let Err(e) = cmd.spawn().map(|mut c| c.wait()) {
+        assert_ne!(e.raw_os_error(), Some(4242), "an id above 65535 read wrong");
+        assert_ne!(e.raw_os_error(), Some(4243), "an id above 65535 was not set");
+    }
+}

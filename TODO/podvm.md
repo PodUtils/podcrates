@@ -901,3 +901,46 @@ cargo zigbuild --tests -p pod-supervise --target i686-unknown-linux-musl  # then
 2026-11-09. `lifecycle` passes as an i686 musl binary ("5 steps passed");
 before the change it failed with 128 and 137 as in the nightly. The
 nightly dispatched after the landing is the proof for the arm targets.
+
+# T-132: `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm
+
+**Source:** found by the import of `pod-enter` (T-059).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On i686 and arm, `getuid`, `getgid`, `setuid`, `setgid`, `getgroups`,
+`setgroups`, `chown` and `lchown` are the 16-bit forms of the kernel. An
+id above 65535 reads as 65534 or is refused. `identity::read` and the FUSE
+mount options of `pod-enter` take the ids through them.
+
+## Premise
+
+- Read: i386 and arm EABI have `getuid32` 199, `getgid32` 200,
+  `getgroups32` 205, `setgroups32` 206, `setuid32` 213, `setgid32` 214,
+  `chown32` 212 and `lchown32` 198. `fchownat` takes 32-bit ids on each
+  target.
+- Read: the other targets have only the 32-bit form under the plain name.
+
+## Approach
+
+`sys.rs` and `sys/arch.rs` choose the `*32` number by `target_arch`
+(`x86`, `arm`). The probe rows print `chown32` and `lchown32` there.
+
+## Prove
+
+```sh
+cargo zigbuild --tests -p pod-hostprobe --target i686-unknown-linux-musl  # then run `pod_hostprobe`
+```
+
+## Done
+
+2026-11-09. Commit: the commit that names T-132. The i686 musl test binary
+of `pod-hostprobe` passes (96 tests), with `an_id_above_65535_reads_whole`
+(a child as root sets the id 100000 and reads it back). `pod-hostprobe` and
+`pod-enter` build for `arm` and `armv7`. The nightly is the proof for the
+arm runs.
