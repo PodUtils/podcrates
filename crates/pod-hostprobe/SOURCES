@@ -1,6 +1,6 @@
 # The files of this crate that came from another repository
 # (docs/design.md, section 9). scripts/check-sources.py compares each
-# with the main branch of its repository.
+# with the default branch of its repository.
 
 repo PodUtils/podvm 2c03085f857719d8f35341bd251c6bee90414a8f
 taken 8899c2edc87ebcd484a9fbaeab8a19f081c180d5

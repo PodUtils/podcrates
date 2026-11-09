@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the imported files of each crate with the main branch of their
+"""Compare the imported files of each crate with the default branch of their
 repository (docs/design.md, section 9: drift).
 
   python3 -I scripts/check-sources.py [--clone REPO=DIR]... [--plant-change] [CRATE...]
@@ -18,18 +18,24 @@ Each crate that holds code of another repository has crates/CRATE/SOURCES:
   taken TAKEN [PATH...]           the consumer took the crate at TAKEN: the
                                   files of the block (or the PATHs, files or
                                   directories) are compared with the parent
-                                  of TAKEN, not with main, so that a fix
-                                  before the adoption is still found and the
-                                  adoption itself is no change
+                                  of TAKEN, not with the default branch, so
+                                  that a fix before the adoption is still
+                                  found and the adoption itself is no change
 
 A SOURCES file can hold more than one `repo` block. `#` starts a comment.
 
-The check reads each directory of each block at the main branch of its
-repository: through the read-only mirror of the GitHub API
-(CHECK_SOURCES_API, by default https://forge.web.pkgforge.dev/github), or
-through a local clone that --clone names (`git fetch` first). It prints one
-line for each changed, new and removed file, with the commits that touched
-it after the import. A change becomes a record entry "port" (TODO/RULES.md).
+The check reads each directory of each block at the default branch of its
+repository (`main`, `master` or another name): through the read-only mirror
+of the GitHub API (CHECK_SOURCES_API, by default
+https://forge.web.pkgforge.dev/github), which gives the default branch at
+`GET /repos/REPO`, or through a local clone that --clone names (`git fetch`
+first), whose `origin/HEAD` names it. It prints one line for each changed,
+new and removed file, with the commits that touched it after the import. A
+change becomes a record entry "port" (TODO/RULES.md).
+
+A file is `removed` only when the read at a resolved branch or commit finds
+no file. A branch or a commit that the check cannot resolve is a source that
+cannot be read (exit 2), never a removal.
 
 `record` writes a block from a local clone at COMMIT: each file under each
 DIR that no --skip names, with the file of the crate that --map gives.
@@ -112,37 +118,63 @@ def skipped(b: Block, rel: str) -> bool:
     return any(rel == s or rel.startswith(s + "/") for s in b.skips)
 
 
-def get_json(url: str):
+class Absent(Exception):
+    """The API answered 404."""
+
+
+def get_json(url: str, absent_ok: bool = False):
+    """The JSON document at url. With absent_ok, a 404 raises Absent; each
+    other failure is Unreadable."""
     sep = "&" if "?" in url else "?"
     url = f"{url}{sep}n={random.randrange(1 << 30)}"
     req = urllib.request.Request(url, headers={"User-Agent": "podcrates-check-sources"})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.load(r)
+    except urllib.error.HTTPError as e:
+        if absent_ok and e.code == 404:
+            raise Absent(url) from e
+        raise Unreadable(f"{url}: {e}") from e
     except (urllib.error.URLError, OSError, ValueError) as e:
         raise Unreadable(f"{url}: {e}") from e
 
 
 class Mirror:
-    """The main branch of a repository through the GitHub API."""
+    """The default branch of a repository through the GitHub API."""
 
     def __init__(self, repo: str):
         self.repo = repo
         self.parents = {}
+        self.branch = None
+
+    def default_branch(self) -> str:
+        """The default branch, read once (`GET /repos/REPO`)."""
+        if self.branch is None:
+            data = get_json(f"{API}/repos/{self.repo}")
+            branch = data.get("default_branch") if isinstance(data, dict) else None
+            if not isinstance(branch, str) or not branch:
+                raise Unreadable(f"{self.repo}: the API names no default branch")
+            self.branch = branch
+        return self.branch
 
     def rev(self, taken) -> str:
-        """main, or the parent of the commit of an adoption."""
+        """The default branch, or the parent of the commit of an adoption."""
         if taken is None:
-            return "main"
+            return self.default_branch()
         if taken not in self.parents:
             data = get_json(f"{API}/repos/{self.repo}/commits/{taken}")
             self.parents[taken] = data["parents"][0]["sha"]
         return self.parents[taken]
 
-    def tree(self, path: str, rev: str = "main") -> dict:
-        """{file: blob} under a directory, or {path: blob} for a file."""
+    def tree(self, path: str, rev: str) -> dict:
+        """{file: blob} under a directory, {path: blob} for a file, or {} when
+        the path is not at rev. rev is resolved (rev()), so a 404 is the
+        path's."""
         quoted = urllib.parse.quote(path)
-        data = get_json(f"{API}/repos/{self.repo}/contents/{quoted}?ref={rev}")
+        try:
+            data = get_json(f"{API}/repos/{self.repo}/contents/{quoted}?ref={rev}", absent_ok=True)
+        except Absent:
+            return {}
         if isinstance(data, dict):
             if data.get("type") == "file":
                 return {data["path"]: data["sha"]}
@@ -155,22 +187,24 @@ class Mirror:
                 out.update(self.tree(e["path"], rev))
         return out
 
-    def commits(self, path: str, since: str, rev: str = "main") -> list[str]:
+    def commits(self, path: str, since: str, rev: str) -> list[str]:
         quoted = urllib.parse.quote(path)
         data = get_json(f"{API}/repos/{self.repo}/commits?path={quoted}&sha={rev}&per_page=20")
         out = []
         for c in data:
             if c["sha"].startswith(since) or since.startswith(c["sha"]):
                 break
-            out.append(f"{c['sha'][:7]} {c['commit']['message'].splitlines()[0][:90]}")
+            subject = (c["commit"]["message"].splitlines() or [""])[0]
+            out.append(f"{c['sha'][:7]} {subject[:90]}")
         return out
 
 
 class Clone:
-    """The main branch of a repository in a local clone (origin/main)."""
+    """The default branch of a repository in a local clone (origin/HEAD)."""
 
     def __init__(self, path: str):
         self.path = path
+        self.branch = None
 
     def git(self, *args) -> str:
         r = subprocess.run(["git", "-C", self.path, *args], capture_output=True, text=True)
@@ -178,11 +212,35 @@ class Clone:
             raise Unreadable(f"git {' '.join(args)} in {self.path}: {r.stderr.strip()}")
         return r.stdout
 
-    def rev(self, taken) -> str:
-        """origin/main, or the parent of the commit of an adoption."""
-        return "origin/main" if taken is None else f"{taken}^"
+    def default_branch(self) -> str:
+        """origin/BRANCH for the default branch: the origin/HEAD of the clone,
+        else the HEAD that the remote names."""
+        if self.branch is None:
+            try:
+                ref = self.git("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD").strip()
+                branch = ref.removeprefix("refs/remotes/origin/")
+            except Unreadable:
+                branch = ""
+                for line in self.git("ls-remote", "--symref", "origin", "HEAD").splitlines():
+                    if line.startswith("ref: refs/heads/") and line.endswith("\tHEAD"):
+                        branch = line[len("ref: refs/heads/"):-len("\tHEAD")]
+            if not branch:
+                raise Unreadable(f"{self.path}: the clone names no default branch")
+            # The branch must exist in the clone: a read at a ref that does
+            # not exist is not a removal.
+            self.git("rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}^{{commit}}")
+            self.branch = f"origin/{branch}"
+        return self.branch
 
-    def tree(self, path: str, rev: str = "origin/main") -> dict:
+    def rev(self, taken) -> str:
+        """The default branch, or the parent of the commit of an adoption."""
+        if taken is None:
+            return self.default_branch()
+        self.git("rev-parse", "--verify", "--quiet", f"{taken}^^{{commit}}")
+        return f"{taken}^"
+
+    def tree(self, path: str, rev: str) -> dict:
+        """As Mirror.tree: {} when the path is not at rev."""
         out = {}
         for line in self.git("ls-tree", "-r", rev, "--", path).splitlines():
             meta, name = line.split("\t", 1)
@@ -191,12 +249,15 @@ class Clone:
                 out[name] = blob
         return out
 
-    def commits(self, path: str, since: str, rev: str = "origin/main") -> list[str]:
+    def commits(self, path: str, since: str, rev: str) -> list[str]:
         return self.git("log", "--format=%h %s", f"{since}..{rev}", "--", path).splitlines()
 
 
 def compare(b: Block, source) -> list[str]:
-    # Each path is read at main, or before the adoption that took it.
+    # Each path is read at the default branch, or before the adoption that
+    # took it. rev() raises Unreadable for a ref that it cannot resolve, and
+    # tree() gives {} only for a path that the resolved ref does not hold, so
+    # `removed` is never the answer of a ref that is missing.
     def rev(rel: str) -> str:
         return source.rev(b.taken_at(rel))
 
@@ -205,10 +266,7 @@ def compare(b: Block, source) -> list[str]:
         seen.update(source.tree(d, rev(d)))
     for rel in b.files:
         if not any(rel == d or rel.startswith(d + "/") for d in b.dirs):
-            try:
-                seen.update(source.tree(rel, rev(rel)))
-            except Unreadable:
-                pass
+            seen.update(source.tree(rel, rev(rel)))
     lines = []
     for rel, (blob, local) in sorted(b.files.items()):
         now = seen.get(rel)
@@ -284,7 +342,7 @@ def record(args) -> int:
     out = ROOT / "crates" / args.crate / "SOURCES"
     head = ("# The files of this crate that came from another repository\n"
             "# (docs/design.md, section 9). scripts/check-sources.py compares each\n"
-            "# with the main branch of its repository.\n")
+            "# with the default branch of its repository.\n")
     old = out.read_text(encoding="utf-8") if out.exists() else head
     out.write_text(old.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n", encoding="utf-8")
     print(f"check-sources: {out.relative_to(ROOT)}: {len(lines) - dirs - len(b.skips) - 1} files")

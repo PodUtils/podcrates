@@ -473,8 +473,9 @@ pushes. No worktree branch is pushed.
 * Drift: `crates/pod-X/SOURCES` lists each imported directory and file:
   the repository, the path, the commit, the SHA-256 at that commit, and
   the local paths that the file became. `scripts/check-sources.py` reads
-  each directory of a source at the `main` of its repository (through
-  `forge.web.pkgforge.dev`, or a shallow clone when that fails) and
+  each directory of a source at the default branch of its repository
+  (`main`, `master` or another name; through `forge.web.pkgforge.dev`,
+  or a shallow clone when that fails) and
   prints each changed, new, removed or renamed file, with its commits. A
   change becomes a record entry "port". The port uses a 3-way merge from
   the imported blob. The lines of a consumer leave `SOURCES` at its

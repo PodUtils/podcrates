@@ -1,0 +1,8 @@
+# A changed blob of a source whose default branch is not main
+# (hackerschoice/gsocket: master). A check that reads `main` names the file
+# `removed`, or cannot read the source; the check must name it `changed`.
+ENTRY=T-085
+GROUP=network
+EXPECT='^plant-branch: changed hackerschoice/gsocket:include/gsocket/gsocket.h'
+RUN='python3 -I scripts/check-sources.py plant-branch'
+LIMIT=300

@@ -1,0 +1,10 @@
+diff --git a/crates/plant-branch/SOURCES b/crates/plant-branch/SOURCES
+new file mode 100644
+--- /dev/null
++++ b/crates/plant-branch/SOURCES
+@@ -0,0 +1,5 @@
++# A source whose default branch is master, with no branch main, and one
++# blob that differs from it. The check must name the file `changed`, not
++# `removed`.
++repo hackerschoice/gsocket 5950647f8c72caaf0fbf6a8b51b0768d25a5d09a
++file 0000000000000000000000000000000000000000 include/gsocket/gsocket.h -> crates/plant-branch/SOURCES
