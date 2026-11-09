@@ -1,12 +1,26 @@
 # M6: the import plan of the crates of podvm
 
-The plan for the entries T-055 to T-061 (`docs/design.md`, section 4, M6; the procedure of section 8). The source is
-`PodUtils/podvm` at `ecf61c08fdaf28db079e0939895e18e5f9440c5f` (`ecf61c0`, after the rename `98112cb`). Each path below
-is a path of that repository, unless it starts with `crates/pod-`.
+The plan for the entries T-055 to T-061 (`docs/design.md`, section 4, M6; the procedure of section 8). The plan was
+read at `ecf61c0` (after the rename `98112cb`); that base is stale. An import reads podvm `main` at the time of the
+import. Each path below is a path of that repository, unless it starts with `crates/pod-`.
 
-A change of the source: podvm split each file of these crates to 500 lines at `b917f97`, with the tests in `tests.rs`
-files beside them (PodUtils/podvm#203). An import reads `b917f97` or later; the splits of section 1 to 7 are then
-podvm's, and the classes of the files stay.
+podvm split its files to 500 lines in the commits `0231c3c`, `22a15ea`, `b59f4a7`, `eb57434` and `f9eae80`
+(PodUtils/podvm#203), under other names than the splits below. The split plans and the line counts of sections 1 to 7
+are stale. The classes of the files (M, S, P) hold. Read the files of the table "Current files" before each import.
+
+## Current files
+
+Each row names the files that the crate takes from podvm `main`. A `+` names the files of the directory beside the
+module.
+
+| Entry | Crate | Source in podvm | Files |
+| --- | --- | --- | --- |
+| T-061 | `pod-guest` | `crates/podvm-windows` | `agent.rs`, `dos.rs`, `fat16.rs` + `fat16/tests.rs`, `fetch.rs`, `plan.rs`, `qmp.rs`, `lib.rs`, `emulator.rs`, `provision.rs`, `scratch.rs`, `tests.rs` |
+| T-059 | `pod-enter` | `crates/podvm-enter` | `abi.rs` + `abi/{bytes,elf,search,tests}.rs`, `binfmt.rs`, `device.rs`, `fuse.rs` + `fuse/{fs,wire,tests}.rs`, `ladder.rs`, `memfd.rs` + `memfd/tests.rs`, `plan.rs`, `stage.rs`, `userland.rs` + `userland/tests.rs`, `lib.rs`, `child.rs`, `entry.rs`, `launch.rs`, `tests.rs`, `tests/tty_refusal.rs` |
+| T-060 | `pod-supervise` | `crates/podvm-supervise`; the Lock of `crates/podvm-image/src/store/files.rs` | `launcher.rs` + `launcher/{supervise,tests}.rs`, `table.rs` + `table/tests.rs`, `lib.rs`, `tests.rs`. `table/memo.rs` stays in podvm. podvm fixes its #215 (`stop -t 0`) in `podvm-supervise` before this import |
+| T-056 | `pod-oci` | `crates/podvm-image` | `reference`, `digest`, `oci`, `platform`, `credentials`, `registry` + `registry/{http,wire,tests}`, `error`, `transport`, `pull` + `pull/{run,tests}`, `layout`, `tls`, `lib`, `tests/registry_fixture.rs`, `tests/common`, `tests/proxy_pull.rs`. `net.rs` is podvm glue |
+| T-057 | `pod-extract` | `crates/podvm-extract` | `apply`, `layer`, `remove`, `safety` + `safety/{walk,tests}`, `sidecar`, `whiteout`, `drive` + `drive/records`, `lib`, `error` |
+| T-058 | `pod-rootfs` | `crates/podvm-complete` | `lib`, `devices` + tests, `identity`, `net`, `pkg` + `pkg/{bundle,hash_dir,tests}`, `reach`, `sources`, `write` + `write/{follow,tests}` |
 
 ## 0. Conventions and the rules for all seven crates
 
@@ -22,7 +36,7 @@ count of lines that cite the record of podvm (`TODO/`, `T-NNNN`, `TOOL.md`, `exp
 * **Linux only.** The seven crates use raw Linux system calls, `/proc` and `binfmt_misc`. Each `lib.rs` is
   `#![cfg(target_os = "linux")]`. `examples/static-probe` calls them on the Linux musl targets only. podvm builds for
   Linux musl only (its `rust-toolchain.toml`).
-* **Edition.** podvm is edition 2021, `rust-version` 1.85. The edition step must look at
+* **Edition.** podvm is edition 2024 since `5085c14`. The edition step must still look at
   `std::env::set_var`/`remove_var` in tests (unsafe in 2024): `podvm-probe/src/interp.rs` (2),
   `podvm-complete/src/pkg.rs` (11), `podvm-windows/src/dos.rs` (4), `podvm-windows/src/lib.rs` (5). Each is a setting
   after the adapt step. No `static mut`, no `extern "C"`, no `gen`.
@@ -473,7 +487,7 @@ pod-hostprobe is larger than the estimate: it takes all of `probes.rs` and `sys.
 ### Open questions
 
 * **Q1 (answered).** podvm's `main` has the rename at `0249527` (PodUtils/podvm#194); `ecf61c0` is its parent, and
-  `0249527` changes only `crates/podvm/src/run.rs`. The imports read `0249527`.
+  `0249527` changes only `crates/podvm/src/run.rs`. The imports read podvm `main` at the time of each import.
 * **Q2 (answered, PodUtils/podvm#197).** Yes: the eight `PODVM_*` variables are settings of `pod-enter` and
   `pod-supervise` (a struct or a builder that the caller fills); podvm passes its names and values. podvm-interpose
   and the memo format stay in podvm. A crate holds no `PODVM_` name (podvm's call C8).
@@ -483,16 +497,16 @@ pod-hostprobe is larger than the estimate: it takes all of `probes.rs` and `sys.
 
 ### First commit of each crate
 
-All imports copy the files with no change, at `0249527`, and write `SOURCES` with `repo PodUtils/podvm
-024952732656966ccbe087712f3e14d9ae56c237`. A file of class P is copied whole; the adapt step removes the part that
+All imports copy the files with no change, at podvm `main` on the day of the import, and write `SOURCES` with `repo
+PodUtils/podvm` and the full commit. A file of class P is copied whole; the adapt step removes the part that
 stays.
 
 | Entry | The import commit |
 | --- | --- |
-| T-055 | `pod-hostprobe: import podvm crates/podvm-probe/src (all but exit, json, report, nongoals), tests/namespace*.rs, crates/podvm-image/src/{space,exec_probe}.rs, tests/space_precheck.rs at 0249527` |
-| T-056 | `pod-oci: import podvm crates/podvm-image/src/{reference,digest,oci,platform,credentials,registry,error,transport,pull,layout,tls,lib}.rs, tests/registry_fixture.rs, tests/common at 0249527` (`clock.rs`, `contain.rs` into `crates/pod-core` in the same commit; `Lock` waits for T-060) |
-| T-057 | `pod-extract: import podvm crates/podvm-extract/src at 0249527` |
-| T-058 | `pod-rootfs: import podvm crates/podvm-complete/src at 0249527` |
-| T-059 | `pod-enter: import podvm crates/podvm-enter/src, tests/tty_refusal.rs at 0249527` |
-| T-060 | `pod-supervise: import podvm crates/podvm-supervise/src and the Lock of crates/podvm-image/src/store.rs at 0249527` |
-| T-061 | `pod-guest: import podvm crates/podvm-windows/src at 0249527` |
+| T-055 | `pod-hostprobe: import podvm crates/podvm-probe/src (all but exit, json, report, nongoals), tests/namespace*.rs, crates/podvm-image/src/{space,exec_probe}.rs, tests/space_precheck.rs at the commit of the import` |
+| T-056 | `pod-oci: import podvm crates/podvm-image/src/{reference,digest,oci,platform,credentials,registry,error,transport,pull,layout,tls,lib}.rs, tests/registry_fixture.rs, tests/common at the commit of the import` (`clock.rs`, `contain.rs` into `crates/pod-core` in the same commit; `Lock` waits for T-060) |
+| T-057 | `pod-extract: import podvm crates/podvm-extract/src at the commit of the import` |
+| T-058 | `pod-rootfs: import podvm crates/podvm-complete/src at the commit of the import` |
+| T-059 | `pod-enter: import podvm crates/podvm-enter/src, tests/tty_refusal.rs at the commit of the import` |
+| T-060 | `pod-supervise: import podvm crates/podvm-supervise/src and the Lock of crates/podvm-image/src/store.rs at the commit of the import` |
+| T-061 | `pod-guest: import podvm crates/podvm-windows/src at the commit of the import` |

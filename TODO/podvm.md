@@ -319,8 +319,7 @@ cargo test -p pod-supervise
 
 ## Start condition
 
-podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), and T-055 is done.
-
+podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), T-055 is done, and podvm fixed its #215 (`stop -t 0`) in `podvm-supervise`.
 # T-061: `pod-guest`: a disposable QEMU guest
 
 **Source:** `docs/design.md`, section 4 (M6); the owner, 2026-11-06.
@@ -474,3 +473,127 @@ passed, `space_precheck` 2, `namespace` 3, `namespace_base` 5, and
 nightly's job failed as above. clippy is clean for x86_64 and i686. podvm
 has the same fault in its frozen `PodUtils/podvm:crates/podvm-probe/src/sys/raw.rs`.
 
+
+# T-107: `pod-hostprobe`: a JSON report with a published schema (GitHub #35)
+
+**Source:** GitHub #35 (A-V-10, A-X-25)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A-V-10 and A-X-25 need a stable JSON of the host probe: the `caps` of cfb (Landlock, seccomp, userns,
+memfd, SUD, `openat2`, `/dev/kvm`, `/dev/fuse`, `/dev/net/tun`, cgroup).
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/` and the asks.
+- Not measured: the JSON.
+
+## Approach
+
+Serde types behind a feature. A `schema` field. A JSON Schema file in `schemas/`. The value `unknown` where
+a filter answers `EPERM`.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```
+
+# T-108: `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35)
+
+**Source:** GitHub #35 (A-V-01)
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A-V-01 is P0 for cfb. `pod-confine` waits for the study of T-062 after M6. The study and the crate go in
+one entry.
+
+## Premise
+
+- Read: the ask of A-V-01; `PodUtils/podnet:crates/podnet-netns/src/seccomp.rs` builds a seccomp filter
+  (user notification, not a deny list).
+- Not measured: Landlock on the targets.
+
+## Approach
+
+The study, then the crate: Landlock ABI 3 or newer for file rules and ABI 4 or newer for TCP rules, a
+seccomp deny filter of the list of A-V-01, `no_new_privs`, rlimits, one profile file. The crate refuses by
+name where Landlock is absent. The filter builder of podnet is a source.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+```
+
+# T-109: Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36)
+
+**Source:** GitHub #35 (A-V-02) and GitHub #36 (G-04)
+**Category:** research
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm (A-V-02) and podrunner (G-04) must hold each connect of a payload. podnet has two backends that do
+it. `docs/design.md` keeps `podnet-netns` in podnet.
+
+## Premise
+
+- Read: the asks. Not read: `PodUtils/podnet:crates/podnet-netns` (9,447 lines).
+
+## Approach
+
+Read `PodUtils/podnet:crates/podnet-netns`. Decide one crate (`pod-hold`) or a part of `pod-sud`. Write the
+entry of the crate. Open a COORD issue to podnet for its view.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+# T-119: `pod-netlab`: the CI matrix of restricted hosts (GitHub #35)
+
+**Source:** GitHub #35 (A-X-22)
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+A-X-22 asks one CI matrix: IPv6 only (NAT64, DNS64), HTTP proxy only, no DNS, no UDP, aarch64. Each cell
+gives a smoke test or one `not supported` code.
+
+## Premise
+
+- Read: the ask. podnet covers several cells.
+- Not measured: a cell.
+
+## Approach
+
+The study of `pod-netlab` in T-062 first. Then the cells.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+## Start condition
+
+The study of `pod-netlab` in T-062 is done.

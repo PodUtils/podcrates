@@ -350,3 +350,112 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-025 is done.
+
+# T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)
+
+**Source:** GitHub #35 (A-C-08, A-S-05)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The node agent of cfb needs one WebSocket to a cfb URL: pings each 25 s, reconnect with jitter, resume by
+sequence and a replay window, a CONNECT proxy and a private CA, upgrade headers from files or from a
+command, and a local Unix socket of frames.
+
+## Premise
+
+- Read: the ask of A-C-08. podssh has the WebSocket roads and the resumable layer, with no link to a server
+  that is not a podssh relay.
+- Not measured: the link.
+
+## Approach
+
+A `Link` over `pod-ws` with the layer of `pod-session`: pings at a set interval, reconnect with jitter,
+resume by sequence and a replay window, upgrade headers from files or from a command, a frame API for a
+local socket. The wire is T-120. The command `podssh link` stays in podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+A test drops 3 % of the frames for a long run. No frame is lost or repeated.
+
+## Start condition
+
+T-016 and T-020 are done.
+
+# T-111: `pod-relay`: a lease header, Access headers from files on each WebSocket road, a heartbeat that a relay offers (GitHub #35)
+
+**Source:** GitHub #35 (A-S-14, A-C-04, A-S-05)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A-S-14, A-C-04 and A-S-05 change what each relay road sends: a lease in place of a token, Access service
+token headers from files, and a heartbeat that lets a Durable Object relay hibernate.
+
+## Premise
+
+- Read: the asks. podssh sends `X-Relay-Token` only, and pings each 10 s.
+- Not measured: a relay that offers the heartbeat.
+
+## Approach
+
+A lease header from a file. Access headers from files on each WebSocket road, with exit class Refused and
+a name of the missing variable. The heartbeat that a `hello` offer sets: WebSocket Ping, or 60 s or more.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-025 is done.
+
+# T-120: The wire documents of the layer, the reverse dialect and the role's extensions, with test vectors (GitHub #35)
+
+**Source:** GitHub #35 (A-S-15, A-X-04, A-C-08)
+**Category:** docs
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A port of the relay to wasm (`podrelay-worker`, A-X-04) and the link of A-C-08 need the wire as a
+document with test vectors. The owner, 2026-11-09: the wire document comes first.
+
+## Premise
+
+- Read: the prose in `PodUtils/podssh:docs/relay.md` and `PodUtils/podssh:docs/design.md`.
+- Not measured: a vector test.
+
+## Approach
+
+One wire document for `pod-session` and one for `pod-relay`, each with vector files. A test reads each
+vector. The Python stand-in of podssh reads the same vectors. podssh can write the documents first, and
+the import takes them.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-020 and T-025 are done.

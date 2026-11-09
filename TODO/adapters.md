@@ -161,3 +161,148 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-029 is done.
+
+# T-113: `pod-cloudflare`: the connector of the fleet, part 1: remote config, readiness, drain, revoked token, Access JWT, colos (GitHub #35)
+
+**Source:** GitHub #35 (A-N-02, A-N-03, A-N-06, A-C-01, A-C-02, A-C-07)
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The clauses of A-N-02, A-N-03, A-N-06, A-C-01, A-C-02 and A-C-07 are in the code that `pod-cloudflare`
+holds. The owner, 2026-11-09: they wait until after the first release on crates.io.
+
+## Premise
+
+- Read: PodUtils/podnet `src/edge_h2.rs` acks a push and applies nothing; `src/metrics.rs` counts;
+  `--metrics`, `--grace-period` and `--post-quantum` are refused in `src/cli/argv.rs`.
+- Not measured: the clauses.
+
+## Approach
+
+Apply a remote config (HTTP/2 push, QUIC `UpdateConfiguration`) and refuse it with a local config. State
+for `/ready` and `/metrics` (the listener is T-103). A drain at SIGTERM. A revoked token gives exit class
+Revoked (T-101). Honour `originRequest.access` (a JWT against the team keys, else 403). Four connections in
+two colos or more on TCP 443, and a lost one replaced.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+```
+
+## Start condition
+
+T-029 is done, and the first release on crates.io is done (the owner, 2026-11-09).
+
+# T-114: `pod-cloudflare`: the connector of the fleet, part 2: several tunnels, pools, a Workers runtime ingress, VPC allow list, rate and meter, post-quantum (GitHub #35)
+
+**Source:** GitHub #35 (A-X-27, A-N-14, A-X-06, A-C-06, A-X-26, A-N-16)
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The clauses of A-X-27, A-N-14, A-X-06, A-C-06, A-X-26 and A-N-16 are in the code that `pod-cloudflare`
+holds. The owner, 2026-11-09: they wait until after the first release on crates.io.
+
+## Premise
+
+- Read: PodUtils/podnet `src/cli/argv.rs` refuses `--post-quantum`. rustls gives X25519MLKEM768 through
+  aws-lc-rs; aws-lc-sys on i686, arm, loongarch64 and powerpc64le musl is unproven (`docs/design.md`,
+  section 7).
+- Not measured: the clauses.
+
+## Approach
+
+Several tunnels in one process, each with its own token and metrics, and an upgrade with no downtime. A
+pool service in the ingress (several origins, a health check, one retry). The Host header form, the path
+rewrite and the Unix origins of a Workers runtime. A Workers VPC allow list of local targets. A rate limit
+and a byte meter for each hostname. A hybrid post-quantum group on the edge legs, with a switch.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+```
+
+## Start condition
+
+T-029 is done, and the first release on crates.io is done (the owner, 2026-11-09).
+
+# T-115: `pod-warp`: the rate of `quic+warp`, team enrolment with a service token, a Mesh node in user space, posture (GitHub #35)
+
+**Source:** GitHub #35 (A-N-10, A-N-08, A-C-03, A-C-05, A-C-11)
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The clauses of A-N-10, A-N-08, A-C-03, A-C-05 and A-C-11 are in the code that `pod-warp` holds. cfb
+measured `quic+warp` at 37 % (GET) and 22 % (POST) of direct `quic`.
+
+## Premise
+
+- Read: the asks. PodUtils/podnet@T-003 is blocked: it waits for a captured exchange of the official
+  client.
+- Not measured: a Mesh node.
+
+## Approach
+
+One MASQUE session for each edge connection and a faster receive path (GET and POST at 50 % or more of
+direct `quic`). Enrolment in a Zero Trust team with a service token. A Mesh node in user space with no TUN
+and no route change. Device posture results. The live steps wait for test accounts (ruling of 2026-11-09);
+each clause keeps its offline test.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+## Start condition
+
+T-028 is done, and the captured exchange of PodUtils/podnet@T-003 exists.
+
+# T-116: The live and bench workflows of the tunnel with a test account (GitHub #35)
+
+**Source:** GitHub #35 (A-N-01, A-N-09, A-N-15, A-C-12, A-X-23)
+**Category:** measurement
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+cfb accepts the tunnel only from live runs with a test account, and wants a weekly bench of each leg.
+
+## Premise
+
+- Read: the asks. The owner, 2026-11-09: no test account now.
+- Not measured: a live run.
+
+## Approach
+
+The steps of A-N-01, A-N-09, A-C-01 and A-C-06 in `live.yml`. A weekly bench of each leg against
+`cloudflared`, with `bench.json` holding leg, Mbit/s, CPU percent and date.
+
+## Prove
+
+```sh
+gh workflow run live.yml
+```
+
+## Start condition
+
+T-029 is done, and the owner gives test accounts as CI secrets (not now, 2026-11-09).

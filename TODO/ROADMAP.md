@@ -48,3 +48,11 @@ podvm takes them.
 
 `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap` and
 `pod-sandprobe` are released, each after its study.
+
+## M8: The fleet
+
+`pod-broker`, `pod-unit`, `pod-control` and `pod-release` are released, with
+the acceptance registry of `pod-todo` and the stand-ins of `pod-testkit` as
+programs. They serve the asks of GitHub #35 (cfb) and #36 (githome). Each
+product of the fleet (`podrunner`, `podnode` and the others) takes them from
+its own repository.

@@ -1127,3 +1127,97 @@ sh scripts/plant-each.sh
 ```
 
 The `static` job of `ci.yml` is green on the 12 targets.
+
+# T-101: `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35)
+
+**Source:** GitHub #35 (A-X-17, A-C-07)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A-X-17 and A-C-07 ask for one table of exit codes, with "credential revoked", "policy refusal" and "not
+supported". `pod_core::Class` has Usage, Config, Unavailable, NotFound, TempFail, Timeout, Protocol and
+Refused.
+
+## Premise
+
+- Read: `crates/pod-core/src/` (the classes) and the codes of podssh and podnet in the asks.
+- Not measured: a change.
+
+## Approach
+
+Add Revoked, Policy and Unsupported. Add `Class::exit_code()` on the sysexits (64 usage, 69 unavailable,
+75 tempfail, 77 refused, 78 config and revoked; the entry chooses a code for policy and for unsupported).
+Write the table and a JSON log schema (time, level, event, fields) in a document. The schema goes to
+`schemas/` (ruling of 2026-11-09).
+
+## Prove
+
+```sh
+cargo test -p pod-core
+cargo todo check
+```
+
+# T-105: `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35)
+
+**Source:** GitHub #35 (A-X-14)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each release must say which ask ids it passes. No tool maps an ask id to a test.
+
+## Premise
+
+- Read: `crates/pod-todo/src/` and the ask of A-X-14.
+- Not measured: a registry.
+
+## Approach
+
+A registry file in `TODO/` maps an ask id to a test name. `cargo todo check` fails on a test that does
+not exist. `cargo todo acceptance --json` writes `acceptance.json` for the release index of T-104. Each
+repository already runs `cargo todo check`.
+
+## Prove
+
+```sh
+cargo test -p pod-todo
+cargo todo check
+```
+
+# T-118: Supply chain: an SBOM for each release and a planted advisory that fails `deny.yml` (GitHub #35)
+
+**Source:** GitHub #35 (A-X-21)
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No repository publishes an SBOM. A-X-21 asks for one, and for a check that a known-bad advisory fails CI.
+
+## Premise
+
+- Read: `.github/workflows/deny.yml`, `.github/workflows/fuzz.yml` and the ask.
+- Not measured: an SBOM.
+
+## Approach
+
+A CycloneDX or SPDX SBOM of each tag in `release.yml`. A plant that adds a known-bad advisory and must
+fail `deny.yml`.
+
+## Prove
+
+```sh
+sh scripts/plant-each.sh
+```

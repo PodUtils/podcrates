@@ -4,8 +4,9 @@
 tool = "pod-todo"
 
 # TODO/ROADMAP.md: M0 Foundation, M1 Transport, M2 Relay, M3 Adapters,
-# M4 Roads, M5 Upkeep.
-milestones = ["M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7"]
+# M4 Roads, M5 Upkeep, M6 The crates of podvm, M7 The widened scope of podvm,
+# M8 The fleet.
+milestones = ["M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"]
 categories = ["defect", "feature", "measurement", "release", "chore", "research", "docs"]
 roadmap = "TODO/ROADMAP.md"
 questions = "Questions for the owner"

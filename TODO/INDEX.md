@@ -26,23 +26,24 @@ is no XL: make two entries.
 
 **Status.** `open`, `partial`, `blocked` or `done` (`TODO/RULES.md`).
 
-**Milestone.** `M0` to `M5`, as in `TODO/ROADMAP.md`: M0 Foundation, M1
-Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
+**Milestone.** `M0` to `M8`, as in `TODO/ROADMAP.md`: M0 Foundation, M1
+Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep, M6 The crates of
+podvm, M7 The widened scope of podvm, M8 The fleet.
 
 **Category.** `defect`, `feature`, `measurement`, `release`, `chore`,
 `research` or `docs`.
 
 ## Entries
 
-**98 entries: 50 open, 1 partial, 0 blocked, 47 done.**
+**120 entries: 72 open, 1 partial, 0 blocked, 47 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 0 | 0 | 21 | 35 |
-| P2 | 26 | 1 | 0 | 21 | 48 |
-| P3 | 10 | 0 | 0 | 3 | 13 |
-| **All** | 50 | 1 | 0 | 47 | 98 |
+| P1 | 25 | 0 | 0 | 21 | 46 |
+| P2 | 36 | 1 | 0 | 21 | 58 |
+| P3 | 11 | 0 | 0 | 3 | 14 |
+| **All** | 72 | 1 | 0 | 47 | 120 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -144,3 +145,25 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
 | [T-097](upkeep.md) | P3 | S | M5 | chore | open | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | open | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
+| [T-099](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
+| [T-100](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
+| [T-101](foundation.md) | P1 | S | M1 | feature | open | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
+| [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
+| [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
+| [T-104](fleet.md) | P1 | M | M8 | feature | open | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
+| [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
+| [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
+| [T-107](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
+| [T-108](podvm.md) | P1 | M | M7 | feature | open | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
+| [T-109](podvm.md) | P2 | S | M7 | research | open | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
+| [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
+| [T-111](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: a lease header, Access headers from files on each WebSocket road, a heartbeat that a relay offers (GitHub #35) |
+| [T-112](transport.md) | P1 | S | M1 | feature | open | `pod-services`: the party of each service as a filter, and the effective set as JSON (GitHub #35) |
+| [T-113](adapters.md) | P1 | L | M3 | feature | open | `pod-cloudflare`: the connector of the fleet, part 1: remote config, readiness, drain, revoked token, Access JWT, colos (GitHub #35) |
+| [T-114](adapters.md) | P2 | L | M3 | feature | open | `pod-cloudflare`: the connector of the fleet, part 2: several tunnels, pools, a Workers runtime ingress, VPC allow list, rate and meter, post-quantum (GitHub #35) |
+| [T-115](adapters.md) | P2 | L | M3 | feature | open | `pod-warp`: the rate of `quic+warp`, team enrolment with a service token, a Mesh node in user space, posture (GitHub #35) |
+| [T-116](adapters.md) | P2 | M | M3 | measurement | open | The live and bench workflows of the tunnel with a test account (GitHub #35) |
+| [T-117](roads.md) | P2 | M | M4 | feature | open | `pod-egress`: the Access TCP client as a local listener (GitHub #35) |
+| [T-118](foundation.md) | P2 | M | M5 | chore | open | Supply chain: an SBOM for each release and a planted advisory that fails `deny.yml` (GitHub #35) |
+| [T-119](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: the CI matrix of restricted hosts (GitHub #35) |
+| [T-120](relay.md) | P2 | M | M2 | docs | open | The wire documents of the layer, the reverse dialect and the role's extensions, with test vectors (GitHub #35) |

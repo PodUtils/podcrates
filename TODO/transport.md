@@ -1986,3 +1986,33 @@ Option: a check that the row lists as many names as the code.
 cargo test -p pod-proxy env_tests
 cargo todo check
 ```
+
+# T-112: `pod-services`: the party of each service as a filter, and the effective set as JSON (GitHub #35)
+
+**Source:** GitHub #35 (A-S-04)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh needs one switch over the services of other parties (`PODSSH_PUBLIC=off`, `fallback` or `default`).
+Each service file of `pod-services` names its party.
+
+## Premise
+
+- Read: `crates/pod-services/` and the ask of A-S-04.
+- Not measured: a dial recorder.
+
+## Approach
+
+Add `of_party` and a filter by own or third party. Give the effective set as JSON. The switch stays in
+podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```

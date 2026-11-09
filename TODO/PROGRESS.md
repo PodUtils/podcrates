@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 50 open, 1 partial, 0 blocked, 47 done.
+`TODO/INDEX.md` holds 120 entries: 72 open, 1 partial, 0 blocked, 47 done.
 
 ## State
 
@@ -11,9 +11,10 @@
   `872a276`, podvm `685112c`); COORD-013 hands `v0.7.0` to each.
 - M6: podvm took `pod-hostprobe` (podvm `8899c2e`); T-055 is done. Next
   in M6: T-061 and T-059.
-- Untriaged: GitHub #20 to #36, with the meta requests #35 (cfb, 84 asks)
-  and #36 (githome, 12 asks). The sessions of podssh, podnet and podvm
-  triage their own issues; the reconciliation follows.
+- Untriaged: GitHub #20 to #34. GitHub #35 (cfb, 84 asks) and #36 (githome,
+  12 asks) are routed (`docs/research/fleet/asks.md`): T-099 to T-120 and
+  milestone M8. The sessions of podssh, podnet and podvm triage their own
+  issues; the reconciliation follows.
 - The names on crates.io wait for the owner (T-043, GitHub #1); the switch
   `crates-io` is false while Q1 stands.
 - Keep this section short. Write the current state only; git keeps the
@@ -27,6 +28,10 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
 0. **The triage of GitHub #35 and #36:** T-098, before the next entry.
+   Then, before M2 (call C26): T-101 (`pod-core` classes), T-099 and T-100
+   (`pod-broker`), T-112 (`pod-services` party filter) and T-108
+   (`pod-confine`); then T-102 to T-105 (`pod-unit`, `pod-control`,
+   `pod-release`, the acceptance registry); then the rest in milestone order.
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
    T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
@@ -38,25 +43,31 @@ order. A crate is released on the day that its entry is done
    T-025, T-026.
 4. **M3, the adapters:** T-027, T-028, T-029, T-030.
 5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
-   T-038, T-039; then T-086 (blocked: Q7), T-087, T-088.
+   T-038, T-039; then T-086, T-087, T-088 (deferred by the owner, 2026-11-09).
 6. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
    commit of its rename; a "port" entry for each change that
    scripts/check-sources.py finds (T-097).
 7. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `0249527`): T-061 and T-059;
+   podvm `main` on the day of each import): T-061 and T-059;
    T-060; T-056; T-057; T-058.
 8. **M7, the widened scope of podvm:** T-062 after M6.
+9. **M8, the fleet:** T-106 after T-025, T-028 and T-029; T-107 with M6;
+   T-110, T-111 and T-120 with M2; T-113 to T-116 after the first release on
+   crates.io (T-116 also needs test accounts); T-117 with M4; T-118 with M5;
+   T-119 with M7.
 
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C19), and the work goes on with it until the owner rules otherwise.
+C27), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
 | Entry | Action |
 | --- | --- |
 | T-053 | Reserve the 14 names of the crates of podvm (GitHub #1): `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe`, `pod-probe` |
+| New repositories (2026-11-09 ruling) | Create `podrunner`, `podnode`, `podinit`, `podlog`, `podwatch`, `podkey`, `podsnap`, `podrepl`, `podrelay-worker` and `podutils` |
+| T-099, T-102, T-103, T-104 | Reserve `pod-broker`, `pod-unit`, `pod-control`, `pod-release`, `pod-gsr` (GitHub #1) |
 | Each release | Tell the consumer sessions to take the crates |
 
 ## Questions for the owner

@@ -153,6 +153,9 @@ first commits move the base alone; the capabilities of the other source
 come after it, each behind a feature when it changes a behaviour, each
 with its tests (section 8, step 5).
 
+The waves are M1 to M4 (the transport to the roads), M6 and M7 (the
+crates of podvm) and M8 (the fleet).
+
 ### M0: the foundation
 
 | Crate | Source | Lines | Pod deps |
@@ -209,6 +212,31 @@ target, the fork. A study can change its row.
 | `pod-iroh` | podssh `crates/podssh-iroh`; `vendor/iroh-relay` with its patch | 3,600 | pod-core, pod-derp, pod-proxy, pod-tls, pod-ws, pod-dns, pod-session, pod-identity |
 | `pod-tor` | podssh `crates/podssh-tor` (arti, SQLite linked static) | 900 | pod-core, pod-proxy, pod-tls, pod-egress |
 | `pod-ts` | podssh `crates/podssh-ts`; `vendor/tailscale-rs` with its patches; the headscale harness | 900 | pod-core, pod-proxy |
+| `pod-gsr` | the GSRN relay of gsocket: the prototype of the owner and its data file for `pod-services` (deferred by the owner, 2026-11-09: T-086 waits for the source) | (T-086) | pod-core, pod-services, pod-proxy |
+
+### M8: the fleet (the asks of GitHub #35 and #36)
+
+The new crates for the asks of cfb and githome. podcrates gives libraries,
+schemas and shared CI scripts. Each command line, unit file and live step
+stays in its product, and a broker binary is a thin `main` in the product
+that hosts it (call C27). The JSON Schemas live in `schemas/` and go out
+with each tag (the owner, 2026-11-09). `pod-egress` keeps the roads of M4;
+the egress broker is `pod-broker` (call C25).
+
+| Crate | Source | Lines | Pod deps |
+| --- | --- | --- | --- |
+| `pod-broker` | the egress broker: per-job policy (allow-list, or open with fixed denies), one resolve and a deny file, the upstream CONNECT chain, a TLS end with a CA for each job, placeholder credentials swapped and scrubbed, a JSON audit line, a Unix-socket listener, a drop at the TTL. Mostly new code; the vocabulary of PodUtils/podvm#184, the rules of `podnet pod` and `warp proxy`, podssh `exit --listen` and `pipe http-listen:` | (T-099) | pod-core, pod-tls, pod-proxy, pod-dns |
+| `pod-unit` | hardened service units: systemd system and user units, launchd agents, Windows services; no secret in a unit; podssh `crates/podssh-cli/src/node_install/` (base), podnet `src/autostart.rs` | (T-102) | pod-core |
+| `pod-control` | one versioned JSON control API on a Unix socket or a Windows named pipe (`version`, `status`, `metrics`, `reload`, `drain`, `stop`), its client, its JSON Schema and a conformance test; new code, with the JSON of podnet `src/status.rs` and podssh `status` | (T-103) | pod-core |
+| `pod-release` | the release index: the schema, the writer for CI, the verifier (SHA-256, the Sigstore bundle of `SHA256SUMS`, minisign), the rollback data of an installer; podnet `src/update.rs` (the verify part), podssh `crates/podssh-cli/src/update/sigstore.rs` | (T-104) | pod-core, pod-proxy, pod-tls |
+
+`pod-todo` (an acceptance registry, T-105) and `pod-testkit` (the stand-ins
+as programs, T-106) grow in M8; `pod-core` (T-101), `pod-services` (T-112),
+`pod-hostprobe` (T-107), `pod-session` (T-110, T-120), `pod-relay` (T-111)
+and the adapters (T-113 to T-117) take clauses in their own waves. The
+products of the fleet (`podrunner`, `podnode`, `podinit`, `podlog`,
+`podwatch`, `podkey`, `podsnap`, `podrepl`, `podrelay-worker` and the
+installer `podutils`) are repositories of their own.
 
 ### `pod-services`: the services of other parties
 

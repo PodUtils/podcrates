@@ -456,3 +456,37 @@ cargo check -p pod-gsr --no-default-features --features blocking
 ## Start condition
 
 T-086 is done.
+
+# T-117: `pod-egress`: the Access TCP client as a local listener (GitHub #35)
+
+**Source:** GitHub #35 (A-N-07, A-C-04, A-X-12)
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A-N-07 asks an Access TCP client. The Access client of podssh-ws `cloudflare.rs` goes to `pod-egress`.
+podssh serves the operator command on Windows and macOS (ruling of 2026-11-09).
+
+## Premise
+
+- Read: the asks and `docs/design.md`, section 4.
+- Not measured: the listener.
+
+## Approach
+
+A local listener API with a service token from a file. Exit classes 77 and 78. The command line stays in
+podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features
+```
+
+## Start condition
+
+T-035 is done.

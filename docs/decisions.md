@@ -82,6 +82,9 @@ has the detail.
 | 2026-11-06 | C22 | `pod-hostprobe` (T-055, Decision): failures of `space` and `exec` are `pod_core::Failure` at a new `Stage::Host`; `Settings` has `child_flag`, `child_name`, `directory_setting`, and the scratch names of the probes are not settings; `run_child` writes to a writer; the crate reads no variable (`interp::detect` takes a function, `writable::candidates` the named directories); the list of fds to close after a fork stays process state, as a descriptor belongs to the process; `exec::try_exec` tries `ETXTBSY` again within a bound; `need_userns!` and `need_tool!` join `pod-testkit`, `need_root!` waits for a test that needs it. |
 | 2026-11-09 | C23 | The SOCKS5 datagram framing (UDP ASSOCIATE and command 0x83) lives in `pod-proxy` (T-083). `pod-session` (T-020) keeps its own UDP-in-a-stream adapter. |
 | 2026-11-09 | C24 | `live.yml` runs each day at an off-peak hour and by `workflow_dispatch`, with egress to the relay and to public DoH resolvers (T-092). |
+| 2026-11-09 | C25 | The egress broker is a new crate `pod-broker`. `pod-egress` keeps the roads of T-035. |
+| 2026-11-09 | C26 | A new milestone M8, "The fleet": the shared crates for the asks of GitHub #35 and #36 (`TODO/fleet.md`). The work order takes T-101, T-099, T-100, T-112 and T-108 before M2, then T-102 to T-105, then the rest in milestone order. |
+| 2026-11-09 | C27 | podcrates gives libraries, schemas and shared CI scripts. Each command line, unit file and live step stays in its product. A broker binary is a thin `main` in the product that hosts it. |
 
 ## Questions for the owner
 

@@ -40,6 +40,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #32 | `docs/design.md` repository table is stale | open | T-094 |
 | #33 | The static probe lacks `pod-proxy/blocking` | open | T-095 |
 | #34 | `pod-proxy` README row lists 4 of 6 variables | open | T-096 |
-| #35 | cfb: meta request for the tools that cfb needs from PodUtils (84 asks) | open | T-098 |
-| #36 | githome: meta request for a forge CI runner host (12 asks) | open | T-098 |
+| #35 | cfb: meta request for the tools that cfb needs from PodUtils (84 asks) | open (routed in `docs/research/fleet/asks.md`) | T-098, T-099 to T-120 |
+| #36 | githome: meta request for a forge CI runner host (12 asks) | open (routed in `docs/research/fleet/asks.md`) | T-098, T-099, T-100, T-103, T-104, T-106, T-109 |
 | #37 | COORD-013: podcrates v0.7.0 is released: each tag to v0.7.0 (to all) | open | T-077, T-081 |
