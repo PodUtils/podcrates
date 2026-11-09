@@ -1,0 +1,2 @@
+# One line end on each host: tests search text files for LF.
+* text=auto eol=lf

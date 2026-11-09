@@ -180,7 +180,8 @@ mod tests {
 
     /// The data file with one fact changed, as a service of an overlay.
     fn with_fact(name: &str, value: &str) -> Catalog {
-        let text = include_str!("../../pod-services/services/hackerschoice-gsr.toml");
+        // Windows checks out CRLF; the search below needs LF.
+        let text = include_str!("../../pod-services/services/hackerschoice-gsr.toml").replace("\r\n", "\n");
         let start = text.find(&format!("name = \"{name}\"\nvalue = ")).expect("the fact");
         let line_end = start + text[start..].find("\nvalue = ").expect("its value") + 1;
         let value_end = line_end + text[line_end..].find('\n').expect("the end of the line");

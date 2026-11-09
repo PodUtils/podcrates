@@ -619,3 +619,9 @@ cargo test -p pod-gsr --all-features
 
 2026-11-09. The two files carry `#![cfg(unix)]`. The nightly dispatched
 after the landing is the proof for the Windows jobs.
+
+2026-11-09, second pass. The Windows jobs then failed in the unit test
+`a_shard_count_that_no_letter_names_is_a_configuration_failure`: Windows
+checks out the data file with CRLF, and the test searches it for LF. The
+test now replaces CRLF with LF, and `.gitattributes` sets `eol=lf` for
+each text file. The nightly dispatched after the landing is the proof.
