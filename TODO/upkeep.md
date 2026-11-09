@@ -178,7 +178,7 @@ too. podvm's call C10 now lets the private runtime of `pod-proxy` into its
 binaries. podvm waits for T-075 and T-077 and the trial of `pod-hostprobe`.
 
 2026-11-06, partial. The trial of `pod-hostprobe` in podvm at `b32b19c`
-(`adoption/podvm/pod-hostprobe.patch`, T-055): each step of `sh
+(the patch pod-hostprobe.patch of adoption/podvm, in git at `5535a27`, T-055): each step of `sh
 scripts/adoption.sh podvm pod-hostprobe` passed; `adoption.yml` runs podvm
 again. podvm took the patch in podvm `8899c2e` (PodUtils/podvm#210).
 

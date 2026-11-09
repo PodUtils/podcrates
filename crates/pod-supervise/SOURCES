@@ -1,6 +1,6 @@
 # The files of this crate that came from another repository
 # (docs/design.md, section 9). scripts/check-sources.py compares each
-# with the main branch of its repository.
+# with the default branch of its repository.
 
 repo PodUtils/podvm 27ae9938b577a9ad5033fed73c89e3564b6aa230
 dir crates/podvm-supervise/src

@@ -111,7 +111,7 @@ Remains:
   on those targets. It came from podvm as it is.
 
 2026-11-06, partial. The adoption trial of podvm at `b32b19c`
-(`adoption/podvm/pod-hostprobe.patch`: 50 files, 253 lines in, 8,024
+(the patch pod-hostprobe.patch of adoption/podvm, in git at `5535a27`: 50 files, 253 lines in, 8,024
 out; 39 files of `crates/`). podvm removes 26 files: 24 of
 `PodUtils/podvm:crates/podvm-probe` (each but `lib.rs` and `select.rs` of `src/` and of
 `src/sys/`, `src/probes/`, `src/select/tests.rs`, and `tests/`) and
@@ -295,7 +295,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -304,17 +304,58 @@ Source: `PodUtils/podvm:crates/podvm-supervise`.
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: podvm `27ae993` (its `main`, with the fix of PodUtils/podvm#215 of
+  `063a1ed`): `PodUtils/podvm:crates/podvm-supervise/src` (all but `table/memo.rs`) and the
+  `Lock` of `PodUtils/podvm:crates/podvm-image/src/store/files.rs`; the plan of
+  `docs/research/podvm/m6-imports.md`, section 6 and "Current files".
+- The plan names `pod-enter` as a dependency (the plan and the spawn of
+  the launcher). The import does not need it: the entry of the payload is
+  a function of the caller, so T-060 does not wait for T-059.
+- Measured: the tests of the crate on this host; the trial of podvm at
+  `27ae993`; the static `podvm` for `x86_64-unknown-linux-musl`.
+- Not measured here: the live clauses of podvm's lifecycle tests (no
+  image could be pulled: HTTP 429 of `public.ecr.aws`); CI runs them.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8: import, edition, adapt,
 tests, README with the adoption map of podvm, the trial of podvm.
 
+## Decision
+
+Calls of the import, each with its reason (`docs/decisions.md`, C33):
+
+- `launcher::start` takes the entry of the caller: `enter(&Container<X>,
+  Launch { pass, log }) -> Result<Payload { pid, keep }, String>` runs in
+  the launcher after the lock, the control socket and the stdio of the
+  payload, and before `running`. podvm keeps its probe, its plan of
+  `podvm-enter`, the image hold, the devices and the memo there. No
+  dependency on `pod-enter`.
+- A record is `Container<X>`: the fields of the crate, and the fields of
+  the caller flattened into the same JSON object (`of`, with `Deref`), so
+  that podvm's table file keeps its form. `table::Any` keeps each key.
+- `Settings`: `root`, `table_lock` (podvm: the store's own lock, invariant
+  I1), `table_key` (podvm: `podvm_containers`), `name_prefix`,
+  `list_command`, `failed_code` (docker's 125). The crate reads no
+  variable and prints nothing.
+- `Lock` of podvm-image moves to `pod_supervise::lock`; `try_acquire_noting`
+  gives podvm's PodUtils/podvm@T-0215 instrument its hook at the refusal. The words
+  "already holds N locks" stay: an experiment of podvm counts them.
+- Each failure is a `pod_core::Failure` at `Stage::Host`; podvm keeps its
+  `Error(String)` with `From<Failure>`.
+- `tests/lifecycle.rs` has no libtest: the launcher forks from the test
+  process, which must have one thread.
+- `pod_core::clock::rfc3339` writes the times (the form of podvm's
+  `clock::now`).
+
 ## Prove
 
 ```sh
 cargo test -p pod-supervise
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-supervise
+sh scripts/adoption.sh podvm pod-supervise
+cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe
+sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 ```
 
 ## Start condition
@@ -323,6 +364,51 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 Met on 2026-11-09: podvm fixed #215 in `063a1ed` (PodUtils/podvm@T-1691,
 PodUtils/podvm#218). The import reads podvm `main` at `063a1ed` or later.
+
+## Done
+
+2026-11-09, partial. Commits `8b46a62` (the import of 8 files of podvm at
+`27ae993`, with `SOURCES`), `16eb5a1` (the adaptation and the tests),
+`2c3863c` (README, C33), and the commit of this Done section (the trial,
+the record).
+
+- Imported: 7 files of `PodUtils/podvm:crates/podvm-supervise/src` (all but
+  `table/memo.rs`, which stays in podvm) and
+  `PodUtils/podvm:crates/podvm-image/src/store/files.rs` (as `src/lock.rs`;
+  only `Lock` stays). The crate has 2,292 lines in 11 `.rs` files, each
+  under 500.
+- Tests: 23 unit tests (13 of podvm with their names; 10 new: the lock,
+  the table key, the reconcile, the containment, the verbs,
+  `exit_status`), and `tests/lifecycle.rs` (5 steps with real payloads:
+  `stop -t 0`, an exit code, a signal, a killed launcher, a failed entry;
+  30 runs in a loop passed). The `stop -t 0` step fails on the wait of
+  podvm before #215. pod-core: 1 new test (`rfc3339`).
+- The trial of podvm at `27ae993` (`adoption/podvm/pod-supervise.patch`:
+  22 files, 353 lines in, 1,718 out): `podvm-supervise` keeps podvm's glue
+  (`settings`, `Detail`, the verbs with a `&Store`, the entry of the
+  launcher, the memo); `launcher/supervise.rs` leaves podvm; `podvm-image`
+  re-exports `pod_supervise::lock::Lock`; each tag moves to `v0.8.0`; six
+  citations of podvm's record follow the moved lines. Each step of `sh
+  scripts/adoption.sh podvm pod-supervise` passed: podvm-supervise 8 tests,
+  podvm-image 146 unit and 15 integration tests, `podvm --bin` 251,
+  `store_gates` 4, `detached_stdio` 3, `qol` 8 (their live clauses skipped
+  here: HTTP 429 of `public.ecr.aws`), clippy, rustfmt, the runtime-state
+  rows, podvm's record gate, the toolchains, and the static `podvm` for
+  x86_64 musl. The trial of `pod-hostprobe` leaves `adoption/podvm/`
+  (podvm took it at `8899c2e`), and `adoption/podvm/commit` moves to
+  `27ae993`.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  static, test), `check-sources.py` (8 files, 0 changes),
+  `secrets_like.py` on the patch (no line).
+
+Remains:
+
+- The release `v0.8.0`, then podvm's take of the patch, and its `taken`
+  line in `SOURCES`.
+- `PodUtils/podvm:crates/podvm-release/src/prove_t0211.rs` mutates the fork and exec
+  defences of `Lock` in podvm's source; after the take they are in
+  `pod_supervise::lock`. A plant in podcrates for the two defences can
+  take that place.
 # T-061: `pod-guest`: a disposable QEMU guest
 
 **Source:** `docs/design.md`, section 4 (M6); the owner, 2026-11-06.

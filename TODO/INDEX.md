@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**127 entries: 74 open, 1 partial, 0 blocked, 52 done.**
+**127 entries: 73 open, 2 partial, 0 blocked, 52 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 0 | 0 | 24 | 46 |
-| P2 | 40 | 1 | 0 | 22 | 63 |
+| P2 | 39 | 2 | 0 | 22 | 63 |
 | P3 | 12 | 0 | 0 | 4 | 16 |
-| **All** | 74 | 1 | 0 | 52 | 127 |
+| **All** | 73 | 2 | 0 | 52 | 127 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -106,7 +106,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
 | [T-059](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: the entry of a payload |
-| [T-060](podvm.md) | P2 | M | M6 | feature | open | `pod-supervise`: detached payloads |
+| [T-060](podvm.md) | P2 | M | M6 | feature | partial | `pod-supervise`: detached payloads |
 | [T-061](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: a disposable QEMU guest |
 | [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |
 | [T-063](transport.md) | P2 | M | M1 | feature | done | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |

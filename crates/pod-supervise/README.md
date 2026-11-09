@@ -64,7 +64,7 @@ at `27ae993`:
 | [x] The fix of podvm#215 (`stop -t 0`): `WaitError { Gone, Failed }`, a zero bound, `KILL_WAIT_MS` | yes, with its test and a lifecycle step that fails without it |
 | [x] The start of podvm: the probe, the rung, the plan of `podvm-enter`, the image hold, the devices, the ownership memo | the `enter` of the caller (stays in podvm) |
 | [x] `table/memo.rs`, `MEMO_FD_VAR`, `MEMO_CHILD_FD`, `memo_path` | stay in podvm (the format of podvm-interpose) |
-| [x] `Lock` of `podvm-image` | `lock::Lock`; the instrument of T-0215 is the `note` of `try_acquire_noting` |
+| [x] `Lock` of `podvm-image` | `lock::Lock`; the instrument of PodUtils/podvm@T-0215 is the `note` of `try_acquire_noting` |
 | [x] `EXIT_RUNTIME_ERROR` | `Settings::failed_code` |
 | [x] The tests: 13 unit tests of the moved parts, with their names (`a_table_without_the_userland_drive_still_parses` with `X`); the memo and tally tests stay in podvm | yes; 10 new unit tests; `tests/lifecycle.rs` runs 5 steps with real payloads |
 
@@ -91,7 +91,7 @@ gate of podvm's store; the times come from `pod_core::clock::rfc3339`
 | `table::{memo_path, MEMO_FD_VAR, MEMO_CHILD_FD, memo_fd_env, memo_fd_of, open_memo, ensure_memo_file, emulated_counts, EmulatedCounts}` | stay in podvm |
 | `launcher::start(store, &c, record)` | `pod_supervise::launcher::start(&settings, &c, enter)`; podvm's `launcher::enter(store, record)` opens the memo and the devices, holds the image, builds the `Plan` and spawns |
 | `launcher::{signal, wait, WaitError, CTL_SIGNAL, CTL_WAIT}` | `pod_supervise::launcher::*` |
-| `podvm_image::store::Lock` | `pod_supervise::lock::Lock` (re-exported by `podvm_image::store`); `Lock::try_acquire`, `Lock::acquire` become podvm's `try_lock_at`, `lock_at` (podvm's errors, the T-0215 note in test builds); `held.fd` is `held.fd()` |
+| `podvm_image::store::Lock` | `pod_supervise::lock::Lock` (re-exported by `podvm_image::store`); `Lock::try_acquire`, `Lock::acquire` become podvm's `try_lock_at`, `lock_at` (podvm's errors, the note of PodUtils/podvm@T-0215 in test builds); `held.fd` is `held.fd()` |
 | `LOCK_ATTEMPTS`, `LOCK_SLEEP` of `podvm-image` | `pod_supervise::lock::{ATTEMPTS, PAUSE}` (the same 100 and 50 ms) |
 | `crates/podvm-supervise/src/launcher/supervise.rs` | leaves podvm |
 
