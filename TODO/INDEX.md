@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**127 entries: 66 open, 2 partial, 0 blocked, 59 done.**
+**127 entries: 65 open, 2 partial, 0 blocked, 60 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 0 | 0 | 24 | 46 |
-| P2 | 34 | 2 | 0 | 27 | 63 |
+| P2 | 33 | 2 | 0 | 28 | 63 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 66 | 2 | 0 | 59 | 127 |
+| **All** | 65 | 2 | 0 | 60 | 127 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -132,7 +132,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-083](transport.md) | P2 | M | M1 | feature | open | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
 | [T-084](foundation.md) | P3 | S | M0 | docs | open | The record of `SOURCES` names a git blob id (GitHub #22) |
 | [T-085](foundation.md) | P2 | S | M0 | defect | done | `check-sources.py`: the default branch of a source repository (GitHub #23) |
-| [T-086](roads.md) | P2 | L | M4 | feature | open | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
+| [T-086](roads.md) | P2 | L | M4 | feature | done | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
 | [T-087](roads.md) | P2 | S | M4 | feature | open | `pod_gsr::Stream` records how it ended (GitHub #25) |
 | [T-088](roads.md) | P2 | M | M4 | feature | open | `pod-gsr`: the synchronous face (GitHub #26) |
 | [T-089](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |

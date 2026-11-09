@@ -326,7 +326,7 @@ T-014 is done.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -395,6 +395,37 @@ documents). Its data file names `hackerschoice/gsocket` at `5950647f`
 `lib/gsocket-engine.c`, `lib/gsocket-ssl.c` and `lib/gsocket-util.c` have
 the same blobs at `5950647f` and at `ad546b2e` (the tag `v1.4.43`), read
 in a clone. The import takes `5950647f`.
+
+## Done
+
+2026-11-09, `ea884e3`. `crates/pod-gsr` from the prototype (`identity`,
+`settings`, `wire`, `session`, `srp`, `stream`; each test with its name),
+and `crates/pod-services/services/hackerschoice-gsr.toml` (14 facts and the
+endpoint `default`, each with its source; watches of four files of gsocket
+and of `thc.org`). The three changes of #24: a shard count outside 1 to 26
+is `Class::Config` (and the letter holds to `a` to `z`); the fuzz target
+`gsr_message` with seeds and the plant `gsr-reader-forgets-bytes`; both
+sides cap TLS 1.2 on OpenSSL 3.6.3, and a cap on the server alone and no
+cap pair too (call C34). `SOURCES` names `hackerschoice/gsocket` at
+`5950647f`; the README names the prototype as the source.
+
+- `cargo test -p pod-gsr --all-features`: 25 unit, 4 loopback, 7 over
+  `AF_UNIX`, 1 live ignored.
+- `cargo test -p pod-services --all-features`: 42 passed.
+- `cargo test --workspace --all-features`: 1012 passed, 13 ignored.
+- `cargo check -p pod-gsr --no-default-features`: no tokio in the tree.
+- `cargo test --manifest-path fuzz/Cargo.toml --lib`: 2 passed;
+  `sh scripts/plant-each.sh gsr-reader-forgets-bytes`: caught.
+- `python3 -I scripts/check-sources.py pod-gsr`: 4 files, 0 changes.
+- `python3 -I scripts/check-crates-io-names.py`: `pod-gsr` is on
+  crates.io (the one fault is `pod-unit`, T-102).
+- `cargo zigbuild --release -p static-probe` and `sh scripts/check-static.sh`
+  for `x86_64`, `aarch64`, `armv7`, `arm`, `riscv64gc`, `i686`,
+  `loongarch64` and `powerpc64le` musl: static (x86_64: 7,177,568 bytes,
+  `pod-gsr: o.gs.thc.org, OpenSSL 3.6.3`). i686 needed
+  `__atomic_is_lock_free` (`crates/pod-gsr/src/atomic.rs`). macOS and
+  Windows: CI (`scripts/openssl-perl.sh` gives Windows a perl for the
+  Configure of OpenSSL).
 
 # T-087: `pod_gsr::Stream` records how it ended (GitHub #25)
 
