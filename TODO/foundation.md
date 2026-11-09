@@ -879,3 +879,251 @@ podnet and the crates has a `_` arm. The test
 `the_io_cause_comes_back_and_not_found_has_its_class` passes, and
 `scripts/agent/check.sh` passes. podvm's glue of the space and exec checks
 can read `io_cause()` and `Class::NotFound` from the next release.
+
+# T-084: The record of `SOURCES` names a git blob id (GitHub #22)
+
+**Source:** GitHub #22
+**Category:** docs
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #22: `docs/design.md` and `docs/maintenance.md` say that a
+`SOURCES` line holds a SHA-256. `scripts/check-sources.py` and the files
+`crates/*/SOURCES` hold the git blob id (SHA-1, 40 hex digits).
+
+## Premise
+
+- Read: the three places and `crates/pod-hostprobe/SOURCES`.
+- The record format stays. The fix is in text and needs no ruling.
+
+## Approach
+
+Change the two documents and the header text that `record()` writes in
+`scripts/check-sources.py`. Name `git ls-tree COMMIT -- PATH` as the
+command that checks a value by hand.
+
+## Prove
+
+```sh
+grep -n "SHA-256" docs/design.md docs/maintenance.md scripts/check-sources.py
+python3 -I scripts/check-sources.py --plant-change pod-todo
+cargo todo check
+```
+
+The `grep` gives no line about `SOURCES`. The second command exits 1.
+
+# T-085: `check-sources.py`: the default branch of a source repository (GitHub #23)
+
+**Source:** GitHub #23
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #23: `Mirror.rev` returns `"main"` and `Clone.rev` returns
+`"origin/main"` in `scripts/check-sources.py`. A repository with another
+default branch gives `removed` for each file. This blocks the import of
+`hackerschoice/gsocket` (T-086): its default branch is `master`. Issue
+#23 names four files of the import at one commit, and issue #24 names
+another commit for the relay facts (Q7 asks the owner).
+
+## Premise
+
+- Read: `scripts/check-sources.py`. Each source repository uses `main`
+  today, so the red run of the `upstream` job has another cause.
+- Not measured: the API answer for a repository with another branch.
+
+## Approach
+
+Read the default branch (`GET /repos/{repo}`, cached; for a clone,
+`git symbolic-ref refs/remotes/origin/HEAD`). Make `rev` a required
+argument of `tree` and `commits`. A 404 at a resolved ref is `removed`.
+An unresolved ref is `Unreadable` (exit 2). Update the docstring and the
+header that `record()` writes.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --plant-change pod-todo
+sh scripts/plant-each.sh
+```
+
+A new plant uses a block whose repository has a default branch that is
+not `main`.
+
+# T-092: The live workflow `live.yml` (GitHub #30)
+
+**Source:** GitHub #30
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue #30: `AGENTS.md`, `docs/development.md`, `docs/design.md`,
+`crates/pod-dns/README.md` and `crates/pod-tls/tests/live_handshake.rs`
+name a live workflow. `.github/workflows/` has no `live.yml`. 10 tests
+with `#[ignore]` never run in CI: 5 in
+`crates/pod-tls/tests/live_handshake.rs`, 4 in
+`crates/pod-dns/tests/live_doh.rs`, 1 in `crates/pod-proxy/tests/mptcp.rs`.
+The `--ignored` steps of `.github/workflows/nightly.yml` run
+`system_store` only. The fourth `live_doh` test needs a proxy of names;
+scripts/box/proxy.py is in podssh, not here.
+
+## Premise
+
+- Read: the files above and `scripts/check-workflows.py`.
+- Call C24 (`docs/decisions.md`): `live.yml` runs each day at an
+  off-peak hour and by `workflow_dispatch`, with egress to the relay and
+  to public DoH resolvers.
+- `crates/pod-services/README.md` names a `live.yml` that is a step of
+  podnet: do not change it. T-050 owns the data watches.
+
+## Approach
+
+Add the file .github/workflows/live.yml (schedule and `workflow_dispatch`,
+`permissions: contents: read`, `timeout-minutes`) with three steps:
+`live_handshake`, `live_doh`, `mptcp`. Port the proxy of names from
+podssh or write a stand-in in `pod-testkit`. Update the workflow list in
+`docs/design.md`. Add a rule to `scripts/check-workflows.py`: each
+workflow that `AGENTS.md` and `docs/` name exists. Add a plant for it.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+sh scripts/plant-each.sh
+```
+
+A dispatched run of `live.yml` on `main` is green. Write its run id in
+`## Done`.
+
+# T-093: README: the state and the table of crates (GitHub #31)
+
+**Source:** GitHub #31
+**Category:** docs
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #31: `README.md` says that milestone M0 runs now and that the first
+release follows M0. `Cargo.toml` has version 0.7.0 and `docs/releases/`
+holds the notes of v0.1.0 to v0.7.0. The crate table lacks `pod-services`
+and `pod-hostprobe`, and the waves M6 and M7. `crates/` holds 10 crates.
+
+## Premise
+
+- Read: `README.md`, `Cargo.toml`, `docs/design.md` (section 4),
+  `TODO/PROGRESS.md`.
+- Not measured: none.
+
+## Approach
+
+Rewrite the State from `TODO/PROGRESS.md` (the version, the releases).
+Rewrite the table from section 4 of `docs/design.md`. Option: a check
+that each name in `crates/` is in the table.
+
+## Prove
+
+```sh
+cargo todo check
+for c in $(ls crates); do grep -q "\`$c\`" README.md || echo "missing $c"; done
+```
+
+The loop prints nothing.
+
+# T-094: `docs/design.md`: the repository table matches the tree (GitHub #32)
+
+**Source:** GitHub #32
+**Category:** docs
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #32: the repository table of `docs/design.md` names five paths of
+`scripts/` that do not exist: `check-vendored.py`, `plant.sh`,
+`release.sh`, `fake-*.py` and `check-relay-spec.py`. It does not name
+twelve scripts that exist: in `scripts/` `adoption.sh`,
+`check-consumer-toolchains.py`, `check-crates-io-names.py`,
+`check-zig-mirrors.py`, `pull-image.sh`, `secrets-report.py`; in
+`scripts/agent/` `new-issues.py`, `org-issues.py`, `runs.py`,
+`secrets_like.py`, `togit.sh`, `watch-org.sh`. It omits `HANDOFF.md`,
+`session-protocol.md` and `research/` of `docs/`.
+
+## Premise
+
+- Read: the table and `ls scripts scripts/agent docs`.
+- Not measured: none.
+
+## Approach
+
+Rewrite the rows as issue #32 gives, with a "planned" row for a path that
+is not built. Add a checker that reads the table and reports each absent
+path (report only for the planned row). Run it from
+`scripts/agent/check.sh`. Add a plant for it.
+
+## Prove
+
+```sh
+python3 -I scripts/check-design-paths.py
+sh scripts/plant-each.sh
+```
+
+The checker is part of the entry. The first command exits 0.
+
+# T-095: The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33)
+
+**Source:** GitHub #33
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #33: `examples/static-probe/Cargo.toml` turns on the feature `ech`
+of `pod-proxy` only. `crates/pod-proxy/Cargo.toml` has `blocking`, `ech`
+and `fuzzing`. The blocking face is the one that podvm takes.
+`docs/design.md` says "each crate with each feature". The probe also
+builds `pod-core` and `pod-tls` with default features; the builds with
+`default-features = false` (call C20) are not probed. `docs/development.md`
+gives the build command with no `-p static-probe`.
+
+## Premise
+
+- Read: the probe, the manifest of `pod-proxy`, `docs/development.md`.
+- Not measured: the size of the probe with `blocking`.
+
+## Approach
+
+Add `blocking` and one call (`blocking::Dialer::new` and `proxy_at`) to
+the probe. Keep `fuzzing` out, with a comment. Add the builds with no
+tokio of `pod-core` and `pod-tls`. Add a checker: each feature of a
+library crate is in the probe or in an allowance list; add a plant. Fix
+the command in `docs/development.md`.
+
+## Prove
+
+```sh
+cargo build --release -p static-probe
+sh scripts/check-static.sh
+sh scripts/plant-each.sh
+```
+
+The `static` job of `ci.yml` is green on the 12 targets.

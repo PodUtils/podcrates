@@ -1730,3 +1730,259 @@ cargo test -p pod-services --all-features
 the first server `derp1f.tailscale.com` of `nyc`; 28 regions), with each test
 of `pod-services`. podssh reads it from the release after v0.6.0.
 
+
+# T-082: `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20)
+
+**Source:** GitHub #20
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #20: `Client::https_get` and `https_get_accepting` write
+`Host: ::1` for an IPv6 literal on port 443, and `Host: [::1]:8443` on
+another port. RFC 9110, section 7.2, needs brackets in both cases. The
+line `let host_header = if port == 443 { host.to_string() } else {
+authority(host, port) };` is in `crates/pod-proxy/src/client.rs`. The
+function `authority` in `crates/pod-proxy/src/host.rs` brackets a host
+with a colon, but the port 443 branch skips it. `check_name` lets a
+literal with colons pass.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/client.rs`, `crates/pod-proxy/src/host.rs`.
+  The siblings `crates/pod-proxy/src/client/request.rs` and
+  `crates/pod-dns/src/get.rs` bracket the host correctly.
+- Not measured: a TLS exchange with a server on `[::1]`.
+
+## Approach
+
+Add `host_header(host, port)` to `crates/pod-proxy/src/host.rs`. It
+omits the port for 443 and brackets a host with a colon. Use it in
+`crates/pod-proxy/src/client.rs`. The unit test of `host_header` is the
+necessary check. The TLS test on `[::1]` is best effort: it skips when
+the host has no IPv6 loopback.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy host_header
+cargo test -p pod-proxy --test get
+```
+
+The unit test covers `[2001:db8::1]`, `[2001:db8::1]:8443`,
+`example.com` and `example.com:8443`. A plant reverts the call in
+`crates/pod-proxy/src/client.rs`; the test then fails.
+
+# T-083: `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21)
+
+**Source:** GitHub #21
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue #21: `pod-proxy` dials TCP only. `crates/pod-proxy/src/socks5.rs`
+has the command `CONNECT` (0x01) only, and the crate has no UDP code.
+The move of `pod-warp` (T-028) needs the framing of podnet
+(`PodUtils/podnet:crates/podnet-netns/src/upstream.rs`):
+`socks5_udp_in_stream`, `udp_associate`, `wrap_udp`, `wrap_udp_name`,
+`write_udp_frame`, `read_udp_frame`. A refused command 0x83 (reply 0x07)
+must be a `DialError` variant. T-020 (`pod-session`, UDP in a stream) and
+T-023 cover other mechanisms.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/socks5.rs` (337 lines),
+  `crates/pod-proxy/src/error.rs`, `docs/design.md` (the `pod-warp` row).
+- Call C23 (`docs/decisions.md`) puts the framing in `pod-proxy`.
+- Not measured: the size of the new module.
+
+## Approach
+
+A new module `socks5/udp.rs` under `crates/pod-proxy/src/` (the file
+stays under 500 lines), exported from `crates/pod-proxy/src/lib.rs`. A
+new variant `DialError::UdpRefused`. Update the `pod-warp` row of
+`docs/design.md` and name the boundary with T-020: `pod-session` keeps
+its own UDP-in-a-stream adapter.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --test socks5_udp
+sh scripts/plant-each.sh
+```
+
+Mock servers test the 0x83 round trip, the reply 0x07 followed by
+ASSOCIATE, a close after 0x83 (a `DialError`), and the byte layout with
+`Ok(None)` on end of stream. A plant flips the length prefix.
+
+# T-089: `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27)
+
+**Source:** GitHub #27
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #27: the only watch of
+`crates/pod-services/services/tailscale-derp.toml` is
+`pointer = "/Regions"`. It does not compare the hosts. The map of
+2026-11-07 has 95 nodes and the file has 91 endpoints. The servers
+`derp1j`, `derp1k`, `derp4k` and `derp4l` are missing. The sibling
+`crates/pod-services/services/tailcat-derp.toml` uses
+`member = "HostName"` and `role = "region"`.
+
+## Premise
+
+- Read: both files, and the `http-json` row of
+  `crates/pod-services/README.md`. `grep -c '^\[\[endpoint\]\]'` gives 91.
+- Not measured: the live map (no egress in a cloud session).
+- The watch runs only when T-050 builds the runner; the data change does
+  not wait for it. T-079 added the fleet.
+
+## Approach
+
+Add `member = "HostName"` and `role = "region"` to the watch. Add the
+four servers, with the addresses and `read` dates of the live map, in the
+order of the file. T-050 gets a line for the "count" watch kind.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+The compare script of issue #27 (live map against the file) prints no
+host in either difference list. It needs egress: run it in a workflow or
+let the owner run it.
+
+# T-090: `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28)
+
+**Source:** GitHub #28
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #28: `crates/pod-services/services/ajam-relay.toml` has 7
+endpoints (`default` and 6 `seed-*`) and 3 watches (`/limits`,
+`/version`, `rdap`). No watch names a host. The six seeds are the default
+pool of podssh and podnet. The note "in the member pool" has no re-read.
+The sibling `crates/pod-services/services/ajam-ts-relay.toml` uses
+`tls-name`.
+
+## Premise
+
+- Read: the file, its sibling, and the watch forms of
+  `crates/pod-services/README.md`.
+- Not measured: the live pool.
+- The run of the watches waits for T-050; the data change does not.
+
+## Approach
+
+Add three watches: `tls-name` (role `seed`, and the endpoint `default`),
+`http-json` with `pointer = "/pool"`, `member = "host"`, `role = "seed"`,
+and `http-status` with role `seed`, path `/health`, status 200.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+grep -c 'kind = "tls-name"' crates/pod-services/services/ajam-relay.toml
+```
+
+The `grep` prints 2 or more.
+
+# T-091: `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29)
+
+**Source:** GitHub #29
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #29: `Way::lookup` and `Way::lookup_with` reach `Doh::target` with
+no `dns_safe` check. The JSON arm of `Doh::target` writes `?name={name}`
+raw into the query string. A space, `&`, `#` or `%` in the name changes
+the question. `dns_safe` is in `crates/pod-dns/src/lib.rs`. The files
+`crates/pod-dns/src/question.rs`, `crates/pod-dns/src/wire.rs` and
+`crates/pod-dns/src/resolver.rs` apply it; `crates/pod-dns/src/way.rs`,
+`crates/pod-dns/src/ask.rs` and `crates/pod-dns/src/doh.rs` do not.
+`crates/pod-proxy/src/http.rs` refuses only CR and LF.
+
+## Premise
+
+- Read: the files above. `grep dns_safe crates/pod-dns/src/lookup.rs`
+  has no hit.
+- Not measured: the answer of a public resolver to a changed question.
+
+## Approach
+
+Check `dns_safe` in `ask_kept` (`crates/pod-dns/src/ask.rs`) and give
+`Missed::words` on failure. Percent-encode the name in the JSON arm of
+`Doh::target`. Keep the check of the wire form.
+
+## Prove
+
+```sh
+cargo test -p pod-dns refuses_a_name
+sh scripts/plant-each.sh
+```
+
+The tests: `a b.example`, `a&b.example`, `x#y.example` and
+`a%b.example` give `Err`; `relay.example` and `a-b_c.example` keep their
+target. A plant removes the new check.
+
+# T-096: `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34)
+
+**Source:** GitHub #34
+**Category:** docs
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #34: the row of `crates/pod-proxy/README.md` for
+`Rules::http_proxy_vars` lists 4 variables for each list. Each list has 6
+entries in `crates/pod-proxy/src/env.rs`. The test
+`crates/pod-proxy/src/env_tests.rs` pins the fallback to `HTTPS_PROXY`
+for the default list only. `HTTP_PROXY_VARS_UPPER_FIRST` appears there in
+a helper only.
+
+## Premise
+
+- Read: the README, `crates/pod-proxy/src/env.rs`,
+  `crates/pod-proxy/src/env_tests.rs`.
+- Not measured: the behaviour of a consumer with the two missing names.
+
+## Approach
+
+List the 6 variables of each list. State the fallback for both lists in
+the other places of the README that describe it. Add a test for
+`HTTP_PROXY_VARS_UPPER_FIRST` in `crates/pod-proxy/src/env_tests.rs`.
+Option: a check that the row lists as many names as the code.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy env_tests
+cargo todo check
+```

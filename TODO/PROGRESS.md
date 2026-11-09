@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 81 entries: 33 open, 1 partial, 0 blocked, 47 done.
+`TODO/INDEX.md` holds 97 entries: 48 open, 1 partial, 1 blocked, 47 done.
 
 ## State
 
@@ -29,16 +29,18 @@ order. A crate is released on the day that its entry is done
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
    T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).
-2. **M1, the transport:** T-016; T-050 (`pod-services`); T-041 when a
-   crate or a consumer needs it.
+2. **M1, the transport:** T-085 first (it blocks the import of gsocket),
+   then T-091, T-082 (defects), T-089, T-090 (data of `pod-services`),
+   T-092, T-095 (CI), T-083; then T-084, T-093, T-094, T-096 (docs); T-016;
+   T-050 (`pod-services`); T-041 when a crate or a consumer needs it.
 3. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026.
 4. **M3, the adapters:** T-027, T-028, T-029, T-030.
 5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
-   T-038, T-039.
+   T-038, T-039; then T-086 (blocked: Q7), T-087, T-088.
 6. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
    commit of its rename; a "port" entry for each change that
-   scripts/check-sources.py finds.
+   scripts/check-sources.py finds (T-097).
 7. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `0249527`): T-061 and T-059;
    T-060; T-056; T-057; T-058.

@@ -181,3 +181,44 @@ binaries. podvm waits for T-075 and T-077 and the trial of `pod-hostprobe`.
 (`adoption/podvm/pod-hostprobe.patch`, T-055): each step of `sh
 scripts/adoption.sh podvm pod-hostprobe` passed; `adoption.yml` runs podvm
 again. podvm took the patch in podvm `8899c2e` (PodUtils/podvm#210).
+
+# T-097: Ports and snapshot moves of the drift of `pod-core` and `pod-services`
+
+**Source:** the red job `sources` of the `upstream` workflow (triage of GitHub #18 to #34)
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/check-sources.py` reports changes of `pod-core` (2 blocks) and
+`pod-services` (3 blocks). Four of the changes touch no value of the
+data: a split, a call instead of a constant, a test that reads the
+default relay from `pod-services`. One value may need a port: podnet
+(T-068) uses `1.1.1.1:443` as the default of the TCP probe, and
+`crates/pod-services/services/cloudflare-dns.toml` has no `tcp` endpoint
+for it (it has `udp-1`, `udp-2` and `trace`).
+
+## Premise
+
+- Read: the report of the check with the clones of podssh, podnet and
+  podvm at their `main`, and the data files.
+- Not measured: a run of the check after the move.
+
+## Approach
+
+Decide the value: add an endpoint `tcp-1` with a source, or record that
+the probe target is code of podnet. Then move the snapshot of the other
+blocks (new blob ids and commit) in `crates/pod-core/SOURCES` and
+`crates/pod-services/SOURCES`.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py
+cargo test -p pod-services
+```
+
+The first command runs with the clones and exits 0.

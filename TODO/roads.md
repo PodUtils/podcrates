@@ -318,3 +318,140 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-014 is done.
+
+# T-086: Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24)
+
+**Source:** GitHub #24
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+Issue #24: no crate on `main` speaks the GSRN relay of gsocket. A
+measured prototype exists outside the tree. The issue asks for the crate
+`pod-gsr` (modules `identity`, `settings`, `wire`, `session`, `srp`,
+`stream`) and the data file hackerschoice-gsr.toml of `pod-services` (12
+facts with sources). The upstream protocol source is
+`hackerschoice/gsocket` (C). Changes first: a shard count above 26 is
+`Class::Config`; a fuzz target `gsr_message` for `wire::Reader`; the TLS
+1.2 version cap on the OpenSSL that SRP needs. A static OpenSSL for SRP
+is allowed by call C11 when the static probe proves it (the issue
+reports 5,830,416 bytes and no `NEEDED`); no new ruling is needed.
+The name `pod-gsr` is not in `docs/design.md`, section 4. It needs a
+row there and a reservation on crates.io (T-043). Issues #23 and #24 name
+two commits of `hackerschoice/gsocket`; the import takes the commit that
+holds the four files.
+
+## Premise
+
+- Read: no clone of podssh, podnet, podvm or podcrates holds the
+  prototype, and code search of PodUtils gives 0 hits. The prototype is
+  in a place that no session here can read.
+- Not measured: the prototype, its size, its tests.
+
+## Approach
+
+Import the crate and the data file by the procedure of `docs/design.md`.
+Add the `pod-gsr` row to section 4 (M4, beside `pod-piping`) and reserve
+the name. Add the fuzz target. Add the crate to the static probe. T-087
+and T-088 follow.
+
+## Prove
+
+```sh
+cargo test -p pod-gsr --all-features
+cargo test -p pod-services
+python3 -I scripts/check-crates-io-names.py
+sh scripts/check-static.sh
+cargo todo check
+```
+
+## Blocker
+
+The owner must say where the source of `pod-gsr` is (a branch, a gist or
+a patch on issue #24), and may name the commit of `hackerschoice/gsocket`
+(question Q7 in `TODO/PROGRESS.md`). T-085 must be done before the
+import.
+
+# T-087: `pod_gsr::Stream` records how it ended (GitHub #25)
+
+**Source:** GitHub #25
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Issue #25: `Stream` maps `UnexpectedEof`, reason 294 and `ZERO_RETURN` to
+a clean end (the file stream.rs of the prototype). A cut in a
+record looks like a completed transfer. The issue measured no data-loss
+case.
+
+## Premise
+
+- Read: the issue text only. The crate is not in the tree (T-086).
+- Not measured: any behaviour of `Stream`.
+
+## Approach
+
+An enum `End { Clean, Cut }`, an accessor `Stream::end()`, and `is_end`
+split into `is_clean` and `is_cut`. `AsyncRead` keeps its results.
+
+## Prove
+
+```sh
+cargo test -p pod-gsr --test loopback the_end_of_the_peer_ends_the_stream
+cargo test -p pod-gsr --test loopback
+```
+
+Two new tests: `End::Cut` after a drop, `End::Clean` after
+`poll_shutdown`.
+
+## Start condition
+
+T-086 is done.
+
+# T-088: `pod-gsr`: the synchronous face (GitHub #26)
+
+**Source:** GitHub #26
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue #26: `open` is async only (`tokio::time::Instant`). A consumer with
+no tokio runtime cannot use the crate. The pattern exists in
+`crates/pod-proxy/src/blocking.rs`. The `End` accessor is shared with
+T-087.
+
+## Premise
+
+- Read: the issue text and `crates/pod-proxy/src/blocking.rs`. The crate
+  is not in the tree (T-086).
+- Not measured: the size of the core with no tokio.
+
+## Approach
+
+A feature `blocking` over a private current-thread runtime, as in
+`pod-proxy`. The core builds with no tokio. A call inside a runtime fails
+with `Class::Usage`. The static probe calls it.
+
+## Prove
+
+```sh
+cargo test -p pod-gsr --features blocking
+cargo check -p pod-gsr --no-default-features
+cargo check -p pod-gsr --no-default-features --features blocking
+```
+
+## Start condition
+
+T-086 is done.
