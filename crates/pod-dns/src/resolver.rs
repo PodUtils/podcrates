@@ -3,7 +3,7 @@
 //! dial of `pod-proxy` asks.
 
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use pod_core::{BoxFuture, Class, Dial, Failure, NoObserver, Observer, Resolve, SOURCE_WAIT, Stage};
 use pod_tls::Context;
@@ -13,7 +13,7 @@ use crate::dns_safe;
 use crate::kept::Kept;
 use crate::memory::{Memory, now_ms, split};
 use crate::order::{Found, Known, Source, resolve_in};
-use crate::settings::Settings;
+use crate::settings::{Settings, key};
 use crate::way::Way;
 
 /// The resolver: see the crate.
@@ -26,6 +26,10 @@ pub struct Resolver {
     observer: Arc<dyn Observer>,
     /// The connection kept for each resolver of the way.
     kept: Kept,
+    /// The pin table in force: [`Settings::pins`] at the start, then each
+    /// table of [`Resolver::set_pins`]. A swap of the `Arc`: a lookup reads
+    /// one table, and a replacement never waits for a lookup.
+    pins: RwLock<Arc<Vec<(String, IpAddr)>>>,
 }
 
 impl std::fmt::Debug for Resolver {
@@ -43,7 +47,8 @@ impl Resolver {
     /// the host of a proxy and for the dial of DNS over HTTPS itself).
     pub fn new(settings: Settings) -> Resolver {
         let memory = Memory::new(settings.memory);
-        Resolver { settings, memory, doh: None, observer: Arc::new(NoObserver), kept: Kept::new() }
+        let pins = RwLock::new(Arc::new(settings.pins.clone()));
+        Resolver { settings, memory, doh: None, observer: Arc::new(NoObserver), kept: Kept::new(), pins }
     }
 
     /// The same resolver, which asks DNS over HTTPS through `dial`, with the
@@ -64,6 +69,27 @@ impl Resolver {
 
     pub fn settings(&self) -> &Settings {
         &self.settings
+    }
+
+    /// Replace the pin table at run time: each name pinned later, and each
+    /// pin dropped, counts from the next lookup. The table has a name and one
+    /// of its addresses each ([`crate::parse_pins`]); the names are in lower
+    /// case with no final dot as [`Settings::pins`] has them, and one that
+    /// [`parse_pins`](crate::parse_pins) would refuse is dropped.
+    pub fn set_pins(&self, pins: Vec<(String, IpAddr)>) {
+        let pins = pins.into_iter().map(|(host, ip)| (key(&host), ip)).filter(|(host, _)| dns_safe(host)).collect();
+        *self.pins.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(pins);
+    }
+
+    /// The pin table in force.
+    pub fn pins(&self) -> Arc<Vec<(String, IpAddr)>> {
+        self.pins.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// The addresses pinned for `host` in the table in force, in order.
+    fn pinned_for(&self, host: &str) -> Vec<IpAddr> {
+        let host = key(host);
+        self.pins().iter().filter(|(h, _)| *h == host).map(|(_, ip)| *ip).collect()
     }
 
     /// The cache of addresses and the record of the dialer's connections.
@@ -110,7 +136,7 @@ impl Resolver {
     fn known(&self, host: &str) -> Known {
         let bare = host.trim_start_matches('[').trim_end_matches(']');
         let (fresh, old) = split(&self.memory.remembered(host), now_ms());
-        Known { literal: bare.parse().ok(), pins: self.settings.pinned(host), fresh, old, asks: dns_safe(host) }
+        Known { literal: bare.parse().ok(), pins: self.pinned_for(host), fresh, old, asks: dns_safe(host) }
     }
 
     /// The system resolver, within the bound of the settings and `deadline`.
@@ -174,7 +200,7 @@ impl Resolve for Resolver {
     }
 
     fn pinned(&self, host: &str) -> Vec<IpAddr> {
-        self.settings.pinned(host)
+        self.pinned_for(host)
     }
 
     fn note_dialed(&self, host: &str, peer: SocketAddr, source: pod_core::Source) {
@@ -243,6 +269,31 @@ mod tests {
         let seen = seen.0.lock().unwrap().clone();
         let words: Vec<(&str, &str)> = seen.iter().map(|(d, o)| (*d, o.as_str())).collect();
         assert_eq!(words, [("dns", "literal"), ("dns", "pin"), ("dns", "fail")]);
+    }
+
+    /// podnet: a pin set while the process runs counts from the next lookup,
+    /// and a replacement drops the pins of the table before it.
+    #[tokio::test]
+    async fn a_pin_table_replaced_at_run_time_counts_from_the_next_lookup() {
+        let resolver = Resolver::new(Settings::default());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let ip = |text: &str| text.parse::<IpAddr>().unwrap();
+        assert!(resolver.pinned("late.test").is_empty());
+        resolver.set_pins(vec![("Late.Test.".into(), ip("192.0.2.1"))]);
+        assert_eq!(resolver.ips("late.test", deadline).await.unwrap(), vec![ip("192.0.2.1")]);
+        resolver.set_pins(vec![("late.test".into(), ip("192.0.2.2")), ("late.test".into(), ip("2001:db8::2"))]);
+        assert_eq!(resolver.ips("late.test", deadline).await.unwrap(), vec![ip("192.0.2.2"), ip("2001:db8::2")]);
+        resolver.set_pins(Vec::new());
+        assert!(resolver.pinned("late.test").is_empty());
+        assert!(resolver.pins().is_empty());
+    }
+
+    /// The pins of the settings are the first table.
+    #[test]
+    fn the_pins_of_the_settings_are_the_first_table() {
+        let pins = vec![("first.test".to_string(), "192.0.2.9".parse().unwrap())];
+        let resolver = Resolver::new(Settings { pins, ..Settings::default() });
+        assert_eq!(resolver.pinned("first.test").len(), 1);
     }
 
     /// podnet: an IP address is its own address, in brackets or not.

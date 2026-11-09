@@ -49,8 +49,10 @@ proxy.
 | `Resolver::find(host, port, deadline, after)`, `Found`, `Source` (`ORDER`, `words`, `name`, `falls_back`, `core`, `of`), `SOURCE_WAIT` | the order with the source of the crate; the failure names each source that was tried |
 | `Resolver::ips(host, deadline)` | the addresses with no port |
 | `Resolver::settings`, `memory`, `asks_doh`, `way` | |
+| `Resolver::set_pins(pins)`, `pins()` | the pin table in force: `Settings::pins` at the start, then each table that the caller gives; a lookup reads one table, and a replacement counts from the next lookup |
 | `Memory` (`new`, `is_on`, `set_remembered`, `remembered`, `note_dialed`, `dialed`, `last_dialed`), `Remembered`, `split`, `FRESH` | the cache of the addresses that carried a session (fresh for 7 days, then old and last), and the record of the source of each address that the dialer connected to (32 at most) |
 | `Way { settings, context, dial, kept }` | a way to the resolvers: the resolver's own (`Resolver::way`), or one that a caller makes for the proxy of one road |
+| `Kept` (`new`, `len`, `is_empty`, `clear`), `IDLE` | the connection that waits for the next question, one for each host and port of one way out (5 s idle; a `Resolver` owns one, a caller gives one to its `Way` for the dial of that way; `None`: a connection for each question); a kept connection that failed gets one reconnect |
 | `Way::lookup(host, deadline)`, `lookup_with(resolvers, ..)` | the addresses of DNS over HTTPS from the resolvers in turn |
 | `Way::ask(resolver, host, deadline)` | one resolver straight at its address: the addresses and the form, or a `pod_proxy::Missed` with how the connection ended (a doctor's question) |
 | `Way::srv(name, deadline)`, `srv_with`, `Srv` | the SRV records of a name, in either form |

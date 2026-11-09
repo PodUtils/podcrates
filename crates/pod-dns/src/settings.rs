@@ -43,7 +43,8 @@ pub struct Settings {
     pub names: Names,
     /// The pins: a name and one of its addresses each, in the order given; a
     /// name may come more than once ([`parse_pins`]). A pinned name is not
-    /// asked of the system.
+    /// asked of the system. The first table of a [`crate::Resolver`], which
+    /// the caller replaces at run time ([`crate::Resolver::set_pins`]).
     pub pins: Vec<(String, IpAddr)>,
     /// The bound of one resolver's answers.
     pub each: Duration,
