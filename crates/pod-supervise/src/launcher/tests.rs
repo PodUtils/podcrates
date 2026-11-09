@@ -1,43 +1,34 @@
-/// ⛔ T-0603, asserted rather than commented. `PR_SET_PDEATHSIG` fires on
-/// the creating THREAD's exit, so the path that clones, chroots and execs
-/// has to be the process.
+/// `PR_SET_PDEATHSIG` fires at the exit of the thread that made the child,
+/// so the path that clones, enters and execs must be the process.
 ///
-/// ⚠ **This asserts on the SOURCE, and the first version of it asserted on
-/// a thread count and was flaky.** Counting `/proc/self/task` before and
-/// after does not work under `cargo test`, which runs tests in threads of
-/// one process and changes that count for reasons that have nothing to do
-/// with podvm: it failed once in about five runs, which is a test whose
-/// name claimed more than it checked. The constraint is that these two
-/// crates spawn no thread at all, and that is what is read here. The
-/// runtime half is clause 3 of `experiments/230-lifecycle-loop.sh`, which
-/// reads `/proc/<launcher>/task` of a real detached launcher.
+/// This reads the source, not a count of threads: a count of
+/// `/proc/self/task` before and after does not work under `cargo test`,
+/// which runs tests in threads of one process. The rule is that this crate
+/// starts no thread, and that is what the test reads. The entry of the
+/// caller (`enter` of [`super::start`]) runs on the same path: its crate
+/// keeps the same rule.
 #[test]
 fn nothing_on_the_spawn_path_can_spawn_a_thread() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("crates/");
-    // ⛔ THE NEEDLES ARE ASSEMBLED AT RUN TIME AND NEVER WRITTEN OUT HERE.
-    // This test reads its own file, so a literal `thread` + `::spawn` in
-    // the assertion below is a match against itself: it failed exactly that
-    // way on 2026-09-09, and it is the same trap podvm-plant carries
-    // three times over.
-    let needles = [
-        format!("thread{}spawn", "::"),
-        format!("thread{}Builder", "::"),
-    ];
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    // The needles are put together at run time and never written out here:
+    // this test reads its own file, and a literal would match itself.
+    let needles = [format!("thread{}spawn", "::"), format!("thread{}Builder", "::")];
     let mut looked = 0;
-    for crate_name in ["podvm-supervise", "podvm-enter"] {
-        let dir = root.join(crate_name).join("src");
-        for f in std::fs::read_dir(&dir).expect("the crate's src/") {
+    let mut dirs = vec![src];
+    while let Some(dir) = dirs.pop() {
+        for f in std::fs::read_dir(&dir).expect("a directory of src/") {
             let path = f.expect("an entry").path();
+            if path.is_dir() {
+                dirs.push(path);
+                continue;
+            }
             if path.extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
             }
             let text = std::fs::read_to_string(&path).expect("a source file");
             looked += 1;
             for (n, line) in text.lines().enumerate() {
-                // ⚠ The doc comment above says the words; a line that is a
-                // comment is not code.
+                // A comment says the words; a comment is not code.
                 if line.trim_start().starts_with("//") {
                     continue;
                 }
@@ -52,5 +43,13 @@ fn nothing_on_the_spawn_path_can_spawn_a_thread() {
             }
         }
     }
-    assert!(looked >= 4, "only {looked} sources were read");
+    assert!(looked >= 8, "only {looked} sources were read");
+}
+
+#[test]
+fn an_exit_status_is_docker_s_exit_code() {
+    assert_eq!(super::exit_status(0), 0);
+    assert_eq!(super::exit_status(3 << 8), 3);
+    assert_eq!(super::exit_status(9), 137);
+    assert_eq!(super::exit_status(15), 143);
 }

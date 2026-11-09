@@ -897,6 +897,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-supervise"
+version = "0.7.0"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+ "pod-testkit",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pod-term"
 version = "0.7.0"
 dependencies = [
@@ -1396,6 +1407,7 @@ dependencies = [
  "pod-identity",
  "pod-proxy",
  "pod-services",
+ "pod-supervise",
  "pod-term",
  "pod-tls",
 ]

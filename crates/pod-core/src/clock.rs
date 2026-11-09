@@ -93,10 +93,29 @@ pub fn utc_minutes(secs: u64) -> String {
     format!("{y:04}-{m:02}-{d:02} {:02}:{:02} UTC", rest / 3600, rest % 3600 / 60)
 }
 
+/// An RFC 3339 UTC time to the second, `2026-11-05T09:30:00Z`, for a time
+/// (a time before the epoch gives the epoch). The records of `pod-supervise`
+/// hold their times in this form.
+pub fn rfc3339(t: SystemTime) -> String {
+    let secs = t.duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
+    let rest = secs.rem_euclid(86_400);
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rest / 3600, rest % 3600 / 60, rest % 60)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    // The values of Python's datetime.fromtimestamp(t, timezone.utc).
+    #[test]
+    fn an_rfc3339_time_is_written_to_the_second() {
+        assert_eq!(rfc3339(UNIX_EPOCH), "1970-01-01T00:00:00Z");
+        assert_eq!(rfc3339(UNIX_EPOCH + Duration::from_secs(1_791_440_989)), "2026-10-08T06:29:49Z");
+        assert_eq!(rfc3339(UNIX_EPOCH + Duration::from_secs(951_868_799)), "2000-02-29T23:59:59Z");
+        assert_eq!(rfc3339(UNIX_EPOCH - Duration::from_secs(5)), "1970-01-01T00:00:00Z");
+    }
 
     // The values of Python's email.utils.formatdate(usegmt=True).
     #[test]

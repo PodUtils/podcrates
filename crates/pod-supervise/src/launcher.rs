@@ -1,186 +1,193 @@
-//! The detached supervisor: one process per running container.
+//! The detached launcher: one process for each running container.
 //!
-//! [`TODO/supervise.md`](../../../TODO/supervise.md) T-0601, T-0602, T-0603,
-//! T-0605.
+//! One launcher for each container, and only it knows that the container
+//! runs. It holds the pidfd of the payload, holds the lock of the container
+//! for its whole life, owns the control socket, and writes `exited` into the
+//! table.
 //!
-//! ⭐ **One launcher per container, and it is the only thing that knows the
-//! container is running.** It holds the payload's pidfd, holds the container's
-//! lock for its whole life, owns the control socket, and is what writes
-//! `exited` into the table. Nothing else infers any of that.
+//! Nothing here sleeps: a fixed sleep is a guess about the scheduler.
+//! Readiness is an `O_CLOEXEC` pipe that the `execve` closes; the wait for
+//! the end of the payload is `ppoll` on its pidfd; the wait for a control
+//! message is the same `ppoll` on the listener. Each has a bound and its own
+//! result for the bound.
 //!
-//! ⛔ **Nothing here sleeps.** T-0602: a fixed sleep is a scheduling assumption,
-//! and the prior art's own capture of this lifecycle contains a failed run for
-//! exactly that reason. Readiness is an `O_CLOEXEC` pipe that the `execve`
-//! closes; the wait for the payload to end is `ppoll` on its pidfd; the wait for
-//! a control message is the same `ppoll` on the listener. Every one of them has
-//! an upper bound and a distinct outcome for reaching it.
+//! The log opens before the root changes: a file opened after a `chroot`
+//! cannot reach the state directory, which is outside the new root.
 //!
-//! ⛔ **The log is opened BEFORE the root changes.** T-0605: a sink opened after
-//! the chroot cannot reach the store, which is outside the new root, and that is
-//! step 2 of `TOOL.md` section 6.5 made in a different place.
-//!
-//! ⚠ **A pidfd addresses ONE process.** It does not contain descendants and it
-//! is not a PID namespace: a grandchild that reparents is outside podvm's
-//! reach, `inspect` says so, and nothing here implies otherwise.
+//! A pidfd addresses one process. It does not hold the descendants and it
+//! is not a PID namespace: a grandchild that goes to another parent is
+//! outside the reach of the launcher.
 
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
 
-use podvm_enter::{Fds, Plan, RootDir};
-use podvm_image::store::Lock;
-use podvm_image::Store;
-use podvm_probe::sys;
+use pod_core::{Class, Failure, Stage};
+use pod_hostprobe::sys;
+use serde::{Serialize, de::DeserializeOwned};
 
-use crate::table::{self, State};
-use crate::{Error, Result};
+use crate::table::{self, Container, State};
+use crate::{Result, Settings, failure};
 
-/// The control protocol, one line each way. ⚠ Deliberately tiny: it exists so
-/// `stop`, `kill` and `wait` address the LAUNCHER rather than a pid, which a
-/// second process cannot do safely because a pid is reused.
+/// The control protocol: one line each way. It lets `stop`, `kill` and
+/// `wait` address the launcher, not a pid, which a second process cannot do
+/// safely because a pid is used again.
 pub const CTL_SIGNAL: &str = "SIG";
 pub const CTL_WAIT: &str = "WAIT";
 
-/// Ask a running container's launcher to signal its payload.
-pub fn signal(store: &Store, id: &str, sig: i32) -> Result<()> {
-    let mut s = connect(store, id)?;
-    writeln!(s, "{CTL_SIGNAL} {sig}").map_err(|e| Error(format!("the launcher: {e}")))?;
+/// What the entry of the caller gets in the launcher.
+pub struct Launch<'a> {
+    /// The descriptors for the payload, as (the number in the payload, the
+    /// descriptor in the launcher): 0 is `/dev/null`, 1 and 2 are the log.
+    /// The entry adds its own and passes the list to the child.
+    pub pass: Vec<(i64, i64)>,
+    /// The log of the container, for a line of the entry (a note of a
+    /// fallback). The stderr of the launcher is `/dev/null`, and the ready
+    /// pipe carries only the start protocol.
+    pub log: &'a mut dyn Write,
+}
+
+/// The payload that the entry started.
+pub struct Payload {
+    /// The pid of the payload, a child of the launcher.
+    pub pid: i64,
+    /// What the payload needs while it runs (an open file, a held lock).
+    /// The launcher drops it after the end of the payload.
+    pub keep: Box<dyn std::any::Any>,
+}
+
+/// Ask the launcher of a running container to signal its payload.
+pub fn signal(s: &Settings, id: &str, sig: i32) -> Result<()> {
+    let mut stream = connect(s, id)?;
+    writeln!(stream, "{CTL_SIGNAL} {sig}").map_err(launcher_io)?;
     let mut line = String::new();
-    BufReader::new(&s)
-        .read_line(&mut line)
-        .map_err(|e| Error(format!("the launcher: {e}")))?;
+    BufReader::new(&stream).read_line(&mut line).map_err(launcher_io)?;
     if line.trim() == "ok" {
         Ok(())
     } else {
-        Err(Error(format!("the launcher answered {:?}", line.trim())))
+        Err(failure(Class::Protocol, format!("the launcher answered {:?}", line.trim())))
     }
 }
 
-/// Why a wait on a launcher failed.
-///
-/// ⛔ T-1691 (issue 215): only `Gone` means the container already ended. A
-/// failure of the wait itself is passed on, never read as a stop.
+fn launcher_io(e: std::io::Error) -> Failure {
+    Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("the launcher: {e}"), e)
+}
+
+/// Why a wait on a launcher failed. Only `Gone` means that the container
+/// ended. A failure of the wait itself goes to the caller, never as a
+/// stop.
 #[derive(Debug)]
 pub enum WaitError {
     /// No launcher answers: it ended and closed or removed its socket.
-    Gone(Error),
+    Gone(Failure),
     /// A launcher listens, and the wait failed for another reason.
-    Failed(Error),
+    Failed(Failure),
 }
 
-/// Wait for a running container to end, bounded.
+/// Wait for a running container to end, with a bound.
 ///
-/// ⛔ T-0602 and `TODO/RULES.md` section 8: `Ok(None)` is the bound being
-/// reached and it is a distinct outcome, never a guess at the exit code.
-/// A zero bound waits for nothing and answers `Ok(None)` at once: `std`
-/// refuses a zero read timeout (T-1691).
-pub fn wait(
-    store: &Store,
-    id: &str,
-    timeout_ms: u64,
-) -> std::result::Result<Option<i32>, WaitError> {
-    let s = connect(store, id).map_err(WaitError::Gone)?;
+/// `Ok(None)` is the bound, a result of its own, never a guess of the exit
+/// code. A zero bound waits for nothing and answers `Ok(None)` at once:
+/// `std` refuses a zero read timeout.
+pub fn wait(s: &Settings, id: &str, timeout_ms: u64) -> std::result::Result<Option<i32>, WaitError> {
+    let stream = connect(s, id).map_err(WaitError::Gone)?;
     if timeout_ms == 0 {
         return Ok(None);
     }
-    s.set_read_timeout(Some(std::time::Duration::from_millis(timeout_ms)))
-        .map_err(|e| WaitError::Failed(Error(format!("bounding the wait: {e}"))))?;
-    let mut w = &s;
-    // ⚠ A launcher that closes the connection between the connect and the
-    // write or the read has ended: that is `Gone`, as a failed connect is.
-    writeln!(w, "{CTL_WAIT}").map_err(|e| WaitError::Gone(Error(format!("the launcher: {e}"))))?;
+    stream.set_read_timeout(Some(std::time::Duration::from_millis(timeout_ms))).map_err(|e| {
+        WaitError::Failed(Failure::caused(Stage::Host, Class::Unavailable, format!("bounding the wait: {e}"), e))
+    })?;
+    let mut w = &stream;
+    // A launcher that closes the connection between the connect and the
+    // write or the read ended: that is `Gone`, as a failed connect is.
+    writeln!(w, "{CTL_WAIT}").map_err(|e| WaitError::Gone(launcher_io(e)))?;
     let mut line = String::new();
-    match BufReader::new(&s).read_line(&mut line) {
+    match BufReader::new(&stream).read_line(&mut line) {
         Ok(0) => Ok(None),
         Ok(_) => match line.trim().strip_prefix("exit ") {
             Some(n) => n.parse::<i32>().map(Some).map_err(|_| {
-                WaitError::Failed(Error(format!("the launcher answered {:?}", line.trim())))
+                WaitError::Failed(failure(Class::Protocol, format!("the launcher answered {:?}", line.trim())))
             }),
             None => Ok(None),
         },
-        Err(e)
-            if e.kind() == std::io::ErrorKind::WouldBlock
-                || e.kind() == std::io::ErrorKind::TimedOut =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(WaitError::Gone(Error(format!("the launcher: {e}")))),
+        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => Ok(None),
+        Err(e) => Err(WaitError::Gone(launcher_io(e))),
     }
 }
 
-fn connect(store: &Store, id: &str) -> Result<UnixStream> {
-    // ⚠ Through `/proc/self/fd`, for the same reason the bind is: the real path
-    // does not fit in `sun_path`. The directory handle is held for the length of
-    // the connect and dropped after it.
-    let (_dir, path) = table::control_via_fd(store, id)?;
+fn connect(s: &Settings, id: &str) -> Result<UnixStream> {
+    // Through `/proc/self/fd`, for the reason of the bind: the real path
+    // does not fit in `sun_path`. The directory stays open for the connect.
+    let (_dir, path) = table::control_via_fd(s, id)?;
     UnixStream::connect(&path).map_err(|e| {
-        Error(format!(
-            "no launcher is listening for {id}: {e}. The container is not running"
-        ))
+        Failure::caused(
+            Stage::Host,
+            Class::Unavailable,
+            format!("no launcher is listening for {id}: {e}. The container is not running"),
+            e,
+        )
     })
 }
 
-/// Fork a detached launcher for `container`, and return once its payload has
-/// reached its `execve` or failed to.
+/// Fork a detached launcher for `container`, and return when its payload
+/// reached its `execve` or failed to. The answer is the pids of the
+/// launcher and of the payload.
 ///
-/// ⛔ **The readiness answer comes back over a pipe, not from a timer.** This
-/// function returns `Ok(pid)` only after the launcher has said the payload is
-/// running, so a caller never has to decide whether a container it cannot see
-/// yet is starting or already dead.
-pub fn start(
-    store: &Store,
-    container: &table::Container,
-    record: &podvm_image::Record,
-) -> Result<(i64, i64)> {
-    let dir = table::dir(store, &container.id);
-    std::fs::create_dir_all(&dir).map_err(|e| Error(format!("{}: {e}", dir.display())))?;
+/// `enter` runs in the launcher, after the lock, the control socket and the
+/// stdio of the payload are ready, and starts the payload: a child of the
+/// launcher. Its `Err` text goes back to the caller as the failure.
+///
+/// The ready answer comes on a pipe, not from a timer: this returns `Ok`
+/// only after the launcher said that the payload runs, so a caller never
+/// has to guess whether a container that it cannot see yet is starting or
+/// dead.
+pub fn start<X, F>(s: &Settings, container: &Container<X>, enter: F) -> Result<(i64, i64)>
+where
+    X: Clone + Serialize + DeserializeOwned,
+    F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, String>,
+{
+    let dir = table::dir(s, &container.id);
+    std::fs::create_dir_all(&dir).map_err(|e| crate::io_at(&dir, e))?;
 
-    // ⭐ T-0605. The log sink is opened HERE, before anything changes root, and
-    // its descriptors are handed to the payload. A sink opened after the chroot
-    // cannot reach the store.
-    let log = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(table::log_path(store, &container.id))
-        .map_err(|e| Error(format!("opening the container log: {e}")))?;
+    // The log opens here, before a root changes, and its descriptors go to
+    // the payload.
+    let log_path = table::log_path(s, &container.id);
+    let log = std::fs::OpenOptions::new().create(true).append(true).open(&log_path).map_err(|e| {
+        Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("opening the container log: {e}"), e)
+    })?;
 
-    // The readiness channel from the LAUNCHER back to this process. Separate
-    // from the one `podvm_enter::spawn` uses between the launcher and the
-    // payload: this one carries the launcher's own verdict.
-    // ⛔ `O_CLOEXEC`, and it is not tidiness. Measured on 2026-09-09: without it
-    // the PAYLOAD inherits the write end through its `execve` and holds it for
-    // its whole life, so the caller's read never sees EOF and `podvm run -d`
-    // blocks for exactly as long as the container runs. A fork keeps the fd,
-    // which is what the launcher needs; an exec drops it, which is what the
-    // payload must do.
+    // The ready pipe from the launcher to this process. `O_CLOEXEC` is
+    // necessary: without it the payload gets the write end through its
+    // `execve` and holds it for its whole life, so the read here sees no
+    // end of file until the container ends. A fork keeps the descriptor,
+    // which the launcher needs; an exec drops it, which the payload must do.
     let mut ready = [0i32; 2];
     sys::pipe2(&mut ready, sys::O_CLOEXEC)
-        .map_err(|e| Error(format!("pipe2: {} ({})", e.name(), e.0)))?;
+        .map_err(|e| failure(Class::Unavailable, format!("pipe2: {} ({})", e.name(), e.0)))?;
     let (ready_r, ready_w) = (ready[0] as i64, ready[1] as i64);
 
-    // ⛔ SINGLE-THREADED ON THIS PATH. T-0603: `PR_SET_PDEATHSIG` fires on the
-    // creating THREAD's exit, and podvm keeps the path that clones, chroots and
-    // execs free of threads so the creating thread is the process. Nothing here
-    // spawns one, and `the_spawn_path_is_single_threaded` asserts it.
+    // One thread on this path: `PR_SET_PDEATHSIG` fires at the exit of the
+    // thread that made the child, so the path that clones, enters and execs
+    // has no thread (`nothing_on_the_spawn_path_can_spawn_a_thread`).
+    // SAFETY: the process has one thread on this path, and each child ends
+    // with `exit_group`.
     let pid = match unsafe { sys::clone_fork(sys::SIGCHLD) } {
         Ok(0) => {
-            // ⛔ A DOUBLE FORK, and it is what makes `-d` detached. This
-            // intermediate child forks the real supervisor and exits at once, so
-            // the caller's `wait4` below returns immediately instead of blocking
-            // for the container's whole life, and the supervisor is reparented
-            // to init rather than left as a child of a process that has gone.
+            // A double fork makes the launcher detached: this middle child
+            // forks the launcher and exits at once, so the `wait4` below
+            // returns at once, and init becomes the parent of the launcher.
             let _ = sys::close(ready_r);
+            // SAFETY: as above.
             match unsafe { sys::clone_fork(sys::SIGCHLD) } {
                 Ok(0) => {
-                    let code = supervise(store, container, record, log, ready_w);
+                    let code = supervise(s, container, enter, log, ready_w);
                     sys::exit_group(code)
                 }
-                // ⚠ The intermediate keeps NOTHING open: its copy of the
-                // readiness pipe closing is what would otherwise hold the
-                // caller's read open forever.
+                // The middle child keeps nothing open: its copy of the ready
+                // pipe would hold the read of the caller open.
                 Ok(_) => sys::exit_group(0),
                 Err(e) => {
-                    let msg = format!("err clone(2) for the supervisor failed: {}", e.name());
+                    let msg = format!("err clone(2) for the launcher failed: {}", e.name());
                     let _ = sys::write(ready_w, msg.as_bytes());
                     sys::exit_group(1)
                 }
@@ -190,18 +197,14 @@ pub fn start(
         Err(e) => {
             let _ = sys::close(ready_r);
             let _ = sys::close(ready_w);
-            return Err(Error(format!(
-                "clone(2) for the launcher failed: {} ({})",
-                e.name(),
-                e.0
-            )));
+            return Err(failure(
+                Class::Unavailable,
+                format!("clone(2) for the launcher failed: {} ({})", e.name(), e.0),
+            ));
         }
     };
     let _ = sys::close(ready_w);
 
-    // ⚠ The launcher is reaped HERE and immediately: it forks its own child and
-    // exits, so this wait is for the intermediate process and returns at once.
-    // Leaving it unreaped would make every `podvm run -d` leave a zombie.
     let mut line = Vec::new();
     let mut buf = [0u8; 256];
     loop {
@@ -213,6 +216,8 @@ pub fn start(
         }
     }
     let _ = sys::close(ready_r);
+    // The middle child is reaped here: it exits at once. Without the reap,
+    // each start leaves a zombie.
     let mut status = 0i32;
     let _ = sys::wait4(pid, &mut status);
 
@@ -224,71 +229,70 @@ pub fn start(
             let payload = parts.next().and_then(|v| v.parse::<i64>().ok());
             match (launcher, payload) {
                 (Some(l), Some(p)) => Ok((l, p)),
-                _ => Err(Error(format!("the launcher said {text:?}"))),
+                _ => Err(failure(Class::Protocol, format!("the launcher said {text:?}"))),
             }
         }
-        None if text.is_empty() => Err(Error(
-            "the launcher exited without saying whether the payload started".into(),
-        )),
-        None => Err(Error(text.trim_start_matches("err ").to_string())),
+        None if text.is_empty() => {
+            Err(failure(Class::Unavailable, "the launcher exited and did not say whether the payload started"))
+        }
+        None => Err(failure(Class::Unavailable, text.trim_start_matches("err ").to_string())),
     }
 }
 
 mod supervise;
-use supervise::*;
+use supervise::supervise;
 
-/// Wait for the payload to end, answering control messages meanwhile.
+/// docker's exit code for a `wait4` status: the code of an exit, or 128 and
+/// the number of the signal.
+pub fn exit_status(status: i32) -> i32 {
+    if status & 0x7f == 0 { (status >> 8) & 0xff } else { 128 + (status & 0x7f) }
+}
+
+/// Reap the child `pid` and give its exit code. `EINTR` is not a failure.
+fn reap(pid: i64) -> Option<i32> {
+    let mut status = 0i32;
+    loop {
+        match sys::wait4(pid, &mut status) {
+            Ok(_) => return Some(exit_status(status)),
+            Err(e) if e == sys::EINTR => continue,
+            Err(_) => return None,
+        }
+    }
+}
+
+/// Wait for the payload to end, and answer control messages meanwhile.
 ///
-/// ⛔ **One `ppoll` over both, and no interval anywhere.** T-0602. The bound is
-/// long rather than absent, and reaching it is a re-poll rather than a verdict:
-/// a container that runs for a week is not a failure, and a poll that returned
-/// zero has learned nothing.
-fn serve(listener: &UnixListener, pidfd: i64, child: &podvm_enter::Child) -> i32 {
+/// One `ppoll` over both, and no interval. The bound is long, not absent,
+/// and its end is a new poll, not a result: a container that runs for a week
+/// is not a failure.
+fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32) -> i32 {
     let mut waiters: Vec<UnixStream> = Vec::new();
-    // ⭐ TODO/supervise.md T-1335: the launcher's own SIGINT/SIGTERM are
-    // blocked and read from a signalfd beside the payload's pidfd, so a
-    // signal to the launcher reaches the payload instead of orphaning it.
-    // No naming here: this process's stdio is /dev/null (T-0608), so the
-    // signaled exit code in the table record is the record. The mask stays
-    // blocked through this process's exit; there is nothing left that waits
-    // on those signals.
+    // SIGINT and SIGTERM of the launcher are blocked and read from a
+    // signalfd beside the pidfd, so a signal to the launcher goes to the
+    // payload and does not leave it with no parent. The mask stays blocked
+    // until the launcher exits: nothing else waits for those signals.
     let mut old = 0u64;
-    let sfd = sys::sigblock_shutdown(&mut old)
-        .and_then(|_| sys::signalfd_shutdown())
-        .unwrap_or(-1);
+    let sfd = sys::sigblock_shutdown(&mut old).and_then(|_| sys::signalfd_shutdown()).unwrap_or(-1);
     loop {
         let mut fds = [
-            sys::PollFd {
-                fd: pidfd as i32,
-                events: sys::POLLIN,
-                revents: 0,
-            },
-            sys::PollFd {
-                fd: listener.as_raw_fd(),
-                events: sys::POLLIN,
-                revents: 0,
-            },
-            // ⚠ A negative fd is ignored by the kernel, which is what keeps
-            // one shape here when the signalfd above refused: that launcher
-            // waits unforwarded rather than not at all.
-            sys::PollFd {
-                fd: sfd as i32,
-                events: if sfd >= 0 { sys::POLLIN } else { 0 },
-                revents: 0,
-            },
+            sys::PollFd { fd: pidfd as i32, events: sys::POLLIN, revents: 0 },
+            sys::PollFd { fd: listener.as_raw_fd(), events: sys::POLLIN, revents: 0 },
+            // The kernel ignores a negative descriptor, so the shape stays
+            // the same when the signalfd failed: that launcher waits with no
+            // forward.
+            sys::PollFd { fd: sfd as i32, events: if sfd >= 0 { sys::POLLIN } else { 0 }, revents: 0 },
         ];
-        // 60 s, and reaching it means nothing happened rather than anything
-        // being wrong.
+        // 60 s; the end of the bound means that nothing happened.
         match sys::ppoll(&mut fds, 60_000) {
             Ok(_) => {}
             Err(e) if e == sys::EINTR => continue,
             Err(_) => {
-                // ⚠ The poll itself failed. Fall back to a blocking reap rather
-                // than spinning: the payload is still this process's child.
+                // The poll failed. Reap with a block, not a spin: the payload
+                // is still a child of this process.
                 if sfd >= 0 {
                     let _ = sys::close(sfd);
                 }
-                return child.wait().unwrap_or(125);
+                return reap(pid).unwrap_or(failed_code);
             }
         }
         if sfd >= 0 && fds[2].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
@@ -298,24 +302,24 @@ fn serve(listener: &UnixListener, pidfd: i64, child: &podvm_enter::Child) -> i32
             {
                 let signo = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64;
                 if signo == sys::SIGINT as i64 || signo == sys::SIGTERM as i64 {
-                    // The `kill`-and-not-`pidfd_send_signal` reasoning in
-                    // `handle` applies unchanged: parent, unreaped.
-                    let _ = sys::kill(child.pid, signo);
+                    // `kill` is safe here, as in `handle`: the parent, before
+                    // the reap.
+                    let _ = sys::kill(pid, signo);
                 }
             }
         }
         if fds[1].revents & (sys::POLLIN | sys::POLLHUP) != 0
             && let Ok((stream, _)) = listener.accept()
         {
-            handle(stream, child, &mut waiters);
+            handle(stream, pid, &mut waiters);
         }
         if fds[0].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
-            // ⭐ T-0601: the status comes through the pidfd, so it cannot be
-            // redirected by pid reuse between the readiness and the reap.
+            // The status comes through the pidfd, so a pid used again
+            // between the readiness and the reap cannot redirect it.
             let code = match sys::waitid_pidfd(pidfd, false) {
                 Ok(Some(x)) if x.code == sys::CLD_EXITED => x.status,
                 Ok(Some(x)) => 128 + x.status,
-                _ => child.wait().unwrap_or(125),
+                _ => reap(pid).unwrap_or(failed_code),
             };
             for mut w in waiters {
                 let _ = writeln!(w, "exit {code}");
@@ -328,7 +332,7 @@ fn serve(listener: &UnixListener, pidfd: i64, child: &podvm_enter::Child) -> i32
     }
 }
 
-fn handle(stream: UnixStream, child: &podvm_enter::Child, waiters: &mut Vec<UnixStream>) {
+fn handle(stream: UnixStream, pid: i64, waiters: &mut Vec<UnixStream>) {
     let mut line = String::new();
     let mut reader = BufReader::new(match stream.try_clone() {
         Ok(s) => s,
@@ -341,20 +345,42 @@ fn handle(stream: UnixStream, child: &podvm_enter::Child, waiters: &mut Vec<Unix
     let text = line.trim();
     if let Some(n) = text.strip_prefix(CTL_SIGNAL) {
         let sig: i64 = n.trim().parse().unwrap_or(15);
-        // ⚠ `kill` and not `pidfd_send_signal`, and it is safe HERE and only
-        // here: this process is the payload's parent and has not reaped it, so
-        // the pid still names it. A second process could not say that.
-        let _ = sys::kill(child.pid, sig);
+        // `kill`, not `pidfd_send_signal`, and safe here only: this process
+        // is the parent of the payload and did not reap it, so the pid still
+        // names it. A second process could not say that.
+        let _ = sys::kill(pid, sig);
         let _ = writeln!(w, "ok");
         return;
     }
     if text.starts_with(CTL_WAIT) {
-        // ⛔ Held, not answered. The waiter is told the exit code when there is
-        // one, which is the only honest moment to say anything.
+        // Held, not answered: the waiter gets the exit code when there is
+        // one.
         waiters.push(stream);
         return;
     }
     let _ = writeln!(w, "err unknown request");
+}
+
+/// The state that the launcher writes into the record of `id`.
+fn record<X>(s: &Settings, id: &str, f: impl FnOnce(&mut Container<X>)) -> Result<()>
+where
+    X: Clone + Serialize + DeserializeOwned,
+{
+    table::update(s, |t: &mut table::Table<X>| {
+        if let Some(c) = t.containers.iter_mut().find(|c| c.id == id) {
+            f(c);
+        }
+        Ok::<_, Failure>(())
+    })
+}
+
+/// The record of a payload that ended with `code`.
+fn ended<X>(c: &mut Container<X>, code: i32) {
+    c.state = State::Exited;
+    c.exit_code = Some(code);
+    c.finished_at = Some(table::now());
+    c.pid = None;
+    c.launcher_pid = None;
 }
 
 #[cfg(test)]

@@ -1,7 +1,24 @@
 [package]
 name = "pod-supervise"
+description = "Detached payloads on Linux: one launcher for each payload, its lock, pidfd and control socket, a table of records, the logs, and the verbs of the lifecycle."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+pod-hostprobe = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+
+# The lifecycle of a real payload: a test binary with no libtest, so that the
+# launcher forks from a process with one thread.
+[[test]]
+name = "lifecycle"
+harness = false

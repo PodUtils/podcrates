@@ -1,345 +1,216 @@
-use super::*;
+//! An advisory lock (`flock`) that a value holds for as long as it lives.
+//!
+//! A launcher holds the lock of its container for its whole life, so a lock
+//! that another process can take is a launcher that is gone
+//! ([`crate::table::reconcile`]). A pid file cannot do this: it is stale
+//! when its launcher is killed, and the check that clears a stale one is a
+//! race.
 
-/// What [`Store::delete`] does about an image a holder is using.
-///
-/// ⛔ Two behaviours and one check, because the check has to happen under the
-/// index lock (invariant I4) and only the caller knows whether being held is a
-/// refusal (`rmi`, which names one image) or a skip (`prune`, which sweeps).
-/// Public for the same reason `delete` is: the CLI's record-gate
-/// (TODO/image.md T-1322) deletes the unreferenced remainder through it.
-#[derive(Debug, Clone, Copy)]
-pub enum Held {
-    Refuse,
-    Skip,
-}
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-#[derive(Debug)]
-pub struct Removed {
-    pub untagged: Vec<String>,
-    pub deleted: Vec<String>,
-    pub freed_bytes: u64,
-    /// ⛔ Named, never silent. T-0204: `prune` and `rmi` skip anything locked
-    /// **and say which**.
-    pub skipped: Vec<String>,
-}
+use pod_core::{Class, Failure, Stage};
+use pod_hostprobe::sys::{self, CBuf, Errno};
 
-/// A staging file, held exclusively for as long as this value lives.
-///
-/// ⛔ **Invariant I5's mechanism.** [`Store::sweep_staging`] decides what is
-/// abandoned by trying to lock each `*.partial`, so a file being written has to
-/// be locked or the sweep would delete it out from under its writer. The lock
-/// goes when this value does, however the process ends.
-///
-/// ⚠ **Two open file descriptions on one inode, not one.** `flock` is held on
-/// the description [`Lock`] opened, and the writes go through a second one this
-/// type opens after it. They are independent: closing the writer releases no
-/// lock, and the lock's own `Drop` is the only thing that does. ⛔ So a
-/// `StagedFile` costs two descriptors, and a reader counting descriptors while
-/// chasing a lock that outlived its holder has to know that
-/// ([`TODO/image.md`](../../../TODO/image.md) T-0215).
-pub struct StagedFile {
-    file: std::fs::File,
-    /// ⚠ Held for its `Drop`, and never read. The lock is the point.
-    _lock: Lock,
-}
+use crate::Result;
 
-impl StagedFile {
-    pub(super) fn create(path: &Path) -> Result<StagedFile> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| Error::io(parent.display().to_string(), e))?;
-        }
-        // ⛔ The lock FIRST. Creating the file and locking it afterwards leaves
-        // a window in which a sweep sees an unlocked `*.partial` and removes it.
-        let lock = match Lock::try_acquire(path, sys::LOCK_EX)? {
-            Some(l) => l,
-            None => {
-                return Err(Error::Store(format!(
-                    "{} is already being written by another podvm. Invariant I6 \
-                     makes this name unique per call, so two writers on one name is \
-                     a defect rather than contention",
-                    path.display()
-                )))
-            }
-        };
-        let file = std::fs::OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(path)
-            .map_err(|e| Error::io(path.display().to_string(), e))?;
-        Ok(StagedFile { file, _lock: lock })
-    }
-
-    pub fn sync_all(&self) -> std::io::Result<()> {
-        self.file.sync_all()
-    }
-}
-
-impl Write for StagedFile {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.file.write(buf)
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.file.flush()
-    }
-}
-
-/// ⭐ [`TODO/image.md`](../../../TODO/image.md) T-0214. A transfer that was cut
-/// short starts again on this same file, under the same lock and at the same
-/// name: the alternative is a second staging path per attempt, and a sweep that
-/// has to tell them apart.
-///
-/// ⛔ Truncate AND rewind. `set_len(0)` alone leaves the offset where the failed
-/// attempt left it, so the next byte lands two megabytes in and the file is a
-/// hole followed by the retry.
-impl crate::registry::Restart for StagedFile {
-    fn restart(&mut self) -> std::io::Result<()> {
-        use std::io::Seek;
-        self.file.set_len(0)?;
-        self.file.seek(std::io::SeekFrom::Start(0))?;
-        Ok(())
-    }
-}
+/// How many times [`Lock::acquire`] tries a lock that another process holds.
+pub const ATTEMPTS: u32 = 100;
+/// The pause between two tries of [`Lock::acquire`].
+pub const PAUSE: Duration = Duration::from_millis(50);
 
 /// An advisory lock held for as long as this value lives.
 pub struct Lock {
-    pub(super) fd: i64,
+    fd: i64,
     pub path: PathBuf,
-    /// ⛔ Set by [`Lock::hand_to_payload`], and it turns the explicit release in
-    /// `Drop` OFF. A handed lock is meant to outlive this process in the
-    /// payload, and `LOCK_UN` would take it from the payload as well: the
-    /// payload holds a duplicate of THIS open file description, and a lock
-    /// belongs to the description rather than to a descriptor.
-    handed: std::sync::atomic::AtomicBool,
+    /// Set by [`Lock::hand_to_payload`]. It turns the explicit release in
+    /// `Drop` off: a handed lock must outlive this process in the payload,
+    /// and `LOCK_UN` would take it from the payload too. The payload holds a
+    /// duplicate of this open file description, and a lock belongs to the
+    /// description, not to a descriptor.
+    handed: AtomicBool,
+}
+
+/// A failure of a system call on the lock at `path`.
+fn errno_failure(what: &str, path: &Path, e: Errno) -> Failure {
+    let cause = io::Error::from_raw_os_error(e.0);
+    Failure::caused(
+        Stage::Host,
+        Class::of_io(cause.kind()),
+        format!("{what} {}: {} ({})", path.display(), e.name(), e.0),
+        cause,
+    )
 }
 
 impl Lock {
     fn open(path: &Path) -> Result<i64> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| Error::io(parent.display().to_string(), e))?;
+            std::fs::create_dir_all(parent).map_err(|e| crate::io_at(parent, e))?;
         }
         let Some(c) = CBuf::new(&path.to_string_lossy()) else {
-            return Err(Error::Store(format!(
-                "{} contains a NUL and cannot reach the kernel",
-                path.display()
-            )));
+            return Err(Failure::new(
+                Stage::Host,
+                Class::Usage,
+                format!("{} contains a NUL and cannot reach the kernel", path.display()),
+            ));
         };
-        // ⛔ `O_CLOEXEC`, like every other fd in this tree. T-0204's mechanism
-        // wants the image lock to survive **one** exec, and T-0211 is what it
-        // cost to get that by leaving the fd inheritable from the moment it was
-        // opened: every unrelated fork in between inherits it too.
-        // [`Lock::hand_to_payload`] is the deliberate act, made one call before
-        // the `execve` it is for.
+        // `O_CLOEXEC`: an inheritable lock is inherited by each unrelated
+        // fork, and the child then holds the `flock` for its own life.
+        // [`Lock::hand_to_payload`] is the one deliberate exception, made one
+        // call before the `execve` that it is for.
         let flags = sys::O_RDWR | sys::O_CREAT | sys::O_CLOEXEC;
-        sys::open(&c, flags, 0o644).map_err(|e| {
-            Error::Store(format!(
-                "opening the lock {}: {} ({})",
-                path.display(),
-                e.name(),
-                e.0
-            ))
-        })
+        sys::open(&c, flags, 0o644).map_err(|e| errno_failure("opening the lock", path, e))
     }
 
-    /// `None` where somebody else holds it. ⛔ Always `LOCK_NB`: a blocking
-    /// `flock` on a lock held through an exec is an unbounded wait, which
-    /// `RULES.md` section 8 forbids.
-    /// An exclusive lock, or `None` where somebody holds it.
-    ///
-    /// ⚠ Public because `podvm-supervise` reconciles its container table with
-    /// exactly this question ([`TODO/supervise.md`](../../../TODO/supervise.md)
-    /// T-0604): a launcher holds its container's lock for its whole life, so a
-    /// lock another process can take is a launcher that is gone. ⛔ The same
-    /// mechanism and not a second one: a pid file would be stale the moment a
-    /// launcher is killed, and the check that clears a stale one is the race.
+    /// An exclusive lock, or `None` when another process holds it. Always
+    /// `LOCK_NB`: a blocking `flock` on a lock held through an exec is a wait
+    /// with no bound.
     pub fn try_exclusive(path: &Path) -> Result<Option<Lock>> {
         Lock::try_acquire(path, sys::LOCK_EX)
     }
 
-    /// Take an exclusive lock, waiting the bounded number of attempts.
+    /// An exclusive lock, with the bounded number of tries of
+    /// [`Lock::acquire`].
     pub fn exclusive(path: &Path) -> Result<Lock> {
         Lock::acquire(path, sys::LOCK_EX)
     }
 
-    /// ⛔ **Every lock this type takes is registered for shedding here, and
-    /// this is the only place a `Lock` is built.** A caller cannot forget,
-    /// because a caller is not asked.
-    /// [`TODO/image.md`](../../../TODO/image.md) T-0215 is what the previous
-    /// shape cost: only [`Store::hold`] registered, so a staging lock, an index
-    /// lock and a container lock were each inherited by every child a
-    /// concurrent `clone_fork` made, and the child then held the `flock` for
-    /// its own lifetime. The image read as in use after its holder released it.
+    /// The lock of `op` (`sys::LOCK_EX` or `sys::LOCK_SH`), or `None` when
+    /// another process holds it.
+    pub fn try_acquire(path: &Path, op: u64) -> Result<Option<Lock>> {
+        Lock::try_acquire_noting(path, op, &|_, _| {})
+    }
+
+    /// [`Lock::try_acquire`], and `note(path, fd)` at the refusal, before
+    /// the descriptor closes: an instrument that looks for the holder must
+    /// look while the refusal is true.
     ///
-    /// ⚠ The `Lock` is built BEFORE the registration is checked, so the fd is
-    /// closed by its own `Drop` on the refusal path rather than leaked.
-    pub(super) fn try_acquire(path: &Path, op: u64) -> Result<Option<Lock>> {
+    /// Each lock is registered here to be closed in each child that
+    /// `clone_fork` makes, and this is the only place that builds a `Lock`,
+    /// so a caller cannot forget it. An unregistered lock is inherited by
+    /// each concurrent fork, and the child then holds the `flock`: the lock
+    /// reads as held after its holder released it.
+    pub fn try_acquire_noting(path: &Path, op: u64, note: &dyn Fn(&Path, i64)) -> Result<Option<Lock>> {
         let fd = Lock::open(path)?;
         match sys::flock(fd, op | sys::LOCK_NB) {
             Ok(_) => {
-                let lock = Lock {
-                    fd,
-                    path: path.to_path_buf(),
-                    handed: std::sync::atomic::AtomicBool::new(false),
-                };
+                // The `Lock` exists before the registration is checked, so
+                // its own `Drop` closes the descriptor on the refusal.
+                let lock = Lock { fd, path: path.to_path_buf(), handed: AtomicBool::new(false) };
                 if !sys::close_in_children(fd) {
-                    return Err(Error::Store(format!(
-                        "this process already holds {} locks, which is every slot \
-                         podvm has for fds a fork must shed. One more would leak \
-                         into every child forked from here (T-0211), so it is \
-                         refused rather than held unsafely",
-                        sys::FORK_CLOSE_SLOTS
-                    )));
+                    return Err(Failure::new(
+                        Stage::Host,
+                        Class::Unavailable,
+                        format!(
+                            "this process holds {} locks already, which is each slot for the \
+                             descriptors that a fork must close. One more would leak into each \
+                             child, so the lock is refused",
+                            sys::FORK_CLOSE_SLOTS
+                        ),
+                    ));
                 }
                 Ok(Some(lock))
             }
             Err(sys::EWOULDBLOCK) => {
-                // ⛔ **THE ONLY MOMENT A HOLDER WOULD BE THERE.**
-                // [`TODO/image.md`](../../../TODO/image.md) T-0215: every
-                // instrument that ran from the failing assertion arrived
-                // microseconds late and reported "nobody". This runs at the
-                // `EWOULDBLOCK` itself. ⚠ Test builds only, and silent unless
-                // `PODVM_T0215_CAPTURE` is set.
-                #[cfg(test)]
-                tests::note_the_refusal(path, fd);
+                note(path, fd);
                 let _ = sys::close(fd);
                 Ok(None)
             }
             Err(e) => {
                 let _ = sys::close(fd);
-                Err(Error::Store(format!(
-                    "flock({}): {} ({})",
-                    path.display(),
-                    e.name(),
-                    e.0
-                )))
+                Err(errno_failure("flock", path, e))
             }
         }
     }
 
-    pub(super) fn acquire(path: &Path, op: u64) -> Result<Lock> {
-        for _ in 0..LOCK_ATTEMPTS {
-            if let Some(l) = Lock::try_acquire(path, op)? {
+    /// The lock of `op`, tried [`ATTEMPTS`] times with [`PAUSE`] between.
+    pub fn acquire(path: &Path, op: u64) -> Result<Lock> {
+        Lock::acquire_noting(path, op, &|_, _| {})
+    }
+
+    /// [`Lock::acquire`], with the `note` of [`Lock::try_acquire_noting`].
+    pub fn acquire_noting(path: &Path, op: u64, note: &dyn Fn(&Path, i64)) -> Result<Lock> {
+        for _ in 0..ATTEMPTS {
+            if let Some(l) = Lock::try_acquire_noting(path, op, note)? {
                 return Ok(l);
             }
-            std::thread::sleep(LOCK_SLEEP);
+            std::thread::sleep(PAUSE);
         }
-        Err(Error::Store(format!(
-            "{} is held by another podvm after {:?}. Another pull or prune is \
-             running; podvm waits a bounded time and then says so rather than \
-             blocking (RULES.md section 8)",
-            path.display(),
-            LOCK_SLEEP * LOCK_ATTEMPTS
-        )))
+        Err(Failure::new(
+            Stage::Host,
+            Class::TempFail,
+            format!(
+                "{} is held by another process after {:?}. The wait has a bound and does not \
+                 block: try again when that process ends",
+                path.display(),
+                PAUSE * ATTEMPTS
+            ),
+        ))
     }
 
-    /// Hand this one lock to the payload, and to nothing else.
+    /// The descriptor of the lock.
+    pub fn fd(&self) -> i64 {
+        self.fd
+    }
+
+    /// Give this lock to the payload, and to nothing else.
     ///
-    /// ⭐ T-0204 needs the image lock to outlive `podvm` itself: the guard is
-    /// what stops a concurrent `rmi` or `prune` deleting a rootfs a running
-    /// container is executing out of, and podvm is not the process that holds
-    /// the container open. This undoes both of [`Store::hold`]'s defences for
-    /// this one descriptor, it stops being shed by `clone_fork` and its
-    /// `FD_CLOEXEC` is cleared, so the very next `fork` and `execve` carry it
-    /// into the payload.
+    /// The lock must outlive the caller when the payload is the process
+    /// that uses what the lock guards (a root file system that the payload
+    /// runs from). This clears `FD_CLOEXEC` and stops the close in each
+    /// child, so the next `fork` and `execve` carry the lock into the
+    /// payload.
     ///
-    /// ⛔ Called immediately before the fork that leads to that `execve`, never
-    /// at open time. T-0211 is what the second shape costs: a lock that is
-    /// inheritable for its whole life is inherited by every unrelated `fork` in
-    /// that window, in this tree, by the fifty short-lived children one
-    /// `podvm probe` makes, and each one holds the `flock` open for its own
-    /// lifetime. The image then reads as in use after its holder released it,
-    /// and `rmi` refuses an image nothing is using.
+    /// Call it immediately before the fork that leads to that `execve`,
+    /// never at open time: a lock that is inheritable for its whole life is
+    /// inherited by each unrelated fork in that time, and each child holds
+    /// the `flock` for its own life.
     ///
-    /// ⚠ The returned fd is deliberately raw: its consumer is the code between
-    /// `fork` and `execve`, where allocating is not allowed.
+    /// The descriptor that it returns is raw: its user is the code between
+    /// `fork` and `execve`, which must not allocate.
     pub fn hand_to_payload(&self) -> Result<i64> {
-        // ⛔ Order matters. The fd stops being shed only after `FD_CLOEXEC` is
-        // cleared, so a fork racing this call either sheds it or inherits a
-        // descriptor that is still close-on-exec. Neither outcome leaks a lock.
-        let flags = sys::fcntl(self.fd, sys::F_GETFD, 0).map_err(|e| {
-            Error::Store(format!(
-                "reading the descriptor flags of {}: {} ({})",
-                self.path.display(),
-                e.name(),
-                e.0
-            ))
-        })?;
+        // The order is necessary. The descriptor stops being closed in each
+        // child only after `FD_CLOEXEC` is clear, so a fork in between closes
+        // it or inherits a descriptor that is still close-on-exec. Neither
+        // leaks a lock.
+        let flags = sys::fcntl(self.fd, sys::F_GETFD, 0)
+            .map_err(|e| errno_failure("reading the descriptor flags of", &self.path, e))?;
         let cleared = (flags as u64) & !sys::FD_CLOEXEC;
-        sys::fcntl(self.fd, sys::F_SETFD, cleared).map_err(|e| {
-            Error::Store(format!(
-                "clearing FD_CLOEXEC on {}: {} ({})",
-                self.path.display(),
-                e.name(),
-                e.0
-            ))
-        })?;
+        sys::fcntl(self.fd, sys::F_SETFD, cleared)
+            .map_err(|e| errno_failure("clearing FD_CLOEXEC on", &self.path, e))?;
         sys::stop_closing_in_children(self.fd);
-        // ⛔ And this one is never released explicitly. `Drop` calls `LOCK_UN`
-        // on every other lock so the release finishes in the releasing thread
-        // (T-0215), and doing it here would take the lock away from the payload
-        // that is meant to keep it: the payload holds a duplicate of THIS open
-        // file description, and a lock belongs to the description.
-        self.handed
-            .store(true, std::sync::atomic::Ordering::Release);
+        // `Drop` does not release this lock: the payload holds a duplicate
+        // of this open file description, and a lock belongs to the
+        // description.
+        self.handed.store(true, Ordering::Release);
         Ok(self.fd)
     }
 }
 
 impl Drop for Lock {
     fn drop(&mut self) {
-        // ⛔ Deregistered before the close, so a fork racing this never sheds a
-        // descriptor number that has already been handed back to the kernel and
-        // reused by another thread.
+        // Out of the list before the close, so that a fork in between never
+        // closes a descriptor number that the kernel gave to another thread.
         sys::stop_closing_in_children(self.fd);
 
-        // ⛔ **THE RELEASE IS EXPLICIT, AND `close` ALONE WAS THE DEFECT.**
-        // [`TODO/image.md`](../../../TODO/image.md) T-0215. A `close` releases
-        // the lock only when it drops the LAST reference to the open file
-        // description. A `fork` makes a second reference, so after one the
-        // holder's own `close` no longer completes the release: the lock record
-        // is taken away later, when the child's copy goes, and that happens
-        // asynchronously. ⚠ Measured on 2026-09-12: a `flock` refused with NO
-        // row in `/proc/locks` and NO descriptor on the inode in any process on
-        // the host, and the SAME descriptor succeeded on the next attempt, 1 us
-        // later. The worst transient ran 1190 us. `in_use` read those as an
-        // image in use after its holder released it.
-        // ⭐ `LOCK_UN` removes the record HERE, in this thread, whatever else
-        // holds a reference, so the release is finished when this line is.
-        if !self.handed.load(std::sync::atomic::Ordering::Acquire) {
+        // The release is explicit: `close` alone is not enough. A `close`
+        // releases the lock only when it drops the last reference to the
+        // open file description, and a fork makes a second reference. The
+        // release then comes later, when the copy of the child goes. A
+        // `flock` can then fail with no row in `/proc/locks` and no
+        // descriptor on the inode in any process. `LOCK_UN` removes the
+        // record here, in this thread, whatever else holds a reference.
+        if !self.handed.load(Ordering::Acquire) {
             let _ = sys::flock(self.fd, sys::LOCK_UN);
         }
 
-        // ⚠ The close still matters and is not replaced: it is what makes the
-        // lock correct across an unexpected death, where no `Drop` runs at all.
+        // The close still matters: it releases the lock at an unexpected
+        // death, where no `Drop` runs.
         let _ = sys::close(self.fd);
     }
 }
 
-/// Build the record a completed pull writes.
-#[allow(clippy::too_many_arguments)]
-pub fn record_of(
-    reference: &Reference,
-    resolved: &Digest,
-    resolved_media_type: &str,
-    manifest_digest: &Digest,
-    manifest: &oci::Manifest,
-    config: &oci::Config,
-    platform: &str,
-) -> Result<Record> {
-    Ok(Record {
-        repository: reference.canonical_repository(),
-        tag: reference.tag.clone(),
-        digest: resolved.to_string(),
-        digest_media_type: resolved_media_type.to_string(),
-        manifest_digest: manifest_digest.to_string(),
-        config_digest: manifest.config.parsed_digest()?.to_string(),
-        platform: platform.to_string(),
-        layers: manifest.layers.iter().map(|l| l.digest.clone()).collect(),
-        stored_bytes: manifest.stored_bytes(),
-        architecture: config.architecture.clone(),
-        os: config.os.clone(),
-        created: config.created.clone(),
-        pulled_at: clock::now(),
-    })
-}
+#[cfg(test)]
+mod tests;

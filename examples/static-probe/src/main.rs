@@ -64,6 +64,7 @@ fn main() {
         open.compile().map_or_else(|e| e.to_string(), |c| c.mode().word().to_string())
     ));
     lines.extend(hostprobe());
+    lines.extend(supervise());
     for line in lines {
         println!("{line}");
     }
@@ -83,5 +84,22 @@ fn hostprobe() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn hostprobe() -> Option<String> {
+    None
+}
+
+/// pod-supervise is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn supervise() -> Option<String> {
+    let s = pod_supervise::Settings::new(std::env::temp_dir().join("static-probe-supervise"));
+    Some(format!(
+        "pod-supervise: name {}, {} records",
+        pod_supervise::generated_name(&s, &pod_supervise::new_id()),
+        pod_supervise::table::read::<pod_supervise::table::Any>(&s)
+            .map_or_else(|e| e.to_string(), |t| t.containers.len().to_string())
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn supervise() -> Option<String> {
     None
 }
