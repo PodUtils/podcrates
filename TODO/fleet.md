@@ -9,7 +9,7 @@ This file holds the entries of milestone M8: the shared crates for the asks of G
 **Milestone:** M8
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -38,6 +38,21 @@ the TTL. The crate is a library: each product hosts it in a thin `main` (call C2
 cargo test -p pod-broker --all-features
 sh scripts/agent/check.sh
 ```
+
+## Done
+
+2026-11-09, the commit of this entry. New crate `crates/pod-broker` (library only, C27): the policy of
+version 1 in JSON and TOML (`schemas/broker-policy.v1.schema.json`), the fixed denies, the denies of the
+host and its deny file, the strict reading of a target (400), 421 on a `Host` that differs, 407, 403, 502
+and 504, one resolve with a dial of the checked addresses only (C28), the upstream chain through
+`pod_proxy::Dialer`, the jobs with `load`, `drop`, `list` and the TTL on a control socket of mode 0600,
+one JSON audit line for each connection with no secret value (C31), and the seam `TunnelEnd` for T-100
+(C29). The fuzz target `broker_target` of the request target. The static probe calls the crate.
+`cargo test -p pod-broker --all-features`: 55 passed (8 unit, 47 in `tests/`), 30 runs in a loop with no
+failure. The planted path in an audit line fails `no_audit_line_holds_a_planted_secret`.
+`cargo test --manifest-path fuzz/Cargo.toml --lib`: 2 passed. `sh scripts/agent/check.sh`: fmt 0,
+clippy 0, doc 0, record 0, size 0, test 0; the static build waits for CI (no zig here), and the static probe
+runs on the host with the line of `pod-broker`.
 
 # T-100: `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36)
 

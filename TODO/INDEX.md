@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**120 entries: 69 open, 1 partial, 0 blocked, 50 done.**
+**120 entries: 68 open, 1 partial, 0 blocked, 51 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 23 | 0 | 0 | 23 | 46 |
+| P1 | 22 | 0 | 0 | 24 | 46 |
 | P2 | 36 | 1 | 0 | 21 | 58 |
 | P3 | 10 | 0 | 0 | 4 | 14 |
-| **All** | 69 | 1 | 0 | 50 | 120 |
+| **All** | 68 | 1 | 0 | 51 | 120 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -145,7 +145,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
 | [T-097](upkeep.md) | P3 | S | M5 | chore | done | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | done | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
-| [T-099](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
+| [T-099](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
 | [T-100](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
 | [T-101](foundation.md) | P1 | S | M1 | feature | done | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |

@@ -456,6 +456,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
+name = "pod-broker"
+version = "0.7.0"
+dependencies = [
+ "base64",
+ "libc",
+ "pod-core",
+ "pod-proxy",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "toml",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-core"
 version = "0.7.0"
 dependencies = [
@@ -530,6 +547,7 @@ name = "podcrates-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
+ "pod-broker",
  "pod-core",
  "pod-dns",
  "pod-proxy",
@@ -704,6 +722,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
+ "serde_derive",
 ]
 
 [[package]]

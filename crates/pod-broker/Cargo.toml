@@ -1,0 +1,35 @@
+[package]
+name = "pod-broker"
+description = "The egress broker of a job: a policy for each job (an allow list, or open with fixed denies), one resolve, the upstream chain, a JSON audit line for each connection, and the load and the drop of a job on a control socket."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pod-core = { workspace = true, features = ["async"] }
+# The upstream chain (a Dialer through an HTTP or SOCKS5 proxy), and the
+# reader of a request's head and of a request's body.
+pod-proxy = { workspace = true }
+# The listeners, the copy of the bytes, the timers of a job.
+tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros", "sync"] }
+# The policy (JSON and TOML), the control lines and the audit lines.
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+# A job token is kept as its SHA-256 only, and the text of a token is wiped.
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+# The Basic credentials of Proxy-Authorization.
+base64 = { workspace = true }
+# The diagnostics, and the audit sink on tracing.
+tracing = { workspace = true }
+
+# The user of the peer of the control socket (geteuid).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "rt-multi-thread", "macros", "sync", "test-util"] }

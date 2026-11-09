@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 120 entries: 69 open, 1 partial, 0 blocked, 50 done.
+`TODO/INDEX.md` holds 120 entries: 68 open, 1 partial, 0 blocked, 51 done.
 
 ## State
 
@@ -15,6 +15,7 @@
   12 asks) are routed (`docs/research/fleet/asks.md`): T-099 to T-120 and
   milestone M8. The sessions of podssh, podnet and podvm triage their own
   issues; the reconciliation follows.
+- M8: `pod-broker` exists (T-099, calls C28 to C32); its TLS end is T-100.
 - The names on crates.io wait for the owner (T-043, GitHub #1); the switch
   `crates-io` is false while Q1 stands.
 - Keep this section short. Write the current state only; git keeps the
@@ -27,8 +28,8 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-0. **Before M2** (call C26): T-099 and T-100
-   (`pod-broker`), T-112 (`pod-services` party filter) and T-108
+0. **Before M2** (call C26): T-100
+   (`pod-broker`: the TLS end), T-112 (`pod-services` party filter) and T-108
    (`pod-confine`); then T-102 to T-105 (`pod-unit`, `pod-control`,
    `pod-release`, the acceptance registry); then the rest in milestone order.
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
@@ -58,7 +59,7 @@ order. A crate is released on the day that its entry is done
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C27), and the work goes on with it until the owner rules otherwise.
+C32), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

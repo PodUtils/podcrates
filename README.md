@@ -23,6 +23,7 @@ first release follows M0.
 | 2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
 | 3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
 | 4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts` |
+| M8 | `pod-broker` (exists), `pod-unit`, `pod-control`, `pod-release` |
 
 ## Documents
 

@@ -23,6 +23,15 @@ fn main() {
     // pod-services.
     let resolver = pod_dns::Resolver::new(pod_dns::Settings::default());
     let first = resolver.settings().resolvers.first().map_or_else(String::new, |r| format!("{} ({})", r.ip, r.name));
+    // A broker with the fixed denies and an open policy: the policy reader,
+    // the deny check and the dial of pod-proxy link in.
+    let open = pod_broker::Policy::from_json(r#"{"version":1,"mode":"open"}"#).expect("a policy");
+    let broker = pod_broker::Broker::new(
+        pod_broker::Settings::default(),
+        std::sync::Arc::new(pod_proxy::resolve::System::new()),
+        pod_broker::upstream("static-probe", None, std::sync::Arc::new(pod_proxy::resolve::System::new())),
+    );
+    let metadata = pod_broker::DenyList::fixed().check_ip([169, 254, 169, 254].into()).unwrap_or("none").to_string();
     let mut lines = vec![
         format!("pod-core: {} {}", pod_core::text::one_line(&target.to_string()), pod_core::clock::utc_minutes(0)),
         format!("pod-term: {typed} events for a typed line"),
@@ -49,6 +58,11 @@ fn main() {
             resolver.settings().resolvers.len()
         ),
     ];
+    lines.push(format!(
+        "pod-broker: {} jobs, mode {}, 169.254.169.254 denied by {metadata}",
+        broker.list().len(),
+        open.compile().map_or_else(|e| e.to_string(), |c| c.mode().word().to_string())
+    ));
     lines.extend(hostprobe());
     for line in lines {
         println!("{line}");

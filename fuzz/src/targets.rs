@@ -207,3 +207,28 @@ fn is_safe_name(name: &str) -> bool {
         && name.len() <= 253
         && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"-._".contains(&b))
 }
+
+/// The target of a request to the egress broker
+/// (`pod_broker::target::{parse_authority, parse_absolute}`; new in
+/// pod-broker, T-099): a target that reads is in its one form. Its
+/// authority reads back to itself; its path is a fixed point of
+/// `normal_path`, with no empty segment, no dot segment, no backslash and
+/// no escape of a dot or a slash.
+pub fn broker_target(data: &[u8]) {
+    use pod_broker::target::{normal_path, parse_absolute, parse_authority};
+    let Some(input) = text(data) else { return };
+    if let Ok(authority) = parse_authority(input, None) {
+        assert_eq!(parse_authority(&authority.to_string(), None).as_ref(), Ok(&authority), "{input:?}");
+    }
+    if let Ok(target) = parse_absolute(input) {
+        let path = &target.path;
+        assert_eq!(normal_path(path).as_ref(), Ok(path), "{input:?}");
+        assert!(!path.contains("//") && !path.contains('\\'), "{path:?}");
+        for segment in path.split('/') {
+            assert!(segment != "." && segment != "..", "{path:?}");
+        }
+        let lower = path.to_ascii_lowercase();
+        assert!(!lower.contains("%2e") && !lower.contains("%2f") && !lower.contains("%5c"), "{path:?}");
+        assert_eq!(parse_authority(&target.authority.to_string(), None).as_ref(), Ok(&target.authority));
+    }
+}

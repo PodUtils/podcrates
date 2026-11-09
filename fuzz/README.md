@@ -49,6 +49,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `connect_status` | `pod-proxy` | `http::parse_status_line`, `digest::challenge_in`, `proxy_auth::schemes` | podssh `connect_status` and podnet `connect_response_head`, one target |
 | `dns_wire` | `pod-dns` | `wire::{addrs, srv, read_name}`, `https::{from_wire, from_rdata, check_list}` | podssh `dns_wire` (at `a791553`) |
 | `doh_json` | `pod-dns` | `json::{parse, srv_of, parse_srv}`, `json::Answer::of`, `https::from_json` | podnet `doh_json` (at `380d9a4`); its SRV part reads `pod_dns::json::srv_of`, and podnet's `edge_discovery::parse_srv` goes with `pod-cloudflare` |
+| `broker_target` | `pod-broker` | `target::{parse_authority, parse_absolute, normal_path}` | new in `pod-broker` (T-099); its seeds are small targets written here |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:
