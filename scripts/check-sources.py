@@ -341,8 +341,9 @@ def record(args) -> int:
         lines.append(f"file {blob} {rel} -> {local}")
     out = ROOT / "crates" / args.crate / "SOURCES"
     head = ("# The files of this crate that came from another repository\n"
-            "# (docs/design.md, section 9). scripts/check-sources.py compares each\n"
-            "# with the default branch of its repository.\n")
+            "# (docs/design.md, section 9). A file line holds the git blob id at the\n"
+            "# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py\n"
+            "# compares each with the default branch of its repository.\n")
     old = out.read_text(encoding="utf-8") if out.exists() else head
     out.write_text(old.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n", encoding="utf-8")
     print(f"check-sources: {out.relative_to(ROOT)}: {len(lines) - dirs - len(b.skips) - 1} files")

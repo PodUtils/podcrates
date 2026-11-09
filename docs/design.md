@@ -476,8 +476,9 @@ pushes. No worktree branch is pushed.
   when its check passes. A new check, and a test that guards a fix, is
   trusted only after its plant fails it.
 * Drift: `crates/pod-X/SOURCES` lists each imported directory and file:
-  the repository, the path, the commit, the SHA-256 at that commit, and
-  the local paths that the file became. `scripts/check-sources.py` reads
+  the repository, the path, the commit, the git blob id (SHA-1, 40 hex digits) at that commit, and
+  the local paths that the file became. `git ls-tree COMMIT -- PATH` in
+  the source repository gives the blob id of a file. `scripts/check-sources.py` reads
   each directory of a source at the default branch of its repository
   (`main`, `master` or another name; through `forge.web.pkgforge.dev`,
   or a shallow clone when that fails) and

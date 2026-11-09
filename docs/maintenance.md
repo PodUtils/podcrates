@@ -105,7 +105,8 @@ Facts for a session:
 * The import commit and the commits after it go to `main` in one push,
   so that each push is green.
 * `crates/pod-X/SOURCES` lists each imported file: the repository, the
-  path, the commit, the SHA-256, the local paths.
+  path, the commit, the git blob id, the local paths. `git ls-tree COMMIT -- PATH`
+  in the source repository checks a blob id.
 * After the release of a crate, tell the consumer sessions (the owner
   brings them online): the crate, the tag, the adoption map of its
   README.
