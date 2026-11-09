@@ -1,0 +1,13 @@
+diff --git a/crates/pod-dns/src/kept.rs b/crates/pod-dns/src/kept.rs
+index 984998f..93a1cb6 100644
+--- a/crates/pod-dns/src/kept.rs
++++ b/crates/pod-dns/src/kept.rs
+@@ -71,7 +71,7 @@ impl Kept {
+     pub(crate) fn take(&self, host: &str, port: u16) -> Option<Conn> {
+         let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+         slots.retain(|slot| slot.since.elapsed() < IDLE);
+-        let at = slots.iter().position(|slot| slot.port == port && slot.host == host)?;
++        let at = slots.iter().position(|slot| slot.port == port && slot.host == host && false)?;
+         let mut slot = slots.remove(at);
+         open(&mut slot.conn).then_some(slot.conn)
+     }
