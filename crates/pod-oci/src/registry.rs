@@ -286,7 +286,7 @@ impl Client {
     /// the sink back only when the digest and the count of bytes agree.
     ///
     /// The retry is around the whole transfer, not around the request that
-    /// starts it. [`Client::get`] tries the request again; a body that ends
+    /// starts it. The GET tries the request again; a body that ends
     /// after its first byte is past it, and a proxy that cuts a transfer at a
     /// round size is a known case. A cut body is never kept or counted: the
     /// sink starts again and a new [`Verifier`] hashes the next try, so the
