@@ -1100,7 +1100,7 @@ The loop prints nothing.
 
 2026-11-09. Commits `0fb38ee` (the work) and the record commit that holds
 this section. The State of `README.md` names version 0.8.0, the releases
-and the current wave. The table lists each crate of `crates/` (14) and each
+and the current wave. The table lists each crate of `crates/` (15) and each
 wave (M0 to M4, M6, M7, M8). `scripts/check-design-paths.py` checks that
 each directory of `crates/` is in the table; the plant
 `scripts/plants/readme-crate-missing.plant` catches it. The loop of the Prove

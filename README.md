@@ -30,7 +30,7 @@ the dependencies of each crate.
 | M2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
 | M3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
 | M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
-| M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter` |
+| M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter` (exists) |
 | M7 | `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` |
 | M8 | `pod-broker` (exists), `pod-unit`, `pod-control`, `pod-release` |
 
