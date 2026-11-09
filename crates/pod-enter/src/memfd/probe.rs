@@ -4,7 +4,7 @@
 //! answers, not that the descriptor executes. Under `vm.memfd_noexec=1`
 //! such a probe promises the memfd rung, and the launch then fails late,
 //! at the step "execveat of the memfd". This probe stages a small static
-//! ELF through [`super::stage_raw`] (the flags and the seals of the
+//! ELF through `stage_raw` (the flags and the seals of the
 //! launch), forks, and executes it through [`super::exec_fd`] (the
 //! `execveat` of the launch). The answer is measured one time for each
 //! process: a health row, the ladder and the entry check read the same
@@ -377,7 +377,7 @@ mod elf {
     pub(super) const LEN: usize = CODE_AT + CODE.len();
 
     /// The trampoline: a static `ET_EXEC` ELF64 with one `PT_LOAD` (read
-    /// and execute) that maps the whole file at [`BASE`] and enters at the
+    /// and execute) that maps the whole file at `BASE` and enters at the
     /// code. No `PT_INTERP`, no sections. It calls `exit_group(42)` and
     /// nothing else.
     pub const TRAMPOLINE: [u8; LEN] = trampoline();

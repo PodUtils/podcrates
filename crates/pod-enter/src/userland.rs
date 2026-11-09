@@ -95,7 +95,7 @@ pub fn lib_dirs(rootfs: &str, interp_guest: &str) -> Vec<String> {
 /// The program path the loader opens, keeping the invoked name.
 ///
 /// The resolver answers the file; but the kernel's loader opens by path
-/// and the payload dispatches on argv[0]'s basename. So the loader opens
+/// and the payload dispatches on `argv[0]`'s basename. So the loader opens
 /// the UNRESOLVED spelling, the guest path as invoked mapped to the host,
 /// where it names something openable. Falls back to the resolved file
 /// where it does not: a name that only resolved through the search path
@@ -135,14 +135,14 @@ fn basename_of(path: &str) -> &str {
 /// through another name (`sh` through `/bin/sh`, whose absolute link the
 /// host cannot open, so the resolved file is what opens), the invoked
 /// name is passed as the first payload argument: busybox dispatches on
-/// argv[0]'s basename, which the resolved file renamed to `busybox`, so
+/// `argv[0]`'s basename, which the resolved file renamed to `busybox`, so
 /// the applet name rides beside it exactly as `busybox sh ...` spells
 /// it on a command line. Under a chroot the kernel would exec the link
 /// with the caller's argv and busybox would select the same applet, so
 /// this reproduces that selection without it.
 ///
 /// Returns the argv and whether the applet name was inserted: the banner
-/// names the insert, because the payload's argv[0] is not the path that
+/// names the insert, because the payload's `argv[0]` is not the path that
 /// was opened.
 pub fn loader_argv_for(loader_host: &str, payload_host: &str, argv0: &str, rest: &[String]) -> (Vec<String>, bool) {
     let invoked = basename_of(argv0);
