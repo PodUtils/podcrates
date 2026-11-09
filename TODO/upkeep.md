@@ -222,3 +222,41 @@ cargo test -p pod-services
 ```
 
 The first command runs with the clones and exits 0.
+
+# T-098: The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners
+
+**Source:** GitHub #35 and #36
+**Category:** chore
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub #35 holds 84 asks of cfb, and GitHub #36 holds 12 asks of githome,
+a forge CI runner host. Each ask goes to a crate of podcrates, to podssh,
+podnet or podvm, or to a new project. Some asks need a ruling of the owner
+(new projects, platforms other than Linux, signed releases).
+
+## Premise
+
+- Read: the bodies of #35 and #36, `docs/design.md` (section 4) and the
+  records of the consumers.
+- Not measured: the asks against the code of each repository.
+
+## Approach
+
+Triage each ask. Write an entry of podcrates for each ask that a crate
+takes. Send each ask of a consumer to its session in a COORD issue. Write
+each question for the owner in `TODO/PROGRESS.md`. Add each new crate name
+to GitHub #1.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+Each ask of #35 and #36 names its entry, its COORD issue or its question
+in `TODO/issues.md`.

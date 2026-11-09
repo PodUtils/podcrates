@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 97 entries: 48 open, 1 partial, 1 blocked, 47 done.
+`TODO/INDEX.md` holds 98 entries: 49 open, 1 partial, 1 blocked, 47 done.
 
 ## State
 
@@ -26,6 +26,7 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
+0. **The triage of GitHub #35 and #36:** T-098, before the next entry.
 1. **podvm first** (the sibling that is most behind; `docs/HANDOFF.md`):
    T-040 (the trials of
    `pod-tls` and `pod-proxy` in podvm); then M6 (item 7).

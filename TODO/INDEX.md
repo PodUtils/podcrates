@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**97 entries: 48 open, 1 partial, 1 blocked, 47 done.**
+**98 entries: 49 open, 1 partial, 1 blocked, 47 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 0 | 0 | 21 | 34 |
+| P1 | 14 | 0 | 0 | 21 | 35 |
 | P2 | 25 | 1 | 1 | 21 | 48 |
 | P3 | 10 | 0 | 0 | 3 | 13 |
-| **All** | 48 | 1 | 1 | 47 | 97 |
+| **All** | 49 | 1 | 1 | 47 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -143,3 +143,4 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-095](foundation.md) | P2 | S | M0 | chore | open | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |
 | [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
 | [T-097](upkeep.md) | P3 | S | M5 | chore | open | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
+| [T-098](upkeep.md) | P1 | M | M5 | chore | open | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
