@@ -1,0 +1,6 @@
+# AGENTS.md names live.yml, and the file is not there.
+ENTRY=T-092
+GROUP=lint
+EXPECT='AGENTS.md:[0-9]+: the workflow live.yml does not exist'
+RUN='python3 scripts/check-workflows.py'
+LIMIT=60

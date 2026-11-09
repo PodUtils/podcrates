@@ -165,7 +165,7 @@ The session dispatches a workflow with the GitHub MCP tool
 reads the run with `actions_list` and `actions_get`. A push to `main`
 starts `ci.yml`, `adoption.yml`, `plants.yml`, `deny.yml` and
 `secrets.yml`; a newer push cancels the queued run of `ci.yml`,
-`adoption.yml` and `plants.yml`. Dispatch the other workflows (`nightly.yml`,
+`adoption.yml` and `plants.yml`. Dispatch the other workflows (`nightly.yml`, `live.yml`,
 `release.yml`, `upstream.yml`, `record-issues.yml`) when a step needs them.
 
 When the dispatch fails, open a new issue titled exactly

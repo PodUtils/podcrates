@@ -12,6 +12,10 @@ DIR is .github/workflows when it is not given. The rules:
   and no other right, or no right (`permissions: {}`).
 * Each job has `timeout-minutes`.
 * A job named in READ_ONLY has no right to write.
+* Each workflow that AGENTS.md or a page of docs/ names (`NAME.yml`, in
+  backticks or in a path) is a file of DIR. The pages in docs/research/,
+  docs/releases/ and docs/reports/ are readings at a time, and they name
+  the workflows of other repositories: they are not read.
 
 Exit 1 with one line for each fault. Exit 2 when a file cannot be read.
 """
@@ -27,6 +31,9 @@ READ_ONLY = {
     "lint", "test", "record", "static", "nightly", "deny", "secrets", "plants", "adoption", "workflows", "sources",
     "numbers", "fuzz", "dry-run",
 }
+# A file of .github that is not a workflow.
+NOT_WORKFLOWS = {"dependabot.yml"}
+NAME = re.compile(r"(?<![\w./-])([a-z][a-z0-9-]*\.ya?ml)\b")
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 
@@ -66,6 +73,21 @@ def check(path: Path) -> list[str]:
     return faults
 
 
+def named(root: Path, files: list[Path]) -> list[str]:
+    """The workflows that the rule pages name, and that DIR does not hold."""
+    have = {f.name for f in files}
+    pages = [root / "AGENTS.md"] + sorted((root / "docs").glob("*.md"))
+    faults = []
+    for page in pages:
+        if not page.is_file():
+            continue
+        for n, line in enumerate(page.read_text(encoding="utf-8").splitlines(), 1):
+            for name in NAME.findall(line):
+                if name not in have and name not in NOT_WORKFLOWS:
+                    faults.append(f"{page.relative_to(root)}:{n}: the workflow {name} does not exist")
+    return faults
+
+
 def main(argv: list[str]) -> int:
     root = Path(argv[0]) if argv else Path(".github/workflows")
     files = sorted(list(root.glob("*.yml")) + list(root.glob("*.yaml")))
@@ -79,6 +101,7 @@ def main(argv: list[str]) -> int:
         except (OSError, yaml.YAMLError) as e:
             print(f"check-workflows: {f}: {e}", file=sys.stderr)
             return 2
+    faults += named(root.resolve().parent.parent, files)
     for fault in faults:
         print(fault)
     print(f"check-workflows: {len(files)} files, {len(faults)} faults")

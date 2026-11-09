@@ -1,0 +1,49 @@
+name: live
+
+# The tests with `#[ignore]` that need a live service: the relay of podssh,
+# the public DoH resolvers and a host that offers Multipath TCP. They run
+# each day at an off-peak hour and by hand (docs/decisions.md, C24), with
+# egress to the relay and to the resolvers. The checks of each push do not
+# need the network (ci.yml).
+
+on:
+  schedule:
+    - cron: "53 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: pod-tls, the handshake with the live relay
+        run: cargo test --locked -p pod-tls --all-features --test live_handshake -- --ignored --nocapture
+      # The proxy of names alone is a process of the job. The step that
+      # needs it waits for its port.
+      - name: pod-dns, DoH with the public resolvers
+        run: |
+          set -eu
+          python3 -I scripts/names-proxy.py --listen 127.0.0.1:3129 > "$RUNNER_TEMP/names-proxy.log" 2>&1 &
+          proxy=$!
+          trap 'kill "$proxy" 2> /dev/null || true' EXIT
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            grep -q '^listening' "$RUNNER_TEMP/names-proxy.log" && break
+            sleep 1
+          done
+          grep -q '^listening' "$RUNNER_TEMP/names-proxy.log"
+          POD_DNS_NAMES_PROXY=http://127.0.0.1:3129 \
+            cargo test --locked -p pod-dns --test live_doh -- --ignored --nocapture
+          cat "$RUNNER_TEMP/names-proxy.log"
+      - name: pod-proxy, Multipath TCP to the relay's edge
+        run: cargo test --locked -p pod-proxy --test mptcp -- --ignored --nocapture

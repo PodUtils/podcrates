@@ -487,8 +487,9 @@ pushes. No worktree branch is pushed.
 
 | Workflow | When | What |
 | --- | --- | --- |
-| `ci.yml` | each push | fmt, clippy, tests (Linux x86_64), `cargo todo check`, size, the static probe on each target, `cargo doc` |
+| `ci.yml` | each push | fmt, clippy, tests (Linux x86_64), `cargo todo check`, size, the static probes on each target, `cargo doc`, `scripts/check-probe.py`, `scripts/check-workflows.py` |
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
+| `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy` |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |
 | `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |
@@ -496,7 +497,7 @@ pushes. No worktree branch is pushed.
 | `upstream.yml` | each day | `check-sources.py`; `check-vendored.py`; the cloudflared pin |
 | `record-issues.yml` | each day | `TODO/github.txt` against GitHub |
 | `fuzz.yml` | each week | the fuzz targets |
-| the live and interop workflows of the moved code | each day, by hand | podssh's `doh-live`, `relay-live`, `relay-layer-live`, `warp-live`, `quick-tunnel-*`, `transit-live`, `pair-code`, `piping`, `via`, `vless` and `wstunnel` interop, `forwarder-live`, `opentunnel-*`, `tor-live`, `ts-headscale`, `acme-interop`, `reverse-drops`; podnet's live steps of WARP and of the edge. Each moves with its crate |
+| the other live and interop workflows of the moved code | each day, by hand | podssh's `relay-live`, `relay-layer-live`, `warp-live`, `quick-tunnel-*`, `transit-live`, `pair-code`, `piping`, `via`, `vless` and `wstunnel` interop, `forwarder-live`, `opentunnel-*`, `tor-live`, `ts-headscale`, `acme-interop`, `reverse-drops`; podnet's live steps of WARP and of the edge. Each moves with its crate |
 
 
 ## 10. Versions and releases

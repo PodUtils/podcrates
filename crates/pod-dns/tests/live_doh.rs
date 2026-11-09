@@ -2,7 +2,7 @@
 //! Ignored by default: it needs the network.
 //!
 //! ```sh
-//! python3 scripts/box/proxy.py --listen 127.0.0.1:3129 --take names &   # podssh's
+//! python3 -I scripts/names-proxy.py --listen 127.0.0.1:3129 &
 //! POD_DNS_NAMES_PROXY=http://127.0.0.1:3129 \
 //!     cargo test -p pod-dns --test live_doh -- --ignored --nocapture
 //! ```
@@ -93,8 +93,8 @@ async fn a_name_that_does_not_exist_stops_at_the_first_answer() {
 }
 
 /// The edge's SRV record through a proxy that takes names alone:
-/// `POD_DNS_NAMES_PROXY` names one, as podssh's `doh-live.yml` starts
-/// `scripts/box/proxy.py --take names`. It refuses each resolver's address,
+/// `POD_DNS_NAMES_PROXY` names one, as `live.yml` starts
+/// `scripts/names-proxy.py`. It refuses each resolver's address,
 /// so the records come by a resolver's name.
 #[tokio::test]
 #[ignore = "network: public DNS-over-HTTPS resolvers, through a local proxy of names alone"]
