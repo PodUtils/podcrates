@@ -298,7 +298,7 @@ others read its raw system calls.
 | `pod-extract` | podvm `crates/podvm-extract`: the rootless apply of a layer (order, whiteouts, path containment, an ownership sidecar in place of chown) | 3,000 | pod-core, pod-hostprobe |
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system (device nodes, accounts, the package configuration, the resolver, the CA data from `pod-tls`) | 4,600 | pod-core, pod-hostprobe, pod-tls |
 | `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the class of an ELF file, the launch modes: loader, memfd) | 7,800 | pod-core, pod-hostprobe |
-| `pod-supervise` | podvm `crates/podvm-supervise`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle) | 2,100 | pod-core, pod-hostprobe |
+| `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
 | `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (FAT16 mailbox, guest agent, the fetch of a disk with digests, QMP, the boot plan) | 3,400 | pod-core, pod-proxy |
 
 ### M7: the widened scope of podvm (later)

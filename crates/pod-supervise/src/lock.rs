@@ -104,7 +104,7 @@ impl Lock {
                         Stage::Host,
                         Class::Unavailable,
                         format!(
-                            "this process holds {} locks already, which is each slot for the \
+                            "this process already holds {} locks, which is each slot for the \
                              descriptors that a fork must close. One more would leak into each \
                              child, so the lock is refused",
                             sys::FORK_CLOSE_SLOTS
