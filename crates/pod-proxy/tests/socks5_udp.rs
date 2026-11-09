@@ -50,8 +50,10 @@ async fn stand_in(scripts: Vec<Script>) -> (Proxy, Arc<Mutex<Vec<[u8; 10]>>>) {
             record.lock().unwrap().push(command);
             let Some(reply) = script.reply else { continue };
             sock.write_all(&reply).await.unwrap();
-            while script.echo && reply[1] == 0x00 {
-                let Ok(Some(frame)) = read_frame(&mut sock).await else { break };
+            if !script.echo || reply[1] != 0x00 {
+                continue;
+            }
+            while let Ok(Some(frame)) = read_frame(&mut sock).await {
                 write_frame(&mut sock, &frame).await.unwrap();
             }
         }
