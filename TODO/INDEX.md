@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**127 entries: 63 open, 2 partial, 0 blocked, 62 done.**
+**128 entries: 63 open, 2 partial, 0 blocked, 63 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 22 | 0 | 0 | 24 | 46 |
+| P1 | 22 | 0 | 0 | 25 | 47 |
 | P2 | 31 | 2 | 0 | 30 | 63 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 63 | 2 | 0 | 62 | 127 |
+| **All** | 63 | 2 | 0 | 63 | 128 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -174,3 +174,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-125](transport.md) | P2 | S | M1 | feature | done | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
 | [T-126](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
 | [T-127](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |
+| [T-128](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target |

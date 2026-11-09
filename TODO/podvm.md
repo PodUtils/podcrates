@@ -697,3 +697,44 @@ cargo test -p pod-netlab --all-features
 ## Start condition
 
 The study of `pod-netlab` in T-062 is done.
+
+# T-128: `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target
+
+**Source:** the nightly run 42640135438 at `dada663` (jobs `cross (i686-unknown-linux-musl)`, `cross (arm-unknown-linux-musleabihf)`, `cross (armv7-unknown-linux-musleabihf)`).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`tests/lifecycle.rs` of `pod-supervise` (T-060) failed on the 32-bit
+targets: a payload that SIGKILL ended gave the exit code 128, not 137.
+`sys::waitid_pidfd` read `si_status` at byte 24 of `siginfo_t`, which is
+right for a 64-bit target. On a 32-bit target the union starts at byte 12
+and `si_status` is at byte 20; byte 24 is zero. `sys::ppoll` also put the
+timeout in a `timespec` of two `i64`, but the kernel reads two 32-bit
+words there.
+
+## Premise
+
+- Read: the preamble of `siginfo_t` is `3*sizeof(int)` and then the union,
+  aligned to `long`. That is 16 on 64-bit and 12 on 32-bit.
+
+## Approach
+
+`si_status` is at 24 on a 64-bit target and at 20 on a 32-bit target.
+`Timespec` has two `isize` words.
+
+## Prove
+
+```sh
+cargo zigbuild --tests -p pod-supervise --target i686-unknown-linux-musl  # then run `lifecycle`
+```
+
+## Done
+
+2026-11-09. `lifecycle` passes as an i686 musl binary ("5 steps passed");
+before the change it failed with 128 and 137 as in the nightly. The
+nightly dispatched after the landing is the proof for the arm targets.

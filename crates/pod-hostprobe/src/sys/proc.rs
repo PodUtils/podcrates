@@ -104,7 +104,10 @@ pub fn waitid_pidfd(pidfd: i64, nohang: bool) -> Result<Option<Exited>, Errno> {
     // si_status; ... }`, which puts `si_status` at 24.
     // A read at 20 gives `si_uid`: a payload stopped by SIGTERM then
     // reports exit 128 and not 143.
-    let status = i32::from_ne_bytes([buf[24], buf[25], buf[26], buf[27]]);
+    // On a 32-bit target `long` is 4 bytes, there is no padding, the union
+    // starts at 12 and `si_status` is at 20.
+    let at = if cfg!(target_pointer_width = "64") { 24 } else { 20 };
+    let status = i32::from_ne_bytes([buf[at], buf[at + 1], buf[at + 2], buf[at + 3]]);
     Ok(Some(Exited { code, status }))
 }
 
@@ -121,8 +124,9 @@ pub struct PollFd {
 
 #[repr(C)]
 struct Timespec {
-    sec: i64,
-    nsec: i64,
+    // The kernel's `timespec` has two `long` words: 32 bits on a 32-bit target.
+    sec: isize,
+    nsec: isize,
 }
 
 /// Wait until one of `fds` is ready, or until `timeout_ms`.
@@ -131,7 +135,7 @@ struct Timespec {
 /// upper bound and a distinct outcome when it gets there: `Ok(0)` is the
 /// bound, and it is not an error and not a readiness.
 pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
-    let ts = Timespec { sec: timeout_ms / 1000, nsec: (timeout_ms % 1000) * 1_000_000 };
+    let ts = Timespec { sec: (timeout_ms / 1000) as isize, nsec: ((timeout_ms % 1000) * 1_000_000) as isize };
     let tsp = if timeout_ms < 0 { 0 } else { &ts as *const Timespec as u64 };
     unsafe {
         sys(
