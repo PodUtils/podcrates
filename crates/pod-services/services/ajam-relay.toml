@@ -127,5 +127,26 @@ pointer = "/version"
 fact = "measured-version"
 
 [[watch]]
+kind = "tls-name"
+role = "seed"
+
+[[watch]]
+kind = "tls-name"
+endpoint = "default"
+
+[[watch]]
+kind = "http-json"
+url = "https://tcp.ssh.relay.ajam.dev/relays.json"
+pointer = "/pool"
+member = "host"
+role = "seed"
+
+[[watch]]
+kind = "http-status"
+role = "seed"
+path = "/health"
+status = 200
+
+[[watch]]
 kind = "rdap"
 domain = "ajam.dev"
