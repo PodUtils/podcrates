@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 120 entries: 70 open, 1 partial, 0 blocked, 49 done.
+`TODO/INDEX.md` holds 120 entries: 69 open, 1 partial, 0 blocked, 50 done.
 
 ## State
 
@@ -27,7 +27,7 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-0. **Before M2** (call C26): T-101 (`pod-core` classes), T-099 and T-100
+0. **Before M2** (call C26): T-099 and T-100
    (`pod-broker`), T-112 (`pod-services` party filter) and T-108
    (`pod-confine`); then T-102 to T-105 (`pod-unit`, `pod-control`,
    `pod-release`, the acceptance registry); then the rest in milestone order.

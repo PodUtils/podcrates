@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/log.v1.schema.json",
+  "title": "One JSON log line of a tool of PodUtils",
+  "description": "One object on each line. The classes and their exit codes are the table of crates/pod-core/README.md.",
+  "type": "object",
+  "required": ["time", "level", "event", "fields"],
+  "properties": {
+    "time": { "type": "string", "format": "date-time", "description": "RFC 3339, UTC" },
+    "level": { "enum": ["error", "warn", "info", "debug", "trace"] },
+    "event": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*$", "description": "a dotted name, for example relay.session.open" },
+    "fields": { "type": "object", "description": "the values of the event; never a secret" },
+    "stage": { "type": "string", "description": "the name of pod_core::Stage of a failure" },
+    "class": {
+      "enum": ["usage", "config", "unavailable", "notfound", "tempfail", "timeout", "protocol", "refused", "revoked", "policy", "unsupported"],
+      "description": "the name of pod_core::Class of a failure"
+    }
+  },
+  "additionalProperties": false
+}

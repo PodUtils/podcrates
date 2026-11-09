@@ -1135,7 +1135,7 @@ The `static` job of `ci.yml` is green on the 12 targets.
 **Milestone:** M1
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1161,6 +1161,19 @@ Write the table and a JSON log schema (time, level, event, fields) in a document
 cargo test -p pod-core
 cargo todo check
 ```
+
+## Done
+
+2026-11-09. `pod_core::Class` has `Revoked`, `Policy` and `Unsupported`,
+`Class::ALL` and `Class::exit_code()` on sysexits(3): 64 usage, 66
+notfound, 69 unavailable, 75 tempfail and timeout, 76 protocol, 77 refused,
+78 config and revoked (one `RestartPreventExitStatus=78` for both), 79
+policy, 80 unsupported. The README of `pod-core` has the table and the log
+line; `schemas/log.v1.schema.json` is the JSON log schema (time, level,
+event, fields; stage and class of a failure). The test `exit_codes` holds
+the table and the schema to the code; a planted code (policy 81) fails it.
+`cargo test -p pod-core` passes.
+
 
 # T-105: `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35)
 

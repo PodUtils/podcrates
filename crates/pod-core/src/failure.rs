@@ -91,9 +91,51 @@ pub enum Class {
     Protocol,
     /// The far end refused the credentials or the identity.
     Refused,
+    /// A credential that worked is gone: a revoked token, a deleted service
+    /// token, device or node. A restart does not help.
+    Revoked,
+    /// A local policy refused the action (an egress rule, an allow list).
+    Policy,
+    /// The host, the build or the far end does not support the action.
+    Unsupported,
 }
 
 impl Class {
+    /// Each class, in the order of the table of exit codes.
+    pub const ALL: [Class; 11] = [
+        Class::Usage,
+        Class::Config,
+        Class::Unavailable,
+        Class::NotFound,
+        Class::TempFail,
+        Class::Timeout,
+        Class::Protocol,
+        Class::Refused,
+        Class::Revoked,
+        Class::Policy,
+        Class::Unsupported,
+    ];
+
+    /// The exit code of a tool that ends on this class. The codes follow
+    /// sysexits(3), so that a supervisor reads one table for each tool;
+    /// `Revoked` shares 78 with `Config`, so that one
+    /// `RestartPreventExitStatus=78` stops a restart loop for both. `Policy`
+    /// and `Unsupported` take 79 and 80, past the range of sysexits, as no
+    /// code there has their meaning.
+    pub fn exit_code(self) -> u8 {
+        match self {
+            Class::Usage => 64,
+            Class::NotFound => 66,
+            Class::Unavailable => 69,
+            Class::TempFail | Class::Timeout => 75,
+            Class::Protocol => 76,
+            Class::Refused => 77,
+            Class::Config | Class::Revoked => 78,
+            Class::Policy => 79,
+            Class::Unsupported => 80,
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Class::Usage => "usage",
@@ -104,6 +146,9 @@ impl Class {
             Class::Timeout => "timeout",
             Class::Protocol => "protocol",
             Class::Refused => "refused",
+            Class::Revoked => "revoked",
+            Class::Policy => "policy",
+            Class::Unsupported => "unsupported",
         }
     }
 
@@ -250,6 +295,20 @@ mod tests {
         let hinted = "invalid peer certificate: UnknownIssuer; give the CA of the proxy";
         let f = Failure::caused(Stage::Tls, Class::Protocol, hinted, quoted);
         assert_eq!(f.chain(), hinted);
+    }
+
+    /// Each class has its own name, and the codes are the table of the
+    /// README: the classes that a supervisor must not restart end with 78.
+    #[test]
+    fn each_class_has_a_name_and_an_exit_code() {
+        let names: std::collections::HashSet<_> = Class::ALL.iter().map(|c| c.name()).collect();
+        assert_eq!(names.len(), Class::ALL.len());
+        assert_eq!(Class::Revoked.exit_code(), Class::Config.exit_code());
+        assert_eq!(Class::Usage.exit_code(), 64);
+        assert_eq!(Class::Timeout.exit_code(), Class::TempFail.exit_code());
+        let own: std::collections::HashSet<_> =
+            [Class::Refused, Class::Revoked, Class::Policy, Class::Unsupported].iter().map(|c| c.exit_code()).collect();
+        assert_eq!(own.len(), 4, "refused, revoked, policy and unsupported each have a code of their own");
     }
 
     #[test]

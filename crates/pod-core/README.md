@@ -23,6 +23,35 @@ A crate of podcrates prints nothing and reads no variable: it takes a
 `Dial`, a `Resolve` and a `Report` from its caller, and returns a
 `Failure`.
 
+## Exit codes and the log line
+
+Each class of a `Failure` has one exit code, `Class::exit_code()`, on the
+codes of sysexits(3). A tool of PodUtils that ends on a failure exits with
+the code of its class, and names the class in its JSON. A test of this
+crate holds this table to the code.
+
+| Class | Code | When |
+| --- | --- | --- |
+| `usage` | 64 | a value that the caller gave cannot be used |
+| `notfound` | 66 | a path or a name does not exist |
+| `unavailable` | 69 | a service or a path is not available |
+| `tempfail` | 75 | a service refused for now; a later try can work |
+| `timeout` | 75 | a wait ended at its time limit; a later try can work |
+| `protocol` | 76 | the far end broke the protocol |
+| `refused` | 77 | the far end refused the credentials or the identity |
+| `config` | 78 | a configuration cannot be used; do not restart |
+| `revoked` | 78 | a credential that worked is gone; do not restart |
+| `policy` | 79 | a local policy refused the action |
+| `unsupported` | 80 | the host, the build or the far end does not support the action |
+
+A unit of a supervisor stops a restart loop with
+`RestartPreventExitStatus=64 78 79 80`.
+
+One JSON log line of a tool has the keys of `schemas/log.v1.schema.json`:
+`time` (RFC 3339, UTC), `level` (`error`, `warn`, `info`, `debug`, `trace`),
+`event` (a dotted name, `relay.session.open`), `fields` (an object), and,
+for a failure, `stage` and `class` (the names of `Stage` and `Class`).
+
 ## Adoption map
 
 | Consumer | Old path | New path |
