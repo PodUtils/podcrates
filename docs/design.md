@@ -81,14 +81,16 @@ apply to them.
 | `Cargo.toml` | virtual workspace; `[workspace.package]` (edition 2024, `rust-version`, version, license 0BSD, repository); `[workspace.dependencies]`; each `pod-*` dependency has `path` and `version` |
 | `rust-toolchain.toml` | the toolchain (stable, or a pinned nightly when an entry needs it), the targets and the components |
 | `crates/pod-*` | `Cargo.toml`, `README.md` (purpose, API, features, settings, the parity list, the adoption map), `LICENSE`, `SOURCES`, `src/`, `tests/` |
-| `vendor/` | the patched forks that a crate needs (tailscale-rs, iroh-relay), each with its patches, its upstream commit and its licence (as podssh `vendor/README.md`) |
+| `vendor/` | planned: the patched forks that a crate needs (tailscale-rs, iroh-relay), each with its patches, its upstream commit and its licence (as podssh `vendor/README.md`) |
 | `adoption/CONSUMER/` | the pinned commit of each consumer, its `todo.toml`, and for each crate the trial patch (section 8, step 7) |
 | `TODO/` | the record (the podssh model): `RULES.md`, `ROADMAP.md`, `INDEX.md`, `PROGRESS.md`, `issues.md`, `github.txt`, `todo.toml`, one area file for each milestone |
-| `docs/` | `design.md`, `decisions.md`, `development.md`, `maintenance.md`, `releases/` |
-| `scripts/` | `agent/` (`check.sh`, `watch-issues.sh`, `watch-runs.sh`); `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh` with `zig-mirrors.txt`; `retry.sh`; `binfmt.sh`; `check-size.py`; `check-static.sh`; `openssl-perl.sh` (a perl of Windows for the OpenSSL of `pod-gsr`); `check-sources.py`; `check-vendored.py`; `check-workflows.py`; `check-github-numbers.py`; `plant.sh`, `plant-each.sh`, `plants/`; `fuzz.sh`; `release.sh`; the stand-in servers of the moved tests (`fake-*.py`); `check-relay-spec.py` |
+| `docs/` | `HANDOFF.md` (the state of unfinished work), `decisions.md`, `design.md`, `development.md`, `maintenance.md`, `session-protocol.md` (the talk between sessions), `releases/` (the notes of each tag), `research/` (the studies behind the plan) |
+| `scripts/` | `adoption.sh` (the adoption trial); `agent/`; `binfmt.sh`; `check-consumer-toolchains.py`; `check-crates-io-names.py`; `check-design-paths.py` (this table and the crate table of `README.md`); `check-github-numbers.py`; `check-probe.py` (the static probes cover each feature); `check-size.py`; `check-sources.py`; `check-static.sh`; `check-workflows.py`; `check-zig-mirrors.py`; `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh`; `fuzz.sh`; `names-proxy.py` (a CONNECT proxy that takes names alone, for the live tests); `openssl-perl.sh` (a perl of Windows for the OpenSSL of `pod-gsr`); `plant-each.sh`; `plants/` (the planted defects); `pull-image.sh`; `retry.sh`; `secrets-report.py`; `zig-mirrors.txt` |
+| `scripts/agent/` | `check.sh` (the checks before a push); `new-issues.py`, `watch-issues.sh` (new issues of this repository); `org-issues.py`, `watch-org.sh` (the messages to a session in each repository of PodUtils); `runs.py`, `watch-runs.sh` (the runs of a commit); `secrets_like.py` (two TruffleHog detectors over files); `togit.sh` (path dependencies to a git tag) |
 | `fuzz/` | the fuzz targets of the moved code (cargo-fuzz, its own workspace), their seeds (`fuzz/seeds/`) and their stable test; `fuzz/README.md` lists each target and the targets that wait for their crate; `scripts/fuzz.sh` runs them |
-| `examples/` | `static-probe` (section 7) and the binaries of the live workflows (ring provider; `publish = false`) |
+| `examples/` | `static-probe`, `static-probe-lean` (section 7) and the binaries of the live workflows (ring provider; `publish = false`) |
 | `images/` | the build and test images, pinned by digest |
+| `schemas/` | the JSON Schemas (`*.schema.json`) that go out with each tag |
 | `.github/` | `workflows/` (section 9), `dependabot.yml`, `secrets-allow.txt` |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/` | the rules for each session; the settings and the session-start hook |
 
@@ -496,7 +498,7 @@ pushes. No worktree branch is pushed.
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |
 | `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |
 | `release.yml` | when a crate is done, by hand | section 10; a dry run with no input |
-| `upstream.yml` | each day | `check-sources.py`; `check-vendored.py`; the cloudflared pin |
+| `upstream.yml` | each day | `check-sources.py`; `check-zig-mirrors.py` |
 | `record-issues.yml` | each day | `TODO/github.txt` against GitHub |
 | `fuzz.yml` | each week | the fuzz targets |
 | the other live and interop workflows of the moved code | each day, by hand | podssh's `relay-live`, `relay-layer-live`, `warp-live`, `quick-tunnel-*`, `transit-live`, `pair-code`, `piping`, `via`, `vless` and `wstunnel` interop, `forwarder-live`, `opentunnel-*`, `tor-live`, `ts-headscale`, `acme-interop`, `reverse-drops`; podnet's live steps of WARP and of the edge. Each moves with its crate |

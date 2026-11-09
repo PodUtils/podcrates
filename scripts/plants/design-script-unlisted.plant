@@ -1,0 +1,7 @@
+# A script of scripts/ is not in the row of the repository table.
+ENTRY=T-094
+GROUP=lint
+EXPECT='is in the tree and not in the row'
+RUN='python3 -I scripts/check-design-paths.py --plant-unlisted'
+LIMIT=60
+SWITCH=1

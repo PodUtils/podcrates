@@ -74,6 +74,8 @@ jobs:
           python3 -I scripts/check-size.py --self-test
       - name: The rules of the workflows
         run: python3 scripts/check-workflows.py
+      - name: The repository table and the table of crates match the tree
+        run: python3 -I scripts/check-design-paths.py
       - name: The static probes cover each feature
         run: python3 -I scripts/check-probe.py
 

@@ -1,0 +1,7 @@
+# A crate of crates/ is not in the table of README.md.
+ENTRY=T-093
+GROUP=lint
+EXPECT='is in crates/ and not in the table of crates'
+RUN='python3 -I scripts/check-design-paths.py --plant-crate'
+LIMIT=60
+SWITCH=1

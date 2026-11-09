@@ -1,7 +1,8 @@
 #!/bin/sh
 # The checks of AGENTS.md before each push: fmt, clippy, rustdoc and the tests, the
 # check of the record (cargo todo check), the size of the Rust files
-# (scripts/check-size.py, with its self-test), and the static probes of
+# (scripts/check-size.py, with its self-test), the tables of docs/design.md
+# and README.md (scripts/check-design-paths.py), and the static probes of
 # x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
 # code and the first faults; exit 1 on a fault. With the argument notest,
 # the tests are skipped.
@@ -22,6 +23,8 @@ cargo run -q -p pod-todo -- check > "$log/record.log" 2>&1; r=$?
 echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
+python3 -I scripts/check-design-paths.py > "$log/paths.log" 2>&1; p=$?
+echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
     t=x86_64-unknown-linux-musl
     { cargo zigbuild -q --release --target "$t" -p static-probe &&

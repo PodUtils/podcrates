@@ -10,19 +10,28 @@ into a static binary on each target of the consumers.
 
 ## State
 
-The work is in the record [TODO/](TODO/PROGRESS.md) (milestone M0, the
-foundation, runs now). `pod-todo`, the checker of the record, exists. The
-first release follows M0.
+Version 0.8.0 (`v0.8.0`) is the last release. The releases `v0.1.0` to
+`v0.8.0` have notes in [docs/releases/](docs/releases/). A consumer takes a
+crate by the git tag of this repository. The record
+[TODO/](TODO/PROGRESS.md) has the state, the work order and the open
+entries. M6 (the crates of podvm) is the current wave; M8 (the fleet)
+waits.
 
 ## The crates
 
+Each name in `crates/` is in the table. A crate that has no mark is
+planned. [docs/design.md](docs/design.md), section 4, gives the source and
+the dependencies of each crate.
+
 | Wave | Crates |
 | --- | --- |
-| 0 | `pod-todo` (exists), `pod-core`, `pod-testkit` |
-| 1 | `pod-identity`, `pod-term`, `pod-tls`, `pod-proxy`, `pod-dns`, `pod-ws` |
-| 2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
-| 3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
-| 4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
+| M0 | `pod-todo` (exists), `pod-core` (exists), `pod-testkit` (exists) |
+| M1 | `pod-identity` (exists), `pod-term` (exists), `pod-tls` (exists), `pod-proxy` (exists), `pod-dns` (exists), `pod-services` (exists), `pod-ws` |
+| M2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
+| M3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
+| M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
+| M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter` |
+| M7 | `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` |
 | M8 | `pod-broker` (exists), `pod-unit`, `pod-control`, `pod-release` |
 
 ## Documents
