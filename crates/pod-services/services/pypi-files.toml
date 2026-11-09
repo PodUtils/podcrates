@@ -1,0 +1,30 @@
+# The file host of PyPI: the index (pypi.org) names a wheel or an sdist by a
+# URL on this host, and no answer of the index names the host itself. A CDN
+# serves it, so the file holds no address.
+id = "pypi-files"
+kind = "package-files"
+party = "Python Software Foundation"
+about = "The host that serves the files (wheels and source archives) that the index of PyPI names"
+
+[[endpoint]]
+name = "files"
+scheme = "https"
+host = "files.pythonhosted.org"
+port = 443
+source = { url = "https://pypi.org/pypi/pip/json", read = 2026-11-09, note = "the url of each file of a release is on this host; GET / answers 404" }
+
+# A file that stays at its URL once uploaded: the wheel of a release.
+[[fact]]
+name = "probe-path"
+value = "/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl"
+source = { url = "https://pypi.org/pypi/pip/json", read = 2026-11-09, note = "the wheel of pip 26.3; a HEAD answered 200" }
+
+[[watch]]
+kind = "tls-name"
+endpoint = "files"
+
+[[watch]]
+kind = "http-status"
+endpoint = "files"
+path = "/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl"
+status = 200

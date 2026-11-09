@@ -203,3 +203,15 @@ fn the_relay_watches_its_hosts_and_its_pool() {
     let pool = relay.watches().iter().find(|w| watch_text(w, "pointer") == Some("/pool")).unwrap();
     assert_eq!((watch_text(pool, "member"), watch_text(pool, "role")), (Some("host"), Some("seed")));
 }
+
+/// The file host of PyPI is a service of its own, with its watches.
+#[test]
+fn the_file_host_of_pypi_is_a_service() {
+    let files = pod_services::get("pypi-files").expect("pypi-files");
+    assert_eq!(files.kind(), "package-files");
+    assert_eq!(files.endpoint("files").unwrap().host(), "files.pythonhosted.org");
+    assert!(files.text("probe-path").is_some_and(|path| path.starts_with("/packages/")));
+    let kinds: Vec<&str> = files.watches().iter().map(|w| w.kind()).collect();
+    assert_eq!(kinds, ["tls-name", "http-status"]);
+    assert!(pod_services::of_kind("package-files").any(|s| s.id() == "pypi-files"));
+}

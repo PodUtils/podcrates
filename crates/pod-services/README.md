@@ -224,6 +224,7 @@ let relay = services.of_kind("relay").next();
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |
 | `quay-registry` | `oci-registry` | `registry` | `token-realm`, `images` |
 | `opensuse-registry` | `oci-registry` | `registry` | `images` (no token: `/v2/` answers 200) |
+| `pypi-files` | `package-files` | `files` | `probe-path` |
 | `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256` |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
