@@ -232,3 +232,14 @@ pub fn broker_target(data: &[u8]) {
         assert_eq!(parse_authority(&target.authority.to_string(), None).as_ref(), Ok(&target.authority));
     }
 }
+
+/// `pod-gsr`: the reader of the relay's 32-byte messages, on the bytes of
+/// the input after its first two, in fragments of 1 to 32 bytes and with
+/// cancelled reads (`wire::fuzz_messages` says how the first two bytes
+/// choose them). A read takes no byte past the message that it gives, a
+/// cancel loses no byte, and the fragments give the messages of whole reads;
+/// each message takes 32 bytes of the input.
+pub fn gsr_message(data: &[u8]) {
+    let messages = pod_gsr::wire::fuzz_messages(data);
+    assert!(messages.len() * pod_gsr::wire::MESSAGE_LEN <= data.len().saturating_sub(2), "{messages:?}");
+}

@@ -382,6 +382,20 @@ session cannot read an attachment of an issue (GitHub answers 403 with no
 signed-in session): the import needs a copy that a session can fetch (a
 gist, a release asset or a commit).
 
+The condition is met: on 2026-11-09 the owner gave `pod-gsr.zip` to the
+session of the import, and the ruling "Priority" of 2026-11-09 puts
+`pod-gsr` in the work order now.
+
+## Correction
+
+2026-11-09: the prototype is `pod-gsr` 0.3.0 (`pod-gsr.zip`: 8 source
+files, 3 test files, its data file and a `build.rs`; 2,310 lines with the
+documents). Its data file names `hackerschoice/gsocket` at `5950647f`
+(the head of `master` on 2026-10-19). `include/gsocket/gsocket.h`,
+`lib/gsocket-engine.c`, `lib/gsocket-ssl.c` and `lib/gsocket-util.c` have
+the same blobs at `5950647f` and at `ad546b2e` (the tag `v1.4.43`), read
+in a clone. The import takes `5950647f`.
+
 # T-087: `pod_gsr::Stream` records how it ended (GitHub #25)
 
 **Source:** GitHub #25

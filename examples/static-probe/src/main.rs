@@ -63,6 +63,12 @@ fn main() {
         broker.list().len(),
         open.compile().map_or_else(|e| e.to_string(), |c| c.mode().word().to_string())
     ));
+    // The SRP contexts of both sides: the OpenSSL of pod-gsr links in.
+    let gsr = pod_gsr::Settings::of_data().and_then(|settings| {
+        let host = pod_gsr::Identity::new("static-probe", &settings).host(&settings);
+        pod_gsr::check_tls(&settings).map(|openssl| format!("{host}, {openssl}"))
+    });
+    lines.push(format!("pod-gsr: {}", gsr.unwrap_or_else(|e| e.to_string())));
     lines.extend(hostprobe());
     lines.extend(supervise());
     for line in lines {

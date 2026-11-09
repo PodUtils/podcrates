@@ -1,0 +1,126 @@
+# The GSRN relay of gsocket (hackerschoice): two peers that share one secret
+# meet at an address that the secret derives, then speak TLS with SRP. The
+# service needs no account and no token.
+id = "hackerschoice-gsr"
+kind = "gsr-relay"
+party = "hackerschoice (The Hacker's Choice)"
+about = "GSocket's relay: a listener and a connector that share a secret meet by its derived address, then run TLS with SRP"
+
+[[endpoint]]
+name = "default"
+scheme = "tcp"
+host = "gs.thc.org"
+port = 443
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-engine.c", read = 2026-11-06, note = "GS_NET_DEFAULT_HOST at line 38; the shard letter goes in front (line 387)" }
+
+# The address of a secret is the first 16 bytes of SHA256(addr-key ++
+# secret). The relay host is the letter of the sum of these bytes in front
+# of the domain.
+[[fact]]
+name = "shard-count"
+value = 26
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-util.c", read = 2026-11-06, note = "GS_ADDR_get_hostname_id returns the sum of the address bytes % 26" }
+
+[[fact]]
+name = "addr-key"
+value = "/kd/addr/2"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-util.c", read = 2026-11-06, note = "GS_ADDR_KD2; GS_ADDR_sec2addr hashes this key and then the secret" }
+
+# The SRP password is the lowercase hex of SHA256(srp-key ++ secret), cut to
+# 33 characters.
+[[fact]]
+name = "srp-key"
+value = "/kd/srp/1"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-util.c", read = 2026-11-06, note = "GS_SRP_KD1; GS_bin2hex writes to a buffer of 34 bytes, so 33 characters" }
+
+[[fact]]
+name = "srp-password-hex-chars"
+value = 33
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_SRP_PASSWORD_LENGTH at line 329" }
+
+[[fact]]
+name = "srp-user"
+value = "user"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-ssl.c", read = 2026-11-06, note = "SSL_CTX_set_srp_username at line 153 and SRP_create_verifier_BN at line 83 name user" }
+
+[[fact]]
+name = "srp-group"
+value = "4096"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_DFL_CIPHER_STRENGTH at line 30" }
+
+[[fact]]
+name = "cipher"
+value = "SRP-AES-256-CBC-SHA"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_DFL_CIPHER at line 29" }
+
+# The TLS password is this prefix, the derived password and this suffix. The
+# text around it is part of the protocol: a peer without it derives another
+# key.
+[[fact]]
+name = "secret-prefix"
+value = "Blah."
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-ssl.c", read = 2026-11-06, note = "the snprintf at line 516" }
+
+[[fact]]
+name = "secret-suffix"
+value = ".blubb-SRPSEC"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/lib/gsocket-ssl.c", read = 2026-11-06, note = "the snprintf at line 516" }
+
+[[fact]]
+name = "secret-max-bytes"
+value = 32
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_SECRET_MAX_LEN (256 / 8) at line 28" }
+
+# The control messages name version 1.3. The LISTEN and CONNECT messages are
+# 128 bytes; each reply, ACCEPT and PING is 32 bytes.
+[[fact]]
+name = "protocol-major"
+value = 1
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_PKT_PROTO_VERSION_MAJOR at line 128" }
+
+[[fact]]
+name = "protocol-minor"
+value = 3
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GS_PKT_PROTO_VERSION_MINOR at line 129" }
+
+# A waiting peer sends PING; the relay answers PONG. The gap is shorter than
+# the relay's idle limit.
+[[fact]]
+name = "ping-interval-ms"
+value = 45000
+unit = "ms"
+source = { url = "https://github.com/hackerschoice/gsocket/blob/5950647f8c72caaf0fbf6a8b51b0768d25a5d09a/include/gsocket/gsocket.h", read = 2026-11-06, note = "GSRN_DEFAULT_PING_INTERVAL (45) at line 58" }
+
+[[fact]]
+name = "idle-timeout-ms"
+value = 130000
+unit = "ms"
+source = { measured = "a registered listener with no traffic was closed at 130.1 s and 130.2 s, on two shards, through the HTTP proxy of the test host", read = 2026-11-06 }
+
+[[watch]]
+kind = "github-file"
+repo = "hackerschoice/gsocket"
+path = "lib/gsocket-engine.c"
+endpoint = "default"
+
+[[watch]]
+kind = "github-file"
+repo = "hackerschoice/gsocket"
+path = "include/gsocket/gsocket.h"
+facts = ["cipher", "srp-group", "srp-password-hex-chars", "protocol-major", "protocol-minor"]
+
+[[watch]]
+kind = "github-file"
+repo = "hackerschoice/gsocket"
+path = "lib/gsocket-util.c"
+facts = ["addr-key", "srp-key", "shard-count"]
+
+[[watch]]
+kind = "github-file"
+repo = "hackerschoice/gsocket"
+path = "lib/gsocket-ssl.c"
+facts = ["srp-user"]
+
+[[watch]]
+kind = "rdap"
+domain = "thc.org"

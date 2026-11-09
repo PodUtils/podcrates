@@ -85,7 +85,7 @@ apply to them.
 | `adoption/CONSUMER/` | the pinned commit of each consumer, its `todo.toml`, and for each crate the trial patch (section 8, step 7) |
 | `TODO/` | the record (the podssh model): `RULES.md`, `ROADMAP.md`, `INDEX.md`, `PROGRESS.md`, `issues.md`, `github.txt`, `todo.toml`, one area file for each milestone |
 | `docs/` | `design.md`, `decisions.md`, `development.md`, `maintenance.md`, `releases/` |
-| `scripts/` | `agent/` (`check.sh`, `watch-issues.sh`, `watch-runs.sh`); `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh` with `zig-mirrors.txt`; `retry.sh`; `binfmt.sh`; `check-size.py`; `check-static.sh`; `check-sources.py`; `check-vendored.py`; `check-workflows.py`; `check-github-numbers.py`; `plant.sh`, `plant-each.sh`, `plants/`; `fuzz.sh`; `release.sh`; the stand-in servers of the moved tests (`fake-*.py`); `check-relay-spec.py` |
+| `scripts/` | `agent/` (`check.sh`, `watch-issues.sh`, `watch-runs.sh`); `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh` with `zig-mirrors.txt`; `retry.sh`; `binfmt.sh`; `check-size.py`; `check-static.sh`; `openssl-perl.sh` (a perl of Windows for the OpenSSL of `pod-gsr`); `check-sources.py`; `check-vendored.py`; `check-workflows.py`; `check-github-numbers.py`; `plant.sh`, `plant-each.sh`, `plants/`; `fuzz.sh`; `release.sh`; the stand-in servers of the moved tests (`fake-*.py`); `check-relay-spec.py` |
 | `fuzz/` | the fuzz targets of the moved code (cargo-fuzz, its own workspace), their seeds (`fuzz/seeds/`) and their stable test; `fuzz/README.md` lists each target and the targets that wait for their crate; `scripts/fuzz.sh` runs them |
 | `examples/` | `static-probe` (section 7) and the binaries of the live workflows (ring provider; `publish = false`) |
 | `images/` | the build and test images, pinned by digest |
@@ -212,7 +212,7 @@ target, the fork. A study can change its row.
 | `pod-iroh` | podssh `crates/podssh-iroh`; `vendor/iroh-relay` with its patch | 3,600 | pod-core, pod-derp, pod-proxy, pod-tls, pod-ws, pod-dns, pod-session, pod-identity |
 | `pod-tor` | podssh `crates/podssh-tor` (arti, SQLite linked static) | 900 | pod-core, pod-proxy, pod-tls, pod-egress |
 | `pod-ts` | podssh `crates/podssh-ts`; `vendor/tailscale-rs` with its patches; the headscale harness | 900 | pod-core, pod-proxy |
-| `pod-gsr` | the GSRN relay of gsocket: the prototype of the owner and its data file for `pod-services` (deferred by the owner, 2026-11-09: T-086 waits for the source) | (T-086) | pod-core, pod-services, pod-proxy |
+| `pod-gsr` | the GSRN relay of gsocket: the owner's prototype `pod-gsr` 0.3.0 (`pod-gsr.zip` of GitHub #24) and its data file `hackerschoice-gsr` for `pod-services`; the protocol of `hackerschoice/gsocket` at `5950647f` (`SOURCES`). TLS with SRP on a static OpenSSL (C34) | 2,200 | pod-core, pod-services (pod-proxy for the live test) |
 
 ### M8: the fleet (the asks of GitHub #35 and #36)
 

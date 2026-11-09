@@ -1,0 +1,11 @@
+diff --git a/crates/pod-gsr/src/wire.rs b/crates/pod-gsr/src/wire.rs
+--- a/crates/pod-gsr/src/wire.rs
++++ b/crates/pod-gsr/src/wire.rs
+@@ -120,6 +120,7 @@
+     /// The next message, or `None` when the relay closed the stream before a
+     /// message started.
+     pub async fn next(&mut self, io: &mut (impl AsyncRead + Unpin)) -> Result<Option<Message>, Failure> {
++        self.filled = 0;
+         while self.filled < MESSAGE_LEN {
+             // Ask for the bytes of this message alone: a byte of the payload
+             // that follows must stay in the socket for the TLS layer.

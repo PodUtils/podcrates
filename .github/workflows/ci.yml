@@ -152,6 +152,11 @@ jobs:
       - name: Build the probe (zig)
         if: matrix.zig
         run: cargo zigbuild --locked --release --target ${{ matrix.target }} -p static-probe
+      # The OpenSSL of pod-gsr builds from source: its Configure needs a
+      # perl of Windows, not the perl of Git Bash.
+      - name: A perl for OpenSSL
+        if: runner.os == 'Windows'
+        run: sh scripts/openssl-perl.sh
       - name: Build the probe
         if: '!matrix.zig'
         run: cargo build --locked --release --target ${{ matrix.target }} -p static-probe

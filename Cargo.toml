@@ -27,6 +27,7 @@ crates-io = false
 pod-broker = { path = "crates/pod-broker", version = "0.8.0" }
 pod-core = { path = "crates/pod-core", version = "0.8.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.8.0" }
+pod-gsr = { path = "crates/pod-gsr", version = "0.8.0" }
 pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.8.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.8.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.8.0" }
@@ -59,6 +60,13 @@ bytes = "1"
 # on the other architectures.
 linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "no_std"] }
 syscalls = { version = "0.8", default-features = false }
+
+# TLS with SRP (pod-gsr): rustls has no SRP cipher suite. The feature
+# `vendored` builds OpenSSL from source (openssl-src), so each binary links
+# it static on each target (call C34). The C of OpenSSL is in pod-gsr only.
+openssl = { version = "0.10", default-features = false, features = ["vendored"] }
+openssl-sys = { version = "0.9", default-features = false }
+tokio-openssl = { version = "0.6", default-features = false }
 
 # TLS (pod-tls). No crypto provider feature: the binary gives the provider
 # (docs/design.md, section 1, rule 4). The default of tokio-rustls is

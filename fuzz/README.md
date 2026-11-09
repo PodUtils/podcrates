@@ -50,6 +50,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `dns_wire` | `pod-dns` | `wire::{addrs, srv, read_name}`, `https::{from_wire, from_rdata, check_list}` | podssh `dns_wire` (at `a791553`) |
 | `doh_json` | `pod-dns` | `json::{parse, srv_of, parse_srv}`, `json::Answer::of`, `https::from_json` | podnet `doh_json` (at `380d9a4`); its SRV part reads `pod_dns::json::srv_of`, and podnet's `edge_discovery::parse_srv` goes with `pod-cloudflare` |
 | `broker_target` | `pod-broker` | `target::{parse_authority, parse_absolute, normal_path}` | new in `pod-broker` (T-099); its seeds are small targets written here |
+| `gsr_message` | `pod-gsr` | `wire::Reader::next` over `wire::fuzz_messages` (feature `fuzzing`): fragments of 1 to 32 bytes, cancelled reads | new in `pod-gsr` (T-086, GitHub #24); its seeds are messages of the relay written here |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:

@@ -1,0 +1,61 @@
+[package]
+name = "pod-gsr"
+description = "The GSRN relay of gsocket: the address and the SRP password that a secret gives, the control messages that register a listener or connect to one, and the TLS stream with SRP between the two ends."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["async"]
+# The async face: `open` and `Stream`, on tokio.
+async = ["rt"]
+# The control handshake and the TLS stream on tokio. The face `async` turns
+# it on. With no feature, the crate is the core with no tokio: the identity,
+# the settings, the messages and the SRP context.
+rt = ["dep:tokio", "dep:tokio-openssl", "pod-core/async"]
+# The reader of the relay's messages (`wire::Reader`) is public, for the
+# fuzz target `gsr_message` of fuzz/. The `--cfg fuzzing` of cargo-fuzz also
+# makes it public. No consumer turns this on.
+fuzzing = ["rt"]
+
+[dependencies]
+pod-core = { workspace = true }
+# The facts of the relay: the data file hackerschoice-gsr.
+pod-services = { workspace = true }
+# The two derivations of a secret, and the wipe of the password.
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+# TLS with SRP. rustls has no SRP cipher suite, so the crate links OpenSSL,
+# built from source and linked static (the workspace dependency, call C34).
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
+# The control messages, the wait for a peer and the TLS stream.
+tokio = { workspace = true, optional = true, features = ["io-util", "time"] }
+tokio-openssl = { workspace = true, optional = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# The live test reaches the relay through the proxy of its environment.
+pod-proxy = { workspace = true }
+# `Catalog::lay` builds a service with a missing fact, for the tests of the
+# configuration failures.
+pod-services = { workspace = true, features = ["overlay"] }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+sha2 = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
+
+[[test]]
+name = "loopback"
+required-features = ["async"]
+
+[[test]]
+name = "unix_loopback"
+required-features = ["async"]
+
+[[test]]
+name = "live"
+required-features = ["async"]

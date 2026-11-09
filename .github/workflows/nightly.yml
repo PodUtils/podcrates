@@ -37,6 +37,11 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
+      # The OpenSSL of pod-gsr builds from source: its Configure needs a
+      # perl of Windows, not the perl of Git Bash.
+      - name: A perl for OpenSSL
+        if: runner.os == 'Windows'
+        run: sh scripts/openssl-perl.sh
       - name: Test
         run: cargo test --locked --workspace --all-features
       # The store of Windows: the test's root in the machine's ROOT store

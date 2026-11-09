@@ -5,8 +5,8 @@ use: the owner's relay, DNS over HTTPS, plain DNS, STUN, DERP and the DERP
 map, iroh's relays and pkarr, Piping, the magic-wormhole mailboxes and
 transit, OpenTunnel, the edge of Cloudflare's tunnels and its quick
 tunnels, WARP, ACME, the public forwarders, Pinggy, GitHub's SSH host
-keys, the OCI registries with the images that podvm pins, and the guest
-images of podvm with their sums. Each service is one data file, and each value of a file has its
+keys, the OCI registries with the images that podvm pins, the guest
+images of podvm with their sums, and the GSRN relay of gsocket. Each service is one data file, and each value of a file has its
 source and the date when it was read.
 
 The crate knows no provider in its code. A new relay or service is a new
@@ -228,6 +228,7 @@ let relay = services.of_kind("relay").next();
 | `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256` |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
+| `hackerschoice-gsr` | `gsr-relay` | `default` (scheme `tcp`; the shard letter goes in front of the host) | `shard-count`, `addr-key`, `srp-key`, `srp-password-hex-chars`, `srp-user`, `srp-group`, `cipher`, `secret-prefix`, `secret-suffix`, `secret-max-bytes`, `protocol-major`, `protocol-minor`, `ping-interval-ms`, `idle-timeout-ms` (the facts of gsocket, read by `pod-gsr`) |
 
 An image fact is `REPOSITORY[:TAG]@sha256:DIGEST`, with no host: the host
 is the endpoint `registry`.
