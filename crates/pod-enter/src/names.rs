@@ -25,6 +25,12 @@ pub struct Names {
     /// The variable of the table of path maps of the entry with no chroot,
     /// which the interposer reads.
     pub maps: &'static str,
+    /// The variable that carries the library directories of the image to
+    /// the interposer. `host_env` sets it to the list that it gives to
+    /// `LD_LIBRARY_PATH`: a payload can change `LD_LIBRARY_PATH`, and the
+    /// interposer reads this variable for the loader of each dynamic
+    /// child.
+    pub lib_path: &'static str,
     /// The variable of the device list of a container record.
     pub device_spec: &'static str,
     /// The variable of the device table that the interposer serves.
@@ -44,6 +50,7 @@ impl Names {
         mode_active: "POD_ENTER_ACTIVE_MODE",
         cache: "POD_ENTER_CACHE",
         maps: "POD_ENTER_MAPS",
+        lib_path: "POD_ENTER_LIB_PATH",
         device_spec: "POD_ENTER_DEVICE_SPEC",
         device_fds: "POD_ENTER_DEVICE_FDS",
         cache_marker: ".pod-enter-cache-complete",

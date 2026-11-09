@@ -997,3 +997,53 @@ cargo zigbuild --tests -p pod-enter -p pod-hostprobe --target aarch64-unknown-li
 and `pod-hostprobe` built for aarch64, armv7 and powerpc64le pass under
 `qemu-user`, except `resolve_past_a_denied_listing`, which needs the
 `binfmt_misc` registration that the nightly makes. The nightly is the proof.
+
+# T-136: Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer
+
+**Source:** podvm `284f429` (PodUtils/podvm@T-1646), PodUtils/podvm#219;
+`scripts/check-sources.py` on `pod-enter`.
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm changed two imported files of `pod-enter` after the import at
+`6cd3442`: `userland.rs` and `userland/tests.rs` of podvm-enter.
+`host_env` pushes a variable with the library directories of the image,
+and drops the value of the caller. The interposer reads it for the
+loader of each dynamic grandchild, because a payload can change
+`LD_LIBRARY_PATH`.
+
+## Premise
+
+- Read: the diff of podvm-enter between `6cd3442` and `284f429`. The
+  variable is `PODVM_LIB_PATH`, the const is `LIB_PATH_VAR`.
+- The crate names no variable of podvm: the name comes from `Names`.
+
+## Approach
+
+`Names` has a new field `lib_path` (`POD_ENTER_LIB_PATH` in
+`Names::DEFAULT`). `host_env` takes `&Names` as its first argument, drops
+each value of `names.lib_path` and pushes the list of `LD_LIBRARY_PATH`
+under that name. The test of podvm follows with its checks. The README
+has the field and the new signature. The snapshot of `SOURCES` moves to
+`284f429` with the new blob ids. The trial of `pod-enter` gives
+`NAMES.lib_path = "PODVM_LIB_PATH"` and a `host_env` of podvm's
+signature.
+
+## Prove
+
+```sh
+cargo test -p pod-enter
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-enter
+sh scripts/adoption.sh podvm pod-enter
+```
+
+## Done
+
+2026-11-09. Commit: the commit that names T-136. `cargo test -p pod-enter`
+passes. `check-sources.py` reads `pod-enter` at `284f429`: 28 files, 0
+changes. The trial of `pod-enter` is made again on podvm `cb57d4b` (T-059).

@@ -85,13 +85,25 @@ fn host_env_rewrites_preload_and_sets_lib_path() {
     let env = [
         "LD_PRELOAD=/.pod-enter/interpose.so /mine.so".to_string(),
         "LD_LIBRARY_PATH=/caller".to_string(),
+        "POD_ENTER_LIB_PATH=/caller".to_string(),
         "PATH=/bin".to_string(),
     ];
-    let (got, dropped) =
-        host_env("/store/rootfs", "/.pod-enter/interpose.so", &env, &["/store/rootfs/lib".to_string()]);
+    let (got, dropped) = host_env(
+        &Names::DEFAULT,
+        "/store/rootfs",
+        "/.pod-enter/interpose.so",
+        &env,
+        &["/store/rootfs/lib".to_string()],
+    );
     assert!(got.contains(&"LD_PRELOAD=/store/rootfs/.pod-enter/interpose.so /mine.so".to_string()), "{got:?}");
     assert!(got.contains(&"LD_LIBRARY_PATH=/store/rootfs/lib".to_string()), "{got:?}");
     assert!(!got.iter().any(|e| e == "LD_LIBRARY_PATH=/caller"), "{got:?}");
+    // The same list for the interposer; the caller's value loses.
+    assert_eq!(
+        got.iter().filter(|e| e.starts_with("POD_ENTER_LIB_PATH=")).collect::<Vec<_>>(),
+        ["POD_ENTER_LIB_PATH=/store/rootfs/lib"],
+        "{got:?}"
+    );
     assert!(got.contains(&"PATH=/bin".to_string()), "{got:?}");
     assert_eq!(dropped, None, "{dropped:?}");
 }
@@ -101,8 +113,13 @@ fn host_env_rewrites_preload_and_sets_lib_path() {
 #[test]
 fn host_env_without_a_tier_sets_only_the_library_path() {
     let env = ["PATH=/bin".to_string()];
-    let (got, dropped) =
-        host_env("/store/rootfs", "/.pod-enter/interpose.so", &env, &["/store/rootfs/lib".to_string()]);
+    let (got, dropped) = host_env(
+        &Names::DEFAULT,
+        "/store/rootfs",
+        "/.pod-enter/interpose.so",
+        &env,
+        &["/store/rootfs/lib".to_string()],
+    );
     assert!(!got.iter().any(|e| e.starts_with("LD_PRELOAD=")), "{got:?}");
     assert!(got.contains(&"LD_LIBRARY_PATH=/store/rootfs/lib".to_string()), "{got:?}");
     assert_eq!(dropped, None, "{dropped:?}");
@@ -113,8 +130,13 @@ fn host_env_without_a_tier_sets_only_the_library_path() {
 #[test]
 fn host_env_drops_a_caller_only_preload_and_reports_it() {
     let env = ["LD_PRELOAD=/mine.so".to_string()];
-    let (got, dropped) =
-        host_env("/store/rootfs", "/.pod-enter/interpose.so", &env, &["/store/rootfs/lib".to_string()]);
+    let (got, dropped) = host_env(
+        &Names::DEFAULT,
+        "/store/rootfs",
+        "/.pod-enter/interpose.so",
+        &env,
+        &["/store/rootfs/lib".to_string()],
+    );
     assert!(!got.iter().any(|e| e.starts_with("LD_PRELOAD=")), "{got:?}");
     assert_eq!(dropped, Some("/mine.so".to_string()), "{dropped:?}");
 }

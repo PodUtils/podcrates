@@ -2,7 +2,7 @@
 # (docs/design.md, section 9). scripts/check-sources.py compares each
 # with the default branch of its repository.
 
-repo PodUtils/podvm 6cd3442d2b742adb4869b042abfffa70084f355f
+repo PodUtils/podvm 284f429d3ea48a7a059ea33850500dc9e655ff3c
 dir crates/podvm-enter/src
 dir crates/podvm-enter/tests
 # Of lib.rs a part stays in podvm: the re-export of docker's codes of
@@ -33,6 +33,6 @@ file 44f2d0bdd6756ec6b8019e64f93d5ba8a082e61b crates/podvm-enter/src/memfd/tests
 file 3449b2db249c4c45e01f0560989a00b30b38cc04 crates/podvm-enter/src/plan.rs -> crates/pod-enter/src/plan.rs crates/pod-enter/src/plan/tests.rs
 file 4b165e2259be58a598cbce0789ef501732ecc5c7 crates/podvm-enter/src/stage.rs -> crates/pod-enter/src/stage.rs crates/pod-enter/src/stage/tests.rs
 file 1d2abadd6ec49331962892f9c20d091ed65591e6 crates/podvm-enter/src/tests.rs -> crates/pod-enter/src/tests.rs
-file 13c21b9dcdf8511351ede85b9c888cb39dd83d5d crates/podvm-enter/src/userland.rs -> crates/pod-enter/src/userland.rs
-file b93fbbc3006bf54433c1cff08f76f564e5387774 crates/podvm-enter/src/userland/tests.rs -> crates/pod-enter/src/userland/tests.rs
+file f8f7593d7b6ddfed9264517b265c5ed4d2f92c70 crates/podvm-enter/src/userland.rs -> crates/pod-enter/src/userland.rs
+file 46c35053ff8c0f45a23905679e948c8c2130010d crates/podvm-enter/src/userland/tests.rs -> crates/pod-enter/src/userland/tests.rs
 file de60f3ef4039fae0c8df388b734539a9963252c2 crates/podvm-enter/tests/tty_refusal.rs -> crates/pod-enter/tests/tty_refusal.rs

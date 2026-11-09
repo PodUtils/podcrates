@@ -207,6 +207,10 @@ pub fn loader_plan(rootfs: &str, interp_guest: &str, payload_host: &str) -> Resu
 ///   loader resolves the payload's `DT_NEEDED` from the image and not
 ///   the host. Later wins, like every other `*_for` here: the caller's
 ///   own value, if any, is dropped in favour of the image's.
+/// * `names.lib_path` carries the same list. The payload can change
+///   `LD_LIBRARY_PATH`; the interposer reads this variable for the
+///   library path of the loader that runs each dynamic child. The
+///   caller's own value of it is dropped, as for `LD_LIBRARY_PATH`.
 ///
 /// `guest_preload` is the path the tier was placed under as the payload
 /// sees it (`LD_PRELOAD`'s first element where the tier loaded). Where
@@ -218,6 +222,7 @@ pub fn loader_plan(rootfs: &str, interp_guest: &str, payload_host: &str) -> Resu
 /// chroot, so it is dropped rather than left to fail the load, and the
 /// caller names the drop on the banner.
 pub fn host_env(
+    names: &Names,
     rootfs: &str,
     guest_preload: &str,
     env: &[String],
@@ -246,13 +251,14 @@ pub fn host_env(
                 joined.push_str(p);
             }
             out.push(format!("LD_PRELOAD={joined}"));
-        } else if k == "LD_LIBRARY_PATH" {
+        } else if k == "LD_LIBRARY_PATH" || k == names.lib_path {
             continue;
         } else {
             out.push(e.clone());
         }
     }
     out.push(format!("LD_LIBRARY_PATH={}", lib_dirs.join(":")));
+    out.push(format!("{}={}", names.lib_path, lib_dirs.join(":")));
     (out, dropped)
 }
 

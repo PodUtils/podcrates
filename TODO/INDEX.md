@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**135 entries: 57 open, 3 partial, 0 blocked, 75 done.**
+**136 entries: 57 open, 3 partial, 0 blocked, 76 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 28 | 51 |
-| P2 | 27 | 3 | 0 | 34 | 64 |
+| P2 | 27 | 3 | 0 | 35 | 65 |
 | P3 | 7 | 0 | 0 | 11 | 18 |
-| **All** | 57 | 3 | 0 | 75 | 135 |
+| **All** | 57 | 3 | 0 | 76 | 136 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -182,3 +182,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-133](transport.md) | P3 | M | M1 | feature | open | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
 | [T-135](transport.md) | P3 | S | M1 | feature | done | `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178) |
+| [T-136](podvm.md) | P2 | S | M6 | chore | done | Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer |

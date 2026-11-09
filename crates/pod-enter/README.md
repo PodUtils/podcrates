@@ -43,7 +43,7 @@ each entry takes; the payload owns the standard output.
 
 | Item | What |
 | --- | --- |
-| `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`. `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload` |
+| `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`. `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload` |
 | `Plan { argv, env, working_dir, fds, banner, path_dirs, names }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}` |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload; a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM |
@@ -55,7 +55,7 @@ each entry takes; the payload owns the standard output.
 | `stage` | `copy_tree`, `stage_tmpfs`, `release_tmpfs`, `cache_dir`, `stage_cache(&names, ..)`, `Refusal` |
 | `fuse` | `check_node`, `check_node_at`, `serve_tree`, `release_mount`, `ActiveMount`, `FUSE_NODE` |
 | `device` | `parse`, `Mapping`, `canon`, `spec_entry`, `serve_entry`, `banner_line(&names, ..)`, `open_all`, `Opened`, `specs_of(&names, ..)`, `push_spec(&names, ..)`, `push_serve(&names, ..)`, `CHILD_FD_BASE`, `HOST_FD_FLOOR`, `SEP_ENTRY` |
-| `userland` | `Family`, `LoaderPlan`, `lib_dirs`, `invocation_path`, `loader_argv_for`, `loader_plan`, `host_env`, `userland_maps_table(&names, ..)` |
+| `userland` | `Family`, `LoaderPlan`, `lib_dirs`, `invocation_path`, `loader_argv_for`, `loader_plan`, `host_env(&names, ..)`, `userland_maps_table(&names, ..)` |
 | `binfmt` | `support_for`, `Support`, `copy_in_target`, `copy_interpreter_in`, and the reader of `pod_hostprobe::binfmt` |
 | `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of`, `libc_beside`, `resolve_in`, `resolve_dir_in`, `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
 
@@ -81,7 +81,7 @@ Against podvm `crates/podvm-enter` at `6cd3442`:
 | --- | --- |
 | [x] The chroot sequence, `RootDir`, `Fds`, `Child`, `Bounded`, the forwarding wait, `exit_status` | the same |
 | [x] The namespace rung, its fallback, `ns_tmp_target`, `ns_setup_step`, `chroot_landed` | the same; `ns_fallback_line` takes `&Names` (the word `podvm:` is `Names::product`) |
-| [x] The entry with no chroot (`spawn_userland`, `run_userland`, `userland`) | the same; `userland_maps_table` takes `&Names` |
+| [x] The entry with no chroot (`spawn_userland`, `run_userland`, `userland`) | the same; `userland_maps_table` and `host_env` take `&Names` (`host_env` sets `Names::lib_path`) |
 | [x] `PODVM_MODE`, `PODVM_ACTIVE_MODE` in `Plan` (`MODE_REQUEST_VAR`, `MODE_ACTIVE_VAR`) | `Names::{mode_request, mode_active}`; `Plan::names`; `env_for` and `set_active_mode` take `&Names` |
 | [x] The ladder: `Mode`, `Availability`, `choose`, `resolve_payload`, `guest_exe`, `payload_bytes` | the same; `Mode::parse`, `choose`, `refusal_reason` take `&Names` (`PODVM_CACHE` is `Names::cache`) |
 | [x] `ladder::GUEST_EXE_VAR` (`PODVM_GUEST_EXE`) | stays in podvm: the crate does not read or write it |
