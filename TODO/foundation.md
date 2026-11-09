@@ -923,7 +923,7 @@ The `grep` gives no line about `SOURCES`. The second command exits 1.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -957,6 +957,34 @@ sh scripts/plant-each.sh
 
 A new plant uses a block whose repository has a default branch that is
 not `main`.
+
+## Done
+
+2026-11-09, `86dfd6f`. `Mirror` reads `default_branch` at
+`GET /repos/REPO` once for each repository; `Clone` reads
+`refs/remotes/origin/HEAD`, else `git ls-remote --symref origin HEAD`, and
+checks that the branch exists. `rev` is a required argument of `tree` and
+`commits`. `tree` gives no file for a 404 (mirror) or an empty `ls-tree`
+(clone) at a resolved ref, so the file is `removed`; a ref that does not
+resolve raises `Unreadable` (exit 2), and `compare` no longer reads a
+failed read as a removal. A commit with an empty message no longer stops
+the list of commits (gsocket has one: `2e01cd1`).
+
+- `sh scripts/plant-each.sh sources-default-branch`: caught, exit 1. The
+  script of the commit before prints `removed
+  hackerschoice/gsocket:include/gsocket/gsocket.h` for the same plant: a
+  miss.
+- A block of `hackerschoice/gsocket` at `5950647f` through the mirror and
+  through a clone: 0 changes for an equal blob, `changed` for a different
+  blob, `removed` for a path that `master` does not hold. A repository that
+  does not exist: exit 2. A clone with no `origin/HEAD`: the remote's HEAD
+  (`master`), 0 changes; a clone whose remote cannot be read: exit 2.
+- `python3 -I scripts/check-sources.py --plant-change pod-todo` with a
+  clone of `Azathothas/podssh`: `pod-todo: changed`. Through the mirror,
+  the run exits 2 at the `taken` commit `9198a38`: the mirror answers 404
+  for `Azathothas/podssh/commits/9198a38` (the repository moved to
+  `PodUtils/podssh`). The script of the commit before exits 2 there too;
+  CI reads clones (`upstream.yml`).
 
 # T-092: The live workflow `live.yml` (GitHub #30)
 
