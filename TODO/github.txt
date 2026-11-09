@@ -45,5 +45,5 @@
 38 issue closed
 39 issue closed
 40 issue closed
-41 issue open
+41 issue closed
 42 issue closed
