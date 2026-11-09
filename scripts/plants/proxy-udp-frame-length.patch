@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/socks5/udp.rs b/crates/pod-proxy/src/socks5/udp.rs
+index 7b46d6c..6dc90d5 100644
+--- a/crates/pod-proxy/src/socks5/udp.rs
++++ b/crates/pod-proxy/src/socks5/udp.rs
+@@ -143,7 +143,7 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, datagram: &[u8]) -> i
+     let len = u16::try_from(datagram.len())
+         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "the datagram is longer than 65535 bytes"))?;
+     let mut frame = Vec::with_capacity(2 + datagram.len());
+-    frame.extend_from_slice(&len.to_be_bytes());
++    frame.extend_from_slice(&len.to_le_bytes());
+     frame.extend_from_slice(datagram);
+     w.write_all(&frame).await
+ }

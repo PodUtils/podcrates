@@ -1,0 +1,7 @@
+# The length prefix of a frame is little endian, not big endian: a server
+# that follows the format cannot read it, and the byte test must fail.
+ENTRY=T-083
+GROUP=proxy
+EXPECT='test a_frame_is_a_length_of_two_bytes_and_the_datagram \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test socks5_udp'
+LIMIT=1800
