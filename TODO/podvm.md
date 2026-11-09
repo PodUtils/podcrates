@@ -320,6 +320,9 @@ cargo test -p pod-supervise
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), T-055 is done, and podvm fixed its #215 (`stop -t 0`) in `podvm-supervise`.
+
+Met on 2026-11-09: podvm fixed #215 in `063a1ed` (PodUtils/podvm@T-1691,
+PodUtils/podvm#218). The import reads podvm `main` at `063a1ed` or later.
 # T-061: `pod-guest`: a disposable QEMU guest
 
 **Source:** `docs/design.md`, section 4 (M6); the owner, 2026-11-06.
@@ -558,6 +561,17 @@ it. `docs/design.md` keeps `podnet-netns` in podnet.
 
 Read `PodUtils/podnet:crates/podnet-netns`. Decide one crate (`pod-hold`) or a part of `pod-sud`. Write the
 entry of the crate. Open a COORD issue to podnet for its view.
+
+podnet's view (PodUtils/podnet#414, 2026-11-09): podnet agrees to share the
+hold through podcrates, on two terms. The import comes after podnet's own
+split of the pod backends (PodUtils/podnet@T-040) and its fixes of the
+seccomp backend (PodUtils/podnet@T-142 to PodUtils/podnet@T-158); podnet
+writes a COORD issue when that point comes. The crate takes the generic
+core only: the loop of the seccomp user notification, the read of the
+memory of the child, the table of descriptors and the reply, and the netns
+hold of a `connect`. The pod CLI, the rules of upstreams and the routes stay
+in `podnet-netns`. The seam is the ioctl of the reply; a memfd can stand in
+for the memory of the child in tests.
 
 ## Prove
 

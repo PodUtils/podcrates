@@ -377,6 +377,11 @@ or a patch on issue #24) and the commit of `hackerschoice/gsocket`
 (`ad546b2e` in #23, `5950647f` in #24). T-085 must be done before the
 import.
 
+The owner attached the prototype to #24 on 2026-11-09 (`pod-gsr.zip`). A
+session cannot read an attachment of an issue (GitHub answers 403 with no
+signed-in session): the import needs a copy that a session can fetch (a
+gist, a release asset or a commit).
+
 # T-087: `pod_gsr::Stream` records how it ended (GitHub #25)
 
 **Source:** GitHub #25

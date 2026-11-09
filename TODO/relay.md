@@ -459,3 +459,141 @@ cargo test -p pod-relay --all-features
 ## Start condition
 
 T-020 and T-025 are done.
+
+# T-121: `pod-relay`: renew a pair (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 1 (PodUtils/podnet@T-161, PodUtils/podnet#358)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pair of the reverse road ends at its TTL. The published relay contract has no call that
+extends it, so a node cannot stay paired for months.
+
+## Premise
+
+- Read: the ask of podnet; the relay contract of `pod-relay` (T-025, T-047).
+- Not read: a renew endpoint on the relay server; the owner of the relay adds it.
+
+## Approach
+
+A call `POST /v1/pair/NAME/renew`, authorized by the node token only, that extends the TTL and
+keeps the pair id. The node renews at half the TTL and again in the first warning band. A test
+with the stand-in relay of `pod-testkit`.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+cargo todo check
+```
+
+## Start condition
+
+T-025 or T-026 is done, and the relay server has the renew endpoint.
+
+# T-122: `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 2 (PodUtils/podnet@T-162, PodUtils/podnet#359)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The alternate relay hosts are chosen once at the start. A stalled primary costs the stagger of the
+race (2 s) on each dial.
+
+## Premise
+
+- Read: the ask of podnet.
+- Not measured: the cost over a day of dials.
+
+## Approach
+
+Count the failures and the lost races of each host. Demote a host after 2; restore it on a
+success; keep the order stable otherwise. Tests with planted failures.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-025 or T-026 is done.
+
+# T-123: `pod-relay`: the session budget from the pool document (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 3 (PodUtils/podnet@T-163, PodUtils/podnet#360)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The budget of a relay session (60 MiB, 11.5 h) is a constant. The default relay publishes `limits`
+in `/relays.json`.
+
+## Premise
+
+- Read: the ask of podnet; `crates/pod-services/services/ajam-relay.toml` (the watch of `/limits`).
+- Not measured: the values of other relays.
+
+## Approach
+
+Parse `limits` with the published key names, keep them with the cached pool, and give them to the
+meter (`pod_core::Metered`). The floor is the current constants; clamp each value; keep the margins
+60/64 MiB and 11.5/12 h.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-025 or T-026 is done.
+
+# T-124: `pod-relay`: failover on the reverse road (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 4 (PodUtils/podnet@T-200, PodUtils/podnet#397)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pair`, `node` and `stop` of the reverse road reach host 0 of the pool only.
+
+## Premise
+
+- Read: the ask of podnet.
+- Not measured: a node socket on host B that serves a pair minted on host A.
+
+## Approach
+
+Measure the cross-host case first. Then one host loop for `connect`, `websocket` and `post_json`
+of the reverse road, with the health memory of T-122.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-025 or T-026 is done.

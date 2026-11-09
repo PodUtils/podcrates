@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**120 entries: 68 open, 1 partial, 0 blocked, 51 done.**
+**127 entries: 75 open, 1 partial, 0 blocked, 51 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 0 | 0 | 24 | 46 |
-| P2 | 36 | 1 | 0 | 21 | 58 |
-| P3 | 10 | 0 | 0 | 4 | 14 |
-| **All** | 68 | 1 | 0 | 51 | 120 |
+| P2 | 41 | 1 | 0 | 21 | 63 |
+| P3 | 12 | 0 | 0 | 4 | 16 |
+| **All** | 75 | 1 | 0 | 51 | 127 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -167,3 +167,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-118](foundation.md) | P2 | M | M5 | chore | open | Supply chain: an SBOM for each release and a planted advisory that fails `deny.yml` (GitHub #35) |
 | [T-119](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: the CI matrix of restricted hosts (GitHub #35) |
 | [T-120](relay.md) | P2 | M | M2 | docs | open | The wire documents of the layer, the reverse dialect and the role's extensions, with test vectors (GitHub #35) |
+| [T-121](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: renew a pair (PodUtils/podnet#413) |
+| [T-122](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
+| [T-123](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: the session budget from the pool document (PodUtils/podnet#413) |
+| [T-124](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
+| [T-125](transport.md) | P2 | S | M1 | feature | open | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
+| [T-126](transport.md) | P3 | S | M1 | feature | open | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
+| [T-127](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |

@@ -2016,3 +2016,94 @@ podssh.
 ```sh
 cargo test -p pod-services
 ```
+
+# T-125: `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 5 (PodUtils/podnet@T-175, PodUtils/podnet#370)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each DoH query opens a new TLS connection: the exchange of `pod-dns` sends `Connection: close`
+through `pod-proxy`.
+
+## Premise
+
+- Read: the ask of podnet; the keep-alive of the client of `pod-proxy` (T-077).
+- Not measured: the time of N queries with one connection.
+
+## Approach
+
+Keep one connection for each server and way out in `Resolver`, through the keep-alive of
+`pod-proxy`; close it after about 5 s idle; one reconnect; the deadline covers one exchange. A
+loopback test: N queries, one connection.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features
+```
+
+# T-126: `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 6 (PodUtils/podnet@T-172, PodUtils/podnet#367)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A caller cannot pin a name that becomes resolvable while the process runs: the pins of the
+resolver are fixed at its start.
+
+## Premise
+
+- Read: the ask of podnet; `pod_core::Resolve::pinned`.
+- Not measured: a change.
+
+## Approach
+
+A pin table of the resolver that the caller can replace at run time (an `Arc` swap). A test that
+replaces a pin between two lookups.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features
+```
+
+# T-127: `pod-services`: the file host of PyPI (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 7 (PodUtils/podnet@T-182, PodUtils/podnet#378)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podnet doctor --agent` checks the host of a package index only. podnet reads the file hosts of
+docker and cargo from the answers of the index; PyPI names its file host in no answer.
+
+## Premise
+
+- Read: the ask of podnet.
+- Not measured: the host from a session.
+
+## Approach
+
+A service file for `files.pythonhosted.org` (the file host of PyPI), in the form of the docker
+registry file, with a source and a watch.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```

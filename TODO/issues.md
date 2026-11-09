@@ -44,5 +44,5 @@ numbers. `TODO/RULES.md` gives the rules.
 | #36 | githome: meta request for a forge CI runner host (12 asks) | open (routed in `docs/research/fleet/asks.md`) | T-098, T-099, T-100, T-103, T-104, T-106, T-109 |
 | #37 | COORD-013: podcrates v0.7.0 is released: each tag to v0.7.0 (to all) | open | T-077, T-081 |
 | #38 | COORD-014: the asks of cfb (#35) for podssh, and the rulings of 2026-11-09 (to podssh) | open | T-098 |
-| #39 | COORD-015: the asks of cfb (#35) and githome (#36) for podvm, and the rulings of 2026-11-09 (to podvm) | open | T-098, T-099, T-108 |
-| #40 | COORD-016: the asks of cfb (#35) for podnet, and the rulings of 2026-11-09 (to podnet) | open | T-098, T-109 |
+| #39 | COORD-015: the asks of cfb (#35) and githome (#36) for podvm, and the rulings of 2026-11-09 (to podvm) | closed (podvm `35df7f7`, `67feade`; PodUtils/podvm#218) | T-098, T-099, T-108 |
+| #40 | COORD-016: the asks of cfb (#35) for podnet, and the rulings of 2026-11-09 (to podnet) | closed (podnet `86b99de`, `421eeb9`; PodUtils/podnet#414) | T-098, T-109, T-121 to T-127 |
