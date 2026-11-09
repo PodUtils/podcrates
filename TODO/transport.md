@@ -2136,3 +2136,49 @@ cargo test -p pod-services
 
 2026-11-09, `c1e17f2`. `crates/pod-services/services/pypi-files.toml`: the kind `package-files`, the endpoint `files` (`files.pythonhosted.org`, no address: a CDN serves it), the fact `probe-path` (the wheel of a release) and the watches `tls-name` and `http-status` (200 on the probe path, read 2026-11-09). `cargo test -p pod-services`: `the_file_host_of_pypi_is_a_service` passes.
 
+# T-130: `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175)
+
+**Source:** PodUtils/podssh#175 (COORD-008 of podssh; PodUtils/podssh@T-535, the owner's ruling Q75 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh's fallback tries the public Wisp servers after its own forwarders
+(the kind `forwarder`, last `wisp-forwarder`). podssh holds no host of
+another party, so the list must be data of `pod-services`. No kind
+`wisp-public` exists; podssh reads an empty list today.
+
+## Premise
+
+- Read: the ask (PodUtils/podssh#175); `crates/pod-services/services/wisp-forwarder.toml` (the form, its watches).
+- Not read: the public Wisp servers and their pages; `PodUtils/podssh:docs/carriers.md` (the sweep of 2026-11).
+
+## Approach
+
+A kind `wisp-public`: one service file for each server, with `[rank]`
+after `wisp-forwarder`, one endpoint `forwarder` (scheme `wisp+wss`, host,
+port, path), the facts `word` (unique among `forwarder` and
+`wisp-public`), `template` (`wisp+wss://HOST/PATH/`) and `note` (the
+server, its operator, its terms and limits, a filter of port 22 or of
+names), each with a `source` (URL and the date read), and the watches of
+`wisp-forwarder` (websocket-upgrade, forward-banner to `github-ssh`).
+A server qualifies only when (Q75) its operator runs it for the use of
+others and says so on a page of its own, with no account, on the
+operator's own domain; and (Q79) the domain does not look taken over, the
+server does not come from the list of a web proxy, and the sweep of
+2026-11 did not flag it. A short live check: a forward to `github.com:22`
+gives GitHub's version line, from GitHub Actions. If no server qualifies,
+a note on PodUtils/podssh#175 is the answer.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+The live check of each server runs in a dispatched workflow; its run id
+goes in the Done section.
