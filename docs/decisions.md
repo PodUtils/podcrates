@@ -50,6 +50,7 @@ form of the rulings that apply to each session.
 | 2026-11-09 | The relay Worker (Q-A7) | `podrelay-worker` is Rust on wasm32, from the sans-IO core of `pod-relay-serve` (T-036), with a thin TypeScript shell. The wire document with test vectors comes first. |
 | 2026-11-09 | Schemas (Q-A8) | The JSON Schemas live in podcrates (`schemas/`), generated from the crate types and released with each tag. No npm package. |
 | 2026-11-09 | Test accounts (Q-A9) | "Not now". No Cloudflare, Zero Trust or GitHub test account as a CI secret. A live acceptance step that needs one waits; each ask keeps its offline tests and the stand-ins of `pod-testkit`. |
+| 2026-11-09 | Priority | "hold on to the other repos, you may create crates for them, but leave them out; priority is first podvm, podnet, podssh projects, cfb & githome can wait". The new repositories (`podrunner` to `podutils`) stay empty and get no session. The work of podcrates serves podvm, podnet and podssh first. The entries of milestone M8 and the other asks of cfb (#35) and githome (#36) wait; podcrates can build a crate for a new project when a consumer needs it. It supersedes the order of call C26. |
 
 ## Calls made without a ruling
 
@@ -83,7 +84,7 @@ has the detail.
 | 2026-11-09 | C23 | The SOCKS5 datagram framing (UDP ASSOCIATE and command 0x83) lives in `pod-proxy` (T-083). `pod-session` (T-020) keeps its own UDP-in-a-stream adapter. |
 | 2026-11-09 | C24 | `live.yml` runs each day at an off-peak hour and by `workflow_dispatch`, with egress to the relay and to public DoH resolvers (T-092). |
 | 2026-11-09 | C25 | The egress broker is a new crate `pod-broker`. `pod-egress` keeps the roads of T-035. |
-| 2026-11-09 | C26 | A new milestone M8, "The fleet": the shared crates for the asks of GitHub #35 and #36 (`TODO/fleet.md`). The work order takes T-101, T-099, T-100, T-112 and T-108 before M2, then T-102 to T-105, then the rest in milestone order. |
+| 2026-11-09 | C26 | A new milestone M8, "The fleet": the shared crates for the asks of GitHub #35 and #36 (`TODO/fleet.md`). Its order (M8 before M2) is superseded by the ruling "Priority" of 2026-11-09: M8 waits. |
 | 2026-11-09 | C27 | podcrates gives libraries, schemas and shared CI scripts. Each command line, unit file and live step stays in its product. A broker binary is a thin `main` in the product that hosts it. |
 | 2026-11-09 | C28 | `pod-broker` (T-099), one resolve: the broker asks the resolver once for each connection, checks each address, refuses a name with any denied address as a whole, and dials only the checked addresses. Through an upstream proxy it sends the checked address, never the name, so that the upstream resolves nothing; the resolver of the way out (`pod_broker::upstream`) resolves the name of the proxy only. An address inside an IPv6 address (mapped, compatible, NAT64, 6to4) is checked as IPv4. |
 | 2026-11-09 | C29 | `pod-broker`: a tunnel shows no path. A rule with no path allows each path; a CONNECT to a host whose rules each have a path is refused (`policy:path-needs-tls-end`) until a `TunnelEnd` that reads each request (the TLS end of T-100) checks the paths. The library has no switch that lifts a fixed deny, also not for tests: the tests reach a far end in memory at a documentation address (RFC 5737), and a stand-in proxy on loopback as the upstream. |
