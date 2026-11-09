@@ -1,0 +1,6 @@
+# set_pins keeps the old table; the test of T-126 must fail.
+ENTRY=T-126
+GROUP=dns
+EXPECT='test resolver::tests::a_pin_table_replaced_at_run_time_counts_from_the_next_lookup \.\.\. FAILED'
+RUN='cargo test -p pod-dns --all-features --lib -- resolver::tests'
+LIMIT=1800

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-dns/src/resolver.rs b/crates/pod-dns/src/resolver.rs
+index 17ac091..3658536 100644
+--- a/crates/pod-dns/src/resolver.rs
++++ b/crates/pod-dns/src/resolver.rs
+@@ -78,7 +78,7 @@ impl Resolver {
+     /// [`parse_pins`](crate::parse_pins) would refuse is dropped.
+     pub fn set_pins(&self, pins: Vec<(String, IpAddr)>) {
+         let pins = pins.into_iter().map(|(host, ip)| (key(&host), ip)).filter(|(host, _)| dns_safe(host)).collect();
+-        *self.pins.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(pins);
++        let _: Vec<(String, IpAddr)> = pins;
+     }
+ 
+     /// The pin table in force.
