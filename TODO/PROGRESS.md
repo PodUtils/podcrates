@@ -17,7 +17,8 @@
 - M8: `pod-broker` exists (T-099, calls C28 to C32). The rest of M8 waits
   (the owner, 2026-11-09, "Priority"). The owner created the repositories
   of the new projects; they stay empty.
-- The names on crates.io wait for the owner (GitHub #1). No crate goes to
+- Each name of `docs/design.md`, section 4, is reserved on crates.io
+  (`check-crates-io-names.py`: 56 names, 0 faults). No crate goes to
   crates.io now (the owner, 2026-11-09).
 - Keep this section short. Write the current state only; git keeps the
   history.
@@ -65,8 +66,6 @@ C33), and the work goes on with it until the owner rules otherwise.
 
 | Entry | Action |
 | --- | --- |
-| T-053 | Reserve the 14 names of the crates of podvm (GitHub #1): `pod-hostprobe`, `pod-oci`, `pod-extract`, `pod-rootfs`, `pod-enter`, `pod-supervise`, `pod-guest`, `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe`, `pod-probe` |
-| T-099, T-102, T-103, T-104, T-086 | Reserve `pod-broker`, `pod-unit`, `pod-control`, `pod-release`, `pod-gsr` (GitHub #1; a job of the owner reserves them) |
 | Each release | Tell the consumer sessions to take the crates |
 
 ## Questions for the owner
