@@ -887,7 +887,7 @@ can read `io_cause()` and `Class::NotFound` from the next release.
 **Milestone:** M0
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -915,6 +915,17 @@ cargo todo check
 ```
 
 The `grep` gives no line about `SOURCES`. The second command exits 1.
+
+## Done
+
+2026-11-09. Commit `d7a9091`. `docs/design.md`, `docs/maintenance.md` and
+the header that `record()` of `scripts/check-sources.py` writes name the git
+blob id (SHA-1, 40 hex digits) and `git ls-tree COMMIT -- PATH` as the
+check. `grep -n "SHA-256" docs/design.md docs/maintenance.md
+scripts/check-sources.py` gives no line about `SOURCES`.
+`python3 -I scripts/check-sources.py --plant-change pod-term` exits 1 (the
+mirror answered 404 and 403 for `pod-todo` and `pod-hostprobe`, so the plant
+ran on `pod-term`). `cargo todo check`: the record agrees.
 
 # T-085: `check-sources.py`: the default branch of a source repository (GitHub #23)
 
@@ -1055,7 +1066,7 @@ workflow that `AGENTS.md` and `docs/*.md` name is a file; plant
 **Milestone:** M0
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1085,6 +1096,16 @@ for c in $(ls crates); do grep -q "\`$c\`" README.md || echo "missing $c"; done
 
 The loop prints nothing.
 
+## Done
+
+2026-11-09. Commits `0fb38ee` (the work) and the record commit that holds
+this section. The State of `README.md` names version 0.8.0, the releases
+and the current wave. The table lists each crate of `crates/` (14) and each
+wave (M0 to M4, M6, M7, M8). `scripts/check-design-paths.py` checks that
+each directory of `crates/` is in the table; the plant
+`scripts/plants/readme-crate-missing.plant` catches it. The loop of the Prove
+prints nothing. `cargo todo check`: the record agrees.
+
 # T-094: `docs/design.md`: the repository table matches the tree (GitHub #32)
 
 **Source:** GitHub #32
@@ -1092,7 +1113,7 @@ The loop prints nothing.
 **Milestone:** M0
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1126,6 +1147,18 @@ sh scripts/plant-each.sh
 ```
 
 The checker is part of the entry. The first command exits 0.
+
+## Done
+
+2026-11-09. Commit `0fb38ee`. The repository table of `docs/design.md`
+names the scripts of `scripts/` and `scripts/agent/`, the files of `docs/`
+and `schemas/`; a path that is not built is a planned row; the stale names are gone.
+`scripts/check-design-paths.py` checks the table (a path that is absent, a
+file that the row does not name); `scripts/agent/check.sh` and `ci.yml` run
+it. `python3 -I scripts/check-design-paths.py` exits 0. `sh
+scripts/plant-each.sh design-path-missing design-script-unlisted
+readme-crate-missing`: 3 caught, 0 missed. `cargo todo check`: the record
+agrees.
 
 # T-095: The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33)
 

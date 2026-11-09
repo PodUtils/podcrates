@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**131 entries: 60 open, 4 partial, 0 blocked, 67 done.**
+**131 entries: 56 open, 4 partial, 0 blocked, 71 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 26 | 49 |
 | P2 | 27 | 4 | 0 | 33 | 64 |
-| P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 60 | 4 | 0 | 67 | 131 |
+| P3 | 6 | 0 | 0 | 10 | 16 |
+| **All** | 56 | 4 | 0 | 71 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -130,7 +130,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-081](foundation.md) | P2 | S | M1 | feature | done | `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable" |
 | [T-082](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20) |
 | [T-083](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
-| [T-084](foundation.md) | P3 | S | M0 | docs | open | The record of `SOURCES` names a git blob id (GitHub #22) |
+| [T-084](foundation.md) | P3 | S | M0 | docs | done | The record of `SOURCES` names a git blob id (GitHub #22) |
 | [T-085](foundation.md) | P2 | S | M0 | defect | done | `check-sources.py`: the default branch of a source repository (GitHub #23) |
 | [T-086](roads.md) | P2 | L | M4 | feature | done | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
 | [T-087](roads.md) | P2 | S | M4 | feature | done | `pod_gsr::Stream` records how it ended (GitHub #25) |
@@ -139,10 +139,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-090](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28) |
 | [T-091](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29) |
 | [T-092](foundation.md) | P2 | M | M0 | chore | done | The live workflow `live.yml` (GitHub #30) |
-| [T-093](foundation.md) | P3 | S | M0 | docs | open | README: the state and the table of crates (GitHub #31) |
-| [T-094](foundation.md) | P3 | S | M0 | docs | open | `docs/design.md`: the repository table matches the tree (GitHub #32) |
+| [T-093](foundation.md) | P3 | S | M0 | docs | done | README: the state and the table of crates (GitHub #31) |
+| [T-094](foundation.md) | P3 | S | M0 | docs | done | `docs/design.md`: the repository table matches the tree (GitHub #32) |
 | [T-095](foundation.md) | P2 | S | M0 | chore | done | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |
-| [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
+| [T-096](transport.md) | P3 | S | M1 | docs | done | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
 | [T-097](upkeep.md) | P3 | S | M5 | chore | done | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | done | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
 | [T-099](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |

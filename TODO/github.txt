@@ -26,7 +26,7 @@
 19 issue closed
 20 issue closed
 21 issue closed
-22 issue open
+22 issue closed
 23 issue closed
 24 issue closed
 25 issue closed
@@ -35,10 +35,10 @@
 28 issue closed
 29 issue closed
 30 issue closed
-31 issue open
-32 issue open
+31 issue closed
+32 issue closed
 33 issue closed
-34 issue open
+34 issue closed
 35 issue open
 36 issue open
 37 issue closed

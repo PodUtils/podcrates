@@ -1993,7 +1993,7 @@ target. A plant removes the new check.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2023,6 +2023,16 @@ Option: a check that the row lists as many names as the code.
 cargo test -p pod-proxy env_tests
 cargo todo check
 ```
+
+## Done
+
+2026-11-09. Commit `4865802`. The row of `Rules::http_proxy_vars` and the
+two places that describe the fallback list the six variables of each list.
+The new test `the_upper_case_first_list_of_http_ends_with_the_proxy_of_https`
+in `crates/pod-proxy/src/env_tests.rs` pins the order and the fallback to
+`https_proxy` and `HTTPS_PROXY` of `HTTP_PROXY_VARS_UPPER_FIRST`.
+`cargo test -p pod-proxy env_tests`: the test passes. `cargo todo check`:
+the record agrees.
 
 # T-112: `pod-services`: the party of each service as a filter, and the effective set as JSON (GitHub #35)
 

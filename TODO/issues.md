@@ -27,7 +27,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #19 | [gh action] requested: nightly.yml and release.yml (v0.7.0) from a13014d | closed (the session dispatched release 42623501324) | T-077, T-081 |
 | #20 | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 | closed (T-082 `394d1e6`) | T-082 |
 | #21 | `pod-proxy`: no SOCKS5 UDP path | closed (T-083) | T-083 |
-| #22 | The record of `SOURCES` names a git blob id, not SHA-256 | open | T-084 |
+| #22 | The record of `SOURCES` names a git blob id, not SHA-256 | closed (T-084) | T-084 |
 | #23 | `check-sources.py` assumes the branch `main` | closed (T-085 `86dfd6f`) | T-085 |
 | #24 | Import `pod-gsr` and its data file | closed (T-086 `79116e3`) | T-086 |
 | #25 | `pod_gsr::Stream` cuts a record as a clean end | closed (T-087 `509e59d`) | T-087 |
@@ -36,10 +36,10 @@ numbers. `TODO/RULES.md` gives the rules.
 | #28 | `ajam-relay` hosts have no watch | closed (T-090 `09cfb80`) | T-090 |
 | #29 | `Way::lookup` skips the name check | closed (T-091 `e81f5f2`) | T-091 |
 | #30 | No `live.yml` | closed (T-092) | T-092 |
-| #31 | README state and crate table are stale | open | T-093 |
-| #32 | `docs/design.md` repository table is stale | open | T-094 |
+| #31 | README state and crate table are stale | closed (T-093) | T-093 |
+| #32 | `docs/design.md` repository table is stale | closed (T-094) | T-094 |
 | #33 | The static probe lacks `pod-proxy/blocking` | closed (T-095) | T-095 |
-| #34 | `pod-proxy` README row lists 4 of 6 variables | open | T-096 |
+| #34 | `pod-proxy` README row lists 4 of 6 variables | closed (T-096) | T-096 |
 | #35 | cfb: meta request for the tools that cfb needs from PodUtils (84 asks) | open (routed in `docs/research/fleet/asks.md`) | T-098, T-099 to T-120 |
 | #36 | githome: meta request for a forge CI runner host (12 asks) | open (routed in `docs/research/fleet/asks.md`) | T-098, T-099, T-100, T-103, T-104, T-106, T-109 |
 | #37 | COORD-013: podcrates v0.7.0 is released: each tag to v0.7.0 (to all) | closed (podssh `1fd68cc4`, podnet `86b99de`, podvm `35df7f7`) | T-077, T-081 |
