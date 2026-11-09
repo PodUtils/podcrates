@@ -1,0 +1,20 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the main branch of its repository.
+
+repo PodUtils/podvm 27ae9938b577a9ad5033fed73c89e3564b6aa230
+dir crates/podvm-supervise/src
+# table/memo.rs is the ownership memo of podvm-interpose: it stays in podvm.
+# Of lib.rs, table.rs and launcher/ a part comes: the table, the paths, the
+# lifecycle verbs, the logs, the launcher and its control socket. The start
+# of podvm (the probe, the plan of podvm-enter, the image hold, the memo, the
+# devices) stays in podvm. Of store/files.rs of podvm-image only `Lock` comes.
+skip crates/podvm-supervise/src/table/memo.rs
+file c1f3f129b33c7fa300d605765588c2c412854af2 crates/podvm-image/src/store/files.rs -> crates/pod-supervise/src/lock.rs
+file 23abcf41fecc8be86be4bf78e55083aa998f1ad5 crates/podvm-supervise/src/launcher.rs -> crates/pod-supervise/src/launcher.rs
+file 98bfc9e2359b7e1721e34d29991742ebe0ea14fa crates/podvm-supervise/src/launcher/supervise.rs -> crates/pod-supervise/src/launcher/supervise.rs
+file a6b83e9655fbbe8c1c17ed45249fc89e5c708786 crates/podvm-supervise/src/launcher/tests.rs -> crates/pod-supervise/src/launcher/tests.rs
+file 4d6af467a9a04af32322d327fb7f3557981ff7f4 crates/podvm-supervise/src/lib.rs -> crates/pod-supervise/src/lib.rs
+file 00149834f2a9b9510ffdc4618ef9635aa904a0fb crates/podvm-supervise/src/table.rs -> crates/pod-supervise/src/table.rs
+file c7ebc317f3bd38aff40bb4b190ef4a1f51c203b7 crates/podvm-supervise/src/table/tests.rs -> crates/pod-supervise/src/table/tests.rs
+file 8b0e05573ab87cc24b9268cf3685791ecc81aae2 crates/podvm-supervise/src/tests.rs -> crates/pod-supervise/src/tests.rs
