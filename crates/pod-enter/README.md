@@ -75,13 +75,14 @@ file gives a refusal and no panic, also on a 32-bit target.
 
 ## Parity
 
-Against podvm `crates/podvm-enter` at `6cd3442`:
+Against podvm `crates/podvm-enter` at `284f429`:
 
 | Capability of podvm | Here |
 | --- | --- |
 | [x] The chroot sequence, `RootDir`, `Fds`, `Child`, `Bounded`, the forwarding wait, `exit_status` | the same |
 | [x] The namespace rung, its fallback, `ns_tmp_target`, `ns_setup_step`, `chroot_landed` | the same; `ns_fallback_line` takes `&Names` (the word `podvm:` is `Names::product`) |
 | [x] The entry with no chroot (`spawn_userland`, `run_userland`, `userland`) | the same; `userland_maps_table` and `host_env` take `&Names` (`host_env` sets `Names::lib_path`) |
+| [x] `userland::LIB_PATH_VAR` (`PODVM_LIB_PATH`) | `Names::lib_path`; `host_env` sets it |
 | [x] `PODVM_MODE`, `PODVM_ACTIVE_MODE` in `Plan` (`MODE_REQUEST_VAR`, `MODE_ACTIVE_VAR`) | `Names::{mode_request, mode_active}`; `Plan::names`; `env_for` and `set_active_mode` take `&Names` |
 | [x] The ladder: `Mode`, `Availability`, `choose`, `resolve_payload`, `guest_exe`, `payload_bytes` | the same; `Mode::parse`, `choose`, `refusal_reason` take `&Names` (`PODVM_CACHE` is `Names::cache`) |
 | [x] `ladder::GUEST_EXE_VAR` (`PODVM_GUEST_EXE`) | stays in podvm: the crate does not read or write it |

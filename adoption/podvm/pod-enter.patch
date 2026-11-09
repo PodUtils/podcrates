@@ -12,7 +12,7 @@ index d191e65..9ff34e9 100644
  ## Build dependencies
  
 diff --git a/TODO/cli.md b/TODO/cli.md
-index f3db44a..57e7e4c 100644
+index 33c2c21..b13abcd 100644
 --- a/TODO/cli.md
 +++ b/TODO/cli.md
 @@ -1242,7 +1242,7 @@ Prove:       `./experiments/352-ascii-output.sh` exits 0, with the
@@ -37,13 +37,13 @@ index f3db44a..57e7e4c 100644
               `crates/podvm/src/run/parse.rs:177`) and the values go into
               the environment (`crates/podvm/src/run/prepare.rs:239`). The
               userland path map is one pair for the root
--             (`crates/podvm-enter/src/userland.rs:313`); T-1653 adds pairs.
+-             (`crates/podvm-enter/src/userland.rs:323`); T-1653 adds pairs.
 +             (`src/userland.rs` of `pod-enter` (PodUtils/podcrates)); T-1653 adds pairs.
               A foreground run removes its files at the end
               (`crates/podvm/src/run/foreground.rs:157`). The parity table
               has no `--secret` row. The interposer is not a boundary, so
 diff --git a/TODO/deps.md b/TODO/deps.md
-index 86824d3..8602d97 100644
+index 9ad87ba..51e4e24 100644
 --- a/TODO/deps.md
 +++ b/TODO/deps.md
 @@ -535,7 +535,7 @@ Prove:       `test -f vendor/userland-execve/LICENSE && grep -q '^license = "MIT
@@ -56,7 +56,7 @@ index 86824d3..8602d97 100644
     the base, the `has_shebang` router predicate, the `is_executable` probe
     (mode bits plus `faccessat` `X_OK`), and `memfd_create`, with four unit
 diff --git a/TODO/enter.md b/TODO/enter.md
-index 8233998..528b59f 100644
+index c35f793..f499ce3 100644
 --- a/TODO/enter.md
 +++ b/TODO/enter.md
 @@ -79,7 +79,7 @@ mapping a host device and reading it inside, with the refusal arm
@@ -154,7 +154,7 @@ index 8233998..528b59f 100644
  
  Source:      issue 130 (130 reposts the hidden issue 104); issue 114
               section 3.6; `crates/podvm/src/parity.rs:221`;
--             `crates/podvm-enter/src/userland.rs:313`;
+-             `crates/podvm-enter/src/userland.rs:323`;
 +             `src/userland.rs` of `pod-enter` (PodUtils/podcrates);
               `crates/podvm-interpose/src/map/rewrite.rs:75`;
               A-V-06, G-07 of PodUtils/podcrates#39
@@ -174,7 +174,7 @@ index 8233998..528b59f 100644
               script through `/proc/self/fd/N`, not `execveat` of a static
               payload, and podvm does not read it. Under value 2, `MFD_EXEC`
 diff --git a/TODO/gate.md b/TODO/gate.md
-index 8bfef1b..9b9365a 100644
+index af65534..c8724ad 100644
 --- a/TODO/gate.md
 +++ b/TODO/gate.md
 @@ -3049,7 +3049,7 @@ probe confined and read the boot id from inside the driver.
@@ -205,7 +205,7 @@ index 8bfef1b..9b9365a 100644
  Category:    gate
  Priority:    P2
 diff --git a/TODO/interpose.md b/TODO/interpose.md
-index 429eece..6c48120 100644
+index 1b607ca..3308b11 100644
 --- a/TODO/interpose.md
 +++ b/TODO/interpose.md
 @@ -860,7 +860,7 @@ Decision:    Select and assert, never try. The assertion is cheap, it runs
@@ -5983,10 +5983,10 @@ index fc42457..0000000
 -    Ok(Child { pid })
 -}
 diff --git a/crates/podvm-enter/src/lib.rs b/crates/podvm-enter/src/lib.rs
-index 49f2f90..17fe866 100644
+index 49f2f90..e627d02 100644
 --- a/crates/podvm-enter/src/lib.rs
 +++ b/crates/podvm-enter/src/lib.rs
-@@ -1,292 +1,189 @@
+@@ -1,292 +1,224 @@
 -//! `TOOL.md` section 6.5: the chroot entry sequence.
 +//! `TOOL.md` section 6.5: the chroot entry sequence, and the other entries.
  //!
@@ -6021,6 +6021,61 @@ index 49f2f90..17fe866 100644
 -//!
 -//! ⛔ **The banner goes to stderr and the payload owns stdout.** T-1104's own
 -//! decision: a banner on stdout corrupts every pipeline the payload is in.
+-
+-#![forbid(unsafe_op_in_unsafe_fn)]
+-
+-pub mod abi;
+-pub mod binfmt;
+-pub mod device;
+-pub mod fuse;
+-pub mod ladder;
+-pub mod memfd;
+-pub mod plan;
+-pub mod stage;
+-pub mod userland;
+-
+-use std::io::Write;
+-
+-use podvm_probe::sys::{self, CBuf};
+-
+-pub use plan::{Plan, Program};
+-
+-/// ⭐ **THE RUNG THIS CRATE ENTERS WHERE NOTHING ELSE APPLIES**, which is
+-/// not always the rung the probe selects.
+-///
+-/// [`crate::run`] performs `TOOL.md` section 6.5's sequence and nothing else: it
+-/// `chroot`s. It does not `unshare`, it mounts nothing, and it creates no
+-/// network or pid namespace, on any machine.
+-///
+-/// ⛔ **The banner must say THIS and not what the machine would permit**, or it
+-/// breaks [`TODO/cli.md`](../../../TODO/cli.md) T-0804 rule 4: no output may
+-/// imply namespaces, cgroups or devices exist when they do not. Measured on
+-/// 2026-09-09: this host's probe selects `namespace`, and `podvm run` printed
+-/// `mode=namespace (namespaces: as configured; mounts: full)` while entering a
+-/// plain chroot. The machine's own selection is still reported, beside this,
+-/// because "what podvm did" and "what this machine would permit" are two facts
+-/// and a reader needs both.
+-///
+-/// ⚠ The namespace rung (T-1339) does not move this constant: it stays the
+-/// rung entered where no other rung applies, and [`entered_rung`] maps a
+-/// namespace selection onto `Rung::Namespace`. One mapping, so the banner,
+-/// the record and `--strict` cannot disagree.
+-pub const ENTERED_RUNG: podvm_probe::select::Rung = podvm_probe::select::Rung::Chroot;
+-
+-/// The rung `podvm run` enters with for a probe selection.
+-///
+-/// `userland` where the probe selects `interpose`: chroot is denied
+-/// there, so a run enters without it where a family holds, and refuses
+-/// where none does. `namespace` where the probe selects it (T-1339):
+-/// the mount namespace is attempted and chroot is the fallback, named
+-/// on the banner. Every other selection enters the chroot sequence.
+-pub fn entered_rung(selection: podvm_probe::select::Rung) -> podvm_probe::select::Rung {
+-    use podvm_probe::select::Rung as R;
+-    match selection {
+-        R::Interpose => R::Userland,
+-        R::Namespace => R::Namespace,
+-        _ => ENTERED_RUNG,
+-    }
 +//! A runtime error of the entry is a `pod_core::Failure` inside
 +//! [`Error::Runtime`]; [`ExitCode::exit_code`] maps each error to docker's
 +//! code, and [`runtime`] makes one from podvm's text.
@@ -6043,6 +6098,7 @@ index 49f2f90..17fe866 100644
 +    mode_active: "PODVM_ACTIVE_MODE",
 +    cache: "PODVM_CACHE",
 +    maps: "PODVM_MAPS",
++    lib_path: "PODVM_LIB_PATH",
 +    device_spec: "PODVM_DEVICE_SPEC",
 +    device_fds: "PODVM_DEVICE_FDS",
 +    cache_marker: ".podvm-cache-complete",
@@ -6052,89 +6108,7 @@ index 49f2f90..17fe866 100644
 +/// A runtime error with podvm's text. Exits 125.
 +pub fn runtime(text: impl Into<String>) -> Error {
 +    Error::runtime(pod_core::Class::Unavailable, text)
-+}
- 
--#![forbid(unsafe_op_in_unsafe_fn)]
-+/// docker's exit code of an entry error: 126 or 127 for a payload that
-+/// did not start, 125 for everything podvm could not do.
-+pub trait ExitCode {
-+    fn exit_code(&self) -> i32;
-+}
- 
--pub mod abi;
--pub mod binfmt;
--pub mod device;
--pub mod fuse;
--pub mod ladder;
--pub mod memfd;
--pub mod plan;
--pub mod stage;
--pub mod userland;
-+impl ExitCode for Error {
-+    fn exit_code(&self) -> i32 {
-+        self.code_or(EXIT_RUNTIME_ERROR)
-+    }
-+}
- 
--use std::io::Write;
-+/// The namespace fallback line, named `podvm:`.
-+pub fn ns_fallback_line(cause: &str) -> String {
-+    pod_enter::ns_fallback_line(&NAMES, cause)
-+}
- 
--use podvm_probe::sys::{self, CBuf};
-+/// The launch ladder with podvm's names.
-+pub mod ladder {
-+    pub use pod_enter::ladder::*;
- 
--pub use plan::{Plan, Program};
-+    use super::NAMES;
-+    use crate::memfd::MemfdRefusal;
- 
--/// ⭐ **THE RUNG THIS CRATE ENTERS WHERE NOTHING ELSE APPLIES**, which is
--/// not always the rung the probe selects.
--///
--/// [`crate::run`] performs `TOOL.md` section 6.5's sequence and nothing else: it
--/// `chroot`s. It does not `unshare`, it mounts nothing, and it creates no
--/// network or pid namespace, on any machine.
--///
--/// ⛔ **The banner must say THIS and not what the machine would permit**, or it
--/// breaks [`TODO/cli.md`](../../../TODO/cli.md) T-0804 rule 4: no output may
--/// imply namespaces, cgroups or devices exist when they do not. Measured on
--/// 2026-09-09: this host's probe selects `namespace`, and `podvm run` printed
--/// `mode=namespace (namespaces: as configured; mounts: full)` while entering a
--/// plain chroot. The machine's own selection is still reported, beside this,
--/// because "what podvm did" and "what this machine would permit" are two facts
--/// and a reader needs both.
--///
--/// ⚠ The namespace rung (T-1339) does not move this constant: it stays the
--/// rung entered where no other rung applies, and [`entered_rung`] maps a
--/// namespace selection onto `Rung::Namespace`. One mapping, so the banner,
--/// the record and `--strict` cannot disagree.
--pub const ENTERED_RUNG: podvm_probe::select::Rung = podvm_probe::select::Rung::Chroot;
-+    /// The environment name carrying the payload's resolved guest path,
-+    /// which the interposer answers `/proc/self/exe` with
-+    /// (`podvm-interpose`'s `procfs.rs` names it by value).
-+    pub const GUEST_EXE_VAR: &str = "PODVM_GUEST_EXE";
- 
--/// The rung `podvm run` enters with for a probe selection.
--///
--/// `userland` where the probe selects `interpose`: chroot is denied
--/// there, so a run enters without it where a family holds, and refuses
--/// where none does. `namespace` where the probe selects it (T-1339):
--/// the mount namespace is attempted and chroot is the fallback, named
--/// on the banner. Every other selection enters the chroot sequence.
--pub fn entered_rung(selection: podvm_probe::select::Rung) -> podvm_probe::select::Rung {
--    use podvm_probe::select::Rung as R;
--    match selection {
--        R::Interpose => R::Userland,
--        R::Namespace => R::Namespace,
--        _ => ENTERED_RUNG,
-+    /// Parse a `PODVM_MODE` request.
-+    pub fn parse_mode(s: &str) -> crate::Result<Mode> {
-+        Mode::parse(&NAMES, s)
-     }
--}
+ }
  
 -/// The entered word for a probe selection.
 -///
@@ -6144,14 +6118,10 @@ index 49f2f90..17fe866 100644
 -/// TODO/enter.md T-1317.
 -pub fn entered_word(selection: podvm_probe::select::Rung) -> &'static str {
 -    entered_rung(selection).word()
-+    /// Choose the rung, naming `PODVM_MODE` and `PODVM_CACHE`.
-+    pub fn choose(
-+        forced: Option<Mode>,
-+        avail: &Availability,
-+        memfd_why: Option<&MemfdRefusal>,
-+    ) -> crate::Result<Mode> {
-+        pod_enter::ladder::choose(&NAMES, forced, avail, memfd_why)
-+    }
++/// docker's exit code of an entry error: 126 or 127 for a payload that
++/// did not start, 125 for everything podvm could not do.
++pub trait ExitCode {
++    fn exit_code(&self) -> i32;
  }
  
 -// ⛔ **docker's codes, from the one file that holds them.**
@@ -6159,7 +6129,12 @@ index 49f2f90..17fe866 100644
 -// 126 and 127 and `podvm-image` declared 125 again; a correction to one of them
 -// did not reach the others.
 -pub use podvm_probe::exit::{EXIT_CANNOT_INVOKE, EXIT_NOT_FOUND, EXIT_RUNTIME_ERROR};
--
++impl ExitCode for Error {
++    fn exit_code(&self) -> i32 {
++        self.code_or(EXIT_RUNTIME_ERROR)
++    }
++}
+ 
 -#[derive(Debug)]
 -pub enum Error {
 -    /// Something podvm could not do. Exits 125.
@@ -6176,10 +6151,10 @@ index 49f2f90..17fe866 100644
 -        step: &'static str,
 -        errno: sys::Errno,
 -    },
--}
-+/// The memfd launch with podvm's label.
-+pub mod memfd {
-+    pub use pod_enter::memfd::*;
++/// The namespace fallback line, named `podvm:`.
++pub fn ns_fallback_line(cause: &str) -> String {
++    pod_enter::ns_fallback_line(&NAMES, cause)
+ }
  
 -impl std::fmt::Display for Error {
 -    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -6192,11 +6167,32 @@ index 49f2f90..17fe866 100644
 -                errno.0
 -            ),
 -        }
-+    /// Write `bytes` to a new memfd labelled `podvm-payload`.
-+    pub fn stage(bytes: &[u8]) -> crate::Result<i64> {
-+        pod_enter::memfd::stage(&super::NAMES, bytes)
++/// The launch ladder with podvm's names.
++pub mod ladder {
++    pub use pod_enter::ladder::*;
++
++    use super::NAMES;
++    use crate::memfd::MemfdRefusal;
++
++    /// The environment name carrying the payload's resolved guest path,
++    /// which the interposer answers `/proc/self/exe` with
++    /// (`podvm-interpose`'s `procfs.rs` names it by value).
++    pub const GUEST_EXE_VAR: &str = "PODVM_GUEST_EXE";
++
++    /// Parse a `PODVM_MODE` request.
++    pub fn parse_mode(s: &str) -> crate::Result<Mode> {
++        Mode::parse(&NAMES, s)
++    }
++
++    /// Choose the rung, naming `PODVM_MODE` and `PODVM_CACHE`.
++    pub fn choose(
++        forced: Option<Mode>,
++        avail: &Availability,
++        memfd_why: Option<&MemfdRefusal>,
++    ) -> crate::Result<Mode> {
++        pod_enter::ladder::choose(&NAMES, forced, avail, memfd_why)
      }
--}
+ }
  
 -impl Error {
 -    pub fn exit_code(&self) -> i32 {
@@ -6204,6 +6200,15 @@ index 49f2f90..17fe866 100644
 -            Error::Runtime(_) | Error::NsSetup { .. } => EXIT_RUNTIME_ERROR,
 -            Error::CannotInvoke(_) => EXIT_CANNOT_INVOKE,
 -            Error::NotFound(_) => EXIT_NOT_FOUND,
++/// The memfd launch with podvm's label.
++pub mod memfd {
++    pub use pod_enter::memfd::*;
++
++    /// Write `bytes` to a new memfd labelled `podvm-payload`.
++    pub fn stage(bytes: &[u8]) -> crate::Result<i64> {
++        pod_enter::memfd::stage(&super::NAMES, bytes)
++    }
++
 +    /// The memfd probe, worded for podvm.
 +    pub mod probe {
 +        pub use pod_enter::memfd::probe::*;
@@ -6216,10 +6221,7 @@ index 49f2f90..17fe866 100644
  }
  
 -pub type Result<T> = std::result::Result<T, Error>;
-+/// `--device` with podvm's variables.
-+pub mod device {
-+    pub use pod_enter::device::*;
- 
+-
 -/// A directory descriptor on the rootfs, opened before anything changes.
 -///
 -/// ⛔ T-0504. `chroot` **follows a symlink**, so a rootfs path that is one puts
@@ -6232,17 +6234,15 @@ index 49f2f90..17fe866 100644
 -    fd: i64,
 -    pub path: String,
 -}
-+    use super::NAMES;
++/// `--device` with podvm's variables.
++pub mod device {
++    pub use pod_enter::device::*;
  
 -impl RootDir {
 -    pub fn open(path: &str) -> Result<RootDir> {
 -        let c = CBuf::new(path)
 -            .ok_or_else(|| Error::Runtime(format!("{path:?} contains a NUL byte")))?;
-+    /// The device spec, owned by the CLI and the container record.
-+    pub const SPEC_VAR: &str = NAMES.device_spec;
-+    /// The serve table, built beside the descriptors by the entering process.
-+    pub const SERVE_VAR: &str = NAMES.device_fds;
- 
+-
 -        // ⛔ `AT_SYMLINK_NOFOLLOW`, so this asks about the path itself and not
 -        // about whatever it points at.
 -        let st = sys::fstatat(sys::AT_FDCWD as i64, &c, sys::AT_SYMLINK_NOFOLLOW)
@@ -6260,9 +6260,7 @@ index 49f2f90..17fe866 100644
 -        if st.st_mode & sys::S_IFMT != sys::S_IFDIR {
 -            return Err(Error::Runtime(format!("{path} is not a directory")));
 -        }
-+    pub fn specs_of(env: &[String]) -> crate::Result<Vec<Mapping>> {
-+        pod_enter::device::specs_of(&NAMES, env)
-+    }
++    use super::NAMES;
  
 -        let fd = sys::open(
 -            &c,
@@ -6274,24 +6272,26 @@ index 49f2f90..17fe866 100644
 -            fd,
 -            path: path.to_string(),
 -        })
-+    pub fn push_spec(env: &mut Vec<String>, specs: &[Mapping]) {
-+        pod_enter::device::push_spec(&NAMES, env, specs)
-     }
+-    }
++    /// The device spec, owned by the CLI and the container record.
++    pub const SPEC_VAR: &str = NAMES.device_spec;
++    /// The serve table, built beside the descriptors by the entering process.
++    pub const SERVE_VAR: &str = NAMES.device_fds;
  
 -    pub fn fd(&self) -> i64 {
 -        self.fd
-+    pub fn push_serve(env: &mut Vec<String>, opened: &Opened) {
-+        pod_enter::device::push_serve(&NAMES, env, opened)
++    pub fn specs_of(env: &[String]) -> crate::Result<Vec<Mapping>> {
++        pod_enter::device::specs_of(&NAMES, env)
      }
 -}
  
 -impl Drop for RootDir {
 -    fn drop(&mut self) {
 -        let _ = sys::close(self.fd);
-+    pub fn banner_line(m: &Mapping) -> String {
-+        pod_enter::device::banner_line(&NAMES, m)
++    pub fn push_spec(env: &mut Vec<String>, specs: &[Mapping]) {
++        pod_enter::device::push_spec(&NAMES, env, specs)
      }
- }
+-}
  
 -/// What the payload will be given, resolved before the fork.
 -///
@@ -6309,9 +6309,9 @@ index 49f2f90..17fe866 100644
 -    /// `(child_fd, host_fd)` pairs, dup'd into place in the child.
 -    pub pass: Vec<(i64, i64)>,
 -}
-+/// The userland entry with podvm's table variable.
-+pub mod userland {
-+    pub use pod_enter::userland::*;
++    pub fn push_serve(env: &mut Vec<String>, opened: &Opened) {
++        pod_enter::device::push_serve(&NAMES, env, opened)
++    }
  
 -/// Run a payload inside `root`, and return its exit status.
 -///
@@ -6321,10 +6321,10 @@ index 49f2f90..17fe866 100644
 -pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
 -    let child = spawn(root, plan, err)?;
 -    child.wait_forwarding(err)
--}
-+    /// The variable carrying the root-anchoring table, TODO/enter.md
-+    /// T-1407: the contract with `podvm-interpose`'s `map::MAPS_VAR`.
-+    pub const MAPS_VAR: &str = super::NAMES.maps;
++    pub fn banner_line(m: &Mapping) -> String {
++        pod_enter::device::banner_line(&NAMES, m)
++    }
+ }
  
 -/// A payload that has reached its `execve`, and its pid.
 -///
@@ -6336,17 +6336,13 @@ index 49f2f90..17fe866 100644
 -#[derive(Debug)]
 -pub struct Child {
 -    pub pid: i64,
-+    /// The `PODVM_MAPS` table for a userland run.
-+    pub fn userland_maps_table(rootfs: &str) -> Result<String, String> {
-+        pod_enter::userland::userland_maps_table(&super::NAMES, rootfs)
-+    }
- }
+-}
 -mod child;
 -pub use child::*;
 -
 -mod entry;
 -pub use entry::*;
- 
+-
 -mod launch;
 -use launch::*;
 -
@@ -6362,20 +6358,30 @@ index 49f2f90..17fe866 100644
 -/// answers about resolving the path rather than about the file at the end of it.
 -fn invocable_but_refused(e: sys::Errno) -> bool {
 -    matches!(e.0, 1 | 8 | 13 | 21 | 26)
-+/// The directory rungs' staging with podvm's cache marker.
-+pub mod stage {
-+    pub use pod_enter::stage::*;
+-}
++/// The userland entry with podvm's table variable.
++pub mod userland {
++    pub use pod_enter::userland::*;
 +
-+    /// Stage a persistent per-image root under the store's cache base,
-+    /// marked `.podvm-cache-complete`.
-+    pub fn stage_cache(
-+        store_root: &std::path::Path,
-+        digest: &str,
-+        rootfs: &std::path::Path,
-+    ) -> Result<std::path::PathBuf, Refusal> {
-+        pod_enter::stage::stage_cache(&super::NAMES, store_root, digest, rootfs)
++    /// The variable carrying the root-anchoring table, TODO/enter.md
++    /// T-1407: the contract with `podvm-interpose`'s `map::MAPS_VAR`.
++    pub const MAPS_VAR: &str = super::NAMES.maps;
++
++    /// The variable carrying the image's library directories to the
++    /// interposer, TODO/interpose.md T-1646: the contract with
++    /// `podvm-interpose`'s `exec::launch::LIB_PATH_VAR`.
++    pub const LIB_PATH_VAR: &str = super::NAMES.lib_path;
++
++    /// The environment of a payload that runs through the image's loader,
++    /// with podvm's variable for the library path of the interposer.
++    pub fn host_env(
++        rootfs: &str,
++        guest_preload: &str,
++        env: &[String],
++        lib_dirs: &[String],
++    ) -> (Vec<String>, Option<String>) {
++        pod_enter::userland::host_env(&super::NAMES, rootfs, guest_preload, env, lib_dirs)
 +    }
- }
  
 -/// docker's translation of a wait status into an exit code.
 -///
@@ -6388,7 +6394,38 @@ index 49f2f90..17fe866 100644
 -        (status >> 8) & 0xff
 -    } else {
 -        128 + (status & 0x7f)
-+#[cfg(test)]
++    /// The `PODVM_MAPS` table for a userland run.
++    pub fn userland_maps_table(rootfs: &str) -> Result<String, String> {
++        pod_enter::userland::userland_maps_table(&super::NAMES, rootfs)
+     }
+ }
+ 
+-/// The word the forwarding wait prints for a signal: the name for the two
+-/// it forwards, `signal <n>` for anything the reap reports that it did not
+-/// send (a terminal's SIGINT arrives both ways, so the reap can name a
+-/// signal the forward never saw).
+-fn signal_name(signo: i64) -> String {
+-    match signo {
+-        n if n == sys::SIGINT as i64 => "SIGINT".to_string(),
+-        n if n == sys::SIGTERM as i64 => "SIGTERM".to_string(),
+-        n => format!("signal {n}"),
++/// The directory rungs' staging with podvm's cache marker.
++pub mod stage {
++    pub use pod_enter::stage::*;
++
++    /// Stage a persistent per-image root under the store's cache base,
++    /// marked `.podvm-cache-complete`.
++    pub fn stage_cache(
++        store_root: &std::path::Path,
++        digest: &str,
++        rootfs: &std::path::Path,
++    ) -> Result<std::path::PathBuf, Refusal> {
++        pod_enter::stage::stage_cache(&super::NAMES, store_root, digest, rootfs)
+     }
+ }
+ 
+ #[cfg(test)]
+-mod tests;
 +mod tests {
 +    use super::*;
 +
@@ -6400,19 +6437,27 @@ index 49f2f90..17fe866 100644
 +        Plan::set_active_mode(&NAMES, &mut env, "chroot");
 +        assert_eq!(env, vec!["PODVM_ACTIVE_MODE=chroot".to_string()]);
 +        assert_eq!(userland::MAPS_VAR, "PODVM_MAPS");
++        assert_eq!(userland::LIB_PATH_VAR, "PODVM_LIB_PATH");
 +        assert_eq!(device::SPEC_VAR, "PODVM_DEVICE_SPEC");
-     }
--}
- 
--/// The word the forwarding wait prints for a signal: the name for the two
--/// it forwards, `signal <n>` for anything the reap reports that it did not
--/// send (a terminal's SIGINT arrives both ways, so the reap can name a
--/// signal the forward never saw).
--fn signal_name(signo: i64) -> String {
--    match signo {
--        n if n == sys::SIGINT as i64 => "SIGINT".to_string(),
--        n if n == sys::SIGTERM as i64 => "SIGTERM".to_string(),
--        n => format!("signal {n}"),
++    }
++
++    /// `host_env` gives the image's library directories to the interposer
++    /// under podvm's variable, and drops the caller's value of it.
++    #[test]
++    fn host_env_sets_podvms_library_path() {
++        let env = ["PODVM_LIB_PATH=/caller".to_string()];
++        let dirs = ["/store/rootfs/lib".to_string()];
++        let (got, _) = userland::host_env("/store/rootfs", "/.podvm/interpose.so", &env, &dirs);
++        assert!(
++            got.contains(&"PODVM_LIB_PATH=/store/rootfs/lib".to_string()),
++            "{got:?}"
++        );
++        assert!(
++            !got.contains(&"PODVM_LIB_PATH=/caller".to_string()),
++            "{got:?}"
++        );
++    }
++
 +    /// A runtime error exits 125; a payload that did not start 126 or 127.
 +    #[test]
 +    fn errors_map_to_dockers_codes() {
@@ -6422,11 +6467,8 @@ index 49f2f90..17fe866 100644
 +            EXIT_CANNOT_INVOKE
 +        );
 +        assert_eq!(Error::NotFound("x".into()).exit_code(), EXIT_NOT_FOUND);
-     }
- }
--
--#[cfg(test)]
--mod tests;
++    }
++}
 diff --git a/crates/podvm-enter/src/memfd.rs b/crates/podvm-enter/src/memfd.rs
 deleted file mode 100644
 index 231bf80..0000000
@@ -8745,10 +8787,10 @@ index 1d2abad..0000000
 -}
 diff --git a/crates/podvm-enter/src/userland.rs b/crates/podvm-enter/src/userland.rs
 deleted file mode 100644
-index 13c21b9..0000000
+index f8f7593..0000000
 --- a/crates/podvm-enter/src/userland.rs
 +++ /dev/null
-@@ -1,342 +0,0 @@
+@@ -1,352 +0,0 @@
 -//! TODO/enter.md T-1317: entering a payload without `chroot(2)`.
 -//!
 -//! Where the probe's chroot leg is denied, the chroot sequence cannot run,
@@ -8977,6 +9019,10 @@ index 13c21b9..0000000
 -///   loader resolves the payload's `DT_NEEDED` from the image and not
 -///   the host. Later wins, like every other `*_for` here: the caller's
 -///   own value, if any, is dropped in favour of the image's.
+-/// * [`LIB_PATH_VAR`] carries the same list (TODO/interpose.md T-1646).
+-///   The payload can change `LD_LIBRARY_PATH`; the interposer's exec
+-///   family reads this variable for the `--library-path` of the guest
+-///   loader that runs each dynamic grandchild.
 -///
 -/// `guest_preload` is the path the tier was placed under as the payload
 -/// sees it (`LD_PRELOAD`'s first element where the tier loaded). Where
@@ -9016,15 +9062,21 @@ index 13c21b9..0000000
 -                joined.push_str(p);
 -            }
 -            out.push(format!("LD_PRELOAD={joined}"));
--        } else if k == "LD_LIBRARY_PATH" {
+-        } else if k == "LD_LIBRARY_PATH" || k == LIB_PATH_VAR {
 -            continue;
 -        } else {
 -            out.push(e.clone());
 -        }
 -    }
 -    out.push(format!("LD_LIBRARY_PATH={}", lib_dirs.join(":")));
+-    out.push(format!("{LIB_PATH_VAR}={}", lib_dirs.join(":")));
 -    (out, dropped)
 -}
+-
+-/// The variable carrying the image's library directories to the
+-/// interposer, TODO/interpose.md T-1646. Duplicate by value of the
+-/// interposer's `exec::launch::LIB_PATH_VAR`, as [`MAPS_VAR`] is.
+-pub const LIB_PATH_VAR: &str = "PODVM_LIB_PATH";
 -
 -/// The variable carrying the root-anchoring table, TODO/enter.md T-1407.
 -///
@@ -9093,10 +9145,10 @@ index 13c21b9..0000000
 -mod tests;
 diff --git a/crates/podvm-enter/src/userland/tests.rs b/crates/podvm-enter/src/userland/tests.rs
 deleted file mode 100644
-index b93fbbc..0000000
+index 46c3505..0000000
 --- a/crates/podvm-enter/src/userland/tests.rs
 +++ /dev/null
-@@ -1,298 +0,0 @@
+@@ -1,308 +0,0 @@
 -use super::*;
 -
 -fn tree(tag: &str) -> std::path::PathBuf {
@@ -9201,6 +9253,7 @@ index b93fbbc..0000000
 -    let env = [
 -        "LD_PRELOAD=/.podvm/interpose.so /mine.so".to_string(),
 -        "LD_LIBRARY_PATH=/caller".to_string(),
+-        "PODVM_LIB_PATH=/caller".to_string(),
 -        "PATH=/bin".to_string(),
 -    ];
 -    let (got, dropped) = host_env(
@@ -9215,6 +9268,15 @@ index b93fbbc..0000000
 -    );
 -    assert!(
 -        got.contains(&"LD_LIBRARY_PATH=/store/rootfs/lib".to_string()),
+-        "{got:?}"
+-    );
+-    // T-1646: the same list for the interposer, and the caller's value
+-    // loses as the caller's `LD_LIBRARY_PATH` does.
+-    assert_eq!(
+-        got.iter()
+-            .filter(|e| e.starts_with("PODVM_LIB_PATH="))
+-            .collect::<Vec<_>>(),
+-        ["PODVM_LIB_PATH=/store/rootfs/lib"],
 -        "{got:?}"
 -    );
 -    assert!(
@@ -9638,39 +9700,43 @@ index 1894099..4f76837 100644
      plant.case_rust_test(
          "33f acquisition",
 diff --git a/crates/podvm-image/Cargo.toml b/crates/podvm-image/Cargo.toml
-index 1ca0717..5f6b05f 100644
+index d3fae4e..cb26a69 100644
 --- a/crates/podvm-image/Cargo.toml
 +++ b/crates/podvm-image/Cargo.toml
-@@ -17,16 +17,16 @@ rustls-pki-types.workspace = true
+@@ -17,19 +17,19 @@ rustls-pki-types.workspace = true
  # The roots, the PEM reader and the client configuration (`tls.rs`), shared
  # with podssh and podnet through PodUtils/podcrates. The provider is podvm's
  # `ring`.
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
  # The HTTP transport (`net.rs`): the registry, the token realm, the guest image
  # fetch and the mirror probe, through the proxy of the environment. The
  # feature `blocking` runs it on a private runtime of one thread, so podvm's own
  # code stays synchronous. `pod-core` gives the stage of a failure.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false, features = ["blocking"] }
--pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false, features = ["blocking"] }
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false, features = ["blocking"] }
 +pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
  # The space and exec checks of a directory (`space.rs`, `exec_probe.rs`),
  # with podvm's settings from `podvm-probe`.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
+ # The advisory lock of the store (`store::Lock`): the index lock, the image
+ # hold, the staging locks.
+-pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
++pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
  sha2.workspace = true
  serde.workspace = true
  serde_json.workspace = true
 diff --git a/crates/podvm-probe/Cargo.toml b/crates/podvm-probe/Cargo.toml
-index 933175e..032ba8c 100644
+index 24778a6..032ba8c 100644
 --- a/crates/podvm-probe/Cargo.toml
 +++ b/crates/podvm-probe/Cargo.toml
 @@ -11,4 +11,4 @@ repository.workspace = true
  # shared through PodUtils/podcrates. This crate gives podvm's settings to it
  # and keeps the report. The syscall table and the kernel's struct layouts
  # (TODO/deps.md T-0911, T-0912) come with it.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
 diff --git a/crates/podvm-release/src/document_state.rs b/crates/podvm-release/src/document_state.rs
 index dd36008..ab7fab5 100644
@@ -9713,40 +9779,54 @@ index dd36008..ab7fab5 100644
      lines.push(String::new());
      lines.push("| Executable | Source |".to_string());
 diff --git a/crates/podvm-ssh/Cargo.toml b/crates/podvm-ssh/Cargo.toml
-index b756459..325d43d 100644
+index be410fe..325d43d 100644
 --- a/crates/podvm-ssh/Cargo.toml
 +++ b/crates/podvm-ssh/Cargo.toml
 @@ -15,15 +15,15 @@ podvm-probe = { path = "../podvm-probe" }
  # control frames. The websocket framing itself is hand-rolled in `ws.rs`: the opcode
  # travels with the frame, which no byte-pipe websocket API preserves.
  rustls.workspace = true
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
  # The proxy of a relay leg (`transport/egress.rs`): the rules of `HTTPS_PROXY`,
  # `ALL_PROXY` and `NO_PROXY`, and the dial through an HTTP CONNECT or SOCKS5
  # proxy, shared with podssh and podnet through PodUtils/podcrates. The
  # blocking face runs on a private runtime of one thread; podvm's own code
  # stays synchronous.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false, features = ["blocking"] }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false, features = ["blocking"] }
 +pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false, features = ["blocking"] }
  serde_json.workspace = true
  base64.workspace = true
  # The line discipline of a session with no pty (`session.rs`), shared with
  # podssh through PodUtils/podcrates.
--pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-diff --git a/crates/podvm-supervise/src/launcher/supervise.rs b/crates/podvm-supervise/src/launcher/supervise.rs
-index 98bfc9e..4f1aa0d 100644
---- a/crates/podvm-supervise/src/launcher/supervise.rs
-+++ b/crates/podvm-supervise/src/launcher/supervise.rs
-@@ -179,6 +179,7 @@ pub(super) fn supervise(
-         // it in the container's LOG, where it is not the payload's output.
+diff --git a/crates/podvm-supervise/Cargo.toml b/crates/podvm-supervise/Cargo.toml
+index c5f95ca..85e9835 100644
+--- a/crates/podvm-supervise/Cargo.toml
++++ b/crates/podvm-supervise/Cargo.toml
+@@ -13,7 +13,7 @@ podvm-enter = { path = "../podvm-enter" }
+ # The table, the launcher, the logs and the verbs of the lifecycle. This
+ # crate keeps podvm's settings, its record fields, the entry of a payload and
+ # the ownership memo.
+-pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
++pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
+ serde.workspace = true
+ serde_json.workspace = true
+diff --git a/crates/podvm-supervise/src/launcher.rs b/crates/podvm-supervise/src/launcher.rs
+index 8bfa428..cdda597 100644
+--- a/crates/podvm-supervise/src/launcher.rs
++++ b/crates/podvm-supervise/src/launcher.rs
+@@ -85,6 +85,7 @@ fn enter_in_launcher(
+         // would put it in the container's LOG.
          banner: String::new(),
-         path_dirs: podvm_enter::Plan::path_from(&env),
+         path_dirs: Plan::path_from(&env),
 +        names: podvm_enter::NAMES,
      };
  
-     // ⭐ TODO/image.md T-0204 and T-0211. The image lock is taken here and handed
+     // ⭐ TODO/image.md T-0204 and T-0211. The image lock is taken here and
 diff --git a/crates/podvm/src/complete/strict.rs b/crates/podvm/src/complete/strict.rs
 index dd2f821..7587e6a 100644
 --- a/crates/podvm/src/complete/strict.rs
@@ -10111,7 +10191,7 @@ index 6b7b9db..a1c955d 100644
  
  ## Interposer
 diff --git a/docs/runtime-state.md b/docs/runtime-state.md
-index 8f5e564..aac7ac9 100644
+index 58b6380..d1b2469 100644
 --- a/docs/runtime-state.md
 +++ b/docs/runtime-state.md
 @@ -35,7 +35,7 @@ Separate crate: `crates/podvm-interpose`.
@@ -10123,19 +10203,21 @@ index 8f5e564..aac7ac9 100644
  
  ## SSH helper sources
  
-@@ -52,11 +52,12 @@ Separate crate: `crates/podvm-interpose`.
+@@ -52,12 +52,13 @@ Separate crate: `crates/podvm-interpose`.
  | --- | --- |
  | `base64` | `0.23.1` |
  | `flate2` | `1.1.10` |
--| `pod-core` | `0.7.0` |
--| `pod-hostprobe` | `0.7.0` |
--| `pod-proxy` | `0.7.0` |
--| `pod-term` | `0.7.0` |
--| `pod-tls` | `0.7.0` |
+-| `pod-core` | `0.8.0` |
+-| `pod-hostprobe` | `0.8.0` |
+-| `pod-proxy` | `0.8.0` |
+-| `pod-supervise` | `0.8.0` |
+-| `pod-term` | `0.8.0` |
+-| `pod-tls` | `0.8.0` |
 +| `pod-core` | `0.9.0` |
 +| `pod-enter` | `0.9.0` |
 +| `pod-hostprobe` | `0.9.0` |
 +| `pod-proxy` | `0.9.0` |
++| `pod-supervise` | `0.9.0` |
 +| `pod-term` | `0.9.0` |
 +| `pod-tls` | `0.9.0` |
  | `rustls` | `0.23.46` |

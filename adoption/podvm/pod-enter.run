@@ -1,21 +1,23 @@
-# The trial of pod-enter in podvm (T-059), at podvm main 6cd3442
-# (pod-enter.commit): the patch does not need the patches of pod-supervise
-# and pod-guest, and their Cargo.toml and runtime-state hunks overlap it
-# only in the tag lines and the rows of pod-*. crates/podvm-enter keeps
-# podvm's glue and re-exports the crate: NAMES (PODVM_MODE,
-# PODVM_ACTIVE_MODE, PODVM_CACHE, PODVM_MAPS, PODVM_DEVICE_SPEC,
-# PODVM_DEVICE_FDS, the cache marker .podvm-cache-complete, the memfd label
-# podvm-payload), docker's codes of podvm-probe's exit and the trait
-# ExitCode (125 for a runtime error), runtime(text), GUEST_EXE_VAR, and each
-# function that takes the names with podvm's signature (ladder::choose,
-# ladder::parse_mode, memfd::stage, memfd::probe::answer, device::{specs_of,
-# push_spec, push_serve, banner_line, SPEC_VAR, SERVE_VAR},
-# userland::{userland_maps_table, MAPS_VAR}, stage::stage_cache,
-# ns_fallback_line). 27 files leave podvm. Each Plan gets names: NAMES;
-# Plan::env_for takes &NAMES; a runtime error of podvm is
-# podvm_enter::runtime(text). The gate's pin of tty_refusal goes (the test
-# moves), document-state names Mode in pod-enter, and the citations of the
-# moved files name pod-enter. Each podcrates tag moves to v0.9.0.
+# The trial of pod-enter in podvm (T-059), at podvm main cb57d4b (commit).
+# The patch applies alone, and after pod-guest.patch with git apply --3way:
+# the two patches change the same tag lines in the same way, and only the
+# rows of docs/runtime-state.md that each adds conflict (keep both rows).
+# crates/podvm-enter
+# keeps podvm's glue and re-exports the crate: NAMES (PODVM_MODE,
+# PODVM_ACTIVE_MODE, PODVM_CACHE, PODVM_MAPS, PODVM_LIB_PATH,
+# PODVM_DEVICE_SPEC, PODVM_DEVICE_FDS, the cache marker
+# .podvm-cache-complete, the memfd label podvm-payload), docker's codes of
+# podvm-probe's exit and the trait ExitCode (125 for a runtime error),
+# runtime(text), GUEST_EXE_VAR, and each function that takes the names with
+# podvm's signature (ladder::choose, ladder::parse_mode, memfd::stage,
+# memfd::probe::answer, device::{specs_of, push_spec, push_serve,
+# banner_line, SPEC_VAR, SERVE_VAR}, userland::{userland_maps_table,
+# host_env, MAPS_VAR, LIB_PATH_VAR}, stage::stage_cache, ns_fallback_line).
+# 27 files leave podvm. Each Plan gets names: NAMES; Plan::env_for takes
+# &NAMES; a runtime error of podvm is podvm_enter::runtime(text). The gate's
+# pin of tty_refusal goes (the test moves), document-state names Mode in
+# pod-enter, and the citations of the moved files name pod-enter. Each
+# podcrates tag moves to v0.9.0, with the tags of podvm-supervise.
 # podvm's tests of the touched crates and the integration tests that enter
 # or refuse; clippy of the workspace and rustfmt of the touched crates, as
 # podvm's gate.yml runs them; the runtime-state rows; podvm's record gate;

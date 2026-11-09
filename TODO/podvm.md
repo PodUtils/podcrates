@@ -278,8 +278,8 @@ Source: `PodUtils/podvm:crates/podvm-enter`.
   and `PodUtils/podvm:crates/podvm-supervise/src/launcher`; the plan of
   `docs/research/podvm/m6-imports.md`, section 5 and "Current files".
   `PodUtils/podvm:crates/podvm-enter` changed between `27ae993` (the
-  commit of `adoption/podvm/commit`) and `6cd3442`, so the trial reads
-  `6cd3442` (`adoption/podvm/pod-enter.commit`).
+  commit of `adoption/podvm/commit`) and `6cd3442`, so the trial read
+  `6cd3442`. The trial reads podvm `main` at `cb57d4b` now (T-136).
 - Measured: the tests of the crate on this host as x86_64 and as i686
   musl binaries; the trial of podvm at `6cd3442`; the static `podvm` for
   `x86_64-unknown-linux-musl`.
