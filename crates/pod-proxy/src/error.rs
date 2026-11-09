@@ -36,6 +36,9 @@ pub enum DialError {
     ProxyRefused { proxy: String, target: String, status: u16, reason: String },
     /// The proxy did not answer as its protocol says.
     ProxyProtocol { proxy: String, detail: String },
+    /// The proxy does not know the SOCKS5 command 0x83, UDP in the stream
+    /// (reply 0x07). `UDP ASSOCIATE` is the other way.
+    UdpRefused { proxy: String },
 }
 
 impl std::fmt::Display for DialError {
@@ -54,6 +57,9 @@ impl std::fmt::Display for DialError {
             }
             DialError::ProxyProtocol { proxy, detail } => {
                 write!(f, "the proxy {proxy} did not answer as its protocol says: {detail}")
+            }
+            DialError::UdpRefused { proxy } => {
+                write!(f, "the proxy {proxy} does not know the SOCKS5 command UDP in the stream (reply 7)")
             }
         }
     }
@@ -77,6 +83,7 @@ impl DialError {
             // Its authentication (407) or its rules (403, 405).
             DialError::ProxyRefused { .. } => (Stage::Proxy, Class::Refused),
             DialError::ProxyProtocol { .. } => (Stage::Proxy, Class::Protocol),
+            DialError::UdpRefused { .. } => (Stage::Proxy, Class::Unsupported),
         }
     }
 }

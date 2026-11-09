@@ -73,4 +73,5 @@ pub use proxy::{Carrier, HttpProxy, Proxy, ProxyKind};
 pub use race::{dial_addrs, group_errors, interleave};
 #[cfg(any(fuzzing, feature = "fuzzing"))]
 pub use socks5::fuzz_exchange;
+pub use socks5::udp;
 pub use stream::{ChildIo, Stream};

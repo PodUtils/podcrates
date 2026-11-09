@@ -6,7 +6,10 @@
 //! (its pins too) after the user and the password, and sends the address.
 //! A proxy that takes no names (reply 8) gets one more try, with an address
 //! from the caller's resolver, in its order. The reply is read to exactly
-//! its length: the bytes after it belong to TLS.
+//! its length: the bytes after it belong to TLS. The module `udp` has the
+//! datagram path.
+
+pub mod udp;
 
 use std::net::IpAddr;
 

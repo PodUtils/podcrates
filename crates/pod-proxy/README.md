@@ -52,6 +52,7 @@ to each crate that opens a connection.
 | `host::{authority, check_name, split_host_port}`, `interleave`, `MAX_PROXY_RESPONSE` | `host:port`, the check of a name, the order of the families |
 | `mptcp::{probe, enabled, connect, connect_with, socket, Multipath, ENABLED_FILE}` | Multipath TCP (Linux) |
 | `lowat::{set, LOWAT}`, `write_limit::WriteLimit` | `TCP_NOTSENT_LOWAT` (Linux, macOS); a stream whose write fails when it makes no progress |
+| `udp::{open_in_stream, associate, write_frame, read_frame, wrap, wrap_name}` | the SOCKS5 datagram path on a stream that the caller dials: the command 0x83 (UDP in the stream: a frame of a 2-byte length and a datagram of RFC 1928 each way), `UDP ASSOCIATE`, and the datagram header. The reply 0x07 to 0x83 is `DialError::UdpRefused` |
 | `stun` | STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message |
 | `resolve::System` (`new`, `with_pins`), `resolve::{LITERAL, PIN, SYSTEM}` | the system resolver after the IP literals and the caller's pins, for a consumer with no DNS over HTTPS and for the tests |
 
@@ -412,4 +413,5 @@ at `6ece2ff`; podnet `src/egress.rs` (now `proxy.rs`, `proxy/`, `env.rs`,
 `race.rs`, `hint.rs`, `dial.rs`), `src/proxy_auth.rs` (now `digest.rs`,
 `detect.rs`, `credentials.rs`), `src/fetch.rs` (now `client.rs`,
 `client/`, `http.rs`) and the test `a_silent_address_does_not_hold_the_dial`
-of `tests/egress.rs` at `a8071b1`.
+of `tests/egress.rs` at `a8071b1`; podnet `crates/podnet-netns/src/upstream.rs`
+(the datagram path: now `socks5/udp.rs`) at `29ba18a`.
