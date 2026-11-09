@@ -151,7 +151,7 @@ impl Doh {
     pub fn target(&self, form: Form, name: &str, kind: &str) -> Result<String, String> {
         match (form, &self.json, &self.wire) {
             (Form::Json, Some(path), _) | (Form::Wire, Some(path), None) => {
-                Ok(format!("{path}?name={name}&type={kind}"))
+                Ok(format!("{path}?name={}&type={kind}", encode(name)))
             }
             (_, _, Some(path)) => {
                 let code = wire::code(kind).ok_or_else(|| format!("no record type {kind}"))?;
@@ -170,6 +170,19 @@ impl Doh {
         let by_name = by_name && !asked.contains(&self.name);
         by_name.then(|| self.name.clone()).into_iter().chain([self.ip.to_string()]).collect()
     }
+}
+
+/// `name` with each byte outside the unreserved set of RFC 3986 as `%XX`.
+fn encode(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for b in name.bytes() {
+        if b.is_ascii_alphanumeric() || b"-._~".contains(&b) {
+            out.push(char::from(b));
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
 }
 
 /// The hosts to ask of `resolvers`, in order, each with the index of its
@@ -263,6 +276,13 @@ mod tests {
         for (i, name) in &proxied[servers.len()..] {
             assert_eq!(servers[*i].name, *name, "each name with its resolver");
         }
+    }
+
+    #[test]
+    fn the_json_name_is_percent_encoded() {
+        let doh = Doh::new([192, 0, 2, 1].into(), "doh.test").json("/q");
+        assert_eq!(doh.target(Form::Json, "a-b_c.example", "A").unwrap(), "/q?name=a-b_c.example&type=A");
+        assert_eq!(doh.target(Form::Json, "a&b#x%y z", "A").unwrap(), "/q?name=a%26b%23x%25y%20z&type=A");
     }
 
     /// podssh's order of the default resolvers: Cloudflare's and Google's

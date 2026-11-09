@@ -14,6 +14,7 @@ use crate::miss::{Miss, read};
 use crate::{Doh, NXDOMAIN, Resolver, Settings, Srv, dns_safe, parse_pins, wire};
 
 mod cuts;
+mod names;
 
 #[test]
 fn pins_parse_and_reject_garbage() {

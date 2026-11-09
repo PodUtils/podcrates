@@ -1,0 +1,7 @@
+# The check of the name lost in `ask_kept`: a name with `&`, `#`, `%` or a
+# space reaches the query string; the test of GitHub #29 must fail.
+ENTRY=T-091
+GROUP=dns
+EXPECT='test tests::names::refuses_a_name_that_changes_the_question \.\.\. FAILED'
+RUN='cargo test -p pod-dns --all-features --lib -- refuses_a_name'
+LIMIT=1800

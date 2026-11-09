@@ -14,7 +14,7 @@ use crate::get::get;
 use crate::json::parse_answer;
 use crate::miss::{Miss, read, way as by_way};
 use crate::way::Way;
-use crate::{NXDOMAIN, wire};
+use crate::{NXDOMAIN, dns_safe, wire};
 
 /// One resolver at `at`, its address or its name: A, then AAAA when A gave
 /// none (or always, with [`crate::Settings::both`]), each in the first of its
@@ -30,6 +30,10 @@ pub(crate) async fn ask_kept(
     host: &str,
     deadline: Instant,
 ) -> Result<(Vec<IpAddr>, Form), Missed> {
+    // A name with a space, `&`, `#` or `%` would change the question.
+    if !dns_safe(host) {
+        return Err(Missed::words(format!("{at}: {host:?} is not a DNS name")));
+    }
     let each = (Instant::now() + way.settings.each).min(deadline);
     let mut forms = resolver.forms();
     let (mut found, mut by, mut reasons) = (Vec::new(), None, Vec::new());
