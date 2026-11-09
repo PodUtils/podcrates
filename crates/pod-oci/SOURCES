@@ -1,0 +1,31 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podvm 6cd3442d2b742adb4869b042abfffa70084f355f
+dir crates/podvm-image/tests/common
+file 905d230d5c50b7e3311ab7355938bfdebf8946dd crates/podvm-image/src/credentials.rs -> crates/pod-oci/src/credentials.rs
+file 52d1db6e5dcee9fdf41bb1dcb7c6d1b071927b8b crates/podvm-image/src/credentials/tests.rs -> crates/pod-oci/src/credentials/tests.rs
+file 3c6059f74403dfb4af08d79e613a0a09f4dd5d7d crates/podvm-image/src/digest.rs -> crates/pod-oci/src/digest.rs
+file ccb444fc3d5a168085f15a3469ab8b2fe3f0e3ad crates/podvm-image/src/error.rs -> crates/pod-oci/src/error.rs
+file bd4d0189126d0c06a1d7a4d0f4f0263fa205f794 crates/podvm-image/src/layout.rs -> crates/pod-oci/src/layout.rs
+file a22e7d20608be9982232b9d7d1cb99672dbe20de crates/podvm-image/src/layout/tests.rs -> crates/pod-oci/src/layout/tests.rs
+file a6db6438a3add7085b2c5991c47f50148e266130 crates/podvm-image/src/lib.rs -> crates/pod-oci/src/lib.rs
+file d8b6e3254373a89e83db3f861df1f5bae73a9002 crates/podvm-image/src/net.rs -> crates/pod-oci/src/net.rs
+file 57c90b96744fe8ee5c45a1ba913790926827364b crates/podvm-image/src/oci.rs -> crates/pod-oci/src/spec.rs
+file 1b8b41c8d7d777cbaa6218b09da00de1ee2136e9 crates/podvm-image/src/platform.rs -> crates/pod-oci/src/platform.rs
+file 92b8613c60d5d919cbbd21d0c23cc19937163bc1 crates/podvm-image/src/pull.rs -> crates/pod-oci/src/pull.rs
+file 72909ef102f2ad1ac53afe5a55cac21c5db56e95 crates/podvm-image/src/pull/run.rs -> crates/pod-oci/src/pull/run.rs
+file 82dcff07f58061a2c0836372b68acd495bace3fb crates/podvm-image/src/pull/tests.rs -> crates/pod-oci/src/pull/tests.rs
+file 5c9e1e095e6905c744b3a8445195980fb14b0d66 crates/podvm-image/src/reference.rs -> crates/pod-oci/src/reference.rs
+file 1fd18117ee669f2976b7d0a0c298a96be11eb5d5 crates/podvm-image/src/registry.rs -> crates/pod-oci/src/registry.rs
+file 13c261c34657b8f8725dd9a31f81b417896771c3 crates/podvm-image/src/registry/http.rs -> crates/pod-oci/src/registry/http.rs
+file ff275e5c5fc3c6eb3a60f9b673d449885f8f4bc8 crates/podvm-image/src/registry/tests.rs -> crates/pod-oci/src/registry/tests.rs
+file 9b8ea87871090f258b14af9ea61e159f353b392b crates/podvm-image/src/registry/wire.rs -> crates/pod-oci/src/registry/wire.rs
+file 94b303181ffe2495bd71cdf8401d4ad2a8c9e2f7 crates/podvm-image/src/tls.rs -> crates/pod-oci/src/tls.rs
+file f09f2c612855a5861aca1239ba33e8bc58020486 crates/podvm-image/src/transport.rs -> crates/pod-oci/src/transport.rs
+file 4e1ae1302f8c085bb681940d806493dffd0f0feb crates/podvm-image/tests/common/mod.rs -> crates/pod-oci/tests/common/mod.rs
+file e28970994cd6dfa5da21ac4fe7bdef83fc96631c crates/podvm-image/tests/common/registry.rs -> crates/pod-oci/tests/common/registry.rs
+file 5a2e8359fd3a3b3b301fd92e09cffd6e705cea56 crates/podvm-image/tests/proxy_pull.rs -> crates/pod-oci/tests/proxy_pull.rs
+file a7d702e24f5380de9c53ece9e1c999ee93599219 crates/podvm-image/tests/registry_fixture.rs -> crates/pod-oci/tests/registry_fixture.rs
