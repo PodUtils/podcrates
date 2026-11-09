@@ -5,9 +5,9 @@
 ## State
 
 - Released: `v0.7.0` at `a13014d` (CI 42266116185, nightly 42295275787,
-  release 42623501324, the dry run of `publish.yml` 42623531702). podvm
-  (`35df7f7`) and podnet (`86b99de`) are on `v0.7.0`; podssh is on `v0.6.0`
-  and takes it next (GitHub #37).
+  release 42623501324, the dry run of `publish.yml` 42623531702). Each
+  consumer is on `v0.7.0`: podssh `1fd68cc4`, podnet `86b99de`, podvm
+  `35df7f7`.
 - M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is partial:
   its trial of podvm passed; the release and the take of podvm remain.
   Next in M6: T-061 and T-059.
@@ -71,7 +71,7 @@ C33), and the work goes on with it until the owner rules otherwise.
 
 ## Questions for the owner
 
-None open. The owner ruled Q4, Q7 and the questions of GitHub #35 and #36 on 2026-11-09 (`docs/decisions.md`). Q6 closes: the session dispatches each run itself (`docs/maintenance.md`, "A run of a workflow").
+None open. The owner ruled Q4, Q7 and the questions of GitHub #35 and #36 on 2026-11-09 (`docs/decisions.md`). Q6 closes: a push to `main` starts `ci.yml` again, and the session dispatches the other runs (`docs/maintenance.md`, "A run of a workflow").
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q8

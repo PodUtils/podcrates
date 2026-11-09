@@ -17,6 +17,12 @@ on:
       - ".github/workflows/plants.yml"
   workflow_dispatch:
 
+# A newer push to the same ref cancels a run that waits or runs: a queue of
+# runs for old commits holds the runners that the consumers need too.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

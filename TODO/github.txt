@@ -41,7 +41,7 @@
 34 issue open
 35 issue open
 36 issue open
-37 issue open
-38 issue open
+37 issue closed
+38 issue closed
 39 issue closed
 40 issue closed
