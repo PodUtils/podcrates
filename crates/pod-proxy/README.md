@@ -118,7 +118,7 @@ registry pays one TCP and TLS handshake, not one for each blob.
 | `Settings::write_limit` | the limit of a write of a stream of `Dial::dial` | `None` in the dial; podssh wraps its SSH transport in `WriteLimit::new(tcp, WRITE_TIMEOUT)` itself | `None` |
 | `Settings::attempt_delay` | the attempt delay of the race | `ATTEMPT_DELAY` (250 ms, the default) | `ATTEMPT_DELAY` (podnet's is 250 ms too) |
 | `Rules::proxy_vars`, `Rules::no_proxy_vars` | the variables, in their order | `PROXY_VARS`, `NO_PROXY_VARS` (lower case first, the default) | `PROXY_VARS_UPPER_FIRST`, `NO_PROXY_VARS_UPPER_FIRST` |
-| `Rules::http_proxy_vars` | the variables of a request of plain `http://`, in their order | `HTTP_PROXY_VARS` (the default): `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY` | `HTTP_PROXY_VARS_UPPER_FIRST`: `HTTP_PROXY`, `http_proxy`, `ALL_PROXY`, `all_proxy` |
+| `Rules::http_proxy_vars` | the variables of a request of plain `http://`, in their order | `HTTP_PROXY_VARS` (the default): `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY`, `https_proxy`, `HTTPS_PROXY` | `HTTP_PROXY_VARS_UPPER_FIRST`: `HTTP_PROXY`, `http_proxy`, `ALL_PROXY`, `all_proxy`, `HTTPS_PROXY`, `https_proxy` |
 | `Rules::skip_unusable` | a URL that cannot be used is passed over to the next variable, into `Environment::skipped` (with a warning to `tracing`) | `false` | `true` |
 | `Rules::http_port` | the port of `http://` with no port | `HTTP_PORT` (80) | `8080` |
 | `Rules::no_proxy_ports` | an entry `host:port` of `NO_PROXY` excludes that port only | `false` (the port is passed over) | `true` |
@@ -132,15 +132,15 @@ registry pays one TCP and TLS handshake, not one for each blob.
 The variables of the environment that `Environment::read` reads through
 the caller's reader, in this order: `https_proxy`, `HTTPS_PROXY`,
 `all_proxy`, `ALL_PROXY` (the first that is set and not empty) into
-`proxy`; `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY` into
-`http_proxy`; then `no_proxy`, `NO_PROXY`; `read_with` reads those of its
+`proxy`; `http_proxy`, `HTTP_PROXY`, `all_proxy`, `ALL_PROXY`, `https_proxy`,
+`HTTPS_PROXY` into `http_proxy`; then `no_proxy`, `NO_PROXY`; `read_with` reads those of its
 `Rules`.
 
 The proxy of each scheme (`Environment::proxy_of`):
 
 | Connection | `Scheme` | The proxy |
 | --- | --- | --- |
-| a request of plain `http://` (`Client::send`, `send_streamed`) | `Http` | the proxy of the user (`with_proxy`); else `http_proxy` (`Rules::http_proxy_vars`); else the proxy of a tool's file. The default list ends with `https_proxy` and `HTTPS_PROXY`, so that a host that names only the proxy of `https://` keeps it for `http://`, as the dial did before; curl's list (`HTTP_PROXY_VARS_LOWER`) does not read them |
+| a request of plain `http://` (`Client::send`, `send_streamed`) | `Http` | the proxy of the user (`with_proxy`); else `http_proxy` (`Rules::http_proxy_vars`); else the proxy of a tool's file. Each list of six (`HTTP_PROXY_VARS` and `HTTP_PROXY_VARS_UPPER_FIRST`) ends with the two names of `https://`, in its own case order, so that a host that names only the proxy of `https://` keeps it for `http://`, as the dial did before; curl's list (`HTTP_PROXY_VARS_LOWER`) does not read them |
 | `https://`, `wss://`, each TCP dial (`Dial::dial`, `Dialer::tcp`, `stream`) | `Https` | `proxy` (`Rules::proxy_vars`, the proxy of the user, or of a tool's file), as before |
 
 The loopback rule and `NO_PROXY` hold for each scheme. A request of

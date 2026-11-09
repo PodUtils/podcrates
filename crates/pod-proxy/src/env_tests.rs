@@ -234,6 +234,38 @@ fn the_scheme_chooses_the_variables_of_the_proxy() {
     }
 }
 
+/// The list `HTTP_PROXY_VARS_UPPER_FIRST` of podnet: the upper case first
+/// in each pair, and the proxy of `https://` last, as the default list.
+#[test]
+fn the_upper_case_first_list_of_http_ends_with_the_proxy_of_https() {
+    use Scheme::Http;
+    let rules = || Rules { http_proxy_vars: &HTTP_PROXY_VARS_UPPER_FIRST, ..Rules::default() };
+    let host = |pairs| host_of(&Environment::read_with(&vars(pairs), rules()), Http);
+    let pairs: &'static [(&str, &str)] = &[("http_proxy", "http://a.example"), ("HTTP_PROXY", "http://b.example")];
+    assert_eq!(host(pairs).as_deref(), Some("b.example"));
+    assert_eq!(
+        host(&[("all_proxy", "http://a.example"), ("ALL_PROXY", "http://b.example")]).as_deref(),
+        Some("b.example")
+    );
+    assert_eq!(
+        host(&[("https_proxy", "http://a.example"), ("HTTPS_PROXY", "http://b.example")]).as_deref(),
+        Some("b.example")
+    );
+    assert_eq!(host(&[("https_proxy", "http://a.example")]).as_deref(), Some("a.example"));
+    // Each name before the proxy of https:// wins over it.
+    assert_eq!(
+        host(&[("HTTPS_PROXY", "http://s.example"), ("all_proxy", "http://a.example")]).as_deref(),
+        Some("a.example")
+    );
+    assert_eq!(
+        host(&[("HTTPS_PROXY", "http://s.example"), ("http_proxy", "http://h.example")]).as_deref(),
+        Some("h.example")
+    );
+    assert_eq!(host(&[]), None);
+    let env = Environment::read_with(&vars(&[("https_proxy", "http://a.example")]), rules());
+    assert_eq!(env.http_proxy.as_ref().map(|g| g.origin.to_string()).as_deref(), Some("https_proxy"));
+}
+
 /// The proxy of the user holds for `http://` too, over `http_proxy`; the
 /// proxy of a tool's file when no variable names one; a URL that cannot be
 /// used in `ALL_PROXY`, which both lists read, is passed over once.
