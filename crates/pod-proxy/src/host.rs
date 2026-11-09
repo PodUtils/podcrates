@@ -8,6 +8,16 @@ pub fn authority(host: &str, port: u16) -> String {
     if host.contains(':') && !host.starts_with('[') { format!("[{host}]:{port}") } else { format!("{host}:{port}") }
 }
 
+/// The value of the `Host` header of an HTTPS request (RFC 9110, section
+/// 7.2): the host with brackets around an IPv6 literal, and the port when it
+/// is not 443.
+pub fn host_header(host: &str, port: u16) -> String {
+    if port != 443 {
+        return authority(host, port);
+    }
+    if host.contains(':') && !host.starts_with('[') { format!("[{host}]") } else { host.to_string() }
+}
+
 /// Refuse a name that would break a request line or a header.
 pub fn check_name(host: &str) -> Result<(), DialError> {
     if host.is_empty() {
@@ -37,5 +47,22 @@ pub fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
             Ok((host.to_string(), Some(port)))
         }
         _ => Ok((s.to_string(), None)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_host_header_brackets_an_ipv6_literal_on_each_port() {
+        assert_eq!(host_header("::1", 443), "[::1]");
+        assert_eq!(host_header("::1", 8443), "[::1]:8443");
+        assert_eq!(host_header("[::1]", 443), "[::1]");
+        assert_eq!(host_header("relay.example", 443), "relay.example");
+        assert_eq!(host_header("relay.example", 8443), "relay.example:8443");
+        assert_eq!(host_header("192.0.2.1", 443), "192.0.2.1");
+        assert_eq!(host_header("2001:db8::1", 443), "[2001:db8::1]");
+        assert_eq!(host_header("2001:db8::1", 8443), "[2001:db8::1]:8443");
     }
 }

@@ -40,7 +40,7 @@ use tokio_rustls::client::TlsStream;
 pub use request::{BODY_IDLE, MAX_BODY, MAX_HEAD, Request, TIMEOUT};
 pub use streamed::Streamed;
 
-use crate::host::authority;
+use crate::host::host_header;
 use crate::http::{self, Response};
 use pool::{Key, Pool};
 use streamed::Bounds;
@@ -162,7 +162,7 @@ impl Client {
         timeout: Duration,
     ) -> Result<Response, Failure> {
         let mut tls = self.open_tls(&*self.dial, host, port, trust, timeout, &[]).await?;
-        let host_header = if port == 443 { host.to_string() } else { authority(host, port) };
+        let host_header = host_header(host, port);
         let exchange = http::exchange(&mut tls, &self.user_agent, "GET", &host_header, path, headers, b"", max_body);
         tokio::time::timeout(timeout, exchange)
             .await
