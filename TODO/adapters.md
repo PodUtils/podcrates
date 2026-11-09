@@ -79,6 +79,13 @@ only with the consent of the caller (podnet's variable
 variable) and only at a path that the caller names; it keeps the check of
 the mode and the owner. A test for each case.
 
+A pinned front door (PodUtils/podnet#413, ask 10;
+PodUtils/podnet@T-169): podnet tries the IPv6 front door first on a host
+with no IPv4 default route. The door selection of the crate takes a pinned
+`HOST:PORT` from the caller (podnet's `--masque-endpoint` and its variable)
+and skips the order, so that an IPv6-only host pays no failed IPv4 connect.
+A test of the pinned door and of the order without it.
+
 ## Prove
 
 ```sh
