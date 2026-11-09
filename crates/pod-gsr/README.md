@@ -28,6 +28,15 @@ let mut stream = pod_gsr::open(&*dialer, &settings, Role::Listen, secret, &mut e
 // `stream` is AsyncRead and AsyncWrite: the bytes of the peer.
 ```
 
+A caller with no tokio runtime takes the feature `blocking`:
+
+```rust
+let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+let mut stream = pod_gsr::blocking::open(dialer.as_async(), &settings, Role::Connect, secret, &mut entropy, deadline)?;
+stream.set_timeout(Some(std::time::Duration::from_secs(30)));
+// `stream` is std::io::Read and Write; `stream.end()` after a read of 0 bytes.
+```
+
 ## API
 
 | Item | What |
@@ -40,6 +49,8 @@ let mut stream = pod_gsr::open(&*dialer, &settings, Role::Listen, secret, &mut e
 | `Identity`, `ADDR_LEN` | the address, the SRP password and the shard of a secret; `Debug` shows the address alone |
 | `Stream` | `AsyncRead` and `AsyncWrite`; `end()` says how the peer's side ended, `peer_finished()` whether it ended (feature `async`) |
 | `End` | `Clean`: the peer sent close_notify; `Cut`: the transport ended with no close_notify |
+| `blocking::open(dial, settings, role, secret, entropy, deadline)` | `open` on a private current-thread runtime, with a `std::time::Instant`; inside a tokio task, a `Failure` of the class `Usage` (feature `blocking`) |
+| `blocking::Stream` | `std::io::Read` and `Write` on that runtime; `end()`, `peer_finished()`, `shutdown()`, `set_timeout(limit)` (a read past the limit is `TimedOut`, and the stream stays usable); a read or a write inside a tokio task fails with `Unsupported` (feature `blocking`) |
 | `Version` | the version of the control protocol |
 | `check_tls(settings)` | build the SRP context of each side with no connection, and give the version of the linked OpenSSL: a self-test of a binary |
 
@@ -53,6 +64,7 @@ wraps the call in its own timeout.
 | Feature | What |
 | --- | --- |
 | `async` (default) | `open` and `Stream`, on tokio |
+| `blocking` | `blocking::open` and `blocking::Stream`: the same code on a private current-thread runtime that shuts down in the background, as `pod_proxy::blocking` (call C20). With no `async`, `open` and `Stream` are not public |
 | none | the core with no tokio: `Identity`, `Settings`, `Role`, `End`, `Version`, `check_tls` |
 | `fuzzing` | `wire` is public, with `wire::fuzz_messages` for the fuzz target `gsr_message` (`fuzz/`); the `--cfg fuzzing` of cargo-fuzz does the same. No consumer turns it on |
 
@@ -165,6 +177,11 @@ a complete transfer with a short body.
   listener, for a host that denies `bind(AF_INET)`: the byte path, the
   pairing, a counted read of 1 MiB through a close with no close_notify,
   a shutdown before the peer's end, and the two ends of `End`.
+* `tests/blocking.rs` (5, feature `blocking`): two peers on threads with
+  no runtime move 1 MiB through the stand-in on a Unix socket, end clean
+  and answer; a read past its limit is `TimedOut` and the stream goes on; a
+  call inside a runtime is `Usage`; a read inside a runtime fails with no
+  panic; a dial that fails is a failure of the dial.
 * `tests/live.rs` (1, ignored): 1 MiB through the real relay, with the
   proxy of the environment:
   `cargo test -p pod-gsr --test live -- --ignored`.

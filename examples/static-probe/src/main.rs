@@ -69,6 +69,15 @@ fn main() {
         pod_gsr::check_tls(&settings).map(|openssl| format!("{host}, {openssl}"))
     });
     lines.push(format!("pod-gsr: {}", gsr.unwrap_or_else(|e| e.to_string())));
+    // The blocking face with a secret of no byte (with no argument): it
+    // refuses before the dial, and its runtime links in.
+    let secret = "x".repeat(std::env::args().len().saturating_sub(1));
+    let blocking = pod_gsr::Settings::of_data().and_then(|settings| {
+        let mut entropy = pod_core::entropy::OsEntropy;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        pod_gsr::blocking::open(&dialer, &settings, pod_gsr::Role::Connect, &secret, &mut entropy, deadline)
+    });
+    lines.push(format!("pod-gsr blocking: {}", blocking.map_or_else(|e| e.to_string(), |s| format!("{s:?}"))));
     lines.extend(hostprobe());
     lines.extend(supervise());
     for line in lines {

@@ -5,7 +5,8 @@
 //! `pod_core::Dial` of the caller, sends `LISTEN` or `CONNECT`, waits for the
 //! `START` of the relay and pings the relay while it waits, sends `ACCEPT`,
 //! and runs the TLS handshake. The result is a `Stream` whose bytes are the
-//! caller's own.
+//! caller's own. The feature `blocking` gives the same calls to a caller
+//! with no tokio runtime (`blocking::open`, `blocking::Stream`).
 //!
 //! The facts of the relay are the data file `hackerschoice-gsr` of
 //! `pod-services`: the domain and the port, the two keys of the derivations,
@@ -25,6 +26,8 @@
 // zig's compiler-rt has no __atomic_is_lock_free for i686, which OpenSSL calls.
 #[cfg(all(target_arch = "x86", target_os = "linux", target_env = "musl"))]
 mod atomic;
+#[cfg(feature = "blocking")]
+pub mod blocking;
 mod identity;
 #[cfg(feature = "rt")]
 mod session;

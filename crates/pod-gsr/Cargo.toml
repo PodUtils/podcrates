@@ -11,9 +11,14 @@ repository.workspace = true
 default = ["async"]
 # The async face: `open` and `Stream`, on tokio.
 async = ["rt"]
-# The control handshake and the TLS stream on tokio. The face `async` turns
-# it on. With no feature, the crate is the core with no tokio: the identity,
-# the settings, the messages and the SRP context.
+# The blocking face (`pod_gsr::blocking`): the same code on a private
+# current-thread runtime, for a consumer with no tokio runtime. With no
+# feature `async`, the async face is not public.
+blocking = ["rt", "tokio/rt"]
+# The control handshake and the TLS stream on tokio. Each face turns it on;
+# a consumer names `async` or `blocking`. With neither, the crate is the
+# core with no tokio: the identity, the settings, the messages and the SRP
+# context.
 rt = ["dep:tokio", "dep:tokio-openssl", "dep:foreign-types", "pod-core/async"]
 # The reader of the relay's messages (`wire::Reader`) is public, for the
 # fuzz target `gsr_message` of fuzz/. The `--cfg fuzzing` of cargo-fuzz also
@@ -62,3 +67,7 @@ required-features = ["async"]
 [[test]]
 name = "live"
 required-features = ["async"]
+
+[[test]]
+name = "blocking"
+required-features = ["blocking"]
