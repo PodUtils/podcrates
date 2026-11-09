@@ -297,7 +297,7 @@ others read its raw system calls.
 | `pod-oci` | podvm `crates/podvm-image` (part: reference, platform, credentials, registry, transport, digest, the OCI types, layout, pull; the content store stays in podvm) | 4,500 | pod-core, pod-tls, pod-proxy |
 | `pod-extract` | podvm `crates/podvm-extract`: the rootless apply of a layer (order, whiteouts, path containment, an ownership sidecar in place of chown) | 3,000 | pod-core, pod-hostprobe |
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system (device nodes, accounts, the package configuration, the resolver, the CA data from `pod-tls`) | 4,600 | pod-core, pod-hostprobe, pod-tls |
-| `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the class of an ELF file, the launch modes: loader, memfd) | 7,800 | pod-core, pod-hostprobe |
+| `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the namespace rung, the entry with no chroot, the launch ladder: memfd, FUSE, tmpfs, run directory, cache; the device hand-over; the reader of ELF files); the names are the caller's (`Names`), and docker's 125 stays in podvm | 8,000 | pod-core, pod-hostprobe |
 | `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
 | `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm | 3,300 | pod-core, pod-hostprobe |
 
@@ -441,7 +441,8 @@ Each crate is one record entry, or more for a large merge. Its commits:
    `.cargo/config.toml` line of each consumer to its new form).
 7. **Adoption trial.** `adoption.yml` runs in CI: a checkout of a
    consumer and its `target/` do not fit the disk of a session. It
-   checks out the consumer at the commit of `adoption/CONSUMER/commit`,
+   checks out the consumer at the commit of `adoption/CONSUMER/commit`
+   (or of `adoption/CONSUMER/CRATE.commit`, for a patch on a later commit),
    applies `adoption/CONSUMER/pod-X.patch` (the glue: the paths, the
    settings, the events), points the git source of podcrates to the
    checkout of the push, and runs: the tests of the replaced module; the
