@@ -9,7 +9,7 @@ procedure of `docs/design.md`, section 8.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -149,8 +149,11 @@ probe --rows`: 66 rows, 54 ok, 9 denied, 3 skipped, none "the child for";
 runtime-state rows, the record gate, the toolchains and the static
 `node` and `podvm`. It skips `abi::tests::resolve_past_a_denied_listing`
 of podvm-enter: it runs the test binary as nobody, which cannot read a
-target directory under a home of mode 0700. Each step passed. Remains:
-the release of v0.6.0 and the take by podvm.
+target directory under a home of mode 0700. Each step passed. podvm took the crate in podvm `8899c2e` (PodUtils/podvm@T-1681, PodUtils/podvm#210) at
+`v0.6.0` (release 42261756998): 26 files of `podvm-probe` left podvm, and
+the `SOURCES` of the crate has its `taken` line, so
+`scripts/check-sources.py` reads no change for `pod-hostprobe`. `v0.7.0`
+gives podvm's glue `Failure::io_cause` and `Class::NotFound` (T-081).
 
 
 # T-056: `pod-oci`: the OCI registry client of podvm

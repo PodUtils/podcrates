@@ -158,15 +158,20 @@ the repositories:
   of each repository of PodUtils for `(to podcrates)`
   (`scripts/agent/watch-org.sh`).
 
-### A run of a workflow (GitHub Actions is off for the session)
+### A run of a workflow
 
-The session's pushes start no workflow (Q6). For each run that the session
-needs, open a new issue titled exactly `[gh action] requested`: one line of
-why, and one `sh` block with each `gh` command in full (`-R` and each flag),
-`set -e` first. The owner's local agent runs the block once and writes the
-output or the error back. Never amend the block or add a second block to an
-open request: close it and open a new issue. Push nothing to `main` that the
-block's guard of the head would refuse until it ran.
+The session dispatches a workflow with the GitHub MCP tool
+`actions_run_trigger` (`run_workflow`, with the ref and the inputs), and
+reads the run with `actions_list` and `actions_get`. A push to `main`
+starts no workflow for the session's account (Q6): dispatch `ci.yml` on
+`main` after each push that needs CI.
+
+When the dispatch fails, open a new issue titled exactly
+`[gh action] requested`: one line of why, and one `sh` block with each
+`gh` command in full (`-R` and each flag), `set -e` first. The owner's
+local agent runs the block once and writes the output or the error back.
+Never amend the block or add a second block to an open request: close it
+and open a new issue.
 
 ## Shared CI scripts
 

@@ -3,6 +3,7 @@
 # with the main branch of its repository.
 
 repo PodUtils/podvm 2c03085f857719d8f35341bd251c6bee90414a8f
+taken 8899c2edc87ebcd484a9fbaeab8a19f081c180d5
 dir crates/podvm-probe/src
 dir crates/podvm-probe/tests
 # exit.rs, json.rs, report.rs, report/ and nongoals.rs are the CLI and the

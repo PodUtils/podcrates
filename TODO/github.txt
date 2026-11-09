@@ -14,11 +14,13 @@
 7 issue closed
 8 issue closed
 9 issue closed
-10 issue open
-11 issue open
+10 issue closed
+11 issue closed
 12 issue closed
 13 issue closed
 14 issue closed
 15 issue closed
-16 issue open
-17 issue open
+16 issue closed
+17 issue closed
+18 issue closed
+19 issue closed
