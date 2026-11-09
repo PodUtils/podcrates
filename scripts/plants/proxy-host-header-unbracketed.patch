@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/host.rs b/crates/pod-proxy/src/host.rs
+index 144d749..b02720a 100644
+--- a/crates/pod-proxy/src/host.rs
++++ b/crates/pod-proxy/src/host.rs
+@@ -15,7 +15,7 @@ pub fn host_header(host: &str, port: u16) -> String {
+     if port != 443 {
+         return authority(host, port);
+     }
+-    if host.contains(':') && !host.starts_with('[') { format!("[{host}]") } else { host.to_string() }
++    host.to_string()
+ }
+ 
+ /// Refuse a name that would break a request line or a header.

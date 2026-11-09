@@ -1,0 +1,7 @@
+# The brackets of an IPv6 literal lost on port 443 in the Host header; the
+# unit test of host_header must fail.
+ENTRY=T-082
+GROUP=proxy
+EXPECT='test host::tests::the_host_header_brackets_an_ipv6_literal_on_each_port \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib -- host_header'
+LIMIT=1800
