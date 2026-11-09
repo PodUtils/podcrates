@@ -352,12 +352,21 @@ pub const O_EXCL: u64 = 0o200;
 /// an `open` of a tty can make it the prober's controlling terminal, which is
 /// a mutation of the process doing the measuring.
 pub const O_NOCTTY: u64 = 0o400;
+/// The kernel's value differs by architecture: arm, aarch64 and powerpc
+/// use 0o40000, the others 0o200000.
+#[cfg(any(target_arch = "arm", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "powerpc"))]
+pub const O_DIRECTORY: u64 = 0o40000;
+#[cfg(not(any(target_arch = "arm", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "powerpc")))]
 pub const O_DIRECTORY: u64 = 0o200000;
 pub const O_CLOEXEC: u64 = 0o2000000;
 pub const O_TRUNC: u64 = 0o1000;
 /// The one flag that makes an `open` of a path component a statement about
 /// that component rather than about wherever a symlink pointed. Every directory
 /// descent of an extraction carries it.
+#[cfg(any(target_arch = "arm", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "powerpc"))]
+pub const O_NOFOLLOW: u64 = 0o100000;
+/// See [`O_DIRECTORY`]: the value follows the architecture.
+#[cfg(not(any(target_arch = "arm", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "powerpc")))]
 pub const O_NOFOLLOW: u64 = 0o400000;
 pub const O_PATH: u64 = 0o10000000;
 

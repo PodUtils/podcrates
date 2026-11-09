@@ -2,6 +2,18 @@ use super::*;
 
 const N: Names = Names::DEFAULT;
 
+/// An emulator runs this test binary: it translates the calls of the test
+/// but a child that execs the trampoline needs the kernel, so the exec
+/// tests cannot give a true answer there.
+fn emulated() -> bool {
+    let set = |v: &str| std::env::var_os(v).is_some();
+    let e = pod_hostprobe::interp::detect(&set);
+    if e.is_emulated() {
+        pod_testkit::host::skip_line("an emulator runs this test, and it does not exec a memfd as a kernel does");
+    }
+    e.is_emulated()
+}
+
 /// Each measurement with its sysctl, mapped. Shared by the tests below.
 fn cases() -> Vec<MemfdExec> {
     use MemfdExec as M;
@@ -110,6 +122,9 @@ fn the_trampoline_is_a_static_elf_for_this_machine() {
 /// 1). Value 2: `memfd_create` is refused, named as the sysctl.
 #[test]
 fn the_probe_answers_from_this_host() {
+    if emulated() {
+        return;
+    }
     let m = memfd_exec();
     match read_sysctl() {
         Some(2) => assert_eq!(answer(&N, m).standing, Standing::Denied, "vm.memfd_noexec=2 denies: {m:?}"),
@@ -125,6 +140,9 @@ fn the_probe_answers_from_this_host() {
 /// the probe maps that to `NoExec`, which denies.
 #[test]
 fn a_memfd_sealed_against_exec_reads_as_no_exec() {
+    if emulated() {
+        return;
+    }
     let name = sys::CBuf::new("pod-enter-noexec").expect("literal has no NUL");
     let flags = super::super::MFD_CLOEXEC | super::super::MFD_NOEXEC_SEAL;
     let fd = match unsafe { sys::sys(sys::SYS_MEMFD_CREATE, [name.ptr(), flags, 0, 0, 0, 0]) } {

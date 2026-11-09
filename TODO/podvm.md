@@ -944,3 +944,52 @@ of `pod-hostprobe` passes (96 tests), with `an_id_above_65535_reads_whole`
 (a child as root sets the id 100000 and reads it back). `pod-hostprobe` and
 `pod-enter` build for `arm` and `armv7`. The nightly is the proof for the
 arm runs.
+
+# T-134: `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc
+
+**Source:** nightly run 42703485489 (v0.9.0), jobs `cross` of aarch64, armv7, arm and powerpc64le.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`sys::O_DIRECTORY` (`0o200000`) and `sys::O_NOFOLLOW` (`0o400000`) are the
+values of x86. On arm, aarch64 and powerpc the kernel has `0o40000` and
+`0o100000`. `RootDir::open` of `pod-enter` opens a directory with these
+flags, so it failed on a real directory: the test
+`a_symlinked_rootfs_is_refused_and_names_its_target` failed.
+
+Two other tests of `pod-enter` failed on aarch64 under QEMU user mode:
+`the_probe_answers_from_this_host` and
+`a_memfd_sealed_against_exec_reads_as_no_exec`. The child of the probe execs
+a memfd, and the emulator answers `ENOENT`. That is no defect of the code.
+
+## Premise
+
+- Read: `fcntl.h` of arm, aarch64 and powerpc has `O_DIRECTORY` `0o40000`
+  and `O_NOFOLLOW` `0o100000`. The other targets have the values of x86.
+- Read: the emulator answers `ENOENT` for the exec of a memfd.
+
+## Approach
+
+- `sys.rs` chooses the two flags by `target_arch`. A test makes the kernel
+  say what each flag does (a file is `ENOTDIR`, a link is `ELOOP`).
+- The two memfd tests return with a printed reason when
+  `pod_hostprobe::interp::detect` finds an emulator.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe -p pod-enter
+cargo zigbuild --tests -p pod-enter -p pod-hostprobe --target aarch64-unknown-linux-musl  # run with qemu-aarch64
+```
+
+## Done
+
+2026-11-09. Commit: the commit that names T-134. The tests of `pod-enter`
+and `pod-hostprobe` built for aarch64, armv7 and powerpc64le pass under
+`qemu-user`, except `resolve_past_a_denied_listing`, which needs the
+`binfmt_misc` registration that the nightly makes. The nightly is the proof.

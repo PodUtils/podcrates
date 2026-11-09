@@ -223,3 +223,22 @@ fn an_id_above_65535_reads_whole() {
         assert_ne!(e.raw_os_error(), Some(4243), "an id above 65535 was not set");
     }
 }
+
+/// The open flags are numbers of the kernel that differ by architecture. A
+/// wrong value opens a directory as a plain file or follows a link, so the
+/// test makes the kernel say what each flag does.
+#[test]
+fn the_open_flags_mean_what_the_kernel_means_on_each_target() {
+    let dir = std::env::temp_dir().join(format!("pod-hostprobe-flags-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("d")).unwrap();
+    std::fs::write(dir.join("f"), b"x").unwrap();
+    std::os::unix::fs::symlink(dir.join("d"), dir.join("l")).unwrap();
+    let path = |n: &str| CBuf::new(dir.join(n).to_str().unwrap()).unwrap();
+
+    let fd = open(&path("d"), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC, 0).expect("a directory opens");
+    let _ = close(fd as i64);
+    assert_eq!(open(&path("f"), O_RDONLY | O_DIRECTORY, 0).unwrap_err(), Errno(20), "O_DIRECTORY refuses a file");
+    assert_eq!(open(&path("l"), O_RDONLY | O_NOFOLLOW, 0).unwrap_err(), Errno(40), "O_NOFOLLOW refuses a link");
+    let _ = std::fs::remove_dir_all(&dir);
+}
