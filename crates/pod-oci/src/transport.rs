@@ -1,61 +1,39 @@
-//! Which registries podvm may reach over plain HTTP, and whose certificate it
-//! may decline to verify.
+//! Which registries the client may reach over plain HTTP, and whose
+//! certificate it may not check.
 //!
-//! [`TODO/image.md`](../../../TODO/image.md) T-0213.
+//! The default is HTTPS with a full check of the certificate. The client
+//! does not fall back to plain HTTP on its own: on hosts where outbound
+//! tcp/80 is dropped, a fallback hangs and does not fail. A registry that the
+//! caller named is a different case: a local registry on loopback with a
+//! certificate of its own, or with none.
 //!
-//! ⛔ **The default is unchanged and is still HTTPS with full verification.**
-//! [T-0201](../../../TODO/image.md) refused a plain-HTTP *fallback* because
-//! tcp/80 egress is broken on the runtime podvm targets, so an automatic
-//! downgrade **hangs** instead of failing. That finding stands. What it does
-//! not justify is refusing a registry the caller has explicitly named, which is
-//! the ordinary case of a local registry on loopback with a self-signed
-//! certificate or none at all.
+//! A fallback and an instruction are different. The client stops a check or
+//! speaks HTTP only for a registry that the caller named, and it says so
+//! each time ([`Policy::disclosure`], and an event of
+//! [`crate::registry::Client`]): an automated caller cannot see a weaker
+//! transport as a person can.
 //!
-//! ⭐ **The distinction this module draws is between a fallback and an
-//! instruction.** podvm never decides on its own to stop verifying or to speak
-//! HTTP. It does either when a caller named that registry, and it says so on
-//! stderr every time, because the audience is automated and an agent cannot
-//! notice that its transport was downgraded the way a person might.
-//!
-//! ⚠ **A correction to what this file used to say.** `crates/podvm-image/src/tls.rs`
-//! stated that "`docs/security/remote-ops.md` and the environment note in
-//! `AGENTS.md` both say never to disable verification". Checked on
-//! 2026-09-09: `remote-ops.md` says nothing about TLS at all, and
-//! `AGENTS.md`'s note is an instruction to **the agent** about this
-//! development container's intercepting proxy, not a rule about what podvm may
-//! offer its users. The rule that was cited did not exist where it was cited.
+//! The caller fills the policy from its flags, its variables and its file;
+//! [`parse_hosts`] reads the lines of a file of hosts.
 
 use std::collections::BTreeSet;
 
-use crate::error::{Error, Result};
-
-/// `docker --insecure-registry`'s own environment spelling, plus podvm's.
-const ENV_INSECURE: &str = "PODVM_INSECURE_REGISTRIES";
-
-// ⛔ A loopback registry is never reached through a proxy, and `NO_PROXY` is
-// honoured. [`crate::net`] and `pod-proxy` decide, for each request.
-
-/// One host per line, `#` comments. ⚠ Deliberately line-based rather than TOML:
-/// podman's `registries.conf` is a schema this would have to track, and a file
-/// podvm reads has to be readable by a shell script in
-/// `experiments/` without a parser.
-const CONFIG_ENV: &str = "PODVM_CONFIG";
-const CONFIG_LEAF: &str = "podvm/registries.conf";
+use crate::error::{Result, usage};
 
 /// What a caller asked for, resolved once and then carried by value.
 #[derive(Debug, Clone, Default)]
 pub struct Policy {
-    /// Registries permitted plain HTTP **and** unverified TLS. docker's
-    /// `--insecure-registry` means both, and so does this.
+    /// The registries with plain HTTP and TLS with no check of the
+    /// certificate. docker's `--insecure-registry` means both, and so does
+    /// this.
     insecure: BTreeSet<String>,
-    /// ⚠ `Some(false)` is podman's `--tls-verify=false` and applies to every
-    /// registry this invocation touches, not to a named one. `None` is "not
-    /// mentioned", which is not the same as `Some(true)`: an explicit
-    /// `--tls-verify=true` overrides the config file and the environment, and
-    /// silence does not.
+    /// `Some(false)` is podman's `--tls-verify=false`: it applies to each
+    /// registry of the call, not to a named one. `None` is "not given", which
+    /// is not `Some(true)`: an explicit `--tls-verify=true` wins over the
+    /// file and the environment, and no word does not.
     tls_verify: Option<bool>,
-    /// Whether a permitted host may be retried over HTTP after HTTPS fails to
-    /// connect. ⛔ Only ever for a host already named insecure.
+    /// Whether a named host gets a new try over HTTP after HTTPS does not
+    /// connect. Only for a host that the caller named insecure.
     pub http_fallback: bool,
 }
 
@@ -67,40 +45,27 @@ pub struct Decision {
 }
 
 impl Policy {
-    /// Build the policy from the flags, then the environment, then the config
-    /// file. ⚠ A flag never *loses* to a file: the sets are unioned, and the
-    /// only scalar, `tls_verify`, takes the flag when there is one.
-    pub fn resolve(insecure_flags: &[String], tls_verify_flag: Option<bool>) -> Result<Policy> {
+    /// The policy of the hosts that the caller named insecure, each checked
+    /// by [`normalise_host`], and of `--tls-verify`. The caller joins its
+    /// flags, its variables and its file into `hosts`: a flag never loses to
+    /// a file, as the sets join and `tls_verify` is the flag's.
+    pub fn resolve<'a>(hosts: impl IntoIterator<Item = &'a str>, tls_verify: Option<bool>) -> Result<Policy> {
         let mut insecure = BTreeSet::new();
-        for h in insecure_flags {
+        for h in hosts {
             insecure.insert(normalise_host(h)?);
         }
-        if let Ok(v) = std::env::var(ENV_INSECURE) {
-            for h in v.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-                insecure.insert(
-                    normalise_host(h).map_err(|e| {
-                        Error::Usage(format!("${ENV_INSECURE} lists a bad host: {e}"))
-                    })?,
-                );
-            }
-        }
-        for h in read_config()? {
-            insecure.insert(h);
-        }
-        Ok(Policy {
-            insecure,
-            tls_verify: tls_verify_flag,
-            http_fallback: true,
-        })
+        Ok(Policy { insecure, tls_verify, http_fallback: true })
     }
 
-    /// ⚠ For tests and for callers that have already resolved their own set.
+    /// The same policy with `tls_verify` (podman's `--tls-verify`).
+    pub fn with_tls_verify(self, tls_verify: Option<bool>) -> Policy {
+        Policy { tls_verify, ..self }
+    }
+
+    /// A policy of hosts with no check: for tests and for callers that
+    /// resolved their own set.
     pub fn with_insecure(hosts: &[&str]) -> Policy {
-        Policy {
-            insecure: hosts.iter().map(|h| (*h).to_string()).collect(),
-            tls_verify: None,
-            http_fallback: true,
-        }
+        Policy { insecure: hosts.iter().map(|h| (*h).to_string()).collect(), tls_verify: None, http_fallback: true }
     }
 
     pub fn is_insecure(&self, endpoint: &str) -> bool {
@@ -109,9 +74,9 @@ impl Policy {
 
     /// Whether this endpoint's certificate is verified.
     ///
-    /// ⛔ `--tls-verify=true` wins over everything, including a host listed in
-    /// the config file. A caller who says "verify" this time means it, and a
-    /// file they may not have written must not quietly override them.
+    /// `--tls-verify=true` wins over each other source, also over a host of
+    /// the file: the caller asked for the check now, and a file that the
+    /// caller may not have written does not win with no word.
     pub fn verify(&self, endpoint: &str) -> bool {
         match self.tls_verify {
             Some(v) => v,
@@ -121,25 +86,18 @@ impl Policy {
 
     /// The first transport to try for an endpoint.
     pub fn first(&self, endpoint: &str) -> Decision {
-        Decision {
-            scheme: "https",
-            verify: self.verify(endpoint),
-        }
+        Decision { scheme: "https", verify: self.verify(endpoint) }
     }
 
     /// The transport to try after `first` failed to connect, if any.
     ///
-    /// ⛔ `None` unless the caller named this endpoint insecure. podvm does not
-    /// discover that a registry speaks HTTP; it is told. That is the whole of
-    /// [T-0201](../../../TODO/image.md)'s finding kept intact: an automatic
-    /// downgrade on a network where tcp/80 is black-holed is a hang, and a hang
-    /// costs an unattended caller its whole run.
+    /// `None` unless the caller named this endpoint insecure. The client does
+    /// not find that a registry speaks HTTP; the caller tells it. A fallback
+    /// on its own on a network that drops tcp/80 is a hang, and a hang costs
+    /// an automated caller its whole run.
     pub fn after_connect_failure(&self, endpoint: &str) -> Option<Decision> {
         if self.http_fallback && self.is_insecure(endpoint) {
-            Some(Decision {
-                scheme: "http",
-                verify: false,
-            })
+            Some(Decision { scheme: "http", verify: false })
         } else {
             None
         }
@@ -150,9 +108,9 @@ impl Policy {
         self.is_insecure(endpoint)
     }
 
-    /// One line, for the caller to print on stderr. ⛔ Never silent: an agent
-    /// cannot notice a downgraded transport the way a person might, and
-    /// `AGENTS.md` says the honesty rules are the product.
+    /// One line for the caller to show, with no name of a program before it.
+    /// Never silent: an automated caller cannot see a weaker transport as a
+    /// person can.
     pub fn disclosure(&self, endpoint: &str) -> Option<String> {
         let verify = self.verify(endpoint);
         let http = self.is_insecure(endpoint);
@@ -166,32 +124,25 @@ impl Policy {
         if http && self.http_fallback {
             what.push("plain HTTP is permitted if HTTPS cannot connect");
         }
-        Some(format!(
-            "podvm: {endpoint} is configured as an insecure registry: {}",
-            what.join(", ")
-        ))
+        Some(format!("{endpoint} is configured as an insecure registry: {}", what.join(", ")))
     }
 
-    /// Every endpoint named, for `podvm inspect` and for a diagnostic.
+    /// Each named endpoint, for a report and for a diagnostic.
     pub fn named(&self) -> Vec<&str> {
         self.insecure.iter().map(String::as_str).collect()
     }
 }
 
-/// ⚠ A host, never a URL. `--insecure-registry https://x/` is a common mistake
-/// and is refused by name rather than stored as a key nothing will match.
-fn normalise_host(h: &str) -> Result<String> {
+/// A host, never a URL. `--insecure-registry https://x/` is a frequent
+/// mistake: it gets a refusal by name, not a key that matches nothing.
+pub fn normalise_host(h: &str) -> Result<String> {
     let h = h.trim();
     if h.is_empty() {
-        return Err(Error::Usage(
-            "an empty --insecure-registry names nothing. Write a host, for \
-             example localhost:5000"
-                .into(),
-        ));
+        return Err(usage("an empty --insecure-registry names nothing. Write a host, for example localhost:5000"));
     }
     for bad in ["http://", "https://"] {
         if let Some(rest) = h.strip_prefix(bad) {
-            return Err(Error::Usage(format!(
+            return Err(usage(format!(
                 "--insecure-registry takes a HOST and not a URL: write \
                  {:?} rather than {h:?}",
                 rest.trim_end_matches('/')
@@ -199,7 +150,7 @@ fn normalise_host(h: &str) -> Result<String> {
         }
     }
     if h.contains('/') {
-        return Err(Error::Usage(format!(
+        return Err(usage(format!(
             "--insecure-registry takes a host, optionally with a port, and \
              {h:?} contains a path"
         )));
@@ -207,42 +158,20 @@ fn normalise_host(h: &str) -> Result<String> {
     Ok(h.to_string())
 }
 
-/// `$PODVM_CONFIG`, else `$XDG_CONFIG_HOME/podvm/registries.conf`, else
-/// `$HOME/.config/podvm/registries.conf`. ⚠ A missing file is not an error:
-/// most machines have none and that is the default.
-fn read_config() -> Result<Vec<String>> {
-    let path = match std::env::var_os(CONFIG_ENV) {
-        Some(p) if !p.is_empty() => std::path::PathBuf::from(p),
-        _ => {
-            let base = std::env::var_os("XDG_CONFIG_HOME")
-                .map(std::path::PathBuf::from)
-                .or_else(|| {
-                    std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config"))
-                });
-            match base {
-                Some(b) => b.join(CONFIG_LEAF),
-                None => return Ok(Vec::new()),
-            }
-        }
-    };
-    let text = match std::fs::read_to_string(&path) {
-        Ok(t) => t,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(Error::io(path.display().to_string(), e)),
-    };
+/// The hosts of a file of hosts: one host per line, `#` starts a comment.
+/// `label` names the file in an error. A file of lines, not TOML: the
+/// `registries.conf` of podman is a schema that the client would follow, and
+/// a shell script reads lines with no parser. A bad line gets a refusal
+/// with its number, never a skip: a skipped line is a registry that the
+/// caller thinks is named and that is not.
+pub fn parse_hosts(text: &str, label: &str) -> Result<Vec<String>> {
     let mut out = Vec::new();
     for (n, raw) in text.lines().enumerate() {
         let line = raw.split('#').next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
         }
-        // ⛔ A bad line in a config file is named with its line number and
-        // refused, never skipped. A silently ignored entry is a registry the
-        // caller believes is permitted and is not.
-        out.push(
-            normalise_host(line)
-                .map_err(|e| Error::Usage(format!("{}:{}: {e}", path.display(), n + 1)))?,
-        );
+        out.push(normalise_host(line).map_err(|e| usage(format!("{label}:{}: {e}", n + 1)))?);
     }
     Ok(out)
 }
@@ -265,42 +194,30 @@ mod tests {
         let p = Policy::with_insecure(&["localhost:5000"]);
         assert!(!p.verify("localhost:5000"));
         assert!(p.permits_explicit_http("localhost:5000"));
-        assert_eq!(
-            p.after_connect_failure("localhost:5000"),
-            Some(Decision {
-                scheme: "http",
-                verify: false
-            })
-        );
+        assert_eq!(p.after_connect_failure("localhost:5000"), Some(Decision { scheme: "http", verify: false }));
         let said = p.disclosure("localhost:5000").expect("a disclosure");
         assert!(said.contains("NOT verified"), "{said}");
-        // ⛔ And it changes nothing for any OTHER registry.
+        // And it changes nothing for each other registry.
         assert!(p.verify("ghcr.io"));
         assert_eq!(p.after_connect_failure("ghcr.io"), None);
     }
 
     #[test]
     fn tls_verify_true_beats_a_host_named_insecure() {
-        // ⛔ A caller who says "verify" this time means it, and a config file
-        // they may not have written must not quietly override them.
-        let p = Policy {
-            tls_verify: Some(true),
-            ..Policy::with_insecure(&["localhost:5000"])
-        };
+        // The caller asked for the check now: a file that the caller may not
+        // have written does not win.
+        let p = Policy::with_insecure(&["localhost:5000"]).with_tls_verify(Some(true));
         assert!(p.verify("localhost:5000"));
     }
 
     #[test]
     fn tls_verify_false_applies_to_every_registry_this_invocation_touches() {
-        // ⚠ podman's semantics: the flag is per-command, not per-host.
-        let p = Policy {
-            tls_verify: Some(false),
-            ..Policy::default()
-        };
+        // podman's meaning: the flag is for the command, not for one host.
+        let p = Policy::default().with_tls_verify(Some(false));
         assert!(!p.verify("ghcr.io"));
-        // ⛔ But it does NOT permit plain HTTP. Not verifying a certificate and
-        // not having one are different asks, and only --insecure-registry is
-        // the second.
+        // It does not allow plain HTTP. No check of a certificate and no
+        // certificate are different asks; only --insecure-registry is the
+        // second.
         assert!(!p.permits_explicit_http("ghcr.io"));
         assert_eq!(p.after_connect_failure("ghcr.io"), None);
     }
@@ -312,9 +229,19 @@ mod tests {
         assert!(text.contains("localhost:5000"), "{text}");
         assert!(normalise_host("localhost:5000/v2").is_err());
         assert!(normalise_host("  ").is_err());
-        assert_eq!(
-            normalise_host(" localhost:5000 ").unwrap(),
-            "localhost:5000"
-        );
+        assert_eq!(normalise_host(" localhost:5000 ").unwrap(), "localhost:5000");
+    }
+
+    #[test]
+    fn a_file_of_hosts_names_its_bad_line_and_joins_the_flags() {
+        let hosts = parse_hosts("# local\nlocalhost:5000\n\n  reg.lan # lab\n", "hosts.conf").unwrap();
+        assert_eq!(hosts, ["localhost:5000", "reg.lan"]);
+        let e = parse_hosts("ok.lan\nhttps://x/\n", "hosts.conf").unwrap_err();
+        assert!(e.to_string().starts_with("hosts.conf:2: "), "{e}");
+        assert_eq!(e.class, pod_core::Class::Usage);
+        let p =
+            Policy::resolve(["a.lan", " b.lan "].into_iter().chain(hosts.iter().map(String::as_str)), None).unwrap();
+        assert_eq!(p.named(), ["a.lan", "b.lan", "localhost:5000", "reg.lan"]);
+        assert!(Policy::resolve(["a/b"], None).is_err());
     }
 }

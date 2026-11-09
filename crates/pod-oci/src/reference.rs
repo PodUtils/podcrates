@@ -1,24 +1,29 @@
-//! Image reference parsing, to docker's normalisation rules.
+//! The parse of an image reference, by docker's rules of normalisation.
 //!
-//! ⚠ The normalisation is not cosmetic: `alpine`, `alpine:latest`,
-//! `docker.io/library/alpine` and `index.docker.io/library/alpine:latest` are
-//! one image, and a store that treats them as four pulls four times and answers
-//! `podvm images alpine` with nothing.
+//! The normalisation has a function: `alpine`, `alpine:latest`,
+//! `docker.io/library/alpine` and `index.docker.io/library/alpine:latest`
+//! are one image. A store that keys them as four images pulls four times.
 //!
-//! ⛔ HTTPS only, per `TODO/image.md` T-0201. A reference written with an
-//! explicit `http://` scheme is refused by name rather than downgraded.
+//! HTTPS only. A reference with an explicit `http://` scheme is carried as
+//! [`Reference::plain_http`], and the caller decides with its policy
+//! ([`crate::transport::Policy::permits_explicit_http`]).
+//!
+//! The names of Docker Hub are docker's rules of the reference, so they are
+//! constants here. The service file `docker-hub-registry` of `pod-services`
+//! holds the same values, and a test compares them.
 
 use std::fmt;
 
 use crate::digest::Digest;
-use crate::error::{Error, Result};
+use crate::error::{Result, usage};
 
-/// What a bare name resolves to. ⚠ `docker.io` is the canonical *name* and
-/// `registry-1.docker.io` is the host that answers `/v2/`; they are not
-/// interchangeable and docker prints the first while talking to the second.
+/// The domain of a name with no domain. `docker.io` is the name that docker
+/// prints, and `registry-1.docker.io` is the host that answers `/v2/`.
 pub const DEFAULT_DOMAIN: &str = "docker.io";
 pub const DEFAULT_ENDPOINT: &str = "registry-1.docker.io";
-/// docker prefixes a single-component name with this before asking the hub.
+/// The other domains of Docker Hub: each one has [`DEFAULT_ENDPOINT`].
+pub const HUB_ALIASES: &[&str] = &["index.docker.io"];
+/// docker puts this prefix before a name of one component on the hub.
 pub const OFFICIAL_PREFIX: &str = "library";
 pub const DEFAULT_TAG: &str = "latest";
 
@@ -33,11 +38,10 @@ pub struct Reference {
     pub repository: String,
     pub tag: Option<String>,
     pub digest: Option<Digest>,
-    /// ⭐ The caller wrote `http://`. TODO/image.md T-0213: this is carried
-    /// rather than refused here, because whether it is honoured depends on the
-    /// transport policy and a `Reference` is a name that knows nothing about
-    /// one. ⛔ The refusal still happens, in `pull`, where the policy is in
-    /// scope and the message can name the flag that would permit it.
+    /// The caller wrote `http://`. The parse does not refuse it: the
+    /// transport policy decides, and a `Reference` is a name that knows no
+    /// policy. The caller refuses it where its policy and its flags are in
+    /// scope.
     pub plain_http: bool,
 }
 
@@ -45,52 +49,41 @@ impl Reference {
     pub fn parse(input: &str) -> Result<Reference> {
         let s = input.trim();
         if s.is_empty() {
-            return Err(Error::Reference("the reference is empty".into()));
+            return Err(usage("invalid reference: the reference is empty"));
         }
         for scheme in ["http://", "https://"] {
             if let Some(rest) = s.strip_prefix(scheme) {
                 if scheme == "http://" {
-                    // ⭐ TODO/image.md T-0213. The scheme is stripped and the
-                    // HOST is remembered, so the caller can be told which
-                    // registry to permit. ⛔ Parsing does not decide: a
-                    // `Reference` is a name and knows nothing about transport
-                    // policy, and threading a policy in here would put the
-                    // decision in the one place that cannot report it.
-                    // `Reference::plain_http` carries the fact upwards.
+                    // The scheme goes and the host stays, so that the caller
+                    // can name the registry to permit.
                     let mut r = Reference::parse(rest)?;
                     r.plain_http = true;
                     return Ok(r);
                 }
-                // ⚠ `https://` is accepted and stripped rather than refused:
-                // it says nothing podvm does not already do, and refusing it
-                // would fail a reference that is exactly right.
+                // `https://` is accepted and removed: it asks for what the
+                // client does in each case.
                 return Reference::parse(rest);
             }
         }
 
-        // The digest first: `@` cannot appear in a domain or a tag, so it is
-        // unambiguous wherever it is.
+        // The digest first: `@` is not in a domain or a tag, so it has one
+        // meaning wherever it is.
         let (rest, digest) = match s.split_once('@') {
             Some((rest, d)) => (rest, Some(Digest::parse(d)?)),
             None => (s, None),
         };
 
-        // docker's rule: the first component is a domain when it carries a `.`
-        // or a `:`, or is exactly `localhost`. Everything else is a repository
-        // path on the hub. ⚠ Without this, `myhost:5000/x` and `user/x:5000`
-        // are indistinguishable.
+        // docker's rule: the first component is a domain when it has a `.` or
+        // a `:`, or is `localhost`. Each other name is a path on the hub.
+        // With no rule, `myhost:5000/x` and `user/x:5000` are the same.
         let (domain, remainder) = match rest.split_once('/') {
-            Some((head, tail))
-                if head == "localhost" || head.contains('.') || head.contains(':') =>
-            {
-                // ⛔ Validated, not merely recognised. `..` contains a dot, so
-                // the rule above alone reads `../etc/passwd` as a registry
-                // called `..` with a repository called `etc/passwd`, and the
-                // repository check below then passes it. Measured here on
-                // 2026-09-08 by the test named for it.
+            Some((head, tail)) if head == "localhost" || head.contains('.') || head.contains(':') => {
+                // Checked, not only found. `..` has a dot, so the rule above
+                // reads `../etc/passwd` as a registry `..` with a repository
+                // `etc/passwd`, and the check of the repository passes it.
                 if !is_domain(head) {
-                    return Err(Error::Reference(format!(
-                        "{input:?}: {head:?} is where a registry host goes and is \
+                    return Err(usage(format!(
+                        "invalid reference: {input:?}: {head:?} is where a registry host goes and is \
                          not one"
                     )));
                 }
@@ -99,42 +92,34 @@ impl Reference {
             _ => (DEFAULT_DOMAIN.to_string(), rest),
         };
 
-        // The tag is after the LAST colon, and only when no `/` follows it, so
-        // a port in a domain that reached here cannot be read as a tag.
+        // The tag is after the last colon, and only when no `/` comes after
+        // it, so that a port of a domain is not read as a tag.
         let (path, tag) = match remainder.rsplit_once(':') {
             Some((p, t)) if !t.contains('/') => (p, Some(t.to_string())),
             _ => (remainder, None),
         };
 
         if path.is_empty() {
-            return Err(Error::Reference(format!("{input:?} names no repository")));
+            return Err(usage(format!("invalid reference: {input:?} names no repository")));
         }
         for component in path.split('/') {
             if component.is_empty() || component == "." || component == ".." {
-                return Err(Error::Reference(format!(
-                    "{input:?} has an empty or relative path component, which cannot \
+                return Err(usage(format!(
+                    "invalid reference: {input:?} has an empty or relative path component, which cannot \
                      name a repository and cannot be a store directory"
                 )));
             }
-            if !component
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b))
-            {
-                return Err(Error::Reference(format!(
-                    "{input:?}: repository component {component:?} is not lowercase \
+            if !component.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b)) {
+                return Err(usage(format!(
+                    "invalid reference: {input:?}: repository component {component:?} is not lowercase \
                      alphanumeric with separators"
                 )));
             }
         }
         if let Some(t) = &tag
-            && (t.is_empty()
-                || !t
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)))
+            && (t.is_empty() || !t.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)))
         {
-            return Err(Error::Reference(format!(
-                "{input:?}: tag {t:?} is not valid"
-            )));
+            return Err(usage(format!("invalid reference: {input:?}: tag {t:?} is not valid")));
         }
 
         let repository = if domain == DEFAULT_DOMAIN && !path.contains('/') {
@@ -143,26 +128,20 @@ impl Reference {
             path.to_string()
         };
 
-        // ⛔ A reference with neither a tag nor a digest means `:latest`, and
-        // that default is applied HERE, once, so no caller invents its own.
+        // A reference with no tag and no digest means `:latest`. The default
+        // is set here, once, so that no caller sets its own.
         let tag = match (&tag, &digest) {
             (None, None) => Some(DEFAULT_TAG.to_string()),
             _ => tag,
         };
 
-        Ok(Reference {
-            domain,
-            repository,
-            tag,
-            digest,
-            plain_http: false,
-        })
+        Ok(Reference { domain, repository, tag, digest, plain_http: false })
     }
 
-    /// The host to send `/v2/` requests to. ⚠ Differs from [`Reference::domain`]
-    /// for the hub alone, and that is the whole reason this is a method.
+    /// The host of the `/v2/` requests. It is not [`Reference::domain`] for
+    /// the hub alone.
     pub fn endpoint(&self) -> &str {
-        if self.domain == DEFAULT_DOMAIN || self.domain == "index.docker.io" {
+        if self.domain == DEFAULT_DOMAIN || HUB_ALIASES.contains(&self.domain.as_str()) {
             DEFAULT_ENDPOINT
         } else {
             &self.domain
@@ -178,8 +157,8 @@ impl Reference {
         }
     }
 
-    /// How docker prints the repository: the hub's `library/` prefix and the
-    /// `docker.io/` domain are both elided, and nothing else is.
+    /// How docker prints the repository: with no `library/` prefix of the hub
+    /// and no `docker.io/` domain, and with each other part.
     pub fn display_repository(&self) -> String {
         if self.domain == DEFAULT_DOMAIN {
             match self.repository.strip_prefix(&format!("{OFFICIAL_PREFIX}/")) {
@@ -191,18 +170,16 @@ impl Reference {
         }
     }
 
-    /// The canonical `<domain>/<repository>`, which is what the store keys on.
-    /// ⛔ Never the display form: two display forms can be one image, and a
-    /// store keyed on the display form holds it twice.
+    /// The canonical `<domain>/<repository>`: the key of a store. Not the
+    /// printed form: two printed forms can be one image.
     pub fn canonical_repository(&self) -> String {
         format!("{}/{}", self.domain, self.repository)
     }
 }
 
-/// A registry host: dot-separated labels of alphanumerics and hyphens, with an
-/// optional `:port`. ⚠ Deliberately narrower than a URI authority: podvm never
-/// puts a userinfo or a path here, and anything it would not itself write is
-/// refused rather than passed to a URL builder.
+/// A registry host: labels of letters, digits and hyphens with dots between
+/// them, and an optional `:port`. Narrower than a URI authority on purpose:
+/// no user information and no path get to a URL.
 fn is_domain(head: &str) -> bool {
     let (host, port) = match head.rsplit_once(':') {
         Some((h, p)) => (h, Some(p)),
@@ -214,12 +191,9 @@ fn is_domain(head: &str) -> bool {
         return false;
     }
     !host.is_empty()
-        && host.split('.').all(|label| {
-            !label.is_empty()
-                && label
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-        })
+        && host
+            .split('.')
+            .all(|label| !label.is_empty() && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
 }
 
 impl fmt::Display for Reference {
@@ -251,23 +225,16 @@ mod tests {
 
     #[test]
     fn the_four_spellings_of_one_image_normalise_to_one_key() {
-        let keys: Vec<String> = [
-            "alpine",
-            "alpine:latest",
-            "docker.io/library/alpine",
-            "index.docker.io/library/alpine:latest",
-        ]
-        .iter()
-        .map(|s| Reference::parse(s).unwrap().canonical_repository())
-        .collect();
-        // ⚠ `index.docker.io` is a distinct DOMAIN and the same endpoint; it is
-        // recorded as written so `podvm images` prints what was asked for.
+        let keys: Vec<String> =
+            ["alpine", "alpine:latest", "docker.io/library/alpine", "index.docker.io/library/alpine:latest"]
+                .iter()
+                .map(|s| Reference::parse(s).unwrap().canonical_repository())
+                .collect();
+        // `index.docker.io` is another domain with the same endpoint. It is
+        // kept as written, so that a list prints what the caller asked for.
         assert_eq!(keys[0], keys[1]);
         assert_eq!(keys[1], keys[2]);
-        assert_eq!(
-            Reference::parse(&keys[3]).unwrap().endpoint(),
-            DEFAULT_ENDPOINT
-        );
+        assert_eq!(Reference::parse(&keys[3]).unwrap().endpoint(), DEFAULT_ENDPOINT);
     }
 
     #[test]
@@ -303,12 +270,9 @@ mod tests {
         assert_eq!(r.manifest_selector(), d);
     }
 
-    /// ⭐ **The contract moved on 2026-09-09 and did not weaken.** This used to
-    /// assert that `Reference::parse` returns an error. Parsing now records the
-    /// fact and `pull` decides, because only `pull` has the transport policy in
-    /// scope and can name the flag that would permit it (T-0213). ⛔ The
-    /// scheme is still never inferred and never downgraded into: a reference
-    /// with no scheme is `plain_http: false` and stays HTTPS.
+    /// The parse records `http://`, and the caller decides with its policy.
+    /// The scheme is never guessed: a reference with no scheme is
+    /// `plain_http: false` and stays HTTPS.
     #[test]
     fn plain_http_is_recorded_and_never_inferred() {
         let r = Reference::parse("http://registry.example.com/x").unwrap();
@@ -316,10 +280,7 @@ mod tests {
         assert_eq!(r.endpoint(), "registry.example.com");
 
         for bare in ["registry.example.com/x", "https://registry.example.com/x"] {
-            assert!(
-                !Reference::parse(bare).unwrap().plain_http,
-                "{bare} was read as plain HTTP"
-            );
+            assert!(!Reference::parse(bare).unwrap().plain_http, "{bare} was read as plain HTTP");
         }
     }
 
@@ -332,19 +293,12 @@ mod tests {
 
     #[test]
     fn a_traversal_in_the_repository_path_is_refused() {
-        // ⛔ Containment: the repository is a store directory component.
-        for bad in [
-            "../etc/passwd",
-            "a//b",
-            "reg.io/../x",
-            "reg.io/./x",
-            "..",
-            "./x",
-        ] {
+        // The repository becomes a directory of a store.
+        for bad in ["../etc/passwd", "a//b", "reg.io/../x", "reg.io/./x", "..", "./x"] {
             assert!(Reference::parse(bad).is_err(), "{bad} parsed");
         }
-        // ⚠ `..` reaches the DOMAIN slot, because it contains a dot. The
-        // repository check never sees it, so the domain has its own.
+        // `..` gets to the place of the domain, as it has a dot. The check
+        // of the repository does not see it, so the domain has its own.
         assert!(!is_domain(".."));
         assert!(is_domain("localhost:5000") && is_domain("ghcr.io"));
         assert!(!is_domain("reg.io:") && !is_domain("reg.io:http"));
@@ -352,8 +306,20 @@ mod tests {
 
     #[test]
     fn an_uppercase_repository_is_refused_rather_than_lowercased() {
-        // Lowercasing would make `podvm pull Alpine` silently fetch something
+        // A change to lower case would fetch, with no word, an image that
         // the caller did not name.
+        assert_eq!(Reference::parse("Alpine").unwrap_err().class, pod_core::Class::Usage);
         assert!(Reference::parse("Alpine").is_err());
+    }
+
+    /// The constants of Docker Hub are the data of `pod-services`.
+    #[test]
+    fn the_hub_constants_are_the_data_of_pod_services() {
+        let hub = pod_services::get("docker-hub-registry").expect("the service file of Docker Hub");
+        assert_eq!(hub.text("domain"), Some(DEFAULT_DOMAIN));
+        assert_eq!(hub.endpoint("registry").map(|e| e.host()), Some(DEFAULT_ENDPOINT));
+        assert_eq!(hub.text("official-prefix"), Some(OFFICIAL_PREFIX));
+        let aliases: Vec<&str> = hub.texts("aliases").unwrap_or_default().iter().map(|a| a.as_ref()).collect();
+        assert_eq!(aliases, HUB_ALIASES);
     }
 }

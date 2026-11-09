@@ -41,6 +41,9 @@ pub enum Stage {
     Rendezvous,
     /// The local host: a probe of it, its file systems, its limits.
     Host,
+    /// An OCI registry or its token service: an answer, a document, a
+    /// digest of a blob.
+    Registry,
 }
 
 impl Stage {
@@ -61,6 +64,7 @@ impl Stage {
             Stage::Session => "session",
             Stage::Rendezvous => "rendezvous",
             Stage::Host => "host",
+            Stage::Registry => "registry",
         }
     }
 }

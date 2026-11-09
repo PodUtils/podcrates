@@ -1,136 +1,106 @@
-//! One typed error for the crate, converted at the boundary.
+//! The failures of the crate. Each failure is a [`pod_core::Failure`] with
+//! its stage and its class. A caller that must tell two refusals apart
+//! reads the typed cause, a [`Refusal`], from the chain ([`refusal`]).
 //!
-//! `docs/conventions/code.md`: typed errors, never a bare string, and never an
-//! error swallowed silently. Every variant here carries enough to name the
-//! thing that failed without the caller re-deriving it.
+//! The stages: [`Stage::Registry`] for an answer, a document or a digest of
+//! a registry; the stage of `pod-proxy` (`Dns`, `Proxy`, `Connect`,
+//! `Network`, `Tls`) for a request that got no answer; [`Stage::Host`] for a
+//! local file, a credential helper or a store of the caller.
+//!
+//! The classes: `Usage` for a value that the caller wrote (a reference, a
+//! digest, a platform, a host); `NotFound` for a missing manifest, blob or
+//! platform; `Refused` for a refused credential; `TempFail` for a limit of
+//! the rate; `Policy` for a refusal by a limit of the crate or of the
+//! policy; `Protocol` for a document or an answer that breaks the
+//! protocol; `Unsupported` for a document or a scheme that the crate does
+//! not read.
 
 use std::fmt;
 
-// ⛔ **THE CODES ARE `podvm_probe::exit`'S AND ARE NOT DECLARED HERE.**
-// [`TODO/cli.md`](../../../TODO/cli.md) T-0802: they were written out in three
-// files and two of them had already diverged. That module carries the table, the
-// measurement that produced it and the reason 125 and 1 are different answers.
-pub use podvm_probe::exit::{
-    EXIT_CANNOT_INVOKE, EXIT_CLI_ERROR, EXIT_FLAG_ERROR, EXIT_NOT_FOUND, EXIT_RUNTIME_ERROR,
-};
+pub use pod_core::{Class, Failure, Stage};
 
-#[derive(Debug)]
-pub enum Error {
-    /// The caller wrote something this crate cannot act on.
-    Usage(String),
-    /// A reference that does not parse, with what was wrong.
-    Reference(String),
-    /// ⛔ `TODO/image.md` T-0201: a registry offering only `http://` is a named
-    /// refusal, not a downgrade. tcp/80 egress hangs on the studied runtime, so
-    /// a fallback that exists to improve reliability makes the failure untimed.
-    PlainHttpRefused(String),
-    /// Transport, DNS, TLS, or a status this client will not act on.
-    /// ⭐ TODO/image.md T-1420. A transport failure names its host once, in
-    /// `detail` as `<host>: <lowercase cause>: <chain>`, with `what` carrying
-    /// only the path. The renderer below keeps both on one line until `-v`
-    /// exists to hold the chain (T-1416); nothing is dropped to get there.
-    Http { what: String, detail: String },
-    /// ⛔ `TODO/image.md` T-0202: computed and declared digests differ. Both are
-    /// named, because "digest mismatch" alone cannot be acted on.
-    DigestMismatch {
-        what: String,
-        want: String,
-        got: String,
-    },
-    /// ⛔ `TODO/image.md` T-0203: the destination, the free amount, the required
-    /// amount and the unit, so the message can be acted on without a second
-    /// command. The mistake this exists to avoid is in the corpus at
-    /// `references/mhx__dwarfs/tree/src/utility/filesystem_extractor.cpp:544-552`.
-    NoSpace(String),
-    /// A malformed or unsupported OCI document, naming the media type.
-    Oci(String),
-    /// An index with no manifest for the wanted platform: the want and the
-    /// offered platform words, comma-joined. Typed (not an `Oci` string)
-    /// so `pull -a` can skip the tag deliberately while a single-tag pull
-    /// still fails on it (TODO/cli.md T-1331).
+/// The result of the crate.
+pub type Result<T> = std::result::Result<T, Failure>;
+
+/// A typed cause of a failure, for a caller that acts on it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    /// The computed digest is not the declared one. Both are named:
+    /// "digest mismatch" alone gives no action.
+    Digest { what: String, want: String, got: String },
+    /// An index has no manifest for the wanted platform: the wanted
+    /// platform and the offered ones, comma-joined. A pull of each tag skips
+    /// such a tag; a pull of one tag fails on it.
     NoPlatform { want: String, offered: String },
-    /// The store, its layout, or a lock.
-    Store(String),
-    /// Anything the filesystem refused, with the path.
-    Io {
-        path: String,
-        source: std::io::Error,
-    },
-    /// A reference that named nothing this store holds.
-    NoSuchImage(String),
 }
 
-impl Error {
-    pub fn io(path: impl Into<String>, source: std::io::Error) -> Error {
-        Error::Io {
-            path: path.into(),
-            source,
-        }
-    }
-
-    /// The process exit code this error produces.
-    ///
-    /// ⚠ Every variant here is raised **after** the flags parsed, so the caller
-    /// mistakes among them are docker's 1 rather than its 125. A flag error
-    /// never reaches this type: it is refused in the parser, which returns
-    /// [`EXIT_FLAG_ERROR`] directly.
-    pub fn exit_code(&self) -> i32 {
-        match self {
-            // ⚠ `PlainHttpRefused` is here because it names something the
-            // CALLER wrote: `podvm pull http://...`. A registry whose token
-            // realm is `http://` is not caller input and is an `Http` error
-            // with the same explanation, so the two do not share a code.
-            // ⚠ `NoSuchImage` is here because it is a name that resolved to
-            // nothing, which docker answers with 1: measured on 2026-09-09,
-            // `docker rmi no-such-image` exits 1 where `docker run` on a
-            // missing image exits 125. The difference is not the lookup, it is
-            // whether the verb was going to RUN something.
-            Error::Usage(_)
-            | Error::Reference(_)
-            | Error::PlainHttpRefused(_)
-            | Error::NoSuchImage(_) => EXIT_CLI_ERROR,
-            _ => EXIT_RUNTIME_ERROR,
-        }
-    }
-}
-
-impl fmt::Display for Error {
+impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Usage(m) => write!(f, "{m}"),
-            Error::Reference(m) => write!(f, "invalid reference: {m}"),
-            Error::PlainHttpRefused(m) => write!(
-                f,
-                "{m}: podvm speaks HTTPS only and will not downgrade. \
-                 tcp/80 egress is broken on the runtime podvm targets, so a \
-                 plain-HTTP fallback hangs instead of failing (TODO/image.md T-0201)"
-            ),
-            Error::Http { what, detail } => write!(f, "{what}: {detail}"),
-            Error::DigestMismatch { what, want, got } => write!(
-                f,
-                "{what}: digest mismatch, expected {want} and computed {got}. \
-                 The bytes were discarded"
-            ),
-            Error::NoSpace(m) => write!(f, "{m}"),
-            Error::Oci(m) => write!(f, "{m}"),
-            Error::NoPlatform { want, offered } => write!(
-                f,
-                "this index offers no {want} manifest. It offers: {offered}"
-            ),
-            Error::Store(m) => write!(f, "store: {m}"),
-            Error::Io { path, source } => write!(f, "{path}: {source}"),
-            Error::NoSuchImage(r) => write!(f, "no such image: {r}"),
+            Refusal::Digest { what, want, got } => {
+                write!(f, "{what}: digest mismatch, expected {want} and computed {got}. The bytes were discarded")
+            }
+            Refusal::NoPlatform { want, offered } => {
+                write!(f, "this index offers no {want} manifest. It offers: {offered}")
+            }
         }
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Io { source, .. } => Some(source),
-            _ => None,
-        }
+impl std::error::Error for Refusal {}
+
+impl Refusal {
+    /// The failure of this refusal, at [`Stage::Registry`]. Its text is the
+    /// text of the refusal.
+    pub fn failure(self) -> Failure {
+        let class = match self {
+            Refusal::Digest { .. } => Class::Protocol,
+            Refusal::NoPlatform { .. } => Class::NotFound,
+        };
+        Failure::caused(Stage::Registry, class, self.to_string(), self)
     }
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+/// The [`Refusal`] in the chain of `f`, when one is.
+pub fn refusal(f: &Failure) -> Option<&Refusal> {
+    let mut next: Option<&(dyn std::error::Error + 'static)> = Some(f);
+    while let Some(e) = next {
+        if let Some(r) = e.downcast_ref::<Refusal>() {
+            return Some(r);
+        }
+        next = e.source();
+    }
+    None
+}
+
+/// A failure at [`Stage::Registry`].
+pub(crate) fn registry(class: Class, text: impl Into<String>) -> Failure {
+    Failure::new(Stage::Registry, class, text)
+}
+
+/// A value that the caller wrote and that the crate cannot use.
+pub(crate) fn usage(text: impl Into<String>) -> Failure {
+    Failure::new(Stage::Registry, Class::Usage, text)
+}
+
+/// An error of I/O on a local path, with the path in the text.
+pub(crate) fn io(path: impl fmt::Display, e: std::io::Error) -> Failure {
+    let class = Class::of_io(e.kind());
+    Failure::caused(Stage::Host, class, format!("{path}: {e}"), e)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_refusal_comes_back_from_the_chain_with_its_class() {
+        let f = Refusal::NoPlatform { want: "linux/arm64".into(), offered: "linux/amd64".into() }.failure();
+        assert_eq!((f.stage, f.class), (Stage::Registry, Class::NotFound));
+        assert!(f.to_string().contains("offers no linux/arm64 manifest"), "{f}");
+        assert!(matches!(refusal(&f), Some(Refusal::NoPlatform { .. })));
+        let wrapped = Failure::caused(Stage::Registry, f.class, "pull", f);
+        assert!(matches!(refusal(&wrapped), Some(Refusal::NoPlatform { .. })));
+        assert!(refusal(&usage("bad")).is_none());
+    }
+}

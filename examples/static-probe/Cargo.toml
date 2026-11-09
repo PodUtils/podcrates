@@ -18,6 +18,7 @@ pod-gsr = { workspace = true, features = ["blocking"] }
 pod-guest = { workspace = true }
 pod-hostprobe = { workspace = true }
 pod-identity = { workspace = true }
+pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
 pod-services = { workspace = true, features = ["overlay"] }

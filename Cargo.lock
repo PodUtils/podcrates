@@ -974,6 +974,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-oci"
+version = "0.9.0"
+dependencies = [
+ "base64",
+ "pod-core",
+ "pod-proxy",
+ "pod-services",
+ "pod-testkit",
+ "pod-tls",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "pod-proxy"
 version = "0.9.0"
 dependencies = [
@@ -1512,6 +1529,7 @@ dependencies = [
  "pod-guest",
  "pod-hostprobe",
  "pod-identity",
+ "pod-oci",
  "pod-proxy",
  "pod-services",
  "pod-supervise",

@@ -94,6 +94,7 @@ fn main() {
     lines.extend(supervise());
     lines.extend(guest());
     lines.extend(enter());
+    lines.extend(oci(tls));
     for line in lines {
         println!("{line}");
     }
@@ -196,5 +197,30 @@ fn enter() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn enter() -> Option<String> {
+    None
+}
+
+/// pod-oci is Linux only: on another target the crate is empty. A client
+/// with no request: the parse of a reference, the platform, the policy, the
+/// roots and the HTTP client of `pod-proxy` link in.
+#[cfg(target_os = "linux")]
+fn oci(tls: pod_tls::Context) -> Option<String> {
+    let reference = pod_oci::Reference::parse("alpine").map_or_else(|e| e.to_string(), |r| r.to_string());
+    let roots = pod_oci::trust::roots(pod_oci::trust::host_bundle(&|_| None).as_ref());
+    let dialer = pod_proxy::blocking::Dialer::new(
+        pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),
+        std::sync::Arc::new(pod_proxy::resolve::System::new()),
+    );
+    let client = dialer.map(|d| {
+        let http = pod_proxy::blocking::Client::new(std::sync::Arc::new(tls), &d);
+        pod_oci::Client::new(http, pod_tls::Trust::Default)
+            .with_policy(pod_oci::transport::Policy::with_insecure(&["localhost:5000"]))
+    });
+    let policy = client.map_or_else(|e| e.to_string(), |c| c.policy.disclosure("localhost:5000").unwrap_or_default());
+    Some(format!("pod-oci: {reference} for {}, {} roots, {policy}", pod_oci::Platform::host(), roots.count))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn oci(_tls: pod_tls::Context) -> Option<String> {
     None
 }

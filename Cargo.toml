@@ -32,6 +32,7 @@ pod-gsr = { path = "crates/pod-gsr", version = "0.9.0" }
 pod-guest = { path = "crates/pod-guest", version = "0.9.0" }
 pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.9.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.9.0" }
+pod-oci = { path = "crates/pod-oci", version = "0.9.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.9.0" }
 pod-services = { path = "crates/pod-services", version = "0.9.0" }
 pod-supervise = { path = "crates/pod-supervise", version = "0.9.0" }

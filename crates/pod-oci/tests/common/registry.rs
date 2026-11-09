@@ -1,24 +1,22 @@
-//! A minimal OCI registry for integration tests: what podvm's client
-//! actually requests and nothing more (T-R003: do not build a full OCI
-//! registry).
+//! A small OCI registry for the integration tests: what the client asks
+//! for and no more. Not a full OCI registry.
 //!
-//! Serves, over plain HTTP on a loopback ephemeral port: one manifest GET
-//! (with `Docker-Content-Digest` and `ETag`), one config and one layer blob
-//! GET, and blob HEAD. Anything else is 404. Plain HTTP only: callers name
-//! the endpoint insecure through `Policy::with_insecure`, the same deliberate
-//! act the CLI's `--insecure-registry` is.
+//! It serves, over plain HTTP on a loopback port: one manifest GET (with
+//! `Docker-Content-Digest` and `ETag`), one configuration and one layer blob
+//! GET, and blob HEAD. Each other path is 404. Plain HTTP only: a test names
+//! the endpoint insecure with `Policy::with_insecure`, as a caller does with
+//! `--insecure-registry`.
 //!
-//! `std` only, no new dependency: the bloat rulings hold the dependency set,
-//! and a test helper is the wrong place to widen it. Connections are handled
-//! on one thread each, because pulls fetch blobs concurrently. Shutdown
-//! stops the accept loop and joins it, so no test leaks a listener.
+//! `std` only. Each connection has its own thread, as a pull fetches blobs
+//! at once. The shutdown stops the accept loop and joins it, so no test
+//! leaves a listener.
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 /// One served repository: a single tag over one config and one layer.
@@ -46,12 +44,12 @@ struct Data {
     blobs: HashMap<String, Vec<u8>>,
 }
 
-/// The digest of fixed bytes, through the crate under test. A second
-/// SHA-256 here would be a second implementation of a digest the tree
-/// already owns, and shelling out is not hermetic. The bytes stay fixed,
-/// so a broken `Digest::of` still yields a stable mismatch downstream.
+/// The digest of fixed bytes, through the crate of the test: a second
+/// SHA-256 would be a second code of one digest, and a shell command is not
+/// sealed. The bytes are fixed, so a broken `Digest::of` still gives a
+/// stable mismatch.
 fn fixture_digest(data: &[u8]) -> String {
-    podvm_image::digest::Digest::of(data).to_string()
+    pod_oci::digest::Digest::of(data).to_string()
 }
 
 impl Fixture {
@@ -59,7 +57,8 @@ impl Fixture {
     pub fn start() -> Fixture {
         let layer: Vec<u8> = (0u32..2048).map(|i| (i % 251) as u8).collect();
         let layer_digest = fixture_digest(&layer);
-        let config = br#"{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]},"history":[{}]}"#;
+        let config =
+            br#"{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]},"history":[{}]}"#;
         let config_digest = fixture_digest(config);
         let manifest = serde_json::json!({
             "schemaVersion": 2,
@@ -90,9 +89,7 @@ impl Fixture {
             blobs,
         });
         let listener = TcpListener::bind("127.0.0.1:0").expect("the fixture binds loopback");
-        listener
-            .set_nonblocking(true)
-            .expect("the accept loop polls");
+        listener.set_nonblocking(true).expect("the accept loop polls");
         let port = listener.local_addr().unwrap().port();
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = stop.clone();
@@ -119,8 +116,8 @@ impl Fixture {
         format!("{}/{}:{}", self.endpoint, self.repository, self.tag)
     }
 
-    /// Stop accepting and join the accept loop. In-flight handlers are
-    /// short-lived and detached; the joined loop is what held the port.
+    /// Stop the accept loop and join it. The handlers in flight are short
+    /// and detached; the joined loop held the port.
     pub fn shutdown(mut self) {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(thread) = self.thread.take() {
@@ -157,6 +154,9 @@ fn handle(mut stream: std::net::TcpStream, data: &Data) {
     while head < buf.len() {
         match stream.read(&mut buf[head..]) {
             Ok(0) => return,
+            // A TLS hello (its first byte is 0x16) gets a close at once: the
+            // client then tries plain HTTP, with no wait for the read limit.
+            Ok(_) if buf[0] == 0x16 => return,
             Ok(n) => {
                 head += n;
                 if buf[..head].windows(4).any(|w| w == b"\r\n\r\n") {
@@ -182,19 +182,8 @@ fn handle(mut stream: std::net::TcpStream, data: &Data) {
     }
 }
 
-fn route(
-    method: &str,
-    path: &str,
-    data: &Data,
-) -> (u16, &'static str, Vec<(&'static str, String)>, Vec<u8>) {
-    let not_found = || {
-        (
-            404u16,
-            "Not Found",
-            Vec::new(),
-            b"no such path in the fixture".to_vec(),
-        )
-    };
+fn route(method: &str, path: &str, data: &Data) -> (u16, &'static str, Vec<(&'static str, String)>, Vec<u8>) {
+    let not_found = || (404u16, "Not Found", Vec::new(), b"no such path in the fixture".to_vec());
     let manifest_path = format!("/v2/{}/manifests/", data.repository);
     if method == "GET" && path.starts_with(&manifest_path) {
         let selector = &path[manifest_path.len()..];
@@ -203,10 +192,7 @@ fn route(
                 200,
                 "OK",
                 vec![
-                    (
-                        "Content-Type",
-                        "application/vnd.oci.image.manifest.v1+json".to_string(),
-                    ),
+                    ("Content-Type", "application/vnd.oci.image.manifest.v1+json".to_string()),
                     ("Docker-Content-Digest", data.manifest_digest.clone()),
                     ("ETag", format!("\"{}\"", data.manifest_digest)),
                 ],

@@ -1,7 +1,29 @@
 [package]
 name = "pod-oci"
+description = "An OCI registry client for Linux: docker's references, digests checked while the bytes are written, the OCI documents, the platform of a pull, the logins of docker and podman, the distribution API over pod-proxy and pod-tls with tokens and a bounded retry, the policy of insecure registries, and a pool that fetches the blobs of a manifest into the store of the caller."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+# The roots and the trust of each request; no tokio.
+pod-tls = { workspace = true, default-features = false }
+# The streamed HTTP client, blocking, on a private runtime of one thread.
+pod-proxy = { workspace = true, features = ["blocking"] }
+rustls-pki-types = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# The Basic credentials of a login file and of a challenge.
+base64 = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# The data file of Docker Hub, against the constants of the reference.
+pod-services = { workspace = true }
+# The tests of TLS run on ring.
+rustls = { workspace = true, features = ["ring"] }
