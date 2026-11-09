@@ -105,6 +105,21 @@ pub fn tool(tool: &str) -> Result<(), String> {
     if found { Ok(()) } else { Err(format!("this host has no {tool} that can execute")) }
 }
 
+/// `Err(reason)` when the effective user of this process is not root: a
+/// test that starts a child as another user needs root. On a target other
+/// than Linux it is always `Err`.
+pub fn root() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let euid = unsafe { libc::geteuid() };
+        if euid == 0 { Ok(()) } else { Err(format!("this test needs root, and the effective uid is {euid}")) }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("this test needs root on Linux".into())
+    }
+}
+
 fn executable(path: &std::path::Path) -> bool {
     let Ok(meta) = std::fs::metadata(path) else {
         return false;
@@ -214,6 +229,17 @@ macro_rules! need_userns {
 macro_rules! need_tool {
     ($tool:expr) => {
         if let Err(why) = $crate::host::tool($tool) {
+            $crate::host::skip_line(&why);
+            return;
+        }
+    };
+}
+
+/// Skip the test (return from it) when [`root`] fails: the test needs root.
+#[macro_export]
+macro_rules! need_root {
+    () => {
+        if let Err(why) = $crate::host::root() {
             $crate::host::skip_line(&why);
             return;
         }

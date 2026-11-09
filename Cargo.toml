@@ -27,6 +27,7 @@ crates-io = false
 pod-broker = { path = "crates/pod-broker", version = "0.8.0" }
 pod-core = { path = "crates/pod-core", version = "0.8.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.8.0" }
+pod-enter = { path = "crates/pod-enter", version = "0.8.0" }
 pod-gsr = { path = "crates/pod-gsr", version = "0.8.0" }
 pod-guest = { path = "crates/pod-guest", version = "0.8.0" }
 pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.8.0" }

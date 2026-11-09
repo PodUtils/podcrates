@@ -913,6 +913,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-enter"
+version = "0.8.0"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+ "pod-testkit",
+]
+
+[[package]]
 name = "pod-gsr"
 version = "0.8.0"
 dependencies = [
@@ -1498,6 +1507,7 @@ dependencies = [
  "pod-broker",
  "pod-core",
  "pod-dns",
+ "pod-enter",
  "pod-gsr",
  "pod-guest",
  "pod-hostprobe",

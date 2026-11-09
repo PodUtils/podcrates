@@ -15,23 +15,23 @@ file 4e4f86e84ddcca7b1535307902494ee0166d8993 crates/podvm-enter/src/abi/closure
 file 1201ede30bc7046a2280de60915e103f01741b51 crates/podvm-enter/src/abi/elf.rs -> crates/pod-enter/src/abi/elf.rs
 file ba26cbacfaa25211a15bd94ea0149e1c23167972 crates/podvm-enter/src/abi/search.rs -> crates/pod-enter/src/abi/search.rs
 file 4b615a73de6b7978158d241ebcd976c31f2a6e7c crates/podvm-enter/src/abi/tests.rs -> crates/pod-enter/src/abi/tests.rs
-file b5c75a249a82d7fd50335fb1bdaca7edcdaebf89 crates/podvm-enter/src/binfmt.rs -> crates/pod-enter/src/binfmt.rs
+file b5c75a249a82d7fd50335fb1bdaca7edcdaebf89 crates/podvm-enter/src/binfmt.rs -> crates/pod-enter/src/binfmt.rs crates/pod-enter/src/binfmt/tests.rs
 file 5aad6b2fc5b3818fc77b9a4b08337baf214461b5 crates/podvm-enter/src/child.rs -> crates/pod-enter/src/child.rs
-file 180d231634bb2eb8fc9c5a76ff7aaacb193d5819 crates/podvm-enter/src/device.rs -> crates/pod-enter/src/device.rs
+file 180d231634bb2eb8fc9c5a76ff7aaacb193d5819 crates/podvm-enter/src/device.rs -> crates/pod-enter/src/device.rs crates/pod-enter/src/device/tests.rs
 file bbe1e8afbd1e2c4ac9110e9ced607bc6d05b72a0 crates/podvm-enter/src/entry.rs -> crates/pod-enter/src/entry.rs
 file b7b61b54fb1e0122e298649be129c8aa5a3f4536 crates/podvm-enter/src/fuse.rs -> crates/pod-enter/src/fuse.rs
 file e71c170bbaf1d688b6b8c3c1456620256f7a6528 crates/podvm-enter/src/fuse/fs.rs -> crates/pod-enter/src/fuse/fs.rs
 file 5c2469739d488777427ea6b473d40892802768c0 crates/podvm-enter/src/fuse/tests.rs -> crates/pod-enter/src/fuse/tests.rs
 file c530679bb5066eb5fafa24c5ed9523f7c7e8518d crates/podvm-enter/src/fuse/wire.rs -> crates/pod-enter/src/fuse/wire.rs
-file d5c79bf3b237dc6f57d264e09c590f4221258c6e crates/podvm-enter/src/ladder.rs -> crates/pod-enter/src/ladder.rs
+file d5c79bf3b237dc6f57d264e09c590f4221258c6e crates/podvm-enter/src/ladder.rs -> crates/pod-enter/src/ladder.rs crates/pod-enter/src/ladder/tests.rs
 file fc4245713e578a1e8c596a8befc40556af3c005c crates/podvm-enter/src/launch.rs -> crates/pod-enter/src/launch.rs
-file 49f2f90339d5dcc8bedeaaff2d0f1a8076a57825 crates/podvm-enter/src/lib.rs -> crates/pod-enter/src/lib.rs
+file 49f2f90339d5dcc8bedeaaff2d0f1a8076a57825 crates/podvm-enter/src/lib.rs -> crates/pod-enter/src/lib.rs crates/pod-enter/src/names.rs crates/pod-enter/src/status.rs
 file 231bf80d82dbc8af969ec09a752e7b177528e289 crates/podvm-enter/src/memfd.rs -> crates/pod-enter/src/memfd.rs
 file e061a3b59cef8a897652d457dd4794d4e555a959 crates/podvm-enter/src/memfd/probe.rs -> crates/pod-enter/src/memfd/probe.rs
 file 7efa17232354389efdde0d363105985164d3b0d3 crates/podvm-enter/src/memfd/probe/tests.rs -> crates/pod-enter/src/memfd/probe/tests.rs
 file 44f2d0bdd6756ec6b8019e64f93d5ba8a082e61b crates/podvm-enter/src/memfd/tests.rs -> crates/pod-enter/src/memfd/tests.rs
-file 3449b2db249c4c45e01f0560989a00b30b38cc04 crates/podvm-enter/src/plan.rs -> crates/pod-enter/src/plan.rs
-file 4b165e2259be58a598cbce0789ef501732ecc5c7 crates/podvm-enter/src/stage.rs -> crates/pod-enter/src/stage.rs
+file 3449b2db249c4c45e01f0560989a00b30b38cc04 crates/podvm-enter/src/plan.rs -> crates/pod-enter/src/plan.rs crates/pod-enter/src/plan/tests.rs
+file 4b165e2259be58a598cbce0789ef501732ecc5c7 crates/podvm-enter/src/stage.rs -> crates/pod-enter/src/stage.rs crates/pod-enter/src/stage/tests.rs
 file 1d2abadd6ec49331962892f9c20d091ed65591e6 crates/podvm-enter/src/tests.rs -> crates/pod-enter/src/tests.rs
 file 13c21b9dcdf8511351ede85b9c888cb39dd83d5d crates/podvm-enter/src/userland.rs -> crates/pod-enter/src/userland.rs
 file b93fbbc3006bf54433c1cff08f76f564e5387774 crates/podvm-enter/src/userland/tests.rs -> crates/pod-enter/src/userland/tests.rs

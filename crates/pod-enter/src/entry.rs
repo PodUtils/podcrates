@@ -1,33 +1,41 @@
-use super::*;
+//! The entries: the chroot sequence, the ladder rungs, the entry with no
+//! chroot and the namespace rung. Each one calls the same fork
+//! ([`crate::launch::spawn_with`]).
 
-/// Enter `root` and exec the plan, returning as soon as the exec has succeeded.
+use std::io::Write;
+
+use pod_core::Class;
+use pod_hostprobe::select::Rung;
+use pod_hostprobe::sys::{self, CBuf};
+
+use crate::abi::ResolveKind;
+use crate::launch::spawn_with;
+use crate::{Child, ENTERED_RUNG, Error, Names, Plan, Result, RootDir, ladder};
+
+/// Enter `root` and exec the plan. Return when the exec succeeded.
 ///
-/// ⛔ **The readiness signal is an `O_CLOEXEC` pipe, and it is the mechanism
-/// T-0602 asks for.** The child holds the write end; a successful `execve`
-/// closes it and the parent's read returns EOF, and any failure before the exec
-/// is written to it as an errno. There is no interval anywhere in it, so there
-/// is no scheduling assumption to be wrong about.
+/// The readiness signal is an `O_CLOEXEC` pipe. The child holds the write
+/// end: a successful `execve` closes it and the read of the parent gives
+/// the end of the file. A failure before the exec goes into the pipe as an
+/// errno. There is no interval, so there is no guess about the scheduler.
 ///
-/// ⭐ **THE CHROOT-BY-PATH ENTRY.** The payload sees `PODVM_ACTIVE_MODE`
-/// naming [`ENTERED_RUNG`], whatever the ladder chose: this is the rung the
-/// sequence implements, and [`spawn_ladder`] is the one that reports a rung.
+/// The payload sees the active mode variable with the word of
+/// [`ENTERED_RUNG`], the rung that this sequence does. [`spawn_ladder`]
+/// reports a rung of the ladder.
 pub fn spawn(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> {
     spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err)
 }
 
-/// Enter `root` on a ladder rung and exec the plan, returning on the exec.
+/// Enter `root` on a rung of the ladder and exec the plan. Return when the
+/// exec succeeded.
 ///
-/// ⭐ T-1003's drive beside [`spawn`]: the same sequence, except the payload
-/// sees `PODVM_ACTIVE_MODE` naming the ladder rung and the child execs the
-/// memfd where one was handed in (`Some(fd)`), or the path candidates where
-/// the payload routes past fd-exec (`None`: a `#!` script, which fails
-/// through it).
+/// The same sequence as [`spawn`], but the payload sees the word of the
+/// ladder rung, and the child execs the memfd where the caller gives one
+/// (`Some(fd)`), or the candidate paths where the payload does not take
+/// the exec of a descriptor (`None`: a `#!` script fails through it).
 ///
-/// ⛔ Only rung-complete rungs drive through here: memfd, the run
-/// directory, the tmpfs mount and the FUSE mount the CLI stages before
-/// calling, and the persistent cache. Reaching this call with anything
-/// else is the caller skipping the choice, so it refuses rather than
-/// exec'ing down a rung nobody drove.
+/// The caller stages the memfd, the run directory, the tmpfs mount, the
+/// FUSE mount or the cache before this call.
 pub fn spawn_ladder(
     root: &RootDir,
     plan: &Plan,
@@ -35,22 +43,19 @@ pub fn spawn_ladder(
     fd: Option<i64>,
     err: &mut dyn Write,
 ) -> Result<Child> {
-    use ladder::Mode as M;
-    match mode {
-        M::Memfd | M::RunDir | M::Cache | M::Tmpfs | M::Fuse => {}
-    }
     spawn_with(root, plan, mode.name(), None, fd, true, None, err)
 }
 
-/// Enter `root` without `chroot(2)` and exec, returning on the exec.
+/// Enter `root` with no `chroot(2)` and exec. Return when the exec
+/// succeeded.
 ///
-/// TODO/enter.md T-1317. The payload runs with the host's root and its
-/// working directory inside the image: `exec_argv` is the exact argv the
-/// child execs (the image's loader, the payload by host path, then the
-/// payload's own arguments), or `plan.argv` where `fd_exec` carries a
-/// staged memfd. `active` is the word the payload reads as
-/// `PODVM_ACTIVE_MODE`. The readiness pipe, the exit codes and the
-/// forwarding wait are the chroot entry's: one fork shape, not two.
+/// The payload runs with the root of the host, and with its working
+/// directory inside the image. `exec_argv` is the exact argv that the
+/// child execs (the loader of the image, the payload by host path, then
+/// the arguments of the payload), or `plan.argv` where `fd_exec` gives a
+/// staged memfd. `active` is the word of the active mode variable. The
+/// readiness pipe, the exit codes and the forwarding wait are the ones of
+/// the chroot entry: one fork, not two.
 pub fn spawn_userland(
     root: &RootDir,
     plan: &Plan,
@@ -60,32 +65,23 @@ pub fn spawn_userland(
     err: &mut dyn Write,
 ) -> Result<Child> {
     if fd_exec.is_none() && exec_argv.is_empty() {
-        return Err(Error::Runtime(
-            "the userland entry was handed no argv and no memfd: there is nothing to exec".into(),
+        return Err(Error::runtime(
+            Class::Usage,
+            "the userland entry got no argv and no memfd: there is nothing to exec",
         ));
     }
     let override_argv: Vec<CBuf> = exec_argv
         .iter()
         .map(|a| {
-            CBuf::new(a)
-                .ok_or_else(|| Error::Runtime(format!("the argument {a:?} contains a NUL byte")))
+            CBuf::new(a).ok_or_else(|| Error::runtime(Class::Usage, format!("the argument {a:?} contains a NUL byte")))
         })
         .collect::<Result<_>>()?;
-    spawn_with(
-        root,
-        plan,
-        active,
-        Some(override_argv),
-        fd_exec,
-        false,
-        None,
-        err,
-    )
+    spawn_with(root, plan, active, Some(override_argv), fd_exec, false, None, err)
 }
 
-/// Run a payload inside `root` without `chroot(2)`, and return its exit status.
-///
-/// ⛔ Like [`run`]: the exit status is the payload's, not podvm's.
+/// Run a payload inside `root` with no `chroot(2)`, and return its exit
+/// status. As [`crate::run`], the exit status is the status of the
+/// payload.
 pub fn run_userland(
     root: &RootDir,
     plan: &Plan,
@@ -95,18 +91,18 @@ pub fn run_userland(
     err: &mut dyn Write,
 ) -> Result<i32> {
     let child = spawn_userland(root, plan, exec_argv, active, fd_exec, err)?;
-    // The parent's copy of the memfd serves nothing past the fork: the
-    // child execs from its own. It closes here, on the only path that
-    // holds one, so no caller leaks a descriptor.
+    // The copy of the memfd in the parent serves nothing after the fork:
+    // the child execs from its own copy. It closes here, on the only path
+    // that holds one, so no caller leaks a descriptor.
     if let Some(f) = fd_exec {
         let _ = sys::close(f);
     }
     child.wait_forwarding(err)
 }
 
-/// Run a payload inside `root` on a ladder rung, and return its exit status.
-///
-/// ⛔ Like [`run`]: the exit status is the payload's, not podvm's.
+/// Run a payload inside `root` on a rung of the ladder, and return its
+/// exit status. As [`crate::run`], the exit status is the status of the
+/// payload.
 pub fn run_ladder(
     root: &RootDir,
     plan: &Plan,
@@ -115,9 +111,8 @@ pub fn run_ladder(
     err: &mut dyn Write,
 ) -> Result<i32> {
     let r = spawn_ladder(root, plan, mode, fd, err);
-    // The parent's copy of the memfd serves nothing past the fork: the child
-    // execs from its own. It closes on every path, including the refusal
-    // ones, so a refused launch leaks no descriptor.
+    // The copy of the memfd in the parent closes on each path, also on a
+    // refusal, so a refused launch leaks no descriptor.
     if let Some(f) = fd {
         let _ = sys::close(f);
     }
@@ -127,124 +122,99 @@ pub fn run_ladder(
 
 /// What the namespace rung mounts, built before the fork.
 ///
-/// One private tmpfs on the image's `/tmp`: the mount a run isolates
-/// from the host (TODO/enter.md T-1339's Prove). No user, pid or
-/// network namespace and no `/proc`: out of scope beside this rung,
-/// and the banner says so.
+/// One private tmpfs on the `/tmp` of the image: the mount that a run
+/// keeps apart from the host. No user, PID or network namespace and no
+/// `/proc`: the banner says so.
 pub struct NsMount {
-    pub(super) tmp_target: CBuf,
+    pub(crate) tmp_target: CBuf,
 }
 
-/// The image's `/tmp` as a mount target, or `None` where it cannot be
-/// one: missing, a file, or a symlink. Mounting over a link would land
-/// on its target, which is outside the image, so a link refuses like a
-/// missing directory. `None` enters chroot with the fallback named,
-/// never a namespace rung without its mount: the banner's mount
-/// topology is fixed text, and a rung without the mount would print it
-/// falsely.
+/// The `/tmp` of the image as a mount target, or `None` where it cannot be
+/// one: missing, a file, or a symbolic link. A mount over a link lands on
+/// its target, which is outside the image, so a link is refused as a
+/// missing directory is. `None` enters chroot and names the fallback; the
+/// entry never enters the namespace rung without its mount, because the
+/// banner names the mount as a fixed fact.
 pub fn ns_tmp_target(root: &str) -> Option<String> {
     let target = format!("{}/tmp", root.trim_end_matches('/'));
-    let not_link = std::fs::symlink_metadata(&target)
-        .map(|m| !m.is_symlink())
-        .unwrap_or(false);
-    let is_dir = std::fs::metadata(&target)
-        .map(|m| m.is_dir())
-        .unwrap_or(false);
+    let not_link = std::fs::symlink_metadata(&target).map(|m| !m.is_symlink()).unwrap_or(false);
+    let is_dir = std::fs::metadata(&target).map(|m| m.is_dir()).unwrap_or(false);
     (not_link && is_dir).then_some(target)
 }
 
-/// The fallback line: the cause, then the rung actually entered.
-/// Pure, so the drive and the unit test read the same words.
-pub fn ns_fallback_line(cause: &str) -> String {
-    format!("podvm: {cause}; entered chroot instead (TODO/enter.md T-1339)")
+/// The fallback line: the cause, then the rung that the entry entered.
+pub fn ns_fallback_line(names: &Names, cause: &str) -> String {
+    format!("{}: {cause}; entered chroot instead", names.product)
 }
 
-/// Whether the chroot landed on the opened descriptor: same device and
-/// same file. Pure, so the child and the unit test read the same words.
+/// Did the chroot land on the opened descriptor: the same device and the
+/// same file?
 ///
-/// TODO/enter.md T-1339: the (d,i) guard past the namespace rung's path
-/// chroot. A path checked and then passed can be swapped in between
-/// (T-0504's class); a mismatch here refuses before the exec rather
-/// than entering wrong.
+/// The namespace rung changes its root by path. A path that was checked
+/// and then given can change between the two, so a mismatch here refuses
+/// before the exec.
 pub fn chroot_landed(anchored: &sys::Stat, landed: &sys::Stat) -> bool {
     anchored.st_dev == landed.st_dev && anchored.st_ino == landed.st_ino
 }
 
-/// Whether the working directory resolves to a directory inside the rootfs.
+/// Does the working directory resolve to a directory inside the root file
+/// system?
 ///
-/// TODO/enter.md T-1412. Empty and `/` are the root itself and always
-/// exist. Anything else must resolve through [`crate::abi::resolve_dir_in`]:
-/// absolute links stay inside the root, `..` past the root escapes, and a
-/// loop refuses. A file where a directory belongs answers `Absent` like a
-/// missing one: entering it would fail the chdir past the point of no
-/// return, so both refuse before the fork.
-pub(super) fn workdir_kind(
-    rootfs: &str,
-    workdir: &str,
-) -> std::result::Result<(), crate::abi::ResolveKind> {
+/// Empty and `/` are the root, and always exist. Each other path must
+/// resolve through [`crate::abi::resolve_dir_in`]: an absolute link stays
+/// inside the root, a `..` past the root escapes, and a loop is refused.
+/// A file where a directory must be is `Absent`, as a missing one is: the
+/// `chdir` would fail after the point of no return.
+pub(crate) fn workdir_kind(rootfs: &str, workdir: &str) -> std::result::Result<(), ResolveKind> {
     if workdir.contains('\0') {
-        // A NUL byte never reaches the kernel: `CBuf::new` refuses it below
-        // with its own sentence, so this answers absence and lets that fire.
-        return Err(crate::abi::ResolveKind::Absent);
+        // A NUL byte never reaches the kernel: `CBuf::new` refuses it
+        // with its own sentence.
+        return Err(ResolveKind::Absent);
     }
     let guest = if workdir.is_empty() { "/" } else { workdir };
     crate::abi::resolve_dir_in(std::path::Path::new(rootfs), guest).map(|_| ())
 }
 
-/// The refusal for a working directory that does not resolve.
+/// The refusal of a working directory that does not resolve.
 ///
-/// `context` names what was asked for beside the path: the image where the
-/// caller knows it (`for image "alpine"`), the rootfs where only it is
-/// known. One sentence builder, so the pre-fork check in [`spawn_with`]
-/// and the CLI-side [`check_workdir`] cannot disagree about what docker
-/// does and what podvm does instead.
-pub(super) fn refuse_workdir(workdir: &str, context: &str, kind: crate::abi::ResolveKind) -> Error {
-    use crate::abi::ResolveKind as K;
+/// `context` names what the caller asked for beside the path: the image
+/// where the caller knows it (`for image "alpine"`), the root file system
+/// where only it is known. One builder, so the check before the fork and
+/// [`check_workdir`] say the same.
+pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind) -> Error {
     let why = match kind {
-        K::Absent => "is not a directory in the image",
-        K::Escapes => "escapes the image",
-        K::Loop => "has too many levels of symlinks",
+        ResolveKind::Absent => "is not a directory in the image",
+        ResolveKind::Escapes => "escapes the image",
+        ResolveKind::Loop => "has too many levels of symlinks",
     };
-    Error::Runtime(format!(
-        "the working directory {workdir:?} {context} {why}: docker creates it, \
-         and podvm refuses it instead, naming it (TODO/enter.md T-1412)"
-    ))
+    Error::runtime(
+        Class::NotFound,
+        format!(
+            "the working directory {workdir:?} {context} {why}: docker creates it, and the entry refuses it instead"
+        ),
+    )
 }
 
-/// Check the working directory before the fork, on both rungs.
+/// Check the working directory before the fork.
 ///
-/// TODO/enter.md T-1412. Resolves `workdir` under `rootfs` and refuses
-/// naming the path and the image where it is missing, escapes, loops, or
-/// is a file: docker creates the directory, podvm refuses and says so.
-/// Empty and `/` always pass; `-w /tmp` passes where the image holds it.
+/// Resolve `workdir` under `rootfs`. Refuse, with the path and the image,
+/// a directory that is missing, escapes, loops or is a file: docker
+/// creates the directory, and this entry refuses and says so. Empty and
+/// `/` always pass; `/tmp` passes where the image holds it.
 ///
-/// SEAM for the CLI agent (run/exec/lifecycle wiring, `--workdir`/`-w`
-/// flag-parse validation): call
-/// `podvm_enter::check_workdir(&rootfs, &workdir, &image)` during prepare,
-/// before any fixup mutates the rootfs, and refuse at 125 with the returned
-/// sentence. The entry itself re-checks without the image (naming the
-/// rootfs) and the child reports a raced chdir as step 11 rather than
-/// running from the wrong directory.
+/// Call it before a change of the root file system. The entry checks again
+/// with no image name, and the child reports a directory that went
+/// missing after the check as its own step.
 pub fn check_workdir(rootfs: &str, workdir: &str, image: &str) -> Result<()> {
     if workdir.contains('\0') {
-        return Err(Error::Runtime(
-            "the working directory contains a NUL byte".into(),
-        ));
+        return Err(Error::runtime(Class::Usage, "the working directory contains a NUL byte"));
     }
-    match workdir_kind(rootfs, workdir) {
-        Ok(()) => Ok(()),
-        Err(kind) => Err(refuse_workdir(
-            workdir,
-            &format!("for image {image:?}"),
-            kind,
-        )),
-    }
+    workdir_kind(rootfs, workdir).map_err(|kind| refuse_workdir(workdir, &format!("for image {image:?}"), kind))
 }
 
-/// The namespace setup step a readiness-pipe byte names, or `None`
-/// where the byte is not a setup step. Pure, so the parent and the
-/// unit test read the same words: a step the parent cannot name is a
-/// fallback the banner cannot explain (TODO/enter.md T-1339).
+/// The setup step of the namespace rung that a byte of the readiness pipe
+/// names, or `None` where the byte is not a setup step. The parent and
+/// the tests read this one mapping, so each fallback has a name.
 pub fn ns_setup_step(step: u8) -> Option<&'static str> {
     match step {
         7 => Some("unshare(CLONE_NEWNS)"),
@@ -255,106 +225,60 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
     }
 }
 
-/// Enter `root` in a mount namespace and exec, falling back to chroot.
+/// Enter `root` in a mount namespace and exec, or fall back to chroot.
 ///
-/// The child unshares a mount namespace, remounts `/` recursively
-/// private so its mounts cannot propagate to the host, mounts its
-/// private tmpfs on the image's `/tmp`, and then runs the chroot
-/// sequence inside. Any setup failure abandons the namespace and
-/// enters chroot instead with the fallback named: a host that loses
-/// a leg between probe and entry still runs what the chroot rung
-/// could carry (TODO/enter.md T-1339's Decision).
+/// The child makes a mount namespace, mounts `/` again as recursively
+/// private so that its mounts cannot reach the host, mounts its private
+/// tmpfs on the `/tmp` of the image, and then does the chroot sequence. A
+/// failure of the setup stops the namespace rung, and the entry enters
+/// chroot and names the fallback: a host that lost a leg between the probe
+/// and the entry still runs what the chroot rung can carry.
 pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> {
-    let target = match ns_tmp_target(&root.path) {
-        Some(t) => t,
-        None => {
-            let _ = writeln!(
-                err,
-                "{}",
-                ns_fallback_line(&format!(
-                    "the image holds no /tmp mount point under {}",
-                    root.path
-                ))
-            );
-            return spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err);
-        }
+    let names = &plan.names;
+    let chroot = |err: &mut dyn Write, cause: &str| {
+        let _ = writeln!(err, "{}", ns_fallback_line(names, cause));
+        spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err)
     };
-    let target = match CBuf::new(&target) {
-        Some(t) => t,
-        None => {
-            let _ = writeln!(
-                err,
-                "{}",
-                ns_fallback_line("the /tmp mount point contains a NUL byte")
-            );
-            return spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err);
-        }
+    let Some(target) = ns_tmp_target(&root.path) else {
+        return chroot(err, &format!("the image holds no /tmp mount point under {}", root.path));
+    };
+    let Some(target) = CBuf::new(&target) else {
+        return chroot(err, "the /tmp mount point contains a NUL byte");
     };
     let mount = NsMount { tmp_target: target };
-    match spawn_with(
-        root,
-        plan,
-        podvm_probe::select::Rung::Namespace.word(),
-        None,
-        None,
-        true,
-        Some(&mount),
-        err,
-    ) {
+    match spawn_with(root, plan, Rung::Namespace.word(), None, None, true, Some(&mount), err) {
         Err(Error::NsSetup { step, errno }) => {
-            let _ = writeln!(
-                err,
-                "{}",
-                ns_fallback_line(&format!(
-                    "the namespace rung refused at {step} ({} ({}))",
-                    errno.name(),
-                    errno.0
-                ))
-            );
-            spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err)
+            chroot(err, &format!("the namespace rung refused at {step} ({} ({}))", errno.name(), errno.0))
         }
         other => other,
     }
 }
 
-/// Run a payload inside `root` in a mount namespace, and return its exit status.
-///
-/// ⛔ Like [`run`]: the exit status is the payload's, not podvm's.
+/// Run a payload inside `root` in a mount namespace, and return its exit
+/// status. As [`crate::run`], the exit status is the status of the
+/// payload.
 pub fn run_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
     let child = spawn_namespace(root, plan, err)?;
     child.wait_forwarding(err)
 }
 
-/// Enter `root` on the rung the probe selected: the namespace rung
-/// where selected, the chroot sequence everywhere else. One gate for
-/// every entry path (foreground `run`, detached `start`): a rung
-/// decided in one place and entered in another is the hole
-/// `docs/conventions/code.md` refuses.
+/// Enter `root` on the rung that the probe selected: the namespace rung
+/// where selected, the chroot sequence everywhere else. Each entry path
+/// (a run in the foreground, a detached start) uses this one gate, so the
+/// rung is decided and entered in one place.
 ///
-/// ⚠ Userland has its own entries and never passes through here: it is
-/// the no-chroot family, not a rung of this sequence.
-pub fn spawn_selected(
-    root: &RootDir,
-    plan: &Plan,
-    rung: podvm_probe::select::Rung,
-    err: &mut dyn Write,
-) -> Result<Child> {
-    use podvm_probe::select::Rung as R;
+/// The entry with no chroot has its own functions and does not pass
+/// through here: it is not a rung of this sequence.
+pub fn spawn_selected(root: &RootDir, plan: &Plan, rung: Rung, err: &mut dyn Write) -> Result<Child> {
     match rung {
-        R::Namespace => spawn_namespace(root, plan, err),
+        Rung::Namespace => spawn_namespace(root, plan, err),
         _ => spawn(root, plan, err),
     }
 }
 
-/// Run a payload inside `root` on the rung the probe selected.
-///
-/// ⛔ Like [`run`]: the exit status is the payload's, not podvm's.
-pub fn run_selected(
-    root: &RootDir,
-    plan: &Plan,
-    rung: podvm_probe::select::Rung,
-    err: &mut dyn Write,
-) -> Result<i32> {
+/// Run a payload inside `root` on the rung that the probe selected. As
+/// [`crate::run`], the exit status is the status of the payload.
+pub fn run_selected(root: &RootDir, plan: &Plan, rung: Rung, err: &mut dyn Write) -> Result<i32> {
     let child = spawn_selected(root, plan, rung, err)?;
     child.wait_forwarding(err)
 }

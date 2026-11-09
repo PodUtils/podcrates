@@ -15,8 +15,11 @@ consumer that wants it. It is never a dependency of a release binary.
   skips).
 * `need_tool!(TOOL)`: the same for a host with no `TOOL` that can execute.
   `TOOL` is a path (`"/bin/sh"`) or a name in `PATH` (`"qemu-img"`).
+* `need_root!()`: the same for a process whose effective user is not
+  root (Linux only; elsewhere the test skips).
 * `host::loopback()`, `host::localhost()`, `host::userns()`: the probes,
-  each run once for each test binary. `host::tool(TOOL)` looks each time.
+  each run once for each test binary. `host::tool(TOOL)` and
+  `host::root()` look each time.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
 pod crate, so that each crate can dev-depend on the kit.

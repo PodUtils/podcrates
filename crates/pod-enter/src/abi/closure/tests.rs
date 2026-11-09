@@ -1,4 +1,5 @@
-//! T-1644: the link set, read from a fixture rootfs with a fixture reader.
+//! The link set, read from a fixture root file system with a fixture
+//! reader.
 //! The files exist so that `resolve_in` walks real links; the reader maps
 //! each resolved path to a fake ELF, so no ELF bytes are crafted.
 
@@ -7,31 +8,21 @@ use super::*;
 use std::cell::RefCell;
 use std::path::PathBuf;
 
-const ME: u16 = podvm_probe::binfmt::SELF_MACHINE;
+const ME: u16 = pod_hostprobe::binfmt::SELF_MACHINE;
 const LOADER: &str = "/lib64/ld-linux-x86-64.so.2";
 const TRIPLET: &str = "lib/x86_64-linux-gnu";
 
 /// A versioned import that names its provider file, as `.gnu.version_r` does.
 fn imp(name: &str, version: &str, file: &str) -> Versioned {
-    Versioned {
-        name: name.to_string(),
-        version: Some(version.to_string()),
-        weak: false,
-        file: Some(file.to_string()),
-    }
+    Versioned { name: name.to_string(), version: Some(version.to_string()), weak: false, file: Some(file.to_string()) }
 }
 
 /// The glibc object's shape: four needs, and one import from each.
 fn object() -> Elf {
     let mut o = fake(
-        "/.podvm/interpose.so",
+        "/.pod-enter/interpose.so",
         None,
-        &[
-            "libdl.so.2",
-            "libgcc_s.so.1",
-            "libc.so.6",
-            "ld-linux-x86-64.so.2",
-        ],
+        &["libdl.so.2", "libgcc_s.so.1", "libc.so.6", "ld-linux-x86-64.so.2"],
         &[],
         &[],
     );
@@ -51,13 +42,7 @@ fn bookworm() -> Vec<(&'static str, Elf)> {
     vec![
         (
             "ld-linux-x86-64.so.2",
-            fake(
-                "",
-                Some("ld-linux-x86-64.so.2"),
-                &[],
-                &[("__tls_get_addr", Some("GLIBC_2.3"))],
-                &g,
-            ),
+            fake("", Some("ld-linux-x86-64.so.2"), &[], &[("__tls_get_addr", Some("GLIBC_2.3"))], &g),
         ),
         (
             "libc.so.6",
@@ -65,32 +50,14 @@ fn bookworm() -> Vec<(&'static str, Elf)> {
                 "",
                 Some("libc.so.6"),
                 &["ld-linux-x86-64.so.2"],
-                &[
-                    ("open", Some("GLIBC_2.2.5")),
-                    ("dlsym", Some("GLIBC_2.2.5")),
-                ],
+                &[("open", Some("GLIBC_2.2.5")), ("dlsym", Some("GLIBC_2.2.5"))],
                 &g,
             ),
         ),
-        (
-            "libdl.so.2",
-            fake(
-                "",
-                Some("libdl.so.2"),
-                &["libc.so.6"],
-                &[],
-                &["GLIBC_2.2.5"],
-            ),
-        ),
+        ("libdl.so.2", fake("", Some("libdl.so.2"), &["libc.so.6"], &[], &["GLIBC_2.2.5"])),
         (
             "libgcc_s.so.1",
-            fake(
-                "",
-                Some("libgcc_s.so.1"),
-                &["libc.so.6"],
-                &[("_Unwind_Resume", Some("GCC_3.0"))],
-                &["GCC_3.0"],
-            ),
+            fake("", Some("libgcc_s.so.1"), &["libc.so.6"], &[("_Unwind_Resume", Some("GCC_3.0"))], &["GCC_3.0"]),
         ),
     ]
 }
@@ -105,23 +72,16 @@ struct Fixture {
 
 impl Fixture {
     fn new(tag: &str, libs: Vec<(&'static str, Elf)>) -> Fixture {
-        let root = std::env::temp_dir().join(format!("podvm-t1644-{tag}-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("pod-enter-linkset-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join(TRIPLET)).unwrap();
         std::fs::create_dir_all(root.join("lib64")).unwrap();
         for (name, _) in &libs {
             std::fs::write(root.join(TRIPLET).join(name), tiny_elf(ME)).unwrap();
         }
-        std::os::unix::fs::symlink(
-            format!("/{TRIPLET}/ld-linux-x86-64.so.2"),
-            root.join("lib64/ld-linux-x86-64.so.2"),
-        )
-        .unwrap();
-        Fixture {
-            root,
-            libs,
-            read: RefCell::new(Vec::new()),
-        }
+        std::os::unix::fs::symlink(format!("/{TRIPLET}/ld-linux-x86-64.so.2"), root.join("lib64/ld-linux-x86-64.so.2"))
+            .unwrap();
+        Fixture { root, libs, read: RefCell::new(Vec::new()) }
     }
 
     /// The fixture reader: a resolved path under the root answers its fake
@@ -159,10 +119,10 @@ fn refused(v: Verdict) -> String {
     }
 }
 
-/// T-1644: the union read from the closure admits an object that imports
+/// The union read from the closure admits an object that imports
 /// `__tls_get_addr`, `dlsym` and `_Unwind_Resume`, each from its own
-/// provider. Against libc alone the same object refuses, which was the
-/// beta.12 decline on bookworm.
+/// provider. Against libc only the same object is refused, as on Debian
+/// bookworm.
 #[test]
 fn a_closure_read_inside_the_image_admits_the_three_imports() {
     let fx = Fixture::new("bookworm", bookworm());
@@ -172,10 +132,7 @@ fn a_closure_read_inside_the_image_admits_the_three_imports() {
     assert_eq!(admits_set(&object(), &set), Verdict::Admitted);
     let libc = set.libc().expect("a libc").clone();
     let why = refused(admits(&object(), &libc));
-    assert!(
-        why.contains("__tls_get_addr") || why.contains("_Unwind_Resume"),
-        "{why}"
-    );
+    assert!(why.contains("__tls_get_addr") || why.contains("_Unwind_Resume"), "{why}");
 }
 
 /// The bullseye shape (glibc 2.31): libc defines no `dlsym`, and
@@ -204,7 +161,7 @@ fn a_missing_needed_library_is_named() {
     let fx = Fixture::new("nolibdl", libs);
     let why = fx.set(&object()).expect_err("libdl.so.2 is absent");
     assert!(why.contains("libdl.so.2"), "{why}");
-    assert!(why.contains("/.podvm/interpose.so"), "{why}");
+    assert!(why.contains("/.pod-enter/interpose.so"), "{why}");
 }
 
 /// The version is checked in the namespace of the file the reference
@@ -217,10 +174,7 @@ fn a_version_is_checked_against_its_provider_file() {
     let fx = Fixture::new("ns", libs);
     let set = fx.set(&object()).expect("the closure resolves");
     let why = refused(admits_set(&object(), &set));
-    assert!(
-        why.contains("`dlsym`") && why.contains("from libdl.so.2"),
-        "{why}"
-    );
+    assert!(why.contains("`dlsym`") && why.contains("from libdl.so.2"), "{why}");
     assert!(why.contains("GLIBC_2.34"), "{why}");
 }
 
@@ -232,10 +186,7 @@ fn a_missing_definition_names_the_provider() {
     let fx = Fixture::new("nodef", libs);
     let set = fx.set(&object()).expect("the closure resolves");
     let why = refused(admits_set(&object(), &set));
-    assert!(
-        why.contains("`_Unwind_Resume`") && why.contains("from libgcc_s.so.1"),
-        "{why}"
-    );
+    assert!(why.contains("`_Unwind_Resume`") && why.contains("from libgcc_s.so.1"), "{why}");
 }
 
 /// A loader link that resolves only on the host is not read. The image's
@@ -252,45 +203,29 @@ fn a_loader_link_that_resolves_only_on_the_host_is_not_read() {
     let link = fx.root.join("lib64/ld-linux-x86-64.so.2");
     std::fs::remove_file(&link).unwrap();
     std::os::unix::fs::symlink(&host_loader, &link).unwrap();
-    let why = fx
-        .set(&object())
-        .expect_err("the loader resolves only on the host");
+    let why = fx.set(&object()).expect_err("the loader resolves only on the host");
     let _ = std::fs::remove_dir_all(&host_dir);
     assert!(why.contains("interpreter"), "{why}");
     for p in fx.read.borrow().iter() {
-        assert!(
-            Path::new(p).starts_with(&fx.root),
-            "read {p} outside the rootfs"
-        );
+        assert!(Path::new(p).starts_with(&fx.root), "read {p} outside the rootfs");
     }
 }
 
 /// musl: the loader is the C library, and it answers `libc.so` itself.
 #[test]
 fn a_musl_set_is_its_loader() {
-    let root = std::env::temp_dir().join(format!("podvm-t1644-musl-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("pod-enter-linkset-musl-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("lib")).unwrap();
     std::fs::write(root.join("lib/ld-musl-x86_64.so.1"), tiny_elf(ME)).unwrap();
-    let ld = fake(
-        "",
-        None,
-        &[],
-        &[("open", None), ("__libc_start_main", None)],
-        &[],
-    );
+    let ld = fake("", None, &[], &[("open", None), ("__libc_start_main", None)], &[]);
     let read = |p: &str| -> Result<Elf, Unreadable> {
         let mut e = ld.clone();
         e.path = p.to_string();
         Ok(e)
     };
-    let mut obj = fake("/.podvm/interpose.so", None, &["libc.so"], &[], &[]);
-    obj.imported = vec![Versioned {
-        name: "open".into(),
-        version: None,
-        weak: false,
-        file: None,
-    }];
+    let mut obj = fake("/.pod-enter/interpose.so", None, &["libc.so"], &[], &[]);
+    obj.imported = vec![Versioned { name: "open".into(), version: None, weak: false, file: None }];
     let rootfs = root.display().to_string();
     let dirs = guest_lib_dirs(&rootfs, "/lib/ld-musl-x86_64.so.1");
     let set = link_set(&root, &obj, "/lib/ld-musl-x86_64.so.1", &dirs, &read).expect("musl set");

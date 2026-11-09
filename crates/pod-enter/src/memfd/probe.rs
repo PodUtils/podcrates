@@ -1,25 +1,28 @@
-//! TODO/enter.md T-1688 (issue 212): whether a memfd EXECUTES here.
+//! Does a memfd execute on this host?
 //!
-//! ⛔ The old probe created a memfd and closed it. That proves that
-//! `memfd_create` answers, not that the descriptor executes. Under
-//! `vm.memfd_noexec=1` the ladder then promised the memfd rung and the
-//! launch failed late, at step 5 "execveat of the memfd". This probe
-//! stages a tiny static ELF through [`super::stage_raw`] (the flags and
-//! the seals of the launch), forks, and executes it through
-//! [`super::exec_fd`] (the `execveat` of the launch). One probe, cached
-//! for the process: the doctor row, the ladder and the entry check read
-//! the same answer, so they cannot disagree.
+//! A probe that makes a memfd and closes it proves that `memfd_create`
+//! answers, not that the descriptor executes. Under `vm.memfd_noexec=1`
+//! such a probe promises the memfd rung, and the launch then fails late,
+//! at the step "execveat of the memfd". This probe stages a small static
+//! ELF through [`super::stage_raw`] (the flags and the seals of the
+//! launch), forks, and executes it through [`super::exec_fd`] (the
+//! `execveat` of the launch). The answer is measured one time for each
+//! process: a health row, the ladder and the entry check read the same
+//! answer, so they cannot disagree.
 //!
-//! ⚠ A probe that cannot run (no pipe, no fork, an odd wait status) is
-//! [`MemfdExec::Unmeasured`]. It never reads as a denial.
+//! A probe that cannot run to an answer (no pipe, no fork, an unknown wait
+//! status) is [`MemfdExec::Unmeasured`]. It never reads as a denial.
 //!
-//! ⚠ The trampoline exists for x86_64 and aarch64. On each other
+//! The trampoline exists for x86_64 and aarch64. On each other
 //! architecture the probe stages bytes that no loader takes and reads
-//! `ENOEXEC` as exec: the permission checks passed, and no code ran.
+//! `ENOEXEC` as an exec: the checks of the exec permission passed, and no
+//! code ran.
 
 use std::sync::OnceLock;
 
-use podvm_probe::sys::{self, Errno};
+use pod_hostprobe::sys::{self, Errno};
+
+use crate::Names;
 
 /// The sysctl that seals each new memfd against exec (Linux 6.3 and
 /// later): 0 allows exec, 1 makes `MFD_NOEXEC_SEAL` the default, 2
@@ -33,6 +36,9 @@ pub const TRAMPOLINE_EXIT: i32 = 42;
 
 /// The exit code of the probe child when `execveat` returns.
 const EXEC_FAILED: i32 = 127;
+
+/// The name of the memfd of the trampoline, and the `argv[0]` of it.
+const PROBE_LABEL: &str = "memfd-probe";
 
 /// The bound on the wait for the probe child, in milliseconds.
 const WAIT_BOUND_MS: u32 = 2000;
@@ -59,7 +65,7 @@ impl MemfdExec {
     }
 }
 
-/// The three states of the answer: the doctor row maps them to ok, fail
+/// The three states of the answer: a health row maps them to ok, fail
 /// and note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Standing {
@@ -68,7 +74,7 @@ pub enum Standing {
     Unmeasured,
 }
 
-/// The user text for one measurement. `fix` is `Some` exactly where the
+/// The text for one measurement. `fix` is `Some` exactly where the
 /// standing is [`Standing::Denied`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer {
@@ -89,14 +95,22 @@ impl Answer {
 
 /// The fix line where `vm.memfd_noexec=2` is the cause. `MFD_EXEC` does
 /// not help under 2: the kernel refuses it too.
-const FIX_SYSCTL_2: &str = "set vm.memfd_noexec to 0 (`sysctl -w vm.memfd_noexec=0` as \
-     root, in this pid namespace or a parent one), or use another rung: \
-     run with chroot(2) allowed, or with PODVM_MODE unset";
+fn fix_sysctl_2(names: &Names) -> String {
+    format!(
+        "set vm.memfd_noexec to 0 (`sysctl -w vm.memfd_noexec=0` as root, in this pid namespace \
+         or a parent one), or use another rung: run with chroot(2) allowed, or with {} unset",
+        names.mode_request
+    )
+}
 
 /// The fix line where the cause is not known.
-const FIX_UNKNOWN: &str = "use another rung: run with chroot(2) allowed, or with \
-     PODVM_MODE unset; a seccomp or LSM policy that denies memfd_create or \
-     execveat to podvm can also be the cause";
+fn fix_unknown(names: &Names) -> String {
+    format!(
+        "use another rung: run with chroot(2) allowed, or with {} unset; a seccomp or LSM policy \
+         that denies memfd_create or execveat to {} can also be the cause",
+        names.mode_request, names.product
+    )
+}
 
 /// The sysctl part of a detail.
 fn sysctl_words(sysctl: Option<u8>) -> String {
@@ -106,108 +120,91 @@ fn sysctl_words(sysctl: Option<u8>) -> String {
     }
 }
 
-/// The user text and the fix line for one measurement. Pure: the doctor
-/// row and the refusals read this one mapping.
+/// The text and the fix line for one measurement. Pure: a health row and
+/// the refusals read this one mapping.
 ///
-/// ⚠ podvm passes `MFD_EXEC` on its own `memfd_create` (see
-/// [`super::memfd_create`]), so value 1 does not stop podvm. Value 2
-/// refuses each memfd without `MFD_NOEXEC_SEAL`, `MFD_EXEC` included,
-/// so value 2 is the cause where `memfd_create` fails with `EACCES` or
+/// The entry gives `MFD_EXEC` to its own `memfd_create`
+/// ([`super::memfd_create`]), so value 1 does not stop it. Value 2
+/// refuses each memfd without `MFD_NOEXEC_SEAL`, also with `MFD_EXEC`, so
+/// value 2 is the cause where `memfd_create` fails with `EACCES` or
 /// `EPERM`. A denial with value 0 or with no readable value is "denied,
 /// cause unknown", never the sysctl.
-pub fn answer(m: &MemfdExec) -> Answer {
-    let denied = |detail: String, fix: &str| Answer {
-        standing: Standing::Denied,
-        detail,
-        fix: Some(fix.to_string()),
-    };
+pub fn answer(names: &Names, m: &MemfdExec) -> Answer {
+    let denied = |detail: String, fix: String| Answer { standing: Standing::Denied, detail, fix: Some(fix) };
     match m {
         MemfdExec::Exec { sysctl: Some(1) } => Answer {
             standing: Standing::Holds,
-            detail: "a memfd executes through execveat(AT_EMPTY_PATH): \
-                     vm.memfd_noexec=1 seals a memfd against exec by default, \
-                     and podvm passes MFD_EXEC on its own memfd_create"
-                .to_string(),
+            detail: format!(
+                "a memfd executes through execveat(AT_EMPTY_PATH): vm.memfd_noexec=1 seals a memfd \
+                 against exec by default, and {} passes MFD_EXEC on its own memfd_create",
+                names.product
+            ),
             fix: None,
         },
         MemfdExec::Exec { sysctl } => Answer {
             standing: Standing::Holds,
-            detail: format!(
-                "a memfd executes through execveat(AT_EMPTY_PATH) ({})",
-                sysctl_words(*sysctl)
-            ),
+            detail: format!("a memfd executes through execveat(AT_EMPTY_PATH) ({})", sysctl_words(*sysctl)),
             fix: None,
         },
-        MemfdExec::NoMemfd {
-            sysctl: Some(2),
-            errno,
-        } if *errno == sys::EACCES || *errno == sys::EPERM => denied(
+        MemfdExec::NoMemfd { sysctl: Some(2), errno } if *errno == sys::EACCES || *errno == sys::EPERM => denied(
             format!(
-                "denied by vm.memfd_noexec=2: the kernel refuses each memfd \
-                 that is not sealed against exec, so memfd_create with \
-                 MFD_EXEC fails with {} ({})",
+                "denied by vm.memfd_noexec=2: the kernel refuses each memfd that is not sealed \
+                 against exec, so memfd_create with MFD_EXEC fails with {} ({})",
                 errno.name(),
                 errno.0
             ),
-            FIX_SYSCTL_2,
+            fix_sysctl_2(names),
         ),
-        MemfdExec::NoExec {
-            sysctl: Some(2),
-            errno,
-        } => denied(
+        MemfdExec::NoExec { sysctl: Some(2), errno } => denied(
             format!(
-                "denied by vm.memfd_noexec=2: execveat of the memfd fails \
-                 with {} ({}), because the kernel seals each memfd against \
-                 exec",
+                "denied by vm.memfd_noexec=2: execveat of the memfd fails with {} ({}), because \
+                 the kernel seals each memfd against exec",
                 errno.name(),
                 errno.0
             ),
-            FIX_SYSCTL_2,
+            fix_sysctl_2(names),
         ),
         MemfdExec::NoMemfd { sysctl, errno } => denied(
             format!(
-                "denied, cause unknown: memfd_create fails with {} ({}) \
-                 ({}{})",
+                "denied, cause unknown: memfd_create fails with {} ({}) ({}{})",
                 errno.name(),
                 errno.0,
                 sysctl_words(*sysctl),
-                not_the_cause(*sysctl)
+                not_the_cause(names, *sysctl)
             ),
-            FIX_UNKNOWN,
+            fix_unknown(names),
         ),
         MemfdExec::NoExec { sysctl, errno } => denied(
             format!(
-                "denied, cause unknown: execveat of the memfd fails with {} \
-                 ({}) ({}{})",
+                "denied, cause unknown: execveat of the memfd fails with {} ({}) ({}{})",
                 errno.name(),
                 errno.0,
                 sysctl_words(*sysctl),
-                not_the_cause(*sysctl)
+                not_the_cause(names, *sysctl)
             ),
-            FIX_UNKNOWN,
+            fix_unknown(names),
         ),
-        MemfdExec::Unmeasured { step, why } => Answer {
-            standing: Standing::Unmeasured,
-            detail: format!("not measured: {step} failed: {why}"),
-            fix: None,
-        },
+        MemfdExec::Unmeasured { step, why } => {
+            Answer { standing: Standing::Unmeasured, detail: format!("not measured: {step} failed: {why}"), fix: None }
+        }
     }
 }
 
-/// Why a readable sysctl value is not the cause of a denial.
-fn not_the_cause(sysctl: Option<u8>) -> &'static str {
+/// Why a readable value of the sysctl is not the cause of a denial.
+fn not_the_cause(names: &Names, sysctl: Option<u8>) -> String {
     match sysctl {
-        Some(0) => ", which allows exec",
-        Some(1) => ", which podvm meets with MFD_EXEC",
-        _ => "",
+        Some(0) => ", which allows exec".to_string(),
+        Some(1) => format!(", which {} meets with MFD_EXEC", names.product),
+        _ => String::new(),
     }
 }
 
-/// The measurement, made once for each process.
+/// The measurement, made one time for each process.
 ///
-/// ⛔ Cached on purpose: the entry check, the ladder and the doctor row
-/// read one answer, so a second measurement cannot disagree with the
-/// first.
+/// The answer is kept for the process: the entry check, the ladder and a
+/// health row read one answer, so a second measurement cannot disagree
+/// with the first. The answer is a fact of the kernel and of the policy
+/// of the process, which do not change while the process runs.
 pub fn memfd_exec() -> &'static MemfdExec {
     static ONCE: OnceLock<MemfdExec> = OnceLock::new();
     ONCE.get_or_init(measure)
@@ -216,29 +213,17 @@ pub fn memfd_exec() -> &'static MemfdExec {
 /// Read `vm.memfd_noexec`, best effort. A kernel before 6.3 has no such
 /// file, and that reads as `None`.
 pub fn read_sysctl() -> Option<u8> {
-    std::fs::read_to_string(SYSCTL_PATH)
-        .ok()?
-        .trim()
-        .parse::<u8>()
-        .ok()
+    std::fs::read_to_string(SYSCTL_PATH).ok()?.trim().parse::<u8>().ok()
 }
 
 /// Stage the trampoline the way the launch stages a payload, then run it.
 fn measure() -> MemfdExec {
     let sysctl = read_sysctl();
-    let fd = match super::stage_raw(&TRAMPOLINE) {
+    let fd = match super::stage_raw(PROBE_LABEL, &TRAMPOLINE) {
         Ok(fd) => fd,
-        Err(fail) if fail.step == super::STEP_CREATE => {
-            return MemfdExec::NoMemfd {
-                sysctl,
-                errno: fail.errno,
-            }
-        }
+        Err(fail) if fail.step == super::STEP_CREATE => return MemfdExec::NoMemfd { sysctl, errno: fail.errno },
         Err(fail) => {
-            return MemfdExec::Unmeasured {
-                step: fail.step,
-                why: format!("{} ({})", fail.errno.name(), fail.errno.0),
-            }
+            return MemfdExec::Unmeasured { step: fail.step, why: format!("{} ({})", fail.errno.name(), fail.errno.0) };
         }
     };
     let m = measure_fd(fd, sysctl);
@@ -249,14 +234,12 @@ fn measure() -> MemfdExec {
 /// Execute the memfd `fd` in a forked child and classify the result.
 /// The caller keeps and closes `fd`.
 pub(crate) fn measure_fd(fd: i64, sysctl: Option<u8>) -> MemfdExec {
-    let unmeasured = |step: &'static str, e: Errno| MemfdExec::Unmeasured {
-        step,
-        why: format!("{} ({})", e.name(), e.0),
-    };
-    // ⛔ Everything the child touches exists before the fork: between
+    let unmeasured =
+        |step: &'static str, e: Errno| MemfdExec::Unmeasured { step, why: format!("{} ({})", e.name(), e.0) };
+    // Each thing that the child touches exists before the fork: between
     // clone and execve only async-signal-safe work is permitted.
     let empty = sys::CBuf::new("").expect("a literal carries no NUL");
-    let argv0 = sys::CBuf::new("podvm-memfd-probe").expect("a literal carries no NUL");
+    let argv0 = sys::CBuf::new(PROBE_LABEL).expect("a literal carries no NUL");
     let argv: [*const u8; 2] = [argv0.ptr() as *const u8, std::ptr::null()];
     let envp: [*const u8; 1] = [std::ptr::null()];
     let mut pipe = [0i32; 2];
@@ -294,12 +277,7 @@ pub(crate) fn measure_fd(fd: i64, sysctl: Option<u8>) -> MemfdExec {
     let _ = sys::close(r);
     let status = match status {
         Ok(st) => st,
-        Err(why) => {
-            return MemfdExec::Unmeasured {
-                step: "the wait for the probe child",
-                why,
-            }
-        }
+        Err(why) => return MemfdExec::Unmeasured { step: "the wait for the probe child", why },
     };
     if let Ok(2) = got {
         let errno = Errno(i32::from(buf[0]) | (i32::from(buf[1]) << 8));
@@ -347,9 +325,7 @@ fn wait_bounded(pid: i64) -> Result<i32, String> {
             _ => break,
         }
     }
-    Err(format!(
-        "the child did not exit within {WAIT_BOUND_MS} ms and was killed"
-    ))
+    Err(format!("the child did not exit within {WAIT_BOUND_MS} ms and was killed"))
 }
 
 /// Whether [`TRAMPOLINE`] is a program for this architecture. Where it
@@ -383,9 +359,7 @@ mod elf {
     /// x86_64: `mov edi, 42` (bf 2a 00 00 00), `mov eax, 231` (b8 e7 00
     /// 00 00, `__NR_exit_group`), `syscall` (0f 05).
     #[cfg(target_arch = "x86_64")]
-    const CODE: [u8; 12] = [
-        0xbf, 0x2a, 0x00, 0x00, 0x00, 0xb8, 0xe7, 0x00, 0x00, 0x00, 0x0f, 0x05,
-    ];
+    const CODE: [u8; 12] = [0xbf, 0x2a, 0x00, 0x00, 0x00, 0xb8, 0xe7, 0x00, 0x00, 0x00, 0x0f, 0x05];
     /// `EM_X86_64`.
     #[cfg(target_arch = "x86_64")]
     pub(super) const MACHINE: u16 = 62;
@@ -394,9 +368,7 @@ mod elf {
     /// `__NR_exit_group`), `svc #0` (0xd4000001), each little-endian. The
     /// code starts at offset 120, which is 4-byte aligned.
     #[cfg(target_arch = "aarch64")]
-    const CODE: [u8; 12] = [
-        0x40, 0x05, 0x80, 0xd2, 0xc8, 0x0b, 0x80, 0xd2, 0x01, 0x00, 0x00, 0xd4,
-    ];
+    const CODE: [u8; 12] = [0x40, 0x05, 0x80, 0xd2, 0xc8, 0x0b, 0x80, 0xd2, 0x01, 0x00, 0x00, 0xd4];
     /// `EM_AARCH64`.
     #[cfg(target_arch = "aarch64")]
     pub(super) const MACHINE: u16 = 183;
@@ -428,14 +400,14 @@ mod elf {
         put(&mut b, 20, &1u32.to_le_bytes()); // e_version: EV_CURRENT
         put(&mut b, 24, &(BASE + CODE_AT as u64).to_le_bytes()); // e_entry
         put(&mut b, 32, &64u64.to_le_bytes()); // e_phoff: after the header
-                                               // e_shoff (40) and e_flags (48) stay 0: no sections, no flags.
+        // e_shoff (40) and e_flags (48) stay 0: no sections, no flags.
         put(&mut b, 52, &64u16.to_le_bytes()); // e_ehsize
         put(&mut b, 54, &56u16.to_le_bytes()); // e_phentsize
         put(&mut b, 56, &1u16.to_le_bytes()); // e_phnum
-                                              // e_shentsize, e_shnum and e_shstrndx (58..64) stay 0.
+        // e_shentsize, e_shnum and e_shstrndx (58..64) stay 0.
         put(&mut b, 64, &1u32.to_le_bytes()); // p_type: PT_LOAD
         put(&mut b, 68, &5u32.to_le_bytes()); // p_flags: PF_R | PF_X
-                                              // p_offset (72) stays 0: the segment maps the file from its start.
+        // p_offset (72) stays 0: the segment maps the file from its start.
         put(&mut b, 80, &BASE.to_le_bytes()); // p_vaddr
         put(&mut b, 88, &BASE.to_le_bytes()); // p_paddr
         put(&mut b, 96, &(LEN as u64).to_le_bytes()); // p_filesz

@@ -1,60 +1,58 @@
-//! TODO/packaging.md T-1003: the FUSE rung's staging and read-only server.
+//! The staging and the read-only server of the FUSE rung.
 //!
-//! memfd stages bytes into a fd, tmpfs stages the tree onto a mount, rundir
-//! stages it into a directory: the FUSE rung serves the extracted tree over
-//! `/dev/fuse` without copying it, and the payload enters the mount. The
-//! mount needs what the other rungs do not: the node must open, a `mount(2)`
-//! carrying the session fd must attach, and a server must answer the
-//! kernel's requests for as long as the payload runs.
+//! The memfd rung stages bytes into a descriptor, the tmpfs rung stages
+//! the tree onto a mount, the run directory rung stages it into a
+//! directory. The FUSE rung serves the extracted tree over `/dev/fuse`
+//! with no copy, and the payload enters the mount. The mount needs what
+//! the other rungs do not: the node must open, a `mount(2)` with the
+//! session descriptor must attach, and a server must answer the requests
+//! of the kernel while the payload runs.
 //!
-//! ⛔ Read-only, by reply rather than by mount flag. Every mutating opcode
-//! answers `EROFS` and every unknown one `ENOSYS`: a payload that writes
-//! gets the errno, never a silent drop and never a write to the store's
-//! own tree.
+//! Read-only by the reply, not by a mount flag. Each opcode that changes
+//! the tree answers `EROFS` and each unknown one `ENOSYS`: a payload that
+//! writes gets the errno, never a silent drop and never a write to the
+//! tree of the store.
 //!
-//! ⛔ The server is a forked child, never a thread: the T-0603 assertion
-//! scans this crate, and a thread would make the clone below fork a
-//! threaded process. The child mounts, serves, and dies with the run; the
-//! parent bounds every wait on it, kills it on every path, and unmounts
-//! and removes the mount directory behind it.
+//! The server is a forked child, never a thread: a thread would make the
+//! next fork of this process the fork of a process with threads. The
+//! child mounts, serves, and ends with the run; the parent puts a bound on
+//! each wait, kills the server on each path, unmounts, and removes the
+//! mount directory.
 //!
-//! ⚠ What this module does NOT prove. No reachable machine holds
-//! `/dev/fuse` (absent on the lane, uncreatable: `mknod` is `EPERM` even
-//! in a user namespace, measured 2026-09-30) or grants a mount
-//! (`mount(2)` is `EPERM` even in a user namespace, measured the same
-//! day). The live drive therefore proves the refusal arms and the mount
-//! failure's cleanup; entry over a real session needs a host with the
-//! node and a granted mount, and names it in the refusal below.
+//! What this module does not prove: a machine that holds `/dev/fuse` and
+//! grants the mount. `mknod` of the node is `EPERM` also in a user
+//! namespace, and so is `mount(2)`. The tests prove the refusals, the
+//! cleanup after a failed mount, and the server over a socket pair; an
+//! entry over a real session needs a host with the node and a granted
+//! mount.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use podvm_probe::sys::{self, CBuf};
+use pod_hostprobe::sys::{self, CBuf};
 
 use crate::stage;
 
 /// The node the rung is named for.
 pub const FUSE_NODE: &str = "/dev/fuse";
 
-/// How long the parent waits for the server's mounted word and its serving
-/// word before killing it. A bound reached is a refusal, never a longer
-/// wait: TODO/RULES.md section 8's own rule.
+/// How long the parent waits for the mounted word and for the serving word
+/// of the server before it kills it. A bound that the wait reaches is a
+/// refusal, never a longer wait.
 const READY_TIMEOUT_MS: i64 = 10_000;
 
-/// The request buffer. The kernel hands one request per read, and
-/// `FUSE_MIN_READ_BUFFER` (8192, `/usr/include/linux/fuse.h:70`) is its
-/// floor; reads are capped at 128 KiB beside the reply cap, so no request
-/// sizes this buffer.
+/// The request buffer. The kernel gives one request for each read, and
+/// `FUSE_MIN_READ_BUFFER` (8192, `linux/fuse.h`) is its floor; a read is
+/// at most 128 KiB, as the reply, so no request is larger than this
+/// buffer.
 const IO_BUFFER: usize = 128 * 1024;
 
-/// The largest single READ this server answers. Reads past it are served
-/// whole up to this bound and refused past it: an unbounded reply buffer
-/// is the whole-unbounded-response pattern `forbidden-patterns.md`
-/// refuses, and no reader the payload uses asks past 128 KiB.
+/// The largest READ that this server answers. A larger READ is refused:
+/// a reply buffer must have a bound, and no reader of a payload asks for
+/// more than 128 KiB.
 const MAX_READ: u64 = 128 * 1024;
 
-/// Opcodes this server answers, read at `/usr/include/linux/fuse.h:517-566`
-/// on the lane rather than remembered.
+/// The opcodes that this server answers, from `linux/fuse.h`.
 const OP_LOOKUP: u32 = 1;
 const OP_FORGET: u32 = 2;
 const OP_GETATTR: u32 = 3;
@@ -72,17 +70,15 @@ const OP_INTERRUPT: u32 = 36;
 const OP_DESTROY: u32 = 38;
 const OP_BATCH_FORGET: u32 = 42;
 
-/// Mutating opcodes, answered `EROFS` rather than implemented: setattr,
-/// symlink, mknod, mkdir, unlink, rmdir, rename, link, write, create and
-/// every xattr/flock/fallocate/tmpfile word. Same header, same lines.
-const OP_MUTATING: [u32; 24] = [
-    4, 6, 8, 9, 10, 11, 12, 13, 16, 20, 21, 22, 23, 24, 25, 31, 32, 33, 35, 37, 43, 45, 46, 47,
-];
+/// The opcodes that change the tree, answered `EROFS`: setattr, symlink,
+/// mknod, mkdir, unlink, rmdir, rename, link, write, create and each
+/// xattr, flock, fallocate and tmpfile word. From the same header.
+const OP_MUTATING: [u32; 24] =
+    [4, 6, 8, 9, 10, 11, 12, 13, 16, 20, 21, 22, 23, 24, 25, 31, 32, 33, 35, 37, 43, 45, 46, 47];
 
-/// The ABI this server speaks, read at the same header (`:235-238` there
-/// the kernel is 7.38). The kernel negotiates down on an older one; the
-/// structs below are parsed by the negotiated version, so offering the
-/// read one keeps the offer and the bytes consistent.
+/// The ABI of this server, from the same header (7.38). An older kernel
+/// agrees on a lower version; the structs below are read by the agreed
+/// version, so the offer and the bytes agree.
 const ABI_MAJOR: u32 = 7;
 const ABI_MINOR: u32 = 38;
 
@@ -93,9 +89,8 @@ const DT_DIR: u32 = 4;
 const DT_REG: u32 = 8;
 const DT_LNK: u32 = 10;
 
-/// `sys/mount.h`'s pair for a userspace mount: neither the set-uid bit
-/// nor device nodes pass through it. `MS_PRIVATE` beside them documents
-/// its header in `sys.rs:469-475`; these ride the same ABI.
+/// The flags of `sys/mount.h` for a mount of user space: neither the
+/// set-user-ID bit nor a device node passes through it.
 const MS_NOSUID: u64 = 0x2;
 const MS_NODEV: u64 = 0x4;
 
@@ -167,20 +162,14 @@ pub fn check_node() -> Result<(), stage::Refusal> {
 /// [`serve_tree`]'s refusal arms and the in-module tests below.
 fn stage_mount_dir(store_root: &Path) -> Result<PathBuf, stage::Refusal> {
     let base = store_root.join("fuse");
-    std::fs::create_dir_all(&base).map_err(|e| stage::Refusal {
-        path: base.clone(),
-        why: format!("the fuse base could not be prepared: {e}"),
-    })?;
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
+    std::fs::create_dir_all(&base)
+        .map_err(|e| stage::Refusal { path: base.clone(), why: format!("the fuse base could not be prepared: {e}") })?;
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
     let dir = base.join(format!("mnt-{}-{nanos}", std::process::id()));
     if dir.exists() {
         return Err(stage::Refusal {
             path: dir,
-            why: "the mount directory already exists: refusing rather than mounting over a stale tree"
-                .to_string(),
+            why: "the mount directory already exists: refusing rather than mounting over a stale tree".to_string(),
         });
     }
     std::fs::create_dir_all(&dir).map_err(|e| stage::Refusal {
@@ -211,10 +200,7 @@ pub struct ActiveMount {
 /// the store's own extraction, writes are refused with `EROFS`.
 pub fn serve_tree(store_root: &Path, backing: &Path) -> Result<ActiveMount, stage::Refusal> {
     if !backing.is_dir() {
-        return Err(stage::Refusal {
-            path: backing.to_path_buf(),
-            why: "not a directory podvm can serve".to_string(),
-        });
+        return Err(stage::Refusal { path: backing.to_path_buf(), why: "not a directory to serve".to_string() });
     }
     check_node()?;
     let dir = stage_mount_dir(store_root)?;
@@ -253,18 +239,14 @@ pub fn serve_tree(store_root: &Path, backing: &Path) -> Result<ActiveMount, stag
             let _ = std::fs::remove_dir_all(&dir);
             return Err(stage::Refusal {
                 path: dir,
-                why: format!(
-                    "clone(2) for the FUSE server failed: {} ({})",
-                    e.name(),
-                    e.0
-                ),
+                why: format!("clone(2) for the FUSE server failed: {} ({})", e.name(), e.0),
             });
         }
     };
     let _ = sys::close(write_end);
-    // ⛔ The parent's copy of the session fd closes once the server is
-    // serving: the session lives on the server's copy, and a copy held
-    // here would keep the session open past the server's death.
+    // The copy of the session descriptor in the parent closes when the
+    // server serves: the session lives on the copy of the server, and a
+    // copy here would keep the session open after the server is dead.
     let outcome = wait_for_server(pid, read_end, &dir, fd);
     let _ = sys::close(read_end);
     outcome
@@ -277,12 +259,7 @@ pub fn serve_tree(store_root: &Path, backing: &Path) -> Result<ActiveMount, stag
 /// parent stats the mount to trigger the INIT. Any other outcome kills
 /// and reaps the server, unmounts where mounted, removes the directory,
 /// and refuses naming the step.
-fn wait_for_server(
-    pid: i64,
-    read_end: i64,
-    dir: &Path,
-    fd: i64,
-) -> Result<ActiveMount, stage::Refusal> {
+fn wait_for_server(pid: i64, read_end: i64, dir: &Path, fd: i64) -> Result<ActiveMount, stage::Refusal> {
     let kill_and_clean = |dir: &Path| {
         let _ = sys::kill(pid, 9);
         let _ = crate::Child { pid }.wait_bounded(5_000);
@@ -300,10 +277,7 @@ fn wait_for_server(
             match read_word(read_end, READY_TIMEOUT_MS) {
                 Some(0) => {
                     let _ = sys::close(fd);
-                    Ok(ActiveMount {
-                        pid,
-                        dir: dir.to_path_buf(),
-                    })
+                    Ok(ActiveMount { pid, dir: dir.to_path_buf() })
                 }
                 _ => {
                     kill_and_clean(dir);
@@ -351,11 +325,7 @@ fn wait_for_server(
 /// or the bound. A 4-byte write is atomic, so a ready pipe carries the
 /// whole word: no framing, no second read.
 fn read_word(fd: i64, timeout_ms: i64) -> Option<u32> {
-    let mut fds = [sys::PollFd {
-        fd: fd as i32,
-        events: sys::POLLIN,
-        revents: 0,
-    }];
+    let mut fds = [sys::PollFd { fd: fd as i32, events: sys::POLLIN, revents: 0 }];
     match sys::ppoll(&mut fds, timeout_ms) {
         Ok(n) if n > 0 => {}
         _ => return None,
@@ -380,8 +350,8 @@ fn read_word(fd: i64, timeout_ms: i64) -> Option<u32> {
 /// removal is what keeps the next run from meeting this one. A directory
 /// that was never mounted removes like any other.
 pub fn release_mount(mounted: &ActiveMount) {
-    // ⚠ SIGKILL, not SIGTERM: the server masks nothing and traps
-    // nothing, and a server past its payload must die rather than flush.
+    // SIGKILL, not SIGTERM: the server blocks and catches no signal, and a
+    // server after its payload must stop, not flush.
     let _ = sys::kill(mounted.pid, 9);
     let _ = crate::Child { pid: mounted.pid }.wait_bounded(5_000);
     if let Some(target) = CBuf::new(&mounted.dir.to_string_lossy()) {
@@ -413,53 +383,34 @@ fn child_main(fd: i64, read_end: i64, write_end: i64, backing: &Path, dir: &Path
 
 /// `mount(2)` the session fd over `dir`.
 ///
-/// `sys::mount` carries no data argument (the tmpfs rung needs none), so
-/// this issues the raw number beside it, the way `memfd.rs` issues its
-/// own: source and fstype `fuse`, flags `MS_NOSUID|MS_NODEV`, data
-/// `fd=N,rootmode=OOO,user_id=U,group_id=G`. The option shape is the
-/// kernel's, read in the corpus at
-/// `references/apptainer__apptainer/tree/internal/pkg/runtime/engine/apptainer/container_linux.go:563`.
+/// `sys::mount` has no data argument (the tmpfs rung needs none), so this
+/// does the raw call: source and file system type `fuse`, flags
+/// `MS_NOSUID|MS_NODEV`, data `fd=N,rootmode=OOO,user_id=U,group_id=G`,
+/// the options of the kernel (as apptainer gives them).
 fn mount_fuse(fd: i64, dir: &Path) -> Result<(), sys::Errno> {
     let mode = std::fs::metadata(dir).map_or(0o755, |m| {
         use std::os::unix::fs::PermissionsExt;
         m.permissions().mode() & 0o7777
     }) | 0o040000;
-    let data = format!(
-        "fd={fd},rootmode={mode:o},user_id={},group_id={}",
-        euid(),
-        egid()
-    );
-    let (Some(source), Some(target), Some(fstype), Some(data)) = (
-        CBuf::new("fuse"),
-        CBuf::new(&dir.to_string_lossy()),
-        CBuf::new("fuse"),
-        CBuf::new(&data),
-    ) else {
+    let data = format!("fd={fd},rootmode={mode:o},user_id={},group_id={}", euid(), egid());
+    let (Some(source), Some(target), Some(fstype), Some(data)) =
+        (CBuf::new("fuse"), CBuf::new(&dir.to_string_lossy()), CBuf::new("fuse"), CBuf::new(&data))
+    else {
         return Err(errno(22));
     };
-    // ⛔ The CBufs outlive the call: the kernel reads every pointer
-    // before returning, so nothing here may drop first.
+    // The CBufs live past the call: the kernel reads each pointer before
+    // it returns, so nothing here may drop first.
     match unsafe {
-        sys::sys(
-            sys::SYS_MOUNT,
-            [
-                source.ptr(),
-                target.ptr(),
-                fstype.ptr(),
-                MS_NOSUID | MS_NODEV,
-                data.ptr(),
-                0,
-            ],
-        )
+        sys::sys(sys::SYS_MOUNT, [source.ptr(), target.ptr(), fstype.ptr(), MS_NOSUID | MS_NODEV, data.ptr(), 0])
     } {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
 }
 
-/// The mounting ids. No wrapper names them in `sys.rs`, so these issue
-/// the raw numbers beside `memfd.rs`'s own raw calls. Neither call can
-/// fail; the fallback is root's pair, which the mount then judges.
+/// The IDs of the mount. `pod_hostprobe::sys` has no wrapper for them, so
+/// these do the raw calls. Neither call can fail; the fallback is the pair
+/// of root, which the mount then checks.
 fn euid() -> u32 {
     unsafe { sys::sys(sys::SYS_GETUID, [0, 0, 0, 0, 0, 0]).map(|n| n as u32) }.unwrap_or(0)
 }

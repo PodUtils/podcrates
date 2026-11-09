@@ -13,6 +13,7 @@ publish = false
 pod-broker = { workspace = true }
 pod-core = { workspace = true }
 pod-dns = { workspace = true, features = ["ech"] }
+pod-enter = { workspace = true }
 pod-gsr = { workspace = true, features = ["blocking"] }
 pod-guest = { workspace = true }
 pod-hostprobe = { workspace = true }

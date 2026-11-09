@@ -1,39 +1,36 @@
-//! Whether this machine can execute a foreign-architecture payload, and how.
+//! Can this machine execute a payload of a foreign architecture, and
+//! how?
 //!
-//! [`TODO/enter.md`](../../../TODO/enter.md) T-0506.
+//! The mechanism of docker and podman, read and not assumed:
+//! `binfmt_misc` lets the kernel give an ELF file that it cannot execute
+//! to a registered interpreter, which for a foreign architecture is
+//! `qemu-user`. This module reads the registrations from
+//! `/proc/sys/fs/binfmt_misc` and reports what it found. It never
+//! registers one: a registration changes the whole machine.
 //!
-//! ⭐ **This is the mechanism docker and podman use, read rather than assumed.**
-//! `binfmt_misc` lets the kernel hand an ELF it cannot execute to a registered
-//! interpreter, which for a foreign architecture is `qemu-user`. podvm reads
-//! the registrations out of `/proc/sys/fs/binfmt_misc` and reports what it
-//! found; it never registers one, because registering is a machine-wide change
-//! and podvm is not the machine's owner.
-//!
-//! ⛔ **The `F` flag is the whole question for a chroot.** Without it the
-//! kernel opens the interpreter **by path at exec time**, which is a path inside
-//! the new root, so a chroot with no qemu in it fails. With it the interpreter
-//! is opened when the registration is made and held, so it works inside any
-//! chroot. Measured on 2026-09-09, `experiments/results/multiarch.txt` clause 5:
-//! an `F` registration ran an aarch64 binary in a bare chroot containing
-//! nothing but that binary.
+//! The `F` flag decides the case of a chroot. With no `F` the kernel opens
+//! the interpreter by path at the time of the exec, which is a path inside
+//! the new root, so a chroot with no qemu in it fails. With `F` the kernel
+//! opens the interpreter when the registration is made and holds it, so it
+//! works inside each chroot: an `F` registration ran an aarch64 binary in
+//! a bare chroot that held only that binary.
 
 use std::path::{Path, PathBuf};
 
-// ⭐ The reader moved to `podvm-probe` and is re-exported here, so every
-// existing caller keeps one name for it and there is exactly one parser.
-// `podvm_probe::interp` needs the same registrations to answer the mirror
-// question, "is an interpreter registered for podvm's OWN architecture".
-pub use podvm_probe::binfmt::{machine_for, registrations, Registration, BINFMT_DIR};
+// The reader is in `pod-hostprobe`: its `interp` needs the same
+// registrations for the other question, "is an interpreter registered for
+// the architecture of this process". One parser.
+pub use pod_hostprobe::binfmt::{BINFMT_DIR, Registration, machine_for, registrations};
 
-/// What podvm can say about running `want` on this host.
+/// What the entry can say about a run of `want` on this host.
 #[derive(Debug, Clone)]
 pub enum Support {
     /// The payload is this machine's own architecture.
     Native,
     /// A registered interpreter carrying `F`: it works inside the chroot.
     Interpreter(Registration),
-    /// A registered interpreter WITHOUT `F`. ⚠ It works only if the interpreter
-    /// is reachable by its own path inside the rootfs, which is the copy-in.
+    /// A registered interpreter with no `F`. It works only where the
+    /// interpreter is at its own path inside the root file system: the copy.
     InterpreterNeedsCopyIn(Registration),
     /// Nothing is registered for this architecture.
     None { why: String },
@@ -41,8 +38,8 @@ pub enum Support {
 
 /// Whether this machine can run `arch`, and how.
 ///
-/// ⛔ Never a guess. Where nothing is registered the answer carries **why**, so
-/// the refusal names the remedy rather than the symptom.
+/// Never a guess. Where nothing is registered, the answer carries the
+/// reason, so the refusal names the remedy and not the symptom.
 pub fn support_for(arch: &str, host_arch: &str) -> Support {
     if arch == host_arch {
         return Support::Native;
@@ -52,10 +49,10 @@ pub fn support_for(arch: &str, host_arch: &str) -> Support {
         None => {
             return Support::None {
                 why: format!(
-                    "podvm has no ELF machine number for the architecture {arch:?}, so it \
+                    "no ELF machine number is known for the architecture {arch:?}, so the entry \
                      cannot tell whether an interpreter is registered for it"
                 ),
-            }
+            };
         }
     };
     if !Path::new(BINFMT_DIR).is_dir() {
@@ -87,28 +84,27 @@ pub fn support_for(arch: &str, host_arch: &str) -> Support {
     }
 }
 
-/// The interpreter's path inside the rootfs, for the copy-in.
+/// The path of the interpreter inside the root file system, for the copy.
 pub fn copy_in_target(root: &str, interpreter: &str) -> PathBuf {
     Path::new(root).join(interpreter.trim_start_matches('/'))
 }
 
-/// Copy a `binfmt_misc` interpreter into a rootfs.
+/// Copy a `binfmt_misc` interpreter into a root file system.
 ///
-/// ⛔ **This writes a file into somebody else's image and the caller MUST
-/// disclose it.** T-0506: podvm's honesty rules have no exception for a helpful
-/// edit, and the payload can see this file.
+/// This writes a file into the image of another party, and the caller
+/// must tell the user so: the payload can see this file.
 ///
-/// ⚠ Only ever called for a registration WITHOUT `F`. With `F` the kernel holds
-/// the interpreter open already and copying it in would be a write with no
+/// Call it only for a registration with no `F`. With `F` the kernel holds
+/// the interpreter open already, and a copy would be a write with no
 /// purpose.
 pub fn copy_interpreter_in(root: &str, r: &Registration) -> std::io::Result<PathBuf> {
     let dest = copy_in_target(root, &r.interpreter);
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    // ⚠ Skipped where it is already there and the same size: re-copying a
-    // 10 MB static qemu on every `run` is a cost with no benefit, and the
-    // interpreter is a fixed artefact rather than something that drifts.
+    // No copy where the file is there with the same size: a copy of a
+    // static qemu of 10 MB on each run costs time for no benefit, and the
+    // interpreter is a fixed file.
     if let (Ok(a), Ok(b)) = (std::fs::metadata(&r.interpreter), std::fs::metadata(&dest))
         && a.len() == b.len()
     {
@@ -125,50 +121,4 @@ pub fn copy_interpreter_in(root: &str, r: &Registration) -> std::io::Result<Path
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_host_architecture_needs_no_interpreter() {
-        assert!(matches!(support_for("amd64", "amd64"), Support::Native));
-    }
-
-    #[test]
-    fn an_architecture_podvm_cannot_name_says_so_rather_than_guessing() {
-        let s = support_for("nosucharch", "amd64");
-        match s {
-            Support::None { why } => assert!(why.contains("no ELF machine number"), "{why}"),
-            other => panic!("{other:?}"),
-        }
-    }
-
-    #[test]
-    fn the_elf_machine_numbers_are_the_specifications() {
-        // ⛔ Measured against real binaries rather than recalled: 0xb7 is what
-        // `readelf -h` prints for an aarch64 ELF and 0x3e for x86-64, and
-        // experiments/260-multiarch.sh registers a magic carrying 0xb7.
-        assert_eq!(machine_for("arm64"), Some(0xb7));
-        assert_eq!(machine_for("amd64"), Some(0x3e));
-        assert_eq!(machine_for("riscv64"), Some(0xf3));
-        assert_eq!(machine_for("nope"), None);
-    }
-
-    /// ⚠ Reads the real `/proc/sys/fs/binfmt_misc` where it is mounted, and
-    /// asserts only what is true either way. A test that required a
-    /// registration would fail on a machine that is simply configured
-    /// differently, which is a test about the machine and not about podvm.
-    #[test]
-    fn a_missing_binfmt_directory_is_reported_and_not_a_panic() {
-        let s = support_for("arm64", "amd64");
-        match s {
-            Support::None { why } => {
-                assert!(!why.is_empty(), "a refusal with no reason");
-            }
-            Support::Interpreter(r) | Support::InterpreterNeedsCopyIn(r) => {
-                assert!(!r.interpreter.is_empty());
-                assert_eq!(r.machine, Some(0xb7));
-            }
-            Support::Native => panic!("arm64 is not amd64"),
-        }
-    }
-}
+mod tests;

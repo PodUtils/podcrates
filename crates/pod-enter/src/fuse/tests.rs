@@ -1,7 +1,7 @@
 use super::*;
 
 fn tree(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("podvm-fuse-{tag}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("pod-enter-fuse-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(d.join("back/bin")).unwrap();
     d
@@ -42,8 +42,8 @@ fn a_missing_backing_refuses_before_touching_the_store() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// Where the node is absent the serve refuses naming it and leaves
-/// no mount directory: this lane's live arm of the same refusal.
+/// Where the node is absent, the serve refuses with its name and leaves no
+/// mount directory. Where the node opens, the test has nothing to check.
 #[test]
 fn a_missing_node_refuses_naming_it_and_leaves_nothing() {
     let d = tree("serve-node");
@@ -55,9 +55,8 @@ fn a_missing_node_refuses_naming_it_and_leaves_nothing() {
     let store = d.join("store");
     let e = serve_tree(&store, &d.join("back")).unwrap_err();
     assert!(e.why.contains("/dev/fuse did not open"), "{e}");
-    let staged: Vec<_> = std::fs::read_dir(store.join("fuse"))
-        .map(|rd| rd.filter_map(|e| e.ok()).collect())
-        .unwrap_or_default();
+    let staged: Vec<_> =
+        std::fs::read_dir(store.join("fuse")).map(|rd| rd.filter_map(|e| e.ok()).collect()).unwrap_or_default();
     assert!(staged.is_empty(), "a refused serve left staging behind");
     let _ = std::fs::remove_dir_all(&d);
 }
@@ -69,10 +68,7 @@ fn releasing_an_unmounted_directory_removes_it() {
     let d = tree("release");
     let dir = d.join("mnt");
     std::fs::create_dir_all(&dir).unwrap();
-    release_mount(&ActiveMount {
-        pid: 1,
-        dir: dir.clone(),
-    });
+    release_mount(&ActiveMount { pid: 1, dir: dir.clone() });
     assert!(!dir.exists());
     let _ = std::fs::remove_dir_all(&d);
 }
@@ -351,10 +347,9 @@ fn frame(opcode: u32, unique: u64, nodeid: u64, body: &[u8]) -> Vec<u8> {
 /// DESTROY. The socket stands in for the node; the framing is what
 /// is proved. Single-threaded: every frame is written up front (the
 /// socket buffers hold them all), then the loop runs inline to
-/// DESTROY, then the replies are read back. No thread: the T-0603
-/// rule holds in tests too.
+/// DESTROY, then the replies are read back. No thread, also in a test.
 ///
-/// ⚠ The LOOKUP id is written as 2, the first allocation after the
+/// The LOOKUP id is written as 2, the first allocation after the
 /// root: this test performs no earlier lookup, so the counter
 /// stands there. The reply asserts it back.
 #[test]
@@ -406,10 +401,7 @@ fn read_frame(driver: &mut std::os::unix::net::UnixStream, n: u32) -> Vec<u8> {
         got += n;
     }
     let len = u32::from_le_bytes([head[0], head[1], head[2], head[3]]) as usize;
-    assert!(
-        (16..=1 << 20).contains(&len),
-        "frame {n}: a sane frame length, got {len} in {head:?}"
-    );
+    assert!((16..=1 << 20).contains(&len), "frame {n}: a sane frame length, got {len} in {head:?}");
     let mut rest = vec![0u8; len - 16];
     let mut got = 0usize;
     while got < rest.len() {

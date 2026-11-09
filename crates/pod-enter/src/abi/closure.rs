@@ -1,23 +1,23 @@
-//! The link set of the interposer object, read inside the rootfs, T-1644.
+//! The link set of the interposer object, read inside the root file
+//! system.
 //!
-//! [`TODO/interpose.md`](../../../../TODO/interpose.md) T-1644. The glibc
-//! object needs `libdl.so.2`, `libgcc_s.so.1`, `libc.so.6` and
+//! The glibc object needs `libdl.so.2`, `libgcc_s.so.1`, `libc.so.6` and
 //! `ld-linux-x86-64.so.2`, and its imports come from all four: `dlsym` at
 //! `GLIBC_2.2.5` under `libdl.so.2`, `_Unwind_Resume` at `GCC_3.0` under
 //! `libgcc_s.so.1`, `__tls_get_addr` at `GLIBC_2.3` under the loader since
-//! glibc 2.34. A check against libc alone, or against a fixed list beside
+//! glibc 2.34. A check against libc only, or against a fixed list beside
 //! it, refuses images that the loader accepts.
 //!
-//! ⭐ **The admission set is the set the loader resolves.** It is the
-//! interpreter plus the whole `DT_NEEDED` closure of the object, each name
-//! found in the image's library directories and resolved with
-//! [`resolve_in`]. An absolute link stays under the root, so a host file
-//! never decides the set.
+//! The set of the check is the set that the loader resolves: the
+//! interpreter and the whole `DT_NEEDED` closure of the object, each name
+//! found in the library directories of the image and resolved with
+//! [`resolve_in`]. An absolute link stays under the root, so a file of the
+//! host never decides the set.
 //!
-//! ⭐ **Each version is checked in its own namespace.** The loader checks
-//! a version reference against the file that `.gnu.version_r` names for
+//! Each version is checked in its own namespace. The loader checks a
+//! reference of a version against the file that `.gnu.version_r` names for
 //! it: `GLIBC_*` against libc, `libdl.so.2` or the loader, `GCC_*` against
-//! `libgcc_s.so.1`. The symbol itself can come from any member, as the
+//! `libgcc_s.so.1`. The symbol itself can come from each member, as the
 //! loader binds it in the global scope.
 
 use super::*;
@@ -49,9 +49,7 @@ impl LinkSet {
     /// The member that answers `name`, by the name it was loaded under or
     /// by its `DT_SONAME`, which is how the loader matches a second request.
     pub fn member(&self, name: &str) -> Option<&Member> {
-        self.members
-            .iter()
-            .find(|m| m.name == name || m.elf.soname.as_deref() == Some(name))
+        self.members.iter().find(|m| m.name == name || m.elf.soname.as_deref() == Some(name))
     }
 
     /// The C library of the set, where it holds one.
@@ -64,8 +62,7 @@ impl LinkSet {
     fn defines(&self, want: &Versioned) -> bool {
         self.members.iter().any(|m| {
             m.elf.defined.iter().any(|d| {
-                d.name == want.name
-                    && (d.version.is_none() || want.version.is_none() || d.version == want.version)
+                d.name == want.name && (d.version.is_none() || want.version.is_none() || d.version == want.version)
             })
         })
     }
@@ -78,19 +75,18 @@ impl LinkSet {
 
 /// Does musl's loader answer `name` itself? Its `load_library` treats
 /// `libc`, `libpthread`, `librt`, `libm`, `libdl`, `libutil` and `libxnet`
-/// as the loader, because the loader IS the C library there.
+/// as the loader, because the loader is the C library there.
 fn musl_builtin(name: &str) -> bool {
     let Some(rest) = name.strip_prefix("lib") else {
         return false;
     };
-    ["c.", "pthread.", "rt.", "m.", "dl.", "util.", "xnet."]
-        .iter()
-        .any(|r| rest.starts_with(r))
+    ["c.", "pthread.", "rt.", "m.", "dl.", "util.", "xnet."].iter().any(|r| rest.starts_with(r))
 }
 
-/// The image's library directories as guest paths, in search order: the
-/// interpreter's own directory, then the directories the loader family
-/// puts on `LD_LIBRARY_PATH` ([`crate::userland::lib_dirs`], the one list).
+/// The library directories of the image as guest paths, in the order of
+/// the search: the directory of the interpreter, then the directories that
+/// the loader family puts on `LD_LIBRARY_PATH` ([`crate::userland::lib_dirs`],
+/// the one list).
 pub fn guest_lib_dirs(rootfs: &str, interp: &str) -> Vec<String> {
     let base = rootfs.trim_end_matches('/');
     crate::userland::lib_dirs(rootfs, interp)
@@ -99,7 +95,7 @@ pub fn guest_lib_dirs(rootfs: &str, interp: &str) -> Vec<String> {
         .collect()
 }
 
-/// Read the link set of `object` inside `root`, T-1644.
+/// Read the link set of `object` inside `root`.
 ///
 /// `interp` is the payload's `PT_INTERP`, a guest path. `dirs` are guest
 /// library directories in search order. `read` reads one resolved file;
@@ -113,37 +109,23 @@ pub fn link_set(
     dirs: &[String],
     read: &dyn Fn(&str) -> Result<Elf, Unreadable>,
 ) -> Result<LinkSet, String> {
-    let host = resolve_in(root, interp).map_err(|k| {
-        format!("the interpreter {interp} does not resolve inside the image ({k:?})")
-    })?;
+    let host = resolve_in(root, interp)
+        .map_err(|k| format!("the interpreter {interp} does not resolve inside the image ({k:?})"))?;
     let loader = read(&host.display().to_string()).map_err(|e| format!("{e}"))?;
     let musl = Flavour::of_libc_name(interp) == Flavour::Musl;
-    let mut set = LinkSet {
-        members: vec![Member {
-            name: interp.to_string(),
-            elf: loader,
-        }],
-        libc: musl.then_some(0),
-    };
-    let mut queue: std::collections::VecDeque<(String, String)> = object
-        .needed
-        .iter()
-        .map(|n| (n.clone(), object.path.clone()))
-        .collect();
+    let mut set = LinkSet { members: vec![Member { name: interp.to_string(), elf: loader }], libc: musl.then_some(0) };
+    let mut queue: std::collections::VecDeque<(String, String)> =
+        object.needed.iter().map(|n| (n.clone(), object.path.clone())).collect();
     while let Some((name, by)) = queue.pop_front() {
         if set.member(&name).is_some() || (musl && musl_builtin(&name)) {
             continue;
         }
         if set.members.len() >= MAX_MEMBERS {
-            return Err(format!(
-                "the DT_NEEDED closure of {} holds more than {MAX_MEMBERS} libraries",
-                object.path
-            ));
+            return Err(format!("the DT_NEEDED closure of {} holds more than {MAX_MEMBERS} libraries", object.path));
         }
         let elf = find(root, &name, &by, dirs, object.machine, read)?;
         queue.extend(elf.needed.iter().map(|n| (n.clone(), elf.path.clone())));
-        if set.libc.is_none() && (name == "libc.so.6" || elf.soname.as_deref() == Some("libc.so.6"))
-        {
+        if set.libc.is_none() && (name == "libc.so.6" || elf.soname.as_deref() == Some("libc.so.6")) {
             set.libc = Some(set.members.len());
         }
         set.members.push(Member { name, elf });
@@ -165,9 +147,7 @@ fn find(
     let guests: Vec<String> = if name.contains('/') {
         vec![name.to_string()]
     } else {
-        dirs.iter()
-            .map(|d| format!("{}/{name}", d.trim_end_matches('/')))
-            .collect()
+        dirs.iter().map(|d| format!("{}/{name}", d.trim_end_matches('/'))).collect()
     };
     let mut first_error: Option<String> = None;
     for guest in &guests {
@@ -201,7 +181,7 @@ fn find(
 pub fn admits_set(object: &Elf, set: &LinkSet) -> Verdict {
     let Some(libc) = set.libc() else {
         return Verdict::Refused(format!(
-            "the link set podvm read inside the image for {} holds no C library ({})",
+            "the link set read inside the image for {} holds no C library ({})",
             object.path,
             set.paths()
         ));
@@ -213,14 +193,12 @@ pub fn admits_set(object: &Elf, set: &LinkSet) -> Verdict {
         let from = want.file.as_deref();
         let at = want.version.as_deref();
         if let Some(v) = at {
-            // ⭐ The version's own namespace: the file the reference names.
+            // The own namespace of the version: the file that the reference
+            // names.
             // Where the object names none, any member may declare it.
             let declared = match from.and_then(|f| set.member(f)) {
                 Some(p) => p.elf.declares.iter().any(|d| d == v),
-                None => set
-                    .members
-                    .iter()
-                    .any(|m| m.elf.declares.iter().any(|d| d == v)),
+                None => set.members.iter().any(|m| m.elf.declares.iter().any(|d| d == v)),
             };
             if !declared {
                 let (who, declares) = match from.and_then(|f| set.member(f)) {

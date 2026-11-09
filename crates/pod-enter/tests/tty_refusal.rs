@@ -1,21 +1,19 @@
-//! `experiments/251-tty-refusal-no-ptmx.sh` as an integration test.
+//! The refusal of a terminal (`-t`) where `/dev/ptmx` is unusable.
 //!
-//! `run -t` refuses by name where /dev/ptmx is unusable, with the exit
-//! code from the process that produced it. The gate reads only
-//! `podvm_probe::probes::ptmx_usable`: an Ok open row promises a pty and
-//! anything else refuses. Two halves. The first always runs: synthetic
-//! findings prove both arms, usable promises and unusable refuses,
-//! including that existence is not function. The second arranges a machine
-//! with no usable ptmx, a private mount namespace where a fresh tmpfs
-//! covers the pty path, and drives the trigger there. The refusal triggers
-//! only with no ptmx, and the lane has a usable /dev/ptmx, so where the
-//! cover cannot be arranged the drive reports SKIP with its reason and
-//! passes, which is the script exit-2 contract. No live engine, no mounts
-//! outside a self-created user and mount namespace.
+//! The gate reads only `pod_hostprobe::probes::ptmx_usable`: an open row
+//! that passed promises a terminal, and each other row refuses. Two
+//! halves. The first always runs: findings made by hand prove both arms,
+//! usable promises and unusable refuses, and that the existence of the
+//! node is not its function. The second makes a machine with no usable
+//! ptmx (a private mount namespace where a new tmpfs covers the path of
+//! the terminal) and drives the trigger there. Where the cover cannot be
+//! made, the drive skips with its reason. No mount outside a user and
+//! mount namespace of the test itself.
+#![cfg(target_os = "linux")]
 
-use podvm_probe::probes::ptmx_usable;
-use podvm_probe::verdict::Outcome;
-use podvm_probe::Findings;
+use pod_hostprobe::Findings;
+use pod_hostprobe::probes::ptmx_usable;
+use pod_hostprobe::verdict::Outcome;
 
 /// Every fork in this file serialises behind one lock. `clone_fork` allows
 /// the child async-signal-safe work only, and a sibling thread inside the
@@ -25,10 +23,7 @@ use podvm_probe::Findings;
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn findings(rows: Vec<(&'static str, Outcome)>) -> Findings {
-    Findings {
-        rows,
-        ..Findings::empty()
-    }
+    Findings { rows, ..Findings::empty() }
 }
 
 /// Both arms of the gate. Only the open row with Ok promises a pty: a
@@ -39,16 +34,10 @@ fn refusal_triggers_only_where_the_open_row_is_denied() {
     let _serialised = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let open = "open(/dev/ptmx, O_RDWR)";
     let stat = "stat(/dev/ptmx)";
-    assert!(
-        ptmx_usable(&findings(vec![(open, Outcome::ok())])),
-        "an Ok open row must promise a pty"
-    );
+    assert!(ptmx_usable(&findings(vec![(open, Outcome::ok())])), "an Ok open row must promise a pty");
     for errno in [1, 2, 13] {
         assert!(
-            !ptmx_usable(&findings(vec![(
-                open,
-                Outcome::denied(podvm_probe::sys::Errno(errno))
-            )])),
+            !ptmx_usable(&findings(vec![(open, Outcome::denied(pod_hostprobe::sys::Errno(errno)))])),
             "a denied open row must trigger the refusal, errno {errno}"
         );
     }
@@ -56,15 +45,9 @@ fn refusal_triggers_only_where_the_open_row_is_denied() {
         !ptmx_usable(&findings(vec![(open, Outcome::skip(None, "no run"))])),
         "a skipped open row must trigger the refusal"
     );
+    assert!(!ptmx_usable(&findings(vec![])), "a missing open row must trigger the refusal");
     assert!(
-        !ptmx_usable(&findings(vec![])),
-        "a missing open row must trigger the refusal"
-    );
-    assert!(
-        !ptmx_usable(&findings(vec![
-            (stat, Outcome::ok()),
-            (open, Outcome::denied(podvm_probe::sys::EACCES)),
-        ])),
+        !ptmx_usable(&findings(vec![(stat, Outcome::ok()), (open, Outcome::denied(pod_hostprobe::sys::EACCES)),])),
         "a present node that will not open must still trigger the refusal"
     );
 }
@@ -75,9 +58,8 @@ fn refusal_triggers_only_where_the_open_row_is_denied() {
 /// 1 a wrong outcome, 2 the cover cannot be arranged. No unwrap inside: a
 /// panic past the fork may hang on a duplicated lock, so every shortfall
 /// exits by number.
-#[cfg(target_os = "linux")]
 fn child_drive() -> ! {
-    use podvm_probe::sys;
+    use pod_hostprobe::sys;
     let fail = |n: i32| -> ! { sys::exit_group(n) };
     let ptmx = match sys::CBuf::new("/dev/ptmx") {
         Some(c) => c,
@@ -86,10 +68,7 @@ fn child_drive() -> ! {
     let flags = sys::O_RDWR | sys::O_NOCTTY;
     match sys::open(&ptmx, flags, 0) {
         Err(e) => {
-            let f = Findings {
-                rows: vec![("open(/dev/ptmx, O_RDWR)", Outcome::denied(e))],
-                ..Findings::empty()
-            };
+            let f = Findings { rows: vec![("open(/dev/ptmx, O_RDWR)", Outcome::denied(e))], ..Findings::empty() };
             if ptmx_usable(&f) {
                 fail(1);
             }
@@ -99,7 +78,7 @@ fn child_drive() -> ! {
             let _ = sys::close(fd);
         }
     }
-    // The script layout rule: a symlink into /dev/pts is covered at
+    // The layout rule: a symlink into /dev/pts is covered at
     // /dev/pts, a directory at itself, anything else cannot be covered.
     let cover: &str = match std::fs::symlink_metadata("/dev/ptmx") {
         Ok(m) if m.file_type().is_symlink() => match std::fs::read_link("/dev/ptmx") {
@@ -151,10 +130,7 @@ fn child_drive() -> ! {
             fail(1);
         }
         Err(e) => {
-            let f = Findings {
-                rows: vec![("open(/dev/ptmx, O_RDWR)", Outcome::denied(e))],
-                ..Findings::empty()
-            };
+            let f = Findings { rows: vec![("open(/dev/ptmx, O_RDWR)", Outcome::denied(e))], ..Findings::empty() };
             if ptmx_usable(&f) {
                 fail(1);
             }
@@ -163,15 +139,14 @@ fn child_drive() -> ! {
     }
 }
 
-/// The covered drive. Asserts the refusal trigger only where no ptmx can
-/// be arranged, and reports SKIP with its reason where the cover cannot
-/// be arranged: unknown ptmx layout, refused unshare, refused maps, or a
-/// refused mount. The lane has a usable /dev/ptmx and refuses unshare, so
-/// it always takes the SKIP arm here.
-#[cfg(target_os = "linux")]
+/// The covered drive. It checks the refusal trigger only where no ptmx can
+/// be made, and skips with its reason where the cover cannot be made: an
+/// unknown layout of ptmx, a refused unshare, refused maps, or a refused
+/// mount.
 #[test]
 fn covered_ptmx_drives_the_refusal_where_the_cover_can_be_arranged() {
-    use podvm_probe::sys;
+    pod_testkit::need_userns!();
+    use pod_hostprobe::sys;
     let _serialised = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let pid = unsafe { sys::clone_fork(sys::SIGCHLD) }.expect("fork for the cover child");
     if pid == 0 {
@@ -185,18 +160,8 @@ fn covered_ptmx_drives_the_refusal_where_the_cover_can_be_arranged() {
     match (status >> 8) & 0xff {
         0 => {}
         2 => {
-            eprintln!(
-                "SKIP: the pty cover cannot be arranged here, so the refusal has no machine without ptmx to trigger on"
-            );
+            pod_testkit::host::skip_line("the pty cover cannot be arranged here");
         }
         c => panic!("the cover child exited {c}"),
     }
-}
-
-/// The cover off Linux. Hiding the pty path needs user and mount
-/// namespaces, so elsewhere it reports SKIP with its reason and passes.
-#[cfg(not(target_os = "linux"))]
-#[test]
-fn covered_ptmx_drives_the_refusal_where_the_cover_can_be_arranged() {
-    eprintln!("SKIP: the pty cover needs Linux user and mount namespaces");
 }

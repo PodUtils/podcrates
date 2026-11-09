@@ -250,7 +250,7 @@ pub(super) fn cstr(body: &[u8]) -> &[u8] {
 pub(super) fn serve_until_destroy(fd: i64, backing: &Path, ready: i64) -> i32 {
     let mut fs = Fs::new(backing);
     let mut buf = vec![0u8; IO_BUFFER];
-    // ⚠ A stream may coalesce or split frames (a socket does; the node
+    // A stream may coalesce or split frames (a socket does; the node
     // hands one request per read). `pending` holds what arrived past
     // the frame in hand, so no byte is parsed twice or dropped either
     // way. A length past the buffer is garbage, never an allocation.

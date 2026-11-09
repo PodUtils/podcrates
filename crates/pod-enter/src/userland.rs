@@ -1,28 +1,27 @@
-//! TODO/enter.md T-1317: entering a payload without `chroot(2)`.
+//! The entry of a payload with no `chroot(2)`.
 //!
-//! Where the probe's chroot leg is denied, the chroot sequence cannot run,
-//! but the payload file is still readable from the host side. This module
-//! holds the pieces of entering it as it is, with the host's root:
+//! Where the probe denies chroot, the chroot sequence cannot run, but the
+//! host can still read the payload file. This module holds the parts of
+//! an entry of the payload as it is, with the root of the host:
 //!
-//! * a dynamic payload runs through the image's own loader, executed by
-//!   host path, with the image's library directories on `LD_LIBRARY_PATH`
-//!   and the interposer preloaded by host path;
-//! * a static payload runs from a staged memfd, exactly as the ladder's
-//!   memfd rung stages it, minus the chroot beneath.
+//! * a dynamic payload runs through the loader of the image, executed by
+//!   host path, with the library directories of the image on
+//!   `LD_LIBRARY_PATH` and the interposer preloaded by host path;
+//! * a static payload runs from a staged memfd, as the memfd rung of the
+//!   ladder stages it, with no chroot under it.
 //!
-//! What this rung is not: isolation of any kind. The payload sees the
-//! host's filesystem with only its working directory inside the image,
-//! and absolute paths resolve on the host except where the interposer
-//! rewrites them. The banner names all of it on every userland run, and
-//! `PODVM_ACTIVE_MODE` reads `userland`.
+//! This rung isolates nothing. The payload sees the file system of the
+//! host, with only its working directory inside the image, and an
+//! absolute path resolves on the host except where the interposer changes
+//! it. The banner of the caller names this on each run, and the active
+//! mode variable reads `userland`.
 //!
-//! Scripts (`#!`) are refused: their interpreter path resolves on the
-//! host root, so the image's script would run under the host's
-//! interpreter. Foreign architectures are refused: `binfmt_misc`
-//! resolution without a chroot is unproven ground this rung does not
-//! break.
+//! The caller refuses a script (`#!`): the path of its interpreter
+//! resolves on the root of the host, so the script of the image would run
+//! under the interpreter of the host. The caller refuses a foreign
+//! architecture: this rung does not prove `binfmt_misc` with no chroot.
 
-use crate::memfd;
+use crate::{Names, memfd};
 
 /// Which no-chroot family a payload takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,12 +104,7 @@ pub fn lib_dirs(rootfs: &str, interp_guest: &str) -> Vec<String> {
 /// on the host side, so the resolved file is what opens. The invoked
 /// name a multi-call binary dispatches on is carried separately by
 /// [`loader_argv_for`].
-pub fn invocation_path(
-    rootfs: &str,
-    argv0: &str,
-    path_dirs: &[String],
-    resolved_host: &str,
-) -> String {
+pub fn invocation_path(rootfs: &str, argv0: &str, path_dirs: &[String], resolved_host: &str) -> String {
     let base = rootfs.trim_end_matches('/');
     if argv0.contains('/') {
         let host = format!("{base}/{}", argv0.trim_start_matches('/'));
@@ -150,12 +144,7 @@ fn basename_of(path: &str) -> &str {
 /// Returns the argv and whether the applet name was inserted: the banner
 /// names the insert, because the payload's argv[0] is not the path that
 /// was opened.
-pub fn loader_argv_for(
-    loader_host: &str,
-    payload_host: &str,
-    argv0: &str,
-    rest: &[String],
-) -> (Vec<String>, bool) {
+pub fn loader_argv_for(loader_host: &str, payload_host: &str, argv0: &str, rest: &[String]) -> (Vec<String>, bool) {
     let invoked = basename_of(argv0);
     let resolved = basename_of(payload_host);
     if resolved == "busybox" && !invoked.is_empty() && invoked != "busybox" {
@@ -176,23 +165,19 @@ pub fn loader_argv_for(
 /// Resolve the loader invocation for a dynamic payload.
 ///
 /// `interp_guest` is the `PT_INTERP` path as the image sees it,
-/// `payload_host` the payload by host path. The loader resolves inside the
-/// rootfs first (TODO/enter.md T-1408): Debian's `/lib64/ld-linux-*.so.2`
-/// is an absolute symlink whose target exists only in the image, so the
-/// naive host join dangles and `is_executable` on it refuses a payload the
-/// guest kernel runs. The resolved file is what must exist and be
-/// executable by host path, and at least one library directory must exist,
-/// or the refusal names the guest path rather than failing inside the
-/// loader later.
-pub fn loader_plan(
-    rootfs: &str,
-    interp_guest: &str,
-    payload_host: &str,
-) -> Result<LoaderPlan, String> {
-    // ⭐ T-1408. The rootfs is the resolution root for every guest path on
-    // this rung; the host root is never a fallback. Where the walk fails
-    // the naive join is what the refusal names beside the guest path, so a
-    // missing loader still reads as missing rather than as unresolvable.
+/// `payload_host` the payload by host path. The loader resolves inside
+/// the root file system first: the `/lib64/ld-linux-*.so.2` of Debian is
+/// an absolute link whose target exists only in the image, so a plain
+/// join with the host path points at nothing, and `is_executable` on it
+/// would refuse a payload that the kernel of the guest runs. The resolved
+/// file must exist and execute by host path, and at least one library
+/// directory must exist; else the refusal names the guest path, and the
+/// loader does not fail later.
+pub fn loader_plan(rootfs: &str, interp_guest: &str, payload_host: &str) -> Result<LoaderPlan, String> {
+    // The root file system is the root of the resolution of each guest
+    // path on this rung; the root of the host is never a fallback. Where
+    // the walk fails, the refusal names the plain join beside the guest
+    // path, so a missing loader still reads as missing.
     let loader_host = match crate::abi::resolve_in(std::path::Path::new(rootfs), interp_guest) {
         Ok(p) => p.display().to_string(),
         Err(_) => format!("{}{interp_guest}", rootfs.trim_end_matches('/')),
@@ -210,11 +195,7 @@ pub fn loader_plan(
              loader would fail on the first library it cannot find"
         ));
     }
-    Ok(LoaderPlan {
-        loader_host,
-        payload_host: payload_host.to_string(),
-        lib_dirs: dirs,
-    })
+    Ok(LoaderPlan { loader_host, payload_host: payload_host.to_string(), lib_dirs: dirs })
 }
 
 /// Rewrite the environment for a no-chroot entry.
@@ -275,42 +256,31 @@ pub fn host_env(
     (out, dropped)
 }
 
-/// The variable carrying the root-anchoring table, TODO/enter.md T-1407.
-///
-/// Duplicate by value of the interposer's `map::MAPS_VAR`: this crate takes
-/// no dependency on that object, and the spelling is the contract between
-/// the two.
-pub const MAPS_VAR: &str = "PODVM_MAPS";
-
-/// How long one side of a table pair may be, mirroring the interposer's
-/// `map::MAX_SIDE`: a longer side is malformed and its pair is skipped
-/// there, which on this rung would silently stop rewriting and leave host
-/// paths bare. The builder below refuses instead.
+/// The longest side of a pair of the table that the interposer reads. A
+/// longer side is malformed there and the interposer skips its pair,
+/// which on this rung would stop each change of a path and leave host
+/// paths bare. The builder below refuses it.
 const MAX_MAP_SIDE: usize = 4096;
 
-/// Build the root-anchoring `PODVM_MAPS` table for a userland run.
+/// Build the table of path maps (`names.maps`) that anchors the root of a
+/// run with no chroot.
 ///
-/// TODO/enter.md T-1407. Guest `/` maps to the rootfs host path, so an
-/// absolute guest path resolves inside the image instead of landing on the
-/// host tree. The never-rewrite paths are NOT in the table: `/.podvm`
-/// (the guard), `/proc` (the builtin) and `PODVM_EXCLUDE_PATH` (the user
-/// list) are enforced interposer-side (`map.rs` longest/longest_to), and a
-/// caller table that tried to move them would be skipped there anyway. No
-/// caller edits the built table by hand.
+/// The `/` of the guest maps to the host path of the root file system, so
+/// an absolute guest path resolves inside the image and not on the tree
+/// of the host. The paths that the interposer never changes (its own
+/// guard directory, `/proc`, the list of the user) are not in the table:
+/// the interposer enforces them, and skips a pair of a table that tries
+/// to move them.
 ///
-/// A rootfs the table cannot spell refuses rather than rewriting nothing:
-/// relative, NUL-carrying, `:`/`,`-carrying, empty-after-trim, or overlong.
-/// An empty table rewrites nothing, which on this rung is a silent host
-/// write, so a malformed root is a refusal, never a table.
+/// A root file system that the table cannot spell is refused: relative,
+/// with a NUL, with `:` or `,`, empty after the trim, or too long. An
+/// empty table changes nothing, which on this rung is a silent write to
+/// the host, so a malformed root is a refusal, never a table.
 ///
-/// SEAM for the CLI agent (run prepare, `--unsafe-host-paths` flag, parity
-/// row): on a userland run set `PODVM_MAPS` to the returned string before
-/// the payload starts (scrubbing any caller-supplied value first, the way
-/// `PODVM_GUEST_EXE` is scrubbed), unless `--unsafe-host-paths` opts into
-/// the pass-through; name the table or the opt-in on the banner, because
-/// the substitution must be banner-visible and never silent. Returns the
-/// table string; `MAPS_VAR` is the variable that carries it.
-pub fn userland_maps_table(rootfs: &str) -> Result<String, String> {
+/// The caller sets the variable to the returned table before the payload
+/// starts, after it removes each value of the caller, and names the table
+/// on the banner: the change of paths must be visible, never silent.
+pub fn userland_maps_table(names: &Names, rootfs: &str) -> Result<String, String> {
     if rootfs.contains('\0') {
         return Err("the rootfs path contains a NUL byte".to_string());
     }
@@ -323,15 +293,14 @@ pub fn userland_maps_table(rootfs: &str) -> Result<String, String> {
     }
     if base.contains(':') || base.contains(',') {
         return Err(format!(
-            "{rootfs:?} cannot be spelled in a {MAPS_VAR} table: `:` and `,` \
-             separate pairs, so a table carrying it would parse as the wrong \
-             mapping (TODO/enter.md T-1407)"
+            "{rootfs:?} cannot be spelled in a {} table: `:` and `,` separate pairs, so a table \
+             carrying it would parse as the wrong mapping",
+            names.maps
         ));
     }
     if base.len() > MAX_MAP_SIDE {
         return Err(format!(
-            "the rootfs path is {} bytes, over the {MAX_MAP_SIDE}-byte table \
-             side the interposer reads (TODO/enter.md T-1407)",
+            "the rootfs path is {} bytes, over the {MAX_MAP_SIDE}-byte table side the interposer reads",
             base.len()
         ));
     }

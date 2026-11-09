@@ -93,6 +93,7 @@ fn main() {
     lines.extend(hostprobe());
     lines.extend(supervise());
     lines.extend(guest());
+    lines.extend(enter());
     for line in lines {
         println!("{line}");
     }
@@ -171,5 +172,29 @@ fn guest() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn guest() -> Option<String> {
+    None
+}
+
+/// pod-enter is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn enter() -> Option<String> {
+    let names = pod_enter::Names::DEFAULT;
+    let argv = pod_enter::Plan::argv_for(Some(&["/bin/sh".to_string()]), Some(&["-c".to_string()]), &[], None);
+    let env = pod_enter::Plan::env_for(&names, &[], &[]);
+    // The reader of ELF files, on this binary; the memfd probe forks once.
+    let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
+    let elf =
+        pod_enter::abi::Elf::read(&exe).map_or_else(|e| e.to_string(), |e| format!("ELF machine 0x{:x}", e.machine));
+    let memfd = pod_enter::memfd::probe::answer(&names, pod_enter::memfd::memfd_exec());
+    Some(format!(
+        "pod-enter: argv {argv:?}, {} variables, {elf}, memfd: {}, a namespace selection enters {}",
+        env.len(),
+        memfd.detail,
+        pod_enter::entered_word(pod_hostprobe::select::Rung::Namespace)
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn enter() -> Option<String> {
     None
 }

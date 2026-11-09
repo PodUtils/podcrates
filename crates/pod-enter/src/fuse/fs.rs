@@ -27,20 +27,8 @@ pub(super) struct Fs {
 impl Fs {
     pub(super) fn new(root: &Path) -> Fs {
         let mut nodes = HashMap::new();
-        nodes.insert(
-            1,
-            Node {
-                path: root.to_path_buf(),
-                parent: 1,
-            },
-        );
-        Fs {
-            nodes,
-            by_path: HashMap::new(),
-            lookups: HashMap::new(),
-            next: 2,
-            next_fh: 1,
-        }
+        nodes.insert(1, Node { path: root.to_path_buf(), parent: 1 });
+        Fs { nodes, by_path: HashMap::new(), lookups: HashMap::new(), next: 2, next_fh: 1 }
     }
 
     /// Look a name up under a node: the entry bytes, or an errno.
@@ -68,13 +56,7 @@ impl Fs {
             None => {
                 let id = self.next;
                 self.next += 1;
-                self.nodes.insert(
-                    id,
-                    Node {
-                        path: path.clone(),
-                        parent,
-                    },
-                );
+                self.nodes.insert(id, Node { path: path.clone(), parent });
                 self.by_path.insert(path, id);
                 id
             }
@@ -96,12 +78,7 @@ impl Fs {
         if id == 1 {
             return;
         }
-        let left = self
-            .lookups
-            .get(&id)
-            .copied()
-            .unwrap_or(0)
-            .saturating_sub(n);
+        let left = self.lookups.get(&id).copied().unwrap_or(0).saturating_sub(n);
         if left == 0 {
             self.lookups.remove(&id);
             if let Some(node) = self.nodes.remove(&id) {
@@ -133,11 +110,7 @@ impl Fs {
         }
         #[cfg(not(unix))]
         {
-            target
-                .into_os_string()
-                .into_string()
-                .map_err(|_| errno(22))
-                .map(|s| s.into_bytes())
+            target.into_os_string().into_string().map_err(|_| errno(22)).map(|s| s.into_bytes())
         }
     }
 
@@ -149,11 +122,7 @@ impl Fs {
     pub(super) fn open(&mut self, id: u64, dir: bool) -> Result<Vec<u8>, sys::Errno> {
         let node = self.nodes.get(&id).ok_or(errno(2))?;
         let meta = std::fs::symlink_metadata(&node.path).map_err(map_io)?;
-        let ok = if dir {
-            meta.file_type().is_dir()
-        } else {
-            meta.file_type().is_file()
-        };
+        let ok = if dir { meta.file_type().is_dir() } else { meta.file_type().is_file() };
         if !ok {
             return Err(errno(13));
         }
@@ -168,7 +137,7 @@ impl Fs {
 
     /// Read file bytes: exactly the asked span, or an errno.
     ///
-    /// ⛔ Exactly the span, never a capped one: a short reply reads as
+    /// Exactly the span, never a capped one: a short reply reads as
     /// EOF to the kernel, so capping here would truncate the payload.
     /// The [`MAX_READ`] bound above refuses the oversized ask instead.
     pub(super) fn read(&self, id: u64, offset: u64, size: u64) -> Result<Vec<u8>, sys::Errno> {
@@ -212,23 +181,15 @@ impl Fs {
             return Err(errno(20));
         }
         let self_ino = meta.ino();
-        let parent_ino = self
-            .nodes
-            .get(&node.parent)
-            .and_then(|p| std::fs::symlink_metadata(&p.path).ok())
-            .map_or(1, |m| {
+        let parent_ino =
+            self.nodes.get(&node.parent).and_then(|p| std::fs::symlink_metadata(&p.path).ok()).map_or(1, |m| {
                 use std::os::unix::fs::MetadataExt;
                 m.ino()
             });
-        let mut entries: Vec<(u64, u32, Vec<u8>)> = vec![
-            (self_ino, DT_DIR, b".".to_vec()),
-            (parent_ino, DT_DIR, b"..".to_vec()),
-        ];
-        let mut children: Vec<_> = std::fs::read_dir(&node.path)
-            .map_err(map_io)?
-            .filter_map(|e| e.ok())
-            .collect();
-        // ⚠ Sorted by name: `read_dir` promises no order, and the resume
+        let mut entries: Vec<(u64, u32, Vec<u8>)> =
+            vec![(self_ino, DT_DIR, b".".to_vec()), (parent_ino, DT_DIR, b"..".to_vec())];
+        let mut children: Vec<_> = std::fs::read_dir(&node.path).map_err(map_io)?.filter_map(|e| e.ok()).collect();
+        // Sorted by name: `read_dir` promises no order, and the resume
         // cookies below are positional, so an unstable order would skip
         // or repeat entries across asks.
         children.sort_by_key(|e| e.file_name());
@@ -294,7 +255,7 @@ impl Fs {
         {
             use std::os::unix::fs::MetadataExt;
             let mode = meta.mode();
-            // ⚠ Owner bits: the mounter owns the serving, so its word
+            // Owner bits: the mounter owns the serving, so its word
             // decides. Execute on a directory is search, on a file is
             // exec: the same bits answer both.
             let bits = if meta.uid() == euid_sync() {
@@ -304,11 +265,7 @@ impl Fs {
             } else {
                 mode & 0o7
             };
-            if (mask & 0o7) & !(bits) == 0 {
-                Ok(())
-            } else {
-                Err(errno(13))
-            }
+            if (mask & 0o7) & !(bits) == 0 { Ok(()) } else { Err(errno(13)) }
         }
         #[cfg(not(unix))]
         {

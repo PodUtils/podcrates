@@ -1,7 +1,17 @@
 [package]
 name = "pod-enter"
+description = "The entry of a payload into an extracted root file system on Linux with no root: the chroot sequence, a mount namespace rung, an entry with no chroot, the launch ladder (memfd, FUSE, tmpfs, run directory, cache), docker's rules for Entrypoint and Cmd, and a reader of ELF files that checks a preload against the C library of the image."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+# The raw system calls, the selected rung, the binfmt_misc registrations.
+pod-hostprobe = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }

@@ -1,44 +1,45 @@
-//! `--device HOST[:GUEST[:PERMS]]`, TODO/enter.md T-0501.
+//! `--device HOST[:GUEST[:PERMS]]` by a descriptor.
 //!
-//! The rungs, cheapest first. `mknod(2)` inside the payload is denied, so no
-//! node can be created where the guest names it. `mount(2)` is denied, so no
-//! host path can be bound over it. What holds is the descriptor: opened
-//! before the root changes, handed to the child at a fixed number, and
-//! served back by the interposer where an open names the exact guest path.
-//! A payload that opens the guest path gets a duplicate of the host's open
-//! file description: reads and writes reach the host device, and `stat`
-//! answers whatever the host file is rather than a node that was never
+//! The rungs, the cheapest first. `mknod(2)` inside the payload is
+//! denied, so no node can be made at the guest path. `mount(2)` is denied,
+//! so no host path can be bound over it. The descriptor holds: the entry
+//! opens it before the root changes, gives it to the child at a fixed
+//! number, and the interposer serves it where an open names the exact
+//! guest path. A payload that opens the guest path gets a duplicate of the
+//! open file description of the host: reads and writes reach the device
+//! of the host, and `stat` gives the host file, not a node that was never
 //! made. Where the interposer does not hold (a static payload, a Go
-//! payload, a foreign architecture, or no object for the image's libc) the
-//! open fails with the kernel's own `ENOENT`, exactly as an absent path
-//! does, and the banner said so before anything ran.
+//! payload, a foreign architecture, or no object for the C library of the
+//! image) the open fails with the `ENOENT` of the kernel, as an absent path
+//! does, and the banner said so before the payload ran.
 //!
-//! `m` in `PERMS` is a declared no-op: there is no `mknod` to grant, so it
-//! parses and changes nothing, and the banner says so on every run that
-//! carries one rather than letting a caller believe a node was made.
+//! `m` in `PERMS` does nothing: there is no `mknod` to grant. It parses,
+//! and the banner says so on each run that has one.
 //!
-//! Wire format. Two variables, split by job: the spec travels in the
-//! container record (so `create` then `start` re-opens rather than
-//! inheriting), and the serve table is built beside the descriptors it
-//! names. Entries join with `\x1e` (record separator, never in a real
-//! path); fields join with `:` (a field holding either byte is refused at
-//! parse, naming it, because the split would lie about where it ends).
-//! - `PODVM_DEVICE_SPEC`: `host:guest:perms` per entry, canonical perms.
-//! - `PODVM_DEVICE_FDS`: `guest:childfd:perms` per entry, read by the
-//!   interposer's open hook.
+//! The wire format: two variables, one for each job. The device list
+//! (`Names::device_spec`) is in the container record, so a `create` and a
+//! later `start` open the devices again and do not inherit them. The serve
+//! table (`Names::device_fds`) is built beside the descriptors that it
+//! names. Entries join with `\x1e` (the record separator, never in a real
+//! path); fields join with `:`. A field with either byte is refused at the
+//! parse, with its name, because the split would put the end of the field
+//! in the wrong place.
+//! - device list: `host:guest:perms` for each entry, canonical perms.
+//! - serve table: `guest:childfd:perms` for each entry, which the open hook
+//!   of the interposer reads.
 
-use podvm_probe::sys::{self, CBuf};
+use pod_core::Class;
+use pod_hostprobe::sys::{self, CBuf};
 
-/// The device spec, owned by the CLI and the container record.
-pub const SPEC_VAR: &str = "PODVM_DEVICE_SPEC";
-/// The serve table, built beside the descriptors by the entering process.
-pub const SERVE_VAR: &str = "PODVM_DEVICE_FDS";
+use crate::names::var_name;
+use crate::{Error, Names, errno_failure};
+
 /// Record separator between entries. Never in a real path.
 pub const SEP_ENTRY: char = '\x1e';
-/// First child descriptor handed to devices. Above stdio (0, 1, 2) and the
-/// ownership memo (17), below nothing the entry creates later: the
-/// readiness pipe is `O_CLOEXEC` and the image lock travels by inheritance,
-/// never by number.
+/// The first descriptor of the child for a device. Above the standard
+/// streams (0, 1, 2) and a memo of the caller at 17, below nothing that
+/// the entry makes later: the readiness pipe is `O_CLOEXEC`, and an image
+/// lock goes by inheritance, never by number.
 pub const CHILD_FD_BASE: i64 = 41;
 /// Host descriptors below this are relocated clear of the child range
 /// before the hand-over, so two mappings can never clobber each other in
@@ -61,9 +62,7 @@ pub struct Mapping {
 pub fn parse(spec: &str) -> Result<Mapping, String> {
     let parts: Vec<&str> = spec.split(':').collect();
     if parts.len() > 3 {
-        return Err(format!(
-            "{spec:?} has more than two colons: --device takes HOST[:GUEST[:PERMS]]"
-        ));
+        return Err(format!("{spec:?} has more than two colons: --device takes HOST[:GUEST[:PERMS]]"));
     }
     let (host, guest, perms) = match parts.len() {
         1 => (parts[0], parts[0], "rwm"),
@@ -81,26 +80,20 @@ pub fn parse(spec: &str) -> Result<Mapping, String> {
         ));
     }
     if guest.is_empty() || !guest.starts_with('/') {
-        return Err(format!(
-            "{guest:?} is not a guest-absolute path: --device takes HOST[:GUEST[:PERMS]]"
-        ));
+        return Err(format!("{guest:?} is not a guest-absolute path: --device takes HOST[:GUEST[:PERMS]]"));
     }
     if guest == "/" {
         return Err("--device cannot map over /: the guest path must name a file inside it".into());
     }
     if host.contains(SEP_ENTRY) || guest.contains(SEP_ENTRY) {
-        return Err(format!(
-            "{spec:?} holds a record separator: the device table cannot carry it"
-        ));
+        return Err(format!("{spec:?} holds a record separator: the device table cannot carry it"));
     }
     if host.contains(':') || guest.contains(':') {
         // A guard for callers that pass pre-split fields rather than a raw
         // spelling: a colon inside a field would lie about where the field
         // ends on the wire. Today's callers split first, so this is the
         // invariant stated where it is enforced.
-        return Err(format!(
-            "{spec:?} holds a colon inside a path: --device splits on colons"
-        ));
+        return Err(format!("{spec:?} holds a colon inside a path: --device splits on colons"));
     }
     let mut read = false;
     let mut write = false;
@@ -110,23 +103,14 @@ pub fn parse(spec: &str) -> Result<Mapping, String> {
             'w' => write = true,
             'm' => {}
             _ => {
-                return Err(format!(
-                    "{perms:?} is not device permissions: --device perms take r, w and m only"
-                ));
+                return Err(format!("{perms:?} is not device permissions: --device perms take r, w and m only"));
             }
         }
     }
     if !read && !write {
-        return Err(format!(
-            "{perms:?} grants neither read nor write: a device with only `m` cannot be opened"
-        ));
+        return Err(format!("{perms:?} grants neither read nor write: a device with only `m` cannot be opened"));
     }
-    Ok(Mapping {
-        host: host.into(),
-        guest: guest.into(),
-        read,
-        write,
-    })
+    Ok(Mapping { host: host.into(), guest: guest.into(), read, write })
 }
 
 /// Canonical perms for the wire: `r` then `w`. The `m` is dropped here and
@@ -141,12 +125,12 @@ pub fn canon(m: &Mapping) -> &'static str {
     }
 }
 
-/// One `PODVM_DEVICE_SPEC` entry.
+/// One entry of the device list.
 pub fn spec_entry(m: &Mapping) -> String {
     format!("{}:{}:{}", m.host, m.guest, canon(m))
 }
 
-/// One `PODVM_DEVICE_FDS` entry.
+/// One entry of the serve table.
 pub fn serve_entry(guest: &str, child_fd: i64, perms: &str) -> String {
     format!("{guest}:{child_fd}:{perms}")
 }
@@ -154,13 +138,14 @@ pub fn serve_entry(guest: &str, child_fd: i64, perms: &str) -> String {
 /// The banner line naming one mapping, shared by every verb that enters
 /// with devices: what the guest spelling serves, where, and what `m`
 /// does, before anything of the payload's runs.
-pub fn banner_line(m: &Mapping) -> String {
+pub fn banner_line(names: &Names, m: &Mapping) -> String {
     format!(
-        "podvm: --device {} is reachable inside as {} ({}): a duplicate \
+        "{}: --device {} is reachable inside as {} ({}): a duplicate \
          of a host descriptor opened before the chroot, not a device \
          node, served where the interposer holds and only where the \
          open fails without it (a creating open the image satisfies \
          lands in the image, not the device); `m` grants nothing\n",
+        names.product,
         m.host,
         m.guest,
         canon(m)
@@ -172,7 +157,7 @@ pub fn banner_line(m: &Mapping) -> String {
 pub struct Opened {
     /// `(child_fd, host_fd)` pairs for [`crate::Fds`].
     pub pass: Vec<(i64, i64)>,
-    /// `(guest, child_fd, perms)` rows for [`SERVE_VAR`].
+    /// `(guest, child_fd, perms)` rows of the serve table.
     pub serve: Vec<(String, i64, String)>,
 }
 
@@ -180,19 +165,21 @@ pub struct Opened {
 /// before the fork, in the process whose root is still the host's: a
 /// descriptor opened now keeps working after the child's `chroot`.
 ///
-/// A host path that does not open refuses naming it (exit 125 through the
-/// caller's error), because a mapping that silently serves nothing would
+/// A host path that does not open is refused with its name, because a mapping that silently serves nothing would
 /// read as a node that exists and fails later for no stated reason.
-pub fn open_all(specs: &[Mapping]) -> Result<Opened, crate::Error> {
+pub fn open_all(specs: &[Mapping]) -> Result<Opened, Error> {
     let mut pass = Vec::with_capacity(specs.len());
     let mut serve = Vec::with_capacity(specs.len());
     // The child numbers this call hands out, so a host descriptor sitting
     // on one is moved clear before the hand-over.
-    let child_top = CHILD_FD_BASE + specs.len() as i64;
+    let count = i64::try_from(specs.len())
+        .map_err(|_| Error::runtime(Class::Usage, "--device: too many devices".to_string()))?;
+    let child_top = CHILD_FD_BASE + count;
     // Relocated descriptors land past the child range, so no move can ever
     // collide with a number the child loop `dup2`s onto.
     let clear_floor = HOST_FD_FLOOR.max(child_top) as u64;
     for (i, m) in specs.iter().enumerate() {
+        // `i` is below `count`, which fits an i64.
         let child_fd = CHILD_FD_BASE + i as i64;
         let flags = match (m.read, m.write) {
             (true, true) => sys::O_RDWR,
@@ -201,22 +188,16 @@ pub fn open_all(specs: &[Mapping]) -> Result<Opened, crate::Error> {
             (false, false) => sys::O_RDONLY,
         } | sys::O_CLOEXEC;
         let Some(c) = CBuf::new(&m.host) else {
-            return Err(crate::Error::Runtime(format!(
-                "--device {:?}: the host path contains a NUL byte",
-                m.host
-            )));
+            return Err(Error::runtime(
+                Class::Usage,
+                format!("--device {:?}: the host path contains a NUL byte", m.host),
+            ));
         };
-        // ⛔ Opened by name here, before the fork, and never again inside:
-        // after the `chroot` this path is gone, and the child only ever
-        // sees the descriptor.
-        let mut host_fd = sys::open(&c, flags, 0).map_err(|e| {
-            crate::Error::Runtime(format!(
-                "--device {:?}: opening the host path failed: {} ({})",
-                m.host,
-                e.name(),
-                e.0
-            ))
-        })?;
+        // Opened by name here, before the fork, and never again inside:
+        // after the `chroot` this path is gone, and the child sees only the
+        // descriptor.
+        let mut host_fd = sys::open(&c, flags, 0)
+            .map_err(|e| errno_failure(&format!("--device {:?}: opening the host path failed", m.host), e))?;
         if host_fd < HOST_FD_FLOOR || (host_fd >= CHILD_FD_BASE && host_fd < child_top) {
             // Clear of the child range before the hand-over: the child's
             // loop `dup2`s in order and closes as it goes, so a host
@@ -229,12 +210,10 @@ pub fn open_all(specs: &[Mapping]) -> Result<Opened, crate::Error> {
                 }
                 Err(e) => {
                     let _ = sys::close(host_fd);
-                    return Err(crate::Error::Runtime(format!(
-                        "--device {:?}: moving the host descriptor clear failed: {} ({})",
-                        m.host,
-                        e.name(),
-                        e.0
-                    )));
+                    return Err(errno_failure(
+                        &format!("--device {:?}: moving the host descriptor clear failed", m.host),
+                        e,
+                    ));
                 }
             }
         }
@@ -244,14 +223,14 @@ pub fn open_all(specs: &[Mapping]) -> Result<Opened, crate::Error> {
     Ok(Opened { pass, serve })
 }
 
-/// Read the spec back out of an environment the CLI built. Caller-supplied
-/// values never reach here (the CLI scrubs both variables before pushing
-/// its own), so a malformed row is a defect in podvm and is refused as
-/// one rather than skipped.
-pub fn specs_of(env: &[String]) -> Result<Vec<Mapping>, crate::Error> {
+/// Read the device list back from an environment that the caller built.
+/// A value of the user never gets here (the caller removes both variables
+/// before it adds its own), so a malformed row is a defect of the caller,
+/// and it is refused as one, not skipped.
+pub fn specs_of(names: &Names, env: &[String]) -> Result<Vec<Mapping>, Error> {
     let Some(raw) = env.iter().rev().find_map(|e| {
         let (k, v) = e.split_once('=')?;
-        (k == SPEC_VAR).then(|| v.to_string())
+        (k == names.device_spec).then(|| v.to_string())
     }) else {
         return Ok(Vec::new());
     };
@@ -262,119 +241,43 @@ pub fn specs_of(env: &[String]) -> Result<Vec<Mapping>, crate::Error> {
         .map(|row| {
             let parts: Vec<&str> = row.split(':').collect();
             if parts.len() != 3 {
-                return Err(crate::Error::Runtime(format!(
-                    "{SPEC_VAR} holds a malformed row {row:?}: want host:guest:perms"
-                )));
+                return Err(Error::runtime(
+                    Class::Usage,
+                    format!("{} holds a malformed row {row:?}: want host:guest:perms", names.device_spec),
+                ));
             }
-            let m = parse(&format!("{}:{}:{}", parts[0], parts[1], parts[2])).map_err(|why| {
-                crate::Error::Runtime(format!("{SPEC_VAR} holds a bad row {row:?}: {why}"))
-            })?;
-            Ok(m)
+            parse(&format!("{}:{}:{}", parts[0], parts[1], parts[2])).map_err(|why| {
+                Error::runtime(Class::Usage, format!("{} holds a bad row {row:?}: {why}", names.device_spec))
+            })
         })
         .collect()
 }
 
-/// Scrub caller-supplied device variables, then push the spec the CLI
-/// parsed. A stale or foreign table must not survive into the entry, the
-/// way a stale guest path must not (T-0413's `push_guest_exe`).
-pub fn push_spec(env: &mut Vec<String>, specs: &[Mapping]) {
+/// Remove the device variables of the user, then add the device list
+/// that the caller parsed. An old or foreign table must not get into the
+/// entry.
+pub fn push_spec(names: &Names, env: &mut Vec<String>, specs: &[Mapping]) {
     env.retain(|e| {
-        let name = e.split('=').next().unwrap_or("");
-        name != SPEC_VAR && name != SERVE_VAR
+        let name = var_name(e);
+        name != names.device_spec && name != names.device_fds
     });
     if specs.is_empty() {
         return;
     }
     let rows: Vec<String> = specs.iter().map(spec_entry).collect();
-    env.push(format!("{SPEC_VAR}={}", rows.join(&SEP_ENTRY.to_string())));
+    env.push(format!("{}={}", names.device_spec, rows.join(&SEP_ENTRY.to_string())));
 }
 
-/// Push the serve table beside the descriptors [`open_all`] staged. Called
-/// by the entering process, after the opens, before the fork.
-pub fn push_serve(env: &mut Vec<String>, opened: &Opened) {
-    env.retain(|e| e.split('=').next().unwrap_or("") != SERVE_VAR);
+/// Add the serve table beside the descriptors that [`open_all`] staged.
+/// The entering process calls it after the opens, before the fork.
+pub fn push_serve(names: &Names, env: &mut Vec<String>, opened: &Opened) {
+    env.retain(|e| var_name(e) != names.device_fds);
     if opened.serve.is_empty() {
         return;
     }
-    let rows: Vec<String> = opened
-        .serve
-        .iter()
-        .map(|(g, fd, p)| serve_entry(g, *fd, p))
-        .collect();
-    env.push(format!("{SERVE_VAR}={}", rows.join(&SEP_ENTRY.to_string())));
+    let rows: Vec<String> = opened.serve.iter().map(|(g, fd, p)| serve_entry(g, *fd, p)).collect();
+    env.push(format!("{}={}", names.device_fds, rows.join(&SEP_ENTRY.to_string())));
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_defaults_guest_and_perms() {
-        let m = parse("/dev/zero").unwrap();
-        assert_eq!(m.host, "/dev/zero");
-        assert_eq!(m.guest, "/dev/zero");
-        assert!(m.read && m.write);
-        assert_eq!(canon(&m), "rw");
-    }
-
-    #[test]
-    fn parse_full_shape() {
-        let m = parse("/dev/zero:/dev/hostzero:rm").unwrap();
-        assert_eq!(m.guest, "/dev/hostzero");
-        assert!(m.read && !m.write);
-        assert_eq!(canon(&m), "r");
-    }
-
-    #[test]
-    fn parse_two_parts_keep_default_perms() {
-        let m = parse("/dev/null:/dev/hostnull").unwrap();
-        assert_eq!(canon(&m), "rw");
-    }
-
-    #[test]
-    fn parse_write_only() {
-        let m = parse("/dev/null:/dev/out:w").unwrap();
-        assert!(!m.read && m.write);
-    }
-
-    #[test]
-    fn parse_refuses_shapes() {
-        for bad in [
-            "",
-            ": : : :",
-            "/dev/zero:/a:/b:c",
-            "/dev/zero:relative:r",
-            "x",
-            "/dev/zero:/g:rx",
-            "/dev/zero:/:r",
-        ] {
-            assert!(parse(bad).is_err(), "{bad:?} must not parse");
-        }
-        assert!(parse("/dev/zero:/g:m").is_err());
-    }
-
-    #[test]
-    fn spec_round_trip() {
-        let m = parse("/dev/zero:/dev/hostzero:rwm").unwrap();
-        assert_eq!(spec_entry(&m), "/dev/zero:/dev/hostzero:rw");
-        let back = specs_of(&[format!("{SPEC_VAR}=/dev/zero:/dev/hostzero:rw")]).unwrap();
-        assert_eq!(back, vec![m]);
-    }
-
-    #[test]
-    fn specs_of_empty_and_absent() {
-        assert!(specs_of(&[]).unwrap().is_empty());
-        assert!(specs_of(&[format!("{SPEC_VAR}=")]).unwrap().is_empty());
-        assert!(specs_of(&[format!("{SPEC_VAR}=/dev/zero:/g")]).is_err());
-    }
-
-    #[test]
-    fn push_spec_scrubs_and_skips_empty() {
-        let mut env = vec![format!("{SERVE_VAR}=stale"), "PATH=/bin".into()];
-        push_spec(&mut env, &[]);
-        assert_eq!(env, vec!["PATH=/bin".to_string()]);
-        let specs = vec![parse("/dev/zero:/z:r").unwrap()];
-        push_spec(&mut env, &specs);
-        assert!(env.iter().any(|e| e == "PODVM_DEVICE_SPEC=/dev/zero:/z:r"));
-    }
-}
+mod tests;
