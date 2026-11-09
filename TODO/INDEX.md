@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**132 entries: 56 open, 4 partial, 0 blocked, 72 done.**
+**133 entries: 57 open, 4 partial, 0 blocked, 72 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 27 | 50 |
 | P2 | 27 | 4 | 0 | 33 | 64 |
-| P3 | 6 | 0 | 0 | 10 | 16 |
-| **All** | 56 | 4 | 0 | 72 | 132 |
+| P3 | 7 | 0 | 0 | 10 | 17 |
+| **All** | 57 | 4 | 0 | 72 | 133 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -179,3 +179,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-130](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175) |
 | [T-131](roads.md) | P1 | M | M4 | defect | open | `pod-gsr`: the handshake tests crash on Windows ARM64 |
 | [T-132](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm |
+| [T-133](transport.md) | P3 | M | M1 | feature | open | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |

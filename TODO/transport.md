@@ -2213,3 +2213,53 @@ cargo test -p pod-services
 
 The live check of each server runs in a dispatched workflow; its run id
 goes in the Done section.
+
+# T-133: `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177)
+
+**Source:** PodUtils/podssh#177 (COORD-010 of podssh; PodUtils/podssh@T-574, the rulings Q78, Q79 and Q90 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh's last fallback of its forward road (for `podssh ssh` only) tries the
+public proxy nodes of aggregator lists (VLESS and Trojan). podssh names no
+host of another party, so the lists and a short list of nodes must be data of
+`pod-services`. The kinds `proxy-list` and `proxy-node` do not exist; podssh
+reads an empty catalog today and changes no behaviour.
+
+## Premise
+
+- Read: the ask (PodUtils/podssh#177), with the fields of each kind.
+- Not read: the public lists, their maintainers and their nodes.
+
+## Approach
+
+`proxy-list`: one service for each public list of `vless://` and `trojan://`
+share links at an https URL (`party` the maintainer, `[rank]`, one endpoint
+`list` with `path`, a fact `note` with how often the list changes and the
+share of VLESS or Trojan nodes on 443, a watch `http-status` 200).
+`proxy-node`: the short list for a host that cannot fetch a list (Q90): one
+service for each node (the endpoint as the link gives it, a fact `link` in
+the form podssh's `Server::parse` reads, no `flow=`, no `security=reality`,
+VLESS `type` `ws` or `xhttp`, Trojan `type` `tcp` or `ws`), and a watch that
+carries GitHub's SSH version line through the node before each release.
+Each entry keeps the rules of the ask: a source for each fact (Q79); no host,
+SNI or `Host` under `.edu`, `.k12.`, `.ac.`, `.sch.`, `.gov`, `.mil` or a
+church's name, and none that fronts another party's name; port 443 with TLS,
+and a public address or one name for host, SNI and `Host`; no VMess
+(PodUtils/podssh@T-573); at most one short probe a day to each list and node. The share links
+of public nodes go in `.github/secrets-allow.txt` with the reason. If no list
+or node qualifies, a note on PodUtils/podssh#177 is the answer.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+The live check of each node runs in a dispatched workflow; its run id goes in
+the Done section.

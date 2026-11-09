@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 132 entries: 56 open, 4 partial, 0 blocked, 72 done.
+`TODO/INDEX.md` holds 133 entries: 57 open, 4 partial, 0 blocked, 72 done.
 
 ## State
 
@@ -8,7 +8,8 @@
   release 42694145849): `pod-supervise`, `pod-gsr`, `pod-broker`, the exit
   codes of `pod-core`, the fixes of `pod-dns`, `pod-proxy`, `pod-services`
   and of `pod-hostprobe` on 32-bit; COORD-017 (GitHub #41) hands it to each
-  consumer. Each consumer is on `v0.7.0` until it takes it. Open: T-131
+  consumer. Each consumer takes it: podnet `0df677d` (PodUtils/podnet#416), podssh `0e3c9eaf`
+  (PodUtils/podssh#176); podvm next. Open: T-131
   (`pod-gsr` on Windows ARM64).
 - M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is partial:
   its trial of podvm passed; the release and the take of podvm remain.
@@ -40,7 +41,7 @@ The owner's ruling "Priority" (2026-11-09): podvm, podnet and podssh come
 first; the asks of cfb and githome (M8) wait.
 
 1. **The defects of the consumers:** T-130 (the
-   public Wisp servers of podssh).
+   public Wisp servers of podssh), T-133 (the public proxy lists of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-060 (partial: the release
    and the take of podvm), T-061 and T-059 (partial: the release and the

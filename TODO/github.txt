@@ -46,4 +46,4 @@
 39 issue closed
 40 issue closed
 41 issue open
-42 issue open
+42 issue closed
