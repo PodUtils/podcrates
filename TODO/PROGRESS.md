@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 49 open, 1 partial, 1 blocked, 47 done.
+`TODO/INDEX.md` holds 98 entries: 50 open, 1 partial, 0 blocked, 47 done.
 
 ## State
 
@@ -71,15 +71,6 @@ C19), and the work goes on with it until the owner rules otherwise.
   (`docs/maintenance.md`, "A run of a workflow"); the issue
   `[gh action] requested` is the fallback. It blocks no entry.
   Recommendation: let a push of the session's account start `ci.yml`.
-
-- **Q7.** Where is the source of `pod-gsr` (GitHub #24 to #26)? No
-  repository or branch of PodUtils holds it, and PodUtils/podssh#164 names
-  a commit `1f734e4` of podcrates that does not exist. Which commit of
-  `hackerschoice/gsocket` does the import read: `ad546b2e` (#23) or
-  `5950647f` (#24)? It blocks T-086, then T-087 and T-088.
-  Recommendation: push the prototype to a branch of PodUtils/podcrates or
-  attach it to #24 as a patch; reserve the name `pod-gsr` (GitHub #1).
-
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q6

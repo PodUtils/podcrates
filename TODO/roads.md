@@ -326,7 +326,7 @@ T-014 is done.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -369,11 +369,12 @@ sh scripts/check-static.sh
 cargo todo check
 ```
 
-## Blocker
+## Start condition
 
-The owner must say where the source of `pod-gsr` is (a branch, a gist or
-a patch on issue #24), and may name the commit of `hackerschoice/gsocket`
-(question Q7 in `TODO/PROGRESS.md`). T-085 must be done before the
+The owner deferred this entry on 2026-11-09 (`docs/decisions.md`). It
+starts when the owner gives the source of the prototype (a branch, a gist
+or a patch on issue #24) and the commit of `hackerschoice/gsocket`
+(`ad546b2e` in #23, `5950647f` in #24). T-085 must be done before the
 import.
 
 # T-087: `pod_gsr::Stream` records how it ended (GitHub #25)

@@ -41,6 +41,7 @@ form of the rulings that apply to each session.
 | 2026-11-06 | The releases of the consumers | podssh makes no release and no beta until it took each crate that it shares; podnet makes no release now (podssh `eea8c63`, podnet "Order" of 2026-11-06). podcrates' releases go on. |
 | 2026-11-06 | The sessions of the consumers | podssh's migration session takes each crate on its release day; a session of podssh's own work changes a frozen module for fixes only. podnet's sessions send and take no messages; podnet's work goes on beside the takes. Each reaches podcrates by COORD issues of its own repository (`docs/maintenance.md`). |
 | 2026-11-06 | The crates of podvm | Each generic crate of podvm moves to podcrates with the prefix `pod-`, also where podvm is its only consumer today; a crate that only podvm needs stays in podvm as `podvm-*`. podvm's scope widens: "podvm will make everything that sand-net does, but without root, in the environment we target". The owner confirmed both in this session. `docs/design.md`, section 4, M6 and M7; `pod-probe` is held. |
+| 2026-11-09 | pod-gsr | "for the pod-gsr, leave it open/deferred for now". T-086 to T-088 stay open, with a start condition: the owner gives the source of the prototype. The name `pod-gsr` is on the list of GitHub #1. |
 
 ## Calls made without a ruling
 

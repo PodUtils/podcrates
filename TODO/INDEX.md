@@ -34,15 +34,15 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 
 ## Entries
 
-**98 entries: 49 open, 1 partial, 1 blocked, 47 done.**
+**98 entries: 50 open, 1 partial, 0 blocked, 47 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 0 | 0 | 21 | 35 |
-| P2 | 25 | 1 | 1 | 21 | 48 |
+| P2 | 26 | 1 | 0 | 21 | 48 |
 | P3 | 10 | 0 | 0 | 3 | 13 |
-| **All** | 49 | 1 | 1 | 47 | 98 |
+| **All** | 50 | 1 | 0 | 47 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ Transport, M2 Relay, M3 Adapters, M4 Roads, M5 Upkeep.
 | [T-083](transport.md) | P2 | M | M1 | feature | open | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
 | [T-084](foundation.md) | P3 | S | M0 | docs | open | The record of `SOURCES` names a git blob id (GitHub #22) |
 | [T-085](foundation.md) | P2 | S | M0 | defect | open | `check-sources.py`: the default branch of a source repository (GitHub #23) |
-| [T-086](roads.md) | P2 | L | M4 | feature | blocked | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
+| [T-086](roads.md) | P2 | L | M4 | feature | open | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
 | [T-087](roads.md) | P2 | S | M4 | feature | open | `pod_gsr::Stream` records how it ended (GitHub #25) |
 | [T-088](roads.md) | P2 | M | M4 | feature | open | `pod-gsr`: the synchronous face (GitHub #26) |
 | [T-089](transport.md) | P2 | S | M1 | defect | open | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |
