@@ -1510,6 +1510,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "static-probe-lean"
+version = "0.8.0"
+dependencies = [
+ "pod-core",
+ "pod-tls",
+]
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -74,6 +74,8 @@ jobs:
           python3 -I scripts/check-size.py --self-test
       - name: The rules of the workflows
         run: python3 scripts/check-workflows.py
+      - name: The static probes cover each feature
+        run: python3 -I scripts/check-probe.py
 
   test:
     runs-on: ubuntu-24.04
@@ -151,7 +153,13 @@ jobs:
           sh scripts/retry.sh cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
       - name: Build the probe (zig)
         if: matrix.zig
-        run: cargo zigbuild --locked --release --target ${{ matrix.target }} -p static-probe
+        # One build for each probe: a build of both would turn tokio on in
+        # the lean one.
+        run: |
+          set -eu
+          for p in static-probe static-probe-lean; do
+            cargo zigbuild --locked --release --target ${{ matrix.target }} -p "$p"
+          done
       # The OpenSSL of pod-gsr builds from source: its Configure needs a
       # perl of Windows, not the perl of Git Bash.
       - name: A perl for OpenSSL
@@ -159,7 +167,11 @@ jobs:
         run: sh scripts/openssl-perl.sh
       - name: Build the probe
         if: '!matrix.zig'
-        run: cargo build --locked --release --target ${{ matrix.target }} -p static-probe
+        run: |
+          set -eu
+          for p in static-probe static-probe-lean; do
+            cargo build --locked --release --target ${{ matrix.target }} -p "$p"
+          done
       - name: llvm-objdump for a PE file
         if: runner.os == 'Windows'
         run: |
@@ -171,11 +183,13 @@ jobs:
       - name: The probe is static
         run: |
           set -eu
-          exe=target/${{ matrix.target }}/release/static-probe
-          # Git Bash finds NAME.exe for a test of NAME: look for the .exe first.
-          if [ -f "$exe.exe" ]; then exe="$exe.exe"; fi
-          sh scripts/check-static.sh "$exe"
-          echo "| ${{ matrix.target }} | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+          for p in static-probe static-probe-lean; do
+            exe=target/${{ matrix.target }}/release/$p
+            # Git Bash finds NAME.exe for a test of NAME: look for the .exe first.
+            if [ -f "$exe.exe" ]; then exe="$exe.exe"; fi
+            sh scripts/check-static.sh "$exe"
+            echo "| ${{ matrix.target }} $p | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+          done
 
   all:
     runs-on: ubuntu-24.04

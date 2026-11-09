@@ -1,0 +1,6 @@
+# The static probe does not turn on `blocking` of pod-proxy.
+ENTRY=T-095
+GROUP=lint
+EXPECT='pod-proxy: feature blocking is in no static probe'
+RUN='python3 -I scripts/check-probe.py --no-tree'
+LIMIT=60

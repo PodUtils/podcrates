@@ -1,0 +1,6 @@
+# The lean probe takes the default features of pod-tls, so tokio is in its tree.
+ENTRY=T-095
+GROUP=lint
+EXPECT='static-probe-lean: tokio is in the tree'
+RUN='python3 -I scripts/check-probe.py'
+LIMIT=300

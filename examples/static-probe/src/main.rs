@@ -15,6 +15,17 @@ fn main() {
     let environment = pod_proxy::Environment::read(&|_| None);
     let settings = pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::FromEnvironment(environment));
     let dialer = pod_proxy::Dialer::new(settings, std::sync::Arc::new(pod_proxy::resolve::System::new()));
+    // The blocking face: its private runtime links in.
+    let blocking_dialer = pod_proxy::blocking::Dialer::new(
+        pod_proxy::Settings::new(
+            "static-probe",
+            pod_proxy::ProxyChoice::FromEnvironment(pod_proxy::Environment::read(&|_| None)),
+        ),
+        std::sync::Arc::new(pod_proxy::resolve::System::new()),
+    );
+    let blocking_proxy = blocking_dialer
+        .and_then(|d| d.proxy_at("probe.example", 443).map_err(std::io::Error::other))
+        .map_or_else(|e| e.to_string(), |p| format!("{p:?}"));
     let mut services = pod_services::Catalog::new();
     // An empty file of the overlay: the TOML reader runs, and refuses it.
     let empty = services.lay("probe.toml", "").map_or_else(|e| e.field, |s| s.id().to_string());
@@ -48,6 +59,7 @@ fn main() {
             if pod_core::Dial::names_inside(&dialer) { "with" } else { "no" },
             pod_proxy::mptcp::probe().map_or_else(|why| why, |()| "offered".into())
         ),
+        format!("pod-proxy blocking: {blocking_proxy}"),
         format!(
             "pod-services: {} services, the first DoH resolver {doh}, an empty overlay refused at {empty}",
             services.iter().count()

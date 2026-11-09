@@ -1,0 +1,17 @@
+[package]
+name = "static-probe-lean"
+description = "A binary that links the crates with no default feature (no tokio), so that CI can check that it is static on each target."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# The builds of a synchronous consumer (call C20). A path names each crate:
+# a workspace entry of pod-tls has its default features, and a member cannot
+# turn them off. `scripts/check-probe.py` checks that tokio is not in the
+# tree of this package.
+[dependencies]
+pod-core = { workspace = true }
+pod-tls = { path = "../../crates/pod-tls", default-features = false, features = ["pure", "rsa"] }

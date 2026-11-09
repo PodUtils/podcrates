@@ -23,7 +23,8 @@ CI runs the same on each push, and more (`docs/design.md`, section 9).
   `rust-version` of `Cargo.toml` when a new stable comes out.
 * Edition 2024. rustfmt with `max_width = 120`.
 * A static build: `sh scripts/cloud-setup.sh`, then
-  `cargo zigbuild --release --target x86_64-unknown-linux-musl`.
+  `cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe`
+  (one build for each probe: `-p static-probe-lean` has no tokio).
 * Set `CARGO_BUILD_JOBS=4`. Run one cargo build at a time.
 
 ## File size

@@ -380,7 +380,11 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
 The check:
 
 * `examples/static-probe` depends on each crate with each feature and
-  calls one function of each. CI builds it in release on each target on
+  calls one function of each (`fuzzing` is out). `examples/static-probe-lean`
+  builds pod-core and pod-tls with no default feature, so with no tokio.
+  `scripts/check-probe.py` checks that each feature of a library crate is in
+  a probe or in its allowance list, and that tokio is not in the tree of the
+  lean probe. CI builds it in release on each target on
   each push (with a cache), and `scripts/check-static.sh` checks it
   (`readelf` on Linux, `otool -L` on macOS, `dumpbin /dependents` on
   Windows, each against its list of system libraries). A plant links a
