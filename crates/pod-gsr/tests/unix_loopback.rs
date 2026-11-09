@@ -10,6 +10,9 @@
 //! `START` with the flag of each side, reads `ACCEPT` of both, and then
 //! carries the bytes.
 
+// The stand-in listens on an AF_UNIX socket; tokio has no UnixListener on Windows.
+#![cfg(unix)]
+
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

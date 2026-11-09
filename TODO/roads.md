@@ -581,3 +581,41 @@ cargo test -p pod-egress --all-features
 ## Start condition
 
 T-035 is done.
+
+# T-129: `pod-gsr`: the tests over `AF_UNIX` do not build on Windows
+
+**Source:** the nightly run 42676423140 at `9414191` (jobs `test (windows-2025)` and `test (windows-11-arm)`).
+**Category:** defect
+**Milestone:** M4
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`cargo test --workspace --all-features` failed on Windows with exit code
+101. The test targets `unix_loopback` and `blocking` of `pod-gsr` use
+`tokio::net::UnixListener` and `UnixStream`, which tokio does not have on
+Windows (`error[E0432]: unresolved imports`). The LNK4099 messages of the
+vendored OpenSSL are warnings and do not fail the build.
+
+## Premise
+
+- Read: the log of job 129358892561. The only error is the E0432 of
+  `unix_loopback`.
+
+## Approach
+
+Both test files get `#![cfg(unix)]`. `tests/loopback.rs` (TCP) and the
+unit tests still run on Windows.
+
+## Prove
+
+```sh
+cargo test -p pod-gsr --all-features
+```
+
+## Done
+
+2026-11-09. The two files carry `#![cfg(unix)]`. The nightly dispatched
+after the landing is the proof for the Windows jobs.

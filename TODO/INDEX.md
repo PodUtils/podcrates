@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**128 entries: 63 open, 2 partial, 0 blocked, 63 done.**
+**129 entries: 63 open, 2 partial, 0 blocked, 64 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 22 | 0 | 0 | 25 | 47 |
+| P1 | 22 | 0 | 0 | 26 | 48 |
 | P2 | 31 | 2 | 0 | 30 | 63 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 63 | 2 | 0 | 63 | 128 |
+| **All** | 63 | 2 | 0 | 64 | 129 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -175,3 +175,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-126](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
 | [T-127](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |
 | [T-128](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target |
+| [T-129](roads.md) | P1 | S | M4 | defect | done | `pod-gsr`: the tests over `AF_UNIX` do not build on Windows |

@@ -2,6 +2,9 @@
 //! socket. The stand-in runs on a runtime of its own thread; the two peers
 //! run on plain threads with no runtime, as a synchronous consumer does.
 
+// The stand-in listens on an AF_UNIX socket; tokio has no UnixListener on Windows.
+#![cfg(unix)]
+
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::thread;
