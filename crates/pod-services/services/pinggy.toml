@@ -12,6 +12,23 @@ host = "free.pinggy.io"
 port = 443
 source = { url = "https://pinggy.io/docs/", read = 2026-11-06, note = "ssh -p 443 -R0:localhost:8000 free.pinggy.io" }
 
+# SSH inside TLS, for a host whose proxy passes TLS alone.
+[[endpoint]]
+name = "ssh-tls"
+scheme = "ssh+tls"
+host = "free.pinggy.io"
+port = 443
+sni = "free.pinggy.io"
+source = { url = "https://pinggy.io/docs/client_behind_proxy/", read = 2026-11-09, note = 'ssh -p443 -R0:localhost:4000 -o ProxyCommand="openssl s_client -quiet -connect %h:%p" free.pinggy.io' }
+
+[[endpoint]]
+name = "ssh-tls-alt"
+scheme = "ssh+tls"
+host = "free.pinggy.io"
+port = 7878
+sni = "free.pinggy.io"
+source = { url = "https://pinggy.io/docs/client_behind_proxy/", read = 2026-11-09, note = 'ssh -p7878 -R0:localhost:4000 -o ProxyCommand="ncat --ssl %h %p" free.pinggy.io' }
+
 # The banner names the dashboard beside the tunnel's URL: the URL of the
 # tunnel is the one that is not on this host.
 [[fact]]
@@ -22,3 +39,24 @@ source = { url = "https://pinggy.io/docs/", read = 2026-11-06, note = "PodUtils/
 [[watch]]
 kind = "ssh-banner"
 endpoint = "ssh"
+
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:nFd5rfJMGuZXvfeRzJ/BtT3TfksAxTWMajcrHRcI7AM"
+source = { url = "https://pinggy.io/", read = 2026-11-09, note = "All Pinggy edge servers use the same RSA host key: ssh-rsa SHA256:nFd5rfJMGuZXvfeRzJ/BtT3TfksAxTWMajcrHRcI7AM" }
+
+[[fact]]
+name = "tunnel-zone"
+value = "a.pinggy.link"
+source = { url = "https://pinggy.io/docs/tls_tunnels/", read = 2026-11-09, note = "Pinggy edge (*.a.pinggy.link): routes by SNI, never decrypts" }
+
+[[fact]]
+name = "free-tunnel-minutes"
+value = 60
+unit = "min"
+source = { url = "https://pinggy.io/", read = 2026-11-09, note = "60 minutes tunnel timeout" }
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"

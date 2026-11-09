@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**134 entries: 57 open, 4 partial, 0 blocked, 73 done.**
+**135 entries: 57 open, 4 partial, 0 blocked, 74 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 28 | 51 |
 | P2 | 27 | 4 | 0 | 33 | 64 |
-| P3 | 7 | 0 | 0 | 10 | 17 |
-| **All** | 57 | 4 | 0 | 73 | 134 |
+| P3 | 7 | 0 | 0 | 11 | 18 |
+| **All** | 57 | 4 | 0 | 74 | 135 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -181,3 +181,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-132](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm |
 | [T-133](transport.md) | P3 | M | M1 | feature | open | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
+| [T-135](transport.md) | P3 | S | M1 | feature | done | `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178) |

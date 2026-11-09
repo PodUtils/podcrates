@@ -215,3 +215,25 @@ fn the_file_host_of_pypi_is_a_service() {
     assert_eq!(kinds, ["tls-name", "http-status"]);
     assert!(pod_services::of_kind("package-files").any(|s| s.id() == "pypi-files"));
 }
+
+/// Pinggy has SSH inside TLS, its host key, and a watch of the key.
+#[test]
+fn pinggy_has_ssh_inside_tls_and_its_host_key() {
+    let pinggy = pod_services::get("pinggy").expect("pinggy");
+    assert_eq!(pinggy.endpoint("ssh").unwrap().port(), 443);
+    assert_eq!(pinggy.text("dashboard-host"), Some("dashboard.pinggy.io"));
+    for (name, port) in [("ssh-tls", 443), ("ssh-tls-alt", 7878)] {
+        let e = pinggy.endpoint(name).unwrap();
+        assert_eq!(
+            (e.scheme(), e.host(), e.port(), e.sni()),
+            ("ssh+tls", "free.pinggy.io", port, Some("free.pinggy.io"))
+        );
+    }
+    assert_eq!(pinggy.text("host-key-sha256"), Some("SHA256:nFd5rfJMGuZXvfeRzJ/BtT3TfksAxTWMajcrHRcI7AM"));
+    assert_eq!(pinggy.text("tunnel-zone"), Some("a.pinggy.link"));
+    assert_eq!(pinggy.int("free-tunnel-minutes"), Some(60));
+    assert_eq!(pinggy.fact("free-tunnel-minutes").unwrap().unit(), Some("min"));
+    let watch = pinggy.watches().iter().find(|w| w.kind() == "ssh-host-key").expect("the watch of the key");
+    assert_eq!(watch.arg("endpoint").and_then(|v| v.as_text()), Some("ssh"));
+    assert_eq!(watch.arg("fact").and_then(|v| v.as_text()), Some("host-key-sha256"));
+}

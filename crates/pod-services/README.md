@@ -49,7 +49,7 @@ A word is a lower-case letter, then lower-case letters, digits and single
 | --- | --- | --- |
 | `name` | the name in its service | a word; once in a file |
 | `role` | a group of endpoints (`v4`, `v6`, `seed`, `region`, `h2`, `quic`) | optional word |
-| `scheme` | `https`, `wss`, `wisp+wss`, `ssh`, `stun`, `udp`, `tls`, `quic` | a URI scheme in lower case |
+| `scheme` | `https`, `wss`, `wisp+wss`, `ssh`, `ssh+tls`, `stun`, `udp`, `tls`, `quic` | a URI scheme in lower case |
 | `host` | a name (a last `.` is a name that is fully qualified), or an IP address with no brackets | required |
 | `port` | the port | 1 to 65535; required |
 | `path` | the path | optional; starts with `/`, no space |
@@ -66,7 +66,7 @@ A word is a lower-case letter, then lower-case letters, digits and single
 | `value` | a text, an integer, a bool, a date (`2029-08-15`, no quotes), a list of texts or a list of integers | required, or `file` |
 | `file` | a text file under `services/` whose text is the value (the edge roots) | the built-in set only: a fact of an overlay gives its text in `value` |
 | `type` | `text`, `int`, `bool`, `date`, `texts`, `ints` | optional; the value must be of it; required for an empty list |
-| `unit` | the unit of a number: `ms`, `bytes` | optional word |
+| `unit` | the unit of a number: `ms`, `bytes`, `min` | optional word |
 | `source` | the source of the value | required |
 
 `source`, a table:
@@ -103,6 +103,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `websocket-upgrade` | `endpoint` | the upgrade answers 101 |
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
+| `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
 | `github-release` | `repo`, `fact`, `max-age-days` | the newest release; the age of the pinned tag |
 | `github-files` | `repo`, `tag`, `fact` | the SHA-256 of each file of the fact at the tag and at the newest release |
@@ -218,7 +219,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-warp` | `warp` | `api`, `api-second` (role `api`), `masque-v4`, `masque-v6` (role `masque`), `masque-l4` | `connect-uri`, `user-agent`, `api-version`, `client-version`, `usque-api-version`, `usque-client-version`, `terms-url` |
 | `letsencrypt-acme` | `acme` | `directory` | |
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
-| `pinggy` | `ssh-tunnel` | `ssh` | `dashboard-host` |
+| `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |

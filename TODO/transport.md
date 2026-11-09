@@ -2263,3 +2263,45 @@ cargo test -p pod-services
 
 The live check of each node runs in a dispatched workflow; its run id goes in
 the Done section.
+
+# T-135: `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178)
+
+**Source:** PodUtils/podssh#178 (COORD-011 of podssh; PodUtils/podssh@T-548)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh's node dials SSH inside TLS to Pinggy and pins the host key. The
+service `pinggy` has the endpoint `ssh` (raw SSH) and the fact
+`dashboard-host` only. podssh keeps the rest as constants.
+
+## Premise
+
+- Read: the ask (PodUtils/podssh#178); the pages `pinggy.io/docs/client_behind_proxy/`,
+  `pinggy.io/docs/tls_tunnels/` and `pinggy.io/`, through read.web.pkgforge.dev on
+  2026-11-09. Each value is on its page.
+- Not read: a live SSH handshake with the edge.
+
+## Approach
+
+Add to `services/pinggy.toml`, with no change to what is there: the endpoints
+`ssh-tls` (port 443) and `ssh-tls-alt` (port 7878), scheme `ssh+tls`, `sni`
+`free.pinggy.io`; the facts `host-key-sha256`, `tunnel-zone` and
+`free-tunnel-minutes` (unit `min`); a watch `ssh-host-key` on the endpoint
+`ssh` that names the fact. The schema takes any scheme, unit and watch word,
+so its code does not change. The README lists the scheme, the unit and the
+watch kind. The runner of the kind is T-050.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-09, COMMIT. `crates/pod-services/services/pinggy.toml` holds the two endpoints, the three facts and the watch `ssh-host-key`. `crates/pod-services/README.md` lists `ssh+tls`, `min` and the kind. `cargo test -p pod-services`: `pinggy_has_ssh_inside_tls_and_its_host_key` passes.
