@@ -71,6 +71,14 @@ The procedure of `docs/design.md`, section 8; the stand-ins give
 loopback tests of the registration, the proxy, the forward and nc; the
 live checks move to `live.yml`.
 
+The identity of another uid (PodUtils/podnet#413, ask 9;
+PodUtils/podnet@T-173): podnet refuses a WARP identity that another uid
+owns, with exit 78. The identity loader of the crate reads such an identity
+only with the consent of the caller (podnet's variable
+`PODNET_FOREIGN_IDENTITY=allow`, given as a setting: the crate reads no
+variable) and only at a path that the caller names; it keeps the check of
+the mode and the owner. A test for each case.
+
 ## Prove
 
 ```sh
