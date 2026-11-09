@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 135 entries: 57 open, 4 partial, 0 blocked, 74 done.
+`TODO/INDEX.md` holds 135 entries: 57 open, 3 partial, 0 blocked, 75 done.
 
 ## State
 
@@ -9,10 +9,10 @@
   codes of `pod-core`, the fixes of `pod-dns`, `pod-proxy`, `pod-services`
   and of `pod-hostprobe` on 32-bit; COORD-017 (GitHub #41) hands it to each
   consumer. Each consumer takes it: podnet `0df677d` (PodUtils/podnet#416), podssh `0e3c9eaf`
-  (PodUtils/podssh#176); podvm next. Open: T-131
+  (PodUtils/podssh#176); podvm took it in `989f35b` (PodUtils/podvm#219). Open: T-131
   (`pod-gsr` on Windows ARM64).
-- M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is partial:
-  its trial of podvm passed; the release and the take of podvm remain.
+- M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is done:
+  podvm took it in `989f35b` (PodUtils/podvm#219).
   `pod-guest` (T-061) and `pod-enter` (T-059) are partial: their trials
   of podvm passed; the release `v0.9.0` and the take of podvm remain.
   Next in M6: T-056.
@@ -43,8 +43,7 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-130 (the
    public Wisp servers of podssh), T-133 (the public proxy lists of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-060 (partial: the release
-   and the take of podvm), T-061 and T-059 (partial: the release and the
+   podvm `main` on the day of each import): T-061 and T-059 (partial: the release and the
    take of podvm), T-056, T-057, T-058. T-040 (the trials of podvm)
    goes with each import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and

@@ -3,6 +3,7 @@
 # with the default branch of its repository.
 
 repo PodUtils/podvm 27ae9938b577a9ad5033fed73c89e3564b6aa230
+taken 989f35bb7b17aeb9bb84dbd5da8f1df7909e49eb
 dir crates/podvm-supervise/src
 # table/memo.rs is the ownership memo of podvm-interpose: it stays in podvm.
 # Of lib.rs, table.rs and launcher/ a part comes: the table, the paths, the

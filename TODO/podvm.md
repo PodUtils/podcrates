@@ -381,7 +381,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -469,7 +469,7 @@ PodUtils/podvm#218). The import reads podvm `main` at `063a1ed` or later.
   `stop -t 0`, an exit code, a signal, a killed launcher, a failed entry;
   30 runs in a loop passed). The `stop -t 0` step fails on the wait of
   podvm before #215. pod-core: 1 new test (`rfc3339`).
-- The trial of podvm at `27ae993` (`adoption/podvm/pod-supervise.patch`:
+- The trial of podvm at `27ae993` (the patch `pod-supervise.patch`:
   22 files, 353 lines in, 1,718 out): `podvm-supervise` keeps podvm's glue
   (`settings`, `Detail`, the verbs with a `&Store`, the entry of the
   launcher, the memo); `launcher/supervise.rs` leaves podvm; `podvm-image`
@@ -487,10 +487,14 @@ PodUtils/podvm#218). The import reads podvm `main` at `063a1ed` or later.
   static, test), `check-sources.py` (8 files, 0 changes),
   `secrets_like.py` on the patch (no line).
 
+- Release and take: `v0.8.0` is released. podvm took the patch in `989f35b`
+  (PodUtils/podvm#219): each line of the `.run` exited 0. The block of
+  podvm in `SOURCES` has `taken 989f35bb7b17aeb9bb84dbd5da8f1df7909e49eb`
+  (`check-sources.py`: 8 files, 0 changes), and the trial leaves
+  `adoption/podvm/`.
+
 Remains:
 
-- The release `v0.8.0`, then podvm's take of the patch, and its `taken`
-  line in `SOURCES`.
 - `PodUtils/podvm:crates/podvm-release/src/prove_t0211.rs` mutates the fork and exec
   defences of `Lock` in podvm's source; after the take they are in
   `pod_supervise::lock`. A plant in podcrates for the two defences can
