@@ -330,10 +330,10 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 ## Done
 
-2026-11-09, partial. Commits `6f633ca` (the import of 28 files of podvm
-at `6cd3442`, with `SOURCES`), `4ff9cd7` (the adaptation and the tests),
-`d727a13` (README, C37), and the commit of this Done section (the trial,
-the record).
+2026-11-09, partial. Commits `bccf3f7` (the import of 28 files of podvm
+at `6cd3442`, with `SOURCES`), `ef7c76f` (the adaptation and the tests),
+`c8ce099` (README, C37), `1fe6114` (the trial, the record) and `2a3c82a`
+(the doc links).
 
 - Imported: the 27 files of `PodUtils/podvm:crates/podvm-enter/src` and
   `tests/tty_refusal.rs`. Of `lib.rs` a part stays in podvm (the
@@ -456,7 +456,7 @@ PodUtils/podvm#218). The import reads podvm `main` at `063a1ed` or later.
 2026-11-09, partial. Commits `8b46a62` (the import of 8 files of podvm at
 `27ae993`, with `SOURCES`), `16eb5a1` (the adaptation and the tests),
 `2c3863c` (README, C33), and the commit of this Done section (the trial,
-the record).
+(the doc links).
 
 - Imported: 7 files of `PodUtils/podvm:crates/podvm-supervise/src` (all but
   `table/memo.rs`, which stays in podvm) and
@@ -569,7 +569,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 2026-11-09, partial. Commits `f09dcd4` (the import of 12 files of podvm
 at `6cd3442`, with `SOURCES`), `04193cc` (the adaptation and the tests),
 `add7a85` (README, C36), and the commit of this Done section (the trial,
-the record).
+(the doc links).
 
 - Imported: the 12 files of `PodUtils/podvm:crates/podvm-windows/src`. Of
   `lib.rs` and `scratch.rs` a part stays in podvm (`base_cache`,
