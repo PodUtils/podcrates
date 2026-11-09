@@ -1,7 +1,7 @@
 //! The minimal HTTP/1.1 client used for minting tokens and for reading why an
 //! upgrade was refused.
 
-use pod_proxy::http::{decode_chunked, exchange, read_response};
+use pod_proxy::http::{decode_chunked, exchange, exchange_keep, read_response};
 use pod_proxy::proxy_auth::schemes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -205,4 +205,31 @@ fn the_schemes_of_a_407_are_read_for_a_caller_that_speaks_to_its_proxy() {
                 proxy-authenticate: Basic realm=\"a, b\", ntlm\r\nX-Other: Digest\r\n\r\n";
     assert_eq!(schemes(head), ["NTLM", "Negotiate", "Basic"]);
     assert!(schemes("HTTP/1.1 407 Proxy Authentication Required\r\n\r\n").is_empty());
+}
+
+/// The stream of a kept exchange comes back for a body read by its length,
+/// and not for a server that says `Connection: close` or a body that reads
+/// to the end of the stream.
+#[tokio::test]
+async fn exchange_keep_gives_the_stream_back_only_when_it_can_carry_another_request() {
+    for (reply, back) in [
+        ("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok", true),
+        ("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok", false),
+        ("HTTP/1.1 200 OK\r\n\r\nok", false),
+    ] {
+        let (client, mut server) = tokio::io::duplex(64 * 1024);
+        let sent = reply.to_string();
+        let peer = tokio::spawn(async move {
+            let mut chunk = [0u8; 1024];
+            let n = server.read(&mut chunk).await.unwrap();
+            server.write_all(sent.as_bytes()).await.unwrap();
+            server.shutdown().await.unwrap();
+            String::from_utf8_lossy(&chunk[..n]).into_owned()
+        });
+        let (answer, stream) = exchange_keep(client, "a/1", "GET", "h.test", "/q", &[], b"", 1024).await.unwrap();
+        assert_eq!(answer.body, b"ok");
+        assert_eq!(stream.is_some(), back, "{reply:?}");
+        let request = peer.await.unwrap();
+        assert!(request.contains("\r\nConnection: keep-alive\r\n"), "{request}");
+    }
 }

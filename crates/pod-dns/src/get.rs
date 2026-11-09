@@ -18,6 +18,7 @@ use tokio::time::Instant;
 
 use crate::MAX_ANSWER;
 use crate::doh::Doh;
+use crate::kept::Conn;
 use crate::way::Way;
 
 /// GET `target` of `resolver` at `host`, its address or its name: the dial
@@ -49,6 +50,31 @@ async fn get_now(
     accept: &str,
     connect: Duration,
 ) -> Result<Response, Missed> {
+    if let Some(kept) = way.kept
+        && let Some(conn) = kept.take(host, resolver.port)
+    {
+        match send(way, conn, resolver, host, target, accept).await {
+            (Ok(response), back) => {
+                if let Some(conn) = back {
+                    kept.put(host, resolver.port, conn);
+                }
+                return Ok(response);
+            }
+            // The server may have closed it: one reconnect.
+            (Err(missed), _) => tracing::debug!(%host, why = %missed, "a kept connection failed; a new one follows"),
+        }
+    }
+    let conn = open(way, resolver, host, connect).await?;
+    let (answer, back) = send(way, conn, resolver, host, target, accept).await;
+    if let (Some(kept), Some(conn)) = (way.kept, back) {
+        kept.put(host, resolver.port, conn);
+    }
+    answer
+}
+
+/// A new connection to `host`: the dial within `connect`, then TLS (HTTP/2
+/// alone where the resolver serves no HTTP/1.1).
+async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Duration) -> Result<Conn, Missed> {
     let config = way.context.config_for(&way.settings.trust).map_err(|e| Missed::words(e.to_string()))?;
     let server = rustls_pki_types::ServerName::try_from(host.to_string()).map_err(|e| Missed::words(e.to_string()))?;
     let to = Target::new(host, resolver.port);
@@ -67,18 +93,45 @@ async fn get_now(
     };
     let words = way.context.words();
     if resolver.http2 {
-        return crate::h2::get_over_kept(&config, io, host, target, accept, MAX_ANSWER, words).await;
+        return crate::h2::open(&config, io, host, words).await.map(Conn::Two);
     }
-    let mut tls =
-        tokio_rustls::TlsConnector::from(config).connect(server, io).await.map_err(|e| Missed::tls(&e, words))?;
-    let host_header = if resolver.port == 443 {
-        if host.contains(':') { format!("[{host}]") } else { host.to_string() }
-    } else {
-        authority(host, resolver.port)
-    };
-    let headers = [("Accept", accept)];
-    let user_agent = &way.settings.user_agent;
-    http::exchange(&mut tls, user_agent, "GET", &host_header, target, &headers, b"", MAX_ANSWER)
-        .await
-        .map_err(|e| Missed::words(e.to_string()))
+    let tls = tokio_rustls::TlsConnector::from(config).connect(server, io).await.map_err(|e| Missed::tls(&e, words))?;
+    Ok(Conn::One(Box::new(tls)))
+}
+
+/// One GET on `conn`, and the connection when it can carry the next one. A
+/// way with no [`crate::Kept`] asks the server to close it.
+async fn send(
+    way: &Way<'_>,
+    conn: Conn,
+    resolver: &Doh,
+    host: &str,
+    target: &str,
+    accept: &str,
+) -> (Result<Response, Missed>, Option<Conn>) {
+    match conn {
+        Conn::Two(mut conn) => match crate::h2::request(&mut conn, host, target, accept, MAX_ANSWER).await {
+            Ok(response) => (Ok(response), way.kept.map(|_| Conn::Two(conn))),
+            Err(why) => (Err(Missed::words(why)), None),
+        },
+        Conn::One(tls) => {
+            let mut tls = tls;
+            let host_header = if resolver.port == 443 {
+                if host.contains(':') { format!("[{host}]") } else { host.to_string() }
+            } else {
+                authority(host, resolver.port)
+            };
+            let headers = [("Accept", accept)];
+            let user_agent = &way.settings.user_agent;
+            if way.kept.is_none() {
+                let answer =
+                    http::exchange(&mut tls, user_agent, "GET", &host_header, target, &headers, b"", MAX_ANSWER).await;
+                return (answer.map_err(|e| Missed::words(e.to_string())), None);
+            }
+            match http::exchange_keep(*tls, user_agent, "GET", &host_header, target, &headers, b"", MAX_ANSWER).await {
+                Ok((response, back)) => (Ok(response), back.map(|tls| Conn::One(Box::new(tls)))),
+                Err(e) => (Err(Missed::words(e.to_string())), None),
+            }
+        }
+    }
 }

@@ -137,7 +137,7 @@ async fn a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name() {
     let (port, roots, served) = resolver().await;
     let (proxy, asked) = names_alone(port).await;
     let (settings, context, dial) = (Settings { trust: trust(roots), ..Settings::default() }, context(), via(proxy));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let resolvers = [stand_in()];
     let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
     let records = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect("the records, by the name");
@@ -159,7 +159,7 @@ async fn the_address_follows_a_name_refused_and_a_name_is_asked_once() {
     let other = |ip: [u8; 4]| Doh::new(ip.into(), "other.test").json("/dns-query").wire("/dns-query");
     let resolvers = [other([192, 0, 2, 53]), other([192, 0, 2, 54])];
     let (settings, context, dial) = (Settings::default(), context(), via(proxy));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
     let failed = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect_err("no way to any");
     assert_eq!(*asked.lock().unwrap(), ["other.test:443", "192.0.2.53:443", "192.0.2.54:443"]);

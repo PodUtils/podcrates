@@ -38,6 +38,7 @@ mod get;
 pub mod h2;
 pub mod https;
 pub mod json;
+mod kept;
 mod lookup;
 mod memory;
 mod miss;
@@ -51,6 +52,7 @@ pub mod wire;
 
 pub use doh::{Doh, Form, Names};
 pub use json::Srv;
+pub use kept::{IDLE, Kept};
 pub use memory::{FRESH, Memory, Remembered, split};
 pub use order::{Found, Source};
 pub use pod_core::SOURCE_WAIT;

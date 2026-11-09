@@ -143,7 +143,7 @@ async fn podnet_s_chain_asks_the_json_form_for_both_families_by_the_name_after_t
     let context =
         Context::new(Arc::new(rustls::crypto::ring::default_provider()), pod_tls::Settings::new(Words::new("podnet")));
     let dial = NamesAlone { port, targets: Mutex::new(Vec::new()) };
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let found = tokio::time::timeout(LIMIT, way.lookup("relay.test", Instant::now() + LIMIT)).await.expect("in time");
     let want: Vec<std::net::IpAddr> = vec!["192.0.2.1".parse().unwrap(), "2001:db8::1".parse().unwrap()];
     assert_eq!(found, Ok(want));
@@ -167,7 +167,7 @@ async fn a_query_takes_the_first_answer_with_its_status() {
     let context =
         Context::new(Arc::new(rustls::crypto::ring::default_provider()), pod_tls::Settings::new(Words::new("podnet")));
     let dial = NamesAlone { port, targets: Mutex::new(Vec::new()) };
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let gone = way.query("gone.test", "A", Instant::now() + LIMIT).await.expect("an answer");
     assert_eq!((gone.status, gone.records.len()), (Some(3), 0));
     let srv = way.query("_v2-origintunneld._tcp.argotunnel.com", "SRV", Instant::now() + LIMIT).await.unwrap();
@@ -192,7 +192,7 @@ async fn an_nxdomain_of_aaaa_after_the_addresses_of_a_keeps_them() {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let context = Context::new(provider, pod_tls::Settings::new(Words::new("podnet")));
     let dial = NamesAlone { port, targets: Mutex::new(Vec::new()) };
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let found = way.lookup("half.test", Instant::now() + LIMIT).await;
     assert_eq!(found, Ok(vec!["192.0.2.1".parse().unwrap()]));
     assert_eq!(asked.lock().unwrap().len(), 2, "A, then AAAA");

@@ -13,6 +13,7 @@ use tokio::time::Instant;
 use crate::doh::{self, Doh, Form};
 use crate::https::{self, Published};
 use crate::json::{self, Srv};
+use crate::kept::Kept;
 use crate::settings::Settings;
 use crate::{ask, lookup, question, wire};
 
@@ -27,6 +28,10 @@ pub struct Way<'a> {
     /// name by DNS over HTTPS through itself: give it a resolver with no way
     /// (`Resolver::new`), as the name of a proxy needs the system.
     pub dial: &'a dyn Dial,
+    /// The connection kept for each resolver, for the way out of `dial`; it
+    /// must be the one of this dial. `None`: each question opens one and
+    /// closes it.
+    pub kept: Option<&'a Kept>,
 }
 
 impl std::fmt::Debug for Way<'_> {

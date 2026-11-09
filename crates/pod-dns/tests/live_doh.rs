@@ -31,7 +31,7 @@ fn dialer(proxy: ProxyChoice) -> Dialer {
 #[ignore = "network: public DNS-over-HTTPS resolvers"]
 async fn every_fallback_resolver_answers_through_verified_tls() {
     let (settings, context, dial) = (Settings::default(), context(), dialer(ProxyChoice::Direct));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let found = way.lookup("github.com", Instant::now() + Duration::from_secs(20)).await;
     eprintln!("github.com via the resolver list: {found:?}");
     assert!(found.as_ref().is_ok_and(|ips| !ips.is_empty()), "{found:?}");
@@ -63,7 +63,7 @@ const TRIES: u32 = 2;
 #[ignore = "network: public DNS-over-HTTPS resolvers"]
 async fn every_resolver_answers_in_the_wire_form() {
     let (settings, context, dial) = (Settings::default(), context(), dialer(ProxyChoice::Direct));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     for resolver in &settings.resolvers {
         let wire_only = Doh { json: None, ..resolver.clone() };
         let mut answered = Err(pod_proxy::Missed::words(""));
@@ -85,7 +85,7 @@ async fn every_resolver_answers_in_the_wire_form() {
 #[ignore = "network: public DNS-over-HTTPS resolvers"]
 async fn a_name_that_does_not_exist_stops_at_the_first_answer() {
     let (settings, context, dial) = (Settings::default(), context(), dialer(ProxyChoice::Direct));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let missing = way.lookup("podssh-no-such-name.invalid", Instant::now() + Duration::from_secs(20)).await;
     eprintln!("a reserved, nonexistent name: {missing:?}");
     let why = missing.expect_err("an .invalid name never resolves");
@@ -102,7 +102,7 @@ async fn the_edge_s_record_comes_through_a_proxy_of_names_alone() {
     let url = std::env::var("POD_DNS_NAMES_PROXY").expect("POD_DNS_NAMES_PROXY names the proxy");
     let proxy = ProxyChoice::Via(Proxy::parse(&url).expect("a proxy URL"));
     let (settings, context, dial) = (Settings::default(), context(), dialer(proxy));
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let deadline = Instant::now() + Duration::from_secs(30);
     let found = way.srv("_v2-origintunneld._tcp.argotunnel.com", deadline).await;
     eprintln!("the edge's SRV record through {url}: {found:?}");

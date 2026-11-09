@@ -72,7 +72,7 @@ async fn ask_at(http2: bool, port: u16, bound: Duration) -> Result<(), Missed> {
         Arc::new(pod_proxy::resolve::System::new()),
     );
     let settings = Settings::default();
-    let way = Way { settings: &settings, context: &context, dial: &dial };
+    let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     match way.ask(&resolver(http2, port), "relay.example", Instant::now() + bound).await {
         Ok(found) => panic!("a stand-in that answers nothing gave {found:?}"),
         Err(missed) => Err(missed),

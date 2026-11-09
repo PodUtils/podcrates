@@ -53,6 +53,41 @@ pub(crate) async fn get_over_kept<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    let mut conn = open(config, stream, name, words).await?;
+    request(&mut conn, name, target, accept, max).await.map_err(Missed::words)
+}
+
+/// An HTTP/2 connection to a resolver, after its handshake. The connection
+/// is driven in a task. With the last handle gone h2 ends the connection
+/// itself: GOAWAY, then TLS's close_notify, which a resolver reads as an end
+/// and not as a torn socket. A drop does that in the background, so that no
+/// caller waits for it; it is bounded, for a server that takes no more bytes.
+pub(crate) struct H2 {
+    client: h2::client::SendRequest<bytes::Bytes>,
+    driver: Option<tokio::task::JoinHandle<()>>,
+}
+
+impl Drop for H2 {
+    fn drop(&mut self) {
+        let Some(mut driver) = self.driver.take() else { return };
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                runtime.spawn(async move {
+                    if tokio::time::timeout(CLOSE, &mut driver).await.is_err() {
+                        driver.abort();
+                    }
+                });
+            }
+            Err(_) => driver.abort(),
+        }
+    }
+}
+
+/// TLS with ALPN `h2` and the HTTP/2 handshake over `stream`.
+pub(crate) async fn open<S>(config: &Arc<ClientConfig>, stream: S, name: &str, words: &Words) -> Result<H2, Missed>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let server = rustls_pki_types::ServerName::try_from(name.to_string()).map_err(|e| Missed::words(e.to_string()))?;
     let tls = tokio_rustls::TlsConnector::from(config_h2(config))
         .connect(server, stream)
@@ -61,43 +96,25 @@ where
     if tls.get_ref().1.alpn_protocol() != Some(b"h2") {
         return Err(Missed::words("the resolver did not take HTTP/2"));
     }
-    get(tls, name, target, accept, max).await.map_err(Missed::words)
-}
-
-/// One GET over an HTTP/2 connection of its own. The connection is driven in
-/// a task that ends with this call.
-async fn get<S>(stream: S, name: &str, target: &str, accept: &str, max: usize) -> Result<Response, String>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let (client, connection) = h2::client::handshake(stream).await.map_err(|e| format!("HTTP/2: {e}"))?;
-    let mut driver = tokio::spawn(async move {
+    let (client, connection) = h2::client::handshake(tls).await.map_err(|e| Missed::words(format!("HTTP/2: {e}")))?;
+    let driver = tokio::spawn(async move {
         let _ = connection.await;
     });
-    let answer = ask(client, name, target, accept, max).await;
-    // With the request's handles gone, h2 ends the connection itself: GOAWAY,
-    // then TLS's close_notify, which a resolver reads as an end and not as a
-    // torn socket. In the background, so that the answer waits for nothing
-    // and no caller's bound can lose it; bounded, for a server that takes
-    // no more bytes, and dropped with the runtime at worst.
-    tokio::spawn(async move {
-        if tokio::time::timeout(CLOSE, &mut driver).await.is_err() {
-            driver.abort();
-        }
-    });
-    answer
+    Ok(H2 { client, driver: Some(driver) })
 }
 
 /// The bound of the connection's own end, after the answer.
 const CLOSE: Duration = Duration::from_secs(2);
 
-async fn ask(
-    client: h2::client::SendRequest<bytes::Bytes>,
+/// One GET of `target` on the connection.
+pub(crate) async fn request(
+    conn: &mut H2,
     name: &str,
     target: &str,
     accept: &str,
     max: usize,
 ) -> Result<Response, String> {
+    let client = conn.client.clone();
     let mut client = client.ready().await.map_err(|e| format!("HTTP/2: {e}"))?;
     let authority = if name.contains(':') { format!("[{name}]") } else { name.to_string() };
     let request = ::http::Request::get(format!("https://{authority}{target}"))

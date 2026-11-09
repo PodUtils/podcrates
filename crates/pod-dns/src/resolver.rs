@@ -10,6 +10,7 @@ use pod_tls::Context;
 use tokio::time::Instant;
 
 use crate::dns_safe;
+use crate::kept::Kept;
 use crate::memory::{Memory, now_ms, split};
 use crate::order::{Found, Known, Source, resolve_in};
 use crate::settings::Settings;
@@ -23,6 +24,8 @@ pub struct Resolver {
     /// HTTPS; none: DNS over HTTPS is not asked.
     doh: Option<(Arc<Context>, Arc<dyn Dial>)>,
     observer: Arc<dyn Observer>,
+    /// The connection kept for each resolver of the way.
+    kept: Kept,
 }
 
 impl std::fmt::Debug for Resolver {
@@ -40,7 +43,7 @@ impl Resolver {
     /// the host of a proxy and for the dial of DNS over HTTPS itself).
     pub fn new(settings: Settings) -> Resolver {
         let memory = Memory::new(settings.memory);
-        Resolver { settings, memory, doh: None, observer: Arc::new(NoObserver) }
+        Resolver { settings, memory, doh: None, observer: Arc::new(NoObserver), kept: Kept::new() }
     }
 
     /// The same resolver, which asks DNS over HTTPS through `dial`, with the
@@ -76,7 +79,12 @@ impl Resolver {
     /// The way of the resolver to DNS over HTTPS, for the other questions
     /// ([`Way::srv`], [`Way::https`], [`Way::query`]); none with no way.
     pub fn way(&self) -> Option<Way<'_>> {
-        self.doh.as_ref().map(|(context, dial)| Way { settings: &self.settings, context, dial: &**dial })
+        self.doh.as_ref().map(|(context, dial)| Way {
+            settings: &self.settings,
+            context,
+            dial: &**dial,
+            kept: Some(&self.kept),
+        })
     }
 
     /// The addresses to try for `host:port`, from the first source after

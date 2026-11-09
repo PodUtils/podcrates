@@ -50,7 +50,7 @@ proxy.
 | `Resolver::ips(host, deadline)` | the addresses with no port |
 | `Resolver::settings`, `memory`, `asks_doh`, `way` | |
 | `Memory` (`new`, `is_on`, `set_remembered`, `remembered`, `note_dialed`, `dialed`, `last_dialed`), `Remembered`, `split`, `FRESH` | the cache of the addresses that carried a session (fresh for 7 days, then old and last), and the record of the source of each address that the dialer connected to (32 at most) |
-| `Way { settings, context, dial }` | a way to the resolvers: the resolver's own (`Resolver::way`), or one that a caller makes for the proxy of one road |
+| `Way { settings, context, dial, kept }` | a way to the resolvers: the resolver's own (`Resolver::way`), or one that a caller makes for the proxy of one road |
 | `Way::lookup(host, deadline)`, `lookup_with(resolvers, ..)` | the addresses of DNS over HTTPS from the resolvers in turn |
 | `Way::ask(resolver, host, deadline)` | one resolver straight at its address: the addresses and the form, or a `pod_proxy::Missed` with how the connection ended (a doctor's question) |
 | `Way::srv(name, deadline)`, `srv_with`, `Srv` | the SRV records of a name, in either form |
@@ -216,8 +216,8 @@ doh_names 2, doh_wire 8; live_doh 4 ignored.
 | podssh | `resolve::DOH_RESOLVERS` (`doctor/address.rs`, `doctor/names.rs`, `man/facts.rs`, `tests/doctor.rs`) | `resolver.settings().resolvers` (or `pod_dns::doh::defaults()`); `r.ip` is an `IpAddr` (`.to_string()` for a `&str`) |
 | podssh | `resolve::{doh_ask, doh_ask_kept}(resolver, host, deadline)` (`doctor/names.rs`) | `way.ask(&resolver, host, deadline)` (`Missed`; `.why` for the words) |
 | podssh | `resolve::{doh_lookup, doh_lookup_with}` | `way.lookup(host, deadline)`, `way.lookup_with(&resolvers, ..)` |
-| podssh | `resolve::doh_srv(name, proxy, deadline)` (`podssh-relay` `quick/edge.rs`), `doh_srv_with`, `Srv` | `Way { settings, context, dial: &dialer_of(proxy) }.srv(name, deadline)`, `srv_with`; `pod_dns::Srv` |
-| podssh | `resolve::https::doh_https(name, proxy, deadline)`, `ech::Records(proxy)` (`ech.rs`, `client/get.rs`) | `Way { .., dial: &dialer_of(proxy) }` as the `records` of `pod_tls::ech::Route`, or `Arc<Resolver>` for `Client::with_records` (feature `ech`) |
+| podssh | `resolve::doh_srv(name, proxy, deadline)` (`podssh-relay` `quick/edge.rs`), `doh_srv_with`, `Srv` | `Way { settings, context, dial: &dialer_of(proxy), kept: None }.srv(name, deadline)`, `srv_with`; `pod_dns::Srv` |
+| podssh | `resolve::https::doh_https(name, proxy, deadline)`, `ech::Records(proxy)` (`ech.rs`, `client/get.rs`) | `Way { .., dial: &dialer_of(proxy), kept: None }` as the `records` of `pod_tls::ech::Route`, or `Arc<Resolver>` for `Client::with_records` (feature `ech`) |
 | podssh | `resolve::https::{from_json, from_wire, from_rdata, check_list, Published, ECH_KEY, MAX_LIST}` | `pod_dns::https::*` (`Published` of the crate; `.into()` gives `pod_tls::ech::Published`) |
 | podssh | `resolve::wire` (`podssh-warp` `dns.rs`), `resolve::NXDOMAIN` (`podssh-warp` `dns.rs`, `road.rs`, `doctor/names.rs`) | `pod_dns::wire`, `pod_dns::NXDOMAIN` |
 | podssh | `resolve::{Doh, Form, parse_answer, parse_srv, h2}` | `pod_dns::{Doh, Form}`, `pod_dns::json::{parse_answer, parse_srv}`, `pod_dns::h2` (`get_over(.., &words)`) |

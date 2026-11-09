@@ -103,6 +103,60 @@ pub async fn exchange<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let request = request_text(user_agent, method, host, path, extra_headers, body, false)?;
+    stream.write_all(request.as_bytes()).await?;
+    stream.write_all(body).await?;
+    stream.flush().await?;
+    read_response(stream, Vec::new(), max_body).await
+}
+
+/// [`exchange`] over a stream that the call takes, with `Connection:
+/// keep-alive`: the answer, and the stream when it can carry the next
+/// request: its body was read to its end by its length or its chunks, with
+/// no byte after it, and the server did not say `Connection: close`.
+#[allow(clippy::too_many_arguments)]
+pub async fn exchange_keep<S>(
+    mut stream: S,
+    user_agent: &str,
+    method: &str,
+    host: &str,
+    path: &str,
+    extra_headers: &[(&str, &str)],
+    body: &[u8],
+    max_body: usize,
+) -> std::io::Result<(Response, Option<S>)>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let request = request_text(user_agent, method, host, path, extra_headers, body, true)?;
+    stream.write_all(request.as_bytes()).await?;
+    stream.write_all(body).await?;
+    stream.flush().await?;
+    let (mut response, rest) = read_head(&mut stream, Vec::new(), MAX_HEAD).await?;
+    let framing = Framing::of(&response, method == "HEAD");
+    let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
+    let mut reading = Body::new(stream, rest, framing, Some(limit))?;
+    response.body = read_whole(&mut reading).await?;
+    let closes = response.header("connection").is_some_and(|v| v.to_ascii_lowercase().contains("close"));
+    Ok((response, if closes { None } else { reading.into_reusable() }))
+}
+
+async fn read_whole<S: AsyncRead + Unpin>(body: &mut Body<S>) -> std::io::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    body.read_to_end(&mut out).await?;
+    Ok(out)
+}
+
+/// The head of a request; CR and LF in a part are refused.
+fn request_text(
+    user_agent: &str,
+    method: &str,
+    host: &str,
+    path: &str,
+    extra_headers: &[(&str, &str)],
+    body: &[u8],
+    keep: bool,
+) -> std::io::Result<String> {
     let parts = [user_agent, method, host, path].into_iter();
     for part in parts.chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v])) {
         if part.contains(['\r', '\n']) {
@@ -113,7 +167,7 @@ where
     if !user_agent.is_empty() {
         request.push_str(&format!("User-Agent: {user_agent}\r\n"));
     }
-    request.push_str("Connection: close\r\n");
+    request.push_str(if keep { "Connection: keep-alive\r\n" } else { "Connection: close\r\n" });
     for (name, value) in extra_headers {
         request.push_str(&format!("{name}: {value}\r\n"));
     }
@@ -121,10 +175,7 @@ where
         request.push_str(&format!("Content-Length: {}\r\n", body.len()));
     }
     request.push_str("\r\n");
-    stream.write_all(request.as_bytes()).await?;
-    stream.write_all(body).await?;
-    stream.flush().await?;
-    read_response(stream, Vec::new(), max_body).await
+    Ok(request)
 }
 
 /// Read a response whose first bytes may already be in `buffered`, with a
