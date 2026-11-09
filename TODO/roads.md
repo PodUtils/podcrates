@@ -493,7 +493,7 @@ of the prototype, two peers of this crate could only end with a cut.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -525,6 +525,28 @@ cargo check -p pod-gsr --no-default-features --features blocking
 ## Start condition
 
 T-086 is done.
+
+## Done
+
+2026-11-09, `887b635`. `pod_gsr::blocking::{open, Stream}` (feature
+`blocking`) on a private current-thread runtime with the background
+shutdown of `pod_proxy::blocking`; the deadline is a `std::time::Instant`;
+`Stream` is `Read` and `Write` with `end()`, `peer_finished()`,
+`shutdown()` and `set_timeout()`. A call inside a tokio task is
+`Class::Usage`; a read or a write there is `io::ErrorKind::Unsupported`.
+With `blocking` and no `async`, `open` and `Stream` are not public. The
+static probe calls `blocking::open`.
+
+- `cargo test -p pod-gsr --features blocking`: 25 unit, 6 loopback, 9
+  over `AF_UNIX`, 5 blocking, 1 live ignored; 30 runs of
+  `tests/blocking.rs` with no failure.
+- `cargo check -p pod-gsr --no-default-features`: no warning, no tokio in
+  `cargo tree -e normal`.
+- `cargo check -p pod-gsr --no-default-features --features blocking`: no
+  warning; clippy of the same: no warning.
+- `sh scripts/agent/check.sh`: each step 0; the workspace 1045 passed, 13
+  ignored; the static probe of x86_64 musl with the blocking face:
+  7,354,736 bytes, static.
 
 # T-117: `pod-egress`: the Access TCP client as a local listener (GitHub #35)
 

@@ -17,8 +17,8 @@
 - M8: `pod-broker` exists (T-099, calls C28 to C32). The rest of M8 waits
   (the owner, 2026-11-09, "Priority"). The owner created the repositories
   of the new projects; they stay empty.
-- M4: `pod-gsr` exists (T-086, T-087; calls C34, C35: a static OpenSSL
-  for TLS with SRP, and `End`); T-088 follows.
+- M4: `pod-gsr` exists with its blocking face (T-086 to T-088; calls C34,
+  C35: a static OpenSSL for TLS with SRP, and `End`).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
   (`check-crates-io-names.py`: 56 names, 0 faults). No crate goes to
   crates.io now (the owner, 2026-11-09).
@@ -47,8 +47,8 @@ first; the asks of cfb and githome (M8) wait.
 4. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
-6. **M4, the roads:** T-088 (`pod-gsr`, now); T-031, T-034,
-   T-035, T-033, T-032, T-036, T-037, T-038, T-039.
+6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+   T-038, T-039.
 7. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds.
 8. **M7, the widened scope of podvm:** T-062 after M6.
