@@ -625,3 +625,41 @@ after the landing is the proof for the Windows jobs.
 checks out the data file with CRLF, and the test searches it for LF. The
 test now replaces CRLF with LF, and `.gitattributes` sets `eol=lf` for
 each text file. The nightly dispatched after the landing is the proof.
+
+# T-131: `pod-gsr`: the handshake tests crash on Windows ARM64
+
+**Source:** the nightly run 42685319279 at `ceb5a74` (job `test (windows-11-arm)`).
+**Category:** defect
+**Milestone:** M4
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`cargo test -p pod-gsr --test loopback` ends with `0xc0000005,
+STATUS_ACCESS_VIOLATION` on `aarch64-pc-windows-msvc`, after the test
+`a_connector_with_no_listener_is_unavailable` passed. The 25 unit tests, and
+each test on `x86_64-pc-windows-msvc`, pass. The tests that crash are those
+that run a TLS handshake with SRP in the vendored OpenSSL. The runner has no
+NASM, so `openssl-src` builds OpenSSL with `no-asm` there.
+
+## Premise
+
+- Read: the log of job 129390452858. The harness hides the output of the
+  crashed test; the name of the test is not known.
+- Not measured: which test and which call crash.
+
+## Approach
+
+`nightly.yml` runs `pod-gsr` alone on Windows ARM64 with `--nocapture
+--test-threads=1` and `continue-on-error`, and leaves it out of the main
+test step. Name the call from that output, and then fix the code or the
+OpenSSL build options. Remove the exclusion with the fix.
+
+## Prove
+
+```sh
+cargo test -p pod-gsr --all-features   # on windows-11-arm
+```
+

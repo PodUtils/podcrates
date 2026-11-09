@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**130 entries: 64 open, 2 partial, 0 blocked, 64 done.**
+**131 entries: 65 open, 2 partial, 0 blocked, 64 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 22 | 0 | 0 | 26 | 48 |
+| P1 | 23 | 0 | 0 | 26 | 49 |
 | P2 | 32 | 2 | 0 | 30 | 64 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 64 | 2 | 0 | 64 | 130 |
+| **All** | 65 | 2 | 0 | 64 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -177,3 +177,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-128](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target |
 | [T-129](roads.md) | P1 | S | M4 | defect | done | `pod-gsr`: the tests over `AF_UNIX` do not build on Windows |
 | [T-130](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175) |
+| [T-131](roads.md) | P1 | M | M4 | defect | open | `pod-gsr`: the handshake tests crash on Windows ARM64 |
