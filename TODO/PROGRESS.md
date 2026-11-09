@@ -61,17 +61,8 @@ C19), and the work goes on with it until the owner rules otherwise.
 
 ## Questions for the owner
 
-- **Q4.** When does `publish.yml` publish real versions of the `pod-*`
-  crates to crates.io? It blocks no entry. Recommendation: not yet, as
-  the ruling of podnet of 2026-11-05; the dry run of each release keeps
-  the packaging ready (`docs/decisions.md`).
-
-- **Q6.** A push of the session's account starts no workflow. The
-  session dispatches each run itself with the GitHub MCP tool
-  (`docs/maintenance.md`, "A run of a workflow"); the issue
-  `[gh action] requested` is the fallback. It blocks no entry.
-  Recommendation: let a push of the session's account start `ci.yml`.
+None open. The owner ruled Q4, Q7 and the questions of GitHub #35 and #36 on 2026-11-09 (`docs/decisions.md`). Q6 closes: the session dispatches each run itself (`docs/maintenance.md`, "A run of a workflow").
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q6
-(the owner ruled Q1 to Q5: `docs/decisions.md`).
+blocks and a recommendation. Number the questions in sequence from Q8
+(the owner ruled Q1 to Q7: `docs/decisions.md`).

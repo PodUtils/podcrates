@@ -42,6 +42,14 @@ form of the rulings that apply to each session.
 | 2026-11-06 | The sessions of the consumers | podssh's migration session takes each crate on its release day; a session of podssh's own work changes a frozen module for fixes only. podnet's sessions send and take no messages; podnet's work goes on beside the takes. Each reaches podcrates by COORD issues of its own repository (`docs/maintenance.md`). |
 | 2026-11-06 | The crates of podvm | Each generic crate of podvm moves to podcrates with the prefix `pod-`, also where podvm is its only consumer today; a crate that only podvm needs stays in podvm as `podvm-*`. podvm's scope widens: "podvm will make everything that sand-net does, but without root, in the environment we target". The owner confirmed both in this session. `docs/design.md`, section 4, M6 and M7; `pod-probe` is held. |
 | 2026-11-09 | pod-gsr | "for the pod-gsr, leave it open/deferred for now". T-086 to T-088 stay open, with a start condition: the owner gives the source of the prototype. The name `pod-gsr` is on the list of GitHub #1. |
+| 2026-11-09 | New projects (Q-A1 of GitHub #35) | Each project that GitHub #35 and #36 propose gets its own repository of PodUtils: `podrunner` (the CI job slots), `podnode` (the agent of a fleet server), `podinit`, `podlog`, `podwatch`, `podkey`, `podsnap`, `podrepl`, `podrelay-worker` and the installer `podutils`. The owner creates each repository. podcrates gives them the shared crates. |
+| 2026-11-09 | The tunnel set of cfb (Q-A2) | "cfb will expect quality proper release, so defer it until after we have our first release on crates io i.e much much later". The asks A-N-02, A-N-03, A-C-01 and A-C-02 and the connector of the fleet (`pod-cloudflare`) wait until after the first release on crates.io. podnet's freeze of the code that a crate will hold stays. |
+| 2026-11-09 | Releases (Q-A3, Q-A4, Q4) | "everyone can release betas whenever needed/fits, but no crates io release". Each repository of PodUtils can cut a beta when it fits. No crate goes to crates.io now: the switch `crates-io` stays false. It supersedes the rulings "no release now" of podnet and "no release and no beta until the takes" of podssh, for betas. |
+| 2026-11-09 | KVM (Q-A6) | The owner lifts the KVM deferral of podvm fully: a session can start a KVM guest where `/dev/kvm` exists. |
+| 2026-11-09 | Platforms (Q-A5) | podnet stays Linux only. podssh serves each operator command on Windows and macOS, the Access TCP client included. |
+| 2026-11-09 | The relay Worker (Q-A7) | `podrelay-worker` is Rust on wasm32, from the sans-IO core of `pod-relay-serve` (T-036), with a thin TypeScript shell. The wire document with test vectors comes first. |
+| 2026-11-09 | Schemas (Q-A8) | The JSON Schemas live in podcrates (`schemas/`), generated from the crate types and released with each tag. No npm package. |
+| 2026-11-09 | Test accounts (Q-A9) | "Not now". No Cloudflare, Zero Trust or GitHub test account as a CI secret. A live acceptance step that needs one waits; each ask keeps its offline tests and the stand-ins of `pod-testkit`. |
 
 ## Calls made without a ruling
 
@@ -77,17 +85,14 @@ has the detail.
 
 ## Questions for the owner
 
-- **Q4.** When does `publish.yml` publish real versions of the `pod-*`
-  crates to crates.io? It blocks nothing: the consumers take the git tag
-  (Q1), and the dry run of each release keeps the packaging ready. The
-  answer sets the switch `crates-io` of `Cargo.toml`. Recommendation: not
-  yet, as the ruling of podnet of 2026-11-05 ("Publish no real version
-  yet"); publish from the release that the owner names.
+None open.
 
 ## Superseded
 
 | Date | Ruling | Superseded by |
 | --- | --- | --- |
+| 2026-11-06 | podnet makes no release now; podssh makes no release and no beta until it took each crate that it shares (The releases of the consumers). | 2026-11-09, Releases (betas only). |
+| 2026-11-06 | podvm: no session starts a KVM guest until the owner lifts it. | 2026-11-09, KVM. |
 | 2026-11-05 | The agreed design: no C in a library crate; Rust 1.89 (1.91 for the crates on smoltcp 0.14). | 2026-11-05, Static, C, Rust; and Toolchain. |
 | 2026-11-05 | The agreed design (podnet "podcrates design", podssh Q101): the crates come from crates.io only; the names are reserved there. | 2026-11-05, Delivery (Q1). |
 | 2026-11-05 | The agreed design: podnet and podssh do not edit podcrates. | 2026-11-05, Who edits (Q3). |
