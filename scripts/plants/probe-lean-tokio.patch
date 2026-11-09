@@ -1,0 +1,10 @@
+diff --git a/examples/static-probe-lean/Cargo.toml b/examples/static-probe-lean/Cargo.toml
+index 9f4522b..969fc3c 100644
+--- a/examples/static-probe-lean/Cargo.toml
++++ b/examples/static-probe-lean/Cargo.toml
+@@ -14,4 +14,4 @@ publish = false
+ # tree of this package.
+ [dependencies]
+ pod-core = { workspace = true }
+-pod-tls = { path = "../../crates/pod-tls", default-features = false, features = ["pure", "rsa"] }
++pod-tls = { path = "../../crates/pod-tls", features = ["pure", "rsa"] }
