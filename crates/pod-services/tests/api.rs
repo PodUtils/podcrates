@@ -171,3 +171,35 @@ fn the_derp_fleets_come_in_their_order() {
     let regions: std::collections::BTreeSet<_> = main.endpoints().iter().filter_map(|e| e.role()).collect();
     assert_eq!(regions.len(), 28, "{regions:?}");
 }
+
+fn watch_text<'a>(w: &'a pod_services::Watch, name: &str) -> Option<&'a str> {
+    match w.arg(name) {
+        Some(Value::Text(t)) => Some(t),
+        _ => None,
+    }
+}
+
+/// The map of Tailscale has 95 servers on the day it was read, and the watch
+/// of the map compares the host of each node.
+#[test]
+fn the_tailscale_fleet_holds_the_four_servers_and_a_watch_of_the_hosts() {
+    let main = pod_services::get("tailscale-derp").unwrap();
+    assert_eq!(main.endpoints().len(), 95);
+    for host in ["derp1j", "derp1k", "derp4k", "derp4l"] {
+        let host = format!("{host}.tailscale.com");
+        assert!(main.endpoints().iter().any(|e| e.host() == host), "{host}");
+    }
+    let watch = main.watches().iter().find(|w| watch_text(w, "pointer") == Some("/Regions")).unwrap();
+    assert_eq!(watch_text(watch, "member"), Some("HostName"));
+}
+
+/// The hosts of the relay and its pool are watched.
+#[test]
+fn the_relay_watches_its_hosts_and_its_pool() {
+    let relay = pod_services::get("ajam-relay").unwrap();
+    let names = |kind: &str| relay.watches().iter().filter(|w| w.kind() == kind).count();
+    assert_eq!(names("tls-name"), 2);
+    assert_eq!(names("http-status"), 1);
+    let pool = relay.watches().iter().find(|w| watch_text(w, "pointer") == Some("/pool")).unwrap();
+    assert_eq!((watch_text(pool, "member"), watch_text(pool, "role")), (Some("host"), Some("seed")));
+}

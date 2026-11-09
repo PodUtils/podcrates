@@ -90,7 +90,7 @@ new kind is one implementation there. The kinds that the files name now:
 
 | Kind | Arguments | What it checks |
 | --- | --- | --- |
-| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role`, if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its objects' member holds the hosts of the role |
+| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its objects' member holds the hosts of the role |
 | `http-status` | `endpoint` or `role`, `path`, `status` | a GET answers with the status |
 | `http-text` | `endpoint`, `contains` | the answer to a GET holds the text |
 | `tls-name` | `endpoint` or `role` | a TLS handshake verifies the name |
@@ -204,7 +204,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-dns` | `dns` | `udp-1`, `udp-2` (role `udp`), `trace` | `whoami-name`, `check-name` |
 | `cloudflare-stun`, `google-stun` | `stun` | `udp` | |
 | `tailcat-derp` | `derp` | `new-york`, `san-francisco`, `frankfurt`, `tokyo` (role `region`) | `probe-path` |
-| `tailscale-derp` | `derp` | one for each server, its role the code of its region (`nyc-1`, ...: 91 in 28 regions) | |
+| `tailscale-derp` | `derp` | one for each server, its role the code of its region (`nyc-1`, ...: 95 in 28 regions) | |
 | `tailscale-derp-map` | `derp-map` | `map` | |
 | `n0-iroh-relay` | `iroh-relay` | `na-east`, `na-west`, `eu`, `ap` (role `relay`) | |
 | `n0-pkarr` | `pkarr` | `relay` | |

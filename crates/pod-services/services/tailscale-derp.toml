@@ -48,6 +48,24 @@ addresses = ["199.38.181.103", "2607:f740:f::e19"]
 source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 1 New York City" }
 
 [[endpoint]]
+name = "nyc-5"
+role = "nyc"
+scheme = "https"
+host = "derp1j.tailscale.com"
+port = 443
+addresses = ["209.177.145.118", "2607:f740:f::ed2"]
+source = { url = "https://controlplane.tailscale.com/derpmap/default", read = 2026-11-09, note = "region 1 New York City" }
+
+[[endpoint]]
+name = "nyc-6"
+role = "nyc"
+scheme = "https"
+host = "derp1k.tailscale.com"
+port = 443
+addresses = ["199.38.181.71", "2607:f740:f::5c9"]
+source = { url = "https://controlplane.tailscale.com/derpmap/default", read = 2026-11-09, note = "region 1 New York City" }
+
+[[endpoint]]
 name = "sfo-1"
 role = "sfo"
 scheme = "https"
@@ -154,6 +172,24 @@ host = "derp4j.tailscale.com"
 port = 443
 addresses = ["185.40.234.176", "2a00:dd80:20::e67"]
 source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 4 Frankfurt" }
+
+[[endpoint]]
+name = "fra-6"
+role = "fra"
+scheme = "https"
+host = "derp4k.tailscale.com"
+port = 443
+addresses = ["185.178.202.33", "2a00:dd80:20::ae2"]
+source = { url = "https://controlplane.tailscale.com/derpmap/default", read = 2026-11-09, note = "region 4 Frankfurt" }
+
+[[endpoint]]
+name = "fra-7"
+role = "fra"
+scheme = "https"
+host = "derp4l.tailscale.com"
+port = 443
+addresses = ["185.178.202.101", "2a00:dd80:20::af9"]
+source = { url = "https://controlplane.tailscale.com/derpmap/default", read = 2026-11-09, note = "region 4 Frankfurt" }
 
 [[endpoint]]
 name = "syd-1"
@@ -834,3 +870,4 @@ source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-0
 kind = "http-json"
 url = "https://login.tailscale.com/derpmap/default"
 pointer = "/Regions"
+member = "HostName"
