@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 136 entries: 57 open, 3 partial, 0 blocked, 76 done.
+`TODO/INDEX.md` holds 136 entries: 56 open, 4 partial, 0 blocked, 76 done.
 
 ## State
 
@@ -14,7 +14,8 @@
   podvm took it in `989f35b` (PodUtils/podvm#219).
   `pod-guest` (T-061) and `pod-enter` (T-059) are partial: their trials
   of podvm passed; the release `v0.9.0` and the take of podvm remain.
-  Next in M6: T-056.
+  `pod-oci` (T-056) is partial: its trial of podvm passed; the release
+  `v0.10.0` and the take of podvm remain. Next in M6: T-057.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).
@@ -43,7 +44,8 @@ first; the asks of cfb and githome (M8) wait.
    public Wisp servers of podssh), T-133 (the public proxy lists of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-061 and T-059 (partial: the release and the
-   take of podvm), T-056, T-057, T-058. T-040 (the trials of podvm)
+   take of podvm), T-056 (partial: the release and the take of podvm),
+   T-057, T-058. T-040 (the trials of podvm)
    goes with each import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs

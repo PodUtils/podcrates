@@ -163,7 +163,7 @@ gives podvm's glue `Failure::io_cause` and `Class::NotFound` (T-081).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -172,7 +172,8 @@ Source: `PodUtils/podvm:crates/podvm-image` (the part that is generic; the conte
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: `PodUtils/podvm:crates/podvm-image` at podvm `main` `6cd3442`
+  (`docs/research/podvm/m6-imports.md`, "Current files").
 
 ## Approach
 
@@ -188,6 +189,53 @@ cargo test -p pod-oci
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), and T-055 is done.
+
+## Done
+
+2026-11-09, partial. Commits `66af831` (the import of 24 files of podvm
+at `6cd3442`, with `SOURCES`), `4a85694` (the adaptation and the tests),
+`a5b0c86` (README, C38) and the commit of the trial and this record.
+
+- Imported: `reference`, `digest`, `oci` (as `spec`), `platform`,
+  `credentials` and its tests, `registry` and `registry/{http,wire,tests}`,
+  `error`, `transport`, `pull` and `pull/{run,tests}`, `layout`, `tls` (as
+  `trust`), `net`, `lib`, `tests/registry_fixture.rs`,
+  `tests/proxy_pull.rs` and `tests/common` of
+  `PodUtils/podvm:crates/podvm-image`. Of `error`, `transport`, `pull`,
+  `pull/run`, `layout`, `tls`, `net` and `lib` a part stays in podvm;
+  `layout/tests.rs` stays whole. The crate has 4,990 lines in 25 `.rs`
+  files, each under 500. pod-core gets `Stage::Registry`.
+- Tests: 89 unit tests (the 78 of the moved parts, each with its name,
+  and 11 new) and 6 integration tests (`registry_fixture` 1, `proxy_pull`
+  2, `client` 3, new). The same 95 pass as i686 musl binaries.
+- The trial of podvm at `6cd3442` (`adoption/podvm/pod-oci.patch`: 32
+  files, 256 lines in, 4,042 out; `pod-oci.commit`): `podvm-image` keeps
+  the store and podvm's glue (`registry::client`, `transport::resolve`,
+  `platform::wanted`, the credential paths, `tls` over `pod_oci::trust`,
+  `Store` as `Blobs`, `Error::Image` with `From<Failure>`); 7 files leave
+  podvm; the citations of the moved files name `pod-oci`; each tag moves
+  to `v0.10.0`. The patch shares the manifests,
+  `PodUtils/podvm:docs/runtime-state.md` and `PodUtils/podvm:TODO/gate.md`
+  with the patches of `pod-supervise`, `pod-guest` and `pod-enter`,
+  `PodUtils/podvm:TODO/cli.md` and `PodUtils/podvm:TODO/image.md` with
+  some of them, and two files of `PodUtils/podvm:crates/podvm/src` with
+  `pod-enter` (`pod-oci.run` names each). Each step of `sh scripts/adoption.sh podvm pod-oci` passed:
+  podvm-image 88 tests, podvm-extract 47, podvm-complete 53,
+  `podvm --bin` 255, `store_gates` 4, `qol` 8, `curated_refusals` 6,
+  clippy, rustfmt, the runtime-state rows, podvm's record gate, the
+  toolchains, and the static `podvm` for x86_64 musl.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  paths, static, test), `check-sources.py` (23 files, 0 changes),
+  `check-probe.py`, `secrets_like.py` on the patch (no line).
+
+Remains:
+
+- The release `v0.10.0`, then podvm's take of the patch, after the
+  patches of `pod-supervise`, `pod-guest` and `pod-enter` (a merge of the
+  tag lines, the `pod-*` rows and the citations of
+  `PodUtils/podvm@T-1684`). Then the
+  `taken` line in `SOURCES`.
+- A live pull from a public registry, in a live workflow.
 
 # T-057: `pod-extract`: the rootless apply of a layer
 

@@ -24,7 +24,7 @@ pub const SHA256: &str = "sha256";
 /// The hash crate's `LowerHex` is not used: `sha2` 0.11 changed its output
 /// type from `generic-array` to `hybrid-array`, which does not have it. A
 /// function over `&[u8]` does not break on a version change.
-pub(crate) fn hex_of(bytes: &[u8]) -> String {
+pub fn hex_of(bytes: &[u8]) -> String {
     use fmt::Write as _;
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {

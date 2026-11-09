@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**136 entries: 57 open, 3 partial, 0 blocked, 76 done.**
+**136 entries: 56 open, 4 partial, 0 blocked, 76 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 28 | 51 |
-| P2 | 27 | 3 | 0 | 35 | 65 |
+| P2 | 26 | 4 | 0 | 35 | 65 |
 | P3 | 7 | 0 | 0 | 11 | 18 |
-| **All** | 57 | 3 | 0 | 76 | 136 |
+| **All** | 56 | 4 | 0 | 76 | 136 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -102,7 +102,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-053](foundation.md) | P2 | S | M6 | chore | done | The names of the crates of podvm on crates.io (GitHub #1) |
 | [T-054](transport.md) | P2 | S | M1 | research | done | `pod-services`: the inventory of podvm |
 | [T-055](podvm.md) | P2 | M | M6 | feature | done | `pod-hostprobe`: the host probes of podvm |
-| [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |
+| [T-056](podvm.md) | P2 | M | M6 | feature | partial | `pod-oci`: the OCI registry client of podvm |
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
 | [T-059](podvm.md) | P2 | M | M6 | feature | partial | `pod-enter`: the entry of a payload |
