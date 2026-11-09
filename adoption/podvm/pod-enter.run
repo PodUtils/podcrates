@@ -1,0 +1,47 @@
+# The trial of pod-enter in podvm (T-059), at podvm main 6cd3442
+# (pod-enter.commit): the patch does not need the patches of pod-supervise
+# and pod-guest, and their Cargo.toml and runtime-state hunks overlap it
+# only in the tag lines and the rows of pod-*. crates/podvm-enter keeps
+# podvm's glue and re-exports the crate: NAMES (PODVM_MODE,
+# PODVM_ACTIVE_MODE, PODVM_CACHE, PODVM_MAPS, PODVM_DEVICE_SPEC,
+# PODVM_DEVICE_FDS, the cache marker .podvm-cache-complete, the memfd label
+# podvm-payload), docker's codes of podvm-probe's exit and the trait
+# ExitCode (125 for a runtime error), runtime(text), GUEST_EXE_VAR, and each
+# function that takes the names with podvm's signature (ladder::choose,
+# ladder::parse_mode, memfd::stage, memfd::probe::answer, device::{specs_of,
+# push_spec, push_serve, banner_line, SPEC_VAR, SERVE_VAR},
+# userland::{userland_maps_table, MAPS_VAR}, stage::stage_cache,
+# ns_fallback_line). 27 files leave podvm. Each Plan gets names: NAMES;
+# Plan::env_for takes &NAMES; a runtime error of podvm is
+# podvm_enter::runtime(text). The gate's pin of tty_refusal goes (the test
+# moves), document-state names Mode in pod-enter, and the citations of the
+# moved files name pod-enter. Each podcrates tag moves to v0.9.0.
+# podvm's tests of the touched crates and the integration tests that enter
+# or refuse; clippy of the workspace and rustfmt of the touched crates, as
+# podvm's gate.yml runs them; the runtime-state rows; podvm's record gate;
+# each Rust toolchain of the workflows against the rust-version of
+# podcrates; and the binary `podvm` for x86_64 musl, with podcrates' static
+# check.
+cargo test -q -p podvm-enter
+cargo test -q -p podvm-supervise
+cargo test -q -p podvm --bin podvm
+cargo test -q -p podvm --test store_gates
+cargo test -q -p podvm --test detached_stdio
+cargo test -q -p podvm --test qol
+cargo test -q -p podvm --test curated_refusals
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo fmt -p podvm-enter -p podvm-supervise -p podvm -p podvm-gate -p podvm-release --check
+cargo build -q -p podvm --bin podvm
+# podvm's gate finds the root of the repository from the path of its binary,
+# so it runs from target/release/, with document-state beside it (gate.yml).
+cargo build -q --release -p podvm-gate && cargo build -q --release -p podvm-release --bin document-state
+mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-gate" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/document-state" target/release/
+# docs/runtime-state.md lists each direct git or registry dependency with its
+# locked version. The patch gives the rows of the git form (pod-core,
+# pod-enter, pod-hostprobe, pod-proxy, pod-term and pod-tls at 0.9.0); the
+# trial's path form has no row for them. Each other row of the patch must be
+# the generated one.
+grep -v '^| .pod-' docs/runtime-state.md > target/runtime-state.patch.md && python3 scripts/document-state.py --write && grep -v '^| .pod-' docs/runtime-state.md | diff target/runtime-state.patch.md -
+./target/release/podvm-gate
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+sh "$PODCRATES/scripts/check-static.sh" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podvm"

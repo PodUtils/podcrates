@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**131 entries: 61 open, 3 partial, 0 blocked, 67 done.**
+**131 entries: 60 open, 4 partial, 0 blocked, 67 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 26 | 49 |
-| P2 | 28 | 3 | 0 | 33 | 64 |
+| P2 | 27 | 4 | 0 | 33 | 64 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 61 | 3 | 0 | 67 | 131 |
+| **All** | 60 | 4 | 0 | 67 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -105,7 +105,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-056](podvm.md) | P2 | M | M6 | feature | open | `pod-oci`: the OCI registry client of podvm |
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
-| [T-059](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: the entry of a payload |
+| [T-059](podvm.md) | P2 | M | M6 | feature | partial | `pod-enter`: the entry of a payload |
 | [T-060](podvm.md) | P2 | M | M6 | feature | partial | `pod-supervise`: detached payloads |
 | [T-061](podvm.md) | P2 | M | M6 | feature | partial | `pod-guest`: a disposable QEMU guest |
 | [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |

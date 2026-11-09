@@ -1,6 +1,7 @@
 #!/bin/sh
 # The adoption trial of CRATE in CONSUMER (docs/design.md, section 8,
-# step 7): check out the consumer at adoption/CONSUMER/commit, apply
+# step 7): check out the consumer at adoption/CONSUMER/commit (or at
+# adoption/CONSUMER/CRATE.commit where it exists), apply
 # adoption/CONSUMER/CRATE.patch, point each git dependency on podcrates to
 # the crates of this tree, and run the commands of adoption/CONSUMER/CRATE.run
 # in the checkout, each one a step that must exit 0.
@@ -26,6 +27,11 @@ for f in repo commit "$crate.patch" "$crate.run"; do
 done
 repo=$(tr -d '\r\n' < "$dir/repo")
 commit=$(tr -d '\r\n' < "$dir/commit")
+# A patch made on a later commit of the consumer names that commit in
+# CRATE.commit; the other trials of the consumer keep theirs.
+if [ -f "$dir/$crate.commit" ]; then
+    commit=$(tr -d '\r\n' < "$dir/$crate.commit")
+fi
 work=${3:-${XDG_CACHE_HOME:-$HOME/.cache}/podcrates-adoption}/$consumer-$crate
 # The steps of a .run name this tree as $PODCRATES: its scripts check the
 # consumer (scripts/check-consumer-toolchains.py).

@@ -262,7 +262,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -271,22 +271,108 @@ Source: `PodUtils/podvm:crates/podvm-enter`.
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: podvm `6cd3442` (its `main`): `PodUtils/podvm:crates/podvm-enter/src`
+  (27 files) and `tests/tty_refusal.rs`, with the memfd probe that
+  executes a trampoline and the link set of the interposer (podvm's
+  commits after `0249527`); its callers in `PodUtils/podvm:crates/podvm/src`
+  and `PodUtils/podvm:crates/podvm-supervise/src/launcher`; the plan of
+  `docs/research/podvm/m6-imports.md`, section 5 and "Current files".
+  `PodUtils/podvm:crates/podvm-enter` changed between `27ae993` (the
+  commit of `adoption/podvm/commit`) and `6cd3442`, so the trial reads
+  `6cd3442` (`adoption/podvm/pod-enter.commit`).
+- Measured: the tests of the crate on this host as x86_64 and as i686
+  musl binaries; the trial of podvm at `6cd3442`; the static `podvm` for
+  `x86_64-unknown-linux-musl`.
+- Not measured here: an entry over a real FUSE session (no host here
+  holds `/dev/fuse` and grants the mount), the cover of ptmx (this host
+  refuses the maps of the user namespace that the test needs).
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8: import, edition, adapt,
 tests, README with the adoption map of podvm, the trial of podvm.
 
+## Decision
+
+Calls of the import, each with its reason (`docs/decisions.md`, C37):
+
+- The cut: the crate takes all of `PodUtils/podvm:crates/podvm-enter` but the
+  re-export of docker's codes of `podvm-probe`. podvm keeps 125 and
+  `GUEST_EXE_VAR`, which the crate does not use.
+- `Names`: the mode request and the active mode variables, the cache
+  variable, the variable of the path maps, the two device variables, the
+  cache marker, the memfd label and the word at the start of a line.
+  `Plan` carries them; each function that writes or names a variable
+  takes `&Names`. The crate reads no variable.
+- `Error::Runtime(pod_core::Failure)` at `Stage::Host`, with a class from
+  the errno; `CannotInvoke` and `NotFound` stay variants, with 126 and 127
+  in `status`; `code_or` takes the caller's code of a runtime failure.
+- The memfd probe keeps one answer for each process.
+- The ELF reader checks each offset, for a hostile image and for a
+  32-bit target.
+- `PodUtils/podvm:crates/podvm-enter` stays in podvm as the glue:
+  `NAMES`, `runtime`, the trait `ExitCode`, and each function that takes
+  the names with its podvm signature.
+
 ## Prove
 
 ```sh
 cargo test -p pod-enter
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-enter
+sh scripts/adoption.sh podvm pod-enter
+cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe
+sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 ```
 
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), and T-055 is done.
+
+## Done
+
+2026-11-09, partial. Commits `6f633ca` (the import of 28 files of podvm
+at `6cd3442`, with `SOURCES`), `4ff9cd7` (the adaptation and the tests),
+`d727a13` (README, C37), and the commit of this Done section (the trial,
+the record).
+
+- Imported: the 27 files of `PodUtils/podvm:crates/podvm-enter/src` and
+  `tests/tty_refusal.rs`. Of `lib.rs` a part stays in podvm (the
+  re-export of docker's codes). The crate has 8,025 lines in 35 `.rs`
+  files, each under 500.
+- Tests: 136 unit tests and 2 integration tests: each of the 137 of
+  podvm with its name, and 1 new (`a_hostile_offset_is_a_refusal_and_not_a_panic`:
+  on the old code it fails with "capacity overflow"). The same pass as
+  i686 musl binaries (135 unit tests; the trampoline test is for x86_64
+  and aarch64). `need_root!` joins `pod-testkit`.
+- The trial of podvm at `6cd3442` (`adoption/podvm/pod-enter.patch`: 52
+  files, 258 lines in, 9,101 out; it does not need the patches of
+  `pod-supervise` and `pod-guest`): `PodUtils/podvm:crates/podvm-enter`
+  keeps podvm's glue and re-exports the crate; 27 files leave podvm; each
+  `Plan` gets `names: NAMES`; a runtime error of podvm is
+  `podvm_enter::runtime`; the gate loses the pin of `tty_refusal`;
+  document-state names `Mode` in `pod-enter`; the citations of the moved
+  files name `pod-enter`; each tag moves to `v0.9.0`. Each step of `sh scripts/adoption.sh
+  podvm pod-enter` passed: podvm-enter 2 tests, podvm-supervise 15,
+  `podvm --bin` 255, `store_gates` 4, `detached_stdio` 3, `qol` 8,
+  `curated_refusals` 6, clippy, rustfmt, the runtime-state rows, podvm's
+  record gate (305 entries), the toolchains, and the static `podvm` for
+  x86_64 musl.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  static, test), `check-sources.py` (28 files, 0 changes),
+  `secrets_like.py` on the patch (no line).
+- Found: `SYS_GETUID` and `SYS_GETGID` of `pod-hostprobe` are the 16-bit
+  calls on i686 and arm; the FUSE mount of this crate and
+  `identity::read` use them (a task outside T-059).
+
+Remains:
+
+- The release `v0.9.0`, then podvm's take of the patch. After the
+  patches of `pod-supervise` and `pod-guest`, the tag lines and the
+  `pod-*` rows of `PodUtils/podvm:docs/runtime-state.md` of this patch
+  need a merge.
+  Then the `taken` line in `SOURCES`.
+- An entry over a real FUSE session, on a host with `/dev/fuse` and a
+  granted mount.
 
 # T-060: `pod-supervise`: detached payloads
 
