@@ -299,7 +299,7 @@ others read its raw system calls.
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system (device nodes, accounts, the package configuration, the resolver, the CA data from `pod-tls`) | 4,600 | pod-core, pod-hostprobe, pod-tls |
 | `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the class of an ELF file, the launch modes: loader, memfd) | 7,800 | pod-core, pod-hostprobe |
 | `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
-| `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (FAT16 mailbox, guest agent, the fetch of a disk with digests, QMP, the boot plan) | 3,400 | pod-core, pod-proxy |
+| `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm | 3,300 | pod-core, pod-hostprobe |
 
 ### M7: the widened scope of podvm (later)
 
