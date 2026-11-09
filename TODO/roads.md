@@ -398,7 +398,7 @@ in a clone. The import takes `5950647f`.
 
 ## Done
 
-2026-11-09, `ea884e3`. `crates/pod-gsr` from the prototype (`identity`,
+2026-11-09, `79116e3`. `crates/pod-gsr` from the prototype (`identity`,
 `settings`, `wire`, `session`, `srp`, `stream`; each test with its name),
 and `crates/pod-services/services/hackerschoice-gsr.toml` (14 facts and the
 endpoint `default`, each with its source; watches of four files of gsocket
@@ -469,7 +469,7 @@ T-086 is done.
 
 ## Done
 
-2026-11-09, `8be5ec8`. `pod_gsr::End { Clean, Cut }` and `Stream::end()`;
+2026-11-09, `509e59d`. `pod_gsr::End { Clean, Cut }` and `Stream::end()`;
 OpenSSL's shutdown state (`SSL_RECEIVED_SHUTDOWN`) decides the record, and
 `is_end` is split into `is_clean` and `is_cut`. `AsyncRead` gives the same
 results. `poll_shutdown` sends the close_notify at once and holds the
@@ -528,7 +528,7 @@ T-086 is done.
 
 ## Done
 
-2026-11-09, `887b635`. `pod_gsr::blocking::{open, Stream}` (feature
+2026-11-09, `cd8d049`. `pod_gsr::blocking::{open, Stream}` (feature
 `blocking`) on a private current-thread runtime with the background
 shutdown of `pod_proxy::blocking`; the deadline is a `std::time::Instant`;
 `Stream` is `Read` and `Write` with `end()`, `peer_finished()`,

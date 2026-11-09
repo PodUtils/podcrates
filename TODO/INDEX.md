@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**127 entries: 64 open, 2 partial, 0 blocked, 61 done.**
+**127 entries: 63 open, 2 partial, 0 blocked, 62 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 0 | 0 | 24 | 46 |
-| P2 | 32 | 2 | 0 | 29 | 63 |
+| P2 | 31 | 2 | 0 | 30 | 63 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 64 | 2 | 0 | 61 | 127 |
+| **All** | 63 | 2 | 0 | 62 | 127 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -134,7 +134,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-085](foundation.md) | P2 | S | M0 | defect | done | `check-sources.py`: the default branch of a source repository (GitHub #23) |
 | [T-086](roads.md) | P2 | L | M4 | feature | done | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
 | [T-087](roads.md) | P2 | S | M4 | feature | done | `pod_gsr::Stream` records how it ended (GitHub #25) |
-| [T-088](roads.md) | P2 | M | M4 | feature | open | `pod-gsr`: the synchronous face (GitHub #26) |
+| [T-088](roads.md) | P2 | M | M4 | feature | done | `pod-gsr`: the synchronous face (GitHub #26) |
 | [T-089](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |
 | [T-090](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28) |
 | [T-091](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29) |
