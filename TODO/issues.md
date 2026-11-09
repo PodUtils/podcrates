@@ -28,10 +28,10 @@ numbers. `TODO/RULES.md` gives the rules.
 | #20 | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 | closed (T-082 `394d1e6`) | T-082 |
 | #21 | `pod-proxy`: no SOCKS5 UDP path | open | T-083 |
 | #22 | The record of `SOURCES` names a git blob id, not SHA-256 | open | T-084 |
-| #23 | `check-sources.py` assumes the branch `main` | open | T-085 |
-| #24 | Import `pod-gsr` and its data file | open | T-086 |
-| #25 | `pod_gsr::Stream` cuts a record as a clean end | open | T-087 |
-| #26 | `pod-gsr` synchronous face | open | T-088 |
+| #23 | `check-sources.py` assumes the branch `main` | closed (T-085 `86dfd6f`) | T-085 |
+| #24 | Import `pod-gsr` and its data file | closed (T-086 `79116e3`) | T-086 |
+| #25 | `pod_gsr::Stream` cuts a record as a clean end | closed (T-087 `509e59d`) | T-087 |
+| #26 | `pod-gsr` synchronous face | closed (T-088 `cd8d049`) | T-088 |
 | #27 | `tailscale-derp` watch checks only `/Regions` | closed (T-089 `fa09d1e`) | T-089 |
 | #28 | `ajam-relay` hosts have no watch | closed (T-090 `09cfb80`) | T-090 |
 | #29 | `Way::lookup` skips the name check | closed (T-091 `e81f5f2`) | T-091 |

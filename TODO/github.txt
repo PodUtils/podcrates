@@ -27,10 +27,10 @@
 20 issue closed
 21 issue open
 22 issue open
-23 issue open
-24 issue open
-25 issue open
-26 issue open
+23 issue closed
+24 issue closed
+25 issue closed
+26 issue closed
 27 issue closed
 28 issue closed
 29 issue closed
