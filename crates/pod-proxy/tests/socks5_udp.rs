@@ -4,8 +4,10 @@
 //! refusal of a rule, a bound address of each type, and the bytes of the
 //! frames and of the datagram header.
 
+use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use pod_proxy::udp::{self, associate, open_in_stream, read_frame, wrap, wrap_name, write_frame};
 use pod_proxy::{DialError, Proxy};
@@ -57,6 +59,12 @@ async fn stand_in(scripts: Vec<Script>) -> (Proxy, Arc<Mutex<Vec<[u8; 10]>>>) {
     (Proxy::parse(&format!("socks5://127.0.0.1:{port}")).unwrap(), seen)
 }
 
+/// A step of a test, bounded: a frame with a wrong length must fail the test,
+/// not wait for bytes that never come.
+async fn within<T>(step: impl Future<Output = T>) -> T {
+    tokio::time::timeout(Duration::from_secs(5), step).await.expect("the step ended in time")
+}
+
 async fn connect(proxy: &Proxy) -> TcpStream {
     TcpStream::connect(proxy.address()).await.unwrap()
 }
@@ -67,7 +75,7 @@ async fn a_datagram_goes_out_in_a_frame_and_comes_back_in_one() {
     let mut stream = open_in_stream(connect(&proxy).await, "test", &proxy).await.unwrap();
     let datagram = wrap(b"query", IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)), 53);
     write_frame(&mut stream, &datagram).await.unwrap();
-    assert_eq!(read_frame(&mut stream).await.unwrap(), Some(datagram));
+    assert_eq!(within(read_frame(&mut stream)).await.unwrap(), Some(datagram));
     assert_eq!(seen.lock().unwrap()[0], [5, 0x83, 0, 1, 0, 0, 0, 0, 0, 0]);
 }
 
