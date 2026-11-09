@@ -1738,7 +1738,7 @@ of `pod-services`. podssh reads it from the release after v0.6.0.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1776,6 +1776,10 @@ cargo test -p pod-proxy --test get
 The unit test covers `[2001:db8::1]`, `[2001:db8::1]:8443`,
 `example.com` and `example.com:8443`. A plant reverts the call in
 `crates/pod-proxy/src/client.rs`; the test then fails.
+
+## Done
+
+2026-11-09, `394d1e6`, plant `4204dd8`. `host_header(host, port)` in `crates/pod-proxy/src/host.rs`, used by `Client::https_get_accepting`. `cargo test -p pod-proxy host_header`: `the_host_header_brackets_an_ipv6_literal_on_each_port` passes (`::1` and `2001:db8::1` on 443 and 8443, a bracketed literal, `example.com`). The plant `proxy-host-header-unbracketed` is caught. The TLS test on `[::1]` is not written (best effort in the entry).
 
 # T-083: `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21)
 
@@ -1830,7 +1834,7 @@ ASSOCIATE, a close after 0x83 (a `DialError`), and the byte layout with
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1866,6 +1870,10 @@ The compare script of issue #27 (live map against the file) prints no
 host in either difference list. It needs egress: run it in a workflow or
 let the owner run it.
 
+## Done
+
+2026-11-09, `fa09d1e`. The live map (`https://controlplane.tailscale.com/derpmap/default`, read 2026-11-09) has 95 nodes; the file had 91 and no extra host. The servers `derp1j`, `derp1k` (`nyc-5`, `nyc-6`), `derp4k` and `derp4l` (`fra-6`, `fra-7`) have their addresses and a `read` date. The watch of `/Regions` has `member = "HostName"`; it has no `role`: the roles of the file are the codes of the regions, so no endpoint has the role `region`, and with no `role` the watch compares each endpoint (`crates/pod-services/README.md`). `cargo test -p pod-services`: `the_tailscale_fleet_holds_the_four_servers_and_a_watch_of_the_hosts` passes. The compare of the live map against the file printed no host in either list. The line for the watch kind "count" in T-050 is not added: the watch uses `http-json` with `member`.
+
 # T-090: `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28)
 
 **Source:** GitHub #28
@@ -1873,7 +1881,7 @@ let the owner run it.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1906,6 +1914,10 @@ grep -c 'kind = "tls-name"' crates/pod-services/services/ajam-relay.toml
 
 The `grep` prints 2 or more.
 
+## Done
+
+2026-11-09, `09cfb80`. `ajam-relay.toml` has two `tls-name` watches (role `seed`, endpoint `default`), an `http-json` watch (`/pool`, `member = "host"`, `role = "seed"`) and an `http-status` watch (role `seed`, `/health`, 200). `grep -c 'kind = "tls-name"'` prints 2; `cargo test -p pod-services`: `the_relay_watches_its_hosts_and_its_pool` passes. The live `/relays.json` has a list `pool` of objects with a `host` member. The run of the watches waits for T-050.
+
 # T-091: `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29)
 
 **Source:** GitHub #29
@@ -1913,7 +1925,7 @@ The `grep` prints 2 or more.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1948,6 +1960,10 @@ sh scripts/plant-each.sh
 The tests: `a b.example`, `a&b.example`, `x#y.example` and
 `a%b.example` give `Err`; `relay.example` and `a-b_c.example` keep their
 target. A plant removes the new check.
+
+## Done
+
+2026-11-09, `e81f5f2`, plant `1959e37`. `ask_kept` refuses a name that is not DNS-safe with `Missed::words`; the JSON arm of `Doh::target` percent-encodes the name. `cargo test -p pod-dns`: 45 unit tests and the tests of `tests/` pass, among them `refuses_a_name_that_changes_the_question` (`a b.example`, `a&b.example`, `x#y.example`, `a%b.example`; the same through `lookup_with`) and `the_json_name_is_percent_encoded` (`relay.example` and `a-b_c.example` keep their target). The plant `dns-name-not-checked` is caught.
 
 # T-096: `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34)
 
@@ -2024,7 +2040,7 @@ cargo test -p pod-services
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2048,6 +2064,10 @@ loopback test: N queries, one connection.
 cargo test -p pod-dns --all-features
 ```
 
+## Done
+
+2026-11-09, `5d3f791`, plant `d4e9244`. `Kept` (`crates/pod-dns/src/kept.rs`) holds at most one connection for each host and port, 5 s idle; `Resolver` owns one and a `Way` has the field `kept` (`None`: a connection for each question). HTTP/1.1 uses the new `pod_proxy::http::exchange_keep`; HTTP/2 keeps its `SendRequest`. A kept connection that failed gets one reconnect. `cargo test -p pod-dns --all-features`: `many_questions_use_one_connection` (four questions, one connection), `a_closed_connection_is_replaced_by_one_reconnect`, `no_kept_connection_opens_one_for_each_question`; `cargo test -p pod-proxy --test http`: `exchange_keep_gives_the_stream_back_only_when_it_can_carry_another_request`. The plant `dns-connection-not-kept` is caught. Not measured: the time of N queries with one connection.
+
 # T-126: `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413)
 
 **Source:** PodUtils/podnet#413, ask 6 (PodUtils/podnet@T-172, PodUtils/podnet#367)
@@ -2055,7 +2075,7 @@ cargo test -p pod-dns --all-features
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2078,6 +2098,10 @@ replaces a pin between two lookups.
 cargo test -p pod-dns --all-features
 ```
 
+## Done
+
+2026-11-09, `3fb3d0c`, plant `6a803a5`. `Resolver::set_pins` swaps the table (an `Arc` under a lock), `Resolver::pins` reads it; `Settings::pins` is the first table. `cargo test -p pod-dns --all-features`: `a_pin_table_replaced_at_run_time_counts_from_the_next_lookup` (a pin set after the start, a replacement between two lookups, an empty table) and `the_pins_of_the_settings_are_the_first_table` pass. The plant `dns-pins-not-replaced` is caught.
+
 # T-127: `pod-services`: the file host of PyPI (PodUtils/podnet#413)
 
 **Source:** PodUtils/podnet#413, ask 7 (PodUtils/podnet@T-182, PodUtils/podnet#378)
@@ -2085,7 +2109,7 @@ cargo test -p pod-dns --all-features
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2107,3 +2131,8 @@ registry file, with a source and a watch.
 ```sh
 cargo test -p pod-services
 ```
+
+## Done
+
+2026-11-09, `c1e17f2`. `crates/pod-services/services/pypi-files.toml`: the kind `package-files`, the endpoint `files` (`files.pythonhosted.org`, no address: a CDN serves it), the fact `probe-path` (the wheel of a release) and the watches `tls-name` and `http-status` (200 on the probe path, read 2026-11-09). `cargo test -p pod-services`: `the_file_host_of_pypi_is_a_service` passes.
+

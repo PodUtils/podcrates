@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**127 entries: 73 open, 2 partial, 0 blocked, 52 done.**
+**127 entries: 66 open, 2 partial, 0 blocked, 59 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 0 | 0 | 24 | 46 |
-| P2 | 39 | 2 | 0 | 22 | 63 |
-| P3 | 12 | 0 | 0 | 4 | 16 |
-| **All** | 73 | 2 | 0 | 52 | 127 |
+| P2 | 34 | 2 | 0 | 27 | 63 |
+| P3 | 10 | 0 | 0 | 6 | 16 |
+| **All** | 66 | 2 | 0 | 59 | 127 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -128,16 +128,16 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-079](transport.md) | P2 | S | M1 | feature | done | `pod-services`: Tailscale's main DERP fleet after tailcat's |
 | [T-080](podvm.md) | P0 | S | M6 | defect | done | `pod-hostprobe`: a failed system call reads as a success on a 32-bit target |
 | [T-081](foundation.md) | P2 | S | M1 | feature | done | `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable" |
-| [T-082](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20) |
+| [T-082](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20) |
 | [T-083](transport.md) | P2 | M | M1 | feature | open | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
 | [T-084](foundation.md) | P3 | S | M0 | docs | open | The record of `SOURCES` names a git blob id (GitHub #22) |
 | [T-085](foundation.md) | P2 | S | M0 | defect | done | `check-sources.py`: the default branch of a source repository (GitHub #23) |
 | [T-086](roads.md) | P2 | L | M4 | feature | open | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |
 | [T-087](roads.md) | P2 | S | M4 | feature | open | `pod_gsr::Stream` records how it ended (GitHub #25) |
 | [T-088](roads.md) | P2 | M | M4 | feature | open | `pod-gsr`: the synchronous face (GitHub #26) |
-| [T-089](transport.md) | P2 | S | M1 | defect | open | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |
-| [T-090](transport.md) | P2 | S | M1 | defect | open | `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28) |
-| [T-091](transport.md) | P2 | S | M1 | defect | open | `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29) |
+| [T-089](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |
+| [T-090](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28) |
+| [T-091](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29) |
 | [T-092](foundation.md) | P2 | M | M0 | chore | open | The live workflow `live.yml` (GitHub #30) |
 | [T-093](foundation.md) | P3 | S | M0 | docs | open | README: the state and the table of crates (GitHub #31) |
 | [T-094](foundation.md) | P3 | S | M0 | docs | open | `docs/design.md`: the repository table matches the tree (GitHub #32) |
@@ -171,6 +171,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-122](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
 | [T-123](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: the session budget from the pool document (PodUtils/podnet#413) |
 | [T-124](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
-| [T-125](transport.md) | P2 | S | M1 | feature | open | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
-| [T-126](transport.md) | P3 | S | M1 | feature | open | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
-| [T-127](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |
+| [T-125](transport.md) | P2 | S | M1 | feature | done | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
+| [T-126](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
+| [T-127](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |
