@@ -22,8 +22,9 @@ host = "1.0.0.1"
 port = 53
 source = { url = "https://developers.cloudflare.com/1.1.1.1/ip-addresses/", read = 2026-11-06 }
 
-# The trace of the exit (podnet) and the target of a probe through WARP
-# (podssh): an address of each family, on the port of TLS.
+# The trace of the exit (podnet), the target of a probe through WARP
+# (podssh) and the TCP probe of the WARP data path (podnet T-068,
+# 1.1.1.1:443): an address of each family, on the port of TLS.
 [[endpoint]]
 name = "trace"
 scheme = "https"

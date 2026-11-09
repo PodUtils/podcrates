@@ -189,7 +189,7 @@ again. podvm took the patch in podvm `8899c2e` (PodUtils/podvm#210).
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -222,6 +222,20 @@ cargo test -p pod-services
 ```
 
 The first command runs with the clones and exits 0.
+
+## Done
+
+2026-11-09. Each change was code only, and no value of `pod-services` or
+`pod-core` changed: a split (podvm `f9eae80`), a call in place of a
+constant (podnet `bf0c7ca`, `380d9a4`, `0293f91`), the `socks5h` scheme of
+the tailscale proxy (podssh `ccfef9ee`), a test that reads the default relay
+from `pod-services` (podssh `72fb94d`). The five blocks moved to the commit
+that the check reads (main, or the parent of the take) with the new blob
+ids. podnet's TCP probe of T-068 (`1.1.1.1:443`) is the endpoint `trace`
+of `cloudflare-dns.toml`; its comment names the use. podnet keeps the
+default in its own code (`src/cli/cmd/warp/args.rs`) until `pod-warp`
+takes it (T-028). `python3 -I scripts/check-sources.py` with the clones of
+podssh, podnet and podvm exits 0, and `cargo test -p pod-services` passes.
 
 # T-098: The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners
 

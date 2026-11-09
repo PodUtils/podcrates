@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 120 entries: 71 open, 1 partial, 0 blocked, 48 done.
+`TODO/INDEX.md` holds 120 entries: 70 open, 1 partial, 0 blocked, 49 done.
 
 ## State
 
@@ -27,8 +27,7 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-0. **First:** T-097 (the red job `sources` of `upstream`). Then, before
-   M2 (call C26): T-101 (`pod-core` classes), T-099 and T-100
+0. **Before M2** (call C26): T-101 (`pod-core` classes), T-099 and T-100
    (`pod-broker`), T-112 (`pod-services` party filter) and T-108
    (`pod-confine`); then T-102 to T-105 (`pod-unit`, `pod-control`,
    `pod-release`, the acceptance registry); then the rest in milestone order.
@@ -46,7 +45,7 @@ order. A crate is released on the day that its entry is done
    T-038, T-039; then T-086, T-087, T-088 (deferred by the owner, 2026-11-09).
 6. **M5, the upkeep:** T-040 (the trials of podvm) when podvm gave the
    commit of its rename; a "port" entry for each change that
-   scripts/check-sources.py finds (T-097).
+   scripts/check-sources.py finds.
 7. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-061 and T-059;
    T-060; T-056; T-057; T-058.

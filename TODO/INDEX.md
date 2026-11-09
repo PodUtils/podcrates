@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**120 entries: 71 open, 1 partial, 0 blocked, 48 done.**
+**120 entries: 70 open, 1 partial, 0 blocked, 49 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 24 | 0 | 0 | 22 | 46 |
 | P2 | 36 | 1 | 0 | 21 | 58 |
-| P3 | 11 | 0 | 0 | 3 | 14 |
-| **All** | 71 | 1 | 0 | 48 | 120 |
+| P3 | 10 | 0 | 0 | 4 | 14 |
+| **All** | 70 | 1 | 0 | 49 | 120 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-094](foundation.md) | P3 | S | M0 | docs | open | `docs/design.md`: the repository table matches the tree (GitHub #32) |
 | [T-095](foundation.md) | P2 | S | M0 | chore | open | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |
 | [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
-| [T-097](upkeep.md) | P3 | S | M5 | chore | open | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
+| [T-097](upkeep.md) | P3 | S | M5 | chore | done | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | done | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
 | [T-099](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
 | [T-100](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
