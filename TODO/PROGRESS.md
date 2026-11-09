@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 120 entries: 72 open, 1 partial, 0 blocked, 47 done.
+`TODO/INDEX.md` holds 120 entries: 71 open, 1 partial, 0 blocked, 48 done.
 
 ## State
 
@@ -27,8 +27,8 @@ then take the next one. Inside a milestone, take the entries in this
 order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits).
 
-0. **The triage of GitHub #35 and #36:** T-098, before the next entry.
-   Then, before M2 (call C26): T-101 (`pod-core` classes), T-099 and T-100
+0. **First:** T-097 (the red job `sources` of `upstream`). Then, before
+   M2 (call C26): T-101 (`pod-core` classes), T-099 and T-100
    (`pod-broker`), T-112 (`pod-services` party filter) and T-108
    (`pod-confine`); then T-102 to T-105 (`pod-unit`, `pod-control`,
    `pod-release`, the acceptance registry); then the rest in milestone order.

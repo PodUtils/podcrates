@@ -230,7 +230,7 @@ The first command runs with the clones and exits 0.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -260,3 +260,12 @@ cargo todo check
 
 Each ask of #35 and #36 names its entry, its COORD issue or its question
 in `TODO/issues.md`.
+
+## Done
+
+2026-11-09. Each of the 96 asks of #35 and #36 has its route in
+`docs/research/fleet/asks.md`: an entry of podcrates (T-099 to T-120,
+`62729c9`), a COORD issue to its consumer (#38 to podssh, #39 to podvm,
+#40 to podnet), a new project of the owner's ruling, or a deferral of the
+owner. The owner ruled each question on 2026-11-09 (`docs/decisions.md`,
+`2ebbfef`). GitHub #1 has the new crate names. `cargo todo check` agrees.
