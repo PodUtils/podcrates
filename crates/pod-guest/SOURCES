@@ -1,0 +1,21 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the default branch of its repository.
+
+repo PodUtils/podvm 6cd3442d2b742adb4869b042abfffa70084f355f
+dir crates/podvm-windows/src
+# Of lib.rs and scratch.rs a part stays in podvm: cap_status (docker's
+# 0 to 124 rule) and base_cache (the cache paths of podvm and its
+# variables). podvm gives its names and values as Settings.
+file fdcc7b47572f4564ffe9265900eed2408481a7ad crates/podvm-windows/src/agent.rs -> crates/pod-guest/src/agent.rs
+file 4b9c7afd8575bac3c5804be0ac40182d79dfd233 crates/podvm-windows/src/dos.rs -> crates/pod-guest/src/dos.rs
+file d13e79bd6431c62d6c2d83790a311dc5dc7e6667 crates/podvm-windows/src/emulator.rs -> crates/pod-guest/src/emulator.rs
+file 49f8fe696125a34993274b6adf4eb3238927d403 crates/podvm-windows/src/fat16.rs -> crates/pod-guest/src/fat16.rs
+file 0a72c766604f665056bde5eb272180d3f30ad1d5 crates/podvm-windows/src/fat16/tests.rs -> crates/pod-guest/src/fat16/tests.rs
+file 0f5d26fc670a3e14eb094cd7adab20d83d66fe52 crates/podvm-windows/src/fetch.rs -> crates/pod-guest/src/fetch.rs
+file 5bdbf1da2746baf4e6e505b0d33456485bf664eb crates/podvm-windows/src/lib.rs -> crates/pod-guest/src/lib.rs
+file e2b4a6c4b2fe4cfd7fa212f249f7a7200a27087f crates/podvm-windows/src/plan.rs -> crates/pod-guest/src/plan.rs
+file 2d937dcb7f2d56d4af735d5b13000176bc4d2f1e crates/podvm-windows/src/provision.rs -> crates/pod-guest/src/provision.rs
+file 76b27873d7945108a4972fb92315d1ff4502a75f crates/podvm-windows/src/qmp.rs -> crates/pod-guest/src/qmp.rs
+file 55819fe825f0003ea0aaf9afa27f40acc7867d3b crates/podvm-windows/src/scratch.rs -> crates/pod-guest/src/scratch.rs
+file c020364b0b29ca252cb5f2080224d9e4b219750b crates/podvm-windows/src/tests.rs -> crates/pod-guest/src/tests.rs
