@@ -80,6 +80,7 @@ fn main() {
     lines.push(format!("pod-gsr blocking: {}", blocking.map_or_else(|e| e.to_string(), |s| format!("{s:?}"))));
     lines.extend(hostprobe());
     lines.extend(supervise());
+    lines.extend(guest());
     for line in lines {
         println!("{line}");
     }
@@ -116,5 +117,47 @@ fn supervise() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn supervise() -> Option<String> {
+    None
+}
+
+/// pod-guest is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn guest() -> Option<String> {
+    let s = pod_guest::Settings::new(std::env::temp_dir());
+    let request = pod_guest::Request {
+        command: "ver".into(),
+        token: pod_guest::agent::nonce().unwrap_or_else(|e| e.to_string()),
+        timeout: std::time::Duration::from_secs(1),
+    };
+    let files = pod_guest::mailbox(&s, pod_guest::agent::AGENT_CMD, &request)
+        .map_or_else(|e| e.to_string(), |m| m.list().len().to_string());
+    // An empty stream: the store and its digest link in.
+    let dest = std::env::temp_dir().join(format!("static-probe-guest-{}.img", std::process::id()));
+    let ceiling = pod_guest::Ceiling { max_bytes: 1, fsize: u64::MAX };
+    let digest =
+        pod_guest::fetch::store(std::io::empty(), Some(0), &dest, None, ceiling).unwrap_or_else(|e| e.to_string());
+    let _ = std::fs::remove_file(&dest);
+    Some(format!(
+        "pod-guest: a mailbox of {files} files, {} arguments of the UEFI line, sha256 of nothing {digest}",
+        pod_guest::argv(&pod_guest::Plan {
+            emulator: "qemu-system-x86_64".into(),
+            accel: pod_guest::accel_for(Some(pod_hostprobe::machine::Profile::Tcg)).unwrap_or(pod_guest::Accel::Tcg),
+            share: "/usr/share/qemu".into(),
+            firmware_code: "code.fd".into(),
+            firmware_vars: "vars.fd".into(),
+            root: "run.qcow2".into(),
+            mailbox: "mailbox.img".into(),
+            serial: "serial.log".into(),
+            monitor: "qmp.sock".into(),
+            memory_mib: 512,
+            cpus: 1,
+            emu_args: Vec::new(),
+        })
+        .len()
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn guest() -> Option<String> {
     None
 }

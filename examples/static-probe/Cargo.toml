@@ -14,6 +14,7 @@ pod-broker = { workspace = true }
 pod-core = { workspace = true }
 pod-dns = { workspace = true, features = ["ech"] }
 pod-gsr = { workspace = true, features = ["blocking"] }
+pod-guest = { workspace = true }
 pod-hostprobe = { workspace = true }
 pod-identity = { workspace = true }
 pod-proxy = { workspace = true, features = ["ech"] }

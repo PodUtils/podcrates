@@ -1,113 +1,88 @@
-use super::*;
+//! The per-run directory: the mailbox, the QMP socket, the overlay, the
+//! serial log and the log of the emulator.
 
-/// The per-run directory: where the mailbox, the QMP socket and the serial
-/// log are, which is the directory [`scratch_dir`] made. `None` where the
-/// plan's mailbox has no parent.
+use std::os::unix::fs::DirBuilderExt;
+use std::path::{Path, PathBuf};
+
+use crate::{Plan, Result, Settings, io_at};
+
+/// The per-run directory of `plan`: the parent of [`Plan::mailbox`]. `None`
+/// when the mailbox has no parent.
 ///
-/// ⛔ **Not `Plan::root`'s parent, and that distinction is a defect that was
-/// caught in review.** A cleanup keyed on `root` would remove whatever
-/// directory the root disk lives in, and on the `setup` path that is a
-/// caller's directory of Windows images beside the vendor's. The mailbox
-/// never moves out of the per-run directory, which is why it is the field this
-/// reads. `TODO/gate.md` T-1641 took `setup`'s `root` back into the per-run
-/// directory as well; this is keyed on the mailbox because `run`'s root is
-/// still per-run and the two must not depend on that staying true.
+/// The key is the mailbox, not [`Plan::root`]. On the provision path a
+/// caller can put the root disk beside its own images; a cleanup keyed on
+/// the root would remove that directory. The mailbox is always in the
+/// per-run directory.
 pub fn scratch_of(plan: &Plan) -> Option<PathBuf> {
-    plan.mailbox.parent().map(|p| p.to_path_buf())
+    plan.mailbox.parent().map(Path::to_path_buf)
 }
 
-/// The prefix every per-run directory carries, used both to create one and
-/// to be sure of one before removing it.
-pub const SCRATCH_PREFIX: &str = "podvm-windows-";
+/// True when the name of `dir` starts with [`Settings::scratch_prefix`].
+pub(crate) fn is_scratch(s: &Settings, dir: &Path) -> bool {
+    dir.file_name().map(|n| n.to_string_lossy().starts_with(&s.scratch_prefix)).unwrap_or(false)
+}
 
-/// Remove a per-run directory unless `PODVM_WINDOWS_KEEP` is set.
+/// Remove the per-run directory of `plan`, unless [`Settings::keep`].
 ///
-/// ⛔ **A run's leftovers are about a hundred megabytes**, measured: a 56 MB
-/// overlay, a 17 MB mailbox and a 0.5 MB variable store, per run. Leaving
-/// them behind is how the runs earlier in this entry's own record failed at
-/// 300 s: the sandbox's 489 MB tmpfs filled, the host saw ENOSPC on the
-/// writethrough mailbox, and the guest never answered. So the default is to
-/// remove, and the override exists because a run that needs looking at is
-/// exactly the run that failed.
+/// A run leaves about 100 MB: an overlay of 56 MB, a mailbox of 17 MB and
+/// a variable store of 0.5 MB. A full tmpfs gives `ENOSPC` on the mailbox,
+/// and the guest then never answers. So the default is to remove.
 ///
-/// ⚠ **Two guards before anything is removed, and both are refusals rather
-/// than errors.** The directory must be the one [`scratch_of`] names *and*
-/// its own name must carry [`SCRATCH_PREFIX`]. A recursive delete driven by
-/// a path a caller can influence is the one operation here that can destroy
-/// work that is not ours, so a plan that does not look like ours is left
-/// exactly as it is. Best effort after that: a refusal to remove is not a
-/// failure of the run, which has already returned its result.
-pub fn cleanup(plan: &Plan) {
-    if std::env::var_os("PODVM_WINDOWS_KEEP").is_some() {
+/// Two guards come before the removal, and each is a refusal, not an
+/// error: the directory is the one that [`scratch_of`] names, and its name
+/// starts with [`Settings::scratch_prefix`]. A plan that does not look like
+/// one of this crate stays as it is. A removal that fails is not a failure
+/// of the run, which returned its result.
+pub fn cleanup(s: &Settings, plan: &Plan) {
+    if s.keep {
         return;
     }
     let Some(dir) = scratch_of(plan) else {
         return;
     };
-    let named = dir
-        .file_name()
-        .map(|n| n.to_string_lossy().starts_with(SCRATCH_PREFIX))
-        .unwrap_or(false);
-    if !named {
+    if !is_scratch(s, &dir) {
         return;
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A per-run directory that removes itself when it falls out of scope.
+/// A per-run directory that removes itself when it goes out of scope.
 ///
-/// `cleanup` runs on every coded exit; this runs on the exits without one:
-/// a panic past the staging point, where the explicit calls never execute.
-/// SIGKILL aside, which no guard survives. Removing twice is safe
-/// (`cleanup` ignores a missing directory through `let _`), so the coded
-/// paths keep their explicit calls and this only backstops them.
+/// [`cleanup`] runs on each coded exit; this guard runs on the exits with
+/// no code: a panic after the stage. No guard survives `SIGKILL`. A second
+/// removal is safe, so the coded paths keep their own calls.
 pub struct RunGuard<'a> {
+    settings: Settings,
     plan: &'a Plan,
 }
 
 impl<'a> RunGuard<'a> {
-    /// Arm the guard for `plan`. Name the binding so it lives to the end
-    /// of the run: a guard dropped at once guards nothing.
-    pub fn arm(plan: &'a Plan) -> Self {
-        RunGuard { plan }
+    /// Arm the guard for `plan`. Give the guard a name, so that it lives to
+    /// the end of the run: a guard that is dropped at once guards nothing.
+    pub fn arm(s: &Settings, plan: &'a Plan) -> Self {
+        RunGuard { settings: s.clone(), plan }
     }
 }
 
 impl Drop for RunGuard<'_> {
     fn drop(&mut self) {
-        cleanup(self.plan);
+        cleanup(&self.settings, self.plan);
     }
 }
 
-/// A per-run directory, mode 0700, holding the QMP socket, the mailbox, the
-/// overlay and the serial log.
+/// Make a per-run directory, mode 0700, in [`Settings::scratch_root`]: the
+/// QMP socket, the mailbox, the overlay and the serial log go in it.
 ///
-/// ⛔ **The mode is the point.** The QMP socket lets whoever connects type
-/// into the guest console, so the directory that holds it is not readable
-/// or traversable by another local user.
-pub fn scratch_dir(tag: &str) -> Result<PathBuf, Error> {
-    let base = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let dir = base.join(format!("{SCRATCH_PREFIX}{}-{tag}", std::process::id()));
+/// The mode is necessary: a process that connects to the QMP socket can
+/// type into the console of the guest, so no other local user can read or
+/// enter the directory.
+pub fn scratch_dir(s: &Settings, tag: &str) -> Result<PathBuf> {
+    let dir = s.scratch_root.join(format!("{}{}-{tag}", s.scratch_prefix, std::process::id()));
     let mut b = std::fs::DirBuilder::new();
     b.mode(0o700);
     match b.create(&dir) {
         Ok(()) => Ok(dir),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(dir),
-        Err(e) => Err(Error::Io(format!("{}: {e}", dir.display()))),
+        Err(e) => Err(io_at(&dir, e)),
     }
-}
-
-/// The cached base image: `PODVM_WINDOWS_BASE` where it is set, so an
-/// experiment isolates with its own copy, else under the home directory so
-/// it survives between runs the way an image cache should.
-pub fn base_cache() -> PathBuf {
-    if let Some(p) = std::env::var_os("PODVM_WINDOWS_BASE")
-        && !p.is_empty()
-    {
-        return PathBuf::from(p);
-    }
-    let home = std::env::var_os("HOME").unwrap_or_else(|| "/tmp".into());
-    Path::new(&home).join(".local/share/podvm/windows/base.vhdx")
 }

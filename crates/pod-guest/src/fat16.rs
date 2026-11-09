@@ -1,72 +1,69 @@
-//! The mailbox volume: an MBR-partitioned FAT16 image built and read in
-//! process. `TODO/milestones.md` T-1112.
+//! The mailbox volume: a FAT16 image behind an MBR partition, built and
+//! read in process.
 //!
-//! ⛔ **Why a filesystem writer lives in podvm at all.** The guest agent is
-//! `cmd.exe`, and `cmd.exe` can only be handed a file through a volume the
-//! Windows driver mounts. The mailbox is therefore the driver's only
-//! interface, and building it by shelling out to `mkfs.fat`/`mtools` would
-//! make one of podvm's two guest OSes depend on host packages the rest of
-//! the tool refuses to depend on. The format is small and frozen; this is
-//! that format and nothing more.
+//! The agent of the UEFI flavour is `cmd.exe`, and `cmd.exe` gets a file
+//! only through a volume that the guest mounts. `mkfs.fat` and `mtools`
+//! are packages of the host; this module writes the small, fixed format
+//! itself.
 //!
-//! ⚠ **The geometry is the tested one, not a preferred one.** The volume is
-//! 16 MiB behind an MBR partition at LBA 2048, which is what was measured
-//! against Validation OS: a bare "superfloppy" with no partition table is
-//! not reliably mounted as a *fixed* NVMe disk, and a partition is what the
-//! reference implementation presents too. The cluster is 4 KiB because the
-//! volume is small and FAT16's cluster count has to stay under 65525.
+//! The geometry is the tested one: a volume of 16 MiB behind an MBR
+//! partition at LBA 2048, as measured against Validation OS. Windows does
+//! not mount a volume with no partition table as a fixed NVMe disk every
+//! time. The cluster is 4 KiB, so that the count of clusters stays below
+//! 65525, the limit of FAT16.
 //!
-//! ⚠ **8.3 names only, and that is a property rather than a limitation.**
-//! Every file the protocol uses, `WQMARK.TXT`, `WQGO.TXT`, `WQCMD.CMD`,
-//! `WQOUT.TXT`, `WQERR.TXT`, `WQCODE.TXT`, `WQAGENT.CMD`, `WA.CMD`,
-//! `SETUP.TXT`, is 8.3. A name that is not is refused by [`Fat16::put`]
-//! naming it, rather than written under a mangled name the guest would then
-//! never find.
+//! Names are 8.3 only. Each file of the protocol (`WQMARK.TXT`, `WQGO.TXT`,
+//! `WQCMD.CMD`, `WQOUT.TXT`, `WQERR.TXT`, `WQCODE.TXT`, `WQAGENT.CMD`,
+//! `WA.CMD`, `SETUP.TXT`) is 8.3. [`Fat16::put`] refuses each other name
+//! and names it: a changed name is a file that the guest does not find.
 
-/// The sector, which is the volume's and the kernel's unit here.
+use pod_core::Class;
+
+use crate::{Result, failure};
+
+/// The sector: the unit of the volume and of the kernel.
 pub const SECTOR: usize = 512;
 /// 4 KiB clusters.
 pub const SECTORS_PER_CLUSTER: usize = 8;
-/// In the volume, as the BPB records it.
+/// The reserved sectors of the volume, as the BPB records them.
 pub const RESERVED_SECTORS: usize = 1;
-/// Two FATs, which is what a reader that trusts the second copy expects.
+/// Two FATs: a reader that trusts the second copy expects it.
 pub const NUM_FATS: usize = 2;
-/// 512 root entries, so 32 sectors, which is also FAT16's fixed-root shape.
+/// 512 root entries, so 32 sectors: the fixed root of FAT16.
 pub const ROOT_ENTRIES: usize = 512;
 /// The volume itself, 16 MiB.
 pub const VOLUME_SECTORS: usize = 32768;
-/// Sectors per FAT. Pinned rather than computed: the arithmetic below is
-/// checked against the cluster count by [`format`], so a wrong pin refuses
-/// rather than producing a volume that under- or over-describes itself.
+/// Sectors for each FAT. A fixed value, not a computed one: the checks at
+/// compile time below compare it with the count of clusters, so a wrong
+/// value does not build.
 pub const FAT_SECTORS: usize = 16;
-/// Where the partition starts. The reference geometry.
+/// The first sector of the partition.
 pub const PART_LBA: usize = 2048;
 /// The MBR partition type for a FAT16 volume of this size.
 pub const PART_TYPE: u8 = 0x06;
 /// `ROOT_ENTRIES * 32 / SECTOR`.
 pub const ROOT_SECTORS: usize = ROOT_ENTRIES * 32 / SECTOR;
-/// First data-sector of the volume, in volume-relative sectors.
+/// The first data sector, in sectors from the start of the volume.
 pub const DATA_SECTOR: usize = RESERVED_SECTORS + NUM_FATS * FAT_SECTORS + ROOT_SECTORS;
-/// Clusters the geometry yields.
+/// The count of clusters of the geometry.
 pub const CLUSTERS: usize = (VOLUME_SECTORS - DATA_SECTOR) / SECTORS_PER_CLUSTER;
 /// The whole image, MBR included.
 pub const IMAGE_SECTORS: usize = PART_LBA + VOLUME_SECTORS;
 /// The whole image in bytes.
 pub const IMAGE_LEN: usize = IMAGE_SECTORS * SECTOR;
-/// The label the guest agent scans for, written into the BPB.
+/// The label of the volume in the BPB. [`Fat16::is_mailbox`] reads it.
 pub const LABEL: &str = "WQMAILBOX";
 
-/// A compile-time check that the pinned FAT is big enough for the clusters
-/// the geometry yields. `(CLUSTERS + 2) * 2` is the FAT in bytes.
+/// A check at compile time: the FAT holds each cluster of the geometry.
+/// `(CLUSTERS + 2) * 2` is the size of the FAT in bytes.
 const _: () = assert!(CLUSTERS + 2 <= FAT_SECTORS * SECTOR / 2);
 const _: () = assert!(CLUSTERS + 2 < 0xFFF0, "FAT16, not FAT32");
-// The volume is not an exact multiple of the cluster: the data area keeps
-// whatever whole clusters fit and the remainder is slack no file can reach.
+// The volume is not a multiple of the cluster: the data area keeps the
+// whole clusters that fit, and no file uses the rest.
 const _: () = assert!(DATA_SECTOR + CLUSTERS * SECTORS_PER_CLUSTER <= VOLUME_SECTORS);
-const _: () =
-    assert!(VOLUME_SECTORS - (DATA_SECTOR + CLUSTERS * SECTORS_PER_CLUSTER) < SECTORS_PER_CLUSTER);
+const _: () = assert!(VOLUME_SECTORS - (DATA_SECTOR + CLUSTERS * SECTORS_PER_CLUSTER) < SECTORS_PER_CLUSTER);
 
-/// One volume in memory: the whole image, MBR and all.
+/// One volume in memory: the whole image, with the MBR.
 #[derive(Clone)]
 pub struct Fat16 {
     image: Vec<u8>,
@@ -79,13 +76,19 @@ impl Default for Fat16 {
 }
 
 impl Fat16 {
-    /// A formatted, empty volume.
+    /// A formatted, empty volume with the OEM name [`OEM`].
     pub fn new() -> Self {
         Fat16 { image: format() }
     }
 
-    /// Adopt an image a previous run wrote, so results can be read back
-    /// without rebuilding the volume.
+    /// A formatted, empty volume with the OEM name `oem`: at most 8
+    /// printable ASCII characters.
+    pub fn with_oem(oem: &str) -> Result<Self> {
+        Ok(Fat16 { image: format_with(oem_bytes(oem)?) })
+    }
+
+    /// Take an image that a run wrote, so that the host reads the results
+    /// with no new volume. `None`: the image is too short.
     pub fn from_image(image: Vec<u8>) -> Option<Self> {
         if image.len() < IMAGE_LEN {
             return None;
@@ -101,9 +104,11 @@ impl Fat16 {
         self.image
     }
 
-    /// Write `data` as `name`, replacing any file already there. The name is
-    /// uppercased and must be 8.3; anything else is a `String` naming it.
-    pub fn put(&mut self, name: &str, data: &[u8]) -> Result<(), String> {
+    /// Write `data` as `name`, in place of a file of that name. The name
+    /// becomes upper case and must be 8.3; each other name is a
+    /// [`Class::Usage`] failure that names it. A full volume or root is
+    /// [`Class::Unavailable`].
+    pub fn put(&mut self, name: &str, data: &[u8]) -> Result<()> {
         let (bare, case) = parse_name(name)?;
         if let Some(slot) = self.find(&bare) {
             self.free_chain(slot.1);
@@ -121,7 +126,7 @@ impl Fat16 {
         self.read_chain(first, size)
     }
 
-    /// Every file name in the root, in directory order.
+    /// Each file name in the root, in the order of the directory.
     pub fn list(&self) -> Vec<String> {
         let mut out = Vec::new();
         for i in 0..ROOT_ENTRIES {
@@ -137,8 +142,8 @@ impl Fat16 {
         out
     }
 
-    /// True where the volume declares itself under [`LABEL`], which is the
-    /// cheapest way for a reader to be sure it is looking at a mailbox.
+    /// True when the volume has the label [`LABEL`]: a reader that is sure
+    /// to look at a mailbox.
     pub fn is_mailbox(&self) -> bool {
         let base = PART_LBA * SECTOR;
         self.image[base + 0x2B..base + 0x36] == label_bytes()
@@ -196,46 +201,42 @@ impl Fat16 {
         None
     }
 
-    fn free_slot(&self) -> Result<usize, String> {
+    fn free_slot(&self) -> Result<usize> {
         for i in 0..ROOT_ENTRIES {
             if self.entry(i)[0] == 0x00 || self.entry(i)[0] == 0xE5 {
                 return Ok(i);
             }
         }
-        Err("the mailbox root is full".to_string())
+        Err(failure(Class::Unavailable, "the mailbox root is full"))
     }
 
     /// The first cluster with a free FAT entry, marking it used.
-    fn take_cluster(&mut self) -> Result<u16, String> {
+    fn take_cluster(&mut self) -> Result<u16> {
         for n in 2..(CLUSTERS as u16 + 2) {
             if self.fat(n) == 0 {
                 self.set_fat(n, 0xFFFF);
                 return Ok(n);
             }
         }
-        Err("the mailbox volume is full".to_string())
+        Err(failure(Class::Unavailable, "the mailbox volume is full"))
     }
 
-    fn write_entry(
-        &mut self,
-        slot: usize,
-        bare: &[u8; 11],
-        case: u8,
-        data: &[u8],
-    ) -> Result<(), String> {
+    fn write_entry(&mut self, slot: usize, bare: &[u8; 11], case: u8, data: &[u8]) -> Result<()> {
         let mut e = [0u8; 32];
         e[0..11].copy_from_slice(bare);
         e[11] = 0x20; // archive
         e[12] = case;
-        // The FAT timestamp is 1980-01-01: a fixed value rather than the
-        // host's clock, so the image is reproducible byte for byte.
+        // The FAT time is 1980-01-01: a fixed value, not the clock of the
+        // host, so that the image is the same byte for byte.
         e[14] = 0x00;
         e[15] = 0x00;
         e[16] = 0x21;
         e[22] = 0x00;
         e[23] = 0x00;
         e[24] = 0x21;
-        let size = data.len() as u32;
+        // A size of more than 4 GiB does not fit in the entry; the volume
+        // is 16 MiB, so it is full first. No truncation on a 64-bit host.
+        let size = u32::try_from(data.len()).map_err(|_| failure(Class::Unavailable, "the mailbox volume is full"))?;
         if size == 0 {
             e[26] = 0;
             e[27] = 0;
@@ -265,23 +266,37 @@ impl Fat16 {
         Ok(())
     }
 
+    /// The bytes of a chain. The guest wrote the volume, so the chain is
+    /// not trusted: a cluster outside the volume, a loop, or a size that
+    /// the chain does not hold reads as `None`, never as a panic or as an
+    /// allocation of the size in the entry.
     fn read_chain(&self, first: u16, size: u32) -> Option<Vec<u8>> {
-        let mut out = Vec::with_capacity(size as usize);
+        let size = usize::try_from(size).ok()?;
+        if size > CLUSTERS * SECTORS_PER_CLUSTER * SECTOR {
+            return None;
+        }
+        let mut out = Vec::with_capacity(size);
+        let mut seen = vec![false; CLUSTERS + 2];
         let mut n = first;
-        while (2..0xFFF8).contains(&n) && out.len() < size as usize {
+        while in_volume(n) && out.len() < size {
+            if std::mem::replace(&mut seen[usize::from(n)], true) {
+                return None;
+            }
             let at = self.cluster_at(n);
-            let take = core::cmp::min(SECTORS_PER_CLUSTER * SECTOR, size as usize - out.len());
+            let take = core::cmp::min(SECTORS_PER_CLUSTER * SECTOR, size - out.len());
             out.extend_from_slice(&self.image[at..at + take]);
             n = self.fat(n);
         }
-        if out.len() != size as usize {
+        if out.len() != size {
             return None;
         }
         Some(out)
     }
 
     fn free_chain(&mut self, mut n: u16) {
-        while (2..0xFFF8).contains(&n) {
+        // A freed entry becomes 0, so a loop in the chain ends at the
+        // first cluster that it meets again.
+        while in_volume(n) {
             let next = self.fat(n);
             self.set_fat(n, 0);
             n = next;
@@ -289,8 +304,34 @@ impl Fat16 {
     }
 }
 
-/// A formatted, empty mailbox image.
+/// True when `n` is a data cluster of the volume.
+fn in_volume(n: u16) -> bool {
+    (2..CLUSTERS as u16 + 2).contains(&n)
+}
+
+/// The OEM name of [`Fat16::new`] and [`format`].
+pub const OEM: &str = "PODGUEST";
+
+/// The 8 bytes of an OEM name, padded with spaces. More than 8 bytes, or a
+/// byte that is not printable ASCII, is a [`Class::Usage`] failure.
+pub fn oem_bytes(oem: &str) -> Result<[u8; 8]> {
+    if oem.len() > 8 || !oem.bytes().all(|c| c.is_ascii_graphic() || c == b' ') {
+        return Err(failure(Class::Usage, format!("{oem:?} is not an OEM name: 8 printable ASCII characters at most")));
+    }
+    let mut out = [b' '; 8];
+    out[..oem.len()].copy_from_slice(oem.as_bytes());
+    Ok(out)
+}
+
+/// A formatted, empty mailbox image with the OEM name [`OEM`].
 pub fn format() -> Vec<u8> {
+    let mut oem = [b' '; 8];
+    oem.copy_from_slice(OEM.as_bytes());
+    format_with(oem)
+}
+
+/// A formatted, empty mailbox image with the OEM name `oem`.
+pub fn format_with(oem: [u8; 8]) -> Vec<u8> {
     let mut img = vec![0u8; IMAGE_LEN];
     // ------------------------------------------------------------------ MBR
     img[0x1BE] = 0x00; // not bootable
@@ -309,7 +350,7 @@ pub fn format() -> Vec<u8> {
     // ------------------------------------------------------------------ BPB
     let b = PART_LBA * SECTOR;
     img[b..b + 3].copy_from_slice(&[0xEB, 0x3C, 0x90]);
-    img[b + 3..b + 11].copy_from_slice(b"PODVM   ");
+    img[b + 3..b + 11].copy_from_slice(&oem);
     img[b + 11..b + 13].copy_from_slice(&(SECTOR as u16).to_le_bytes());
     img[b + 13] = SECTORS_PER_CLUSTER as u8;
     img[b + 14..b + 16].copy_from_slice(&(RESERVED_SECTORS as u16).to_le_bytes());
@@ -347,9 +388,9 @@ fn label_bytes() -> [u8; 11] {
     out
 }
 
-/// `(11-byte uppercase name, case byte)` for an 8.3 name.
-fn parse_name(name: &str) -> Result<([u8; 11], u8), String> {
-    let bad = |why: &str| Err(format!("{name:?} is not an 8.3 name: {why}"));
+/// `(the name in 11 upper-case bytes, the case byte)` of an 8.3 name.
+fn parse_name(name: &str) -> Result<([u8; 11], u8)> {
+    let bad = |why: &str| Err(failure(Class::Usage, format!("{name:?} is not an 8.3 name: {why}")));
     let (base, ext) = match name.split_once('.') {
         Some((b, e)) => (b, e),
         None => (name, ""),
@@ -392,9 +433,9 @@ fn parse_name(name: &str) -> Result<([u8; 11], u8), String> {
     for (i, c) in ext.bytes().enumerate() {
         out[8 + i] = c.to_ascii_uppercase();
     }
-    // The "NT case" byte: Windows displays the base lowercase when bit 3 is
-    // set and the extension lowercase when bit 4 is. Storing it means a name
-    // round-trips through the volume as the caller wrote it.
+    // The "NT case" byte: Windows shows the base in lower case when bit 3 is
+    // set, and the extension when bit 4 is set. With it, a name comes back
+    // from the volume as the caller wrote it.
     let has_alpha_base = base.bytes().any(|c| c.is_ascii_lowercase());
     let has_alpha_ext = ext.bytes().any(|c| c.is_ascii_lowercase());
     let mut case = 0u8;
@@ -418,11 +459,7 @@ fn render_name(e: &[u8; 32]) -> String {
     if e[12] & 0x10 != 0 {
         ext = ext.to_ascii_lowercase();
     }
-    if ext.is_empty() {
-        base
-    } else {
-        format!("{base}.{ext}")
-    }
+    if ext.is_empty() { base } else { format!("{base}.{ext}") }
 }
 
 #[cfg(test)]

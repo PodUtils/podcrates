@@ -930,6 +930,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-guest"
+version = "0.8.0"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+ "pod-testkit",
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "pod-hostprobe"
 version = "0.8.0"
 dependencies = [
@@ -1489,6 +1499,7 @@ dependencies = [
  "pod-core",
  "pod-dns",
  "pod-gsr",
+ "pod-guest",
  "pod-hostprobe",
  "pod-identity",
  "pod-proxy",
