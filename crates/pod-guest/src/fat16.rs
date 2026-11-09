@@ -309,7 +309,7 @@ fn in_volume(n: u16) -> bool {
     (2..CLUSTERS as u16 + 2).contains(&n)
 }
 
-/// The OEM name of [`Fat16::new`] and [`format`].
+/// The OEM name of [`Fat16::new`] and [`format()`].
 pub const OEM: &str = "PODGUEST";
 
 /// The 8 bytes of an OEM name, padded with spaces. More than 8 bytes, or a

@@ -416,7 +416,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -425,22 +425,99 @@ Source: `PodUtils/podvm:crates/podvm-windows`.
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: podvm `6cd3442` (its `main`): `PodUtils/podvm:crates/podvm-windows/src`
+  (12 files), its callers in `PodUtils/podvm:crates/podvm/src/windows`
+  and `PodUtils/podvm:crates/podvm/src/machine/ssh.rs`; the plan of
+  `docs/research/podvm/m6-imports.md`, section 7 and "Current files". The
+  files of `PodUtils/podvm:crates/podvm-windows`, `PodUtils/podvm:crates/podvm/src/windows`,
+  `Cargo.toml` and `Cargo.lock` are equal at `27ae993`, the commit of
+  `adoption/podvm/commit`, so the trial starts there.
+- Measured: the tests of the crate on this host; the trial of podvm at
+  `27ae993`; the static `podvm` for `x86_64-unknown-linux-musl`.
+- Not measured here: a real guest. This host has no `/dev/kvm` and no
+  QEMU; the test with a real emulator skips with its reason.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8: import, edition, adapt,
 tests, README with the adoption map of podvm, the trial of podvm.
 
+## Decision
+
+Calls of the import, each with its reason (`docs/decisions.md`, C36):
+
+- The cut: the crate takes the boot plan and the accelerator, the overlay
+  and the commit of `qemu-img`, the FAT16 mailbox, the `cmd.exe` agent and
+  the DOS flavour, QMP and its key table, the spawn in a process group and
+  the bounded stop, the per-run directory, and the bounded store of a base
+  image from a `Read`. podvm keeps the download (Q3 of the plan),
+  `base_cache` of both flavours and `cap_status` (docker's 0 to 124).
+- `Settings`: the root and the prefix of the per-run directories, `keep`,
+  the marker and the OEM name of the mailbox. The crate reads no
+  variable; podvm gives `XDG_RUNTIME_DIR`, `PODVM_WINDOWS_KEEP`,
+  `podvm-windows-`, `podvm` (`podvm-dos`) and `PODVM`.
+- Each failure is a `pod_core::Failure` at `Stage::Host`. A run at its
+  limit carries `Timeout { after, stop }` (`timeout_of`); a refusal of the
+  store carries `fetch::Refusal` (`fetch::refusal`).
+- `agent::nonce` takes `pod_core::entropy` and fails, not panics.
+- The FAT16 reader bounds a chain that the guest wrote.
+- `PodUtils/podvm:crates/podvm-windows` stays in podvm as the glue: each function keeps
+  its podvm signature and calls the crate with `settings()`.
+
 ## Prove
 
 ```sh
 cargo test -p pod-guest
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-guest
+sh scripts/adoption.sh podvm pod-guest
+cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe
+sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 ```
 
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194).
+
+## Done
+
+2026-11-09, partial. Commits `f09dcd4` (the import of 12 files of podvm
+at `6cd3442`, with `SOURCES`), `04193cc` (the adaptation and the tests),
+`add7a85` (README, C36), and the commit of this Done section (the trial,
+the record).
+
+- Imported: the 12 files of `PodUtils/podvm:crates/podvm-windows/src`. Of
+  `lib.rs` and `scratch.rs` a part stays in podvm (`base_cache`,
+  `cap_status`). The crate has 3,171 lines in 13 `.rs` files, each under
+  500.
+- Tests: 65 unit tests: 58 of the 60 of podvm with their names (the tests
+  of the caches and of docker's range stay in podvm); 7 new: the OEM name,
+  a chain that the guest broke (it panics on the bounds of podvm), a dry
+  random source, a key for each printable character, the name and mode of
+  a per-run directory, a line with no key, and a real emulator with QMP
+  (it skips here: no `qemu-system-x86_64`).
+- The trial of podvm at `27ae993` (`adoption/podvm/pod-guest.patch`: 21
+  files, 252 lines in, 3,411 out; it applies at `6cd3442` too):
+  `podvm-windows` keeps podvm's glue (`settings()`, the functions with
+  their podvm signatures, `RunGuard`, `base_cache`, `dos::base_cache`,
+  `dos::stage` with `podvm-dos`, `cap_status`) and re-exports the crate;
+  10 files leave podvm; `PodUtils/podvm:crates/podvm/src/windows` reads a timeout with
+  `timeout_of` and a failed nonce as a runtime error; each tag moves to
+  `v0.9.0`; the citations of PodUtils/podvm@T-1641 and the code map
+  follow. Each step of `sh scripts/adoption.sh podvm pod-guest` passed:
+  podvm-windows 4 tests, `podvm --bin` 251, clippy, rustfmt, the
+  runtime-state rows, podvm's record gate (305 entries), the toolchains,
+  and the static `podvm` for x86_64 musl.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  static, test), `check-sources.py` (12 files, 0 changes),
+  `secrets_like.py` on the patch (no line).
+
+Remains:
+
+- The release `v0.9.0`, then podvm's take of the patch (after the patch of
+  `pod-supervise`: the tag lines then move from `v0.8.0`), and its
+  `taken` line in `SOURCES`.
+- A run of a real guest under KVM or TCG in CI, where QEMU and a base
+  image are present.
 
 # T-062: The studies of the crates of the widened scope of podvm
 
