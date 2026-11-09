@@ -434,7 +434,7 @@ cap pair too (call C34). `SOURCES` names `hackerschoice/gsocket` at
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -466,6 +466,25 @@ Two new tests: `End::Cut` after a drop, `End::Clean` after
 ## Start condition
 
 T-086 is done.
+
+## Done
+
+2026-11-09, `8be5ec8`. `pod_gsr::End { Clean, Cut }` and `Stream::end()`;
+OpenSSL's shutdown state (`SSL_RECEIVED_SHUTDOWN`) decides the record, and
+`is_end` is split into `is_clean` and `is_cut`. `AsyncRead` gives the same
+results. `poll_shutdown` sends the close_notify at once and holds the
+transport open until the peer's end was read (call C35): with the shutdown
+of the prototype, two peers of this crate could only end with a cut.
+
+- `cargo test -p pod-gsr --test loopback`: 6 passed (the new
+  `a_drop_of_the_peer_ends_the_stream_as_a_cut` and
+  `a_shutdown_of_the_peer_ends_the_stream_as_clean`;
+  `the_end_of_the_peer_ends_the_stream` passes unchanged).
+- `cargo test -p pod-gsr --test unix_loopback`: 9 passed, with the same
+  two tests.
+- 30 runs of both test files: no failure.
+- The clean test on the shutdown of the prototype: fails at its time
+  limit of 10 s (the listener gets no end).
 
 # T-088: `pod-gsr`: the synchronous face (GitHub #26)
 
