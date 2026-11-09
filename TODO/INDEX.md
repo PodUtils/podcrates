@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**131 entries: 62 open, 3 partial, 0 blocked, 66 done.**
+**131 entries: 61 open, 3 partial, 0 blocked, 67 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 26 | 49 |
-| P2 | 29 | 3 | 0 | 32 | 64 |
+| P2 | 28 | 3 | 0 | 33 | 64 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 62 | 3 | 0 | 66 | 131 |
+| **All** | 61 | 3 | 0 | 67 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -138,7 +138,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-089](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27) |
 | [T-090](transport.md) | P2 | S | M1 | defect | done | `pod-services`: `ajam-relay` watches its seven hosts and the pool (GitHub #28) |
 | [T-091](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: `Way::lookup` refuses a name that is not DNS-safe (GitHub #29) |
-| [T-092](foundation.md) | P2 | M | M0 | chore | open | The live workflow `live.yml` (GitHub #30) |
+| [T-092](foundation.md) | P2 | M | M0 | chore | done | The live workflow `live.yml` (GitHub #30) |
 | [T-093](foundation.md) | P3 | S | M0 | docs | open | README: the state and the table of crates (GitHub #31) |
 | [T-094](foundation.md) | P3 | S | M0 | docs | open | `docs/design.md`: the repository table matches the tree (GitHub #32) |
 | [T-095](foundation.md) | P2 | S | M0 | chore | done | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |

@@ -993,7 +993,7 @@ the list of commits (gsocket has one: `2e01cd1`).
 **Milestone:** M0
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1034,6 +1034,19 @@ sh scripts/plant-each.sh
 
 A dispatched run of `live.yml` on `main` is green. Write its run id in
 `## Done`.
+
+## Done
+
+2026-11-09. Commits `b966f30` (the workflow, the proxy of names and the rule),
+`31fa6e3` (the plant). `.github/workflows/live.yml` runs each day at 01:53
+UTC and by dispatch, with `contents: read` and `timeout-minutes`, the
+actions pinned: `live_handshake` (5 tests), `live_doh` (4 tests, the fourth
+through `scripts/names-proxy.py`, a port of the mode `--take names` of the
+proxy of podssh) and `mptcp`. `scripts/check-workflows.py` checks that each
+workflow that `AGENTS.md` and `docs/*.md` name is a file; plant
+`workflows-missing`: caught. `docs/design.md` has the row. Dispatch on
+`main` at `48de06f`: run 42699700554, success (the three steps).
+
 
 # T-093: README: the state and the table of crates (GitHub #31)
 
