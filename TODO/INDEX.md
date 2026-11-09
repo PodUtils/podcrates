@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**131 entries: 63 open, 3 partial, 0 blocked, 65 done.**
+**131 entries: 62 open, 3 partial, 0 blocked, 66 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 26 | 49 |
-| P2 | 30 | 3 | 0 | 31 | 64 |
+| P2 | 29 | 3 | 0 | 32 | 64 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 63 | 3 | 0 | 65 | 131 |
+| **All** | 62 | 3 | 0 | 66 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -129,7 +129,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-080](podvm.md) | P0 | S | M6 | defect | done | `pod-hostprobe`: a failed system call reads as a success on a 32-bit target |
 | [T-081](foundation.md) | P2 | S | M1 | feature | done | `pod-core`: a `Failure` gives its I/O cause, and "not found" is not "unavailable" |
 | [T-082](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20) |
-| [T-083](transport.md) | P2 | M | M1 | feature | open | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
+| [T-083](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: the SOCKS5 datagram path (UDP ASSOCIATE and command 0x83) (GitHub #21) |
 | [T-084](foundation.md) | P3 | S | M0 | docs | open | The record of `SOURCES` names a git blob id (GitHub #22) |
 | [T-085](foundation.md) | P2 | S | M0 | defect | done | `check-sources.py`: the default branch of a source repository (GitHub #23) |
 | [T-086](roads.md) | P2 | L | M4 | feature | done | Import `pod-gsr` and `hackerschoice-gsr.toml` (GitHub #24) |

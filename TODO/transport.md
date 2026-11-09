@@ -1788,7 +1788,7 @@ The unit test covers `[2001:db8::1]`, `[2001:db8::1]:8443`,
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1826,6 +1826,27 @@ sh scripts/plant-each.sh
 Mock servers test the 0x83 round trip, the reply 0x07 followed by
 ASSOCIATE, a close after 0x83 (a `DialError`), and the byte layout with
 `Ok(None)` on end of stream. A plant flips the length prefix.
+
+## Done
+
+2026-11-09. Commits `176a8d9` (the module), `9995003` (the plant),
+`8a22c7f` (the bound of the test). `crates/pod-proxy/src/socks5/udp.rs`
+(204 lines) is `pod_proxy::udp`: `open_in_stream` (0x83), `associate` (UDP
+ASSOCIATE), `write_frame`, `read_frame`, `wrap`, `wrap_name`, and the
+constants of the commands. The reply 0x07 to 0x83 is
+`DialError::UdpRefused` (stage Proxy, class Unsupported); a refusal of a
+rule is a `ProxyRefused` (403), a close or a break of the protocol is a
+`ProxyProtocol`. `wrap_name` refuses a name of more than 255 bytes
+(`InvalidTarget`); podnet cut it. The caller dials the proxy and gives the
+stream. `tests/socks5_udp.rs` (8 tests): the 0x83 round trip, 0x07 then
+ASSOCIATE, a close after 0x83, the refusals, the bound address of each
+type, the bytes of the frame and of the header, `Ok(None)` at the end of
+the stream. Plant `proxy-udp-frame-length` (a length in little endian):
+caught. `SOURCES` of `pod-proxy` has a block of `PodUtils/podnet` at
+`29ba18a` for the file upstream.rs of `podnet-netns`: podnet freezes the
+file. The `pod-warp` row of `docs/design.md` names the boundary with
+T-020.
+
 
 # T-089: `pod-services`: `tailscale-derp` watches the hosts and holds the four missing servers (GitHub #27)
 
