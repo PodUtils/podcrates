@@ -1121,7 +1121,7 @@ The checker is part of the entry. The first command exits 0.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1155,6 +1155,22 @@ sh scripts/plant-each.sh
 ```
 
 The `static` job of `ci.yml` is green on the 12 targets.
+
+## Done
+
+2026-11-09. Commits `42fb7e2` (the probe and the checker), `a63b14b` (the
+plants). `examples/static-probe` turns on `pod-proxy/blocking` and calls
+`blocking::Dialer::new` and `proxy_at`. The new package
+`examples/static-probe-lean` builds `pod-core` and `pod-tls` (`pure`,
+`rsa`) with no default feature: its tree has no tokio.
+`scripts/check-probe.py` checks that each feature of each library crate is
+in a probe or in its allowance list (`fuzzing` of `pod-proxy` and
+`pod-gsr`, `screen` of `pod-testkit`), and that tokio is not in the tree of
+the lean probe. Plants `probe-feature-missing` and `probe-lean-tokio`:
+caught. `ci.yml` builds each probe in an own command (one build of both
+turns tokio on) and checks both. `docs/development.md` has the `-p` option.
+The `static` job on the 12 targets runs on the push of this commit.
+
 
 # T-101: `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35)
 

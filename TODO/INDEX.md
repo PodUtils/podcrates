@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**131 entries: 64 open, 3 partial, 0 blocked, 64 done.**
+**131 entries: 63 open, 3 partial, 0 blocked, 65 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 26 | 49 |
-| P2 | 31 | 3 | 0 | 30 | 64 |
+| P2 | 30 | 3 | 0 | 31 | 64 |
 | P3 | 10 | 0 | 0 | 6 | 16 |
-| **All** | 64 | 3 | 0 | 64 | 131 |
+| **All** | 63 | 3 | 0 | 65 | 131 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -141,7 +141,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-092](foundation.md) | P2 | M | M0 | chore | open | The live workflow `live.yml` (GitHub #30) |
 | [T-093](foundation.md) | P3 | S | M0 | docs | open | README: the state and the table of crates (GitHub #31) |
 | [T-094](foundation.md) | P3 | S | M0 | docs | open | `docs/design.md`: the repository table matches the tree (GitHub #32) |
-| [T-095](foundation.md) | P2 | S | M0 | chore | open | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |
+| [T-095](foundation.md) | P2 | S | M0 | chore | done | The static probe turns on `pod-proxy/blocking` and the builds with no tokio (GitHub #33) |
 | [T-096](transport.md) | P3 | S | M1 | docs | open | `pod-proxy` README: the six variables of `Rules::http_proxy_vars` (GitHub #34) |
 | [T-097](upkeep.md) | P3 | S | M5 | chore | done | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | done | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
