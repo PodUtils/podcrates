@@ -8,10 +8,10 @@ numbers. `TODO/RULES.md` gives the rules.
 | --- | --- | --- | --- |
 | #1 | crates.io: reserved pod-* names and trusted publishing | open (reopened for the names of podvm) | T-042, T-043, T-053 |
 | #2 | COORD-001: a test of the fallback channel between the sessions | closed (`d2bab56`) | T-051 |
-| #3 | COORD-002: the answer to podvm's COORD-001 (to podvm) | open | T-040, T-054, T-063 |
-| #4 | COORD-003: podvm can take pod-term now; the synchronous face is on main (to podvm) | open | T-040, T-063, T-066 |
+| #3 | COORD-002: the answer to podvm's COORD-001 (to podvm) | closed (answered; M6 goes on in T-056 to T-061) | T-040, T-054, T-063 |
+| #4 | COORD-003: podvm can take pod-term now; the synchronous face is on main (to podvm) | closed (podvm `75ed306`) | T-040, T-063, T-066 |
 | #5 | [gh action] requested: ci.yml and release.yml (v0.4.0) on main | closed (release 42207811181) | T-015, T-049, T-063 |
-| #6 | COORD-004: the Alpine netboot pins of podvm (to podvm) | open | T-066 |
+| #6 | COORD-004: the Alpine netboot pins of podvm (to podvm) | closed (podvm `5209adb`: the 3.22.6 archive) | T-066 |
 | #7 | COORD-005: podcrates v0.4.0 is released: the takes of podssh, podnet and podvm (to all) | closed (each took it) | T-040, T-015, T-049 |
 | #8 | [gh action] requested: the release v0.5.0 (ci.yml, nightly.yml, release.yml) | closed (release 42220040866) | T-067, T-068 |
 | #9 | COORD-006: take pod-proxy (feature blocking) (to podvm) | closed (podvm `b1138c2`) | T-040, T-069, T-070, T-071 |

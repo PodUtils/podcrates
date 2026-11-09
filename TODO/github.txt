@@ -7,10 +7,10 @@
 # list to GitHub (.github/workflows/record-issues.yml, each day).
 1 issue open
 2 issue closed
-3 issue open
-4 issue open
+3 issue closed
+4 issue closed
 5 issue closed
-6 issue open
+6 issue closed
 7 issue closed
 8 issue closed
 9 issue closed
