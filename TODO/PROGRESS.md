@@ -4,10 +4,12 @@
 
 ## State
 
-- Released: `v0.7.0` at `a13014d` (CI 42266116185, nightly 42295275787,
-  release 42623501324, the dry run of `publish.yml` 42623531702). Each
-  consumer is on `v0.7.0`: podssh `1fd68cc4`, podnet `86b99de`, podvm
-  `35df7f7`.
+- Released: `v0.8.0` at `f680113` (CI 42689735618, nightly 42689624747,
+  release 42694145849): `pod-supervise`, `pod-gsr`, `pod-broker`, the exit
+  codes of `pod-core`, the fixes of `pod-dns`, `pod-proxy`, `pod-services`
+  and of `pod-hostprobe` on 32-bit; COORD-017 (GitHub #41) hands it to each
+  consumer. Each consumer is on `v0.7.0` until it takes it. Open: T-131
+  (`pod-gsr` on Windows ARM64).
 - M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is partial:
   its trial of podvm passed; the release and the take of podvm remain.
   `pod-guest` (T-061) is partial: its trial of podvm passed; the release
