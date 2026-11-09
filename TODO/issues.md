@@ -25,16 +25,16 @@ numbers. `TODO/RULES.md` gives the rules.
 | #17 | COORD-012: take pod-hostprobe (to podvm) | closed (podvm `8899c2e`) | T-055, T-040, T-081 |
 | #18 | [gh action] requested: the release v0.7.0 (ci.yml, nightly.yml, release.yml) | closed (replaced by #19) | T-077, T-081 |
 | #19 | [gh action] requested: nightly.yml and release.yml (v0.7.0) from a13014d | closed (the session dispatched release 42623501324) | T-077, T-081 |
-| #20 | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 | open | T-082 |
+| #20 | `pod-proxy`: the `Host` header of an IPv6 literal on port 443 | closed (T-082 `394d1e6`) | T-082 |
 | #21 | `pod-proxy`: no SOCKS5 UDP path | open | T-083 |
 | #22 | The record of `SOURCES` names a git blob id, not SHA-256 | open | T-084 |
 | #23 | `check-sources.py` assumes the branch `main` | open | T-085 |
 | #24 | Import `pod-gsr` and its data file | open | T-086 |
 | #25 | `pod_gsr::Stream` cuts a record as a clean end | open | T-087 |
 | #26 | `pod-gsr` synchronous face | open | T-088 |
-| #27 | `tailscale-derp` watch checks only `/Regions` | open | T-089 |
-| #28 | `ajam-relay` hosts have no watch | open | T-090 |
-| #29 | `Way::lookup` skips the name check | open | T-091 |
+| #27 | `tailscale-derp` watch checks only `/Regions` | closed (T-089 `fa09d1e`) | T-089 |
+| #28 | `ajam-relay` hosts have no watch | closed (T-090 `09cfb80`) | T-090 |
+| #29 | `Way::lookup` skips the name check | closed (T-091 `e81f5f2`) | T-091 |
 | #30 | No `live.yml` | open | T-092 |
 | #31 | README state and crate table are stale | open | T-093 |
 | #32 | `docs/design.md` repository table is stale | open | T-094 |
