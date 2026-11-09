@@ -22,7 +22,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tokio::time::timeout;
 
-use pod_gsr::{Role, Settings, open};
+use pod_gsr::{End, Role, Settings, open};
 
 const LISTEN: u8 = 0x01;
 const CONNECT: u8 = 0x02;
@@ -353,6 +353,74 @@ async fn a_shutdown_before_the_peer_ends_does_not_end_the_session() {
     let mut bytes = [0u8; 14];
     listener.read_exact(&mut bytes).await.expect("the bytes arrive");
     assert_eq!(&bytes, b"the last words");
+
+    relay.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_drop_of_the_peer_ends_the_stream_as_a_cut() {
+    // The connector writes and drops its transport with no shutdown: the
+    // listener reads to the end, and the end is a cut, not a clean end.
+    let (path, relay) = serve("cut", Policy::MatchAddress).await;
+    let settings = settings_at(&path);
+    let secret = "pod-gsr-cut";
+    let listener = listen(&settings, secret);
+    let mut connector = connect(&settings, secret).await.expect("a connector");
+    let mut listener = listener.await.expect("the task").expect("a listener");
+
+    let sending = tokio::spawn(async move {
+        connector.write_all(&vec![7u8; 1 << 20]).await.expect("the payload");
+        drop(connector);
+    });
+    let mut received = Vec::new();
+    timeout(Duration::from_secs(10), listener.read_to_end(&mut received))
+        .await
+        .expect("an end")
+        .expect("a read of 0 bytes at the end");
+    sending.await.expect("the sender");
+    assert_eq!(listener.end(), Some(End::Cut), "{} bytes before the cut", received.len());
+    assert!(listener.peer_finished());
+
+    relay.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_shutdown_of_the_peer_ends_the_stream_as_clean() {
+    // The connector writes and shuts its side down: its close_notify goes
+    // out and its transport stays open, so the listener reads each byte and
+    // a clean end. Then the listener shuts down, and the connector reads a
+    // clean end too.
+    let (path, relay) = serve("clean", Policy::MatchAddress).await;
+    let settings = settings_at(&path);
+    let secret = "pod-gsr-clean";
+    let listener = listen(&settings, secret);
+    let mut connector = connect(&settings, secret).await.expect("a connector");
+    let mut listener = listener.await.expect("the task").expect("a listener");
+
+    let payload: Vec<u8> = (0u8..=255).cycle().take(1 << 20).collect();
+    let (written, read) = tokio::join!(
+        async {
+            connector.write_all(&payload).await?;
+            AsyncWriteExt::shutdown(&mut connector).await
+        },
+        async {
+            let mut received = Vec::new();
+            timeout(Duration::from_secs(10), listener.read_to_end(&mut received)).await.map(|r| r.map(|_| received))
+        },
+    );
+    written.expect("the payload and the shutdown");
+    let received = read.expect("an end").expect("a read of 0 bytes at the end");
+    assert_eq!(Sha256::digest(&received), Sha256::digest(&payload));
+    assert_eq!(listener.end(), Some(End::Clean));
+    assert_eq!(connector.end(), None, "the listener has not finished");
+
+    AsyncWriteExt::shutdown(&mut listener).await.expect("the shutdown after the peer's end");
+    let mut rest = Vec::new();
+    timeout(Duration::from_secs(10), connector.read_to_end(&mut rest)).await.expect("an end").expect("a read");
+    assert!(rest.is_empty());
+    assert_eq!(connector.end(), Some(End::Clean));
 
     relay.abort();
     let _ = std::fs::remove_file(&path);

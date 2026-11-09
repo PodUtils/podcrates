@@ -916,6 +916,7 @@ dependencies = [
 name = "pod-gsr"
 version = "0.8.0"
 dependencies = [
+ "foreign-types",
  "openssl",
  "openssl-sys",
  "pod-core",

@@ -38,7 +38,8 @@ let mut stream = pod_gsr::open(&*dialer, &settings, Role::Listen, secret, &mut e
 | `Settings` fields | `domain`, `port`, `sharded`, `shards`, `addr_key`, `srp_key`, `password_chars`, `srp_user`, `srp_group`, `cipher`, `secret_prefix`, `secret_suffix`, `secret_max`, `version`, `ping`, `idle` |
 | `MIN_PING` | the longest interval between two `PING` messages (5 s) |
 | `Identity`, `ADDR_LEN` | the address, the SRP password and the shard of a secret; `Debug` shows the address alone |
-| `Stream` | `AsyncRead` and `AsyncWrite`; `peer_finished` says whether the peer's end was read (feature `async`) |
+| `Stream` | `AsyncRead` and `AsyncWrite`; `end()` says how the peer's side ended, `peer_finished()` whether it ended (feature `async`) |
+| `End` | `Clean`: the peer sent close_notify; `Cut`: the transport ended with no close_notify |
 | `Version` | the version of the control protocol |
 | `check_tls(settings)` | build the SRP context of each side with no connection, and give the version of the linked OpenSSL: a self-test of a binary |
 
@@ -52,7 +53,7 @@ wraps the call in its own timeout.
 | Feature | What |
 | --- | --- |
 | `async` (default) | `open` and `Stream`, on tokio |
-| none | the core with no tokio: `Identity`, `Settings`, `Role`, `Version`, `check_tls` |
+| none | the core with no tokio: `Identity`, `Settings`, `Role`, `End`, `Version`, `check_tls` |
 | `fuzzing` | `wire` is public, with `wire::fuzz_messages` for the fuzz target `gsr_message` (`fuzz/`); the `--cfg fuzzing` of cargo-fuzz does the same. No consumer turns it on |
 
 ## Settings
@@ -117,7 +118,16 @@ OpenSSL reads is wiped when the session drops.
 
 ## End of stream and truncation
 
-Three behaviours here are not obvious. A peer that gets them wrong reports
+A read of 0 bytes is the end of the peer's side, and `Stream::end()` then
+says how it ended: `End::Clean` when the peer sent close_notify (its
+shutdown), `End::Cut` when the transport ended with no close_notify (a
+peer that dropped its stream, the relay, or a hop between them). The
+crate does not decide what a cut means: a caller that counts its bytes, or
+that needs the peer's close_notify, builds its own failure from
+`End::Cut`. OpenSSL's shutdown state decides the record: a close_notify
+read sets `SSL_RECEIVED_SHUTDOWN`.
+
+Four behaviours here are not obvious. A peer that gets them wrong reports
 a complete transfer with a short body.
 
 * **A close_notify is read late.** OpenSSL can report the end of the
@@ -126,8 +136,12 @@ a complete transfer with a short body.
   the end.
 * **The first side to finish must not close the transport.** The relay
   ends the session when one end closes its connection, while the peer may
-  still have bytes to deliver. `poll_shutdown` acts only once
-  `peer_finished` is true.
+  still have bytes to deliver. `poll_shutdown` sends the close_notify at
+  once, as `SSL_shutdown` of gsocket does (it is a record that the relay
+  carries), and closes the transport only once `peer_finished` is true. A
+  later `poll_shutdown` closes it. After a cut, no close_notify goes out.
+* **A shutdown ends the writes.** After `poll_shutdown`, a write fails;
+  the reads go on until the peer's end.
 * **A quiet connection is not a finished one.** The relay can go seconds
   with no byte in the middle of a transfer, so a caller waits on a quiet
   socket and does not take it as an end.
@@ -141,14 +155,16 @@ a complete transfer with a short body.
   secret, the facts of the data file, the configuration failures (no
   endpoint, no facts, a shard count of 0, 27 or 255), the SRP context of
   each side and `check_tls`.
-* `tests/loopback.rs` (4, `need_loopback!`): a stand-in relay on the
+* `tests/loopback.rs` (6, `need_loopback!`): a stand-in relay on the
   loopback pairs a listener and a connector, and 1 MiB crosses each way;
   different secrets fail the handshake (`Tls`, `Refused`); a connector with
-  no listener is unavailable; the end of the peer ends the stream.
-* `tests/unix_loopback.rs` (7): the same stand-in over an `AF_UNIX`
+  no listener is unavailable; the end of the peer ends the stream; a drop
+  of the peer is `End::Cut`; a shutdown of the peer is `End::Clean` with
+  each byte, on both sides.
+* `tests/unix_loopback.rs` (9): the same stand-in over an `AF_UNIX`
   listener, for a host that denies `bind(AF_INET)`: the byte path, the
   pairing, a counted read of 1 MiB through a close with no close_notify,
-  and a shutdown before the peer's end.
+  a shutdown before the peer's end, and the two ends of `End`.
 * `tests/live.rs` (1, ignored): 1 MiB through the real relay, with the
   proxy of the environment:
   `cargo test -p pod-gsr --test live -- --ignored`.
@@ -167,7 +183,7 @@ The prototype (`pod-gsr` 0.3.0 of `pod-gsr.zip`) against this crate:
 | `wire` (messages, `Reader`) | [x] the same; public under `fuzzing`, with the driver of the fuzz target |
 | `open`, `Role`, the wait, the fatal codes, the words of the OpenSSL stack | [x] the same |
 | `srp` (the context of each side, TLS 1.2) | [x] the same; the password copy is wiped; `check_tls` |
-| `Stream` (the late close_notify, the shutdown that waits, `peer_finished`) | [x] the same |
+| `Stream` (the late close_notify, the shutdown that waits, `peer_finished`) | [x] the same; `end()` records `End::Clean` or `End::Cut` (T-087, GitHub #25); the shutdown sends its close_notify at once and holds the transport open; a full read buffer or a buffer with bytes in it is not an end |
 | the tests: 21 unit, 4 TCP, 7 over `AF_UNIX`, 1 live | [x] each test with its name, and 4 new unit tests |
 
 ## Adoption map

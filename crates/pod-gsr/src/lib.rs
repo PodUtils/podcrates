@@ -17,7 +17,7 @@
 //! builds OpenSSL from source, so a binary links it static (call C34).
 //!
 //! With no feature, the crate is the core with no tokio: [`Identity`],
-//! [`Settings`], [`Role`], [`Version`] and [`check_tls`].
+//! [`Settings`], [`Role`], [`End`], [`Version`] and [`check_tls`].
 //!
 //! The crate reads no variable, keeps no process state and prints nothing.
 //! Each failure is a [`pod_core::Failure`] with its stage and its class.
@@ -53,4 +53,17 @@ pub enum Role {
     Listen,
     /// Connect to a peer that registered the address.
     Connect,
+}
+
+/// How the peer's side of a stream ended. A read that gives 0 bytes is the
+/// end in both cases; this record tells them apart, and the caller decides
+/// what a cut means for its transfer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum End {
+    /// The peer sent close_notify: it finished its writes.
+    Clean,
+    /// The transport ended with no close_notify: the peer, the relay or a
+    /// hop between them cut the connection. Bytes that the peer sent after
+    /// the last record that arrived are lost.
+    Cut,
 }

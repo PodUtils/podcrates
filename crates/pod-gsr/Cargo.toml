@@ -14,7 +14,7 @@ async = ["rt"]
 # The control handshake and the TLS stream on tokio. The face `async` turns
 # it on. With no feature, the crate is the core with no tokio: the identity,
 # the settings, the messages and the SRP context.
-rt = ["dep:tokio", "dep:tokio-openssl", "pod-core/async"]
+rt = ["dep:tokio", "dep:tokio-openssl", "dep:foreign-types", "pod-core/async"]
 # The reader of the relay's messages (`wire::Reader`) is public, for the
 # fuzz target `gsr_message` of fuzz/. The `--cfg fuzzing` of cargo-fuzz also
 # makes it public. No consumer turns this on.
@@ -34,6 +34,9 @@ openssl-sys = { workspace = true }
 # The control messages, the wait for a peer and the TLS stream.
 tokio = { workspace = true, optional = true, features = ["io-util", "time"] }
 tokio-openssl = { workspace = true, optional = true }
+# The shutdown state of the TLS object (SSL_get_shutdown): a close_notify
+# or a cut at the end of a stream.
+foreign-types = { workspace = true, optional = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }

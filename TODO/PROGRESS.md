@@ -60,7 +60,7 @@ first; the asks of cfb and githome (M8) wait.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C34), and the work goes on with it until the owner rules otherwise.
+C35), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

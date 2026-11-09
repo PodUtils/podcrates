@@ -17,7 +17,7 @@ use crate::Role;
 use crate::identity::Identity;
 use crate::settings::Settings;
 use crate::srp::{Side, Srp};
-use crate::stream::Stream;
+use crate::stream::{Stream, Transport};
 use crate::wire::{self, Message, Reader};
 
 /// Open a tunnel through the relay.
@@ -57,7 +57,7 @@ pub async fn open(
     let side = if server { Side::Server } else { Side::Client };
     let srp = Srp::new(settings, &identity, side)?;
     let ssl = srp.ssl()?;
-    let mut stream = tokio_openssl::SslStream::new(ssl, io)
+    let mut stream = tokio_openssl::SslStream::new(ssl, Transport::new(io))
         .map_err(|e| Failure::new(Stage::Tls, Class::Config, format!("the TLS session of the relay: {e}")))?;
     let result = match side {
         Side::Server => Pin::new(&mut stream).accept().await,
