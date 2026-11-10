@@ -14,8 +14,8 @@ use std::io::Read;
 
 use pod_hostprobe::sys;
 
-use crate::error::{self, Result, cbuf};
-use crate::safety::{self, Dir};
+use crate::error::{self, Result, cbuf, refuse};
+use crate::safety::{self, Dir, Refusal};
 use crate::whiteout::{self, Kind};
 
 /// One thing a layer says to delete before it writes.
@@ -28,8 +28,15 @@ pub enum Op {
     Opaque { dir: Vec<String> },
 }
 
-/// First pass: read the layer and collect its whiteouts, extracting nothing.
-pub fn collect(stream: &mut dyn Read) -> Result<Vec<Op>> {
+/// First pass: read the layer and collect its whiteouts, and extract nothing.
+/// `layer` names the layer in a refusal.
+///
+/// The path of a whiteout gets the lexical check of each other entry
+/// ([`safety::components`]), and its name must be a name: `.wh..` and
+/// `.wh...` name `.` and `..`. A whiteout of `..` at the root of a layer
+/// names the directory above the destination, and its removal would go
+/// there. Such a whiteout refuses the layer, as an entry does.
+pub fn collect(layer: &str, stream: &mut dyn Read) -> Result<Vec<Op>> {
     let mut ops = Vec::new();
     let mut ar = tar::Archive::new(stream);
     for entry in ar.entries().map_err(error::io)? {
@@ -37,15 +44,23 @@ pub fn collect(stream: &mut dyn Read) -> Result<Vec<Op>> {
         let path = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
         // The basename, not a path glob: a glob does not find a whiteout at
         // the root of a layer.
-        match whiteout::classify(&path) {
+        let kind = whiteout::classify(&path);
+        if kind == Kind::Normal {
+            continue;
+        }
+        let mut dir: Vec<String> = match safety::components(&path) {
+            Ok(parts) => parts.iter().map(|s| (*s).to_string()).collect(),
+            Err(r) => return Err(refuse(layer, &path, r)),
+        };
+        // The marker itself.
+        dir.pop();
+        match kind {
             Kind::Normal => {}
-            Kind::Remove(name) => ops.push(Op::Remove {
-                dir: whiteout::dirname_parts(&path).iter().map(|s| (*s).to_string()).collect(),
-                name,
-            }),
-            Kind::Opaque => {
-                ops.push(Op::Opaque { dir: whiteout::dirname_parts(&path).iter().map(|s| (*s).to_string()).collect() })
+            Kind::Remove(name) if name == "." || name == ".." => {
+                return Err(refuse(layer, &path, Refusal::Component(name)));
             }
+            Kind::Remove(name) => ops.push(Op::Remove { dir, name }),
+            Kind::Opaque => ops.push(Op::Opaque { dir }),
         }
     }
     Ok(ops)

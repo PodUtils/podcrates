@@ -129,7 +129,7 @@ fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
     let mut sc = Sidecar::create(&side).map_err(io)?;
     let mut removed = 0;
     for (n, l) in layers.iter().enumerate() {
-        let ops = remove::collect(&mut Cursor::new(l.clone()))?;
+        let ops = remove::collect(&format!("sha256:layer{n}"), &mut Cursor::new(l.clone()))?;
         removed += remove::apply(&root, &ops)?;
         apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
     }
@@ -263,6 +263,35 @@ fn a_whiteout_at_the_layer_root_removes_its_target() {
     assert!(!s.path().join("d/nested").exists());
     // The marker itself is never made.
     assert!(!s.path().join(".wh.atroot").exists());
+}
+
+/// The name of the whiteout `.wh...` is `..`: at the root of a layer it names
+/// the directory above the destination. The crate refuses the layer, and
+/// removes nothing outside the destination.
+#[test]
+fn a_whiteout_of_dotdot_removes_nothing_outside_the_destination() {
+    let s = Scratch::new("whdotdot");
+    let dest = s.path().join("root");
+    std::fs::create_dir_all(&dest).unwrap();
+    std::fs::write(s.path().join("keep"), b"k").unwrap();
+    let r = run(&dest, &[layer(&[E::Raw(".wh...", b"")])]);
+    assert!(s.path().join("keep").exists(), "a whiteout removed a file outside the destination");
+    let r = refusal_of(r);
+    assert_eq!(r.entry, ".wh...");
+}
+
+/// A whiteout under `..` gets the lexical check of each other entry. With
+/// the walk (a kernel with no `openat2`) it would reach the directory above
+/// the destination.
+#[test]
+fn a_whiteout_under_dotdot_is_refused() {
+    let s = Scratch::new("whup");
+    let dest = s.path().join("root");
+    std::fs::create_dir_all(&dest).unwrap();
+    std::fs::write(s.path().join("keep"), b"k").unwrap();
+    let r = refusal_of(run(&dest, &[layer(&[E::Raw("../.wh.keep", b"")])]));
+    assert_eq!(r.entry, "../.wh.keep");
+    assert!(s.path().join("keep").exists(), "a whiteout removed a file outside the destination");
 }
 
 /// `.wh..wh..opq` removes the directory's CONTENTS and keeps the directory.

@@ -242,7 +242,7 @@ fn extract_layers(
         // The second pass compares again, so a change between the two reads
         // is also found (the caller removes the partial tree).
         let (mut first, hash1) = layer::open_hashed(&l.blob, *c)?;
-        let ops = remove::collect(&mut first)?;
+        let ops = remove::collect(&l.digest, &mut first)?;
         drop(first);
         verified(&hash1, &l.digest, &l.blob)?;
         total.removed += remove::apply(root, &ops)?;
