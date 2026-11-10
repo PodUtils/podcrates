@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**166 entries: 61 open, 2 partial, 0 blocked, 103 done.**
+**166 entries: 60 open, 2 partial, 0 blocked, 104 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 18 | 1 | 0 | 36 | 55 |
 | P2 | 29 | 1 | 0 | 50 | 80 |
-| P3 | 14 | 0 | 0 | 15 | 29 |
-| **All** | 61 | 2 | 0 | 103 | 166 |
+| P3 | 13 | 0 | 0 | 16 | 29 |
+| **All** | 60 | 2 | 0 | 104 | 166 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -201,7 +201,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-152](transport.md) | P3 | M | M1 | feature | open | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |
 | [T-153](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182) |
 | [T-154](foundation.md) | P2 | S | M5 | defect | done | Timed tests under an emulator: one bound of the test kit and a sweep |
-| [T-155](podvm.md) | P3 | S | M6 | feature | open | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
+| [T-155](podvm.md) | P3 | S | M6 | feature | done | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
 | [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
 | [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |

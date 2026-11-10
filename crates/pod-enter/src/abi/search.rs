@@ -177,6 +177,13 @@ pub trait GuestRoot {
     fn above_mount(&self, _parts: &[String]) -> bool {
         false
     }
+
+    /// The volume that serves the guest path, as `HOST:GUEST`, for a
+    /// refusal that names it. `None` where the root file system serves
+    /// the path.
+    fn volume_label(&self, _guest: &str) -> Option<String> {
+        None
+    }
 }
 
 impl GuestRoot for Path {

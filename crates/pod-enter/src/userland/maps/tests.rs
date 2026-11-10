@@ -38,6 +38,7 @@ fn s(p: &Path) -> String {
 /// at `/data/sub`, a longer guest prefix inside the first volume.
 fn maps(d: &Path) -> Maps {
     Maps::new(
+        &N,
         &s(&d.join("rootfs")),
         &[vol(&s(&d.join("vol")), "/data/"), vol(&s(&d.join("vol/sub/inner")), "/data/sub")],
     )
@@ -48,7 +49,7 @@ fn maps(d: &Path) -> Maps {
 /// in its normal form; the volume table has no root pair.
 #[test]
 fn the_table_holds_the_root_pair_then_each_volume() {
-    let m = Maps::new("/store/rootfs/", &[vol("/host/dir/", "/data/"), vol("/", "/hostroot")]).unwrap();
+    let m = Maps::new(&N, "/store/rootfs/", &[vol("/host/dir/", "/data/"), vol("/", "/hostroot")]).unwrap();
     assert_eq!(userland_maps_table(&N, &m).as_deref(), Ok("/:/store/rootfs,/data:/host/dir,/hostroot:/"));
     assert_eq!(userland_volume_table(&N, &m).as_deref(), Ok("/data:/host/dir,/hostroot:/"));
     assert_eq!(userland_maps_table(&N, &Maps::of_root("/store/rootfs")).as_deref(), Ok("/:/store/rootfs"));
@@ -60,7 +61,7 @@ fn the_table_holds_the_root_pair_then_each_volume() {
 #[test]
 fn each_volume_side_is_refused_by_its_own_name() {
     let long = format!("/{}", "h".repeat(MAX_MAP_SIDE));
-    let table = |v: Volume| userland_maps_table(&N, &Maps::new("/r", &[v]).unwrap()).unwrap_err();
+    let table = |v: Volume| userland_maps_table(&N, &Maps::new(&N, "/r", &[v]).unwrap()).unwrap_err();
     let e = table(vol(&long, "/data"));
     assert!(e.contains("the host side is 4097 bytes, over the 4096-byte table side"), "{e}");
     assert!(e.contains("the volume /hhh") && e.contains("...:/data"), "{e}");
@@ -71,18 +72,41 @@ fn each_volume_side_is_refused_by_its_own_name() {
     assert!(e.contains("the host side \"/a,b\" cannot be spelled"), "{e}");
     let e = table(vol("/a", "/d:e"));
     assert!(e.contains("the guest side \"/d:e\" cannot be spelled"), "{e}");
+    let many: Vec<Volume> = (0..MAX_MAP_PAIRS - 1).map(|i| vol("/a", &format!("/v{i}"))).collect();
+    assert!(userland_maps_table(&N, &Maps::new(&N, "/r", &many).unwrap()).is_ok());
+}
+
+/// A count of volumes over `MAX_MAP_PAIRS - 1` is refused by `Maps::new`,
+/// by the name of the table variable of the caller.
+#[test]
+fn a_count_over_the_bound_is_refused_by_name() {
     let many: Vec<Volume> = (0..MAX_MAP_PAIRS).map(|i| vol("/a", &format!("/v{i}"))).collect();
-    let e = userland_maps_table(&N, &Maps::new("/r", &many).unwrap()).unwrap_err();
-    assert!(e.contains("33 pairs, over the 32"), "{e}");
-    assert!(userland_maps_table(&N, &Maps::new("/r", &many[1..]).unwrap()).is_ok());
-    assert!(userland_volume_table(&N, &Maps::new("/r", &many).unwrap()).is_ok());
+    let e = Maps::new(&N, "/r", &many).unwrap_err();
+    assert!(e.contains("32 volumes, over the 31 that one POD_ENTER_MAPS table holds"), "{e}");
+    let own = Names { maps: "PODVM_MAPS", ..Names::DEFAULT };
+    assert!(Maps::new(&own, "/r", &many).unwrap_err().contains("PODVM_MAPS"));
+    assert!(Maps::new(&N, "/r", &many[1..]).is_ok());
+}
+
+/// A guest side that is a reserved path of the caller, or under one, is
+/// refused by name; a sibling that only shares the spelling passes, and a
+/// caller with no reserved path keeps the old behaviour.
+#[test]
+fn a_reserved_guest_path_is_refused_by_name() {
+    let own = Names { product: "podvm", reserved: &["/proc", "/.podvm"], ..Names::DEFAULT };
+    for guest in ["/proc", "/proc/", "/proc/sys", "/.podvm", "/.podvm/x/y"] {
+        let e = Maps::new(&own, "/r", &[vol("/h", guest)]).unwrap_err();
+        assert!(e.contains("the volume /h:/") && e.contains("podvm never rewrites a path under /"), "{guest}: {e}");
+    }
+    assert!(Maps::new(&own, "/r", &[vol("/h", "/procfs"), vol("/h", "/.podvmx"), vol("/h", "/data/proc")]).is_ok());
+    assert!(Maps::new(&N, "/r", &[vol("/h", "/proc")]).is_ok());
 }
 
 /// A volume that no table could serve is refused when the table is made.
 #[test]
 fn a_volume_the_resolver_cannot_match_is_refused() {
     let refused = |host: &str, guest: &str, want: &str| {
-        let e = Maps::new("/r", &[vol(host, guest)]).unwrap_err();
+        let e = Maps::new(&N, "/r", &[vol(host, guest)]).unwrap_err();
         assert!(e.contains(want), "{host}:{guest}: {e}");
     };
     refused("/a", "data", "the guest side must be an absolute path");
@@ -92,7 +116,7 @@ fn a_volume_the_resolver_cannot_match_is_refused() {
     refused("/a", "/./y", "normal path");
     refused("a", "/data", "the host side must be an absolute path");
     refused("/a\0", "/data", "NUL");
-    let e = Maps::new("/r", &[vol("/a", "/data"), vol("/b", "/data/")]).unwrap_err();
+    let e = Maps::new(&N, "/r", &[vol("/a", "/data"), vol("/b", "/data/")]).unwrap_err();
     assert!(e.contains("a second volume at the guest path /data"), "{e}");
 }
 

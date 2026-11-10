@@ -1935,7 +1935,7 @@ qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1964,6 +1964,28 @@ qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
 ```sh
 cargo test -p pod-enter
 ```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-155. Read: PodUtils/podvm#226
+and podvm `lib.rs` (`volume_maps`, `NEVER_MAPPED`, `MAX_VOLUMES`) at
+`origin/main`.
+
+- `GuestRoot::volume_label(guest)` (default `None`; `Maps` gives the
+  volume `HOST:GUEST` of the lexical guest path). `check_workdir` and the
+  entry with no chroot refuse a missing directory inside a volume as "in
+  the volume HOST:GUEST is not a directory in the volume", and a missing
+  directory elsewhere as before (the image). Test:
+  `a_missing_workdir_in_a_volume_names_the_volume`.
+- `Names::reserved` (`&'static [&'static str]`, default empty).
+  `Maps::new(&names, rootfs, &volumes)` refuses a guest side that is a
+  reserved path or is under one, by name, and a count over
+  `MAX_MAP_PAIRS - 1` by the name of `names.maps`. Tests:
+  `a_reserved_guest_path_is_refused_by_name`,
+  `a_count_over_the_bound_is_refused_by_name`.
+- `Maps::new` takes `&Names` first (API change). The README API section
+  and the podvm adoption map are updated: podvm drops `volume_maps`,
+  `MAX_VOLUMES` and `NEVER_MAPPED`.
 
 # T-162: `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227)
 

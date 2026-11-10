@@ -54,14 +54,26 @@ impl Maps {
 
     /// The root pair and the volume pairs, in the order given.
     ///
-    /// A volume is refused by name where its guest side has a NUL, is not
+    /// More than `MAX_MAP_PAIRS - 1` volumes are refused: the root pair
+    /// takes one pair of the table. A volume whose guest side is a
+    /// reserved path of `names` or is under one is refused by name: the
+    /// interposer never rewrites such a path, so the pair would never
+    /// match. A volume is refused by name where its guest side has a NUL, is not
     /// absolute, is `/`, has a `.`, `..` or empty component, or repeats the
     /// guest side of another volume; and where its host side has a NUL or
     /// is not absolute. The guest side loses a trailing `/`, as the host
     /// side does unless it is `/`. The spelling of each side in the
     /// variable is checked when the table is spelled
     /// ([`userland_maps_table`]).
-    pub fn new(rootfs: &str, volumes: &[Volume]) -> Result<Maps, String> {
+    pub fn new(names: &Names, rootfs: &str, volumes: &[Volume]) -> Result<Maps, String> {
+        if volumes.len() > MAX_MAP_PAIRS - 1 {
+            return Err(format!(
+                "{} volumes, over the {} that one {} table holds beside the root pair",
+                volumes.len(),
+                MAX_MAP_PAIRS - 1,
+                names.maps
+            ));
+        }
         let mut maps = Maps::of_root(rootfs);
         for v in volumes {
             let at = format!("the volume {}", label(v));
@@ -80,6 +92,12 @@ impl Maps {
                 return Err(format!(
                     "{at}: the guest side must be a normal path, with no `.`, `..` or empty \
                      component, because the interposer matches the normal form"
+                ));
+            }
+            if let Some(r) = names.reserved.iter().find(|r| under(guest, r)) {
+                return Err(format!(
+                    "{at}: {} never rewrites a path under {r}, so this volume would serve nothing",
+                    names.product
                 ));
             }
             if maps.parts.contains(&parts) {
@@ -122,6 +140,20 @@ impl Maps {
         self.parts.iter().enumerate().filter(|(_, g)| parts.starts_with(g)).max_by_key(|(_, g)| g.len()).map(|(i, _)| i)
     }
 
+    /// The volume that serves the guest path `guest`, as `HOST:GUEST`, for
+    /// a message. The path is read lexically: `.` and `..` are folded.
+    fn volume_label_at(&self, guest: &str) -> Option<String> {
+        let mut parts: Vec<&str> = Vec::new();
+        for c in guest.split('/').filter(|c| !c.is_empty() && *c != ".") {
+            if c == ".." {
+                parts.pop();
+            } else {
+                parts.push(c);
+            }
+        }
+        self.volume_at(&parts.join("/")).map(label)
+    }
+
     /// True where a volume serves the resolved guest path `parts`.
     pub(crate) fn in_volume(&self, parts: &[String]) -> bool {
         self.pick(parts).is_some()
@@ -147,6 +179,16 @@ impl GuestRoot for Maps {
     fn above_mount(&self, parts: &[String]) -> bool {
         self.parts.iter().any(|g| g.len() > parts.len() && g.starts_with(parts))
     }
+
+    fn volume_label(&self, guest: &str) -> Option<String> {
+        self.volume_label_at(guest)
+    }
+}
+
+/// True where `p` is `prefix` or a path under it.
+fn under(p: &str, prefix: &str) -> bool {
+    let prefix = prefix.trim_end_matches('/');
+    p == prefix || p.strip_prefix(prefix).is_some_and(|r| r.starts_with('/'))
 }
 
 /// A volume as `HOST:GUEST` for a message, each side cut to 64 bytes.

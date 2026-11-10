@@ -186,11 +186,16 @@ pub(crate) fn workdir_kind<G: GuestRoot + ?Sized>(root: &G, workdir: &str) -> st
 /// where the caller knows it (`for image "alpine"`), the root file system
 /// where only it is known. One builder, so the check before the fork and
 /// [`check_workdir`] say the same.
-pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind) -> Error {
-    let why = match kind {
-        ResolveKind::Absent => "is not a directory in the image",
-        ResolveKind::Escapes => "escapes the image",
-        ResolveKind::Loop => "has too many levels of symlinks",
+///
+/// `volume` is the volume (`HOST:GUEST`) that holds the path, where the
+/// caller knows it: a missing directory then names the volume, not the
+/// image.
+pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind, volume: Option<&str>) -> Error {
+    let (context, why) = match (kind, volume) {
+        (ResolveKind::Absent, Some(v)) => (format!("in the volume {v}"), "is not a directory in the volume"),
+        (ResolveKind::Absent, None) => (context.to_string(), "is not a directory in the image"),
+        (ResolveKind::Escapes, _) => (context.to_string(), "escapes the image"),
+        (ResolveKind::Loop, _) => (context.to_string(), "has too many levels of symlinks"),
     };
     Error::runtime(
         Class::NotFound,
@@ -205,8 +210,8 @@ pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind) ->
 /// Resolve `workdir` under `root`: the root file system, or the table of a
 /// run with no chroot ([`crate::userland::Maps`]), where a working
 /// directory in a volume is the directory of the volume. Refuse, with the
-/// path and the image,
-/// a directory that is missing, escapes, loops or is a file: docker
+/// path and the image (or, for a directory inside a volume, the volume as
+/// `HOST:GUEST`), a directory that is missing, escapes, loops or is a file: docker
 /// creates the directory, and this entry refuses and says so. Empty and
 /// `/` always pass; `/tmp` passes where the image holds it.
 ///
@@ -217,7 +222,9 @@ pub fn check_workdir<G: GuestRoot + ?Sized>(root: &G, workdir: &str, image: &str
     if workdir.contains('\0') {
         return Err(Error::runtime(Class::Usage, "the working directory contains a NUL byte"));
     }
-    workdir_kind(root, workdir).map_err(|kind| refuse_workdir(workdir, &format!("for image {image:?}"), kind))
+    workdir_kind(root, workdir).map_err(|kind| {
+        refuse_workdir(workdir, &format!("for image {image:?}"), kind, root.volume_label(workdir).as_deref())
+    })
 }
 
 /// The setup step of the namespace rung that a byte of the readiness pipe

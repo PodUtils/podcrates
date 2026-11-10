@@ -205,3 +205,26 @@ fn a_nul_workdir_is_its_own_refusal() {
     assert!(format!("{e}").contains("NUL"), "{e}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A missing working directory inside a volume names the volume
+/// (`HOST:GUEST`), and one in the image names the image.
+#[test]
+fn a_missing_workdir_in_a_volume_names_the_volume() {
+    use crate::userland::{Maps, Volume};
+    let dir = std::env::temp_dir().join(format!("pod-enter-workdir-vol-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("rootfs/tmp")).unwrap();
+    std::fs::create_dir_all(dir.join("vol/there")).unwrap();
+    let host = dir.join("vol").to_str().unwrap().to_string();
+    let volume = Volume { guest: "/data".to_string(), host: host.clone() };
+    let maps = Maps::new(&Names::DEFAULT, dir.join("rootfs").to_str().unwrap(), &[volume]).unwrap();
+    assert!(check_workdir(&maps, "/data/there", "img").is_ok());
+    let text = format!("{}", check_workdir(&maps, "/data/gone", "img").unwrap_err());
+    assert!(text.contains(&format!("in the volume {host}:/data is not a directory in the volume")), "{text}");
+    assert!(!text.contains("img"), "{text}");
+    let text = format!("{}", check_workdir(&maps, "/data/../nowhere", "img").unwrap_err());
+    assert!(text.contains("img") && text.contains("in the image"), "{text}");
+    let text = format!("{}", check_workdir(&maps, "/nowhere", "img").unwrap_err());
+    assert!(text.contains("for image \"img\" is not a directory in the image"), "{text}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

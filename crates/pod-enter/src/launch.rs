@@ -5,7 +5,7 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
 
-use crate::abi::resolve_dir;
+use crate::abi::{GuestRoot, resolve_dir};
 use crate::entry::{NsMount, chroot_landed, ns_setup_step, refuse_workdir, workdir_kind};
 use crate::names::var_name;
 use crate::status::{NOT_FOUND, invocable_but_refused};
@@ -114,7 +114,12 @@ pub(crate) fn spawn_with(
         Some(maps) => userland_workdir(root, maps, &plan.working_dir)?,
         None => {
             if let Err(kind) = workdir_kind(root.path.as_str(), &plan.working_dir) {
-                return Err(refuse_workdir(&plan.working_dir, &format!("in the image's rootfs {:?}", root.path), kind));
+                return Err(refuse_workdir(
+                    &plan.working_dir,
+                    &format!("in the image's rootfs {:?}", root.path),
+                    kind,
+                    None,
+                ));
             }
             None
         }
@@ -300,7 +305,13 @@ fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> Result<Op
     }
     let guest = if working_dir.is_empty() { "/" } else { working_dir };
     let (host, parts) = resolve_dir(maps, guest).map_err(|kind| {
-        refuse_workdir(working_dir, &format!("in the image's rootfs {:?} or its volumes", root.path), kind)
+        let volume = maps.volume_label(guest);
+        refuse_workdir(
+            working_dir,
+            &format!("in the image's rootfs {:?} or its volumes", root.path),
+            kind,
+            volume.as_deref(),
+        )
     })?;
     let text = if maps.in_volume(&parts) {
         host.display().to_string()

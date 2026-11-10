@@ -40,6 +40,11 @@ pub struct Names {
     /// The name of the memfd of a payload (`/memfd:NAME` in
     /// `/proc/PID/exe`).
     pub memfd_label: &'static str,
+    /// The guest paths that the interposer of the caller never rewrites
+    /// (`/proc` and its own directory). `Maps::new` refuses a volume whose
+    /// guest side is one of them or is under one: the pair would never
+    /// match. The default is none.
+    pub reserved: &'static [&'static str],
 }
 
 impl Names {
@@ -55,6 +60,7 @@ impl Names {
         device_fds: "POD_ENTER_DEVICE_FDS",
         cache_marker: ".pod-enter-cache-complete",
         memfd_label: "pod-enter-payload",
+        reserved: &[],
     };
 }
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 166 entries: 61 open, 2 partial, 0 blocked, 103 done.
+`TODO/INDEX.md` holds 166 entries: 60 open, 2 partial, 0 blocked, 104 done.
 
 ## State
 
@@ -61,7 +61,7 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
 
 1. **The defects of the consumers:** T-157 (four public Trojan nodes of
    podssh fail the live check).
-2. **M6, the crates of podvm:** T-155; T-149; T-142. T-040 (the trials of
+2. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
