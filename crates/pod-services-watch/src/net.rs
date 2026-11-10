@@ -81,6 +81,9 @@ pub struct Net {
     pub today: Date,
     /// The bound of each step: a dial, a handshake, the head of an answer.
     pub limit: Duration,
+    /// The host has a route for IPv6. With none, a watch does not check an
+    /// IPv6 address, and says so: a runner of GitHub has no IPv6.
+    pub ipv6: bool,
     pub user_agent: String,
 }
 
@@ -118,6 +121,7 @@ impl Net {
             github_token: None,
             today,
             limit: Duration::from_secs(30),
+            ipv6: true,
             user_agent,
         }
     }

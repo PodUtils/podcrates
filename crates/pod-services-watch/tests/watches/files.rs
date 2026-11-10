@@ -87,3 +87,16 @@ async fn tls_names_wants_the_address_in_the_certificate() {
     assert_eq!(report.outcome.findings.len(), 1, "{all}");
     assert!(all.contains("no handshake for 127.0.0.1"), "{all}");
 }
+
+/// A host with no route for IPv6 does not check an IPv6 address.
+#[tokio::test]
+async fn tls_names_skips_ipv6_on_a_host_with_no_route() {
+    pod_testkit::need_loopback!();
+    let stand = https(answer);
+    let w = "[[watch]]\nkind = \"tls-names\"\nendpoint = \"doh\"\n";
+    let ep = endpoint("doh", "https", NAME, stand.port(), "addresses = [\"::1\"]");
+    let mut net = crate::common::net();
+    net.ipv6 = false;
+    let report = crate::common::one_in(&mut net, &file("n4", &(ep + w))).await;
+    assert!(report.holds() && text(&report).contains("::1 not checked"), "{}", text(&report));
+}

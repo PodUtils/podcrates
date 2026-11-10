@@ -85,7 +85,16 @@ fn fingerprint(key: &[u8]) -> String {
 async fn ssh_banner_wants_a_line_of_ssh() {
     pod_testkit::need_loopback!();
     let w = "[[watch]]\nkind = \"ssh-banner\"\nendpoint = \"ssh\"\n";
+    // The server waits for the banner of the client, as Pinggy does.
     let good = raw(|io| {
+        let mut line = Vec::new();
+        let mut byte = [0u8; 1];
+        while !line.ends_with(b"\n") && io.read(&mut byte).is_ok_and(|n| n == 1) {
+            line.push(byte[0]);
+        }
+        if !line.starts_with(b"SSH-2.0-") {
+            return;
+        }
         let _ = io.write_all(b"a line before the banner\r\nSSH-2.0-stand\r\n");
         let _ = io.read(&mut [0u8; 64]);
     });

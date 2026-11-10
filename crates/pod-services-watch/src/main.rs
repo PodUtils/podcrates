@@ -57,6 +57,13 @@ fn today() -> Date {
     Date::new(y as u16, m as u8, d as u8).unwrap_or_else(|| Date::new(1970, 1, 1).expect("a day"))
 }
 
+/// True when the host has a route for IPv6: the connect of a UDP socket
+/// sends nothing, and fails with no route.
+fn ipv6_route() -> bool {
+    let probe = std::net::UdpSocket::bind("[::]:0");
+    probe.and_then(|s| s.connect("[2001:4860:4860::8888]:53")).is_ok()
+}
+
 fn main() -> ExitCode {
     let options = match options() {
         Ok(options) => options,
@@ -97,6 +104,7 @@ fn main() -> ExitCode {
         let dialer = Dialer::new(settings, Arc::new(System::new()));
         let mut net = Net::new(context, Arc::new(dialer), Trust::Default, today());
         net.github_token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.trim().is_empty());
+        net.ipv6 = ipv6_route();
         net.services = services.clone();
         for service in services.iter() {
             if !options.services.is_empty() && !options.services.iter().any(|id| id == service.id()) {

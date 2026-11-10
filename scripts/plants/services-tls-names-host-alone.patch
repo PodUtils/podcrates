@@ -1,8 +1,8 @@
 --- a/crates/pod-services-watch/src/tls.rs
 +++ b/crates/pod-services-watch/src/tls.rs
-@@ -33,7 +33,7 @@
-         for ip in addresses {
-             let at = ip.to_string();
+@@ -37,7 +37,7 @@
+                 continue;
+             }
              let mut named = 0;
 -            for name in [host.to_string(), at.clone()] {
 +            for name in [host.to_string()] {

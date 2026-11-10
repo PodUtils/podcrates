@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**156 entries: 57 open, 3 partial, 0 blocked, 96 done.**
+**157 entries: 58 open, 2 partial, 0 blocked, 97 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 20 | 1 | 0 | 34 | 55 |
-| P2 | 26 | 1 | 0 | 46 | 73 |
-| P3 | 11 | 1 | 0 | 14 | 26 |
-| **All** | 57 | 3 | 0 | 96 | 156 |
+| P2 | 27 | 1 | 0 | 46 | 74 |
+| P3 | 11 | 0 | 0 | 15 | 26 |
+| **All** | 58 | 2 | 0 | 97 | 157 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-130](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175) |
 | [T-131](roads.md) | P1 | M | M4 | defect | open | `pod-gsr`: the handshake tests crash on Windows ARM64 |
 | [T-132](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm |
-| [T-133](transport.md) | P3 | M | M1 | feature | partial | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
+| [T-133](transport.md) | P3 | M | M1 | feature | done | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
 | [T-135](transport.md) | P3 | S | M1 | feature | done | `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178) |
 | [T-136](podvm.md) | P2 | S | M6 | chore | done | Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer |
@@ -203,3 +203,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-154](foundation.md) | P2 | S | M5 | defect | open | Timed tests under an emulator: one bound of the test kit and a sweep |
 | [T-155](podvm.md) | P3 | S | M6 | feature | open | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
+| [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |

@@ -1,6 +1,6 @@
 --- a/crates/pod-services-watch/src/ssh.rs
 +++ b/crates/pod-services-watch/src/ssh.rs
-@@ -85,7 +85,7 @@
+@@ -88,7 +88,7 @@
      for _ in 0..MAX_LINES {
          loop {
              if let Some(end) = bytes.iter().position(|b| *b == b'\n') {

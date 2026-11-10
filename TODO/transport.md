@@ -945,7 +945,7 @@ and 24 watch kinds, each the kind of at least one watch of the data
 `github-file`, `tls-roots`, `crate-file`, `rdap`, `oci-ping`, `oci-digest`);
 the runner prints one line for each watch. `pod-testkit` has the
 stand-ins (feature `stand`: HTTP, raw TCP and UDP, TLS from the caller).
-`cargo test -p pod-services-watch`: 29 passed (`tests/watches/`: each
+`cargo test -p pod-services-watch`: 30 passed (`tests/watches/`: each
 kind against a stand-in, and the test that each kind of the data has its
 implementation). The plants `scripts/plants/services-*` (24, group
 `services`): `sh scripts/plant-each.sh --group services`: 25 caught (with
@@ -970,6 +970,17 @@ answer; `github-file` looks for the addresses of an endpoint; 429 of a
 registry is a failure, not a moved digest; `tls-roots` takes `tag`. The
 rest: T-151 (the watch scripts of podssh and podnet that leave them),
 T-152 (VLESS over XHTTP).
+
+The dispatch of `services.yml` at `7d17a57` (run 42803032733, GitHub
+Actions): 72 hold, 2 skipped (the XHTTP nodes), 9 failed. Fixed in the
+next commit: a runner of GitHub has no IPv6 (5 failures of the IPv6
+addresses of `cloudflare-doh`, `google-doh` and `cloudflare-dns`: the
+runner probes a route, and with none a watch does not check an IPv6
+address); Pinggy sends its banner only after the client's (`ssh-banner`
+now sends the client's first; `ssh-host-key` held); ECR Public answered
+429 to one HEAD (one more try after its `Retry-After`). The outside facts
+that moved: four Trojan nodes of T-133 fail (T-157). The run with
+`measure` `edge-facts` at `966bd01` (run 42803038882) passed.
 
 # T-052: The tests of a closed port of `pod-proxy` race with the other tests
 
@@ -2338,7 +2349,7 @@ No page of an operator, on the operator's own domain, offers a Wisp server to ot
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2402,7 +2413,9 @@ Left out: the other lists (MatinGhanbari/v2ray-configs: 3 nodes qualify; Pawdroi
 
 Files: `crates/pod-services/services/{barry-far-list,mahdibland-list,v2go-list}.toml` and `node-*.toml` (6). The watch of a node is a new kind `proxy-banner` (`fact`, `target`), listed in the README; its runner is T-050. `crates/pod-services/tests/public_carriers.rs` (6 tests) holds the rules. `cargo test -p pod-services` passes.
 
-Remaining clause: the live check (Q75, Q90), before the tag that carries the nodes: for each node, a session through its share link to `github.com:22` gives GitHub's SSH version line (`SSH-2.0-...`), from GitHub Actions; at most one short probe a day to each list and node; each node that fails leaves by a change of its file. For each list: a GET gives 200 (`http-status`). `.github/secrets-allow.txt`: a line for each finding of the scanner on the links, when the run of `secrets.yml` on the push names one (the link has no `user:password` form).
+The live check (T-050): `services.yml`, run 42803032733 (GitHub Actions, 2026-11-10): the three lists answer 200; `node-bolab-trs02` and `node-bonds-sg1` time out on the TCP connect, `node-udpgw-trojan1` refuses the TLS name (`UnrecognisedName`), `node-tr202607-nl1` answers the Trojan request with `HTTP/1.1 400 Bad Request` (a password that it no longer takes); the two XHTTP nodes are skipped (T-152). The nodes that fail leave or change by T-157.
+
+The clause of before: the live check (Q75, Q90), before the tag that carries the nodes: for each node, a session through its share link to `github.com:22` gives GitHub's SSH version line (`SSH-2.0-...`), from GitHub Actions; at most one short probe a day to each list and node; each node that fails leaves by a change of its file. For each list: a GET gives 200 (`http-status`). `.github/secrets-allow.txt`: a line for each finding of the scanner on the links, when the run of `secrets.yml` on the push names one (the link has no `user:password` form).
 
 # T-135: `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178)
 
@@ -2617,3 +2630,43 @@ cargo test -p pod-services
 
 2026-11-10. Commit: the commit that names T-156. `cargo test -p
 pod-services` passes.
+
+# T-157: `pod-services`: four public Trojan nodes fail the live check
+
+**Source:** T-050 (`services.yml`, run 42803032733); T-133.
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The live check of the proxy nodes (the watch `proxy-banner`, from GitHub
+Actions on 2026-11-10) fails for each Trojan node of T-133:
+`node-bolab-trs02` and `node-bonds-sg1` (the TCP connect to port 443
+times out after 29 s), `node-udpgw-trojan1` (TLS: `received fatal alert:
+UnrecognisedName`), `node-tr202607-nl1` (the answer to the Trojan request
+is `HTTP/1.1 400 Bad Request`: the node no longer takes the password of
+the link). podssh tries these nodes as its last fallback; a node that does
+not carry a session costs each user a timeout.
+
+## Premise
+
+- Measured: run 42803032733 of `services.yml` (one try of each node).
+- Not measured: a second day; the lists of 2026-11-11 and later.
+
+## Approach
+
+Run the watch again by hand (`services.yml`, input `kind` `proxy-banner`)
+on a second day. Remove the file of each node that fails both days, or
+replace it with a Trojan node of the same lists that passes the watch and
+the rules of T-133. Write the change to podssh (PodUtils/podssh#177), which
+reads the nodes.
+
+## Prove
+
+```sh
+cargo test -p pod-services --test public_carriers
+cargo run -q -p pod-services-watch -- --kind proxy-banner
+```

@@ -38,10 +38,13 @@ const KEY_KINDS: [&[&str]; 3] = [
     &["rsa-sha2-512", "rsa-sha2-256", "ssh-rsa"],
 ];
 
-/// `ssh-banner`: the endpoint sends a line that starts with `SSH-`.
+/// `ssh-banner`: after the banner of the client, the endpoint sends a line
+/// that starts with `SSH-`.
 pub async fn banner(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let endpoint = Args::new(service, watch).endpoint()?;
     let mut io = net.tcp(endpoint.host(), endpoint.port()).await?;
+    // A server may wait for the client's banner first (Pinggy does).
+    io.write_all(BANNER).await.map_err(|e| Finding::failed(format!("the banner of the client: {e}")))?;
     let (line, _) = read_banner(&mut io, net).await?;
     Ok(Outcome { seen: vec![format!("{} sent {line:?}", endpoint.authority())], findings: Vec::new(), skipped: None })
 }

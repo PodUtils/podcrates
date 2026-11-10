@@ -1,6 +1,6 @@
 --- a/crates/pod-services-watch/src/ssh.rs
 +++ b/crates/pod-services-watch/src/ssh.rs
-@@ -65,7 +65,7 @@
+@@ -68,7 +68,7 @@
      }
      let file = value_texts(fact.value());
      let mut out = Outcome::default();

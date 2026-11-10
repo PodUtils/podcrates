@@ -61,16 +61,16 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 | --- | --- | --- |
 | `http-json`, `http-status`, `http-text`, `github-ssh-keys` | `http.rs` | a GET; a JSON pointer; with `member`, each host of the role is in the document, and more hosts there are counted, not found |
 | `http-sha256` | `sha.rs` | a streamed GET (a `Range` for a range of sectors); the length is the `Content-Length` or the total of `Content-Range` |
-| `tls-name`, `tls-names` | `tls.rs` | a verified handshake; for `tls-names`, one for the host and one for the address, at each address |
-| `dns-srv`, `dns-addresses`, `doh-answer` | `dns.rs` | DNS over HTTPS (`pod_dns::Way`); `doh-answer` asks each resolver of the service in the one form |
+| `tls-name`, `tls-names` | `tls.rs` | a verified handshake; for `tls-names`, one for the host and one for the address, at each address; an IPv6 address is not checked on a host with no route for IPv6 (`Net::ipv6`, which the runner probes) |
+| `dns-srv`, `dns-addresses`, `doh-answer` | `dns.rs` | DNS over HTTPS (`pod_dns::Way`); `doh-answer` asks each resolver of the service in the one form, each IPv6 one only with a route for IPv6 |
 | `stun-binding` | `stun.rs` | a Binding request over UDP (`pod_proxy::stun`), three tries |
 | `websocket-upgrade`, `forward-banner` | `ws.rs` | the upgrade of `pod-ws`; a forwarder's target in the query, in a first text frame (`{"Host":...,"Port":...}`), or in a Wisp CONNECT |
 | `proxy-banner` | `proxy.rs` | Trojan and VLESS over TCP, with or without TLS; another transport (XHTTP) is skipped |
-| `ssh-banner`, `ssh-host-key` | `ssh.rs` | the banner; the host key of the reply of curve25519-sha256, one exchange for each kind of key (Ed25519, ECDSA, RSA). The watch reads the key that the server offers; it does not check a signature |
+| `ssh-banner`, `ssh-host-key` | `ssh.rs` | the banner, after the banner of the client (a server can wait for it); the host key of the reply of curve25519-sha256, one exchange for each kind of key (Ed25519, ECDSA, RSA). The watch reads the key that the server offers; it does not check a signature |
 | `github-release`, `github-files`, `github-file`, `tls-roots` | `github.rs` | GitHub's API (the newest release, the release of a tag) and its raw files (at a tag, or at `HEAD`) |
 | `crate-file` | `crate_file.rs` | the newest stable version on crates.io, its `.crate` archive, the member file |
 | `rdap` | `rdap.rs` | IANA's bootstrap, then the registry's server, else `rdap.org`; the `expiration` event must be 90 days or more away |
-| `oci-ping`, `oci-digest` | `oci.rs` | `GET /v2/` and its `Bearer` challenge; an anonymous token for each repository; a `HEAD` of each manifest by its digest; a tag that moved is reported, and is no failure |
+| `oci-ping`, `oci-digest` | `oci.rs` | `GET /v2/` and its `Bearer` challenge; an anonymous token for each repository; a `HEAD` of each manifest by its digest (404 is a pin that moved; 429 gets one more try after its `Retry-After`, at most 30 s); a tag that moved is reported, and is no failure |
 
 A new kind: one async function `(service, watch, net) -> Checked`, its
 line `kind!(Name, "word", module::function)` and its place in `kinds()`

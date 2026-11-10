@@ -82,6 +82,10 @@ pub async fn doh_answer(service: &Service, watch: &Watch, net: &Net) -> Checked 
     }
     let mut out = Outcome::default();
     for resolver in resolvers {
+        if resolver.ip.is_ipv6() && !net.ipv6 {
+            out.saw(format!("{} not checked: this host has no route for IPv6", resolver.ip));
+            continue;
+        }
         let resolver = match form {
             "json" if resolver.json.is_some() => Doh { wire: None, ..resolver },
             "wire" if resolver.wire.is_some() => Doh { json: None, ..resolver },

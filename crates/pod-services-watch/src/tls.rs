@@ -32,6 +32,10 @@ pub async fn names(service: &Service, watch: &Watch, net: &Net) -> Checked {
         let host = endpoint.server_name().trim_end_matches('.');
         for ip in addresses {
             let at = ip.to_string();
+            if ip.is_ipv6() && !net.ipv6 {
+                out.saw(format!("{at} not checked: this host has no route for IPv6"));
+                continue;
+            }
             let mut named = 0;
             for name in [host.to_string(), at.clone()] {
                 match net.tls(&at, endpoint.port(), &name).await {
