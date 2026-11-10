@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**159 entries: 57 open, 2 partial, 0 blocked, 100 done.**
+**159 entries: 56 open, 2 partial, 0 blocked, 101 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 19 | 1 | 0 | 35 | 55 |
-| P2 | 27 | 1 | 0 | 48 | 76 |
+| P2 | 26 | 1 | 0 | 49 | 76 |
 | P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 57 | 2 | 0 | 100 | 159 |
+| **All** | 56 | 2 | 0 | 101 | 159 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -205,4 +205,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
 | [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
 | [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |
-| [T-159](relay.md) | P2 | S | M2 | defect | open | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |
+| [T-159](relay.md) | P2 | S | M2 | defect | done | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |

@@ -736,7 +736,7 @@ T-025 or T-026 is done.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -780,3 +780,13 @@ The taken line of the podnet block of `crates/pod-quic/SOURCES`.
 
 The release `v0.14.0` (T-019).
 
+## Done
+
+2026-11-10. podnet fixed the defect in its own code (PodUtils/podnet@T-228,
+podnet `1d556fb`): `SendReady` keeps a list of wakers, and the writer
+wakes each; its test `two_senders_on_a_full_queue_each_wake` failed on the
+single waker and passes. A fix of a frozen file is allowed; `pod-quic`
+has the same fix (`two_senders_on_a_full_way_each_wake`). When `1d556fb`
+reaches podnet's `main` (after podnet's `v0.4.0-beta.2`),
+`check-sources.py` shows `src/warp/quic.rs` as changed: compare the two
+fixes and move the snapshot of `crates/pod-quic/SOURCES` (M5).
