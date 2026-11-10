@@ -465,7 +465,7 @@ the pod crates (`report::log_filter`).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -498,6 +498,57 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-015 is done.
+
+## Done
+
+2026-11-10, partial: the release (the next tag after `v0.12.0`, so the
+trials name `v0.13.0`) and the takes of podssh and podnet remain.
+Commits `000eef0` (the import of `PodUtils/podssh:crates/podssh-ws` at `8cd0f2b`
+and podnet `src/ws.rs` at `76ffb5e`, with `SOURCES`), `e474bc9` (the
+adaptation, podnet's bridge, the tests, the fuzz targets), `028a1eb`
+(README, the static probe, the row of `docs/design.md`, C41), `709b008`
+(the doc link; `plain::loopback_tcp` public), `27d8510` (the bridge takes
+any stream), `623de6d`, `89cb9cc` and `2d8cdbc` (the trials), and the
+commit of this record.
+
+- API: each connection goes through the caller's `Way` (the TLS context,
+  the dialer, the reader of HTTPS records for ECH, the user agent);
+  `h2_road::Pool` is a value of the caller; `Limits::{RELAY,
+  TUNGSTENITE}` are the limits of each source; `ConnectError`,
+  `SessionError` and `WsError` are each a `pod_core::Failure`. The crate
+  depends on `pod-core`, `pod-tls` and `pod-proxy` (C41). It has 25
+  source files, each under 500 lines.
+- Cut: podssh keeps its glue in `podssh-ws` (its `WsClientConfig` with a
+  `ProxyChoice`, the GET client, the provider line of `doctor`,
+  `ForwardClose::remedy` as the trait `close::Remedy`, `USER_AGENT`, a
+  `static` pool); podnet keeps its words and hops in `ws.rs`,
+  `serve_websocket`, `forward_path`, `forward_url`, `LocalSpec` and a
+  bridge of tokio-tungstenite for its relay client until `pod-relay`.
+- Defects: a first form of the bridge did not end when the WebSocket way
+  ended while the raw stream stayed open (podnet's control channel ended
+  it); `bridge_moves_bytes_both_ways` hung on it, and passes 30 runs of
+  30 after the fix. The bridge took `pod_core::BoxedIo` alone, and
+  podnet's `BoxedIo` is a trait of its own: the podnet trial found it.
+  The seeds of the fuzz targets were normalized to LF by
+  `.gitattributes`; `fuzz/seeds/**` is now `-text`.
+- Tests: 122 with 1 measure ignored: the unit tests (28), `rfc6455`
+  (27), `session` (16), `control_frames` (10), `handshake_tail` (9),
+  `h2_road` (6), `properties` (6), `frame_lengths` (5), `cleartext_road`
+  (4), `limits` (3), `plain_loopback` (2), `random_source` (2) keep the
+  names of podssh; `bridge` (4, and the measure `throughput`) and
+  `accept_key_matches_rfc_example` are podnet's, with new tests for the
+  bridge, `Authorization`, a 401 and `close_hint`. The same pass as i686
+  musl binaries, and as aarch64 musl binaries under QEMU. The fuzz
+  targets `ws_frame`, `ws_upgrade` and `close_reason` pass the stable
+  test of `fuzz/`.
+- Trials: podnet at `22d99a1` (14 files, 125 lines in, 272 out) and
+  podssh at `2f8e0bb` (63 files, 304 lines in, 6,641 out); each step of
+  `sh scripts/adoption.sh podnet pod-ws` and `sh scripts/adoption.sh
+  podssh pod-ws` passed (the counts are in the commit `2d8cdbc`), with
+  the static binary of each for x86_64 musl.
+- Checks: `python3 -I scripts/check-sources.py` on `pod-ws` (podssh 33
+  files, podnet 2 files, 0 changes); `sh scripts/agent/check.sh` (fmt,
+  clippy, doc, record, size, paths, the static probes, the tests).
 
 # T-017: The fuzz workspace and its weekly workflow
 

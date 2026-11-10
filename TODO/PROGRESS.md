@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 149 entries: 55 open, 2 partial, 0 blocked, 92 done.
+`TODO/INDEX.md` holds 149 entries: 54 open, 3 partial, 0 blocked, 92 done.
 
 ## State
 
@@ -15,6 +15,11 @@
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
   PodUtils/podvm#225). No trial of podvm is open.
+- M1: `pod-ws` exists (T-016 partial, call C41): the trials of podssh
+  (`2f8e0bb`) and podnet (`22d99a1`) pass and name `v0.13.0`, the next
+  tag after `v0.12.0`. The release and the two takes remain; from the
+  import, podssh's `podssh-ws` WebSocket files and podnet's `src/ws.rs`
+  take fixes only (`crates/pod-ws/SOURCES`).
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).
@@ -44,8 +49,8 @@ first; the asks of cfb and githome (M8) wait.
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-142; T-149. T-040 (the
    trials of podvm) goes with each import.
-3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
-   podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs
+3. **M1, the transport:** T-016 (partial: the release `v0.13.0` and the
+   takes of podssh and podnet, `adoption/{podssh,podnet}/pod-ws.*`); T-050 (`pod-services`); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121 (the asks of podnet).
@@ -63,7 +68,7 @@ first; the asks of cfb and githome (M8) wait.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C35), and the work goes on with it until the owner rules otherwise.
+C41), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
