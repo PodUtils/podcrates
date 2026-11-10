@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**140 entries: 56 open, 4 partial, 0 blocked, 80 done.**
+**141 entries: 57 open, 4 partial, 0 blocked, 80 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 24 | 0 | 0 | 29 | 53 |
+| P1 | 25 | 0 | 0 | 29 | 54 |
 | P2 | 24 | 3 | 0 | 38 | 65 |
 | P3 | 8 | 1 | 0 | 11 | 20 |
-| **All** | 56 | 4 | 0 | 80 | 140 |
+| **All** | 57 | 4 | 0 | 80 | 141 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -187,3 +187,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-138](podvm.md) | P3 | M | M6 | chore | open | `pod-guest`: the run of a real guest in CI |
 | [T-139](podvm.md) | P1 | M | M6 | defect | open | `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222) |
 | [T-140](podvm.md) | P1 | S | M6 | defect | done | `pod-oci`: the test of the host name fails where Rust and OCI say the same word |
+| [T-141](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main |

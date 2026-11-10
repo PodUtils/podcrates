@@ -1357,3 +1357,44 @@ x86_64, and under `qemu-user` on riscv64 and armv7. The other failures of
 the first local run (`pod-enter` `resolve_past_a_denied_listing`, `children`
 of `pod-hostprobe`) need the `binfmt_misc` registration that the nightly
 makes. The nightly is the proof.
+
+# T-141: `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main
+
+**Source:** PodUtils/podvm#221 (COORD-015), PodUtils/podvm@T-1698; podvm `c89b769`.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm fixed the whiteout escape in its own `PodUtils/podvm:crates/podvm-extract`
+at `c89b769`, after the trial commit `2616bd7` of `pod-extract.patch`. The
+fix changes four files that the patch removes (`drive.rs`, `lib.rs`,
+`remove.rs`, and the new `drive/whiteouts.rs` with its sentinel tests). The
+patch of `v0.10.0` does not apply at podvm's `main`.
+
+## Premise
+
+- Read: `c89b769` and the `repo PodUtils/podvm` block of
+  `crates/pod-extract/SOURCES`.
+- The crate has its own fix (T-057). podvm's tests can find a case that the
+  crate's tests do not cover.
+
+## Approach
+
+- Compare podvm's fix with the crate's. Port each test of
+  `drive/whiteouts.rs` and of `remove.rs` to the tests of the crate; port
+  each case that the crate does not refuse.
+- Move the SOURCES snapshot of the four files to `c89b769` or later.
+- Make `adoption/podvm/pod-extract.patch` again on podvm's `main` (after
+  `c89b769`), with `pod-extract.commit`; run the trial.
+
+## Prove
+
+```sh
+cargo test -p pod-extract
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=../podvm
+sh scripts/adoption.sh podvm pod-extract
+```

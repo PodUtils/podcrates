@@ -1,19 +1,19 @@
 # Progress
 
-`TODO/INDEX.md` holds 140 entries: 56 open, 4 partial, 0 blocked, 80 done.
+`TODO/INDEX.md` holds 141 entries: 57 open, 4 partial, 0 blocked, 80 done.
 
 ## State
 
-- Released: `v0.9.0` at `b7c3e6a` (CI 42721218099, nightly 42721246608,
-  release 42725622691): `pod-guest`, `pod-enter`, `pod_proxy::udp`, the
-  32-bit ids and the open flags of `pod-hostprobe`, the Pinggy data.
-  COORD-019 (GitHub #43) hands it to each consumer. Each consumer is on
-  `v0.8.0`; podvm took `pod-supervise`. Open: T-131 (`pod-gsr` on Windows
-  ARM64).
+- Released: `v0.10.0` at `b21c193` (CI 42736799388, nightly 42736799847,
+  release 42742043211): `pod-oci`, `pod-extract`, `Stage::Registry`, the
+  proxy lists and nodes of `pod-services`. COORD-021 (GitHub #45) hands it
+  to each consumer. Each consumer is on `v0.9.0`. Open: T-131 (`pod-gsr` on
+  Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
-  `pod-enter` (podvm `423e817`, PodUtils/podvm#220). `pod-oci` (T-056) and
-  `pod-extract` (T-057) are partial: their trials passed; v0.10.0 and the
-  take of podvm remain. Next in M6: T-058, T-137, T-138.
+  `pod-enter` (podvm `423e817`, PodUtils/podvm#220). `pod-oci` (T-056)
+  waits for the take of podvm. `pod-extract` (T-057) waits for T-141: podvm
+  changed its copy at `c89b769`, and the patch is made again for `v0.10.1`
+  with T-139.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).
@@ -41,9 +41,10 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-133 (partial: the live check of the
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-056 (partial: the release and
-   the take of podvm), T-057 (partial: the release and the take of podvm),
-   T-058; T-139 (P1, a payload over 128 MiB, PodUtils/podvm#222); then
+   podvm `main` on the day of each import): T-056 (partial: the take of podvm),
+   T-057 (partial: the take of podvm, after T-141);
+   T-141 and T-139 (P1, PodUtils/podvm#221 and #222), then `v0.10.1`;
+   T-058; then
    T-137, T-138. T-040 (the trials of podvm)
    goes with each import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
