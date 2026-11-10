@@ -1497,7 +1497,7 @@ makes. The nightly is the proof.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1530,6 +1530,36 @@ cargo test -p pod-extract
 python3 -I scripts/check-sources.py --clone PodUtils/podvm=../podvm
 sh scripts/adoption.sh podvm pod-extract
 ```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-141.
+
+- podvm's fix (`c89b769`, `remove::checked_dir`) checks the directory of a
+  whiteout for NUL, an absolute path and `..`, and refuses a name of `.` or
+  `..`. The crate's `remove::collect` gives the whole path of a whiteout to
+  `safety::components` and refuses the same names: the same rule.
+- Ported to `crates/pod-extract/src/drive/whiteouts.rs`: the three tests of
+  podvm's `drive/whiteouts.rs` (`.wh...` at the root; `../.wh.sentinel`,
+  `a/../../.wh.sentinel` and `../.wh..wh..opq`; `d/.wh..`), each with a
+  sentinel beside the destination, and a test of the absolute whiteout of
+  `checked_dir` (the refusal comes before each removal of the layer). podvm's
+  `remove.rs` has no test of its own. The crate refuses each case: no gap.
+  With the check of `collect` turned off, each of the four tests fails.
+- `SOURCES`: the block of `PodUtils/podvm` reads `20ea781` (13 files; its
+  change of `lib.rs` after `c89b769` is in podvm's glue, not in the crate);
+  `check-sources.py --clone PodUtils/podvm=../podvm` finds no change.
+- `adoption/podvm/pod-extract.patch` is made on podvm `20ea781` (podvm
+  took `v0.10.0` and `pod-oci` there; `pod-extract.commit`), and it applies
+  at `e99fc9b` too: 11 files leave podvm, the citations of
+  PodUtils/podvm@T-1698 name the crate, each tag is `v0.11.0`. The patch
+  takes T-139 (PodUtils/podvm#222) as the adoption map of `pod-enter` says:
+  `ladder::payload_head` and `memfd::stage_file` at the three call sites of
+  `PodUtils/podvm:crates/podvm`; the 128 MiB refusal goes. The trial passes
+  each step, with `qol` after the build of the interposer.
+- With `--3way` after this patch at podvm `20ea781`, `pod-rootfs.patch` has
+  two conflicts (`PodUtils/podvm:crates/podvm-image/Cargo.toml`,
+  `PodUtils/podvm:docs/runtime-state.md`); `pod-rootfs.run` says so.
 
 # T-142: `pod-oci`: a live pull from a public registry
 

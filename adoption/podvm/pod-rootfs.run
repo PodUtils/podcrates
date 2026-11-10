@@ -1,16 +1,15 @@
 # The trial of pod-rootfs in podvm (T-058), at podvm main 2616bd7
-# (pod-rootfs.commit, as pod-extract.commit). The patch applies alone.
-# podvm applies it after pod-oci.patch and pod-extract.patch (v0.10.0),
-# with git apply --3way. It shares the tag lines of crates/podvm-enter,
+# (pod-rootfs.commit). The patch applies alone.
+# podvm took pod-oci at 20ea781. podvm applies this patch after
+# pod-extract.patch (made on podvm 20ea781, with each tag at v0.11.0), with
+# git apply --3way. It shares the tag lines of crates/podvm-enter,
 # podvm-image, podvm-probe, podvm-ssh, podvm-supervise and podvm-windows
-# Cargo.toml, and docs/runtime-state.md, with those two patches; its TODO
-# and SECURITY.md lines apply cleanly after them. After both, seven files
-# conflict: in each Cargo.toml keep the lines of the earlier patches (the
-# pod-oci line) and set each tag to v0.11.0; in docs/runtime-state.md keep
-# one pod-* row for each crate, each at 0.11.0, with pod-extract, pod-oci
-# and pod-rootfs. Then set the tags of crates/podvm-extract/Cargo.toml to
-# v0.11.0 too, as this patch does not touch that file. The workspace with
-# the three patches passes clippy, the tests of podvm-complete,
+# Cargo.toml, and docs/runtime-state.md, with that patch; its TODO and
+# SECURITY.md lines apply cleanly after it. After it, at podvm 20ea781, two
+# files conflict: in crates/podvm-image/Cargo.toml keep the pod-oci lines;
+# in docs/runtime-state.md keep one pod-* row for each crate, each at
+# 0.11.0, with pod-extract, pod-oci and pod-rootfs, and no flate2 row. The
+# workspace with the three patches passes clippy, the tests of podvm-complete,
 # podvm-extract and the podvm binary, the runtime-state rows and podvm's
 # gate.
 # crates/podvm-complete keeps podvm's glue over the crate: Options (the

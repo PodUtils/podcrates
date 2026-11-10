@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 142 entries: 56 open, 4 partial, 0 blocked, 82 done.
+`TODO/INDEX.md` holds 142 entries: 55 open, 4 partial, 0 blocked, 83 done.
 
 ## State
 
@@ -13,9 +13,9 @@
   Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
   `pod-enter` (podvm `423e817`, PodUtils/podvm#220), and `pod-oci` (podvm
-  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) waits for T-141: podvm
-  changed its copy at `c89b769`, and the patch is made again for
-  `v0.11.0`.
+  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) waits
+  for `v0.11.0` and the take of podvm: its patch is made on podvm
+  `20ea781` (T-141), and it carries the take of T-139.
   `pod-rootfs` (T-058) is partial: its trial passed (podvm applies it after
   the other two); the release and the take of podvm remain.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
@@ -45,10 +45,10 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-133 (partial: the live check of the
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-057 (partial: the take of podvm, after T-141);
-   T-141 (P1, PodUtils/podvm#221), then `v0.11.0` (with `pod-rootfs` and
-   with `pod-enter` for #222); T-058 (partial: the release and the take of
-   podvm); then T-137, T-138, T-142. T-040 (the trials of podvm) goes with each
+   podvm `main` on the day of each import): T-057 (partial: the take of
+   podvm); `v0.11.0` (with `pod-extract` for PodUtils/podvm#221,
+   `pod-rootfs`, and `pod-enter` for #222); T-058 (partial: the release and
+   the take of podvm); then T-137, T-138, T-142. T-040 (the trials of podvm) goes with each
    import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs
