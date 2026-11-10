@@ -306,7 +306,7 @@ async fn each_way(session: RelaySession, size: usize, seed: u64) {
             back.update(&frame.payload);
         }
     };
-    tokio::time::timeout(LIMIT, read).await.expect("the echo within the limit");
+    tokio::time::timeout(echo_limit(), read).await.expect("the echo within the limit");
     writer.await.unwrap();
     assert_eq!(got, size, "each byte came back once");
     assert_eq!(back.finalize(), sent, "the digests are equal");
@@ -317,14 +317,25 @@ async fn each_way(session: RelaySession, size: usize, seed: u64) {
 /// 1 MiB under an emulator, which carries TLS and HTTP/2 too slowly for the
 /// limit. The test of the shared connection stays the same.
 fn per_session() -> usize {
+    if emulated() { MIB } else { 4 * MIB }
+}
+
+/// The wait for the echo of one session: 60 s on a kernel, five times that
+/// under an emulator (riscv64 under qemu-user carries the eight sessions of
+/// TLS and HTTP/2 in over 60 s).
+fn echo_limit() -> Duration {
+    if emulated() { LIMIT * 5 } else { LIMIT }
+}
+
+/// An emulator runs this test binary (`pod_hostprobe::interp`).
+fn emulated() -> bool {
     #[cfg(target_os = "linux")]
     {
         let set = |v: &str| std::env::var_os(v).is_some();
-        if pod_hostprobe::interp::detect(&set).is_emulated() {
-            return MIB;
-        }
+        return pod_hostprobe::interp::detect(&set).is_emulated();
     }
-    4 * MIB
+    #[allow(unreachable_code)]
+    false
 }
 
 async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {
