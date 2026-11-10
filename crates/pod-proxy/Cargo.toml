@@ -53,6 +53,11 @@ rustls = { workspace = true, features = ["ring"] }
 p256 = { workspace = true }
 sha2 = { workspace = true }
 
+# The timed tests ask whether an emulator runs them (pod_hostprobe::interp),
+# to wait longer there.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+pod-hostprobe = { workspace = true }
+
 # cargo-fuzz builds with `--cfg fuzzing` (T-017), under which the SOCKS5
 # exchange, private here, is reachable by the fuzzer, as with the feature
 # `fuzzing`.

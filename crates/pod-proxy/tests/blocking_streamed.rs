@@ -79,7 +79,21 @@ fn a_body_that_stops_ends_at_the_idle_limit() {
     let start = Instant::now();
     let stopped = read_all(&mut streamed).unwrap_err();
     assert_eq!(stopped.kind(), std::io::ErrorKind::TimedOut, "{stopped}");
-    assert!(start.elapsed() < Duration::from_secs(5), "the read waited {:?}", start.elapsed());
+    assert!(start.elapsed() < ended_within(), "the read waited {:?}", start.elapsed());
+}
+
+/// The bound of a read that the idle limit of 300 ms ends: 5 s on a kernel,
+/// 30 s under an emulator (loongarch64 under qemu-user read the part before
+/// the stall in over 5 s). Each bound tells an end by the limit from a hang.
+fn ended_within() -> Duration {
+    #[cfg(target_os = "linux")]
+    {
+        let set = |v: &str| std::env::var_os(v).is_some();
+        if pod_hostprobe::interp::detect(&set).is_emulated() {
+            return Duration::from_secs(30);
+        }
+    }
+    Duration::from_secs(5)
 }
 
 /// The blocking face follows a redirect through the async one, and gives
