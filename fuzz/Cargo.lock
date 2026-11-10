@@ -525,7 +525,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pod-broker"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "libc",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "libc",
  "rand",
@@ -552,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "bytes",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "pod-gsr"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "foreign-types",
  "openssl",
@@ -587,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "libc",
@@ -602,7 +602,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "pod-core",
  "toml",
@@ -610,7 +610,7 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "base64",
  "p256",
