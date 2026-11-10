@@ -1,0 +1,44 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh 8cd0f2bbd9422256b7bcf1e32e7314923078e6be
+dir crates/podssh-ws/src/h2_road
+dir crates/podssh-ws/src/cleartext
+file d925a68e40361ade2babc79e2c69d235c624bc9b crates/podssh-ws/src/client.rs -> crates/pod-ws/src/client.rs
+file f147d20653ba547cc8d74705a72efb338cfff217 crates/podssh-ws/src/client/cut_tests.rs -> crates/pod-ws/src/client/cut_tests.rs
+file 97b058e49d8e0d91d7048ca8f4fcf83d3d118de8 crates/podssh-ws/src/client/get.rs -> crates/pod-ws/src/client/get.rs
+file 627bb54813a4dbc7d15500c48460b2bc96e76eb6 crates/podssh-ws/src/frame.rs -> crates/pod-ws/src/frame.rs
+file af516e8f2ba2c0612d93d7fd15508dd313ac43fc crates/podssh-ws/src/wire.rs -> crates/pod-ws/src/wire.rs
+file e22549e9cb6b75620dd6864597c223b290f00235 crates/podssh-ws/src/handshake.rs -> crates/pod-ws/src/handshake.rs
+file f8c791e4f83e74ac1e9bd43bcc0104b1160d3a4b crates/podssh-ws/src/session.rs -> crates/pod-ws/src/session.rs
+file 2f1df8f45adab161fc8b4cde6ce89760ac20c0cb crates/podssh-ws/src/url.rs -> crates/pod-ws/src/url.rs
+file e7ac8626d5d35a9030de2999c74507e29e52d42b crates/podssh-ws/src/close.rs -> crates/pod-ws/src/close.rs
+file dba74512f688fb5dbade867687d034a6ae13b6ad crates/podssh-ws/src/error.rs -> crates/pod-ws/src/error.rs
+file d73bcfa94a548438d7bedbcb1cebeab8bdd74040 crates/podssh-ws/src/plain.rs -> crates/pod-ws/src/plain.rs
+file 7dca7a5803b142384407f7497b42856d68f3f126 crates/podssh-ws/src/server.rs -> crates/pod-ws/src/server.rs
+file b1b6ba411feab93e099aa7472b18780fab458ac9 crates/podssh-ws/src/h2_road/mod.rs -> crates/pod-ws/src/h2_road/mod.rs
+file 96d2b9f5f0585bf69d4f71d9028bda4c026940e4 crates/podssh-ws/src/h2_road/dial.rs -> crates/pod-ws/src/h2_road/dial.rs
+file 0b80584fd2a808c19508026d2ba2254d15d360ae crates/podssh-ws/src/h2_road/pool.rs -> crates/pod-ws/src/h2_road/pool.rs
+file a18cbe77eec15f8703b5c052059a2468accb6110 crates/podssh-ws/src/cleartext/mod.rs -> crates/pod-ws/src/cleartext/mod.rs
+file 72b3284879d1c1eaa141b86e271c42439ab23200 crates/podssh-ws/src/cleartext/probe.rs -> crates/pod-ws/src/cleartext/probe.rs
+file fa853c2d0b34fbd6f9df29e6494447b8e36ff981 crates/podssh-ws/src/wake.rs -> crates/pod-ws/src/wake.rs
+file c8c547c57ad2d7730084f40cb4d345c889377b85 crates/podssh-ws/src/via/http2.rs -> crates/pod-ws/src/h2_road/duplex.rs
+file 39afb0652721bc5af70f6661eb433822f2cf8496 crates/podssh-ws/tests/rfc6455.rs -> crates/pod-ws/tests/rfc6455.rs
+file 69082e04090bfbcff4e810c11e9b6ab9d8703cfc crates/podssh-ws/tests/control_frames.rs -> crates/pod-ws/tests/control_frames.rs
+file 762ca07bbc04dd409fbf925579e87ccea6c35b93 crates/podssh-ws/tests/frame_lengths.rs -> crates/pod-ws/tests/frame_lengths.rs
+file 28e1077c731e4bb8548dfa52c758db3dda54ab1c crates/podssh-ws/tests/handshake_tail.rs -> crates/pod-ws/tests/handshake_tail.rs
+file 729b2edb0a5c8993268131019c13f69b3985ca10 crates/podssh-ws/tests/limits.rs -> crates/pod-ws/tests/limits.rs
+file 872cd98c1325f1756c7fd9822d1fe39b713aef5b crates/podssh-ws/tests/session.rs -> crates/pod-ws/tests/session.rs
+file 696cdbe47769074c7ea8f78b1c288836932218e4 crates/podssh-ws/tests/plain_loopback.rs -> crates/pod-ws/tests/plain_loopback.rs
+file b84c88b1f6ad2e4bd6714c91697a41d6a24d619b crates/podssh-ws/tests/h2_road.rs -> crates/pod-ws/tests/h2_road.rs
+file 10c54492d2d19bed1004e332d7b5574033a6894b crates/podssh-ws/tests/cleartext_road.rs -> crates/pod-ws/tests/cleartext_road.rs
+file defd1ecf0869b6a3e7554f43e93c2a1cf8883026 crates/podssh-ws/tests/properties.rs -> crates/pod-ws/tests/properties.rs
+file ffd58a72ab2cfb67cc7e9b6c487870d2f2f06aea crates/podssh-ws/tests/random_source.rs -> crates/pod-ws/tests/random_source.rs
+file 770e3274eb82c0929a24cb2a127f2ad3f45291af fuzz/fuzz_targets/ws_frame.rs -> fuzz/fuzz_targets/ws_frame.rs fuzz/src/targets.rs
+file 55e0783e7fec3a49eefe73d1e9f314aeab67ee76 fuzz/fuzz_targets/ws_upgrade.rs -> fuzz/fuzz_targets/ws_upgrade.rs fuzz/src/targets.rs
+file d30e946c1a7f4e02961c366c7327148677f60511 fuzz/fuzz_targets/close_reason.rs -> fuzz/fuzz_targets/close_reason.rs fuzz/src/targets.rs
+
+repo PodUtils/podnet 76ffb5eaeb36ef950aa9ab2b7494ac0883202733
+file ebcc093215d8688002ed353977895c33d171a2ff src/ws.rs -> crates/pod-ws/src/bridge.rs
