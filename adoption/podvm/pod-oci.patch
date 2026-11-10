@@ -24,7 +24,7 @@ index 29b3616..4fcf872 100644
  | Archive names and links | `crates/podvm-extract/src/safety.rs`, `layer.rs` |
  | Host operation probes | `crates/podvm-probe/src/` |
 diff --git a/TODO/cli.md b/TODO/cli.md
-index f3db44a..7437016 100644
+index 33c2c21..74d4469 100644
 --- a/TODO/cli.md
 +++ b/TODO/cli.md
 @@ -1581,7 +1581,7 @@ source before implementation.
@@ -37,7 +37,7 @@ index f3db44a..7437016 100644
  Category:    cli
  Priority:    P2
 diff --git a/TODO/gate.md b/TODO/gate.md
-index 8bfef1b..1844ecd 100644
+index af65534..d21bb3a 100644
 --- a/TODO/gate.md
 +++ b/TODO/gate.md
 @@ -3978,9 +3978,9 @@ Prove:       `sh scripts/common/check-docs.sh` and each other `.sh` check of
@@ -53,7 +53,7 @@ index 8bfef1b..1844ecd 100644
               `vendor/userland-execve/Cargo.toml:3`
  Category:    gate
 diff --git a/TODO/image.md b/TODO/image.md
-index 57a8d1c..d232635 100644
+index c3522e8..eaa50ab 100644
 --- a/TODO/image.md
 +++ b/TODO/image.md
 @@ -108,7 +108,7 @@ Decision:    One store shared by images and containers, with a lock, rather than
@@ -135,26 +135,26 @@ index e5dd0a9..742fb10 100644
          let (n, est) = layer::uncompressed_size(&blob, c, d.size);
          need_bytes = need_bytes.saturating_add(n);
 diff --git a/crates/podvm-image/Cargo.toml b/crates/podvm-image/Cargo.toml
-index 1ca0717..1b4f9ec 100644
+index d3fae4e..84e231f 100644
 --- a/crates/podvm-image/Cargo.toml
 +++ b/crates/podvm-image/Cargo.toml
-@@ -17,16 +17,22 @@ rustls-pki-types.workspace = true
+@@ -17,19 +17,25 @@ rustls-pki-types.workspace = true
  # The roots, the PEM reader and the client configuration (`tls.rs`), shared
  # with podssh and podnet through PodUtils/podcrates. The provider is podvm's
  # `ring`.
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false }
  # The HTTP transport (`net.rs`): the registry, the token realm, the guest image
  # fetch and the mirror probe, through the proxy of the environment. The
  # feature `blocking` runs it on a private runtime of one thread, so podvm's own
  # code stays synchronous. `pod-core` gives the stage of a failure.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false, features = ["blocking"] }
--pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false, features = ["blocking"] }
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false, features = ["blocking"] }
 +pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false }
  # The space and exec checks of a directory (`space.rs`, `exec_probe.rs`),
  # with podvm's settings from `podvm-probe`.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
 +# The OCI registry client: the reference, the digest, the documents, the
 +# platform, the logins, the registry API, the insecure policy, the roots,
@@ -162,10 +162,14 @@ index 1ca0717..1b4f9ec 100644
 +# (`registry::client`, `transport::resolve`, `platform::wanted`,
 +# `credentials`) and keeps the store.
 +pod-oci = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
+ # The advisory lock of the store (`store::Lock`): the index lock, the image
+ # hold, the staging locks.
+-pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
++pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
  sha2.workspace = true
  serde.workspace = true
  serde_json.workspace = true
-@@ -34,5 +40,3 @@ serde_json.workspace = true
+@@ -37,5 +43,3 @@ serde_json.workspace = true
  # Archive file api. Already in the graph through podvm-extract at this
  # version, so no new crate enters the tree.
  tar.workspace = true
@@ -4700,38 +4704,52 @@ index 125093c..4092cac 100644
                  let records = store.list().expect("the index reads after a refusal");
                  if !records.is_empty() {
 diff --git a/crates/podvm-probe/Cargo.toml b/crates/podvm-probe/Cargo.toml
-index 933175e..ee37b84 100644
+index 24778a6..ee37b84 100644
 --- a/crates/podvm-probe/Cargo.toml
 +++ b/crates/podvm-probe/Cargo.toml
 @@ -11,4 +11,4 @@ repository.workspace = true
  # shared through PodUtils/podcrates. This crate gives podvm's settings to it
  # and keeps the report. The syscall table and the kernel's struct layouts
  # (TODO/deps.md T-0911, T-0912) come with it.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
 diff --git a/crates/podvm-ssh/Cargo.toml b/crates/podvm-ssh/Cargo.toml
-index b756459..0814fd0 100644
+index be410fe..0814fd0 100644
 --- a/crates/podvm-ssh/Cargo.toml
 +++ b/crates/podvm-ssh/Cargo.toml
 @@ -15,15 +15,15 @@ podvm-probe = { path = "../podvm-probe" }
  # control frames. The websocket framing itself is hand-rolled in `ws.rs`: the opcode
  # travels with the frame, which no byte-pipe websocket API preserves.
  rustls.workspace = true
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
 +pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false }
  # The proxy of a relay leg (`transport/egress.rs`): the rules of `HTTPS_PROXY`,
  # `ALL_PROXY` and `NO_PROXY`, and the dial through an HTTP CONNECT or SOCKS5
  # proxy, shared with podssh and podnet through PodUtils/podcrates. The
  # blocking face runs on a private runtime of one thread; podvm's own code
  # stays synchronous.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0", default-features = false, features = ["blocking"] }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false, features = ["blocking"] }
 +pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false, features = ["blocking"] }
  serde_json.workspace = true
  base64.workspace = true
  # The line discipline of a session with no pty (`session.rs`), shared with
  # podssh through PodUtils/podcrates.
--pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7.0" }
+-pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
 +pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
+diff --git a/crates/podvm-supervise/Cargo.toml b/crates/podvm-supervise/Cargo.toml
+index c5f95ca..6d29227 100644
+--- a/crates/podvm-supervise/Cargo.toml
++++ b/crates/podvm-supervise/Cargo.toml
+@@ -13,7 +13,7 @@ podvm-enter = { path = "../podvm-enter" }
+ # The table, the launcher, the logs and the verbs of the lifecycle. This
+ # crate keeps podvm's settings, its record fields, the entry of a payload and
+ # the ownership memo.
+-pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0" }
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.8.0", default-features = false }
++pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.10.0", default-features = false }
+ serde.workspace = true
+ serde_json.workspace = true
 diff --git a/crates/podvm/src/exec/command.rs b/crates/podvm/src/exec/command.rs
 index 76fb7ee..973c99b 100644
 --- a/crates/podvm/src/exec/command.rs
@@ -4837,22 +4855,24 @@ index ea553b4..f7b7f77 100644
      let bytes = store.read_blob(&d).map_err(|e| {
          eprintln!("podvm {verb}: {e}");
 diff --git a/docs/runtime-state.md b/docs/runtime-state.md
-index 8f5e564..459b421 100644
+index 58b6380..9015774 100644
 --- a/docs/runtime-state.md
 +++ b/docs/runtime-state.md
-@@ -52,11 +52,12 @@ Separate crate: `crates/podvm-interpose`.
+@@ -52,12 +52,13 @@ Separate crate: `crates/podvm-interpose`.
  | --- | --- |
  | `base64` | `0.23.1` |
  | `flate2` | `1.1.10` |
--| `pod-core` | `0.7.0` |
--| `pod-hostprobe` | `0.7.0` |
--| `pod-proxy` | `0.7.0` |
--| `pod-term` | `0.7.0` |
--| `pod-tls` | `0.7.0` |
+-| `pod-core` | `0.8.0` |
+-| `pod-hostprobe` | `0.8.0` |
+-| `pod-proxy` | `0.8.0` |
+-| `pod-supervise` | `0.8.0` |
+-| `pod-term` | `0.8.0` |
+-| `pod-tls` | `0.8.0` |
 +| `pod-core` | `0.10.0` |
 +| `pod-hostprobe` | `0.10.0` |
 +| `pod-oci` | `0.10.0` |
 +| `pod-proxy` | `0.10.0` |
++| `pod-supervise` | `0.10.0` |
 +| `pod-term` | `0.10.0` |
 +| `pod-tls` | `0.10.0` |
  | `rustls` | `0.23.46` |

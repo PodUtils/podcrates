@@ -1,14 +1,13 @@
-# The trial of pod-oci in podvm (T-056), at podvm main 6cd3442
-# (pod-oci.commit). podvm applies pod-supervise, pod-guest and pod-enter
-# first. The patches share crates/podvm-image/Cargo.toml,
-# crates/podvm-probe/Cargo.toml, crates/podvm-ssh/Cargo.toml and
-# docs/runtime-state.md (each moves the tag of podcrates and its rows; this
-# patch to v0.10.0, with the row of pod-oci), TODO/gate.md (all three;
-# adjacent citation lines of T-1684), TODO/cli.md (pod-supervise and
-# pod-enter), TODO/image.md (pod-supervise), and
+# The trial of pod-oci in podvm (T-056), at podvm main cb57d4b (commit).
+# The patch applies alone. It shares crates/podvm-image/Cargo.toml,
+# crates/podvm-probe/Cargo.toml, crates/podvm-ssh/Cargo.toml,
+# docs/runtime-state.md and TODO/gate.md with pod-guest.patch and
+# pod-enter.patch, and crates/podvm-supervise/Cargo.toml, TODO/cli.md,
 # crates/podvm/src/exec/command.rs and crates/podvm/src/lifecycle/userland.rs
-# (pod-enter; other lines). A 3-way apply after pod-enter conflicts only in
-# the tag lines, the rows and T-1684: keep the lines of both, at v0.10.0.
+# with pod-enter.patch. After both, with git apply --3way, only the tag
+# lines (take v0.10.0), the pod-* rows of docs/runtime-state.md (keep each
+# row, at 0.10.0) and two adjacent citation lines of T-1684 in
+# TODO/gate.md (keep both) conflict.
 # crates/podvm-image keeps the store, the pull into it, save, load and
 # import, net.rs, AcceptAny, docker's codes and podvm's glue:
 # registry::client (podvm's transport, trust, AcceptAny for an insecure
@@ -21,7 +20,8 @@
 # pod_oci::trust, the Store as pod_oci::pull::Blobs, and
 # Error::Image(pod_core::Failure) with From<Failure> (NoPlatform and
 # DigestMismatch keep their variants; Class::Usage is docker's 1). reference,
-# digest and oci are pod_oci's modules; 7 files leave podvm. The
+# digest and oci are pod_oci's modules; 7 files leave podvm. Each podcrates
+# tag moves to v0.10.0, with the tags of podvm-supervise. The
 # disclosure of the policy gets podvm's prefix. The call sites of
 # Platform::wanted and Policy::resolve call podvm's functions; the
 # citations of the moved files name pod-oci. podvm's tests of the touched
@@ -33,6 +33,7 @@
 cargo test -q -p podvm-image
 cargo test -q -p podvm-extract
 cargo test -q -p podvm-complete
+cargo test -q -p podvm-supervise
 cargo test -q -p podvm --bin podvm
 cargo test -q -p podvm --test store_gates
 cargo test -q -p podvm --test qol
@@ -46,7 +47,8 @@ cargo build -q --release -p podvm-gate && cargo build -q --release -p podvm-rele
 mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-gate" "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/document-state" target/release/
 # docs/runtime-state.md lists each direct git or registry dependency with its
 # locked version. The patch gives the rows of the git form (pod-core,
-# pod-hostprobe, pod-oci, pod-proxy, pod-term and pod-tls at 0.10.0); the
+# pod-hostprobe, pod-oci, pod-proxy, pod-supervise, pod-term and pod-tls at
+# 0.10.0); the
 # trial's path form has no row for them. Each other row of the patch must be
 # the generated one.
 grep -v '^| .pod-' docs/runtime-state.md > target/runtime-state.patch.md && python3 scripts/document-state.py --write && grep -v '^| .pod-' docs/runtime-state.md | diff target/runtime-state.patch.md -

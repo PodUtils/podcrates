@@ -112,7 +112,7 @@ Against podvm `crates/podvm-image` at `6cd3442`:
 | the fetch pool of `pull.rs` | `pod_oci::pull::fetch_parallel` with `Store` as its `Blobs`; podvm keeps `FETCH_WORKERS` with its check of the fork slots |
 | the constants and the index of `layout.rs` | `pod_oci::layout` |
 | `crates/podvm-image/src/{reference,digest,oci}.rs`, `credentials/tests.rs`, `registry/{http,wire,tests}.rs` | leave podvm |
-| `podvm-image`, `podvm-probe`, `podvm-ssh` at `v0.7.0` | each tag of podcrates at `v0.10.0` |
+| each tag of podcrates in podvm (`podvm-image`, `podvm-probe`, `podvm-ssh`, `podvm-supervise`) | `v0.10.0` |
 
 ## Tests
 
