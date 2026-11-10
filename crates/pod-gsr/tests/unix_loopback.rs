@@ -55,7 +55,7 @@ struct Hello {
 /// A path in the scratch directory, unique to this process and this call.
 fn socket_path(tag: &str) -> PathBuf {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).expect("a clock").as_nanos();
-    std::env::temp_dir().join(format!("pod-gsr-{tag}-{}-{nanos}.sock", std::process::id()))
+    pod_testkit::host::socket_path(&format!("pod-gsr-{tag}-{}-{nanos}.sock", std::process::id()))
 }
 
 /// Start the stand-in and give its path.

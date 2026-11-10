@@ -318,7 +318,7 @@ trial, `adoption/podssh/pod-session.*`) and the commit of this record.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -353,6 +353,21 @@ holds on a slow host, and say why.
 cargo test -p pod-session --test session_move
 QEMU_LD_PREFIX=/ qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/session_move-HASH
 ```
+
+## Done
+
+2026-11-10, the commit of this entry. Cause: the test paces each writer at
+about 16 MiB/s with a fixed sleep, and the margin before a cap is 256 KiB
+(about 8 ms of traffic in both ways). The handshake of the new link takes
+more time under qemu-user (the crypto), so the old link met its cap. The
+crate is right: the move starts at the move point and the old link carries
+only the bytes that the writers send meanwhile. The test now slows its
+pace with `pod_testkit::host::scaled`, so the margin keeps its time under
+an emulator; the native check is the same. Measured after the change:
+`a_session_moves_before_each_cap` 0 failures in 15 runs under qemu-aarch64,
+0 in 12 under qemu-riscv64 (and 0 in 15 of an earlier run), 0 in 10 runs
+native. One native run in 10 failed while the emulator runs loaded the
+machine; 55 later runs passed.
 
 # T-021: `pod-e2e`: the end-to-end channel (Noise XX)
 

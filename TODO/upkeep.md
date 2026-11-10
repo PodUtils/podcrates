@@ -291,7 +291,7 @@ owner. The owner ruled each question on 2026-11-09 (`docs/decisions.md`,
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -320,3 +320,14 @@ bytes proves it.
 ```sh
 TMPDIR=$(mktemp -d /tmp/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.XXXX) cargo test --workspace --all-features
 ```
+
+## Done
+
+2026-11-10, the commit of this entry. `pod_testkit::host::socket_dir` and
+`socket_path` give a socket path under the temporary directory, or under
+`/tmp` when that path is too long. The tests of `pod-gsr` (`blocking`,
+`unix_loopback`), `pod-proxy` (`egress`), `pod-guest` (`dos`), `pod-term`
+(`calibration`, the tmux socket) and `pod-broker` (`control`, `tunnel`;
+its own copy is gone) take them. `pod-supervise` addresses its socket by
+`/proc/self/fd` and needs no change. With a `TMPDIR` of 74 bytes under
+`/tmp`, `cargo test --workspace --all-features` passes (exit 0).

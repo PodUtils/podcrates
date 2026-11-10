@@ -90,11 +90,15 @@ fn capped_link(capped: Arc<AtomicUsize>, cap: usize) -> (DuplexStream, DuplexStr
 async fn exchange(stream: DuplexStream, out: Vec<u8>, paced: bool) -> Vec<u8> {
     let (mut r, mut w) = tokio::io::split(stream);
     let len = out.len();
+    // The margin before a cap is a count of bytes; the handshake of the new
+    // link takes time. An emulator makes the handshake slower than the
+    // pace, so the pace slows with it and the margin keeps its time.
+    let pace = pod_testkit::host::scaled(Duration::from_millis(2));
     let writer = tokio::spawn(async move {
         for chunk in out.chunks(32 * KIB) {
             w.write_all(chunk).await.unwrap();
             if paced {
-                tokio::time::sleep(Duration::from_millis(2)).await;
+                tokio::time::sleep(pace).await;
             }
         }
         w

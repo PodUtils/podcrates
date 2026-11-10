@@ -21,7 +21,7 @@ async fn the_control_socket_loads_lists_and_drops_jobs() {
     use std::os::unix::fs::PermissionsExt;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-    let dir = socket_dir("pod-broker-control");
+    let dir = pod_testkit::host::socket_dir("pod-broker-control");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("control.sock");
     let listener = pod_broker::control::bind_unix(&path, 0o600).unwrap();

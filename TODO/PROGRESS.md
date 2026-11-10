@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 170 entries: 62 open, 4 partial, 0 blocked, 104 done.
+`TODO/INDEX.md` holds 170 entries: 60 open, 4 partial, 0 blocked, 106 done.
 
 ## State
 
@@ -83,14 +83,14 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    `pod-todo`.
 3. **M1, the transport:** T-166 (partial: the clean run of the trial of podnet, the cross tests, the release `v0.15.0`, the take); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-167, T-021,
+4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-021,
    T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
 7. **M5, the upkeep:** a "port" entry for each change that
-   scripts/check-sources.py finds; T-168.
+   scripts/check-sources.py finds.
 8. **M7, the widened scope of podvm:** T-062 after M6.
 9. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a

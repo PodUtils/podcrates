@@ -38,7 +38,7 @@ async fn a_connect_carries_bytes_both_ways_and_counts_them() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_connect_round_trip_on_the_unix_socket_of_the_broker() {
-    let dir = socket_dir("pod-broker-unix");
+    let dir = pod_testkit::host::socket_dir("pod-broker-unix");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("broker.sock");
     let listener = pod_broker::control::bind_unix(&path, 0o600).unwrap();

@@ -144,7 +144,7 @@ async fn round_trip(proxy: &Proxy) -> Vec<u8> {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_proxy_on_a_unix_socket_carries_a_connection() {
-    let dir = std::env::temp_dir().join(format!("pod-proxy-unix-{}", std::process::id()));
+    let dir = pod_testkit::host::socket_dir("pod-proxy-unix");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("p.sock");

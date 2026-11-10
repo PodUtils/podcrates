@@ -56,6 +56,33 @@ pub fn scaled(d: Duration) -> Duration {
     if emulated() { d * EMULATOR_FACTOR } else { d }
 }
 
+/// The longest directory path under which a test makes a socket: a socket
+/// path holds at most 107 bytes (`sun_path`), and the longest leaf is 27.
+const SOCKET_DIR_MAX: usize = 80;
+
+/// The longest socket path (`sun_path` holds 108 bytes with the NUL).
+const SOCKET_PATH_MAX: usize = 107;
+
+/// A directory path for the Unix sockets of a test: `name` and the process
+/// id under the temporary directory, or under `/tmp` when that path is too
+/// long for a socket path. The caller makes the directory.
+pub fn socket_dir(name: &str) -> std::path::PathBuf {
+    let leaf = format!("{name}-{}", std::process::id());
+    let dir = std::env::temp_dir().join(&leaf);
+    if dir.as_os_str().len() > SOCKET_DIR_MAX { std::path::Path::new("/tmp").join(leaf) } else { dir }
+}
+
+/// A socket path that fits `sun_path`: `leaf` under the temporary
+/// directory, or under `/tmp` when the temporary directory is long.
+pub fn socket_path(leaf: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir();
+    if dir.as_os_str().len() + 1 + leaf.len() > SOCKET_PATH_MAX {
+        std::path::Path::new("/tmp").join(leaf)
+    } else {
+        dir.join(leaf)
+    }
+}
+
 fn probe_loopback() -> Result<(), String> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| format!("this host denies bind(AF_INET) on 127.0.0.1 (TCP): {e}"))?;

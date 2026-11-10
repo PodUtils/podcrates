@@ -137,7 +137,7 @@ impl Tmux {
     fn new(program: PathBuf) -> Tmux {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("podssh-oracle-{}-{n}", std::process::id()));
+        let dir = pod_testkit::host::socket_dir(&format!("podssh-oracle-{n}"));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
         Tmux { program, dir }

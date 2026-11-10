@@ -91,7 +91,7 @@ fn the_dos_mailbox_carries_both_batch_spellings_and_the_token() {
 /// connection, so a closed monitor is enough.
 #[test]
 fn a_line_with_no_key_for_a_character_types_nothing() {
-    let dir = std::env::temp_dir().join(format!("pod-guest-dosline-{}", std::process::id()));
+    let dir = pod_testkit::host::socket_dir("pod-guest-dosline");
     std::fs::create_dir_all(&dir).unwrap();
     let sock = dir.join("qmp.sock");
     let listener = std::os::unix::net::UnixListener::bind(&sock).unwrap();

@@ -24,7 +24,7 @@ const HELLO: usize = 128;
 /// A path in the temporary directory, unique to this process and this call.
 fn socket_path(tag: &str) -> PathBuf {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).expect("a clock").as_nanos();
-    std::env::temp_dir().join(format!("pod-gsr-b-{tag}-{}-{nanos}.sock", std::process::id()))
+    pod_testkit::host::socket_path(&format!("pod-gsr-b-{tag}-{}-{nanos}.sock", std::process::id()))
 }
 
 /// The stand-in relay: it pairs the first listener with the first connector,
