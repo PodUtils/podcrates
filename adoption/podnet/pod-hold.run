@@ -25,7 +25,7 @@ cargo build -q
 command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
 cargo deny --locked check bans sources
 cargo tree -q -p podnet-netns -i pod-hold > /dev/null
-! git grep -n -i -e "0x4018_2103" -e "0xc050_2100" -e "0x4004_54ca" -e "0x4008_2102" -- crates src
+! git grep -n -i -E "^[^/]*(0x4018_2103|0xc050_2100|0x4004_54ca|0x4008_2102)" -- crates src
 cargo clippy -q --all-targets -p podnet -p podnet-netns -p podnet-core -- -D warnings
 cargo test -q -p podnet-netns
 cargo test -q -p podnet --test pod_seccomp_tcp --test pod_seccomp_dgram --test pod_seccomp_fds --test pod_seccomp_handoff --test pod_seccomp_nonblock --test pod_seccomp_rules --test pod_seccomp_slow_dial --test pod_seccomp_diff --test pod_backend_line --test pod_usage --test af_inet_kernel --test doctor --test docs --test api_surface

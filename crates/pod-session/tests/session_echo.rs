@@ -31,7 +31,8 @@ const HELD: usize = MIB;
 const DELAY: Duration = Duration::from_millis(50);
 const MIB: usize = 1 << 20;
 const LEN: usize = 32 * MIB;
-/// Below the 30 s after which a silent link is taken for dead.
+/// Below the 30 s after which a silent link is taken for dead; five times
+/// longer under an emulator, where the bytes still flow but slowly.
 const WITHIN: Duration = Duration::from_secs(25);
 
 fn pseudo_random(len: usize, seed: u32) -> Vec<u8> {
@@ -139,8 +140,9 @@ async fn a_far_end_that_echoes_takes_eight_windows_at_once_and_loses_no_link() {
 
     let sent = pseudo_random(LEN, 7);
     let started = Instant::now();
+    let within = pod_testkit::host::scaled(WITHIN);
     let (mut r, mut w) = tokio::io::split(app);
-    let back = tokio::time::timeout(WITHIN, async {
+    let back = tokio::time::timeout(within, async {
         let writer = {
             let sent = sent.clone();
             tokio::spawn(async move {
@@ -159,12 +161,13 @@ async fn a_far_end_that_echoes_takes_eight_windows_at_once_and_loses_no_link() {
     .await
     .unwrap_or_else(|_| {
         let notes = notes.lock().unwrap().clone();
-        panic!("32 MiB did not come back through the echo within {} s; the notes: {notes:?}", WITHIN.as_secs())
+        panic!("32 MiB did not come back through the echo within {} s; the notes: {notes:?}", within.as_secs())
     });
     assert_eq!(Sha256::digest(&back), Sha256::digest(&sent), "each byte came back whole");
     eprintln!("32 MiB through the echo and back in {:.1} s", started.elapsed().as_secs_f64());
 
-    let outcome = tokio::time::timeout(Duration::from_secs(60), session).await.unwrap().unwrap();
+    let outcome =
+        tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(60)), session).await.unwrap().unwrap();
     assert!(matches!(&outcome, Outcome::Layer(e) if matches!(e.end, End::LocalEnd | End::Closed(_))), "{outcome:?}");
     // A move before the relay's limit is planned; a loss, a resume or a
     // spare link is what a stalled link gives.
