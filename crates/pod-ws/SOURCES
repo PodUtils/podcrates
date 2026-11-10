@@ -51,6 +51,7 @@ file 55e0783e7fec3a49eefe73d1e9f314aeab67ee76 fuzz/fuzz_targets/ws_upgrade.rs ->
 file d30e946c1a7f4e02961c366c7327148677f60511 fuzz/fuzz_targets/close_reason.rs -> fuzz/fuzz_targets/close_reason.rs fuzz/src/targets.rs
 
 repo PodUtils/podnet 76ffb5eaeb36ef950aa9ab2b7494ac0883202733
+taken 5eace6e0ebd11a38eab98b825c256d269c5d0314
 # Of src/ws.rs only bridge, dial, connect_bridge, DIAL_TIMEOUT, accept_key
 # (podssh's) and the tests bridge_moves_bytes_both_ways,
 # accept_key_matches_rfc_example and the measure throughput are here, with

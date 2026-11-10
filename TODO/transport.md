@@ -550,6 +550,12 @@ commit of this record.
   files, podnet 2 files, 0 changes); `sh scripts/agent/check.sh` (fmt,
   clippy, doc, record, size, paths, the static probes, the tests).
 
+- Released in `v0.13.0` (`947603a`, release 42802815017; GitHub #49).
+  podnet took `pod-ws` at `5eace6e` (PodUtils/podnet#420; `--3way` at
+  podnet `99014d5`, each hunk clean; each line of the `.run` passed): the
+  `taken` line of the podnet block is in `crates/pod-ws/SOURCES`, and the
+  trial of podnet ends. podssh's take remains.
+
 # T-017: The fuzz workspace and its weekly workflow
 
 **Source:** `docs/design.md`, section 8, step 4.
