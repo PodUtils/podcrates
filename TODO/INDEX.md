@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**139 entries: 56 open, 4 partial, 0 blocked, 79 done.**
+**140 entries: 56 open, 4 partial, 0 blocked, 80 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 24 | 0 | 0 | 28 | 52 |
+| P1 | 24 | 0 | 0 | 29 | 53 |
 | P2 | 24 | 3 | 0 | 38 | 65 |
 | P3 | 8 | 1 | 0 | 11 | 20 |
-| **All** | 56 | 4 | 0 | 79 | 139 |
+| **All** | 56 | 4 | 0 | 80 | 140 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -186,3 +186,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-137](podvm.md) | P3 | S | M6 | chore | open | `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220) |
 | [T-138](podvm.md) | P3 | M | M6 | chore | open | `pod-guest`: the run of a real guest in CI |
 | [T-139](podvm.md) | P1 | M | M6 | defect | open | `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222) |
+| [T-140](podvm.md) | P1 | S | M6 | defect | done | `pod-oci`: the test of the host name fails where Rust and OCI say the same word |

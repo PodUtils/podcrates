@@ -1316,3 +1316,44 @@ PodUtils/podvm@T-1652).
 ```sh
 cargo test -p pod-enter
 ```
+
+# T-140: `pod-oci`: the test of the host name fails where Rust and OCI say the same word
+
+**Source:** nightly run 42731628165 (v0.10.0), jobs `cross` of arm, armv7 and riscv64gc.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`the_host_is_an_oci_name_and_never_rusts` asserted that `Platform::host().arch`
+differs from `std::env::consts::ARCH` on each target. On arm and riscv64
+Rust and OCI use the same word (`arm`, `riscv64`), so the test failed there.
+The code is right: `HOST_ARCH` is `arm` and `riscv64`.
+
+## Premise
+
+- Read: the image-index of OCI uses Go's `GOARCH`: `arm` and `riscv64`.
+
+## Approach
+
+- The test holds the table of Rust names and OCI names, and asserts the OCI
+  name of the target. It asserts that the names differ only where the table
+  says so.
+
+## Prove
+
+```sh
+cargo test -p pod-oci platform
+cargo zigbuild --tests -p pod-oci --target riscv64gc-unknown-linux-musl  # run with qemu-riscv64
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-140. The test passes on
+x86_64, and under `qemu-user` on riscv64 and armv7. The other failures of
+the first local run (`pod-enter` `resolve_past_a_denied_listing`, `children`
+of `pod-hostprobe`) need the `binfmt_misc` registration that the nightly
+makes. The nightly is the proof.

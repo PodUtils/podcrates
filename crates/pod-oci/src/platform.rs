@@ -309,14 +309,28 @@ mod tests {
 
     #[test]
     fn the_host_is_an_oci_name_and_never_rusts() {
-        // Rust says x86_64 and a registry says amd64.
+        // Rust says x86_64 and a registry says amd64. On arm and riscv64
+        // both say the same word, so the names differ only where the table
+        // says so.
+        let ppc = if cfg!(target_endian = "little") { "ppc64le" } else { "ppc64" };
+        let table = [
+            ("x86_64", "amd64"),
+            ("aarch64", "arm64"),
+            ("x86", "386"),
+            ("loongarch64", "loong64"),
+            ("powerpc64", ppc),
+            ("arm", "arm"),
+            ("riscv64", "riscv64"),
+            ("s390x", "s390x"),
+        ];
         let h = Platform::host();
-        assert_ne!(h.arch, std::env::consts::ARCH, "the rust name reached OCI");
         assert_eq!(h.os, "linux");
-        #[cfg(target_arch = "x86_64")]
-        assert_eq!(h.arch, "amd64");
-        #[cfg(target_arch = "aarch64")]
-        assert_eq!(h.arch, "arm64");
+        let rust = std::env::consts::ARCH;
+        let oci = table.iter().find(|(r, _)| *r == rust).map_or(rust, |(_, o)| *o);
+        assert_eq!(h.arch, oci);
+        if oci != rust {
+            assert_ne!(h.arch, rust, "the rust name reached OCI");
+        }
         assert!(h.is_host());
     }
 
