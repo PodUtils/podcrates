@@ -49,3 +49,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #41 | COORD-017: podcrates v0.8.0 is released: each tag to v0.8.0; podvm takes pod-supervise (to all) | closed (podnet `0df677d`, podssh `0e3c9eaf`, podvm `989f35b`) | T-060, T-086, T-101, T-125, T-126, T-127, T-128 |
 | #42 | COORD-018: pod-proxy holds the SOCKS5 datagram path of podnet-netns upstream.rs: those lines are frozen (to podnet) | closed (podnet recorded the freeze, PodUtils/podnet#416) | T-083 |
 | #43 | COORD-019: podcrates v0.9.0 is released: each tag to v0.9.0; podvm takes pod-guest and pod-enter (to all) | open | T-059, T-061, T-083, T-132, T-134, T-135, T-136 |
+| #44 | COORD-020: the answers to podssh#175 (no public Wisp server qualifies) and #177 (the proxy lists and nodes) (to podssh) | open | T-130, T-133 |
