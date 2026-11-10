@@ -4,13 +4,12 @@
 
 ## State
 
-- Released: `v0.8.0` at `f680113` (CI 42689735618, nightly 42689624747,
-  release 42694145849): `pod-supervise`, `pod-gsr`, `pod-broker`, the exit
-  codes of `pod-core`, the fixes of `pod-dns`, `pod-proxy`, `pod-services`
-  and of `pod-hostprobe` on 32-bit; COORD-017 (GitHub #41) hands it to each
-  consumer. Each consumer takes it: podnet `0df677d` (PodUtils/podnet#416), podssh `0e3c9eaf`
-  (PodUtils/podssh#176); podvm took it in `989f35b` (PodUtils/podvm#219). Open: T-131
-  (`pod-gsr` on Windows ARM64).
+- Released: `v0.9.0` at `b7c3e6a` (CI 42721218099, nightly 42721246608,
+  release 42725622691): `pod-guest`, `pod-enter`, `pod_proxy::udp`, the
+  32-bit ids and the open flags of `pod-hostprobe`, the Pinggy data.
+  COORD-019 (GitHub #43) hands it to each consumer. Each consumer is on
+  `v0.8.0`; podvm took `pod-supervise`. Open: T-131 (`pod-gsr` on Windows
+  ARM64).
 - M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is done:
   podvm took it in `989f35b` (PodUtils/podvm#219).
   `pod-guest` (T-061) and `pod-enter` (T-059) are partial: their trials
