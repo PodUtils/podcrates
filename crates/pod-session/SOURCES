@@ -1,0 +1,72 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh c5636c977df13484c27d2b4f3f516db8ea746db5
+# src/session/ (with handover/), src/udp/, src/answer.rs and
+# src/transit/link.rs (here ws_link.rs) are frozen for fixes until podssh
+# takes the crate. tests/session_handover.rs: the test
+# a_session_of_the_channel_goes_on_across_a_handover_with_its_keys_and_nonces
+# stays in podssh until pod-e2e (it runs the channel of src/e2e/).
+# tests/session_policy.rs (the close table of src/reverse/) and
+# tests/session_relay_resume.rs (src/forward_layer/, src/serve/) stay in
+# podssh until pod-relay.
+dir crates/podssh-relay/src/session
+dir crates/podssh-relay/src/udp
+file 9d2592682559f1e387842f7b5496409aad60e8d5 crates/podssh-relay/src/answer.rs -> crates/pod-session/src/answer.rs
+file dd6b5df0f9d4570217acd5e39c009a9868644a29 crates/podssh-relay/src/session/beside.rs -> crates/pod-session/src/beside.rs
+file 97bc4da299621ffb61b0444ba504b36916b4a35d crates/podssh-relay/src/session/budget.rs -> crates/pod-session/src/budget.rs
+file b2db222e2bf07658004542b62a612de133c02c65 crates/podssh-relay/src/session/client.rs -> crates/pod-session/src/client.rs
+file 9dd1f1a34e77ba192e93346b532bfca02ab0fdf9 crates/podssh-relay/src/session/deadline.rs -> crates/pod-session/src/deadline.rs
+file dd248f6e80515344c25e7e7f8bf7e5f317991997 crates/podssh-relay/src/session/decode.rs -> crates/pod-session/src/decode.rs
+file e824eb1f85717bc446bfdbee01e4115170daaeaa crates/podssh-relay/src/session/far.rs -> crates/pod-session/src/far.rs
+file 1e3bd32ffea1874b408ca51ab1ad3a9d32e52c7c crates/podssh-relay/src/session/half_close.rs -> crates/pod-session/src/half_close.rs
+file 957ae6e65373958453a59f4ce8eac6ba04d0c061 crates/podssh-relay/src/session/handover/mod.rs -> crates/pod-session/src/handover/mod.rs
+file b93ff9530890a1363750d0783f5ecaab090d118e crates/podssh-relay/src/session/handover/tests.rs -> crates/pod-session/src/handover/tests.rs
+file bb0e81b83aaa8846f6835b968c653b84c1dc53a9 crates/podssh-relay/src/session/handover/wire.rs -> crates/pod-session/src/handover/wire.rs
+file e59a8f2e077f37cbadeb4e429dbd27839c0bb02f crates/podssh-relay/src/session/handshake.rs -> crates/pod-session/src/handshake.rs
+file 7599550bebe80cc8ba41423cee081cc88c8b14f8 crates/podssh-relay/src/session/hearing.rs -> crates/pod-session/src/hearing.rs
+file 262d583c0b945ade047ff12168263efd500c69fd crates/podssh-relay/src/session/keep.rs -> crates/pod-session/src/keep.rs
+file e08b667996a9cd9dfecfdda831464bf12129ed87 crates/podssh-relay/src/session/keep/handover.rs -> crates/pod-session/src/keep/handover.rs
+file 86153d62729e76b86be2fc47fc90ed4fbeae1e89 crates/podssh-relay/src/session/link.rs -> crates/pod-session/src/link.rs
+file 492f4e2c2ac7fbda9378c1fbefd50a409103614d crates/podssh-relay/src/session/link/parts.rs -> crates/pod-session/src/link/parts.rs
+file b5aa92cae6c6f348e4e017a716d1145db8d68aca crates/podssh-relay/src/session/mod.rs -> crates/pod-session/src/lib.rs
+file f56289cd58828b55752bf48cb5d4dedfe8ad3eea crates/podssh-relay/src/session/offset.rs -> crates/pod-session/src/offset.rs
+file feb054e679afa3dc7f15b6509fcd3134c65308ec crates/podssh-relay/src/session/once.rs -> crates/pod-session/src/once.rs
+file 5a0abb5a04877c3a31795307c13338c313476965 crates/podssh-relay/src/session/pump.rs -> crates/pod-session/src/pump.rs
+file 66e7b597c78ac0da6654d238f24a42adbfb25e32 crates/podssh-relay/src/session/pump/down.rs -> crates/pod-session/src/pump/down.rs
+file f21c9be64d37a06fa77c693ae739864141c1cd8e crates/podssh-relay/src/session/pump/outbox.rs -> crates/pod-session/src/pump/outbox.rs
+file 897393a8938bd996ab53192733eefca7b5b3d7ec crates/podssh-relay/src/session/pump/parts.rs -> crates/pod-session/src/pump/parts.rs
+file de666e23b8e694fe94cebf482f36f53634ab6e01 crates/podssh-relay/src/session/pump/up.rs -> crates/pod-session/src/pump/up.rs
+file 44043ca7c0dc23f8940918b65b2a182c1419ec0d crates/podssh-relay/src/session/race.rs -> crates/pod-session/src/race.rs
+file b5bb28b6aebcd43e1aef77d75437c9a37e1d7648 crates/podssh-relay/src/session/record.rs -> crates/pod-session/src/record.rs
+file a7177b2f38c71da4720be5bd0f26d5b28f0f3fcc crates/podssh-relay/src/session/replay.rs -> crates/pod-session/src/replay.rs
+file 0770458b8e18d2cd4afbea385c5e0a7c46dcff18 crates/podssh-relay/src/session/resume.rs -> crates/pod-session/src/resume.rs
+file f698c32a3ca32822c21750c8b354ee8c41f00fb4 crates/podssh-relay/src/session/round_trip.rs -> crates/pod-session/src/round_trip.rs
+file 59266408070a109476e802e3b324f2657dc46ee1 crates/podssh-relay/src/session/secret.rs -> crates/pod-session/src/secret.rs
+file a1f9e115b17e891467dbbe83ef4b8a1a412724ef crates/podssh-relay/src/session/sessions.rs -> crates/pod-session/src/sessions.rs
+file 920e3da8403fbfc0405fe0fba7d6cb615e70869f crates/podssh-relay/src/transit/link.rs -> crates/pod-session/src/ws_link.rs
+file d7884a4e744d239a7acaf0309ae9a27ab6994ace crates/podssh-relay/src/udp/codec.rs -> crates/pod-session/src/udp/codec.rs
+file 2f4c6ae70ca85bfe0a584b2915b7017c81f5535c crates/podssh-relay/src/udp/flow.rs -> crates/pod-session/src/udp/flow.rs
+file 93cf9b7ee7e891c8725af34082f65a0cb0c92725 crates/podssh-relay/src/udp/mod.rs -> crates/pod-session/src/udp/mod.rs
+file 341318cdce6e29d95faa515ef376fbd35d74b823 crates/podssh-relay/tests/session_codec.rs -> crates/pod-session/tests/session_codec.rs
+file f6e732c9ab5e5cc0afcdd793dc87355cc5f7d517 crates/podssh-relay/tests/session_deadline.rs -> crates/pod-session/tests/session_deadline.rs
+file 755d7525996e4cf4e4c38b3197714ca4872f0aba crates/podssh-relay/tests/session_echo.rs -> crates/pod-session/tests/session_echo.rs
+file 1bda6e7d803f9a63a64237d038aafa4175996ffb crates/podssh-relay/tests/session_end.rs -> crates/pod-session/tests/session_end.rs
+file b2565246ca864a48f344359f69aa7deabcaf0819 crates/podssh-relay/tests/session_half_close.rs -> crates/pod-session/tests/session_half_close.rs
+file 0cce9638acad33a08ca44a3cc3fba11db71037bc crates/podssh-relay/tests/session_handover.rs -> crates/pod-session/tests/session_handover.rs
+file 2866ec43328574bc66d68e3994ed1c0173c7e5ab crates/podssh-relay/tests/session_handshake.rs -> crates/pod-session/tests/session_handshake.rs
+file d5466ecafb55c580eb99409e0e7cd2d5394db478 crates/podssh-relay/tests/session_heartbeat.rs -> crates/pod-session/tests/session_heartbeat.rs
+file dfb62b7350504ebc99b72a3c7985bb1f8fbd3a90 crates/podssh-relay/tests/session_last_word.rs -> crates/pod-session/tests/session_last_word.rs
+file 06922583e865d056fda8cb96f2c6a5313511c099 crates/podssh-relay/tests/session_link.rs -> crates/pod-session/tests/session_link.rs
+file d89879cd9b47b63df76457c2e3f3f5f7a240401f crates/podssh-relay/tests/session_move.rs -> crates/pod-session/tests/session_move.rs
+file f46dc2f4765e557821a3e2790fdf5606aeb18560 crates/podssh-relay/tests/session_newest.rs -> crates/pod-session/tests/session_newest.rs
+file f4932b0cc3635cfacc12734b53087a4d742218fe crates/podssh-relay/tests/session_race.rs -> crates/pod-session/tests/session_race.rs
+file 2c291b284f7556eee54b86f73fe3087d3da30013 crates/podssh-relay/tests/session_replay.rs -> crates/pod-session/tests/session_replay.rs
+file 26996150201e9e320ae1d1a1739bff028a8fccaa crates/podssh-relay/tests/session_resume.rs -> crates/pod-session/tests/session_resume.rs
+file bd2010ea46e7471b077f36f7b80c89abad61f7e6 crates/podssh-relay/tests/session_retire.rs -> crates/pod-session/tests/session_retire.rs
+file 14a54c3a547c2ab66db121eb3b48fb7553cbf34d crates/podssh-relay/tests/session_round_trip.rs -> crates/pod-session/tests/session_round_trip.rs
+file 2875ca97409f96c255ff230720d066edc5a17cff crates/podssh-relay/tests/session_spare.rs -> crates/pod-session/tests/session_spare.rs
+file 2c10728e1ccfceab4e9725ac087957775519ae9f crates/podssh-relay/tests/session_window.rs -> crates/pod-session/tests/session_window.rs
+file a4bf3281054a8b16d979517fff01738e40362bf2 crates/podssh-relay/tests/udp_framing.rs -> crates/pod-session/tests/udp_framing.rs
