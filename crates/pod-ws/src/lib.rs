@@ -11,7 +11,7 @@
 //!   [`cleartext`]: the same with no TLS, and its probe;
 //! * [`url`]: a WebSocket that the user names (`ws://`, `wss://`), with a
 //!   subprotocol or an `Authorization` when asked; [`server`]: the server's
-//!   side of the handshake; [`bridge`]: a session and a raw stream, both
+//!   side of the handshake; [`bridge`](mod@bridge): a session and a raw stream, both
 //!   ways;
 //! * [`wake`]: a check for a host that slept;
 //! * [`plain`] (feature `plain-ws`): a session over plain TCP to the

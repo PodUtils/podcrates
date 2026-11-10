@@ -45,7 +45,7 @@ pub async fn connect_loopback(
 /// A TCP connection to `host:port` on the loopback, and nowhere else: a host
 /// that is not the loopback is refused before any connection, and of the
 /// addresses that a name resolves to, only a loopback one is used.
-pub(crate) async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, ConnectError> {
+pub async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, ConnectError> {
     if !is_loopback(host) {
         return Err(ConnectError::Config(format!(
             "plain ws:// goes only to the loopback, and {host:?} is not: a token over plain TCP \
