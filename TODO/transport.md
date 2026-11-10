@@ -2819,3 +2819,79 @@ The tests that the issue names:
 ## Start condition
 
 The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2), and the owner answers yes to DR-4. The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+
+# T-171: `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186)
+
+**Source:** PodUtils/podssh#186 (COORD-019 of podssh; PodUtils/podssh@T-565, PodUtils/podssh@T-568, PodUtils/podssh@T-569, the ruling Q78 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three more last fallbacks of podssh read their server from `pod-services`
+alone, and are off until a tag names them: localhost.run, localtunnel and
+bore.pub.
+
+## Premise
+
+- Read: PodUtils/podssh#186 (the facts, read by podssh on 2026-11-10 through
+  web.pkgforge.dev). Not read here: each source. Read each again before the
+  data, as T-153 and T-156 did.
+- `localhost-run`: kind `ssh-tunnel`; endpoint `ssh` = `localhost.run:22`,
+  user `nokey`; no host key is published (podssh's live run reads it).
+- `localtunnel`: kind `localtunnel` (a new kind: check the schema and the
+  watch kinds of `pod-services-watch`); endpoint `api` =
+  `https://localtunnel.me:443`; fact `tunnel-zone` = `loca.lt`; watch
+  `rdap` of `localtunnel.me` (`/` redirects, `/?new` makes a tunnel).
+- `bore`: kind `tcp-tunnel` (new; check the schema); endpoint `control` =
+  `tcp://bore.pub:7835` (`CONTROL_PORT` of ekzhang/bore `src/shared.rs` at
+  `00a735a89917`); fact `tunnel-hours` = 24 (ekzhang/bore issue 150).
+
+## Approach
+
+One file under `crates/pod-services/services/` for each, each fact with its
+source, each with a watch that `pod-services-watch` can run (or a new watch
+kind with its test and plant); a row of each in the README. Run the watches
+by hand once (`cargo run -p pod-services-watch -- --service ID`).
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch
+```
+
+# T-172: `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186)
+
+**Source:** PodUtils/podssh#186 (COORD-019 of podssh; PodUtils/podssh@T-568).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's localtunnel router reads the head of a request to choose who
+serves it, then hands the link on with that head read again first. That is
+`Rewound` of `pod-session` (from podssh's `session/client.rs`), which has no
+public constructor. podssh keeps a private copy (`Replay`) until it can
+call the crate.
+
+## Premise
+
+- Read: PodUtils/podssh#186. `Rewound` is in `crates/pod-session`.
+
+## Approach
+
+`pub fn new(first: Vec<u8>, link: L) -> Rewound<L>`, with a test that reads
+the head again and then the rest of the link; the README's API. podssh
+drops `Replay` when it takes the crate.
+
+## Prove
+
+```sh
+cargo test -p pod-session
+```

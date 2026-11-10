@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**170 entries: 60 open, 4 partial, 0 blocked, 106 done.**
+**172 entries: 62 open, 4 partial, 0 blocked, 106 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 36 | 55 |
-| P2 | 30 | 2 | 0 | 51 | 83 |
-| P3 | 13 | 0 | 0 | 17 | 30 |
-| **All** | 60 | 4 | 0 | 106 | 170 |
+| P2 | 31 | 2 | 0 | 51 | 84 |
+| P3 | 14 | 0 | 0 | 17 | 31 |
+| **All** | 62 | 4 | 0 | 106 | 172 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -217,3 +217,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |
 | [T-169](podvm.md) | P2 | M | M1 | feature | open | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
 | [T-170](podvm.md) | P2 | M | M1 | feature | open | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
+| [T-171](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
+| [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |

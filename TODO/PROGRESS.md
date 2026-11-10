@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 170 entries: 60 open, 4 partial, 0 blocked, 106 done.
+`TODO/INDEX.md` holds 172 entries: 62 open, 4 partial, 0 blocked, 106 done.
 
 ## State
 
@@ -41,7 +41,7 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-3. **M1, the transport:** T-166 (partial: the clean run of the trial of podnet, the cross tests, the release `v0.15.0`, the take); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+3. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-166 (partial: the clean run of the trial of podnet, the cross tests, the release `v0.15.0`, the take); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-021,
    T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,

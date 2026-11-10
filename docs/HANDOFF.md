@@ -36,6 +36,9 @@ page current; remove a line when its work is done.
   crate's `SOURCES` (`check-sources.py` with clones must show 0 changes),
   remove the trial files of that consumer, set the entry to done, close
   the hand-off issue of the release.
+- T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
+  `pod-services` and `Rewound::new` of `pod-session`; read each fact again
+  at its source before the data.
 - T-157: four public Trojan nodes of podssh fail the live check. On
   2026-11-11 or later, run `services.yml` by hand (input `kind`
   `proxy-banner`); remove or replace each node that fails both days.
