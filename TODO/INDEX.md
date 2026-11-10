@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**159 entries: 55 open, 2 partial, 0 blocked, 102 done.**
+**165 entries: 61 open, 2 partial, 0 blocked, 102 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 18 | 1 | 0 | 36 | 55 |
-| P2 | 26 | 1 | 0 | 49 | 76 |
-| P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 55 | 2 | 0 | 102 | 159 |
+| P2 | 29 | 1 | 0 | 49 | 79 |
+| P3 | 14 | 0 | 0 | 15 | 29 |
+| **All** | 61 | 2 | 0 | 102 | 165 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -206,3 +206,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
 | [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |
 | [T-159](relay.md) | P2 | S | M2 | defect | done | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |
+| [T-160](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: a listener bound to one job, with no token in the unit (PodUtils/podvm#227) |
+| [T-161](fleet.md) | P3 | M | M8 | feature | open | `pod-broker`: send the name to an upstream that takes names only (PodUtils/podvm#227) |
+| [T-162](podvm.md) | P2 | M | M8 | feature | open | `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227) |
+| [T-163](fleet.md) | P2 | M | M8 | feature | open | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
+| [T-164](transport.md) | P3 | S | M8 | feature | open | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
+| [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |

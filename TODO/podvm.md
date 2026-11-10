@@ -857,6 +857,7 @@ each: the API, the C on each target, the static link, the sources.
 
 - Read: the topics PodUtils/podvm#166 to PodUtils/podvm#189 and their
   index PodUtils/podvm#193.
+- podrunner is a consumer (PodUtils/podvm#227 section 2.7). The `microvm` unit kind of podrunner waits for `pod-microvm` or for PodUtils/podvm@T-1656. The design review asks the owner (DR-5) for a stopgap driver in podrunner.
 
 ## Approach
 
@@ -976,6 +977,7 @@ memfd, SUD, `openat2`, `/dev/kvm`, `/dev/fuse`, `/dev/net/tun`, cgroup).
 
 - Read: `crates/pod-hostprobe/src/` and the asks.
 - Not measured: the JSON.
+- podrunner is a consumer (PodUtils/podvm#227 section 2.7). The host qualification that the design review (DR-15) gives to `pod doctor` comes from this report, and `podrunner doctor` reads it. The podvm driver reads `podvm probe --json`.
 
 ## Approach
 
@@ -1007,6 +1009,7 @@ one entry.
 - Read: the ask of A-V-01; `PodUtils/podnet:crates/podnet-netns/src/seccomp.rs` builds a seccomp filter
   (user notification, not a deny list).
 - Not measured: Landlock on the targets.
+- podrunner is a consumer (PodUtils/podvm#227 section 2.7). It needs a proof string for a capability record with `boundary: confined`. Without `confined`, `trusted` jobs run only if the owner answers yes to DR-4.
 
 ## Approach
 
@@ -1037,6 +1040,7 @@ it. `docs/design.md` keeps `podnet-netns` in podnet.
 ## Premise
 
 - Read: the asks. Not read: `PodUtils/podnet:crates/podnet-netns` (9,447 lines).
+- podrunner is a consumer (PodUtils/podvm#227 section 2.7). The hold reports a level (`enforced`, `advisory` or `none`) and a proof. The terms of PodUtils/podnet#414 look met: PodUtils/podnet@T-040 and PodUtils/podnet@T-142 to PodUtils/podnet@T-158 are done at podnet `31d040f` (read in the issue, not read here). A COORD issue to podnet asks podnet to write its hand-off.
 
 ## Approach
 
@@ -1951,3 +1955,55 @@ qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
 ```sh
 cargo test -p pod-enter
 ```
+
+# T-162: `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227)
+
+**Source:** PodUtils/podvm#227 section 2.3 (COORD-021 of podvm, 2026-11-10)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A signal of the launcher reaches one pid. A grandchild of a payload survives `podvm stop` and `rm -f` (a measurement of the design review, M2, `05-lifecycle.log`). The ask A-V-07 of `docs/research/fleet/asks.md` (a run timeout that kills the tree, peak RSS and CPU in the report) routes to T-060, which is done, and no open entry owns the tree kill. The consumers: podrunner (it retires its per-unit shim when this lands), podvm (`PodUtils/podvm@T-1655`, the launcher of its WP-V4) and G-12 of GitHub #36 (end in 60 s). The tree kill serves podvm's `PodUtils/podvm@T-1655` and G-12 of #36 as well as podrunner. This entry waits like the other M8 entries. The owner can lift the wait.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/launcher.rs:351` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
+- Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
+- Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
+- Under "Who edits" a podvm session may change `pod-supervise` in podcrates.
+
+## Approach
+
+Add to `pod-supervise`:
+
+- A kill of every descendant of a payload: a subreaper, or a cgroup where the host gives one.
+- A wall timeout.
+- Rusage of the tree.
+- A count of the processes that stay after the kill (`residual_processes`: a number, or `unknown`).
+
+Set no `RLIMIT_FSIZE` by default.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+sh scripts/agent/check.sh
+```
+
+The tests that the issue names:
+
+1. A payload forks a grandchild that calls `setsid` and ignores SIGTERM. The kill leaves 0 processes and the count says 0. A positive control: with the kill disabled, the count says 1 or more.
+2. A wall timeout ends the tree within the timeout plus a stated bound.
+3. When the host gives no way to find each descendant, the count is `unknown`, never 0.
+4. No `RLIMIT_FSIZE` is set by default.
+
+## Start condition
+
+The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+
+Depends on no other crate.

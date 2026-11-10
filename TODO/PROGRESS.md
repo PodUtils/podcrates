@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 159 entries: 55 open, 2 partial, 0 blocked, 102 done.
+`TODO/INDEX.md` holds 165 entries: 61 open, 2 partial, 0 blocked, 102 done.
 
 ## State
 
@@ -79,11 +79,16 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-108 `pod-confine` for PodUtils/podvm@T-1658, T-107
    with M6). T-113 to T-116 wait for the first release on crates.io.
+   The asks of PodUtils/podvm#227 wait for the owner's decisions DR-1 (name
+   the plan of GitHub #47) and DR-2 (the place of the code): T-160 and
+   T-161 (`pod-broker`), T-162 (`pod-supervise`), T-163 (the schemas),
+   T-164 (`pod-services`) and T-165 (`pod-tls`, also DR-4). The owner can
+   lift the wait for one of them.
 
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C45), and the work goes on with it until the owner rules otherwise.
+C46), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

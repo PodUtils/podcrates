@@ -2736,3 +2736,86 @@ endpoint `bridge` stays the address of podssh's client). `cargo test -p
 pod-services -p pod-services-watch` passes; `cargo run -p
 pod-services-watch -- --service croc` here: "holds croc websocket-upgrade:
 wss://getcroc.com:443/ws?relay=0&port=9009 upgraded".
+
+# T-164: `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227)
+
+**Source:** PodUtils/podvm#227 section 2.5 (COORD-021 of podvm, 2026-11-10)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner needs the hosts that the official runner reaches (the default `allow` policy and `hello.control_hosts`), and the age of the `actions/runner` pin: the runner must be updated within 30 days of a release (SPEC sections 6.4 and 11.3 of the design review). GitHub changed the broker flow in 2025 (plan risk 5). The ruling "Services crate" makes third-party hosts data with a watch.
+
+## Premise
+
+- Read: `crates/pod-services/services/` holds `ghcr-registry.toml` and `github-ssh.toml` as the only GitHub files. It has no Actions host. This agrees with the issue.
+- Read: `crates/pod-services-watch/src/lib.rs` has the kinds `github-release`, `github-file`, `github-files`, `http-json` and others (T-050, call C42). A first form needs no new watch code (inferred).
+- Not read: the list of the "Self-hosted runners reference" of GitHub, and the `domains.actions` list of GitHub's meta API (the issue says that it did not read it). Not run: any watch of an Actions host.
+
+## Approach
+
+Add a data file of `pod-services` with the hosts that the official runner reaches. Each host has its source and the date read. A multi-tenant host (for example the blob storage domain) carries a flag. Add a daily watch for drift: candidate source is the `domains.actions` list of GitHub's meta API through an `http-json` watch, else a `github-file` watch. Add a second file or entry for the release pin of `actions/runner`, with the `github-release` watch.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo test -p pod-services-watch --all-features
+sh scripts/agent/check.sh
+```
+
+The tests that the issue names:
+
+1. The file lists the hosts with their source and the date read, and the multi-tenant hosts carry a flag.
+2. The daily watch fails on a host that the source adds or removes.
+3. The `github-release` watch of `actions/runner` reports the age of the pin.
+
+## Start condition
+
+The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+
+Depends on T-050 (done).
+
+# T-165: `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227)
+
+**Source:** PodUtils/podvm#227 section 2.6 (COORD-021 of podvm, 2026-11-10)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The remote mint and the unit host of podrunner use mutual TLS with pinned keys on both sides (SPEC section 5.3 and `contracts/source-driver.md` of the design review, transport 3). Each config of `pod-tls` calls `with_no_client_auth()`. This is needed only if the owner answers yes to DR-4 (trusted jobs at the `redirect` boundary on hosts with no root), which builds WP-05b of podrunner.
+
+## Premise
+
+- Read: `with_no_client_auth` is at `crates/pod-tls/src/context.rs:226`, `crates/pod-tls/src/server.rs:70`, `crates/pod-tls/src/kept.rs:104`, `crates/pod-tls/src/ech/config.rs:89` and `crates/pod-tls/src/fragment.rs:339`. This agrees with the issue.
+- Not measured: a handshake with a client certificate. Not read: the contract of the design review.
+
+## Approach
+
+Add a client config that presents a certificate and key. Add a server config that requires a client certificate and accepts only pinned public keys. Both use the caller's provider (rule 4 of `docs/design.md`).
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features
+sh scripts/agent/check.sh
+```
+
+The tests that the issue names:
+
+1. A loopback test: a client with a pinned key connects. A client with another key, or with no certificate, is refused at the handshake.
+2. The server reports the key that the peer proved, for the audit line.
+3. A key rotation: two pinned keys at once, then one.
+4. The static probe links the feature on each target.
+
+## Start condition
+
+The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2), and the owner answers yes to DR-4. The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
