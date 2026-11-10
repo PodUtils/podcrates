@@ -32,6 +32,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("ws_upgrade", targets::ws_upgrade),
     ("close_reason", targets::close_reason),
     ("quic_probe_answer", targets::quic_probe_answer),
+    ("mailbox_message", targets::mailbox_message),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as

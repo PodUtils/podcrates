@@ -55,6 +55,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `ws_upgrade` | `pod-ws` | `handshake::check_response` | podssh `ws_upgrade` (at `8cd0f2b`) |
 | `close_reason` | `pod-ws` | `close::close_code_and_reason` | podssh `close_reason` (at `8cd0f2b`) |
 | `quic_probe_answer` | `pod-quic` | `probe::answers` | new in `pod-quic` (T-019); its seeds are the Version Negotiation of 27 bytes of podssh's probe test, one of another ID, one that names the reserved version, and a short header |
+| `mailbox_message` | `pod-wormhole` | `message::{object, message_of, pake_of, words, hex, unhex}`, `Code::parse` | new in `pod-wormhole` (T-022); its seeds are the messages of a mailbox and the codes of the tests written here |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:

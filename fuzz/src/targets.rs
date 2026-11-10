@@ -304,3 +304,37 @@ pub fn quic_probe_answer(data: &[u8]) {
     }
     assert!(!answers(&packet(id), id));
 }
+
+/// A frame of a magic-wormhole mailbox and a typed code (`pod_wormhole::
+/// message`, `pod_wormhole::Code::parse`; new in `pod-wormhole`, T-022): a
+/// value that is no JSON object gives nothing; the words of a mailbox are
+/// one safe line of at most 200 characters; a message has its three parts
+/// and its body in hex, which goes back to the same bytes; a `pake` body
+/// never panics; hex of any bytes reads back as they were; a code that
+/// parses has 1 to 8 words, a nameplate of digits, and parses again from
+/// its own text to the same code.
+pub fn mailbox_message(data: &[u8]) {
+    use pod_wormhole::message::{WORDS_MOST, hex, message_of, object, pake_of, unhex, words};
+    use pod_wormhole::phrase::{self, Code};
+
+    assert_eq!(unhex(&hex(data)).as_deref(), Some(data));
+    let _ = pake_of(data);
+    if let Some(value) = object(data) {
+        for part in ["error", "motd", "type"] {
+            let line = words(&value[part]);
+            assert!(is_one_line(&line) && line.chars().count() <= WORDS_MOST, "{line:?}");
+        }
+        if let Some(message) = message_of(&value) {
+            assert_eq!(unhex(&hex(&message.body)), Some(message.body.clone()));
+            let _ = pake_of(&message.body);
+        }
+    }
+    let Some(typed) = text(data) else { return };
+    if let Ok(code) = Code::parse(typed) {
+        assert!((1..=phrase::WORDS_MOST).contains(&code.words()), "{} words", code.words());
+        assert!(phrase::nameplate_ok(code.nameplate()), "{}", code.nameplate());
+        let again = Code::parse(code.for_terminal()).expect("a code parses from its own text");
+        assert_eq!(again.for_terminal(), code.for_terminal());
+        assert_eq!(again.password(), code.password());
+    }
+}

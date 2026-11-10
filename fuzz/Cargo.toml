@@ -36,6 +36,7 @@ pod-broker = { path = "../crates/pod-broker" }
 pod-gsr = { path = "../crates/pod-gsr", features = ["fuzzing"] }
 pod-ws = { path = "../crates/pod-ws" }
 pod-quic = { path = "../crates/pod-quic" }
+pod-wormhole = { path = "../crates/pod-wormhole" }
 
 # A crash names its line.
 [profile.release]
@@ -149,6 +150,13 @@ bench = false
 [[bin]]
 name = "quic_probe_answer"
 path = "fuzz_targets/quic_probe_answer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mailbox_message"
+path = "fuzz_targets/mailbox_message.rs"
 test = false
 doc = false
 bench = false
