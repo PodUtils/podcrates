@@ -11,7 +11,8 @@
   42880337688): `pod-session`, `pod-wormhole`, `pod-hold`, the volumes of
   `pod-enter`. The hand-off is GitHub #54 (COORD-029); the takes of the
   consumers follow it. The dry run of `publish.yml` fails at the tags
-  `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main`.
+  `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main` (dry run
+  42880918874 green).
 - The consumers: podssh and podnet are on `v0.14.0` (both took `pod-ws`
   and `pod-quic`); podvm is on `v0.12.0` (it took its seven crates of M6).
 - Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
