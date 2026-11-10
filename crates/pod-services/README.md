@@ -102,6 +102,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `stun-binding` | `endpoint` | a Binding request gets a Binding response |
 | `websocket-upgrade` | `endpoint` | the upgrade answers 101 |
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
+| `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
 | `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
@@ -219,6 +220,8 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-warp` | `warp` | `api`, `api-second` (role `api`), `masque-v4`, `masque-v6` (role `masque`), `masque-l4` | `connect-uri`, `user-agent`, `api-version`, `client-version`, `usque-api-version`, `usque-client-version`, `terms-url` |
 | `letsencrypt-acme` | `acme` | `directory` | |
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
+| `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
+| `node-*` (6) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
@@ -420,6 +423,7 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
   with the file and the field; the built-in files pass the same reader.
 * `tests/api.rs` (9): by id, by kind and by rank, the roles, the
   accessors, a source and a date for each value, the watches.
+* `tests/public_carriers.rs` (6): the rules of the kinds `wisp-public`, `proxy-list` and `proxy-node`: a source with a date for each value, port 443, no refused suffix, no VMess, the forms of the share links, one `word` for each forwarder.
 * `tests/overlay.rs` (5, feature `overlay`): a file adds a service or
   replaces one, an error of the settings, one id once, no file.
 * `tests/moved.rs` (8): the tests of the consumers that test these values,

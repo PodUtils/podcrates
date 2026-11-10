@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 136 entries: 56 open, 4 partial, 0 blocked, 76 done.
+`TODO/INDEX.md` holds 136 entries: 54 open, 5 partial, 0 blocked, 77 done.
 
 ## State
 
@@ -40,8 +40,8 @@ order. A crate is released on the day that its entry is done
 The owner's ruling "Priority" (2026-11-09): podvm, podnet and podssh come
 first; the asks of cfb and githome (M8) wait.
 
-1. **The defects of the consumers:** T-130 (the
-   public Wisp servers of podssh), T-133 (the public proxy lists of podssh).
+1. **The defects of the consumers:** T-133 (partial: the live check of the
+   public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-061 and T-059 (partial: the release and the
    take of podvm), T-056 (partial: the release and the take of podvm),

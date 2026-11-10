@@ -1,0 +1,26 @@
+# A node of a public list of share links: VLESS xhttp, taken from the list of barry-far.
+id = "node-xhttp-193-160-208-240"
+kind = "proxy-node"
+party = "unknown (a node of a public list)"
+about = "VLESS XHTTP over TLS on 443, in the public list of barry-far; the operator is unknown"
+
+[rank]
+value = 5
+source = { ruling = "PodUtils/podssh, Q90 and PodUtils/podssh#177: the short list of public nodes", read = 2026-11-10 }
+
+[[endpoint]]
+name = "node"
+scheme = "tls"
+host = "193.160.208.240"
+port = 443
+source = { url = "https://github.com/barry-far/V2ray-Config", read = 2026-11-10, note = "the link in the list file named by the endpoint of the service barry" }
+
+[[fact]]
+name = "link"
+value = "vless://4777d90d-265b-4927-a0d1-63f36ed1421c@193.160.208.240:443?mode=auto&path=/assets/twru01/&security=tls&encryption=none&insecure=0&fp=chrome&type=xhttp&allowInsecure=0&sni=193.160.208.240"
+source = { url = "https://github.com/barry-far/V2ray-Config", read = 2026-11-10, note = "a line of the public list, with no name after #" }
+
+[[watch]]
+kind = "proxy-banner"
+fact = "link"
+target = "github-ssh"

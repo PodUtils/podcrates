@@ -1,0 +1,27 @@
+# A public list of share links (Danialsamadi): a file of vless:// and trojan:// lines.
+id = "v2go-list"
+kind = "proxy-list"
+party = "Danialsamadi"
+about = "Danialsamadi's v2go: working V2Ray configs, in plain text, GPL-3.0 licence"
+
+[rank]
+value = 3
+source = { ruling = "PodUtils/podssh, Q78 and Q90 and PodUtils/podssh#177: the public lists are the last fallback; the order is the share of nodes that podssh takes, measured 2026-11-10", read = 2026-11-10 }
+
+[[endpoint]]
+name = "list"
+scheme = "https"
+host = "raw.githubusercontent.com"
+port = 443
+path = "/Danialsamadi/v2go/main/AllConfigsSub.txt"
+source = { url = "https://github.com/Danialsamadi/v2go", read = 2026-11-10, note = "the README of the repository names the file" }
+
+[[fact]]
+name = "note"
+value = "Plain text of about 146 kB, rewritten each 6 hours by its README; 589 nodes, of which 288 are VLESS or Trojan, 188 of those on port 443, and 6 that podssh takes; it has header lines that begin with #"
+source = { measured = "the file read on 2026-11-10 and each line counted: the schemes, port 443, and the rules of PodUtils/podssh#177 (no flow, no reality, no VMess, one name for host, SNI and Host, no refused suffix)", read = 2026-11-10 }
+
+[[watch]]
+kind = "http-status"
+endpoint = "list"
+status = 200

@@ -1,0 +1,27 @@
+# A public list of share links (mahdibland): a file of vless:// and trojan:// lines.
+id = "mahdibland-list"
+kind = "proxy-list"
+party = "mahdibland"
+about = "mahdibland's aggregator of free proxy nodes, in plain text, GPL-3.0 licence"
+
+[rank]
+value = 2
+source = { ruling = "PodUtils/podssh, Q78 and Q90 and PodUtils/podssh#177: the public lists are the last fallback; the order is the share of nodes that podssh takes, measured 2026-11-10", read = 2026-11-10 }
+
+[[endpoint]]
+name = "list"
+scheme = "https"
+host = "raw.githubusercontent.com"
+port = 443
+path = "/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
+source = { url = "https://github.com/mahdibland/V2RayAggregator", read = 2026-11-10, note = "the README of the repository names the file" }
+
+[[fact]]
+name = "note"
+value = "Plain text of about 1.1 MB, rewritten about each 30 minutes by its commits; 4585 nodes, of which 766 are VLESS or Trojan (the rest are Shadowsocks and VMess), 406 of those on port 443, and 146 that podssh takes"
+source = { measured = "the file read on 2026-11-10 and each line counted: the schemes, port 443, and the rules of PodUtils/podssh#177 (no flow, no reality, no VMess, one name for host, SNI and Host, no refused suffix)", read = 2026-11-10 }
+
+[[watch]]
+kind = "http-status"
+endpoint = "list"
+status = 200

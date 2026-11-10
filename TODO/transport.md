@@ -2174,7 +2174,7 @@ cargo test -p pod-services
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2214,6 +2214,18 @@ cargo test -p pod-services
 The live check of each server runs in a dispatched workflow; its run id
 goes in the Done section.
 
+## Done
+
+2026-11-10, commit `COMMIT130`. No server qualifies; no file of the kind `wisp-public` exists, and the answer is a note on PodUtils/podssh#175 (written by the parent session). What was looked at: the search mirrors (queries for public Wisp servers, lists of them, "free to use" pages), the TitaniumNetwork and Mercury Workshop pages, the READMEs of the server projects (wisp-server-python, wisp-js, epoxy-tls, ghostproxyofficial/wisp-server, wasmer/wisp-server), the v86 networking page, and `PodUtils/podssh:docs/carriers.md` (the sweep of 2026-11-02). Result:
+
+* `wisp.mercurywork.shop` (Mercury Workshop): already the kind `forwarder` (`wisp-forwarder`); not repeated.
+* `anura.pro` (Mercury Workshop): the Wisp server of the demo of its own web proxy, not offered to others; flagged by the sweep.
+* `relay.widgetry.org`: the wsproxy of v86's example, not a Wisp server for others (the sweep).
+* The 76 servers of the lists of web proxies: refused by Q79 (a web proxy's list; 54 flagged as other parties' domains).
+* The server projects (ghostproxyofficial and the others): software for the user's own deployment; no page of an operator that offers a running server to others (read 2026-11-10).
+
+No page of an operator, on the operator's own domain, offers a Wisp server to others with no account (Q75), apart from Mercury Workshop's. The test `a_wisp_server_is_a_wss_forwarder_with_a_unique_word` in `crates/pod-services/tests/public_carriers.rs` holds the rules for a file that a later session adds: a `forwarder` endpoint on `wisp+wss`, a unique `word`, the two watches. `cargo test -p pod-services` passes. No live run is needed: no server.
+
 # T-133: `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177)
 
 **Source:** PodUtils/podssh#177 (COORD-010 of podssh; PodUtils/podssh@T-574, the rulings Q78, Q79 and Q90 of podssh)
@@ -2221,7 +2233,7 @@ goes in the Done section.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2263,6 +2275,29 @@ cargo test -p pod-services
 
 The live check of each node runs in a dispatched workflow; its run id goes in
 the Done section.
+
+## Done
+
+2026-11-10, commit `COMMIT133`. Partial: the files and the test are done; the live check of the nodes remains (no workflow of this shape exists in podcrates: the runner of the watches is T-050, and the egress of a cloud session is an allowlist).
+
+Lists (kind `proxy-list`, read 2026-11-10, each file counted on the day of the read; the maintainer's repository README names the file):
+
+* `barry-far-list`: https://raw.githubusercontent.com/barry-far/V2ray-Config/main/All_Configs_Sub.txt (MIT; source https://github.com/barry-far/V2ray-Config): 8777 nodes, 7076 VLESS or Trojan, 4299 of those on 443, 314 that podssh takes.
+* `mahdibland-list`: https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt (source https://github.com/mahdibland/V2RayAggregator): 4585 nodes, 766 VLESS or Trojan, 406 on 443, 146 that podssh takes.
+* `v2go-list`: https://raw.githubusercontent.com/Danialsamadi/v2go/main/AllConfigsSub.txt (source https://github.com/Danialsamadi/v2go): 589 nodes, 288 VLESS or Trojan, 188 on 443, 6 that podssh takes.
+
+Nodes (kind `proxy-node`, from the lists above; each link is a line of the list, with no name after `#`):
+
+* `node-bolab-trs02` (trs02.bolab.net, Trojan tcp), `node-bonds-sg1` (sg1-trojan.bonds.id, Trojan tcp), `node-udpgw-trojan1` (trojan1.udpgw.com, Trojan tcp), `node-tr202607-nl1` (nl-1.tr202607.com, Trojan tcp): the list of mahdibland.
+* `node-xhttp-193-160-208-240` (193.160.208.240) and `node-xhttp-78-17-39-129` (78.17.39.129): VLESS xhttp with TLS, a public address for host and SNI; each is in the lists of barry-far and Danialsamadi.
+
+Rules applied: port 443 with TLS; one name for host, SNI and Host, or a public address; no `flow=`, no `security=reality`; VLESS `type` ws or xhttp; Trojan `type` tcp or ws; no VMess; no host under `.edu`, `.k12.`, `.ac.`, `.sch.`, `.gov`, `.mil`. The domains of the named nodes have no category of adult or security at the domain mirror (read 2026-11-10); `udpgw.com` is in the category Anonymizer (a name made for a proxy).
+
+Left out: the other lists (MatinGhanbari/v2ray-configs: 3 nodes qualify; Pawdroid/Free-servers: none; the lists of Epodonios, ebrasha and soroushmirzaei: no file at the path read); the aggregator sites with their own subscription pages (their terms were not read). Left out of the nodes: each host that looks taken over or that fronts another party's name (`onecloudtraining.com`, `lnmarketplace.net`, `findlocaljobnetworkandbuildcommunityconnections.com`, `pleadcourt.org`, `gadgetflow.my` and similar names; read 2026-11-10); each node whose SNI or Host differs from its host (a front); the nodes on the platforms `*.up.railway.app`, `*.onrender.com`, `*.workers.dev` and `*.hf.space` (a project of one user on another party's platform, removed within days); the Trojan node `au.tronsg.com` (its password holds an `@`, which a parser can read in two ways); all VMess, Reality and `flow=` lines.
+
+Files: `crates/pod-services/services/{barry-far-list,mahdibland-list,v2go-list}.toml` and `node-*.toml` (6). The watch of a node is a new kind `proxy-banner` (`fact`, `target`), listed in the README; its runner is T-050. `crates/pod-services/tests/public_carriers.rs` (6 tests) holds the rules. `cargo test -p pod-services` passes.
+
+Remaining clause: the live check (Q75, Q90), before the tag that carries the nodes: for each node, a session through its share link to `github.com:22` gives GitHub's SSH version line (`SSH-2.0-...`), from GitHub Actions; at most one short probe a day to each list and node; each node that fails leaves by a change of its file. For each list: a GET gives 200 (`http-status`). `.github/secrets-allow.txt`: a line for each finding of the scanner on the links, when the run of `secrets.yml` on the push names one (the link has no `user:password` form).
 
 # T-135: `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178)
 

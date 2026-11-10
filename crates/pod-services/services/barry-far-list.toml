@@ -1,0 +1,27 @@
+# A public list of share links (barry-far): a file of vless:// and trojan:// lines.
+id = "barry-far-list"
+kind = "proxy-list"
+party = "barry-far"
+about = "barry-far's list of free V2Ray share links, MIT licence"
+
+[rank]
+value = 1
+source = { ruling = "PodUtils/podssh, Q78 and Q90 and PodUtils/podssh#177: the public lists are the last fallback; the order is the share of nodes that podssh takes, measured 2026-11-10", read = 2026-11-10 }
+
+[[endpoint]]
+name = "list"
+scheme = "https"
+host = "raw.githubusercontent.com"
+port = 443
+path = "/barry-far/V2ray-Config/main/All_Configs_Sub.txt"
+source = { url = "https://github.com/barry-far/V2ray-Config", read = 2026-11-10, note = "the README of the repository names the file" }
+
+[[fact]]
+name = "note"
+value = "Plain text of about 2.2 MB, rewritten every 15 minutes by its README; 8777 nodes, of which 7076 are VLESS or Trojan, 4299 of those on port 443, and 314 that podssh takes; it has header lines that begin with #"
+source = { measured = "the file read on 2026-11-10 and each line counted: the schemes, port 443, and the rules of PodUtils/podssh#177 (no flow, no reality, no VMess, one name for host, SNI and Host, no refused suffix)", read = 2026-11-10 }
+
+[[watch]]
+kind = "http-status"
+endpoint = "list"
+status = 200
