@@ -10,14 +10,10 @@
   COORD-019 (GitHub #43) hands it to each consumer. Each consumer is on
   `v0.8.0`; podvm took `pod-supervise`. Open: T-131 (`pod-gsr` on Windows
   ARM64).
-- M6: `pod-hostprobe` is taken (T-055). `pod-supervise` (T-060) is done:
-  podvm took it in `989f35b` (PodUtils/podvm#219).
-  `pod-guest` (T-061) and `pod-enter` (T-059) are partial: their trials
-  of podvm passed; the release `v0.9.0` and the take of podvm remain.
-  `pod-oci` (T-056) is partial: its trial of podvm passed; the release
-  `v0.10.0` and the take of podvm remain. `pod-extract` (T-057) is partial:
-  its trial of podvm passed; the release `v0.10.0` and the take of podvm
-  (after `pod-oci`) remain. Next in M6: T-058.
+- M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
+  `pod-enter` (podvm `423e817`, PodUtils/podvm#220). `pod-oci` (T-056) and
+  `pod-extract` (T-057) are partial: their trials passed; v0.10.0 and the
+  take of podvm remain. Next in M6: T-058, T-137, T-138.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).

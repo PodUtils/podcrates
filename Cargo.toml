@@ -6,7 +6,7 @@ members = ["crates/*", "examples/*"]
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 # The stable Rust of the day (docs/decisions.md, Toolchain). Raise it with
 # rust-toolchain.toml when a new stable comes out.
@@ -24,22 +24,22 @@ crates-io = false
 [workspace.dependencies]
 # No default feature here: a crate that needs the async parts of pod-core
 # (its feature `async`) names it, so that pod-tls builds with no tokio.
-pod-broker = { path = "crates/pod-broker", version = "0.9.0" }
-pod-core = { path = "crates/pod-core", version = "0.9.0", default-features = false }
-pod-dns = { path = "crates/pod-dns", version = "0.9.0" }
-pod-enter = { path = "crates/pod-enter", version = "0.9.0" }
-pod-extract = { path = "crates/pod-extract", version = "0.9.0" }
-pod-gsr = { path = "crates/pod-gsr", version = "0.9.0" }
-pod-guest = { path = "crates/pod-guest", version = "0.9.0" }
-pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.9.0" }
-pod-identity = { path = "crates/pod-identity", version = "0.9.0" }
-pod-oci = { path = "crates/pod-oci", version = "0.9.0" }
-pod-proxy = { path = "crates/pod-proxy", version = "0.9.0" }
-pod-services = { path = "crates/pod-services", version = "0.9.0" }
-pod-supervise = { path = "crates/pod-supervise", version = "0.9.0" }
-pod-term = { path = "crates/pod-term", version = "0.9.0" }
-pod-testkit = { path = "crates/pod-testkit", version = "0.9.0" }
-pod-tls = { path = "crates/pod-tls", version = "0.9.0" }
+pod-broker = { path = "crates/pod-broker", version = "0.10.0" }
+pod-core = { path = "crates/pod-core", version = "0.10.0", default-features = false }
+pod-dns = { path = "crates/pod-dns", version = "0.10.0" }
+pod-enter = { path = "crates/pod-enter", version = "0.10.0" }
+pod-extract = { path = "crates/pod-extract", version = "0.10.0" }
+pod-gsr = { path = "crates/pod-gsr", version = "0.10.0" }
+pod-guest = { path = "crates/pod-guest", version = "0.10.0" }
+pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.10.0" }
+pod-identity = { path = "crates/pod-identity", version = "0.10.0" }
+pod-oci = { path = "crates/pod-oci", version = "0.10.0" }
+pod-proxy = { path = "crates/pod-proxy", version = "0.10.0" }
+pod-services = { path = "crates/pod-services", version = "0.10.0" }
+pod-supervise = { path = "crates/pod-supervise", version = "0.10.0" }
+pod-term = { path = "crates/pod-term", version = "0.10.0" }
+pod-testkit = { path = "crates/pod-testkit", version = "0.10.0" }
+pod-tls = { path = "crates/pod-tls", version = "0.10.0" }
 tokio = { version = "1.53.3", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
