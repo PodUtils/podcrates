@@ -59,3 +59,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #51 | COORD-026: the asks of podvm#227 are record entries that wait for DR-1 and DR-2 (to podvm) | open | T-160, T-161, T-162, T-163, T-164, T-165 |
 | #52 | COORD-027: pod-enter: the volume of a missing -w and the reserved guest paths in Maps::new (T-155, PodUtils/podvm#226) (to podvm) | open | T-155 |
 | #53 | COORD-028: the owner pauses each session after its last runs; update the hand-off documents first (to all) | open | T-020, T-022, T-166 |
+| #54 | COORD-029: podcrates v0.15.0 is released: podssh takes pod-wormhole and pod-session; podnet takes pod-hold; podvm moves its pod-enter calls (to all) | open | T-020, T-022, T-155, T-166 |

@@ -8,7 +8,9 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- `main`: the release `v0.15.0` (`docs/releases/v0.15.0.md`); its runs and its hand-off issue are in `TODO/PROGRESS.md`, State.
+- The release `v0.15.0` is at `27a4ccd` (`docs/releases/v0.15.0.md`). Its
+  hand-off to the consumers is GitHub #54 (COORD-029); its runs are in
+  `TODO/PROGRESS.md`, State.
 - The consumers and the tag each takes:
   - podssh: `v0.14.0` (it took `pod-ws` and `pod-quic`). Next: `pod-wormhole`
     and `pod-session` of `v0.15.0` (`adoption/podssh/`, made on podssh
@@ -25,17 +27,14 @@ page current; remove a line when its work is done.
 
 ## In flight
 
-- T-166 `pod-hold` (partial): the trial of podnet must pass in one clean
-  run (`sh scripts/adoption.sh podnet pod-hold`, about 40 minutes and 10 GB
-  of disk; `adoption.yml` runs it on a push), and the cross tests of the
-  crate under qemu-user (record where qemu refuses the seccomp listener).
-  T-169 and T-170 ask podnet whether two more parts belong to the cut.
-- T-020 `pod-session`, T-022 `pod-wormhole`, T-155: released in `v0.15.0`
-  (see above); the takes of the consumers remain. When a consumer writes
+- T-020 `pod-session`, T-022 `pod-wormhole`, T-166 `pod-hold`, T-155:
+  released in `v0.15.0` (the trials and the cross tests passed); the takes
+  of the consumers remain (#54). T-169 and T-170 ask podnet whether two
+  more parts belong to the cut of `pod-hold`. When a consumer writes
   its take as a COORD issue `(to podcrates)`: add the `taken` line to the
   crate's `SOURCES` (`check-sources.py` with clones must show 0 changes),
   remove the trial files of that consumer, set the entry to done, close
-  the hand-off issue of the release.
+  #54 when each consumer took its part.
 - T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
   `pod-services` and `Rewound::new` of `pod-session`; read each fact again
   at its source before the data.

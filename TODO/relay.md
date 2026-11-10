@@ -238,7 +238,8 @@ T-010 and T-016 are done.
 
 ## Done
 
-2026-11-10, partial: the release `v0.15.0` and the take of podssh remain
+2026-11-10, partial: the take of podssh remains (the release `v0.15.0` is
+at `27a4ccd`; the hand-off is GitHub #54)
 (podnet takes the crate later, PodUtils/podnet@T-086). Commits `e1a1256`
 (the import of `PodUtils/podssh:crates/podssh-relay/src/session/`, `src/udp/`,
 `src/answer.rs`, `src/transit/link.rs` and the tests at `c5636c9`, with
@@ -443,7 +444,8 @@ T-016 is done.
 
 ## Done
 
-2026-11-10, partial: the release `v0.15.0` and the take of podssh remain
+2026-11-10, partial: the take of podssh remains (the release `v0.15.0` is
+at `27a4ccd`; the hand-off is GitHub #54)
 (podnet takes the crate with T-102; the exchange goes to `pod-relay`,
 T-024). Commits `22850e3` (the import of podssh `code/` at `c5636c9`
 with `SOURCES`), `bb631ec` (the adaptation and the tests), `074b798` (the

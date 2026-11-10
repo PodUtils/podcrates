@@ -6,14 +6,16 @@
 
 - The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
   `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.15.0` (`docs/releases/v0.15.0.md`): `pod-session`,
-  `pod-wormhole`, `pod-hold`, the volumes of `pod-enter`. The hand-off
-  issue and the takes of the consumers follow it.
+- Last release: `v0.15.0` at `27a4ccd` (`docs/releases/v0.15.0.md`; CI
+  42872309453, nightly 42872313856, adoption 42872309501, release
+  42880337688): `pod-session`, `pod-wormhole`, `pod-hold`, the volumes of
+  `pod-enter`. The hand-off is GitHub #54 (COORD-029); the takes of the
+  consumers follow it. The dry run of `publish.yml` fails at the tags
+  `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main`.
 - The consumers: podssh and podnet are on `v0.14.0` (both took `pod-ws`
   and `pod-quic`); podvm is on `v0.12.0` (it took its seven crates of M6).
 - Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
-  T-166 `pod-hold` (one clean run of podnet's trial, the cross tests,
-  podnet's take). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
+  T-166 `pod-hold` (podnet's take), T-155 (podvm's move of calls). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
   (qemu-user only), T-157 (public Trojan nodes; a second day of the watch).
 - M8 and the podrunner entries (T-146, T-160 to T-165) wait for the
   owner (the rulings "Priority" and "CI tracker"; DR-1, DR-2).
@@ -41,10 +43,10 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-3. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-166 (partial: the clean run of the trial of podnet, the cross tests, the release `v0.15.0`, the take); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+3. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-166 (partial: podnet's take, #54); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-021,
-   T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
+4. **M2, the relay:** T-020 (partial: podssh's take, #54), T-021,
+   T-022 (partial: podssh's take, #54), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,

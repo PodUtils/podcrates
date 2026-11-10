@@ -2091,8 +2091,8 @@ sh scripts/agent/check.sh
 
 ## Done
 
-2026-11-10, partial: the clean run of the trial of podnet on this tree,
-the cross tests, the release `v0.15.0` and the take of podnet remain.
+2026-11-10, partial: the take of podnet remains (the trial, the cross
+tests and the release `v0.15.0` are done).
 Read: podnet `main` at `9e8d177` (`PodUtils/podnet:crates/podnet-netns`). Commits
 `7ca9a36` (the import of `seccomp/filter.rs`, `seccomp/notif.rs`,
 `seccomp/mem.rs`, `seccomp/mod.rs`, `fdtable.rs`, `netns/mod.rs`,
@@ -2158,14 +2158,15 @@ commit of this record.
   (56 tests). The patch then changed (`src/warp/tun.rs`, the root
   `Cargo.toml`, the README of podnet-netns, a remap of `PodUtils/podnet:TODO/pods.md`); no
   run of the trial covers the patch as it is now.
-- Next step: `sh scripts/adoption.sh podnet pod-hold` in one clean run
-  (about 40 minutes; it needs about 10 GB of disk). Then cross-build the
-  tests of `pod-hold` for i686, aarch64, riscv64gc and loongarch64 musl
-  (`cargo zigbuild --target T -p pod-hold --tests`) and run each binary,
-  with `tests/hold` as `hold`, under `QEMU_LD_PREFIX=/ qemu-ARCH`; record
-  where qemu-user refuses the seccomp listener (the test prints `SKIP:`).
-  Then the release `v0.15.0` and a COORD issue `(to podnet)` with the
-  patch.
+- 2026-11-10: the trial of podnet passed in one clean run on the tree of
+  `27a4ccd` (adoption 42872309501), after its grep for the old ioctl
+  numbers read code lines only. The nightly 42872313856 ran the tests of
+  `pod-hold` on the seven cross targets under qemu-user: the 28 unit tests
+  pass; `hold` prints `SKIP:` for the network namespace and twice for the
+  seccomp listener (`ENOSYS` under qemu-user). The release `v0.15.0` is
+  at `27a4ccd`; the hand-off is GitHub #54 (COORD-029).
+- Next step: podnet's take (a COORD issue `(to podcrates)`), then the
+  `taken` line in `crates/pod-hold/SOURCES` and the status done.
 
 # T-169: `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs`
 
