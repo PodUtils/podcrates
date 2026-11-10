@@ -1,0 +1,30 @@
+# Serveo's SSH tunnels: podssh's last fallback (PodUtils/podssh@T-549), a
+# private alias of a node with no account.
+id = "serveo"
+kind = "ssh-tunnel"
+party = "Serveo"
+about = "Serveo's SSH tunnels: a private alias of a node with no account"
+
+[[endpoint]]
+name = "ssh-443"
+scheme = "ssh"
+host = "serveo.net"
+port = 443
+source = { url = "https://serveo.net/docs/", read = 2026-11-10, note = "Connect on port 443: ssh -p 443 -R 80:localhost:8888 serveo.net" }
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "serveo.net"
+port = 22
+source = { url = "https://serveo.net/docs/", read = 2026-11-10, note = "ssh -R myalias:22:localhost:22 serveo.net; ssh -J serveo.net user@myalias" }
+
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk"
+source = { url = "https://serveo.net/docs/", read = 2026-11-10, note = "Verify the Ed25519 host-key fingerprint is SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk" }
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"

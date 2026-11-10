@@ -1,0 +1,20 @@
+# ssh-j.com: a public SSH jump and forward by name, podssh's last fallback
+# (PodUtils/podssh@T-570). The server keys a name by user, address and port,
+# and takes any login. Its host key is not a fact yet: a short live run of
+# podssh reads it.
+id = "ssh-j"
+kind = "ssh-tunnel"
+party = "ssh-j.com"
+about = "ssh-j.com: a public SSH jump and forward by name, with no account"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "ssh-j.com"
+port = 22
+source = { url = "https://ssh-j.com/", read = 2026-11-10, note = "ssh any-username@ssh-j.com -N -R laptop-behind-nat:22:localhost:22" }
+
+# The server answers with an SSH banner on its port.
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"

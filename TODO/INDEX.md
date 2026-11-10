@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**152 entries: 55 open, 3 partial, 0 blocked, 94 done.**
+**156 entries: 57 open, 3 partial, 0 blocked, 96 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 20 | 1 | 0 | 34 | 55 |
-| P2 | 25 | 1 | 0 | 44 | 70 |
-| P3 | 10 | 1 | 0 | 14 | 25 |
-| **All** | 55 | 3 | 0 | 94 | 152 |
+| P2 | 26 | 1 | 0 | 46 | 73 |
+| P3 | 11 | 1 | 0 | 14 | 26 |
+| **All** | 57 | 3 | 0 | 96 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -199,3 +199,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
 | [T-151](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them |
 | [T-152](transport.md) | P3 | M | M1 | feature | open | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |
+| [T-153](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182) |
+| [T-154](foundation.md) | P2 | S | M5 | defect | open | Timed tests under an emulator: one bound of the test kit and a sweep |
+| [T-155](podvm.md) | P3 | S | M6 | feature | open | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
+| [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |

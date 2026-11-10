@@ -1914,3 +1914,40 @@ fail: qemu-user does not enforce the memfd exec seal.
 cargo zigbuild --tests -p pod-enter --lib --target aarch64-unknown-linux-musl
 qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
 ```
+
+# T-155: `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226)
+
+**Source:** PodUtils/podvm#226 (COORD-020 of podvm, the gaps 1 and 2 of its take of v0.12.0).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+1. A `-w` directory that is missing inside a volume gets the refusal "is
+   not a directory in the image": the message names the image, not the
+   volume.
+2. podvm keeps its reserved guest paths (`NEVER_MAPPED`: `/proc`, its own
+   directory) and the bound of volume pairs outside `Maps::new`, so each
+   caller checks them again.
+
+## Premise
+
+- Read: PodUtils/podvm#226; `crates/pod-enter/src/userland/maps.rs`.
+
+## Approach
+
+1. `check_workdir` over a `Maps` names the volume (`HOST:GUEST`) of a
+   missing directory inside it, and the image otherwise; a test of each.
+2. `Names` carries the reserved guest paths of the caller; `Maps::new`
+   refuses a guest side under one of them, and a count over
+   `MAX_MAP_PAIRS - 1`, each by name; a test of each. podvm's adoption map
+   in the README drops its own checks.
+
+## Prove
+
+```sh
+cargo test -p pod-enter
+```

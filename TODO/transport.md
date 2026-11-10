@@ -2538,3 +2538,82 @@ the data (podssh decides, PodUtils/podssh#177).
 cargo test -p pod-services-watch --test watches -- ssh::
 ```
 
+# T-153: `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182)
+
+**Source:** PodUtils/podssh#182 (COORD-015 of podssh; PodUtils/podssh@T-549, PodUtils/podssh@T-570, the ruling Q78 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh's Serveo road and ssh-j road are last fallbacks. podssh names no
+host of another party in its code, so each road reads its server from
+`pod-services`, which had neither service.
+
+## Premise
+
+- Read: https://serveo.net/docs/ (2026-11-10): port 443 and port 22, the
+  jump by alias, and the Ed25519 host-key fingerprint
+  `SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk` (the RSA fingerprint
+  on the same page is an example of a user key). https://ssh-j.com/
+  answers 200; its host key is not read yet.
+
+## Approach
+
+`services/serveo.toml` (endpoints `ssh-443`, `ssh`; the fact
+`host-key-sha256`; the watch `ssh-host-key`) and `services/ssh-j.toml`
+(endpoint `ssh`; the watch `ssh-banner`); a row of each in the README.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-153. `cargo test -p
+pod-services` passes. The host key of ssh-j comes as a fact when a live
+run of podssh reads it.
+
+# T-156: `pod-services`: the service `croc` (PodUtils/podssh#183)
+
+**Source:** PodUtils/podssh#183 (COORD-016 of podssh; PodUtils/podssh@T-694, the ruling Q78 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh's croc road meets a pair at croc's public relay through croc-web's
+WebSocket bridge, and reads the bridge from `pod-services` alone.
+
+## Premise
+
+- Read: croc v11.6.4: `src/webrelay/webrelay.go` (`/ws?relay=INDEX&port=PORT`),
+  `src/publicrelay/publicrelay.go` (`1.getcroc.com:9009` to
+  `4.getcroc.com:9009`), `src/models/constants.go` (`DEFAULT_PASSPHRASE`
+  is `pass123`, croc's public default).
+- `Endpoint::url()` keeps the path: `wss://getcroc.com/ws`.
+
+## Approach
+
+`services/croc.toml`: the endpoint `bridge`, the facts `relays`,
+`relay-port` and `password`, each with its source line; the watch
+`websocket-upgrade`; a row in the README.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-156. `cargo test -p
+pod-services` passes.

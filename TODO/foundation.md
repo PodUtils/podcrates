@@ -1367,3 +1367,48 @@ sh scripts/plant-each.sh probe-feature-missing proxy-pins-not-given proxy-source
 is caught (`plant-each: 5 caught, 0 missed or stale`, in two runs: three,
 then two). The run of `plants.yml` after the push is the proof of the
 other plants.
+
+# T-154: Timed tests under an emulator: one bound of the test kit and a sweep
+
+**Source:** the nightly runs 42771421361, 42790696301 and 42793991844 (v0.13.0).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A test with a bound of time made for a kernel fails, one at a time, under
+qemu-user in the nightly cross jobs (riscv64, loongarch64, powerpc64le):
+the eight sessions of `pod-ws` (`tests/h2_road.rs`) and the idle limit of
+`pod-proxy` (`tests/blocking_streamed.rs`). Each fix copied the same
+detection (`pod_hostprobe::interp::detect`) into the test. The next bound
+fails in the next run.
+
+## Premise
+
+- `pod_hostprobe::interp::detect(..).is_emulated()` sees qemu-user by its
+  variables and by `binfmt_misc`.
+- `pod-hostprobe` is Linux only; the tests of the other targets need no
+  scale.
+
+## Approach
+
+- `pod_testkit::host::slow()` (or a `scaled(Duration)`): the factor of an
+  emulator (5) or 1 on a kernel, with the detection in one place, Linux
+  only, and a skip line that names it.
+- Use it in `pod-ws` and `pod-proxy` (drop the copies), then sweep the
+  bounds of each test (grep `Duration::from_` in `tests/` and in each
+  `#[cfg(test)]` module with an `elapsed()` or a `timeout(`) and scale each
+  bound that measures speed, not correctness.
+- Run the cross tests of riscv64 and loongarch64 under qemu-user here
+  with the variable of an emulator set.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+Then a nightly with each cross job green.

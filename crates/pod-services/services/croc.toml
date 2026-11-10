@@ -1,0 +1,37 @@
+# croc's public relay, reached through croc-web's WebSocket bridge on 443:
+# podssh's last fallback (PodUtils/podssh@T-694). The bridge carries a
+# connection to one relay of the pool: /ws?relay=INDEX&port=PORT.
+id = "croc"
+kind = "relay"
+party = "croc (schollz)"
+about = "croc's public relay, through croc-web's WebSocket bridge on 443"
+
+[[endpoint]]
+name = "bridge"
+scheme = "wss"
+host = "getcroc.com"
+port = 443
+path = "/ws"
+source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/webrelay/webrelay.go: the handler serves /ws?relay=<index>&port=<allowlisted relay port>, GatewayURL \"/ws\"; getcroc.com is the public address of croc-web" }
+
+# The pool behind the bridge, in croc's order: 1.getcroc.com to
+# 4.getcroc.com, port 9009.
+[[fact]]
+name = "relays"
+value = "4"
+source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/publicrelay/publicrelay.go: 1.getcroc.com:9009 to 4.getcroc.com:9009" }
+
+[[fact]]
+name = "relay-port"
+value = "9009"
+source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/publicrelay/publicrelay.go" }
+
+# The public password of the relay: croc's default, not a secret.
+[[fact]]
+name = "password"
+value = "pass123"
+source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/models/constants.go DEFAULT_PASSPHRASE" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "bridge"

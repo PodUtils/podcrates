@@ -223,6 +223,9 @@ let relay = services.of_kind("relay").next();
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
 | `node-*` (6) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
+| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `host-key-sha256` (Ed25519) |
+| `ssh-j` | `ssh-tunnel` | `ssh` | |
+| `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`) | `relays`, `relay-port`, `password` (croc's public default) |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |
