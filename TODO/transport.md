@@ -1847,8 +1847,8 @@ caught. `SOURCES` of `pod-proxy` has a block of `PodUtils/podnet` at
 file. The `pod-warp` row of `docs/design.md` names the boundary with
 T-020.
 
-podnet took the datagram path in podnet `127c095` (PodUtils/podnet#417, its
-T-224): `crates/podnet-netns/src/upstream.rs` calls `pod_proxy::udp`. The
+podnet took the datagram path in podnet `127c095` (PodUtils/podnet#417,
+PodUtils/podnet@T-224): `PodUtils/podnet:crates/podnet-netns/src/upstream.rs` calls `pod_proxy::udp`. The
 block `repo PodUtils/podnet 29ba18a` of `crates/pod-proxy/SOURCES` has
 `taken 127c095`; `check-sources.py` reads 0 changes. The freeze of
 GitHub #42 ends.
