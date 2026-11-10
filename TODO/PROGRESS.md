@@ -4,13 +4,11 @@
 
 ## State
 
-- Released: `v0.11.0` at `c660aca` (CI 42745681875, nightly 42745682075,
-  release 42755226074): `pod-rootfs`, the `pod-enter` of
-  PodUtils/podvm#222, podvm's whiteout tests in `pod-extract`. COORD-022
-  (GitHub #46) hands it to each consumer. podnet took it (`740eb0b`,
-  PodUtils/podnet#419), podvm (`0682c0c`, PodUtils/podvm#225) and
-  podssh (`dc112ea7`, PodUtils/podssh#181).
-  Open: T-131 (`pod-gsr` on Windows ARM64).
+- Released: `v0.12.0` at `393158f` (CI 42764751765, nightly 42764760625,
+  release 42770732307): the table of path maps of `pod-enter`
+  (PodUtils/podvm#224), `Statfs::f_flags`, the `statx` fallback. COORD-023
+  (GitHub #48) hands it to each consumer. Each consumer is on `v0.11.0`.
+  Open: T-131 (`pod-gsr` on Windows ARM64), T-149 (qemu-user only).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
