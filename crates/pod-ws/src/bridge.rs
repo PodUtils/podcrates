@@ -12,7 +12,7 @@
 
 use std::time::Duration;
 
-use pod_core::{BoxedIo, Failure, Stage};
+use pod_core::{Failure, Stage};
 use pod_tls::Trust;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -65,14 +65,17 @@ pub async fn dial(
 
 /// Connect a raw stream to the WebSocket at `url`: [`dial`] within
 /// [`DIAL_TIMEOUT`], then [`bridge`].
-pub async fn connect_bridge(
+pub async fn connect_bridge<I>(
     url: &str,
     way: &Way,
     trust: &Trust,
-    io: BoxedIo,
+    io: I,
     authorization: Option<&str>,
     tally: &dyn Tally,
-) -> Result<(), Failure> {
+) -> Result<(), Failure>
+where
+    I: AsyncRead + AsyncWrite + Send,
+{
     let session = dial(url, way, trust, DIAL_TIMEOUT, authorization).await?;
     bridge(session, io, tally).await
 }
@@ -82,10 +85,12 @@ pub async fn connect_bridge(
 /// message. The end of `io` sends a Close 1000, and the bridge ends when the
 /// far end's Close comes; a Close of the far end, or the end of the session,
 /// shuts the write side of `io` and ends the bridge, also while `io` has
-/// nothing to read. Pings are answered by the session.
-pub async fn bridge<S>(session: RelaySession<S>, io: BoxedIo, tally: &dyn Tally) -> Result<(), Failure>
+/// nothing to read. Pings are answered by the session. `io` is any stream:
+/// a [`pod_core::BoxedIo`], a socket, or a boxed stream of the caller's own.
+pub async fn bridge<S, I>(session: RelaySession<S>, io: I, tally: &dyn Tally) -> Result<(), Failure>
 where
     S: AsyncRead + AsyncWrite + Send,
+    I: AsyncRead + AsyncWrite + Send,
 {
     let (mut io_r, mut io_w) = tokio::io::split(io);
     let session = &session;
