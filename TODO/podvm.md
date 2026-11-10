@@ -1357,7 +1357,7 @@ run in CI. The owner lifted the KVM deferral (2026-11-09).
 ## Premise
 
 - Read: the guarded test of `pod-guest`; the runners of GitHub (ubuntu has
-  `/dev/kvm` on the larger runners only).
+  `/dev/kvm` on the larger runners only; run 42755557589 found it on the standard one).
 - Not measured: a run.
 
 ## Approach
@@ -1385,7 +1385,9 @@ thread, and the last step reported that no emulator stays.
   ubuntu-24.04, `cargo test -p pod-guest` under `timeout`, a check with
   `pgrep` that fails the job when a qemu process stays.
 - A new test, `a_real_emulator_under_kvm_answers_qmp_and_leaves_no_process`,
-  runs where `/dev/kvm` opens; the TCG test shares its helper.
+  runs where `/dev/kvm` opens; the TCG test shares its helper. The
+  ubuntu-24.04 runner of run 42755557589 has `/dev/kvm` (the step KVM
+  printed "kvm: /dev/kvm opens"), so the KVM test ran there.
 
 
 # T-139: `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222)
