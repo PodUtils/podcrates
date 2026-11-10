@@ -73,9 +73,10 @@ file 231a0fd5892a18b18a3f3cf06a6746158e720125 src/ws_relay.rs -> crates/pod-serv
 # value: the session reads the change, and moves the value with its source
 # here.
 repo PodUtils/podvm 2be31b2a1cc254123e71a7e0e44ce3fbd5a69976
+taken 20ea7813457544bd98568f411d3ba5566fd4f4f1 crates/podvm-image/src/reference.rs
 file 5c9e1e095e6905c744b3a8445195980fb14b0d66 crates/podvm-image/src/reference.rs -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/tests/podvm.rs
 file 4f7352e225526be911cd24ad61f718a81206056e crates/podvm/src/images/list.rs -> crates/pod-services/services/docker-hub-registry.toml
-file eb007d2644f7056908b84bec52ab4bc99e217366 crates/podvm/src/images/login_extract.rs -> crates/pod-services/services/docker-hub-registry.toml
+file 5fc46667825952ec83ef20b95112f9e06ad165f6 crates/podvm/src/images/login_extract.rs -> crates/pod-services/services/docker-hub-registry.toml
 file 83ff974a5ffcb1baf63bd923dfe85c9627c5810c crates/podvm-measure/src/workload.rs -> crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/alpine-netboot.toml crates/pod-services/tests/podvm.rs
 file af9c09dc0c3bd42fa68e2d1c0cd7b4d14560baaa scripts/common/distro-matrix.sh -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/ghcr-registry.toml crates/pod-services/services/quay-registry.toml crates/pod-services/services/opensuse-registry.toml
 file 5438dd9f680697216193b8210529f6aba4e4935a experiments/70-whiteout-contract.sh -> crates/pod-services/services/docker-hub-registry.toml

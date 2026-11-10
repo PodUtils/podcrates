@@ -228,3 +228,45 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-025, T-028 and T-029 moved their stand-ins to `pod-testkit`.
+
+# T-146: `podrunner`: run GitHub CI and other CI on any machine (the plan, GitHub #47)
+
+**Source:** the owner, 2026-11-10 ("the tool that lets me run GitHub or other CI on any machine"); GitHub #47; A-X-01 of #35; G-01 to G-12 of #36.
+**Category:** research
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The owner asks for one tool that runs GitHub CI, and other CI, on any
+machine: a host with no root, no namespaces, no docker daemon and a proxy
+for the only way out.
+
+## Premise
+
+- Read: `docs/research/ci/podrunner-plan.md` (the plan, with its sources);
+  `docs/research/fleet/asks.md`; podvm's parity table.
+- Not measured: the official runner under podvm (phase 0 of the plan).
+
+## Approach
+
+The plan and GitHub #47 give the phases with their checklists:
+
+- Phase 0 (measure) and the podvm items of phase 1 are podvm work: they
+  go now, in podvm's record.
+- `podrunner` (a static launcher of the official `actions/runner`, one
+  fresh podvm unit for each job) and the crate `pod-dockerapi` (a Docker
+  Engine API subset over podvm, one socket for each job) wait for Q8 to
+  Q14 (`TODO/PROGRESS.md`).
+- A native Rust runner is a conditional phase 5.
+
+## Prove
+
+The checklist of GitHub #47: each item gets its own entry and proof. The
+plan passes the path check:
+
+```sh
+python3 -I scripts/check-design-paths.py
+```

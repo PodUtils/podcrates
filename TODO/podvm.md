@@ -1704,3 +1704,40 @@ cargo test -p pod-enter
 ```sh
 cargo test -p pod-hostprobe
 ```
+
+# T-147: `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take
+
+**Source:** `scripts/check-sources.py`, 2026-11-10 (2 changes in the podvm block of `pod-services`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm took `pod-oci` at `20ea781`: `PodUtils/podvm:crates/podvm-image/src/reference.rs`
+left podvm (its Docker Hub names are `pod_oci::reference` now), and
+`PodUtils/podvm:crates/podvm/src/images/login_extract.rs` changed two
+error conversions. The check read both as changes.
+
+## Premise
+
+- Read: `git diff 2be31b2 20ea781` of both files in podvm. No name of a
+  registry changed.
+
+## Approach
+
+A `taken` line for `reference.rs` at `20ea781`; the blob of
+`login_extract.rs` at `20ea781`.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=../podvm pod-services
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-147. The check of each crate
+with clones of podvm, podssh and podnet: 0 changes.

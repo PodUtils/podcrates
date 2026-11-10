@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**145 entries: 55 open, 4 partial, 0 blocked, 86 done.**
+**147 entries: 56 open, 4 partial, 0 blocked, 87 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 32 | 55 |
-| P2 | 25 | 3 | 0 | 39 | 67 |
-| P3 | 7 | 1 | 0 | 13 | 21 |
-| **All** | 55 | 4 | 0 | 86 | 145 |
+| P2 | 26 | 3 | 0 | 39 | 68 |
+| P3 | 7 | 1 | 0 | 14 | 22 |
+| **All** | 56 | 4 | 0 | 87 | 147 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -192,3 +192,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-143](foundation.md) | P1 | S | M5 | defect | done | `plants.yml`: four plants are stale and two miss |
 | [T-144](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: the volume pairs in the maps table; the workdir and the first program through a guest-to-host resolver (PodUtils/podvm#224) |
 | [T-145](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224) |
+| [T-146](fleet.md) | P2 | L | M8 | research | open | `podrunner`: run GitHub CI and other CI on any machine (the plan, GitHub #47) |
+| [T-147](podvm.md) | P3 | S | M5 | chore | done | `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take |

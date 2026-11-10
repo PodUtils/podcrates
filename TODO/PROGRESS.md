@@ -1,13 +1,14 @@
 # Progress
 
-`TODO/INDEX.md` holds 145 entries: 55 open, 4 partial, 0 blocked, 86 done.
+`TODO/INDEX.md` holds 147 entries: 56 open, 4 partial, 0 blocked, 87 done.
 
 ## State
 
 - Released: `v0.11.0` at `c660aca` (CI 42745681875, nightly 42745682075,
   release 42755226074): `pod-rootfs`, the `pod-enter` of
   PodUtils/podvm#222, podvm's whiteout tests in `pod-extract`. COORD-022
-  (GitHub #46) hands it to each consumer. Each consumer is on `v0.10.0`.
+  (GitHub #46) hands it to each consumer. podnet took it (`740eb0b`,
+  PodUtils/podnet#419); podvm and podssh are on `v0.10.0`.
   Open: T-131 (`pod-gsr` on Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest`,
   `pod-enter` (podvm `423e817`, PodUtils/podvm#220) and `pod-oci` (podvm
@@ -73,7 +74,30 @@ C35), and the work goes on with it until the owner rules otherwise.
 
 ## Questions for the owner
 
-None open. The owner ruled Q4, Q7 and the questions of GitHub #35 and #36 on 2026-11-09 (`docs/decisions.md`). Q6 closes: a push to `main` starts `ci.yml` again, and the session dispatches the other runs (`docs/maintenance.md`, "A run of a workflow").
+The questions of the CI plan (GitHub #47, T-146,
+`docs/research/ci/podrunner-plan.md`, section 9). None blocks M6 or the
+podvm items of the plan.
+
+- **Q8.** Lift the wait (the ruling "Priority") for `podrunner` phase 1
+  and the crate `pod-dockerapi`, after the podvm items of phase 1?
+  Blocks T-146. Recommendation: yes.
+- **Q9.** Is the official .NET runner, as a payload in a podvm unit,
+  accepted under "everything must be statically compiled"? Blocks T-146.
+  Recommendation: yes: the delivered binaries are static; the runner is
+  user content, as Node is.
+- **Q10.** May `podrunner` serve a Docker API socket for each job, beside
+  podvm's rule "no daemon"? Blocks phase 3 of T-146. Recommendation: yes:
+  a library hosted by the product, alive for one job, each missing verb
+  refused by name.
+- **Q11.** A local mode (`podrunner run workflow.yml`)? Recommendation:
+  not now.
+- **Q12.** The GitHub terms for a third-party runner. Blocks phase 5 only.
+  Recommendation: the official runner first; decide before phase 5.
+- **Q13.** `docker build` and Dockerfile actions: refuse by name, or a
+  rootless build? Recommendation: refuse by name first, then measure.
+- **Q14.** The names `pod-dockerapi`, `pod-actions-proto`,
+  `pod-actions-expr`, `pod-actions-exec`. Recommendation: accept, and
+  reserve them with `check-crates-io-names.py`.
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q8
