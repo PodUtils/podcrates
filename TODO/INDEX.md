@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**165 entries: 61 open, 2 partial, 0 blocked, 102 done.**
+**166 entries: 61 open, 2 partial, 0 blocked, 103 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 18 | 1 | 0 | 36 | 55 |
-| P2 | 29 | 1 | 0 | 49 | 79 |
+| P2 | 29 | 1 | 0 | 50 | 80 |
 | P3 | 14 | 0 | 0 | 15 | 29 |
-| **All** | 61 | 2 | 0 | 102 | 165 |
+| **All** | 61 | 2 | 0 | 103 | 166 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -155,7 +155,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
 | [T-107](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | open | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
-| [T-109](podvm.md) | P2 | S | M7 | research | open | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
+| [T-109](podvm.md) | P2 | S | M7 | research | done | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
 | [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
 | [T-111](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: a lease header, Access headers from files on each WebSocket road, a heartbeat that a relay offers (GitHub #35) |
 | [T-112](transport.md) | P1 | S | M1 | feature | open | `pod-services`: the party of each service as a filter, and the effective set as JSON (GitHub #35) |
@@ -212,3 +212,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-163](fleet.md) | P2 | M | M8 | feature | open | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
 | [T-164](transport.md) | P3 | S | M8 | feature | open | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
 | [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |
+| [T-166](podvm.md) | P2 | L | M1 | feature | open | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |

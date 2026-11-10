@@ -1030,7 +1030,7 @@ cargo test -p pod-confine --all-features
 **Milestone:** M7
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1063,6 +1063,15 @@ for the memory of the child in tests.
 ```sh
 cargo todo check
 ```
+
+## Done
+
+2026-11-10. podnet's hand-off came (PodUtils/podnet#422, COORD-014 of
+podnet; PodUtils/podnet@T-232): the terms of PodUtils/podnet#414 are met
+(PodUtils/podnet@T-040 and the seccomp fixes PodUtils/podnet@T-142 to
+PodUtils/podnet@T-158 are done). The decision: one crate, `pod-hold`, with
+the generic core only, as #414 cuts it. The import is T-166.
+
 
 # T-119: `pod-netlab`: the CI matrix of restricted hosts (GitHub #35)
 
@@ -2007,3 +2016,54 @@ The tests that the issue names:
 The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
 
 Depends on no other crate.
+
+# T-166: `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422)
+
+**Source:** PodUtils/podnet#422 (COORD-014 of podnet; PodUtils/podnet@T-232); T-109; PodUtils/podnet#414.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet holds each connect of a payload with no root (`podnet pod`: the
+seccomp user notification backend and the netns backend). podvm (A-V-02,
+PodUtils/podvm@T-1665) and podrunner (G-04, T-160) need the same hold.
+The generic core is in `PodUtils/podnet:crates/podnet-netns`.
+
+## Premise
+
+- Read: PodUtils/podnet#422 and #414: the cut is the generic core only:
+  the loop of the seccomp user notification, the read of the memory of the
+  child, the table of descriptors and the reply, and the netns hold of a
+  `connect`. The pod CLI, the rules of the upstreams, the routes and `pod
+  doctor` stay in `podnet-netns`. The seam is the reply ioctl; a memfd can
+  stand in for the memory of the child in tests.
+- Since #414 the core got PodUtils/podnet@T-150 (an accepted inbound
+  connection goes to the program with no relay), PodUtils/podnet@T-151 (a
+  relay buffer of 64 KiB), PodUtils/podnet@T-181 (the flow budget from
+  `RLIMIT_NOFILE`, with `EMFILE`), PodUtils/podnet@T-226 (the netns egress
+  loop and a bounded buffer) and PodUtils/podnet@T-109 to
+  PodUtils/podnet@T-113 (detach, join, the netns backend first,
+  `--host-gateway`). Import from podnet `main` at `9e8d177` or later.
+- Not read: `PodUtils/podnet:crates/podnet-netns` in full.
+
+## Approach
+
+The procedure of `docs/design.md`, section 8: import with `SOURCES`, adapt
+(settings, typed failures, no environment reads; the level of the hold:
+`enforced`, `advisory` or `none`, with its proof), the tests with a memfd
+for the child's memory, the README with the adoption map of podnet, the
+trial of podnet (`pod-hold.patch` of `adoption/podnet`). From the import, the
+files of the core in podnet take fixes only.
+
+## Prove
+
+```sh
+cargo test -p pod-hold
+sh scripts/adoption.sh podnet pod-hold
+sh scripts/agent/check.sh
+```
+
