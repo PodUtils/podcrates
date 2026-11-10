@@ -95,6 +95,7 @@ fn main() {
     lines.extend(guest());
     lines.extend(enter());
     lines.extend(oci(tls));
+    lines.extend(extract());
     for line in lines {
         println!("{line}");
     }
@@ -222,5 +223,30 @@ fn oci(tls: pod_tls::Context) -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn oci(_tls: pod_tls::Context) -> Option<String> {
+    None
+}
+
+/// pod-extract is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn extract() -> Option<String> {
+    // An image with no layer: the space check, the sidecar and the marker
+    // link in; the decompressors link in through the media types.
+    let base = std::env::temp_dir().join(format!("static-probe-extract-{}", std::process::id()));
+    let place = pod_extract::Place::under(&base);
+    let done = pod_extract::extract(&pod_extract::Settings::default(), "static-probe", &[], &place)
+        .map_or_else(|e| e.to_string(), |x| format!("{} layers, extracted {}", x.layers, place.is_extracted()));
+    let _ = place.remove();
+    let _ = std::fs::remove_dir(&base);
+    let zstd = pod_extract::layer::Compression::of("application/vnd.oci.image.layer.v1.tar+zstd")
+        .map_or_else(|e| e.to_string(), |c| format!("{c:?}"));
+    Some(format!(
+        "pod-extract: {done}, zstd layer {zstd}, openat2 {}, .wh.x is {:?}",
+        pod_extract::safety::have_openat2(),
+        pod_extract::whiteout::classify(".wh.x")
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn extract() -> Option<String> {
     None
 }
