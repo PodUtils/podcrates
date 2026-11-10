@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 138 entries: 55 open, 4 partial, 0 blocked, 79 done.
+`TODO/INDEX.md` holds 139 entries: 56 open, 4 partial, 0 blocked, 79 done.
 
 ## State
 
@@ -43,7 +43,8 @@ first; the asks of cfb and githome (M8) wait.
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-056 (partial: the release and
    the take of podvm), T-057 (partial: the release and the take of podvm),
-   T-058; then T-137, T-138. T-040 (the trials of podvm)
+   T-058; T-139 (P1, a payload over 128 MiB, PodUtils/podvm#222); then
+   T-137, T-138. T-040 (the trials of podvm)
    goes with each import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs

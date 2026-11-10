@@ -1227,9 +1227,8 @@ of a file (podvm's `complete/capability.rs` keeps its own bounded scan).
 Correct the two texts. Add `shebang_parts(bytes) -> Option<(String,
 Option<String>)>`, so that podvm and its interposer stop keeping their own
 parsers of `#!`; `guest_invoked(rootfs, argv0, path_dirs)` that gives the
-`$0` the kernel would give; a variant of `interp_of` that is safe on the
-head of a file (it says "unknown" when a header lies past the bytes). A
-test for each. Tell podvm in the hand-off of the release.
+`$0` the kernel would give. The variant of `interp_of` that is safe on the
+head of a file is T-139. A test for each. Tell podvm in the hand-off of the release.
 
 ## Prove
 
@@ -1272,3 +1271,48 @@ cargo test -p pod-guest
 ```
 
 The run id of the dispatched job goes in the Done section.
+
+# T-139: `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222)
+
+**Source:** PodUtils/podvm#222 (COORD-016 of podvm; PodUtils/podvm@T-1647, PodUtils/podvm#90, P1)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On a host that denies chroot, podvm refuses a payload over 134217728
+bytes (128 MiB) before it runs (exit 125): `node` of node:alpine has
+149234536 bytes, a zig toolchain binary 172641672. Three paths of
+`pod-enter` read the whole file into memory: `Elf::read` (`src/abi.rs`),
+`ladder::payload_bytes` (`src/ladder.rs`), and `memfd::stage`
+(`src/memfd.rs`, one contiguous buffer). No `doctor` or `probe` row names
+the cap, so the image is pulled first and the run fails after.
+
+## Premise
+
+- Read: the ask of PodUtils/podvm#222; T-137 (its note 4 asks the same
+  head-safe `interp_of`).
+- Not measured: the memory of a stage of 200 MiB.
+
+## Approach
+
+Classify from a bounded read of the ELF header and its program headers
+(a head-safe `interp_of` that says "unknown" when a header lies past the
+bytes read; it serves podvm's `complete/capability.rs` too). Stage the
+memfd family's payload by a copy from the file into the memfd in bounded
+chunks, with the digest computed during the copy where one is needed.
+Bound the bytes held in memory, not the size of the file; where a size
+limit stays, expose it as a constant so that podvm reports it in `doctor`
+and `probe` and refuses before the pull. A test classifies and stages a
+sparse fixture of 200 MiB through a bounded buffer. The case of a static
+runtime that finds its tree through `/proc/self/exe` stays out (PodUtils/podvm@T-1648 and
+PodUtils/podvm@T-1652).
+
+## Prove
+
+```sh
+cargo test -p pod-enter
+```

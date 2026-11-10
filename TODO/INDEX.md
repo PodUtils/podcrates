@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**138 entries: 55 open, 4 partial, 0 blocked, 79 done.**
+**139 entries: 56 open, 4 partial, 0 blocked, 79 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 23 | 0 | 0 | 28 | 51 |
+| P1 | 24 | 0 | 0 | 28 | 52 |
 | P2 | 24 | 3 | 0 | 38 | 65 |
 | P3 | 8 | 1 | 0 | 11 | 20 |
-| **All** | 55 | 4 | 0 | 79 | 138 |
+| **All** | 56 | 4 | 0 | 79 | 139 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -185,3 +185,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-136](podvm.md) | P2 | S | M6 | chore | done | Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer |
 | [T-137](podvm.md) | P3 | S | M6 | chore | open | `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220) |
 | [T-138](podvm.md) | P3 | M | M6 | chore | open | `pod-guest`: the run of a real guest in CI |
+| [T-139](podvm.md) | P1 | M | M6 | defect | open | `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222) |
