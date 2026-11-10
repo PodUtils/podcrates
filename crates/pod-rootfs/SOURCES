@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podvm 2616bd78066b1d1ea64b0305b89878664f497a54
+taken 0682c0c4ee0da68719423eb31a854af5acd6db6d
 dir crates/podvm-complete/src
 # Of lib.rs a part stays in podvm: Report::banner and Report::json (the
 # output of podvm, with the ids of its record) and Options (podvm's flags).

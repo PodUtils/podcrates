@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 149 entries: 55 open, 4 partial, 0 blocked, 90 done.
+`TODO/INDEX.md` holds 149 entries: 55 open, 2 partial, 0 blocked, 92 done.
 
 ## State
 
@@ -8,12 +8,13 @@
   release 42755226074): `pod-rootfs`, the `pod-enter` of
   PodUtils/podvm#222, podvm's whiteout tests in `pod-extract`. COORD-022
   (GitHub #46) hands it to each consumer. podnet took it (`740eb0b`,
-  PodUtils/podnet#419); podvm and podssh are on `v0.10.0`.
+  PodUtils/podnet#419) and podvm (`0682c0c`, PodUtils/podvm#225);
+  podssh is on `v0.10.0`.
   Open: T-131 (`pod-gsr` on Windows ARM64).
-- M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest`,
-  `pod-enter` (podvm `423e817`, PodUtils/podvm#220) and `pod-oci` (podvm
-  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) and `pod-rootfs`
-  (T-058) wait for the take of podvm (both patches on podvm `20ea781`).
+- M6: podvm took each of its seven generic crates: `pod-hostprobe`,
+  `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
+  (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
+  PodUtils/podvm#225). No trial of podvm is open.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).
@@ -41,9 +42,8 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-133 (partial: the live check of the
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-057 and T-058 (partial: the
-   take of podvm, GitHub #46); T-142. T-040 (the trials of podvm) goes
-   with each import.
+   podvm `main` on the day of each import): T-142; T-149. T-040 (the
+   trials of podvm) goes with each import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs
    it.

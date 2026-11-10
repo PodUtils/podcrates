@@ -246,7 +246,7 @@ at `6cd3442`, with `SOURCES`), `7bb8637` (the adaptation and the tests),
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -311,7 +311,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 ## Done
 
-2026-11-10, partial. Commits `f940f32` (the import of 12 files of podvm at
+2026-11-10. Commits `f940f32` (the import of 12 files of podvm at
 `e8e5beb`, with `SOURCES`), `98a70ed` (the adaptation and the tests),
 `a40d45a` (the check of whiteouts), `eede16e` (README, the static probe,
 C39) and the commit of the trial and this record.
@@ -328,7 +328,7 @@ C39) and the commit of the trial and this record.
   before `a40d45a`). The same 50 pass as i686 musl binaries, and under
   QEMU as aarch64, armv7 and powerpc64le musl binaries (the `openat2` test
   skips under the emulator).
-- The trial of podvm at `2616bd7` (`adoption/podvm/pod-extract.patch`: 27
+- The trial of podvm at `2616bd7` (`pod-extract.patch` of `v0.11.0`: 27
   files, 127 lines in, 2,977 out; `pod-extract.commit`):
   `PodUtils/podvm:crates/podvm-extract` keeps podvm's glue (`paths`,
   `extract` over the `Store`, `is_extracted`, `remove_extracted`, an
@@ -349,12 +349,11 @@ C39) and the commit of the trial and this record.
   paths, static, test), `check-sources.py` (12 files, 0 changes),
   `secrets_like.py` on the patch (no line).
 
-Remains:
-
-- The release `v0.10.0`, then podvm's take of the patch, after
-  `pod-oci.patch`. Then the `taken` line in `SOURCES`.
-- podvm's `.wh...` escape is in its own `PodUtils/podvm:crates/podvm-extract`
-  until the take: the take fixes it.
+Released in `v0.11.0` (`c660aca`, release 42755226074). podvm took the
+patch at `0682c0c` (PodUtils/podvm#225; with `--3way` at podvm `72523d7`,
+no conflict; each line of the `.run`, `cargo test --workspace` and podvm's
+gate passed there). The `taken` line is in `crates/pod-extract/SOURCES`, and
+the trial of pod-extract ends.
 
 # T-058: `pod-rootfs`: the completion of a root file system
 
@@ -363,7 +362,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -415,7 +414,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 ## Done
 
-2026-11-10, partial. Commits `50c9eda` (the import of 14 files of podvm at
+2026-11-10. Commits `50c9eda` (the import of 14 files of podvm at
 `2616bd7`, with `SOURCES`), `a316661` (the adaptation, the eleven fixes
 and the tests), `07b043f` (README, `IDS`, the static probe, C40),
 `019b897` (the trial) and the commit of this record.
@@ -441,7 +440,7 @@ and the tests), `07b043f` (README, `IDS`, the static probe, C40),
   banner test stays in podvm), and 22 new. The same 74 pass as an i686
   musl binary, and under QEMU as aarch64, armv7, powerpc64le and riscv64
   musl binaries (51 skip there, as the emulator has no `openat2`).
-- The trial of podvm at `2616bd7` (`adoption/podvm/pod-rootfs.patch`: 34
+- The trial of podvm at `2616bd7` (`pod-rootfs.patch` of `v0.11.0`: 34
   files, 227 lines in, 4,449 out; `pod-rootfs.commit`):
   `PodUtils/podvm:crates/podvm-complete` keeps podvm's glue (`Options`,
   `names()` with the values of earlier releases, `entry(id)`, `Fixup`,
@@ -465,14 +464,11 @@ and the tests), `07b043f` (README, `IDS`, the static probe, C40),
   files, 0 changes), `secrets_like.py` on the patch (no line). The trial
   passed again on `main` `81439a8`.
 
-Remains:
-
-- The release that carries the crate, then podvm's take of the patch,
-  after `pod-oci.patch` and `pod-extract.patch`. Then the `taken` line in
-  `SOURCES`. The patch names `v0.11.0`: a new crate is a new public API
-  (`docs/design.md`, section 10).
-- The eleven defects stay in `PodUtils/podvm:crates/podvm-complete` until
-  the take: the take fixes them.
+Released in `v0.11.0` (`c660aca`, release 42755226074). podvm took the
+patch at `0682c0c` (PodUtils/podvm#225; with `--3way` at podvm `72523d7`,
+no conflict; each line of the `.run`, `cargo test --workspace` and podvm's
+gate passed there). The `taken` line is in `crates/pod-rootfs/SOURCES`, and
+the trial of pod-rootfs ends.
 
 # T-059: `pod-enter`: the entry of a payload
 
@@ -1554,7 +1550,7 @@ patch of `v0.10.0` does not apply at podvm's `main`.
   `drive/whiteouts.rs` and of `remove.rs` to the tests of the crate; port
   each case that the crate does not refuse.
 - Move the SOURCES snapshot of the four files to `c89b769` or later.
-- Make `adoption/podvm/pod-extract.patch` again on podvm's `main` (after
+- Make `pod-extract.patch` of `v0.11.0` again on podvm's `main` (after
   `c89b769`), with `pod-extract.commit`; run the trial.
 
 ## Prove
@@ -1583,7 +1579,7 @@ sh scripts/adoption.sh podvm pod-extract
 - `SOURCES`: the block of `PodUtils/podvm` reads `20ea781` (13 files; its
   change of `lib.rs` after `c89b769` is in podvm's glue, not in the crate);
   `check-sources.py --clone PodUtils/podvm=../podvm` finds no change.
-- `adoption/podvm/pod-extract.patch` is made on podvm `20ea781` (podvm
+- `pod-extract.patch` of `v0.11.0` is made on podvm `20ea781` (podvm
   took `v0.10.0` and `pod-oci` there; `pod-extract.commit`), and it applies
   at `e99fc9b` too: 11 files leave podvm, the citations of
   PodUtils/podvm@T-1698 name the crate, each tag is `v0.11.0`. The patch

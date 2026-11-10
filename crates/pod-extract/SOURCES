@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podvm 20ea7813457544bd98568f411d3ba5566fd4f4f1
+taken 0682c0c4ee0da68719423eb31a854af5acd6db6d
 dir crates/podvm-extract/src
 # Of lib.rs a part stays in podvm: paths(store, digest) and the glue over the
 # Store of podvm-image (the layers of the manifest, the blob paths, the
