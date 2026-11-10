@@ -42,6 +42,7 @@ pod-supervise = { path = "crates/pod-supervise", version = "0.14.0" }
 pod-term = { path = "crates/pod-term", version = "0.14.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.14.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.14.0" }
+pod-wormhole = { path = "crates/pod-wormhole", version = "0.14.0" }
 pod-ws = { path = "crates/pod-ws", version = "0.14.0" }
 tokio = { version = "1.53.3", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }

@@ -30,5 +30,6 @@ pod-term = { workspace = true }
 pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
 # `plain-ws` is out: it is for the tests of an embedder, and no binary turns it on.
 pod-ws = { workspace = true, features = ["ech"] }
+pod-wormhole = { workspace = true }
 # A runtime of one thread for the endpoint of pod-quic.
 tokio = { workspace = true, features = ["rt"] }

@@ -2054,6 +2054,7 @@ dependencies = [
  "pod-supervise",
  "pod-term",
  "pod-tls",
+ "pod-wormhole",
  "pod-ws",
  "tokio",
 ]
