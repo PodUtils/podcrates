@@ -4,12 +4,12 @@
 
 ## State
 
-- Released: `v0.12.0` at `393158f` (CI 42764751765, nightly 42764760625,
-  release 42770732307): the table of path maps of `pod-enter`
-  (PodUtils/podvm#224), `Statfs::f_flags`, the `statx` fallback. COORD-023
-  (GitHub #48) hands it to each consumer. podvm took it (`5e5629a`,
-  PodUtils/podvm#226); podssh and podnet are on `v0.11.0`.
-  Open: T-131 (`pod-gsr` on Windows ARM64), T-149 (qemu-user only).
+- Released: `v0.13.0` at `947603a` (CI 42797326140, nightly 42797327113,
+  release 42802815017): `pod-ws`. COORD-024 (GitHub #49) hands it to
+  podssh and podnet. podvm took `v0.12.0` (`5e5629a`,
+  PodUtils/podvm#226); podssh and podnet are on `v0.11.0`. Open: T-131
+  (`pod-gsr` on Windows ARM64), T-149 (qemu-user only), T-154 (timed tests
+  under an emulator).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
@@ -51,7 +51,7 @@ first; the asks of cfb and githome (M8) wait.
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-142; T-149; T-155. T-040 (the
    trials of podvm) goes with each import.
-3. **M1, the transport:** T-016 (partial: the release `v0.13.0` and the
+3. **M1, the transport:** T-016 (partial: the
    takes of podssh and podnet, `adoption/{podssh,podnet}/pod-ws.*`); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-019, T-020, T-021, T-022, T-023, T-024,
