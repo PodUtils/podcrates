@@ -182,7 +182,7 @@ crates of podvm) and M8 (the fleet).
 
 | Crate | Source | Lines | Pod deps |
 | --- | --- | --- | --- |
-| `pod-quic` | noq 1.4 (T-018, C43; `docs/research/quic/stack.md`). Sources: podssh-relay `quick/quic.rs`, `quick/probe.rs` (the QUIC endpoint and the probe); podnet `src/warp/quic.rs` (`WarpUdpSocket`: QUIC over `Datagrams`; the client configuration is an argument, podnet edge 10) | 1,500 | pod-core, pod-tls |
+| `pod-quic` | noq 1.4 (T-018, C43; `docs/research/quic/stack.md`). Sources: podssh-relay `quick/quic.rs`, `quick/probe.rs` (the settings of the transport, the endpoint, the race of handshakes and the probe; the regions of an edge stay in podssh), the `TokenKey` of `serve/quic.rs`; podnet `src/warp/quic.rs` (`WarpUdpSocket`: `QueuedDatagrams` over a `Link`; the client configuration is an argument, podnet edge 10). An endpoint runs over any `Datagrams`, with a waker for each sender of noq. The TLS provider and the roots are the caller's | 1,500 | pod-core |
 | `pod-session` | podssh-relay `session/` (with `handover/`), `udp/`, `answer.rs`, `transit/link.rs` (`Link`) | 8,200 | pod-core, pod-identity |
 | `pod-e2e` | podssh-relay `e2e/` (Noise XX on snow 0.10) | 3,400 | pod-core, pod-identity, pod-session |
 | `pod-wormhole` | podssh-relay `code/` `mailbox.rs`, `wormhole.rs`, `phrase.rs`, `words.rs`, `mod.rs` (the pairing exchange, `exchange.rs` and `run.rs`, goes to `pod-relay`); the mailbox harness | 1,200 | pod-core, pod-ws, pod-identity |

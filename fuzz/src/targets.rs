@@ -284,3 +284,23 @@ pub fn close_reason(data: &[u8]) {
     }
     assert!(is_one_line(&reason), "{reason:?}");
 }
+
+/// The answer of a server of QUIC to the probe of UDP
+/// (`pod_quic::probe::answers`; new in `pod-quic`, T-019): the first 8
+/// bytes are the Destination Connection ID of the probe's packet, the rest
+/// is the datagram. An answer is a long header of the version 0 with no
+/// Destination, the ID as its Source, and whole versions, none of them the
+/// reserved one; the probe's own packet does not answer it.
+pub fn quic_probe_answer(data: &[u8]) {
+    use pod_quic::probe::{RESERVED, answers, packet};
+    let Some((id, datagram)) = data.split_first_chunk::<8>() else { return };
+    if answers(datagram, id) {
+        assert!(datagram[0] & 0x80 != 0 && datagram[1..5] == [0; 4], "{datagram:02x?}");
+        assert_eq!((datagram[5], datagram[6]), (0, 8), "{datagram:02x?}");
+        assert_eq!(&datagram[7..15], id);
+        let versions = &datagram[15..];
+        assert!(!versions.is_empty() && versions.len() % 4 == 0, "{datagram:02x?}");
+        assert!(versions.chunks(4).all(|v| v != RESERVED), "{datagram:02x?}");
+    }
+    assert!(!answers(&packet(id), id));
+}

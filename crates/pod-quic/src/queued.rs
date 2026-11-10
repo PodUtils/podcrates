@@ -235,8 +235,9 @@ impl Datagrams for QueuedDatagrams {
     }
 }
 
-/// The wake-up of a poller that waits for room in the send queue (podnet's
-/// T-225). An `AtomicWaker` keeps the waker of the task between two polls; a
+/// The wake-up of a poller that waits for room in the send queue
+/// (PodUtils/podnet@T-225). An `AtomicWaker` keeps the waker of the task
+/// between two polls; a
 /// `Notified` future made in each poll drops out of the waiters at
 /// `Pending`, and a later drain then wakes nobody. It keeps one waker: the
 /// socket of QUIC gives one waker for each of its senders

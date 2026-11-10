@@ -35,6 +35,7 @@ pod-broker = { path = "../crates/pod-broker" }
 # The feature `fuzzing` makes the reader of the relay's messages public.
 pod-gsr = { path = "../crates/pod-gsr", features = ["fuzzing"] }
 pod-ws = { path = "../crates/pod-ws" }
+pod-quic = { path = "../crates/pod-quic" }
 
 # A crash names its line.
 [profile.release]
@@ -141,6 +142,13 @@ bench = false
 [[bin]]
 name = "close_reason"
 path = "fuzz_targets/close_reason.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "quic_probe_answer"
+path = "fuzz_targets/quic_probe_answer.rs"
 test = false
 doc = false
 bench = false

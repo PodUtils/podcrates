@@ -98,6 +98,7 @@ fn main() {
     lines.extend(extract());
     lines.extend(rootfs());
     lines.push(ws());
+    lines.push(quic());
     for line in lines {
         println!("{line}");
     }
@@ -300,4 +301,29 @@ fn ws() -> String {
         way.label(),
         pod_ws::Limits::default()
     )
+}
+
+/// pod-quic: the probe's packet, a client configuration on the pure
+/// provider, and an endpoint over the system's datagrams in a runtime of
+/// one thread: noq, the socket over Datagrams and the keys link in.
+fn quic() -> String {
+    let provider = std::sync::Arc::new(pod_tls::crypto::provider());
+    let roots = std::sync::Arc::new(pod_tls::roots_from_compiled_set().roots);
+    let settings = pod_quic::Settings::default();
+    let config = pod_quic::connect::tls(provider, roots, &[b"h3"])
+        .and_then(|tls| pod_quic::connect::client_config(tls, &settings, false))
+        .map_or_else(|e| e.to_string(), |_| "a client configuration".into());
+    let endpoint = tokio::runtime::Builder::new_current_thread().enable_all().build().map_or_else(
+        |e| e.to_string(),
+        |runtime| {
+            runtime.block_on(async {
+                let datagrams = pod_core::SystemDatagrams::bind(([127, 0, 0, 1], 0).into()).await;
+                let endpoint = datagrams
+                    .map_err(|e| e.to_string())
+                    .and_then(|d| pod_quic::over(std::sync::Arc::new(d), None).map_err(|e| e.to_string()));
+                endpoint.map_or_else(|e| e, |e| format!("an endpoint at {:?}", e.local_addr().ok()))
+            })
+        },
+    );
+    format!("pod-quic: a probe of {} bytes, {config}, {endpoint}", pod_quic::probe::packet(&[0; 8]).len())
 }

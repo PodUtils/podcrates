@@ -22,6 +22,7 @@ pod-identity = { workspace = true }
 pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
+pod-quic = { workspace = true }
 pod-rootfs = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }
 pod-supervise = { workspace = true }
@@ -29,3 +30,5 @@ pod-term = { workspace = true }
 pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
 # `plain-ws` is out: it is for the tests of an embedder, and no binary turns it on.
 pod-ws = { workspace = true, features = ["ech"] }
+# A runtime of one thread for the endpoint of pod-quic.
+tokio = { workspace = true, features = ["rt"] }

@@ -54,6 +54,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `ws_frame` | `pod-ws` | `frame::{decode, encode}` | podssh `ws_frame` (at `8cd0f2b`); its seeds are the frames of RFC 6455 section 5.7 |
 | `ws_upgrade` | `pod-ws` | `handshake::check_response` | podssh `ws_upgrade` (at `8cd0f2b`) |
 | `close_reason` | `pod-ws` | `close::close_code_and_reason` | podssh `close_reason` (at `8cd0f2b`) |
+| `quic_probe_answer` | `pod-quic` | `probe::answers` | new in `pod-quic` (T-019); its seeds are the Version Negotiation of 27 bytes of podssh's probe test, one of another ID, one that names the reserved version, and a short header |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:

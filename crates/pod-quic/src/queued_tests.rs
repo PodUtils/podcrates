@@ -21,7 +21,7 @@ impl Wake for Count {
     }
 }
 
-// podnet's T-225: a full queue parks the poller; a drain after that must
+// PodUtils/podnet@T-225: a full queue parks the poller; a drain after that must
 // wake it.
 #[test]
 fn a_drain_after_pending_wakes_the_send_poller() {

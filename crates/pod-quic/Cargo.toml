@@ -19,7 +19,7 @@ tokio = { workspace = true, features = ["net", "time", "sync", "rt"] }
 hmac = { workspace = true }
 sha2 = { workspace = true }
 # The waker of the receive side and of the send side of a queued link
-# (podnet's T-225).
+# (PodUtils/podnet@T-225).
 atomic-waker = "1"
 tracing = { workspace = true }
 
