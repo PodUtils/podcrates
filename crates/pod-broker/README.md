@@ -44,7 +44,7 @@ broker.serve_unix(jobs).await?;
 ```
 
 A job reaches the broker on its Unix socket (for example through
-`podnet pod -x http+unix:PATH`, or a forwarder of a TCP port that the host
+`podnet pod -x http://unix:/PATH`, or a forwarder of a TCP port that the host
 gives), or on a TCP address on loopback that the host gives to
 `serve_tcp`. It sends its token as the password of Basic (the user is the
 job id or empty) or as `Bearer TOKEN`.
