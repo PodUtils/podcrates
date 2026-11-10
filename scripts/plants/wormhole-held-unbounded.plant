@@ -1,0 +1,7 @@
+# The wormhole keeps each message that no phase has asked for while it waits
+# for the other end's key, with no bound, so a mailbox that floods it takes
+# its memory; the test of a flood must fail.
+ENTRY=T-022
+GROUP=wormhole
+EXPECT='test a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --test faults -- a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange'

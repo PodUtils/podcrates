@@ -1,0 +1,14 @@
+diff --git a/crates/pod-wormhole/src/wormhole.rs b/crates/pod-wormhole/src/wormhole.rs
+index c80a94a..cd2f217 100644
+--- a/crates/pod-wormhole/src/wormhole.rs
++++ b/crates/pod-wormhole/src/wormhole.rs
+@@ -123,9 +123,6 @@ impl Wormhole {
+                 self.peer = Some(message.side);
+                 break message.body;
+             }
+-            if self.held.len() >= HELD_MOST {
+-                return Err(self.overfull().await);
+-            }
+             self.held.push(message);
+         };
+         let made = self.spake.take().zip(pake_of(&body)).and_then(|(spake, theirs)| spake.finish(&theirs).ok());
