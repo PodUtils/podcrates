@@ -1,0 +1,28 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh af214a6d62f26958e1ab3a39dbc062d867b8cd01
+# quick/quic.rs: the settings of the transport, the reset key, the
+# endpoint, connect and handshake are here. server_name, alpn (the data of
+# pod-services), tls on podssh's provider (here the caller's), connect_edge,
+# EdgeConnection and the resolution of the regions of an edge stay in podssh
+# until pod-cloudflare. quick/probe.rs: edge (the resolution of the regions)
+# stays in podssh. serve/quic.rs: only TokenKey and its test
+# a_token_opens_only_as_it_was_sealed are here; the role's server stays in
+# podssh until pod-relay. tests/quick_tunnel_quic.rs: only the stand-in edge
+# and the three tests doctors_handshake_* are here; the tests of the tunnel
+# stay in podssh.
+file 5f563337b628c87ff5f11315cbb9b0c5d2bd3f1d crates/podssh-relay/src/quick/quic.rs -> crates/pod-quic/src/settings.rs crates/pod-quic/src/keys.rs crates/pod-quic/src/endpoint.rs crates/pod-quic/src/connect.rs
+file 72b3918bdf407ecb964a9593092acf512efeeaed crates/podssh-relay/src/quick/probe.rs -> crates/pod-quic/src/probe.rs
+file 65b16c25f8208215e9e2a54e6024dd6234d213c5 crates/podssh-relay/src/serve/quic.rs -> crates/pod-quic/src/keys.rs
+file a41488816ea9b54cfc43886fd26d9c20494ba89f crates/podssh-relay/tests/quick_probe.rs -> crates/pod-quic/tests/probe.rs
+file c276ec0f2608ff8203d6367ed02ac968f21de864 crates/podssh-relay/tests/quick_tunnel_quic.rs -> crates/pod-quic/tests/handshake.rs
+
+repo PodUtils/podnet 2fed3ff211261a9680bd9a25fda70b2dafecb2af
+# src/warp/quic.rs at the fix of T-225 (8bd5331): WarpUdpSocket is
+# queued.rs (Datagrams over a Link); its adapter to the socket of the QUIC
+# stack is socket.rs. endpoint and client_config (the trust of podnet, the
+# MTU of its tunnel) stay in podnet and call this crate.
+file 1095ee29180edb24ce9d85b42c8db902f8e33f58 src/warp/quic.rs -> crates/pod-quic/src/queued.rs crates/pod-quic/src/socket.rs
