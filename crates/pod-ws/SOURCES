@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podssh 8cd0f2bbd9422256b7bcf1e32e7314923078e6be
+taken a083593edf1cee77287654f0fa94199d3ed3f523
 dir crates/podssh-ws/src/h2_road
 dir crates/podssh-ws/src/cleartext
 # client.rs: the GET client of podssh (getter, https_get,

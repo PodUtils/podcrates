@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**158 entries: 57 open, 2 partial, 0 blocked, 99 done.**
+**158 entries: 57 open, 1 partial, 0 blocked, 100 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 20 | 1 | 0 | 34 | 55 |
+| P1 | 20 | 0 | 0 | 35 | 55 |
 | P2 | 26 | 1 | 0 | 48 | 75 |
 | P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 57 | 2 | 0 | 99 | 158 |
+| **All** | 57 | 1 | 0 | 100 | 158 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-013](transport.md) | P1 | M | M1 | feature | done | `pod-proxy`: the dial, the proxies, the race of addresses and the HTTP client (the base of podssh) |
 | [T-014](transport.md) | P1 | M | M1 | feature | done | `pod-proxy`: podnet's proxy chain, Digest and fetch |
 | [T-015](transport.md) | P1 | M | M1 | feature | done | `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records |
-| [T-016](transport.md) | P1 | M | M1 | feature | partial | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
+| [T-016](transport.md) | P1 | M | M1 | feature | done | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
 | [T-019](relay.md) | P1 | M | M2 | feature | open | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |

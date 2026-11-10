@@ -1,14 +1,14 @@
 # Progress
 
-`TODO/INDEX.md` holds 158 entries: 57 open, 2 partial, 0 blocked, 99 done.
+`TODO/INDEX.md` holds 158 entries: 57 open, 1 partial, 0 blocked, 100 done.
 
 ## State
 
 - Released: `v0.13.0` at `947603a` (CI 42797326140, nightly 42797327113,
   release 42802815017): `pod-ws`. COORD-024 (GitHub #49) hands it to
-  podssh and podnet. podnet took it (`5eace6e`,
-  PodUtils/podnet#420); podvm took `v0.12.0` (`5e5629a`,
-  PodUtils/podvm#226); podssh is on `v0.11.0`. Open: T-131
+  podssh and podnet. podnet (`5eace6e`, PodUtils/podnet#420) and
+  podssh (`a083593e`, PodUtils/podssh#184) took it; podvm is on `v0.12.0`
+  (`5e5629a`, PodUtils/podvm#226). Open: T-131
   (`pod-gsr` on Windows ARM64), T-149 (qemu-user only).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
@@ -51,8 +51,7 @@ first; the asks of cfb and githome (M8) wait.
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-142; T-149; T-155. T-040 (the
    trials of podvm) goes with each import.
-3. **M1, the transport:** T-016 (partial: the
-   take of podssh, `adoption/podssh/pod-ws.*`); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+3. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).

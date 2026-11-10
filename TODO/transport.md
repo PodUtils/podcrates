@@ -465,7 +465,7 @@ the pod crates (`report::log_filter`).
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -554,7 +554,12 @@ commit of this record.
   podnet took `pod-ws` at `5eace6e` (PodUtils/podnet#420; `--3way` at
   podnet `99014d5`, each hunk clean; each line of the `.run` passed): the
   `taken` line of the podnet block is in `crates/pod-ws/SOURCES`, and the
-  trial of podnet ends. podssh's take remains.
+  trial of podnet ends. podssh took `pod-ws` at `a083593e`
+  (PodUtils/podssh#184; `--3way` at podssh `b61efbdf`, conflicts only in
+  the tag lines and the citations; each line of the `.run` passed, and
+  `cargo test` of podssh-cli, podssh-relay and podssh-ws: 3,384 passed):
+  the `taken` line of the podssh block is in `crates/pod-ws/SOURCES`, and
+  the trial of podssh ends.
 
 # T-017: The fuzz workspace and its weekly workflow
 

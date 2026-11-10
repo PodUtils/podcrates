@@ -54,4 +54,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #46 | COORD-022: podcrates v0.11.0 is released: podvm takes pod-extract and pod-rootfs; the others may move the tag (to all) | closed (podnet `740eb0b`, podvm `0682c0c`, podssh `dc112ea7`) | T-057, T-058, T-139, T-141 |
 | #47 | Tracker: run GitHub CI (and other CI) on any machine: podrunner, pod-dockerapi and the podvm path | open | T-146 |
 | #48 | COORD-023: podcrates v0.12.0 is released: podvm moves to the table of path maps (#224); the others may move the tag (to all) | open | T-137, T-144, T-145, T-148 |
-| #49 | COORD-024: podcrates v0.13.0 is released: podssh and podnet take pod-ws (to all) | open | T-016 |
+| #49 | COORD-024: podcrates v0.13.0 is released: podssh and podnet take pod-ws (to all) | closed (podnet `5eace6e`, podssh `a083593e`) | T-016 |
