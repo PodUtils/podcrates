@@ -202,7 +202,7 @@ the commit that gives `connect::tls` rustls's own verifier (the guard
 **Milestone:** M2
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -235,6 +235,124 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-010 and T-016 are done.
+
+## Done
+
+2026-11-10, partial: the release `v0.15.0` and the take of podssh remain
+(podnet takes the crate later, PodUtils/podnet@T-086). Commits `e1a1256`
+(the import of `PodUtils/podssh:crates/podssh-relay/src/session/`, `src/udp/`,
+`src/answer.rs`, `src/transit/link.rs` and the tests at `c5636c9`, with
+`SOURCES`), `4e6522b` (the adaptation), `b736f04` (README, the static
+probe, the fuzz targets, the row of `docs/design.md`), `70c7f99` (the
+plants of podssh's layer and the test of the budget), `70f2a0c` (the
+trial, `adoption/podssh/pod-session.*`) and the commit of this record.
+
+- API: `Settings` (with `pair_window`, `move_bytes`, `move_age`: the
+  limits of the relay), the records, the decoder, the offsets, the replay
+  buffer, the secrets, the handshakes (sans-IO), the link, the two ends,
+  the pump, the resume, the spare link, the race of roads, the keeper and
+  its budget (`Keeper::with_tell`), the handover (`Movable` for a TCP
+  target, `Keeper::hand_over_with`), `udp` (the framing and a flow through
+  the caller's `Resolve`), `ws_link` (a link over a `pod_ws::RelaySession`),
+  `answer`. Each error converts to a `pod_core::Failure` of the stage
+  `Session` (`failure.rs`). The crate depends on `pod-core` and `pod-ws`
+  (C47); 37 source files, each under 500 lines; no variable of the
+  environment and no global (the task-local id of a handover aside).
+- Cut: podssh keeps a glue `src/session/` (`pub use pod_session::*`, its
+  sink of the budget's lines `budget::{tell, say, told}` with its words,
+  and its own `handover::Movable`, which the pipe of `e2e/hold` takes),
+  `PODSSH_REPLAY_BUFFER`, the tests `session_policy.rs` and
+  `session_relay_resume.rs` (until `pod-relay`) and the handover test
+  with the channel (until `pod-e2e`). podnet has no copy of the layer.
+- Defects: the orphan rule stops a consumer from giving the crate's
+  `Movable` to tokio's `DuplexStream`, which podssh's end-to-end channel
+  moves at a handover: `Keeper::hand_over_with` takes the move as a
+  function, and podssh keeps its trait. The plant of PodUtils/podssh@T-586 (a
+  closing session charged a whole buffer) had its check in podssh's
+  `reverse_layered.rs`: no test of the crate caught it. The new test
+  `a_session_whose_target_ended_holds_only_its_unacknowledged_bytes`
+  (`tests/session_budget.rs`) fails on the plant and passes without it.
+  The budget's lines were a process global (`budget::tell`): a field of
+  the keeper now.
+- Tests: 147 pass (`cargo test -p pod-session`): 143 of podssh's 144 with
+  their names, and 4 new (the classes of the failures, a host that refuses
+  UDP, the sink of a `Tell`, the budget of a closing session). The tests
+  that bind start with `need_loopback!`. The plants of podssh's layer
+  (14, group `session`): each caught (`sh scripts/plant-each.sh --group
+  session`). The fuzz targets `session_record`, `session_handover` and
+  `udp_frame` pass the stable test of `fuzz/` (3 tests).
+- Trial (the hand-off): podssh at its `main` `9975fe92` (after its take
+  of `pod-quic`), after `pod-wormhole.patch` (`pod-session.needs`): 118
+  files, 306 lines in, 13,745 out; the tags move to `v0.15.0`. Each step
+  of `sh scripts/adoption.sh podssh pod-session` passed: the record (the
+  citations of the removed files as `PodUtils/podssh:PATH`, a
+  `## Correction` on 15 done entries whose Prove names a moved test
+  target), `check-repo.py`, the builds, clippy with each feature of
+  `podssh-relay`, 25 test binaries of `podssh-relay`, `podssh-cli` and
+  `podssh-iroh` with 1,772 tests and 0 failed, rustfmt, the toolchains,
+  the 16 test targets of the gate, and the static check of the musl
+  binary of the release's features. An earlier run at podssh `f9113862`
+  after the patches of `pod-quic` and `pod-wormhole` passed with 1,789
+  tests. The imported files did not change on podssh's `main`
+  (`check-sources.py`: 56 files, 0 changes).
+- Cross: the 22 test binaries of the crate, built with cargo-zigbuild,
+  are static; as i686 musl binaries 147 tests passed; under qemu-user
+  (`QEMU_LD_PREFIX=/`) as aarch64 and riscv64gc musl binaries 146 passed
+  and `a_session_moves_before_each_cap` failed at random (a link met its
+  cap on the slow host): T-167.
+- Checks: `sh scripts/agent/check.sh`: fmt, clippy, doc, record, size,
+  paths and the static probes passed; the tests passed with `/tmp` (1,900
+  passed, 0 failed); with a `TMPDIR` of 75 bytes `pod-gsr`'s
+  `blocking.rs` failed at the bind of a Unix socket (T-168), and
+  `pod-enter`'s `a_missing_workdir_in_a_volume_names_the_volume`
+  expected a host that the message cuts at 64 bytes (repaired,
+  `1177350`). `python3 -I scripts/check-sources.py` on `pod-session`
+  (podssh, 56 files, 0 changes; a planted change found);
+  `python3 -I scripts/check-probe.py`; `cargo test --manifest-path
+  fuzz/Cargo.toml --lib` (3 passed).
+
+# T-167: `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap`
+
+**Source:** T-020 (the cross tests of `pod-session`).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`a_session_moves_before_each_cap` (`crates/pod-session/tests/session_move.rs`)
+fails at random as an aarch64 or riscv64gc musl binary under qemu-user:
+`assert_eq!(capped, 0, "no link met its cap")`. The session moves at 768
+KiB of a link with a cap of 1 MiB; on a slow host the old link carries
+more than 256 KiB while the new link shakes hands. The nightly tests of
+the other Linux targets run under qemu-user (`docs/design.md`, section 7),
+so the nightly can fail at random.
+
+## Premise
+
+- Measured: 2 runs of 5 failed as an aarch64 binary, 1 of 1 as a
+  riscv64gc binary; each x86_64 and i686 run passed.
+- Not measured: the bytes that the old link carries after the move
+  starts, under qemu-user.
+- The relay's margin is 16 MiB (a move at 48 MiB of 64 MiB): the code can
+  be right and the margin of the test too small.
+
+## Approach
+
+Count the bytes that the old link carries after the move starts, under
+qemu-user. When the writer keeps sending on the old link after the move
+point, stop new `DATA` there until the new link takes the session (a
+defect of the code, with a test). Otherwise give the test a margin that
+holds on a slow host, and say why.
+
+## Prove
+
+```sh
+cargo test -p pod-session --test session_move
+QEMU_LD_PREFIX=/ qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/session_move-HASH
+```
 
 # T-021: `pod-e2e`: the end-to-end channel (Noise XX)
 

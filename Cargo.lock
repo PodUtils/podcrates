@@ -1405,8 +1405,8 @@ dependencies = [
 name = "pod-session"
 version = "0.14.0"
 dependencies = [
- "hkdf",
- "hmac",
+ "hkdf 0.13.0",
+ "hmac 0.13.0",
  "pod-core",
  "pod-proxy",
  "pod-testkit",

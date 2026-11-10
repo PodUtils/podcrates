@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**166 entries: 60 open, 2 partial, 0 blocked, 104 done.**
+**168 entries: 61 open, 3 partial, 0 blocked, 104 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 1 | 0 | 36 | 55 |
-| P2 | 29 | 1 | 0 | 50 | 80 |
-| P3 | 13 | 0 | 0 | 16 | 29 |
-| **All** | 60 | 2 | 0 | 104 | 166 |
+| P1 | 17 | 2 | 0 | 36 | 55 |
+| P2 | 30 | 1 | 0 | 50 | 81 |
+| P3 | 14 | 0 | 0 | 16 | 30 |
+| **All** | 61 | 3 | 0 | 104 | 168 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -66,7 +66,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
 | [T-019](relay.md) | P1 | M | M2 | feature | done | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
-| [T-020](relay.md) | P1 | L | M2 | feature | open | `pod-session`: the resumable layer and UDP in a stream |
+| [T-020](relay.md) | P1 | L | M2 | feature | partial | `pod-session`: the resumable layer and UDP in a stream |
 | [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | partial | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | open | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
@@ -213,3 +213,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-164](transport.md) | P3 | S | M8 | feature | open | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
 | [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |
 | [T-166](podvm.md) | P2 | L | M1 | feature | open | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |
+| [T-167](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap` |
+| [T-168](upkeep.md) | P3 | S | M5 | defect | open | Tests that bind a Unix socket under the temporary directory fail when its path is long |

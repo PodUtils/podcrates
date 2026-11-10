@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 166 entries: 60 open, 2 partial, 0 blocked, 104 done.
+`TODO/INDEX.md` holds 168 entries: 61 open, 3 partial, 0 blocked, 104 done.
 
 ## State
 
@@ -33,6 +33,13 @@
   remain; from the import, podssh's `code/{mailbox,wormhole,phrase,words}.rs`
   take fixes only (`crates/pod-wormhole/SOURCES`). The exchange goes to
   `pod-relay` (T-024).
+- M2: `pod-session` exists (T-020 partial, call C47): podssh's resumable
+  layer, UDP in a stream, the link over a WebSocket and the rule of a
+  peer's answer, on `pod-core` and `pod-ws`. The trial of podssh
+  (`9975fe92`, after the patch of `pod-wormhole`) names `v0.15.0`. The
+  release and the take remain; from the import, podssh's `src/session/`, `src/udp/`,
+  `src/answer.rs` and `src/transit/link.rs` take fixes only
+  (`crates/pod-session/SOURCES`). podnet takes it later (its T-086).
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 and T-150 (PodUtils/podnet#413).
@@ -67,13 +74,14 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    `pod-todo`.
 3. **M1, the transport:** T-166 (`pod-hold`, podnet's hand-off PodUtils/podnet#422); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-020, T-021, T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
+4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-167, T-021,
+   T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
 7. **M5, the upkeep:** a "port" entry for each change that
-   scripts/check-sources.py finds.
+   scripts/check-sources.py finds; T-168.
 8. **M7, the widened scope of podvm:** T-062 after M6.
 9. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a

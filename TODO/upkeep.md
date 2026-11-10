@@ -283,3 +283,40 @@ in `TODO/issues.md`.
 #40 to podnet), a new project of the owner's ruling, or a deferral of the
 owner. The owner ruled each question on 2026-11-09 (`docs/decisions.md`,
 `2ebbfef`). GitHub #1 has the new crate names. `cargo todo check` agrees.
+
+# T-168: Tests that bind a Unix socket under the temporary directory fail when its path is long
+
+**Source:** T-020 (`sh scripts/agent/check.sh` with a `TMPDIR` of 75 bytes).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A Unix socket path has at most 107 bytes (`SUN_LEN`). With a `TMPDIR` of
+75 bytes, the three tests of `crates/pod-gsr/tests/blocking.rs` fail at the
+bind ("path must be shorter than SUN_LEN"). Other tests make socket files
+under `std::env::temp_dir()` with long names too
+(`crates/pod-gsr/tests/unix_loopback.rs`, `crates/pod-broker/tests/`,
+`crates/pod-proxy/tests/egress.rs`, `crates/pod-guest/src/`).
+
+## Premise
+
+- Measured: the three tests of `blocking.rs` fail with that `TMPDIR` and
+  pass with `/tmp`.
+- Not measured: each other test that binds a Unix socket.
+
+## Approach
+
+Add to `pod-testkit` a socket path under a short directory: the temporary
+directory when the path fits, else a new private directory under `/tmp`.
+Each test that binds a Unix socket takes it. A test with a `TMPDIR` of 100
+bytes proves it.
+
+## Prove
+
+```sh
+TMPDIR=$(mktemp -d /tmp/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.XXXX) cargo test --workspace --all-features
+```

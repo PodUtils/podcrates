@@ -105,10 +105,13 @@ Differences, with the choice:
 | `podssh-relay/src/answer.rs` | `pub use pod_session::answer` |
 | `podssh-relay/src/transit/link.rs` | `pub use pod_session::ws_link::*` |
 | the tests `session_*.rs` and `udp_framing.rs` but `session_policy.rs` and `session_relay_resume.rs` | `tests/` here; `session_handover.rs` keeps the test with the channel |
+| the plants `t151-*`, `t152-*`, `t154-*`, `t155-*`, `t168-*`, `t435-*`, `t586-*`, `t612-*`, `t632-*`, `t633-*`, `t668-replay-dropped` | `scripts/plants/session-*` here |
+| the citations of the record of the removed files | `PodUtils/podssh:PATH`; each done entry whose Prove names a moved test target has a `## Correction` that names it |
 | `podssh-relay/Cargo.toml` | `pod-session` (tag `v0.15.0`) |
 
-`adoption/podssh/pod-session.patch` is the hand-off; it applies after
-`pod-quic.patch` (`pod-session.needs`).
+`adoption/podssh/pod-session.patch` (at podssh `9975fe92`, after its
+take of `pod-quic`) is the hand-off; it applies after the patch of
+`pod-wormhole` (`pod-session.needs`).
 
 ### podnet
 
@@ -121,10 +124,12 @@ lines through `Keeper::with_tell` to podnet's events.
 
 ## Tests
 
-`cargo test -p pod-session`: the unit tests of each module, and the 20
-test files of podssh on duplex pipes and the loopback (a stand-in relay,
+`cargo test -p pod-session`: the unit tests of each module, the 20 test
+files of podssh on duplex pipes and the loopback (a stand-in relay,
 targets on `127.0.0.1:0`, the paused clock of tokio for the heartbeat and
-the deadlines). The fuzz targets `session_record`, `session_handover` and
+the deadlines), and `tests/session_budget.rs` (what a closing session and
+a closed one hold of the budget). The plants of podssh's layer are
+`scripts/plants/session-*` (group `session`). The fuzz targets `session_record`, `session_handover` and
 `udp_frame` read the records, the state of a handover and the UDP framing.
 
 ## Sources
