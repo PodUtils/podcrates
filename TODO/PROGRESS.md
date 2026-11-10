@@ -7,7 +7,8 @@
 - Released: `v0.10.0` at `b21c193` (CI 42736799388, nightly 42736799847,
   release 42742043211): `pod-oci`, `pod-extract`, `Stage::Registry`, the
   proxy lists and nodes of `pod-services`. COORD-021 (GitHub #45) hands it
-  to each consumer. Each consumer is on `v0.9.0`. Open: T-131 (`pod-gsr` on
+  to each consumer. podnet took it (`3a9317b`,
+  PodUtils/podnet#418); podssh and podvm are on `v0.9.0`. Open: T-131 (`pod-gsr` on
   Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
   `pod-enter` (podvm `423e817`, PodUtils/podvm#220). `pod-oci` (T-056)
