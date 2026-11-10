@@ -4,62 +4,22 @@
 
 ## State
 
-- Released: `v0.14.0` at `c8e2fae` (CI 42820376444, nightly 42820376880,
-  release 42833358262): `pod-quic` on noq, `pod-services-watch`, the
-  services `serveo`, `ssh-j` and `croc`, one bound of the timed tests.
-  COORD-025 (GitHub #50) hands `pod-quic` to podssh and podnet: podssh
-  took it (`525f8907`, PodUtils/podssh#185), podnet too (`b7b0aef`,
-  PodUtils/podnet#421). podvm is on `v0.12.0`. Open: T-131 (`pod-gsr`
-  on Windows ARM64), T-149 (qemu-user only).
-- M6: podvm took each of its seven generic crates: `pod-hostprobe`,
-  `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
-  (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
-  PodUtils/podvm#225). No trial of podvm is open.
-- M1: `pod-services-watch` exists (T-050, call C42): `services.yml` runs
-  each watch of `pod-services` each day, and `scripts/services/` holds the
-  measurements; the trial of podnet names `v0.14.0`.
-- M2: `pod-quic` exists (T-019 partial, call C44): QUIC on noq 1.4 (C43)
-  for podssh's quick tunnel and podnet's edge, WARP and MASQUE. The trials
-  of podssh (`c5636c9`) and podnet (`5465007`, which leaves quinn for noq)
-  pass at their heads and name `v0.14.0`. The release and the two takes
-  remain; from the import, podssh's
-  `quick/quic.rs`, `quick/probe.rs` and podnet's `src/warp/quic.rs` take
-  fixes only (`crates/pod-quic/SOURCES`). podnet fixed the lost wake-up of its
-  WARP socket itself (T-159, podnet `1d556fb`).
-- M2: `pod-wormhole` exists (T-022 partial, call C45): the mailbox client,
-  SPAKE2, the sealed phases and the code words, with the AppID and the
-  client name as a `Config`. The trial of podssh (`f9113862`, after the
-  patch of `pod-quic`) passes and names `v0.15.0`. The release and the take
-  remain; from the import, podssh's `code/{mailbox,wormhole,phrase,words}.rs`
-  take fixes only (`crates/pod-wormhole/SOURCES`). The exchange goes to
-  `pod-relay` (T-024).
-- M2: `pod-session` exists (T-020 partial, call C47): podssh's resumable
-  layer, UDP in a stream, the link over a WebSocket and the rule of a
-  peer's answer, on `pod-core` and `pod-ws`. The trial of podssh
-  (`9975fe92`, after the patch of `pod-wormhole`) names `v0.15.0`. The
-  release and the take remain; from the import, podssh's `src/session/`, `src/udp/`,
-  `src/answer.rs` and `src/transit/link.rs` take fixes only
-  (`crates/pod-session/SOURCES`). podnet takes it later (its T-086).
-- M1: `pod-hold` exists (T-166 partial, call C48): the generic core of
-  podnet's `podnet-netns` (the seccomp filter, the receive, the memory,
-  the reply, the table with the flow budget, the netns entry and the TUN),
-  each hold with its level and proof. The patch of podnet
-  (`adoption/podnet/pod-hold.*`, podnet `9e8d177`, `v0.15.0`) needs one
-  clean run of its trial; the cross tests, the release and the take
-  remain. From the import, podnet's files of the core take fixes only
-  (`crates/pod-hold/SOURCES`). T-169 and T-170 ask podnet about two more
-  parts.
-- GitHub #20 to #36 are in the record; #35 and #36 are routed
-  (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
-  and `pod-services` are T-121 to T-127 and T-150 (PodUtils/podnet#413).
-- M8: `pod-broker` exists (T-099, calls C28 to C32). The rest of M8 waits
-  (the owner, 2026-11-09, "Priority"). The owner created the repositories
-  of the new projects; they stay empty.
-- M4: `pod-gsr` exists with its blocking face (T-086 to T-088; calls C34,
-  C35: a static OpenSSL for TLS with SRP, and `End`).
+- The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
+  `docs/HANDOFF.md` has what is in flight and what waits.
+- Last release: `v0.15.0` (`docs/releases/v0.15.0.md`): `pod-session`,
+  `pod-wormhole`, `pod-hold`, the volumes of `pod-enter`. The hand-off
+  issue and the takes of the consumers follow it.
+- The consumers: podssh and podnet are on `v0.14.0` (both took `pod-ws`
+  and `pod-quic`); podvm is on `v0.12.0` (it took its seven crates of M6).
+- Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
+  T-166 `pod-hold` (one clean run of podnet's trial, the cross tests,
+  podnet's take). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
+  (qemu-user only), T-157 (public Trojan nodes; a second day of the watch).
+- M8 and the podrunner entries (T-146, T-160 to T-165) wait for the
+  owner (the rulings "Priority" and "CI tracker"; DR-1, DR-2).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`: 56 names, 0 faults). No crate goes to
-  crates.io now (the owner, 2026-11-09).
+  (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
+  2026-11-09).
 - Keep this section short. Write the current state only; git keeps the
   history.
 
