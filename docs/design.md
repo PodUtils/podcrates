@@ -85,7 +85,7 @@ apply to them.
 | `adoption/CONSUMER/` | the pinned commit of each consumer, its `todo.toml`, and for each crate the trial patch (section 8, step 7) |
 | `TODO/` | the record (the podssh model): `RULES.md`, `ROADMAP.md`, `INDEX.md`, `PROGRESS.md`, `issues.md`, `github.txt`, `todo.toml`, one area file for each milestone |
 | `docs/` | `HANDOFF.md` (the state of unfinished work), `decisions.md`, `design.md`, `development.md`, `maintenance.md`, `session-protocol.md` (the talk between sessions), `releases/` (the notes of each tag), `research/` (the studies behind the plan) |
-| `scripts/` | `adoption.sh` (the adoption trial); `agent/`; `binfmt.sh`; `check-consumer-toolchains.py`; `check-crates-io-names.py`; `check-design-paths.py` (this table and the crate table of `README.md`); `check-github-numbers.py`; `check-probe.py` (the static probes cover each feature); `check-size.py`; `check-sources.py`; `check-static.sh`; `check-workflows.py`; `check-zig-mirrors.py`; `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh`; `fuzz.sh`; `names-proxy.py` (a CONNECT proxy that takes names alone, for the live tests); `openssl-perl.sh` (a perl of Windows for the OpenSSL of `pod-gsr`); `plant-each.sh`; `plants/` (the planted defects); `pull-image.sh`; `retry.sh`; `secrets-report.py`; `zig-mirrors.txt` |
+| `scripts/` | `adoption.sh` (the adoption trial); `agent/`; `binfmt.sh`; `check-consumer-toolchains.py`; `check-crates-io-names.py`; `check-design-paths.py` (this table and the crate table of `README.md`); `check-github-numbers.py`; `check-probe.py` (the static probes cover each feature); `check-size.py`; `check-sources.py`; `check-static.sh`; `check-workflows.py`; `check-zig-mirrors.py`; `cloud-setup.sh` (zig, cargo-zigbuild, cargo-deny, the targets); `fetch-zig.sh`; `fuzz.sh`; `names-proxy.py` (a CONNECT proxy that takes names alone, for the live tests); `openssl-perl.sh` (a perl of Windows for the OpenSSL of `pod-gsr`); `plant-each.sh`; `plants/` (the planted defects); `pull-image.sh`; `retry.sh`; `secrets-report.py`; `services/` (the measurements of the services of other parties by hand, with their `SOURCES`: `edge-facts.sh`); `zig-mirrors.txt` |
 | `scripts/agent/` | `check.sh` (the checks before a push); `new-issues.py`, `watch-issues.sh` (new issues of this repository); `org-issues.py`, `watch-org.sh` (the messages to a session in each repository of PodUtils); `runs.py`, `watch-runs.sh` (the runs of a commit); `secrets_like.py` (two TruffleHog detectors over files); `togit.sh` (path dependencies to a git tag) |
 | `fuzz/` | the fuzz targets of the moved code (cargo-fuzz, its own workspace), their seeds (`fuzz/seeds/`) and their stable test; `fuzz/README.md` lists each target and the targets that wait for their crate; `scripts/fuzz.sh` runs them |
 | `examples/` | `static-probe`, `static-probe-lean` (section 7) and the binaries of the live workflows (ring provider; `publish = false`) |
@@ -269,13 +269,15 @@ agnostic". So the crate knows no provider in its code:
   SRV name, the SHA-256 of a text, a GitHub release, the RDAP of a domain,
   GitHub's SSH keys of `api.github.com/meta`, a TLS root set). Each watch
   kind is one implementation of a `Watch` trait in the member crate
-  `pod-services-watch` (a binary, `publish = false`, which may use
-  `pod-proxy`, `pod-dns` and `pod-tls`). A new watch kind is one
-  implementation and its plant.
-* **Workflows of podcrates** run the watches (each day) and the
-  measurements (by hand); a fact that moved fails the run with the file,
-  the value, the new value and the source. The measurement scripts of the
-  consumers go to `scripts/services/`.
+  `pod-services-watch` (`crates/pod-services-watch`: a library and its
+  runner binary, `publish = false`, which use `pod-proxy`, `pod-dns`,
+  `pod-tls` and `pod-ws`; call C42). A new watch kind is one
+  implementation, its offline test against a stand-in of `pod-testkit`
+  (feature `stand`) and its plant.
+* **Workflows of podcrates** run the watches (`services.yml`, each day)
+  and the measurements (by hand); a fact that moved fails the run with the
+  file, the value, the new value and the source. The measurement scripts
+  of the consumers go to `scripts/services/`.
 * **What stays out** (the owner's rulings): the release identity of
   `podssh update` and `podnet update`; the cloud endpoints of the user's
   own accounts (GCP IAP and OAuth, AWS EICE), which go with their
@@ -494,6 +496,7 @@ pushes. No worktree branch is pushed.
 | `ci.yml` | each push | fmt, clippy, tests (Linux x86_64), `cargo todo check`, size, the static probes on each target, `cargo doc`, `scripts/check-probe.py`, `scripts/check-workflows.py` |
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
 | `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy` |
+| `services.yml` | each day (02:17 UTC), by hand (a service, a kind, or a measurement) | `pod-services-watch`: each `[[watch]]` of the data of `pod-services`; a fact that moved fails the run with the file, the value, the new value and the source. The measurements of `scripts/services/` (`edge-facts.sh`) |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |
 | `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |

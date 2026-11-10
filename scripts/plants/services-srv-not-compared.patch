@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/dns.rs
++++ b/crates/pod-services-watch/src/dns.rs
+@@ -27,7 +27,7 @@
+     let file: BTreeSet<(String, u16)> = args.endpoints()?.iter().map(|e| (key(e.host()), e.port())).collect();
+     let mut out = Outcome::default();
+     let shown = |s: &BTreeSet<(String, u16)>| s.iter().map(|(h, p)| format!("{h}:{p}")).collect::<Vec<_>>().join(", ");
+-    if live == file {
++    if !live.is_empty() {
+         out.saw(format!("SRV {name} names {}", shown(&live)));
+     } else {
+         out.found(Finding::moved(format!("the targets of {}", named(fact)), shown(&file), shown(&live)));

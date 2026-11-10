@@ -42,3 +42,20 @@ model against tmux (`crates/pod-term/tests/calibration.rs`).
 | Consumer | Old path | New path |
 | --- | --- | --- |
 | podssh | `#[path = "../../podssh-terminal/tests/screen/mod.rs"] mod screen;` (tests of podssh-ws, podssh-ssh, podssh-cli) | `use pod_testkit::screen;` with `pod-testkit = { git = ..., tag = ..., features = ["screen"] }` as a dev-dependency |
+
+## The stand-ins (feature `stand`)
+
+`pod_testkit::stand`: servers on the loopback for the offline tests of a
+client or a watch. Each runs on threads, keeps the bytes that each
+connection sent (`Stand::seen`), and lives until the end of the test
+binary.
+
+| Item | What |
+| --- | --- |
+| `stand::http(handler)` | an HTTP/1.1 server: each request (`Request`: `method`, `target`, `headers`, `path()`, `header(name)`) gets the `Answer` (`status`, `headers`, `body`) of the handler, with `Content-Length`, kept alive; a `101` writes the body after the head and keeps the connection (a WebSocket's frames) |
+| `stand::raw(serve)` | a TCP server that gives each connection to `serve` |
+| `stand::udp(answer)` | a UDP server that answers each datagram with what `answer` gives |
+| `Stand::http_over(handler, wrap)`, `Stand::raw_over(serve, wrap)` | the same over the caller's stream: `wrap` turns each TCP connection into it (TLS with rustls's `StreamOwned`); the kit itself has no TLS |
+| `Stand::addr()`, `Stand::port()`, `Stand::seen()` | the address; the bytes of each connection that ended |
+
+`crates/pod-services-watch/tests/watches/` uses each of them.

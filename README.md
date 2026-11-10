@@ -26,7 +26,7 @@ the dependencies of each crate.
 | Wave | Crates |
 | --- | --- |
 | M0 | `pod-todo` (exists), `pod-core` (exists), `pod-testkit` (exists) |
-| M1 | `pod-identity` (exists), `pod-term` (exists), `pod-tls` (exists), `pod-proxy` (exists), `pod-dns` (exists), `pod-services` (exists), `pod-ws` (exists) |
+| M1 | `pod-identity` (exists), `pod-term` (exists), `pod-tls` (exists), `pod-proxy` (exists), `pod-dns` (exists), `pod-services` (exists), `pod-services-watch` (exists: the watches and their runner, `publish = false`), `pod-ws` (exists) |
 | M2 | `pod-quic`, `pod-session`, `pod-e2e`, `pod-wormhole`, `pod-netstack`, `pod-wg`, `pod-relay` |
 | M3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
 | M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |

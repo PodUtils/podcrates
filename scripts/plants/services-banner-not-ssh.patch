@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/ws.rs
++++ b/crates/pod-services-watch/src/ws.rs
+@@ -139,7 +139,7 @@
+         return Ok(None);
+     };
+     let line = String::from_utf8_lossy(&bytes[..end]).trim_end_matches('\r').to_string();
+-    if !line.starts_with("SSH-") {
++    if line.is_empty() {
+         return Err(Finding::failed(format!(
+             "the server sent {:?}, not an SSH banner",
+             pod_core::text::one_line(&line)

@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/sha.rs
++++ b/crates/pod-services-watch/src/sha.rs
+@@ -74,7 +74,7 @@
+ 
+ fn judge(out: &mut Outcome, fact: &Fact, sum: &str, what: &str) {
+     match fact.value().as_text() {
+-        Some(want) if want.eq_ignore_ascii_case(sum) => out.saw(format!("the SHA-256 of {what} is the fact's")),
++        Some(want) if !want.is_empty() || want.eq_ignore_ascii_case(sum) => out.saw(format!("the SHA-256 of {what} is the fact's")),
+         Some(want) => out.found(Finding::moved(named(fact), want, sum)),
+         None => out.found(Finding::failed(format!("the fact {:?} is no text", fact.name()))),
+     }

@@ -1,0 +1,46 @@
+[package]
+name = "pod-services-watch"
+description = "The watches of pod-services: one check for each watch kind of the data files, each against the live service, and the runner that the daily workflow of podcrates runs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+# A tool of the workflows of podcrates, as pod-todo: no consumer takes it.
+publish = false
+
+[[bin]]
+name = "pod-services-watch"
+path = "src/main.rs"
+
+[dependencies]
+pod-core = { workspace = true, features = ["async"] }
+# The data, and the overlay of a test's own files.
+pod-services = { workspace = true, features = ["overlay"] }
+# The way out of each check: the dial, the HTTP client, the proxy of the
+# environment of the runner, the codec of STUN.
+pod-proxy = { workspace = true }
+pod-tls = { workspace = true, features = ["pure", "rsa"] }
+# The SRV and the address records, and a DoH query in each form.
+pod-dns = { workspace = true }
+# The WebSocket upgrade and the frames of a forwarder.
+pod-ws = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros"] }
+tokio-rustls = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+# The archive of a crate of crates.io (crate-file).
+flate2 = { workspace = true }
+tar = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true, features = ["stand"] }
+pod-ws = { workspace = true }
+# The stand-ins serve TLS on ring, with the certificates of the tests of
+# pod-tls, minted in pure Rust.
+rustls = { workspace = true, features = ["ring"] }
+tokio-rustls = { workspace = true }
+p256 = { workspace = true }

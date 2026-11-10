@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/github.rs
++++ b/crates/pod-services-watch/src/github.rs
+@@ -53,7 +53,7 @@
+     let age = days_since(day, net.today).ok_or_else(|| Finding::failed(format!("the release {pinned} has no day")))?;
+     let mut out = Outcome::default();
+     out.saw(format!("the newest release of {repo} is {tag}; {pinned} is {age} days old"));
+-    if age > max {
++    if age > max * 2 {
+         let fact = args.fact("fact")?;
+         let now = format!("a release of {age} days, past {max}; the newest is {tag}");
+         out.found(Finding::moved(named(fact), pinned, now));

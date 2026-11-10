@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/ssh.rs
++++ b/crates/pod-services-watch/src/ssh.rs
+@@ -65,7 +65,7 @@
+     }
+     let file = value_texts(fact.value());
+     let mut out = Outcome::default();
+-    if file.iter().all(|f| offered.contains(f)) {
++    if !offered.is_empty() {
+         out.saw(format!("{} offers {}", endpoint.authority(), offered.join(", ")));
+     } else {
+         out.found(Finding::moved(named(fact), file.join(", "), offered.join(", ")));

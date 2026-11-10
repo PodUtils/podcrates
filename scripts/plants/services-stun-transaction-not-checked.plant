@@ -1,0 +1,6 @@
+# The watch kind stun-binding: an answer of another transaction passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test dns::stun_binding_wants_a_success_of_the_same_transaction \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- dns::stun_binding_wants_a_success_of_the_same_transaction --exact'
+LIMIT=1800

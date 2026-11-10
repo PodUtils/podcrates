@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**150 entries: 55 open, 3 partial, 0 blocked, 92 done.**
+**152 entries: 56 open, 3 partial, 0 blocked, 93 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 22 | 1 | 0 | 32 | 55 |
-| P2 | 24 | 1 | 0 | 44 | 69 |
-| P3 | 9 | 1 | 0 | 14 | 24 |
-| **All** | 55 | 3 | 0 | 92 | 150 |
+| P1 | 21 | 1 | 0 | 33 | 55 |
+| P2 | 25 | 1 | 0 | 44 | 70 |
+| P3 | 10 | 1 | 0 | 14 | 25 |
+| **All** | 56 | 3 | 0 | 93 | 152 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -96,7 +96,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-047](foundation.md) | P2 | S | M2 | chore | open | The weekly watch of the relay contract, in `pod-relay` |
 | [T-048](transport.md) | P1 | S | M1 | research | done | `pod-services`: the inventory of the relays and services of other parties in podssh and podnet |
 | [T-049](transport.md) | P1 | L | M1 | feature | done | `pod-services`: the schema, the data of each service and the library |
-| [T-050](transport.md) | P1 | L | M1 | feature | open | `pod-services`: the watches, their workflows and the measurement scripts |
+| [T-050](transport.md) | P1 | L | M1 | feature | done | `pod-services`: the watches, their workflows and the measurement scripts |
 | [T-051](foundation.md) | P1 | S | M0 | chore | done | The fallback channel between the sessions, tested (GitHub #2) |
 | [T-052](transport.md) | P1 | S | M1 | defect | done | The tests of a closed port of `pod-proxy` race with the other tests |
 | [T-053](foundation.md) | P2 | S | M6 | chore | done | The names of the crates of podvm on crates.io (GitHub #1) |
@@ -197,3 +197,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-148](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11) |
 | [T-149](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: three tests fail under qemu-user only |
 | [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
+| [T-151](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them |
+| [T-152](transport.md) | P3 | M | M1 | feature | open | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |

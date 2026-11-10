@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/tls.rs
++++ b/crates/pod-services-watch/src/tls.rs
+@@ -33,7 +33,7 @@
+         for ip in addresses {
+             let at = ip.to_string();
+             let mut named = 0;
+-            for name in [host.to_string(), at.clone()] {
++            for name in [host.to_string()] {
+                 match net.tls(&at, endpoint.port(), &name).await {
+                     Ok(_) => named += 1,
+                     Err(Finding::Failed(why)) => out.found(Finding::failed(format!("no handshake for {name}: {why}"))),

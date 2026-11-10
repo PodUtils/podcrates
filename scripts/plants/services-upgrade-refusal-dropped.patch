@@ -1,0 +1,14 @@
+--- a/crates/pod-services-watch/src/ws.rs
++++ b/crates/pod-services-watch/src/ws.rs
+@@ -42,8 +42,9 @@
+ pub async fn upgrade(service: &Service, watch: &Watch, net: &Net) -> Checked {
+     let endpoint = Args::new(service, watch).endpoint()?;
+     let url = ws_url(endpoint);
+-    let session = dial(net, &url).await?;
+-    let _ = session.send_close(1000, "").await;
++    if let Ok(session) = dial(net, &url).await {
++        let _ = session.send_close(1000, "").await;
++    }
+     Ok(Outcome { seen: vec![format!("{} upgraded", url)], findings: Vec::new(), skipped: None })
+ }
+ 

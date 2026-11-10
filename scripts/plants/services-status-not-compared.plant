@@ -1,0 +1,6 @@
+# The watch kind http-status: any status passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test http::http_status_wants_the_status \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- http::http_status_wants_the_status --exact'
+LIMIT=1800

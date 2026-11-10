@@ -90,12 +90,12 @@ new kind is one implementation there. The kinds that the files name now:
 
 | Kind | Arguments | What it checks |
 | --- | --- | --- |
-| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its objects' member holds the hosts of the role |
+| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its members of the name `member` hold the host of each endpoint of the role (more hosts in the document are no finding) |
 | `http-status` | `endpoint` or `role`, `path`, `status` | a GET answers with the status |
 | `http-text` | `endpoint`, `contains` | the answer to a GET holds the text |
 | `tls-name` | `endpoint` or `role` | a TLS handshake verifies the name |
 | `tls-names` | `endpoint` or `role` | the certificate at each address names the host and the address |
-| `tls-roots` | `repo`, `path`, `fact` | the certificates of the file of the repository at the pinned tag are the fact's |
+| `tls-roots` | `repo`, `path`, `tag`, `fact` | the certificates of the file of the repository at the tag of the fact `tag` are the fact's |
 | `dns-srv` | `fact`, `role` | the SRV record of the fact names the hosts and the port of the role |
 | `dns-addresses` | `role`, `facts` | the address records of the hosts of the role hold each address of the facts |
 | `doh-answer` | `form`, `name`, `type` | each endpoint answers a query in the form |
@@ -108,7 +108,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
 | `github-release` | `repo`, `fact`, `max-age-days` | the newest release; the age of the pinned tag |
 | `github-files` | `repo`, `tag`, `fact` | the SHA-256 of each file of the fact at the tag and at the newest release |
-| `github-file` | `repo`, `path`; `endpoint` or `facts` | the file on the default branch holds the values |
+| `github-file` | `repo`, `path`; `endpoint` or `facts` | the file on the default branch holds the values: each value of each fact, or the addresses of the endpoint (its host when it has none) |
 | `crate-file` | `crate`, `path`; `endpoint` or `role` | the file of the newest release of the crate holds the hosts |
 | `rdap` | `domain` | the registration of the domain does not end soon |
 | `oci-ping` | `endpoint`; `fact`, if any | `GET /v2/` answers 200, or 401 with a `Bearer` challenge whose realm is `https://` and equals the fact |
@@ -444,6 +444,9 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 * The plant `scripts/plants/services-no-source` (group `services`): a
   service file whose fact names no source; the build must fail with the
   file and the field.
+* The watches of the files: `crates/pod-services-watch` (T-050) checks
+  each one against the live service; its tests and one plant for each
+  watch kind (`scripts/plants/services-*`) are there.
 
 ## Adoption map
 
@@ -487,6 +490,8 @@ podssh:
 | `podssh_ws::forwarder::builtin::BUILTIN` | `of_kind("forwarder")`: `Builtin { word: text("word"), template: text("template"), note: text("note") }` |
 | `acme::LETS_ENCRYPT` | `get("letsencrypt-acme")...endpoint("directory").url()` |
 | `crates/podssh-probe/facts/relay-limits.toml` | the facts of `ajam-relay`; `scripts/check-relay-limits.py` moves to the watch `http-json` (T-050) |
+| `scripts/check-upstream.py` (`upstream.yml`) | the watches `github-release`, `github-files` and `tls-roots` of `cloudflare-tunnel-edge` in `services.yml` of podcrates; the script leaves podssh with its pin file `quick/cloudflared-pin.txt` (T-151) |
+| `scripts/check-domain.py` (the step of `relay-watch.yml`) | the watch `rdap` of `ajam-relay` in `services.yml` of podcrates; the script and the step leave podssh with T-151 |
 | a relay, a resolver or a server of the user's own (`PODSSH_RELAY`, `PODSSH_STUN`, ...) | the variables stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
 
 podnet:
@@ -523,7 +528,8 @@ podnet:
 | `warp::proxy::TUNNEL_RESOLVER`, `CHECK_NAME` | `...endpoint("udp-1").socket_addrs()[0]`, `...text("check-name")` |
 | the nameservers of `warp::route::nameservers` and of `warp run` | `...endpoints_of("udp").map(Endpoint::host)` |
 | `agent::udp_dns` (`1.1.1.1:53`) | `...endpoint("udp-1").authority()` |
-| `tools/check-upstream.py` `REPO` | `cloudflare-tunnel-edge` fact `cloudflared-repository`; the check moves to the watches (T-050) |
+| `tools/check-upstream.py` `REPO` | `cloudflare-tunnel-edge` fact `cloudflared-repository`; the check is the watches `github-release`, `github-files` and `tls-roots` of `cloudflare-tunnel-edge` in `services.yml` of podcrates; the script leaves podnet with its pin file (T-151) |
+| `tools/edge-facts.sh`, the step "Edge facts" of `live.yml` | `scripts/services/edge-facts.sh` of podcrates, which `services.yml` runs each day (T-050; the trial `adoption/podnet/pod-services-watch.*`) |
 | a relay of the user's own (`PODNET_RELAY`, `PODNET_WARP_API`, `PODNET_EDGE`, `--resolve`) | the variables stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
 
 podvm:

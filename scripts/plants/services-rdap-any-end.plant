@@ -1,0 +1,6 @@
+# The watch kind rdap: a registration that ends tomorrow passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test apis::rdap_wants_a_registration_that_does_not_end_soon \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- apis::rdap_wants_a_registration_that_does_not_end_soon --exact'
+LIMIT=1800

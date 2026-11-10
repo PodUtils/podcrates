@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -149,7 +149,7 @@
+         .collect();
+     let file: BTreeSet<String> = crate::args::value_texts(fact.value()).into_iter().collect();
+     let mut out = Outcome::default();
+-    if live == file {
++    if live.len() == file.len() {
+         out.saw(format!("{} fingerprints at {pointer}", live.len()));
+     } else {
+         let join = |s: &BTreeSet<String>| s.iter().cloned().collect::<Vec<_>>().join(", ");

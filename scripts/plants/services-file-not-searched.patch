@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/github.rs
++++ b/crates/pod-services-watch/src/github.rs
+@@ -100,7 +100,7 @@
+     let text = String::from_utf8_lossy(&raw(net, repo, "HEAD", path).await?).into_owned();
+     let mut out = Outcome::default();
+     let mut look = |what: String, value: &str| {
+-        if text.contains(value) {
++        if !text.is_empty() {
+             out.saw(format!("{repo}/{path} holds {value:?}"));
+         } else {
+             out.found(Finding::moved(what, value, format!("no {value:?} in {repo}/{path}")));

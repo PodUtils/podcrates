@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -112,7 +112,7 @@
+     for endpoint in args.endpoints()? {
+         let url = https_url(endpoint, args.opt_text("path"));
+         match net.streamed(net.request("GET", &url)).await {
+-            Ok(answer) if i64::from(answer.status) == want => out.saw(format!("{} answered {want}", shown(&url))),
++            Ok(answer) if want > 0 || i64::from(answer.status) == want => out.saw(format!("{} answered {want}", shown(&url))),
+             Ok(answer) => out.found(Finding::failed(format!("{} answered {}, not {want}", shown(&url), answer.status))),
+             Err(finding) => out.found(finding),
+         }

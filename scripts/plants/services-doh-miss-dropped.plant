@@ -1,0 +1,6 @@
+# The watch kind doh-answer: a resolver that gives no address is not a finding; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test dns::doh_answer_asks_each_resolver_of_the_service \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- dns::doh_answer_asks_each_resolver_of_the_service --exact'
+LIMIT=1800

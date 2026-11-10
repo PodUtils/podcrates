@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 150 entries: 55 open, 3 partial, 0 blocked, 92 done.
+`TODO/INDEX.md` holds 152 entries: 56 open, 3 partial, 0 blocked, 93 done.
 
 ## State
 
@@ -13,6 +13,9 @@
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
   PodUtils/podvm#225). No trial of podvm is open.
+- M1: `pod-services-watch` exists (T-050, call C42): `services.yml` runs
+  each watch of `pod-services` each day, and `scripts/services/` holds the
+  measurements; the trial of podnet names `v0.14.0`.
 - M1: `pod-ws` exists (T-016 partial, call C41): the trials of podssh
   (`2f8e0bb`) and podnet (`22d99a1`) pass and name `v0.13.0`, the next
   tag after `v0.12.0`. The release and the two takes remain; from the
@@ -48,7 +51,7 @@ first; the asks of cfb and githome (M8) wait.
    podvm `main` on the day of each import): T-142; T-149. T-040 (the
    trials of podvm) goes with each import.
 3. **M1, the transport:** T-016 (partial: the release `v0.13.0` and the
-   takes of podssh and podnet, `adoption/{podssh,podnet}/pod-ws.*`); T-050 (`pod-services`); T-041 when a crate or a consumer needs
+   takes of podssh and podnet, `adoption/{podssh,podnet}/pod-ws.*`); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
@@ -66,7 +69,7 @@ first; the asks of cfb and githome (M8) wait.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C41), and the work goes on with it until the owner rules otherwise.
+C42), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

@@ -1,0 +1,12 @@
+--- a/crates/pod-services-watch/src/stun.rs
++++ b/crates/pod-services-watch/src/stun.rs
+@@ -63,9 +63,6 @@
+             continue;
+         }
+         let message = stun::parse(&buf[..n]).map_err(|e| Finding::failed(format!("{addr} answered no STUN: {e}")))?;
+-        if message.id != id {
+-            continue;
+-        }
+         if message.kind != stun::BINDING_SUCCESS {
+             return Err(Finding::failed(format!("{addr} answered the message type 0x{:04x}", message.kind)));
+         }

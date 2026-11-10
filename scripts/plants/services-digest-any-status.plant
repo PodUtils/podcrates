@@ -1,0 +1,6 @@
+# The watch kind oci-digest: each status passes for a digest; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test apis::oci_ping_and_digest_follow_the_challenge \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- apis::oci_ping_and_digest_follow_the_challenge --exact'
+LIMIT=1800

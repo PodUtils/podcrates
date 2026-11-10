@@ -6,7 +6,9 @@ repository (docs/design.md, section 9: drift).
   python3 -I scripts/check-sources.py record --clone DIR --repo OWNER/REPO --commit SHA
           --crate CRATE --map SRC=DST [--map SRC=DST]... [--skip PATH]... DIR...
 
-Each crate that holds code of another repository has crates/CRATE/SOURCES:
+Each crate that holds code of another repository has crates/CRATE/SOURCES,
+and a directory of scripts that holds scripts of another repository has
+scripts/DIR/SOURCES (scripts/services/SOURCES), of the same form:
 
   repo OWNER/REPO COMMIT          the repository and the commit of the import
   dir PATH                        an imported directory: a new or a removed
@@ -283,7 +285,8 @@ def compare(b: Block, source) -> list[str]:
 
 
 def check(crates: list[str], clones: dict, plant: bool) -> int:
-    paths = sorted(ROOT.glob("crates/*/SOURCES"))
+    # The crates, and the scripts of a directory of scripts/ (services/).
+    paths = sorted(ROOT.glob("crates/*/SOURCES")) + sorted(ROOT.glob("scripts/*/SOURCES"))
     if crates:
         paths = [p for p in paths if p.parent.name in crates]
     if not paths:

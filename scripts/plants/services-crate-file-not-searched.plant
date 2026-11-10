@@ -1,0 +1,6 @@
+# The watch kind crate-file: any file of the crate passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test apis::crate_file_holds_the_hosts_in_the_newest_release \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- apis::crate_file_holds_the_hosts_in_the_newest_release --exact'
+LIMIT=1800

@@ -167,7 +167,7 @@ reads the run with `actions_list` and `actions_get`. A push to `main`
 starts `ci.yml`, `adoption.yml`, `plants.yml`, `deny.yml` and
 `secrets.yml`; a newer push cancels the queued run of `ci.yml`,
 `adoption.yml` and `plants.yml`. Dispatch the other workflows (`nightly.yml`, `live.yml`,
-`release.yml`, `upstream.yml`, `record-issues.yml`) when a step needs them.
+`services.yml`, `release.yml`, `upstream.yml`, `record-issues.yml`) when a step needs them.
 
 When the dispatch fails, open a new issue titled exactly
 `[gh action] requested`: one line of why, and one `sh` block with each
@@ -175,6 +175,23 @@ When the dispatch fails, open a new issue titled exactly
 local agent runs the block once and writes the output or the error back.
 Never amend the block or add a second block to an open request: close it
 and open a new issue.
+
+### A red run of `services.yml`
+
+`services.yml` runs the watches of `pod-services` each day
+(`crates/pod-services-watch/README.md`). The summary of the run lists each
+finding.
+
+* A `MOVED` line names the file, the fact, its value, the new value and
+  the source. Read the source. Write an entry, change the value in the
+  file with the source of the new value and a new `read` date, and give
+  the change to the consumers that read the fact.
+* A `FAILED` line names the service and why. A service that is gone needs
+  an entry: its consumers read it first. A failure of the host of the run
+  (a limit of an API, a reset) needs a new dispatch with the input
+  `service`; a failure that stays needs an entry.
+* A `skipped` line is no failure: the watch cannot speak a form of the
+  service, and its entry is in the record.
 
 ## Shared CI scripts
 

@@ -1,0 +1,6 @@
+# The watch kind ssh-banner: the first line is the banner, whatever it is; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test ssh::ssh_banner_wants_a_line_of_ssh \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- ssh::ssh_banner_wants_a_line_of_ssh --exact'
+LIMIT=1800

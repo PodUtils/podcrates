@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/rdap.rs
++++ b/crates/pod-services-watch/src/rdap.rs
+@@ -58,7 +58,7 @@
+         let left = days_since(ends, net.today).map(|d| -d);
+         let left = left.ok_or_else(|| Finding::failed(format!("the expiration {ends:?} of {domain} is no day")))?;
+         let day = ends.get(..10).unwrap_or(ends);
+-        if left < AHEAD_DAYS {
++        if left < 0 {
+             return Err(Finding::failed(format!(
+                 "the registration of {domain} ends on {day}, in {left} days: renew it"
+             )));

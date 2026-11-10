@@ -33,10 +33,8 @@ name = "note"
 value = "the Worker of Mudlet's web client, on Cloudflare, whose runtime refuses port 25, private addresses and Cloudflare's own; each of its users shares the requests of its plan"
 source = { url = "https://github.com/Mudlet/mudlet-web", read = 2026-10-31, note = "worker/index.js (PodUtils/podssh docs/carriers.md)" }
 
-[[watch]]
-kind = "websocket-upgrade"
-endpoint = "forwarder"
-
+# No watch of the bare upgrade: the Worker refuses an upgrade with no
+# host in the query (HTTP 400). The forward of the banner upgrades.
 [[watch]]
 kind = "forward-banner"
 template = "template"

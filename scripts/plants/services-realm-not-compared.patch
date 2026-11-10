@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/oci.rs
++++ b/crates/pod-services-watch/src/oci.rs
+@@ -59,7 +59,7 @@
+         (Some((realm, _)), _) if !realm.starts_with("https://") => {
+             out.found(Finding::failed(format!("the realm {realm:?} of {} is not https://", endpoint.host())))
+         }
+-        (Some((realm, _)), Some(fact)) if fact.value().as_text() != Some(realm.as_str()) => {
++        (Some((realm, _)), Some(fact)) if fact.value().as_text().is_none() && realm.is_empty() => {
+             out.found(Finding::moved(named(fact), fact.value().to_string(), realm))
+         }
+         (Some((realm, _)), _) => out.saw(format!("{} /v2/ asks a token of {realm}", endpoint.host())),

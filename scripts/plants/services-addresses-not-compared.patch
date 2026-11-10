@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/dns.rs
++++ b/crates/pod-services-watch/src/dns.rs
+@@ -53,7 +53,7 @@
+         let fact = service.fact(name).ok_or_else(|| Finding::failed(format!("the service has no fact {name:?}")))?;
+         for address in value_texts(fact.value()) {
+             match address.parse::<IpAddr>() {
+-                Ok(ip) if live.contains(&ip) => out.saw(format!("{ip} is an address of {}", hosts.join(", "))),
++                Ok(ip) if !live.is_empty() || live.contains(&ip) => out.saw(format!("{ip} is an address of {}", hosts.join(", "))),
+                 Ok(ip) => {
+                     out.found(Finding::moved(named(fact), ip.to_string(), format!("no record of {}", hosts.join(", "))))
+                 }

@@ -1,0 +1,11 @@
+# The trial of the watches of pod-services in podnet: the measurement of
+# the edge of Cloudflare's tunnels (tools/edge-facts.sh) leaves podnet for
+# scripts/services/edge-facts.sh of podcrates, which services.yml runs each
+# day and by hand; the step "Edge facts" leaves live.yml. No Rust code
+# changes. The record, the workflow that changed, no reference to the old
+# script, and the script of podcrates.
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-workflows.py
+! git grep -n "tools/edge-facts.sh" -- .github scripts tools src docs/protocol.md
+sh -n "$PODCRATES/scripts/services/edge-facts.sh"
+test -f "$PODCRATES/crates/pod-services/services/files/cloudflare-edge-roots.pem"

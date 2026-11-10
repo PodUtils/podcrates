@@ -1,0 +1,6 @@
+# The watch kind websocket-upgrade: a refused upgrade passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test ws::websocket_upgrade_wants_101 \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- ws::websocket_upgrade_wants_101 --exact'
+LIMIT=1800

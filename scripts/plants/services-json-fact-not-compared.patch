@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -74,7 +74,7 @@
+         }
+         _ => false,
+     };
+-    if same {
++    if same || !fact.to_string().is_empty() {
+         out.saw(format!("{name} is {fact}"));
+     } else {
+         out.found(Finding::moved(name, fact.to_string(), live.to_string()));

@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/oci.rs
++++ b/crates/pod-services-watch/src/oci.rs
+@@ -90,7 +90,7 @@
+                 None => None,
+             };
+             match head(net, endpoint, repository, digest, token.as_deref()).await? {
+-                (200, _) => out.saw(format!("{repository}@{digest}")),
++                (_, _) if !digest.is_empty() => out.saw(format!("{repository}@{digest}")),
+                 (404, _) => out.found(Finding::moved(named(fact), &image, "HTTP 404 for the digest")),
+                 // A limit or a fault of the registry tells nothing of the pin.
+                 (status, _) => out.found(Finding::failed(format!("{repository}@{digest}: HTTP {status}"))),

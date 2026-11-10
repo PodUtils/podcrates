@@ -1,0 +1,6 @@
+# The watch kind ssh-host-key: any offered key passes; its test must fail.
+ENTRY=T-050
+GROUP=services
+EXPECT='test ssh::ssh_host_key_is_the_key_that_the_server_offers \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- ssh::ssh_host_key_is_the_key_that_the_server_offers --exact'
+LIMIT=1800

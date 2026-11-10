@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/crate_file.rs
++++ b/crates/pod-services-watch/src/crate_file.rs
+@@ -25,7 +25,7 @@
+     let mut out = Outcome::default();
+     for endpoint in args.endpoints()? {
+         let host = endpoint.host().trim_end_matches('.');
+-        if text.contains(host) {
++        if !text.is_empty() {
+             out.saw(format!("{name} {version} {path} holds {host}"));
+         } else {
+             out.found(Finding::moved(

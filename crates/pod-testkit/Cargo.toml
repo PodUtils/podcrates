@@ -10,6 +10,8 @@ repository.workspace = true
 [features]
 # The terminal oracle (src/screen.rs) on vt100.
 screen = ["dep:vt100"]
+# The stand-ins of the services of other parties (src/stand.rs): std alone.
+stand = []
 
 [dependencies]
 vt100 = { version = "0.18", optional = true }

@@ -1087,6 +1087,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-services-watch"
+version = "0.13.0"
+dependencies = [
+ "base64",
+ "flate2",
+ "p256",
+ "pod-core",
+ "pod-dns",
+ "pod-proxy",
+ "pod-services",
+ "pod-testkit",
+ "pod-tls",
+ "pod-ws",
+ "rustls",
+ "rustls-pki-types",
+ "serde_json",
+ "sha2 0.11.1",
+ "tar",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
 name = "pod-supervise"
 version = "0.13.0"
 dependencies = [

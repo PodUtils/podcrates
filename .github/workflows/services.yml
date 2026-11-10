@@ -1,0 +1,86 @@
+name: services
+
+# The watches of pod-services (crates/pod-services-watch): each [[watch]] of
+# each service file against the live service, one line for each. A fact
+# that moved fails the run with the file, the fact, its value, the new
+# value and the source; a check that cannot hold fails it with the service
+# and why. Each day at an off-peak hour, and by hand with a service or a
+# kind (docs/decisions.md, C24, C42). The checks of each push do not need
+# the network (ci.yml). Each day the measurements of scripts/services/ run
+# too; by hand, the input measure runs one in place of the watches.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Only the watches of this service id (empty: each service)"
+        type: string
+        default: ""
+      kind:
+        description: "Only the watches of this kind (empty: each kind)"
+        type: string
+        default: ""
+      measure:
+        description: "A measurement of scripts/services/ in place of the watches (none: the watches)"
+        type: choice
+        default: none
+        options: [none, edge-facts]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  watch:
+    if: github.event_name == 'schedule' || inputs.measure == 'none'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Build the runner
+        run: cargo build --locked --release -q -p pod-services-watch
+      # The token raises the limit of GitHub's API for the GitHub watches;
+      # the runner sends it to api.github.com alone and never prints it.
+      - name: Each watch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SERVICE: ${{ inputs.service }}
+          KIND: ${{ inputs.kind }}
+        run: |
+          set -u
+          set --
+          [ -n "${SERVICE:-}" ] && set -- "$@" --service "$SERVICE"
+          [ -n "${KIND:-}" ] && set -- "$@" --kind "$KIND"
+          rc=0
+          ./target/release/pod-services-watch "$@" > watch.txt || rc=$?
+          cat watch.txt
+          {
+            echo '### The watches of pod-services'
+            echo
+            echo '```'
+            grep -E '^(MOVED|FAILED|skipped) ' watch.txt || echo "no finding"
+            tail -1 watch.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+  # The measurements (scripts/services/), each day and by hand: each prints
+  # one line for each fact, and fails on a fact that a crate needs.
+  measure:
+    if: github.event_name == 'schedule' || inputs.measure == 'edge-facts'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The facts of the edge of Cloudflare's tunnels
+        run: sh scripts/services/edge-facts.sh

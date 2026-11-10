@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/ssh.rs
++++ b/crates/pod-services-watch/src/ssh.rs
+@@ -85,7 +85,7 @@
+     for _ in 0..MAX_LINES {
+         loop {
+             if let Some(end) = bytes.iter().position(|b| *b == b'\n') {
+-                if bytes.starts_with(b"SSH-") {
++                if !bytes.is_empty() {
+                     let line = banner_line(&bytes)?.unwrap_or_default();
+                     return Ok((line, bytes.split_off(end + 1)));
+                 }

@@ -1,0 +1,8 @@
+# The scripts of this directory that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the default branch of its repository.
+
+# The measurement of the edge of Cloudflare's tunnels (T-050): the header,
+# the default path of the roots and two comments changed.
+repo PodUtils/podnet 5bf153d703516fb9dd39ce04fab16ab7c30d11b4
+file 3334e7d6fb5c1d4369005fdac1dbdd07968eb124 tools/edge-facts.sh -> scripts/services/edge-facts.sh

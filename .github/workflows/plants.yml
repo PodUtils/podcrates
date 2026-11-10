@@ -12,6 +12,8 @@ on:
       - "crates/pod-todo/**"
       - "crates/pod-services/build.rs"
       - "crates/pod-services/src/schema.rs"
+      - "crates/pod-services-watch/**"
+      - "crates/pod-testkit/src/stand.rs"
       - "examples/static-probe*/**"
       - "TODO/todo.toml"
       - ".github/workflows/plants.yml"

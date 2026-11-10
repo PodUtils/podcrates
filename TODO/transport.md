@@ -891,7 +891,7 @@ read of `pod-services`. The data of podvm is T-066.
 **Milestone:** M1
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -913,16 +913,63 @@ the watches each day and the measurements by hand; the measurement scripts
 of the consumers in a directory services of `scripts/`; the trials of podssh and podnet
 (their workflows and scripts of watches leave them).
 
+## Decision
+
+Call C42 (`docs/decisions.md`): the runner is the binary of the member
+crate; a watch that cannot speak a form of a service is `skipped`;
+`http-json` with `member` finds a host of the file that the document
+lacks, and counts the hosts of the document that the file lacks.
+
 ## Prove
 
 ```sh
 cargo test -p pod-services-watch
 sh scripts/plant-each.sh --group services
+python3 -I scripts/check-workflows.py
 ```
 
 ## Start condition
 
 T-049 is done.
+
+## Done
+
+2026-11-10, the commit of this entry. `crates/pod-services-watch`: the
+trait `Watch`, `Net` (the dial and the client of `pod-proxy`, the TLS of
+`pod-tls`, the DoH of `pod-dns`, the WebSocket of `pod-ws`), `Report`,
+and 24 watch kinds, each the kind of at least one watch of the data
+(`http-json`, `http-status`, `http-text`, `github-ssh-keys`, `http-sha256`,
+`tls-name`, `tls-names`, `dns-srv`, `dns-addresses`, `doh-answer`,
+`stun-binding`, `websocket-upgrade`, `forward-banner`, `proxy-banner`,
+`ssh-banner`, `ssh-host-key`, `github-release`, `github-files`,
+`github-file`, `tls-roots`, `crate-file`, `rdap`, `oci-ping`, `oci-digest`);
+the runner prints one line for each watch. `pod-testkit` has the
+stand-ins (feature `stand`: HTTP, raw TCP and UDP, TLS from the caller).
+`cargo test -p pod-services-watch`: 29 passed (`tests/watches/`: each
+kind against a stand-in, and the test that each kind of the data has its
+implementation). The plants `scripts/plants/services-*` (24, group
+`services`): `sh scripts/plant-each.sh --group services`: 25 caught (with
+`services-no-source`), 0 missed. `sh scripts/agent/check.sh` passes (fmt,
+clippy, doc, record, size, paths, static); `cargo test --workspace
+--all-features`: each test binary passes.
+`.github/workflows/services.yml`: the watches each day and by hand (a
+service, a kind), and the measurements of `scripts/services/`.
+`scripts/services/edge-facts.sh` comes from podnet `tools/edge-facts.sh`
+(`scripts/services/SOURCES`, which `scripts/check-sources.py` now reads);
+the trial `adoption/podnet/pod-services-watch.*` removes the script and
+its step of podnet's `live.yml` and names v0.14.0 (`sh scripts/adoption.sh podnet
+pod-services-watch` at podnet `5bf153d`: each step passed). A run from this cloud
+session (an allowlist): 62 hold, 2 skipped, 21 failed, each failure a
+reset of the proxy, a UDP that does not pass, the limit of GitHub's API
+with no token, or Docker Hub's limit (429). Fixed in place from the live
+run: the forwarders of the query form have no watch `websocket-upgrade`
+(their Worker refuses an upgrade with no host); a text frame of a
+forwarder is its own word (Mudlet's `{"type":"game.connected"}`); the
+first frame of the first-frame form, also binary (ssheasy), is the
+answer; `github-file` looks for the addresses of an endpoint; 429 of a
+registry is a failure, not a moved digest; `tls-roots` takes `tag`. The
+rest: T-151 (the watch scripts of podssh and podnet that leave them),
+T-152 (VLESS over XHTTP).
 
 # T-052: The tests of a closed port of `pod-proxy` race with the other tests
 
@@ -2398,3 +2445,96 @@ cargo test -p pod-services
 ## Done
 
 2026-11-09, `48539d2`. `crates/pod-services/services/pinggy.toml` holds the two endpoints, the three facts and the watch `ssh-host-key`. `crates/pod-services/README.md` lists `ssh+tls`, `min` and the kind. `cargo test -p pod-services`: `pinggy_has_ssh_inside_tls_and_its_host_key` passes.
+
+# T-151: `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them
+
+**Source:** T-050 (the scripts of the inventories that `services.yml` now does).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh and podnet still watch facts that `pod-services` holds and that
+`services.yml` watches each day. Two checks of one fact drift. podssh:
+`PodUtils/podssh:scripts/check-domain.py` (the expiry of `ajam.dev`; a step of
+`relay-watch.yml`, and the issues of `relay_watch.py`),
+`PodUtils/podssh:scripts/check-relay-limits.py` (the limits of `/relays.json` against
+`PodUtils/podssh:crates/podssh-probe/facts/relay-limits.toml`; steps of `relay-watch.yml`
+and `build.yml`), `PodUtils/podssh:scripts/check-upstream.py` (cloudflared against
+`quick/cloudflared-pin.txt`; `upstream.yml`), and the parts `roots`,
+`discover`, `matrix`, `api` and `through` of
+`PodUtils/podssh:scripts/quick-tunnel-edge.py`, which measure the edge as
+`scripts/services/edge-facts.sh` does. podnet: `tools/check-upstream.py`
+(cloudflared against `src/cloudflare/cloudflared-pin.txt`;
+`upstream.yml`). Each compares a file of the consumer that the consumer
+reads today; the consumers did not take the rows of `relay-limits.toml`
+and `cloudflared-pin.txt` of the adoption maps.
+
+## Premise
+
+- Read: podssh `961acb1` and podnet `5bf153d` (the files above, their
+  workflows); the adoption maps of `crates/pod-services/README.md`.
+- Not done: no trial of podssh; the take of the pin of cloudflared waits
+  for `pod-cloudflare` (T-029) or the take of the facts.
+
+## Approach
+
+1. podssh: when its code reads the limits of `ajam-relay` (the row of
+   `relay-limits.toml`), a trial `adoption/podssh/pod-services-watch.*`
+   removes `check-domain.py`, `check-relay-limits.py`, their steps and
+   the domain part of `relay_watch.py`, and keeps the relay spec (T-047).
+   `services.yml` opens no issue: the red daily run is the signal, or an
+   issue step joins `services.yml` first (a call of this entry).
+2. podssh and podnet: `check-upstream.py` and `upstream.yml` leave with
+   the take of the facts `cloudflared-*` (the rows `cloudflared-pin.txt`).
+3. podssh: the generic parts of `quick-tunnel-edge.py` go to
+   `scripts/services/` beside `edge-facts.sh`; its `run` and `relay` parts
+   stay (they run podssh and cloudflared).
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podssh pod-services-watch
+sh scripts/adoption.sh podnet pod-services-watch
+```
+
+# T-152: `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP
+
+**Source:** T-050 (the live run: two nodes skipped).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The watch `proxy-banner` speaks Trojan and VLESS over TCP, with or without
+TLS. The nodes `node-xhttp-193-160-208-240` and `node-xhttp-78-17-39-129`
+are VLESS over XHTTP (`mode=auto`, `mode=packet-up`, `alpn=h2,http/1.1`):
+the watch reports them `skipped`, so no daily check proves that they carry
+a session (T-133, the live check of the nodes).
+
+## Premise
+
+- Read: the links of the two files; the code of `src/proxy.rs`.
+- Not read: the XHTTP transport of Xray (its modes, its paths and its
+  padding) at its source.
+
+## Approach
+
+Read the XHTTP transport of Xray-core at a pinned commit. Add the
+packet-up mode over HTTP/1.1 and HTTP/2 (`pod-proxy`'s client for the
+uploads, a streamed GET for the downloads) to `proxy-banner`, with a
+stand-in test of each mode and a plant. A node that no mode reaches leaves
+the data (podssh decides, PodUtils/podssh#177).
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches -- ssh::
+```
+

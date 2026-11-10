@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/github.rs
++++ b/crates/pod-services-watch/src/github.rs
+@@ -159,7 +159,7 @@
+     if file.is_empty() {
+         return Err(Finding::failed(format!("{} holds no certificate", named(fact))));
+     }
+-    if live == file {
++    if live.len() == file.len() {
+         out.saw(format!("{repo}/{path} at {tag} holds the {} certificates", file.len()));
+     } else {
+         let now = format!(
