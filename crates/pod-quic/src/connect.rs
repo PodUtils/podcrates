@@ -25,15 +25,12 @@ pub fn tls(
     roots: Arc<RootCertStore>,
     alpn: &[&[u8]],
 ) -> Result<Arc<rustls::ClientConfig>, Failure> {
-    let config = |e: &dyn std::fmt::Display| Failure::new(Stage::Tls, Class::Config, format!("QUIC's TLS: {e}"));
-    let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(roots, provider.clone())
-        .build()
-        .map_err(|e| config(&e))?;
+    // rustls's own verifier of WebPKI over `roots`, with the signatures of
+    // `provider`: no verifier of this crate.
     let mut tls = rustls::ClientConfig::builder_with_provider(provider)
         .with_protocol_versions(&[&rustls::version::TLS13])
-        .map_err(|e| config(&e))?
-        .dangerous()
-        .with_custom_certificate_verifier(verifier)
+        .map_err(|e| Failure::new(Stage::Tls, Class::Config, format!("QUIC's TLS: {e}")))?
+        .with_root_certificates(roots)
         .with_no_client_auth();
     tls.alpn_protocols = alpn.iter().map(|a| a.to_vec()).collect();
     Ok(Arc::new(tls))
