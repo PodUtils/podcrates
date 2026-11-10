@@ -89,3 +89,22 @@ fn each_target_survives_mutations() {
         }
     }
 }
+
+/// The seeds of the targets of pod-session reach past the first check:
+/// the states of a handover read, and the records decode.
+#[test]
+fn the_seeds_of_the_session_targets_read() {
+    use pod_session::decode::Decoder;
+    use pod_session::handover::LayerState;
+    let dir = here().join("seeds");
+    for name in ["closed", "carried"] {
+        let bytes = std::fs::read(dir.join("session_handover").join(name)).expect("a seed");
+        LayerState::decode(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    for name in ["greeting", "open", "refuse", "data_ack"] {
+        let bytes = std::fs::read(dir.join("session_record").join(name)).expect("a seed");
+        let mut decoder = Decoder::new();
+        decoder.push(&bytes[1..]);
+        assert!(decoder.next().unwrap_or_else(|e| panic!("{name}: {e}")).is_some(), "{name}");
+    }
+}

@@ -2068,6 +2068,7 @@ dependencies = [
  "pod-quic",
  "pod-rootfs",
  "pod-services",
+ "pod-session",
  "pod-supervise",
  "pod-term",
  "pod-tls",

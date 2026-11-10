@@ -24,6 +24,7 @@ pod-oci = { workspace = true }
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
 pod-quic = { workspace = true }
 pod-rootfs = { workspace = true }
+pod-session = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }
 pod-supervise = { workspace = true }
 pod-term = { workspace = true }

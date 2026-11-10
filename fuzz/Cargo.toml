@@ -37,6 +37,7 @@ pod-gsr = { path = "../crates/pod-gsr", features = ["fuzzing"] }
 pod-ws = { path = "../crates/pod-ws" }
 pod-quic = { path = "../crates/pod-quic" }
 pod-wormhole = { path = "../crates/pod-wormhole" }
+pod-session = { path = "../crates/pod-session" }
 
 # A crash names its line.
 [profile.release]
@@ -157,6 +158,27 @@ bench = false
 [[bin]]
 name = "mailbox_message"
 path = "fuzz_targets/mailbox_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "session_record"
+path = "fuzz_targets/session_record.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "session_handover"
+path = "fuzz_targets/session_handover.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "udp_frame"
+path = "fuzz_targets/udp_frame.rs"
 test = false
 doc = false
 bench = false

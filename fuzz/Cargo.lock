@@ -986,6 +986,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-session"
+version = "0.14.0"
+dependencies = [
+ "hkdf",
+ "hmac",
+ "pod-core",
+ "pod-ws",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-tls"
 version = "0.14.0"
 dependencies = [
@@ -1048,6 +1063,7 @@ dependencies = [
  "pod-gsr",
  "pod-proxy",
  "pod-quic",
+ "pod-session",
  "pod-tls",
  "pod-wormhole",
  "pod-ws",
@@ -1834,6 +1850,17 @@ dependencies = [
  "group",
  "hybrid-array",
  "primefield",
+]
+
+[[package]]
+name = "x25519-dalek"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7e8131a03190127fb2263afc72b322ecadae46b6ff8c6f399ff5d02f5559af6"
+dependencies = [
+ "curve25519-dalek",
+ "rand_core",
+ "zeroize",
 ]
 
 [[package]]

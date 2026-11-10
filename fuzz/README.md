@@ -56,6 +56,9 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `close_reason` | `pod-ws` | `close::close_code_and_reason` | podssh `close_reason` (at `8cd0f2b`) |
 | `quic_probe_answer` | `pod-quic` | `probe::answers` | new in `pod-quic` (T-019); its seeds are the Version Negotiation of 27 bytes of podssh's probe test, one of another ID, one that names the reserved version, and a short header |
 | `mailbox_message` | `pod-wormhole` | `message::{object, message_of, pake_of, words, hex, unhex}`, `Code::parse` | new in `pod-wormhole` (T-022); its seeds are the messages of a mailbox and the codes of the tests written here |
+| `session_record` | `pod-session` | `decode::Decoder`, `Record::encode`: the bytes of a link in pieces of 1 to 64 bytes; each record encodes again to itself; an error stays | new in `pod-session` (T-020); its seeds are records of podssh's `tests/session_codec.rs` (a `GREETING`, an `OPEN`, a `REFUSE`, a `DATA` and an `ACK`) and an unknown type |
+| `session_handover` | `pod-session` | `handover::LayerState::{decode, encode}` | new in `pod-session` (T-020); its seeds are a closed session, a carried session with a replay buffer, and a state of another version, written here |
+| `udp_frame` | `pod-session` | `udp::{Decoder, framed}`: the stream in pieces of 1 to 64 bytes; each datagram frames back to its bytes | new in `pod-session` (T-020); its seeds are two datagrams, a DNS query, and a length over the limit |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:

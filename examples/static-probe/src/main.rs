@@ -100,6 +100,7 @@ fn main() {
     lines.push(ws());
     lines.push(wormhole());
     lines.push(quic());
+    lines.push(session());
     for line in lines {
         println!("{line}");
     }
@@ -352,4 +353,31 @@ fn wormhole() -> String {
         },
     );
     format!("pod-wormhole: a code of {} words, {sealed} bytes sealed, taker: {run}", code.words())
+}
+
+/// pod-session: a record of the layer, its secret from X25519, the UDP
+/// framing, and a far end's keeper with its sink of lines: the records,
+/// the keys and the async keeper link in.
+fn session() -> String {
+    use pod_session::record::{Record, VERSION};
+    let mut bytes = Vec::new();
+    let encoded = Record::Ping { value: 7 }.encode(&mut bytes).map_or_else(|e| e.to_string(), |()| "a PING".into());
+    let mut entropy = pod_session::OsEntropy;
+    let exchange = pod_session::ClientHandshake::start(pod_session::Ask::New, pod_session::FEATURES, &mut entropy)
+        .map_err(|e| e.to_string())
+        .and_then(|(_, open)| {
+            let mut out = Vec::new();
+            open.encode(&mut out).map(|()| format!("an OPEN of {} bytes", out.len())).map_err(|e| e.to_string())
+        });
+    let exchange = exchange.unwrap_or_else(|e| e);
+    let keeper: pod_session::keep::Keeper<tokio::net::TcpStream> =
+        pod_session::keep::Keeper::new(pod_session::resume::RESUME_DEADLINE)
+            .with_tell(pod_session::budget::Tell::new(std::sync::Arc::new(pod_core::NoEvents), "the probe"));
+    let census = keeper.census(pod_session::replay::DEFAULT_CAPACITY);
+    format!(
+        "pod-session: version {VERSION}, {encoded} of {} bytes, {exchange}, a datagram framed in {:?} bytes, {} sessions kept",
+        bytes.len(),
+        pod_session::udp::framed(b"probe").map(|f| f.len()),
+        census.sessions()
+    )
 }

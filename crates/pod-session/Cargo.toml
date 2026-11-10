@@ -7,12 +7,6 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[features]
-default = []
-# The parsers of the records, the handover and the UDP framing, for the
-# fuzz targets (fuzz/). A binary does not turn it on.
-fuzzing = []
-
 [dependencies]
 # The failure and its stage and class, the events, the resolver trait, the
 # entropy, the backoff, the text made safe to print.
