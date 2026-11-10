@@ -49,4 +49,4 @@
 42 issue closed
 43 issue closed
 44 issue open
-45 issue open
+45 issue closed

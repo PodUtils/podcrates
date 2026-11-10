@@ -8,8 +8,8 @@
   release 42742043211): `pod-oci`, `pod-extract`, `Stage::Registry`, the
   proxy lists and nodes of `pod-services`. COORD-021 (GitHub #45) hands it
   to each consumer. podnet took it (`3a9317b`,
-  PodUtils/podnet#418), and podvm (`20ea781`,
-  PodUtils/podvm#223); podssh is on `v0.9.0`. Open: T-131 (`pod-gsr` on
+  PodUtils/podnet#418), podvm (`20ea781`,
+  PodUtils/podvm#223) and podssh (`49cb5c8c`, PodUtils/podssh#180). Open: T-131 (`pod-gsr` on
   Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
   `pod-enter` (podvm `423e817`, PodUtils/podvm#220), and `pod-oci` (podvm
