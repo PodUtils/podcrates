@@ -1,0 +1,6 @@
+# podssh T-155: a layer that never moves (the watch's mark is 0): each link meets
+# the stand-in relay's cap of 1 MiB, and the move test must fail.
+ENTRY=T-020
+GROUP=session
+EXPECT='test a_session_moves_before_each_cap \.\.\. FAILED'
+RUN='cargo test -p pod-session --test session_move -- a_session_moves_before_each_cap'

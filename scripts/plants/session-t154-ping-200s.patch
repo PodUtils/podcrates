@@ -1,0 +1,13 @@
+diff --git a/crates/pod-session/src/pump.rs b/crates/pod-session/src/pump.rs
+index 0dc4290..a7da241 100644
+--- a/crates/pod-session/src/pump.rs
++++ b/crates/pod-session/src/pump.rs
+@@ -59,7 +59,7 @@ const FINISH: Duration = Duration::from_secs(2);
+ /// How long bytes wait for their acknowledgement when fewer than 64 KiB came.
+ pub const ACK_DELAY: Duration = Duration::from_millis(200);
+ /// A `PING` goes out when this side sent nothing for this long.
+-pub const PING_EVERY: Duration = Duration::from_secs(10);
++pub const PING_EVERY: Duration = Duration::from_secs(200);
+ /// A link that carried nothing from the far end for three intervals is
+ /// dead, and a resume replaces it.
+ pub const DEAD_AFTER: Duration = Duration::from_secs(30);
