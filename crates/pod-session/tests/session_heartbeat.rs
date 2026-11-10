@@ -1,4 +1,4 @@
-//! The heartbeat of the resumable layer (T-154), on tokio's paused clock:
+//! The heartbeat of the resumable layer, on tokio's paused clock:
 //! over 200 s of idle time each end sends a record at least each 10 s, so the
 //! relay never sees a quiet link; a link that carries nothing from the far
 //! end for 30 s is dead, so a resume can replace it; and a peer that did not
@@ -10,10 +10,10 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::time::Instant;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::pump::{DEAD_AFTER, PING_EVERY};
-use podssh_relay::session::{
-    far, Acceptance, Ask, Decoder, End, Hello, Nonce, OsEntropy, Record, Role, SessionId, Sessions, Settings,
+use pod_session::client::{self, Outcome};
+use pod_session::pump::{DEAD_AFTER, PING_EVERY};
+use pod_session::{
+    Acceptance, Ask, Decoder, End, Hello, Nonce, OsEntropy, Record, Role, SessionId, Sessions, Settings, far,
 };
 
 const PIPE: usize = 256 * 1024;

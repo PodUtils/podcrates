@@ -1,12 +1,12 @@
-//! A far end's sessions handed to the binary that takes its place (T-668),
+//! A far end's sessions handed to the binary that takes its place,
 //! within one process: the first keeper hands each session over in the
 //! middle of 8 MiB each way, its state goes through its bytes, as between
 //! two binaries, and a second keeper takes it, with the same TCP connection
 //! to the target; the client resumes on a link to the second keeper, and
-//! the bytes at both ends have equal SHA-256 digests. Once with the layer
-//! over the target as it is (a node of `--no-e2e`), once with the
-//! end-to-end channel above it, whose keys and nonces move too; and a
-//! session whose target cannot move ends at its resume with why.
+//! the bytes at both ends have equal SHA-256 digests, with the layer over
+//! the target as it is; and a session whose target cannot move ends at its
+//! resume with why. The test with the end-to-end channel above the layer
+//! comes with pod-e2e.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -17,20 +17,19 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot};
 
-use podssh_relay::e2e::ends::{self, Node};
-use podssh_relay::e2e::hold;
-use podssh_relay::identity::Identity;
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::handover::{Handed, LayerState};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next};
-use podssh_relay::session::{far, Ask, End, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::handover::{Handed, LayerState};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next};
+use pod_session::{Ask, End, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
 const BYTES: usize = 8 * MIB;
 const LIMIT: Duration = Duration::from_secs(120);
 const BUDGET: usize = 1 << 30;
+/// The words of a target that runs no channel in this process.
+const NO_CHANNEL: &str = "no channel above its target can stop in this process";
 
 fn pseudo_random(len: usize, seed: u32) -> Vec<u8> {
     let mut x = seed;
@@ -133,10 +132,10 @@ async fn exchange(app: DuplexStream, up: Vec<u8>, at: usize, half: oneshot::Send
         let n = r.read(&mut buf).await.unwrap();
         assert!(n > 0, "the session ended after {} bytes", got.len());
         got.extend_from_slice(&buf[..n]);
-        if got.len() >= at {
-            if let Some(half) = half.take() {
-                let _ = half.send(());
-            }
+        if got.len() >= at
+            && let Some(half) = half.take()
+        {
+            let _ = half.send(());
         }
     }
     let _ = writer.await;
@@ -166,7 +165,7 @@ async fn client_session(
     let (client_link, far_link) = relayed();
     links_tx.send(far_link).unwrap();
     let client = client::start(client_link, Ask::New, settings(), &mut OsEntropy).await.unwrap();
-    let connect = move |_: &podssh_relay::session::Ended| {
+    let connect = move |_: &pod_session::Ended| {
         let (client_link, far_link) = relayed();
         let _ = links_tx.send(far_link);
         async move { Next::Link(client_link) }
@@ -176,6 +175,7 @@ async fn client_session(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_over_its_target_as_it_is_goes_on_across_a_handover_its_bytes_whole() {
+    pod_testkit::need_loopback!();
     let (up, down) = (pseudo_random(BYTES, 1), pseudo_random(BYTES, 2));
     let (at, accepted, got) = target(down.clone()).await;
     let first: Arc<Keeper<TcpStream>> = Arc::new(Keeper::new(Duration::from_secs(60)));
@@ -210,68 +210,6 @@ async fn a_session_over_its_target_as_it_is_goes_on_across_a_handover_its_bytes_
     session.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_session_of_the_channel_goes_on_across_a_handover_with_its_keys_and_nonces() {
-    let (up, down) = (pseudo_random(BYTES, 3), pseudo_random(BYTES, 4));
-    let (at, accepted, got) = target(down.clone()).await;
-    let lines: Arc<Mutex<Vec<String>>> = Arc::default();
-    let say = {
-        let lines = lines.clone();
-        Arc::new(move |line: String| lines.lock().unwrap().push(line))
-    };
-    let node = Node::open_to_all(Arc::new(Identity::from_seed(&[2; 32])), say);
-    let first: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(Duration::from_secs(60)));
-    let current: Current<DuplexStream> = Arc::new(Mutex::new(Some(first.clone())));
-    let (links_tx, links_rx) = mpsc::unbounded_channel();
-    let open = {
-        let node = node.clone();
-        move || {
-            let node = node.clone();
-            async move {
-                // As a node's handler: the channel's task takes a hold by the
-                // layer's id of the session, which the far end set.
-                let (ours, theirs) = tokio::io::duplex(PIPE);
-                let dial = move || async move { TcpStream::connect(at).await.map_err(|e| e.to_string()) };
-                tokio::spawn(hold::holding(async move { ends::serve_node(theirs, &node, dial).await }));
-                Ok::<_, String>(ours)
-            }
-        }
-    };
-    far_end(current.clone(), settings(), links_rx, open);
-
-    let (app, app_end) = tokio::io::duplex(PIPE);
-    let (cipher, operator) = ends::operator(app_end, Arc::new(Identity::from_seed(&[1; 32])), |_| Ok(()));
-    let operator = tokio::spawn(operator);
-    let session = client_session(links_tx, cipher).await;
-    let (half_tx, half_rx) = oneshot::channel();
-    let at_client = tokio::spawn(exchange(app, up.clone(), BYTES / 4, half_tx));
-
-    tokio::time::timeout(LIMIT, half_rx).await.unwrap().unwrap();
-    let second: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(Duration::from_secs(60)));
-    *current.lock().unwrap() = None;
-    let handed = through_bytes(first.hand_over().await);
-    assert_eq!(handed.len(), 1, "one session handed over");
-    assert!(handed[0].target.as_ref().is_ok_and(|moved| moved.channel.is_some()), "its channel moved");
-    let said = second.take_over(handed, |id, moved| {
-        moved.socket.set_nonblocking(true).map_err(|e| e.to_string())?;
-        let tcp = TcpStream::from_std(moved.socket).map_err(|e| e.to_string())?;
-        let channel = moved.channel.as_ref().map_or(&[][..], |bytes| bytes.as_slice());
-        hold::resume(id, channel, tcp, &node)
-    });
-    assert!(said.is_empty(), "{said:?}");
-    *current.lock().unwrap() = Some(second.clone());
-
-    let at_client = tokio::time::timeout(LIMIT, at_client).await.unwrap().unwrap();
-    let at_server = tokio::time::timeout(LIMIT, got).await.unwrap().unwrap();
-    assert_eq!(Sha256::digest(&at_server), Sha256::digest(&up), "the operator's bytes reached the target whole");
-    assert_eq!(Sha256::digest(&at_client), Sha256::digest(&down), "the target's bytes reached the operator whole");
-    assert_eq!(accepted.load(Ordering::SeqCst), 1, "the same connection to the target");
-    let lines = lines.lock().unwrap().clone();
-    assert!(!lines.iter().any(|line| line.contains("ended")), "no session of the channel ended: {lines:?}");
-    session.abort();
-    operator.abort();
-}
-
 /// A target that runs no channel and is no TCP connection cannot move: the
 /// next keeper keeps its id, and the client's resume hears `CLOSE` with
 /// why, never a session that the far end forgot.
@@ -299,7 +237,7 @@ async fn a_session_whose_target_cannot_move_ends_at_its_resume_with_why() {
 
     let second: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(Duration::from_secs(60)));
     *current.lock().unwrap() = None;
-    let handed = through_bytes(first.hand_over().await);
+    let handed = through_bytes(first.hand_over_with(|_, _| Box::pin(async { Err(NO_CHANNEL.to_string()) })).await);
     assert!(handed[0].target.is_err());
     let said = second.take_over(handed, |_, _| Err("never asked".to_string()));
     assert!(said.iter().any(|line| line.contains("could not move")), "{said:?}");

@@ -1,10 +1,10 @@
-//! Liveness in round trips (T-663), on tokio's paused clock. Stand-in relay
+//! Liveness in round trips, on tokio's paused clock. Stand-in relay
 //! hosts delay each piece one way, so a link has a round trip of its own,
 //! and one can stop carrying the bytes of a link with no word to either end.
 //!
 //! On a link of 50 ms, whose `ACK`s the far end holds 200 ms, a question
 //! that nothing answers opens a spare link 1 s after it was asked, where a
-//! fixed bound waited 3 s (T-305); before the link answered anything, the
+//! fixed bound waited 3 s; before the link answered anything, the
 //! spare waits those 3 s. A link whose answers take 1.1 s gets no spare. A
 //! tick of the clocks that comes late, as after a sleep of the host, sends a
 //! `PING` at once, and on a link that died in the sleep the spare opens 1 s
@@ -20,12 +20,12 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
-use podssh_relay::session::beside::{SPARE_AFTER, SPARE_SOONEST};
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::pump::PING_EVERY;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, Decoder, End, Ended, OsEntropy, Record, Role, Settings};
+use pod_session::beside::{SPARE_AFTER, SPARE_SOONEST};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::pump::PING_EVERY;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, Decoder, End, Ended, OsEntropy, Record, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const LIMIT: Duration = Duration::from_secs(120);

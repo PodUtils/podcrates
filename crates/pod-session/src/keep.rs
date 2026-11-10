@@ -1,4 +1,4 @@
-//! The sessions that a far end keeps across links (T-153). A session's
+//! The sessions that a far end keeps across links. A session's
 //! target and state wait after its link is lost, until the client resumes it
 //! on a new link or the deadline passes; then the target is shut and the
 //! session forgotten.
@@ -9,17 +9,17 @@
 //! runs one handshake at a time, so an older resume that still waits is a
 //! link that the client left, and it gives way. Newest is by the order of
 //! the handshakes, which [`super::far::accept`] numbers before it answers,
-//! not by the order in which their tasks start (T-270).
+//! not by the order in which their tasks start.
 //!
 //! A session that ended at this side, whose client acknowledged each byte
 //! but lost the link before it answered the `CLOSE`, keeps its id alone
 //! until the deadline: its target is shut and its buffer goes, and a resume
-//! hears the `CLOSE` again (T-586). Each slot is charged against the far
+//! hears the `CLOSE` again. Each slot is charged against the far
 //! end's budget by what it can hold ([`super::budget`]). A session whose
-//! client asked it to end with its link ([`super::once`], T-612) is
+//! client asked it to end with its link ([`super::once`], podssh T-612) is
 //! forgotten, and its target shut, as its link ends, whatever the end. The
 //! sessions go to the binary that takes this one's place, and come from the
-//! one before, in [`handover`] (T-668).
+//! one before, in [`crate::handover`].
 
 mod handover;
 
@@ -32,9 +32,9 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::Notify;
 use tokio::time::Instant;
 
-use super::budget::{Census, Told};
+use super::budget::{Census, Tell, Told};
 use super::decode::Decoder;
-use super::far::{last_word, Accepted};
+use super::far::{Accepted, last_word};
 use super::link::Link;
 use super::pump::{self, Carry, End, Ended, Watch};
 use super::record::Record;
@@ -52,7 +52,7 @@ const STOP_CHECK: Duration = Duration::from_millis(50);
 pub const UNADMITTED_WAIT: Duration = Duration::from_secs(30);
 
 /// Whether what runs above the layer let a session's client in: the
-/// end-to-end channel's admission of its key (T-300). A session counts
+/// end-to-end channel's admission of its key. A session counts
 /// against the budget once it is admitted, and waits the whole deadline for
 /// a resume only then: a visitor with no key, which can reach the layer of a
 /// public name, takes nothing from the clients with one.
@@ -68,7 +68,7 @@ pub fn admitted_at_once() -> Admitted {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum NotTaken {
     /// The session ended, on its old link, while this one shook hands; the
-    /// words of its `CLOSE`, empty but for one that a handover ended (T-668).
+    /// words of its `CLOSE`, empty but for one that a handover ended.
     Ended(String),
     /// A newer resume came: the client left this link.
     Newer,
@@ -96,13 +96,13 @@ enum Slot<A> {
     /// The session ended at this side and its client had each byte, but its
     /// answer to the `CLOSE` was lost with the link: no target and no
     /// buffer, only the id, whose secret the handshake of a resume proves,
-    /// until `until`. The resume then gets the `CLOSE` (T-586), with
-    /// `reason`: empty, or why a handover could not carry it on (T-668).
+    /// until `until`. The resume then gets the `CLOSE`, with
+    /// `reason`: empty, or why a handover could not carry it on.
     Closed { until: Instant, reason: String },
 }
 
 impl<A> Slot<A> {
-    /// The bytes of the budget that the slot holds (T-586): `each`, a whole
+    /// The bytes of the budget that the slot holds: `each`, a whole
     /// buffer, while the buffer can still fill; once the target ended, the
     /// buffer can only empty, so the bytes kept for either side, at most
     /// `each`; nothing before the client is let in, or for an id alone. A
@@ -127,8 +127,8 @@ impl<A> Slot<A> {
     }
 }
 
-/// Whether a session that `end` left needs nothing more than its id
-/// (T-586): this side's `CLOSE` went out after its target's last byte, the
+/// Whether a session that `end` left needs nothing more than its id:
+/// this side's `CLOSE` went out after its target's last byte, the
 /// client acknowledged each byte, and no byte of the client's waits for the
 /// target. A resume could then only carry the `CLOSE` again.
 fn closed_but_unanswered(end: &End, carry: &Carry) -> bool {
@@ -143,8 +143,10 @@ pub struct Keeper<A> {
     /// The newest resume of each session, by its number.
     newest: Mutex<HashMap<SessionId, u64>>,
     deadline: Duration,
-    /// When the budget's lines were last said (T-586).
+    /// When the budget's lines were last said.
     told: Mutex<Told>,
+    /// Where the budget's lines go.
+    tell: Tell,
 }
 
 impl<A> Keeper<A>
@@ -159,7 +161,19 @@ where
             newest: Mutex::new(HashMap::new()),
             deadline,
             told: Mutex::new(Told::default()),
+            tell: Tell::default(),
         }
+    }
+
+    /// This keeper, its budget's lines to `tell`.
+    pub fn with_tell(mut self, tell: Tell) -> Keeper<A> {
+        self.tell = tell;
+        self
+    }
+
+    /// Where the budget's lines go, and what changes the budget.
+    pub fn tell(&self) -> &Tell {
+        &self.tell
     }
 
     /// The sessions kept with their target, with a link or waiting for one;
@@ -169,12 +183,12 @@ where
     }
 
     /// The sessions that ended and keep their id alone, for a resume that
-    /// lost their `CLOSE` (T-586).
+    /// lost their `CLOSE`.
     pub fn closed(&self) -> usize {
         lock(&self.slots).values().filter(|slot| matches!(slot, Slot::Closed { .. })).count()
     }
 
-    /// What holds the budget (T-586), a session whose buffer can still fill
+    /// What holds the budget, a session whose buffer can still fill
     /// charged `each`: the bytes charged, the sessions that a link carries,
     /// those that wait for their client, and when the first of those is
     /// forgotten. One still in its channel's handshake holds a few hundred
@@ -214,7 +228,7 @@ where
         true
     }
 
-    /// When the budget's lines were last said, to say them seldom (T-586).
+    /// When the budget's lines were last said, to say them seldom.
     pub fn told(&self) -> std::sync::MutexGuard<'_, Told> {
         lock(&self.told)
     }
@@ -334,7 +348,7 @@ where
                         Some(done)
                     }
                     // The id stays until its deadline, for each resume
-                    // that lost the `CLOSE` (T-586).
+                    // that lost the `CLOSE`.
                     Some(Slot::Closed { until, reason }) => {
                         slots.insert(*id, Slot::Closed { until, reason: reason.clone() });
                         return Err(NotTaken::Ended(reason));
@@ -344,8 +358,8 @@ where
             };
             // No slot, while the handshake still knows the session: its
             // first link's task has not put it in yet, as while a node opens
-            // its target, which a client whose first link fell then resumes
-            // (T-600). It ended only once the handshake forgot it.
+            // its target, which a client whose first link fell then resumes.
+            // It ended only once the handshake forgot it.
             if stopping.is_none() && !lock(&self.sessions).contains(id) {
                 lock(&self.newest).remove(id);
                 return Err(NotTaken::Ended(String::new()));
@@ -378,7 +392,7 @@ where
         L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let ended = pump::run(&mut app, link, decoder, &mut carry, watch).await;
-        // Its client asked for no resume (T-612): nothing waits for one.
+        // Its client asked for no resume: nothing waits for one.
         let kept = ended.end.resumable() && !lock(&carry.state).once();
         if kept && closed_but_unanswered(&ended.end, &carry) {
             self.keep_id_alone(id, app, admitted).await;
@@ -404,11 +418,7 @@ where
     /// How long a session with no link waits for a resume: the deadline, or
     /// less while its client was not let in.
     fn wait(&self, admitted: &Admitted) -> Duration {
-        if admitted.load(Ordering::SeqCst) {
-            self.deadline
-        } else {
-            self.deadline.min(UNADMITTED_WAIT)
-        }
+        if admitted.load(Ordering::SeqCst) { self.deadline } else { self.deadline.min(UNADMITTED_WAIT) }
     }
 
     /// The session waits for a resume.
@@ -418,7 +428,7 @@ where
     }
 
     /// The session ended, and only its id waits, as long as a lost session
-    /// would (T-586): the target is shut, the buffer and the state go, and
+    /// would: the target is shut, the buffer and the state go, and
     /// the secret and the offset stay for the handshake of a resume, which
     /// then hears the `CLOSE`. The slot comes first, so that a resume that
     /// waits for this link finds it.
@@ -438,7 +448,7 @@ where
 
     /// [`Keeper::expire`] as at `now`. A test gives a later `now`: a far end
     /// whose clock ran on while its client's stood still, as on a client's
-    /// host that slept (T-306).
+    /// host that slept.
     pub async fn expire_at(&self, now: Instant) -> usize {
         let expired: Vec<(SessionId, Option<A>)> = {
             let mut slots = lock(&self.slots);

@@ -3,13 +3,13 @@
 //!
 //! [`accept`] greets the client and runs the handshake, and only then does
 //! the caller connect to the target, so that a link that never completes its
-//! handshake costs no connection to sshd (T-164). [`serve`] is the whole of
+//! handshake costs no connection to sshd. [`serve`] is the whole of
 //! one link of a far end that keeps its sessions: each road's far end (the
 //! node of the reverse road, the iroh road) runs it.
 //!
 //! [`accept_with_room`] asks the caller for room before a new session's
 //! `ACCEPT`, and refuses one with none in the handshake, before the client
-//! sent a byte of it (the relay role's road, T-173).
+//! sent a byte of it (the relay role's road, podssh T-173).
 
 use std::fmt;
 use std::future::Future;
@@ -19,18 +19,18 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 // The budget's words, by another name than the `budget` of `serve`.
+use super::Settings;
 use super::budget as words;
 use super::deadline;
 use super::decode::{DecodeError, Decoder};
 use super::half_close;
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
-use super::keep::{admitted_at_once, Admitted, Keeper};
+use super::keep::{Admitted, Keeper, admitted_at_once};
 use super::once;
 use super::pump::{self, Carry, Ended};
-use super::record::{cut_reason, Record, RefuseCode, Role};
+use super::record::{Record, RefuseCode, Role, cut_reason};
 use super::secret::{Entropy, OsEntropy};
 use super::sessions::Sessions;
-use super::Settings;
 
 /// Whether a new session has room at a far end: `Err` holds why not, the
 /// words of its `REFUSE`.
@@ -119,9 +119,9 @@ pub async fn accept_with_room<L>(
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
-    // The `GREETING` names how long this far end keeps a lost session (T-306),
-    // that it ends a session with its link when the client asks (T-612), and
-    // that it takes the end of one direction (T-632).
+    // The `GREETING` names how long this far end keeps a lost session,
+    // that it ends a session with its link when the client asks, and
+    // that it takes the end of one direction.
     let mut offered = deadline::offered(&settings);
     offered.push(once::ONCE.to_string());
     offered.push(half_close::END.to_string());
@@ -204,7 +204,7 @@ async fn send<L: AsyncWrite + Unpin>(link: &mut L, record: &Record) -> Result<()
 /// client ends it or [`LAST_WORD_WAIT`] passes, reading what the client sends
 /// meanwhile. The client writes on until it reads the record, and a relay
 /// that ends both ways when one fails would drop the record, still on its
-/// way, at the first write to a link that is gone (T-354).
+/// way, at the first write to a link that is gone.
 pub(super) async fn last_word<L: AsyncRead + AsyncWrite + Unpin>(link: &mut L, record: &Record) {
     let written = async {
         let bytes = record.to_bytes().map_err(std::io::Error::other)?;
@@ -223,7 +223,7 @@ pub(super) async fn last_word<L: AsyncRead + AsyncWrite + Unpin>(link: &mut L, r
 /// handshake, then a resume goes on with the target that its session kept,
 /// and a new session reaches its target with `open`. A new session that
 /// would pass `budget` bytes of replay buffers, or whose target cannot be
-/// reached, ends at once with the reason (T-153).
+/// reached, ends at once with the reason.
 pub async fn serve<L, A, O, F>(link: L, role: Role, settings: Settings, keeper: &Keeper<A>, budget: usize, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -235,7 +235,7 @@ where
 }
 
 /// [`serve`] for a session whose client is let in above the layer, later,
-/// with `admitted` (T-300): until then it takes nothing of `budget`, which
+/// with `admitted`: until then it takes nothing of `budget`, which
 /// counts the sessions that were let in.
 #[allow(clippy::too_many_arguments)]
 pub async fn serve_admitted<L, A, O, F>(
@@ -263,16 +263,16 @@ pub async fn serve_admitted<L, A, O, F>(
     }
     // A new session holds a whole buffer's worth of the budget while its
     // buffer can fill, so the budget is a bound, not a hope; a closing one
-    // holds what it keeps (T-586).
+    // holds what it keeps.
     let each = settings.replay_capacity;
     let census = keeper.census(each);
     if census.held.saturating_add(each) > budget {
-        let reason = words::refusal(&census, budget);
+        let reason = words::refusal(&census, budget, &keeper.tell().change);
         // The client hears it; the node's own log must too, seldom. The
         // lock goes before any await.
         let said = keeper.told().refusal(tokio::time::Instant::now());
         if said {
-            words::say(&reason);
+            keeper.tell().say(words::REFUSED, &reason);
         }
         accepted.close(&reason, &keeper.sessions).await;
         return;
@@ -280,10 +280,10 @@ pub async fn serve_admitted<L, A, O, F>(
     let after = census.with_one_more(each);
     let passed = keeper.told().level(after.held, budget);
     if passed {
-        words::say(&words::filling(&after, budget));
+        keeper.tell().say(words::FILLING, &words::filling(&after, budget, &keeper.tell().change));
     }
     // What opens learns the session's id, so that a handover finds the
-    // channel above the target by it (T-668).
+    // channel above the target by it.
     let opening = super::handover::scope(accepted.established().id, async move { open().await });
     match tokio::time::timeout(TARGET_LIMIT, opening).await {
         Ok(Ok(target)) => {
@@ -353,17 +353,17 @@ where
 mod tests {
     use std::time::Duration;
 
-    use crate::session::budget::{filling, left_words, refusal, Census, Told};
+    use crate::budget::{CHANGE, Census, Told, filling, left_words, refusal};
 
     const MIB: usize = 1 << 20;
 
-    /// The node of GitHub #112, in the words of T-586: what holds the
+    /// The node of PodUtils/podssh#112, in the words of podssh T-586: what holds the
     /// budget, and when room comes back.
     #[test]
     fn a_refusal_names_what_holds_the_budget_and_when_room_comes() {
         let census = Census { held: 64 * MIB, live: 3, waiting: 13, first_free: Some(Duration::from_secs(250)) };
         assert_eq!(
-            refusal(&census, 64 * MIB),
+            refusal(&census, 64 * MIB, "--resume-deadline and PODSSH_REPLAY_BUFFER of the node"),
             "this node keeps 16 resumable sessions (64 MiB of replay buffers): 3 with a link, 13 waiting for their \
              client, the first of them for 4 min 10 s more; --resume-deadline and PODSSH_REPLAY_BUFFER of the node \
              change its budget"
@@ -373,12 +373,12 @@ mod tests {
     #[test]
     fn a_refusal_counts_one_session_and_none_waiting_in_words() {
         let live = Census { held: 8 * MIB, live: 2, waiting: 0, first_free: None };
-        let words = refusal(&live, 8 * MIB);
+        let words = refusal(&live, 8 * MIB, CHANGE);
         let head = "this node keeps 2 resumable sessions (8 MiB of replay buffers): 2 with a link, none waiting for \
                     its client;";
         assert!(words.starts_with(head), "{words}");
         let one = Census { held: 4 * MIB, live: 0, waiting: 1, first_free: Some(Duration::from_millis(39_200)) };
-        let words = refusal(&one, 4 * MIB);
+        let words = refusal(&one, 4 * MIB, CHANGE);
         assert!(words.contains("keeps 1 resumable session (4 MiB"), "{words}");
         assert!(words.contains("0 with a link, 1 waiting for its client, for 40 s more;"), "{words}");
     }
@@ -412,7 +412,7 @@ mod tests {
         assert!(!told.level(32 * MIB, budget));
         assert!(told.level(52 * MIB, budget), "past them again after half");
         let census = Census { held: 52 * MIB, live: 9, waiting: 4, first_free: Some(Duration::from_secs(90)) };
-        let line = filling(&census, budget);
+        let line = filling(&census, budget, CHANGE);
         let head = "the resumable sessions hold 52 MiB of this node's 64 MiB of replay buffers: 9 with a link, 4 \
                     waiting for their client, the first of them for 1 min 30 s more;";
         assert!(line.starts_with(head), "{line}");

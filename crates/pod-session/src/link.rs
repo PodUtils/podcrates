@@ -1,20 +1,20 @@
 //! A session past its handshake, record by record: `DATA` both ways, and
 //! `ACK`, `PING`, `PONG`, `REFUSE`, `CLOSE` and `END`. Sans-IO: records in,
 //! events and records out. The state outlives a link: its offsets and its replay
-//! buffer carry the session onto the next link (T-152, T-153).
+//! buffer carry the session onto the next link.
 
 use std::fmt;
 
 use super::decode::DecodeError;
 use super::offset::{Inbound, OffsetError, Outbound};
-use super::record::{Record, RefuseCode, MAX_DATA};
+use super::record::{MAX_DATA, Record, RefuseCode};
 use super::replay::{Full, NotKept, Replay};
 
-// The state as values, for a handover (T-668).
+// The state as values, for a handover.
 mod parts;
 pub use parts::{LinkParts, ReplayParts};
 
-/// A receiver acknowledges at least each this many bytes (T-152).
+/// A receiver acknowledges at least each this many bytes.
 pub const ACK_EVERY: u64 = 64 * 1024;
 
 /// What a record from the peer gives.
@@ -28,7 +28,7 @@ pub enum Event {
     Closed(String),
     /// The peer retired this link: the session goes on over another one.
     Retired,
-    /// The peer's bytes ended (`END`, T-632): the application's write side is
+    /// The peer's bytes ended (`END`, podssh T-632): the application's write side is
     /// shut once it has each byte before the end. `closes` when this side's
     /// own `END` went out before: its `CLOSE` is due now.
     Ended { closes: bool },
@@ -37,7 +37,7 @@ pub enum Event {
 }
 
 /// Why a link can carry the session no further. Each but `Refused` ends the
-/// link only: a resume (T-153) can carry the session on a new one.
+/// link only: a resume can carry the session on a new one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinkError {
     /// Bytes that are not records of the layer.
@@ -50,7 +50,7 @@ pub enum LinkError {
     Refused { code: RefuseCode, reason: String },
     /// Bytes past the room of the replay buffer: the writer did not wait.
     Full(Full),
-    /// An `END` that the session cannot take, or bytes after one (T-632).
+    /// An `END` that the session cannot take, or bytes after one.
     End(&'static str),
 }
 
@@ -64,7 +64,7 @@ impl fmt::Display for LinkError {
                 write!(f, "the far end refused the session ({code})")
             }
             LinkError::Refused { code, reason } => {
-                write!(f, "the far end refused the session ({code}): {}", podssh_ws::text::one_line(reason))
+                write!(f, "the far end refused the session ({code}): {}", pod_core::text::one_line(reason))
             }
             LinkError::Full(e) => e.fmt(f),
             LinkError::End(what) => f.write_str(what),
@@ -101,7 +101,7 @@ pub struct Link {
     /// Bytes received and not yet written to the application, as the pump
     /// says them: an acknowledgement covers the bytes written, so that the
     /// peer's replay window bounds what this side holds while the link is
-    /// read on (T-387). A caller that writes each byte as it comes says none.
+    /// read on. A caller that writes each byte as it comes says none.
     held: u64,
     /// Whether each end pings when idle: both named `heartbeat.v1`.
     heartbeat: bool,
@@ -109,10 +109,10 @@ pub struct Link {
     /// relay's limits: both named `move.v1`.
     moves: bool,
     /// Whether the session ends with its link: its client asked, and the far
-    /// end knows the ask (T-612).
+    /// end knows the ask.
     once: bool,
     /// Whether each side ends its own bytes with `END`, and the session goes
-    /// on for the other's: both named `end.v1` (T-632).
+    /// on for the other's: both named `end.v1`.
     ends: bool,
     /// Whether this side's `END` went out: its application ended its bytes.
     end_sent: bool,
@@ -148,7 +148,7 @@ impl Link {
     }
 
     /// Send a `PING` when idle, and take a link that carries nothing for
-    /// three intervals as dead (T-154): both sides named `heartbeat.v1`.
+    /// three intervals as dead: both sides named `heartbeat.v1`.
     pub fn with_heartbeat(mut self) -> Link {
         self.heartbeat = true;
         self
@@ -160,7 +160,7 @@ impl Link {
     }
 
     /// Move the session to a new link before the relay's limits, and retire
-    /// the old one (T-155): both sides named `move.v1`.
+    /// the old one: both sides named `move.v1`.
     pub fn with_moves(mut self) -> Link {
         self.moves = true;
         self
@@ -171,7 +171,7 @@ impl Link {
         self.moves
     }
 
-    /// End the session with its link, whatever the end (T-612): both sides
+    /// End the session with its link, whatever the end: both sides
     /// named `once.v1`.
     pub fn with_once(mut self) -> Link {
         self.once = true;
@@ -184,7 +184,7 @@ impl Link {
     }
 
     /// Each side ends its own bytes with `END`, and the session goes on until
-    /// both did (T-632): both sides named `end.v1`.
+    /// both did: both sides named `end.v1`.
     pub fn with_ends(mut self) -> Link {
         self.ends = true;
         self
@@ -247,7 +247,7 @@ impl Link {
     }
 
     /// The offset up to which the application has each byte: what an
-    /// acknowledgement says (T-387).
+    /// acknowledgement says.
     fn delivered(&self) -> u64 {
         self.inbound.received() - self.held
     }
@@ -278,7 +278,7 @@ impl Link {
     }
 
     /// [`Link::room`] on a link whose bytes in flight, those sent and not
-    /// acknowledged, stay within `window` (T-443). With no replay buffer no
+    /// acknowledged, stay within `window`. With no replay buffer no
     /// byte is acknowledged, and the window holds nothing back; a window of
     /// 0 is taken as 1, so that a link always moves.
     pub fn room_within(&self, window: Option<usize>) -> usize {
@@ -289,7 +289,7 @@ impl Link {
     }
 
     /// Whether the encoded record `record`, which a resume sends again, keeps
-    /// the bytes in flight within `window` once sent (T-443): a buffer filled
+    /// the bytes in flight within `window` once sent: a buffer filled
     /// on another road can hold more than this link may carry at once. A
     /// `DATA` with nothing in flight before it fits, so a link always moves,
     /// and another record carries no bytes of the session.

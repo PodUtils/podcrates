@@ -1,4 +1,4 @@
-//! What a session carries from one link to the next, as values (T-668): a
+//! What a session carries from one link to the next, as values: a
 //! handover gives them to the next binary, which carries the session on
 //! from them as from a lost link. The `DATA` records of a resume are not
 //! among them: a session between links holds none, and each byte of them is
@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use super::{lock, Carry};
-use crate::session::link::{Link, LinkParts};
+use super::{Carry, lock};
+use crate::link::{Link, LinkParts};
 
 /// What a [`Carry`] holds besides its link.
 #[derive(Clone, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-//! The handshake of the resumable layer (T-151).
+//! The handshake of the resumable layer.
 //!
 //! The keys are those of RFC 7748, section 6.1 (Alice is the client, Bob the
 //! far end), and the nonces and the id are fixed runs of bytes. The secret
@@ -9,8 +9,8 @@
 
 use std::collections::VecDeque;
 
-use podssh_relay::session::secret::KEY_LEN;
-use podssh_relay::session::{
+use pod_session::secret::KEY_LEN;
+use pod_session::{
     Acceptance, Ask, ClientHandshake, Entropy, FarHandshake, HandshakeError, NoRandom, Opening, Proof, Record,
     RefuseCode, Role, Secret, SessionId, Sessions, Step,
 };

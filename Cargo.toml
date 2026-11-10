@@ -36,6 +36,7 @@ pod-identity = { path = "crates/pod-identity", version = "0.14.0" }
 pod-oci = { path = "crates/pod-oci", version = "0.14.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.14.0" }
 pod-quic = { path = "crates/pod-quic", version = "0.14.0" }
+pod-session = { path = "crates/pod-session", version = "0.14.0" }
 pod-rootfs = { path = "crates/pod-rootfs", version = "0.14.0" }
 pod-services = { path = "crates/pod-services", version = "0.14.0" }
 pod-supervise = { path = "crates/pod-supervise", version = "0.14.0" }

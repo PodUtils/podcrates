@@ -16,8 +16,8 @@
 //! | 0x08 | PING     | either  | a value |
 //! | 0x09 | PONG     | either  | the value of the PING, then an offset |
 //! | 0x0a | CLOSE    | either  | a reason |
-//! | 0x0b | RETIRE   | client  | nothing: this link ends, the session goes on (T-155) |
-//! | 0x0c | END      | either  | the offset after its last byte: one direction ends, the session goes on (T-632) |
+//! | 0x0b | RETIRE   | client  | nothing: this link ends, the session goes on |
+//! | 0x0c | END      | either  | the offset after its last byte: one direction ends, the session goes on |
 //!
 //! The magic is the 14 bytes `podssh-session`. A nonce, a public key and a
 //! proof have 32 bytes, a session id 16. Features are a count byte (16 at
@@ -29,7 +29,7 @@
 
 use std::fmt;
 
-use super::secret::{Nonce, Proof, SessionId, KEY_LEN};
+use super::secret::{KEY_LEN, Nonce, Proof, SessionId};
 
 /// The type byte and the length.
 pub const HEADER: usize = 5;
@@ -37,7 +37,9 @@ pub const HEADER: usize = 5;
 pub const MAX_BODY: usize = 64 * 1024;
 /// The most bytes that one `DATA` record carries.
 pub const MAX_DATA: usize = MAX_BODY - 8;
-/// The first bytes of a `GREETING` and an `OPEN` body.
+/// The first bytes of a `GREETING` and an `OPEN` body. The name of the
+/// protocol, the same for each consumer, so that their ends speak to each
+/// other.
 pub const MAGIC: &[u8; 14] = b"podssh-session";
 /// The highest version of the layer that this side speaks.
 pub const VERSION: u8 = 1;
@@ -88,10 +90,10 @@ impl Role {
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Role::CLIENT => f.write_str("a podssh client"),
-            Role::NODE => f.write_str("a podssh node"),
-            Role::SERVE => f.write_str("podssh serve"),
-            Role(other) => write!(f, "a podssh of role {other}"),
+            Role::CLIENT => f.write_str("a client"),
+            Role::NODE => f.write_str("a node"),
+            Role::SERVE => f.write_str("a relay role"),
+            Role(other) => write!(f, "a far end of role {other}"),
         }
     }
 }
@@ -113,7 +115,7 @@ impl RefuseCode {
     pub const UNKNOWN_SESSION: RefuseCode = RefuseCode(1);
     /// A proof that the secret, the nonces or the offset do not give.
     pub const BAD_PROOF: RefuseCode = RefuseCode(2);
-    /// A resume from an offset that the sender no longer keeps (T-152).
+    /// A resume from an offset that the sender no longer keeps.
     pub const NOT_KEPT: RefuseCode = RefuseCode(3);
     /// A version that the far end does not speak.
     pub const VERSION: RefuseCode = RefuseCode(4);
@@ -218,10 +220,10 @@ pub enum Record {
         reason: String,
     },
     /// The end of this link alone: the client moved the session to another
-    /// one (T-155), and nothing more comes on this one.
+    /// one, and nothing more comes on this one.
     Retire,
     /// The end of the sender's bytes, `offset` the offset after the last of
-    /// them: one direction ends, and the session goes on (T-632).
+    /// them: one direction ends, and the session goes on.
     End {
         offset: u64,
     },

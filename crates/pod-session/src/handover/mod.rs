@@ -1,4 +1,4 @@
-//! A far end's sessions handed to the binary that takes its place (T-668):
+//! A far end's sessions handed to the binary that takes its place:
 //! what [`super::keep::Keeper::hand_over`] gives for each session, in bytes
 //! that the next binary reads, and what [`super::keep::Keeper::take_over`]
 //! takes back there. The layer's state is its offsets, its replay buffer
@@ -21,7 +21,7 @@ use zeroize::Zeroizing;
 
 use super::link::{LinkParts, ReplayParts};
 use super::pump::CarryParts;
-use super::record::{cut_reason, MAX_REASON};
+use super::record::{MAX_REASON, cut_reason};
 use super::replay::MAX_CAPACITY;
 use super::secret::{Secret, SessionId};
 pub use wire::Unreadable;
@@ -57,7 +57,7 @@ pub struct Moved {
     /// Its connection.
     pub socket: std::net::TcpStream,
     /// The state of the end-to-end channel above the connection, in the
-    /// channel's own bytes (`crate::e2e::hold`); none where the layer
+    /// channel's own bytes (podssh `e2e::hold`, later pod-e2e); none where the layer
     /// carries the target's bytes as they are.
     pub channel: Option<Zeroizing<Vec<u8>>>,
 }
@@ -85,7 +85,7 @@ pub enum Kept {
     /// A session that waits for its client, with its target.
     Carried { link: LinkParts, carry: CarryParts },
     /// A session that ended here, or that the next binary cannot carry on:
-    /// its id waits alone, and a resume hears `CLOSE` with `reason` (T-586).
+    /// its id waits alone, and a resume hears `CLOSE` with `reason`.
     Closed { received: u64, reason: String },
 }
 

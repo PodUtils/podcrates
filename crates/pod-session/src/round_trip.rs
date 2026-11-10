@@ -1,4 +1,4 @@
-//! The round trip of a link, from the layer's own records (T-663). A spare
+//! The round trip of a link, from the layer's own records. A spare
 //! link opens once a question has waited three of them with no answer, 1 s
 //! at least and 3 s at most ([`super::beside::spare_after`]), as osewa
 //! suspects a link after the larger of three round trips and 1 s.
@@ -17,7 +17,7 @@ use std::time::Duration;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
 
-use super::record::{kind, Record};
+use super::record::{Record, kind};
 
 /// The part of a smoothed round trip that each new sample takes: RFC 6298's
 /// 1/8.

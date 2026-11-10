@@ -1,7 +1,42 @@
 [package]
 name = "pod-session"
+description = "The resumable layer: a byte stream with 64-bit offsets each way that outlives its link, with replay, heartbeat, the move before the limits of a relay, a spare link, the far end's sessions and their budget, and the handover to a new process; UDP in a stream; the link over a WebSocket; the rule that reads a peer's answer."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+# The parsers of the records, the handover and the UDP framing, for the
+# fuzz targets (fuzz/). A binary does not turn it on.
+fuzzing = []
+
+[dependencies]
+# The failure and its stage and class, the events, the resolver trait, the
+# entropy, the backoff, the text made safe to print.
+pod-core = { workspace = true, features = ["async"] }
+# The WebSocket session under a link (ws_link.rs), and the check for a host
+# that slept (pump.rs).
+pod-ws = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+# A peer's answer (answer.rs) is JSON.
+serde_json = { workspace = true }
+# A new session gets its secret from X25519 through HKDF-SHA-256, and
+# HMAC-SHA-256 proves it on a resume. Pure Rust.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+hkdf = { workspace = true }
+x25519-dalek = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# The system resolver of the UDP flows in tests/udp_framing.rs.
+pod-proxy = { workspace = true }
+# `test-util` gives the tests a paused clock: the heartbeat's idle time
+# passes at once.
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# The digests of the bytes that the tests carry.
+sha2 = { workspace = true }

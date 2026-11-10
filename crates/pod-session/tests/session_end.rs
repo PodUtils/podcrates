@@ -1,11 +1,11 @@
-//! The end of a session on the resumable layer (T-262). A side whose
+//! The end of a session on the resumable layer. A side whose
 //! application ended sends `CLOSE` after its last bytes, and the peer answers
 //! with its own `CLOSE`; only then is the session over at that side. A link
 //! that ends between the two leaves the session to a resume, which sends the
 //! `CLOSE` again. And a link whose writes fail still gives what it carried
 //! before: the far end's last bytes and its `CLOSE` are read, not lost. A
 //! `CLOSE` whose answer was lost, at a far end that had it, ends the session
-//! with no loss said (T-354).
+//! with no loss said.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -14,11 +14,11 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{
-    far, Acceptance, Ask, Decoder, End, Ended, Hello, Nonce, OsEntropy, Record, Role, SessionId, Settings,
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{
+    Acceptance, Ask, Decoder, End, Ended, Hello, Nonce, OsEntropy, Record, Role, SessionId, Settings, far,
 };
 
 const PIPE: usize = 256 * 1024;
@@ -310,7 +310,7 @@ async fn the_far_ends_close_that_its_link_lost_comes_on_the_next() {
 /// The client's application ends; the far end has its `CLOSE` and forgets
 /// the session, and the relay loses the far end's answer with the link. The
 /// client's resume finds the session gone, and the session ends there with
-/// no loss said: none was (T-354).
+/// no loss said: none was.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_close_whose_answer_its_link_lost_ends_with_no_loss_said() {
     let run = start(From::Far, After::Forgotten).await;

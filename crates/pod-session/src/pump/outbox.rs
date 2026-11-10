@@ -1,4 +1,4 @@
-//! The link's one writer, and the records that wait for it (T-262).
+//! The link's one writer, and the records that wait for it.
 //!
 //! The reader and the heartbeat never write: they leave an `ACK`, a `PONG`
 //! or a `PING` here, and the writer sends it before the next `DATA`. A
@@ -8,27 +8,26 @@
 //! channel that holds one batch, so that side waits while the link is full,
 //! and holds nothing that the reader needs.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncWrite, AsyncWriteExt};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{Notify, mpsc};
 use tokio::time::Instant;
 
 use super::super::hearing::Hearing;
 use super::super::link::Link;
 use super::super::record::Record;
-use super::super::round_trip::{data_end, Timing};
-use super::{lock, Watch};
+use super::super::round_trip::{Timing, data_end};
+use super::{Watch, lock};
 
 /// The last record that the pump asks the writer for, at a record boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Finish {
     /// `CLOSE`: the session ends at this side, and the peer learns it.
     Close,
-    /// `RETIRE`: this link ends, and the session goes on over another
-    /// (T-155).
+    /// `RETIRE`: this link ends, and the session goes on over another.
     Retire,
 }
 
@@ -36,7 +35,7 @@ pub(super) enum Finish {
 #[derive(Debug)]
 pub(super) enum Written {
     /// The application ended its bytes, and `CLOSE` went out after the last
-    /// of them, or after `END` once the peer's own came (T-632). The link
+    /// of them, or after `END` once the peer's own came. The link
     /// stays open for the peer's answer.
     Closed,
     /// The pump's last record went out, and the write side is shut.
@@ -63,12 +62,11 @@ pub(super) struct Outbox {
     finish: Mutex<Option<Finish>>,
     /// Whether this side's `CLOSE` went out on this link.
     closed: AtomicBool,
-    /// The peer's `END` came after this side's: `CLOSE` is due (T-632).
+    /// The peer's `END` came after this side's: `CLOSE` is due.
     close_due: AtomicBool,
     /// Wakes the writer for each of the above.
     wake: Notify,
-    /// The questions of this link that are timed, for its round trip
-    /// (T-663).
+    /// The questions of this link that are timed, for its round trip.
     timing: Mutex<Timing>,
 }
 
@@ -140,7 +138,7 @@ impl Outbox {
 
     /// The peer's `END` came after this side's own: `CLOSE` goes once this
     /// link's writer sent its `END`, never before bytes that a resume sends
-    /// again on it (T-632).
+    /// again on it.
     pub(super) fn close_after_end(&self) {
         self.close_due.store(true, Ordering::SeqCst);
         self.wake.notify_one();
@@ -192,10 +190,9 @@ async fn close<W: AsyncWrite + Unpin>(link: &mut W, outbox: &Outbox, watch: &Wat
 /// The writer: the pump's last record when it asks for one, else the small
 /// records that wait, else the application's next `DATA`; at the end of the
 /// application's bytes, `CLOSE`, or `END` where the session goes on for the
-/// peer's bytes, and `CLOSE` once the peer's own `END` came (T-632). A
+/// peer's bytes, and `CLOSE` once the peer's own `END` came. A
 /// `PING`, and `DATA` that the peer acknowledges, are questions that the far
-/// end answers at once (T-302), and their answers time the link's round trip
-/// (T-663).
+/// end answers at once, and their answers time the link's round trip.
 pub(super) async fn write<W>(
     link: &mut W,
     data: &mut mpsc::Receiver<Vec<u8>>,
@@ -227,11 +224,7 @@ where
             let closes = last == Finish::Close;
             let written = async {
                 put(link, &bytes_of(&record), outbox, watch).await?;
-                if closes {
-                    link.shutdown().await
-                } else {
-                    link.flush().await
-                }
+                if closes { link.shutdown().await } else { link.flush().await }
             };
             return match written.await {
                 Ok(()) => Written::Finished,

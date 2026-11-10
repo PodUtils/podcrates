@@ -1,4 +1,4 @@
-//! A session that moves to a new link before the relay's limits (T-155). A
+//! A session that moves to a new link before the relay's limits. A
 //! stand-in relay caps each link at 1 MiB both ways, as the relay caps a
 //! session at 64 MiB; the client moves at 768 KiB, its 75 %. 8 MiB go each
 //! way over more than 8 links, with equal SHA-256 digests, and no link meets
@@ -6,9 +6,9 @@
 //! session, then retired the old one. The same at full speed both ways, with
 //! a move each 256 KiB: the offsets of each new link's handshake are taken
 //! after the old link stopped, so none is one that the other side no longer
-//! keeps (T-262). And both ends end their bytes at once, 50 times, while the
+//! keeps. And both ends end their bytes at once, 50 times, while the
 //! session moves each 16 KiB: no loss is said, as a move cuts no `CLOSE` in
-//! flight (T-354).
+//! flight.
 
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -18,10 +18,10 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, End, Ended, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, Ended, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const KIB: usize = 1 << 10;
@@ -196,7 +196,7 @@ async fn a_session_moves_while_both_ends_send_at_full_speed() {
 
 /// Both ends end their bytes at once, as each has read the other's, while
 /// the session moves each 16 KiB, so that a move is due or in flight as the
-/// `CLOSE`s cross: 50 sessions, and none says a loss (T-354).
+/// `CLOSE`s cross: 50 sessions, and none says a loss.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn both_ends_close_at_once_while_the_session_moves() {
     for round in 0..50 {

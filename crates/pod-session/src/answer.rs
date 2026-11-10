@@ -1,4 +1,4 @@
-//! A peer's answer, read by one rule (T-633). Each optional member of an
+//! A peer's answer, read by one rule. Each optional member of an
 //! answer (a role's `hello`, an answer of `/v1/pair`) is of one of three
 //! kinds, and its absence means one thing for each:
 //!
@@ -11,7 +11,7 @@
 //!   `true` confirms it ([`kept`]); else the caller undoes what the peer
 //!   made, then says the refusal, and never retries, as the same peer would
 //!   make the same;
-//! - a dialect, such as a `hello`'s `version` (T-643): absent, or null, is
+//! - a dialect, such as a `hello`'s `version`: absent, or null, is
 //!   the dialect of before, which each peer that states none speaks; a whole
 //!   number is itself, and anything else is no dialect ([`dialect`]). One
 //!   that this end does not read is refused with a sentence that names both
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(hint(Some(4u32), 16), 4);
     }
 
-    /// T-643: absence is the dialect of before; a stated number, zero among
+    /// podssh T-643: absence is the dialect of before; a stated number, zero among
     /// them, is itself; each other value is no dialect, kept as written.
     #[test]
     fn a_dialect_left_out_is_the_one_of_before_and_a_stated_one_is_itself() {

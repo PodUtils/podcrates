@@ -2,12 +2,12 @@
 //! the table of `docs/design.md` (section 5), not made by the encoder: each
 //! vector decodes to the record built here field by field, and the encoder
 //! gives the vector back. Then the offsets: an overlap is dropped, and
-//! nothing after a gap is ever delivered (T-151).
+//! nothing after a gap is ever delivered.
 
-use podssh_relay::session::decode::DecodeError;
-use podssh_relay::session::link::{Event, Link, LinkError};
-use podssh_relay::session::record::MAX_DATA;
-use podssh_relay::session::{
+use pod_session::decode::DecodeError;
+use pod_session::link::{Event, Link, LinkError};
+use pod_session::record::MAX_DATA;
+use pod_session::{
     Acceptance, Decoder, Hello, Inbound, Nonce, OffsetError, Opening, Outbound, Proof, Record, RefuseCode, Role,
     SessionId,
 };
@@ -214,7 +214,7 @@ fn malformed(bytes: &[u8]) -> &'static str {
 fn a_type_that_the_table_does_not_have_is_refused_at_its_first_byte() {
     assert_eq!(error_of(b"SSH-2.0-OpenSSH_9.6\r\n"), DecodeError::UnknownType(b'S'));
     assert_eq!(error_of(&[0x00]), DecodeError::UnknownType(0));
-    // The first type past the table: `END` (0x0c, T-632) is the last in it.
+    // The first type past the table: `END` (0x0c, podssh T-632) is the last in it.
     assert_eq!(error_of(&[0x0d]), DecodeError::UnknownType(0x0d));
 }
 

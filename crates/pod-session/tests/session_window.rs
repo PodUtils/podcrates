@@ -1,12 +1,12 @@
-//! The window of a link of the pair's road (T-443): the bytes that a link
+//! The window of a link of the pair's road: the bytes that a link
 //! carries with no acknowledgement stay under what the relay holds for a
 //! slow receiver, 1 MiB, while the replay buffer keeps its 4 MiB for the
 //! links of other roads. Sans-IO: the link's room, and the records that a
 //! resume sends again, before any socket.
 
-use podssh_relay::session::record::MAX_DATA;
-use podssh_relay::session::replay::{DEFAULT_CAPACITY, PAIR_WINDOW};
-use podssh_relay::session::{Link, Record, Settings};
+use pod_session::record::MAX_DATA;
+use pod_session::replay::{DEFAULT_CAPACITY, PAIR_WINDOW};
+use pod_session::{Link, Record, Settings};
 
 const MIB: usize = 1 << 20;
 /// What the relay holds for a slow receiver before `1011 relay backpressure`.

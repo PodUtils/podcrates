@@ -1,4 +1,4 @@
-//! A spare link beside a silent one (T-305), on tokio's paused clock. A
+//! A spare link beside a silent one, on tokio's paused clock. A
 //! stand-in relay host stops carrying the bytes of a link, with no word to
 //! either end, as when the client's address changes: the client opens a
 //! spare link 3 s after its bytes went unanswered, and the spare's resume
@@ -16,11 +16,11 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::pump::DEAD_AFTER;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, End, Ended, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::pump::DEAD_AFTER;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, Ended, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const LIMIT: Duration = Duration::from_secs(120);

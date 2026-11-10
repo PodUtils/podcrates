@@ -1,5 +1,5 @@
-//! A moved session's old link is ended by the far end, never by the client
-//! (T-410). On a node's road the client's end of a link is the operator
+//! A moved session's old link is ended by the far end, never by the client.
+//! On a node's road the client's end of a link is the operator
 //! leg's end, whose Close crosses the node's bytes still on their way; the
 //! relay then ends the node's whole socket for a frame of an id that it
 //! forgot (`1003 unknown session id`), which the live relay did at the first
@@ -12,10 +12,10 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
 
-use podssh_relay::session::client;
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, Ended, OsEntropy, Role, Settings};
+use pod_session::client;
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, Ended, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 64 * 1024;
 

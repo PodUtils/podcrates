@@ -1,4 +1,4 @@
-//! The client's session across links (T-153, T-155). When a link is lost,
+//! The client's session across links. When a link is lost,
 //! the caller gives a new one (a new relay connection, through any relay
 //! host or road), the handshake proves the session's secret, and each side
 //! sends again from the other's received offset. SSH above sees no gap.
@@ -6,17 +6,16 @@
 //! A `CLOSE` or a `REFUSE` ends the session; each other loss is resumed,
 //! with a backoff between attempts, until the deadline. The caller decides,
 //! from what the transport said (a relay's close code), whether a loss may
-//! be resumed at all. A `CLOSE` that its link lost goes again on the next
-//! (T-262).
+//! be resumed at all. A `CLOSE` that its link lost goes again on the next.
 //!
 //! Before a link meets the relay's limits, the session moves: a new link is
 //! opened, and its far end greets, while the old one still carries the
 //! session; then the old one stops at a record boundary and says `RETIRE`,
 //! and only then does the new link's handshake take the offsets. An offset
 //! taken earlier could fall behind the acknowledgements that the old link
-//! still carried, and ask for bytes that the other side no longer keeps
-//! (T-262). A link that went silent gets a spare link beside it in the same
-//! way, which takes the session when it greets first (T-305, `beside`).
+//! still carried, and ask for bytes that the other side no longer keeps.
+//! A link that went silent gets a spare link beside it in the same
+//! way, which takes the session when it greets first (podssh T-305, `beside`).
 
 use std::future::Future;
 use std::sync::atomic::Ordering;
@@ -27,24 +26,24 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
-use super::beside::{self, failure, Beside, Plan};
+use super::Settings;
+use super::beside::{self, Beside, Plan, failure};
 use super::client::{self, Client, ClientError, Outcome};
 use super::deadline::{away, client_wait, forgotten};
 use super::decode::Decoder;
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError};
 use super::link::Link;
 use super::pump::{self, Carry, End, Ended, Watch};
-use super::record::{kind, RefuseCode};
+use super::record::{RefuseCode, kind};
 use super::secret::{Entropy, Secret};
-use super::Settings;
 
 /// How long after a loss the session waits for a new link, at both ends:
 /// the exit of M6 asks for a stall of 3 minutes to pass, and the backoff
-/// adds up to 45 s (the decision of T-153).
+/// adds up to 45 s (the decision of podssh T-153).
 pub const RESUME_DEADLINE: Duration = Duration::from_secs(600);
 /// The bytes of a link, both ways, at which the session moves: 75 % of the
 /// relay's 64 MiB, so the bytes in flight and a second try fit in the rest
-/// (the decision of T-155).
+/// (the decision of podssh T-155).
 pub const MOVE_BYTES: u64 = 48 << 20;
 /// The age of a link at which the session moves: an hour under the relay's
 /// 12 h.
@@ -53,7 +52,7 @@ pub const MOVE_AGE: Duration = Duration::from_secs(11 * 3600);
 const REFUSE_WAIT: Duration = Duration::from_secs(5);
 /// How long a resume after a `CLOSE` with no answer goes on before its loss
 /// is said: a first new link learns sooner whether the far end had the
-/// `CLOSE`, as a spare opens after a question waited as long at most (T-354).
+/// `CLOSE`, as a spare opens after a question waited as long at most.
 const LOSS_GRACE: Duration = beside::SPARE_AFTER;
 
 /// What the caller gives in place of a lost link, or for a move.
@@ -80,8 +79,7 @@ pub enum Note {
     Moved { bytes: u64, age: Duration, resent: u64 },
     /// A move failed; the old link goes on until it ends, then a resume.
     MoveFailed { why: String },
-    /// The link said nothing for `quiet`: a spare link opens beside it
-    /// (T-305).
+    /// The link said nothing for `quiet`: a spare link opens beside it.
     Spare { quiet: Duration },
     /// The spare link closed, as the old link spoke first, or it failed;
     /// the old link goes on.
@@ -139,7 +137,7 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// lost one, and for a move or a spare link beside a silent one, with
 /// [`End::Moving`]; `note` hears of each loss, attempt, resume, move and
 /// spare. With no layer at the far end, the bytes pass as they are, on the
-/// first link only; a session that ends with its link (T-612) has its first
+/// first link only; a session that ends with its link has its first
 /// link alone too.
 pub async fn run<L, A, C, F, N>(
     client: Client<L>,
@@ -156,7 +154,7 @@ where
     N: FnMut(Note),
 {
     let mut parts = client.into_parts();
-    // `--no-resume` (T-612): no resume, no move and no spare link.
+    // `--no-resume`: no resume, no move and no spare link.
     let layer = if parts.settings.resumes { parts.layer.take() } else { None };
     let Some((mut decoder, established)) = layer else {
         return Client::from_parts(parts).run(app).await;
@@ -172,7 +170,7 @@ where
         let started = Instant::now();
         let state = carry.state.clone();
         // A session whose `CLOSE` is due is closing: it goes on the link that
-        // it has, with no new link beside it; an `END` is not (T-632).
+        // it has, with no new link beside it; an `END` is not.
         let closing = carry.closing();
         // The steps of the watch beside the link, said as they come.
         let (said, mut steps) = mpsc::unbounded_channel();
@@ -222,46 +220,46 @@ where
         // A spare that takes the session says the loss before its resume,
         // and a loss is said once.
         let mut lost_said = false;
-        if let Some((why, greeted)) = greeted {
-            if ended.end.resumable() {
-                // A spare that takes the session is a resume after a loss.
-                let lost = Instant::now();
-                if let Beside::Spare(quiet) = why {
-                    let why = format!("the link said nothing for {} s, and a spare link answered", quiet.as_secs());
-                    note(Note::Lost { why });
-                    lost_said = true;
+        if let Some((why, greeted)) = greeted
+            && ended.end.resumable()
+        {
+            // A spare that takes the session is a resume after a loss.
+            let lost = Instant::now();
+            if let Beside::Spare(quiet) = why {
+                let why = format!("the link said nothing for {} s, and a spare link answered", quiet.as_secs());
+                note(Note::Lost { why });
+                lost_said = true;
+            }
+            let resumed = async {
+                let shaken = prove(greeted, &established, &carry.state, settings, entropy).await?;
+                resend(shaken, &mut carry).await
+            };
+            match tokio::time::timeout(client::HANDSHAKE_LIMIT, resumed).await {
+                Ok(Ok((new, new_decoder, resent))) => {
+                    // The far end's `ACCEPT` answers each question.
+                    hearing.heard();
+                    note(match why {
+                        Beside::Move => Note::Moved { bytes, age: started.elapsed(), resent },
+                        Beside::Spare(_) => Note::Resumed { resent, after: lost.elapsed() },
+                    });
+                    link = new;
+                    decoder = new_decoder;
+                    continue;
                 }
-                let resumed = async {
-                    let shaken = prove(greeted, &established, &carry.state, settings, entropy).await?;
-                    resend(shaken, &mut carry).await
-                };
-                match tokio::time::timeout(client::HANDSHAKE_LIMIT, resumed).await {
-                    Ok(Ok((new, new_decoder, resent))) => {
-                        // The far end's `ACCEPT` answers each question.
-                        hearing.heard();
-                        note(match why {
-                            Beside::Move => Note::Moved { bytes, age: started.elapsed(), resent },
-                            Beside::Spare(_) => Note::Resumed { resent, after: lost.elapsed() },
-                        });
-                        link = new;
-                        decoder = new_decoder;
-                        continue;
-                    }
-                    // This side's `CLOSE` went, and the far end forgot the
-                    // session: it had the `CLOSE`, and its answer was lost.
-                    Ok(Err(Failed::Forgotten(_))) if carry.closing() => {
-                        let _ = app.shutdown().await;
-                        let end = End::LocalEnd;
-                        return Outcome::Layer(Ended { end, received: ended.received, sent: ended.sent });
-                    }
-                    Ok(Err(failed @ (Failed::Final(_) | Failed::Forgotten(_)))) => {
-                        return gave_up(&mut app, failed.reason(), &ended).await;
-                    }
-                    // The old link is gone: the session goes on as after a
-                    // loss.
-                    Ok(Err(Failed::Again(why_not))) => note(after_stop(why, why_not)),
-                    Err(_) => note(after_stop(why, "the new link's handshake took too long".into())),
+                // This side's `CLOSE` went, and the far end forgot the
+                // session: it had the `CLOSE`, and its answer was lost.
+                Ok(Err(Failed::Forgotten(_))) if carry.closing() => {
+                    let _ = app.shutdown().await;
+                    let end = End::LocalEnd;
+                    return Outcome::Layer(Ended { end, received: ended.received, sent: ended.sent });
                 }
+                Ok(Err(failed @ (Failed::Final(_) | Failed::Forgotten(_)))) => {
+                    return gave_up(&mut app, failed.reason(), &ended).await;
+                }
+                // The old link is gone: the session goes on as after a
+                // loss.
+                Ok(Err(Failed::Again(why_not))) => note(after_stop(why, why_not)),
+                Err(_) => note(after_stop(why, "the new link's handshake took too long".into())),
             }
         }
         if !ended.end.resumable() {
@@ -269,11 +267,11 @@ where
             return Outcome::Layer(ended);
         }
         // A resume is a question too: the far end is silent until a new
-        // link carries its bytes (T-302).
+        // link carries its bytes.
         carry.hearing().asked();
         // A `CLOSE` with no answer is most often one that the far end had,
         // its answer gone with the link: that loss waits until the resume
-        // says whether the session goes on (T-354).
+        // says whether the session goes on.
         let mut unsaid = (!lost_said).then(|| Note::Lost { why: ended.end.loss() });
         if !matches!(ended.end, End::Closing) {
             say_lost(&mut unsaid, &mut note);
@@ -331,7 +329,7 @@ where
 {
     let lost = Instant::now();
     // The wall clock too: it counts a sleep of the host, which the monotonic
-    // clock may not (T-306).
+    // clock may not.
     let lost_wall = (settings.wall_clock)();
     // As long as the far end keeps the session, or less when the user asked.
     let wait = client_wait(&settings, established.peer_deadline);
@@ -374,7 +372,7 @@ where
                 }
             }
         };
-        let pause = crate::open::backoff(attempt);
+        let pause = pod_core::backoff::backoff(attempt);
         if Instant::now() + pause >= deadline {
             break format!("no new link within {} s: {why}", wait.as_secs());
         }

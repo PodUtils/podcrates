@@ -1,4 +1,4 @@
-//! A session that ends with its link (T-612): `--no-resume` of a client.
+//! A session that ends with its link: `--no-resume` of a client.
 //!
 //! The client names [`ONCE`] in its `OPEN`, and a far end that knows the ask
 //! names it in its `GREETING`, as one more feature name. With both names the

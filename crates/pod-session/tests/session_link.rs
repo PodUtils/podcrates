@@ -1,4 +1,4 @@
-//! The two ends of the resumable layer over in-memory streams (T-151): a
+//! The two ends of the resumable layer over in-memory streams: a
 //! client finds a far end with no layer by its first byte and passes the
 //! bytes as they are; with the layer, a session carries 1 MiB each way
 //! whole; a refusal reaches the client with its reason; and a link with a
@@ -10,9 +10,9 @@ use std::time::Duration;
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use podssh_relay::session::client::{self, ClientError, Found, Outcome};
-use podssh_relay::session::far;
-use podssh_relay::session::{
+use pod_session::client::{self, ClientError, Found, Outcome};
+use pod_session::far;
+use pod_session::{
     Acceptance, Ask, Decoder, End, HandshakeError, LinkError, OffsetError, OsEntropy, Record, RefuseCode, Role,
     SessionId, Sessions, Settings,
 };
@@ -106,7 +106,7 @@ async fn the_layer_carries_a_session_both_ways() {
     let Found::Layer { peer_role, features, resumed, .. } = client.found().clone() else {
         panic!("{:?}", client.found())
     };
-    let all: Vec<String> = podssh_relay::session::FEATURES.iter().map(|f| f.to_string()).collect();
+    let all: Vec<String> = pod_session::FEATURES.iter().map(|f| f.to_string()).collect();
     assert_eq!((peer_role, features, resumed), (Role::NODE, all, false));
     let id = client.established().unwrap().id;
     assert!(sessions.lock().unwrap().contains(&id));
@@ -156,7 +156,7 @@ async fn exchange(stream: DuplexStream, out: Vec<u8>) -> Vec<u8> {
 /// Both ends send 4 MiB at once through a link that holds 4 KiB each way.
 /// An end whose reader waited for its writer, stalled on the full link,
 /// would stop reading; the other end would then stall in turn, and neither
-/// link would move again (T-262).
+/// link would move again.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn both_ends_send_at_once_through_a_small_link() {
     let (client_link, far_link) = tokio::io::duplex(4 * 1024);
@@ -197,10 +197,10 @@ async fn both_ends_send_at_once_through_a_small_link() {
 /// A scripted far end: the bytes of a real `GREETING`, then what the test
 /// sends.
 async fn scripted_far_end(server: &mut DuplexStream) -> Decoder {
-    let greeting = Record::Greeting(podssh_relay::session::Hello {
+    let greeting = Record::Greeting(pod_session::Hello {
         version: 1,
         role: Role::NODE,
-        nonce: podssh_relay::session::Nonce([7; 32]),
+        nonce: pod_session::Nonce([7; 32]),
         features: vec![],
     });
     server.write_all(&greeting.to_bytes().unwrap()).await.unwrap();

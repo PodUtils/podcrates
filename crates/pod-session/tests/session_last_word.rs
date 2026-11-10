@@ -1,5 +1,5 @@
 //! The far end's last record on a link: a `CLOSE` or a `REFUSE` after which
-//! it has nothing more to say (T-354). The client writes on until it reads
+//! it has nothing more to say. The client writes on until it reads
 //! that record, and a relay that ends both ways when one fails, as the relay
 //! ends a session, would drop the record still on its way at the client's
 //! first write to a link that is gone. The far end keeps the link until the
@@ -10,15 +10,15 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{Notify, mpsc};
 use tokio::time::Instant;
 
-use podssh_relay::session::client::{self, ClientError, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{
-    far, Ask, Decoder, End, Ended, HandshakeError, Hello, Nonce, OsEntropy, Record, RefuseCode, Role, Secret,
-    SessionId, Settings,
+use pod_session::client::{self, ClientError, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{
+    Ask, Decoder, End, Ended, HandshakeError, Hello, Nonce, OsEntropy, Record, RefuseCode, Role, Secret, SessionId,
+    Settings, far,
 };
 
 const PIPE: usize = 256 * 1024;

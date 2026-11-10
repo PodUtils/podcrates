@@ -4,15 +4,15 @@
 //!
 //! Each error means that the link is no longer usable: the relay or the peer
 //! sent bytes that are not the layer. The caller drops the link, and a
-//! resume (T-153) carries the session on a new one.
+//! resume carries the session on a new one.
 
 use std::fmt;
 
 use super::record::{
-    is_feature_name, kind, Acceptance, Hello, Opening, Record, RefuseCode, Role, HEADER, MAGIC, MAX_BODY, MAX_FEATURES,
-    MAX_REASON,
+    Acceptance, HEADER, Hello, MAGIC, MAX_BODY, MAX_FEATURES, MAX_REASON, Opening, Record, RefuseCode, Role,
+    is_feature_name, kind,
 };
-use super::secret::{Nonce, Proof, SessionId, ID_LEN, KEY_LEN};
+use super::secret::{ID_LEN, KEY_LEN, Nonce, Proof, SessionId};
 
 /// Why bytes are not a record.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -233,10 +233,6 @@ impl<'a> Body<'a> {
     }
 
     fn end(self) -> Result<(), DecodeError> {
-        if self.rest.is_empty() {
-            Ok(())
-        } else {
-            Err(self.malformed("bytes after the end of the body"))
-        }
+        if self.rest.is_empty() { Ok(()) } else { Err(self.malformed("bytes after the end of the body")) }
     }
 }

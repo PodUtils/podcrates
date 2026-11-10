@@ -1,13 +1,15 @@
 //! A far end's sessions handed to the binary that takes its place, and
-//! taken there (T-668). Each link stops as a resume stops it; each session
+//! taken there. Each link stops as a resume stops it; each session
 //! that waits for its client then gives its layer's state, and its target
-//! moves as [`Movable`] moves it. A session that cannot move goes as a
+//! moves as [`Movable`] moves it, or as the caller's function moves it
+//! ([`Keeper::hand_over_with`]: a type of another crate, as the pipe to an
+//! end-to-end channel, cannot take the trait of this crate). A session that cannot move goes as a
 //! closed one, with why: the next binary keeps its id, and its client's
 //! resume hears `CLOSE` with those words, never a forgotten session.
 
 use super::*;
-use crate::session::handover::{Handed, Kept, LayerState, Movable, Moved};
-use crate::session::secret::Secret;
+use crate::handover::{Handed, Kept, LayerState, Movable, Moved, Moving};
+use crate::secret::Secret;
 
 /// How long the links of the sessions have to stop at a handover: a link
 /// whose writer is in a record ends that record first.
@@ -30,6 +32,16 @@ impl<A> Keeper<A>
 where
     A: AsyncRead + AsyncWrite + Unpin + Send + Movable,
 {
+    /// [`Keeper::hand_over_with`], each target moved by [`Movable`].
+    pub async fn hand_over(&self) -> Vec<Handed> {
+        self.hand_over_with(A::move_out).await
+    }
+}
+
+impl<A> Keeper<A>
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send,
+{
     /// The sessions that a link carries now.
     fn live(&self) -> usize {
         lock(&self.slots).values().filter(|slot| matches!(slot, Slot::Live { .. })).count()
@@ -39,8 +51,12 @@ where
     /// each link stops at a record boundary, as for a resume, then each
     /// session gives its state and its target. A session whose client was
     /// not let in yet is a visitor's, and goes with nothing. The keeper
-    /// holds nothing after.
-    pub async fn hand_over(&self) -> Vec<Handed> {
+    /// holds nothing after. `move_out` moves each target out of this
+    /// process, or says why it cannot.
+    pub async fn hand_over_with<M>(&self, move_out: M) -> Vec<Handed>
+    where
+        M: Fn(A, SessionId) -> Moving,
+    {
         for slot in lock(&self.slots).values() {
             if let Slot::Live { watch, .. } = slot {
                 watch.stop.notify_one();
@@ -70,7 +86,7 @@ where
                     }
                     let left = until.saturating_duration_since(now);
                     let (link, parts) = carry.parts();
-                    match app.move_out(id).await {
+                    match move_out(app, id).await {
                         Ok(moved) => out.push(Handed {
                             state: LayerState { id, secret, left, kept: Kept::Carried { link, carry: parts } },
                             target: Ok(moved),

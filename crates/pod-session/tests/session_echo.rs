@@ -1,6 +1,6 @@
 //! A session whose far application echoes each byte, as a node in front of
-//! an echo server or a shell does, while the client writes and reads at once
-//! (T-387). Each side's application waits for the other side's bytes, so a
+//! an echo server or a shell does, while the client writes and reads at once.
+//! Each side's application waits for the other side's bytes, so a
 //! reader that stops reading the link while its application is slow never
 //! sees the acknowledgements that would free its own replay buffer: both
 //! ends wait until the link is taken for dead, 30 s later, and resume with
@@ -15,10 +15,10 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, End, Ended, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, Ended, OsEntropy, Role, Settings, far};
 
 /// Small pipes on each side of the session, so that a slow application
 /// pushes back at once.

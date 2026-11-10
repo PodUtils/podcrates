@@ -25,7 +25,7 @@ use std::time::Duration;
 use super::deadline;
 use super::record::{Acceptance, Hello, Opening, Record, RefuseCode, Role, VERSION};
 use super::secret::{
-    derive, prove, verify, Claim, Entropy, Exchange, KeyPair, NoRandom, Nonce, Prover, Secret, SessionId, ID_LEN,
+    Claim, Entropy, Exchange, ID_LEN, KeyPair, NoRandom, Nonce, Prover, Secret, SessionId, derive, prove, verify,
 };
 use super::sessions::Sessions;
 
@@ -55,11 +55,11 @@ impl fmt::Display for HandshakeError {
         match self {
             HandshakeError::Refused { code, reason } if reason.is_empty() => write!(f, "refused ({code})"),
             HandshakeError::Refused { code, reason } => {
-                write!(f, "refused ({code}): {}", podssh_ws::text::one_line(reason))
+                write!(f, "refused ({code}): {}", pod_core::text::one_line(reason))
             }
             HandshakeError::Closed(reason) if reason.is_empty() => f.write_str("the far end ended the session"),
             HandshakeError::Closed(reason) => {
-                write!(f, "the far end ended the session: {}", podssh_ws::text::one_line(reason))
+                write!(f, "the far end ended the session: {}", pod_core::text::one_line(reason))
             }
             HandshakeError::Unexpected(what) => write!(f, "{what} where the handshake did not expect it"),
             HandshakeError::Version(v) => write!(f, "the peer speaks version {v} of the layer, and this side 1"),
@@ -96,7 +96,7 @@ pub struct Established {
     /// The features that both sides named.
     pub features: Vec<String>,
     /// How long the peer keeps a session whose link is lost, when it named
-    /// that in its first record: a far end does (T-306).
+    /// that in its first record: a far end does.
     pub peer_deadline: Option<Duration>,
     /// Whether the link resumed a session.
     pub resumed: bool,

@@ -1,22 +1,24 @@
-//! The budget of a far end's replay buffers, and its words (T-586).
+//! The budget of a far end's replay buffers, and its words.
 //!
 //! A far end charges each session that it keeps against one budget: a whole
 //! buffer for a session whose buffer can still fill, with a link or waiting
 //! for its client; for a session whose target ended and whose `CLOSE` went
 //! out, only the bytes that it still keeps, as its buffer can only empty;
-//! nothing for a session whose client was not let in yet (T-300), or that
+//! nothing for a session whose client was not let in yet, or that
 //! ended and keeps its id alone. A run of short logins whose client went away
 //! before it answered the `CLOSE` then holds nothing, where it held a whole
-//! buffer each for the deadline and filled the budget (GitHub #112).
+//! buffer each for the deadline and filled the budget (PodUtils/podssh#112).
 //!
 //! A new session that the budget has no room for is refused with what holds
-//! the budget and when room comes back. The node says the same on stderr,
-//! once a minute at most, and once when the budget passes three quarters:
+//! the budget and when room comes back. The node says the same to the sink
+//! of its [`Tell`] (a consumer shows it on stderr), once a minute at most, and once when the budget passes three quarters:
 //! the refusal reaches only the client, and the node's own log must say why
 //! its sessions are refused.
 
-use std::sync::OnceLock;
+use std::sync::Arc;
 use std::time::Duration;
+
+use pod_core::{Event, Events, NoEvents};
 
 use tokio::time::Instant;
 
@@ -85,44 +87,69 @@ impl Told {
     }
 }
 
-type Say = Box<dyn Fn(&str) + Send + Sync>;
+/// The kind of the event of a refused session.
+pub const REFUSED: &str = "session.budget.refused";
+/// The kind of the event of a budget past three quarters.
+pub const FILLING: &str = "session.budget.filling";
+/// What changes a far end's budget, when its caller names nothing.
+pub const CHANGE: &str = "the resume deadline and the replay buffer of the node";
 
-/// Where the budget's lines go. A process runs one node, so one place: set
-/// by the node's command, and with none, a far end says nothing (a test, a
-/// far end of `podssh serve`).
-static SAY: OnceLock<Say> = OnceLock::new();
-
-/// Send the budget's lines to `say` from now on: a node's stderr, which a
-/// detached node's log keeps. The first call holds.
-pub fn tell(say: impl Fn(&str) + Send + Sync + 'static) {
-    let _ = SAY.set(Box::new(say));
+/// Where a far end's budget lines go, and the words of what changes the
+/// budget (a consumer names its own flags and variables). With the default,
+/// a far end says nothing, and names [`CHANGE`].
+#[derive(Clone)]
+pub struct Tell {
+    /// The sink of the budget's lines: a node's stderr, which a detached
+    /// node's log keeps.
+    pub events: Arc<dyn Events>,
+    /// What changes the budget, at the end of each line.
+    pub change: String,
 }
 
-/// Say `line` where [`tell`] sends the budget's lines, if anywhere.
-pub fn say(line: &str) {
-    if let Some(say) = SAY.get() {
-        say(line);
+impl Tell {
+    /// The lines to `events`, with `change` as the words of what changes
+    /// the budget.
+    pub fn new(events: Arc<dyn Events>, change: impl Into<String>) -> Tell {
+        Tell { events, change: change.into() }
+    }
+
+    /// Say `line`, of the kind `kind`, to the sink.
+    pub fn say(&self, kind: &'static str, line: &str) {
+        self.events.event(Event::warn(kind, line));
+    }
+}
+
+impl Default for Tell {
+    fn default() -> Tell {
+        Tell { events: Arc::new(NoEvents), change: CHANGE.to_string() }
+    }
+}
+
+impl std::fmt::Debug for Tell {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tell").field("change", &self.change).finish_non_exhaustive()
     }
 }
 
 /// The refusal of a new session that `budget` bytes have no room for, with
-/// what holds them and when room comes back.
-pub fn refusal(census: &Census, budget: usize) -> String {
+/// what holds them and when room comes back; `change` names what changes
+/// the budget ([`Tell::change`]).
+pub fn refusal(census: &Census, budget: usize, change: &str) -> String {
     let n = census.sessions();
     format!(
-        "this node keeps {n} resumable session{} ({} MiB of replay buffers): {}; --resume-deadline and \
-         PODSSH_REPLAY_BUFFER of the node change its budget",
+        "this node keeps {n} resumable session{} ({} MiB of replay buffers): {}; {change} change its budget",
         if n == 1 { "" } else { "s" },
         budget >> 20,
         holders(census)
     )
 }
 
-/// The line of a budget that passed three quarters.
-pub fn filling(census: &Census, budget: usize) -> String {
+/// The line of a budget that passed three quarters; `change` names what
+/// changes the budget ([`Tell::change`]).
+pub fn filling(census: &Census, budget: usize, change: &str) -> String {
     format!(
         "the resumable sessions hold {} MiB of this node's {} MiB of replay buffers: {}; a new session past the \
-         budget is refused (--resume-deadline and PODSSH_REPLAY_BUFFER of the node change it)",
+         budget is refused ({change} change it)",
         census.held.div_ceil(1 << 20),
         budget >> 20,
         holders(census)
@@ -130,8 +157,8 @@ pub fn filling(census: &Census, budget: usize) -> String {
 }
 
 /// The sessions that hold the budget, in words; the relay role's refusal
-/// names them too (T-173).
-pub(crate) fn holders(census: &Census) -> String {
+/// names them too.
+pub fn holders(census: &Census) -> String {
     let waiting = match (census.waiting, census.first_free) {
         (0, _) => "none waiting for its client".to_string(),
         (1, Some(left)) => format!("1 waiting for its client, for {} more", left_words(left)),
@@ -150,5 +177,28 @@ pub fn left_words(left: Duration) -> String {
         60..=3599 if s.is_multiple_of(60) => format!("{} min", s / 60),
         60..=3599 => format!("{} min {} s", s / 60, s % 60),
         _ => super::deadline::span(Duration::from_secs(s)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+
+    /// The lines go to the sink of the keeper's caller, never to a global
+    /// of the process, with the caller's words of what changes the budget.
+    #[test]
+    fn a_tell_sends_each_line_to_its_own_sink() {
+        let seen: Arc<Mutex<Vec<Event>>> = Arc::default();
+        let keep = seen.clone();
+        let tell = Tell::new(Arc::new(move |e: Event| keep.lock().unwrap().push(e)), "--deadline of the node");
+        let census = Census { held: 4 << 20, live: 1, ..Census::default() };
+        tell.say(REFUSED, &refusal(&census, 4 << 20, &tell.change));
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].kind, REFUSED);
+        assert!(seen[0].text.ends_with("--deadline of the node change its budget"), "{}", seen[0].text);
+        assert!(Tell::default().change == CHANGE);
     }
 }

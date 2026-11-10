@@ -1,4 +1,4 @@
-//! The framing of UDP in a stream (T-168): each datagram is its length in
+//! The framing of UDP in a stream: each datagram is its length in
 //! two bytes, big-endian, then its bytes. 65,507 bytes is the most that one
 //! UDP datagram over IPv4 holds, so no podssh writes a longer length: a
 //! datagram that is too long is counted and dropped where it would be

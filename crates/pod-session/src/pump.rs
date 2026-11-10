@@ -3,11 +3,11 @@
 //!
 //! With a replay buffer, the application's bytes go out only while the
 //! buffer has room: a full buffer makes the writer wait for an `ACK`, so SSH
-//! waits and its window stops the far side (T-152). The peer's bytes are
+//! waits and its window stops the far side. The peer's bytes are
 //! acknowledged each 64 KiB, and 200 ms after any that are not.
 //!
 //! One writer owns the link's write side, and the reader never waits for it
-//! ([`outbox`], T-262). A link whose writes fail still gives what it carried
+//! (`outbox`). A link whose writes fail still gives what it carried
 //! before: the reader goes on for a short time, so the far end's last bytes
 //! and its `CLOSE`, which a relay delivers before it closes the link, are
 //! not lost.
@@ -15,14 +15,14 @@
 //! The session ends when a `CLOSE` is answered: the side whose application
 //! ended sends `CLOSE` after its last bytes, and the peer answers with its
 //! own. A link that ends before the answer leaves the session to a resume,
-//! which sends the `CLOSE` again (T-262). Where both sides name `end.v1`, the
+//! which sends the `CLOSE` again. Where both sides name `end.v1`, the
 //! first side's end is `END`, which ends its direction alone, and the second
-//! side's is the `CLOSE` (T-632, `super::half_close`).
+//! side's is the `CLOSE` (podssh T-632, `super::half_close`).
 //!
 //! A link can end at any await: the application stays open, and what the
 //! session needs for the next link (its offsets, its buffer, the bytes not
 //! yet written to the application) is in the [`Carry`] that the caller
-//! keeps (T-153).
+//! keeps.
 
 mod down;
 mod outbox;
@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{Notify, mpsc};
 use tokio::time::Instant;
 
 use super::decode::Decoder;
@@ -58,13 +58,13 @@ const DRAIN: Duration = Duration::from_secs(5);
 const FINISH: Duration = Duration::from_secs(2);
 /// How long bytes wait for their acknowledgement when fewer than 64 KiB came.
 pub const ACK_DELAY: Duration = Duration::from_millis(200);
-/// A `PING` goes out when this side sent nothing for this long (T-154).
+/// A `PING` goes out when this side sent nothing for this long.
 pub const PING_EVERY: Duration = Duration::from_secs(10);
 /// A link that carried nothing from the far end for three intervals is
 /// dead, and a resume replaces it.
 pub const DEAD_AFTER: Duration = Duration::from_secs(30);
 /// How long a retired link is held for its far end to end it: more than the
-/// far end's 30 s for a handshake, after which it drops each link (T-388).
+/// far end's 30 s for a handshake, after which it drops each link.
 const LINGER_RETIRED: Duration = Duration::from_secs(35);
 
 /// How a link of the session ended.
@@ -77,27 +77,25 @@ pub enum End {
     /// answered it when it could.
     Closed(String),
     /// This side's `CLOSE` went out, but the link ended before the peer's
-    /// answer came: a resume sends the `CLOSE` again (T-262).
+    /// answer came: a resume sends the `CLOSE` again.
     Closing,
-    /// The link ended with no `CLOSE`: a loss, which a resume can carry over
-    /// (T-153).
+    /// The link ended with no `CLOSE`: a loss, which a resume can carry over.
     Lost(Option<std::io::Error>),
     /// The link carried what ends it: a gap, bytes that are not records, a
     /// `REFUSE`.
     Broken(LinkError),
     /// This side was told to stop: the session went on to a newer link.
     Stopped,
-    /// The peer retired this link: the session goes on over another one
-    /// (T-155).
+    /// The peer retired this link: the session goes on over another one.
     Retired,
     /// This link nears the relay's limits, and the session moves, or it
     /// went silent, and a spare link opens beside it: what the resume driver
     /// gives its caller when it asks for a new link beside the one that
-    /// goes on (T-155, T-305); no link ends so.
+    /// goes on; no link ends so.
     Moving,
     /// No new link carried the session on, for this reason: the far end did
     /// not resume it, the transport said not to come back, or the deadline
-    /// passed (T-153).
+    /// passed.
     GaveUp(String),
 }
 
@@ -114,7 +112,7 @@ impl End {
     }
 
     /// A loss, in words: the client's line of a loss before its resume, and
-    /// of the end of a session that ends with its link (T-612).
+    /// of the end of a session that ends with its link.
     pub fn loss(&self) -> String {
         match self {
             End::Lost(Some(e)) => format!("the link failed: {e}"),
@@ -150,13 +148,13 @@ pub struct Carry {
     /// application's new bytes.
     again: Vec<u8>,
     /// Whether this side's application ended its bytes: from then on, each
-    /// link of the session sends `CLOSE`, or `END` (T-632), after the last of
+    /// link of the session sends `CLOSE`, or `END`, after the last of
     /// them.
     app_ended: bool,
-    /// What this side heard from the far end, across links (T-302).
+    /// What this side heard from the far end, across links.
     hearing: Arc<Hearing>,
     /// Whether the application's write side is shut: the peer's `END` came,
-    /// and the application took each byte before it (T-632).
+    /// and the application took each byte before it.
     app_shut: bool,
 }
 
@@ -173,7 +171,7 @@ impl Carry {
     }
 
     /// The session's hearing is `hearing`, which a notice in the terminal
-    /// reads (T-302).
+    /// reads.
     pub fn with_hearing(mut self, hearing: Arc<Hearing>) -> Carry {
         self.hearing = hearing;
         self
@@ -186,13 +184,13 @@ impl Carry {
 
     /// Whether this side's application ended its bytes, on this link or an
     /// earlier one: a far end that then no longer knows the session had its
-    /// `CLOSE` (T-262).
+    /// `CLOSE`.
     pub fn app_ended(&self) -> bool {
         self.app_ended
     }
 
     /// Whether this side's `CLOSE` is due or went: its application ended its
-    /// bytes, and no `END` keeps the session open for the peer's (T-632). A
+    /// bytes, and no `END` keeps the session open for the peer's. A
     /// far end that then no longer knows the session had the `CLOSE`.
     pub fn closing(&self) -> bool {
         self.app_ended && lock(&self.state).closes_at_end()
@@ -205,7 +203,7 @@ impl Carry {
 
     /// The `DATA` records that the peer lacks, from [`Link::resume`]: the
     /// next link's writer sends them first, while its reader reads, so two
-    /// ends that send again at once do not wait on each other (T-262).
+    /// ends that send again at once do not wait on each other.
     pub fn send_again(&mut self, records: Vec<u8>) {
         self.again = records;
     }
@@ -217,17 +215,17 @@ pub struct Watch {
     /// Ends the link at a record boundary, with [`End::Stopped`].
     pub stop: Notify,
     /// Whether a stopped link sends `RETIRE` first: the client moved the
-    /// session to another link (T-155).
+    /// session to another link.
     pub retire: AtomicBool,
     /// The bytes that the link carried, both ways, the records included:
     /// what the relay counts against its cap.
     pub bytes: AtomicU64,
-    /// The count of bytes at which `due` is told, once (T-155); 0 is never.
+    /// The count of bytes at which `due` is told, once; 0 is never.
     pub move_at: AtomicU64,
     /// Told when the link's bytes pass `move_at`.
     pub due: Notify,
     /// Set when this side's application ended its bytes on this link and
-    /// its `CLOSE` is due, not at an `END` (T-632): the session is closing,
+    /// its `CLOSE` is due, not at an `END`: the session is closing,
     /// and a move would only delay its `CLOSE`.
     pub app_ended: AtomicBool,
     /// Whether this side ends a retired link (the far end, a node's): after
@@ -235,10 +233,10 @@ pub struct Watch {
     /// `close` then follows its data. The client never does: an end of its
     /// side is the operator leg's end, whose Close would cross the node's
     /// bytes still on their way, and the relay ends the node's whole socket
-    /// for a frame of an id that it forgot (T-410).
+    /// for a frame of an id that it forgot.
     pub ends_links: bool,
     /// The most bytes that this link carries with no acknowledgement, from
-    /// the settings of its road (T-443); `None` leaves it to the buffer.
+    /// the settings of its road; `None` leaves it to the buffer.
     pub window: Option<usize>,
 }
 
@@ -316,13 +314,8 @@ where
             app_shut,
         );
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
-        let beat = async {
-            if heartbeat {
-                beat(&outbox, &heard, hearing).await
-            } else {
-                std::future::pending().await
-            }
-        };
+        let beat =
+            async { if heartbeat { beat(&outbox, &heard, hearing).await } else { std::future::pending().await } };
         tokio::pin!(up, down, writer, beat);
         let mut app_ended = false;
         loop {
@@ -355,7 +348,7 @@ where
                     *app_ended_before = true;
                     // The application ended its bytes: the writer sends the
                     // rest, then `CLOSE`; or `END`, and the session is not
-                    // closing until the peer's own end (T-632).
+                    // closing until the peer's own end.
                     if lock(state).closes_at_end() {
                         watch.app_ended.store(true, Ordering::SeqCst);
                     }
@@ -401,7 +394,7 @@ where
     // on it: a node's road then closes the leg after its data, where a leg
     // that this side dropped first would be closed under the node's data
     // still on its way, and the relay ends the node's whole socket for a
-    // frame of an id it forgot (T-388). Its bytes are no longer the
+    // frame of an id it forgot. Its bytes are no longer the
     // session's: the new link carries them again.
     // The far end's own `RETIRE` is followed by its end of the link the same
     // way, once its last bytes are out.
@@ -440,7 +433,7 @@ async fn finish<F: Future<Output = Written> + Unpin>(outbox: &Outbox, last: Fini
 }
 
 /// A `PING` after [`PING_EVERY`] with nothing sent, and the end of the link
-/// after [`DEAD_AFTER`] with nothing heard from the far end (T-154). Each
+/// after [`DEAD_AFTER`] with nothing heard from the far end. Each
 /// record is payload to the relay, so the pings also keep its idle cut away;
 /// the far end's `PONG` carries its received offset, an acknowledgement.
 ///
@@ -448,9 +441,9 @@ async fn finish<F: Future<Output = Written> + Unpin>(outbox: &Outbox, last: Fini
 /// opened beside this one), and when a tick of the clocks comes late, as
 /// after a sleep of the host, which the monotonic clock of the bounds above
 /// does not count: the far end's answer, or its silence, then tells within
-/// the bound of a spare link whether the link outlived the sleep (T-663).
+/// the bound of a spare link whether the link outlived the sleep.
 async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing) -> End {
-    use podssh_ws::wake::{Reading, Wake};
+    use pod_ws::wake::{Reading, Wake};
     let mut wake = Wake::new(Reading::now());
     loop {
         let now = Instant::now();

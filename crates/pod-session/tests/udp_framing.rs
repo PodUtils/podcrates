@@ -1,4 +1,4 @@
-//! UDP in a stream (T-168): the framing, byte for byte, and one flow to a
+//! UDP in a stream: the framing, byte for byte, and one flow to a
 //! UDP target on the loopback. Each datagram is its length in two bytes,
 //! big-endian, then its bytes; a length over 65,507 is refused; a datagram
 //! stays whole however the stream's bytes are cut, and two datagrams stay
@@ -10,8 +10,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use podssh_relay::udp::flow::{self, FlowEnd};
-use podssh_relay::udp::{encode, framed, Decoder, FrameError, Frames, MAX_DATAGRAM};
+use pod_proxy::resolve::System;
+use pod_session::udp::flow::{self, FlowEnd};
+use pod_session::udp::{Decoder, FrameError, Frames, MAX_DATAGRAM, encode, framed};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf};
 
 /// A DNS query for `example.org`, type A, written out: the shape of the
@@ -185,8 +186,11 @@ fn answer_to(query: &[u8]) -> Vec<u8> {
 
 #[tokio::test]
 async fn a_flow_carries_each_datagram_to_its_target_and_each_answer_back() {
+    pod_testkit::need_loopback!();
     let port = answering_server().await;
-    let socket = flow::connect("127.0.0.1", port, Duration::from_secs(5)).await.expect("a UDP socket on the loopback");
+    let socket = flow::connect(&System::new(), "127.0.0.1", port, Duration::from_secs(5))
+        .await
+        .expect("a UDP socket on the loopback");
     let (near, far) = tokio::io::duplex(64 * 1024);
     let carried = tokio::spawn(flow::carry(far, socket, flow::IDLE));
     let (read, mut write) = tokio::io::split(near);
@@ -213,8 +217,9 @@ async fn a_flow_carries_each_datagram_to_its_target_and_each_answer_back() {
 
 #[tokio::test]
 async fn a_flow_with_no_datagram_ends_after_its_idle_limit() {
+    pod_testkit::need_loopback!();
     let port = answering_server().await;
-    let socket = flow::connect("127.0.0.1", port, Duration::from_secs(5)).await.unwrap();
+    let socket = flow::connect(&System::new(), "127.0.0.1", port, Duration::from_secs(5)).await.unwrap();
     let (near, far) = tokio::io::duplex(1024);
     let started = std::time::Instant::now();
     let carried = tokio::time::timeout(Duration::from_secs(10), flow::carry(far, socket, Duration::from_millis(300)))
@@ -231,8 +236,9 @@ async fn a_flow_with_no_datagram_ends_after_its_idle_limit() {
 
 #[tokio::test]
 async fn a_flow_whose_stream_is_not_the_framing_ends_and_says_so() {
+    pod_testkit::need_loopback!();
     let port = answering_server().await;
-    let socket = flow::connect("127.0.0.1", port, Duration::from_secs(5)).await.unwrap();
+    let socket = flow::connect(&System::new(), "127.0.0.1", port, Duration::from_secs(5)).await.unwrap();
     let (mut near, far) = tokio::io::duplex(1024);
     let carried = tokio::spawn(flow::carry(far, socket, flow::IDLE));
     near.write_all(b"\xff\xffnot a datagram").await.unwrap();
@@ -244,9 +250,11 @@ async fn a_flow_whose_stream_is_not_the_framing_ends_and_says_so() {
 
 #[tokio::test]
 async fn the_probe_sends_nothing_and_names_the_address() {
+    pod_testkit::need_loopback!();
     let server = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
     let port = server.local_addr().unwrap().port();
-    let addr = flow::probe("127.0.0.1", port, Duration::from_secs(5)).await.expect("UDP on the loopback");
+    let addr =
+        flow::probe(&System::new(), "127.0.0.1", port, Duration::from_secs(5)).await.expect("UDP on the loopback");
     assert_eq!(addr, server.local_addr().unwrap());
     let mut buf = [0u8; 16];
     let nothing = tokio::time::timeout(Duration::from_millis(300), server.recv_from(&mut buf)).await;

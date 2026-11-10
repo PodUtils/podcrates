@@ -1,14 +1,14 @@
 //! The application's bytes out, as `DATA` for the writer, within the room of
-//! the replay buffer and the window of the link's road (T-152, T-443).
+//! the replay buffer and the window of the link's road.
 
 use std::sync::Mutex;
 
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{Notify, mpsc};
 
 use super::super::link::Link;
 use super::super::record::MAX_DATA;
-use super::{lock, End, CHUNK};
+use super::{CHUNK, End, lock};
 
 /// The end of the first record in `records`: a type byte, a 32-bit length,
 /// the body.
@@ -37,9 +37,9 @@ async fn until(state: &Mutex<Link>, room: &Notify, fits: impl Fn(&Link) -> bool)
 /// The application's bytes out, as `DATA` for the writer: first the records
 /// of a resume (`again`), a record at a time, then the application's new
 /// bytes. `None` when the application ended them, which `CLOSE` or `END`
-/// then says (T-632), else why the session cannot go on. It reads only what
+/// then says, else why the session cannot go on. It reads only what
 /// the replay buffer has room for, and what `window` lets the link carry
-/// with no acknowledgement (T-443), and waits for an acknowledgement when it
+/// with no acknowledgement, and waits for an acknowledgement when it
 /// has none. A byte read is in the buffer before any await, so a link that
 /// ends loses none. An application that `ended` its bytes on an earlier link
 /// is not read again: its end goes again after the records of the resume.
@@ -89,7 +89,7 @@ where
         let n = match app.read(&mut buf[..want]).await {
             Ok(0) => return None,
             // No end of one direction: the application is gone, and the
-            // session ends with `CLOSE` (T-632).
+            // session ends with `CLOSE`.
             Err(_) => {
                 lock(state).app_failed();
                 return None;

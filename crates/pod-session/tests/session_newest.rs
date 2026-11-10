@@ -1,26 +1,24 @@
 //! The newest resume of a session wins at the far end by the order of the
-//! handshakes, not of the tasks that run them (T-270). A client that moves
+//! handshakes, not of the tasks that run them. A client that moves
 //! twice in a row resumes on link A, then on link B; when the far end's task
 //! for A starts late, after B's, A gives way, and B keeps the session. When
 //! the order of the tasks decided, A stopped B, and the client saw B end
 //! with no word from the far end. And a session whose client asked it to end
-//! with its link (T-612, `--no-resume`) leaves the far end nothing at a loss,
+//! with its link (podssh T-612, `--no-resume`) leaves the far end nothing at a loss,
 //! where one with no such ask waits its deadline.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, DuplexStream};
 use tokio::task::JoinHandle;
 
-use podssh_relay::session::client::{self, Client, ClientError, Found, Outcome};
-use podssh_relay::session::far::{self, Accepted};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next};
-use podssh_relay::session::{
-    once, Ask, End, Ended, HandshakeError, OsEntropy, RefuseCode, Role, Secret, SessionId, Settings,
-};
+use pod_session::client::{self, Client, ClientError, Found, Outcome};
+use pod_session::far::{self, Accepted};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next};
+use pod_session::{Ask, End, Ended, HandshakeError, OsEntropy, RefuseCode, Role, Secret, SessionId, Settings, once};
 
 const PIPE: usize = 64 * 1024;
 const LIMIT: Duration = Duration::from_secs(5);
@@ -89,7 +87,7 @@ async fn an_older_resume_whose_task_starts_late_gives_way_to_the_newer() {
 
 /// A resume that comes before the first link's task carries the session, as
 /// while a node opens its target, waits for that link and takes the session
-/// from it; it used to find no slot and end the session (T-600).
+/// from it; it used to find no slot and end the session.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_resume_before_the_first_link_is_carried_waits_for_it() {
     let settings = Settings::default();
@@ -176,7 +174,7 @@ fn relayed() -> (DuplexStream, DuplexStream, JoinHandle<()>) {
     (client, far, relay)
 }
 
-/// What a session left after its link was lost (T-612).
+/// What a session left after its link was lost.
 struct Lost {
     keeper: Arc<Keeper<DuplexStream>>,
     /// The target's other end: it reads the end once the far end shuts it.
@@ -247,7 +245,7 @@ async fn resume_of(lost: &Lost) -> Result<Client<DuplexStream>, ClientError> {
     resumed
 }
 
-/// `--no-resume` (T-612): both sides name the ask; the client carries the
+/// `--no-resume`: both sides name the ask; the client carries the
 /// session on its first link alone, and asks for no other; as that link
 /// goes, the far end forgets the session and shuts its target, so its budget
 /// is free at once, and a resume finds no session.

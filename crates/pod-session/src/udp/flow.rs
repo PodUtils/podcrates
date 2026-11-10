@@ -1,4 +1,4 @@
-//! One flow of UDP at the far end (T-168): a UDP socket connected to the
+//! One flow of UDP at the far end: a UDP socket connected to the
 //! target, and the stream that carries the flow's datagrams in the framing
 //! of [`super::codec`]. Each datagram of the stream goes out as one UDP
 //! datagram, and each that comes back goes into the stream. UDP has no end
@@ -14,11 +14,12 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
+use pod_core::{Failure, Resolve};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::UdpSocket;
 use tokio::time::Instant;
 
-use super::codec::{framed, Frames, MAX_DATAGRAM};
+use super::codec::{Frames, MAX_DATAGRAM, framed};
 
 /// A flow with no datagram either way for this long ends.
 pub const IDLE: Duration = Duration::from_secs(60);
@@ -30,7 +31,7 @@ const RECEIVE: usize = 64 * 1024;
 #[derive(Debug)]
 pub enum NoFlow {
     /// The target's name has no address.
-    Resolve(String),
+    Resolve(Failure),
     /// This host refuses UDP (EPERM or EACCES), as a sandbox does.
     Refused(io::Error),
     /// Another failure of the socket.
@@ -47,7 +48,7 @@ impl NoFlow {
 impl fmt::Display for NoFlow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NoFlow::Resolve(why) => write!(f, "could not resolve the name: {why}"),
+            NoFlow::Resolve(why) => write!(f, "could not resolve the name: {}", why.chain()),
             NoFlow::Refused(e) => write!(f, "this host refuses UDP: {e}"),
             NoFlow::Socket(e) => write!(f, "no UDP socket to it: {e}"),
         }
@@ -57,11 +58,11 @@ impl fmt::Display for NoFlow {
 impl std::error::Error for NoFlow {}
 
 /// A UDP socket connected to `host:port`: the first address of the name
-/// that takes one. The name resolves as each of podssh's dials resolves
-/// one, within `timeout`.
-pub async fn connect(host: &str, port: u16, timeout: Duration) -> Result<UdpSocket, NoFlow> {
+/// that takes one. `resolver`, the caller's, resolves the name as each of
+/// its dials does, within `timeout`.
+pub async fn connect(resolver: &dyn Resolve, host: &str, port: u16, timeout: Duration) -> Result<UdpSocket, NoFlow> {
     let deadline = Instant::now() + timeout;
-    let addrs = podssh_ws::resolve::resolve(host, port, deadline).await.map_err(NoFlow::Resolve)?;
+    let addrs = resolver.resolve(host, port, deadline).await.map_err(NoFlow::Resolve)?;
     let mut last = None;
     for addr in addrs {
         match socket_to(addr).await {
@@ -76,8 +77,8 @@ pub async fn connect(host: &str, port: u16, timeout: Duration) -> Result<UdpSock
 /// Whether this host sends UDP to `host:port`: a socket, connected, then
 /// closed. No datagram goes out, so the target sees nothing. The address
 /// that it would reach.
-pub async fn probe(host: &str, port: u16, timeout: Duration) -> Result<SocketAddr, NoFlow> {
-    let socket = connect(host, port, timeout).await?;
+pub async fn probe(resolver: &dyn Resolve, host: &str, port: u16, timeout: Duration) -> Result<SocketAddr, NoFlow> {
+    let socket = connect(resolver, host, port, timeout).await?;
     socket.peer_addr().map_err(NoFlow::Socket)
 }
 

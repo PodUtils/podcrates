@@ -1,11 +1,11 @@
 //! The replay buffer: the bytes that a side sent and its peer has not
-//! acknowledged, so that a resume can send them again (T-152).
+//! acknowledged, so that a resume can send them again.
 //!
 //! It never drops a byte that is not acknowledged, and it never grows past
 //! its capacity: when it is full, the writer waits for an `ACK`, and SSH's
 //! window then stops the server. A resume from an offset that it no longer
 //! keeps is refused with both offsets, never answered with a gap (the rule
-//! of GitHub #31).
+//! of PodUtils/podssh#31).
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -14,18 +14,18 @@ use super::offset::OffsetError;
 
 /// The capacity in each direction: the relay holds at most 1 MiB for a slow
 /// receiver and the SSH window is 512 KiB, so 4 MiB keeps the bytes of a lost
-/// link (the decision of T-152).
+/// link (the decision of podssh T-152).
 pub const DEFAULT_CAPACITY: usize = 4 << 20;
 /// The largest capacity that the setting gives.
 pub const MAX_CAPACITY: usize = 16 << 20;
-/// The setting: a whole number of bytes, from [`DEFAULT_CAPACITY`] to
-/// [`MAX_CAPACITY`].
-pub const CAPACITY_ENV: &str = "PODSSH_REPLAY_BUFFER";
 
-/// The capacity, with `env` (the value of [`CAPACITY_ENV`]) raising it up to
-/// [`MAX_CAPACITY`]. Another value is ignored.
-pub fn capacity(env: Option<&str>) -> usize {
-    env.and_then(|v| v.trim().parse::<usize>().ok())
+/// The capacity that `value` gives (a consumer reads it from its own
+/// setting, as podssh's `PODSSH_REPLAY_BUFFER`): a whole number of bytes
+/// from [`DEFAULT_CAPACITY`] to [`MAX_CAPACITY`]. Another value, or none,
+/// gives [`DEFAULT_CAPACITY`].
+pub fn capacity(value: Option<&str>) -> usize {
+    value
+        .and_then(|v| v.trim().parse::<usize>().ok())
         .filter(|n| (DEFAULT_CAPACITY..=MAX_CAPACITY).contains(n))
         .unwrap_or(DEFAULT_CAPACITY)
 }
@@ -33,8 +33,8 @@ pub fn capacity(env: Option<&str>) -> usize {
 /// The most bytes that one link of the pair's road carries with no
 /// acknowledgement: the relay holds at most 1 MiB for a slow receiver, and
 /// past it drops a frame and closes with `1011 relay backpressure`, so a
-/// quarter of it stays free for the headers of the records and the frames
-/// (T-443). The buffer keeps its capacity, for the links of other roads.
+/// quarter of it stays free for the headers of the records and the frames.
+/// The buffer keeps its capacity, for the links of other roads.
 pub const PAIR_WINDOW: usize = 768 << 10;
 
 /// A resume from an offset that the buffer does not keep.
@@ -52,7 +52,10 @@ impl fmt::Display for NotKept {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let NotKept { asked, start, end } = self;
         if asked < start {
-            write!(f, "the peer asks for bytes from offset {asked}, but they were acknowledged; this side keeps {start} to {end}")
+            write!(
+                f,
+                "the peer asks for bytes from offset {asked}, but they were acknowledged; this side keeps {start} to {end}"
+            )
         } else {
             write!(f, "the peer asks for bytes from offset {asked}, but this side sent only {end}")
         }
@@ -101,12 +104,12 @@ impl Replay {
     }
 
     /// A buffer that keeps `bytes` from `start` on, as a handover gives them
-    /// back (T-668).
+    /// back.
     pub(crate) fn restored(start: u64, capacity: usize, bytes: Vec<u8>) -> Replay {
         Replay { start, bytes: VecDeque::from(bytes), capacity }
     }
 
-    /// The bytes kept, in order, for a handover (T-668).
+    /// The bytes kept, in order, for a handover.
     pub(crate) fn contents(&self) -> Vec<u8> {
         let (a, b) = self.bytes.as_slices();
         [a, b].concat()

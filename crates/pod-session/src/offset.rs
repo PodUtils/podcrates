@@ -6,7 +6,7 @@
 //! delivered already, and is dropped; a record that starts above it means
 //! that bytes are missing, and nothing after a gap is ever delivered, since a
 //! byte delivered out of place breaks SSH for good. The link then ends, and a
-//! resume sends again from the received offset (T-153).
+//! resume sends again from the received offset.
 
 use std::fmt;
 
@@ -90,7 +90,7 @@ impl Outbound {
         Outbound { next, acknowledged: next }
     }
 
-    /// A sender as a handover gives it back (T-668): `next` bytes sent, and
+    /// A sender as a handover gives it back: `next` bytes sent, and
     /// the peer's acknowledgement at `acknowledged`, which is not past them.
     pub(crate) fn restored(next: u64, acknowledged: u64) -> Outbound {
         Outbound { next, acknowledged: acknowledged.min(next) }

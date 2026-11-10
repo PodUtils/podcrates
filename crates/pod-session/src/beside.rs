@@ -1,12 +1,11 @@
 //! A new link beside the one that carries the session: a move before the
-//! relay's limits (T-155), or a spare beside a link that went silent
-//! (T-305).
+//! relay's limits, or a spare beside a link that went silent.
 //!
 //! When the client's address changes, its TCP link through the proxy and
 //! the relay often goes silent with no error, and the heartbeat finds it
 //! dead only after 30 s. A spare link opens sooner: when a question of this
 //! side (`DATA` that the far end acknowledges, a `PING`) has waited three
-//! round trips of the link, 1 s to 3 s (T-663), with nothing from the far
+//! round trips of the link, 1 s to 3 s, with nothing from the far
 //! end, or nothing at all came for two heartbeats. The old link is asked
 //! too, so that one that only lagged closes the spare within a round trip.
 //! The spare reads its far end's `GREETING` and sends nothing: when the old
@@ -14,12 +13,12 @@
 //! never dialled a target for it; when it greets first, its resume takes the
 //! session, as after a loss, and the far end lets the newest resume win. One
 //! new link at a time, and one spare each 10 s at most. Measured through the
-//! stand-in proxy's `--move` with a fixed 3 s (T-305): a resume 3.0 to 3.2 s
+//! stand-in proxy's `--move` with a fixed 3 s: a resume 3.0 to 3.2 s
 //! after a new address, where the heartbeat alone took 35 s.
 
 use std::future::Future;
-use std::sync::atomic::Ordering;
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use tokio::io::AsyncRead;
@@ -31,7 +30,7 @@ use super::client;
 use super::hearing::Hearing;
 use super::link::Link;
 use super::pump::{End, Ended, Watch};
-use super::resume::{greeted, Greeted, Next, Note};
+use super::resume::{Greeted, Next, Note, greeted};
 
 /// The most that a question of this side waits, with nothing from the far
 /// end, before a spare link opens; all of it before the round trip is known.
@@ -43,10 +42,10 @@ pub const SPARE_QUIET: Duration = Duration::from_secs(20);
 pub const SPARE_EVERY: Duration = Duration::from_secs(10);
 /// The least that a question waits before a spare link opens, on a link of
 /// any round trip: osewa's floor, under which a link that only lagged would
-/// get a spare (T-663).
+/// get a spare.
 pub const SPARE_SOONEST: Duration = Duration::from_secs(1);
 /// How many smoothed round trips of the link a question waits before a
-/// spare link opens: osewa's three (T-663).
+/// spare link opens: osewa's three.
 pub const SPARE_ROUND_TRIPS: u32 = 3;
 /// The longest wait between two looks at the silence of the link.
 const LOOK_EVERY: Duration = Duration::from_millis(250);
@@ -56,9 +55,9 @@ const SPOKE: &str = "the link spoke again";
 /// Why a new link opened beside the one that carries the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Beside {
-    /// The link nears the relay's limits (T-155).
+    /// The link nears the relay's limits.
     Move,
-    /// The link said nothing for this long (T-305).
+    /// The link said nothing for this long.
     Spare(Duration),
 }
 
@@ -182,7 +181,7 @@ pub(super) fn failure(why: Beside, why_not: String) -> Note {
 /// How long a question waits, with nothing from the far end, before a spare
 /// link opens, on a link whose smoothed round trip is `round_trip`: three of
 /// them, [`SPARE_SOONEST`] at least and [`SPARE_AFTER`] at most; all of
-/// [`SPARE_AFTER`] until a question of the link was answered (T-663).
+/// [`SPARE_AFTER`] until a question of the link was answered.
 pub fn spare_after(round_trip: Option<Duration>) -> Duration {
     match round_trip {
         Some(round_trip) => round_trip.saturating_mul(SPARE_ROUND_TRIPS).clamp(SPARE_SOONEST, SPARE_AFTER),

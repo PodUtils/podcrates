@@ -4,7 +4,7 @@
 //! Once a session's state exists, the offset is read from it at the moment of
 //! the resume: the old link may still be carrying bytes then, and an offset
 //! older than the far end's last `ACK` would ask the client for bytes that it
-//! no longer keeps (T-153).
+//! no longer keeps.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -79,7 +79,7 @@ impl Sessions {
 
     /// The session's state goes, its received offset read from it last: a
     /// session that ended keeps its secret and offset alone, for the
-    /// handshake of a resume that lost its `CLOSE` (T-586).
+    /// handshake of a resume that lost its `CLOSE`.
     pub fn detach(&mut self, id: &SessionId) {
         if let Some(kept) = self.kept.get_mut(id) {
             let received = kept.received();

@@ -1,7 +1,7 @@
-//! The replay buffer of the resumable layer (T-152): a writer that waits
+//! The replay buffer of the resumable layer: a writer that waits
 //! when the buffer is full and goes on when an `ACK` frees room; a resume
 //! that sends exactly the missing bytes, also after a lost frame; no byte
-//! that is not acknowledged ever dropped (GitHub #31); and a resume from an
+//! that is not acknowledged ever dropped (PodUtils/podssh#31); and a resume from an
 //! offset that is not kept refused with both offsets, never a silent gap.
 
 use std::time::Duration;
@@ -9,11 +9,11 @@ use std::time::Duration;
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use podssh_relay::session::client::{self, Found};
-use podssh_relay::session::link::ACK_EVERY;
-use podssh_relay::session::record::MAX_DATA;
-use podssh_relay::session::replay::{self, Full, NotKept, Replay};
-use podssh_relay::session::{
+use pod_session::client::{self, Found};
+use pod_session::link::ACK_EVERY;
+use pod_session::record::MAX_DATA;
+use pod_session::replay::{self, Full, NotKept, Replay};
+use pod_session::{
     Acceptance, Ask, Decoder, Event, Hello, Link, LinkError, Nonce, OsEntropy, Record, RefuseCode, Role, SessionId,
     Settings,
 };
@@ -75,7 +75,7 @@ fn the_buffer_never_grows_past_its_capacity() {
     assert_eq!((link.sent(), link.kept()), (1000, 1000));
 }
 
-/// The invariant of GitHub #31, against a model: after any run of sends and
+/// The invariant of PodUtils/podssh#31, against a model: after any run of sends and
 /// acknowledgements, the buffer holds exactly the bytes from the highest
 /// acknowledgement to the last byte sent.
 #[test]

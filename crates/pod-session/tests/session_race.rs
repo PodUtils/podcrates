@@ -1,19 +1,19 @@
-//! The race between two roads (T-164), with stand-in roads on a paused
+//! The race between two roads, with stand-in roads on a paused
 //! clock: a road gives its link after its connection time, and its far end
 //! speaks after its own time, then reads what the client sends. The first
 //! road has the head start; the second starts after it, or at once when the
 //! first fails; the first far end to speak wins, and the loser's far end
 //! reads nothing at all: no `OPEN`, so no target. A planted race that waits
 //! for the first road's own time limit fails the first check. The measured
-//! race of `podssh ping node://NAME` (T-435) times each road that starts, and
+//! race of `podssh ping node://NAME` times each road that starts, and
 //! no far end of it reads a byte either.
 
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::session::race::{each_timed, first_answered, in_turn, race, Lost, Start, Timed, Won, HEAD_START};
-use podssh_relay::session::record::kind::GREETING;
+use pod_session::race::{HEAD_START, Lost, Start, Timed, Won, each_timed, first_answered, in_turn, race};
+use pod_session::record::kind::GREETING;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 const MS: Duration = Duration::from_millis(1);
@@ -146,7 +146,7 @@ fn boxed(road: impl Future<Output = Result<DuplexStream, String>> + 'static) -> 
     Box::pin(road)
 }
 
-/// Three roads in turn (T-379): the third, 250 ms after the second, wins
+/// Three roads in turn: the third, 250 ms after the second, wins
 /// when the first two cannot run until their own limits.
 #[tokio::test(start_paused = true)]
 async fn in_turn_the_third_road_starts_after_the_second_s_wait_and_wins() {
@@ -209,7 +209,7 @@ async fn in_turn_says_each_road_s_reason_in_the_order_of_the_list() {
     assert_eq!(in_turn(Vec::<(Start, Road)>::new()).await.err(), Some(Vec::new()), "no road, no winner");
 }
 
-/// The measured race of `podssh ping node://NAME` (T-435): each road that
+/// The measured race of `podssh ping node://NAME`: each road that
 /// starts is timed to its far end's first bytes, the second at its wait
 /// after the first answered; a fallback never starts while a road answered;
 /// and no far end gets a byte, so none opens a session.

@@ -15,15 +15,15 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
+use super::Settings;
 use super::decode::{DecodeError, Decoder};
 use super::half_close;
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
 use super::hearing::Hearing;
 use super::once;
 use super::pump::{self, Carry, Ended};
-use super::record::{kind, Record, Role};
+use super::record::{Record, Role, kind};
 use super::secret::{Entropy, SessionId};
-use super::Settings;
 
 /// How long the client waits for the far end's first byte: longer than the
 /// operator leg waits for the node's `ready` (20 s), after which the first
@@ -100,7 +100,7 @@ pub struct Client<L> {
     /// The layer's state, for a far end with it.
     layer: Option<(Decoder, Box<Established>)>,
     settings: Settings,
-    /// What the session hears from the far end, for a notice (T-302).
+    /// What the session hears from the far end, for a notice.
     hearing: Arc<Hearing>,
 }
 
@@ -130,7 +130,7 @@ where
 
 /// A link whose far end has spoken first, or kept silent for
 /// [`FIRST_BYTE_WAIT`]: what it sent, and nothing of the client yet. The
-/// race between roads (T-164) stops here, so a link that loses it never
+/// race between roads stops here, so a link that loses it never
 /// sends `OPEN`, and its far end never dials its target.
 pub struct Greeted<L> {
     link: L,
@@ -150,7 +150,7 @@ impl<L> Greeted<L> {
     }
 
     /// The link with the bytes read in the wait given back first, for a
-    /// handshake that reads them itself (a resume, T-164).
+    /// handshake that reads them itself (a resume, podssh T-164).
     pub fn rewound(self) -> Rewound<L> {
         Rewound { first: self.first, at: 0, link: self.link }
     }
@@ -223,8 +223,8 @@ where
             return Ok(Client { link, found, early: first, layer: None, settings, hearing: Arc::default() });
         }
         // The `OPEN` names the features, the ask of a session that ends with
-        // its link when the user turned the resumes off (T-612), and the ask
-        // of the end of one direction where the application reads on (T-632).
+        // its link when the user turned the resumes off, and the ask
+        // of the end of one direction where the application reads on.
         let mut named = once::asked(&settings);
         half_close::ask(&settings, &mut named);
         let named: Vec<&str> = named.iter().map(String::as_str).collect();
@@ -265,10 +265,10 @@ where
         while let Some(record) = decoder.next().map_err(ClientError::Decode)? {
             let step = handshake.handle(record).map_err(ClientError::Handshake)?;
             // The `OPEN` follows the `GREETING`, which is the first record.
-            if let Some(open) = open.take() {
-                if let Err(failed) = send(link, &open).await {
-                    return Err(heard_before(link, decoder, &mut handshake, buf, failed).await);
-                }
+            if let Some(open) = open.take()
+                && let Err(failed) = send(link, &open).await
+            {
+                return Err(heard_before(link, decoder, &mut handshake, buf, failed).await);
             }
             match step {
                 Step::Send(record) => {
@@ -293,7 +293,7 @@ where
 /// A write of the handshake failed with `failed`; what the far end sent
 /// before it ended the link may still wait to be read: a `REFUSE` that says
 /// why, from a far end that refused at the `OPEN` and was gone while this
-/// side wrote its proof (T-354). That end, else `failed`.
+/// side wrote its proof. That end, else `failed`.
 async fn heard_before<L: AsyncRead + Unpin>(
     link: &mut L,
     decoder: &mut Decoder,
@@ -354,13 +354,13 @@ where
     }
 
     /// The session's hearing is `hearing`: what it hears from the far end,
-    /// across links, for a notice in the terminal (T-302).
+    /// across links, for a notice in the terminal.
     pub fn with_hearing(mut self, hearing: Arc<Hearing>) -> Client<L> {
         self.hearing = hearing;
         self
     }
 
-    /// The session's id and secret, which a resume needs (T-153). Never for
+    /// The session's id and secret, which a resume needs. Never for
     /// a message.
     pub fn established(&self) -> Option<&Established> {
         self.layer.as_ref().map(|(_, established)| established.as_ref())

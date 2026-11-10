@@ -1,12 +1,12 @@
-//! The race between two roads to one far end (T-164): the first road
+//! The race between two roads to one far end: the first road
 //! starts at once, the second after a head start, or at once when the first
 //! fails before it; the winner is the first link whose far end speaks. The
 //! layer's handshake then goes on the winner alone (`client::Greeted`), so
 //! the losing link never sends `OPEN`, and its far end never dials its
 //! target. Each road keeps its own time limits and failover: the race only
-//! orders them. [`in_turn`] orders more than two roads of one link (T-379):
+//! orders them. [`in_turn`] orders more than two roads of one link:
 //! each after a wait from the one before, or only when each one before it
-//! failed, as a fallback; [`each_timed`] times each of them (T-435).
+//! failed, as a fallback; [`each_timed`] times each of them.
 
 use std::future::Future;
 use std::task::Poll;
@@ -16,7 +16,7 @@ use tokio::io::AsyncRead;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
 
-use super::client::{greeted, Greeted};
+use super::client::{Greeted, greeted};
 
 /// The head start of the first road, as Happy Eyeballs (RFC 8305) gives one
 /// to IPv6: 250 ms more at most when the first road cannot run.
@@ -161,16 +161,16 @@ where
         let mut timer = next.map(|at| Box::pin(tokio::time::sleep_until(at)));
         let event = std::future::poll_fn(|cx| {
             for (at, slot) in slots[..running].iter_mut().enumerate() {
-                if let Some(road) = slot.as_mut() {
-                    if let Poll::Ready(done) = road.as_mut().poll(cx) {
-                        return Poll::Ready(Some((at, done)));
-                    }
+                if let Some(road) = slot.as_mut()
+                    && let Poll::Ready(done) = road.as_mut().poll(cx)
+                {
+                    return Poll::Ready(Some((at, done)));
                 }
             }
-            if let Some(timer) = timer.as_mut() {
-                if timer.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(None);
-                }
+            if let Some(timer) = timer.as_mut()
+                && timer.as_mut().poll(cx).is_ready()
+            {
+                return Poll::Ready(None);
             }
             Poll::Pending
         })
@@ -226,7 +226,7 @@ enum Event {
     Bound,
 }
 
-/// [`in_turn`]'s race, measured (T-435, `podssh ping node://NAME`): each road
+/// [`in_turn`]'s race, measured (podssh T-435, `podssh ping node://NAME`): each road
 /// starts as its [`Start`] says, and each one that starts runs on to its far
 /// end's first bytes or its failure, not only the first, within `bound` from
 /// the start of the race; a road still running then fails with the bound. A
@@ -269,17 +269,17 @@ where
         let mut timer = next.map(|when| Box::pin(tokio::time::sleep_until(when)));
         let event = std::future::poll_fn(|cx| {
             for (place, slot) in slots[..running].iter_mut().enumerate() {
-                if let Some(road) = slot.as_mut() {
-                    if let Poll::Ready(done) = road.as_mut().poll(cx) {
-                        // The link, when there is one, is dropped here.
-                        return Poll::Ready(Event::Road(place, done.map(|_link| ())));
-                    }
+                if let Some(road) = slot.as_mut()
+                    && let Poll::Ready(done) = road.as_mut().poll(cx)
+                {
+                    // The link, when there is one, is dropped here.
+                    return Poll::Ready(Event::Road(place, done.map(|_link| ())));
                 }
             }
-            if let Some(timer) = timer.as_mut() {
-                if timer.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(Event::Start);
-                }
+            if let Some(timer) = timer.as_mut()
+                && timer.as_mut().poll(cx).is_ready()
+            {
+                return Poll::Ready(Event::Start);
             }
             match deadline.as_mut().poll(cx) {
                 Poll::Ready(()) => Poll::Ready(Event::Bound),

@@ -1,11 +1,11 @@
-//! A link's state as plain values (T-668): what a far end hands to the
+//! A link's state as plain values: what a far end hands to the
 //! binary that takes its place, and takes back there, field by field. An
 //! error that ended the last link is not one of them: a resume starts the
 //! next link with none.
 
 use super::Link;
-use crate::session::offset::{Inbound, Outbound};
-use crate::session::replay::Replay;
+use crate::offset::{Inbound, Outbound};
+use crate::replay::Replay;
 
 /// The replay buffer of a link: its first offset, its capacity and the bytes
 /// that it keeps.

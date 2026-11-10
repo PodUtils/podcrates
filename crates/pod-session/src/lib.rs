@@ -1,13 +1,19 @@
-//! The resumable layer (milestone M6): what lets a session between two
-//! podssh ends outlive its link to the relay.
+//! pod-session: the resumable layer, UDP in a stream, the link over a
+//! WebSocket, and the rule that reads a peer's answer.
 //!
-//! The layer runs under SSH, so it carries SSH's ciphertext only. Each side
-//! numbers the bytes that it sends with 64-bit offsets from 0 that never
-//! reset; the first link of a session sets its id and a 256-bit secret, and
-//! after a loss the client proves the secret on a new link through any road
-//! and relay host, and each side sends again from the other's received
-//! offset (T-152, T-153). The records, the handshake and what the layer
-//! defends against are in `docs/design.md`, section 5.
+//! The layer lets a session between two ends outlive its link to a relay.
+//! It runs under SSH (or any byte stream), so it carries the stream's bytes
+//! as they are. Each side numbers the bytes that it sends with 64-bit
+//! offsets from 0 that never reset; the first link of a session sets its id
+//! and a 256-bit secret, and after a loss the client proves the secret on a
+//! new link through any road and relay host, and each side sends again from
+//! the other's received offset. podssh `docs/design.md`, section 5, gives
+//! the records, the handshake and what the layer defends against.
+//!
+//! The crate reads no environment variable and keeps no global state: the
+//! consumer gives [`Settings`], the far end's lines go to the sink of its
+//! [`budget::Tell`], and each error converts to a [`pod_core::Failure`] of
+//! the stage `Session`.
 //!
 //! - [`record`] and [`decode`]: the records, their encoding, and a decoder
 //!   for a byte stream whose frames mean nothing;
@@ -22,26 +28,31 @@
 //!   link of a session, [`resume`]: the client's session across links,
 //!   [`beside`]: a new link beside the one that carries it, before the
 //!   relay's limits or when it went silent, and [`keep`]: the sessions that
-//!   a far end keeps across links, charged against its [`budget`] (T-586);
-//! - [`deadline`]: how long each end waits for a new link (T-306), and
+//!   a far end keeps across links, charged against its [`budget`];
+//! - [`deadline`]: how long each end waits for a new link, and
 //!   [`hearing`]: what the client heard from the far end, for a notice of
-//!   its silence (T-302), with the round trip of the link that [`round_trip`]
-//!   times, for a spare link (T-663); [`once`]: a session that ends with its
-//!   link, at its client's ask (T-612); [`half_close`]: the end of one
-//!   direction, `END`, where both sides name it (T-632);
+//!   its silence, with the round trip of the link that [`round_trip`]
+//!   times, for a spare link; [`once`]: a session that ends with its
+//!   link, at its client's ask; [`half_close`]: the end of one
+//!   direction, `END`, where both sides name it;
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id;
 //! - [`handover`]: a far end's sessions, with their targets, handed to the
-//!   binary that takes its place, and taken there (T-668).
+//!   binary that takes its place, and taken there;
+//! - [`udp`]: UDP over a byte stream, each datagram after its length, and
+//!   at the far end a flow on a UDP socket; [`ws_link`]: a link over a
+//!   WebSocket of `pod-ws`; [`answer`]: the members of a peer's JSON answer.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
 //! replay buffer are sans-IO: bytes and records in, records and events out,
 //! with no socket and no clock.
 
+pub mod answer;
 pub mod beside;
 pub mod budget;
 pub mod client;
 pub mod deadline;
 pub mod decode;
+mod failure;
 pub mod far;
 pub mod half_close;
 pub mod handover;
@@ -59,6 +70,8 @@ pub mod resume;
 pub mod round_trip;
 pub mod secret;
 pub mod sessions;
+pub mod udp;
+pub mod ws_link;
 
 pub use decode::{DecodeError, Decoder};
 pub use handshake::{Ask, ClientHandshake, Established, FarHandshake, HandshakeError, Step};
@@ -76,7 +89,7 @@ pub use sessions::Sessions;
 pub const FEATURES: &[&str] = &["replay.v1", "heartbeat.v1", "move.v1"];
 
 /// The far end keeps a shell after its client leaves, for a later client
-/// to join (T-158). Only a far end that keeps shells names it, never a
+/// to join. Only a far end that keeps shells names it, never a
 /// node, whose SSH server is another program.
 pub const KEEP: &str = "keep.v1";
 
@@ -89,42 +102,47 @@ pub const SHELL_FEATURES: &[&str] = &["replay.v1", "heartbeat.v1", "move.v1", KE
 pub struct Settings {
     /// The feature names that this end gives in its first record.
     pub features: &'static [&'static str],
-    /// The capacity of the replay buffer in each direction (T-152).
+    /// The capacity of the replay buffer in each direction.
     pub replay_capacity: usize,
     /// The most bytes that one link carries with no acknowledgement, when
     /// fewer than the buffer's capacity: on the pair's road, under what the
-    /// relay holds for a slow receiver (T-443). `None`: the buffer alone.
+    /// relay holds for a slow receiver. `None`: the buffer alone.
     /// Each link takes it from the settings of its own road, so a session
     /// that resumes on another road takes that road's.
     pub window: Option<usize>,
-    /// How long after a loss the session waits for a new link (T-153): a
+    /// The window of a link on the pair's road ([`Settings::on_the_pair`]):
+    /// under what the relay holds for a slow receiver. The default
+    /// [`replay::PAIR_WINDOW`] is for the relay of podssh's contract (1 MiB).
+    pub pair_window: usize,
+    /// How long after a loss the session waits for a new link: a
     /// far end keeps a lost session this long, and names it in its
     /// `GREETING`; a client waits this long when the far end names none
-    /// (T-306, [`deadline`]).
+    /// (podssh T-306, [`deadline`]).
     pub resume_deadline: std::time::Duration,
-    /// A client's own deadline, which its user set (T-306): it only
+    /// A client's own deadline, which its user set: it only
     /// shortens what the far end keeps. `None` waits as long as the far end
     /// keeps the session.
     pub client_deadline: Option<std::time::Duration>,
     /// The wall clock, which a client reads to say how long it was away
-    /// when the far end forgot its session (T-306); a test gives its own.
+    /// when the far end forgot its session; a test gives its own.
     pub wall_clock: fn() -> std::time::SystemTime,
     /// The bytes of one link, both ways, after which the client moves the
-    /// session to a new link (T-155).
+    /// session to a new link: under the relay's cap of a session.
     pub move_bytes: u64,
-    /// The age of one link after which the client moves the session.
+    /// The age of one link after which the client moves the session: under
+    /// the relay's limit of the age of a session.
     pub move_age: std::time::Duration,
     /// Whether the client opens a spare link beside a link that went
     /// silent, so that a new address of the client resumes the session in
-    /// seconds (T-305): off here, on in podssh's commands.
+    /// seconds: off here, on in podssh's commands.
     pub spare_links: bool,
-    /// Whether the client carries the session across links (T-153). `false`
-    /// is `--no-resume` (T-612): the client asks the far end, in its `OPEN`,
+    /// Whether the client carries the session across links. `false`
+    /// is `--no-resume`: the client asks the far end, in its `OPEN`,
     /// to end the session with its link, and carries it on that link alone
     /// ([`once`]). A far end reads its client's ask, never this.
     pub resumes: bool,
     /// Whether a client asks, in its `OPEN`, for the end of one direction
-    /// (`end.v1`, [`half_close`], T-632): its application ends its bytes and
+    /// (`end.v1`, [`half_close`], podssh T-632): its application ends its bytes and
     /// reads on, as a pipe's input ends before its reply. A far end names it
     /// in each `GREETING`, and reads its client's ask, never this.
     pub half_close: bool,
@@ -136,6 +154,7 @@ impl Default for Settings {
             features: FEATURES,
             replay_capacity: replay::DEFAULT_CAPACITY,
             window: None,
+            pair_window: replay::PAIR_WINDOW,
             resume_deadline: resume::RESUME_DEADLINE,
             client_deadline: None,
             wall_clock: std::time::SystemTime::now,
@@ -150,10 +169,10 @@ impl Default for Settings {
 
 impl Settings {
     /// These settings on the pair's road: each link carries
-    /// [`replay::PAIR_WINDOW`] at most with no acknowledgement, under the
-    /// relay's bound for a slow receiver (T-443).
+    /// [`Settings::pair_window`] at most with no acknowledgement, under the
+    /// relay's bound for a slow receiver.
     pub fn on_the_pair(self) -> Settings {
-        Settings { window: Some(replay::PAIR_WINDOW), ..self }
+        Settings { window: Some(self.pair_window), ..self }
     }
 
     /// These settings on a road with no relay of the contract between the
@@ -181,12 +200,12 @@ impl Settings {
         if named("move.v1") && named("replay.v1") {
             link = link.with_moves();
         }
-        // The client asked, and the far end knows the ask (T-612).
+        // The client asked, and the far end knows the ask.
         if named(once::ONCE) {
             link = link.with_once();
         }
         // Each side's end of its bytes is `END`, and the session goes on for
-        // the other's (T-632).
+        // the other's.
         if named(half_close::END) {
             link = link.with_ends();
         }

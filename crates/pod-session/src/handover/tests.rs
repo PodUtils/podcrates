@@ -1,11 +1,11 @@
-//! The bytes of a handover (T-668): a session's state comes back whole, and
+//! The bytes of a handover: a session's state comes back whole, and
 //! bytes that would resume a session with a gap are refused.
 
 use std::time::Duration;
 
 use super::*;
-use crate::session::link::Link;
-use crate::session::record::Record;
+use crate::link::Link;
+use crate::record::Record;
 
 fn id() -> SessionId {
     SessionId([7u8; 16])

@@ -11,7 +11,7 @@
 //! failure ends it with its reason, which a read then gives.
 //!
 //! A link of the forward road to the resumable layer of podssh's relay role
-//! (T-173, `crate::forward_layer`) is the same byte stream over one
+//! (podssh `forward_layer`, later pod-relay) is the same byte stream over one
 //! WebSocket, whose failures name the relay ([`Link::start_by`]).
 
 use std::io;
@@ -19,8 +19,8 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{frame, RelaySession, SessionError};
+use pod_ws::session::close_code_and_reason;
+use pod_ws::{RelaySession, SessionError, frame};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 use tokio::sync::watch;
 
@@ -117,7 +117,7 @@ async fn down<S>(
         if !first.is_empty() && to_pipe.write_all(&first).await.is_err() {
             return;
         }
-        let liveness = session.watch_liveness(podssh_ws::LIVENESS_EVERY, podssh_ws::LIVENESS_ALLOWED);
+        let liveness = session.watch_liveness(pod_ws::LIVENESS_EVERY, pod_ws::LIVENESS_ALLOWED);
         tokio::pin!(liveness);
         loop {
             let read = tokio::select! {
@@ -146,7 +146,7 @@ async fn down<S>(
                 frame::OPCODE_CLOSE => {
                     let (code, reason) = close_code_and_reason(&f.payload);
                     if !matches!(code, None | Some(1000)) {
-                        let reason = podssh_ws::text::one_line(&reason);
+                        let reason = pod_core::text::one_line(&reason);
                         fail(&why, format!("{who} closed the link: {} {reason}", code.unwrap_or(0)));
                     }
                     return;

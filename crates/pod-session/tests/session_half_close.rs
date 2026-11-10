@@ -1,4 +1,4 @@
-//! The end of one direction on the resumable layer (T-632, GitHub #130).
+//! The end of one direction on the resumable layer (podssh T-632, PodUtils/podssh#130).
 //! Where both sides name `end.v1`, a side whose application ended its bytes
 //! sends `END`, the peer shuts its application's write side and reads on, and
 //! the reply after the end still comes; the second side's end is its `CLOSE`,
@@ -17,13 +17,13 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use podssh_relay::session::client::{self, Found, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::record::kind;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{
-    far, half_close, Acceptance, Ask, Decoder, End, Ended, Event, Hello, Link, LinkError, Nonce, OffsetError,
-    OsEntropy, Record, Role, SessionId, Settings,
+use pod_session::client::{self, Found, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::record::kind;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{
+    Acceptance, Ask, Decoder, End, Ended, Event, Hello, Link, LinkError, Nonce, OffsetError, OsEntropy, Record, Role,
+    SessionId, Settings, far, half_close,
 };
 
 const PIPE: usize = 256 * 1024;

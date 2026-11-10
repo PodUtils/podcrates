@@ -1,4 +1,4 @@
-//! The end of one direction (T-632): `END`, the record that says that this
+//! The end of one direction: `END`, the record that says that this
 //! side's application ended its bytes, while the session goes on for the
 //! peer's.
 //!

@@ -1,4 +1,4 @@
-//! A session across links (T-153). A stand-in relay cuts each link at a
+//! A session across links. A stand-in relay cuts each link at a
 //! random point, in the middle of a record, with no word to either end,
 //! while 32 MiB go each way; the client resumes on a new link through
 //! another stand-in host each time, and the bytes at both ends have equal
@@ -13,10 +13,10 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::sync::{mpsc, oneshot};
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{far, Ask, End, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -150,7 +150,7 @@ async fn a_session_survives_links_cut_at_random_points() {
     let notes: Arc<Mutex<Vec<Note>>> = Arc::default();
     let connect = {
         let (cuts, hosts, links_tx) = (cuts.clone(), hosts.clone(), links_tx.clone());
-        move |_: &podssh_relay::session::Ended| {
+        move |_: &pod_session::Ended| {
             let mut hosts = hosts.lock().unwrap();
             // Each new link through the other stand-in host.
             let host = if hosts.len() % 2 == 0 { "host-b" } else { "host-a" };
@@ -208,7 +208,7 @@ async fn after_the_deadline_the_far_end_refuses_and_the_session_ends() {
     let gate = Arc::new(tokio::sync::Mutex::new(Some(gate_rx)));
     let connect = {
         let links_tx = links_tx.clone();
-        move |_: &podssh_relay::session::Ended| {
+        move |_: &pod_session::Ended| {
             let (gate, links_tx) = (gate.clone(), links_tx.clone());
             async move {
                 // The new link comes only once the far end has forgotten.
@@ -265,8 +265,7 @@ async fn with_no_new_link_the_client_stops_at_its_deadline() {
     let (client_link, far_link) = relayed(Some(10_000));
     links_tx.send(far_link).unwrap();
     let client = client::start(client_link, Ask::New, settings, &mut OsEntropy).await.unwrap();
-    let connect =
-        |_: &podssh_relay::session::Ended| async { Next::<DuplexStream>::Retry("the relay host is down".into()) };
+    let connect = |_: &pod_session::Ended| async { Next::<DuplexStream>::Retry("the relay host is down".into()) };
     let notes: Arc<Mutex<Vec<Note>>> = Arc::default();
     let note = {
         let notes = notes.clone();

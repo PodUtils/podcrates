@@ -1,4 +1,4 @@
-//! How long a session waits for a new link after a loss (T-306).
+//! How long a session waits for a new link after a loss.
 //!
 //! A far end keeps a session whose link is lost for its deadline, then
 //! forgets it. It names that deadline in its `GREETING` as one more feature

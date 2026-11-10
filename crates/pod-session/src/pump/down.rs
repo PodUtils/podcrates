@@ -1,18 +1,18 @@
 //! The peer's records in, until the link or the session ends. The reader
 //! never writes to the link: an answer or an acknowledgement waits in the
-//! outbox for the writer (T-262), so the reader goes on reading while the
+//! outbox for the writer, so the reader goes on reading while the
 //! writer waits for room on the link. It goes on reading while the
-//! application is slow too (T-387): the peer's acknowledgements free this
+//! application is slow too: the peer's acknowledgements free this
 //! side's replay buffer, and an application that waits for this side's own
 //! bytes (an echo, a shell) would otherwise wait on a reader that waits on
 //! it, until the link was taken for dead.
 //!
-//! The peer's `END` (T-632) shuts the application's write side once it has
+//! The peer's `END` shuts the application's write side once it has
 //! each byte before the end, and the reader goes on: the application's own
 //! bytes still go, and the peer's acknowledgements of them still come.
 
-use std::sync::atomic::Ordering;
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::Notify;
@@ -24,10 +24,10 @@ use super::super::link::{Event, Link};
 use super::super::record::Record;
 use super::super::replay::MAX_CAPACITY;
 use super::outbox::Outbox;
-use super::{lock, End, Watch, ACK_DELAY};
+use super::{ACK_DELAY, End, Watch, lock};
 
 /// The most bytes held for a slow application before the link is no longer
-/// read. An acknowledgement covers the bytes written (T-387), so a peer with
+/// read. An acknowledgement covers the bytes written, so a peer with
 /// a replay buffer sends at most its window past them, and twice the largest
 /// window (once more after a resume, whose offset covers the bytes held) is
 /// never met; a peer with no replay buffer meets it, and waits.
@@ -76,9 +76,9 @@ enum Next {
 
 /// Read the link until it ends, and give the application each new byte.
 /// `heard` is when the far end's last bytes came on this link; `hearing`,
-/// the same across the session's links, for a notice of silence (T-302).
+/// the same across the session's links, for a notice of silence.
 /// `shut`, across the session's links too, is whether the application's
-/// write side is shut after the peer's `END` (T-632).
+/// write side is shut after the peer's `END`.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run<W, R>(
     app: &mut W,
@@ -101,7 +101,7 @@ where
     // When the bytes not yet acknowledged must be.
     let mut ack_at: Option<Instant> = None;
     // This link's round trip is its own: the last link's road may not be its
-    // road (T-663).
+    // road.
     hearing.new_link();
     loop {
         loop {

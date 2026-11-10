@@ -1,4 +1,4 @@
-//! The resume deadline that a far end sets (T-306), on tokio's paused clock.
+//! The resume deadline that a far end sets, on tokio's paused clock.
 //! A far end that keeps a lost session 3 h names that in its `GREETING`; a
 //! client that comes back 2 h after a loss resumes the session, and one whose
 //! clock stood still while the far end's ran 4 h, as on a host that slept,
@@ -11,13 +11,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
-use tokio::sync::{mpsc, oneshot, Notify};
+use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::time::Instant;
 
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::keep::Keeper;
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{deadline, far, Ask, End, Ended, OsEntropy, Role, Settings};
+use pod_session::client::{self, Outcome};
+use pod_session::keep::Keeper;
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, Ended, OsEntropy, Role, Settings, deadline, far};
 
 const PIPE: usize = 256 * 1024;
 const HOUR: Duration = Duration::from_secs(3600);

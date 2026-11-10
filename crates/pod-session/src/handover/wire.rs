@@ -1,4 +1,4 @@
-//! The bytes of a handover (T-668): numbers big-endian, and each run of
+//! The bytes of a handover: numbers big-endian, and each run of
 //! bytes after its 32-bit length, so that a reader refuses what it cannot
 //! read whole and never reads past it. The bytes hold secrets, so the writer
 //! keeps them in memory that is wiped when it goes.

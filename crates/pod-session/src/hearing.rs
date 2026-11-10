@@ -1,5 +1,5 @@
 //! What the client has heard from the far end, across the links of a
-//! session (T-302): when its last bytes came, and since when a question of
+//! session: when its last bytes came, and since when a question of
 //! this side has waited for an answer. A notice in the terminal reads it.
 //!
 //! A question is what the far end answers at once: `DATA` that it
@@ -12,10 +12,10 @@
 //! It keeps the round trip of the link that carries the session too, which
 //! sets how long a question waits before a spare link opens, and it carries
 //! a wish to ask the far end at once, which the link's heartbeat sends as a
-//! `PING` (T-663).
+//! `PING`.
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::sync::Notify;
@@ -27,7 +27,7 @@ use super::round_trip::RoundTrip;
 /// How long a question waits for its answer before the far end counts as
 /// silent: a few round trips and the 200 ms of an `ACK`. Through the
 /// stand-in proxy's `--pause` of 20 s, the notice came 5 to 6 s after the
-/// key that waited (T-302).
+/// key that waited.
 pub const WAIT: Duration = Duration::from_secs(5);
 
 /// The last word of the far end, and the oldest question that waits.
@@ -40,7 +40,7 @@ pub struct Hearing {
     words: AtomicU64,
     /// Woken by each read, for a wait for the far end's next bytes.
     spoke: Notify,
-    /// The round trip of the link that carries the session (T-663).
+    /// The round trip of the link that carries the session.
     round_trip: Mutex<RoundTrip>,
     /// A wish to ask the far end at once, which the link's heartbeat takes.
     asks: Notify,
@@ -115,8 +115,8 @@ impl Hearing {
 
     /// Until bytes came from the far end after the mark `words`, at once
     /// when they came already. The read itself wakes it, so that the old
-    /// link's first bytes close a spare link before the spare can greet
-    /// (T-305); a look each few hundred ms would let the spare win.
+    /// link's first bytes close a spare link before the spare can greet;
+    /// a look each few hundred ms would let the spare win.
     pub async fn spoke_after(&self, words: u64) {
         loop {
             // Registered before the look: bytes between the two still wake it.
@@ -131,7 +131,7 @@ impl Hearing {
     }
 
     /// A new link carries the session: its round trip is its own, from its
-    /// first answer on, as it may take another road (T-663).
+    /// first answer on, as it may take another road.
     pub fn new_link(&self) {
         *lock(&self.round_trip) = RoundTrip::default();
     }
@@ -149,7 +149,7 @@ impl Hearing {
 
     /// Ask the far end at once: the link's heartbeat sends a `PING`, as for a
     /// spare link beside a silent one, which an answer on the old link
-    /// closes (T-663). A wish made while no heartbeat waits is kept for it.
+    /// closes. A wish made while no heartbeat waits is kept for it.
     pub fn ask_now(&self) {
         self.asks.notify_one();
     }
