@@ -1,16 +1,16 @@
 diff --git a/SECURITY.md b/SECURITY.md
-index 29b3616..7d0afe1 100644
+index 7a9c30c..008390c 100644
 --- a/SECURITY.md
 +++ b/SECURITY.md
-@@ -34,6 +34,7 @@ TLS verification remains enabled on the relay path.
- | Archive names and links | `crates/podvm-extract/src/safety.rs`, `layer.rs` |
+@@ -35,6 +35,7 @@ TLS verification remains enabled on the relay path.
+ | Archive names and links | `src/safety.rs`, `src/layer.rs` of `pod-extract` (PodUtils/podcrates) |
  | Host operation probes | `crates/podvm-probe/src/` |
  | Entry and process lifecycle | `crates/podvm-enter/src/`, `crates/podvm-supervise/src/` |
 +| Root completion writes | `crates/podvm-complete/src/`; `src/write.rs`, `src/write/follow.rs` of `pod-rootfs` (PodUtils/podcrates) |
  | Relay framing and sessions | `crates/podvm-ssh/src/` |
  | Guest disk and mailbox | `crates/podvm-windows/src/` |
  
-@@ -43,6 +44,7 @@ TLS verification remains enabled on the relay path.
+@@ -44,6 +45,7 @@ TLS verification remains enabled on the relay path.
  - The runtime does not select plain HTTP as an automatic fallback.
  - Blob digests must match before the store accepts their bytes.
  - Layer paths and symlink resolution remain beneath the extraction root.
@@ -19,10 +19,10 @@ index 29b3616..7d0afe1 100644
  - Runtime output states the mechanism entered.
  - A missing or unmeasured mechanism does not become a successful isolation claim.
 diff --git a/TODO/cli.md b/TODO/cli.md
-index 39a81de..eeae6a0 100644
+index 24cda0a..16bf28f 100644
 --- a/TODO/cli.md
 +++ b/TODO/cli.md
-@@ -1652,7 +1652,7 @@ Prove:       `grep -n "85-completion-symlink-escape" TODO/cli.md` names
+@@ -1651,7 +1651,7 @@ Prove:       `grep -n "85-completion-symlink-escape" TODO/cli.md` names
  **Done 2026-10-02.** Recorded the converted state of
  `experiments/85-completion-symlink-escape.sh` and the condition that
  clears its deletion. The six doors the script plants are carried by two
@@ -31,7 +31,7 @@ index 39a81de..eeae6a0 100644
  `a_write_replaces_an_out_link_with_a_regular_file` (`write.rs:752`) for
  clauses A to E, and
  `a_write_follows_a_directory_link_that_stays_inside` (`write.rs:779`)
-@@ -1674,7 +1674,7 @@ doors, five out of the rootfs and one legitimate internal link
+@@ -1673,7 +1673,7 @@ doors, five out of the rootfs and one legitimate internal link
  (`:28`), D `/etc/ssl/certs` (`:29`), F `/etc/apt -> /var/aptreal` (`:30`).
  
  The converted tests are the two in
@@ -40,7 +40,7 @@ index 39a81de..eeae6a0 100644
  clauses. `a_write_replaces_an_out_link_with_a_regular_file`
  (`write.rs:752`) carries clauses A through E: the out-link is replaced by
  a regular file inside the rootfs, so a later reader does not follow it
-@@ -1687,7 +1687,7 @@ that stays inside is followed and the drop-in lands at its target
+@@ -1686,7 +1686,7 @@ that stays inside is followed and the drop-in lands at its target
  **The deletion condition, and what clears it.** The script is deletable
  when the plan's library-test row lands. That row sits at
  `refactor/recon-c.md:110`, and it reads
@@ -227,7 +227,7 @@ index 94c031a..ffe9be7 100644
  Priority:    P2
  Effort:      S
 diff --git a/TODO/deps.md b/TODO/deps.md
-index 80e88b8..960085d 100644
+index acc8916..0ee2aed 100644
 --- a/TODO/deps.md
 +++ b/TODO/deps.md
 @@ -1372,7 +1372,7 @@ Prove:       `cargo test -p podvm-image` and `cargo test -p podvm-ssh` exit
@@ -240,7 +240,7 @@ index 80e88b8..960085d 100644
  to `v0.4.0`; `rustls-pemfile` and podvm's own `webpki-roots` are gone, and
  `cargo update -p webpki-roots@1.0.9` gives the lock 1.0.11. Each line of
 diff --git a/TODO/gate.md b/TODO/gate.md
-index 45a7f22..eb146e2 100644
+index 6ea264b..563a3db 100644
 --- a/TODO/gate.md
 +++ b/TODO/gate.md
 @@ -1528,8 +1528,8 @@ The warm probe storm alone costs 0.059 s, which bounds every
@@ -255,7 +255,7 @@ index 45a7f22..eb146e2 100644
  is a cache-drop run with keeper, which needs privilege the lane
  lacks. The 360 rows reread through this: `run.repeat` stays
 diff --git a/TODO/interpose.md b/TODO/interpose.md
-index be9cb66..df42639 100644
+index d7129e0..07ceae7 100644
 --- a/TODO/interpose.md
 +++ b/TODO/interpose.md
 @@ -886,7 +886,7 @@ ok   E: the reader's answer is the loader's, on every arm that ran
@@ -5097,19 +5097,6 @@ index 3c36b16..0000000
 -    );
 -    let _ = std::fs::remove_dir_all(&root);
 -}
-diff --git a/crates/podvm-enter/Cargo.toml b/crates/podvm-enter/Cargo.toml
-index 5ba4614..f16d0ec 100644
---- a/crates/podvm-enter/Cargo.toml
-+++ b/crates/podvm-enter/Cargo.toml
-@@ -11,6 +11,6 @@ podvm-probe = { path = "../podvm-probe" }
- # The entry of a payload (the chroot sequence, the namespace rung, the
- # entry with no chroot, the launch ladder, the reader of ELF files), shared
- # through PodUtils/podcrates. This crate gives podvm's names to it.
--pod-enter = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-enter = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
- # The class of a runtime error that podvm makes (`runtime`).
--pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false }
 diff --git a/crates/podvm-gate/src/plant.rs b/crates/podvm-gate/src/plant.rs
 index ae85f6b..1472232 100644
 --- a/crates/podvm-gate/src/plant.rs
@@ -5144,92 +5131,6 @@ index 4f76837..534e536 100644
      let test = "a_decimal_fd_parses_and_anything_else_does_not";
      plant.case_rust_test(
          "32e memo",
-diff --git a/crates/podvm-image/Cargo.toml b/crates/podvm-image/Cargo.toml
-index cb26a69..ddb22e3 100644
---- a/crates/podvm-image/Cargo.toml
-+++ b/crates/podvm-image/Cargo.toml
-@@ -17,19 +17,19 @@ rustls-pki-types.workspace = true
- # The roots, the PEM reader and the client configuration (`tls.rs`), shared
- # with podssh and podnet through PodUtils/podcrates. The provider is podvm's
- # `ring`.
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false }
- # The HTTP transport (`net.rs`): the registry, the token realm, the guest image
- # fetch and the mirror probe, through the proxy of the environment. The
- # feature `blocking` runs it on a private runtime of one thread, so podvm's own
- # code stays synchronous. `pod-core` gives the stage of a failure.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false, features = ["blocking"] }
--pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false, features = ["blocking"] }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false }
- # The space and exec checks of a directory (`space.rs`, `exec_probe.rs`),
- # with podvm's settings from `podvm-probe`.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
- # The advisory lock of the store (`store::Lock`): the index lock, the image
- # hold, the staging locks.
--pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
- sha2.workspace = true
- serde.workspace = true
- serde_json.workspace = true
-diff --git a/crates/podvm-probe/Cargo.toml b/crates/podvm-probe/Cargo.toml
-index 032ba8c..5ffdbdc 100644
---- a/crates/podvm-probe/Cargo.toml
-+++ b/crates/podvm-probe/Cargo.toml
-@@ -11,4 +11,4 @@ repository.workspace = true
- # shared through PodUtils/podcrates. This crate gives podvm's settings to it
- # and keeps the report. The syscall table and the kernel's struct layouts
- # (TODO/deps.md T-0911, T-0912) come with it.
--pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
-diff --git a/crates/podvm-ssh/Cargo.toml b/crates/podvm-ssh/Cargo.toml
-index 325d43d..6119a6e 100644
---- a/crates/podvm-ssh/Cargo.toml
-+++ b/crates/podvm-ssh/Cargo.toml
-@@ -15,15 +15,15 @@ podvm-probe = { path = "../podvm-probe" }
- # control frames. The websocket framing itself is hand-rolled in `ws.rs`: the opcode
- # travels with the frame, which no byte-pipe websocket API preserves.
- rustls.workspace = true
--pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false }
- # The proxy of a relay leg (`transport/egress.rs`): the rules of `HTTPS_PROXY`,
- # `ALL_PROXY` and `NO_PROXY`, and the dial through an HTTP CONNECT or SOCKS5
- # proxy, shared with podssh and podnet through PodUtils/podcrates. The
- # blocking face runs on a private runtime of one thread; podvm's own code
- # stays synchronous.
--pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false, features = ["blocking"] }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false, features = ["blocking"] }
- serde_json.workspace = true
- base64.workspace = true
- # The line discipline of a session with no pty (`session.rs`), shared with
- # podssh through PodUtils/podcrates.
--pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
-diff --git a/crates/podvm-supervise/Cargo.toml b/crates/podvm-supervise/Cargo.toml
-index 85e9835..87f6e27 100644
---- a/crates/podvm-supervise/Cargo.toml
-+++ b/crates/podvm-supervise/Cargo.toml
-@@ -13,7 +13,7 @@ podvm-enter = { path = "../podvm-enter" }
- # The table, the launcher, the logs and the verbs of the lifecycle. This
- # crate keeps podvm's settings, its record fields, the entry of a payload and
- # the ownership memo.
--pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
--pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0", default-features = false }
-+pod-supervise = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", default-features = false }
- serde.workspace = true
- serde_json.workspace = true
-diff --git a/crates/podvm-windows/Cargo.toml b/crates/podvm-windows/Cargo.toml
-index c78bcd6..af63567 100644
---- a/crates/podvm-windows/Cargo.toml
-+++ b/crates/podvm-windows/Cargo.toml
-@@ -12,4 +12,4 @@ repository.workspace = true
- # stop and the bounded store of a base image with its digest, shared through
- # PodUtils/podcrates. This crate gives podvm's names and places to it, and
- # keeps the base caches and docker's range of exit codes.
--pod-guest = { git = "https://github.com/PodUtils/podcrates", tag = "v0.9.0" }
-+pod-guest = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
 diff --git a/docs/code-map.md b/docs/code-map.md
 index 731a8a9..9fe6dcd 100644
 --- a/docs/code-map.md
@@ -5244,33 +5145,17 @@ index 731a8a9..9fe6dcd 100644
  | `crates/podvm-supervise` | Launcher state, pidfds, logs, signals, lifecycle |
  | `crates/podvm-windows` | podvm's names and places for `pod-guest` (guest mailbox, agent, disk fetch, QMP, boot plan); the base caches; docker's exit range |
 diff --git a/docs/runtime-state.md b/docs/runtime-state.md
-index b0f4851..fac78e3 100644
+index fde92ca..0c56952 100644
 --- a/docs/runtime-state.md
 +++ b/docs/runtime-state.md
-@@ -52,14 +52,15 @@ Separate crate: `crates/podvm-interpose`.
- | --- | --- |
- | `base64` | `0.23.1` |
- | `flate2` | `1.1.10` |
--| `pod-core` | `0.9.0` |
--| `pod-enter` | `0.9.0` |
--| `pod-guest` | `0.9.0` |
--| `pod-hostprobe` | `0.9.0` |
--| `pod-proxy` | `0.9.0` |
--| `pod-supervise` | `0.9.0` |
--| `pod-term` | `0.9.0` |
--| `pod-tls` | `0.9.0` |
-+| `pod-core` | `0.11.0` |
-+| `pod-enter` | `0.11.0` |
-+| `pod-guest` | `0.11.0` |
-+| `pod-hostprobe` | `0.11.0` |
-+| `pod-proxy` | `0.11.0` |
+@@ -58,6 +58,7 @@ Separate crate: `crates/podvm-interpose`.
+ | `pod-hostprobe` | `0.11.0` |
+ | `pod-oci` | `0.11.0` |
+ | `pod-proxy` | `0.11.0` |
 +| `pod-rootfs` | `0.11.0` |
-+| `pod-supervise` | `0.11.0` |
-+| `pod-term` | `0.11.0` |
-+| `pod-tls` | `0.11.0` |
- | `rustls` | `0.23.46` |
- | `rustls-pki-types` | `1.15.1` |
- | `ruzstd` | `0.9.1` |
+ | `pod-supervise` | `0.11.0` |
+ | `pod-term` | `0.11.0` |
+ | `pod-tls` | `0.11.0` |
 diff --git a/experiments/85-completion-symlink-escape.sh b/experiments/85-completion-symlink-escape.sh
 index 54c7702..dbb4c40 100755
 --- a/experiments/85-completion-symlink-escape.sh

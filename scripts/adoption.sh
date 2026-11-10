@@ -62,6 +62,13 @@ git init -q
 git remote add origin "https://github.com/$repo"
 sh "$here/scripts/retry.sh" git fetch -q --depth 1 origin "$commit"
 git -c advice.detachedHead=false checkout -q FETCH_HEAD
+# A patch made after other patches of the same consumer names them in
+# CRATE.needs, one for each line, in the order of the apply.
+if [ -f "$dir/$crate.needs" ]; then
+    for need in $(tr -d '\r' < "$dir/$crate.needs"); do
+        git apply "$dir/$need.patch"
+    done
+fi
 git apply "$dir/$crate.patch"
 # Each `pod-X = { git = "https://github.com/PodUtils/podcrates", ... }` of
 # the patch becomes a path into this tree, and a `version` beside it the
