@@ -1,7 +1,36 @@
 [package]
 name = "pod-quic"
+description = "QUIC on noq: the settings of the transport, the reset and token keys in pure Rust, an endpoint on a system socket or on any pod-core Datagrams, the connection within its wait and a race of handshakes, the probe of UDP by a Version Negotiation, and Datagrams over a link with only async send and receive."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[dependencies]
+# The datagram trait, the failure and its stage and class, the entropy.
+pod-core = { workspace = true, features = ["async"] }
+# The QUIC stack (call C43): no default feature, so no ring and no aws-lc;
+# the keys of the endpoint are keys.rs, and the TLS provider is the caller's.
+noq = { workspace = true }
+rustls = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "sync", "rt"] }
+# The reset key and the token key: HMAC-SHA-256 in pure Rust.
+hmac = { workspace = true }
+sha2 = { workspace = true }
+# The waker of the receive side and of the send side of a queued link
+# (podnet's T-225).
+atomic-waker = "1"
+tracing = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# The tests run TLS on ring (docs/design.md, section 1, rule 4).
+rustls = { workspace = true, features = ["ring"] }
+rustls-pki-types = { workspace = true }
+tokio-rustls = { workspace = true }
+# The certificates of the tests (pod-tls tests/common/cert_for_test.rs),
+# minted in pure Rust.
+p256 = { workspace = true }
+sha2 = { workspace = true }

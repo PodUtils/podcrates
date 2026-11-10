@@ -1,15 +1,13 @@
-//! The probe of UDP before the quick tunnel's QUIC (T-400), against stand-ins
-//! of the edge's port on the loopback: one that answers each packet with a
+//! The probe of UDP before QUIC, against stand-ins of the edge's port on the
+//! loopback: one that answers each packet with a
 //! Version Negotiation of 27 bytes, as cfrs's testers saw the edge answer
 //! (its Source the packet's Destination, three versions); one that answers
 //! with another id, which answers no packet of the probe's; and a closed
 //! port, whose refusal comes at once on Linux.
-#![cfg(feature = "quick")]
-
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use podssh_relay::quick::probe;
+use pod_quic::probe;
 use tokio::net::UdpSocket;
 use tokio::time::Instant;
 
@@ -41,13 +39,14 @@ async fn negotiating(astray: bool) -> SocketAddr {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_probe_takes_a_version_negotiation_of_its_packet_and_no_other_answer() {
+    pod_testkit::need_loopback!();
     let edge = negotiating(false).await;
     let (answered, took) = probe::probe(&[edge], probe::WAIT).await.expect("the edge's answer");
     assert_eq!(answered, edge);
     assert!(took < probe::WAIT, "{took:?}");
     let astray = negotiating(true).await;
     let started = Instant::now();
-    let why = probe::probe(&[astray], probe::WAIT).await.expect_err("an answer to another packet");
+    let why = probe::probe(&[astray], probe::WAIT).await.expect_err("an answer to another packet").to_string();
     assert!(why.contains(&format!("{astray} said nothing within 300 ms")), "{why}");
     assert!(started.elapsed() < probe::WAIT + Duration::from_millis(200), "{:?}", started.elapsed());
     // Both at once, as the node probes each family: the one that answers.
@@ -60,9 +59,10 @@ async fn the_probe_takes_a_version_negotiation_of_its_packet_and_no_other_answer
 #[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_closed_port_is_said_at_once() {
+    pod_testkit::need_loopback!();
     let closed = std::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap().local_addr().unwrap();
     let started = Instant::now();
-    let why = probe::probe(&[closed], probe::WAIT).await.expect_err("a closed port");
+    let why = probe::probe(&[closed], probe::WAIT).await.expect_err("a closed port").to_string();
     assert!(started.elapsed() < probe::WAIT, "{:?}", started.elapsed());
     assert!(why.contains(&closed.to_string()) && why.contains("refused"), "{why}");
 }

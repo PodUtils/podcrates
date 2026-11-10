@@ -1,21 +1,22 @@
-//! The probe of UDP before QUIC (T-400): one QUIC packet of a reserved
-//! version to the edge's port, which a server of QUIC answers with a Version
-//! Negotiation in one round trip (RFC 9000, sections 6 and 17.2.1); cfrs's
-//! testers saw the edge answer so, with 27 bytes (`docs/design.md`,
-//! "Measured by cfrs's testers"). A network that drops UDP answers nothing,
-//! and the node's race gives QUIC up at the probe's end, where QUIC's own
-//! handshake waits 5 s at each address. Each socket is connected to one
-//! address of the edge: it sends there and takes datagrams from there alone,
+//! The probe of UDP before QUIC: one QUIC packet of a reserved version to a
+//! port, which a server of QUIC answers with a Version Negotiation in one
+//! round trip (RFC 9000, sections 6 and 17.2.1); cfrs's testers saw the edge
+//! of Cloudflare answer so, with 27 bytes. A network that drops UDP answers
+//! nothing, and a caller's race gives QUIC up at the probe's end, where
+//! QUIC's own handshake waits 5 s at each address. Each socket is connected
+//! to one address: it sends there and takes datagrams from there alone,
 //! nothing listens, and a port that the system says is closed (ICMP) comes
 //! back on it as a refusal.
 
+use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
 use tokio::net::UdpSocket;
 use tokio::time::Instant;
 
-use super::edge::{self, Edge};
+use pod_core::entropy::{Entropy, OsEntropy};
+use pod_core::{Class, Failure, Stage};
 
 /// A version that no server supports, of the form 0x?a?a?a?a that RFC 9000
 /// reserves (section 15), as cfrs's testers sent it.
@@ -23,8 +24,8 @@ pub const RESERVED: [u8; 4] = [0x1a, 0x2a, 0x3a, 0x4a];
 /// The least size of the datagram of a client's first packet: a server
 /// answers no smaller one (RFC 9000, section 14.1).
 pub const PADDED: usize = 1200;
-/// How long the probe waits for its answer: a few round trips to the edge,
-/// which answered within 60 ms where T-299 and T-359 measured it.
+/// How long the probe waits for its answer: a few round trips to the edge
+/// of Cloudflare, which answered within 60 ms where podssh measured it.
 pub const WAIT: Duration = Duration::from_millis(300);
 /// The length of the packet's Destination Connection ID: 8 bytes, the least
 /// of a client's first packet (RFC 9000, section 7.2).
@@ -72,19 +73,20 @@ fn connection_id(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
 
 /// One packet to `addr`, from a socket connected to it, and its answer: the
 /// round trip, or why none came. The wait is the caller's.
-async fn one(addr: SocketAddr) -> Result<Duration, String> {
+async fn one(addr: SocketAddr) -> Result<Duration, io::Error> {
     let any: SocketAddr = match addr {
         SocketAddr::V4(_) => (Ipv4Addr::UNSPECIFIED, 0).into(),
         SocketAddr::V6(_) => (Ipv6Addr::UNSPECIFIED, 0).into(),
     };
-    let socket = UdpSocket::bind(any).await.map_err(|e| format!("no UDP socket: {e}"))?;
-    socket.connect(addr).await.map_err(|e| e.to_string())?;
-    let dcid: [u8; DCID] = rand::random();
+    let socket = UdpSocket::bind(any).await.map_err(|e| io::Error::new(e.kind(), format!("no UDP socket: {e}")))?;
+    socket.connect(addr).await?;
+    let mut dcid = [0u8; DCID];
+    OsEntropy.fill(&mut dcid).map_err(io::Error::other)?;
     let sent = Instant::now();
-    socket.send(&packet(&dcid)).await.map_err(|e| e.to_string())?;
+    socket.send(&packet(&dcid)).await?;
     let mut datagram = vec![0u8; 2048];
     loop {
-        let n = socket.recv(&mut datagram).await.map_err(|e| e.to_string())?;
+        let n = socket.recv(&mut datagram).await?;
         // Another datagram from the address answers no packet of this one.
         if answers(&datagram[..n], &dcid) {
             return Ok(sent.elapsed());
@@ -94,12 +96,12 @@ async fn one(addr: SocketAddr) -> Result<Duration, String> {
 
 /// The probe: a packet to each of `addrs` at once; the address that answered
 /// first within `wait`, and its round trip; else what each address did.
-pub async fn probe(addrs: &[SocketAddr], wait: Duration) -> Result<(SocketAddr, Duration), String> {
+pub async fn probe(addrs: &[SocketAddr], wait: Duration) -> Result<(SocketAddr, Duration), Failure> {
     let mut tries = tokio::task::JoinSet::new();
     for &addr in addrs {
         tries.spawn(async move { (addr, one(addr).await) });
     }
-    let mut failed: Vec<(SocketAddr, String)> = Vec::new();
+    let mut failed: Vec<(SocketAddr, io::Error)> = Vec::new();
     let answered = tokio::time::timeout(wait, async {
         while let Some(joined) = tries.join_next().await {
             match joined {
@@ -122,28 +124,13 @@ pub async fn probe(addrs: &[SocketAddr], wait: Duration) -> Result<(SocketAddr, 
     if !silent.is_empty() {
         said.push(format!("{} said nothing within {} ms", silent.join(" and "), wait.as_millis()));
     }
-    Err(format!("UDP to the edge got no answer to a QUIC packet: {}", said.join("; ")))
-}
-
-/// The probe to `found`: the first address of each family of its first
-/// region that resolves within the dial's limit.
-pub async fn edge(found: &Edge, wait: Duration) -> Result<(SocketAddr, Duration), String> {
-    let deadline = Instant::now() + edge::DIAL_LIMIT;
-    let mut unresolved = Vec::new();
-    for region in &found.regions {
-        match podssh_ws::resolve::resolve(region, found.port, deadline).await {
-            Ok(addrs) => {
-                let firsts = [addrs.iter().find(|a| a.is_ipv4()), addrs.iter().find(|a| a.is_ipv6())];
-                let firsts: Vec<SocketAddr> = firsts.into_iter().flatten().copied().collect();
-                if !firsts.is_empty() {
-                    return probe(&firsts, wait).await;
-                }
-                unresolved.push(format!("{region}: no address"));
-            }
-            Err(e) => unresolved.push(format!("{region}: {e}")),
-        }
-    }
-    Err(format!("UDP to the edge was not probed: no region resolved: {}", unresolved.join("; ")))
+    // A refusal of the system is a closed port; silence is a timeout.
+    let class = match (failed.first(), silent.is_empty()) {
+        (Some((_, why)), true) => Class::of_io(why.kind()),
+        (_, false) if failed.is_empty() => Class::Timeout,
+        _ => Class::Unavailable,
+    };
+    Err(Failure::new(Stage::Connect, class, format!("UDP got no answer to a QUIC packet: {}", said.join("; "))))
 }
 
 #[cfg(test)]

@@ -1,53 +1,58 @@
-//! A QUIC socket whose datagrams travel through the WARP session.
+//! [`Datagrams`] over a [`Link`] that has only async send and receive: the
+//! UDP socket of a userspace stack (podnet's under WARP), which has no poll
+//! interface.
 //!
-//! The Cloudflare edge's preferred transport is QUIC on UDP 7844. WARP carries
-//! UDP, so the only missing piece is a [`quinn::AsyncUdpSocket`] backed by the
-//! userspace stack instead of a kernel socket. This module is that adapter.
+//! The edge of Cloudflare prefers QUIC on UDP 7844. WARP carries UDP, so the
+//! missing piece is a socket of QUIC on the userspace stack in place of a
+//! socket of the kernel. A sealed host can refuse `bind(2)` on `AF_INET` and
+//! `connect(2)` to each destination, the loopback too. The userspace stack
+//! has a UDP socket in the address space of the tunnel, so this adapter moves
+//! datagrams between QUIC and that socket, and the kernel is never asked.
 //!
-//! # Why not a kernel socket
-//!
-//! A sealed host can refuse `bind(2)` on `AF_INET` and `connect(2)` to every
-//! destination, including loopback. The userspace stack already owns a UDP
-//! socket inside the tunnel's address space, so the adapter moves datagrams
-//! between quinn and that socket and the kernel is never asked.
-//!
-//! # Shape
-//!
-//! * [`WarpUdpSocket::try_send`] pushes into a bounded channel; one task writes
-//!   each datagram to the userspace socket.
-//! * a second task reads from that socket into a queue;
-//!   [`WarpUdpSocket::poll_recv`] pops from the queue.
-//! * the send poller waits on a notification the writer fires after each
-//!   datagram, so a full channel is backpressure rather than a spin.
+//! * [`QueuedDatagrams::try_send`](Datagrams::try_send) pushes into a bounded
+//!   queue; one task writes each datagram to the link.
+//! * A second task reads from the link into a queue;
+//!   [`poll_recv`](Datagrams::poll_recv) pops from it.
+//! * [`poll_writable`](Datagrams::poll_writable) keeps the waker of its task
+//!   when the queue is full, and the writer wakes it after each datagram, so
+//!   a full queue is backpressure and not a spin.
 
 use std::collections::VecDeque;
-use std::io;
+use std::fmt;
+use std::io::{self, IoSliceMut};
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
-use anyhow::{Context as _, Result};
-use futures::task::AtomicWaker;
-use quinn::udp::{RecvMeta, Transmit};
-use quinn::{AsyncUdpSocket, EndpointConfig, UdpPoller};
+use atomic_waker::AtomicWaker;
+use pod_core::{BoxFuture, Datagrams, RecvMeta, Transmit};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use super::ip::{UdpConn, WarpStack};
-
-/// Datagrams that may sit in the send queue before quinn is told to wait.
-const SEND_QUEUE: usize = 1024;
-/// Largest datagram read from the userspace socket.
+/// Datagrams that may sit in the send queue before QUIC is told to wait.
+pub const SEND_QUEUE: usize = 1024;
+/// The largest datagram read from the link.
 const MAX_DATAGRAM: usize = 65_535;
+
+/// A way of datagrams with async send and receive and no poll interface.
+pub trait Link: Send + Sync + 'static {
+    /// Send `datagram` to `to`. An error ends the link.
+    fn send_to(&self, datagram: Vec<u8>, to: SocketAddr) -> BoxFuture<'_, io::Result<()>>;
+    /// The next datagram of at most `max` bytes, and its sender. An error
+    /// ends the link.
+    fn recv_from(&self, max: usize) -> BoxFuture<'_, io::Result<(Vec<u8>, SocketAddr)>>;
+    fn local_addr(&self) -> SocketAddr;
+}
 
 /// Datagrams waiting for `poll_recv`, with the peer each came from.
 type Inbound = Arc<Mutex<VecDeque<(Vec<u8>, SocketAddr)>>>;
+/// The send queue: the destination and the datagram.
+type Out = mpsc::Sender<(SocketAddr, Vec<u8>)>;
 
-/// A quinn-compatible UDP socket over the WARP stack.
-pub struct WarpUdpSocket {
-    out: mpsc::Sender<(SocketAddr, Vec<u8>)>,
+/// [`Datagrams`] over a [`Link`], through a send queue and a receive queue.
+pub struct QueuedDatagrams {
+    out: Out,
     inbound: Inbound,
     recv_waker: Arc<AtomicWaker>,
     send_ready: SendReady,
@@ -58,9 +63,9 @@ pub struct WarpUdpSocket {
     tasks: Vec<JoinHandle<()>>,
 }
 
-impl std::fmt::Debug for WarpUdpSocket {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WarpUdpSocket")
+impl fmt::Debug for QueuedDatagrams {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QueuedDatagrams")
             .field("local", &self.local)
             .field("sent", &self.sent.load(Ordering::Relaxed))
             .field("received", &self.received.load(Ordering::Relaxed))
@@ -68,23 +73,30 @@ impl std::fmt::Debug for WarpUdpSocket {
     }
 }
 
-impl WarpUdpSocket {
-    fn new(udp: UdpConn, local: SocketAddr) -> Arc<Self> {
-        let (out, mut out_rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(SEND_QUEUE);
+impl QueuedDatagrams {
+    /// The queues over `link`, with a send queue of [`SEND_QUEUE`]
+    /// datagrams, and the two tasks that move the datagrams. It must run in
+    /// a tokio runtime. A drop stops both tasks.
+    pub fn new(link: Arc<dyn Link>) -> QueuedDatagrams {
+        QueuedDatagrams::with_queue(link, SEND_QUEUE)
+    }
+
+    /// [`QueuedDatagrams::new`] with a send queue of `queue` datagrams (at
+    /// least one).
+    pub fn with_queue(link: Arc<dyn Link>, queue: usize) -> QueuedDatagrams {
+        let (out, mut out_rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(queue.max(1));
         let inbound: Inbound = Arc::new(Mutex::new(VecDeque::new()));
         let recv_waker = Arc::new(AtomicWaker::new());
         let send_ready = SendReady::default();
         let closed = Arc::new(AtomicBool::new(false));
 
         let writer = {
-            let udp = udp.clone();
-            let send_ready = send_ready.clone();
-            let closed = closed.clone();
+            let (link, send_ready, closed) = (link.clone(), send_ready.clone(), closed.clone());
             tokio::spawn(async move {
                 while let Some((to, data)) = out_rx.recv().await {
                     // The queue has room again: wake a parked poller.
                     send_ready.wake();
-                    if udp.send_to(data, to).await.is_err() {
+                    if link.send_to(data, to).await.is_err() {
                         closed.store(true, Ordering::Relaxed);
                         break;
                     }
@@ -95,15 +107,13 @@ impl WarpUdpSocket {
         };
 
         let reader = {
-            let udp = udp.clone();
-            let inbound = inbound.clone();
-            let recv_waker = recv_waker.clone();
-            let closed = closed.clone();
+            let (link, inbound, recv_waker, closed) =
+                (link.clone(), inbound.clone(), recv_waker.clone(), closed.clone());
             tokio::spawn(async move {
                 loop {
-                    match udp.recv_from(MAX_DATAGRAM).await {
+                    match link.recv_from(MAX_DATAGRAM).await {
                         Ok((data, from)) => {
-                            inbound.lock().unwrap().push_back((data, from));
+                            inbound.lock().unwrap_or_else(|e| e.into_inner()).push_back((data, from));
                             recv_waker.wake();
                         }
                         Err(_) => {
@@ -116,21 +126,30 @@ impl WarpUdpSocket {
             })
         };
 
-        Arc::new(Self {
+        QueuedDatagrams {
             out,
             inbound,
             recv_waker,
             send_ready,
-            local,
+            local: link.local_addr(),
             sent: AtomicU64::new(0),
             received: AtomicU64::new(0),
             closed,
             tasks: vec![writer, reader],
-        })
+        }
+    }
+
+    /// The datagrams that the queue took, and those that QUIC read.
+    pub fn counts(&self) -> (u64, u64) {
+        (self.sent.load(Ordering::Relaxed), self.received.load(Ordering::Relaxed))
+    }
+
+    fn pop(&self) -> Option<(Vec<u8>, SocketAddr)> {
+        self.inbound.lock().unwrap_or_else(|e| e.into_inner()).pop_front()
     }
 }
 
-impl Drop for WarpUdpSocket {
+impl Drop for QueuedDatagrams {
     fn drop(&mut self) {
         for task in self.tasks.drain(..) {
             task.abort();
@@ -138,66 +157,72 @@ impl Drop for WarpUdpSocket {
     }
 }
 
-impl AsyncUdpSocket for WarpUdpSocket {
-    fn create_io_poller(self: Arc<Self>) -> Pin<Box<dyn UdpPoller>> {
-        Box::pin(SendPoller {
-            out: self.out.clone(),
-            ready: self.send_ready.clone(),
-        })
+fn broken() -> io::Error {
+    io::Error::from(io::ErrorKind::BrokenPipe)
+}
+
+impl Datagrams for QueuedDatagrams {
+    fn poll_writable(&self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        poll_room(&self.out, &self.send_ready, cx)
     }
 
-    fn try_send(&self, transmit: &Transmit) -> io::Result<()> {
+    fn try_send(&self, transmit: &Transmit<'_>) -> io::Result<()> {
         if self.closed.load(Ordering::Relaxed) {
-            return Err(io::Error::from(io::ErrorKind::BrokenPipe));
+            return Err(broken());
         }
-        match self
-            .out
-            .try_send((transmit.destination, transmit.contents.to_vec()))
-        {
-            Ok(()) => {
-                self.sent.fetch_add(1, Ordering::Relaxed);
-                Ok(())
-            }
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                Err(io::Error::from(io::ErrorKind::WouldBlock))
-            }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                Err(io::Error::from(io::ErrorKind::BrokenPipe))
+        // A transmit of several segments goes whole or not at all, so that
+        // a full queue never sends a part of it twice.
+        let size = transmit.segment_size.filter(|s| *s > 0).unwrap_or(transmit.contents.len().max(1));
+        let chunks = transmit.contents.chunks(size);
+        if chunks.len() > self.out.capacity() {
+            return match self.out.is_closed() {
+                true => Err(broken()),
+                false => Err(io::Error::from(io::ErrorKind::WouldBlock)),
+            };
+        }
+        for chunk in chunks {
+            match self.out.try_send((transmit.destination, chunk.to_vec())) {
+                Ok(()) => {
+                    self.sent.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(mpsc::error::TrySendError::Full(_)) => return Err(io::Error::from(io::ErrorKind::WouldBlock)),
+                Err(mpsc::error::TrySendError::Closed(_)) => return Err(broken()),
             }
         }
+        Ok(())
     }
 
     fn poll_recv(
         &self,
         cx: &mut Context<'_>,
-        bufs: &mut [std::io::IoSliceMut<'_>],
+        bufs: &mut [IoSliceMut<'_>],
         meta: &mut [RecvMeta],
     ) -> Poll<io::Result<usize>> {
-        if self.closed.load(Ordering::Relaxed) {
-            // The userspace socket is gone; receiving can never succeed again.
-            return Poll::Ready(Err(io::Error::from(io::ErrorKind::BrokenPipe)));
-        }
+        let (Some(buf), Some(m)) = (bufs.first_mut(), meta.first_mut()) else {
+            return Poll::Ready(Ok(0));
+        };
         loop {
-            let next = self.inbound.lock().unwrap().pop_front();
-            match next {
+            match self.pop() {
                 Some((data, from)) => {
-                    let len = data.len().min(bufs[0].len());
-                    bufs[0][..len].copy_from_slice(&data[..len]);
-                    meta[0] = RecvMeta {
-                        addr: from,
-                        len,
-                        stride: len,
-                        ecn: None,
-                        dst_ip: None,
-                    };
+                    let len = data.len().min(buf.len());
+                    buf[..len].copy_from_slice(&data[..len]);
+                    *m = RecvMeta { addr: from, len, stride: len, dst_ip: None };
                     self.received.fetch_add(1, Ordering::Relaxed);
                     return Poll::Ready(Ok(1));
                 }
                 None => {
-                    // Register before the re-check, so a datagram that arrives
-                    // between the pop and the registration still wakes us.
+                    // The link is gone and the queue is empty: a receive can
+                    // never succeed again.
+                    if self.closed.load(Ordering::Relaxed) {
+                        return Poll::Ready(Err(broken()));
+                    }
+                    // Register before the check again, so that a datagram
+                    // that comes between the pop and the register still
+                    // wakes the task.
                     self.recv_waker.register(cx.waker());
-                    if self.inbound.lock().unwrap().is_empty() {
+                    if self.inbound.lock().unwrap_or_else(|e| e.into_inner()).is_empty()
+                        && !self.closed.load(Ordering::Relaxed)
+                    {
                         return Poll::Pending;
                     }
                 }
@@ -210,10 +235,12 @@ impl AsyncUdpSocket for WarpUdpSocket {
     }
 }
 
-/// The wake-up of a poller that waits for room in the send queue (T-225).
-/// An `AtomicWaker` keeps the waker of the task between two polls; a
+/// The wake-up of a poller that waits for room in the send queue (podnet's
+/// T-225). An `AtomicWaker` keeps the waker of the task between two polls; a
 /// `Notified` future made in each poll drops out of the waiters at
-/// `Pending`, and a later drain then wakes nobody.
+/// `Pending`, and a later drain then wakes nobody. It keeps one waker: the
+/// socket of QUIC gives one waker for each of its senders
+/// ([`crate::socket`]).
 #[derive(Clone, Default, Debug)]
 struct SendReady(Arc<AtomicWaker>);
 
@@ -227,125 +254,21 @@ impl SendReady {
     }
 }
 
-/// The write-readiness half of the socket.
-#[derive(Debug)]
-struct SendPoller {
-    out: mpsc::Sender<(SocketAddr, Vec<u8>)>,
-    ready: SendReady,
-}
-
-impl UdpPoller for SendPoller {
-    fn poll_writable(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let this = self.get_mut();
-        if this.out.capacity() > 0 {
-            return Poll::Ready(Ok(()));
-        }
-        // Register before the re-check, so a drain between the first check
-        // and the registration still wakes the task.
-        this.ready.register(cx);
-        if this.out.capacity() > 0 || this.out.is_closed() {
-            return Poll::Ready(Ok(()));
-        }
-        Poll::Pending
+/// Ready when `out` has room, or when nobody drains it (the send then fails
+/// at once).
+fn poll_room(out: &Out, ready: &SendReady, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    if out.capacity() > 0 {
+        return Poll::Ready(Ok(()));
     }
-}
-
-/// Build a QUIC endpoint whose only socket is the WARP session.
-///
-/// The endpoint dials the real edge address. Its datagrams leave the host on
-/// TCP 443 inside the MASQUE session and arrive at the edge on 7844, so this
-/// host never opens a connection to 7844.
-pub async fn endpoint(stack: &WarpStack) -> Result<quinn::Endpoint> {
-    let udp = stack
-        .udp_bind()
-        .await
-        .context("binding a UDP socket inside the WARP session")?;
-    let local = udp.local_addr();
-    let socket = WarpUdpSocket::new(udp, local);
-    let mut endpoint = quinn::Endpoint::new_with_abstract_socket(
-        EndpointConfig::default(),
-        None,
-        socket,
-        Arc::new(quinn::TokioRuntime),
-    )
-    .map_err(|err| anyhow::anyhow!("building the QUIC endpoint: {err}"))?;
-    endpoint.set_default_client_config(client_config()?);
-    Ok(endpoint)
-}
-
-/// The TLS and transport configuration the edge expects.
-fn client_config() -> Result<quinn::ClientConfig> {
-    use crate::cloudflare::{edge_roots_pem, quic_alpn};
-    let tls = crate::trust::context().client_config_with(&[edge_roots_pem()], &[quic_alpn()])?;
-
-    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls)
-        .map_err(|err| anyhow::anyhow!("rustls to quinn: {err}"))?;
-    let mut config = quinn::ClientConfig::new(Arc::new(crypto));
-    // The tunnel carries packets of TUNNEL_MTU bytes. 1232 fits an IPv6 and
-    // UDP header in that; MTU discovery stops at the IPv4 size.
-    let ip_udp_v4 = 28;
-    let mut transport = crate::cloudflare::quic::transport_config(1232);
-    let mut discovery = quinn::MtuDiscoveryConfig::default();
-    discovery.upper_bound((super::ip::TUNNEL_MTU - ip_udp_v4) as u16);
-    transport.mtu_discovery_config(Some(discovery));
-    config.transport_config(Arc::new(transport));
-    Ok(config)
+    // Register before the check again, so that a drain between the first
+    // check and the register still wakes the task.
+    ready.register(cx);
+    if out.capacity() > 0 || out.is_closed() {
+        return Poll::Ready(Ok(()));
+    }
+    Poll::Pending
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn send_poller_reports_ready_when_the_queue_has_room() {
-        let (out, _rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(4);
-        let mut poller = SendPoller {
-            out,
-            ready: SendReady::default(),
-        };
-        let waker = futures::task::noop_waker();
-        let mut cx = Context::from_waker(&waker);
-        assert!(matches!(
-            Pin::new(&mut poller).poll_writable(&mut cx),
-            Poll::Ready(Ok(()))
-        ));
-    }
-
-    /// A waker that counts its wakes.
-    struct Count(std::sync::atomic::AtomicUsize);
-
-    impl futures::task::ArcWake for Count {
-        fn wake_by_ref(this: &Arc<Self>) {
-            this.0.fetch_add(1, Ordering::SeqCst);
-        }
-    }
-
-    // T-225: a full queue parks the poller; a drain after that must wake it.
-    #[test]
-    fn a_drain_after_pending_wakes_the_send_poller() {
-        let (out, mut rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(1);
-        let to: SocketAddr = "192.0.2.1:7844".parse().unwrap();
-        out.try_send((to, vec![0])).unwrap();
-        let ready = SendReady::default();
-        let mut poller = SendPoller {
-            out,
-            ready: ready.clone(),
-        };
-        let count = Arc::new(Count(std::sync::atomic::AtomicUsize::new(0)));
-        let waker = futures::task::waker(count.clone());
-        let mut cx = Context::from_waker(&waker);
-        assert!(Pin::new(&mut poller).poll_writable(&mut cx).is_pending());
-        // The writer task takes one datagram and tells the poller.
-        rx.try_recv().unwrap();
-        ready.wake();
-        assert_eq!(
-            count.0.load(Ordering::SeqCst),
-            1,
-            "the poller was not woken"
-        );
-        assert!(matches!(
-            Pin::new(&mut poller).poll_writable(&mut cx),
-            Poll::Ready(Ok(()))
-        ));
-    }
-}
+#[path = "queued_tests.rs"]
+mod tests;
