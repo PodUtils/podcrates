@@ -1,0 +1,608 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 0993ddf..914d924 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -59,22 +59,26 @@ podnet-core = { path = "crates/podnet-core", version = "0.4.0-beta.1" }
+ podnet-netns = { path = "crates/podnet-netns", version = "0.4.0-beta.1" }
+ # TLS of PodUtils/podcrates: the roots, the client configurations and the
+ # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ # The HTTP date of a time (the log of detach, the tests of the clock); the
+ # dial, the resolver and the failures of pod-proxy.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ # The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
+ # race of addresses, the proxy of a tool's file), the HTTP client
+ # (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
+ # with podnet's settings.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ # The resolver of each direct dial (src/resolve.rs): an IP address, the pins
+ # of --resolve, the system and DNS over HTTPS, with podnet's settings.
+-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ # The services of other parties: the relay, the edge of Cloudflare's tunnels
+ # and its roots, the quick tunnels, WARP, 1.1.1.1 and Pinggy, as data with
+ # their sources.
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++# The WebSocket of `connect`, of the forward endpoint and their bridge
++# (src/ws.rs), of PodUtils/podcrates, with podnet's dial, TLS context and
++# user agent, and the limits of tokio-tungstenite.
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ base64 = "0.23"
+@@ -113,7 +117,6 @@ hickory-resolver = { version = "0.26", default-features = false, features = [
+ ] }
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+-sha1 = "0.11"
+ # 0.12: the last release for the MSRV (0.13 needs Rust 1.91).
+ smoltcp = { version = "=0.12.0", default-features = false, features = [
+     "std",
+diff --git a/TODO/fixes.md b/TODO/fixes.md
+index f493300..2c2a129 100644
+--- a/TODO/fixes.md
++++ b/TODO/fixes.md
+@@ -2419,7 +2419,7 @@ Tests drive `handle_connection` over a duplex with tokio paused time: no byte, o
+ 
+ ## Premise
+ 
+-- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `src/vnet/switch.rs:433`, `src/vnet/proxy.rs:313`, `src/cli/cmd/connect.rs:226`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
++- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `src/vnet/switch.rs:433`, `src/vnet/proxy.rs:313`, `src/cli/cmd/connect.rs:225`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
+ - Two more listeners do `remove_file` then `bind_private`: `crates/podnet-netns/src/frontdoor.rs:55` and `crates/podnet-netns/src/seccomp/accept.rs:45`.
+ - `crates/podnet-core/src/net.rs` has no test of `claim_socket_path` (tests start at `crates/podnet-core/src/net.rs:179`).
+ - `net_tailscale` opens the LocalAPI socket before the bind (`src/cli/cmd/net/shim.rs:62-68`).
+@@ -2830,7 +2830,7 @@ A fake relay and a target that writes, shuts down its write half, then reads to
+ - `state::replace_file(path, bytes, mode)` writes through a rename, sets the mode and replaces a symlink (`crates/podnet-core/src/state.rs:344-363`).
+ - `read_private` returns `Option` and logs the reason: `load` needs an error with a `Fault::Config` class (`src/relay_reverse.rs:151-188`).
+ - `DirBuilder::mode(0o700)` applies only to a new directory (`:143-146`).
+-- The test `a_pair_file_is_private_and_the_newest_is_chosen` is at `src/relay_reverse.rs:879`.
++- The test `a_pair_file_is_private_and_the_newest_is_chosen` is at `src/relay_reverse.rs:871`.
+ 
+ ## Approach
+ 
+@@ -2907,9 +2907,9 @@ restart it). The unix socket file stays after exit. The refusal text of `claim_s
+ - `RelayCommand::Connect` has no `DetachArgs`: `src/cli/cmd/relay.rs:49-70`. `RelayCommand::Node` has it: `:44-45`.
+ - `detach_of` has no arm for it: `src/cli/opts.rs:253-262`. `connect` has one: `:246`.
+ - Both accept loops use `accepted?`: `src/cli/cmd/relay.rs:186`, `:198`. `connect -L` logs and returns:
+-  `src/cli/cmd/connect.rs:185-188`.
++  `src/cli/cmd/connect.rs:184-187`.
+ - The unix branch calls `claim_socket_path(&path, false)` with no guard: `src/cli/cmd/relay.rs:192`.
+-  `SocketFile` is in `src/cli/cmd/connect.rs:196-216` (`pub(crate)`).
++  `SocketFile` is in `src/cli/cmd/connect.rs:195-215` (`pub(crate)`).
+ - Message: `crates/podnet-core/src/net.rs:28-34`.
+ - `src/main.rs:141` allows `--replace` without `--detach` only for `Command::Connect`.
+ 
+diff --git a/TODO/pods.md b/TODO/pods.md
+index 7d8e1f1..f2fb410 100644
+--- a/TODO/pods.md
++++ b/TODO/pods.md
+@@ -532,7 +532,7 @@ namespace, with an `AF_PACKET` socket on one end, can carry the frames to the sa
+ 
+ - `crates/podnet-netns/src/netns/tun.rs:41-43` opens the node; `send_fd`/`recv_fd` (`crates/podnet-netns/src/netns/fdpass.rs:51,85`) and the
+   handoff (`crates/podnet-netns/src/netns/mod.rs:96,168`) are reusable. `doctor.rs:70,281` gates `auto` on the TUN probe.
+-- smoltcp has `medium-ip` only (`Cargo.toml:118`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
++- smoltcp has `medium-ip` only (`Cargo.toml:121`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
+ - `docs/research/podnet/vn.md:313` is plan item P5; `vn.md:411` asks if any target host has no TUN. No
+   measured host lacks it (`docs/target-environment.md:33`).
+ - The veth needs one small `RTM_NEWLINK` writer. Checksums: skip RX verification on this device.
+diff --git a/crates/podnet-core/Cargo.toml b/crates/podnet-core/Cargo.toml
+index a735007..ad0b08d 100644
+--- a/crates/podnet-core/Cargo.toml
++++ b/crates/podnet-core/Cargo.toml
+@@ -22,9 +22,9 @@ path = "src/lib.rs"
+ [dependencies]
+ # The clock of an HTTP date, the services of other parties and the TLS
+ # context, of PodUtils/podcrates at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ anyhow = "1"
+ futures = "0.3"
+ getrandom = "0.4"
+@@ -65,4 +65,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! and need_localhost! of the tests (T-046), from the test kit
+ # of PodUtils/podcrates at the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
+index 077a66f..4980b12 100644
+--- a/crates/podnet-netns/Cargo.toml
++++ b/crates/podnet-netns/Cargo.toml
+@@ -24,7 +24,7 @@ anyhow = "1"
+ libc = "0.2"
+ # The SOCKS5 datagram path (UDP ASSOCIATE, the command 0x83, the frames and
+ # the datagram header) of PodUtils/podcrates, at the git tag of the root.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ serde_json = "1"
+ smoltcp = { version = "=0.12.0", default-features = false, features = [
+     "std",
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index 7abe930..a73b6d2 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -9,4 +9,4 @@ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0" }
+diff --git a/scripts/layers-allow.txt b/scripts/layers-allow.txt
+index c4fb2cb..e5dbb9c 100644
+--- a/scripts/layers-allow.txt
++++ b/scripts/layers-allow.txt
+@@ -4,6 +4,5 @@ warp -> cloudflare
+ warp -> quicktunnel
+ ws -> cloudflare
+ ws -> proxy
+-ws -> relay_reverse
+ ws_relay -> edge_h2
+ ws_relay -> ws
+diff --git a/scripts/size-allow.txt b/scripts/size-allow.txt
+index d60f7b1..d49542c 100644
+--- a/scripts/size-allow.txt
++++ b/scripts/size-allow.txt
+@@ -9,7 +9,7 @@
+ 1608 src/edge_h2.rs
+ 2034 src/proxy.rs
+ 850 src/quicktunnel.rs
+-899 src/relay_reverse.rs
++891 src/relay_reverse.rs
+ 1404 src/tunnel.rs
+ 1680 src/warp/ip.rs
+ 1039 src/warp/mod.rs
+diff --git a/src/cli/cmd/connect.rs b/src/cli/cmd/connect.rs
+index 8311681..09cd587 100644
+--- a/src/cli/cmd/connect.rs
++++ b/src/cli/cmd/connect.rs
+@@ -128,8 +128,7 @@ pub(crate) async fn connect(args: ConnectArgs) -> Result<()> {
+                     )),
+                 )
+             })?;
+-        let mut ws = ws;
+-        let _ = tokio::time::timeout(Duration::from_secs(2), ws.close(None)).await;
++        let _ = tokio::time::timeout(Duration::from_secs(2), ws.send_close(1000, "")).await;
+     }
+     let mut tasks = Vec::new();
+     let mut listens: Vec<String> = tcp.iter().map(|(name, _)| name.clone()).collect();
+diff --git a/src/relay_reverse.rs b/src/relay_reverse.rs
+index 0ceaffd..b902e1c 100644
+--- a/src/relay_reverse.rs
++++ b/src/relay_reverse.rs
+@@ -671,15 +671,7 @@ where
+ }
+ 
+ /// What a close code of the relay means, for the error line.
+-pub fn close_hint(code: u16) -> &'static str {
+-    match code {
+-        1001 => " (the relay goes away; open a new session)",
+-        1009 => " (the session passed the byte limit of the relay; open a new session)",
+-        1011 => " (an error of the relay)",
+-        1013 => " (the relay is busy; try again later)",
+-        _ => "",
+-    }
+-}
++pub use pod_ws::close_hint;
+ 
+ #[cfg(test)]
+ mod tests {
+diff --git a/src/ws.rs b/src/ws.rs
+index ebcc093..d80ffb1 100644
+--- a/src/ws.rs
++++ b/src/ws.rs
+@@ -9,13 +9,18 @@
+ //!
+ //! One WebSocket message maps to one write, so binary framing is preserved and
+ //! interactive protocols (SSH, RDP, databases, raw sockets) work unchanged.
++//!
++//! The WebSocket, its bridge and its client are `pod-ws` of
++//! PodUtils/podcrates, over podnet's dial, its TLS context and its user
++//! agent ([`way`]), with the limits of tokio-tungstenite. The relay client
++//! (`ws_relay.rs`) keeps a bridge of tokio-tungstenite ([`bridge`]) until
++//! `pod-relay`.
+ 
+ use crate::cloudflare::stream as cqstream;
+ use anyhow::{bail, Context, Result};
+-use base64::Engine as _;
+ use futures::{SinkExt as _, StreamExt as _};
++use pod_ws::{ConnectError, Limits};
+ use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+-use tokio_tungstenite::tungstenite::protocol::Role;
+ use tokio_tungstenite::tungstenite::Message;
+ use tokio_tungstenite::WebSocketStream;
+ use tokio_util::compat::{FuturesAsyncReadCompatExt, FuturesAsyncWriteCompatExt};
+@@ -25,8 +30,8 @@ use crate::metrics::Metrics;
+ use crate::net::BoxedIo;
+ use crate::proxy::{header_value, write_response_meta, EdgeReader, EdgeWriter};
+ 
+-/// The RFC 6455 handshake GUID.
+-const WS_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
++/// The client WebSocket of podnet, as `pod-ws` gives it.
++pub type Session = pod_ws::RelaySession<pod_ws::url::Stream>;
+ 
+ /// Default path for a `--forward` WebSocket endpoint.
+ pub const DEFAULT_PATH: &str = "/__podnet/ws";
+@@ -61,12 +66,29 @@ pub fn forward_url(url: &str, path: &str) -> Option<String> {
+ }
+ 
+ /// Compute `Sec-WebSocket-Accept` for a client's `Sec-WebSocket-Key`.
+-pub fn accept_key(key: &str) -> String {
+-    use sha1::{Digest, Sha1};
+-    let mut hasher = Sha1::new();
+-    hasher.update(key.as_bytes());
+-    hasher.update(WS_GUID);
+-    base64::engine::general_purpose::STANDARD.encode(hasher.finalize())
++pub use pod_ws::handshake::accept_key;
++
++/// The way out of a WebSocket of podnet: its dial (the egress layer:
++/// `--proxy`, NO_PROXY, `--resolve`, the system resolver and DoH), its TLS
++/// context (`--ca-file`, SSL_CERT_FILE) and its user agent.
++pub fn way() -> pod_ws::Way {
++    pod_ws::Way::new(
++        crate::trust::context().clone(),
++        crate::egress::egress(None),
++        format!("podnet/{}", env!("CARGO_PKG_VERSION")),
++    )
++}
++
++/// The byte counts of a bridge, in podnet's metrics.
++struct Counted<'a>(&'a Metrics);
++
++impl pod_ws::Tally for Counted<'_> {
++    fn add_in(&self, bytes: u64) {
++        self.0.add_in(bytes);
++    }
++    fn add_out(&self, bytes: u64) {
++        self.0.add_out(bytes);
++    }
+ }
+ 
+ /// Serve one inbound WebSocket upgrade from the edge, bridging it to `target`.
+@@ -110,111 +132,89 @@ pub async fn serve_websocket(
+     // WebSocket codec. `into_inner` recovers the quinn halves from the
+     // futures-io wrappers used by the request framing.
+     let socket = tokio::io::join(reader.compat(), writer.compat_write());
+-    let ws = WebSocketStream::from_raw_socket(socket, Role::Server, None).await;
+-    bridge(ws, io, metrics).await
++    let session =
++        pod_ws::server::session(socket, Vec::new(), None).with_limits(Limits::TUNGSTENITE);
++    pod_ws::bridge(session, io, &Counted(metrics))
++        .await
++        .context("the bridge of the forward WebSocket")
+ }
+ 
+ /// The time for each step (TCP, TLS, the upgrade) of a client WebSocket.
+-pub const DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
++pub const DIAL_TIMEOUT: std::time::Duration = pod_ws::bridge::DIAL_TIMEOUT;
+ 
+ /// A client WebSocket to `url` (ws:// or wss://). The TCP goes through
+ /// the egress layer of podnet (issue 191): `--proxy`, NO_PROXY,
+ /// `--resolve`, the system resolver and DoH. TLS trusts the roots of
+-/// podnet (`--ca-file`, SSL_CERT_FILE).
++/// podnet (`--ca-file`, SSL_CERT_FILE). Issue 205: the credential of a
++/// tunnel with --auth-user goes in `Authorization`. Issue 206: the time of
++/// each step, at -v.
+ pub async fn dial(
+     url: &str,
+     timeout: std::time::Duration,
+     authorization: Option<&str>,
+-) -> Result<WebSocketStream<BoxedIo>> {
+-    use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+-    let mut request = url
+-        .into_client_request()
+-        .with_context(|| format!("{url} is not a WebSocket URL"))?;
+-    // Issue 205: the credential of a tunnel with --auth-user.
+-    if let Some(value) = authorization {
+-        request.headers_mut().insert(
+-            http::header::AUTHORIZATION,
+-            http::HeaderValue::from_str(value).context("the Authorization header")?,
+-        );
+-    }
+-    let uri = request.uri();
+-    let tls = match uri.scheme_str() {
+-        Some("wss") => true,
+-        Some("ws") => false,
+-        _ => bail!("{url} is not a WebSocket URL: give ws:// or wss://"),
+-    };
+-    let host = uri
+-        .host()
+-        .with_context(|| format!("{url} has no host"))?
+-        .trim_start_matches('[')
+-        .trim_end_matches(']')
+-        .to_string();
+-    let port = uri.port_u16().unwrap_or(if tls { 443 } else { 80 });
+-    // Issue 206: the time of each step, at -v.
+-    let started = std::time::Instant::now();
+-    let io = crate::egress::dial(&host, port, None, timeout)
++) -> Result<Session> {
++    let trust = pod_tls::Trust::Default;
++    pod_ws::bridge::dial(url, &way(), &trust, timeout, authorization)
+         .await
+-        .with_context(|| format!("TCP to {host}:{port}"))?;
+-    let tcp_ms = started.elapsed().as_millis();
+-    let io: BoxedIo = if tls {
+-        // HTTP/1.1 only: a WebSocket upgrade does not go over HTTP/2.
+-        let config = crate::trust::context().client_config_with(&[], &[b"http/1.1"])?;
+-        let name = rustls::pki_types::ServerName::try_from(host.clone())
+-            .with_context(|| format!("{host} is not a valid TLS name"))?;
+-        let stream = tokio::time::timeout(
+-            timeout,
+-            tokio_rustls::TlsConnector::from(std::sync::Arc::new(config)).connect(name, io),
+-        )
+-        .await
+-        .map_err(|_| {
+-            crate::hop::at(
+-                crate::hop::Hop::Network,
+-                anyhow::anyhow!("TLS to {host}: no answer in {} s", timeout.as_secs()),
+-            )
+-        })?
+-        .map_err(|err| {
+-            let hop = crate::hop::tls_hop(&err);
+-            crate::hop::at(
+-                hop,
+-                anyhow::Error::new(err).context(format!("TLS to {host}")),
+-            )
+-        })?;
+-        Box::new(stream)
+-    } else {
+-        io
+-    };
+-    let tls_ms = started.elapsed().as_millis() - tcp_ms;
+-    let upgrade = tokio::time::timeout(timeout, tokio_tungstenite::client_async(request, io)).await;
+-    tracing::debug!(
+-        tcp_ms,
+-        tls_ms,
+-        upgrade_ms = started.elapsed().as_millis() - tcp_ms - tls_ms,
+-        "the WebSocket to {host}:{port}"
+-    );
+-    match upgrade {
+-        Err(_) => bail!(
++        .map_err(|err| failed(url, err))
++}
++
++/// A failure of [`dial`] in podnet's words, with its hop.
++fn failed(url: &str, err: ConnectError) -> anyhow::Error {
++    let host = pod_ws::url::WsUrl::parse(url)
++        .map(|u| u.host)
++        .unwrap_or_default();
++    match err {
++        ConnectError::Config(why) => anyhow::anyhow!("{url} is not a WebSocket URL: {why}"),
++        ConnectError::Refused { status: 401, .. } => anyhow::anyhow!(
++            "{url} refused the WebSocket upgrade: HTTP 401 (the tunnel needs --auth-user and --auth-password-file)"
++        ),
++        ConnectError::Refused { status, .. } => {
++            anyhow::anyhow!("{url} refused the WebSocket upgrade: HTTP {status}")
++        }
++        ConnectError::Timeout { step, after } if step.contains("TLS") => crate::hop::at(
++            crate::hop::Hop::Network,
++            anyhow::anyhow!("TLS to {host}: no answer in {} s", after.as_secs()),
++        ),
++        ConnectError::Timeout { after, .. } => anyhow::anyhow!(
+             "the WebSocket upgrade at {url}: no answer in {} s",
+-            timeout.as_secs()
++            after.as_secs()
+         ),
+-        Ok(Ok((ws, _response))) => Ok(ws),
+-        Ok(Err(tokio_tungstenite::tungstenite::Error::Http(response))) => {
+-            let status = response.status().as_u16();
+-            if status == 401 {
+-                bail!("{url} refused the WebSocket upgrade: HTTP 401 (the tunnel needs --auth-user and --auth-password-file)");
++        ConnectError::Tls(failure) => {
++            let hop = if failure.cut.is_some() {
++                crate::hop::Hop::Network
++            } else {
++                crate::hop::Hop::Tls
++            };
++            crate::hop::at(hop, anyhow::anyhow!("TLS to {host}: {}", failure.why))
++        }
++        ConnectError::Dial(dial) => {
++            let failure = pod_core::Failure::from(dial);
++            let hop = match failure.stage {
++                pod_core::Stage::Proxy => Some(crate::hop::Hop::Proxy),
++                pod_core::Stage::Dns => Some(crate::hop::Hop::Dns),
++                _ => None,
++            };
++            let err = anyhow::Error::new(failure).context(format!("TCP to {host}"));
++            match hop {
++                Some(hop) => crate::hop::at(hop, err),
++                None => err,
+             }
+-            bail!("{url} refused the WebSocket upgrade: HTTP {status}")
+         }
+-        Ok(Err(err)) => Err(err).with_context(|| format!("the WebSocket upgrade at {url}")),
++        other => anyhow::Error::new(other).context(format!("the WebSocket upgrade at {url}")),
+     }
+ }
+ 
+ /// Connect a local socket to a remote WebSocket endpoint.
+ pub async fn connect_bridge(url: &str, io: BoxedIo, authorization: Option<&str>) -> Result<()> {
+-    let ws = dial(url, DIAL_TIMEOUT, authorization).await?;
+-    bridge(ws, io, &Metrics::new()).await
++    let session = dial(url, DIAL_TIMEOUT, authorization).await?;
++    pod_ws::bridge(session, io, &Counted(&Metrics::new()))
++        .await
++        .context("websocket bridge")
+ }
+ 
+-/// Pump bytes both ways between a WebSocket and a raw stream.
++/// Pump bytes both ways between a WebSocket of tokio-tungstenite and a raw
++/// stream: the relay client (`ws_relay.rs`) until `pod-relay`.
+ pub async fn bridge<S>(ws: WebSocketStream<S>, io: BoxedIo, metrics: &Metrics) -> Result<()>
+ where
+     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+@@ -250,7 +250,7 @@ where
+                                 code,
+                                 reason = %frame.reason,
+                                 "the far end closed the WebSocket{}",
+-                                crate::relay_reverse::close_hint(code)
++                                pod_ws::close_hint(code)
+                             );
+                         } else {
+                             tracing::debug!(code, reason = %frame.reason, "the WebSocket closed");
+@@ -398,15 +398,6 @@ mod tests {
+         );
+     }
+ 
+-    #[test]
+-    fn accept_key_matches_rfc_example() {
+-        // RFC 6455 section 1.3.
+-        assert_eq!(
+-            accept_key("dGhlIHNhbXBsZSBub25jZQ=="),
+-            "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+-        );
+-    }
+-
+     #[test]
+     fn parses_local_specs() {
+         assert_eq!(
+@@ -430,142 +421,6 @@ mod tests {
+         assert!(LocalSpec::parse("http://x").is_err());
+         assert!(LocalSpec::parse("tcp://nope").is_err());
+     }
+-
+-    #[tokio::test]
+-    async fn bridge_moves_bytes_both_ways() {
+-        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+-
+-        let (edge_server, edge_client) = tokio::io::duplex(1 << 16);
+-        let (target_a, mut target_b) = tokio::io::duplex(1 << 16);
+-
+-        let server = tokio::spawn(async move {
+-            let ws = WebSocketStream::from_raw_socket(edge_server, Role::Server, None).await;
+-            bridge(ws, Box::new(target_a), &Metrics::new()).await
+-        });
+-
+-        // The handshake is covered by `accept_key_matches_rfc_example`; here we
+-        // drive the framing directly on both ends.
+-        let mut ws = WebSocketStream::from_raw_socket(edge_client, Role::Client, None).await;
+-
+-        // client -> target
+-        ws.send(Message::Binary(bytes::Bytes::from_static(b"hello")))
+-            .await
+-            .unwrap();
+-        let mut buf = [0u8; 5];
+-        target_b.read_exact(&mut buf).await.unwrap();
+-        assert_eq!(&buf, b"hello");
+-
+-        // target -> client
+-        target_b.write_all(b"world").await.unwrap();
+-        let message = ws.next().await.unwrap().unwrap();
+-        assert_eq!(
+-            message,
+-            Message::Binary(bytes::Bytes::from_static(b"world"))
+-        );
+-
+-        drop(ws);
+-        let _ = server.await.unwrap();
+-    }
+-}
+-
+-#[cfg(test)]
+-mod bench {
+-    use super::*;
+-    use std::time::{Duration, Instant};
+-    use tokio::net::{TcpListener, TcpStream};
+-
+-    /// One direction of a delay line: each chunk goes out `delay` after it came in.
+-    async fn delay_pipe(
+-        mut r: tokio::net::tcp::OwnedReadHalf,
+-        mut w: tokio::net::tcp::OwnedWriteHalf,
+-        delay: Duration,
+-    ) {
+-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(Instant, Vec<u8>)>();
+-        let reader = async move {
+-            let mut buf = vec![0u8; 64 * 1024];
+-            loop {
+-                let n = match r.read(&mut buf).await {
+-                    Ok(0) | Err(_) => break,
+-                    Ok(n) => n,
+-                };
+-                let _ = tx.send((Instant::now() + delay, buf[..n].to_vec()));
+-            }
+-        };
+-        let writer = async move {
+-            while let Some((at, chunk)) = rx.recv().await {
+-                tokio::time::sleep_until(at.into()).await;
+-                if w.write_all(&chunk).await.is_err() {
+-                    break;
+-                }
+-            }
+-            let _ = w.shutdown().await;
+-        };
+-        tokio::join!(reader, writer);
+-    }
+-
+-    /// A TCP listener that forwards to `to` through a delay line.
+-    async fn delay_line(to: std::net::SocketAddr, delay: Duration) -> std::net::SocketAddr {
+-        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+-        let addr = l.local_addr().unwrap();
+-        tokio::spawn(async move {
+-            while let Ok((a, _)) = l.accept().await {
+-                let b = TcpStream::connect(to).await.unwrap();
+-                let (ar, aw) = a.into_split();
+-                let (br, bw) = b.into_split();
+-                tokio::spawn(delay_pipe(ar, bw, delay));
+-                tokio::spawn(delay_pipe(br, aw, delay));
+-            }
+-        });
+-        addr
+-    }
+-
+-    const SIZE: usize = 16 << 20;
+-
+-    #[tokio::test(flavor = "multi_thread")]
+-    #[ignore = "a measure: it prints the throughput through a delay line and asserts nothing (cargo test -- --ignored throughput)"]
+-    async fn throughput() {
+-        let delay = Duration::from_millis(25);
+-        // Raw TCP through the delay line.
+-        let sink = TcpListener::bind("127.0.0.1:0").await.unwrap();
+-        let sink_addr = sink.local_addr().unwrap();
+-        tokio::spawn(async move {
+-            let (mut s, _) = sink.accept().await.unwrap();
+-            s.write_all(&vec![7u8; SIZE]).await.unwrap();
+-        });
+-        let via = delay_line(sink_addr, delay).await;
+-        let t = Instant::now();
+-        let mut c = TcpStream::connect(via).await.unwrap();
+-        let mut got = Vec::new();
+-        c.read_to_end(&mut got).await.unwrap();
+-        eprintln!("raw tcp: {} bytes in {:?}", got.len(), t.elapsed());
+-
+-        // The WS bridge: origin -> server bridge -> delay line -> client bridge -> local.
+-        let ws_l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+-        let ws_addr = ws_l.local_addr().unwrap();
+-        tokio::spawn(async move {
+-            let (s, _) = ws_l.accept().await.unwrap();
+-            let ws = WebSocketStream::from_raw_socket(s, Role::Server, None).await;
+-            let (origin_a, mut origin_b) = tokio::io::duplex(1 << 16);
+-            tokio::spawn(async move {
+-                origin_b.write_all(&vec![7u8; SIZE]).await.unwrap();
+-                origin_b.shutdown().await.unwrap();
+-                let mut sink = Vec::new();
+-                let _ = origin_b.read_to_end(&mut sink).await;
+-            });
+-            let _ = bridge(ws, Box::new(origin_a), &Metrics::new()).await;
+-        });
+-        let via = delay_line(ws_addr, delay).await;
+-        let (local_a, mut local_b) = tokio::io::duplex(1 << 16);
+-        let t = Instant::now();
+-        tokio::spawn(async move {
+-            let s = TcpStream::connect(via).await.unwrap();
+-            let ws = WebSocketStream::from_raw_socket(s, Role::Client, None).await;
+-            let _ = bridge(ws, Box::new(local_a), &Metrics::new()).await;
+-        });
+-        let mut got = vec![0u8; SIZE];
+-        local_b.read_exact(&mut got).await.unwrap();
+-        eprintln!("ws bridge: {} bytes in {:?}", got.len(), t.elapsed());
+-    }
+ }
+ 
+ #[cfg(test)]

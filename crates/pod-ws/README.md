@@ -106,12 +106,12 @@ Against podnet `src/ws.rs` at `76ffb5e`:
 | podssh | `doctor(config)` | `pod_ws::doctor(&config)` after podssh's line of the crypto provider |
 | podssh | `tls::connect_error`, `tls_over` | `pod_ws::way::connect_error`, `Way::tls_over` |
 | podssh | the fuzz targets `ws_frame`, `ws_upgrade`, `close_reason` | the targets of the same names in `fuzz/` of podcrates; podssh removes its own |
-| podnet | `ws::dial(url, timeout, authorization)` (`cli/cmd/connect.rs`) | `pod_ws::bridge::dial(url, &way, &Trust::Default, timeout, authorization)`, with podnet's hint for a 401 |
+| podnet | `ws::dial(url, timeout, authorization)` (`cli/cmd/connect.rs`), a `WebSocketStream` | `ws::dial` keeps podnet's words and hops over `pod_ws::bridge::dial(url, &ws::way(), &Trust::Default, timeout, authorization)`, a `RelaySession`; `connect` closes it with `send_close(1000, "")` |
 | podnet | `ws::connect_bridge(url, io, authorization)` | `pod_ws::bridge::connect_bridge(url, &way, &Trust::Default, io, authorization, &metrics)` |
-| podnet | `ws::bridge(ws, io, &metrics)` (`ws.rs` `serve_websocket`) | `pod_ws::bridge(pod_ws::server::session(socket, pending, None).with_limits(Limits::TUNGSTENITE), io, &metrics)`; `Metrics` implements `pod_ws::Tally` |
-| podnet | `ws::bridge` of `ws_relay.rs` (a tungstenite socket of the relay) | podnet keeps a bridge of tungstenite for it until `pod-relay` |
-| podnet | `ws::accept_key`, `ws::DIAL_TIMEOUT` | `pod_ws::handshake::accept_key`, `pod_ws::bridge::DIAL_TIMEOUT` |
-| podnet | `relay_reverse::close_hint` | `pod_ws::close_hint` |
+| podnet | `ws::bridge(ws, io, &metrics)` (`ws.rs` `serve_websocket`) | `pod_ws::bridge(pod_ws::server::session(socket, Vec::new(), None).with_limits(Limits::TUNGSTENITE), io, &Counted(metrics))`; `Counted` (podnet's) implements `pod_ws::Tally` over `Metrics` |
+| podnet | `ws::bridge` of `ws_relay.rs` (a tungstenite socket of the relay) | `ws::bridge` stays, over tokio-tungstenite, for the relay client alone until `pod-relay` |
+| podnet | `ws::accept_key`, `ws::DIAL_TIMEOUT`, the dependency `sha1` | `pod_ws::handshake::accept_key`, `pod_ws::bridge::DIAL_TIMEOUT`; `sha1` leaves |
+| podnet | `relay_reverse::close_hint` | `pod_ws::close_hint` (`relay_reverse` re-exports it); the row `ws -> relay_reverse` of `scripts/layers-allow.txt` goes |
 | podnet | `trust::context().client_config_with(&[], &[b"http/1.1"])` of `ws::dial` | the `pod_tls::Context` of the `Way`; the bridge's dial offers `http/1.1` |
 | podnet | `crate::egress::dial` of `ws::dial` | the dialer of the `Way` (podnet's `Egress`) |
 
