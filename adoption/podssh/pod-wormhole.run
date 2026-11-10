@@ -15,7 +15,8 @@
 # podssh-relay; the tests of the pairing, the net's invitation and the
 # commands of the code; the plants that stay still apply; rustfmt of the
 # crates that the patch changes; each Rust toolchain of the workflows and
-# build images against the rust-version of podcrates; the binary of the
+# build images against the rust-version of podcrates; each test target that
+# the gate names exists; the binary of the
 # release's features for x86_64 musl, built with zig (a debug build: the
 # release profile takes LTO), and podssh's static check of it.
 cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
@@ -31,5 +32,6 @@ cargo test -q -p podssh-cli --lib --test net_invite --test relay_code --test rel
 for p in t086-third-side t086-code-said t616-kind-unchecked t616-member-replaced t616-owner-unchecked; do git apply --check scripts/plants/$p.patch || exit 1; done
 cargo fmt -p podssh-relay -p podssh-cli --check
 python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+python3 -I "$PODCRATES/scripts/check-consumer-tests.py"
 cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
 sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"
