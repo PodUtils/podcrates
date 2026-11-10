@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**149 entries: 54 open, 3 partial, 0 blocked, 92 done.**
+**150 entries: 55 open, 3 partial, 0 blocked, 92 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 22 | 1 | 0 | 32 | 55 |
 | P2 | 24 | 1 | 0 | 44 | 69 |
-| P3 | 8 | 1 | 0 | 14 | 23 |
-| **All** | 54 | 3 | 0 | 92 | 149 |
+| P3 | 9 | 1 | 0 | 14 | 24 |
+| **All** | 55 | 3 | 0 | 92 | 150 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -196,3 +196,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-147](podvm.md) | P3 | S | M5 | chore | done | `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take |
 | [T-148](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11) |
 | [T-149](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: three tests fail under qemu-user only |
+| [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |

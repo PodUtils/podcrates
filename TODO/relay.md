@@ -597,3 +597,42 @@ cargo test -p pod-relay --all-features
 ## Start condition
 
 T-025 or T-026 is done.
+
+# T-150: `pod-relay`: a handler target for the relay node (PodUtils/podnet#413)
+
+**Source:** PodUtils/podnet#413, ask 11 (PodUtils/podnet@T-083)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The relay node serves one target: a TCP address or a unix socket. A
+service in the same process (podnet's file server, a git SSH server, a
+transfer) must open a socket file to be reached through the relay.
+
+## Premise
+
+- Read: the ask of podnet.
+- podnet's users of it (PodUtils/podnet@T-091, PodUtils/podnet@T-094,
+  PodUtils/podnet@T-104) come later: the ask has a low priority.
+
+## Approach
+
+A `Target` variant that hands each session's stream to a handler in the
+process (a trait object or a channel of streams), beside the address and
+the unix socket. A test with the stand-in relay of `pod-testkit`: a
+handler in the test process answers one session and then another.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+cargo todo check
+```
+
+## Start condition
+
+T-025 or T-026 is done.
