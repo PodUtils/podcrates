@@ -32,7 +32,10 @@ fn a_file_of_the_overlay_adds_a_service() {
     let laid = catalog.lay("my-relay.toml", MY_RELAY).unwrap();
     assert_eq!(laid.endpoint("default").unwrap().url(), "https://relay.example:8443");
     let relays: Vec<&str> = catalog.of_kind("relay").map(|s| s.id()).collect();
-    assert_eq!(relays, ["ajam-relay", "my-relay"], "a rank of 0 each; then by id");
+    // A rank of 0 each, then by id; the built-in relays with no rank (croc)
+    // come after.
+    assert_eq!(relays[..2], ["ajam-relay", "my-relay"], "a rank of 0 each; then by id");
+    assert_eq!(relays.len(), pod_services::of_kind("relay").count() + 1);
     assert_eq!(catalog.iter().count(), pod_services::all().len() + 1);
     assert!(pod_services::get("my-relay").is_none(), "the built-in set does not change");
 }
@@ -47,7 +50,7 @@ fn a_file_with_the_id_of_a_built_in_service_replaces_it() {
     assert!(
         matches!(relay.endpoint("default").unwrap().source().origin(), Origin::Ruling(r) if r == "the user's setting")
     );
-    assert_eq!(catalog.of_kind("relay").count(), 1);
+    assert_eq!(catalog.of_kind("relay").count(), pod_services::of_kind("relay").count());
     assert_eq!(catalog.iter().count(), pod_services::all().len());
 }
 
