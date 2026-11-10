@@ -1,7 +1,9 @@
-# One recorded blob of a SOURCES file differs from the source.
+# One recorded blob of a SOURCES file differs from the source. The run reads
+# a clone of the source, not the read-only mirror: the mirror can answer 403
+# or 404 for a while, and a planted change must not depend on it.
 ENTRY=T-003
 GROUP=network
 EXPECT='^pod-todo: changed '
-RUN='python3 -I scripts/check-sources.py --plant-change pod-todo'
+RUN='d=$(mktemp -d) && git clone -q --filter=blob:none https://github.com/PodUtils/podssh "$d/podssh" && python3 -I scripts/check-sources.py --clone Azathothas/podssh="$d/podssh" --plant-change pod-todo; rc=$?; rm -rf "$d"; exit $rc'
 LIMIT=300
 SWITCH=1

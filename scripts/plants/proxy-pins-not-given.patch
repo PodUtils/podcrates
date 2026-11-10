@@ -1,13 +1,13 @@
 diff --git a/crates/pod-proxy/src/dial.rs b/crates/pod-proxy/src/dial.rs
-index 16b5799..e8523e5 100644
+index 5d86308..04f3800 100644
 --- a/crates/pod-proxy/src/dial.rs
 +++ b/crates/pod-proxy/src/dial.rs
-@@ -160,7 +160,7 @@ impl Dialer {
+@@ -172,7 +172,7 @@ impl Dialer {
          match &self.settings.proxy {
              ProxyChoice::Direct => (Ok(None), "direct"),
              ProxyChoice::Via(proxy) => (Ok(Some(proxy.clone())), "via"),
--            ProxyChoice::FromEnvironment(env) => env.decide(host, port, &self.resolve.pinned(host)),
-+            ProxyChoice::FromEnvironment(env) => env.decide(host, port, &[]),
+-            ProxyChoice::FromEnvironment(env) => env.decide(scheme, host, port, &self.resolve.pinned(host)),
++            ProxyChoice::FromEnvironment(env) => env.decide(scheme, host, port, &[]),
          }
      }
  

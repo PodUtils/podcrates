@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**142 entries: 55 open, 4 partial, 0 blocked, 83 done.**
+**143 entries: 55 open, 4 partial, 0 blocked, 84 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 23 | 0 | 0 | 31 | 54 |
+| P1 | 23 | 0 | 0 | 32 | 55 |
 | P2 | 23 | 3 | 0 | 39 | 65 |
 | P3 | 9 | 1 | 0 | 11 | 21 |
-| **All** | 55 | 4 | 0 | 83 | 142 |
+| **All** | 55 | 4 | 0 | 84 | 143 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -189,3 +189,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-140](podvm.md) | P1 | S | M6 | defect | done | `pod-oci`: the test of the host name fails where Rust and OCI say the same word |
 | [T-141](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main |
 | [T-142](podvm.md) | P3 | S | M6 | measurement | open | `pod-oci`: a live pull from a public registry |
+| [T-143](foundation.md) | P1 | S | M5 | defect | done | `plants.yml`: four plants are stale and two miss |

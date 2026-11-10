@@ -1,13 +1,13 @@
 diff --git a/crates/pod-proxy/src/race.rs b/crates/pod-proxy/src/race.rs
-index 63bd9d3..3b62112 100644
+index a9c8fce..a2d1778 100644
 --- a/crates/pod-proxy/src/race.rs
 +++ b/crates/pod-proxy/src/race.rs
-@@ -73,7 +73,7 @@ pub(crate) async fn connect_race(
+@@ -80,7 +80,7 @@ pub(crate) async fn connect_race(
                  }
                  return Ok((stream, how));
              }
 -            Err(failed) if found.more && Instant::now() < leg.deadline => {
 +            Err(failed) if false && found.more && Instant::now() < leg.deadline => {
-                 match leg.resolve.resolve_from(host, port, leg.deadline, Some(found.source)).await {
-                     Ok(next) => found = next,
-                     Err(_) => return Err(failed),
+                 let next = leg.resolve.resolve_from(host, port, leg.deadline, Some(found.source));
+                 match tokio::time::timeout_at(leg.deadline, next).await {
+                     Ok(Ok(next)) => found = next,

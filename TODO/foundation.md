@@ -1324,3 +1324,46 @@ fail `deny.yml`.
 ```sh
 sh scripts/plant-each.sh
 ```
+
+# T-143: `plants.yml`: four plants are stale and two miss
+
+**Source:** `plants.yml` runs 42702242541 to 42745399953 (red since 2026-11-09).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`plants.yml` failed on each push: `probe-feature-missing`,
+`proxy-pins-not-given`, `proxy-source-not-handed` and `record-milestone`
+were stale (the patch did not apply after the code moved), and
+`sources-change` missed, as the read-only mirror answered 404 or an empty
+tree for `Azathothas/podssh`. The record did not know the red run.
+
+## Premise
+
+- Read: the logs of run 42745399953; `scripts/plant-each.sh`;
+  `scripts/check-sources.py` (`compare`, `--plant-change`).
+- Measured: the mirror answered 200, then 403 and 404, for the same reads
+  within minutes.
+
+## Approach
+
+- Make each stale patch again on the current code; set the `EXPECT` of
+  `record-milestone` to the milestones of `TODO/todo.toml` (M0 to M8).
+- `sources-change` reads a clone of podssh (`--clone`), not the mirror.
+
+## Prove
+
+```sh
+sh scripts/plant-each.sh probe-feature-missing proxy-pins-not-given proxy-source-not-handed record-milestone sources-change
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-143. Each of the five plants
+is caught (`plant-each: 5 caught, 0 missed or stale`, in two runs: three,
+then two). The run of `plants.yml` after the push is the proof of the
+other plants.
