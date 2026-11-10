@@ -56,6 +56,8 @@ page current; remove a line when its work is done.
   2>&1 && git commit`), never on a pipe into `tail`.
 - Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
   head; a push to `main` cancels the runs that wait.
+- After a release, read the dry run of `publish.yml` at the tag: it was red
+  at `v0.14.0` and `v0.15.0` (a cycle of dev-dependencies) and no session saw it.
 - A new entry id or call number: take it with `cargo todo next` just before
   the commit; sessions and agents add entries in parallel.
 - A finding goes into the work at once: fixed in place, or written as an

@@ -31,5 +31,7 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-pod-testkit = { workspace = true }
+# A path only: pod-testkit depends on this crate, and cargo publish drops a
+# dev-dependency with no version (scripts/check-publish-order.py).
+pod-testkit = { path = "../pod-testkit" }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros", "test-util"] }

@@ -24,7 +24,9 @@ linux-raw-sys = { workspace = true }
 syscalls = { workspace = true }
 
 [dev-dependencies]
-pod-testkit = { workspace = true }
+# A path only: pod-testkit depends on this crate, and cargo publish drops a
+# dev-dependency with no version (scripts/check-publish-order.py).
+pod-testkit = { path = "../pod-testkit" }
 
 # The probe children of the whole set: a test binary with no libtest, so
 # that it reads the flag of a child before anything else.

@@ -20,6 +20,7 @@ vt100 = { version = "0.18", optional = true }
 # mount.
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
-# The one detection of an emulator (host::emulated). pod-hostprobe has this
-# crate as a dev-dependency only, which cargo accepts.
+# The one detection of an emulator (host::emulated). pod-hostprobe and
+# pod-core take this crate as a dev-dependency by path only, so that cargo
+# publish can order them (scripts/check-publish-order.py).
 pod-hostprobe = { workspace = true }
