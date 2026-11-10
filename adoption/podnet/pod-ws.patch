@@ -1,9 +1,9 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 0993ddf..914d924 100644
+index 458e5c2..ab0235a 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -59,22 +59,26 @@ podnet-core = { path = "crates/podnet-core", version = "0.4.0-beta.1" }
- podnet-netns = { path = "crates/podnet-netns", version = "0.4.0-beta.1" }
+@@ -68,22 +68,26 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.1" }
+ podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.1" }
  # TLS of PodUtils/podcrates: the roots, the client configurations and the
  # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
@@ -34,7 +34,7 @@ index 0993ddf..914d924 100644
  anyhow = "1"
  axum = { version = "0.8", features = ["multipart"] }
  base64 = "0.23"
-@@ -113,7 +117,6 @@ hickory-resolver = { version = "0.26", default-features = false, features = [
+@@ -122,7 +126,6 @@ hickory-resolver = { version = "0.26", default-features = false, features = [
  ] }
  serde = { version = "1", features = ["derive"] }
  serde_json = "1"
@@ -43,19 +43,19 @@ index 0993ddf..914d924 100644
  smoltcp = { version = "=0.12.0", default-features = false, features = [
      "std",
 diff --git a/TODO/fixes.md b/TODO/fixes.md
-index f493300..2c2a129 100644
+index 4870095..8bbc199 100644
 --- a/TODO/fixes.md
 +++ b/TODO/fixes.md
-@@ -2419,7 +2419,7 @@ Tests drive `handle_connection` over a duplex with tokio paused time: no byte, o
+@@ -2430,7 +2430,7 @@ Tests drive `handle_connection` over a duplex with tokio paused time: no byte, o
  
  ## Premise
  
--- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `src/vnet/switch.rs:433`, `src/vnet/proxy.rs:313`, `src/cli/cmd/connect.rs:226`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
-+- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `src/vnet/switch.rs:433`, `src/vnet/proxy.rs:313`, `src/cli/cmd/connect.rs:225`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
- - Two more listeners do `remove_file` then `bind_private`: `crates/podnet-netns/src/frontdoor.rs:55` and `crates/podnet-netns/src/seccomp/accept.rs:45`.
+-- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `crates/podnet-vnet/src/switch.rs:433`, `crates/podnet-vnet/src/proxy.rs:313`, `src/cli/cmd/connect.rs:250`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
++- Five callers use `claim_socket_path` (`src/warp/proxy.rs:85`, `crates/podnet-vnet/src/switch.rs:433`, `crates/podnet-vnet/src/proxy.rs:313`, `src/cli/cmd/connect.rs:249`, `src/cli/cmd/relay.rs:192`). The function is in the root crate (`crates/podnet-core/src/net.rs:22-47`): `podnet-netns` cannot call it.
+ - Two more listeners do `remove_file` then `bind_private`: `crates/podnet-netns/src/frontdoor.rs:59` and `crates/podnet-netns/src/seccomp/accept.rs:45`.
  - `crates/podnet-core/src/net.rs` has no test of `claim_socket_path` (tests start at `crates/podnet-core/src/net.rs:179`).
- - `net_tailscale` opens the LocalAPI socket before the bind (`src/cli/cmd/net/shim.rs:62-68`).
-@@ -2830,7 +2830,7 @@ A fake relay and a target that writes, shuts down its write half, then reads to
+ - `net_tailscale` opens the LocalAPI socket before the bind (`src/cli/cmd/net/shim.rs:70-76`).
+@@ -2841,7 +2841,7 @@ A fake relay and a target that writes, shuts down its write half, then reads to
  - `state::replace_file(path, bytes, mode)` writes through a rename, sets the mode and replaces a symlink (`crates/podnet-core/src/state.rs:344-363`).
  - `read_private` returns `Option` and logs the reason: `load` needs an error with a `Fault::Config` class (`src/relay_reverse.rs:151-188`).
  - `DirBuilder::mode(0o700)` applies only to a new directory (`:143-146`).
@@ -64,28 +64,28 @@ index f493300..2c2a129 100644
  
  ## Approach
  
-@@ -2907,9 +2907,9 @@ restart it). The unix socket file stays after exit. The refusal text of `claim_s
+@@ -2918,9 +2918,9 @@ restart it). The unix socket file stays after exit. The refusal text of `claim_s
  - `RelayCommand::Connect` has no `DetachArgs`: `src/cli/cmd/relay.rs:49-70`. `RelayCommand::Node` has it: `:44-45`.
  - `detach_of` has no arm for it: `src/cli/opts.rs:253-262`. `connect` has one: `:246`.
  - Both accept loops use `accepted?`: `src/cli/cmd/relay.rs:186`, `:198`. `connect -L` logs and returns:
--  `src/cli/cmd/connect.rs:185-188`.
-+  `src/cli/cmd/connect.rs:184-187`.
+-  `src/cli/cmd/connect.rs:209-212`.
++  `src/cli/cmd/connect.rs:208-211`.
  - The unix branch calls `claim_socket_path(&path, false)` with no guard: `src/cli/cmd/relay.rs:192`.
--  `SocketFile` is in `src/cli/cmd/connect.rs:196-216` (`pub(crate)`).
-+  `SocketFile` is in `src/cli/cmd/connect.rs:195-215` (`pub(crate)`).
+-  `SocketFile` is in `src/cli/cmd/connect.rs:220-240` (`pub(crate)`).
++  `SocketFile` is in `src/cli/cmd/connect.rs:219-239` (`pub(crate)`).
  - Message: `crates/podnet-core/src/net.rs:28-34`.
  - `src/main.rs:141` allows `--replace` without `--detach` only for `Command::Connect`.
  
 diff --git a/TODO/pods.md b/TODO/pods.md
-index 7d8e1f1..f2fb410 100644
+index 6db0a5a..d77827b 100644
 --- a/TODO/pods.md
 +++ b/TODO/pods.md
-@@ -532,7 +532,7 @@ namespace, with an `AF_PACKET` socket on one end, can carry the frames to the sa
+@@ -598,7 +598,7 @@ namespace, with an `AF_PACKET` socket on one end, can carry the frames to the sa
  
  - `crates/podnet-netns/src/netns/tun.rs:41-43` opens the node; `send_fd`/`recv_fd` (`crates/podnet-netns/src/netns/fdpass.rs:51,85`) and the
    handoff (`crates/podnet-netns/src/netns/mod.rs:96,168`) are reusable. `doctor.rs:70,281` gates `auto` on the TUN probe.
--- smoltcp has `medium-ip` only (`Cargo.toml:118`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
-+- smoltcp has `medium-ip` only (`Cargo.toml:121`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
+-- smoltcp has `medium-ip` only (`Cargo.toml:127`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
++- smoltcp has `medium-ip` only (`Cargo.toml:130`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
  - `docs/research/podnet/vn.md:313` is plan item P5; `vn.md:411` asks if any target host has no TUN. No
    measured host lacks it (`docs/target-environment.md:33`).
  - The veth needs one small `RTM_NEWLINK` writer. Checksums: skip RX verification on this device.
@@ -125,6 +125,21 @@ index 077a66f..4980b12 100644
  serde_json = "1"
  smoltcp = { version = "=0.12.0", default-features = false, features = [
      "std",
+diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
+index c56d38d..2cb0042 100644
+--- a/crates/podnet-serve/Cargo.toml
++++ b/crates/podnet-serve/Cargo.toml
+@@ -22,8 +22,8 @@ path = "src/lib.rs"
+ podnet-core = { path = "../podnet-core", version = "0.4.0-beta.1" }
+ # The TLS client of an origin, and the credentials of a served proxy, of
+ # PodUtils/podcrates at the git tag of the root.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ bytes = "1"
 diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
 index 7abe930..a73b6d2 100644
 --- a/crates/podnet-todo/Cargo.toml
@@ -135,6 +150,16 @@ index 7abe930..a73b6d2 100644
  [dependencies]
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0" }
 +pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0" }
+diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
+index 8748cb2..d20c6e9 100644
+--- a/crates/podnet-vnet/Cargo.toml
++++ b/crates/podnet-vnet/Cargo.toml
+@@ -55,4 +55,4 @@ tracing = "0.1"
+ tempfile = "3"
+ # need_loopback! of the tests, from the test kit of PodUtils/podcrates at
+ # the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.11.0", version = "0.11.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
 diff --git a/scripts/layers-allow.txt b/scripts/layers-allow.txt
 index c4fb2cb..e5dbb9c 100644
 --- a/scripts/layers-allow.txt
@@ -160,10 +185,10 @@ index d60f7b1..d49542c 100644
  1680 src/warp/ip.rs
  1039 src/warp/mod.rs
 diff --git a/src/cli/cmd/connect.rs b/src/cli/cmd/connect.rs
-index 8311681..09cd587 100644
+index f27248e..15ccacf 100644
 --- a/src/cli/cmd/connect.rs
 +++ b/src/cli/cmd/connect.rs
-@@ -128,8 +128,7 @@ pub(crate) async fn connect(args: ConnectArgs) -> Result<()> {
+@@ -139,8 +139,7 @@ pub(crate) async fn connect(args: ConnectArgs) -> Result<()> {
                      )),
                  )
              })?;
@@ -173,6 +198,19 @@ index 8311681..09cd587 100644
      }
      let mut tasks = Vec::new();
      let mut listens: Vec<String> = tcp.iter().map(|(name, _)| name.clone()).collect();
+diff --git a/src/cli/cmd/connect_stdio.rs b/src/cli/cmd/connect_stdio.rs
+index bbe4e6a..b407657 100644
+--- a/src/cli/cmd/connect_stdio.rs
++++ b/src/cli/cmd/connect_stdio.rs
+@@ -26,7 +26,7 @@ pub(crate) async fn run(remote: &str, auth: Option<&str>) -> Result<()> {
+             )
+         })?;
+     let io: BoxedIo = Box::new(StdioIo::new()?);
+-    ws::bridge(socket, io, &podnet::metrics::Metrics::new()).await
++    ws::bridge_session(socket, io, &podnet::metrics::Metrics::new()).await
+ }
+ 
+ /// Stdin and stdout as one stream.
 diff --git a/src/relay_reverse.rs b/src/relay_reverse.rs
 index 0ceaffd..b902e1c 100644
 --- a/src/relay_reverse.rs
@@ -195,7 +233,7 @@ index 0ceaffd..b902e1c 100644
  #[cfg(test)]
  mod tests {
 diff --git a/src/ws.rs b/src/ws.rs
-index ebcc093..d80ffb1 100644
+index ebcc093..fd9cf66 100644
 --- a/src/ws.rs
 +++ b/src/ws.rs
 @@ -9,13 +9,18 @@
@@ -266,7 +304,7 @@ index ebcc093..d80ffb1 100644
  }
  
  /// Serve one inbound WebSocket upgrade from the edge, bridging it to `target`.
-@@ -110,111 +132,89 @@ pub async fn serve_websocket(
+@@ -110,111 +132,94 @@ pub async fn serve_websocket(
      // WebSocket codec. `into_inner` recovers the quinn halves from the
      // futures-io wrappers used by the request framing.
      let socket = tokio::io::join(reader.compat(), writer.compat_write());
@@ -427,18 +465,23 @@ index ebcc093..d80ffb1 100644
 -    let ws = dial(url, DIAL_TIMEOUT, authorization).await?;
 -    bridge(ws, io, &Metrics::new()).await
 +    let session = dial(url, DIAL_TIMEOUT, authorization).await?;
-+    pod_ws::bridge(session, io, &Counted(&Metrics::new()))
-+        .await
-+        .context("websocket bridge")
++    bridge_session(session, io, &Metrics::new()).await
  }
  
 -/// Pump bytes both ways between a WebSocket and a raw stream.
++/// Pump bytes both ways between a WebSocket of [`dial`] and a raw stream.
++pub async fn bridge_session(session: Session, io: BoxedIo, metrics: &Metrics) -> Result<()> {
++    pod_ws::bridge(session, io, &Counted(metrics))
++        .await
++        .context("websocket bridge")
++}
++
 +/// Pump bytes both ways between a WebSocket of tokio-tungstenite and a raw
 +/// stream: the relay client (`ws_relay.rs`) until `pod-relay`.
  pub async fn bridge<S>(ws: WebSocketStream<S>, io: BoxedIo, metrics: &Metrics) -> Result<()>
  where
      S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
-@@ -250,7 +250,7 @@ where
+@@ -250,7 +255,7 @@ where
                                  code,
                                  reason = %frame.reason,
                                  "the far end closed the WebSocket{}",
@@ -447,7 +490,7 @@ index ebcc093..d80ffb1 100644
                              );
                          } else {
                              tracing::debug!(code, reason = %frame.reason, "the WebSocket closed");
-@@ -398,15 +398,6 @@ mod tests {
+@@ -398,15 +403,6 @@ mod tests {
          );
      }
  
@@ -463,7 +506,7 @@ index ebcc093..d80ffb1 100644
      #[test]
      fn parses_local_specs() {
          assert_eq!(
-@@ -430,142 +421,6 @@ mod tests {
+@@ -430,142 +426,6 @@ mod tests {
          assert!(LocalSpec::parse("http://x").is_err());
          assert!(LocalSpec::parse("tcp://nope").is_err());
      }
