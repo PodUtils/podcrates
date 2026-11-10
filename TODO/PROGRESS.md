@@ -65,7 +65,9 @@ issue, with no answer expected.
 6. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds.
 7. **podvm, paused** (the owner, 2026-11-10): M6 T-142, T-149, T-155;
-   M7 T-062. T-040 (the trials of podvm) goes with each import.
+   M7 T-062. T-040 (the trials of podvm) goes with each import. podvm's
+   open takes (PodUtils/podvm#194, its last state): `pod-relay` (after
+   T-025, the blocking face), `pod-services` and `pod-todo`.
 8. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-108 `pod-confine` for PodUtils/podvm@T-1658, T-107
