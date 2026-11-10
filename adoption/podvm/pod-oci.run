@@ -1,4 +1,6 @@
 # The trial of pod-oci in podvm (T-056), at podvm main cb57d4b (commit).
+# The trial builds against the crates of the tag of the hand-off
+# (pod-oci.tag), as podvm takes them.
 # The patch applies alone. After the patches of pod-guest and pod-enter of
 # v0.9.0 (podvm took them at 423e817), with git apply --3way, only the tag
 # lines (take v0.10.0), the pod-* rows of docs/runtime-state.md (keep each

@@ -33,9 +33,23 @@ if [ -f "$dir/$crate.commit" ]; then
     commit=$(tr -d '\r\n' < "$dir/$crate.commit")
 fi
 work=${3:-${XDG_CACHE_HOME:-$HOME/.cache}/podcrates-adoption}/$consumer-$crate
+# A trial of a released hand-off names its tag in CRATE.tag: the consumer
+# takes the crates of that tag, so the trial builds against them, not
+# against this tree.
+src=$here
+if [ -f "$dir/$crate.tag" ]; then
+    tag=$(tr -d '\r\n' < "$dir/$crate.tag")
+    src=$work.podcrates
+    rm -rf "$src"
+    mkdir -p "$src"
+    # A shallow checkout (adoption.yml) has no tags.
+    git -C "$here" rev-parse -q --verify "refs/tags/$tag" >/dev/null ||
+        sh "$here/scripts/retry.sh" git -C "$here" fetch -q --depth 1 origin "refs/tags/$tag:refs/tags/$tag"
+    git -C "$here" archive "refs/tags/$tag" | tar -x -C "$src"
+fi
 # The steps of a .run name this tree as $PODCRATES: its scripts check the
 # consumer (scripts/check-consumer-toolchains.py).
-PODCRATES=$here
+PODCRATES=$src
 export PODCRATES
 # The consumer builds with the toolchain of podcrates, as adoption.yml sets
 # it, not with the rust-toolchain.toml of its checkout.
@@ -53,13 +67,13 @@ git apply "$dir/$crate.patch"
 # the patch becomes a path into this tree, and a `version` beside it the
 # version of this tree: the patch names the version of its tag, which the
 # tree has only from the commit of the release on.
-version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$here/Cargo.toml" | head -n 1)
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$src/Cargo.toml" | head -n 1)
 for manifest in $(git ls-files -m -o --exclude-standard | grep 'Cargo.toml$' || true) $(git diff --name-only | grep 'Cargo.toml$' || true); do
     [ -f "$manifest" ] || continue
-    sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$here/crates/\\1\"|" "$manifest"
+    sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$src/crates/\\1\"|" "$manifest"
     sed -i -E "/^pod-[a-z-]+ = \\{ path = \"/s|, version = \"[0-9.]+\"|, version = \"$version\"|" "$manifest"
 done
-echo "adoption: $consumer at ${commit%"${commit#???????}"} with $crate of $(git -C "$here" rev-parse --short HEAD)"
+echo "adoption: $consumer at ${commit%"${commit#???????}"} with $crate of ${tag:-$(git -C "$here" rev-parse --short HEAD)}"
 grep -v '^#' "$dir/$crate.run" | while IFS= read -r step; do
     [ -n "$step" ] || continue
     echo "adoption: $ $step"
