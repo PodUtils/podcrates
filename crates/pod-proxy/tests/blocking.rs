@@ -55,7 +55,7 @@ fn a_direct_dial_gives_the_standard_tcp_stream() {
     pod_testkit::need_loopback!();
     let addr = echo();
     let mut tcp = dialer(ProxyChoice::Direct).tcp("127.0.0.1", addr.port(), LIMIT).expect("a connection");
-    tcp.set_read_timeout(Some(LIMIT)).expect("a blocking socket takes a read limit");
+    tcp.set_read_timeout(Some(pod_testkit::host::scaled(LIMIT))).expect("a blocking socket takes a read limit");
     assert_eq!(tcp.peer_addr().expect("its peer"), addr);
     round_trip(&mut tcp);
 }
@@ -181,10 +181,18 @@ fn the_drop_of_a_dialer_does_not_wait_for_a_lookup_that_the_dial_left() {
     let dialed = std::time::Instant::now();
     let failed = dialer.tcp("relay.invalid", 443, Duration::from_millis(200));
     assert!(failed.is_err(), "the lookup never answers");
-    assert!(dialed.elapsed() < Duration::from_secs(5), "the dial waited {:?}", dialed.elapsed());
+    assert!(
+        dialed.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)),
+        "the dial waited {:?}",
+        dialed.elapsed()
+    );
     let start = std::time::Instant::now();
     drop(dialer);
-    assert!(start.elapsed() < Duration::from_secs(5), "the drop waited {:?}", start.elapsed());
+    assert!(
+        start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)),
+        "the drop waited {:?}",
+        start.elapsed()
+    );
 }
 
 /// The command answers the CONNECT and then sends nothing: a read with a
@@ -200,5 +208,9 @@ fn a_read_from_a_proxy_at_a_command_ends_at_its_limit() {
     let mut byte = [0u8; 1];
     let failed = stream.read(&mut byte).expect_err("the command sends nothing");
     assert_eq!(failed.kind(), std::io::ErrorKind::WouldBlock, "{failed}");
-    assert!(start.elapsed() < Duration::from_secs(5), "the read waited {:?}", start.elapsed());
+    assert!(
+        start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)),
+        "the read waited {:?}",
+        start.elapsed()
+    );
 }

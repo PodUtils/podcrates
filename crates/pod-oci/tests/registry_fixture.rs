@@ -16,7 +16,7 @@ use std::io::{Read, Write};
 
 fn request(endpoint: &str, method: &str, path: &str) -> (u16, Vec<(String, String)>, Vec<u8>) {
     let mut stream = std::net::TcpStream::connect(endpoint).expect("connect the fixture");
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+    stream.set_read_timeout(Some(pod_testkit::host::scaled(std::time::Duration::from_secs(10)))).unwrap();
     write!(stream, "{method} {path} HTTP/1.1\r\nHost: {endpoint}\r\nConnection: close\r\n\r\n").unwrap();
     let mut raw = Vec::new();
     stream.read_to_end(&mut raw).unwrap();

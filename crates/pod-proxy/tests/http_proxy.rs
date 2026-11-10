@@ -77,7 +77,7 @@ fn client(pairs: Vec<(&'static str, String)>) -> Client {
 }
 
 fn get(url: String) -> Request {
-    Request::new("GET", url).timeout(Duration::from_secs(10))
+    Request::new("GET", url).timeout(pod_testkit::host::scaled(Duration::from_secs(10)))
 }
 
 #[tokio::test]
@@ -90,7 +90,10 @@ async fn a_request_of_http_takes_the_proxy_of_http_proxy() {
         client(vec![("http_proxy", format!("http://127.0.0.1:{proxy}")), ("HTTPS_PROXY", format!("http://{gone}"))]);
     let answer = client.send(get(format!("http://name.test:{port}/v2/"))).await.expect("an answer");
     assert_eq!((answer.status, answer.text().as_str()), (200, "ok"));
-    let head = tokio::time::timeout(Duration::from_secs(5), seen).await.expect("the proxy got a request").unwrap();
+    let head = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), seen)
+        .await
+        .expect("the proxy got a request")
+        .unwrap();
     assert!(head.starts_with(&format!("CONNECT name.test:{port} HTTP/1.1\r\n")), "{head}");
     assert!(served.await.unwrap().starts_with("GET /v2/ HTTP/1.1\r\n"));
 

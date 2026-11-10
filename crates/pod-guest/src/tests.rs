@@ -176,7 +176,7 @@ fn a_noisy_emulator_is_not_blocked_on_its_own_output() {
         std::thread::sleep(Duration::from_millis(50));
     };
     cleanup(&s, &plan);
-    assert!(elapsed < Duration::from_secs(20), "the run blocked for {elapsed:?}");
+    assert!(elapsed < pod_testkit::host::scaled(Duration::from_secs(20)), "the run blocked for {elapsed:?}");
     assert_eq!(e.class, Class::Protocol, "{e}");
     assert!(format!("{e}").contains("last-line"), "{e}");
 }
@@ -279,7 +279,7 @@ fn a_stopped_emulator_takes_its_process_group_with_it() {
         if let Some(pid) = std::fs::read_to_string(&pidfile).ok().and_then(|t| t.trim().parse::<u32>().ok()) {
             break pid;
         }
-        assert!(start.elapsed() < Duration::from_secs(10), "the helper did not start");
+        assert!(start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(10)), "the helper did not start");
         std::thread::sleep(Duration::from_millis(20));
     };
     // The child is not in the group of the test, so the group kill cannot
@@ -290,7 +290,10 @@ fn a_stopped_emulator_takes_its_process_group_with_it() {
     assert_ne!(std::process::id(), child_pid, "the emulator is its own process");
     let start = Instant::now();
     while !gone(helper) {
-        assert!(start.elapsed() < Duration::from_secs(5), "a forked helper outlived the group kill");
+        assert!(
+            start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)),
+            "a forked helper outlived the group kill"
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
     let _ = std::fs::remove_dir_all(&scratch);

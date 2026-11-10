@@ -204,7 +204,7 @@ async fn handshake(config: rustls::ClientConfig) -> Result<String, String> {
     let tcp = tokio::net::TcpStream::connect(addr).await.map_err(|e| e.to_string())?;
     let name = rustls_pki_types::ServerName::try_from(NAME).map_err(|e| e.to_string())?;
     let connect = tokio_rustls::TlsConnector::from(Arc::new(config)).connect(name, tcp);
-    let result = match tokio::time::timeout(Duration::from_secs(10), connect).await {
+    let result = match tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(10)), connect).await {
         Err(_) => Err("the handshake did not end".to_string()),
         Ok(Err(e)) => Err(e.to_string()),
         Ok(Ok(mut tls)) => {

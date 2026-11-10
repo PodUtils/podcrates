@@ -308,10 +308,12 @@ async fn dial(
         let late = |what: &str| std::io::Error::new(std::io::ErrorKind::TimedOut, format!("{what} timed out"));
         // Direct. Where an egress intercepts direct TLS, only a proxy carries
         // the relay's own chain: a live workflow runs with no such egress.
-        let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
+        let tcp = tokio::time::timeout(pod_testkit::host::scaled(TIMEOUT), tokio::net::TcpStream::connect(addr))
             .await
             .map_err(|_| late("the connection"))??;
-        tokio::time::timeout(TIMEOUT, connector.connect(name.clone(), tcp)).await.map_err(|_| late("the handshake"))?
+        tokio::time::timeout(pod_testkit::host::scaled(TIMEOUT), connector.connect(name.clone(), tcp))
+            .await
+            .map_err(|_| late("the handshake"))?
     })
     .await
 }

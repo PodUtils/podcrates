@@ -315,7 +315,7 @@ fn an_open_with_o_nonblock_does_not_wait_for_a_fifo_writer() {
         }
         let _ = tx.send(r.is_ok());
     });
-    let opened = rx.recv_timeout(std::time::Duration::from_secs(10));
+    let opened = rx.recv_timeout(pod_testkit::host::scaled(std::time::Duration::from_secs(10)));
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(opened, Ok(true), "the open of a fifo with O_NONBLOCK waited or failed");
 }

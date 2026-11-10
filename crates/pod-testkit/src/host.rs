@@ -30,6 +30,32 @@ pub fn localhost() -> Result<(), String> {
     PROBE.get_or_init(probe_localhost).clone()
 }
 
+/// The factor of a time bound under an emulator.
+const EMULATOR_FACTOR: u32 = 5;
+
+/// An emulator (`qemu-user`, by its variables or by `binfmt_misc`) runs
+/// this test binary. Linux only: another target is never emulated here.
+/// Each probe of the detection runs one time for each test binary.
+pub fn emulated() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        static PROBE: OnceLock<bool> = OnceLock::new();
+        return *PROBE.get_or_init(|| {
+            let set = |v: &str| std::env::var_os(v).is_some();
+            pod_hostprobe::interp::detect(&set).is_emulated()
+        });
+    }
+    #[allow(unreachable_code)]
+    false
+}
+
+/// A time bound that measures speed, not correctness: `d` on a kernel,
+/// five times `d` under an emulator. Do not use it for a timer that the
+/// test checks (an idle limit): scale only the bound that guards a hang.
+pub fn scaled(d: Duration) -> Duration {
+    if emulated() { d * EMULATOR_FACTOR } else { d }
+}
+
 fn probe_loopback() -> Result<(), String> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| format!("this host denies bind(AF_INET) on 127.0.0.1 (TCP): {e}"))?;

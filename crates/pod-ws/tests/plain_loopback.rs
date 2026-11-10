@@ -65,7 +65,7 @@ async fn a_plain_session_to_the_loopback_carries_data_both_ways() {
     let got = session.read_frame().await.expect("a frame");
     assert_eq!((got.opcode, got.payload.as_slice()), (frame::OPCODE_BINARY, &b"hello"[..]));
     session.send_binary(b"ping").await.expect("a send");
-    let (head, sent) = tokio::time::timeout(TIMEOUT, relay).await.expect("in time").unwrap();
+    let (head, sent) = tokio::time::timeout(pod_testkit::host::scaled(TIMEOUT), relay).await.expect("in time").unwrap();
     assert_eq!((sent.opcode, sent.payload.as_slice()), (frame::OPCODE_BINARY, &b"ping"[..]));
     assert!(head.starts_with("GET /connect/example.org/22 HTTP/1.1\r\n"), "{head}");
     assert!(head.contains(&format!("X-Relay-Token: {TOKEN}\r\n")), "the token travels in its header");
@@ -82,6 +82,9 @@ async fn a_host_that_is_not_the_loopback_is_refused_with_no_connection() {
             .await
             .expect_err(host);
         assert!(matches!(&error, ConnectError::Config(why) if why.contains("only to the loopback")), "{host}: {error}");
-        assert!(started.elapsed() < Duration::from_secs(1), "{host}: a connection was tried");
+        assert!(
+            started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(1)),
+            "{host}: a connection was tried"
+        );
     }
 }

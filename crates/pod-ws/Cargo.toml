@@ -58,11 +58,6 @@ sha2 = { workspace = true }
 # Property tests of frames and fragments (tests/properties.rs).
 proptest = { version = "1", default-features = false, features = ["std"] }
 
-# The tests that carry megabytes ask whether an emulator runs them
-# (pod_hostprobe::interp), to carry less there.
-[target.'cfg(target_os = "linux")'.dev-dependencies]
-pod-hostprobe = { workspace = true }
-
 [[test]]
 name = "plain_loopback"
 required-features = ["plain-ws"]

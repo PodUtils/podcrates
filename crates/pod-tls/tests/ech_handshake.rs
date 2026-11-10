@@ -130,7 +130,7 @@ async fn server(names: &[&str]) -> (SocketAddr, Hellos) {
                 let Some((_, config)) = config else { return };
                 if let Ok(mut tls) = start.into_stream(config.clone()).await {
                     let mut rest = Vec::new();
-                    let _ = tokio::time::timeout(LIMIT, tls.read_to_end(&mut rest)).await;
+                    let _ = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tls.read_to_end(&mut rest)).await;
                 }
             });
         }

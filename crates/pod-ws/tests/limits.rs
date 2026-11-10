@@ -57,7 +57,7 @@ async fn an_upgrade_head_that_never_ends_stops_at_16_kib() {
         endless_head(&mut peer, b"HTTP/1.1 101 Switching Protocols\r\n").await
     });
     let upgrade = client::upgrade(client, "relay.test", "/connect/127.0.0.1/22", "token");
-    match tokio::time::timeout(LIMIT, upgrade).await.expect("the upgrade ends") {
+    match tokio::time::timeout(pod_testkit::host::scaled(LIMIT), upgrade).await.expect("the upgrade ends") {
         Err(ConnectError::Upgrade(why)) => assert!(why.contains("within 16 KiB"), "{why}"),
         other => panic!("{:?}", other.map(|_| ())),
     }
@@ -79,7 +79,10 @@ async fn from_podssh(peer: &mut DuplexStream) -> Frame {
             return f;
         }
         let mut chunk = [0u8; 4096];
-        let n = tokio::time::timeout(LIMIT, peer.read(&mut chunk)).await.expect("a frame from the client").unwrap();
+        let n = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), peer.read(&mut chunk))
+            .await
+            .expect("a frame from the client")
+            .unwrap();
         assert!(n > 0, "the client closed the stream with no Close");
         buf.extend_from_slice(&chunk[..n]);
     }
@@ -100,14 +103,14 @@ async fn a_frame_past_the_forward_cap_ends_the_session_with_1002() {
         peer.write_all(&at_cap).await.unwrap();
         peer
     });
-    let got = tokio::time::timeout(LIMIT, s.read_frame()).await.expect("the frame").unwrap();
+    let got = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), s.read_frame()).await.expect("the frame").unwrap();
     assert_eq!(got.payload.len(), FORWARD_MAX_FRAME);
     let mut peer = writer.await.unwrap();
 
     let mut head = vec![0x80 | frame::OPCODE_BINARY, 127];
     head.extend_from_slice(&(FORWARD_MAX_FRAME as u64 + 1).to_be_bytes());
     peer.write_all(&head).await.unwrap();
-    match tokio::time::timeout(LIMIT, s.read_frame()).await.expect("the read ends") {
+    match tokio::time::timeout(pod_testkit::host::scaled(LIMIT), s.read_frame()).await.expect("the read ends") {
         Err(SessionError::Protocol(why)) => assert!(why.contains("exceeds the forward cap of 262144"), "{why}"),
         other => panic!("{other:?}"),
     }
@@ -144,10 +147,11 @@ async fn fragments_past_16_mib_end_the_session_with_1009() {
         }
         peer
     });
-    let whole = tokio::time::timeout(LIMIT, s.read_frame()).await.expect("the message").unwrap();
+    let whole =
+        tokio::time::timeout(pod_testkit::host::scaled(LIMIT), s.read_frame()).await.expect("the message").unwrap();
     assert_eq!(whole.payload.len(), MAX_MESSAGE);
     drop(whole);
-    match tokio::time::timeout(LIMIT, s.read_frame()).await.expect("the read ends") {
+    match tokio::time::timeout(pod_testkit::host::scaled(LIMIT), s.read_frame()).await.expect("the read ends") {
         Err(SessionError::TooLarge(why)) => assert!(why.contains("exceeded 16777216 bytes"), "{why}"),
         other => panic!("{:?}", other.map(|f| f.payload.len())),
     }

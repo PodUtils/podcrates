@@ -148,7 +148,7 @@ fn accept_loop(listener: TcpListener, data: Arc<Data>, stop: Arc<AtomicBool>) {
 }
 
 fn handle(mut stream: std::net::TcpStream, data: &Data) {
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+    let _ = stream.set_read_timeout(Some(pod_testkit::host::scaled(std::time::Duration::from_secs(10))));
     let mut buf = [0u8; 16384];
     let mut head = 0usize;
     while head < buf.len() {

@@ -113,7 +113,10 @@ async fn server(alpn: Vec<Vec<u8>>, body: Vec<u8>) -> (u16, Arc<rustls::RootCert
         // An error ends it too: once the socket is gone, h2's server can give
         // the same error at each call (its own shutdown on a socket that the
         // client reset), and a loop on `is_some` spins on it to the bound.
-        let gone = tokio::time::timeout(LIMIT, async { while let Some(Ok(_)) = connection.accept().await {} }).await;
+        let gone = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), async {
+            while let Some(Ok(_)) = connection.accept().await {}
+        })
+        .await;
         Some(gone.is_ok())
     });
     (port, Arc::new(roots), Served { asked, ended, torn })
@@ -139,10 +142,16 @@ async fn an_answer_comes_over_http2() {
     assert_eq!(got.body, answer, "the bytes as the server sent them");
     let ips = wire::addrs(&got.body, "tcp.ssh.relay.ajam.dev", 1).unwrap();
     assert_eq!(ips.len(), 2, "{ips:?}");
-    let asked = tokio::time::timeout(LIMIT, served.asked).await.unwrap().expect("the server was asked");
+    let asked = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), served.asked)
+        .await
+        .unwrap()
+        .expect("the server was asked");
     assert_eq!(asked, (target.to_string(), "application/dns-message".to_string()));
     // The server's own bound decides; this one only holds a server that hangs.
-    let ended = tokio::time::timeout(LIMIT * 2, served.ended).await.expect("the server's bound").unwrap();
+    let ended = tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), served.ended)
+        .await
+        .expect("the server's bound")
+        .unwrap();
     assert_eq!(ended, Some(true), "the client left its HTTP/2 connection open {} s after its answer", LIMIT.as_secs());
     // Its end was HTTP/2's own: a socket torn instead reaches a server as an
     // error, a reset or an end with no close_notify, not as the end.
@@ -171,7 +180,7 @@ async fn a_server_of_http1_alone_is_refused() {
     .expect("in time");
     assert!(got.is_err(), "{got:?}");
     assert_eq!(
-        tokio::time::timeout(LIMIT, served.ended).await.unwrap().unwrap(),
+        tokio::time::timeout(pod_testkit::host::scaled(LIMIT), served.ended).await.unwrap().unwrap(),
         None,
         "no request reached the server"
     );

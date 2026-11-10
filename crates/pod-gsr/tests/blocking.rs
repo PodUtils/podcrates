@@ -112,7 +112,7 @@ fn one_megabyte_crosses_the_relay_through_the_blocking_face() {
     });
     let mut connector = open(&settings, Role::Connect, secret).expect("a connector");
     let mut listener = listener.join().expect("the thread").expect("a listener");
-    listener.set_timeout(Some(Duration::from_secs(10)));
+    listener.set_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10))));
 
     let payload: Vec<u8> = (0u8..=255).cycle().take(1 << 20).collect();
     let sender = thread::spawn({
@@ -133,7 +133,7 @@ fn one_megabyte_crosses_the_relay_through_the_blocking_face() {
     // The listener answers after the peer's end, and closes.
     listener.write_all(b"pong").expect("the answer");
     listener.shutdown().expect("the shutdown after the peer's end");
-    connector.set_timeout(Some(Duration::from_secs(10)));
+    connector.set_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10))));
     let mut answer = Vec::new();
     connector.read_to_end(&mut answer).expect("the answer, then the end");
     assert_eq!(answer, b"pong");
@@ -163,7 +163,7 @@ fn a_read_that_waits_past_its_limit_times_out_and_keeps_the_stream() {
     assert_eq!(quiet.kind(), std::io::ErrorKind::TimedOut);
 
     connector.write_all(b"x").expect("a byte");
-    listener.set_timeout(Some(Duration::from_secs(10)));
+    listener.set_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10))));
     assert_eq!(listener.read(&mut byte).expect("the byte"), 1);
     assert_eq!(&byte, b"x");
     assert_eq!(listener.end(), None);

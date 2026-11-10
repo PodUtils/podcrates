@@ -86,7 +86,7 @@ async fn tunnel(mut tcp: TcpStream, cuts: Cuts, far: u16, firsts: Arc<Mutex<Vec<
     let mut head = Vec::new();
     let mut byte = [0u8; 1];
     while !head.ends_with(b"\r\n\r\n") {
-        match tokio::time::timeout(LIMIT, tcp.read(&mut byte)).await {
+        match tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tcp.read(&mut byte)).await {
             Ok(Ok(1)) if head.len() < 16 * 1024 => head.push(byte[0]),
             _ => return,
         }
@@ -95,7 +95,7 @@ async fn tunnel(mut tcp: TcpStream, cuts: Cuts, far: u16, firsts: Arc<Mutex<Vec<
         return;
     }
     let mut first = [0u8; 1];
-    let Ok(Ok(1)) = tokio::time::timeout(LIMIT, tcp.peek(&mut first)).await else { return };
+    let Ok(Ok(1)) = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tcp.peek(&mut first)).await else { return };
     firsts.lock().unwrap().push(first[0]);
     let tls = first[0] == 0x16;
     if tls == (cuts == Cuts::Tls) {
@@ -174,7 +174,8 @@ async fn the_tls_road_fails_at_the_proxy_and_the_cleartext_road_carries_the_sess
     assert!(relay.tokens().is_empty(), "nothing reached the relay on the TLS road");
     let session = cleartext::connect(&config, TOKEN).await.expect("the cleartext road");
     session.send_binary(BANNER).await.unwrap();
-    let echoed = tokio::time::timeout(LIMIT, session.read_frame()).await.expect("in time").unwrap();
+    let echoed =
+        tokio::time::timeout(pod_testkit::host::scaled(LIMIT), session.read_frame()).await.expect("in time").unwrap();
     assert_eq!(echoed.payload, BANNER, "the bytes went both ways");
     assert_eq!(proxy.firsts(), vec![0x16, b'G'], "TLS first, then the upgrade in cleartext");
     assert_eq!(relay.tokens(), vec![TOKEN.to_string()], "the token went in its header");

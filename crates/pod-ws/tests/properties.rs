@@ -282,7 +282,9 @@ async fn through_a_session(wire: Vec<u8>, writes: Vec<usize>, n: usize) -> (Resu
         // The write half stays, so that the stream does not end.
         to_session
     });
-    let got = tokio::time::timeout(LIMIT, session.read_frame()).await.expect("the read within the limit");
+    let got = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), session.read_frame())
+        .await
+        .expect("the read within the limit");
     let back = frames_from(&mut from_session, n).await;
     writer.abort();
     (got, back)
@@ -298,7 +300,9 @@ async fn frames_from<R: AsyncRead + Unpin>(from_session: &mut R, n: usize) -> Ve
             continue;
         }
         let mut chunk = [0u8; 4096];
-        let read = tokio::time::timeout(LIMIT, from_session.read(&mut chunk)).await.expect("a frame within the limit");
+        let read = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), from_session.read(&mut chunk))
+            .await
+            .expect("a frame within the limit");
         let count = read.expect("the stream");
         assert!(count > 0, "the session closed the stream");
         buf.extend_from_slice(&chunk[..count]);

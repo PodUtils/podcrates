@@ -1375,7 +1375,7 @@ other plants.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1412,3 +1412,22 @@ cargo test --workspace --all-features
 ```
 
 Then a nightly with each cross job green.
+
+## Done
+
+2026-11-10. Commit: the commit that names T-154. `pod_testkit::host::emulated()`
+(one detection: `pod_hostprobe::interp::detect`, cached, Linux only) and
+`pod_testkit::host::scaled(d)` (5 times `d` under an emulator). `pod-testkit`
+takes `pod-hostprobe` as a Linux dependency; `pod-hostprobe` has `pod-testkit`
+as a dev-dependency only, which cargo accepts. The copies in `pod-ws`
+(`h2_road.rs`) and `pod-proxy` (`blocking_streamed.rs`) and their
+dev-dependency on `pod-hostprobe` are gone. The sweep scales each outer bound
+that guards a hang (`timeout(`, read and receive limits, `.timeout(WAIT)`) and
+each `elapsed() <` bound of a test in `pod-broker`, `pod-dns`, `pod-gsr`,
+`pod-oci`, `pod-proxy`, `pod-tls`, `pod-ws`, `pod-term`, `pod-guest`,
+`pod-hostprobe` and `pod-services-watch`. A timer that a test checks (an idle
+limit, a liveness period, a body idle limit, a lower bound) stays as it was.
+All test binaries of these crates (96, with `--all-features`) pass under
+`qemu-riscv64` and `qemu-loongarch64` with `QEMU_LD_PREFIX=/` set. The test
+`the_bound_scales_under_an_emulator` proves the detection there.
+

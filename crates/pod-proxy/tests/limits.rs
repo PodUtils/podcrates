@@ -58,7 +58,7 @@ async fn an_http_head_that_never_ends_stops_at_16_kib() {
     let (mut client, mut peer) = tokio::io::duplex(4096);
     let server = tokio::spawn(async move { endless_head(&mut peer, b"HTTP/1.1 200 OK\r\n").await });
     let read = http::read_response(&mut client, Vec::new(), 1024);
-    let err = tokio::time::timeout(LIMIT, read).await.expect("the read ends").unwrap_err();
+    let err = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), read).await.expect("the read ends").unwrap_err();
     assert!(err.to_string().contains("no end of the response headers within 16 KiB"), "{err}");
     drop(client);
     let sent = server.await.unwrap();
@@ -92,7 +92,11 @@ async fn a_body_past_its_bound_is_refused_in_each_framing() {
                 // The close ends the third framing.
                 drop(peer);
             });
-            let read = tokio::time::timeout(LIMIT, http::read_response(&mut client, Vec::new(), MAX)).await;
+            let read = tokio::time::timeout(
+                pod_testkit::host::scaled(LIMIT),
+                http::read_response(&mut client, Vec::new(), MAX),
+            )
+            .await;
             server.await.unwrap();
             match (read.expect("the read ends"), fits) {
                 (Ok(r), true) => assert_eq!(r.body.len(), MAX, "{framing}"),

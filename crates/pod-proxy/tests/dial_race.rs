@@ -38,7 +38,10 @@ async fn a_silent_first_address_does_not_hold_the_dial() {
     let stream =
         dial(pins, "silent-first.test", port, Duration::from_secs(10)).await.expect("the second address connects");
     let took = started.elapsed();
-    assert!(took < Duration::from_secs(3), "the dial waited for the silent address: {took:?}");
+    assert!(
+        took < pod_testkit::host::scaled(Duration::from_secs(3)),
+        "the dial waited for the silent address: {took:?}"
+    );
     assert_eq!(stream.peer_addr().unwrap().ip(), loopback);
 }
 

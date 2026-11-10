@@ -99,7 +99,10 @@ async fn dial_addrs_races_the_addresses_of_a_direct_dial() {
     let started = Instant::now();
     let connected = dialer(ProxyChoice::Direct).dial_addrs("relay.test", &[silent, live], deadline()).await;
     assert_eq!(connected.expect("the second address").peer, Some(live));
-    assert!(started.elapsed() < Duration::from_secs(3), "the dial waited for the silent address");
+    assert!(
+        started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(3)),
+        "the dial waited for the silent address"
+    );
     let none = dialer(ProxyChoice::Direct).dial_addrs("relay.test", &[], deadline()).await.unwrap_err();
     assert_eq!((none.stage, none.class), (Stage::Dns, Class::Unavailable));
 }

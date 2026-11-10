@@ -9,8 +9,7 @@
   podssh and podnet. podnet took it (`5eace6e`,
   PodUtils/podnet#420); podvm took `v0.12.0` (`5e5629a`,
   PodUtils/podvm#226); podssh is on `v0.11.0`. Open: T-131
-  (`pod-gsr` on Windows ARM64), T-149 (qemu-user only), T-154 (timed tests
-  under an emulator).
+  (`pod-gsr` on Windows ARM64), T-149 (qemu-user only).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
@@ -60,7 +59,7 @@ first; the asks of cfb and githome (M8) wait.
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-7. **M5, the upkeep:** T-154 (the timed tests under an emulator); a "port" entry for each change that
+7. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds.
 8. **M7, the widened scope of podvm:** T-062 after M6.
 9. **M8, the fleet, and the other asks of #35 and #36: they wait** (the

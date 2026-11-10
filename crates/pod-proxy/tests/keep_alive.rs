@@ -24,7 +24,7 @@ fn url(kept: &Kept, path: &str) -> String {
 }
 
 fn get(kept: &Kept, path: &str) -> Request {
-    Request::new("GET", url(kept, path)).timeout(WAIT)
+    Request::new("GET", url(kept, path)).timeout(pod_testkit::host::scaled(WAIT))
 }
 
 /// Each request on a connection that stays open, with its mark.
@@ -128,7 +128,7 @@ async fn a_connection_that_the_server_closed_is_not_used() {
     let kept = plain(script);
     let client = client(&kept);
     assert_eq!(client.send(get(&kept, "/")).await.expect("an answer").text(), "c1r1");
-    assert_eq!(kept.closed.recv_timeout(WAIT), Ok(1));
+    assert_eq!(kept.closed.recv_timeout(pod_testkit::host::scaled(WAIT)), Ok(1));
     let answer = client.send(get(&kept, "/")).await.expect("an answer");
     assert_eq!((answer.text().as_str(), kept.accepted()), ("c2r1", 2));
 }
@@ -162,7 +162,7 @@ async fn a_post_on_a_stale_connection_does_not_go_again() {
     pod_testkit::need_loopback!();
     let kept = plain(second_closes);
     let client = client(&kept);
-    let post = || Request::new("POST", url(&kept, "/p")).json("{}").timeout(WAIT);
+    let post = || Request::new("POST", url(&kept, "/p")).json("{}").timeout(pod_testkit::host::scaled(WAIT));
     assert_eq!(client.send(post()).await.expect("an answer").text(), "c1r1");
     let failed = client.send(post()).await.unwrap_err();
     assert!(failed.text().ends_with("the connection closed before the response headers ended"), "{failed}");
@@ -190,7 +190,9 @@ async fn two_trusts_never_share_a_connection() {
     let (one, other) = (kept.trust(), kept.trust());
     let shared = client(&kept);
     let https = |trust: &pod_tls::Trust| {
-        Request::new("GET", format!("https://{NAME}:{}/", kept.port)).trust(trust.clone()).timeout(WAIT)
+        Request::new("GET", format!("https://{NAME}:{}/", kept.port))
+            .trust(trust.clone())
+            .timeout(pod_testkit::host::scaled(WAIT))
     };
     let mut got = Vec::new();
     for trust in [&one, &other, &one, &other] {
@@ -213,7 +215,7 @@ fn a_connection_stays_with_its_runtime() {
     let first = runtime().block_on(client.send(get(&kept, "/a"))).expect("an answer");
     // A POST is not tried again: on a connection of the first runtime it
     // would fail.
-    let post = Request::new("POST", url(&kept, "/b")).body(b"x".to_vec()).timeout(WAIT);
+    let post = Request::new("POST", url(&kept, "/b")).body(b"x".to_vec()).timeout(pod_testkit::host::scaled(WAIT));
     let second = runtime().block_on(client.send(post)).expect("an answer");
     assert_eq!((first.text(), second.text()), ("c1r1".to_string(), "c2r1".to_string()));
     assert_eq!(kept.accepted(), 2);

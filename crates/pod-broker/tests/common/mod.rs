@@ -178,7 +178,9 @@ impl Seen {
                 new.await;
             }
         };
-        tokio::time::timeout(std::time::Duration::from_secs(10), wait).await.expect("an audit line in time")
+        tokio::time::timeout(pod_testkit::host::scaled(std::time::Duration::from_secs(10)), wait)
+            .await
+            .expect("an audit line in time")
     }
 
     /// The line of the connection that ended with `decision`.

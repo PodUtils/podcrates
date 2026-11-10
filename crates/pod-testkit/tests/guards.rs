@@ -60,3 +60,17 @@ fn need_userns_agrees_with_its_probe() {
     }
     assert_eq!(pod_testkit::host::userns(), pod_testkit::host::userns(), "the probe runs one time");
 }
+
+/// A variable of qemu-user in the environment means an emulator: `scaled`
+/// gives five times the bound there and the bound itself elsewhere.
+#[test]
+fn the_bound_scales_under_an_emulator() {
+    use std::time::Duration;
+    let qemu = std::env::var_os("QEMU_LD_PREFIX").is_some();
+    if qemu {
+        assert!(pod_testkit::host::emulated(), "QEMU_LD_PREFIX is set");
+    }
+    let one = Duration::from_secs(1);
+    let want = if pod_testkit::host::emulated() { one * 5 } else { one };
+    assert_eq!(pod_testkit::host::scaled(one), want);
+}

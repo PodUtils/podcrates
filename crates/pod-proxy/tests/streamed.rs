@@ -77,12 +77,17 @@ async fn a_body_cut_before_its_length_is_an_error() {
 async fn a_body_that_stops_ends_at_the_idle_limit() {
     pod_testkit::need_loopback!();
     let served = serve(Answer::Stall, body(1 << 20));
-    let request = request(&served, "GET").timeout(LIMIT).body_idle(Duration::from_millis(300));
+    let request =
+        request(&served, "GET").timeout(pod_testkit::host::scaled(LIMIT)).body_idle(Duration::from_millis(300));
     let mut streamed = client(&served).send_streamed(request).await.expect("an answer");
     let start = Instant::now();
     let stopped = read_all(&mut streamed).await.unwrap_err();
     assert_eq!(stopped.kind(), std::io::ErrorKind::TimedOut, "{stopped}");
-    assert!(start.elapsed() < Duration::from_secs(5), "the read waited {:?}", start.elapsed());
+    assert!(
+        start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)),
+        "the read waited {:?}",
+        start.elapsed()
+    );
 }
 
 /// The answer to a `HEAD` has no body, whatever its length says.
@@ -91,6 +96,9 @@ async fn a_head_has_no_body() {
     pod_testkit::need_loopback!();
     let served = serve(Answer::HeadOnly, body(1 << 20));
     let mut streamed = client(&served).send_streamed(request(&served, "HEAD")).await.expect("an answer");
-    let got = tokio::time::timeout(LIMIT, read_all(&mut streamed)).await.expect("no wait").expect("no body");
+    let got = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), read_all(&mut streamed))
+        .await
+        .expect("no wait")
+        .expect("no body");
     assert!(got.is_empty());
 }

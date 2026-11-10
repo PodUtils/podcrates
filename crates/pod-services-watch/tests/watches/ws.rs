@@ -33,7 +33,7 @@ fn upgrading(after: Vec<u8>) -> Stand {
 /// the head of its request.
 fn sent(stand: &Stand) -> (String, Vec<Frame>) {
     let started = Instant::now();
-    while stand.seen().is_empty() && started.elapsed() < Duration::from_secs(5) {
+    while stand.seen().is_empty() && started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(5)) {
         std::thread::sleep(Duration::from_millis(20));
     }
     let bytes = stand.seen().into_iter().next().expect("a connection that ended");

@@ -111,7 +111,8 @@ async fn a_dropped_job_ends_its_open_connection() {
     assert_eq!(broker.list()[0].open, 1);
     assert_eq!(broker.control_line(r#"{"op":"drop","job":"job1"}"#)["dropped"], true);
     let mut rest = Vec::new();
-    let read = tokio::time::timeout(Duration::from_secs(10), tunnel.read_to_end(&mut rest)).await;
+    let read =
+        tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(10)), tunnel.read_to_end(&mut rest)).await;
     assert!(matches!(read, Ok(Ok(0))), "the tunnel ends: {read:?}");
     let line = audit.connection("allow").await;
     assert_eq!((line.fields["end"].as_str(), line.class), (Some("job-ended"), Some("revoked")));

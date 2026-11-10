@@ -162,7 +162,7 @@ impl Tmux {
             .map_err(|e| format!("{}: {e}", self.program.display()))?;
         let start = Instant::now();
         while child.try_wait().map_err(|e| e.to_string())?.is_none() {
-            if start.elapsed() > LIMIT {
+            if start.elapsed() > pod_testkit::host::scaled(LIMIT) {
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(format!("tmux {args:?} took more than {} s", LIMIT.as_secs()));

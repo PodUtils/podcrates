@@ -144,7 +144,10 @@ async fn podnet_s_chain_asks_the_json_form_for_both_families_by_the_name_after_t
         Context::new(Arc::new(rustls::crypto::ring::default_provider()), pod_tls::Settings::new(Words::new("podnet")));
     let dial = NamesAlone { port, targets: Mutex::new(Vec::new()) };
     let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
-    let found = tokio::time::timeout(LIMIT, way.lookup("relay.test", Instant::now() + LIMIT)).await.expect("in time");
+    let found =
+        tokio::time::timeout(pod_testkit::host::scaled(LIMIT), way.lookup("relay.test", Instant::now() + LIMIT))
+            .await
+            .expect("in time");
     let want: Vec<std::net::IpAddr> = vec!["192.0.2.1".parse().unwrap(), "2001:db8::1".parse().unwrap()];
     assert_eq!(found, Ok(want));
     let targets = dial.targets.lock().unwrap().clone();

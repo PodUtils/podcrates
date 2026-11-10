@@ -134,7 +134,10 @@ fn proxy(url: String) -> ProxyChoice {
 async fn echoes(mut stream: TcpStream) {
     stream.write_all(b"ping").await.unwrap();
     let mut back = [0u8; 4];
-    tokio::time::timeout(LIMIT, stream.read_exact(&mut back)).await.expect("an echo in time").unwrap();
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), stream.read_exact(&mut back))
+        .await
+        .expect("an echo in time")
+        .unwrap();
     assert_eq!(&back, b"ping");
 }
 
@@ -302,7 +305,7 @@ async fn a_socks5_url_with_a_name_that_does_not_resolve_names_socks5h() {
     assert!(matches!(&err, DialError::Resolve { host, .. } if host == "relay.invalid"), "{err:?}");
     assert!(err.to_string().contains("socks5h://"), "{err}");
     // The greeting went first; no CONNECT followed.
-    tokio::time::timeout(LIMIT, async {
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), async {
         while seen.lock().unwrap().is_empty() {
             tokio::task::yield_now().await;
         }

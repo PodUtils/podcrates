@@ -214,7 +214,10 @@ async fn both_directions_cross_and_the_peer_end_ends_the_stream() {
 
     drop(connector);
     let mut extra = [0u8; 1];
-    let read = timeout(Duration::from_secs(10), listener.read(&mut extra)).await.expect("an end").expect("a read");
+    let read = timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read(&mut extra))
+        .await
+        .expect("an end")
+        .expect("a read");
     assert_eq!(read, 0, "the peer closed the transport with no close_notify");
 
     relay.abort();
@@ -227,13 +230,13 @@ async fn different_secrets_fail_the_handshake() {
     let settings = settings_at(&path);
 
     let listener = listen(&settings, "pod-gsr-secret-one");
-    let failure = timeout(Duration::from_secs(20), connect(&settings, "pod-gsr-secret-two"))
+    let failure = timeout(pod_testkit::host::scaled(Duration::from_secs(20)), connect(&settings, "pod-gsr-secret-two"))
         .await
         .expect("an answer")
         .expect_err("the secrets differ");
     assert_eq!((failure.stage, failure.class), (Stage::Tls, Class::Refused), "{}", failure.chain());
 
-    let _ = timeout(Duration::from_secs(5), listener).await;
+    let _ = timeout(pod_testkit::host::scaled(Duration::from_secs(5)), listener).await;
     relay.abort();
     let _ = std::fs::remove_file(&path);
 }
@@ -278,7 +281,10 @@ async fn a_reader_sees_every_byte_before_the_end() {
     let mut received = Vec::with_capacity(expected);
     let mut buf = [0u8; 16384];
     while received.len() < expected {
-        let n = timeout(Duration::from_secs(10), listener.read(&mut buf)).await.expect("no stall").expect("a read");
+        let n = timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read(&mut buf))
+            .await
+            .expect("no stall")
+            .expect("a read");
         assert_ne!(n, 0, "the stream ended after {} of {expected} bytes", received.len());
         received.extend_from_slice(&buf[..n]);
     }
@@ -287,7 +293,10 @@ async fn a_reader_sees_every_byte_before_the_end() {
     assert!(!listener.peer_finished(), "the loop stopped at the byte count, so no end was read yet");
 
     // One more read gets the end itself, and only then is the peer finished.
-    let n = timeout(Duration::from_secs(10), listener.read(&mut buf)).await.expect("no stall").expect("a read");
+    let n = timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read(&mut buf))
+        .await
+        .expect("no stall")
+        .expect("a read");
     assert_eq!(n, 0, "the end of the peer");
     assert!(listener.peer_finished(), "the end of the peer was read");
 
@@ -323,7 +332,10 @@ async fn every_byte_arrives_before_a_close_with_no_close_notify() {
         let mut received = Vec::with_capacity(expected);
         let mut buf = [0u8; 16384];
         while received.len() < expected {
-            let n = timeout(Duration::from_secs(10), listener.read(&mut buf)).await.expect("no stall").expect("a read");
+            let n = timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read(&mut buf))
+                .await
+                .expect("no stall")
+                .expect("a read");
             assert_ne!(n, 0, "run {run}: the stream ended after {} of {expected}", received.len());
             received.extend_from_slice(&buf[..n]);
         }
@@ -377,7 +389,7 @@ async fn a_drop_of_the_peer_ends_the_stream_as_a_cut() {
         drop(connector);
     });
     let mut received = Vec::new();
-    timeout(Duration::from_secs(10), listener.read_to_end(&mut received))
+    timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read_to_end(&mut received))
         .await
         .expect("an end")
         .expect("a read of 0 bytes at the end");
@@ -410,7 +422,9 @@ async fn a_shutdown_of_the_peer_ends_the_stream_as_clean() {
         },
         async {
             let mut received = Vec::new();
-            timeout(Duration::from_secs(10), listener.read_to_end(&mut received)).await.map(|r| r.map(|_| received))
+            timeout(pod_testkit::host::scaled(Duration::from_secs(10)), listener.read_to_end(&mut received))
+                .await
+                .map(|r| r.map(|_| received))
         },
     );
     written.expect("the payload and the shutdown");
@@ -421,7 +435,10 @@ async fn a_shutdown_of_the_peer_ends_the_stream_as_clean() {
 
     AsyncWriteExt::shutdown(&mut listener).await.expect("the shutdown after the peer's end");
     let mut rest = Vec::new();
-    timeout(Duration::from_secs(10), connector.read_to_end(&mut rest)).await.expect("an end").expect("a read");
+    timeout(pod_testkit::host::scaled(Duration::from_secs(10)), connector.read_to_end(&mut rest))
+        .await
+        .expect("an end")
+        .expect("a read");
     assert!(rest.is_empty());
     assert_eq!(connector.end(), Some(End::Clean));
 

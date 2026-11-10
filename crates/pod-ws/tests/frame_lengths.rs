@@ -107,7 +107,7 @@ async fn from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
             return f;
         }
         let mut chunk = [0u8; 4096];
-        let n = tokio::time::timeout(Duration::from_secs(5), peer.read(&mut chunk))
+        let n = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), peer.read(&mut chunk))
             .await
             .expect("a client frame within 5 s")
             .unwrap();
@@ -129,12 +129,12 @@ async fn a_length_not_in_the_minimal_form_fails_the_connection_with_1002() {
         bytes.extend_from_slice(&header(Role::Server, marker, 5));
         bytes.extend_from_slice(b"hello");
         peer.write_all(&bytes).await.unwrap();
-        let good = tokio::time::timeout(Duration::from_secs(5), session.read_frame())
+        let good = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), session.read_frame())
             .await
             .expect("the first frame")
             .expect("a frame in the minimal form is read");
         assert_eq!(good.payload, b"hello");
-        let error = tokio::time::timeout(Duration::from_secs(5), session.read_frame())
+        let error = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), session.read_frame())
             .await
             .expect("the read ends")
             .expect_err("a length that is not in the minimal form is an error");

@@ -317,25 +317,13 @@ async fn each_way(session: RelaySession, size: usize, seed: u64) {
 /// 1 MiB under an emulator, which carries TLS and HTTP/2 too slowly for the
 /// limit. The test of the shared connection stays the same.
 fn per_session() -> usize {
-    if emulated() { MIB } else { 4 * MIB }
+    if pod_testkit::host::emulated() { MIB } else { 4 * MIB }
 }
 
 /// The wait for the echo of one session: 60 s on a kernel, five times that
-/// under an emulator (riscv64 under qemu-user carries the eight sessions of
-/// TLS and HTTP/2 in over 60 s).
+/// under an emulator.
 fn echo_limit() -> Duration {
-    if emulated() { LIMIT * 5 } else { LIMIT }
-}
-
-/// An emulator runs this test binary (`pod_hostprobe::interp`).
-fn emulated() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        let set = |v: &str| std::env::var_os(v).is_some();
-        return pod_hostprobe::interp::detect(&set).is_emulated();
-    }
-    #[allow(unreachable_code)]
-    false
+    pod_testkit::host::scaled(LIMIT)
 }
 
 async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {

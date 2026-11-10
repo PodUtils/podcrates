@@ -73,7 +73,7 @@ async fn server(count: usize) -> (SocketAddr, RootCertStore, JoinHandle<Vec<Opti
             let _ = tls.write_all(b"x").await;
             let _ = tls.flush().await;
             let mut rest = Vec::new();
-            let _ = tokio::time::timeout(LIMIT, tls.read_to_end(&mut rest)).await;
+            let _ = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tls.read_to_end(&mut rest)).await;
         }
         kinds
     });
@@ -85,14 +85,23 @@ async fn connect(addr: SocketAddr, config: Arc<ClientConfig>) {
     let tcp = TcpStream::connect(addr).await.expect("connect");
     let name = rustls_pki_types::ServerName::try_from(NAME.to_string()).expect("a name");
     let connector = tokio_rustls::TlsConnector::from(config);
-    let mut tls = tokio::time::timeout(LIMIT, connector.connect(name, tcp)).await.expect("in time").expect("TLS");
+    let mut tls = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), connector.connect(name, tcp))
+        .await
+        .expect("in time")
+        .expect("TLS");
     let mut byte = [0u8; 1];
-    tokio::time::timeout(LIMIT, tls.read_exact(&mut byte)).await.expect("the byte in time").expect("the byte");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tls.read_exact(&mut byte))
+        .await
+        .expect("the byte in time")
+        .expect("the byte");
     let _ = tls.shutdown().await;
 }
 
 async fn kinds(served: JoinHandle<Vec<Option<HandshakeKind>>>) -> Vec<Option<HandshakeKind>> {
-    tokio::time::timeout(LIMIT, served).await.expect("the server in time").expect("the server")
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), served)
+        .await
+        .expect("the server in time")
+        .expect("the server")
 }
 
 #[tokio::test]

@@ -39,7 +39,9 @@ async fn no_audit_line_holds_a_planted_secret() {
         let (_, mut rest) = ask(&broker, request).await;
         // The end of the job's side ends a tunnel too.
         tokio::io::AsyncWriteExt::shutdown(&mut rest).await.unwrap();
-        let read = tokio::time::timeout(std::time::Duration::from_secs(10), read_all(&mut rest)).await;
+        let read =
+            tokio::time::timeout(pod_testkit::host::scaled(std::time::Duration::from_secs(10)), read_all(&mut rest))
+                .await;
         assert!(read.is_ok(), "{request}");
     }
     broker.drop_job("job1");
@@ -72,7 +74,9 @@ async fn wait_lines(out: &Arc<std::sync::Mutex<Vec<u8>>>, count: usize) -> Strin
             tokio::task::yield_now().await;
         }
     };
-    tokio::time::timeout(std::time::Duration::from_secs(10), wait).await.expect("the audit lines in time")
+    tokio::time::timeout(pod_testkit::host::scaled(std::time::Duration::from_secs(10)), wait)
+        .await
+        .expect("the audit lines in time")
 }
 
 /// A writer that each test task can read.

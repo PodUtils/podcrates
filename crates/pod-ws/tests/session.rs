@@ -22,7 +22,7 @@ async fn next_from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
             return f;
         }
         let mut chunk = [0u8; 4096];
-        let n = tokio::time::timeout(Duration::from_secs(5), peer.read(&mut chunk))
+        let n = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), peer.read(&mut chunk))
             .await
             .expect("a client frame within 5 s")
             .unwrap();
@@ -43,7 +43,7 @@ async fn a_pending_read_does_not_block_a_send() {
     let read = tokio::spawn(async move { reader.read_frame().await });
     tokio::time::sleep(Duration::from_millis(50)).await; // the read is now waiting
 
-    tokio::time::timeout(Duration::from_secs(2), s.send_binary(b"keystroke"))
+    tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(2)), s.send_binary(b"keystroke"))
         .await
         .expect("a send must not wait for the pending read")
         .unwrap();
@@ -163,7 +163,7 @@ async fn an_idle_link_times_out_instead_of_hanging() {
     let err = s.read_frame().await.unwrap_err();
     assert!(matches!(err, SessionError::Idle(_)), "{err:?}");
     assert!(err.to_string().contains("no data from the relay"), "{err}");
-    assert!(started.elapsed() < Duration::from_secs(2));
+    assert!(started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(2)));
 }
 
 #[tokio::test]
@@ -181,7 +181,7 @@ async fn end_of_stream_without_a_close_is_an_error() {
 async fn a_write_to_a_peer_that_never_reads_stalls_and_ends() {
     let (client, _peer) = tokio::io::duplex(64);
     let s = RelaySession::new(client, Vec::new(), None, Duration::from_millis(100));
-    let err = tokio::time::timeout(Duration::from_secs(5), s.send_binary(&[0u8; 4096]))
+    let err = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), s.send_binary(&[0u8; 4096]))
         .await
         .expect("the write limit ends the write")
         .unwrap_err();
@@ -254,9 +254,12 @@ async fn a_link_that_goes_silent_is_found_dead_by_pinging() {
     scripted_relay(peer, 1, None);
     let s = session(client, None);
     keep_reading(&s);
-    let reason = tokio::time::timeout(Duration::from_secs(2), s.watch_liveness(Duration::from_millis(50), 3))
-        .await
-        .expect("a silent link must be declared dead");
+    let reason = tokio::time::timeout(
+        pod_testkit::host::scaled(Duration::from_secs(2)),
+        s.watch_liveness(Duration::from_millis(50), 3),
+    )
+    .await
+    .expect("a silent link must be declared dead");
     assert!(matches!(reason, SessionError::Dead(_)), "{reason:?}");
     assert!(reason.to_string().contains("dead"), "{reason}");
     assert_eq!(s.pongs_received(), 1);

@@ -58,7 +58,7 @@ async fn plain_echo() -> (SocketAddr, tokio::task::JoinHandle<()>) {
 async fn there_and_back(stream: &mut TcpStream) -> Vec<u8> {
     stream.write_all(SENT).await.unwrap();
     let mut back = vec![0u8; SENT.len()];
-    let read = tokio::time::timeout(Duration::from_secs(10), stream.read_exact(&mut back));
+    let read = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(10)), stream.read_exact(&mut back));
     read.await.expect("the echo within 10 s").unwrap();
     back
 }

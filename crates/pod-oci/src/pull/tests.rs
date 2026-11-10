@@ -125,7 +125,7 @@ fn a_failure_cancels_the_rest_and_leaves_no_staged_file() {
         // In flight: wait for the cancel, with a limit, then yield with no
         // commit.
         let start = std::time::Instant::now();
-        let bound = std::time::Duration::from_secs(30);
+        let bound = pod_testkit::host::scaled(std::time::Duration::from_secs(30));
         while start.elapsed() < bound {
             if cancel.load(Ordering::Acquire) {
                 observed.fetch_add(1, Ordering::Release);

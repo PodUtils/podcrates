@@ -75,7 +75,7 @@ impl Kept {
 
     /// The next head of a request.
     pub fn head(&self) -> String {
-        self.heads.recv_timeout(WAIT).expect("a request")
+        self.heads.recv_timeout(pod_testkit::host::scaled(WAIT)).expect("a request")
     }
 }
 

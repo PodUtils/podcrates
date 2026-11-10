@@ -137,7 +137,7 @@ async fn round_trip(proxy: &Proxy) -> Vec<u8> {
     let mut io = through(proxy, "echo.test", 7).await.unwrap();
     io.write_all(b"ping").await.unwrap();
     let mut back = [0u8; 4];
-    tokio::time::timeout(LIMIT, io.read_exact(&mut back)).await.unwrap().unwrap();
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), io.read_exact(&mut back)).await.unwrap().unwrap();
     back.to_vec()
 }
 
@@ -192,7 +192,7 @@ async fn a_refusal_keeps_the_first_line_of_its_body() {
         }
         other => panic!("{other:?}"),
     }
-    assert!(started.elapsed() < Duration::from_secs(2), "the read waited for the close");
+    assert!(started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(2)), "the read waited for the close");
 }
 
 /// The decisions of a dial reach the observer of the dialer.
@@ -284,7 +284,7 @@ async fn a_silent_address_does_not_hold_the_dial() {
     let (index, _stream) = pod_proxy::dial_addrs(&[silent, good], Duration::from_secs(10)).await.unwrap();
     let took = start.elapsed();
     assert_eq!(index, 1);
-    assert!(took < Duration::from_millis(1000), "the dial took {took:?}");
+    assert!(took < pod_testkit::host::scaled(Duration::from_millis(1000)), "the dial took {took:?}");
 }
 
 /// A dial that no address takes keeps the kind of the last error of I/O

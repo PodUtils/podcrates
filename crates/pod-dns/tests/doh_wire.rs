@@ -199,7 +199,7 @@ async fn a_wrong_cached_address_fails_tls_on_the_name() {
     let opened = context.tls_over(tcp.io, host, &trust, limit).await;
     // A resolver here that answers for the reserved name would leave the
     // stand-in unasked: the wait for it is bounded.
-    let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
+    let _ = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), server).await;
     match opened {
         Err(failure) if failure.stage == Stage::Tls => {
             let why = failure.chain();

@@ -267,7 +267,7 @@ async fn a_silent_proxy_times_out_within_the_budget() {
     let started = std::time::Instant::now();
     let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_millis(300)).await.unwrap_err();
     assert!(matches!(err, DialError::Timeout { .. }), "{err:?}");
-    assert!(started.elapsed() < Duration::from_secs(3), "took {:?}", started.elapsed());
+    assert!(started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(3)), "took {:?}", started.elapsed());
 }
 
 #[tokio::test]

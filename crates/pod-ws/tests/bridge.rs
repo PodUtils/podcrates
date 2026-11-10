@@ -85,7 +85,8 @@ async fn a_close_of_the_far_end_ends_the_bridge_and_each_byte_is_counted() {
     target.write_all(b"abc").await.unwrap();
     // The 3 bytes as one binary message, before the far end closes.
     let mut wire = vec![0u8; 64];
-    let n = tokio::time::timeout(LIMIT, far.read(&mut wire)).await.expect("a message").unwrap();
+    let n =
+        tokio::time::timeout(pod_testkit::host::scaled(LIMIT), far.read(&mut wire)).await.expect("a message").unwrap();
     let (first, used) = frame::decode(&wire[..n], Role::Client).unwrap().unwrap();
     assert_eq!((first.opcode, first.payload.as_slice(), used), (frame::OPCODE_BINARY, &b"abc"[..], n));
     let mut close = 1009u16.to_be_bytes().to_vec();
@@ -93,10 +94,17 @@ async fn a_close_of_the_far_end_ends_the_bridge_and_each_byte_is_counted() {
     far.write_all(&from_far(frame::OPCODE_CLOSE, &close)).await.unwrap();
     // The write side of the raw stream shuts: its reader sees the end.
     let mut rest = Vec::new();
-    tokio::time::timeout(LIMIT, target.read_to_end(&mut rest)).await.expect("the end of the raw stream").unwrap();
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), target.read_to_end(&mut rest))
+        .await
+        .expect("the end of the raw stream")
+        .unwrap();
     assert!(rest.is_empty(), "{rest:?}");
     drop(target);
-    tokio::time::timeout(LIMIT, task).await.expect("the bridge ends").unwrap().expect("a clean end");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), task)
+        .await
+        .expect("the bridge ends")
+        .unwrap()
+        .expect("a clean end");
     assert_eq!(count.inward.load(Ordering::SeqCst), 10);
     assert_eq!(count.outward.load(Ordering::SeqCst), 3);
     // The answer to the Close, with its code, and nothing after it.
@@ -176,11 +184,18 @@ async fn connect_bridge_carries_a_raw_stream_to_the_websocket() {
     });
     local.write_all(b"through the echo").await.unwrap();
     let mut got = [0u8; 16];
-    tokio::time::timeout(LIMIT, local.read_exact(&mut got)).await.expect("the echo").unwrap();
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), local.read_exact(&mut got))
+        .await
+        .expect("the echo")
+        .unwrap();
     assert_eq!(&got, b"through the echo");
     local.shutdown().await.unwrap();
     drop(local);
-    tokio::time::timeout(LIMIT, task).await.expect("the bridge ends").unwrap().expect("a clean end");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), task)
+        .await
+        .expect("the bridge ends")
+        .unwrap()
+        .expect("a clean end");
 }
 
 mod bench {

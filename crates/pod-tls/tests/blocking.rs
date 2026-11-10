@@ -28,7 +28,7 @@ fn server(name: &str) -> (u16, Arc<Context>, Trust) {
     let port = listener.local_addr().expect("its address").port();
     thread::spawn(move || {
         let (tcp, _) = listener.accept().expect("a connection");
-        tcp.set_read_timeout(Some(Duration::from_secs(10))).expect("a limit");
+        tcp.set_read_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10)))).expect("a limit");
         let tls = rustls::ServerConnection::new(config).expect("a server connection");
         let mut stream = rustls::StreamOwned::new(tls, tcp);
         let mut got = [0u8; 4];
@@ -47,7 +47,7 @@ fn server(name: &str) -> (u16, Arc<Context>, Trust) {
 
 fn tcp(port: u16) -> TcpStream {
     let tcp = TcpStream::connect(("127.0.0.1", port)).expect("a connection");
-    tcp.set_read_timeout(Some(Duration::from_secs(10))).expect("a limit");
+    tcp.set_read_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10)))).expect("a limit");
     tcp
 }
 

@@ -75,7 +75,10 @@ async fn resolver() -> (u16, rustls::RootCertStore, tokio::task::JoinHandle<Opti
         let mut send = respond.send_response(response, false).ok()?;
         send.send_data(body.into(), true).ok()?;
         // The connection is driven until the client goes.
-        let _ = tokio::time::timeout(LIMIT, async { while connection.accept().await.is_some() {} }).await;
+        let _ = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), async {
+            while connection.accept().await.is_some() {}
+        })
+        .await;
         Some(path)
     });
     (port, roots, served)
@@ -140,11 +143,18 @@ async fn a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name() {
     let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let resolvers = [stand_in()];
     let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
-    let records = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect("the records, by the name");
+    let records = tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), lookup)
+        .await
+        .expect("in time")
+        .expect("the records, by the name");
     let region = |n: u16| Srv { priority: n, weight: 1, port: 7844, target: format!("region{n}.v2.argotunnel.com") };
     assert_eq!(records, [region(2), region(1)], "Quad9's answer, in its order");
     assert_eq!(*asked.lock().unwrap(), [format!("{NAME}:443")], "the name, and nothing after it");
-    let path = tokio::time::timeout(LIMIT * 2, served).await.unwrap().unwrap().expect("the resolver was asked");
+    let path = tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), served)
+        .await
+        .unwrap()
+        .unwrap()
+        .expect("the resolver was asked");
     assert!(path.starts_with("/dns-query?dns="), "{path}");
 }
 
@@ -161,7 +171,10 @@ async fn the_address_follows_a_name_refused_and_a_name_is_asked_once() {
     let (settings, context, dial) = (Settings::default(), context(), via(proxy));
     let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
     let lookup = way.srv_with(&resolvers, SRV_NAME, Instant::now() + LIMIT);
-    let failed = tokio::time::timeout(LIMIT * 2, lookup).await.expect("in time").expect_err("no way to any");
+    let failed = tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), lookup)
+        .await
+        .expect("in time")
+        .expect_err("no way to any");
     assert_eq!(*asked.lock().unwrap(), ["other.test:443", "192.0.2.53:443", "192.0.2.54:443"]);
     for host in ["other.test", "192.0.2.53", "192.0.2.54"] {
         assert!(failed.contains(&format!("{host}: ")), "{host}: {failed}");

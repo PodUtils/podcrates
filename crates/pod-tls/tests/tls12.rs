@@ -253,7 +253,7 @@ async fn exchange(port: u16, ca: PathBuf) -> Result<(ProtocolVersion, CipherSuit
     for n in 0..20 {
         let line = format!("{n:02}-{}", "abcdefghijklmnopqrstuvwxyz".repeat(40));
         write.write_all(format!("{line}\n").as_bytes()).await.map_err(|e| e.to_string())?;
-        let back = tokio::time::timeout(LIMIT, lines.next_line())
+        let back = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), lines.next_line())
             .await
             .map_err(|_| format!("line {n}: no answer within {LIMIT:?}"))?
             .map_err(|e| format!("line {n}: {e}"))?
@@ -278,7 +278,9 @@ fn agreed(key: Key, extra: &[&str]) -> Option<Result<(ProtocolVersion, CipherSui
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     Some(
         runtime
-            .block_on(async { tokio::time::timeout(LIMIT * 3, exchange(port, dir.0.join("ca.pem"))).await })
+            .block_on(async {
+                tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 3), exchange(port, dir.0.join("ca.pem"))).await
+            })
             .unwrap_or(Err("the exchange passed its limit".into())),
     )
 }

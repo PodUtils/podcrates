@@ -21,7 +21,7 @@ fn the_blocking_client_keeps_its_connection() {
     let kept = plain(marked);
     let dialer = Dialer::new(Settings::new("podvm", ProxyChoice::Direct), Arc::new(pins())).expect("a runtime");
     let client = Client::new(kept.context.clone(), &dialer);
-    let get = || Request::new("GET", format!("http://{NAME}:{}/", kept.port)).timeout(WAIT);
+    let get = || Request::new("GET", format!("http://{NAME}:{}/", kept.port)).timeout(pod_testkit::host::scaled(WAIT));
     let first = client.send(get()).expect("an answer");
     let mut streamed = client.send_streamed(get()).expect("an answer");
     let mut second = String::new();

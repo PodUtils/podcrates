@@ -64,7 +64,7 @@ async fn stand_in(scripts: Vec<Script>) -> (Proxy, Arc<Mutex<Vec<[u8; 10]>>>) {
 /// A step of a test, bounded: a frame with a wrong length must fail the test,
 /// not wait for bytes that never come.
 async fn within<T>(step: impl Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(5), step).await.expect("the step ended in time")
+    tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(5)), step).await.expect("the step ended in time")
 }
 
 async fn connect(proxy: &Proxy) -> TcpStream {

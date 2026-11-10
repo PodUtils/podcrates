@@ -58,11 +58,11 @@ fn client(resolve: System) -> Client {
 }
 
 fn get(url: String) -> Request {
-    Request::new("GET", url).timeout(Duration::from_secs(10))
+    Request::new("GET", url).timeout(pod_testkit::host::scaled(Duration::from_secs(10)))
 }
 
 fn head(heads: &mpsc::Receiver<String>) -> String {
-    heads.recv_timeout(Duration::from_secs(5)).expect("a request")
+    heads.recv_timeout(pod_testkit::host::scaled(Duration::from_secs(5))).expect("a request")
 }
 
 #[tokio::test]

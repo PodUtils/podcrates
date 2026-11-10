@@ -72,7 +72,7 @@ async fn server(count: usize) -> (SocketAddr, JoinHandle<Vec<Option<HandshakeKin
             let _ = tls.write_all(b"x").await;
             let _ = tls.flush().await;
             let mut rest = Vec::new();
-            let _ = tokio::time::timeout(LIMIT, tls.read_to_end(&mut rest)).await;
+            let _ = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tls.read_to_end(&mut rest)).await;
         }
         kinds
     });
@@ -85,12 +85,18 @@ async fn connect(context: &Context, addr: SocketAddr, trust: &Trust) {
     let tcp = TcpStream::connect(addr).await.expect("connect");
     let mut tls = context.connect_over(tcp, NAME, trust, LIMIT).await.expect("the handshake");
     let mut byte = [0u8; 1];
-    tokio::time::timeout(LIMIT, tls.read_exact(&mut byte)).await.expect("the byte in time").expect("the byte");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), tls.read_exact(&mut byte))
+        .await
+        .expect("the byte in time")
+        .expect("the byte");
     let _ = tls.shutdown().await;
 }
 
 async fn kinds(served: JoinHandle<Vec<Option<HandshakeKind>>>) -> Vec<Option<HandshakeKind>> {
-    tokio::time::timeout(LIMIT, served).await.expect("the server in time").expect("the server")
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), served)
+        .await
+        .expect("the server in time")
+        .expect("the server")
 }
 
 #[tokio::test]
