@@ -1,0 +1,1111 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index ab0235a..d56a182 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -68,26 +68,30 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.1" }
+ podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.1" }
+ # TLS of PodUtils/podcrates: the roots, the client configurations and the
+ # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ # The HTTP date of a time (the log of detach, the tests of the clock); the
+ # dial, the resolver and the failures of pod-proxy.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ # The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
+ # race of addresses, the proxy of a tool's file), the HTTP client
+ # (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
+ # with podnet's settings.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ # The resolver of each direct dial (src/resolve.rs): an IP address, the pins
+ # of --resolve, the system and DNS over HTTPS, with podnet's settings.
+-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ # The services of other parties: the relay, the edge of Cloudflare's tunnels
+ # and its roots, the quick tunnels, WARP, 1.1.1.1 and Pinggy, as data with
+ # their sources.
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ # The WebSocket of `connect`, of the forward endpoint and their bridge
+ # (src/ws.rs), of PodUtils/podcrates, with podnet's dial, TLS context and
+ # user agent, and the limits of tokio-tungstenite.
+-pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
++# QUIC (the edge, QUIC over WARP, MASQUE over HTTP/3) on noq, of
++# PodUtils/podcrates: the endpoints and their keys in pure Rust, and the
++# socket over the UDP of the userspace stack under WARP (src/warp/quic.rs).
++pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ base64 = "0.23"
+@@ -104,7 +108,9 @@ http = "1"
+ http-body-util = "0.1"
+ libc = "0.2"
+ qrcode = { version = "0.14", default-features = false }
+-quinn = "0.11"
++# The QUIC stack of pod-quic (podcrates call C43): no default feature, so no
++# ring and no aws-lc in it; its keys are pod-quic's.
++noq = { version = "1.4", default-features = false, features = ["runtime-tokio", "rustls"] }
+ rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem"] }
+ # The path: of an ingress rule is a regular expression, as in cloudflared
+ # (Go RE2). The regex crate has the same syntax and linear time.
+diff --git a/TODO/pods.md b/TODO/pods.md
+index 70fbbe9..f4557d6 100644
+--- a/TODO/pods.md
++++ b/TODO/pods.md
+@@ -694,7 +694,7 @@ namespace, with an `AF_PACKET` socket on one end, can carry the frames to the sa
+ 
+ - `crates/podnet-netns/src/netns/tun.rs:41-43` opens the node; `send_fd`/`recv_fd` (`crates/podnet-netns/src/netns/fdpass.rs:51,85`) and the
+   handoff (`crates/podnet-netns/src/netns/mod.rs:96,168`) are reusable. `doctor.rs:70,281` gates `auto` on the TUN probe.
+-- smoltcp has `medium-ip` only (`Cargo.toml:130`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
++- smoltcp has `medium-ip` only (`Cargo.toml:136`, `crates/podnet-netns/Cargo.toml:29`): add `medium-ethernet`.
+ - `docs/research/podnet/vn.md:313` is plan item P5; `vn.md:411` asks if any target host has no TUN. No
+   measured host lacks it (`docs/target-environment.md:33`).
+ - The veth needs one small `RTM_NEWLINK` writer. Checksums: skip RX verification on this device.
+diff --git a/crates/podnet-core/Cargo.toml b/crates/podnet-core/Cargo.toml
+index ad0b08d..7e88c18 100644
+--- a/crates/podnet-core/Cargo.toml
++++ b/crates/podnet-core/Cargo.toml
+@@ -22,9 +22,9 @@ path = "src/lib.rs"
+ [dependencies]
+ # The clock of an HTTP date, the services of other parties and the TLS
+ # context, of PodUtils/podcrates at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ anyhow = "1"
+ futures = "0.3"
+ getrandom = "0.4"
+@@ -65,4 +65,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! and need_localhost! of the tests (T-046), from the test kit
+ # of PodUtils/podcrates at the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
+index 4980b12..58d30ed 100644
+--- a/crates/podnet-netns/Cargo.toml
++++ b/crates/podnet-netns/Cargo.toml
+@@ -24,7 +24,7 @@ anyhow = "1"
+ libc = "0.2"
+ # The SOCKS5 datagram path (UDP ASSOCIATE, the command 0x83, the frames and
+ # the datagram header) of PodUtils/podcrates, at the git tag of the root.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ serde_json = "1"
+ smoltcp = { version = "=0.12.0", default-features = false, features = [
+     "std",
+diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
+index 2cb0042..60b3d2d 100644
+--- a/crates/podnet-serve/Cargo.toml
++++ b/crates/podnet-serve/Cargo.toml
+@@ -22,8 +22,8 @@ path = "src/lib.rs"
+ podnet-core = { path = "../podnet-core", version = "0.4.0-beta.1" }
+ # The TLS client of an origin, and the credentials of a served proxy, of
+ # PodUtils/podcrates at the git tag of the root.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ bytes = "1"
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index a73b6d2..307b286 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -9,4 +9,4 @@ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0" }
+diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
+index fb1b372..2c870f9 100644
+--- a/crates/podnet-vnet/Cargo.toml
++++ b/crates/podnet-vnet/Cargo.toml
+@@ -57,4 +57,4 @@ tracing = "0.1"
+ tempfile = "3"
+ # need_loopback! of the tests, from the test kit of PodUtils/podcrates at
+ # the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0", version = "0.14.0" }
+diff --git a/docs/protocol.md b/docs/protocol.md
+index f69bc12..c6c09ea 100644
+--- a/docs/protocol.md
++++ b/docs/protocol.md
+@@ -314,8 +314,9 @@ IPv6 address in `2606:4700:110::/48`).
+ 
+ ### 5.3 The edge through WARP
+ 
+-`podnet::warp::quic::endpoint` makes a `quinn::Endpoint` whose UDP socket is a
+-UDP socket of the `WarpStack`. The QUIC connection to the edge (UDP 7844) thus
++`podnet::warp::quic::endpoint` makes a `noq::Endpoint` whose UDP socket is a
++UDP socket of the `WarpStack` (`pod_quic::queued::QueuedDatagrams` of
++PodUtils/podcrates). The QUIC connection to the edge (UDP 7844) thus
+ goes inside the MASQUE session. The host opens only TCP 443.
+ 
+ ### 5.4 Limits
+diff --git a/src/cloudflare/mod.rs b/src/cloudflare/mod.rs
+index 4f80b4e..d51dd5c 100644
+--- a/src/cloudflare/mod.rs
++++ b/src/cloudflare/mod.rs
+@@ -71,7 +71,7 @@ pub fn h2_sni() -> &'static str {
+ 
+ /// The most streams that the edge can open at the same time, on QUIC and
+ /// on HTTP/2. The edge opens one stream for each visitor request, and a
+-/// quick tunnel allows 200 requests at the same time. The default of quinn
++/// quick tunnel allows 200 requests at the same time. The default of noq
+ /// is 100.
+ pub const MAX_EDGE_STREAMS: u32 = 256;
+ 
+diff --git a/src/cloudflare/quic.rs b/src/cloudflare/quic.rs
+index f6015d7..243fd8f 100644
+--- a/src/cloudflare/quic.rs
++++ b/src/cloudflare/quic.rs
+@@ -26,7 +26,7 @@
+ use std::sync::Arc;
+ use std::time::Duration;
+ 
+-use quinn::{ClientConfig, Endpoint, TransportConfig};
++use noq::{ClientConfig, Endpoint, TransportConfig};
+ 
+ use super::{EdgeAddr, EdgeError};
+ 
+@@ -47,7 +47,7 @@ pub use super::MAX_EDGE_STREAMS;
+ pub fn transport_config(initial_mtu: u16) -> TransportConfig {
+     let mut transport = TransportConfig::default();
+     transport.max_idle_timeout(Some(
+-        quinn::IdleTimeout::try_from(MAX_IDLE_TIMEOUT).expect("30 s is a valid idle timeout"),
++        noq::IdleTimeout::try_from(MAX_IDLE_TIMEOUT).expect("30 s is a valid idle timeout"),
+     ));
+     transport.keep_alive_interval(Some(KEEP_ALIVE_INTERVAL));
+     transport.initial_mtu(initial_mtu);
+@@ -58,17 +58,17 @@ pub fn transport_config(initial_mtu: u16) -> TransportConfig {
+ /// The rustls config for the QUIC edge.
+ ///
+ /// Split out from [`client_config`] so the ALPN and the trust roots can be
+-/// asserted on directly: quinn's own config has no getters, so a test that
+-/// reads back a quinn config would prove nothing.
++/// asserted on directly: noq's own config has no getters, so a test that
++/// reads back a noq config would prove nothing.
+ pub fn tls_config() -> Result<Arc<rustls::ClientConfig>, EdgeError> {
+     super::edge_tls_config(super::quic_alpn()).map_err(EdgeError::Connect)
+ }
+ 
+-/// Build a quinn client config for the edge.
++/// Build a noq client config for the edge.
+ pub fn client_config() -> Result<ClientConfig, EdgeError> {
+     let tls = tls_config()?;
+ 
+-    let quic_tls = quinn::crypto::rustls::QuicClientConfig::try_from(tls)
++    let quic_tls = noq::crypto::rustls::QuicClientConfig::try_from(tls)
+         .map_err(|e| EdgeError::Connect(format!("quic tls config: {e}")))?;
+ 
+     let mut config = ClientConfig::new(Arc::new(quic_tls));
+@@ -85,15 +85,17 @@ pub fn client_config() -> Result<ClientConfig, EdgeError> {
+ /// configuration.
+ pub fn build_endpoint() -> anyhow::Result<Endpoint> {
+     let bind: std::net::SocketAddr = "[::]:0".parse().expect("a valid address");
+-    let mut endpoint = match Endpoint::client(bind) {
++    let endpoint = match pod_quic::endpoint::bind(bind) {
+         Ok(endpoint) => endpoint,
+         // A host without IPv6 refuses `[::]`; use IPv4 only.
+-        Err(_) => Endpoint::client("0.0.0.0:0".parse().expect("a valid address")).map_err(|e| {
+-            anyhow::anyhow!(
+-                "could not open a local UDP socket: {e}. QUIC needs UDP; \
++        Err(_) => pod_quic::endpoint::bind("0.0.0.0:0".parse().expect("a valid address")).map_err(
++            |e| {
++                anyhow::anyhow!(
++                    "could not open a local UDP socket: {e}. QUIC needs UDP; \
+                  where it is blocked, use --protocol http2"
+-            )
+-        })?,
++                )
++            },
++        )?,
+     };
+     endpoint.set_default_client_config(client_config().map_err(|e| anyhow::anyhow!("{e}"))?);
+     Ok(endpoint)
+@@ -101,7 +103,7 @@ pub fn build_endpoint() -> anyhow::Result<Endpoint> {
+ 
+ /// Complete a QUIC handshake with `addr`. The SNI is `quic.cftunnel.com`
+ /// for every address.
+-pub async fn dial(endpoint: &Endpoint, addr: &EdgeAddr) -> anyhow::Result<quinn::Connection> {
++pub async fn dial(endpoint: &Endpoint, addr: &EdgeAddr) -> anyhow::Result<noq::Connection> {
+     let socket = addr.socket();
+     let connecting = endpoint
+         .connect(socket, super::quic_sni())
+@@ -114,10 +116,7 @@ pub async fn dial(endpoint: &Endpoint, addr: &EdgeAddr) -> anyhow::Result<quinn:
+ }
+ 
+ /// Try the addresses in sequence. Return the first connection.
+-pub async fn dial_any(
+-    endpoint: &Endpoint,
+-    edges: &[EdgeAddr],
+-) -> anyhow::Result<quinn::Connection> {
++pub async fn dial_any(endpoint: &Endpoint, edges: &[EdgeAddr]) -> anyhow::Result<noq::Connection> {
+     let mut failures = Vec::new();
+     for addr in edges {
+         match dial(endpoint, addr).await {
+@@ -142,9 +141,9 @@ pub(crate) mod testing {
+ 
+     pub struct Pair {
+         /// The connection on the side of the edge.
+-        pub edge: quinn::Connection,
++        pub edge: noq::Connection,
+         /// The connection on the side of podnet.
+-        pub client: quinn::Connection,
++        pub client: noq::Connection,
+         _endpoints: (Endpoint, Endpoint),
+     }
+ 
+@@ -161,9 +160,9 @@ pub(crate) mod testing {
+             .with_single_cert(vec![cert.der().clone()], key_der)
+             .unwrap();
+         server_tls.alpn_protocols = vec![b"podnet-test".to_vec()];
+-        let server_crypto = quinn::crypto::rustls::QuicServerConfig::try_from(server_tls).unwrap();
+-        let server = Endpoint::server(
+-            quinn::ServerConfig::with_crypto(Arc::new(server_crypto)),
++        let server_crypto = noq::crypto::rustls::QuicServerConfig::try_from(server_tls).unwrap();
++        let server = pod_quic::endpoint::server(
++            pod_quic::endpoint::server_config(Arc::new(server_crypto)).unwrap(),
+             "127.0.0.1:0".parse().unwrap(),
+         )
+         .unwrap();
+@@ -171,10 +170,10 @@ pub(crate) mod testing {
+         let tls = crate::trust::context()
+             .client_config_with(&[cert.pem().as_bytes()], &[b"podnet-test"])
+             .unwrap();
+-        let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls).unwrap();
++        let crypto = noq::crypto::rustls::QuicClientConfig::try_from(tls).unwrap();
+         let mut config = ClientConfig::new(Arc::new(crypto));
+         config.transport_config(Arc::new(transport_config(1252)));
+-        let client = Endpoint::client("127.0.0.1:0".parse().unwrap()).unwrap();
++        let client = pod_quic::endpoint::bind("127.0.0.1:0".parse().unwrap()).unwrap();
+         let connecting = client.connect_with(config, addr, "edge.test").unwrap();
+         let (edge, client_conn) = tokio::join!(
+             async { server.accept().await.unwrap().await.unwrap() },
+@@ -194,7 +193,7 @@ mod tests {
+ 
+     /// A local QUIC server opens 200 streams to the client and keeps them
+     /// open, as the edge does with 200 requests at the same time. With the
+-    /// default of quinn (100), the stream after the 100th waits.
++    /// default of noq (100), the stream after the 100th waits.
+     #[tokio::test]
+     async fn the_edge_can_open_200_streams_at_the_same_time() {
+         crate::test_host::need_loopback!();
+@@ -247,10 +246,10 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn quinn_accepts_the_tls_config_it_is_given() {
+-        // The failure this catches is real: rustls 0.23 and quinn disagree
+-        // about crypto provider versions, and quinn's try_from is where that
++    fn noq_accepts_the_tls_config_it_is_given() {
++        // The failure this catches is real: rustls 0.23 and noq disagree
++        // about crypto provider versions, and noq's try_from is where that
+         // surfaces, with an error that reads as a TLS problem at handshake.
+-        client_config().expect("quinn accepts the edge tls config");
++        client_config().expect("noq accepts the edge tls config");
+     }
+ }
+diff --git a/src/cloudflare/rpc.rs b/src/cloudflare/rpc.rs
+index 0b5482c..21dce91 100644
+--- a/src/cloudflare/rpc.rs
++++ b/src/cloudflare/rpc.rs
+@@ -92,7 +92,7 @@ impl Drop for ControlSession {
+ 
+ /// Open the control stream on `conn` and register the connection.
+ pub async fn register_connection(
+-    conn: &quinn::Connection,
++    conn: &noq::Connection,
+     auth: &TunnelAuth,
+     tunnel_id: Uuid,
+     conn_index: u8,
+diff --git a/src/proxy.rs b/src/proxy.rs
+index e20438e..8a73cc0 100644
+--- a/src/proxy.rs
++++ b/src/proxy.rs
+@@ -43,8 +43,8 @@ pub type EdgeWriter = std::pin::Pin<Box<dyn futures::io::AsyncWrite + Send>>;
+ pub async fn serve_stream(
+     runtime: std::sync::Arc<ServiceRuntime>,
+     ingress: std::sync::Arc<Ingress>,
+-    mut send: quinn::SendStream,
+-    mut recv: quinn::RecvStream,
++    mut send: noq::SendStream,
++    mut recv: noq::RecvStream,
+ ) {
+     let mut signature = [0u8; 6];
+     if let Err(err) = recv.read_exact(&mut signature).await {
+@@ -76,8 +76,8 @@ async fn serve_inner(
+     runtime: &ServiceRuntime,
+     ingress: &Ingress,
+     signature: [u8; 6],
+-    send: quinn::SendStream,
+-    recv: quinn::RecvStream,
++    send: noq::SendStream,
++    recv: noq::RecvStream,
+ ) -> Result<()> {
+     use tokio::io::AsyncReadExt as _;
+     use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+@@ -1390,8 +1390,8 @@ mod tests {
+         assert!(
+             matches!(
+                 err,
+-                quinn::ReadToEndError::Read(quinn::ReadError::Reset(code))
+-                    if code == quinn::VarInt::from_u32(RPC_STREAM_REFUSED)
++                noq::ReadToEndError::Read(noq::ReadError::Reset(code))
++                    if code == noq::VarInt::from_u32(RPC_STREAM_REFUSED)
+             ),
+             "{err:?}"
+         );
+diff --git a/src/tunnel.rs b/src/tunnel.rs
+index 3cb2e9e..3cee52b 100644
+--- a/src/tunnel.rs
++++ b/src/tunnel.rs
+@@ -687,8 +687,8 @@ pub fn plan_with_udp(
+ enum First {
+     Quic(
+         Vec<edge::EdgeAddr>,
+-        quinn::Endpoint,
+-        quinn::Connection,
++        noq::Endpoint,
++        noq::Connection,
+         rpc::ControlSession,
+         String,
+     ),
+@@ -814,7 +814,7 @@ async fn direct_targets() -> Result<Vec<edge::EdgeAddr>> {
+ 
+ async fn warp_targets(
+     identity: Option<&std::path::Path>,
+-) -> Result<(Vec<edge::EdgeAddr>, Arc<WarpLink>, quinn::Endpoint)> {
++) -> Result<(Vec<edge::EdgeAddr>, Arc<WarpLink>, noq::Endpoint)> {
+     let discovered = match edge_override()? {
+         Some(list) => list,
+         None => crate::edge_discovery::discover(IpVersionFilter::V4Only)
+@@ -855,7 +855,7 @@ async fn warp_targets(
+ /// opens a new session with the same device (no new registration).
+ pub(crate) struct WarpLink {
+     client: WarpClient,
+-    current: tokio::sync::Mutex<(crate::warp::WarpStack, quinn::Endpoint, std::time::Instant)>,
++    current: tokio::sync::Mutex<(crate::warp::WarpStack, noq::Endpoint, std::time::Instant)>,
+ }
+ 
+ /// A new session at most this often for failed reconnects (an HA leg must
+@@ -863,7 +863,7 @@ pub(crate) struct WarpLink {
+ const WARP_REBUILD_GAP: Duration = Duration::from_secs(10);
+ 
+ impl WarpLink {
+-    async fn endpoint(&self, stale: bool) -> Result<quinn::Endpoint> {
++    async fn endpoint(&self, stale: bool) -> Result<noq::Endpoint> {
+         let mut current = self.current.lock().await;
+         let closed = current.0.is_closed();
+         if closed || (stale && current.2.elapsed() >= WARP_REBUILD_GAP) {
+@@ -889,14 +889,14 @@ impl WarpLink {
+ #[derive(Clone)]
+ enum EndpointSource {
+     /// A kernel UDP socket: always the same endpoint.
+-    Fixed(quinn::Endpoint),
++    Fixed(noq::Endpoint),
+     /// The WARP session: a new one when it closed (see [`WarpLink`]).
+     Warp(Arc<WarpLink>),
+ }
+ 
+ impl EndpointSource {
+     /// The endpoint for reconnect attempt `attempt` (1 for the first).
+-    async fn endpoint(&self, attempt: u32) -> Result<quinn::Endpoint> {
++    async fn endpoint(&self, attempt: u32) -> Result<noq::Endpoint> {
+         match self {
+             EndpointSource::Fixed(endpoint) => Ok(endpoint.clone()),
+             EndpointSource::Warp(link) => link.endpoint(attempt >= 3).await,
+@@ -905,13 +905,13 @@ impl EndpointSource {
+ }
+ 
+ async fn connect_once(
+-    endpoint: &quinn::Endpoint,
++    endpoint: &noq::Endpoint,
+     auth: &rpc::TunnelAuth,
+     tunnel_id: Uuid,
+     conn_index: u8,
+     replace_existing: bool,
+     edges: &[edge::EdgeAddr],
+-) -> Result<(quinn::Connection, rpc::ControlSession, String)> {
++) -> Result<(noq::Connection, rpc::ControlSession, String)> {
+     if edges.is_empty() {
+         bail!("no edge addresses to dial");
+     }
+@@ -940,7 +940,7 @@ async fn reactor(
+     auth: rpc::TunnelAuth,
+     tunnel_id: Uuid,
+     source: EndpointSource,
+-    mut conn: quinn::Connection,
++    mut conn: noq::Connection,
+     mut control: rpc::ControlSession,
+     metrics: Metrics,
+     mut shutdown: watch::Receiver<bool>,
+@@ -979,10 +979,10 @@ async fn reactor(
+                         warn!(
+                             conn_index,
+                             error = %err,
+-                            rtt_ms = stats.path.rtt.as_millis() as u64,
++                            rtt_ms = conn.rtt(noq::PathId::ZERO).unwrap_or_default().as_millis() as u64,
+                             received = stats.udp_rx.bytes,
+                             sent = stats.udp_tx.bytes,
+-                            lost_packets = stats.path.lost_packets,
++                            lost_packets = stats.lost_packets,
+                             "edge closed the connection; a reconnect follows"
+                         );
+                         true
+diff --git a/src/warp/h3.rs b/src/warp/h3.rs
+index 87b3319..4afafe8 100644
+--- a/src/warp/h3.rs
++++ b/src/warp/h3.rs
+@@ -273,20 +273,20 @@ pub fn response_status(section: &[u8]) -> Result<u16> {
+ 
+ /// The write half of an HTTP/3 session.
+ pub struct H3Tx {
+-    conn: quinn::Connection,
+-    send: quinn::SendStream,
++    conn: noq::Connection,
++    send: noq::SendStream,
+     /// The control stream: it must stay open for the life of the session.
+-    _control: quinn::SendStream,
++    _control: noq::SendStream,
+     /// The endpoint (its UDP socket) of the connection.
+-    _endpoint: quinn::Endpoint,
++    _endpoint: noq::Endpoint,
+     /// The Quarter Stream ID and the Context ID 0 of each datagram.
+     prefix: Vec<u8>,
+ }
+ 
+ /// The read half of an HTTP/3 session.
+ pub struct H3Rx {
+-    conn: quinn::Connection,
+-    recv: quinn::RecvStream,
++    conn: noq::Connection,
++    recv: noq::RecvStream,
+     frames: Frames,
+     quarter: u64,
+ }
+@@ -300,13 +300,13 @@ pub enum Incoming {
+ }
+ 
+ /// The QUIC client configuration of the session.
+-fn client_config(tls: Arc<rustls::ClientConfig>) -> Result<quinn::ClientConfig> {
+-    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls)
+-        .map_err(|err| anyhow::anyhow!("rustls to quinn: {err}"))?;
+-    let mut config = quinn::ClientConfig::new(Arc::new(crypto));
+-    let mut transport = quinn::TransportConfig::default();
++fn client_config(tls: Arc<rustls::ClientConfig>) -> Result<noq::ClientConfig> {
++    let crypto = noq::crypto::rustls::QuicClientConfig::try_from(tls)
++        .map_err(|err| anyhow::anyhow!("rustls to noq: {err}"))?;
++    let mut config = noq::ClientConfig::new(Arc::new(crypto));
++    let mut transport = noq::TransportConfig::default();
+     transport.max_idle_timeout(Some(
+-        quinn::IdleTimeout::try_from(IDLE_TIMEOUT).expect("a valid idle timeout"),
++        noq::IdleTimeout::try_from(IDLE_TIMEOUT).expect("a valid idle timeout"),
+     ));
+     transport.keep_alive_interval(Some(KEEP_ALIVE));
+     transport.initial_mtu(INITIAL_MTU);
+@@ -319,9 +319,9 @@ fn client_config(tls: Arc<rustls::ClientConfig>) -> Result<quinn::ClientConfig>
+ /// A QUIC connection with HTTP/3 (the control stream is open, the streams
+ /// of the server are read and dropped).
+ pub struct H3Conn {
+-    pub conn: quinn::Connection,
+-    control: quinn::SendStream,
+-    endpoint: quinn::Endpoint,
++    pub conn: noq::Connection,
++    control: noq::SendStream,
++    endpoint: noq::Endpoint,
+ }
+ 
+ /// QUIC with HTTP/3 to `endpoint` (UDP), with the TLS config `tls` (its
+@@ -336,7 +336,7 @@ pub async fn open(
+     } else {
+         "[::]:0".parse().expect("an address")
+     };
+-    let mut quic = quinn::Endpoint::client(bind).context("a UDP socket for HTTP/3")?;
++    let quic = pod_quic::endpoint::bind(bind).context("a UDP socket for HTTP/3")?;
+     quic.set_default_client_config(client_config(tls)?);
+     let conn = quic
+         .connect(endpoint, sni)
+@@ -377,9 +377,9 @@ pub async fn open(
+ /// Send the request `headers` on a new stream, and read the status of the
+ /// answer. The stream, and the frames after the answer.
+ pub async fn request(
+-    conn: &quinn::Connection,
++    conn: &noq::Connection,
+     headers: &[u8],
+-) -> Result<(quinn::SendStream, quinn::RecvStream, Frames, u16)> {
++) -> Result<(noq::SendStream, noq::RecvStream, Frames, u16)> {
+     let (mut send, mut recv) = conn.open_bi().await.context("an HTTP/3 request stream")?;
+     send.write_all(&frame(FRAME_HEADERS, headers))
+         .await
+@@ -392,8 +392,8 @@ pub async fn request(
+             }
+             continue;
+         }
+-        match recv.read_chunk(64 * 1024, true).await {
+-            Ok(Some(chunk)) => frames.push(&chunk.bytes),
++        match recv.read_chunk(64 * 1024).await {
++            Ok(Some(chunk)) => frames.push(&chunk),
+             Ok(None) => bail!("the front door closed the request stream with no answer"),
+             Err(err) => bail!("reading the HTTP/3 answer: {err}"),
+         }
+@@ -469,7 +469,7 @@ impl H3Tx {
+                 d.extend_from_slice(packet);
+                 match self.conn.send_datagram_wait(d.freeze()).await {
+                     Ok(()) => continue,
+-                    Err(quinn::SendDatagramError::TooLarge) => {}
++                    Err(noq::SendDatagramError::TooLarge) => {}
+                     Err(err) => bail!("an HTTP/3 datagram: {err}"),
+                 }
+             }
+@@ -491,7 +491,7 @@ impl H3Tx {
+     }
+ 
+     /// The connection, for the liveness check.
+-    pub fn connection(&self) -> quinn::Connection {
++    pub fn connection(&self) -> noq::Connection {
+         self.conn.clone()
+     }
+ }
+@@ -513,11 +513,11 @@ impl H3Rx {
+                             return Ok(Some(Incoming::Packet(packet)));
+                         }
+                     }
+-                    Err(quinn::ConnectionError::LocallyClosed) => return Ok(None),
++                    Err(noq::ConnectionError::LocallyClosed) => return Ok(None),
+                     Err(err) => bail!("the HTTP/3 session: {err}"),
+                 },
+-                chunk = self.recv.read_chunk(64 * 1024, true) => match chunk {
+-                    Ok(Some(chunk)) => self.frames.push(&chunk.bytes),
++                chunk = self.recv.read_chunk(64 * 1024) => match chunk {
++                    Ok(Some(chunk)) => self.frames.push(&chunk),
+                     Ok(None) => return Ok(None),
+                     Err(err) => bail!("reading the CONNECT-IP stream: {err}"),
+                 },
+@@ -535,7 +535,7 @@ impl H3Rx {
+ 
+ /// Ready with an error when the QUIC connection closes (the keepalive and
+ /// the idle timeout of QUIC find a dead path).
+-pub async fn closed(conn: quinn::Connection) -> Result<()> {
++pub async fn closed(conn: noq::Connection) -> Result<()> {
+     let reason = conn.closed().await;
+     bail!("the HTTP/3 session closed: {reason}")
+ }
+diff --git a/src/warp/l4.rs b/src/warp/l4.rs
+index 31dd21f..aef8257 100644
+--- a/src/warp/l4.rs
++++ b/src/warp/l4.rs
+@@ -99,7 +99,7 @@ impl L4 {
+     }
+ 
+     /// The connection of now: a new one when there is none, or it closed.
+-    pub async fn connection(&self) -> Result<quinn::Connection> {
++    pub async fn connection(&self) -> Result<noq::Connection> {
+         let mut slot = self.conn.lock().await;
+         if let Some(c) = slot.as_ref() {
+             if c.conn.close_reason().is_none() {
+@@ -138,8 +138,8 @@ impl L4 {
+ /// Copy the pipe to DATA frames of the stream, and the DATA frames of the
+ /// stream to the pipe.
+ async fn pump(
+-    mut send: quinn::SendStream,
+-    mut recv: quinn::RecvStream,
++    mut send: noq::SendStream,
++    mut recv: noq::RecvStream,
+     mut frames: h3::Frames,
+     pipe: DuplexStream,
+ ) {
+@@ -174,8 +174,8 @@ async fn pump(
+                     Err(_) => break 'outer,
+                 }
+             }
+-            match recv.read_chunk(64 * 1024, true).await {
+-                Ok(Some(chunk)) => frames.push(&chunk.bytes),
++            match recv.read_chunk(64 * 1024).await {
++                Ok(Some(chunk)) => frames.push(&chunk),
+                 _ => break,
+             }
+         }
+@@ -202,9 +202,9 @@ mod tests {
+             .with_single_cert(server_id.cert_chain(), server_id.private_key())
+             .unwrap();
+         tls.alpn_protocols = vec![h3::ALPN.to_vec()];
+-        let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(Arc::new(tls)).unwrap();
+-        let server = quinn::Endpoint::server(
+-            quinn::ServerConfig::with_crypto(Arc::new(crypto)),
++        let crypto = noq::crypto::rustls::QuicServerConfig::try_from(Arc::new(tls)).unwrap();
++        let server = pod_quic::endpoint::server(
++            pod_quic::endpoint::server_config(Arc::new(crypto)).unwrap(),
+             "127.0.0.1:0".parse().unwrap(),
+         )
+         .unwrap();
+@@ -224,8 +224,8 @@ mod tests {
+                         send.write_all(&h3::frame(0x00, &payload)).await.unwrap();
+                     }
+                 }
+-                match recv.read_chunk(65536, true).await {
+-                    Ok(Some(chunk)) => frames.push(&chunk.bytes),
++                match recv.read_chunk(65536).await {
++                    Ok(Some(chunk)) => frames.push(&chunk),
+                     _ => break,
+                 }
+             }
+diff --git a/src/warp/quic.rs b/src/warp/quic.rs
+index 1095ee2..7ebf9c8 100644
+--- a/src/warp/quic.rs
++++ b/src/warp/quic.rs
+@@ -1,252 +1,49 @@
+ //! A QUIC socket whose datagrams travel through the WARP session.
+ //!
+ //! The Cloudflare edge's preferred transport is QUIC on UDP 7844. WARP carries
+-//! UDP, so the only missing piece is a [`quinn::AsyncUdpSocket`] backed by the
+-//! userspace stack instead of a kernel socket. This module is that adapter.
++//! UDP, so the only missing piece is a QUIC socket backed by the userspace
++//! stack instead of a kernel socket. pod-quic has that adapter
++//! (`pod_quic::queued::QueuedDatagrams`: a send queue with a writer task, a
++//! receive queue with a reader task, a waker for each sender of noq); this
++//! module gives it the UDP socket of the stack.
+ //!
+ //! # Why not a kernel socket
+ //!
+ //! A sealed host can refuse `bind(2)` on `AF_INET` and `connect(2)` to every
+ //! destination, including loopback. The userspace stack already owns a UDP
+ //! socket inside the tunnel's address space, so the adapter moves datagrams
+-//! between quinn and that socket and the kernel is never asked.
+-//!
+-//! # Shape
+-//!
+-//! * [`WarpUdpSocket::try_send`] pushes into a bounded channel; one task writes
+-//!   each datagram to the userspace socket.
+-//! * a second task reads from that socket into a queue;
+-//!   [`WarpUdpSocket::poll_recv`] pops from the queue.
+-//! * the send poller waits on a notification the writer fires after each
+-//!   datagram, so a full channel is backpressure rather than a spin.
++//! between noq and that socket and the kernel is never asked.
+ 
+-use std::collections::VecDeque;
+ use std::io;
+ use std::net::SocketAddr;
+-use std::pin::Pin;
+-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+-use std::sync::{Arc, Mutex};
+-use std::task::{Context, Poll};
++use std::sync::Arc;
+ 
+ use anyhow::{Context as _, Result};
+-use futures::task::AtomicWaker;
+-use quinn::udp::{RecvMeta, Transmit};
+-use quinn::{AsyncUdpSocket, EndpointConfig, UdpPoller};
+-use tokio::sync::mpsc;
+-use tokio::task::JoinHandle;
++use pod_core::BoxFuture;
++use pod_quic::queued::{Link, QueuedDatagrams};
+ 
+ use super::ip::{UdpConn, WarpStack};
+ 
+-/// Datagrams that may sit in the send queue before quinn is told to wait.
+-const SEND_QUEUE: usize = 1024;
+-/// Largest datagram read from the userspace socket.
+-const MAX_DATAGRAM: usize = 65_535;
+-
+-/// Datagrams waiting for `poll_recv`, with the peer each came from.
+-type Inbound = Arc<Mutex<VecDeque<(Vec<u8>, SocketAddr)>>>;
+-
+-/// A quinn-compatible UDP socket over the WARP stack.
+-pub struct WarpUdpSocket {
+-    out: mpsc::Sender<(SocketAddr, Vec<u8>)>,
+-    inbound: Inbound,
+-    recv_waker: Arc<AtomicWaker>,
+-    send_ready: SendReady,
+-    local: SocketAddr,
+-    sent: AtomicU64,
+-    received: AtomicU64,
+-    closed: Arc<AtomicBool>,
+-    tasks: Vec<JoinHandle<()>>,
+-}
+-
+-impl std::fmt::Debug for WarpUdpSocket {
+-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        f.debug_struct("WarpUdpSocket")
+-            .field("local", &self.local)
+-            .field("sent", &self.sent.load(Ordering::Relaxed))
+-            .field("received", &self.received.load(Ordering::Relaxed))
+-            .finish()
+-    }
+-}
+-
+-impl WarpUdpSocket {
+-    fn new(udp: UdpConn, local: SocketAddr) -> Arc<Self> {
+-        let (out, mut out_rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(SEND_QUEUE);
+-        let inbound: Inbound = Arc::new(Mutex::new(VecDeque::new()));
+-        let recv_waker = Arc::new(AtomicWaker::new());
+-        let send_ready = SendReady::default();
+-        let closed = Arc::new(AtomicBool::new(false));
+-
+-        let writer = {
+-            let udp = udp.clone();
+-            let send_ready = send_ready.clone();
+-            let closed = closed.clone();
+-            tokio::spawn(async move {
+-                while let Some((to, data)) = out_rx.recv().await {
+-                    // The queue has room again: wake a parked poller.
+-                    send_ready.wake();
+-                    if udp.send_to(data, to).await.is_err() {
+-                        closed.store(true, Ordering::Relaxed);
+-                        break;
+-                    }
+-                }
+-                // A poller waits no more on a queue that nobody drains.
+-                send_ready.wake();
+-            })
+-        };
+-
+-        let reader = {
+-            let udp = udp.clone();
+-            let inbound = inbound.clone();
+-            let recv_waker = recv_waker.clone();
+-            let closed = closed.clone();
+-            tokio::spawn(async move {
+-                loop {
+-                    match udp.recv_from(MAX_DATAGRAM).await {
+-                        Ok((data, from)) => {
+-                            inbound.lock().unwrap().push_back((data, from));
+-                            recv_waker.wake();
+-                        }
+-                        Err(_) => {
+-                            closed.store(true, Ordering::Relaxed);
+-                            recv_waker.wake();
+-                            break;
+-                        }
+-                    }
+-                }
+-            })
+-        };
+-
+-        Arc::new(Self {
+-            out,
+-            inbound,
+-            recv_waker,
+-            send_ready,
+-            local,
+-            sent: AtomicU64::new(0),
+-            received: AtomicU64::new(0),
+-            closed,
+-            tasks: vec![writer, reader],
+-        })
+-    }
+-}
+-
+-impl Drop for WarpUdpSocket {
+-    fn drop(&mut self) {
+-        for task in self.tasks.drain(..) {
+-            task.abort();
+-        }
+-    }
+-}
+-
+-impl AsyncUdpSocket for WarpUdpSocket {
+-    fn create_io_poller(self: Arc<Self>) -> Pin<Box<dyn UdpPoller>> {
+-        Box::pin(SendPoller {
+-            out: self.out.clone(),
+-            ready: self.send_ready.clone(),
++/// The UDP socket of the userspace stack as a link of pod-quic.
++struct StackLink(UdpConn);
++
++impl Link for StackLink {
++    fn send_to(&self, datagram: Vec<u8>, to: SocketAddr) -> BoxFuture<'_, io::Result<()>> {
++        Box::pin(async move {
++            self.0
++                .send_to(datagram, to)
++                .await
++                .map(drop)
++                .map_err(io::Error::other)
+         })
+     }
+ 
+-    fn try_send(&self, transmit: &Transmit) -> io::Result<()> {
+-        if self.closed.load(Ordering::Relaxed) {
+-            return Err(io::Error::from(io::ErrorKind::BrokenPipe));
+-        }
+-        match self
+-            .out
+-            .try_send((transmit.destination, transmit.contents.to_vec()))
+-        {
+-            Ok(()) => {
+-                self.sent.fetch_add(1, Ordering::Relaxed);
+-                Ok(())
+-            }
+-            Err(mpsc::error::TrySendError::Full(_)) => {
+-                Err(io::Error::from(io::ErrorKind::WouldBlock))
+-            }
+-            Err(mpsc::error::TrySendError::Closed(_)) => {
+-                Err(io::Error::from(io::ErrorKind::BrokenPipe))
+-            }
+-        }
++    fn recv_from(&self, max: usize) -> BoxFuture<'_, io::Result<(Vec<u8>, SocketAddr)>> {
++        Box::pin(async move { self.0.recv_from(max).await.map_err(io::Error::other) })
+     }
+ 
+-    fn poll_recv(
+-        &self,
+-        cx: &mut Context<'_>,
+-        bufs: &mut [std::io::IoSliceMut<'_>],
+-        meta: &mut [RecvMeta],
+-    ) -> Poll<io::Result<usize>> {
+-        if self.closed.load(Ordering::Relaxed) {
+-            // The userspace socket is gone; receiving can never succeed again.
+-            return Poll::Ready(Err(io::Error::from(io::ErrorKind::BrokenPipe)));
+-        }
+-        loop {
+-            let next = self.inbound.lock().unwrap().pop_front();
+-            match next {
+-                Some((data, from)) => {
+-                    let len = data.len().min(bufs[0].len());
+-                    bufs[0][..len].copy_from_slice(&data[..len]);
+-                    meta[0] = RecvMeta {
+-                        addr: from,
+-                        len,
+-                        stride: len,
+-                        ecn: None,
+-                        dst_ip: None,
+-                    };
+-                    self.received.fetch_add(1, Ordering::Relaxed);
+-                    return Poll::Ready(Ok(1));
+-                }
+-                None => {
+-                    // Register before the re-check, so a datagram that arrives
+-                    // between the pop and the registration still wakes us.
+-                    self.recv_waker.register(cx.waker());
+-                    if self.inbound.lock().unwrap().is_empty() {
+-                        return Poll::Pending;
+-                    }
+-                }
+-            }
+-        }
+-    }
+-
+-    fn local_addr(&self) -> io::Result<SocketAddr> {
+-        Ok(self.local)
+-    }
+-}
+-
+-/// The wake-up of a poller that waits for room in the send queue (T-225).
+-/// An `AtomicWaker` keeps the waker of the task between two polls; a
+-/// `Notified` future made in each poll drops out of the waiters at
+-/// `Pending`, and a later drain then wakes nobody.
+-#[derive(Clone, Default, Debug)]
+-struct SendReady(Arc<AtomicWaker>);
+-
+-impl SendReady {
+-    fn register(&self, cx: &Context<'_>) {
+-        self.0.register(cx.waker());
+-    }
+-
+-    fn wake(&self) {
+-        self.0.wake();
+-    }
+-}
+-
+-/// The write-readiness half of the socket.
+-#[derive(Debug)]
+-struct SendPoller {
+-    out: mpsc::Sender<(SocketAddr, Vec<u8>)>,
+-    ready: SendReady,
+-}
+-
+-impl UdpPoller for SendPoller {
+-    fn poll_writable(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+-        let this = self.get_mut();
+-        if this.out.capacity() > 0 {
+-            return Poll::Ready(Ok(()));
+-        }
+-        // Register before the re-check, so a drain between the first check
+-        // and the registration still wakes the task.
+-        this.ready.register(cx);
+-        if this.out.capacity() > 0 || this.out.is_closed() {
+-            return Poll::Ready(Ok(()));
+-        }
+-        Poll::Pending
++    fn local_addr(&self) -> SocketAddr {
++        self.0.local_addr()
+     }
+ }
+ 
+@@ -255,37 +52,31 @@ impl UdpPoller for SendPoller {
+ /// The endpoint dials the real edge address. Its datagrams leave the host on
+ /// TCP 443 inside the MASQUE session and arrive at the edge on 7844, so this
+ /// host never opens a connection to 7844.
+-pub async fn endpoint(stack: &WarpStack) -> Result<quinn::Endpoint> {
++pub async fn endpoint(stack: &WarpStack) -> Result<noq::Endpoint> {
+     let udp = stack
+         .udp_bind()
+         .await
+         .context("binding a UDP socket inside the WARP session")?;
+-    let local = udp.local_addr();
+-    let socket = WarpUdpSocket::new(udp, local);
+-    let mut endpoint = quinn::Endpoint::new_with_abstract_socket(
+-        EndpointConfig::default(),
+-        None,
+-        socket,
+-        Arc::new(quinn::TokioRuntime),
+-    )
+-    .map_err(|err| anyhow::anyhow!("building the QUIC endpoint: {err}"))?;
++    let datagrams = QueuedDatagrams::new(Arc::new(StackLink(udp)));
++    let endpoint = pod_quic::over(Arc::new(datagrams), None)
++        .map_err(|err| anyhow::anyhow!("building the QUIC endpoint: {err}"))?;
+     endpoint.set_default_client_config(client_config()?);
+     Ok(endpoint)
+ }
+ 
+ /// The TLS and transport configuration the edge expects.
+-fn client_config() -> Result<quinn::ClientConfig> {
++fn client_config() -> Result<noq::ClientConfig> {
+     use crate::cloudflare::{edge_roots_pem, quic_alpn};
+     let tls = crate::trust::context().client_config_with(&[edge_roots_pem()], &[quic_alpn()])?;
+ 
+-    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls)
+-        .map_err(|err| anyhow::anyhow!("rustls to quinn: {err}"))?;
+-    let mut config = quinn::ClientConfig::new(Arc::new(crypto));
++    let crypto = noq::crypto::rustls::QuicClientConfig::try_from(tls)
++        .map_err(|err| anyhow::anyhow!("rustls to noq: {err}"))?;
++    let mut config = noq::ClientConfig::new(Arc::new(crypto));
+     // The tunnel carries packets of TUNNEL_MTU bytes. 1232 fits an IPv6 and
+     // UDP header in that; MTU discovery stops at the IPv4 size.
+     let ip_udp_v4 = 28;
+     let mut transport = crate::cloudflare::quic::transport_config(1232);
+-    let mut discovery = quinn::MtuDiscoveryConfig::default();
++    let mut discovery = noq::MtuDiscoveryConfig::default();
+     discovery.upper_bound((super::ip::TUNNEL_MTU - ip_udp_v4) as u16);
+     transport.mtu_discovery_config(Some(discovery));
+     config.transport_config(Arc::new(transport));
+@@ -296,56 +87,11 @@ fn client_config() -> Result<quinn::ClientConfig> {
+ mod tests {
+     use super::*;
+ 
++    /// The transport and the TLS of the edge build: noq takes the TLS of
++    /// podnet's trust, as the endpoint gives it.
+     #[test]
+-    fn send_poller_reports_ready_when_the_queue_has_room() {
+-        let (out, _rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(4);
+-        let mut poller = SendPoller {
+-            out,
+-            ready: SendReady::default(),
+-        };
+-        let waker = futures::task::noop_waker();
+-        let mut cx = Context::from_waker(&waker);
+-        assert!(matches!(
+-            Pin::new(&mut poller).poll_writable(&mut cx),
+-            Poll::Ready(Ok(()))
+-        ));
+-    }
+-
+-    /// A waker that counts its wakes.
+-    struct Count(std::sync::atomic::AtomicUsize);
+-
+-    impl futures::task::ArcWake for Count {
+-        fn wake_by_ref(this: &Arc<Self>) {
+-            this.0.fetch_add(1, Ordering::SeqCst);
+-        }
+-    }
+-
+-    // T-225: a full queue parks the poller; a drain after that must wake it.
+-    #[test]
+-    fn a_drain_after_pending_wakes_the_send_poller() {
+-        let (out, mut rx) = mpsc::channel::<(SocketAddr, Vec<u8>)>(1);
+-        let to: SocketAddr = "192.0.2.1:7844".parse().unwrap();
+-        out.try_send((to, vec![0])).unwrap();
+-        let ready = SendReady::default();
+-        let mut poller = SendPoller {
+-            out,
+-            ready: ready.clone(),
+-        };
+-        let count = Arc::new(Count(std::sync::atomic::AtomicUsize::new(0)));
+-        let waker = futures::task::waker(count.clone());
+-        let mut cx = Context::from_waker(&waker);
+-        assert!(Pin::new(&mut poller).poll_writable(&mut cx).is_pending());
+-        // The writer task takes one datagram and tells the poller.
+-        rx.try_recv().unwrap();
+-        ready.wake();
+-        assert_eq!(
+-            count.0.load(Ordering::SeqCst),
+-            1,
+-            "the poller was not woken"
+-        );
+-        assert!(matches!(
+-            Pin::new(&mut poller).poll_writable(&mut cx),
+-            Poll::Ready(Ok(()))
+-        ));
++    fn the_client_config_of_the_warp_socket_builds() {
++        crate::init_crypto();
++        client_config().expect("a client configuration");
+     }
+ }
+diff --git a/src/warp/session.rs b/src/warp/session.rs
+index 749bd41..7f38db3 100644
+--- a/src/warp/session.rs
++++ b/src/warp/session.rs
+@@ -221,7 +221,7 @@ pub struct Keepalive {
+ 
+ enum KeepInner {
+     H2(h2::PingPong),
+-    H3(quinn::Connection),
++    H3(noq::Connection),
+     Wg(super::wg::WgKeepalive),
+ }
+ 
+@@ -833,9 +833,9 @@ mod tests {
+             .with_single_cert(server_id.cert_chain(), server_id.private_key())
+             .unwrap();
+         tls.alpn_protocols = vec![h3::ALPN.to_vec()];
+-        let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(Arc::new(tls)).unwrap();
+-        let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
+-        let server = quinn::Endpoint::server(config, "127.0.0.1:0".parse().unwrap()).unwrap();
++        let crypto = noq::crypto::rustls::QuicServerConfig::try_from(Arc::new(tls)).unwrap();
++        let config = pod_quic::endpoint::server_config(Arc::new(crypto)).unwrap();
++        let server = pod_quic::endpoint::server(config, "127.0.0.1:0".parse().unwrap()).unwrap();
+         let addr = server.local_addr().unwrap();
+         let task = tokio::spawn(async move {
+             let conn = server.accept().await.unwrap().await.unwrap();
+@@ -848,8 +848,8 @@ mod tests {
+                     }
+                     continue;
+                 }
+-                let chunk = recv.read_chunk(65536, true).await.unwrap().unwrap();
+-                frames.push(&chunk.bytes);
++                let chunk = recv.read_chunk(65536).await.unwrap().unwrap();
++                frames.push(&chunk);
+             };
+             assert!(headers.windows(13).any(|w| w == b"cf-connect-ip"));
+             assert_eq!(&headers[2..5], &[0xcf, 0xd7, 0xc1]);
+@@ -868,8 +868,8 @@ mod tests {
+                         send.write_all(&h3::frame(0x00, &payload)).await.unwrap();
+                     }
+                 }
+-                match recv.read_chunk(65536, true).await {
+-                    Ok(Some(chunk)) => frames.push(&chunk.bytes),
++                match recv.read_chunk(65536).await {
++                    Ok(Some(chunk)) => frames.push(&chunk),
+                     _ => break,
+                 }
+             }
+diff --git a/src/ws.rs b/src/ws.rs
+index fd9cf66..64810cd 100644
+--- a/src/ws.rs
++++ b/src/ws.rs
+@@ -129,7 +129,7 @@ pub async fn serve_websocket(
+     write_response_meta(&mut writer, 101, &headers).await?;
+ 
+     // The edge stream is a QUIC bidi pair; join it into one socket for the
+-    // WebSocket codec. `into_inner` recovers the quinn halves from the
++    // WebSocket codec. `into_inner` recovers the noq halves from the
+     // futures-io wrappers used by the request framing.
+     let socket = tokio::io::join(reader.compat(), writer.compat_write());
+     let session =
