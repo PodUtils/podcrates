@@ -1160,6 +1160,7 @@ dependencies = [
  "libc",
  "p256",
  "pod-core",
+ "pod-hostprobe",
  "pod-proxy",
  "pod-testkit",
  "pod-tls",
