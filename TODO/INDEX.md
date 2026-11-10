@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**158 entries: 57 open, 1 partial, 0 blocked, 100 done.**
+**159 entries: 57 open, 2 partial, 0 blocked, 100 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 20 | 0 | 0 | 35 | 55 |
-| P2 | 26 | 1 | 0 | 48 | 75 |
+| P1 | 19 | 1 | 0 | 35 | 55 |
+| P2 | 27 | 1 | 0 | 48 | 76 |
 | P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 57 | 1 | 0 | 100 | 158 |
+| **All** | 57 | 2 | 0 | 100 | 159 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -65,7 +65,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-016](transport.md) | P1 | M | M1 | feature | done | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
-| [T-019](relay.md) | P1 | M | M2 | feature | open | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
+| [T-019](relay.md) | P1 | M | M2 | feature | partial | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
 | [T-020](relay.md) | P1 | L | M2 | feature | open | `pod-session`: the resumable layer and UDP in a stream |
 | [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | open | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
@@ -205,3 +205,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
 | [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
 | [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |
+| [T-159](relay.md) | P2 | S | M2 | defect | open | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |

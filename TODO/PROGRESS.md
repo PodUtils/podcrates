@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 158 entries: 57 open, 1 partial, 0 blocked, 100 done.
+`TODO/INDEX.md` holds 159 entries: 57 open, 2 partial, 0 blocked, 100 done.
 
 ## State
 
@@ -17,11 +17,14 @@
 - M1: `pod-services-watch` exists (T-050, call C42): `services.yml` runs
   each watch of `pod-services` each day, and `scripts/services/` holds the
   measurements; the trial of podnet names `v0.14.0`.
-- M1: `pod-ws` exists (T-016 partial, call C41): the trials of podssh
-  (`2f8e0bb`) and podnet (`22d99a1`) pass and name `v0.13.0`, the next
-  tag after `v0.12.0`. The release and the two takes remain; from the
-  import, podssh's `podssh-ws` WebSocket files and podnet's `src/ws.rs`
-  take fixes only (`crates/pod-ws/SOURCES`).
+- M2: `pod-quic` exists (T-019 partial, call C44): QUIC on noq 1.4 (C43)
+  for podssh's quick tunnel and podnet's edge, WARP and MASQUE. The trials
+  of podssh (`af214a6`) and podnet (`2fed3ff`, which leaves quinn for noq)
+  pass and name `v0.14.0`. The patches made again at the heads of both,
+  the release and the two takes remain; from the import, podssh's
+  `quick/quic.rs`, `quick/probe.rs` and podnet's `src/warp/quic.rs` take
+  fixes only (`crates/pod-quic/SOURCES`). T-159 tells podnet of the lost
+  wake-up of its WARP socket in the hand-off.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 and T-150 (PodUtils/podnet#413).
@@ -53,7 +56,9 @@ first; the asks of cfb and githome (M8) wait.
    trials of podvm) goes with each import.
 3. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-019, T-020, T-021, T-022, T-023, T-024,
+4. **M2, the relay:** T-019 (partial: the patches at the heads of
+   podssh and podnet, the release `v0.14.0`, the takes), T-159 with its
+   hand-off; T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
@@ -69,7 +74,7 @@ first; the asks of cfb and githome (M8) wait.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C43), and the work goes on with it until the owner rules otherwise.
+C44), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

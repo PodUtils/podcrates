@@ -72,7 +72,7 @@ connection, so it needs no `h3` binding. Defect found: the send poller of
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -106,6 +106,73 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-018 is done.
+
+## Done
+
+2026-11-10, partial: the release `v0.14.0`, the patches made again at the
+heads of podssh and podnet (podssh took `v0.13.0` at `a083593e` after
+`af214a6`; podnet is at `5465007`), and the takes of both remain. Commits
+`8a39c0e` (the import of podssh `quick/quic.rs`, `quick/probe.rs`, the
+`TokenKey` of `serve/quic.rs` and the tests at `af214a6`, and podnet
+`src/warp/quic.rs` at `2fed3ff`, after the fix of PodUtils/podnet@T-225,
+with `SOURCES`), `e8f36bd` (the adaptation on noq, the tests), `1f4d436`
+(a test of `pod-enter` that skips when nobody cannot enter the temporary
+directory, found by the checks), `f81f441` (README, the static probe, the
+fuzz target, the row of `docs/design.md`, C44), `009df49` (the trials),
+the commit that gives `connect::tls` rustls's own verifier (the guard
+`no_other_code_sets_its_own_verifier` of `pod-tls` found the call of
+`dangerous()` of podssh's form), and the commit of this record.
+
+- API: `Settings` (cloudflared's by default; `transport(v6)`), `keys`
+  (`ResetKey`, `TokenKey`: HMAC-SHA-256 in pure Rust, from an `Entropy`),
+  `endpoint` (`config`, `server_config`, `on_socket`, `bind`, `system`,
+  `server`, `over` any `pod_core::Datagrams`), `connect` (`tls` on the
+  caller's provider, `client_config`, `connect`, `handshake` as a race of
+  addresses), `probe` (`packet`, `answers`, `probe`), `queued`
+  (`QueuedDatagrams` over a `Link`), `socket` (`DatagramSocket`, noq's
+  socket over a `Datagrams`). Each failure is a `pod_core::Failure`. noq
+  1.4 with no default feature: no ring, no aws-lc. The crate depends on
+  `pod-core` alone (C44); 10 source files, each under 500 lines.
+- Cut: podssh keeps `server_name`, `alpn`, `connect_edge`,
+  `EdgeConnection`, the resolution of the regions of an edge (`handshake`,
+  `probe::edge`) and the role's server until `pod-cloudflare` and
+  `pod-relay`. podnet keeps `warp::quic::endpoint` and `client_config`
+  (its trust, the MTU of its tunnel) over pod-quic, and moves each user of
+  quinn to noq in the same patch (`src/cloudflare/{mod,quic,rpc}.rs`,
+  `src/proxy.rs`, `src/tunnel.rs`, `src/warp/{h3,l4,quic,session}.rs`,
+  `src/ws.rs`): no quinn stays in podnet.
+- Defects: noq makes one sender for each task and a `Datagrams` keeps one
+  waker, so a second sender that parks on a full way takes the waker of
+  the first. `socket.rs` gives the way a fan-out waker;
+  `two_senders_on_a_full_way_each_wake` fails with the task's waker given
+  to the way (the first sender is not woken) and passes with the fan-out.
+  The same holds for podnet on quinn now: T-159. The test
+  `resolve_past_a_denied_listing` of `pod-enter` failed with a `TMPDIR`
+  under `/root` (EACCES of the child as nobody); it skips now with a
+  reason (`1f4d436`).
+- Tests: 24, each with its name from its source: `probe` (3 unit, 2 of
+  podssh's `quick_probe.rs`), `a_token_opens_only_as_it_was_sealed`, the 3
+  `doctors_handshake_*` of podssh's `quick_tunnel_quic.rs`, podnet's
+  `send_poller_reports_ready_when_the_queue_has_room` and
+  `a_drain_after_pending_wakes_the_send_poller`; new: the keys (2), the
+  settings (2), the socket (3), the queue over a link (2), an untrusted
+  server, and a stream of 1 MiB with a burst of datagrams over the
+  system's `Datagrams`, over a queued link and over a queued link of two
+  datagrams. The same 24 tests of the four test binaries pass as i686
+  musl binaries and, under qemu-user, as aarch64, riscv64gc and
+  loongarch64 musl binaries (static). The fuzz target
+  `quic_probe_answer` passes the stable test of `fuzz/`.
+- Trials: podssh at `af214a6` (17 files, 68 lines in, 465 out): each step
+  of `sh scripts/adoption.sh podssh pod-quic` passed, with 11 test
+  binaries and 1,697 tests of `podssh-relay` and `podssh-cli`. podnet at
+  `2fed3ff` (18 files, 157 lines in, 405 out): each step of
+  `sh scripts/adoption.sh podnet pod-quic` passed, with no quinn in its
+  tree and 6 test binaries and 512 tests. Each has the static check of
+  its musl binary.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  paths, the static probes, the tests); `python3 -I
+  scripts/check-sources.py` on `pod-quic` (podssh 5 files, podnet 1 file,
+  0 changes); `python3 -I scripts/check-probe.py`.
 
 # T-020: `pod-session`: the resumable layer and UDP in a stream
 
@@ -661,3 +728,55 @@ cargo todo check
 ## Start condition
 
 T-025 or T-026 is done.
+
+# T-159: podnet: two QUIC connections on one WARP socket share one waker of the full send queue
+
+**Source:** T-019 (the review of PodUtils/podnet:src/warp/quic.rs at `2fed3ff`).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's `WarpUdpSocket` gives each poller of quinn a clone of one
+`SendReady`, one `AtomicWaker` (the fix of PodUtils/podnet@T-225). quinn
+0.11 makes a poller for each connection (`create_io_poller` in
+`connection.rs`), and the HA connections of the `quic+warp` leg share one
+endpoint (`WarpLink::endpoint` in `src/tunnel.rs`). When the send queue
+of 1024 datagrams is full and two connections wait, the second register
+takes the waker of the first; the drain wakes one connection, and the
+other waits for its next timer or packet.
+
+## Premise
+
+- Read: PodUtils/podnet:src/warp/quic.rs at `2fed3ff` (`SendReady`,
+  `create_io_poller`), quinn 0.11.12 `src/connection.rs` (a poller for each
+  connection), PodUtils/podnet:src/tunnel.rs (`WarpLink`, `EndpointSource::Warp`).
+- Measured on pod-quic, not on podnet: `two_senders_on_a_full_way_each_wake`
+  fails when two senders give the way their own wakers. Not measured: a
+  stall of a podnet leg.
+
+## Approach
+
+The take of `pod-quic` (`adoption/podnet/pod-quic.patch`) removes the
+defect: `pod_quic::socket` gives the way one fan-out waker that wakes each
+sender. Tell podnet in the hand-off of `v0.14.0` (a COORD issue of
+podcrates `(to podnet)`), with this entry. The file is frozen in podnet
+(`crates/pod-quic/SOURCES`), so podnet takes no fix of its own unless it
+cannot take the crate.
+
+## Prove
+
+```sh
+cargo test -p pod-quic --lib two_senders_on_a_full_way_each_wake
+python3 -I scripts/check-sources.py pod-quic
+```
+
+The taken line of the podnet block of `crates/pod-quic/SOURCES`.
+
+## Start condition
+
+The release `v0.14.0` (T-019).
+
