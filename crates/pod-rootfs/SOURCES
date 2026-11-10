@@ -5,17 +5,22 @@
 
 repo PodUtils/podvm 2616bd78066b1d1ea64b0305b89878664f497a54
 dir crates/podvm-complete/src
+# Of lib.rs a part stays in podvm: Report::banner and Report::json (the
+# output of podvm, with the ids of its record) and Options (podvm's flags).
+# The rest of lib.rs became lib.rs, report.rs and error.rs. reach.rs keeps
+# the cache and the answer; the HTTPS request stays in podvm, over its
+# podvm-image net.rs.
 file 231c34b177935fcd24f42f90cf4ed60f2063f28d crates/podvm-complete/src/devices.rs -> crates/pod-rootfs/src/devices.rs
 file 63abb6120b39ba702e44441f3ca48e2070598aaf crates/podvm-complete/src/devices/tests.rs -> crates/pod-rootfs/src/devices/tests.rs
-file d6d1f12b8f5bd78e568adef15b2d11ebdfac1c7d crates/podvm-complete/src/identity.rs -> crates/pod-rootfs/src/identity.rs
-file 85c3e63ddd393ec5ac32b3f0c423c1359ac4b028 crates/podvm-complete/src/lib.rs -> crates/pod-rootfs/src/lib.rs
-file f7f5ad5de445766e77678f2f25fd6581ce6c58ea crates/podvm-complete/src/net.rs -> crates/pod-rootfs/src/net.rs
+file d6d1f12b8f5bd78e568adef15b2d11ebdfac1c7d crates/podvm-complete/src/identity.rs -> crates/pod-rootfs/src/identity.rs crates/pod-rootfs/src/identity/tests.rs
+file 85c3e63ddd393ec5ac32b3f0c423c1359ac4b028 crates/podvm-complete/src/lib.rs -> crates/pod-rootfs/src/lib.rs crates/pod-rootfs/src/report.rs crates/pod-rootfs/src/error.rs
+file f7f5ad5de445766e77678f2f25fd6581ce6c58ea crates/podvm-complete/src/net.rs -> crates/pod-rootfs/src/net.rs crates/pod-rootfs/src/net/tests.rs
 file 6b0e523676a8275655e97fe7196faa7b08359dfb crates/podvm-complete/src/pkg.rs -> crates/pod-rootfs/src/pkg.rs
 file a27b0d25bc651c5dacae5208731df5a0e57d5d0e crates/podvm-complete/src/pkg/bundle.rs -> crates/pod-rootfs/src/pkg/bundle.rs
 file e93c37d909e20878711fb625cf32019995dbec54 crates/podvm-complete/src/pkg/hash_dir.rs -> crates/pod-rootfs/src/pkg/hash_dir.rs
 file 3e5bcfc771d165cee02c17e88b9f7552f97649be crates/podvm-complete/src/pkg/tests.rs -> crates/pod-rootfs/src/pkg/tests.rs
 file 127a61196f00a233311fba549733178ec6a1917d crates/podvm-complete/src/reach.rs -> crates/pod-rootfs/src/reach.rs
-file 9724ca9db5f58855cc8143f876d8f7b597212478 crates/podvm-complete/src/sources.rs -> crates/pod-rootfs/src/sources.rs
+file 9724ca9db5f58855cc8143f876d8f7b597212478 crates/podvm-complete/src/sources.rs -> crates/pod-rootfs/src/sources.rs crates/pod-rootfs/src/sources/tests.rs
 file b44687018d38d63229e15eaaee613fd60ac6be39 crates/podvm-complete/src/write.rs -> crates/pod-rootfs/src/write.rs
 file adaf6b0ba20b43be0a228b1784da9abff226487f crates/podvm-complete/src/write/follow.rs -> crates/pod-rootfs/src/write/follow.rs
 file 3c36b162b0901271caf2140b7983f86fc0b60845 crates/podvm-complete/src/write/tests.rs -> crates/pod-rootfs/src/write/tests.rs

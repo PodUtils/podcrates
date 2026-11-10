@@ -1,52 +1,32 @@
 use super::*;
 
-// ---------------------------------------------------------------- T-0412
+// A CA file and a hash-indexed CA directory are two trust stores, and
+// zypper reads only the second. In `opensuse/leap:15.6`, `curl
+// https://download.opensuse.org/` gives 200 and `curl --capath
+// /etc/ssl/certs` the same URL gives 60: libzypp gives libcurl a
+// `CURLOPT_CAPATH` of `/etc/ssl/certs` (a symlink to
+// `/var/lib/ca-certificates/pem`), and OpenSSL finds a certificate there by
+// the SHA-1 of its subject. A CA file is invisible to it, and so is a file
+// under each other name.
 //
-// ⭐ **A CAfile and a hash-indexed CApath are two trust stores, and `zypper`
-// reads only the second.** Measured on 2026-09-09 inside podvm, on
-// `registry.opensuse.org/opensuse/leap:15.6`:
+// The crate cannot make the link from the host, so the fixup has two
+// parts: the crate writes one PEM for each root, and asks the caller to run
+// `openssl rehash` on the directory (the step). `update-ca-certificates` of
+// openSUSE cannot be the step: it exits 1 at `done < <(find ...)` with
+// `/dev/fd/62: No such file or directory`, as the process substitution of
+// bash needs `/dev/fd`, and `/proc` is not mounted in the root.
 //
-//     curl                               https://download.opensuse.org/  -> 200
-//     curl --capath /etc/ssl/certs        https://download.opensuse.org/  -> 60
-//
-// libzypp hands libcurl a `CURLOPT_CAPATH` of `/etc/ssl/certs`, which on
-// openSUSE is a symlink to `/var/lib/ca-certificates/pem`. OpenSSL looks a
-// certificate up there by the SHA-1 of its canonical DER subject, so every
-// CAfile T-0407 writes is invisible to it and a file dropped in under any other
-// name is invisible too.
-//
-// ⛔ **The link cannot be made from the host, so this fixup has two halves.**
-// podvm writes one PEM per root (the write), and asks the caller to run
-// `openssl rehash` on the directory (the step). ⚠ `update-ca-certificates` is
-// openSUSE's own answer and it CANNOT be the step: measured on the same image,
-// it exits 1 at `done < <(find ...)` with `/dev/fd/62: No such file or
-// directory`. bash's process substitution needs `/dev/fd`, which is
-// `/proc/self/fd`, and `/proc` is not mounted inside a chroot -- the same shape
-// as `/etc/mtab -> /proc/self/mounts` in T-0405.
-//
-// ⚠ ONE CERTIFICATE PER FILE, measured rather than assumed: a file holding
-// three of them is refused by `openssl rehash` with `it does not contain
-// exactly one certificate or CRL`, and nothing is linked.
+// ONE certificate for each file: `openssl rehash` refuses a file with three
+// (`it does not contain exactly one certificate or CRL`) and links nothing.
 
-/// The conventional hash-indexed CApath directories, rootfs-relative.
-///
-/// ⛔ **Only where the directory is ALREADY hash-indexed.** podvm writes where
-/// the image's TLS stack looks; creating a hash directory in an image that has
-/// none would be podvm inventing a trust store nothing consults.
+/// The usual hash-indexed CA directories, relative to the root. Only a
+/// directory that is ALREADY hash-indexed: a new hash directory in an image
+/// with none is a trust store that nothing reads.
 pub const CAPATH_DIRS: &[&str] = &["etc/ssl/certs", "etc/pki/tls/certs"];
 
-/// The prefix of every certificate file this fixup writes. ⛔ A prefix rather
-/// than a marker line inside the file: the file has to be readable by
-/// `openssl rehash` as one certificate, and the name is what a reader inside
-/// the container greps for and what podvm itself removes when the machine's
-/// bundle shrinks.
-pub const HOST_CA_FILE_PREFIX: &str = "podvm-host-ca-";
-
-/// Split a PEM bundle into one text per `CERTIFICATE` block.
-///
-/// ⚠ Everything outside a block is dropped, which is deliberate: a bundle
-/// carries comments, subject lines and T-0407's own marker, and `openssl
-/// rehash` wants a file it can read as exactly one certificate.
+/// One text for each `CERTIFICATE` block of a PEM bundle. Each text outside
+/// a block goes: `openssl rehash` wants a file that it reads as one
+/// certificate.
 pub(super) fn split_pem(bundle: &[u8]) -> Vec<String> {
     const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
     const END: &str = "-----END CERTIFICATE-----";
@@ -62,15 +42,16 @@ pub(super) fn split_pem(bundle: &[u8]) -> Vec<String> {
             c.push_str(t);
             c.push('\n');
             if t == END {
-                out.push(cur.take().expect("just pushed into it"));
+                out.push(std::mem::take(c));
+                cur = None;
             }
         }
     }
     out
 }
 
-/// Is `name` a name OpenSSL's hash lookup would find? `01419da9.0`, and the
-/// CRL form `01419da9.r0`.
+/// Is `name` a name that the hash lookup of OpenSSL finds? `01419da9.0`,
+/// and the CRL form `01419da9.r0`.
 pub(super) fn is_hash_link(name: &str) -> bool {
     let Some((hash, tail)) = name.split_once('.') else {
         return false;
@@ -78,15 +59,12 @@ pub(super) fn is_hash_link(name: &str) -> bool {
     hash.len() == 8
         && hash.bytes().all(|b| b.is_ascii_hexdigit())
         && !tail.is_empty()
-        && tail
-            .trim_start_matches('r')
-            .bytes()
-            .all(|b| b.is_ascii_digit())
+        && tail.trim_start_matches('r').bytes().all(|b| b.is_ascii_digit())
 }
 
-/// Where two candidates are the same directory, so it is not written and
-/// rehashed twice. ⚠ `/etc/ssl/certs -> /etc/pki/tls/certs` is Fedora's own
-/// link and both are in [`CAPATH_DIRS`].
+/// The key of a directory, so that two candidates that are one directory
+/// are not written two times: `/etc/ssl/certs -> /etc/pki/tls/certs` is the
+/// own link of Fedora.
 fn dir_key(root: &Root, rel: &str) -> Result<String> {
     Ok(match root.kind(rel)? {
         Kind::Symlink(t) if t.starts_with('/') => t.trim_start_matches('/').to_string(),
@@ -94,28 +72,22 @@ fn dir_key(root: &Root, rel: &str) -> Result<String> {
     })
 }
 
-pub(super) fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Vec<Step>)> {
-    let entry = "T-0412";
-    let id = "ca-hash-dir";
-    /// One row and no step, which is every arm of this fixup that does not
-    /// write. ⚠ A free function rather than a closure so the `degraded` arms
-    /// read the same as the quiet ones.
-    fn only(path: &str, a: Action, degraded: bool, why: String) -> (Vec<Fixup>, Vec<Step>) {
-        let f = Fixup::new("T-0412", "ca-hash-dir", path, a).why(why);
-        (vec![if degraded { f.degraded() } else { f }], Vec::new())
-    }
+/// One row and no step.
+fn only(path: &str, a: Action, degraded: bool, why: String) -> (Vec<Fixup>, Vec<Step>) {
+    let f = Fixup::new("ca-hash-dir", path, a).why(why);
+    (vec![if degraded { f.degraded() } else { f }], Vec::new())
+}
 
-    // ⛔ The ANNOUNCEMENT is the discriminator, exactly as in T-0407's
-    // `ca_bundle`: a bundle found at a default path says nothing about
-    // interception and is no reason to touch somebody else's trust store.
-    let Some(h) = podvm_image::tls::host_bundle_bytes() else {
+pub(crate) fn ca_hash_dir(root: &Root, settings: &Settings) -> Result<(Vec<Fixup>, Vec<Step>)> {
+    let id = "ca-hash-dir";
+    let prefix = &settings.names.host_ca_prefix;
+    // A variable that NAMED the bundle decides, as for `ca_bundle`.
+    let Some(h) = &settings.host_bundle else {
         return Ok(only(
             CAPATH_DIRS[0],
             Action::Skipped,
             false,
-            "this machine has no CA bundle podvm can find, so there is nothing to \
-             index into the image's CApath"
-                .to_string(),
+            "the host gave no CA bundle, so there is nothing to index into the CA directory of the image".into(),
         ));
     };
     let Some(var) = h.announced_by.clone() else {
@@ -123,21 +95,19 @@ pub(super) fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Ve
             CAPATH_DIRS[0],
             Action::Unchanged,
             false,
-            "this machine's CA bundle came from a default path rather than from \
-             $SSL_CERT_FILE, $CURL_CA_BUNDLE or $REQUESTS_CA_BUNDLE. refused: That is no \
-             announcement, so podvm adds nothing to somebody else's trust store"
-                .to_string(),
+            "the bundle of the host is at a default path that no variable named. That tells nothing of an \
+             interception, so the crate adds nothing to the trust store of the image"
+                .into(),
         ));
     };
 
-    // Which directories are hash-indexed, deduplicated.
+    // The hash-indexed directories, each one time.
     let mut dirs: Vec<(String, Vec<String>)> = Vec::new();
     let mut keys: Vec<String> = Vec::new();
     for d in CAPATH_DIRS {
-        // ⚠ The same three answers as the CAfile half, and for the same reason:
-        // a CApath that is a symlink is openSUSE's own shape and podvm follows
-        // it; one pointing out of the rootfs is door D and podvm does not.
-        if !matches!(root.reach(d)?, Reach::Yes) {
+        // A symlinked CA directory is the shape of openSUSE and the crate
+        // follows it; one that points out of the root is not reached.
+        if root.reach(d)? != Reach::Yes {
             continue;
         }
         let names = root.list(d)?;
@@ -156,48 +126,42 @@ pub(super) fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Ve
             CAPATH_DIRS[0],
             Action::Skipped,
             false,
-            "this image carries no hash-indexed CApath directory, so there is none \
-             for podvm to index its roots into"
-                .to_string(),
+            "this image holds no hash-indexed CA directory to index the roots of the host into".into(),
         ));
     }
-    if !opts.host_cas {
+    if !settings.host_cas {
         return Ok(only(
             &dirs[0].0,
             Action::Skipped,
             true,
             format!(
-                "--no-host-cas: this machine announced its own CA bundle in ${var} \
-                 and podvm left the image's hash-indexed trust store alone. note: A \
-                 tool reading a CApath -- libzypp is one -- will fail to verify \
-                 here if this machine intercepts TLS"
+                "the host CA fixup is off: ${var} named the bundle of the host, and the hash-indexed trust store of \
+                 the image stays. A tool that reads a CA directory (libzypp) does not verify here if this host \
+                 intercepts TLS"
             ),
         ));
     }
-
-    // ⛔ The program is found BEFORE anything is written. A certificate in a
-    // hash directory that nothing has linked is a file no TLS stack reads, and
-    // writing 150 of them into somebody else's image for nothing is litter.
+    // The program is found BEFORE a write: a certificate in a hash directory
+    // with no link is a file that no TLS stack reads.
     let Some(rehash) = find_program(root, "openssl")? else {
         return Ok(only(
             &dirs[0].0,
             Action::Skipped,
             true,
-            "this image has a hash-indexed CApath and no openssl to index it with, \
-             so podvm cannot make this machine's roots visible to a tool that \
-             reads a CApath rather than a CAfile"
-                .to_string(),
+            "this image has a hash-indexed CA directory and no openssl to index it, so a tool that reads a CA \
+             directory does not see the roots of the host"
+                .into(),
         ));
     };
-    if !opts.steps {
+    if !settings.steps {
         return Ok(only(
             &dirs[0].0,
             Action::Skipped,
             true,
-            "--no-steps: podvm did not write this machine's roots into the image's \
-             hash-indexed CApath, because indexing them needs `openssl rehash` run \
-             inside the rootfs. note: A tool reading a CApath will not verify here"
-                .to_string(),
+            "the steps are off: the roots of the host are not written into the hash-indexed CA directory of the \
+             image, as their index needs `openssl rehash` inside the root. A tool that reads a CA directory does \
+             not verify here"
+                .into(),
         ));
     }
 
@@ -205,37 +169,22 @@ pub(super) fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Ve
     let mut out = Vec::new();
     let mut steps = Vec::new();
     for (dir, names) in dirs {
-        // ⛔ **What the INDEX can reach, and not what the directory contains.**
-        // Measured on 2026-09-09 against `ghcr.io/void-linux/void-musl`: T-0407
-        // writes the whole announced bundle to
-        // `/etc/ssl/certs/ca-certificates.crt`, which is a CAfile sitting inside
-        // the CApath, and counting it made every announced root look present
-        // while the hash lookup could still find none of them. A CApath is read
-        // by NAME, so only a `HASH.N` entry -- and the file a `HASH.N` symlink
-        // points at -- is content this directory holds.
-        //
-        // ⚠ podvm's OWN files are excluded from the comparison, or a second
-        // run would find every root already present and delete it as stale.
+        // What the INDEX reaches, not what the directory holds: a CA file in
+        // the directory (`ca-certificates.crt`) is not found by name. Only a
+        // `HASH.N` entry, and the file that a `HASH.N` symlink names, count.
+        // The files of the crate are not compared: a second run must not find
+        // each root present and remove it as old.
         let mut reachable: Vec<String> = Vec::new();
         for n in names.iter().filter(|n| is_hash_link(n)) {
             match root.kind(&format!("{dir}/{n}"))? {
-                // ⚠ A name and never a path: `openssl rehash` writes a bare
-                // name, and a target with a `/` in it is somebody else's
-                // convention that podvm does not follow to another directory.
-                // ⚠ Many links point at one file, so each name is collected
-                // once: `contains` and not `dedup`, which only folds neighbours.
-                Kind::Symlink(t) if !t.contains('/') && !reachable.contains(&t) => {
-                    reachable.push(t)
-                }
+                // A name, never a path: `openssl rehash` writes a bare name.
+                Kind::Symlink(t) if !t.contains('/') && !reachable.contains(&t) => reachable.push(t),
                 Kind::Regular { .. } if !reachable.contains(n) => reachable.push(n.clone()),
                 _ => {}
             }
         }
         let mut held: Vec<String> = Vec::new();
-        for t in &reachable {
-            if t.starts_with(HOST_CA_FILE_PREFIX) {
-                continue;
-            }
+        for t in reachable.iter().filter(|t| !t.starts_with(prefix.as_str())) {
             if let Some(b) = root.read(&format!("{dir}/{t}"))? {
                 held.extend(split_pem(&b));
             }
@@ -243,78 +192,64 @@ pub(super) fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Ve
         let adding: Vec<&String> = announced.iter().filter(|c| !held.contains(c)).collect();
 
         let mut wrote = 0usize;
+        let mut ours = Vec::new();
         for (i, pem) in adding.iter().enumerate() {
-            let rel = format!("{dir}/{HOST_CA_FILE_PREFIX}{i:03}.pem");
+            let name = format!("{prefix}{i:03}.pem");
             let body = format!(
-                "# podvm ({entry}): one root of this machine's own CA bundle, \
-                 announced in ${var} as {}, that this image did not already \
-                 carry. refused: podvm added it to somebody else's trust store; \
-                 --no-host-cas refuses it\n{pem}",
-                h.path
+                "# Written by {}: one root of the CA bundle of the host, named in ${var} as {}, that this image \
+                 did not hold\n{pem}",
+                settings.names.tool, h.path
             );
-            if root.write(&rel, body.as_bytes(), 0o644)? != crate::write::Wrote::Unchanged {
+            if root.write(&format!("{dir}/{name}"), body.as_bytes(), 0o644)? != crate::write::Wrote::Unchanged {
                 wrote += 1;
             }
+            ours.push(name);
         }
-        // ⚠ A bundle that SHRANK leaves files nothing wrote this run, and a
-        // stale root in a trust store is the one kind of leftover that matters.
+        // A bundle that SHRANK leaves files that no write of this run made:
+        // an old root in a trust store is the leftover that matters.
         let mut removed = 0usize;
         for n in &names {
-            let Some(rest) = n.strip_prefix(HOST_CA_FILE_PREFIX) else {
+            let Some(rest) = n.strip_prefix(prefix.as_str()) else {
                 continue;
             };
-            let keep = rest
-                .strip_suffix(".pem")
-                .and_then(|d| d.parse::<usize>().ok())
-                .is_some_and(|i| i < adding.len());
+            let keep =
+                rest.strip_suffix(".pem").and_then(|d| d.parse::<usize>().ok()).is_some_and(|i| i < adding.len());
             if !keep && root.unlink(&format!("{dir}/{n}"))? {
                 removed += 1;
             }
         }
-        // ⭐ The step is asked for only where the LINKS are missing, so a second
-        // container on the same shared rootfs does not pay for a rehash that has
-        // already happened. ⛔ Read off the index rather than off "podvm wrote
-        // something this run": the rootfs is content-addressed and shared, and a
-        // payload that deleted the links must get them back.
-        let linked = reachable.iter().any(|t| t.starts_with(HOST_CA_FILE_PREFIX));
         if adding.is_empty() {
-            out.push(Fixup::new(entry, id, &dir, Action::Unchanged).why(format!(
-                "this image's CApath already holds every one of this machine's {} \
-                 announced roots, so there is nothing to add to it",
+            out.push(Fixup::new(id, &dir, Action::Unchanged).why(format!(
+                "the CA directory of this image already holds each of the {} roots that the host named",
                 announced.len()
             )));
             continue;
         }
-        let action = if wrote > 0 || removed > 0 {
-            Action::Rewrote
-        } else {
-            Action::Unchanged
-        };
         out.push(
-            Fixup::new(entry, id, &dir, action)
+            Fixup::new(id, &dir, if wrote > 0 || removed > 0 { Action::Rewrote } else { Action::Unchanged })
                 .why(format!(
-                    "{} of this machine's {} announced roots are not in this image's \
-                     CApath; written as one certificate per file ({}*.pem), {wrote} \
-                     changed, {removed} stale one(s) removed. note: A hash-indexed \
-                     CApath is read by NAME, so they stay invisible until `openssl \
-                     rehash` links them; this machine's trust is then the \
-                     container's too",
+                    "{} of the {} roots that the host named are not in the CA directory of this image; one \
+                     certificate for each file ({prefix}*.pem), {wrote} changed, {removed} old one(s) removed. A \
+                     hash-indexed CA directory is read by NAME, so they are invisible until `openssl rehash` \
+                     links them. The trust of this host is then the trust of the container too",
                     adding.len(),
                     announced.len(),
-                    HOST_CA_FILE_PREFIX
                 ))
                 .degraded(),
         );
-        if !linked {
+        // The step is asked for where the INDEX does not reach each file of
+        // the crate, or where a file changed (its hash link can name another
+        // subject): a second container of a shared root does not pay for a
+        // rehash that happened, and a root added to a grown bundle gets its
+        // link.
+        if wrote > 0 || removed > 0 || ours.iter().any(|n| !reachable.contains(n)) {
             steps.push(Step {
-                entry,
                 id,
                 argv: vec![rehash.clone(), "rehash".to_string(), format!("/{dir}")],
                 why: format!(
-                    "/{dir} is a hash-indexed CApath and OpenSSL looks a certificate \
-                     up there by the hash of its subject, so the roots podvm just \
-                     wrote are invisible until they are linked. libzypp reads this \
-                     directory and no CAfile at all"
+                    "/{dir} is a hash-indexed CA directory, and OpenSSL finds a certificate there by the hash of its \
+                     subject, so the roots that the crate wrote are invisible until they are linked. libzypp reads \
+                     this directory and no CA file"
                 ),
             });
         }

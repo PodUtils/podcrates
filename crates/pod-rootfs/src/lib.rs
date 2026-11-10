@@ -1,405 +1,217 @@
-//! `TOOL.md` section 6.4: environment completion. Milestone M5,
-//! [`TODO/milestones.md`](../../../TODO/milestones.md) T-1106 and
-//! [`TODO/complete.md`](../../../TODO/complete.md) T-0401 to T-0411.
+//! The completion of a root file system: the files that a payload reads
+//! before it can work, made from the host and not from inside the root.
 //!
-//! ⭐ **The layer that makes the runtime useful without the user learning
-//! anything.** An extracted OCI rootfs is not a working environment on a
-//! machine that denies `mknod`, `mount` and `chown`: it has no `/dev/null`, its
-//! resolver is the build host's, its `/etc/mtab` is a symlink into a `/proc`
-//! that is not mounted, and on a glibc rootfs whether anything reads
-//! `/etc/passwd` at all is decided by a file most images do not ship.
+//! An extracted OCI root file system is not a working environment on a host
+//! that refuses `mknod`, `mount` and `chown`: it has no `/dev/null`, its
+//! resolver is the resolver of the build host, its `/etc/mtab` is a symlink
+//! into a `/proc` that is not mounted, and on a glibc root a file that most
+//! images do not ship decides if a program reads `/etc/passwd` at all.
 //!
-//! Three rules decide whether this crate is right rather than merely finished:
+//! Three rules:
 //!
-//! 1. ⛔ **Every write goes through [`write::Root`]**, which resolves each
-//!    component with symlinks refused and replaces by unlink-then-create. T-0405
-//!    is that mechanism and not a special case for `/etc/mtab`;
-//!    ⚠ and where a fixup needs a COMMAND rather than a write, this crate
-//!    returns a [`Step`] and the caller runs it. T-0412: a library that forks
-//!    and chroots is one no test can drive;
-//! 2. ⛔ **Every fixup is reported, on the banner, per file.** podvm has
-//!    edited a file inside somebody else's image and the payload can see it.
-//!    [`TODO/cli.md`](../../../TODO/cli.md) T-0804's honesty rules have no
-//!    exception for a helpful edit;
-//! 3. ⛔ **A fixup never changes the payload's exit code.** T-0409 and T-0802:
-//!    the exit code is the payload's answer, and a runtime that improves it is
-//!    lying in the one field an automated caller reads first.
+//! 1. **Each write goes through [`write::Root`]**. It resolves each
+//!    directory component held in the root (`openat2(RESOLVE_IN_ROOT)`),
+//!    opens the last component with `O_NOFOLLOW`, and replaces a file with
+//!    an unlink and a create. A fixup that needs a COMMAND inside the root
+//!    gives a [`Step`]: the caller runs it. A library that forks and enters
+//!    a root is a library that no test can drive.
+//! 2. **Each fixup is in the [`Report`], one row for each file.** The crate
+//!    changed a file in an image of somebody else, and the payload can see
+//!    the change. A row that is not what a host with the real thing gives is
+//!    `degraded`.
+//! 3. **A fixup does not fail the run.** A fixup that the crate cannot apply
+//!    is a [`Action::Failed`] row. The caller decides what a failed or a
+//!    degraded row means.
 //!
-//! ⚠ **It is idempotent and it runs on every `run` and `exec`.** The rootfs is
-//! content-addressed and shared between containers
-//! ([`TODO/image.md`](../../../TODO/image.md) T-0204), so a fixup made once at
-//! extraction time would be one container's decision imposed on every later
-//! one. Running it every time also repairs the failure T-0401 exists for: a
-//! `/dev/null` that a previous payload turned into a growing regular file is
-//! truncated back to nothing.
-
+//! The completion is idempotent, and the caller runs it before each start of
+//! a payload: a root file system can be shared between containers, so a
+//! fixup made one time at extraction is the decision of one container for
+//! each later one. Each run also repairs a `/dev/null` that a payload turned
+//! into a regular file.
+//!
+//! The caller gives each setting ([`Settings`]): the names that the crate
+//! writes into the root ([`Names`]), the CA bundle of the host
+//! ([`HostBundle`]), the resolver and the mount table of the host, and the
+//! directory for the originals of the package sources. The question "does
+//! this mirror speak HTTPS" is the caller's ([`reach::Probe`]): the crate
+//! makes no request. The crate reads no variable and prints nothing. Each
+//! failure is a [`pod_core::Failure`] at `Stage::Host` ([`error`]).
+//!
+//! The crate is Linux only: on another target it is empty.
+#![cfg(target_os = "linux")]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod devices;
+pub mod error;
 pub mod identity;
 pub mod net;
 pub mod pkg;
 pub mod reach;
+mod report;
 pub mod sources;
 pub mod write;
 
-use std::fmt;
+#[cfg(test)]
+mod testing;
 
-/// ⚠ One error type, and it carries a sentence rather than a code. Every
-/// failure here is reported to a human or an agent reading stderr, and the
-/// caller's decision is the same for all of them: say so and go on, or, under
-/// `--strict`, refuse.
-#[derive(Debug)]
-pub enum Error {
-    Complete(String),
+use std::path::{Path, PathBuf};
+
+pub use error::Result;
+pub use report::{Action, Fixup, Libc, Report, Step};
+
+/// The names that the crate writes into a root file system. A second run
+/// finds the files of the first by these names, so a caller keeps its
+/// values from one release to the next.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Names {
+    /// The name of the caller in the head comment of each file that the
+    /// crate writes (`nsswitch.conf`, the drop-in of apt, a CA file).
+    pub tool: String,
+    /// The text before each line that the crate comments out (the
+    /// `DownloadUser` lines of `pacman.conf`).
+    pub comment: String,
+    /// The drop-in of apt that sets `APT::Sandbox::User`, relative to the
+    /// root.
+    pub apt_drop_in: String,
+    /// The line before the host bundle that the crate appends to a CA
+    /// bundle of the image. A bundle that holds it is not appended again.
+    pub host_ca_marker: String,
+    /// The prefix of each certificate file that the crate writes into a
+    /// hash-indexed CA directory. The crate removes a file with this prefix
+    /// that the host bundle no longer holds.
+    pub host_ca_prefix: String,
+    /// The prefix of the temporary name of a device node before its rename
+    /// into place.
+    pub scratch_prefix: String,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Complete(s) => write!(f, "{s}"),
+impl Default for Names {
+    fn default() -> Names {
+        Names {
+            tool: "pod-rootfs".to_string(),
+            comment: "# pod-rootfs: ".to_string(),
+            apt_drop_in: "etc/apt/apt.conf.d/99pod-rootfs".to_string(),
+            host_ca_marker: "# pod-rootfs: the CA bundle of the host".to_string(),
+            host_ca_prefix: "pod-rootfs-host-ca-".to_string(),
+            scratch_prefix: ".pod-rootfs-mknod-".to_string(),
         }
     }
 }
 
-impl std::error::Error for Error {}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-/// What the caller asked for. ⛔ Defaults are the conservative ones: a field
-/// that changes somebody else's image defaults to the value that changes least.
-#[derive(Debug, Clone)]
-pub struct Options {
-    /// The container's name, for `/etc/hosts`. T-0403.
-    pub container_name: Option<String>,
-    /// `--add-host name:ip`, repeatable. T-0403.
-    pub add_hosts: Vec<String>,
-    /// T-0411. `--no-source-fixup` clears it, and then any rewrite a previous
-    /// run made is **undone** rather than merely not repeated.
-    pub source_fixup: bool,
-    /// T-0407. ⭐ Append this machine's announced CA bundle to the image's own
-    /// trust store, so an `https://` package source verifies where the machine
-    /// intercepts TLS. `--no-host-cas` clears it. ⚠ It does nothing at all
-    /// unless the machine announced a bundle through `$SSL_CERT_FILE`,
-    /// `$CURL_CA_BUNDLE` or `$REQUESTS_CA_BUNDLE`.
-    pub host_cas: bool,
-    /// Where the host's resolver is read from. ⚠ A field rather than a constant
-    /// so the tests can drive T-0402 without a host `/etc/resolv.conf`.
-    pub host_resolv_conf: String,
-    /// ⭐ T-0412. May podvm ask the caller to run a COMMAND inside the rootfs?
-    /// `--no-steps` clears it, and then every fixup whose remedy is a command
-    /// reports what the caller gave up instead of asking for one.
-    ///
-    /// ⛔ It gates the fixup and not only the command. The openSUSE arm writes
-    /// one PEM per root into a hash-indexed directory, and a certificate in
-    /// such a directory that nothing has hash-linked is a file no TLS stack
-    /// reads: writing it and then refusing to link it would leave litter in
-    /// somebody else's image for no benefit.
-    pub steps: bool,
+/// The CA bundle of the host, which the caller found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostBundle {
+    /// Where the bundle is on the host, for the rows.
+    pub path: String,
+    /// The variable that named the bundle (`SSL_CERT_FILE`), where one did.
+    /// A host that names its bundle tells each tool which roots to use: a
+    /// proxy that signs TLS again. `None`: a bundle at a default path, which
+    /// tells nothing. The crate appends a bundle to the trust store of an
+    /// image only when a variable named it.
+    pub announced_by: Option<String>,
+    /// The PEM bytes.
+    pub bytes: Vec<u8>,
 }
 
-impl Default for Options {
-    fn default() -> Options {
-        Options {
+/// The values that the caller gives. The defaults change the least in the
+/// image of somebody else.
+#[derive(Debug, Clone)]
+pub struct Settings {
+    pub names: Names,
+    /// The settings of `pod-hostprobe`. The space message of the device
+    /// shims names its `directory_setting`.
+    pub host: pod_hostprobe::Settings,
+    /// The name of the container, for `/etc/hosts`.
+    pub container_name: Option<String>,
+    /// More lines of `/etc/hosts`, each `name:address` (docker's
+    /// `--add-host`).
+    pub add_hosts: Vec<String>,
+    /// Change `http://` package sources to `https://`. When false, the crate
+    /// puts back the original of each source that an earlier run changed.
+    pub source_fixup: bool,
+    /// Append the host bundle to the trust store of the image, when a
+    /// variable named the bundle.
+    pub host_cas: bool,
+    /// The caller runs the [`Step`]s. When false, a fixup that needs a
+    /// command is not done, and its row says what the payload does not get.
+    pub steps: bool,
+    /// The CA bundle of the host. `None`: the host has none.
+    pub host_bundle: Option<HostBundle>,
+    /// The resolver of the host.
+    pub host_resolv_conf: PathBuf,
+    /// The mount table of the host.
+    pub mounts: PathBuf,
+    /// The directory for the originals of the package sources that the
+    /// crate changes. Keep it outside the root: a payload can change a file
+    /// in the root, and the crate then puts back what the payload wrote.
+    /// `None`: the crate does not change a package source.
+    pub originals: Option<PathBuf>,
+}
+
+impl Default for Settings {
+    fn default() -> Settings {
+        Settings {
+            names: Names::default(),
+            host: pod_hostprobe::Settings::default(),
             container_name: None,
             add_hosts: Vec::new(),
             source_fixup: true,
             host_cas: true,
-            host_resolv_conf: "/etc/resolv.conf".to_string(),
             steps: true,
+            host_bundle: None,
+            host_resolv_conf: PathBuf::from("/etc/resolv.conf"),
+            mounts: PathBuf::from("/proc/self/mounts"),
+            originals: None,
         }
     }
 }
 
-/// What one fixup did. ⛔ Four outcomes and not two: "already right" and
-/// "podvm changed it" are different sentences, and "podvm could not" is a
-/// third state that must never read as either.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Action {
-    /// podvm created a file that was not there.
-    Created,
-    /// podvm replaced a file the image shipped.
-    Rewrote,
-    /// podvm put back what the image shipped, undoing an earlier fixup.
-    Restored,
-    /// ⭐ T-0412. podvm ran a [`Step`] inside the rootfs and it succeeded.
-    /// ⚠ It counts as a change: a command podvm executed inside somebody
-    /// else's image edited it, and the container record has to carry that as
-    /// much as it carries a file podvm wrote.
-    Ran,
-    /// Nothing to do: the image already carries what podvm would have written.
-    Unchanged,
-    /// podvm did not act, and the reason is in the detail.
-    Skipped,
-    /// podvm tried and could not. ⛔ Never silently folded into `Skipped`.
-    Failed,
-}
-
-impl Action {
-    pub fn word(self) -> &'static str {
-        match self {
-            Action::Created => "created",
-            Action::Rewrote => "rewrote",
-            Action::Restored => "restored",
-            Action::Ran => "ran",
-            Action::Unchanged => "unchanged",
-            Action::Skipped => "skipped",
-            Action::Failed => "failed",
-        }
-    }
-
-    /// Did this fixup change a byte in the image?
-    pub fn changed(self) -> bool {
-        matches!(
-            self,
-            Action::Created | Action::Rewrote | Action::Restored | Action::Ran
-        )
-    }
-}
-
-/// One line of the completion record.
-#[derive(Debug, Clone)]
-pub struct Fixup {
-    /// The entry that owns it, so a reader can find the reasoning.
-    pub entry: &'static str,
-    /// A stable, greppable id.
-    pub id: &'static str,
-    /// Rootfs-relative, with no leading slash, or `-` where the fixup is not
-    /// about one file.
-    pub path: String,
-    pub action: Action,
-    pub detail: String,
-    /// ⭐ T-0804. True where the result is not what the payload would get on a
-    /// machine that could do the real thing. `--strict` refuses the run when
-    /// any of these is set, so a caller demanding real semantics does not have
-    /// to parse the banner.
-    pub degraded: bool,
-}
-
-impl Fixup {
-    fn new(entry: &'static str, id: &'static str, path: &str, action: Action) -> Fixup {
-        Fixup {
-            entry,
-            id,
-            path: path.to_string(),
-            action,
-            detail: String::new(),
-            degraded: false,
-        }
-    }
-
-    fn why(mut self, detail: impl Into<String>) -> Fixup {
-        self.detail = detail.into();
-        self
-    }
-
-    fn degraded(mut self) -> Fixup {
-        self.degraded = true;
-        self
-    }
-}
-
-/// A command podvm needs run **inside** the rootfs, which this crate cannot
-/// run itself.
+/// Prepare the root file system at `rootfs` for a payload, and say what was
+/// done. `probe` answers if a mirror speaks HTTPS.
 ///
-/// ⭐ [`TODO/complete.md`](../../../TODO/complete.md) T-0412. The completion
-/// layer runs on the host, before the chroot, so every fixup it can make is a
-/// write. Two are not: `pacman-key --init` runs `gpg` inside the rootfs
-/// (T-0406), and a hash-indexed CA directory is indexed by a program that reads
-/// the certificates (T-0412). This crate returns them and the caller orders
-/// them, because the banner has to name a command before it runs and only the
-/// caller knows what else it is about to print.
-///
-/// ⛔ **An argv, never a shell line.** Nothing here is word-split, so no
-/// filename inside the image can become an argument.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Step {
-    /// The entry that owns it, so a reader can find the reasoning.
-    pub entry: &'static str,
-    /// A stable, greppable id, shared with the fixup row that asked for it.
-    pub id: &'static str,
-    /// ⛔ Absolute inside the rootfs, and the program was found there by this
-    /// crate rather than looked up on a `PATH` at exec time: a step announced
-    /// on the banner and then not found is a command podvm promised and did
-    /// not run.
-    pub argv: Vec<String>,
-    /// What the payload gets if it runs, said in the banner before it does.
-    pub why: String,
-}
-
-/// Everything the completion layer did to one rootfs, and what it could not do
-/// from outside it.
-#[derive(Debug, Clone, Default)]
-pub struct Report {
-    pub fixups: Vec<Fixup>,
-    /// ⭐ T-0412. Commands the caller runs inside the rootfs, in this order,
-    /// before the payload.
-    pub steps: Vec<Step>,
-    /// What [`identity::probe`] found, because three other fixups branch on it
-    /// and `inspect` prints it.
-    pub libc: Libc,
-}
-
-impl Report {
-    /// The banner half. ⛔ One line per fixup that CHANGED something, and one
-    /// summary line. A run that changed nothing prints the summary alone, so
-    /// the absence of edits is stated rather than inferred from silence.
-    pub fn banner(&self) -> String {
-        let mut s = String::new();
-        for f in &self.fixups {
-            if !f.action.changed() && f.action != Action::Failed {
-                continue;
-            }
-            s.push_str(&format!(
-                "podvm: complete: {} {} ({}, {}){}\n",
-                f.action.word(),
-                if f.path.is_empty() { "-" } else { &f.path },
-                f.id,
-                f.entry,
-                if f.detail.is_empty() {
-                    String::new()
-                } else {
-                    format!(": {}", f.detail)
-                }
-            ));
-        }
-        // ⭐ T-0412 rule 3. Every step is NAMED HERE, before the caller runs it,
-        // because podvm is about to execute a command inside somebody else's
-        // image that the caller did not write.
-        for (i, st) in self.steps.iter().enumerate() {
-            s.push_str(&format!(
-                "podvm: complete: step {} of {}: `{}` ({}, {}): {}\n",
-                i + 1,
-                self.steps.len(),
-                st.argv.join(" "),
-                st.id,
-                st.entry,
-                st.why
-            ));
-        }
-        let changed = self.fixups.iter().filter(|f| f.action.changed()).count();
-        let failed = self
-            .fixups
-            .iter()
-            .filter(|f| f.action == Action::Failed)
-            .count();
-        let degraded = self.degradations().len();
-        s.push_str(&format!(
-            "podvm: complete: {} fixup(s) applied to this image's rootfs, {} \
-             degraded, {} failed, {} step(s) to run inside it; libc={}. refused: These \
-             are edits podvm made inside somebody else's image and the payload \
-             can see them\n",
-            changed,
-            degraded,
-            failed,
-            self.steps.len(),
-            self.libc.word()
-        ));
-        s
-    }
-
-    /// ⭐ T-0804's input. Every fixup whose result is not what a machine that
-    /// could do the real thing would give the payload.
-    pub fn degradations(&self) -> Vec<&Fixup> {
-        self.fixups
-            .iter()
-            .filter(|f| f.degraded && f.action != Action::Skipped)
-            .collect()
-    }
-
-    /// The record as JSON, for `inspect` and for a test that has to assert on
-    /// it. ⚠ Hand-serialised for the same reason the ownership sidecar is: the
-    /// field order is the contract.
-    pub fn json(&self) -> String {
-        let rows: Vec<serde_json::Value> = self
-            .fixups
-            .iter()
-            .map(|f| {
-                serde_json::json!({
-                    "entry": f.entry,
-                    "id": f.id,
-                    "path": f.path,
-                    "action": f.action.word(),
-                    "detail": f.detail,
-                    "degraded": f.degraded,
-                })
-            })
-            .collect();
-        let steps: Vec<serde_json::Value> = self
-            .steps
-            .iter()
-            .map(|s| {
-                serde_json::json!({
-                    "entry": s.entry,
-                    "id": s.id,
-                    "argv": s.argv,
-                    "why": s.why,
-                })
-            })
-            .collect();
-        serde_json::json!({ "libc": self.libc.word(), "fixups": rows, "steps": steps }).to_string()
-    }
-}
-
-/// Which C library the rootfs carries, measured rather than inferred from a
-/// distribution name.
-///
-/// ⭐ T-0410 turns on this: musl reads `/etc/passwd` directly and glibc goes
-/// through NSS, so the same supplied file is read on one and ignored on the
-/// other. `experiments/results/nsswitch-contract.txt` is the measurement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Libc {
-    Glibc,
-    Musl,
-    /// Both, which a multi-arch or a mixed rootfs can be, and neither, which a
-    /// distroless or a scratch image is. ⛔ Not folded into a guess.
-    #[default]
-    Unknown,
-}
-
-impl Libc {
-    pub fn word(self) -> &'static str {
-        match self {
-            Libc::Glibc => "glibc",
-            Libc::Musl => "musl",
-            Libc::Unknown => "unknown",
-        }
-    }
-}
-
-/// Prepare `rootfs` for a payload, and say what was done.
-///
-/// ⛔ **Never fails the run on a fixup that could not be applied.** A rootfs
-/// podvm could not write a resolver into is one the payload may still be able
-/// to use, and refusing here would make podvm less useful than the bare
-/// `chroot` it replaces. The failure is a `Failed` row, the banner names it, and
-/// `--strict` is how a caller turns it into a refusal.
-pub fn complete(rootfs: &str, opts: &Options) -> Result<Report> {
+/// A fixup that the crate cannot apply is a [`Action::Failed`] row, not a
+/// failure: a root that did not get a resolver can still be of use to the
+/// payload. The failure of this function is a root that does not open, or a
+/// setting that cannot be used.
+pub fn complete(rootfs: &Path, settings: &Settings, probe: &mut dyn reach::Probe) -> Result<Report> {
+    check_names(&settings.names)?;
     let root = write::Root::open(rootfs)?;
-    let mut r = Report {
-        libc: identity::probe_libc(&root)?,
-        ..Report::default()
-    };
+    let mut r = Report { libc: identity::probe_libc(&root)?, ..Report::default() };
 
-    // ⚠ Order matters in exactly one place: the identity fixups must see the
-    // rootfs as the image shipped it, and the package-manager fixups may read
-    // what the identity ones wrote. Everything else is independent.
-    devices::apply(&root, &mut r);
-    net::resolver(&root, opts, &mut r);
-    net::hosts(&root, opts, &mut r);
+    // The identity fixups see the root as the image shipped it, and the
+    // package fixups can read what the identity fixups wrote. The others do
+    // not depend on each other.
+    devices::apply(&root, settings, &mut r);
+    net::resolver(&root, settings, &mut r);
+    net::hosts(&root, settings, &mut r);
     identity::passwd_and_group(&root, &mut r);
-    identity::nsswitch(&root, &mut r);
-    net::mtab(&root, &mut r);
-    pkg::apply(&root, opts, &mut r);
-    sources::apply(&root, opts, &mut r);
+    identity::nsswitch(&root, &settings.names, &mut r);
+    net::mtab(&root, settings, &mut r);
+    pkg::apply(&root, settings, &mut r);
+    sources::apply(&root, settings, probe, &mut r);
     Ok(r)
 }
 
-/// One [`Action`] per [`write::Wrote`], in one place.
-///
-/// ⛔ It lived in four modules before this and that is exactly the shape
-/// `docs/conventions/code.md` refuses: four copies of a mapping, and the one
-/// nobody exercises is the one that diverges.
+/// A name with a `/` or a line end writes outside the place that it names.
+fn check_names(n: &Names) -> Result<()> {
+    let one_line = [("tool", &n.tool), ("comment", &n.comment), ("host_ca_marker", &n.host_ca_marker)];
+    for (what, v) in one_line {
+        if v.contains(['\n', '\r', '\0']) {
+            return Err(error::usage(format!("the name {what} {v:?} holds a line end or a NUL")));
+        }
+    }
+    for (what, v) in [("host_ca_prefix", &n.host_ca_prefix), ("scratch_prefix", &n.scratch_prefix)] {
+        if v.is_empty() || v.contains(['/', '\n', '\r', '\0']) || v == "." || v == ".." {
+            return Err(error::usage(format!("the name {what} {v:?} is not one file name")));
+        }
+    }
+    if n.host_ca_marker.trim().is_empty() {
+        return Err(error::usage("the name host_ca_marker is empty"));
+    }
+    write::check_relative(&n.apt_drop_in)
+}
+
+/// The [`Action`] of a [`write::Wrote`].
 pub(crate) fn act(w: write::Wrote) -> Action {
     match w {
         write::Wrote::Created => Action::Created,
@@ -408,60 +220,66 @@ pub(crate) fn act(w: write::Wrote) -> Action {
     }
 }
 
-/// Collect a fixup that may have failed, so a call site is one line rather than
-/// a `match` per fixup.
-fn record(r: &mut Report, entry: &'static str, id: &'static str, out: Result<Vec<Fixup>>) {
-    record_steps(r, entry, id, out.map(|fs| (fs, Vec::new())))
+/// Add the rows of a fixup to the report, or one failed row.
+fn record(r: &mut Report, id: &'static str, out: Result<Vec<Fixup>>) {
+    record_steps(r, id, out.map(|fs| (fs, Vec::new())))
 }
 
-/// The same, for a fixup that may also ask for a [`Step`].
-///
-/// ⛔ A fixup that could not be applied contributes NO step. The two travel
-/// together through one `Result` for exactly that reason: a step asking for a
-/// command whose write half failed is a command run for nothing.
-fn record_steps(
-    r: &mut Report,
-    entry: &'static str,
-    id: &'static str,
-    out: Result<(Vec<Fixup>, Vec<Step>)>,
-) {
+/// The same, for a fixup that can also ask for a [`Step`]. A fixup that
+/// failed gives no step: a command for a write that did not happen does
+/// nothing of use.
+fn record_steps(r: &mut Report, id: &'static str, out: Result<(Vec<Fixup>, Vec<Step>)>) {
     match out {
         Ok((fs, st)) => {
             r.fixups.extend(fs);
             r.steps.extend(st);
         }
-        Err(e) => r.fixups.push(
-            Fixup::new(entry, id, "", Action::Failed)
-                .why(e.to_string())
-                .degraded(),
-        ),
+        Err(e) => r.fixups.push(Fixup::new(id, "", Action::Failed).why(e.to_string()).degraded()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::{Scratch, no_in_root};
 
+    /// Each fixup gives its rows, and a second run of the same settings
+    /// changes nothing: the completion runs before each start.
     #[test]
-    fn a_report_that_changed_nothing_still_says_so() {
-        let r = Report::default();
-        let b = r.banner();
-        assert!(b.contains("0 fixup(s) applied"), "{b}");
+    fn a_second_completion_changes_nothing() {
+        if no_in_root() {
+            return;
+        }
+        let d = Scratch::new("lib-twice");
+        std::fs::create_dir_all(d.at("rootfs/etc/apt")).unwrap();
+        std::fs::write(d.at("rootfs/etc/apt/sources.list"), "deb http://deb.debian.org/debian bookworm main\n")
+            .unwrap();
+        let resolv = d.at("resolv.conf");
+        std::fs::write(&resolv, "nameserver 10.1.2.3\n").unwrap();
+        let settings = Settings { host_resolv_conf: resolv, originals: Some(d.at("originals")), ..Settings::default() };
+        let first = complete(&d.at("rootfs"), &settings, &mut reach::Fixed(true)).unwrap();
+        for id in ["resolv.conf", "hosts", "identity", "mtab", "apt-sandbox", "source-scheme"] {
+            assert!(first.fixups.iter().any(|f| f.id == id && f.action.changed()), "{id}: {first:#?}");
+        }
+        assert_eq!(first.failed(), 0, "{first:#?}");
+        let second = complete(&d.at("rootfs"), &settings, &mut reach::Fixed(true)).unwrap();
+        assert_eq!(second.changed(), 0, "{second:#?}");
     }
 
-    /// ⛔ The distinction T-0804 reads. A `Skipped` degradation is not one:
-    /// nothing was done, so there is nothing for `--strict` to refuse.
+    /// A name that writes outside its place is a refused setting.
     #[test]
-    fn a_skipped_fixup_is_not_a_degradation() {
-        let mut r = Report::default();
-        r.fixups.push(
-            Fixup::new("T-0401", "dev-shim", "dev/null", Action::Skipped)
-                .why("already a character device")
-                .degraded(),
-        );
-        r.fixups
-            .push(Fixup::new("T-0401", "dev-shim", "dev/zero", Action::Created).degraded());
-        assert_eq!(r.degradations().len(), 1);
-        assert_eq!(r.degradations()[0].path, "dev/zero");
+    fn a_name_with_a_slash_or_a_line_end_is_refused() {
+        let bad = [
+            Names { host_ca_prefix: "../x".into(), ..Names::default() },
+            Names { scratch_prefix: "".into(), ..Names::default() },
+            Names { host_ca_marker: "# a\nb".into(), ..Names::default() },
+            Names { apt_drop_in: "/etc/apt/apt.conf.d/99x".into(), ..Names::default() },
+            Names { apt_drop_in: "etc/../../x".into(), ..Names::default() },
+        ];
+        for n in bad {
+            let e = check_names(&n).unwrap_err();
+            assert!(matches!(e.class, pod_core::Class::Usage | pod_core::Class::Policy), "{e}");
+        }
+        check_names(&Names::default()).unwrap();
     }
 }

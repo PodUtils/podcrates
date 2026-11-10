@@ -242,3 +242,26 @@ fn the_open_flags_mean_what_the_kernel_means_on_each_target() {
     assert_eq!(open(&path("l"), O_RDONLY | O_NOFOLLOW, 0).unwrap_err(), Errno(40), "O_NOFOLLOW refuses a link");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// `O_NONBLOCK` is a number of the kernel that differs by architecture. With
+/// a wrong value, the open of a fifo with no writer waits for ever, so the
+/// test opens one in a thread and waits for the answer with a time limit.
+#[test]
+fn an_open_with_o_nonblock_does_not_wait_for_a_fifo_writer() {
+    let dir = std::env::temp_dir().join(format!("pod-hostprobe-nonblock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fifo = CBuf::new(dir.join("fifo").to_str().unwrap()).unwrap();
+    mknodat(AT_FDCWD as i64, &fifo, S_IFIFO | 0o600, 0).expect("an unprivileged process makes a fifo");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let r = open(&fifo, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
+        if let Ok(fd) = r {
+            let _ = close(fd);
+        }
+        let _ = tx.send(r.is_ok());
+    });
+    let opened = rx.recv_timeout(std::time::Duration::from_secs(10));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(opened, Ok(true), "the open of a fifo with O_NONBLOCK waited or failed");
+}

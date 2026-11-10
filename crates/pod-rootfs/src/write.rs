@@ -1,40 +1,43 @@
-//! Every write the completion layer makes into somebody else's rootfs.
+//! Each write of the completion into the root file system of an image.
 //!
-//! ⭐ **[`TODO/complete.md`](../../../TODO/complete.md) T-0405 is this module,
-//! not a special case for `/etc/mtab`.** `printf ... > "$R/etc/mtab"` follows
-//! the link, and `/etc/mtab` is a symlink in most images. If its target is
-//! absolute the write lands **outside the rootfs**, on the host. The same shape
-//! is `/etc/resolv.conf -> ../run/systemd/resolve/stub-resolv.conf`, and the
-//! next one nobody has met yet.
+//! `printf ... > "$R/etc/mtab"` follows the link, and `/etc/mtab` is a
+//! symlink in most images. With an absolute target the write lands
+//! **outside the root**, on the host. `/etc/resolv.conf ->
+//! ../run/systemd/resolve/stub-resolv.conf` has the same shape.
 //!
-//! So there is one door: [`Root`], which holds a descriptor on the rootfs and
-//! resolves every DIRECTORY component through
-//! [`podvm_extract::safety::open_parent_with`] under
-//! [`podvm_extract::safety::Resolve::InRoot`] -- `openat2(RESOLVE_IN_ROOT)`,
-//! which follows a symlink but treats the rootfs as `/`, so nothing resolves
-//! outside it. The FINAL component is opened `O_NOFOLLOW`, and a replacement is
-//! **unlink-then-create** rather than a truncate, because truncating through a
-//! link is the same escape with a different syscall.
+//! So there is one door: [`Root`]. It holds a descriptor of the root and
+//! resolves each DIRECTORY component with
+//! [`pod_extract::safety::open_parent_with`] under
+//! [`pod_extract::safety::Resolve::InRoot`]: `openat2(RESOLVE_IN_ROOT)`
+//! follows a symlink but takes the root as `/`, so nothing resolves outside
+//! it. The LAST component opens with `O_NOFOLLOW`, and a replacement is an
+//! unlink and a create, not a truncate: a truncate through a link is the
+//! same escape with another system call.
 //!
-//! ⭐ **`InRoot` and not extraction's `NO_SYMLINKS`, and the difference is the
-//! whole of this module's correctness.** During extraction a symlink another
-//! entry created is the attack. Afterwards, a finished rootfs is full of
-//! legitimate internal links -- `/etc/ssl/certs -> /var/lib/ca-certificates/pem`
-//! on openSUSE, `/lib -> usr/lib` on void -- and a writer that refuses those
-//! cannot reach the file the payload will read. ⚠ Measured on 2026-09-09 by
-//! `experiments/240-distro-sweep.sh`: under `NO_SYMLINKS` the CA-bundle fixup
-//! reported `leaves the destination` on openSUSE and the libc probe read
-//! `unknown` on void, and neither link leaves the rootfs.
+//! `InRoot`, not the `NO_SYMLINKS` of an extraction. During an extraction
+//! a symlink that another entry made is the attack. After it, a root has many
+//! legal internal links (`/etc/ssl/certs -> /var/lib/ca-certificates/pem` on
+//! openSUSE, `/lib -> usr/lib` on void), and a writer that refuses them does
+//! not reach the file that the payload reads.
 //!
-//! ⛔ This module is the only place in `podvm-complete` that opens anything by
-//! path. A second one would be the one that forgets.
+//! Each open of a file that the crate reads has `O_NONBLOCK`, and the crate
+//! reads a regular file only: a fifo or a device of the image at a path of a
+//! configuration file does not stop the completion.
+//!
+//! This module is the only place of the crate that opens a path of the root.
 
-use podvm_extract::safety::{self, Dir, Refusal, Resolve};
-use podvm_probe::sys::{self, CBuf};
+use std::path::{Path, PathBuf};
 
-use crate::{Error, Result};
+use pod_extract::safety::{self, Dir, Resolve};
+use pod_hostprobe::sys::{self, CBuf};
 
-/// What is at a path, without following the last component.
+use crate::error::{self, Result, cbuf};
+
+/// The largest file that the crate reads. A configuration file of 8 MiB is
+/// not one that the crate edits correctly.
+pub const READ_LIMIT: usize = 8 * 1024 * 1024;
+
+/// What is at a path, without a follow of the last component.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
     Missing,
@@ -43,17 +46,16 @@ pub enum Kind {
         mode: u32,
     },
     Dir,
-    /// ⚠ The target is kept because the diagnostic needs it: "replaced a
-    /// symlink" without saying where it pointed is a line nobody can audit.
+    /// The target is kept for the row: "replaced a symlink" with no target
+    /// cannot be audited.
     Symlink(String),
-    /// ⭐ A character device, with the numbers it carries. T-0401 needs them:
-    /// a node that is there but is `1:5` where `1:3` was wanted is a wrong
-    /// answer rather than a present one.
+    /// A character device, with its numbers: a node `1:5` where `1:3` is
+    /// wanted is a wrong answer, not a present one.
     CharDev {
         major: u64,
         minor: u64,
     },
-    /// A block device, socket or fifo.
+    /// A block device, a socket or a fifo, with its type bits.
     Other(u32),
 }
 
@@ -63,9 +65,8 @@ impl Kind {
     }
 }
 
-/// What a write did. ⛔ `Unchanged` is a distinct outcome and never folded into
-/// `Wrote`: a fixup that reports a change it did not make is the `sandlock`
-/// failure [`TODO/cli.md`](../../../TODO/cli.md) T-0804 names.
+/// What a write did. `Unchanged` is a result of its own: a fixup that
+/// reports a change that it did not make is a false row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Wrote {
     Created,
@@ -73,137 +74,102 @@ pub enum Wrote {
     Unchanged,
 }
 
-/// What podvm found where it wanted a directory.
+/// What the crate found where it wants a directory.
 ///
-/// ⛔ **Three answers and the third is the one a `Kind::Dir` test lost.**
-/// Measured on 2026-09-09: `/etc/ssl/certs` is a SYMLINK on openSUSE, to a real
-/// directory inside the rootfs that podvm must write into, and it is a symlink
-/// pointing OUT of the rootfs in door D of
-/// `experiments/85-completion-symlink-escape.sh`, which podvm must not follow
-/// and must not stay quiet about. A test on the last component alone answers
-/// "not a directory" to both.
+/// Three answers. `/etc/ssl/certs` is a SYMLINK on openSUSE, to a real
+/// directory inside the root that the crate must write into; a symlink that
+/// points OUT of the root is one that the crate must not follow and must
+/// report. A test of the last component alone answers "not a directory" to
+/// both.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reach {
-    /// podvm can reach a directory there, staying inside the rootfs.
+    /// A directory is there, inside the root.
     Yes,
-    /// There is nothing at this path at all. ⚠ Quiet on purpose: inventing
-    /// `/etc/pki/...` in an image with no such tree is podvm guessing.
+    /// Nothing is at this path. Quiet: to make `/etc/pki/...` in an image
+    /// with no such tree is a guess.
     Absent,
-    /// Something is there and podvm could not reach a directory through it.
+    /// Something is there, and the crate cannot reach a directory through
+    /// it. The text says why.
     Unreachable(String),
 }
 
-impl Root {
-    /// Which of the three [`Reach`] answers describes `rel`.
-    pub fn reach(&self, dir: &str) -> Result<Reach> {
-        let kind = self.kind(dir)?;
-        if kind.is_missing() {
-            return Ok(Reach::Absent);
-        }
-        match self.dir_following(dir)? {
-            Some(true) => Ok(Reach::Yes),
-            Some(false) => Ok(Reach::Unreachable(match kind {
-                Kind::Symlink(t) => format!(
-                    "{dir} is a symlink to {t}, which does not resolve to a directory \
-                     inside this rootfs. refused: podvm will not write through it, and a \
-                     payload reading this path gets nothing"
-                ),
-                other => format!(
-                    "{dir} is {other:?} and not a directory podvm can reach, so the \
-                     bundle a payload would read here is not there"
-                ),
-            })),
-            // ⚠ The third state: no `openat2`, so podvm could not ask. Reported as
-            // unreachable with that as the reason rather than assumed either way.
-            None => Ok(Reach::Unreachable(format!(
-                "this kernel has no openat2(2), so podvm cannot prove that writing \
-                 into {dir} stays inside the rootfs"
-            ))),
-        }
+/// A descriptor, closed on drop.
+pub(crate) struct Fd(pub(crate) i64);
+
+impl Drop for Fd {
+    fn drop(&mut self) {
+        let _ = sys::close(self.0);
     }
 }
 
-/// A descriptor on the rootfs, plus the two operations the completion layer
-/// needs.
+/// A descriptor of the root, and the operations of the completion.
 pub struct Root {
     dir: Dir,
-    path: String,
+    path: PathBuf,
+}
+
+/// Refuse a path that is not relative to the root: `..`, an absolute path,
+/// an empty path, a NUL.
+pub(crate) fn check_relative(rel: &str) -> Result<()> {
+    safety::components(rel).map(|_| ()).map_err(|r| error::policy(format!("the path {rel:?} is refused: {}", r.why())))
 }
 
 impl Root {
-    pub fn open(rootfs: &str) -> Result<Root> {
-        let dir = Dir::open(rootfs)
-            .map_err(|e| Error::Complete(format!("cannot open the rootfs {rootfs}: {e}")))?;
-        Ok(Root {
-            dir,
-            path: rootfs.to_string(),
-        })
+    pub fn open(rootfs: &Path) -> Result<Root> {
+        let text =
+            rootfs.to_str().ok_or_else(|| error::usage(format!("the root {} is not UTF-8", rootfs.display())))?;
+        let dir = Dir::open(text)?;
+        Ok(Root { dir, path: rootfs.to_path_buf() })
     }
 
-    pub fn path(&self) -> &str {
+    pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Split a rootfs-relative path into components, refusing anything that is
-    /// not one. ⚠ Lexical, and it is only half the check: the other half is the
-    /// kernel's, in [`safety::open_parent`].
-    fn parts(rel: &str) -> Result<Vec<&str>> {
-        safety::components(rel).map_err(|r: Refusal| Error::Complete(r.why()))
+    pub(crate) fn fd(&self) -> i64 {
+        self.dir.fd()
     }
 
-    /// Open the parent of `rel`, creating directories where asked.
+    /// The components of a relative path, or a refusal. Lexical, and only
+    /// half of the check: the kernel does the other half.
+    pub(crate) fn parts(rel: &str) -> Result<Vec<&str>> {
+        safety::components(rel).map_err(|r| error::policy(format!("the path {rel:?} is refused: {}", r.why())))
+    }
+
+    /// Open the parent of `rel`, and make the missing directories when
+    /// `make_dirs`.
     ///
-    /// ⛔ **Three outcomes, not two.** `Ok(Ok(..))` reached it; `Ok(Err(why))`
-    /// did not, and `why` says which of the two reasons it was; `Err` is a
-    /// lexical refusal of the path itself, which is a defect in podvm rather
-    /// than a property of the image.
-    ///
-    /// ⚠ An ancestor that does not exist is NOT an error. `etc/apt/apt.conf.d`
-    /// is absent in every rootfs that is not Debian-family, and a `kind()` on a
-    /// file inside it must answer "missing" rather than fail the whole
-    /// completion run. An ancestor that is a symlink OUT of the rootfs is the
-    /// other reason, and the two are told apart because only one of them is a
-    /// refusal the caller must report.
-    fn parent(
-        &self,
-        rel: &str,
-        make_dirs: bool,
-    ) -> Result<std::result::Result<(Dir, String), String>> {
+    /// Three results: `Ok(Ok(..))` reached it; `Ok(Err(why))` did not, and
+    /// `why` says why; `Err` is a refusal of the path itself or a refused
+    /// system call. A missing ancestor is not an error: `etc/apt/apt.conf.d`
+    /// is absent in each root that is not of the Debian family, and a
+    /// [`Root::kind`] of a file in it answers "missing".
+    pub(crate) fn parent(&self, rel: &str, make_dirs: bool) -> Result<std::result::Result<(Dir, String), String>> {
         let parts = Self::parts(rel)?;
         match safety::open_parent_with(&self.dir, &parts, make_dirs, Resolve::InRoot) {
             Ok(Ok(x)) => Ok(Ok(x)),
-            // A refusal: a component resolved outside the rootfs, or the kernel
-            // declined the resolution.
             Ok(Err(r)) => Ok(Err(r.why())),
-            Err(e) => Ok(Err(format!("{e}"))),
+            Err(e) => Ok(Err(e.to_string())),
         }
     }
 
-    /// What is at `rel`, with the last component not followed.
+    /// What is at `rel`, with no follow of the last component.
     pub fn kind(&self, rel: &str) -> Result<Kind> {
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(Kind::Missing);
         };
-        let Some(c) = CBuf::new(&name) else {
+        let c = cbuf(&name)?;
+        let Ok(st) = sys::fstatat(parent.fd(), &c, sys::AT_SYMLINK_NOFOLLOW) else {
             return Ok(Kind::Missing);
         };
-        let st = match sys::fstatat(parent.fd(), &c, sys::AT_SYMLINK_NOFOLLOW) {
-            Ok(st) => st,
-            Err(_) => return Ok(Kind::Missing),
-        };
-        let fmt = st.st_mode & sys::S_IFMT;
-        Ok(match fmt {
-            0o100000 => Kind::Regular {
-                len: st.st_size as u64,
-                mode: st.st_mode & 0o7777,
-            },
-            0o040000 => Kind::Dir,
-            0o020000 => Kind::CharDev {
-                // ⚠ The kernel's wide encoding, which is what `st_rdev`
-                // carries and what `makedev` builds.
-                major: ((st.st_rdev >> 8) & 0xfff) | ((st.st_rdev >> 32) & !0xfffu64),
-                minor: (st.st_rdev & 0xff) | ((st.st_rdev >> 12) & !0xffu64),
-            },
-            0o120000 => {
+        Ok(match st.st_mode & sys::S_IFMT {
+            sys::S_IFREG => Kind::Regular { len: st.st_size as u64, mode: st.st_mode & 0o7777 },
+            sys::S_IFDIR => Kind::Dir,
+            0o020000 => {
+                let (major, minor) = split_dev(st.st_rdev);
+                Kind::CharDev { major, minor }
+            }
+            sys::S_IFLNK => {
                 let t = sys::readlinkat(parent.fd(), &c)
                     .map(|b| String::from_utf8_lossy(&b).to_string())
                     .unwrap_or_default();
@@ -213,155 +179,177 @@ impl Root {
         })
     }
 
-    /// Read a regular file at `rel`, never following the last component.
-    ///
-    /// ⛔ Bounded. `std::fs::read` on a character device reads to an EOF that
-    /// never comes: `/dev/urandom` allocated 13 GB here before the OOM killer
-    /// took it ([`TODO/supervise.md`](../../../TODO/supervise.md) T-0602). The
-    /// completion layer reads configuration files, and a configuration file
-    /// that is 8 MiB is not one podvm is going to edit correctly anyway.
+    /// Read the regular file at `rel`, with no follow of the last component.
+    /// `None`: no file, or not a regular file. A file over [`READ_LIMIT`] is
+    /// a failure.
     pub fn read(&self, rel: &str) -> Result<Option<Vec<u8>>> {
-        const CEILING: usize = 8 * 1024 * 1024;
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(None);
         };
-        let Some(c) = CBuf::new(&name) else {
-            return Ok(None);
-        };
-        let fd = match sys::openat(
-            parent.fd(),
-            &c,
-            sys::O_RDONLY | sys::O_NOFOLLOW | sys::O_CLOEXEC,
-            0,
-        ) {
-            Ok(fd) => fd,
-            Err(_) => return Ok(None),
-        };
-        let mut out = Vec::new();
-        let mut buf = [0u8; 65536];
-        loop {
-            match sys::read(fd, &mut buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    out.extend_from_slice(&buf[..n as usize]);
-                    if out.len() > CEILING {
-                        let _ = sys::close(fd);
-                        return Err(Error::Complete(format!(
-                            "{rel} is larger than {CEILING} bytes; podvm will not \
-                             read a configuration file that size"
-                        )));
-                    }
-                }
-                Err(e) if e == sys::EINTR => continue,
-                Err(e) => {
-                    let _ = sys::close(fd);
-                    return Err(Error::Complete(format!("cannot read {rel}: {}", e.name())));
-                }
-            }
+        let c = cbuf(&name)?;
+        match sys::openat(parent.fd(), &c, READ_FLAGS | sys::O_NOFOLLOW, 0) {
+            Ok(fd) => read_regular(&Fd(fd), rel),
+            Err(_) => Ok(None),
         }
-        let _ = sys::close(fd);
-        Ok(Some(out))
     }
 
-    /// Read the same way, as text, dropping a file that is not UTF-8.
-    ///
-    /// ⚠ `None` for both "absent" and "not text" is deliberate here: every
-    /// caller of this treats a configuration file it cannot parse exactly like
-    /// one that is not there, and the two would otherwise be one `match` arm
-    /// written twice.
+    /// Read the same way, as text. `None` also for a file that is not UTF-8:
+    /// each caller treats a file that it cannot parse as a file that is not
+    /// there.
     pub fn read_text(&self, rel: &str) -> Result<Option<String>> {
-        Ok(self
-            .read(rel)?
-            .and_then(|b| String::from_utf8(b).ok().map(|s| s.to_string())))
+        Ok(self.read(rel)?.and_then(|b| String::from_utf8(b).ok()))
     }
 
-    /// Write `bytes` to `rel`, replacing whatever is there.
+    /// Write `bytes` to `rel` with `mode`, and replace what is there.
     ///
-    /// ⛔ **Unlink first, then create with `O_EXCL | O_NOFOLLOW`.** A truncate
-    /// of an existing name follows a symlink exactly as an ordinary open does,
-    /// so "the file is already there" is the case that escapes.
+    /// An unlink first, then a create with `O_EXCL | O_NOFOLLOW`: a truncate
+    /// of an existing name follows a symlink as each open does, so "the file
+    /// is already there" is the case that escapes.
     pub fn write(&self, rel: &str, bytes: &[u8], mode: u32) -> Result<Wrote> {
         let existing = self.kind(rel)?;
-        // ⛔ The MODE is part of "unchanged". T-0404 widens the owner write bit
-        // of an `/etc/passwd` whose content it does not touch, and a comparison
-        // on the bytes alone reported that as a no-op and left the file
-        // read-only, which is the failure the fixup exists for.
+        // The mode is part of "unchanged": a passwd of the image with the
+        // right bytes and no write bit still needs the write bit.
         if let Kind::Regular { mode: have, .. } = existing
             && self.read(rel)?.as_deref() == Some(bytes)
         {
             if have == mode {
                 return Ok(Wrote::Unchanged);
             }
-            let Ok((parent, name)) = self.parent(rel, false)? else {
-                return Ok(Wrote::Unchanged);
-            };
-            let c = CBuf::new(&name).ok_or_else(|| {
-                Error::Complete(format!("{rel} contains a NUL and cannot be written"))
-            })?;
-            sys::fchmodat(parent.fd(), &c, mode as u64, 0).map_err(|e| {
-                Error::Complete(format!("cannot set the mode of {rel}: {}", e.name()))
-            })?;
+            self.set_mode(rel, mode)?;
             return Ok(Wrote::Replaced);
         }
         let (parent, name) = match self.parent(rel, true)? {
             Ok(x) => x,
-            Err(why) => {
-                return Err(Error::Complete(format!(
-                    "{rel}: podvm will not write through this path: {why}"
-                )))
-            }
+            Err(why) => return Err(error::policy(format!("{rel}: the crate does not write through this path: {why}"))),
         };
-        let c = CBuf::new(&name).ok_or_else(|| {
-            Error::Complete(format!("{rel} contains a NUL and cannot be written"))
-        })?;
-        // ⛔ Unconditional, and it covers the symlink, the dangling symlink and
-        // the ordinary file in one call. ENOENT here is the ordinary case.
+        let c = cbuf(&name)?;
+        // One unlink for a symlink, a dangling symlink and a file. ENOENT is
+        // the usual case.
         match sys::unlinkat(parent.fd(), &c, 0) {
             Ok(_) => {}
             Err(e) if e == sys::ENOENT => {}
-            Err(e) if e.0 == 21 => {
-                // EISDIR: a directory where the completion layer wants a file.
-                return Err(Error::Complete(format!(
-                    "{rel} is a directory in this image; podvm will not replace a \
-                     directory with a file"
+            Err(e) if e == sys::EISDIR => {
+                return Err(error::policy(format!(
+                    "{rel} is a directory in this image; the crate does not replace a directory with a file"
                 )));
             }
-            Err(e) => {
-                return Err(Error::Complete(format!(
-                    "cannot remove the existing {rel}: {}",
-                    e.name()
-                )))
-            }
+            Err(e) => return Err(error::sys(format!("cannot remove the existing {rel}"), e)),
         }
-        let fd = sys::openat(
-            parent.fd(),
-            &c,
-            sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_NOFOLLOW | sys::O_CLOEXEC,
-            mode as u64,
-        )
-        .map_err(|e| Error::Complete(format!("cannot create {rel}: {}", e.name())))?;
-        let mut off = 0;
-        while off < bytes.len() {
-            match sys::write(fd, &bytes[off..]) {
-                Ok(0) => break,
-                Ok(n) => off += n as usize,
-                Err(e) if e == sys::EINTR => continue,
-                Err(e) => {
-                    let _ = sys::close(fd);
-                    return Err(Error::Complete(format!("cannot write {rel}: {}", e.name())));
-                }
-            }
-        }
-        // ⚠ The mode is set explicitly rather than left to the open: umask
-        // subtracts from the mode an open asks for, and T-0404 needs the
-        // payload's own `useradd` to be able to write `/etc/passwd` back.
-        let _ = sys::fchmod(fd, mode as u64);
-        let _ = sys::close(fd);
+        let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+        let fd = Fd(sys::openat(parent.fd(), &c, flags, mode as u64)
+            .map_err(|e| error::sys(format!("cannot create {rel}"), e))?);
+        write_all(&fd, bytes, rel)?;
+        // The mode is set after the create: the umask removes bits from the
+        // mode of an open, and the payload must be able to write
+        // `/etc/passwd` again.
+        sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
         Ok(match existing {
             Kind::Missing => Wrote::Created,
             _ => Wrote::Replaced,
         })
     }
+
+    /// Set the mode of the regular file at `rel` through a descriptor that
+    /// opened with `O_NOFOLLOW`. A `fchmodat` by name follows a symlink that
+    /// replaced the file after the check, also to an absolute target on the
+    /// host.
+    pub(crate) fn set_mode(&self, rel: &str, mode: u32) -> Result<()> {
+        let (parent, name) = match self.parent(rel, false)? {
+            Ok(x) => x,
+            Err(why) => {
+                return Err(error::policy(format!("{rel}: the crate does not change a mode through this path: {why}")));
+            }
+        };
+        let c = cbuf(&name)?;
+        let fd = Fd(sys::openat(parent.fd(), &c, READ_FLAGS | sys::O_NOFOLLOW, 0)
+            .map_err(|e| error::sys(format!("cannot open {rel} to set its mode"), e))?);
+        let st = fstat(&fd, rel)?;
+        if st.st_mode & sys::S_IFMT != sys::S_IFREG {
+            return Err(error::policy(format!("{rel} is not a regular file; the crate does not change its mode")));
+        }
+        sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
+        Ok(())
+    }
+
+    /// Which of the three [`Reach`] answers is true of `dir`.
+    pub fn reach(&self, dir: &str) -> Result<Reach> {
+        let kind = self.kind(dir)?;
+        if kind.is_missing() {
+            return Ok(Reach::Absent);
+        }
+        Ok(match self.dir_following(dir)? {
+            Some(true) => Reach::Yes,
+            Some(false) => Reach::Unreachable(match kind {
+                Kind::Symlink(t) => format!(
+                    "{dir} is a symlink to {t}, which does not resolve to a directory inside this root. The crate \
+                     does not write through it, and a payload that reads this path gets nothing"
+                ),
+                other => format!(
+                    "{dir} is {other:?} and not a directory that the crate can reach, so the file that a payload \
+                     reads here is not there"
+                ),
+            }),
+            // No `openat2`: the crate cannot ask. Unreachable with that reason,
+            // not a guess either way.
+            None => Reach::Unreachable(format!(
+                "this kernel has no openat2(2), so the crate cannot prove that a write into {dir} stays inside \
+                 the root"
+            )),
+        })
+    }
+}
+
+/// The flags of each open of a file that the crate reads: no wait on a fifo,
+/// no controlling terminal.
+pub(crate) const READ_FLAGS: u64 = sys::O_RDONLY | sys::O_NONBLOCK | sys::O_NOCTTY | sys::O_CLOEXEC;
+
+/// The major and the minor number of a device number of the kernel.
+pub(crate) fn split_dev(rdev: u64) -> (u64, u64) {
+    (((rdev >> 8) & 0xfff) | ((rdev >> 32) & !0xfffu64), (rdev & 0xff) | ((rdev >> 12) & !0xffu64))
+}
+
+pub(crate) fn fstat(fd: &Fd, rel: &str) -> Result<sys::Stat> {
+    let empty = CBuf::new("").ok_or_else(|| error::usage("an empty name"))?;
+    sys::fstatat(fd.0, &empty, sys::AT_EMPTY_PATH).map_err(|e| error::sys(format!("cannot stat {rel}"), e))
+}
+
+/// The bytes of the regular file of `fd`, at most [`READ_LIMIT`]. `None`
+/// when it is not a regular file.
+pub(crate) fn read_regular(fd: &Fd, rel: &str) -> Result<Option<Vec<u8>>> {
+    if fstat(fd, rel)?.st_mode & sys::S_IFMT != sys::S_IFREG {
+        return Ok(None);
+    }
+    let mut out = Vec::new();
+    let mut buf = [0u8; 65536];
+    loop {
+        match sys::read(fd.0, &mut buf) {
+            Ok(0) => return Ok(Some(out)),
+            Ok(n) => {
+                out.extend_from_slice(&buf[..n as usize]);
+                if out.len() > READ_LIMIT {
+                    return Err(error::policy(format!(
+                        "{rel} is larger than {READ_LIMIT} bytes; the crate does not read a configuration file of \
+                         that size"
+                    )));
+                }
+            }
+            Err(e) if e == sys::EINTR => continue,
+            Err(e) => return Err(error::sys(format!("cannot read {rel}"), e)),
+        }
+    }
+}
+
+pub(crate) fn write_all(fd: &Fd, bytes: &[u8], rel: &str) -> Result<()> {
+    let mut off = 0;
+    while off < bytes.len() {
+        match sys::write(fd.0, &bytes[off..]) {
+            Ok(0) => return Err(error::policy(format!("cannot write {rel}: the kernel took no byte"))),
+            Ok(n) => off += n as usize,
+            Err(e) if e == sys::EINTR => continue,
+            Err(e) => return Err(error::sys(format!("cannot write {rel}"), e)),
+        }
+    }
+    Ok(())
 }
 
 mod follow;

@@ -1067,6 +1067,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-rootfs"
+version = "0.10.0"
+dependencies = [
+ "pod-core",
+ "pod-extract",
+ "pod-hostprobe",
+ "pod-testkit",
+]
+
+[[package]]
 name = "pod-services"
 version = "0.10.0"
 dependencies = [

@@ -1,7 +1,20 @@
 [package]
 name = "pod-rootfs"
+description = "The completion of a root file system on Linux, from the host and with no privilege: device nodes or regular-file shims, the resolver, hosts and mtab, passwd, group and nsswitch, the walls of pacman, apt and zypper, the CA bundle of the host, and https package sources; each write held in the root, one row for each fixup."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+# The raw system calls and the space check.
+pod-hostprobe = { workspace = true }
+# The resolve held in the root (`safety::Resolve::InRoot`) and the probe of
+# openat2.
+pod-extract = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }

@@ -1,252 +1,202 @@
 use super::*;
 
+/// The resolve of a path held in the root, with a follow of the last
+/// component.
+fn in_root(flags: u64, mode: u32) -> sys::OpenHow {
+    sys::OpenHow { flags, mode: mode as u64, resolve: sys::RESOLVE_IN_ROOT }
+}
+
+/// The text of a refusal on a kernel with no `openat2`.
+fn no_openat2(rel: &str) -> String {
+    format!(
+        "this kernel has no openat2(2), so the crate cannot follow a symlink at {rel} while it proves that the \
+         path stays inside the root"
+    )
+}
+
 impl Root {
-    /// Try to create a character device at `rel`.
+    /// Try to make a character device at `rel`.
     ///
-    /// ⭐ **T-0401 calls this FIRST and shims only where it fails.** `mknod` is
-    /// denied on the runtimes podvm is built for, and that denial is the whole
-    /// premise of the shim; on a machine that permits it, a real `/dev/null` is
-    /// what the payload should get, and reporting a shim there would be podvm
-    /// inventing a degradation. ⛔ Probed by calling it, never inferred from a
-    /// capability bit: this runtime hands a process every capability and denies
-    /// the operation anyway.
+    /// The completion calls this FIRST and makes a shim only where it fails:
+    /// on a host that permits `mknod`, a real `/dev/null` is what the payload
+    /// gets. The crate calls it, and does not read a capability bit: a
+    /// runtime can give each capability and still refuse the call.
     ///
-    /// `Ok(true)` a device is now there, `Ok(false)` the kernel refused and the
-    /// errno is in the string, `Err` podvm could not even try.
+    /// The node must also open: on a file system mounted `nodev` a node is
+    /// made but each open of it fails, and a payload that writes to it gets
+    /// `EACCES`. A node that does not open is removed. The mode is set
+    /// through the open descriptor, never by name.
+    ///
+    /// `Ok(Ok(()))`: a device is there. `Ok(Err(why))`: the kernel refused,
+    /// and `why` names the errno. `Err`: the crate could not try.
     pub fn mknod_char(
         &self,
         rel: &str,
         mode: u32,
         major: u64,
         minor: u64,
+        scratch_prefix: &str,
     ) -> Result<std::result::Result<(), String>> {
         let (parent, name) = match self.parent(rel, true)? {
             Ok(x) => x,
             Err(why) => return Ok(Err(why)),
         };
-        let c = CBuf::new(&name).ok_or_else(|| Error::Complete(format!("{rel} contains a NUL")))?;
-        let create = |name: &CBuf| {
-            sys::mknodat(
-                parent.fd(),
-                name,
-                sys::S_IFCHR | mode as u64,
-                sys::makedev(major, minor),
-            )
+        let c = cbuf(&name)?;
+        let dev = sys::makedev(major, minor);
+        // A new node that does not settle is removed, and the refusal names
+        // why.
+        let settled = |name: &CBuf| {
+            settle_node(&parent, name, mode, major, minor).inspect_err(|_| {
+                let _ = sys::unlinkat(parent.fd(), name, 0);
+            })
         };
-        match create(&c) {
-            Ok(_) => {
-                let _ = sys::fchmodat(parent.fd(), &c, mode as u64, 0);
-                return Ok(Ok(()));
-            }
+        match sys::mknodat(parent.fd(), &c, sys::S_IFCHR | mode as u64, dev) {
+            Ok(_) => return Ok(settled(&c)),
             Err(e) if e != sys::EEXIST => return Ok(Err(e.name())),
             Err(_) => {}
         }
 
-        // An existing shim must survive when the kernel refuses `mknod`.
-        // Create a sibling candidate first, then replace the old entry with one
-        // fd-relative rename. The name includes both the process and a call id
-        // so concurrent completion passes do not share a candidate.
+        // An existing entry stays when the kernel refuses `mknod`: the crate
+        // makes a node under a temporary name first, then puts it in place
+        // with one rename. The name holds the process and a count, so two
+        // completions at the same time do not share it.
         static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let candidate = loop {
             let call = CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let candidate = CBuf::new(&format!(".podvm-mknod-{}-{call}", std::process::id()))
-                .ok_or_else(|| {
-                    Error::Complete("cannot construct the device candidate name".into())
-                })?;
-            match create(&candidate) {
-                Ok(_) => break candidate,
+            let candidate = cbuf(&format!("{scratch_prefix}{}-{call}", std::process::id()))?;
+            match sys::mknodat(parent.fd(), &candidate, sys::S_IFCHR | mode as u64, dev) {
+                Ok(_) => match settled(&candidate) {
+                    Ok(()) => break candidate,
+                    Err(why) => return Ok(Err(why)),
+                },
                 Err(e) if e == sys::EEXIST => continue,
                 Err(e) => return Ok(Err(e.name())),
             }
         };
-        let _ = sys::fchmodat(parent.fd(), &candidate, mode as u64, 0);
         match sys::renameat(parent.fd(), &candidate, parent.fd(), &c) {
             Ok(_) => Ok(Ok(())),
             Err(e) => {
                 let _ = sys::unlinkat(parent.fd(), &candidate, 0);
-                Ok(Err(format!(
-                    "cannot replace the existing {rel} with a character device: {}",
-                    e.name()
-                )))
+                Ok(Err(format!("cannot replace the existing {rel} with a character device: {}", e.name())))
             }
         }
     }
 
-    /// Open `rel` **following the last component**, confined to the rootfs.
+    /// Does the character device at `rel` open? A node on a file system
+    /// mounted `nodev` does not.
+    pub fn char_opens(&self, rel: &str) -> Result<bool> {
+        let Ok((parent, name)) = self.parent(rel, false)? else {
+            return Ok(false);
+        };
+        let c = cbuf(&name)?;
+        Ok(sys::openat(parent.fd(), &c, READ_FLAGS | sys::O_NOFOLLOW, 0).map(|fd| drop(Fd(fd))).is_ok())
+    }
+
+    /// Open `rel` **with a follow of the last component**, held in the root.
     ///
-    /// ⭐ **The opposite of [`Root::write`], and the difference is who owns the
-    /// file.** `write` replaces: `/etc/mtab`, `/etc/resolv.conf`,
-    /// `/etc/hosts` and `/etc/passwd` are files podvm owns, and following a
-    /// link there is T-0405's escape. This one FOLLOWS: the CA trust store is
-    /// the image's file and podvm is adding to it, so writing to the link
-    /// rather than through it puts the bytes where nothing reads them.
+    /// The opposite of [`Root::write`], and the difference is the owner of
+    /// the file. `write` replaces: `/etc/mtab`, `/etc/resolv.conf`,
+    /// `/etc/hosts` and `/etc/passwd` belong to the completion, and a follow
+    /// there is the escape. This one FOLLOWS: the CA trust store belongs to
+    /// the image and the crate adds to it, and a write to the link and not
+    /// through it puts the bytes where nothing reads them
+    /// (`/etc/ssl/ca-bundle.pem -> /var/lib/ca-certificates/ca-bundle.pem` on
+    /// openSUSE).
     ///
-    /// ⛔ Measured on 2026-09-09 against `registry.opensuse.org/opensuse/leap`:
-    /// `/etc/ssl/ca-bundle.pem` is a symlink to
-    /// `/var/lib/ca-certificates/ca-bundle.pem`, and replacing the link left
-    /// curl's default trust store untouched -- `curl --cacert
-    /// /etc/ssl/ca-bundle.pem` returned 200 on the same host where the default
-    /// returned `self-signed certificate in certificate chain`.
+    /// ONE `openat2` from the descriptor of the root with `RESOLVE_IN_ROOT`,
+    /// so the kernel does the confinement: an absolute target rebases onto
+    /// the root. `Ok(Err(why))`: the crate cannot open it (no `openat2`, or
+    /// the kernel refused).
+    fn open_following(&self, rel: &str, flags: u64, mode: u32) -> Result<std::result::Result<Fd, String>> {
+        Self::parts(rel)?;
+        if !safety::have_openat2() {
+            return Ok(Err(no_openat2(rel)));
+        }
+        let c = cbuf(rel)?;
+        Ok(sys::openat2(self.fd(), &c, &in_root(flags, mode)).map(Fd).map_err(|e| format!("{rel}: {}", e.name())))
+    }
+
+    /// Can the crate reach a DIRECTORY at `rel`, with a follow of the last
+    /// component, held in the root?
     ///
-    /// ⚠ ONE `openat2` from the rootfs descriptor with `RESOLVE_IN_ROOT`, so
-    /// the kernel does the confinement: an absolute target rebases onto the
-    /// rootfs and nothing resolves outside it. On a kernel without `openat2`
-    /// this returns `None` and the caller reports a fixup it could not apply.
-    fn open_following(&self, rel: &str, create: bool, mode: u32) -> Result<Option<i64>> {
-        if !podvm_extract::safety::have_openat2() {
+    /// Another question than `kind(rel) == Kind::Dir`: [`Root::kind`]
+    /// answers `Symlink` for openSUSE's `/etc/ssl/certs ->
+    /// /var/lib/ca-certificates/pem`, a directory that the crate must write
+    /// into, and also for a link OUT of the root, which it must not follow.
+    /// `RESOLVE_IN_ROOT` rebases a link out of the root, so `Some(false)`
+    /// means "no directory there". `None`: this kernel has no `openat2`, and
+    /// the crate could not ask.
+    pub fn dir_following(&self, rel: &str) -> Result<Option<bool>> {
+        Self::parts(rel)?;
+        if !safety::have_openat2() {
             return Ok(None);
         }
-        // ⚠ Lexically checked first, exactly as every other path here is.
-        Self::parts(rel)?;
-        let Some(c) = CBuf::new(rel) else {
-            return Ok(None);
-        };
-        let flags = if create {
-            sys::O_WRONLY | sys::O_CREAT | sys::O_TRUNC | sys::O_CLOEXEC
-        } else {
-            sys::O_RDONLY | sys::O_CLOEXEC
-        };
-        let how = sys::OpenHow {
-            flags,
-            mode: mode as u64,
-            resolve: sys::RESOLVE_IN_ROOT,
-        };
-        match sys::openat2(self.dir.fd(), &c, &how) {
-            Ok(fd) => Ok(Some(fd)),
+        let c = cbuf(rel)?;
+        let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC;
+        Ok(Some(sys::openat2(self.fd(), &c, &in_root(flags, 0)).map(|fd| drop(Fd(fd))).is_ok()))
+    }
+
+    /// Read the regular file at `rel`, with a follow of the last component.
+    /// `None`: no file, not a regular file, or no `openat2`.
+    pub fn read_following(&self, rel: &str) -> Result<Option<Vec<u8>>> {
+        match self.open_following(rel, READ_FLAGS, 0)? {
+            Ok(fd) => read_regular(&fd, rel),
             Err(_) => Ok(None),
         }
     }
 
-    /// Can podvm reach a DIRECTORY at `rel`, following the last component and
-    /// staying inside the rootfs?
-    ///
-    /// ⭐ **A different question from `kind(rel) == Kind::Dir`, and the
-    /// difference is two real images.** [`Root::kind`] does not follow the last
-    /// component, so it answers `Symlink` for openSUSE's own
-    /// `/etc/ssl/certs -> /var/lib/ca-certificates/pem` -- a directory podvm
-    /// must write into -- and also for a link pointing OUT of the rootfs, which
-    /// it must not. Measured on 2026-09-09 by
-    /// `experiments/85-completion-symlink-escape.sh` door D and by the openSUSE
-    /// row of `experiments/240-distro-sweep.sh`: a `Kind::Dir` test skipped both,
-    /// silently, and one of them was the path the image's TLS stack reads.
-    ///
-    /// ⛔ `RESOLVE_IN_ROOT`, so a link out of the rootfs is REBASED rather than
-    /// followed: `Some(false)` means "podvm cannot reach a directory there",
-    /// which is what the caller has to report.
-    ///
-    /// ⚠ `None` where this kernel has no `openat2`, which is the third state
-    /// again: podvm could not ask, and a caller must not read that as no.
-    pub fn dir_following(&self, rel: &str) -> Result<Option<bool>> {
-        if !podvm_extract::safety::have_openat2() {
-            return Ok(None);
-        }
-        Self::parts(rel)?;
-        let Some(c) = CBuf::new(rel) else {
-            return Ok(Some(false));
-        };
-        let how = sys::OpenHow {
-            flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
-            mode: 0,
-            resolve: sys::RESOLVE_IN_ROOT,
-        };
-        match sys::openat2(self.dir.fd(), &c, &how) {
-            Ok(fd) => {
-                let _ = sys::close(fd);
-                Ok(Some(true))
-            }
-            Err(_) => Ok(Some(false)),
-        }
-    }
-
-    /// Read `rel`, following the last component. See [`Root::open_following`].
-    pub fn read_following(&self, rel: &str) -> Result<Option<Vec<u8>>> {
-        const CEILING: usize = 8 * 1024 * 1024;
-        let Some(fd) = self.open_following(rel, false, 0)? else {
-            return Ok(None);
-        };
-        let mut out = Vec::new();
-        let mut buf = [0u8; 65536];
-        loop {
-            match sys::read(fd, &mut buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    out.extend_from_slice(&buf[..n as usize]);
-                    if out.len() > CEILING {
-                        let _ = sys::close(fd);
-                        return Err(Error::Complete(format!(
-                            "{rel} is larger than {CEILING} bytes"
-                        )));
-                    }
-                }
-                Err(e) if e == sys::EINTR => continue,
-                Err(_) => break,
-            }
-        }
-        let _ = sys::close(fd);
-        Ok(Some(out))
-    }
-
-    /// Write `rel`, following the last component. See [`Root::open_following`].
-    ///
-    /// ⚠ `None` where the kernel cannot do it safely, so the caller reports a
-    /// fixup it could not apply rather than one it silently skipped.
-    pub fn write_following(&self, rel: &str, bytes: &[u8], mode: u32) -> Result<Option<Wrote>> {
+    /// Write the regular file at `rel`, with a follow of the last component.
+    /// `Ok(Err(why))`: the crate cannot write it safely (no `openat2`, a
+    /// refused resolution, or not a regular file), and the caller reports a
+    /// fixup that it could not apply.
+    pub fn write_following(&self, rel: &str, bytes: &[u8], mode: u32) -> Result<std::result::Result<Wrote, String>> {
         let existed = self.read_following(rel)?;
         if existed.as_deref() == Some(bytes) {
-            return Ok(Some(Wrote::Unchanged));
+            return Ok(Ok(Wrote::Unchanged));
         }
-        let Some(fd) = self.open_following(rel, true, mode)? else {
-            return Ok(None);
+        // `O_NONBLOCK`: no wait for a reader of a fifo. `O_TRUNC` does
+        // nothing to a fifo or a device, and the type check below refuses
+        // both before a byte goes out.
+        let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_TRUNC | sys::O_NONBLOCK | sys::O_NOCTTY | sys::O_CLOEXEC;
+        let fd = match self.open_following(rel, flags, mode)? {
+            Ok(fd) => fd,
+            Err(why) => return Ok(Err(why)),
         };
-        let mut off = 0;
-        while off < bytes.len() {
-            match sys::write(fd, &bytes[off..]) {
-                Ok(0) => break,
-                Ok(n) => off += n as usize,
-                Err(e) if e == sys::EINTR => continue,
-                Err(e) => {
-                    let _ = sys::close(fd);
-                    return Err(Error::Complete(format!("cannot write {rel}: {}", e.name())));
-                }
-            }
+        if fstat(&fd, rel)?.st_mode & sys::S_IFMT != sys::S_IFREG {
+            return Ok(Err(format!("{rel} is not a regular file; the crate does not write into it")));
         }
-        let _ = sys::fchmod(fd, mode as u64);
-        let _ = sys::close(fd);
-        Ok(Some(match existed {
+        write_all(&fd, bytes, rel)?;
+        sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
+        Ok(Ok(match existed {
             None => Wrote::Created,
             Some(_) => Wrote::Replaced,
         }))
     }
 
-    /// Make `rel` a directory, and every parent of it.
+    /// Make `rel` a directory, and each parent of it.
     pub fn mkdirs(&self, rel: &str) -> Result<()> {
-        let parts = Self::parts(rel)?;
-        let mut all: Vec<&str> = parts.clone();
-        // ⚠ `open_parent` creates the parents and hands back the last
-        // component, so the directory itself is one more `mkdirat`.
+        let mut all = Self::parts(rel)?;
+        // `open_parent_with` makes the parents and gives back the last
+        // component, so the directory itself is one more component.
         all.push(".");
-        match safety::open_parent_with(&self.dir, &all, true, Resolve::InRoot)
-            .map_err(|e| Error::Complete(format!("{rel}: {e}")))?
-        {
+        match safety::open_parent_with(&self.dir, &all, true, Resolve::InRoot)? {
             Ok(_) => Ok(()),
-            Err(r) => Err(Error::Complete(format!("{rel}: {}", r.why()))),
+            Err(r) => Err(error::policy(format!("{rel}: {}", r.why()))),
         }
     }
 
-    /// Every name directly inside `rel`, sorted, or an empty list where `rel` is
-    /// not a directory podvm can reach.
+    /// Each name directly in `rel`, sorted, or an empty list where `rel` is
+    /// not a directory that the crate can reach: most of these directories
+    /// are absent in most images.
     pub fn list(&self, rel: &str) -> Result<Vec<String>> {
-        let parts = Self::parts(rel)?;
-        let mut all: Vec<&str> = parts.clone();
+        let mut all = Self::parts(rel)?;
         all.push(".");
         let dir = match safety::open_parent_with(&self.dir, &all, false, Resolve::InRoot) {
             Ok(Ok((d, _))) => d,
-            // ⚠ A directory podvm cannot reach lists as empty rather than
-            // failing: most of these directories are absent in most images.
             Ok(Err(_)) | Err(_) => return Ok(Vec::new()),
         };
         let mut names: Vec<String> = sys::getdents64(dir.fd())
-            .map_err(|e| Error::Complete(format!("cannot list {rel}: {}", e.name())))?
+            .map_err(|e| error::sys(format!("cannot list {rel}"), e))?
             .into_iter()
             .map(|d| String::from_utf8_lossy(&d.name).to_string())
             .filter(|n| n != "." && n != "..")
@@ -255,21 +205,43 @@ impl Root {
         Ok(names)
     }
 
-    /// Remove `rel` if it is there, never following the last component.
+    /// Remove `rel` if it is there, with no follow of the last component.
+    /// `Ok(false)`: nothing there, or its directory is out of reach.
     pub fn unlink(&self, rel: &str) -> Result<bool> {
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(false);
         };
-        let Some(c) = CBuf::new(&name) else {
-            return Ok(false);
-        };
+        let c = cbuf(&name)?;
         match sys::unlinkat(parent.fd(), &c, 0) {
             Ok(_) => Ok(true),
             Err(e) if e == sys::ENOENT => Ok(false),
-            Err(e) => Err(Error::Complete(format!(
-                "cannot remove {rel}: {}",
-                e.name()
-            ))),
+            Err(e) => Err(error::sys(format!("cannot remove {rel}"), e)),
         }
     }
+
+    /// Make a symlink at `rel` to `target`. `Ok(Err(why))`: its directory is
+    /// out of reach, or the kernel refused.
+    pub fn symlink(&self, rel: &str, target: &str) -> Result<std::result::Result<(), String>> {
+        let (parent, name) = match self.parent(rel, false)? {
+            Ok(x) => x,
+            Err(why) => return Ok(Err(why)),
+        };
+        let (c, t) = (cbuf(&name)?, cbuf(target)?);
+        Ok(sys::symlinkat(&t, parent.fd(), &c).map(|_| ()).map_err(|e| e.name()))
+    }
+}
+
+/// Open a node that `mknodat` just made, check it, and set its mode through
+/// the descriptor. A node that does not open is of no use to the payload.
+fn settle_node(parent: &Dir, name: &CBuf, mode: u32, major: u64, minor: u64) -> std::result::Result<(), String> {
+    let fd = Fd(sys::openat(parent.fd(), name, READ_FLAGS | sys::O_NOFOLLOW, 0).map_err(|e| {
+        format!("the node was made and does not open ({}), as on a file system mounted nodev", e.name())
+    })?);
+    let empty = CBuf::new("").ok_or("an empty name")?;
+    let st = sys::fstatat(fd.0, &empty, sys::AT_EMPTY_PATH).map_err(|e| e.name())?;
+    if st.st_mode & sys::S_IFMT != 0o020000 || split_dev(st.st_rdev) != (major, minor) {
+        return Err(format!("the node at the name is not the character device {major}:{minor}"));
+    }
+    sys::fchmod(fd.0, mode as u64).map_err(|e| e.name())?;
+    Ok(())
 }

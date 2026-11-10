@@ -35,6 +35,7 @@ pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.10.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.10.0" }
 pod-oci = { path = "crates/pod-oci", version = "0.10.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.10.0" }
+pod-rootfs = { path = "crates/pod-rootfs", version = "0.10.0" }
 pod-services = { path = "crates/pod-services", version = "0.10.0" }
 pod-supervise = { path = "crates/pod-supervise", version = "0.10.0" }
 pod-term = { path = "crates/pod-term", version = "0.10.0" }

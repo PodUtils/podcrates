@@ -344,6 +344,7 @@ pub const MS_PRIVATE: u64 = 0x0004_0000;
 
 pub const S_IFMT: u32 = 0o170000;
 pub const S_IFCHR: u64 = 0o0020000;
+pub const S_IFIFO: u64 = 0o0010000;
 /// `makedev(1, 3)`, that is `/dev/null`. A real device number, unlike
 /// `makedev(0, 0)`, which is `WHITEOUT_DEV` and is exempt from the capability
 /// check. The census probes that pair.
@@ -378,6 +379,14 @@ pub const O_NOFOLLOW: u64 = 0o100000;
 #[cfg(not(any(target_arch = "arm", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "powerpc")))]
 pub const O_NOFOLLOW: u64 = 0o400000;
 pub const O_PATH: u64 = 0o10000000;
+/// An open that does not wait: a fifo with no writer, or a device that
+/// waits for a carrier, gives the descriptor at once. The value is
+/// 0o200 on mips and 0o4000 on the other targets.
+#[cfg(any(target_arch = "mips", target_arch = "mips64"))]
+pub const O_NONBLOCK: u64 = 0o200;
+/// See [`O_NONBLOCK`]: the value follows the architecture.
+#[cfg(not(any(target_arch = "mips", target_arch = "mips64")))]
+pub const O_NONBLOCK: u64 = 0o4000;
 
 /// `openat2(2)`'s `struct open_how`. Three `u64`s, in this order, and the
 /// kernel is told the size so it can reject a struct it does not know.

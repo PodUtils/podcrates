@@ -1,34 +1,27 @@
-//! Does this mirror speak HTTPS? One bounded question, asked once per host.
+//! Does this mirror speak HTTPS? One question for each host, which the
+//! caller answers.
 //!
-//! ⭐ [`TODO/complete.md`](../../../TODO/complete.md) T-0411 clause 4:
-//! **verify before rewriting**. Rewriting a source that then 404s is worse than
-//! the hang it was meant to fix, because the failure no longer names the cause.
+//! The change of a package source checks first: a source that then gives
+//! 404 is worse than the wait that the change was for, as the failure no
+//! longer names its cause.
 //!
-//! ⛔ Bounded, always. [`TODO/RULES.md`](../../../TODO/RULES.md) section 8: a
-//! runtime whose audience is automated may not wait unbounded, and this probe
-//! runs on the path to starting a container.
+//! The crate makes no request: the caller gives a [`Probe`] with its own
+//! transport, its proxy and its trust (`pod-proxy` and `pod-tls` for
+//! podvm). The probe asks `https://HOST/` with a bounded time, and each HTTP
+//! answer (404 too) is a yes: the question is if the host ends TLS on 443.
+//! A connect failure, a TLS failure or a timeout is a no, with its reason.
 //!
-//! ⚠ **Any HTTP response is a yes**, 404 included. The question is whether the
-//! host terminates TLS on 443, not whether it serves `/`. A connect failure, a
-//! TLS failure or a timeout is a no, and the reason travels with it so the
-//! banner can say which.
+//! The crate asks only about a DNS name (see [`is_name`]): an address, a
+//! loopback name, a user part or a text that is not a name never reaches a
+//! probe.
 
-use std::collections::HashMap;
-use std::time::Duration;
+use std::collections::BTreeMap;
 
-use podvm_image::net::{Limits, Net, Refusal};
-
-/// ⚠ Two seconds to connect and two to read. The whole point is that the
-/// alternative -- a black-holed tcp/80 inside the payload -- costs the package
-/// manager's own timeout, which is minutes.
-const CONNECT: Duration = Duration::from_secs(2);
-const READ: Duration = Duration::from_secs(2);
-
-/// What one host answered. ⛔ Three states: it spoke HTTPS, it did not, or
-/// podvm could not ask. The third never reads as either of the first two.
+/// What one host answered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Answer {
     Https,
+    /// No, and why: the row of the host says it.
     No(String),
 }
 
@@ -45,75 +38,87 @@ impl Answer {
     }
 }
 
-/// One question per host, remembered for the life of this call.
-#[derive(Default)]
-pub struct Prober {
-    seen: HashMap<String, Answer>,
-    /// ⚠ Test seam, and the only one. A completion run in a unit test may not
-    /// reach the network at all: `docs/methodology/experiments.md`'s rule is
-    /// that a measurement ships with its script, and a unit test that quietly
-    /// depends on a mirror being up is a measurement pretending to be a test.
-    pub fixed: Option<bool>,
+/// The question of the caller: does `host` answer over HTTPS on 443? The
+/// caller bounds the time of each question. A function `FnMut(&str) ->
+/// Answer` is a probe.
+pub trait Probe {
+    fn https(&mut self, host: &str) -> Answer;
 }
 
-impl Prober {
-    pub fn new() -> Prober {
-        Prober::default()
+impl<F: FnMut(&str) -> Answer> Probe for F {
+    fn https(&mut self, host: &str) -> Answer {
+        self(host)
+    }
+}
+
+/// A probe that gives one answer with no request, for a caller that wants
+/// no question asked and for the tests.
+pub struct Fixed(pub bool);
+
+impl Probe for Fixed {
+    fn https(&mut self, _host: &str) -> Answer {
+        if self.0 { Answer::Https } else { Answer::No("the probe was told to answer no".into()) }
+    }
+}
+
+/// The probe of the caller, asked one time for each host in one completion.
+pub(crate) struct Prober<'a> {
+    probe: &'a mut dyn Probe,
+    seen: BTreeMap<String, Answer>,
+}
+
+impl<'a> Prober<'a> {
+    pub(crate) fn new(probe: &'a mut dyn Probe) -> Prober<'a> {
+        Prober { probe, seen: BTreeMap::new() }
     }
 
-    /// A prober that answers `yes` to everything without a packet, for tests.
-    pub fn always(yes: bool) -> Prober {
-        Prober {
-            seen: HashMap::new(),
-            fixed: Some(yes),
-        }
-    }
-
-    pub fn ask(&mut self, host: &str) -> Answer {
-        if let Some(y) = self.fixed {
-            return if y {
-                Answer::Https
-            } else {
-                Answer::No("this prober was told to answer no".into())
-            };
-        }
+    pub(crate) fn ask(&mut self, host: &str) -> Answer {
         if let Some(a) = self.seen.get(host) {
             return a.clone();
         }
-        let a = probe(host);
+        let a = self.probe.https(host);
         self.seen.insert(host.to_string(), a.clone());
         a
     }
 
-    /// Every host asked, and what it said, for the report.
-    pub fn asked(&self) -> Vec<(&str, &Answer)> {
-        let mut v: Vec<(&str, &Answer)> = self.seen.iter().map(|(k, a)| (k.as_str(), a)).collect();
-        v.sort_by_key(|(k, _)| *k);
-        v
+    /// Each host asked, and its answer, in the order of the names.
+    pub(crate) fn asked(&self) -> impl Iterator<Item = (&str, &Answer)> {
+        self.seen.iter().map(|(k, a)| (k.as_str(), a))
     }
 }
 
-fn probe(host: &str) -> Answer {
-    let (config, _roots) = podvm_image::tls::client_config();
-    // ⚠ The environment's proxy where it sets one (`podvm_image::net`). An
-    // intercepting proxy is the normal case in the environments podvm is
-    // built for, and ignoring it turns a working mirror into a connect
-    // timeout.
-    let mut net = match Net::from_environment(config) {
-        Ok(n) => n,
-        Err(why) => return Answer::No(why),
-    };
-    let limits = Limits {
-        head: CONNECT.saturating_add(READ),
-        idle: READ,
-    };
-    match net.send("HEAD", &format!("https://{host}/"), &[], true, limits) {
-        Ok(_) => Answer::Https,
-        // ⭐ A status is an answer. The host terminated TLS and replied, which
-        // is the whole question; that it has nothing at `/` is not.
-        Err(Refusal::Status(_)) => Answer::Https,
-        Err(e) => Answer::No(e.to_string()),
+/// Is `host` a DNS name that the crate asks about?
+///
+/// Each label is 1 to 63 letters, digits and `-`, with no `-` at either end,
+/// and the last label is not a number. A host of an address in any form
+/// that a resolver takes (`10.0.0.1`, `127.1`, `0x7f000001`, `2130706433`,
+/// `[::1]`), `localhost` and a name under `.localhost` are not names: a
+/// mirror there is a cache of the caller, and `https://` there is a refused
+/// connection, not a fix.
+pub fn is_name(host: &str) -> bool {
+    let host = host.strip_suffix('.').unwrap_or(host);
+    if host.is_empty() || host.len() > 253 {
+        return false;
     }
+    let lower = host.to_ascii_lowercase();
+    if lower == "localhost" || lower.ends_with(".localhost") {
+        return false;
+    }
+    let labels: Vec<&str> = lower.split('.').collect();
+    let label_ok = |l: &&str| {
+        !l.is_empty()
+            && l.len() <= 63
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+            && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    };
+    if !labels.iter().all(label_ok) {
+        return false;
+    }
+    let last = labels[labels.len() - 1];
+    let hex = last.strip_prefix("0x").is_some_and(|h| h.bytes().all(|b| b.is_ascii_hexdigit()));
+    let first_hex = labels[0].strip_prefix("0x").is_some_and(|h| h.bytes().all(|b| b.is_ascii_hexdigit()));
+    !last.bytes().all(|b| b.is_ascii_digit()) && !hex && !(labels.len() == 1 && first_hex)
 }
 
 #[cfg(test)]
@@ -122,18 +127,62 @@ mod tests {
 
     #[test]
     fn a_fixed_prober_never_touches_the_network() {
-        let mut p = Prober::always(true);
-        assert!(p.ask("deb.debian.org").ok());
-        let mut n = Prober::always(false);
-        assert!(!n.ask("deb.debian.org").ok());
+        let mut yes = Fixed(true);
+        assert!(Prober::new(&mut yes).ask("deb.debian.org").ok());
+        let mut no = Fixed(false);
+        assert!(!Prober::new(&mut no).ask("deb.debian.org").ok());
     }
 
-    /// ⛔ The three states stay three. A `No` carries its reason so the banner
-    /// can say why a file was left alone.
+    /// A no carries its reason, so that the row says why a file stayed.
     #[test]
     fn a_refusal_carries_its_reason() {
         let a = Answer::No("connect timed out".into());
         assert!(!a.ok());
         assert_eq!(a.why(), "connect timed out");
+    }
+
+    /// The probe of the caller is asked one time for each host.
+    #[test]
+    fn each_host_is_asked_one_time() {
+        let mut asked = Vec::new();
+        let mut probe = |h: &str| {
+            asked.push(h.to_string());
+            Answer::Https
+        };
+        let mut p = Prober::new(&mut probe);
+        for h in ["a.example", "b.example", "a.example"] {
+            assert!(p.ask(h).ok());
+        }
+        assert_eq!(p.asked().count(), 2);
+        drop(p);
+        assert_eq!(asked, ["a.example", "b.example"]);
+    }
+
+    #[test]
+    fn only_a_dns_name_is_a_name() {
+        for yes in
+            ["deb.debian.org", "mirror-1.example", "dl-cdn.alpinelinux.org.", "a1.b2.example", "xn--bcher-kva.example"]
+        {
+            assert!(is_name(yes), "{yes}");
+        }
+        for no in [
+            "",
+            "localhost",
+            "repo.localhost",
+            "10.0.0.1",
+            "127.1",
+            "2130706433",
+            "0x7f000001",
+            "0x7f.1",
+            "[::1]",
+            "user@mirror.example",
+            "mirror.example?x",
+            "mirror.example\\@x",
+            "-bad.example",
+            "a..example",
+            "mirror_1.example",
+        ] {
+            assert!(!is_name(no), "{no}");
+        }
     }
 }
