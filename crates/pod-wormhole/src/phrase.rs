@@ -1,5 +1,5 @@
 //! A code: the mailbox's nameplate, then words of the PGP list
-//! (`super::words`), joined by hyphens, as magic-wormhole writes one
+//! ([`crate::words`]), joined by hyphens, as magic-wormhole writes one
 //! (`7-crossover-clockwork-adroitness`). The nameplate is the mailbox's to
 //! see; the words are the secret, 8 bits each, which SPAKE2 takes with the
 //! nameplate as one password. While it lives a code is a credential: no
@@ -7,16 +7,19 @@
 
 use std::fmt;
 
+use pod_core::entropy::{Entropy, NoRandom};
 use zeroize::Zeroizing;
 
-use super::{words, WORDS};
-use crate::session::secret::{Entropy, NoRandom};
+use crate::words;
+
+/// The words of a code after its nameplate: 24 bits, one guess for each.
+pub const WORDS: usize = 3;
 
 /// The longest nameplate taken: the mailbox gives 1 to 3 digits, and up to 6
 /// when 999 are in use.
 pub const NAMEPLATE_MOST: usize = 12;
 /// The most words that a typed code may have: magic-wormhole gives 2 by
-/// default, podssh 3.
+/// default, [`WORDS`] 3.
 pub const WORDS_MOST: usize = 8;
 /// The longest line read as a code.
 pub const TYPED_MOST: usize = 256;
@@ -102,7 +105,7 @@ impl fmt::Debug for Code {
     }
 }
 
-/// Whether `text` is a nameplate that podssh takes: decimal digits, as the
+/// Whether `text` is a nameplate that this crate takes: decimal digits, as the
 /// mailbox gives them.
 pub fn nameplate_ok(text: &str) -> bool {
     !text.is_empty() && text.len() <= NAMEPLATE_MOST && text.bytes().all(|b| b.is_ascii_digit())
@@ -111,6 +114,7 @@ pub fn nameplate_ok(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pod_core::entropy::OsEntropy;
 
     struct Fixed(u8);
 
@@ -128,7 +132,7 @@ mod tests {
         assert_eq!((code.nameplate(), code.words()), ("7", 3));
         assert_eq!(code.password(), b"7-adroitness-aardvark-adroitness");
         assert_eq!(format!("{code:?}"), "Code(7-...)");
-        let random = Code::make("42", &mut crate::session::OsEntropy).unwrap();
+        let random = Code::make("42", &mut OsEntropy).unwrap();
         assert!(random.for_terminal().starts_with("42-") && random.words() == 3);
     }
 

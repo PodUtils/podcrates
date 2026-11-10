@@ -1,16 +1,15 @@
-//! The mailboxes of the tests of the pairing by code (T-086), on the
-//! loopback: magic-wormhole's own mailbox server (magic-wormhole-mailbox-
-//! server, in Python, on Twisted and Autobahn), and podssh's relay role at
-//! `/v1/mailbox` (with the feature `serve`); and a peer of magic-wormhole's
-//! own Python library (`scripts/wormhole-peer.py`). The Python ones are
-//! software that podssh did not write. A host with no Python, or without the
-//! packages, skips them with the reason, unless
-//! `PODSSH_MAILBOX_TEST_SERVER=required`, which a planted run and the
-//! workflow set, so that a skip there is a failure.
+//! The mailboxes of the tests, on the loopback: a stand-in in Rust
+//! ([`stand_in`]), magic-wormhole's own mailbox server (magic-wormhole-
+//! mailbox-server, in Python, on Twisted and Autobahn), and a peer of
+//! magic-wormhole's own Python library (`wormhole-peer.py`). The Python ones
+//! are software that this crate did not write. A host with no Python, or
+//! without the packages, skips them with the reason, unless
+//! `POD_WORMHOLE_TEST_SERVER=required`, which a workflow sets, so that a
+//! skip there is a failure.
 //!
 //!   python3 -m pip install magic-wormhole-mailbox-server magic-wormhole
 //!
-//! `PODSSH_MAILBOX_TEST_PYTHON` names the interpreter (a virtualenv's).
+//! `POD_WORMHOLE_TEST_PYTHON` names the interpreter (a virtualenv's).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -22,18 +21,21 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use podssh_ws::url::WsUrl;
+use pod_wormhole::Config;
+use pod_ws::url::WsUrl;
+
+pub mod stand_in;
 
 /// How long a server may take to listen, and a peer to say a line.
 pub const LIMIT: Duration = Duration::from_secs(60);
 
 /// What the Python of this host can run.
 fn required() -> bool {
-    std::env::var("PODSSH_MAILBOX_TEST_SERVER").is_ok_and(|v| v == "required")
+    std::env::var("POD_WORMHOLE_TEST_SERVER").is_ok_and(|v| v == "required")
 }
 
 fn pythons() -> Vec<String> {
-    match std::env::var("PODSSH_MAILBOX_TEST_PYTHON") {
+    match std::env::var("POD_WORMHOLE_TEST_PYTHON") {
         Ok(named) if !named.trim().is_empty() => vec![named],
         _ => vec!["python3".into(), "python".into()],
     }
@@ -55,7 +57,7 @@ pub fn python(modules: &str, package: &str) -> Option<String> {
     let found = pythons().into_iter().find(|p| imports(p, modules));
     if found.is_none() {
         let why = format!("no Python with {package} here (pip install {package})");
-        assert!(!required(), "PODSSH_MAILBOX_TEST_SERVER=required: {why}");
+        assert!(!required(), "POD_WORMHOLE_TEST_SERVER=required: {why}");
         eprintln!("did not run: {why}");
     }
     found
@@ -71,9 +73,33 @@ pub fn nobody_there() -> WsUrl {
     WsUrl::parse(&format!("ws://127.0.0.1:{}/v1", free_port())).unwrap()
 }
 
-/// The repository's `scripts/`.
+/// The directory of the peer's script.
 fn scripts() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scripts")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests")
+}
+
+/// The AppID of the tests.
+pub const APPID: &str = "example.org/pod-wormhole/test";
+
+/// The way of the tests: a direct dial and TLS on ring.
+pub fn way() -> pod_ws::Way {
+    use std::sync::Arc;
+
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let tls = Arc::new(pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("pod-wormhole"))));
+    let settings = pod_proxy::Settings::new("pod-wormhole", pod_proxy::ProxyChoice::Direct);
+    let dial = pod_proxy::Dialer::new(settings, Arc::new(pod_proxy::resolve::System::new()));
+    pod_ws::Way::new(tls, Arc::new(dial), "pod-wormhole/test")
+}
+
+/// The settings of the tests for `appid`.
+pub fn config_for(appid: &str) -> Config {
+    Config::new(appid, "pod-wormhole-test", "0.0.0", way())
+}
+
+/// The settings of the tests for [`APPID`].
+pub fn config() -> Config {
+    config_for(APPID)
 }
 
 /// magic-wormhole's mailbox server, listening on the loopback.
@@ -82,15 +108,15 @@ pub struct Server {
     /// Its WebSocket, `ws://127.0.0.1:PORT/v1`.
     pub url: WsUrl,
     log: PathBuf,
+    dir: PathBuf,
 }
 
 impl Server {
     /// The server; `None` when this host cannot run it.
     pub fn start(tag: &str) -> Option<Server> {
         let python = python("wormhole_mailbox_server, autobahn, twisted", "magic-wormhole-mailbox-server")?;
-        let dir = std::env::temp_dir().join(format!("podssh-mailbox-{}-{tag}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pod-wormhole-mailbox-{}-{tag}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("a scratch directory");
-        crate::cleanup::at_test_end(&dir);
         let log = dir.join("server.log");
         let port = free_port();
         // `python -m twisted` is `twist`, which runs the plugin in the
@@ -105,7 +131,7 @@ impl Server {
             .stderr(std::fs::File::create(dir.join("server.err")).expect("the log of errors"))
             .spawn()
             .expect("the mailbox server starts");
-        let server = Server { child, url: WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1")).unwrap(), log };
+        let server = Server { child, url: WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1")).unwrap(), log, dir };
         let at = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
         let deadline = Instant::now() + LIMIT;
         while TcpStream::connect_timeout(&at, Duration::from_millis(200)).is_err() {
@@ -127,51 +153,27 @@ impl Drop for Server {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+        let _ = std::fs::remove_dir_all(&self.dir);
     }
 }
 
-/// podssh's relay role on a free port of the loopback, served in this
-/// runtime, over plain TCP: its mailbox's URL.
-#[cfg(feature = "serve")]
-pub async fn role() -> WsUrl {
-    use std::sync::Arc;
-
-    use podssh_relay::serve::{self, Config, Limits, Mint};
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
-    let port = listener.local_addr().unwrap().port();
-    let cfg = Arc::new(Config {
-        version: "podssh test".into(),
-        mint: Mint::Nobody,
-        tokens: serve::tokens::Tokens::new([5; 32]),
-        policy: Default::default(),
-        egress: Default::default(),
-        limits: Limits::default(),
-        pairs: Default::default(),
-        resumes: Default::default(),
-        answered: Default::default(),
-        brake: Default::default(),
-        usage: Default::default(),
-        events: None,
-    });
-    tokio::spawn(async move {
-        while let Ok((tcp, peer)) = listener.accept().await {
-            tokio::spawn(serve::serve_from(tcp, cfg.clone(), None, Some(peer.ip())));
-        }
-    });
-    WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1/mailbox")).unwrap()
-}
-
-/// Each mailbox that this host can run for a test: podssh's role, and
-/// magic-wormhole's server, by name, with what keeps the server running.
-pub async fn mailboxes(tag: &str) -> Vec<(&'static str, WsUrl, Option<Server>)> {
+/// Each mailbox that this host can run for a test: the stand-in, and
+/// magic-wormhole's server, by name, with what keeps each running.
+pub async fn mailboxes(tag: &str) -> Vec<(&'static str, WsUrl, Keep)> {
     let mut all = Vec::new();
-    #[cfg(feature = "serve")]
-    all.push(("podssh's relay role", role().await, None));
+    let stand = stand_in::start().await;
+    all.push(("the stand-in", stand.url.clone(), Keep::Stand(stand)));
     if let Some(server) = Server::start(tag) {
-        all.push(("magic-wormhole's mailbox server", server.url.clone(), Some(server)));
+        all.push(("magic-wormhole's mailbox server", server.url.clone(), Keep::Python(server)));
     }
     all
+}
+
+/// What keeps a mailbox running while a test uses it.
+#[allow(dead_code)]
+pub enum Keep {
+    Stand(stand_in::Stand),
+    Python(Server),
 }
 
 /// A peer of magic-wormhole's Python library, which says a line for each

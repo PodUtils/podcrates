@@ -1,8 +1,37 @@
 [package]
 name = "pod-wormhole"
-description = "The mailbox client of magic-wormhole, SPAKE2 and the code words."
+description = "The client of a magic-wormhole mailbox: its server protocol over a WebSocket, SPAKE2 keyed by a code of words, the sealed phases of the client protocol, and the code and its word list; the AppID and the client name are the caller's."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[dependencies]
+# The failure with its stage and class, the events, the entropy, the text
+# made safe to print.
+pod-core = { workspace = true, features = ["async"] }
+# The WebSocket to the mailbox, through the caller's way out.
+pod-ws = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+serde_json = { workspace = true }
+# Pure Rust, no C. SPAKE2 of the RustCrypto PAKEs, on the curve25519-dalek 4
+# that magic-wormhole's Rust port interoperates with; its scalar is drawn
+# from rand_core 0.6.
+spake2 = { version = "0.4", default-features = false }
+rand_core_06 = { package = "rand_core", version = "0.6", default-features = false }
+# NaCl's SecretBox (XSalsa20 and Poly1305).
+crypto_secretbox = { version = "0.1", default-features = false, features = ["alloc", "salsa20"] }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# The way of the tests: a direct dial and TLS on ring.
+pod-proxy = { workspace = true }
+pod-tls = { workspace = true }
+rustls = { workspace = true, features = ["ring"] }
+# The public mailboxes of the live test.
+pod-services = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }

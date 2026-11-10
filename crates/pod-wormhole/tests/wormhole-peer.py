@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A peer of magic-wormhole's own Python library, for the tests of the
-pairing by a short code (T-086): software that podssh did not write.
+rendezvous by a short code: software that this crate did not write.
 
     wormhole-peer.py URL APPID give
     wormhole-peer.py URL APPID take    (the code on one line of stdin)
@@ -29,7 +29,7 @@ def say(*words):
 
 @defer.inlineCallbacks
 def main(reactor, url, appid, mode):
-    w = wormhole.create(appid, url, reactor, versions={"podssh-test": 1})
+    w = wormhole.create(appid, url, reactor, versions={"pod-wormhole-test": 1})
     if mode == "give":
         w.allocate_code(3)
         code = yield w.get_code()

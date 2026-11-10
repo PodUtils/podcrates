@@ -1,7 +1,7 @@
 //! The client protocol of magic-wormhole over a mailbox
 //! (magic-wormhole/magic-wormhole-protocols:client-protocol.md, as its
 //! Python library's `_key.py` speaks it), so that a peer of that library and
-//! podssh's meet. Each end adds its `pake` phase, `{"pake_v1": HEX}` of
+//! the caller's meet. Each end adds its `pake` phase, `{"pake_v1": HEX}` of
 //! SPAKE2's symmetric message keyed by the whole code, with the AppID as its
 //! identity; the two give a key of 32 bytes. Each later phase is sealed in
 //! NaCl's SecretBox, a random nonce before it, under the key of
@@ -18,20 +18,25 @@ use std::time::Duration;
 use crypto_secretbox::aead::{Aead, KeyInit};
 use crypto_secretbox::{Key, Nonce, XSalsa20Poly1305};
 use hkdf::Hkdf;
-use serde_json::{json, Value};
+use pod_core::entropy::{Entropy, OsEntropy};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use spake2::{Ed25519Group, Identity as SpakeIdentity, Password, Spake2};
 use tokio::time::Instant;
 use zeroize::Zeroizing;
 
-use super::mailbox::{Mailbox, Message, Mood};
-use super::{hex, unhex, Code, Failed, APPID};
-use crate::session::secret::{Entropy, OsEntropy};
+use crate::mailbox::{Mailbox, Message, Mood};
+use crate::message::{hex, pake_of};
+use crate::{Code, Failed};
 
 /// The bytes of SecretBox's nonce, before each sealed message.
 pub const NONCE: usize = 24;
 /// The bytes of its tag.
 pub const TAG: usize = 16;
+/// The most messages held for a phase that is not asked for yet: the server
+/// of magic-wormhole keeps 32 for one mailbox, so a mailbox that sends more
+/// is no honest one.
+pub const HELD_MOST: usize = 256;
 /// The label of the key of each phase.
 const PHASE_LABEL: &[u8] = b"wormhole:phase:";
 
@@ -71,7 +76,7 @@ impl Wormhole {
     ) -> Result<Wormhole, Failed> {
         let mut entropy = OsEntropy;
         let mut rng = Drawn { entropy: &mut entropy, failed: false };
-        let (password, identity) = (Password::new(code.password()), SpakeIdentity::new(APPID.as_bytes()));
+        let (password, identity) = (Password::new(code.password()), SpakeIdentity::new(mailbox.appid().as_bytes()));
         let (spake, outbound) = Spake2::<Ed25519Group>::start_symmetric_with_rng(&password, &identity, &mut rng);
         if rng.failed {
             mailbox.end().await;
@@ -117,6 +122,9 @@ impl Wormhole {
             if message.phase == "pake" {
                 self.peer = Some(message.side);
                 break message.body;
+            }
+            if self.held.len() >= HELD_MOST {
+                return Err(self.overfull().await);
             }
             self.held.push(message);
         };
@@ -197,6 +205,13 @@ impl Wormhole {
         failed
     }
 
+    /// The mailbox sent more than [`HELD_MOST`] messages that no phase asked
+    /// for: the exchange ends.
+    async fn overfull(&mut self) -> Failed {
+        let why = format!("the mailbox {} sent more than {HELD_MOST} messages that were not asked for", self.shown());
+        self.fail(Mood::Errory, Failed::Broken(why)).await
+    }
+
     async fn add_sealed(&mut self, phase: &str, plain: &[u8]) -> Result<(), Failed> {
         let Some(key) = self.key.as_ref() else { return Err(Failed::Broken("no key was agreed".into())) };
         let sealed = seal(&phase_key(key, &self.side, phase), plain)?;
@@ -228,16 +243,13 @@ impl Wormhole {
                 return Ok(Some(message.body));
             }
             if !self.held.iter().any(|m| m.side == peer && m.phase == message.phase) {
+                if self.held.len() >= HELD_MOST {
+                    return Err(self.overfull().await);
+                }
                 self.held.push(message);
             }
         }
     }
-}
-
-/// The SPAKE2 message of a `pake` phase's body.
-fn pake_of(body: &[u8]) -> Option<Vec<u8>> {
-    let value: Value = serde_json::from_slice(body).ok()?;
-    unhex(value["pake_v1"].as_str()?)
 }
 
 /// The key of `phase` as `side` seals it, as magic-wormhole's
@@ -273,7 +285,7 @@ pub fn open_sealed(key: &[u8; 32], body: &[u8]) -> Option<Vec<u8>> {
     XSalsa20Poly1305::new(Key::from_slice(key)).decrypt(Nonce::from_slice(nonce), sealed).ok()
 }
 
-/// rand_core 0.6's traits over podssh's own source, for SPAKE2's scalar: a
+/// rand_core 0.6's traits over the entropy of pod-core, for SPAKE2's scalar: a
 /// draw that fails is marked, and the run that made it stops.
 struct Drawn<'a> {
     entropy: &'a mut dyn Entropy,
@@ -311,10 +323,10 @@ impl rand_core_06::CryptoRng for Drawn<'_> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::secret::NoRandom;
+    use pod_core::entropy::NoRandom;
 
     // Computed with Python's hmac and hashlib (HKDF by RFC 5869 written out,
-    // with magic-wormhole's purpose), software that podssh did not write.
+    // with magic-wormhole's purpose), software that this crate did not write.
     const VERSION_KEY: &str = "65187c8822d10970289e2eaa1eb623d7c90d0ff2af2507fcdac4f1a08bf13fa9";
     const PHASE_0_KEY: &str = "0943da0b4118c8a69cffd544d1d6a3f4e1ed03d98051724095b4d794a8ed69c5";
     const OTHER_SIDE_KEY: &str = "83dc867fb920adfca223cf78e4b15dbf2ad019afc25f3976175069bd1f893225";
@@ -340,6 +352,8 @@ mod tests {
         assert_eq!(open_sealed(&key, &sealed[..NONCE + TAG - 1]), None, "cut short");
         assert_ne!(seal(&key, b"x").unwrap()[..NONCE], seal(&key, b"x").unwrap()[..NONCE], "a nonce of its own");
     }
+
+    const APPID: &str = "example.org/app/test";
 
     fn start(code: &str, entropy: &mut dyn Entropy) -> (Spake2<Ed25519Group>, Vec<u8>, bool) {
         let mut rng = Drawn { entropy, failed: false };
@@ -374,12 +388,5 @@ mod tests {
         assert!(failed);
         let (_, _, failed) = start("7-a-b", &mut OsEntropy);
         assert!(!failed);
-    }
-
-    #[test]
-    fn a_pake_body_is_read_as_magic_wormhole_writes_it() {
-        assert_eq!(pake_of(br#"{"pake_v1": "53ab"}"#), Some(vec![0x53, 0xab]));
-        assert_eq!(pake_of(br#"{"pake_v2": "53ab"}"#), None);
-        assert_eq!(pake_of(b"not json"), None);
     }
 }

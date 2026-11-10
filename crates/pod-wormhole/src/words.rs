@@ -72,11 +72,7 @@ pub const ODD: [&str; 256] = [
 
 /// The list of the `at`th word of a code, from 0: odd words first.
 pub fn list(at: usize) -> &'static [&'static str; 256] {
-    if at.is_multiple_of(2) {
-        &ODD
-    } else {
-        &EVEN
-    }
+    if at.is_multiple_of(2) { &ODD } else { &EVEN }
 }
 
 /// The `at`th word of a code for `byte`.
