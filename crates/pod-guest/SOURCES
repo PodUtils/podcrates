@@ -3,6 +3,7 @@
 # with the default branch of its repository.
 
 repo PodUtils/podvm 6cd3442d2b742adb4869b042abfffa70084f355f
+taken 423e8177ec9b604f46dfb48d66fbb231f31c8a30
 dir crates/podvm-windows/src
 # Of lib.rs and scratch.rs a part stays in podvm: cap_status (docker's
 # 0 to 124 rule) and base_cache (the cache paths of podvm and its

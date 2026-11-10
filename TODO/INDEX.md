@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**136 entries: 54 open, 5 partial, 0 blocked, 77 done.**
+**138 entries: 56 open, 3 partial, 0 blocked, 79 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 28 | 51 |
-| P2 | 25 | 4 | 0 | 36 | 65 |
-| P3 | 6 | 1 | 0 | 11 | 18 |
-| **All** | 54 | 5 | 0 | 77 | 136 |
+| P2 | 25 | 2 | 0 | 38 | 65 |
+| P3 | 8 | 1 | 0 | 11 | 20 |
+| **All** | 56 | 3 | 0 | 79 | 138 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -105,9 +105,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-056](podvm.md) | P2 | M | M6 | feature | partial | `pod-oci`: the OCI registry client of podvm |
 | [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
-| [T-059](podvm.md) | P2 | M | M6 | feature | partial | `pod-enter`: the entry of a payload |
+| [T-059](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: the entry of a payload |
 | [T-060](podvm.md) | P2 | M | M6 | feature | done | `pod-supervise`: detached payloads |
-| [T-061](podvm.md) | P2 | M | M6 | feature | partial | `pod-guest`: a disposable QEMU guest |
+| [T-061](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: a disposable QEMU guest |
 | [T-062](podvm.md) | P3 | L | M7 | research | open | The studies of the crates of the widened scope of podvm |
 | [T-063](transport.md) | P2 | M | M1 | feature | done | The synchronous face for podvm: `pod-tls` with no tokio, a blocking `pod-proxy` |
 | [T-064](foundation.md) | P1 | S | M0 | defect | done | `watch-org.sh` reads no repository but the last on Windows (PodUtils/podvm#195) |
@@ -183,3 +183,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
 | [T-135](transport.md) | P3 | S | M1 | feature | done | `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178) |
 | [T-136](podvm.md) | P2 | S | M6 | chore | done | Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer |
+| [T-137](podvm.md) | P3 | S | M6 | chore | open | `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220) |
+| [T-138](podvm.md) | P3 | M | M6 | chore | open | `pod-guest`: the run of a real guest in CI |

@@ -313,7 +313,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -424,6 +424,13 @@ Remains:
   Then the `taken` line in `SOURCES`.
 - An entry over a real FUSE session, on a host with `/dev/fuse` and a
   granted mount.
+
+podvm took the crate in podvm `423e817` (PodUtils/podvm#220): it applied
+`pod-guest.patch` and then `pod-enter.patch` of `v0.9.0` at podvm `e37decf`
+with `git apply --3way`; the code applied clean, three conflicts of
+podvm's record were joined by hand; each line of the `.run` exited 0. The
+`SOURCES` of the crate has `taken 423e817`; `check-sources.py` reads 28
+files, 0 changes. podvm's notes on the crate are T-137.
 
 # T-060: `pod-supervise`: detached payloads
 
@@ -557,7 +564,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -659,6 +666,12 @@ Remains:
   `taken` line in `SOURCES`.
 - A run of a real guest under KVM or TCG in CI, where QEMU and a base
   image are present.
+
+podvm took the crate in podvm `423e817` (PodUtils/podvm#220), after the
+patch of `pod-enter`'s neighbour `pod-guest.patch` applied clean at podvm
+`e37decf`; each line of the `.run` exited 0. The `SOURCES` of the crate has
+`taken 423e817`; `check-sources.py` reads 12 files, 0 changes. The run of a
+real guest in CI is T-138.
 
 # T-062: The studies of the crates of the widened scope of podvm
 
@@ -1098,3 +1111,80 @@ sh scripts/adoption.sh podvm pod-enter
 2026-11-09. Commit: the commit that names T-136. `cargo test -p pod-enter`
 passes. `check-sources.py` reads `pod-enter` at `284f429`: 28 files, 0
 changes. The trial of `pod-enter` is made again on podvm `cb57d4b` (T-059).
+
+# T-137: `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220)
+
+**Source:** PodUtils/podvm#220 (COORD-014 of podvm; PodUtils/podvm@T-1649, PodUtils/podvm@T-1650, podvm `e37decf`)
+**Category:** chore
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm now routes a top-level `#!` payload to its interpreter inside the
+rootfs (PodUtils/podvm@T-1649). Four texts and helpers of `pod-enter`
+follow the old behaviour: the module text of `src/userland.rs` says that
+scripts are refused; `ScriptRefusal::message` of `src/memfd.rs` and its
+comment are stale (podvm reads only `.shebang`); `ladder::guest_exe`
+returns the resolved path, while the kernel passes the unresolved join of
+`PATH` as `$0`; `abi::interp_of` answers "static" when a program header
+lies past the bytes, which is right for a whole file and wrong for a head
+of a file (podvm's `complete/capability.rs` keeps its own bounded scan).
+
+## Premise
+
+- Read: the notes of PodUtils/podvm#220.
+- Not read: the code of podvm at `e37decf`.
+
+## Approach
+
+Correct the two texts. Add `shebang_parts(bytes) -> Option<(String,
+Option<String>)>`, so that podvm and its interposer stop keeping their own
+parsers of `#!`; `guest_invoked(rootfs, argv0, path_dirs)` that gives the
+`$0` the kernel would give; a variant of `interp_of` that is safe on the
+head of a file (it says "unknown" when a header lies past the bytes). A
+test for each. Tell podvm in the hand-off of the release.
+
+## Prove
+
+```sh
+cargo test -p pod-enter
+```
+
+# T-138: `pod-guest`: the run of a real guest in CI
+
+**Source:** T-061 (its remaining clause); the owner's ruling KVM of 2026-11-09
+**Category:** chore
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The test of `pod-guest` with a real emulator (`qemu-system-x86_64 -M none
+-accel tcg`, over QMP) skips where QEMU is absent, so no real guest has
+run in CI. The owner lifted the KVM deferral (2026-11-09).
+
+## Premise
+
+- Read: the guarded test of `pod-guest`; the runners of GitHub (ubuntu has
+  `/dev/kvm` on the larger runners only).
+- Not measured: a run.
+
+## Approach
+
+A job that installs QEMU on an ubuntu runner and runs the guarded tests of
+`pod-guest` (TCG; KVM where `/dev/kvm` exists), with a timeout on each
+guest, one guest at a time, and a check that no emulator stays. A dispatch
+of it gives the run id.
+
+## Prove
+
+```sh
+cargo test -p pod-guest
+```
+
+The run id of the dispatched job goes in the Done section.
