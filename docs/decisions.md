@@ -54,6 +54,7 @@ form of the rulings that apply to each session.
 | 2026-11-10 | Findings | "whenever some flaw/nitpick/bug is found, if it is small, fix it right then & there otherwise file a proper entry as a followup task, and not just print it in chat and lose it". No "suggested task" card (`spawn_task`). Each subagent brief carries the rule (`AGENTS.md`, section 10). |
 | 2026-11-10 | CI tracker | "leave https://github.com/PodUtils/podcrates/issues/47 alone for now": T-146 and the questions Q8 to Q14 wait; no work on the plan of #47 until the owner names it. |
 | 2026-11-10 | podvm paused | "do not resume podvm, if you need to tell it anything use the issues, but you will not be responded; podvm has been shut down so work on podssh/podnet can finish up quicker". No session of podvm runs: podcrates writes to podvm only by a COORD issue `(to podvm)` and expects no answer. The work of podssh and podnet comes before each entry that only podvm needs (T-142, T-149, T-155, M7). |
+| 2026-11-10 | podvm online | "podvm is online again, but can not be messaged directly, use the COORD style". podcrates writes to podvm only by a COORD issue of podcrates titled `(to podvm)`, which podvm's watcher reads; no direct message. The entries of podvm return to their place in the work order (it supersedes the order of "podvm paused"). |
 
 ## Calls made without a ruling
 
