@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 159 entries: 56 open, 2 partial, 0 blocked, 101 done.
+`TODO/INDEX.md` holds 159 entries: 55 open, 3 partial, 0 blocked, 101 done.
 
 ## State
 
@@ -25,6 +25,13 @@
   `quick/quic.rs`, `quick/probe.rs` and podnet's `src/warp/quic.rs` take
   fixes only (`crates/pod-quic/SOURCES`). podnet fixed the lost wake-up of its
   WARP socket itself (T-159, podnet `1d556fb`).
+- M2: `pod-wormhole` exists (T-022 partial, call C45): the mailbox client,
+  SPAKE2, the sealed phases and the code words, with the AppID and the
+  client name as a `Config`. The trial of podssh (`f9113862`, after the
+  patch of `pod-quic`) passes and names `v0.15.0`. The release and the take
+  remain; from the import, podssh's `code/{mailbox,wormhole,phrase,words}.rs`
+  take fixes only (`crates/pod-wormhole/SOURCES`). The exchange goes to
+  `pod-relay` (T-024).
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 and T-150 (PodUtils/podnet#413).
@@ -57,7 +64,7 @@ issue, with no answer expected.
 2. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 3. **M2, the relay:** T-019 (partial: the takes of podssh and podnet;
-   the podnet patch again when podnet `1d556fb` reaches its `main`); T-020, T-021, T-022, T-023, T-024,
+   the podnet patch again when podnet `1d556fb` reaches its `main`); T-020, T-021, T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 4. **M3, the adapters:** T-027, T-028, T-029, T-030.
 5. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
@@ -76,7 +83,7 @@ issue, with no answer expected.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C44), and the work goes on with it until the owner rules otherwise.
+C45), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

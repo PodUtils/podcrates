@@ -267,7 +267,7 @@ T-020 is done.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -296,6 +296,79 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-016 is done.
+
+## Done
+
+2026-11-10, partial: the release `v0.15.0` and the take of podssh remain
+(podnet takes the crate with T-102; the exchange goes to `pod-relay`,
+T-024). Commits `22850e3` (the import of podssh `code/` at `c5636c9`
+with `SOURCES`), `bb631ec` (the adaptation and the tests), `074b798` (the
+fuzz target), `922b1b9` (the static probe, the row of `docs/design.md`,
+call C45), `836a93f` (README), `93dce3c` (the plants), `d38b8e2` (the
+trial), and the commit of this record.
+
+- API: `Config` (the AppID, the client's name and version, the `pod_ws::Way`,
+  the trust, the bounds, the events), `Mailbox` (the server protocol of
+  version 1 over a `pod-ws` WebSocket), `Wormhole` (SPAKE2 keyed by the
+  whole code, the sealed phases), `meet::{Ends, opened, joined}` (the
+  giver's new code, the taker's search over a list of mailboxes), `Code` and
+  the PGP words, `message` (the pure reading of a mailbox's messages),
+  `Failed` (each variant a `pod_core::Failure` at `Stage::Rendezvous`). The
+  crate depends on `pod-core` and `pod-ws`, and not on `pod-identity` (C45);
+  pure Rust, no feature; 8 source files, each under 400 lines.
+- Cut: podssh keeps `APPID`, `ENV`, `LIFETIME`, `mailboxes`,
+  `mailboxes_for`, `public_mailboxes`, `Say`, the flag `--pair-mailbox` and
+  `exchange.rs` with the rest of `run.rs` (`give`, `take`, `give_with`,
+  `take_with`; they go to `pod-relay`, T-024) until then; its `code::config`
+  builds the `Config`. podnet has no wormhole code: its transfer (T-102)
+  takes the crate.
+- Defects: a mailbox could make the client keep an unbounded number of
+  messages (the answers' wait kept each message that came meanwhile; the
+  wormhole held each message of a phase not asked for): both are bounded at
+  256 now (`a_flood_of_messages_while_a_command_waits_is_broken_not_kept`,
+  `a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange`; plant
+  `wormhole-held-unbounded`). The frames of a mailbox took the 16 MiB of the
+  relay's limits; they are 256 KiB and 1 MiB now (`Config::limits`). A
+  command with no answer within 300 ms said `within 0 s`; it names the limit
+  with its fraction. `Failed::Nobody` said node in a crate that is no
+  podssh's pairing; it says giver. A frame, a message and a `pake` body had
+  no test of their own and no fuzz target: `message` has 5 tests and the
+  target `mailbox_message`. The stand-in mailbox found that magic-wormhole's
+  server counts a side that released a nameplate as one of its two until
+  the nameplate is free; `a_third_end_is_refused_while_two_hold_the_code`
+  passes on both. spake2 0.4 keeps hkdf 0.12, sha2 0.10 and rand_core 0.6
+  in the tree beside the 0.13, 0.11 and 0.10 of the workspace (`cargo deny`
+  warns, as podssh's lock did); no newer spake2 exists.
+- Tests: 45 and 1 live (`#[ignore]`, each public mailbox of `pod-services`).
+  20 unit tests: 17 of the source with their names (the test of the public
+  mailboxes of `mod.rs` and `a_code_lives_10_minutes_*` of `run.rs` stay in
+  podssh), 3 new. 14 of `tests/mailbox.rs`: the wormhole over a stand-in
+  mailbox in Rust and over magic-wormhole's own mailbox server, with a peer
+  of its Python library giving and taking the code; 4 of them are tests of
+  `pair_code.rs` that run no exchange (the three tests of the Python
+  library lose the word podssh in their names), 10 are new. 11 of
+  `tests/faults.rs`: a scripted mailbox that goes wrong. With
+  `POD_WORMHOLE_TEST_SERVER=required` and a virtualenv with
+  `magic-wormhole-mailbox-server` and `magic-wormhole`, none is skipped. The
+  tests of `pair_code.rs` that run an exchange go with `run.rs` to
+  `pod-relay`. The same tests pass as i686 musl binaries and, under
+  qemu-user (`QEMU_LD_PREFIX=/`), as aarch64 musl binaries (static). The
+  plants `wormhole-version-unchecked` and `wormhole-held-unbounded` are
+  caught. The fuzz target `mailbox_message` passes the stable test of
+  `fuzz/`.
+- Trial: podssh at `f9113862`, after the patch of `pod-quic`
+  (`adoption/podssh/pod-wormhole.needs`; 15 files, 60 lines in, 250 out;
+  the four modules leave `podssh-relay`, and `spake2`, `crypto_secretbox`
+  and `rand_core` leave its manifest): each step of `sh scripts/adoption.sh
+  podssh pod-wormhole` passed, with 564 lib tests, `pair_code` (10 tests,
+  Python skipped), 1,071 lib tests of `podssh-cli`, `net_invite`,
+  `relay_code` and `relay_code_role`, and the static check of the musl
+  binary. The plant `t086-version-unchecked` moves to podcrates.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  paths, the static probes, the tests); `cargo deny check`; `python3 -I
+  scripts/check-sources.py` on `pod-wormhole` (podssh 10 files, 0 changes);
+  `python3 -I scripts/check-probe.py`; `python3 -I
+  scripts/check-design-paths.py`.
 
 # T-023: `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14
 
