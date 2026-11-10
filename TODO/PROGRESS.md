@@ -4,12 +4,12 @@
 
 ## State
 
-- Released: `v0.13.0` at `947603a` (CI 42797326140, nightly 42797327113,
-  release 42802815017): `pod-ws`. COORD-024 (GitHub #49) hands it to
-  podssh and podnet. podnet (`5eace6e`, PodUtils/podnet#420) and
-  podssh (`a083593e`, PodUtils/podssh#184) took it; podvm is on `v0.12.0`
-  (`5e5629a`, PodUtils/podvm#226). Open: T-131
-  (`pod-gsr` on Windows ARM64), T-149 (qemu-user only).
+- Released: `v0.14.0` at `c8e2fae` (CI 42820376444, nightly 42820376880,
+  release 42833358262): `pod-quic` on noq, `pod-services-watch`, the
+  services `serveo`, `ssh-j` and `croc`, one bound of the timed tests.
+  COORD-025 (GitHub #50) hands `pod-quic` to podssh and podnet. podssh
+  and podnet are on `v0.13.0`, podvm on `v0.12.0`. Open: T-131 (`pod-gsr`
+  on Windows ARM64), T-149 (qemu-user only).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
   (`20ea781`), `pod-extract` and `pod-rootfs` (`0682c0c`,
@@ -56,7 +56,7 @@ first; the asks of cfb and githome (M8) wait.
    trials of podvm) goes with each import.
 3. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-019 (partial: the release `v0.14.0`, the takes;
+4. **M2, the relay:** T-019 (partial: the takes of podssh and podnet;
    the podnet patch again when podnet `1d556fb` reaches its `main`); T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
