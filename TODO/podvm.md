@@ -471,8 +471,7 @@ Remains:
 - The release that carries the crate, then podvm's take of the patch,
   after `pod-oci.patch` and `pod-extract.patch`. Then the `taken` line in
   `SOURCES`. The patch names `v0.11.0`: a new crate is a new public API
-  (`docs/design.md`, section 10). When the release is `v0.10.1`, each tag
-  line of the patch takes that tag.
+  (`docs/design.md`, section 10).
 - The eleven defects stay in `PodUtils/podvm:crates/podvm-complete` until
   the take: the take fixes them.
 
