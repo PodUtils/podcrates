@@ -2689,7 +2689,7 @@ cargo run -q -p pod-services-watch -- --kind proxy-banner
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2702,8 +2702,8 @@ bridge carries a session to the pool.
 ## Premise
 
 - Measured: run 42806121501 of `services.yml` (one upgrade, 403).
-- Not read: the first index of `relay` in croc's `src/webrelay/webrelay.go`
-  at v11.6.4 (0 or 1).
+- Read: croc v11.6.4 `src/webrelay/webrelay.go`: `strconv.Atoi` of the
+  query `relay`, `0 <= index < len(relayHosts)`: the index is 0-based.
 
 ## Approach
 
@@ -2722,3 +2722,12 @@ cargo test -p pod-services-watch --test watches -- ws::
 cargo run -q -p pod-services-watch -- --service croc
 ```
 
+## Done
+
+2026-11-10. Commit: the commit that names T-158. The simplest of the two
+approaches, with no new argument: an endpoint `bridge-relay-0` of `croc`
+with the path `/ws?relay=0&port=9009`, which the watch upgrades (the
+endpoint `bridge` stays the address of podssh's client). `cargo test -p
+pod-services -p pod-services-watch` passes; `cargo run -p
+pod-services-watch -- --service croc` here: "holds croc websocket-upgrade:
+wss://getcroc.com:443/ws?relay=0&port=9009 upgraded".

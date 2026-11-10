@@ -225,7 +225,7 @@ let relay = services.of_kind("relay").next();
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | |
-| `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`) | `relays`, `relay-port`, `password` (croc's public default) |
+| `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |

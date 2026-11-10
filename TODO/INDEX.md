@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**158 entries: 59 open, 2 partial, 0 blocked, 97 done.**
+**158 entries: 58 open, 2 partial, 0 blocked, 98 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 20 | 1 | 0 | 34 | 55 |
-| P2 | 28 | 1 | 0 | 46 | 75 |
+| P2 | 27 | 1 | 0 | 47 | 75 |
 | P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 59 | 2 | 0 | 97 | 158 |
+| **All** | 58 | 2 | 0 | 98 | 158 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -204,4 +204,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-155](podvm.md) | P3 | S | M6 | feature | open | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
 | [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
-| [T-158](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |
+| [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |

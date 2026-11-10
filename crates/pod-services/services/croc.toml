@@ -32,6 +32,16 @@ name = "password"
 value = "pass123"
 source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/models/constants.go DEFAULT_PASSPHRASE" }
 
+# The bridge to the first relay of the pool: the index is 0-based, and an
+# upgrade with no relay gets 403. The watch upgrades here.
+[[endpoint]]
+name = "bridge-relay-0"
+scheme = "wss"
+host = "getcroc.com"
+port = 443
+path = "/ws?relay=0&port=9009"
+source = { url = "https://github.com/schollz/croc", read = 2026-11-10, note = "v11.6.4 src/webrelay/webrelay.go: strconv.Atoi(query relay), 0 <= index < len(relayHosts), else 403 \"relay index is not allowed\"" }
+
 [[watch]]
 kind = "websocket-upgrade"
-endpoint = "bridge"
+endpoint = "bridge-relay-0"
