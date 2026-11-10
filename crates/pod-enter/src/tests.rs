@@ -220,7 +220,10 @@ fn a_missing_workdir_in_a_volume_names_the_volume() {
     let maps = Maps::new(&Names::DEFAULT, dir.join("rootfs").to_str().unwrap(), &[volume]).unwrap();
     assert!(check_workdir(&maps, "/data/there", "img").is_ok());
     let text = format!("{}", check_workdir(&maps, "/data/gone", "img").unwrap_err());
-    assert!(text.contains(&format!("in the volume {host}:/data is not a directory in the volume")), "{text}");
+    // The message cuts each side of the volume to 64 bytes: a long
+    // temporary directory gives a cut host.
+    let shown = if host.len() > 64 { format!("{}...", &host[..host.floor_char_boundary(64)]) } else { host.clone() };
+    assert!(text.contains(&format!("in the volume {shown}:/data is not a directory in the volume")), "{text}");
     assert!(!text.contains("img"), "{text}");
     let text = format!("{}", check_workdir(&maps, "/data/../nowhere", "img").unwrap_err());
     assert!(text.contains("img") && text.contains("in the image"), "{text}");
