@@ -368,7 +368,7 @@ trial), and the commit of this record.
   caught. The fuzz target `mailbox_message` passes the stable test of
   `fuzz/`.
 - Trial: podssh at `f9113862`, after the patch of `pod-quic`
-  (`adoption/podssh/pod-wormhole.needs`; 15 files, 60 lines in, 250 out;
+  (`pod-wormhole.needs`, then; 15 files, 60 lines in, 250 out;
   the four modules leave `podssh-relay`, and `spake2`, `crypto_secretbox`
   and `rand_core` leave its manifest): each step of `sh scripts/adoption.sh
   podssh pod-wormhole` passed, with 564 lib tests, `pair_code` (10 tests,
@@ -380,6 +380,12 @@ trial), and the commit of this record.
   scripts/check-sources.py` on `pod-wormhole` (podssh 10 files, 0 changes);
   `python3 -I scripts/check-probe.py`; `python3 -I
   scripts/check-design-paths.py`.
+- The trial again, clean: at podssh `f9113862` after `pod-quic.patch`, each
+  step of `sh scripts/adoption.sh podssh pod-wormhole` passed in one run
+  (the run of the import was put together in parts after the disk filled).
+  podssh took `pod-quic` at `525f8907`: the patch is made again on podssh's
+  `main` `9975fe92` (no conflict; no `.needs`), and each step passed there.
+
 
 # T-023: `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14
 

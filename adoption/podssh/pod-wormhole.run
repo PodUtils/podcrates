@@ -1,4 +1,4 @@
-# The trial of pod-wormhole in podssh, after pod-quic (pod-wormhole.needs):
+# The trial of pod-wormhole in podssh, at its main after the take of pod-quic:
 # podssh-relay keeps code/exchange.rs and code/run.rs (the exchange; they go
 # to pod-relay) and a thin code/mod.rs over pod-wormhole: the AppID, its
 # name and version, the way out and the trust are the Config that code::config
