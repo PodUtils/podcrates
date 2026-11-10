@@ -23,6 +23,7 @@ from pathlib import Path
 ALLOWED = {
     ("pod-proxy", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-gsr", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
+    ("pod-hold", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",
     ("pod-ws", "plain-ws"): "for the tests of an embedder over plain TCP to the loopback; no binary turns it on",

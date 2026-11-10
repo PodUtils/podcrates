@@ -725,6 +725,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
 name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -970,6 +976,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-hold"
+version = "0.14.0"
+dependencies = [
+ "libc",
+ "pod-core",
+ "pod-hostprobe",
+ "tokio",
+]
+
+[[package]]
+name = "pod-hostprobe"
+version = "0.14.0"
+dependencies = [
+ "linux-raw-sys",
+ "pod-core",
+ "syscalls",
+]
+
+[[package]]
 name = "pod-proxy"
 version = "0.14.0"
 dependencies = [
@@ -1082,6 +1107,7 @@ dependencies = [
  "pod-core",
  "pod-dns",
  "pod-gsr",
+ "pod-hold",
  "pod-proxy",
  "pod-quic",
  "pod-session",
@@ -1487,6 +1513,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "syscalls"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81c645a4de0d803ced6ef0388a2646aa1ef8467173b5d59a2c33c88de4ab76e7"
 
 [[package]]
 name = "thiserror"

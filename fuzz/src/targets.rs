@@ -415,3 +415,36 @@ pub fn udp_frame(data: &[u8]) {
     }
     assert_eq!(used + decoder.pending(), bytes.len());
 }
+/// The address of a call in the memory of a held task
+/// (`pod_hold::sockaddr::read` and `parse`; podnet
+/// `crates/podnet-netns/src/seccomp/notif.rs` `parse_sockaddr`): the first
+/// two bytes are the length that the task gives, the next two the
+/// address; the rest is the memory, a sealed memfd. The read takes at most
+/// the length and 128 bytes, and only inside the memory (a length of 0
+/// reads nothing); an address comes
+/// only from as many bytes as its family needs, and encodes back to them.
+pub fn hold_sockaddr(data: &[u8]) {
+    use pod_hold::sockaddr::{MOST, encode, parse, read};
+    let Some((head, image)) = data.split_first_chunk::<4>() else { return };
+    let len = u64::from(u16::from_le_bytes([head[0], head[1]]));
+    let at = u64::from(u16::from_le_bytes([head[2], head[3]]));
+    let fd = pod_hold::mem::memfd(image).expect("a memfd");
+    let memory = pod_hold::mem::Memory::of_fd(fd, false);
+    let want = (len as usize).min(MOST);
+    let Ok(bytes) = read(&memory, at, len) else {
+        assert!(at as usize + want > image.len(), "a read inside the memory fails");
+        return;
+    };
+    assert_eq!(bytes.len(), want);
+    // A length of 0 reads no memory.
+    if want > 0 {
+        assert_eq!(bytes[..], image[at as usize..at as usize + want]);
+    }
+    if let Some(addr) = parse(&bytes) {
+        let ip = if addr.ip.is_ipv4() { 4..8 } else { 8..24 };
+        assert!(bytes.len() >= ip.end, "{} bytes for {addr:?}", bytes.len());
+        let back = encode(addr.family, addr.ip, addr.port);
+        assert_eq!(back[..4], bytes[..4]);
+        assert_eq!(back[ip.clone()], bytes[ip]);
+    }
+}

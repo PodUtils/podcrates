@@ -38,6 +38,9 @@ pod-ws = { path = "../crates/pod-ws" }
 pod-quic = { path = "../crates/pod-quic" }
 pod-wormhole = { path = "../crates/pod-wormhole" }
 pod-session = { path = "../crates/pod-session" }
+# The feature `fuzzing` gives the memfd that stands in for the memory of a
+# task.
+pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
 
 # A crash names its line.
 [profile.release]
@@ -179,6 +182,13 @@ bench = false
 [[bin]]
 name = "udp_frame"
 path = "fuzz_targets/udp_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "hold_sockaddr"
+path = "fuzz_targets/hold_sockaddr.rs"
 test = false
 doc = false
 bench = false

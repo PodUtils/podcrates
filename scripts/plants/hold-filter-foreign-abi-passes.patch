@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hold/src/filter.rs b/crates/pod-hold/src/filter.rs
+index 307f7cf..caef83f 100644
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -100,7 +100,7 @@ fn program(calls: &Calls) -> Vec<libc::sock_filter> {
+     // different numbers and would pass the list below. Refuse it.
+     let mut filter = vec![
+         stmt(BPF_LD_ABS_W, OFFSET_ARCH),
+-        jump(BPF_JEQ_K, AUDIT_ARCH_NATIVE, 1, 0),
++        jump(BPF_JEQ_K, AUDIT_ARCH_NATIVE, 1, 1),
+         stmt(BPF_RET_K, RET_ERRNO | libc::ENOSYS as u32),
+         stmt(BPF_LD_ABS_W, 0),
+     ];

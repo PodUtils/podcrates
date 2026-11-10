@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hold/src/reply.rs b/crates/pod-hold/src/reply.rs
+index d0b8cc6..9da3c17 100644
+--- a/crates/pod-hold/src/reply.rs
++++ b/crates/pod-hold/src/reply.rs
+@@ -45,7 +45,7 @@ impl Answer for RawFd {
+         // The kernel takes a nonzero error as the return value of the system
+         // call, so it must be the negative errno: a positive errno is a
+         // positive return, and a refused connect returns 111 as a success.
+-        let resp = SeccompNotifResp { id, val, error: -error.abs(), flags: 0 };
++        let resp = SeccompNotifResp { id, val, error: error.abs(), flags: 0 };
+         send(self, &resp, "SECCOMP_IOCTL_NOTIF_SEND")
+     }
+ 

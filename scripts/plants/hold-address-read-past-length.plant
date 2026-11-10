@@ -1,0 +1,8 @@
+# The read of the address of a call takes 128 bytes in place of the length
+# that the task gave, so a 7-byte address parses with the bytes that follow
+# it; the test of the read must fail.
+ENTRY=T-166
+GROUP=hold
+EXPECT='test sockaddr::tests::the_read_of_an_address_takes_the_length_of_the_task \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- sockaddr::tests::the_read_of_an_address_takes_the_length_of_the_task'
+LIMIT=1800

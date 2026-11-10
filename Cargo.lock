@@ -2071,6 +2071,7 @@ dependencies = [
  "pod-extract",
  "pod-gsr",
  "pod-guest",
+ "pod-hold",
  "pod-hostprobe",
  "pod-identity",
  "pod-oci",

@@ -1,0 +1,8 @@
+# The check of the audit arch jumps past the refusal for each arch, so a
+# call of a foreign ABI (i386 on x86_64) passes the list of numbers and
+# goes around the hold; the run of the BPF program must fail.
+ENTRY=T-166
+GROUP=hold
+EXPECT='test filter::tests::the_program_stops_the_listed_calls_and_refuses_a_foreign_abi \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- filter::tests::the_program_stops_the_listed_calls_and_refuses_a_foreign_abi'
+LIMIT=1800

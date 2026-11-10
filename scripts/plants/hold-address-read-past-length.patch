@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hold/src/sockaddr.rs b/crates/pod-hold/src/sockaddr.rs
+index c0aaf02..739e045 100644
+--- a/crates/pod-hold/src/sockaddr.rs
++++ b/crates/pod-hold/src/sockaddr.rs
+@@ -74,7 +74,7 @@ pub fn family(bytes: &[u8]) -> Option<u16> {
+ /// at `ptr` of the task, at most [`MOST`]. Return the bytes that were read;
+ /// [`parse`] gives the address.
+ pub fn read(memory: &Memory, ptr: u64, len: u64) -> Result<Vec<u8>, Failure> {
+-    let len = usize::try_from(len).unwrap_or(MOST).min(MOST);
++    let len = MOST.max(usize::try_from(len).unwrap_or(MOST).min(MOST));
+     memory.read(ptr, len)
+ }
+ 
