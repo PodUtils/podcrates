@@ -98,14 +98,15 @@ Against podnet `src/ws.rs` at `76ffb5e`:
 | podssh | `podssh_ws::h2_road::{connect, probe}` | `pod_ws::h2_road::connect(&POOL, ..)`, one `static POOL: Pool = Pool::new()` in podssh; `probe(&way, ..)` |
 | podssh | `podssh_ws::cleartext::{connect, probe(host, port, &proxy, wait)}` | `pod_ws::cleartext::{connect, probe(&way, host, port, wait)}` |
 | podssh | `podssh_ws::url::{dial, dial_offering}(url, .., &trust, &proxy, ..)`, `url::{request, offering}(url, key, ..)`, `url::USER_AGENT` | `pod_ws::url::{dial, dial_offering}(url, .., &way, &trust, ..)`; `request(url, key, user_agent)`, `offering(url, key, user_agent, protocol)`; podssh keeps `USER_AGENT` |
-| podssh | `url::Stream::Plain(TcpStream)` | `Stream::Plain(BoxedIo)` |
+| podssh | `url::Stream::Plain(TcpStream)` (`wstunnel`, `pt`, `vless/ws`, `upterm`, `chisel`, `podssh-cli` `doctor/stream/http.rs`) | `Stream::Plain(Box::new(tcp))` |
 | podssh | `RelaySession::{over_tls, over_cleartext, over_h2}` | the same, with `WRITE_TIMEOUT` as the last argument; `over_cleartext` takes a `pod_core::Connected` |
 | podssh | `handshake::{generate_key_from, masking_key_from}(&dyn SecureRandom)` | `(&mut dyn pod_core::entropy::Entropy)` |
-| podssh | `ForwardClose::what(target)` | `what(target, "podssh")`; podssh keeps `remedy` |
+| podssh | `ForwardClose::what(target)`, `ForwardClose::remedy(reason)` (`pipe/relay.rs`, `http_road.rs`, `podssh-ssh` `run.rs`) | `what(target, "podssh")`; `remedy` is podssh's trait `close::Remedy` (re-exported by `podssh_ws::session`), with its asserts |
 | podssh | `client::{getter, https_get, https_get_accepting}` | podssh keeps them; `get_error` is `pod_ws::client::request_error(failure, limit, host, port)` |
-| podssh | `doctor(config)` | `pod_ws::doctor(&config)` after podssh's line of the crypto provider |
-| podssh | `tls::connect_error`, `tls_over` | `pod_ws::way::connect_error`, `Way::tls_over` |
-| podssh | the fuzz targets `ws_frame`, `ws_upgrade`, `close_reason` | the targets of the same names in `fuzz/` of podcrates; podssh removes its own |
+| podssh | `doctor(config)` | podssh's line of the crypto provider, then `pod_ws::doctor(&config.pod())` |
+| podssh | the tests `rfc6455`, `control_frames`, `frame_lengths`, `handshake_tail`, `limits`, `session`, `plain_loopback`, `h2_road`, `cleartext_road`, `properties`, `random_source` and the unit tests of the moved files | leave podssh-ws; podcrates runs them with their names. The record cites the old files as `PodUtils/podssh:PATH`, and each entry whose Prove names a moved target gets a Correction |
+| podssh | `impl From<pod_tls::Error> for WsError` of `tls.rs` | goes: `pod-ws` has it; `tls::connect_error` and `tls_over` stay podssh's |
+| podssh | the fuzz targets `ws_frame`, `ws_upgrade`, `close_reason` | the targets of the same names in `fuzz/` of podcrates; podssh's own still build over the re-exports, and podssh removes them |
 | podnet | `ws::dial(url, timeout, authorization)` (`cli/cmd/connect.rs`), a `WebSocketStream` | `ws::dial` keeps podnet's words and hops over `pod_ws::bridge::dial(url, &ws::way(), &Trust::Default, timeout, authorization)`, a `RelaySession`; `connect` closes it with `send_close(1000, "")` |
 | podnet | `ws::connect_bridge(url, io, authorization)` | `pod_ws::bridge::connect_bridge(url, &way, &Trust::Default, io, authorization, &metrics)` |
 | podnet | `ws::bridge(ws, io, &metrics)` (`ws.rs` `serve_websocket`) | `pod_ws::bridge(pod_ws::server::session(socket, Vec::new(), None).with_limits(Limits::TUNGSTENITE), io, &Counted(metrics))`; `Counted` (podnet's) implements `pod_ws::Tally` over `Metrics` |
