@@ -46,15 +46,20 @@ async fn every_fallback_resolver_answers_through_verified_tls() {
             if one.as_ref().is_ok_and(|ips| !ips.is_empty()) {
                 break;
             }
+            tokio::time::sleep(PAUSE).await;
         }
         assert!(one.as_ref().is_ok_and(|ips| !ips.is_empty()), "{}: {one:?}", resolver.ip);
     }
 }
 
-/// The asks of one resolver alone. A connection lost once (a SYN with no
-/// answer for 3 s) is the network's; a resolver that fails each time is the
-/// fallback that never works.
-const TRIES: u32 = 2;
+/// The asks of one resolver alone. A connection lost once or twice (a SYN
+/// with no answer for 3 s, or a short outage of one resolver seen from a
+/// runner) is the network's; a resolver that fails each time, with a pause
+/// between the tries, is the fallback that never works.
+const TRIES: u32 = 3;
+
+/// The pause between two tries of one resolver.
+const PAUSE: Duration = Duration::from_secs(5);
 
 /// Each resolver answers in RFC 8484's wire form too, by its address, which
 /// its certificate names: the fallback of the JSON form, and Quad9's only
@@ -73,6 +78,7 @@ async fn every_resolver_answers_in_the_wire_form() {
             if answered.is_ok() {
                 break;
             }
+            tokio::time::sleep(PAUSE).await;
         }
         let (ips, form) = answered.unwrap_or_else(|e| panic!("{}: {e}", resolver.ip));
         assert!(!ips.is_empty() && form == Form::Wire, "{}: {ips:?} {form:?}", resolver.ip);
