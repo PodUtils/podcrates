@@ -1615,6 +1615,7 @@ dependencies = [
  "pod-identity",
  "pod-oci",
  "pod-proxy",
+ "pod-rootfs",
  "pod-services",
  "pod-supervise",
  "pod-term",

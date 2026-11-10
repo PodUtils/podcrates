@@ -94,7 +94,7 @@ Against podvm `crates/podvm-complete` at `2616bd7`:
 | [x] The CA bundle of `podvm_image::tls::host_bundle_bytes` (the environment) | `Settings::host_bundle`, from the caller |
 | [x] `/proc/self/mounts` | `Settings::mounts` |
 | [x] `<rootfs>/../.complete-orig` | `Settings::originals`; with `None` no source changes |
-| [x] `HOST_CA_MARKER`, `HOST_CA_FILE_PREFIX`, `99podvm`, `.podvm-mknod-`, `# podvm (T-0406): `, the head comments | `Names`, with podvm's values in podvm |
+| [x] `HOST_CA_MARKER`, `HOST_CA_FILE_PREFIX`, `99podvm`, `.podvm-mknod-`, the comment of `pacman.conf`, the head comments | `Names`, with podvm's values in podvm |
 | [x] `reach::Prober` (a HEAD over `podvm_image::net`) | `reach::Probe` of the caller; podvm keeps the HEAD |
 | [x] `Fixup { entry, id, ... }`, `Step { entry, ... }` | no `entry`: podvm maps each id of `IDS` to its entry |
 | [x] `Report::{banner, json}` | podvm keeps them; `Report::{degradations, changed, failed}` here |

@@ -364,7 +364,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -373,22 +373,108 @@ Source: `PodUtils/podvm:crates/podvm-complete`.
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: podvm `2616bd7` (its `main` on the day of the import):
+  `PodUtils/podvm:crates/podvm-complete/src` (14 files); its callers in
+  `PodUtils/podvm:crates/podvm/src` (`complete.rs`, `complete/strict.rs`,
+  `run/prepare.rs`) and podvm's gate (the pin `32d write`); the plan of
+  `docs/research/podvm/m6-imports.md`, section 4 and "Current files".
+- Measured: the tests of the crate on this host as x86_64 (as root) and
+  i686 musl binaries, and as aarch64, armv7, powerpc64le and riscv64 musl
+  binaries under QEMU user mode (no `openat2` there: each test that needs
+  `RESOLVE_IN_ROOT` stops with a skip line); the trial of podvm; the
+  static `podvm` for `x86_64-unknown-linux-musl`.
+- Found: eleven defects of podvm's code (the README of the crate and the
+  Done section list them), among them a removal and a creation of links
+  on the host through a `dev` that is a symlink out of the root, and a
+  stop for ever on a fifo of the image.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8: import, edition, adapt,
 tests, README with the adoption map of podvm, the trial of podvm.
 
+## Decision
+
+`docs/decisions.md`, C40: the crate takes the completion; podvm keeps its
+flags, the record ids, the banner, the JSON and the HTTPS request of the
+mirror probe; the names, the host bundle, the files of the host and the
+probe come from the caller.
+
 ## Prove
 
 ```sh
 cargo test -p pod-rootfs
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-rootfs
+sh scripts/adoption.sh podvm pod-rootfs
+cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe
+sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 ```
 
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), and T-055 is done.
+
+## Done
+
+2026-11-10, partial. Commits `50c9eda` (the import of 14 files of podvm at
+`2616bd7`, with `SOURCES`), `a316661` (the adaptation, the eleven fixes
+and the tests), `07b043f` (README, `IDS`, the static probe, C40),
+`019b897` (the trial) and the commit of this record.
+
+- Imported: the 14 files of `PodUtils/podvm:crates/podvm-complete/src`.
+  Of `lib.rs` a part stays in podvm (`Options`, the banner, the JSON); the
+  HTTPS request of `reach.rs` stays in podvm. The crate has 4,347 lines in
+  20 `.rs` files, each under 500. `pod_hostprobe::sys` gets `O_NONBLOCK`
+  (0o200 on mips) and `S_IFIFO`, with a test.
+- Fixed, each with a test that fails on a plant of podvm's line: the
+  removal of a device link and the `/dev` links through a host path (a
+  `dev -> /dir` removed and made files in a host directory); a read of a
+  fifo of the image that waited for ever; a device node on a `nodev` file
+  system that did not open (a root-only test); no rehash step for a grown
+  host bundle; the C library of armv7, i686, riscv64, powerpc64le, s390x
+  and loongarch64 read as `unknown`; `passwd`, `group` and
+  `nsswitch.conf` behind a link inside the root replaced by the minimal
+  files; a user part or an address in another form at the mirror probe
+  (a loopback source was changed); a line end in an added host or the
+  container name; a mount point with a space; the bytes of a CA bundle
+  that are not UTF-8; a mode change by name (a race).
+- Tests: 74 unit tests: 52 of the 53 of podvm with their names (the
+  banner test stays in podvm), and 22 new. The same 74 pass as an i686
+  musl binary, and under QEMU as aarch64, armv7, powerpc64le and riscv64
+  musl binaries (51 skip there, as the emulator has no `openat2`).
+- The trial of podvm at `2616bd7` (`adoption/podvm/pod-rootfs.patch`: 34
+  files, 227 lines in, 4,449 out; `pod-rootfs.commit`):
+  `PodUtils/podvm:crates/podvm-complete` keeps podvm's glue (`Options`,
+  `names()` with the values of earlier releases, `entry(id)`, `Fixup`,
+  `Step`, `Report` with `banner`, `degradations`, `json`, `settings`, and
+  `reach::probe` over `podvm_image::net`); 13 files leave podvm; the
+  gate's pin of the moved write test goes; the citations of the moved
+  files name `pod-rootfs`; each tag moves to `v0.11.0`. The patch applies
+  alone; after `pod-oci.patch` and `pod-extract.patch`, a 3-way apply
+  conflicts in seven files (`pod-rootfs.run` names the resolution), and
+  the workspace with the three passes clippy, the tests of
+  podvm-complete, podvm-extract and the podvm binary, the rows and
+  podvm's gate. Each step of `sh scripts/adoption.sh podvm pod-rootfs`
+  passed: podvm-complete 4 tests, `podvm --bin` 266, `store_gates` 4,
+  `detached_stdio` 3, `curated_refusals` 6, clippy, rustfmt, the
+  runtime-state rows, podvm's record gate, the toolchains, and the static
+  `podvm` for x86_64 musl. podvm's experiment 85 (the completion escape)
+  needs a pull from public.ecr.aws, which gave HTTP 429 here; it is not a
+  step.
+- Checks: `sh scripts/agent/check.sh` on `main` with T-139 (fmt, clippy,
+  doc, record, size, paths, static, test: each 0), `check-sources.py` (14
+  files, 0 changes), `secrets_like.py` on the patch (no line). The trial
+  passed again on `main` `81439a8`.
+
+Remains:
+
+- The release that carries the crate, then podvm's take of the patch,
+  after `pod-oci.patch` and `pod-extract.patch`. Then the `taken` line in
+  `SOURCES`. The patch names `v0.11.0`: a new crate is a new public API
+  (`docs/design.md`, section 10). When the release is `v0.10.1`, each tag
+  line of the patch takes that tag.
+- The eleven defects stay in `PodUtils/podvm:crates/podvm-complete` until
+  the take: the take fixes them.
 
 # T-059: `pod-enter`: the entry of a payload
 
