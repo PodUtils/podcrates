@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**145 entries: 57 open, 4 partial, 0 blocked, 84 done.**
+**145 entries: 55 open, 4 partial, 0 blocked, 86 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 32 | 55 |
 | P2 | 25 | 3 | 0 | 39 | 67 |
-| P3 | 9 | 1 | 0 | 11 | 21 |
-| **All** | 57 | 4 | 0 | 84 | 145 |
+| P3 | 7 | 1 | 0 | 13 | 21 |
+| **All** | 55 | 4 | 0 | 86 | 145 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -183,8 +183,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
 | [T-135](transport.md) | P3 | S | M1 | feature | done | `pod-services`: Pinggy's SSH inside TLS, its host key and its facts (PodUtils/podssh#178) |
 | [T-136](podvm.md) | P2 | S | M6 | chore | done | Port of PodUtils/podvm@T-1646 into `pod-enter`: the library path of the interposer |
-| [T-137](podvm.md) | P3 | S | M6 | chore | open | `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220) |
-| [T-138](podvm.md) | P3 | M | M6 | chore | open | `pod-guest`: the run of a real guest in CI |
+| [T-137](podvm.md) | P3 | S | M6 | chore | done | `pod-enter`: the notes of podvm's PodUtils/podvm@T-1649 and PodUtils/podvm@T-1650 (PodUtils/podvm#220) |
+| [T-138](podvm.md) | P3 | M | M6 | chore | done | `pod-guest`: the run of a real guest in CI |
 | [T-139](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222) |
 | [T-140](podvm.md) | P1 | S | M6 | defect | done | `pod-oci`: the test of the host name fails where Rust and OCI say the same word |
 | [T-141](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main |

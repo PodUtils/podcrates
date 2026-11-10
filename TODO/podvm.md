@@ -1287,7 +1287,7 @@ changes. The trial of `pod-enter` is made again on podvm `cb57d4b` (T-059).
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1320,6 +1320,25 @@ head of a file is T-139 (done: `interp_of` itself is head-safe). A test for each
 cargo test -p pod-enter
 ```
 
+## Done
+
+2026-11-10. Commit: 6f2c0a4. `cargo test -p pod-enter` passes (141 unit
+tests); `sh scripts/agent/check.sh` exits 0.
+
+- The module text of `src/userland.rs` and `ScriptRefusal::message` of
+  `src/memfd.rs` no longer say that scripts are refused: the caller runs
+  the interpreter from the image.
+- `memfd::shebang_parts(bytes)` gives the interpreter and the one optional
+  argument of a `#!` line as `fs/binfmt_script.c` parses it (the head is
+  `memfd::SHEBANG_HEAD`, 256 bytes). It ports `shebang` of podvm's
+  `lifecycle/script.rs`, with its cases as tests.
+- `ladder::guest_invoked(rootfs, argv0, path_dirs)` gives the `$0` of the
+  kernel: `argv0` with a slash as given, a bare name as the unresolved
+  join of the first `PATH` directory where it resolves. `guest_exe` keeps
+  the resolved path.
+- The README has both items in the API table and in the adoption map.
+
+
 # T-138: `pod-guest`: the run of a real guest in CI
 
 **Source:** T-061 (its remaining clause); the owner's ruling KVM of 2026-11-09
@@ -1327,7 +1346,7 @@ cargo test -p pod-enter
 **Milestone:** M6
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1355,6 +1374,19 @@ cargo test -p pod-guest
 ```
 
 The run id of the dispatched job goes in the Done section.
+
+## Done
+
+2026-11-10. Commit: 6f2c0a4. Run 42755557589 of `guest.yml` (dispatched
+on `main` at that commit) passed: 66 tests of `pod-guest`, one test
+thread, and the last step reported that no emulator stays.
+
+- `.github/workflows/guest.yml` (each week, by hand): QEMU on
+  ubuntu-24.04, `cargo test -p pod-guest` under `timeout`, a check with
+  `pgrep` that fails the job when a qemu process stays.
+- A new test, `a_real_emulator_under_kvm_answers_qmp_and_leaves_no_process`,
+  runs where `/dev/kvm` opens; the TCG test shares its helper.
+
 
 # T-139: `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222)
 

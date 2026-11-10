@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 145 entries: 57 open, 4 partial, 0 blocked, 84 done.
+`TODO/INDEX.md` holds 145 entries: 55 open, 4 partial, 0 blocked, 86 done.
 
 ## State
 
@@ -41,7 +41,7 @@ first; the asks of cfb and githome (M8) wait.
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-057 and T-058 (partial: the
-   take of podvm, GitHub #46); T-137, T-138, T-144, T-145
+   take of podvm, GitHub #46); T-144, T-145
    (PodUtils/podvm#224), T-142. T-040 (the trials of podvm) goes with each
    import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
