@@ -2216,7 +2216,7 @@ goes in the Done section.
 
 ## Done
 
-2026-11-10, commit `COMMIT130`. No server qualifies; no file of the kind `wisp-public` exists, and the answer is a note on PodUtils/podssh#175 (written by the parent session). What was looked at: the search mirrors (queries for public Wisp servers, lists of them, "free to use" pages), the TitaniumNetwork and Mercury Workshop pages, the READMEs of the server projects (wisp-server-python, wisp-js, epoxy-tls, ghostproxyofficial/wisp-server, wasmer/wisp-server), the v86 networking page, and `PodUtils/podssh:docs/carriers.md` (the sweep of 2026-11-02). Result:
+2026-11-10, commit `324e621`. No server qualifies; no file of the kind `wisp-public` exists, and the answer is a note on PodUtils/podssh#175 (written by the parent session). What was looked at: the search mirrors (queries for public Wisp servers, lists of them, "free to use" pages), the TitaniumNetwork and Mercury Workshop pages, the READMEs of the server projects (wisp-server-python, wisp-js, epoxy-tls, ghostproxyofficial/wisp-server, wasmer/wisp-server), the v86 networking page, and `PodUtils/podssh:docs/carriers.md` (the sweep of 2026-11-02). Result:
 
 * `wisp.mercurywork.shop` (Mercury Workshop): already the kind `forwarder` (`wisp-forwarder`); not repeated.
 * `anura.pro` (Mercury Workshop): the Wisp server of the demo of its own web proxy, not offered to others; flagged by the sweep.
@@ -2278,7 +2278,7 @@ the Done section.
 
 ## Done
 
-2026-11-10, commit `COMMIT133`. Partial: the files and the test are done; the live check of the nodes remains (no workflow of this shape exists in podcrates: the runner of the watches is T-050, and the egress of a cloud session is an allowlist).
+2026-11-10, commit `324e621`. Partial: the files and the test are done; the live check of the nodes remains (no workflow of this shape exists in podcrates: the runner of the watches is T-050, and the egress of a cloud session is an allowlist).
 
 Lists (kind `proxy-list`, read 2026-11-10, each file counted on the day of the read; the maintainer's repository README names the file):
 
