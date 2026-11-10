@@ -57,3 +57,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #49 | COORD-024: podcrates v0.13.0 is released: podssh and podnet take pod-ws (to all) | closed (podnet `5eace6e`, podssh `a083593e`) | T-016 |
 | #50 | COORD-025: podcrates v0.14.0 is released: podssh and podnet take pod-quic; podssh reads serveo, ssh-j and croc (to all) | closed (podssh `525f8907`, podnet `b7b0aef`) | T-019, T-153, T-156 |
 | #51 | COORD-026: the asks of podvm#227 are record entries that wait for DR-1 and DR-2 (to podvm) | open | T-160, T-161, T-162, T-163, T-164, T-165 |
+| #52 | COORD-027: pod-enter: the volume of a missing -w and the reserved guest paths in Maps::new (T-155, PodUtils/podvm#226) (to podvm) | open | T-155 |
