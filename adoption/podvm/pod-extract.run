@@ -1,19 +1,7 @@
-# The trial of pod-extract in podvm (T-057), at podvm main 2616bd7
-# (pod-extract.commit: podvm took pod-guest and pod-enter). The patch
-# applies alone. podvm applies it after pod-oci.patch (v0.10.0), with git
-# apply --3way. It shares crates/podvm-image/Cargo.toml,
-# crates/podvm-probe/Cargo.toml, crates/podvm-ssh/Cargo.toml,
-# crates/podvm-supervise/Cargo.toml, crates/podvm-extract/src/lib.rs,
-# docs/runtime-state.md, SECURITY.md, TODO/cli.md, TODO/gate.md and
-# TODO/image.md with pod-oci.patch. After pod-oci.patch, four files
-# conflict: crates/podvm-image/Cargo.toml (keep the pod-oci lines; each tag
-# is v0.10.0); docs/runtime-state.md (one pod-* row for each crate, at
-# 0.10.0, with pod-oci and pod-extract; no flate2 and no ruzstd row); the
-# citation lines of T-1684 in TODO/gate.md (keep each pod-* line); and
-# crates/podvm-extract/src/lib.rs (take this patch: its `d.parsed_digest()?`
-# takes the error of the store and of pod-oci). The workspace with both
-# patches passes clippy, the tests of podvm-extract and podvm-complete and
-# the path-safety experiment.
+# The trial of pod-extract in podvm (T-057, T-141), at podvm main 20ea781
+# (pod-extract.commit: podvm took v0.10.0 and pod-oci, after c89b769, its
+# fix of the whiteout escape, T-1698). The patch applies alone, also at
+# e99fc9b (a record commit after it).
 # crates/podvm-extract keeps podvm's glue and re-exports the crate:
 # paths(store, digest) (<store>/rootfs/<digest>/rootfs and .meta.jsonl),
 # extract(store, manifest, digest, out) (the layers of the manifest as blob
@@ -22,28 +10,48 @@
 # is_extracted, remove_extracted, and Error { Extract(Failure),
 # Image(podvm_image::Error) }. apply, layer, remove, safety, sidecar,
 # whiteout, Extracted, DONE_MARKER and EXTRACT_HEADROOM_BYTES are
-# pod_extract's. 10 files leave podvm, and tar, flate2, ruzstd, serde,
-# serde_json and sha2 leave crates/podvm-extract/Cargo.toml. The citations
-# of the moved files name pod-extract. Each podcrates tag moves to v0.10.0,
-# with the tags of podvm-enter and podvm-windows.
+# pod_extract's. 11 files leave podvm (drive/whiteouts.rs too: the crate
+# holds podvm's tests of the whiteout escape), and tar, flate2, ruzstd,
+# serde, serde_json and sha2 leave crates/podvm-extract/Cargo.toml. The
+# citations of the moved files name pod-extract, also those of T-1698. Each
+# podcrates tag moves to v0.11.0, with the tags of podvm-enter and
+# podvm-windows.
+# The patch also takes T-139 of podcrates (PodUtils/podvm#222), as the
+# adoption map of crates/pod-enter/README.md says: crates/podvm/src/ladder.rs,
+# lifecycle/userland.rs and lifecycle/script.rs read the payload with
+# ladder::payload_head and give the head to memfd::eligible, has_shebang and
+# script_refusal; the memfd rung stages the open file with
+# podvm_enter::memfd::stage_file (a wrapper of pod_enter::memfd::stage_file
+# with podvm's names), in chunks. podvm's 128 MiB refusal of a payload goes:
+# pod-enter has no ladder::PAYLOAD_CEILING, and no step holds the whole file.
+# podvm's entry T-1647 waits for this take.
 # podvm's tests of the touched crates (podvm-complete writes through
 # pod_extract::safety; podvm-enter, podvm-windows and podvm-supervise take
-# the new tag) and the integration tests that extract or refuse;
+# the new tag) and the integration tests that extract, refuse or start a
+# payload;
 # podvm's own path-safety experiment against the binary (crafted layers in
 # a hand-built store: four refusals, the legal symlinks, nothing outside);
 # clippy of the workspace and rustfmt of the touched crates, as podvm's
 # gate.yml runs them; the runtime-state rows; podvm's record gate; each Rust
 # toolchain of the workflows against the rust-version of podcrates; and the
 # binary `podvm` for x86_64 musl, with podcrates' static check.
+# podvm's binary embeds its interposer objects (crates/podvm/build.rs), and
+# the tests of qol need them on a host that denies chroot(2), as a runner
+# does. podvm's gate.yml builds them before the binary; the trial does the
+# same.
+cargo build -q --release -p podvm-gate --bin podvm-interpose-build
+mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-interpose-build" target/release/
+./target/release/podvm-interpose-build
 cargo test -q -p podvm-extract
 cargo test -q -p podvm-complete
 cargo test -q -p podvm-enter -p podvm-windows -p podvm-supervise
 cargo test -q -p podvm --bin podvm
 cargo test -q -p podvm --test store_gates
+cargo test -q -p podvm --test qol
 cargo test -q -p podvm --test detached_stdio
 cargo test -q -p podvm --test curated_refusals
 cargo clippy -q --workspace --all-targets -- -D warnings
-cargo fmt -p podvm-extract -p podvm-complete -p podvm -p podvm-gate -p podvm-release --check
+cargo fmt -p podvm-extract -p podvm-complete -p podvm-enter -p podvm -p podvm-gate -p podvm-release --check
 cargo build -q -p podvm --bin podvm
 PODVM="${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podvm" bash experiments/220-extract-path-safety.sh
 # podvm's gate finds the root of the repository from the path of its binary,
@@ -53,7 +61,7 @@ mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-
 # docs/runtime-state.md lists each direct git or registry dependency with its
 # locked version. The patch gives the rows of the git form (pod-core,
 # pod-enter, pod-extract, pod-guest, pod-hostprobe, pod-proxy, pod-supervise,
-# pod-term and pod-tls at 0.10.0); the trial's path form has no row for them. Each other row of the
+# pod-term and pod-tls at 0.11.0); the trial's path form has no row for them. Each other row of the
 # patch must be the generated one.
 grep -v '^| .pod-' docs/runtime-state.md > target/runtime-state.patch.md && python3 scripts/document-state.py --write && grep -v '^| .pod-' docs/runtime-state.md | diff target/runtime-state.patch.md -
 # The experiment above wrote its reading; the gate checks the tree as the
