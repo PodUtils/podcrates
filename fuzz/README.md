@@ -51,6 +51,9 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `doh_json` | `pod-dns` | `json::{parse, srv_of, parse_srv}`, `json::Answer::of`, `https::from_json` | podnet `doh_json` (at `380d9a4`); its SRV part reads `pod_dns::json::srv_of`, and podnet's `edge_discovery::parse_srv` goes with `pod-cloudflare` |
 | `broker_target` | `pod-broker` | `target::{parse_authority, parse_absolute, normal_path}` | new in `pod-broker` (T-099); its seeds are small targets written here |
 | `gsr_message` | `pod-gsr` | `wire::Reader::next` over `wire::fuzz_messages` (feature `fuzzing`): fragments of 1 to 32 bytes, cancelled reads | new in `pod-gsr` (T-086, GitHub #24); its seeds are messages of the relay written here |
+| `ws_frame` | `pod-ws` | `frame::{decode, encode}` | podssh `ws_frame` (at `8cd0f2b`); its seeds are the frames of RFC 6455 section 5.7 |
+| `ws_upgrade` | `pod-ws` | `handshake::check_response` | podssh `ws_upgrade` (at `8cd0f2b`) |
+| `close_reason` | `pod-ws` | `close::close_code_and_reason` | podssh `close_reason` (at `8cd0f2b`) |
 
 Where both sources test the same parser, one target holds the checks and
 the seeds of both:
@@ -78,7 +81,6 @@ Cloudflare's JSON form.
 
 | Target | Source | Parser | Crate |
 | --- | --- | --- | --- |
-| `ws_frame`, `ws_upgrade`, `close_reason` | podssh | `podssh_ws::frame`, `handshake::check_response`, `session::close_code_and_reason` | `pod-ws` (T-016) |
 | `relay_list`, `relay_pool` | podssh | `podssh_relay::relay::parse_relay_list`, `pool::parse_pool` | `pod-relay` (T-025) |
 | `vnet_frame` | podnet | `vnet::framing::read_frame` | `pod-netstack` (T-023) |
 | `warp_capsule` | podssh | `podssh_warp::capsule` | `pod-warp` (T-028), one target with podnet's `capsule` |

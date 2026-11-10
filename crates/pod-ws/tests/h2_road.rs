@@ -1,8 +1,8 @@
-//! The WebSocket over HTTP/2's extended CONNECT (T-321, RFC 8441) against
+//! The WebSocket over HTTP/2's extended CONNECT (RFC 8441) against
 //! stand-in relays on the loopback whose HTTP/2 is h2's own server, which
-//! podssh did not write: one whose SETTINGS offer extended CONNECT, which
+//! this crate did not write: one whose SETTINGS offer extended CONNECT, which
 //! takes a CONNECT with `:protocol websocket`, checks its token, answers 200
-//! and echoes each message, as podssh's relay role does; one whose SETTINGS
+//! and echoes each message, as a relay role does; one whose SETTINGS
 //! offer none; and one whose TLS chooses http/1.1 alone. Each also takes the
 //! upgrade of HTTP/1.1, as a relay does, and counts its TLS connections, its
 //! upgrades, the CONNECTs that reach it, and each HEADERS frame that the
@@ -18,9 +18,9 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use bytes::Bytes;
-use podssh_ws::frame::OPCODE_BINARY;
-use podssh_ws::h2_road::{self, Fallback, Offered, Road};
-use podssh_ws::{ConnectError, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use pod_ws::frame::OPCODE_BINARY;
+use pod_ws::h2_road::{self, Fallback, Offered, Road};
+use pod_ws::{ConnectError, Endpoint, RelaySession, Trust, WsClientConfig};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpListener;
@@ -28,7 +28,7 @@ use tokio::net::TcpListener;
 // Shared test support; this file uses part of it.
 #[allow(dead_code)]
 mod cert {
-    include!("common/cert_for_test.rs");
+    include!("../../pod-tls/tests/common/cert_for_test.rs");
 }
 
 const NAME: &str = "relay.h2.test";
@@ -69,13 +69,19 @@ struct Seen {
     tasks: Mutex<Vec<tokio::task::AbortHandle>>,
 }
 
-fn pins() {
+mod common;
+
+/// The pool of the tests: each test has its own port, so its own hosts.
+static POOL: h2_road::Pool = h2_road::Pool::new();
+
+/// The way of the tests, which finds the relay's name on the loopback.
+fn way() -> pod_ws::Way {
     let lo: IpAddr = "127.0.0.1".parse().unwrap();
-    podssh_ws::resolve::set_pins(vec![(NAME.into(), lo)]);
+    common::way_with_pins(&[(NAME, lo)])
 }
 
 fn root_file(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("podssh-h2-road-{}-{tag}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pod-ws-h2-road-{}-{tag}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("root.pem");
     let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name(NAME), true).der;
@@ -90,7 +96,8 @@ fn config(port: u16, root: &Path) -> WsClientConfig {
         server_name: NAME.into(),
         timeout: LIMIT,
         idle_timeout: Some(LIMIT),
-        proxy: ProxyChoice::Direct,
+        way: way(),
+        limits: pod_ws::Limits::default(),
     }
 }
 
@@ -232,16 +239,16 @@ async fn answer_h2(
     let Ok(send) = respond.send_response(http::Response::builder().status(200).body(()).unwrap(), false) else {
         return;
     };
-    echo(podssh_ws::server::session(h2_road::duplex(send, request.into_body()), Vec::new(), None)).await;
+    echo(pod_ws::server::session(h2_road::duplex(send, request.into_body()), Vec::new(), None)).await;
 }
 
 async fn serve_h1<S: AsyncRead + AsyncWrite + Unpin>(mut tls: S, seen: Arc<Seen>) {
-    let Ok((head, pending)) = podssh_ws::http::request::read_request(&mut tls, Vec::new()).await else { return };
+    let Ok((head, pending)) = pod_proxy::http::request::read_request(&mut tls, Vec::new()).await else { return };
     if head.header("x-relay-token") != Some(TOKEN) {
-        let _ = tls.write_all(&podssh_ws::http::request::refusal(403, REFUSAL, &[])).await;
+        let _ = tls.write_all(&pod_proxy::http::request::refusal(403, REFUSAL, &[])).await;
         return;
     }
-    let key = match podssh_ws::server::check_upgrade(&head) {
+    let key = match pod_ws::server::check_upgrade(&head) {
         Ok(key) => key,
         Err(refused) => {
             let _ = tls.write_all(&refused.answer()).await;
@@ -249,8 +256,8 @@ async fn serve_h1<S: AsyncRead + AsyncWrite + Unpin>(mut tls: S, seen: Arc<Seen>
         }
     };
     seen.upgrades.fetch_add(1, Ordering::SeqCst);
-    if tls.write_all(&podssh_ws::server::switching(&key)).await.is_ok() {
-        echo(podssh_ws::server::session(tls, pending, None)).await;
+    if tls.write_all(&pod_ws::server::switching(&key)).await.is_ok() {
+        echo(pod_ws::server::session(tls, pending, None)).await;
     }
 }
 
@@ -307,7 +314,7 @@ async fn each_way(session: RelaySession, size: usize, seed: u64) {
 }
 
 async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {
-    tokio::time::timeout(LIMIT * 2, h2_road::connect(config, token)).await.expect("an answer within the limit")
+    tokio::time::timeout(LIMIT * 2, h2_road::connect(&POOL, config, token)).await.expect("an answer within the limit")
 }
 
 /// Eight sessions at once are eight streams of one TLS connection, each
@@ -315,7 +322,7 @@ async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, 
 /// RFC 6455 and no upgrade of HTTP/1.1.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn eight_sessions_share_one_tls_connection_and_carry_4_mib_each_way() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("eight");
     let (port, seen) = stand_in(Offer::Extended).await;
     let mut tasks = Vec::new();
@@ -353,7 +360,7 @@ async fn eight_sessions_share_one_tls_connection_and_carry_4_mib_each_way() {
 /// process then asks it for no HTTP/2.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_server_that_offers_no_extended_connect_gets_the_upgrade_on_a_new_connection() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("unoffered");
     let (port, seen) = stand_in(Offer::NoSetting).await;
     let (session, road) = connect(&config(port, &root), TOKEN).await.expect("a session");
@@ -375,7 +382,7 @@ async fn a_server_that_offers_no_extended_connect_gets_the_upgrade_on_a_new_conn
 /// A server whose TLS chose http/1.1 gets the upgrade on that connection.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_server_whose_tls_chooses_http1_gets_the_upgrade_on_the_same_connection() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("http1");
     let (port, seen) = stand_in(Offer::Http1Only).await;
     let (session, road) = connect(&config(port, &root), TOKEN).await.expect("a session");
@@ -390,7 +397,7 @@ async fn a_server_whose_tls_chooses_http1_gets_the_upgrade_on_the_same_connectio
 /// upgrade; the connection stays, and the right token opens a session on it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_403_on_the_connect_ends_the_session_with_the_relay_s_refusal() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("refused");
     let (port, seen) = stand_in(Offer::Extended).await;
     let Err(refused) = connect(&config(port, &root), "a-wrong-token").await else { panic!("a refusal") };
@@ -409,7 +416,7 @@ async fn a_403_on_the_connect_ends_the_session_with_the_relay_s_refusal() {
 /// the next session opens a new connection.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_lost_connection_ends_each_of_its_sessions_and_the_next_opens_a_new_one() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("lost");
     let (port, seen) = stand_in(Offer::Extended).await;
     let (first, _) = connect(&config(port, &root), TOKEN).await.expect("a first session");
@@ -439,10 +446,10 @@ async fn a_lost_connection_ends_each_of_its_sessions_and_the_next_opens_a_new_on
 /// request.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_probe_names_the_alpn_and_the_setting_and_sends_no_request() {
-    pins();
+    pod_testkit::need_loopback!();
     let root = root_file("probe");
-    let (trust, direct) = (Trust::File(root.clone()), ProxyChoice::Direct);
-    let probe = |port| h2_road::probe(NAME, port, NAME, &trust, &direct, LIMIT);
+    let (trust, way) = (Trust::File(root.clone()), way());
+    let probe = |port| h2_road::probe(&way, NAME, port, NAME, &trust, LIMIT);
     let h2 = Some("h2".to_string());
     for (offer, expected) in [
         (Offer::Extended, Offered { alpn: h2.clone(), extended: Some(true), streams: Some(32) }),

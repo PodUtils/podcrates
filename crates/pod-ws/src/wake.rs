@@ -1,4 +1,4 @@
-//! A check for a host that slept, or a process that stood still (T-663).
+//! A check for a host that slept, or a process that stood still.
 //!
 //! A link can die while its host sleeps: a NAT's mapping or a proxy's
 //! connection is gone when the host wakes. The timers do not tell: tokio's

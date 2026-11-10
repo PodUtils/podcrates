@@ -1,19 +1,18 @@
-//! The cleartext road on the relay's port (T-326, the operator's ruling
-//! Q45): the upgrade of [`crate::connect`] over the stream that the dial
+//! The cleartext road on the relay's port: the upgrade of
+//! [`crate::connect`] over the stream that the dial
 //! gave, with no TLS, for a proxy that tunnels CONNECT but cuts TLS that it
 //! does not know, by its SNI or its certificate. Each hop reads what crosses
 //! it, the token's header among them, so the caller gives a token of one
 //! session alone and tries this road last, once its TLS failed on the way
 //! ([`tls_failed`]); SSH inside stays end to end. [`probe`] asks a host in
-//! cleartext with nothing secret, as GitHub #56 asks, and names what came
+//! cleartext with nothing secret, and names what came
 //! back.
 
 mod probe;
 
-pub use probe::{probe, Heard, PLAIN_TO_TLS, PROBE_PATH};
+pub use probe::{Heard, PLAIN_TO_TLS, PROBE_PATH, probe};
 
-use crate::client::{upgrade, ConnectError, WsClientConfig};
-use crate::dial;
+use crate::client::{ConnectError, WRITE_TIMEOUT, WsClientConfig, upgrade};
 use crate::session::RelaySession;
 
 /// The step of the upgrade in a bound's words.
@@ -28,7 +27,7 @@ pub fn tls_failed(e: &ConnectError) -> bool {
     matches!(e, ConnectError::Tls(_) | ConnectError::Timeout { step: "the TLS handshake", .. })
 }
 
-/// Dial `config`'s endpoint through its proxy, and upgrade at its path with
+/// Dial `config`'s endpoint through its way out, and upgrade at its path with
 /// `token` in the `X-Relay-Token` header, as [`crate::connect`] does, with
 /// no TLS; its trust and its server name are not used. Each hop reads the
 /// token, so the caller gives a token of one session alone.
@@ -39,12 +38,14 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<RelaySessio
         return Err(ConnectError::Config("the relay token contains a line break".into()));
     }
     let at = &config.endpoint;
-    let tcp = dial::dial(&at.host, at.port, &config.proxy, config.timeout).await.map_err(ConnectError::Dial)?;
-    let host_header = dial::authority(&at.host, at.port);
-    let (tcp, pending) = tokio::time::timeout(config.timeout, upgrade(tcp, &host_header, &at.path, token))
+    let mut tcp = config.way.tcp(&at.host, at.port, config.timeout).await.map_err(ConnectError::Dial)?;
+    let host_header = pod_proxy::authority(&at.host, at.port);
+    let (io, pending) = tokio::time::timeout(config.timeout, upgrade(tcp.io, &host_header, &at.path, token))
         .await
         .map_err(|_| ConnectError::Timeout { step: UPGRADE_STEP, after: config.timeout })??;
-    Ok(RelaySession::over_cleartext(tcp, pending, config.idle_timeout))
+    tcp.io = io;
+    let session = RelaySession::over_cleartext(tcp, pending, config.idle_timeout, WRITE_TIMEOUT);
+    Ok(session.with_limits(config.limits))
 }
 
 #[cfg(test)]
@@ -52,7 +53,7 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
-    use crate::cut::TlsFailure;
+    use pod_proxy::TlsFailure;
 
     /// TLS's own failures and its bound may pass in cleartext; a dial, the
     /// relay's answer and another bound may not.
@@ -62,7 +63,7 @@ mod tests {
         assert!(tls_failed(&ConnectError::Tls(TlsFailure::from("invalid peer certificate: UnknownIssuer"))));
         assert!(tls_failed(&ConnectError::Timeout { step: "the TLS handshake", after }));
         let unreached =
-            crate::DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: None, kind: None };
+            pod_proxy::DialError::Connect { target: "r:443".into(), detail: "refused".into(), cut: None, kind: None };
         for other in [
             ConnectError::Dial(unreached),
             ConnectError::Refused { status: 403, body: "forward: missing or wrong token".into() },

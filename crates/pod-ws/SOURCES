@@ -6,6 +6,16 @@
 repo PodUtils/podssh 8cd0f2bbd9422256b7bcf1e32e7314923078e6be
 dir crates/podssh-ws/src/h2_road
 dir crates/podssh-ws/src/cleartext
+# client.rs: the GET client of podssh (getter, https_get,
+# https_get_accepting over pod_proxy::Client) and the line of the crypto
+# provider of the doctor stay in podssh; the mapping of a failure of a
+# request is client/get.rs (request_error). close.rs: ForwardClose::remedy
+# (podssh's flags and commands) stays in podssh, with its asserts.
+# via/http2.rs: its Stream alone became h2_road/duplex.rs; the CONNECT of a
+# second proxy stays in podssh until pod-egress. server.rs: its test holds
+# the bytes of podssh's WebTunnel client (webtunnel.rs stays in podssh until
+# pod-egress). tests/properties.rs: the properties of the sanitizer read
+# pod_core::text.
 file d925a68e40361ade2babc79e2c69d235c624bc9b crates/podssh-ws/src/client.rs -> crates/pod-ws/src/client.rs
 file f147d20653ba547cc8d74705a72efb338cfff217 crates/podssh-ws/src/client/cut_tests.rs -> crates/pod-ws/src/client/cut_tests.rs
 file 97b058e49d8e0d91d7048ca8f4fcf83d3d118de8 crates/podssh-ws/src/client/get.rs -> crates/pod-ws/src/client/get.rs
@@ -41,4 +51,12 @@ file 55e0783e7fec3a49eefe73d1e9f314aeab67ee76 fuzz/fuzz_targets/ws_upgrade.rs ->
 file d30e946c1a7f4e02961c366c7327148677f60511 fuzz/fuzz_targets/close_reason.rs -> fuzz/fuzz_targets/close_reason.rs fuzz/src/targets.rs
 
 repo PodUtils/podnet 76ffb5eaeb36ef950aa9ab2b7494ac0883202733
+# Of src/ws.rs only bridge, dial, connect_bridge, DIAL_TIMEOUT, accept_key
+# (podssh's) and the tests bridge_moves_bytes_both_ways,
+# accept_key_matches_rfc_example and the measure throughput are here, with
+# close_hint of src/relay_reverse.rs (close.rs). serve_websocket,
+# forward_path, forward_url, DEFAULT_PATH and plain go to pod-cloudflare;
+# LocalSpec stays in podnet.
 file ebcc093215d8688002ed353977895c33d171a2ff src/ws.rs -> crates/pod-ws/src/bridge.rs
+# Of src/relay_reverse.rs, close_hint alone is here; the rest goes to pod-relay.
+file 0ceaffd2f7c86b04e74a9b0b2ef25602e3cb0692 src/relay_reverse.rs -> crates/pod-ws/src/close.rs

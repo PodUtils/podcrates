@@ -1,13 +1,13 @@
 //! RFC 6455 section 5.2 for received frames: "the minimal number of bytes
 //! MUST be used to encode the length", so the 16-bit form holds 126 to 65535
 //! and the 64-bit form 65536 and more. The frames are bytes written from the
-//! RFC, not made by podssh's encoder, in both directions: the rule holds for a
+//! RFC, not made by this crate's encoder, in both directions: the rule holds for a
 //! server's frames and for a client's.
 
 use std::time::Duration;
 
-use podssh_ws::frame::{self, decode, Frame, Role, FORWARD_MAX_FRAME};
-use podssh_ws::session::{close_code_and_reason, RelaySession};
+use pod_ws::frame::{self, FORWARD_MAX_FRAME, Frame, Role, decode};
+use pod_ws::session::{RelaySession, close_code_and_reason};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 /// FIN and the opcode of a binary frame.
@@ -99,7 +99,7 @@ fn the_64_bit_form_from_65536_is_accepted() {
     }
 }
 
-/// The next frame that podssh wrote.
+/// The next frame that the client wrote.
 async fn from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
     loop {
         if let Some((f, used)) = decode(buf, Role::Client).expect("a valid client frame") {
@@ -116,7 +116,7 @@ async fn from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
     }
 }
 
-/// From the relay, such a frame ends the read with an error, and podssh fails
+/// From the relay, such a frame ends the read with an error, and the client fails
 /// the connection with a Close 1002, a protocol error (RFC 6455 sections 7.1.7
 /// and 7.4.1). The same payload in the minimal form, sent first, is read.
 #[tokio::test]
@@ -138,7 +138,7 @@ async fn a_length_not_in_the_minimal_form_fails_the_connection_with_1002() {
             .await
             .expect("the read ends")
             .expect_err("a length that is not in the minimal form is an error");
-        assert!(matches!(error, podssh_ws::SessionError::Protocol(_)), "{marker}: {error:?}");
+        assert!(matches!(error, pod_ws::SessionError::Protocol(_)), "{marker}: {error:?}");
         assert!(error.to_string().contains("RFC 6455 5.2"), "{marker}: {error}");
         let mut buf = Vec::new();
         let sent = from_client(&mut peer, &mut buf).await;

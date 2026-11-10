@@ -243,3 +243,44 @@ pub fn gsr_message(data: &[u8]) {
     let messages = pod_gsr::wire::fuzz_messages(data);
     assert!(messages.len() * pod_gsr::wire::MESSAGE_LEN <= data.len().saturating_sub(2), "{messages:?}");
 }
+
+/// WebSocket frames (`pod_ws::frame::decode`; podssh `ws_frame`), as each
+/// side writes them: a frame consumes at most its input; a control frame
+/// has FIN and at most 125 bytes (RFC 6455 section 5.5); a decoded frame,
+/// encoded again by the same side, decodes to itself.
+pub fn ws_frame(data: &[u8]) {
+    use pod_ws::frame::{MAX_CONTROL_PAYLOAD, Role, decode, encode};
+    for role in [Role::Client, Role::Server] {
+        let Ok(Some((frame, used))) = decode(data, role) else { continue };
+        assert!((2..=data.len()).contains(&used), "{used} bytes of {}", data.len());
+        if frame.opcode >= 0x8 {
+            assert!(frame.fin && frame.payload.len() <= MAX_CONTROL_PAYLOAD, "{frame:?}");
+        }
+        let again = encode(&frame, role, [0x37, 0xfa, 0x21, 0x3d]);
+        assert_eq!(decode(&again, role).ok().flatten(), Some((frame, again.len())));
+    }
+}
+
+/// The answer to the WebSocket upgrade (`pod_ws::handshake::check_response`;
+/// podssh `ws_upgrade`), with the key of RFC 6455's example: any head, no
+/// panic, and an error that is safe to print.
+pub fn ws_upgrade(data: &[u8]) {
+    let Some(head) = text(data) else { return };
+    if let Err(e) = pod_ws::handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==") {
+        let shown = e.to_string();
+        assert!(!shown.contains('\u{1b}') && !shown.contains('\u{7}'), "{shown:?}");
+    }
+}
+
+/// A Close frame's payload (`pod_ws::close::close_code_and_reason`; podssh
+/// `close_reason`), as the relay sends it: the code is the first two bytes
+/// when there are two, and the reason, which goes to the user's terminal, is
+/// safe on one line.
+pub fn close_reason(data: &[u8]) {
+    let (code, reason) = pod_ws::close::close_code_and_reason(data);
+    match data {
+        [a, b, ..] => assert_eq!(code, Some(u16::from_be_bytes([*a, *b]))),
+        _ => assert_eq!((code, reason.as_str()), (None, "")),
+    }
+    assert!(is_one_line(&reason), "{reason:?}");
+}

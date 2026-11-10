@@ -4,9 +4,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::session::{close_code_and_reason, close_payload, RelaySession};
-use podssh_ws::SessionError;
+use pod_ws::SessionError;
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::session::{RelaySession, close_code_and_reason, close_payload};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 /// A frame as the relay (the server) sends it: unmasked.
@@ -14,7 +14,7 @@ fn from_server(opcode: u8, fin: bool, payload: &[u8]) -> Vec<u8> {
     frame::encode(&Frame { fin, opcode, payload: payload.to_vec() }, Role::Server, [0; 4])
 }
 
-/// Read the next frame podssh (the client) wrote.
+/// Read the next frame the client (the client) wrote.
 async fn next_from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
     loop {
         if let Some((f, used)) = frame::decode(buf, Role::Client).expect("a valid client frame") {

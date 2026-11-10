@@ -1,7 +1,36 @@
-//! What a Close carries: its payload, written and read, and what the relay's
-//! Close of a forward session means (out of `session.rs`, at its 500 lines).
+//! What a Close carries: its payload, written and read; the codes of RFC
+//! 6455 section 7.4.1 that the relays use, and a hint for each; and what the
+//! relay's Close of a forward session means.
 
 use crate::frame;
+
+/// The close codes of RFC 6455 section 7.4.1 that a relay sends.
+pub mod code {
+    /// The session ended as asked.
+    pub const NORMAL: u16 = 1000;
+    /// The far end goes away (a restart, an idle limit, a time cap).
+    pub const GOING_AWAY: u16 = 1001;
+    /// A frame or a message that RFC 6455 forbids.
+    pub const PROTOCOL: u16 = 1002;
+    /// A message over a limit (the relay: its byte cap or its frame cap).
+    pub const TOO_BIG: u16 = 1009;
+    /// An error of the far end (the relay: its connection to the target).
+    pub const ERROR: u16 = 1011;
+    /// The far end is busy: try again later.
+    pub const TRY_LATER: u16 = 1013;
+}
+
+/// What a close code of a relay means, for the end of an error line: empty
+/// for a code with no hint. The text starts with a space.
+pub fn close_hint(code: u16) -> &'static str {
+    match code {
+        code::GOING_AWAY => " (the relay goes away; open a new session)",
+        code::TOO_BIG => " (the session passed the byte limit of the relay; open a new session)",
+        code::ERROR => " (an error of the relay)",
+        code::TRY_LATER => " (the relay is busy; try again later)",
+        _ => "",
+    }
+}
 
 /// A Close payload: the code (big-endian), then a reason cut to fit the
 /// 125-byte control-frame limit on a character boundary.
@@ -23,12 +52,12 @@ pub fn close_code_and_reason(payload: &[u8]) -> (Option<u16>, String) {
     }
     let code = u16::from_be_bytes([payload[0], payload[1]]);
     // The reason is the peer's text and is printed to the user's terminal.
-    (Some(code), crate::text::one_line(&String::from_utf8_lossy(&payload[2..])))
+    (Some(code), pod_core::text::one_line(&String::from_utf8_lossy(&payload[2..])))
 }
 
 /// The part of a forward session that a Close of the relay names, by its
 /// code and reason (the relay's own words; `docs/relay.md`, "Errors and
-/// close codes"). `podssh ssh` and `podssh proxy` both use it.
+/// close codes"). The SSH road and the proxy road of a client both use it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForwardClose {
     /// 1000: the target or the client ended the session.
@@ -37,7 +66,7 @@ pub enum ForwardClose {
     Limit,
     /// The relay's connection to the target failed or broke.
     Target,
-    /// The connection between podssh and the relay broke; also no Close.
+    /// The connection between the client and the relay broke; also no Close.
     Client,
     /// A code or a reason that the relay's table does not list.
     Unknown,
@@ -63,38 +92,15 @@ pub fn forward_close(code: Option<u16>, reason: &str) -> ForwardClose {
 }
 
 impl ForwardClose {
-    /// What broke, in words: `target` is the `host:port` that the relay dials.
-    pub fn what(self, target: &str) -> String {
+    /// What broke, in words: `target` is the `host:port` that the relay
+    /// dials, and `app` the name of the client.
+    pub fn what(self, target: &str, app: &str) -> String {
         match self {
             ForwardClose::Normal => format!("{target} ended the connection"),
             ForwardClose::Limit => "the relay ended the session at one of its limits".into(),
             ForwardClose::Target => format!("the relay lost its connection to {target}"),
-            ForwardClose::Client => "the connection between podssh and the relay broke".into(),
+            ForwardClose::Client => format!("the connection between {app} and the relay broke"),
             ForwardClose::Unknown => "the relay closed the session".into(),
-        }
-    }
-
-    /// What may help, when something may. The limits are the relay's
-    /// (`/relays.json`, measured 2026-10-08): 180 s idle, 64 MiB, 12 h.
-    pub fn remedy(self, reason: &str) -> Option<&'static str> {
-        match self {
-            ForwardClose::Target => Some("another relay host may reach it: --relay-host HOST"),
-            // The link held; what crossed it came too slowly for the relay.
-            ForwardClose::Client if reason.starts_with("client receive backlog") => Some(
-                "the relay closes a session when 2 MiB wait for podssh: the link to the relay, or the reader of \
-                 podssh's output, is slower than the target",
-            ),
-            ForwardClose::Client => Some("podssh doctor checks the way to the relay"),
-            ForwardClose::Limit if reason.contains("idle") => {
-                Some("the relay closes a session after 180 s with no traffic; set ServerAliveInterval below 180")
-            }
-            ForwardClose::Limit if reason.contains("byte cap") => {
-                Some("a session carries 64 MiB at most through the relay; use a new session for more")
-            }
-            ForwardClose::Limit if reason.contains("time cap") => {
-                Some("a session lasts 12 h at most through the relay; connect again")
-            }
-            _ => None,
         }
     }
 }
@@ -127,10 +133,22 @@ mod forward_close_tests {
         for (code, reason, want) in cases {
             assert_eq!(forward_close(code, reason), want, "{code:?} {reason}");
         }
-        assert_eq!(ForwardClose::Target.what("railway.new:22"), "the relay lost its connection to railway.new:22");
-        assert!(ForwardClose::Limit.remedy("idle timeout").unwrap().contains("ServerAliveInterval"));
-        assert!(ForwardClose::Unknown.remedy("x").is_none());
-        assert!(ForwardClose::Client.remedy("client receive backlog").unwrap().contains("2 MiB wait for podssh"));
-        assert!(ForwardClose::Client.remedy("client send failed: reset").unwrap().contains("doctor"));
+        let target = "railway.new:22";
+        assert_eq!(ForwardClose::Target.what(target, "podssh"), "the relay lost its connection to railway.new:22");
+        assert_eq!(ForwardClose::Client.what(target, "podssh"), "the connection between podssh and the relay broke");
+    }
+
+    /// Each code that a relay sends with a hint has one; 1000 and an
+    /// unknown code have none.
+    #[test]
+    fn close_hint_names_each_code_of_the_relay() {
+        assert!(close_hint(code::TOO_BIG).contains("byte limit"));
+        assert!(close_hint(code::GOING_AWAY).contains("goes away"));
+        assert!(close_hint(code::ERROR).contains("error of the relay"));
+        assert!(close_hint(code::TRY_LATER).contains("busy"));
+        for none in [code::NORMAL, code::PROTOCOL, 4000] {
+            assert_eq!(close_hint(none), "", "{none}");
+        }
+        assert!(close_hint(code::TOO_BIG).starts_with(' '));
     }
 }

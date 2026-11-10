@@ -1,19 +1,20 @@
-//! The server's side of the opening handshake (T-368), for `podssh pipe
-//! ws-listen:`: the checks of RFC 6455 section 4.2.1 on a request that
-//! `http::request` read, the 101 of section 4.2.2, and the session that
-//! writes frames as a server does. No subprotocol and no extension is
-//! chosen, so a client that offered one gets none, as the RFC allows.
-//! A request with no key opens raw bytes where the caller asks for that
-//! (T-645), for a client of WebTunnel's shape; the relay role never does.
+//! The server's side of the opening handshake, for a listener of
+//! WebSockets: the checks of RFC 6455 section 4.2.1 on a request that
+//! `pod_proxy::http::request` read, the 101 of section 4.2.2, and the
+//! session that writes frames as a server does. No subprotocol and no
+//! extension is chosen, so a client that offered one gets none, as the RFC
+//! allows. A request with no key opens raw bytes where the caller asks for
+//! that, for a client of WebTunnel's shape; a relay role never does.
 
 use std::time::Duration;
 
 use base64::Engine as _;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use pod_proxy::http::request::{self, Request};
+
 use crate::client::WRITE_TIMEOUT;
 use crate::handshake;
-use crate::http::request::{self, Request};
 use crate::session::RelaySession;
 
 /// An upgrade that is refused: its status, its words and its headers.
@@ -37,7 +38,7 @@ fn refused<T>(status: u16, why: &str, headers: Vec<(&'static str, &'static str)>
 
 /// What a good upgrade opens: frames by RFC 6455, with the key that the
 /// accept answers, or raw bytes for a client that sent no key, as a client
-/// of WebTunnel's shape (T-645).
+/// of WebTunnel's shape.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Upgrade {
     Frames(String),
@@ -56,7 +57,7 @@ pub fn check_upgrade(head: &Request) -> Result<String, Refused> {
     Ok(key)
 }
 
-/// [`check_upgrade`], or the raw form of a request with no key (T-645), for
+/// [`check_upgrade`], or the raw form of a request with no key, for
 /// a listener whose user asked for it: the method, the Host and the two
 /// tokens as there; then the key decides, before the version, as a client
 /// of WebTunnel's shape sends neither. A key takes the version and the
@@ -108,7 +109,7 @@ fn no_origin(head: &Request) -> Result<(), Refused> {
 
 /// Whether a request asks for a WebSocket at all: `Upgrade: websocket` and
 /// `Connection: Upgrade`. One that does not is a browser's visit or another
-/// protocol's, which `ws-listen:`'s `--cover` may answer with a page (T-639).
+/// protocol's, which a listener may answer with a page of its own.
 pub fn asks_upgrade(head: &Request) -> bool {
     head.has_token("upgrade", "websocket") && head.has_token("connection", "upgrade")
 }
@@ -120,7 +121,7 @@ pub fn switching(key: &str) -> Vec<u8> {
     format!("{head}Sec-WebSocket-Accept: {accept}\r\n\r\n").into_bytes()
 }
 
-/// The answer that opens raw bytes (T-645): 101 with the two headers and no
+/// The answer that opens raw bytes: 101 with the two headers and no
 /// accept, as a WebTunnel server answers and its client checks.
 pub fn switching_raw() -> Vec<u8> {
     b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n".to_vec()
@@ -176,7 +177,7 @@ mod tests {
     }
 
     /// A visit asks for no upgrade, and neither does a request with one of the
-    /// two tokens alone; any case and a list hold them (T-639).
+    /// two tokens alone; any case and a list hold them.
     #[test]
     fn a_visit_asks_for_no_upgrade() {
         let asks = |text: &str| asks_upgrade(&request::parse_request(text.as_bytes()).unwrap());
@@ -186,14 +187,34 @@ mod tests {
         assert!(!asks("GET / HTTP/1.1\r\nHost: h\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"));
     }
 
-    /// The request of podssh's WebTunnel client, with no key and no version
-    /// (T-645): the raw form where the caller asks for it, 426 where it does
-    /// not; a key keeps each check of a framed upgrade, and an `Origin` is
-    /// 403 either way.
+    /// The request of a WebTunnel client, as podssh's `webtunnel::request`
+    /// writes it for `url=http://bridge.example/secret-path`: the bytes of
+    /// the road, until the road comes here with `pod-egress`.
+    const WEBTUNNEL_REQUEST: &str = "GET /secret-path HTTP/1.1\r\nHost: bridge.example\r\n\
+         User-Agent: Go-http-client/1.1\r\nConnection: upgrade\r\nUpgrade: websocket\r\n\r\n";
+
+    /// The check of the answer of a WebTunnel client, as podssh's
+    /// `webtunnel::check_answer` makes it: `101 Switching Protocols`,
+    /// `Upgrade: websocket` and `Connection: upgrade`, in any case.
+    fn webtunnel_takes(head: &str) -> Result<(), String> {
+        let (status, reason, headers) = pod_proxy::http::parse_head(head)?;
+        if status != 101 || reason != "Switching Protocols" {
+            return Err(format!("{status} {reason}"));
+        }
+        let value = |name: &str| headers.iter().find(|(n, _)| n == name).map(|(_, v)| v.to_ascii_lowercase());
+        match (value("upgrade").as_deref(), value("connection").as_deref()) {
+            (Some("websocket"), Some("upgrade")) => Ok(()),
+            _ => Err("no Upgrade: websocket and Connection: upgrade".into()),
+        }
+    }
+
+    /// The request of a WebTunnel client, with no key and no version: the
+    /// raw form where the caller asks for it, 426 where it does not; a key
+    /// keeps each check of a framed upgrade, and an `Origin` is 403 either
+    /// way.
     #[test]
     fn a_request_with_no_key_opens_raw_bytes_where_its_caller_asks() {
-        let settings = [("url".to_string(), "http://bridge.example/secret-path".to_string())];
-        let webtunnel = crate::webtunnel::request(&crate::webtunnel::Args::parse(&settings).unwrap());
+        let webtunnel = WEBTUNNEL_REQUEST.to_string();
         let parse = |text: &str| request::parse_request(text.as_bytes()).unwrap();
         let keyless = parse(&webtunnel);
         assert!(!keyless.has("sec-websocket-key") && !keyless.has("sec-websocket-version"), "{webtunnel}");
@@ -213,6 +234,6 @@ mod tests {
         assert_eq!(status(webtunnel.replace("Host: bridge.example\r\n", "")), 400);
         let answer = String::from_utf8(switching_raw()).unwrap();
         assert_eq!(answer, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n");
-        assert_eq!(crate::webtunnel::check_answer(&answer), Ok(()), "podssh's WebTunnel client takes it");
+        assert_eq!(webtunnel_takes(&answer), Ok(()), "a WebTunnel client takes it");
     }
 }

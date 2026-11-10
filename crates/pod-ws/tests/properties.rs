@@ -1,4 +1,4 @@
-//! Properties of the WebSocket layer and of the sanitizer (T-202), each
+//! Properties of the WebSocket layer and of the sanitizer, each
 //! checked on the inputs that proptest makes, 256 by default, and shrunk to
 //! the smallest that fails: a frame read back from its bytes is the frame
 //! that was written, and no shorter prefix of them is a frame; a message cut
@@ -13,10 +13,10 @@
 
 use std::time::Duration;
 
-use podssh_ws::frame::{self, decode, encode, Frame, Role, FORWARD_MAX_FRAME, MAX_CONTROL_PAYLOAD};
-use podssh_ws::session::{close_code_and_reason, RelaySession, MAX_MESSAGE};
-use podssh_ws::text::{multi_line, one_line};
-use podssh_ws::SessionError;
+use pod_core::text::{multi_line, one_line};
+use pod_ws::SessionError;
+use pod_ws::frame::{self, FORWARD_MAX_FRAME, Frame, MAX_CONTROL_PAYLOAD, Role, decode, encode};
+use pod_ws::session::{MAX_MESSAGE, RelaySession, close_code_and_reason};
 use proptest::collection::vec;
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
@@ -292,7 +292,7 @@ async fn through_a_session(wire: Vec<u8>, writes: Vec<usize>, n: usize) -> (Resu
 async fn frames_from<R: AsyncRead + Unpin>(from_session: &mut R, n: usize) -> Vec<Frame> {
     let (mut buf, mut out) = (Vec::new(), Vec::new());
     while out.len() < n {
-        if let Some((f, used)) = decode(&buf, Role::Client).expect("a frame that podssh wrote") {
+        if let Some((f, used)) = decode(&buf, Role::Client).expect("a frame that the client wrote") {
             buf.drain(..used);
             out.push(f);
             continue;

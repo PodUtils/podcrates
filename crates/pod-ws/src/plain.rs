@@ -1,5 +1,5 @@
 //! A WebSocket session over plain TCP to the loopback, for tests only
-//! (feature `plain-ws`, T-068): the tests of an embedder (podvm) and a
+//! (feature `plain-ws`): the tests of an embedder (podvm) and a
 //! stand-in relay then need no CA. A token over plain TCP must not leave the
 //! host, so a host that is not the loopback is refused before any
 //! connection, each address that a name resolves to must be the loopback
@@ -9,10 +9,11 @@ use std::time::Duration;
 
 use tokio::net::TcpStream;
 
-use crate::client::{upgrade, ConnectError, Endpoint, WsClientConfig, WRITE_TIMEOUT};
-use crate::dial::{self, DialError, ProxyChoice};
+use pod_proxy::env::is_loopback;
+use pod_proxy::{Cut, DialError, authority};
+
+use crate::client::{ConnectError, WRITE_TIMEOUT, upgrade};
 use crate::session::RelaySession;
-use crate::tls::Trust;
 
 /// Connect to `host:port` on the loopback over plain TCP, and upgrade at
 /// `path` with `token` in the `X-Relay-Token` header, as [`crate::connect`]
@@ -25,24 +26,16 @@ pub async fn connect_loopback(
     timeout: Duration,
     idle: Option<Duration>,
 ) -> Result<RelaySession<TcpStream>, ConnectError> {
-    // The rules of a path and a token are those of `connect`.
-    let config = WsClientConfig {
-        endpoint: Endpoint { host: host.to_string(), port, path: path.to_string() },
-        trust: Trust::Default,
-        server_name: host.to_string(),
-        timeout,
-        idle_timeout: idle,
-        proxy: ProxyChoice::Direct,
-    };
     // Another host is refused by `loopback_tcp`, before any connection.
-    if dial::is_loopback(host) {
-        config.validate().map_err(ConnectError::Config)?;
+    if is_loopback(host) {
+        // The rules of a path and a token are those of `connect`.
+        crate::client::check_path(path, host).map_err(ConnectError::Config)?;
         if token.contains(['\r', '\n']) {
             return Err(ConnectError::Config("the relay token contains a line break".into()));
         }
     }
     let tcp = loopback_tcp(host, port, timeout).await?;
-    let host_header = dial::authority(host.trim_start_matches('[').trim_end_matches(']'), port);
+    let host_header = authority(host.trim_start_matches('[').trim_end_matches(']'), port);
     let (tcp, pending) = tokio::time::timeout(timeout, upgrade(tcp, &host_header, path, token))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: timeout })??;
@@ -53,7 +46,7 @@ pub async fn connect_loopback(
 /// that is not the loopback is refused before any connection, and of the
 /// addresses that a name resolves to, only a loopback one is used.
 pub(crate) async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, ConnectError> {
-    if !dial::is_loopback(host) {
+    if !is_loopback(host) {
         return Err(ConnectError::Config(format!(
             "plain ws:// goes only to the loopback, and {host:?} is not: a token over plain TCP \
              must not leave this host"
@@ -73,7 +66,7 @@ pub(crate) async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Re
         .await
         .map_err(|_| ConnectError::Timeout { step: "the TCP connection", after: timeout })?
         .map_err(|e| {
-            let (cut, kind) = (Some(crate::cut::Cut::of(e.kind())), Some(e.kind()));
+            let (cut, kind) = (Some(Cut::of(e.kind())), Some(e.kind()));
             ConnectError::Dial(DialError::Connect { target: addr.to_string(), detail: e.to_string(), cut, kind })
         })
 }

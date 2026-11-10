@@ -1150,6 +1150,29 @@ name = "pod-todo"
 version = "0.12.0"
 
 [[package]]
+name = "pod-ws"
+version = "0.11.0"
+dependencies = [
+ "base64",
+ "bytes",
+ "h2",
+ "http",
+ "libc",
+ "p256",
+ "pod-core",
+ "pod-proxy",
+ "pod-testkit",
+ "pod-tls",
+ "proptest",
+ "rustls",
+ "rustls-pki-types",
+ "sha2 0.11.1",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+]
+
+[[package]]
 name = "poly1305"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

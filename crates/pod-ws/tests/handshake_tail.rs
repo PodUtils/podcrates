@@ -14,9 +14,9 @@ use std::task::{Context, Poll};
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use podssh_ws::client::{next_event, read_frame_over, Event, DEFAULT_TIMEOUT};
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::handshake::{self, accept_key, read_response};
+use pod_ws::client::{DEFAULT_TIMEOUT, Event, next_event, read_frame_over};
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::handshake::{self, accept_key, read_response};
 
 const KEY: &str = "dGhlIHNhbXBsZSBub25jZQ==";
 
@@ -66,12 +66,12 @@ impl Scripted {
 impl AsyncRead for Scripted {
     fn poll_read(self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let me = self.get_mut();
-        if me.chunks.is_empty() {
-            if let Some(tail) = me.tail.take() {
-                let mut chunk = response_for(&me.key_from_request()).into_bytes();
-                chunk.extend_from_slice(&tail);
-                me.chunks.push(chunk);
-            }
+        if me.chunks.is_empty()
+            && let Some(tail) = me.tail.take()
+        {
+            let mut chunk = response_for(&me.key_from_request()).into_bytes();
+            chunk.extend_from_slice(&tail);
+            me.chunks.push(chunk);
         }
         if me.chunks.is_empty() {
             return Poll::Ready(Ok(()));
@@ -224,7 +224,7 @@ async fn read_frame_answers_a_ping_with_a_masked_pong() {
 }
 
 /// §5.5 caps a control frame at 125 bytes, so a 126-byte Ping is the
-/// peer's violation and answering it would put podssh on the wrong side of
+/// peer's violation and answering it would put the client on the wrong side of
 /// the same rule. The decoder refuses it: the read fails, and the only frame
 /// written is a Close 1002 (§7.1.7), never a Pong.
 #[tokio::test]

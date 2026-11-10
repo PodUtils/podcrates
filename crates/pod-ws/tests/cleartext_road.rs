@@ -1,10 +1,10 @@
-//! The cleartext road on the relay's port (T-326), on the loopback: a
+//! The cleartext road on the relay's port, on the loopback: a
 //! stand-in proxy takes each CONNECT, as a proxy that intercepts TLS does,
 //! then resets a ClientHello and carries cleartext (or resets cleartext), in
-//! front of a stand-in relay whose side of the upgrade is podssh-ws's
+//! front of a stand-in relay whose side of the upgrade is pod-ws's
 //! server's. The TLS road fails at the proxy, in a way that the cleartext
 //! road may pass, and the cleartext road opens with the token in its header,
-//! after the TLS road; bytes go both ways. The probe of GitHub #56 names a
+//! after the TLS road; bytes go both ways. The probe names a
 //! reset, the refusal of cleartext in nginx's words (its page of a request
 //! of plain HTTP on its TLS port), a refusal by policy, a redirect, a record
 //! of TLS, an answer, a close, a silence and a CONNECT that reached nothing.
@@ -12,9 +12,11 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::cleartext::{self, Heard};
-use podssh_ws::frame::OPCODE_BINARY;
-use podssh_ws::{ConnectError, Cut, DialError, Endpoint, Proxy, ProxyChoice, Trust, WsClientConfig};
+use pod_ws::cleartext::{self, Heard};
+use pod_ws::frame::OPCODE_BINARY;
+use pod_ws::{ConnectError, Cut, DialError, Endpoint, Trust, Way, WsClientConfig};
+
+mod common;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -70,8 +72,8 @@ impl Interceptor {
         Interceptor { port, firsts }
     }
 
-    fn proxy(&self) -> ProxyChoice {
-        ProxyChoice::Via(Proxy::parse(&format!("http://127.0.0.1:{}", self.port)).unwrap())
+    fn proxy(&self) -> Way {
+        common::way_via(&format!("http://127.0.0.1:{}", self.port))
     }
 
     fn firsts(&self) -> Vec<u8> {
@@ -105,7 +107,7 @@ async fn tunnel(mut tcp: TcpStream, cuts: Cuts, far: u16, firsts: Arc<Mutex<Vec<
     let _ = tokio::io::copy_bidirectional(&mut tcp, &mut to).await;
 }
 
-/// A stand-in relay on the loopback, with no TLS: podssh-ws's server side
+/// A stand-in relay on the loopback, with no TLS: pod-ws's server side
 /// of the upgrade, which keeps the token of each request and echoes each
 /// binary message.
 struct Relay {
@@ -133,13 +135,13 @@ impl Relay {
 }
 
 async fn echo(mut tcp: TcpStream, tokens: Arc<Mutex<Vec<String>>>) {
-    let Ok((head, pending)) = podssh_ws::http::read_request(&mut tcp, Vec::new()).await else { return };
+    let Ok((head, pending)) = pod_proxy::http::read_request(&mut tcp, Vec::new()).await else { return };
     tokens.lock().unwrap().push(head.header("x-relay-token").unwrap_or_default().to_string());
-    let Ok(key) = podssh_ws::server::check_upgrade(&head) else { return };
-    if tcp.write_all(&podssh_ws::server::switching(&key)).await.is_err() {
+    let Ok(key) = pod_ws::server::check_upgrade(&head) else { return };
+    if tcp.write_all(&pod_ws::server::switching(&key)).await.is_err() {
         return;
     }
-    let session = podssh_ws::server::session(tcp, pending, Some(LIMIT));
+    let session = pod_ws::server::session(tcp, pending, Some(LIMIT));
     while let Ok(f) = session.read_frame().await {
         if f.opcode != OPCODE_BINARY || session.send_binary(&f.payload).await.is_err() {
             break;
@@ -149,23 +151,25 @@ async fn echo(mut tcp: TcpStream, tokens: Arc<Mutex<Vec<String>>>) {
 
 /// The relay `relay-a.test` on port 443, through `proxy`, which the name
 /// goes to with no DNS.
-fn config(proxy: ProxyChoice) -> WsClientConfig {
+fn config(way: Way) -> WsClientConfig {
     WsClientConfig {
         endpoint: Endpoint { host: "relay-a.test".into(), port: 443, path: "/connect/github.com/22".into() },
         trust: Trust::Default,
         server_name: "relay-a.test".into(),
         timeout: LIMIT,
         idle_timeout: Some(LIMIT),
-        proxy,
+        way,
+        limits: pod_ws::Limits::default(),
     }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_tls_road_fails_at_the_proxy_and_the_cleartext_road_carries_the_session() {
+    pod_testkit::need_loopback!();
     let relay = Relay::start().await;
     let proxy = Interceptor::start(Cuts::Tls, relay.port).await;
     let config = config(proxy.proxy());
-    let tls = podssh_ws::connect(&config, TOKEN).await.expect_err("TLS through a proxy that resets it");
+    let tls = pod_ws::connect(&config, TOKEN).await.expect_err("TLS through a proxy that resets it");
     assert!(cleartext::tls_failed(&tls), "a failure that the cleartext road may pass: {tls:?}");
     assert!(relay.tokens().is_empty(), "nothing reached the relay on the TLS road");
     let session = cleartext::connect(&config, TOKEN).await.expect("the cleartext road");
@@ -179,9 +183,10 @@ async fn the_tls_road_fails_at_the_proxy_and_the_cleartext_road_carries_the_sess
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_proxy_that_resets_cleartext_is_named_by_the_probe_and_ends_the_road() {
+    pod_testkit::need_loopback!();
     let relay = Relay::start().await;
     let proxy = Interceptor::start(Cuts::Cleartext, relay.port).await;
-    let heard = cleartext::probe("relay-a.test", 443, &proxy.proxy(), LIMIT).await;
+    let heard = cleartext::probe(&proxy.proxy(), "relay-a.test", 443, LIMIT).await;
     assert_eq!(heard, Heard::Cut(Cut::Reset), "{}", heard.words());
     assert!(!heard.passed());
     assert_eq!(heard.words(), "reset, with no answer: a hop that expects TLS cuts cleartext");
@@ -199,7 +204,7 @@ async fn answering(bytes: &'static [u8], silent: bool) -> u16 {
     tokio::spawn(async move {
         while let Ok((mut tcp, _)) = listener.accept().await {
             tokio::spawn(async move {
-                let _ = podssh_ws::http::read_request(&mut tcp, Vec::new()).await;
+                let _ = pod_proxy::http::read_request(&mut tcp, Vec::new()).await;
                 if silent {
                     tokio::time::sleep(LIMIT).await;
                     return;
@@ -214,11 +219,12 @@ async fn answering(bytes: &'static [u8], silent: bool) -> u16 {
 
 async fn heard(bytes: &'static [u8]) -> Heard {
     let port = answering(bytes, false).await;
-    cleartext::probe("127.0.0.1", port, &ProxyChoice::Direct, LIMIT).await
+    cleartext::probe(&common::way(), "127.0.0.1", port, LIMIT).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_probe_names_each_answer() {
+    pod_testkit::need_loopback!();
     let edge = heard(NGINX_PLAIN_TO_TLS).await;
     assert!(edge.plain_to_tls() && !edge.passed(), "{edge:?}");
     let said = "the edge's refusal: HTTP 400, the plain HTTP request was sent to its HTTPS port";
@@ -243,13 +249,14 @@ async fn the_probe_names_each_answer() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_silence_and_a_dial_that_reached_nothing_are_named() {
+    pod_testkit::need_loopback!();
     let port = answering(b"", true).await;
     let wait = Duration::from_millis(500);
-    let silent = cleartext::probe("127.0.0.1", port, &ProxyChoice::Direct, wait).await;
+    let silent = cleartext::probe(&common::way(), "127.0.0.1", port, wait).await;
     assert_eq!(silent, Heard::Silent(wait));
     // A port where nothing listens: the one of a listener that went.
     let gone = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
-    let unreached = cleartext::probe("127.0.0.1", gone, &ProxyChoice::Direct, LIMIT).await;
+    let unreached = cleartext::probe(&common::way(), "127.0.0.1", gone, LIMIT).await;
     assert!(matches!(&unreached, Heard::Unreached(DialError::Connect { .. })), "{unreached:?}");
     assert!(unreached.words().starts_with("not reached: "), "{}", unreached.words());
 }

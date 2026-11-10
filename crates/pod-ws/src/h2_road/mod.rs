@@ -1,8 +1,8 @@
-//! The WebSocket over HTTP/2's extended CONNECT (RFC 8441, T-321, GitHub
-//! #51): the sessions of one process to a relay host as streams of one TLS
-//! connection, where the host offers it, as podssh's relay role does. TLS of
-//! this road alone offers `h2`, then `http/1.1`, by ALPN; each other road of
-//! podssh offers none (`tls.rs`). On `h2`: HTTP/2's handshake with the
+//! The WebSocket over HTTP/2's extended CONNECT (RFC 8441): the sessions of
+//! one process to a relay host as streams of one TLS connection, where the
+//! host offers it, as podssh's relay role does. TLS of this road alone
+//! offers `h2`, then `http/1.1`, by ALPN; each other road offers none. On
+//! `h2`: HTTP/2's handshake with the
 //! road's windows, a PING whose answer comes after the server's SETTINGS,
 //! and then, only where those SETTINGS offered the protocol
 //! (`SETTINGS_ENABLE_CONNECT_PROTOCOL`, RFC 8441 section 3), a CONNECT for
@@ -16,12 +16,14 @@
 //! connection, as [`crate::connect`] sends it. Where it chose `h2` and the
 //! SETTINGS offered no extended CONNECT, or HTTP/2 did not carry the
 //! CONNECT, the connection is closed first and the upgrade goes on a new
-//! one, so that a session holds one connection at a time; the process then
-//! takes HTTP/1.1 to that host for [`REMEMBERED`] ([`pool`]). A caller's own
-//! TLS configuration is used as it is, with no ALPN (`Trust::caller`), so it
-//! takes the upgrade alone.
+//! one, so that a session holds one connection at a time; the [`Pool`] then
+//! takes HTTP/1.1 to that host for [`REMEMBERED`]. A caller's own TLS
+//! configuration is used as it is, with no ALPN (`Trust::caller`), so it
+//! takes the upgrade alone. The caller owns the pool: one for each process,
+//! or one for each test.
 
 mod dial;
+mod duplex;
 mod pool;
 
 use std::pin::Pin;
@@ -32,11 +34,13 @@ use bytes::Bytes;
 use h2::{RecvStream, SendStream};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::client::{ConnectError, RelayStream, WsClientConfig};
-use crate::session::RelaySession;
-use crate::tls::Trust;
+use pod_tls::Trust;
 
-pub use dial::{probe, Offered};
+use crate::client::{ConnectError, RelayStream, WRITE_TIMEOUT, WsClientConfig};
+use crate::session::RelaySession;
+
+pub use dial::{Offered, probe};
+pub use pool::Pool;
 
 /// The protocols that this road offers by ALPN, in its order.
 pub const H2: &[u8] = b"h2";
@@ -87,7 +91,7 @@ pub enum Fallback {
     /// HTTP/2 did not carry the CONNECT, a reset or no answer to its PING:
     /// a new connection.
     Carried(String),
-    /// The process found one of these at this host within [`REMEMBERED`],
+    /// The pool found one of these at this host within [`REMEMBERED`],
     /// so it asked for no HTTP/2.
     Remembered(Box<Fallback>),
     /// The caller's TLS configuration, which offers no ALPN.
@@ -126,17 +130,17 @@ impl Road {
 }
 
 /// A session's stream of HTTP/2: the DATA of one stream both ways, and
-/// END_STREAM at its shutdown, as a tunnel of `via` carries; a client's
-/// gives its place on its connection back when it drops.
+/// END_STREAM at its shutdown; a client's gives its place on its
+/// connection back when it drops.
 pub struct Stream {
-    inner: crate::via::Stream,
+    inner: duplex::Stream,
     _place: Option<pool::Place>,
 }
 
 /// The stream of `send` and `recv`, as a server answers an extended
-/// CONNECT with them (podssh's relay role, `serve::http2`).
+/// CONNECT with them (a relay role of HTTP/2).
 pub fn duplex(send: SendStream<Bytes>, recv: RecvStream) -> Stream {
-    Stream { inner: crate::via::Stream::from_parts(send, recv), _place: None }
+    Stream { inner: duplex::Stream::from_parts(send, recv), _place: None }
 }
 
 impl AsyncRead for Stream {
@@ -182,8 +186,9 @@ impl Carry {
 
 /// Connect as [`crate::connect`] does, with `token` in a field and nowhere
 /// else, on this road where the host takes it, else by the upgrade of
-/// HTTP/1.1: the session, and how it is carried.
-pub async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {
+/// HTTP/1.1: the session, and how it is carried. `pool` keeps the
+/// connections and what it found of each host.
+pub async fn connect(pool: &Pool, config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {
     config.validate().map_err(ConnectError::Config)?;
     if token.contains(['\r', '\n']) {
         return Err(ConnectError::Config("the relay token contains a line break".into()));
@@ -195,7 +200,7 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySessi
     // to a new one, once; the last one's words go into the fallback's.
     let mut ended = String::new();
     for _ in 0..2 {
-        let (conn, place, shared) = match pool::place(config).await? {
+        let (conn, place, shared) = match pool.place(config).await? {
             pool::Got::Place { conn, place, shared } => (conn, place, shared),
             pool::Got::Http1(tls, peer) => {
                 return Ok((upgrade_on(*tls, peer, config, token).await?, Road::Http1(Fallback::NotChosen)));
@@ -211,7 +216,7 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySessi
             }
             Err(Carry::Reset(why)) => {
                 let why = Fallback::Carried(why);
-                pool::remember(config, why.clone()).await;
+                pool.remember(config, why.clone()).await;
                 return Ok((crate::connect(config, token).await?, Road::Http1(why)));
             }
         }
@@ -222,7 +227,7 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySessi
 
 /// The CONNECT of RFC 8441 for `config`'s path, with `token`.
 fn request(config: &WsClientConfig, token: &str) -> Result<http::Request<()>, ConnectError> {
-    let authority = crate::dial::authority(&config.endpoint.host, config.endpoint.port);
+    let authority = pod_proxy::authority(&config.endpoint.host, config.endpoint.port);
     let uri = http::Uri::builder()
         .scheme("https")
         .authority(authority.as_str())
@@ -237,7 +242,7 @@ fn request(config: &WsClientConfig, token: &str) -> Result<http::Request<()>, Co
         .method(http::Method::CONNECT)
         .uri(uri)
         .header("sec-websocket-version", "13")
-        .header(http::header::USER_AGENT, crate::url::USER_AGENT)
+        .header(http::header::USER_AGENT, config.way.user_agent.as_str())
         .header("x-relay-token", value)
         .body(())
         .map_err(|e| ConnectError::Config(format!("the CONNECT: {e}")))?;
@@ -269,8 +274,9 @@ async fn open_on(
         let body = if body.is_empty() { reason } else { body };
         return Err(Carry::Answer(ConnectError::Refused { status: status.as_u16(), body }));
     }
-    let stream = Stream { inner: crate::via::Stream::from_parts(send, response.into_body()), _place: Some(place) };
-    Ok(RelaySession::over_h2(stream, conn.peer(), config.idle_timeout))
+    let stream = Stream { inner: duplex::Stream::from_parts(send, response.into_body()), _place: Some(place) };
+    let session = RelaySession::over_h2(stream, conn.peer(), config.idle_timeout, WRITE_TIMEOUT);
+    Ok(session.with_limits(config.limits))
 }
 
 /// The start of a refusal's body, as the body of a refused upgrade is
@@ -288,7 +294,7 @@ async fn refusal_text(mut body: RecvStream) -> String {
     };
     let _ = tokio::time::timeout(REFUSAL_WAIT, read).await;
     got.truncate(REFUSAL_BODY);
-    crate::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got, url: String::new() }
+    pod_proxy::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got, url: String::new() }
         .body_text(200)
 }
 
@@ -300,19 +306,19 @@ async fn upgrade_on(
     config: &WsClientConfig,
     token: &str,
 ) -> Result<RelaySession, ConnectError> {
-    let host_header = crate::dial::authority(&config.endpoint.host, config.endpoint.port);
+    let host_header = pod_proxy::authority(&config.endpoint.host, config.endpoint.port);
     let upgraded = crate::client::upgrade(tls, &host_header, &config.endpoint.path, token);
     let (tls, pending) = tokio::time::timeout(config.timeout, upgraded)
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
-    Ok(RelaySession::over_tls(tls, peer, pending, config.idle_timeout))
+    let session = RelaySession::over_tls(tls, peer, pending, config.idle_timeout, WRITE_TIMEOUT);
+    Ok(session.with_limits(config.limits))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::client::Endpoint;
-    use crate::dial::ProxyChoice;
 
     fn config(path: &str) -> WsClientConfig {
         WsClientConfig {
@@ -321,7 +327,8 @@ mod tests {
             server_name: "relay.example".into(),
             timeout: Duration::from_secs(5),
             idle_timeout: None,
-            proxy: ProxyChoice::Direct,
+            way: crate::testing::way(),
+            limits: crate::Limits::default(),
         }
     }
 

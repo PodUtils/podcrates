@@ -1,4 +1,4 @@
-//! How a connection to the relay ended, as podssh's [`ConnectError`] keeps
+//! How a connection to the relay ended, as a [`ConnectError`] keeps
 //! it: the cut of the dial, of the handshake, or of a bound. The cuts of an
 //! error of I/O are pod-proxy's, and its tests prove them.
 
@@ -9,14 +9,15 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
+use pod_proxy::{Cut, DialError, TlsFailure};
+
 use super::ConnectError;
-use crate::cut::{Cut, TlsFailure};
-use crate::dial::DialError;
 
 /// A certificate's refusal has no cut; a reset in the handshake has one.
 #[test]
 fn a_handshake_s_refusal_has_no_cut() {
-    let words = crate::tls::context().words();
+    let way = crate::testing::way();
+    let words = way.tls.words();
     let reset = std::io::Error::from(ErrorKind::ConnectionReset);
     let tls = ConnectError::Tls(TlsFailure::of(&reset, words));
     assert_eq!(tls.cut(), Some(Cut::Reset));
@@ -60,7 +61,7 @@ impl AsyncWrite for Peer {
 
 async fn handshake(read: Option<Option<ErrorKind>>) -> ConnectError {
     let bound = Duration::from_millis(300);
-    match crate::tls_over(Peer { read }, "relay.example", &crate::Trust::Default, bound).await {
+    match crate::testing::way().tls_over(Peer { read }, "relay.example", &pod_tls::Trust::Default, bound).await {
         Ok(_) => panic!("a handshake with no server completed"),
         Err(e) => e,
     }

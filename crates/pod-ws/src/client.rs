@@ -1,5 +1,5 @@
-//! Connecting to the relay: TCP (directly or through an HTTP proxy), TLS with
-//! podssh's own crypto provider, and the WebSocket upgrade. Every step is
+//! Connecting to the relay: TCP through the caller's way out ([`Way`]), TLS
+//! with the caller's context, and the WebSocket upgrade. Every step is
 //! bounded, and every failure says which step failed and why.
 //!
 //! Verdicts from [`doctor`] are three-valued (`ok`, `FAIL`, `????`): a check
@@ -7,20 +7,22 @@
 
 use std::time::Duration;
 
+use pod_core::{Class, Failure, Stage};
+use pod_proxy::http;
+use pod_proxy::{Cut, DialError, authority};
+use pod_tls::Trust;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::cut::Cut;
-use crate::dial::{self, DialError, ProxyChoice};
 use crate::error::{Verdict, WsError};
 use crate::frame::{self, Frame};
 use crate::handshake;
-use crate::http;
+use crate::limits::Limits;
 pub use crate::session::{RelaySession, RelayStream};
-use crate::tls::{self, Trust};
+use crate::way::Way;
 
-// The GET over HTTPS: pod-proxy's client with podssh's settings.
+// The failure of a request of pod-proxy's client, as a ConnectError.
 mod get;
-pub use get::{getter, https_get, https_get_accepting};
+pub use get::request_error;
 
 #[cfg(test)]
 mod cut_tests;
@@ -42,7 +44,7 @@ pub const LIVENESS_ALLOWED: u32 = 3;
 /// Bound on one write to an open session.
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// The largest head of the relay's answer to the upgrade (T-201).
+/// The largest head of the relay's answer to the upgrade.
 pub const UPGRADE_HEAD: usize = 16 * 1024;
 
 /// What to connect to.
@@ -67,8 +69,10 @@ pub struct WsClientConfig {
     pub timeout: Duration,
     /// Bound on waiting for each frame once connected (`None`: no bound).
     pub idle_timeout: Option<Duration>,
-    /// Direct, a given proxy, or whatever the environment names.
-    pub proxy: ProxyChoice,
+    /// The way out and the TLS context.
+    pub way: Way,
+    /// The largest frame and message that the session takes in.
+    pub limits: Limits,
 }
 
 impl WsClientConfig {
@@ -77,25 +81,31 @@ impl WsClientConfig {
     /// proxy and access logs. The path is not echoed, in case a token is what
     /// it carries.
     pub fn validate(&self) -> Result<(), String> {
-        if let Some((_, query)) = self.endpoint.path.split_once('?') {
-            if !relay_knobs_only(query) {
-                return Err("the WebSocket path carries a query string other than the relay's connect \
-                     knobs; the token belongs in the X-Relay-Token header, and a query string \
-                     ends up in proxy access logs"
-                    .to_string());
-            }
-        }
-        if !self.endpoint.path.starts_with('/') {
-            return Err(format!("the WebSocket path must begin with '/': {:?}", self.endpoint.path));
-        }
-        if self.endpoint.path.contains(['\r', '\n', ' ']) {
-            return Err("the WebSocket path contains whitespace".into());
-        }
-        if self.server_name.is_empty() {
-            return Err("a server name is required: hostname verification has no bypass".into());
-        }
-        Ok(())
+        check_path(&self.endpoint.path, &self.server_name)
     }
+}
+
+/// The checks of [`WsClientConfig::validate`] on a path of the relay and the
+/// name that its certificate must carry.
+pub fn check_path(path: &str, server_name: &str) -> Result<(), String> {
+    if let Some((_, query)) = path.split_once('?')
+        && !relay_knobs_only(query)
+    {
+        return Err("the WebSocket path carries a query string other than the relay's connect \
+             knobs; the token belongs in the X-Relay-Token header, and a query string \
+             ends up in proxy access logs"
+            .to_string());
+    }
+    if !path.starts_with('/') {
+        return Err(format!("the WebSocket path must begin with '/': {path:?}"));
+    }
+    if path.contains(['\r', '\n', ' ']) {
+        return Err("the WebSocket path contains whitespace".into());
+    }
+    if server_name.is_empty() {
+        return Err("a server name is required: hostname verification has no bypass".into());
+    }
+    Ok(())
 }
 
 /// Whether `query` holds only the relay's documented connect knobs
@@ -120,8 +130,8 @@ pub enum ConnectError {
     /// The TCP connection (direct or through the proxy) could not be opened.
     Dial(DialError),
     /// The TLS handshake failed: certificate, hostname or protocol, or the
-    /// far end cut it, whose kind it keeps (T-487).
-    Tls(crate::cut::TlsFailure),
+    /// far end cut it, whose kind it keeps.
+    Tls(pod_proxy::TlsFailure),
     /// A step did not finish in time.
     Timeout { step: &'static str, after: Duration },
     /// The relay answered the upgrade with an HTTP status instead of `101`.
@@ -168,11 +178,36 @@ impl ConnectError {
             _ => None,
         }
     }
+
+    /// The stage and the class of the failure.
+    pub fn stage_and_class(&self) -> (Stage, Class) {
+        match self {
+            ConnectError::Config(_) => (Stage::WebSocket, Class::Config),
+            ConnectError::Dial(e) => e.stage_and_class(),
+            ConnectError::Tls(failure) if failure.cut.is_some() => (Stage::Network, Class::Unavailable),
+            ConnectError::Tls(_) => (Stage::Tls, Class::Refused),
+            ConnectError::Timeout { step, .. } if step.contains("TLS") => (Stage::Tls, Class::Timeout),
+            ConnectError::Timeout { .. } => (Stage::WebSocket, Class::Timeout),
+            ConnectError::Refused { status: 401 | 403 | 407, .. } => (Stage::WebSocket, Class::Refused),
+            ConnectError::Refused { status: 404 | 410, .. } => (Stage::WebSocket, Class::NotFound),
+            ConnectError::Refused { status: 429 | 503, .. } => (Stage::WebSocket, Class::TempFail),
+            ConnectError::Refused { .. } => (Stage::WebSocket, Class::Unavailable),
+            ConnectError::Upgrade(_) => (Stage::WebSocket, Class::Protocol),
+            ConnectError::Http(_) => (Stage::Connect, Class::Unavailable),
+        }
+    }
+}
+
+impl From<ConnectError> for Failure {
+    fn from(e: ConnectError) -> Failure {
+        let (stage, class) = e.stage_and_class();
+        Failure::caused(stage, class, e.to_string(), e)
+    }
 }
 
 /// Whether the body of a refused upgrade is the relay's wording for a policy
 /// refusal (spec: "not in the ALLOW list"), which a fresh token does not
-/// repair. The one definition, which `podssh-relay` uses.
+/// repair. The one definition, which the client of the relay uses.
 pub fn is_policy_refusal(body: &str) -> bool {
     let body = body.to_ascii_lowercase();
     body.contains("allow list") || body.contains("not allowed") || body.contains("blocked")
@@ -187,51 +222,26 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<RelaySessio
     if token.contains(['\r', '\n']) {
         return Err(ConnectError::Config("the relay token contains a line break".into()));
     }
-    let (tls, peer) = open_tls_offering(
-        &config.endpoint.host,
-        config.endpoint.port,
-        &config.server_name,
-        &config.trust,
-        &config.proxy,
-        config.timeout,
-        &[],
-    )
-    .await?;
-    let host_header = dial::authority(&config.endpoint.host, config.endpoint.port);
-    let (tls, pending) = tokio::time::timeout(config.timeout, upgrade(tls, &host_header, &config.endpoint.path, token))
+    let at = &config.endpoint;
+    let way = &config.way;
+    let (tls, peer) = way.open_tls(&at.host, at.port, &config.server_name, &config.trust, config.timeout, &[]).await?;
+    let host_header = authority(&at.host, at.port);
+    let (tls, pending) = tokio::time::timeout(config.timeout, upgrade(tls, &host_header, &at.path, token))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
-    Ok(RelaySession::over_tls(tls, peer, pending, config.idle_timeout))
+    Ok(RelaySession::over_tls(tls, peer, pending, config.idle_timeout, WRITE_TIMEOUT).with_limits(config.limits))
 }
 
-/// TCP (direct or through the proxy) and a verified TLS handshake.
+/// TCP through `way` and a verified TLS handshake.
 pub async fn open_tls(
+    way: &Way,
     host: &str,
     port: u16,
     server_name: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<RelayStream, ConnectError> {
-    open_tls_offering(host, port, server_name, trust, proxy, timeout, &[]).await.map(|(tls, _)| tls)
-}
-
-/// [`open_tls`], offering `alpn`, with the address that the TCP reached.
-pub async fn open_tls_offering(
-    host: &str,
-    port: u16,
-    server_name: &str,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-    alpn: &[&[u8]],
-) -> Result<(RelayStream, Option<std::net::SocketAddr>), ConnectError> {
-    // The configuration and the name are checked before anything connects.
-    tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
-    rustls_pki_types::ServerName::try_from(server_name.to_string())
-        .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
-    // Sealed where the user asked for ECH and the name publishes a list (T-642).
-    crate::ech::open(host, port, server_name, trust, proxy, timeout, alpn).await
+    way.open_tls(host, port, server_name, trust, timeout, &[]).await.map(|(tls, _)| tls)
 }
 
 /// Send the upgrade request and read the answer. On `101`, returns the stream
@@ -247,7 +257,7 @@ where
 }
 
 /// [`upgrade`] with a request that the caller built with `key`, as another
-/// road's upgrade needs (T-264). The `Location` of a redirect comes back as
+/// road's upgrade needs. The `Location` of a redirect comes back as
 /// the body of the refusal, without its query, which a login page may fill.
 pub async fn upgrade_with<S>(mut tls: S, request: &[u8], key: &str) -> Result<(S, Vec<u8>), ConnectError>
 where
@@ -281,7 +291,7 @@ where
     let location = headers.iter().find(|(name, _)| name == "location").map(|(_, to)| to);
     if let Some(to) = location.filter(|_| (300..400).contains(&status)) {
         let to = to.split(['?', '#']).next().unwrap_or_default();
-        return Err(ConnectError::Refused { status, body: format!("a redirect to {}", crate::text::one_line(to)) });
+        return Err(ConnectError::Refused { status, body: format!("a redirect to {}", pod_core::text::one_line(to)) });
     }
     // Not upgraded: the body says why. A short, bounded read; on any trouble
     // the status line alone is reported.
@@ -296,26 +306,28 @@ where
 }
 
 /// POST a JSON body over HTTPS and return the response, through the same
-/// proxy-aware, verified path as [`connect`]. Used to mint relay tokens.
+/// way out and the same verified path as [`connect`]. Used to mint relay
+/// tokens.
 pub async fn https_post_json(
+    way: &Way,
     host: &str,
     port: u16,
     path: &str,
     body: &[u8],
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<http::Response, ConnectError> {
     let headers = [("Content-Type", "application/json"), ("Accept", "application/json")];
-    https_request("POST", host, port, path, &headers, body, 64 * 1024, trust, proxy, timeout).await
+    https_request(way, "POST", host, port, path, &headers, body, 64 * 1024, trust, timeout).await
 }
 
 /// A request over HTTPS with a relay token in its `X-Relay-Token` header, as
 /// the pairing calls need (`/v1/status/<name>`, `/v1/stop/<name>`), through
-/// the same proxy-aware, verified path as [`connect`]. The token goes into the
+/// the same way out and verified path as [`connect`]. The token goes into the
 /// header and nowhere else: no error of this path quotes a header.
 #[allow(clippy::too_many_arguments)]
 pub async fn https_with_token(
+    way: &Way,
     method: &str,
     host: &str,
     port: u16,
@@ -324,18 +336,19 @@ pub async fn https_with_token(
     token: &str,
     max_body: usize,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<http::Response, ConnectError> {
     if token.contains(['\r', '\n']) {
         return Err(ConnectError::Config("the relay token contains a line break".into()));
     }
-    let headers = [("Content-Type", "application/json"), ("Accept", "application/json"), ("X-Relay-Token", token)];
-    https_request(method, host, port, path, &headers, body, max_body, trust, proxy, timeout).await
+    let headers =
+        [("Content-Type", "application/json"), ("Accept", "application/json"), (handshake::TOKEN_HEADER, token)];
+    https_request(way, method, host, port, path, &headers, body, max_body, trust, timeout).await
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn https_request(
+    way: &Way,
     method: &str,
     host: &str,
     port: u16,
@@ -344,12 +357,12 @@ async fn https_request(
     body: &[u8],
     max_body: usize,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<http::Response, ConnectError> {
-    let mut tls = open_tls(host, port, host, trust, proxy, timeout).await?;
-    let host_header = if port == 443 { host.to_string() } else { dial::authority(host, port) };
-    tokio::time::timeout(timeout, http::exchange(&mut tls, method, &host_header, path, headers, body, max_body))
+    let mut tls = open_tls(way, host, port, host, trust, timeout).await?;
+    let host_header = if port == 443 { host.to_string() } else { authority(host, port) };
+    let ua = &way.user_agent;
+    tokio::time::timeout(timeout, http::exchange(&mut tls, ua, method, &host_header, path, headers, body, max_body))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the HTTPS request", after: timeout })?
         .map_err(|e| ConnectError::Http(e.to_string()))
@@ -422,7 +435,7 @@ pub fn next_event(buf: &mut Vec<u8>) -> Result<Option<Event>, WsError> {
     next_event_capped(buf, frame::FORWARD_MAX_FRAME)
 }
 
-/// [`next_event`], with `cap` on a received frame (T-342): a server's frame,
+/// [`next_event`], with `cap` on a received frame: a server's frame,
 /// as a client reads it.
 pub fn next_event_capped(buf: &mut Vec<u8>, cap: usize) -> Result<Option<Event>, WsError> {
     crate::wire::next_event_from(buf, frame::Role::Server, cap)
@@ -442,24 +455,18 @@ where
     crate::wire::write_frame_as(stream, frame::Role::Client, false, opcode, payload).await
 }
 
-/// What can be checked without a token: the crypto provider and the trust
-/// store. The TLS handshake is reported as not attempted (`????`), never as
-/// passing, because a session needs a minted token.
+/// What can be checked without a token: the trust store. The TLS handshake
+/// is reported as not attempted (`????`), never as passing, because a
+/// session needs a minted token. The check of the crypto provider is the
+/// binary's, which chose it.
 pub async fn doctor(config: &WsClientConfig) -> Vec<(String, Verdict)> {
     let mut out = Vec::new();
-    out.push((
-        "crypto provider".to_string(),
-        match crate::crypto::suites::self_check() {
-            Ok(()) => Verdict::Ok { detail: "podssh's own pure-Rust provider is internally consistent".into() },
-            Err(why) => Verdict::Failed { detail: why },
-        },
-    ));
-    match tls::roots_for(&config.trust) {
+    match config.way.tls.roots_for(&config.trust) {
         Err(_) if matches!(config.trust, Trust::Caller(_)) => out.push((
             "trust store".to_string(),
             Verdict::Unknown {
                 why: "the caller's own TLS configuration: its roots and its verifier are the \
-                      caller's, and podssh cannot check them"
+                      caller's, and they cannot be checked here"
                     .into(),
             },
         )),
@@ -468,7 +475,7 @@ pub async fn doctor(config: &WsClientConfig) -> Vec<(String, Verdict)> {
             Verdict::Ok { detail: format!("{} trust anchors: {}", r.count, r.source) },
         )),
         Err(e) => {
-            out.push(("trust store".to_string(), Verdict::Failed { detail: format!("{e}") }));
+            out.push(("trust store".to_string(), Verdict::Failed { detail: WsError::from(e).to_string() }));
             out.push((
                 "TLS handshake".to_string(),
                 Verdict::Unknown {

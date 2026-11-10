@@ -1,15 +1,15 @@
-//! The bounds of the connection to the relay (T-201), each against a peer
-//! that does not stop at it: what podssh reads, and how the read ends. Each
+//! The bounds of the connection to the relay, each against a peer
+//! that does not stop at it: what the client reads, and how the read ends. Each
 //! peer is an in-memory stream in this process. The bounds of an HTTP head,
 //! of a body and of a proxy's answer are pod-proxy's, and its tests prove
 //! them (`PodUtils/podcrates:crates/pod-proxy/tests/limits.rs`).
 
 use std::time::Duration;
 
-use podssh_ws::client::{self, ConnectError};
-use podssh_ws::frame::{self, Frame, Role, FORWARD_MAX_FRAME};
-use podssh_ws::session::{close_code_and_reason, RelaySession, MAX_MESSAGE};
-use podssh_ws::SessionError;
+use pod_ws::SessionError;
+use pod_ws::client::{self, ConnectError};
+use pod_ws::frame::{self, FORWARD_MAX_FRAME, Frame, Role};
+use pod_ws::session::{MAX_MESSAGE, RelaySession, close_code_and_reason};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 
 /// How long each read may take.
@@ -61,9 +61,9 @@ async fn an_upgrade_head_that_never_ends_stops_at_16_kib() {
         Err(ConnectError::Upgrade(why)) => assert!(why.contains("within 16 KiB"), "{why}"),
         other => panic!("{:?}", other.map(|_| ())),
     }
-    // podssh read the bound and one read more; the stream held the rest.
+    // the client read the bound and one read more; the stream held the rest.
     let sent = relay.await.unwrap();
-    assert!(sent < HEAD + 8 * 1024, "the relay wrote {sent} bytes before podssh stopped reading");
+    assert!(sent < HEAD + 8 * 1024, "the relay wrote {sent} bytes before the client stopped reading");
 }
 
 /// A frame as the relay sends it: unmasked.
@@ -71,16 +71,16 @@ fn from_relay(opcode: u8, fin: bool, payload: Vec<u8>) -> Vec<u8> {
     frame::encode(&Frame { fin, opcode, payload }, Role::Server, [0; 4])
 }
 
-/// The next frame that podssh wrote.
+/// The next frame that the client wrote.
 async fn from_podssh(peer: &mut DuplexStream) -> Frame {
     let mut buf = Vec::new();
     loop {
-        if let Some((f, _)) = frame::decode(&buf, Role::Client).expect("a valid frame from podssh") {
+        if let Some((f, _)) = frame::decode(&buf, Role::Client).expect("a valid frame from the client") {
             return f;
         }
         let mut chunk = [0u8; 4096];
-        let n = tokio::time::timeout(LIMIT, peer.read(&mut chunk)).await.expect("a frame from podssh").unwrap();
-        assert!(n > 0, "podssh closed the stream with no Close");
+        let n = tokio::time::timeout(LIMIT, peer.read(&mut chunk)).await.expect("a frame from the client").unwrap();
+        assert!(n > 0, "the client closed the stream with no Close");
         buf.extend_from_slice(&chunk[..n]);
     }
 }

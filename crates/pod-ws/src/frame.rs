@@ -22,8 +22,8 @@ pub const OPCODE_CLOSE: u8 = 0x8;
 pub const OPCODE_PING: u8 = 0x9;
 pub const OPCODE_PONG: u8 = 0xa;
 
-/// The relay's own caps, re-measured from `/relays.json` on 2026-10-02 and
-/// asserted by `podssh-probe`. **They are not the same number**: the forward
+/// The relay's own caps, as its `/relays.json` gives them. **They are not
+/// the same number**: the forward
 /// path caps a frame at 262144 bytes and a reverse node frame is 65568 on the
 /// wire. Conflating them is the single easiest way to build the wrong client,
 /// so both are named here rather than one `MAX_FRAME` constant.
@@ -35,26 +35,26 @@ pub const NODE_MAX_FRAME: usize = 65_568;
 pub const MAX_RECEIVE_CAP: usize = 16 * 1024 * 1024;
 
 /// The cap on a received frame for a relay whose `/relays.json` gives
-/// `max_frame_bytes` (T-342): never under [`FORWARD_MAX_FRAME`], so a cached
-/// value can only widen what podssh takes in, and never over
+/// `max_frame_bytes`: never under [`FORWARD_MAX_FRAME`], so a cached
+/// value can only widen what the client takes in, and never over
 /// [`MAX_RECEIVE_CAP`].
 pub fn receive_cap(max_frame_bytes: Option<u64>) -> usize {
     let Some(given) = max_frame_bytes else { return FORWARD_MAX_FRAME };
     usize::try_from(given).unwrap_or(usize::MAX).clamp(FORWARD_MAX_FRAME, MAX_RECEIVE_CAP)
 }
 
-/// The largest payload that podssh sends in one forward frame, far under the
+/// The largest payload that a client sends in one forward frame, far under the
 /// relay's cap. The relay writes what it takes to a socket of a Worker's
 /// `connect()`, and workerd issue 7074 reports that one write of more than
 /// 65,536 bytes there resolves and the socket then fails ("Network
 /// connection lost"); 32 KiB, the issue's workaround, leaves half of that.
-/// Each sender of the forward road takes this one size (T-323).
+/// Each sender of the forward road takes this one size.
 pub const FORWARD_SEND_PAYLOAD: usize = 32 * 1024;
 
 /// RFC 6455 §5.5: *"All control frames MUST have a payload length of 125
 /// bytes or less."* It is the cap the reader checks before it answers a
 /// Ping: a larger Ping is already the peer's violation, and echoing it would
-/// make podssh the side that sent an illegal control frame.
+/// make this side the one that sent an illegal control frame.
 pub const MAX_CONTROL_PAYLOAD: usize = 125;
 
 /// RFC 6455 §5.2: the length field is 7 bits, 7+16, or 7+64. 126 and 127
@@ -145,7 +145,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     decode_capped(input, role, FORWARD_MAX_FRAME)
 }
 
-/// [`decode`], with `cap` in the place of the forward cap (T-342).
+/// [`decode`], with `cap` in the place of the forward cap.
 pub fn decode_capped(input: &[u8], role: Role, cap: usize) -> Result<Option<(Frame, usize)>, WsError> {
     if input.len() < 2 {
         return Ok(None);
@@ -153,7 +153,7 @@ pub fn decode_capped(input: &[u8], role: Role, cap: usize) -> Result<Option<(Fra
     let first = input[0];
     let second = input[1];
     let fin = first & 0x80 != 0;
-    // RSV1-3 must be zero unless an extension negotiated them. podssh
+    // RSV1-3 must be zero unless an extension negotiated them. This crate
     // negotiates no extension, so a set RSV bit is a protocol violation and is
     // refused rather than ignored — ignoring it is how a compressed frame is
     // read as raw bytes.
@@ -276,7 +276,7 @@ pub fn decode_capped(input: &[u8], role: Role, cap: usize) -> Result<Option<(Fra
 
 /// **The mask is a bijection, so encode-then-decode is the identity.** This
 /// is what makes masking testable without a peer: if `apply_mask` were not its
-/// own inverse the relay would receive different bytes than podssh sent, and
+/// own inverse the relay would receive different bytes than the client sent, and
 /// nothing in a unit test would notice.
 pub fn apply_mask(data: &mut [u8], key: [u8; 4]) {
     for (i, byte) in data.iter_mut().enumerate() {
@@ -296,7 +296,7 @@ mod cap_tests {
         out
     }
 
-    /// T-342: a relay's wider `max_frame_bytes` lets its frames in, a
+    /// A relay's wider `max_frame_bytes` lets its frames in, a
     /// smaller one narrows nothing, and no value takes in more than a
     /// message.
     #[test]

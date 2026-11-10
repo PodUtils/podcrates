@@ -1,13 +1,13 @@
 //! RFC 6455 section 5.5 for received control frames: never fragmented, 125
 //! bytes or less, and a Close of 0 bytes or of 2 and more. The frames are
-//! bytes written from the RFC, not made by podssh's encoder. And section
+//! bytes written from the RFC, not made by this crate's encoder. And section
 //! 5.5.1 for sent ones: no data frame after this side's Close.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::frame::{self, decode, Frame, Role};
-use podssh_ws::session::{close_code_and_reason, RelaySession};
+use pod_ws::frame::{self, Frame, Role, decode};
+use pod_ws::session::{RelaySession, close_code_and_reason};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 /// A frame header from the server: no mask. `first` is FIN and the opcode.
@@ -82,7 +82,7 @@ async fn next_from_client(peer: &mut DuplexStream, buf: &mut Vec<u8>) -> Frame {
     }
 }
 
-/// A fragmented Ping gets no Pong: the read fails, and podssh fails the
+/// A fragmented Ping gets no Pong: the read fails, and the client fails the
 /// connection with a Close 1002 (RFC 6455 section 7.1.7).
 #[tokio::test]
 async fn a_fragmented_ping_gets_no_pong_and_ends_the_read() {
@@ -94,7 +94,7 @@ async fn a_fragmented_ping_gets_no_pong_and_ends_the_read() {
             .await
             .expect("the read ends")
             .expect_err("a forbidden control frame is an error");
-        assert!(matches!(error, podssh_ws::SessionError::Protocol(_)), "{error:?}");
+        assert!(matches!(error, pod_ws::SessionError::Protocol(_)), "{error:?}");
         assert!(error.to_string().contains("RFC 6455 5.5"), "{error}");
         let mut buf = Vec::new();
         let sent = next_from_client(&mut peer, &mut buf).await;
@@ -124,7 +124,7 @@ async fn no_data_frame_follows_this_sides_close() {
     session.send_close(1000, "").await.unwrap();
     for sent in [session.send_binary(b"late").await, session.send_text("late").await] {
         let error = sent.expect_err("no data after the Close");
-        assert!(matches!(error, podssh_ws::SessionError::Io { kind: std::io::ErrorKind::BrokenPipe, .. }), "{error:?}");
+        assert!(matches!(error, pod_ws::SessionError::Io { kind: std::io::ErrorKind::BrokenPipe, .. }), "{error:?}");
     }
     let mut buf = Vec::new();
     let first = next_from_client(&mut peer, &mut buf).await;
@@ -138,7 +138,7 @@ async fn no_data_frame_follows_this_sides_close() {
 /// The payload of a Close that the live relay sent (version 2026-10-03-r2),
 /// captured on 2026-10-09 by `python scripts/capture-close.py`, a client of
 /// the Python standard library: github.com:22 closed the connection after a
-/// line that is not SSH. Bytes that podssh did not make.
+/// line that is not SSH. Bytes that this crate did not make.
 const LIVE_CLOSE: &str = "03e874617267657420636c6f736564";
 
 #[tokio::test]

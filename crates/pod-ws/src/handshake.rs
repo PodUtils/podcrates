@@ -1,40 +1,43 @@
 //! The RFC 6455 opening handshake.
 //!
 //! **The token travels in the `X-Relay-Token` header and never in the URL.**
-//! Spec line 95 says *"URLs can appear in logs"*, and a URL is the one part of
-//! a request that every proxy, every access log and every `Referer` header
-//! records by default. The path podssh builds therefore has no query string
-//! at all, and there is no function in this module that accepts a URL
-//! containing one.
+//! The relay's specification says *"URLs can appear in logs"*, and a URL is
+//! the one part of a request that every proxy, every access log and every
+//! `Referer` header records by default. The path that this module builds
+//! therefore has no query string at all, and there is no function in this
+//! module that accepts a URL containing one.
 //!
-//! **No subprotocol is offered.** Spec line 207 says "no subprotocol", and
+//! **No subprotocol is offered.** The relay's specification says "no
+//! subprotocol", and
 //! `sec-websocket-protocol` is omitted from the request rather than sent empty:
 //! an empty value and an absent header are different on the wire, and a relay
 //! that compares strings would see the empty one.
 
 use base64::Engine as _;
-use rustls::crypto::SecureRandom;
+use pod_core::entropy::{Entropy, OsEntropy};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::error::WsError;
 
+/// The header that carries the relay's token, and nothing else does.
+pub const TOKEN_HEADER: &str = "X-Relay-Token";
+
 /// RFC 6455 §4.1: 16 random bytes, base64-encoded. The value exists only to
 /// prove the response is not a cached file, and it is checked on the way back.
 pub fn generate_key() -> Result<String, WsError> {
-    generate_key_from(&crate::crypto::random::OsRandom)
+    generate_key_from(&mut OsEntropy)
 }
 
 /// [`generate_key`] from `random`, so that a test can plant a source that fails.
-pub fn generate_key_from(random: &dyn SecureRandom) -> Result<String, WsError> {
+pub fn generate_key_from(random: &mut dyn Entropy) -> Result<String, WsError> {
     let mut bytes = [0u8; 16];
-    random.fill(&mut bytes).map_err(|e| WsError::Handshake(format!("no entropy for Sec-WebSocket-Key: {e:?}")))?;
+    random.fill(&mut bytes).map_err(|e| WsError::Handshake(format!("no entropy for Sec-WebSocket-Key: {e}")))?;
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
-/// The dialect of the reverse road that this podssh speaks, which each socket
-/// of that road states in [`PROTO_HEADER`] (T-643): podssh's relay role
-/// compares it, and a relay of the contract reads no such header.
-/// `podssh_relay::reverse::control::PROTO` is this number.
+/// The dialect of the reverse road of the relay, which each socket of that
+/// road states in [`PROTO_HEADER`]: a relay role of the dialect compares it,
+/// and a relay of the contract reads no such header.
 pub const REVERSE_PROTO: i64 = 1;
 
 /// The header in which a socket of the reverse road states its dialect.
@@ -58,7 +61,7 @@ pub fn build_request(host_header: &str, path: &str, token: &str, key: &str) -> V
     req.push_str(&format!("Sec-WebSocket-Key: {key}\r\n"));
     req.push_str("Sec-WebSocket-Version: 13\r\n");
     // The token, in a header. See the module comment.
-    req.push_str(&format!("X-Relay-Token: {token}\r\n"));
+    req.push_str(&format!("{TOKEN_HEADER}: {token}\r\n"));
     // A reverse socket's dialect, so that a relay role that reads another
     // can say so in a sentence, not in a frame that one side drops.
     if reverse_socket(path) {
@@ -203,9 +206,9 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
         .ok_or_else(|| WsError::Upgrade { status: 0, why: format!("no status code in {status_line:?}") })?;
 
     if status != 101 {
-        // The peer's text goes to the user's terminal (T-198: the fuzz
-        // target `ws_upgrade` found an ESC kept here).
-        return Err(WsError::Upgrade { status, why: crate::text::one_line(head) });
+        // The peer's text goes to the user's terminal (the fuzz target
+        // `ws_upgrade` found an ESC kept here).
+        return Err(WsError::Upgrade { status, why: pod_core::text::one_line(head) });
     }
 
     let mut upgrade_ok = false;
@@ -227,7 +230,7 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
     // the header exists proves nothing: any cache can echo it.
     let expected = accept_key(expected_key);
     // Either way, what answered did not read this request's key: not the
-    // relay, and a way out is a road that this hop does not answer (T-324).
+    // relay, and a way out is a road that this hop does not answer.
     let stranger = "so something between answered in the relay's place";
     match accept {
         Some(v) if v == expected => Ok(()),
@@ -271,13 +274,13 @@ where
 /// condition the caller could have diagnosed. This is the same rule as the
 /// third plant: a clean error, never a panic.
 pub fn masking_key() -> Result<[u8; 4], WsError> {
-    masking_key_from(&crate::crypto::random::OsRandom)
+    masking_key_from(&mut OsEntropy)
 }
 
 /// [`masking_key`] from `random`, so that a test can plant a source that fails.
-pub fn masking_key_from(random: &dyn SecureRandom) -> Result<[u8; 4], WsError> {
+pub fn masking_key_from(random: &mut dyn Entropy) -> Result<[u8; 4], WsError> {
     let mut key = [0u8; 4];
-    random.fill(&mut key).map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e:?}")))?;
+    random.fill(&mut key).map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e}")))?;
     Ok(key)
 }
 
@@ -289,7 +292,7 @@ mod tests {
         String::from_utf8(build_request("relay.example:443", path, "tok", "k")).expect("ASCII")
     }
 
-    /// T-643: a node's and an operator's socket state their dialect, once;
+    /// A node's and an operator's socket state their dialect, once;
     /// a forward session states none, as no relay of the contract reads it.
     #[test]
     fn a_reverse_socket_states_its_dialect_and_a_forward_one_none() {

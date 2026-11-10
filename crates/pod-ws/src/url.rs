@@ -1,28 +1,44 @@
-//! A WebSocket that the user names (T-368): `wss://HOST[:PORT]/PATH` or
+//! A WebSocket that the user names: `wss://HOST[:PORT]/PATH` or
 //! `ws://HOST[:PORT]/PATH`, the URL as a user writes it, dialed with no
-//! token: TLS checked for HOST with podssh's trust, or plain TCP, through
-//! the proxy that the environment names, as each road is. No token of the
-//! relay goes on this road, so the relay's rule for its path (no query but
-//! its knobs) is not this road's: the path and its query are the user's,
-//! sent as written but for a byte that is not ASCII, which is
-//! percent-encoded. podssh's own lines show the URL without its query,
-//! which may hold the service's own secret.
+//! token of the relay: TLS checked for HOST with the caller's trust, or
+//! plain TCP, through the caller's way out, as each road is. No token of
+//! the relay goes on this road, so the relay's rule for its path (no query
+//! but its knobs) is not this road's: the path and its query are the
+//! user's, sent as written but for a byte that is not ASCII, which is
+//! percent-encoded. A line of the caller shows the URL without its query
+//! ([`WsUrl::shown`]), which may hold the service's own secret. A
+//! credential of the service goes in `Authorization`, when the caller asks
+//! ([`Asking`]).
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use pod_core::BoxedIo;
+use pod_tls::Trust;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::net::TcpStream;
 
 use crate::client::{self, ConnectError, RelayStream, WRITE_TIMEOUT};
-use crate::dial::{self, ProxyChoice};
 use crate::handshake;
+use crate::limits::Limits;
 use crate::session::RelaySession;
-use crate::tls::Trust;
+use crate::way::Way;
 
-/// What podssh says it is, as on the road of `cloudflared`.
-pub const USER_AGENT: &str = concat!("podssh/", env!("CARGO_PKG_VERSION"));
+/// What a request of this road asks beside the upgrade.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Asking<'a> {
+    /// A subprotocol in `Sec-WebSocket-Protocol`: a constant of the caller,
+    /// never a user's text.
+    pub protocol: Option<&'a str>,
+    /// The value of `Authorization`, as a tunnel with a login asks it. It
+    /// goes in that header and nowhere else, and no error quotes it.
+    pub authorization: Option<&'a str>,
+    /// The protocols that TLS offers by ALPN; none, or `http/1.1` alone, as
+    /// a WebSocket upgrade does not go over HTTP/2.
+    pub alpn: &'a [&'a [u8]],
+    /// The largest frame and message that the session takes in.
+    pub limits: Limits,
+}
 
 /// A WebSocket's URL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,7 +77,7 @@ impl WsUrl {
         Ok(WsUrl { tls, host, port, target: request_target(&target)? })
     }
 
-    /// The URL without its query, for podssh's lines.
+    /// The URL without its query, for the lines of the caller.
     pub fn shown(&self) -> String {
         let path = self.target.split('?').next().unwrap_or("/");
         format!("{}://{}{path}", if self.tls { "wss" } else { "ws" }, self.host_header())
@@ -71,20 +87,12 @@ impl WsUrl {
     /// (RFC 6455 section 4.1), an IPv6 address in brackets.
     pub fn host_header(&self) -> String {
         let host = if self.host.contains(':') { format!("[{}]", self.host) } else { self.host.clone() };
-        if self.port == self.default_port() {
-            host
-        } else {
-            format!("{host}:{}", self.port)
-        }
+        if self.port == self.default_port() { host } else { format!("{host}:{}", self.port) }
     }
 
     /// The scheme's own port: 443 for `wss://`, 80 for `ws://`.
     pub fn default_port(&self) -> u16 {
-        if self.tls {
-            443
-        } else {
-            80
-        }
+        if self.tls { 443 } else { 80 }
     }
 }
 
@@ -105,7 +113,7 @@ fn host_port(authority: &str, default: u16) -> Result<(String, u16), String> {
         },
     };
     if !authority.starts_with('[') {
-        crate::names::check_host(host).map_err(|why| format!("a WebSocket's URL: {why}"))?;
+        pod_core::names::check_host(host).map_err(|why| format!("a WebSocket's URL: {why}"))?;
     }
     let port = match port {
         None => default,
@@ -133,32 +141,51 @@ pub fn request_target(target: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// The upgrade request of `url`, with `key`: no token, no subprotocol, no
-/// extension and no `Origin`, as a program sends it.
-pub fn request(url: &WsUrl, key: &str) -> Result<Vec<u8>, ConnectError> {
-    offering(url, key, None)
+/// The upgrade request of `url`, with `key`, from `user_agent`: no token,
+/// no subprotocol, no extension and no `Origin`, as a program sends it.
+pub fn request(url: &WsUrl, key: &str, user_agent: &str) -> Result<Vec<u8>, ConnectError> {
+    offering(url, key, user_agent, None)
 }
 
 /// [`request`], offering `protocol` in `Sec-WebSocket-Protocol` when one is
 /// given: a Wisp server speaks its version 2 only where the request names
-/// one (T-438). The value is podssh's own constant, never a user's text.
-pub fn offering(url: &WsUrl, key: &str, protocol: Option<&str>) -> Result<Vec<u8>, ConnectError> {
+/// one. The value is the caller's own constant, never a user's text.
+pub fn offering(url: &WsUrl, key: &str, user_agent: &str, protocol: Option<&str>) -> Result<Vec<u8>, ConnectError> {
+    asking(url, key, user_agent, &Asking { protocol, ..Asking::default() })
+}
+
+/// [`request`] with what `asking` asks: a subprotocol, and the value of
+/// `Authorization`. A value with a line break is refused, and not shown.
+pub fn asking(url: &WsUrl, key: &str, user_agent: &str, asking: &Asking<'_>) -> Result<Vec<u8>, ConnectError> {
     let target = request_target(&url.target).map_err(ConnectError::Config)?;
-    let mut request = format!("GET {target} HTTP/1.1\r\nHost: {}\r\nUser-Agent: {USER_AGENT}\r\n", url.host_header());
+    if user_agent.contains(['\r', '\n']) {
+        return Err(ConnectError::Config("the user agent contains a line break".into()));
+    }
+    let mut request = format!("GET {target} HTTP/1.1\r\nHost: {}\r\nUser-Agent: {user_agent}\r\n", url.host_header());
     request.push_str("Upgrade: websocket\r\nConnection: Upgrade\r\n");
-    if let Some(protocol) = protocol {
+    if let Some(protocol) = asking.protocol {
+        if protocol.contains(['\r', '\n']) {
+            return Err(ConnectError::Config("the subprotocol contains a line break".into()));
+        }
         request.push_str(&format!("Sec-WebSocket-Protocol: {protocol}\r\n"));
+    }
+    if let Some(value) = asking.authorization {
+        // The value is a credential: it is not in the words of the refusal.
+        if value.contains(['\r', '\n']) {
+            return Err(ConnectError::Config("the Authorization value contains a line break".into()));
+        }
+        request.push_str(&format!("Authorization: {value}\r\n"));
     }
     request.push_str(&format!("Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"));
     Ok(request.into_bytes())
 }
 
-/// The stream under a session of this road: TLS, or plain TCP; and under a
-/// session of the relay, which is TLS but on the cleartext road (T-326), a
-/// stream of HTTP/2 on the road of RFC 8441 (T-321), and a stream that
-/// another crate dialed, as a QUIC stream to podssh's relay role (T-667).
+/// The stream under a session of this road: TLS, or a connection with no
+/// TLS; and under a session of the relay, which is TLS but on the cleartext
+/// road, a stream of HTTP/2 on the road of RFC 8441, and a stream that
+/// another crate dialed, as a QUIC stream to a relay role.
 pub enum Stream {
-    Plain(TcpStream),
+    Plain(BoxedIo),
     Tls(Box<RelayStream>),
     H2(Box<crate::h2_road::Stream>),
     Carried(Box<dyn Carried>),
@@ -211,17 +238,17 @@ impl AsyncWrite for Stream {
     }
 }
 
-/// Dial `url` and upgrade, with no token: each step bounded by `timeout`,
-/// each read of the session by `idle`. The session names the other end
-/// `the server` in its errors.
+/// Dial `url` through `way` and upgrade, with no token: each step bounded
+/// by `timeout`, each read of the session by `idle`. The session names the
+/// other end `the server` in its errors.
 pub async fn dial(
     url: &WsUrl,
+    way: &Way,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
     idle: Option<Duration>,
 ) -> Result<RelaySession<Stream>, ConnectError> {
-    dial_offering(url, None, trust, proxy, timeout, idle).await
+    dial_offering(url, None, way, trust, timeout, idle).await
 }
 
 /// [`dial`], its upgrade offering `protocol` ([`offering`]). A server's
@@ -230,22 +257,45 @@ pub async fn dial(
 pub async fn dial_offering(
     url: &WsUrl,
     protocol: Option<&str>,
+    way: &Way,
     trust: &Trust,
-    proxy: &ProxyChoice,
+    timeout: Duration,
+    idle: Option<Duration>,
+) -> Result<RelaySession<Stream>, ConnectError> {
+    dial_asking(url, &Asking { protocol, ..Asking::default() }, way, trust, timeout, idle).await
+}
+
+/// [`dial`], its upgrade asking what `asking` asks ([`asking`]), its TLS
+/// offering the ALPN of `asking`, its session taking in the limits of
+/// `asking`. The time of each step goes to `tracing`.
+pub async fn dial_asking(
+    url: &WsUrl,
+    asking: &Asking<'_>,
+    way: &Way,
+    trust: &Trust,
     timeout: Duration,
     idle: Option<Duration>,
 ) -> Result<RelaySession<Stream>, ConnectError> {
     let key = handshake::generate_key().map_err(|e| ConnectError::Upgrade(e.to_string()))?;
-    let request = offering(url, &key, protocol)?;
-    let stream = if url.tls {
-        Stream::Tls(Box::new(client::open_tls(&url.host, url.port, &url.host, trust, proxy, timeout).await?))
+    let request = self::asking(url, &key, &way.user_agent, asking)?;
+    let started = std::time::Instant::now();
+    let (stream, tcp_tls) = if url.tls {
+        let (tls, _) = way.open_tls(&url.host, url.port, &url.host, trust, timeout, asking.alpn).await?;
+        (Stream::Tls(Box::new(tls)), started.elapsed())
     } else {
-        Stream::Plain(dial::dial(&url.host, url.port, proxy, timeout).await.map_err(ConnectError::Dial)?)
+        let tcp = way.tcp(&url.host, url.port, timeout).await.map_err(ConnectError::Dial)?;
+        (Stream::Plain(tcp.io), started.elapsed())
     };
     let upgraded = tokio::time::timeout(timeout, client::upgrade_with(stream, &request, &key)).await;
     let late = |_| ConnectError::Timeout { step: "the WebSocket upgrade", after: timeout };
     let (stream, pending) = upgraded.map_err(late)??;
-    Ok(RelaySession::new(stream, pending, idle, WRITE_TIMEOUT).naming("the server"))
+    tracing::debug!(
+        connect_ms = tcp_tls.as_millis() as u64,
+        upgrade_ms = (started.elapsed() - tcp_tls).as_millis() as u64,
+        "the WebSocket to {}",
+        url.shown()
+    );
+    Ok(RelaySession::new(stream, pending, idle, WRITE_TIMEOUT).naming("the server").with_limits(asking.limits))
 }
 
 /// What a failure of [`dial`] means, in this road's words: the URL as
@@ -307,9 +357,12 @@ mod tests {
         assert!(!refused.contains("SECRET"), "{refused}");
     }
 
+    const UA: &str = "pod-ws/test";
+
     #[test]
     fn the_request_has_no_token_no_origin_and_no_subprotocol() {
-        let request = String::from_utf8(request(&url("ws://h:81/x?q=1"), "dGhlIHNhbXBsZSBub25jZQ==").unwrap()).unwrap();
+        let request =
+            String::from_utf8(request(&url("ws://h:81/x?q=1"), "dGhlIHNhbXBsZSBub25jZQ==", UA).unwrap()).unwrap();
         assert!(request.starts_with("GET /x?q=1 HTTP/1.1\r\nHost: h:81\r\n"), "{request}");
         assert!(request.contains("Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n"));
         for absent in ["x-relay-token", "origin", "sec-websocket-protocol", "sec-websocket-extensions"] {
@@ -319,18 +372,35 @@ mod tests {
         assert_eq!(failure, "wss://h/p refused the upgrade: HTTP 403: no");
     }
 
-    /// T-438: a Wisp server speaks version 2 where the request offers a
+    /// A Wisp server speaks version 2 where the request offers a
     /// protocol, once, before the end of the head.
     #[test]
     fn an_offered_protocol_is_one_header_in_the_request() {
         let key = "dGhlIHNhbXBsZSBub25jZQ==";
-        let request = String::from_utf8(offering(&url("wss://w/"), key, Some("wisp-v2")).unwrap()).unwrap();
+        let request = String::from_utf8(offering(&url("wss://w/"), key, UA, Some("wisp-v2")).unwrap()).unwrap();
         assert_eq!(request.matches("Sec-WebSocket-Protocol: wisp-v2\r\n").count(), 1, "{request}");
         assert!(request.ends_with("Sec-WebSocket-Version: 13\r\n\r\n"), "{request}");
-        assert_eq!(offering(&url("wss://w/"), key, None).unwrap(), request_bytes(key));
+        assert_eq!(offering(&url("wss://w/"), key, UA, None).unwrap(), request_bytes(key));
     }
 
     fn request_bytes(key: &str) -> Vec<u8> {
-        request(&url("wss://w/"), key).unwrap()
+        request(&url("wss://w/"), key, UA).unwrap()
+    }
+
+    /// podnet: the credential of a tunnel with a login goes in
+    /// `Authorization`, once; a value with a line break is refused and not
+    /// shown.
+    #[test]
+    fn the_authorization_of_a_tunnel_is_one_header_and_a_broken_one_is_refused() {
+        let key = "dGhlIHNhbXBsZSBub25jZQ==";
+        let ask = Asking { authorization: Some("Basic dXNlcjpwdw=="), ..Asking::default() };
+        let request = String::from_utf8(asking(&url("wss://t.example/x"), key, UA, &ask).unwrap()).unwrap();
+        assert_eq!(request.matches("\r\nAuthorization: Basic dXNlcjpwdw==\r\n").count(), 1, "{request}");
+        assert!(request.contains(&format!("User-Agent: {UA}\r\n")), "{request}");
+        assert!(request.ends_with("Sec-WebSocket-Version: 13\r\n\r\n"), "{request}");
+        let broken = Asking { authorization: Some("Basic SECRET\r\nX-Evil: 1"), ..Asking::default() };
+        let refused = asking(&url("wss://t.example/x"), key, UA, &broken).unwrap_err().to_string();
+        assert!(!refused.contains("SECRET"), "{refused}");
+        assert!(asking(&url("wss://t.example/x"), key, "ua\r\nX: 1", &Asking::default()).is_err());
     }
 }

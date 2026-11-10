@@ -1,11 +1,11 @@
-//! A connection of the road (T-321): TCP through the proxy, as each road
+//! A connection of the road: TCP through the caller's way out, as each road
 //! dials; TLS of this road's own, which offers `h2` then `http/1.1` and
 //! shares the trust's cache of sessions, so that the upgrade's connection
 //! after it resumes TLS; and on `h2`, HTTP/2's handshake with the road's
 //! windows, then a PING. The server's SETTINGS are its first frame (RFC 9113
 //! section 3.4), so they are read once the PING's answer came, and no
-//! request goes before them, as RFC 8441 section 3 asks. And the probe of
-//! `podssh doctor`, which sends nothing more.
+//! request goes before them, as RFC 8441 section 3 asks. And the probe of a
+//! doctor, which sends nothing more.
 
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -13,11 +13,12 @@ use std::time::Duration;
 use bytes::Bytes;
 use h2::client::SendRequest;
 
+use pod_tls::Trust;
+
 use super::pool::{self, Conn, Driven};
-use super::{Fallback, CONNECTION_WINDOW, H2, HTTP1, STREAMS, STREAM_WINDOW};
+use super::{CONNECTION_WINDOW, Fallback, H2, HTTP1, STREAM_WINDOW, STREAMS};
 use crate::client::{ConnectError, RelayStream, WsClientConfig};
-use crate::dial::ProxyChoice;
-use crate::tls::Trust;
+use crate::way::Way;
 
 /// What a new connection gave.
 pub(super) enum Dialed {
@@ -33,8 +34,7 @@ pub(super) enum Dialed {
 /// A new connection for `config`'s host.
 pub(super) async fn dial(config: &WsClientConfig) -> Result<Dialed, ConnectError> {
     let at = &config.endpoint;
-    let (tls, peer) =
-        open(&at.host, at.port, &config.server_name, &config.trust, &config.proxy, config.timeout).await?;
+    let (tls, peer) = open(&config.way, &at.host, at.port, &config.server_name, &config.trust, config.timeout).await?;
     if tls.get_ref().1.alpn_protocol() != Some(H2) {
         return Ok(Dialed::Http1(Box::new(tls), peer));
     }
@@ -53,22 +53,22 @@ pub(super) async fn dial(config: &WsClientConfig) -> Result<Dialed, ConnectError
     Ok(Dialed::H2(Conn::of(sender, peer, most, driven)))
 }
 
-/// TCP to `host:port` through `proxy`, and TLS for `server_name` with the
+/// TCP to `host:port` through `way`, and TLS for `server_name` with the
 /// roots of `trust`, offering this road's protocols; and the address of the
 /// TCP.
 async fn open(
+    way: &Way,
     host: &str,
     port: u16,
     server_name: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     limit: Duration,
 ) -> Result<(RelayStream, Option<SocketAddr>), ConnectError> {
-    // Sealed where the user asked for ECH and the name publishes a list, with
-    // this road's protocols (T-642); else a copy of the trust's own
+    // Sealed where the context asks for ECH and the name publishes a list,
+    // with this road's protocols; else a copy of the trust's own
     // configuration with them: the same verifier and the same cache of
     // sessions.
-    crate::client::open_tls_offering(host, port, server_name, trust, proxy, limit, &[H2, HTTP1]).await
+    way.open_tls(host, port, server_name, trust, limit, &[H2, HTTP1]).await
 }
 
 /// HTTP/2's handshake on `tls`, its connection driven in a task, and its
@@ -102,7 +102,7 @@ async fn settled(tls: RelayStream, limit: Duration) -> Result<(SendRequest<Bytes
     }
 }
 
-/// What a host offers the road, as `podssh doctor` says it.
+/// What a host offers the road, as a doctor says it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offered {
     /// The protocol that TLS chose of `h2` and `http/1.1`, or none.
@@ -133,20 +133,20 @@ impl Offered {
 
 /// What `host:port` offers the road, with nothing sent but HTTP/2's
 /// preface, its SETTINGS and a PING, all within `limit` each: TLS checked
-/// for `server_name` as each road checks it, through `proxy`.
+/// for `server_name` as each road checks it, through `way`.
 pub async fn probe(
+    way: &Way,
     host: &str,
     port: u16,
     server_name: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     limit: Duration,
 ) -> Result<Offered, ConnectError> {
     if matches!(trust, Trust::Caller(_)) {
         let why = "the caller's own TLS configuration is used as it is, with no ALPN";
         return Err(ConnectError::Config(why.into()));
     }
-    let (tls, _) = open(host, port, server_name, trust, proxy, limit).await?;
+    let (tls, _) = open(way, host, port, server_name, trust, limit).await?;
     // Of the two offered: rustls takes no other answer.
     let alpn = tls.get_ref().1.alpn_protocol().map(|p| String::from_utf8_lossy(p).into_owned());
     if alpn.as_deref().map(str::as_bytes) != Some(H2) {

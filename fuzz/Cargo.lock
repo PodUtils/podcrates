@@ -626,6 +626,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-ws"
+version = "0.11.0"
+dependencies = [
+ "base64",
+ "bytes",
+ "h2",
+ "http",
+ "libc",
+ "pod-core",
+ "pod-proxy",
+ "pod-tls",
+ "rustls",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+]
+
+[[package]]
 name = "podcrates-fuzz"
 version = "0.0.0"
 dependencies = [
@@ -636,6 +655,7 @@ dependencies = [
  "pod-gsr",
  "pod-proxy",
  "pod-tls",
+ "pod-ws",
 ]
 
 [[package]]

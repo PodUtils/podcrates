@@ -1,5 +1,6 @@
-//! The connections of the road in this process (T-321), each host's by its
-//! name, its port, the name of its certificate, the trust and the proxy:
+//! The connections of the road that a [`Pool`] keeps, each host's by its
+//! name, its port, the name of its certificate, the trust and the label of
+//! the way out:
 //! each connection carries [`STREAMS`] sessions at most, or the fewer that
 //! the server's SETTINGS allow, and a session past them opens another. One
 //! connection of a host is made at a time, so that sessions that start
@@ -18,11 +19,11 @@ use bytes::Bytes;
 use h2::client::SendRequest;
 use tokio::time::Instant;
 
+use pod_tls::Trust;
+
 use super::dial::{self, Dialed};
 use super::{Fallback, IDLE, REMEMBERED, STREAMS};
 use crate::client::{ConnectError, RelayStream, WsClientConfig};
-use crate::dial::ProxyChoice;
-use crate::tls::Trust;
 
 /// The most hosts kept: a run names a few.
 const HOSTS: usize = 32;
@@ -37,7 +38,7 @@ struct Key {
     port: u16,
     server_name: String,
     trust: Trust,
-    proxy: ProxyChoice,
+    way: String,
 }
 
 impl Key {
@@ -47,7 +48,7 @@ impl Key {
             port: config.endpoint.port,
             server_name: config.server_name.clone(),
             trust: config.trust.clone(),
-            proxy: config.proxy.clone(),
+            way: config.way.label(),
         }
     }
 }
@@ -181,14 +182,42 @@ struct State {
     lacks: Option<(Fallback, Instant)>,
 }
 
-static KEPT: Mutex<Vec<Arc<Host>>> = Mutex::new(Vec::new());
-
-fn lock() -> MutexGuard<'static, Vec<Arc<Host>>> {
-    KEPT.lock().unwrap_or_else(|e| e.into_inner())
+/// The connections of the road and what was found of each host. The
+/// caller owns it: one for a process shares the connections of each
+/// session; a new one starts with nothing.
+pub struct Pool {
+    kept: Mutex<Vec<Arc<Host>>>,
 }
 
-fn host(key: Key) -> Arc<Host> {
-    let mut kept = lock();
+impl std::fmt::Debug for Pool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Pool").field("hosts", &self.lock().len()).finish()
+    }
+}
+
+impl Default for Pool {
+    fn default() -> Pool {
+        Pool::new()
+    }
+}
+
+impl Pool {
+    /// A pool with no connection; `const`, so that a binary keeps one in a
+    /// `static`.
+    pub const fn new() -> Pool {
+        Pool { kept: Mutex::new(Vec::new()) }
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Vec<Arc<Host>>> {
+        self.kept.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn host(&self, key: Key) -> Arc<Host> {
+        host(&mut self.lock(), key)
+    }
+}
+
+fn host(kept: &mut Vec<Arc<Host>>, key: Key) -> Arc<Host> {
     if let Some(found) = kept.iter().find(|h| h.key == key) {
         return found.clone();
     }
@@ -212,46 +241,48 @@ pub(super) enum Got {
     Fallback(Fallback),
 }
 
-/// A place for a session of `config`: on a connection kept, else on a new
-/// one; or why the session takes HTTP/1.1.
-pub(super) async fn place(config: &WsClientConfig) -> Result<Got, ConnectError> {
-    let host = host(Key::of(config));
-    let mut state = host.state.lock().await;
-    let remembered = state.lacks.as_ref().filter(|(_, at)| at.elapsed() < REMEMBERED).map(|(why, _)| why.clone());
-    if let Some(why) = remembered {
-        return Ok(Got::Fallback(Fallback::Remembered(Box::new(why))));
-    }
-    state.lacks = None;
-    state.conns.retain(|c| !c.retired());
-    if let Some(conn) = state.conns.iter().find(|c| c.room()) {
-        let (place, shared) = conn.take();
-        return Ok(Got::Place { conn: conn.clone(), place, shared });
-    }
-    match dial::dial(config).await? {
-        Dialed::H2(conn) => {
+impl Pool {
+    /// A place for a session of `config`: on a connection kept, else on a new
+    /// one; or why the session takes HTTP/1.1.
+    pub(super) async fn place(&self, config: &WsClientConfig) -> Result<Got, ConnectError> {
+        let host = self.host(Key::of(config));
+        let mut state = host.state.lock().await;
+        let remembered = state.lacks.as_ref().filter(|(_, at)| at.elapsed() < REMEMBERED).map(|(why, _)| why.clone());
+        if let Some(why) = remembered {
+            return Ok(Got::Fallback(Fallback::Remembered(Box::new(why))));
+        }
+        state.lacks = None;
+        state.conns.retain(|c| !c.retired());
+        if let Some(conn) = state.conns.iter().find(|c| c.room()) {
             let (place, shared) = conn.take();
-            state.conns.push(conn.clone());
-            Ok(Got::Place { conn, place, shared })
+            return Ok(Got::Place { conn: conn.clone(), place, shared });
         }
-        Dialed::Http1(tls, peer) => Ok(Got::Http1(tls, peer)),
-        Dialed::Lacks(why) => {
-            state.lacks = Some((why.clone(), Instant::now()));
-            Ok(Got::Fallback(why))
+        match dial::dial(config).await? {
+            Dialed::H2(conn) => {
+                let (place, shared) = conn.take();
+                state.conns.push(conn.clone());
+                Ok(Got::Place { conn, place, shared })
+            }
+            Dialed::Http1(tls, peer) => Ok(Got::Http1(tls, peer)),
+            Dialed::Lacks(why) => {
+                state.lacks = Some((why.clone(), Instant::now()));
+                Ok(Got::Fallback(why))
+            }
         }
     }
-}
 
-/// The host of `config` takes HTTP/1.1, for `why`, for [`REMEMBERED`]; its
-/// connections with no session close now.
-pub(super) async fn remember(config: &WsClientConfig, why: Fallback) {
-    let host = host(Key::of(config));
-    let mut state = host.state.lock().await;
-    state.lacks = Some((why, Instant::now()));
-    state.conns.retain(|c| {
-        let idle = c.unused();
-        if idle {
-            c.close();
-        }
-        !idle
-    });
+    /// The host of `config` takes HTTP/1.1, for `why`, for [`REMEMBERED`]; its
+    /// connections with no session close now.
+    pub(super) async fn remember(&self, config: &WsClientConfig, why: Fallback) {
+        let host = self.host(Key::of(config));
+        let mut state = host.state.lock().await;
+        state.lacks = Some((why, Instant::now()));
+        state.conns.retain(|c| {
+            let idle = c.unused();
+            if idle {
+                c.close();
+            }
+            !idle
+        });
+    }
 }

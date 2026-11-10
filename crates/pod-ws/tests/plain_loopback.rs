@@ -1,4 +1,4 @@
-//! A plain `ws://` session to the loopback (feature `plain-ws`, T-068): the
+//! A plain `ws://` session to the loopback (feature `plain-ws`): the
 //! upgrade and data in both directions, against a listener that answers with
 //! the bytes of `scripts/fake-relay.py`; and the refusal of each host that is
 //! not the loopback, with no connection attempt.
@@ -6,9 +6,9 @@
 
 use std::time::{Duration, Instant};
 
-use podssh_ws::client::ConnectError;
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::plain::connect_loopback;
+use pod_ws::client::ConnectError;
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::plain::connect_loopback;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
@@ -29,7 +29,7 @@ async fn relay() -> (u16, tokio::task::JoinHandle<(String, Frame)>) {
         }
         let head = String::from_utf8(head).expect("text");
         let key = head.lines().find_map(|l| l.strip_prefix("Sec-WebSocket-Key: ")).expect("a key").trim().to_string();
-        let accept = podssh_ws::handshake::accept_key(&key);
+        let accept = pod_ws::handshake::accept_key(&key);
         let answer = format!(
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
              Sec-WebSocket-Accept: {accept}\r\n\r\n"
@@ -57,6 +57,7 @@ async fn relay() -> (u16, tokio::task::JoinHandle<(String, Frame)>) {
 
 #[tokio::test]
 async fn a_plain_session_to_the_loopback_carries_data_both_ways() {
+    pod_testkit::need_loopback!();
     let (port, relay) = relay().await;
     let session = connect_loopback("127.0.0.1", port, "/connect/example.org/22", TOKEN, TIMEOUT, Some(TIMEOUT))
         .await

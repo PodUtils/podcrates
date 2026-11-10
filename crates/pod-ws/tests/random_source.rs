@@ -1,30 +1,29 @@
-//! The random source (T-064): a source that gives no bytes is an error and
+//! The random source: a source that gives no bytes is an error and
 //! never a panic, at each place that draws, and no other path draws. A panic
 //! ends the whole process where an error ends one session. The source itself
-//! and the key exchanges are `pod-tls`'s, whose tests are there.
+//! is `pod_core::entropy`'s, whose tests are there.
 
 use std::path::{Path, PathBuf};
 
-use podssh_ws::crypto::random::OsRandom;
-use podssh_ws::handshake::{generate_key_from, masking_key_from};
-use podssh_ws::WsError;
-use rustls::crypto::{GetRandomFailed, SecureRandom};
+use pod_core::entropy::{Entropy, NoRandom, OsEntropy};
+use pod_ws::WsError;
+use pod_ws::handshake::{generate_key_from, masking_key_from};
 
-/// A source of rustls that gives no bytes.
+/// A source that gives no bytes.
 #[derive(Debug)]
 struct Failing;
 
-impl SecureRandom for Failing {
-    fn fill(&self, _: &mut [u8]) -> Result<(), GetRandomFailed> {
-        Err(GetRandomFailed)
+impl Entropy for Failing {
+    fn fill(&mut self, _: &mut [u8]) -> Result<(), NoRandom> {
+        Err(NoRandom)
     }
 }
 
 #[test]
 fn the_websocket_keys_report_a_source_that_gives_no_bytes() {
-    assert!(matches!(generate_key_from(&Failing), Err(WsError::Handshake(_))));
-    assert!(matches!(masking_key_from(&Failing), Err(WsError::Frame(_))));
-    assert_eq!(generate_key_from(&OsRandom).unwrap().len(), 24, "16 bytes in base64");
+    assert!(matches!(generate_key_from(&mut Failing), Err(WsError::Handshake(_))));
+    assert!(matches!(masking_key_from(&mut Failing), Err(WsError::Frame(_))));
+    assert_eq!(generate_key_from(&mut OsEntropy).unwrap().len(), 24, "16 bytes in base64");
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -41,7 +40,7 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 /// No path of the library draws in a way that can panic: no `fill_bytes(`
 /// (only `try_fill_bytes(`), no generator that takes an RNG
 /// (`::random(&mut`), and the OS's source in no file: each draw goes through
-/// `crypto::random` of `pod-tls`. The OS's source has each name that rand
+/// `pod_core::entropy`. The OS's source has each name that rand
 /// has given it: `OsRng` up to 0.9, `SysRng` since 0.10, and the thread's
 /// generator, which reseeds from it and panics if it fails.
 #[test]

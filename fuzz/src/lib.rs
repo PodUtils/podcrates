@@ -28,6 +28,9 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("doh_json", targets::doh_json),
     ("broker_target", targets::broker_target),
     ("gsr_message", targets::gsr_message),
+    ("ws_frame", targets::ws_frame),
+    ("ws_upgrade", targets::ws_upgrade),
+    ("close_reason", targets::close_reason),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as

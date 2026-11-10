@@ -1,69 +1,24 @@
-//! A GET over HTTPS through podssh's way out: pod-proxy's client
-//! ([`pod_proxy::Client`]) with podssh's dial, its TLS context, its user
-//! agent and its reader of HTTPS records, so that a hello is sealed with ECH
-//! where the user asks for it. A failure is a [`ConnectError`], as each
-//! caller of podssh reads it.
+//! The failure of a request of pod-proxy's client ([`pod_proxy::Client`])
+//! as a [`ConnectError`], as the callers of the roads read it: the dial's
+//! error as it was, the handshake's as a TLS road says it, and a failure of
+//! the exchange as the step of the request. The client itself, with the
+//! binary's dial, TLS context and user agent, is the binary's.
 
-use std::sync::Arc;
 use std::time::Duration;
 
-use pod_core::{Class, Failure, Stage};
+use pod_core::{Class, Failure, Stage, Target};
+use pod_proxy::DialError;
 
 use super::ConnectError;
-use crate::dial::{self, DialError, ProxyChoice};
-use crate::http;
-use crate::tls::{self, Trust};
 
-/// GET over HTTPS, through the same path as everything else (proxy, TLS
-/// verification, sealed with ECH where asked, bounded waits): pod-proxy's
-/// client ([`getter`]). The body is capped at `max_body` bytes.
-pub async fn https_get(
-    host: &str,
-    port: u16,
-    path: &str,
-    max_body: usize,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<http::Response, ConnectError> {
-    let client = getter(proxy);
-    client.https_get(host, port, path, max_body, trust, timeout).await.map_err(|failure| get_error(failure, timeout))
-}
-
-/// GET over HTTPS as [`https_get`], with `accept` as the answer's type: a
-/// resolver's JSON API answers `application/dns-json` (T-339).
-#[allow(clippy::too_many_arguments)]
-pub async fn https_get_accepting(
-    host: &str,
-    port: u16,
-    path: &str,
-    accept: &str,
-    max_body: usize,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<http::Response, ConnectError> {
-    let client = getter(proxy);
-    let get = client.https_get_accepting(host, port, path, accept, max_body, trust, timeout);
-    get.await.map_err(|failure| get_error(failure, timeout))
-}
-
-/// pod-proxy's client over the dial of `proxy`, with the process's TLS and
-/// podssh's user agent; a name's HTTPS record is read through that proxy.
-pub fn getter(proxy: &ProxyChoice) -> pod_proxy::Client {
-    pod_proxy::Client::new(tls::context().clone(), Arc::new(dial::dialer(proxy, false)))
-        .with_user_agent(dial::user_agent())
-        .with_records(Arc::new(crate::ech::Records(proxy.clone())))
-}
-
-/// The failure of a GET as podssh's callers read it: the dial's error as it
-/// was, the handshake's as [`tls::connect_error`] says it, and a failure of
-/// the exchange (`the HTTPS request failed: ...`, `the HTTPS request timed
-/// out after Ns`) as the step of the request.
-fn get_error(failure: Failure, limit: Duration) -> ConnectError {
+/// The failure of a request to `host:port` within `limit`: the dial's
+/// error as it was, the handshake's as [`crate::way::connect_error`] says
+/// it, and a failure of the exchange (`the HTTPS request failed: ...`, `the
+/// HTTPS request timed out after Ns`) as the step of the request.
+pub fn request_error(failure: Failure, limit: Duration, host: &str, port: u16) -> ConnectError {
     let cause = std::error::Error::source(&failure);
     if failure.stage != Stage::Connect || cause.is_some_and(|e| e.is::<DialError>()) {
-        return tls::connect_error(failure, limit);
+        return crate::way::connect_error(failure, limit, &Target::new(host, port));
     }
     match cause.and_then(|e| e.downcast_ref::<std::io::Error>()) {
         Some(e) => ConnectError::Http(e.to_string()),
@@ -75,11 +30,15 @@ fn get_error(failure: Failure, limit: Duration) -> ConnectError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cut::Cut;
+    use pod_proxy::Cut;
+
+    fn get_error(failure: Failure, limit: Duration) -> ConnectError {
+        request_error(failure, limit, "t", 443)
+    }
 
     /// A failure of the exchange is the step of the request, with the
     /// words of its error; the dial's error and the handshake's stay as
-    /// podssh's roads say them.
+    /// the roads say them.
     #[test]
     fn a_failure_of_a_get_is_podssh_s_connect_error() {
         let limit = Duration::from_secs(3);

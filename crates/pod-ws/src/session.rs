@@ -1,12 +1,16 @@
 //! An open WebSocket session, to the relay unless made otherwise, usable
 //! from two tasks at once. It speaks as a client unless made a server's
-//! (T-368), and names the other end in its errors as the relay unless named.
+//! ([`crate::server`]), and names the other end in its errors as the relay
+//! unless named.
 //!
 //! The stream is split into a read half and a write half with separate locks,
 //! so a task waiting for the relay's next frame never blocks another task that
 //! is sending. (The first version held one lock across the read, so a
 //! keystroke could not be sent while the reader waited for the echo that the
 //! keystroke would have caused.)
+//!
+//! The limits of a received frame and of a reassembled message are settings
+//! ([`Limits`]): the relay's by default.
 //!
 //! The reader answers Pings itself, ignores Pongs, reassembles fragmented
 //! messages, and echoes a Close it did not start (RFC 6455 §5.5.1), unless
@@ -17,27 +21,27 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
-use tokio::net::TcpStream;
+
 use tokio::sync::Mutex;
 
 use crate::client::Event;
 use crate::error::SessionError;
 use crate::frame::{self, Frame};
+pub use crate::limits::{Limits, MAX_MESSAGE};
 use crate::wire::{next_event_from, write_frame_as};
+
+// The constructors of the roads of the relay.
+mod roads;
 
 /// The stream of a dial, boxed, as the roads of `pod-tls` take it.
 pub use pod_core::BoxedIo;
 
-/// The TLS stream to the relay, as [`crate::client::open_tls`] gives it.
+/// The TLS stream to the relay, as [`crate::Way::open_tls`] gives it.
 pub type RelayStream = tokio_rustls::client::TlsStream<BoxedIo>;
-
-/// The largest message reassembled from fragments. The relay's own frames
-/// are at most 262144 bytes; this leaves room and still bounds memory.
-pub const MAX_MESSAGE: usize = 16 * 1024 * 1024;
 
 /// A WebSocket session. All methods take `&self`, so an `Arc<RelaySession>`
 /// can be read in one task and written in another. Unless named, its stream
-/// is TLS, or TCP alone on the cleartext road (T-326), so that a session of
+/// is TLS, or TCP alone on the cleartext road, so that a session of
 /// either road goes to each caller of the relay's session unchanged.
 pub struct RelaySession<S = crate::url::Stream> {
     reader: Mutex<Reader<S>>,
@@ -47,40 +51,41 @@ pub struct RelaySession<S = crate::url::Stream> {
     /// [`RelaySession::watch_liveness`].
     pongs: AtomicU64,
     heard: AtomicU64,
-    /// When the last frame of any kind came (T-307): a notice of the far
+    /// When the last frame of any kind came: a notice of the far
     /// end's silence reads it. tokio's clock, which a test can pause.
     last_heard: std::sync::Mutex<tokio::time::Instant>,
     /// The payload of each Pong with when it came, the last [`PONGS_KEPT`],
-    /// for `podssh ping`, which matches each Pong to its Ping (T-053); and a
+    /// for a ping command, which matches each Pong to its Ping; and a
     /// permit for each Pong, for the one who waits.
     pong_log: std::sync::Mutex<std::collections::VecDeque<(Vec<u8>, std::time::Instant)>>,
     pong_seen: tokio::sync::Notify,
     /// Bound on one write.
     write_timeout: Duration,
     /// The largest message that [`RelaySession::send_binary`] sends, when
-    /// one is set: a larger payload goes as several messages (T-264).
+    /// one is set: a larger payload goes as several messages.
     max_message: Option<usize>,
     /// Whether [`RelaySession::watch_liveness`] sends Pings.
     pings: bool,
-    /// The cap on a received frame: the forward cap, or the relay's own,
-    /// wider one (T-342, [`frame::receive_cap`]).
+    /// The cap on a received frame: the forward cap, the relay's own,
+    /// wider one ([`frame::receive_cap`]), or the one of [`Limits`].
     receive_cap: AtomicUsize,
+    /// The largest message that is reassembled from fragments.
+    max_received: usize,
     /// The address of the TCP connection that carries the session, when the
-    /// stream knows it: the relay's, or the proxy's (T-344).
+    /// stream knows it: the relay's, or the proxy's.
     peer: Option<std::net::SocketAddr>,
     /// The side that this end speaks: a client masks each frame and takes
     /// the server's unmasked, a server the reverse (RFC 6455 section 5.1).
     role: frame::Role,
     /// A client's frames masked with a key of zero, for a peer that reads a
-    /// payload without its mask (wstunnel's server, T-441).
+    /// payload without its mask (wstunnel's server).
     zero_mask: bool,
     /// The other end, in the words of an error: `the relay`, unless named.
     peer_name: &'static str,
     /// How the session is carried, in the words of a line, where its road
-    /// has more to say than the upgrade: over HTTP/2, or HTTP/1.1 after it
-    /// (T-321).
+    /// has more to say than the upgrade: over HTTP/2, or HTTP/1.1 after it.
     road: Option<String>,
-    /// The peer's Close is answered by the caller, not by the reader (T-671).
+    /// The peer's Close is answered by the caller, not by the reader.
     hold_close: bool,
 }
 
@@ -126,6 +131,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             max_message: None,
             pings: true,
             receive_cap: AtomicUsize::new(frame::FORWARD_MAX_FRAME),
+            max_received: MAX_MESSAGE,
             peer: None,
             role: frame::Role::Client,
             zero_mask: false,
@@ -138,7 +144,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// Leave the answer to the peer's Close to the caller's
     /// [`RelaySession::send_close`]: until it answers, this side may still
     /// send data (RFC 6455, section 5.5.1), as the relay's contract carries a
-    /// target's bytes after a client's Close (T-671).
+    /// target's bytes after a client's Close.
     pub fn holding_close_answer(mut self) -> Self {
         self.hold_close = true;
         self
@@ -151,20 +157,20 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     }
 
     /// How the session is carried, where its road said more than the
-    /// upgrade (T-321).
+    /// upgrade.
     pub fn road(&self) -> Option<&str> {
         self.road.as_deref()
     }
 
     /// The address of the TCP connection that carries the session: the
     /// relay's when no proxy carried it, which the cache of addresses keeps
-    /// once the upgrade passed (T-344); none for a stream of another kind.
+    /// once the upgrade passed; none for a stream of another kind.
     pub fn peer(&self) -> Option<std::net::SocketAddr> {
         self.peer
     }
 
     /// Speak as the server: each frame written unmasked, and only masked
-    /// ones taken, as from a client of `podssh pipe ws-listen:` (T-368).
+    /// ones taken, as from a client of a listener ([`crate::server`]).
     pub fn as_server(mut self) -> Self {
         self.role = frame::Role::Server;
         self
@@ -173,7 +179,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// Mask each frame with a key of zero, which a peer reads the same
     /// whether it applies the mask or not: wstunnel's server, by default,
     /// takes a payload without its mask, so a fresh key would change each
-    /// byte (T-441). The frames keep the mask bit that RFC 6455 asks of a
+    /// byte. The frames keep the mask bit that RFC 6455 asks of a
     /// client.
     pub fn with_zero_mask(mut self) -> Self {
         self.zero_mask = true;
@@ -188,22 +194,32 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     /// Send no binary message over `max` bytes: a larger payload goes as
     /// several messages, never as fragments of one, as a peer that cuts each
-    /// message at a size of its own needs (the origin of `cloudflared`,
-    /// T-264).
+    /// message at a size of its own needs (the origin of `cloudflared`).
     pub fn with_max_message(mut self, max: usize) -> Self {
         self.max_message = Some(max.max(1));
         self
     }
 
+    /// Take in frames and messages up to the sizes of `limits`, in place of
+    /// the relay's ([`Limits::RELAY`]).
+    pub fn with_limits(mut self, limits: Limits) -> Self {
+        // A frame larger than a message would pass the check of the
+        // reassembly, which counts fragments only.
+        let message = limits.message.max(frame::MAX_CONTROL_PAYLOAD);
+        self.receive_cap = AtomicUsize::new(limits.frame.clamp(frame::MAX_CONTROL_PAYLOAD, message));
+        self.max_received = message;
+        self
+    }
+
     /// Take in frames up to `cap` bytes, from the relay's `/relays.json`
-    /// through [`frame::receive_cap`] (T-342).
+    /// through [`frame::receive_cap`].
     pub fn set_receive_cap(&self, cap: usize) {
         self.receive_cap.store(cap.clamp(frame::FORWARD_MAX_FRAME, frame::MAX_RECEIVE_CAP), Ordering::SeqCst);
     }
 
     /// Send no Ping: [`RelaySession::watch_liveness`] then waits for ever,
     /// and the idle bound of each read finds a dead link. For a peer that
-    /// answers a Ping outside the lock of its other writes (T-264).
+    /// answers a Ping outside the lock of its other writes.
     pub fn without_pings(mut self) -> Self {
         self.pings = false;
         self
@@ -378,7 +394,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                     }
                     return Ok(f);
                 }
-                Some(Event::Frame(f)) => match reader.assemble(f, self.peer_name) {
+                Some(Event::Frame(f)) => match reader.assemble(f, self.peer_name, self.max_received) {
                     Ok(Some(message)) => return Ok(message),
                     Ok(None) => {}
                     Err((code, why)) => {
@@ -427,54 +443,18 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     }
 }
 
-impl RelaySession<crate::url::Stream> {
-    /// A session over the relay's TLS stream, as [`crate::connect`] opens it,
-    /// which keeps `peer`, the address of its TCP connection
-    /// ([`RelaySession::peer`]).
-    pub fn over_tls(
-        stream: RelayStream,
-        peer: Option<std::net::SocketAddr>,
-        pending: Vec<u8>,
-        idle: Option<Duration>,
-    ) -> Self {
-        let stream = crate::url::Stream::Tls(Box::new(stream));
-        let mut session = Self::new(stream, pending, idle, crate::client::WRITE_TIMEOUT);
-        session.peer = peer;
-        session
-    }
-
-    /// A session over TCP with no TLS, as the cleartext road opens it
-    /// ([`crate::cleartext::connect`], T-326), which keeps the address of its
-    /// connection too.
-    pub fn over_cleartext(tcp: TcpStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
-        let peer = tcp.peer_addr().ok();
-        let mut session = Self::new(crate::url::Stream::Plain(tcp), pending, idle, crate::client::WRITE_TIMEOUT);
-        session.peer = peer;
-        session
-    }
-
-    /// A session on a stream of HTTP/2 ([`crate::h2_road`], T-321), with the
-    /// address of the connection that it may share with others.
-    pub fn over_h2(stream: crate::h2_road::Stream, peer: Option<std::net::SocketAddr>, idle: Option<Duration>) -> Self {
-        let stream = crate::url::Stream::H2(Box::new(stream));
-        let mut session = Self::new(stream, Vec::new(), idle, crate::client::WRITE_TIMEOUT);
-        session.peer = peer;
-        session
-    }
-}
-
 impl<S> Reader<S> {
     /// Feed one data or continuation frame; returns a whole message when one
     /// is complete. An error carries the close code that it fails the
     /// connection with: 1002 for a protocol error, 1009 for a message too big.
-    fn assemble(&mut self, f: Frame, peer: &str) -> Result<Option<Frame>, (u16, String)> {
+    fn assemble(&mut self, f: Frame, peer: &str, max: usize) -> Result<Option<Frame>, (u16, String)> {
         match (f.opcode, self.partial.take()) {
             (frame::OPCODE_CONTINUATION, None) => {
                 Err((1002, format!("{peer} sent a continuation frame with no message to continue")))
             }
             (frame::OPCODE_CONTINUATION, Some((opcode, mut payload))) => {
-                if payload.len() + f.payload.len() > MAX_MESSAGE {
-                    return Err((1009, format!("a fragmented message exceeded {MAX_MESSAGE} bytes")));
+                if payload.len() + f.payload.len() > max {
+                    return Err((1009, format!("a fragmented message exceeded {max} bytes")));
                 }
                 payload.extend_from_slice(&f.payload);
                 if f.fin {
@@ -494,4 +474,4 @@ impl<S> Reader<S> {
     }
 }
 
-pub use crate::close::{close_code_and_reason, close_payload, forward_close, ForwardClose};
+pub use crate::close::{ForwardClose, close_code_and_reason, close_hint, close_payload, forward_close};

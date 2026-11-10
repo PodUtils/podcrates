@@ -1,5 +1,5 @@
-//! The probe of GitHub #56 (T-326): a host's port through the proxy when
-//! one is set (a CONNECT, as each road dials), then `GET /health` with no
+//! The probe of a cleartext road: a host's port through the way out (a
+//! CONNECT of a proxy, as each road dials), then `GET /health` with no
 //! TLS, no token and no target, and what came back, named: a reset or a
 //! close with nothing (a hop that expects TLS cuts cleartext), a record of
 //! TLS (the far end speaks TLS alone there), an answer of HTTP (the edge's
@@ -8,14 +8,16 @@
 
 use std::time::Duration;
 
+use pod_core::BoxedIo;
+use pod_core::text::one_line;
+use pod_proxy::http::{parse_head, read_response};
+use pod_proxy::{Cut, DialError};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 
-use crate::cut::Cut;
-use crate::dial::{self, DialError, ProxyChoice};
+use crate::way::Way;
 
-/// The path that the probe asks for: a relay's `/health`, which podssh's
-/// relay role serves in cleartext too.
+/// The path that the probe asks for: a relay's `/health`, which a relay
+/// role serves in cleartext too.
 pub const PROBE_PATH: &str = "/health";
 
 /// The words of a server that serves TLS alone on the port, in its answer of
@@ -101,19 +103,19 @@ fn holds(bytes: &[u8], words: &str) -> bool {
     bytes.windows(words.len()).any(|w| w.eq_ignore_ascii_case(words.as_bytes()))
 }
 
-/// Ask `host:port` for [`PROBE_PATH`] in cleartext, through `proxy`, each
+/// Ask `host:port` for [`PROBE_PATH`] in cleartext, through `way`, each
 /// wait within `wait`: what came back.
-pub async fn probe(host: &str, port: u16, proxy: &ProxyChoice, wait: Duration) -> Heard {
-    let mut tcp = match dial::dial(host, port, proxy, wait).await {
-        Ok(tcp) => tcp,
+pub async fn probe(way: &Way, host: &str, port: u16, wait: Duration) -> Heard {
+    let mut tcp = match way.tcp(host, port, wait).await {
+        Ok(tcp) => tcp.io,
         Err(e) => return Heard::Unreached(e),
     };
     // No token, no target and no cookie: what each hop may read.
     let request = format!(
-        "GET {PROBE_PATH} HTTP/1.1\r\nHost: {}\r\nUser-Agent: podssh/{}\r\nAccept: application/json\r\n\
+        "GET {PROBE_PATH} HTTP/1.1\r\nHost: {}\r\nUser-Agent: {}\r\nAccept: application/json\r\n\
          Connection: close\r\n\r\n",
-        dial::authority(host, port),
-        env!("CARGO_PKG_VERSION")
+        pod_proxy::authority(host, port),
+        one_line(&way.user_agent)
     );
     match tokio::time::timeout(wait, ask(&mut tcp, request.as_bytes())).await {
         Err(_) => Heard::Silent(wait),
@@ -124,7 +126,7 @@ pub async fn probe(host: &str, port: u16, proxy: &ProxyChoice, wait: Duration) -
 }
 
 /// Send `request`, and read the first bytes of the answer.
-async fn ask(tcp: &mut TcpStream, request: &[u8]) -> std::io::Result<Vec<u8>> {
+async fn ask(tcp: &mut BoxedIo, request: &[u8]) -> std::io::Result<Vec<u8>> {
     tcp.write_all(request).await?;
     tcp.flush().await?;
     let mut first = vec![0u8; 4096];
@@ -134,17 +136,17 @@ async fn ask(tcp: &mut TcpStream, request: &[u8]) -> std::io::Result<Vec<u8>> {
 }
 
 /// What `first`, never empty, and the bytes after it are.
-async fn read(tcp: &mut TcpStream, first: Vec<u8>, wait: Duration) -> Heard {
+async fn read(tcp: &mut BoxedIo, first: Vec<u8>, wait: Duration) -> Heard {
     // A record of TLS: an alert (21) or a handshake (22), of version 3.x.
     if matches!(first[0], 0x15 | 0x16) && first.get(1) == Some(&3) {
         return Heard::Tls;
     }
     if !first.starts_with(b"HTTP/") {
         let seen = String::from_utf8_lossy(&first[..first.len().min(40)]).into_owned();
-        return Heard::Other(crate::text::one_line(&seen));
+        return Heard::Other(one_line(&seen));
     }
     let came = first.clone();
-    match tokio::time::timeout(wait, crate::http::read_response(tcp, first, MAX_BODY)).await {
+    match tokio::time::timeout(wait, read_response(tcp, first, MAX_BODY)).await {
         Ok(Ok(response)) => {
             let location = response.header("location").map(str::to_string);
             answered(response.status, &response.reason, location, response.body)
@@ -157,8 +159,8 @@ async fn read(tcp: &mut TcpStream, first: Vec<u8>, wait: Duration) -> Heard {
 /// The answer of `status`, its `Location` with no query, which a login page
 /// may fill, and each word of the peer's in one line.
 fn answered(status: u16, reason: &str, location: Option<String>, body: Vec<u8>) -> Heard {
-    let location = location.map(|to| crate::text::one_line(to.split(['?', '#']).next().unwrap_or_default()));
-    Heard::Answered { status, reason: crate::text::one_line(reason), location, body }
+    let location = location.map(|to| one_line(to.split(['?', '#']).next().unwrap_or_default()));
+    Heard::Answered { status, reason: one_line(reason), location, body }
 }
 
 /// The answer of the head in `bytes`, when it came whole.
@@ -167,12 +169,12 @@ fn head_alone(bytes: &[u8]) -> Heard {
         return Heard::Other("an answer of HTTP whose head broke off".into());
     };
     let head = String::from_utf8_lossy(&bytes[..end + 4]).into_owned();
-    match crate::http::parse_head(&head) {
+    match parse_head(&head) {
         Ok((status, reason, headers)) => {
             let location = headers.into_iter().find(|(name, _)| name == "location").map(|(_, to)| to);
             answered(status, &reason, location, bytes[end + 4..].to_vec())
         }
-        Err(why) => Heard::Other(crate::text::one_line(&why)),
+        Err(why) => Heard::Other(one_line(&why)),
     }
 }
 

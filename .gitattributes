@@ -1,2 +1,4 @@
 # One line end on each host: tests search text files for LF.
 * text=auto eol=lf
+# The seeds of the fuzz targets are bytes: no change of line end.
+fuzz/seeds/** -text

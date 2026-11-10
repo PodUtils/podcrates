@@ -11,8 +11,10 @@
 //! bytes in the wrong direction, or unmasked where RFC 6455 §5.3 requires a
 //! mask.
 
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::handshake;
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::handshake;
+
+mod common;
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -131,7 +133,7 @@ fn a_decoded_frame_is_the_frame_that_was_encoded() {
     let original =
         Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: b"\x00\x00\x00\x15SSH-2.0-podssh".to_vec() };
     // **Client to client**: encoded masked, decoded with the same role. This
-    // is the path podssh's own frames take, and it is the one that proves the
+    // is the path the client's own frames take, and it is the one that proves the
     // mask is reversible.
     let encoded = frame::encode(&original, Role::Client, [0xDE, 0xAD, 0xBE, 0xEF]);
     let (decoded, used) = frame::decode(&encoded, Role::Client).expect("decode").expect("a frame");
@@ -181,7 +183,7 @@ fn plant_unparseable_frame_mid_stream_is_a_clean_error_not_a_panic() {
 
     let result = frame::decode(&stream, Role::Server);
     match result {
-        Err(podssh_ws::WsError::Frame(why)) => {
+        Err(pod_ws::WsError::Frame(why)) => {
             assert!(why.contains("reserved"), "the error must name the actual fault, got: {why}");
         }
         other => panic!("a reserved bit must be an error, got {other:?}"),
@@ -312,17 +314,18 @@ fn no_subprotocol_is_offered() {
 /// code path by which a token could reach a URL.
 #[test]
 fn a_path_with_a_query_string_is_refused() {
-    let config = podssh_ws::WsClientConfig {
-        endpoint: podssh_ws::Endpoint {
+    let config = pod_ws::WsClientConfig {
+        endpoint: pod_ws::Endpoint {
             host: "relay.example".into(),
             port: 443,
             path: "/v1/connect/railway?token=SECRET".into(),
         },
-        trust: podssh_ws::Trust::File("/nonexistent/podssh-ca.pem".into()),
+        trust: pod_ws::Trust::File("/nonexistent/podssh-ca.pem".into()),
         server_name: "relay.example".into(),
         timeout: std::time::Duration::from_secs(1),
         idle_timeout: None,
-        proxy: podssh_ws::ProxyChoice::Direct,
+        way: common::way(),
+        limits: pod_ws::Limits::default(),
     };
     let err = config.validate().expect_err("a query string must be refused");
     assert!(err.contains("query string"), "got {err}");
@@ -332,13 +335,14 @@ fn a_path_with_a_query_string_is_refused() {
 
 #[test]
 fn a_valid_configuration_passes_validation() {
-    let config = podssh_ws::WsClientConfig {
-        endpoint: podssh_ws::Endpoint { host: "relay.example".into(), port: 443, path: "/v1/connect/railway".into() },
-        trust: podssh_ws::Trust::Default,
+    let config = pod_ws::WsClientConfig {
+        endpoint: pod_ws::Endpoint { host: "relay.example".into(), port: 443, path: "/v1/connect/railway".into() },
+        trust: pod_ws::Trust::Default,
         server_name: "relay.example".into(),
         timeout: std::time::Duration::from_secs(20),
         idle_timeout: None,
-        proxy: podssh_ws::ProxyChoice::Direct,
+        way: common::way(),
+        limits: pod_ws::Limits::default(),
     };
     config.validate().expect("a well-formed configuration");
 }
@@ -364,13 +368,12 @@ fn a_101_with_the_wrong_accept_value_is_rejected() {
                 Sec-WebSocket-Accept: AAAAAAAAAAAAAAAAAAAAAAAAAAA=\r\n\r\n";
     let err = handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==").expect_err("a wrong accept value");
     assert!(format!("{err}").contains("Sec-WebSocket-Accept"), "got {err}");
-    // What that means, apart from a refusal and a death after a valid 101
-    // (T-324).
+    // What that means, apart from a refusal and a death after a valid 101.
     assert!(format!("{err}").contains("answered in the relay's place"), "got {err}");
 }
 
 /// A refused upgrade's text is the peer's, on its way to a terminal: no ESC,
-/// BEL or CR of it is kept (T-198: the fuzz target `ws_upgrade` found the head
+/// BEL or CR of it is kept (the fuzz target `ws_upgrade` found the head
 /// copied whole).
 #[test]
 fn a_refused_upgrade_keeps_no_control_character_of_the_peer() {
@@ -400,7 +403,7 @@ fn the_status_code_survives_into_the_error() {
         let head = format!("HTTP/1.1 {status} Forbidden\r\nContent-Length: 0\r\n\r\n");
         let err = handshake::check_response(&head, "k").expect_err("a non-101 status");
         match err {
-            podssh_ws::WsError::Upgrade { status: got, .. } => assert_eq!(got, status),
+            pod_ws::WsError::Upgrade { status: got, .. } => assert_eq!(got, status),
             other => panic!("expected an upgrade error carrying {label}, got {other:?}"),
         }
     }
@@ -411,13 +414,14 @@ fn the_status_code_survives_into_the_error() {
 /// knobs. None can carry a secret; anything else is still refused.
 #[test]
 fn only_the_relays_connect_knobs_may_ride_in_the_path() {
-    let config = |path: &str| podssh_ws::WsClientConfig {
-        endpoint: podssh_ws::Endpoint { host: "relay.example".into(), port: 443, path: path.into() },
-        trust: podssh_ws::Trust::File("/nonexistent/podssh-ca.pem".into()),
+    let config = |path: &str| pod_ws::WsClientConfig {
+        endpoint: pod_ws::Endpoint { host: "relay.example".into(), port: 443, path: path.into() },
+        trust: pod_ws::Trust::File("/nonexistent/podssh-ca.pem".into()),
         server_name: "relay.example".into(),
         timeout: std::time::Duration::from_secs(1),
         idle_timeout: None,
-        proxy: podssh_ws::ProxyChoice::Direct,
+        way: common::way(),
+        limits: pod_ws::Limits::default(),
     };
     for ok in [
         "/connect/h/22?family=4",
@@ -439,7 +443,7 @@ fn only_the_relays_connect_knobs_may_ride_in_the_path() {
     }
 }
 
-// ── the server's side, for `podssh pipe ws-listen:` (T-368) ─────────────────
+// ── the server's side, for a listener ──────────────────────────────────────
 
 /// **A server's session writes no mask, takes only masked frames, and
 /// closes on an unmasked one with 1002** (RFC 6455 §5.1, §7.4.1). Each of
@@ -449,7 +453,7 @@ fn only_the_relays_connect_knobs_may_ride_in_the_path() {
 async fn a_server_masks_nothing_and_closes_an_unmasked_client_frame_with_1002() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let (ours, mut theirs) = tokio::io::duplex(64 * 1024);
-    let session = podssh_ws::server::session(ours, Vec::new(), None);
+    let session = pod_ws::server::session(ours, Vec::new(), None);
     let next = |bytes: &[u8]| frame::decode(bytes, Role::Server).expect("unmasked, as a server's").expect("whole");
     let mut buf = vec![0u8; 256];
     session.send_binary(b"from the server").await.unwrap();
@@ -473,8 +477,8 @@ async fn a_server_masks_nothing_and_closes_an_unmasked_client_frame_with_1002() 
 fn the_server_answers_rfc6455_section_1_3_with_its_accept_value() {
     let head = "GET /chat HTTP/1.1\r\nHost: server.example.com\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
                 Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n";
-    let request = podssh_ws::http::request::parse_request(head.as_bytes()).unwrap();
-    let key = podssh_ws::server::check_upgrade(&request).unwrap();
-    let answer = String::from_utf8(podssh_ws::server::switching(&key)).unwrap();
+    let request = pod_proxy::http::request::parse_request(head.as_bytes()).unwrap();
+    let key = pod_ws::server::check_upgrade(&request).unwrap();
+    let answer = String::from_utf8(pod_ws::server::switching(&key)).unwrap();
     assert!(answer.contains("\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"), "{answer}");
 }

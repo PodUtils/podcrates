@@ -1,4 +1,5 @@
-//! Every way this layer can fail, as values.
+//! Every way this layer can fail, as values, and each as a
+//! [`pod_core::Failure`] at [`Stage::WebSocket`] with its class.
 //!
 //! **No variant carries a token, and none formats one.** `Display` is what
 //! ends up in a log, and the relay specification's own rule is that a token
@@ -7,6 +8,8 @@
 //! discipline rather than a property of the type.
 
 use std::fmt;
+
+use pod_core::{Class, Failure, Stage};
 
 /// The three-valued result the doctor reports. `Unknown` is not optional.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,8 +39,8 @@ impl Verdict {
     }
 
     /// Whether the check passed. `Unknown` never did: a check that could not
-    /// run is never counted as passing. (`podssh doctor` counts unknowns
-    /// apart from failures, and only a failure fails its run.)
+    /// run is never counted as passing. (A doctor counts unknowns apart
+    /// from failures, and only a failure fails its run.)
     pub fn is_success(&self) -> bool {
         matches!(self, Verdict::Ok { .. })
     }
@@ -169,5 +172,46 @@ impl std::error::Error for SessionError {}
 impl From<SessionError> for String {
     fn from(e: SessionError) -> String {
         e.to_string()
+    }
+}
+
+impl WsError {
+    /// The stage and the class of the failure.
+    pub fn stage_and_class(&self) -> (Stage, Class) {
+        match self {
+            WsError::Bundle { .. } | WsError::Config(_) => (Stage::Tls, Class::Config),
+            WsError::Handshake(_) => (Stage::Tls, Class::Unavailable),
+            WsError::Upgrade { status: 401 | 403 | 407, .. } => (Stage::WebSocket, Class::Refused),
+            WsError::Upgrade { status: 429 | 503, .. } => (Stage::WebSocket, Class::TempFail),
+            WsError::Upgrade { .. } | WsError::Frame(_) => (Stage::WebSocket, Class::Protocol),
+            WsError::Closed { .. } | WsError::Io(_) => (Stage::WebSocket, Class::Unavailable),
+        }
+    }
+}
+
+impl From<WsError> for Failure {
+    fn from(e: WsError) -> Failure {
+        let (stage, class) = e.stage_and_class();
+        Failure::caused(stage, class, e.to_string(), e)
+    }
+}
+
+impl SessionError {
+    /// The class of the failure; its stage is [`Stage::WebSocket`].
+    pub fn class(&self) -> Class {
+        match self {
+            SessionError::Io { kind, .. } => Class::of_io(*kind),
+            SessionError::Idle(_) | SessionError::WriteStalled(_) => Class::Timeout,
+            SessionError::Protocol(_) => Class::Protocol,
+            SessionError::TooLarge(_) => Class::Policy,
+            SessionError::Dead(_) | SessionError::ClosedWithoutClose(_) => Class::Unavailable,
+        }
+    }
+}
+
+impl From<SessionError> for Failure {
+    fn from(e: SessionError) -> Failure {
+        let class = e.class();
+        Failure::caused(Stage::WebSocket, class, e.to_string(), e)
     }
 }

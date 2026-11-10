@@ -1,8 +1,7 @@
 //! Frames on a stream, as each side writes them and reads the other's
 //! (RFC 6455 section 5.1): a client masks each frame with a fresh key, a
 //! server masks none, and each side takes only the other's kind. A session
-//! is a client's unless it is made a server's (T-368, `podssh pipe
-//! ws-listen:`).
+//! is a client's unless it is made a server's ([`crate::server`]).
 
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
@@ -28,7 +27,7 @@ pub fn next_event_from(buf: &mut Vec<u8>, sender: Role, cap: usize) -> Result<Op
 /// (RFC 6455 section 5.3 requires a new key for each frame, and a client has
 /// no unmasked path), a server's with no mask (section 5.1). `zero_mask`
 /// gives a client's frame a key of zero, for a peer that reads a payload
-/// without its mask (wstunnel's server, T-441).
+/// without its mask (wstunnel's server).
 pub async fn write_frame_as<S>(
     stream: &mut S,
     role: Role,

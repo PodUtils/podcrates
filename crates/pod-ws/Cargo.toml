@@ -1,7 +1,63 @@
 [package]
 name = "pod-ws"
+description = "WebSockets (RFC 6455): the frames, a session usable from two tasks, the client of the relay over TLS, over HTTP/2's extended CONNECT and in cleartext, a WebSocket that a URL names, the server's handshake, and the bridge of a session and a raw stream; through the caller's dial and TLS context."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+# Encrypted Client Hello on each TLS road, with the reader of HTTPS records
+# that the caller gives (Way::with_records). It turns on the ECH of
+# pod-tls, with its pure provider.
+ech = ["pod-tls/ech"]
+# A plain WebSocket over TCP to the loopback, for the tests of an embedder
+# (podvm) and a stand-in relay. Off by default; a binary does not turn it
+# on.
+plain-ws = []
+
+[dependencies]
+# The dial, the failure and its stage and class, the text made safe to
+# print, the entropy of the keys.
+pod-core = { workspace = true, features = ["async"] }
+# The TLS context of the caller: the configuration of each trust, the
+# handshake, its words; ECH with the feature `ech`.
+pod-tls = { workspace = true }
+# The cut of a connection, the dial's error, the HTTP/1.1 heads and the
+# exchange, the reading of a request, the authority of a host.
+pod-proxy = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt"] }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# Sec-WebSocket-Key and Sec-WebSocket-Accept.
+base64 = { workspace = true }
+# HTTP/2's extended CONNECT (h2_road): h2 and its types, pure Rust.
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
+# The diagnostics: the time of each step, a Close of the far end.
+tracing = { workspace = true }
+
+# The clocks of a host that slept (wake.rs): CLOCK_BOOTTIME beside
+# CLOCK_MONOTONIC, which Linux alone has. libc compiles no C.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# The tests of TLS run on ring.
+rustls = { workspace = true, features = ["ring"] }
+# The certificates of the tests (pod-tls tests/common/cert_for_test.rs),
+# minted in pure Rust.
+p256 = { workspace = true }
+sha2 = { workspace = true }
+# Property tests of frames and fragments (tests/properties.rs).
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+[[test]]
+name = "plain_loopback"
+required-features = ["plain-ws"]
