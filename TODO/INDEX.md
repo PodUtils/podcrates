@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**143 entries: 55 open, 4 partial, 0 blocked, 84 done.**
+**145 entries: 57 open, 4 partial, 0 blocked, 84 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 32 | 55 |
-| P2 | 23 | 3 | 0 | 39 | 65 |
+| P2 | 25 | 3 | 0 | 39 | 67 |
 | P3 | 9 | 1 | 0 | 11 | 21 |
-| **All** | 55 | 4 | 0 | 84 | 143 |
+| **All** | 57 | 4 | 0 | 84 | 145 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -190,3 +190,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-141](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main |
 | [T-142](podvm.md) | P3 | S | M6 | measurement | open | `pod-oci`: a live pull from a public registry |
 | [T-143](foundation.md) | P1 | S | M5 | defect | done | `plants.yml`: four plants are stale and two miss |
+| [T-144](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: the volume pairs in the maps table; the workdir and the first program through a guest-to-host resolver (PodUtils/podvm#224) |
+| [T-145](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224) |

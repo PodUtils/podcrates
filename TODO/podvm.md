@@ -1593,3 +1593,80 @@ pulls a manifest and a blob from a public registry through the crate.
 cargo test -p pod-oci --test live -- --ignored
 ```
 
+
+# T-144: `pod-enter`: the volume pairs in the maps table; the workdir and the first program through a guest-to-host resolver (PodUtils/podvm#224)
+
+**Source:** PodUtils/podvm#224 (COORD-018 of podvm; PodUtils/podvm@T-1653, `-v HOST:GUEST` on the loader family).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm puts each `-v HOST:GUEST` as a `GUEST:HOST` pair in its maps
+variable after the root pair; the interposer takes the longest prefix.
+`pod-enter` knows the root only:
+
+1. `userland_maps_table(names, rootfs)` takes the rootfs only, so podvm's
+   glue checks each volume side with the root's message ("the rootfs path
+   is N bytes").
+2. `check_workdir`, `workdir_kind` and the userland child's `workdir_rel`
+   resolve the workdir inside the rootfs: `-w` cannot name a volume.
+3. `ladder::payload_head`, `userland::loader_plan` and `abi::resolve_in`
+   resolve the first program inside the rootfs only: a first program
+   inside a volume is refused.
+
+## Premise
+
+- Read: PodUtils/podvm#224.
+- Not read: podvm's commit of PodUtils/podvm@T-1653 (it follows the issue).
+
+## Approach
+
+- A table of pairs (`Maps`: the root pair and the volume pairs, the
+  longest guest prefix first), built and checked by the crate; each side
+  over the length limit is refused with its own name.
+- One guest-to-host resolver over the table, for the workdir and for the
+  first program (`resolve_in` takes the table); podvm's
+  `lifecycle::script::follow` can call it.
+- A test for each: a workdir in a volume, a first program in a volume, the
+  longest prefix, a symlink of a volume that leaves the volume.
+
+## Prove
+
+```sh
+cargo test -p pod-enter
+```
+
+# T-145: `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224)
+
+**Source:** PodUtils/podvm#224 (COORD-018 of podvm, ask 4).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`sys::Statfs` has no `f_flags`. With it (`ST_NOEXEC`), podvm reads one
+`statfs` to name a noexec volume source, not `/proc/self/mountinfo`.
+
+## Premise
+
+- The layout of `struct statfs` differs between the 64-bit targets and the
+  32-bit ones (`statfs64` on i686, arm and armv7).
+
+## Approach
+
+- Add `f_flags` and the `ST_*` constants (`ST_RDONLY`, `ST_NOSUID`,
+  `ST_NODEV`, `ST_NOEXEC`) on each target of the consumers; a test that
+  reads the flags of a known mount.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe
+```
