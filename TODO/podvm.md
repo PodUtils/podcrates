@@ -479,7 +479,7 @@ at `6cd3442`, with `SOURCES`), `ef7c76f` (the adaptation and the tests),
   on the old code it fails with "capacity overflow"). The same pass as
   i686 musl binaries (135 unit tests; the trampoline test is for x86_64
   and aarch64). `need_root!` joins `pod-testkit`.
-- The trial of podvm at `6cd3442` (`adoption/podvm/pod-enter.patch`: 52
+- The trial of podvm at `6cd3442` (`pod-enter.patch` of `v0.9.0`: 52
   files, 258 lines in, 9,101 out; it does not need the patches of
   `pod-supervise` and `pod-guest`): `PodUtils/podvm:crates/podvm-enter`
   keeps podvm's glue and re-exports the crate; 27 files leave podvm; each
@@ -727,7 +727,7 @@ at `6cd3442`, with `SOURCES`), `04193cc` (the adaptation and the tests),
   random source, a key for each printable character, the name and mode of
   a per-run directory, a line with no key, and a real emulator with QMP
   (it skips here: no `qemu-system-x86_64`).
-- The trial of podvm at `27ae993` (`adoption/podvm/pod-guest.patch`: 21
+- The trial of podvm at `27ae993` (`pod-guest.patch` of `v0.9.0`: 21
   files, 252 lines in, 3,411 out; it applies at `6cd3442` too):
   `podvm-windows` keeps podvm's glue (`settings()`, the functions with
   their podvm signatures, `RunGuard`, `base_cache`, `dos::base_cache`,

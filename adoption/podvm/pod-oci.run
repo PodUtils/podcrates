@@ -1,13 +1,9 @@
 # The trial of pod-oci in podvm (T-056), at podvm main cb57d4b (commit).
-# The patch applies alone. It shares crates/podvm-image/Cargo.toml,
-# crates/podvm-probe/Cargo.toml, crates/podvm-ssh/Cargo.toml,
-# docs/runtime-state.md and TODO/gate.md with pod-guest.patch and
-# pod-enter.patch, and crates/podvm-supervise/Cargo.toml, TODO/cli.md,
-# crates/podvm/src/exec/command.rs and crates/podvm/src/lifecycle/userland.rs
-# with pod-enter.patch. After both, with git apply --3way, only the tag
+# The patch applies alone. After the patches of pod-guest and pod-enter of
+# v0.9.0 (podvm took them at 423e817), with git apply --3way, only the tag
 # lines (take v0.10.0), the pod-* rows of docs/runtime-state.md (keep each
-# row, at 0.10.0) and two adjacent citation lines of T-1684 in
-# TODO/gate.md (keep both) conflict.
+# row, at 0.10.0) and two adjacent citation lines of T-1684 in TODO/gate.md
+# (keep both) conflict.
 # crates/podvm-image keeps the store, the pull into it, save, load and
 # import, net.rs, AcceptAny, docker's codes and podvm's glue:
 # registry::client (podvm's transport, trust, AcceptAny for an insecure
@@ -30,6 +26,13 @@
 # crates; the runtime-state rows; podvm's record gate; each Rust toolchain
 # of the workflows against the rust-version of podcrates; and the binary
 # `podvm` for x86_64 musl, with podcrates' static check.
+# podvm's binary embeds its interposer objects (crates/podvm/build.rs), and
+# the tests of qol need them on a host that denies chroot(2), as a runner
+# does. podvm's gate.yml builds them before the binary; the trial does the
+# same.
+cargo build -q --release -p podvm-gate --bin podvm-interpose-build
+mkdir -p target/release && cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/podvm-interpose-build" target/release/
+./target/release/podvm-interpose-build
 cargo test -q -p podvm-image
 cargo test -q -p podvm-extract
 cargo test -q -p podvm-complete
