@@ -277,3 +277,12 @@ pub async fn round_trip<S: AsyncRead + AsyncWrite + Unpin>(io: &mut S, data: &[u
 pub fn connect(target: &str) -> String {
     format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n{}\r\n", basic("job1", TOKEN))
 }
+
+/// A directory for the Unix socket of a test. A socket path holds at most
+/// 108 bytes (`sun_path`): under a long `TMPDIR` the test takes `/tmp`.
+#[cfg(unix)]
+pub fn socket_dir(name: &str) -> std::path::PathBuf {
+    let leaf = format!("{name}-{}", std::process::id());
+    let dir = std::env::temp_dir().join(&leaf);
+    if dir.as_os_str().len() > 80 { std::path::Path::new("/tmp").join(leaf) } else { dir }
+}
