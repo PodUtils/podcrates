@@ -122,6 +122,11 @@ podcrates.
   `src/ws.rs`: about 11,700 lines.
 - `src/proxy.rs` dispatches the streams of the edge to podnet's
   services: a `ServiceDispatch` trait.
+- Read podnet at `a026974` or later (PodUtils/podnet#418): its layer cuts
+  made `src/cloudflare/rpc.rs`, `src/config.rs` and `src/quicktunnel.rs`
+  re-export items that moved to podnet's own modules (`hop::Refused`,
+  `ingress::RULE_KEYS`, `report::Refusal`), and the origin dial of
+  `src/proxy.rs` is `origin::dial::dial`.
 - A test of `src/cloudflare/http2.rs` reads `tools/header-oracle.txt` of
   podnet; the pin of cloudflared and its watch move with the crate.
 

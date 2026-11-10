@@ -4,20 +4,15 @@
 
 ## State
 
-- Released: `v0.10.0` at `b21c193` (CI 42736799388, nightly 42736799847,
-  release 42742043211): `pod-oci`, `pod-extract`, `Stage::Registry`, the
-  proxy lists and nodes of `pod-services`. COORD-021 (GitHub #45) hands it
-  to each consumer. podnet took it (`3a9317b`,
-  PodUtils/podnet#418), podvm (`20ea781`,
-  PodUtils/podvm#223) and podssh (`49cb5c8c`, PodUtils/podssh#180). Open: T-131 (`pod-gsr` on
-  Windows ARM64).
-- M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
-  `pod-enter` (podvm `423e817`, PodUtils/podvm#220), and `pod-oci` (podvm
-  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) waits
-  for `v0.11.0` and the take of podvm: its patch is made on podvm
-  `20ea781` (T-141), and it carries the take of T-139.
-  `pod-rootfs` (T-058) is partial: its trial passed (podvm applies it after
-  the other two); the release and the take of podvm remain.
+- Released: `v0.11.0` at `c660aca` (CI 42745681875, nightly 42745682075,
+  release 42755226074): `pod-rootfs`, the `pod-enter` of
+  PodUtils/podvm#222, podvm's whiteout tests in `pod-extract`. COORD-022
+  (GitHub #46) hands it to each consumer. Each consumer is on `v0.10.0`.
+  Open: T-131 (`pod-gsr` on Windows ARM64).
+- M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest`,
+  `pod-enter` (podvm `423e817`, PodUtils/podvm#220) and `pod-oci` (podvm
+  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) and `pod-rootfs`
+  (T-058) wait for the take of podvm (both patches on podvm `20ea781`).
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 (PodUtils/podnet#413).
@@ -45,10 +40,9 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-133 (partial: the live check of the
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-057 (partial: the take of
-   podvm); `v0.11.0` (with `pod-extract` for PodUtils/podvm#221,
-   `pod-rootfs`, and `pod-enter` for #222); T-058 (partial: the release and
-   the take of podvm); then T-137, T-138, T-144, T-145 (PodUtils/podvm#224), T-142. T-040 (the trials of podvm) goes with each
+   podvm `main` on the day of each import): T-057 and T-058 (partial: the
+   take of podvm, GitHub #46); T-137, T-138, T-144, T-145
+   (PodUtils/podvm#224), T-142. T-040 (the trials of podvm) goes with each
    import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs

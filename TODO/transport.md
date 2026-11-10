@@ -477,6 +477,8 @@ tokio-tungstenite and a bridge of its own. One crate serves both.
 - Read: podssh-ws `client.rs`, `frame.rs`, `handshake.rs`, `session.rs`,
   `url.rs`, `close.rs`, `error.rs`, `plain.rs`, `server.rs`, `h2_road/`,
   `cleartext/`, `wake.rs`; podnet `PodUtils/podnet:src/ws.rs` (596).
+- Read podnet at `a026974` or later: its layer cuts changed the origin
+  dial of `src/ws.rs` to `origin::dial::dial` (PodUtils/podnet#418).
 - The limits differ: podssh 16 MiB a message; podnet the defaults of
   tokio-tungstenite. They become settings.
 - `server.rs` calls the WebTunnel road (`pod-egress`): a trait.
