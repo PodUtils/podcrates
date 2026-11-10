@@ -1,0 +1,35 @@
+# The trial of pod-wormhole in podssh, after pod-quic (pod-wormhole.needs):
+# podssh-relay keeps code/exchange.rs and code/run.rs (the exchange; they go
+# to pod-relay) and a thin code/mod.rs over pod-wormhole: the AppID, its
+# name and version, the way out and the trust are the Config that code::config
+# builds; code::run::Ends keeps its fields and gives pod_wormhole::Ends;
+# opened and joined call pod-wormhole's. APPID, ENV, LIFETIME, mailboxes,
+# mailboxes_for and public_mailboxes stay. code/{mailbox,wormhole,phrase,
+# words}.rs and the plant t086-version-unchecked leave (the plant is
+# wormhole-version-unchecked in podcrates). The doctor's mailbox line connects
+# with code::config. The tests of the pairing (pair_code: the exchange, the
+# role's mailbox, magic-wormhole's server and library) stay. Each podcrates
+# tag moves to the tag of the hand-off. The record with its citations, the
+# repository checks; the builds of the default features and of the release's
+# features; clippy with the lints that the gate allows, with each feature of
+# podssh-relay; the tests of the pairing, the net's invitation and the
+# commands of the code; the plants that stay still apply; rustfmt of the
+# crates that the patch changes; each Rust toolchain of the workflows and
+# build images against the rust-version of podcrates; the binary of the
+# release's features for x86_64 musl, built with zig (a debug build: the
+# release profile takes LTO), and podssh's static check of it.
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+python3 scripts/check-repo.py
+cargo build -q
+cargo check -q -p podssh-ws -p podssh-relay -p podssh-core -p podssh-probe -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
+cargo build -q -p podssh-cli --features iroh,warp
+cargo clippy -q --all-targets -p podssh-ws -p podssh-relay -p podssh-cli -- -D warnings -A clippy::collapsible_if
+cargo clippy -q --all-targets -p podssh-relay --all-features -- -D warnings -A clippy::collapsible_if
+cargo test -q -p podssh-relay --all-features --lib --test pair_code
+cargo test -q -p podssh-cli --lib --test net_invite --test relay_code --test relay_code_role
+for p in t086-third-side t086-code-said t616-kind-unchecked t616-member-replaced t616-owner-unchecked; do git apply --check scripts/plants/$p.patch || exit 1; done
+cargo fmt -p podssh-relay -p podssh-cli --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"
