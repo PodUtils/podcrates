@@ -192,9 +192,10 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 ## Done
 
-2026-11-09, partial. Commits `66af831` (the import of 24 files of podvm
-at `6cd3442`, with `SOURCES`), `4a85694` (the adaptation and the tests),
-`a5b0c86` (README, C38) and the commit of the trial and this record.
+2026-11-10, partial. Commits `94b44ea` (the import of 24 files of podvm
+at `6cd3442`, with `SOURCES`), `7bb8637` (the adaptation and the tests),
+`3a7193f` (README, C38), `dde816c` (the trial, the record) and `6e45a5f`
+(the trial on podvm `cb57d4b`).
 
 - Imported: `reference`, `digest`, `oci` (as `spec`), `platform`,
   `credentials` and its tests, `registry` and `registry/{http,wire,tests}`,
