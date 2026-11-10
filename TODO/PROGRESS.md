@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 157 entries: 58 open, 2 partial, 0 blocked, 97 done.
+`TODO/INDEX.md` holds 158 entries: 59 open, 2 partial, 0 blocked, 97 done.
 
 ## State
 
@@ -48,7 +48,7 @@ The owner's ruling "Priority" (2026-11-09): podvm, podnet and podssh come
 first; the asks of cfb and githome (M8) wait.
 
 1. **The defects of the consumers:** T-157 (four public Trojan nodes of
-   podssh fail the live check).
+   podssh fail the live check); T-158 (the watch of `croc`).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
    podvm `main` on the day of each import): T-142; T-149; T-155. T-040 (the
    trials of podvm) goes with each import.

@@ -988,6 +988,11 @@ now sends the client's first; `ssh-host-key` held); ECR Public answered
 that moved: four Trojan nodes of T-133 fail (T-157). The run with
 `measure` `edge-facts` at `966bd01` (run 42803038882) passed.
 
+The dispatch at `b9bab61`, after the fixes (run 42806121501): 79 hold, 2
+skipped, 5 failed: the four Trojan nodes (T-157), and the watch
+`websocket-upgrade` of `croc` (T-156), which the bridge refuses with no
+relay in the query (`HTTP 403: relay index is not allowed`; T-158).
+
 # T-052: The tests of a closed port of `pod-proxy` race with the other tests
 
 **Source:** the run of the targets of T-017 (300 runs of the binary of `tests/egress.rs`).
@@ -2676,3 +2681,44 @@ reads the nodes.
 cargo test -p pod-services --test public_carriers
 cargo run -q -p pod-services-watch -- --kind proxy-banner
 ```
+
+# T-158: `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it
+
+**Source:** T-050 (`services.yml`, run 42806121501); T-156.
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The watch `websocket-upgrade` of `croc` upgrades `wss://getcroc.com/ws`
+with no query. The bridge answers `HTTP 403: relay index is not allowed`:
+it takes `/ws?relay=INDEX&port=PORT` (the note of the endpoint). The daily
+run of `services.yml` fails on each day, and no watch proves that the
+bridge carries a session to the pool.
+
+## Premise
+
+- Measured: run 42806121501 of `services.yml` (one upgrade, 403).
+- Not read: the first index of `relay` in croc's `src/webrelay/webrelay.go`
+  at v11.6.4 (0 or 1).
+
+## Approach
+
+Read the handler of croc-web at v11.6.4. Give the watch the query of one
+relay of the pool: a new optional argument `query` of
+`websocket-upgrade` (`relay=INDEX&port=9009`, from the facts), with its
+test and its plant in `pod-services-watch`, and its row in the README of
+`pod-services`; or a watch kind that sends the handshake of croc's relay
+through the bridge. Run the watch by hand (`services.yml`, input
+`service` `croc`).
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches -- ws::
+cargo run -q -p pod-services-watch -- --service croc
+```
+
