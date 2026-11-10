@@ -74,8 +74,9 @@ C35), and the work goes on with it until the owner rules otherwise.
 ## Questions for the owner
 
 The questions of the CI plan (GitHub #47, T-146,
-`docs/research/ci/podrunner-plan.md`, section 9). None blocks M6 or the
-podvm items of the plan.
+`docs/research/ci/podrunner-plan.md`, section 9). They wait with #47 (the
+owner, 2026-11-10, "CI tracker"): do not ask them before the owner names
+#47 again.
 
 - **Q8.** Lift the wait (the ruling "Priority") for `podrunner` phase 1
   and the crate `pod-dockerapi`, after the podvm items of phase 1?

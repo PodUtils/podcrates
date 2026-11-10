@@ -161,6 +161,12 @@ in `vendor/` keeps its own licence.
   result) in the same commit or the next one.
 * GitHub issues are an inbox. Each new issue becomes one or more entries;
   `TODO/issues.md` and `TODO/github.txt` map it, in the same commit.
+* A flaw, a defect or a nit that a session or an agent finds goes into
+  the work at once (the owner, 2026-11-10). Fix a small one in place, in
+  the same work. Write a larger one as an entry `T-NNN` with its Problem
+  and Approach. Do not leave a finding only in a report or in the chat,
+  and do not use a "suggested task" card (`spawn_task`) for it. Give this
+  rule to each subagent in its brief.
 * Work unattended: take the next entry of the work order, and continue
   until the owner interrupts. Ask the owner only for a change of a
   ruling.
