@@ -1,7 +1,33 @@
 [package]
 name = "pod-hold"
+description = "The hold of each connect of a payload with no root: the seccomp user notification (the filter, the receive of a notification, the memory of the child, the reply and the descriptors that it adds), the table of the sockets of the payload with its flow budget, and the network namespace with its TUN; each hold reports its level and a proof."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+# The memory of a child as a memfd and the recorded replies, public for the
+# fuzz targets of fuzz/ and for the tests of a consumer.
+fuzzing = []
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+# The raw system calls that pod-hostprobe has: prctl, seccomp, unshare,
+# prlimit64.
+pod-hostprobe = { workspace = true }
+libc = "0.2"
+# The receive of a notification waits on the reactor.
+tokio = { workspace = true, features = ["net", "rt"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+tokio = { workspace = true, features = ["net", "rt", "macros", "time"] }
+
+# The holds of a real payload: a test binary with no libtest, so that the
+# children fork from a process with one thread, and the binary is the
+# payload itself (its first argument names the part of the payload).
+[[test]]
+name = "hold"
+harness = false

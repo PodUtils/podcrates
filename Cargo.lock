@@ -1282,6 +1282,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-hold"
+version = "0.14.0"
+dependencies = [
+ "libc",
+ "pod-core",
+ "pod-hostprobe",
+ "tokio",
+]
+
+[[package]]
 name = "pod-hostprobe"
 version = "0.14.0"
 dependencies = [

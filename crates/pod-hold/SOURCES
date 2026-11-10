@@ -17,12 +17,12 @@ repo PodUtils/podnet 9e8d1772476a3d52d14f9a180357a499ca07aef1
 # the reaper and the resolv.conf stay in podnet. netns/tun.rs: the TUN
 # setup; its smoltcp device stays in podnet. netns/fdpass.rs: all. lib.rs:
 # only the test the_filter_covers_the_bypass_surfaces.
-file 23a73d947ff3a9110e3286c374057cd7c1dfe6f3 crates/podnet-netns/src/seccomp/filter.rs -> crates/pod-hold/src/filter.rs
-file 5b2188c8acb5360eace76f8f4871f5d394044a51 crates/podnet-netns/src/seccomp/notif.rs -> crates/pod-hold/src/reply.rs
+file 23a73d947ff3a9110e3286c374057cd7c1dfe6f3 crates/podnet-netns/src/seccomp/filter.rs -> crates/pod-hold/src/abi.rs crates/pod-hold/src/filter.rs
+file 5b2188c8acb5360eace76f8f4871f5d394044a51 crates/podnet-netns/src/seccomp/notif.rs -> crates/pod-hold/src/reply.rs crates/pod-hold/src/sockaddr.rs crates/pod-hold/src/abi.rs
 file 6995638ab74befaa2e3a53b362cbe963c6ed4dfb crates/podnet-netns/src/seccomp/mem.rs -> crates/pod-hold/src/mem.rs
-file 3ae0a32819f858ddf3dfcd12ae6732c9b3295d0f crates/podnet-netns/src/seccomp/mod.rs -> crates/pod-hold/src/supervise.rs
-file baeef85858db8a80ef1336b10390e29b4dc65f64 crates/podnet-netns/src/fdtable.rs -> crates/pod-hold/src/table.rs
+file 3ae0a32819f858ddf3dfcd12ae6732c9b3295d0f crates/podnet-netns/src/seccomp/mod.rs -> crates/pod-hold/src/spawn.rs crates/pod-hold/src/listen.rs
+file baeef85858db8a80ef1336b10390e29b4dc65f64 crates/podnet-netns/src/fdtable.rs -> crates/pod-hold/src/table.rs crates/pod-hold/src/table/proc.rs crates/pod-hold/src/table/tests.rs
 file 403b0a37aaacb895a4274b8b6dfb594adb9b98ca crates/podnet-netns/src/netns/fdpass.rs -> crates/pod-hold/src/netns/fdpass.rs
 file 47aed8cc35899bd6b45ec6de52e3950b665cfbea crates/podnet-netns/src/netns/tun.rs -> crates/pod-hold/src/netns/tun.rs
 file 139cae4368667309201eb22aa25f0e965edc9791 crates/podnet-netns/src/netns/mod.rs -> crates/pod-hold/src/netns.rs
-file de93805f6f94595e523395cafb9a7178fdb6c1c8 crates/podnet-netns/src/lib.rs -> crates/pod-hold/src/filter.rs
+file de93805f6f94595e523395cafb9a7178fdb6c1c8 crates/podnet-netns/src/lib.rs -> crates/pod-hold/src/filter/tests.rs
