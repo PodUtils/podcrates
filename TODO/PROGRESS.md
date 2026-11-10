@@ -19,9 +19,9 @@
   measurements; the trial of podnet names `v0.14.0`.
 - M2: `pod-quic` exists (T-019 partial, call C44): QUIC on noq 1.4 (C43)
   for podssh's quick tunnel and podnet's edge, WARP and MASQUE. The trials
-  of podssh (`af214a6`) and podnet (`2fed3ff`, which leaves quinn for noq)
-  pass and name `v0.14.0`. The patches made again at the heads of both,
-  the release and the two takes remain; from the import, podssh's
+  of podssh (`c5636c9`) and podnet (`5465007`, which leaves quinn for noq)
+  pass at their heads and name `v0.14.0`. The release and the two takes
+  remain; from the import, podssh's
   `quick/quic.rs`, `quick/probe.rs` and podnet's `src/warp/quic.rs` take
   fixes only (`crates/pod-quic/SOURCES`). podnet fixed the lost wake-up of its
   WARP socket itself (T-159, podnet `1d556fb`).
@@ -56,8 +56,8 @@ first; the asks of cfb and githome (M8) wait.
    trials of podvm) goes with each import.
 3. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-019 (partial: the patches at the heads of
-   podssh and podnet, the release `v0.14.0`, the takes); T-020, T-021, T-022, T-023, T-024,
+4. **M2, the relay:** T-019 (partial: the release `v0.14.0`, the takes;
+   the podnet patch again when podnet `1d556fb` reaches its `main`); T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,

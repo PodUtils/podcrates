@@ -1,9 +1,9 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index ab0235a..d56a182 100644
+index 529e179..47a0a7c 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -68,26 +68,30 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.1" }
- podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.1" }
+@@ -68,26 +68,30 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.2" }
+ podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.2" }
  # TLS of PodUtils/podcrates: the roots, the client configurations and the
  # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
@@ -100,11 +100,11 @@ index 4980b12..58d30ed 100644
  smoltcp = { version = "=0.12.0", default-features = false, features = [
      "std",
 diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
-index 2cb0042..60b3d2d 100644
+index b01b4a2..f65b66a 100644
 --- a/crates/podnet-serve/Cargo.toml
 +++ b/crates/podnet-serve/Cargo.toml
 @@ -22,8 +22,8 @@ path = "src/lib.rs"
- podnet-core = { path = "../podnet-core", version = "0.4.0-beta.1" }
+ podnet-core = { path = "../podnet-core", version = "0.4.0-beta.2" }
  # The TLS client of an origin, and the credentials of a served proxy, of
  # PodUtils/podcrates at the git tag of the root.
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0", version = "0.13.0" }
@@ -125,7 +125,7 @@ index a73b6d2..307b286 100644
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.13.0" }
 +pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.14.0" }
 diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
-index fb1b372..2c870f9 100644
+index f73981f..a34f5a8 100644
 --- a/crates/podnet-vnet/Cargo.toml
 +++ b/crates/podnet-vnet/Cargo.toml
 @@ -57,4 +57,4 @@ tracing = "0.1"

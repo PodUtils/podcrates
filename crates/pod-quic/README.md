@@ -89,8 +89,8 @@ Differences, with the choice:
   sender that waits. The same holds for podnet on quinn: quinn 0.11 makes a
   poller for each connection, and the pollers of one `WarpUdpSocket` share
   one `AtomicWaker`, so two connections on one endpoint (the HA connections
-  of the WARP leg) can lose a wake-up of a full queue. The take of this
-  crate removes it from podnet.
+  of the WARP leg) can lose a wake-up of a full queue. podnet fixed it
+  in its own code (PodUtils/podnet@T-228, T-159) with a list of wakers.
 * The errors are `pod_core::Failure` in place of `String` (podssh) and
   `anyhow` (podnet); the texts are the same, except the probe's: "UDP got
   no answer to a QUIC packet" (podssh: "UDP to the edge got ...").
@@ -110,7 +110,7 @@ Differences, with the choice:
 | `tests/quick_probe.rs` | `tests/probe.rs` here |
 | `podssh-relay/Cargo.toml`: feature `quick` | adds `dep:pod-quic` (tag `v0.14.0`) |
 
-`adoption/podssh/pod-quic.patch` (at podssh `af214a6`) is the hand-off.
+`adoption/podssh/pod-quic.patch` (at podssh `c5636c9`) is the hand-off.
 
 ### podnet
 
@@ -130,7 +130,7 @@ names of the API are the same (`quinn::` becomes `noq::`).
 | `ConnectionStats::path.rtt`, `path.lost_packets` (`tunnel.rs`) | `Connection::rtt(noq::PathId::ZERO)`, `ConnectionStats::lost_packets` (noq has paths) |
 | the tests `send_poller_reports_ready_when_the_queue_has_room`, `a_drain_after_pending_wakes_the_send_poller` | `src/queued_tests.rs` here |
 
-`adoption/podnet/pod-quic.patch` (at podnet `2fed3ff`) is the hand-off.
+`adoption/podnet/pod-quic.patch` (at podnet `5465007`) is the hand-off.
 
 ## Tests
 

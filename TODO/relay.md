@@ -109,9 +109,14 @@ T-018 is done.
 
 ## Done
 
-2026-11-10, partial: the release `v0.14.0`, the patches made again at the
-heads of podssh and podnet (podssh took `v0.13.0` at `a083593e` after
-`af214a6`; podnet is at `5465007`), and the takes of both remain. Commits
+2026-11-10, partial: the release `v0.14.0` and the takes of podssh and
+podnet remain. The patches are made again at the heads of podssh
+(`c5636c9`, after its take of `v0.13.0` at `a083593e`) and podnet
+(`5465007`), and both trials pass there. podnet's fix of T-159
+(`1d556fb`) is not on podnet's `main` at `5465007`; it changes
+`src/warp/quic.rs`, which the podnet patch replaces, so the patch must be
+made again (and its trial run again) when that commit reaches `main`
+before the take. Commits
 `8a39c0e` (the import of podssh `quick/quic.rs`, `quick/probe.rs`, the
 `TokenKey` of `serve/quic.rs` and the tests at `af214a6`, and podnet
 `src/warp/quic.rs` at `2fed3ff`, after the fix of PodUtils/podnet@T-225,
@@ -162,13 +167,18 @@ the commit that gives `connect::tls` rustls's own verifier (the guard
   musl binaries and, under qemu-user, as aarch64, riscv64gc and
   loongarch64 musl binaries (static). The fuzz target
   `quic_probe_answer` passes the stable test of `fuzz/`.
-- Trials: podssh at `af214a6` (17 files, 68 lines in, 465 out): each step
-  of `sh scripts/adoption.sh podssh pod-quic` passed, with 11 test
-  binaries and 1,697 tests of `podssh-relay` and `podssh-cli`. podnet at
-  `2fed3ff` (18 files, 157 lines in, 405 out): each step of
-  `sh scripts/adoption.sh podnet pod-quic` passed, with no quinn in its
-  tree and 6 test binaries and 512 tests. Each has the static check of
-  its musl binary.
+- Trials at the heads (the hand-off): podssh at `c5636c9` (17 files, 69
+  lines in, 466 out; the tags of each manifest move from `v0.13.0` to
+  `v0.14.0`): each step of `sh scripts/adoption.sh podssh pod-quic`
+  passed, with 11 test binaries and 1,697 tests of `podssh-relay` and
+  `podssh-cli`, 0 failed. podnet at `5465007` (18 files, 157 lines in, 405
+  out; the patch of `2fed3ff` applies with no change but its context):
+  each step of `sh scripts/adoption.sh podnet pod-quic` passed, with no
+  quinn in its tree and 6 test binaries and 512 tests. Each has the
+  static check of its musl binary. The first trials, at podssh `af214a6`
+  and podnet `2fed3ff` (`009df49`), passed with the same counts. The
+  imported files did not change between the two heads of each consumer
+  (`check-sources.py`: 0 changes).
 - Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
   paths, the static probes, the tests); `python3 -I
   scripts/check-sources.py` on `pod-quic` (podssh 5 files, podnet 1 file,
