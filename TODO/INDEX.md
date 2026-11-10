@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**138 entries: 56 open, 3 partial, 0 blocked, 79 done.**
+**138 entries: 55 open, 4 partial, 0 blocked, 79 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 28 | 51 |
-| P2 | 25 | 2 | 0 | 38 | 65 |
+| P2 | 24 | 3 | 0 | 38 | 65 |
 | P3 | 8 | 1 | 0 | 11 | 20 |
-| **All** | 56 | 3 | 0 | 79 | 138 |
+| **All** | 55 | 4 | 0 | 79 | 138 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-054](transport.md) | P2 | S | M1 | research | done | `pod-services`: the inventory of podvm |
 | [T-055](podvm.md) | P2 | M | M6 | feature | done | `pod-hostprobe`: the host probes of podvm |
 | [T-056](podvm.md) | P2 | M | M6 | feature | partial | `pod-oci`: the OCI registry client of podvm |
-| [T-057](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: the rootless apply of a layer |
+| [T-057](podvm.md) | P2 | M | M6 | feature | partial | `pod-extract`: the rootless apply of a layer |
 | [T-058](podvm.md) | P2 | M | M6 | feature | open | `pod-rootfs`: the completion of a root file system |
 | [T-059](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: the entry of a payload |
 | [T-060](podvm.md) | P2 | M | M6 | feature | done | `pod-supervise`: detached payloads |

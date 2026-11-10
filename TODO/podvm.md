@@ -247,7 +247,7 @@ Remains:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -256,22 +256,106 @@ Source: `PodUtils/podvm:crates/podvm-extract`.
 
 ## Premise
 
-- Not read yet: the source at the commit of podvm's rename.
+- Read: podvm `e8e5beb` (its `main` on the day of the import):
+  `PodUtils/podvm:crates/podvm-extract/src` (12 files); its callers in
+  `PodUtils/podvm:crates/podvm/src` and
+  `PodUtils/podvm:crates/podvm-complete/src/write`; the plan of
+  `docs/research/podvm/m6-imports.md`, section 3 and "Current files".
+  podvm's `main` then moved to `2616bd7` (the takes of `pod-guest` and
+  `pod-enter`) with no change in `PodUtils/podvm:crates/podvm-extract`; the
+  trial reads `2616bd7`.
+- Measured: the tests of the crate on this host as x86_64 and i686 musl
+  binaries, and as aarch64, armv7 and powerpc64le musl binaries under QEMU
+  user mode (no `openat2` there: each extraction test runs the
+  `O_NOFOLLOW` walk); the trial of podvm; the static `podvm` for
+  `x86_64-unknown-linux-musl`.
+- Found: a whiteout `.wh...` at the root of a layer removed the entries of
+  the directory above the destination in podvm's code (its name `..` had no
+  check), and `../.wh.x` escaped through the walk.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8: import, edition, adapt,
 tests, README with the adoption map of podvm, the trial of podvm.
 
+## Decision
+
+Calls of the import, each with its reason (`docs/decisions.md`, C39):
+
+- The cut: the crate takes all of `PodUtils/podvm:crates/podvm-extract` but
+  `paths(store, digest)` and the glue over the `Store` of podvm-image.
+- The caller gives each layer as a `Layer` (digest, media type, size, blob
+  path) and the place as a `Place`, so the crate takes no OCI type and does
+  not depend on `pod-oci`.
+- `Settings`: the settings of `pod-hostprobe` for the space message, the
+  headroom, the `Report`; the line of each layer is the event
+  `extract.layer`.
+- Failures are `pod_core::Failure` at `Stage::Host`, with the typed causes
+  `Refused` and `Mismatch`.
+- The `openat2` probe keeps one answer for each process.
+- A whiteout gets the lexical check of each entry; a whiteout of `.` or
+  `..` refuses the layer.
+
 ## Prove
 
 ```sh
 cargo test -p pod-extract
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM_CHECKOUT pod-extract
+sh scripts/adoption.sh podvm pod-extract
+cargo zigbuild --release --target x86_64-unknown-linux-musl -p static-probe
+sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/static-probe
 ```
 
 ## Start condition
 
 podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm#194), and T-055 is done.
+
+## Done
+
+2026-11-10, partial. Commits `f940f32` (the import of 12 files of podvm at
+`e8e5beb`, with `SOURCES`), `98a70ed` (the adaptation and the tests),
+`a40d45a` (the check of whiteouts), `eede16e` (README, the static probe,
+C39) and the commit of the trial and this record.
+
+- Imported: the 12 files of `PodUtils/podvm:crates/podvm-extract/src`. Of
+  `lib.rs` a part stays in podvm (`paths` and the glue over its `Store`).
+  The crate has 2,771 lines in 13 `.rs` files, each under 500.
+  `pod_hostprobe::sys` gets `EIO`, `E2BIG`, `ENOTDIR`, `EISDIR` and
+  `ELOOP`.
+- Tests: 50 unit tests: each of the 47 of podvm with its name, and 3 new
+  (`each_layer_gives_one_event_to_the_caller`,
+  `a_whiteout_of_dotdot_removes_nothing_outside_the_destination`,
+  `a_whiteout_under_dotdot_is_refused`; the last two fail on the code
+  before `a40d45a`). The same 50 pass as i686 musl binaries, and under
+  QEMU as aarch64, armv7 and powerpc64le musl binaries (the `openat2` test
+  skips under the emulator).
+- The trial of podvm at `2616bd7` (`adoption/podvm/pod-extract.patch`: 27
+  files, 127 lines in, 2,977 out; `pod-extract.commit`):
+  `PodUtils/podvm:crates/podvm-extract` keeps podvm's glue (`paths`,
+  `extract` over the `Store`, `is_extracted`, `remove_extracted`, an
+  `Error` of the extraction and of the store) and re-exports the crate; 10
+  files leave podvm; the citations of the moved files name `pod-extract`;
+  each tag moves to `v0.10.0`. The patch applies alone; after
+  `pod-oci.patch`, a 3-way apply conflicts in four files
+  (`pod-extract.run` names each), and the workspace with both passes
+  clippy, the tests of podvm-extract and podvm-complete and podvm's
+  path-safety experiment. Each step of `sh scripts/adoption.sh podvm
+  pod-extract` passed: podvm-extract 1 test, podvm-complete 53,
+  podvm-enter, podvm-windows and podvm-supervise 15, `podvm --bin` 266,
+  `store_gates` 4, `detached_stdio` 3, `curated_refusals` 6, clippy,
+  rustfmt, the path-safety experiment (A to F), the runtime-state rows,
+  podvm's record gate, the toolchains, and the static `podvm` for x86_64
+  musl.
+- Checks: `sh scripts/agent/check.sh` (fmt, clippy, doc, record, size,
+  paths, static, test), `check-sources.py` (12 files, 0 changes),
+  `secrets_like.py` on the patch (no line).
+
+Remains:
+
+- The release `v0.10.0`, then podvm's take of the patch, after
+  `pod-oci.patch`. Then the `taken` line in `SOURCES`.
+- podvm's `.wh...` escape is in its own `PodUtils/podvm:crates/podvm-extract`
+  until the take: the take fixes it.
 
 # T-058: `pod-rootfs`: the completion of a root file system
 

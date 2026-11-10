@@ -1598,6 +1598,7 @@ dependencies = [
  "pod-core",
  "pod-dns",
  "pod-enter",
+ "pod-extract",
  "pod-gsr",
  "pod-guest",
  "pod-hostprobe",
