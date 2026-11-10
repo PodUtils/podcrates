@@ -47,5 +47,5 @@
 40 issue closed
 41 issue closed
 42 issue closed
-43 issue open
+43 issue closed
 44 issue open
