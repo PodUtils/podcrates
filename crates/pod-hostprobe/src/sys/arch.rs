@@ -47,6 +47,10 @@ mod stat_call {
 
 pub use stat_call::{KernelStat, SYS_FSTATAT};
 
+/// The fallback of the stat call: loongarch64 before Linux 6.11 has no
+/// `newfstatat`.
+pub const SYS_STATX: i64 = nr!(statx, __NR_statx);
+
 // -------------------------------------------- the three that ARE the question
 //
 // A probe measures the errno of a NAMED syscall, so for these

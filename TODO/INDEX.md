@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**147 entries: 54 open, 4 partial, 0 blocked, 89 done.**
+**149 entries: 55 open, 4 partial, 0 blocked, 90 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 23 | 0 | 0 | 32 | 55 |
-| P2 | 24 | 3 | 0 | 41 | 68 |
-| P3 | 7 | 1 | 0 | 14 | 22 |
-| **All** | 54 | 4 | 0 | 89 | 147 |
+| P2 | 24 | 3 | 0 | 42 | 69 |
+| P3 | 8 | 1 | 0 | 14 | 23 |
+| **All** | 55 | 4 | 0 | 90 | 149 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -194,3 +194,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-145](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224) |
 | [T-146](fleet.md) | P2 | L | M8 | research | open | `podrunner`: run GitHub CI and other CI on any machine (the plan, GitHub #47) |
 | [T-147](podvm.md) | P3 | S | M5 | chore | done | `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take |
+| [T-148](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11) |
+| [T-149](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: three tests fail under qemu-user only |

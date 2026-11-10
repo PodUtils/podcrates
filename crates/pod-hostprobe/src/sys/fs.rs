@@ -167,7 +167,22 @@ pub fn fchownat(dirfd: i64, path: &CBuf, uid: u32, gid: u32, flags: u64) -> Sysr
 /// it points at. Extraction always does: the question it asks is "what is
 /// already at this name", and a symlink that answers for its target is the
 /// defect that a layer can use to write outside the rootfs.
+///
+/// Where the kernel has no such call (`ENOSYS`: loongarch64 before Linux
+/// 6.11), this calls `statx(2)` and remembers the answer.
 pub fn fstatat(dirfd: i64, path: &CBuf, flags: u64) -> Result<Stat, Errno> {
+    use core::sync::atomic::Ordering;
+    if !statx::NO_FSTATAT.load(Ordering::Relaxed) {
+        match fstatat_direct(dirfd, path, flags) {
+            Err(ENOSYS) => statx::NO_FSTATAT.store(true, Ordering::Relaxed),
+            other => return other,
+        }
+    }
+    statx_at(dirfd, path, flags)
+}
+
+/// The stat call of this architecture, with no fallback.
+pub(super) fn fstatat_direct(dirfd: i64, path: &CBuf, flags: u64) -> Result<Stat, Errno> {
     let mut raw = unsafe { core::mem::zeroed::<KernelStat>() };
     unsafe { sys(SYS_FSTATAT, [dirfd as u64, path.ptr(), &mut raw as *mut KernelStat as u64, flags, 0, 0])? };
     Ok(Stat::from_kernel(&raw))

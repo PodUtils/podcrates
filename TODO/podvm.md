@@ -1824,3 +1824,97 @@ python3 -I scripts/check-sources.py --clone PodUtils/podvm=../podvm pod-services
 
 2026-11-10. Commit: the commit that names T-147. The check of each crate
 with clones of podvm, podssh and podnet: 0 changes.
+
+# T-148: `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11)
+
+**Source:** a run of the tests of `pod-enter` under `qemu-loongarch64` 8.2, 2026-11-10.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod_hostprobe::sys::fstatat` calls `newfstatat(2)` only. A loongarch64
+kernel older than 6.11 has no `newfstatat`, and `qemu-loongarch64` 8.2
+has none. The call fails with `ENOSYS`. `RootDir::open` and the launch of
+`pod-enter` use it, so four tests of `pod-enter` fail there (among them
+`the_userland_entry_enters_a_workdir_in_a_volume`).
+
+## Premise
+
+- loongarch64 has `statx(2)` in each kernel. `fstat(2)` has the same gap,
+  and no code of the workspace calls it: each stat call goes through
+  `fstatat`, with `AT_EMPTY_PATH` for a descriptor.
+
+## Approach
+
+- `fstatat` calls `newfstatat` first (the other targets have it, and the
+  seccomp filters expect it). On `ENOSYS` only, it calls `statx` with
+  `STATX_BASIC_STATS` and the same `AT_*` flags, and it remembers the
+  answer in an atomic.
+- The result of `statx` is the same `Stat`. `st_dev` and `st_rdev` have
+  the `makedev` encoding of the kernel.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --lib statx
+cargo zigbuild --tests -p pod-hostprobe -p pod-enter --lib --target loongarch64-unknown-linux-musl
+```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-148.
+
+- `sys::statx_at(dirfd, path, flags)` and the fallback in
+  `sys::fstatat` (`crates/pod-hostprobe/src/sys/statx.rs`). `SYS_STATX` is
+  the number of `statx` of each target.
+- Tests: `statx` gives the same `Stat` as `newfstatat` for a file, a
+  directory, a character device, a symlink (with and without
+  `AT_SYMLINK_NOFOLLOW`) and a descriptor (`AT_EMPTY_PATH`). The tests
+  pass the check on the `statx` result alone where the host has no
+  `newfstatat`. Plant: `st_ino: 0` in the conversion: three of the four
+  tests fail.
+- Under `qemu-loongarch64`: `pod-hostprobe` passes 103 of 103 tests, and
+  `pod-enter` passes 147 of 148 tests. The failed test,
+  `abi::tests::resolve_past_a_denied_listing`, runs its own binary as a
+  child, which qemu-user cannot do without binfmt (`Exec format error`); T-149 records it.
+  Under `qemu-aarch64`: `pod-hostprobe` passes 103 of 103 tests. x86_64
+  native: 103 of 103.
+
+# T-149: `pod-enter`: three tests fail under qemu-user only
+
+**Source:** the runs of T-148 under `qemu-loongarch64` and `qemu-aarch64`, 2026-11-10.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Under qemu-user with no binfmt, `abi::tests::resolve_past_a_denied_listing`
+fails on loongarch64 and aarch64: it runs `current_exe()` as a child and
+the kernel answers `Exec format error`. On aarch64, `memfd::probe::tests::
+a_memfd_sealed_against_exec_reads_as_no_exec` and `the_probe_answers_from_this_host`
+fail: qemu-user does not enforce the memfd exec seal.
+
+## Premise
+
+- Read: the failures also show on the aarch64 run; none of them touches `statx`.
+
+## Approach
+
+- Skip the child test when the exec of `current_exe()` gives `ENOEXEC`,
+  with a `skip_line` as the other host limits do.
+- Skip the memfd tests where the host emulates the call (name the
+  condition in the skip line), or run them natively only.
+
+## Prove
+
+```sh
+cargo zigbuild --tests -p pod-enter --lib --target aarch64-unknown-linux-musl
+qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
+```

@@ -407,5 +407,8 @@ pub use fs::*;
 mod proc;
 pub use proc::*;
 
+mod statx;
+pub use statx::statx_at;
+
 #[cfg(test)]
 mod tests;
