@@ -163,7 +163,7 @@ gives podvm's glue `Failure::io_cause` and `Class::NotFound` (T-081).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -192,7 +192,7 @@ podvm gave the commit of its rename from `podbox-*` to `podvm-*` (PodUtils/podvm
 
 ## Done
 
-2026-11-10, partial. Commits `94b44ea` (the import of 24 files of podvm
+2026-11-10. Commits `94b44ea` (the import of 24 files of podvm
 at `6cd3442`, with `SOURCES`), `7bb8637` (the adaptation and the tests),
 `3a7193f` (README, C38), `dde816c` (the trial, the record) and `6e45a5f`
 (the trial on podvm `cb57d4b`).
@@ -210,7 +210,7 @@ at `6cd3442`, with `SOURCES`), `7bb8637` (the adaptation and the tests),
   and 11 new) and 6 integration tests (`registry_fixture` 1, `proxy_pull`
   2, `client` 3, new). The same 95 pass as i686 musl binaries.
 - The trial of podvm at `cb57d4b`, after its take of `pod-supervise`
-  (`adoption/podvm/pod-oci.patch`: 33 files, 260 lines in, 4,046 out;
+  (`pod-oci.patch` of `v0.10.0`: 33 files, 260 lines in, 4,046 out;
   the imported files are the same as at `6cd3442`): `podvm-image` keeps
   the store and podvm's glue (`registry::client`, `transport::resolve`,
   `platform::wanted`, the credential paths, `tls` over `pod_oci::trust`,
@@ -232,13 +232,12 @@ at `6cd3442`, with `SOURCES`), `7bb8637` (the adaptation and the tests),
   paths, static, test), `check-sources.py` (23 files, 0 changes),
   `check-probe.py`, `secrets_like.py` on the patch (no line).
 
-Remains:
-
-- The release `v0.10.0`, then podvm's take of the patch, after the
-  patches of `pod-guest` and `pod-enter` (a merge of the tag lines, the
-  `pod-*` rows and the citations of `PodUtils/podvm@T-1684`). Then the
-  `taken` line in `SOURCES`.
-- A live pull from a public registry, in a live workflow.
+- Released in `v0.10.0` (`b21c193`, release 42742043211). podvm took the
+  patch at `20ea781` (PodUtils/podvm#223): the 3-way apply conflicted only
+  where `pod-oci.run` said, and each step of the `.run` passed there. The
+  `taken` line is in `crates/pod-oci/SOURCES`, and the trial of pod-oci
+  ends.
+- A live pull from a public registry is T-142.
 
 # T-057: `pod-extract`: the rootless apply of a layer
 
@@ -1531,3 +1530,36 @@ cargo test -p pod-extract
 python3 -I scripts/check-sources.py --clone PodUtils/podvm=../podvm
 sh scripts/adoption.sh podvm pod-extract
 ```
+
+# T-142: `pod-oci`: a live pull from a public registry
+
+**Source:** T-056, Done section.
+**Category:** measurement
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `pod-oci` pull from a local fixture registry only. No test
+pulls a manifest and a blob from a public registry through the crate.
+
+## Premise
+
+- `.github/workflows/live.yml` runs the live checks once a day.
+- A public registry can answer 429 (rate limits); the check reads that as
+  a skip, not as a failure.
+
+## Approach
+
+- Add a live test of `pod-oci`: resolve a small public image of each
+  platform, fetch its manifest and its config blob, check each digest.
+- Run it in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --test live -- --ignored
+```
+

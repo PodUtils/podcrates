@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 141 entries: 55 open, 5 partial, 0 blocked, 81 done.
+`TODO/INDEX.md` holds 142 entries: 56 open, 4 partial, 0 blocked, 82 done.
 
 ## State
 
@@ -8,11 +8,12 @@
   release 42742043211): `pod-oci`, `pod-extract`, `Stage::Registry`, the
   proxy lists and nodes of `pod-services`. COORD-021 (GitHub #45) hands it
   to each consumer. podnet took it (`3a9317b`,
-  PodUtils/podnet#418); podssh and podvm are on `v0.9.0`. Open: T-131 (`pod-gsr` on
+  PodUtils/podnet#418), and podvm (`20ea781`,
+  PodUtils/podvm#223); podssh is on `v0.9.0`. Open: T-131 (`pod-gsr` on
   Windows ARM64).
 - M6: podvm took `pod-hostprobe`, `pod-supervise`, `pod-guest` and
-  `pod-enter` (podvm `423e817`, PodUtils/podvm#220). `pod-oci` (T-056)
-  waits for the take of podvm. `pod-extract` (T-057) waits for T-141: podvm
+  `pod-enter` (podvm `423e817`, PodUtils/podvm#220), and `pod-oci` (podvm
+  `20ea781`, PodUtils/podvm#223). `pod-extract` (T-057) waits for T-141: podvm
   changed its copy at `c89b769`, and the patch is made again for
   `v0.11.0`.
   `pod-rootfs` (T-058) is partial: its trial passed (podvm applies it after
@@ -44,11 +45,10 @@ first; the asks of cfb and githome (M8) wait.
 1. **The defects of the consumers:** T-133 (partial: the live check of the
    public proxy nodes of podssh).
 2. **M6, the crates of podvm** (`docs/research/podvm/m6-imports.md`, at
-   podvm `main` on the day of each import): T-056 (partial: the take of podvm),
-   T-057 (partial: the take of podvm, after T-141);
+   podvm `main` on the day of each import): T-057 (partial: the take of podvm, after T-141);
    T-141 (P1, PodUtils/podvm#221), then `v0.11.0` (with `pod-rootfs` and
    with `pod-enter` for #222); T-058 (partial: the release and the take of
-   podvm); then T-137, T-138. T-040 (the trials of podvm) goes with each
+   podvm); then T-137, T-138, T-142. T-040 (the trials of podvm) goes with each
    import.
 3. **M1, the transport:** T-016 (`pod-ws`, the next take of podssh and
    podnet); T-050 (`pod-services`); T-041 when a crate or a consumer needs

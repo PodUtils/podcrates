@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podvm 6cd3442d2b742adb4869b042abfffa70084f355f
+taken 20ea7813457544bd98568f411d3ba5566fd4f4f1
 # Of these files a part stays in podvm: error.rs (the enum of the store,
 # exit_code and docker's codes), transport.rs (the read of
 # PODVM_INSECURE_REGISTRIES and of the file of hosts), pull.rs and
