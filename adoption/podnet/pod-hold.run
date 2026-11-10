@@ -1,0 +1,37 @@
+# The trial of pod-hold in podnet: the generic core of the hold of
+# podnet-netns moves to pod-hold (PodUtils/podnet#414 and #422).
+# seccomp/filter.rs, seccomp/notif.rs, seccomp/mem.rs, fdtable.rs,
+# netns/fdpass.rs and the setup of netns/tun.rs become glue over pod-hold
+# with podnet's names; seccomp/mod.rs starts the program with
+# pod_hold::spawn and takes each notification with pod_hold::listen;
+# netns/mod.rs enters the namespace and maps the ids with pod_hold::netns.
+# The handlers, the rules, the upstreams, the relays, doctor and the CLI
+# stay. src/warp/tun.rs takes TUNSETIFF of pod-hold (the number of the
+# target). The test the_filter_covers_the_bypass_surfaces and the four tests of
+# fdtable.rs move to pod-hold. Each podcrates tag moves to the tag of the
+# hand-off. The record, the size and the layers of the files, the build,
+# the bans and the sources of cargo-deny, clippy, the tests of podnet-netns,
+# the integration tests of the pod (seccomp and netns), doctor, docs and the
+# API, no ioctl number of the core left in podnet, the fuzz targets with
+# their lock, rustfmt, each Rust toolchain of the workflows and build images
+# against the rust-version of podcrates, and the binary for x86_64 musl,
+# built with zig (a debug build: the release profile takes LTO), with
+# podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet-netns -i pod-hold > /dev/null
+! git grep -n -i -e "0x4018_2103" -e "0xc050_2100" -e "0x4004_54ca" -e "0x4008_2102" -- crates src
+cargo clippy -q --all-targets -p podnet -p podnet-netns -p podnet-core -- -D warnings
+cargo test -q -p podnet-netns
+cargo test -q -p podnet --test pod_seccomp_tcp --test pod_seccomp_dgram --test pod_seccomp_fds --test pod_seccomp_handoff --test pod_seccomp_nonblock --test pod_seccomp_rules --test pod_seccomp_slow_dial --test pod_seccomp_diff --test pod_backend_line --test pod_usage --test af_inet_kernel --test doctor --test docs --test api_surface
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"

@@ -314,8 +314,9 @@ with a study entry, as M4 does.
 | Crate | Topic | Pod deps |
 | --- | --- | --- |
 | `pod-microvm` | fast disposable microVMs from an OCI image, on KVM or TCG (kernel, initramfs, virtio devices, boot): PodUtils/podvm#168 | pod-oci, pod-guest |
+| `pod-hold` | the hold of each connect of a payload, with its level (`enforced`, `advisory`, `none`) and a proof: the generic core of podnet `crates/podnet-netns` (T-166, call C48): the seccomp filter, its start, the receive of a notification, the memory of the task, the reply, the table of the sockets with the flow budget, the netns entry and the TUN. The handlers, the rules, the upstreams, the relays, the router and `pod doctor` stay in podnet (PodUtils/podnet#414, #422) | pod-core, pod-hostprobe |
 | `pod-sud` | an in-process interceptor of system calls on Syscall User Dispatch, with paths resolved in a root (`openat2(RESOLVE_IN_ROOT)`); no ptrace, no privilege: PodUtils/podvm#109, PodUtils/podvm#169 | pod-core |
-| `pod-confine` | confinement with no privilege: Landlock, seccomp filters, rlimits (podnet `crates/podnet-netns/src/seccomp.rs` does a part): PodUtils/podvm#170 | pod-core |
+| `pod-confine` | confinement with no privilege: Landlock, seccomp filters, rlimits (`pod-hold` has the seccomp filter of a hold): PodUtils/podvm#170 | pod-core |
 | `pod-netlab` | network labs in a guest or a namespace: NAT44, NAT66, NAT64 with DNS64, CGNAT, IPv6 only, firewall policy, impairment: PodUtils/podvm#178 | pod-netstack |
 | `pod-pcap` | packet capture, counters and connection logs with no `CAP_NET_RAW`; a pcap writer: PodUtils/podvm#182 | pod-core |
 | `pod-sandprobe` | the security probe inside a payload, and the compare of two reports against a list of expected differences: PodUtils/podvm#186 | pod-core, pod-hostprobe |
