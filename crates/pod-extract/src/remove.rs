@@ -1,25 +1,20 @@
-//! Applying a layer's whiteouts to the accumulated tree, **before** that
-//! layer's own entries are extracted.
+//! The apply of the whiteouts of a layer to the tree of the layers before it,
+//! **before** the entries of that layer.
 //!
-//! ⭐ `TODO/extract.md` T-0307, and the ordering is read out of the corpus
-//! rather than guessed:
-//! `references/indigo-dc__udocker/tree/udocker/container/structure.py:279`
-//! applies layer N's whiteouts to the accumulated tree before extracting N.
-//! That is the order that makes a layer able to both delete a path and recreate
-//! it; the opposite order deletes what the same layer just wrote.
+//! udocker applies the whiteouts of layer N before it extracts N. In that
+//! order a layer can remove a path and make it again; the other order removes
+//! what the same layer wrote.
 //!
-//! ⚠ **This costs a second pass over the layer stream**, because a tar is a
-//! stream and the whiteouts are scattered through it. The alternative is
-//! holding a decompressed layer in memory, which for a distro base image is
-//! hundreds of megabytes. Two passes over a blob already on disk is the cheaper
-//! wrong-shaped thing, and it is stated here rather than discovered by whoever
-//! profiles it.
+//! **This costs a second pass over the layer stream**: a tar is a stream, and
+//! the whiteouts are anywhere in it. The other way keeps a decompressed layer
+//! in memory, hundreds of megabytes for the base image of a distribution. Two
+//! passes over a blob on disk cost less.
 
 use std::io::Read;
 
-use podvm_probe::sys;
+use pod_hostprobe::sys;
 
-use crate::error::{Error, Result};
+use crate::error::{self, Result, cbuf};
 use crate::safety::{self, Dir};
 use crate::whiteout::{self, Kind};
 
@@ -37,37 +32,30 @@ pub enum Op {
 pub fn collect(stream: &mut dyn Read) -> Result<Vec<Op>> {
     let mut ops = Vec::new();
     let mut ar = tar::Archive::new(stream);
-    for entry in ar.entries()? {
-        let entry = entry?;
+    for entry in ar.entries().map_err(error::io)? {
+        let entry = entry.map_err(error::io)?;
         let path = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
-        // ⛔ The basename, never a path glob. T-0303, and
-        // `experiments/70-whiteout-contract.sh` check D is the measurement that
-        // a glob misses a whiteout at the layer root.
+        // The basename, not a path glob: a glob does not find a whiteout at
+        // the root of a layer.
         match whiteout::classify(&path) {
             Kind::Normal => {}
             Kind::Remove(name) => ops.push(Op::Remove {
-                dir: whiteout::dirname_parts(&path)
-                    .iter()
-                    .map(|s| (*s).to_string())
-                    .collect(),
+                dir: whiteout::dirname_parts(&path).iter().map(|s| (*s).to_string()).collect(),
                 name,
             }),
-            Kind::Opaque => ops.push(Op::Opaque {
-                dir: whiteout::dirname_parts(&path)
-                    .iter()
-                    .map(|s| (*s).to_string())
-                    .collect(),
-            }),
+            Kind::Opaque => {
+                ops.push(Op::Opaque { dir: whiteout::dirname_parts(&path).iter().map(|s| (*s).to_string()).collect() })
+            }
         }
     }
     Ok(ops)
 }
 
-/// Second half: apply them.
+/// The second half: apply them.
 ///
-/// ⚠ A whiteout naming something that is not there is **not an error**. Layers
-/// are built independently and a layer may whiteout a path an earlier layer
-/// never created; refusing there would refuse ordinary images.
+/// A whiteout of a name that is not there is **not an error**. Each layer is
+/// built alone, and a layer can whiteout a path that no earlier layer made;
+/// a refusal there refuses ordinary images.
 pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
     let mut removed = 0;
     for op in ops {
@@ -75,10 +63,9 @@ pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
             Op::Remove { dir, name } => {
                 let mut parts: Vec<&str> = dir.iter().map(|s| s.as_str()).collect();
                 parts.push(name);
-                // ⛔ `false`: never create a directory on the way to deleting
-                // something. A whiteout for a path that does not exist would
-                // otherwise MAKE its parents, which is a layer's delete
-                // creating directories.
+                // `false`: make no directory on the way to a removal. A
+                // whiteout of a path that does not exist would otherwise MAKE
+                // its parents.
                 let Ok(Ok((parent, last))) = safety::open_parent(root, &parts, false) else {
                     continue;
                 };
@@ -89,7 +76,7 @@ pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
             Op::Opaque { dir } => {
                 let parts: Vec<&str> = dir.iter().map(|s| s.as_str()).collect();
                 let d = if parts.is_empty() {
-                    // The layer root itself. ⚠ Legal, and it means "this layer
+                    // The root of the layer: legal, and it means "this layer
                     // replaces the whole tree".
                     match reopen(root) {
                         Ok(d) => d,
@@ -110,12 +97,10 @@ pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
                         Err(_) => continue,
                     }
                 };
-                // ⛔ The CONTENTS, not the directory.
-                // `references/indigo-dc__udocker/tree/udocker/container/structure.py:249-256`
-                // lists the directory and removes each entry, keeping the
-                // directory itself, and an opaque marker that deleted its own
-                // directory would delete the mount point the next layer writes
-                // into.
+                // The CONTENTS, not the directory (as udocker: list the
+                // directory and remove each entry). An opaque marker that
+                // removed its own directory would remove the place that the
+                // next entries write into.
                 for e in sys::getdents64(d.0).unwrap_or_default() {
                     let name = String::from_utf8_lossy(&e.name).into_owned();
                     if remove_at(d.0, &name)? {
@@ -138,50 +123,31 @@ impl Drop for DirFd {
 
 fn reopen(root: &Dir) -> Result<DirFd> {
     let c = cbuf(".")?;
-    let fd = sys::openat(
-        root.fd(),
-        &c,
-        sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
-        0,
-    )
-    .map_err(|e| Error::Extract(format!("cannot re-open the destination: {}", e.name())))?;
+    let fd = sys::openat(root.fd(), &c, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC, 0)
+        .map_err(|e| error::sys("cannot re-open the destination", e))?;
     Ok(DirFd(fd))
 }
 
-fn cbuf(s: &str) -> Result<sys::CBuf> {
-    sys::CBuf::new(s)
-        .ok_or_else(|| Error::Extract(format!("{s:?} contains a NUL and cannot reach the kernel")))
-}
-
-/// Remove one name below `parent`, recursing where it is a directory.
+/// Remove one name under `parent`, and each entry under it when it is a
+/// directory.
 ///
-/// ⛔ Never follows a symlink. A symlink is removed as a symlink; the tree it
-/// points at is not touched, which is the difference between deleting a link to
-/// `/etc` and deleting `/etc`.
+/// It does not follow a symlink. A symlink is removed as a symlink, and the
+/// tree that it points to stays: the removal of a link to `/etc` is not the
+/// removal of `/etc`.
 ///
-/// Returns whether something was actually removed, so "not there" and "removed"
-/// are distinguishable by the caller.
+/// It returns true when it removed something, so that the caller can tell
+/// "not there" from "removed".
 pub fn remove_at(parent: i64, name: &str) -> Result<bool> {
     let n = cbuf(name)?;
     match sys::unlinkat(parent, &n, 0) {
         Ok(_) => return Ok(true),
         Err(e) if e == sys::ENOENT => return Ok(false),
-        // EISDIR on some kernels, EPERM on others: it is a directory.
-        Err(e) if e.0 == 21 || e == sys::EPERM => {}
-        Err(e) => {
-            return Err(Error::Extract(format!(
-                "cannot remove {name:?}: {}",
-                e.name()
-            )))
-        }
+        // EISDIR on Linux, EPERM as POSIX allows: it is a directory.
+        Err(e) if e == sys::EISDIR || e == sys::EPERM => {}
+        Err(e) => return Err(error::sys(format!("cannot remove {name:?}"), e)),
     }
     // A directory. Empty it, then remove it.
-    let fd = match sys::openat(
-        parent,
-        &n,
-        sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC | sys::O_NOFOLLOW,
-        0,
-    ) {
+    let fd = match sys::openat(parent, &n, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC | sys::O_NOFOLLOW, 0) {
         Ok(fd) => DirFd(fd),
         Err(_) => return Ok(false),
     };
@@ -193,9 +159,6 @@ pub fn remove_at(parent: i64, name: &str) -> Result<bool> {
     match sys::unlinkat(parent, &n, sys::AT_REMOVEDIR) {
         Ok(_) => Ok(true),
         Err(e) if e == sys::ENOENT => Ok(false),
-        Err(e) => Err(Error::Extract(format!(
-            "cannot remove the directory {name:?}: {}",
-            e.name()
-        ))),
+        Err(e) => Err(error::sys(format!("cannot remove the directory {name:?}"), e)),
     }
 }

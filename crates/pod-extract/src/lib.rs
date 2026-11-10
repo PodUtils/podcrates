@@ -1,63 +1,112 @@
-//! `TOOL.md` section 6.3: layers, whiteouts, ownership sidecar, path safety.
-//! Milestone M2, [`TODO/milestones.md`](../../../TODO/milestones.md) T-1103 and
-//! [`TODO/extract.md`](../../../TODO/extract.md) T-0301 to T-0307.
+//! The rootless apply of the layers of an OCI image: the layer order, the
+//! whiteouts, the containment of each path, and an ownership sidecar in
+//! place of `chown`.
 //!
-//! ⭐ **The single highest-risk component. Four separate tools in the corpus
-//! stop here, all at the same wall, and the wall is `chown` to an id the user
-//! namespace does not map.**
+//! The wall that this crate goes around: `chown` and `lchown` to an id that
+//! the user namespace does not map return `EINVAL`, and GNU tar,
+//! containers/storage, Apptainer and pacman stop there.
 //!
-//! Seven rules decide whether this crate is right rather than merely finished,
-//! and each is one entry:
+//! Seven rules:
 //!
-//! 1. extraction is **in-process and at entry level**, never through system
-//!    `tar` and never through a library's `unpack()` ([`apply`], T-0301);
-//! 2. ownership is **never restored by default**; the image's intent goes in a
-//!    sidecar keyed by path ([`sidecar`], T-0302);
-//! 3. a whiteout is matched on the **basename**, never with a path glob
-//!    ([`whiteout`], T-0303);
-//! 4. an entry that resolves outside the destination is **refused**, including
-//!    through a symlink the same layer created ([`safety`], T-0304);
-//! 5. an absolute symlink target is **rootfs-relative**, not a refusal
-//!    ([`safety::rebase_symlink_target`], T-0305);
-//! 6. owner bits are **widened between layers**, or the second layer fails
-//!    ([`apply`], T-0306);
-//! 7. whiteouts are applied **before** their own layer's entries, and hard
-//!    links and symlinks are preserved ([`remove`], T-0307).
+//! 1. The crate reads each archive **entry by entry, in this process**. It
+//!    does not start a `tar` and does not call the `unpack()` of a library
+//!    ([`apply`]).
+//! 2. The crate **does not restore ownership**. The ids of the image go into
+//!    a sidecar, one row for each path ([`sidecar`]).
+//! 3. A whiteout is matched on the **basename**, not with a path glob
+//!    ([`whiteout`]).
+//! 4. An entry that resolves outside the destination is **refused**, also
+//!    through a symlink that the same layer made ([`safety`]).
+//! 5. An absolute symlink target is **relative to the root file system**: it
+//!    is not a refusal ([`safety::rebase_symlink_target`]).
+//! 6. The owner bits are **widened between layers**, or the next layer cannot
+//!    write ([`apply`]).
+//! 7. The whiteouts of a layer apply **before** the entries of that layer,
+//!    and hard links and symlinks stay links ([`remove`]).
 //!
-//! ⛔ **The sidecar changes no kernel permission check.** A file recorded as
-//! `gid 42` is owned on disk by the id that extracted it, and every access
-//! check the kernel makes uses that one. Presenting the sidecar as though it
-//! restored ownership would be podvm telling the exact class of lie it exists
-//! to refuse.
-
+//! The sidecar changes no permission check of the kernel. A file that the
+//! sidecar records as `gid 42` has the id of the extracting process on disk,
+//! and the kernel checks each access with that id. Do not show the sidecar as
+//! a restored ownership.
+//!
+//! The caller gives each setting ([`Settings`]): the layers with their blobs
+//! ([`Layer`]), the place of the root file system and of its sidecar
+//! ([`Place`]), the name of its directory setting for the space message, and
+//! the sink of the events. The crate reads no variable and prints nothing.
+//! Each failure is a [`pod_core::Failure`] at `Stage::Host` ([`error`]).
+//!
+//! The crate is Linux only: on another target it is empty.
+#![cfg(target_os = "linux")]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod apply;
-/// ⭐ The acceptance, driven against crafted layers rather than asserted in
-/// isolation. A set of correct decisions wired together wrongly still extracts
-/// `/etc/passwd`.
+/// The acceptance: crafted layers through the real extraction. Correct
+/// decisions with wrong connections between them still write `/etc/passwd`.
 #[cfg(test)]
 mod drive;
 pub mod error;
 pub mod layer;
+mod place;
 pub mod remove;
 pub mod safety;
 pub mod sidecar;
 pub mod whiteout;
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use podvm_image::{oci, space, Store};
+use pod_core::{Class, Event, Failure, Report, Stage};
+use pod_hostprobe::space;
 
-pub use error::{Error, Result};
+pub use error::{Mismatch, Refused, Result, mismatch, refused};
+pub use place::{DONE_MARKER, Place, ROOTFS_NAME, SIDECAR_NAME, remove_tree};
 
-/// ⚠ Headroom beyond the measured payload, so an extraction does not fill the
-/// destination to its last block and leave the store with nothing for its own
-/// index and lock.
+/// The space that an extraction asks for beyond the measured payload, so
+/// that the extraction does not fill the destination to its last block and
+/// leave the store of the caller with no space for its index and its lock.
 pub const EXTRACT_HEADROOM_BYTES: u64 = 16 * 1024 * 1024;
 
-/// What an extraction produced.
+/// The kind of the event for each layer that the crate applied.
+pub const LAYER_EVENT: &str = "extract.layer";
+
+/// The values that the caller gives. The caller fills it one time.
+#[derive(Clone, Debug)]
+pub struct Settings {
+    /// The settings of `pod-hostprobe`. The space message names its
+    /// `directory_setting`.
+    pub host: pod_hostprobe::Settings,
+    /// The space to ask for beyond the payload.
+    pub headroom_bytes: u64,
+    /// The sink of the events: one [`LAYER_EVENT`] for each layer.
+    pub report: Report,
+}
+
+impl Default for Settings {
+    fn default() -> Settings {
+        Settings {
+            host: pod_hostprobe::Settings::default(),
+            headroom_bytes: EXTRACT_HEADROOM_BYTES,
+            report: Report::default(),
+        }
+    }
+}
+
+/// One layer of an image, in the order of the manifest: the blob on disk and
+/// what the manifest says about it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Layer {
+    /// The digest that the manifest gives, `sha256:<hex>`. The crate hashes
+    /// the blob while it reads it and refuses a blob that does not agree.
+    pub digest: String,
+    /// The media type of the manifest. It gives the compression; the content
+    /// of the blob does not.
+    pub media_type: String,
+    /// The size of the blob that the manifest gives.
+    pub size: u64,
+    /// The blob in the store of the caller.
+    pub blob: PathBuf,
+}
+
+/// What an extraction made.
 #[derive(Debug, Clone)]
 pub struct Extracted {
     pub rootfs: PathBuf,
@@ -65,96 +114,75 @@ pub struct Extracted {
     pub layers: usize,
     pub entries: u64,
     pub removed: u64,
-    /// ⭐ The figure T-0202's open question wants: docker's `SIZE` is the sum of
-    /// the **uncompressed** layers, and M1 could only print the compressed
-    /// bytes it held.
+    /// The sum of the uncompressed layers (docker's `SIZE`).
     pub uncompressed_bytes: u64,
-    /// ⚠ True where any layer's uncompressed size was estimated rather than
-    /// read. A caller that prints `uncompressed_bytes` must say so when this is
-    /// set: `AGENTS.md`'s third absolute is that an estimate is labelled
-    /// as one, in the same sentence, every time.
+    /// True when the uncompressed size of a layer is an estimate. A caller
+    /// that shows `uncompressed_bytes` must then say that it is an estimate.
     pub uncompressed_estimated: bool,
-    /// Entries whose type podvm does not materialise, counted and named.
+    /// The entries of a type that the crate does not make, with their kinds.
     pub skipped: u64,
     pub skipped_kinds: Vec<String>,
     pub sidecar_rows: u64,
     pub ownership_dropped: u64,
-    /// The first entry that lost an id, if any. The report names it.
+    /// The first entry that lost an id. The report of the caller names it.
     pub first_dropped: Option<sidecar::FirstDropped>,
 }
 
-/// Where an image's rootfs and its sidecar live, given the store root.
+/// Apply each layer of `layers` in order into `place`. `image` names the
+/// image in the messages (for example its manifest digest).
 ///
-/// ⛔ The sidecar sits BESIDE the rootfs, not inside it. A file inside the
-/// rootfs is a file the payload can read, write and be confused by, and
-/// T-0302's `Prove` reads it at `<rootfs>/../.meta.jsonl` for that reason.
-pub fn paths(store: &Store, digest: &str) -> (PathBuf, PathBuf) {
-    let base = store.root().join("rootfs").join(digest.replace(':', "_"));
-    (base.join("rootfs"), base.join(".meta.jsonl"))
-}
-
-/// Extract every layer of `manifest` into the store, in order.
+/// The space check is here, before the loop, and not in the loop: an image
+/// with no layers runs the loop zero times, and a check in the loop is then
+/// never reached.
 ///
-/// ⛔ **The space precheck is here, before the loop, and that placement is the
-/// point.** [`TODO/image.md`](../../../TODO/image.md) T-0203 says "before any
-/// download **and again before any extraction**", and this is the second call
-/// site that made it `partial`. It is deliberately NOT inside the per-layer
-/// loop: an image with no layers, or one whose layers are all already present,
-/// runs that loop zero times, and a guard inside it would never be reached by
-/// the caller that has nothing. A guard is checked where a caller with NOTHING
-/// can reach it.
-pub fn extract(
-    store: &Store,
-    manifest: &oci::Manifest,
-    digest: &str,
-    out: &mut dyn Write,
-) -> Result<Extracted> {
-    let (rootfs, sidecar_path) = paths(store, digest);
-
-    // ------------------------------------------------------------- the size
-    //
-    // Measured where the layer is gzip, whose trailer carries the uncompressed
-    // length, and estimated otherwise. ⛔ Which of the two it is travels with
-    // the number rather than being lost here.
+/// Each failure removes the partial tree, and the completion marker is
+/// written last ([`DONE_MARKER`]): a refused or interrupted extraction never
+/// reads as extracted.
+pub fn extract(settings: &Settings, image: &str, layers: &[Layer], place: &Place) -> Result<Extracted> {
+    // The size is measured for a gzip layer, whose trailer has the
+    // uncompressed length, and estimated for the others. The flag of the
+    // estimate goes with the number.
     let mut need_bytes = 0u64;
     let mut estimated = false;
     let mut plan = Vec::new();
-    for d in &manifest.layers {
-        let c = layer::Compression::of(&d.media_type)?;
-        let parsed = d.parsed_digest().map_err(Error::Image)?;
-        let blob = store.blob_path(&parsed);
-        let (n, est) = layer::uncompressed_size(&blob, c, d.size);
+    for l in layers {
+        let c = layer::Compression::of(&l.media_type)?;
+        if !l.digest.starts_with("sha256:") {
+            return Err(Failure::new(
+                Stage::Host,
+                Class::Unsupported,
+                format!("layer {}: only sha256 digests are checked while the layer is read", l.digest),
+            ));
+        }
+        let (n, est) = layer::uncompressed_size(&l.blob, c, l.size);
         need_bytes = need_bytes.saturating_add(n);
         estimated |= est;
-        plan.push((parsed.to_string(), blob, c));
+        plan.push((l, c));
     }
 
-    // ⚠ An inode per 8 KiB of payload, and it is AN ESTIMATE. The real count is
-    // the number of entries across every layer, which is not known until the
-    // layers have been read, and reading them is the thing this check exists to
-    // happen before.
+    // An estimate: one inode for each 8 KiB of payload. The true count is the
+    // count of entries of each layer, which is known only after a read of the
+    // layers, and this check must come before that read.
     let need_inodes = (need_bytes / 8192).max(64);
 
-    std::fs::create_dir_all(&rootfs)?;
-    // ⛔ T-0203's SECOND CALL SITE. `space::require` had exactly one caller
-    // until this line, in `crates/podvm-image/src/pull.rs`, which is the only
-    // reason that entry was `partial`.
+    std::fs::create_dir_all(&place.rootfs).map_err(error::io)?;
+    let rootfs = place.rootfs.to_string_lossy();
     space::require(
-        &rootfs.to_string_lossy(),
-        &format!("extracting {digest}"),
+        &settings.host,
+        &rootfs,
+        &format!("extracting {image}"),
         need_bytes,
         need_inodes,
-        EXTRACT_HEADROOM_BYTES,
-    )
-    .map_err(Error::Image)?;
+        settings.headroom_bytes,
+    )?;
 
-    let root = safety::Dir::open(&rootfs.to_string_lossy())?;
-    let mut sidecar = sidecar::Sidecar::create(&sidecar_path)?;
+    let root = safety::Dir::open(&rootfs)?;
+    let mut side = sidecar::Sidecar::create(&place.sidecar).map_err(error::io)?;
     let ids = apply::Ids::current();
 
     let mut total = Extracted {
-        rootfs: rootfs.clone(),
-        sidecar: sidecar_path.clone(),
+        rootfs: place.rootfs.clone(),
+        sidecar: place.sidecar.clone(),
         layers: plan.len(),
         entries: 0,
         removed: 0,
@@ -167,72 +195,62 @@ pub fn extract(
         first_dropped: None,
     };
 
-    // ⛔ EVERY FAILURE PATH BELOW REMOVES THE PARTIAL TREE. A refusal that
-    // leaves the attacker's entries on disk has not refused anything: the next
-    // caller finds a directory and a sidecar and, before the marker existed,
-    // was told the image was extracted. See `DONE_MARKER`.
-    let done = extract_layers(&root, &plan, ids, &mut sidecar, &mut total, out);
-    let done = match done {
-        Ok(()) => done_ok(sidecar, &mut total, &rootfs),
-        Err(e) => Err(e),
-    };
+    // Each failure below removes the partial tree. A refusal that leaves the
+    // entries of the attacker on disk refused nothing.
+    let done = extract_layers(&settings.report, &root, &plan, ids, &mut side, &mut total)
+        .and_then(|()| done_ok(side, &mut total, place));
     match done {
         Ok(()) => Ok(total),
         Err(e) => {
             drop(root);
-            // ⚠ Best effort, and deliberately silent: the extraction already
-            // failed and the caller needs THAT error, not a second one about
-            // the cleanup. What must not happen is the tree surviving as a
-            // valid-looking extraction, and the absent marker guarantees that
-            // even if this removal fails.
-            let _ = remove_extracted(store, digest);
+            // The caller needs the first failure, not a second one about the
+            // removal. The marker is absent, so the tree never reads as
+            // extracted, also when this removal fails.
+            let _ = place.remove();
             Err(e)
         }
     }
 }
 
-fn done_ok(sidecar: sidecar::Sidecar, total: &mut Extracted, rootfs: &Path) -> Result<()> {
-    total.ownership_dropped = sidecar.dropped();
-    total.first_dropped = sidecar.first_dropped();
-    let (rows, _) = sidecar.finish()?;
+fn done_ok(side: sidecar::Sidecar, total: &mut Extracted, place: &Place) -> Result<()> {
+    total.ownership_dropped = side.dropped();
+    total.first_dropped = side.first_dropped();
+    let (rows, _) = side.finish().map_err(error::io)?;
     total.sidecar_rows = rows;
-    // ⛔ LAST. Everything above has to have happened for this file to exist.
-    if let Some(base) = rootfs.parent() {
-        std::fs::write(base.join(DONE_MARKER), b"1\n")?;
-    }
+    // Last: each step above must be done before this file exists.
+    std::fs::write(&place.marker, b"1\n").map_err(error::io)?;
     Ok(())
 }
 
 fn extract_layers(
+    report: &Report,
     root: &safety::Dir,
-    plan: &[(String, PathBuf, layer::Compression)],
+    plan: &[(&Layer, layer::Compression)],
     ids: apply::Ids,
-    sidecar: &mut sidecar::Sidecar,
+    side: &mut sidecar::Sidecar,
     total: &mut Extracted,
-    out: &mut dyn Write,
 ) -> Result<()> {
-    for (n, (ld, blob, c)) in plan.iter().enumerate() {
-        // ⭐ T-0307: this layer's whiteouts are applied to the ACCUMULATED tree
-        // BEFORE this layer's own entries, which is the order that lets a layer
-        // both delete a path and recreate it.
-        // `references/indigo-dc__udocker/tree/udocker/container/structure.py:279`.
+    for (l, c) in plan {
+        // The whiteouts of this layer apply to the tree of the layers before
+        // it, before the entries of this layer: a layer can then remove a
+        // path and make it again.
         //
-        // ⭐ T-1315: each pass hashes the raw blob bytes while they stream
-        // into the decompressor. The first pass is the gate: the digest is
-        // compared before any whiteout or entry touches the tree, so a blob
-        // edited after pull is refused with the tampered bytes never written.
-        // The second pass re-checks, so a change between the two reads is
-        // still caught (the error path below removes the partial tree).
-        let (mut first, hash1) = layer::open_hashed(blob, *c)?;
+        // Each pass hashes the raw bytes of the blob while they go into the
+        // decompressor. The first pass is the gate: the digest is compared
+        // before a whiteout or an entry touches the tree, so a blob that
+        // changed after the pull is refused before its bytes are written.
+        // The second pass compares again, so a change between the two reads
+        // is also found (the caller removes the partial tree).
+        let (mut first, hash1) = layer::open_hashed(&l.blob, *c)?;
         let ops = remove::collect(&mut first)?;
         drop(first);
-        verified(&hash1, ld, blob)?;
+        verified(&hash1, &l.digest, &l.blob)?;
         total.removed += remove::apply(root, &ops)?;
 
-        let (mut second, hash2) = layer::open_hashed(blob, *c)?;
-        let st = apply::apply_layer(root, ld, &mut second, ids, sidecar)?;
+        let (mut second, hash2) = layer::open_hashed(&l.blob, *c)?;
+        let st = apply::apply_layer(root, &l.digest, &mut second, ids, side)?;
         drop(second);
-        verified(&hash2, ld, blob)?;
+        verified(&hash2, &l.digest, &l.blob)?;
         total.entries += st.entries;
         total.skipped += st.skipped;
         for k in st.skipped_kinds {
@@ -240,14 +258,15 @@ fn extract_layers(
                 total.skipped_kinds.push(k);
             }
         }
-        let _ = writeln!(
-            out,
-            "{}: Extracted ({} entries, {} whiteouts)",
-            short(ld),
-            st.entries,
-            st.whiteouts + st.opaques
-        );
-        let _ = n;
+        report.event(Event::info(
+            LAYER_EVENT,
+            format!(
+                "{}: Extracted ({} entries, {} whiteouts)",
+                short(&l.digest),
+                st.entries,
+                st.whiteouts + st.opaques
+            ),
+        ));
     }
     Ok(())
 }
@@ -257,74 +276,17 @@ fn short(digest: &str) -> String {
     hex.chars().take(12).collect()
 }
 
-/// TODO/extract.md T-1315. The manifest names the digest and the stored blob
-/// may have changed since pull, so the streamed hash is compared before the
-/// layer is trusted. A mismatch names the blob, the manifest's digest and
-/// the computed one, through the store's own error shape.
-fn verified(hash: &layer::HashedStream, want: &str, blob: &std::path::Path) -> Result<()> {
+/// The manifest gives the digest, and the stored blob can have changed after
+/// the pull: the hash of the stream is compared before the layer is trusted.
+/// A mismatch names the blob, the digest of the manifest and the computed
+/// one.
+fn verified(hash: &layer::HashedStream, want: &str, blob: &Path) -> Result<()> {
     let got = hash.digest();
     if got == want {
         return Ok(());
     }
-    Err(Error::Image(podvm_image::error::Error::DigestMismatch {
-        what: format!("stored blob {}", blob.display()),
-        want: want.to_string(),
-        got,
-    }))
-}
-
-/// ⭐ **The completion marker, written last and never before.**
-///
-/// ⛔ FOUND BY RUNNING `experiments/220-extract-path-safety.sh`, not by a test.
-/// Extraction of a hostile layer is REFUSED partway through, by design, and it
-/// leaves a directory and a sidecar behind. `is_extracted` originally asked
-/// whether those two existed, so the very next `podvm extract` of the same
-/// image answered "already done" and printed the path of a **half-extracted
-/// tree with the attacker's symlink still in it**, exit 0. The refusal was
-/// correct and completely undone by the call after it.
-///
-/// A marker written after the last byte is the only thing that distinguishes a
-/// finished extraction from an interrupted one, because a `SIGKILL` between two
-/// entries leaves exactly the same directory and sidecar a success does.
-pub const DONE_MARKER: &str = ".extracted";
-
-/// Has this image already been extracted, completely?
-pub fn is_extracted(store: &Store, digest: &str) -> bool {
-    let (rootfs, _) = paths(store, digest);
-    let Some(base) = rootfs.parent() else {
-        return false;
-    };
-    // ⛔ The marker, not the directory. See [`DONE_MARKER`].
-    rootfs.is_dir() && base.join(DONE_MARKER).is_file()
-}
-
-/// Remove an extracted rootfs and its sidecar.
-pub fn remove_extracted(store: &Store, digest: &str) -> Result<bool> {
-    let (rootfs, _) = paths(store, digest);
-    let Some(base) = rootfs.parent() else {
-        return Ok(false);
-    };
-    if !base.exists() {
-        return Ok(false);
-    }
-    remove_tree(base)?;
-    Ok(true)
-}
-
-/// ⛔ Removal that never follows a symlink out of the tree it is clearing.
-/// `std::fs::remove_dir_all` is not used here because this tree was written
-/// from a hostile archive, and the one guarantee that matters is the one this
-/// crate spent T-0304 establishing.
-fn remove_tree(path: &Path) -> Result<()> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
-        return Ok(());
-    };
-    let d = safety::Dir::open(&parent.to_string_lossy())?;
-    remove::remove_at(d.fd(), name)?;
-    Ok(())
+    let m = Mismatch { what: format!("stored blob {}", blob.display()), want: want.to_string(), got };
+    Err(Failure::caused(Stage::Host, Class::Protocol, m.to_string(), m))
 }
 
 #[cfg(test)]
@@ -333,20 +295,16 @@ mod tests {
 
     #[test]
     fn the_sidecar_sits_beside_the_rootfs_not_inside_it() {
-        let s = Store::open("/tmp/podvm-test-store-paths").unwrap();
-        let (rootfs, side) = paths(&s, "sha256:abc123");
-        // T-0302's Prove reads `<rootfs>/../.meta.jsonl`.
-        assert_eq!(rootfs.parent().unwrap().join(".meta.jsonl"), side);
-        // ⛔ A colon is not a portable path character and the digest carries
-        // one.
-        assert!(!rootfs.to_string_lossy().contains(':'));
+        let p = Place::under(Path::new("/tmp/pod-extract-test-paths/sha256_abc123"));
+        // The sidecar is at `<rootfs>/../.meta.jsonl`, out of reach of the
+        // payload.
+        assert_eq!(p.rootfs.parent().unwrap().join(SIDECAR_NAME), p.sidecar);
+        assert_eq!(p.rootfs.parent().unwrap().join(DONE_MARKER), p.marker);
+        assert!(!p.sidecar.starts_with(&p.rootfs));
     }
 
     #[test]
     fn short_is_twelve_hex_digits_like_docker_prints() {
-        assert_eq!(
-            short("sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e"),
-            "d9e853e87e55"
-        );
+        assert_eq!(short("sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e"), "d9e853e87e55");
     }
 }

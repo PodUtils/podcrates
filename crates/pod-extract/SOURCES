@@ -5,12 +5,15 @@
 
 repo PodUtils/podvm e8e5bebc6e4ace981af855f73f3601f8d8b309ab
 dir crates/podvm-extract/src
+# Of lib.rs a part stays in podvm: paths(store, digest) and the glue over the
+# Store of podvm-image (the layers of the manifest, the blob paths, the
+# settings). The rest of lib.rs became lib.rs and place.rs.
 file edd1d3d4259997bd8b534d32ec5ec9409a39c6d1 crates/podvm-extract/src/apply.rs -> crates/pod-extract/src/apply.rs
 file 5646efe0f5fbbb41da11bd425d6547ca4315e69f crates/podvm-extract/src/drive.rs -> crates/pod-extract/src/drive.rs
 file 6ac01beabed72ab0b718aa260394dccaaa03c5c7 crates/podvm-extract/src/drive/records.rs -> crates/pod-extract/src/drive/records.rs
 file f2b3dcd9ad2d3e7b71e68cb7e3cd4c0d155d39d8 crates/podvm-extract/src/error.rs -> crates/pod-extract/src/error.rs
 file d6e81348c834e0ec52e86622d52b45227904801c crates/podvm-extract/src/layer.rs -> crates/pod-extract/src/layer.rs
-file e5dd0a94cdc044dfbbc0422cdeca30e977b60de3 crates/podvm-extract/src/lib.rs -> crates/pod-extract/src/lib.rs
+file e5dd0a94cdc044dfbbc0422cdeca30e977b60de3 crates/podvm-extract/src/lib.rs -> crates/pod-extract/src/lib.rs crates/pod-extract/src/place.rs
 file 1f3ed662f90ed85d7b3cc128318f43adfc031b64 crates/podvm-extract/src/remove.rs -> crates/pod-extract/src/remove.rs
 file 2c0436b631d791a2cf46d0555af06ba56ce60cec crates/podvm-extract/src/safety.rs -> crates/pod-extract/src/safety.rs
 file e8d7251d575c50d0b91a8e14d73a2bf524235d03 crates/podvm-extract/src/safety/tests.rs -> crates/pod-extract/src/safety/tests.rs

@@ -1,19 +1,18 @@
 use super::*;
 
-/// [`Resolve::InRoot`]'s own walk, and it is a different shape rather than the
-/// same one with another flag.
+/// The walk of [`Resolve::InRoot`]: a different shape, not the same walk with
+/// another flag.
 ///
-/// ⛔ **`RESOLVE_IN_ROOT` treats THE DESCRIPTOR IT IS GIVEN as `/`.** Stepping
-/// one component at a time moves that root with every step: after descending
-/// into `etc`, an absolute link `/var/aptreal` rebases onto `<rootfs>/etc` and
-/// answers `ENOENT`. Measured on 2026-09-09 by
-/// `experiments/85-completion-symlink-escape.sh` door F, which is openSUSE's
-/// own `/etc/ssl/certs -> /var/lib/ca-certificates/pem` shape.
+/// **`RESOLVE_IN_ROOT` takes THE DESCRIPTOR THAT IT GETS as `/`.** A walk of
+/// one component at a time moves that root at each step: after a descent into
+/// `etc`, an absolute link `/var/aptreal` rebases onto `<rootfs>/etc` and
+/// gives `ENOENT` (the shape of `/etc/ssl/certs ->
+/// /var/lib/ca-certificates/pem` on openSUSE).
 ///
-/// So every open here is from the **rootfs descriptor**, with the accumulated
-/// path, and that descriptor never moves. ⚠ Quadratic in the depth of the path
-/// and the depth is four or five: a directory this walks is a configuration
-/// directory, not a tree.
+/// So each open here starts from the **descriptor of the root file system**,
+/// with the path until now, and that descriptor does not move. The cost is
+/// quadratic in the depth of the path, and the depth is four or five: this
+/// walk is for configuration directories, not for a tree.
 pub(super) fn in_root_parent(
     root: &Dir,
     dirs: &[&str],
@@ -21,12 +20,12 @@ pub(super) fn in_root_parent(
     make_dirs: bool,
 ) -> Result<std::result::Result<(Dir, String), Refusal>> {
     if !have_openat2() {
-        // ⛔ There is no `O_NOFOLLOW` equivalent of `RESOLVE_IN_ROOT`, and
-        // re-implementing it in user space means resolving each link here and
-        // re-walking, which races anything else writing the tree. A caller gets
-        // a refusal it can report rather than an approximation nobody measured.
+        // `RESOLVE_IN_ROOT` has no `O_NOFOLLOW` equal. To do it in user space
+        // is to resolve each link here and walk again, in a race with each
+        // other writer of the tree. The caller gets a refusal that it can
+        // report, not an approximation that nobody measured.
         return Ok(Err(Refusal::Escapes(
-            "this kernel has no openat2(2), so podvm cannot follow a symlinked \
+            "this kernel has no openat2(2), so the crate cannot follow a symlinked \
              directory while proving it stays inside the rootfs"
                 .to_string(),
         )));
@@ -42,12 +41,7 @@ pub(super) fn in_root_parent(
     };
     let mut cur = match open_at_root(".")? {
         Ok(d) => d,
-        Err(e) => {
-            return Err(Error::Extract(format!(
-                "cannot re-open the destination: {}",
-                e.name()
-            )))
-        }
+        Err(e) => return Err(error::sys("cannot re-open the destination", e)),
     };
     let mut acc = String::new();
     for d in dirs {
@@ -58,18 +52,13 @@ pub(super) fn in_root_parent(
         match open_at_root(&acc)? {
             Ok(next) => cur = next,
             Err(e) if e == sys::ENOENT && make_dirs => {
-                // ⚠ Created against the RESOLVED parent, by bare name. The name
-                // does not exist, so no link can be traversed by creating it.
+                // Made in the RESOLVED parent, by its name. The name does not
+                // exist, so the make goes through no link.
                 let c = cbuf(d)?;
                 match sys::mkdirat(cur.fd(), &c, 0o755) {
                     Ok(_) => {}
                     Err(e) if e == sys::EEXIST => {}
-                    Err(e) => {
-                        return Err(Error::Extract(format!(
-                            "cannot create the directory {d:?}: {}",
-                            e.name()
-                        )))
-                    }
+                    Err(e) => return Err(error::sys(format!("cannot create the directory {d:?}"), e)),
                 }
                 match open_at_root(&acc)? {
                     Ok(next) => cur = next,
@@ -85,89 +74,61 @@ pub(super) fn in_root_parent(
 pub(super) fn dup_dir(d: &Dir, how: Resolve) -> Result<Dir> {
     let c = cbuf(".")?;
     let fd = if how.use_openat2() {
-        let h = sys::OpenHow {
-            flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
-            mode: 0,
-            resolve: how.flags(),
-        };
+        let h =
+            sys::OpenHow { flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC, mode: 0, resolve: how.flags() };
         sys::openat2(d.fd(), &c, &h)
     } else {
-        sys::openat(
-            d.fd(),
-            &c,
-            sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
-            0,
-        )
+        sys::openat(d.fd(), &c, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC, 0)
     }
-    .map_err(|e| Error::Extract(format!("cannot re-open the destination: {}", e.name())))?;
+    .map_err(|e| error::sys("cannot re-open the destination", e))?;
     Ok(Dir(fd))
 }
 
 /// One component of the walk: descend into `name`, optionally creating it.
-pub(super) fn step(
-    cur: &Dir,
-    name: &str,
-    make: bool,
-    how: Resolve,
-) -> Result<std::result::Result<Dir, Refusal>> {
+pub(super) fn step(cur: &Dir, name: &str, make: bool, how: Resolve) -> Result<std::result::Result<Dir, Refusal>> {
     let c = cbuf(name)?;
-    // ⚠ The directory is created BEFORE the descent is attempted, because a
-    // layer names `usr/bin/x` with no entry for `usr/bin` more often than not.
-    // `EEXIST` is the ordinary case and is not an error here; what matters is
-    // that the descent below refuses a symlink whatever created it.
+    // The directory is made BEFORE the descent: a layer often names
+    // `usr/bin/x` with no entry for `usr/bin`. `EEXIST` is the usual case and
+    // not an error here; the descent below refuses a symlink, whatever made it.
     if make {
         match sys::mkdirat(cur.fd(), &c, 0o755) {
             Ok(_) => {}
             Err(e) if e == sys::EEXIST => {}
-            Err(e) => {
-                return Err(Error::Extract(format!(
-                    "cannot create the directory {name:?}: {}",
-                    e.name()
-                )))
-            }
+            Err(e) => return Err(error::sys(format!("cannot create the directory {name:?}"), e)),
         }
     }
     let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC;
     let r = if how.use_openat2() {
-        let h = sys::OpenHow {
-            flags,
-            mode: 0,
-            resolve: how.flags(),
-        };
+        let h = sys::OpenHow { flags, mode: 0, resolve: how.flags() };
         sys::openat2(cur.fd(), &c, &h)
     } else if how == Resolve::InRoot {
-        // ⛔ **`RESOLVE_IN_ROOT` IS `openat2`'s AND HAS NO `O_NOFOLLOW`
-        // EQUIVALENT.** Re-implementing it by hand means resolving each symlink
-        // in this process, rebasing an absolute target onto the root and
-        // re-walking -- a race against anything else writing the tree, which is
-        // exactly what the descriptor walk exists to avoid. So on a kernel
-        // without `openat2` this REFUSES rather than approximating: the caller
-        // records the fixup as one it could not apply and says why, which is a
-        // third state and not a silent failure.
+        // **`RESOLVE_IN_ROOT` is of `openat2` and has no `O_NOFOLLOW`
+        // equal.** To do it by hand is to resolve each symlink in this process,
+        // rebase an absolute target onto the root and walk again: a race with
+        // each other writer of the tree, which the descriptor walk prevents.
+        // So on a kernel with no `openat2` this REFUSES and does not
+        // approximate: the caller records a step that it could not apply, with
+        // the reason, a third state and not a silent failure.
         return Ok(Err(Refusal::Escapes(format!(
             "{name:?}: this component is reached through a symlink and this kernel \
-             has no openat2(2), so podvm cannot follow it while proving it stays \
+             has no openat2(2), so the crate cannot follow it while proving it stays \
              inside the rootfs"
         ))));
     } else {
-        // ⛔ The fallback, and `O_NOFOLLOW` is what carries it. Opening one
-        // component at a time from a held descriptor means `..` cannot appear
-        // (the lexical check removed it) and a symlink cannot be traversed
-        // (this flag refuses it with ELOOP).
+        // The walk, on `O_NOFOLLOW`. One component at a time from a held
+        // descriptor: `..` cannot come (the lexical check removed it) and a
+        // symlink cannot be crossed (this flag refuses it with ELOOP).
         sys::openat(cur.fd(), &c, flags | sys::O_NOFOLLOW, 0)
     };
     match r {
         Ok(fd) => Ok(Ok(Dir(fd))),
-        // ⭐ THE FINDING, and the three errnos that carry it. The kernel is
-        // saying the resolution left the destination or crossed a symlink.
-        // ELOOP is O_NOFOLLOW's refusal, EXDEV is RESOLVE_BENEATH's, and
-        // ENOTDIR is a component that is a file.
-        Err(e) if e == Errno(40) || e == Errno(18) || e == Errno(20) => {
+        // The finding, in three errnos: the resolution left the destination
+        // or crossed a symlink. ELOOP is the refusal of O_NOFOLLOW (and of
+        // RESOLVE_NO_SYMLINKS), EXDEV the refusal of RESOLVE_BENEATH, and
+        // ENOTDIR a component that is a file.
+        Err(e) if e == sys::ELOOP || e == sys::EXDEV || e == sys::ENOTDIR => {
             Ok(Err(Refusal::Escapes(format!("{name:?}: {}", e.name()))))
         }
-        Err(e) => Err(Error::Extract(format!(
-            "cannot descend into {name:?}: {}",
-            e.name()
-        ))),
+        Err(e) => Err(error::sys(format!("cannot descend into {name:?}"), e)),
     }
 }

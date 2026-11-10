@@ -52,6 +52,7 @@ impl Errno {
             3 => "ESRCH",
             4 => "EINTR",
             5 => "EIO",
+            7 => "E2BIG",
             9 => "EBADF",
             11 => "EAGAIN",
             12 => "ENOMEM",
@@ -83,6 +84,10 @@ pub const EPERM: Errno = Errno(1);
 pub const ENOENT: Errno = Errno(2);
 pub const ESRCH: Errno = Errno(3);
 pub const EINTR: Errno = Errno(4);
+pub const EIO: Errno = Errno(5);
+/// `E2BIG`: `openat2(2)` gives it for a `struct open_how` that the kernel
+/// does not know.
+pub const E2BIG: Errno = Errno(7);
 pub const EBADF: Errno = Errno(9);
 pub const EACCES: Errno = Errno(13);
 pub const EEXIST: Errno = Errno(17);
@@ -90,9 +95,13 @@ pub const EEXIST: Errno = Errno(17);
 /// because a chroot that landed off its descriptor is on the wrong device
 /// or the wrong file.
 pub const EXDEV: Errno = Errno(18);
+pub const ENOTDIR: Errno = Errno(20);
+pub const EISDIR: Errno = Errno(21);
 pub const EINVAL: Errno = Errno(22);
 pub const ENOSYS: Errno = Errno(38);
 pub const ENAMETOOLONG: Errno = Errno(36);
+/// `ELOOP`: the refusal of `O_NOFOLLOW` and of `RESOLVE_NO_SYMLINKS`.
+pub const ELOOP: Errno = Errno(40);
 /// On Linux `EAGAIN` and `EWOULDBLOCK` are the same number, and `flock` with
 /// `LOCK_NB` returns it for "somebody else holds this". It is named here for
 /// the reader, because "try again later" and "in use" are different sentences.

@@ -1,7 +1,25 @@
 [package]
 name = "pod-extract"
+description = "The rootless apply of the layers of an OCI image on Linux: entry by entry in the process, whiteouts on the basename before the entries of their layer, each path held in the destination (openat2 or an O_NOFOLLOW walk), an ownership sidecar in place of chown, the digest of each blob checked while it is read, and a completion marker."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+pod-core = { workspace = true }
+# The raw system calls and the space check.
+pod-hostprobe = { workspace = true }
+# The entry API only, never `unpack()`: `unpack()` makes the ownership,
+# permission and path decisions that this crate makes.
+tar = { workspace = true }
+# The Rust backend, not the C backend.
+flate2 = { workspace = true }
+ruzstd = { workspace = true }
+# The digest of each blob, while the blob is read.
+sha2 = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }

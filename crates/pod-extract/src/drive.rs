@@ -1,26 +1,25 @@
-//! ⭐ **The acceptance, driven in-process against crafted layers.**
+//! **The acceptance, in this process, against crafted layers.**
 //!
-//! `AGENTS.md`: verify, do not accept. Every module beside this one tests
-//! its own decision in isolation, and a set of correct decisions wired together
-//! wrongly still extracts `/etc/passwd`. These build real tar layers, run the
-//! real extraction over them, and look at the tree that came out.
+//! Each module beside this one tests its own decision alone, and correct
+//! decisions with wrong connections between them still extract
+//! `/etc/passwd`. These tests make real tar layers, run the real extraction
+//! over them, and look at the tree that came out.
 //!
-//! ⛔ **The crafted archives are deliberate.** `TODO/extract.md` T-0303's
-//! premise says it in as many words: neither pinned image happens to carry a
-//! root-level whiteout, so passing on them would say nothing. The same is true
-//! of the path-escape case, which no honest image contains at all.
+//! **The crafted archives are on purpose.** Real images do not have a
+//! whiteout at the root of a layer, so a pass on them tells nothing. The same
+//! is true of the path escapes, which no honest image has.
 
 use std::io::Cursor;
 
-use crate::apply::{apply_layer, Ids};
-use crate::error::Error;
+use crate::apply::{Ids, apply_layer};
+use crate::error::io;
 use crate::remove;
 use crate::safety::Dir;
 use crate::sidecar::Sidecar;
 
-/// A scratch directory that removes itself. ⚠ Named by pid AND by a counter:
-/// two tests in one process share a pid, and a shared scratch directory is two
-/// tests measuring each other.
+/// A scratch directory that removes itself. Named by the pid AND a counter:
+/// two tests in one process have the same pid, and a shared scratch
+/// directory is two tests that measure each other.
 struct Scratch(std::path::PathBuf);
 
 impl Scratch {
@@ -28,7 +27,7 @@ impl Scratch {
         use std::sync::atomic::{AtomicU32, Ordering};
         static N: AtomicU32 = AtomicU32::new(0);
         let p = std::env::temp_dir().join(format!(
-            "podvm-extract-{}-{}-{}",
+            "pod-extract-{}-{}-{}",
             tag,
             std::process::id(),
             N.fetch_add(1, Ordering::Relaxed)
@@ -55,16 +54,13 @@ enum E<'a> {
     Dir(&'a str, u32),
     Symlink(&'a str, &'a str),
     Hardlink(&'a str, &'a str),
-    /// ⭐ **A name written straight into the header, bypassing the writer's own
-    /// validation.**
+    /// **A name written into the header, past the check of the writer.**
     ///
-    /// ⚠ FOUND BY WRITING THIS TEST, and it is worth recording: `tar::Builder`
-    /// REFUSES to write a member whose path contains `..`
-    /// ("paths in archives must not have `..`"), while `tar::Archive`'s reader
-    /// hands that same member straight to the caller. The writer's check is not
-    /// the reader's, so a hostile layer cannot be built through the safe API and
-    /// **can** be read through it. That asymmetry is the whole reason T-0304 is
-    /// an entry: a Rust tar crate does not make this safe by itself.
+    /// `tar::Builder` REFUSES to write a member whose path has `..` ("paths in
+    /// archives must not have `..`"), and the reader of `tar::Archive` gives
+    /// the same member to the caller. The check of the writer is not the check
+    /// of the reader: the safe API cannot make a hostile layer and **can**
+    /// read one. A Rust tar crate does not make the extraction safe alone.
     Raw(&'a str, &'a [u8]),
 }
 
@@ -116,8 +112,8 @@ fn layer(entries: &[E]) -> Vec<u8> {
                     assert!(bytes.len() < g.name.len(), "the crafted name must fit");
                     g.name[..bytes.len()].copy_from_slice(bytes);
                 }
-                // ⛔ After the name, or the checksum covers the old one and a
-                // conforming reader rejects the member before podvm sees it.
+                // After the name: else the checksum covers the old name, and a
+                // conforming reader refuses the member before the crate sees it.
                 h.set_cksum();
                 b.append(&h, Cursor::new(*data)).unwrap();
             }
@@ -126,25 +122,18 @@ fn layer(entries: &[E]) -> Vec<u8> {
     b.into_inner().unwrap()
 }
 
-/// Run the whole per-layer sequence, whiteouts first, exactly as
-/// [`crate::extract`] does.
+/// Run the steps of each layer, whiteouts first, as [`crate::extract`] does.
 fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
     let root = Dir::open(&dir.to_string_lossy())?;
     let side = dir.join(".meta.jsonl");
-    let mut sc = Sidecar::create(&side)?;
+    let mut sc = Sidecar::create(&side).map_err(io)?;
     let mut removed = 0;
     for (n, l) in layers.iter().enumerate() {
         let ops = remove::collect(&mut Cursor::new(l.clone()))?;
         removed += remove::apply(&root, &ops)?;
-        apply_layer(
-            &root,
-            &format!("sha256:layer{n}"),
-            &mut Cursor::new(l.clone()),
-            Ids::current(),
-            &mut sc,
-        )?;
+        apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
     }
-    sc.finish()?;
+    sc.finish().map_err(io)?;
     Ok(removed)
 }
 
@@ -152,92 +141,72 @@ fn meta(dir: &std::path::Path) -> String {
     std::fs::read_to_string(dir.join(".meta.jsonl")).unwrap_or_default()
 }
 
-// ---------------------------------------------------------------- T-0304
+/// The cause of a refused extraction, or a panic that says what came.
+fn refusal_of<T: std::fmt::Debug>(r: crate::Result<T>) -> crate::Refused {
+    match r {
+        Err(f) => crate::refused(&f).cloned().unwrap_or_else(|| panic!("not a refusal: {}", f.chain())),
+        Ok(v) => panic!("not refused: {v:?}"),
+    }
+}
 
-/// ⛔ **THE ATTACK M2 ACCEPTANCE 3 NAMES.** A crafted layer creates
-/// `evil -> /etc` as its first entry and writes `evil/passwd` as its second.
-/// Both entries are lexically inside the destination and the second lands
-/// outside it.
+// ---------------------------------------------------------------- containment
+
+/// **THE ATTACK.** A crafted layer makes `evil -> /etc` as its first entry and
+/// writes `evil/passwd` as its second. Both entries are lexically in the
+/// destination, and the second lands outside it.
 ///
-/// ⚠ This is the half the corpus does NOT have.
-/// `references/qaidvoid__onelf/tree/crates/onelf-format/src/manifest.rs:19-48`
-/// validates a symlink entry when the symlink is created and never validates a
-/// later entry whose path traverses it.
+/// onelf checks a symlink entry when it makes the symlink, and never checks a
+/// later entry whose path goes through it.
 #[test]
 fn an_entry_traversing_a_symlink_the_same_layer_made_is_refused() {
     let s = Scratch::new("traverse");
-    let l = layer(&[
-        E::Symlink("evil", "/etc"),
-        E::File("evil/passwd", b"pwned\n", 0o644),
-    ]);
-    let r = run(s.path(), &[l]);
-    match r {
-        Err(Error::Refused { entry, why, layer }) => {
-            assert_eq!(entry, "evil/passwd");
-            assert!(why.contains("leaves the destination"), "{why}");
-            // ⛔ T-0304: the layer digest is named, not just the entry.
-            assert!(layer.contains("sha256:"), "{layer}");
-        }
-        other => panic!("the traversal was not refused: {other:?}"),
-    }
-    // ⛔ AND NOTHING LANDED OUTSIDE. The refusal is only worth having if the
-    // write did not happen, so this asserts the tree rather than the message.
-    assert!(
-        !s.path().join("etc").join("passwd").exists(),
-        "a file was written through the symlink"
-    );
+    let l = layer(&[E::Symlink("evil", "/etc"), E::File("evil/passwd", b"pwned\n", 0o644)]);
+    let r = refusal_of(run(s.path(), &[l]));
+    assert_eq!(r.entry, "evil/passwd");
+    let why = r.refusal.why();
+    assert!(why.contains("leaves the destination"), "{why}");
+    // The digest of the layer is named, not only the entry.
+    assert!(r.layer.contains("sha256:"), "{}", r.layer);
+    // AND NOTHING LANDED OUTSIDE. The refusal has a value only when the write
+    // did not happen, so this asserts the tree and not the message.
+    assert!(!s.path().join("etc").join("passwd").exists(), "a file was written through the symlink");
 }
 
 /// The same shape with a relative target, which needs no absolute path at all.
 #[test]
 fn a_relative_escaping_symlink_is_refused_too() {
     let s = Scratch::new("relesc");
-    let l = layer(&[
-        E::Symlink("out", "../../../../tmp"),
-        E::File("out/x", b"x", 0o644),
-    ]);
-    assert!(
-        matches!(run(s.path(), &[l]), Err(Error::Refused { .. })),
-        "a relative escape was not refused"
-    );
+    let l = layer(&[E::Symlink("out", "../../../../tmp"), E::File("out/x", b"x", 0o644)]);
+    refusal_of(run(s.path(), &[l]));
 }
 
-/// ⛔ Refused lexically, before any syscall.
+/// Refused lexically, before a system call.
 ///
-/// ⚠ The archive is crafted at the header level because `tar::Builder` refuses
-/// to write this member at all. See [`E::Raw`]: the writer's validation is not
-/// the reader's, and only the reader's side is podvm's problem.
+/// The archive is crafted in the header, as `tar::Builder` does not write
+/// this member ([`E::Raw`]): the check of the writer is not the check of the
+/// reader, and only the reader is the problem of this crate.
 #[test]
 fn a_dotdot_path_is_refused() {
     let s = Scratch::new("dotdot");
     let l = layer(&[E::Raw("../escaped", b"x")]);
-    match run(s.path(), &[l]) {
-        Err(Error::Refused { why, entry, .. }) => {
-            assert_eq!(entry, "../escaped");
-            assert!(why.contains(".."), "{why}");
-        }
-        other => panic!("`..` was not refused: {other:?}"),
-    }
-    assert!(
-        !s.path().parent().unwrap().join("escaped").exists(),
-        "a file landed beside the destination"
-    );
+    let r = refusal_of(run(s.path(), &[l]));
+    assert_eq!(r.entry, "../escaped");
+    assert!(r.refusal.why().contains(".."), "{}", r.refusal.why());
+    assert!(!s.path().parent().unwrap().join("escaped").exists(), "a file landed beside the destination");
 }
 
-/// ⛔ An absolute member name, which is the other half of the lexical check.
+/// An absolute member name: the other half of the lexical check.
 #[test]
 fn an_absolute_path_is_refused() {
     let s = Scratch::new("abs");
-    let l = layer(&[E::Raw("/etc/podvm-should-never-write-this", b"x")]);
-    match run(s.path(), &[l]) {
-        Err(Error::Refused { why, .. }) => assert!(why.contains("absolute"), "{why}"),
-        other => panic!("an absolute path was not refused: {other:?}"),
-    }
-    assert!(!std::path::Path::new("/etc/podvm-should-never-write-this").exists());
+    let l = layer(&[E::Raw("/etc/pod-extract-should-never-write-this", b"x")]);
+    let why = refusal_of(run(s.path(), &[l])).refusal.why();
+    assert!(why.contains("absolute"), "{why}");
+    assert!(!std::path::Path::new("/etc/pod-extract-should-never-write-this").exists());
 }
 
-/// ⛔ **Refuse rather than sanitize** (T-0304's Decision). The extraction fails
-/// whole; the hostile entry is not quietly skipped while the rest lands.
+/// **Refuse, do not repair.** The extraction fails whole; the hostile entry is
+/// not skipped while the rest lands.
 #[test]
 fn a_refusal_fails_the_extraction_rather_than_skipping_the_entry() {
     let s = Scratch::new("nosanitize");
@@ -248,18 +217,15 @@ fn a_refusal_fails_the_extraction_rather_than_skipping_the_entry() {
         E::File("after", b"a", 0o644),
     ]);
     assert!(run(s.path(), &[l]).is_err());
-    // The entry after the refusal was never reached, which is what "fails the
-    // extraction" means as opposed to "skips the entry".
+    // The entry after the refusal was never reached: "fails the extraction",
+    // not "skips the entry".
     assert!(!s.path().join("after").exists());
 }
 
-// ---------------------------------------------------------------- T-0305
+// ---------------------------------------------------------- absolute symlinks
 
-/// ⭐ The measured link out of a real voidlinux layer,
-/// `experiments/results/whiteout-contract.txt` check C:
-/// `var/cache/xbps -> /var/cache/xbps`. Rejecting it, as onelf does at
-/// `references/qaidvoid__onelf/tree/crates/onelf-format/src/manifest.rs:27-29`,
-/// would refuse almost every real image.
+/// The link of a real void layer: `var/cache/xbps -> /var/cache/xbps`. A
+/// refusal of it, as onelf does, refuses almost each real image.
 #[test]
 fn an_absolute_symlink_is_created_and_points_where_the_image_said() {
     let s = Scratch::new("abslink");
@@ -273,46 +239,29 @@ fn an_absolute_symlink_is_created_and_points_where_the_image_said() {
     run(s.path(), &[l]).expect("legitimate absolute symlinks must extract");
 
     let got = std::fs::read_link(s.path().join("var/cache/xbps")).unwrap();
-    // ⛔ Stored VERBATIM. Rebasing decides whether the link is allowed, never
-    // what is written: storing the rebased form would bake this extraction's
-    // idea of the rootfs into the image, and T-0305 rebases rather than
-    // dereferences for exactly that reason.
+    // Stored WITH NO CHANGE. The rebase decides if the link is allowed, not
+    // what is written: a stored rebased form puts the root of this extraction
+    // into the image.
     assert_eq!(got.to_string_lossy(), "/var/cache/xbps");
-    assert_eq!(
-        std::fs::read_link(s.path().join("etc-mtab"))
-            .unwrap()
-            .to_string_lossy(),
-        "/proc/self/mounts"
-    );
+    assert_eq!(std::fs::read_link(s.path().join("etc-mtab")).unwrap().to_string_lossy(), "/proc/self/mounts");
 }
 
-// ---------------------------------------------------------------- T-0303
+// ---------------------------------------------------------------- whiteouts
 
-/// ⭐ **THE MEASURED DEFECT.** `experiments/70-whiteout-contract.sh` check D
-/// runs udocker's own selector, `tar t --wildcards -f LAYER '*/.wh.*'`
-/// (`references/indigo-dc__udocker/tree/udocker/container/structure.py:242`),
-/// against a crafted archive with one whiteout at the layer root and one
-/// nested, and **the root one is missed**. Both are honoured here.
+/// **THE MEASURED DEFECT.** udocker's selector,
+/// `tar t --wildcards -f LAYER '*/.wh.*'`, on a crafted archive with one
+/// whiteout at the root of the layer and one deeper, **misses the one at the
+/// root**. Both apply here.
 #[test]
 fn a_whiteout_at_the_layer_root_removes_its_target() {
     let s = Scratch::new("whroot");
-    let one = layer(&[
-        E::File("atroot", b"1", 0o644),
-        E::Dir("d/", 0o755),
-        E::File("d/nested", b"2", 0o644),
-    ]);
-    let two = layer(&[
-        E::File(".wh.atroot", b"", 0o644),
-        E::File("d/.wh.nested", b"", 0o644),
-    ]);
+    let one = layer(&[E::File("atroot", b"1", 0o644), E::Dir("d/", 0o755), E::File("d/nested", b"2", 0o644)]);
+    let two = layer(&[E::File(".wh.atroot", b"", 0o644), E::File("d/.wh.nested", b"", 0o644)]);
     let removed = run(s.path(), &[one, two]).unwrap();
     assert_eq!(removed, 2, "both whiteouts must have removed something");
-    assert!(
-        !s.path().join("atroot").exists(),
-        "the ROOT-level whiteout is the one a glob misses"
-    );
+    assert!(!s.path().join("atroot").exists(), "the ROOT-level whiteout is the one a glob misses");
     assert!(!s.path().join("d/nested").exists());
-    // ⛔ The marker itself is never materialised.
+    // The marker itself is never made.
     assert!(!s.path().join(".wh.atroot").exists());
 }
 
@@ -320,34 +269,23 @@ fn a_whiteout_at_the_layer_root_removes_its_target() {
 #[test]
 fn an_opaque_marker_empties_its_directory_and_keeps_it() {
     let s = Scratch::new("opq");
-    let one = layer(&[
-        E::Dir("var/", 0o755),
-        E::File("var/a", b"1", 0o644),
-        E::File("var/b", b"2", 0o644),
-    ]);
-    let two = layer(&[
-        E::File("var/.wh..wh..opq", b"", 0o644),
-        E::File("var/c", b"3", 0o644),
-    ]);
+    let one = layer(&[E::Dir("var/", 0o755), E::File("var/a", b"1", 0o644), E::File("var/b", b"2", 0o644)]);
+    let two = layer(&[E::File("var/.wh..wh..opq", b"", 0o644), E::File("var/c", b"3", 0o644)]);
     run(s.path(), &[one, two]).unwrap();
-    assert!(
-        s.path().join("var").is_dir(),
-        "the directory itself must survive"
-    );
+    assert!(s.path().join("var").is_dir(), "the directory itself must survive");
     assert!(!s.path().join("var/a").exists());
     assert!(!s.path().join("var/b").exists());
-    // ⭐ T-0307's ordering: the opaque marker is applied BEFORE this layer's own
-    // entries, so `var/c`, written by the same layer, survives.
+    // The order: the opaque marker applies BEFORE the entries of its layer,
+    // so `var/c`, written by the same layer, stays.
     assert_eq!(std::fs::read(s.path().join("var/c")).unwrap(), b"3");
 }
 
-// ---------------------------------------------------------------- T-0307
+// ------------------------------------------------------------ order and links
 
-/// ⭐ **THE ORDERING, and it is the case that distinguishes the two orders.**
-/// `references/indigo-dc__udocker/tree/udocker/container/structure.py:279`
-/// applies layer N's whiteouts before extracting N. A layer that deletes a path
-/// and recreates it works only in that order; the opposite order deletes what
-/// the same layer just wrote.
+/// **THE ORDER: the case that tells the two orders apart.** The whiteouts of
+/// layer N apply before the entries of N. A layer that removes a path and
+/// makes it again works only in that order; the other order removes what the
+/// same layer wrote.
 #[test]
 fn a_layer_may_delete_a_path_and_recreate_it_in_the_same_layer() {
     let s = Scratch::new("delrecreate");
@@ -365,10 +303,7 @@ fn a_layer_may_delete_a_path_and_recreate_it_in_the_same_layer() {
 #[test]
 fn a_hard_link_within_the_destination_is_materialised() {
     let s = Scratch::new("hardlink");
-    let l = layer(&[
-        E::File("orig", b"shared", 0o644),
-        E::Hardlink("copy", "orig"),
-    ]);
+    let l = layer(&[E::File("orig", b"shared", 0o644), E::Hardlink("copy", "orig")]);
     run(s.path(), &[l]).unwrap();
     assert_eq!(std::fs::read(s.path().join("copy")).unwrap(), b"shared");
     let a = std::fs::metadata(s.path().join("orig")).unwrap();
@@ -377,19 +312,16 @@ fn a_hard_link_within_the_destination_is_materialised() {
     assert_eq!(a.ino(), b.ino(), "a hard link must share the inode");
 }
 
-/// ⛔ And one whose target is outside the destination is refused.
+/// A hard link whose target is outside the destination is refused.
 #[test]
 fn a_hard_link_out_of_the_destination_is_refused() {
     let s = Scratch::new("hardescape");
     let l = layer(&[E::Hardlink("stolen", "/etc/passwd")]);
-    assert!(
-        matches!(run(s.path(), &[l]), Err(Error::Refused { .. })),
-        "a hard link to an absolute path outside the rootfs was not refused"
-    );
+    refusal_of(run(s.path(), &[l]));
 }
 
-/// A later layer replacing a file with a symlink is ordinary OCI, and must not
-/// write THROUGH the old file or the new link.
+/// A later layer that puts a symlink in place of a file is ordinary OCI, and
+/// must not write THROUGH the old file or the new link.
 #[test]
 fn a_later_layer_may_replace_a_file_with_a_symlink() {
     let s = Scratch::new("replace");
@@ -400,21 +332,17 @@ fn a_later_layer_may_replace_a_file_with_a_symlink() {
     assert!(m.file_type().is_symlink());
 }
 
-// ---------------------------------------------------------------- T-0306
+// ---------------------------------------------------------- the permission pass
 
-/// ⭐ **The failure this prevents looks like a corrupt layer.** A mode-0555
-/// directory in layer 1 cannot be written into when layer 2 extracts over it.
-/// `references/indigo-dc__udocker/tree/udocker/container/structure.py:296-303`
-/// is the pass being copied, and its docstring at
-/// `references/indigo-dc__udocker/tree/udocker/container/structure.py:265-267`
-/// states the reason.
+/// **With no pass, the failure looks like a corrupt layer.** A directory of
+/// mode 0555 in layer 1 cannot take the entries of layer 2 (udocker's pass
+/// after each layer).
 #[test]
 fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
     let s = Scratch::new("reperm");
     let one = layer(&[E::Dir("ro/", 0o555)]);
     let two = layer(&[E::File("ro/added", b"ok", 0o644)]);
-    run(s.path(), &[one, two])
-        .expect("the second layer must be able to write into a 0555 directory");
+    run(s.path(), &[one, two]).expect("the second layer must be able to write into a 0555 directory");
     assert_eq!(std::fs::read(s.path().join("ro/added")).unwrap(), b"ok");
 }
 

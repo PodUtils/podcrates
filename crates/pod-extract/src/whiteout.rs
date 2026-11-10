@@ -1,21 +1,15 @@
-//! `TODO/extract.md` T-0303: a whiteout is matched on the **basename**, never
-//! with a path glob.
+//! A whiteout is matched on the **basename**, not with a path glob.
 //!
-//! ⭐ **Measured here, and the measurement contradicted the first reading of
-//! the code.** `experiments/70-whiteout-contract.sh` check A reads the first
-//! member of every layer of two pinned images and gets `bin/`, `bin` and
-//! `etc/`: no `./` prefix anywhere. Check D then runs udocker's own selector,
-//! `tar t --wildcards -f LAYER '*/.wh.*'`
-//! (`references/indigo-dc__udocker/tree/udocker/container/structure.py:242`),
-//! against a crafted archive with one whiteout at the layer root and one
-//! nested, and **the root one is missed**. The output is in
-//! `experiments/results/whiteout-contract.txt`.
+//! The first member of each layer of real images is `bin/`, `bin` or `etc/`:
+//! no `./` prefix. udocker selects whiteouts with
+//! `tar t --wildcards -f LAYER '*/.wh.*'`, and on a crafted archive with one
+//! whiteout at the root of the layer and one deeper, **it misses the one at
+//! the root**.
 //!
-//! ⛔ The defect is the anchor. `*/.wh.*` needs a slash before the marker, and a
-//! whiteout at the root of a layer has none, because real OCI layers do not
-//! write a `./` prefix. There is no glob that is both correct for a prefixed
-//! archive and a bare one, which is why this is a basename test and not a
-//! better glob.
+//! The defect is the anchor. `*/.wh.*` needs a slash before the marker, and a
+//! whiteout at the root of a layer has none, as real OCI layers have no `./`
+//! prefix. No glob is correct for both a prefixed and a bare archive, so this
+//! is a basename test, not a better glob.
 
 /// The prefix, and the opaque marker, exactly as the OCI layer specification
 /// writes them.
@@ -31,27 +25,25 @@ pub enum Kind {
     /// directory this marker sits in. The payload carried is the name to
     /// remove, not the marker.
     Remove(String),
-    /// `.wh..wh..opq`: remove the **contents** of the directory this marker
-    /// sits in, keeping the directory itself. What
-    /// `references/indigo-dc__udocker/tree/udocker/container/structure.py:249-256`
-    /// does by listing that directory and removing each entry.
+    /// `.wh..wh..opq`: remove the **contents** of the directory of this marker,
+    /// and keep the directory (udocker lists the directory and removes each
+    /// entry).
     Opaque,
 }
 
 /// Classify one entry path.
 ///
-/// ⛔ The basename, and nothing else. `path` may be prefixed, bare, or carry a
-/// trailing slash; all three reach the same answer, which is the property the
-/// glob did not have.
+/// The basename, and nothing more. `path` can be prefixed, bare, or have a
+/// trailing slash; the three give the same answer, which the glob did not.
 pub fn classify(path: &str) -> Kind {
     let base = basename(path);
     if base == OPQ {
         return Kind::Opaque;
     }
     match base.strip_prefix(WH) {
-        // ⚠ `.wh.` with nothing after it names no file. It is left as an
-        // ordinary entry rather than turned into a removal of "", which would
-        // be a removal of the directory the marker sits in.
+        // `.wh.` with nothing after it names no file. It stays an ordinary
+        // entry and is not a removal of "", which would remove the directory
+        // of the marker.
         Some("") | None => Kind::Normal,
         Some(name) => Kind::Remove(name.to_string()),
     }
@@ -60,19 +52,13 @@ pub fn classify(path: &str) -> Kind {
 /// The last non-empty path component. A trailing slash is a directory marker,
 /// not a component.
 pub fn basename(path: &str) -> &str {
-    path.trim_end_matches('/')
-        .rsplit('/')
-        .next()
-        .unwrap_or(path)
+    path.trim_end_matches('/').rsplit('/').next().unwrap_or(path)
 }
 
 /// The directory part, as components, with the basename dropped.
 pub fn dirname_parts(path: &str) -> Vec<&str> {
     let trimmed = path.trim_end_matches('/');
-    let mut parts: Vec<&str> = trimmed
-        .split('/')
-        .filter(|c| !c.is_empty() && *c != ".")
-        .collect();
+    let mut parts: Vec<&str> = trimmed.split('/').filter(|c| !c.is_empty() && *c != ".").collect();
     parts.pop();
     parts
 }
@@ -81,22 +67,20 @@ pub fn dirname_parts(path: &str) -> Vec<&str> {
 mod tests {
     use super::*;
 
-    /// ⭐ THE MEASURED CASE. `experiments/70-whiteout-contract.sh` check D
-    /// crafts an archive with a whiteout at the layer root and one nested, runs
-    /// udocker's `*/.wh.*` selector over it, and the root one is missed. Both
-    /// are found here, and that is the entire point of T-0303.
+    /// The measured case: a whiteout at the root of the layer and one deeper.
+    /// udocker's `*/.wh.*` misses the one at the root; both are found here.
     #[test]
     fn a_root_level_whiteout_is_found_and_a_glob_would_miss_it() {
         assert_eq!(classify(".wh.foo"), Kind::Remove("foo".into()));
         assert_eq!(classify("a/.wh.foo"), Kind::Remove("foo".into()));
-        // The selector that produced the defect, for the record: it needs a
-        // slash before the marker, and the root-level name has none.
+        // The selector with the defect: it needs a slash before the marker,
+        // and the name at the root has none.
         assert!(!".wh.foo".contains("/.wh."));
         assert!("a/.wh.foo".contains("/.wh."));
     }
 
-    /// ⚠ Real layers carry no `./`, measured in check A. A prefixed archive is
-    /// still handled, because the basename is the same either way.
+    /// Real layers have no `./`. A prefixed archive still works: the basename
+    /// is the same.
     #[test]
     fn prefixed_and_bare_reach_the_same_answer() {
         assert_eq!(classify("./.wh.foo"), Kind::Remove("foo".into()));
@@ -107,10 +91,7 @@ mod tests {
     fn opaque_is_its_own_kind_and_is_not_a_removal_of_a_file_called_wh_opq() {
         assert_eq!(classify(".wh..wh..opq"), Kind::Opaque);
         assert_eq!(classify("var/cache/.wh..wh..opq"), Kind::Opaque);
-        assert_eq!(
-            dirname_parts("var/cache/.wh..wh..opq"),
-            vec!["var", "cache"]
-        );
+        assert_eq!(dirname_parts("var/cache/.wh..wh..opq"), vec!["var", "cache"]);
         assert!(dirname_parts(".wh..wh..opq").is_empty());
     }
 
@@ -119,8 +100,8 @@ mod tests {
         assert_eq!(classify("etc/passwd"), Kind::Normal);
         assert_eq!(classify("a.wh.b"), Kind::Normal);
         assert_eq!(classify("x/y.wh.z"), Kind::Normal);
-        // ⚠ A directory whose own name starts with the marker is still a
-        // removal; the trailing slash must not change the answer.
+        // A directory whose name starts with the marker is still a removal;
+        // the trailing slash must not change the answer.
         assert_eq!(classify("a/.wh.d/"), Kind::Remove("d".into()));
     }
 

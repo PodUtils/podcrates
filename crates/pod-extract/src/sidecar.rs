@@ -1,38 +1,30 @@
-//! `TODO/extract.md` T-0302: ownership-neutral extraction, plus the record of
-//! what the image meant.
+//! An extraction with no ownership change, and the record of what the image
+//! meant.
 //!
-//! ⭐ **The wall this crate exists to survive.** `chown` and `lchown` to an
-//! unmapped id return **`EINVAL`**, not `EPERM`, and that is where GNU tar,
-//! containers/storage's layer applier, Apptainer's Go unpacker, pacman's
-//! `DownloadUser` and rurima's `tar -xpf` all stop. The wall itself is at
-//! `references/containers__storage/tree/pkg/archive/archive.go:798-811`: with
-//! `chownOpts` nil it takes the ids straight from the tar header and calls
-//! `idtools.SafeLchown`. The switch is at
-//! `references/containers__storage/tree/pkg/archive/archive.go:1104`.
+//! **The wall.** `chown` and `lchown` to an id that the namespace does not
+//! map give **`EINVAL`**, not `EPERM`, and GNU tar, the layer applier of
+//! containers/storage (with no `chownOpts` it takes the ids of the tar header
+//! and calls `idtools.SafeLchown`), the unpacker of Apptainer, the
+//! `DownloadUser` of pacman and the `tar -xpf` of rurima stop there.
+//! `/etc/shadow` is usually the first file: it is `root:shadow`, gid 42
+//! (`-rw-r----- 0/42 etc/shadow` in alpine).
 //!
-//! `/etc/shadow` is the usual first casualty because it is `root:shadow`, gid
-//! 42, and that is measured rather than assumed:
-//! `experiments/results/whiteout-contract.txt` check B reads
-//! `-rw-r----- 0/42 ... etc/shadow` out of a pinned `alpine` image.
+//! **Do not restore ownership by default.** The model is udocker: no
+//! ownership change *by design*, not by a recovery.
 //!
-//! ⛔ **Never restore ownership by default.** The design to copy is udocker's,
-//! which is ownership-neutral *by construction* rather than by recovery:
-//! `references/indigo-dc__udocker/tree/udocker/container/structure.py:285-287`.
-//!
-//! The sidecar buys three things `--no-same-owner` alone does not: faithful
-//! re-export, an honest answer to a workload that asks who owns a file, and a
+//! The sidecar gives three things that `--no-same-owner` alone does not: a
+//! true export, a true answer to a workload that asks who owns a file, and a
 //! diagnostic that names the gap.
 //!
-//! ⛔ **It changes no kernel permission check and must never be presented as if
-//! it does.** A file recorded here as `gid 42` is owned by the extracting id on
-//! disk, and every access check the kernel makes uses the latter.
+//! **It changes no permission check of the kernel. Do not show it as if it
+//! does.** A file that the sidecar records as `gid 42` has the extracting id on
+//! disk, and the kernel checks each access with that id.
 
 use std::fmt::Write as _;
 use std::io::Write;
 
-/// One line of the sidecar. Serialised by hand rather than through a derive,
-/// because the shape is fixed by `TODO/extract.md` T-0302 and a field order
-/// that drifts is a diff nobody can read.
+/// One line of the sidecar. Written by hand, not with a derive: the shape is
+/// fixed, and a field order that changes gives a diff that nobody can read.
 #[derive(Debug, Clone)]
 pub struct Meta {
     pub path: String,
@@ -41,18 +33,17 @@ pub struct Meta {
     pub mode: u32,
     pub applied_uid: u64,
     pub applied_gid: u64,
-    /// Absent when nothing was dropped, which is the ordinary case for a file
-    /// the image already owns as the extracting id.
+    /// Absent when nothing was dropped: the usual case for a file that the
+    /// image gives to the extracting id.
     pub reason: Option<String>,
-    /// ⭐ T-0306. The mode the image asked for is `mode`; this is what the
-    /// re-permission pass widened it to, and it is recorded so a re-export can
-    /// put the image's own mode back.
+    /// The image asked for `mode`; this is the wider mode that stayed on disk,
+    /// recorded so that an export can put the mode of the image back.
     pub applied_mode: Option<u32>,
 }
 
 impl Meta {
-    /// ⚠ JSON, by hand, and the only escaping that matters is the path's: a
-    /// member name in an image may carry a quote or a backslash.
+    /// JSON, by hand. Only the path needs escapes: a member name in an image
+    /// can have a quote or a backslash.
     pub fn to_json(&self) -> String {
         let mut s = String::new();
         let _ = write!(
@@ -78,9 +69,9 @@ impl Meta {
     }
 }
 
-/// ⛔ Escapes what JSON requires and nothing else. A path in an image is bytes;
-/// a control byte is escaped rather than dropped, because dropping one produces
-/// a record naming a different file.
+/// Escapes what JSON needs and nothing more. A path in an image is bytes; a
+/// control byte is escaped, not dropped: a record with a byte dropped names a
+/// different file.
 pub fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
@@ -101,12 +92,9 @@ pub fn json_string(s: &str) -> String {
     out
 }
 
-/// The sidecar writer. One JSON object per line, so a rootfs with 200,000
-/// entries does not have to be held in memory to be read back, and so an
-/// interrupted extraction leaves a file whose complete lines are still valid.
-/// The first entry that lost an id, with what the kernel applied instead.
-/// The extraction report names it, so the diagnostic quotes one measured case
-/// rather than a count.
+/// The first entry that lost an id, with the ids that the kernel applied.
+/// The report of the caller names it, so that the diagnostic quotes one
+/// measured case, not only a count.
 #[derive(Debug, Clone)]
 pub struct FirstDropped {
     pub path: String,
@@ -116,6 +104,9 @@ pub struct FirstDropped {
     pub applied_gid: u64,
 }
 
+/// The writer of the sidecar. One JSON object on each line: a reader does not
+/// keep a root file system of 200,000 entries in memory, and an interrupted
+/// extraction leaves a file whose complete lines are valid.
 pub struct Sidecar {
     out: std::io::BufWriter<std::fs::File>,
     written: u64,
@@ -155,9 +146,9 @@ impl Sidecar {
         Ok((self.written, self.dropped))
     }
 
-    /// How many entries carried an id this machine could not apply. ⚠ Reported
-    /// rather than hidden: it is the number that says how far the image's
-    /// ownership and the extracted tree's have diverged.
+    /// How many entries had an id that this machine could not apply. Reported,
+    /// not hidden: the number tells how far the ownership of the image and of
+    /// the extracted tree differ.
     pub fn dropped(&self) -> u64 {
         self.dropped
     }
@@ -172,11 +163,10 @@ impl Sidecar {
 mod tests {
     use super::*;
 
-    /// ⭐ THE SHAPE `TODO/extract.md` T-0302 SPECIFIES, and the exact case
-    /// `experiments/results/whiteout-contract.txt` check B measured out of
-    /// alpine. T-0302's `Prove` runs
+    /// The fixed shape, with the measured case of alpine. A consumer check
+    /// runs
     /// `jq -e 'select(.path=="etc/shadow") | .uid==0 and .gid==42 and .applied.gid==0'`
-    /// over this line, so these three fields are what the acceptance reads.
+    /// over this line: these three fields are what it reads.
     #[test]
     fn the_shadow_line_is_what_the_acceptance_greps_for() {
         let m = Meta {
@@ -217,8 +207,8 @@ mod tests {
     fn a_path_carrying_a_quote_stays_valid_json() {
         assert_eq!(json_string("a\"b\\c"), r#""a\"b\\c""#);
         assert_eq!(json_string("a\nb"), r#""a\nb""#);
-        // ⛔ Escaped, never dropped: a record naming `ab` describes a
-        // different file from the one the layer carried.
+        // Escaped, not dropped: a record of `ab` names a different file from
+        // the file of the layer.
         assert_eq!(json_string("a\u{1}b"), r#""a\u0001b""#);
     }
 }
