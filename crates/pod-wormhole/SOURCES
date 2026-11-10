@@ -1,0 +1,23 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh c5636c977df13484c27d2b4f3f516db8ea746db5
+# code/exchange.rs (what the ends say) and, of code/run.rs, the exchange
+# (give, take, give_with, take_with, Waits, Given, Taken, Reply) go to
+# pod-relay (T-024); of code/mod.rs, the choice of the mailboxes
+# (mailboxes, public_mailboxes, ENV, LIFETIME, Say) stays in podssh. The
+# tests of tests/pair_code.rs that run an exchange go with run.rs; the
+# others stay here. tests/pair_code_live.rs: its live test runs the
+# exchange; the live test of this crate is a rewrite over the wormhole.
+file 6e12bc69b04221783bc9b6c45766c7cf6e80f4ba crates/podssh-relay/src/code/mod.rs -> crates/pod-wormhole/src/lib.rs
+file 15bf2aa0d4f70d83db6a35866b45ff63079be04b crates/podssh-relay/src/code/mailbox.rs -> crates/pod-wormhole/src/mailbox.rs
+file 08fd9de1872c504392786c88ebcdfde1c13c91e5 crates/podssh-relay/src/code/wormhole.rs -> crates/pod-wormhole/src/wormhole.rs
+file e60823dc1bd59ef1b4d1e8f254e76c104689480a crates/podssh-relay/src/code/phrase.rs -> crates/pod-wormhole/src/phrase.rs
+file 1ac1f47358609afa964f73552c8b781b4d9ebd55 crates/podssh-relay/src/code/words.rs -> crates/pod-wormhole/src/words.rs
+file dedfdfccd8b2f2c9bbca852a8666e03038f982a9 crates/podssh-relay/src/code/run.rs -> crates/pod-wormhole/src/meet.rs
+file 2d98bd285089e7d2c24b4e7cdeb567d39e8748f8 crates/podssh-relay/tests/mailbox_harness/mod.rs -> crates/pod-wormhole/tests/harness/mod.rs
+file 42a9f8f50ee2bc3d7752ca7a6f52c22161620b21 crates/podssh-relay/tests/pair_code.rs -> crates/pod-wormhole/tests/mailbox.rs
+file b67b59d7ffe000cbb376533f28969a44dc3859bf crates/podssh-relay/tests/pair_code_live.rs -> crates/pod-wormhole/tests/live.rs
+file 6a13f8e3ac3ba4a816413fcde4b8b32893e8fd5f scripts/wormhole-peer.py -> crates/pod-wormhole/tests/wormhole-peer.py
