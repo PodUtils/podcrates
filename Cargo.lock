@@ -1643,6 +1643,7 @@ dependencies = [
  "pod-supervise",
  "pod-term",
  "pod-tls",
+ "pod-ws",
 ]
 
 [[package]]

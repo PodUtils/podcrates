@@ -97,6 +97,7 @@ fn main() {
     lines.extend(oci(tls));
     lines.extend(extract());
     lines.extend(rootfs());
+    lines.push(ws());
     for line in lines {
         println!("{line}");
     }
@@ -279,4 +280,24 @@ fn rootfs() -> Option<String> {
 #[cfg(not(target_os = "linux"))]
 fn rootfs() -> Option<String> {
     None
+}
+
+/// pod-ws: a way through a direct dialer, with ECH and the records of
+/// pod-dns; the frames, the accept value and a pool of HTTP/2 link in.
+fn ws() -> String {
+    let provider = std::sync::Arc::new(pod_tls::crypto::provider());
+    let tls = pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("static-probe")));
+    let settings = pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct);
+    let dialer = pod_proxy::Dialer::new(settings, std::sync::Arc::new(pod_proxy::resolve::System::new()));
+    let way = pod_ws::Way::new(std::sync::Arc::new(tls), std::sync::Arc::new(dialer), "static-probe");
+    let frame = pod_ws::Frame { fin: true, opcode: pod_ws::frame::OPCODE_BINARY, payload: b"probe".to_vec() };
+    let bytes = pod_ws::frame::encode(&frame, pod_ws::frame::Role::Client, [1, 2, 3, 4]);
+    let pool = pod_ws::h2_road::Pool::new();
+    format!(
+        "pod-ws: {} bytes for a frame of 5, accept {}, way {}, {pool:?}, limits {:?}",
+        bytes.len(),
+        pod_ws::handshake::accept_key("dGhlIHNhbXBsZSBub25jZQ=="),
+        way.label(),
+        pod_ws::Limits::default()
+    )
 }
