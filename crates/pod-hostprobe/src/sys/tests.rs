@@ -158,6 +158,14 @@ fn statfs_reads_the_wide_struct_on_each_width() {
 #[test]
 fn statfs_reads_the_mount_flags() {
     let root = statfs(&CBuf::new("/").expect("a path")).expect("statfs of /");
+    // qemu-user copies no f_flags into the guest's struct: zero there is
+    // the emulator's answer, and Statfs::flag reads it as None. A kernel
+    // always sets ST_VALID, so a native run keeps the full check.
+    let set = |v: &str| std::env::var_os(v).is_some();
+    if root.f_flags == 0 && crate::interp::detect(&set).is_emulated() {
+        pod_testkit::host::skip_line("an emulator runs this test, and it gives no f_flags of statfs(2)");
+        return;
+    }
     assert_ne!(root.f_flags & ST_VALID, 0, "f_flags {:#x} of / has no ST_VALID", root.f_flags);
     assert!(root.f_flags < 0x1_0000, "f_flags {:#x} of / has bits past the ST_* set", root.f_flags);
     let Ok(mounts) = std::fs::read_to_string("/proc/self/mounts") else {
