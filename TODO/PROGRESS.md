@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 168 entries: 61 open, 3 partial, 0 blocked, 104 done.
+`TODO/INDEX.md` holds 170 entries: 62 open, 4 partial, 0 blocked, 104 done.
 
 ## State
 
@@ -40,6 +40,15 @@
   release and the take remain; from the import, podssh's `src/session/`, `src/udp/`,
   `src/answer.rs` and `src/transit/link.rs` take fixes only
   (`crates/pod-session/SOURCES`). podnet takes it later (its T-086).
+- M1: `pod-hold` exists (T-166 partial, call C48): the generic core of
+  podnet's `podnet-netns` (the seccomp filter, the receive, the memory,
+  the reply, the table with the flow budget, the netns entry and the TUN),
+  each hold with its level and proof. The patch of podnet
+  (`adoption/podnet/pod-hold.*`, podnet `9e8d177`, `v0.15.0`) needs one
+  clean run of its trial; the cross tests, the release and the take
+  remain. From the import, podnet's files of the core take fixes only
+  (`crates/pod-hold/SOURCES`). T-169 and T-170 ask podnet about two more
+  parts.
 - GitHub #20 to #36 are in the record; #35 and #36 are routed
   (`docs/research/fleet/asks.md`). podnet's asks for `pod-relay`, `pod-dns`
   and `pod-services` are T-121 to T-127 and T-150 (PodUtils/podnet#413).
@@ -72,7 +81,7 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-3. **M1, the transport:** T-166 (`pod-hold`, podnet's hand-off PodUtils/podnet#422); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+3. **M1, the transport:** T-166 (partial: the clean run of the trial of podnet, the cross tests, the release `v0.15.0`, the take); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 4. **M2, the relay:** T-020 (partial: the release `v0.15.0` and the take of podssh), T-167, T-021,
    T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
@@ -95,8 +104,7 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C46), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C48), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

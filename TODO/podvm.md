@@ -2046,7 +2046,7 @@ Depends on no other crate.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2089,3 +2089,174 @@ sh scripts/adoption.sh podnet pod-hold
 sh scripts/agent/check.sh
 ```
 
+## Done
+
+2026-11-10, partial: the clean run of the trial of podnet on this tree,
+the cross tests, the release `v0.15.0` and the take of podnet remain.
+Read: podnet `main` at `9e8d177` (`PodUtils/podnet:crates/podnet-netns`). Commits
+`7ca9a36` (the import of `seccomp/filter.rs`, `seccomp/notif.rs`,
+`seccomp/mem.rs`, `seccomp/mod.rs`, `fdtable.rs`, `netns/mod.rs`,
+`netns/tun.rs`, `netns/fdpass.rs`, with `SOURCES`), `11e8cad` (the
+adaptation), `24c8697` (a defect of `pod-hostprobe`), `89ccffc` (the
+static probe, the fuzz target `hold_sockaddr`, three plants), `759c4ef`
+(README, the row of `docs/design.md`, call C48, the trial files) and the
+commit of this record.
+
+- API: `abi` (the ioctl numbers from the encoding of the target),
+  `filter` (`Calls::sockets`, `program`, `install`), `spawn` (`resolve`
+  with the caller's `PATH`, `Program`, `start` gives `Started { listener,
+  pid, hold }`), `listen` (`Listener::recv`: poll, `NOTIF_RECV`, the open
+  of the memory, `NOTIF_ID_VALID` after the open), `mem` (`Memory`,
+  `Access` in place of podnet's `PODNET_NETNS_TEST_MEM`), `sockaddr`,
+  `reply` (the seam `Answer`; `Recorded` for tests), `table`
+  (`Table<T>`, the flow budget, `Refusals` with a `const fn new`),
+  `netns` (`enter`, `announce`, `answer`, `Tun`, `create_tun`, the
+  descriptor passing), `level` (`Level` `enforced`, `advisory`, `none`;
+  `Hold { level, proof, not_held }`). No environment read, no global, no
+  output; each failure is a `pod_core::Failure` of the stage `host`. The
+  raw `prctl`, `seccomp`, `unshare` and `prlimit64` go through
+  `pod-hostprobe`. 19 source files, each under 500 lines.
+- Cut (call C48): the handlers of each call, the dials and the hand-off,
+  the relays, the rules, the upstreams, the fake DNS, the router of the
+  TUN, the reaper, `pod doctor` and the CLI stay in podnet. T-169 (the
+  dial state of a held `connect`) and T-170 (the netns hold of a SYN) ask
+  podnet whether two more parts are in its cut.
+- Defects found and fixed, each with its test: podnet's x86_64 ioctl
+  numbers of `NOTIF_ADDFD`, `NOTIF_ID_VALID` and `TUNSETIFF` are wrong on
+  powerpc64le (`each_ioctl_number_follows_the_encoding_of_its_architecture`;
+  the trial found the same `TUNSETIFF` in podnet's `src/warp/tun.rs`, and
+  the patch fixes it there); podnet's `recv_fd` kept the extra descriptors
+  of a message (`a_message_with_no_descriptor_or_with_two_is_refused`);
+  `read_word` panicked past the bytes and an address past `i64::MAX`
+  overflowed (`a_word_is_read_only_inside_the_bytes`,
+  `a_read_past_the_memory_fails`); `pod-hostprobe`'s probe
+  `seccomp(NEW_LISTENER)` put the filter pointer at offset 8 on a 32-bit
+  target and got EFAULT (`the_filter_pointer_is_where_the_kernel_reads_it`
+  fails on the old code as an i686 binary under qemu-i386, left 8 right 4);
+  podnet's README named Linux 5.0, but `SECCOMP_ADDFD_FLAG_SEND` needs 5.14
+  (the patch corrects it).
+- Tests: `cargo test -p pod-hold --all-features`: 28 unit tests (podnet's
+  `the_filter_covers_the_bypass_surfaces` and the four tests of
+  `fdtable.rs` keep their names) and `tests/hold.rs` (no libtest: a
+  refused connect fails with the errno of the reply, a socket call gets
+  the descriptor of the supervisor, a namespace gives its TUN to the
+  parent): each passed on this host, none skipped. The fuzz target
+  `hold_sockaddr` (four seeds) passes the stable test of `fuzz/`. The
+  plants `hold-reply-errno-positive`, `hold-address-read-past-length` and
+  `hold-filter-foreign-abi-passes` are each caught
+  (`sh scripts/plant-each.sh`). `sh scripts/agent/check.sh` exit 0 on the
+  rebased tree.
+- Trial (`adoption/podnet/pod-hold.{patch,run,commit}`, podnet `9e8d177`,
+  tag `v0.15.0`): before the rebase onto `53dd5da`, a run passed each step
+  up to `! git grep` of the written ioctl numbers (the record, size,
+  layers, build, cargo-deny bans and sources, `cargo tree -i pod-hold`),
+  which found `src/warp/tun.rs`. Before that run, on a scratch copy, the
+  glue built with clippy clean, `cargo test -p podnet-netns` (77 + 1
+  tests) passed, and the integration tests `pod_seccomp_tcp`, `_dgram`,
+  `_fds`, `_handoff`, `_nonblock`, `_rules`, `_slow_dial`, `_diff`,
+  `pod_backend_line`, `pod_usage`, `af_inet_kernel` and `doctor` passed
+  (56 tests). The patch then changed (`src/warp/tun.rs`, the root
+  `Cargo.toml`, the README of podnet-netns, a remap of `PodUtils/podnet:TODO/pods.md`); no
+  run of the trial covers the patch as it is now.
+- Next step: `sh scripts/adoption.sh podnet pod-hold` in one clean run
+  (about 40 minutes; it needs about 10 GB of disk). Then cross-build the
+  tests of `pod-hold` for i686, aarch64, riscv64gc and loongarch64 musl
+  (`cargo zigbuild --target T -p pod-hold --tests`) and run each binary,
+  with `tests/hold` as `hold`, under `QEMU_LD_PREFIX=/ qemu-ARCH`; record
+  where qemu-user refuses the seccomp listener (the test prints `SKIP:`).
+  Then the release `v0.15.0` and a COORD issue `(to podnet)` with the
+  patch.
+
+# T-169: `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs`
+
+**Source:** T-166 (the cut of `pod-hold`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-hold` (T-166) has the receive, the memory, the reply and the table,
+but each consumer that holds a `connect` must write the state of a dial
+again: the call waits while the supervisor dials, a second call waits for
+the same dial, a nonblocking `connect` gets `EINPROGRESS` and a second
+one `EALREADY`, `getsockopt(SO_ERROR)` waits for the end of the dial, a
+`close` during the dial gives `ECONNABORTED`, and a dial with no waiting
+call is dropped. podnet has this state in
+`PodUtils/podnet:crates/podnet-netns/src/connect.rs` (`Dials`, `Waiting`,
+`ErrorCall`, `finish`, `answer_error`), bound to its `Sock` entry, its
+hand-off and its relays. podvm (PodUtils/podvm@T-1665) and podrunner
+(T-160) need the same state with their own dial.
+
+## Premise
+
+- Read: `connect.rs` at podnet `9e8d177` (411 lines): the state uses only
+  the reply, `notif_id_valid`, `child_fd_flags`, the memory of the task
+  and the table; the dial is a task that sends a `Dialed` back to the loop.
+- Not read: how `crate::handoff` and `crate::sockopt::Connected` would
+  take a generic entry.
+- PodUtils/podnet#414 names the loop, the memory, the table and the reply,
+  not this state: podnet's view is needed before the import.
+
+## Approach
+
+Ask podnet (a COORD issue of podcrates `(to podnet)`) whether the dial
+state is in the cut. If so: import `connect.rs` (its state only) as
+`pod_hold::connect` with a trait of the consumer for the dial and the end
+of a dial, keep each test with its name, and test the waits with a
+`Recorded` reply and a memfd.
+
+## Prove
+
+```sh
+cargo test -p pod-hold
+sh scripts/adoption.sh podnet pod-hold
+```
+
+# T-170: `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router
+
+**Source:** T-166 (the cut of `pod-hold`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The netns hold of `pod-hold` (T-166) gives the namespace and its TUN. The
+hold of each `connect` on the TUN is in podnet's router: the stack holds
+each SYN, dials the upstream first, and accepts the connection only when
+the dial succeeds, else it answers a RST
+(`PodUtils/podnet:crates/podnet-netns/src/netns/backend.rs`, `hold_syns`,
+`accept_flows`; `netns/packet.rs`, `parse_tcp_syn`, `rst_reply_for_syn`,
+`ipv4_checksum`). A consumer of the netns hold (podvm `--net`) needs the
+same hold of a SYN with its own dial.
+
+## Premise
+
+- Read: the names of the functions of `backend.rs` (621 lines) and
+  `packet.rs` (110 lines) at podnet `9e8d177`. The router runs on smoltcp
+  0.12 (`medium-ip`); `pod-netstack` (T-023) is on smoltcp 0.14.
+- Not read: the router in full; its ties to the rules, the flow log and the
+  UDP flows of podnet.
+- podnet's cut (PodUtils/podnet#414) names "the netns hold of a connect":
+  T-166 read it as the namespace and the TUN. podnet's view is needed.
+
+## Approach
+
+Ask podnet with the COORD issue of the entry above. If the hold of a SYN
+is in the cut: import `packet.rs` (`parse_tcp_syn`, `rst_reply_for_syn`,
+`ipv4_checksum`, with the tests `parses_a_tcp_syn` and
+`the_rst_reply_answers_the_syn` of podnet's `lib.rs`) and the hold of a
+SYN of `backend.rs` behind a trait of the consumer for the dial, after
+the smoltcp version of `pod-netstack` is settled.
+
+## Prove
+
+```sh
+cargo test -p pod-hold
+sh scripts/adoption.sh podnet pod-hold
+```
