@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podssh af214a6d62f26958e1ab3a39dbc062d867b8cd01
+taken 525f8907ed7d3ab7563bc5a39c46b77efe4dd413
 # quick/quic.rs: the settings of the transport, the reset key, the
 # endpoint, connect and handshake are here. server_name, alpn (the data of
 # pod-services), tls on podssh's provider (here the caller's), connect_edge,
@@ -21,8 +22,12 @@ file a41488816ea9b54cfc43886fd26d9c20494ba89f crates/podssh-relay/tests/quick_pr
 file c276ec0f2608ff8203d6367ed02ac968f21de864 crates/podssh-relay/tests/quick_tunnel_quic.rs -> crates/pod-quic/tests/handshake.rs
 
 repo PodUtils/podnet 2fed3ff211261a9680bd9a25fda70b2dafecb2af
+taken b7b0aeffddf67ab9d5d50d8b39d21df063c1be48
+# src/warp/quic.rs as podnet took the crate: with its fix of the waker of
+# each sender (T-228, 1d556fb); pod-quic has the same fix
+# (two_senders_on_a_full_way_each_wake).
 # src/warp/quic.rs at the fix of T-225 (8bd5331): WarpUdpSocket is
 # queued.rs (Datagrams over a Link); its adapter to the socket of the QUIC
 # stack is socket.rs. endpoint and client_config (the trust of podnet, the
 # MTU of its tunnel) stay in podnet and call this crate.
-file 1095ee29180edb24ce9d85b42c8db902f8e33f58 src/warp/quic.rs -> crates/pod-quic/src/queued.rs crates/pod-quic/src/socket.rs
+file a047d2349a4f8c76cf4a5ec3fb0a006fcdaf7833 src/warp/quic.rs -> crates/pod-quic/src/queued.rs crates/pod-quic/src/socket.rs

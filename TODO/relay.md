@@ -72,7 +72,7 @@ connection, so it needs no `h3` binding. Defect found: the send poller of
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -183,6 +183,17 @@ the commit that gives `connect::tls` rustls's own verifier (the guard
   paths, the static probes, the tests); `python3 -I
   scripts/check-sources.py` on `pod-quic` (podssh 5 files, podnet 1 file,
   0 changes); `python3 -I scripts/check-probe.py`.
+
+- Released in `v0.14.0` (`c8e2fae`, release 42833358262; GitHub #50).
+  podssh took `pod-quic` at `525f8907` (PodUtils/podssh#185; no conflict;
+  each line of the `.run` passed; 3,377 tests in a namespace with the
+  loopback alone) and podnet at `b7b0aef` (PodUtils/podnet#421; it kept the
+  patch's `src/warp/quic.rs` over its own fix of PodUtils/podnet@T-228; no quinn is left).
+  Both `taken` lines are in `crates/pod-quic/SOURCES`; the snapshot of
+  podnet's file moves to the version with PodUtils/podnet@T-228 (`1d556fb`), which the
+  crate has in its own form (check-sources: 0 changes). The trial of
+  podnet ends; podssh's `pod-quic.patch` stays while `pod-wormhole.needs`
+  names it.
 
 # T-020: `pod-session`: the resumable layer and UDP in a stream
 
@@ -843,7 +854,7 @@ other waits for its next timer or packet.
 
 ## Approach
 
-The take of `pod-quic` (`adoption/podnet/pod-quic.patch`) removes the
+The take of `pod-quic` (`pod-quic.patch` of podnet at `v0.14.0`) removes the
 defect: `pod_quic::socket` gives the way one fan-out waker that wakes each
 sender. Tell podnet in the hand-off of `v0.14.0` (a COORD issue of
 podcrates `(to podnet)`), with this entry. The file is frozen in podnet

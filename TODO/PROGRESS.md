@@ -1,14 +1,15 @@
 # Progress
 
-`TODO/INDEX.md` holds 159 entries: 55 open, 3 partial, 0 blocked, 101 done.
+`TODO/INDEX.md` holds 159 entries: 55 open, 2 partial, 0 blocked, 102 done.
 
 ## State
 
 - Released: `v0.14.0` at `c8e2fae` (CI 42820376444, nightly 42820376880,
   release 42833358262): `pod-quic` on noq, `pod-services-watch`, the
   services `serveo`, `ssh-j` and `croc`, one bound of the timed tests.
-  COORD-025 (GitHub #50) hands `pod-quic` to podssh and podnet. podssh
-  and podnet are on `v0.13.0`, podvm on `v0.12.0`. Open: T-131 (`pod-gsr`
+  COORD-025 (GitHub #50) hands `pod-quic` to podssh and podnet: podssh
+  took it (`525f8907`, PodUtils/podssh#185), podnet too (`b7b0aef`,
+  PodUtils/podnet#421). podvm is on `v0.12.0`. Open: T-131 (`pod-gsr`
   on Windows ARM64), T-149 (qemu-user only).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
@@ -66,8 +67,7 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
    `pod-todo`.
 3. **M1, the transport:** T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-019 (partial: the takes of podssh and podnet;
-   the podnet patch again when podnet `1d556fb` reaches its `main`); T-020, T-021, T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
+4. **M2, the relay:** T-020, T-021, T-022 (partial: the release `v0.15.0`, the take), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,

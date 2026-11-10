@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**159 entries: 55 open, 3 partial, 0 blocked, 101 done.**
+**159 entries: 55 open, 2 partial, 0 blocked, 102 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 2 | 0 | 35 | 55 |
+| P1 | 18 | 1 | 0 | 36 | 55 |
 | P2 | 26 | 1 | 0 | 49 | 76 |
 | P3 | 11 | 0 | 0 | 15 | 26 |
-| **All** | 55 | 3 | 0 | 101 | 159 |
+| **All** | 55 | 2 | 0 | 102 | 159 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -65,7 +65,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-016](transport.md) | P1 | M | M1 | feature | done | `pod-ws`: the WebSocket client and server, HTTP/2 and cleartext roads |
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
-| [T-019](relay.md) | P1 | M | M2 | feature | partial | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
+| [T-019](relay.md) | P1 | M | M2 | feature | done | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
 | [T-020](relay.md) | P1 | L | M2 | feature | open | `pod-session`: the resumable layer and UDP in a stream |
 | [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | partial | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
