@@ -1,0 +1,57 @@
+name: guest
+
+# The tests of pod-guest with a real emulator (T-138; docs/design.md,
+# section 9), each week and by hand. The runner has QEMU. The tests use TCG;
+# the test with KVM runs where /dev/kvm opens (the step makes it open for
+# the runner user where the device exists). One test thread: one guest at a
+# time, each with a bound on its waits. The last step fails when a qemu
+# process stays.
+
+on:
+  schedule:
+    - cron: "41 4 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: "4"
+
+jobs:
+  guest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: QEMU
+        run: |
+          set -eu
+          sh scripts/retry.sh sudo apt-get update
+          sh scripts/retry.sh sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils
+          qemu-system-x86_64 --version
+      - name: KVM
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            echo "kvm: /dev/kvm opens"
+          else
+            echo "kvm: no /dev/kvm, the KVM test skips"
+          fi
+      - name: Test pod-guest
+        timeout-minutes: 15
+        run: timeout --kill-after=30 600 cargo test --locked -p pod-guest --all-features -- --test-threads=1 --nocapture
+      - name: No emulator stays
+        if: always()
+        run: |
+          if pgrep -a qemu; then
+            echo "an emulator stays" >&2
+            pkill -KILL qemu || true
+            exit 1
+          fi
+          echo "no emulator stays"

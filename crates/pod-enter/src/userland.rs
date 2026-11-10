@@ -16,10 +16,12 @@
 //! it. The banner of the caller names this on each run, and the active
 //! mode variable reads `userland`.
 //!
-//! The caller refuses a script (`#!`): the path of its interpreter
-//! resolves on the root of the host, so the script of the image would run
-//! under the interpreter of the host. The caller refuses a foreign
-//! architecture: this rung does not prove `binfmt_misc` with no chroot.
+//! The caller does not give a script (`#!`) to this rung: the kernel
+//! would open its interpreter on the root of the host. The caller reads
+//! the line ([`memfd::shebang_parts`]), resolves the interpreter inside
+//! the image, and runs the interpreter with the script as its argument.
+//! The caller refuses a foreign architecture: this rung does not prove
+//! `binfmt_misc` with no chroot.
 
 use crate::{Names, memfd};
 

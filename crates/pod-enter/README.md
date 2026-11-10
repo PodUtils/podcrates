@@ -50,8 +50,8 @@ each entry takes; the payload owns the standard output.
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
 | `check_workdir`, `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
 | `Error`, `Result`, `status` | `Runtime(Failure)`, `CannotInvoke`, `NotFound`, `NsSetup`; `Error::{runtime, payload_code, code_or}`; `status::{CANNOT_INVOKE, NOT_FOUND, exit_status}` |
-| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe`, `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage) |
-| `memfd` | `memfd_create`, `stage(&names, bytes)` (bytes in hand), `stage_file(&names, file)` and `stage_file_with(&names, file, each)` (a copy in chunks of `STAGE_CHUNK`, 1 MiB; `each` sees each chunk, for a digest), `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
+| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe` (the resolved guest path), `guest_invoked` (the `$0` that the kernel gives: the unresolved join of the `PATH` directory), `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage) |
+| `memfd` | `memfd_create`, `stage(&names, bytes)` (bytes in hand), `stage_file(&names, file)` and `stage_file_with(&names, file, each)` (a copy in chunks of `STAGE_CHUNK`, 1 MiB; `each` sees each chunk, for a digest), `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `shebang_parts` (the interpreter and its one argument, as the kernel parses a `#!` line in `SHEBANG_HEAD`, 256 bytes), `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
 | `stage` | `copy_tree`, `stage_tmpfs`, `release_tmpfs`, `cache_dir`, `stage_cache(&names, ..)`, `Refusal` |
 | `fuse` | `check_node`, `check_node_at`, `serve_tree`, `release_mount`, `ActiveMount`, `FUSE_NODE` |
 | `device` | `parse`, `Mapping`, `canon`, `spec_entry`, `serve_entry`, `banner_line(&names, ..)`, `open_all`, `Opened`, `specs_of(&names, ..)`, `push_spec(&names, ..)`, `push_serve(&names, ..)`, `CHILD_FD_BASE`, `HOST_FD_FLOOR`, `SEP_ENTRY` |
@@ -124,6 +124,8 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `ladder::payload_bytes(..)` then `memfd::eligible(&bytes)`, `has_shebang(&bytes)`, `script_refusal(path, &bytes)` | `ladder::payload_head(..)` then the same calls on `&p.head` (the head holds the `#!` line and the ELF headers) |
 | `memfd::stage(&bytes)` of a payload | `pod_enter::memfd::stage_file(&NAMES, p.file())` (wrap it in `podvm_enter::memfd`) |
 | `ladder::PAYLOAD_CEILING`, the 128 MiB refusal | gone; `doctor` and `probe` can report `abi::HEAD_BYTES`, `abi::READ_CEILING` and `memfd::STAGE_CHUNK` as bounds of memory |
+| `lifecycle/script.rs`: `shebang`, `head::shebang` of the interposer (its tests pin the same cases) | `pod_enter::memfd::shebang_parts` |
+| `lifecycle/script.rs`: `invoked_path` (calls `guest_exe`: its `$0` has the links followed) | `pod_enter::ladder::guest_invoked` |
 | `complete/capability.rs`: `static_head` | `pod_enter::abi::interp_of(path, &head)` (`Ok(None)` is static, an error is unknown), or `interp_of_file(path)` |
 
 ## Tests

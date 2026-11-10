@@ -501,6 +501,7 @@ pushes. No worktree branch is pushed.
 | `upstream.yml` | each day | `check-sources.py`; `check-zig-mirrors.py` |
 | `record-issues.yml` | each day | `TODO/github.txt` against GitHub |
 | `fuzz.yml` | each week | the fuzz targets |
+| `guest.yml` | each week, by hand | the tests of `pod-guest` with a real QEMU (TCG; KVM where `/dev/kvm` opens), one guest at a time, and a check that no emulator stays |
 | the other live and interop workflows of the moved code | each day, by hand | podssh's `relay-live`, `relay-layer-live`, `warp-live`, `quick-tunnel-*`, `transit-live`, `pair-code`, `piping`, `via`, `vless` and `wstunnel` interop, `forwarder-live`, `opentunnel-*`, `tor-live`, `ts-headscale`, `acme-interop`, `reverse-drops`; podnet's live steps of WARP and of the edge. Each moves with its crate |
 
 

@@ -233,7 +233,8 @@ impl std::fmt::Display for MemfdRefusal {
     }
 }
 
-/// The refusal of a `#!` script, with the file and its first line.
+/// A `#!` script that the caller cannot run, with the file and its first
+/// line.
 ///
 /// [`MemfdRefusal::RoutePastScript`] says that the entry found a script,
 /// not which one. This value carries both: the resolved host path and the
@@ -253,11 +254,55 @@ impl ScriptRefusal {
     /// The refusal: the exact path of the payload and its `#!` line.
     pub fn message(&self) -> String {
         format!(
-            "the payload {} is a #! script ({}), whose interpreter path resolves on the host root \
-             without a chroot: the image's script would run under the host's interpreter",
+            "the payload {} is a #! script ({}) whose interpreter does not run from the image",
             self.path, self.shebang
         )
     }
+}
+
+/// The bytes of a head that the kernel reads for a `#!` line
+/// (`BINPRM_BUF_SIZE`).
+pub const SHEBANG_HEAD: usize = 256;
+
+/// The interpreter and the one optional argument of a `#!` line, as
+/// `fs/binfmt_script.c` parses them.
+///
+/// The line ends at the first newline inside the first [`SHEBANG_HEAD`]
+/// bytes. Spaces and tabs before the interpreter are skipped, and the
+/// interpreter ends at a space or a tab. The rest of the line, trimmed, is
+/// one argument, or none where it is empty. `None` where the bytes have no
+/// `#!`, no interpreter, an interpreter that is not UTF-8, or an
+/// interpreter that runs to the end of a full head (the kernel answers
+/// `ENOEXEC`). A long argument is cut at the end of the head.
+pub fn shebang_parts(bytes: &[u8]) -> Option<(String, Option<String>)> {
+    if !has_shebang(bytes) {
+        return None;
+    }
+    let whole = bytes.len() < SHEBANG_HEAD;
+    let head = &bytes[..bytes.len().min(SHEBANG_HEAD)];
+    let blank = |c: u8| c == b' ' || c == b'\t';
+    let nl = head.iter().position(|&c| c == b'\n');
+    let mut end = nl.unwrap_or(head.len());
+    while end > 2 && blank(head[end - 1]) {
+        end -= 1;
+    }
+    let mut at = 2;
+    while at < end && blank(head[at]) {
+        at += 1;
+    }
+    let start = at;
+    while at < end && !blank(head[at]) && head[at] != 0 {
+        at += 1;
+    }
+    if at == start || (nl.is_none() && at == head.len() && !whole) {
+        return None;
+    }
+    let interp = std::str::from_utf8(&head[start..at]).ok()?.to_string();
+    while at < end && blank(head[at]) {
+        at += 1;
+    }
+    let arg = (at < end).then(|| String::from_utf8_lossy(&head[at..end]).to_string());
+    Some((interp, arg))
 }
 
 /// The number of bytes of a first line that the refusal carries. A

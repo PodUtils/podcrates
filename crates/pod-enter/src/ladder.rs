@@ -187,6 +187,23 @@ pub fn guest_exe(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<Stri
     path_dirs.iter().find_map(|d| first(&format!("{}/{argv0}", d.trim_end_matches('/'))))
 }
 
+/// The `$0` that the kernel gives a `#!` interpreter for the script.
+///
+/// An `argv0` with a slash is the answer as given. A bare name is the
+/// unresolved join of the first `PATH` directory where it resolves inside
+/// the root (the same walk as [`guest_exe`]), with no link followed in the
+/// result. `None` where nothing resolves.
+pub fn guest_invoked(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<String> {
+    if argv0.contains('/') {
+        return Some(argv0.to_string());
+    }
+    let root = std::path::Path::new(rootfs);
+    path_dirs.iter().find_map(|d| {
+        let guest = format!("{}/{argv0}", d.trim_end_matches('/'));
+        resolve_in(root, &guest).ok().map(|_| guest)
+    })
+}
+
 /// The payload for the decision of the entry: the resolved path, the size,
 /// the head and the open file.
 ///

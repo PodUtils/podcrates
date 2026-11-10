@@ -80,7 +80,7 @@ fn a_script_refusal_names_the_file_and_its_shebang() {
     let text = r.message();
     assert!(text.contains("/store/rootfs/usr/bin/node"), "{text}");
     assert!(text.contains("#!/usr/bin/env node"), "{text}");
-    assert!(text.contains("host's interpreter"), "{text}");
+    assert!(text.contains("does not run from the image"), "{text}");
     // `eligible` keeps its form beside the helper.
     assert_eq!(eligible(b"#!/usr/bin/env node\n"), Err(MemfdRefusal::RoutePastScript));
 }
@@ -146,4 +146,33 @@ fn header(phnum: u16) -> Vec<u8> {
     b[54..56].copy_from_slice(&56u16.to_le_bytes());
     b[56..58].copy_from_slice(&phnum.to_le_bytes());
     b
+}
+
+/// The `#!` line parses as `fs/binfmt_script.c` parses it.
+#[test]
+fn a_shebang_line_parses_as_the_kernel_parses_it() {
+    let s = |i: &str, a: Option<&str>| Some((i.to_string(), a.map(str::to_string)));
+    assert_eq!(shebang_parts(b"#!/bin/sh\necho\n"), s("/bin/sh", None));
+    assert_eq!(shebang_parts(b"#! /bin/sh -e \necho\n"), s("/bin/sh", Some("-e")));
+    assert_eq!(shebang_parts(b"#!/usr/bin/env node  --x y\n"), s("/usr/bin/env", Some("node  --x y")));
+    assert_eq!(shebang_parts(b"#!\t/bin/sh\t\r\n"), s("/bin/sh", Some("\r")));
+    // A whole short file with no newline still names its interpreter.
+    assert_eq!(shebang_parts(b"#!/bin/sh"), s("/bin/sh", None));
+    assert_eq!(shebang_parts(b"#!\n"), None);
+    assert_eq!(shebang_parts(b"#!   \n"), None);
+    assert_eq!(shebang_parts(b"#"), None);
+    assert_eq!(shebang_parts(b"\x7fELF"), None);
+    assert_eq!(shebang_parts(b"#!\xff\xfe\n"), None);
+    // A line ends at the newline: later lines are not read.
+    assert_eq!(shebang_parts(b"#!/bin/sh\n-x\n"), s("/bin/sh", None));
+    // An interpreter that runs past a full head is ENOEXEC.
+    let mut long = b"#!/".to_vec();
+    long.extend(std::iter::repeat_n(b'a', 400));
+    assert_eq!(shebang_parts(&long), None);
+    // A long argument is cut at the head.
+    let mut cut = b"#!/bin/sh ".to_vec();
+    cut.extend(std::iter::repeat_n(b'b', 400));
+    let (i, a) = shebang_parts(&cut).unwrap();
+    assert_eq!(i, "/bin/sh");
+    assert_eq!(a.unwrap().len(), SHEBANG_HEAD - 10);
 }

@@ -324,16 +324,14 @@ fn provisioning_types_a_command_that_finds_the_volume_without_a_letter() {
     assert!(qmp::key('D').map(|k| k.1).unwrap_or(false));
 }
 
-/// A real emulator with no machine (`-M none`, TCG): the QMP handshake and
-/// a request work, and the stop leaves no emulator. It skips where no
-/// `qemu-system-x86_64` is on `PATH`. Each wait has a bound.
-#[test]
-fn a_real_emulator_answers_qmp_and_leaves_no_process() {
-    pod_testkit::need_tool!("qemu-system-x86_64");
+/// A real emulator with no machine (`-M none`) under `accel`: the QMP
+/// handshake and a request work, and the stop leaves no emulator. Each
+/// wait has a bound.
+fn real_emulator_answers_qmp(accel: &str, tag: &str) {
     let s = settings();
-    let scratch = scratch_dir(&s, "qemu-qmp").expect("a scratch directory");
+    let scratch = scratch_dir(&s, tag).expect("a scratch directory");
     let plan = plan_over(&scratch, Path::new("qemu-system-x86_64"));
-    let args: Vec<String> = ["-M", "none", "-accel", "tcg", "-nodefaults", "-display", "none", "-qmp"]
+    let args: Vec<String> = ["-M", "none", "-accel", accel, "-nodefaults", "-display", "none", "-qmp"]
         .iter()
         .map(|a| a.to_string())
         .chain([format!("unix:{},server=on,wait=off", plan.monitor.display())])
@@ -346,4 +344,22 @@ fn a_real_emulator_answers_qmp_and_leaves_no_process() {
     asked.expect("the emulator answers QMP");
     assert!(stop.confirmed(), "{stop}");
     assert!(gone(pid), "no emulator stays after the run");
+}
+
+/// TCG. It skips where no `qemu-system-x86_64` is on `PATH`.
+#[test]
+fn a_real_emulator_answers_qmp_and_leaves_no_process() {
+    pod_testkit::need_tool!("qemu-system-x86_64");
+    real_emulator_answers_qmp("tcg", "qemu-qmp");
+}
+
+/// KVM. It skips where the user cannot open `/dev/kvm` for read and write.
+#[test]
+fn a_real_emulator_under_kvm_answers_qmp_and_leaves_no_process() {
+    pod_testkit::need_tool!("qemu-system-x86_64");
+    if std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm").is_err() {
+        eprintln!("skipping, /dev/kvm is not open for read and write");
+        return;
+    }
+    real_emulator_answers_qmp("kvm", "qemu-kvm");
 }

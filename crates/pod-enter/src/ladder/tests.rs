@@ -169,3 +169,23 @@ fn the_guest_exe_is_the_resolved_guest_path() {
     assert_eq!(guest_exe(&root, "absent", &dirs), None);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// `$0` is the unresolved join of the `PATH` directory, as the kernel
+/// gives it; a name with a slash stays as given.
+#[test]
+fn the_invoked_path_is_the_unresolved_join() {
+    let d = fixture_root("invoked");
+    std::fs::create_dir_all(d.join("usr/bin")).unwrap();
+    std::fs::write(d.join("usr/bin/tool.sh"), b"#!/bin/sh\n").unwrap();
+    std::fs::remove_dir(d.join("bin")).unwrap();
+    std::os::unix::fs::symlink("usr/bin", d.join("bin")).unwrap();
+    let root = d.to_string_lossy().to_string();
+    let dirs = ["/nope/".to_string(), "/bin/".to_string(), "/usr/bin".to_string()];
+    assert_eq!(guest_invoked(&root, "tool.sh", &dirs).as_deref(), Some("/bin/tool.sh"));
+    assert_eq!(guest_invoked(&root, "tool.sh", &dirs[2..]).as_deref(), Some("/usr/bin/tool.sh"));
+    assert_eq!(guest_invoked(&root, "./x/tool.sh", &dirs).as_deref(), Some("./x/tool.sh"));
+    assert_eq!(guest_invoked(&root, "/bin/tool.sh", &[]).as_deref(), Some("/bin/tool.sh"));
+    assert_eq!(guest_invoked(&root, "absent", &dirs), None);
+    assert_eq!(guest_invoked(&root, "tool.sh", &[]), None);
+    let _ = std::fs::remove_dir_all(&d);
+}

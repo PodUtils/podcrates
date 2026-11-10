@@ -34,8 +34,9 @@ the stop:
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another
 target it is empty. It reads no variable of the environment and prints
 nothing. At run time it starts the emulator and `qemu-img` that the caller
-names. No test needs KVM or QEMU; the one test that starts a real emulator
-skips where no `qemu-system-x86_64` is on `PATH`.
+names. No test needs KVM or QEMU; the two tests that start a real emulator
+skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
+`/dev/kvm` does not open).
 
 ## API
 
@@ -119,9 +120,10 @@ The tests with a fake emulator run `/bin/sh` and skip with a line
 `skipping, REASON` where it is missing. A stop test reads a script with
 `/bin/sh`, so that no test executes a file that a test thread just wrote
 (`ETXTBSY`). `a_real_emulator_answers_qmp_and_leaves_no_process` starts
-`qemu-system-x86_64 -M none -accel tcg` with a bound on each wait, checks
+`qemu-system-x86_64 -M none -accel tcg` (and `-accel kvm` where `/dev/kvm` opens) with a bound on each wait, checks
 the QMP handshake and a request, stops it and checks that no emulator
-stays; it skips where no emulator is on `PATH`.
+stays; they skip as the text above says. `guest.yml` runs them on a runner with
+QEMU, each week and by hand (`docs/design.md`, section 9).
 
 ## Sources
 
