@@ -18,7 +18,7 @@
 
 use pod_core::{Class, Failure, Stage};
 
-use crate::abi::{ResolveKind, resolve_in};
+use crate::abi::{GuestRoot, ResolveKind, resolve_file, resolve_in};
 use crate::memfd::MemfdRefusal;
 use crate::{Error, Names, Result};
 
@@ -125,15 +125,19 @@ impl Availability {
 
 /// The host path of the payload file, for the memfd leg.
 ///
-/// An argument with a `/` names a path under the root file system. A bare
+/// `root` is the root file system, or the table of a run with no chroot
+/// ([`crate::userland::Maps`]): a payload in a volume resolves to the file
+/// of the volume. An argument with a `/` names a guest path. A bare
 /// name is looked for along `path_dirs`, and the first file wins: the
 /// order of the child after the chroot. [`crate::abi::resolve_in`] does
 /// the walk of the links as the kernel of the guest does it, and this
 /// function adds the search of `PATH` over it.
-pub fn resolve_payload(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Result<String> {
-    let root = std::path::Path::new(rootfs);
-    if !root.is_dir() {
-        return Err(Error::runtime(Class::NotFound, format!("{rootfs}: not a directory that the entry can read")));
+pub fn resolve_payload<G: GuestRoot + ?Sized>(root: &G, argv0: &str, path_dirs: &[String]) -> Result<String> {
+    if !root.root().is_dir() {
+        return Err(Error::runtime(
+            Class::NotFound,
+            format!("{}: not a directory that the entry can read", root.root().display()),
+        ));
     }
     let say = |guest: &str, kind: ResolveKind| match kind {
         ResolveKind::Absent => Error::runtime(Class::NotFound, format!("{argv0} names no file in the image")),
@@ -164,22 +168,18 @@ pub fn resolve_payload(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Resul
 /// The resolved path of the payload as the guest sees it.
 ///
 /// The same order as [`resolve_payload`] (the argument as a path, else
-/// each `PATH` directory in order) through the same walk of the links,
-/// then the prefix of the root file system comes off. The walk followed
-/// the links of the image, so the rest is the canonical path of the guest
-/// (`/bin/bash` on an image with a merged `/usr` gives `/usr/bin/bash`, as
-/// the `readlink /proc/self/exe` of the kernel would).
+/// each `PATH` directory in order) through the same walk of the links;
+/// the answer is the guest path that the walk kept. The walk followed the
+/// links of the image, so the guest path is the canonical one (`/bin/bash`
+/// on an image with a merged `/usr` gives `/usr/bin/bash`, as the
+/// `readlink /proc/self/exe` of the kernel would), also inside a volume.
 ///
 /// `None` where nothing resolves. An interposer can give this path for
 /// `/proc/self/exe` in a chroot with no procfs.
-pub fn guest_exe(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<String> {
-    let root = std::path::Path::new(rootfs);
-    let base = rootfs.trim_end_matches('/');
+pub fn guest_exe<G: GuestRoot + ?Sized>(root: &G, argv0: &str, path_dirs: &[String]) -> Option<String> {
     let first = |guest: &str| -> Option<String> {
-        let host = resolve_in(root, guest).ok()?;
-        let rel = host.to_string_lossy();
-        let rel = rel.strip_prefix(base)?;
-        Some(if rel.is_empty() { "/".to_string() } else { rel.to_string() })
+        let (_, parts) = resolve_file(root, guest).ok()?;
+        Some(format!("/{}", parts.join("/")))
     };
     if argv0.contains('/') {
         return first(argv0);
@@ -193,11 +193,10 @@ pub fn guest_exe(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<Stri
 /// unresolved join of the first `PATH` directory where it resolves inside
 /// the root (the same walk as [`guest_exe`]), with no link followed in the
 /// result. `None` where nothing resolves.
-pub fn guest_invoked(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<String> {
+pub fn guest_invoked<G: GuestRoot + ?Sized>(root: &G, argv0: &str, path_dirs: &[String]) -> Option<String> {
     if argv0.contains('/') {
         return Some(argv0.to_string());
     }
-    let root = std::path::Path::new(rootfs);
     path_dirs.iter().find_map(|d| {
         let guest = format!("{}/{argv0}", d.trim_end_matches('/'));
         resolve_in(root, &guest).ok().map(|_| guest)
@@ -233,11 +232,14 @@ impl Payload {
 
 /// Resolve the payload, open it, and read its head for the decision.
 ///
+/// `root` is the root file system, or the table of a run with no chroot:
+/// a first program in a volume is the file of the volume.
+///
 /// A file that does not open or read is an error that names the path and
 /// the error of the system.
-pub fn payload_head(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Result<Payload> {
+pub fn payload_head<G: GuestRoot + ?Sized>(root: &G, argv0: &str, path_dirs: &[String]) -> Result<Payload> {
     use std::os::unix::fs::FileExt;
-    let path = resolve_payload(rootfs, argv0, path_dirs)?;
+    let path = resolve_payload(root, argv0, path_dirs)?;
     let io = |e: std::io::Error| {
         Error::Runtime(Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("{path}: {e}"), e))
     };

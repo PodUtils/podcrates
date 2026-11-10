@@ -152,7 +152,7 @@ pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
     }
 }
 
-/// The four `statfs` fields this project reads, widened to one shape.
+/// The five `statfs` fields this project reads, widened to one shape.
 ///
 /// **The kernel's own `struct statfs64` is the buffer**, taken per
 /// architecture from `linux_raw_sys`, and this is a normalised view built from
@@ -165,7 +165,33 @@ pub struct Statfs {
     pub f_bavail: u64,
     pub f_files: u64,
     pub f_ffree: u64,
+    /// The mount flags (`ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`,
+    /// ...). The kernel sets `ST_VALID` beside them where it fills this
+    /// field; a value without `ST_VALID` tells nothing.
+    pub f_flags: u64,
 }
+
+impl Statfs {
+    /// True where the kernel filled `f_flags` and `flag` is set in it.
+    /// `None` where the kernel did not fill the field (no `ST_VALID`).
+    pub fn flag(&self, flag: u64) -> Option<bool> {
+        (self.f_flags & ST_VALID != 0).then_some(self.f_flags & flag != 0)
+    }
+}
+
+/// The mount flags of `Statfs::f_flags`, as the kernel defines them
+/// (`include/linux/statfs.h`) on each architecture.
+pub const ST_RDONLY: u64 = 0x0001;
+pub const ST_NOSUID: u64 = 0x0002;
+pub const ST_NODEV: u64 = 0x0004;
+pub const ST_NOEXEC: u64 = 0x0008;
+pub const ST_SYNCHRONOUS: u64 = 0x0010;
+/// Set by the kernel where it filled `f_flags`.
+pub const ST_VALID: u64 = 0x0020;
+pub const ST_MANDLOCK: u64 = 0x0040;
+pub const ST_NOATIME: u64 = 0x0400;
+pub const ST_NODIRATIME: u64 = 0x0800;
+pub const ST_RELATIME: u64 = 0x1000;
 
 /// `flock(2)`. An image store uses it to hold a rootfs against a concurrent
 /// garbage collection.
@@ -218,6 +244,9 @@ pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
         f_bavail: raw.f_bavail as u64,
         f_files: raw.f_files as u64,
         f_ffree: raw.f_ffree as u64,
+        // A signed `long` on most 64-bit targets, a `u32` on the 32-bit
+        // ones and on s390x: the flags are small and positive on each.
+        f_flags: raw.f_flags as u64,
     })
 }
 

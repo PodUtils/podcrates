@@ -223,9 +223,12 @@ fn loader_argv_leaves_ordinary_payloads_alone() {
 /// The `/` of the guest anchors on the host path of the root file system.
 #[test]
 fn the_userland_table_anchors_root_on_the_rootfs() {
-    assert_eq!(userland_maps_table(&Names::DEFAULT, "/store/rootfs").as_deref(), Ok("/:/store/rootfs"));
+    assert_eq!(userland_maps_table(&Names::DEFAULT, &Maps::of_root("/store/rootfs")).as_deref(), Ok("/:/store/rootfs"));
     // A trailing slash trims rather than doubling the separator.
-    assert_eq!(userland_maps_table(&Names::DEFAULT, "/store/rootfs/").as_deref(), Ok("/:/store/rootfs"));
+    assert_eq!(
+        userland_maps_table(&Names::DEFAULT, &Maps::of_root("/store/rootfs/")).as_deref(),
+        Ok("/:/store/rootfs")
+    );
 }
 
 /// A root file system that the table cannot spell is refused: a table
@@ -235,11 +238,12 @@ fn the_userland_table_anchors_root_on_the_rootfs() {
 #[test]
 fn an_unspellable_rootfs_is_a_refusal_not_an_empty_table() {
     for bad in ["", "/", "relative/root", "/tmp/a:b", "/tmp/a,b", "/tmp/\0x"] {
-        assert!(userland_maps_table(&Names::DEFAULT, bad).is_err(), "{bad:?} was accepted");
+        assert!(userland_maps_table(&Names::DEFAULT, &Maps::of_root(bad)).is_err(), "{bad:?} was accepted");
     }
     let long = format!("/{}", "a".repeat(MAX_MAP_SIDE));
-    assert!(userland_maps_table(&Names::DEFAULT, &long).is_err(), "an overlong root was accepted");
-    let table = userland_maps_table(&Names::DEFAULT, "/store/rootfs").unwrap();
+    let e = userland_maps_table(&Names::DEFAULT, &Maps::of_root(&long)).unwrap_err();
+    assert!(e.starts_with("the rootfs path is 4097 bytes"), "{e}");
+    let table = userland_maps_table(&Names::DEFAULT, &Maps::of_root("/store/rootfs")).unwrap();
     assert!(!table.contains(".pod-enter"), "{table}");
     assert!(!table.contains("/proc"), "{table}");
 }

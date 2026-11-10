@@ -1635,7 +1635,7 @@ cargo test -p pod-oci --test live -- --ignored
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1674,6 +1674,66 @@ variable after the root pair; the interposer takes the longest prefix.
 cargo test -p pod-enter
 ```
 
+## Done
+
+2026-11-10. Commit: the commit that names T-144. Read: PodUtils/podvm#224
+and podvm `4ef187e` (PodUtils/podvm@T-1653: `podvm-enter`'s
+`userland_maps_table(root, &volumes)`, `volume_at`, `volumes_of`, and
+`lifecycle::volume::refuse_paths`, which refuses `-w` and a first program
+in a volume by name).
+
+- `pod_enter::userland::{Volume, Maps}`: `Maps::of_root(rootfs)` is the
+  table of the root pair alone; `Maps::new(rootfs, &volumes)` adds the
+  volumes and refuses by name a guest side that is not absolute, is `/`,
+  is not a normal path or repeats one, a host side that is not absolute,
+  and a NUL. `Maps::volume_at` gives the longest guest prefix.
+- `userland_maps_table(&names, &maps)` (the root pair, then each volume)
+  and `userland_volume_table(&names, &maps)` (no root pair, for
+  `--unsafe-host-paths`) refuse each side with `:` or `,` or over
+  `MAX_MAP_SIDE` (4096) bytes with its own name ("the rootfs path", "the
+  volume HOST:GUEST: the guest side", "... the host side"), and a table
+  over `MAX_MAP_PAIRS` (32, the bound of the interposer).
+- One resolver: `abi::GuestRoot` (for `Path`, `PathBuf`, `str`, `String`
+  and `Maps`). Each step of the walk maps its guest prefix through the
+  table (the longest guest prefix wins); a link target is a guest path
+  again, and `..` removes a guest component. So a link in a volume that
+  points out of it goes to the side that holds its target (the image or
+  another volume), never to the host directory beside the volume; `..`
+  past the guest root is an escape, as for the root alone. A mount point
+  is read with `stat`; a missing ancestor of a mount point is passed.
+- Through the table: `check_workdir`, `spawn_userland` and `run_userland`
+  (they take `&Maps`; the child enters the resolved directory, relative
+  to the root descriptor in the image, by host path in a volume; a table
+  of another root is refused), `ladder::{resolve_payload, payload_head,
+  guest_exe, guest_invoked}`, `userland::{loader_plan, lib_dirs,
+  invocation_path}`, `abi::{resolve_in, resolve_dir_in}`. A plain path is
+  the table of the root pair alone, so each rootfs-only call compiles and
+  answers as before. `invocation_path` keeps the invoked spelling only
+  where the host opens the resolved file through it (the same device and
+  inode).
+- Tests (`crates/pod-enter/src/userland/maps/tests.rs`, 8): the table
+  order, each volume side refused by its own name (an over-length host
+  side and guest side, `:` and `,`, 33 pairs), the refusals of
+  `Maps::new`, the longest prefix, a workdir in a volume, a first program
+  in a volume (path, `PATH`, head, guest path, loader), a link out of a
+  volume (relative to the host file beside the volume: absent; past the
+  root: escape; absolute: the file of the image), and the userland entry
+  that starts `/bin/sh` in a volume and in the image (`pwd -P`).
+- Plants: the walk follows a link on the host (`canonicalize`):
+  `a_link_out_of_a_volume_is_held_inside_the_table` fails (`/data/up`
+  gives the host file `secret`). The first pair, not the longest: three
+  tests fail. The child enters the raw guest path relative to the root:
+  `the_userland_entry_enters_a_workdir_in_a_volume` fails (`ENOENT` at
+  the step of the working directory).
+- `cargo test -p pod-enter`: 149 unit tests, 5 and 2 integration tests,
+  pass. `cargo zigbuild --tests -p pod-enter --lib` for i686, aarch64,
+  armv7, arm, riscv64gc, powerpc64le and loongarch64 musl builds; the
+  8 tests pass on each under qemu-user, but on loongarch64 the userland
+  entry test fails as 3 older tests fail there: `RootDir::open` gets
+  `ENOSYS` from `newfstatat` under qemu-loongarch64 8.2.
+- README: the table section, the API, the adoption map (what podvm
+  changes).
+
 # T-145: `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224)
 
 **Source:** PodUtils/podvm#224 (COORD-018 of podvm, ask 4).
@@ -1681,7 +1741,7 @@ cargo test -p pod-enter
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1704,6 +1764,29 @@ cargo test -p pod-enter
 ```sh
 cargo test -p pod-hostprobe
 ```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-145.
+
+- `sys::Statfs` has `f_flags` (`u64`), read from the `struct statfs64` of
+  `linux-raw-sys` on each target: a `long` on x86_64, aarch64, riscv64,
+  powerpc64le and loongarch64, a `u32` on i686, arm, armv7 and s390x
+  (`statfs64(2)` on a 32-bit target). `Statfs::flag(ST_*)` is `None`
+  where the kernel did not set `ST_VALID`.
+- `sys::{ST_RDONLY, ST_NOSUID, ST_NODEV, ST_NOEXEC, ST_SYNCHRONOUS,
+  ST_VALID, ST_MANDLOCK, ST_NOATIME, ST_NODIRATIME, ST_RELATIME}`, the
+  values of `include/linux/statfs.h`.
+- Test `statfs_reads_the_mount_flags`: `/` has `ST_VALID`, and each mount
+  of `/proc/self/mounts` has the `ro`, `nosuid`, `nodev` and `noexec` of
+  its line (a skip line for a flag that no mount has). On the build host
+  each of the four flags is seen. Plant: `f_flags` from `f_spare[0]`: the
+  test fails ("f_flags 0x0 of / has no ST_VALID").
+- `cargo test -p pod-hostprobe`: 99 unit tests pass. `cargo zigbuild --tests -p
+  pod-hostprobe --lib` for i686, aarch64, armv7, arm, riscv64gc,
+  powerpc64le and loongarch64 musl builds, and the two `statfs` tests pass
+  on each (i686 native, the others under qemu-user). s390x has no target
+  here; its layout is the one of `linux-raw-sys` (`c_uint` fields).
 
 # T-147: `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take
 

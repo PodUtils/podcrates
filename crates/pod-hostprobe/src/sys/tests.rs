@@ -150,6 +150,52 @@ fn statfs_reads_the_wide_struct_on_each_width() {
     assert!(ffree <= files, "f_ffree {ffree}, f_files {files}");
 }
 
+/// `f_flags` is the field of the kernel on each width: `/` has
+/// `ST_VALID`, and each mount of this process has the `ro`, `nosuid`,
+/// `nodev` and `noexec` of its line in `/proc/self/mounts` (`/proc` is
+/// `nosuid,nodev,noexec` on most hosts). A buffer read at the wrong offset
+/// gives no `ST_VALID` or wrong flags.
+#[test]
+fn statfs_reads_the_mount_flags() {
+    let root = statfs(&CBuf::new("/").expect("a path")).expect("statfs of /");
+    assert_ne!(root.f_flags & ST_VALID, 0, "f_flags {:#x} of / has no ST_VALID", root.f_flags);
+    assert!(root.f_flags < 0x1_0000, "f_flags {:#x} of / has bits past the ST_* set", root.f_flags);
+    let Ok(mounts) = std::fs::read_to_string("/proc/self/mounts") else {
+        eprintln!("skipping, /proc/self/mounts cannot be read on this host");
+        return;
+    };
+    // The last line of a mount point is the mount on top, which statfs reads.
+    let mut top: Vec<(String, String)> = Vec::new();
+    for l in mounts.lines() {
+        let f: Vec<&str> = l.split(' ').collect();
+        if let (Some(point), Some(opts)) = (f.get(1), f.get(3))
+            && !point.contains('\\')
+        {
+            top.retain(|(p, _)| p != point);
+            top.push((point.to_string(), opts.to_string()));
+        }
+    }
+    let words = [(ST_RDONLY, "ro"), (ST_NOSUID, "nosuid"), (ST_NODEV, "nodev"), (ST_NOEXEC, "noexec")];
+    let mut seen = 0u64;
+    for (point, opts) in &top {
+        let Ok(fs) = statfs(&CBuf::new(point).expect("a path")) else {
+            continue;
+        };
+        let has = |o: &str| opts.split(',').any(|x| x == o);
+        for (flag, word) in words {
+            assert_eq!(fs.flag(flag), Some(has(word)), "{point}: {word} in {opts:?}, f_flags {:#x}", fs.f_flags);
+            if has(word) {
+                seen |= flag;
+            }
+        }
+    }
+    for (flag, word) in words {
+        if seen & flag == 0 {
+            eprintln!("skipping the check of {word}: no mount of this host has it");
+        }
+    }
+}
+
 /// The id calls are the 32-bit form on each target. On x86 and arm the plain
 /// name is the 16-bit call, and an id above 65535 reads wrong through it.
 #[test]

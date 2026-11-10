@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use super::*;
 
 /// The C library of a root file system, found from the interpreter of the
@@ -149,6 +151,58 @@ pub enum ResolveKind {
     Loop,
 }
 
+/// What a walk of a guest path resolves against: one root file system,
+/// or a table of pairs ([`crate::userland::Maps`]).
+///
+/// A plain path (`Path`, `PathBuf`, `str`, `String`) is the table of the
+/// root pair alone: each guest path is under the root. A table adds the
+/// volume pairs: the pair with the longest guest prefix serves a path.
+/// The walk asks this trait for the host path of each guest prefix, so a
+/// step never reads a host path outside a side of the table.
+pub trait GuestRoot {
+    /// The host directory of the guest `/`.
+    fn root(&self) -> &Path;
+
+    /// The host path of a guest path in normal form (its components, no
+    /// `.` or `..`), and `true` where the path is the guest side of a
+    /// volume: the walk reads that path with `stat`, not `lstat`, as a
+    /// bind mount reads its source.
+    fn host_of(&self, parts: &[String]) -> (PathBuf, bool) {
+        (parts.iter().fold(self.root().to_path_buf(), |a, c| a.join(c)), false)
+    }
+
+    /// True where `parts` is a strict ancestor of the guest side of a
+    /// volume. Where such a directory is not in the image, the walk goes
+    /// through it, as a container runtime makes a missing mount point.
+    fn above_mount(&self, _parts: &[String]) -> bool {
+        false
+    }
+}
+
+impl GuestRoot for Path {
+    fn root(&self) -> &Path {
+        self
+    }
+}
+
+impl GuestRoot for PathBuf {
+    fn root(&self) -> &Path {
+        self
+    }
+}
+
+impl GuestRoot for str {
+    fn root(&self) -> &Path {
+        Path::new(self)
+    }
+}
+
+impl GuestRoot for String {
+    fn root(&self) -> &Path {
+        Path::new(self)
+    }
+}
+
 /// Resolve `guest` (a `/`-joined path as seen inside the root) to a host
 /// path for reading, following symlinks the way the guest kernel would.
 ///
@@ -159,12 +213,31 @@ pub enum ResolveKind {
 /// directory of the link. A `..` past the root and a loop of links are
 /// refused, not followed.
 ///
+/// With a table ([`crate::userland::Maps`]) each step maps its guest
+/// prefix through the table, and a link target is a guest path again. So a
+/// link in a volume that points out of the volume goes to the side of the
+/// table that holds its target, never to the host directory beside the
+/// volume.
+///
 /// `root` must be a readable directory. Nothing is written and nothing
 /// executes; the walk follows at most `MAX_LINKS` links.
-pub fn resolve_in(root: &std::path::Path, guest: &str) -> Result<std::path::PathBuf, ResolveKind> {
-    let full = walk_in(root, guest)?;
+pub fn resolve_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<PathBuf, ResolveKind> {
+    resolve_file(root, guest).map(|(host, _)| host)
+}
+
+/// [`resolve_in`], and the resolved guest path as its components.
+pub(crate) fn resolve_file<G: GuestRoot + ?Sized>(
+    root: &G,
+    guest: &str,
+) -> Result<(PathBuf, Vec<String>), ResolveKind> {
+    let (full, parts) = walk_in(root, guest)?;
     match std::fs::symlink_metadata(&full) {
-        Ok(m) if m.file_type().is_file() => Ok(full),
+        Ok(m) if m.file_type().is_file() => Ok((full, parts)),
+        // A volume can serve one file: its host side is read as a mount.
+        Ok(m) if m.file_type().is_symlink() && root.host_of(&parts).1 => match std::fs::metadata(&full) {
+            Ok(m) if m.is_file() => Ok((full, parts)),
+            _ => Err(ResolveKind::Absent),
+        },
         _ => Err(ResolveKind::Absent),
     }
 }
@@ -175,10 +248,17 @@ pub fn resolve_in(root: &std::path::Path, guest: &str) -> Result<std::path::Path
 /// The walk of the check of the working directory. One walk with
 /// [`resolve_in`]; only the last check of the type is different (a
 /// directory here, a file there), so a fix of the walk reaches both.
-pub fn resolve_dir_in(root: &std::path::Path, guest: &str) -> Result<std::path::PathBuf, ResolveKind> {
-    let full = walk_in(root, guest)?;
-    match std::fs::symlink_metadata(&full) {
-        Ok(m) if m.file_type().is_dir() => Ok(full),
+pub fn resolve_dir_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<PathBuf, ResolveKind> {
+    resolve_dir(root, guest).map(|(host, _)| host)
+}
+
+/// [`resolve_dir_in`], and the resolved guest path as its components.
+pub(crate) fn resolve_dir<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<(PathBuf, Vec<String>), ResolveKind> {
+    let (full, parts) = walk_in(root, guest)?;
+    let mount = root.host_of(&parts).1;
+    let md = if mount { std::fs::metadata(&full) } else { std::fs::symlink_metadata(&full) };
+    match md {
+        Ok(m) if m.file_type().is_dir() => Ok((full, parts)),
         _ => Err(ResolveKind::Absent),
     }
 }
@@ -187,8 +267,10 @@ pub fn resolve_dir_in(root: &std::path::Path, guest: &str) -> Result<std::path::
 ///
 /// Empty parts are skipped, so `"/tmp/"` and `"tmp"` resolve like
 /// `"/tmp"`, and `"/"` resolves to the root itself. `..` past the root
-/// escapes rather than resolving onto the host.
-fn walk_in(root: &std::path::Path, guest: &str) -> Result<std::path::PathBuf, ResolveKind> {
+/// escapes rather than resolving onto the host. The walk keeps the guest
+/// path, and `..` removes a guest component: it never reads the host
+/// parent of a side of the table.
+fn walk_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     const MAX_LINKS: usize = 40;
     let mut parts: Vec<String> = guest.split('/').filter(|s| !s.is_empty()).map(str::to_string).collect();
     let mut out: Vec<String> = Vec::new();
@@ -209,9 +291,15 @@ fn walk_in(root: &std::path::Path, guest: &str) -> Result<std::path::PathBuf, Re
         }
         let mut probe = out.clone();
         probe.push(p.clone());
-        let disk = probe.iter().fold(root.to_path_buf(), |a, c| a.join(c));
-        let md = match std::fs::symlink_metadata(&disk) {
+        let (disk, mount) = root.host_of(&probe);
+        let read = if mount { std::fs::metadata(&disk) } else { std::fs::symlink_metadata(&disk) };
+        let md = match read {
             Ok(m) => m,
+            Err(_) if root.above_mount(&probe) => {
+                out.push(p);
+                i += 1;
+                continue;
+            }
             Err(_) => return Err(ResolveKind::Absent),
         };
         if md.file_type().is_symlink() {
@@ -231,5 +319,5 @@ fn walk_in(root: &std::path::Path, guest: &str) -> Result<std::path::PathBuf, Re
         out.push(p);
         i += 1;
     }
-    Ok(out.iter().fold(root.to_path_buf(), |a, c| a.join(c)))
+    Ok((root.host_of(&out).0, out))
 }

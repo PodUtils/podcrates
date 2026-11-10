@@ -8,8 +8,9 @@ use pod_core::Class;
 use pod_hostprobe::select::Rung;
 use pod_hostprobe::sys::{self, CBuf};
 
-use crate::abi::ResolveKind;
+use crate::abi::{GuestRoot, ResolveKind};
 use crate::launch::spawn_with;
+use crate::userland::Maps;
 use crate::{Child, ENTERED_RUNG, Error, Names, Plan, Result, RootDir, ladder};
 
 /// Enter `root` and exec the plan. Return when the exec succeeded.
@@ -23,7 +24,7 @@ use crate::{Child, ENTERED_RUNG, Error, Names, Plan, Result, RootDir, ladder};
 /// [`ENTERED_RUNG`], the rung that this sequence does. [`spawn_ladder`]
 /// reports a rung of the ladder.
 pub fn spawn(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> {
-    spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err)
+    spawn_with(root, plan, ENTERED_RUNG.word(), None, None, None, None, err)
 }
 
 /// Enter `root` on a rung of the ladder and exec the plan. Return when the
@@ -43,22 +44,25 @@ pub fn spawn_ladder(
     fd: Option<i64>,
     err: &mut dyn Write,
 ) -> Result<Child> {
-    spawn_with(root, plan, mode.name(), None, fd, true, None, err)
+    spawn_with(root, plan, mode.name(), None, fd, None, None, err)
 }
 
 /// Enter `root` with no `chroot(2)` and exec. Return when the exec
 /// succeeded.
 ///
 /// The payload runs with the root of the host, and with its working
-/// directory inside the image. `exec_argv` is the exact argv that the
-/// child execs (the loader of the image, the payload by host path, then
-/// the arguments of the payload), or `plan.argv` where `fd_exec` gives a
-/// staged memfd. `active` is the word of the active mode variable. The
+/// directory inside the image or a volume. `maps` is the table of the run
+/// ([`crate::userland::Maps`], its root is `root.path`): the working
+/// directory resolves through it before the fork. `exec_argv` is the
+/// exact argv that the child execs (the loader of the image, the payload
+/// by host path, then the arguments of the payload), or `plan.argv` where
+/// `fd_exec` gives a staged memfd. `active` is the word of the active mode variable. The
 /// readiness pipe, the exit codes and the forwarding wait are the ones of
 /// the chroot entry: one fork, not two.
 pub fn spawn_userland(
     root: &RootDir,
     plan: &Plan,
+    maps: &Maps,
     exec_argv: Vec<String>,
     active: &str,
     fd_exec: Option<i64>,
@@ -76,7 +80,7 @@ pub fn spawn_userland(
             CBuf::new(a).ok_or_else(|| Error::runtime(Class::Usage, format!("the argument {a:?} contains a NUL byte")))
         })
         .collect::<Result<_>>()?;
-    spawn_with(root, plan, active, Some(override_argv), fd_exec, false, None, err)
+    spawn_with(root, plan, active, Some(override_argv), fd_exec, Some(maps), None, err)
 }
 
 /// Run a payload inside `root` with no `chroot(2)`, and return its exit
@@ -85,12 +89,13 @@ pub fn spawn_userland(
 pub fn run_userland(
     root: &RootDir,
     plan: &Plan,
+    maps: &Maps,
     exec_argv: Vec<String>,
     active: &str,
     fd_exec: Option<i64>,
     err: &mut dyn Write,
 ) -> Result<i32> {
-    let child = spawn_userland(root, plan, exec_argv, active, fd_exec, err)?;
+    let child = spawn_userland(root, plan, maps, exec_argv, active, fd_exec, err)?;
     // The copy of the memfd in the parent serves nothing after the fork:
     // the child execs from its own copy. It closes here, on the only path
     // that holds one, so no caller leaks a descriptor.
@@ -158,21 +163,21 @@ pub fn chroot_landed(anchored: &sys::Stat, landed: &sys::Stat) -> bool {
 }
 
 /// Does the working directory resolve to a directory inside the root file
-/// system?
+/// system, or inside a volume of the table?
 ///
 /// Empty and `/` are the root, and always exist. Each other path must
 /// resolve through [`crate::abi::resolve_dir_in`]: an absolute link stays
-/// inside the root, a `..` past the root escapes, and a loop is refused.
+/// inside the table, a `..` past the root escapes, and a loop is refused.
 /// A file where a directory must be is `Absent`, as a missing one is: the
 /// `chdir` would fail after the point of no return.
-pub(crate) fn workdir_kind(rootfs: &str, workdir: &str) -> std::result::Result<(), ResolveKind> {
+pub(crate) fn workdir_kind<G: GuestRoot + ?Sized>(root: &G, workdir: &str) -> std::result::Result<(), ResolveKind> {
     if workdir.contains('\0') {
         // A NUL byte never reaches the kernel: `CBuf::new` refuses it
         // with its own sentence.
         return Err(ResolveKind::Absent);
     }
     let guest = if workdir.is_empty() { "/" } else { workdir };
-    crate::abi::resolve_dir_in(std::path::Path::new(rootfs), guest).map(|_| ())
+    crate::abi::resolve_dir_in(root, guest).map(|_| ())
 }
 
 /// The refusal of a working directory that does not resolve.
@@ -197,7 +202,10 @@ pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind) ->
 
 /// Check the working directory before the fork.
 ///
-/// Resolve `workdir` under `rootfs`. Refuse, with the path and the image,
+/// Resolve `workdir` under `root`: the root file system, or the table of a
+/// run with no chroot ([`crate::userland::Maps`]), where a working
+/// directory in a volume is the directory of the volume. Refuse, with the
+/// path and the image,
 /// a directory that is missing, escapes, loops or is a file: docker
 /// creates the directory, and this entry refuses and says so. Empty and
 /// `/` always pass; `/tmp` passes where the image holds it.
@@ -205,11 +213,11 @@ pub(crate) fn refuse_workdir(workdir: &str, context: &str, kind: ResolveKind) ->
 /// Call it before a change of the root file system. The entry checks again
 /// with no image name, and the child reports a directory that went
 /// missing after the check as its own step.
-pub fn check_workdir(rootfs: &str, workdir: &str, image: &str) -> Result<()> {
+pub fn check_workdir<G: GuestRoot + ?Sized>(root: &G, workdir: &str, image: &str) -> Result<()> {
     if workdir.contains('\0') {
         return Err(Error::runtime(Class::Usage, "the working directory contains a NUL byte"));
     }
-    workdir_kind(rootfs, workdir).map_err(|kind| refuse_workdir(workdir, &format!("for image {image:?}"), kind))
+    workdir_kind(root, workdir).map_err(|kind| refuse_workdir(workdir, &format!("for image {image:?}"), kind))
 }
 
 /// The setup step of the namespace rung that a byte of the readiness pipe
@@ -237,7 +245,7 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
     let names = &plan.names;
     let chroot = |err: &mut dyn Write, cause: &str| {
         let _ = writeln!(err, "{}", ns_fallback_line(names, cause));
-        spawn_with(root, plan, ENTERED_RUNG.word(), None, None, true, None, err)
+        spawn_with(root, plan, ENTERED_RUNG.word(), None, None, None, None, err)
     };
     let Some(target) = ns_tmp_target(&root.path) else {
         return chroot(err, &format!("the image holds no /tmp mount point under {}", root.path));
@@ -246,7 +254,7 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
         return chroot(err, "the /tmp mount point contains a NUL byte");
     };
     let mount = NsMount { tmp_target: target };
-    match spawn_with(root, plan, Rung::Namespace.word(), None, None, true, Some(&mount), err) {
+    match spawn_with(root, plan, Rung::Namespace.word(), None, None, None, Some(&mount), err) {
         Err(Error::NsSetup { step, errno }) => {
             chroot(err, &format!("the namespace rung refused at {step} ({} ({}))", errno.name(), errno.0))
         }

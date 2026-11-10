@@ -20,7 +20,8 @@ The entries:
   the setup enters chroot and names the fallback on the error writer.
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
-  table of path maps for the interposer.
+  table of path maps for the interposer (`userland::Maps`: the root pair
+  and one pair for each volume).
 * The launch ladder (`ladder`, `spawn_ladder`): memfd, FUSE, tmpfs, run
   directory, cache, in that order. A forced rung that is down refuses
   with its reason. `memfd::probe` measures that a memfd executes (a
@@ -28,6 +29,20 @@ The entries:
 * The reader of ELF files (`abi`): the C library of an image from the
   `PT_INTERP` of the payload, the `DT_NEEDED` closure of an object, and
   the check of a preload against the symbols and versions of `.dynsym`.
+
+The table of path maps (`userland::Maps`) is also the resolver of the
+entry with no chroot. Each guest path goes through `abi::GuestRoot`: a
+plain path is the table of the root pair alone, and a `Maps` adds the
+volume pairs, where the pair with the longest guest prefix serves a path.
+The walk keeps the guest path: a link target is a guest path again, and
+`..` removes a guest component. So a link in a volume that points out of
+it goes to the side of the table that holds its target, never to the host
+directory beside the volume, and `..` past the guest root is an escape.
+The working directory (`check_workdir`, the child of `spawn_userland`) and
+the first program (`ladder::payload_head`, `resolve_payload`,
+`guest_exe`, `guest_invoked`, `userland::loader_plan`,
+`userland::invocation_path`, `abi::resolve_in`) take the table, so `-w`
+or a program in a volume is the directory or the file of the volume.
 
 docker's rules for `Entrypoint` and `Cmd`, the default `PATH` and `HOME`,
 and the codes 126, 127 and 128 + signal are in `plan` and `status`.
@@ -46,18 +61,18 @@ each entry takes; the payload owns the standard output.
 | `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`. `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload` |
 | `Plan { argv, env, working_dir, fds, banner, path_dirs, names }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}` |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload; a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
-| `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM |
+| `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
-| `check_workdir`, `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
+| `check_workdir(&root, ..)` (`root` is a `GuestRoot`: a path or a `Maps`), `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
 | `Error`, `Result`, `status` | `Runtime(Failure)`, `CannotInvoke`, `NotFound`, `NsSetup`; `Error::{runtime, payload_code, code_or}`; `status::{CANNOT_INVOKE, NOT_FOUND, exit_status}` |
-| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe` (the resolved guest path), `guest_invoked` (the `$0` that the kernel gives: the unresolved join of the `PATH` directory), `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage) |
+| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe` (the resolved guest path), `guest_invoked` (the `$0` that the kernel gives: the unresolved join of the `PATH` directory), `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage). Each of the four takes a `GuestRoot` (a path or a `Maps`) |
 | `memfd` | `memfd_create`, `stage(&names, bytes)` (bytes in hand), `stage_file(&names, file)` and `stage_file_with(&names, file, each)` (a copy in chunks of `STAGE_CHUNK`, 1 MiB; `each` sees each chunk, for a digest), `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `shebang_parts` (the interpreter and its one argument, as the kernel parses a `#!` line in `SHEBANG_HEAD`, 256 bytes), `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
 | `stage` | `copy_tree`, `stage_tmpfs`, `release_tmpfs`, `cache_dir`, `stage_cache(&names, ..)`, `Refusal` |
 | `fuse` | `check_node`, `check_node_at`, `serve_tree`, `release_mount`, `ActiveMount`, `FUSE_NODE` |
 | `device` | `parse`, `Mapping`, `canon`, `spec_entry`, `serve_entry`, `banner_line(&names, ..)`, `open_all`, `Opened`, `specs_of(&names, ..)`, `push_spec(&names, ..)`, `push_serve(&names, ..)`, `CHILD_FD_BASE`, `HOST_FD_FLOOR`, `SEP_ENTRY` |
-| `userland` | `Family`, `LoaderPlan`, `lib_dirs`, `invocation_path`, `loader_argv_for`, `loader_plan`, `host_env(&names, ..)`, `userland_maps_table(&names, ..)` |
+| `userland` | `Family`, `LoaderPlan`, `lib_dirs`, `invocation_path`, `loader_argv_for`, `loader_plan` (the three take a `GuestRoot`), `host_env(&names, ..)`; `Volume { guest, host }`, `Maps` (`of_root(rootfs)`, `new(rootfs, &volumes)` with the refusals of a guest side that is not absolute, is `/`, is not a normal path or repeats one, and of a host side that is not absolute; `rootfs`, `volumes`, `volume_at`), `userland_maps_table(&names, &maps)` (the root pair, then each volume pair), `userland_volume_table(&names, &maps)` (the volume pairs only), `MAX_MAP_SIDE` (4096 bytes), `MAX_MAP_PAIRS` (32): each side that the variable cannot spell is refused with its own name (the rootfs path, the guest side or the host side of the volume) |
 | `binfmt` | `support_for`, `Support`, `copy_in_target`, `copy_interpreter_in`, and the reader of `pod_hostprobe::binfmt` |
-| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of` (head-safe), `interp_of_file`, `HEAD_BYTES`, `READ_CEILING`, `PHDR_TABLE_MAX`, `libc_beside`, `resolve_in`, `resolve_dir_in`, `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
+| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of` (head-safe), `interp_of_file`, `HEAD_BYTES`, `READ_CEILING`, `PHDR_TABLE_MAX`, `libc_beside`, `resolve_in`, `resolve_dir_in` (each takes a `GuestRoot`), `GuestRoot` (`root`, `host_of`, `above_mount`; for `Path`, `PathBuf`, `str`, `String` and `userland::Maps`), `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
 
 A failure of the entry is `Error::Runtime` with a `pod_core::Failure` at
 `Stage::Host`. Its class follows the errno where a system call refused
@@ -127,6 +142,11 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `lifecycle/script.rs`: `shebang`, `head::shebang` of the interposer (its tests pin the same cases) | `pod_enter::memfd::shebang_parts` |
 | `lifecycle/script.rs`: `invoked_path` (calls `guest_exe`: its `$0` has the links followed) | `pod_enter::ladder::guest_invoked` |
 | `complete/capability.rs`: `static_head` | `pod_enter::abi::interp_of(path, &head)` (`Ok(None)` is static, an error is unknown), or `interp_of_file(path)` |
+| `podvm_enter::userland::Volume`, `volume_at(&volumes, p)` | `pod_enter::userland::Volume` (the same fields), `maps.volume_at(p)` |
+| `podvm_enter::userland::userland_maps_table(root, &volumes)`: `side`, `normal`, the absolute, `/` and second-volume checks of the guest side, `MAX_VOLUMES` | `let maps = Maps::new(rootfs, &volumes)?`, then `pod_enter::userland::userland_maps_table(&NAMES, &maps)`, or `userland_volume_table(&NAMES, &maps)` under `--unsafe-host-paths` (no root pair); the bound is `MAX_MAP_PAIRS`, so `MAX_VOLUMES` is `MAX_MAP_PAIRS - 1`. The check of `NEVER_MAPPED` (`/proc`, `/.podvm`) and `volumes_of` stay in podvm |
+| `lifecycle::volume::refuse_paths`: `-w` or a first program in a volume refused by name | goes; give `&maps` to `check_workdir`, `ladder::payload_head`, `resolve_payload`, `guest_exe`, `guest_invoked`, `userland::invocation_path`, `userland::loader_plan`, `abi::resolve_in` (`interpose.rs`) and to `lifecycle::script::follow` |
+| `run_userland(root, plan, argv, ..)`, `spawn_userland(root, plan, argv, ..)` (`lifecycle/userland.rs`, `podvm-supervise`'s `launcher.rs`) | `run_userland(root, plan, &maps, argv, ..)`; `Maps::of_root(rootfs)` where the run has no volume. The child enters the working directory that the walk resolved: a link of the image in `-w` is followed inside the image, not on the host |
+| `userland::invocation_path` | the invoked spelling stays only where the host opens the resolved file through it (the same device and inode); else the resolved file |
 
 ## Tests
 

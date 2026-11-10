@@ -5,9 +5,11 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
 
+use crate::abi::resolve_dir;
 use crate::entry::{NsMount, chroot_landed, ns_setup_step, refuse_workdir, workdir_kind};
 use crate::names::var_name;
 use crate::status::{NOT_FOUND, invocable_but_refused};
+use crate::userland::Maps;
 use crate::{Child, Error, Plan, Result, RootDir, errno_failure};
 
 /// The exit code of a child that wrote a failed step to the readiness
@@ -21,8 +23,9 @@ const SETUP_FAILED: i32 = 125;
 /// `active` is the word of the active mode variable. `fd_exec` is the
 /// written memfd that the child execs, where the caller gives one.
 /// `argv_exec` is the exact argv that the child execs in place of the
-/// candidates (the loader of the entry with no chroot). `chroot` selects
-/// the chroot sequence or the sequence with `fchdir` only. `ns` carries the
+/// candidates (the loader of the entry with no chroot). `userland` is
+/// `None` for the chroot sequence, and the table of the run for the
+/// sequence with `fchdir` only. `ns` carries the
 /// mount of the namespace rung, or nothing. One function, so the fork, the
 /// rules of the root and the readiness pipe are the same for each entry.
 ///
@@ -35,7 +38,7 @@ pub(crate) fn spawn_with(
     active: &str,
     argv_exec: Option<Vec<CBuf>>,
     fd_exec: Option<i64>,
-    chroot: bool,
+    userland: Option<&Maps>,
     ns: Option<&NsMount>,
     err: &mut dyn Write,
 ) -> Result<Child> {
@@ -65,16 +68,9 @@ pub(crate) fn spawn_with(
         .chain(std::iter::once(&active_var))
         .map(|e| CBuf::new(e).ok_or_else(|| nul(format!("the environment {e:?} contains a NUL"))))
         .collect::<Result<_>>()?;
+    let chroot = userland.is_none();
     let workdir = CBuf::new(if plan.working_dir.is_empty() { "/" } else { &plan.working_dir })
         .ok_or_else(|| nul("the working directory contains a NUL byte".to_string()))?;
-    // With no chroot the child addresses the working directory relative to
-    // the descriptor of the root file system: the path of the guest with
-    // no leading slash. A NUL byte falls back to the root itself.
-    let workdir_rel: Option<CBuf> = match plan.working_dir.trim_start_matches('/') {
-        _ if chroot => None,
-        "" => None,
-        rel => CBuf::new(rel),
-    };
     let slash = CBuf::new("/").expect("a literal");
     let dot = CBuf::new(".").expect("a literal");
     let tmpfs = CBuf::new("tmpfs").expect("a literal");
@@ -112,13 +108,17 @@ pub(crate) fn spawn_with(
 
     // Check the working directory before the fork, on each rung: a missing
     // one is refused here with its name, and the payload never runs from
-    // the wrong directory with exit 0. A NUL byte skips this check and
-    // fails at the `CBuf` above.
-    if !plan.working_dir.contains('\0')
-        && let Err(kind) = workdir_kind(&root.path, &plan.working_dir)
-    {
-        return Err(refuse_workdir(&plan.working_dir, &format!("in the image's rootfs {:?}", root.path), kind));
-    }
+    // the wrong directory with exit 0. A NUL byte failed at the `CBuf`
+    // above. With no chroot the check is the resolution through the table.
+    let workdir_host = match userland {
+        Some(maps) => userland_workdir(root, maps, &plan.working_dir)?,
+        None => {
+            if let Err(kind) = workdir_kind(root.path.as_str(), &plan.working_dir) {
+                return Err(refuse_workdir(&plan.working_dir, &format!("in the image's rootfs {:?}", root.path), kind));
+            }
+            None
+        }
+    };
 
     // The banner before the fork, so it cannot mix with the first output
     // of the payload. It goes to the error writer, never to the standard
@@ -200,11 +200,12 @@ pub(crate) fn spawn_with(
                         report(10, sys::EXDEV);
                     }
                 }
-            } else if let Some(w) = &workdir_rel
+            } else if let Some(w) = &workdir_host
                 && let Err(e) = sys::chdir(w)
             {
-                // No chroot: the working directory stays inside the image,
-                // relative to the descriptor above.
+                // No chroot: the working directory that the table resolved
+                // before the fork, inside the image relative to the
+                // descriptor above, or inside a volume by its host path.
                 report(11, e);
             }
 
@@ -275,6 +276,40 @@ pub(crate) fn spawn_with(
         return Err(Error::NsSetup { step, errno });
     }
     Err(step_failure(plan, buf[0], errno))
+}
+
+/// The working directory of an entry with no chroot, resolved through the
+/// table before the fork: `None` for the root itself, a path relative to
+/// the descriptor of the root file system where the root pair serves it,
+/// or the host path of a volume where a volume serves it.
+///
+/// The walk follows each link as the guest kernel does and keeps the
+/// guest path, so the child never follows a link of the image on the
+/// host. A table whose root is not `root.path` is refused: the relative
+/// path would name a directory of another tree.
+fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> Result<Option<CBuf>> {
+    if maps.rootfs().trim_end_matches('/') != root.path.trim_end_matches('/') {
+        return Err(Error::runtime(
+            Class::Usage,
+            format!(
+                "the table of path maps has the root {:?}, and the entry holds the root {:?}",
+                maps.rootfs(),
+                root.path
+            ),
+        ));
+    }
+    let guest = if working_dir.is_empty() { "/" } else { working_dir };
+    let (host, parts) = resolve_dir(maps, guest).map_err(|kind| {
+        refuse_workdir(working_dir, &format!("in the image's rootfs {:?} or its volumes", root.path), kind)
+    })?;
+    let text = if maps.in_volume(&parts) {
+        host.display().to_string()
+    } else if parts.is_empty() {
+        return Ok(None);
+    } else {
+        parts.join("/")
+    };
+    CBuf::new(&text).map(Some).ok_or_else(|| Error::runtime(Class::Usage, "the working directory contains a NUL byte"))
 }
 
 /// The error for a step that the child reported.

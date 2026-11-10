@@ -41,7 +41,7 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `writable` | `candidates(named)`, `probe(candidates)`, `WriteProbe`, `FIXED`, `VARIABLES` |
 | `space` | `read`, `require(&Settings, ...)`, `choose`, `file_ceiling`, `dir_bytes`, `mib`: blocks and inodes before a write |
 | `exec` | `probe_dir_exec(&Settings, dir)`, `try_exec`: can a file created under a directory execute (`noexec`) |
-| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children` |
+| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children`; `statfs` gives `Statfs { f_bsize, f_bavail, f_files, f_ffree, f_flags }` from the `struct statfs64` of the kernel on each target (`statfs64(2)` on a 32-bit target), with `Statfs::flag` and the mount flags `ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`, `ST_SYNCHRONOUS`, `ST_VALID`, `ST_MANDLOCK`, `ST_NOATIME`, `ST_NODIRATIME`, `ST_RELATIME` |
 
 A failure of `space` and `exec` is a `pod_core::Failure` at
 `Stage::Host`: `Class::Usage` for a path with a NUL, `Class::Unavailable`
