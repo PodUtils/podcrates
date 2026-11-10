@@ -28,5 +28,6 @@ cargo test -q -p podssh-relay --all-features --lib --test quick_tunnel_quic --te
 cargo test -q -p podssh-cli --lib --test node_quick_relay --test doctor_ipv6
 cargo fmt -p podssh-relay -p podssh-cli --check
 python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+python3 -I "$PODCRATES/scripts/check-consumer-tests.py"
 cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
 sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"
