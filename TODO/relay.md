@@ -10,7 +10,7 @@ section 8.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -38,14 +38,32 @@ binary must carry one QUIC stack.
 ## Prove
 
 ```sh
-cargo test -p pod-quic
+cargo todo check
+python3 -I scripts/check-design-paths.py
 ```
 
-The entry gives the measurements of both stacks.
+`docs/research/quic/stack.md` gives the measurements of both stacks.
 
 ## Start condition
 
 T-016 is done.
+
+## Done
+
+2026-11-10, the commit of this entry. The choice is noq 1.4 (C43,
+`docs/research/quic/stack.md`). Two scratch crates ran one client (custom
+UDP socket in the shape of `WarpUdpSocket`, datagrams, a stream) on
+quinn 0.11.12 and on noq 1.4.0, with rustls on ring. Both link static on
+x86_64, aarch64, i686, armv7, arm, riscv64gc, powerpc64le and loongarch64
+musl (cargo-zigbuild). x86_64 musl: 1,857,400 bytes (quinn) against
+2,077,344 (noq); 130 against 185 lines of `cargo tree`, 60 against 84
+unique crates; a 1 GiB stream on a stock socket 322 against 286 MiB/s, on
+the custom socket 253 against 236 MiB/s; datagrams on a stock socket
+395,000 against 332,000 for each second, on the custom socket 284,000
+against 250,000 (3 runs each, medians). iroh pins noq and needs its
+multipath and NAT traversal; podnet's HTTP/3 is its own code on the raw
+connection, so it needs no `h3` binding. Defect found: the send poller of
+`WarpUdpSocket` is in the Approach of T-019.
 
 # T-019: `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams
 
@@ -69,7 +87,14 @@ QUIC probe and QUIC over `Datagrams`.
 
 ## Approach
 
-The procedure of `docs/design.md`, section 8, on the stack of T-018.
+The procedure of `docs/design.md`, section 8, on noq (T-018, C43). Map
+`Datagrams` to noq's `AsyncUdpSocket` and `UdpSender` (`create_sender`,
+`poll_recv(&mut self)`). Give each sender its own waker (for example
+`tokio_util::sync::PollSender`): the send poller of podnet's
+`WarpUdpSocket` creates a `Notified` for each poll and drops it on
+`Pending`, and tokio removes a dropped `Notified` from the list of
+`notify_waiters`, so a full queue can lose its wake-up. Test a full queue
+that drains. Implement the reset key and the token key in pure Rust.
 
 ## Prove
 

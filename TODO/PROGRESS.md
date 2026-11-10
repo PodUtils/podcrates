@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 152 entries: 56 open, 3 partial, 0 blocked, 93 done.
+`TODO/INDEX.md` holds 152 entries: 55 open, 3 partial, 0 blocked, 94 done.
 
 ## State
 
@@ -53,7 +53,7 @@ first; the asks of cfb and githome (M8) wait.
 3. **M1, the transport:** T-016 (partial: the release `v0.13.0` and the
    takes of podssh and podnet, `adoption/{podssh,podnet}/pod-ws.*`); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-018, T-019, T-020, T-021, T-022, T-023, T-024,
+4. **M2, the relay:** T-019, T-020, T-021, T-022, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 5. **M3, the adapters:** T-027, T-028, T-029, T-030.
 6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
@@ -69,7 +69,7 @@ first; the asks of cfb and githome (M8) wait.
 ## Calls made without a ruling
 
 `docs/decisions.md`, "Calls made without a ruling", has each call (C1 to
-C42), and the work goes on with it until the owner rules otherwise.
+C43), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
