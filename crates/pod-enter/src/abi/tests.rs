@@ -40,6 +40,13 @@ fn resolve_past_a_denied_listing() {
             let _ = std::fs::remove_dir_all(&d);
             return;
         }
+        // A temporary directory under a directory that nobody cannot
+        // cross (TMPDIR under /root): the child cannot enter it.
+        Err(e) if e.raw_os_error() == Some(libc_eacces()) => {
+            pod_testkit::host::skip_line(&format!("nobody cannot enter the temporary directory ({e})"));
+            let _ = std::fs::remove_dir_all(&d);
+            return;
+        }
         Err(e) => panic!("spawning the worker failed: {e}"),
     };
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -55,6 +62,11 @@ fn resolve_past_a_denied_listing() {
 /// each Linux architecture.
 fn libc_eperm() -> i32 {
     1
+}
+
+/// `EACCES`, the same on each Linux architecture.
+fn libc_eacces() -> i32 {
+    13
 }
 
 /// The worker half of [`resolve_past_a_denied_listing`].
