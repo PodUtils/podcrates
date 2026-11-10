@@ -8,8 +8,8 @@
   release 42755226074): `pod-rootfs`, the `pod-enter` of
   PodUtils/podvm#222, podvm's whiteout tests in `pod-extract`. COORD-022
   (GitHub #46) hands it to each consumer. podnet took it (`740eb0b`,
-  PodUtils/podnet#419) and podvm (`0682c0c`, PodUtils/podvm#225);
-  podssh is on `v0.10.0`.
+  PodUtils/podnet#419), podvm (`0682c0c`, PodUtils/podvm#225) and
+  podssh (`dc112ea7`, PodUtils/podssh#181).
   Open: T-131 (`pod-gsr` on Windows ARM64).
 - M6: podvm took each of its seven generic crates: `pod-hostprobe`,
   `pod-supervise`, `pod-guest`, `pod-enter` (podvm `423e817`), `pod-oci`
