@@ -299,7 +299,9 @@ fn a_hostile_offset_is_a_refusal_and_not_a_panic() {
     b[32..40].copy_from_slice(&u64::MAX.to_le_bytes());
     b[54..56].copy_from_slice(&56u16.to_le_bytes());
     b[56..58].copy_from_slice(&2u16.to_le_bytes());
-    assert_eq!(interp_of("/x", &b).unwrap(), None);
+    // "Unknown", never "static": the table is not in the bytes.
+    let e = interp_of("/x", &b).unwrap_err();
+    assert!(format!("{e}").contains("past the 64 bytes read"), "{e}");
     // A section table at the end of the address space.
     b[40..48].copy_from_slice(&u64::MAX.to_le_bytes());
     b[58..60].copy_from_slice(&64u16.to_le_bytes());
@@ -314,6 +316,71 @@ fn a_hostile_offset_is_a_refusal_and_not_a_panic() {
     b[64 + 32..64 + 40].copy_from_slice(&(u64::MAX / 2).to_le_bytes());
     let e = Elf::parse("/x", &b).unwrap_err();
     assert!(format!("{e}").contains("no section table"), "{e}");
+}
+
+/// Head safety: where the program headers or the `PT_INTERP` path lie
+/// past the bytes in hand, the answer is "unknown" (an error), never
+/// "static". The whole file gives the true answer.
+#[test]
+fn a_header_past_the_head_is_unknown_and_never_static() {
+    let head = usize::try_from(HEAD_BYTES).unwrap();
+    // The program header table past the head.
+    let b = dyn_elf(HEAD_BYTES + 4096, HEAD_BYTES + 8192);
+    let e = interp_of("/x", &b[..head]).unwrap_err();
+    assert!(format!("{e}").contains("program header table lies past"), "{e}");
+    assert_eq!(interp_of("/x", &b).unwrap().as_deref(), Some(LOADER));
+    // The table in the head, the path past it.
+    let b = dyn_elf(64, HEAD_BYTES + 8192);
+    let e = interp_of("/x", &b[..head]).unwrap_err();
+    assert!(format!("{e}").contains("PT_INTERP path lies past"), "{e}");
+    assert_eq!(interp_of("/x", &b).unwrap().as_deref(), Some(LOADER));
+    // Both in the head: the head answers as the whole file does.
+    let b = dyn_elf(64, 512);
+    assert_eq!(interp_of("/x", &b[..head.min(b.len())]).unwrap().as_deref(), Some(LOADER));
+}
+
+/// A program header table over the bound of the kernel, or with entries
+/// smaller than a program header, is refused by name.
+#[test]
+fn a_hostile_program_header_table_is_refused() {
+    let mut b = dyn_elf(64, 512);
+    b[56..58].copy_from_slice(&u16::MAX.to_le_bytes());
+    let e = interp_of("/x", &b).unwrap_err();
+    assert!(format!("{e}").contains(&format!("over the {PHDR_TABLE_MAX}")), "{e}");
+    let mut b = dyn_elf(64, 512);
+    b[54..56].copy_from_slice(&8u16.to_le_bytes());
+    let e = interp_of("/x", &b).unwrap_err();
+    assert!(format!("{e}").contains("e_phentsize 8"), "{e}");
+}
+
+/// The bounded read of a file and the parse of the same bytes in hand
+/// give the same answer, on this test binary.
+#[test]
+fn the_bounded_read_agrees_with_the_parse_of_the_whole_file() {
+    let me = std::env::current_exe().unwrap();
+    let me = me.to_str().unwrap();
+    let read = Elf::read(me).unwrap();
+    let parsed = Elf::parse(me, &std::fs::read(me).unwrap()).unwrap();
+    assert_eq!(format!("{read:?}"), format!("{parsed:?}"));
+    assert_eq!(interp_of_file(me).unwrap(), read.interp);
+}
+
+const LOADER: &str = "/lib64/ld-linux-x86-64.so.2";
+
+/// A 64-bit little-endian file with a `PT_LOAD` and a `PT_INTERP`: the
+/// table at `phoff`, the path of [`LOADER`] at `interp_at`.
+fn dyn_elf(phoff: u64, interp_at: u64) -> Vec<u8> {
+    let at = |v: u64| usize::try_from(v).unwrap();
+    let mut b = tiny_elf(62);
+    b.resize(at(phoff.max(interp_at)) + 4096, 0);
+    b[32..40].copy_from_slice(&phoff.to_le_bytes());
+    b[54..56].copy_from_slice(&56u16.to_le_bytes());
+    b[56..58].copy_from_slice(&2u16.to_le_bytes());
+    b[at(phoff)..at(phoff) + 4].copy_from_slice(&1u32.to_le_bytes());
+    b[at(phoff) + 56..at(phoff) + 60].copy_from_slice(&3u32.to_le_bytes());
+    b[at(phoff) + 64..at(phoff) + 72].copy_from_slice(&interp_at.to_le_bytes());
+    b[at(interp_at)..at(interp_at) + LOADER.len()].copy_from_slice(LOADER.as_bytes());
+    b
 }
 
 // ------------------------------------------------------------ fixtures

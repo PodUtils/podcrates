@@ -1228,7 +1228,7 @@ Correct the two texts. Add `shebang_parts(bytes) -> Option<(String,
 Option<String>)>`, so that podvm and its interposer stop keeping their own
 parsers of `#!`; `guest_invoked(rootfs, argv0, path_dirs)` that gives the
 `$0` the kernel would give. The variant of `interp_of` that is safe on the
-head of a file is T-139. A test for each. Tell podvm in the hand-off of the release.
+head of a file is T-139 (done: `interp_of` itself is head-safe). A test for each. Tell podvm in the hand-off of the release.
 
 ## Prove
 
@@ -1279,7 +1279,7 @@ The run id of the dispatched job goes in the Done section.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1316,6 +1316,54 @@ PodUtils/podvm@T-1652).
 ```sh
 cargo test -p pod-enter
 ```
+
+## Done
+
+2026-11-10. Commit: the commit that names T-139. `cargo test -p pod-enter`
+passes (139 unit tests, 5 in `tests/bounded_payload.rs`, 2 in
+`tests/tty_refusal.rs`); the same on i686 (138 unit tests and the 7 others).
+
+- `abi::Elf::read` reads the ELF header, the two header tables and the
+  sections of the checks with `pread` (`src/abi/image.rs`), never the whole
+  file. The ceiling of 128 MiB is gone. `abi::READ_CEILING` (64 MiB)
+  bounds the bytes held for one file; a file whose tables need more is an
+  `Unreadable` that names the bound. A section that a read cannot give is
+  a refusal, never a file with fewer symbols.
+- `abi::interp_of` is head-safe: a program header table or a `PT_INTERP`
+  path past the bytes gives an `Unreadable` ("unknown"), never `Ok(None)`
+  ("static"). `abi::PHDR_TABLE_MAX` (64 KiB, the bound of the kernel)
+  refuses a larger table, and an `e_phentsize` smaller than a program
+  header is refused. `abi::interp_of_file` reads a file with `pread`.
+- `ladder::payload_head` replaces `payload_bytes` and `PAYLOAD_CEILING`.
+  It gives `Payload { path, len, head }` and `Payload::file()`; the head
+  has at most `abi::HEAD_BYTES` (64 KiB). No size limit of a payload stays.
+- `memfd::stage_file` and `memfd::stage_file_with` copy from the file into
+  the memfd in chunks of `memfd::STAGE_CHUNK` (1 MiB); `stage_file_with`
+  gives each chunk to the caller for a digest. `memfd::stage` stays for
+  bytes in hand.
+- Tests on a sparse file of 200 MiB, with a counting allocator of the
+  thread (bound 4 MiB): `a_200_mib_payload_classifies_from_its_head`
+  (65616 bytes held), `a_200_mib_elf_reads_its_tables_with_bounded_memory`
+  (5081), `a_section_over_the_read_ceiling_is_refused_unread` (1473),
+  `a_header_past_the_head_is_unknown`,
+  `a_200_mib_payload_stages_through_a_bounded_buffer` (1048602; it skips
+  under an emulator). Unit tests: `a_header_past_the_head_is_unknown_and_never_static`,
+  `a_hostile_program_header_table_is_refused`,
+  `the_bounded_read_agrees_with_the_parse_of_the_whole_file`,
+  `the_payload_head_of_a_small_file_is_the_file`.
+  `a_hostile_offset_is_a_refusal_and_not_a_panic` now expects "unknown"
+  for a program header table past the file.
+- Plant: `Elf::read`, `payload_head` and the copy of the stage that read
+  the whole file. Each of the 5 tests of `tests/bounded_payload.rs` fails
+  (`Elf::read` held 209716146 bytes, the stage 209715226).
+- podvm at its take (README, "Adoption map"): `payload_bytes(..)` becomes
+  `payload_head(..)`, and `eligible`, `has_shebang` and `script_refusal`
+  take `&p.head`; `memfd::stage(&bytes)` of a payload becomes
+  `pod_enter::memfd::stage_file(&NAMES, p.file())`; the refusal of 128 MiB
+  goes; `doctor` and `probe` can report `HEAD_BYTES`, `READ_CEILING` and
+  `STAGE_CHUNK` as bounds of memory; `complete/capability.rs` can use
+  `interp_of` on its head. Then podvm runs `node` of node:22-alpine
+  (PodUtils/podvm#222).
 
 # T-140: `pod-oci`: the test of the host name fails where Rust and OCI say the same word
 

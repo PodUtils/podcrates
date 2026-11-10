@@ -12,12 +12,6 @@ pub(super) struct Bytes<'a> {
     pub(super) class64: bool,
 }
 
-/// `base + i * size` as an index into the file, or `None` where it does not
-/// fit a `usize`.
-pub(super) fn offset(base: u64, i: usize, size: u16) -> Option<usize> {
-    usize::try_from(base).ok()?.checked_add(i.checked_mul(usize::from(size))?)
-}
-
 impl Bytes<'_> {
     pub(super) fn u16(&self, at: usize) -> Option<u16> {
         let s: [u8; 2] = self.b.get(at..at.checked_add(2)?)?.try_into().ok()?;
@@ -35,78 +29,13 @@ impl Bytes<'_> {
     }
 
     /// A field of 8 bytes in ELF64 and of 4 bytes in ELF32.
-    fn word(&self, at: usize) -> Option<u64> {
+    pub(super) fn word(&self, at: usize) -> Option<u64> {
         if self.class64 { self.u64(at) } else { self.u32(at).map(u64::from) }
     }
 
     /// A field of 32 bits as an index into the file.
-    fn index(&self, at: usize) -> Option<usize> {
+    pub(super) fn index(&self, at: usize) -> Option<usize> {
         usize::try_from(self.u32(at)?).ok()
-    }
-
-    /// The contents of `PT_INTERP`, where the file has one.
-    pub(super) fn interp(&self) -> Option<String> {
-        let (phoff, phentsize, phnum) = if self.class64 {
-            (self.u64(32)?, self.u16(54)?, self.u16(56)?)
-        } else {
-            (u64::from(self.u32(28)?), self.u16(42)?, self.u16(44)?)
-        };
-        for i in 0..usize::from(phnum) {
-            let p = Bytes { b: self.b.get(offset(phoff, i, phentsize)?..)?, msb: self.msb, class64: self.class64 };
-            if p.u32(0)? != 3 {
-                continue; // PT_INTERP
-            }
-            let off = if self.class64 { p.u64(8)? } else { u64::from(p.u32(4)?) };
-            return cstr(self.b, usize::try_from(off).ok()?);
-        }
-        None
-    }
-
-    pub(super) fn sections(&self) -> Option<Sections> {
-        let (shoff, shentsize, mut shnum, mut shstrndx) = if self.class64 {
-            (self.u64(40)?, self.u16(58)?, u64::from(self.u16(60)?), usize::from(self.u16(62)?))
-        } else {
-            (u64::from(self.u32(32)?), self.u16(46)?, u64::from(self.u16(48)?), usize::from(self.u16(50)?))
-        };
-        if shoff == 0 || shentsize == 0 {
-            return None;
-        }
-        let one = |i: usize| -> Option<Section> {
-            let s = Bytes { b: self.b.get(offset(shoff, i, shentsize)?..)?, msb: self.msb, class64: self.class64 };
-            let (off_at, size_at, link_at) = if self.class64 { (24, 32, 40) } else { (16, 20, 24) };
-            Some(Section {
-                name_off: s.index(0)?,
-                offset: s.word(off_at)?,
-                size: s.word(size_at)?,
-                link: s.u32(link_at)?,
-            })
-        };
-        // `e_shnum` 0 and `e_shstrndx` SHN_XINDEX both mean "the real value
-        // is in section 0": the form of an object with more than 0xff00
-        // sections. A reader that took the fields of the header as they are
-        // would read no section of such an object.
-        let zero = one(0)?;
-        if shnum == 0 {
-            shnum = zero.size;
-        }
-        if shstrndx == 0xffff {
-            shstrndx = usize::try_from(zero.link).ok()?;
-        }
-        // Each header must be inside the file, so the file bounds the
-        // count, and a hostile count cannot make a large allocation.
-        let shnum = usize::try_from(shnum).ok()?;
-        if shnum > self.b.len() / usize::from(shentsize) {
-            return None;
-        }
-        let all = (0..shnum).map(one).collect::<Option<Vec<_>>>()?;
-        let names = all.get(shstrndx)?.slice(self.b);
-        let mut by_name = BTreeMap::new();
-        for s in &all {
-            if let Some(n) = cstr(names, s.name_off) {
-                by_name.insert(n, s.clone());
-            }
-        }
-        Some(Sections { all, by_name })
     }
 
     /// `.gnu.version_d`: the index of a version and the name that it
@@ -198,25 +127,14 @@ impl Bytes<'_> {
 
 #[derive(Debug, Clone)]
 pub(super) struct Section {
-    name_off: usize,
-    offset: u64,
-    size: u64,
+    pub(super) name_off: usize,
+    pub(super) offset: u64,
+    pub(super) size: u64,
     pub(super) link: u32,
 }
 
-impl Section {
-    /// The bytes of the section, or an empty slice where the section is not
-    /// inside the file.
-    pub(super) fn slice<'a>(&self, b: &'a [u8]) -> &'a [u8] {
-        let range = usize::try_from(self.offset)
-            .ok()
-            .and_then(|start| Some(start..start.checked_add(usize::try_from(self.size).ok()?)?));
-        range.and_then(|r| b.get(r)).unwrap_or_default()
-    }
-}
-
 pub(super) struct Sections {
-    all: Vec<Section>,
+    pub(super) all: Vec<Section>,
     pub(super) by_name: BTreeMap<String, Section>,
 }
 

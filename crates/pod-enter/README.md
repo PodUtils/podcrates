@@ -50,14 +50,14 @@ each entry takes; the payload owns the standard output.
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
 | `check_workdir`, `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
 | `Error`, `Result`, `status` | `Runtime(Failure)`, `CannotInvoke`, `NotFound`, `NsSetup`; `Error::{runtime, payload_code, code_or}`; `status::{CANNOT_INVOKE, NOT_FOUND, exit_status}` |
-| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe`, `payload_bytes`, `PAYLOAD_CEILING` |
-| `memfd` | `memfd_create`, `stage(&names, bytes)`, `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
+| `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe`, `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage) |
+| `memfd` | `memfd_create`, `stage(&names, bytes)` (bytes in hand), `stage_file(&names, file)` and `stage_file_with(&names, file, each)` (a copy in chunks of `STAGE_CHUNK`, 1 MiB; `each` sees each chunk, for a digest), `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
 | `stage` | `copy_tree`, `stage_tmpfs`, `release_tmpfs`, `cache_dir`, `stage_cache(&names, ..)`, `Refusal` |
 | `fuse` | `check_node`, `check_node_at`, `serve_tree`, `release_mount`, `ActiveMount`, `FUSE_NODE` |
 | `device` | `parse`, `Mapping`, `canon`, `spec_entry`, `serve_entry`, `banner_line(&names, ..)`, `open_all`, `Opened`, `specs_of(&names, ..)`, `push_spec(&names, ..)`, `push_serve(&names, ..)`, `CHILD_FD_BASE`, `HOST_FD_FLOOR`, `SEP_ENTRY` |
 | `userland` | `Family`, `LoaderPlan`, `lib_dirs`, `invocation_path`, `loader_argv_for`, `loader_plan`, `host_env(&names, ..)`, `userland_maps_table(&names, ..)` |
 | `binfmt` | `support_for`, `Support`, `copy_in_target`, `copy_interpreter_in`, and the reader of `pod_hostprobe::binfmt` |
-| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of`, `libc_beside`, `resolve_in`, `resolve_dir_in`, `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
+| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of` (head-safe), `interp_of_file`, `HEAD_BYTES`, `READ_CEILING`, `PHDR_TABLE_MAX`, `libc_beside`, `resolve_in`, `resolve_dir_in`, `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
 
 A failure of the entry is `Error::Runtime` with a `pod_core::Failure` at
 `Stage::Host`. Its class follows the errno where a system call refused
@@ -73,6 +73,15 @@ control: each offset goes through checked arithmetic and `usize::try_from`,
 and the count of the section headers is bounded by the file, so a hostile
 file gives a refusal and no panic, also on a 32-bit target.
 
+No step holds a whole payload, and no step bounds the size of a file:
+
+| Bound | Value | What it bounds |
+| --- | --- | --- |
+| `abi::HEAD_BYTES` | 64 KiB | the head that `ladder::payload_head` reads for the decision; `interp_of` on a head says "unknown" (an `Unreadable`), never "static", where a program header or the `PT_INTERP` path lies past it |
+| `abi::PHDR_TABLE_MAX` | 64 KiB | the program header table (the bound of the kernel) |
+| `abi::READ_CEILING` | 64 MiB | the bytes that `Elf::read` holds for one file: the header, the two tables and the sections of the checks, each read with `pread`. A file whose tables need more is an `Unreadable` that names the bound |
+| `memfd::STAGE_CHUNK` | 1 MiB | the buffer of `stage_file`. The memfd holds the payload as a file of the kernel |
+
 ## Parity
 
 Against podvm `crates/podvm-enter` at `284f429`:
@@ -84,14 +93,14 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | [x] The entry with no chroot (`spawn_userland`, `run_userland`, `userland`) | the same; `userland_maps_table` and `host_env` take `&Names` (`host_env` sets `Names::lib_path`) |
 | [x] `userland::LIB_PATH_VAR` (`PODVM_LIB_PATH`) | `Names::lib_path`; `host_env` sets it |
 | [x] `PODVM_MODE`, `PODVM_ACTIVE_MODE` in `Plan` (`MODE_REQUEST_VAR`, `MODE_ACTIVE_VAR`) | `Names::{mode_request, mode_active}`; `Plan::names`; `env_for` and `set_active_mode` take `&Names` |
-| [x] The ladder: `Mode`, `Availability`, `choose`, `resolve_payload`, `guest_exe`, `payload_bytes` | the same; `Mode::parse`, `choose`, `refusal_reason` take `&Names` (`PODVM_CACHE` is `Names::cache`) |
+| [x] The ladder: `Mode`, `Availability`, `choose`, `resolve_payload`, `guest_exe`, `payload_bytes` | the same; `Mode::parse`, `choose`, `refusal_reason` take `&Names` (`PODVM_CACHE` is `Names::cache`). `payload_bytes` and its 128 MiB ceiling (`PAYLOAD_CEILING`) are gone: `payload_head` reads the head, and a payload of any size classifies (PodUtils/podvm#222) |
 | [x] `ladder::GUEST_EXE_VAR` (`PODVM_GUEST_EXE`) | stays in podvm: the crate does not read or write it |
-| [x] memfd: the flags, `memfd_create`, `stage`, `seal`, `eligible`, the script refusal, the probe that executes a trampoline | the same; `stage` and `probe::answer` take `&Names` (the label `podvm-payload`, the words of the fix line) |
+| [x] memfd: the flags, `memfd_create`, `stage`, `seal`, `eligible`, the script refusal, the probe that executes a trampoline | the same; `stage` and `probe::answer` take `&Names` (the label `podvm-payload`, the words of the fix line). `stage_file` copies a payload of any size in chunks of 1 MiB |
 | [x] `stage`: `copy_tree`, tmpfs, cache | the same; `stage_cache` takes `&Names` (the marker `.podvm-cache-complete`) |
 | [x] The FUSE rung (`serve_tree`, the read-only server, `release_mount`) | the same |
 | [x] `--device` by descriptor (`SPEC_VAR`, `SERVE_VAR`) | `Names::{device_spec, device_fds}`; `specs_of`, `push_spec`, `push_serve`, `banner_line` take `&Names` |
 | [x] `binfmt` (re-export of the reader, `support_for`, the copy) | the same, from `pod_hostprobe::binfmt` |
-| [x] `abi` (the reader, the closure, `admits`, `admits_set`, `resolve_in`) | the same; each offset is checked (podvm truncated a 64-bit offset on a 32-bit target and allocated by a count from the file) |
+| [x] `abi` (the reader, the closure, `admits`, `admits_set`, `resolve_in`) | the same; each offset is checked (podvm truncated a 64-bit offset on a 32-bit target and allocated by a count from the file). `Elf::read` has no 128 MiB ceiling: it reads the tables with `pread` (`READ_CEILING`). `interp_of` is head-safe, so it serves podvm's `complete/capability.rs` |
 | [x] `Error` with `exit_code()` (125, 126, 127), `EXIT_*` of `podvm-probe` | `Error::Runtime(Failure)`; `payload_code`, `code_or`; 126 and 127 are `status::*`; 125 stays in podvm |
 | [x] The tests: 137 unit and integration tests | each with its name; `resolve_past_a_denied_listing` needs root (`need_root!`), the cover of ptmx needs a user namespace (`need_userns!`), the fifo test `mkfifo`, the exec probe `/bin/sh`; 1 new test |
 
@@ -112,6 +121,10 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `crates/podvm-enter/src/*` but `lib.rs`, `tests/tty_refusal.rs` | leave podvm |
 | podvm-gate: the pin `33e tty_refusal` | goes; the test is in this crate |
 | document-state: `Mode` in `crates/podvm-enter/src/ladder.rs` | `pod_enter::ladder::Mode`, re-exported |
+| `ladder::payload_bytes(..)` then `memfd::eligible(&bytes)`, `has_shebang(&bytes)`, `script_refusal(path, &bytes)` | `ladder::payload_head(..)` then the same calls on `&p.head` (the head holds the `#!` line and the ELF headers) |
+| `memfd::stage(&bytes)` of a payload | `pod_enter::memfd::stage_file(&NAMES, p.file())` (wrap it in `podvm_enter::memfd`) |
+| `ladder::PAYLOAD_CEILING`, the 128 MiB refusal | gone; `doctor` and `probe` can report `abi::HEAD_BYTES`, `abi::READ_CEILING` and `memfd::STAGE_CHUNK` as bounds of memory |
+| `complete/capability.rs`: `static_head` | `pod_enter::abi::interp_of(path, &head)` (`Ok(None)` is static, an error is unknown), or `interp_of_file(path)` |
 
 ## Tests
 
@@ -119,3 +132,6 @@ Against podvm `crates/podvm-enter` at `284f429`:
 test that needs root, a user namespace or a tool skips with a line
 `skipping, REASON` where the host does not give it (`pod-testkit`). As root
 the stage test mounts a tmpfs under the temporary directory and removes it.
+`tests/bounded_payload.rs` makes a sparse file of 200 MiB (almost no disk),
+and a counting allocator asserts that each step holds less than 4 MiB of
+heap; its stage test skips under an emulator.

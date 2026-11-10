@@ -95,14 +95,41 @@ pub unsafe fn memfd_create(name: &sys::CBuf, allow_sealing: bool) -> Sysres {
 /// Write `bytes` to a new memfd named `names.memfd_label`, sealed where
 /// the kernel accepts it.
 ///
+/// For bytes in hand. A payload on disk goes through [`stage_file`], which
+/// holds one chunk at a time.
+///
 /// The caller gives the descriptor to the ladder entry, which closes the
 /// copy of the parent after the fork ([`crate::run_ladder`]).
 pub fn stage(names: &Names, bytes: &[u8]) -> crate::Result<i64> {
-    stage_raw(names.memfd_label, bytes).map_err(|f| crate::errno_failure(&format!("{} failed", f.step), f.errno))
+    stage_raw(names.memfd_label, bytes).map_err(StageFail::error)
+}
+
+/// The bytes of one read and one write of [`stage_file`]: the most bytes
+/// of the payload that the stage holds in memory at one time.
+pub const STAGE_CHUNK: usize = 1024 * 1024;
+
+/// Copy `file` from offset 0 to its end into a new memfd named
+/// `names.memfd_label`, in chunks of [`STAGE_CHUNK`], sealed where the
+/// kernel accepts it.
+///
+/// The memfd holds the whole payload, as a file of the kernel. The process
+/// holds one chunk, whatever the size of the payload.
+pub fn stage_file(names: &Names, file: &std::fs::File) -> crate::Result<i64> {
+    stage_file_with(names, file, &mut |_| {})
+}
+
+/// [`stage_file`] that gives each chunk to `each` before it writes it, in
+/// the order of the file. A caller that needs a digest of the staged bytes
+/// computes it here, with no second read.
+pub fn stage_file_with(names: &Names, file: &std::fs::File, each: &mut dyn FnMut(&[u8])) -> crate::Result<i64> {
+    fill(names.memfd_label, |fd| copy(fd, file, each)).map_err(StageFail::error)
 }
 
 /// The step of [`stage_raw`] that makes the memfd.
 pub(crate) const STEP_CREATE: &str = "memfd_create for the payload";
+
+/// The step that writes the payload to its memfd.
+const STEP_WRITE: &str = "writing the payload to its memfd";
 
 /// The step of [`stage_raw`] that failed, with its errno.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,15 +138,30 @@ pub(crate) struct StageFail {
     pub errno: sys::Errno,
 }
 
+impl StageFail {
+    fn error(self) -> crate::Error {
+        crate::errno_failure(&format!("{} failed", self.step), self.errno)
+    }
+}
+
 /// [`stage`] with the errno kept. The probe stages its trampoline here
 /// too, so the probe and the launch use the same flags and seals.
 pub(crate) fn stage_raw(label: &str, bytes: &[u8]) -> Result<i64, StageFail> {
+    fill(label, |fd| match unsafe { write_full(fd, bytes) } {
+        Ok(_) => Ok(()),
+        Err(e) => Err(StageFail { step: STEP_WRITE, errno: e }),
+    })
+}
+
+/// Make the memfd, let `write` fill it, and seal it. The descriptor closes
+/// on each failure.
+fn fill(label: &str, write: impl FnOnce(i64) -> Result<(), StageFail>) -> Result<i64, StageFail> {
     let fail = |step, errno| StageFail { step, errno };
     let name = sys::CBuf::new(label).ok_or(fail(STEP_CREATE, sys::EINVAL))?;
     let fd = unsafe { memfd_create(&name, true) }.map_err(|e| fail(STEP_CREATE, e))?;
-    if let Err(e) = unsafe { write_full(fd, bytes) } {
+    if let Err(f) = write(fd) {
         let _ = sys::close(fd);
-        return Err(fail("writing the payload to its memfd", e));
+        return Err(f);
     }
     match seal(fd) {
         Ok(_) => {}
@@ -134,6 +176,30 @@ pub(crate) fn stage_raw(label: &str, bytes: &[u8]) -> Result<i64, StageFail> {
     Ok(fd)
 }
 
+/// Copy `file` into `fd` through one buffer of [`STAGE_CHUNK`] bytes.
+/// `pread` from offset 0, so the position of the file does not matter.
+fn copy(fd: i64, file: &std::fs::File, each: &mut dyn FnMut(&[u8])) -> Result<(), StageFail> {
+    use std::os::unix::fs::FileExt;
+    let mut buf = vec![0u8; STAGE_CHUNK];
+    let mut at = 0u64;
+    loop {
+        let n = match file.read_at(&mut buf, at) {
+            Ok(0) => return Ok(()),
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                return Err(StageFail {
+                    step: "reading the payload",
+                    errno: sys::Errno(e.raw_os_error().unwrap_or(5)),
+                });
+            }
+        };
+        each(&buf[..n]);
+        unsafe { write_full(fd, &buf[..n]) }.map_err(|e| StageFail { step: STEP_WRITE, errno: e })?;
+        at += n as u64;
+    }
+}
+
 /// Why bytes cannot go through the exec of a descriptor, with what they
 /// take in its place.
 ///
@@ -145,7 +211,8 @@ pub enum MemfdRefusal {
     /// A `#!` script fails through the exec of a descriptor; the entry
     /// execs it by path.
     RoutePastScript,
-    /// Not an ELF file, with the reason.
+    /// Not an ELF file, or an ELF file that the bytes cannot classify (a
+    /// program header past the head), with the reason.
     NotElf(String),
     /// Dynamically linked: `PT_INTERP` names the loader, which must find
     /// the libraries on a file system, and a memfd never puts them there.

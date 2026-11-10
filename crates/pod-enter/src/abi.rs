@@ -156,22 +156,23 @@ mod elf;
 /// a static-PIE payload has no `PT_INTERP` whatever its sections say, and the
 /// ladder answers that from the program headers alone. A script (`#!`) or a
 /// non-ELF file is an [`Unreadable`] naming that, never a silent `None`.
+///
+/// Head-safe: `b` can be the first [`HEAD_BYTES`] of a file. Where the
+/// program header table or the `PT_INTERP` path lies past `b`, the answer
+/// is an [`Unreadable`] ("unknown"), never `Ok(None)` ("static"). The same
+/// holds for a whole file whose headers point past its end.
 pub fn interp_of(path: &str, b: &[u8]) -> Result<Option<String>, Unreadable> {
     let why = |s: String| Unreadable(format!("{path}: {s}"));
-    if b.len() < 64 || &b[0..4] != b"\x7fELF" {
-        return Err(why("not an ELF file: the magic is not \\x7fELF".into()));
-    }
-    let class64 = match b[4] {
-        1 => false,
-        2 => true,
-        c => return Err(why(format!("unknown ELF class {c}"))),
-    };
-    let msb = match b[5] {
-        1 => false,
-        2 => true,
-        d => return Err(why(format!("unknown ELF data encoding {d}"))),
-    };
-    Ok(Bytes { b, msb, class64 }.interp())
+    Image::open(Src::Mem(b)).map_err(why)?.interp().map_err(why)
+}
+
+/// [`interp_of`] for a file on disk, with a bounded read: the header, the
+/// program header table and the path, never the whole file.
+pub fn interp_of_file(path: &str) -> Result<Option<String>, Unreadable> {
+    let why = |s: String| Unreadable(format!("{path}: {s}"));
+    let file = std::fs::File::open(path).map_err(|e| why(format!("{e}")))?;
+    let len = file.metadata().map_err(|e| why(format!("{e}")))?.len();
+    Image::open(Src::file(&file, len)).map_err(why)?.interp().map_err(why)
 }
 
 /// What [`admits`] answers.
@@ -309,6 +310,10 @@ pub use closure::*;
 
 mod bytes;
 use bytes::*;
+
+mod image;
+pub use image::{HEAD_BYTES, PHDR_TABLE_MAX, READ_CEILING};
+use image::{Image, Src};
 
 #[cfg(test)]
 mod tests;

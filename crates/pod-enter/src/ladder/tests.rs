@@ -138,14 +138,16 @@ fn a_payload_escaping_the_image_is_refused() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// The bytes are what the file holds, whole.
+/// The head of a small file is the whole file, with its size and path.
 #[test]
-fn the_payload_bytes_are_the_files() {
+fn the_payload_head_of_a_small_file_is_the_file() {
     let d = fixture_root("bytes");
     std::fs::write(d.join("bin/prog"), b"#!/bin/sh\necho hi\n").unwrap();
     let root = d.to_string_lossy().to_string();
-    let got = payload_bytes(&root, "prog", &["/bin".to_string()]).unwrap();
-    assert_eq!(got, b"#!/bin/sh\necho hi\n");
+    let got = payload_head(&root, "prog", &["/bin".to_string()]).unwrap();
+    assert_eq!(got.head, b"#!/bin/sh\necho hi\n");
+    assert_eq!(got.len, 18);
+    assert!(got.path.ends_with("/bin/prog"), "{}", got.path);
     let _ = std::fs::remove_dir_all(&d);
 }
 

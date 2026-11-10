@@ -3,46 +3,34 @@ use super::*;
 impl Elf {
     /// Read `path`, or say why not.
     ///
-    /// The bound is 128 MiB: a file can be larger than the caller expects,
-    /// and `libc.so.6` is about 2 MiB.
+    /// A bounded read: the header, the two header tables and the sections
+    /// that the checks read, each one with `pread`, and never the whole
+    /// file. The size of the file has no bound; the bytes held have the
+    /// bound [`READ_CEILING`].
     pub fn read(path: &str) -> Result<Elf, Unreadable> {
-        const CEILING: u64 = 128 * 1024 * 1024;
-        let len = std::fs::metadata(path).map_err(|e| Unreadable(format!("{path}: {e}")))?.len();
-        if len > CEILING {
-            return Err(Unreadable(format!(
-                "{path} is {len} bytes, over the {CEILING}-byte ceiling of an ELF file \
-                 that the reader reads"
-            )));
-        }
-        let bytes = std::fs::read(path).map_err(|e| Unreadable(format!("{path}: {e}")))?;
-        Elf::parse(path, &bytes)
+        let why = |e: std::io::Error| Unreadable(format!("{path}: {e}"));
+        let file = std::fs::File::open(path).map_err(why)?;
+        let len = file.metadata().map_err(why)?.len();
+        let r = Image::open(Src::file(&file, len)).map_err(|s| Unreadable(format!("{path}: {s}")))?;
+        Elf::from_image(path, r)
     }
 
     /// The same, from bytes in hand (the tests use it).
     pub fn parse(path: &str, b: &[u8]) -> Result<Elf, Unreadable> {
-        let why = |s: String| Unreadable(format!("{path}: {s}"));
-        if b.len() < 64 || &b[0..4] != b"\x7fELF" {
-            return Err(why("not an ELF file: the magic is not \\x7fELF".into()));
-        }
-        let class64 = match b[4] {
-            1 => false,
-            2 => true,
-            c => return Err(why(format!("unknown ELF class {c}"))),
-        };
-        let msb = match b[5] {
-            1 => false,
-            2 => true,
-            d => return Err(why(format!("unknown ELF data encoding {d}"))),
-        };
-        let r = Bytes { b, msb, class64 };
+        let r = Image::open(Src::Mem(b)).map_err(|s| Unreadable(format!("{path}: {s}")))?;
+        Elf::from_image(path, r)
+    }
 
-        let machine = r.u16(18).ok_or_else(|| why("truncated header".into()))?;
-        let interp = r.interp();
+    fn from_image(path: &str, r: Image<'_>) -> Result<Elf, Unreadable> {
+        let why = |s: String| Unreadable(format!("{path}: {}", r.src.trouble().unwrap_or(s)));
+        let (msb, class64) = (r.msb, r.class64);
+        let machine = r.machine().ok_or_else(|| why("truncated header".into()))?;
         let sections = r.sections().ok_or_else(|| {
             why("no section table could be read. refused: an object that cannot be \
                  checked is not preloaded"
                 .into())
         })?;
+        let interp = r.interp().map_err(why)?;
 
         let mut out = Elf {
             path: path.to_string(),
@@ -58,9 +46,9 @@ impl Elf {
 
         // `.dynamic`, for DT_NEEDED and DT_SONAME.
         if let Some(dynamic) = sections.get(".dynamic") {
-            let strs = sections.by_index(dynamic.link).map(|s| s.slice(b)).unwrap_or_default();
+            let strs = sections.by_index(dynamic.link).map(|s| r.bytes(s)).unwrap_or_default();
             let step = if class64 { 16 } else { 8 };
-            let body = dynamic.slice(b);
+            let body = r.bytes(dynamic);
             let mut at = 0usize;
             while at + step <= body.len() {
                 let d = Bytes { b: &body[at..], msb, class64 };
@@ -72,11 +60,11 @@ impl Elf {
                 match tag {
                     0 => break, // DT_NULL
                     1 => {
-                        if let Some(s) = cstr_at(strs, val) {
+                        if let Some(s) = cstr_at(&strs, val) {
                             out.needed.push(s);
                         }
                     }
-                    14 => out.soname = cstr_at(strs, val),
+                    14 => out.soname = cstr_at(&strs, val),
                     _ => {}
                 }
                 at += step;
@@ -85,16 +73,18 @@ impl Elf {
 
         // `.dynsym`, its strings, and the three version sections.
         if let Some(dynsym) = sections.get(".dynsym") {
-            let strs = sections.by_index(dynsym.link).map(|s| s.slice(b)).unwrap_or_default();
-            let versym = sections.get(".gnu.version").map(|s| s.slice(b));
-            let need = sections.get(".gnu.version_r").map(|s| r.verneed(s.slice(b), strs)).unwrap_or_default();
-            let def = sections.get(".gnu.version_d").map(|s| r.verdef(s.slice(b), strs)).unwrap_or_default();
+            let strs = sections.by_index(dynsym.link).map(|s| r.bytes(s)).unwrap_or_default();
+            let versym = sections.get(".gnu.version").map(|s| r.bytes(s));
+            let need =
+                sections.get(".gnu.version_r").map(|s| r.view(&[]).verneed(&r.bytes(s), &strs)).unwrap_or_default();
+            let def =
+                sections.get(".gnu.version_d").map(|s| r.view(&[]).verdef(&r.bytes(s), &strs)).unwrap_or_default();
             out.declares = def.values().cloned().collect();
             out.declares.sort();
             out.declares.dedup();
 
             let step = if class64 { 24 } else { 16 };
-            let body = dynsym.slice(b);
+            let body = r.bytes(dynsym);
             let mut i = 0usize;
             while (i + 1) * step <= body.len() {
                 let s = Bytes { b: &body[i * step..], msb, class64 };
@@ -105,8 +95,8 @@ impl Elf {
                 let shndx = s.u16(shndx_at).unwrap_or(0);
                 // `STB_WEAK` is binding 2, in the high nibble of `st_info`.
                 let weak = s.b.get(info_at).map(|i| i >> 4) == Some(2);
-                let ndx = versym.and_then(|v| Bytes { b: v, msb, class64 }.u16(i * 2)).unwrap_or(1);
-                let Some(name) = cstr(strs, name_off) else {
+                let ndx = versym.as_deref().and_then(|v| Bytes { b: v, msb, class64 }.u16(i * 2)).unwrap_or(1);
+                let Some(name) = cstr(&strs, name_off) else {
                     i += 1;
                     continue;
                 };
@@ -137,7 +127,12 @@ impl Elf {
                 i += 1;
             }
         }
-        Ok(out)
+        // A section that a read could not give is empty above. For a file
+        // that is a refusal with the reason, never a file with fewer symbols.
+        match r.src.trouble() {
+            Some(t) => Err(Unreadable(format!("{path}: {t}"))),
+            None => Ok(out),
+        }
     }
 
     /// The C library of this file.

@@ -187,25 +187,57 @@ pub fn guest_exe(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Option<Stri
     path_dirs.iter().find_map(|d| first(&format!("{}/{argv0}", d.trim_end_matches('/'))))
 }
 
-/// The ceiling of a payload that the memfd leg reads: the ceiling of
-/// [`crate::abi::Elf::read`]. A file can be larger than the caller
-/// expects, so a payload past it is a named refusal, not a buffer.
-pub const PAYLOAD_CEILING: u64 = 128 * 1024 * 1024;
+/// The payload for the decision of the entry: the resolved path, the size,
+/// the head and the open file.
+///
+/// The decision reads the head only ([`crate::abi::HEAD_BYTES`]): a `#!`
+/// line, the ELF header and the program headers are there. The memfd rung
+/// copies the payload from [`Payload::file`] in bounded pieces
+/// ([`crate::memfd::stage_file`]), so no step holds the whole file, and
+/// the size of the payload has no bound.
+#[derive(Debug)]
+pub struct Payload {
+    /// The resolved path on the host.
+    pub path: String,
+    /// The size of the file when it was opened.
+    pub len: u64,
+    /// The first bytes of the file, at most [`crate::abi::HEAD_BYTES`].
+    pub head: Vec<u8>,
+    file: std::fs::File,
+}
 
-/// The bytes of the payload, for the decision of the memfd leg.
-pub fn payload_bytes(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Result<Vec<u8>> {
+impl Payload {
+    /// The file that the decision read. The stage copies from it, so the
+    /// stage and the decision see the same file, also after a rename.
+    pub fn file(&self) -> &std::fs::File {
+        &self.file
+    }
+}
+
+/// Resolve the payload, open it, and read its head for the decision.
+///
+/// A file that does not open or read is an error that names the path and
+/// the error of the system.
+pub fn payload_head(rootfs: &str, argv0: &str, path_dirs: &[String]) -> Result<Payload> {
+    use std::os::unix::fs::FileExt;
     let path = resolve_payload(rootfs, argv0, path_dirs)?;
     let io = |e: std::io::Error| {
         Error::Runtime(Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("{path}: {e}"), e))
     };
-    let len = std::fs::metadata(&path).map_err(io)?.len();
-    if len > PAYLOAD_CEILING {
-        return Err(Error::runtime(
-            Class::Policy,
-            format!("{path} is {len} bytes, over the {PAYLOAD_CEILING}-byte ceiling of a payload that the entry reads"),
-        ));
+    let file = std::fs::File::open(&path).map_err(io)?;
+    let len = file.metadata().map_err(io)?.len();
+    let mut head = vec![0u8; crate::abi::HEAD_BYTES as usize];
+    let mut got = 0usize;
+    while got < head.len() {
+        match file.read_at(&mut head[got..], got as u64) {
+            Ok(0) => break,
+            Ok(n) => got += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(io(e)),
+        }
     }
-    std::fs::read(&path).map_err(io)
+    head.truncate(got);
+    Ok(Payload { path, len, head, file })
 }
 
 /// Choose the rung: the forced one where the caller asks, else the first
