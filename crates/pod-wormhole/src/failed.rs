@@ -54,7 +54,9 @@ impl fmt::Display for Failed {
             Failed::Expired(life) => {
                 write!(f, "nobody took the code within its {} minutes; it is spent", life.as_secs().div_ceil(60))
             }
-            Failed::Nobody => f.write_str("no node waits at this code: it expired, it was used, or it was typed wrong"),
+            Failed::Nobody => {
+                f.write_str("no giver waits at this code: it expired, it was used, or it was typed wrong")
+            }
             Failed::WrongCode => f.write_str(
                 "the code did not match at the other end: it was typed wrong, or someone guessed; the code is spent",
             ),
@@ -80,7 +82,7 @@ mod tests {
     fn no_failure_says_more_than_its_words() {
         assert!(Failed::Expired(Duration::from_secs(600)).to_string().contains("within its 10 minutes"));
         assert!(Failed::WrongCode.to_string().contains("the code is spent"));
-        assert!(Failed::Nobody.to_string().starts_with("no node waits at this code"));
+        assert!(Failed::Nobody.to_string().starts_with("no giver waits at this code"));
     }
 
     #[test]
