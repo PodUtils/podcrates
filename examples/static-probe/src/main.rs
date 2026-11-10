@@ -96,6 +96,7 @@ fn main() {
     lines.extend(enter());
     lines.extend(oci(tls));
     lines.extend(extract());
+    lines.extend(rootfs());
     for line in lines {
         println!("{line}");
     }
@@ -248,5 +249,34 @@ fn extract() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn extract() -> Option<String> {
+    None
+}
+
+/// pod-rootfs is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn rootfs() -> Option<String> {
+    // An empty root: each fixup links in, and the probe of a mirror answers
+    // with no request.
+    let base = std::env::temp_dir().join(format!("static-probe-rootfs-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&base);
+    let done = pod_rootfs::complete(&base, &pod_rootfs::Settings::default(), &mut pod_rootfs::reach::Fixed(false))
+        .map_or_else(
+            |e| e.to_string(),
+            |r| {
+                format!(
+                    "{} rows, {} changed, {} failed, libc {}",
+                    r.fixups.len(),
+                    r.changed(),
+                    r.failed(),
+                    r.libc.word()
+                )
+            },
+        );
+    let _ = std::fs::remove_dir_all(&base);
+    Some(format!("pod-rootfs: {done}, deb.debian.org is a name {}", pod_rootfs::reach::is_name("deb.debian.org")))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn rootfs() -> Option<String> {
     None
 }

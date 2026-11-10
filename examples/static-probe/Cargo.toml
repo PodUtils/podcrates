@@ -22,6 +22,7 @@ pod-identity = { workspace = true }
 pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
+pod-rootfs = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }
 pod-supervise = { workspace = true }
 pod-term = { workspace = true }

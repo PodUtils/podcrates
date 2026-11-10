@@ -1,6 +1,30 @@
 //! The record of one completion: a row for each fixup, the commands that
 //! the caller runs inside the root, and the C library of the root.
 
+/// Each id of a [`Fixup`] and of a [`Step`] that the crate gives. A caller
+/// that maps an id to a name of its own (podvm: the entry of its record)
+/// checks its map against this list.
+pub const IDS: &[&str] = &[
+    "dev-node",
+    "dev-shim",
+    "dev-fd-link",
+    "resolv.conf",
+    "hosts",
+    "identity",
+    "nsswitch",
+    "mtab",
+    "pacman",
+    "pacman-keyring",
+    "apt",
+    "apt-sandbox",
+    "zypper",
+    "zypper-index",
+    "ca-bundle",
+    "ca-hash-dir",
+    "source-scheme",
+    "source-reach",
+];
+
 /// What one fixup did. "The file was already right", "the crate changed
 /// it" and "the crate could not" are three different statements, and the
 /// last one never reads as one of the first two.
@@ -163,5 +187,35 @@ mod tests {
         assert_eq!(r.degradations()[0].path, "dev/zero");
         assert_eq!(r.changed(), 1);
         assert_eq!(r.failed(), 0);
+    }
+
+    /// Each id that the source gives is in [`IDS`], and each id of [`IDS`]
+    /// is in the source.
+    #[test]
+    fn each_id_of_the_source_is_listed() {
+        let sources = [
+            include_str!("devices.rs"),
+            include_str!("identity.rs"),
+            include_str!("net.rs"),
+            include_str!("pkg.rs"),
+            include_str!("pkg/bundle.rs"),
+            include_str!("pkg/hash_dir.rs"),
+            include_str!("sources.rs"),
+        ];
+        let mut found = Vec::new();
+        for text in sources {
+            for head in ["Fixup::new(\"", "id: \"", "record(r, \"", "record_steps(r, \"", "let id = \""] {
+                for (at, _) in text.match_indices(head) {
+                    let rest = &text[at + head.len()..];
+                    found.push(rest[..rest.find('"').unwrap()].to_string());
+                }
+            }
+        }
+        for id in &found {
+            assert!(IDS.contains(&id.as_str()), "{id} is not in IDS");
+        }
+        for id in IDS {
+            assert!(found.iter().any(|f| f == id), "{id} of IDS is not in the source");
+        }
     }
 }

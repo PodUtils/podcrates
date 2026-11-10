@@ -57,7 +57,7 @@ mod testing;
 use std::path::{Path, PathBuf};
 
 pub use error::Result;
-pub use report::{Action, Fixup, Libc, Report, Step};
+pub use report::{Action, Fixup, IDS, Libc, Report, Step};
 
 /// The names that the crate writes into a root file system. A second run
 /// finds the files of the first by these names, so a caller keeps its
