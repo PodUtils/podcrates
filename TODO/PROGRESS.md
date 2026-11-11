@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 201 entries: 57 open, 3 partial, 0 blocked, 141 done.
+`TODO/INDEX.md` holds 202 entries: 58 open, 3 partial, 0 blocked, 141 done.
 
 ## State
 
@@ -53,7 +53,8 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
+2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-202 (a
+   check of `pod-supervise` with podrunner's case of a killed launcher). T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need.
 3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-201

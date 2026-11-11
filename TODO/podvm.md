@@ -2960,3 +2960,48 @@ the trial for podnet as for `pod-hold`.
 cargo test -p pod-hold
 ```
 
+# T-202: `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063)
+
+**Source:** podrunner's message of 2026-11-11 (its T-063, its design unit tests 25 and 26, `PodUtils/podrunner:crates/podrunner-unit/src/conformance/design.rs`)
+**Category:** measurement
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner found a process that escaped a tree kill on its fake driver.
+Its two cases, as a check of `pod-supervise`:
+1. `sh -c '(setsid env -i sleep 300 &); exec sleep 300'`: the orphan has
+   no environment and a session of its own. A subreaper catches it.
+2. `sh -c '(setsid env -i sleep 300 &); kill -9 $PPID; exec sleep 300'`:
+   the payload kills its subreaper parent, so the orphan goes to init. No
+   record may then say a count of 0.
+
+`tests/tree.rs` covers case 1
+(`a_grandchild_that_left_and_ignores_sigterm_is_killed`). No test covers
+case 2: the payload kills the launcher, the lock is free, and the record
+becomes `Dead` with no exit code (README rule 2). A waiter, `kill` and
+`remove` must then give no `residual_processes` of 0, and the payload
+itself must end (`PR_SET_PDEATHSIG`).
+
+## Premise
+
+- Read: podrunner's message; `crates/pod-supervise/tests/tree.rs`; the
+  rules of `crates/pod-supervise/README.md`.
+- Not measured: what `wait`, `kill` and `remove` give today for case 2.
+
+## Approach
+
+A test of case 2 in `tests/tree.rs`: the payload kills its launcher; the
+record becomes `Dead`; the payload ends; no end with a count of 0 is
+written; the orphan is found and killed by the test. If a verb gives a
+count of 0, fix it to `Unknown`.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --test tree
+```
+
