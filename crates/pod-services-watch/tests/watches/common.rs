@@ -37,9 +37,20 @@ fn tls() -> &'static (Arc<rustls::ServerConfig>, rustls::RootCertStore) {
     })
 }
 
+/// The server configuration of [`NAME`] that offers `alpn`.
+pub fn server_config(alpn: &[&[u8]]) -> Arc<rustls::ServerConfig> {
+    let mut config = (*tls().0).clone();
+    config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
+    Arc::new(config)
+}
+
 /// The turn of each accepted connection into TLS for [`NAME`].
 pub fn wrap() -> Wrap {
-    let config = tls().0.clone();
+    wrap_with(tls().0.clone())
+}
+
+/// The turn of each accepted connection into TLS of `config`.
+pub fn wrap_with(config: Arc<rustls::ServerConfig>) -> Wrap {
     Arc::new(move |tcp| {
         let connection = ServerConnection::new(config.clone()).map_err(io::Error::other)?;
         Ok(Box::new(StreamOwned::new(connection, tcp)) as Box<dyn Io>)

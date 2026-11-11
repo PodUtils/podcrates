@@ -10,3 +10,4 @@ mod files;
 mod http;
 mod ssh;
 mod ws;
+mod xhttp;

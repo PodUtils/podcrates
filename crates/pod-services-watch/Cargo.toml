@@ -25,6 +25,12 @@ pod-tls = { workspace = true, features = ["pure", "rsa"] }
 pod-dns = { workspace = true }
 # The WebSocket upgrade and the frames of a forwarder.
 pod-ws = { workspace = true }
+# XHTTP over HTTP/2 (proxy-banner): the client of h2 and the request of
+# http, pure Rust, as pod-dns and pod-ws take them. pod-proxy speaks
+# HTTP/1.1 alone.
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "macros"] }
 tokio-rustls = { workspace = true }
 rustls = { workspace = true }

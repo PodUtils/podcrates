@@ -126,11 +126,6 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
 
     let spki = own.verifying_key().to_sec1_point(false);
     let point = spki.as_bytes();
-    eprintln!(
-        "PUBLISHED-POINT {} head {}",
-        point.len(),
-        point[..8].iter().map(|b| format!("{b:02x}")).collect::<String>()
-    );
 
     let spki_der = seq(&[
         seq(&[oid(&[1, 2, 840, 10045, 2, 1]), oid(&[1, 2, 840, 10045, 3, 1, 7])]),
@@ -245,7 +240,6 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
         SigningKey::from_bytes(&sha256(&role_seed(&anchor_name(dns_name), true)).into()).expect("a P-256 scalar")
     };
     let signature: Signature = issuer_key.sign(&tbs);
-    eprintln!("BUILDER sig={} key-is-own={}", signature.to_der().as_bytes().len(), is_ca);
     // **The certificate is `SEQUENCE { tbs, algId, signatureValue }`, and
     // the SEQUENCE is a NEW header around all three.** The two outer fields
     // appended to `tbs` leave the TBS's length as the certificate's, and

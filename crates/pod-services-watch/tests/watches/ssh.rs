@@ -7,7 +7,7 @@ use sha2::{Digest, Sha224, Sha256};
 
 use crate::common::{NAME, endpoint, fact, file, one, raw, text, tls_raw};
 
-const BANNER: &[u8] = b"SSH-2.0-stand\r\n";
+pub const BANNER: &[u8] = b"SSH-2.0-stand\r\n";
 
 fn put(out: &mut Vec<u8>, value: &[u8]) {
     out.extend_from_slice(&(value.len() as u32).to_be_bytes());
@@ -142,7 +142,9 @@ fn trojan(io: &mut dyn Io, password: &str) {
     let _ = io.read(&mut chunk);
 }
 
-fn node(link: &str) -> String {
+/// A service whose fact `link` is `link`, with the watch `proxy-banner`
+/// to `github-ssh`.
+pub fn node(link: &str) -> String {
     fact("link", &format!("\"{link}\""))
         + "[[watch]]\nkind = \"proxy-banner\"\nfact = \"link\"\ntarget = \"github-ssh\"\n"
 }
@@ -151,7 +153,8 @@ fn node(link: &str) -> String {
 async fn proxy_banner_speaks_trojan_over_tls() {
     pod_testkit::need_loopback!();
     let stand = tls_raw(|io| trojan(io, "a made-up password"));
-    let link = format!("trojan://a made-up password@{NAME}:{}?security=tls&sni={NAME}", stand.port());
+    // A link writes a space of the password as `%20`.
+    let link = format!("trojan://a%20made-up%20password@{NAME}:{}?security=tls&sni={NAME}", stand.port());
     let report = one(&file("p1", &node(&link))).await;
     assert!(report.holds() && text(&report).contains("SSH-2.0-stand"), "{}", text(&report));
     let link = format!("trojan://another password@{NAME}:{}?security=tls&sni={NAME}", stand.port());
@@ -181,6 +184,6 @@ async fn proxy_banner_speaks_vless_and_skips_another_transport() {
     let report =
         one(&file("p3", &node(&format!("vless://{uuid}@127.0.0.1:{}?security=none&type=tcp", stand.port())))).await;
     assert!(report.holds() && text(&report).contains("SSH-2.0-stand"), "{}", text(&report));
-    let report = one(&file("p4", &node(&format!("vless://{uuid}@127.0.0.1:1?security=tls&type=xhttp")))).await;
+    let report = one(&file("p4", &node(&format!("vless://{uuid}@127.0.0.1:1?security=tls&type=grpc")))).await;
     assert!(report.holds() && text(&report).starts_with("skipped p4 proxy-banner"), "{}", text(&report));
 }

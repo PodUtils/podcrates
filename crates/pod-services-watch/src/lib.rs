@@ -25,6 +25,7 @@ mod ssh;
 mod stun;
 mod tls;
 mod ws;
+mod xhttp;
 
 use std::future::Future;
 use std::pin::Pin;

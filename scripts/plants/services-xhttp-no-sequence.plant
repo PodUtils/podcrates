@@ -1,0 +1,6 @@
+# The watch kind proxy-banner over XHTTP: each upload goes with no sequence number; its tests must fail.
+ENTRY=T-152
+GROUP=services
+EXPECT='test xhttp::proxy_banner_speaks_xhttp_packet_up_over_http[12] \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- xhttp::proxy_banner_speaks_xhttp_packet_up_over_http'
+LIMIT=1800

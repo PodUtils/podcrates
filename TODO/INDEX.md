@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**181 entries: 53 open, 3 partial, 0 blocked, 125 done.**
+**184 entries: 52 open, 3 partial, 0 blocked, 129 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 24 | 3 | 0 | 60 | 87 |
-| P3 | 12 | 0 | 0 | 23 | 35 |
-| **All** | 53 | 3 | 0 | 125 | 181 |
+| P2 | 24 | 3 | 0 | 62 | 89 |
+| P3 | 11 | 0 | 0 | 25 | 36 |
+| **All** | 52 | 3 | 0 | 129 | 184 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -198,7 +198,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-149](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: three tests fail under qemu-user only |
 | [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
 | [T-151](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them |
-| [T-152](transport.md) | P3 | M | M1 | feature | open | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |
+| [T-152](transport.md) | P3 | M | M1 | feature | done | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |
 | [T-153](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182) |
 | [T-154](foundation.md) | P2 | S | M5 | defect | done | Timed tests under an emulator: one bound of the test kit and a sweep |
 | [T-155](podvm.md) | P3 | S | M6 | feature | done | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
@@ -228,3 +228,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-179](fleet.md) | P3 | M | M7 | feature | open | `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11) |
 | [T-180](fleet.md) | P3 | M | M8 | feature | open | `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11) |
 | [T-181](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11) |
+| [T-182](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `lib_dirs` takes `/usr/local/lib` and the image's loader configuration (PodUtils/podvm#247) |
+| [T-183](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: a raw byte that is not visible ASCII in a path is read as Latin-1 |
+| [T-184](relay.md) | P3 | S | M1 | defect | done | `pod-wormhole`: the words of a mailbox can end with a space |

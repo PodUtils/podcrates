@@ -182,6 +182,25 @@ impl Net {
             .map_err(|e| Finding::failed(format!("TLS for {server_name} at {}: {e}", Target::new(host, port))))
     }
 
+    /// [`Net::tls`] that offers `alpn`; the stream tells the protocol that
+    /// the server chose.
+    pub async fn tls_alpn(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        alpn: &[&[u8]],
+    ) -> Result<TlsStream<BoxedIo>, Finding> {
+        let at = || format!("TLS for {server_name} at {}", Target::new(host, port));
+        let mut config =
+            (*self.context.config_for(&self.trust).map_err(|e| Finding::failed(format!("{}: {e}", at())))?).clone();
+        config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
+        let io = self.tcp(host, port).await?;
+        pod_tls::tls_over(io, server_name, Arc::new(config), self.limit, self.context.words())
+            .await
+            .map_err(|e| Finding::failed(format!("{}: {e}", at())))
+    }
+
     /// The way of the DNS watches: the resolvers of [`Net::dns`] through the
     /// dial.
     pub fn way(&self) -> pod_dns::Way<'_> {

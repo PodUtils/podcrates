@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 181 entries: 53 open, 3 partial, 0 blocked, 125 done.
+`TODO/INDEX.md` holds 184 entries: 52 open, 3 partial, 0 blocked, 129 done.
 
 ## State
 
@@ -63,7 +63,7 @@ next entry.
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it.
 6. **M2, the relay:** T-021, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).

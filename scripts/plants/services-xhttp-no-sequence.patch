@@ -1,0 +1,12 @@
+--- a/crates/pod-services-watch/src/xhttp.rs
++++ b/crates/pod-services-watch/src/xhttp.rs
+@@ -128,7 +128,8 @@
+     /// The target of the upload of sequence number `seq` of the session
+     /// `id`: the server puts the uploads in the order of these numbers.
+     fn upload(&self, id: &str, seq: u64) -> String {
+-        self.target(&format!("{id}/{seq}"))
++        let _ = seq;
++        self.target(id)
+     }
+ 
+     /// The host as an authority: an IPv6 address in brackets.

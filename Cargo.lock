@@ -1627,7 +1627,10 @@ name = "pod-services-watch"
 version = "0.18.0"
 dependencies = [
  "base64 0.23.1",
+ "bytes",
  "flate2",
+ "h2",
+ "http",
  "p256",
  "pod-core",
  "pod-dns",

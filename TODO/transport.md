@@ -2537,7 +2537,7 @@ sh scripts/adoption.sh podnet pod-services-watch
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2561,11 +2561,82 @@ uploads, a streamed GET for the downloads) to `proxy-banner`, with a
 stand-in test of each mode and a plant. A node that no mode reaches leaves
 the data (podssh decides, PodUtils/podssh#177).
 
+## Decision
+
+C52 (`docs/decisions.md`). The client follows XTLS/Xray-core at
+`c43ee98ec7c5a9d34b32cedf891b4c8707e9c8b0` (`transport/internet/splithttp/`,
+read 2026-11-11). `auto` is `packet-up` for TLS and for no security. The
+HTTP version is the protocol that the server chose by ALPN; with no
+choice, the version of Xray's client (`decideHTTPVersion`). The other forms
+stay `skipped`, with the reason.
+
 ## Prove
 
 ```sh
-cargo test -p pod-services-watch --test watches -- ssh::
+cargo test -p pod-services-watch --test watches -- ssh:: xhttp::
+sh scripts/plant-each.sh services-xhttp-no-sequence
 ```
+
+## Done
+
+2026-11-11, the commit of this entry.
+
+Read: XTLS/Xray-core at `c43ee98ec7c5a9d34b32cedf891b4c8707e9c8b0`, the
+default branch: `dialer.go`, `client.go`, `config.go`, `xpadding.go`,
+`hub.go` and `upload_queue.go` of `transport/internet/splithttp/`, and
+`transport/internet/tls/config.go` (the default ALPN: `h2`, `http/1.1`).
+
+What the watch speaks now (`crates/pod-services-watch/src/xhttp.rs`):
+VLESS over XHTTP in the mode `packet-up`, with TLS or with no security. A
+streamed GET of `PATH/SESSION` carries the downloads. A POST of
+`PATH/SESSION/0` carries the VLESS request of
+`crates/pod-services-watch/src/proxy.rs` (the same bytes as over TCP); the
+watch then reads the VLESS answer and the banner as over TCP. Each request
+has the padding `x_padding` (100 to 1000 `X`) in the query of a `Referer`.
+The session id is a random UUID of version 4. The path has a `/` at each
+end and keeps the query of the path of the link. TLS offers the `alpn` of
+the link, else `h2` and `http/1.1` (`Net::tls_alpn`). HTTP/1.1: the GET and
+the POST each on a connection of their own, through `pod_proxy::http`
+(`exchange`, `read_head`, `Body`). HTTP/2: two streams of one connection,
+through `h2`. Skipped, with the reason: the modes `stream-up` and
+`stream-one`, HTTP/3, the `extra` settings of a link, a VLESS `flow` or
+`encryption`.
+
+Dependencies: `h2`, `http` and `bytes` (pure Rust; in the workspace for
+`pod-dns` and `pod-ws`). `pod_proxy::Client` speaks HTTP/1.1 alone, and it
+takes the host of its URL as the dial target, the server name and the
+`Host` together.
+
+Fixed in the same work: `Link::parse` percent-decodes the user and each
+value of the query (a path `%2F...`, a password with `%40`); the transport
+names `raw` (the new name of `tcp`) and `splithttp` (the old name of
+`xhttp`) are spoken; a VLESS answer with a version other than 0 is a
+failure; the helper of the test certificates
+(`crates/pod-tls/tests/common/cert_encoding.rs`) printed two debug lines
+for each certificate.
+
+Tests (`crates/pod-services-watch/tests/watches/xhttp.rs`, 3):
+`proxy_banner_speaks_xhttp_packet_up_over_http1` (a stand-in node on
+HTTP/1.1 over TLS; a path with a query, percent-encoded; a path that the
+node refuses gives `answered HTTP 400`),
+`proxy_banner_speaks_xhttp_packet_up_over_http2` (a stand-in node on
+HTTP/2 over TLS, the server of `h2`, with the forms of the links of the
+two nodes), `proxy_banner_skips_an_xhttp_form_that_it_does_not_speak`. Each
+stand-in checks the host, the path and its query, the padding, the session
+id, and the sequence numbers from 0 in order; then it sends the VLESS
+answer and a banner. `cargo test -p pod-services-watch --all-features`: 34
+passed. `cargo test -p pod-services --all-features`: passed.
+
+Plant: `scripts/plants/services-xhttp-no-sequence.plant` (each upload with
+no sequence number). Applied by hand: both tests of `packet-up` failed
+(`the XHTTP upload answered HTTP 400`); then reversed. The patch of
+`scripts/plants/services-trojan-no-password.patch` moves to the new line of
+the Trojan request; applied by hand, its test failed.
+`sh scripts/plant-each.sh services-xhttp-no-sequence services-trojan-no-password`:
+2 caught, 0 missed or stale.
+
+Not run: a live node. The sandbox reaches no proxy node. The next run of
+`services.yml` checks the two nodes.
 
 # T-153: `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182)
 

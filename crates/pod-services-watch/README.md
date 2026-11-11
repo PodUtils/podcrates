@@ -65,7 +65,7 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 | `dns-srv`, `dns-addresses`, `doh-answer` | `dns.rs` | DNS over HTTPS (`pod_dns::Way`); `doh-answer` asks each resolver of the service in the one form, each IPv6 one only with a route for IPv6 |
 | `stun-binding` | `stun.rs` | a Binding request over UDP (`pod_proxy::stun`), three tries |
 | `websocket-upgrade`, `forward-banner` | `ws.rs` | the upgrade of `pod-ws`; a forwarder's target in the query, in a first text frame (`{"Host":...,"Port":...}`), or in a Wisp CONNECT |
-| `proxy-banner` | `proxy.rs` | Trojan and VLESS over TCP, with or without TLS; another transport (XHTTP) is skipped |
+| `proxy-banner` | `proxy.rs`, `xhttp.rs` | Trojan and VLESS over TCP (`tcp`, `raw`), and VLESS over XHTTP (`xhttp`, `splithttp`) in the mode `packet-up`, with or without TLS. XHTTP follows the client of Xray-core at `c43ee98ec7c5a9d34b32cedf891b4c8707e9c8b0`: a streamed GET of `PATH/SESSION` for the downloads, a POST of `PATH/SESSION/SEQ` for each upload (the VLESS request in the upload of sequence 0), the padding `x_padding` in the query of a `Referer`, a random UUID as the session id; `auto` is `packet-up`. TLS offers the `alpn` of the link, else `h2` and `http/1.1`; the protocol that the server chose gives HTTP/1.1 (a connection for the GET, one for the POST) or HTTP/2 (two streams of one connection); with no choice, the version of Xray's client. Skipped: another transport or security, the XHTTP modes `stream-up` and `stream-one`, HTTP/3, the XHTTP `extra` settings, a VLESS `flow` or `encryption` |
 | `ssh-banner`, `ssh-host-key` | `ssh.rs` | the banner, after the banner of the client (a server can wait for it); the host key of the reply of curve25519-sha256, one exchange for each kind of key (Ed25519, ECDSA, RSA). The watch reads the key that the server offers; it does not check a signature |
 | `github-release`, `github-files`, `github-file`, `tls-roots` | `github.rs` | GitHub's API (the newest release, the release of a tag) and its raw files (at a tag, or at `HEAD`) |
 | `crate-file` | `crate_file.rs` | the newest stable version on crates.io, its `.crate` archive, the member file |
@@ -85,10 +85,14 @@ has no watch in the data.
 `tests/watches/` (one binary): each kind against a stand-in of
 `pod-testkit` (feature `stand`) on the loopback, over TLS with the test
 certificates of `pod-tls`: a file that the stand-in matches holds, and a
-file that it does not match gives its finding.
+file that it does not match gives its finding. `tests/watches/xhttp.rs`
+has an XHTTP node on HTTP/1.1 (a stand-in of `pod-testkit`) and one on
+HTTP/2 (the server of `h2`). Each node checks each request as the server
+of Xray does: the host, the path and its query, the padding, the session
+id, and the sequence number of each upload.
 
 ## Plants
 
-`scripts/plants/services-*.plant` (group `services`): one for each watch
-kind. Each plant makes its check blind to one change, and the test of the
+`scripts/plants/services-*.plant` (group `services`): one or more for
+each watch kind. Each plant makes its check blind to one change, and the test of the
 kind must fail. `sh scripts/plant-each.sh --group services` runs them.
