@@ -20,9 +20,9 @@ page current; remove a line when its work is done.
     `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.
   - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
     PodUtils/podvm#245 closed).
-  - podrunner: `v0.18.0` (`293b5a6`; `pod-job` at `0457ed0`, its `taken`
-    line is in `crates/pod-job/SOURCES`; its T-048 takes `check_upstream`
-    and `names_upstream`). It uses `pod_tls::mutual` for its
+  - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`, its
+    `taken` line is in `crates/pod-job/SOURCES`; its T-048 at `6f24681`
+    takes `check_upstream`, `names_upstream` and the flagged rules). It uses `pod_tls::mutual` for its
     remote mint (its T-031) and the pin `github-actions-runner` of
     `pod-services` for its runner image (its T-030). Next: `v0.18.0`
     (T-161, T-177, T-178). An open defect of podvm that podrunner found:
@@ -65,17 +65,14 @@ page current; remove a line when its work is done.
 - T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
   `pod-services` and `Rewound::new` of `pod-session`; read each fact again
   at its source before the data.
-- `main` holds work after `v0.17.0` for the next tag, each for
-  podrunner: T-161 (the names mode of `pod-broker`, its canary and the
-  flag of an open suffix); T-177 (breaking: the broker policy renames
-  `version` to `schema`, and each log line starts with `"schema":1`);
-  T-178 (the `policy` of an offer is a `broker-policy.v1` policy; the
-  example `valid-limits-and-need.json` of podrunner's draft changed). The
-  release notes name the breaking changes, and the hand-off tells
-  podrunner and podvm (`--net broker` reads the policy too).
-
-## Waiting for the owner
-
+- T-023 `pod-netstack` (the cut of PodUtils/podnet#427) is on `main` for
+  `v0.20.0`. Its hand-off to podnet is `adoption/podnet/pod-netstack.patch`
+  (tag `v0.20.0`). After the release, tell podnet in a COORD issue
+  `(to podnet)`: the stack of podnet-vnet drops the bytes of a receive when
+  the channel to the app is full (a slow reader gets a stream with a hole;
+  the crate fixes it), and `warp --cc reno|cubic` is slow on smoltcp 0.14
+  (T-188). At podnet's take, add the `taken` line to
+  `crates/pod-netstack/SOURCES` and remove the trial files.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".

@@ -539,7 +539,7 @@ trial), and the commit of this record.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -548,16 +548,29 @@ on smoltcp 0.12 now.
 
 ## Premise
 
-- Read: podnet `PodUtils/podnet:src/warp/ip.rs` (1,680),
-  `PodUtils/podnet:src/vnet/device.rs` (639; it calls the recorder of
-  `podnet-vnet`), `PodUtils/podnet:src/vnet/framing.rs` (253); the TCP of
-  podssh-warp on smoltcp 0.14.
+- The cut of PodUtils/podnet#427 (COORD-018, podnet's answer to GitHub #61),
+  at podnet `main` `da6705f` or later: to `pod-netstack`,
+  `PodUtils/podnet:crates/podnet-vnet/src/stack.rs` (469 lines: `Clock`,
+  `StackConfig`, `StackEvent`, `NetStats`, `NetStack`), `stack/reactor.rs`
+  (447), `stack/service.rs` (362), `stack/socket.rs` (380),
+  `stack/datagrams.rs` (108), the tests of `stack/tests.rs` (219) and
+  `device.rs` (679). The fields `acl` and `dns` of `StackConfig` become
+  hooks of the consumer; the recorder becomes a trait `PacketTap`.
+  `record.rs`, `policy.rs`, `dns.rs`, `switch/`, `framing.rs`, `proxy.rs`,
+  `shim.rs`, `control.rs`, `dialer.rs`, `door.rs`, `stack/proof.rs` stay
+  in podnet; the netns router of `podnet-netns` comes after podnet's
+  T-174, and `src/warp/ip.rs` goes to `pod-warp`.
+- podnet relies on: the medium `ip`; the close of a socket after its
+  queues are empty and `TimeWait` read as closed (`stack/service.rs`);
+  buffers of 64 KiB and a large download at full speed with a bounded
+  buffer (PodUtils/podnet@T-226).
 - smoltcp 0.14 has each feature that podnet uses.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8; the move from smoltcp 0.12
-to 0.14; a `PacketTap` trait for the recorder.
+to 0.14; the traits `Admit`, `GatewayService` and `PacketTap` for the
+policy of the consumer.
 
 ## Prove
 
@@ -568,12 +581,64 @@ sh scripts/agent/check.sh
 
 ## Start condition
 
-T-005 is done. podnet names the cut (GitHub #61, COORD-036, 2026-11-11):
-on podnet `main` at `e4d4049` smoltcp `=0.12.0` is in the root, in
-`PodUtils/podnet:crates/podnet-netns` (`netns/backend.rs`, `udpflow.rs`) and in
-`PodUtils/podnet:crates/podnet-vnet` (`stack.rs`, `stack/reactor.rs`, `device.rs`); WARP
-uses it in `src/warp/ip.rs`. The paths of the Premise are older. Step 2 of
-T-170 waits for this entry.
+T-005 is done. podnet named the cut in PodUtils/podnet#427 (the answer to
+GitHub #61, COORD-036, 2026-11-11). Step 2 of T-170 waits for the netns
+router (podnet's T-174).
+
+## Done
+
+2026-11-11. The import (`88e7efd`) and the adapt (`3a223ba`) of podnet `f7ed86b`
+(`main`; the files of the cut are the same at `da6705f`): `stack.rs`,
+`stack/reactor.rs`, `stack/service.rs`, `stack/socket.rs`,
+`stack/datagrams.rs`, `stack/tests.rs`, `device.rs` (2,664 lines), of
+`addr.rs` only `VirtualSubnet` (as `Subnet`) and of `lib.rs` the build check
+of `SMOLTCP_IFACE_MAX_ADDR_COUNT`; `SOURCES` (9 files, 0 changes with
+`check-sources.py --clone`). The crate has 2,851 lines; no file is over
+500.
+
+- The hooks: `Admit::admits(&self, SocketAddr) -> bool` (at each listen,
+  connect, UDP bind and UDP send), `GatewayService::{port, answer(&self,
+  SocketAddr, &[u8]) -> Option<Vec<u8>>}` (a UDP service at the IPv4
+  gateway), `PacketTap::packet(&self, Direction, &[u8])` (called by
+  `RecordingDevice<D, T>`). A closure is an `Admit` and a `PacketTap`.
+- The endpoints are `SocketAddr` (each call takes `impl Into<SocketAddr>`);
+  `VnetDatagrams` is `UdpDatagrams` (a `pod_core::Datagrams`).
+- smoltcp `=0.12.0` moves to 0.14 with podnet's features (root
+  `[workspace.dependencies]`); no code changed for it, and the crate
+  re-exports it. `.cargo/config.toml` has `SMOLTCP_IFACE_MAX_ADDR_COUNT =
+  "8"`; the crate fails a build with less.
+- Fixed in place: a receive that found the channel to the app full lost
+  its bytes (podnet's stack had the defect; a slow reader got a stream
+  with a hole); now the stack takes no bytes with no place, and the next
+  read kicks the reactor; the end and the handshake are sent again. A
+  refused listen, connect or bind freed no socket. Plant
+  `netstack-receive-with-no-room`.
+- Tests: 25 of `cargo test -p pod-netstack` (the 7 tests of the stack and
+  the 8 of the device of the cut with their names; the two hook tests
+  `virtual_dns_answers_at_the_gateway` and `acl_refuses_connections` with
+  stand-ins; `async_loopback_round_trip` with no proof; new:
+  `the_admit_sees_each_target`, `closed_connections_leave_no_socket`,
+  `a_large_download_crosses_a_bounded_link` (16 MiB over two bounded
+  links), `a_slow_reader_gets_each_byte_and_the_end`,
+  `a_refused_bind_frees_its_socket`, `a_recording_device_taps_each_packet`,
+  `a_subnet_holds_its_prefixes_and_its_gateways`). The static probe
+  sends a datagram through a loopback stack.
+- The trial `adoption/podnet/pod-netstack.{patch,run,commit}` (podnet
+  `f7ed86b`, tag `v0.20.0`; 2,428 lines of Rust leave podnet): each step of
+  `sh scripts/adoption.sh podnet pod-netstack` passed: the record, size,
+  layers, build, cargo-deny bans and sources, one smoltcp (0.14 in the root,
+  `podnet-netns` and `podnet-vnet`), clippy, the docs, the tests of
+  podnet-vnet (94), podnet-netns, podnet-core, podnet-serve, the library of
+  podnet (455, WARP on 0.14), the integration tests of the vnet, the
+  window, the shims and the pod (the netns backend moved 48 MiB in 2 s),
+  the fuzz targets, rustfmt, the toolchains, and the static musl binary
+  (zig). podnet's `tests/tcp_window.rs` sets `CongestionControl::None`, as
+  podnet's stacks: Reno and CUBIC of 0.14 gave 1.8 MB/s there (T-188).
+- The checks of `AGENTS.md`, section 11, pass (fmt, clippy, the tests of
+  the workspace, the record), with `check-size.py`, `check-probe.py`,
+  `check-publish-order.py`, `check-design-paths.py`,
+  `check-workflows.py`, `cargo deny check`, and the static probes of
+  `x86_64-unknown-linux-musl` (zig). CI runs at the merge to `main`.
 
 # T-024: `pod-wg`: the WireGuard initiator
 
@@ -1078,3 +1143,55 @@ cargo test --manifest-path fuzz/Cargo.toml
 `the_mailboxs_words_are_one_short_line` holds a cut on a space; the seed
 `cut-on-a-space` of `mailbox_message`. The stable test of `fuzz/` passes
 with it.
+
+# T-188: `pod-netstack`: Reno and CUBIC of smoltcp 0.14 grow by one segment for each round trip on a link that gives one ACK for each round trip
+
+**Source:** the trial of T-023 (podnet's `tests/tcp_window.rs`).
+**Category:** measurement
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On smoltcp 0.14, podnet's `tests/tcp_window.rs` (two smoltcp stacks over
+two tunnel devices of `pod-netstack`, 20 ms in each direction on a virtual
+clock, buffers of 512 KiB, 8 MiB) gives 1.79 MB/s with the default
+controller (CUBIC) and with Reno, and 11.18 MB/s with
+`CongestionControl::None`. On smoltcp 0.12 the default (CUBIC) gave more
+than 8 MB/s (the limit is 12.6 MB/s). The stacks of podnet set `None`
+(the vnet, and WARP with no `--cc`), so their default is not slower. A
+consumer that sets Reno or CUBIC (podnet's `warp --cc reno|cubic`) gets
+about one seventh of the rate on such a link.
+
+## Premise
+
+- Measured (2026-11-11, the trial of T-023): no packet was sent again
+  (the server sent 6,769 packets with each controller); the client sent
+  118 packets with Reno and 65 with `None`, about one ACK for each round
+  trip. The bytes that arrive in each round trip grow by 1,240 (one
+  segment) from the first round trip.
+- Read: smoltcp 0.14 `src/socket/tcp/congestion/reno.rs` and `cubic.rs`:
+  in slow start, `cwnd` grows by `min(len, mss)` for each ACK (RFC 3465
+  with L = 1 MSS). The link of the test delivers each burst at one time,
+  so the receiver takes it in one poll and gives one ACK.
+- Not measured: a link with a serial delay (the packets of a burst one by
+  one), where the receiver gives an ACK for each two segments; podnet's
+  WARP with `--cc` over a real edge.
+
+## Approach
+
+1. A test of `pod-netstack` over two stacks with a delay link (a pump
+   that holds each packet for a time) that measures the rate of each
+   controller, with one burst at one time and with a serial delay.
+2. When the rate stays low with a serial delay too, give the stack a
+   setting for the controller with the measured rate of each in its
+   README, and report the slow start of 0.14 to smoltcp with the test.
+3. Tell podnet the result for its `--cc` of WARP (a COORD issue).
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib link
+```

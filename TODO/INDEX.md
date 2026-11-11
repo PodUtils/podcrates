@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**184 entries: 51 open, 2 partial, 0 blocked, 131 done.**
+**188 entries: 51 open, 2 partial, 0 blocked, 135 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 24 | 2 | 0 | 63 | 89 |
-| P3 | 10 | 0 | 0 | 26 | 36 |
-| **All** | 51 | 2 | 0 | 131 | 184 |
+| P1 | 16 | 0 | 0 | 41 | 57 |
+| P2 | 25 | 2 | 0 | 63 | 90 |
+| P3 | 10 | 0 | 0 | 29 | 39 |
+| **All** | 51 | 2 | 0 | 135 | 188 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -69,7 +69,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-020](relay.md) | P1 | L | M2 | feature | done | `pod-session`: the resumable layer and UDP in a stream |
 | [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
-| [T-023](relay.md) | P1 | M | M2 | feature | open | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
+| [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | open | `pod-wg`: the WireGuard initiator |
 | [T-025](relay.md) | P1 | L | M2 | feature | open | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
 | [T-026](relay.md) | P1 | M | M2 | feature | open | `pod-relay`: podnet's relay client and its plain reverse mode |
@@ -231,3 +231,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-182](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `lib_dirs` takes `/usr/local/lib` and the image's loader configuration (PodUtils/podvm#247) |
 | [T-183](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: a raw byte that is not visible ASCII in a path is read as Latin-1 |
 | [T-184](relay.md) | P3 | S | M1 | defect | done | `pod-wormhole`: the words of a mailbox can end with a space |
+| [T-185](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the host key of `localhost-run` as a fact (podssh's message, 2026-11-11) |
+| [T-186](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the service `sandhole`, the demo of Sandhole (podssh's message, 2026-11-11) |
+| [T-187](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the kind `bare-node` and the node `openbare-xyz` (podssh's message, 2026-11-11) |
+| [T-188](relay.md) | P2 | S | M2 | measurement | open | `pod-netstack`: Reno and CUBIC of smoltcp 0.14 grow by one segment for each round trip on a link that gives one ACK for each round trip |

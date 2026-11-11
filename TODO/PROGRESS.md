@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 184 entries: 51 open, 2 partial, 0 blocked, 131 done.
+`TODO/INDEX.md` holds 188 entries: 51 open, 2 partial, 0 blocked, 135 done.
 
 ## State
 
@@ -19,9 +19,9 @@
   (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
   `packet` at `e4d4049`, PodUtils/podnet#426; it released
   `v0.4.0-beta.3`); podvm is on `v0.17.0` (`522b437`: the
-  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.18.0`
-  (`293b5a6`: each broker policy names `schema`; it took `pod-job` at
-  `0457ed0`; its T-048 takes the names mode of `pod-broker`).
+  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.19.0`
+  (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
+  takes `check_upstream`, `names_upstream` and the flagged rules).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -65,8 +65,8 @@ next entry.
    `pod-todo`.
 5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it.
-6. **M2, the relay:** T-021, T-023, T-024,
-   T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
+6. **M2, the relay:** T-021, T-024, T-025, T-026, T-188; then T-122,
+   T-123, T-124, T-121, T-150 (the asks of podnet).
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.

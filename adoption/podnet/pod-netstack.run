@@ -1,0 +1,48 @@
+# The trial of pod-netstack in podnet (T-023, the cut of PodUtils/podnet#427).
+# podnet-vnet takes the stack and the link devices of pod-netstack in place
+# of stack.rs, stack/reactor.rs, stack/service.rs, stack/socket.rs,
+# stack/datagrams.rs and device.rs: stack and device give them at their old
+# paths, VnetDatagrams is UdpDatagrams, TunnelDevice stays an alias, and
+# RecordingDevice<D> is the device of pod-netstack with the Recorder as its
+# PacketTap. Acl implements Admit (the admit of StackConfig), Resolver
+# implements GatewayService (port 53 at the gateway), VirtualSubnet converts
+# to and from Subnet. stack/proof.rs (net doctor) stays; the tests of the cut
+# leave stack/tests.rs and device.rs. Each smoltcp of podnet moves from
+# =0.12.0 to 0.14 (one version in the tree); tests/tcp_window.rs gives its
+# sockets no congestion controller, as the stacks of podnet. Each podcrates
+# tag moves to v0.20.0. The record, the size and the layers of the files,
+# the build, the bans and the sources of cargo-deny, one smoltcp, no copy of
+# the moved items left in podnet, clippy of the workspace, the docs of
+# podnet-vnet, the tests of each crate (podnet-vnet: the stack, the switch,
+# the dialer, the door, the proof, the hooks), the library of podnet (WARP
+# on smoltcp 0.14), the integration tests of the vnet, of the window and of
+# the pod (seccomp and netns: the large download of T-226), doctor, docs and
+# the API, the fuzz targets with their lock, rustfmt, each Rust toolchain of
+# the workflows and build images against the rust-version of podcrates, and
+# the binary for x86_64 musl, built with zig (a debug build: the release
+# profile takes LTO), with podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+grep -q '^SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"$' .cargo/config.toml
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet-vnet -i pod-netstack > /dev/null
+test "$(grep -c '^name = "smoltcp"$' Cargo.lock)" = 1
+! test -e crates/podnet-vnet/src/stack/reactor.rs
+! git grep -n -E "struct Core\b|fn service_conns|struct LinkTx|fn new_tcp_socket|struct QueueInner|fn spawn_listener_socket" -- crates src
+cargo clippy -q --workspace --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -q --no-deps -p podnet-vnet
+cargo test -q -p podnet-vnet
+cargo test -q -p podnet-netns -p podnet-core -p podnet-serve
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test vnet --test vnet_regressions --test vnet_proxy_forward --test tcp_window --test shim_direct --test shim_socks --test shim_no_socket --test shim_datagram_user
+cargo test -q -p podnet --test pod_seccomp --test pod_seccomp_tcp --test pod_seccomp_dgram --test pod_seccomp_fds --test pod_seccomp_handoff --test pod_seccomp_nonblock --test pod_seccomp_rules --test pod_seccomp_slow_dial --test pod_seccomp_diff --test pod_backend_line --test pod_usage --test af_inet_kernel --test doctor --test docs --test api_surface
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"
