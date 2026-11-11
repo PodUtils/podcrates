@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**221 entries: 66 open, 4 partial, 0 blocked, 151 done.**
+**221 entries: 65 open, 4 partial, 0 blocked, 152 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 44 | 58 |
-| P2 | 35 | 2 | 0 | 73 | 110 |
+| P2 | 34 | 2 | 0 | 74 | 110 |
 | P3 | 18 | 1 | 0 | 32 | 51 |
-| **All** | 66 | 4 | 0 | 151 | 221 |
+| **All** | 65 | 4 | 0 | 152 | 221 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -267,4 +267,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-218](roads.md) | P2 | L | M4 | feature | open | `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453) |
 | [T-219](roads.md) | P2 | L | M4 | feature | open | `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453) |
 | [T-220](roads.md) | P2 | M | M4 | feature | open | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
-| [T-221](podvm.md) | P2 | S | M7 | defect | open | `pod-confine`: a payload that runs as root keeps its capabilities, and `CAP_SYS_PTRACE` passes the Landlock domain |
+| [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and `CAP_SYS_PTRACE` passes the Landlock domain |

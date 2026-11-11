@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 221 entries: 66 open, 4 partial, 0 blocked, 151 done.
+`TODO/INDEX.md` holds 221 entries: 65 open, 4 partial, 0 blocked, 152 done.
 
 ## State
 
@@ -11,7 +11,9 @@
   sums in `pod-services` (T-211). The hand-off is GitHub #73 (COORD-048).
   `v0.23.0` is at `de770a2` (#72); `v0.22.0` at `93de04a` (#71: each
   consumer took it).
-- The next release: `pod-relay` (T-025, partial), T-209 (`pod-confine`).
+- The next release: `pod-relay` (T-025, partial), T-209 and T-221
+  (`pod-confine`: the scopes, a closed UDP, no MPTCP under a TCP list, no
+  io_uring, no capability of a root payload).
 - The consumers: podssh is on `v0.24.0` (`2f4f292b`, PodUtils/podssh#192;
   it took `pod-e2e` at `75a50318`, PodUtils/podssh#191; earlier `6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
@@ -72,9 +74,8 @@ next entry.
    T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has); T-221 (a confined root keeps its
-   capabilities), T-213 (the sockets that Landlock and the filter of
-   `pod-confine` do not see);
+   modloop, which `pod-guest` has); T-213 (the sockets that Landlock and
+   the filter of `pod-confine` do not see);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)

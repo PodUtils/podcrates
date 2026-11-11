@@ -3643,7 +3643,7 @@ cargo test -p pod-enter --all-features --lib
 **Milestone:** M7
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3658,10 +3658,16 @@ units can run their payload as root.
 ## Premise
 
 - Read: podrunner's report (its conformance test 27 passes as `nobody`).
-- Not read: the kernel's `hook_ptrace_access_check` of Landlock and the
-  list of the other capabilities that a confined root keeps
-  (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_DAC_OVERRIDE`, `CAP_SYS_MODULE`):
-  which of them pass the ruleset or the filter.
+- Measured here (Linux 6.18, ABI 7, as root, `/proc` readable by the
+  rules): a confined child refuses `/proc/1/environ` with `EACCES` with no
+  capability, with `CAP_SYS_PTRACE` alone, with each one of the first 41
+  alone, and with each capability kept. So `CAP_SYS_PTRACE` does not pass
+  the Landlock domain on this kernel; podrunner's read needs another cause
+  (a target in the same domain, or a kernel that differs), and podrunner is
+  asked for its case.
+- A confined root that keeps `CAP_SYS_ADMIN`, `CAP_NET_ADMIN`,
+  `CAP_SYS_MODULE` or `CAP_SYS_TIME` holds power that the ruleset and the
+  filter do not cover, so the drop stays worth its cost.
 
 ## Approach
 
@@ -3680,3 +3686,26 @@ in the hand-off.
 ```sh
 cargo test -p pod-confine --all-features
 ```
+
+## Done
+
+2026-11-11, `4073d23` and the commit of the plants. `pod_hostprobe::sys`
+has `capget`, `capset`, `capbset_drop`, `ambient_clear` (`sys/caps.rs`).
+`Spec::keep_caps` (0, none, in `Spec::new()`), `keep_cap(n)`,
+`DOCKER_CAPS`; `apply` drops each capability that the mask does not name
+after `no_new_privs` and before the ruleset: the bounding set where the
+thread holds `CAP_SETPCAP`, then `capset` of the three sets, then the
+ambient set (`EINVAL` of an old kernel passes). `Call` has `CapGet`,
+`CapBoundingDrop` (its index is the capability), `CapSet`,
+`CapAmbientClear`. The probe's child drops them too. Test
+`a_confined_root_keeps_only_the_capabilities_of_the_spec` (root only):
+no capability kept gives `EACCES` for `/proc/1/environ` and empty
+effective and permitted sets; `keep_cap(CAP_SYS_PTRACE)` gives that one
+capability alone. `cargo test -p pod-confine --all-features`: 28 unit
+tests and 12 in `tests/apply.rs` pass; `cargo test -p pod-enter
+--all-features --test confine`: 7 pass. Plant `confine-capabilities-kept`
+(no drop) is caught; the patches of `confine-absent-runs-unconfined` and
+`confine-scope-unset` were made again after the change of `apply.rs`
+(`plant-each.sh --apply` found them stale) and are caught. Breaking:
+`Spec` has the field `keep_caps`, and a confined root payload keeps no
+capability unless the spec names it (`DOCKER_CAPS` for docker's set).
