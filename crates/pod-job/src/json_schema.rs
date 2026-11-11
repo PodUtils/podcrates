@@ -43,6 +43,12 @@ pub fn digest(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" })
 }
 
+/// The `job_images` of a report: digests (`offer::is_digest`), each once
+/// or more, in the order of the job.
+pub fn digests(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "array", "items": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } })
+}
+
 /// The `limits` of an offer: a value for each name of [`LIMITS`].
 pub fn limit_values(_: &mut SchemaGenerator) -> Schema {
     json_schema!({

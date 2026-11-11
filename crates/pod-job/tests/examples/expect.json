@@ -11,6 +11,7 @@
   "run-report-public/invalid-refusal-code.json": "unknown variant `no-reason`",
   "run-report/invalid-code-not-refused.json": "refusal_code needs exit_reason refused",
   "run-report/invalid-exit-reason.json": "unknown variant `crashed`",
+  "run-report/invalid-job-image-tag.json": "the job image \"alpine:3.22\" is not sha256:HEX",
   "run-report/invalid-refused-no-code.json": "a refused report needs refusal_code",
   "run-report/invalid-refused-with-unit.json": "a refused report has no unit fields",
   "run-report/invalid-unit-id.json": "a unit id is u- and a decimal number",

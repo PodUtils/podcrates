@@ -129,7 +129,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         }
         reports += 1;
     }
-    assert_eq!(reports, 3);
+    assert_eq!(reports, 4);
 
     // A detail added to a public report is refused by the types and by the
     // schema.
@@ -144,6 +144,8 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         ("payload", json!(format!("sha256:{}", "a".repeat(64)))),
         ("residual_processes", json!(0)),
         ("exit_code", json!(0)),
+        ("claim_to_first_step_s", json!(12)),
+        ("job_images", json!([format!("sha256:{}", "b".repeat(64))])),
     ];
     for (key, value) in details {
         let mut report = base.clone();
@@ -302,6 +304,7 @@ fn the_rules_of_a_report_are_the_rules_of_its_schema() {
         ExitReason::Failure,
         ExitReason::Cancelled,
         ExitReason::Timeout,
+        ExitReason::Limit,
         ExitReason::Refused,
         ExitReason::Withdrawn,
         ExitReason::JobMismatch,
@@ -324,8 +327,8 @@ fn the_rules_of_a_report_are_the_rules_of_its_schema() {
             }
         }
     }
-    // Of 36 reports: 7 reasons with no code, with and without a unit; a
+    // Of 40 reports: 8 reasons with no code, with and without a unit; a
     // withdrawn report with no unit; a refused report with a code and no
     // unit.
-    assert_eq!((passed, refused), (16, 20));
+    assert_eq!((passed, refused), (18, 22));
 }

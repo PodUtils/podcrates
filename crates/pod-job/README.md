@@ -39,7 +39,7 @@ failure.
 | `Tier`, `RefusalCode` | the tier of a job; the refusal codes (`ALL`, `as_str`, `is_wait`) |
 | `JobOffer`, `JobOffer::check(scaleset)` | the offer; `offer::{TrustInputs, Event, ActorClass, Visibility, UnitNeed, LIMITS, is_digest}` |
 | `Capability`, `Capability::check`, `Capability::limit(name)` | the capability record; `Boundary`, `Principal`, `ContainerRoute`, `SecretDelivery`, `CredentialStore`, `TreeKill`, `EgressHold`, `LimitMode`, `Fact` |
-| `RunReport`, `RunReport::check`, `RunReport::public` | the full report; `UnitFields`, `ExitReason`, `Residual`, `report::Unknown` |
+| `RunReport`, `RunReport::check`, `RunReport::public` | the full report; `UnitFields`, `ExitReason` (`limit`: the unit ended the job over a bound of its limits), `Residual`, `report::Unknown`; `claim_to_first_step_s` and `job_images` (digests; `check` refuses a tag) are private: `public()` leaves them out |
 | `PublicReport`, `PublicReport::check` | the public report |
 
 ## Features

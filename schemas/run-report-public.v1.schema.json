@@ -155,6 +155,11 @@
           ]
         },
         {
+          "description": "The unit ended the job over a bound of its limits (disk now).",
+          "type": "string",
+          "const": "limit"
+        },
+        {
           "description": "Refused before a unit started: the report has `refusal_code`.",
           "type": "string",
           "const": "refused"

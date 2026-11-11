@@ -5,6 +5,15 @@
   "description": "The full report (`run-report.v1`), for the operator.",
   "type": "object",
   "properties": {
+    "claim_to_first_step_s": {
+      "description": "The time from the claim to the hook of the job's first step, in\nseconds; absent when no step started. Not in the public report.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
     "exit_code": {
       "type": [
         "integer",
@@ -21,6 +30,14 @@
     },
     "job_id": {
       "$ref": "#/$defs/JobId"
+    },
+    "job_images": {
+      "description": "The digests of the images of the job (`sha256:` and 64 lower-case\nhex digits). Not in the public report.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
     },
     "refusal_code": {
       "anyOf": [
@@ -177,6 +194,11 @@
             "timeout",
             "unit-failed"
           ]
+        },
+        {
+          "description": "The unit ended the job over a bound of its limits (disk now).",
+          "type": "string",
+          "const": "limit"
         },
         {
           "description": "Refused before a unit started: the report has `refusal_code`.",

@@ -1181,3 +1181,56 @@ and no mode other than 0600 shows; no stage stays. The plant
 `broker-bind-at-the-path` (a bind at the path, then a chmod) fails it: the
 thread saw 0777 in each of 3 runs. `cargo test -p pod-broker
 --all-features` passes.
+
+# T-226: `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075)
+
+**Source:** a direct message of the podrunner session, 2026-11-11 (its T-075; its SPEC sections 10.4 and 11.4)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner reports the time from the claim to the hook of the first step
+of a job, and the digests of the images of the job, and `run-report.v1`
+has no field for them. A unit that ends a job over a bound of its limits
+(disk now) reports `failure` with an audit line `limit`: the reason is
+lost in the report.
+
+## Premise
+
+- Read: podrunner's ask (a direct message): `RunReport` gets
+  `claim_to_first_step_s: Option<u64>` and `job_images: Vec<String>`
+  (a serde default, skipped when empty), `ExitReason::Limit`, and
+  `PublicReport` the same reason; the two fields stay private.
+- `crates/pod-job/src/report.rs`, the generated schemas of `schemas/`,
+  the examples of `crates/pod-job/tests/examples/`.
+
+## Approach
+
+The two fields in `RunReport`, not in `PublicReport`; `check` refuses a
+job image that is not a digest (`offer::is_digest`); the schema of
+`job_images` holds the pattern of a digest. `ExitReason::Limit`
+(`limit`) in both reports, with the rules of each other reason of a unit.
+The schemas again (`POD_JOB_WRITE_SCHEMAS=1`), a valid example with the
+new fields, an invalid example with an image by tag.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-11. `ExitReason::Limit`; `RunReport::claim_to_first_step_s` and
+`RunReport::job_images` (private: `public()` leaves them out, and the
+public schema and types refuse them); `check` refuses an image by tag;
+`json_schema::digests`. Examples `run-report/valid-limit-with-images.json`
+and `run-report/invalid-job-image-tag.json`. The test of the rules covers
+8 reasons of a unit (40 reports: 18 pass, 22 are refused); the test of
+the public report refuses the two private fields. `cargo test -p pod-job
+--all-features`: 17 passed; clippy 0. The schemas of `schemas/` hold the
+new fields and the reason.

@@ -17,6 +17,8 @@ pub enum ExitReason {
     Failure,
     Cancelled,
     Timeout,
+    /// The unit ended the job over a bound of its limits (disk now).
+    Limit,
     /// Refused before a unit started: the report has `refusal_code`.
     Refused,
     /// Withdrawn at `wait_deadline_s`.
@@ -84,6 +86,15 @@ pub struct RunReport {
     pub exit_code: Option<i32>,
     /// The time from the claim to the report, in seconds.
     pub wall_s: u64,
+    /// The time from the claim to the hook of the job's first step, in
+    /// seconds; absent when no step started. Not in the public report.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_to_first_step_s: Option<u64>,
+    /// The digests of the images of the job (`sha256:` and 64 lower-case
+    /// hex digits). Not in the public report.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::digests"))]
+    pub job_images: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refusal_code: Option<RefusalCode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -117,6 +128,9 @@ impl RunReport {
     /// The rules that serde does not check: a refused report has a refusal
     /// code and no unit; a report of a unit that ran has no refusal code.
     pub fn check(&self) -> Result<(), String> {
+        if let Some(image) = self.job_images.iter().find(|i| !crate::offer::is_digest(i)) {
+            return Err(format!("the job image {image:?} is not sha256:HEX"));
+        }
         rules(self.schema, self.exit_reason, self.refusal_code.is_some(), self.unit.is_some())
     }
 
