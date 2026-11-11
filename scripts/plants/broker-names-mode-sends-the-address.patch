@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/serve.rs
++++ b/crates/pod-broker/src/serve.rs
+@@ -311,7 +311,7 @@
+         let deadline = Instant::now() + wait;
+         // An upstream that takes names only gets the checked name, once
+         // (T-161); the audit line keeps the address that the check read.
+-        if self.settings.names_upstream
++        if false && self.settings.names_upstream
+             && let Host::Name(name) = &target.host
+         {
+             note.addr = checked.addrs.first().copied();

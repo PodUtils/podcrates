@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 180 entries: 60 open, 3 partial, 0 blocked, 117 done.
+`TODO/INDEX.md` holds 180 entries: 59 open, 3 partial, 0 blocked, 118 done.
 
 ## State
 
@@ -8,7 +8,7 @@
   `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.17.0` at `4da8fb3` (`docs/releases/v0.17.0.md`; ci
   42951104681, adoption 42951104743, plants 42951104733, release
-  42952937378, the dry run of `publish.yml` 42952959048): `pod-job`, the
+  42952937378, the dry run of `publish.yml` 42952959048 green): `pod-job`, the
   mutual TLS of `pod-tls`, the limits of `pod-enter`, the hosts of GitHub
   Actions in `pod-services`. The hand-off is GitHub #58 (COORD-033); the
   one of `v0.16.0` is #57.
@@ -49,8 +49,8 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): T-161 (`pod-broker`, for
-   PodUtils/podrunner#24), T-177 and T-178 (the schemas of `pod-job`);
+2. **podrunner** (PodUtils/podrunner#1): T-177 and T-178 (the schemas of
+   `pod-job`); the names mode of `pod-broker` goes out with the next tag;
    T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
 3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;

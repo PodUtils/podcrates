@@ -57,6 +57,34 @@ reload of the job keeps the listener with the new policy; a drop or the
 TTL ends it with each of its connections (the audit line
 `broker.listener.end`). The host binds and removes the socket file.
 
+### An upstream that takes names only
+
+Some proxy-only hosts have an upstream CONNECT proxy that refuses an IP
+literal, or no resolver that works. There set `Settings::names_upstream`:
+the broker checks the name and each address of its one resolve as
+before, then sends the checked name to the upstream, once, in place of
+the checked address. The audit line of the connection holds
+`"sent":"name"` and the address that the check read. The upstream
+resolves the name again and can reach another address, so ask it first:
+
+```rust
+match broker.check_upstream().await {
+    pod_broker::UpstreamCheck::RefusesNonPublic => {} // the job can be untrusted
+    _ => {} // hold `advisory` only: serve no untrusted job through it
+}
+```
+
+`check_upstream` sends `Settings::canary` (default `localhost`, a name of
+a non-public address) through the way out, and writes the audit line
+`broker.upstream.canary`. The default stays the checked address
+(docs/decisions.md, C28 and C51).
+
+The load flags each allow rule under a suffix where anyone can register a
+name or put content (`names::OPEN_SUFFIXES`: `github.io`,
+`githubusercontent.com`, `pages.dev`, `workers.dev` and others): the
+policy keeps the rule, `JobInfo::flagged` and the control answer
+(`"flagged"`) name it, and the `broker.job.load` line is at `warn`.
+
 ## API
 
 | Item | What |
@@ -72,6 +100,8 @@ TTL ends it with each of its connections (the audit line
 | `Broker::control_line(line)` | the answer to one line of the control |
 | `control::{bind_unix, serve_control}` | a Unix socket with a mode, and the control on it (Unix only) |
 | `upstream(app, proxy, resolve)` | the way out: a `pod_proxy::Dialer` through `proxy` (HTTP CONNECT with Basic or Digest, or SOCKS5), or direct |
+| `Settings::names_upstream`, `Settings::canary`, `Broker::check_upstream()`, `UpstreamCheck` | an upstream that takes names only, and its canary (T-161) |
+| `names::{OPEN_SUFFIXES, open_suffix}`, `JobInfo::flagged`, `Compiled::flagged` | the allow rules under an open suffix (T-161) |
 | `Audit`, `Line`, `JsonLines`, `Tracing`, `Memory` | the audit sink and its line |
 | `TunnelEnd`, `Tunnel`, `Splice`, `Counts` | the inside of an allowed tunnel; the seam of T-100 |
 | `Token` | a job token: wiped when dropped, shown by no format |

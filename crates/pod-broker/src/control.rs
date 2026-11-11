@@ -40,13 +40,19 @@ enum Request {
 }
 
 fn info(job: &JobInfo) -> Value {
-    json!({
+    let mut info = json!({
         "job": job.job,
         "mode": job.mode.word(),
         "rules": job.rules,
         "expires_in_s": job.expires_in.as_secs(),
         "open": job.open,
-    })
+    });
+    // Only when a rule is flagged: the host of each allow rule under an
+    // open suffix (T-161).
+    if !job.flagged.is_empty() {
+        info["flagged"] = json!(job.flagged);
+    }
+    info
 }
 
 fn failed(class: Class, error: &str) -> Value {

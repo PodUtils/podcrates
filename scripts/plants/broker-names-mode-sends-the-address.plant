@@ -1,0 +1,7 @@
+# Names mode that sends the checked address, as the default mode does: an
+# upstream that takes names only refuses each CONNECT of the job (T-161).
+ENTRY=T-161
+GROUP=proxy
+EXPECT='the_broker_sends_the_name_once_and_never_a_second_answer'
+RUN='cargo test -p pod-broker --all-features --test names'
+LIMIT=1800

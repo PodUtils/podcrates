@@ -131,7 +131,9 @@ impl Policy {
         for (n, entry) in self.deny.iter().enumerate() {
             deny.add(entry, format!("policy:deny[{n}]")).map_err(|e| usage(format!("deny entry {n}: {e}")))?;
         }
-        Ok(Compiled { mode: self.mode, rules, deny })
+        let flagged =
+            self.allow.iter().filter(|r| crate::names::open_suffix(&r.host).is_some()).map(|r| r.host.clone());
+        Ok(Compiled { mode: self.mode, rules, deny, flagged: flagged.collect() })
     }
 }
 
@@ -191,6 +193,7 @@ pub struct Compiled {
     mode: Mode,
     rules: Vec<CompiledRule>,
     deny: DenyList,
+    flagged: Vec<String>,
 }
 
 impl Compiled {
@@ -201,6 +204,12 @@ impl Compiled {
     /// The number of allow rules.
     pub fn rules(&self) -> usize {
         self.rules.len()
+    }
+
+    /// The host of each allow rule under a suffix where anyone can register
+    /// a name ([`crate::names::open_suffix`]).
+    pub fn flagged(&self) -> &[String] {
+        &self.flagged
     }
 
     /// The extra denies of the policy.

@@ -28,6 +28,12 @@ pub struct Settings {
     pub connect_timeout: Duration,
     /// The longest TTL of a job.
     pub max_ttl: Duration,
+    /// The upstream proxy takes names only: the broker sends the checked
+    /// name of a target, not its checked address (T-161, [`crate::names`]).
+    pub names_upstream: bool,
+    /// The name that [`Broker::check_upstream`] sends: one that resolves to
+    /// a non-public address.
+    pub canary: String,
 }
 
 impl Default for Settings {
@@ -39,6 +45,8 @@ impl Default for Settings {
             resolve_timeout: Duration::from_secs(10),
             connect_timeout: pod_core::backoff::CONNECT_TIMEOUT,
             max_ttl: MAX_TTL,
+            names_upstream: false,
+            canary: crate::names::CANARY.to_string(),
         }
     }
 }
@@ -105,11 +113,15 @@ impl Broker {
         let (job, ttl) = (load.job.clone(), load.ttl);
         match self.jobs.load(load) {
             Ok(compiled) => {
-                let mut line = Line::new("info", "broker.job.load");
+                let flagged = compiled.flagged().to_vec();
+                let mut line = Line::new(if flagged.is_empty() { "info" } else { "warn" }, "broker.job.load");
                 line.set("job", job.as_str()).set("mode", compiled.mode().word()).set("rules", compiled.rules());
                 line.set("ttl_s", ttl.as_secs());
+                if !flagged.is_empty() {
+                    line.set("flagged", flagged.join(" "));
+                }
                 self.audit.line(&line);
-                Ok(JobInfo { job, mode: compiled.mode(), rules: compiled.rules(), expires_in: ttl, open: 0 })
+                Ok(JobInfo { job, mode: compiled.mode(), rules: compiled.rules(), flagged, expires_in: ttl, open: 0 })
             }
             Err(e) => {
                 let mut line = Line::new("warn", "broker.job.load");

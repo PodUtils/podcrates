@@ -80,6 +80,9 @@ pub struct JobInfo {
     pub job: String,
     pub mode: Mode,
     pub rules: usize,
+    /// The allow rules under a suffix where anyone can register a name
+    /// ([`crate::names::OPEN_SUFFIXES`]): each reaches other parties.
+    pub flagged: Vec<String>,
     pub expires_in: Duration,
     /// The connections of the job that are open.
     pub open: usize,
@@ -285,6 +288,7 @@ impl Jobs {
                 job: job.clone(),
                 mode: e.policy.mode(),
                 rules: e.policy.rules(),
+                flagged: e.policy.flagged().to_vec(),
                 expires_in: e.expires.saturating_duration_since(now),
                 open: e.open.load(Ordering::Relaxed),
             })

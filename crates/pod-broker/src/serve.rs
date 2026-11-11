@@ -54,6 +54,8 @@ struct Note {
     kind: &'static str,
     target: Option<Authority>,
     addr: Option<SocketAddr>,
+    /// The dial sent the checked name to an upstream that takes names only.
+    by_name: bool,
 }
 
 impl Note {
@@ -64,6 +66,9 @@ impl Note {
             line.set("host", target.host.to_string()).set("port", target.port);
         }
         line.set("addr", self.addr.map(|a| a.to_string()));
+        if self.by_name {
+            line.set("sent", "name");
+        }
         line
     }
 }
@@ -98,7 +103,7 @@ impl Broker {
 
     async fn serve_one(&self, mut io: BoxedIo, bound: Option<&str>) {
         let job = bound.map(str::to_string);
-        let mut note = Note { started: Instant::now(), job, kind: "request", target: None, addr: None };
+        let mut note = Note { started: Instant::now(), job, kind: "request", target: None, addr: None, by_name: false };
         let read = tokio::time::timeout(self.settings.head_timeout, read_request(&mut io, Vec::new())).await;
         let (request, rest) = match read {
             Ok(Ok(read)) => read,
@@ -304,6 +309,20 @@ impl Broker {
     async fn connect(&self, target: &Authority, checked: &Checked, note: &mut Note) -> Result<BoxedIo, Refusal> {
         let wait = self.settings.connect_timeout;
         let deadline = Instant::now() + wait;
+        // An upstream that takes names only gets the checked name, once
+        // (T-161); the audit line keeps the address that the check read.
+        if self.settings.names_upstream
+            && let Host::Name(name) = &target.host
+        {
+            note.addr = checked.addrs.first().copied();
+            note.by_name = true;
+            let by_name = Target::Name { host: name.clone(), port: target.port };
+            return match tokio::time::timeout(wait, self.dial.dial(&by_name, deadline)).await {
+                Ok(Ok(connected)) => Ok(connected.io),
+                Ok(Err(f)) => Err(of_failure(&f, "upstream")),
+                Err(_) => Err(refuse(504, "upstream", Class::Timeout, format!("{target} did not answer in time"))),
+            };
+        }
         let mut last = None;
         for addr in &checked.addrs {
             note.addr = Some(*addr);

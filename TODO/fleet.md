@@ -291,8 +291,8 @@ podrunner (a project that runs CI jobs, GitHub #47) holds each unit's egress on 
 
 ## Premise
 
-- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:172` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:114`.
-- Read: `crates/pod-broker/src/broker.rs:145` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:161` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:128`) ends the connections of a job.
+- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:177` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:119`.
+- Read: `crates/pod-broker/src/broker.rs:157` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:173` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:140`) ends the connections of a job.
 - Read: `crates/pod-broker/README.md` writes the unix upstream as `http+unix:PATH` at line 47. `PodUtils/podnet:crates/podnet-netns/src/upstream/tests.rs` parses `http://unix:/PATH` and `socks5://unix:///PATH`. The README form does not parse in `podnet pod -x`: podnet's `Proxy::parse` in `PodUtils/podnet:crates/podnet-netns/src/upstream.rs` has no `http+unix:` prefix. The documentation defect is fixed in the commit that adds this entry (see the Done line of the COORD issue).
 - Read: section 0 item 4 of the issue says that SPEC section 9.5 of the design review writes `socks5://unix:PATH`. `pod-broker` speaks HTTP CONNECT and absolute-form HTTP only, not SOCKS5. podnet parses a SOCKS5 unix proxy, so the text parses but the broker does not answer SOCKS5. This is a note for the spec, not for podcrates. The working form is `http://unix:/PATH`.
 - Not measured: the listener. Not read: the design review (the owner holds the zip).
@@ -355,7 +355,7 @@ loaded is refused (`NotFound`). The README names the bound listener and
 **Milestone:** M8
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -363,7 +363,7 @@ A proxy-only host can have an upstream CONNECT proxy that takes names only. Two 
 
 ## Premise
 
-- Read: `crates/pod-broker/src/broker.rs:268` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:304` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
+- Read: `crates/pod-broker/src/broker.rs:280` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:309` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
 - Read: call C28 says that through an upstream proxy the broker sends the checked address and never the name. This entry changes C28 for an upstream that takes names only. The default stays the checked address. Write the change as a new call when the work starts.
 - Not read: `APPENDIX-DEFERRED.md` of the design review (the owner holds the zip). Not run: the two sandbox hosts.
 
@@ -393,6 +393,34 @@ The tests are the four rules above: the canary, the flagged suffix, the rebindin
 None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on T-099 (done) and `pod-dns`. Not on T-100.
+
+## Done
+
+2026-11-11. `Settings::names_upstream` (default false) and
+`Settings::canary` (default `localhost`); `Broker::check_upstream()` gives
+`UpstreamCheck` (`RefusesNonPublic`, `TakesNonPublic`, `Unknown`) and writes
+`broker.upstream.canary`. In names mode the broker checks the name and each
+address of its one resolve as before, then dials `Target::Name` once; the
+audit line holds `"sent":"name"` and the checked address. `names::OPEN_SUFFIXES`
+and `open_suffix`: the load flags each allow rule under an open suffix
+(`JobInfo::flagged`, `Compiled::flagged`, `"flagged"` in the control answer,
+the `broker.job.load` line at `warn`). Call C51 changes C28. The README has
+the section "An upstream that takes names only". No new parser: no fuzz
+target.
+
+- Tests (`tests/names.rs`, 7): the canary
+  (`the_canary_tells_an_upstream_that_refuses_a_non_public_name_from_one_that_takes_it`,
+  `a_canary_with_no_answer_is_unknown`); the flag
+  (`an_allow_rule_under_an_open_suffix_is_flagged_at_load`,
+  `an_open_suffix_holds_the_suffix_and_each_name_under_it_only`); the
+  rebinding resolver (`the_broker_sends_the_name_once_and_never_a_second_answer`,
+  `names_mode_keeps_each_check`); the copy of the policy of the fixture
+  of podnet (`PodUtils/podnet:scripts/box/proxy.py`) in Rust
+  (`an_upstream_that_takes_names_only_needs_names_mode`).
+- Plant `broker-names-mode-sends-the-address`: 2 of the 7 tests fail.
+- Not run: the two sandbox hosts. Next: podrunner sets `names_upstream`
+  from its probe of the host and holds a job `advisory` when the canary is
+  not `refuses-non-public` (PodUtils/podrunner#24).
 
 # T-163: Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227)
 
