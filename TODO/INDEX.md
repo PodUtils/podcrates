@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**213 entries: 58 open, 4 partial, 0 blocked, 151 done.**
+**215 entries: 60 open, 4 partial, 0 blocked, 151 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 44 | 58 |
-| P2 | 28 | 2 | 0 | 73 | 103 |
-| P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 58 | 4 | 0 | 151 | 213 |
+| P2 | 29 | 2 | 0 | 73 | 104 |
+| P3 | 18 | 1 | 0 | 32 | 51 |
+| **All** | 60 | 4 | 0 | 151 | 215 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -260,3 +260,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-211](transport.md) | P2 | S | M1 | feature | done | `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263) |
 | [T-212](relay.md) | P2 | M | M2 | chore | open | `pod-relay`: the lines for the user as events, and the words of podssh's commands as the caller's |
 | [T-213](podvm.md) | P2 | M | M7 | defect | open | `pod-confine`: under a TCP list or a closed UDP, a payload still makes sockets that Landlock and the filter do not see |
+| [T-214](relay.md) | P2 | L | M2 | feature | open | `pod-wormhole`, `pod-transit`: the file transfer of magic-wormhole (PodUtils/podnet#450) |
+| [T-215](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: the mailbox server (PodUtils/podnet#450) |

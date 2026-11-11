@@ -2517,6 +2517,12 @@ same hold of a SYN with its own dial.
   `netns/backend.rs`, after PodUtils/podnet@T-174 (the veth wire) and the move
   of its router to the smoltcp of `pod-netstack`; podnet writes a COORD
   issue when both are done.
+- PodUtils/podnet#451: PodUtils/podnet@T-174 is done (podnet `295a41d`,
+  `96cd1b7`, `fc97ef9`, `8e726b0`). The move of the router onto
+  `pod-netstack` is PodUtils/podnet@T-249 (the device of
+  `PodUtils/podnet:crates/podnet-netns/src/netns/tun.rs`, both wires, under the stack; the
+  hold of a SYN and the flow table stay). Its COORD issue with the commit
+  is the start of step 2.
 
 ## Approach
 
@@ -3047,6 +3053,12 @@ so podnet keeps the wire in its own `veth.rs` and calls it after its take.
   `SOURCES` block (taken at `b759937`).
 - Not read: `PodUtils/podnet:crates/podnet-netns/src/netns/veth.rs` and its
   tests; the probe row `veth wire (no TUN)` of its `doctor.rs`.
+- PodUtils/podnet#451: the veth wire is done (PodUtils/podnet@T-174). No
+  CI job runs its tests: a GitHub runner makes no user namespace, so
+  `veth_wire_carries_a_tcp_flow` skips. PodUtils/podnet@T-250 adds a step
+  that runs the netns tests as root and fails on a skip line; podnet names
+  the job and its first passing run in a COORD issue. That run is the
+  start of this entry.
 
 ## Approach
 

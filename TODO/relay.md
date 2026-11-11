@@ -1038,6 +1038,9 @@ each capability in `pod-relay`.
 - Read: podnet `PodUtils/podnet:src/ws_relay.rs` (995; `active()` is a
   process global), `PodUtils/podnet:src/relay_pool.rs` (380; a copy of
   podssh's pool), `PodUtils/podnet:src/relay_reverse.rs` (1,139).
+- podnet holds these three files to fixes from `7c5f87e`
+  (PodUtils/podnet#449); import from that commit or a later one that a
+  COORD issue of podnet names.
 
 ## Approach
 
@@ -1765,3 +1768,88 @@ cargo test -p pod-relay --all-features
 ## Start condition
 
 T-025 is done.
+
+# T-214: `pod-wormhole`, `pod-transit`: the file transfer of magic-wormhole (PodUtils/podnet#450)
+
+**Source:** PodUtils/podnet#450 (COORD-032 of podnet, for PodUtils/podnet@T-103 to PodUtils/podnet@T-106)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet's `send` and `receive` need the file-transfer layer of
+magic-wormhole. `pod-wormhole` (T-022) holds the mailbox, SPAKE2 and the
+phases only, and `pod-transit` (T-027) takes podssh's own transit words
+only. No crate holds the offer and the answer (a file, a directory, a
+text), the transit hints, the relay handshake and the records (SecretBox),
+a directory as zip with an inflate decoder (`pod-extract` reads no zip),
+or podnet's own hint kind (the podnet relay as a carrier of a transfer,
+PodUtils/podnet@T-104).
+
+## Premise
+
+- Read: PodUtils/podnet#450.
+- Not read: the file-transfer and transit documents of magic-wormhole
+  (`file-transfer-protocol.md`, `transit.md` of the Python project); the
+  current Python release, for the interop test.
+
+## Approach
+
+The offer and the answer, the zip of a directory (write and read, inflate
+in Rust, a bound of each size and path as `pod-extract` has) go to
+`pod-wormhole` under a feature `transfer`. The transit hints (direct and
+relay, and a kind of the caller for podnet's carrier), the relay
+handshake and the records go to `pod-transit` (call C64). A stand-in of
+the transit relay for the tests. An interop test against the Python
+magic-wormhole in `live.yml` (PodUtils/podnet@T-106). Ask podnet by a
+COORD issue for the words of its hint kind before the API is fixed.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-transit --all-features
+```
+
+## Start condition
+
+T-027 is done.
+
+# T-215: `pod-wormhole`: the mailbox server (PodUtils/podnet#450)
+
+**Source:** PodUtils/podnet#450 (the owner's ruling of 2026-11-11 in podnet: `podnet relay serve --mailbox`)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet runs its own mailbox server (`podnet relay serve --mailbox`, and
+`send` and `receive --mailbox URL`). `pod-wormhole` has the client side
+of the mailbox protocol only.
+
+## Premise
+
+- Read: PodUtils/podnet#450.
+- Not read: the server of the Python `magic-wormhole-mailbox-server`
+  (the nameplates, the mailboxes, the expiry, the welcome message).
+
+## Approach
+
+The server side of the mailbox protocol in `pod-wormhole` under a feature
+`server` (call C64): it shares the message types and the phases with the
+client. The state as a value of the caller (no global); the storage in
+memory with a bound of each count; the WebSocket of `pod-ws`. Tests: the
+client of the crate against the server of the crate; an interop test of
+the Python client against it in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+```

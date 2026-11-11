@@ -8,12 +8,15 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.23.0` is at `de770a2` (`docs/releases/v0.23.0.md`; ci
-  43030479938, release 43038279699; the hand-off GitHub #72, COORD-047):
-  `pod-confine` and `Plan.confine` (T-108, call C57; #69), the empty root
-  entry of `pod-extract` (T-208, PodUtils/podvm#261), `plant-each.sh
-  --apply` (T-210). `v0.22.0` is at `93de04a` (the hand-off #71: each
-  consumer took it).
+- The release `v0.24.0` is at `228e2e3` (`docs/releases/v0.24.0.md`; ci
+  43045626419, release 43053076977; the hand-off GitHub #73, COORD-048):
+  the modloop reader of `pod-guest` (T-206, call C58), the inventory gaps
+  of podvm in `pod-services` (T-211, call C59). `v0.23.0` is at `de770a2`
+  (#72); `v0.22.0` at `93de04a` (#71: each consumer took it).
+- The next release: `pod-relay` (T-025, partial: the podssh trial
+  remains) and T-209 (`pod-confine`: the scopes, a closed UDP, no MPTCP
+  under a TCP list, no io_uring; calls C61 to C63; breaking: `Spec` and
+  `Deny`). podnet's asks (#74): T-028 after T-026, T-214 and T-215.
 - The consumers and the tag each takes:
   - podssh: `v0.22.0` (`75a50318`, PodUtils/podssh#191; it took `pod-e2e`;
     the key of `localhost-run` pinned;
@@ -104,8 +107,14 @@ page current; remove a line when its work is done.
   `target/debug` (the version is in the hash of each artifact). Before the
   check of a bump, remove `target/debug` under the cargo lock
   (`flock SCRATCHPAD/cargo.lock`) when `df -h /` shows less than 25 GB
-  free. Agents that build in parallel share `target/` and take the same
-  lock for each cargo command.
+  free. Agents that build in parallel take the same lock for each cargo
+  command.
+- Do not share `target/` between worktrees: an artifact built in a
+  worktree holds its absolute paths (`include_str!` of `pod-services`,
+  `CARGO_MANIFEST_DIR` of `pod-job`), and cargo reuses it in the main
+  checkout, so the doc and the tests fail there after the worktree goes.
+  After a merge of an agent's work that shared `target/`, remove
+  `target/debug` before the check.
 
 ## Channels
 

@@ -64,6 +64,10 @@ forward, nc, TUN) moves to podcrates. podssh's WARP road retires onto it.
   the HTTP client of `pod-core` and `pod-proxy` take their place.
 - Read: podssh `PodUtils/podssh:crates/podssh-warp` (5,469; its stand-in
   edge and API stand-in go to `pod-testkit`).
+- podnet holds `src/warp/` to fixes from `7c5f87e`, but `wg.rs` and `wg/`
+  (taken as `pod-wg`) and `quic.rs`, `up.rs`, `export.rs` and
+  `ssh_config.rs` (they stay in podnet) (PodUtils/podnet#449). podnet
+  accepts the cut of `docs/design.md`.
 
 ## Approach
 
@@ -85,6 +89,23 @@ with no IPv4 default route. The door selection of the crate takes a pinned
 `HOST:PORT` from the caller (podnet's `--masque-endpoint` and its variable)
 and skips the order, so that an IPv6-only host pays no failed IPv4 connect.
 A test of the pinned door and of the order without it.
+
+A WARP session as a network of the caller (PodUtils/podnet#449;
+PodUtils/podnet@T-057): the crate gives a session as a `Dial` (TCP streams
+and names inside) and as `Datagrams` (UDP), so that podnet's registry,
+router, groups and `--egress` take WARP as one more network. About twenty
+podnet entries wait for it (among them PodUtils/podnet@T-095,
+PodUtils/podnet@T-097 and PodUtils/podnet@T-101). Use the traits of
+`pod-core` where they fit; else ask podnet which traits of `podnet_core`
+the crate implements.
+
+The lint of shadowed rules (PodUtils/podnet#449, PodUtils/podnet#433;
+PodUtils/podnet@T-242): `warp proxy -r` and `--rules` call the same lint
+as podnet's netns rules (`podnet_netns::rules::shadow::check`): a shadowed
+`reject` is an error (exit 64) unless the caller allows it. The crate
+cannot depend on a podnet crate: the rules of `src/warp/rules.rs` take the
+lint as a function of the caller, or the lint moves to a crate of
+podcrates with the rules.
 
 ## Prove
 
@@ -129,10 +150,22 @@ podcrates.
   `src/proxy.rs` is `origin::dial::dial`.
 - A test of `src/cloudflare/http2.rs` reads `tools/header-oracle.txt` of
   podnet; the pin of cloudflared and its watch move with the crate.
+- podnet holds `src/cloudflare/`, `src/tunnel.rs`, `src/race.rs`,
+  `src/edge_h2.rs`, `src/edge_discovery.rs`, `src/quicktunnel.rs`,
+  `src/config.rs`, `src/proxy.rs` and the edge side of `src/ws.rs`
+  (`serve_websocket`, `forward_path`) to fixes from `7c5f87e`
+  (PodUtils/podnet#449). podnet accepts the cut of `docs/design.md`.
+- podnet's `tunnel --inspect` (PodUtils/podnet#435,
+  PodUtils/podnet@T-244) captures each exchange beside the copy helpers of
+  `forward_http` in `src/proxy.rs`: a ring, redaction by default, a replay
+  over a socket of mode 0600.
 
 ## Approach
 
 The procedure of `docs/design.md`, section 8, with podnet's files only.
+The copy of `forward_http` gives the caller a hook on each exchange, so
+that podnet's `tunnel --inspect` stays podnet's (or the crate takes the
+capture, if podnet's code of it is in the cut at the import).
 
 ## Prove
 
