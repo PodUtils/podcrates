@@ -1,0 +1,21 @@
+{
+  "job-offer/invalid-job-id-path.json": "a job id has only",
+  "job-offer/invalid-payload-tag.json": "the payload is not sha256:HEX",
+  "job-offer/invalid-required-limit-no-value.json": "the required limit \"wall\" has no value",
+  "job-offer/invalid-scaleset-payload.json": "a github-scaleset source gives no payload",
+  "job-offer/invalid-tier-field.json": "unknown field `tier`",
+  "job-offer/invalid-unknown-event.json": "unknown variant `pull_request_review`",
+  "job-offer/invalid-unknown-limit.json": "unknown limit \"gpu\"",
+  "run-report-public/invalid-host.json": "unknown field `host`",
+  "run-report-public/invalid-refusal-code.json": "unknown variant `no-reason`",
+  "run-report/invalid-code-not-refused.json": "refusal_code needs exit_reason refused",
+  "run-report/invalid-exit-reason.json": "unknown variant `crashed`",
+  "run-report/invalid-refused-no-code.json": "a refused report needs refusal_code",
+  "run-report/invalid-refused-with-unit.json": "a refused report has no unit fields",
+  "run-report/invalid-unit-id.json": "a unit id is u- and a decimal number",
+  "unit-capability/invalid-env-delivery.json": "unknown variant `env`",
+  "unit-capability/invalid-extra-field.json": "unknown field `isolated`",
+  "unit-capability/invalid-isolated.json": "unknown variant `isolated`",
+  "unit-capability/invalid-no-tree-kill.json": "missing field `tree_kill`",
+  "unit-capability/invalid-schema-2.json": "schema 2 is not 1"
+}

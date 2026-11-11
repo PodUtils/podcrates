@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "job_id": "j-1001",
+  "source": "fake-1",
+  "tier": "trusted",
+  "host": "host-a",
+  "exit_reason": "refused",
+  "exit_code": 0,
+  "wall_s": 93,
+  "unit": {
+    "unit_id": "u-7",
+    "unit_kind": "podvm",
+    "boundary": "redirect",
+    "principal": "shared",
+    "egress_hold": "advisory",
+    "payload": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "residual_processes": 0,
+    "residual_files": 0
+  },
+  "refusal_code": "unit-start-failed"
+}

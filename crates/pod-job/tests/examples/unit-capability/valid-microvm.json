@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "kind": "microvm",
+  "arch": "x86_64",
+  "boundary": "guest",
+  "principal": "distinct",
+  "container": "hooks",
+  "net": "broker",
+  "secret_delivery": [
+    "files"
+  ],
+  "credential_store": "private-dir",
+  "mount_modes": [
+    "rw"
+  ],
+  "rootfs_fresh": "yes",
+  "tree_kill": "verified",
+  "limits": {
+    "wall": "enforced",
+    "memory": "enforced"
+  },
+  "egress_hold": "enforced",
+  "kvm": "yes",
+  "boundary_proof": "guest-self-test"
+}

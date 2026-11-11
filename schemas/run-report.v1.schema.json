@@ -1,0 +1,282 @@
+{
+  "$id": "https://github.com/PodUtils/podrunner/schemas/run-report.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunReport",
+  "description": "The full report (`run-report.v1`), for the operator.",
+  "type": "object",
+  "properties": {
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32"
+    },
+    "exit_reason": {
+      "$ref": "#/$defs/ExitReason"
+    },
+    "host": {
+      "description": "The name of the host.",
+      "type": "string"
+    },
+    "job_id": {
+      "$ref": "#/$defs/JobId"
+    },
+    "refusal_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RefusalCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "source": {
+      "type": "string"
+    },
+    "tier": {
+      "description": "The tier, when the tier rule gave one.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Tier"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnitFields"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wall_s": {
+      "description": "The time from the claim to the report, in seconds.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "job_id",
+    "source",
+    "host",
+    "exit_reason",
+    "wall_s"
+  ],
+  "$defs": {
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "EgressHold": {
+      "description": "How the network traffic of a unit reaches the egress broker.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "enforced"
+          ]
+        },
+        {
+          "description": "A redirect that a payload can go around.",
+          "type": "string",
+          "const": "advisory"
+        },
+        {
+          "description": "Read as `none`.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "ExitReason": {
+      "description": "How a job ended.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "success",
+            "failure",
+            "cancelled",
+            "timeout",
+            "unit-failed"
+          ]
+        },
+        {
+          "description": "Refused before a unit started: the report has `refusal_code`.",
+          "type": "string",
+          "const": "refused"
+        },
+        {
+          "description": "Withdrawn at `wait_deadline_s`.",
+          "type": "string",
+          "const": "withdrawn"
+        },
+        {
+          "description": "The runner name or the job id of the `started` event did not match.",
+          "type": "string",
+          "const": "job-mismatch"
+        },
+        {
+          "description": "podrunner lost the job (a restart from `claimed` on).",
+          "type": "string",
+          "const": "lost"
+        }
+      ]
+    },
+    "JobId": {
+      "type": "string",
+      "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$"
+    },
+    "Principal": {
+      "description": "Units and the control plane run as one uid (`shared`) or not.",
+      "type": "string",
+      "enum": [
+        "shared",
+        "distinct",
+        "unknown"
+      ]
+    },
+    "RefusalCode": {
+      "description": "Why podrunner refuses a job.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "no-slot-of-kind",
+            "image-stale",
+            "event-not-allowed",
+            "tier-mismatch",
+            "tier-needs-guest",
+            "boundary-not-available",
+            "limit-not-enforceable",
+            "hold-not-available",
+            "egress-policy-unsupported",
+            "arch-mismatch",
+            "payload-not-pinned",
+            "repo-scope-refused",
+            "container-not-supported",
+            "container-option-refused",
+            "build-not-supported",
+            "source-revoked",
+            "credential-unavailable",
+            "unit-start-failed"
+          ]
+        },
+        {
+          "description": "Reserved.",
+          "type": "string",
+          "const": "port-claimed"
+        }
+      ]
+    },
+    "Residual": {
+      "description": "A count of `destroy`, or `unknown`.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        {
+          "$ref": "#/$defs/Unknown"
+        }
+      ]
+    },
+    "Tier": {
+      "description": "The trust tier of a job. It comes from the trust inputs of an offer,\nnever from a label; `local` comes only from the configuration.",
+      "oneOf": [
+        {
+          "description": "A pull request from a fork.",
+          "type": "string",
+          "const": "untrusted"
+        },
+        {
+          "description": "A member job of a configured organization.",
+          "type": "string",
+          "const": "trusted"
+        },
+        {
+          "description": "Set only by the configuration.",
+          "type": "string",
+          "const": "local"
+        }
+      ]
+    },
+    "UnitFields": {
+      "description": "The unit of a job that ran.",
+      "type": "object",
+      "properties": {
+        "boundary": {
+          "$ref": "#/$defs/Boundary"
+        },
+        "egress_hold": {
+          "$ref": "#/$defs/EgressHold"
+        },
+        "payload": {
+          "description": "The digest of the payload.",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/Principal"
+        },
+        "residual_files": {
+          "$ref": "#/$defs/Residual"
+        },
+        "residual_processes": {
+          "description": "The processes and files that `destroy` left; `unknown` when it\ncould not count.",
+          "$ref": "#/$defs/Residual"
+        },
+        "unit_id": {
+          "$ref": "#/$defs/UnitId"
+        },
+        "unit_kind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "unit_id",
+        "unit_kind",
+        "boundary",
+        "principal",
+        "egress_hold",
+        "payload",
+        "residual_processes",
+        "residual_files"
+      ]
+    },
+    "UnitId": {
+      "type": "string",
+      "pattern": "^u-[0-9]{1,20}$"
+    },
+    "Unknown": {
+      "description": "The word `unknown`.",
+      "type": "string",
+      "enum": [
+        "unknown"
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "kind": "podvm",
+  "arch": "x86_64",
+  "boundary": "redirect",
+  "principal": "shared",
+  "container": "none",
+  "net": "broker",
+  "secret_delivery": [
+    "env"
+  ],
+  "credential_store": "private-dir",
+  "mount_modes": [
+    "rw"
+  ],
+  "rootfs_fresh": "yes",
+  "tree_kill": "unverified",
+  "limits": {
+    "wall": "reported"
+  },
+  "egress_hold": "advisory",
+  "kvm": "no"
+}

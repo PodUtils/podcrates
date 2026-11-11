@@ -1,0 +1,22 @@
+[package]
+name = "podrunner-schema"
+description = "The records that cross the seams of podrunner: capability, offer, report"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+# The JSON Schemas of schemas/ are generated from the types, in tests only:
+# the binaries carry no schemars.
+schemars = { version = "1", optional = true }
+
+[features]
+schema = ["dep:schemars"]
+
+[dev-dependencies]
+schemars = "1"

@@ -1,0 +1,244 @@
+{
+  "$id": "https://github.com/PodUtils/podrunner/schemas/job-offer.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JobOffer",
+  "description": "A job offer (`job-offer.v1`).",
+  "type": "object",
+  "properties": {
+    "arch": {
+      "description": "`x86_64` or `aarch64`.",
+      "type": "string"
+    },
+    "job_id": {
+      "$ref": "#/$defs/JobId"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limits": {
+      "description": "The limits that the job asks for, by name (`wall` in seconds,\n`memory` in bytes, `cpu` in milli-cores, `pids`, `disk` in bytes).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0
+      },
+      "default": {}
+    },
+    "limits_required": {
+      "description": "The names of the limits that a unit must enforce.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "payload": {
+      "description": "A payload digest, only from a source that may give one.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "policy": {
+      "description": "The egress policy (the `broker-policy.v1` schema of `pod-broker`).",
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "schema": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "source": {
+      "description": "The name of the source in the configuration.",
+      "type": "string"
+    },
+    "trust_inputs": {
+      "$ref": "#/$defs/TrustInputs"
+    },
+    "unit_need": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnitNeed"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wait_deadline_s": {
+      "description": "After this time, a job that waits for a slot is withdrawn.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "job_id",
+    "source",
+    "trust_inputs",
+    "labels",
+    "arch",
+    "wait_deadline_s"
+  ],
+  "$defs": {
+    "ActorClass": {
+      "description": "The relation of the actor to the organization.",
+      "type": "string",
+      "enum": [
+        "member",
+        "outside",
+        "unknown"
+      ]
+    },
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "Event": {
+      "description": "The event that started the workflow. Each value that the tier rule does\nnot name is `other`; a value that the source cannot read is `unknown`.",
+      "type": "string",
+      "enum": [
+        "push",
+        "pull_request",
+        "pull_request_target",
+        "workflow_dispatch",
+        "schedule",
+        "merge_group",
+        "workflow_run",
+        "issue_comment",
+        "release",
+        "repository_dispatch",
+        "other",
+        "unknown"
+      ]
+    },
+    "Fact": {
+      "description": "A fact that is true, false or not known. `unknown` is read as false.",
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ]
+    },
+    "JobId": {
+      "type": "string",
+      "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$"
+    },
+    "TrustInputs": {
+      "description": "The job metadata that the tier rule reads.",
+      "type": "object",
+      "properties": {
+        "actor_class": {
+          "$ref": "#/$defs/ActorClass"
+        },
+        "event": {
+          "$ref": "#/$defs/Event"
+        },
+        "head_is_fork": {
+          "description": "`yes` when the head of a pull request is in a fork.",
+          "$ref": "#/$defs/Fact"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "owner_id": {
+          "description": "The numeric ids, when the source gives them: the intake check\ncompares them too.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "ref": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "repo_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "repo_visibility": {
+          "$ref": "#/$defs/Visibility"
+        },
+        "run_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "workflow_ref": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "event",
+        "head_is_fork",
+        "actor_class",
+        "repo_visibility",
+        "owner",
+        "repo",
+        "run_id",
+        "ref",
+        "workflow_ref"
+      ]
+    },
+    "UnitNeed": {
+      "description": "What the job needs of a unit, beyond its tier.",
+      "type": "object",
+      "properties": {
+        "container": {
+          "type": "boolean",
+          "default": false
+        },
+        "kvm": {
+          "type": "boolean",
+          "default": false
+        },
+        "min_boundary": {
+          "description": "A boundary above the minimum of the tier.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Boundary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Visibility": {
+      "description": "The visibility of the repository.",
+      "type": "string",
+      "enum": [
+        "private",
+        "internal",
+        "public",
+        "unknown"
+      ]
+    }
+  }
+}

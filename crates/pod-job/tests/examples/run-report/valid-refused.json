@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "job_id": "j-1001",
+  "source": "fake-1",
+  "tier": "untrusted",
+  "host": "host-a",
+  "exit_reason": "refused",
+  "wall_s": 0,
+  "refusal_code": "tier-needs-guest"
+}

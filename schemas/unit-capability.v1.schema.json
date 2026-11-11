@@ -1,0 +1,231 @@
+{
+  "$id": "https://github.com/PodUtils/podrunner/schemas/unit-capability.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Capability",
+  "description": "The capability record of one unit kind (`unit-capability.v1`).",
+  "type": "object",
+  "properties": {
+    "arch": {
+      "description": "`x86_64` or `aarch64`.",
+      "type": "string"
+    },
+    "boundary": {
+      "$ref": "#/$defs/Boundary"
+    },
+    "boundary_proof": {
+      "description": "The name of the proof of the boundary (a self-test, a probe), if any.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "container": {
+      "$ref": "#/$defs/ContainerRoute"
+    },
+    "credential_store": {
+      "$ref": "#/$defs/CredentialStore"
+    },
+    "egress_hold": {
+      "$ref": "#/$defs/EgressHold"
+    },
+    "kind": {
+      "description": "The unit kind: `fake`, `podvm`, `microvm`, `docker` or `host`.",
+      "type": "string"
+    },
+    "kvm": {
+      "$ref": "#/$defs/Fact"
+    },
+    "limits": {
+      "description": "One mode for each limit (`wall`, `cpu`, `memory`, `pids`, `disk`). A\nlimit with no entry is `none`.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/LimitMode"
+      },
+      "default": {}
+    },
+    "mount_modes": {
+      "description": "The modes of a mount that the unit can give: `rw`, `ro`.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "net": {
+      "description": "The way out of the unit: `broker`, `none`, or `host`.",
+      "type": "string"
+    },
+    "principal": {
+      "$ref": "#/$defs/Principal"
+    },
+    "rootfs_fresh": {
+      "$ref": "#/$defs/Fact"
+    },
+    "schema": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "secret_delivery": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SecretDelivery"
+      }
+    },
+    "tree_kill": {
+      "$ref": "#/$defs/TreeKill"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "arch",
+    "boundary",
+    "principal",
+    "container",
+    "net",
+    "secret_delivery",
+    "credential_store",
+    "mount_modes",
+    "rootfs_fresh",
+    "tree_kill",
+    "egress_hold",
+    "kvm"
+  ],
+  "$defs": {
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "ContainerRoute": {
+      "description": "How a unit runs the containers of a job.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "description": "No container: a job that needs one is refused\n(`container-not-supported`).",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "The container hooks of the runner (call C2).",
+          "type": "string",
+          "const": "hooks"
+        }
+      ]
+    },
+    "CredentialStore": {
+      "description": "Where the credential files live while the unit runs.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "description": "A directory of mode 0700 on the disk of the host.",
+          "type": "string",
+          "const": "private-dir"
+        },
+        {
+          "description": "A memory file system.",
+          "type": "string",
+          "const": "tmpfs"
+        }
+      ]
+    },
+    "EgressHold": {
+      "description": "How the network traffic of a unit reaches the egress broker.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "enforced"
+          ]
+        },
+        {
+          "description": "A redirect that a payload can go around.",
+          "type": "string",
+          "const": "advisory"
+        },
+        {
+          "description": "Read as `none`.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "Fact": {
+      "description": "A fact that is true, false or not known. `unknown` is read as false.",
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ]
+    },
+    "LimitMode": {
+      "description": "How the unit applies one limit.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "enforced",
+            "none"
+          ]
+        },
+        {
+          "description": "Measured and reported, not enforced.",
+          "type": "string",
+          "const": "reported"
+        }
+      ]
+    },
+    "Principal": {
+      "description": "Units and the control plane run as one uid (`shared`) or not.",
+      "type": "string",
+      "enum": [
+        "shared",
+        "distinct",
+        "unknown"
+      ]
+    },
+    "SecretDelivery": {
+      "description": "How a credential reaches the unit. There is no `env`: a credential never\ngoes into the environment.",
+      "type": "string",
+      "enum": [
+        "files",
+        "socket"
+      ]
+    },
+    "TreeKill": {
+      "description": "The kill of the whole process tree of a unit.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "unknown"
+          ]
+        },
+        {
+          "description": "Conformance test 3 passed on this host.",
+          "type": "string",
+          "const": "verified"
+        }
+      ]
+    }
+  }
+}
