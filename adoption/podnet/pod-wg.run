@@ -5,14 +5,14 @@
 # window of counters, the cookie and the timers are pod-wg (Tunnel in place
 # of State), and wg.rs re-exports their old names. connect_on gives the
 # mac2 of a cookie reply to its next try; WgRx takes the cookie of a rekey.
-# src/warp/wg/standin.rs gives the Peer of pod_wg::standin::start and keeps
-# the two tests of the driver; the tests of the sans-IO parts leave (they
-# are pod-wg's). Each podcrates tag moves to v0.22.0. The record, the size
+# src/warp/wg/standin.rs gives the Peer of pod_wg::standin::start, keeps
+# the two tests of the driver and gets a third (a front door under load);
+# the tests of the sans-IO parts leave (they are pod-wg's). Each podcrates tag moves to v0.22.0. The record, the size
 # and the layers of the files, the build, the bans and the sources of
 # cargo-deny, pod-wg in the tree, no copy of the moved code left in podnet,
 # clippy of the workspace, the library of podnet (the WireGuard leg, the
-# export check, the handshake of a wg-quick file, the stand-in and the
-# probe of a dead leg), the virtual network (the wg-quick reader), the fuzz
+# export check, the handshake of a wg-quick file, the stand-in, a front
+# door under load and the probe of a dead leg), the virtual network (the wg-quick reader), the fuzz
 # targets with their lock, rustfmt, each Rust toolchain of the workflows and
 # build images against the rust-version of podcrates, and the binary for
 # x86_64 musl, built with zig (a debug build: the release profile takes
