@@ -8,9 +8,8 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.16.0` is at `60a675c` (`docs/releases/v0.16.0.md`; the
-  hand-off GitHub #57). `main` after the tag holds T-176 (`pod-enter`
-  limits and `no_new_privs`) for `v0.17.0`.
+- The release `v0.17.0` is at `4da8fb3` (`docs/releases/v0.17.0.md`; the
+  hand-off GitHub #58). `v0.16.0` is at `60a675c` (#57).
 - The consumers and the tag each takes:
   - podssh: `v0.15.0` (`pod-wormhole` at `baa00a06`, `pod-session` at
     `6f78a7c7`). It may move to `v0.16.0` (four nodes of `pod-services`
@@ -18,10 +17,10 @@ page current; remove a line when its work is done.
   - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
     of T-169 and T-170 (not made yet).
   - podvm: `v0.16.0` (`894cf13`, with T-162 and T-175). Next: `v0.17.0`
-    (T-176).
+    (T-176, PodUtils/podvm#245).
   - podrunner: `v0.16.0` for `pod-core` and `pod-todo` (`07cd854`). Next:
-    `pod-broker` and `pod-supervise` of `v0.16.0`, then `pod-job` of
-    `v0.17.0` (T-163).
+    `pod-supervise` of `v0.16.0`; `pod-job` and `pod_tls::mutual` of
+    `v0.17.0` (T-163, T-165).
 - podrunner and podssh have lead sessions that this session started
   (direct messages); podnet and podvm run in their own sessions (COORD
   issues).

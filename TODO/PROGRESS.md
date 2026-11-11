@@ -6,13 +6,12 @@
 
 - The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
   `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.16.0` at `60a675c` (`docs/releases/v0.16.0.md`; ci
-  42941289807, adoption 42939473252 at `699a107`, plants 42941289959,
-  release 42943522356, the dry run of `publish.yml` 42943571130 green): the tree
-  kill and the private modes of `pod-supervise`, the bound listener of
-  `pod-broker`, `connect` and `packet` of `pod-hold`, four nodes out of
-  `pod-services`. The hand-off is GitHub #57 (COORD-032). Each consumer
-  took `v0.15.0` (#54 closed).
+- Last release: `v0.17.0` at `4da8fb3` (`docs/releases/v0.17.0.md`; ci
+  42951104681, adoption 42951104743, plants 42951104733, release
+  42952937378, the dry run of `publish.yml` 42952959048): `pod-job`, the
+  mutual TLS of `pod-tls`, the limits of `pod-enter`, the hosts of GitHub
+  Actions in `pod-services`. The hand-off is GitHub #58 (COORD-033); the
+  one of `v0.16.0` is #57.
 - The consumers: podssh is on `v0.15.0` (it took `pod-wormhole` at
   `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
   took `pod-hold` at `b759937`); podvm is on `v0.16.0` (`894cf13`: T-162
