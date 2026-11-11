@@ -27,10 +27,15 @@ page current; remove a line when its work is done.
   - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (its
     PodUtils/podvm@T-1718).
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
-    Its state (head `fa374d7`): no crate ask; the rest waits for a release
-    of podvm or DR-7. An open defect of podvm that podrunner found:
-    PodUtils/podrunner#49 (`podvm wait` gives no exit code for a payload
-    that ends at once; to podvm).
+    Its state (head `1db8bc3`): its milestone M-B holds (PodUtils/podrunner#26
+    closed; runner-image run 42987612426): on a hosted runner with no root,
+    the podvm driver (podvm `v0.2.0-beta.3`, the supervise rung) ran the
+    official runner 2.338.2 on a canned job to Succeeded, and destroy
+    counted 0 processes and 0 files. No crate ask. Its finding
+    PodUtils/podrunner#61 (an absolute link of a rootfs resolves on the
+    host on the supervise rung) is podvm's `podvm-interpose`, not a crate
+    of podcrates (`pod-enter` names the limit); podvm takes it as
+    PodUtils/podvm@T-1725.
 - podrunner and podssh have lead sessions that this session started
   (direct messages; `list_sessions`, titles `(podrunner)` and `(podssh)`);
   podnet and podvm run in their own sessions (COORD issues).
