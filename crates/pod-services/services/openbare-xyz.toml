@@ -1,0 +1,48 @@
+# The public node of OpenBare: a TompHTTP Bare v3 server on Cloudflare
+# Workers, the last WebSocket hop of podssh (PodUtils/podssh@T-740). A
+# client opens a WebSocket under the endpoint, asks for a remote, and then
+# carries bytes both ways (tomphttp/specifications, BareServerV3.md).
+id = "openbare-xyz"
+kind = "bare-node"
+party = "OpenBare (nirholas/openbare), its node on Cloudflare Workers"
+about = "The public Bare v3 node of OpenBare, which needs no account"
+
+[[endpoint]]
+name = "bare"
+scheme = "https"
+host = "openbare.xyz"
+port = 443
+path = "/bare/"
+source = { url = "https://github.com/nirholas/openbare/blob/da38032de3a0/README.md", read = 2026-11-11, note = "servers: ['https://openbare.xyz/bare/']; Live Example: https://openbare.xyz" }
+
+[[fact]]
+name = "service"
+value = "openbare-edge"
+source = { measured = "GET https://openbare.xyz/ answered {\"service\":\"openbare-edge\",\"version\":\"3\",\"protocol\":\"bare-v3\",\"features\":{\"websocket\":true}} (through fetch.web.pkgforge.dev)", read = 2026-11-11 }
+
+[[fact]]
+name = "protocol"
+value = "bare-v3"
+source = { measured = "GET https://openbare.xyz/ answered \"protocol\":\"bare-v3\"; GET https://openbare.xyz/bare/ answered \"versions\":[\"v1\",\"v2\",\"v3\"]", read = 2026-11-11, note = "the protocol is tomphttp/specifications BareServerV3.md at e27d6370b816" }
+
+[[watch]]
+kind = "http-json"
+url = "https://openbare.xyz/"
+pointer = "/service"
+fact = "service"
+
+[[watch]]
+kind = "http-json"
+url = "https://openbare.xyz/"
+pointer = "/protocol"
+fact = "protocol"
+
+[[watch]]
+kind = "http-status"
+endpoint = "bare"
+path = "/bare/"
+status = 200
+
+[[watch]]
+kind = "rdap"
+domain = "openbare.xyz"

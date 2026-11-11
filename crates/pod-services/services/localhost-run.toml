@@ -1,6 +1,7 @@
 # localhost.run's SSH tunnels: a last fallback of podssh
 # (PodUtils/podssh@T-565), a free HTTP tunnel with no account and no key.
-# No host key is published: podssh's live run reads it.
+# The site publishes no host key: the key is the one that podssh's live
+# run read.
 id = "localhost-run"
 kind = "ssh-tunnel"
 party = "localhost.run"
@@ -20,9 +21,20 @@ name = "user"
 value = "nokey"
 source = { url = "https://localhost.run/docs/faq", read = 2026-11-11, note = "For free tunnels, skip the key check with the nokey user: ssh -R 80:localhost:8080 nokey@localhost.run" }
 
+# The Ed25519 key of the server, as podssh's live run read it.
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:pG6qrBxubYfWa1Zadu/V0NUgjEDiBds/7e2xzte/QNM"
+source = { measured = "the run 42967245046 of PodUtils/podssh last-roads-live.yml on a GitHub runner: greet and 1 MiB down passed; a planted stranger key was refused (PodUtils/podssh@T-565)", read = 2026-11-11, note = "localhost.run publishes no fingerprint" }
+
 [[watch]]
 kind = "ssh-banner"
 endpoint = "ssh"
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"
 
 [[watch]]
 kind = "rdap"

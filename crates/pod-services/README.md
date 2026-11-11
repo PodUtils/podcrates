@@ -227,7 +227,9 @@ let relay = services.of_kind("relay").next();
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run) |
-| `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key) |
+| `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `host-key-sha256` (read by podssh's live run) |
+| `sandhole` | `ssh-tunnel` | `ssh`, `ssh-443` (plain SSH on the HTTPS port) | `host-key-sha256`, `tunnel-zone` |
+| `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol` |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
 | `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |

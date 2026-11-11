@@ -3021,6 +3021,10 @@ read again at its source on 2026-11-11:
 No new watch kind: a service kind is free text, and each watch is of a
 kind that `pod-services-watch` runs. The README has a row of each. Test:
 `the_tunnels_of_localhost_run_localtunnel_and_bore` (`tests/api.rs`).
+podssh took the three in `v0.18.0` (`50ef8922`), and its live run
+42967245046 (`last-roads-live.yml`) passed for each road, with each planted
+stranger refused (PodUtils/podssh@T-565, PodUtils/podssh@T-568,
+PodUtils/podssh@T-569).
 
 # T-172: `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186)
 
@@ -3146,3 +3150,138 @@ The next run of `services.yml` reads the key and agrees.
 the endpoint `ssh`; the README row names it. `cargo test -p pod-services`
 passes. The first run of `services.yml` after the push reads the key
 again.
+
+# T-185: `pod-services`: the host key of `localhost-run` as a fact (podssh's message, 2026-11-11)
+
+**Source:** podssh's message of 2026-11-11 to podcrates (PodUtils/podssh@T-565, the run 42967245046 of `last-roads-live.yml`)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The service `localhost-run` has no host key. podssh takes the key of
+`localhost.run` unpinned, so a road through it trusts the first key that
+it sees.
+
+## Premise
+
+- Read: podssh's message. Its live run on a GitHub runner read the key
+  `SHA256:pG6qrBxubYfWa1Zadu/V0NUgjEDiBds/7e2xzte/QNM` on 2026-11-11; the
+  greet and 1 MiB down passed, and a planted stranger key was refused.
+- Read: localhost.run publishes no fingerprint (T-171). The egress of this
+  sandbox has no SSH.
+
+## Approach
+
+Add the fact `host-key-sha256` to `services/localhost-run.toml` with the
+measured source, and the watch `ssh-host-key` of the endpoint `ssh`, as
+T-181 did for `ssh-j`. `services.yml` reads the key again each day.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-11. `services/localhost-run.toml` has the fact `host-key-sha256`
+(`SHA256:pG6qrBxubYfWa1Zadu/V0NUgjEDiBds/7e2xzte/QNM`, measured by the run
+42967245046 of podssh's `last-roads-live.yml`) and the watch
+`ssh-host-key` of `ssh`; the README row names it; the test
+`the_tunnels_of_localhost_run_localtunnel_and_bore` reads it.
+`cargo test -p pod-services` passes.
+
+# T-186: `pod-services`: the service `sandhole`, the demo of Sandhole (podssh's message, 2026-11-11)
+
+**Source:** podssh's message of 2026-11-11 to podcrates (PodUtils/podssh@T-743; the runs 42970029119 and 42970697875 of podssh)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh adds one more last fallback, the demo server of Sandhole, of the
+shape of `localhost-run`. It reads its server from `pod-services` alone,
+so it is off until a tag names it.
+
+## Premise
+
+- Read: podssh's message; the README of EpicEric/sandhole at
+  `6a57467237f4` (`ssh -R 80:localhost:4321 demo.sandhole.com.br`); the CLI
+  of the Sandhole book (`--connect-ssh-on-https-port`: SSH on the HTTPS
+  port as well); the DNS of `demo.sandhole.com.br` and of a name under it
+  (`178.156.220.190`).
+- Measured by podssh only: SSH on port 443, the host key, a request that
+  reached the server of the runner. The site publishes no fingerprint, and
+  this sandbox has no SSH.
+
+## Approach
+
+`services/sandhole.toml`: endpoints `ssh` (22) and `ssh-443` (443), facts
+`host-key-sha256` and `tunnel-zone`, watches `ssh-banner`, `ssh-host-key`
+on each port, `github-file` of the README, `rdap` of `sandhole.com.br`; a
+row of the README; a test.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-11. `services/sandhole.toml` as the Approach says, with the
+sources of the Premise; the README row; the test
+`the_demo_of_sandhole_has_two_ssh_ports_and_one_key`.
+`cargo test -p pod-services` passes. The first run of `services.yml` reads
+the key on both ports again.
+
+# T-187: `pod-services`: the kind `bare-node` and the node `openbare-xyz` (podssh's message, 2026-11-11)
+
+**Source:** podssh's message of 2026-11-11 to podcrates (PodUtils/podssh@T-740)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh uses a TompHTTP Bare v3 server as its last WebSocket hop. It reads
+the node from `pod-services` alone, so the hop is off until a tag names it.
+
+## Premise
+
+- Read: podssh's message; the README of nirholas/openbare at
+  `da38032de3a0` (`servers: ['https://openbare.xyz/bare/']`, "Live
+  Example"); tomphttp/specifications `BareServerV3.md` at `e27d6370b816`.
+- Measured here through fetch.web.pkgforge.dev on 2026-11-11: `/` answers
+  `"service":"openbare-edge"`, `"protocol":"bare-v3"`, `"websocket":true`;
+  `/bare/` answers `"versions":["v1","v2","v3"]`.
+- The repository's licence is proprietary; podssh speaks the open protocol
+  and uses the public node, which the data names only.
+
+## Approach
+
+`services/openbare-xyz.toml`: kind `bare-node` (a kind of a service is
+free text), endpoint `bare`, facts `service` and `protocol`, watches
+`http-json` of each fact, `http-status` of `/bare/`, `rdap` of
+`openbare.xyz`; a row of the README; a test.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-11. `services/openbare-xyz.toml` as the Approach says; the README
+row; the test `the_bare_node_of_openbare_is_a_bare_v3_endpoint`.
+`cargo test -p pod-services` passes.

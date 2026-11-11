@@ -1,0 +1,60 @@
+# The demo server of Sandhole: SSH tunnels with no account, a last
+# fallback of podssh (PodUtils/podssh@T-743). `ssh -R 80:localhost:PORT`
+# makes an HTTP tunnel with a random name under the tunnel zone. The site
+# publishes no host key: the key is the one that podssh's live runs read.
+id = "sandhole"
+kind = "ssh-tunnel"
+party = "Sandhole (EpicEric/sandhole), its public demo"
+about = "The demo server of Sandhole: an HTTP tunnel over SSH with no account"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "demo.sandhole.com.br"
+port = 22
+source = { url = "https://github.com/EpicEric/sandhole/blob/6a57467237f4/README.md", read = 2026-11-11, note = "ssh -R 80:localhost:4321 demo.sandhole.com.br" }
+
+# Plain SSH on the HTTPS port, not SSH inside TLS: the server reads the
+# first bytes for SSH before TLS.
+[[endpoint]]
+name = "ssh-443"
+scheme = "ssh"
+host = "demo.sandhole.com.br"
+port = 443
+source = { measured = "the runs 42970029119 and 42970697875 of PodUtils/podssh on a GitHub runner with stock OpenSSH and a throwaway key: a remote forward on port 443 served a request (PodUtils/podssh@T-743)", read = 2026-11-11, note = "https://sandhole.com.br/cli.html: --connect-ssh-on-https-port allows connecting to SSH via the HTTPS port as well" }
+
+# The Ed25519 key of the server, the same on both ports.
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:EV7UJ46EDUHvG0yx4I4dw+9r3bypGpBt9+vQy2w9V/o"
+source = { measured = "the runs 42970029119 and 42970697875 of PodUtils/podssh on a GitHub runner (PodUtils/podssh@T-743)", read = 2026-11-11, note = "the site publishes no fingerprint" }
+
+# Each tunnel is a random name of six characters under this zone.
+[[fact]]
+name = "tunnel-zone"
+value = "demo.sandhole.com.br"
+source = { measured = "the runs of PodUtils/podssh: each connection got a new name under demo.sandhole.com.br; a name under it resolves to the address of the demo (178.156.220.190, DoH of Cloudflare, 2026-11-11)", read = 2026-11-11 }
+
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh-443"
+fact = "host-key-sha256"
+
+[[watch]]
+kind = "github-file"
+repo = "EpicEric/sandhole"
+path = "README.md"
+endpoint = "ssh"
+
+[[watch]]
+kind = "rdap"
+domain = "sandhole.com.br"

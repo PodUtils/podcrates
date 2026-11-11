@@ -246,6 +246,7 @@ fn the_tunnels_of_localhost_run_localtunnel_and_bore() {
     let ssh = lhr.endpoint("ssh").unwrap();
     assert_eq!((lhr.kind(), ssh.scheme(), ssh.host(), ssh.port()), ("ssh-tunnel", "ssh", "localhost.run", 22));
     assert_eq!(lhr.text("user"), Some("nokey"));
+    assert_eq!(lhr.text("host-key-sha256"), Some("SHA256:pG6qrBxubYfWa1Zadu/V0NUgjEDiBds/7e2xzte/QNM"));
     let lt = pod_services::get("localtunnel").expect("localtunnel");
     let api = lt.endpoint("api").unwrap();
     assert_eq!((lt.kind(), api.scheme(), api.host(), api.port()), ("localtunnel", "https", "localtunnel.me", 443));
@@ -260,5 +261,42 @@ fn the_tunnels_of_localhost_run_localtunnel_and_bore() {
     assert_eq!((bore.int("tunnel-hours"), bore.fact("tunnel-hours").unwrap().unit()), (Some(24), Some("h")));
     for service in [&lhr, &lt, &bore] {
         assert!(service.watches().iter().any(|w| w.kind() == "rdap"), "{}", service.id());
+    }
+}
+
+/// The demo of Sandhole (T-186, PodUtils/podssh@T-743): SSH on 22 and plain
+/// SSH on 443, one host key watched on each port, and the tunnel zone.
+#[test]
+fn the_demo_of_sandhole_has_two_ssh_ports_and_one_key() {
+    let sandhole = pod_services::get("sandhole").expect("sandhole");
+    assert_eq!(sandhole.kind(), "ssh-tunnel");
+    for (name, port) in [("ssh", 22), ("ssh-443", 443)] {
+        let e = sandhole.endpoint(name).unwrap();
+        assert_eq!((e.scheme(), e.host(), e.port()), ("ssh", "demo.sandhole.com.br", port), "{name}");
+        let watched = sandhole
+            .watches()
+            .iter()
+            .any(|w| w.kind() == "ssh-host-key" && w.arg("endpoint").and_then(|v| v.as_text()) == Some(name));
+        assert!(watched, "no watch of the key on {name}");
+    }
+    assert_eq!(sandhole.text("host-key-sha256"), Some("SHA256:EV7UJ46EDUHvG0yx4I4dw+9r3bypGpBt9+vQy2w9V/o"));
+    assert_eq!(sandhole.text("tunnel-zone"), Some("demo.sandhole.com.br"));
+}
+
+/// The public node of OpenBare (T-187, PodUtils/podssh@T-740): a Bare v3
+/// endpoint, the facts that the JSON of its root holds, and their watches.
+#[test]
+fn the_bare_node_of_openbare_is_a_bare_v3_endpoint() {
+    let node = pod_services::get("openbare-xyz").expect("openbare-xyz");
+    assert_eq!(node.kind(), "bare-node");
+    let bare = node.endpoint("bare").unwrap();
+    assert_eq!((bare.scheme(), bare.host(), bare.port(), bare.path()), ("https", "openbare.xyz", 443, Some("/bare/")));
+    assert_eq!((node.text("service"), node.text("protocol")), (Some("openbare-edge"), Some("bare-v3")));
+    for fact in ["service", "protocol"] {
+        let watched = node
+            .watches()
+            .iter()
+            .any(|w| w.kind() == "http-json" && w.arg("fact").and_then(|v| v.as_text()) == Some(fact));
+        assert!(watched, "no watch of {fact}");
     }
 }
