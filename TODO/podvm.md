@@ -2777,4 +2777,10 @@ declares a version of 2.16 or later.
   comes with its take). podvm gives `--inhibit-cache` where the plan says
   so; a library that no directory of the image holds is still searched
   in the host's default directories, as the head of `userland.rs` says.
+- Proved by podvm (PodUtils/podvm#249): podvm takes `v0.19.0` at
+  `2c2b8d2` and gives `--inhibit-cache` where the plan says so; its
+  experiment 356, clause 32, exits 0 on the chroot-denied fixture: a musl
+  program with its library in `/usr/local/lib` and a glibc program with
+  its library named only in `/etc/ld.so.conf.d` each load the image's
+  library. PodUtils/podvm#247 is closed.
 

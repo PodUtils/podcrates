@@ -18,8 +18,9 @@
   at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
   (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
   `packet` at `e4d4049`, PodUtils/podnet#426; it released
-  `v0.4.0-beta.3`); podvm is on `v0.17.0` (`522b437`: the
-  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.19.0`
+  `v0.4.0-beta.3`); podvm is on `v0.19.0` (`2c2b8d2`, its
+  `--inhibit-cache` from `LoaderPlan::inhibit_cache`; PodUtils/podvm#249,
+  read by podcrates); podrunner is on `v0.19.0`
   (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
   takes `check_upstream`, `names_upstream` and the flagged rules).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on

@@ -18,8 +18,8 @@ page current; remove a line when its work is done.
   - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its
     `connect` and `packet` at `e4d4049`, PodUtils/podnet#426; it released
     `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.
-  - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
-    PodUtils/podvm#245 closed).
+  - podvm: `v0.19.0` (`2c2b8d2`; PodUtils/podvm#249, read by podcrates;
+    T-182 proved by its experiment 356, clause 32).
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`, its
     `taken` line is in `crates/pod-job/SOURCES`; its T-048 at `6f24681`
     takes `check_upstream`, `names_upstream` and the flagged rules). It uses `pod_tls::mutual` for its
