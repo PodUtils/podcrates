@@ -1474,7 +1474,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pod-broker"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -1492,7 +1492,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "libc",
  "pod-testkit",
@@ -1503,7 +1503,7 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -1526,7 +1526,7 @@ dependencies = [
 
 [[package]]
 name = "pod-enter"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "pod-extract"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "flate2",
  "pod-core",
@@ -1548,7 +1548,7 @@ dependencies = [
 
 [[package]]
 name = "pod-gsr"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "foreign-types",
  "openssl",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "pod-guest"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1575,7 +1575,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hold"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "libc",
  "pod-core",
@@ -1585,7 +1585,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "linux-raw-sys",
  "pod-core",
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "boon",
  "schemars",
@@ -1620,7 +1620,7 @@ dependencies = [
 
 [[package]]
 name = "pod-netstack"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "atomic-waker",
  "pod-core",
@@ -1631,7 +1631,7 @@ dependencies = [
 
 [[package]]
 name = "pod-oci"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "pod-core",
@@ -1648,7 +1648,7 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -1666,7 +1666,7 @@ dependencies = [
 
 [[package]]
 name = "pod-quic"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "atomic-waker",
  "hmac 0.13.0",
@@ -1684,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "pod-rootfs"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-extract",
@@ -1694,7 +1694,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-tls",
@@ -1703,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services-watch"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -1729,7 +1729,7 @@ dependencies = [
 
 [[package]]
 name = "pod-session"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -1746,7 +1746,7 @@ dependencies = [
 
 [[package]]
 name = "pod-supervise"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1757,7 +1757,7 @@ dependencies = [
 
 [[package]]
 name = "pod-term"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "anstyle-parse",
  "pod-testkit",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "pod-testkit"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "libc",
  "pod-hostprobe",
@@ -1776,7 +1776,7 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "aes 0.9.4",
  "aes-gcm 0.11.1",
@@ -1807,11 +1807,11 @@ dependencies = [
 
 [[package]]
 name = "pod-todo"
-version = "0.19.0"
+version = "0.20.0"
 
 [[package]]
 name = "pod-wormhole"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "crypto_secretbox",
  "hkdf 0.13.0",
@@ -1832,7 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "pod-ws"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -2492,7 +2492,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "static-probe"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-broker",
  "pod-core",
@@ -2523,7 +2523,7 @@ dependencies = [
 
 [[package]]
 name = "static-probe-lean"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "pod-core",
  "pod-tls",
