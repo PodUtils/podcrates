@@ -3132,9 +3132,13 @@ same reader.
 
 - Read: podvm's ask and its facts of 2026-11-11 (the archive 3.22.6, 21 MB,
   the `CONFIG_*` lines).
+- podvm's ceiling of its static binary is 8,000,000 bytes
+  (`experiments/110-bloat-delta.sh`, `CEILING_BYTES`); the binary is
+  5,162,616 bytes on 2026-11-11: a static liblzma of some hundreds of KB
+  fits (podvm's amended PodUtils/podvm#260).
 - Not read: the compressor options of `modloop-virt` (an xz with a BCJ
   filter or not); a pure-Rust xz decoder that takes the filters of
-  squashfs; the size of liblzma in a static binary.
+  squashfs.
 
 ## Approach
 

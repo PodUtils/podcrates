@@ -407,4 +407,3 @@ fn a_root_directory_with_an_empty_name_is_the_root() {
     let r = refusal_of(run(s.path(), &[layer(&[E::Raw("", b"x")])]));
     assert_eq!(r.entry, "");
 }
-
