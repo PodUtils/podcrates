@@ -1,0 +1,10 @@
+# The descriptors of the compile cross the fork, and the child keeps them:
+# a rule on /tmp holds the directory of the image under the tmpfs of the
+# namespace rung, and a write into /tmp fails (T-227). The test runs as
+# root (sudo -n on a runner), as the rungs with a chroot skip as another
+# user.
+ENTRY=T-227
+GROUP=confine
+EXPECT='test a_rule_covers_the_tmpfs_of_the_namespace_rung \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

@@ -1,5 +1,6 @@
-# A rule of the confinement stays on a number that a passed descriptor
-# takes in the child: the rule loses its file (T-108).
+# The child opens the paths of the rules before it puts the passed
+# descriptors onto their numbers: a rule loses its file to a passed
+# descriptor (T-108).
 ENTRY=T-108
 GROUP=confine
 EXPECT='test a_passed_descriptor_takes_the_place_of_no_rule \.\.\. FAILED'

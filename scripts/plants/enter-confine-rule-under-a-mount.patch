@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/confine.rs b/crates/pod-enter/src/confine.rs
+index 771199f..738eed8 100644
+--- a/crates/pod-enter/src/confine.rs
++++ b/crates/pod-enter/src/confine.rs
+@@ -32,7 +32,7 @@ pub(crate) fn compile(plan: &Plan, root: Option<&RootDir>) -> Result<Option<Comp
+         Some(r) => spec.compile_in(abi, r.fd())?,
+         None => spec.compile(abi)?,
+     };
+-    compiled.close_paths();
++    let _ = &mut compiled;
+     Ok(Some(compiled))
+ }
+ 

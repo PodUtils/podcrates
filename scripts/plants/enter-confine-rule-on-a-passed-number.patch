@@ -1,11 +1,14 @@
---- a/crates/pod-enter/src/confine.rs
-+++ b/crates/pod-enter/src/confine.rs
-@@ -30,7 +30,7 @@
-     // The child duplicates each passed descriptor onto its number before
-     // the confinement: a rule on one of those numbers would lose its file.
-     let taken: Vec<i64> = plan.fds.pass.iter().map(|&(child, _)| child).collect();
--    compiled.keep_clear_of(&taken)?;
-+    let _ = taken;
-     Ok(Some(compiled))
- }
- 
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+index 241c114..6658e9b 100644
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -194,6 +194,9 @@ pub(crate) fn spawn_with(
+                     sys::exit_group(SETUP_FAILED);
+                 }
+             }
++            if let Some(c) = confined.as_mut() {
++                let _ = c.open_paths();
++            }
+             for (child_fd, host_fd) in &plan.fds.pass {
+                 if host_fd != child_fd {
+                     let _ = sys::dup2(*host_fd, *child_fd);
