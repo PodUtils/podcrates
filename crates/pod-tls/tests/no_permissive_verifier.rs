@@ -24,15 +24,18 @@ use std::path::{Path, PathBuf};
 const FORBIDDEN: [&str; 3] = ["ServerCertVerifier for", "set_certificate_verifier", "ServerCertVerified::assertion"];
 
 /// Each pinning verifier's file, and the comparison with the pinned key that
-/// the file must hold for the allowance to stand. None yet: podssh's of
-/// WARP (`== Some(self.point.as_slice())`) joins with `pod-warp`.
-const PINNED: &[(&str, &str)] = &[];
+/// the file must hold for the allowance to stand: the mutual TLS of pinned
+/// keys (T-165), whose `tests/mutual.rs` fails when the pin is skipped.
+/// podssh's of WARP (`== Some(self.point.as_slice())`) joins with `pod-warp`.
+const PINNED: &[(&str, &str)] = &[("pod-tls/src/mutual.rs", "self.pins.holds(&pin)")];
 
 /// Each file that calls `dangerous()`, and the build of the WebPKI verifier
-/// that the file must hold for the allowance to stand.
+/// (or, for a file of [`PINNED`], the comparison with the pin) that the
+/// file must hold for the allowance to stand.
 const DANGEROUS: &[(&str, &str)] = &[
     ("pod-tls/src/context.rs", "WebPkiServerVerifier::builder_with_provider"),
     ("pod-tls/src/ech/config.rs", "WebPkiServerVerifier::builder_with_provider"),
+    ("pod-tls/src/mutual.rs", "self.pins.holds(&pin)"),
 ];
 
 /// What the scan read and found.

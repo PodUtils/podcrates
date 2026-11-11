@@ -39,6 +39,7 @@ pub mod fragment;
 pub mod groups;
 mod hint;
 mod kept;
+pub mod mutual;
 pub mod roots;
 pub mod server;
 mod store;

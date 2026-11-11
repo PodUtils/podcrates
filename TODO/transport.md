@@ -2825,7 +2825,7 @@ wildcards; `actions/runner` `v2.338.2` (published 2026-10-26).
 **Milestone:** M8
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2857,6 +2857,30 @@ The tests that the issue names:
 ## Start condition
 
 The owner answers yes to DR-4 (PodUtils/podrunner#4): the remote mint of podrunner (PodUtils/podrunner#31) is its only consumer. DR-1 and DR-2 are yes (the ruling "podrunner online", 2026-11-11; call C49).
+
+## Done
+
+2026-11-11 (PodUtils/podrunner#31 needs it; DR-4 is yes). `pod_tls::mutual`:
+`server_config` (a client verifier that takes only a pinned key, and a
+client is mandatory), `client_config` (a server verifier that takes only a
+pinned key, and the client's key presented at each request), `Pin`
+(`sha256/BASE64` of the SubjectPublicKeyInfo; `validity::spki` reads it
+with the DER reader of the crate), `Pins` (a shared set, changed while a
+server runs), `peer_pin`; `server::certified_key(chain, key)`. Both take
+the caller's provider; TLS 1.3 only. `sha2` is a dependency of each build
+now (pure Rust).
+
+- Defect found by the test of the rotation and fixed: with TLS 1.3
+  resumption, a client whose key the rotation removed connected again on
+  a resumed session (the server kept the client of the first handshake).
+  Both configurations turn resumption off, so each connection proves its
+  key against the pins of now.
+- Tests (`tests/mutual.rs`, 5, each on the pure provider and on ring where
+  it applies): a pinned client connects and the server reports its pin; a
+  client of another key and a client with no certificate are refused; a
+  client refuses a server of another key; a rotation (two pins, then one);
+  the text form of a pin. The static probe links a server of mutual TLS.
+  The plant `tls-mutual-pin-not-checked` fails 3 of the 5.
 
 # T-171: `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186)
 

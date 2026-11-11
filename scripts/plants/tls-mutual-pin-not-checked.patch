@@ -1,0 +1,12 @@
+--- a/crates/pod-tls/src/mutual.rs
++++ b/crates/pod-tls/src/mutual.rs
+@@ -163,8 +163,7 @@
+         let pin =
+             Pin::of_certificate(leaf).map_err(|_| rustls::Error::InvalidCertificate(CertificateError::BadEncoding))?;
+         match self.pins.holds(&pin) {
+-            true => Ok(()),
+-            false => Err(rustls::Error::InvalidCertificate(CertificateError::ApplicationVerificationFailure)),
++            true | false => Ok(()),
+         }
+     }
+ }

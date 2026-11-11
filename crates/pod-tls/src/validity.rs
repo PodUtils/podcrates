@@ -33,6 +33,27 @@ fn tlv(data: &[u8]) -> Result<(u8, &[u8], &[u8]), String> {
     Ok((tag, &rest[..len], &rest[len..]))
 }
 
+/// The SubjectPublicKeyInfo of a DER certificate, as its whole DER element:
+/// Certificate -> TBSCertificate -> (version, serial, signature, issuer,
+/// validity, subject, subjectPublicKeyInfo).
+pub(crate) fn spki(der: &[u8]) -> Result<&[u8], String> {
+    let (_, cert, _) = tlv(der)?;
+    let (_, tbs, _) = tlv(cert)?;
+    let mut rest = tbs;
+    let (tag, _, after) = tlv(rest)?;
+    if tag == 0xa0 {
+        rest = after; // the explicit version
+    }
+    for _ in 0..5 {
+        rest = tlv(rest)?.2; // serial, signature, issuer, validity, subject
+    }
+    let (tag, _, after) = tlv(rest)?;
+    if tag != 0x30 {
+        return Err("the subjectPublicKeyInfo is no SEQUENCE".into());
+    }
+    Ok(&rest[..rest.len() - after.len()])
+}
+
 /// The notAfter of a DER certificate: Certificate -> TBSCertificate ->
 /// (version, serial, signature, issuer, validity).
 fn not_after(der: &[u8]) -> Result<String, String> {

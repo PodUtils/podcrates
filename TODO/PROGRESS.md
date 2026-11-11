@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 180 entries: 61 open, 3 partial, 0 blocked, 116 done.
+`TODO/INDEX.md` holds 180 entries: 60 open, 3 partial, 0 blocked, 117 done.
 
 ## State
 
@@ -52,9 +52,7 @@ next entry.
 1. **The defects of the consumers:** none open.
 2. **podrunner** (PodUtils/podrunner#1): T-161 (`pod-broker`, for
    PodUtils/podrunner#24), T-177 and T-178 (the schemas of `pod-job`);
-   T-165 after DR-4
-   (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
-   needs it); T-146 tracks the plan. Each new ask of the
+   T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
 3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;
    T-170 step 2 after podnet's COORD issue), from podnet's answer

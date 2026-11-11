@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**180 entries: 61 open, 3 partial, 0 blocked, 116 done.**
+**180 entries: 60 open, 3 partial, 0 blocked, 117 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
 | P2 | 28 | 3 | 0 | 56 | 87 |
-| P3 | 16 | 0 | 0 | 18 | 34 |
-| **All** | 61 | 3 | 0 | 116 | 180 |
+| P3 | 15 | 0 | 0 | 19 | 34 |
+| **All** | 60 | 3 | 0 | 117 | 180 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -211,7 +211,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-162](podvm.md) | P2 | M | M8 | feature | done | `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227) |
 | [T-163](fleet.md) | P2 | M | M8 | feature | done | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
 | [T-164](transport.md) | P3 | S | M8 | feature | done | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
-| [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |
+| [T-165](transport.md) | P3 | M | M8 | feature | done | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |
 | [T-166](podvm.md) | P2 | L | M1 | feature | done | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |
 | [T-167](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap` |
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |

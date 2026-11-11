@@ -18,7 +18,6 @@ default = ["async"]
 async = ["dep:tokio", "dep:tokio-rustls", "pod-core/async"]
 # The pure-Rust `CryptoProvider` (`pod_tls::crypto`): no C compiler.
 pure = [
-    "dep:sha2",
     "dep:hmac",
     "dep:hkdf",
     "dep:aes-gcm",
@@ -51,7 +50,8 @@ base64 = { workspace = true }
 # The diagnostics: a root that is skipped, a ClientHello that is split.
 tracing = { workspace = true }
 
-sha2 = { workspace = true, optional = true }
+# The SHA-256 of a pinned key (`mutual`).
+sha2 = { workspace = true }
 hmac = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 aes-gcm = { workspace = true, optional = true }

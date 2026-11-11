@@ -84,6 +84,12 @@ pub fn certified(cert_pem: &[u8], key_pem: &[u8]) -> Result<Arc<CertifiedKey>, E
         return Err(Error::Server("the certificate file holds no CERTIFICATE block".into()));
     }
     let key = signing_key(key_pem).map_err(Error::Server)?;
+    certified_key(chain, key)
+}
+
+/// `chain` with `key`, which must be the key of its first block (the leaf).
+/// A mutual TLS client presents one ([`crate::mutual`]).
+pub fn certified_key(chain: Vec<CertificateDer<'static>>, key: SigningKey) -> Result<Arc<CertifiedKey>, Error> {
     let certified = CertifiedKey::new(chain, Arc::new(P256Key(key)));
     match certified.keys_match() {
         Err(rustls::Error::InconsistentKeys(rustls::InconsistentKeys::KeyMismatch)) => {

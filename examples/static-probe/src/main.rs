@@ -101,6 +101,7 @@ fn main() {
     lines.push(ws());
     lines.push(wormhole());
     lines.push(quic());
+    lines.push(mutual());
     lines.push(session());
     lines.push(job());
     for line in lines {
@@ -327,6 +328,18 @@ fn ws() -> String {
         way.label(),
         pod_ws::Limits::default()
     )
+}
+
+/// pod-tls: a server of mutual TLS with a pinned key, on the pure
+/// provider: the verifier of a client and the pins link in.
+fn mutual() -> String {
+    let provider = std::sync::Arc::new(pod_tls::crypto::provider());
+    let pin = pod_tls::mutual::Pin::of_spki(b"probe");
+    let pins = pod_tls::mutual::Pins::new([pin]);
+    let served = pod_tls::server::Served::new(None);
+    let config = pod_tls::mutual::server_config(provider, served, pins.clone(), &[])
+        .map_or_else(|e| e.to_string(), |_| "a server of mutual TLS".into());
+    format!("pod-tls: {config}, pins {}", pins.list().len())
 }
 
 /// pod-quic: the probe's packet, a client configuration on the pure

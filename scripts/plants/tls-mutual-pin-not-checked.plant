@@ -1,0 +1,8 @@
+# A mutual TLS verifier that takes each key: a client of another key
+# connects to the mint, and a key that a rotation removed still connects
+# (T-165).
+ENTRY=T-165
+GROUP=tls
+EXPECT='a_client_with_another_key_or_no_certificate_is_refused'
+RUN='cargo test -p pod-tls --all-features --test mutual'
+LIMIT=1800
