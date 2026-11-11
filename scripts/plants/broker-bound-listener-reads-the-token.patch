@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/serve.rs
++++ b/crates/pod-broker/src/serve.rs
+@@ -111,7 +111,7 @@
+                 return self.refused(&mut io, &note, refusal, true).await;
+             }
+         };
+-        let lease = match bound.map_or_else(|| self.lease(&request), |job| self.lease_bound(&request, job)) {
++        let lease = match bound.map_or_else(|| self.lease(&request), |_| self.lease(&request)) {
+             Ok(lease) => lease,
+             Err(refusal) => return self.refused(&mut io, &note, refusal, true).await,
+         };

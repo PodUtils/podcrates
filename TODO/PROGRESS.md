@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 174 entries: 60 open, 4 partial, 0 blocked, 110 done.
+`TODO/INDEX.md` holds 174 entries: 59 open, 4 partial, 0 blocked, 111 done.
 
 ## State
 
@@ -47,7 +47,7 @@ next entry.
 
 1. **The defects of the consumers:** none open.
 2. **podrunner** (PodUtils/podrunner#1): T-163 (the schemas, for
-   PodUtils/podrunner#17, after podrunner's types), T-160 and T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
+   PodUtils/podrunner#17, after podrunner's types), T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
    Actions hosts, for PodUtils/podrunner#30); T-165 after DR-4
    (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
    needs it); T-146 tracks the plan. Each new ask of the

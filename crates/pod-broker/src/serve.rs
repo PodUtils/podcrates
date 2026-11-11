@@ -82,9 +82,23 @@ enum Next {
 
 impl Broker {
     /// Serve one connection of a job (from [`Broker::serve_tcp`],
-    /// [`Broker::serve_unix`], or a listener of the host).
-    pub async fn handle(&self, mut io: BoxedIo) {
-        let mut note = Note { started: Instant::now(), job: None, kind: "request", target: None, addr: None };
+    /// [`Broker::serve_unix`], or a listener of the host). Its
+    /// `Proxy-Authorization` names the job.
+    pub async fn handle(&self, io: BoxedIo) {
+        self.serve_one(io, None).await
+    }
+
+    /// Serve one connection of a listener bound to the job `job` (from
+    /// [`Broker::serve_unix_job`], [`Broker::serve_tcp_job`], or a listener
+    /// of the host): the connection is the job's, with no token. A
+    /// `Proxy-Authorization` of another job, or of no job, gets 407.
+    pub async fn handle_bound(&self, io: BoxedIo, job: &str) {
+        self.serve_one(io, Some(job)).await
+    }
+
+    async fn serve_one(&self, mut io: BoxedIo, bound: Option<&str>) {
+        let job = bound.map(str::to_string);
+        let mut note = Note { started: Instant::now(), job, kind: "request", target: None, addr: None };
         let read = tokio::time::timeout(self.settings.head_timeout, read_request(&mut io, Vec::new())).await;
         let (request, rest) = match read {
             Ok(Ok(read)) => read,
@@ -97,7 +111,7 @@ impl Broker {
                 return self.refused(&mut io, &note, refusal, true).await;
             }
         };
-        let lease = match self.lease(&request) {
+        let lease = match bound.map_or_else(|| self.lease(&request), |job| self.lease_bound(&request, job)) {
             Ok(lease) => lease,
             Err(refusal) => return self.refused(&mut io, &note, refusal, true).await,
         };
@@ -179,6 +193,22 @@ impl Broker {
             Some(user) if !user.is_empty() && user != lease.job => Err(no("the user is not the job of the token")),
             _ => Ok(lease),
         }
+    }
+
+    /// The job of a listener bound to `job`: with no `Proxy-Authorization`,
+    /// the job itself; with one, it must name the same job.
+    fn lease_bound(&self, request: &Request, job: &str) -> Result<Lease, Refusal> {
+        if !request.headers.iter().any(|(n, _)| n == "proxy-authorization") {
+            return self
+                .jobs
+                .lease_of(job)
+                .ok_or_else(|| refuse(407, "auth", Class::Refused, "the job of this listener ended"));
+        }
+        let lease = self.lease(request)?;
+        if lease.job != job {
+            return Err(refuse(407, "auth", Class::Refused, "the token is not the token of the job of this listener"));
+        }
+        Ok(lease)
     }
 
     /// The target of the request, checked against its `Host` (421).

@@ -283,7 +283,7 @@ python3 -I scripts/check-design-paths.py
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -291,7 +291,7 @@ podrunner (a project that runs CI jobs, GitHub #47) holds each unit's egress on 
 
 ## Premise
 
-- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:158` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:100`.
+- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:172` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:114`.
 - Read: `crates/pod-broker/src/broker.rs:145` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:161` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:128`) ends the connections of a job.
 - Read: `crates/pod-broker/README.md` writes the unix upstream as `http+unix:PATH` at line 47. `PodUtils/podnet:crates/podnet-netns/src/upstream/tests.rs` parses `http://unix:/PATH` and `socks5://unix:///PATH`. The README form does not parse in `podnet pod -x`: podnet's `Proxy::parse` in `PodUtils/podnet:crates/podnet-netns/src/upstream.rs` has no `http+unix:` prefix. The documentation defect is fixed in the commit that adds this entry (see the Done line of the COORD issue).
 - Read: section 0 item 4 of the issue says that SPEC section 9.5 of the design review writes `socks5://unix:PATH`. `pod-broker` speaks HTTP CONNECT and absolute-form HTTP only, not SOCKS5. podnet parses a SOCKS5 unix proxy, so the text parses but the broker does not answer SOCKS5. This is a note for the spec, not for podcrates. The working form is `http://unix:/PATH`.
@@ -322,6 +322,32 @@ None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; ca
 
 Depends on T-099 (done). No other crate.
 
+## Done
+
+2026-11-11. `Broker::serve_unix_job(job, listener)`,
+`Broker::serve_tcp_job(job, listener)` and `Broker::handle_bound(io, job)`;
+`Jobs::lease_of` and `Jobs::watch`. A connection on a bound listener is the
+job's with no `Proxy-Authorization`; a header must name the same job, else
+407 with the audit line of the listener's job. A reload of the job keeps
+the listener (it serves the new policy); a drop or the TTL ends it, with
+each connection, and writes `broker.listener.end`. A job that is not
+loaded is refused (`NotFound`). The README names the bound listener and
+`http://unix:/PATH`.
+
+- Tests (`tests/bound.rs`, 8): the 5 of the issue are
+  `a_connection_is_the_job_of_its_listener_with_no_token`,
+  `a_drop_ends_the_listener_and_its_connections`,
+  `two_listeners_keep_two_policies`,
+  `the_audit_line_names_the_job_and_no_path_query_or_header` and
+  `the_readme_names_the_unix_form_that_podnet_parses`; also
+  `a_reload_keeps_the_listener_with_the_new_policy`,
+  `a_listener_of_a_job_that_is_not_loaded_is_refused`,
+  `a_tcp_listener_on_loopback_is_bound_the_same_way`.
+- Plant `broker-bound-listener-reads-the-token` (a bound listener that
+  reads the token, as an unbound one): 5 of the 8 tests fail.
+- Next: podrunner's egress module (PodUtils/podrunner#24) and podvm's
+  `--net broker` (PodUtils/podvm@T-1665) take it with the next tag.
+
 # T-161: `pod-broker`: send the name to an upstream that takes names only (PodUtils/podvm#227)
 
 **Source:** PodUtils/podvm#227 section 2.2 (COORD-021 of podvm, 2026-11-10)
@@ -337,7 +363,7 @@ A proxy-only host can have an upstream CONNECT proxy that takes names only. Two 
 
 ## Premise
 
-- Read: `crates/pod-broker/src/broker.rs:185` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:274` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
+- Read: `crates/pod-broker/src/broker.rs:268` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:304` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
 - Read: call C28 says that through an upstream proxy the broker sends the checked address and never the name. This entry changes C28 for an upstream that takes names only. The default stays the checked address. Write the change as a new call when the work starts.
 - Not read: `APPENDIX-DEFERRED.md` of the design review (the owner holds the zip). Not run: the two sandbox hosts.
 

@@ -158,6 +158,19 @@ impl Drop for Lease {
     }
 }
 
+/// A lease of the entry of `job` in `table`: the open count rises by one.
+fn lease(table: &Table, job: String) -> Option<Lease> {
+    let entry = table.by_id.get(&job)?;
+    entry.open.fetch_add(1, Ordering::Relaxed);
+    Some(Lease {
+        policy: entry.policy.clone(),
+        stop: entry.stop.subscribe(),
+        expires: entry.expires,
+        open: entry.open.clone(),
+        job,
+    })
+}
+
 pub(crate) struct Jobs {
     table: Mutex<Table>,
     max_ttl: Duration,
@@ -242,15 +255,22 @@ impl Jobs {
         let mut table = self.table();
         table.purge(Instant::now());
         let job = table.by_token.get(&hash)?.clone();
-        let entry = table.by_id.get(&job)?;
-        entry.open.fetch_add(1, Ordering::Relaxed);
-        Some(Lease {
-            policy: entry.policy.clone(),
-            stop: entry.stop.subscribe(),
-            expires: entry.expires,
-            open: entry.open.clone(),
-            job,
-        })
+        lease(&table, job)
+    }
+
+    /// The job `job` by its id, for a listener bound to the job: no token.
+    pub fn lease_of(&self, job: &str) -> Option<Lease> {
+        let mut table = self.table();
+        table.purge(Instant::now());
+        lease(&table, job.to_string())
+    }
+
+    /// The end signal and the expiry of the job `job` as it is now: `None`
+    /// when it is gone.
+    pub fn watch(&self, job: &str) -> Option<(watch::Receiver<bool>, Instant)> {
+        let mut table = self.table();
+        table.purge(Instant::now());
+        table.by_id.get(job).map(|e| (e.stop.subscribe(), e.expires))
     }
 
     /// Each job, by id.

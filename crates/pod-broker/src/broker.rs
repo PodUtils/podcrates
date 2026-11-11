@@ -172,6 +172,89 @@ impl Broker {
     }
 }
 
+impl Broker {
+    /// Serve the job `job` alone on `listener` (a Unix socket of one unit):
+    /// each connection is the job's, with no token
+    /// ([`Broker::handle_bound`]). A reload of the job keeps the listener;
+    /// a drop or the TTL ends it, with each of its connections. A job that
+    /// is not loaded is refused at once (`NotFound`).
+    #[cfg(unix)]
+    pub async fn serve_unix_job(
+        self: Arc<Self>,
+        job: String,
+        listener: tokio::net::UnixListener,
+    ) -> std::io::Result<()> {
+        let job = self.bound_job(job)?;
+        let gone = job_gone(self.jobs.clone(), job.clone());
+        tokio::pin!(gone);
+        loop {
+            tokio::select! {
+                () = &mut gone => {
+                    self.listener_ended(&job);
+                    return Ok(());
+                }
+                accepted = listener.accept() => match accepted {
+                    Ok((stream, _)) => self.spawn_bound(Box::new(stream), &job),
+                    Err(e) if passing(&e) => tracing::debug!(error = %e, "an accept failed"),
+                    Err(e) => return Err(e),
+                },
+            }
+        }
+    }
+
+    /// [`Broker::serve_unix_job`] on a TCP address on loopback.
+    pub async fn serve_tcp_job(self: Arc<Self>, job: String, listener: TcpListener) -> std::io::Result<()> {
+        let job = self.bound_job(job)?;
+        let gone = job_gone(self.jobs.clone(), job.clone());
+        tokio::pin!(gone);
+        loop {
+            tokio::select! {
+                () = &mut gone => {
+                    self.listener_ended(&job);
+                    return Ok(());
+                }
+                accepted = listener.accept() => match accepted {
+                    Ok((stream, _)) => {
+                        let _ = stream.set_nodelay(true);
+                        self.spawn_bound(Box::new(stream), &job);
+                    }
+                    Err(e) if passing(&e) => tracing::debug!(error = %e, "an accept failed"),
+                    Err(e) => return Err(e),
+                },
+            }
+        }
+    }
+
+    fn bound_job(&self, job: String) -> std::io::Result<String> {
+        match self.jobs.watch(&job) {
+            Some(_) => Ok(job),
+            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no such job: load it before its listener")),
+        }
+    }
+
+    fn spawn_bound(self: &Arc<Self>, io: pod_core::BoxedIo, job: &str) {
+        let (broker, job) = (self.clone(), job.to_string());
+        tokio::spawn(async move { broker.handle_bound(io, &job).await });
+    }
+
+    fn listener_ended(&self, job: &str) {
+        let mut line = Line::new("info", "broker.listener.end");
+        line.set("job", job);
+        self.audit.line(&line);
+    }
+}
+
+/// Wait until the job `job` is gone: a drop or the TTL. A reload of the
+/// same id ends the old entry and keeps the job.
+async fn job_gone(jobs: Arc<Jobs>, job: String) {
+    while let Some((mut stop, expires)) = jobs.watch(&job) {
+        tokio::select! {
+            _ = stop.wait_for(|s| *s) => {}
+            () = tokio::time::sleep_until(expires) => {}
+        }
+    }
+}
+
 /// An error of one accept that leaves the listener usable.
 fn passing(e: &std::io::Error) -> bool {
     use std::io::ErrorKind as K;

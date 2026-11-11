@@ -49,6 +49,14 @@ gives), or on a TCP address on loopback that the host gives to
 `serve_tcp`. It sends its token as the password of Basic (the user is the
 job id or empty) or as `Bearer TOKEN`.
 
+A listener can also belong to one job (`serve_unix_job(job, listener)`,
+`serve_tcp_job`): the socket of a unit is then its identity, and no token
+reaches the unit. Each connection on it is the job's with no
+`Proxy-Authorization`; a header of another job, or of no job, gets 407. A
+reload of the job keeps the listener with the new policy; a drop or the
+TTL ends it with each of its connections (the audit line
+`broker.listener.end`). The host binds and removes the socket file.
+
 ## API
 
 | Item | What |
@@ -60,6 +68,7 @@ job id or empty) or as `Bearer TOKEN`.
 | `Broker::new(settings, resolve, dial)` | a broker; `with_audit`, `with_tunnel_end` |
 | `Broker::load(Load)`, `drop_job(job)`, `list()` | the jobs; `Load { job, token: Token, ttl, policy }`, `JobInfo` |
 | `Broker::handle(io)`, `serve_tcp`, `serve_unix` | one connection, and the listeners of the jobs |
+| `Broker::handle_bound(io, job)`, `serve_unix_job(job, listener)`, `serve_tcp_job` | one connection, and a listener, of one job with no token (T-160); a job that is not loaded is refused (`NotFound`) |
 | `Broker::control_line(line)` | the answer to one line of the control |
 | `control::{bind_unix, serve_control}` | a Unix socket with a mode, and the control on it (Unix only) |
 | `upstream(app, proxy, resolve)` | the way out: a `pod_proxy::Dialer` through `proxy` (HTTP CONNECT with Basic or Digest, or SOCKS5), or direct |

@@ -1,0 +1,8 @@
+# A listener bound to one job that reads the job from Proxy-Authorization,
+# as an unbound listener does: a payload of a unit sends no token, so each
+# of its connections gets 407 and no policy is the job's (T-160).
+ENTRY=T-160
+GROUP=proxy
+EXPECT='a_connection_is_the_job_of_its_listener_with_no_token'
+RUN='cargo test -p pod-broker --all-features --test bound'
+LIMIT=1800
