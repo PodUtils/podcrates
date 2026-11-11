@@ -2565,6 +2565,7 @@ dependencies = [
  "pod-broker",
  "pod-core",
  "pod-dns",
+ "pod-e2e",
  "pod-enter",
  "pod-extract",
  "pod-gsr",
@@ -2588,6 +2589,7 @@ dependencies = [
  "pod-ws",
  "serde_json",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]

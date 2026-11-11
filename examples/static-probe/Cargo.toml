@@ -13,6 +13,8 @@ publish = false
 pod-broker = { workspace = true }
 pod-core = { workspace = true }
 pod-dns = { workspace = true, features = ["ech"] }
+# `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
+pod-e2e = { workspace = true }
 pod-enter = { workspace = true }
 pod-extract = { workspace = true }
 pod-gsr = { workspace = true, features = ["blocking"] }
@@ -43,3 +45,5 @@ pod-wormhole = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
 # The reader and the writer of the records of pod-job.
 serde_json = { workspace = true }
+# The keys of a held channel of pod-e2e.
+zeroize = { workspace = true }
