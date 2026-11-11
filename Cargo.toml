@@ -81,8 +81,8 @@ bytes = "1"
 # build, the numbers of the calls; syscalls gives the numbers and the trap
 # on the other architectures. `landlock` and `ptrace` give the rules of
 # Landlock and the filter, the audit arch values and the return values of
-# seccomp.
-linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "landlock", "no_std", "ptrace"] }
+# seccomp; `net` gives the values of `socket(2)` that a deny rule tests.
+linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "landlock", "net", "no_std", "ptrace"] }
 syscalls = { version = "0.8", default-features = false }
 
 # The archives of pod-extract. tar: the entry API only, no default feature

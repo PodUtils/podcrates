@@ -190,3 +190,51 @@ fn a_refusal_names_the_call_the_rule_and_the_errno() {
     assert_eq!(Call::from_code(7), None);
     let _ = std::fs::remove_dir_all(d);
 }
+
+/// The scopes go into the ruleset from ABI 6, where the spec asks for
+/// them; under ABI 6 the field gives nothing.
+#[test]
+fn the_scopes_need_abi_6() {
+    assert_eq!(Spec::new().compile(SCOPE_ABI).unwrap().scoped(), SCOPES);
+    assert_eq!(Spec::new().compile(ABI).unwrap().scoped(), SCOPES);
+    assert_eq!(Spec::new().compile(SCOPE_ABI - 1).unwrap().scoped(), 0);
+    assert_eq!(Spec::new().no_scope().compile(ABI).unwrap().scoped(), 0);
+}
+
+fn has(rules: &[Deny], name: &str) -> bool {
+    rules.iter().any(|d| d.name == name)
+}
+
+/// A closed UDP adds the UDP rules and the io_uring calls, also to an empty
+/// deny list; a TCP list adds the MPTCP rules and the io_uring calls; a
+/// free spec adds nothing.
+#[test]
+fn the_switches_of_the_spec_add_their_rules() {
+    let empty = Spec { deny: Vec::new(), ..Spec::new() };
+    assert_eq!(empty.deny_rules_on(false).unwrap(), Vec::new());
+    let rules = empty.clone().close_udp().deny_rules_on(false).unwrap();
+    assert!(has(&rules, "socket(AF_INET, SOCK_DGRAM)") && has(&rules, "socket(AF_INET6, SOCK_DGRAM)"), "{rules:?}");
+    assert!(has(&rules, "io_uring_setup") && has(&rules, "io_uring_enter"), "{rules:?}");
+    assert!(!has(&rules, "socket(AF_INET, IPPROTO_MPTCP)"), "{rules:?}");
+    let rules = empty.clone().bind_to(80).deny_rules_on(true).unwrap();
+    assert!(has(&rules, "socket(AF_INET6, IPPROTO_MPTCP)") && has(&rules, "io_uring_setup"), "{rules:?}");
+    assert!(!has(&rules, "socket(AF_INET, SOCK_DGRAM)"), "{rules:?}");
+    // The list of the spec comes first: its rules win.
+    let rules = Spec::new().close_udp().deny_rules_on(false).unwrap();
+    assert_eq!(rules[..Deny::defaults().len()], Deny::defaults()[..]);
+    let c = Spec::new().close_udp().connect_to(443).compile(ABI).unwrap();
+    assert!(c.filter().len() > Spec::new().compile(ABI).unwrap().filter().len());
+}
+
+/// On a target with socketcall(2) a closed UDP is a refusal by name, not a
+/// rule that a payload passes through socketcall.
+#[test]
+fn a_closed_udp_is_refused_where_the_kernel_has_socketcall() {
+    let e = Spec::new().close_udp().deny_rules_on(true).unwrap_err();
+    assert_eq!(e.class, Class::Unsupported);
+    assert!(e.to_string().contains("socketcall(2)") && e.to_string().contains("UDP"), "{e}");
+    assert!(Spec::new().deny_rules_on(true).is_ok(), "a free UDP is no refusal");
+    let here = Spec::new().close_udp().compile(ABI);
+    let socketcall = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
+    assert_eq!(here.is_err(), socketcall, "{here:?}");
+}

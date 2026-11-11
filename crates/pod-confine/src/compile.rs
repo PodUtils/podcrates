@@ -1,12 +1,14 @@
-//! The compile of a [`Spec`] before the fork: the masks of the ABI, each
-//! path open as `O_PATH`, the port rules and the BPF program. The child
-//! then only reads this data ([`crate::apply`]).
+//! The compile of a [`Spec`] before the fork: the masks and the scopes of
+//! the ABI, each path open as `O_PATH`, the port rules and the BPF program
+//! of the deny list with the rules of the spec. The child then only reads
+//! this data ([`crate::apply`]).
 
 use pod_core::{Class, Failure};
 use pod_hostprobe::sys::{self as k, CBuf, Errno, SockFilter};
 
-use crate::spec::{BIND_TCP, CONNECT_TCP, FILE_RIGHTS, handled_fs};
-use crate::{Access, MIN_ABI, NET_ABI, Spec, errno_class, errno_text, failure};
+use crate::deny::Deny;
+use crate::spec::{BIND_TCP, CONNECT_TCP, FILE_RIGHTS, SCOPES, handled_fs};
+use crate::{Access, MIN_ABI, NET_ABI, SCOPE_ABI, Spec, errno_class, errno_text, failure};
 
 /// The most path rules, and the most port rules, of one spec: a refusal of
 /// [`crate::apply`] names a rule by its index in 16 bits.
@@ -38,15 +40,22 @@ impl Rule {
     }
 }
 
-/// A spec made ready for [`crate::apply`]: the ruleset masks, each path
-/// open, the port rules and the BPF program. It owns the descriptors and
-/// closes them when it drops; each one is close-on-exec, so a payload
-/// never holds one.
+/// True where the kernel of the build target has `socketcall(2)`: a socket
+/// made through it hides its family and type from a filter.
+const SOCKETCALL: bool = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
+#[cfg(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"))]
+const _: i64 = k::SYS_SOCKETCALL;
+
+/// A spec made ready for [`crate::apply`]: the ruleset masks and scopes,
+/// each path open, the port rules and the BPF program. It owns the
+/// descriptors and closes them when it drops; each one is close-on-exec,
+/// so a payload never holds one.
 #[derive(Debug)]
 pub struct Compiled {
     pub(crate) abi: u32,
     pub(crate) handled_fs: u64,
     pub(crate) handled_net: u64,
+    pub(crate) scoped: u64,
     pub(crate) rules: Vec<Rule>,
     pub(crate) ports: Vec<(u16, u64)>,
     pub(crate) filter: Vec<SockFilter>,
@@ -75,6 +84,12 @@ impl Compiled {
     /// The TCP rights that the ruleset handles.
     pub fn handled_net(&self) -> u64 {
         self.handled_net
+    }
+
+    /// The scopes of the ruleset: [`crate::spec::SCOPES`] where the spec
+    /// asks for them and the ABI has them, else 0.
+    pub fn scoped(&self) -> u64 {
+        self.scoped
     }
 
     pub fn rules(&self) -> &[Rule] {
@@ -165,11 +180,13 @@ impl Spec {
         if self.bind.is_some() {
             handled_net |= BIND_TCP;
         }
-        let filter = crate::deny::program(&self.deny)?;
+        let scoped = if self.scope && abi >= SCOPE_ABI { SCOPES } else { 0 };
+        let filter = crate::deny::program(&self.deny_rules()?)?;
         let mut out = Compiled {
             abi,
             handled_fs: handled,
             handled_net,
+            scoped,
             rules: Vec::with_capacity(self.paths.len()),
             ports,
             filter,
@@ -200,6 +217,43 @@ impl Spec {
             }
         }
         Ok(out)
+    }
+}
+
+impl Spec {
+    /// The rules of the filter: [`Spec::deny`], then the rules of a closed
+    /// UDP ([`Deny::udp`]), of a TCP list ([`Deny::mptcp`]), and the
+    /// io_uring calls where the spec closes a socket ([`Deny::io_uring`]).
+    ///
+    /// A closed UDP is refused on a target with `socketcall(2)` (i686,
+    /// s390x, powerpc64): a payload makes a UDP socket through it, and a
+    /// deny of each `socketcall` stops each socket of a payload that makes
+    /// its sockets only through it (Go on 386 and s390x; glibc on i386 for
+    /// a kernel under 4.3).
+    pub fn deny_rules(&self) -> Result<Vec<Deny>, Failure> {
+        self.deny_rules_on(SOCKETCALL)
+    }
+
+    pub(crate) fn deny_rules_on(&self, socketcall: bool) -> Result<Vec<Deny>, Failure> {
+        let mut rules = self.deny.clone();
+        let tcp = self.connect.is_some() || self.bind.is_some();
+        if !self.udp {
+            if socketcall {
+                return Err(failure(
+                    Class::Unsupported,
+                    "the spec closes UDP, and the kernel of this target has socketcall(2): a filter cannot read \
+                     the family and the type of a socket made through it, so UDP would stay open",
+                ));
+            }
+            rules.extend(Deny::udp());
+        }
+        if tcp {
+            rules.extend(Deny::mptcp());
+        }
+        if !self.udp || tcp {
+            rules.extend(Deny::io_uring());
+        }
+        Ok(rules)
     }
 }
 

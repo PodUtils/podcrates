@@ -65,6 +65,9 @@ pub const BPF_JEQ_K: u16 = 0x15;
 pub const BPF_JGE_K: u16 = 0x35;
 /// `BPF_JMP | BPF_JSET | BPF_K`: jump when `A & k` is not zero.
 pub const BPF_JSET_K: u16 = 0x45;
+/// `BPF_ALU | BPF_AND | BPF_K`: `A &= k`, so that a jump can test a field
+/// of an argument for one value.
+pub const BPF_ALU_AND_K: u16 = 0x54;
 /// `BPF_RET | BPF_K`.
 pub const BPF_RET_K: u16 = 0x06;
 /// The most instructions of one program (`BPF_MAXINSNS`).

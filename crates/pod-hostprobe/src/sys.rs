@@ -289,6 +289,15 @@ pub const SYS_NAME_TO_HANDLE_AT: i64 = nr!(name_to_handle_at, __NR_name_to_handl
 /// The old `umount` with no flags: only these kernels keep it.
 #[cfg(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"))]
 pub const SYS_UMOUNT: i64 = nr!(umount, __NR_umount);
+/// `socketcall(2)`: only these kernels keep it. Its arguments are behind a
+/// pointer, so a filter cannot read the family of its socket.
+#[cfg(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"))]
+pub const SYS_SOCKETCALL: i64 = nr!(socketcall, __NR_socketcall);
+// A ring of io_uring does work (a socket, an open) with no system call of
+// its own, so a seccomp filter does not see that work.
+pub const SYS_IO_URING_SETUP: i64 = nr!(io_uring_setup, __NR_io_uring_setup);
+pub const SYS_IO_URING_ENTER: i64 = nr!(io_uring_enter, __NR_io_uring_enter);
+pub const SYS_IO_URING_REGISTER: i64 = nr!(io_uring_register, __NR_io_uring_register);
 pub const SYS_DUP3: i64 = nr!(dup3, __NR_dup3);
 // The entry sequence: the rootfs is held as a directory DESCRIPTOR and entered with `fchdir` then `chroot(".")`, so nothing
 // between checking the path and changing the root can swap it.

@@ -113,9 +113,9 @@ impl fmt::Display for Refusal {
 ///
 /// In order: `PR_SET_NO_NEW_PRIVS` (each `execve` after it gives no
 /// privilege; Landlock and seccomp need it in a task with no
-/// `CAP_SYS_ADMIN`), the ruleset with the handled rights, each path rule,
-/// each port rule, `landlock_restrict_self`, then the seccomp filter in
-/// mode 2. The first failure returns, and the caller must not exec: a
+/// `CAP_SYS_ADMIN`), the ruleset with the handled rights and the scopes,
+/// each path rule, each port rule, `landlock_restrict_self`, then the
+/// seccomp filter in mode 2. The first failure returns, and the caller must not exec: a
 /// kernel with no Landlock fails at `landlock_create_ruleset`.
 ///
 /// Async-signal-safe: no allocation, no lock, no `std` I/O. Call it in the
@@ -123,7 +123,8 @@ impl fmt::Display for Refusal {
 pub fn apply(c: &Compiled) -> Result<(), Refusal> {
     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
     k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
-    let attr = k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: 0 };
+    let attr =
+        k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: c.scoped };
     let ruleset = k::landlock_create_ruleset(&attr).map_err(|e| refuse(Call::CreateRuleset, 0, e))?;
     let restricted = add_rules(c, ruleset)
         .and_then(|()| k::landlock_restrict_self(ruleset).map(drop).map_err(|e| refuse(Call::RestrictSelf, 0, e)));

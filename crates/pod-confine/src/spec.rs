@@ -1,7 +1,7 @@
 //! What a payload may do: the access set of each path, the TCP ports of
-//! `connect` and `bind`, and the calls that fail. A profile of a consumer
-//! maps to a [`Spec`]; [`Spec::compile`] turns it into the data of
-//! [`crate::apply`].
+//! `connect` and `bind`, the Landlock scopes, UDP, and the calls that fail.
+//! A profile of a consumer maps to a [`Spec`]; [`Spec::compile`] turns it
+//! into the data of [`crate::apply`].
 
 use pod_hostprobe::sys as k;
 
@@ -114,6 +114,11 @@ pub fn handled_fs(abi: u32) -> u64 {
 pub const CONNECT_TCP: u64 = k::LANDLOCK_ACCESS_NET_CONNECT_TCP as u64;
 pub const BIND_TCP: u64 = k::LANDLOCK_ACCESS_NET_BIND_TCP as u64;
 
+/// The scopes of [`Spec::scope`] (ABI 6): a signal to a process outside
+/// the domain, and a connect or a send to an abstract Unix socket made
+/// outside it.
+pub const SCOPES: u64 = (k::LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET | k::LANDLOCK_SCOPE_SIGNAL) as u64;
+
 /// One path and its access set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PathRule {
@@ -129,7 +134,8 @@ pub struct PathRule {
 /// each access (the ruleset handles each file right of the ABI). A rule on
 /// a directory covers the tree under it. A TCP list that is `None` leaves
 /// that call free; `Some` allows only its ports (an empty list denies each
-/// port). Landlock does not restrict UDP or a Unix socket.
+/// port), and an MPTCP socket fails ([`Deny::mptcp`]). Landlock does not
+/// restrict UDP or a Unix socket of a path: `udp` closes UDP.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Spec {
     pub paths: Vec<PathRule>,
@@ -137,6 +143,15 @@ pub struct Spec {
     pub connect: Option<Vec<u16>>,
     /// The ports of a TCP `bind`.
     pub bind: Option<Vec<u16>>,
+    /// The Landlock scopes ([`SCOPES`]): the payload cannot signal a
+    /// process outside its domain, and cannot connect to an abstract Unix
+    /// socket made outside it (`EPERM`). It needs ABI 6 (Linux 6.12);
+    /// under ABI 6 the field gives nothing ([`crate::Compiled::scoped`]).
+    pub scope: bool,
+    /// True: UDP is free. False: a UDP socket fails ([`Deny::udp`], with
+    /// `EACCES`) and the io_uring calls fail ([`Deny::io_uring`], with
+    /// `EPERM`). The compile refuses it on a target with `socketcall(2)`.
+    pub udp: bool,
     /// The calls that fail, with their errno ([`Deny::defaults`]).
     pub deny: Vec<Deny>,
 }
@@ -148,9 +163,10 @@ impl Default for Spec {
 }
 
 impl Spec {
-    /// No path, TCP free, and the default deny list.
+    /// No path, TCP and UDP free, the scopes on, and the default deny
+    /// list.
     pub fn new() -> Spec {
-        Spec { paths: Vec::new(), connect: None, bind: None, deny: Deny::defaults() }
+        Spec { paths: Vec::new(), connect: None, bind: None, scope: true, udp: true, deny: Deny::defaults() }
     }
 
     /// Add a path with its access set.
@@ -168,6 +184,19 @@ impl Spec {
     /// Allow a TCP `bind` to `port` (and restrict each other port).
     pub fn bind_to(mut self, port: u16) -> Spec {
         self.bind.get_or_insert_with(Vec::new).push(port);
+        self
+    }
+
+    /// Close UDP ([`Spec::udp`]).
+    pub fn close_udp(mut self) -> Spec {
+        self.udp = false;
+        self
+    }
+
+    /// Leave the scopes off ([`Spec::scope`]): the payload can signal each
+    /// process of its user and connect to each abstract Unix socket.
+    pub fn no_scope(mut self) -> Spec {
+        self.scope = false;
         self
     }
 }

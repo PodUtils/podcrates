@@ -1,8 +1,9 @@
 //! Landlock: the ABI of the kernel, a ruleset, its rules, and the
-//! restriction of this thread; and `connect(2)`, the call that a port rule
-//! checks. Each wrapper is one system call on a struct of the caller, so a
-//! child between its fork and its exec can call each one. The layouts and
-//! the rights come from `linux_raw_sys::landlock`.
+//! restriction of this thread; `connect(2)`, the call that a port rule
+//! checks; and the values of `socket(2)` that a deny rule tests. Each
+//! wrapper is one system call on a struct of the caller, so a child between
+//! its fork and its exec can call each one. The layouts, the rights and the
+//! scopes come from `linux_raw_sys::landlock`.
 
 use super::*;
 
@@ -13,6 +14,7 @@ pub use linux_raw_sys::landlock::{
     LANDLOCK_ACCESS_FS_READ_DIR, LANDLOCK_ACCESS_FS_READ_FILE, LANDLOCK_ACCESS_FS_REFER, LANDLOCK_ACCESS_FS_REMOVE_DIR,
     LANDLOCK_ACCESS_FS_REMOVE_FILE, LANDLOCK_ACCESS_FS_TRUNCATE, LANDLOCK_ACCESS_FS_WRITE_FILE,
     LANDLOCK_ACCESS_NET_BIND_TCP, LANDLOCK_ACCESS_NET_CONNECT_TCP, LANDLOCK_CREATE_RULESET_VERSION,
+    LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET, LANDLOCK_SCOPE_SIGNAL,
 };
 pub use linux_raw_sys::landlock::{
     landlock_net_port_attr as LandlockNetPortAttr, landlock_path_beneath_attr as LandlockPathBeneathAttr,
@@ -69,6 +71,19 @@ pub fn connect(fd: i64, addr: &[u8]) -> Sysres {
     unsafe { sys(SYS_CONNECT, [fd as u64, addr.as_ptr() as u64, addr.len() as u64, 0, 0, 0]) }
 }
 
+// The values of `socket(2)` that a deny rule of a confinement tests. They
+// come from `linux_raw_sys::net`: the type numbers are not the same on each
+// architecture (mips).
+pub const AF_UNIX: u64 = linux_raw_sys::net::AF_UNIX as u64;
+pub const AF_INET6: u64 = linux_raw_sys::net::AF_INET6 as u64;
+pub const SOCK_DGRAM: u64 = linux_raw_sys::net::SOCK_DGRAM as u64;
+/// The bits of the type in the second argument of `socket(2)`
+/// (`SOCK_TYPE_MASK` of `linux/net.h`); `SOCK_NONBLOCK` and `SOCK_CLOEXEC`
+/// are flags above them.
+pub const SOCK_TYPE_MASK: u64 = 0xf;
+/// `IPPROTO_MPTCP`: a TCP stream over subflows that Landlock does not see.
+pub const IPPROTO_MPTCP: u64 = linux_raw_sys::net::IPPROTO_MPTCP as u64;
+
 /// The `struct sockaddr_in` of an IPv4 address and port: the family in the
 /// byte order of the target, the port and the address in network order.
 pub fn sockaddr_in(ip: [u8; 4], port: u16) -> [u8; 16] {
@@ -91,6 +106,18 @@ mod tests {
         assert_eq!(core::mem::size_of::<LandlockNetPortAttr>(), 16);
         assert_eq!(core::mem::size_of::<LandlockRulesetAttr>(), 24);
         assert_eq!(LANDLOCK_CREATE_RULESET_VERSION, 1);
+        assert_eq!(core::mem::offset_of!(LandlockRulesetAttr, scoped), 16);
+        assert_eq!((LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET, LANDLOCK_SCOPE_SIGNAL), (1, 2));
+    }
+
+    // The values of linux/socket.h, linux/net.h and linux/in.h on each
+    // target of docs/design.md, section 7.
+    #[test]
+    fn the_socket_values_are_the_ones_of_the_kernel() {
+        assert_eq!((AF_UNIX, AF_INET, AF_INET6), (1, 2, 10));
+        assert_eq!((SOCK_STREAM, SOCK_DGRAM, SOCK_TYPE_MASK), (1, 2, 0xf));
+        assert_eq!(SOCK_CLOEXEC & SOCK_TYPE_MASK, 0);
+        assert_eq!(IPPROTO_MPTCP, 262);
     }
 
     #[test]

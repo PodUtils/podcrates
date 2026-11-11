@@ -2,9 +2,11 @@
 //! read outside the read list, a write outside the write list, a TCP
 //! connect and bind outside the port lists, an exec outside the execute
 //! list, `NoNewPrivs` and `Seccomp` of the child, a denied call, and the
-//! refusal where Landlock is absent. Each test forks a child that applies
-//! the compiled spec and makes its calls with no allocation; the results
-//! cross a pipe. A host with no Landlock skips with a line that says so.
+//! refusal where Landlock is absent; and the scopes, a closed UDP and an
+//! MPTCP socket under a TCP list. Each test forks a child that applies the
+//! compiled spec and makes its calls with no allocation; the results cross
+//! a pipe. A host with no Landlock, or with an ABI under the one of a
+//! check, skips with a line that says so.
 #![cfg(target_os = "linux")]
 
 mod child;
@@ -12,11 +14,13 @@ mod child;
 use std::path::{Path, PathBuf};
 
 use child::{code, in_child};
-use pod_confine::{Access, Call, Compiled, Deny, MIN_ABI, NET_ABI, Refusal, Spec, apply};
+use pod_confine::{Access, Call, Compiled, Deny, MIN_ABI, NET_ABI, Refusal, SCOPE_ABI, Spec, apply};
+use pod_core::Class;
 use pod_hostprobe::sys::{self as k, CBuf};
 
 const EACCES: i64 = -13;
 const EPERM: i64 = -1;
+const ENOPROTOOPT: i64 = -92;
 
 /// The ABI where a confinement loads here, else a skip line and `None`.
 fn landlock(need: u32) -> Option<u32> {
@@ -279,4 +283,108 @@ fn apply_refuses_where_landlock_is_absent() {
     let r = Refusal { call: Call::CreateRuleset, index: 0, errno: k::Errno(38) };
     assert!(r.failure(&compiled).to_string().contains("landlock_create_ruleset: ENOSYS"), "{}", r.failure(&compiled));
     let _ = std::fs::remove_dir_all(d);
+}
+
+/// With the scopes (ABI 6), a signal to a process outside the domain (the
+/// parent) and a connect to an abstract Unix socket of the parent fail
+/// with EPERM; a signal to the child itself passes. With no scope, both
+/// pass, so the scope answered.
+#[test]
+fn the_scopes_stop_a_signal_and_an_abstract_connect_outside_the_domain() {
+    use std::os::linux::net::SocketAddrExt;
+    let Some(abi) = landlock(SCOPE_ABI) else { return };
+    let name = format!("pod-confine-scope-{}", std::process::id());
+    let addr = std::os::unix::net::SocketAddr::from_abstract_name(name.as_bytes()).unwrap();
+    let _listener = std::os::unix::net::UnixListener::bind_addr(&addr).unwrap();
+    // A `struct sockaddr_un` of an abstract name: the family, a NUL byte,
+    // the name, and no NUL at the end.
+    let mut sun = (k::AF_UNIX as u16).to_ne_bytes().to_vec();
+    sun.push(0);
+    sun.extend_from_slice(name.as_bytes());
+    let calls = |compiled: &Compiled| {
+        if let Err(e) = confined(compiled) {
+            return [e; 3];
+        }
+        let unix = k::socket(k::AF_UNIX, k::SOCK_STREAM | k::SOCK_CLOEXEC, 0).unwrap_or(-1);
+        [code(k::kill(k::getppid(), 0)), code(k::connect(unix, &sun)), code(k::kill(k::getpid(), 0))]
+    };
+    let scoped = Spec::new().compile(abi).unwrap();
+    assert_eq!(scoped.scoped(), pod_confine::spec::SCOPES);
+    let got = in_child(|| calls(&scoped));
+    assert_eq!(got, [EPERM, EPERM, 0], "a signal to the parent, an abstract connect, a signal to the child itself");
+    let free = Spec::new().no_scope().compile(abi).unwrap();
+    let got = in_child(|| calls(&free));
+    assert_eq!(got, [0, 0, 0], "with no scope");
+}
+
+/// A closed UDP: a UDP socket of IPv4 and of IPv6 (with SOCK_CLOEXEC) fails
+/// with EACCES, and io_uring_setup with EPERM; a TCP socket and a Unix
+/// datagram socket still work. The deny list of the spec is empty, so the
+/// rules come from the switch.
+#[test]
+fn a_closed_udp_gives_eacces_and_tcp_still_works() {
+    let Some(abi) = landlock(MIN_ABI) else { return };
+    let spec = Spec { deny: Vec::new(), ..Spec::new() }.close_udp();
+    let compiled = match spec.compile(abi) {
+        Ok(c) => c,
+        Err(e) if e.class == Class::Unsupported => {
+            pod_testkit::host::skip_line(&e.to_string());
+            return;
+        }
+        Err(e) => panic!("{e}"),
+    };
+    let calls = || {
+        let socket = |family: u64, kind: u64| code(k::socket(family, kind, 0)).min(0);
+        // `struct io_uring_params`: 120 bytes, which the kernel fills.
+        let mut params = [0u8; 120];
+        // SAFETY: `params` lives until the call returns, and holds 120 bytes.
+        let ring = code(unsafe { k::sys(k::SYS_IO_URING_SETUP, [1, params.as_mut_ptr() as u64, 0, 0, 0, 0]) });
+        [
+            socket(k::AF_INET, k::SOCK_DGRAM),
+            socket(k::AF_INET6, k::SOCK_DGRAM | k::SOCK_CLOEXEC),
+            socket(k::AF_INET, k::SOCK_STREAM | k::SOCK_CLOEXEC),
+            socket(k::AF_UNIX, k::SOCK_DGRAM | k::SOCK_CLOEXEC),
+            ring.min(0),
+        ]
+    };
+    let free = in_child(calls);
+    assert_eq!(free[0], 0, "a UDP socket with no filter: {free:?}");
+    let got = in_child(|| {
+        if let Err(e) = confined(&compiled) {
+            return [e; 5];
+        }
+        calls()
+    });
+    assert_eq!(got, [EACCES, EACCES, 0, 0, EPERM], "UDP, UDP of IPv6, TCP, Unix, io_uring_setup");
+}
+
+/// Landlock checks TCP sockets only: under a TCP list an MPTCP socket
+/// fails with ENOPROTOOPT, else its connect passes each port rule. A TCP
+/// connect inside the list still passes. A kernel with no MPTCP skips.
+#[test]
+fn an_mptcp_socket_fails_where_tcp_has_a_list() {
+    pod_testkit::need_loopback!();
+    let Some(abi) = landlock(NET_ABI) else { return };
+    let allowed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let other = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let (ok_port, other_port) = (allowed.local_addr().unwrap().port(), other.local_addr().unwrap().port());
+    let compiled = Spec::new().connect_to(ok_port).compile(abi).unwrap();
+    let (to_ok, to_other) = (k::sockaddr_in([127, 0, 0, 1], ok_port), k::sockaddr_in([127, 0, 0, 1], other_port));
+    let calls = || {
+        let mptcp = k::socket(k::AF_INET, k::SOCK_STREAM | k::SOCK_CLOEXEC, k::IPPROTO_MPTCP);
+        let tcp = k::socket(k::AF_INET, k::SOCK_STREAM | k::SOCK_CLOEXEC, 0).unwrap_or(-1);
+        [code(mptcp).min(0), mptcp.map_or(1, |fd| code(k::connect(fd, &to_other))), code(k::connect(tcp, &to_ok))]
+    };
+    let free = in_child(calls);
+    if free[0] != 0 {
+        pod_testkit::host::skip_line(&format!("this kernel makes no MPTCP socket (errno {})", -free[0]));
+        return;
+    }
+    let got = in_child(|| {
+        if let Err(e) = confined(&compiled) {
+            return [e; 3];
+        }
+        calls()
+    });
+    assert_eq!(got, [ENOPROTOOPT, 1, 0], "an MPTCP socket, its connect outside the list, a TCP connect inside");
 }

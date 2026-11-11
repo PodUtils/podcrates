@@ -1,6 +1,7 @@
 //! The confinement of a payload with no privilege: Landlock rules for the
-//! paths and the TCP ports, a seccomp filter that denies a list of system
-//! calls, and `no_new_privs`.
+//! paths and the TCP ports, the Landlock scopes (signals, abstract Unix
+//! sockets), a seccomp filter that denies a list of system calls (and UDP
+//! where the spec closes it), and `no_new_privs`.
 //!
 //! The work has three steps, so that the child between its fork and its
 //! exec only issues system calls on data that exists:
@@ -35,7 +36,7 @@ pub mod spec;
 
 pub use apply::{Call, Refusal, apply};
 pub use compile::{Compiled, MOST_RULES, Rule};
-pub use deny::Deny;
+pub use deny::{Arg, Deny};
 pub use probe::{check, probe};
 pub use spec::{Access, PathRule, Spec};
 
@@ -49,6 +50,10 @@ pub const MIN_ABI: u32 = 3;
 
 /// The lowest ABI with TCP rules (`LANDLOCK_ACCESS_NET_*`).
 pub const NET_ABI: u32 = 4;
+
+/// The lowest ABI with the scopes of [`Spec::scope`]
+/// (`LANDLOCK_SCOPE_*`, Linux 6.12).
+pub const SCOPE_ABI: u32 = 6;
 
 /// A failure of the host.
 pub(crate) fn failure(class: Class, text: impl Into<String>) -> Failure {

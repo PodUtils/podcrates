@@ -50,3 +50,14 @@ fn the_builder_adds_rules_and_restricts_the_tcp_calls_that_it_names() {
     assert_eq!(s.deny, crate::Deny::defaults());
     assert_eq!(Spec::default(), Spec::new());
 }
+
+/// The scopes are on and UDP is free in a new spec; the builder turns each
+/// one.
+#[test]
+fn a_new_spec_has_the_scopes_and_a_free_udp() {
+    let s = Spec::new();
+    assert!(s.scope && s.udp);
+    let s = s.close_udp().no_scope();
+    assert!(!s.scope && !s.udp);
+    assert_eq!(SCOPES, 3, "LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET | LANDLOCK_SCOPE_SIGNAL");
+}
