@@ -28,6 +28,7 @@ pub mod level;
 pub mod listen;
 pub mod mem;
 pub mod netns;
+pub mod packet;
 pub mod reply;
 pub mod sockaddr;
 pub mod spawn;

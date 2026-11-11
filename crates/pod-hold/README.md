@@ -35,6 +35,7 @@ user notification itself is 5.0); unprivileged user namespaces and
 | `reply` | The seam: `Answer` (`respond` with the negative errno, `proceed`); `respond`, `proceed`, `addfd_send`, `addfd_setfd`, `id_valid`, `child_fd_flags`, `set_nonblocking`; `Recorded` keeps the answers in memory for a test or a fuzz target. |
 | `table` | `Table<T>` of the sockets of the payload, keyed by the inode of the socket (a copy finds its entry; a sweep removes the sockets that closed with no `close`); `has_room` at the ceiling (the flow budget); `handle_close`; `derived_ceiling(RLIMIT_NOFILE)`, `nofile`, `raise_nofile`; `Refusal` and `Refusals` (a `const fn new` for a static of the consumer). |
 | `netns` | `enter()` (`CLONE_NEWNET`, else `CLONE_NEWUSER\|CLONE_NEWNET`), the handshake `announce` (child) and `answer` (parent, the id maps), `write_id_maps`, `bringup_loopback`, `Tun` (podnet's defaults) and `create_tun`, `send_fd`, `send_fd_raw` (no allocation, for a child after `fork`), `recv_fd` (one descriptor, else a refusal), `socketpair`, `read_exact_fd`, `write_all_fd`. |
+| `packet` | The netns hold of a SYN: `parse_tcp_syn` (a bare IPv4 TCP SYN; a header under 20 bytes or a later fragment is none), `rst_reply_for_syn` (the RST\|ACK that fails the `connect` of the payload with `ECONNREFUSED`), `ipv4_checksum`. The hold of each SYN on the TUN (dial first, then accept or RST) stays the consumer's until T-170, step 2. |
 | `level` | `Level` (`enforced`, `advisory`, `none`) and `Hold { level, proof, not_held }`: `Hold::seccomp`, `Hold::netns`, `Hold::none`. |
 
 ## Features

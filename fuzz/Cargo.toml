@@ -192,3 +192,10 @@ path = "fuzz_targets/hold_sockaddr.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "hold_syn"
+path = "fuzz_targets/hold_syn.rs"
+test = false
+doc = false
+bench = false

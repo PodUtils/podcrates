@@ -27,3 +27,11 @@ file 403b0a37aaacb895a4274b8b6dfb594adb9b98ca crates/podnet-netns/src/netns/fdpa
 file 47aed8cc35899bd6b45ec6de52e3950b665cfbea crates/podnet-netns/src/netns/tun.rs -> crates/pod-hold/src/netns/tun.rs
 file 139cae4368667309201eb22aa25f0e965edc9791 crates/podnet-netns/src/netns/mod.rs -> crates/pod-hold/src/netns.rs
 file de93805f6f94595e523395cafb9a7178fdb6c1c8 crates/podnet-netns/src/lib.rs -> crates/pod-hold/src/filter/tests.rs
+
+repo PodUtils/podnet 5599012cde758d2e2bff7a5fb784cd8dc3d11d21
+# T-170, step 1 (podnet's answer PodUtils/podnet#424): of netns/packet.rs
+# only parse_tcp_syn, rst_reply_for_syn and ipv4_checksum; dns_reply_packet
+# stays in podnet (it answers from podnet's fake DNS). The tests
+# parses_a_tcp_syn and the_rst_reply_answers_the_syn of lib.rs keep their
+# names in packet/tests.rs; lib.rs is in the block above.
+file 3e228a89c83ecaea4846867cb40e7247c47ae51c crates/podnet-netns/src/netns/packet.rs -> crates/pod-hold/src/packet.rs crates/pod-hold/src/packet/tests.rs

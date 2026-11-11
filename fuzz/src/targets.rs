@@ -448,3 +448,32 @@ pub fn hold_sockaddr(data: &[u8]) {
         assert_eq!(back[ip.clone()], bytes[ip]);
     }
 }
+
+/// A packet that a payload sends on the TUN of the netns hold
+/// (`pod_hold::packet::parse_tcp_syn` and `rst_reply_for_syn`; podnet
+/// `crates/podnet-netns/src/netns/packet.rs`): a SYN has a header of 20
+/// bytes or more; its RST|ACK has 40 bytes, both checksums sum to 0, the
+/// addresses and ports are swapped, the acknowledgement is one past the
+/// sequence, and the RST is no SYN.
+pub fn hold_syn(data: &[u8]) {
+    use pod_hold::packet::{ipv4_checksum, parse_tcp_syn, rst_reply_for_syn};
+    let parsed = parse_tcp_syn(data);
+    let rst = rst_reply_for_syn(data);
+    assert_eq!(parsed.is_some(), rst.is_some());
+    let (Some((src, sport, dst, dport)), Some(rst)) = (parsed, rst) else { return };
+    let ihl = usize::from(data[0] & 0x0f) * 4;
+    assert!(ihl >= 20 && data.len() >= ihl + 20, "a SYN with a header of {ihl} bytes");
+    assert_eq!(rst.len(), 40);
+    assert_eq!(ipv4_checksum(&rst[..20]), 0);
+    let mut pseudo = rst[12..20].to_vec();
+    pseudo.extend_from_slice(&[0, 6, 0, 20]);
+    pseudo.extend_from_slice(&rst[20..40]);
+    assert_eq!(ipv4_checksum(&pseudo), 0);
+    assert_eq!(rst[12..16], dst.octets());
+    assert_eq!(rst[16..20], src.octets());
+    assert_eq!(u16::from_be_bytes([rst[20], rst[21]]), dport);
+    assert_eq!(u16::from_be_bytes([rst[22], rst[23]]), sport);
+    let seq = u32::from_be_bytes([data[ihl + 4], data[ihl + 5], data[ihl + 6], data[ihl + 7]]);
+    assert_eq!(u32::from_be_bytes([rst[28], rst[29], rst[30], rst[31]]), seq.wrapping_add(1));
+    assert!(parse_tcp_syn(&rst).is_none());
+}

@@ -2276,7 +2276,7 @@ sh scripts/adoption.sh podnet pod-hold
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2319,6 +2319,29 @@ the smoltcp version of `pod-netstack` is settled.
 cargo test -p pod-hold
 sh scripts/adoption.sh podnet pod-hold
 ```
+
+## Done
+
+2026-11-11, partial: step 1 is done; step 2 waits for podnet's COORD
+issue (PodUtils/podnet@T-174 and the smoltcp of `pod-netstack`).
+
+- Step 1: `pod_hold::packet` (`parse_tcp_syn`, `rst_reply_for_syn`,
+  `ipv4_checksum`) from podnet `netns/packet.rs` at `5599012`, with
+  podnet's tests `parses_a_tcp_syn` and `the_rst_reply_answers_the_syn`
+  under their names; `dns_reply_packet` stays in podnet. `SOURCES` has a
+  second block `repo PodUtils/podnet 5599012...`;
+  `python3 -I scripts/check-sources.py --clone PodUtils/podnet=CLONE pod-hold`
+  reads 0 changes in both blocks.
+- Defect found and fixed: podnet's `parse_tcp_syn` took an IHL under 5
+  (it read the ports and the flags from the IP header) and a later
+  fragment. Test `a_header_shorter_than_20_bytes_is_no_syn` fails on the
+  old check (`IHL 0`) and passes now; `a_fragment_past_the_first_is_no_syn`,
+  `a_syn_with_options_in_the_ip_header_is_read_past_them`,
+  `the_checksum_of_an_odd_length_pads_with_zero`. podnet hears of the
+  defect in its COORD issue.
+- Fuzz target `hold_syn` (four seeds: a SYN, a SYN with IP options, an
+  ACK, a header of IHL 4): `cargo test --manifest-path fuzz/Cargo.toml`
+  passes.
 
 # T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
 

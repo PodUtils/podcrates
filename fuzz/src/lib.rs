@@ -37,6 +37,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("session_handover", targets::session_handover),
     ("udp_frame", targets::udp_frame),
     ("hold_sockaddr", targets::hold_sockaddr),
+    ("hold_syn", targets::hold_syn),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as
