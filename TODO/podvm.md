@@ -2784,3 +2784,137 @@ declares a version of 2.16 or later.
   its library named only in `/etc/ld.so.conf.d` each load the image's
   library. PodUtils/podvm#247 is closed.
 
+
+# T-190: `pod-oci`: one large blob as parallel ranges, kept only by the digest of the whole blob (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: satmux 4. The donor: Th0rgal/satmux at
+`2922ebb835d0eb939ddbdfa3b5e7e0f247a0dc0c` (MIT), bin/satmux-get.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A CI runner or a build host pulls an image with one layer of 400 MiB
+through a proxy or a long path that limits each connection (a shaper for
+each flow, a small window on a long round trip, or a proxy that cuts long
+bodies at a round size). The pool of `FETCH_WORKERS` (4) works across
+blobs only. Three workers stop when the small layers are done, and the
+large layer moves on one stream. A cut at 90 percent starts the blob again
+at byte zero, up to `ATTEMPTS` (3) times. The wall time is the time of one
+blob, and a link that cuts wastes each retry.
+
+The donor probes with `Range: bytes=0-0` and reads the total from
+`Content-Range` (else from a `Content-Length` above 1). It uses one stream
+for an object under 128 KiB or with no range support. Else it splits the
+object into `min(streams, total / 64 KiB)` parts, tries each part up to 3
+times, keeps a part only when its size is correct, and joins the parts in
+order. It never hashes the whole file and sends no `If-Range`, so it joins
+an object that changes between two parts with no error. Here the digest of
+the whole blob closes that gap.
+
+## Premise
+
+- Read (this tree): `crates/pod-oci/src/registry.rs:284-331`.
+  `Client::blob<W: Write + Restart>` streams into a sink with a
+  `Verifier`. `Restart` sets the sink back for a new try (`:40-42`). The
+  retry is around the whole transfer (`ATTEMPTS`, `:75`). The doc comment
+  names the proxy that cuts at a round size (`:289-291`) and refuses a
+  resume: `crates/pod-oci/src/registry.rs:293` says "a resume trusts". The
+  review cites the method from `:288`; its doc comment starts at `:284`.
+- Read: `crates/pod-oci/src/registry/http.rs:12`: `get` takes an `Accept`
+  value only, so a `Range` header needs a new parameter.
+  `crates/pod-oci/src/registry/http.rs:114-116` and
+  `crates/pod-oci/src/net.rs:9-11`: `pod-proxy` follows the redirect of a
+  blob and sends no `Authorization` header to another origin. They agree
+  with the review.
+- Read: `crates/pod-oci/src/pull.rs:22-26` (`FETCH_WORKERS`: the limit is
+  what the registry serves) and `:186-191` (`fetch_parallel` gives the jobs
+  in strides); `crates/pod-oci/README.md:112` (podvm keeps
+  `FETCH_WORKERS`). They agree with the review.
+- Found, not in the review: `Client::blob` and `Client::get` take
+  `&mut self`, because the client keeps the token cache and the endpoints
+  of plain HTTP. Parts in parallel cannot share one `Client` as it is.
+  `fetch_parallel` has no count of free slots: each of `workers` threads
+  takes its jobs by stride. "Spare slots only" thus needs a new shared
+  bound between the pool and the client. The sink of `blob` is a `Write`,
+  with no write at an offset: the ranged mode needs a file
+  (`std::os::unix::fs::FileExt::write_at`), thus a new method or a new
+  bound.
+- Read: TODO/image.md of PodUtils/podvm at `782449a`. Its entry of a blob
+  body that is cut says "A Range request is NOT the mechanism" for a
+  resume. PodUtils/podvm@T-1342 gives "resuming an interrupted pull with
+  `Range`, partial OCI blobs" as out of its scope. The line numbers that
+  the review gives were not read.
+- Not measured: a time or a gain. Open questions of the review
+  (Unverified): a usual registry honors `Range` on its redirected blob URL;
+  the gain shows on a path of PodUtils. The donor README (Documented): a
+  shaper of the whole link bounds the parallel downloads.
+
+## Approach
+
+Licence: satmux is MIT. The donor is a shell script. Write new Rust code
+from this description, with no donor text.
+
+- `Client::with_ranged(max_parts)`, off by default, and a method for a
+  file sink.
+- The gate: a blob under a threshold (8 MiB, a choice) or a `max_parts`
+  under 2 takes the path of today. A probe `GET` with `Range: bytes=0-0`
+  must get 206 and a `Content-Range` total equal to the size of the
+  descriptor; else the path of today runs, after one probe.
+- The split: `n = min(max_parts, size / 4 MiB)` parts, and
+  `file.set_len(size)`. Each part is a `GET` with its `Range`, through
+  `get` with a new header parameter: each part follows its own redirect
+  and sends the token to the registry only. A part needs 206, a
+  `Content-Range` of `start-end/size`, and `end - start + 1` bytes written
+  at `start`. A failed part is tried again alone, up to 3 times. After 3
+  failures each part stops and the path of today runs. `ATTEMPTS` is not
+  multiplied.
+- The check: one sequential read of the file, and its SHA-256 against the
+  digest of the descriptor. A mismatch truncates the file and runs the
+  path of today, whose refusal is final. The doc comment gives the cost of
+  that read.
+- Parallel parts: each part has its own client state (a copy of the token
+  cache, or a lock). The parts share the bound of `fetch_parallel`, so the
+  requests in flight never pass `workers` (the comment of
+  `crates/pod-oci/src/pull.rs:22-25`).
+- The doc comment of `blob` keeps its rule: no resume from the bytes on
+  disk. The ranged mode trusts no prefix; the digest of the whole blob
+  decides.
+- The consumer: the pull of podvm, the only consumer of `pod-oci`.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features
+```
+
+The tests, on a fixture registry that counts the requests of each range:
+
+- A blob of 32 MiB in 4 parts: the correct digest, and 4 different `Range`
+  headers.
+- Each range answered with 200 and the full body: one probe, then one
+  single stream.
+- One byte changed in part 2: the digest check fails, the file is
+  discarded, and the single stream runs. A registry that still serves bad
+  bytes gives a digest error. The plant: with no digest check, this test
+  fails.
+- Part 3 cut two times, then served: only part 3 is asked again, and the
+  blob verifies.
+- A part with another total in its `Content-Range`: the single stream
+  runs, with no silent join.
+- A `max_parts` under 2, or a blob under the threshold: the log of the
+  requests is the log of today.
+- A measurement, proposed: a loopback proxy caps each connection at a
+  fixed rate; N parts take about `size / (N x rate)`. Report the host, the
+  cap, N and three runs.
+
+## Start condition
+
+podvm, the only consumer of `pod-oci`, or the owner asks for the mode
+(podvm by a COORD issue `(to podcrates)`). podvm reads its two entries on
+`Range` first: they refuse `Range` for a resume, and this mode is a
+different mechanism.

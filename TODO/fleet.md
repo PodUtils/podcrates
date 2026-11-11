@@ -800,3 +800,265 @@ byte 0xd1 in a path: escape it as %D1"); an escape of the byte stays as
 it is. Test: `a_raw_byte_that_is_not_visible_ascii_is_refused_in_a_path`
 (`tests/target.rs`); the seed `raw-utf8-in-path` of `broker_target`. The
 stable test of `fuzz/` passes with it.
+
+# T-191: `pod-broker`: a listener that takes a plain request in origin form and opens verified TLS to its `Host` (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: satmux 5. The donor: Th0rgal/satmux at
+`2922ebb835d0eb939ddbdfa3b5e7e0f247a0dc0c` (MIT), `handle_gh_unix_tls` in
+satmux.py; the transport of cli/go-gh, pkg/api/http_client.go on its
+branch `trunk` (no commit pinned).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A podrunner unit, a podvm guest or the sandbox of a coding agent has a Unix
+socket of the broker and no network route. Its agent runs `gh pr list` and
+needs `api.github.com`. Some tools ignore `HTTPS_PROXY`, and a sandbox can
+have no shared TCP loopback, so CONNECT is not possible. GitHub CLI with
+`http_unix_socket` and `curl --unix-socket` send plain HTTP/1.1 in origin
+form (a path and a `Host`) to a Unix socket: go-gh sets both its dial and
+its TLS dial to the Unix dial, and turns keep-alive off. The broker answers
+such a request with 400. A tool with a Unix socket and no support of a
+proxy thus has no way out.
+
+The donor reads the head (at most 64 KiB, 10 s for each read) and takes the
+target from `Host` (`api.github.com` when there is no `Host`). It connects
+through its SOCKS5 door by name, runs a verified TLS handshake (15 s),
+removes the `Connection` header of the client, sends `Connection: close`,
+and copies both ways until the origin closes: one request on each
+connection. Its gaps: it takes each `Host`, and its socket is at a fixed
+path of `/tmp`, with mode 0600 set after the bind.
+
+## Premise
+
+- Read (this tree): `crates/pod-broker/src/target.rs:187-189`:
+  `parse_absolute` refuses a target in origin form ("a proxy takes a
+  request-target in absolute form"). `crates/pod-broker/README.md:176`
+  lists that 400. They agree with the review.
+- The code moved since `63348de`, the commit of the review (T-161 and
+  others). Today `serve_one` is at `crates/pod-broker/src/serve.rs:104`,
+  `next` at `:220`, `check` at `:252` and `connect` at `:309`; `exchange`
+  is at `crates/pod-broker/src/forward.rs:71`; `Broker::serve_unix_job` is
+  at `crates/pod-broker/src/broker.rs:194` and `serve_tcp_job` at `:218`;
+  the advice of `bind_unix` (a directory of mode 0700) is at
+  `crates/pod-broker/src/control.rs:124-127`. The steps agree with the
+  review.
+- Read: `crates/pod-broker/Cargo.toml` has no `pod-tls`. But `pod-proxy`
+  depends on `pod-tls` (`crates/pod-proxy/Cargo.toml:27`) with its default
+  feature `async` (`crates/pod-tls/Cargo.toml:12`): the build of the
+  broker holds `pod-tls` already, and a direct dependency adds no crate.
+  `Context::connect_over` (`crates/pod-tls/src/context.rs:162`) is a
+  verified handshake over an open stream, with no fall back to plain text.
+  `pod-tls` has no pod dependency but `pod-core`
+  (`crates/pod-tls/Cargo.toml:41`).
+- Read: `check` takes the path of a plain request
+  (`crates/pod-broker/src/serve.rs:266`). The path rules of a policy thus
+  apply in this mode with no TLS end; a CONNECT needs a TLS end for them
+  (`PATH_NEEDS_TLS_END`).
+- Found, not in the review: `crates/pod-broker/src/serve.rs:355` says "the far end failed".
+  The broker answers each status of 500 or more with these fixed words.
+  The review asks for a 502 with the words of the verifier in the body.
+  That changes a rule of the crate.
+- Found, not in the review: `head` writes the `Host` with no port for port
+  80 only (`crates/pod-broker/src/forward.rs:54-57`). Toward TLS the
+  default port is 443.
+- Found, not in the review: `next` refuses two `Host` headers but accepts
+  none for a target in absolute form (`crates/pod-broker/src/serve.rs:220-244`).
+  This mode needs exactly one.
+- Found, not in the review: an upstream proxy gets the name of the origin
+  only with `Settings::names_upstream` (T-161,
+  `crates/pod-broker/src/serve.rs:314-325`); else the broker dials a
+  checked address (`:327-339`). The acceptance "the proxy sees the name"
+  holds with that setting only.
+- The consumer: the egress module of podrunner serves one listener of the
+  broker for each unit (PodUtils/podrunner@T-024). T-100 is the TLS end of
+  a CONNECT, with a CA that the job must trust. This mode is the other
+  direction: the client sends plain HTTP, the broker is the TLS client, and
+  the job needs no CA.
+- Not run: the bridge of the donor; `gh` against `api.github.com`. Open
+  questions of the review (Unverified): the releases of `gh` use this
+  transport (the review read `trunk`); `gh` never sends
+  `Expect: 100-continue`.
+
+## Approach
+
+Licence: satmux is MIT. Write new Rust code from this description, with no
+donor text.
+
+- A listener option (working name `OriginTls`) on `serve_unix_job` and
+  `serve_tcp_job`, off by default: each listener of today keeps the 400 for
+  origin form. The host gives a `pod_tls::Context` and a `Trust`; the
+  crate reads no variable.
+- The steps: read the head within `head_timeout` (408, 431 and 400 as
+  today). Refuse a CONNECT, an `Upgrade`, an `Expect: 100-continue` and a
+  target that is not in origin form, with 501 and words. Require exactly
+  one `Host` (else 400; no default host). Parse it with
+  `parse_authority` and the default port 443. Take the lease of the job of
+  the listener. Run `check` with the path (403 before a dial). Run
+  `connect` (the checked addresses, through the way out). Run
+  `connect_over(up, host, trust, 15 s)` (502 on a failure, never plain
+  text). Send the head with `Host` (no port for 443), `Connection: close`
+  and no hop-by-hop header, then the body in its framing. Copy the answer
+  back until the origin closes. One request on each connection.
+- The answer of a failed verification: make a call in `docs/decisions.md`.
+  The recommendation: the body holds the words of the verifier only, on one
+  line, and never the chain of an upstream; each other 5xx keeps the fixed
+  words.
+- The allow list is the policy of the job: no new list. The broker adds no
+  credential. The `Authorization` of the client goes only to the host that
+  the policy allowed.
+- The audit line has a kind of its own, with the host, and the reason of a
+  refusal or of a failed verification.
+- HTTP/1.1 only: no HTTP/2, no WebSocket, no keep-alive, no change of an
+  answer. A credential swap and a CA for each job stay in T-100.
+- The README: the mode, its answers, and the socket in a directory of mode
+  0700.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features
+```
+
+The tests, against a local TLS server with a test CA in the `Trust`:
+
+- An origin-form request on the socket gets the body, and the server saw
+  the SNI `HOST`. The request comes from
+  `curl --unix-socket S http://HOST/path`, or the same bytes from the test.
+- A certificate of another name: 502, and no byte of the origin reaches
+  the client (the negative case).
+- A `Host` that the allow list does not hold: 403, and the dial count of a
+  fake way out is 0 (the negative case).
+- No `Host`, two `Host` headers, a target in absolute form, a CONNECT, an
+  `Upgrade`: each gets its 400 or 501, with no dial.
+- A listener with no `OriginTls`: the 400 of today for origin form (the
+  negative case).
+- A `POST` body of 1 MiB arrives whole. A head over 16 KiB gets 431. A
+  client that sends nothing gets 408 at `head_timeout`.
+- With `names_upstream` and an upstream proxy as the way out, the proxy
+  gets a CONNECT to the name of the origin.
+- A live check in `.github/workflows/live.yml`, with a policy that allows
+  `api.github.com` only: `gh config set http_unix_socket S`, then
+  `gh api /rate_limit`.
+
+# T-194: `pod-broker`: a hash of the policy in the load answer, the list answer and each audit line (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: tunnet 2. The donor: tunnetio/Tunnet at
+`fceb3f201fa88425ff3930ed059f394a60aca6b5`: hash.rs of the crate
+tunnet-policy-engine, `policy_content_hash` in policy.rs of tunnet-common,
+cmds_policy.rs of tunnet-cli (all three Apache-2.0).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An audit line of `pod-broker` names the rule that decided a connection as
+`allow[2]`: an index into a policy that a later `load` of the same job
+replaces. A CI host runs podrunner with the broker. A job loads policy A;
+then the source loads policy B for the same job id (one more host). The
+next day an operator reads "decision allow, rule allow[2]" in
+`audit.jsonl`, and index 2 of A and index 2 of B are different hosts. With
+a hash of the policy on each line, the operator finds the
+`broker.job.load` line with the same hash, and the policy file that the
+source keeps for that hash. The source can also compare the hash of `list`
+with the hash of what it sent (a drift check).
+
+The donor names a policy document by a hash of its canonical JSON: it
+serializes the document to a value, sorts the keys of each object
+(recursive), keeps the order of each array, serializes again and hashes
+the bytes (BLAKE3). Two files that differ only in the order of their keys
+or in spaces get one hash; each change of meaning gets another.
+
+## Premise
+
+- Read (this tree; the code moved since `63348de`, the commit of the
+  review): `crates/pod-broker/src/broker.rs:110-136`. `load` writes
+  `broker.job.load` with `job`, `mode`, `rules`, `ttl_s` (and `flagged`,
+  T-161), and no identity of the policy.
+- Read: `crates/pod-broker/src/jobs.rs:68-75` (`Load` holds a `Policy`)
+  and `:77-89` (`JobInfo`: `job`, `mode`, `rules`, `flagged`,
+  `expires_in`, `open`).
+- Read: `crates/pod-broker/src/control.rs:42-56`: `info`, the JSON of a
+  job. The `load` answer is `info` with more keys (`:86-92`), and `list`
+  maps `info` (`:101-104`). One new field of `JobInfo` thus reaches both
+  answers. The control socket checks the user of its peer (`:161-168`).
+- Read: `crates/pod-broker/src/serve.rs:62-73`: `Note::line` starts both
+  connection lines. The deny line sets `decision` and `rule` at `:347`,
+  the allow line at `:364`. A refusal before the lease (408 or 407,
+  `:107-122`) has no job, thus no hash.
+- Read: `crates/pod-broker/src/policy.rs:70-82`: `Policy` derives
+  `Serialize` with `deny_unknown_fields`. An empty `allow`, `deny` or
+  `ports` and a missing `path` are not written (`skip_serializing_if`), so
+  an empty list and a missing list give one hash. The rule `allow[{n}]`
+  comes from `:234-235`.
+- Read: `crates/pod-broker/Cargo.toml:22` (`sha2` is a dependency);
+  `crates/pod-broker/tests/audit.rs:16` (`no_audit_line_holds_a_planted_secret`
+  reads the audit lines only); `schemas/log.v1.schema.json` (`fields` is an
+  object, so a new key is compatible). They agree with the review.
+- Found, not in the review: `Entry` has a field `hash` already, the
+  SHA-256 of the token (`crates/pod-broker/src/jobs.rs:102`). Name the new
+  value `policy_hash`, and never put the hash of the token in an answer or
+  a line.
+- Found, not in the review: the order of each array stays, as the review
+  asks, so a new order of `deny` or of `ports` with the same meaning gives
+  another hash. That is a false difference, never a false sameness.
+- Not run here: the model of the canonical form in Python of the review
+  (the order of the keys does not change the hash; the order of an array
+  does).
+- The consumer: the egress module of podrunner loads the policy of each
+  job (PodUtils/podrunner@T-024) and can compare the hash.
+
+## Approach
+
+Licence: Tunnet is Apache-2.0 for its policy engine, its CLI and
+tunnet-common (the parts that the review cites), MPL-2.0 for its agent,
+core, posture, update and service, and AGPL-3.0-only for its control,
+audit, relay, edge and operator. Write the implementation from this
+description, not from the donor source: no MPL or AGPL part is used, and
+no Apache-2.0 text goes into the crate, so the crate needs no notice.
+
+- `policy_hash(&Policy) -> String`: `serde_json::to_value`, then the
+  canonical form, then `sha256:` and the first 16 hex digits of the
+  SHA-256 (64 bits: an identity among the policies of one job, not a
+  secret, no proof of origin). The canonical form sorts the keys of each
+  object explicitly, because the order of a `serde_json::Map` depends on
+  the feature `preserve_order`, which each crate of a build can turn on.
+  It keeps the order of each array: `allow[2]` is an index, so a new order
+  is a change.
+- SHA-256 in place of BLAKE3: `sha2` is a dependency already.
+- Compute the hash at `load` and keep it in `Compiled`. Add `policy_hash`
+  to `JobInfo` (thus to the `load` answer and to each job of `list`), to
+  the `broker.job.load` line, and to `Note` (thus to each
+  `broker.connection` line, deny and allow).
+- A policy that does not compile has no hash; the failure line of today
+  stays.
+- The hash covers the policy only, never the token. No compare-and-set
+  (`if_hash`): a source reads `list` first.
+- The README: the control answers and the keys of the audit lines.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features
+```
+
+The tests:
+
+- Two `load` requests of one policy with another order of keys: one
+  `policy_hash`.
+- Two policies with the same rules in another order: two hashes.
+- `load` A, then `load` B of one job id: a connection line has the hash of
+  B, and the two `broker.job.load` lines have different hashes.
+- `list` gives the hash of the loaded policy and holds no token;
+  `no_audit_line_holds_a_planted_secret` still passes.
+- The plant: a hash of `Mode` only fails the tests "the same rules in
+  another order" and "one more rule".

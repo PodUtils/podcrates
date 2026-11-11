@@ -3285,3 +3285,121 @@ cargo test -p pod-services
 2026-11-11. `services/openbare-xyz.toml` as the Approach says; the README
 row; the test `the_bare_node_of_openbare_is_a_bare_v3_endpoint`.
 `cargo test -p pod-services` passes.
+
+# T-189: `pod-proxy`: a TCP congestion controller on request for each dialed socket, read back (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: satmux 3. The donor: Th0rgal/satmux at
+`2922ebb835d0eb939ddbdfa3b5e7e0f247a0dc0c` (MIT), `tune_socket` in
+satmux.py.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host sends a large upload (a backup, a log batch, `git push`) on a path
+with a long round trip and some loss (a satellite link, a mobile uplink).
+The default controller of the host is usually `cubic`, which halves its
+window at each loss. An operator knows that `bbr` is available and wants it
+for each connection, with no sysctl and no root. `pod-proxy` has no setting
+for it. A call written by hand fails with no message on a host that has no
+such module. A report must never say `bbr` when the socket runs `cubic`.
+
+The donor sets `TCP_CONGESTION` to `bbr` (with `TCP_NODELAY`,
+`SO_KEEPALIVE`, buffers of 2 MiB and `TCP_MAXSEG` 1280) on each carrier
+socket, ignores each error, and reads nothing back. On the Linux 6.12 host
+of the review, the kernel refused `bbr` (ENOENT), and the socket kept
+`cubic` with no message.
+
+## Premise
+
+- Read (this tree): `crates/pod-proxy/src/lowat.rs:1-56` is the model. It
+  tries `TCP_NOTSENT_LOWAT`, gives the words of the system on a refusal,
+  and its test reads the value back with `get_on`. Two facts differ from
+  the review: `lowat` works on Linux and macOS
+  (`crates/pod-proxy/src/lowat.rs:12-15`), not on Linux only; `get_on` is
+  a function of the tests only (`:46`). The new `get` must be public, for
+  a doctor line.
+- Read: `crates/pod-proxy/src/dial.rs:67-70` (the field `lowat`),
+  `:79-92` (`Settings::new`) and `:264-273` (`Dialer::tuned` calls
+  `lowat::set` and writes `TCP_NOTSENT_LOWAT is not set` at debug). They
+  agree with the review. `Dialer::tuned` runs on each stream of
+  `Dialer::open` (`:250`) and of the dial of addresses (`:348`).
+- Read: `crates/pod-proxy/src/stream.rs:20-28`. `tuned` changes only a TCP
+  stream: on the direct road, the socket to the target; through an HTTP or
+  SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
+  or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
+  (`crates/pod-proxy/src/blocking.rs:55-58`), so it gets the setting too.
+- Read: `crates/pod-proxy/README.md:187` (the parity row of `TCP_NODELAY`
+  and `TCP_NOTSENT_LOWAT`) and `crates/pod-proxy/tests/mptcp.rs:153` (the
+  ignored live test of MPTCP). They agree with the review.
+- No crate of this tree sets `TCP_CONGESTION`. The controller of the
+  userspace stack of `pod-netstack` is a different setting (T-188).
+- Not read: the podnet callers that the review names (src/egress.rs,
+  src/fetch.rs, src/proxy.rs, src/warp/nc.rs,
+  crates/podnet-serve/src/ingress.rs of PodUtils/podnet at `649c8e3`).
+- Not measured here: each observation of the review. Open questions of
+  the review: an unprivileged process can select only a controller of
+  `tcp_allowed_congestion_control` (Inferred); `bbr` gives more throughput
+  on a path of PodUtils (Unverified); a buffer size set by hand stops the
+  autotuning of the kernel (Inferred).
+
+## Approach
+
+Licence: satmux is MIT. The donor is Python. Write new Rust code from this
+description. No donor text goes into the crate, so the crate needs no
+notice.
+
+- A new module congestion.rs of `pod-proxy` with four functions:
+  `set(tcp, name)` gives `Result<(), String>`; `get(tcp)` gives
+  `Option<String>`; `available()` and `allowed()` give the names
+  (`Vec<String>`). The last two read
+  `/proc/sys/net/ipv4/tcp_available_congestion_control` and
+  `/proc/sys/net/ipv4/tcp_allowed_congestion_control`. Linux only:
+  elsewhere `set` gives `Err("this system has no such option")`, as
+  `lowat` does, and `get` gives `None`.
+- `Settings::congestion: Option<String>`. `Settings::new` gives `None`:
+  the default of the kernel stays, and no consumer changes.
+- `Dialer::tuned` calls `set` after `lowat`, then `get`. When `set` fails,
+  or the name read back is not the name of the request, it writes one
+  debug line with both names and the words of the system. A refusal never
+  fails the dial.
+- The doc comment gives the limits: the setting changes what this host
+  sends, not a download; the kernel refuses a name that it does not know;
+  the controller of `pod-netstack` and of the QUIC roads are other
+  settings; no `TCP_MAXSEG` and no buffer size.
+- The parity row of the README adds `TCP_CONGESTION` on request, read
+  back.
+- Then measure: an upload of 64 MiB through a loopback shaper in userspace
+  (1 percent loss, 300 ms delay), with `cubic` and with `bbr`, three runs
+  each. Write the host, the kernel and the result in the Done section. The
+  setting stays off by default whatever the result.
+- The consumers: podnet (a flag or a row of `podnet doctor`) and podssh
+  (`podssh doctor`) take it after the release. No consumer changes here.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-proxy --all-features -- --ignored congestion
+```
+
+The tests:
+
+- On a Linux TCP socket, `set` of the default controller gives `Ok`, and
+  `get` gives the same name.
+- `set("no-such-controller")` gives an `Err` with the words of the system,
+  and `get` still gives the default (the negative case).
+- A live test, ignored: it selects `bbr` where `available()` lists it and
+  asserts the read back. Where `bbr` is not listed, it prints "did not
+  run" with the reason, as the live test of MPTCP does, and asserts
+  nothing.
+- A dial with `Settings::congestion = Some("bbr")` on a host with no `bbr`
+  connects and writes the debug line.
+- `Settings::new` gives `congestion: None`.
+- Where the host has a controller that is available but not allowed, an
+  unprivileged test asks for it. Its result answers the Inferred question
+  of the review.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**188 entries: 51 open, 2 partial, 0 blocked, 135 done.**
+**195 entries: 58 open, 2 partial, 0 blocked, 135 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 0 | 0 | 41 | 57 |
-| P2 | 26 | 2 | 0 | 63 | 91 |
-| P3 | 9 | 0 | 0 | 29 | 38 |
-| **All** | 51 | 2 | 0 | 135 | 188 |
+| P2 | 29 | 2 | 0 | 63 | 94 |
+| P3 | 13 | 0 | 0 | 29 | 42 |
+| **All** | 58 | 2 | 0 | 135 | 195 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -235,3 +235,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-186](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the service `sandhole`, the demo of Sandhole (podssh's message, 2026-11-11) |
 | [T-187](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the kind `bare-node` and the node `openbare-xyz` (podssh's message, 2026-11-11) |
 | [T-188](relay.md) | P2 | S | M2 | measurement | open | `pod-netstack`: Reno and CUBIC of smoltcp 0.14 grow by one segment for each round trip on a link that gives one ACK for each round trip |
+| [T-189](transport.md) | P3 | S | M1 | feature | open | `pod-proxy`: a TCP congestion controller on request for each dialed socket, read back (PodUtils/podnet#437) |
+| [T-190](podvm.md) | P3 | M | M6 | feature | open | `pod-oci`: one large blob as parallel ranges, kept only by the digest of the whole blob (PodUtils/podnet#437) |
+| [T-191](fleet.md) | P2 | M | M8 | feature | open | `pod-broker`: a listener that takes a plain request in origin form and opens verified TLS to its `Host` (PodUtils/podnet#437) |
+| [T-192](foundation.md) | P3 | M | M1 | feature | open | `pod-core`: one replace of a private file with a durable commit and three outcomes (PodUtils/podnet#437) |
+| [T-193](foundation.md) | P3 | S | M1 | feature | open | `pod-core`: a bounded tail of a log that starts at a line (PodUtils/podnet#437) |
+| [T-194](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: a hash of the policy in the load answer, the list answer and each audit line (PodUtils/podnet#437) |
+| [T-195](foundation.md) | P2 | S | M1 | defect | open | `pod-core`: two threads that store one private file at once share one temporary name |

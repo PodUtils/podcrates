@@ -1431,3 +1431,286 @@ All test binaries of these crates (96, with `--all-features`) pass under
 `qemu-riscv64` and `qemu-loongarch64` with `QEMU_LD_PREFIX=/` set. The test
 `the_bound_scales_under_an_emulator` proves the detection there.
 
+# T-192: `pod-core`: one replace of a private file with a durable commit and three outcomes (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: tailsplit 1. The donor: idy/tailsplit at
+`0bd3a74f667c286b3c212004c289a501ee4eb947` (GPL-3.0-or-later): rules.go,
+rules_replace_other.go, rules_replace_windows.go.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Nine copies of the replace of a private file (a temporary file, then a
+rename) are in podnet, podssh and `pod-core`. Four of the nine never sync
+the file, and none syncs the directory. An operator runs
+`podnet git serve` on a small VPS. The first start writes the SSH host key
+through `state::replace_file` of podnet, and the power goes off a few
+seconds later. On a file system that does not write the data before the
+rename, the key file can come back empty. The next start cannot parse it,
+and each client then sees a changed host key. The same gap applies to the
+relay pair file, the `/etc/resolv.conf` of `warp tun` and the instance
+record. After a power cut the file has the correct name and mode, and zero
+length or old content.
+
+The donor writes a temporary file in the same directory (mode 0600),
+syncs and closes it, renames it, then opens the directory and syncs it.
+Its result has two parts: installed or not, and an error. A caller treats
+"installed, error" as a good install with a warning ("rules installed but
+directory durability could not be confirmed"), never as a failure. On
+Windows, one replace on the same volume with write-through gives the same
+contract.
+
+## Premise
+
+- Read (this tree): `crates/pod-core/src/files.rs:165-181`.
+  `write_private` syncs the file and renames it, and does not sync the
+  directory; its temporary name is `.NAME.PID.tmp`. It is private to the
+  crate: `store_noting` (`:57-69`) and `store_file_in_first` call it, and
+  through them `pod-tls` (`crates/pod-tls/src/groups/dirs.rs:25`) and
+  `pod-identity` (`crates/pod-identity/src/pins.rs:134`). The review
+  agrees.
+- Read: `crates/pod-core/src/files/own.rs:67-92`. `create_private` syncs
+  the file, links it into place with a hard link (never over a file), and
+  does not sync the directory. The review agrees. It is a create, not a
+  replace.
+- Read: `crates/pod-core/src/files/closed_win.rs` (the private files of
+  Windows) has no `MoveFileExW`.
+- Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:73` and
+  in `scripts/agent/check.sh:34`. A new check of the repository needs its
+  plant in `scripts/plants` (T-003).
+- Found while reading: T-195 (two threads that store one name at once
+  share the temporary name of `write_private`).
+- Not read: the eight copies in podnet (at `649c8e3`) and podssh (at
+  `4489df2`), and the writers that the review did not compare (the store
+  commit of podvm; `net/store.rs`, `acme/store.rs`, `known_hosts/edit.rs`
+  and the key generation of podssh).
+- Not measured: the loss of data after a power cut (Inferred by the
+  review). A power cut cannot be injected in CI; the injected faults test
+  the control flow only.
+
+## Approach
+
+Licence: tailsplit is GPL-3.0-or-later. Write the implementation from this
+description, not from the donor source. PodUtils is 0BSD.
+
+- `replace_private(path, bytes, mode, in_place_fallback)` of
+  `pod_core::files` gives `io::Result<Commit>`, with the variants
+  `Commit::Durable` and `Commit::InstalledUnconfirmed(io::Error)`. `Err`
+  means: nothing changed at `path`, and no temporary file stays (except
+  after the fallback in place).
+- The steps: a temporary name beside `path`, `.NAME.PID.N.tmp` (the PID
+  and a counter of the process, never a fixed name); a create with
+  `O_EXCL | O_NOFOLLOW` and the final mode (the umask removes bits; set the
+  mode again after the create); write; `sync_all`; rename; then open the
+  directory and `sync_all` it. A failed directory sync gives
+  `InstalledUnconfirmed`. No reader sees a wider mode, also not for a
+  moment.
+- A rename that fails over a bind-mounted file (`/etc/resolv.conf` in a
+  container), with `in_place_fallback`: write the file in place and sync
+  it. The result is then always `InstalledUnconfirmed`, because a write in
+  place is not atomic.
+- A symlink at `path` is replaced, not followed (keep the test
+  `replace_file_does_not_follow_a_symlink` of podnet as a test here).
+- Optional, in 20 lines at most: the next call for a name removes a stale
+  `.NAME.PID.N.tmp` of a PID that is not alive.
+- Windows: `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING` and
+  `MOVEFILE_WRITE_THROUGH`, beside `closed_win.rs`.
+- `write_private` goes onto the helper, and `create_private` syncs the
+  directory. A caller matches on `Commit` and writes `InstalledUnconfirmed`
+  as one `tracing::warn!` line with the path and the error, never as an
+  exit code.
+- A check, a script beside `scripts/check-size.py` with its plant, refuses
+  `fs::rename` outside the helper on a path that a private writer made.
+- Keep each file under 500 lines (`crates/pod-core/src/files.rs` has 329):
+  the helper goes into a module of its own.
+- The consumers move their copies in their own repositories after the
+  release, one repository at a time: podnet six copies (with
+  PodUtils/podnet#431 and PodUtils/podnet#433), podssh two copies and the
+  `sync_dir` of its spent-grant record. The hand-off of the release names
+  the helper. No consumer changes here. The helper does not make a change
+  of two files atomic: a pair file and its record keep a rule of order of
+  their own.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+python3 -I scripts/check-private-replace.py
+python3 -I scripts/check-private-replace.py --self-test
+```
+
+The tests:
+
+- A file layer that injects faults fails, in turn, the create, the write,
+  the file sync, the rename and the directory sync. The first four give
+  `Err` and leave no temporary file; the last gives
+  `Ok(InstalledUnconfirmed)`.
+- Under umask 0 and umask 077, the mode is 0600.
+- A symlink at `path` is replaced, and its target does not change.
+- A `path` with no file name (`/`) gives `Err` and makes nothing (the
+  negative case).
+- The check refuses its plant.
+
+# T-193: `pod-core`: a bounded tail of a log that starts at a line (PodUtils/podnet#437)
+
+**Source:** PodUtils/podnet#437 (COORD-019 of podnet), the owner's donor
+review: tailsplit 2. The donor: idy/tailsplit at
+`0bd3a74f667c286b3c212004c289a501ee4eb947` (GPL-3.0-or-later):
+`desktopLogTail` in cmd/tailsplit-tray/desktop_logs.go.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three paths of PodUtils read a whole log file into memory to show its last
+lines: `instances_logs` and `bug_report::tail` of podnet, and `logs` and
+`follow_tail` of `pod-supervise` (thus `podbox logs --tail 50` of podvm).
+A detached podnet instance (a tunnel, a WARP proxy) runs for weeks, and
+its log has no cap and no rotation. `podnet bug-report` then uses memory
+that grows with the log. One byte that is not UTF-8 anywhere in the file
+makes `read_to_string` fail, and the report holds "(the log ... cannot be
+read)" in place of the last 100 lines.
+
+The donor reads a window of 128 KiB from the end. It seeks to the size
+minus the window and reads one window at most. It removes each byte up to
+and including the first newline, or all of the window when it has no
+newline. It converts to UTF-8 with replacement characters, redacts, and
+cuts to the window again at the start of a character. The cut line goes
+first because a cut can land inside a secret, past the prefix that the
+redactor knows (the `scrub_word` of podnet knows tokens by a prefix, for
+example `eyJ`).
+
+## Premise
+
+- Read (this tree): `crates/pod-supervise/src/logs.rs:13-24`. `logs`
+  reads the whole file with `std::fs::read`. `follow_tail` (`:95-105`)
+  calls it, then `tail_offset` (`:72`), then `follow_from` at the length
+  of that read. The review agrees.
+- Read: `crates/pod-core/src/files.rs:158` (`read_trusted`) and
+  `crates/pod-core/src/files/own.rs:28` (`read_own`), the neighbours of
+  the new function.
+- Found, not in the review: `logs` gives bytes (`Vec<u8>`), the raw output
+  of a payload. A lossy `String` would change the bytes that `follow_tail`
+  writes. Thus `pod-core` gives the window as bytes, and the lossy text is
+  a second step, for a view of a person.
+- Not read: `instances.rs` and `bug_report.rs` of podnet (at `649c8e3`);
+  `podvm_supervise::logs` of podvm (at `782449a`).
+- Not measured: the cost in memory and in time against the size of the
+  log (Inferred by the review). Not run here: the failure of
+  `read_to_string` on one byte `0xFF` that the review observed.
+
+## Approach
+
+Licence: tailsplit is GPL-3.0-or-later. Write the implementation from this
+description, not from the donor source.
+
+- `read_tail(path, max_bytes) -> io::Result<Tail>`, with the window as
+  bytes, a lossy text form, and `cut`. Open the file and read its length.
+  Seek to the absolute offset `len - max_bytes` (not `End(-n)`, which fails
+  when the file became shorter). Read through `take(max_bytes)`, so the
+  bound holds when the file grows. When cut, remove each byte up to and
+  including the first newline, or all of the window when it has no
+  newline.
+- `bound_text(text, max_bytes)`: a cut from the front at the start of a
+  character, for a caller that redacts after the read (a replacement can
+  make the text longer).
+- A file that became shorter after the stat gives a short or empty tail
+  and no error.
+- `pod-supervise`: `logs` with a bound, and `follow_tail` on the window;
+  `follow_from` starts at the end of the window. When `cut` is true and the
+  window holds fewer lines than asked, the caller gets a note ("older
+  lines are in the log file").
+- The windows: 128 KiB for a view, 256 KiB for a bug report. These are
+  choices, not measurements.
+- The consumers: podnet replaces its two reads after the release; podvm
+  takes the change of `pod-supervise` with the tag. The rotation of the
+  instance log stays with podnet, the owner of its writer.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+cargo test -p pod-supervise --all-features
+```
+
+The tests:
+
+- A log of 64 MiB with 100 known last lines gives them, and a reader that
+  counts shows that at most `max_bytes` were read.
+- A token (`eyJ` and 40 characters) with the cut in its middle: no part of
+  it is in the output, and `cut` is true.
+- One byte `0xFF` in the middle: the last lines, and no error.
+- One line longer than the window: an empty tail, `cut` true, and the
+  note.
+- A file truncated to zero between the stat and the read: an empty tail,
+  and no error.
+- A directory as the path: the error of the system, not an empty tail
+  (the negative case).
+
+# T-195: `pod-core`: two threads that store one private file at once share one temporary name
+
+**Source:** the reading of `crates/pod-core/src/files.rs` for T-192
+(PodUtils/podnet#437, tailsplit 1)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`write_private` names its temporary file `.NAME.PID.tmp`
+(`crates/pod-core/src/files.rs:168`) and first removes a file of that name
+(`:169`). Two threads of one process that store the same name at once
+share that file. Thread B removes the file of thread A and makes its own.
+The rename of A then puts the file of B in place, possibly before B wrote
+all of it. The rename of B then fails, so `store_noting` tries the next
+directory. A reader can see half a file, and the file can be in two
+directories. `create_private` makes a unique name with a counter of the
+process (`crates/pod-core/src/files/own.rs:68-74`).
+
+The callers: `pod-tls` keeps its file of TLS groups
+(`crates/pod-tls/src/groups/dirs.rs:25`), and `pod-identity` keeps the pins
+of node keys (`crates/pod-identity/src/pins.rs:134`). A torn pins file
+refuses each connect with `PinError::Unreadable` until a person repairs
+it.
+
+## Premise
+
+- Read: `crates/pod-core/src/files.rs:162-181`,
+  `crates/pod-core/src/files/own.rs:61-92`,
+  `crates/pod-tls/src/groups/dirs.rs`, `crates/pod-identity/src/pins.rs`.
+- Read: `pin` (`crates/pod-identity/src/pins.rs:114-138`) reads the pins,
+  adds a line and stores the whole file, with no lock. Two pins at once
+  can thus lose one line, also with a unique temporary name. A lost pin
+  makes the next connect of that node a first sight again (trust on first
+  use).
+- Not measured: whether a consumer stores one name from two threads at
+  once, or pins two nodes at once. Not reproduced.
+
+## Approach
+
+- `write_private` takes the counter of the process, as `create_private`
+  does: `.NAME.PID.N.tmp`. The remove before the create goes: a unique name
+  needs none. T-192 then builds on this.
+- `pin`: a lock of the process around the read, the add and the store. A
+  lock of the file between two processes is a call of the work; record it
+  in `docs/decisions.md`.
+- Tests: threads that store one name at once each get `Ok`, and each read
+  gives one whole body; two pins at once in one directory keep both lines.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+cargo test -p pod-identity --all-features
+```
+

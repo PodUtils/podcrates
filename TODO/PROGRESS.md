@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 188 entries: 51 open, 2 partial, 0 blocked, 135 done.
+`TODO/INDEX.md` holds 195 entries: 58 open, 2 partial, 0 blocked, 135 done.
 
 ## State
 
@@ -63,9 +63,11 @@ next entry.
 4. **M6, the crates of podvm:** T-179 (`pod-incus`, PodUtils/podvm#253); T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
-   `pod-todo`.
-5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
-   it.
+   `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
+   after podvm asks for it.
+5. **M1, the transport:** T-195 (a defect of `pod-core`); T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
+   it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
+   `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-021, T-024, T-025, T-026, T-188; then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet).
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
@@ -78,7 +80,10 @@ next entry.
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-108 `pod-confine` for PodUtils/podvm@T-1658, T-107
    with M6). T-113 to T-116 wait for the first release on crates.io.
-   The asks of PodUtils/podvm#227 for podrunner are in item 2.
+   The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
+   T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
+   egress of podrunner) wait too; each goes to item 2 when podrunner asks
+   for it.
 
 ## Calls made without a ruling
 
