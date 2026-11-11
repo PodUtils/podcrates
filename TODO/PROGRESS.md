@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 208 entries: 59 open, 3 partial, 0 blocked, 146 done.
+`TODO/INDEX.md` holds 209 entries: 59 open, 3 partial, 0 blocked, 147 done.
 
 ## State
 
@@ -26,6 +26,9 @@
 - `pod-wg` (T-024, call C56) is done: the release `v0.22.0` and podnet's take
   of `adoption/podnet/pod-wg.patch` (at podnet `54d7ed4`; the cut of
   PodUtils/podnet#447; GitHub #67) remain.
+- `pod-confine` and `Plan.confine` of `pod-enter` (T-108, call C57) are
+  done: the release after `v0.22.0` and podvm's take for
+  PodUtils/podvm@T-1658 (GitHub #69) remain.
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -63,11 +66,10 @@ next entry.
 3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-201
    (the veth wire into `pod-hold`) after podnet's tests of the wire pass; T-150, T-121 to T-124 (the asks of
    podnet).
-4. **M6, the crates of podvm:** T-108 (`pod-confine` and `Plan.confine` of
-   `pod-enter`, PodUtils/podvm#259; PodUtils/podvm@T-1658 is blocked on it);
-   then T-206 (the module set of the guest from its modloop) and T-207
-   (`pod-netlab`), PodUtils/podvm#260 (PodUtils/podvm@T-1662 is blocked on
-   them);
+4. **M6, the crates of podvm:** T-206 (the module set of the guest from its
+   modloop) and T-207 (`pod-netlab`), PodUtils/podvm#260
+   (PodUtils/podvm@T-1662 is blocked on them); T-209 (the Landlock scopes
+   and UDP in `pod-confine`);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
@@ -87,8 +89,7 @@ next entry.
 10. **M7, the widened scope of podvm:** T-062 after M6.
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
-   consumer needs one first (T-108 `pod-confine` for PodUtils/podvm@T-1658, T-107
-   with M6). T-113 to T-116 wait for the first release on crates.io.
+   consumer needs one first (T-107 with M6). T-113 to T-116 wait for the first release on crates.io.
    The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
    T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
    egress of podrunner) wait too; each goes to item 2 when podrunner asks
@@ -96,7 +97,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C56), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C57), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

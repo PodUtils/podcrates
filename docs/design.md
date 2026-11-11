@@ -302,7 +302,7 @@ others read its raw system calls.
 | `pod-oci` | podvm `crates/podvm-image` (part: the reference, the digest checked while it is written, the OCI types, the platform, the logins of docker and podman at the caller's paths, the registry client over the caller's HTTP client and trusts, the insecure policy from the caller's hosts, the host bundle and the roots, the resolve and the fetch pool into the caller's `Blobs`, the constants of the OCI layout); the content store, the pull into it, `AcceptAny` and docker's codes stay in podvm | 5,000 | pod-core, pod-tls, pod-proxy |
 | `pod-extract` | podvm `crates/podvm-extract`: the rootless apply of the layers (the order, the whiteouts on the basename, the containment of each path, an ownership sidecar in place of chown, the digest of each blob while it is read, the completion marker); the caller gives each layer as a blob path with its digest and media type, and the place; the layout of the store stays in podvm | 2,800 | pod-core, pod-hostprobe |
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system from the host, each write held in the root (device nodes or shims, the `/dev` links, the resolver, hosts and mtab, the accounts and nsswitch, the walls of pacman, apt and zypper, the CA bundle and the CA directory of the host, `https` package sources); the caller gives its names, the host bundle and the probe of a mirror; the banner, the record ids and the HTTPS request stay in podvm | 4,300 | pod-core, pod-hostprobe, pod-extract |
-| `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the namespace rung, the entry with no chroot, the launch ladder: memfd, FUSE, tmpfs, run directory, cache; the device hand-over; the reader of ELF files); the names are the caller's (`Names`), and docker's 125 stays in podvm | 8,000 | pod-core, pod-hostprobe |
+| `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the namespace rung, the entry with no chroot, the launch ladder: memfd, FUSE, tmpfs, run directory, cache; the device hand-over; the reader of ELF files); the names are the caller's (`Names`), and docker's 125 stays in podvm; the confinement of a payload (`Plan.confine`, T-108) | 8,000 | pod-core, pod-hostprobe, pod-confine |
 | `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
 | `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm | 3,300 | pod-core, pod-hostprobe |
 
@@ -317,7 +317,7 @@ with a study entry, as M4 does.
 | `pod-microvm` | fast disposable microVMs from an OCI image, on KVM or TCG (kernel, initramfs, virtio devices, boot): PodUtils/podvm#168 | pod-oci, pod-guest |
 | `pod-hold` | the hold of each connect of a payload, with its level (`enforced`, `advisory`, `none`) and a proof: the generic core of podnet `crates/podnet-netns` (T-166, call C48): the seccomp filter, its start, the receive of a notification, the memory of the task, the reply, the table of the sockets with the flow budget, the netns entry and the TUN. The handlers, the rules, the upstreams, the relays, the router and `pod doctor` stay in podnet (PodUtils/podnet#414, #422) | pod-core, pod-hostprobe |
 | `pod-sud` | an in-process interceptor of system calls on Syscall User Dispatch, with paths resolved in a root (`openat2(RESOLVE_IN_ROOT)`); no ptrace, no privilege: PodUtils/podvm#109, PodUtils/podvm#169 | pod-core |
-| `pod-confine` | confinement with no privilege: Landlock, seccomp filters, rlimits (`pod-hold` has the seccomp filter of a hold): PodUtils/podvm#170 | pod-core |
+| `pod-confine` | confinement with no privilege (T-108, PodUtils/podvm#259): Landlock rules for the paths and the TCP ports, a seccomp deny filter and `no_new_privs`, compiled before the fork and applied in the child with no allocation; new code. The rlimits are `pod-enter`'s (T-176), and `pod-hold` has the seccomp filter of a hold: PodUtils/podvm#170 | pod-core, pod-hostprobe |
 | `pod-netlab` | network labs in a guest or a namespace: NAT44, NAT66, NAT64 with DNS64, CGNAT, IPv6 only, firewall policy, impairment: PodUtils/podvm#178 | pod-netstack |
 | `pod-pcap` | packet capture, counters and connection logs with no `CAP_NET_RAW`; a pcap writer: PodUtils/podvm#182 | pod-core |
 | `pod-sandprobe` | the security probe inside a payload, and the compare of two reports against a list of expected differences: PodUtils/podvm#186 | pod-core, pod-hostprobe |
@@ -393,7 +393,8 @@ The check:
 
 * `examples/static-probe` depends on each crate with each feature and
   calls one function of each (`fuzzing` is out). `examples/static-probe-lean`
-  builds pod-core and pod-tls with no default feature, so with no tokio.
+  builds the crates that need no tokio (pod-core and pod-tls with no
+  default feature, pod-wg, pod-confine).
   `scripts/check-probe.py` checks that each feature of a library crate is in
   a probe or in its allowance list, and that tokio is not in the tree of the
   lean probe. CI builds it in release on each target on

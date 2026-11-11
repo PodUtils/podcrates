@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**208 entries: 59 open, 3 partial, 0 blocked, 146 done.**
+**209 entries: 59 open, 3 partial, 0 blocked, 147 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 15 | 0 | 0 | 43 | 58 |
-| P2 | 27 | 2 | 0 | 69 | 98 |
+| P1 | 14 | 0 | 0 | 44 | 58 |
+| P2 | 28 | 2 | 0 | 69 | 99 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 59 | 3 | 0 | 146 | 208 |
+| **All** | 59 | 3 | 0 | 147 | 209 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -154,7 +154,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
 | [T-107](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
-| [T-108](podvm.md) | P1 | M | M7 | feature | open | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
+| [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
 | [T-109](podvm.md) | P2 | S | M7 | research | done | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
 | [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
 | [T-111](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: a lease header, Access headers from files on each WebSocket road, a heartbeat that a relay offers (GitHub #35) |
@@ -255,3 +255,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-206](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260) |
 | [T-207](podvm.md) | P3 | L | M6 | feature | open | `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178) |
 | [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
+| [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |

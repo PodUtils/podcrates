@@ -874,6 +874,11 @@ cargo todo check
 
 The crates of M6 are released.
 
+## Correction
+
+2026-11-11: the study of `pod-confine` went into T-108 with the crate, as
+its Problem says; T-108 is done. The other five studies stay here.
+
 # T-072: `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets
 
 **Source:** the import of `pod-hostprobe` (T-055, `cbb0525`).
@@ -997,7 +1002,7 @@ cargo test -p pod-hostprobe --all-features
 **Milestone:** M7
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1038,11 +1043,88 @@ The study, then the crate: Landlock ABI 3 or newer for file rules and ABI 4 or n
 seccomp deny filter of the list of A-V-01 and of podvm's ask, `no_new_privs`, the `Spec` of podvm's ask (a profile file of the consumer maps to it), and `Plan.confine` of `pod-enter`. The crate refuses by
 name where Landlock is absent. The filter builder of podnet is a source.
 
+## Decision
+
+Call C57 (`docs/decisions.md`): `Plan.confine` is an
+`Option<pod_confine::Spec>`, compiled by the entry before the banner and
+the fork. On each rung with a chroot the paths are guest paths, opened
+under the root descriptor with `openat2(RESOLVE_IN_ROOT)`; on the entry
+with no chroot they are host paths. A rule holds the inode, so the open
+before the fork names the file that the payload sees after the root
+change, and the child only issues system calls on prepared data. The
+crate refuses an ABI under 3 (no confinement of `truncate(2)`).
+
 ## Prove
 
 ```sh
 cargo test -p pod-confine --all-features
+cargo test -p pod-enter --all-features --test confine
 ```
+
+## Done
+
+2026-11-11, `8e203ee` and `271a8ec`. The crate `pod-confine` (new code; it depends on
+`pod-core` and `pod-hostprobe`):
+
+- `Spec { paths, connect, bind, deny }` with `Access` (`READ`, `WRITE`,
+  `EXECUTE`) for each path, `Spec::new().allow(..).connect_to(..)
+  .bind_to(..)`; `Deny` and `Deny::defaults()` (the namespace calls:
+  `unshare` and `clone` with a namespace flag, `setns`, `clone3` with
+  `ENOSYS`; the mount calls with the new mount API; `ptrace`,
+  `process_vm_readv`, `process_vm_writev`; the key calls; `bpf`,
+  `perf_event_open`; `kexec_*`; the module calls; `*_handle_at`; each
+  `EPERM`); `deny::program` (the audit arch first: a foreign ABI and x32
+  get `ENOSYS`).
+- `check()` and `probe() -> Option<u32>`: the ABI, and an `apply` of a
+  minimal ruleset and filter in a disposable child (a nested ruleset under
+  the policy of the host); the caller stays free.
+- `Spec::compile(abi)` (host paths) and `Spec::compile_in(abi, root)`
+  (guest paths) before the fork: `O_PATH` for each path, a missing path is
+  a refusal by name, no Landlock or an ABI under 3 is refused, TCP rules
+  need ABI 4; `Compiled::keep_clear_of`.
+- `apply(&Compiled)` in the child: `PR_SET_NO_NEW_PRIVS`, the ruleset,
+  the path and port rules, `landlock_restrict_self`, seccomp mode 2; no
+  allocation; `Refusal { call, index, errno }` (five bytes for a pipe).
+
+`pod-enter`: `Plan.confine: Option<pod_confine::Spec>`, applied in the
+child after the limits and `no_new_privs`, as the last step before the
+exec (step 15 of the readiness pipe, with the path or the port of the
+rule). `pod-hostprobe`: the Landlock calls, `connect`, the numbers of the
+deny list, and the one table of the audit arch (`sys/landlock.rs`,
+`sys/seccomp.rs`); `pod-hold` reads it in place of its own table.
+
+Tests: `cargo test -p pod-confine --all-features`: 19 unit tests and 8 in
+`tests/apply.rs` (a confined child: a read and a write outside their lists
+`EACCES`, a TCP connect and bind outside their lists `EACCES` and a
+connect inside passes, `NoNewPrivs: 1` and `Seccomp: 2`, `unshare`,
+`clone` with `CLONE_NEWUSER` and `setns` `EPERM`, `clone3` `ENOSYS`, an
+exec outside the execute list `EACCES`, `apply` refuses where a filter
+stands in for a kernel with no Landlock); all pass on this host (Landlock
+ABI 7). `cargo test -p pod-enter --all-features --test confine`: 7 tests
+(the same checks through the entry with no chroot, the chroot sequence and
+the namespace rung in an image of the test binary; a missing path and no
+Landlock stop the entry before the fork). A host with no Landlock skips
+the checks of a rule; the rungs with a chroot need root.
+`sh scripts/agent/check.sh` exits 0 in each check. Plants (group
+`confine`, each caught): `confine-write-unhandled`,
+`confine-filter-foreign-abi-passes`, `confine-absent-runs-unconfined`,
+`enter-confine-not-applied`, `enter-confine-rule-on-a-passed-number`,
+`enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root`,
+`enter-own-number-stays-cloexec`. The static
+probes call `pod-confine` and are static on `x86_64-unknown-linux-musl`;
+the probe reports Landlock ABI 7 and a filter of 73 instructions here.
+
+A defect found on the way, fixed in the same commit: a passed descriptor
+(`Fds.pass`) could take the number of the readiness pipe (a failed step
+in the child then seemed a start) or of the root (`fchdir` failed with
+`ENOTDIR` and no cause). The pipe moves clear of each passed number, and
+a pass onto the root or the memfd is refused before the fork; the two
+tests fail on the code before the fix. A second one, fixed in `271a8ec`: a descriptor passed onto its own number (`(n, n)`) kept its
+close-on-exec flag, as no `dup2` ran, so the payload never held it; the
+child now clears the flag
+(`a_descriptor_passed_onto_its_own_number_reaches_the_payload`). Open
+from this work: the Landlock scopes and UDP (T-209). Breaking: `Plan` has
+the field `confine`.
 
 # T-109: Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36)
 
@@ -3248,3 +3330,46 @@ refused). `cargo test -p pod-extract --all-features`: 55 passed. Plant
 `extract-empty-root-refused` (the old check) gives podvm's error word for
 word.
 
+# T-209: `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload
+
+**Source:** T-108 (a finding of its work)
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A payload under a `Spec` of `pod-confine` can send a signal to each
+process of its user outside its Landlock domain, connect to an abstract
+Unix socket of the host (a session bus, an X server), and send UDP to
+each address. The file and TCP rules of Landlock do not cover these, and
+the default deny list has no rule for them. A profile with `net.ports`
+reads as a closed network, and UDP stays open.
+
+## Premise
+
+- Read: Landlock ABI 6 (Linux 6.12) adds the scopes
+  `LANDLOCK_SCOPE_SIGNAL` and `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`
+  (`linux_raw_sys::landlock`) in `landlock_ruleset_attr.scoped`; T-108
+  sets `scoped` to 0. Landlock ABI 7 has no UDP right.
+- Not measured: the effect of the scopes on the payloads of podvm (a
+  shell that signals its own children stays in its domain).
+
+## Approach
+
+`Spec::scope` (on in `Spec::new()`): the compile sets both scopes where
+the ABI is 6 or newer, and the README names the ABI under which the field
+gives nothing. `Spec::udp` (free in `Spec::new()`): where it is closed, the
+deny list gets `socket` of `AF_INET` and `AF_INET6` with `SOCK_DGRAM`
+(`EACCES`); `Deny` then needs a rule on the equal values of two arguments.
+Tests in `tests/apply.rs`: a `kill` of the parent gets `EPERM`, and a UDP
+socket gets `EACCES`. Ask podvm by a COORD issue whether its profiles need
+a key for each.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+```
