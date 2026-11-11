@@ -1,0 +1,46 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh 74760e822b7b2dc5db31613536dfb9d2a57057af
+# The cut: all of src/e2e/. Each file names only the identity (pod-identity),
+# the resumable layer and its handover (pod-session), the answer of a peer
+# (pod-session), the names and the safe text (pod-core): no file names
+# serve/, reverse/, the CLI or another module of podssh. ask.rs is the word
+# of the proof, which handshake.rs reads and checks. person.rs is the gate
+# of a node's person: the question goes to the caller's Asker, so the crate
+# has no terminal; ends.rs asks it after the door. The process globals of
+# net.rs (the installed documents) and of hold/mod.rs (the registry of the
+# holds) become values of the caller: Node::docs and Node::holds.
+# Of the tests: e2e.rs, e2e_faults.rs, e2e_net.rs, e2e_harness/mod.rs, and
+# routes.rs and person.rs (they run src/e2e/ alone over the harness). Of
+# session_handover.rs the test
+# a_session_of_the_channel_goes_on_across_a_handover_with_its_keys_and_nonces
+# (pod-session left it for this crate). e2e_layered.rs stays in podssh until
+# pod-relay: it runs reverse::{Layered, E2e, Handler}. podssh keeps a copy of
+# e2e_harness/mod.rs for its tests that stay (grant.rs, quick_exit.rs,
+# e2e_layered.rs).
+dir crates/podssh-relay/src/e2e
+file 564e283b12abcc893af04df5c55289f411f40cac crates/podssh-relay/src/e2e/ask.rs -> crates/pod-e2e/src/ask.rs
+file d3e29b238847b0fc970697c3b45bac22dd59dbee crates/podssh-relay/src/e2e/channel.rs -> crates/pod-e2e/src/channel.rs
+file 328f512a22f618cdbf0cb706a00d36a607370f69 crates/podssh-relay/src/e2e/channel/carry.rs -> crates/pod-e2e/src/channel/carry.rs
+file 75675d5f9b0cee42f876cf1bd833f2b0e7ca632a crates/podssh-relay/src/e2e/ends.rs -> crates/pod-e2e/src/ends.rs
+file 4b85929908b73e7bf12631c97d8d893cc5c91114 crates/podssh-relay/src/e2e/frame.rs -> crates/pod-e2e/src/frame.rs
+file 4255bae82a7b4b2897e22df1e11c0eca005eb349 crates/podssh-relay/src/e2e/handshake.rs -> crates/pod-e2e/src/handshake.rs
+file e72325126bd3db08ecdc4b9de9602a1f6f4c3568 crates/podssh-relay/src/e2e/hold/mod.rs -> crates/pod-e2e/src/hold/mod.rs
+file 9639a4d972c40870f4fa39069d55e3657a0f4581 crates/podssh-relay/src/e2e/hold/resume.rs -> crates/pod-e2e/src/hold/resume.rs
+file 9e9094c240d4795ea61a386b29105300b12c3ae3 crates/podssh-relay/src/e2e/hold/state.rs -> crates/pod-e2e/src/hold/state.rs
+file cc6dbf02ae7476511ef183ed01602679b511376e crates/podssh-relay/src/e2e/legs.rs -> crates/pod-e2e/src/legs.rs
+file fd60ce527b130c3b2f83f5b9f448e08d60736cd6 crates/podssh-relay/src/e2e/legs_tests.rs -> crates/pod-e2e/src/legs_tests.rs
+file e488f5eb9652cb9100771599ada445db8fa3537c crates/podssh-relay/src/e2e/mod.rs -> crates/pod-e2e/src/lib.rs
+file 8112b177448814635d4808e855f3d130b6e9068b crates/podssh-relay/src/e2e/net.rs -> crates/pod-e2e/src/net.rs
+file c2801b243a7da166a805b4b66bdb566fb11158e2 crates/podssh-relay/src/e2e/person.rs -> crates/pod-e2e/src/person.rs
+file 4fbe8a3ac2c3e9a7a122070d8d0e911d05226480 crates/podssh-relay/src/e2e/person_tests.rs -> crates/pod-e2e/src/person_tests.rs
+file 47d7008e94463eb0094bad47db20cb33228cd480 crates/podssh-relay/tests/e2e.rs -> crates/pod-e2e/tests/e2e.rs
+file 2198de457b68a680c8623d71bb3cc46540f644d9 crates/podssh-relay/tests/e2e_faults.rs -> crates/pod-e2e/tests/e2e_faults.rs
+file 7febb8b8e5d276d1f26cf338ae6954fe326a490b crates/podssh-relay/tests/e2e_harness/mod.rs -> crates/pod-e2e/tests/e2e_harness/mod.rs
+file 0f12523af97e3bfb132d3bb8886a249a607f0084 crates/podssh-relay/tests/e2e_net.rs -> crates/pod-e2e/tests/e2e_net.rs
+file fd97339b702149b6c7eb24690abef1031e81690d crates/podssh-relay/tests/person.rs -> crates/pod-e2e/tests/person.rs
+file 41b0fb5f675170b5635d7df50c7e9a299dd25b9b crates/podssh-relay/tests/routes.rs -> crates/pod-e2e/tests/routes.rs
+file 629374e71c0176bb601554f25a465fa292293ee3 crates/podssh-relay/tests/session_handover.rs -> crates/pod-e2e/tests/session_handover.rs
