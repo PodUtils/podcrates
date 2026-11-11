@@ -3188,8 +3188,12 @@ rule; the `enter` of the tree tests sets the signal, and the step of T-202
 asserts that the payload ends with its launcher. Tests:
 `a_payload_ends_with_the_thread_that_forked_it` (pod-enter, 166 tests);
 `tree` 7 steps. Plant `enter-no-death-signal` (a signal of 0) fails the
-test of pod-enter. Breaking: `Plan` has the field `die_with_parent`. Not
-read: whether podvm's entry sets it (the hand-off of the tag asks).
+test of pod-enter. Breaking: `Plan` has the field `die_with_parent`.
+podvm took `v0.22.0` at `c9d5038` (PodUtils/podvm#262): the launcher of
+`podvm-supervise` sets `die_with_parent: true` (it forks from its one
+thread), and each other `Plan` keeps `false`. Its experiment 437: after a
+SIGKILL to the launcher of `podvm run -d`, the payload ends (state Z) and
+`ps -a` names the container Dead; with `false` the payload lives (state S).
 
 # T-206: `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260)
 

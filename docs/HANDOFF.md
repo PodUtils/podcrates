@@ -31,8 +31,10 @@ page current; remove a line when its work is done.
     podnet. `pod-hold` at `b759937`,
     its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
     podnet's T-174 (the netns router).
-  - podvm: `v0.21.0` (`1ffe87e`, PodUtils/podvm#257; its incus tier calls
-    `pod-incus`, proved by its experiment 434 against incusd 6.0.0). Its
+  - podvm: `v0.22.0` (`c9d5038`, PodUtils/podvm#262; the launcher of
+    `podvm-supervise` sets `die_with_parent`, proved by its experiment 437;
+    its incus tier calls `pod-incus`). It waits for `v0.23.0` (`pod-confine`
+    for PodUtils/podvm@T-1658, the fix of #261 for PodUtils/podvm@T-1659). Its
     PodUtils/podvm@T-1722 may ask for `exec_attached`.
   - podrunner: `v0.22.0` (`82b7af0`; `pod-job` at `0457ed0`). Its tests
     25 and 26 pass on the fake unit and on podvm `v0.2.0-beta.3` (run

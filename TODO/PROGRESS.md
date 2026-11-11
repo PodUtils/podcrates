@@ -17,9 +17,9 @@
   `pod-session` at `6f78a7c7`); podnet is on `v0.21.0`
   (`54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
   `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
-  its `connect` and `packet` at `e4d4049`); podvm is on `v0.21.0` (`1ffe87e`,
-  PodUtils/podvm#257: its incus tier calls `pod-incus`; experiment 434
-  passes against incusd 6.0.0); podrunner is on `v0.22.0`
+  its `connect` and `packet` at `e4d4049`); podvm is on `v0.22.0` (`c9d5038`,
+  PodUtils/podvm#262: its launcher sets `die_with_parent`, experiment 437;
+  its incus tier calls `pod-incus`); podrunner is on `v0.22.0`
   (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
 - Takes that wait: podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
