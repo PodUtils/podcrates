@@ -1,6 +1,7 @@
 {
   "job-offer/invalid-job-id-path.json": "a job id has only",
   "job-offer/invalid-payload-tag.json": "the payload is not sha256:HEX",
+  "job-offer/invalid-policy-free-object.json": "the policy is not a broker-policy.v1 policy",
   "job-offer/invalid-required-limit-no-value.json": "the required limit \"wall\" has no value",
   "job-offer/invalid-scaleset-payload.json": "a github-scaleset source gives no payload",
   "job-offer/invalid-tier-field.json": "unknown field `tier`",

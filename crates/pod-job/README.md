@@ -61,7 +61,14 @@ reader in another language gets the verdict of the types:
 * `arch` is `x86_64` or `aarch64`.
 * An offer: each limit is one of `wall`, `cpu`, `memory`, `pids`, `disk`;
   each name of `limits_required` has a value in `limits`; `payload` is
-  `sha256:` and 64 lower-case hex digits (an image by tag is refused).
+  `sha256:` and 64 lower-case hex digits (an image by tag is refused);
+  `policy` is an empty object (no policy) or a policy of
+  `broker-policy.v1`. The schema of the offer refers to
+  `schemas/broker-policy.v1.schema.json` by its `$id`, so a validator needs
+  that file as a resource too. `JobOffer::check` reads the top level of
+  the policy (its keys, `schema` 1 and `mode`); the consumer reads the
+  rest with `pod_broker::Policy::from_value` and refuses a bad policy with
+  `egress-policy-unsupported`.
 * A report: a `refused` report has a `refusal_code` and no unit; a
   `refusal_code` needs `refused`; a `withdrawn` report has no unit. In the
   public report, `unit_kind` and `boundary` stand for the unit.

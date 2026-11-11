@@ -29,7 +29,11 @@ fn examples() -> PathBuf {
 }
 
 /// The start of the `$id` of each schema of `schemas/`.
-const ID: &str = "https://github.com/PodUtils/podcrates/blob/main/schemas/";
+const ID: &str = crate::SCHEMAS;
+
+/// The schemas of `schemas/` that the records refer to by `$ref`, and that
+/// no type of this crate writes.
+const REFERRED: [&str; 1] = ["broker-policy.v1.schema.json"];
 
 /// Each record: the name of its schema file and of its directory of
 /// examples.
@@ -89,6 +93,11 @@ impl Validator {
         let mut compiler = boon::Compiler::new();
         let mut schemas = boon::Schemas::new();
         let mut index = BTreeMap::new();
+        for file in REFERRED {
+            let text = std::fs::read_to_string(root().join(file)).expect("a schema");
+            let value: Value = serde_json::from_str(&text).expect("a schema is JSON");
+            compiler.add_resource(&format!("{ID}{file}"), value).expect("a resource");
+        }
         for (name, schema) in generated() {
             let id = format!("{ID}{name}.v1.schema.json");
             compiler.add_resource(&id, schema.to_value()).expect("a resource");
@@ -164,8 +173,8 @@ fn each_example_passes_or_fails_for_its_reason() {
             }
         }
     }
-    assert_eq!((valid, invalid), (11, 19));
-    assert_eq!(expect.len(), 19, "expect.json names a file that does not exist");
+    assert_eq!((valid, invalid), (11, 20));
+    assert_eq!(expect.len(), 20, "expect.json names a file that does not exist");
 }
 
 #[test]

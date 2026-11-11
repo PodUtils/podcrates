@@ -58,10 +58,14 @@ page current; remove a line when its work is done.
 - T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
   `pod-services` and `Rewound::new` of `pod-session`; read each fact again
   at its source before the data.
-- `main` holds work after `v0.15.0` for the next tag: T-162 (the tree
-  kill of `pod-supervise`, for podvm and podrunner), T-169 and T-170
-  step 1 (`pod-hold`, for podnet), T-157 (four nodes removed from
-  `pod-services`). The next release writes the adoption patches.
+- `main` holds work after `v0.17.0` for the next tag, each for
+  podrunner: T-161 (the names mode of `pod-broker`, its canary and the
+  flag of an open suffix); T-177 (breaking: the broker policy renames
+  `version` to `schema`, and each log line starts with `"schema":1`);
+  T-178 (the `policy` of an offer is a `broker-policy.v1` policy; the
+  example `valid-limits-and-need.json` of podrunner's draft changed). The
+  release notes name the breaking changes, and the hand-off tells
+  podrunner and podvm (`--net broker` reads the policy too).
 
 ## Waiting for the owner
 

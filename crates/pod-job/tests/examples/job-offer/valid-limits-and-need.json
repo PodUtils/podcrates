@@ -31,8 +31,15 @@
     "container": true
   },
   "policy": {
+    "schema": 1,
+    "mode": "allow",
     "allow": [
-      "github.com:443"
+      {
+        "host": "github.com",
+        "ports": [
+          443
+        ]
+      }
     ]
   }
 }

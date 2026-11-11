@@ -32,5 +32,9 @@ pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields};
 /// each schema file and its `$id` carry the same number (`NAME.v1`).
 pub const SCHEMA: u32 = 1;
 
+/// The start of the `$id` of each schema of `schemas/`: the schema file
+/// `NAME.vN.schema.json` on the branch `main` of podcrates.
+pub const SCHEMAS: &str = "https://github.com/PodUtils/podcrates/blob/main/schemas/";
+
 /// The architectures of a unit and of a job.
 pub const ARCHES: [&str; 2] = ["x86_64", "aarch64"];

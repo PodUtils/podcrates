@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 180 entries: 58 open, 3 partial, 0 blocked, 119 done.
+`TODO/INDEX.md` holds 180 entries: 57 open, 3 partial, 0 blocked, 120 done.
 
 ## State
 
@@ -49,10 +49,9 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): T-178 (the `policy` of an offer);
-   the names mode of `pod-broker` and the one version rule of `schemas/`
-   go out with the next tag;
-   T-146 tracks the plan. Each new ask of the
+2. **podrunner** (PodUtils/podrunner#1): the names mode of `pod-broker`,
+   the one version rule of `schemas/` and the `policy` of an offer go out
+   with the next tag (`docs/HANDOFF.md`). T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
 3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;
    T-170 step 2 after podnet's COORD issue), from podnet's answer

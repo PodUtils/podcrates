@@ -586,7 +586,7 @@ of `pod-core` names the key. `OTHER_RULE` is gone.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -618,6 +618,25 @@ is refused by the schema of the offer. If T-177 renames `version`, take it first
 ```sh
 cargo test -p pod-job --all-features
 ```
+
+## Done
+
+2026-11-11. The schema of `policy` is `anyOf` an empty object and a `$ref`
+to `broker-policy.v1` by its `$id` (`pod_job::SCHEMAS`); the type stays a
+JSON object, so `pod-job` has no pod dependency. `JobOffer::check` reads the
+top level of a policy (the keys of `offer::POLICY_KEYS`, `schema` 1, `mode`,
+the types of `allow` and `deny`) and refuses another with "the policy is
+not a broker-policy.v1 policy". The validator of the tests takes
+`broker-policy.v1.schema.json` as a resource. The example
+`valid-limits-and-need.json` holds a valid policy; its old policy is the
+new example `invalid-policy-free-object.json`. The README names the rule.
+
+- Tests: `the_policy_of_an_offer_is_a_broker_policy` (3 good policies, 6
+  refused by the check and the schema, 3 deep faults refused by the
+  schema); `each_example_passes_or_fails_for_its_reason` (11 valid, 20
+  invalid).
+- The examples are podrunner's draft: the hand-off of the next release
+  tells podrunner the new example.
 
 # T-179: `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11)
 

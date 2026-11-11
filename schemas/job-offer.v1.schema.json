@@ -65,9 +65,16 @@
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "policy": {
-      "description": "The egress policy (the `broker-policy.v1` schema of `pod-broker`).\nAn empty object is no policy.",
-      "type": "object",
-      "additionalProperties": true,
+      "description": "The egress policy: an empty object (no policy), or a policy of the\n`broker-policy.v1` schema of `pod-broker`. `JobOffer::check` reads\nits keys, its version and its mode; the consumer reads the rest with\n`pod_broker::Policy::from_value` and refuses a bad one with\n`egress-policy-unsupported`. The schema of the offer holds the whole\n`broker-policy.v1` schema.",
+      "anyOf": [
+        {
+          "type": "object",
+          "maxProperties": 0
+        },
+        {
+          "$ref": "https://github.com/PodUtils/podcrates/blob/main/schemas/broker-policy.v1.schema.json"
+        }
+      ],
       "default": {}
     },
     "schema": {

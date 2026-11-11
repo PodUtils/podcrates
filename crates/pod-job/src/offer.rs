@@ -116,9 +116,14 @@ pub struct JobOffer {
     #[serde(default)]
     #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::limit_names"))]
     pub limits_required: Vec<String>,
-    /// The egress policy (the `broker-policy.v1` schema of `pod-broker`).
-    /// An empty object is no policy.
+    /// The egress policy: an empty object (no policy), or a policy of the
+    /// `broker-policy.v1` schema of `pod-broker`. `JobOffer::check` reads
+    /// its keys, its version and its mode; the consumer reads the rest with
+    /// `pod_broker::Policy::from_value` and refuses a bad one with
+    /// `egress-policy-unsupported`. The schema of the offer holds the whole
+    /// `broker-policy.v1` schema.
     #[serde(default)]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::policy"))]
     pub policy: Map<String, Value>,
     /// After this time, a job that waits for a slot is withdrawn.
     pub wait_deadline_s: u64,
@@ -157,8 +162,43 @@ impl JobOffer {
         if self.payload.as_deref().is_some_and(|p| !is_digest(p)) {
             return Err("the payload is not sha256:HEX".into());
         }
+        if let Some(why) = policy_fault(&self.policy) {
+            return Err(format!("the policy is not a broker-policy.v1 policy: {why}"));
+        }
         Ok(())
     }
+}
+
+/// The keys of a policy of `broker-policy.v1`.
+pub const POLICY_KEYS: [&str; 4] = ["schema", "mode", "allow", "deny"];
+
+/// Why `policy` is not an empty object or a policy of `broker-policy.v1`,
+/// on the top level only: the keys, the version, the mode, and the types
+/// of the two lists. A free object could carry any value of a source past
+/// the check of the offer.
+fn policy_fault(policy: &Map<String, Value>) -> Option<String> {
+    if policy.is_empty() {
+        return None;
+    }
+    if let Some(key) = policy.keys().find(|k| !POLICY_KEYS.contains(&k.as_str())) {
+        return Some(format!("unknown key {key:?}"));
+    }
+    if policy.get("schema") != Some(&Value::from(1)) {
+        return Some("schema is not 1".into());
+    }
+    if !matches!(policy.get("mode").and_then(Value::as_str), Some("allow" | "open")) {
+        return Some("mode is not allow or open".into());
+    }
+    let list_of = |key: &str, item: fn(&Value) -> bool| {
+        policy.get(key).is_none_or(|v| v.as_array().is_some_and(|a| a.iter().all(item)))
+    };
+    if !list_of("allow", Value::is_object) {
+        return Some("allow is not a list of rules".into());
+    }
+    if !list_of("deny", Value::is_string) {
+        return Some("deny is not a list of strings".into());
+    }
+    None
 }
 
 /// True for `sha256:` and 64 lower-case hex digits.

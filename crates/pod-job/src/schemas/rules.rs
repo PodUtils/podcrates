@@ -159,6 +159,50 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
     }
 }
 
+/// The `policy` of an offer is an empty object or a `broker-policy.v1`
+/// policy (T-178). The check reads the top level; the schema of the offer
+/// holds the whole `broker-policy.v1` schema by its `$ref`, so it also
+/// refuses a policy whose rule `pod-broker` refuses.
+#[test]
+fn the_policy_of_an_offer_is_a_broker_policy() {
+    let validator = Validator::new();
+    let base = example("job-offer/valid-limits-and-need.json");
+    let with = |policy: Value| {
+        let mut offer = base.clone();
+        offer["policy"] = policy;
+        (offer_verdict(&offer, false), validator.check("job-offer", &offer).map_err(|_| ()))
+    };
+    for good in [
+        json!({}),
+        json!({"schema": 1, "mode": "open"}),
+        json!({"schema": 1, "mode": "allow", "allow": [{"host": "*.github.com", "ports": [443]}], "deny": ["10.0.0.0/8"]}),
+    ] {
+        assert_eq!(with(good.clone()), (Ok(()), Ok(())), "{good}");
+    }
+    for (bad, why) in [
+        (json!({"allow": ["github.com:443"]}), "schema is not 1"),
+        (json!({"schema": 1, "mode": "allow", "token": "x"}), "unknown key \"token\""),
+        (json!({"schema": 2, "mode": "open"}), "schema is not 1"),
+        (json!({"schema": 1, "mode": "closed"}), "mode is not allow or open"),
+        (json!({"schema": 1, "mode": "allow", "allow": ["github.com:443"]}), "allow is not a list of rules"),
+        (json!({"schema": 1, "mode": "allow", "deny": [1]}), "deny is not a list of strings"),
+    ] {
+        let (check, schema) = with(bad.clone());
+        let check = check.expect_err(&bad.to_string());
+        assert!(check.contains("the policy is not a broker-policy.v1 policy") && check.contains(why), "{bad}: {check}");
+        assert!(schema.is_err(), "{bad}: the schema takes it");
+    }
+    // A rule that `pod-broker` refuses: the schema refuses it, and the
+    // consumer refuses it with `egress-policy-unsupported`.
+    for deep in [
+        json!({"schema": 1, "mode": "allow", "allow": [{"host": ""}]}),
+        json!({"schema": 1, "mode": "allow", "allow": [{"host": "a.example", "path": "v1"}]}),
+        json!({"schema": 1, "mode": "allow", "allow": [{"host": "a.example", "extra": 1}]}),
+    ] {
+        assert_eq!(with(deep.clone()).1, Err(()), "{deep}: the schema takes it");
+    }
+}
+
 /// One rule for the version of each schema of `schemas/` (T-177): the file
 /// is `NAME.vN.schema.json`, its `$id` is the URL of that file on `main`, it
 /// is JSON Schema 2020-12, and the object has a field `schema`, its first
@@ -185,7 +229,10 @@ fn each_schema_names_its_version_one_way() {
         assert_eq!(schema["$schema"], json!("https://json-schema.org/draft/2020-12/schema"), "{file}");
         assert_eq!(schema["additionalProperties"], json!(false), "{file}");
         let mut compiler = boon::Compiler::new();
-        compiler.add_resource(&format!("{ID}{file}"), schema.clone()).expect("a resource");
+        for each in &files {
+            let value = serde_json::from_str(&std::fs::read_to_string(root().join(each)).expect("a schema"));
+            compiler.add_resource(&format!("{ID}{each}"), value.expect("a schema is JSON")).expect("a resource");
+        }
         compiler.compile(&format!("{ID}{file}"), &mut boon::Schemas::new()).unwrap_or_else(|e| panic!("{file}: {e}"));
         assert_eq!(schema["properties"]["schema"]["const"], json!(n), "{file}: schema is not the constant {n}");
         assert_eq!(schema["required"][0], json!("schema"), "{file}: schema is not the first required key");

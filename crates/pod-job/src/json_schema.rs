@@ -4,7 +4,9 @@
 //! schema can hold. Thus a validator of the schema and the `check` of a
 //! record give the same verdict. Only the rule of a `github-scaleset`
 //! source stays out: the kind of a source is in the configuration, not in
-//! the offer.
+//! the offer. The `policy` of an offer refers to `broker-policy.v1`: the
+//! schema holds each of its rules, and the check reads its top level only
+//! (the consumer reads the rest with `pod-broker`).
 
 use schemars::{Schema, SchemaGenerator, json_schema};
 use serde_json::{Value, json};
@@ -15,6 +17,19 @@ use crate::{ARCHES, SCHEMA};
 /// `schema`: the version of the record, and no other number.
 pub fn version(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "integer", "const": SCHEMA })
+}
+
+/// The `policy` of an offer: an empty object, or a policy of the
+/// `broker-policy.v1` schema, by its `$id`. A validator needs that file as
+/// a resource too.
+pub fn policy(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "anyOf": [
+            { "type": "object", "maxProperties": 0 },
+            { "$ref": format!("{}broker-policy.v1.schema.json", crate::SCHEMAS) }
+        ],
+        "default": {}
+    })
 }
 
 /// `arch`: one of [`ARCHES`].
