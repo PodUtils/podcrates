@@ -230,48 +230,14 @@ pub(super) fn a_openat_detached() -> Outcome {
     Outcome::from(r)
 }
 
-/// `struct sock_filter` and `struct sock_fprog`, in the kernel's layout. The
-/// pointer that follows the `u16` is at the offset of the alignment of a
-/// pointer: 8 on a 64-bit target, 4 on a 32-bit target. `repr(C)` gives
-/// that padding; a written padding of six bytes put the pointer at 8 on a
-/// 32-bit target, where the kernel read a null pointer and the probe got
-/// EFAULT.
-#[repr(C)]
-struct SockFilter {
-    code: u16,
-    jt: u8,
-    jf: u8,
-    k: u32,
-}
-
-#[repr(C)]
-struct SockFprog {
-    len: u16,
-    filter: *const SockFilter,
-}
-
 pub(super) fn a_seccomp_listener() -> Outcome {
     // BPF_RET|BPF_K with SECCOMP_RET_ALLOW: a filter that permits everything
     // and exists only to carry the notification listener.
-    let filter = [SockFilter { code: 0x06, jt: 0, jf: 0, k: 0x7fff_0000 }];
-    let prog = SockFprog { len: 1, filter: filter.as_ptr() };
+    let filter = [sys::bpf_stmt(sys::BPF_RET_K, sys::SECCOMP_RET_ALLOW)];
     if let Err(e) = unsafe { sys::sys(sys::SYS_PRCTL, [sys::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0]) } {
         return precondition("prctl(PR_SET_NO_NEW_PRIVS)", e);
     }
-    let r = unsafe {
-        sys::sys(
-            sys::SYS_SECCOMP,
-            [
-                sys::SECCOMP_SET_MODE_FILTER,
-                sys::SECCOMP_FILTER_FLAG_NEW_LISTENER,
-                &prog as *const SockFprog as u64,
-                0,
-                0,
-                0,
-            ],
-        )
-    };
-    match r {
+    match sys::seccomp_set_filter(&filter, sys::SECCOMP_FILTER_FLAG_NEW_LISTENER) {
         Ok(fd) => {
             let _ = sys::close(fd);
             Outcome::ok()
@@ -303,22 +269,8 @@ pub(super) fn a_landlock() -> Outcome {
     // (NULL, 0, LANDLOCK_CREATE_RULESET_VERSION) returns the ABI rather than a
     // ruleset fd. This row reports whether an LSM of the class that explains
     // mechanism M is present at all, which is not a verdict about the caller.
-    match unsafe { sys::sys(sys::SYS_LANDLOCK_CREATE_RULESET, [0, 0, 1, 0, 0, 0]) } {
+    match sys::landlock_abi() {
         Ok(abi) => Outcome::ok_with(format!("ABI {abi}")),
         Err(e) => Outcome::denied(e),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // The kernel reads the pointer of `struct sock_fprog` at the size of a
-    // pointer, on a 32-bit target too.
-    #[test]
-    fn the_filter_pointer_is_where_the_kernel_reads_it() {
-        assert_eq!(std::mem::offset_of!(SockFprog, filter), size_of::<usize>());
-        assert_eq!(size_of::<SockFprog>(), 2 * size_of::<usize>());
-        assert_eq!(size_of::<SockFilter>(), 8);
     }
 }

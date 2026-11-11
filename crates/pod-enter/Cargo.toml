@@ -12,6 +12,15 @@ repository.workspace = true
 pod-core = { workspace = true }
 # The raw system calls, the selected rung, the binfmt_misc registrations.
 pod-hostprobe = { workspace = true }
+# The confinement of a payload (`Plan.confine`).
+pod-confine = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
+
+# The confinement of a real payload on each rung: a test binary with no
+# libtest, so that a child forks from a process with one thread, and the
+# binary is the payload itself (its first argument `payload`).
+[[test]]
+name = "confine"
+harness = false

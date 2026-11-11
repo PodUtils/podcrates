@@ -97,6 +97,7 @@ fn main() {
     lines.extend(hold());
     lines.extend(guest());
     lines.extend(enter());
+    lines.extend(confine());
     lines.extend(oci(tls));
     lines.extend(extract());
     lines.extend(rootfs());
@@ -234,6 +235,22 @@ fn enter() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn enter() -> Option<String> {
+    None
+}
+
+/// pod-confine is Linux only: on another target the crate is empty. The
+/// probe of the ABI forks one child; the compile builds the deny filter.
+#[cfg(target_os = "linux")]
+fn confine() -> Option<String> {
+    let abi = pod_confine::check().map_or_else(|e| e.to_string(), |abi| format!("Landlock ABI {abi}"));
+    let filter = pod_confine::deny::program(&pod_confine::Deny::defaults())
+        .map_or_else(|e| e.to_string(), |p| format!("{} BPF instructions", p.len()));
+    let spec = pod_confine::Spec::new().allow("/", pod_confine::Access::READ).compile(pod_confine::MIN_ABI);
+    Some(format!("pod-confine: {abi}, a deny filter of {filter}, a compile of one rule: {}", spec.is_ok()))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn confine() -> Option<String> {
     None
 }
 

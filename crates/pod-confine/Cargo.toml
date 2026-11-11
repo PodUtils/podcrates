@@ -1,0 +1,19 @@
+[package]
+name = "pod-confine"
+description = "The confinement of a payload with no privilege on Linux: Landlock rules for the paths and the TCP ports, a seccomp deny filter and no_new_privs, compiled before the fork and applied in the child with no allocation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Linux only: on another target the crate is empty.
+[target.'cfg(target_os = "linux")'.dependencies]
+# The failure of a compile and of the probe.
+pod-core = { workspace = true }
+# The raw system calls: Landlock, seccomp, prctl, openat2, the fork of the
+# probe; the audit arch of the build target.
+pod-hostprobe = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }

@@ -1,0 +1,7 @@
+# The ruleset does not handle the write right of a file: a payload writes
+# each file of its user outside the write list (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test compile::tests::the_ruleset_handles_each_right_of_the_abi \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features -- the_ruleset_handles_each_right_of_the_abi a_write_outside_the_write_list_is_eacces'
+LIMIT=1800

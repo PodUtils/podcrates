@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -361,7 +361,7 @@
+ /// close-on-exec copy above each such number (the original closes).
+ fn clear_of_passes(plan: &Plan, fd: i64) -> Result<i64> {
+     let targets = || plan.fds.pass.iter().map(|&(child_fd, _)| child_fd);
+-    if !targets().any(|t| t == fd) {
++    if true || !targets().any(|t| t == fd) {
+         return Ok(fd);
+     }
+     let above = targets().max().unwrap_or(0) + 1;

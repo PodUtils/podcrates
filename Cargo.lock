@@ -1515,6 +1515,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-confine"
+version = "0.22.0"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+ "pod-testkit",
+]
+
+[[package]]
 name = "pod-core"
 version = "0.22.0"
 dependencies = [
@@ -1568,6 +1577,7 @@ dependencies = [
 name = "pod-enter"
 version = "0.22.0"
 dependencies = [
+ "pod-confine",
  "pod-core",
  "pod-hostprobe",
  "pod-testkit",
@@ -2576,6 +2586,7 @@ name = "static-probe"
 version = "0.22.0"
 dependencies = [
  "pod-broker",
+ "pod-confine",
  "pod-core",
  "pod-dns",
  "pod-e2e",
@@ -2610,6 +2621,7 @@ dependencies = [
 name = "static-probe-lean"
 version = "0.22.0"
 dependencies = [
+ "pod-confine",
  "pod-core",
  "pod-tls",
  "pod-wg",

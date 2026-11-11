@@ -125,37 +125,10 @@ pub const SYS_ACCEPT: libc::c_long = libc::SYS_accept;
 #[cfg(target_arch = "x86")]
 pub const SYS_ACCEPT: libc::c_long = libc::SYS_accept4;
 
-/// The audit arch value of this build target.
-#[cfg(target_arch = "x86_64")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0xC000_003E;
-#[cfg(target_arch = "aarch64")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0xC000_00B7;
-#[cfg(target_arch = "arm")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0x4000_0028;
-#[cfg(target_arch = "riscv64")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0xC000_00F3;
-#[cfg(target_arch = "x86")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0x4000_0003;
-#[cfg(target_arch = "loongarch64")]
-pub const AUDIT_ARCH_NATIVE: u32 = 0xC000_0102;
-#[cfg(all(target_arch = "powerpc64", target_endian = "little"))]
-pub const AUDIT_ARCH_NATIVE: u32 = 0xC000_0015;
-#[cfg(not(any(
-    target_arch = "x86_64",
-    target_arch = "aarch64",
-    target_arch = "arm",
-    target_arch = "riscv64",
-    target_arch = "x86",
-    target_arch = "loongarch64",
-    all(target_arch = "powerpc64", target_endian = "little")
-)))]
-compile_error!("pod-hold: add the AUDIT_ARCH value for this target");
-
-/// The x32 system-call bit on x86_64. Zero on other targets.
-#[cfg(target_arch = "x86_64")]
-pub const X32_SYSCALL_BIT: u32 = 0x4000_0000;
-#[cfg(not(target_arch = "x86_64"))]
-pub const X32_SYSCALL_BIT: u32 = 0;
+/// The audit arch value of this build target, and the x32 system-call bit
+/// on x86_64 (zero on other targets). One table for each filter of the
+/// workspace: `pod-confine` reads the same.
+pub use pod_hostprobe::sys::{AUDIT_ARCH_NATIVE, X32_SYSCALL_BIT};
 
 #[cfg(test)]
 mod tests {

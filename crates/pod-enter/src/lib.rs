@@ -19,6 +19,11 @@
 //! 5. `fchdir`, `chroot(".")`, `chdir("/")`. Only then does the child
 //!    resolve the program, in the process that changed the root.
 //!
+//! After the root change come the limits, `no_new_privs` and, where the
+//! plan has one, the confinement ([`Plan::confine`], `pod-confine`): its
+//! paths open before the fork (guest paths on each rung with a chroot),
+//! and the child applies it as the last step before the exec.
+//!
 //! The banner goes to the error writer. The payload owns the standard
 //! output, so a banner cannot corrupt a pipeline of the payload.
 //!
@@ -51,6 +56,7 @@ pub mod status;
 pub mod userland;
 
 mod child;
+mod confine;
 mod entry;
 mod launch;
 mod names;

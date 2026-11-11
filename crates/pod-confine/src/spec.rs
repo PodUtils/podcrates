@@ -1,0 +1,176 @@
+//! What a payload may do: the access set of each path, the TCP ports of
+//! `connect` and `bind`, and the calls that fail. A profile of a consumer
+//! maps to a [`Spec`]; [`Spec::compile`] turns it into the data of
+//! [`crate::apply`].
+
+use pod_hostprobe::sys as k;
+
+use crate::deny::Deny;
+
+/// The access set of one path: read, write, execute, or a union of them
+/// (`Access::READ | Access::EXECUTE`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Access(u8);
+
+impl Access {
+    /// No access. A rule with no access is refused at the compile.
+    pub const NONE: Access = Access(0);
+    /// Read a file, list a directory.
+    pub const READ: Access = Access(1);
+    /// Write, truncate, make, remove, rename and link; an `ioctl` on a
+    /// device.
+    pub const WRITE: Access = Access(2);
+    /// Execute a file.
+    pub const EXECUTE: Access = Access(4);
+
+    /// True when each access of `other` is in `self`.
+    pub fn contains(self, other: Access) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// The words of the set, for a refusal: `read+execute`.
+    pub fn words(self) -> String {
+        let words: Vec<&str> = [(Access::READ, "read"), (Access::WRITE, "write"), (Access::EXECUTE, "execute")]
+            .into_iter()
+            .filter(|(a, _)| self.contains(*a))
+            .map(|(_, w)| w)
+            .collect();
+        if words.is_empty() { "none".to_string() } else { words.join("+") }
+    }
+
+    /// The Landlock rights of the set for a directory, at each ABI. The
+    /// compile masks them with the rights that the ABI handles.
+    pub fn rights(self) -> u64 {
+        let mut r = 0;
+        if self.contains(Access::READ) {
+            r |= READ_RIGHTS;
+        }
+        if self.contains(Access::WRITE) {
+            r |= WRITE_RIGHTS;
+        }
+        if self.contains(Access::EXECUTE) {
+            r |= u64::from(k::LANDLOCK_ACCESS_FS_EXECUTE);
+        }
+        r
+    }
+}
+
+impl std::ops::BitOr for Access {
+    type Output = Access;
+    fn bitor(self, other: Access) -> Access {
+        Access(self.0 | other.0)
+    }
+}
+
+const READ_RIGHTS: u64 = (k::LANDLOCK_ACCESS_FS_READ_FILE | k::LANDLOCK_ACCESS_FS_READ_DIR) as u64;
+
+const WRITE_RIGHTS: u64 = (k::LANDLOCK_ACCESS_FS_WRITE_FILE
+    | k::LANDLOCK_ACCESS_FS_REMOVE_DIR
+    | k::LANDLOCK_ACCESS_FS_REMOVE_FILE
+    | k::LANDLOCK_ACCESS_FS_MAKE_CHAR
+    | k::LANDLOCK_ACCESS_FS_MAKE_DIR
+    | k::LANDLOCK_ACCESS_FS_MAKE_REG
+    | k::LANDLOCK_ACCESS_FS_MAKE_SOCK
+    | k::LANDLOCK_ACCESS_FS_MAKE_FIFO
+    | k::LANDLOCK_ACCESS_FS_MAKE_BLOCK
+    | k::LANDLOCK_ACCESS_FS_MAKE_SYM
+    | k::LANDLOCK_ACCESS_FS_REFER
+    | k::LANDLOCK_ACCESS_FS_TRUNCATE
+    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV) as u64;
+
+/// The rights that a rule on a file (not a directory) can hold; the kernel
+/// refuses each other right on a file with `EINVAL`.
+pub const FILE_RIGHTS: u64 = (k::LANDLOCK_ACCESS_FS_EXECUTE
+    | k::LANDLOCK_ACCESS_FS_WRITE_FILE
+    | k::LANDLOCK_ACCESS_FS_READ_FILE
+    | k::LANDLOCK_ACCESS_FS_TRUNCATE
+    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV) as u64;
+
+/// The file rights that the kernel of `abi` knows: the ruleset handles each
+/// of them, so a right that no rule gives is denied. ABI 1 has the first
+/// thirteen, ABI 2 adds `REFER`, ABI 3 `TRUNCATE`, ABI 5 `IOCTL_DEV`.
+pub fn handled_fs(abi: u32) -> u64 {
+    if abi == 0 {
+        return 0;
+    }
+    let mut r = (k::LANDLOCK_ACCESS_FS_MAKE_SYM << 1) as u64 - 1;
+    if abi >= 2 {
+        r |= u64::from(k::LANDLOCK_ACCESS_FS_REFER);
+    }
+    if abi >= 3 {
+        r |= u64::from(k::LANDLOCK_ACCESS_FS_TRUNCATE);
+    }
+    if abi >= 5 {
+        r |= u64::from(k::LANDLOCK_ACCESS_FS_IOCTL_DEV);
+    }
+    r
+}
+
+/// The right of a TCP `connect` and of a TCP `bind` (ABI 4).
+pub const CONNECT_TCP: u64 = k::LANDLOCK_ACCESS_NET_CONNECT_TCP as u64;
+pub const BIND_TCP: u64 = k::LANDLOCK_ACCESS_NET_BIND_TCP as u64;
+
+/// One path and its access set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PathRule {
+    /// An absolute path: of the host for [`Spec::compile`], of the guest
+    /// root for [`Spec::compile_in`].
+    pub path: String,
+    pub access: Access,
+}
+
+/// The confinement of a payload.
+///
+/// Each path that no rule names, and each path under it, is denied for
+/// each access (the ruleset handles each file right of the ABI). A rule on
+/// a directory covers the tree under it. A TCP list that is `None` leaves
+/// that call free; `Some` allows only its ports (an empty list denies each
+/// port). Landlock does not restrict UDP or a Unix socket.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Spec {
+    pub paths: Vec<PathRule>,
+    /// The ports of a TCP `connect`.
+    pub connect: Option<Vec<u16>>,
+    /// The ports of a TCP `bind`.
+    pub bind: Option<Vec<u16>>,
+    /// The calls that fail, with their errno ([`Deny::defaults`]).
+    pub deny: Vec<Deny>,
+}
+
+impl Default for Spec {
+    fn default() -> Spec {
+        Spec::new()
+    }
+}
+
+impl Spec {
+    /// No path, TCP free, and the default deny list.
+    pub fn new() -> Spec {
+        Spec { paths: Vec::new(), connect: None, bind: None, deny: Deny::defaults() }
+    }
+
+    /// Add a path with its access set.
+    pub fn allow(mut self, path: impl Into<String>, access: Access) -> Spec {
+        self.paths.push(PathRule { path: path.into(), access });
+        self
+    }
+
+    /// Allow a TCP `connect` to `port` (and restrict each other port).
+    pub fn connect_to(mut self, port: u16) -> Spec {
+        self.connect.get_or_insert_with(Vec::new).push(port);
+        self
+    }
+
+    /// Allow a TCP `bind` to `port` (and restrict each other port).
+    pub fn bind_to(mut self, port: u16) -> Spec {
+        self.bind.get_or_insert_with(Vec::new).push(port);
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests;

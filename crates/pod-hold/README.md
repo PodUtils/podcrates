@@ -26,7 +26,7 @@ user notification itself is 5.0); unprivileged user namespaces and
 
 | Module | Contents |
 | --- | --- |
-| `abi` | The structures of the kernel (`SeccompNotif`, `SeccompNotifResp`, `SeccompNotifAddfd`), the ioctl numbers from their encoding (`Encoding::NATIVE`: powerpc and mips put the direction at bit 29), `TUNSETIFF`, `AUDIT_ARCH_NATIVE`, `X32_SYSCALL_BIT`, `SYS_ACCEPT`. |
+| `abi` | The structures of the kernel (`SeccompNotif`, `SeccompNotifResp`, `SeccompNotifAddfd`), the ioctl numbers from their encoding (`Encoding::NATIVE`: powerpc and mips put the direction at bit 29), `TUNSETIFF`, `AUDIT_ARCH_NATIVE` and `X32_SYSCALL_BIT` (from `pod_hostprobe::sys`, the one table of the workspace), `SYS_ACCEPT`. |
 | `filter` | `Calls::sockets()` (the 21 calls of podnet's pod), `Calls::of(&[nr])`, `Calls::program()` (the BPF program: a foreign ABI and x32 get `ENOSYS`; `socketcall` gets `ENOSYS` on i386 and powerpc64; a `recvfrom` with no source runs in the kernel), `install(&calls)` (`no_new_privs`, then the filter; the notification descriptor). |
 | `spawn` | `resolve(name, path)` (as `execvp`, with the `PATH` of the caller), `Program::new` and `Program::with_env` (made before the fork), `start(program, &calls)` (a helper thread installs the filter and forks; the child calls only `execve`): `Started { listener, pid, hold }`. |
 | `listen` | `Listener::new(fd, access)` on the reactor of tokio; `recv().await` gives the next `Notification { id, pid, nr, args, memory }`, or `None` when no task uses the filter. The memory is opened for each call, and `SECCOMP_IOCTL_NOTIF_ID_VALID` after the open checks that the task still waits. `filter_unused(fd)`. |

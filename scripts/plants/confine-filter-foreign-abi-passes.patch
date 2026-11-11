@@ -1,0 +1,11 @@
+--- a/crates/pod-confine/src/deny.rs
++++ b/crates/pod-confine/src/deny.rs
+@@ -111,7 +111,7 @@
+     let errno = |e: u32| k::SECCOMP_RET_ERRNO | e;
+     let mut p = vec![
+         stmt(k::BPF_LD_W_ABS, k::SECCOMP_DATA_ARCH),
+-        jump(k::BPF_JEQ_K, k::AUDIT_ARCH_NATIVE, 1, 0),
++        jump(k::BPF_JEQ_K, k::AUDIT_ARCH_NATIVE, 1, 1),
+         stmt(k::BPF_RET_K, errno(u32::from(ENOSYS))),
+         stmt(k::BPF_LD_W_ABS, k::SECCOMP_DATA_NR),
+     ];

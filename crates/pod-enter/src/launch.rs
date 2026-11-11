@@ -125,6 +125,20 @@ pub(crate) fn spawn_with(
         }
     };
 
+    // The confinement of the payload, compiled before the banner and the
+    // fork: the child only applies it ([`crate::confine`]).
+    let confined = crate::confine::compile(plan, chroot.then_some(root))?;
+    // The child puts each passed descriptor onto its number first: the
+    // root descriptor and the memfd must hold no such number.
+    for &(child_fd, _) in &plan.fds.pass {
+        if child_fd == root.fd() || Some(child_fd) == fd_exec {
+            return Err(Error::runtime(
+                Class::Usage,
+                format!("a passed descriptor goes onto {child_fd}, the number of the root file system or of the memfd"),
+            ));
+        }
+    }
+
     // The banner before the fork, so it cannot mix with the first output
     // of the payload. It goes to the error writer, never to the standard
     // output.
@@ -136,6 +150,14 @@ pub(crate) fn spawn_with(
     let mut pipe = [0i32; 2];
     sys::pipe2(&mut pipe, sys::O_CLOEXEC).map_err(|e| errno_failure("pipe2 for the readiness channel failed", e))?;
     let (read_end, write_end) = (i64::from(pipe[0]), i64::from(pipe[1]));
+    // A report on a number of a passed descriptor would go into that file,
+    // and the parent would read the end of the pipe as a success.
+    let read_end = clear_of_passes(plan, read_end).inspect_err(|_| {
+        let _ = sys::close(write_end);
+    })?;
+    let write_end = clear_of_passes(plan, write_end).inspect_err(|_| {
+        let _ = sys::close(read_end);
+    })?;
 
     // The limits as numbers, made before the fork: the child only reads
     // them. The child names a refused limit by its index in one byte.
@@ -251,6 +273,16 @@ pub(crate) fn spawn_with(
             {
                 report(13, e);
             }
+            // The confinement, the last step before the exec: Landlock and
+            // the seccomp filter (its deny list holds the mount calls of
+            // the namespace rung above). A refusal names its call, and the
+            // payload does not run.
+            if let Some(c) = &confined
+                && let Err(r) = pod_confine::apply(c)
+            {
+                let _ = sys::write(write_end, &crate::confine::message(r));
+                sys::exit_group(SETUP_FAILED)
+            }
 
             // The program resolves here, in the process that changed the
             // root. A memfd from the caller execs with no path, under the
@@ -296,7 +328,8 @@ pub(crate) fn spawn_with(
     // never sees the end of the file: the copy of this process holds the
     // pipe open.
     let _ = sys::close(write_end);
-    let mut buf = [0u8; 4];
+    // Four bytes for a step, six for a refusal of the confinement.
+    let mut buf = [0u8; 6];
     let got = loop {
         match sys::read(read_end, &mut buf) {
             Ok(n) => break n,
@@ -312,6 +345,9 @@ pub(crate) fn spawn_with(
     // the parent reaps it here and leaves no zombie.
     let mut st = 0i32;
     let _ = sys::wait4(pid, &mut st);
+    if buf[0] == crate::confine::STEP {
+        return Err(crate::confine::failure(confined.as_ref(), &buf));
+    }
     let errno = sys::Errno(i32::from(buf[1]) | (i32::from(buf[2]) << 8));
     // A failure of the namespace setup does not fail the run: the caller
     // enters chroot, so these steps come back as `NsSetup`.
@@ -319,6 +355,19 @@ pub(crate) fn spawn_with(
         return Err(Error::NsSetup { step, errno });
     }
     Err(step_failure(plan, buf[0], errno, buf[3]))
+}
+
+/// `fd`, or, where the child puts a passed descriptor onto its number, a
+/// close-on-exec copy above each such number (the original closes).
+fn clear_of_passes(plan: &Plan, fd: i64) -> Result<i64> {
+    let targets = || plan.fds.pass.iter().map(|&(child_fd, _)| child_fd);
+    if !targets().any(|t| t == fd) {
+        return Ok(fd);
+    }
+    let above = targets().max().unwrap_or(0) + 1;
+    let moved = sys::fcntl(fd, sys::F_DUPFD_CLOEXEC, above as u64);
+    let _ = sys::close(fd);
+    moved.map_err(|e| errno_failure("moving the readiness pipe clear of the passed descriptors failed", e))
 }
 
 /// The working directory of an entry with no chroot, resolved through the

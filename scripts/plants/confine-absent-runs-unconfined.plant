@@ -1,0 +1,7 @@
+# Where Landlock is absent, apply skips the ruleset and gives Ok: the
+# payload runs with no file and no port rule (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test apply_refuses_where_landlock_is_absent \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test apply -- apply_refuses_where_landlock_is_absent'
+LIMIT=1800

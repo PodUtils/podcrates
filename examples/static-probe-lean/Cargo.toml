@@ -17,3 +17,5 @@ pod-core = { workspace = true }
 pod-tls = { path = "../../crates/pod-tls", default-features = false, features = ["pure", "rsa"] }
 # The WireGuard initiator, sans I/O: no feature, no tokio.
 pod-wg = { workspace = true }
+# The confinement of a payload: no feature, no tokio.
+pod-confine = { workspace = true }

@@ -1,0 +1,7 @@
+# The child of the entry compiles the confinement and does not apply it:
+# the payload runs free (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test the_entry_with_no_chroot_confines_with_host_paths \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --test confine'
+LIMIT=1800

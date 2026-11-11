@@ -25,6 +25,7 @@ crates-io = false
 # No default feature here: a crate that needs the async parts of pod-core
 # (its feature `async`) names it, so that pod-tls builds with no tokio.
 pod-broker = { path = "crates/pod-broker", version = "0.22.0" }
+pod-confine = { path = "crates/pod-confine", version = "0.22.0" }
 pod-core = { path = "crates/pod-core", version = "0.22.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.22.0" }
 pod-e2e = { path = "crates/pod-e2e", version = "0.22.0" }
@@ -77,8 +78,10 @@ bytes = "1"
 # The raw system calls of pod-hostprobe (Linux only). linux-raw-sys gives
 # the layouts of the structs of the kernel and, where syscalls does not
 # build, the numbers of the calls; syscalls gives the numbers and the trap
-# on the other architectures.
-linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "no_std"] }
+# on the other architectures. `landlock` and `ptrace` give the rules of
+# Landlock and the filter, the audit arch values and the return values of
+# seccomp.
+linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "landlock", "no_std", "ptrace"] }
 syscalls = { version = "0.8", default-features = false }
 
 # The archives of pod-extract. tar: the entry API only, no default feature

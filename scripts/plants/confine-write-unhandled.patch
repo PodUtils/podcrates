@@ -1,0 +1,11 @@
+--- a/crates/pod-confine/src/compile.rs
++++ b/crates/pod-confine/src/compile.rs
+@@ -157,7 +157,7 @@
+                 format!("the spec has {} path rules; a spec takes at most {MOST_RULES}", self.paths.len()),
+             ));
+         }
+-        let handled = handled_fs(abi);
++        let handled = handled_fs(abi) & !u64::from(k::LANDLOCK_ACCESS_FS_WRITE_FILE);
+         let mut handled_net = 0;
+         if self.connect.is_some() {
+             handled_net |= CONNECT_TCP;

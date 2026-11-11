@@ -1,0 +1,16 @@
+--- a/crates/pod-confine/src/apply.rs
++++ b/crates/pod-confine/src/apply.rs
+@@ -124,7 +124,12 @@
+     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
+     k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
+     let attr = k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: 0 };
+-    let ruleset = k::landlock_create_ruleset(&attr).map_err(|e| refuse(Call::CreateRuleset, 0, e))?;
++    let ruleset = match k::landlock_create_ruleset(&attr) {
++        Err(e) if e == k::ENOSYS || e.0 == 95 => {
++            return k::seccomp_set_filter(&c.filter, 0).map(drop).map_err(|e| refuse(Call::Seccomp, 0, e));
++        }
++        other => other.map_err(|e| refuse(Call::CreateRuleset, 0, e))?,
++    };
+     let restricted = add_rules(c, ruleset)
+         .and_then(|()| k::landlock_restrict_self(ruleset).map(drop).map_err(|e| refuse(Call::RestrictSelf, 0, e)));
+     let _ = k::close(ruleset);

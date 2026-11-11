@@ -260,6 +260,35 @@ pub const SYS_PPOLL: i64 = nr!(ppoll, __NR_ppoll);
 pub const SYS_RT_SIGPROCMASK: i64 = nr!(rt_sigprocmask, __NR_rt_sigprocmask);
 pub const SYS_SIGNALFD4: i64 = nr!(signalfd4, __NR_signalfd4);
 pub const SYS_LANDLOCK_CREATE_RULESET: i64 = nr!(landlock_create_ruleset, __NR_landlock_create_ruleset);
+pub const SYS_LANDLOCK_ADD_RULE: i64 = nr!(landlock_add_rule, __NR_landlock_add_rule);
+pub const SYS_LANDLOCK_RESTRICT_SELF: i64 = nr!(landlock_restrict_self, __NR_landlock_restrict_self);
+pub const SYS_CONNECT: i64 = nr!(connect, __NR_connect);
+// The calls of the deny list of a confined payload (pod-confine), beside
+// the ones above that a probe asks too (`unshare`, `mount`, `umount2`,
+// `pivot_root`, the new mount API, `ptrace`, `process_vm_readv`).
+pub const SYS_SETNS: i64 = nr!(setns, __NR_setns);
+pub const SYS_CLONE3: i64 = nr!(clone3, __NR_clone3);
+pub const SYS_FSPICK: i64 = nr!(fspick, __NR_fspick);
+pub const SYS_MOUNT_SETATTR: i64 = nr!(mount_setattr, __NR_mount_setattr);
+pub const SYS_OPEN_TREE_ATTR: i64 = nr!(open_tree_attr, __NR_open_tree_attr);
+pub const SYS_PROCESS_VM_WRITEV: i64 = nr!(process_vm_writev, __NR_process_vm_writev);
+pub const SYS_KEYCTL: i64 = nr!(keyctl, __NR_keyctl);
+pub const SYS_ADD_KEY: i64 = nr!(add_key, __NR_add_key);
+pub const SYS_REQUEST_KEY: i64 = nr!(request_key, __NR_request_key);
+pub const SYS_BPF: i64 = nr!(bpf, __NR_bpf);
+pub const SYS_PERF_EVENT_OPEN: i64 = nr!(perf_event_open, __NR_perf_event_open);
+pub const SYS_KEXEC_LOAD: i64 = nr!(kexec_load, __NR_kexec_load);
+/// i386 has no `kexec_file_load`.
+#[cfg(not(target_arch = "x86"))]
+pub const SYS_KEXEC_FILE_LOAD: i64 = nr!(kexec_file_load, __NR_kexec_file_load);
+pub const SYS_INIT_MODULE: i64 = nr!(init_module, __NR_init_module);
+pub const SYS_FINIT_MODULE: i64 = nr!(finit_module, __NR_finit_module);
+pub const SYS_DELETE_MODULE: i64 = nr!(delete_module, __NR_delete_module);
+pub const SYS_OPEN_BY_HANDLE_AT: i64 = nr!(open_by_handle_at, __NR_open_by_handle_at);
+pub const SYS_NAME_TO_HANDLE_AT: i64 = nr!(name_to_handle_at, __NR_name_to_handle_at);
+/// The old `umount` with no flags: only these kernels keep it.
+#[cfg(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"))]
+pub const SYS_UMOUNT: i64 = nr!(umount, __NR_umount);
 pub const SYS_DUP3: i64 = nr!(dup3, __NR_dup3);
 // The entry sequence: the rootfs is held as a directory DESCRIPTOR and entered with `fchdir` then `chroot(".")`, so nothing
 // between checking the path and changing the root can swap it.
@@ -414,6 +443,12 @@ pub use proc::*;
 
 mod statx;
 pub use statx::statx_at;
+
+mod seccomp;
+pub use seccomp::*;
+
+mod landlock;
+pub use landlock::*;
 
 #[cfg(test)]
 mod tests;

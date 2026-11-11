@@ -1,7 +1,7 @@
-//! A binary that links pod-core, pod-tls and pod-wg with no default feature,
-//! so that no tokio is in it. `scripts/check-static.sh` checks the binary on each
-//! target, and `scripts/check-probe.py` checks the tree (docs/design.md,
-//! section 7).
+//! A binary that links pod-core, pod-tls, pod-wg and pod-confine with no
+//! default feature, so that no tokio is in it. `scripts/check-static.sh`
+//! checks the binary on each target, and `scripts/check-probe.py` checks
+//! the tree (docs/design.md, section 7).
 
 fn main() {
     let provider = std::sync::Arc::new(pod_tls::crypto::provider());
@@ -13,4 +13,16 @@ fn main() {
     let keys = pod_wg::Keys { private: [1; 32], peer_public: [2; 32], reserved: [0; 3] };
     let init = pod_wg::initiate(&keys).map_or_else(|e| e.to_string(), |i| format!("{} bytes", i.message.len()));
     println!("pod-wg: an initiation of {init}");
+    confine();
 }
+
+/// pod-confine is Linux only: on another target the crate is empty.
+#[cfg(target_os = "linux")]
+fn confine() {
+    let abi = pod_confine::probe().map_or_else(|| "none".to_string(), |abi| abi.to_string());
+    let rules = pod_confine::Deny::defaults().len();
+    println!("pod-confine: Landlock ABI {abi}, {rules} calls in the deny list");
+}
+
+#[cfg(not(target_os = "linux"))]
+fn confine() {}

@@ -1,0 +1,8 @@
+# The check of the audit arch jumps past the refusal for each arch, so a
+# call of a foreign ABI (i386 on x86_64) passes the deny list with other
+# numbers (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test deny::tests::a_foreign_abi_and_an_x32_call_get_enosys \.\.\. FAILED'
+RUN='cargo test -p pod-confine --lib -- deny::tests::a_foreign_abi_and_an_x32_call_get_enosys'
+LIMIT=1800

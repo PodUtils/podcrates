@@ -1070,6 +1070,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-confine"
+version = "0.22.0"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+]
+
+[[package]]
 name = "pod-core"
 version = "0.22.0"
 dependencies = [
@@ -1118,6 +1126,7 @@ dependencies = [
 name = "pod-enter"
 version = "0.22.0"
 dependencies = [
+ "pod-confine",
  "pod-core",
  "pod-hostprobe",
 ]

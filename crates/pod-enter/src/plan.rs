@@ -42,6 +42,14 @@ pub struct Plan {
     /// thread that lives as long as the payload (the launcher of
     /// `pod-supervise`): the signal fires at the exit of that thread.
     pub die_with_parent: bool,
+    /// The confinement of the payload ([`pod_confine::Spec`]): compiled
+    /// before the fork, applied in the child after the limits,
+    /// `no_new_privs` and the root change, as the last step before the
+    /// exec. Each rung with a chroot (the chroot sequence, the namespace
+    /// rung, the ladder) takes guest paths; the entry with no chroot takes
+    /// host paths. A host with no Landlock refuses the entry: the payload
+    /// never runs unconfined.
+    pub confine: Option<pod_confine::Spec>,
 }
 
 impl Plan {

@@ -1,0 +1,8 @@
+# The readiness pipe stays on a number that a passed descriptor takes in
+# the child: a step that fails reports into the passed file, and the
+# payload seems to start (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test a_passed_descriptor_takes_the_place_of_no_pipe \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --test confine'
+LIMIT=1800
