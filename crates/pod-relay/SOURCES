@@ -1,0 +1,155 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh 75a503183f373016dc83592f11a13c88258afb2e
+# The cut of docs/design.md, section 4: the relay client of
+# crates/podssh-relay/src (the hosts, the pool, the rank, the failover, the
+# tokens, the roads to a relay, the forward layer, the pairs, the exchange
+# of a pairing by code, the grants, the reverse road and the blocking
+# facade). lib.rs is the root of the crate. Of cache.rs, the token entries
+# come; its private files are pod-core's files (with cache/, which has no
+# token or pool part: no file of cache/ comes). Of code/, exchange.rs and
+# run.rs come (pod-wormhole has the rest; mod.rs, the choice of the
+# mailboxes, stays in podssh). tls_groups.rs stays in podssh: it gives
+# pod-tls the file of the cache. podssh-ws h2_road/ and cleartext/ are
+# podssh's glue over pod-ws (the pool of the process, the way of a proxy
+# choice): no file comes, and the pool is a value of the caller here.
+# Of the tests: each test of these files that needs no other module of
+# podssh-relay (serve/, quick/ and the other roads), with its harness;
+# cleanup/ is pod-core's too. Of tests/cache.rs, the tests of the tokens
+# (pod-core has the tests of the files). tests/pair_code.rs and
+# pair_code_live.rs: the tests that run an exchange (pod-wormhole has the
+# rest). session_relay_resume.rs, relay_serve_*.rs, reverse_carrier.rs,
+# reverse_restart.rs and http_road.rs run the relay role (serve/): they go
+# with pod-relay-serve.
+dir crates/podssh-relay/src/pool
+dir crates/podssh-relay/src/forward_layer
+dir crates/podssh-relay/src/pair
+dir crates/podssh-relay/src/grant
+dir crates/podssh-relay/src/reverse
+dir crates/podssh-relay/src/http_road
+dir crates/podssh-relay/src/quic_road
+dir crates/podssh-relay/src/blocking
+dir crates/podssh-relay/tests/stand_in
+dir crates/podssh-relay/tests/cleanup
+dir crates/podssh-relay/tests/e2e_harness
+dir crates/podssh-relay/tests/drops_podssh
+file 9fb0c1f0e74f13797551ec17f7bde0815443f3c1 crates/podssh-relay/src/addresses.rs -> crates/pod-relay/src/addresses.rs
+file 846b199c062f74cb8946494ecdbdf8703281e76d crates/podssh-relay/src/blocking/bridge.rs -> crates/pod-relay/src/blocking/bridge.rs
+file 053feb7cce8e95f990f84cd4b0e7585cc3923150 crates/podssh-relay/src/blocking/channel.rs -> crates/pod-relay/src/blocking/channel.rs
+file 6f87b353e8b0b1af1d942f8a5ed7e570ec868625 crates/podssh-relay/src/blocking/forward.rs -> crates/pod-relay/src/blocking/forward.rs
+file 1f45d98908c64b57764390f6ed9845c014fbcd0d crates/podssh-relay/src/blocking/mod.rs -> crates/pod-relay/src/blocking/mod.rs
+file 291c501ac4ad472423da14ff3e9955f46c11a8bd crates/podssh-relay/src/cache.rs -> crates/pod-relay/src/cache.rs
+file 1a1e06cb5b8c6a4f3a3698f25acbb8e5a509c72f crates/podssh-relay/src/cleartext.rs -> crates/pod-relay/src/cleartext.rs
+file 624ed4bee636546c4e8236debe01b63842dc7b42 crates/podssh-relay/src/code/exchange.rs -> crates/pod-relay/src/code/exchange.rs
+file 56c293a900524710a041ad8bdf4fd5b58f701963 crates/podssh-relay/src/code/run.rs -> crates/pod-relay/src/code/run.rs
+file bc5b2f3b621c69a11c483b59a9097dc1f5a2fded crates/podssh-relay/src/failover.rs -> crates/pod-relay/src/failover.rs
+file bd0ccc898a628f84a775c5ef6c6a222f2393484c crates/podssh-relay/src/failures.rs -> crates/pod-relay/src/failures.rs
+file 5b02f705279bd4c12ea5c6aaf0fd8a41fc234bf5 crates/podssh-relay/src/failures_tests.rs -> crates/pod-relay/src/failures_tests.rs
+file 11321861a14bee72110fbe1893909f323d6ca319 crates/podssh-relay/src/forward_layer/client.rs -> crates/pod-relay/src/forward_layer/client.rs
+file 9d3a717dc644ec2eb7cd3e3a7b4f5ac5c29d5717 crates/podssh-relay/src/forward_layer/kept.rs -> crates/pod-relay/src/forward_layer/kept.rs
+file 466e92ae825d77f38fe8acff2d79268afc15862d crates/podssh-relay/src/forward_layer/mod.rs -> crates/pod-relay/src/forward_layer/mod.rs
+file 34d59b903cca69ba54b97e1089179bc25af4d4a6 crates/podssh-relay/src/forward_layer/offer.rs -> crates/pod-relay/src/forward_layer/offer.rs
+file b8bcf91a64e84d56c4c3d49090fa21e01fac77aa crates/podssh-relay/src/gate.rs -> crates/pod-relay/src/gate.rs
+file 522050a27fd9afd489eed5126fd179a9eb45d5d4 crates/podssh-relay/src/gate_tests.rs -> crates/pod-relay/src/gate_tests.rs
+file 10e02ae08e1402bb307d4f69b73344ae6a4fdff1 crates/podssh-relay/src/grant/cert.rs -> crates/pod-relay/src/grant/cert.rs
+file 5e933f422fd743cee6572ca66169af0c05bba896 crates/podssh-relay/src/grant/door.rs -> crates/pod-relay/src/grant/door.rs
+file 01514ab6d1772844304c6dc8eff041b12d4a836e crates/podssh-relay/src/grant/mod.rs -> crates/pod-relay/src/grant/mod.rs
+file 3c852031734414fc359ea344ddc6f693d6718bcc crates/podssh-relay/src/grant/spent.rs -> crates/pod-relay/src/grant/spent.rs
+file e78faeb04c6958e62325b37a411ff99fc5f05e6e crates/podssh-relay/src/h2_road.rs -> crates/pod-relay/src/h2_road.rs
+file 4332585b78886ffc3e8875b05f276c99a1d20699 crates/podssh-relay/src/health.rs -> crates/pod-relay/src/health.rs
+file 17b8a20e231247eba961a7f6398c87a53ffd352f crates/podssh-relay/src/http_road/answer.rs -> crates/pod-relay/src/http_road/answer.rs
+file 70bb84177cdb909be04a45591411e6706df537a2 crates/podssh-relay/src/http_road/client.rs -> crates/pod-relay/src/http_road/client.rs
+file d39331ad76d326f6d956a6532baefb4909e4fc63 crates/podssh-relay/src/http_road/conn.rs -> crates/pod-relay/src/http_road/conn.rs
+file 32d6c1bffde7b8379d98d77a52affc9d53c1acd1 crates/podssh-relay/src/http_road/mod.rs -> crates/pod-relay/src/http_road/mod.rs
+file a41c296334938e10515f117d9e7c805b77207e9e crates/podssh-relay/src/http_road/serial.rs -> crates/pod-relay/src/http_road/serial.rs
+file 245b39f8ddf2528a5b7e46d713c7563b67b182b6 crates/podssh-relay/src/http_road/split.rs -> crates/pod-relay/src/http_road/split.rs
+file 653349ccef0e9583b75c3b4e3c4ced0896ea751e crates/podssh-relay/src/keyed.rs -> crates/pod-relay/src/keyed.rs
+file d9c30bac60a6be0d2ec7212f8853e753212bf907 crates/podssh-relay/src/lib.rs -> crates/pod-relay/src/lib.rs
+file fdd54ef6a0a569fc48770895534858e106bc504c crates/podssh-relay/src/open.rs -> crates/pod-relay/src/open.rs
+file fb5d0fd03a110ecb04f44aa8aca9be8bda0b7e2a crates/podssh-relay/src/open_tests.rs -> crates/pod-relay/src/open_tests.rs
+file 725d4fd5a05323264b3ed583ebef52b85010db76 crates/podssh-relay/src/pair.rs -> crates/pod-relay/src/pair.rs
+file 0d19519900e777fdaca51d16026e4b13b25a8705 crates/podssh-relay/src/pair/halt.rs -> crates/pod-relay/src/pair/halt.rs
+file aa73aecc25a2c09f06cebebd014ba6cb8fae0c3a crates/podssh-relay/src/pair/leg.rs -> crates/pod-relay/src/pair/leg.rs
+file 34b7adc001683aff9d0f6ab3dbe01c6096fd4699 crates/podssh-relay/src/pair/once.rs -> crates/pod-relay/src/pair/once.rs
+file c780ba05778c6be5243536f60b44b1a2485b541b crates/podssh-relay/src/pair/part.rs -> crates/pod-relay/src/pair/part.rs
+file e9e407f916f619e1d08f8d9de30ccf17e4834d78 crates/podssh-relay/src/pair/renew.rs -> crates/pod-relay/src/pair/renew.rs
+file 06f1ad2d8a15699cabcf22d9bcc11d482e8eaaa6 crates/podssh-relay/src/pair/rotate.rs -> crates/pod-relay/src/pair/rotate.rs
+file f03dab1e8a65e782e14385063e9440996697b84f crates/podssh-relay/src/pool.rs -> crates/pod-relay/src/pool.rs
+file c125198b686f159fd3bafba6b7f53e6108262d6e crates/podssh-relay/src/pool/kept.rs -> crates/pod-relay/src/pool/kept.rs
+file b75fc6aab9cd4cf66e519b681c278554a24d7ecc crates/podssh-relay/src/pool/members.rs -> crates/pod-relay/src/pool/members.rs
+file 7e691a14b77e647b7a1e477375ad8e1a102d75e6 crates/podssh-relay/src/pool/members_tests.rs -> crates/pod-relay/src/pool/members_tests.rs
+file ee50f1e5af30a1019eb924eb4f329a03077d9cc7 crates/podssh-relay/src/pool/signed.rs -> crates/pod-relay/src/pool/signed.rs
+file c71958330a7dd80a2b68abbc2582a592c2cf2c2d crates/podssh-relay/src/pool/signed_tests.rs -> crates/pod-relay/src/pool/signed_tests.rs
+file dd93da4972e3aeeadad76f664038312da29fd332 crates/podssh-relay/src/quic_road/dial.rs -> crates/pod-relay/src/quic_road/dial.rs
+file af312d3967af6b902bd227e35c2176f8a52bedbd crates/podssh-relay/src/quic_road/mod.rs -> crates/pod-relay/src/quic_road/mod.rs
+file 3ba758b74157e90b688ebe909132de5e559f6b7e crates/podssh-relay/src/quic_road/race.rs -> crates/pod-relay/src/quic_road/race.rs
+file c224b91ca458df0ac3eb38d0a7f958b1b00720a5 crates/podssh-relay/src/quic_road/stream.rs -> crates/pod-relay/src/quic_road/stream.rs
+file b53be9199d87d607b9ac6e1df79ec1f1d54a5fe6 crates/podssh-relay/src/rank.rs -> crates/pod-relay/src/rank.rs
+file 1b781215198e38df3fd211e8ee36cdd177d9f391 crates/podssh-relay/src/rank_auto.rs -> crates/pod-relay/src/rank_auto.rs
+file 8533d39d98e73ce6038ed2c90eedd0dbfe3aae2c crates/podssh-relay/src/rank_auto_tests.rs -> crates/pod-relay/src/rank_auto_tests.rs
+file 008b4db3d69741e14327c2788bfe7e8f39099cf2 crates/podssh-relay/src/rank_list.rs -> crates/pod-relay/src/rank_list.rs
+file 75678eaff61b7a0744f729f3bbb54b0eb04e1736 crates/podssh-relay/src/rank_list_tests.rs -> crates/pod-relay/src/rank_list_tests.rs
+file 533f55b778a66bc2e519f45100671287611c2fb0 crates/podssh-relay/src/rank_tests.rs -> crates/pod-relay/src/rank_tests.rs
+file 798191c0daa2f3e32cfea4c7baa0d96610a575b9 crates/podssh-relay/src/relay.rs -> crates/pod-relay/src/relay.rs
+file 9512814073c213d5be691e5173418eb3268186db crates/podssh-relay/src/reverse/close_say.rs -> crates/pod-relay/src/reverse/close_say.rs
+file b5e2774e6a66047f4388ecdec8751090fd73b052 crates/podssh-relay/src/reverse/closes.rs -> crates/pod-relay/src/reverse/closes.rs
+file d532bca55c56a2b409dcfd2ea9c26cb6a7b2dd03 crates/podssh-relay/src/reverse/control.rs -> crates/pod-relay/src/reverse/control.rs
+file 78aac463468939a2b1b12bc756ef566bd20260b2 crates/podssh-relay/src/reverse/e2e.rs -> crates/pod-relay/src/reverse/e2e.rs
+file 9050c0580b93cd6680f893b3bd38272827e3ca57 crates/podssh-relay/src/reverse/fair.rs -> crates/pod-relay/src/reverse/fair.rs
+file 5bb35650e3b7c813dece362503c9a2a2c09de715 crates/podssh-relay/src/reverse/fair_tests.rs -> crates/pod-relay/src/reverse/fair_tests.rs
+file 0b03d05ed5181daf30326aec1e1e28ef6001e73e crates/podssh-relay/src/reverse/framing.rs -> crates/pod-relay/src/reverse/framing.rs
+file a316c7e27b9fcba7d94e7aa0747982a6abc0dfce crates/podssh-relay/src/reverse/framing/legs.rs -> crates/pod-relay/src/reverse/framing/legs.rs
+file 8f0caadec0c5e6cb31dc2c76a1c859604371329d crates/podssh-relay/src/reverse/layered.rs -> crates/pod-relay/src/reverse/layered.rs
+file 1fa592576c1932efccc6c68ce5888c6cef7ff75a crates/podssh-relay/src/reverse/legs.rs -> crates/pod-relay/src/reverse/legs.rs
+file 4ced8a5848f2f6ddea5c2da4b24ed32e163867d1 crates/podssh-relay/src/reverse/mod.rs -> crates/pod-relay/src/reverse/mod.rs
+file 4c4041b01100e09b3f28b862a7677cd010501677 crates/podssh-relay/src/reverse/node.rs -> crates/pod-relay/src/reverse/node.rs
+file 6cca59d94cf75ae8ab4a125f68d78ab9c8fe67e5 crates/podssh-relay/src/reverse/operator.rs -> crates/pod-relay/src/reverse/operator.rs
+file dd87a3b5897608be94a8a2c5afc5788f0a0e43ea crates/podssh-relay/src/reverse/routes.rs -> crates/pod-relay/src/reverse/routes.rs
+file a4e61ddf68b165bb9460514fe9502a973bc4839f crates/podssh-relay/src/reverse/serve.rs -> crates/pod-relay/src/reverse/serve.rs
+file 4f2cae933339850a5d8c7ef637023a5c954490d9 crates/podssh-relay/src/reverse/sessions.rs -> crates/pod-relay/src/reverse/sessions.rs
+file 9c33b7fac8c5fa3cc90374a712348d3a3041139b crates/podssh-relay/src/reverse/spares.rs -> crates/pod-relay/src/reverse/spares.rs
+file 64330711841da9a33dc56c1b1ebfb263e92dc831 crates/podssh-relay/src/reverse/sshd.rs -> crates/pod-relay/src/reverse/sshd.rs
+file 609c58d9448a659cfc4fd889d6c4e2a6afb349dc crates/podssh-relay/src/reverse/tcp.rs -> crates/pod-relay/src/reverse/tcp.rs
+file 5019f70dfdd5f7499e5b4bac1afa2d024521b540 crates/podssh-relay/src/reverse/udp.rs -> crates/pod-relay/src/reverse/udp.rs
+file 27a589ab1fed551b9cacba89923446a62a83419e crates/podssh-relay/src/reverse/wire.rs -> crates/pod-relay/src/reverse/wire.rs
+file f768f1d7023a5b118c4d06a1e33ef5e18c793b4f crates/podssh-relay/src/token.rs -> crates/pod-relay/src/token.rs
+file e0609f43f4638e737973867c317ee662bc737b06 crates/podssh-relay/tests/blocking.rs -> crates/pod-relay/tests/blocking.rs
+file 80c68e8bbf28a69b483259aa32cfbe5d0737c093 crates/podssh-relay/tests/blocking_live.rs -> crates/pod-relay/tests/blocking_live.rs
+file a29445d3c485b7ecc64dc66e532b703b2e248fdd crates/podssh-relay/tests/blocking_plain.rs -> crates/pod-relay/tests/blocking_plain.rs
+file 074fdbdc074bce77c45fcbc1fbaabba03553214c crates/podssh-relay/tests/cache.rs -> crates/pod-relay/tests/cache.rs
+file b56b20ac3ae7da9f400d96dd9e0cd82993f663d0 crates/podssh-relay/tests/cleanup/mod.rs -> crates/pod-relay/tests/cleanup/mod.rs
+file 1aaa1b6370848d95c97ee952997bc684c59c211a crates/podssh-relay/tests/default_relay.rs -> crates/pod-relay/tests/default_relay.rs
+file 4f762fc308cc8daebd61aa158f493c94350fad07 crates/podssh-relay/tests/drops_podssh/mod.rs -> crates/pod-relay/tests/drops_podssh/mod.rs
+file 89121f84224b043fdd08fa2be6d2040c86838eb9 crates/podssh-relay/tests/e2e_harness/mod.rs -> crates/pod-relay/tests/e2e_harness/mod.rs
+file 0772c1ca145902856968f4c79566bcc7e258b6ad crates/podssh-relay/tests/e2e_layered.rs -> crates/pod-relay/tests/e2e_layered.rs
+file d0b70cc6441385ccd202f7523a7e96288928cfe3 crates/podssh-relay/tests/failover.rs -> crates/pod-relay/tests/failover.rs
+file 2e088af6db81389ed212578001a7ba1efad41bd8 crates/podssh-relay/tests/grant.rs -> crates/pod-relay/tests/grant.rs
+file 7c917b9d156415d5b9b1b3137f3bab50b6c57cc4 crates/podssh-relay/tests/grant_live.rs -> crates/pod-relay/tests/grant_live.rs
+file b49e3abac1125162310a518cbd7ab1821e507c7b crates/podssh-relay/tests/limits.rs -> crates/pod-relay/tests/limits.rs
+file 1e834bce12e1e5a00afd25c3e5a3ac50388453b8 crates/podssh-relay/tests/live.rs -> crates/pod-relay/tests/live.rs
+file 5f242f4b8b6a6e946a0f87169b93f6a7bd14193b crates/podssh-relay/tests/live_backpressure.rs -> crates/pod-relay/tests/live_backpressure.rs
+file 7188d5d3898e0c356065769d911adc6e91fd882b crates/podssh-relay/tests/pair.rs -> crates/pod-relay/tests/pair.rs
+file 42a9f8f50ee2bc3d7752ca7a6f52c22161620b21 crates/podssh-relay/tests/pair_code.rs -> crates/pod-relay/tests/pair_code.rs
+file b67b59d7ffe000cbb376533f28969a44dc3859bf crates/podssh-relay/tests/pair_code_live.rs -> crates/pod-relay/tests/pair_code_live.rs
+file dd7b310083030db4a068ee8a8da24c1340751437 crates/podssh-relay/tests/pair_live.rs -> crates/pod-relay/tests/pair_live.rs
+file 3b9e9570ace6b2a028d0c2d5d5bca3d03c0bddd7 crates/podssh-relay/tests/properties.rs -> crates/pod-relay/tests/properties.rs
+file 57b1a95f01b8da2493eef3b07e7238b967209713 crates/podssh-relay/tests/reverse_closes.rs -> crates/pod-relay/tests/reverse_closes.rs
+file 6ff715a823a05bef6a850017eef3f8b426adbc68 crates/podssh-relay/tests/reverse_dialect.rs -> crates/pod-relay/tests/reverse_dialect.rs
+file 030fae1e7eee096d8e0d0623ba4d713b846fe467 crates/podssh-relay/tests/reverse_drops_live.rs -> crates/pod-relay/tests/reverse_drops_live.rs
+file 5fb8c715fefc3d76754b4578d31b54fa0847d81b crates/podssh-relay/tests/reverse_fair.rs -> crates/pod-relay/tests/reverse_fair.rs
+file 5c59eb6cb78e248c56f9e99e4e752a8a23c80565 crates/podssh-relay/tests/reverse_framing.rs -> crates/pod-relay/tests/reverse_framing.rs
+file e476f7bd109e0c65a58b2a8150f8317e3a40a9ea crates/podssh-relay/tests/reverse_idle_live.rs -> crates/pod-relay/tests/reverse_idle_live.rs
+file 74bd5bfd51401949bf2a924f2f6da3cdbcc8b769 crates/podssh-relay/tests/reverse_layered.rs -> crates/pod-relay/tests/reverse_layered.rs
+file 98803413908b8e0e8071e2f15cfb9c8bd6ae9569 crates/podssh-relay/tests/reverse_live.rs -> crates/pod-relay/tests/reverse_live.rs
+file 4ef4aa3ead1bc80d97052be667099f79209f8809 crates/podssh-relay/tests/reverse_node.rs -> crates/pod-relay/tests/reverse_node.rs
+file 3c8da89e9479938288f95b2d3260cf9d4a5fe67d crates/podssh-relay/tests/reverse_operator.rs -> crates/pod-relay/tests/reverse_operator.rs
+file c63d807572dc8706f0af8caaa1f6aeb7d35685de crates/podssh-relay/tests/reverse_plants.rs -> crates/pod-relay/tests/reverse_plants.rs
+file f1d365c419dd6d33974a85793dd161a5c4dafcd2 crates/podssh-relay/tests/reverse_spares.rs -> crates/pod-relay/tests/reverse_spares.rs
+file 865cc21eeffd984028a03a22da13b812f102d19a crates/podssh-relay/tests/reverse_window.rs -> crates/pod-relay/tests/reverse_window.rs
+file a2d333e0436b2188b8cf38aca619f4a979ebd6ef crates/podssh-relay/tests/routes_shared.rs -> crates/pod-relay/tests/routes_shared.rs
+file d77ecaf7da01fdfe37e3c15a38c30cdbfcf45a21 crates/podssh-relay/tests/session_policy.rs -> crates/pod-relay/tests/session_policy.rs
+file 32494d1881d1c7b6f29bb7ca2779ef3e3ca3fb79 crates/podssh-relay/tests/sshd_check.rs -> crates/pod-relay/tests/sshd_check.rs
+file 051e819703311a9e1db41ba3b7ed405b461a22de crates/podssh-relay/tests/stand_in/mod.rs -> crates/pod-relay/tests/stand_in/mod.rs
