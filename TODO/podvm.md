@@ -3699,6 +3699,17 @@ in the hand-off.
 cargo test -p pod-confine --all-features
 ```
 
+## Correction
+
+2026-11-11. The test of the drop skips as another user, and the GitHub
+runners do not run as root: `plants.yml` missed the plant
+`confine-capabilities-kept` (runs 43061056454 and 43066781733), and `ci`
+never ran the test. `scripts/ci/root-confine-tests.sh` builds the test
+binary of `tests/apply.rs` as the user and runs it as root (`sudo -n` on
+a runner; as it is where the caller is root), and a skip line fails it.
+The step "The tests of pod-confine as root" of the job `test` of `ci.yml`
+and the plant run it. The plant is caught here (exit 1).
+
 ## Done
 
 2026-11-11. `pod_hostprobe::sys` has `capget`, `capset`, `capbset_drop`,
