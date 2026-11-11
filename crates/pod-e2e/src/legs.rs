@@ -1,17 +1,18 @@
-//! Tokens of one leg (T-615): a connect token for each leg of a session that
-//! podssh's relay role carries, which one upgrade spends, so that a token
-//! that a proxy logged from a request's headers is worth nothing after it.
+//! Tokens of one leg (podssh T-615): a connect token for each leg of a
+//! session that a relay role carries, which one upgrade spends, so that a
+//! token that a proxy logged from a request's headers is worth nothing after
+//! it.
 //!
 //! A node gives each session that it lets in a seed of 32 random bytes in
-//! its verdict, inside the channel, where a podssh of before reads nothing
-//! past the verdict's code. The session's tokens come from the seed, one for
+//! its verdict, inside the channel, where an older end reads nothing past
+//! the verdict's code. The session's tokens come from the seed, one for
 //! each leg after the first, which the pair's connect token opens: so no
 //! token crosses the wire before its own leg, and none is carried for the
 //! next. The node registers the SHA-256 of [`WINDOW`] of them at its role,
 //! over its socket, while the socket's `hello` offers it ([`OFFER`]); the
 //! role tells the node which one an upgrade took, and the node registers the
 //! window after it ([`Leases`]). The operator takes them in order
-//! ([`Taker`]), and its legs open with them (`crate::reverse::legs`).
+//! ([`Taker`]), and its legs open with them (podssh's `reverse::legs`).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -21,17 +22,18 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use crate::session::{Entropy, OsEntropy};
+use pod_core::entropy::{Entropy, OsEntropy};
 
 /// The tokens of a session that its node keeps registered at once: one that
-/// a leg may have spent with no word to the node, and the next ones.
+/// a leg possibly spent with no word to the node, and the next ones.
 pub const WINDOW: u64 = 4;
 /// How long a registration lives at the role: each token that an upgrade
 /// takes, and each new socket of the node, registers the window again.
 pub const LIFE_MS: u64 = 24 * 3600 * 1000;
 /// The field of a role's `hello` that offers the tokens.
 pub const OFFER: &str = "legTokens";
-/// What a token's HMAC binds, before the leg's number.
+/// What a token's HMAC binds, before the leg's number. The label is the
+/// protocol's, the same for each consumer.
 const LABEL: &[u8] = b"podssh leg token, version 1";
 
 /// The node's socket, for the text frames of its registrations: a caller
@@ -75,10 +77,11 @@ pub fn unhex(text: &str) -> Option<[u8; 32]> {
     Some(out)
 }
 
-/// Whether the fields of a role's `hello` that podssh's node does not model
-/// offer the tokens: `"legTokens": true`, and nothing else (`crate::answer`).
+/// Whether the fields of a role's `hello` that the node does not model
+/// offer the tokens: `"legTokens": true`, and nothing else
+/// (`pod_session::answer`).
 pub fn offered(extra: &serde_json::Map<String, serde_json::Value>) -> bool {
-    crate::answer::offers(extra.get(OFFER))
+    pod_session::answer::offers(extra.get(OFFER))
 }
 
 /// The node's frame that registers `digest` until `expires_ms`, or, with an
@@ -140,7 +143,7 @@ impl Lease {
     }
 
     /// The seed and the first leg of the window, for the binary that takes
-    /// the node's place (T-668): the window leaves this node's leases with
+    /// the node's place: the window leaves this node's leases with
     /// no withdrawal at the role, as the next binary registers it again on
     /// its own socket.
     pub fn hand_over(self) -> ([u8; 32], u64) {
@@ -197,7 +200,7 @@ impl Leases {
     }
 
     /// The seed and the window of a session that the binary before this one
-    /// handed over (T-668): registered now on a socket that registers them,
+    /// handed over: registered now on a socket that registers them,
     /// and on each socket after, as a session's of this binary is.
     pub fn restore(self: &Arc<Self>, seed: [u8; 32], low: u64) -> Lease {
         let mut guard = lock(&self.inner);
@@ -335,7 +338,7 @@ impl Taker {
         }
     }
 
-    /// The role refused the token of leg `index` (403). Once, it may have
+    /// The role refused the token of leg `index` (403). Once, it possibly
     /// restarted, and the node registers it again: the next leg tries it
     /// again. A second time, a leg spent it with no word to the node, or it
     /// ended: the next leg takes the next one.

@@ -1,4 +1,4 @@
-//! A node's person (T-638) through the end-to-end channel: a gate after the
+//! A node's person (podssh T-638) through the end-to-end channel: a gate after the
 //! door, which an operator crosses only with a yes or its cover. A no
 //! reaches no target, and the operator hears only that its key is not let
 //! in; a key that the door refuses raises no question; the node's line says
@@ -12,10 +12,10 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use e2e_harness::{echo_back, identity, node, run, Fault, LIMIT};
-use podssh_relay::e2e::person::{Answer, Asker, Gate, Question};
-use podssh_relay::e2e::{Error, Refusal, HANDSHAKE_LIMIT};
-use podssh_relay::identity::PublicKey;
+use e2e_harness::{Fault, LIMIT, echo_back, identity, node, run};
+use pod_e2e::person::{Answer, Asker, Gate, Question};
+use pod_e2e::{Error, HANDSHAKE_LIMIT, Refusal};
+use pod_identity::PublicKey;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// The questions that a node's person was asked.

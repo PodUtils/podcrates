@@ -1,15 +1,15 @@
-//! The routes of a node (T-089), over the end-to-end channel: the operator
+//! The routes of a node (podssh T-089), over the end-to-end channel: the operator
 //! names a route in its proof, which the relay carries encrypted; the node
 //! gets it with the operator's key, and chooses the target, or refuses. An
-//! exit's target (T-431) reaches only a node that serves each ask.
+//! exit's target (podssh T-431) reaches only a node that serves each ask.
 
 mod e2e_harness;
 
 use std::sync::{Arc, Mutex};
 
-use e2e_harness::{identity, node, LIMIT, PIPE};
-use podssh_relay::e2e::ends;
-use podssh_relay::e2e::{Ask, Error, Refusal};
+use e2e_harness::{LIMIT, PIPE, identity, node};
+use pod_e2e::ends;
+use pod_e2e::{Ask, Error, Refusal};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// One session to a node whose target names the route that it was asked

@@ -1,5 +1,5 @@
 //! The tests' operator, node and stand-in relay for the end-to-end channel
-//! (T-088). The stand-in relay reads the channel's frames, does one fault to
+//! (podssh T-088). The stand-in relay reads the channel's frames, does one fault to
 //! one of them, and keeps each byte that it carried, so that a test can look
 //! for plain text in it.
 
@@ -9,9 +9,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::e2e::ends::{self, Node};
-use podssh_relay::e2e::{Ask, Error, MAGIC};
-use podssh_relay::identity::{Identity, PublicKey};
+use pod_core::{Event, Events};
+use pod_e2e::ends::{self, Node};
+use pod_e2e::{Ask, Error, MAGIC};
+use pod_identity::{Identity, PublicKey};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::task::JoinHandle;
 
@@ -39,16 +40,27 @@ pub fn identity(seed: u8) -> Arc<Identity> {
     Arc::new(Identity::from_seed(&[seed; 32]))
 }
 
-/// A node with this identity and admission, whose lines are kept.
+/// A node with this identity and admission, whose lines (the texts of its
+/// events) are kept.
 pub fn node(
     me: Arc<Identity>,
     admit: impl Fn(&PublicKey) -> Result<(), String> + Send + Sync + 'static,
 ) -> (Node, Arc<Mutex<Vec<String>>>) {
     let lines = Arc::new(Mutex::new(Vec::new()));
     let kept = lines.clone();
-    let say = Arc::new(move |line: String| kept.lock().unwrap().push(line));
+    let events: Arc<dyn Events> = Arc::new(move |event: Event| kept.lock().unwrap().push(event.text));
     let admit = Arc::new(move |key: &PublicKey, _: &Ask| admit(key));
-    (Node { identity: me, admit, say, redeem: None, leases: Default::default(), gate: None }, lines)
+    let node = Node {
+        identity: me,
+        admit,
+        events,
+        redeem: None,
+        leases: Default::default(),
+        gate: None,
+        docs: None,
+        holds: Default::default(),
+    };
+    (node, lines)
 }
 
 /// A target that echoes each byte, and counts how often it is opened.

@@ -9,14 +9,14 @@
 //! before the other direction's last bytes. A session over the channel thus
 //! has the half-close of TCP, and a stream that ends with no `END` is a cut.
 //!
-//! Between two ends that said they read the net's document (T-429), a
-//! message `NET` carries one; it goes to the binary's [`Docs`], never to
-//! the session's bytes. A verdict that lets in may carry the seed of the
-//! session's tokens of one leg (T-615), which the operator's end keeps.
+//! Between two ends that said they read the net's document, a message `NET`
+//! carries one; it goes to the binary's [`Docs`], never to the session's
+//! bytes. A verdict that lets in can carry the seed of the session's tokens
+//! of one leg, which the operator's end keeps.
 //!
 //! A node's carry stops between two messages when a handover asks
-//! ([`carry`], T-668), and the next binary goes on from the same nonces,
-//! with the keys that the handshake split.
+//! ([`carry`]), and the next binary goes on from the same nonces, with the
+//! keys that the handshake split.
 
 mod carry;
 
@@ -26,12 +26,14 @@ use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
 
+#[cfg(feature = "fuzzing")]
+pub(crate) use carry::take_frame;
 pub use carry::{Carried, Held, Start};
 
-use super::frame::{self, END, NET, VERDICT};
-use super::net::Docs;
-use super::{Error, Refusal, MAX_DATA, MAX_MESSAGE, TAG};
-use crate::identity::PublicKey;
+use crate::frame::{self, END, NET, VERDICT};
+use crate::net::Docs;
+use crate::{Error, MAX_DATA, MAX_MESSAGE, Refusal, TAG};
+use pod_identity::PublicKey;
 
 /// The channel over `transport`, after its handshake.
 pub struct Channel<T> {
@@ -45,28 +47,27 @@ pub struct Channel<T> {
     /// when both ends read them.
     net: Option<(Arc<dyn Docs>, PublicKey)>,
     /// The seed of the session's tokens of one leg that the node's verdict
-    /// gave (T-615), at the operator's end.
+    /// gave, at the operator's end.
     seed: Option<Zeroizing<[u8; 32]>>,
     /// The keys that the handshake split, the initiator's then the
-    /// responder's, at a node's end: what a handover gives the next binary
-    /// (T-668).
+    /// responder's, at a node's end: what a handover gives the next binary.
     keys: Option<Zeroizing<[u8; 64]>>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
-    pub(super) fn new(transport: T, state: StatelessTransportState) -> Self {
+    pub(crate) fn new(transport: T, state: StatelessTransportState) -> Self {
         Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None }
     }
 
-    /// This channel, with the keys of its handshake (T-668).
-    pub(super) fn with_keys(mut self, keys: Zeroizing<[u8; 64]>) -> Self {
+    /// This channel, with the keys of its handshake.
+    pub(crate) fn with_keys(mut self, keys: Zeroizing<[u8; 64]>) -> Self {
         self.keys = Some(keys);
         self
     }
 
-    /// A channel that the binary before this one handed over (T-668): its
-    /// transport from the keys, and its nonces where they were.
-    pub(super) fn restored(
+    /// A channel that the binary before this one handed over: its transport
+    /// from the keys, and its nonces where they were.
+    pub(crate) fn restored(
         transport: T,
         state: StatelessTransportState,
         nonces: (u64, u64),
@@ -77,12 +78,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     }
 
     /// Both ends read the net's documents: one from the peer goes to `docs`.
-    pub(super) fn set_net(&mut self, docs: Arc<dyn Docs>, peer: PublicKey) {
+    pub(crate) fn set_net(&mut self, docs: Arc<dyn Docs>, peer: PublicKey) {
         self.net = Some((docs, peer));
     }
 
     /// Send this end's document of the net, of [`MAX_DATA`] bytes at most.
-    pub(super) async fn send_net(&mut self, bytes: &[u8]) -> Result<(), Error> {
+    pub(crate) async fn send_net(&mut self, bytes: &[u8]) -> Result<(), Error> {
         if bytes.len() > MAX_DATA {
             return Err(Error::Malformed(format!("a document of the net of {} bytes", bytes.len())));
         }
@@ -90,7 +91,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     }
 
     /// The peer's document of the net, which its proof said would follow.
-    pub(super) async fn read_net(&mut self) -> Result<Vec<u8>, Error> {
+    pub(crate) async fn read_net(&mut self) -> Result<Vec<u8>, Error> {
         let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
         match receive(&self.state, &mut self.received, &mut self.transport, &mut cipher, &mut plain).await? {
             None => Err(Error::Cut),
@@ -99,13 +100,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
         }
     }
 
-    pub(super) async fn send_verdict(&mut self, answer: &Result<(), Refusal>) -> Result<(), Error> {
+    pub(crate) async fn send_verdict(&mut self, answer: &Result<(), Refusal>) -> Result<(), Error> {
         self.send_verdict_with(answer, None).await
     }
 
     /// [`Channel::send_verdict`], with `seed` in a verdict that lets in: the
-    /// seed of the session's tokens of one leg (T-615).
-    pub(super) async fn send_verdict_with(
+    /// seed of the session's tokens of one leg.
+    pub(crate) async fn send_verdict_with(
         &mut self,
         answer: &Result<(), Refusal>,
         seed: Option<&[u8; 32]>,
@@ -114,13 +115,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     }
 
     /// The node's verdict, the first message after the handshake.
-    pub(super) async fn read_verdict(&mut self) -> Result<(), Error> {
+    pub(crate) async fn read_verdict(&mut self) -> Result<(), Error> {
         let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
         match receive(&self.state, &mut self.received, &mut self.transport, &mut cipher, &mut plain).await? {
             None => Err(Error::Cut),
             Some((VERDICT, n)) => {
-                // The seed of the session's tokens of one leg (T-615), where
-                // the node gave one.
+                // The seed of the session's tokens of one leg, where the node
+                // gave one.
                 self.seed = frame::seed_of(&plain[1..n]).map(Zeroizing::new);
                 frame::answer(&plain[1..n])?.map_err(Error::Refused)
             }
@@ -129,13 +130,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     }
 
     /// The seed of the session's tokens of one leg that the node's verdict
-    /// gave (T-615), for the legs that resume the session.
+    /// gave, for the legs that resume the session.
     pub fn leg_seed(&self) -> Option<[u8; 32]> {
         self.seed.as_deref().copied()
     }
 
     /// End both directions at once: a refused session.
-    pub(super) async fn close(mut self) {
+    pub(crate) async fn close(mut self) {
         if send(&self.state, &mut self.sent, &mut self.transport, END, &[]).await.is_ok() {
             let _ = self.transport.shutdown().await;
         }
@@ -184,8 +185,8 @@ async fn receive<R: AsyncRead + Unpin>(
     if cipher.len() <= TAG {
         return Err(Error::Malformed("a message no longer than its tag".into()));
     }
-    // A failed check is all that can be said: the relay may have changed,
-    // dropped, repeated or moved the message, and nothing of it is used.
+    // A failed check is all that the channel knows: the relay can have
+    // changed, dropped, repeated or moved the message. No part of it is used.
     let n = state.read_message(*nonce, cipher, plain).map_err(|_| Error::Tampered)?;
     *nonce += 1;
     Ok(Some((plain[0], n)))

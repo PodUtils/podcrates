@@ -1,10 +1,10 @@
 //! What an operator asks of a node, as the word of its proof names it: no
-//! word, the node's target with no route; a route's name (T-089); or a
-//! target of the operator's own, which an exit node dials (T-431). An
-//! exit's word is `HOST:PORT`, an IPv6 address in brackets, and its ':' tells
-//! it from each route's name, which never holds one. The word travels
-//! encrypted, so the relay never sees which. A node of before T-431 takes
-//! no word with a ':', and refuses the proof whole.
+//! word, the node's target with no route; a route's name (podssh T-089); or
+//! a target of the operator's own, which an exit node dials (podssh T-431).
+//! An exit's word is `HOST:PORT`, an IPv6 address in brackets, and its ':'
+//! tells it from each route's name, which never holds one. The word travels
+//! encrypted, so the relay never sees which. An older node takes no word
+//! with a ':', and refuses the proof whole.
 
 use std::fmt;
 
@@ -16,9 +16,9 @@ pub const MAX_WORD: usize = 255;
 pub enum Ask {
     /// The node's target with no route.
     Target,
-    /// A route of the node (T-089).
+    /// A route of the node.
     Route(String),
-    /// A target that the operator names, for an exit node to dial (T-431).
+    /// A target that the operator names, for an exit node to dial.
     Exit { host: String, port: u16 },
 }
 
@@ -36,7 +36,7 @@ impl Ask {
             return None;
         }
         if !word.contains(':') {
-            return podssh_ws::names::check_node_name(word).is_ok().then(|| Ask::Route(word.to_string()));
+            return pod_core::names::check_node_name(word).is_ok().then(|| Ask::Route(word.to_string()));
         }
         let (host, port) = target_of(word)?;
         Some(Ask::Exit { host, port })
@@ -82,11 +82,7 @@ impl fmt::Display for Ask {
 
 /// `HOST:PORT`, an IPv6 address in brackets: the word of an exit's target.
 pub fn exit_word(host: &str, port: u16) -> String {
-    if host.contains(':') {
-        format!("[{host}]:{port}")
-    } else {
-        format!("{host}:{port}")
-    }
+    if host.contains(':') { format!("[{host}]:{port}") } else { format!("{host}:{port}") }
 }
 
 /// The host and the port of an exit's word: a name or an IPv4 address, or
@@ -113,7 +109,7 @@ fn target_of(word: &str) -> Option<(String, u16)> {
         return None;
     }
     let port = port.parse::<u16>().ok().filter(|p| *p != 0)?;
-    podssh_ws::names::check_target(host).ok()?;
+    pod_core::names::check_target(host).ok()?;
     Some((host.to_string(), port))
 }
 
@@ -136,7 +132,7 @@ mod tests {
 
     #[test]
     fn a_route_is_never_an_exit_and_a_bad_word_is_neither() {
-        // Each route's name of T-089 stays a route: it holds no ':'.
+        // Each route's name stays a route: it holds no ':'.
         for name in ["web", "db.main", "a_b-c", "8080"] {
             assert_eq!(Ask::read(Some(name)), Some(Ask::Route(name.into())), "{name}");
         }

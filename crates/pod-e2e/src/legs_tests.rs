@@ -1,7 +1,14 @@
-//! The tests of the tokens of one leg (T-615), in a file of their own so that
-//! `legs.rs` stays short.
+//! The tests of the tokens of one leg (podssh T-615), in a file of their own
+//! so that `legs.rs` stays short.
 
 use super::*;
+
+/// Whether a string has the shape of a relay token: 8 to 4096 printable
+/// ASCII characters and no whitespace (it goes into an HTTP header). The
+/// rule of podssh's `cache::valid_token`, which goes to pod-relay.
+fn valid_token(token: &str) -> bool {
+    (8..=4096).contains(&token.len()) && token.bytes().all(|b| b.is_ascii_graphic())
+}
 
 /// A sink of frames that keeps each one, as JSON.
 fn sink() -> (Frames, Arc<Mutex<Vec<serde_json::Value>>>) {
@@ -43,7 +50,7 @@ fn a_token_is_64_hex_digits_of_its_seed_and_its_leg() {
     assert_eq!(token(&seed, 1), first, "the same seed and leg, the same token");
     assert_ne!(token(&seed, 2), first, "another leg");
     assert_ne!(token(&other, 1), first, "another seed");
-    assert!(crate::cache::valid_token(&first), "the shape that a relay token has");
+    assert!(valid_token(&first), "the shape that a relay token has");
     assert_eq!(unhex(&hex(&digest(&first))), Some(digest(&first)));
     assert_eq!(unhex("not hex"), None);
 }

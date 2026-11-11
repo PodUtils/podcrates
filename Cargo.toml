@@ -27,6 +27,7 @@ crates-io = false
 pod-broker = { path = "crates/pod-broker", version = "0.21.0" }
 pod-core = { path = "crates/pod-core", version = "0.21.0", default-features = false }
 pod-dns = { path = "crates/pod-dns", version = "0.21.0" }
+pod-e2e = { path = "crates/pod-e2e", version = "0.21.0" }
 pod-enter = { path = "crates/pod-enter", version = "0.21.0" }
 pod-extract = { path = "crates/pod-extract", version = "0.21.0" }
 pod-gsr = { path = "crates/pod-gsr", version = "0.21.0" }
@@ -144,6 +145,17 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 sha2-rsa = { package = "sha2", version = "0.10", default-features = false, features = ["oid"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
 zeroize = "1"
+# Noise of the end-to-end channel (pod-e2e), with podssh's features: pure
+# Rust (ChaCha20-Poly1305, SHA-256, X25519 of curve25519-dalek, the random
+# bytes of getrandom), and the raw split of the keys, which a handover gives
+# the next binary. snow 0.10 takes the RustCrypto 0.10 line under it.
+snow = { version = "0.10", default-features = false, features = [
+    "use-chacha20poly1305",
+    "use-sha2",
+    "use-curve25519",
+    "use-getrandom",
+    "risky-raw-split",
+] }
 
 # Debug builds keep line tables for the crates of the workspace and no
 # debug info for dependencies: test binaries link with less memory and

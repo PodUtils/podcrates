@@ -1,4 +1,4 @@
-//! The tests of the gate of a node's person (T-638), on tokio's paused
+//! The tests of the gate of a node's person (podssh T-638), on tokio's paused
 //! clock, with an asker that the test answers: one question for two
 //! sessions of one key, a no that stands 15 s, a cover while a session is
 //! open and 120 s after, no answer within 100 s, a question whose session
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::{mpsc, oneshot};
 
 use super::*;
-use crate::identity::Identity;
+use pod_identity::Identity;
 
 fn key(seed: u8) -> PublicKey {
     Identity::from_seed(&[seed; 32]).public()

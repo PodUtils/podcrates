@@ -1,5 +1,5 @@
-//! The carry of a session over the channel, which a handover can hold
-//! (T-668). Each direction stops between two messages: the one out after a
+//! The carry of a session over the channel, which a handover can hold. Each
+//! direction stops between two messages: the one out after a
 //! whole message, never inside one, and the one in after it wrote each
 //! message that came whole, keeping the bytes of one cut short. So the next
 //! binary takes the channel at the same nonces, and the peer, which never
@@ -9,10 +9,10 @@
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 
-use super::super::frame::{DATA, END, NET};
-use super::super::hold::{held, Hold};
-use super::super::{Error, MAX_DATA, MAX_MESSAGE, TAG};
-use super::{send, Channel};
+use super::{Channel, send};
+use crate::frame::{DATA, END, NET};
+use crate::hold::{Hold, held};
+use crate::{Error, MAX_DATA, MAX_MESSAGE, TAG};
 
 /// The most bytes read from the peer at once.
 const CHUNK: usize = 64 * 1024;
@@ -50,12 +50,12 @@ pub struct Held<T, A> {
     pub received: u64,
     pub start: Start,
     pub keys: Option<zeroize::Zeroizing<[u8; 64]>>,
-    pub net: Option<crate::identity::PublicKey>,
+    pub net: Option<pod_identity::PublicKey>,
 }
 
 /// The first whole frame of `buf`, taken out of it; `None` while it is cut
 /// short. An empty frame is none that the channel has.
-fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+pub(crate) fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
     let Some(len) = buf.get(..2).map(|b| usize::from(u16::from_be_bytes([b[0], b[1]]))) else { return Ok(None) };
     if len == 0 {
         return Err(Error::Malformed("an empty frame".into()));
@@ -79,8 +79,8 @@ fn open(
     if cipher.len() <= TAG {
         return Err(Error::Malformed("a message no longer than its tag".into()));
     }
-    // A failed check is all that can be said: the relay may have changed,
-    // dropped, repeated or moved the message, and nothing of it is used.
+    // A failed check is all that the channel knows: the relay can have
+    // changed, dropped, repeated or moved the message. No part of it is used.
     let n = state.read_message(*nonce, cipher, plain).map_err(|_| Error::Tampered)?;
     *nonce += 1;
     if n == 0 {
@@ -120,7 +120,7 @@ where
             read = from_app.read(&mut buf) => read.map_err(Error::Io)?,
         };
         if n == 0 {
-            // The stream stays open: the peer's bytes may still come.
+            // The stream stays open: the peer's bytes can still come.
             send(state, sent, to_peer, END, &[]).await?;
             return Ok(true);
         }

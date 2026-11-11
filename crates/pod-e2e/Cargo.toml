@@ -1,7 +1,39 @@
 [package]
 name = "pod-e2e"
+description = "The end-to-end channel: Noise XX over the bytes of a session, so that a relay carries ciphertext only; each end proves its key of pod-identity; the node's verdict, a route or an exit's target, a grant used once, the gate of a node's person, the net's document, the tokens of one leg, and the handover of a node's channel to the binary that takes its place."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+# The readers of the frames, the verdict, the proof and the state of a
+# handover, public for the fuzz targets of fuzz/. No consumer turns it on.
+fuzzing = []
+
+[dependencies]
+# The failure with its stage and class, the events, the entropy, the names
+# and the text made safe to print.
+pod-core = { workspace = true, features = ["async"] }
+# The key of each end, and its binding to the Noise static key.
+pod-identity = { workspace = true }
+# The id of the layer's session and the handover of its target; the bytes
+# of a handover; a peer's answer.
+pod-session = { workspace = true }
+snow = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+# The frames of the tokens of one leg are JSON.
+serde_json = { workspace = true }
+# A token of one leg is the HMAC-SHA-256 of its number under the seed.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# `test-util` gives the tests a paused clock: a question of a node's person
+# waits past a step's limit at once.
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# The digests of the bytes that the tests carry.
+sha2 = { workspace = true }

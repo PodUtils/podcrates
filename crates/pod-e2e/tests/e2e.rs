@@ -1,4 +1,4 @@
-//! The end-to-end channel between two podssh ends (T-088): Noise XX against
+//! The end-to-end channel between two ends (podssh T-088): Noise XX against
 //! the vector of the cacophony suite; a session whose relay sees no byte of
 //! plain text, with the half-close of TCP; the operator's check of the
 //! node's key before its own proof; the node's refusals, with no byte of its
@@ -6,12 +6,12 @@
 
 mod e2e_harness;
 
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
-use e2e_harness::{echo_back, holds, identity, node, run, Fault, LIMIT, PIPE};
-use podssh_relay::e2e::{self, ends, Error, Refusal, MAGIC, PATTERN};
-use podssh_relay::identity::PublicKey;
+use e2e_harness::{Fault, LIMIT, PIPE, echo_back, holds, identity, node, run};
+use pod_e2e::{self as e2e, Error, MAGIC, PATTERN, Refusal, ends};
+use pod_identity::PublicKey;
 use snow::Builder;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -35,12 +35,24 @@ fn the_pattern_gives_the_cacophony_vector() {
         hex("bbdb4cdbd309f1a1f2e1456967fe288cadd6f712d65dc7b7793d5e63da6b375b"),
     );
     let messages = [
-        ("4c756477696720766f6e204d69736573", "ca35def5ae56cec33dc2036731ab14896bc4c75dbb07a61f879f8e3afa4c79444c756477696720766f6e204d69736573"),
-        ("4d757272617920526f746862617264", "95ebc60d2b1fa672c1f46a8aa265ef51bfe38e7ccb39ec5be34069f14480884381cbad1f276e038c48378ffce2b65285e08d6b68aaa3629a5a8639392490e5b9bd5269c2f1e4f488ed8831161f19b7815528f8982ffe09be9b5c412f8a0db50f8814c7194e83f23dbd8d162c9326ad"),
-        ("462e20412e20486179656b", "c7195ffacac1307ff99046f219750fc47693e23c3cb08b89c2af808b444850a80ae475b9df0f169ae80a89be0865b57f58c9fea0d4ec82a286427402f113e4b6ae769a1d95941d49b25030"),
+        (
+            "4c756477696720766f6e204d69736573",
+            "ca35def5ae56cec33dc2036731ab14896bc4c75dbb07a61f879f8e3afa4c79444c756477696720766f6e204d69736573",
+        ),
+        (
+            "4d757272617920526f746862617264",
+            "95ebc60d2b1fa672c1f46a8aa265ef51bfe38e7ccb39ec5be34069f14480884381cbad1f276e038c48378ffce2b65285e08d6b68aaa3629a5a8639392490e5b9bd5269c2f1e4f488ed8831161f19b7815528f8982ffe09be9b5c412f8a0db50f8814c7194e83f23dbd8d162c9326ad",
+        ),
+        (
+            "462e20412e20486179656b",
+            "c7195ffacac1307ff99046f219750fc47693e23c3cb08b89c2af808b444850a80ae475b9df0f169ae80a89be0865b57f58c9fea0d4ec82a286427402f113e4b6ae769a1d95941d49b25030",
+        ),
         ("4361726c204d656e676572", "96763ed773f8e47bb3712f0e29b3060ffc956ffc146cee53d5e1df"),
         ("4a65616e2d426170746973746520536179", "3e40f15f6f3a46ae446b253bf8b1d9ffb6ed9b174d272328ff91a7e2e5c79c07f5"),
-        ("457567656e2042f6686d20766f6e2042617765726b", "eb3f3515110702e047a6c9da4478b6ead94873c11c0f2d710ddb3f09fce024b3a58502ae3f"),
+        (
+            "457567656e2042f6686d20766f6e2042617765726b",
+            "eb3f3515110702e047a6c9da4478b6ead94873c11c0f2d710ddb3f09fce024b3a58502ae3f",
+        ),
     ];
     fn build<'a>(key: &'a [u8], eph: &'a [u8], prologue: &'a [u8]) -> Builder<'a> {
         Builder::new(PATTERN.parse().unwrap())
@@ -196,7 +208,7 @@ async fn a_target_that_cannot_be_reached_is_the_nodes_refusal_with_the_reason() 
 }
 
 /// The node speaks first: a client of the resumable layer waits for the far
-/// end's first byte before it sends (T-153), so a node with no layer that
+/// end's first byte before it sends (podssh T-153), so a node with no layer that
 /// waited for the operator would wait as long as the client, and fail.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_node_speaks_first() {

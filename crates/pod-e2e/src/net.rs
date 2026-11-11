@@ -1,14 +1,14 @@
-//! The net's document between two ends (T-429): of two ends that hold a
-//! document of one owner, the one with the higher serial gives it to the
+//! The net's document between two ends (podssh T-429): of two ends that hold
+//! a document of one owner, the one with the higher serial gives it to the
 //! other inside the channel, as Tailnet Lock's nodes pass on the state that
 //! the signing keys signed. This crate carries the bytes and compares two
 //! serials; the binary checks the owner's signature and keeps the document
-//! (`podssh net`), so that no SSH code comes into this crate.
+//! (podssh's `podssh net`), so that no SSH code comes into this crate.
 //!
-//! An end of before must never meet a form that it does not read. So the
+//! An older end must never meet a form that it does not read. So the
 //! operator's first message of the handshake carries [`OFFER`] as its
-//! payload, in clear, which a podssh of before reads and sets aside; only a
-//! node that saw it answers with a proof of the net's form, which names the
+//! payload, in clear, which an older end reads and sets aside; only a node
+//! that saw it answers with a proof of the net's form, which names the
 //! owner and the serial that it holds, encrypted; and only an operator that
 //! got such a proof sends one. The owner and the serial travel encrypted,
 //! so the relay learns no more than that both ends read documents.
@@ -18,13 +18,16 @@
 //! its verdict, to an operator that it let in. Each end gives its document
 //! only to a peer whose key is a member of it ([`Docs::shares_with`]): a
 //! key that the owner removed learns nothing more of the net.
+//!
+//! The binary gives its documents to each end ([`crate::ends::Node::docs`],
+//! the argument of [`crate::initiate_with`] and [`crate::respond_with`]):
+//! the crate keeps no process state of them.
 
-use std::sync::{Arc, OnceLock};
-
-use crate::identity::PublicKey;
+use pod_identity::PublicKey;
 
 /// The payload of the operator's first message: this end holds a document
-/// of a net, and reads the net's form of a proof.
+/// of a net, and reads the net's form of a proof. The name is the name of
+/// the protocol, the same for each consumer.
 pub const OFFER: &[u8] = b"podssh-net/1";
 
 /// What an end holds of a net: its owner, as the SHA-256 of the owner key's
@@ -58,24 +61,11 @@ pub trait Docs: Send + Sync {
     fn take(&self, from: &PublicKey, bytes: &[u8]) -> Result<(), String>;
 }
 
-static INSTALLED: OnceLock<Arc<dyn Docs>> = OnceLock::new();
-
-/// The documents of this process, for each channel that it runs; the first
-/// call wins, as a process has one user's net.
-pub fn install(docs: Arc<dyn Docs>) {
-    let _ = INSTALLED.set(docs);
-}
-
-/// The documents of this process, when it installed them.
-pub fn installed() -> Option<Arc<dyn Docs>> {
-    INSTALLED.get().cloned()
-}
-
 /// What follows the key and its binding in a proof of the net's form: the
 /// route's length and the route, then whether a document is held (1) and
 /// its owner and serial, then whether the sender's document follows the
 /// proof (1).
-pub(super) fn encode(route: Option<&str>, held: Option<Held>, follows: bool) -> Vec<u8> {
+pub(crate) fn encode(route: Option<&str>, held: Option<Held>, follows: bool) -> Vec<u8> {
     let route = route.unwrap_or_default();
     let mut out = Vec::with_capacity(2 + route.len() + 41);
     // The caller checked that the route fits its one byte.
@@ -95,12 +85,12 @@ pub(super) fn encode(route: Option<&str>, held: Option<Held>, follows: bool) -> 
 
 /// What [`decode`] reads: the route's bytes, what the peer holds, and
 /// whether its document follows.
-pub(super) type Decoded<'a> = (Option<&'a [u8]>, Option<Held>, bool);
+pub(crate) type Decoded<'a> = (Option<&'a [u8]>, Option<Held>, bool);
 
 /// The parts of [`encode`]: the route's bytes, unchecked, what the peer
 /// holds, and whether its document follows; `None` for bytes of no such
 /// form.
-pub(super) fn decode(rest: &[u8]) -> Option<Decoded<'_>> {
+pub(crate) fn decode(rest: &[u8]) -> Option<Decoded<'_>> {
     let (&len, rest) = rest.split_first()?;
     let (route, rest) = rest.split_at_checked(usize::from(len))?;
     let (&has, rest) = rest.split_first()?;

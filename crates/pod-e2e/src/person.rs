@@ -1,8 +1,8 @@
-//! A person at the node (T-638, GitHub #136): a gate after a node's door,
-//! for a node that asks for one (`podssh node --ask`). Each key that the
-//! door, or a grant, lets through waits for a person's yes: one question for
-//! each key at a time, which each session of that key that comes meanwhile
-//! waits for. A yes covers the key while one of its sessions is open, and
+//! A person at the node (podssh T-638, PodUtils/podssh#136): a gate after a
+//! node's door, for a node that asks for one (podssh's `node --ask`). Each
+//! key that the door, or a grant, lets through waits for a person's yes: one
+//! question for each key at a time, which each session of that key that
+//! comes meanwhile waits for. A yes covers the key while one of its sessions is open, and
 //! [`Times::cover`] after its last; a no, or no answer within
 //! [`Times::question`], stands [`Times::stands`], in which the key is
 //! refused with no question.
@@ -15,8 +15,8 @@
 //! this crate has no terminal. The covers live in the process, so a node
 //! that starts again asks again.
 
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
@@ -26,8 +26,8 @@ use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::Instant;
 
-use super::Ask;
-use crate::identity::PublicKey;
+use crate::Ask;
+use pod_identity::PublicKey;
 
 /// The times of a gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,14 +42,14 @@ pub struct Times {
 
 impl Times {
     /// 100 s for an answer, a cover of 120 s and a no that stands 15 s, as
-    /// GitHub #136 proposed them: chosen, not measured.
+    /// PodUtils/podssh#136 proposed them: chosen, not measured.
     pub const DEFAULT: Times =
         Times { question: Duration::from_secs(100), cover: Duration::from_secs(120), stands: Duration::from_secs(15) };
 }
 
 /// What a node asks its person: the key that the channel proved, what it
 /// asks, whether a grant let it through the door, and how long the answer
-/// may take.
+/// can take.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Question {
     pub key: PublicKey,
@@ -170,7 +170,7 @@ impl Drop for Outstanding {
 }
 
 impl Gate {
-    /// A gate whose questions `asker` answers, with the times of GitHub #136.
+    /// A gate whose questions `asker` answers, with the default times.
     pub fn new(asker: Arc<Asker>) -> Arc<Gate> {
         Gate::with_times(asker, Times::DEFAULT)
     }

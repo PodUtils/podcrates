@@ -1,20 +1,21 @@
-//! The net's document in the end-to-end channel (T-429): of two ends that
+//! The net's document in the end-to-end channel (podssh T-429): of two ends that
 //! hold a document of one owner, the one with the higher serial gives it to
 //! the other, the operator's before the node's verdict and the node's after
 //! it; nothing travels between two equal serials or two owners, to a peer
 //! that is not a member, or to an operator that the node refused; and an
 //! end with no documents, as a podssh of before, meets one that has them;
 //! and an operator whose offer the node answered with a plain proof knows
-//! it, and says it once, as the session goes on (T-643).
+//! it, and says it once, as the session goes on (podssh T-643).
 //! The documents here are the bytes `OWNER SERIAL MEMBER...`: the binary's
-//! check of the owner's signature is `podssh net`'s, tested there.
+//! check of the owner's signature is podssh's (`podssh net`), tested there.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::e2e::net::{self, Docs, Held};
-use podssh_relay::e2e::{ends, initiate_with, respond_with, Error, Refusal};
-use podssh_relay::identity::{Identity, PublicKey};
+use pod_core::Event;
+use pod_e2e::net::{Docs, Held};
+use pod_e2e::{Error, Refusal, ends, initiate_with, respond_with};
+use pod_identity::{Identity, PublicKey};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const LIMIT: Duration = Duration::from_secs(30);
@@ -209,7 +210,7 @@ async fn an_end_with_no_documents_meets_one_that_has_them() {
     assert_eq!(op_got, b"from the node");
 }
 
-/// T-643: the operator's handshake knows that it offered the net's document
+/// podssh T-643: the operator's handshake knows that it offered the net's document
 /// and got a plain proof, from a node that holds none or of before; not
 /// when the node answered in the net's form, nor when it offered none.
 #[tokio::test]
@@ -240,23 +241,23 @@ async fn an_offer_answered_plainly_is_known_and_the_session_goes_on() {
     }
 }
 
-/// T-643: the operator's end, with this process's documents as the binary
-/// installs them, tells its caller once that the node gave no document, and
-/// the session's bytes go both ways whole; a node that holds the document
-/// gets no such word.
+/// podssh T-643: the operator's end, with the documents that the binary
+/// gives it, tells its caller once that the node gave no document, and the
+/// session's bytes go both ways whole; a node that holds the document gets
+/// no such word.
 #[tokio::test]
 async fn an_operator_whose_offer_got_a_plain_proof_says_it_once_and_goes_on() {
     let [op, node] = members();
     let installed: Arc<dyn Docs> = Memory::holding(9, 2, &[&op, &node]);
-    net::install(installed);
     for (ours, lines) in [(None, 1), (Some(Memory::holding(9, 2, &[&op, &node])), 0)] {
         let said: Arc<Mutex<Vec<String>>> = Arc::default();
         let told = {
             let said = said.clone();
-            move |line: String| said.lock().unwrap().push(line)
+            move |event: Event| said.lock().unwrap().push(event.text)
         };
         let (mut app, app_end) = tokio::io::duplex(4096);
-        let (cipher, session) = ends::operator_told(app_end, Arc::new(id(1)), |_| Ok(()), None, None, told);
+        let docs = Some(installed.clone());
+        let (cipher, session) = ends::operator_told(app_end, Arc::new(id(1)), |_| Ok(()), None, None, docs, told);
         let node_side = async move {
             let docs = ours.map(|m| m as Arc<dyn Docs>);
             let asked = respond_with(cipher, &id(2), docs).await.expect("the node's handshake");

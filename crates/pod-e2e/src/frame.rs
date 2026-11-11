@@ -4,7 +4,7 @@
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use super::{Error, Refusal, MAGIC, MAX_MESSAGE};
+use crate::{Error, MAGIC, MAX_MESSAGE, Refusal};
 
 /// The node's verdict on a session.
 pub const VERDICT: u8 = 1;
@@ -12,7 +12,7 @@ pub const VERDICT: u8 = 1;
 pub const DATA: u8 = 2;
 /// The clean end of one direction.
 pub const END: u8 = 3;
-/// The net's document (T-429), between two ends that said they read it.
+/// The net's document, between two ends that said they read it.
 pub const NET: u8 = 4;
 
 /// The verdicts: let in, or why not.
@@ -26,7 +26,7 @@ const MAX_REASON: usize = 1024;
 
 /// An item after the code of a verdict that lets in, its kind and its length
 /// in a byte each, then its bytes: the seed of the session's tokens of one
-/// leg (T-615). A podssh of before reads nothing past the code.
+/// leg. An older end reads nothing past the code.
 const SEED: u8 = 1;
 
 /// Read the peer's magic. A peer that sends something else does not speak
@@ -52,7 +52,7 @@ pub async fn read_magic<R: AsyncRead + Unpin>(r: &mut R) -> Result<(), Error> {
 }
 
 fn shown(bytes: &[u8]) -> String {
-    format!("{:?}", podssh_ws::text::one_line(&String::from_utf8_lossy(bytes)))
+    format!("{:?}", pod_core::text::one_line(&String::from_utf8_lossy(bytes)))
 }
 
 /// Read one frame into `buf`: `Ok(false)` when the stream ended where a
@@ -86,14 +86,14 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, message: &[u8]) -> Re
     w.flush().await.map_err(Error::Io)
 }
 
-/// The body of a verdict with no seed, as a node of before sends it.
+/// The body of a verdict with no seed, as an older node sends it.
 #[cfg(test)]
 pub fn verdict(answer: &Result<(), Refusal>) -> Vec<u8> {
     verdict_with(answer, None)
 }
 
 /// [`verdict`], with `seed` after the code of one that lets in: the seed of
-/// the session's tokens of one leg (T-615). A refusal carries none.
+/// the session's tokens of one leg. A refusal carries none.
 pub fn verdict_with(answer: &Result<(), Refusal>, seed: Option<&[u8; 32]>) -> Vec<u8> {
     if let (Ok(()), Some(seed)) = (answer, seed) {
         return [&[LET_IN, SEED, 32][..], &seed[..]].concat();
@@ -114,7 +114,7 @@ pub fn verdict_with(answer: &Result<(), Refusal>, seed: Option<&[u8; 32]>) -> Ve
 /// The answer of a verdict's body; a reason is made safe for a terminal.
 pub fn answer(body: &[u8]) -> Result<Result<(), Refusal>, Error> {
     let (&code, reason) = body.split_first().ok_or_else(|| Error::Malformed("an empty verdict".into()))?;
-    let reason = || podssh_ws::text::one_line(&String::from_utf8_lossy(reason));
+    let reason = || pod_core::text::one_line(&String::from_utf8_lossy(reason));
     match code {
         LET_IN => Ok(Ok(())),
         NOT_ALLOWED => Ok(Err(Refusal::NotAllowed)),
@@ -124,8 +124,8 @@ pub fn answer(body: &[u8]) -> Result<Result<(), Refusal>, Error> {
     }
 }
 
-/// The seed that a verdict which lets in carries among its items (T-615); an
-/// item of another kind is set aside, as a later podssh may add one.
+/// The seed that a verdict which lets in carries among its items; an item
+/// of another kind is set aside, as a later release can add one.
 pub fn seed_of(body: &[u8]) -> Option<[u8; 32]> {
     let (&code, mut rest) = body.split_first()?;
     if code != LET_IN {
@@ -145,8 +145,8 @@ pub fn seed_of(body: &[u8]) -> Option<[u8; 32]> {
 mod tests {
     use super::*;
 
-    /// T-615: a verdict that lets in with a seed reads as one that lets in to
-    /// a podssh of before, which reads the code alone, and gives its seed to
+    /// podssh T-615: a verdict that lets in with a seed reads as one that lets
+    /// in to an older end, which reads the code alone, and gives its seed to
     /// one that reads it; a refusal carries none.
     #[test]
     fn a_seed_rides_after_the_code_of_a_verdict_that_lets_in() {

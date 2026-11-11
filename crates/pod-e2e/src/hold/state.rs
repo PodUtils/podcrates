@@ -1,5 +1,5 @@
-//! The state of a session's channel at a node, as the next binary takes it
-//! (T-668): the keys that the handshake split, the nonces of the next
+//! The state of a session's channel at a node, as the next binary takes it:
+//! the keys that the handshake split, the nonces of the next
 //! message each way, where each direction stands, the bytes cut short each
 //! way, the operator's key, and the seed of its tokens of one leg. Its
 //! transport comes back from the keys: snow builds none from keys, so a
@@ -10,8 +10,8 @@ use snow::params::NoiseParams;
 use snow::{Builder, HandshakeState, StatelessTransportState};
 use zeroize::{Zeroize, Zeroizing};
 
-use super::super::{PATTERN, PROLOGUE};
-use crate::session::handover::wire::{Get, Put, Unreadable};
+use crate::{PATTERN, PROLOGUE};
+use pod_session::handover::wire::{Get, Put, Unreadable};
 
 /// The version of the bytes of a channel that this build writes, and the
 /// only one that it reads.
@@ -39,7 +39,7 @@ pub struct ChannelState {
     /// Whether the net's documents ride on the channel.
     pub net: bool,
     /// The seed of the session's tokens of one leg, and the first leg of
-    /// its window (T-615).
+    /// its window.
     pub lease: Option<([u8; 32], u64)>,
 }
 

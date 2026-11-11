@@ -1,15 +1,15 @@
-//! The relay can change, drop, repeat, reorder and cut frames
-//! (`SECURITY.md`). Over the end-to-end channel (T-088), each such fault
-//! ends the session with an error, and no byte of a bad frame, nor of one
-//! after it, reaches the other side: nothing is skipped.
+//! The relay can change, drop, repeat, reorder and cut frames (podssh
+//! `SECURITY.md`). Over the end-to-end channel (podssh T-088), each such
+//! fault ends the session with an error, and no byte of a bad frame, nor of
+//! one after it, reaches the other side: nothing is skipped.
 //!
 //! The operator's frames: 0 and 1 its handshake, then its data from 2. The
 //! node's: 0 its handshake, 1 its verdict, then its data from 2.
 
 mod e2e_harness;
 
-use e2e_harness::{echo_back, identity, node, run, Fault, Run, LIMIT};
-use podssh_relay::e2e::Error;
+use e2e_harness::{Fault, LIMIT, Run, echo_back, identity, node, run};
+use pod_e2e::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 fn session(up: Fault, down: Fault) -> Run {
@@ -36,7 +36,7 @@ async fn rest_after(r: &mut Run, chunks: &[&[u8]]) -> Vec<u8> {
     back
 }
 
-async fn node_lines(r: Run) -> (Result<podssh_relay::identity::PublicKey, Error>, String) {
+async fn node_lines(r: Run) -> (Result<pod_identity::PublicKey, Error>, String) {
     let outcome = tokio::time::timeout(LIMIT, r.session).await.unwrap().unwrap();
     let _ = tokio::time::timeout(LIMIT, r.node_task).await;
     let lines = r.lines.lock().unwrap().join("\n");
