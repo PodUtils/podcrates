@@ -77,8 +77,8 @@ git apply "$dir/$crate.patch"
 version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$src/Cargo.toml" | head -n 1)
 for manifest in $(git ls-files -m -o --exclude-standard | grep 'Cargo.toml$' || true) $(git diff --name-only | grep 'Cargo.toml$' || true); do
     [ -f "$manifest" ] || continue
-    sed -i -E "s|^(pod-[a-z-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$src/crates/\\1\"|" "$manifest"
-    sed -i -E "/^pod-[a-z-]+ = \\{ path = \"/s|, version = \"[0-9.]+\"|, version = \"$version\"|" "$manifest"
+    sed -i -E "s|^(pod-[a-z0-9-]+) = \\{ git = \"https://github.com/PodUtils/podcrates\", tag = \"v[0-9.]+\"|\\1 = { path = \"$src/crates/\\1\"|" "$manifest"
+    sed -i -E "/^pod-[a-z0-9-]+ = \\{ path = \"/s|, version = \"[0-9.]+\"|, version = \"$version\"|" "$manifest"
 done
 echo "adoption: $consumer at ${commit%"${commit#???????}"} with $crate of ${tag:-$(git -C "$here" rev-parse --short HEAD)}"
 grep -v '^#' "$dir/$crate.run" | while IFS= read -r step; do

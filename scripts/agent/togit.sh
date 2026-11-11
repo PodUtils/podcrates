@@ -7,6 +7,6 @@ v=$2
 here=$3
 cd "$1" || exit 1
 for manifest in $(git ls-files '*Cargo.toml'); do
-    sed -i -E "s|^(pod-[a-z-]+) = \\{ path = \"$here/crates/pod-[a-z-]+\"|\\1 = { git = \"https://github.com/PodUtils/podcrates\", tag = \"v$v\"|" "$manifest"
-    sed -i -E "/^pod-[a-z-]+ = \\{ git = \"https:\\/\\/github.com\\/PodUtils\\/podcrates\"/s|, version = \"[0-9.]+\"|, version = \"$v\"|" "$manifest"
+    sed -i -E "s|^(pod-[a-z0-9-]+) = \\{ path = \"$here/crates/pod-[a-z0-9-]+\"|\\1 = { git = \"https://github.com/PodUtils/podcrates\", tag = \"v$v\"|" "$manifest"
+    sed -i -E "/^pod-[a-z0-9-]+ = \\{ git = \"https:\\/\\/github.com\\/PodUtils\\/podcrates\"/s|, version = \"[0-9.]+\"|, version = \"$v\"|" "$manifest"
 done
