@@ -18,16 +18,24 @@ pub enum Call {
     AddPortRule,
     RestrictSelf,
     Seccomp,
+    CapGet,
+    CapBoundingDrop,
+    CapSet,
+    CapAmbientClear,
 }
 
 impl Call {
-    const ALL: [Call; 6] = [
+    const ALL: [Call; 10] = [
         Call::NoNewPrivs,
         Call::CreateRuleset,
         Call::AddPathRule,
         Call::AddPortRule,
         Call::RestrictSelf,
         Call::Seccomp,
+        Call::CapGet,
+        Call::CapBoundingDrop,
+        Call::CapSet,
+        Call::CapAmbientClear,
     ];
 
     /// The call as a reader knows it.
@@ -39,10 +47,14 @@ impl Call {
             Call::AddPortRule => "landlock_add_rule(LANDLOCK_RULE_NET_PORT)",
             Call::RestrictSelf => "landlock_restrict_self",
             Call::Seccomp => "seccomp(SECCOMP_SET_MODE_FILTER)",
+            Call::CapGet => "capget",
+            Call::CapBoundingDrop => "prctl(PR_CAPBSET_DROP)",
+            Call::CapSet => "capset",
+            Call::CapAmbientClear => "prctl(PR_CAP_AMBIENT_CLEAR_ALL)",
         }
     }
 
-    /// One byte for a pipe from a child: 1 to 6.
+    /// One byte for a pipe from a child: 1 to 10.
     pub fn code(self) -> u8 {
         Call::ALL.iter().position(|c| *c == self).map_or(0, |i| i as u8 + 1)
     }
@@ -54,7 +66,8 @@ impl Call {
 }
 
 /// A refusal of [`apply`]: the call, the index of its rule (a path rule or
-/// a port rule; 0 for the other calls) and the errno. It holds no heap
+/// a port rule; the capability of a drop from the bounding set; 0 for the
+/// other calls) and the errno. It holds no heap
 /// data, so a child after a fork can return it and write it to a pipe
 /// ([`Refusal::to_bytes`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +104,7 @@ impl Refusal {
         let rule = match self.call {
             Call::AddPathRule => compiled.rules.get(at).map(|r| format!(" for the path {:?}", r.path())),
             Call::AddPortRule => compiled.ports.get(at).map(|(p, _)| format!(" for the TCP port {p}")),
+            Call::CapBoundingDrop => Some(format!(" for the capability {at}")),
             _ => None,
         };
         format!("{}{}: {}", self.call.name(), rule.unwrap_or_default(), errno_text(self.errno))
@@ -113,7 +127,8 @@ impl fmt::Display for Refusal {
 ///
 /// In order: `PR_SET_NO_NEW_PRIVS` (each `execve` after it gives no
 /// privilege; Landlock and seccomp need it in a task with no
-/// `CAP_SYS_ADMIN`), the ruleset with the handled rights and the scopes,
+/// `CAP_SYS_ADMIN`), the drop of each capability that the spec does not
+/// keep, the ruleset with the handled rights and the scopes,
 /// each path rule, each port rule, `landlock_restrict_self`, then the
 /// seccomp filter in mode 2. The first failure returns, and the caller must not exec: a
 /// kernel with no Landlock fails at `landlock_create_ruleset`.
@@ -123,6 +138,7 @@ impl fmt::Display for Refusal {
 pub fn apply(c: &Compiled) -> Result<(), Refusal> {
     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
     k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
+    drop_caps(c.keep_caps)?;
     let attr =
         k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: c.scoped };
     let ruleset = k::landlock_create_ruleset(&attr).map_err(|e| refuse(Call::CreateRuleset, 0, e))?;
@@ -148,4 +164,36 @@ fn add_rules(c: &Compiled, ruleset: i64) -> Result<(), Refusal> {
         }
     }
     Ok(())
+}
+
+const EINVAL: i32 = 22;
+
+/// Drop each capability that `keep` does not name. The bounding set first,
+/// as its drop needs `CAP_SETPCAP` in the effective set; a thread with no
+/// `CAP_SETPCAP` keeps its bounding set, and with `no_new_privs` and an
+/// empty permitted set an `execve` gives it nothing. Then the three sets,
+/// then the ambient set (`EINVAL`: a kernel with no ambient set).
+fn drop_caps(keep: u64) -> Result<(), Refusal> {
+    let refuse = |call: Call, index: u32, errno: Errno| Refusal { call, index: index as u16, errno };
+    let have = k::capget().map_err(|e| refuse(Call::CapGet, 0, e))?;
+    if have.effective & (1 << k::CAP_SETPCAP) != 0 {
+        for cap in 0..64u32 {
+            if keep & (1 << cap) != 0 {
+                continue;
+            }
+            match k::capbset_drop(cap) {
+                Ok(_) => {}
+                // Past the last capability of this kernel.
+                Err(e) if e.0 == EINVAL => break,
+                Err(e) => return Err(refuse(Call::CapBoundingDrop, cap, e)),
+            }
+        }
+    }
+    let kept = keep & have.permitted;
+    k::capset(k::CapSets { effective: kept, permitted: kept, inheritable: 0 })
+        .map_err(|e| refuse(Call::CapSet, 0, e))?;
+    match k::ambient_clear() {
+        Err(e) if e.0 != EINVAL => Err(refuse(Call::CapAmbientClear, 0, e)),
+        _ => Ok(()),
+    }
 }

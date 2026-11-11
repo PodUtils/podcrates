@@ -388,3 +388,32 @@ fn an_mptcp_socket_fails_where_tcp_has_a_list() {
     });
     assert_eq!(got, [ENOPROTOOPT, 1, 0], "an MPTCP socket, its connect outside the list, a TCP connect inside");
 }
+
+/// A confined root keeps no capability: its sets are empty, and it reads no
+/// `/proc/1/environ` of a process outside its domain. With
+/// `keep_cap(CAP_SYS_PTRACE)` it keeps that one alone. Root only: another
+/// user holds no capability to drop.
+#[test]
+fn a_confined_root_keeps_only_the_capabilities_of_the_spec() {
+    let Some(abi) = landlock(MIN_ABI) else { return };
+    if std::fs::read_to_string("/proc/self/status").unwrap().lines().all(|l| !l.starts_with("Uid:\t0\t")) {
+        pod_testkit::host::skip_line("the test runs as root only");
+        return;
+    }
+    let environ = c(Path::new("/proc/1/environ"));
+    let run = |spec: Spec| {
+        let compiled = spec.allow("/proc", Access::READ).compile(abi).unwrap();
+        in_child(|| {
+            if let Err(e) = confined(&compiled) {
+                return [e; 3];
+            }
+            let caps = k::capget().map_or([-1, -1], |s| [s.effective as i64, s.permitted as i64]);
+            [code(k::open(&environ, k::O_RDONLY | k::O_CLOEXEC, 0)).min(0), caps[0], caps[1]]
+        })
+    };
+    let got = run(Spec::new());
+    assert_eq!(got, [EACCES, 0, 0], "no capability kept: the read of /proc/1/environ, CapEff, CapPrm");
+    let ptrace = 1i64 << k::CAP_SYS_PTRACE;
+    let got = run(Spec::new().keep_cap(k::CAP_SYS_PTRACE));
+    assert_eq!(got[1..], [ptrace, ptrace], "CAP_SYS_PTRACE kept, and no other one: {got:?}");
+}

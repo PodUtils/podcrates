@@ -20,7 +20,9 @@ only issues system calls on data that exists:
    `RESOLVE_IN_ROOT`, as after a `chroot` there) before the fork: each
    path opens as `O_PATH | O_CLOEXEC`, the BPF program is built. A path
    that does not exist is a refusal by name.
-3. `apply(&compiled)` in the child: `PR_SET_NO_NEW_PRIVS`,
+3. `apply(&compiled)` in the child: `PR_SET_NO_NEW_PRIVS`, the drop of
+   each capability that the spec does not keep (`capget`,
+   `PR_CAPBSET_DROP`, `capset`, `PR_CAP_AMBIENT_CLEAR_ALL`),
    `landlock_create_ruleset` (with the scopes), `landlock_add_rule` for
    each path and port,
    `landlock_restrict_self`, then `seccomp(SECCOMP_SET_MODE_FILTER)`
@@ -47,7 +49,7 @@ the host.
 
 | Item | What |
 | --- | --- |
-| `Spec { paths, connect, bind, scope, udp, deny }` | `paths`: `PathRule { path, access }`; `connect`, `bind`: `None` leaves the TCP call free, `Some(ports)` allows those ports only; `scope`: the Landlock scopes; `udp`: `false` closes UDP; `deny`: the calls that fail. `Spec::new()` (no path, TCP and UDP free, the scopes on, `Deny::defaults()`), `allow(path, access)`, `connect_to(port)`, `bind_to(port)`, `close_udp()`, `no_scope()`; `deny_rules()` (the rules of the filter: `deny`, then the rules of the switches) |
+| `Spec { paths, connect, bind, scope, udp, deny, keep_caps }` | `paths`: `PathRule { path, access }`; `connect`, `bind`: `None` leaves the TCP call free, `Some(ports)` allows those ports only; `scope`: the Landlock scopes; `udp`: `false` closes UDP; `deny`: the calls that fail. `Spec::new()` (no path, TCP and UDP free, the scopes on, `Deny::defaults()`), `allow(path, access)`, `connect_to(port)`, `bind_to(port)`, `close_udp()`, `no_scope()`, `keep_cap(n)`; `keep_caps`: the mask of the capabilities that the payload keeps (0, none, in `Spec::new()`; `DOCKER_CAPS` is docker's default set); `deny_rules()` (the rules of the filter: `deny`, then the rules of the switches) |
 | `Access` | `READ` (read a file, list a directory), `WRITE` (write, truncate, make, remove, rename, link; an `ioctl` on a device), `EXECUTE`, `NONE`, and their union (`READ \| EXECUTE`); `rights()` gives the Landlock rights |
 | `Deny` | `{ name, nr, errno, when }`: `Deny::call(name, SYS_*, errno)`; each condition of `when` is an `Arg` on the low 32 bits of one argument, and all must hold: `when_flags(index, mask)` (a bit of the mask is set), `when_equal(index, mask, value)` (the argument masked is the value); `Deny::defaults()`, `Deny::io_uring()`, `Deny::udp()`, `Deny::mptcp()` |
 | `deny::program(&[Deny])` | the BPF program: the audit arch (a foreign ABI and x32 get `ENOSYS`), one block for each rule, `ALLOW`. The first rule of a number that holds gives its errno: a rule with conditions that do not hold gives the call to the next rule of its number, and a rule after a rule of its number with no condition is left out. A rule with no condition takes two instructions, one with one flag condition five. `NAMESPACE_FLAGS`, `CLONE_NEWTIME` |
@@ -64,6 +66,21 @@ the rights of a file (`EXECUTE`, `WRITE_FILE`, `READ_FILE`, `TRUNCATE`,
 `IOCTL_DEV`). Under ABI 10 Landlock does not restrict UDP, and under ABI 9
 it does not restrict a connect to a Unix socket of a path; the ruleset of
 this crate handles neither right yet (T-213).
+
+### The capabilities
+
+`apply` drops each capability that `keep_caps` does not name: from the
+bounding set (where the thread holds `CAP_SETPCAP`; else the drop needs
+no step there), then from the effective, permitted and inheritable sets
+(`capset`), then the ambient set. With `no_new_privs`, an `execve` as root
+gives no more than the permitted set before it, so the payload keeps the
+mask and nothing else. A payload of another user holds no capability, and
+the drop changes nothing for it. A root payload that installs packages
+needs some capabilities: give it `DOCKER_CAPS` (`CHOWN`, `DAC_OVERRIDE`,
+`FOWNER`, `FSETID`, `KILL`, `SETGID`, `SETUID`, `SETPCAP`,
+`NET_BIND_SERVICE`, `NET_RAW`, `SYS_CHROOT`, `MKNOD`, `AUDIT_WRITE`,
+`SETFCAP`). Measured on Linux 6.18 (ABI 7), as root: with each capability
+kept, the Landlock domain still refuses `/proc/1/environ` with `EACCES`.
 
 ### The scopes, UDP and MPTCP
 

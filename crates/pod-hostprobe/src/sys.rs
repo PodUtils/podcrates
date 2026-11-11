@@ -459,5 +459,8 @@ pub use seccomp::*;
 mod landlock;
 pub use landlock::*;
 
+mod caps;
+pub use caps::*;
+
 #[cfg(test)]
 mod tests;

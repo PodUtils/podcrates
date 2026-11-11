@@ -38,7 +38,7 @@ pub use apply::{Call, Refusal, apply};
 pub use compile::{Compiled, MOST_RULES, Rule};
 pub use deny::{Arg, Deny};
 pub use probe::{check, probe};
-pub use spec::{Access, PathRule, Spec};
+pub use spec::{Access, DOCKER_CAPS, PathRule, Spec};
 
 use pod_core::{Class, Failure, Stage};
 use pod_hostprobe::sys::Errno;

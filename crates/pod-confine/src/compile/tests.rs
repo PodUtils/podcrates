@@ -187,7 +187,7 @@ fn a_refusal_names_the_call_the_rule_and_the_errno() {
     }
     assert_eq!(Call::from_code(Call::Seccomp.code()), Some(Call::Seccomp));
     assert_eq!(Call::from_code(0), None);
-    assert_eq!(Call::from_code(7), None);
+    assert_eq!(Call::from_code(11), None);
     let _ = std::fs::remove_dir_all(d);
 }
 

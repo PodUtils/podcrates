@@ -128,6 +128,26 @@ pub struct PathRule {
     pub access: Access,
 }
 
+/// The capabilities that docker keeps for a container by default:
+/// `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `FSETID`, `KILL`, `SETGID`,
+/// `SETUID`, `SETPCAP`, `NET_BIND_SERVICE`, `NET_RAW`, `SYS_CHROOT`,
+/// `MKNOD`, `AUDIT_WRITE` and `SETFCAP`. A root payload that installs
+/// packages needs some of them; give it to [`Spec::keep_caps`].
+pub const DOCKER_CAPS: u64 = (1 << 0)
+    | (1 << 1)
+    | (1 << 3)
+    | (1 << 4)
+    | (1 << 5)
+    | (1 << 6)
+    | (1 << 7)
+    | (1 << 8)
+    | (1 << 10)
+    | (1 << 13)
+    | (1 << 18)
+    | (1 << 27)
+    | (1 << 29)
+    | (1 << 31);
+
 /// The confinement of a payload.
 ///
 /// Each path that no rule names, and each path under it, is denied for
@@ -154,6 +174,14 @@ pub struct Spec {
     pub udp: bool,
     /// The calls that fail, with their errno ([`Deny::defaults`]).
     pub deny: Vec<Deny>,
+    /// The capabilities that the payload keeps, as a mask (bit `n` is
+    /// capability `n`). Each other one goes out of the bounding set (where
+    /// the thread holds `CAP_SETPCAP`) and out of the effective, permitted,
+    /// inheritable and ambient sets. With `no_new_privs`, an `execve` as
+    /// root gives no more than the kept set. 0 (the default) keeps none:
+    /// `CAP_SYS_PTRACE` passes the ptrace check of a Landlock domain, so a
+    /// root that keeps it reads `/proc/PID/environ` of each process.
+    pub keep_caps: u64,
 }
 
 impl Default for Spec {
@@ -163,10 +191,18 @@ impl Default for Spec {
 }
 
 impl Spec {
-    /// No path, TCP and UDP free, the scopes on, and the default deny
-    /// list.
+    /// No path, TCP and UDP free, the scopes on, the default deny list,
+    /// and no capability.
     pub fn new() -> Spec {
-        Spec { paths: Vec::new(), connect: None, bind: None, scope: true, udp: true, deny: Deny::defaults() }
+        Spec {
+            paths: Vec::new(),
+            connect: None,
+            bind: None,
+            scope: true,
+            udp: true,
+            deny: Deny::defaults(),
+            keep_caps: 0,
+        }
     }
 
     /// Add a path with its access set.
@@ -197,6 +233,12 @@ impl Spec {
     /// process of its user and connect to each abstract Unix socket.
     pub fn no_scope(mut self) -> Spec {
         self.scope = false;
+        self
+    }
+
+    /// Keep the capability `cap` (0 to 63; [`Spec::keep_caps`]).
+    pub fn keep_cap(mut self, cap: u32) -> Spec {
+        self.keep_caps |= 1u64.checked_shl(cap).unwrap_or(0);
         self
     }
 }

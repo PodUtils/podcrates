@@ -37,6 +37,8 @@ pub fn check() -> Result<u32, Failure> {
         handled_fs: u64::from(k::LANDLOCK_ACCESS_FS_READ_FILE),
         handled_net: 0,
         scoped: 0,
+        // The child drops each capability too, so the probe tries each step.
+        keep_caps: 0,
         rules: Vec::new(),
         ports: Vec::new(),
         filter: vec![k::bpf_stmt(k::BPF_RET_K, k::SECCOMP_RET_ALLOW)],
