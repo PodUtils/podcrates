@@ -1,0 +1,7 @@
+# The end of the control stream with no answer read as the bound: after a
+# payload kills its launcher, wait gives the stale record Running (T-202).
+ENTRY=T-202
+GROUP=supervise
+EXPECT='a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count|left: Running'
+RUN='cargo test -p pod-supervise --test tree'
+LIMIT=1800

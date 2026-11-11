@@ -2988,7 +2988,7 @@ cargo test -p pod-hold
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3024,5 +3024,72 @@ count of 0, fix it to `Unknown`.
 
 ```sh
 cargo test -p pod-supervise --test tree
+```
+
+## Done
+
+2026-11-11. `tests/tree.rs` has the step
+`a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count`
+(podrunner's case 2; its case 1 is
+`a_grandchild_that_left_and_ignores_sigterm_is_killed`).
+
+- Defect found and fixed: `launcher::wait` read the end of the control
+  stream with no answer as the bound (`Ok(None)`). After a payload killed
+  its launcher, `wait` gave the stale record `Running` with no code, and
+  `stop` sent SIGKILL to a launcher that was gone and answered that SIGKILL
+  ended the payload. The end with no answer is now `WaitError::Gone`;
+  `wait` reads the record again for up to 1 s (the kernel closes the
+  socket and the lock one after the other) and gives `Dead` with no exit
+  code and no end. Plant `supervise-launcher-eof-is-the-bound` (the old
+  line) fails the step with `left: Running`.
+- Defect found, larger: the payload outlives its launcher; no code of
+  `pod-supervise` or `pod-enter` sets `PR_SET_PDEATHSIG` (T-205).
+- `cargo test -p pod-supervise`: 30 unit tests, `lifecycle` 5 steps,
+  `tree` 7 steps pass.
+
+# T-205: `pod-supervise`, `pod-enter`: a payload outlives its launcher; no code sets `PR_SET_PDEATHSIG`
+
+**Source:** T-202 (podrunner's case of its T-063)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The rule 4 of `crates/pod-supervise/README.md` keeps the path that
+forks, enters and execs on one thread, because `PR_SET_PDEATHSIG` fires at
+the exit of a thread. But no code sets `PR_SET_PDEATHSIG`: not the
+launcher, not `pod-enter`'s child, not the `enter` of the tests. When a
+payload, or anything else, kills the launcher, the payload runs on with
+no supervisor, its record reads `Dead`, and no verb can stop it. The step
+of T-202 shows it: the payload lives after its launcher is killed.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/launcher.rs` (the double fork, the
+  comment on `PR_SET_PDEATHSIG`), `launcher/tests.rs`
+  (`nothing_on_the_spawn_path_can_spawn_a_thread`), and
+  `grep -rn PDEATHSIG crates/pod-enter/src` (no match).
+- Not read: whether podvm's entry sets it on its own
+  (PodUtils/podvm crates of the enter of a payload).
+
+## Approach
+
+`PR_SET_PDEATHSIG(SIGKILL)` in the child of the payload, after the fork
+and before the exec, with the check that the parent is still the
+launcher after the call (the race of a parent that ended before it).
+`pod-enter` sets it in its child path (with the limits and
+`no_new_privs`); `pod-supervise` names it in `Launch` for an `enter` of
+the caller, and the `enter` of its tests sets it. The step of T-202 then
+asserts that the payload ends with its launcher. Ask podvm by a COORD
+issue whether its entry sets it today.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --test tree
+cargo test -p pod-enter
 ```
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**204 entries: 58 open, 3 partial, 0 blocked, 143 done.**
+**205 entries: 58 open, 3 partial, 0 blocked, 144 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 15 | 0 | 0 | 42 | 57 |
-| P2 | 26 | 2 | 0 | 68 | 96 |
-| P3 | 17 | 1 | 0 | 31 | 49 |
-| **All** | 58 | 3 | 0 | 143 | 204 |
+| P2 | 27 | 2 | 0 | 68 | 97 |
+| P3 | 16 | 1 | 0 | 32 | 49 |
+| **All** | 58 | 3 | 0 | 144 | 205 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -248,6 +248,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-199](upkeep.md) | P3 | S | M5 | chore | open | `pod-e2e`: snow on the line of `chacha20poly1305` 0.11 |
 | [T-200](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Bare node whose WebSocket passes (PodUtils/podssh@T-740) |
 | [T-201](podvm.md) | P3 | M | M1 | feature | open | `pod-hold`: the veth wire of the netns hold when the namespace has no `/dev/net/tun` (PodUtils/podnet#446) |
-| [T-202](podvm.md) | P3 | S | M1 | measurement | open | `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063) |
+| [T-202](podvm.md) | P3 | S | M1 | measurement | done | `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063) |
 | [T-203](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the TCP relay of ZeroTier (PodUtils/podssh#190) |
 | [T-204](relay.md) | P2 | S | M2 | defect | open | `pod-session`: `a_session_moves_while_both_ends_send_at_full_speed` lost its link one time in a run of the workspace's tests |
+| [T-205](podvm.md) | P2 | S | M1 | defect | open | `pod-supervise`, `pod-enter`: a payload outlives its launcher; no code sets `PR_SET_PDEATHSIG` |

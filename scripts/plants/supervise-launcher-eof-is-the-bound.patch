@@ -1,0 +1,14 @@
+--- a/crates/pod-supervise/src/launcher.rs
++++ b/crates/pod-supervise/src/launcher.rs
+@@ -111,10 +111,7 @@
+         // the launcher closes its socket). It is `Gone`, not the bound: read
+         // as the bound, a payload that killed its launcher stayed `Running`
+         // after `wait`, and `stop` reported a SIGKILL that it never sent.
+-        Ok(0) => Err(WaitError::Gone(launcher_io(std::io::Error::new(
+-            std::io::ErrorKind::UnexpectedEof,
+-            "the launcher closed the connection with no answer",
+-        )))),
++        Ok(0) => Ok(None),
+         Ok(_) => match line.trim().strip_prefix("exit ") {
+             Some(n) => n.parse::<i32>().map(Some).map_err(|_| {
+                 WaitError::Failed(failure(Class::Protocol, format!("the launcher answered {:?}", line.trim())))
