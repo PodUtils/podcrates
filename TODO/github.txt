@@ -68,4 +68,4 @@
 61 issue closed
 62 issue closed
 63 issue open
-64 issue open
+64 issue closed

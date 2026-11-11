@@ -13,8 +13,10 @@ page current; remove a line when its work is done.
   `v0.21.0`: `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63), T-195
   and T-196 (the fix of PodUtils/podnet#444, ported).
 - The consumers and the tag each takes:
-  - podssh: `v0.18.0` (`50ef8922`; `pod-wormhole` at `baa00a06`,
-    `pod-session` at `6f78a7c7`). Next: `v0.20.0` (T-185, T-186, T-187).
+  - podssh: `v0.20.0` (`0c40ed3e`; the key of `localhost-run` pinned;
+    `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
+    PodUtils/podssh@T-740).
+    `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
   - podnet: `v0.20.0` (`d23ce4e`, PodUtils/podnet#445: `pod-netstack`
     taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`,
     and `warp --cc reno|cubic` waits for T-188). `pod-hold` at `b759937`,

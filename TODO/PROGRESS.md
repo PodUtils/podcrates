@@ -10,9 +10,9 @@
   dry run of `publish.yml` 42980135318 green): `pod-netstack` (T-023), the
   key of `localhost-run`, `sandhole` and `openbare-xyz` in `pod-services`.
   The hand-off is GitHub #64 (COORD-039); the one of `v0.19.0` is #62.
-- The consumers: podssh is on `v0.18.0` (`50ef8922`: the tunnels of
-  T-171, `Rewound::new`, the key of `ssh-j` pinned; it took `pod-wormhole`
-  at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
+- The consumers: podssh is on `v0.20.0` (`0c40ed3e`: the key of
+  `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
+  `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
   (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.19.0` (`2c2b8d2`, its
   `--inhibit-cache` from `LoaderPlan::inhibit_cache`; PodUtils/podvm#249,
