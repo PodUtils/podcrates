@@ -1,0 +1,8 @@
+# The xz decoder of the squashfs reader with no BCJ filter: a block that
+# mksquashfs wrote with the x86 filter (8 of the 1,016 streams of Alpine's
+# modloop-virt) does not decode, so the test of the x86 fixture must fail.
+ENTRY=T-206
+GROUP=guest
+EXPECT='test squashfs::tests::an_x86_block_decodes_through_its_bcj_filter \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- squashfs::tests::an_x86_block_decodes_through_its_bcj_filter'
+LIMIT=1800

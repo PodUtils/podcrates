@@ -72,6 +72,8 @@ pub enum Fault {
     Unknown(String),
     /// A line of `modules.dep` (from 1) that does not parse.
     Dep { line: usize, why: &'static str },
+    /// A file of the release that is not UTF-8 text, by its path.
+    NotText(String),
     /// A path of `modules.dep` that is not relative, or that has an empty
     /// part, `.` or `..`.
     Path(String),
@@ -87,6 +89,7 @@ impl std::fmt::Display for Fault {
             Fault::Release(r) => write!(f, "no modules.dep of the release {r:?} in the image"),
             Fault::Unknown(name) => write!(f, "{name}: not a module of modules.dep, and not built in"),
             Fault::Dep { line, why } => write!(f, "modules.dep, line {line}: {why}"),
+            Fault::NotText(path) => write!(f, "{path}: not UTF-8 text"),
             Fault::Path(path) => write!(f, "modules.dep names {path:?}, which is not a plain relative path"),
             Fault::Loop(path) => write!(f, "a dependency loop through {path}"),
             Fault::TooLarge { size, limit } => write!(f, "a set of {size} bytes, over the {limit}-byte ceiling"),
@@ -106,7 +109,7 @@ impl Fault {
             Fault::Release(r) if !is_part(r) => Class::Usage,
             Fault::Release(_) | Fault::Unknown(_) => Class::NotFound,
             Fault::TooLarge { .. } => Class::Policy,
-            Fault::Dep { .. } | Fault::Path(_) | Fault::Loop(_) => Class::Protocol,
+            Fault::Dep { .. } | Fault::NotText(_) | Fault::Path(_) | Fault::Loop(_) => Class::Protocol,
         };
         Failure::caused(Stage::Host, class, format!("modloop: {self}"), self)
     }
@@ -202,14 +205,19 @@ fn is_part(s: &str) -> bool {
 }
 
 /// The directory of the release: the first of [`RELEASE_DIRS`] that holds
-/// it.
+/// it. A part of a place that is not there, or not a directory, sends the
+/// search to the next place.
 fn release_dir<R: Read + Seek>(image: &mut Image<R>, release: &str) -> Result<String> {
     for dir in RELEASE_DIRS {
         let path = format!("{dir}/{release}");
         match image.lookup(&path) {
             Ok(inode) if matches!(inode.kind, Kind::Directory(_)) => return Ok(path),
             Ok(_) => {}
-            Err(e) if matches!(squashfs::fault(&e), Some(squashfs::Fault::Missing(_))) => {}
+            Err(e)
+                if matches!(
+                    squashfs::fault(&e),
+                    Some(squashfs::Fault::Missing(_) | squashfs::Fault::NotADirectory(_))
+                ) => {}
             Err(e) => return Err(e),
         }
     }
@@ -225,7 +233,7 @@ fn text<R: Read + Seek>(image: &mut Image<R>, path: &str) -> Result<Option<Strin
         Err(e) => return Err(e),
     };
     let bytes = image.read(&file)?;
-    String::from_utf8(bytes).map(Some).map_err(|_| Fault::Dep { line: 0, why: "not UTF-8" }.into())
+    String::from_utf8(bytes).map(Some).map_err(|_| Fault::NotText(path.to_string()).into())
 }
 
 /// The suffixes of a module file: plain, or compressed for kmod.

@@ -206,10 +206,10 @@ fn squashfs_walk(data: &[u8]) -> Vec<String> {
         Ok(root) => vec![(String::new(), root)],
         Err(e) => return vec![e.to_string()],
     };
-    while let Some((path, inode)) = todo.pop() {
-        if out.len() > WALK {
-            break;
-        }
+    // A bound on the inodes, not on the lines: a listing can name its own
+    // directory, and a directory adds no line.
+    for _ in 0..WALK {
+        let Some((path, inode)) = todo.pop() else { break };
         match inode.kind {
             Kind::Directory(d) => match image.entries(&d) {
                 Ok(entries) => {
@@ -290,6 +290,21 @@ mod tests {
         assert!(parse("static").expect("the static program").interp.is_none());
         assert!(parse("dynamic").expect("the dynamic program").interp.is_some_and(|i| i.contains("ld-")));
         assert!(parse("not-elf").is_err());
+    }
+
+    /// A listing that names its own directory: the walk ends at its bound
+    /// of inodes, with no line of a file.
+    #[test]
+    fn a_directory_that_lists_itself_ends_the_walk() {
+        let mut img = seed("squashfs_image", "options");
+        let root = u64::from_le_bytes(img[32..40].try_into().unwrap());
+        // The one listing: a header (count, block, number), then the entry
+        // (offset, delta, type, name size, name) of `code.ko`.
+        let listing = u64::from_le_bytes(img[72..80].try_into().unwrap()) as usize + 2;
+        img[listing + 4..listing + 8].copy_from_slice(&((root >> 16) as u32).to_le_bytes());
+        img[listing + 12..listing + 14].copy_from_slice(&((root & 0xffff) as u16).to_le_bytes());
+        assert_eq!(squashfs_walk(&img), ["Ok([0])"]);
+        squashfs_image(&img);
     }
 
     /// The seeds of `squashfs_image` reach past the superblock: each image

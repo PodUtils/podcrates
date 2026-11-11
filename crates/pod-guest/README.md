@@ -31,6 +31,10 @@ the stop:
   the boot keys and two lines into the console through QMP and polls the
   mailbox for the result.
 
+The crate also gives a guest kernel its modules: it reads the squashfs
+modloop of the kernel on the host and returns the modules that the guest
+needs, with their dependencies ("The modloop", below).
+
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another
 target it is empty. It reads no variable of the environment and prints
 nothing. At run time it starts the emulator and `qemu-img` that the caller
@@ -56,6 +60,8 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 | `fat16` | `Fat16` (`new`, `with_oem`, `from_image`, `put`, `get`, `list`, `is_mailbox`, `image`), `format`, `format_with`, `oem_bytes`, the geometry (16 MiB behind an MBR at LBA 2048, 4 KiB clusters), `LABEL`, `OEM` |
 | `fetch` | `Ceiling { max_bytes, fsize }`, `check_declared`, `store(reader, declared, dest, want, ceiling)` (the sha256 in hex; a per-process partial file, removed on each refusal), `partial`, `Refusal`, `refusal(&failure)` |
 | `qmp` | `Monitor` (`connect`, `call`, `keys`, `quit`), `send_key`, `is_event`, `response_ok`, `key(char)` (the `send-key` name and shift for a US layout), `HOLD_MS` |
+| `modloop` | `modules(reader, kernel_release, names) -> ModuleSet` (`release`, `modules`: each `Module { path, name, bytes }` in load order, `builtin`, `dep`, `size()`), `Fault`, `fault(&failure)`, `MAX_SET`, `RELEASE_DIRS` |
+| `squashfs` | `Image::open(reader)` (`superblock`, `root`, `inode(reference)`, `entries(&dir)`, `lookup(path)`, `file_at(path)`, `read(&file)`, `ids`, `export(number)`), `Superblock::parse`, `Compressor`, `Inode`, `Kind`, `Dir`, `File`, `Entry`, `listing(bytes)`, `Fault`, `fault(&failure)`, the ceilings `MAX_FILE`, `MAX_LISTING`, `MAX_LINK` |
 
 Each failure is a `pod_core::Failure` at `Stage::Host`. A failure of I/O
 keeps its cause, with the text `PATH: CAUSE`. The classes: `Timeout` (a run
@@ -71,6 +77,53 @@ kind.
 The FAT16 reader does not trust the volume that the guest wrote: a cluster
 outside the volume, a loop in a chain, or a size that the chain does not
 hold reads as no file.
+
+## The modloop
+
+A distribution ships the modules of its kernel as a squashfs image beside
+the kernel (Alpine: `boot/modloop-virt`, xz, blocks of 128 KiB). When
+`squashfs.ko` is in that image only, the guest cannot mount it. The host
+calls `modloop::modules(File::open(path)?, "6.12.115-0-virt", ["tun",
+"wireguard"])` and puts the set into the initramfs or a second disk of the
+guest: each `Module` under its `path`, and `dep` as `modules.dep`.
+
+* The set: each name, and each dependency of `modules.dep`, each one time,
+  in load order (each dependency before its dependents; the dependencies
+  of a line from its end, as modprobe loads them). `-` and `_` are the
+  same in a name, as in kmod. A name of `modules.builtin` goes into
+  `builtin` and needs no file. A name that is neither is
+  `Fault::Unknown(name)`, class `NotFound`. A dependency loop, a line with
+  no colon, a second line of one module, a path that is absolute or has
+  `.` or `..`, and a file of the release that is not UTF-8 text are faults.
+  The walk keeps a stack of its own.
+* The release: `modules/RELEASE` (a modloop), else `lib/modules/RELEASE`
+  (a root file system). Each module file is copied as it is: `.ko`, or `.ko.gz`,
+  `.ko.xz`, `.ko.zst` for the guest's kmod.
+* The input is a `Read + Seek`. The reader reads the superblock, the
+  tables that a call needs, and the blocks of `modules.dep`,
+  `modules.builtin` and of each module, not the whole image (2.2 MB of
+  modules from the 21 MB modloop of Alpine 3.22.8).
+
+The squashfs reader is for the read path only. It takes squashfs 4.0
+with xz (`xz4rust`, Rust with no unsafe code): LZMA2, with or without a
+BCJ filter (x86, which mksquashfs puts on some blocks of executable code;
+also ARM, ARM64, ARM-Thumb, PowerPC, IA-64, SPARC and RISC-V). Each stream is one block, with a crc32 check, and decodes
+to the length that its table gives; bytes after its end are a fault, as in
+the kernel. The dictionary is the one of the compressor options (2^n or
+3 × 2^n, at most the block size), else the block size: a stream that asks
+for more is a fault, not an allocation. A stored block needs no decoder,
+so an image of another compressor reads as far as its blocks are stored.
+Links are not followed; xattrs are not read.
+
+The reader trusts nothing in the image: each offset and each size is
+checked against `bytes_used`, a name of a listing is one part of a path,
+and a ceiling holds before each allocation (a file 64 MiB, a listing 16
+MiB, a link 4 KiB, the cache of metadata 8 MiB, a set 256 MiB). Each
+failure is a `pod_core::Failure` with a cause `squashfs::Fault` or
+`modloop::Fault`: `NotFound` for a path, a release or a name that is not
+there, `Unsupported` for a version or a compressor, `Policy` for a
+ceiling, `Usage` for a release that is not one part of a path, `Protocol`
+for the rest.
 
 ## Parity
 
@@ -124,6 +177,26 @@ The tests with a fake emulator run `/bin/sh` and skip with a line
 the QMP handshake and a request, stops it and checks that no emulator
 stays; they skip as the text above says. `guest.yml` runs them on a runner with
 QEMU, each week and by hand (`docs/design.md`, section 9).
+
+The tests of the modloop build their images with the test writer of
+`src/squashfs/writer.rs` (stored metadata in blocks of a chosen size, so
+that an inode or a listing crosses blocks; stored, sparse and xz blocks;
+fragments; an export table). Its xz blocks come from the fixtures of
+`tests/fixtures/squashfs/`, which `make.py` writes with Python's lzma:
+4 KiB of x86 code with the x86 BCJ filter, and 1,000 bytes with LZMA2
+only. Each malformed image is a test of its fault, and 3,000 mutations of
+an image read to a value or a fault. The ignored test
+`write_the_fuzz_seeds` writes the seeds of the fuzz target
+`squashfs_image`.
+
+`tests/modloop_live.rs` (ignored; `live.yml` runs it each day) reads the
+modloop of Alpine 3.22 that `POD_GUEST_MODLOOP` names: it walks each
+directory and file, the id and export tables, counts the xz streams that
+it decoded and those with the x86 filter, and takes the module set of
+`nf_tables nft_nat sch_netem wireguard tun veth nf_nat`. On the
+`modloop-virt` of Alpine 3.22.8 (2026-11-11): 1,016 streams, 8 with x86
+BCJ, 939 files of 114,162,529 bytes; the set has 20 modules of 2,194,724
+bytes for `6.12.115-0-virt`.
 
 ## Sources
 

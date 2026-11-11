@@ -3202,7 +3202,7 @@ SIGKILL to the launcher of `podvm run -d`, the payload ends (state Z) and
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3255,6 +3255,62 @@ a squashfs that the test writes, and a live test of the real modloop in
 ```sh
 cargo test -p pod-guest
 ```
+
+## Done
+
+2026-11-11, commit `f04b67c` (the reader, the tests, the fuzz target, the
+live step) and the commit of this section (the plants, the documents,
+call C58). The decoder is `xz4rust` (C58).
+
+- `pod_guest::squashfs`: squashfs 4.0, read only, over a `Read + Seek`;
+  each offset and size checked against `bytes_used`; a ceiling before each
+  allocation; a typed `squashfs::Fault`. `pod_guest::modloop::modules`:
+  each name and each dependency of `modules.dep`, each once, in load
+  order, with the `modules.dep` of the set; a name of `modules.builtin`
+  needs no file; a name in neither file is `modloop::Fault::Unknown` with
+  the name.
+- `cargo test -p pod-guest`: 89 passed, 1 ignored (`write_the_fuzz_seeds`);
+  `tests/modloop_live.rs`: 1 ignored. 23 tests are new: 11 of `squashfs`
+  (on images of the test writer, with the xz fixtures of
+  `crates/pod-guest/tests/fixtures/squashfs/make.py`), 12 of `modloop`.
+  Two fixes after `f04b67c`, each with a test that fails on `f04b67c`: a
+  file of the release that is not UTF-8 is `Fault::NotText` with its path
+  (it was "modules.dep, line 0" also for `modules.builtin`); a file
+  `modules` at the root sends the search to `lib/modules` (it was
+  `NotADirectory`).
+- The live read of the local copy of `netboot/modloop-virt` of Alpine
+  3.22.8 (`POD_GUEST_MODLOOP=PATH cargo test -p pod-guest --test
+  modloop_live -- --ignored`, 8.8 s in a debug build): 1,016 xz streams
+  decoded, 8 with the x86 BCJ filter; 240 directories, 939 files,
+  114,162,529 bytes, the same as Python's lzma. The set of `nf_tables
+  nft_nat sch_netem wireguard tun veth nf_nat` for `6.12.115-0-virt`: 20
+  modules, 2,194,724 bytes, each sha256 the same as with Python's lzma.
+  `live.yml` runs the test each day on the newest Alpine 3.22.
+- The fuzz target `squashfs_image` with 3 seeds:
+  `cargo test --manifest-path fuzz/Cargo.toml --lib`, 9 passed. Its walk
+  has a bound of 256 inodes: a listing can name its own directory. The
+  walk of `f04b67c` counted lines of output, and a directory adds none:
+  `a_directory_that_lists_itself_ends_the_walk` did not end there (exit
+  124 at a limit of 60 s). The stable
+  test of the fuzz targets took 470 s on this host (`wg_response` 239 s,
+  `wg_cookie` 165 s, `e2e_proof` 64 s, `squashfs_image` 0.35 s). The dev
+  profile of `fuzz/Cargo.toml` now optimizes the crates under test, and
+  the test takes 6 s.
+- The plants `guest-squashfs-bcj-off`,
+  `guest-modloop-dependency-not-followed` and
+  `guest-squashfs-read-past-the-end`: each caught
+  (`sh scripts/plant-each.sh ID`).
+- The static probe calls `modloop::modules`.
+- `pod-broker`'s `a_socket_path_that_is_another_file_is_refused` made its
+  socket under `std::env::temp_dir()`, and failed where the temporary
+  directory is long (`path must be shorter than SUN_LEN`, with the
+  scratchpad of this session as `TMPDIR`). It takes
+  `pod_testkit::host::socket_dir` now, as the other socket tests of the
+  file do, and passes there.
+- Not measured: the size of `xz4rust` in podvm's binary.
+- `sh scripts/agent/check.sh`: fmt 0, clippy 0, lint 0, doc 0, record 0,
+  size 0, paths 0, static 0, test 0 (the workspace: 2,229 passed, 18
+  ignored).
 
 # T-207: `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178)
 

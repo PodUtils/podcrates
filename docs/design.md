@@ -304,7 +304,7 @@ others read its raw system calls.
 | `pod-rootfs` | podvm `crates/podvm-complete`: the completion of a root file system from the host, each write held in the root (device nodes or shims, the `/dev` links, the resolver, hosts and mtab, the accounts and nsswitch, the walls of pacman, apt and zypper, the CA bundle and the CA directory of the host, `https` package sources); the caller gives its names, the host bundle and the probe of a mirror; the banner, the record ids and the HTTPS request stay in podvm | 4,300 | pod-core, pod-hostprobe, pod-extract |
 | `pod-enter` | podvm `crates/podvm-enter`: the entry of a payload (the chroot sequence, the namespace rung, the entry with no chroot, the launch ladder: memfd, FUSE, tmpfs, run directory, cache; the device hand-over; the reader of ELF files); the names are the caller's (`Names`), and docker's 125 stays in podvm; the confinement of a payload (`Plan.confine`, T-108) | 8,000 | pod-core, pod-hostprobe, pod-confine |
 | `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
-| `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm | 3,300 | pod-core, pod-hostprobe |
+| `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm. New: a read-only squashfs reader with xz and the x86 BCJ filter, and the module set of a guest kernel from its modloop (T-206, PodUtils/podvm#260) | 5,300 | pod-core, pod-hostprobe |
 
 ### M7: the widened scope of podvm (later)
 
@@ -504,7 +504,7 @@ pushes. No worktree branch is pushed.
 | --- | --- | --- |
 | `ci.yml` | each push | fmt, clippy, tests (Linux x86_64), `cargo todo check`, size, the static probes on each target, `cargo doc`, `scripts/check-probe.py`, `scripts/check-workflows.py` |
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
-| `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy` |
+| `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy`, `live` of `pod-oci`, `modloop_live` of `pod-guest` (the modloop of Alpine 3.22) |
 | `services.yml` | each day (02:17 UTC), by hand (a service, a kind, or a measurement) | `pod-services-watch`: each `[[watch]]` of the data of `pod-services`; a fact that moved fails the run with the file, the value, the new value and the source. The measurements of `scripts/services/` (`edge-facts.sh`) |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |

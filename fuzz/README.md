@@ -20,6 +20,10 @@ cargo test --manifest-path fuzz/Cargo.toml --lib     # the stable test
 * `.github/workflows/fuzz.yml` runs each target each week and by hand,
   first with the plant `fuzz-one-line-escape`, which must crash.
   `ci.yml` runs the build and the stable test on each push.
+* The dev profile of this workspace optimizes the crates under test
+  (`opt-level = 2`): the stable test runs the crypto of `pod-wg` and
+  `pod-e2e` on 2000 mutations of each seed, which takes minutes with no
+  optimization.
 * A crash input becomes a unit test of its crate first, then the repair.
 
 ## Layout
@@ -62,6 +66,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `oci_challenge` | `pod-oci` | `registry::fuzz_parse_challenge` (the feature `fuzzing`): each key trimmed and not empty, no parameter with no space, at most one parameter more than the commas | podvm `podvm-oci` (T-173); its seeds are the challenge of Docker Hub, a scope with a comma in quotes, a Basic challenge, and `Bearer` alone |
 | `extract_layer` | `pod-extract` | `remove::collect`, `remove::apply`, `apply::apply_layer` of a layer that is tar, gzip or zstd (the first byte picks) in a fresh directory four levels deep: no entry escapes the root | podvm `podvm-extract` (T-173); its seeds are a layer with a directory, a file, a symbolic and a hard link and two whiteouts, in tar, gzip and zstd (raw blocks), and three that climb out (`../`, a link, an absolute path), written here |
 | `elf_header` | `pod-enter` | `abi::Elf::parse`: the same answer twice, and no NUL in a name that it gives | podvm `podvm-enter` (T-173); its seeds are a static and a dynamic program of two lines each, built here with `cc -Os -s`, and a shell script |
+| `squashfs_image` | `pod-guest` | `squashfs::Image` (the superblock, the xz options, the inode, directory, fragment, id and export tables, the blocks: a walk of up to 256 inodes, twice, with the same answer; a file that reads has its size) and `modloop::modules` (each module once, one line of `modules.dep` for each) | new in `pod-guest` (T-206, PodUtils/podvm#260); its seeds are images of the test writer of `pod-guest` (`write_the_fuzz_seeds`): a modloop with an x86 BCJ block, each kind of inode with metadata blocks of 64 bytes and an xz fragment, and an image with compressor options |
 | `mailbox_message` | `pod-wormhole` | `message::{object, message_of, pake_of, words, hex, unhex}`, `Code::parse` | new in `pod-wormhole` (T-022); its seeds are the messages of a mailbox and the codes of the tests written here, and `cut-on-a-space`, a crash that `fuzz.yml` found (T-184) |
 | `session_record` | `pod-session` | `decode::Decoder`, `Record::encode`: the bytes of a link in pieces of 1 to 64 bytes; each record encodes again to itself; an error stays | new in `pod-session` (T-020); its seeds are records of podssh's `tests/session_codec.rs` (a `GREETING`, an `OPEN`, a `REFUSE`, a `DATA` and an `ACK`) and an unknown type |
 | `session_handover` | `pod-session` | `handover::LayerState::{decode, encode}` | new in `pod-session` (T-020); its seeds are a closed session, a carried session with a replay buffer, and a state of another version, written here |

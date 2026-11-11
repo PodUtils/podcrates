@@ -70,7 +70,9 @@ async fn the_control_socket_loads_lists_and_drops_jobs() {
 #[cfg(unix)]
 #[test]
 fn a_socket_path_that_is_another_file_is_refused() {
-    let dir = std::env::temp_dir().join(format!("pod-broker-bind-{}", std::process::id()));
+    // A socket path holds at most 107 bytes: a long temporary directory
+    // gives way to /tmp.
+    let dir = pod_testkit::host::socket_dir("pod-broker-bind");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("file");
     std::fs::write(&path, "x").unwrap();

@@ -1,0 +1,8 @@
+# The walk of modules.dep that does not follow a dependency: the set holds
+# the named modules only, and the guest cannot load them, so the test of
+# the load order must fail.
+ENTRY=T-206
+GROUP=guest
+EXPECT='test modloop::tests::the_set_holds_each_dependency_before_its_dependent \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- modloop::tests::the_set_holds_each_dependency_before_its_dependent'
+LIMIT=1800

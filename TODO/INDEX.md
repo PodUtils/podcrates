@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**211 entries: 59 open, 3 partial, 0 blocked, 149 done.**
+**211 entries: 58 open, 3 partial, 0 blocked, 150 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 0 | 0 | 44 | 58 |
-| P2 | 28 | 2 | 0 | 71 | 101 |
+| P2 | 27 | 2 | 0 | 72 | 101 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 59 | 3 | 0 | 149 | 211 |
+| **All** | 58 | 3 | 0 | 150 | 211 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -252,7 +252,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-203](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the TCP relay of ZeroTier (PodUtils/podssh#190) |
 | [T-204](relay.md) | P2 | S | M2 | defect | open | `pod-session`: `a_session_moves_while_both_ends_send_at_full_speed` lost its link one time in a run of the workspace's tests |
 | [T-205](podvm.md) | P2 | S | M1 | defect | done | `pod-supervise`, `pod-enter`: a payload outlives its launcher; no code sets `PR_SET_PDEATHSIG` |
-| [T-206](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260) |
+| [T-206](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260) |
 | [T-207](podvm.md) | P3 | L | M6 | feature | open | `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178) |
 | [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
 | [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |

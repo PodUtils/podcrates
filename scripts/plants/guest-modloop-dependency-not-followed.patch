@@ -1,0 +1,16 @@
+diff --git a/crates/pod-guest/src/modloop.rs b/crates/pod-guest/src/modloop.rs
+index 8e69877..0d2802f 100644
+--- a/crates/pod-guest/src/modloop.rs
++++ b/crates/pod-guest/src/modloop.rs
+@@ -313,10 +313,7 @@ impl Table {
+                     let d = deps[deps.len() - 1 - *k];
+                     *k += 1;
+                     match state[d] {
+-                        NEW => {
+-                            state[d] = OPEN;
+-                            stack.push((d, 0));
+-                        }
++                        NEW => {}
+                         OPEN => return Err(Fault::Loop(self.paths[d].clone())),
+                         _ => {}
+                     }

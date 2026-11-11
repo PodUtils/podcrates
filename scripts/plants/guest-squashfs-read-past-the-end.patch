@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/squashfs.rs b/crates/pod-guest/src/squashfs.rs
+index 8fb5dc6..d1f63a3 100644
+--- a/crates/pod-guest/src/squashfs.rs
++++ b/crates/pod-guest/src/squashfs.rs
+@@ -316,7 +316,7 @@ impl<R: Read + Seek> Image<R> {
+     /// end of the image.
+     fn read_at(&mut self, what: &'static str, at: u64, out: &mut [u8]) -> Result<()> {
+         let end = at.checked_add(out.len() as u64);
+-        if end.is_none_or(|end| end > self.sb.bytes_used) {
++        if end.is_none() {
+             return Err(Fault::Past { what, at }.into());
+         }
+         self.src.seek(SeekFrom::Start(at)).and_then(|_| self.src.read_exact(out)).map_err(|e| io_failure(at, e))

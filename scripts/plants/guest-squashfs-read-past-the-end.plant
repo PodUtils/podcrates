@@ -1,0 +1,9 @@
+# A read of the squashfs reader that is not held to the end of the image
+# (bytes_used): a block that runs into the padding after the image reads as
+# data, where it must be a fault, so the test of the malformed blocks must
+# fail.
+ENTRY=T-206
+GROUP=guest
+EXPECT='test squashfs::tests::a_malformed_block_is_a_fault \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- squashfs::tests::a_malformed_block_is_a_fault'
+LIMIT=1800

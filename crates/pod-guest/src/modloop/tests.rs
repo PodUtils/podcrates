@@ -125,6 +125,15 @@ fn a_built_in_name_needs_no_file() {
 fn a_root_file_system_holds_lib_modules() {
     let s = set(&modloop_with("lib/modules", DEP), &["b"]).unwrap();
     assert_eq!(paths(&s), ["kernel/lib/c.ko", "kernel/lib/b.ko"]);
+    // A file `modules` at the root does not stop the search.
+    let w = Writer::default();
+    let files = vec![
+        ("modules".to_string(), w.file(b"not a directory")),
+        (format!("lib/modules/{RELEASE}/modules.dep"), w.file(b"kernel/c.ko:\n")),
+        (format!("lib/modules/{RELEASE}/kernel/c.ko"), w.file(b"c")),
+    ];
+    let s = set(&w.image(&tree(files)), &["c"]).unwrap();
+    assert_eq!(paths(&s), ["kernel/c.ko"]);
 }
 
 #[test]
@@ -158,6 +167,21 @@ fn a_modules_dep_that_does_not_parse_is_refused() {
     let e = set(&modloop_with("modules", "kernel/net/a.ko: kernel/lib/gone.ko\n"), &["a"]).unwrap_err();
     let missing = format!("modules/{RELEASE}/kernel/lib/gone.ko");
     assert_eq!(crate::squashfs::fault(&e), Some(&crate::squashfs::Fault::Missing(missing)));
+}
+
+/// A file of the release that is not text is a fault that names the
+/// file.
+#[test]
+fn a_file_that_is_not_text_is_named() {
+    let w = Writer::default();
+    let files = vec![
+        (format!("modules/{RELEASE}/modules.dep"), w.file(b"kernel/c.ko:\n")),
+        (format!("modules/{RELEASE}/modules.builtin"), w.file(b"kernel/\xff.ko\n")),
+        (format!("modules/{RELEASE}/kernel/c.ko"), w.file(b"c")),
+    ];
+    let e = set(&w.image(&tree(files)), &["c"]).unwrap_err();
+    assert_eq!(super::fault(&e), Some(&Fault::NotText(format!("modules/{RELEASE}/modules.builtin"))));
+    assert_eq!(e.class, Class::Protocol);
 }
 
 #[test]

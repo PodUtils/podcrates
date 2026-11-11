@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 211 entries: 59 open, 3 partial, 0 blocked, 149 done.
+`TODO/INDEX.md` holds 211 entries: 58 open, 3 partial, 0 blocked, 150 done.
 
 ## State
 
@@ -62,9 +62,9 @@ next entry.
 3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-201
    (the veth wire into `pod-hold`) after podnet's tests of the wire pass; T-150, T-121 to T-124 (the asks of
    podnet).
-4. **M6, the crates of podvm:** T-206 (the module set of the guest from its
-   modloop) and T-207 (`pod-netlab`), PodUtils/podvm#260
-   (PodUtils/podvm@T-1662 is blocked on them); T-209 (the Landlock scopes
+4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
+   (PodUtils/podvm@T-1662 waits for it and for the module set of the
+   modloop, which `pod-guest` has); T-209 (the Landlock scopes
    and UDP in `pod-confine`);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
