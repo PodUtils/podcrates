@@ -1,0 +1,7 @@
+# The root of a layer as a directory with an empty name is refused, and the
+# whole layer with it (public.ecr.aws/lambda/provided:al2023, T-208).
+ENTRY=T-208
+GROUP=extract
+EXPECT='a_root_directory_with_an_empty_name_is_the_root'
+RUN='cargo test -p pod-extract --all-features --lib a_root_directory_with_an_empty_name_is_the_root'
+LIMIT=1800

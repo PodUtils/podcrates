@@ -3202,7 +3202,7 @@ cargo test -p pod-netlab
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3234,4 +3234,17 @@ is still refused.
 ```sh
 cargo test -p pod-extract
 ```
+
+## Done
+
+2026-11-11. `safety::is_root_entry(path, is_dir)`: the root of the
+archive (`./`, `.`, `/`), or an empty name of the directory type.
+`apply_layer` skips it, as it skips `./`. An empty name of another type
+stays refused. Tests: `is_root_entry` of each case (`safety/tests.rs`);
+`a_root_directory_with_an_empty_name_is_the_root` (a layer whose first
+entry is `""` as a directory, mode 0700, then
+`THIRD-PARTY-LICENSES.txt`, applies; a file with an empty name is
+refused). `cargo test -p pod-extract --all-features`: 55 passed. Plant
+`extract-empty-root-refused` (the old check) gives podvm's error word for
+word.
 

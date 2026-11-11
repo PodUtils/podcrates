@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**208 entries: 60 open, 3 partial, 0 blocked, 145 done.**
+**208 entries: 59 open, 3 partial, 0 blocked, 146 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 16 | 0 | 0 | 42 | 58 |
+| P1 | 15 | 0 | 0 | 43 | 58 |
 | P2 | 27 | 2 | 0 | 69 | 98 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 60 | 3 | 0 | 145 | 208 |
+| **All** | 59 | 3 | 0 | 146 | 208 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -254,4 +254,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-205](podvm.md) | P2 | S | M1 | defect | done | `pod-supervise`, `pod-enter`: a payload outlives its launcher; no code sets `PR_SET_PDEATHSIG` |
 | [T-206](podvm.md) | P2 | M | M6 | feature | open | `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260) |
 | [T-207](podvm.md) | P3 | L | M6 | feature | open | `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178) |
-| [T-208](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
+| [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
