@@ -539,7 +539,7 @@ podnet:
 | the nameservers of `warp::route::nameservers` and of `warp run` | `...endpoints_of("udp").map(Endpoint::host)` |
 | `agent::udp_dns` (`1.1.1.1:53`) | `...endpoint("udp-1").authority()` |
 | `tools/check-upstream.py` `REPO` | `cloudflare-tunnel-edge` fact `cloudflared-repository`; the check is the watches `github-release`, `github-files` and `tls-roots` of `cloudflare-tunnel-edge` in `services.yml` of podcrates; the script leaves podnet with its pin file (T-151) |
-| `tools/edge-facts.sh`, the step "Edge facts" of `live.yml` | `scripts/services/edge-facts.sh` of podcrates, which `services.yml` runs each day (T-050; the trial `adoption/podnet/pod-services-watch.*`) |
+| `tools/edge-facts.sh`, the step "Edge facts" of `live.yml` | `scripts/services/edge-facts.sh` of podcrates, which `services.yml` runs each day (T-050; podnet took it at `0b945a3`, PodUtils/podnet#448) |
 | a relay of the user's own (`PODNET_RELAY`, `PODNET_WARP_API`, `PODNET_EDGE`, `--resolve`) | the variables stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
 
 podvm:

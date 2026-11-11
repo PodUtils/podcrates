@@ -997,6 +997,14 @@ The dispatch at `b9bab61`, after the fixes (run 42806121501): 79 hold, 2
 skipped, 5 failed: the four Trojan nodes (T-157), and the watch
 `websocket-upgrade` of `croc` (T-156), which the bridge refuses with no
 relay in the query (`HTTP 403: relay index is not allowed`; T-158).
+- The take: podnet took the trial `pod-services-watch` at `0b945a3`
+  (PodUtils/podnet#448): `tools/edge-facts.sh` and its step of `live.yml`
+  left podnet. `scripts/services/SOURCES` has the `taken` line;
+  `check-sources.py` with a clone: 1 file, 0 changes. The trial files are
+  removed. podnet's fix `54bd958`: a patch that names a file of podcrates
+  in a document of the consumer writes it as
+  `PodUtils/podcrates:PATH`, or the consumer's test of the paths of its
+  documents fails.
 
 # T-052: The tests of a closed port of `pod-proxy` race with the other tests
 

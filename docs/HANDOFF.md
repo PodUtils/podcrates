@@ -16,7 +16,8 @@ page current; remove a line when its work is done.
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
     PodUtils/podssh@T-740).
     `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
-  - podnet: `v0.20.0` (`d23ce4e`, PodUtils/podnet#445: `pod-netstack`
+  - podnet: `v0.21.0` (`54bd958`, PodUtils/podnet#448; `pod-services-watch`
+    at `0b945a3`). `pod-netstack` at `d23ce4e` (PodUtils/podnet#445:
     taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`).
     T-188 is done: Reno and CUBIC are slow only on a link that gives one
     ACK for each round trip; its result for `warp --cc reno|cubic` goes to
@@ -59,8 +60,6 @@ page current; remove a line when its work is done.
   (`check-sources.py` with clones must show 0 changes), remove the trial
   files of that consumer, set the entry to done, and close the hand-off
   issue when each consumer took its part.
-- #65 (`v0.21.0`): podssh, podvm and podrunner took it; close it when
-  podnet moves its tag.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".

@@ -13,8 +13,9 @@
   (COORD-040); podvm answers on #63.
 - The consumers: podssh is on `v0.21.0` (`6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
-  `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
-  (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
+  `pod-session` at `6f78a7c7`); podnet is on `v0.21.0`
+  (`54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
+  `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.21.0` (`1ffe87e`,
   PodUtils/podvm#257: its incus tier calls `pod-incus`; experiment 434
   passes against incusd 6.0.0); podrunner is on `v0.21.0`
