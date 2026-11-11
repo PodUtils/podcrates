@@ -22,6 +22,11 @@ pub fn getpid() -> i64 {
     unsafe { sys(SYS_GETPID, [0, 0, 0, 0, 0, 0]) }.unwrap_or(0)
 }
 
+/// The pid of the parent of this process.
+pub fn getppid() -> i64 {
+    unsafe { sys(SYS_GETPPID, [0, 0, 0, 0, 0, 0]) }.unwrap_or(0)
+}
+
 /// A descriptor for a process, which cannot be redirected by pid reuse.
 ///
 /// A pid plus a start time is a heuristic; a pidfd names one process for as long as it is
@@ -476,4 +481,11 @@ pub fn set_rlimit(resource: u64, soft: u64, hard: u64) -> Sysres {
 /// It cannot be undone, so a supervisor sets it in the child only.
 pub fn set_no_new_privs() -> Sysres {
     unsafe { sys(SYS_PRCTL, [PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0]) }
+}
+
+/// `prctl(PR_SET_PDEATHSIG, signal)`: the kernel sends `signal` to this
+/// process when the thread that forked it exits. One system call, so a
+/// child between its fork and its exec can call it.
+pub fn set_pdeathsig(signal: u64) -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_PDEATHSIG, signal, 0, 0, 0, 0]) }
 }

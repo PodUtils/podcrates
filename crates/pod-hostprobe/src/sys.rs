@@ -177,6 +177,7 @@ pub const SYS_READ: i64 = nr!(read, __NR_read);
 pub const SYS_WRITE: i64 = nr!(write, __NR_write);
 pub const SYS_CLOSE: i64 = nr!(close, __NR_close);
 pub const SYS_GETPID: i64 = nr!(getpid, __NR_getpid);
+pub const SYS_GETPPID: i64 = nr!(getppid, __NR_getppid);
 pub const SYS_CLONE: i64 = nr!(clone, __NR_clone);
 pub const SYS_EXECVE: i64 = nr!(execve, __NR_execve);
 /// The fd-exec number, and why it is `execveat` and not `fexecve`.

@@ -124,6 +124,7 @@ fn a_name_with_a_slash_is_a_path_and_never_searched_on_path() {
         names: N,
         limits: Vec::new(),
         no_new_privs: false,
+        die_with_parent: false,
     };
     assert_eq!(p.program_candidates(), v(&["/bin/echo"]));
 

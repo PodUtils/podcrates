@@ -39,7 +39,10 @@ use crate::{Result, Settings, failure};
 pub const CTL_SIGNAL: &str = "SIG";
 pub const CTL_WAIT: &str = "WAIT";
 
-/// What the entry of the caller gets in the launcher.
+/// What the entry of the caller gets in the launcher. The entry runs on the
+/// one thread of the launcher, and it sets `PR_SET_PDEATHSIG(SIGKILL)` in
+/// the child of the payload (`pod-enter`: `Plan.die_with_parent`): a
+/// payload then ends with a launcher that is killed.
 pub struct Launch<'a> {
     /// The descriptors for the payload, as (the number in the payload, the
     /// descriptor in the launcher): 0 is `/dev/null`, 1 and 2 are the log.

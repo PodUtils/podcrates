@@ -36,6 +36,12 @@ pub struct Plan {
     pub limits: Vec<crate::Limit>,
     /// `PR_SET_NO_NEW_PRIVS` in the child before the exec.
     pub no_new_privs: bool,
+    /// `PR_SET_PDEATHSIG(SIGKILL)` in the child, first after the fork: the
+    /// payload ends with the thread that forked it, so a supervisor that is
+    /// killed leaves no payload behind. Only for a caller that forks from a
+    /// thread that lives as long as the payload (the launcher of
+    /// `pod-supervise`): the signal fires at the exit of that thread.
+    pub die_with_parent: bool,
 }
 
 impl Plan {

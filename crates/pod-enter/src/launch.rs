@@ -148,6 +148,8 @@ pub(crate) fn spawn_with(
     }
     let limits: Vec<(u64, u64, u64)> = plan.limits.iter().map(|l| (l.resource.number(), l.soft, l.hard)).collect();
 
+    // The parent of the child, for its check after `PR_SET_PDEATHSIG`.
+    let parent = sys::getpid();
     let pid = match unsafe { sys::clone_fork(sys::SIGCHLD) } {
         Ok(0) => {
             // The child: async-signal-safe work only, then execve.
@@ -159,6 +161,16 @@ pub(crate) fn spawn_with(
                 sys::exit_group(SETUP_FAILED)
             };
             let report = |step: u8, e: sys::Errno| -> ! { report_at(step, e, 0) };
+            // First, the end with the parent (T-205). A parent that ended
+            // before the call sends no signal: the child compares its parent.
+            if plan.die_with_parent {
+                if let Err(e) = sys::set_pdeathsig(9) {
+                    report(14, e);
+                }
+                if sys::getppid() != parent {
+                    sys::exit_group(SETUP_FAILED);
+                }
+            }
             for (child_fd, host_fd) in &plan.fds.pass {
                 if host_fd != child_fd {
                     let _ = sys::dup2(*host_fd, *child_fd);
@@ -351,11 +363,12 @@ fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> Result<Op
 
 /// The error for a step that the child reported.
 fn step_failure(plan: &Plan, step_byte: u8, errno: sys::Errno, at: u8) -> Error {
-    // A refused limit or `no_new_privs`: the call, by name, and the
-    // payload did not run.
+    // A refused limit, `no_new_privs` or the death signal: the call, by
+    // name, and the payload did not run.
     let call = match step_byte {
         12 => plan.limits.get(usize::from(at)).map(|l| format!("setrlimit({})", l.resource.name())),
         13 => Some("prctl(PR_SET_NO_NEW_PRIVS)".to_string()),
+        14 => Some("prctl(PR_SET_PDEATHSIG)".to_string()),
         _ => None,
     };
     if let Some(call) = call {

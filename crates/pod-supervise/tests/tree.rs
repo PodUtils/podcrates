@@ -37,6 +37,7 @@ fn main() {}
 #[cfg(target_os = "linux")]
 mod steps {
     use std::os::fd::{BorrowedFd, OwnedFd};
+    use std::os::unix::process::CommandExt;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
@@ -56,14 +57,21 @@ mod steps {
     }
 
     fn enter(c: &Container<Any>, launch: Launch<'_>) -> Result<Payload, String> {
-        let child = Command::new("/bin/sh")
+        let mut command = Command::new("/bin/sh");
+        command
             .arg("-c")
             .arg(c.argv.join(" "))
             .stdin(stdio(&launch, 0))
             .stdout(stdio(&launch, 1))
-            .stderr(stdio(&launch, 2))
-            .spawn()
-            .map_err(|e| format!("spawning /bin/sh: {e}"))?;
+            .stderr(stdio(&launch, 2));
+        // The rule of `Launch`: the payload ends with its launcher (T-205).
+        // SAFETY: one system call between the fork and the exec.
+        unsafe {
+            command.pre_exec(|| {
+                pod_hostprobe::sys::set_pdeathsig(9).map(drop).map_err(|e| std::io::Error::from_raw_os_error(e.0))
+            });
+        }
+        let child = command.spawn().map_err(|e| format!("spawning /bin/sh: {e}"))?;
         Ok(Payload { pid: child.id() as i64, keep: Box::new(child) })
     }
 
@@ -208,8 +216,7 @@ mod steps {
     /// The payload kills its launcher (podrunner's case, T-202): the
     /// grandchild goes to init, out of reach of any count. The record is
     /// `Dead` with no exit code, and no end says a count of 0. The payload
-    /// of this `enter` outlives its launcher: no code sets
-    /// `PR_SET_PDEATHSIG` on it (T-205).
+    /// ends with its launcher (`PR_SET_PDEATHSIG` of the entry, T-205).
     pub fn a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count(root: &Path) {
         let s = settings(root, "orphan");
         let (pidfile, payfile): (PathBuf, PathBuf) = (root.join("orphan.pid"), root.join("orphan.payload"));
@@ -220,6 +227,11 @@ mod steps {
         start(&s, "orphan", enter).expect("start");
         let (c, code) = wait::<Any>(&s, "orphan", 30_000).expect("wait");
         let (grandchild, payload) = (pid_in(&pidfile), pid_in(&payfile));
+        let at = Instant::now();
+        while alive(payload) && at.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let outlived = alive(payload);
         clean(grandchild);
         clean(payload);
         assert_eq!(c.state, State::Dead, "the record after the launcher ended");
@@ -227,6 +239,7 @@ mod steps {
         if let Some(end) = &c.end {
             assert_ne!(end.residual_processes, Residual::Count(0), "{end:?}");
         }
+        assert!(!outlived, "the payload {payload} outlived its launcher");
         remove::<Any>(&s, "orphan", false).expect("remove");
     }
 

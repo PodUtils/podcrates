@@ -15,7 +15,10 @@ the launcher. Four rules:
    payload closes; the end of the payload is `ppoll` on its pidfd; each
    wait has a bound and its own result for the bound.
 4. Nothing on the path that forks, enters and execs starts a thread
-   (`PR_SET_PDEATHSIG` fires at the exit of a thread).
+   (`PR_SET_PDEATHSIG` fires at the exit of a thread). The entry of the
+   caller sets `PR_SET_PDEATHSIG(SIGKILL)` in the child of the payload
+   (`pod-enter`: `Plan.die_with_parent`), so a payload ends with a
+   launcher that is killed (T-205).
 5. The launcher is the child subreaper of the payload's tree: a
    descendant whose parent ends comes to the launcher, also after a
    `setsid` or a double fork. At the end of the payload the launcher

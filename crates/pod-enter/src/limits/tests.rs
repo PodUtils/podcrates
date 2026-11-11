@@ -12,6 +12,10 @@ fn dir(tag: &str) -> PathBuf {
 }
 
 fn plan(limits: Vec<Limit>, no_new_privs: bool) -> Plan {
+    plan_with(limits, no_new_privs, false)
+}
+
+fn plan_with(limits: Vec<Limit>, no_new_privs: bool, die_with_parent: bool) -> Plan {
     Plan {
         argv: vec!["sh".to_string()],
         env: vec!["PATH=/bin:/usr/bin".to_string()],
@@ -22,6 +26,7 @@ fn plan(limits: Vec<Limit>, no_new_privs: bool) -> Plan {
         names: Names::DEFAULT,
         limits,
         no_new_privs,
+        die_with_parent,
     }
 }
 
@@ -129,4 +134,38 @@ fn more_limits_than_the_most_are_refused_before_the_fork() {
     let e = run(&d, &p, "true").unwrap_err();
     assert!(e.contains("at most 64"), "{e}");
     let _ = std::fs::remove_dir_all(d);
+}
+
+/// With `die_with_parent`, the payload ends when the thread that forked it
+/// exits (T-205): a supervisor that is killed leaves no payload. The
+/// payload writes its pid and sleeps; the thread that spawned it returns.
+#[test]
+fn a_payload_ends_with_the_thread_that_forked_it() {
+    let d = dir("pdeathsig");
+    let pidfile = d.join("payload.pid");
+    let p = pidfile.display().to_string();
+    let plan = plan_with(Vec::new(), false, true);
+    let script = format!("echo $$ > {p}.tmp; mv {p}.tmp {p}; exec sleep 300");
+    let d2 = d.clone();
+    let spawner = std::thread::spawn(move || {
+        let m = Maps::of_root(d2.to_str().unwrap());
+        let root = RootDir::open(m.rootfs()).unwrap();
+        let argv = vec!["/bin/sh".to_string(), "-c".to_string(), script];
+        // Kept and never waited for: the thread ends while the child runs.
+        let _child = spawn_userland(&root, &plan, &m, argv, "userland", None, &mut std::io::sink()).unwrap();
+        while !std::path::Path::new(&p).exists() {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    });
+    spawner.join().unwrap();
+    let pid: i64 = std::fs::read_to_string(&pidfile).unwrap().trim().parse().unwrap();
+    let alive = || std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| !stat.contains(") Z "));
+    let at = std::time::Instant::now();
+    while alive() && at.elapsed() < std::time::Duration::from_secs(5) {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let lived = alive();
+    let _ = pod_hostprobe::sys::kill(pid, 9);
+    let _ = std::fs::remove_dir_all(&d);
+    assert!(!lived, "the payload {pid} outlived the thread that forked it");
 }
