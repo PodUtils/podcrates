@@ -178,9 +178,12 @@ pub struct Spec {
     /// capability `n`). Each other one goes out of the bounding set (where
     /// the thread holds `CAP_SETPCAP`) and out of the effective, permitted,
     /// inheritable and ambient sets. With `no_new_privs`, an `execve` as
-    /// root gives no more than the kept set. 0 (the default) keeps none:
-    /// a root that keeps `CAP_SYS_ADMIN` or `CAP_PERFMON` reads the
-    /// environment of its unconfined ancestors past the Landlock domain.
+    /// root gives no more than the kept set. The default is
+    /// [`DOCKER_CAPS`] (the owner's ruling "Root caps": the most
+    /// convenience): a root payload that installs packages works, and the
+    /// set has neither `CAP_SYS_ADMIN` nor `CAP_PERFMON`, with which a root
+    /// reads the environment of its unconfined ancestors past the Landlock
+    /// domain. [`Spec::no_caps`] keeps none.
     pub keep_caps: u64,
 }
 
@@ -192,7 +195,7 @@ impl Default for Spec {
 
 impl Spec {
     /// No path, TCP and UDP free, the scopes on, the default deny list,
-    /// and no capability.
+    /// and docker's capabilities ([`DOCKER_CAPS`]).
     pub fn new() -> Spec {
         Spec {
             paths: Vec::new(),
@@ -201,7 +204,7 @@ impl Spec {
             scope: true,
             udp: true,
             deny: Deny::defaults(),
-            keep_caps: 0,
+            keep_caps: DOCKER_CAPS,
         }
     }
 
@@ -236,7 +239,14 @@ impl Spec {
         self
     }
 
-    /// Keep the capability `cap` (0 to 63; [`Spec::keep_caps`]).
+    /// Keep no capability ([`Spec::keep_caps`] 0); [`Spec::keep_cap`] then
+    /// adds one at a time.
+    pub fn no_caps(mut self) -> Spec {
+        self.keep_caps = 0;
+        self
+    }
+
+    /// Keep the capability `cap` too (0 to 63; [`Spec::keep_caps`]).
     pub fn keep_cap(mut self, cap: u32) -> Spec {
         self.keep_caps |= 1u64.checked_shl(cap).unwrap_or(0);
         self

@@ -32,7 +32,9 @@ a line when its work is done. Git and the record keep finished work.
 - podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
   at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
   `pod-netstack`); T-201 starts at the first passing run of
-  PodUtils/podnet@T-250 (#74). The answer on `pod-git` before WARP (#75).
+  PodUtils/podnet@T-250 (#74). The pod-netstack APIs of PodUtils/podnet@T-249 are
+  T-222 (done; in the next tag). `pod-git` waits: its own repository,
+  deferred (the owner; #75).
 - podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.24.0`): its T-042 takes `pod-confine`. No crate ask.

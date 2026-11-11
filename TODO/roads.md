@@ -677,7 +677,7 @@ cargo test -p pod-gsr --all-features   # on windows-11-arm
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -723,6 +723,13 @@ amend T-218 to T-220 and the row of `docs/design.md`.
 cargo todo check
 ```
 
+## Blocker
+
+The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
+`pod-git` goes to a repository of its own, with interop across git
+alternatives such as Radicle, and it is deferred. The owner unblocks it
+and names the repository; this entry then moves there.
+
 # T-218: `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453)
 
 **Source:** PodUtils/podnet#453
@@ -730,7 +737,7 @@ cargo todo check
 **Milestone:** M4
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -760,6 +767,13 @@ pkt-line reader and of the request parser.
 cargo test -p pod-git --all-features
 ```
 
+## Blocker
+
+The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
+`pod-git` goes to a repository of its own, with interop across git
+alternatives such as Radicle, and it is deferred. The owner unblocks it
+and names the repository; this entry then moves there.
+
 ## Start condition
 
 T-217 is done.
@@ -771,7 +785,7 @@ T-217 is done.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -806,6 +820,13 @@ after each push, pushes at the same time with no corrupt ref, a blob of
 cargo test -p pod-git --all-features
 ```
 
+## Blocker
+
+The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
+`pod-git` goes to a repository of its own, with interop across git
+alternatives such as Radicle, and it is deferred. The owner unblocks it
+and names the repository; this entry then moves there.
+
 ## Start condition
 
 T-218 is done.
@@ -817,7 +838,7 @@ T-218 is done.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -848,6 +869,13 @@ through the reverse relay") with `--git-backend native`.
 ```sh
 cargo test -p pod-git --all-features
 ```
+
+## Blocker
+
+The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
+`pod-git` goes to a repository of its own, with interop across git
+alternatives such as Radicle, and it is deferred. The owner unblocks it
+and names the repository; this entry then moves there.
 
 ## Start condition
 

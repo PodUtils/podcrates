@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**223 entries: 65 open, 4 partial, 0 blocked, 154 done.**
+**223 entries: 61 open, 4 partial, 4 blocked, 154 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 45 | 59 |
-| P2 | 33 | 2 | 0 | 75 | 110 |
+| P2 | 29 | 2 | 4 | 75 | 110 |
 | P3 | 19 | 1 | 0 | 32 | 52 |
-| **All** | 65 | 4 | 0 | 154 | 223 |
+| **All** | 61 | 4 | 4 | 154 | 223 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -263,10 +263,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-214](relay.md) | P2 | L | M2 | feature | open | `pod-wormhole`, `pod-transit`: the file transfer of magic-wormhole (PodUtils/podnet#450) |
 | [T-215](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: the mailbox server (PodUtils/podnet#450) |
 | [T-216](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `a_descriptor_passed_onto_its_own_number_reaches_the_payload` failed one time in a run of the workspace's tests |
-| [T-217](roads.md) | P2 | M | M4 | research | open | Research: the base of `pod-git`, a git server in Rust with no installed git (PodUtils/podnet#453) |
-| [T-218](roads.md) | P2 | L | M4 | feature | open | `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453) |
-| [T-219](roads.md) | P2 | L | M4 | feature | open | `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453) |
-| [T-220](roads.md) | P2 | M | M4 | feature | open | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
+| [T-217](roads.md) | P2 | M | M4 | research | blocked | Research: the base of `pod-git`, a git server in Rust with no installed git (PodUtils/podnet#453) |
+| [T-218](roads.md) | P2 | L | M4 | feature | blocked | `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453) |
+| [T-219](roads.md) | P2 | L | M4 | feature | blocked | `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453) |
+| [T-220](roads.md) | P2 | M | M4 | feature | blocked | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
 | [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain |
 | [T-222](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
 | [T-223](relay.md) | P3 | S | M2 | defect | open | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |

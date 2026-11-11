@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 223 entries: 65 open, 4 partial, 0 blocked, 154 done.
+`TODO/INDEX.md` holds 223 entries: 61 open, 4 partial, 4 blocked, 154 done.
 
 ## State
 
@@ -29,9 +29,10 @@
   podcrates by direct messages. podnet and podvm run in their own sessions
   and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`) but `pod-git`, which GitHub #1 lists under
-  "To register" for the owner's agent; no crate goes to crates.io now (the
-  owner, 2026-11-09).
+  (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
+  2026-11-09).
+- Blocked: T-217 to T-220 (`pod-git`): the owner's ruling "pod-git" (its
+  own repository, deferred).
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -62,9 +63,7 @@ next entry.
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    after PodUtils/podnet@T-249 (the router onto `pod-netstack`); T-201 after
    the root CI step of PodUtils/podnet@T-250; T-214 and T-215 (the file
-   transfer and the mailbox server of magic-wormhole) after T-027; T-217
-   (the study of `pod-git`, PodUtils/podnet#453), then T-218 to T-220;
-   T-150, T-121 to T-124 (the asks of podnet).
+   transfer and the mailbox server of magic-wormhole) after T-027; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has); T-213 (the sockets that Landlock and

@@ -389,11 +389,12 @@ fn an_mptcp_socket_fails_where_tcp_has_a_list() {
     assert_eq!(got, [ENOPROTOOPT, 1, 0], "an MPTCP socket, its connect outside the list, a TCP connect inside");
 }
 
-/// A confined root keeps no capability, so it reads no environment of
-/// its parent, an unconfined process of the same uid (the read passes with
-/// no confinement). `CAP_SYS_ADMIN` or `CAP_PERFMON` alone lets the read
-/// pass the Landlock domain (measured on Linux 6.18, ABI 7); docker's set
-/// holds neither. Root only: another user holds no capability to drop.
+/// A confined root keeps docker's capabilities by default and none with
+/// `no_caps()`; with either it reads no environment of its parent, an
+/// unconfined process of the same uid (the read passes with no
+/// confinement). `CAP_SYS_ADMIN` or `CAP_PERFMON` alone lets the read pass
+/// the Landlock domain (measured on Linux 6.18, ABI 7); docker's set holds
+/// neither. Root only: another user holds no capability to drop.
 #[test]
 fn a_confined_root_keeps_only_the_capabilities_of_the_spec() {
     let Some(abi) = landlock(MIN_ABI) else { return };
@@ -415,12 +416,12 @@ fn a_confined_root_keeps_only_the_capabilities_of_the_spec() {
         })
     };
     assert_eq!(run(None)[0], 0, "with no confinement the parent's environment reads");
-    assert_eq!(run(Some(Spec::new())), [EACCES, 0, 0], "no capability kept: the read, CapEff, CapPrm");
+    assert_eq!(run(Some(Spec::new().no_caps())), [EACCES, 0, 0], "no capability kept: the read, CapEff, CapPrm");
     let docker = pod_confine::DOCKER_CAPS as i64;
-    let got = run(Some(Spec { keep_caps: pod_confine::DOCKER_CAPS, ..Spec::new() }));
-    assert_eq!(got[0], EACCES, "docker's set reads no environment of the parent: {got:?}");
-    assert_eq!(got[1], got[1] & docker, "no capability out of docker's set: {got:?}");
+    let got = run(Some(Spec::new()));
+    assert_eq!(got[0], EACCES, "the default (docker's set) reads no environment of the parent: {got:?}");
+    assert!(got[1] != 0 && got[1] & !docker == 0, "the default keeps docker's set and no other: {got:?}");
     let admin = 1i64 << k::CAP_SYS_ADMIN;
-    let got = run(Some(Spec::new().keep_cap(k::CAP_SYS_ADMIN)));
+    let got = run(Some(Spec::new().no_caps().keep_cap(k::CAP_SYS_ADMIN)));
     assert_eq!(got, [0, admin, admin], "CAP_SYS_ADMIN alone passes the domain, and it is the one kept");
 }
