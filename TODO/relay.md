@@ -568,7 +568,12 @@ sh scripts/agent/check.sh
 
 ## Start condition
 
-T-005 is done.
+T-005 is done. podnet names the cut (GitHub #61, COORD-036, 2026-11-11):
+on podnet `main` at `e4d4049` smoltcp `=0.12.0` is in the root, in
+`PodUtils/podnet:crates/podnet-netns` (`netns/backend.rs`, `udpflow.rs`) and in
+`PodUtils/podnet:crates/podnet-vnet` (`stack.rs`, `stack/reactor.rs`, `device.rs`); WARP
+uses it in `src/warp/ip.rs`. The paths of the Premise are older. Step 2 of
+T-170 waits for this entry.
 
 # T-024: `pod-wg`: the WireGuard initiator
 
