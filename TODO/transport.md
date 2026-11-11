@@ -2654,7 +2654,7 @@ pod-services` passes.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2686,6 +2686,19 @@ reads the nodes.
 cargo test -p pod-services --test public_carriers
 cargo run -q -p pod-services-watch -- --kind proxy-banner
 ```
+
+## Done
+
+2026-11-11. The second day: `services.yml` run 42933757949 (input `kind`
+`proxy-banner`) failed each of the four nodes with the same reasons as
+run 42803032733 (two connect timeouts after 29 s, `UnrecognisedName`,
+`HTTP/1.1 400 Bad Request`). The files `node-bolab-trs02.toml`,
+`node-bonds-sg1.toml`, `node-udpgw-trojan1.toml` and
+`node-tr202607-nl1.toml` are removed; the README counts 2 nodes; the
+refusal test takes a name of `example.net` in place of a removed host.
+`cargo test -p pod-services --all-features` passes. The short list now
+holds no Trojan node: T-174 looks for a replacement. podssh (PodUtils/podssh@T-574) hears
+of it in its brief of 2026-11-11.
 
 # T-158: `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it
 
@@ -2895,3 +2908,40 @@ drops `Replay` when it takes the crate.
 ```sh
 cargo test -p pod-session
 ```
+
+# T-174: `pod-services`: a public Trojan node of the lists that passes the live check
+
+**Source:** T-157 (the four Trojan nodes of the short list are removed).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The short list of `proxy-node` services (podssh's last fallback of its
+forward road, PodUtils/podssh#177, Q90) holds two VLESS nodes over XHTTP
+and no Trojan node since T-157. A host whose path refuses XHTTP has no
+node to try.
+
+## Premise
+
+- Read: the run 42933757949 of `services.yml`; the two files that stay.
+- Not read: the lists of 2026-11-11 and later (`mahdibland-list`,
+  `barry-far-list`, `v2go-list`).
+
+## Approach
+
+Read the three lists, pick Trojan nodes on 443 with TLS that pass the
+rules of T-133, add each as `services/node-*.toml` with its `source`, run
+the watch `proxy-banner` on them in `services.yml` on two days, and keep
+the ones that pass both days. Tell podssh (PodUtils/podssh@T-574) the new ids.
+
+## Prove
+
+```sh
+cargo test -p pod-services --test public_carriers
+cargo run -q -p pod-services-watch -- --kind proxy-banner
+```
+

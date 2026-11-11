@@ -57,9 +57,10 @@ page current; remove a line when its work is done.
 - T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
   `pod-services` and `Rewound::new` of `pod-session`; read each fact again
   at its source before the data.
-- T-157: four public Trojan nodes of podssh fail the live check. On
-  2026-11-11 or later, run `services.yml` by hand (input `kind`
-  `proxy-banner`); remove or replace each node that fails both days.
+- `main` holds work after `v0.15.0` for the next tag: T-162 (the tree
+  kill of `pod-supervise`, for podvm and podrunner), T-169 and T-170
+  step 1 (`pod-hold`, for podnet), T-157 (four nodes removed from
+  `pod-services`). The next release writes the adoption patches.
 
 ## Waiting for the owner
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**173 entries: 60 open, 4 partial, 0 blocked, 109 done.**
+**174 entries: 60 open, 4 partial, 0 blocked, 110 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 36 | 55 |
-| P2 | 29 | 2 | 0 | 54 | 85 |
-| P3 | 14 | 0 | 0 | 17 | 31 |
-| **All** | 60 | 4 | 0 | 109 | 173 |
+| P2 | 28 | 2 | 0 | 55 | 85 |
+| P3 | 15 | 0 | 0 | 17 | 32 |
+| **All** | 60 | 4 | 0 | 110 | 174 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -203,7 +203,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-154](foundation.md) | P2 | S | M5 | defect | done | Timed tests under an emulator: one bound of the test kit and a sweep |
 | [T-155](podvm.md) | P3 | S | M6 | feature | done | `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226) |
 | [T-156](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the service `croc` (PodUtils/podssh#183) |
-| [T-157](transport.md) | P2 | S | M1 | defect | open | `pod-services`: four public Trojan nodes fail the live check |
+| [T-157](transport.md) | P2 | S | M1 | defect | done | `pod-services`: four public Trojan nodes fail the live check |
 | [T-158](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch of `croc` upgrades with no relay, and the bridge refuses it |
 | [T-159](relay.md) | P2 | S | M2 | defect | done | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |
 | [T-160](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: a listener bound to one job, with no token in the unit (PodUtils/podvm#227) |
@@ -220,3 +220,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-171](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
 | [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
 | [T-173](podvm.md) | P2 | M | M6 | feature | open | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |
+| [T-174](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Trojan node of the lists that passes the live check |

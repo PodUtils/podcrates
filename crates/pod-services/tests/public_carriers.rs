@@ -147,7 +147,7 @@ fn the_refusal_rule_catches_its_names() {
     {
         assert!(refused(name), "{name}");
     }
-    for name in ["raw.githubusercontent.com", "trs02.bolab.net", "193.160.208.240"] {
+    for name in ["raw.githubusercontent.com", "proxy.example.net", "193.160.208.240"] {
         assert!(!refused(name), "{name}");
     }
 }
