@@ -1,6 +1,6 @@
-//! `unit-capability.v1`: what one unit kind of one host gives, as its
-//! driver's `probe` reports it. A value that the driver cannot prove is
-//! `unknown`, and placement reads `unknown` as absent. There is no value
+//! `unit-capability.v1`: what one unit kind of one host gives, as the
+//! `probe` of its driver reports it. A value that the driver cannot prove
+//! is `unknown`, and placement reads `unknown` as absent. There is no value
 //! `isolated`: the boundary names the mechanism.
 
 use std::collections::BTreeMap;
@@ -37,7 +37,7 @@ pub enum ContainerRoute {
     /// No container: a job that needs one is refused
     /// (`container-not-supported`).
     None,
-    /// The container hooks of the runner (call C2).
+    /// The container hooks of the runner (podrunner's call C2).
     Hooks,
     Unknown,
 }
@@ -69,7 +69,8 @@ pub enum CredentialStore {
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeKill {
-    /// Conformance test 3 passed on this host.
+    /// The conformance test of the tree kill (podrunner's test 3) passed
+    /// on this host.
     Verified,
     Unverified,
     Unknown,
@@ -134,10 +135,13 @@ impl Fact {
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Capability {
+    /// The version of the record: `SCHEMA`, 1.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::version"))]
     pub schema: u32,
     /// The unit kind: `fake`, `podvm`, `microvm`, `docker` or `host`.
     pub kind: String,
     /// `x86_64` or `aarch64`.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::arch"))]
     pub arch: String,
     pub boundary: Boundary,
     /// The name of the proof of the boundary (a self-test, a probe), if any.
@@ -167,7 +171,7 @@ impl Capability {
         if self.schema != crate::SCHEMA {
             return Err(format!("schema {} is not {}", self.schema, crate::SCHEMA));
         }
-        if !matches!(self.arch.as_str(), "x86_64" | "aarch64") {
+        if !crate::ARCHES.contains(&self.arch.as_str()) {
             return Err("arch is not x86_64 or aarch64".into());
         }
         Ok(())

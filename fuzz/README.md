@@ -26,7 +26,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib     # the stable test
 
 | Path | What |
 | --- | --- |
-| `src/targets.rs` | the body of each target: the parser that it runs and what it checks |
+| `src/targets.rs`, `src/targets/` | the body of each target: the parser that it runs and what it checks (`targets/job.rs`: the records of `pod-job`) |
 | `src/lib.rs` | `TARGETS`, and the checks that more than one target uses |
 | `src/tests.rs` | each target on its seeds and on 2000 mutations of them, on stable Rust; each target has its binary and its seeds |
 | `fuzz_targets/NAME.rs` | the binary of a target: it calls `targets::NAME` |
@@ -57,6 +57,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `quic_probe_answer` | `pod-quic` | `probe::answers` | new in `pod-quic` (T-019); its seeds are the Version Negotiation of 27 bytes of podssh's probe test, one of another ID, one that names the reserved version, and a short header |
 | `hold_sockaddr` | `pod-hold` | `sockaddr::read`, `sockaddr::parse` | podnet `crates/podnet-netns/src/seccomp/notif.rs` `parse_sockaddr` (T-166); the memory of the task is a sealed memfd; its seeds are an `AF_INET` and an `AF_INET6` address, an address one byte short, and a length past the memory |
 | `hold_syn` | `pod-hold` | `packet::parse_tcp_syn`, `packet::rst_reply_for_syn`, `packet::ipv4_checksum` | podnet `crates/podnet-netns/src/netns/packet.rs` (T-170); its seeds are a SYN, a SYN with IP options, an ACK, and a header of IHL 4 that podnet's parse took |
+| `job_offer` | `pod-job` | `serde_json::from_slice::<JobOffer>`, `JobOffer::check`, the encode and the read again | new in `pod-job` (T-163); its seeds are the 4 valid and 7 invalid offers of `crates/pod-job/tests/examples/job-offer/` (podrunner's draft) |
 | `mailbox_message` | `pod-wormhole` | `message::{object, message_of, pake_of, words, hex, unhex}`, `Code::parse` | new in `pod-wormhole` (T-022); its seeds are the messages of a mailbox and the codes of the tests written here |
 | `session_record` | `pod-session` | `decode::Decoder`, `Record::encode`: the bytes of a link in pieces of 1 to 64 bytes; each record encodes again to itself; an error stays | new in `pod-session` (T-020); its seeds are records of podssh's `tests/session_codec.rs` (a `GREETING`, an `OPEN`, a `REFUSE`, a `DATA` and an `ACK`) and an unknown type |
 | `session_handover` | `pod-session` | `handover::LayerState::{decode, encode}` | new in `pod-session` (T-020); its seeds are a closed session, a carried session with a replay buffer, and a state of another version, written here |

@@ -1,5 +1,5 @@
 {
-  "$id": "https://github.com/PodUtils/podrunner/schemas/run-report.v1.json",
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/run-report.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RunReport",
   "description": "The full report (`run-report.v1`), for the operator.",
@@ -33,9 +33,9 @@
       ]
     },
     "schema": {
+      "description": "The version of the record: `SCHEMA`, 1.",
       "type": "integer",
-      "format": "uint32",
-      "minimum": 0
+      "const": 1
     },
     "source": {
       "type": "string"
@@ -69,6 +69,61 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "refusal_code": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "const": "refused"
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "properties": {
+          "refusal_code": {
+            "not": {
+              "type": "null"
+            }
+          },
+          "unit": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "refusal_code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "const": "withdrawn"
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
   "required": [
     "schema",
     "job_id",
@@ -134,12 +189,12 @@
           "const": "withdrawn"
         },
         {
-          "description": "The runner name or the job id of the `started` event did not match.",
+          "description": "The runner name or the job id of the `started` event did not agree.",
           "type": "string",
           "const": "job-mismatch"
         },
         {
-          "description": "podrunner lost the job (a restart from `claimed` on).",
+          "description": "The runner lost the job (a restart from `claimed` on).",
           "type": "string",
           "const": "lost"
         }
@@ -147,7 +202,7 @@
     },
     "JobId": {
       "type": "string",
-      "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$"
+      "pattern": "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$"
     },
     "Principal": {
       "description": "Units and the control plane run as one uid (`shared`) or not.",
@@ -159,7 +214,7 @@
       ]
     },
     "RefusalCode": {
-      "description": "Why podrunner refuses a job.",
+      "description": "Why the runner refuses a job.",
       "oneOf": [
         {
           "type": "string",

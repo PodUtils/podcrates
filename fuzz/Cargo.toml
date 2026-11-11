@@ -41,6 +41,9 @@ pod-session = { path = "../crates/pod-session" }
 # The feature `fuzzing` gives the memfd that stands in for the memory of a
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
+pod-job = { path = "../crates/pod-job" }
+# A job offer is JSON.
+serde_json = "1"
 
 # A crash names its line.
 [profile.release]
@@ -196,6 +199,13 @@ bench = false
 [[bin]]
 name = "hold_syn"
 path = "fuzz_targets/hold_syn.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "job_offer"
+path = "fuzz_targets/job_offer.rs"
 test = false
 doc = false
 bench = false

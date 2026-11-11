@@ -1,5 +1,5 @@
 {
-  "$id": "https://github.com/PodUtils/podrunner/schemas/job-offer.v1.json",
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/job-offer.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "JobOffer",
   "description": "A job offer (`job-offer.v1`).",
@@ -7,7 +7,11 @@
   "properties": {
     "arch": {
       "description": "`x86_64` or `aarch64`.",
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "x86_64",
+        "aarch64"
+      ]
     },
     "job_id": {
       "$ref": "#/$defs/JobId"
@@ -26,14 +30,30 @@
         "format": "uint64",
         "minimum": 0
       },
-      "default": {}
+      "default": {},
+      "propertyNames": {
+        "enum": [
+          "wall",
+          "cpu",
+          "memory",
+          "pids",
+          "disk"
+        ]
+      }
     },
     "limits_required": {
-      "description": "The names of the limits that a unit must enforce.",
+      "description": "The names of the limits that a unit must enforce. Each one has a\nvalue in `limits`.",
       "type": "array",
       "default": [],
       "items": {
-        "type": "string"
+        "type": "string",
+        "enum": [
+          "wall",
+          "cpu",
+          "memory",
+          "pids",
+          "disk"
+        ]
       }
     },
     "payload": {
@@ -41,18 +61,19 @@
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "policy": {
-      "description": "The egress policy (the `broker-policy.v1` schema of `pod-broker`).",
+      "description": "The egress policy (the `broker-policy.v1` schema of `pod-broker`).\nAn empty object is no policy.",
       "type": "object",
       "additionalProperties": true,
       "default": {}
     },
     "schema": {
+      "description": "The version of the record: `SCHEMA`, 1.",
       "type": "integer",
-      "format": "uint32",
-      "minimum": 0
+      "const": 1
     },
     "source": {
       "description": "The name of the source in the configuration.",
@@ -79,6 +100,138 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "limits_required": {
+            "contains": {
+              "const": "wall"
+            }
+          }
+        },
+        "required": [
+          "limits_required"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limits": {
+            "required": [
+              "wall"
+            ]
+          }
+        },
+        "required": [
+          "limits"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "limits_required": {
+            "contains": {
+              "const": "cpu"
+            }
+          }
+        },
+        "required": [
+          "limits_required"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limits": {
+            "required": [
+              "cpu"
+            ]
+          }
+        },
+        "required": [
+          "limits"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "limits_required": {
+            "contains": {
+              "const": "memory"
+            }
+          }
+        },
+        "required": [
+          "limits_required"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limits": {
+            "required": [
+              "memory"
+            ]
+          }
+        },
+        "required": [
+          "limits"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "limits_required": {
+            "contains": {
+              "const": "pids"
+            }
+          }
+        },
+        "required": [
+          "limits_required"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limits": {
+            "required": [
+              "pids"
+            ]
+          }
+        },
+        "required": [
+          "limits"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "limits_required": {
+            "contains": {
+              "const": "disk"
+            }
+          }
+        },
+        "required": [
+          "limits_required"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limits": {
+            "required": [
+              "disk"
+            ]
+          }
+        },
+        "required": [
+          "limits"
+        ]
+      }
+    }
+  ],
   "required": [
     "schema",
     "job_id",
@@ -137,7 +290,7 @@
     },
     "JobId": {
       "type": "string",
-      "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$"
+      "pattern": "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$"
     },
     "TrustInputs": {
       "description": "The job metadata that the tier rule reads.",

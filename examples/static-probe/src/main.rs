@@ -102,6 +102,7 @@ fn main() {
     lines.push(wormhole());
     lines.push(quic());
     lines.push(session());
+    lines.push(job());
     for line in lines {
         println!("{line}");
     }
@@ -376,6 +377,27 @@ fn wormhole() -> String {
         },
     );
     format!("pod-wormhole: a code of {} words, {sealed} bytes sealed, taker: {run}", code.words())
+}
+
+/// pod-job: an offer from JSON, its check, and the public report of a
+/// refused job: the readers and the writers of serde link in.
+fn job() -> String {
+    let offer = serde_json::from_str::<pod_job::JobOffer>(r#"{"schema":1,"tier":"trusted"}"#)
+        .map_or_else(|e| e.to_string(), |o| format!("{:?}", o.check(false)));
+    let report = pod_job::RunReport {
+        schema: pod_job::SCHEMA,
+        job_id: pod_job::JobId::new("probe-1").expect("a job id"),
+        source: "probe".into(),
+        tier: Some(pod_job::Tier::Untrusted),
+        host: "probe.example".into(),
+        exit_reason: pod_job::ExitReason::Refused,
+        exit_code: None,
+        wall_s: 0,
+        refusal_code: Some(pod_job::RefusalCode::TierNeedsGuest),
+        unit: None,
+    };
+    let public = serde_json::to_string(&report.public()).unwrap_or_default();
+    format!("pod-job: an offer with a tier: {offer}; check {:?}; {public}", report.check())
 }
 
 /// pod-session: a record of the layer, its secret from X25519, the UDP

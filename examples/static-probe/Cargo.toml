@@ -21,6 +21,8 @@ pod-hostprobe = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-hold = { workspace = true }
 pod-identity = { workspace = true }
+# `schema` is out: it is for the tests that generate the JSON Schemas, and no binary turns it on.
+pod-job = { workspace = true }
 pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
@@ -36,3 +38,5 @@ pod-ws = { workspace = true, features = ["ech"] }
 pod-wormhole = { workspace = true }
 # A runtime of one thread for the endpoint of pod-quic.
 tokio = { workspace = true, features = ["rt"] }
+# The reader and the writer of the records of pod-job.
+serde_json = { workspace = true }

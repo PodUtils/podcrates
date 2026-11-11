@@ -10,8 +10,8 @@ into a static binary on each target of the consumers.
 
 ## State
 
-Version 0.8.0 (`v0.8.0`) is the last release. The releases `v0.1.0` to
-`v0.8.0` have notes in [docs/releases/](docs/releases/). A consumer takes a
+Each release has its notes in [docs/releases/](docs/releases/), and
+[TODO/PROGRESS.md](TODO/PROGRESS.md) names the last one. A consumer takes a
 crate by the git tag of this repository. The record
 [TODO/](TODO/PROGRESS.md) has the state, the work order and the open
 entries. M6 (the crates of podvm) is the current wave; M8 (the fleet)
@@ -32,7 +32,7 @@ the dependencies of each crate.
 | M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
 | M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci` (exists), `pod-extract` (exists), `pod-rootfs` (exists), `pod-enter` (exists) |
 | M7 | `pod-hold` (exists), `pod-microvm`, `pod-sud`, `pod-confine`, `pod-netlab`, `pod-pcap`, `pod-sandprobe` |
-| M8 | `pod-broker` (exists), `pod-unit`, `pod-control`, `pod-release` |
+| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-unit`, `pod-control`, `pod-release` |
 
 ## Documents
 

@@ -34,6 +34,7 @@ pod-guest = { path = "crates/pod-guest", version = "0.16.0" }
 pod-hold = { path = "crates/pod-hold", version = "0.16.0" }
 pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.16.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.16.0" }
+pod-job = { path = "crates/pod-job", version = "0.16.0" }
 pod-oci = { path = "crates/pod-oci", version = "0.16.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.16.0" }
 pod-quic = { path = "crates/pod-quic", version = "0.16.0" }
@@ -56,8 +57,13 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 # with no derive.
 serde_json = "1"
 # The policy schema of pod-broker, and the lines of its control socket and
-# its audit.
+# its audit; the records of pod-job.
 serde = { version = "1", features = ["derive"] }
+# The JSON Schemas of schemas/ that the tests of pod-job generate from its
+# types (ruling Q-A8), and a validator of them. Tests only: no binary of a
+# consumer carries them.
+schemars = "1.2"
+boon = "0.6"
 # DNS over HTTPS over HTTP/2 (pod-dns), for a resolver that serves no
 # HTTP/1.1: the client of h2, and the request of http.
 h2 = "0.4"

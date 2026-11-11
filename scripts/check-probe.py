@@ -24,6 +24,8 @@ ALLOWED = {
     ("pod-proxy", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-gsr", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-hold", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
+    ("pod-job", "schema"): "the JsonSchema of each type, for the tests that generate the JSON Schemas; "
+                           "a consumer turns it on in [dev-dependencies] only, and no binary carries schemars",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",
     ("pod-ws", "plain-ws"): "for the tests of an embedder over plain TCP to the loopback; no binary turns it on",

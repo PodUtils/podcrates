@@ -1,6 +1,6 @@
-//! The id of a job (from the source) and the id of a unit (from podrunner).
-//! A job id is data from a forge: it is never a path component, and a unit
-//! id never derives from it.
+//! The id of a job (from the source) and the id of a unit (from the
+//! runner). A job id is data from a forge: it is never a path component,
+//! and a unit id never derives from it.
 
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -21,6 +21,13 @@ impl fmt::Display for IdError {
 }
 
 impl std::error::Error for IdError {}
+
+/// The pattern of a job id in a JSON Schema: 1 to 128 characters of
+/// `[A-Za-z0-9._-]`, and not `.` or `..`. The three branches start with a
+/// character that is not a dot, with one dot, and with two dots and more.
+#[cfg(any(test, feature = "schema"))]
+const JOB_ID_PATTERN: &str =
+    "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$";
 
 /// A job id: `[A-Za-z0-9._-]{1,128}`, and not `.` or `..`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
@@ -107,7 +114,9 @@ impl UnitIds {
     }
 }
 
-/// The JSON Schema of the ids, with their patterns.
+/// The JSON Schema of the ids, with their patterns. A pattern has no
+/// look-around: Rust's regex and Go's RE2 do not take one, and a validator
+/// on them must read each schema of `schemas/`.
 #[cfg(any(test, feature = "schema"))]
 mod schema {
     use std::borrow::Cow;
@@ -119,7 +128,7 @@ mod schema {
             "JobId".into()
         }
         fn json_schema(_: &mut SchemaGenerator) -> Schema {
-            json_schema!({ "type": "string", "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$" })
+            json_schema!({ "type": "string", "pattern": super::JOB_ID_PATTERN })
         }
     }
 

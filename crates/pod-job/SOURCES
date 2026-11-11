@@ -1,0 +1,60 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podrunner 9ab7fd324109f0707b8e6de8284694b94fe60077
+# T-163: the four records of PodUtils/podrunner#17, their schemas and their
+# examples; the table of the refusal codes is a section of the README.
+# src/json_schema.rs and src/schemas/rules.rs are new here.
+dir crates/podrunner-schema
+dir schemas
+# secret.rs (Credential, CredentialFile, Secret) stays in podrunner: no
+# record of this crate holds a credential.
+skip crates/podrunner-schema/src/secret.rs
+# status.v1.json is the status of a host of podrunner, not a record of a job.
+skip schemas/status.v1.json
+file affd6c233e370683ee64e60f6e4c2e0b80ce7a15 crates/podrunner-schema/Cargo.toml -> crates/pod-job/Cargo.toml
+file 3864b2f1355da55cabfa9791c969a68be124a1ed crates/podrunner-schema/src/capability.rs -> crates/pod-job/src/capability.rs
+file 30f36e82d7e188cf64d3981f00464927ee6d1151 crates/podrunner-schema/src/codes.rs -> crates/pod-job/src/codes.rs
+file 5e47a07c401bda7c4d8f354a66bc11be405998ee crates/podrunner-schema/src/ids.rs -> crates/pod-job/src/ids.rs
+file 5ece6a1499cb3d7b9cb4e77849d9fea653d08166 crates/podrunner-schema/src/lib.rs -> crates/pod-job/src/lib.rs
+file ad47a87c889f072887ccbf51d3029365e431845f crates/podrunner-schema/src/offer.rs -> crates/pod-job/src/offer.rs
+file 7b2d24d5c4b544e33026931fabe3f658fcc78279 crates/podrunner-schema/src/report.rs -> crates/pod-job/src/report.rs
+file def70ae943a15455ee604d8942b866650c673b3a crates/podrunner-schema/src/schemas.rs -> crates/pod-job/src/schemas.rs
+file ce893eb3433e0c8b1207c4b21629df1a0ceeb36d docs/contracts/codes.md -> crates/pod-job/README.md
+file eb6c837c3f0d48017be9ad1672a88ef4a61a0adb schemas/examples/expect.json -> crates/pod-job/tests/examples/expect.json
+file a70d3a269639e53fb9a255e234d26cb68c812a34 schemas/examples/job-offer/invalid-job-id-path.json -> crates/pod-job/tests/examples/job-offer/invalid-job-id-path.json
+file 2cd1e5d93bb9b39f4dd6a3fb4924be872260517e schemas/examples/job-offer/invalid-payload-tag.json -> crates/pod-job/tests/examples/job-offer/invalid-payload-tag.json
+file 4106694b93863dd00e16f012d92cb2e94f2f1c07 schemas/examples/job-offer/invalid-required-limit-no-value.json -> crates/pod-job/tests/examples/job-offer/invalid-required-limit-no-value.json
+file 63d2d8514057f5dfd107ef18cb7d6d913778b421 schemas/examples/job-offer/invalid-scaleset-payload.json -> crates/pod-job/tests/examples/job-offer/invalid-scaleset-payload.json
+file 17b75081a539cf67193417f62086a047b3718973 schemas/examples/job-offer/invalid-tier-field.json -> crates/pod-job/tests/examples/job-offer/invalid-tier-field.json
+file fcd20f6247d04033a67c5ecdc728550332bc39ea schemas/examples/job-offer/invalid-unknown-event.json -> crates/pod-job/tests/examples/job-offer/invalid-unknown-event.json
+file b0a47ae4b046a91710535e5a837eaff4766c91ef schemas/examples/job-offer/invalid-unknown-limit.json -> crates/pod-job/tests/examples/job-offer/invalid-unknown-limit.json
+file c31a71e1e27cf5fb5ed1fb73c6d4b36f9650f77f schemas/examples/job-offer/valid-fork-pull-request.json -> crates/pod-job/tests/examples/job-offer/valid-fork-pull-request.json
+file 0fde09d8742b86087a3d333b3d9fcba386ae32f8 schemas/examples/job-offer/valid-limits-and-need.json -> crates/pod-job/tests/examples/job-offer/valid-limits-and-need.json
+file da88c7fdb3a961b5a54a7c6b49aa60148ce4bef4 schemas/examples/job-offer/valid-payload.json -> crates/pod-job/tests/examples/job-offer/valid-payload.json
+file 89514881875ffa8841936763975495258ab0b265 schemas/examples/job-offer/valid-push.json -> crates/pod-job/tests/examples/job-offer/valid-push.json
+file d197476e7be156425ef184ea1407d28e9e673712 schemas/examples/run-report-public/invalid-host.json -> crates/pod-job/tests/examples/run-report-public/invalid-host.json
+file 8a7a94fe535f6e5be5d571d1824b84e5cdbe6636 schemas/examples/run-report-public/invalid-refusal-code.json -> crates/pod-job/tests/examples/run-report-public/invalid-refusal-code.json
+file bb488cd1686a7bb4d7fbf0433496cc13f5d06123 schemas/examples/run-report-public/valid-refused.json -> crates/pod-job/tests/examples/run-report-public/valid-refused.json
+file fea7ba65fda3946539040d20ce9da4e69bdc1411 schemas/examples/run-report-public/valid-success.json -> crates/pod-job/tests/examples/run-report-public/valid-success.json
+file ff4ca4e4c8d39dda29284a4d7047d03c48780384 schemas/examples/run-report/invalid-code-not-refused.json -> crates/pod-job/tests/examples/run-report/invalid-code-not-refused.json
+file b3a2d540ff182ce7f07e265ce8b799b1081933e3 schemas/examples/run-report/invalid-exit-reason.json -> crates/pod-job/tests/examples/run-report/invalid-exit-reason.json
+file 6e324e98aae7a0117489865e55c05d6fafd2eab3 schemas/examples/run-report/invalid-refused-no-code.json -> crates/pod-job/tests/examples/run-report/invalid-refused-no-code.json
+file 192abeec87be0ede8ebdba1a78323c7aa1d5a33a schemas/examples/run-report/invalid-refused-with-unit.json -> crates/pod-job/tests/examples/run-report/invalid-refused-with-unit.json
+file 2a430005aa17c0d2651b20faa23680294a7fd3ac schemas/examples/run-report/invalid-unit-id.json -> crates/pod-job/tests/examples/run-report/invalid-unit-id.json
+file 1bb0c018c4df533e5fe165d3ef4511f702aaacac schemas/examples/run-report/valid-lost-unknown-residue.json -> crates/pod-job/tests/examples/run-report/valid-lost-unknown-residue.json
+file 1a165071435d359643bd751ae73189e5ed9630bd schemas/examples/run-report/valid-refused.json -> crates/pod-job/tests/examples/run-report/valid-refused.json
+file 9bca94d34f77d120a3ec1775bc1d892c7d2a37e1 schemas/examples/run-report/valid-success.json -> crates/pod-job/tests/examples/run-report/valid-success.json
+file 8b6ea017767c71a22d0a2420776f19815901e9ea schemas/examples/unit-capability/invalid-env-delivery.json -> crates/pod-job/tests/examples/unit-capability/invalid-env-delivery.json
+file 85b527396483a17ab9d5bcd69372d037ebb0ebcf schemas/examples/unit-capability/invalid-extra-field.json -> crates/pod-job/tests/examples/unit-capability/invalid-extra-field.json
+file 2e827e288f3ee2f3beb1c6797b9804b38e5e3a54 schemas/examples/unit-capability/invalid-isolated.json -> crates/pod-job/tests/examples/unit-capability/invalid-isolated.json
+file 9f7e8b065114b5cbfe8559d70b8b41618bb6f28a schemas/examples/unit-capability/invalid-no-tree-kill.json -> crates/pod-job/tests/examples/unit-capability/invalid-no-tree-kill.json
+file 243d61a5d2fdd43bd328449ca199a507f6765d86 schemas/examples/unit-capability/invalid-schema-2.json -> crates/pod-job/tests/examples/unit-capability/invalid-schema-2.json
+file 70bac70233566ea2fd6ec6bca677e73694a21f5b schemas/examples/unit-capability/valid-microvm.json -> crates/pod-job/tests/examples/unit-capability/valid-microvm.json
+file 9c7a025ef9bde75fa7164fe3559420560e70f245 schemas/examples/unit-capability/valid-podvm.json -> crates/pod-job/tests/examples/unit-capability/valid-podvm.json
+file 74f5232263fc23b67a9708d327f6d6d91a3c6cdb schemas/job-offer.v1.json -> schemas/job-offer.v1.schema.json
+file 3b0e7a596d64b848d594f435335f38b93a827811 schemas/run-report-public.v1.json -> schemas/run-report-public.v1.schema.json
+file dc9adb5c9d70119ca09a357c86ece0c8596bceba schemas/run-report.v1.json -> schemas/run-report.v1.schema.json
+file 0cec5e3f6f8fada7d95c26bef2a810c8075347ea schemas/unit-capability.v1.json -> schemas/unit-capability.v1.schema.json

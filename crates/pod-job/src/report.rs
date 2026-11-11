@@ -1,6 +1,8 @@
 //! `run-report.v1` and `run-report-public.v1`: the end of one job. A source
-//! that is not `operator_controlled` gets only the public report, which
-//! never names the host.
+//! that is not `operator_controlled` gets only the public report. The
+//! public report never names the host, and it holds no detail of the
+//! boundary (the proof, the principal, the hold, the unit id, the payload,
+//! the residue): only the class of the boundary.
 
 use serde::{Deserialize, Serialize};
 
@@ -19,9 +21,9 @@ pub enum ExitReason {
     Refused,
     /// Withdrawn at `wait_deadline_s`.
     Withdrawn,
-    /// The runner name or the job id of the `started` event did not match.
+    /// The runner name or the job id of the `started` event did not agree.
     JobMismatch,
-    /// podrunner lost the job (a restart from `claimed` on).
+    /// The runner lost the job (a restart from `claimed` on).
     Lost,
     UnitFailed,
 }
@@ -64,8 +66,11 @@ pub enum Unknown {
 /// The full report (`run-report.v1`), for the operator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), schemars(transform = crate::json_schema::run_report_rules))]
 #[serde(deny_unknown_fields)]
 pub struct RunReport {
+    /// The version of the record: `SCHEMA`, 1.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::version"))]
     pub schema: u32,
     pub job_id: JobId,
     pub source: String,
@@ -88,8 +93,11 @@ pub struct RunReport {
 /// The public report (`run-report-public.v1`). It never names the host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), schemars(transform = crate::json_schema::public_report_rules))]
 #[serde(deny_unknown_fields)]
 pub struct PublicReport {
+    /// The version of the record: `SCHEMA`, 1.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::version"))]
     pub schema: u32,
     pub job_id: JobId,
     pub source: String,
@@ -109,17 +117,7 @@ impl RunReport {
     /// The rules that serde does not check: a refused report has a refusal
     /// code and no unit; a report of a unit that ran has no refusal code.
     pub fn check(&self) -> Result<(), String> {
-        if self.schema != SCHEMA {
-            return Err(format!("schema {} is not {SCHEMA}", self.schema));
-        }
-        match (self.exit_reason, &self.refusal_code, &self.unit) {
-            (ExitReason::Refused, None, _) => Err("a refused report needs refusal_code".into()),
-            (ExitReason::Refused, Some(_), Some(_)) => Err("a refused report has no unit fields".into()),
-            (ExitReason::Refused, Some(_), None) => Ok(()),
-            (_, Some(_), _) => Err("refusal_code needs exit_reason refused".into()),
-            (ExitReason::Withdrawn, None, Some(_)) => Err("a withdrawn report has no unit fields".into()),
-            _ => Ok(()),
-        }
+        rules(self.schema, self.exit_reason, self.refusal_code.is_some(), self.unit.is_some())
     }
 
     /// The subset for a source that is not `operator_controlled`.
@@ -135,5 +133,32 @@ impl RunReport {
             exit_reason: self.exit_reason,
             refusal_code: self.refusal_code,
         }
+    }
+}
+
+impl PublicReport {
+    /// The rules of [`RunReport::check`] on the public fields: `unit_kind`
+    /// and `boundary` stand for the unit. The public report of a report
+    /// that passes its check passes this check.
+    pub fn check(&self) -> Result<(), String> {
+        let unit = self.unit_kind.is_some() || self.boundary.is_some();
+        rules(self.schema, self.exit_reason, self.refusal_code.is_some(), unit)
+    }
+}
+
+/// The rules of a report that serde does not check: the version; a refused
+/// report has a refusal code and no unit; a report of a unit that ran has
+/// no refusal code; a withdrawn report has no unit.
+fn rules(schema: u32, exit: ExitReason, code: bool, unit: bool) -> Result<(), String> {
+    if schema != SCHEMA {
+        return Err(format!("schema {schema} is not {SCHEMA}"));
+    }
+    match (exit, code, unit) {
+        (ExitReason::Refused, false, _) => Err("a refused report needs refusal_code".into()),
+        (ExitReason::Refused, true, true) => Err("a refused report has no unit fields".into()),
+        (ExitReason::Refused, true, false) => Ok(()),
+        (_, true, _) => Err("refusal_code needs exit_reason refused".into()),
+        (ExitReason::Withdrawn, false, true) => Err("a withdrawn report has no unit fields".into()),
+        _ => Ok(()),
     }
 }

@@ -401,7 +401,7 @@ Depends on T-099 (done) and `pod-dns`. Not on T-100.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -436,3 +436,140 @@ The tests that the issue names:
 None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Podrunner's WP-01 (the traits) comes first.
+
+## Done
+
+2026-11-11. The crate `pod-job` (call C50) from PodUtils/podrunner:crates/podrunner-schema and `schemas/` at `9ab7fd3`:
+the four records (`JobOffer`, `Capability`, `RunReport`, `PublicReport`), their ids, `Tier`, `RefusalCode`, `SCHEMA`
+and the `check` of each record. `secret.rs` stays in podrunner (a `skip` line of `crates/pod-job/SOURCES`). The
+schemas `job-offer.v1`, `unit-capability.v1`, `run-report.v1` and `run-report-public.v1` are in `schemas/`, written
+from the types by a test (`POD_JOB_WRITE_SCHEMAS=1`); schemars is a dev-dependency and the feature `schema`. The
+examples (11 valid, 19 invalid, `expect.json`) are in `crates/pod-job/tests/examples/`, as `docs/design.md`,
+section 2, gives `schemas/` the `*.schema.json` files only. The commits: `pod-job: import PodUtils/podrunner ...`
+(the files with no change) and `pod-job: the records of a CI runner's job ...` (the adaptation, the tests, the record).
+
+- `cargo test -p pod-job --all-features`: 16 passed. The four tests of the Prove:
+  1. `each_example_passes_or_fails_for_its_reason`: the 11 valid examples pass and the 19 invalid ones fail for the
+     reason of `expect.json`. A validator of JSON Schema 2020-12 (boon) gives each example the same verdict on the
+     generated schemas, but `invalid-scaleset-payload.json`: the kind of a source is in the configuration.
+  2. `the_offer_refuses_what_a_source_may_not_send`: a payload of a `github-scaleset` source (`check(true)` only); a
+     credential in `env`, `environment`, `credential`, `trust_inputs.env` and `unit_need.env`; an image by tag or by
+     name; a `tier` at the top and in `trust_inputs`. No property of the offer schema names a tier, an environment, a
+     credential, a secret or a token.
+  3. `the_public_report_holds_no_host_and_no_boundary_detail`: the public schema has 9 properties and no other; the
+     public report of each valid full report holds no host, unit id or payload; the types and the schema refuse a
+     public report with `host`, `unit`, `unit_id`, `boundary_proof`, `principal`, `egress_hold`, `payload`,
+     `residual_processes` or `exit_code`.
+  4. `each_schema_names_its_version_one_way`. The rule of the log schema: the version is in the file name and in the
+     `$id` only, with no field, and `additionalProperties` is false, so a line with `schema` is refused. The broker
+     policy has `version` with the constant 1. The four records have a required `schema` with the constant 1. The
+     rules differ: the test holds the common part (the file name, the `$id`, draft 2020-12, a compile on Rust's regex)
+     for each file of `schemas/`, and lists the two others. T-177 gives them one rule.
+
+  Also `the_job_id_pattern_is_the_rule_of_the_type`, `the_rules_of_a_report_are_the_rules_of_its_schema` (36
+  reports) and the 10 tests of the source with their names.
+- The plant, one time, not kept: a field `tier: Option<Tier>` in `JobOffer`. Three tests fail:
+  `the_offer_refuses_what_a_source_may_not_send` (`expect_err("tier")` on `Ok`),
+  `each_example_passes_or_fails_for_its_reason` (`job-offer/invalid-tier-field.json` passes) and
+  `the_schemas_are_generated_from_the_types`. After the revert, the 16 pass.
+- Fixed in place. The draft schemas did not hold the version (`schema: 2` passed), the arch, the names of the limits,
+  the form of the payload, the required limits and the rules of a report. The pattern of a job id had a look-around,
+  which Rust's regex and Go's RE2 refuse. The public report had no check. `TODO/PROGRESS.md` named the calls C1 to
+  C48 (C49 existed). `README.md` named `v0.8.0` as the last release. `docs/HANDOFF.md` listed done entries as work.
+- Findings, as entries: T-177 (one rule for the version field), T-178 (the `policy` of an offer is not held to
+  `broker-policy.v1`).
+- The fuzz target `job_offer` (read, `check`, encode, read again), with the 11 offers as seeds:
+  `cargo test --manifest-path fuzz/Cargo.toml`: 3 passed (23 targets).
+- `sh scripts/agent/check.sh`: fmt, clippy, lint, doc, record, size and paths 0, static skipped (no zig), test 0
+  (`cargo test --workspace --all-features`: 1975 passed, 15 ignored). `python3 -I scripts/check-sources.py --clone
+  PodUtils/podrunner=DIR pod-job`: 44 files, 0 changes. cargo-deny 0.20.2 (`check advisories licenses bans sources`;
+  `--all-features check licenses sources`): ok. The new licences: schemars and schemars_derive MIT; dyn-clone,
+  ref-cast and serde_derive_internals MIT OR Apache-2.0. boon and its tree are dev-dependencies (MIT, Apache-2.0,
+  Unicode-3.0, and MIT-0 of `borrow-or-share`); cargo-deny lists none of them.
+- Next: the main session reserves `pod-job` on crates.io and releases it. podrunner takes it at the next tag (the
+  adoption map of `crates/pod-job/README.md`) and removes its copies.
+
+# T-177: One rule for the version field of each schema of `schemas/`: the log line and the broker policy
+
+**Source:** found by the import of `pod-job` (T-163, its test 4)
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The schemas of `schemas/` name their version in three ways. Each schema carries the version N in its file name
+(`NAME.vN.schema.json`) and in its `$id`. The four records of `pod-job` also have a required field `schema` with the
+constant N. `schemas/log.v1.schema.json` (one log line) has no version field, and its `additionalProperties` is
+false, so a line that has a `schema` field is refused. `schemas/broker-policy.v1.schema.json` names the field
+`version` (`pod_broker::policy::VERSION`). githome (GitHub #36) and cfb (GitHub #35) pin these schemas: a reader that
+wants to refuse a record of another version needs one rule for each document.
+
+## Premise
+
+- Read: the six files of `schemas/`; `crates/pod-broker/src/policy.rs` (`VERSION`, the field `version`);
+  `crates/pod-broker/src/audit.rs` (the lines in the form of the log schema); `crates/pod-core/README.md` (the keys
+  of a log line).
+- Measured: the test `each_schema_names_its_version_one_way` of `pod-job` (`crates/pod-job/src/schemas/rules.rs`)
+  holds the two files in its list `OTHER_RULE`.
+- Not measured: the consumers that write or read log lines and policies (podrunner, podvm's `--net broker`).
+
+## Approach
+
+Give each schema the rule of the records: a required field `schema` with the constant N, the first key of the
+object. The broker policy renames `version` to `schema` (in `Policy`, the TOML form, the README, the control lines,
+the examples and the tests of `pod-broker`, the static probe). The log line gets `"schema": 1`, and the audit of
+`pod-broker` writes it. A format of the wire can change in any version (`docs/design.md`, section 1, rule 3); the
+release notes name the change, and the hand-off tells podrunner and podvm. Then empty `OTHER_RULE`.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features each_schema_names_its_version_one_way
+cargo test -p pod-broker --all-features
+cargo test -p pod-core --all-features
+```
+
+The test of `pod-job` has an empty `OTHER_RULE`, and it reads each file of `schemas/`.
+
+# T-178: `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy
+
+**Source:** found by the import of `pod-job` (T-163)
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`JobOffer::policy` says that it is the egress policy of the `broker-policy.v1` schema of `pod-broker`, and an empty
+object is no policy. But the type and `schemas/job-offer.v1.schema.json` take any JSON object
+(`additionalProperties: true`). The valid example `crates/pod-job/tests/examples/job-offer/valid-limits-and-need.json`
+of podrunner's draft holds `{"allow": ["github.com:443"]}`, which `broker-policy.v1` refuses: it has no `version` and
+no `mode`, and an allow rule is an object with a `host`. A free object can also carry any value from a source, a
+credential too, past the check of the offer.
+
+## Premise
+
+- Read: `crates/pod-job/src/offer.rs`, the example, `schemas/broker-policy.v1.schema.json`,
+  `crates/pod-broker/src/policy.rs`. At `9ab7fd3`, podrunner's placement
+  (PodUtils/podrunner:crates/podrunner-slots/src/placement.rs) reads only whether the policy is empty.
+- Not measured: what podrunner gives to the broker from an offer (PodUtils/podrunner#24, T-161).
+
+## Approach
+
+The schema of `policy` is an empty object or the `broker-policy.v1` schema, by its `$id` (`$ref`). The type stays a
+JSON object, so `pod-job` does not depend on `pod-broker` and its tokio; the consumer reads the policy with
+`pod_broker::Policy::from_value` and refuses a bad one with `egress-policy-unsupported`. The example holds a valid
+policy (the podrunner session agrees, as the examples are its draft). The test of the examples gives the validator
+`broker-policy.v1.schema.json` as a resource, and a test shows an offer with a policy that `broker-policy.v1` refuses
+is refused by the schema of the offer. If T-177 renames `version`, take it first.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```

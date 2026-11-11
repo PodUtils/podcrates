@@ -1,12 +1,14 @@
-//! `job-offer.v1`: a job that a source offers. It has no `tier` field:
-//! podrunner computes the tier from `trust_inputs` (GitHub #18).
+//! `job-offer.v1`: a job that a source offers. It has no `tier` field: the
+//! runner computes the tier from `trust_inputs` (PodUtils/podrunner#18).
+//! An offer is untrusted input: serde refuses each unknown field (a `tier`,
+//! an `env`), and [`JobOffer::check`] applies the other rules.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::{Boundary, Fact, JobId, SCHEMA};
+use crate::{ARCHES, Boundary, Fact, JobId, SCHEMA};
 
 /// The event that started the workflow. Each value that the tier rule does
 /// not name is `other`; a value that the source cannot read is `unknown`.
@@ -90,8 +92,11 @@ pub struct UnitNeed {
 /// A job offer (`job-offer.v1`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), schemars(transform = crate::json_schema::offer_rules))]
 #[serde(deny_unknown_fields)]
 pub struct JobOffer {
+    /// The version of the record: `SCHEMA`, 1.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::version"))]
     pub schema: u32,
     pub job_id: JobId,
     /// The name of the source in the configuration.
@@ -99,21 +104,27 @@ pub struct JobOffer {
     pub trust_inputs: TrustInputs,
     pub labels: Vec<String>,
     /// `x86_64` or `aarch64`.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::arch"))]
     pub arch: String,
     /// The limits that the job asks for, by name (`wall` in seconds,
     /// `memory` in bytes, `cpu` in milli-cores, `pids`, `disk` in bytes).
     #[serde(default)]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::limit_values"))]
     pub limits: BTreeMap<String, u64>,
-    /// The names of the limits that a unit must enforce.
+    /// The names of the limits that a unit must enforce. Each one has a
+    /// value in `limits`.
     #[serde(default)]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::limit_names"))]
     pub limits_required: Vec<String>,
     /// The egress policy (the `broker-policy.v1` schema of `pod-broker`).
+    /// An empty object is no policy.
     #[serde(default)]
     pub policy: Map<String, Value>,
     /// After this time, a job that waits for a slot is withdrawn.
     pub wait_deadline_s: u64,
     /// A payload digest, only from a source that may give one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::digest"))]
     pub payload: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_need: Option<UnitNeed>,
@@ -124,12 +135,14 @@ pub const LIMITS: [&str; 5] = ["wall", "cpu", "memory", "pids", "disk"];
 
 impl JobOffer {
     /// The rules that serde does not check. `scaleset` is true for an offer
-    /// of a `github-scaleset` source, which gives no payload.
+    /// of a `github-scaleset` source, which gives no payload. The kind of
+    /// the source is in the configuration of the runner, so no schema holds
+    /// this rule.
     pub fn check(&self, scaleset: bool) -> Result<(), String> {
         if self.schema != SCHEMA {
             return Err(format!("schema {} is not {SCHEMA}", self.schema));
         }
-        if !matches!(self.arch.as_str(), "x86_64" | "aarch64") {
+        if !ARCHES.contains(&self.arch.as_str()) {
             return Err("arch is not x86_64 or aarch64".into());
         }
         if let Some(name) = self.limits.keys().chain(&self.limits_required).find(|n| !LIMITS.contains(&n.as_str())) {

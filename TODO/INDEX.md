@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**176 entries: 59 open, 3 partial, 0 blocked, 114 done.**
+**178 entries: 60 open, 3 partial, 0 blocked, 115 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 27 | 3 | 0 | 55 | 85 |
+| P2 | 28 | 3 | 0 | 56 | 87 |
 | P3 | 15 | 0 | 0 | 17 | 32 |
-| **All** | 59 | 3 | 0 | 114 | 176 |
+| **All** | 60 | 3 | 0 | 115 | 178 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -209,7 +209,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-160](fleet.md) | P2 | S | M8 | feature | done | `pod-broker`: a listener bound to one job, with no token in the unit (PodUtils/podvm#227) |
 | [T-161](fleet.md) | P3 | M | M8 | feature | open | `pod-broker`: send the name to an upstream that takes names only (PodUtils/podvm#227) |
 | [T-162](podvm.md) | P2 | M | M8 | feature | done | `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227) |
-| [T-163](fleet.md) | P2 | M | M8 | feature | open | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
+| [T-163](fleet.md) | P2 | M | M8 | feature | done | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
 | [T-164](transport.md) | P3 | S | M8 | feature | open | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
 | [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |
 | [T-166](podvm.md) | P2 | L | M1 | feature | done | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |
@@ -223,3 +223,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-174](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Trojan node of the lists that passes the live check |
 | [T-175](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244) |
 | [T-176](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245) |
+| [T-177](fleet.md) | P2 | S | M8 | defect | open | One rule for the version field of each schema of `schemas/`: the log line and the broker policy |
+| [T-178](fleet.md) | P2 | S | M8 | defect | open | `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy |

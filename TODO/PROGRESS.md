@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 176 entries: 59 open, 3 partial, 0 blocked, 114 done.
+`TODO/INDEX.md` holds 178 entries: 60 open, 3 partial, 0 blocked, 115 done.
 
 ## State
 
@@ -47,8 +47,8 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): T-163 (the schemas, for
-   PodUtils/podrunner#17, after podrunner's types), T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
+2. **podrunner** (PodUtils/podrunner#1): T-161 (`pod-broker`, for PodUtils/podrunner#24), T-177 and
+   T-178 (the schemas of `pod-job`), T-164 (the
    Actions hosts, for PodUtils/podrunner#30); T-165 after DR-4
    (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
    needs it); T-146 tracks the plan. Each new ask of the
@@ -79,7 +79,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C48), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C50), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

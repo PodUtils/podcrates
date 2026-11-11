@@ -29,8 +29,9 @@ page current; remove a line when its work is done.
 - podrunner (the rulings of 2026-11-11, C49): a lead session of
   PodUtils/podrunner runs, which this session started and briefed; the two
   talk by direct messages (`send_message`). Its index is
-  PodUtils/podrunner#1. podcrates builds T-163, T-162, T-160, T-161 and
-  T-164 in the order of its need. A new session of podcrates finds the
+  PodUtils/podrunner#1. podcrates builds T-161, T-177, T-178 and T-164
+  in the order of its need (T-160, T-162 and T-163 are done; podrunner
+  takes `pod-job` at the next tag). A new session of podcrates finds the
   session id of podrunner with `list_sessions` (title `(podrunner)`).
 - podssh: a lead session that this session started on 2026-11-11 (title
   `(podssh)`); direct messages. Its next step: the takes of `pod-wormhole`

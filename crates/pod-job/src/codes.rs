@@ -1,5 +1,6 @@
-//! The tier of a job and the refusal codes (GitHub #21). The table of
-//! `docs/contracts/codes.md` lists the same codes; a test compares them.
+//! The tier of a job and the refusal codes (PodUtils/podrunner#21). The
+//! table of the README of this crate lists the same codes; a test compares
+//! them.
 
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ pub enum Tier {
     Local,
 }
 
-/// Why podrunner refuses a job.
+/// Why the runner refuses a job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
@@ -114,14 +115,16 @@ mod tests {
 
     #[test]
     fn the_table_of_codes_is_the_enum() {
-        let doc = include_str!("../../../docs/contracts/codes.md");
+        let readme = include_str!("../README.md");
+        let (_, section) = readme.split_once("\n## The refusal codes\n").expect("the section of the codes");
+        let doc = section.split("\n## ").next().unwrap_or_default();
         let rows: Vec<&str> = doc
             .lines()
             .filter_map(|l| l.strip_prefix("| `"))
             .filter_map(|l| l.split_once('`').map(|(c, _)| c))
             .collect();
         let codes: Vec<&str> = RefusalCode::ALL.iter().map(|c| c.as_str()).collect();
-        assert_eq!(rows, codes, "the table of docs/contracts/codes.md");
+        assert_eq!(rows, codes, "the table of the refusal codes in README.md");
         for c in RefusalCode::ALL {
             let kind = if c.is_wait() { "wait" } else { "terminal" };
             assert!(doc.contains(&format!("| `{}` | {kind} |", c.as_str())), "{} is {kind}", c.as_str());

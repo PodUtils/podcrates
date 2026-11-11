@@ -1,31 +1,36 @@
-//! The records that cross the seams of podrunner (GitHub #17): the ids, the
-//! credential, and the capability record of a unit kind. Each object on a
-//! wire starts with `"schema": 1` ([`SCHEMA`]).
+//! The records of the job of a CI runner (PodUtils/podrunner#17): the job
+//! offer of a source, the capability record of a unit kind, the run report
+//! and the public report, with their ids and the refusal codes. Each record
+//! starts with `"schema": 1` ([`SCHEMA`]). serde reads the form of a record;
+//! the `check` function of each record applies the other rules.
 //!
-//! Ruling Q-A8: the JSON Schemas live in podcrates (`schemas/`), generated
-//! from crate types. These types are the draft that podrunner hands to
-//! podcrates; podrunner takes the podcrates types when they are released.
+//! The JSON Schemas of `schemas/` come from these types (ruling Q-A8): a
+//! test writes them and compares them. The crate reads no environment, does
+//! no I/O and has no pod dependency.
 
 pub mod capability;
 mod codes;
 mod ids;
 pub mod offer;
 pub mod report;
-mod secret;
+
+#[cfg(any(test, feature = "schema"))]
+mod json_schema;
+#[cfg(test)]
+mod schemas;
 
 pub use capability::{
     Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, LimitMode, Principal, SecretDelivery,
     TreeKill,
 };
 pub use codes::{RefusalCode, Tier};
-pub use ids::{IdError, JobId, UnitId, UnitIds};
+pub use ids::{IdError, JOB_ID_MAX, JobId, UnitId, UnitIds};
 pub use offer::JobOffer;
 pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields};
-pub use secret::{Credential, CredentialFile, Secret};
 
-/// The version of each record and of each wire. A reader refuses another
-/// value.
+/// The version of each record. A reader refuses another value. The name of
+/// each schema file and its `$id` carry the same number (`NAME.v1`).
 pub const SCHEMA: u32 = 1;
 
-#[cfg(test)]
-mod schemas;
+/// The architectures of a unit and of a job.
+pub const ARCHES: [&str; 2] = ["x86_64", "aarch64"];
