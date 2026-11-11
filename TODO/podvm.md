@@ -2046,7 +2046,7 @@ Depends on no other crate.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2091,8 +2091,9 @@ sh scripts/agent/check.sh
 
 ## Done
 
-2026-11-10, partial: the take of podnet remains (the trial, the cross
-tests and the release `v0.15.0` are done).
+2026-11-11, done (podnet's take; see the last line). 2026-11-10, partial:
+the take of podnet remained (the trial, the cross tests and the release
+`v0.15.0` were done).
 Read: podnet `main` at `9e8d177` (`PodUtils/podnet:crates/podnet-netns`). Commits
 `7ca9a36` (the import of `seccomp/filter.rs`, `seccomp/notif.rs`,
 `seccomp/mem.rs`, `seccomp/mod.rs`, `fdtable.rs`, `netns/mod.rs`,
@@ -2165,8 +2166,12 @@ commit of this record.
   pass; `hold` prints `SKIP:` for the network namespace and twice for the
   seccomp listener (`ENOSYS` under qemu-user). The release `v0.15.0` is
   at `27a4ccd`; the hand-off is GitHub #54 (COORD-029).
-- Next step: podnet's take (a COORD issue `(to podcrates)`), then the
-  `taken` line in `crates/pod-hold/SOURCES` and the status done.
+- 2026-11-11, done: podnet took the crate at `b759937`
+  (PodUtils/podnet#424, COORD-015 of podnet; podnet's `check.sh` passed at
+  `5599012`). `crates/pod-hold/SOURCES` has `taken b759937`;
+  `python3 -I scripts/check-sources.py --clone PodUtils/podnet=CLONE pod-hold`
+  reads 9 files, 0 changes. The trial files `adoption/podnet/pod-hold.*`
+  are removed. podnet answered T-169 yes and T-170 yes in two steps.
 
 # T-169: `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs`
 
@@ -2199,7 +2204,9 @@ hand-off and its relays. podvm (PodUtils/podvm@T-1665) and podrunner
 - Not read: how `crate::handoff` and `crate::sockopt::Connected` would
   take a generic entry.
 - PodUtils/podnet#414 names the loop, the memory, the table and the reply,
-  not this state: podnet's view is needed before the import.
+  not this state. podnet's view (PodUtils/podnet#424, 2026-11-11): yes, the
+  state is in the cut. Import it from podnet `main` at `5599012` or later;
+  from the import, `connect.rs` takes fixes only in podnet.
 
 ## Approach
 
@@ -2244,7 +2251,12 @@ same hold of a SYN with its own dial.
 - Not read: the router in full; its ties to the rules, the flow log and the
   UDP flows of podnet.
 - podnet's cut (PodUtils/podnet#414) names "the netns hold of a connect":
-  T-166 read it as the namespace and the TUN. podnet's view is needed.
+  T-166 read it as the namespace and the TUN. podnet's view
+  (PodUtils/podnet#424, 2026-11-11): yes, in two steps. Step 1:
+  `netns/packet.rs` with its tests, now. Step 2: the hold of a SYN of
+  `netns/backend.rs`, after PodUtils/podnet@T-174 (the veth wire) and the move
+  of its router to the smoltcp of `pod-netstack`; podnet writes a COORD
+  issue when both are done.
 
 ## Approach
 

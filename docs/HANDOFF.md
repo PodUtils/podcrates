@@ -36,10 +36,11 @@ page current; remove a line when its work is done.
 - podssh and podvm are on break; only podnet answers a COORD issue of
   podcrates.
 
-- T-020 `pod-session`, T-022 `pod-wormhole`, T-166 `pod-hold`, T-155:
-  released in `v0.15.0` (the trials and the cross tests passed); the takes
-  of the consumers remain (#54). T-169 and T-170 ask podnet whether two
-  more parts belong to the cut of `pod-hold`. When a consumer writes
+- T-020 `pod-session`, T-022 `pod-wormhole`, T-155: released in
+  `v0.15.0` (the trials and the cross tests passed); the takes of podssh
+  and podvm remain (#54). podnet took `pod-hold` (T-166 done). podnet
+  answered T-169 yes and T-170 yes in two steps (PodUtils/podnet#424).
+  When a consumer writes
   its take as a COORD issue `(to podcrates)`: add the `taken` line to the
   crate's `SOURCES` (`check-sources.py` with clones must show 0 changes),
   remove the trial files of that consumer, set the entry to done, close

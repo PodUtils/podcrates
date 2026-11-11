@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 172 entries: 62 open, 4 partial, 0 blocked, 106 done.
+`TODO/INDEX.md` holds 172 entries: 62 open, 3 partial, 0 blocked, 107 done.
 
 ## State
 
@@ -13,10 +13,11 @@
   consumers follow it. The dry run of `publish.yml` fails at the tags
   `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main` (dry run
   42880918874 green).
-- The consumers: podssh and podnet are on `v0.14.0` (both took `pod-ws`
-  and `pod-quic`); podvm is on `v0.12.0` (it took its seven crates of M6).
+- The consumers: podnet is on `v0.15.0` (it took `pod-hold` at
+  `b759937`); podssh is on `v0.14.0` (it took `pod-ws` and `pod-quic`);
+  podvm is on `v0.12.0` (it took its seven crates of M6).
 - Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
-  T-166 `pod-hold` (podnet's take), T-155 (podvm's move of calls). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
+  T-155 (podvm's move of calls). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
   (qemu-user only), T-157 (public Trojan nodes; a second day of the watch).
 - podrunner has a lead session (the ruling "podrunner online",
   2026-11-11; C49). podcrates and podrunner talk by direct messages.
@@ -51,8 +52,9 @@ waits for podssh or podvm stays as it is; take the next entry.
    Actions hosts, for PodUtils/podrunner#30); T-165 after DR-4
    (PodUtils/podrunner#4); T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-166 (partial: podnet's take of `pod-hold`, #54); T-169 and
-   T-170 (after podnet's view); T-150, T-121 to T-124 (the asks of podnet).
+3. **podnet:** T-169 (the dial state of `connect.rs`), T-170 (step 1:
+   `packet.rs`; step 2 after podnet's COORD issue), from podnet's answer
+   PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
