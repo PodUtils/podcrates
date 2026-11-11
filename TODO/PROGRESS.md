@@ -11,7 +11,8 @@
   `pod-supervise` (T-202) for podvm and podrunner, `zerotier-tcp-relay`
   (T-203). The hand-off is GitHub #71 (COORD-046).
 - The next release, `v0.23.0`: T-108 (`pod-confine`), T-208, T-210.
-- The consumers: podssh is on `v0.21.0` (`6de121b2`, PodUtils/podssh#189;
+- The consumers: podssh is on `v0.22.0` (`75a50318`, PodUtils/podssh#191;
+  it took `pod-e2e`; earlier `6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.21.0`
   (`54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
@@ -21,8 +22,7 @@
   passes against incusd 6.0.0); podrunner is on `v0.22.0`
   (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
-- Takes that wait: podssh's take of `adoption/podssh/pod-e2e.patch` (T-021,
-  #71); podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
+- Takes that wait: podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
   podvm's take of `pod-confine` for PodUtils/podvm@T-1658 after `v0.23.0`
   (T-108, #69).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on

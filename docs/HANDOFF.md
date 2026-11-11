@@ -18,7 +18,8 @@ page current; remove a line when its work is done.
   (T-208, PodUtils/podvm#261), `plant-each.sh --apply` (T-210). Breaking:
   `Plan` has the field `confine`.
 - The consumers and the tag each takes:
-  - podssh: `v0.21.0` (`6de121b2`, PodUtils/podssh#189; the key of `localhost-run` pinned;
+  - podssh: `v0.22.0` (`75a50318`, PodUtils/podssh#191; it took `pod-e2e`;
+    the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
     PodUtils/podssh@T-740).
     `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
@@ -57,13 +58,12 @@ page current; remove a line when its work is done.
 
 ## In flight
 
-- `pod-e2e` (T-021, done; call C55): released in `v0.22.0`; podssh's
-  take remains (it answers on #71). `adoption/podssh/pod-e2e.patch` (podssh `74760e8`) is the
-  hand-off; its checks passed here (the patch applies, `cargo check`,
-  clippy, rustfmt, podssh's record), and `adoption.yml` runs its tests.
-  podssh's `tests/e2e_layered.rs` comes with `pod-relay` (T-025). A
-  trial of a crate with a digit in its name needs `040f3ea` (the pattern of
-  `scripts/adoption.sh`).
+- `pod-relay` (T-025): the import takes podssh `75a50318` (podssh's
+  answer, PodUtils/podssh#191). podssh holds the files of the row
+  `pod-relay` (`docs/design.md`, section 4) to fixes and sends each fix as a
+  COORD issue with its commit. podssh's `tests/e2e_layered.rs` comes with
+  it. A trial of a crate with a digit in its name needs `040f3ea` (the
+  pattern of `scripts/adoption.sh`).
 - `pod-wg` (T-024, done; call C56): released in `v0.22.0`; podnet's take
   remains. `adoption/podnet/pod-wg.patch` (podnet `54d7ed4`, the commit that
   PodUtils/podnet#447 holds) is the hand-off; its checks passed here (the

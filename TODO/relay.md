@@ -494,6 +494,12 @@ name with a digit), `5cc147c` (README, the static probe, the rows of
   (`025c9ab`); `podssh_relay::e2e::node` builds a node of the process now.
 - podssh accepts the cut and the words (C55) and holds `e2e/` to fixes
   until its take of `v0.22.0`.
+- Released in `v0.22.0` (`93de04a`). podssh took it at `75a50318`
+  (PodUtils/podssh#191, COORD-024 of podssh): `src/e2e/` is the glue of
+  the process; its hints follow `NotChannel` and `NO_EXIT`. Each step of
+  `pod-e2e.run` passed there but the zig musl build (no zig in its
+  container; its release workflow builds it). `check-sources.py` with a
+  clone at `75a5031`: 22 files, 0 changes. The trial files are removed.
 
 # T-022: `pod-wormhole`: the mailbox client, SPAKE2 and the code words
 
