@@ -59,12 +59,15 @@ page current; remove a line when its work is done.
 
 ## In flight
 
-- `pod-relay` (T-025): the import takes podssh `75a50318` (podssh's
-  answer, PodUtils/podssh#191). podssh holds the files of the row
-  `pod-relay` (`docs/design.md`, section 4) to fixes and sends each fix as a
-  COORD issue with its commit. podssh's `tests/e2e_layered.rs` comes with
-  it. A trial of a crate with a digit in its name needs `040f3ea` (the
-  pattern of `scripts/adoption.sh`).
+- `pod-relay` (T-025, partial; call C60): imported from podssh `75a5031`
+  and adapted (a `Context` of the caller, `Settings`, no globals); 356
+  tests and 28 plants pass. The trial of podssh (adoption/podssh/pod-relay.*)
+  is the next step: its glue gives each call that took a `ProxyChoice` a
+  `Context`. podssh freezes the files of the cut from `75a5031` (its fixes
+  come as COORD issues). T-212 makes the lines events.
+  A trial of a crate with a digit in its name needs `040f3ea` (the
+  pattern of `scripts/adoption.sh`). podssh's `tests/e2e_layered.rs` came
+  with the import.
 - At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
   the hand-off): add the `taken` line to the crate's `SOURCES`
   (`check-sources.py` with clones must show 0 changes), remove the trial

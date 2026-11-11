@@ -195,7 +195,13 @@ server.
 
 ## Approach
 
-The study, then the procedure of `docs/design.md`, section 8.
+The study, then the procedure of `docs/design.md`, section 8. podssh's tests
+that run the role and that `pod-relay` left (T-025) come with it:
+`tests/session_relay_resume.rs`, `relay_serve_*.rs`, `reverse_carrier.rs`,
+`reverse_restart.rs`, `http_road.rs`, and the plants
+`t173-resume-to-the-shared-name`, `t255-backoff-back` and
+`t326-cleartext-first`. The role gives `pod-relay`'s
+`reverse::wire::Door` for its carrier.
 
 ## Prove
 

@@ -876,7 +876,7 @@ podnet's take remain.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -919,6 +919,104 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-019, T-021 and T-022 are done.
+
+## Done
+
+2026-11-11, partial: the trial of podssh (adoption/podssh/pod-relay.*),
+the release and the take remain. Commits `b4dd345` (the import of
+`PodUtils/podssh:crates/podssh-relay/src/` and its tests at `75a5031`, with
+`SOURCES`: 117 files), `f74b805` (the adaptation of the library), `cb122b3`
+(the tests), `18a73a0` (the README, the plants, the fuzz targets, the
+static probe, the comments), `c479ab0` (the doc links, a test of
+`pod-broker`) and this record. Edition 2024 needs no
+commit: podssh's workspace is in edition 2024.
+
+- The cut, as the tree at `75a5031` holds it: the files of
+  `docs/design.md`, section 4, but `cache/` (no token or pool part: its
+  files are `pod-core`'s), `tls_groups.rs` (podssh's glue over `pod-tls`),
+  and podssh-ws `h2_road/` and `cleartext/` (podssh's glue over `pod-ws`:
+  its process pool and the way of a proxy choice). Of `cache.rs`, the token
+  entries; of `code/`, `exchange.rs` and `run.rs` (`mod.rs`, the choice of
+  the mailboxes, stays in podssh). Of the tests: each test of these files
+  that runs no other module of podssh-relay, with its harness, the
+  fixtures of the grants and the relay's document of the close table.
+  `tests/session_relay_resume.rs` runs the relay role: it goes with
+  `pod-relay-serve` (T-036), with `relay_serve_*.rs`, `reverse_carrier.rs`,
+  `reverse_restart.rs` and `http_road.rs`.
+- The cycles of the source: `reverse/wire.rs`'s `serve::reverse::carrier::Door`
+  is the trait `reverse::wire::Door` behind `Carrier`; `quic_road/` uses
+  `pod_quic::{probe, endpoint, connect::tls}`; the legs and the answer of a
+  peer are `pod-session`'s and `pod-e2e`'s; `reverse/` takes `pod-e2e`'s
+  `Node` (its docs, its holds and its events are the caller's);
+  `cache::valid_token` is one rule here, which `pod-e2e`'s
+  `legs_tests.rs` copies for its own test (`pod-e2e` does not depend on
+  this crate).
+- The globals of the source, each a value of the caller (call C60):
+  `gate::process()`, `pool::IN_USE`, `rank_auto::RACES` and `RACE`, the
+  QUIC road's memory and podssh-ws's `h2_road::POOL` are in the
+  `Context`; `pool::signed::BY_SETTINGS`, `pool::members::BY_NET`,
+  `rank_list::OFF_BY_SETTINGS` and `rank_auto::AUTO_BY_SETTINGS` are
+  `Settings`; `reverse/node.rs`'s `UPGRADING`, `reverse/legs.rs`'s
+  `ROTATES` and `reverse/spares.rs`'s `SAY` and `SAID` are a
+  `reverse::NodeState`; `addresses::INSTALLED` and podssh-ws's process
+  resolver are the caller's `Context::resolver`; the budget's sink of
+  `reverse/layered.rs` is `Layered::telling`. The variables
+  (`PODSSH_RELAY_TOKEN`, `PODSSH_OFFLINE`, `PODSSH_RELAY_KEYS`,
+  `PODSSH_RELAY_RANK`, `PODSSH_RELAY_RANK_PACE`, `PODSSH_H2`,
+  `PODSSH_QUIC`, `PODSSH_CLEARTEXT`, `PODSSH_CACHE_DIR`) are `Settings`
+  and the `Cache`; the crate reads none.
+- The crate: 87 Rust files of `src/` (17,500 lines) and 40 of `tests/`
+  (9,000 lines), each under 500 lines; features `pair`, `blocking`, `code`,
+  `grant`, `quic`, `plain-ws`, `fuzzing`. Each error converts to a
+  `pod_core::Failure` (`failure.rs`). The comments name podssh's entries
+  as `podssh T-NNN` and its issues as `PodUtils/podssh#N`, with no date of
+  a measurement.
+- Defects of podssh's code: none found. The test
+  `the_switch_turns_the_order_off` read the process's variable and set a
+  process global; it now reads the `Settings` that it makes.
+- Tests: 356 pass and 19 live tests are ignored (`cargo test -p pod-relay
+  --all-features`): 180 unit tests and 176 integration tests. Of the 380
+  tests of the imported files, 370 are here with their names, and 2 are
+  new (the classes of the failures); the other 10 are `pod-core`'s (7 of
+  the places of the cache) and `pod-wormhole`'s (3 of magic-wormhole's
+  Python peer).
+- Plants: 28 of podssh's plants of these files (group `relay`,
+  scripts/plants/relay-*), each caught by its test here; the 9 others
+  check a test that stays in podssh (its CLI, its interop, the role).
+- Fuzz: the targets `relay_list` and `relay_pool` (podssh's) run on
+  `pod-relay`, with seeds written here; the stable test of `fuzz/` passes
+  (`cargo test --manifest-path fuzz/Cargo.toml --lib`: 7 passed).
+- Checks: `sh scripts/agent/check.sh` with a `TMPDIR` of 85 bytes: fmt,
+  clippy, lint, doc, record, size, paths, static and test each 0; the
+  workspace's tests: 2,562 passed, 0 failed, 35 ignored. The first run
+  found two defects, repaired in place: three doc links of the crate
+  (ambiguous or private), and `pod-broker`'s test
+  `a_socket_path_that_is_another_file_is_refused`, which bound a socket
+  under `TMPDIR` with no short path and failed there (`SUN_LEN`): it takes
+  `pod_testkit::host::socket_dir`. `python3 -I scripts/check-sources.py`
+  with a clone of podssh: 127 files, 0 changes on its `main`.
+
+What remains, in order:
+
+1. The trial of podssh: adoption/podssh/pod-relay.patch, .run and
+   `.commit` (`75a5031`), checked as the earlier trials were, then
+   `adoption.yml`. 287 files of podssh name a module of the cut (podssh's
+   other modules of podssh-relay among them: `serve/`, `quick/`, `derp/`
+   and the other roads), so the glue keeps podssh's API: podssh-relay's
+   modules of the cut become glue over `pod_relay`, with podssh's process
+   `Context` (its way of `podssh_ws::client::way` for each `ProxyChoice`,
+   its places, `Settings` read from its environment with
+   `Names::podssh()`, its process resolver) and a wrapper of the old
+   signature for each function whose signature changed, as the glue of
+   `pod-e2e` kept `e2e::net::installed`; its `serve/` gives the role's
+   `impl Door`. The CLI changes only where a field of a struct changed
+   (53 struct literals of `PairContext`, `NodeConfig`, `OperatorConfig`,
+   `MintContext` and `Request`).
+2. The release, and the take of podssh (`docs/design.md`, section 8,
+   step 8); podvm takes the facade `blocking` (Q103).
+3. T-212: the lines for the user as events, and the words of podssh's
+   commands as the caller's.
+
 
 # T-026: `pod-relay`: podnet's relay client and its plain reverse mode
 
@@ -1622,3 +1720,48 @@ defect of the test or of the code (`docs/development.md`).
 for i in $(seq 200); do cargo test -q -p pod-session --test session_move -- a_session_moves_while_both_ends_send_at_full_speed || break; done
 ```
 
+# T-212: `pod-relay`: the lines for the user as events, and the words of podssh's commands as the caller's
+
+**Source:** T-025 (the adaptation of `pod-relay`).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`docs/design.md`, section 1, rules 8 and 10: a line for the user is a
+typed event, and a name of a consumer is a parameter. After T-025 the
+opener of `pod-relay` still gives its notes to a callback of text
+(`open`'s `notes`), as do a node (`NodeConfig::say`) and a UDP handler
+(`UdpHandler::say`). Some words of the crate still name podssh's commands
+and flags: the kinds of an exchange by code (`podssh relay pair NAME
+--code`, `podssh relay join NAME`, `podssh net invite NAME`), the end of a
+grant (`podssh node --grant-for`), a node's spares (`--spares`), and
+"podssh's" in the refusals of an exchange.
+
+## Premise
+
+- Read: `crates/pod-relay/src/open.rs`, `crates/pod-relay/src/reverse/node.rs`,
+  `crates/pod-relay/src/reverse/udp.rs`, `crates/pod-relay/src/code/exchange.rs`,
+  `crates/pod-relay/src/grant/door.rs`, `crates/pod-relay/src/reverse/spares.rs`.
+- Not measured: the words that podssh's tests read.
+
+## Approach
+
+The notes, the lines of a node and of a UDP handler become events
+(`relay.note`, `reverse.online`, `reverse.udp`) of the caller's sink, with
+the text of podssh. The commands of a kind of exchange become a value of
+the caller (`exchange::Kind` takes them), and the flags in the words go to
+`Settings::names`. podssh's trial keeps its words through its glue.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Start condition
+
+T-025 is done.

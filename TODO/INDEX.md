@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**211 entries: 58 open, 3 partial, 0 blocked, 150 done.**
+**212 entries: 58 open, 4 partial, 0 blocked, 150 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 0 | 0 | 44 | 58 |
-| P2 | 27 | 2 | 0 | 72 | 101 |
+| P1 | 13 | 1 | 0 | 44 | 58 |
+| P2 | 28 | 2 | 0 | 72 | 102 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 58 | 3 | 0 | 150 | 211 |
+| **All** | 58 | 4 | 0 | 150 | 212 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | done | `pod-wg`: the WireGuard initiator |
-| [T-025](relay.md) | P1 | L | M2 | feature | open | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
+| [T-025](relay.md) | P1 | L | M2 | feature | partial | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
 | [T-026](relay.md) | P1 | M | M2 | feature | open | `pod-relay`: podnet's relay client and its plain reverse mode |
 | [T-027](adapters.md) | P2 | S | M3 | feature | open | `pod-transit`: the transit relay carrier |
 | [T-028](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the WARP adapter |
@@ -258,3 +258,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |
 | [T-210](upkeep.md) | P2 | S | M5 | chore | done | A plant whose file changed goes stale, and only `plants.yml` finds it |
 | [T-211](transport.md) | P2 | S | M1 | feature | done | `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263) |
+| [T-212](relay.md) | P2 | M | M2 | chore | open | `pod-relay`: the lines for the user as events, and the words of podssh's commands as the caller's |
