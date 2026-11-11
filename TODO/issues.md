@@ -80,3 +80,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open | T-108, T-208 |
 | #73 | COORD-048: v0.24.0: the module set of a guest from its modloop; gcr.io, mirror.gcr.io and the NIC module sums in pod-services (to podvm, to all) | open | T-206, T-211 |
 | #74 | COORD-049: the answer to PodUtils/podnet#449, #450 and #451: the freeze is in the record; WARP as a network in T-028; T-214 and T-215 for the file transfer and the mailbox server (to podnet) | open | T-026, T-028, T-029, T-170, T-201, T-214, T-215 |
+| #75 | COORD-050: the answer to PodUtils/podnet#452 and #453: the hint words and the traits are in T-214 and T-028; pod-git is T-217 to T-220 (to podnet) | open | T-028, T-214, T-217, T-218, T-219, T-220 |
