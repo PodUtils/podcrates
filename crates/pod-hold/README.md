@@ -94,6 +94,8 @@ With podnet `crates/podnet-netns` at `9e8d177`:
 
 ### podnet
 
+podnet took these rows at `b759937` (tag `v0.15.0`):
+
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
 | `seccomp/filter.rs`: the structures, the constants, `intercepted_syscalls`, `install_notif_filter` | `pod_hold::abi`, `pod_hold::filter::{Calls::sockets, install}`; `install_notif_filter` stays as a test helper over `install` |
@@ -110,9 +112,19 @@ With podnet `crates/podnet-netns` at `9e8d177`:
 | `crates/podnet-netns/README.md`: "Linux 5.0 or newer" | Linux 5.14 (`SECCOMP_ADDFD_FLAG_SEND`) |
 | `podnet-netns/Cargo.toml`, `Cargo.toml` | add `pod-hold` (tag `v0.15.0`) |
 
-`adoption/podnet/pod-hold.patch` (at podnet `9e8d177`) is the hand-off.
-From the import, the files of the core in podnet take fixes only, until
-podnet takes the crate.
+`adoption/podnet/pod-hold-connect.patch` (at podnet `d3fad49`, tag
+`v0.17.0`; T-169, T-170 step 1) is the hand-off of these rows:
+
+| Old (`crates/podnet-netns/src/`) | New |
+| --- | --- |
+| `connect.rs`: `ErrorCall`, `Waiting`, the state in `Dials` (`in_progress`, `nonblocking`, `wait_error`), the waits of `handle_connect` (the join, `EALREADY`, `EINPROGRESS`), the drop, the answers and the taker of `finish`, `answer_error` | `pod_hold::connect::{Dials<Key>, ErrorCall}`: `join`, `start`, `finish`, `Finished::answer`, `Finished::taker`, `write_error_to_task` with `mem_access()`; `Dialed`, the channel of the ends of the dials, the dial, the rules, the entry of the socket, the hand-off and the relay stay |
+| `handoff.rs`: `Caller` | `pod_hold::connect::Caller` |
+| `netns/packet.rs`: `parse_tcp_syn`, `rst_reply_for_syn`, `ipv4_checksum` | `pod_hold::packet`; `dns_reply_packet` stays |
+| tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`, `a_header_shorter_than_20_bytes_is_no_syn`, `a_fragment_past_the_first_is_no_syn` (`lib.rs`) | here, with the same names |
+| each `pod-*` dependency | tag `v0.17.0` |
+
+From the import, `connect.rs` and `netns/packet.rs` of podnet take fixes
+only, until podnet takes the patch.
 
 ### Later consumers
 

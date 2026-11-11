@@ -2292,12 +2292,41 @@ lists `connect.rs` in the block at `5599012` (0 changes).
   tests (`pod_seccomp_nonblock`, `_slow_dial`), which stay in podnet.
 - Shown once: with each `SO_ERROR` given the error,
   `so_error_waits_and_the_first_takes_the_error` fails.
-- Partial: the adoption trial remains (`docs/design.md`, section 8, step
-  7): a patch `pod-hold-connect.patch` under `adoption/podnet/` makes podnet's `connect.rs`
-  glue over `pod_hold::connect` and its `packet.rs` take the three
-  functions of `pod_hold::packet` (T-170), and `adoption.yml` runs it. The
-  crate code is on `main` and goes out with `v0.16.0`; podnet's
-  `connect.rs` takes fixes only from now.
+- Partial: podnet's take of the patch remains. The crate code is in
+  `v0.16.0` and `v0.17.0`; podnet's `connect.rs` takes fixes only.
+- 2026-11-11, the adoption trial (`docs/design.md`, section 8, step 7):
+  `adoption/podnet/pod-hold-connect.{patch,run,commit}` at podnet
+  `d3fad49` (`main`), each `pod-*` dependency on the tag `v0.17.0`, with
+  the step 1 of T-170. podnet's `connect.rs` is glue over
+  `pod_hold::connect`: podnet's `Dials` holds a
+  `pod_hold::connect::Dials<Key>` and the channel of the ends of the
+  dials; `handle_connect` calls `join`
+  and `start`; `finish` calls `Dials::finish`, `Finished::taker` and
+  `Finished::answer` with `write_error_to_task` and podnet's
+  `mem_access()`. `ErrorCall` and `handoff::Caller` are the crate's types.
+  `Waiting`, `answer_error` and the state code leave podnet: 71 lines of
+  Rust (`connect.rs` 96 out, 30 in; `handoff.rs` 6 out, 1 in). Its
+  integration tests `pod_seccomp_nonblock`, `_slow_dial`, `_handoff` stay
+  and pass. `sh scripts/adoption.sh podnet pod-hold-connect` passed each
+  step: the record, the size and the layers of the files, `cargo build`,
+  cargo-deny bans and sources, no copy of the moved items, clippy of the
+  workspace with `-D warnings`, `cargo doc` of `podnet-netns`, the tests
+  of `podnet-netns` (80: the 84 of podnet less the 4 tests that moved
+  with T-170) and the library tests of `podnet-core`, `podnet-serve` and
+  `podnet-vnet`, the integration tests `pod_seccomp` (with the netns
+  tests), `pod_seccomp_tcp`, `_dgram`, `_fds`, `_handoff`, `_nonblock`,
+  `_rules`, `_slow_dial`, `_diff`, `pod_backend_line`, `pod_usage`,
+  `af_inet_kernel`, `doctor`, `docs` and `api_surface`, the fuzz targets
+  with their lock, rustfmt, the toolchains, and the static musl binary.
+- The changes of podnet in the patch that are not glue: under the test
+  hook `PODNET_NETNS_TEST_MEM=none`, an `SO_ERROR` that waits for a dial
+  now gets `EFAULT` with no write: podnet's `answer_error` wrote through
+  `process_vm_writev` (`write_mem_to` with the pid), against the hook.
+  With no hook, the write is the same. The record of podnet: the citation
+  `netns/packet.rs:62` of `PodUtils/podnet:TODO/later.md` names
+  `rst_reply_for_syn` of `pod_hold::packet`; `cargo todo remap` of the
+  README of `podnet-netns`. The tag `v0.17.0` needs no other change of podnet (the
+  "Breaking" of `v0.16.0` and `v0.17.0` names no item that podnet uses).
 
 # T-170: `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router
 
@@ -2372,6 +2401,25 @@ issue (PodUtils/podnet@T-174 and the smoltcp of `pod-netstack`).
 - Fuzz target `hold_syn` (four seeds: a SYN, a SYN with IP options, an
   ACK, a header of IHL 4): `cargo test --manifest-path fuzz/Cargo.toml`
   passes.
+- 2026-11-11, step 1, the adoption trial:
+  `adoption/podnet/pod-hold-connect.patch` (podnet `d3fad49`, tag
+  `v0.17.0`; with T-169) passes each step. podnet's
+  `netns/packet.rs` takes `parse_tcp_syn`, `rst_reply_for_syn` and
+  `ipv4_checksum` of `pod_hold::packet` and keeps `dns_reply_packet`. The
+  tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`,
+  `a_header_shorter_than_20_bytes_is_no_syn` and
+  `a_fragment_past_the_first_is_no_syn` leave podnet's `lib.rs` (each is
+  in `pod_hold::packet` under its name). 168 lines of Rust left podnet
+  (`packet.rs` 70 out, 5 in; `lib.rs` 103 out). The netns tests of
+  `pod_seccomp` (the RST of a refused SYN) pass. Partial: podnet's take
+  of the patch remains.
+- podnet ported the fix of `parse_tcp_syn` at `2efa720`
+  (PodUtils/podnet@T-234). The second block of `SOURCES` reads `2efa720`
+  now, with the blob of that commit: `check-sources.py` with a clone of
+  podnet reads 0 changes in both blocks. After the take, the Prove of
+  PodUtils/podnet@T-234
+  (`cargo test -p podnet-netns --lib no_syn`) runs no test: the two tests
+  are in `pod-hold`.
 
 # T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
 

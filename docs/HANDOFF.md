@@ -14,8 +14,10 @@ page current; remove a line when its work is done.
   - podssh: `v0.15.0` (`pod-wormhole` at `baa00a06`, `pod-session` at
     `6f78a7c7`). It may move to `v0.16.0` (four nodes of `pod-services`
     are gone).
-  - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
-    of T-169 and T-170 (not made yet).
+  - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the take of
+    `adoption/podnet/pod-hold-connect.patch` (T-169, T-170 step 1; podnet
+    `d3fad49`, tag `v0.17.0`; the trial passes). Its hand-off to podnet is
+    a COORD issue `(to podnet)`.
   - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
     PodUtils/podvm#245 closed).
   - podrunner: `v0.16.0` for `pod-core` and `pod-todo` (`07cd854`). Next:

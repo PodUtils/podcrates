@@ -17,8 +17,9 @@
   took `pod-hold` at `b759937`); podvm is on `v0.17.0` (`522b437`: the
   limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.16.0` for `pod-core`
   and `pod-todo` (`07cd854`).
-- Partial: T-169 and T-170 (the adoption patch for podnet; T-170 step 2
-  waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
+- Partial: T-169 and T-170 (the trial
+  `adoption/podnet/pod-hold-connect.patch` passes; podnet's take remains;
+  T-170 step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online", 2026-11-11; C49); they
@@ -53,8 +54,9 @@ next entry.
    the one version rule of `schemas/` and the `policy` of an offer go out
    with the next tag (`docs/HANDOFF.md`). T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;
-   T-170 step 2 after podnet's COORD issue), from podnet's answer
+3. **podnet:** T-169 and T-170 (partial: the hand-off of
+   `adoption/podnet/pod-hold-connect.patch` to podnet, a COORD issue
+   `(to podnet)`; T-170 step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-173 (the fuzz targets of
    PodUtils/podvm#241); T-149; T-142. T-040 (the trials of
