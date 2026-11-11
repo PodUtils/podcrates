@@ -475,6 +475,8 @@ fn job() -> String {
         exit_reason: pod_job::ExitReason::Refused,
         exit_code: None,
         wall_s: 0,
+        claim_to_first_step_s: None,
+        job_images: Vec::new(),
         refusal_code: Some(pod_job::RefusalCode::TierNeedsGuest),
         unit: None,
     };
