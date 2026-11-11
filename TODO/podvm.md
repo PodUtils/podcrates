@@ -3599,7 +3599,7 @@ cargo test -p pod-confine --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3615,11 +3615,13 @@ merge.
 ## Premise
 
 - Read: the test (a pipe with `O_CLOEXEC`, the write end passed onto its
-  own number, the child clears the close-on-exec flag).
-- Not read: which other test of the same process can close the number of
-  the pipe: a second `close` of a descriptor that the test already gave
-  away, or a close of a range in the test process. A number that one
-  thread closes twice can be the pipe of another thread.
+  own number, the child clears the close-on-exec flag), and the payload
+  `/bin/sh -c "echo passed >&W"`.
+- Measured: `/bin/sh` here is dash, and dash takes `>&N` for one digit
+  only: `echo passed >&12` exits 2 with `Syntax error: Bad fd number`.
+  Under the load of the workspace's tests the pipe gets a number of two
+  digits; alone it gets one digit. No race of descriptors: no other test
+  of the process closes or `dup2`s onto a number of another one.
 
 ## Approach
 
@@ -3635,6 +3637,14 @@ loop) that fails before the fix.
 ```sh
 cargo test -p pod-enter --all-features --lib
 ```
+
+## Done
+
+2026-11-11. The test moves the write end to a number of 40 or more
+(`F_DUPFD_CLOEXEC`) and the payload writes through `/proc/self/fd/W`, so
+each run takes the case of two digits and the shell takes each number.
+With `>&W` the test now fails at each run (exit 2); with the path it
+passes. Plant `enter-same-fd-dash-digit` (the old `>&W`) is caught.
 
 # T-221: `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain
 
