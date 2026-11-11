@@ -1,6 +1,6 @@
 //! The tree of a payload: the kill of each descendant at the end, with its
 //! count, the count with no kill and with no `/proc`, the wall bound, and
-//! the limit of the file size.
+//! the limit of the file size; the private modes of the state (T-175).
 //!
 //! No libtest (`harness = false`), as `lifecycle.rs`: the launcher forks
 //! from the test process, which has one thread.
@@ -24,8 +24,9 @@ fn main() {
     steps::with_no_proc_the_count_is_unknown_never_zero(&root);
     steps::the_wall_bound_ends_the_tree(&root);
     steps::no_limit_of_the_file_size_is_set(&root);
+    steps::the_state_is_private_under_umask_022(&root);
     let _ = std::fs::remove_dir_all(&root);
-    println!("tree: 5 steps passed");
+    println!("tree: 6 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -197,5 +198,24 @@ mod steps {
         assert_eq!(log.trim(), mine.trim(), "the payload has another limit of the file size");
         assert!(c.end.is_some());
         remove::<Any>(&s, "fsize", false).expect("remove");
+    }
+
+    /// The table, the staging directory, a container directory and a log
+    /// are private under umask 022: the table holds the environment of
+    /// each record (PodUtils/podvm#244).
+    pub fn the_state_is_private_under_umask_022(root: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        let old = pod_hostprobe::sys::umask(0o022);
+        let s = settings(root, "modes");
+        let (c, _, _) = run(&s, "modes", "echo secret-of-the-log", None);
+        pod_hostprobe::sys::umask(old);
+        let mode = |p: &Path| {
+            std::fs::metadata(p).unwrap_or_else(|e| panic!("{}: {e}", p.display())).permissions().mode() & 0o777
+        };
+        assert_eq!(mode(&s.root.join(pod_supervise::table::TABLE_FILE)), 0o600, "the table");
+        assert_eq!(mode(&s.root.join(pod_supervise::table::STAGING_DIR)), 0o700, "the staging directory");
+        assert_eq!(mode(&pod_supervise::table::dir(&s, &c.id)), 0o700, "the container directory");
+        assert_eq!(mode(&pod_supervise::table::log_path(&s, &c.id)), 0o600, "the log");
+        remove::<Any>(&s, "modes", false).expect("remove");
     }
 }

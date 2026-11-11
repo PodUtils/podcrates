@@ -14,6 +14,7 @@
 //! check of the start time beside it is a guess.
 
 use std::ops::{Deref, DerefMut};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 use pod_core::{Class, Failure};
@@ -255,9 +256,19 @@ fn write<X: Serialize>(s: &Settings, table: &Table<X>) -> Result<()> {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0)
     ));
     if let Some(parent) = tmp.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        let _ = crate::private_dir(parent);
     }
-    std::fs::write(&tmp, &bytes).map_err(|e| io_at(&tmp, e))?;
+    // Mode 0600 from the first byte: the table holds the environment of
+    // each record. A new file, so the mode is this one and not of a file
+    // that a crash left.
+    let _ = std::fs::remove_file(&tmp);
+    let written = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&tmp)
+        .and_then(|mut f| std::io::Write::write_all(&mut f, &bytes));
+    written.map_err(|e| io_at(&tmp, e))?;
     std::fs::rename(&tmp, &path).map_err(|e| io_at(&path, e))
 }
 

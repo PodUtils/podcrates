@@ -2005,7 +2005,7 @@ A signal of the launcher reaches one pid. A grandchild of a payload survives `po
 
 ## Premise
 
-- Read: `crates/pod-supervise/src/launcher.rs:387` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: `crates/pod-supervise/src/launcher.rs:389` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
 - Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
 - Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
 - Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
@@ -2427,3 +2427,109 @@ input that a run finds goes to the crate's tests first.
 sh scripts/fuzz.sh
 cargo test --manifest-path fuzz/Cargo.toml
 ```
+
+# T-175: `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244)
+
+**Source:** PodUtils/podvm#244 (COORD-026 of podvm, 2026-11-11; PodUtils/podvm@T-1715)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The container table keeps each `-e` value of a record. At `v0.15.0` the
+crate creates each file and directory with the umask of the process: with
+umask 022 the table and each log are 0644 and each container directory is
+0755, so another user of the host reads the environment of each payload
+and what it prints. podvm creates its own store root with mode 0700; for
+podrunner's store of each unit (PodUtils/podrunner#23) the modes of the
+crate are the protection.
+
+## Premise
+
+- Read: `write` of `table.rs` (`std::fs::write` of the staging file, then
+  the rename; `create_dir_all` of `staging/`), `create` of `lib.rs` and
+  `start` of `launcher.rs` (`create_dir_all` of the container directory),
+  the log of `start` (`OpenOptions` with no mode).
+- Not changed: the locks (mode 0644): they hold no data, and podvm's image
+  store takes the same `Lock`.
+
+## Approach
+
+The staging file of the table is a new file of mode 0600 (`create_new`,
+then the rename), so the table is 0600 from its first byte; each container
+directory and `staging/` are 0700 (`DirBuilder` with mode 0700); the log
+opens with mode 0600. No change of API.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --test tree
+```
+
+The step `the_state_is_private_under_umask_022` sets umask 022, runs a
+payload, and reads the modes of the table, `staging/`, the container
+directory and the log.
+
+## Done
+
+2026-11-11. `pod_supervise::private_dir` (a `DirBuilder` of mode 0700) for
+each container directory and `staging/`; the staging file of the table is
+a new file of mode 0600 (`create_new`, then the rename); the log opens
+with mode 0600. `pod-hostprobe` gives `sys::umask` for the test. The step
+`the_state_is_private_under_umask_022` of `tests/tree.rs` passes; with the
+table written at mode 0644 it fails (`the table`, left 420, right 384).
+Goes out with `v0.16.0`, with T-162 (PodUtils/podvm#244).
+
+# T-176: `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245)
+
+**Source:** PodUtils/podvm#245 (COORD-027 of podvm, 2026-11-11; PodUtils/podvm@T-1655)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podvm run --ulimit NAME=SOFT[:HARD]` (`nofile`, `nproc`, `cpu`, `as`,
+`core`, `fsize`) and `--security-opt no-new-privileges` must take effect in
+the payload and in no other process. podvm cannot set them in its own
+process before the fork: `fsize` would limit podvm's own writes, and
+`PR_SET_NO_NEW_PRIVS` cannot be undone. The child of `pod-enter` is the
+place: after the root change and the `chdir`, before the `execve`. At
+`v0.15.0` `Plan` has no field for either, and the child of `spawn_with`
+sets neither.
+
+## Premise
+
+- Read: the issue, with its tests.
+- Not read: `crates/pod-enter/src/plan.rs` and `launch.rs` at the head of
+  `main`; whether each entry (the chroot sequence, the namespace rung, the
+  userland entry, the memfd launch) shares one child path.
+
+## Approach
+
+`Plan` gets `limits: Vec<Limit>` (`Limit { resource, soft, hard }`, the
+resource a named `RLIMIT_*` of `pod-hostprobe`, `u64::MAX` for infinity)
+and `no_new_privs: bool`, both empty or false by default. The child of
+each entry calls `prlimit64` on itself for each limit, then
+`PR_SET_NO_NEW_PRIVS` where asked, after the `chdir` and before the
+`execve` or `execveat`, with async-signal-safe calls only. A refused call
+reports its step on the readiness pipe (`setrlimit(RLIMIT_NPROC): EPERM`),
+and the payload does not run. `pod-supervise`'s record carries both fields
+for a detached run.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+The tests of the issue: `fsize` of 1 MiB gives `EFBIG` past 1 MiB in the
+child while the parent writes more; `nofile = 64` shows in
+`/proc/self/limits` of the child; `no_new_privs` shows `NoNewPrivs: 1` in
+the child and `0` in the parent; a hard limit over the parent's hard limit
+is refused by name.

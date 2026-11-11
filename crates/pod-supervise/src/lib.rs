@@ -91,6 +91,13 @@ pub(crate) fn io_at(path: &Path, e: std::io::Error) -> Failure {
     Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("{}: {e}", path.display()), e)
 }
 
+/// A private directory (mode 0700) and each missing parent: the state
+/// holds the environment of each record, and the log of each payload.
+pub(crate) fn private_dir(dir: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)
+}
+
 /// A failure of the state, with no I/O cause.
 pub(crate) fn failure(class: Class, text: impl Into<String>) -> Failure {
     Failure::new(Stage::Host, class, text)
@@ -176,7 +183,7 @@ where
     // the record: a file of the caller at create, the log and the lock at
     // start.
     let dir = table::dir(s, &id);
-    std::fs::create_dir_all(&dir).map_err(|e| io_at(&dir, e))?;
+    private_dir(&dir).map_err(|e| io_at(&dir, e))?;
     Ok(c)
 }
 

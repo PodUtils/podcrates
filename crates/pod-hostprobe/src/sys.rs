@@ -191,6 +191,7 @@ pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
 pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
 pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
 pub const SYS_GETRUSAGE: i64 = nr!(getrusage, __NR_getrusage);
+pub const SYS_UMASK: i64 = nr!(umask, __NR_umask);
 
 // The id calls. On x86 and arm the plain `getuid` family is the 16-bit
 // form: an id above 65535 reads as 65534. The 32-bit kernel has the `*32`

@@ -21,6 +21,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::time::Instant;
 
@@ -150,12 +151,13 @@ where
     F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, String>,
 {
     let dir = table::dir(s, &container.id);
-    std::fs::create_dir_all(&dir).map_err(|e| crate::io_at(&dir, e))?;
+    crate::private_dir(&dir).map_err(|e| crate::io_at(&dir, e))?;
 
     // The log opens here, before a root changes, and its descriptors go to
     // the payload.
     let log_path = table::log_path(s, &container.id);
-    let log = std::fs::OpenOptions::new().create(true).append(true).open(&log_path).map_err(|e| {
+    // Mode 0600: the log holds what the payload prints.
+    let log = std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(&log_path).map_err(|e| {
         Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("opening the container log: {e}"), e)
     })?;
 

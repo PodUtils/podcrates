@@ -431,3 +431,9 @@ pub fn rusage_children() -> Result<Usage, Errno> {
     #[allow(clippy::unnecessary_cast)]
     Ok(Usage { user_us: us(raw.ru_utime), system_us: us(raw.ru_stime), max_rss_kib: raw.ru_maxrss as u64 })
 }
+
+/// `umask(2)`: set the file mode mask of this process and give the old
+/// one. The call cannot fail.
+pub fn umask(mask: u32) -> u32 {
+    unsafe { sys(SYS_UMASK, [u64::from(mask), 0, 0, 0, 0, 0]) }.unwrap_or(0) as u32
+}

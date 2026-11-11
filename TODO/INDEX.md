@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**174 entries: 59 open, 5 partial, 0 blocked, 110 done.**
+**176 entries: 60 open, 5 partial, 0 blocked, 111 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 2 | 0 | 36 | 55 |
+| P1 | 18 | 2 | 0 | 37 | 57 |
 | P2 | 27 | 3 | 0 | 55 | 85 |
 | P3 | 15 | 0 | 0 | 17 | 32 |
-| **All** | 59 | 5 | 0 | 110 | 174 |
+| **All** | 60 | 5 | 0 | 111 | 176 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -221,3 +221,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
 | [T-173](podvm.md) | P2 | M | M6 | feature | open | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |
 | [T-174](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Trojan node of the lists that passes the live check |
+| [T-175](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244) |
+| [T-176](podvm.md) | P1 | M | M6 | feature | open | `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245) |

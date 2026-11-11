@@ -24,6 +24,9 @@ the launcher. Four rules:
    time, the use of the tree and the count of the processes that stayed
    (`residual_processes`: a number, or `unknown`, never 0 when it is not
    known). The crate sets no `RLIMIT_FSIZE`.
+6. The state is private: the table and each log are 0600 from their first
+   byte, and each container directory and `staging/` are 0700, under any
+   umask. The table holds the environment of each record.
 
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another
 target it is empty. It takes the raw system calls from `pod-hostprobe`
