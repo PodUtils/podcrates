@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**181 entries: 54 open, 3 partial, 0 blocked, 124 done.**
+**181 entries: 53 open, 3 partial, 0 blocked, 125 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
 | P2 | 24 | 3 | 0 | 60 | 87 |
-| P3 | 13 | 0 | 0 | 22 | 35 |
-| **All** | 54 | 3 | 0 | 124 | 181 |
+| P3 | 12 | 0 | 0 | 23 | 35 |
+| **All** | 53 | 3 | 0 | 125 | 181 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -195,7 +195,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-146](fleet.md) | P2 | L | M8 | research | open | `podrunner`: run GitHub CI and other CI on any machine (the plan, GitHub #47) |
 | [T-147](podvm.md) | P3 | S | M5 | chore | done | `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take |
 | [T-148](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11) |
-| [T-149](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: three tests fail under qemu-user only |
+| [T-149](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: three tests fail under qemu-user only |
 | [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
 | [T-151](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them |
 | [T-152](transport.md) | P3 | M | M1 | feature | open | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |

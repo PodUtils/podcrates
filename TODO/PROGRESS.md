@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 181 entries: 54 open, 3 partial, 0 blocked, 124 done.
+`TODO/INDEX.md` holds 181 entries: 53 open, 3 partial, 0 blocked, 125 done.
 
 ## State
 
@@ -59,7 +59,7 @@ next entry.
    `adoption/podnet/pod-hold-connect.patch`, GitHub #59 (COORD-034); T-170
    step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
-4. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
+4. **M6, the crates of podvm:** T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.

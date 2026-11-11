@@ -1900,7 +1900,7 @@ cargo zigbuild --tests -p pod-hostprobe -p pod-enter --lib --target loongarch64-
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1927,6 +1927,30 @@ fail: qemu-user does not enforce the memfd exec seal.
 cargo zigbuild --tests -p pod-enter --lib --target aarch64-unknown-linux-musl
 qemu-aarch64 target/aarch64-unknown-linux-musl/debug/deps/pod_enter-*
 ```
+
+## Done
+
+2026-11-11. Two causes, two fixes:
+
+- `abi::tests::resolve_past_a_denied_listing` skips with a named line when
+  the exec of `current_exe()` as a child gives `ENOEXEC` (an emulator
+  with no binfmt registration).
+- `pod_hostprobe::interp::detect` had no evidence of a bare
+  `qemu-<arch> ./binary` with no `QEMU_*` variable: the two memfd tests
+  ran there and failed. Measured with `qemu-aarch64-static` 8.2: the
+  kernel names the process `qemu-aarch64-st` in `/proc/self/comm`, and
+  qemu does not emulate that file. `detect` now reads it
+  (`interp::qemu_comm`, with the test
+  `the_name_of_a_process_under_qemu_user_is_evidence`), so the memfd
+  tests skip there with their line. A consumer of `detect` (podvm's
+  probe) also sees this route now.
+
+Prove: `cargo zigbuild --tests -p pod-enter --lib --target
+aarch64-unknown-linux-musl`, then the binary under `qemu-aarch64-static`:
+158 passed, 0 failed; the three tests print their skip lines. Natively,
+`cargo test -p pod-hostprobe -p pod-enter --all-features` passes.
+Not run: loongarch64. The kernel cuts a name to 15 bytes, so there the
+name is `qemu-loongarch6`; the test above holds that case.
 
 # T-155: `pod-enter`: the refusal of a missing `-w` names its volume; the reserved guest paths and the bound of pairs in `Maps::new` (PodUtils/podvm#226)
 

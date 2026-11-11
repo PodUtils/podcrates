@@ -36,7 +36,7 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in` |
 | `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg` |
 | `identity` | `Identity`, `read`, `is_single_id_map`, `ConfinementKey`, `confinement_key(&Identity, &Interpreter)` |
-| `interp` | `detect(is_set) -> Interpreter`, `QEMU_VARS`: is an emulator in the way |
+| `interp` | `detect(is_set) -> Interpreter`, `QEMU_VARS`, `qemu_comm`: is an emulator in the way (a variable of qemu-user, the name `qemu-*` of the process, or a `binfmt_misc` registration of this machine) |
 | `binfmt` | `registrations`, `Registration`, `machine_for`, `SELF_MACHINE`, `BINFMT_DIR` |
 | `writable` | `candidates(named)`, `probe(candidates)`, `WriteProbe`, `FIXED`, `VARIABLES` |
 | `space` | `read`, `require(&Settings, ...)`, `choose`, `file_ceiling`, `dir_bytes`, `mib`: blocks and inodes before a write |

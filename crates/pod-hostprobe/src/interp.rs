@@ -20,6 +20,7 @@
 //! | `readlink /proc/self/exe` | the guest binary's own path | no, emulated |
 //! | `/proc/self/maps` | guest mappings only; qemu's own are filtered out | no |
 //! | `ls /proc/sys/fs/binfmt_misc` | the **host's** registrations | yes |
+//! | `/proc/self/comm` | the file that the kernel ran: `qemu-aarch64-st` | yes |
 //!
 //! **So the answer is conditional, and it says so.** The crate cannot prove
 //! that it runs natively. It can find that this machine routes binaries of
@@ -81,10 +82,18 @@ impl Interpreter {
     }
 }
 
+/// The name that the kernel gave this process at its exec (`comm`, at most
+/// 15 bytes), if it names qemu-user: qemu-user does not emulate this file,
+/// so an explicit `qemu-<arch> ./binary` shows there with no variable set.
+pub fn qemu_comm(comm: &str) -> Option<&str> {
+    let comm = comm.trim_end();
+    comm.starts_with("qemu-").then_some(comm)
+}
+
 /// Ask whether an emulator is in the way.
 ///
-/// Two checks, in this order, because they cover two different routes in and
-/// only one of them leaves a `binfmt_misc` trace.
+/// Three checks, in this order, because they cover two different routes in
+/// and only one of them leaves a `binfmt_misc` trace.
 ///
 /// `is_set` tells whether a variable of the environment of the process is
 /// set, for example `|v| std::env::var_os(v).is_some()`.
@@ -104,6 +113,20 @@ pub fn detect(is_set: &dyn Fn(&str) -> bool) -> Interpreter {
         };
     }
     checked.push(format!("no qemu-user environment variable is set ({})", QEMU_VARS.join(", ")));
+
+    // 1b. An explicit `qemu-<arch> ./binary` with none of those variables:
+    //     the kernel ran qemu, and the name of the process says so.
+    let comm = std::fs::read_to_string("/proc/self/comm").unwrap_or_default();
+    if let Some(name) = qemu_comm(&comm) {
+        return Interpreter::Emulated {
+            interpreter: format!("a qemu-user emulator ({name})"),
+            evidence: format!(
+                "the kernel started this process as {name:?} (/proc/self/comm), \
+                 which qemu-user does not emulate"
+            ),
+        };
+    }
+    checked.push("the kernel did not start this process as qemu-user (/proc/self/comm)".to_string());
 
     // 2. The binfmt_misc route, which is how a run of a foreign image gets
     //    there, and therefore the one that matters in practice.
@@ -158,6 +181,17 @@ mod tests {
                 assert!(!interpreter.is_empty());
                 assert!(!evidence.is_empty());
             }
+        }
+    }
+
+    /// The name of the process under `qemu-aarch64-static` 8.2 (measured,
+    /// T-149), and names that are not qemu-user.
+    #[test]
+    fn the_name_of_a_process_under_qemu_user_is_evidence() {
+        assert_eq!(qemu_comm("qemu-aarch64-st\n"), Some("qemu-aarch64-st"));
+        assert_eq!(qemu_comm("qemu-loongarch6\n"), Some("qemu-loongarch6"));
+        for native in ["pod_enter-0123\n", "cargo\n", "", "my-qemu-tool\n"] {
+            assert_eq!(qemu_comm(native), None, "{native:?}");
         }
     }
 

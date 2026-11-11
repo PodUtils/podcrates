@@ -47,6 +47,13 @@ fn resolve_past_a_denied_listing() {
             let _ = std::fs::remove_dir_all(&d);
             return;
         }
+        // A test binary under an emulator with no binfmt registration
+        // (qemu-user, T-149): the kernel cannot exec it as a child.
+        Err(e) if e.raw_os_error() == Some(libc_enoexec()) => {
+            pod_testkit::host::skip_line(&format!("this host cannot exec the test binary as a child ({e})"));
+            let _ = std::fs::remove_dir_all(&d);
+            return;
+        }
         Err(e) => panic!("spawning the worker failed: {e}"),
     };
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -67,6 +74,11 @@ fn libc_eperm() -> i32 {
 /// `EACCES`, the same on each Linux architecture.
 fn libc_eacces() -> i32 {
     13
+}
+
+/// `ENOEXEC`, the same on each Linux architecture.
+fn libc_enoexec() -> i32 {
+    8
 }
 
 /// The worker half of [`resolve_past_a_denied_listing`].
