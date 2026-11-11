@@ -573,3 +573,98 @@ is refused by the schema of the offer. If T-177 renames `version`, take it first
 ```sh
 cargo test -p pod-job --all-features
 ```
+
+# T-179: `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11)
+
+**Source:** the owner reserved `pod-incus` on 2026-11-11 (GitHub #1); the
+ruling "podrunner DR-5" (incus "seems to be best of both microvms &
+dockers"); PodUtils/podvm#243 (PodUtils/podvm@T-1717, PodUtils/podvm@T-1718).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm gets incus as a back end or an adapter (the owner's ask of DR-5).
+podvm studies it first (PodUtils/podvm@T-1717: `incusd` as root of a user
+namespace, the cost against runc, a static `incusd`, the map of the docker
+verbs), then builds a back end over the REST API of incus on its Unix
+socket (PodUtils/podvm@T-1718). If the client of that API is generic, it
+belongs in podcrates as `pod-incus`, and podrunner can use it as a unit
+kind.
+
+## Premise
+
+- Read: PodUtils/podvm#243 (no ask of a crate now).
+- Not read: the REST API of incus; the owner's study `errand-box`.
+
+## Approach
+
+Wait for podvm's COORD issue after PodUtils/podvm@T-1717. Then: a client of the incus
+REST API over a Unix socket (instances, images, exec, files, operations
+and their events), static, with no `lxc` or `incus` binary; a stand-in
+server in `pod-testkit` for the tests; the refusal by name where no incus
+answers.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features
+```
+
+## Start condition
+
+podvm's COORD issue `(to podcrates)` after PodUtils/podvm@T-1717 asks for
+the crate.
+
+# T-180: `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11)
+
+**Source:** the owner reserved `pod-mask` on 2026-11-11 (GitHub #1); the
+ruling "podrunner DR-6 and pmask" ("will be used for everything/everywhere
+we need a trusted confidential execution but hardware doesn't support it,
+we will use this later for many of our crates").
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The owner's project pmask hides the metadata of a process tree from other
+users of a host, delivers secrets on sealed memfds, and keeps an encrypted
+store. The crates (`pod-supervise`, `pod-broker`, `pod-tls`,
+`pod-identity`) and podrunner's trusted jobs on a host at boundary
+`redirect` (DR-4) can use it later. `docs/research/pmask.md` has the study.
+
+## Premise
+
+- Read: `docs/research/pmask.md` (pmask at `5a3c972`, `v0.1.0-beta.3`):
+  ptrace is necessary for the redaction; a static build is x86_64 and
+  aarch64 only; the library takes the `waitpid(-1)` domain and a global
+  lock; `--no-dumpable` stops the memory reads of `pod-hold`.
+- Not measured: `pmask probe` on a host of podrunner's H0.
+
+## Approach
+
+When the owner names the time: `pod-mask` holds the parts that a crate
+calls (the self-mask of argv and environ, `SecBuf`, the sealed memfd of a
+secret, `PR_SET_DUMPABLE`), and runs a payload under the `pmask` binary as
+a separate process where a hold needs the tree; each part is a seam that a
+consumer can swap. The findings of the study come first: the targets past
+x86_64 and aarch64, the fault switches of the environment, the files over
+500 lines.
+
+## Prove
+
+```sh
+cargo test -p pod-mask --all-features
+```
+
+## Start condition
+
+The owner names the time ("later"). pmask is in rapid development; read it
+again at its newest tag first.
+

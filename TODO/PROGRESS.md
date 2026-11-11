@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 178 entries: 60 open, 3 partial, 0 blocked, 115 done.
+`TODO/INDEX.md` holds 180 entries: 62 open, 3 partial, 0 blocked, 115 done.
 
 ## State
 
@@ -25,7 +25,9 @@
   talk with podcrates by direct messages. podnet and podvm run in their
   own sessions and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
+  (`check-crates-io-names.py`) but the four that GitHub #1 lists under "To
+  register" for the owner's agent (`pod-job`, `pod-actions-workflow`,
+  `pod-incus`, `pod-mask`); no crate goes to crates.io now (the owner,
   2026-11-09).
 - Keep this section short. Write the current state only; git keeps the
   history.

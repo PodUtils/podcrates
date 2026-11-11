@@ -324,7 +324,10 @@ with a study entry, as M4 does.
 
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
-`pod-probe`.
+`pod-probe`; for podrunner (T-146): `pod-dockerapi` (phase 3),
+`pod-actions-proto`, `pod-actions-expr`, `pod-actions-exec` and
+`pod-actions-workflow` (the native runner and the local mode, Q11); the
+owner's names of 2026-11-11: `pod-incus` (T-179) and `pod-mask` (T-180).
 
 What stays in the consumers: podnet `src/transport/websocket.rs` (a
 service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,

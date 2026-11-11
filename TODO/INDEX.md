@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**178 entries: 60 open, 3 partial, 0 blocked, 115 done.**
+**180 entries: 62 open, 3 partial, 0 blocked, 115 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
 | P2 | 28 | 3 | 0 | 56 | 87 |
-| P3 | 15 | 0 | 0 | 17 | 32 |
-| **All** | 60 | 3 | 0 | 115 | 178 |
+| P3 | 17 | 0 | 0 | 17 | 34 |
+| **All** | 62 | 3 | 0 | 115 | 180 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -225,3 +225,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-176](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245) |
 | [T-177](fleet.md) | P2 | S | M8 | defect | open | One rule for the version field of each schema of `schemas/`: the log line and the broker policy |
 | [T-178](fleet.md) | P2 | S | M8 | defect | open | `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy |
+| [T-179](fleet.md) | P3 | M | M7 | feature | open | `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11) |
+| [T-180](fleet.md) | P3 | M | M8 | feature | open | `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11) |
