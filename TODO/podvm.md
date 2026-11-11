@@ -3109,3 +3109,85 @@ asserts that the payload ends with its launcher. Tests:
 test of pod-enter. Breaking: `Plan` has the field `die_with_parent`. Not
 read: whether podvm's entry sets it (the hand-off of the tag asks).
 
+# T-206: `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260)
+
+**Source:** PodUtils/podvm#260 (COORD-041 of podvm; PodUtils/podvm@T-1662, issue 178)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm's machine tier boots Alpine's `vmlinuz-virt` (`6.12.110-0-virt`),
+whose nf_tables, nft_nat, sch_netem, wireguard, tun, veth and nf_nat are
+modules. They are in `boot/modloop-virt`, a squashfs with xz compression,
+and `squashfs.ko` is in the modloop only, not in `initramfs-virt`. So the
+guest cannot mount the modloop: the host must read the squashfs and give
+the guest a module set with its `modules.dep`. `pod-microvm` (M7) needs the
+same reader.
+
+## Premise
+
+- Read: podvm's ask and its facts of 2026-11-11 (the archive 3.22.6, 21 MB,
+  the `CONFIG_*` lines).
+- Not read: the compressor options of `modloop-virt` (an xz with a BCJ
+  filter or not); a pure-Rust xz decoder that takes the filters of
+  squashfs; the size of liblzma in a static binary.
+
+## Approach
+
+A reader of a squashfs v4 file (the superblock, the inode and directory
+tables, the fragments, xz blocks) for the read path only, in `pod-guest`:
+`modules(modloop, kernel_release, names) -> ModuleSet` (the `.ko` files
+of the names and of each of their dependencies by `modules.dep`, and the
+`modules.dep` of the set), to put in the guest's initramfs or a second
+disk. Pure Rust if a pure decoder reads the modloop's xz with its filters;
+else liblzma, static (C is allowed). Record the choice as a call. Tests on
+a squashfs that the test writes, and a live test of the real modloop in
+`live.yml`. A fuzz target of the superblock and the tables.
+
+## Prove
+
+```sh
+cargo test -p pod-guest
+```
+
+# T-207: `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178)
+
+**Source:** PodUtils/podvm#260 (PodUtils/podvm@T-1662, issue 178; PodUtils/podvm@T-1663 and PodUtils/podvm@T-1664 run in the same guest)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podvm's labs need the layout and the knobs of issue 178 (NAT44, NAT66,
+NAT64 with DNS64, CGNAT, IPv6 only, a firewall policy, impairment), the
+expected verdict of each lab derived from its knobs, and a check that
+reads the nftables counters before and after and fails on a flushed
+chain. podvm blocked its PodUtils/podvm@T-1662 on this crate.
+
+## Premise
+
+- Read: podvm's ask; the row of `pod-netlab` in `docs/design.md`.
+- Not read: issue 178 of podvm (the layout and the knobs); the guest of
+  podvm's machine tier (TCG, `--podvm-cpus`, the proxy at the gateway, the
+  broker forward under `restrict=on`).
+
+## Approach
+
+The study first (with T-062): read issue 178 and port its layout and knobs
+unchanged; the derivation of the verdicts; the counter check. Then the
+crate on `pod-netstack` and the module set of T-206. T-119 (the CI matrix
+of cfb) reuses its cells later.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab
+```
+
