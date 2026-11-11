@@ -3075,7 +3075,7 @@ tag.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3103,6 +3103,33 @@ the ones that pass both days. Tell podssh (PodUtils/podssh@T-574) the new ids.
 cargo test -p pod-services --test public_carriers
 cargo run -q -p pod-services-watch -- --kind proxy-banner
 ```
+
+## Done
+
+2026-11-11, partial: the candidates are in; the live check of two days
+waits (`services.yml`, dispatched on 2026-11-11 and 2026-11-12).
+
+- Read: the three lists on 2026-11-11 (`mahdibland-list` 759 Trojan
+  links, `barry-far-list` 716, `v2go-list` 108). 541 links pass the static
+  rules of T-133 (port 443, TLS, type `tcp` or `ws`, no flow, no insecure
+  flag, one name or a public address, no refused suffix); 91 host:port are
+  in two or more lists. The watch speaks Trojan over TCP only (not `ws`),
+  and it checks the certificate, so a node with an address and no name of
+  its own fails. Kept: 8 Trojan `tcp` nodes that are in all three lists,
+  each an address with its own name in `sni` (no name of another party):
+  `services/node-trojan-*.toml`, rank 7, the endpoint `sni` set, the
+  README row (10 nodes).
+- Defect found and fixed: `proxy-banner` took a link with no `security`
+  as plain TCP. Trojan has no plain form, and share links often leave the
+  parameter out: a Trojan link now defaults to TLS. Test
+  `proxy_banner_speaks_tls_to_a_trojan_link_with_no_security`; plant
+  `services-trojan-plain-by-default`.
+- `cargo test -p pod-services --all-features` (the rules of
+  `tests/public_carriers.rs` hold for the 8 nodes) and
+  `cargo test -p pod-services-watch --test watches proxy_banner` pass.
+- Next: keep each node that passes `proxy-banner` on both days; remove the
+  others; tell podssh (PodUtils/podssh@T-574) the ids that stay; then set
+  the entry done.
 
 
 # T-181: `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11)

@@ -81,7 +81,10 @@ pub async fn banner(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let link = Link::parse(text).map_err(Finding::failed)?;
     let target = ssh_endpoint(args.target("target", &net.services)?)?;
     let (host, port) = (target.host().trim_end_matches('.').to_string(), target.port());
-    let security = link.param("security").unwrap_or("none");
+    // Trojan always runs over TLS: a share link of Trojan often leaves
+    // `security` out. VLESS has no TLS unless the link asks.
+    let default = if link.scheme == "trojan" { "tls" } else { "none" };
+    let security = link.param("security").unwrap_or(default);
     let mut out = Outcome::default();
     let plan = match speaks(&link, security) {
         Ok(plan) => plan,

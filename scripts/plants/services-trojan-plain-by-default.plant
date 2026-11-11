@@ -1,0 +1,7 @@
+# A Trojan link with no `security` is spoken as plain TCP: the node of a
+# public list that leaves the parameter out never gives its banner (T-174).
+ENTRY=T-174
+GROUP=services
+EXPECT='proxy_banner_speaks_tls_to_a_trojan_link_with_no_security'
+RUN='cargo test -p pod-services-watch --all-features --test watches proxy_banner'
+LIMIT=1800

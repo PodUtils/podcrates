@@ -1,0 +1,28 @@
+# A node of public lists of share links: Trojan tcp, in the lists of
+# mahdibland, barry-far and v2go; the link as the list of barry-far gives it.
+id = "node-trojan-64-176-7-205"
+kind = "proxy-node"
+party = "unknown (a node of a public list)"
+about = "Trojan TCP over TLS on 443, in the public lists of mahdibland, barry-far and v2go; the operator is unknown"
+
+[rank]
+value = 7
+source = { ruling = "PodUtils/podssh, Q90 and PodUtils/podssh#177: the short list of public nodes", read = 2026-11-11 }
+
+[[endpoint]]
+name = "node"
+scheme = "tls"
+host = "64.176.7.205"
+port = 443
+sni = "advanceyouremploymentskillsandcareerdevelopmenthub.com"
+source = { url = "https://github.com/barry-far/V2ray-Config", read = 2026-11-11, note = "the link in the list file named by the endpoint of the service barry-far-list; the same host and port are in the lists of mahdibland-list and v2go-list" }
+
+[[fact]]
+name = "link"
+value = "trojan://0ab6c98dae3b48e8b9c4a776b6c9c19a@64.176.7.205:443?security=tls&insecure=0&headerType=none&type=tcp&allowInsecure=0&sni=advanceyouremploymentskillsandcareerdevelopmenthub.com"
+source = { url = "https://github.com/barry-far/V2ray-Config", read = 2026-11-11, note = "a line of the public list, with no name after #" }
+
+[[watch]]
+kind = "proxy-banner"
+fact = "link"
+target = "github-ssh"

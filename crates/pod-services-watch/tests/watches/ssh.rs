@@ -162,6 +162,17 @@ async fn proxy_banner_speaks_trojan_over_tls() {
     assert!(text(&report).contains("closed before a banner"), "{}", text(&report));
 }
 
+/// A Trojan link with no `security` speaks TLS: Trojan has no plain form,
+/// and many share links of the public lists leave the parameter out.
+#[tokio::test]
+async fn proxy_banner_speaks_tls_to_a_trojan_link_with_no_security() {
+    pod_testkit::need_loopback!();
+    let stand = tls_raw(|io| trojan(io, "a made-up password"));
+    let link = format!("trojan://a%20made-up%20password@{NAME}:{}?sni={NAME}", stand.port());
+    let report = one(&file("p5", &node(&link))).await;
+    assert!(report.holds() && text(&report).contains("SSH-2.0-stand"), "{}", text(&report));
+}
+
 #[tokio::test]
 async fn proxy_banner_speaks_vless_and_skips_another_transport() {
     pod_testkit::need_loopback!();

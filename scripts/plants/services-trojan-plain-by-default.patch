@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/proxy.rs
++++ b/crates/pod-services-watch/src/proxy.rs
+@@ -83,7 +83,7 @@
+     let (host, port) = (target.host().trim_end_matches('.').to_string(), target.port());
+     // Trojan always runs over TLS: a share link of Trojan often leaves
+     // `security` out. VLESS has no TLS unless the link asks.
+-    let default = if link.scheme == "trojan" { "tls" } else { "none" };
++    let default = if link.scheme == "trojan" { "none" } else { "none" };
+     let security = link.param("security").unwrap_or(default);
+     let mut out = Outcome::default();
+     let plan = match speaks(&link, security) {
