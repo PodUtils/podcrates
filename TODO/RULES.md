@@ -172,9 +172,12 @@ no XL: make two entries.
   .github/workflows/record-issues.yml holds the list to GitHub each day
   (`scripts/check-github-numbers.py`). It is red until a session maps the
   new number.
-- When each entry of an issue is done: comment on the issue with the
-  commits and the evidence, and close it. Then set the State of its row to
-  `closed`, with the commit, and change its line in `TODO/github.txt`.
+- When each entry of an issue is done: close it with the commits and the
+  evidence. On an issue of another author, write them in a comment. On an
+  issue of this session (a COORD issue, a tracker), amend the body to end
+  with one line of the result, and add no comment. Then set the State of
+  its row to `closed`, with the commit or the result, and change its line
+  in `TODO/github.txt`.
 - An issue that GitHub deleted stays in the list as `NUMBER issue
   deleted`. Its row's State starts with `deleted`. Its entries stay. No
   comment goes to it.

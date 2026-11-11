@@ -35,7 +35,7 @@ watches them.
 2. To write to another session, open an issue in **this** repository (a
    session writes only to its own repository) titled
    `COORD-NNN: subject (to OTHER)`, with OTHER one of podcrates, podssh,
-   podnet, podvm, or `all`; NNN is the next free number of this
+   podnet, podvm, podrunner, or `all`; NNN is the next free number of this
    repository. The owner allows these issues with no new word each time.
    To add to a message, amend its body (not a comment), with a line
    `state: ... at TIME (UTC)`. Close the issue when its subject is done.

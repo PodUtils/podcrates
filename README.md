@@ -5,8 +5,8 @@ WebSockets, the relay client and its resumable layer, the end-to-end
 channel, WARP, the Cloudflare tunnel, file transfer and more.
 
 The consumers are [podssh](https://github.com/PodUtils/podssh),
-[podnet](https://github.com/PodUtils/podnet) and podvm. Each crate links
-into a static binary on each target of the consumers.
+[podnet](https://github.com/PodUtils/podnet), podvm and podrunner. Each
+crate links into a static binary on each target of the consumers.
 
 ## State
 
@@ -14,7 +14,7 @@ Each release has its notes in [docs/releases/](docs/releases/), and
 [TODO/PROGRESS.md](TODO/PROGRESS.md) names the last one. A consumer takes a
 crate by the git tag of this repository. The record
 [TODO/](TODO/PROGRESS.md) has the state, the work order and the open
-entries. M6 (the crates of podvm) is the current wave; M8 (the fleet)
+entries. The asks of podrunner and podnet come first; M8 (the fleet)
 waits.
 
 ## The crates

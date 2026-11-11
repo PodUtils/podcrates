@@ -90,8 +90,10 @@ the tools.
 5. Run the checks (`docs/development.md`). Commit and push to `main`.
 6. Watch the runs of the commit (`watch-runs.sh`).
 7. Set each entry to `done` with its Done section. Close the issue when
-   each of its entries is done, with a comment: the commits, the cause,
-   the change, the tests and the CI runs.
+   each of its entries is done: the commits, the cause, the change, the
+   tests and the CI runs go in a comment on an issue of another author;
+   on an issue of this session they go into the body (see "Talk between
+   sessions").
 
 ## One crate
 
@@ -107,31 +109,42 @@ Facts for a session:
 * `crates/pod-X/SOURCES` lists each imported file: the repository, the
   path, the commit, the git blob id, the local paths. `git ls-tree COMMIT -- PATH`
   in the source repository checks a blob id.
-* After the release of a crate, tell the consumer sessions (the owner
-  brings them online): the crate, the tag, the adoption map of its
-  README.
+* After the release of a crate, write the hand-off (see "A release").
+
+### The take of a consumer
+
+A consumer writes the commit of its take as a COORD issue
+`(to podcrates)` or as an answer on the hand-off issue. Then:
+
+1. Add the `taken` line to the crate's `SOURCES`. `check-sources.py` with
+   the clones must show 0 changes.
+2. Remove the trial files of that consumer (`adoption/CONSUMER/CRATE.*`).
+3. Set the entry to `done`.
+4. Close the hand-off issue when each consumer took its part.
 
 ## Talk between sessions
 
-The sessions of podcrates, podssh and podnet send each other messages
-(`send_message` of the remote sessions). When a message cannot go, the
-fallback is a GitHub issue, one mailbox for each writer (the test of
-GitHub #2, T-051):
+The lead sessions of podssh and podrunner, which this session starts,
+take direct messages (`send_message` of the remote sessions; the rulings
+"podrunner online" and "Sessions online"). podnet and podvm run in their
+own sessions and take no direct message: the channel to them is a GitHub
+issue, one mailbox for each writer. Each session uses the same issues
+when a message cannot go:
 
 * Each session writes only to issues of its own repository: the GitHub
   access of a consumer session covers its own repository, and this
-  session writes nothing to podssh or podnet. The title starts with a
-  unique id and names the reader: `COORD-NNN: subject (to podnet)`.
-* The writer amends its own body (not a comment), with a line
+  session writes nothing to a consumer. The title starts with a unique id
+  and names the reader: `COORD-NNN: subject (to podnet)`. A session opens
+  and amends these issues with no new yes of the owner (the ruling Q5).
+* The writer amends its own body, not a comment, with a line
   `state: ... at TIME (UTC)` that the reader can poll for.
 * The reader polls through the read-only mirror:
   `curl -qfsS "https://forge.web.pkgforge.dev/github/repos/OWNER/REPO/issues?state=open&n=$RANDOM"`
   and `.../issues/N?n=$RANDOM`.
-* An issue is a public post. podnet's session posts one on a request of
-  this session; podssh's session posts only when its own user asks (its
-  rules): the owner said yes for the test; a standing yes is Q5.
-* An issue of podcrates is mapped in `TODO/issues.md` as any issue, and
-  closed when its subject is done.
+* An issue of podcrates is mapped in `TODO/issues.md` as any issue. When
+  its subject is done, the writer amends the body to end with one line of
+  the result (`Result: podvm took v0.23.0 at COMMIT (PodUtils/podvm#N).`)
+  and closes it. No status comment.
 
 `docs/session-protocol.md` is the text of this protocol for the
 `AGENTS.md` of each repository of PodUtils: the watcher of the
@@ -141,20 +154,19 @@ commit, with the name of the repository), the COORD issues to a reader or
 
 ### The channel of a consumer session with no messages
 
-podnet's sessions from 2026-11-06 on send and take no messages (the
-owner's word; podnet's ruling "Order" of 2026-11-06). The channel is then
-the repositories:
+For podnet and podvm, the repositories are the channel:
 
-* `crates/*/SOURCES`: a block `repo PodUtils/podnet ...` is podnet's list
-  of frozen files; a `taken` line ends the freeze. Keep the block of each
-  import current. For `pod-services` and `pod-core` only the moved lines
-  of a file are frozen (the comment of the block says which).
-* `adoption/podnet/CRATE.patch` and `.run` at the tag of each release is
+* `crates/*/SOURCES`: a block `repo PodUtils/CONSUMER ...` is the list of
+  the consumer's frozen files; a `taken` line ends the freeze. Keep the
+  block of each import current. For `pod-services` and `pod-core` only
+  the moved lines of a file are frozen (the comment of the block says
+  which).
+* `adoption/CONSUMER/CRATE.patch` and `.run` at the tag of each release is
   the hand-off.
-* Anything else for podnet: an issue of PodUtils/podcrates titled
-  `COORD-NNN: subject (to podnet)`.
-* podnet writes the commit of each crate that it took, and each fix of a
-  frozen file, as an issue of PodUtils/podnet titled
+* Anything else for the consumer: an issue of PodUtils/podcrates titled
+  `COORD-NNN: subject (to CONSUMER)`.
+* The consumer writes the commit of each crate that it took, and each fix
+  of a frozen file, as an issue of its own repository titled
   `COORD-NNN: subject (to podcrates)`. This session polls the open issues
   of each repository of PodUtils for `(to podcrates)`
   (`scripts/agent/watch-org.sh`).
@@ -230,11 +242,14 @@ fourth argument of the script names the list when it is elsewhere.
    the dry run of `publish.yml` on the tag.
 4. Watch the run of `publish.yml` on the tag. A failed dry run is a
    defect of the packaging: fix it in the next release.
-5. Keep the switch `crates-io` of `Cargo.toml` false until the owner
-   rules Q4 (`TODO/PROGRESS.md`). A tag cannot move or be deleted: make
-   sure that the commit and the version are right before the release.
-6. Tell the consumer sessions (the owner brings them online): the crates,
-   the tag, the adoption map of each README.
+5. Keep the switch `crates-io` of `Cargo.toml` false: no crate goes to
+   crates.io now (`docs/decisions.md`, "Releases"). A tag cannot move or
+   be deleted: make sure that the commit and the version are right before
+   the release.
+6. Write the hand-off: a COORD issue `(to all)` of this repository (the
+   crates, the tag, the adoption map of each README, the step of each
+   consumer), and a direct message to each lead session. Amend its body
+   at each take; close it when each consumer took its part.
 
 ## This sandbox
 

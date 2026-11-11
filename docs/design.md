@@ -26,7 +26,7 @@ apply to them.
    `CoreFoundation`, `Security`; Apple allows no static `libSystem`). A
    C dependency is allowed when it links static on each target.
 2. **Modern Rust.** Edition 2024 and the current stable Rust. The
-   `rust-version` is the stable of the day (1.99 on 2026-11-05), and a
+   `rust-version` is the stable of the day (`rust-toolchain.toml`), and a
    session raises it when a new stable comes out. A nightly feature is
    allowed when it gives a necessary gain (speed, security); the entry
    names the gain and its measurement, and `rust-toolchain.toml` then
@@ -186,7 +186,7 @@ crates of podvm) and M8 (the fleet).
 | `pod-session` | podssh-relay `session/` (with `handover/`), `udp/` (the resolver of a flow is the caller's `Resolve`), `answer.rs`, `transit/link.rs` (`ws_link::Link` over a session of `pod-ws`). No environment and no global: the settings, the relay's limits (`Settings::pair_window`, `move_bytes`, `move_age`) and the sink of the budget's lines (`Keeper::with_tell`) are the caller's; a target moves at a handover by `Movable` or by the caller's function (`Keeper::hand_over_with`). The test of the close table (`session_policy.rs`) goes with `pod-relay`, and the test of the role (`session_relay_resume.rs`) with `pod-relay-serve`; the handover test with the channel is `pod-e2e`'s | 8,400 | pod-core, pod-ws |
 | `pod-e2e` | podssh-relay `e2e/` (Noise XX on snow 0.10): the channel and its carry, the handshake, the frames, the word of a proof (`Ask`), the two ends (`ends`), the gate of a node's person (`person`; the question goes to the caller's `Asker`), the net's document (`net`; the caller's `Docs`), the tokens of one leg (`legs`), the handover of a node's channel (`hold`). No process state: the documents of the net and the holds of a handover are fields of the caller's `Node` (`Node::docs`, `Node::holds`), and a node's lines are events `e2e.*`. The tests `e2e.rs`, `e2e_faults.rs`, `e2e_net.rs`, `routes.rs`, `person.rs` and the channel's test of `session_handover.rs` come with it; `e2e_layered.rs` goes with `pod-relay` | 5,000 | pod-core, pod-identity, pod-session |
 | `pod-wormhole` | podssh-relay `code/` `mailbox.rs`, `wormhole.rs`, `phrase.rs`, `words.rs`, `mod.rs` (`Failed`, hex), and of `run.rs` the rendezvous (`Ends`, `opened`, `joined`); the mailbox harness (a stand-in in Rust, magic-wormhole's mailbox server and its Python peer). The AppID, the client name, the mailbox URLs and the way out are the caller's (C45). The pairing exchange (`exchange.rs`, the rest of `run.rs`) goes to `pod-relay` | 1,200 | pod-core, pod-ws |
-| `pod-netstack` | the cut of PodUtils/podnet#427: podnet `crates/podnet-vnet/src/stack.rs` and `stack/` without `proof.rs` (the stack, its sockets, its reactor; the `Acl` of `StackConfig` becomes the trait `Admit`, its resolver the trait `GatewayService`), `device.rs` (the recorder becomes the trait `PacketTap`), of `addr.rs` only `VirtualSubnet` (as `Subnet`); on smoltcp 0.14. `framing.rs`, the switch, the proxy, the dialer and the proof stay in podnet; `src/warp/ip.rs` goes to `pod-warp`, over this crate; the router of `podnet-netns` moves onto it after podnet's T-174 | 2,900 | pod-core |
+| `pod-netstack` | the cut of PodUtils/podnet#427: podnet `crates/podnet-vnet/src/stack.rs` and `stack/` without `proof.rs` (the stack, its sockets, its reactor; the `Acl` of `StackConfig` becomes the trait `Admit`, its resolver the trait `GatewayService`), `device.rs` (the recorder becomes the trait `PacketTap`), of `addr.rs` only `VirtualSubnet` (as `Subnet`); on smoltcp 0.14. `framing.rs`, the switch, the proxy, the dialer and the proof stay in podnet; `src/warp/ip.rs` goes to `pod-warp`, over this crate; the router of `podnet-netns` moves onto it with PodUtils/podnet@T-249 (T-170, step 2) | 2,900 | pod-core |
 | `pod-wg` | the cut of PodUtils/podnet#447: podnet `src/warp/wg.rs` without its driver (sans-IO, on ring, call C8): the primitives (BLAKE2s, HMAC, the KDF, X25519, ChaCha20-Poly1305, TAI64N), `Keys`, `Initiation`, mac1, `Session` with its window of counters, the timers of `State` as `Tunnel` on the caller's clock; new: the cookie reply and mac2, and timestamps that never go back (`Stamps`). `src/warp/wg/standin.rs` is the feature `standin` (a responder for the tests of a consumer). `Peer` with `from_exported`, the socket, `connect`, `connect_inside`, `connect_on`, `WgTx`, `WgRx`, `WgKeepalive` and the lock stay in podnet. With no feature, no tokio | 1,850 | pod-core |
 | `pod-relay` | podssh-relay `relay.rs`, `open.rs`, `pool.rs`, `pool/`, `failover.rs`, `failures.rs`, `gate.rs`, `rank*.rs`, `token.rs`, `health.rs`, `addresses.rs`, `keyed.rs`, the token entries of `cache.rs` (its files and `cache/` are `pod-core`'s), `forward_layer/`, `pair.rs`, `pair/`, `code/exchange.rs`, `code/run.rs`, `grant/`, `reverse/` (the carrier `Door` of `serve` is the trait `reverse::wire::Door`), `http_road/`, `quic_road/`, `h2_road.rs`, `cleartext.rs`, `blocking/` (feature `blocking`, podvm), with their tests (`tests/e2e_layered.rs` and `tests/session_policy.rs` among them; `tests/session_relay_resume.rs` runs the role, so it goes with `pod-relay-serve`). Each call takes the caller's `Context`: the way out, the places of the cache, the `Settings` (no environment), the events and the state of a run (no global). podnet `src/ws_relay.rs` (`active()` becomes a handle that the caller gives), `src/relay_pool.rs`, `src/relay_reverse.rs`; the relay stand-in. The pool, the rank and the reverse road of podssh are the base; podnet's reverse mode (plain `/v1/node/NAME`, 32-hex ids) is merged last | 19,800 | pod-core, pod-tls, pod-proxy, pod-dns, pod-ws, pod-quic, pod-identity, pod-session, pod-e2e, pod-wormhole, pod-services |
 
@@ -288,7 +288,7 @@ agnostic". So the crate knows no provider in its code:
   data from `pod-services`); the relay contract (`pod-relay`, T-047); the
   supply chain of CI (T-046).
 
-### M6: the crates of podvm (now)
+### M6: the crates of podvm
 
 The owner's rulings of 2026-11-06: each generic crate of podvm moves here
 with the prefix `pod-`, also where podvm is its only consumer today; a
@@ -307,7 +307,7 @@ others read its raw system calls.
 | `pod-supervise` | podvm `crates/podvm-supervise` and the `Lock` of `crates/podvm-image`: detached payloads (launcher state, pidfds, logs, signals, the lifecycle); the entry of a payload is the caller's | 2,300 | pod-core, pod-hostprobe |
 | `pod-guest` | podvm `crates/podvm-windows`: a disposable QEMU guest (the boot plan on KVM or TCG, the overlay, the FAT16 mailbox, the `cmd.exe` and DOS agents, QMP, the bounded stop, the store of a base image with its pinned digest); the download, the base caches and docker's exit range stay in podvm. New: a read-only squashfs reader with xz and the x86 BCJ filter, and the module set of a guest kernel from its modloop (T-206, PodUtils/podvm#260) | 5,300 | pod-core, pod-hostprobe |
 
-### M7: the widened scope of podvm (later)
+### M7: the widened scope of podvm
 
 The owner, 2026-11-06: "podvm will make everything that sand-net does,
 but without root, in the environment we target". Each crate of M7 starts
@@ -339,10 +339,9 @@ give the settings). podssh-ws `wire.rs` goes to `pod-ws`.
 
 ## 5. Churn and order
 
-podssh changes each day. In its last 50 commits: `serve/` 100 file
-changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
-`podssh-warp` 2, `podssh-terminal` 1. podnet holds (its ruling
-"Order"). Thus:
+podssh changes each day, most in `serve/`, `session/`, `quick/`,
+`reverse/` and `e2e/`, and little in `podssh-warp` and
+`podssh-terminal`. Thus:
 
 * The quiet code goes first (`pod-term`, the TLS, DNS and proxy code).
 * The window between the import of a crate and its adoption is short:
@@ -350,9 +349,9 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
   it on the day of the release (Q3).
 * From the import to the adoption, the consumer changes the module only
   for fixes, and podcrates ports each fix (Q3). `check-sources.py` finds
-  each change (section 9). The import tells the consumer session (a
-  message, or an issue in the consumer's repository written by the
-  owner) that the freeze starts.
+  each change (section 9). The import tells the consumer session that
+  the freeze starts (a direct message, or a COORD issue of podcrates
+  `(to CONSUMER)`; `docs/maintenance.md`, "Talk between sessions").
 
 
 ## 6. The shared traits (in `pod-core`)
@@ -465,8 +464,7 @@ Each crate is one record entry, or more for a large merge. Its commits:
    `tests/relay_reverse.rs` and the exit codes of `tests/cli.rs`); the
    static check of the consumer binary on its targets; a build with the
    consumer's features (feature unification, one provider). The patch is
-   the hand-off to the consumer session. The trial of podvm waits for its
-   repository (owner action).
+   the hand-off to the consumer session. The trials of podvm are T-040.
 8. **Check, close, release.** `sh scripts/agent/check.sh`; the CI of the
    push is green; write the Done section (date, commits, test counts,
    CI runs, the trial run); release (section 10).

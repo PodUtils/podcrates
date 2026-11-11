@@ -12,19 +12,24 @@ crate has the prefix `pod-`. The consumers are:
   relay.
 * podnet (`PodUtils/podnet`): one static binary that brings its own
   network to restricted hosts.
-* podvm (formerly podbox): it uses the blocking facade of `pod-relay`
-  and `pod-term`.
+* podvm (`PodUtils/podvm`, formerly podbox): payloads and guests with
+  no root; it takes the crates of M6 and M7, `pod-term` and the blocking
+  facade of `pod-relay`.
+* podrunner (`PodUtils/podrunner`): CI jobs on any host; it takes
+  `pod-job`, `pod-broker`, `pod-confine` and more.
 
-The code of the crates comes from podssh and podnet. `docs/design.md`
-has the rules of each crate, the list of the crates with their sources,
-and the procedure for one crate. `TODO/` has the work.
+The code of the crates comes from podssh, podnet and podvm.
+`docs/design.md` has the rules of each crate, the list of the crates
+with their sources, and the procedure for one crate. `TODO/` has the
+work.
 
-A session of podcrates does not edit podssh, podnet or podvm. A consumer
-replaces its own module with a crate in its own repository, on the day
-of the release of the crate. From the import of a module until that day,
-the consumer changes the module only for fixes, and podcrates ports each
-fix. After that day, a consumer session can change the crate here, under
-these rules and with the checks green, or open an issue here.
+A session of podcrates does not edit podssh, podnet, podvm or
+podrunner. A consumer replaces its own module with a crate in its own
+repository, on the day of the release of the crate. From the import of a
+module until that day, the consumer changes the module only for fixes,
+and podcrates ports each fix. After that day, a consumer session can
+change the crate here, under these rules and with the checks green, or
+open an issue here.
 
 The consumers take the crates by a git tag of this repository
 (`tag = "vX.Y.Z"`), not from crates.io. A source file has at most 500
