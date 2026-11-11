@@ -3218,9 +3218,21 @@ same reader.
   (`experiments/110-bloat-delta.sh`, `CEILING_BYTES`); the binary is
   5,162,616 bytes on 2026-11-11: a static liblzma of some hundreds of KB
   fits (podvm's amended PodUtils/podvm#260).
-- Not read: the compressor options of `modloop-virt` (an xz with a BCJ
-  filter or not); a pure-Rust xz decoder that takes the filters of
-  squashfs.
+- Read, on 2026-11-11, `netboot/modloop-virt` of Alpine 3.22.8 x86_64
+  (21,164,032 bytes): squashfs 4.0, xz, blocks of 131,072 bytes, 1,179
+  inodes. The compressor options are there (flag 0x400): a dictionary of
+  131,072 bytes and the x86 BCJ filter. Of its 1,016 xz streams, 8 have the
+  chain x86 BCJ then LZMA2, and 1,008 have LZMA2 only. So the decoder must
+  take the x86 BCJ filter. The modules are plain `.ko` files (no `.ko.gz`
+  or `.ko.xz`), and `modules.dep` names them as `kernel/...`
+  (`kernel/net/netfilter/nf_tables.ko: kernel/net/netfilter/nfnetlink.ko
+  kernel/lib/libcrc32c.ko`).
+- Read (crates.io): `xz4rust` 0.2.3 (MIT, no unsafe code, no normal
+  dependency, `no_std`) decodes the BCJ filters with its feature `bcj`.
+  `lzma-rust2` 0.25.0 (Apache-2.0) is a port of XZ for Java; its README
+  does not name BCJ. `lzma-rs` 0.3.0 has no release since 2023. `liblzma`
+  0.4.9 binds the C library. Each licence is in the list of `deny.toml`.
+- Not measured: the speed and the size of `xz4rust` on the 1,016 streams.
 
 ## Approach
 
