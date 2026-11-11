@@ -3,7 +3,7 @@
 //! on each line, each answer with `"v": 1`:
 //!
 //! ```text
-//! {"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"version":1,"mode":"open"}}
+//! {"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"schema":1,"mode":"open"}}
 //! {"v":1,"ok":true,"op":"load","job":"J","mode":"open","rules":0,"expires_in_s":600}
 //! {"op":"drop","job":"J"}
 //! {"v":1,"ok":true,"op":"drop","job":"J","dropped":true}

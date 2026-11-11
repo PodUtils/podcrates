@@ -524,7 +524,7 @@ section 2, gives `schemas/` the `*.schema.json` files only. The commits: `pod-jo
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -561,6 +561,23 @@ cargo test -p pod-core --all-features
 ```
 
 The test of `pod-job` has an empty `OTHER_RULE`, and it reads each file of `schemas/`.
+
+## Done
+
+2026-11-11. Each schema of `schemas/` has a field `schema`, the constant N
+of its name and its first required key. The broker policy renames
+`version` to `schema` (`pod_broker::policy::SCHEMA`; `Policy::schema`; the
+TOML form, the README, the control lines, the tests and the static probe).
+`schemas/log.v1.schema.json` requires `schema`; `pod_core::LOG_SCHEMA` is 1,
+and each audit line of `pod-broker` starts with `{"schema":1,`. The README
+of `pod-core` names the key. `OTHER_RULE` is gone.
+
+- Tests: `each_schema_names_its_version_one_way` of `pod-job` reads each of
+  the 6 files with one rule; `the_json_schema_agrees_with_the_policy`
+  (`pod-broker`); `no_audit_line_holds_a_planted_secret` checks the first
+  key; `the_log_schema_names_each_class` (`pod-core`) checks the constant.
+- Breaking: a policy with `version` is refused (unknown field). The next
+  release notes name it, and the hand-off tells podrunner and podvm.
 
 # T-178: `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy
 

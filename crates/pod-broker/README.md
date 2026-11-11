@@ -117,7 +117,7 @@ has the same keys.
 
 ```json
 {
-  "version": 1,
+  "schema": 1,
   "mode": "allow",
   "allow": [
     { "host": "api.github.com", "path": "/repos/owner", "ports": [443] },
@@ -193,7 +193,7 @@ is refused. One JSON request on each line, one answer on each line, each
 answer with `"v": 1`. An answer never holds a token.
 
 ```text
-{"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"version":1,"mode":"open"}}
+{"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"schema":1,"mode":"open"}}
 {"v":1,"ok":true,"op":"load","job":"J","mode":"open","rules":0,"expires_in_s":600}
 {"op":"drop","job":"J"}
 {"v":1,"ok":true,"op":"drop","job":"J","dropped":true}
@@ -212,7 +212,7 @@ One line for each connection and each `load` and `drop`, in the form of
 `schemas/log.v1.schema.json`:
 
 ```json
-{"time":"2026-11-09T12:00:00.000Z","level":"info","event":"broker.connection",
+{"schema":1,"time":"2026-11-09T12:00:00.000Z","level":"info","event":"broker.connection",
  "fields":{"job":"J","kind":"connect","host":"example.com","port":443,"addr":"93.184.215.14:443",
            "decision":"allow","rule":"open","status":200,"up":517,"down":4096,"ms":120}}
 ```

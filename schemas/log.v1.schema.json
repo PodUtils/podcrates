@@ -4,8 +4,9 @@
   "title": "One JSON log line of a tool of PodUtils",
   "description": "One object on each line. The classes and their exit codes are the table of crates/pod-core/README.md.",
   "type": "object",
-  "required": ["time", "level", "event", "fields"],
+  "required": ["schema", "time", "level", "event", "fields"],
   "properties": {
+    "schema": { "const": 1, "description": "The version of the schema, as in each schema of schemas/: pod_core::LOG_SCHEMA" },
     "time": { "type": "string", "format": "date-time", "description": "RFC 3339, UTC" },
     "level": { "enum": ["error", "warn", "info", "debug", "trace"] },
     "event": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*$", "description": "a dotted name, for example relay.session.open" },

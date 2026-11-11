@@ -51,11 +51,12 @@ async fn no_audit_line_holds_a_planted_secret() {
         let value: serde_json::Value = serde_json::from_str(line).unwrap();
         let keys: Vec<&str> = value.as_object().unwrap().keys().map(|k| k.as_str()).collect();
         for key in &keys {
-            assert!(["time", "level", "event", "fields", "stage", "class"].contains(key), "{key} in {line}");
+            assert!(["schema", "time", "level", "event", "fields", "stage", "class"].contains(key), "{key} in {line}");
         }
-        for key in ["time", "level", "event", "fields"] {
+        for key in ["schema", "time", "level", "event", "fields"] {
             assert!(keys.contains(&key), "{key} is not in {line}");
         }
+        assert!(line.starts_with("{\"schema\":1,"), "the schema is not the first key: {line}");
         assert!(value["time"].as_str().unwrap().ends_with('Z'));
         assert!(value["event"].as_str().unwrap().starts_with("broker."));
     }

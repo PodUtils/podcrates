@@ -3,7 +3,7 @@
 //! [`crate::deny`] hold in each mode; no policy lifts them.
 //!
 //! ```toml
-//! version = 1
+//! schema = 1
 //! mode = "allow"                # or "open": allow each target that no deny holds
 //! deny = ["203.0.113.0/24", "*.ads.example"]
 //!
@@ -25,8 +25,9 @@ use serde::{Deserialize, Serialize};
 use crate::deny::{DenyList, NameRule};
 use crate::target::{Authority, Host, normal_path, parse_host};
 
-/// The one version of the policy that this crate reads.
-pub const VERSION: u32 = 1;
+/// The one version of the policy that this crate reads: the constant of
+/// its field `schema`, as in each schema of `schemas/`.
+pub const SCHEMA: u32 = 1;
 
 /// The rule of a CONNECT whose host has rules with a path only: the broker
 /// sees no path in a tunnel until a TLS end does ([`crate::TunnelEnd`]).
@@ -70,7 +71,8 @@ pub struct Rule {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
-    pub version: u32,
+    /// The version of the schema: [`SCHEMA`].
+    pub schema: u32,
     pub mode: Mode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allow: Vec<Rule>,
@@ -86,7 +88,7 @@ fn usage(words: String) -> Failure {
 impl Policy {
     /// The open policy with no extra deny.
     pub fn open() -> Policy {
-        Policy { version: VERSION, mode: Mode::Open, allow: Vec::new(), deny: Vec::new() }
+        Policy { schema: SCHEMA, mode: Mode::Open, allow: Vec::new(), deny: Vec::new() }
     }
 
     /// A policy in JSON. A bad policy is a failure of the class `Usage`.
@@ -117,8 +119,8 @@ impl Policy {
 
     /// The checked form of the policy, or why it cannot be used.
     pub fn compile(&self) -> Result<Compiled, Failure> {
-        if self.version != VERSION {
-            return Err(usage(format!("the policy is version {}: this broker reads version {VERSION}", self.version)));
+        if self.schema != SCHEMA {
+            return Err(usage(format!("the policy is schema {}: this broker reads schema {SCHEMA}", self.schema)));
         }
         if self.mode == Mode::Open && !self.allow.is_empty() {
             return Err(usage("an open policy has no allow rule: give mode \"allow\" with the rules".into()));

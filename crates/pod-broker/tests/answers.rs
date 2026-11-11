@@ -7,7 +7,7 @@ use common::*;
 use pod_broker::Settings;
 use pod_core::{Class, Target};
 
-const BLOCKED: &str = r#"{"version":1,"mode":"allow","allow":[
+const BLOCKED: &str = r#"{"schema":1,"mode":"allow","allow":[
   {"host":"api.example.com","path":"/v1/repos"},
   {"host":"open.example.com"},
   {"host":"169.254.169.254"},

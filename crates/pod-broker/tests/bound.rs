@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use common::*;
 
-const ONLY_A: &str = r#"{"version":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
-const ONLY_B: &str = r#"{"version":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
+const ONLY_A: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
+const ONLY_B: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
 
 /// A CONNECT with no `Proxy-Authorization`, as `podnet pod -x
 /// http://unix:/PATH` sends it.

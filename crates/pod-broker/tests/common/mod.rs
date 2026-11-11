@@ -215,7 +215,7 @@ pub fn load(broker: &Broker, job: &str, token: &str, policy: &str) {
         .unwrap();
 }
 
-pub const OPEN: &str = r#"{"version":1,"mode":"open"}"#;
+pub const OPEN: &str = r#"{"schema":1,"mode":"open"}"#;
 
 /// `Proxy-Authorization` with the token as the password of Basic.
 pub fn basic(user: &str, token: &str) -> String {

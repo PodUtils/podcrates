@@ -34,4 +34,8 @@ fn the_log_schema_names_each_class() {
     for c in Class::ALL {
         assert!(schema.contains(&format!("\"{}\"", c.name())), "the log schema lacks the class {}", c.name());
     }
+    let first = "\"required\": [\"schema\",";
+    assert!(schema.contains(first), "the log schema does not require the field schema first");
+    let constant = format!("\"schema\": {{ \"const\": {},", pod_core::LOG_SCHEMA);
+    assert!(schema.contains(&constant), "the log schema and pod_core::LOG_SCHEMA differ");
 }

@@ -159,15 +159,12 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
     }
 }
 
-/// The schemas that name their version another way: the log line has no
-/// version field, and the broker policy names it `version` (T-177).
-const OTHER_RULE: [&str; 2] = ["broker-policy.v1.schema.json", "log.v1.schema.json"];
-
-/// One rule for the version of each schema of `schemas/`: the file is
-/// `NAME.vN.schema.json`, its `$id` is the URL of that file on `main`, it
-/// is JSON Schema 2020-12, and the record has a required field `schema`
-/// whose value is the constant N. The schemas of `OTHER_RULE` keep the
-/// first three parts. Each schema compiles in a validator on Rust's regex.
+/// One rule for the version of each schema of `schemas/` (T-177): the file
+/// is `NAME.vN.schema.json`, its `$id` is the URL of that file on `main`, it
+/// is JSON Schema 2020-12, and the object has a field `schema`, its first
+/// required key, whose value is the constant N. The records of this crate,
+/// the log line and the broker policy have the same rule. Each schema
+/// compiles in a validator on Rust's regex.
 #[test]
 fn each_schema_names_its_version_one_way() {
     let mut files: Vec<String> = std::fs::read_dir(root())
@@ -175,8 +172,7 @@ fn each_schema_names_its_version_one_way() {
         .map(|e| e.expect("an entry").file_name().to_string_lossy().into_owned())
         .collect();
     files.sort();
-    let mut records = Vec::new();
-    let mut other = Vec::new();
+    let mut names = Vec::new();
     for file in &files {
         let (name, n) = file
             .strip_suffix(".schema.json")
@@ -191,20 +187,14 @@ fn each_schema_names_its_version_one_way() {
         let mut compiler = boon::Compiler::new();
         compiler.add_resource(&format!("{ID}{file}"), schema.clone()).expect("a resource");
         compiler.compile(&format!("{ID}{file}"), &mut boon::Schemas::new()).unwrap_or_else(|e| panic!("{file}: {e}"));
-        let required = schema["required"].as_array().cloned().unwrap_or_default();
-        if schema["properties"].get("schema").is_some() {
-            assert_eq!(schema["properties"]["schema"]["const"], json!(n), "{file}: schema is not the constant {n}");
-            assert!(required.contains(&json!("schema")), "{file}: schema is not required");
-            records.push(name.to_string());
-        } else {
-            other.push(file.as_str());
-        }
+        assert_eq!(schema["properties"]["schema"]["const"], json!(n), "{file}: schema is not the constant {n}");
+        assert_eq!(schema["required"][0], json!("schema"), "{file}: schema is not the first required key");
+        names.push(name.to_string());
     }
-    let mut ours = RECORDS.map(String::from).to_vec();
-    ours.sort();
-    records.sort();
-    assert_eq!(records, ours, "the records of this crate, and no other, have the field schema");
-    assert_eq!(other, OTHER_RULE, "T-177: a schema of the other rule");
+    for record in RECORDS {
+        assert!(names.iter().any(|n| n == record), "{record}: no file in schemas/");
+    }
+    assert!(names.len() > RECORDS.len(), "the test reads the other schemas of schemas/ too");
     assert_eq!(SCHEMA, 1, "the files of the records are NAME.v1");
 }
 

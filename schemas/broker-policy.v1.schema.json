@@ -4,9 +4,9 @@
   "title": "The policy of one job of the egress broker (pod-broker), version 1",
   "description": "The JSON form of pod_broker::Policy; the TOML form has the same keys. The fixed denies of crates/pod-broker/README.md hold in each mode, and no policy lifts them. A policy that does not agree with this schema is a failure of the class usage (exit 64).",
   "type": "object",
-  "required": ["version", "mode"],
+  "required": ["schema", "mode"],
   "properties": {
-    "version": { "const": 1 },
+    "schema": { "const": 1, "description": "The version of the schema, as in each schema of schemas/." },
     "mode": {
       "enum": ["allow", "open"],
       "description": "allow: only the targets of an allow rule. open: each target that no deny holds; an open policy has no allow rule."
@@ -48,9 +48,9 @@
   "if": { "properties": { "mode": { "const": "open" } } },
   "then": { "properties": { "allow": { "maxItems": 0 } } },
   "examples": [
-    { "version": 1, "mode": "open", "deny": ["203.0.113.0/24"] },
+    { "schema": 1, "mode": "open", "deny": ["203.0.113.0/24"] },
     {
-      "version": 1,
+      "schema": 1,
       "mode": "allow",
       "allow": [
         { "host": "api.github.com", "path": "/repos/owner", "ports": [443] },

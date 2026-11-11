@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**180 entries: 59 open, 3 partial, 0 blocked, 118 done.**
+**180 entries: 58 open, 3 partial, 0 blocked, 119 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 28 | 3 | 0 | 56 | 87 |
+| P2 | 27 | 3 | 0 | 57 | 87 |
 | P3 | 14 | 0 | 0 | 20 | 34 |
-| **All** | 59 | 3 | 0 | 118 | 180 |
+| **All** | 58 | 3 | 0 | 119 | 180 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -223,7 +223,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-174](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Trojan node of the lists that passes the live check |
 | [T-175](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244) |
 | [T-176](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245) |
-| [T-177](fleet.md) | P2 | S | M8 | defect | open | One rule for the version field of each schema of `schemas/`: the log line and the broker policy |
+| [T-177](fleet.md) | P2 | S | M8 | defect | done | One rule for the version field of each schema of `schemas/`: the log line and the broker policy |
 | [T-178](fleet.md) | P2 | S | M8 | defect | open | `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy |
 | [T-179](fleet.md) | P3 | M | M7 | feature | open | `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11) |
 | [T-180](fleet.md) | P3 | M | M8 | feature | open | `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11) |

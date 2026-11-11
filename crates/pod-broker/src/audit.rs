@@ -1,6 +1,6 @@
 //! The audit: one JSON line for each connection and each change of a job,
-//! in the form of `schemas/log.v1.schema.json` (`time`, `level`, `event`,
-//! `fields`, and `stage` and `class` for a failure). A line holds the job
+//! in the form of `schemas/log.v1.schema.json` (`schema`, `time`, `level`,
+//! `event`, `fields`, and `stage` and `class` for a failure). A line holds the job
 //! id, the host, the port, the address, the decision, the rule, the bytes
 //! and the time. It never holds a secret value: no token, no header, no
 //! path and no query (a path or a query can carry a credential).
@@ -16,6 +16,9 @@ use serde_json::{Map, Value};
 /// One audit line.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Line {
+    /// The version of the log schema ([`pod_core::LOG_SCHEMA`]), the first
+    /// key.
+    pub schema: u32,
     /// RFC 3339, UTC.
     pub time: String,
     pub level: &'static str,
@@ -32,6 +35,7 @@ pub struct Line {
 impl Line {
     pub(crate) fn new(level: &'static str, event: &'static str) -> Line {
         Line {
+            schema: pod_core::LOG_SCHEMA,
             time: rfc3339(SystemTime::now()),
             level,
             event,

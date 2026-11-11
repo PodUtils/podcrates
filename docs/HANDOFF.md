@@ -16,8 +16,8 @@ page current; remove a line when its work is done.
     are gone).
   - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
     of T-169 and T-170 (not made yet).
-  - podvm: `v0.16.0` (`894cf13`, with T-162 and T-175). Next: `v0.17.0`
-    (T-176, PodUtils/podvm#245).
+  - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
+    PodUtils/podvm#245 closed).
   - podrunner: `v0.16.0` for `pod-core` and `pod-todo` (`07cd854`). Next:
     `pod-supervise` of `v0.16.0`; `pod-job` and `pod_tls::mutual` of
     `v0.17.0` (T-163, T-165).

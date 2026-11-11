@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 180 entries: 59 open, 3 partial, 0 blocked, 118 done.
+`TODO/INDEX.md` holds 180 entries: 58 open, 3 partial, 0 blocked, 119 done.
 
 ## State
 
@@ -14,8 +14,8 @@
   one of `v0.16.0` is #57.
 - The consumers: podssh is on `v0.15.0` (it took `pod-wormhole` at
   `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
-  took `pod-hold` at `b759937`); podvm is on `v0.16.0` (`894cf13`: T-162
-  and T-175, PodUtils/podvm#244); podrunner is on `v0.16.0` for `pod-core`
+  took `pod-hold` at `b759937`); podvm is on `v0.17.0` (`522b437`: the
+  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.16.0` for `pod-core`
   and `pod-todo` (`07cd854`).
 - Partial: T-169 and T-170 (the adoption patch for podnet; T-170 step 2
   waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
@@ -49,8 +49,9 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): T-177 and T-178 (the schemas of
-   `pod-job`); the names mode of `pod-broker` goes out with the next tag;
+2. **podrunner** (PodUtils/podrunner#1): T-178 (the `policy` of an offer);
+   the names mode of `pod-broker` and the one version rule of `schemas/`
+   go out with the next tag;
    T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
 3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;

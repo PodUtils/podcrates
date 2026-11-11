@@ -76,10 +76,10 @@ A pattern of a schema has no look-around, as Rust's regex and Go's RE2
 take none. `src/schemas.rs` writes the schemas and checks each example
 with the types and with a validator of JSON Schema (boon).
 
-The `schema` field: the four records have it, as the constant N of the
-name `NAME.vN.schema.json`. `schemas/log.v1.schema.json` (a log line) has
-no version field, and `schemas/broker-policy.v1.schema.json` names it
-`version`. T-177 gives them the same rule.
+The `schema` field: each schema of `schemas/` has it, as the constant N
+of the name `NAME.vN.schema.json` and the first required key: the four
+records, the log line (`schemas/log.v1.schema.json`) and the broker
+policy (`schemas/broker-policy.v1.schema.json`).
 
 After a change of a type, write the schemas again and commit them:
 

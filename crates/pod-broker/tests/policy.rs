@@ -11,7 +11,7 @@ fn at(text: &str) -> Authority {
 }
 
 const ALLOW: &str = r#"{
-  "version": 1,
+  "schema": 1,
   "mode": "allow",
   "allow": [
     {"host": "api.github.com", "path": "/v1/repos", "ports": [443, 80]},
@@ -26,7 +26,7 @@ fn a_policy_reads_from_json_and_from_toml_the_same() {
     let json = Policy::from_json(ALLOW).unwrap();
     let toml = Policy::from_toml(
         r#"
-version = 1
+schema = 1
 mode = "allow"
 deny = ["198.51.100.0/24", "*.ads.example"]
 
@@ -54,17 +54,17 @@ ports = [8443]
 #[test]
 fn a_bad_policy_is_a_failure_of_usage() {
     for bad in [
-        r#"{"version":2,"mode":"open"}"#,
-        r#"{"version":1,"mode":"closed"}"#,
-        r#"{"version":1,"mode":"open","allow":[{"host":"a.example"}]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a.example","extra":1}]}"#,
-        r#"{"version":1,"mode":"allow","bindings":[]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a..example"}]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a.example","path":"v1"}]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a.example","path":"/v1/%2e%2e"}]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a.example","path":"/v1?x"}]}"#,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"a.example","ports":[0]}]}"#,
-        r#"{"version":1,"mode":"allow","deny":["10.0.0.0/40"]}"#,
+        r#"{"schema":2,"mode":"open"}"#,
+        r#"{"schema":1,"mode":"closed"}"#,
+        r#"{"schema":1,"mode":"open","allow":[{"host":"a.example"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example","extra":1}]}"#,
+        r#"{"schema":1,"mode":"allow","bindings":[]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a..example"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example","path":"v1"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example","path":"/v1/%2e%2e"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example","path":"/v1?x"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example","ports":[0]}]}"#,
+        r#"{"schema":1,"mode":"allow","deny":["10.0.0.0/40"]}"#,
         r#"{"mode":"open"}"#,
     ] {
         let failure = Policy::from_json(bad).and_then(|p| p.compile().map(|_| p)).expect_err(bad);
@@ -116,7 +116,7 @@ fn a_tunnel_to_a_host_with_path_rules_only_needs_a_tls_end() {
 #[test]
 fn an_open_policy_allows_each_target_and_keeps_its_denies() {
     let compiled =
-        Policy::from_json(r#"{"version":1,"mode":"open","deny":["*.ads.example"]}"#).unwrap().compile().unwrap();
+        Policy::from_json(r#"{"schema":1,"mode":"open","deny":["*.ads.example"]}"#).unwrap().compile().unwrap();
     assert_eq!(compiled.verdict(&at("example.com:443"), None), Verdict::Allow("open".into()));
     assert_eq!(compiled.deny().check_name("x.ads.example"), Some("policy:deny[0]"));
     assert_eq!(Policy::open().compile().unwrap().mode(), Mode::Open);
@@ -126,8 +126,8 @@ fn an_open_policy_allows_each_target_and_keeps_its_denies() {
 fn a_policy_file_is_toml_by_its_name_or_else_json() {
     let dir = std::env::temp_dir().join(format!("pod-broker-policy-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("p.toml"), "version = 1\nmode = \"open\"\n").unwrap();
-    std::fs::write(dir.join("p.json"), r#"{"version":1,"mode":"open"}"#).unwrap();
+    std::fs::write(dir.join("p.toml"), "schema = 1\nmode = \"open\"\n").unwrap();
+    std::fs::write(dir.join("p.json"), r#"{"schema":1,"mode":"open"}"#).unwrap();
     assert_eq!(Policy::read(&dir.join("p.toml")).unwrap(), Policy::open());
     assert_eq!(Policy::read(&dir.join("p.json")).unwrap(), Policy::open());
     assert!(Policy::read(&dir.join("none.json")).is_err());
@@ -142,13 +142,13 @@ fn the_json_schema_agrees_with_the_policy() {
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../schemas/broker-policy.v1.schema.json"))
             .unwrap();
     let schema: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(schema["properties"]["version"]["const"], pod_broker::policy::VERSION);
+    assert_eq!(schema["properties"]["schema"]["const"], pod_broker::policy::SCHEMA);
     assert_eq!(schema["properties"]["mode"]["enum"], serde_json::json!(["allow", "open"]));
     let rule_keys: Vec<&String> =
         schema["properties"]["allow"]["items"]["properties"].as_object().unwrap().keys().collect();
     assert_eq!(rule_keys, ["host", "path", "ports"]);
     let keys: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
-    assert_eq!(keys, ["allow", "deny", "mode", "version"], "in the order of a map with sorted keys");
+    assert_eq!(keys, ["allow", "deny", "mode", "schema"], "in the order of a map with sorted keys");
     let examples = schema["examples"].as_array().unwrap();
     assert_eq!(examples.len(), 2);
     for example in examples {

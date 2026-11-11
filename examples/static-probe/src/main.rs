@@ -36,7 +36,7 @@ fn main() {
     let first = resolver.settings().resolvers.first().map_or_else(String::new, |r| format!("{} ({})", r.ip, r.name));
     // A broker with the fixed denies and an open policy: the policy reader,
     // the deny check and the dial of pod-proxy link in.
-    let open = pod_broker::Policy::from_json(r#"{"version":1,"mode":"open"}"#).expect("a policy");
+    let open = pod_broker::Policy::from_json(r#"{"schema":1,"mode":"open"}"#).expect("a policy");
     let broker = pod_broker::Broker::new(
         pod_broker::Settings::default(),
         std::sync::Arc::new(pod_proxy::resolve::System::new()),

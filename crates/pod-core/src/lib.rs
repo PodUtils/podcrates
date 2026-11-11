@@ -39,5 +39,9 @@ pub use datagrams::{Datagrams, RecvMeta, SystemDatagrams, Transmit};
 pub use dial::{BoxFuture, BoxedIo, Connected, Dial, Found, Io, Resolve, SOURCE_WAIT, Source, Target};
 pub use event::{Event, Events, Level, NoEvents, NoObserver, Observer, Report};
 pub use failure::{Class, Failure, Stage};
+
+/// The version of `schemas/log.v1.schema.json`: the constant of the field
+/// `schema`, the first key of each JSON log line.
+pub const LOG_SCHEMA: u32 = 1;
 #[cfg(feature = "async")]
 pub use metered::Metered;

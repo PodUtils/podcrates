@@ -165,7 +165,7 @@ async fn a_tunnel_end_that_reads_requests_checks_the_paths() {
         &broker,
         "job1",
         TOKEN,
-        r#"{"version":1,"mode":"allow","allow":[{"host":"api.example.com","path":"/v1/repos"}]}"#,
+        r#"{"schema":1,"mode":"allow","allow":[{"host":"api.example.com","path":"/v1/repos"}]}"#,
     );
     let (head, mut tunnel) = ask(&broker, &connect("api.example.com:443")).await;
     assert_eq!(status_of(&head), 200, "{head}");

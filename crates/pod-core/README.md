@@ -48,7 +48,7 @@ A unit of a supervisor stops a restart loop with
 `RestartPreventExitStatus=64 78 79 80`.
 
 One JSON log line of a tool has the keys of `schemas/log.v1.schema.json`:
-`time` (RFC 3339, UTC), `level` (`error`, `warn`, `info`, `debug`, `trace`),
+`schema` (the constant `LOG_SCHEMA`, 1, the first key), `time` (RFC 3339, UTC), `level` (`error`, `warn`, `info`, `debug`, `trace`),
 `event` (a dotted name, `relay.session.open`), `fields` (an object), and,
 for a failure, `stage` and `class` (the names of `Stage` and `Class`).
 

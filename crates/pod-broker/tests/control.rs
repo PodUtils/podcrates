@@ -11,8 +11,7 @@ use serde_json::{Value, json};
 use tokio::io::AsyncReadExt;
 
 fn load_line(job: &str, token: &str, ttl: u64) -> String {
-    json!({"op": "load", "job": job, "token": token, "ttl_s": ttl, "policy": {"version": 1, "mode": "open"}})
-        .to_string()
+    json!({"op": "load", "job": job, "token": token, "ttl_s": ttl, "policy": {"schema": 1, "mode": "open"}}).to_string()
 }
 
 #[cfg(unix)]
@@ -55,8 +54,8 @@ async fn the_control_socket_loads_lists_and_drops_jobs() {
         load_line("job1", "short", 600),
         load_line("job1", TOKEN, 0),
         load_line("job1", TOKEN, 99_999_999),
-        json!({"op":"load","job":"j","token":TOKEN,"ttl_s":"600","policy":{"version":1,"mode":"open"}}).to_string(),
-        json!({"op":"load","job":"j","token":TOKEN,"ttl_s":60,"policy":{"version":9,"mode":"open"}}).to_string(),
+        json!({"op":"load","job":"j","token":TOKEN,"ttl_s":"600","policy":{"schema":1,"mode":"open"}}).to_string(),
+        json!({"op":"load","job":"j","token":TOKEN,"ttl_s":60,"policy":{"schema":9,"mode":"open"}}).to_string(),
     ] {
         let answer = ask(bad.clone()).await;
         assert_eq!((answer["ok"].as_bool(), answer["class"].as_str()), (Some(false), Some("usage")), "{bad}");
