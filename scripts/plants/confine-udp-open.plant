@@ -1,0 +1,6 @@
+# A closed UDP adds no rule of socket(2): the payload sends UDP (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test a_closed_udp_gives_eacces_and_tcp_still_works \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test apply -- a_closed_udp_gives_eacces_and_tcp_still_works'
+LIMIT=1800

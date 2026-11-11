@@ -1,0 +1,7 @@
+# A rule with conditions that do not hold allows the call: the next rule
+# of its number never runs, and an IPv6 UDP socket passes (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test deny::tests::a_rule_that_does_not_hold_falls_through_to_the_next_rule_of_its_number \.\.\. FAILED'
+RUN='cargo test -p pod-confine --lib -- deny::tests::a_rule_that_does_not_hold_falls_through_to_the_next_rule_of_its_number'
+LIMIT=1800

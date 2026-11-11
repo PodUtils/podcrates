@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 212 entries: 58 open, 4 partial, 0 blocked, 150 done.
+`TODO/INDEX.md` holds 213 entries: 58 open, 4 partial, 0 blocked, 151 done.
 
 ## State
 
@@ -64,8 +64,8 @@ next entry.
    podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has); T-209 (the Landlock scopes
-   and UDP in `pod-confine`);
+   modloop, which `pod-guest` has); T-213 (the sockets that Landlock and
+   the filter of `pod-confine` do not see);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
@@ -94,7 +94,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C60), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C63), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

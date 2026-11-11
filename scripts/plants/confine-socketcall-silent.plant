@@ -1,0 +1,7 @@
+# A closed UDP compiles on a target with socketcall(2): a payload makes
+# a UDP socket through it, and the spec reads as closed (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test compile::tests::a_closed_udp_is_refused_where_the_kernel_has_socketcall \.\.\. FAILED'
+RUN='cargo test -p pod-confine --lib -- compile::tests::a_closed_udp_is_refused_where_the_kernel_has_socketcall'
+LIMIT=1800

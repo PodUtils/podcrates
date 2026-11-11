@@ -1,0 +1,7 @@
+# A closed UDP leaves io_uring open where the list of the spec has no
+# io_uring call: a ring makes a UDP socket past the filter (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test a_closed_udp_gives_eacces_and_tcp_still_works \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test apply -- a_closed_udp_gives_eacces_and_tcp_still_works'
+LIMIT=1800

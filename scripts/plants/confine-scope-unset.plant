@@ -1,0 +1,7 @@
+# The ruleset gets no scope: a payload signals each process of its user
+# and connects to each abstract Unix socket of the host (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test the_scopes_stop_a_signal_and_an_abstract_connect_outside_the_domain \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test apply -- the_scopes_stop_a_signal_and_an_abstract_connect_outside_the_domain'
+LIMIT=1800

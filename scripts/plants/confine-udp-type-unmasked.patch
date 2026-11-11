@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/deny.rs b/crates/pod-confine/src/deny.rs
+index afa0a46..0cb5c9d 100644
+--- a/crates/pod-confine/src/deny.rs
++++ b/crates/pod-confine/src/deny.rs
+@@ -153,7 +153,7 @@ impl Deny {
+             .map(|(family, value)| {
+                 Deny::call(format!("socket({family}, SOCK_DGRAM)"), k::SYS_SOCKET, EACCES)
+                     .when_equal(0, u32::MAX, value as u32)
+-                    .when_equal(1, k::SOCK_TYPE_MASK as u32, k::SOCK_DGRAM as u32)
++                    .when_equal(1, u32::MAX, k::SOCK_DGRAM as u32)
+             })
+             .collect()
+     }

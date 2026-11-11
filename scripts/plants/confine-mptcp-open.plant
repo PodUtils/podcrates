@@ -1,0 +1,7 @@
+# A TCP list adds no MPTCP rule: an MPTCP connect passes each port rule
+# of Landlock (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test an_mptcp_socket_fails_where_tcp_has_a_list \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test apply -- an_mptcp_socket_fails_where_tcp_has_a_list'
+LIMIT=1800

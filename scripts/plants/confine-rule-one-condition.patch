@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/deny.rs b/crates/pod-confine/src/deny.rs
+index afa0a46..058424e 100644
+--- a/crates/pod-confine/src/deny.rs
++++ b/crates/pod-confine/src/deny.rs
+@@ -234,7 +234,7 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
+     let mut body = Vec::new();
+     // The index in `body` of each jump to the last instruction.
+     let mut misses = Vec::new();
+-    for a in &d.when {
++    for a in d.when.iter().take(1) {
+         let index = a.index();
+         if index > 5 {
+             return Err(usage(format!("it reads argument {index}; a call has 6 (0 to 5)")));

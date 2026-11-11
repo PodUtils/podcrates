@@ -3409,7 +3409,7 @@ word.
 **Milestone:** M7
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3439,6 +3439,140 @@ deny list gets `socket` of `AF_INET` and `AF_INET6` with `SOCK_DGRAM`
 Tests in `tests/apply.rs`: a `kill` of the parent gets `EPERM`, and a UDP
 socket gets `EACCES`. Ask podvm by a COORD issue whether its profiles need
 a key for each.
+
+## Decision
+
+Calls C61 (the io_uring calls in the default list and with each closed
+socket), C62 (a closed UDP is a refusal on a target with `socketcall(2)`)
+and C63 (`ENOPROTOOPT` for an MPTCP socket under a TCP list), in
+`docs/decisions.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+```
+
+## Done
+
+2026-11-11, `dc36af5` (the code and the tests) and the commit after it
+(the plants, the documents and the record).
+
+- `Spec` has two new fields (breaking: a struct literal of `Spec` needs
+  them). `scope` (on in `Spec::new()`; `no_scope()`) sets
+  `LANDLOCK_SCOPE_SIGNAL` and `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET` where
+  the ABI is 6 or newer (`SCOPE_ABI`, `spec::SCOPES`,
+  `Compiled::scoped()`); under ABI 6 it gives nothing. `udp` (true in
+  `Spec::new()`; `close_udp()` sets false): where it is false, `socket(2)`
+  of `AF_INET` and `AF_INET6` with `type & SOCK_TYPE_MASK == SOCK_DGRAM`
+  gets `EACCES` (`Deny::udp()`), and the io_uring calls get `EPERM`.
+  `Spec::deny_rules()` gives the rules of the filter: `deny`, then the
+  rules of the switches.
+- A closed UDP on a target with `socketcall(2)` (i686, s390x, powerpc64)
+  is a refusal by name (call C62).
+- A finding of the work, fixed in place: Landlock checks TCP sockets only
+  (`sk_is_tcp` in `security/landlock/net.c`). On this host (Linux 6.18,
+  ABI 7, `net.mptcp.enabled` 1) an MPTCP socket connected to a port outside
+  the connect list of a ruleset, where a TCP connect got `EACCES`. A TCP list
+  now adds `socket(IPPROTO_MPTCP)` with `ENOPROTOOPT` (`Deny::mptcp()`,
+  call C63). The other sockets that Landlock does not see are T-213.
+- `Deny` (breaking): `flags: Option<(u8, u32)>` is now `when: Vec<Arg>`:
+  `Arg::AnyBit` (`when_flags(index, mask)`) and `Arg::Equal`
+  (`when_equal(index, mask, value)`, with `BPF_ALU_AND_K`); each condition
+  must hold. A rule whose conditions do not hold loads the number again and
+  gives the call to the next rule of its number (before: `ALLOW`), so two
+  rules share one number; a rule after a rule of its number with no
+  condition is left out. The block of one flag condition keeps five
+  instructions. The default list adds `io_uring_setup`, `io_uring_enter`
+  and `io_uring_register` with `EPERM` (call C61): 79 instructions on
+  x86_64, 73 before. The test `the_first_rule_of_a_number_wins` keeps its
+  name and now proves the fall-through.
+- `pod-hostprobe`: `BPF_ALU_AND_K`, the two scopes, `AF_UNIX`, `AF_INET6`,
+  `SOCK_DGRAM`, `SOCK_TYPE_MASK`, `IPPROTO_MPTCP` (the feature `net` of
+  `linux-raw-sys`), `SYS_SOCKETCALL` where the kernel has it, and the
+  io_uring numbers.
+
+Tests: `cargo test -p pod-confine --all-features`: 28 unit tests and 11 in
+`tests/apply.rs`; each passes on this host (Landlock ABI 7, MPTCP on; no
+check skipped). New in `tests/apply.rs`: with the scopes,
+`kill(getppid(), 0)` and a connect to an abstract Unix socket of the
+parent get `EPERM` and a signal to the child itself passes (with
+`no_scope()` each passes); with UDP closed and an empty deny list,
+`socket(AF_INET, SOCK_DGRAM)` and `socket(AF_INET6, SOCK_DGRAM |
+SOCK_CLOEXEC)` get `EACCES`, `io_uring_setup` gets `EPERM`, and a TCP
+socket and a Unix datagram socket pass; under a TCP list an MPTCP socket
+gets `ENOPROTOOPT` and a TCP connect inside the list passes. A host with an
+ABI under 6 skips the check of the scopes by name, and a host with no
+MPTCP the check of MPTCP. `cargo test -p pod-enter --all-features --test
+confine`: 7 pass. `cargo test -p pod-hostprobe --lib`: 110 pass. Clippy
+of `pod-confine` is clean on i686 and aarch64 musl too. Plants (group
+`confine`, each caught): `confine-scope-unset`, `confine-udp-open`,
+`confine-udp-type-unmasked`, `confine-udp-io-uring-open`,
+`confine-rule-no-fall-through`, `confine-rule-one-condition`,
+`confine-mptcp-open`, `confine-socketcall-silent`; the patch of
+`confine-absent-runs-unconfined` is made again on the new `apply`, and
+the three plants of T-108 are caught. `sh scripts/agent/check.sh`: each
+line 0.
+
+Open: podvm's profiles have no key for `scope` and `udp`. The question of
+the Approach (a COORD issue `(to podvm)`) goes with the hand-off of the
+release that carries this work.
+
+# T-213: `pod-confine`: under a TCP list or a closed UDP, a payload still makes sockets that Landlock and the filter do not see
+
+**Source:** T-209 (a finding of its work)
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Landlock checks TCP sockets only (`sk_is_tcp`), up to ABI 9. T-209 closes
+MPTCP under a TCP list and UDP by `Spec::udp`. Other sockets still reach
+the network past a TCP list or a closed UDP: SCTP (`IPPROTO_SCTP`, and
+`SOCK_SEQPACKET` of `AF_INET` with protocol 0), SMC (`AF_SMC`, and
+`IPPROTO_SMC` of Linux 6.11) with its TCP fallback, RDS over TCP, RxRPC
+over UDP, VSOCK to the host, and raw and packet sockets where the payload
+holds `CAP_NET_RAW`. The kernel can load the module of such a family at
+the first `socket(2)`. On a target with `socketcall(2)` (i686, s390x,
+powerpc64), the MPTCP rule of T-209 has a gap: a payload makes an MPTCP
+socket through `socketcall`, whose arguments a filter cannot read. A
+payload also connects to each Unix socket of a path that its user can
+write (a system bus, a socket of a container engine): the ruleset handles
+the file rights of ABI 5 and lower only.
+
+## Premise
+
+- Read: `security/landlock/net.c` of Linux master (7.4-rc2): the bind,
+  connect and send hooks check `sk_is_tcp` and `sk_is_udp` only. Landlock
+  ABI 10 adds `LANDLOCK_ACCESS_NET_BIND_UDP` and
+  `LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP`, and ABI 9 adds
+  `LANDLOCK_ACCESS_FS_RESOLVE_UNIX` (a connect to a Unix socket of a path
+  made outside the domain gets `EACCES`; `include/uapi/linux/landlock.h`).
+  `linux-raw-sys` 0.12.1 has none of the three.
+- Measured on 2026-11-11 (Linux 6.18, ABI 7): an MPTCP connect passed a
+  port rule (fixed in T-209); `socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP)`
+  gave `EPROTONOSUPPORT` (no module here).
+- Not measured: SMC, RDS, RxRPC and VSOCK on the hosts of podvm.
+
+## Approach
+
+Where the spec closes a socket (a TCP list, or `udp: false`), allow a list
+of socket families: `socket(2)` and `socketpair(2)` pass for `AF_UNIX`,
+`AF_INET`, `AF_INET6` and `AF_NETLINK`, and each other family gets
+`EAFNOSUPPORT`. For `AF_INET` and `AF_INET6`, a type other than
+`SOCK_STREAM` and `SOCK_DGRAM` fails, and a `SOCK_STREAM` with a protocol
+other than 0 and `IPPROTO_TCP` fails. This needs a "not equal" condition in
+`Deny` (a jump with its targets swapped). Where the ABI is 10 or newer,
+close UDP with the Landlock UDP rights too: the LSM sees a socket of
+io_uring and of `socketcall`. Where the ABI is 9 or newer, handle
+`LANDLOCK_ACCESS_FS_RESOLVE_UNIX` (`handled_fs`), and give it to the paths
+of a rule with `WRITE` or with a new access. On a target with
+`socketcall(2)`, ask podvm
+by a COORD issue: a refusal of a TCP list there, or a deny of
+`socketcall` under a TCP list.
 
 ## Prove
 

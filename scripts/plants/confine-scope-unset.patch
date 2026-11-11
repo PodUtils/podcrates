@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/apply.rs b/crates/pod-confine/src/apply.rs
+index a0944af..045abb6 100644
+--- a/crates/pod-confine/src/apply.rs
++++ b/crates/pod-confine/src/apply.rs
+@@ -124,7 +124,7 @@ pub fn apply(c: &Compiled) -> Result<(), Refusal> {
+     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
+     k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
+     let attr =
+-        k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: c.scoped };
++        k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: 0 };
+     let ruleset = k::landlock_create_ruleset(&attr).map_err(|e| refuse(Call::CreateRuleset, 0, e))?;
+     let restricted = add_rules(c, ruleset)
+         .and_then(|()| k::landlock_restrict_self(ruleset).map(drop).map_err(|e| refuse(Call::RestrictSelf, 0, e)));

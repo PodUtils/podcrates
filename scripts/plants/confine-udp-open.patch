@@ -1,0 +1,12 @@
+diff --git a/crates/pod-confine/src/compile.rs b/crates/pod-confine/src/compile.rs
+index a0adbe5..6a181e5 100644
+--- a/crates/pod-confine/src/compile.rs
++++ b/crates/pod-confine/src/compile.rs
+@@ -245,7 +245,6 @@ impl Spec {
+                      the family and the type of a socket made through it, so UDP would stay open",
+                 ));
+             }
+-            rules.extend(Deny::udp());
+         }
+         if tcp {
+             rules.extend(Deny::mptcp());

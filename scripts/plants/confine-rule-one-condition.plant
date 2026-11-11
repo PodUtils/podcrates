@@ -1,0 +1,7 @@
+# A rule tests its first condition only: a TCP socket of IPv4 gets the
+# errno of the UDP rule (T-209).
+ENTRY=T-209
+GROUP=confine
+EXPECT='test deny::tests::each_condition_of_a_rule_must_hold \.\.\. FAILED'
+RUN='cargo test -p pod-confine --lib -- deny::tests::each_condition_of_a_rule_must_hold'
+LIMIT=1800

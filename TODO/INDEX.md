@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**212 entries: 58 open, 4 partial, 0 blocked, 150 done.**
+**213 entries: 58 open, 4 partial, 0 blocked, 151 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 44 | 58 |
-| P2 | 28 | 2 | 0 | 72 | 102 |
+| P2 | 28 | 2 | 0 | 73 | 103 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 58 | 4 | 0 | 150 | 212 |
+| **All** | 58 | 4 | 0 | 151 | 213 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -255,7 +255,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-206](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: the module set of a guest kernel from its modloop (PodUtils/podvm#260) |
 | [T-207](podvm.md) | P3 | L | M6 | feature | open | `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178) |
 | [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
-| [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |
+| [T-209](podvm.md) | P2 | S | M7 | feature | done | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |
 | [T-210](upkeep.md) | P2 | S | M5 | chore | done | A plant whose file changed goes stale, and only `plants.yml` finds it |
 | [T-211](transport.md) | P2 | S | M1 | feature | done | `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263) |
 | [T-212](relay.md) | P2 | M | M2 | chore | open | `pod-relay`: the lines for the user as events, and the words of podssh's commands as the caller's |
+| [T-213](podvm.md) | P2 | M | M7 | defect | open | `pod-confine`: under a TCP list or a closed UDP, a payload still makes sockets that Landlock and the filter do not see |

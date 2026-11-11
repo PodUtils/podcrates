@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/compile.rs b/crates/pod-confine/src/compile.rs
+index a0adbe5..9dc84c3 100644
+--- a/crates/pod-confine/src/compile.rs
++++ b/crates/pod-confine/src/compile.rs
+@@ -238,7 +238,7 @@ impl Spec {
+         let mut rules = self.deny.clone();
+         let tcp = self.connect.is_some() || self.bind.is_some();
+         if !self.udp {
+-            if socketcall {
++            if socketcall && self.paths.len() > MOST_RULES {
+                 return Err(failure(
+                     Class::Unsupported,
+                     "the spec closes UDP, and the kernel of this target has socketcall(2): a filter cannot read \

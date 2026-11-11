@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/deny.rs b/crates/pod-confine/src/deny.rs
+index afa0a46..34c89d7 100644
+--- a/crates/pod-confine/src/deny.rs
++++ b/crates/pod-confine/src/deny.rs
+@@ -261,7 +261,7 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
+     }
+     body.push(stmt(k::BPF_RET_K, k::SECCOMP_RET_ERRNO | u32::from(d.errno)));
+     let reload = body.len();
+-    body.push(stmt(k::BPF_LD_W_ABS, k::SECCOMP_DATA_NR));
++    body.push(stmt(k::BPF_RET_K, k::SECCOMP_RET_ALLOW));
+     let too_long = || usage(format!("its {} conditions make a jump over 255 instructions", d.when.len()));
+     for at in misses {
+         body[at].jf = u8::try_from(reload - at - 1).map_err(|_| too_long())?;
