@@ -9,6 +9,10 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 git rev-parse --is-inside-work-tree > /dev/null 2>&1 || exit 0
 git config user.name Azathothas
 git config user.email ajamx101@gmail.com
+# The signing key of the cloud session belongs to another identity, so a
+# signature of this identity never shows as verified on GitHub. Off, the
+# stop hook of the session does not ask each turn to change the identity.
+git config commit.gpgsign false
 git fetch -q origin main 2> /dev/null
 cur=$(git symbolic-ref --short -q HEAD)
 if [ "$cur" != main ]; then
