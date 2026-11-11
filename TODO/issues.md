@@ -66,4 +66,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #58 | COORD-033: podcrates v0.17.0 is released: podrunner takes pod-job and the mutual TLS of pod-tls; podvm takes the limits of pod-enter (to all) | open | T-163, T-164, T-165, T-176 |
 | #59 | COORD-034: the take of pod_hold::connect and pod_hold::packet: adoption/podnet/pod-hold-connect.patch (to podnet) | closed | T-169, T-170 |
 | #60 | COORD-035: podcrates v0.18.0 is released: podrunner takes the names mode of pod-broker and the schema rule; podssh takes three tunnels, the key of ssh-j and Rewound::new (to all) | open | T-161, T-171, T-172, T-173, T-177, T-178, T-181 |
-| #61 | COORD-036: the cut of pod-netstack (the userspace TCP and UDP stack on smoltcp 0.14): which files of podnet, and when (to podnet) | open | T-023, T-170 |
+| #61 | COORD-036: the cut of pod-netstack (the userspace TCP and UDP stack on smoltcp 0.14): which files of podnet, and when (to podnet) | closed | T-023, T-170 |
