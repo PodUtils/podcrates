@@ -6,13 +6,13 @@
 
 - The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
   `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.18.0` at `c284d3a` (`docs/releases/v0.18.0.md`; ci
-  42958662146, release 42962356279, the dry run of `publish.yml`
-  42962890207 green): the names mode of `pod-broker`, one schema rule,
-  the policy of an offer, three tunnels and the key of `ssh-j`,
-  `Rewound::new`, four fuzz targets of podvm. The hand-off is GitHub #60
-  (COORD-035); the one of `v0.17.0` is #58. The fuzz run 42958692411 on
-  the candidate found T-183 and T-184, fixed on `main` for `v0.19.0`.
+- Last release: `v0.19.0` at `9a11bbd` (`docs/releases/v0.19.0.md`; ci
+  42965065077, fuzz 42965096343, live 42965092130, release 42969794293,
+  the dry run of `publish.yml` 42969842145 green): the library
+  directories of the image in `pod-enter` (PodUtils/podvm#247), the
+  emulator check by the name of the process, the two crashes of
+  `fuzz.yml`, XHTTP in `proxy-banner`, a live pull of `pod-oci`. The
+  hand-off is GitHub #62 (COORD-037); the one of `v0.18.0` is #60.
 - The consumers: podssh is on `v0.18.0` (`50ef8922`: the tunnels of
   T-171, `Rewound::new`, the key of `ssh-j` pinned; it took `pod-wormhole`
   at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`

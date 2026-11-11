@@ -8,10 +8,9 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.18.0` is at `c284d3a` (`docs/releases/v0.18.0.md`; the
-  hand-off GitHub #60). `v0.17.0` is at `4da8fb3` (#58). `main` holds
-  T-182 (for podvm, PodUtils/podvm#247), T-183, T-184, T-149, T-142 and
-  T-152 for `v0.19.0`.
+- The release `v0.19.0` is at `9a11bbd` (`docs/releases/v0.19.0.md`; the
+  hand-off GitHub #62). `v0.18.0` is at `c284d3a` (#60). The import of
+  `pod-netstack` (T-023, the cut of PodUtils/podnet#427) is under way.
 - The consumers and the tag each takes:
   - podssh: `v0.18.0` (`50ef8922`; T-171, T-172 and T-181 taken, the key
     of `ssh-j` pinned; PodUtils/podssh#186 closed). `pod-wormhole` at
