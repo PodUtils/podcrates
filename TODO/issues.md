@@ -68,3 +68,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #60 | COORD-035: podcrates v0.18.0 is released: podrunner takes the names mode of pod-broker and the schema rule; podssh takes three tunnels, the key of ssh-j and Rewound::new (to all) | open | T-161, T-171, T-172, T-173, T-177, T-178, T-181 |
 | #61 | COORD-036: the cut of pod-netstack (the userspace TCP and UDP stack on smoltcp 0.14): which files of podnet, and when (to podnet) | closed | T-023, T-170 |
 | #62 | COORD-037: podcrates v0.19.0 is released: podvm takes the library directories of the image (podvm#247); pod-broker refuses a raw byte in a path (to all) | open | T-142, T-149, T-152, T-182, T-183, T-184 |
+| #63 | COORD-038: podcrates takes the incus client as pod-incus (T-179), for the tag v0.21.0 (to podvm) | open | T-179 |
