@@ -31,8 +31,10 @@ a line when its work is done. Git and the record keep finished work.
   `pod-relay` (the blocking face, after T-025), `pod-todo`.
 - podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
   at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
-  `pod-netstack`); T-201 starts at the first passing run of
-  PodUtils/podnet@T-250 (#74). The pod-netstack APIs of PodUtils/podnet@T-249 are
+  `pod-netstack`); T-201 is done: podnet takes the veth wire with
+  `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`, tag `v0.26.0`)
+  and holds `netns/veth.rs` and `netns/tun.rs` to fixes from `db34bae`.
+  The pod-netstack APIs of PodUtils/podnet@T-249 are
   T-222 (in `v0.25.0`, #76). `pod-git` waits: its own repository,
   deferred (the owner; #75).
 - podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`

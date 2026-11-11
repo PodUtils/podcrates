@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 224 entries: 60 open, 5 partial, 4 blocked, 155 done.
+`TODO/INDEX.md` holds 224 entries: 60 open, 4 partial, 4 blocked, 156 done.
 
 ## State
 
@@ -20,7 +20,9 @@
 - Takes that wait: podvm's use of `pod-confine` (PodUtils/podvm@T-1658,
   next in its order, #69), its check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podnet's move to `v0.24.0` (#73).
+  T-207, #70); podnet's move to `v0.24.0` (#73); podnet's take of the veth
+  wire of `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; the
+  next tag).
 - Partial: T-025 (`pod-relay`: the trial of podssh remains), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131
@@ -63,8 +65,7 @@ next entry.
    trial of podssh), T-026 (podnet's relay client), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
-   after PodUtils/podnet@T-249 (the router onto `pod-netstack`); T-201 after
-   the root CI step of PodUtils/podnet@T-250; T-214 and T-215 (the file
+   after PodUtils/podnet@T-249 (the router onto `pod-netstack`); T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the

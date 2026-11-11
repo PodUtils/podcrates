@@ -10,17 +10,50 @@ Two holds. Each reports its level and a proof ([`Hold`](src/level.rs)):
 | Hold | Level | How |
 | --- | --- | --- |
 | seccomp | `advisory` | A filter that returns `SECCOMP_RET_USER_NOTIF` stops the socket calls of the payload. The supervisor answers each one. A payload can pass around it with a descriptor that it inherits, or with a call or a family that the filter or the handler gives back to the kernel. |
-| netns | `enforced` | The payload runs in a new network namespace (in a new user namespace with no privilege). Its only route is a TUN that the supervisor holds. |
+| netns | `enforced` | The payload runs in a new network namespace (in a new user namespace with no privilege). Its only route is its wire, which the supervisor holds: a TUN, else a veth pair whose frames only the packet socket of the supervisor reads. |
 | none | `none` | No hold; the proof names the reason. |
 
 The decisions are the consumer's: where a connect goes, the rules, the
-upstreams, the relays, the fake DNS and the stack on the TUN. The crate
-reads no environment variable, prints nothing, keeps no global state, and
-each failure is a `pod_core::Failure` at the stage `host`.
+upstreams, the relays, the fake DNS, and the stack on the wire with its
+device. The crate reads no environment variable, prints nothing, keeps no
+global state, and each failure is a `pod_core::Failure` at the stage
+`host`.
 
 Needs: Linux 5.14 for the seccomp hold (`SECCOMP_ADDFD_FLAG_SEND`; the
-user notification itself is 5.0); unprivileged user namespaces and
-`/dev/net/tun` for the netns hold.
+user notification itself is 5.0); unprivileged user namespaces, and
+`/dev/net/tun` or a veth pair (the `veth` module, packet sockets) in the
+namespace, for the netns hold.
+
+## The wire of the netns hold
+
+The child of the netns hold makes its wire after `lo`, with
+`open_wire(&tun, choice)`, and sends the descriptor to the parent:
+
+* The TUN (`create_tun`): each read and each write is one IP packet.
+* The veth pair (`create_veth`), when the namespace cannot open
+  `/dev/net/tun` (`WireChoice::Auto`), or always (`WireChoice::Veth`).
+  One `RTM_NEWLINK` makes the program end (`tun.name`, MAC `GUEST_MAC`)
+  and the wire end (`WIRE_NAME`, `wire0`). The program end gets the
+  address, the MTU and the default route of the `Tun`, as a TUN does, and
+  its offloads (checksum, TSO, GSO) go off, so that each frame is at most
+  the MTU. The descriptor is a packet socket on the wire end.
+
+The parent reads the wire from the descriptor (`Wire::of`: a socket is
+the veth wire). On the veth wire the device of the stack calls
+`take_frame(frame, gateway, mtu)` for each frame that it reads: an IP
+packet goes to the stack (`Frame::Ip`, with no Ethernet padding), an ARP
+request for the gateway gets its reply (`Frame::Reply`, to write back at
+once, from `GATEWAY_MAC`), and each other frame is dropped (another MAC,
+the own frames, a frame larger than the MTU). Each packet of the stack
+goes out as `frame_for(packet)`. The stack keeps its IP medium; it
+computes the checksums and checks none (`Wire::checks_checksums`), as the
+program end can send a partial sum. A read takes `Wire::read_buffer(mtu)`
+bytes.
+
+The child closes its copy of the packet socket after it sends it: each
+open packet socket of the wire end gets a copy of each frame. A child
+keeps its copy of a TUN. `create_tun`, `create_veth` and `open_wire`
+allocate: call them in a child that forked from a process with one thread.
 
 ## API
 
@@ -35,9 +68,9 @@ user notification itself is 5.0); unprivileged user namespaces and
 | `reply` | The seam: `Answer` (`respond` with the negative errno, `proceed`); `respond`, `proceed`, `addfd_send`, `addfd_setfd`, `id_valid`, `child_fd_flags`, `set_nonblocking`; `Recorded` keeps the answers in memory for a test or a fuzz target. |
 | `table` | `Table<T>` of the sockets of the payload, keyed by the inode of the socket (a copy finds its entry; a sweep removes the sockets that closed with no `close`); `has_room` at the ceiling (the flow budget); `handle_close`; `derived_ceiling(RLIMIT_NOFILE)`, `nofile`, `raise_nofile`; `Refusal` and `Refusals` (a `const fn new` for a static of the consumer). |
 | `connect` | The state of a held `connect` while the consumer dials: `Dials<K>` (keyed by the consumer's key of a socket): `join` (a dial in progress: a blocking call waits, a nonblocking one gets `EALREADY`), `start` (`EINPROGRESS` for a nonblocking call), `wait_error` (a `getsockopt(SO_ERROR)` waits), `finish` (`None`: a blocking dial with no waiting call; drop it); `Finished::answer` (a `connect` takes the error, else the first `SO_ERROR`), `Finished::taker` (the call that can take the upstream socket); `write_error`, `write_error_to_task`; `Caller`, `ErrorCall`. The dial, the rules, the hand-off and the relay are the consumer's. |
-| `netns` | `enter()` (`CLONE_NEWNET`, else `CLONE_NEWUSER\|CLONE_NEWNET`), the handshake `announce` (child) and `answer` (parent, the id maps), `write_id_maps`, `bringup_loopback`, `Tun` (podnet's defaults) and `create_tun`, `send_fd`, `send_fd_raw` (no allocation, for a child after `fork`), `recv_fd` (one descriptor, else a refusal), `socketpair`, `read_exact_fd`, `write_all_fd`. |
+| `netns` | `enter()` (`CLONE_NEWNET`, else `CLONE_NEWUSER\|CLONE_NEWNET`), the handshake `announce` (child) and `answer` (parent, the id maps), `write_id_maps`, `bringup_loopback`, `Tun` (podnet's defaults) and `create_tun`; the wire (the section above): `Wire` (`Tun`, `Veth`; `of(fd)`, `word`, `checks_checksums`, `read_buffer`), `WireChoice` (`Auto`, `Tun`, `Veth`), `open_wire`, `create_veth`, `take_frame`, `Frame` (`Ip`, `Reply`, `Drop`), `frame_for`, `GUEST_MAC`, `GATEWAY_MAC`, `WIRE_NAME`, `ETH_HEADER`; `send_fd`, `send_fd_raw` (no allocation, for a child after `fork`), `recv_fd` (one descriptor, else a refusal), `socketpair`, `read_exact_fd`, `write_all_fd`. |
 | `packet` | The netns hold of a SYN: `parse_tcp_syn` (a bare IPv4 TCP SYN; a header under 20 bytes or a later fragment is none), `rst_reply_for_syn` (the RST\|ACK that fails the `connect` of the payload with `ECONNREFUSED`), `ipv4_checksum`. The hold of each SYN on the TUN (dial first, then accept or RST) stays the consumer's until T-170, step 2. |
-| `level` | `Level` (`enforced`, `advisory`, `none`) and `Hold { level, proof, not_held }`: `Hold::seccomp`, `Hold::netns`, `Hold::none`. |
+| `level` | `Level` (`enforced`, `advisory`, `none`) and `Hold { level, proof, not_held }`: `Hold::seccomp`, `Hold::netns(pid, userns, wire, name)` (the proof names the TUN or the veth pair), `Hold::none`. |
 
 ## Features
 
@@ -52,6 +85,7 @@ user notification itself is 5.0); unprivileged user namespaces and
 | `mem::Access` | write open, then `process_vm_writev` | `PODNET_NETNS_TEST_MEM` (`no-fd`, `none`) stays a variable of podnet and gives the `Access` |
 | the ceiling of `Table::new(root, ceiling)` | none: the caller gives it (`derived_ceiling(nofile().1)` after `raise_nofile`) | `--flow-budget N`, else the derived ceiling |
 | `netns::Tun` | `eth0`, 10.66.255.255/31, gateway 10.66.255.254, MTU 1500 | the same |
+| `netns::WireChoice` | `Auto`: the TUN, else the veth pair | `Auto`; `Veth` when the test variable `PODNET_NETNS_TEST_VETH` (podnet's) is set and not empty |
 | the `PATH` of `spawn::resolve` | `/usr/local/bin:/usr/bin:/bin` | the `PATH` of podnet's process |
 
 ## Parity
@@ -87,8 +121,36 @@ With podnet `crates/podnet-netns` at `9e8d177`:
   `listen`, `accept`, ICMP), the dials and the hand-off, the relays, the
   rules, the upstreams, the fake DNS, the flow log, `--learn`, the
   inbound listeners, the sessions, the router of the netns backend (its
-  smoltcp stack and UDP flows), the reaper and the outlive of the pod,
-  `pod doctor` and the CLI.
+  smoltcp stack, its device on both wires and its UDP flows), the reaper
+  and the outlive of the pod, `pod doctor` (with its row `veth wire (no
+  TUN)`) and the CLI.
+
+With podnet `crates/podnet-netns` at `db34bae`, the veth wire (T-201,
+PodUtils/podnet#446 and #451; podnet's PodUtils/podnet@T-174):
+
+* Each item is here, with its behaviour: the pair from one `RTM_NEWLINK`
+  (the names, `GUEST_MAC`, the MTU of both ends), the setup of the program
+  end, the offloads off (a refusal is not fatal), the wire end up, the
+  packet socket of each protocol with `PACKET_IGNORE_OUTGOING`, the read of
+  the wire from `fstat`, the ARP answer for the gateway, the frames of IPv4
+  and IPv6 with no padding, the drop of the own frames, of another MAC and
+  of a frame larger than the MTU, the frame of a packet, the read buffer of
+  64 KiB and the checksums that the stack computes and does not check.
+* Changes:
+  * `WireChoice` is a setting of the caller; podnet read the process
+    variable `PODNET_NETNS_TEST_VETH` (it stays podnet's, as the choice).
+  * The program end takes the `configure` of the TUN (one copy of the
+    ioctls; the MTU is set by the ioctl too). podnet had a second copy in
+    `veth.rs`.
+  * `take_frame` takes the gateway and the MTU; podnet read its constant
+    gateway.
+  * Each name (both ends, the TUN) is checked before a system call: empty,
+    too long, a NUL byte, the same name for both ends (`Class::Usage`).
+  * With `Auto`, the failure of both wires names both:
+    `no TUN (...) and no veth wire: ...` (podnet:
+    `...; the veth wire: ...`).
+  * `Hold::netns` takes the wire: the proof of a veth hold names the veth
+    pair, not a TUN.
 
 ## Adoption map
 
@@ -123,6 +185,18 @@ podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
 | tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`, `a_header_shorter_than_20_bytes_is_no_syn`, `a_fragment_past_the_first_is_no_syn` (`lib.rs`) | here, with the same names |
 | each `pod-*` dependency | tag `v0.17.0` |
 
+The patch `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`, tag
+`v0.25.0`; T-201) takes these rows; podnet has not taken it:
+
+| Old (`crates/podnet-netns/src/`) | New |
+| --- | --- |
+| `netns/veth.rs`: `create_veth`, `new_link`, `newlink_request`, `netlink_error`, `configure`, `ethtool_off`, `packet_socket`, `is_veth`, `Frame`, `take_frame`, `arp_reply`, `frame_for`, `GUEST_MAC`, `GATEWAY_MAC`, `WIRE_NAME`, `ETH_HEADER` | glue over `pod_hold::netns`: `open_wire(name)` gives `open_wire(&hold_tun(name), choice)`, `create_veth(guest, wire)` gives `create_veth(&hold_tun(guest), wire)`, `is_veth` gives `Wire::of`, `take_frame(frame, mtu)` gives `take_frame(frame, TUN_GW, mtu)`; `Frame` and `frame_for` are the crate's; `TEST_VETH_VARIABLE` and `veth_forced` stay and give the `WireChoice` |
+| `netns/tun.rs`: `Wire`, the `Tun` of pod-hold in `create_tun`, the buffer of `read_frames`, the checksums of `capabilities` | `pod_hold::netns::Wire`, `hold_tun(name)` (also for the veth wire), `Wire::Veth.read_buffer(mtu)`, `Wire::checks_checksums`; the smoltcp device stays |
+| `doctor.rs`: the doc comment of `probe_veth` above `close_inherited` | above `probe_veth`; the probe row stays |
+| tests `the_wire_answers_arp_for_the_gateway`, `the_wire_strips_the_header_and_the_padding_of_an_ip_frame`, `the_newlink_request_names_both_ends` (`netns/veth/tests.rs`) | here, with the same names; podnet's `tests/veth.rs` stays and runs its pod on the wire of the crate |
+| `crates/podnet-netns/README.md` | names `pod_hold::netns` for the wire |
+| each `pod-*` dependency | tag `v0.25.0` |
+
 ### Later consumers
 
 * podvm (`--net`, A-V-02, PodUtils/podvm@T-1665): the netns hold, or the
@@ -135,14 +209,25 @@ podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
 `cargo test -p pod-hold`: the unit tests of each module (a BPF run of the
 program, the ioctl numbers of both encodings, the memory of a memfd and of
 this process, the codec and the read of an address, the table and its
-sweep, the descriptor passing, the levels). `tests/hold.rs` (no libtest:
-the binary is the payload too): a refused connect fails with the errno of
-the reply, a socket call gets the descriptor of the supervisor, and a
-namespace gives its TUN to the parent. A host that refuses a hold skips its
-test with a line `SKIP:`. The fuzz target `hold_sockaddr` reads an address
-from a memfd. The plants `hold-reply-errno-positive`,
-`hold-address-read-past-length` and `hold-filter-foreign-abi-passes`
-(`scripts/plants/`) prove the core checks.
+sweep, the descriptor passing, the levels, the frames and the ARP answer
+of the veth wire, the `RTM_NEWLINK` request, the names of the wire). No
+unit test makes an interface: each name check comes before a system call.
+`tests/hold.rs` (no libtest: the binary is the payload too): a refused
+connect fails with the errno of the reply, a socket call gets the
+descriptor of the supervisor, and a namespace gives its TUN to the parent.
+`tests/veth.rs` (no libtest): `veth_wire_carries_a_tcp_flow`, podnet's
+test with a stack of `pod-netstack` in the place of the pod: the child
+makes the veth wire in a new namespace, sends a datagram to the gateway,
+connects to an address past it, and sends 256 KiB that the stack echoes;
+no frame is larger than the MTU. A host that refuses a hold, a namespace,
+`lo` or a veth pair skips its test with a line `SKIP:`; on a GitHub runner
+a user has no user namespace, so `scripts/root-netns-tests.sh` (the step
+"Netns tests as root" of `ci.yml`) runs both binaries as root, and a line
+`SKIP:` fails it. The fuzz target `hold_sockaddr` reads an address from a
+memfd. The plants `hold-reply-errno-positive`,
+`hold-address-read-past-length`, `hold-filter-foreign-abi-passes`,
+`hold-veth-arp-any-address` and `hold-veth-offloads-on` (`scripts/plants/`)
+prove the core checks.
 
 ## Sources
 

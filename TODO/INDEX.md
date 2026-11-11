@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**224 entries: 60 open, 5 partial, 4 blocked, 155 done.**
+**224 entries: 60 open, 4 partial, 4 blocked, 156 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 45 | 59 |
 | P2 | 29 | 2 | 4 | 76 | 111 |
-| P3 | 18 | 2 | 0 | 32 | 52 |
-| **All** | 60 | 5 | 4 | 155 | 224 |
+| P3 | 18 | 1 | 0 | 33 | 52 |
+| **All** | 60 | 4 | 4 | 156 | 224 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -247,7 +247,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-198](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the WebSocket of `openbare-xyz` fails (podssh's messages, 2026-11-11) |
 | [T-199](upkeep.md) | P3 | S | M5 | chore | open | `pod-e2e`: snow on the line of `chacha20poly1305` 0.11 |
 | [T-200](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Bare node whose WebSocket passes (PodUtils/podssh@T-740) |
-| [T-201](podvm.md) | P3 | M | M1 | feature | partial | `pod-hold`: the veth wire of the netns hold when the namespace has no `/dev/net/tun` (PodUtils/podnet#446) |
+| [T-201](podvm.md) | P3 | M | M1 | feature | done | `pod-hold`: the veth wire of the netns hold when the namespace has no `/dev/net/tun` (PodUtils/podnet#446) |
 | [T-202](podvm.md) | P3 | S | M1 | measurement | done | `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063) |
 | [T-203](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the TCP relay of ZeroTier (PodUtils/podssh#190) |
 | [T-204](relay.md) | P2 | S | M2 | defect | open | `pod-session`: `a_session_moves_while_both_ends_send_at_full_speed` lost its link one time in a run of the workspace's tests |

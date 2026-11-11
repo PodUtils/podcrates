@@ -3035,7 +3035,7 @@ different mechanism.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3074,6 +3074,74 @@ the trial for podnet as for `pod-hold`.
 ```sh
 cargo test -p pod-hold
 ```
+
+## Done
+
+2026-11-11. The start: PodUtils/podnet#451 (PodUtils/podnet@T-250, its
+root step "Netns tests as root", first passing run 43062916833 at podnet
+`db34bae`). Read: podnet `main` at `db34bae`. Commits `aa39288` (the
+import of `PodUtils/podnet:crates/podnet-netns/src/netns/veth.rs`, its
+`veth/tests.rs`, `PodUtils/podnet:crates/podnet-netns/src/netns/tun.rs`
+and `PodUtils/podnet:crates/podnet-netns/tests/veth.rs`, with the third
+block of `crates/pod-hold/SOURCES`), `e07a6d0` (the adaptation, the root
+step of CI), `4caed55` (two plants) and the commit of this record (the
+README, the trial).
+
+- API (`pod_hold::netns`): `Wire` (`Tun`, `Veth`; `of(fd)` by `fstat`,
+  `word`, `checks_checksums`, `read_buffer`), `WireChoice` (`Auto`, `Tun`,
+  `Veth`: the setting in the place of podnet's process variable
+  `PODNET_NETNS_TEST_VETH`), `open_wire(&Tun, choice)`,
+  `create_veth(&Tun, wire)`, `take_frame(frame, gateway, mtu)`, `Frame`,
+  `frame_for`, `GUEST_MAC`, `GATEWAY_MAC`, `WIRE_NAME`, `ETH_HEADER`. The
+  program end takes the `configure` of the TUN (no second copy of the
+  ioctls). `Hold::netns(pid, userns, wire, name)` (breaking): the proof of
+  a veth hold names the veth pair, not a TUN. The smoltcp device stays in
+  podnet; no process variable, no global; each failure is a
+  `pod_core::Failure` at the stage host; each file under 500 lines. The
+  probe row `veth wire (no TUN)` of podnet's `doctor.rs` stays with
+  `pod doctor` (call C48).
+- Tests, `cargo test -p pod-hold --all-features` as root on this host: 51
+  unit tests (podnet's `the_wire_answers_arp_for_the_gateway`,
+  `the_wire_strips_the_header_and_the_padding_of_an_ip_frame` and
+  `the_newlink_request_names_both_ends` with their names; new: the names,
+  a netlink answer that is no acknowledgement, IPv6 frames, the wire of a
+  descriptor, a double failure); `tests/hold.rs` 3 steps;
+  `tests/veth.rs` 1 step, `veth_wire_carries_a_tcp_flow` (a stack of
+  `pod-netstack` in the place of the pod: a datagram to the gateway, a
+  connect past it, 256 KiB out and back, no frame larger than the MTU).
+  No line `SKIP:`. The step passed 50 runs in a loop (3 s). No unit test
+  makes an interface in the namespace of the host.
+- Shown once each: a `frame_for` to a wrong MAC fails the step (child exit
+  20); no offload change fails it (144 frames larger than the MTU; before
+  the count, the flow passed in 8 s and the test with it).
+- Plants: `hold-veth-arp-any-address` (the unit test, exit 101) and
+  `hold-veth-offloads-on` (147 frames larger than the MTU), each run by hand
+  as `scripts/plant-each.sh` runs it; `--apply`: 0 stale.
+- CI: a GitHub runner gives a user no user namespace, so both netns tests
+  of `pod-hold` skipped there. `scripts/root-netns-tests.sh` and the step
+  "Netns tests as root" of the job test of `ci.yml` run the `hold` and
+  `veth` binaries as root and fail on a line `SKIP:` (as
+  PodUtils/podnet@T-250). Locally as root: exit 0. No CI run covers it yet.
+- Trial: `adoption/podnet/pod-hold-veth.patch`, `.run` and `.commit`
+  (podnet `db34bae`; each `pod-*` dependency at tag `v0.25.0`). podnet's
+  `netns/veth.rs` is glue over `pod_hold::netns`; its `netns/tun.rs` takes
+  `Wire`, the read buffer and the checksums of the crate; the three unit
+  tests leave podnet; `doctor.rs` gets its doc comment of `probe_veth` back
+  above it. 491 lines of Rust leave podnet, 29 come in. Local, with the
+  crates of this tree: the patch applies to a clean `db34bae`; `cargo test
+  -p podnet-netns`: 96 unit tests (1 ignored), `raw` 1, `veth` 1 (podnet's
+  own `veth_wire_carries_a_tcp_flow` on the wire of the crate, as root, no
+  skip); `cargo clippy -p podnet-netns --all-targets -- -D warnings` and
+  `cargo fmt -p podnet-netns --check` clean; podnet's record agrees after a
+  remap of its README (2 citations); its size and layer checks 0 faults; no
+  copy of the moved items. `adoption.yml` runs the rest of the `.run`.
+- podnet holds `PodUtils/podnet:crates/podnet-netns/src/netns/veth.rs`,
+  its `veth/tests.rs`, `PodUtils/podnet:crates/podnet-netns/src/netns/tun.rs`
+  and `PodUtils/podnet:crates/podnet-netns/tests/veth.rs` to fixes from
+  `db34bae` until its take. For podnet's COORD issue: the probe children
+  of its `doctor.rs` call `create_tun` and `create_veth`, which allocate,
+  and the comment of `close_inherited` says that the child calls only
+  async-signal-safe functions.
 
 # T-202: `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063)
 

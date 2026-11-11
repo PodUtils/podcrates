@@ -1,0 +1,42 @@
+# The trial of the veth wire of pod_hold::netns in podnet (T-201, the cut
+# of PodUtils/podnet#446 and #451). netns/veth.rs of podnet-netns becomes
+# glue over pod_hold::netns: open_wire (WireChoice from podnet's test
+# variable PODNET_NETNS_TEST_VETH), create_veth, take_frame, frame_for and
+# Wire::of come from the crate; podnet keeps its names and its smoltcp
+# device (netns/tun.rs, with the Wire of the crate, its read buffer and its
+# checksums). The three unit tests of netns::veth::tests move to pod-hold;
+# podnet's veth_wire_carries_a_tcp_flow stays. doctor.rs keeps the probe
+# row "veth wire (no TUN)" (its doc comment moves to probe_veth). Each
+# podcrates tag moves to v0.25.0. The record, the size and the layers of the
+# files, the build, the bans and the sources of cargo-deny, no copy of the
+# moved items left in podnet, clippy of the workspace, the docs of
+# podnet-netns, the tests of podnet-netns, its netns tests as root (the veth
+# wire of the pod, and the kernel mode of the router; a skip fails), the
+# tests of each crate whose podcrates tag moved, the integration tests of
+# the pod (seccomp and netns), doctor, docs and the API, the fuzz targets
+# with their lock, rustfmt, each Rust toolchain of the workflows and build
+# images against the rust-version of podcrates, and the binary for x86_64
+# musl, built with zig (a debug build: the release profile takes LTO), with
+# podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet-netns -i pod-hold > /dev/null
+! git grep -n -E "fn newlink_request|fn netlink_error|fn arp_reply|fn packet_socket|fn ethtool_off|const GATEWAY_MAC|const GUEST_MAC|enum Wire \{|enum Frame \{" -- crates src
+cargo clippy -q --workspace --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -q --no-deps -p podnet-netns
+cargo test -q -p podnet-netns
+sh scripts/ci/root-netns-tests.sh
+cargo test -q -p podnet-core -p podnet-serve -p podnet-vnet --lib
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test pod_seccomp --test pod_seccomp_tcp --test pod_seccomp_dgram --test pod_seccomp_fds --test pod_seccomp_handoff --test pod_seccomp_nonblock --test pod_seccomp_rules --test pod_seccomp_slow_dial --test pod_seccomp_diff --test pod_backend_line --test pod_usage --test af_inet_kernel --test doctor --test docs --test api_surface
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"

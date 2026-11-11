@@ -10,11 +10,12 @@
 //!   ([`table`]), and answers ([`reply`]: the seam; [`reply::Recorded`]
 //!   stands in for the kernel in a test, and a memfd for the memory).
 //! * The netns hold (`enforced`): the payload runs in a new network
-//!   namespace whose only route is a TUN that the supervisor holds
-//!   ([`netns`]).
+//!   namespace whose only route is a wire that the supervisor holds: a
+//!   TUN, else a veth pair and its packet socket ([`netns`],
+//!   [`netns::Wire`]).
 //!
 //! The decisions (where a connect goes, the rules, the relays, the stack
-//! on the TUN) are the consumer's. The crate reads no environment
+//! on the wire) are the consumer's. The crate reads no environment
 //! variable, prints nothing and keeps no global state.
 //!
 //! Linux only: on another target the crate is empty.
