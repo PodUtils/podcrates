@@ -62,10 +62,11 @@ numbers. `TODO/RULES.md` gives the rules.
 | #54 | COORD-029: podcrates v0.15.0 is released: podssh takes pod-wormhole and pod-session; podnet takes pod-hold; podvm moves its pod-enter calls (to all) | closed (podssh `6f78a7c7`, podnet `b759937`, podvm `d9fe511`) | T-020, T-022, T-155, T-166 |
 | #55 | COORD-030: the owner named podrunner (DR-1 and DR-2 are yes); podnet comes first: take pod-hold, start PodUtils/podnet@T-229 to PodUtils/podnet@T-231, two questions on the cut (to podnet) | open | T-166, T-169, T-170 |
 | #56 | COORD-031: the owner's DR-5: podrunner waits for PodUtils/podvm@T-1656, and podvm must support incus or have an adapter for it; the answer to COORD-023 (to podvm) | closed | T-173 |
-| #57 | COORD-032: podcrates v0.16.0 is released: podrunner takes pod-supervise and pod-broker; podvm takes the tree kill and the private modes; podnet and podssh may move the tag (to all) | open | T-157, T-160, T-162, T-175 |
-| #58 | COORD-033: podcrates v0.17.0 is released: podrunner takes pod-job and the mutual TLS of pod-tls; podvm takes the limits of pod-enter (to all) | open | T-163, T-164, T-165, T-176 |
+| #57 | COORD-032: podcrates v0.16.0 is released: podrunner takes pod-supervise and pod-broker; podvm takes the tree kill and the private modes; podnet and podssh may move the tag (to all) | closed | T-157, T-160, T-162, T-175 |
+| #58 | COORD-033: podcrates v0.17.0 is released: podrunner takes pod-job and the mutual TLS of pod-tls; podvm takes the limits of pod-enter (to all) | closed | T-163, T-164, T-165, T-176 |
 | #59 | COORD-034: the take of pod_hold::connect and pod_hold::packet: adoption/podnet/pod-hold-connect.patch (to podnet) | closed | T-169, T-170 |
-| #60 | COORD-035: podcrates v0.18.0 is released: podrunner takes the names mode of pod-broker and the schema rule; podssh takes three tunnels, the key of ssh-j and Rewound::new (to all) | open | T-161, T-171, T-172, T-173, T-177, T-178, T-181 |
+| #60 | COORD-035: podcrates v0.18.0 is released: podrunner takes the names mode of pod-broker and the schema rule; podssh takes three tunnels, the key of ssh-j and Rewound::new (to all) | closed | T-161, T-171, T-172, T-173, T-177, T-178, T-181 |
 | #61 | COORD-036: the cut of pod-netstack (the userspace TCP and UDP stack on smoltcp 0.14): which files of podnet, and when (to podnet) | closed | T-023, T-170 |
-| #62 | COORD-037: podcrates v0.19.0 is released: podvm takes the library directories of the image (podvm#247); pod-broker refuses a raw byte in a path (to all) | open | T-142, T-149, T-152, T-182, T-183, T-184 |
+| #62 | COORD-037: podcrates v0.19.0 is released: podvm takes the library directories of the image (podvm#247); pod-broker refuses a raw byte in a path (to all) | closed | T-142, T-149, T-152, T-182, T-183, T-184 |
 | #63 | COORD-038: podcrates takes the incus client as pod-incus (T-179), for the tag v0.21.0 (to podvm) | open | T-179 |
+| #64 | COORD-039: podcrates v0.20.0 is released: podnet takes pod-netstack; podssh takes the key of localhost-run, sandhole and openbare-xyz (to all) | open | T-023, T-185, T-186, T-187, T-188 |

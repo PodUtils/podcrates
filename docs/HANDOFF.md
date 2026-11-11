@@ -8,75 +8,39 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.19.0` is at `9a11bbd` (`docs/releases/v0.19.0.md`; the
-  hand-off GitHub #62). `v0.18.0` is at `c284d3a` (#60). The import of
-  `pod-netstack` (T-023, the cut of PodUtils/podnet#427) is under way.
+- The release `v0.20.0` is at `4daf31c` (`docs/releases/v0.20.0.md`; the
+  hand-off GitHub #64). `v0.19.0` is at `9a11bbd` (#62). On `main` for
+  `v0.21.0`: `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63), T-195
+  and T-196 (the fix of PodUtils/podnet#444, ported).
 - The consumers and the tag each takes:
-  - podssh: `v0.18.0` (`50ef8922`; T-171, T-172 and T-181 taken, the key
-    of `ssh-j` pinned; PodUtils/podssh#186 closed). `pod-wormhole` at
-    `baa00a06`, `pod-session` at `6f78a7c7`.
-  - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its
-    `connect` and `packet` at `e4d4049`, PodUtils/podnet#426; it released
-    `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.
-  - podvm: `v0.19.0` (`2c2b8d2`; PodUtils/podvm#249, read by podcrates;
-    T-182 proved by its experiment 356, clause 32).
-  - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`, its
-    `taken` line is in `crates/pod-job/SOURCES`; its T-048 at `6f24681`
-    takes `check_upstream`, `names_upstream` and the flagged rules). Its
-    state (head `fa374d7`): the donor proposals of PodUtils/podnet#439 and
-    #440 done as its #54 to #60; the official runner runs the job corpus
-    of `pod-job` on its fake path; no crate ask for podcrates; the rest
-    waits for a release of podvm or DR-7. It uses `pod_tls::mutual` for its
-    remote mint (its T-031) and the pin `github-actions-runner` of
-    `pod-services` for its runner image (its T-030). Next: `v0.18.0`
-    (T-161, T-177, T-178). An open defect of podvm that podrunner found:
+  - podssh: `v0.18.0` (`50ef8922`; `pod-wormhole` at `baa00a06`,
+    `pod-session` at `6f78a7c7`). Next: `v0.20.0` (T-185, T-186, T-187).
+  - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its `connect`
+    and `packet` at `e4d4049`). Next: `pod-netstack` of `v0.20.0` by
+    `adoption/podnet/pod-netstack.patch` (#64; its `tests/tcp_window.rs`
+    and T-188, call C53); then step 2 of T-170 after podnet's COORD issue.
+  - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (its
+    PodUtils/podvm@T-1718).
+  - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
+    Its state (head `fa374d7`): no crate ask; the rest waits for a release
+    of podvm or DR-7. An open defect of podvm that podrunner found:
     PodUtils/podrunner#49 (`podvm wait` gives no exit code for a payload
-    that ends at once; to podvm, on break).
+    that ends at once; to podvm).
 - podrunner and podssh have lead sessions that this session started
-  (direct messages); podnet and podvm run in their own sessions (COORD
-  issues).
+  (direct messages; `list_sessions`, titles `(podrunner)` and `(podssh)`);
+  podnet and podvm run in their own sessions (COORD issues).
 
 ## In flight
 
-- podrunner (the rulings of 2026-11-11, C49): a lead session of
-  PodUtils/podrunner runs, which this session started and briefed; the two
-  talk by direct messages (`send_message`). Its index is
-  PodUtils/podrunner#1. podcrates builds T-161, T-177, T-178 and T-164
-  in the order of its need (T-160, T-162 and T-163 are done; podrunner
-  takes `pod-job` at the next tag). A new session of podcrates finds the
-  session id of podrunner with `list_sessions` (title `(podrunner)`).
-- podssh: a lead session that this session started on 2026-11-11 (title
-  `(podssh)`); direct messages. Its next step: the takes of `pod-wormhole`
-  and `pod-session` (#54).
-- podnet and podvm run in their own sessions and answer COORD issues.
-  podvm resumed (PodUtils/podvm#241): it takes `v0.15.0` (T-155) and asked
-  for four fuzz targets (T-173).
-- Two study agents of this session: the note on pmask (the ruling
-  "podrunner DR-6 and pmask") and the note on the owner's archive
-  `ghactions-local` (the ruling "Q11"). Each note goes to
-  `docs/research/` and to podrunner.
-
-- T-020 `pod-session`, T-022 `pod-wormhole`: released in `v0.15.0` (the
-  trials and the cross tests passed); podssh's take remains (#54). podnet
-  took `pod-hold` (T-166 done); podvm took `v0.15.0` with T-155
-  (PodUtils/podvm#242). podnet
-  answered T-169 yes and T-170 yes in two steps (PodUtils/podnet#424).
-  When a consumer writes
-  its take as a COORD issue `(to podcrates)`: add the `taken` line to the
-  crate's `SOURCES` (`check-sources.py` with clones must show 0 changes),
-  remove the trial files of that consumer, set the entry to done, close
-  #54 when each consumer took its part.
-- T-171 and T-172: the last asks of podssh before the pause (PodUtils/podssh#186): three services of
-  `pod-services` and `Rewound::new` of `pod-session`; read each fact again
-  at its source before the data.
-- T-023 `pod-netstack` (the cut of PodUtils/podnet#427) is on `main` for
-  `v0.20.0`. Its hand-off to podnet is `adoption/podnet/pod-netstack.patch`
-  (tag `v0.20.0`). After the release, tell podnet in a COORD issue
-  `(to podnet)`: the stack of podnet-vnet drops the bytes of a receive when
-  the channel to the app is full (a slow reader gets a stream with a hole;
-  the crate fixes it), and `warp --cc reno|cubic` is slow on smoltcp 0.14
-  (T-188). At podnet's take, add the `taken` line to
-  `crates/pod-netstack/SOURCES` and remove the trial files.
+- At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
+  the hand-off): add the `taken` line to the crate's `SOURCES`
+  (`check-sources.py` with clones must show 0 changes), remove the trial
+  files of that consumer, set the entry to done, and close the hand-off
+  issue when each consumer took its part.
+- `pod-netstack` (#64): at podnet's take, add the `taken` line to
+  `crates/pod-netstack/SOURCES` and remove `adoption/podnet/pod-netstack.*`.
+- `v0.21.0`: `pod-incus` for podvm (#63). Release it when `ci` is green
+  at the head, then answer #63.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".

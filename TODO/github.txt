@@ -61,10 +61,11 @@
 54 issue closed
 55 issue open
 56 issue closed
-57 issue open
-58 issue open
+57 issue closed
+58 issue closed
 59 issue closed
-60 issue open
+60 issue closed
 61 issue closed
-62 issue open
+62 issue closed
 63 issue open
+64 issue open

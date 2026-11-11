@@ -4,15 +4,12 @@
 
 ## State
 
-- The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
-  `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.19.0` at `9a11bbd` (`docs/releases/v0.19.0.md`; ci
-  42965065077, fuzz 42965096343, live 42965092130, release 42969794293,
-  the dry run of `publish.yml` 42969842145 green): the library
-  directories of the image in `pod-enter` (PodUtils/podvm#247), the
-  emulator check by the name of the process, the two crashes of
-  `fuzz.yml`, XHTTP in `proxy-banner`, a live pull of `pod-oci`. The
-  hand-off is GitHub #62 (COORD-037); the one of `v0.18.0` is #60.
+- `docs/HANDOFF.md` has what is in flight and what waits.
+- Last release: `v0.20.0` at `4daf31c` (`docs/releases/v0.20.0.md`; ci
+  42974118869, the trial of podnet 42973424539, release 42979977466, the
+  dry run of `publish.yml` 42980135318 green): `pod-netstack` (T-023), the
+  key of `localhost-run`, `sandhole` and `openbare-xyz` in `pod-services`.
+  The hand-off is GitHub #64 (COORD-039); the one of `v0.19.0` is #62.
 - The consumers: podssh is on `v0.18.0` (`50ef8922`: the tunnels of
   T-171, `Rewound::new`, the key of `ssh-j` pinned; it took `pod-wormhole`
   at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
@@ -54,12 +51,12 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects of the consumers:** none open.
-2. **podrunner** (PodUtils/podrunner#1): the names mode of `pod-broker`,
-   the one version rule of `schemas/` and the `policy` of an offer go out
-   with the next tag (`docs/HANDOFF.md`). T-146 tracks the plan. Each new ask of the
-   podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-170 step 2 after podnet's COORD issue; T-150, T-121 to
-   T-124 (the asks of podnet).
+2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
+   tracks the plan. Each new ask of the podrunner session becomes an
+   entry here, in the order of its need.
+3. **podnet:** its take of `pod-netstack` (GitHub #64); T-170 step 2
+   after podnet's COORD issue; T-150, T-121 to T-124 (the asks of
+   podnet).
 4. **M6, the crates of podvm:** `pod-incus` (PodUtils/podvm#253) goes out with the
    next tag; podvm's PodUtils/podvm@T-1718 moves to it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
