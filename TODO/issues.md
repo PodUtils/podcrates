@@ -49,18 +49,18 @@ numbers. `TODO/RULES.md` gives the rules.
 | #41 | COORD-017: podcrates v0.8.0 is released: each tag to v0.8.0; podvm takes pod-supervise (to all) | closed (podnet `0df677d`, podssh `0e3c9eaf`, podvm `989f35b`) | T-060, T-086, T-101, T-125, T-126, T-127, T-128 |
 | #42 | COORD-018: pod-proxy holds the SOCKS5 datagram path of podnet-netns upstream.rs: those lines are frozen (to podnet) | closed (podnet recorded the freeze, PodUtils/podnet#416) | T-083 |
 | #43 | COORD-019: podcrates v0.9.0 is released: each tag to v0.9.0; podvm takes pod-guest and pod-enter (to all) | closed (podvm `423e817`, podnet `191f2b4`, podssh `d4b03aa7`) | T-059, T-061, T-083, T-132, T-134, T-135, T-136 |
-| #44 | COORD-020: the answers to podssh#175 (no public Wisp server qualifies) and #177 (the proxy lists and nodes) (to podssh) | open | T-130, T-133 |
+| #44 | COORD-020: the answers to podssh#175 (no public Wisp server qualifies) and #177 (the proxy lists and nodes) (to podssh) | closed (T-130 and T-133 done, `c4c9197`; no step remains for podssh) | T-130, T-133 |
 | #45 | COORD-021: podcrates v0.10.0 is released: each tag to v0.10.0; podvm takes pod-oci (to all) | closed (podnet `3a9317b`, podvm `20ea781`, podssh `49cb5c8c`) | T-056, T-057, T-133, T-139, T-141 |
 | #46 | COORD-022: podcrates v0.11.0 is released: podvm takes pod-extract and pod-rootfs; the others may move the tag (to all) | closed (podnet `740eb0b`, podvm `0682c0c`, podssh `dc112ea7`) | T-057, T-058, T-139, T-141 |
-| #47 | Tracker: run GitHub CI (and other CI) on any machine: podrunner, pod-dockerapi and the podvm path | open | T-146 |
-| #48 | COORD-023: podcrates v0.12.0 is released: podvm moves to the table of path maps (#224); the others may move the tag (to all) | open | T-137, T-144, T-145, T-148 |
+| #47 | Tracker: run GitHub CI (and other CI) on any machine: podrunner, pod-dockerapi and the podvm path | open (the tracker of T-146; PodUtils/podrunner#1 holds the plan) | T-146 |
+| #48 | COORD-023: podcrates v0.12.0 is released: podvm moves to the table of path maps (#224); the others may move the tag (to all) | closed (podvm on `v0.22.0`, `c9d5038`, PodUtils/podvm#262) | T-137, T-144, T-145, T-148 |
 | #49 | COORD-024: podcrates v0.13.0 is released: podssh and podnet take pod-ws (to all) | closed (podnet `5eace6e`, podssh `a083593e`) | T-016 |
 | #50 | COORD-025: podcrates v0.14.0 is released: podssh and podnet take pod-quic; podssh reads serveo, ssh-j and croc (to all) | closed (podssh `525f8907`, podnet `b7b0aef`) | T-019, T-153, T-156 |
 | #51 | COORD-026: the asks of podvm#227 are record entries that wait for DR-1 and DR-2 (to podvm) | closed | T-160, T-161, T-162, T-163, T-164, T-165 |
 | #52 | COORD-027: pod-enter: the volume of a missing -w and the reserved guest paths in Maps::new (T-155, PodUtils/podvm#226) (to podvm) | closed | T-155 |
 | #53 | COORD-028: the owner pauses each session after its last runs; update the hand-off documents first (to all) | closed | T-020, T-022, T-166 |
 | #54 | COORD-029: podcrates v0.15.0 is released: podssh takes pod-wormhole and pod-session; podnet takes pod-hold; podvm moves its pod-enter calls (to all) | closed (podssh `6f78a7c7`, podnet `b759937`, podvm `d9fe511`) | T-020, T-022, T-155, T-166 |
-| #55 | COORD-030: the owner named podrunner (DR-1 and DR-2 are yes); podnet comes first: take pod-hold, start PodUtils/podnet@T-229 to PodUtils/podnet@T-231, two questions on the cut (to podnet) | open | T-166, T-169, T-170 |
+| #55 | COORD-030: the owner named podrunner (DR-1 and DR-2 are yes); podnet comes first: take pod-hold, start PodUtils/podnet@T-229 to PodUtils/podnet@T-231, two questions on the cut (to podnet) | closed (podnet `b759937`, `e4d4049`; T-170 step 2 waits, #74) | T-166, T-169, T-170 |
 | #56 | COORD-031: the owner's DR-5: podrunner waits for PodUtils/podvm@T-1656, and podvm must support incus or have an adapter for it; the answer to COORD-023 (to podvm) | closed | T-173 |
 | #57 | COORD-032: podcrates v0.16.0 is released: podrunner takes pod-supervise and pod-broker; podvm takes the tree kill and the private modes; podnet and podssh may move the tag (to all) | closed | T-157, T-160, T-162, T-175 |
 | #58 | COORD-033: podcrates v0.17.0 is released: podrunner takes pod-job and the mutual TLS of pod-tls; podvm takes the limits of pod-enter (to all) | closed | T-163, T-164, T-165, T-176 |
@@ -71,13 +71,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #63 | COORD-038: podcrates takes the incus client as pod-incus (T-179), for the tag v0.21.0 (to podvm) | closed | T-179 |
 | #64 | COORD-039: podcrates v0.20.0 is released: podnet takes pod-netstack; podssh takes the key of localhost-run, sandhole and openbare-xyz (to all) | closed | T-023, T-185, T-186, T-187, T-188 |
 | #65 | COORD-040: podcrates v0.21.0 is released: podvm takes pod-incus; pod-core and pod-identity hold one store and one pin at a time; the socket of pod-broker has its mode at once (to all) | closed | T-179, T-195, T-196 |
-| #66 | COORD-041: Reno and CUBIC on smoltcp 0.14 are slow only on a link with one ACK for each round trip (T-188): podnet keeps CongestionControl::None; warp --cc (to podnet) | open | T-188, T-197 |
+| #66 | COORD-041: Reno and CUBIC on smoltcp 0.14 are slow only on a link with one ACK for each round trip (T-188): podnet keeps CongestionControl::None; warp --cc (to podnet) | closed (no step remains; T-197 stays open) | T-188, T-197 |
 | #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | closed | T-024 |
-| #68 | COORD-043: the answer to PodUtils/podnet#446: register.rs and route.rs need no port; keep the veth wire in veth.rs (T-201) (to podnet) | open | T-201 |
-| #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open | T-108 |
-| #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open | T-206, T-207 |
+| #68 | COORD-043: the answer to PodUtils/podnet#446: register.rs and route.rs need no port; keep the veth wire in veth.rs (T-201) (to podnet) | closed (no step remains; T-201 waits, #74) | T-201 |
+| #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open (podvm's take of `pod-confine` waits) | T-108 |
+| #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open (T-206 in `v0.24.0`; T-207 waits) | T-206, T-207 |
 | #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | closed | T-021, T-024, T-202, T-205 |
-| #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open | T-108, T-208 |
-| #73 | COORD-048: v0.24.0: the module set of a guest from its modloop; gcr.io, mirror.gcr.io and the NIC module sums in pod-services (to podvm, to all) | open | T-206, T-211 |
+| #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open (podvm's takes wait) | T-108, T-208 |
+| #73 | COORD-048: v0.24.0: the module set of a guest from its modloop; gcr.io, mirror.gcr.io and the NIC module sums in pod-services (to podvm, to all) | open (podvm and podnet wait) | T-206, T-211 |
 | #74 | COORD-049: the answer to PodUtils/podnet#449, #450 and #451: the freeze is in the record; WARP as a network in T-028; T-214 and T-215 for the file transfer and the mailbox server (to podnet) | open | T-026, T-028, T-029, T-170, T-201, T-214, T-215 |
 | #75 | COORD-050: the answer to PodUtils/podnet#452 and #453: the hint words and the traits are in T-214 and T-028; pod-git is T-217 to T-220 (to podnet) | open | T-028, T-214, T-217, T-218, T-219, T-220 |
