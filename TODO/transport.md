@@ -3431,9 +3431,58 @@ The tests:
   unprivileged test asks for it. Its result answers the Inferred question
   of the review.
 
-# T-198: `pod-services`: the form of the connect of `openbare-xyz` (podssh's message, 2026-11-11)
+# T-198: `pod-services`: the WebSocket of `openbare-xyz` fails (podssh's messages, 2026-11-11)
 
-**Source:** podssh's message of 2026-11-11 to podcrates (its take of `v0.21.0`, PodUtils/podssh#189)
+**Source:** podssh's messages of 2026-11-11 to podcrates (its take of `v0.21.0`, PodUtils/podssh#189; its live run 42994885604)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`openbare-xyz` names the kind `bare-node`, the protocol `bare-v3` and an
+edge that says `features.websocket: true`. podssh's live road found that
+no WebSocket passes the edge: the connect form of BareServerV3.md got 400,
+and with the header `X-Bare-URL` each upgrade ends in 500. A consumer that
+reads the service tries a hop that cannot carry a byte.
+
+## Premise
+
+- Read: podssh's two messages; its live run 42994885604 ("WebSocket
+  Constructor: The protocol header token is invalid"); nirholas/openbare
+  `edge/src/websocket.js` at `65a4d8d`, as podssh names it (the edge calls
+  `new WebSocket(url, {headers})` on Workers, where the second argument
+  is the protocols). The licence of openbare is proprietary: read, copy
+  nothing.
+- The watch `websocket-upgrade` asserts 101 only; no watch kind asserts an
+  upgrade that fails.
+
+## Approach
+
+A fact `websocket-upgrade` (`500`) of `openbare-xyz` with podssh's run as
+its source; a test; the row of the README. A public Bare node whose
+WebSocket works is T-200.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+## Done
+
+2026-11-11. `services/openbare-xyz.toml` has the fact `websocket-upgrade`
+(`500`, the source podssh's run 42994885604 and the line of openbare's
+edge), with a comment that no WebSocket passes the edge; the README row
+names it; `the_bare_node_of_openbare_is_a_bare_v3_endpoint` reads it.
+`cargo test -p pod-services --all-features` passes. The fact
+`connect-form` of the first approach is not written: no form passes.
+
+# T-200: `pod-services`: a public Bare node whose WebSocket passes (PodUtils/podssh@T-740)
+
+**Source:** T-198; podssh's message of 2026-11-11 (PodUtils/podssh@T-740 is blocked until a `bare-node` passes its live job)
 **Category:** feature
 **Milestone:** M1
 **Priority:** P3
@@ -3442,26 +3491,25 @@ The tests:
 
 ## Problem
 
-`openbare.xyz` refuses the connect form of TompHTTP's Bare v3 with 400 and
-wants the header `X-Bare-URL` on the WebSocket upgrade. `openbare-xyz`
-names the kind `bare-node` and the protocol `bare-v3` only, so a consumer
-that reads the service speaks the form that the node refuses. podssh
-found it on its live road and now speaks both forms.
+podssh's last WebSocket hop needs a public TompHTTP Bare server whose
+upgrade gives 101 and carries bytes. The one node of the data,
+`openbare-xyz`, gives 500 on each upgrade (T-198).
 
 ## Premise
 
-- Read: podssh's message; `services/openbare-xyz.toml`; tomphttp/specifications
-  `BareServerV3.md` at `e27d6370b816`.
-- Not read: the commit of podssh that speaks both forms; the source of
-  openbare at `da38032de3a0` for the header (its licence is proprietary:
-  read it, copy nothing).
+- Read: `services/openbare-xyz.toml`; T-187 and T-198.
+- Not read: the lists of public Bare servers (tomphttp's own list, the
+  lists of the proxy front ends that use Bare), and their licences.
 
 ## Approach
 
-A fact `connect-form` of `openbare-xyz` (`x-bare-url`), with podssh's
-commit as its source, and a watch that sees it each day if a request can
-show it (an upgrade with the header gets 101, one with the connect form
-gets 400); a row of the README; the test of the service.
+Read the public lists, pick nodes that need no account and pass the rules
+of T-133 (443 with TLS, no refused suffix, no name of another party),
+add each as a `bare-node` with a watch `websocket-upgrade` and a watch
+that carries GitHub's SSH banner through it, run `services.yml` on two
+days, keep the ones that pass both days, and tell podssh the ids. If none
+passes, write that on PodUtils/podssh@T-740's ask and keep the entry
+open.
 
 ## Prove
 

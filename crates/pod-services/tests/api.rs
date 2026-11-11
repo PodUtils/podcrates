@@ -292,6 +292,8 @@ fn the_bare_node_of_openbare_is_a_bare_v3_endpoint() {
     let bare = node.endpoint("bare").unwrap();
     assert_eq!((bare.scheme(), bare.host(), bare.port(), bare.path()), ("https", "openbare.xyz", 443, Some("/bare/")));
     assert_eq!((node.text("service"), node.text("protocol")), (Some("openbare-edge"), Some("bare-v3")));
+    // The edge claims WebSocket, but each upgrade ends in 500 (T-198).
+    assert_eq!(node.text("websocket-upgrade"), Some("500"));
     for fact in ["service", "protocol"] {
         let watched = node
             .watches()

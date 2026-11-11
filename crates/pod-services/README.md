@@ -229,7 +229,7 @@ let relay = services.of_kind("relay").next();
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run) |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `host-key-sha256` (read by podssh's live run) |
 | `sandhole` | `ssh-tunnel` | `ssh`, `ssh-443` (plain SSH on the HTTPS port) | `host-key-sha256`, `tunnel-zone` |
-| `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol` |
+| `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
 | `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |

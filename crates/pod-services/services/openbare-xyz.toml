@@ -25,6 +25,13 @@ name = "protocol"
 value = "bare-v3"
 source = { measured = "GET https://openbare.xyz/ answered \"protocol\":\"bare-v3\"; GET https://openbare.xyz/bare/ answered \"versions\":[\"v1\",\"v2\",\"v3\"]", read = 2026-11-11, note = "the protocol is tomphttp/specifications BareServerV3.md at e27d6370b816" }
 
+# The edge says `features.websocket: true`, but no WebSocket passes it: a
+# client cannot use this node as a WebSocket hop until the edge changes.
+[[fact]]
+name = "websocket-upgrade"
+value = "500"
+source = { measured = "podssh's live run 42994885604: each WebSocket upgrade through the edge ends in 500, \"WebSocket Constructor: The protocol header token is invalid\"", read = 2026-11-11, note = "nirholas/openbare edge/src/websocket.js at 65a4d8d calls new WebSocket(url, {headers}) on Workers, where the second argument is the protocols; before that, the connect form of BareServerV3.md got 400 and the node wanted X-Bare-URL on the upgrade" }
+
 [[watch]]
 kind = "http-json"
 url = "https://openbare.xyz/"
