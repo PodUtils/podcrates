@@ -1,0 +1,31 @@
+# The hosted server of localtunnel: a last fallback of podssh
+# (PodUtils/podssh@T-568). A client asks the API for a tunnel; each tunnel
+# is a name under the tunnel zone.
+id = "localtunnel"
+kind = "localtunnel"
+party = "localtunnel (localtunnel/localtunnel)"
+about = "The hosted server of localtunnel, which needs no account"
+
+# GET / redirects to the site; GET /?new makes a tunnel. No watch asks
+# for a tunnel.
+[[endpoint]]
+name = "api"
+scheme = "https"
+host = "localtunnel.me"
+port = 443
+source = { url = "https://github.com/localtunnel/localtunnel/blob/decafd5c0fce/lib/Tunnel.js", read = 2026-11-11, note = "this.opts.host = 'https://localtunnel.me'; const uri = baseUri + (assignedDomain || '?new')" }
+
+[[fact]]
+name = "tunnel-zone"
+value = "loca.lt"
+source = { measured = "a name under loca.lt resolves to the address of localtunnel.me, 193.34.76.44 (DoH of Cloudflare)", read = 2026-11-11, note = "podssh read the tunnel URLs https://NAME.loca.lt (PodUtils/podssh#186)" }
+
+[[watch]]
+kind = "github-file"
+repo = "localtunnel/localtunnel"
+path = "lib/Tunnel.js"
+endpoint = "api"
+
+[[watch]]
+kind = "rdap"
+domain = "localtunnel.me"

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**180 entries: 57 open, 3 partial, 0 blocked, 120 done.**
+**181 entries: 54 open, 3 partial, 0 blocked, 124 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 26 | 3 | 0 | 58 | 87 |
-| P3 | 14 | 0 | 0 | 20 | 34 |
-| **All** | 57 | 3 | 0 | 120 | 180 |
+| P2 | 24 | 3 | 0 | 60 | 87 |
+| P3 | 13 | 0 | 0 | 22 | 35 |
+| **All** | 54 | 3 | 0 | 124 | 181 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -217,9 +217,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |
 | [T-169](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
 | [T-170](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
-| [T-171](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
-| [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
-| [T-173](podvm.md) | P2 | M | M6 | feature | open | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |
+| [T-171](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
+| [T-172](transport.md) | P3 | S | M2 | feature | done | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
+| [T-173](podvm.md) | P2 | M | M6 | feature | done | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |
 | [T-174](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Trojan node of the lists that passes the live check |
 | [T-175](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244) |
 | [T-176](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245) |
@@ -227,3 +227,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-178](fleet.md) | P2 | S | M8 | defect | done | `pod-job`: the `policy` of an offer is a `broker-policy.v1` policy |
 | [T-179](fleet.md) | P3 | M | M7 | feature | open | `pod-incus`: a client of the incus REST API (the owner's name, 2026-11-11) |
 | [T-180](fleet.md) | P3 | M | M8 | feature | open | `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11) |
+| [T-181](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11) |

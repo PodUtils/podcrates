@@ -29,7 +29,7 @@ handshake and what the layer defends against.
 | `secret` | `SessionId`, `Nonce`, `Proof`, `Secret`, `derive`, `prove`, `verify`; `Entropy`, `OsEntropy`, `NoRandom` of `pod-core` |
 | `handshake` | `ClientHandshake`, `FarHandshake`, `Established`, `Ask`, `Step`, `HandshakeError` (sans-IO) |
 | `link` | `Link` (a session past its handshake, record by record), `Event`, `LinkError`, `LinkParts` |
-| `client`, `far` | the two ends over tokio streams: `client::start`, `Client`, `Outcome`; `far::accept`, `accept_with_room`, `serve`, `serve_admitted`, `Accepted`, `FarError` |
+| `client`, `far` | the two ends over tokio streams: `client::start`, `Client`, `Outcome`, `Rewound` (`Rewound::new(first, link)`: the link with bytes that a router read given back first); `far::accept`, `accept_with_room`, `serve`, `serve_admitted`, `Accepted`, `FarError` |
 | `pump` | one link of a session: `run`, `Carry`, `Watch`, `End`, `Ended`, `PING_EVERY`, `DEAD_AFTER` |
 | `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`); the spare link; the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
 | `keep`, `budget`, `sessions` | `Keeper` (the far end's sessions across links: `new`, `with_tell`, `census`, `admit`, `run_new`, `run_resumed`, `hand_over`, `hand_over_with`, `take_over`); `Census`, `Told`, `Tell`, `refusal`, `filling`, `holders` |

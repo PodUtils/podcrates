@@ -226,7 +226,10 @@ let relay = services.of_kind("relay").next();
 | `node-*` (2) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `host-key-sha256` (Ed25519) |
-| `ssh-j` | `ssh-tunnel` | `ssh` | |
+| `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run) |
+| `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key) |
+| `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
+| `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
 | `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |

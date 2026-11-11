@@ -1,0 +1,29 @@
+# localhost.run's SSH tunnels: a last fallback of podssh
+# (PodUtils/podssh@T-565), a free HTTP tunnel with no account and no key.
+# No host key is published: podssh's live run reads it.
+id = "localhost-run"
+kind = "ssh-tunnel"
+party = "localhost.run"
+about = "localhost.run's SSH tunnels: a free HTTP tunnel with no account and no SSH key"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "localhost.run"
+port = 22
+source = { url = "https://localhost.run/docs/cli", read = 2026-11-11, note = "ssh -R 80:localhost:8080 localhost.run (the default port of ssh)" }
+
+# The user of a free tunnel with no key; a free name changes after a few
+# hours.
+[[fact]]
+name = "user"
+value = "nokey"
+source = { url = "https://localhost.run/docs/faq", read = 2026-11-11, note = "For free tunnels, skip the key check with the nokey user: ssh -R 80:localhost:8080 nokey@localhost.run" }
+
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"
+
+[[watch]]
+kind = "rdap"
+domain = "localhost.run"

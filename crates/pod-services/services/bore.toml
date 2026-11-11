@@ -1,0 +1,42 @@
+# The public server of bore: a last fallback of podssh
+# (PodUtils/podssh@T-569). A client sends Hello on the control port and
+# gets a random public port of bore.pub.
+id = "bore"
+kind = "tcp-tunnel"
+party = "Eric Zhang (ekzhang/bore), on DigitalOcean"
+about = "The public bore server: a TCP tunnel with no account"
+
+[[endpoint]]
+name = "control"
+scheme = "tcp"
+host = "bore.pub"
+port = 7835
+source = { url = "https://github.com/ekzhang/bore/blob/00a735a89917/src/shared.rs", read = 2026-11-11, note = "pub const CONTROL_PORT: u16 = 7835; the README: bore local 8000 --to bore.pub" }
+
+[[fact]]
+name = "control-port"
+value = 7835
+source = { url = "https://github.com/ekzhang/bore/blob/00a735a89917/src/shared.rs", read = 2026-11-11, note = "pub const CONTROL_PORT: u16 = 7835" }
+
+# The server ends each tunnel after 24 hours.
+[[fact]]
+name = "tunnel-hours"
+value = 24
+unit = "h"
+source = { url = "https://github.com/ekzhang/bore/issues/150", read = 2026-11-11, note = "I instituted a 24 hour timeout to mitigate attacks like this" }
+
+[[watch]]
+kind = "github-file"
+repo = "ekzhang/bore"
+path = "src/shared.rs"
+facts = ["control-port"]
+
+[[watch]]
+kind = "github-file"
+repo = "ekzhang/bore"
+path = "README.md"
+endpoint = "control"
+
+[[watch]]
+kind = "rdap"
+domain = "bore.pub"

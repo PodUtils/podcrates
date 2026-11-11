@@ -237,3 +237,28 @@ fn pinggy_has_ssh_inside_tls_and_its_host_key() {
     assert_eq!(watch.arg("endpoint").and_then(|v| v.as_text()), Some("ssh"));
     assert_eq!(watch.arg("fact").and_then(|v| v.as_text()), Some("host-key-sha256"));
 }
+
+/// The three last fallbacks of podssh of T-171 (PodUtils/podssh#186): each
+/// endpoint, each fact, and a watch that runs with no tunnel.
+#[test]
+fn the_tunnels_of_localhost_run_localtunnel_and_bore() {
+    let lhr = pod_services::get("localhost-run").expect("localhost-run");
+    let ssh = lhr.endpoint("ssh").unwrap();
+    assert_eq!((lhr.kind(), ssh.scheme(), ssh.host(), ssh.port()), ("ssh-tunnel", "ssh", "localhost.run", 22));
+    assert_eq!(lhr.text("user"), Some("nokey"));
+    let lt = pod_services::get("localtunnel").expect("localtunnel");
+    let api = lt.endpoint("api").unwrap();
+    assert_eq!((lt.kind(), api.scheme(), api.host(), api.port()), ("localtunnel", "https", "localtunnel.me", 443));
+    assert_eq!(lt.text("tunnel-zone"), Some("loca.lt"));
+    let bore = pod_services::get("bore").expect("bore");
+    let control = bore.endpoint("control").unwrap();
+    assert_eq!(
+        (bore.kind(), control.scheme(), control.host(), control.port()),
+        ("tcp-tunnel", "tcp", "bore.pub", 7835)
+    );
+    assert_eq!(bore.int("control-port"), Some(i64::from(control.port())));
+    assert_eq!((bore.int("tunnel-hours"), bore.fact("tunnel-hours").unwrap().unit()), (Some(24), Some("h")));
+    for service in [&lhr, &lt, &bore] {
+        assert!(service.watches().iter().any(|w| w.kind() == "rdap"), "{}", service.id());
+    }
+}

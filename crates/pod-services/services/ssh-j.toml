@@ -1,7 +1,7 @@
 # ssh-j.com: a public SSH jump and forward by name, podssh's last fallback
 # (PodUtils/podssh@T-570). The server keys a name by user, address and port,
-# and takes any login. Its host key is not a fact yet: a short live run of
-# podssh reads it.
+# and takes any login. The site publishes no fingerprint: the host key is
+# the one that podssh's live run read.
 id = "ssh-j"
 kind = "ssh-tunnel"
 party = "ssh-j.com"
@@ -18,3 +18,13 @@ source = { url = "https://ssh-j.com/", read = 2026-11-10, note = "ssh any-userna
 [[watch]]
 kind = "ssh-banner"
 endpoint = "ssh"
+
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:EQqn3kjIF8XkXoN40tNJmRRE/eiz+AQmK2EWuEzOz6Y"
+source = { measured = "the run 42954754303 of PodUtils/podssh ssh-j-live.yml on a GitHub runner: greet and 1 MiB down passed; a planted stranger was refused (PodUtils/podssh@T-570)", read = 2026-11-11, note = "https://ssh-j.com/ publishes no fingerprint" }
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"

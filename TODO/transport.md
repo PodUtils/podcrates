@@ -2889,7 +2889,7 @@ now (pure Rust).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2925,6 +2925,32 @@ by hand once (`cargo run -p pod-services-watch -- --service ID`).
 cargo test -p pod-services -p pod-services-watch
 ```
 
+## Done
+
+2026-11-11. Three files under `crates/pod-services/services/`, each fact
+read again at its source on 2026-11-11:
+
+- `localhost-run` (`ssh-tunnel`): endpoint `ssh` `localhost.run:22` (the
+  CLI reference), fact `user` `nokey` (the FAQ: "For free tunnels, skip the
+  key check with the nokey user"). No host key is published. Watches:
+  `ssh-banner` of `ssh`, `rdap` of `localhost.run`.
+- `localtunnel` (`localtunnel`): endpoint `api` `https://localtunnel.me:443`
+  (`lib/Tunnel.js` of localtunnel/localtunnel at `decafd5c0fce`), fact
+  `tunnel-zone` `loca.lt` (measured: a name under `loca.lt` resolves to the
+  address of `localtunnel.me`). Watches: `github-file` of `lib/Tunnel.js`
+  (the host of `api`), `rdap` of `localtunnel.me`. No watch asks for a
+  tunnel (`/?new` makes one).
+- `bore` (`tcp-tunnel`): endpoint `control` `tcp://bore.pub:7835`, facts
+  `control-port` 7835 (`src/shared.rs` of ekzhang/bore at `00a735a89917`)
+  and `tunnel-hours` 24 (ekzhang/bore issue 150; the issue is open, and
+  `bore.pub` resolves on 2026-11-11). Watches: `github-file` of
+  `src/shared.rs` (the fact) and of `README.md` (the host), `rdap` of
+  `bore.pub`.
+
+No new watch kind: a service kind is free text, and each watch is of a
+kind that `pod-services-watch` runs. The README has a row of each. Test:
+`the_tunnels_of_localhost_run_localtunnel_and_bore` (`tests/api.rs`).
+
 # T-172: `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186)
 
 **Source:** PodUtils/podssh#186 (COORD-019 of podssh; PodUtils/podssh@T-568).
@@ -2932,7 +2958,7 @@ cargo test -p pod-services -p pod-services-watch
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2957,6 +2983,15 @@ drops `Replay` when it takes the crate.
 ```sh
 cargo test -p pod-session
 ```
+
+## Done
+
+2026-11-11. `client::Rewound::new(first, link)`; `Client::rewound` uses it.
+The README names it. Tests (`tests/rewound.rs`, 3):
+`a_rewound_link_reads_the_head_again_then_the_rest`,
+`a_small_buffer_reads_the_head_in_parts_and_a_write_reaches_the_link`,
+`an_empty_head_is_the_link_alone`. podssh drops `Replay` when it takes the
+tag.
 
 # T-174: `pod-services`: a public Trojan node of the lists that passes the live check
 
@@ -2994,3 +3029,49 @@ cargo test -p pod-services --test public_carriers
 cargo run -q -p pod-services-watch -- --kind proxy-banner
 ```
 
+
+# T-181: `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11)
+
+**Source:** podssh's message of 2026-11-11 to podcrates (PodUtils/podssh@T-570, the run 42954754303 of `ssh-j-live.yml`)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The service `ssh-j` has no host key. podssh takes the key of `ssh-j.com`
+unpinned, so a road through it trusts the first key that it sees.
+
+## Premise
+
+- Read: podssh's message. Its live run on a GitHub runner read the key
+  `SHA256:EQqn3kjIF8XkXoN40tNJmRRE/eiz+AQmK2EWuEzOz6Y` on 2026-11-11, and
+  the job `live` of the run passed.
+- Read: `https://ssh-j.com/` publishes no fingerprint. The egress of this
+  sandbox has no SSH: the key cannot be read here.
+
+## Approach
+
+Add the fact `host-key-sha256` to `services/ssh-j.toml` with the measured
+source, and the watch `ssh-host-key` of the endpoint `ssh`, as `serveo`
+has. `services.yml` runs the watch on GitHub each day: a wrong or changed
+key is a finding there.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+
+The next run of `services.yml` reads the key and agrees.
+
+## Done
+
+2026-11-11. `services/ssh-j.toml` has the fact `host-key-sha256`
+(`SHA256:EQqn3kjIF8XkXoN40tNJmRRE/eiz+AQmK2EWuEzOz6Y`, measured by the run
+42954754303 of podssh's `ssh-j-live.yml`) and the watch `ssh-host-key` of
+the endpoint `ssh`; the README row names it. `cargo test -p pod-services`
+passes. The first run of `services.yml` after the push reads the key
+again.

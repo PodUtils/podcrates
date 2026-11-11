@@ -152,7 +152,7 @@ impl<L> Greeted<L> {
     /// The link with the bytes read in the wait given back first, for a
     /// handshake that reads them itself (a resume, podssh T-164).
     pub fn rewound(self) -> Rewound<L> {
-        Rewound { first: self.first, at: 0, link: self.link }
+        Rewound::new(self.first, self.link)
     }
 }
 
@@ -161,6 +161,15 @@ pub struct Rewound<L> {
     first: Vec<u8>,
     at: usize,
     link: L,
+}
+
+impl<L> Rewound<L> {
+    /// `link` with `first` read before its own bytes: a router that read
+    /// the head of a request to choose who serves it hands the link on with
+    /// that head first. A write goes to `link`.
+    pub fn new(first: Vec<u8>, link: L) -> Rewound<L> {
+        Rewound { first, at: 0, link }
+    }
 }
 
 impl<L: AsyncRead + Unpin> AsyncRead for Rewound<L> {
