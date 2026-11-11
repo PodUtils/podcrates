@@ -100,6 +100,10 @@ jobs:
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
         run: sh scripts/ci/root-confine-tests.sh
+      # The confinement through the rungs with a chroot of pod-enter (the
+      # tmpfs of the namespace rung, T-227) skips as another user too.
+      - name: The confinement tests of pod-enter as root
+        run: sh scripts/ci/root-enter-confine-tests.sh
       # The netns tests of pod-hold skip for a user here (no user
       # namespace): they run as root. A line SKIP: fails the step.
       - name: Netns tests as root

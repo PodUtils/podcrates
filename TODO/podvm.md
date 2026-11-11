@@ -3807,3 +3807,107 @@ found them stale) and are caught. Breaking: `Spec` has the field
 `keep_caps`, and a confined root payload keeps no capability unless the
 spec names it (`DOCKER_CAPS` for docker's set; keep neither
 `CAP_SYS_ADMIN` nor `CAP_PERFMON`).
+
+# T-227: `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267)
+
+**Source:** PodUtils/podvm#267 (COORD-048 of podvm, found by PodUtils/podvm@T-1658 at `v0.25.0`)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On the namespace rung, a confined payload cannot write `/tmp`, although
+the spec gives `/tmp` read and write. podvm's run at `v0.25.0`:
+
+```text
+$ podvm run --rm --podvm-confine='write=/tmp' busybox:musl sh -c 'echo x > /tmp/a; ls -ld /tmp'
+sh: line 0: can't create /tmp/a: Permission denied
+drwxrwxrwt    2 0        0               40 Nov 11 21:18 /tmp
+```
+
+The `/tmp` of the payload is the tmpfs that the namespace rung mounts in
+the child (size 40, mode 1777); the `/tmp` of the rootfs is a directory
+of mode 1775. The same run with no spec writes `/tmp`. podvm's reading:
+`pod_enter::confine::compile` opens each path of the spec before the fork
+(`Spec::compile_in`, `RESOLVE_IN_ROOT` under the root descriptor), so the
+rule holds the directory of the rootfs; the child then mounts the tmpfs
+on it, and no rule names the root of the tmpfs. Each path that the child
+mounts after the compile has the same defect. podvm asks: open the paths
+of the rules in the child, after its mounts and its root change and
+before `apply` (an `open(O_PATH)` of a prepared path allocates nothing),
+and keep the checks of the compile before the fork (the ABI, the TCP
+list, the count, a missing path refused by name); or take the root of
+each mount that the child makes. podvm recommends the first, as it also
+covers a mount that the caller adds later. podvm's profile `errand` gives
+`?/tmp` write, and podvm takes the tag that has the fix.
+
+## Premise
+
+- Read: `crates/pod-enter/src/launch.rs` (the child of the namespace
+  rung: `unshare(CLONE_NEWNS)`, `/` private and recursive, the tmpfs on
+  the `/tmp` of the image, then the `chroot` by path and the device and
+  inode check), `crates/pod-enter/src/confine.rs` and
+  `crates/pod-confine/src/compile.rs` (the rule keeps the descriptor of
+  the compile). The namespace rung mounts one tmpfs, and no volume and no
+  bind. The caller of a ladder rung makes its mounts before the call, so
+  the compile already sees them.
+- Measured on Linux 6.18.44 (Landlock ABI 7), as root, with a C program:
+  a directory `D/tmp`, and a rule (read and write) on a descriptor of it
+  that opens before a tmpfs mount on it, in a private mount namespace.
+  - No mount: a create in `D/tmp` passes.
+  - A tmpfs on `D/tmp`: with the rule on the directory under the mount,
+    `EACCES`; with a rule on the root of the tmpfs (opened after the
+    mount), it passes; with a rule on `D`, the parent of the mount point,
+    it passes; in a subdirectory of the tmpfs, with the rule on the
+    directory under the mount, `EACCES`.
+  - A bind mount of `D/bsrc` on `D/bdst`: a rule on `bsrc` covers a create
+    in `bdst`; a rule on `bdst` (the directory under the mount) does not
+    (`EACCES`).
+  - After a `chroot` by path into `D`: the same results.
+- The measured cause: the walk of Landlock goes from the root of a mount
+  to its mount point, and continues at the parent of the mount point. It
+  does not read a rule on the mount point itself, which the mount hides
+  (security/landlock/fs.c, `is_access_to_paths_allowed`: after
+  `follow_up`, "Ignores hidden mount points"). Thus a rule on the `/tmp`
+  of the image never covers the tmpfs on it. The mount namespace and the
+  `chroot` by path are not the cause: a descriptor that opens in the
+  namespace of the caller covers its directory in the new namespace (the
+  case with no mount passes after the `unshare`), as the rule holds the
+  inode and not the mount.
+- Call C57 says that the tmpfs "stays under a rule on that directory, as
+  Landlock walks up through the mount point". The measurement disproves
+  it.
+- Not measured: a ladder rung with a confinement.
+
+## Approach
+
+`pod-confine`: each rule keeps its path as a C string from the compile.
+`Compiled::close_paths()` closes the descriptor of each rule after the
+checks of the compile; `Compiled::open_paths()` opens the path of each
+rule with no descriptor as `O_PATH | O_CLOEXEC`, in the view of the
+caller (its mounts and its root), with no allocation. A failed open is a
+`Refusal` with a new call `Call::OpenPath` and the index of the rule. The
+compile keeps its checks. `pod-enter`: the entry closes the descriptors
+after the compile, so that no rule crosses the fork; the child opens the
+paths after the passed descriptors, its mounts, its root change and its
+`chdir`, before the limits and `apply`, on each entry. A refusal goes
+through the readiness pipe as step 15 with the path of its rule. Tests in
+`tests/confine.rs`: the namespace rung with a spec that gives `/tmp`
+write: a write into `/tmp` passes and lands on the tmpfs, and a write
+into `/var` and into `/` of the image fails with `EACCES`; the same on the
+chroot sequence and on the entry with no chroot; a rule on a path that
+the tmpfs hides is a refusal by name. The rungs with a chroot need root:
+a script runs the test binary as root in CI. A plant that keeps the
+descriptors of the compile. A new call corrects call C57.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+cargo test -p pod-enter --all-features --test confine
+sh scripts/ci/root-enter-confine-tests.sh
+sh scripts/plant-each.sh enter-confine-rule-under-a-mount
+```

@@ -126,8 +126,9 @@ pub(crate) fn spawn_with(
     };
 
     // The confinement of the payload, compiled before the banner and the
-    // fork: the child only applies it ([`crate::confine`]).
-    let confined = crate::confine::compile(plan, chroot.then_some(root))?;
+    // fork: the child opens the paths of its rules and applies it
+    // ([`crate::confine`]).
+    let mut confined = crate::confine::compile(plan, chroot.then_some(root))?;
     // The child puts each passed descriptor onto its number first: the
     // root descriptor and the memfd must hold no such number.
     for &(child_fd, _) in &plan.fds.pass {
@@ -262,6 +263,18 @@ pub(crate) fn spawn_with(
                 // before the fork, inside the image relative to the
                 // descriptor above, or inside a volume by its host path.
                 report(11, e);
+            }
+
+            // The paths of the rules open here, in the view of the payload:
+            // after the passed descriptors, the mounts and the root change,
+            // before the limits. Landlock does not read a rule on the
+            // directory under a mount point, so a rule must hold the tmpfs
+            // of the namespace rung, not the `/tmp` of the image under it.
+            if let Some(c) = confined.as_mut()
+                && let Err(r) = c.open_paths()
+            {
+                let _ = sys::write(write_end, &crate::confine::message(r));
+                sys::exit_group(SETUP_FAILED)
             }
 
             // The limits and `no_new_privs` of the payload, after the root

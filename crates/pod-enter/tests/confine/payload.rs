@@ -46,6 +46,24 @@ pub fn payload(args: &[String]) -> i32 {
     0
 }
 
+/// The first argument of the binary as the payload that writes.
+pub const WRITER: &str = "writer";
+
+/// The payload that writes: it makes each file of `paths` and writes
+/// `PATH=RESULT` for each (0, or the negative errno) in one line.
+pub fn writer(paths: &[String]) -> i32 {
+    let mut line = String::new();
+    for p in paths {
+        let made = k::open(&CBuf::new(p).expect("no NUL"), k::O_CREAT | k::O_WRONLY | k::O_CLOEXEC, 0o644);
+        line.push_str(&format!("{p}={} ", code(made)));
+    }
+    let _ = k::write(4, format!("{}\n", line.trim_end()).as_bytes());
+    let _ = k::close(4);
+    let mut b = [0u8; 1];
+    while let Ok(1..) = k::read(3, &mut b) {}
+    0
+}
+
 /// What one run gave: the line of the payload, its `NoNewPrivs` and
 /// `Seccomp` lines, and its exit code.
 #[derive(Debug)]

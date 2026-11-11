@@ -182,12 +182,54 @@ fn a_refusal_names_the_call_the_rule_and_the_errno() {
     let r = Refusal { call: Call::CreateRuleset, index: 0, errno: k::ENOSYS };
     assert_eq!(r.failure(&c).class, Class::Unsupported);
     assert!(r.failure(&c).to_string().contains("landlock_create_ruleset: ENOSYS (38)"));
+    let r = Refusal { call: Call::OpenPath, index: 0, errno: k::ENOENT };
+    assert_eq!(r.describe(&c), format!("open(O_PATH) for the path {:?}: ENOENT (2)", text(&d)));
     for call in [Call::NoNewPrivs, Call::CreateRuleset, Call::AddPathRule, Call::AddPortRule, Call::RestrictSelf] {
         assert_eq!(Call::from_code(call.code()), Some(call));
     }
     assert_eq!(Call::from_code(Call::Seccomp.code()), Some(Call::Seccomp));
+    assert_eq!(Call::from_code(Call::OpenPath.code()), Some(Call::OpenPath));
     assert_eq!(Call::from_code(0), None);
-    assert_eq!(Call::from_code(11), None);
+    assert_eq!(Call::from_code(12), None);
+    let _ = std::fs::remove_dir_all(d);
+}
+
+/// After [`Compiled::close_paths`] no rule holds a descriptor;
+/// [`Compiled::open_paths`] opens each path again in the view of this
+/// process, as `O_PATH` and close-on-exec. A path that went away is a
+/// refusal of `open(O_PATH)` with the index of its rule.
+#[test]
+fn the_paths_close_after_the_compile_and_open_again() {
+    let d = dir("again");
+    std::fs::create_dir_all(d.join("a")).unwrap();
+    std::fs::create_dir_all(d.join("b")).unwrap();
+    let spec = Spec::new().allow(text(&d.join("a")), Access::READ).allow(text(&d.join("b")), Access::READ);
+    let mut c = spec.compile(ABI).unwrap();
+    c.close_paths();
+    assert!(c.rules().iter().all(|r| r.fd() == -1), "{:?}", c.rules());
+    c.keep_clear_of(&[0, 1, 2]).unwrap();
+    assert!(c.rules().iter().all(|r| r.fd() == -1), "a closed rule moved: {:?}", c.rules());
+    c.open_paths().unwrap();
+    assert_eq!(file_of(c.rules()[0].fd()), file_at(&d.join("a")));
+    assert_eq!(file_of(c.rules()[1].fd()), file_at(&d.join("b")));
+    // `F_GETFL` of `fcntl(2)`.
+    const F_GETFL: u64 = 3;
+    for r in c.rules() {
+        let flags = k::fcntl(r.fd(), F_GETFL, 0).unwrap() as u64;
+        assert_ne!(flags & k::O_PATH, 0, "the rule {:?} is not O_PATH", r.path());
+        let fd = k::fcntl(r.fd(), k::F_GETFD, 0).unwrap() as u64;
+        assert_ne!(fd & k::FD_CLOEXEC, 0, "a payload would hold the rule {:?}", r.path());
+    }
+    // A rule with a descriptor keeps it.
+    let held = c.rules()[0].fd();
+    c.open_paths().unwrap();
+    assert_eq!(c.rules()[0].fd(), held);
+    // The second path goes away between the compile and the open.
+    c.close_paths();
+    std::fs::remove_dir(d.join("b")).unwrap();
+    let r = c.open_paths().unwrap_err();
+    assert_eq!((r.call, r.index, r.errno), (Call::OpenPath, 1, k::ENOENT));
+    assert!(r.describe(&c).contains(&format!("for the path {:?}", text(&d.join("b")))), "{}", r.describe(&c));
     let _ = std::fs::remove_dir_all(d);
 }
 

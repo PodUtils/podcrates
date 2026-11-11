@@ -1,14 +1,17 @@
 //! The compile of a [`Spec`] before the fork: the masks and the scopes of
 //! the ABI, each path open as `O_PATH`, the port rules and the BPF program
 //! of the deny list with the rules of the spec. The child then only reads
-//! this data ([`crate::apply`]).
+//! this data ([`crate::apply`]), or opens the prepared paths again in its
+//! own view ([`Compiled::open_paths`]).
+
+use std::fmt;
 
 use pod_core::{Class, Failure};
 use pod_hostprobe::sys::{self as k, CBuf, Errno, SockFilter};
 
 use crate::deny::Deny;
 use crate::spec::{BIND_TCP, CONNECT_TCP, FILE_RIGHTS, SCOPES, handled_fs};
-use crate::{Access, MIN_ABI, NET_ABI, SCOPE_ABI, Spec, errno_class, errno_text, failure};
+use crate::{Access, Call, MIN_ABI, NET_ABI, Refusal, SCOPE_ABI, Spec, errno_class, errno_text, failure};
 
 /// The most path rules, and the most port rules, of one spec: a refusal of
 /// [`crate::apply`] names a rule by its index in 16 bits.
@@ -16,15 +19,23 @@ pub const MOST_RULES: usize = u16::MAX as usize;
 
 /// One path rule, opened: the descriptor, the rights that it gives, and the
 /// path as the spec named it.
-#[derive(Debug)]
 pub struct Rule {
     pub(crate) fd: i64,
     pub(crate) allowed: u64,
     path: String,
+    /// The path for an open in the child, made before the fork.
+    cpath: CBuf,
+}
+
+impl fmt::Debug for Rule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Rule").field("fd", &self.fd).field("allowed", &self.allowed).field("path", &self.path).finish()
+    }
 }
 
 impl Rule {
-    /// The `O_PATH` descriptor of the rule.
+    /// The `O_PATH` descriptor of the rule, or -1 between
+    /// [`Compiled::close_paths`] and [`Compiled::open_paths`].
     pub fn fd(&self) -> i64 {
         self.fd
     }
@@ -64,7 +75,7 @@ pub struct Compiled {
 
 impl Drop for Compiled {
     fn drop(&mut self) {
-        for r in &self.rules {
+        for r in self.rules.iter().filter(|r| r.fd >= 0) {
             let _ = k::close(r.fd);
         }
     }
@@ -114,7 +125,7 @@ impl Compiled {
     pub fn keep_clear_of(&mut self, taken: &[i64]) -> Result<(), Failure> {
         let above = taken.iter().copied().max().unwrap_or(-1) + 1;
         for r in &mut self.rules {
-            if taken.contains(&r.fd) {
+            if r.fd >= 0 && taken.contains(&r.fd) {
                 let moved = k::fcntl(r.fd, k::F_DUPFD_CLOEXEC, above.max(0) as u64).map_err(|e| {
                     failure(
                         errno_class(e),
@@ -124,6 +135,42 @@ impl Compiled {
                 let _ = k::close(r.fd);
                 r.fd = moved;
             }
+        }
+        Ok(())
+    }
+
+    /// Close the descriptor of each rule, and keep its path. Call it after
+    /// the compile, before the fork, where the child changes its view of
+    /// the paths (a mount, a root change): the child then opens each path
+    /// in its own view with [`Compiled::open_paths`]. Landlock does not
+    /// read a rule on a directory under a mount point, so a descriptor of
+    /// the compile does not cover a mount that the child makes on its path.
+    /// No descriptor of a rule crosses the fork, so a `dup2` of the child
+    /// takes the number of no rule.
+    pub fn close_paths(&mut self) {
+        for r in self.rules.iter_mut().filter(|r| r.fd >= 0) {
+            let _ = k::close(r.fd);
+            r.fd = -1;
+        }
+    }
+
+    /// Open the path of each rule with no descriptor as `O_PATH |
+    /// O_CLOEXEC`, in the view of this process: its mounts and its root.
+    /// A rule with a descriptor keeps it. The first failed open is a
+    /// [`Refusal`] of [`Call::OpenPath`] with the index of its rule, and the
+    /// caller must not exec.
+    ///
+    /// Async-signal-safe: no allocation, no lock. Call it in the child
+    /// after its mounts, its root change and its `dup2` calls, before
+    /// [`crate::apply`]. A guest path of [`Spec::compile_in`] then resolves
+    /// as the compile resolved it, under the new root.
+    pub fn open_paths(&mut self) -> Result<(), Refusal> {
+        for (i, r) in self.rules.iter_mut().enumerate().filter(|(_, r)| r.fd < 0) {
+            r.fd = k::open(&r.cpath, k::O_PATH | k::O_CLOEXEC, 0).map_err(|errno| Refusal {
+                call: Call::OpenPath,
+                index: i as u16,
+                errno,
+            })?;
         }
         Ok(())
     }
@@ -140,7 +187,9 @@ impl Spec {
     /// directory `root` (a descriptor) as the kernel resolves it after a
     /// `chroot` there (`openat2` with `RESOLVE_IN_ROOT`: an absolute link
     /// and `..` stay in the root). The rule holds the inode, so it stays
-    /// true after the root change of the child.
+    /// true after a root change of the child, but not under a mount that
+    /// the child makes on its path: there, use [`Compiled::close_paths`]
+    /// and [`Compiled::open_paths`].
     pub fn compile_in(&self, abi: u32, root: i64) -> Result<Compiled, Failure> {
         let how = k::OpenHow { flags: k::O_PATH | k::O_CLOEXEC, mode: 0, resolve: k::RESOLVE_IN_ROOT };
         self.compile_with(abi, |c| k::openat2(root, c, &how))
@@ -194,9 +243,9 @@ impl Spec {
             filter,
         };
         for rule in &self.paths {
-            let fd = open_rule(&rule.path, rule.access, &open)?;
+            let (fd, cpath) = open_rule(&rule.path, rule.access, &open)?;
             // Pushed before the stat, so that a refusal below closes it.
-            out.rules.push(Rule { fd, allowed: 0, path: rule.path.clone() });
+            out.rules.push(Rule { fd, allowed: 0, path: rule.path.clone(), cpath });
             let st = k::fstatat(fd, &k::cempty(), k::AT_EMPTY_PATH).map_err(|e| {
                 failure(errno_class(e), format!("fstat of the path {:?} of the spec: {}", rule.path, errno_text(e)))
             })?;
@@ -259,8 +308,9 @@ impl Spec {
     }
 }
 
-/// Open the path of one rule, or refuse it by name.
-fn open_rule(path: &str, access: Access, open: &impl Fn(&CBuf) -> Result<i64, Errno>) -> Result<i64, Failure> {
+/// Open the path of one rule, or refuse it by name. The path comes back as
+/// a C string for an open in the child.
+fn open_rule(path: &str, access: Access, open: &impl Fn(&CBuf) -> Result<i64, Errno>) -> Result<(i64, CBuf), Failure> {
     if access.is_empty() {
         return Err(failure(Class::Usage, format!("the path {path:?} of the spec has no access")));
     }
@@ -268,10 +318,11 @@ fn open_rule(path: &str, access: Access, open: &impl Fn(&CBuf) -> Result<i64, Er
         return Err(failure(Class::Usage, format!("the path {path:?} of the spec is not absolute")));
     }
     let c = CBuf::new(path).ok_or_else(|| failure(Class::Usage, format!("the path {path:?} contains a NUL byte")))?;
-    open(&c).map_err(|e| {
+    let fd = open(&c).map_err(|e| {
         let what = if e == k::ENOENT { "does not exist" } else { "cannot be opened" };
         failure(errno_class(e), format!("the path {path:?} ({}) of the spec {what}: {}", access.words(), errno_text(e)))
-    })
+    })?;
+    Ok((fd, c))
 }
 
 /// One rule for each port and right: the kernel adds the rights of two

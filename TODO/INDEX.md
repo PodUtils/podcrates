@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**227 entries: 61 open, 4 partial, 4 blocked, 158 done.**
+**228 entries: 62 open, 4 partial, 4 blocked, 158 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 1 | 0 | 45 | 59 |
+| P1 | 14 | 1 | 0 | 45 | 60 |
 | P2 | 30 | 2 | 4 | 78 | 114 |
 | P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 61 | 4 | 4 | 158 | 227 |
+| **All** | 62 | 4 | 4 | 158 | 228 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -273,4 +273,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-224](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the facts of an SSH forward relay, and a reader of its banner across chunks (PodUtils/podnet#455) |
 | [T-225](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |
+| [T-227](podvm.md) | P1 | M | M6 | defect | open | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |

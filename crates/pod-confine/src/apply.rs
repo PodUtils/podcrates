@@ -9,7 +9,7 @@ use pod_hostprobe::sys::{self as k, Errno};
 
 use crate::{Compiled, errno_class, errno_text, failure};
 
-/// The call of [`apply`] that failed.
+/// The call of [`apply`], or of [`Compiled::open_paths`], that failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
     NoNewPrivs,
@@ -22,10 +22,11 @@ pub enum Call {
     CapBoundingDrop,
     CapSet,
     CapAmbientClear,
+    OpenPath,
 }
 
 impl Call {
-    const ALL: [Call; 10] = [
+    const ALL: [Call; 11] = [
         Call::NoNewPrivs,
         Call::CreateRuleset,
         Call::AddPathRule,
@@ -36,6 +37,7 @@ impl Call {
         Call::CapBoundingDrop,
         Call::CapSet,
         Call::CapAmbientClear,
+        Call::OpenPath,
     ];
 
     /// The call as a reader knows it.
@@ -51,10 +53,11 @@ impl Call {
             Call::CapBoundingDrop => "prctl(PR_CAPBSET_DROP)",
             Call::CapSet => "capset",
             Call::CapAmbientClear => "prctl(PR_CAP_AMBIENT_CLEAR_ALL)",
+            Call::OpenPath => "open(O_PATH)",
         }
     }
 
-    /// One byte for a pipe from a child: 1 to 10.
+    /// One byte for a pipe from a child: 1 to 11.
     pub fn code(self) -> u8 {
         Call::ALL.iter().position(|c| *c == self).map_or(0, |i| i as u8 + 1)
     }
@@ -65,9 +68,9 @@ impl Call {
     }
 }
 
-/// A refusal of [`apply`]: the call, the index of its rule (a path rule or
-/// a port rule; the capability of a drop from the bounding set; 0 for the
-/// other calls) and the errno. It holds no heap
+/// A refusal of [`apply`] or of [`Compiled::open_paths`]: the call, the
+/// index of its rule (a path rule or a port rule; the capability of a drop
+/// from the bounding set; 0 for the other calls) and the errno. It holds no heap
 /// data, so a child after a fork can return it and write it to a pipe
 /// ([`Refusal::to_bytes`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,7 +105,9 @@ impl Refusal {
     pub fn describe(&self, compiled: &Compiled) -> String {
         let at = usize::from(self.index);
         let rule = match self.call {
-            Call::AddPathRule => compiled.rules.get(at).map(|r| format!(" for the path {:?}", r.path())),
+            Call::OpenPath | Call::AddPathRule => {
+                compiled.rules.get(at).map(|r| format!(" for the path {:?}", r.path()))
+            }
             Call::AddPortRule => compiled.ports.get(at).map(|(p, _)| format!(" for the TCP port {p}")),
             Call::CapBoundingDrop => Some(format!(" for the capability {at}")),
             _ => None,

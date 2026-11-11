@@ -6,20 +6,25 @@ use pod_confine::{Compiled, Refusal};
 
 use crate::{Error, Plan, Result, RootDir, errno_class};
 
-/// The step byte of a refusal of `pod_confine::apply`. The five bytes of
-/// the refusal follow it.
+/// The step byte of a refusal of `pod_confine::apply` or of
+/// `Compiled::open_paths`. The five bytes of the refusal follow it.
 pub(crate) const STEP: u8 = 15;
 
 /// The compiled confinement of `plan`, or `None` where it has none.
 ///
 /// `root` is the root file system of a rung with a chroot: the paths of
 /// the spec are guest paths, and each resolves under the root descriptor
-/// as the kernel resolves it after the chroot (`RESOLVE_IN_ROOT`). The
-/// rule holds the inode, so the open before the fork names the file that
-/// the payload sees. `None` is the entry with no chroot: host paths.
+/// as the kernel resolves it after the chroot (`RESOLVE_IN_ROOT`). `None`
+/// is the entry with no chroot: host paths.
 ///
 /// A host with no Landlock, or a path that does not exist, is a refusal
-/// by name here, before the banner and the fork.
+/// by name here, before the banner and the fork. Then the descriptors of
+/// the rules close: the child opens each path again after its mounts and
+/// its root change (`Compiled::open_paths`). Landlock does not read a rule
+/// on a directory under a mount point, so a descriptor of the compile does
+/// not cover the tmpfs that the namespace rung mounts on `/tmp`. No
+/// descriptor of a rule crosses the fork, so a passed descriptor takes the
+/// number of no rule.
 pub(crate) fn compile(plan: &Plan, root: Option<&RootDir>) -> Result<Option<Compiled>> {
     let Some(spec) = &plan.confine else { return Ok(None) };
     let abi = pod_confine::check()?;
@@ -27,10 +32,7 @@ pub(crate) fn compile(plan: &Plan, root: Option<&RootDir>) -> Result<Option<Comp
         Some(r) => spec.compile_in(abi, r.fd())?,
         None => spec.compile(abi)?,
     };
-    // The child duplicates each passed descriptor onto its number before
-    // the confinement: a rule on one of those numbers would lose its file.
-    let taken: Vec<i64> = plan.fds.pass.iter().map(|&(child, _)| child).collect();
-    compiled.keep_clear_of(&taken)?;
+    compiled.close_paths();
     Ok(Some(compiled))
 }
 
