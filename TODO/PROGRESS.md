@@ -18,8 +18,10 @@
 - Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
   T-166 `pod-hold` (podnet's take), T-155 (podvm's move of calls). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
   (qemu-user only), T-157 (public Trojan nodes; a second day of the watch).
-- M8 and the podrunner entries (T-146, T-160 to T-165) wait for the
-  owner (the rulings "Priority" and "CI tracker"; DR-1, DR-2).
+- podrunner has a lead session (the ruling "podrunner online",
+  2026-11-11; C49). podcrates and podrunner talk by direct messages.
+  podssh and podvm are on break; only podnet answers a COORD issue (the
+  ruling "The sessions of 2026-11-11"). M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
   (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
   2026-11-09).
@@ -37,33 +39,40 @@ The owner's ruling "Priority" (2026-11-09): podvm, podnet and podssh come
 first; the asks of cfb and githome (M8) wait.
 The owner's ruling "podvm online" (2026-11-10): write to podvm only by a
 COORD issue of podcrates titled `(to podvm)`; no direct message.
+The owner's rulings of 2026-11-11 ("podrunner online", "The sessions of
+2026-11-11"): the work for podrunner and podnet comes first. An entry that
+waits for podssh or podvm stays as it is; take the next entry.
 
 1. **The defects of the consumers:** T-157 (four public Trojan nodes of
    podssh fail the live check).
-2. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
+2. **podrunner** (PodUtils/podrunner#1): T-163 (the schemas, for
+   PodUtils/podrunner#17), T-162 (the tree kill, for PodUtils/podrunner#23),
+   T-160 and T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
+   Actions hosts, for PodUtils/podrunner#30); T-165 after DR-4
+   (PodUtils/podrunner#4); T-146 tracks the plan. Each new ask of the
+   podrunner session becomes an entry here, in the order of its need.
+3. **podnet:** T-166 (partial: podnet's take of `pod-hold`, #54); T-169 and
+   T-170 (after podnet's view); T-150, T-121 to T-124 (the asks of podnet).
+4. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-3. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-166 (partial: podnet's take, #54); T-169 and T-170 (after podnet's view); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-4. **M2, the relay:** T-020 (partial: podssh's take, #54), T-021,
+6. **M2, the relay:** T-020 (partial: podssh's take, #54), T-021,
    T-022 (partial: podssh's take, #54), T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
-5. **M3, the adapters:** T-027, T-028, T-029, T-030.
-6. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+7. **M3, the adapters:** T-027, T-028, T-029, T-030.
+8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-7. **M5, the upkeep:** a "port" entry for each change that
+9. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds.
-8. **M7, the widened scope of podvm:** T-062 after M6.
-9. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
+10. **M7, the widened scope of podvm:** T-062 after M6.
+11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-108 `pod-confine` for PodUtils/podvm@T-1658, T-107
    with M6). T-113 to T-116 wait for the first release on crates.io.
-   The asks of PodUtils/podvm#227 wait for the owner's decisions DR-1 (name
-   the plan of GitHub #47) and DR-2 (the place of the code): T-160 and
-   T-161 (`pod-broker`), T-162 (`pod-supervise`), T-163 (the schemas),
-   T-164 (`pod-services`) and T-165 (`pod-tls`, also DR-4). The owner can
-   lift the wait for one of them.
+   The asks of PodUtils/podvm#227 for podrunner are in item 2.
 
 ## Calls made without a ruling
 
@@ -78,13 +87,11 @@ COORD issue of podcrates titled `(to podvm)`; no direct message.
 ## Questions for the owner
 
 The questions of the CI plan (GitHub #47, T-146,
-`docs/research/ci/podrunner-plan.md`, section 9). They wait with #47 (the
-owner, 2026-11-10, "CI tracker"): do not ask them before the owner names
-#47 again.
+`docs/research/ci/podrunner-plan.md`, section 9). The owner named
+podrunner on 2026-11-11 (C49 answers Q8 for phase 1). PodUtils/podrunner#4
+to #8 hold the open decisions of the design review; the podrunner session
+records their answers.
 
-- **Q8.** Lift the wait (the ruling "Priority") for `podrunner` phase 1
-  and the crate `pod-dockerapi`, after the podvm items of phase 1?
-  Blocks T-146. Recommendation: yes.
 - **Q9.** Is the official .NET runner, as a payload in a podvm unit,
   accepted under "everything must be statically compiled"? Blocks T-146.
   Recommendation: yes: the delivered binaries are static; the runner is
@@ -104,5 +111,5 @@ owner, 2026-11-10, "CI tracker"): do not ask them before the owner names
   reserve them with `check-crates-io-names.py`.
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q8
-(the owner ruled Q1 to Q7: `docs/decisions.md`).
+blocks and a recommendation. Number the questions in sequence from Q15
+(Q1 to Q7: `docs/decisions.md`; Q8: C49).

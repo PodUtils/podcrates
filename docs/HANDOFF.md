@@ -1,7 +1,7 @@
 # Handoff
 
-The state of podcrates at the pause of 2026-11-10, for a session with no
-memory of the last one. Read this page first, then `AGENTS.md`,
+The state of podcrates on 2026-11-11, for a session with no memory of
+the last one. Read this page first, then `AGENTS.md`,
 `TODO/PROGRESS.md` (the state, the work order, the questions),
 `docs/maintenance.md`, `docs/design.md` and `docs/decisions.md`. Keep this
 page current; remove a line when its work is done.
@@ -27,6 +27,15 @@ page current; remove a line when its work is done.
 
 ## In flight
 
+- podrunner (the rulings of 2026-11-11, C49): a lead session of
+  PodUtils/podrunner runs, which this session started and briefed; the two
+  talk by direct messages (`send_message`). Its index is
+  PodUtils/podrunner#1. podcrates builds T-163, T-162, T-160, T-161 and
+  T-164 in the order of its need. A new session of podcrates finds the
+  session id of podrunner with `list_sessions` (title `(podrunner)`).
+- podssh and podvm are on break; only podnet answers a COORD issue of
+  podcrates.
+
 - T-020 `pod-session`, T-022 `pod-wormhole`, T-166 `pod-hold`, T-155:
   released in `v0.15.0` (the trials and the cross tests passed); the takes
   of the consumers remain (#54). T-169 and T-170 ask podnet whether two
@@ -44,10 +53,8 @@ page current; remove a line when its work is done.
 
 ## Waiting for the owner
 
-- GitHub #47 (the CI tracker, `podrunner`): "leave it alone for now". T-146,
-  the questions Q8 to Q14 and the podrunner entries T-160 to T-165 (from
-  PodUtils/podvm#227) wait for the owner's DR-1 (name the plan) and DR-2
-  (code in PodUtils/podrunner). Do not build them before.
+- T-165 (`pod-tls` mutual TLS) waits for DR-4 (PodUtils/podrunner#4).
+  Q9 to Q14 (`TODO/PROGRESS.md`) are open.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).

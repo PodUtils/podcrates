@@ -2776,7 +2776,7 @@ The tests that the issue names:
 
 ## Start condition
 
-The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on T-050 (done).
 
@@ -2818,7 +2818,7 @@ The tests that the issue names:
 
 ## Start condition
 
-The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2), and the owner answers yes to DR-4. The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+The owner answers yes to DR-4 (PodUtils/podrunner#4): the remote mint of podrunner (PodUtils/podrunner#31) is its only consumer. DR-1 and DR-2 are yes (the ruling "podrunner online", 2026-11-11; call C49).
 
 # T-171: `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186)
 

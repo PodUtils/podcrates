@@ -258,9 +258,11 @@ The plan and GitHub #47 give the phases with their checklists:
 - Phase 0 (measure) and the podvm items of phase 1 are podvm work: they
   go now, in podvm's record.
 - `podrunner` (a static launcher of the official `actions/runner`, one
-  fresh podvm unit for each job) and the crate `pod-dockerapi` (a Docker
-  Engine API subset over podvm, one socket for each job) wait for Q8 to
-  Q14 (`TODO/PROGRESS.md`).
+  fresh podvm unit for each job) is the work of PodUtils/podrunner (index
+  PodUtils/podrunner#1; the ruling "podrunner online", C49). podcrates
+  gives its crates (T-160 to T-165). The crate `pod-dockerapi` (a Docker
+  Engine API subset over podvm, one socket for each job) comes with phase
+  3; Q9 to Q14 stay open (`TODO/PROGRESS.md`).
 - A native Rust runner is a conditional phase 5.
 
 ## Prove
@@ -314,7 +316,7 @@ The tests that the issue names:
 
 ## Start condition
 
-The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on T-099 (done). No other crate.
 
@@ -360,7 +362,7 @@ The tests are the four rules above: the canary, the flagged suffix, the rebindin
 
 ## Start condition
 
-The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on T-099 (done) and `pod-dns`. Not on T-100.
 
@@ -403,6 +405,6 @@ The tests that the issue names:
 
 ## Start condition
 
-The owner names the plan of GitHub #47 (DR-1) and the place of the code (DR-2). The ruling "CI tracker" (2026-11-10) leaves #47 as it is, and the ruling "Priority" (2026-11-09) keeps M8 waiting. The owner can lift the wait for this entry.
+None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Podrunner's WP-01 (the traits) comes first.
