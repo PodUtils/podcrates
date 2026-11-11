@@ -31,6 +31,11 @@ pub struct Plan {
     /// The names of the caller: the entry removes the mode variables from
     /// `env` and sets the active mode variable beside the exec.
     pub names: Names,
+    /// The resource limits of the payload, set in its child before the
+    /// exec ([`crate::limits`]); at most [`crate::limits::MOST`].
+    pub limits: Vec<crate::Limit>,
+    /// `PR_SET_NO_NEW_PRIVS` in the child before the exec.
+    pub no_new_privs: bool,
 }
 
 impl Plan {

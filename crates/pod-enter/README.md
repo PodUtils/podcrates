@@ -59,7 +59,8 @@ each entry takes; the payload owns the standard output.
 | Item | What |
 | --- | --- |
 | `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`, `reserved` (the guest paths that the interposer of the caller never rewrites; `Maps::new` refuses a volume under one). `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload`, no reserved path |
-| `Plan { argv, env, working_dir, fds, banner, path_dirs, names }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}` |
+| `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}` |
+| `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`) |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload; a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
@@ -127,7 +128,7 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `podvm_enter::{abi, binfmt, fuse, plan}` | `pod_enter::*`, re-exported |
 | `podvm_enter::{ladder, memfd, device, userland, stage}` | `pod_enter::*` with the functions that take `&Names` wrapped by `podvm_enter` with podvm's signature |
 | `PODVM_MODE`, `PODVM_ACTIVE_MODE`, `PODVM_CACHE`, `PODVM_MAPS`, `PODVM_DEVICE_SPEC`, `PODVM_DEVICE_FDS`, `.podvm-cache-complete`, `podvm-payload`, `podvm:` | `podvm_enter::NAMES` |
-| `Plan { .. }` | `Plan { .., names: podvm_enter::NAMES }` |
+| `Plan { .. }` | `Plan { .., names: podvm_enter::NAMES, limits: Vec::new(), no_new_privs: false }` (`--ulimit` and `--security-opt no-new-privileges` fill them; podvm's record of a detached run keeps them in its own fields) |
 | `Plan::env_for(image, caller)`, `Plan::MODE_REQUEST_VAR` | `Plan::env_for(&NAMES, image, caller)`, `NAMES.mode_request` |
 | `ladder::Mode::parse(s)` | `podvm_enter::ladder::parse_mode(s)` |
 | `Error::Runtime(text)` | `podvm_enter::runtime(text)` |

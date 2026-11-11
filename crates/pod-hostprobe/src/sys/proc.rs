@@ -437,3 +437,43 @@ pub fn rusage_children() -> Result<Usage, Errno> {
 pub fn umask(mask: u32) -> u32 {
     unsafe { sys(SYS_UMASK, [u64::from(mask), 0, 0, 0, 0, 0]) }.unwrap_or(0) as u32
 }
+
+/// The `RLIMIT_*` numbers of the kernel of this architecture: mips and
+/// sparc number some of them differently, so each comes from
+/// `linux_raw_sys`.
+pub mod rlimit {
+    use linux_raw_sys::general as g;
+    pub const CPU: u64 = g::RLIMIT_CPU as u64;
+    pub const FSIZE: u64 = g::RLIMIT_FSIZE as u64;
+    pub const DATA: u64 = g::RLIMIT_DATA as u64;
+    pub const STACK: u64 = g::RLIMIT_STACK as u64;
+    pub const CORE: u64 = g::RLIMIT_CORE as u64;
+    pub const NOFILE: u64 = g::RLIMIT_NOFILE as u64;
+    pub const NPROC: u64 = g::RLIMIT_NPROC as u64;
+    pub const AS: u64 = g::RLIMIT_AS as u64;
+    pub const MEMLOCK: u64 = g::RLIMIT_MEMLOCK as u64;
+    pub const MSGQUEUE: u64 = g::RLIMIT_MSGQUEUE as u64;
+    pub const NICE: u64 = g::RLIMIT_NICE as u64;
+    pub const RTPRIO: u64 = g::RLIMIT_RTPRIO as u64;
+    pub const LOCKS: u64 = g::RLIMIT_LOCKS as u64;
+    pub const SIGPENDING: u64 = g::RLIMIT_SIGPENDING as u64;
+    pub const RTTIME: u64 = g::RLIMIT_RTTIME as u64;
+    /// `RLIM64_INFINITY`: no limit.
+    pub const INFINITY: u64 = u64::MAX;
+}
+
+/// `prlimit64(0, resource, &new, NULL)`: set a limit of this process. One
+/// system call on a struct on the stack, so a child between its fork and
+/// its exec can call it.
+pub fn set_rlimit(resource: u64, soft: u64, hard: u64) -> Sysres {
+    let mut new = unsafe { core::mem::zeroed::<linux_raw_sys::general::rlimit64>() };
+    new.rlim_cur = soft as _;
+    new.rlim_max = hard as _;
+    unsafe { sys(SYS_PRLIMIT64, [0, resource, &new as *const linux_raw_sys::general::rlimit64 as u64, 0, 0, 0]) }
+}
+
+/// `prctl(PR_SET_NO_NEW_PRIVS, 1)`: no later `execve` gives privileges.
+/// It cannot be undone, so a supervisor sets it in the child only.
+pub fn set_no_new_privs() -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0]) }
+}

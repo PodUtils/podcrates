@@ -2490,7 +2490,7 @@ Goes out with `v0.16.0`, with T-162 (PodUtils/podvm#244).
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2533,3 +2533,27 @@ child while the parent writes more; `nofile = 64` shows in
 `/proc/self/limits` of the child; `no_new_privs` shows `NoNewPrivs: 1` in
 the child and `0` in the parent; a hard limit over the parent's hard limit
 is refused by name.
+
+## Done
+
+2026-11-11. `pod_enter::limits` (`Limit`, `Resource`, `INFINITY`, `MOST`)
+and `Plan::{limits, no_new_privs}`; `pod-hostprobe` gives
+`sys::set_rlimit`, `sys::set_no_new_privs` and `sys::rlimit` (the numbers of
+the kernel of each architecture, from `linux_raw_sys`). The one child path
+of each entry (`launch::spawn_with`: the chroot sequence, the namespace
+rung, the userland entry, the memfd launch) sets each limit after the
+`chdir` and before the exec, then `no_new_privs`; a refused call reports
+step 12 with the index of the limit, or step 13, and the refusal names the
+call (`setrlimit(RLIMIT_NOFILE): EPERM`). More than 64 limits are refused
+before the fork. `pod-supervise` builds no `Plan`: podvm's record of a
+detached run (its `Detail`) keeps the two fields.
+
+- Tests (6, `src/limits/tests.rs`): `fsize` of 1 MiB stops the write of the
+  payload at 1 MiB while the caller writes 2 MiB; `nofile = 64` shows in
+  `/proc/self/limits` of the payload and not of the caller; `no_new_privs`
+  shows `NoNewPrivs: 1` in the payload and `0` without it and in the
+  caller; a hard limit over the caller's (over `fs.nr_open` as root) is
+  refused by name; more than 64 limits are refused. With the `setrlimit`
+  call taken out, three of them fail.
+- Goes out with the tag after `v0.16.0` (PodUtils/podvm#245).
+

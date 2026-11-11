@@ -137,16 +137,28 @@ pub(crate) fn spawn_with(
     sys::pipe2(&mut pipe, sys::O_CLOEXEC).map_err(|e| errno_failure("pipe2 for the readiness channel failed", e))?;
     let (read_end, write_end) = (i64::from(pipe[0]), i64::from(pipe[1]));
 
+    // The limits as numbers, made before the fork: the child only reads
+    // them. The child names a refused limit by its index in one byte.
+    if plan.limits.len() > crate::limits::MOST {
+        let _ = (sys::close(read_end), sys::close(write_end));
+        return Err(Error::runtime(
+            Class::Usage,
+            format!("{} resource limits; a payload takes at most {}", plan.limits.len(), crate::limits::MOST),
+        ));
+    }
+    let limits: Vec<(u64, u64, u64)> = plan.limits.iter().map(|l| (l.resource.number(), l.soft, l.hard)).collect();
+
     let pid = match unsafe { sys::clone_fork(sys::SIGCHLD) } {
         Ok(0) => {
             // The child: async-signal-safe work only, then execve.
             let _ = sys::close(read_end);
             // Four bytes to the readiness pipe: the step and the errno.
-            let report = |step: u8, e: sys::Errno| -> ! {
-                let msg = [step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8, 0];
+            let report_at = |step: u8, e: sys::Errno, at: u8| -> ! {
+                let msg = [step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8, at];
                 let _ = sys::write(write_end, &msg);
                 sys::exit_group(SETUP_FAILED)
             };
+            let report = |step: u8, e: sys::Errno| -> ! { report_at(step, e, 0) };
             for (child_fd, host_fd) in &plan.fds.pass {
                 if host_fd != child_fd {
                     let _ = sys::dup2(*host_fd, *child_fd);
@@ -212,6 +224,20 @@ pub(crate) fn spawn_with(
                 // before the fork, inside the image relative to the
                 // descriptor above, or inside a volume by its host path.
                 report(11, e);
+            }
+
+            // The limits and `no_new_privs` of the payload, after the root
+            // change and the `chdir`, before the exec: they reach the
+            // payload and no other process.
+            for (at, &(resource, soft, hard)) in limits.iter().enumerate() {
+                if let Err(e) = sys::set_rlimit(resource, soft, hard) {
+                    report_at(12, e, at as u8);
+                }
+            }
+            if plan.no_new_privs
+                && let Err(e) = sys::set_no_new_privs()
+            {
+                report(13, e);
             }
 
             // The program resolves here, in the process that changed the
@@ -280,7 +306,7 @@ pub(crate) fn spawn_with(
     if let Some(step) = ns_setup_step(buf[0]) {
         return Err(Error::NsSetup { step, errno });
     }
-    Err(step_failure(plan, buf[0], errno))
+    Err(step_failure(plan, buf[0], errno, buf[3]))
 }
 
 /// The working directory of an entry with no chroot, resolved through the
@@ -324,7 +350,20 @@ fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> Result<Op
 }
 
 /// The error for a step that the child reported.
-fn step_failure(plan: &Plan, step_byte: u8, errno: sys::Errno) -> Error {
+fn step_failure(plan: &Plan, step_byte: u8, errno: sys::Errno, at: u8) -> Error {
+    // A refused limit or `no_new_privs`: the call, by name, and the
+    // payload did not run.
+    let call = match step_byte {
+        12 => plan.limits.get(usize::from(at)).map(|l| format!("setrlimit({})", l.resource.name())),
+        13 => Some("prctl(PR_SET_NO_NEW_PRIVS)".to_string()),
+        _ => None,
+    };
+    if let Some(call) = call {
+        return Error::runtime(
+            crate::errno_class(errno),
+            format!("the payload could not be started: {call}: {} ({})", errno.name(), errno.0),
+        );
+    }
     let step = match step_byte {
         1 => "fchdir onto the rootfs descriptor",
         2 => "chroot into the rootfs",

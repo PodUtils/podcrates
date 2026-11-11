@@ -43,6 +43,7 @@ pub mod binfmt;
 pub mod device;
 pub mod fuse;
 pub mod ladder;
+pub mod limits;
 pub mod memfd;
 pub mod plan;
 pub mod stage;
@@ -62,6 +63,7 @@ use pod_hostprobe::sys::{self, CBuf};
 
 pub use child::Bounded;
 pub use entry::*;
+pub use limits::{Limit, Resource};
 pub use names::Names;
 pub use plan::{Plan, Program};
 pub use status::exit_status;
