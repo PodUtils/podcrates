@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 220 entries: 65 open, 4 partial, 0 blocked, 151 done.
+`TODO/INDEX.md` holds 221 entries: 66 open, 4 partial, 0 blocked, 151 done.
 
 ## State
 
@@ -72,8 +72,9 @@ next entry.
    T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has); T-213 (the sockets that Landlock and
-   the filter of `pod-confine` do not see);
+   modloop, which `pod-guest` has); T-221 (a confined root keeps its
+   capabilities), T-213 (the sockets that Landlock and the filter of
+   `pod-confine` do not see);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)

@@ -3635,3 +3635,48 @@ loop) that fails before the fix.
 ```sh
 cargo test -p pod-enter --all-features --lib
 ```
+
+# T-221: `pod-confine`: a payload that runs as root keeps its capabilities, and `CAP_SYS_PTRACE` passes the Landlock domain
+
+**Source:** podrunner's T-042 (a direct message of 2026-11-11: as root, a confined payload reads `/proc/PID/environ` of a process outside its domain)
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_confine::apply` sets `no_new_privs`, the Landlock ruleset and the
+seccomp filter, and keeps the capabilities of the payload. Landlock lets a
+task with `CAP_SYS_PTRACE` reach a process outside its domain, so a
+payload that runs as root reads `/proc/PID/environ` (and the other
+ptrace-checked files) of each process of the host. podrunner measured it
+on Linux with Landlock ABI 7; as `nobody` the read is refused. podvm's
+units can run their payload as root.
+
+## Premise
+
+- Read: podrunner's report (its conformance test 27 passes as `nobody`).
+- Not read: the kernel's `hook_ptrace_access_check` of Landlock and the
+  list of the other capabilities that a confined root keeps
+  (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_DAC_OVERRIDE`, `CAP_SYS_MODULE`):
+  which of them pass the ruleset or the filter.
+
+## Approach
+
+A switch of `Spec` (on in `Spec::new()`): `apply` drops each capability of
+the bounding set, then the effective, permitted and inheritable sets and
+the ambient set, before the ruleset, with no allocation (`prctl
+PR_CAPBSET_DROP` for each, `capset` with zero, `PR_CAP_AMBIENT_CLEAR_ALL`).
+A spec that names a capability to keep keeps that one. Tests in
+`tests/apply.rs`, as root only (a skip by name else): a confined child
+gets `EACCES` for `/proc/1/environ`, and its `/proc/self/status` shows
+`CapEff: 0`. A plant that keeps the capabilities. Tell podvm and podrunner
+in the hand-off.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+```
