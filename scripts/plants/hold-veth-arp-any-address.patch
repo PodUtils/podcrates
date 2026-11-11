@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hold/src/netns/veth.rs b/crates/pod-hold/src/netns/veth.rs
+index 794550b..bd6755b 100644
+--- a/crates/pod-hold/src/netns/veth.rs
++++ b/crates/pod-hold/src/netns/veth.rs
+@@ -303,7 +303,7 @@ pub fn take_frame(frame: &[u8], gateway: Ipv4Addr, mtu: usize) -> Frame {
+ /// The ARP reply to a request of `sender` for the gateway.
+ fn arp_reply(sender: &[u8], arp: &[u8], gateway: Ipv4Addr) -> Option<Vec<u8>> {
+     // Ethernet and IPv4, a request, for the gateway.
+-    if arp.len() < 28 || arp[0..8] != [0, 1, 8, 0, 6, 4, 0, 1] || arp[24..28] != gateway.octets() {
++    if arp.len() < 28 || arp[0..8] != [0, 1, 8, 0, 6, 4, 0, 1] {
+         return None;
+     }
+     let mut out = Vec::with_capacity(ETH_HEADER + 28);

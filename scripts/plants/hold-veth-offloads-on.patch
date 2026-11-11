@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hold/src/netns/veth.rs b/crates/pod-hold/src/netns/veth.rs
+index 794550b..52fefe5 100644
+--- a/crates/pod-hold/src/netns/veth.rs
++++ b/crates/pod-hold/src/netns/veth.rs
+@@ -54,7 +54,7 @@ pub fn create_veth(tun: &Tun, wire: &str) -> Result<OwnedFd, Failure> {
+     // failure is not fatal: a stack on this wire does not check the
+     // checksums (`Wire::checks_checksums`), and `take_frame` drops a frame
+     // larger than the MTU.
+-    for cmd in [ETHTOOL_STXCSUM, ETHTOOL_STSO, ETHTOOL_SGSO] {
++    for cmd in [ETHTOOL_STXCSUM, ETHTOOL_STSO, ETHTOOL_SGSO].into_iter().take(0) {
+         let _ = ethtool_off(&sock, &tun.name, cmd);
+     }
+     set_flags(&sock, wire, "ioctl SIOCSIFFLAGS of the wire end")?;

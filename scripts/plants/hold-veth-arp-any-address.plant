@@ -1,0 +1,7 @@
+# The veth wire answers ARP for each address, not only for the gateway: the
+# program end then takes each host of its link for the gateway. The unit
+# test of the ARP answer must fail on the request for another address.
+ENTRY=T-201
+GROUP=hold
+EXPECT='test netns::veth::tests::the_wire_answers_arp_for_the_gateway \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- netns::veth::tests::the_wire_answers_arp_for_the_gateway'

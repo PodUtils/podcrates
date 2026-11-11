@@ -22,8 +22,9 @@ for bin in $bins; do
     name=$(basename "$bin")
     out="$log/$name.out"
     if ! $root "$bin" > "$out" 2>&1; then
+        # The lines of each step and of the panic, before a backtrace.
         echo "root-netns-tests: $name failed:" >&2
-        tail -40 "$out" >&2
+        grep -v -E "^ +([0-9]+: | *at )" "$out" | head -40 >&2
         rc=1
         continue
     fi

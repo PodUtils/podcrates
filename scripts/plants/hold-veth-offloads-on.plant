@@ -1,0 +1,9 @@
+# The program end of the veth wire keeps its offloads: the kernel sends
+# segments of up to 64 KiB, take_frame drops each, and TCP sends each again
+# in parts. The flow still passes, slowly; the test of the wire counts the
+# frames larger than the MTU and must fail. The test needs a network
+# namespace: the check runs it as root (a skip fails it).
+ENTRY=T-201
+GROUP=hold
+EXPECT='frames larger than the MTU on the wire'
+RUN='sh scripts/root-netns-tests.sh'
