@@ -17,9 +17,9 @@
   (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.21.0` (`1ffe87e`,
   PodUtils/podvm#257: its incus tier calls `pod-incus`; experiment 434
-  passes against incusd 6.0.0); podrunner is on `v0.19.0`
-  (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
-  takes `check_upstream`, `names_upstream` and the flagged rules).
+  passes against incusd 6.0.0); podrunner is on `v0.21.0`
+  (`8d65e51`; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
+  `names_upstream` and the flagged rules).
 - `pod-e2e` (T-021) is done: the release `v0.22.0` and podssh's take of
   `adoption/podssh/pod-e2e.patch` (at podssh `74760e8`) remain.
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on

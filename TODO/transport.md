@@ -3481,7 +3481,8 @@ cargo test -p pod-services
 edge), with a comment that no WebSocket passes the edge; the README row
 names it; `the_bare_node_of_openbare_is_a_bare_v3_endpoint` reads it.
 `cargo test -p pod-services --all-features` passes. The fact
-`connect-form` of the first approach is not written: no form passes.
+`connect-form` of the first approach is not written: no form passes. podssh speaks both forms at `6de121b2` (`bare.rs`, the header
+form; rustfmt at `d1ec1e0b`).
 
 # T-200: `pod-services`: a public Bare node whose WebSocket passes (PodUtils/podssh@T-740)
 

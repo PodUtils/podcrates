@@ -26,8 +26,11 @@ page current; remove a line when its work is done.
   - podvm: `v0.21.0` (`1ffe87e`, PodUtils/podvm#257; its incus tier calls
     `pod-incus`, proved by its experiment 434 against incusd 6.0.0). Its
     PodUtils/podvm@T-1722 may ask for `exec_attached`.
-  - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
-    Its state (head `4ca19f5`): its T-035 is done (a job with a
+  - podrunner: `v0.21.0` (`8d65e51`; `pod-job` at `0457ed0`).
+    Its state (gate green at `995de09`): its T-053 covers each design row
+    but a real guest (its T-036); its T-063 kills a `setsid env -i`
+    process with a subreaper shim of its own; no crate ask. Earlier
+    (head `4ca19f5`): its T-035 is done (a job with a
     `container:` key runs through the hooks of a podvm unit; gate
     42991333922). Its milestone M-B holds (PodUtils/podrunner#26
     closed; runner-image run 42987612426): on a hosted runner with no root,
@@ -56,8 +59,8 @@ page current; remove a line when its work is done.
   (`check-sources.py` with clones must show 0 changes), remove the trial
   files of that consumer, set the entry to done, and close the hand-off
   issue when each consumer took its part.
-- #65 (`v0.21.0`): podssh and podvm took it; close it when podnet and
-  podrunner move their tags.
+- #65 (`v0.21.0`): podssh, podvm and podrunner took it; close it when
+  podnet moves its tag.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".
