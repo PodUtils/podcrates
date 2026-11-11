@@ -7,21 +7,22 @@ kind = "ssh-tunnel"
 party = "Sandhole (EpicEric/sandhole), its public demo"
 about = "The demo server of Sandhole: an HTTP tunnel over SSH with no account"
 
-[[endpoint]]
-name = "ssh"
-scheme = "ssh"
-host = "demo.sandhole.com.br"
-port = 22
-source = { url = "https://github.com/EpicEric/sandhole/blob/6a57467237f4/README.md", read = 2026-11-11, note = "ssh -R 80:localhost:4321 demo.sandhole.com.br" }
-
 # Plain SSH on the HTTPS port, not SSH inside TLS: the server reads the
-# first bytes for SSH before TLS.
+# first bytes for SSH before TLS. It comes first: the order of the file is
+# the order that a forward relay tries, and a proxy often passes 443 alone.
 [[endpoint]]
 name = "ssh-443"
 scheme = "ssh"
 host = "demo.sandhole.com.br"
 port = 443
 source = { measured = "the runs 42970029119 and 42970697875 of PodUtils/podssh on a GitHub runner with stock OpenSSH and a throwaway key: a remote forward on port 443 served a request (PodUtils/podssh@T-743)", read = 2026-11-11, note = "https://sandhole.com.br/cli.html: --connect-ssh-on-https-port allows connecting to SSH via the HTTPS port as well" }
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "demo.sandhole.com.br"
+port = 22
+source = { url = "https://github.com/EpicEric/sandhole/blob/6a57467237f4/README.md", read = 2026-11-11, note = "ssh -R 80:localhost:4321 demo.sandhole.com.br" }
 
 # The Ed25519 key of the server, the same on both ports.
 [[fact]]
@@ -34,6 +35,14 @@ source = { measured = "the runs 42970029119 and 42970697875 of PodUtils/podssh o
 name = "tunnel-zone"
 value = "demo.sandhole.com.br"
 source = { measured = "the runs of PodUtils/podssh: each connection got a new name under demo.sandhole.com.br; a name under it resolves to the address of the demo (178.156.220.190, DoH of Cloudflare, 2026-11-11)", read = 2026-11-11 }
+
+# The facts of a forward relay (README, "SSH forward relays"). Any key is
+# a user, so no user is a fact. The banner colors the URL: an escape comes
+# before it.
+[[fact]]
+name = "url-match"
+value = ["https://", ".demo.sandhole.com.br"]
+source = { measured = "the runs 42970029119 and 42970697875 of PodUtils/podssh: each connection gave the line Starting HTTPS on https://NAME.demo.sandhole.com.br (PodUtils/podssh@T-743)", read = 2026-11-11, note = "src/ssh/forwarding.rs of EpicEric/sandhole at 6a57467237f4 writes Starting HTTPS on https://{assigned_host}, underlined" }
 
 [[watch]]
 kind = "ssh-banner"

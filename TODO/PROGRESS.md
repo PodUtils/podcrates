@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 224 entries: 60 open, 4 partial, 4 blocked, 156 done.
+`TODO/INDEX.md` holds 226 entries: 62 open, 4 partial, 4 blocked, 156 done.
 
 ## State
 
@@ -100,7 +100,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C65), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C66), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

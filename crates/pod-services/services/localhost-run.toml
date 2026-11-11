@@ -21,6 +21,19 @@ name = "user"
 value = "nokey"
 source = { url = "https://localhost.run/docs/faq", read = 2026-11-11, note = "For free tunnels, skip the key check with the nokey user: ssh -R 80:localhost:8080 nokey@localhost.run" }
 
+# The facts of a forward relay (README, "SSH forward relays"). The banner
+# names the tunnel after a welcome that names other hosts of the service.
+[[fact]]
+name = "url-match"
+value = ["https://", ".lhr.life"]
+source = { url = "https://localhost.run/", read = 2026-11-11, note = "the sample of the landing page: a1b2c3d4e5f6.lhr.life tunneled with tls termination, https://a1b2c3d4e5f6.lhr.life" }
+
+[[fact]]
+name = "keepalive-seconds"
+value = 60
+unit = "s"
+source = { url = "https://localhost.run/docs/faq", read = 2026-11-11, note = "My connection keeps dropping ... Enable SSH keepalives: ssh -o ServerAliveInterval=60 -R 80:localhost:8080 localhost.run" }
+
 # The Ed25519 key of the server, as podssh's live run read it.
 [[fact]]
 name = "host-key-sha256"

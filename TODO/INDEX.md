@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**224 entries: 60 open, 4 partial, 4 blocked, 156 done.**
+**226 entries: 62 open, 4 partial, 4 blocked, 156 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 45 | 59 |
-| P2 | 29 | 2 | 4 | 76 | 111 |
+| P2 | 31 | 2 | 4 | 76 | 113 |
 | P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 60 | 4 | 4 | 156 | 224 |
+| **All** | 62 | 4 | 4 | 156 | 226 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -270,4 +270,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain |
 | [T-222](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
 | [T-223](relay.md) | P3 | S | M2 | defect | open | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |
+| [T-224](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the facts of an SSH forward relay, and a reader of its banner across chunks (PodUtils/podnet#455) |
+| [T-225](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |

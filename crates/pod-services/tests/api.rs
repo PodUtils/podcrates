@@ -221,7 +221,8 @@ fn the_file_host_of_pypi_is_a_service() {
 fn pinggy_has_ssh_inside_tls_and_its_host_key() {
     let pinggy = pod_services::get("pinggy").expect("pinggy");
     assert_eq!(pinggy.endpoint("ssh").unwrap().port(), 443);
-    assert_eq!(pinggy.text("dashboard-host"), Some("dashboard.pinggy.io"));
+    let skips: Vec<&str> = pinggy.texts("url-skip").unwrap().iter().map(|t| t.as_ref()).collect();
+    assert_eq!(skips, ["dashboard.pinggy.io"]);
     for (name, port) in [("ssh-tls", 443), ("ssh-tls-alt", 7878)] {
         let e = pinggy.endpoint(name).unwrap();
         assert_eq!(

@@ -3643,3 +3643,146 @@ podvm, and `each_registry_answers_at_v2_over_https` lists seven
 registries. `cargo test -p pod-services --all-features`: each suite
 passes. The live watches: 4 hold (the two `oci-ping`, the two
 `oci-digest`).
+
+# T-224: `pod-services`: the facts of an SSH forward relay, and a reader of its banner across chunks (PodUtils/podnet#455)
+
+**Source:** PodUtils/podnet#455 (COORD-037 of podnet; PodUtils/podnet@T-165, PodUtils/podnet@T-166)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet has the command `podnet ssh-relay --server HOST:PORT --user USER
+--url-match TEXT [--url-skip TEXT]` (PodUtils/podnet@T-165). The flags
+are required until `pod-services` holds the facts of each relay. Then
+they become overrides. The ask, for each SSH forward relay, as data (no
+host in podnet's code):
+
+- the SSH endpoints (`HOST:PORT`, a list that podnet tries in order);
+- the SSH user that the relay expects (a fixed word or a token form);
+- the rule of the URL in the banner: the texts that the URL holds
+  (`match`) and the texts that it does not hold (`skip`);
+- the transport: plain SSH on TCP, and whether the relay answers on 443;
+- the limits: the session time limit, and the keepalive that the relay
+  needs.
+
+Also: a reader of the banner that holds a line across two chunks. podnet
+reads the banner chunk by chunk, so it loses a URL that two chunks cut.
+
+## Premise
+
+- Read: PodUtils/podnet#455; podnet `main` at `9df5438`:
+  `PodUtils/podnet:crates/podnet-serve/src/relay.rs` (`UrlRule`: a token
+  that starts with `http://` or `https://`, with no text of `skip` and
+  each text of `hold`; `RelayConfig::default()`: the user `podnet` and the
+  endpoint `ssh` of `pinggy`), `PodUtils/podnet:src/cli/cmd/ssh_relay.rs`
+  (`--url-match` fills `hold`, "the URL holds each text"; `--url-skip`
+  fills `skip`, "the URL holds none of the texts"; a keepalive of 30 s),
+  and the banner of `free.pinggy.io` that podnet read on 2026-10-09 (the
+  test `picks_the_tunnel_url_and_not_the_dashboard` of
+  `PodUtils/podnet:crates/podnet-serve/src/relay/tests.rs`).
+- Read on 2026-11-11, through the proxy and read.web.pkgforge.dev: the
+  pages of Pinggy (`pinggy.io/docs/`, `/docs/usages/`,
+  `/docs/guides/long_running_tunnels/`, `pinggy.io/` and its script), of
+  Serveo (`serveo.net/docs/`, its article on SSH servers, `serveo.net/`),
+  of localhost.run (`localhost.run/`, `/docs/`, `/docs/faq`,
+  `/docs/forever-free`) and of Sandhole (`sandhole.com.br/cli.html`, and
+  `src/ssh/forwarding.rs` of EpicEric/sandhole at `6a57467237f4`).
+- Read: podssh's facts of the same relays
+  (`PodUtils/podssh:docs/carriers.md`; the line of Sandhole that its runs
+  42970029119 and 42970697875 measured; its words and its reader `Lines`
+  in `PodUtils/podssh:crates/podssh-relay/src/ssh_http/`).
+- The fact `dashboard-host` of `pinggy` has two readers: podnet
+  (`UrlRule::default()`) and podssh (`pinggy::dashboard()`,
+  `PodUtils/podssh:crates/podssh-relay/src/pinggy/mod.rs`).
+- Not measured: the banner of a relay. This sandbox has no SSH, and the
+  watch `ssh-banner` reads the version line, not the text of a session.
+
+## Approach
+
+1. The facts go into the files of the kind `ssh-tunnel`, each with its
+   source and its date, and only where a source states them. Keep the
+   names that exist: `user` (of `localhost-run`) and
+   `free-tunnel-minutes` (of `pinggy`). New names: `url-match` and
+   `url-skip` (lists of texts), and `keepalive-seconds` (unit `s`). Move
+   `dashboard-host` of `pinggy` into `url-skip`, so that one name holds
+   the skip texts of each relay.
+2. The order of the endpoints: the endpoints of the scheme `ssh` (plain
+   SSH on TCP), in the order of the file, an endpoint on 443 first. Put
+   `ssh-443` of `sandhole` before `ssh`.
+3. In `pod-services` (code over its facts, with no relay in it): a service
+   read as a forward relay (`forward::Relay`), podnet's rule of the URL
+   (`forward::UrlRule`: each text of `url-match`, no text of `url-skip`),
+   and the reader of a banner in chunks (`forward::Banner`: a URL is one
+   word, so the reader holds the word that a chunk cut, with a bound).
+4. Tests of the data and of the reader, the README, plants for the
+   reader, the adoption map for podnet and podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo clippy -p pod-services -p pod-services-watch --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh services-forward-word-not-held services-forward-held-unbounded
+```
+
+# T-225: `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule
+
+**Source:** T-224 (the facts of the SSH forward relays come from documents, and no watch reads a banner)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The facts `url-match` and `url-skip` of `pinggy`, `serveo`,
+`localhost-run` and `sandhole` (T-224) come from the documents of the
+relays and from podssh's runs. No watch reads the banner of a relay: the
+watch `ssh-banner` reads the version line, and `ssh-host-key` reads the
+key of the key exchange. A relay that moves the zone of its tunnels
+(podssh's `ssh_http::word_of_name` says that the zone of localhost.run
+moves) or writes another URL before the
+tunnel's breaks the default of `podnet ssh-relay` with no finding in
+`services.yml`. No source shows the banner of Serveo (its documents name
+the zone only), and the user `http` of Pinggy is not measured.
+
+## Premise
+
+- Read: `crates/pod-services-watch/src/ssh.rs` (a key exchange up to the
+  reply of the server; no authentication, no channel).
+- The documents that hold the zones today, in their raw HTML (read on
+  2026-11-11): `https://pinggy.io/docs/` (`run.pinggy-free.link`),
+  `https://localhost.run/` (`a1b2c3d4e5f6.lhr.life`) and
+  `https://serveo.net/docs/` ("A subdomain of serveo.net"). The watch
+  `http-text` takes an endpoint, not a URL, and these relays have no
+  HTTPS endpoint.
+- Not measured: a banner, from this sandbox (no SSH).
+
+## Approach
+
+1. `http-text` takes `url` in place of `endpoint` (as `http-json` does),
+   with its test and its plant. A watch of each document above, with the
+   text of the zone: a document that moves the zone is a finding.
+2. A watch kind `forward-url` (`endpoint`): an SSH client with a key made
+   for the run and given up after it, the user of the fact `user` (else a
+   fixed word), a remote forward of port 80 (`tcpip-forward`), a session
+   channel with a shell, the banner read through `forward::Banner` with
+   the rule of the service, a time limit of 45 s, then the close. It
+   reports the host of the URL, and finds a banner with no URL that the
+   rule accepts. The client: russh (as podnet's leg) or the OpenSSH of the
+   runner; `pod-services-watch` runs in CI alone.
+3. Its offline test against a stand-in SSH server on loopback that writes
+   a banner in chunks; its plant; the watches of the four relays in their
+   files. `services.yml` runs it at most once a day for each relay.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches
+cargo run -q -p pod-services-watch -- --service pinggy --service serveo --service localhost-run --service sandhole
+```

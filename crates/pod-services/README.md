@@ -66,7 +66,7 @@ A word is a lower-case letter, then lower-case letters, digits and single
 | `value` | a text, an integer, a bool, a date (`2029-08-15`, no quotes), a list of texts or a list of integers | required, or `file` |
 | `file` | a text file under `services/` whose text is the value (the edge roots) | the built-in set only: a fact of an overlay gives its text in `value` |
 | `type` | `text`, `int`, `bool`, `date`, `texts`, `ints` | optional; the value must be of it; required for an empty list |
-| `unit` | the unit of a number: `ms`, `bytes`, `min` | optional word |
+| `unit` | the unit of a number: `ms`, `s`, `min`, `h`, `bytes` | optional word |
 | `source` | the source of the value | required |
 
 `source`, a table:
@@ -160,6 +160,9 @@ pointer = "/limits"
 | `Rank` (`value`, `source`), `Watch` (`kind`, `args`, `arg(name)`), `Arg` (`name`, `value`) | |
 | `Catalog::new()`, `Catalog::get`, `Catalog::of_kind`, `Catalog::iter`, `Catalog::overlay` | the built-in set with the overlay of the consumer |
 | `Catalog::lay(label, text)`, `Catalog::with_overlay(files)`, `OverlayError` (`label`, `field`, `why`, `class()`) | feature `overlay` |
+| `forward::Relay` (`of`, `service`, `endpoints`, `user`, `url_rule`, `session_limit`, `keepalive`) | a service read as an SSH forward relay ("SSH forward relays"); `of` gives none for another service |
+| `forward::UrlRule` (`matches`, `skips`; `accepts`, `pick`) | the rule of the URL of a tunnel: each text of `matches`, no text of `skips` |
+| `forward::Banner` (`new`, `push`, `finish`, `url`, `held`, `MOST_HELD`) | the reader of a banner in chunks: the first URL that the rule accepts |
 | `Text`, `List<T>` | `Cow<'static, str>` and `Cow<'static, [T]>`: the built-in set borrows from the binary, an overlay owns its values |
 
 ## The overlay
@@ -224,11 +227,11 @@ let relay = services.of_kind("relay").next();
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
 | `node-*` (10) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
-| `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `dashboard-host`, `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
-| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `host-key-sha256` (Ed25519) |
-| `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run) |
-| `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `host-key-sha256` (read by podssh's live run) |
-| `sandhole` | `ssh-tunnel` | `ssh`, `ssh-443` (plain SSH on the HTTPS port) | `host-key-sha256`, `tunnel-zone` |
+| `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
+| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match`, `keepalive-seconds`, `host-key-sha256` (Ed25519) |
+| `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
+| `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
+| `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `host-key-sha256`, `tunnel-zone` |
 | `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
@@ -249,6 +252,67 @@ let relay = services.of_kind("relay").next();
 
 An image fact is `REPOSITORY[:TAG]@sha256:DIGEST`, with no host: the host
 is the endpoint `registry`.
+
+## SSH forward relays
+
+A forward relay takes a remote forward (`ssh -R`) with no account, and
+writes the URL of the tunnel in the text of a session channel, its banner
+(podnet's `podnet ssh-relay`, PodUtils/podnet#455). It is a service of the
+kind `ssh-tunnel` with the fact `url-match` or `url-skip`, and an endpoint
+of plain SSH. `forward::Relay::of(service)` reads it; the code knows no
+relay, and an overlay file of the same facts is a relay of the user's own.
+
+| Fact | Type | What | `Relay` |
+| --- | --- | --- | --- |
+| `url-match` | texts | the URL of the tunnel holds each text | `url_rule().matches` |
+| `url-skip` | texts | the URL of the tunnel holds none of the texts (a dashboard) | `url_rule().skips` |
+| `user` | text | the SSH user of a free tunnel; none: the relay takes any user | `user()` |
+| `free-tunnel-minutes` | int, `min` | the relay ends a free tunnel after this time; none: no source states a limit | `session_limit()` |
+| `keepalive-seconds` | int, `s` | the keepalive of the relay's own command; none: no source states one | `keepalive()` |
+
+The endpoints of the scheme `ssh` are plain SSH on TCP, in the order to
+try (`endpoints()`): an endpoint on port 443 comes first. An endpoint of
+`ssh+tls` is SSH inside TLS, which `Relay` does not give. A value that no
+source states is not in the file.
+
+| Relay | Plain SSH | `user` | `url-match` | `url-skip` | `free-tunnel-minutes` | `keepalive-seconds` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `pinggy` | `ssh` (443) | `http` (the type of the tunnel) | `https://`, `.run.pinggy-free.link` | `dashboard.pinggy.io` | 60 | 30 |
+| `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveo.net` | | | 30 |
+| `localhost-run` | `ssh` (22) | `nokey` | `https://`, `.lhr.life` | | | 60 |
+| `sandhole` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.demo.sandhole.com.br` | | | |
+
+`ssh-j` is of the kind `ssh-tunnel` too, but it gives no URL (a jump and
+a forward by name): it has none of these facts. `tests/forward.rs` holds
+each service of the kind to one of the two lists.
+
+The rule is the one of podnet's flags `--url-match` and `--url-skip`: a
+URL is the tunnel's when it holds each text of `url-match` and no text of
+`url-skip`. `forward::Banner` reads the banner as the session channel
+gives it, in chunks:
+
+```rust
+let relay = pod_services::forward::Relay::of(pod_services::get("pinggy").unwrap()).unwrap();
+let mut banner = pod_services::forward::Banner::new(relay.url_rule());
+for chunk in channel_data {
+    if let Some(url) = banner.push(&chunk) {
+        return Ok(url.to_string());
+    }
+}
+banner.finish().map(str::to_string) // the channel closed: the held word is whole
+```
+
+* A URL is one word. A word ends at a space, an end of line or another
+  control byte (also the escape of a color, as Sandhole writes it). The
+  reader holds the word that a chunk cut, and no more of its line.
+* The URL of a word starts at `http://` or `https://`; the marks of a
+  sentence at its end (`.`, `,`, `)`, `]`, `>`, a quote) are not part of
+  it, and it has a host after the scheme.
+* A word of more than `Banner::MOST_HELD` (2048) bytes is no URL: the
+  reader passes over it to its end, so a banner with no end of line holds
+  no more than that.
+* After the first URL that the rule accepts, `push` gives it again and
+  reads no more.
 
 ## Where the consumers differed
 
@@ -343,7 +407,7 @@ The inventory of podnet (`docs/research/services/podnet.md`, 1 and 5), at
 | `src/relay_pool.rs` `DEFAULT_HOST`, `SEED` | [x] `ajam-relay` endpoint `default` (`host`), the endpoints of the role `seed` |
 | `relay_pool.rs` the path `/relays.json`, `same_deployment`, `MAX_ALTERNATES`, `STALE_AFTER`, `MAX_BODY` | stay: the relay contract and the client (pod-relay, T-047) |
 | `src/relay.rs` `DEFAULT_RELAY`, `src/transport/ssh.rs` the default address | [x] `pinggy` endpoint `ssh` (`authority()` gives `free.pinggy.io:443`) |
-| `src/relay.rs` the match on `dashboard.pinggy.io` | [x] `pinggy` fact `dashboard-host` |
+| `src/relay.rs` the match on `dashboard.pinggy.io` | [x] `pinggy` fact `url-skip` (T-224; it was `dashboard-host`) |
 | `examples/edge_probe.rs` the defaults (`free.pinggy.io:443`, `region1.v2.argotunnel.com`) | stay: an example of podnet; it can read `pinggy` and `cloudflare-tunnel-edge` |
 | The tests that repeat the relay's hosts (`relay_pool.rs`, `ws_relay.rs`, `tests/relay_reverse.rs`) | stay: tests of the code |
 | `src/resolve.rs` `DOH_SERVERS` | [x] `cloudflare-doh`, `google-doh`: the URL is `https://` with the endpoint's address (in brackets for IPv6) and the fact `json-path`; the operator is the `party` |
@@ -434,8 +498,23 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 
 * `src/schema_tests.rs` (12): each rule of the schema refuses its fault
   with the file and the field; the built-in files pass the same reader.
-* `tests/api.rs` (9): by id, by kind and by rank, the roles, the
-  accessors, a source and a date for each value, the watches.
+* `tests/api.rs` (19): by id, by kind and by rank, the roles, the
+  accessors, a source and a date for each value, the watches, and the
+  values of single services.
+* `tests/actions.rs` (3): the hosts of GitHub Actions and the pin of the
+  official runner, each with its source and its watch.
+* `tests/forward.rs` (5): each service of the kind `ssh-tunnel` is a
+  forward relay or is named as not one; each forward relay has the facts
+  of its reader, of their types, from a document or a measurement, 443
+  first; the values of each relay; the rule of each relay picks the URL of
+  the banner that its source shows, in chunks of each size, and refuses
+  the other URLs of the service.
+* `tests/banner.rs` (10): the reader `forward::Banner`: a URL that two
+  chunks cut at each byte, the dashboard skipped, each text of match and
+  no text of skip, a line with no URL, a banner of 1 MB with no end of
+  line held to the bound, a URL of the bound and a longer one, the escapes
+  and marks around a URL, the end of the banner, the first URL kept, bytes
+  that are not UTF-8.
 * `tests/public_carriers.rs` (6): the rules of the kinds `wisp-public`, `proxy-list` and `proxy-node`: a source with a date for each value, port 443, no refused suffix, no VMess, the forms of the share links, one `word` for each forwarder.
 * `tests/overlay.rs` (5, feature `overlay`): a file adds a service or
   replaces one, an error of the settings, one id once, no file.
@@ -449,7 +528,7 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
   `the_embedded_edge_roots_are_real_certificates`,
   `quic_alpn_and_sni_are_different_strings`,
   `the_servers_are_ip_addresses_of_two_operators`.
-* `tests/podvm.rs` (6): the constants of podvm come back from the files
+* `tests/podvm.rs` (7): the constants of podvm come back from the files
   (`reference.rs`, `images.rs`, `workload.rs`, `371-validationos-stream.sh`);
   each registry answers at `/v2/`; each image is a repository and a
   SHA-256 digest; each sum of a guest image is a SHA-256. podvm has no
@@ -457,6 +536,10 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 * The plant `scripts/plants/services-no-source` (group `services`): a
   service file whose fact names no source; the build must fail with the
   file and the field.
+* The plants `scripts/plants/services-forward-word-not-held` (the reader
+  ends a word at the end of each chunk, so a cut URL is lost) and
+  `scripts/plants/services-forward-held-unbounded` (no bound on the held
+  word) (group `services`): `tests/banner.rs` must fail.
 * The watches of the files: `crates/pod-services-watch` (T-050) checks
   each one against the live service; its tests and one plant for each
   watch kind (`scripts/plants/services-*`) are there.
@@ -505,6 +588,8 @@ podssh:
 | `crates/podssh-probe/facts/relay-limits.toml` | the facts of `ajam-relay`; `scripts/check-relay-limits.py` moves to the watch `http-json` (T-050) |
 | `scripts/check-upstream.py` (`upstream.yml`) | the watches `github-release`, `github-files` and `tls-roots` of `cloudflare-tunnel-edge` in `services.yml` of podcrates; the script leaves podssh with its pin file `quick/cloudflared-pin.txt` (T-151) |
 | `scripts/check-domain.py` (the step of `relay-watch.yml`) | the watch `rdap` of `ajam-relay` in `services.yml` of podcrates; the script and the step leave podssh with T-151 |
+| `pinggy::dashboard()` (`text("dashboard-host")`) | `get("pinggy")...texts("url-skip")` (T-224 moved the fact) |
+| `ssh_http::Word::{user, ports}`, `ssh_http::name::Lines` | can read `forward::Relay` (`user()`, the ports of `endpoints()`) and `forward::Banner`; the word `tunnel` of Sandhole stays podssh's (no source states a user) |
 | a relay, a resolver or a server of the user's own (`PODSSH_RELAY`, `PODSSH_STUN`, ...) | the variables stay; a consumer can also lay a file (`Catalog::lay`, feature `overlay`) |
 
 podnet:
@@ -514,7 +599,10 @@ podnet:
 | `ws_relay::DEFAULT_RELAY` | `pod_services::get("ajam-relay").unwrap().endpoint("default").unwrap().url()` |
 | `relay_pool::DEFAULT_HOST`, `SEED` | `...endpoint("default").host()`, `...endpoints_of("seed").map(Endpoint::host)` |
 | `relay::DEFAULT_RELAY`, the default of `transport::ssh::SshRelay` | `get("pinggy")...endpoint("ssh").authority()` |
-| the match on `dashboard.pinggy.io` | `get("pinggy")...text("dashboard-host")` |
+| the match on `dashboard.pinggy.io`, the default of `relay::UrlRule` | `get("pinggy")...texts("url-skip")` (T-224 moved `dashboard-host` into it) |
+| `relay::RelayConfig::default()`: `address`, `username`; the defaults of the flags of `podnet ssh-relay` (`--server`, `--user`, `--url-match`, `--url-skip`) and its `KEEPALIVE` | `forward::Relay::of(get(ID))`: `endpoints()` (each `authority()`, tried in order), `user()` (none: podnet's own word), `url_rule()`, `keepalive()`, `session_limit()`; a flag stays an override |
+| `relay::UrlRule` (`hold`, `skip`), `UrlRule::pick` | `forward::UrlRule` (`matches`, `skips`), `forward::UrlRule::pick` |
+| the read of the banner chunk by chunk in `relay::open` (`ChannelMsg::Data`; `Eof`, `Close`) | `forward::Banner::push` for each chunk, `forward::Banner::finish` at the end of the channel |
 | `resolve::DOH_SERVERS` | for `cloudflare-doh` then `google-doh`, each endpoint: `DohServer { operator: party(), url: format!("https://{}{}", address in brackets for IPv6, text("json-path")) }` |
 | `resolve::DOH_SERVERS_BY_NAME` | for the same two: `format!("https://{}{}", endpoint("v4-1").host(), text("json-path"))` |
 | `edge_discovery::EDGE_SRV`, `cloudflare::EDGE_SRV` | `get("cloudflare-tunnel-edge")...text("srv-name")` |

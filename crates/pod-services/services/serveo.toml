@@ -24,6 +24,19 @@ name = "host-key-sha256"
 value = "SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk"
 source = { url = "https://serveo.net/docs/", read = 2026-11-10, note = "Verify the Ed25519 host-key fingerprint is SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk" }
 
+# The facts of a forward relay (README, "SSH forward relays"). Any SSH
+# user: the user picks the name of the tunnel, and no account.
+[[fact]]
+name = "url-match"
+value = ["https://", ".serveo.net"]
+source = { url = "https://serveo.net/docs/", read = 2026-11-11, note = "ssh -R 80:localhost:3000 serveo.net ... A subdomain of serveo.net will be assigned to forward HTTP traffic (https://serveo.net/ shows https://abc.serveo.net/welcome)" }
+
+[[fact]]
+name = "keepalive-seconds"
+value = 30
+unit = "s"
+source = { url = "https://serveo.net/articles/remote-access-to-ssh-servers-using-serveo", read = 2026-11-11, note = "ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R my-long-private-alias:22:localhost:22 serveo.net" }
+
 [[watch]]
 kind = "ssh-host-key"
 endpoint = "ssh"

@@ -29,12 +29,31 @@ port = 7878
 sni = "free.pinggy.io"
 source = { url = "https://pinggy.io/docs/client_behind_proxy/", read = 2026-11-09, note = 'ssh -p7878 -R0:localhost:4000 -o ProxyCommand="ncat --ssl %h %p" free.pinggy.io' }
 
-# The banner names the dashboard beside the tunnel's URL: the URL of the
-# tunnel is the one that is not on this host.
+# The facts of a forward relay (README, "SSH forward relays"). The user
+# names the type of the tunnel (http) and no account.
 [[fact]]
-name = "dashboard-host"
-value = "dashboard.pinggy.io"
-source = { url = "https://pinggy.io/docs/", read = 2026-11-06, note = "PodUtils/podnet src/relay.rs passes it over in the banner" }
+name = "user"
+value = "http"
+source = { url = "https://pinggy.io/docs/usages/", read = 2026-11-11, note = "we use the username to send the tunnel token and other keywords to the server ... These keywords set the tunnel type. The default tunnel is the http type." }
+
+# The banner names an HTTP and an HTTPS URL of the tunnel: take the HTTPS one.
+[[fact]]
+name = "url-match"
+value = ["https://", ".run.pinggy-free.link"]
+source = { url = "https://pinggy.io/docs/", read = 2026-11-11, note = "You can access local server via following URL(s): http://uljtt-30-47-152-61.run.pinggy-free.link https://uljtt-30-47-152-61.run.pinggy-free.link" }
+
+# The banner names the dashboard before the tunnel's URLs.
+[[fact]]
+name = "url-skip"
+value = ["dashboard.pinggy.io"]
+source = { measured = "the banner of free.pinggy.io that podnet read: Upgrade to Pinggy Pro to get unrestricted tunnels. https://dashboard.pinggy.io, then the tunnel's URLs (PodUtils/podnet crates/podnet-serve/src/relay/tests.rs, picks_the_tunnel_url_and_not_the_dashboard)", read = 2026-10-09, note = "https://pinggy.io/docs/ names the host: With Pinggy Pro you can customize these urls by logging in to dashboard.pinggy.io" }
+
+# The keepalive of the command that the site makes for a free tunnel.
+[[fact]]
+name = "keepalive-seconds"
+value = 30
+unit = "s"
+source = { url = "https://pinggy.io/", read = 2026-11-11, note = "Configure your free tunnel, Keep Alive: the script of the page adds -o ServerAliveInterval=30 (the guide of long running tunnels uses 60, with a token)" }
 
 [[watch]]
 kind = "ssh-banner"

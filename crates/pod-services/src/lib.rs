@@ -9,9 +9,11 @@
 //! its id ([`get`]) or the services of a kind ([`of_kind`]), and can lay
 //! its own files of the same schema over the built-in set ([`Catalog`],
 //! feature `overlay`). The watches that each file names run in the
-//! workflows of podcrates.
+//! workflows of podcrates. [`forward`] reads a service as an SSH forward
+//! relay, and reads the URL of its tunnel in its banner.
 
 mod catalog;
+pub mod forward;
 mod service;
 
 #[cfg(any(test, feature = "overlay"))]
