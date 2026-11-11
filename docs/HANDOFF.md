@@ -1,91 +1,46 @@
 # Handoff
 
-The state of podcrates on 2026-11-11, for a session with no memory of
-the last one. Read this page first, then `AGENTS.md`,
-`TODO/PROGRESS.md` (the state, the work order, the questions),
-`docs/maintenance.md`, `docs/design.md` and `docs/decisions.md`. Keep this
-page current; remove a line when its work is done.
-
-## Where podcrates stands
-
-- The release `v0.24.0` is at `228e2e3` (`docs/releases/v0.24.0.md`; ci
-  43045626419, release 43053076977; the hand-off GitHub #73, COORD-048):
-  the modloop reader of `pod-guest` (T-206, call C58), the inventory gaps
-  of podvm in `pod-services` (T-211, call C59). `v0.23.0` is at `de770a2`
-  (#72); `v0.22.0` at `93de04a` (#71: each consumer took it).
-- The next release: `pod-relay` (T-025, partial: the podssh trial
-  remains) and T-209 (`pod-confine`: the scopes, a closed UDP, no MPTCP
-  under a TCP list, no io_uring; calls C61 to C63; breaking: `Spec` and
-  `Deny`). podnet's asks (#74): T-028 after T-026, T-214 and T-215.
-- The consumers and the tag each takes:
-  - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192); it took `pod-e2e`
-    at `75a50318` (PodUtils/podssh#191);
-    the key of `localhost-run` pinned;
-    `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
-    PodUtils/podssh@T-740).
-    `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
-  - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447: it took `pod-wg`;
-    earlier `54bd958`, PodUtils/podnet#448; `pod-services-watch`
-    at `0b945a3`). `pod-netstack` at `d23ce4e` (PodUtils/podnet#445:
-    taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`).
-    T-188 is done: Reno and CUBIC are slow only on a link that gives one
-    ACK for each round trip; its result for `warp --cc reno|cubic` goes to
-    podnet. `pod-hold` at `b759937`,
-    its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
-    podnet's T-174 (the netns router).
-  - podvm: `v0.22.0` (`c9d5038`, PodUtils/podvm#262; the launcher of
-    `podvm-supervise` sets `die_with_parent`, proved by its experiment 437;
-    its incus tier calls `pod-incus`). Its takes of `v0.23.0` (`pod-confine`
-    for PodUtils/podvm@T-1658, the fix of #261 for PodUtils/podvm@T-1659)
-    answer on #72. Its
-    PodUtils/podvm@T-1722 may ask for `exec_attached`.
-  - podrunner: `v0.24.0` (`6a01f4e`; its T-042, the `confined` boundary,
-    takes `pod-confine`). Earlier `82b7af0` (`pod-job` at `0457ed0`). Its tests
-    25 and 26 pass on the fake unit and on podvm `v0.2.0-beta.3` (run
-    43018641300); no code of podrunner uses `pod-enter` or
-    `pod-supervise`. No crate ask.
-    Its state (gate green at `995de09`): its T-053 covers each design row
-    but a real guest (its T-036); its T-063 kills a `setsid env -i`
-    process with a subreaper shim of its own; no crate ask. Earlier
-    (head `4ca19f5`): its T-035 is done (a job with a
-    `container:` key runs through the hooks of a podvm unit; gate
-    42991333922). Its milestone M-B holds (PodUtils/podrunner#26
-    closed; runner-image run 42987612426): on a hosted runner with no root,
-    the podvm driver (podvm `v0.2.0-beta.3`, the supervise rung) ran the
-    official runner 2.338.2 on a canned job to Succeeded, and destroy
-    counted 0 processes and 0 files. No crate ask. Its finding
-    PodUtils/podrunner#61 (an absolute link of a rootfs resolves on the
-    host on the supervise rung) is podvm's `podvm-interpose`, not a crate
-    of podcrates (`pod-enter` names the limit); podvm takes it as
-    PodUtils/podvm@T-1725.
-- podrunner and podssh have lead sessions that this session started
-  (direct messages; `list_sessions`, titles `(podrunner)` and `(podssh)`);
-  podnet and podvm run in their own sessions (COORD issues).
+The state of unfinished work, for a session with no memory of the last
+one. Read this page first, then `AGENTS.md`, `TODO/PROGRESS.md` (the
+state, the work order, the questions), `docs/maintenance.md`,
+`docs/design.md` and `docs/decisions.md`. Keep this page current: remove
+a line when its work is done. Git and the record keep finished work.
 
 ## In flight
 
 - `pod-relay` (T-025, partial; call C60): imported from podssh `75a5031`
   and adapted (a `Context` of the caller, `Settings`, no globals); 356
-  tests and 28 plants pass. The trial of podssh (adoption/podssh/pod-relay.*)
-  is the next step: its glue gives each call that took a `ProxyChoice` a
-  `Context`. podssh freezes the files of the cut from `75a5031` (its fixes
-  come as COORD issues). T-212 makes the lines events.
-  A trial of a crate with a digit in its name needs `040f3ea` (the
-  pattern of `scripts/adoption.sh`). podssh's `tests/e2e_layered.rs` came
-  with the import.
-- At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
-  the hand-off): add the `taken` line to the crate's `SOURCES`
-  (`check-sources.py` with clones must show 0 changes), remove the trial
-  files of that consumer, set the entry to done, and close the hand-off
-  issue when each consumer took its part.
-- None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
-  2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
-  now".
+  tests and 28 plants pass. The next step is the trial of podssh
+  (adoption/podssh/pod-relay.*): its glue gives each call that took a
+  `ProxyChoice` a `Context`. podssh holds the files of the cut from
+  `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
+  lines events. A trial of a crate with a digit in its name needs the
+  pattern of `scripts/adoption.sh` from `040f3ea`.
+- The next release: `pod-relay` (T-025) and T-209 (`pod-confine`: the
+  scopes, a closed UDP, no MPTCP under a TCP list, no io_uring; calls C61
+  to C63; breaking: `Spec` and `Deny`).
+
+## What waits
+
+- podvm (on `v0.22.0`): its take of `v0.23.0` (GitHub #72: `pod-confine`
+  for PodUtils/podvm@T-1658, #69; the fix of T-208 for
+  PodUtils/podvm@T-1659) and of `v0.24.0` (#73: the modloop reader for
+  PodUtils/podvm@T-1662). PodUtils/podvm@T-1722 may ask for
+  `exec_attached` of `pod-incus`. Its other takes (PodUtils/podvm#194):
+  `pod-relay` (the blocking face, after T-025), `pod-services`,
+  `pod-todo`.
+- podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
+  at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
+  `pod-netstack`); T-201 starts at the first passing run of
+  PodUtils/podnet@T-250 (#74). The answer on `pod-git` before WARP (#75).
+- podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`
+  wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
+- podrunner (on `v0.24.0`): its T-042 takes `pod-confine`. No crate ask.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).
 
-## Rules learned in this session
+## Rules learned
 
 - Gate a commit on the exit code of a check (`cargo todo check >/dev/null
   2>&1 && git commit`), never on a pipe into `tail`.
@@ -93,18 +48,10 @@ page current; remove a line when its work is done.
   head; a push to `main` cancels the runs that wait. A change of a file
   that a plant patches makes the plant stale: `check.sh` runs
   `plant-each.sh --apply` (T-210).
-- After a release, read the dry run of `publish.yml` at the tag: it was red
-  at `v0.14.0` and `v0.15.0` (a cycle of dev-dependencies) and no session saw it.
-- A new entry id or call number: take it with `cargo todo next` just before
+- After a release, read the dry run of `publish.yml` at the tag: a cycle
+  of dev-dependencies makes it red, and no other check sees it.
+- Take a new entry id or call number with `cargo todo next` just before
   the commit; sessions and agents add entries in parallel.
-- A finding goes into the work at once: fixed in place, or written as an
-  entry (`AGENTS.md`, section 10). No "suggested task" card.
-- Write to podvm only by a COORD issue `(to podvm)` (the ruling "podvm
-  online"); podssh and podnet read their COORD issues and also take direct
-  messages of the parent session when one runs.
-- An agent works in its own worktree under `.claude/worktrees/`, never in
-  the main checkout; the disk is small: remove `target/debug` and the
-  copies of the consumers after a trial.
 - Each version bump makes a new copy of each workspace crate in
   `target/debug` (the version is in the hash of each artifact). Before the
   check of a bump, remove `target/debug` under the cargo lock
@@ -120,7 +67,11 @@ page current; remove a line when its work is done.
 
 ## Channels
 
+- podrunner and podssh: lead sessions that podcrates started; direct
+  messages (`list_sessions`, titles `(podrunner)` and `(podssh)`).
+- podnet and podvm: their own sessions; COORD issues only
+  (`docs/session-protocol.md`; the ruling "podvm online"). Run
+  `sh scripts/agent/watch-org.sh` under the Monitor tool.
 - Workflows: dispatch them with the GitHub MCP tool
   (`docs/maintenance.md`, "A run of a workflow").
-- Messages: COORD issues (`docs/session-protocol.md`) and
-  `sh scripts/agent/watch-org.sh` under the Monitor tool.
+- The take of a consumer: `docs/maintenance.md`, "The take of a consumer".

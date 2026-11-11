@@ -5,36 +5,29 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.24.0` at `228e2e3` (`docs/releases/v0.24.0.md`; ci
-  43045626419, release 43053076977): the module set of a guest from its
-  modloop in `pod-guest` (T-206), gcr.io, mirror.gcr.io and the NIC module
-  sums in `pod-services` (T-211). The hand-off is GitHub #73 (COORD-048).
-  `v0.23.0` is at `de770a2` (#72); `v0.22.0` at `93de04a` (#71: each
-  consumer took it).
-- The next release: `pod-relay` (T-025, partial), T-209 and T-221
-  (`pod-confine`: the scopes, a closed UDP, no MPTCP under a TCP list, no
-  io_uring, no capability of a root payload).
-- The consumers: podssh is on `v0.24.0` (`2f4f292b`, PodUtils/podssh#192;
-  it took `pod-e2e` at `75a50318`, PodUtils/podssh#191; earlier `6de121b2`, PodUtils/podssh#189;
-  the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
-  `pod-session` at `6f78a7c7`); podnet is on `v0.22.0`
-  (`089e1c9`, PodUtils/podnet#447: it took `pod-wg`; earlier `54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
-  `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
-  its `connect` and `packet` at `e4d4049`); podvm is on `v0.22.0` (`c9d5038`,
-  PodUtils/podvm#262: its launcher sets `die_with_parent`, experiment 437;
-  its incus tier calls `pod-incus`); podrunner is on `v0.24.0`
-  (`6a01f4e`, its fuzz lock `13d914d`; its T-042 takes `pod-confine`; earlier `82b7af0`: its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
-  `names_upstream` and the flagged rules).
-- Takes that wait: podvm's take of `pod-confine` for PodUtils/podvm@T-1658 (T-108, #69,
-  #72).
-- Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm),
-  T-025 (`pod-relay` imported and adapted, 356 tests; the trial of podssh
-  remains). Open defects: T-131 (`pod-gsr` on
-  Windows ARM64), T-149 (qemu-user only).
+- Last release: `v0.24.0` at `228e2e3` (`docs/releases/v0.24.0.md`; the
+  hand-off GitHub #73, COORD-048). The next release: `pod-relay` (T-025),
+  T-209 and T-221 (`pod-confine`), T-222 (`pod-netstack`), T-216.
+- The consumers and their tags:
+  - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192).
+  - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).
+  - podvm: `v0.22.0` (`c9d5038`, PodUtils/podvm#262).
+  - podrunner: `v0.24.0` (`6a01f4e`); its T-042 takes `pod-confine`, its
+    T-048 takes `check_upstream`, `names_upstream` and the flagged rules
+    of `pod-broker`.
+- Takes that wait: podvm's take of `v0.23.0` (`pod-confine` for
+  PodUtils/podvm@T-1658, T-108, #69 and #72; T-208 for
+  PodUtils/podvm@T-1659) and of `v0.24.0` (T-206 for
+  PodUtils/podvm@T-1662, #73); podnet's move to `v0.24.0` (#73).
+- Partial: T-025 (`pod-relay`: the trial of podssh remains), T-040 (the
+  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
+  (a Trojan node that passes the live check). Open defects: T-131
+  (`pod-gsr` on Windows ARM64), T-204 (a random failure of
+  `pod-session`), T-213 (`pod-confine`).
 - podrunner and podssh have lead sessions that podcrates started (the
-  rulings "podrunner online" and "Sessions online", 2026-11-11; C49); they
-  talk with podcrates by direct messages. podnet and podvm run in their
-  own sessions and answer COORD issues. M8 waits (the ruling "Priority").
+  rulings "podrunner online" and "Sessions online"; C49); they talk with
+  podcrates by direct messages. podnet and podvm run in their own sessions
+  and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
   (`check-crates-io-names.py`) but `pod-git`, which GitHub #1 lists under
   "To register" for the owner's agent; no crate goes to crates.io now (the
@@ -108,15 +101,12 @@ next entry.
 
 ## Owner actions
 
-| Entry | Action |
-| --- | --- |
-| Each release | Tell the consumer sessions to take the crates |
+None. The hand-off of each release is a COORD issue `(to all)` and a
+direct message to each lead session (`docs/maintenance.md`, "A release").
 
 ## Questions for the owner
 
-None open. The owner answered Q8 to Q14 and the decisions of the
-podrunner design review on 2026-11-11 (`docs/decisions.md`: C49, the rows
-"podrunner DR-4" to "Q11").
+None open.
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q15
