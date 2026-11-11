@@ -19,7 +19,13 @@ only issues system calls on data that exists:
    (guest paths, resolved under a root descriptor with `openat2` and
    `RESOLVE_IN_ROOT`, as after a `chroot` there) before the fork: each
    path opens as `O_PATH | O_CLOEXEC`, the BPF program is built. A path
-   that does not exist is a refusal by name.
+   that does not exist is a refusal by name. Where the child mounts on a
+   path after the compile or changes its root (a mount namespace, a
+   `chroot`), `Compiled::close_paths()` closes the descriptors after the
+   checks, and the child calls `Compiled::open_paths()` after its mounts
+   and its root change: each path opens again in the view of the payload,
+   with no allocation. A failed open is a `Refusal` of `open(O_PATH)` with
+   the index of its rule.
 3. `apply(&compiled)` in the child: `PR_SET_NO_NEW_PRIVS`, the drop of
    each capability that the spec does not keep (`capget`,
    `PR_CAPBSET_DROP`, `capset`, `PR_CAP_AMBIENT_CLEAR_ALL`),
@@ -33,7 +39,16 @@ There is no unconfined way through: a compile refuses a kernel with no
 Landlock and an ABI under 3 (ABI 1 and 2 do not confine `truncate(2)`),
 and `apply` refuses each failed call, so the caller does not exec. A rule
 holds the inode of its path: a rule on a directory covers the tree under
-it, and the open before the fork names the file that the payload sees.
+it, also the mounts in that tree. It does not cover a mount on the
+directory itself. The walk of Landlock goes from the root of a mount to
+the parent of its mount point, and does not read a rule on the mount
+point, which the mount hides. Measured on Linux 6.18 (ABI 7): a rule on a
+directory, opened before a tmpfs mount on it, does not cover the tmpfs
+(`EACCES`); a rule on the root of the tmpfs, or on the parent of the
+directory, does; a rule on the target of a bind mount does not cover the
+bind, and a rule on its source does. Thus a rule must open in the view of
+the payload, after each mount on its path: `close_paths` and
+`open_paths`.
 
 The crate reads no environment variable, prints nothing and keeps no
 global state. A failure of a compile or of the probe is a
@@ -53,9 +68,9 @@ the host.
 | `Access` | `READ` (read a file, list a directory), `WRITE` (write, truncate, make, remove, rename, link; an `ioctl` on a device), `EXECUTE`, `NONE`, and their union (`READ \| EXECUTE`); `rights()` gives the Landlock rights |
 | `Deny` | `{ name, nr, errno, when }`: `Deny::call(name, SYS_*, errno)`; each condition of `when` is an `Arg` on the low 32 bits of one argument, and all must hold: `when_flags(index, mask)` (a bit of the mask is set), `when_equal(index, mask, value)` (the argument masked is the value); `Deny::defaults()`, `Deny::io_uring()`, `Deny::udp()`, `Deny::mptcp()` |
 | `deny::program(&[Deny])` | the BPF program: the audit arch (a foreign ABI and x32 get `ENOSYS`), one block for each rule, `ALLOW`. The first rule of a number that holds gives its errno: a rule with conditions that do not hold gives the call to the next rule of its number, and a rule after a rule of its number with no condition is left out. A rule with no condition takes two instructions, one with one flag condition five. `NAMESPACE_FLAGS`, `CLONE_NEWTIME` |
-| `Spec::compile(abi)`, `Spec::compile_in(abi, root_fd)` | a `Compiled` (`abi`, `handled_fs`, `handled_net`, `scoped`, `rules` with `fd`, `allowed`, `path`, `ports`, `filter`; it closes its descriptors when it drops); `keep_clear_of(&numbers)` moves each rule off a number that the child takes for a `dup2` |
+| `Spec::compile(abi)`, `Spec::compile_in(abi, root_fd)` | a `Compiled` (`abi`, `handled_fs`, `handled_net`, `scoped`, `rules` with `fd`, `allowed`, `path`, `ports`, `filter`; it closes its descriptors when it drops); `keep_clear_of(&numbers)` moves each rule off a number that the child takes for a `dup2`; `close_paths()` closes the descriptor of each rule (`fd` is then -1) and keeps its path; `open_paths()` opens the path of each rule with no descriptor in the view of the caller (in the child, after its mounts and its root change), with no allocation, or gives `Err(Refusal)` of `OpenPath` |
 | `apply(&Compiled)` | the confinement of this thread and of each process that it makes later; `Err(Refusal { call, index, errno })` |
-| `Call`, `Refusal` | the call (`NoNewPrivs`, `CreateRuleset`, `AddPathRule`, `AddPortRule`, `RestrictSelf`, `Seccomp`; `name`, `code`, `from_code`); `Refusal::to_bytes` and `from_bytes` (five bytes for a pipe from a child), `describe(&compiled)` (the call, the path or the port of the rule, the errno), `failure(&compiled)` |
+| `Call`, `Refusal` | the call (`NoNewPrivs`, `CreateRuleset`, `AddPathRule`, `AddPortRule`, `RestrictSelf`, `Seccomp`, `CapGet`, `CapBoundingDrop`, `CapSet`, `CapAmbientClear`, `OpenPath`; `name`, `code` 1 to 11, `from_code`); `Refusal::to_bytes` and `from_bytes` (five bytes for a pipe from a child), `describe(&compiled)` (the call, the path or the port of the rule, the errno), `failure(&compiled)` |
 | `check()`, `probe()` | the ABI where a confinement loads here; `check` names the call and the errno of a refusal |
 | `MIN_ABI` (3), `NET_ABI` (4), `SCOPE_ABI` (6), `spec::handled_fs(abi)`, `spec::FILE_RIGHTS`, `spec::CONNECT_TCP`, `spec::BIND_TCP`, `spec::SCOPES`, `MOST_RULES` | the bounds, the rights and the scopes of each ABI |
 
@@ -157,7 +172,9 @@ The `Spec` of the caller. The crate has no other setting.
 each ABI, the scopes of each ABI, the compile and its refusals, the rules
 of the switches, the refusal of a closed UDP where the kernel has
 `socketcall`, a guest path under a root, the move of a rule off a taken
-number, a refusal and its bytes, a run of the BPF program over each call
+number, the close of the descriptors and the open of the paths again (a
+path that went away is a refusal of `OpenPath` with its index), a refusal
+and its bytes, a run of the BPF program over each call
 of the list, a foreign ABI, the namespace flags, the fall-through of a
 rule that does not hold, the AND of two conditions, the masked type of a
 socket), and `tests/apply.rs`: a child applies a compiled spec and makes

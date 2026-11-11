@@ -1061,6 +1061,15 @@ cargo test -p pod-confine --all-features
 cargo test -p pod-enter --all-features --test confine
 ```
 
+## Correction
+
+2026-11-11. A rule opened before the fork does not cover a mount that
+the child makes on its path: Landlock does not read a rule on the
+directory under a mount point. On the namespace rung a write rule on
+`/tmp` thus missed the tmpfs of the child (PodUtils/podvm#267). T-227
+measured it and fixed it: the child opens the path of each rule after
+its mounts and its root change. Call C68 corrects call C57.
+
 ## Done
 
 2026-11-11, `8e203ee` and `271a8ec`. The crate `pod-confine` (new code; it depends on
@@ -3815,7 +3824,7 @@ spec names it (`DOCKER_CAPS` for docker's set; keep neither
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3911,3 +3920,56 @@ cargo test -p pod-enter --all-features --test confine
 sh scripts/ci/root-enter-confine-tests.sh
 sh scripts/plant-each.sh enter-confine-rule-under-a-mount
 ```
+
+## Done
+
+2026-11-11, `7295552` (the fix and the tests), `0b99ce2` (the plants),
+and the commit of this section (the documents and call C68).
+
+`pod-confine`: each `Rule` keeps its path as a C string from the compile.
+`Compiled::close_paths()` closes the descriptor of each rule (its `fd` is
+then -1); `Compiled::open_paths()` opens the path of each rule with no
+descriptor as `O_PATH | O_CLOEXEC` in the view of the caller, with no
+allocation, and a failed open is a `Refusal` of the new call
+`Call::OpenPath` (code 11, `open(O_PATH)`) with the index of its rule.
+`Refusal::describe` names the path. The compile keeps each check.
+`pod-enter`: `confine::compile` calls `close_paths` after the compile, in
+place of `keep_clear_of`; the child calls `open_paths` after the passed
+descriptors, the mounts of the namespace rung, the root change and the
+`chdir`, before the limits and `apply`, on each entry. A refusal is step
+15 of the readiness pipe.
+
+The test that failed on the code before the fix:
+`a_rule_covers_the_tmpfs_of_the_namespace_rung` (the namespace rung gave
+`/tmp/a=-13 /var/a=-13 /a=-13`; it now gives `/tmp/a=0 /var/a=-13
+/a=-13`, the write lands on the tmpfs and not in the image, and the chroot
+sequence gives the same), and
+`a_rule_on_a_path_that_the_tmpfs_hides_is_refused` (the payload ran with
+a rule on the directory under the tmpfs; now `the confinement failed at
+open(O_PATH) for the path "/tmp/hidden": ENOENT (2)`). Also new:
+`a_write_rule_holds_on_the_entry_with_no_chroot`, and the unit test
+`the_paths_close_after_the_compile_and_open_again`.
+
+`cargo test -p pod-confine --all-features`: 29 unit tests and 12 in
+`tests/apply.rs` pass; `cargo test -p pod-enter --all-features`: 167 unit
+tests, 5 in `tests/bounded_payload.rs`, 10 in `tests/confine.rs` (before
+the fix 8 passed and 2 failed) and 2 in `tests/tty_refusal.rs` pass, as
+root with no skip. `sh scripts/ci/root-enter-confine-tests.sh`: 10 pass
+as root; the step "The confinement tests of pod-enter as root" of the
+job `test` of `ci.yml` runs it, as the rungs with a chroot skip as
+another user. `sh scripts/ci/root-confine-tests.sh`: 1 passes. `cargo
+clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D
+warnings` and `cargo fmt --all --check` pass. Plants (run by hand with a
+target of this work): `enter-confine-rule-under-a-mount` (the
+descriptors of the compile cross the fork) is caught (`/tmp/a=-13`);
+`enter-confine-rule-on-a-passed-number` of T-108 was stale, as no rule
+descriptor crosses the fork now: its defect is now a child that opens the
+paths before the passes, and it is caught (`EINVAL` for a rule on a
+passed `/dev/null`); `enter-confine-not-applied` is still caught;
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+The namespace rung mounts one tmpfs and no volume or bind; the fix
+covers each mount that a child makes on the path of a rule. Breaking:
+`Call` has the variant `OpenPath`; `Rule` is no longer `derive(Debug)`
+but has its own `Debug`; a `Compiled` of `pod-enter` holds no rule
+descriptor before the fork.

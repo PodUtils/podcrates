@@ -13,6 +13,11 @@
 //! 2. [`Spec::compile`] (host paths) or [`Spec::compile_in`] (paths of a
 //!    guest root) before the fork: each path opens as `O_PATH`, a path that
 //!    does not exist is a refusal by name, and the BPF program is built.
+//!    Where the child mounts on a path after the compile, or changes its
+//!    root: [`Compiled::close_paths`] before the fork, and
+//!    [`Compiled::open_paths`] in the child after its mounts. Landlock does
+//!    not read a rule on a directory under a mount point, so the rule must
+//!    hold the root of the mount that the payload sees.
 //! 3. [`apply`] in the child: `PR_SET_NO_NEW_PRIVS`, the ruleset, its
 //!    rules, `landlock_restrict_self`, then the seccomp filter (mode 2). No
 //!    allocation. A refusal ([`Refusal`]) names the call and the errno.
