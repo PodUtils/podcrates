@@ -1,0 +1,1291 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 5e65d43..9894525 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -68,33 +68,37 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.3" }
+ podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.3" }
+ # TLS of PodUtils/podcrates: the roots, the client configurations and the
+ # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The HTTP date of a time (the log of detach, the tests of the clock); the
+ # dial, the resolver and the failures of pod-proxy.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
+ # race of addresses, the proxy of a tool's file), the HTTP client
+ # (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
+ # with podnet's settings.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The resolver of each direct dial (src/resolve.rs): an IP address, the pins
+ # of --resolve, the system and DNS over HTTPS, with podnet's settings.
+-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The services of other parties: the relay, the edge of Cloudflare's tunnels
+ # and its roots, the quick tunnels, WARP, 1.1.1.1 and Pinggy, as data with
+ # their sources.
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The WebSocket of `connect`, of the forward endpoint and their bridge
+ # (src/ws.rs), of PodUtils/podcrates, with podnet's dial, TLS context and
+ # user agent, and the limits of tokio-tungstenite.
+-pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # QUIC (the edge, QUIC over WARP, MASQUE over HTTP/3) on noq, of
+ # PodUtils/podcrates: the endpoints and their keys in pure Rust, and the
+ # socket over the UDP of the userspace stack under WARP (src/warp/quic.rs).
+-pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The ioctl number of TUNSETIFF for the target (src/warp/tun.rs), of the
+ # hold of PodUtils/podcrates (podnet-netns has its core).
+-pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
++# The WireGuard initiator of WARP, sans I/O, of PodUtils/podcrates: the
++# handshake, the cookie, the transport messages and the timers of
++# src/warp/wg.rs, on ring.
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ base64 = "0.23"
+@@ -181,6 +185,8 @@ webpki-roots = "1"
+ x509-parser = "0.18"
+ 
+ [dev-dependencies]
++# The responder of the tests of WireGuard (src/warp/wg/standin.rs).
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0", features = ["standin"] }
+ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ 
+diff --git a/TODO/fixes.md b/TODO/fixes.md
+index 5e8d4fc..57e1128 100644
+--- a/TODO/fixes.md
++++ b/TODO/fixes.md
+@@ -3440,7 +3440,7 @@ A record with only `host` exports and does not connect. A record with only `v6`
+ ## Premise
+ 
+ - `src/warp/register.rs:181-190` (`Endpoint`; frozen file: no edit). `src/warp/export.rs:242-260`, `:30` (`WG_PORT`).
+-- `src/warp/wg.rs:482-489` (v4 only; the message `:485-487`).
++- `src/warp/wg.rs:61-68` (v4 only; the message `:64-66`).
+ - MASQUE reads `v4` and `v6`: `src/warp/register.rs:618-657`.
+ - `grep -rn "\.ports" src/warp` finds no reader.
+ - Test to extend: `src/warp/export.rs:399-434`.
+@@ -4001,7 +4001,7 @@ above. The check to satisfy is: no other user can connect, at any instant.
+   (`crates/podnet-netns/src/seccomp/accept.rs:43`), and it removes the old file before the bind (`crates/podnet-netns/src/seccomp/accept.rs:44`).
+ - The defaults in `/tmp`: `src/cli/cmd/net/mod.rs:73`, `src/cli/cmd/net/mod.rs:90` and
+   `src/cli/cmd/net/mod.rs:168` (and `/tmp/podnet-vnet.switch` at `src/cli/cmd/net/mod.rs:232`).
+-- `libc` is a dependency (`Cargo.toml:112`, `crates/podnet-netns/Cargo.toml:24`). No code calls
++- `libc` is a dependency (`Cargo.toml:116`, `crates/podnet-netns/Cargo.toml:24`). No code calls
+   `renameat2` yet.
+ - T-186 (done, GitHub #385) added `claim_unix_path` and `bind_claimed`. They do not cover the interval.
+   GitHub #306 (closed) fixed the inbound directory of `accept.rs` only.
+diff --git a/TODO/overlays.md b/TODO/overlays.md
+index e280e12..f1b0f87 100644
+--- a/TODO/overlays.md
++++ b/TODO/overlays.md
+@@ -140,14 +140,16 @@ issue in PodUtils/podcrates. podnet only takes the crate (T-137).
+ 2026-11-10, read in the tree: the reader of the format is not WireGuard code. It lands in
+ `crates/podnet-vnet/src/wg_quick.rs` and changes no file of `src/warp/` (the files that go to
+ `pod-warp` and `pod-wg` take fixes only). Step 2 needs no change of `src/warp/wg.rs`: its `Keys`
+-takes the reserved bytes from the caller (`src/warp/wg.rs:214`), and the reader gives zeros when
++takes the reserved bytes from the caller (`Keys::reserved`, now of `pod-wg`:
++`PodUtils/podcrates:crates/pod-wg/src/handshake.rs`), and the reader gives zeros when
+ the file has no `Reserved`. The handshake test builds a `Peer` of `src/warp/wg.rs` from the file
+ in a test module of the root crate (`src/wg_quick_tests.rs`). When `pod-wg` exists, the reader
+ can move there with the take (T-137).
+ 
+ - The new dependency of `podnet-vnet` is `base64 = "0.23"`, for the keys. The root crate has the
+   same version, so the tree gets no new crate.
+-- `src/warp/wg.rs` uses a zero preshared key (`src/warp/wg.rs:324`). The reader keeps
++- The WireGuard code uses a zero preshared key (`Initiation::finish`, now of `pod-wg`:
++  `PodUtils/podcrates:crates/pod-wg/src/handshake.rs`). The reader keeps
+   `PresharedKey`; T-117 must refuse a file with a `PresharedKey` until the WireGuard code takes
+   one.
+ 
+diff --git a/TODO/pods.md b/TODO/pods.md
+index 60210b7..516ee14 100644
+--- a/TODO/pods.md
++++ b/TODO/pods.md
+@@ -760,7 +760,7 @@ namespace, with an `AF_PACKET` socket on one end, can carry the frames to the sa
+ 
+ - `crates/podnet-netns/src/netns/tun.rs:41-43` opens the node; `send_fd`/`recv_fd` (`crates/podnet-netns/src/netns/fdpass.rs:51,85`) and the
+   handoff (`crates/podnet-netns/src/netns/mod.rs:96,168`) are reusable. `doctor.rs:70,281` gates `auto` on the TUN probe.
+-- smoltcp has `medium-ip` only (`Cargo.toml:140`, `crates/podnet-netns/Cargo.toml:36`): add `medium-ethernet`.
++- smoltcp has `medium-ip` only (`Cargo.toml:144`, `crates/podnet-netns/Cargo.toml:36`): add `medium-ethernet`.
+ - `docs/research/podnet/vn.md:313` is plan item P5; `vn.md:411` asks if any target host has no TUN. No
+   measured host lacks it (`docs/target-environment.md:33`).
+ - The veth needs one small `RTM_NEWLINK` writer. Checksums: skip RX verification on this device.
+diff --git a/crates/podnet-core/Cargo.toml b/crates/podnet-core/Cargo.toml
+index 6dfd49c..8ed35eb 100644
+--- a/crates/podnet-core/Cargo.toml
++++ b/crates/podnet-core/Cargo.toml
+@@ -22,9 +22,9 @@ path = "src/lib.rs"
+ [dependencies]
+ # The clock of an HTTP date, the services of other parties and the TLS
+ # context, of PodUtils/podcrates at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ anyhow = "1"
+ futures = "0.3"
+ getrandom = "0.4"
+@@ -65,4 +65,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! and need_localhost! of the tests (T-046), from the test kit
+ # of PodUtils/podcrates at the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
+index 7a8989b..294164a 100644
+--- a/crates/podnet-netns/Cargo.toml
++++ b/crates/podnet-netns/Cargo.toml
+@@ -24,12 +24,12 @@ anyhow = "1"
+ libc = "0.2"
+ # The SOCKS5 datagram path (UDP ASSOCIATE, the command 0x83, the frames and
+ # the datagram header) of PodUtils/podcrates, at the git tag of the root.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The generic core of the hold of PodUtils/podcrates: the seccomp filter,
+ # the receive of a notification, the memory of the child, the reply, the
+ # table of the sockets with the flow budget, the dial state of a connect,
+ # the netns entry, the TUN and the SYN packets.
+-pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ serde_json = "1"
+ # The version of pod-netstack of PodUtils/podcrates, so that the binary has
+ # one smoltcp.
+diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
+index b79537f..6e7f83d 100644
+--- a/crates/podnet-serve/Cargo.toml
++++ b/crates/podnet-serve/Cargo.toml
+@@ -22,11 +22,11 @@ path = "src/lib.rs"
+ podnet-core = { path = "../podnet-core", version = "0.4.0-beta.3" }
+ # The TLS client of an origin, and the credentials of a served proxy, of
+ # PodUtils/podcrates at the git tag of the root.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The check of the owner and the mode of the users file of the file
+ # server (T-089); a crate of the workspace, at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ # The Basic credentials of the users of the file server (T-089).
+@@ -78,6 +78,6 @@ uuid = { version = "1", features = ["v4", "serde"] }
+ 
+ [dev-dependencies]
+ # need_loopback! of the tests; a crate of the workspace.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index 78072c2..e97742d 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -9,4 +9,4 @@ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
+diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
+index 885bf19..25bd449 100644
+--- a/crates/podnet-vnet/Cargo.toml
++++ b/crates/podnet-vnet/Cargo.toml
+@@ -30,7 +30,7 @@ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+ # The userspace TCP and UDP stack of PodUtils/podcrates: the stack, its
+ # sockets, the link device and its tap, at the git tag of the root.
+-pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+ # The version of pod-netstack and the features of the root crate (Cargo.toml
+ # of podnet): the proof of `net doctor` (stack/proof.rs) drives the link
+ # device of pod-netstack with it.
+@@ -63,4 +63,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! of the tests, from the test kit of PodUtils/podcrates at
+ # the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.20.0", version = "0.20.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
+diff --git a/scripts/size-allow.txt b/scripts/size-allow.txt
+index d49542c..f9c2890 100644
+--- a/scripts/size-allow.txt
++++ b/scripts/size-allow.txt
+@@ -17,5 +17,4 @@
+ 892 src/warp/register.rs
+ 1211 src/warp/session.rs
+ 817 src/warp/up.rs
+-965 src/warp/wg.rs
+ 994 src/ws_relay.rs
+diff --git a/src/warp/wg.rs b/src/warp/wg.rs
+index 032e61c..1733854 100644
+--- a/src/warp/wg.rs
++++ b/src/warp/wg.rs
+@@ -1,446 +1,25 @@
+-//! WireGuard for the WARP tunnel (issue 152): the Noise IKpsk2 handshake
+-//! and the transport messages (the WireGuard paper, section 5.4, and
+-//! wireguard.com/protocol).
++//! WireGuard for the WARP tunnel (issue 152). The Noise IKpsk2 handshake,
++//! the cookie, the transport messages and the timers are the crate pod-wg
++//! of PodUtils/podcrates, sans I/O (the WireGuard paper, section 5.4, and
++//! wireguard.com/protocol). This module keeps the device of WARP (`Peer`),
++//! the UDP socket and the tasks of a tunnel.
+ //!
+ //! The device is a WireGuard device of the WARP service (`warp export`):
+ //! its X25519 key, the key of the peer, and the three `reserved` bytes of
+ //! `client_id`, which WARP reads in bytes 1 to 3 of each message.
+ 
+-use anyhow::{bail, Context as _, Result};
+-use ring::aead;
+-
+-// ── BLAKE2s (RFC 7693) ────────────────────────────────────────────────────
+-
+-const IV: [u32; 8] = [
+-    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+-];
+-
+-const SIGMA: [[usize; 16]; 10] = [
+-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+-    [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
+-    [11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4],
+-    [7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8],
+-    [9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13],
+-    [2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9],
+-    [12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11],
+-    [13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10],
+-    [6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5],
+-    [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0],
+-];
+-
+-fn compress(h: &mut [u32; 8], block: &[u8; 64], t: u64, last: bool) {
+-    let mut m = [0u32; 16];
+-    for (i, w) in m.iter_mut().enumerate() {
+-        *w = u32::from_le_bytes(block[i * 4..i * 4 + 4].try_into().expect("4 bytes"));
+-    }
+-    let mut v = [0u32; 16];
+-    v[..8].copy_from_slice(h);
+-    v[8..].copy_from_slice(&IV);
+-    v[12] ^= t as u32;
+-    v[13] ^= (t >> 32) as u32;
+-    if last {
+-        v[14] = !v[14];
+-    }
+-    fn g(v: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize, x: u32, y: u32) {
+-        v[a] = v[a].wrapping_add(v[b]).wrapping_add(x);
+-        v[d] = (v[d] ^ v[a]).rotate_right(16);
+-        v[c] = v[c].wrapping_add(v[d]);
+-        v[b] = (v[b] ^ v[c]).rotate_right(12);
+-        v[a] = v[a].wrapping_add(v[b]).wrapping_add(y);
+-        v[d] = (v[d] ^ v[a]).rotate_right(8);
+-        v[c] = v[c].wrapping_add(v[d]);
+-        v[b] = (v[b] ^ v[c]).rotate_right(7);
+-    }
+-    for s in &SIGMA {
+-        g(&mut v, 0, 4, 8, 12, m[s[0]], m[s[1]]);
+-        g(&mut v, 1, 5, 9, 13, m[s[2]], m[s[3]]);
+-        g(&mut v, 2, 6, 10, 14, m[s[4]], m[s[5]]);
+-        g(&mut v, 3, 7, 11, 15, m[s[6]], m[s[7]]);
+-        g(&mut v, 0, 5, 10, 15, m[s[8]], m[s[9]]);
+-        g(&mut v, 1, 6, 11, 12, m[s[10]], m[s[11]]);
+-        g(&mut v, 2, 7, 8, 13, m[s[12]], m[s[13]]);
+-        g(&mut v, 3, 4, 9, 14, m[s[14]], m[s[15]]);
+-    }
+-    for i in 0..8 {
+-        h[i] ^= v[i] ^ v[i + 8];
+-    }
+-}
+-
+-/// BLAKE2s with an output of `out_len` bytes (1 to 32) and a key of at most
+-/// 32 bytes, over the parts of `data` in order.
+-pub fn blake2s(out_len: usize, key: &[u8], data: &[&[u8]]) -> Vec<u8> {
+-    assert!((1..=32).contains(&out_len) && key.len() <= 32);
+-    let mut h = IV;
+-    h[0] ^= 0x0101_0000 ^ ((key.len() as u32) << 8) ^ out_len as u32;
+-    let mut buf = Vec::with_capacity(64 + data.iter().map(|d| d.len()).sum::<usize>());
+-    if !key.is_empty() {
+-        let mut block = [0u8; 64];
+-        block[..key.len()].copy_from_slice(key);
+-        buf.extend_from_slice(&block);
+-    }
+-    for d in data {
+-        buf.extend_from_slice(d);
+-    }
+-    let mut t: u64 = 0;
+-    let mut chunks = buf.chunks(64).peekable();
+-    if chunks.peek().is_none() {
+-        compress(&mut h, &[0u8; 64], 0, true);
+-    }
+-    while let Some(chunk) = chunks.next() {
+-        let mut block = [0u8; 64];
+-        block[..chunk.len()].copy_from_slice(chunk);
+-        t += chunk.len() as u64;
+-        compress(&mut h, &block, t, chunks.peek().is_none());
+-    }
+-    let mut out = Vec::with_capacity(32);
+-    for w in h {
+-        out.extend_from_slice(&w.to_le_bytes());
+-    }
+-    out.truncate(out_len);
+-    out
+-}
+-
+-fn hash(data: &[&[u8]]) -> [u8; 32] {
+-    blake2s(32, &[], data).try_into().expect("32 bytes")
+-}
+-
+-/// HMAC with BLAKE2s-256 (a block of 64 bytes).
+-fn hmac(key: &[u8], data: &[&[u8]]) -> [u8; 32] {
+-    let mut k = [0u8; 64];
+-    if key.len() > 64 {
+-        k[..32].copy_from_slice(&hash(&[key]));
+-    } else {
+-        k[..key.len()].copy_from_slice(key);
+-    }
+-    let ipad: Vec<u8> = k.iter().map(|b| b ^ 0x36).collect();
+-    let opad: Vec<u8> = k.iter().map(|b| b ^ 0x5c).collect();
+-    let mut parts: Vec<&[u8]> = vec![&ipad];
+-    parts.extend_from_slice(data);
+-    let inner = hash(&parts);
+-    hash(&[&opad, &inner])
+-}
+-
+-/// The KDF of WireGuard: `n` keys of 32 bytes from a chaining key and an
+-/// input.
+-fn kdf<const N: usize>(key: &[u8; 32], input: &[u8]) -> [[u8; 32]; N] {
+-    let t0 = hmac(key, &[input]);
+-    let mut out = [[0u8; 32]; N];
+-    let mut prev: Vec<u8> = Vec::new();
+-    for (i, o) in out.iter_mut().enumerate() {
+-        let t = hmac(&t0, &[&prev, &[i as u8 + 1]]);
+-        *o = t;
+-        prev = t.to_vec();
+-    }
+-    out
+-}
+-
+-// ── The other primitives ──────────────────────────────────────────────────
+-
+-fn x25519(private: &[u8; 32], public: &[u8; 32]) -> [u8; 32] {
+-    curve25519_dalek::MontgomeryPoint(*public)
+-        .mul_clamped(*private)
+-        .to_bytes()
+-}
+-
+-fn x25519_base(private: &[u8; 32]) -> [u8; 32] {
+-    curve25519_dalek::MontgomeryPoint::mul_base_clamped(*private).to_bytes()
+-}
+-
+-fn nonce(counter: u64) -> aead::Nonce {
+-    let mut n = [0u8; 12];
+-    n[4..].copy_from_slice(&counter.to_le_bytes());
+-    aead::Nonce::assume_unique_for_key(n)
+-}
+-
+-fn seal(key: &[u8; 32], counter: u64, plain: &[u8], ad: &[u8]) -> Vec<u8> {
+-    let key = aead::LessSafeKey::new(
+-        aead::UnboundKey::new(&aead::CHACHA20_POLY1305, key).expect("a key of 32 bytes"),
+-    );
+-    let mut out = plain.to_vec();
+-    key.seal_in_place_append_tag(nonce(counter), aead::Aad::from(ad), &mut out)
+-        .expect("ChaCha20-Poly1305 seals");
+-    out
+-}
+-
+-fn open(key: &[u8; 32], counter: u64, sealed: &[u8], ad: &[u8]) -> Result<Vec<u8>> {
+-    let key = aead::LessSafeKey::new(
+-        aead::UnboundKey::new(&aead::CHACHA20_POLY1305, key).expect("a key of 32 bytes"),
+-    );
+-    let mut buf = sealed.to_vec();
+-    let plain = key
+-        .open_in_place(nonce(counter), aead::Aad::from(ad), &mut buf)
+-        .map_err(|_| anyhow::anyhow!("a WireGuard message that does not authenticate"))?;
+-    Ok(plain.to_vec())
+-}
+-
+-/// The TAI64N of now.
+-fn tai64n() -> [u8; 12] {
+-    let now = std::time::SystemTime::now()
+-        .duration_since(std::time::UNIX_EPOCH)
+-        .unwrap_or_default();
+-    let mut out = [0u8; 12];
+-    out[..8].copy_from_slice(&(now.as_secs() + (1u64 << 62) + 10).to_be_bytes());
+-    out[8..].copy_from_slice(&now.subsec_nanos().to_be_bytes());
+-    out
+-}
+-
+-fn random<const N: usize>() -> [u8; N] {
+-    let mut b = [0u8; N];
+-    getrandom::fill(&mut b).expect("OS entropy");
+-    b
+-}
+-
+-// ── The handshake ─────────────────────────────────────────────────────────
+-
+-const CONSTRUCTION: &[u8] = b"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s";
+-const IDENTIFIER: &[u8] = b"WireGuard v1 zx2c4 Jason@zx2c4.com";
+-const LABEL_MAC1: &[u8] = b"mac1----";
+-
+-pub const MSG_INITIATION: u8 = 1;
+-pub const MSG_RESPONSE: u8 = 2;
+-pub const MSG_COOKIE: u8 = 3;
+-pub const MSG_DATA: u8 = 4;
+-
+-/// The length of an initiation and of a response.
+-pub const INITIATION_LEN: usize = 148;
+-pub const RESPONSE_LEN: usize = 92;
+-
+-/// The keys of a device and of its peer.
+-#[derive(Clone)]
+-pub struct Keys {
+-    pub private: [u8; 32],
+-    pub peer_public: [u8; 32],
+-    /// Bytes 1 to 3 of each message (WARP: the `client_id`).
+-    pub reserved: [u8; 3],
+-}
+-
+-impl Keys {
+-    pub fn public(&self) -> [u8; 32] {
+-        x25519_base(&self.private)
+-    }
+-}
+-
+-/// An initiation that waits for its response.
+-pub struct Initiation {
+-    chaining: [u8; 32],
+-    hash: [u8; 32],
+-    ephemeral: [u8; 32],
+-    sender: u32,
+-    /// The message to send.
+-    pub message: Vec<u8>,
+-}
+-
+-/// The keys of a session: one way each.
+-pub struct Session {
+-    pub send_key: [u8; 32],
+-    pub recv_key: [u8; 32],
+-    /// The index of this side (the receiver of the messages to it).
+-    pub local: u32,
+-    /// The index of the peer (the receiver of the messages to the peer).
+-    pub remote: u32,
+-    pub send_counter: u64,
+-    pub created: std::time::Instant,
+-    replay: Replay,
+-}
+-
+-/// The mac1 of a message, over its bytes with the reserved bytes (1 to 3)
+-/// zero: WARP writes them after the MAC, and its front door checks the MAC
+-/// with them zero, as WireGuard has them.
+-fn mac1(peer_public: &[u8; 32], message: &[u8]) -> Vec<u8> {
+-    let key = hash(&[LABEL_MAC1, peer_public]);
+-    let mut zeroed = message.to_vec();
+-    if zeroed.len() >= 4 {
+-        zeroed[1..4].fill(0);
+-    }
+-    blake2s(16, &key, &[&zeroed])
+-}
+-
+-/// Make the initiation of a handshake.
+-pub fn initiate(keys: &Keys) -> Initiation {
+-    initiate_with(
+-        keys,
+-        random::<32>(),
+-        u32::from_le_bytes(random::<4>()),
+-        tai64n(),
+-    )
+-}
+-
+-fn initiate_with(keys: &Keys, ephemeral: [u8; 32], sender: u32, timestamp: [u8; 12]) -> Initiation {
+-    let mut c = hash(&[CONSTRUCTION]);
+-    let mut h = hash(&[&c, IDENTIFIER]);
+-    h = hash(&[&h, &keys.peer_public]);
+-    let e_pub = x25519_base(&ephemeral);
+-    [c] = kdf::<1>(&c, &e_pub);
+-    h = hash(&[&h, &e_pub]);
+-    let [c2, k] = kdf::<2>(&c, &x25519(&ephemeral, &keys.peer_public));
+-    c = c2;
+-    let enc_static = seal(&k, 0, &keys.public(), &h);
+-    h = hash(&[&h, &enc_static]);
+-    let [c3, k] = kdf::<2>(&c, &x25519(&keys.private, &keys.peer_public));
+-    c = c3;
+-    let enc_time = seal(&k, 0, &timestamp, &h);
+-    h = hash(&[&h, &enc_time]);
+-    let mut m = Vec::with_capacity(INITIATION_LEN);
+-    m.push(MSG_INITIATION);
+-    m.extend_from_slice(&keys.reserved);
+-    m.extend_from_slice(&sender.to_le_bytes());
+-    m.extend_from_slice(&e_pub);
+-    m.extend_from_slice(&enc_static);
+-    m.extend_from_slice(&enc_time);
+-    let mac = mac1(&keys.peer_public, &m);
+-    m.extend_from_slice(&mac);
+-    m.extend_from_slice(&[0u8; 16]); // mac2: no cookie
+-    Initiation {
+-        chaining: c,
+-        hash: h,
+-        ephemeral,
+-        sender,
+-        message: m,
+-    }
+-}
+-
+-impl Initiation {
+-    /// The session of the response of the peer.
+-    pub fn finish(&self, keys: &Keys, response: &[u8]) -> Result<Session> {
+-        if response.len() != RESPONSE_LEN || response[0] != MSG_RESPONSE {
+-            bail!("not a WireGuard handshake response");
+-        }
+-        let remote = u32::from_le_bytes(response[4..8].try_into().expect("4 bytes"));
+-        let receiver = u32::from_le_bytes(response[8..12].try_into().expect("4 bytes"));
+-        if receiver != self.sender {
+-            bail!("a WireGuard response to another handshake");
+-        }
+-        if mac1(&keys.public(), &response[..60]) != response[60..76] {
+-            bail!("the mac1 of the WireGuard response is wrong");
+-        }
+-        let e_pub: [u8; 32] = response[12..44].try_into().expect("32 bytes");
+-        let empty = &response[44..60];
+-        let mut c = self.chaining;
+-        let mut h = self.hash;
+-        [c] = kdf::<1>(&c, &e_pub);
+-        h = hash(&[&h, &e_pub]);
+-        [c] = kdf::<1>(&c, &x25519(&self.ephemeral, &e_pub));
+-        [c] = kdf::<1>(&c, &x25519(&keys.private, &e_pub));
+-        let [c4, tau, k] = kdf::<3>(&c, &[0u8; 32]);
+-        c = c4;
+-        h = hash(&[&h, &tau]);
+-        open(&k, 0, empty, &h).context("the WireGuard handshake response")?;
+-        let [send_key, recv_key] = kdf::<2>(&c, &[]);
+-        Ok(Session {
+-            send_key,
+-            recv_key,
+-            local: self.sender,
+-            remote,
+-            send_counter: 0,
+-            created: std::time::Instant::now(),
+-            replay: Replay::default(),
+-        })
+-    }
+-}
+-
+-impl Session {
+-    /// A transport message with `packet` (padded to 16 bytes; an empty
+-    /// packet is a keepalive).
+-    pub fn seal(&mut self, reserved: &[u8; 3], packet: &[u8]) -> Vec<u8> {
+-        let counter = self.send_counter;
+-        self.send_counter += 1;
+-        let mut plain = packet.to_vec();
+-        plain.resize(packet.len().div_ceil(16) * 16, 0);
+-        let mut m = Vec::with_capacity(16 + plain.len() + 16);
+-        m.push(MSG_DATA);
+-        m.extend_from_slice(reserved);
+-        m.extend_from_slice(&self.remote.to_le_bytes());
+-        m.extend_from_slice(&counter.to_le_bytes());
+-        m.extend_from_slice(&seal(&self.send_key, counter, &plain, &[]));
+-        m
+-    }
+-
+-    /// The IP packet of a transport message to this session: the padding is
+-    /// cut by the length in the IP header. An empty vector is a keepalive.
+-    pub fn open(&mut self, message: &[u8]) -> Result<Vec<u8>> {
+-        if message.len() < 32 || message[0] != MSG_DATA {
+-            bail!("not a WireGuard transport message");
+-        }
+-        let receiver = u32::from_le_bytes(message[4..8].try_into().expect("4 bytes"));
+-        if receiver != self.local {
+-            bail!("a WireGuard message for another session");
+-        }
+-        let counter = u64::from_le_bytes(message[8..16].try_into().expect("8 bytes"));
+-        if !self.replay.check(counter) {
+-            bail!("a WireGuard message that came before (counter {counter})");
+-        }
+-        let mut plain = open(&self.recv_key, counter, &message[16..], &[])?;
+-        self.replay.mark(counter);
+-        let len = match plain.first().map(|b| b >> 4) {
+-            Some(4) if plain.len() >= 20 => u16::from_be_bytes([plain[2], plain[3]]) as usize,
+-            Some(6) if plain.len() >= 40 => 40 + u16::from_be_bytes([plain[4], plain[5]]) as usize,
+-            _ => 0,
+-        };
+-        plain.truncate(len.min(plain.len()));
+-        Ok(plain)
+-    }
+-
+-    /// The receiver index of a message: to find its session.
+-    pub fn receiver_of(message: &[u8]) -> Option<u32> {
+-        Some(u32::from_le_bytes(message.get(4..8)?.try_into().ok()?))
+-    }
+-}
+-
+-/// A sliding window of the counters that came (RFC 6479 shape, 2048 bits).
+-#[derive(Default)]
+-struct Replay {
+-    top: u64,
+-    bits: [u64; 32],
+-    any: bool,
+-}
+-
+-impl Replay {
+-    const WINDOW: u64 = 2048 - 64;
+-
+-    fn check(&self, n: u64) -> bool {
+-        if !self.any || n > self.top {
+-            return true;
+-        }
+-        if self.top - n >= Self::WINDOW {
+-            return false;
+-        }
+-        let bit = n % 2048;
+-        self.bits[(bit / 64) as usize] & (1 << (bit % 64)) == 0
+-    }
+-
+-    fn mark(&mut self, n: u64) {
+-        if !self.any || n > self.top {
+-            let from = if self.any { self.top + 1 } else { n };
+-            if n - from >= 2048 {
+-                self.bits = [0; 32];
+-            } else {
+-                for i in from..=n {
+-                    let bit = i % 2048;
+-                    self.bits[(bit / 64) as usize] &= !(1 << (bit % 64));
+-                }
+-            }
+-            self.top = n;
+-            self.any = true;
+-        }
+-        let bit = n % 2048;
+-        self.bits[(bit / 64) as usize] |= 1 << (bit % 64);
+-    }
+-}
++use anyhow::{Context as _, Result};
++pub use pod_wg::{
++    initiate, initiate_with, Cookie, Initiation, Keys, Received, Session, Stamps, Tunnel,
++    HANDSHAKE_DEAD, INITIATION_LEN, KEEPALIVE, MSG_COOKIE, MSG_DATA, MSG_INITIATION, MSG_RESPONSE,
++    REKEY_AFTER, REKEY_TIMEOUT, RESPONSE_LEN,
++};
+ 
+ // ── The transport of the tunnel ───────────────────────────────────────────
+ 
+ use std::net::SocketAddr;
+ use std::sync::{Arc, Mutex};
+-use std::time::{Duration, Instant};
+-
+-/// A new session after this time (REKEY_AFTER_TIME).
+-pub const REKEY_AFTER: Duration = Duration::from_secs(120);
+-/// A handshake with no answer is sent again after this time (REKEY_TIMEOUT).
+-pub const REKEY_TIMEOUT: Duration = Duration::from_secs(5);
+-/// A handshake with no answer in this time: the path is dead.
+-pub const HANDSHAKE_DEAD: Duration = Duration::from_secs(20);
+-/// The persistent keepalive.
+-pub const KEEPALIVE: Duration = Duration::from_secs(25);
++use std::time::{Duration, Instant, SystemTime};
+ 
+ /// A WireGuard peer of the WARP service: the keys, the front door and the
+ /// addresses of the device.
+@@ -494,44 +73,6 @@ impl Peer {
+     }
+ }
+ 
+-struct State {
+-    keys: Keys,
+-    current: Session,
+-    previous: Option<Session>,
+-    pending: Option<(Initiation, Instant, Instant)>,
+-    last_send: Instant,
+-}
+-
+-impl State {
+-    /// A new initiation, or the one that waits when it is new enough. The
+-    /// message to send, if any.
+-    fn rekey(&mut self, now: Instant) -> Result<Option<Vec<u8>>> {
+-        match &self.pending {
+-            Some((_, first, _)) if now.duration_since(*first) > HANDSHAKE_DEAD => {
+-                bail!(
+-                    "no WireGuard handshake answer in {} s",
+-                    HANDSHAKE_DEAD.as_secs()
+-                )
+-            }
+-            Some((_, first, sent)) if now.duration_since(*sent) > REKEY_TIMEOUT => {
+-                let first = *first;
+-                let init = initiate(&self.keys);
+-                let m = init.message.clone();
+-                self.pending = Some((init, first, now));
+-                Ok(Some(m))
+-            }
+-            Some(_) => Ok(None),
+-            None if self.current.created.elapsed() > REKEY_AFTER => {
+-                let init = initiate(&self.keys);
+-                let m = init.message.clone();
+-                self.pending = Some((init, now, now));
+-                Ok(Some(m))
+-            }
+-            None => Ok(None),
+-        }
+-    }
+-}
+-
+ /// The UDP socket of a WireGuard transport: a socket of the host, or a
+ /// socket of the stack of another session (issues 154 and 155: a tunnel in
+ /// a tunnel).
+@@ -583,23 +124,23 @@ impl Sock {
+ /// The write half of a WireGuard transport.
+ pub struct WgTx {
+     sock: Sock,
+-    state: Arc<Mutex<State>>,
++    state: Arc<Mutex<Tunnel>>,
+ }
+ 
+ /// The read half of a WireGuard transport.
+ pub struct WgRx {
+     sock: Sock,
+-    state: Arc<Mutex<State>>,
++    state: Arc<Mutex<Tunnel>>,
+     buf: Vec<u8>,
+ }
+ 
+ /// The liveness check: keepalives, the rekey, and a dead path.
+ pub struct WgKeepalive {
+     sock: Sock,
+-    state: Arc<Mutex<State>>,
++    state: Arc<Mutex<Tunnel>>,
+ }
+ 
+-fn lock(state: &Mutex<State>) -> std::sync::MutexGuard<'_, State> {
++fn lock(state: &Mutex<Tunnel>) -> std::sync::MutexGuard<'_, Tunnel> {
+     state.lock().unwrap_or_else(|e| e.into_inner())
+ }
+ 
+@@ -633,12 +174,22 @@ pub async fn connect_inside(
+ }
+ 
+ /// The handshake with `peer` on `sock`: three tries, [`REKEY_TIMEOUT`]
+-/// apart.
++/// apart. A cookie reply of a front door under load gives its mac2 to the
++/// next try.
+ async fn connect_on(peer: &Peer, sock: Sock) -> Result<(WgTx, WgRx, WgKeepalive)> {
+     let mut buf = vec![0u8; 2048];
+     let mut last_err = None;
++    let mut stamps = Stamps::new(SystemTime::now(), Instant::now());
++    let mut cookie: Option<Cookie> = None;
+     for _ in 0..3 {
+-        let init = initiate(&peer.keys);
++        let mut init = pod_wg::initiate_from(
++            &peer.keys,
++            &mut pod_core::entropy::OsEntropy,
++            stamps.next(Instant::now()),
++        )?;
++        if let Some(cookie) = &cookie {
++            init.add_mac2(cookie, Instant::now());
++        }
+         sock.send(&init.message)
+             .await
+             .with_context(|| format!("the front door {}", peer.endpoint))?;
+@@ -652,17 +203,17 @@ async fn connect_on(peer: &Peer, sock: Sock) -> Result<(WgTx, WgRx, WgKeepalive)
+                 }
+                 Ok(Ok(n)) => n,
+             };
+-            match buf[0] {
+-                MSG_RESPONSE => match init.finish(&peer.keys, &buf[..n]) {
++            // An empty datagram has no type byte.
++            match buf[..n].first() {
++                Some(&MSG_RESPONSE) => match init.finish(&peer.keys, &buf[..n], Instant::now()) {
+                     Ok(session) => {
+                         let now = Instant::now();
+-                        let state = Arc::new(Mutex::new(State {
+-                            keys: peer.keys.clone(),
+-                            current: session,
+-                            previous: None,
+-                            pending: None,
+-                            last_send: now,
+-                        }));
++                        let state = Arc::new(Mutex::new(Tunnel::new(
++                            peer.keys.clone(),
++                            session,
++                            stamps,
++                            now,
++                        )));
+                         tracing::debug!(endpoint = %peer.endpoint, "the WireGuard handshake is done");
+                         return Ok((
+                             WgTx {
+@@ -677,12 +228,18 @@ async fn connect_on(peer: &Peer, sock: Sock) -> Result<(WgTx, WgRx, WgKeepalive)
+                             WgKeepalive { sock, state },
+                         ));
+                     }
+-                    Err(err) => last_err = Some(err),
++                    Err(err) => last_err = Some(err.into()),
+                 },
+-                MSG_COOKIE => {
+-                    last_err = Some(anyhow::anyhow!(
+-                        "the WireGuard front door is under load (a cookie reply)"
+-                    ))
++                Some(&MSG_COOKIE) => {
++                    match Cookie::open(&peer.keys, &init, &buf[..n], Instant::now()) {
++                        Ok(fresh) => {
++                            cookie = Some(fresh);
++                            last_err = Some(anyhow::anyhow!(
++                                "the WireGuard front door is under load (a cookie reply)"
++                            ));
++                        }
++                        Err(err) => last_err = Some(err.into()),
++                    }
+                 }
+                 _ => {}
+             }
+@@ -700,21 +257,11 @@ async fn connect_on(peer: &Peer, sock: Sock) -> Result<(WgTx, WgRx, WgKeepalive)
+ impl WgTx {
+     /// Seal and send each packet.
+     pub async fn send_packets<P: AsRef<[u8]>>(&mut self, packets: &[P]) -> Result<()> {
+-        let (messages, handshake) = {
+-            let mut state = lock(&self.state);
+-            let handshake = state.rekey(Instant::now())?;
+-            let reserved = state.keys.reserved;
+-            let messages: Vec<Vec<u8>> = packets
+-                .iter()
+-                .map(|p| state.current.seal(&reserved, p.as_ref()))
+-                .collect();
+-            state.last_send = Instant::now();
+-            (messages, handshake)
+-        };
+-        if let Some(m) = handshake {
++        let out = lock(&self.state).send(packets, Instant::now())?;
++        if let Some(m) = out.handshake {
+             self.sock.send(&m).await.context("a WireGuard handshake")?;
+         }
+-        for m in messages {
++        for m in out.messages {
+             self.sock.send(&m).await.context("a WireGuard message")?;
+         }
+         Ok(())
+@@ -722,52 +269,24 @@ impl WgTx {
+ }
+ 
+ impl WgRx {
+-    /// The next IP packet; a handshake response, a keepalive and a message
+-    /// that does not authenticate are taken and not returned.
++    /// The next IP packet; a handshake response, a cookie reply, a keepalive
++    /// and a message that does not authenticate are taken and not returned.
+     pub async fn recv_packet(&mut self) -> Result<Option<bytes::Bytes>> {
+         loop {
+             let n = self.sock.recv(&mut self.buf).await?;
+-            let message = &self.buf[..n];
+-            let mut state = lock(&self.state);
+-            match message.first() {
+-                Some(&MSG_DATA) => {
+-                    let receiver = Session::receiver_of(message);
+-                    let session = if receiver == Some(state.current.local) {
+-                        Some(&mut state.current)
+-                    } else {
+-                        state
+-                            .previous
+-                            .as_mut()
+-                            .filter(|s| Some(s.local) == receiver)
+-                    };
+-                    let Some(session) = session else { continue };
+-                    match session.open(message) {
+-                        Ok(packet) if packet.is_empty() => continue,
+-                        Ok(packet) => return Ok(Some(packet.into())),
+-                        Err(err) => {
+-                            tracing::debug!(error = %err, "a WireGuard message is dropped");
+-                            continue;
+-                        }
+-                    }
++            let received = lock(&self.state).receive(&self.buf[..n], Instant::now());
++            match received {
++                Received::Packet(packet) => return Ok(Some(packet.into())),
++                Received::Rekeyed => tracing::debug!("a new WireGuard session (rekey)"),
++                Received::Cookie => {
++                    tracing::debug!(
++                        "a WireGuard cookie reply: the next try of the rekey has its mac2"
++                    )
+                 }
+-                Some(&MSG_RESPONSE) => {
+-                    let Some((init, _, _)) = state.pending.take() else {
+-                        continue;
+-                    };
+-                    let keys = state.keys.clone();
+-                    match init.finish(&keys, message) {
+-                        Ok(session) => {
+-                            let old = std::mem::replace(&mut state.current, session);
+-                            state.previous = Some(old);
+-                            tracing::debug!("a new WireGuard session (rekey)");
+-                        }
+-                        Err(err) => {
+-                            tracing::debug!(error = %err, "a WireGuard response is dropped");
+-                            state.pending = Some((init, Instant::now(), Instant::now()));
+-                        }
+-                    }
++                Received::Dropped(err) => {
++                    tracing::debug!(error = %err, "a WireGuard message is dropped")
+                 }
+-                _ => continue,
++                Received::Keepalive | Received::Ignored => {}
+             }
+         }
+     }
+@@ -782,20 +301,8 @@ impl WgKeepalive {
+         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+         loop {
+             tick.tick().await;
+-            let (handshake, keepalive) = {
+-                let mut state = lock(&self.state);
+-                let now = Instant::now();
+-                let handshake = state.rekey(now)?;
+-                let keepalive = if now.duration_since(state.last_send) >= KEEPALIVE {
+-                    state.last_send = now;
+-                    let reserved = state.keys.reserved;
+-                    Some(state.current.seal(&reserved, &[]))
+-                } else {
+-                    None
+-                };
+-                (handshake, keepalive)
+-            };
+-            for m in handshake.iter().chain(keepalive.iter()) {
++            let messages = lock(&self.state).tick(Instant::now())?;
++            for m in &messages {
+                 let _ = self.sock.send(m).await;
+             }
+         }
+@@ -809,122 +316,10 @@ pub(crate) mod standin;
+ mod tests {
+     use super::*;
+ 
+-    fn hex(s: &str) -> Vec<u8> {
+-        (0..s.len() / 2)
+-            .map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+-            .collect()
+-    }
+-
+-    #[test]
+-    fn blake2s_vectors() {
+-        // RFC 7693, appendix B.
+-        assert_eq!(
+-            blake2s(32, &[], &[b"abc"]),
+-            hex("508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982")
+-        );
+-        // The keyed vector of the BLAKE2 reference (key 00..1f, no input).
+-        let key: Vec<u8> = (0u8..32).collect();
+-        assert_eq!(
+-            blake2s(32, &key, &[]),
+-            hex("48a8997da407876b3d79c0d92325ad3b89cbb754d86ab71aee047ad345fd2c49")
+-        );
+-        // ... and with the input 00..3f (64 bytes: one whole block).
+-        let input: Vec<u8> = (0u8..64).collect();
+-        assert_eq!(
+-            blake2s(32, &key, &[&input]),
+-            hex("8975b0577fd35566d750b362b0897a26c399136df07bababbde6203ff2954ed4")
+-        );
+-        // The parts are one input.
+-        assert_eq!(
+-            blake2s(32, &[], &[b"a", b"bc"]),
+-            blake2s(32, &[], &[b"abc"])
+-        );
+-    }
+-
+-    /// HMAC-BLAKE2s, the KDF, a long input and a keyed MAC of 16 bytes, as
+-    /// Python's hashlib and hmac compute them.
+-    #[test]
+-    fn hmac_and_kdf_vectors() {
+-        let key: [u8; 32] = (0u8..32).collect::<Vec<_>>().try_into().unwrap();
+-        let t0 = hmac(&key, &[b"WireGuard"]);
+-        assert_eq!(
+-            t0.to_vec(),
+-            hex("5415924543576b3f5ee867c94e1aab70586d33b32fae3fccd2c635b3e1d7198d")
+-        );
+-        let [k1, k2, k3] = kdf::<3>(&key, b"WireGuard");
+-        assert_eq!(
+-            k1.to_vec(),
+-            hex("7e615ce2573f4139b960d562ec463daf7164bd86a0a64c0adc374ff2655769f3")
+-        );
+-        assert_eq!(
+-            k2.to_vec(),
+-            hex("42dbbd4438e101cd2c2ea8d05ed6716bf87489aea47ece2f06358835670130bf")
+-        );
+-        assert_eq!(
+-            k3.to_vec(),
+-            hex("5c58c1d9808a5bfdf8f38f6487248985c04f4b6d0fe427516935a0f6903b0157")
+-        );
+-        let long: Vec<u8> = (0..768).map(|i| i as u8).collect();
+-        assert_eq!(
+-            blake2s(32, &[], &[&long]),
+-            hex("b928a17862e211e99759ba8819280803a914cd3dee7c5d711a3b5185aa96a7b3")
+-        );
+-        assert_eq!(
+-            blake2s(16, &[0u8; 32], &[b"mac1 input"]),
+-            hex("e3df99b695c09da1151bb0fd6cd4ea5b")
+-        );
+-    }
+-
+-    #[test]
+-    fn a_handshake_and_transport_messages() {
+-        let peer_private = random::<32>();
+-        let keys = Keys {
+-            private: random::<32>(),
+-            peer_public: x25519_base(&peer_private),
+-            reserved: [1, 2, 3],
+-        };
+-        let init = initiate(&keys);
+-        assert_eq!(init.message.len(), INITIATION_LEN);
+-        assert_eq!(&init.message[..4], &[MSG_INITIATION, 1, 2, 3]);
+-        // mac1 is the MAC of WireGuard over the bytes with zero reserved
+-        // bytes (WARP writes them after the MAC).
+-        let mut plain = init.message[..116].to_vec();
+-        plain[1..4].fill(0);
+-        let key = hash(&[LABEL_MAC1, &keys.peer_public]);
+-        assert_eq!(blake2s(16, &key, &[&plain]), init.message[116..132]);
+-        let (response, peer_send, peer_recv, peer_index) =
+-            standin::respond(&peer_private, &keys.public(), &init.message);
+-        assert_eq!(response.len(), RESPONSE_LEN);
+-        let mut session = init.finish(&keys, &response).unwrap();
+-        assert_eq!(session.remote, peer_index);
+-        assert_eq!(session.send_key, peer_recv);
+-        assert_eq!(session.recv_key, peer_send);
+-        // A packet out: an IPv4 header of 28 bytes, padded to 32.
+-        let mut packet = vec![0x45, 0, 0, 28];
+-        packet.resize(28, 9);
+-        let m = session.seal(&keys.reserved, &packet);
+-        assert_eq!(&m[..4], &[MSG_DATA, 1, 2, 3]);
+-        assert_eq!(m.len(), 16 + 32 + 16);
+-        let plain = open(&peer_recv, 0, &m[16..], &[]).unwrap();
+-        assert_eq!(&plain[..28], &packet[..]);
+-        // A packet in, then the same message again (a replay).
+-        let mut back = vec![MSG_DATA, 0, 0, 0];
+-        back.extend_from_slice(&session.local.to_le_bytes());
+-        back.extend_from_slice(&5u64.to_le_bytes());
+-        back.extend_from_slice(&seal(&peer_send, 5, &plain, &[]));
+-        assert_eq!(session.open(&back).unwrap(), packet);
+-        assert!(session.open(&back).is_err());
+-        // A changed byte does not authenticate.
+-        let mut bad = back.clone();
+-        bad[8] = 6;
+-        bad[20] ^= 1;
+-        assert!(session.open(&bad).is_err());
+-        // A wrong response key: refused.
+-        let other = Keys {
+-            private: random::<32>(),
+-            ..keys.clone()
+-        };
+-        assert!(init.finish(&other, &response).is_err());
++    fn random<const N: usize>() -> [u8; N] {
++        let mut b = [0u8; N];
++        getrandom::fill(&mut b).expect("OS entropy");
++        b
+     }
+ 
+     #[tokio::test]
+@@ -948,18 +343,4 @@ mod tests {
+         assert!(err.contains("no WireGuard handshake answer"), "{err}");
+         drop(sock);
+     }
+-
+-    #[test]
+-    fn the_replay_window() {
+-        let mut r = Replay::default();
+-        for n in [0u64, 1, 5, 3] {
+-            assert!(r.check(n), "{n}");
+-            r.mark(n);
+-            assert!(!r.check(n), "{n} again");
+-        }
+-        assert!(r.check(4));
+-        r.mark(5000);
+-        assert!(!r.check(5));
+-        assert!(r.check(4999));
+-    }
+ }
+diff --git a/src/warp/wg/standin.rs b/src/warp/wg/standin.rs
+index 14ad4c8..81656b7 100644
+--- a/src/warp/wg/standin.rs
++++ b/src/warp/wg/standin.rs
+@@ -1,102 +1,17 @@
+-//! A stand-in of the WireGuard front door of WARP, for the tests (T-074).
+-//! It answers each handshake. It takes the data messages as [`DataPath`]
+-//! says: a TCP SYN gets a SYN-ACK, and each other packet comes back.
++//! A stand-in of the WireGuard front door of WARP, for the tests (T-074):
++//! the responder of pod-wg (PodUtils/podcrates, its feature `standin`). It
++//! answers each handshake. It takes the data messages as [`DataPath`] says:
++//! a TCP SYN gets a SYN-ACK, and each other packet comes back. This module
++//! gives its client the `Peer` of this crate, and keeps the tests of the
++//! driver.
+ 
+ use super::*;
++pub use pod_wg::standin::{keys, serve, session, DataPath};
+ 
+-/// What the stand-in does with the data messages.
+-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+-pub enum DataPath {
+-    /// It takes each message.
+-    All,
+-    /// It drops a message with zero reserved bytes (bytes 1 to 3).
+-    NeedsReserved,
+-    /// It drops each message: the handshakes stay fresh, and no data goes.
+-    Dead,
+-}
+-
+-/// The responder of the handshake: it checks the initiation and answers as
+-/// a WireGuard peer does. It gives the response, the send key, the receive
+-/// key and the index of the responder.
+-pub fn respond(
+-    peer_private: &[u8; 32],
+-    initiator_public: &[u8; 32],
+-    init: &[u8],
+-) -> (Vec<u8>, [u8; 32], [u8; 32], u32) {
+-    let peer_public = x25519_base(peer_private);
+-    assert_eq!(init.len(), INITIATION_LEN);
+-    assert_eq!(mac1(&peer_public, &init[..116]), init[116..132]);
+-    let mut c = hash(&[CONSTRUCTION]);
+-    let mut h = hash(&[&c, IDENTIFIER]);
+-    h = hash(&[&h, &peer_public]);
+-    let e_pub: [u8; 32] = init[8..40].try_into().unwrap();
+-    [c] = kdf::<1>(&c, &e_pub);
+-    h = hash(&[&h, &e_pub]);
+-    let [c2, k] = kdf::<2>(&c, &x25519(peer_private, &e_pub));
+-    c = c2;
+-    let s_pub = open(&k, 0, &init[40..88], &h).unwrap();
+-    assert_eq!(s_pub, initiator_public);
+-    h = hash(&[&h, &init[40..88]]);
+-    let [c3, k] = kdf::<2>(&c, &x25519(peer_private, initiator_public));
+-    c = c3;
+-    let time = open(&k, 0, &init[88..116], &h).unwrap();
+-    assert_eq!(time.len(), 12);
+-    h = hash(&[&h, &init[88..116]]);
+-    let e_priv = random::<32>();
+-    let e_r = x25519_base(&e_priv);
+-    [c] = kdf::<1>(&c, &e_r);
+-    h = hash(&[&h, &e_r]);
+-    [c] = kdf::<1>(&c, &x25519(&e_priv, &e_pub));
+-    [c] = kdf::<1>(&c, &x25519(&e_priv, initiator_public));
+-    let [c4, tau, k] = kdf::<3>(&c, &[0u8; 32]);
+-    c = c4;
+-    h = hash(&[&h, &tau]);
+-    let empty = seal(&k, 0, &[], &h);
+-    let sender = 77u32;
+-    let mut m = vec![MSG_RESPONSE, 0, 0, 0];
+-    m.extend_from_slice(&sender.to_le_bytes());
+-    m.extend_from_slice(&init[4..8]);
+-    m.extend_from_slice(&e_r);
+-    m.extend_from_slice(&empty);
+-    let mac = mac1(initiator_public, &m);
+-    m.extend_from_slice(&mac);
+-    m.extend_from_slice(&[0; 16]);
+-    let [recv_key, send_key] = kdf::<2>(&c, &[]);
+-    (m, send_key, recv_key, sender)
+-}
+-
+-/// A session with `key` in both directions, for a test of [`Session::seal`].
+-pub fn session(key: [u8; 32]) -> Session {
+-    Session {
+-        send_key: key,
+-        recv_key: key,
+-        local: 1,
+-        remote: 2,
+-        send_counter: 0,
+-        created: Instant::now(),
+-        replay: Replay::default(),
+-    }
+-}
+-
+-/// The keys of a client and of the stand-in: (client keys, private key of
+-/// the stand-in).
+-pub fn keys(reserved: [u8; 3]) -> (Keys, [u8; 32]) {
+-    let peer_private = random::<32>();
+-    let keys = Keys {
+-        private: random::<32>(),
+-        peer_public: x25519_base(&peer_private),
+-        reserved,
+-    };
+-    (keys, peer_private)
+-}
+-
+-/// Start the stand-in on the loopback for the client of `keys`. It gives
+-/// the peer of the client (the device address 172.16.0.2).
++/// Start the stand-in on the loopback for a new client. It gives the peer of
++/// the client (the device address 172.16.0.2).
+ pub async fn start(reserved: [u8; 3], path: DataPath) -> Peer {
+-    let (keys, peer_private) = self::keys(reserved);
+-    let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+-    let endpoint = sock.local_addr().unwrap();
+-    tokio::spawn(serve(sock, peer_private, keys.public(), path));
++    let (keys, endpoint) = pod_wg::standin::start(reserved, path).await;
+     Peer {
+         keys,
+         endpoint,
+@@ -105,76 +20,6 @@ pub async fn start(reserved: [u8; 3], path: DataPath) -> Peer {
+     }
+ }
+ 
+-/// Serve the client of `client_public` on `sock`.
+-pub async fn serve(
+-    sock: tokio::net::UdpSocket,
+-    peer_private: [u8; 32],
+-    client_public: [u8; 32],
+-    path: DataPath,
+-) {
+-    // For each client address: the send key, the receive key, the index
+-    // of the client and the send counter.
+-    let mut sessions = std::collections::HashMap::new();
+-    let mut buf = vec![0u8; 2048];
+-    loop {
+-        let Ok((n, from)) = sock.recv_from(&mut buf).await else {
+-            return;
+-        };
+-        let m = &buf[..n];
+-        if m[0] == MSG_INITIATION && n == INITIATION_LEN {
+-            let (response, send, recv, _) = respond(&peer_private, &client_public, m);
+-            let receiver: [u8; 4] = m[4..8].try_into().unwrap();
+-            sessions.insert(from, (send, recv, receiver, 0u64));
+-            let _ = sock.send_to(&response, from).await;
+-            continue;
+-        }
+-        let dropped = match path {
+-            DataPath::All => false,
+-            DataPath::NeedsReserved => m.get(1..4) == Some(&[0, 0, 0][..]),
+-            DataPath::Dead => true,
+-        };
+-        if m[0] != MSG_DATA || n < 32 || dropped {
+-            continue;
+-        }
+-        let Some((send, recv, receiver, counter)) = sessions.get_mut(&from) else {
+-            continue;
+-        };
+-        let c = u64::from_le_bytes(m[8..16].try_into().unwrap());
+-        let Ok(plain) = open(recv, c, &m[16..], &[]) else {
+-            continue;
+-        };
+-        if plain.is_empty() {
+-            continue;
+-        }
+-        let back = syn_ack(&plain).unwrap_or(plain);
+-        let mut out = vec![MSG_DATA, 0, 0, 0];
+-        out.extend_from_slice(&receiver[..]);
+-        out.extend_from_slice(&counter.to_le_bytes());
+-        out.extend_from_slice(&seal(send, *counter, &back, &[]));
+-        *counter += 1;
+-        let _ = sock.send_to(&out, from).await;
+-    }
+-}
+-
+-/// The SYN-ACK for an IPv4 TCP SYN (the far end of the TCP probe).
+-fn syn_ack(p: &[u8]) -> Option<Vec<u8>> {
+-    if p.len() < 40 || p[0] != 0x45 || p[9] != 6 || p[33] != 0x02 {
+-        return None;
+-    }
+-    let ip = |at: usize| std::net::Ipv4Addr::new(p[at], p[at + 1], p[at + 2], p[at + 3]);
+-    let port = |at: usize| u16::from_be_bytes([p[at], p[at + 1]]);
+-    let seq = u32::from_be_bytes(p[24..28].try_into().unwrap());
+-    Some(crate::warp::tun::probe::tcp_packet(
+-        ip(16),
+-        ip(12),
+-        port(22),
+-        port(20),
+-        0x0bad_cafe,
+-        seq.wrapping_add(1),
+-        0x12,
+-    ))
+-}
+-
+ /// A tunnel over the stand-in carries packets both ways.
+ #[tokio::test]
+ async fn a_tunnel_over_udp_carries_packets_both_ways() {

@@ -1,0 +1,37 @@
+# The trial of pod-wg in podnet (T-024, the cut of PodUtils/podnet#447).
+# src/warp/wg.rs keeps the device of WARP (Peer with from_exported), the UDP
+# socket (Sock), connect, connect_inside, connect_on and the halves WgTx,
+# WgRx and WgKeepalive with their lock. The handshake, the session with its
+# window of counters, the cookie and the timers are pod-wg (Tunnel in place
+# of State), and wg.rs re-exports their old names. connect_on gives the
+# mac2 of a cookie reply to its next try; WgRx takes the cookie of a rekey.
+# src/warp/wg/standin.rs gives the Peer of pod_wg::standin::start and keeps
+# the two tests of the driver; the tests of the sans-IO parts leave (they
+# are pod-wg's). Each podcrates tag moves to v0.22.0. The record, the size
+# and the layers of the files, the build, the bans and the sources of
+# cargo-deny, pod-wg in the tree, no copy of the moved code left in podnet,
+# clippy of the workspace, the library of podnet (the WireGuard leg, the
+# export check, the handshake of a wg-quick file, the stand-in and the
+# probe of a dead leg), the virtual network (the wg-quick reader), the fuzz
+# targets with their lock, rustfmt, each Rust toolchain of the workflows and
+# build images against the rust-version of podcrates, and the binary for
+# x86_64 musl, built with zig (a debug build: the release profile takes
+# LTO), with podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet -i pod-wg > /dev/null
+! git grep -n -E "fn blake2s|fn kdf|struct Replay \{|const CONSTRUCTION|fn mac1|fn tai64n" -- src crates
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo test -q -p podnet --lib
+cargo test -q -p podnet-vnet
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"
