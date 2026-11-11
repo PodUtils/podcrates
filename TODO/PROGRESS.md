@@ -13,12 +13,12 @@
 - The consumers and their tags:
   - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192).
   - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).
-  - podvm: `v0.24.0` (`96acfbea`, PodUtils/podvm#264; it took `pod-services`).
-  - podrunner: `v0.24.0` (`6a01f4e`); its T-042 takes `pod-confine`, its
+  - podvm: `v0.25.0` (`763b7c6a`, PodUtils/podvm#266; `Plan.confine` from
+    its profiles, experiment 414 passes).
+  - podrunner: `v0.25.0` (`02a1c0b`); its T-042 takes `pod-confine`, its
     T-048 takes `check_upstream`, `names_upstream` and the flagged rules
     of `pod-broker`.
-- Takes that wait: podvm's use of `pod-confine` (PodUtils/podvm@T-1658,
-  next in its order, #69), its check of T-208 against `lambda-al2023`, and
+- Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70); podnet's move to `v0.24.0` (#73); podnet's take of the veth
   wire of `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; the

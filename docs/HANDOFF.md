@@ -23,12 +23,13 @@ a line when its work is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.24.0`, `96acfbea`, PodUtils/podvm#264): its PodUtils/podvm@T-1658 sets
-  `Plan.confine` from the profile next (#69 closes at that take); it checks
-  `lambda-al2023` for T-208; its PodUtils/podvm@T-1662 reads the module set of T-206 after
-  `pod-netlab` (T-207, #70). PodUtils/podvm@T-1722 may ask for
-  `exec_attached` of `pod-incus`. Its other takes (PodUtils/podvm#194):
-  `pod-relay` (the blocking face, after T-025), `pod-todo`.
+- podvm (on `v0.25.0`, `763b7c6a`, PodUtils/podvm#266): its
+  PodUtils/podvm@T-1658 sets `Plan.confine` (`--podvm-confine=SPEC`, the
+  profile key `confine = true`); it checks `lambda-al2023` for T-208; its
+  PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`
+  (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
+  `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
+  blocking face, after T-025), `pod-todo`.
 - podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
   at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
   `pod-netstack`); T-201 is done: podnet takes the veth wire with
@@ -39,7 +40,8 @@ a line when its work is done. Git and the record keep finished work.
   deferred (the owner; #75).
 - podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.24.0`): its T-042 takes `pod-confine`. No crate ask.
+- podrunner (on `v0.25.0`, `02a1c0b`): its T-075 takes T-226 of `pod-job`
+  in the next tag. Its T-042 uses `pod-confine`.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).
