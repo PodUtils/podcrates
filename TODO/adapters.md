@@ -95,17 +95,18 @@ PodUtils/podnet@T-057): the crate gives a session as a `Dial` (TCP streams
 and names inside) and as `Datagrams` (UDP), so that podnet's registry,
 router, groups and `--egress` take WARP as one more network. About twenty
 podnet entries wait for it (among them PodUtils/podnet@T-095,
-PodUtils/podnet@T-097 and PodUtils/podnet@T-101). Use the traits of
-`pod-core` where they fit; else ask podnet which traits of `podnet_core`
-the crate implements.
+PodUtils/podnet@T-097 and PodUtils/podnet@T-101). The `Dial` and the
+`Datagrams` of `pod-core` are enough: podnet implements its own
+`podnet_core::network` traits over the types of the crate
+(PodUtils/podnet#452).
 
 The lint of shadowed rules (PodUtils/podnet#449, PodUtils/podnet#433;
 PodUtils/podnet@T-242): `warp proxy -r` and `--rules` call the same lint
 as podnet's netns rules (`podnet_netns::rules::shadow::check`): a shadowed
 `reject` is an error (exit 64) unless the caller allows it. The crate
 cannot depend on a podnet crate: the rules of `src/warp/rules.rs` take the
-lint as a function of the caller, or the lint moves to a crate of
-podcrates with the rules.
+lint as a function of the caller, and podnet passes its
+`shadow::check` (PodUtils/podnet#452: the lint stays in podnet).
 
 ## Prove
 

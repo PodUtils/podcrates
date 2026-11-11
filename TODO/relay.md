@@ -1786,12 +1786,23 @@ phases only, and `pod-transit` (T-027) takes podssh's own transit words
 only. No crate holds the offer and the answer (a file, a directory, a
 text), the transit hints, the relay handshake and the records (SecretBox),
 a directory as zip with an inflate decoder (`pod-extract` reads no zip),
-or podnet's own hint kind (the podnet relay as a carrier of a transfer,
-PodUtils/podnet@T-104).
+or podnet's own hint kinds (the podnet relay as a carrier of a transfer,
+PodUtils/podnet@T-104; a piping server as a transit of last resort,
+PodUtils/podnet@T-252).
 
 ## Premise
 
-- Read: PodUtils/podnet#450.
+- Read: PodUtils/podnet#450; PodUtils/podnet#452, the words of podnet's
+  hint kinds: `podnet-relay-v1` (`relay`, an https base URL; `pair`, the
+  name of a relay pair; `resume`, a bool; the connect token of the pair
+  goes in its own sealed phase with the key `podnet-relay-token`, after
+  the hints) and `piping-v1` (`url`; the path is the first 32 hex digits
+  of HKDF-SHA256(transit key, info `podnet piping path v1`); the sender
+  PUTs the sealed records, the receiver GETs them). A client of
+  magic-wormhole ignores a hint kind that it does not know.
+- The hosts for `pod-services` (PodUtils/podnet#452): the piping servers
+  `ppng.io` and `piping.onrender.com`; the mailboxes
+  `wss://relay.magic-wormhole.io/v1` and `wss://mailbox.winden.app/v1`.
 - Not read: the file-transfer and transit documents of magic-wormhole
   (`file-transfer-protocol.md`, `transit.md` of the Python project); the
   current Python release, for the interop test.
@@ -1802,10 +1813,12 @@ The offer and the answer, the zip of a directory (write and read, inflate
 in Rust, a bound of each size and path as `pod-extract` has) go to
 `pod-wormhole` under a feature `transfer`. The transit hints (direct and
 relay, and a kind of the caller for podnet's carrier), the relay
-handshake and the records go to `pod-transit` (call C64). A stand-in of
-the transit relay for the tests. An interop test against the Python
-magic-wormhole in `live.yml` (PodUtils/podnet@T-106). Ask podnet by a
-COORD issue for the words of its hint kind before the API is fixed.
+handshake and the records go to `pod-transit` (call C64). The hint type
+is open (a kind and a JSON object), so that podnet adds its kinds with no
+change of the crate; `podnet-relay-v1` and `piping-v1` are tests of it.
+The piping servers and the mailboxes become services of `pod-services`.
+A stand-in of the transit relay for the tests. An interop test against
+the Python magic-wormhole in `live.yml` (PodUtils/podnet@T-106).
 
 ## Prove
 

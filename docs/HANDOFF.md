@@ -18,7 +18,8 @@ page current; remove a line when its work is done.
   under a TCP list, no io_uring; calls C61 to C63; breaking: `Spec` and
   `Deny`). podnet's asks (#74): T-028 after T-026, T-214 and T-215.
 - The consumers and the tag each takes:
-  - podssh: `v0.22.0` (`75a50318`, PodUtils/podssh#191; it took `pod-e2e`;
+  - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192); it took `pod-e2e`
+    at `75a50318` (PodUtils/podssh#191);
     the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
     PodUtils/podssh@T-740).

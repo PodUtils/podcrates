@@ -214,6 +214,7 @@ target, the fork. A study can change its row.
 | `pod-iroh` | podssh `crates/podssh-iroh`; `vendor/iroh-relay` with its patch | 3,600 | pod-core, pod-derp, pod-proxy, pod-tls, pod-ws, pod-dns, pod-session, pod-identity |
 | `pod-tor` | podssh `crates/podssh-tor` (arti, SQLite linked static) | 900 | pod-core, pod-proxy, pod-tls, pod-egress |
 | `pod-ts` | podssh `crates/podssh-ts`; `vendor/tailscale-rs` with its patches; the headscale harness | 900 | pod-core, pod-proxy |
+| `pod-git` | new code (T-217 to T-220, PodUtils/podnet#453): a git server over byte streams with no installed git: upload-pack v0, v1 and v2, receive-pack v0 and v1 with a policy and a hook trait, stateless smart HTTP, the on-disk format of git, SHA-1, pure Rust; its base (gix's data layer, grit-lib's server, or own code) comes from the study T-217 | 6,000 | pod-core |
 | `pod-gsr` | the GSRN relay of gsocket: the owner's prototype `pod-gsr` 0.3.0 (`pod-gsr.zip` of GitHub #24) and its data file `hackerschoice-gsr` for `pod-services`; the protocol of `hackerschoice/gsocket` at `5950647f` (`SOURCES`). TLS with SRP on a static OpenSSL (C34) | 2,200 | pod-core, pod-services (pod-proxy for the live test) |
 
 ### M8: the fleet (the asks of GitHub #35 and #36)

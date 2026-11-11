@@ -669,3 +669,186 @@ OpenSSL build options. Remove the exclusion with the fix.
 cargo test -p pod-gsr --all-features   # on windows-11-arm
 ```
 
+
+# T-217: Research: the base of `pod-git`, a git server in Rust with no installed git (PodUtils/podnet#453)
+
+**Source:** PodUtils/podnet#453 (COORD-035 of podnet; the owner's ruling of 2026-11-11 in podnet: no native git server in podnet, a crate `pod-git` of our own)
+**Category:** research
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podnet git serve` (smart HTTP through a quick tunnel, SSH, the relay
+road) runs the host's `git upload-pack` and `git receive-pack`, and a
+host of podnet can have no `git`. podnet asks for `pod-git`, a server over
+byte streams with the contract and the acceptance of PodUtils/podnet#453.
+No crate holds a server today: gix has none upstream (its maintainer
+closed the server pull requests); grit-lib 0.5.33 (MIT) has an
+`UploadPack` and a `ReceivePack` with delta compression, but it is weeks
+old, has about 150 crates, and breaks its API before 0.6.
+
+## Premise
+
+- Read: PodUtils/podnet#453 (the contract: `upload_pack`,
+  `receive_pack`, `advertise`, `rpc`, `init_bare`, `refs`, `head`,
+  `is_repository`; a hook trait before the ref update; a policy value;
+  no process, no shell, no environment read; protocol v0, v1 and v2 for
+  upload-pack, v0 and v1 for receive-pack with their capabilities; the
+  on-disk format of git; SHA-1; pure Rust, no ring or aws-lc; at most 3 MB
+  in podnet's binary and 60 new packages; 64 MiB RSS for the reference
+  clone and a blob of 100 MiB).
+- Read (crates.io, 2026-11-11): `pod-git` is free; grit-lib 0.5.33
+  (2026-11-09), gix-protocol 0.68.0 and gix-pack 0.77.0 (2026-10-22).
+- Not read: the code of grit-lib's server; the server parts that gix has
+  (the pack writer, the delta search); the size and the package count of
+  each base in a musl binary.
+
+## Approach
+
+Measure each base against the contract: own code over the gix data layer
+(`gix-pack`, `gix-odb`, `gix-ref`, `gix-protocol`'s pkt-line), a fork of
+grit-lib's server parts, or grit-lib as a dependency. For each: the
+packages and the size in a musl binary of a small server, the RSS of a
+clone of a repository of about 100,000 objects, the time against `git
+upload-pack`, the licence of each package, and the clone and push smoke
+test with git 2.39 and the newest git. Record the choice as a call, and
+amend T-218 to T-220 and the row of `docs/design.md`.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+# T-218: `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453)
+
+**Source:** PodUtils/podnet#453
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The fetch half of the contract of PodUtils/podnet#453: `upload_pack`
+over a reader and a writer, protocol v0, v1 and v2 (`ls-refs`, `fetch`),
+`side-band-64k`, `ofs-delta`, `multi_ack_detailed`, `no-done`, `shallow`
+and `deepen` (depth, since, not), `filter` (`blob:none` at least),
+`include-tag`, `thin-pack`, `allow-tip-sha1-in-want` off by default; a
+pack with delta compression, as a stream.
+
+## Premise
+
+- Read: PodUtils/podnet#453.
+- The base comes from T-217.
+
+## Approach
+
+On the base of T-217. Tests with the `git` client (2.39 and the newest):
+clone over v0, v1 and v2, `--depth 1`, `--filter=blob:none`, an
+incremental fetch; the pack of the reference repository at most 1.5 times
+the size of `git upload-pack`'s; 64 MiB RSS. Fuzz targets of the
+pkt-line reader and of the request parser.
+
+## Prove
+
+```sh
+cargo test -p pod-git --all-features
+```
+
+## Start condition
+
+T-217 is done.
+
+# T-219: `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453)
+
+**Source:** PodUtils/podnet#453
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The push half of the contract of PodUtils/podnet#453: `receive_pack`
+over a reader and a writer, v0 and v1, `report-status` and
+`report-status-v2`, `delete-refs`, `atomic`, `push-options`,
+`side-band-64k`, `quiet`, `ofs-delta`, thin packs completed from the
+repository; the index of the pack, the connectivity check, the check of
+each new object (as `receive.fsckObjects`), the ref update under its
+lock; a policy value (deny a non-fast-forward, a delete, the update of
+the checked-out branch, an atomic push, the largest pack); a hook trait
+`check(&[RefUpdate]) -> Result<(), Refusal>` whose text reaches the
+client.
+
+## Premise
+
+- Read: PodUtils/podnet#453.
+- The base comes from T-217.
+
+## Approach
+
+Tests with the `git` client: a new branch, a fast-forward, a
+non-fast-forward refused and allowed, a delete refused and allowed, an
+atomic push of two refs where one fails, push options to the hook, a thin
+pack, the text of a refusal printed by the client, `git fsck --strict`
+after each push, pushes at the same time with no corrupt ref, a blob of
+100 MiB under 64 MiB RSS. A fuzz target of the pack and index reader.
+
+## Prove
+
+```sh
+cargo test -p pod-git --all-features
+```
+
+## Start condition
+
+T-218 is done.
+
+# T-220: `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453)
+
+**Source:** PodUtils/podnet#453
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The rest of the contract of PodUtils/podnet#453: `advertise(service,
+version)` and `rpc(service, version, body, writer)` for stateless smart
+HTTP (the caller gives the gzip and the chunks), `init_bare`, `refs`,
+`head`, `is_repository`; the acceptance: a repository that `git` wrote
+serves through `pod-git` and the reverse; the reference repository
+(about 100,000 objects, pinned) in at most 2 times the time of `git
+upload-pack`; at most 3 MB and 60 packages in a musl binary; the trial of
+podnet (a patch `pod-git.patch` of `adoption/podnet/`: a backend trait in front of
+`PodUtils/podnet:crates/podnet-serve/src/git*`, `git serve --git-backend git|native|auto`).
+
+## Premise
+
+- Read: PodUtils/podnet#453.
+
+## Approach
+
+The HTTP calls over the halves of T-218 and T-219; a test of each with
+the `git` client over a loopback HTTP server of the test; the budgets as
+a check of CI on a musl build of a small binary; the patch of podnet and
+its live steps ("Git over HTTPS through a quick tunnel", "Git over SSH
+through the reverse relay") with `--git-backend native`.
+
+## Prove
+
+```sh
+cargo test -p pod-git --all-features
+```
+
+## Start condition
+
+T-219 is done.

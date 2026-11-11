@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 216 entries: 61 open, 4 partial, 0 blocked, 151 done.
+`TODO/INDEX.md` holds 220 entries: 65 open, 4 partial, 0 blocked, 151 done.
 
 ## State
 
@@ -12,8 +12,8 @@
   `v0.23.0` is at `de770a2` (#72); `v0.22.0` at `93de04a` (#71: each
   consumer took it).
 - The next release: `pod-relay` (T-025, partial), T-209 (`pod-confine`).
-- The consumers: podssh is on `v0.22.0` (`75a50318`, PodUtils/podssh#191;
-  it took `pod-e2e`; earlier `6de121b2`, PodUtils/podssh#189;
+- The consumers: podssh is on `v0.24.0` (`2f4f292b`, PodUtils/podssh#192;
+  it took `pod-e2e` at `75a50318`, PodUtils/podssh#191; earlier `6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.22.0`
   (`089e1c9`, PodUtils/podnet#447: it took `pod-wg`; earlier `54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
@@ -34,10 +34,9 @@
   talk with podcrates by direct messages. podnet and podvm run in their
   own sessions and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`) but the four that GitHub #1 lists under "To
-  register" for the owner's agent (`pod-job`, `pod-actions-workflow`,
-  `pod-incus`, `pod-mask`); no crate goes to crates.io now (the owner,
-  2026-11-09).
+  (`check-crates-io-names.py`) but `pod-git`, which GitHub #1 lists under
+  "To register" for the owner's agent; no crate goes to crates.io now (the
+  owner, 2026-11-09).
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -68,8 +67,9 @@ next entry.
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    after PodUtils/podnet@T-249 (the router onto `pod-netstack`); T-201 after
    the root CI step of PodUtils/podnet@T-250; T-214 and T-215 (the file
-   transfer and the mailbox server of magic-wormhole) after T-027; T-150,
-   T-121 to T-124 (the asks of podnet).
+   transfer and the mailbox server of magic-wormhole) after T-027; T-217
+   (the study of `pod-git`, PodUtils/podnet#453), then T-218 to T-220;
+   T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has); T-213 (the sockets that Landlock and
@@ -102,7 +102,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C64), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C65), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
