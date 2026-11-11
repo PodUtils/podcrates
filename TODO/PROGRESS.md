@@ -61,8 +61,9 @@ next entry.
 3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-201
    (the veth wire into `pod-hold`) after podnet's tests of the wire pass; T-150, T-121 to T-124 (the asks of
    podnet).
-4. **M6, the crates of podvm:** `exec_attached` of `pod-incus` when
-   PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
+4. **M6, the crates of podvm:** T-108 (`pod-confine` and `Plan.confine` of
+   `pod-enter`, PodUtils/podvm#259; PodUtils/podvm@T-1658 is blocked on it);
+   `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.

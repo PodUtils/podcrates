@@ -992,7 +992,7 @@ cargo test -p pod-hostprobe --all-features
 
 # T-108: `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35)
 
-**Source:** GitHub #35 (A-V-01)
+**Source:** GitHub #35 (A-V-01); PodUtils/podvm#259 (podvm's ask, PodUtils/podvm@T-1658, issue 170)
 **Category:** feature
 **Milestone:** M7
 **Priority:** P1
@@ -1011,10 +1011,31 @@ one entry.
 - Not measured: Landlock on the targets.
 - podrunner is a consumer (PodUtils/podvm#227 section 2.7). It needs a proof string for a capability record with `boundary: confined`. Without `confined`, `trusted` jobs run only if the owner answers yes to DR-4.
 
+- podvm's ask (PodUtils/podvm#259): `Spec` (Landlock read, write and
+  execute paths as access sets of each path; TCP connect and bind ports,
+  ABI 4 or later; a seccomp deny list); `probe() -> Option<u32>` (the ABI
+  of `landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)`,
+  and whether a nested ruleset loads under the host's policy);
+  `apply(&Spec)`: `PR_SET_NO_NEW_PRIVS`, the ruleset,
+  `landlock_restrict_self`, then a seccomp filter in mode 2, with a
+  default deny list (the namespace, mount, ptrace, keyctl, bpf,
+  `perf_event_open`, `kexec_*`, module and `*_handle_at` calls) and
+  `EPERM`; no allocation in `apply` (it runs in the child after `fork`);
+  an error names the call and the errno; where Landlock is absent, `apply`
+  refuses. In `pod-enter`: `Plan.confine: Option<pod_confine::Spec>`,
+  applied in the child after the limits and `no_new_privs`, before the
+  exec; a spec of the chroot rung names guest paths, one of the userland
+  rung host paths. Its proof: experiment 414 (`cat /etc/hostname` EACCES
+  outside the read list; a connect to 22 EACCES, 443 passes;
+  `NoNewPrivs 1`, `Seccomp 2`). The host of 2026-11-11 (Linux 6.18)
+  answers ABI 7.
+- `pod-enter` already sets the rlimits and `no_new_privs` in the child
+  (T-176): `pod-confine` adds no rlimit.
+
 ## Approach
 
 The study, then the crate: Landlock ABI 3 or newer for file rules and ABI 4 or newer for TCP rules, a
-seccomp deny filter of the list of A-V-01, `no_new_privs`, rlimits, one profile file. The crate refuses by
+seccomp deny filter of the list of A-V-01 and of podvm's ask, `no_new_privs`, the `Spec` of podvm's ask (a profile file of the consumer maps to it), and `Plan.confine` of `pod-enter`. The crate refuses by
 name where Landlock is absent. The filter builder of podnet is a source.
 
 ## Prove
