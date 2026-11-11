@@ -10,7 +10,7 @@ use std::time::Instant;
 use pod_core::entropy::OsEntropy;
 
 use crate::blake2s::{hash, kdf};
-use crate::cookie::cookie_key;
+use crate::cookie::{cookie_key, mac2};
 use crate::crypto::{open, random, seal, x25519, x25519_base, xseal};
 use crate::handshake::{
     CONSTRUCTION, IDENTIFIER, INITIATION_LEN, Keys, MSG_COOKIE, MSG_DATA, MSG_INITIATION, MSG_RESPONSE, mac1,
@@ -132,8 +132,31 @@ pub async fn start(reserved: [u8; 3], path: DataPath) -> (Keys, SocketAddr) {
     (keys, endpoint)
 }
 
+/// Start the stand-in on the loopback under load: it answers an initiation
+/// with no mac2 of its cookie with a cookie reply, and an initiation with
+/// it as [`start`] does.
+pub async fn start_under_load(reserved: [u8; 3], path: DataPath) -> (Keys, SocketAddr) {
+    let (keys, peer_private) = self::keys(reserved);
+    let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = sock.local_addr().unwrap();
+    let cookie = random::<16>(&mut OsEntropy).expect("random bytes");
+    tokio::spawn(serve_with(sock, peer_private, keys.public(), path, Some(cookie)));
+    (keys, endpoint)
+}
+
 /// Serve the client of `client_public` on `sock`.
 pub async fn serve(sock: tokio::net::UdpSocket, peer_private: [u8; 32], client_public: [u8; 32], path: DataPath) {
+    serve_with(sock, peer_private, client_public, path, None).await
+}
+
+/// Serve as [`serve`] does; with `cookie`, under load.
+async fn serve_with(
+    sock: tokio::net::UdpSocket,
+    peer_private: [u8; 32],
+    client_public: [u8; 32],
+    path: DataPath,
+    cookie: Option<[u8; 16]>,
+) {
     // For each client address: the send key, the receive key, the index
     // of the client and the send counter.
     let mut sessions = HashMap::new();
@@ -146,6 +169,14 @@ pub async fn serve(sock: tokio::net::UdpSocket, peer_private: [u8; 32], client_p
         // An empty datagram has no type; the stand-in waits for the next.
         let Some(&kind) = m.first() else { continue };
         if kind == MSG_INITIATION && n == INITIATION_LEN {
+            if let Some(cookie) = &cookie
+                && m[132..] != mac2(cookie, &m[..132])
+            {
+                let nonce = random::<24>(&mut OsEntropy).expect("random bytes");
+                let reply = cookie_reply(&x25519_base(&peer_private), m, cookie, &nonce);
+                let _ = sock.send_to(&reply, from).await;
+                continue;
+            }
             let (response, send, recv, _) = respond(&peer_private, &client_public, m);
             let receiver: [u8; 4] = m[4..8].try_into().unwrap();
             sessions.insert(from, (send, recv, receiver, 0u64));

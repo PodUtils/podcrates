@@ -55,3 +55,24 @@ async fn an_empty_datagram_does_not_stop_the_standin() {
     let response = recv(&sock).await;
     assert!(init.finish(&keys, &response, Instant::now()).is_ok());
 }
+
+/// The stand-in under load answers an initiation with no mac2 with a
+/// cookie reply, and the next initiation with the mac2 of the cookie with
+/// its response.
+#[tokio::test]
+async fn the_standin_under_load_takes_the_mac2_of_its_cookie() {
+    pod_testkit::need_loopback!();
+    let (keys, endpoint) = start_under_load([0; 3], DataPath::All).await;
+    let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    sock.connect(endpoint).await.unwrap();
+    let first = initiate(&keys).unwrap();
+    sock.send(&first.message).await.unwrap();
+    let reply = recv(&sock).await;
+    assert_eq!(reply[0], crate::MSG_COOKIE);
+    let cookie = crate::Cookie::open(&keys, &first, &reply, Instant::now()).unwrap();
+    let mut next = initiate(&keys).unwrap();
+    next.add_mac2(&cookie, Instant::now());
+    sock.send(&next.message).await.unwrap();
+    let response = recv(&sock).await;
+    assert!(next.finish(&keys, &response, Instant::now()).is_ok());
+}

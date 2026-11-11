@@ -7,10 +7,15 @@
 use pod_wg::Error;
 use pod_wg::fuzzing::{cookie, cookie_reply, finish, open, response};
 
-/// True when `data` is `valid`, but for the bytes in `free`.
-fn same_but(data: &[u8], valid: &[u8], free: &[std::ops::Range<usize>]) -> bool {
+/// True when `data` is `valid`, but for the bytes from `start` to `end`
+/// (not included) of each pair of `free`.
+fn same_but(data: &[u8], valid: &[u8], free: &[(usize, usize)]) -> bool {
     data.len() == valid.len()
-        && data.iter().zip(valid).enumerate().all(|(i, (a, b))| a == b || free.iter().any(|r| r.contains(&i)))
+        && data
+            .iter()
+            .zip(valid)
+            .enumerate()
+            .all(|(i, (a, b))| a == b || free.iter().any(|&(s, e)| (s..e).contains(&i)))
 }
 
 /// A handshake response (`pod_wg::fuzzing::finish`, `Initiation::finish`):
@@ -20,7 +25,7 @@ fn same_but(data: &[u8], valid: &[u8], free: &[std::ops::Range<usize>]) -> bool 
 /// refused.
 pub fn wg_response(data: &[u8]) {
     let taken = finish(data);
-    assert_eq!(taken.is_ok(), same_but(data, &response(), &[1..4, 76..92]), "{taken:?}");
+    assert_eq!(taken.is_ok(), same_but(data, &response(), &[(1, 4), (76, 92)]), "{taken:?}");
     if let Ok(session) = taken {
         assert_eq!((session.local, session.remote), (11, 22));
     }
@@ -31,7 +36,7 @@ pub fn wg_response(data: &[u8]) {
 /// reserved bytes.
 pub fn wg_cookie(data: &[u8]) {
     let taken = cookie(data);
-    assert_eq!(taken.is_ok(), same_but(data, &cookie_reply(), &[1..4]), "{taken:?}");
+    assert_eq!(taken.is_ok(), same_but(data, &cookie_reply(), &[(1, 4)]), "{taken:?}");
 }
 
 /// A transport message (`pod_wg::fuzzing::open`, `Session::open`), read

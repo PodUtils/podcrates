@@ -37,7 +37,7 @@ are the crate's: ring has neither.
 | `MSG_INITIATION`, `MSG_RESPONSE`, `MSG_COOKIE`, `MSG_DATA`; `INITIATION_LEN`, `RESPONSE_LEN`, `COOKIE_REPLY_LEN` | The types and the lengths of the messages. |
 | `REKEY_AFTER` (120 s), `REKEY_TIMEOUT` (5 s), `HANDSHAKE_DEAD` (20 s), `KEEPALIVE` (25 s), `COOKIE_AGE` (115 s) | The timers. |
 | `Error` | Each failure, with podnet's text; `class()`; `Failure::from`. |
-| `standin` (feature `standin`) | The responder of the tests: `respond`, `respond_with`, `cookie_reply`, `session`, `keys`, `start(reserved, path) -> (Keys, SocketAddr)`, `serve`, `DataPath` (`All`, `NeedsReserved`, `Dead`). On the loopback it answers each handshake, sends each packet back, and answers a TCP SYN with its SYN-ACK. |
+| `standin` (feature `standin`) | The responder of the tests: `respond`, `respond_with`, `cookie_reply`, `session`, `keys`, `start(reserved, path) -> (Keys, SocketAddr)`, `start_under_load` (a cookie reply to each initiation with no mac2 of its cookie), `serve`, `DataPath` (`All`, `NeedsReserved`, `Dead`). On the loopback it answers each handshake, sends each packet back, and answers a TCP SYN with its SYN-ACK. |
 | `fuzzing` (feature `fuzzing`) | The readers of a response, a cookie reply and a transport message on fixed keys, for the fuzz targets of `fuzz/`. |
 
 ## The timers
@@ -138,17 +138,17 @@ The differences, each a fix or a new part:
 | `State` and `State::rekey` | `pod_wg::Tunnel` in the `Arc<Mutex<..>>` of podnet's halves: `send`, `receive`, `tick` |
 | the cookie reply as an error | `Cookie::open` and `Initiation::add_mac2` in `connect_on`; `Received::Cookie` in `WgRx` |
 | `Peer`, `Peer::from_exported`, `Sock`, `connect`, `connect_inside`, `connect_on`, `WgTx`, `WgRx`, `WgKeepalive` | stay in `src/warp/wg.rs` |
-| `src/warp/wg/standin.rs` | `pod_wg::standin` (dev-dependency with the feature `standin`); podnet's `standin.rs` keeps `start` (it makes the `Peer` of `pod_wg::standin::start`) and its two tests of the driver |
+| `src/warp/wg/standin.rs` | `pod_wg::standin` (dev-dependency with the feature `standin`); podnet's `standin.rs` keeps `start` (it makes the `Peer` of `pod_wg::standin::start`) and its two tests of the driver, and gets a third: `connect` passes a front door under load (`start_under_load`) |
 | `ring`, `curve25519-dalek` of `wg.rs` | in pod-wg; podnet keeps both for its other code |
 
 ## Tests
 
-`cargo test -p pod-wg --all-features`: 18 tests (the vectors of BLAKE2s, its
+`cargo test -p pod-wg --all-features`: 19 tests (the vectors of BLAKE2s, its
 HMAC and the KDF, of HChaCha20, XChaCha20-Poly1305 against RustCrypto's;
 the handshake and the transport messages; the mac1 and the payload of a
 response; an initiation from known values; the cookie; the timers, a rekey
 with the previous session, a bad response, a cookie in a rekey; the
-stand-in on the loopback; the classes of the errors). The fuzz targets
+stand-in on the loopback, also under load; the classes of the errors). The fuzz targets
 `wg_response`, `wg_cookie` and `wg_transport` (`fuzz/`). The plants
 `wg-mac1-unchecked`, `wg-replayed-counter-taken`, `wg-timestamp-goes-back`,
 `wg-bad-response-resets-the-dead-time`, `wg-cookie-mac2-missing`.
