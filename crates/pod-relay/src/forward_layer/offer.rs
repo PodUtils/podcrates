@@ -1,5 +1,5 @@
 //! Whether a relay host offers the resumable layer on its forward road: the
-//! field `forward.layer` of its `/relays.json`, `true` (T-173). A relay of the
+//! field `forward.layer` of its `/relays.json`, `true` (podssh T-173). A relay of the
 //! contract has no such field, and a document that cannot be read offers
 //! nothing, so a client asks for the layer only where a host said so.
 //!
@@ -35,7 +35,7 @@ pub struct Offer {
     /// or not of its deployment.
     pub refused: Option<String>,
     /// The UDP port where the host serves podssh's QUIC (`forward.quic`,
-    /// T-667), which the race of QUIC takes for a host that the user named.
+    /// podssh T-667), which the race of QUIC takes for a host that the user named.
     pub quic: Option<u16>,
 }
 
@@ -145,7 +145,7 @@ mod tests {
     }
 
     /// Each link of a session goes to the process that named itself, where
-    /// several share the name that the user gave (T-173).
+    /// several share the name that the user gave (podssh T-173).
     #[test]
     fn a_host_of_the_deployment_that_the_offer_names_holds_each_session() {
         let asked = relay("relay.example.org", 443);
@@ -191,7 +191,7 @@ mod tests {
     }
 
     /// `forward.quic` offers QUIC at a port of UDP, with or without the
-    /// layer; a value that is no port offers none (T-667).
+    /// layer; a value that is no port offers none (podssh T-667).
     #[test]
     fn forward_quic_names_the_port_of_the_role_s_quic() {
         let asked = relay("relay.example.org", 443);

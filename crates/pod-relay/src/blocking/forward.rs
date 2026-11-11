@@ -72,7 +72,7 @@ impl<'c> Forward<'c> {
     /// Send no more: a Close `1000`. The relay then delivers nothing more to
     /// the target, but reads go on: the target's bytes still come until it
     /// closes, or until it is idle for 15 s, and then the relay's Close `1000`
-    /// ends them (measured 2026-10-09, `python scripts/capture-close.py
+    /// ends them (as measured, `python scripts/capture-close.py
     /// --client-close`). A write after it fails.
     pub fn shutdown_write(&self) -> io::Result<()> {
         // `send_close` sends one Close at most: an answer to the relay's own

@@ -2,12 +2,12 @@
 //! The node receives `hello`, `open {id}` and `close {id}`, and sends
 //! `ready {id}`, `reject {id, reason}` or `close {id}`; with podssh's relay
 //! role, it sends `token` and receives `spent` too, beside the contract
-//! (T-615, `pod_e2e::legs`). The operator receives
+//! (podssh T-615, `pod_e2e::legs`). The operator receives
 //! `ready`, `reject` and `close` as text, and never sends a text frame: the
 //! relay closes it with `1003` (`docs/reverse.md`). `hello` may never come, so
 //! the limits have a floor of their own. Its `version` is the relay's
 //! dialect, and one that this node does not read ends the node with one
-//! sentence, as a new socket would meet the same (T-643, [`accept`]).
+//! sentence, as a new socket would meet the same (podssh T-643, [`accept`]).
 
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +35,7 @@ pub enum NodeInbound {
         reason: Option<String>,
     },
     /// podssh's relay role took a token of one leg that this node registered
-    /// for an operator's upgrade, by its digest (T-615); it comes before the
+    /// for an operator's upgrade, by its digest (podssh T-615); it comes before the
     /// session's `open`, and only to a node that registered one.
     #[serde(rename = "spent")]
     Spent { digest: String },
@@ -61,12 +61,12 @@ pub enum NodeOutbound {
     },
 }
 
-/// The limits of `hello`, when one comes. Measured on 2026-10-09:
+/// The limits of `hello`, when one comes. Measured:
 /// `{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}`; no
 /// published document gives these fields, so each is optional. The relay's
 /// own client reads `maxFrameBytes` as the payload of a node frame, and a
 /// larger value is clamped to the published cap. `version` is the relay's
-/// dialect ([`accept`], T-643).
+/// dialect ([`accept`], podssh T-643).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hello {
     // Any JSON, so that a version of another type is said, not a `hello`
@@ -116,7 +116,7 @@ impl Default for NodeLimits {
 
 /// The dialect of the reverse road that this podssh speaks: the `version`
 /// of the role's `hello`, and the `X-Podssh-Proto` that the dialer writes on
-/// each node's and operator's upgrade (T-643).
+/// each node's and operator's upgrade (podssh T-643).
 pub const PROTO: i64 = pod_ws::handshake::REVERSE_PROTO;
 /// The oldest dialect that this podssh reads: [`PROTO`] until the dialect
 /// changes, so that the check refuses nothing before that change.
@@ -274,7 +274,9 @@ impl std::fmt::Display for ControlError {
         match self {
             ControlError::Codec(e) => write!(f, "{e}"),
             ControlError::Serialise(d) => write!(f, "control frame would not serialise: {d}"),
-            ControlError::Malformed { detail } => write!(f, "control frame is not JSON podssh understands: {detail}"),
+            ControlError::Malformed { detail } => {
+                write!(f, "control frame is not JSON that this client reads: {detail}")
+            }
         }
     }
 }
@@ -299,7 +301,7 @@ mod tests {
         }
     }
 
-    /// T-643: the relay of the contract states 1, and a relay of before may
+    /// podssh T-643: the relay of the contract states 1, and a relay of before may
     /// state nothing; both are read, as is an upgrade with no header.
     #[test]
     fn a_hello_with_no_version_is_the_oldest_dialect() {
@@ -311,7 +313,7 @@ mod tests {
         assert_eq!(accept_header(Some(" 1 ")), Ok(PROTO));
     }
 
-    /// T-643: a dialect that this node does not read is one sentence that
+    /// podssh T-643: a dialect that this node does not read is one sentence that
     /// names what the peer states, what this end reads, and whom to update.
     #[test]
     fn a_hello_of_a_dialect_this_node_cannot_read_names_both_sides() {

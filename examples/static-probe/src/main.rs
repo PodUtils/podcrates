@@ -4,6 +4,7 @@
 //! one line here.
 
 mod relay;
+mod relay_client;
 
 fn main() {
     let target: pod_core::Target = "probe.example:443".parse().expect("a target");
@@ -109,6 +110,7 @@ fn main() {
     lines.push(relay::session());
     lines.push(relay::e2e());
     lines.push(relay::wg());
+    lines.push(relay_client::relay());
     lines.push(job());
     lines.push(incus());
     for line in lines {

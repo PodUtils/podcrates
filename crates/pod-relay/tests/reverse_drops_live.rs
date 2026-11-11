@@ -1,4 +1,4 @@
-//! How often the relay's side drops a socket of the reverse road (T-255), on
+//! How often the relay's side drops a socket of the reverse road (podssh T-255), on
 //! request only: `cargo test -p podssh-relay --features pair --test
 //! reverse_drops_live -- --ignored --nocapture`.
 //!

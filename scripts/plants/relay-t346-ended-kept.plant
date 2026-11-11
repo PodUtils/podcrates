@@ -1,0 +1,8 @@
+# podssh's plant t346-ended-kept, on pod-relay's copy of the file.
+# podssh T-346: a list past its not_after still holds, so an old list that a key
+# signed comes back for ever; the test of an old not_after must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test pool::signed::tests::an_old_not_after_keeps_the_parent_domain_alone \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib pool'
+LIMIT=1800

@@ -1,4 +1,4 @@
-//! The links of one session of the forward road with the layer (T-173): each
+//! The links of one session of the forward road with the layer (podssh T-173): each
 //! a WebSocket to `/v1/layer/HOST/PORT` of the one relay host that holds the
 //! session, with a token that the user gave, the cache's or a mint, as each
 //! forward session gets one (`crate::open`), and the session across them.

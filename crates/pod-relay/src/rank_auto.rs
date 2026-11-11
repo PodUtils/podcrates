@@ -37,7 +37,7 @@ pub const LAZY: &str = "?dial=lazy";
 const CALM_STEP: Duration = Duration::from_millis(250);
 
 /// What asks for a rank in the background, in the words that set it, or
-/// none: never by default (Q89).
+/// none: never by default (podssh Q89).
 pub fn asked_by(settings: &Settings) -> Option<&'static str> {
     asked_from(settings.rank.as_deref(), settings.rank_auto_by_file)
 }
@@ -63,8 +63,8 @@ pub struct Pace {
     pub gap: Duration,
 }
 
-/// Q89's waits, or in a build with debug assertions those of
-/// `Settings::rank_pace`, for tests: each release binary keeps Q89's bounds.
+/// podssh Q89's waits, or in a build with debug assertions those of
+/// `Settings::rank_pace`, for tests: each release binary keeps podssh Q89's bounds.
 pub fn pace(settings: &Settings) -> Pace {
     let bounds = Pace { delay: DELAY, gap: GAP };
     if !cfg!(debug_assertions) {

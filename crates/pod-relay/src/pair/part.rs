@@ -1,10 +1,10 @@
 //! The operator's part of a pair as an operator's host keeps it under a
-//! label (T-086): a pairing by code brings it with no file to move, and
+//! label (podssh T-086): a pairing by code brings it with no file to move, and
 //! `podssh operator NAME`, `podssh ssh node://NAME` and each other client of
 //! the pair find it by the label, as they find a whole pair. It is
 //! `operator-LABEL.json`, private, beside the pairs; a whole pair under the
 //! same label is read first. A part that comes from the other end is checked
-//! as T-076 and T-078 check a pair's answer.
+//! as podssh T-076 and podssh T-078 check a pair's answer.
 
 use std::path::PathBuf;
 
@@ -76,7 +76,7 @@ impl OperatorPart {
     }
 }
 
-/// `operator-<label>.json`, for a label that T-076 accepts as a name.
+/// `operator-<label>.json`, for a label that podssh T-076 accepts as a name.
 pub fn file_name(label: &str) -> Result<String, PairError> {
     check_node_name(label).map_err(|why| PairError::BadLabel(format!("the label {why}")))?;
     Ok(format!("operator-{label}.json"))

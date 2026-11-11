@@ -1,0 +1,9 @@
+# podssh's plant t346-serial-back, on pod-relay's copy of the file.
+# podssh T-346: a list whose serial is below the list kept of its key replaces it,
+# so an older list that a key signed, replayed, takes the place of the
+# newer one; the test of a lower serial must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test pool::signed::tests::a_lower_serial_keeps_the_list_kept \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib pool'
+LIMIT=1800

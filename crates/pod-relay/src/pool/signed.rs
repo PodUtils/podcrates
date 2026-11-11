@@ -1,4 +1,4 @@
-//! The signed list of deployments (T-346): relay hosts beyond the default
+//! The signed list of deployments (podssh T-346): relay hosts beyond the default
 //! deployment's domain, in a document that a key of this binary's trust
 //! signed. `/relays.json` carries it in its field `signed`, beside the pool,
 //! as `{"doc": TEXT, "key": HEX, "sig": BASE64}`: the document's exact text,
@@ -8,7 +8,7 @@
 //! a changed byte, that ended or lives too long, or older than the list kept
 //! of its key ([`super::kept`]) keeps the default's domain alone. Each host
 //! of another deployment mints a token of its own (`token::token_key`), so a
-//! token goes only to the deployment that minted it (Q49).
+//! token goes only to the deployment that minted it (podssh Q49).
 
 use std::sync::Mutex;
 
@@ -348,7 +348,7 @@ impl Keys {
     }
 }
 
-/// The relay role's list (T-346): its key, its deployments, and the list
+/// The relay role's list (podssh T-346): its key, its deployments, and the list
 /// signed last, which it signs again each day so that it never ends while
 /// the role runs.
 pub struct Signer {

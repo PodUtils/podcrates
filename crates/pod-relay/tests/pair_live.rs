@@ -1,4 +1,4 @@
-//! Pairs against the live relay (feature `pair`, T-078), on request only:
+//! Pairs against the live relay (feature `pair`, podssh T-078), on request only:
 //! `cargo test -p podssh-relay --features pair --test pair_live -- --ignored`.
 //! One run makes a pair, asks for its status, stops it, and then finds each
 //! token refused. It prints no token: only the state of the pair.

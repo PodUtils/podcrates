@@ -1,0 +1,1 @@
+{"service":"tcp-ssh-relay","pool":[{"rank":0,"host":"tcp-a.ssh.relay.ajam.dev"},{"rank":1,"host":"tcp-b.attacker.example"},{"rank":2,"host":"TCP-A.ssh.relay.ajam.dev"}]}

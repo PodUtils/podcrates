@@ -1,0 +1,7 @@
+# podssh's plant t153-resume-expired, on pod-relay's copy of the file.
+# podssh T-153: the layer's policy resumes after `1001 pair expired` (MintNewPair
+# moved to the rows that resume); the policy tests must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test an_expired_pair_and_a_stop_are_never_resumed \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test session_policy'

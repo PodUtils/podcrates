@@ -1,9 +1,9 @@
-//! The order of the relay hosts of one run (T-220), on tokio's paused clock:
+//! The order of the relay hosts of one run (podssh T-220), on tokio's paused clock:
 //! attempts that open, fail or say nothing at set times, in each mode; the
 //! choice of two that open together; the end of a round at an error that
 //! every host would give; the notes in the order of the list; one mint at a
 //! time for each deployment; and the sessions of one process that share a
-//! gate for each host (T-637).
+//! gate for each host (podssh T-637).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -91,7 +91,7 @@ async fn staggered_starts_the_next_host_when_the_first_is_silent() {
 }
 
 /// The hosts before the one kept that said nothing, which a later run tries
-/// last (T-059): not one that failed, nor one after the host kept.
+/// last (podssh T-059): not one that failed, nor one after the host kept.
 #[tokio::test(start_paused = true)]
 async fn the_hosts_that_said_nothing_before_the_one_kept() {
     assert_eq!(run(&[Host::Silent, Host::Opens(100)], Mode::Staggered).await.silent, [0]);
@@ -259,7 +259,7 @@ async fn gated_session(
 }
 
 /// Sixty-four sessions of one process at once, after the first host failed
-/// in it (T-637): each is held there and goes on to the next host at once,
+/// in it (podssh T-637): each is held there and goes on to the next host at once,
 /// so none dials the failing host, and the next host lets eight open at once.
 #[tokio::test(start_paused = true)]
 async fn sixty_four_sessions_after_a_failure_go_on_to_the_next_host_and_dial_it_not() {

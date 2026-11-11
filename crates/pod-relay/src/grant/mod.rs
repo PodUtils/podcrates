@@ -1,4 +1,4 @@
-//! Grants used once (T-226, GitHub #35). A grant is an OpenSSH user
+//! Grants used once (podssh T-226, PodUtils/podssh#35). A grant is an OpenSSH user
 //! certificate over an operator's Ed25519 key: an issuer that the node
 //! trusts signs it for one session of one node, or of one route of it, in a
 //! window of time, with the critical option `once@podssh`. `ssh-keygen -s`

@@ -1,4 +1,4 @@
-//! Pairs of the reverse road (feature `pair`, T-078), offline. The answer has
+//! Pairs of the reverse road (feature `pair`, podssh T-078), offline. The answer has
 //! the shape that the live relay gave on 2026-10-09 (each token 64 characters
 //! of `[0-9a-z]`, the name 34 of `[-0-9a-z]`, `expires` in milliseconds),
 //! with test strings in place of the tokens.
@@ -105,7 +105,7 @@ fn no_token_is_in_debug_or_in_an_error() {
 }
 
 /// A `429` says the relay's words after its own, so that a key past its
-/// share of podssh's relay role (T-630) tells it from the brake and from a
+/// share of podssh's relay role (podssh T-630) tells it from the brake and from a
 /// full relay.
 #[test]
 fn a_429_says_the_relays_words_after_its_own() {

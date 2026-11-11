@@ -1,4 +1,4 @@
-//! A request to a relay that mints for the keys of a list (T-448): podssh's
+//! A request to a relay that mints for the keys of a list (podssh T-448): podssh's
 //! relay role with `--mint keys:FILE`. The request goes as the contract
 //! sends it, `{}`; such a relay answers `401` with a challenge of its own,
 //! and the request goes once more with this client's Ed25519 key, the
@@ -75,7 +75,7 @@ pub async fn post(
     post_query(ctx, host, port, path, "", trust, timeout).await
 }
 
-/// [`post`] to `path` and `query` (`?once=1`, T-226): the proof of a key
+/// [`post`] to `path` and `query` (`?once=1`, podssh T-226): the proof of a key
 /// signs the path alone, as the relay checks it.
 pub async fn post_query(
     ctx: &Context,
@@ -91,7 +91,7 @@ pub async fn post_query(
 
 /// [`post_query`] with the key `identity` when the relay asks for one, else
 /// this client's: a node proves its own key, the one that the net's
-/// document names, so that a member finds its pair by it (T-434).
+/// document names, so that a member finds its pair by it (podssh T-434).
 #[allow(clippy::too_many_arguments)]
 pub async fn post_by(
     ctx: &Context,

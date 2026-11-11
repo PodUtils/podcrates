@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/pool/kept.rs b/crates/pod-relay/src/pool/kept.rs
+--- a/crates/pod-relay/src/pool/kept.rs
++++ b/crates/pod-relay/src/pool/kept.rs
+@@ -155,7 +155,7 @@
+ /// run has a token that the user gave (`token_given`): that token is the
+ /// default deployment's, and goes to no other.
+ pub fn others_of(lists: &[Checked], token_given: bool) -> Vec<Relay> {
+-    if token_given {
++    if false && token_given {
+         return Vec::new();
+     }
+     let deployments: Vec<&signed::Deployment> = lists.iter().flat_map(|c| c.doc.deployments.iter()).collect();

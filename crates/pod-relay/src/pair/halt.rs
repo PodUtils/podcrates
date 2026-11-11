@@ -1,5 +1,5 @@
 //! A pair that its owner halts, and resumes, in podssh's relay role
-//! (T-647), beside the contract, which halts none. `POST /v1/halt/<name>`
+//! (podssh T-647), beside the contract, which halts none. `POST /v1/halt/<name>`
 //! with the stop token, which the owner alone holds, and the owner's words,
 //! closes each session of the pair and refuses each operator with those
 //! words, while the pair's node keeps its socket; `POST /v1/resume/<name>`

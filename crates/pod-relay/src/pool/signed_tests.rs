@@ -1,4 +1,4 @@
-//! The tests of the signed list (T-346), with test keys made here: a list of
+//! The tests of the signed list (podssh T-346), with test keys made here: a list of
 //! a trusted key names hosts outside the default's domain, and one changed
 //! byte, an old `not_after`, a lower serial or a key that is not trusted
 //! keeps the default's domain alone.

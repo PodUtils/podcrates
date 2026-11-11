@@ -36,8 +36,8 @@ pub struct OperatorLimits {
     /// How long to wait for the relay's answer to the Close sent at the end
     /// of the input, so the last bytes arrive.
     pub close_limit: Duration,
-    /// The relay answers a Ping on the operator's socket (measured
-    /// 2026-10-09): ping every so often, and give up after so many silent
+    /// The relay answers a Ping on the operator's socket (as measured): ping
+    /// every so often, and give up after so many silent
     /// intervals.
     pub ping_every: Duration,
     pub pings_allowed: u32,
@@ -47,11 +47,11 @@ pub struct OperatorLimits {
     /// which follows the node's last bytes, and sends this side's Close only
     /// after it: a Close of this side's crosses the node's bytes still on
     /// their way, and the relay ends the node's whole socket for a frame of
-    /// an id that it forgot (`1003 unknown session id`, T-388). `None`: the
+    /// an id that it forgot (`1003 unknown session id`, podssh T-388). `None`: the
     /// Close goes at once, as a plain session's must.
     pub node_ends: Option<Duration>,
     /// Called as `ready` comes, before any byte: a caller's bound on the
-    /// open learns its step (T-589).
+    /// open learns its step (podssh T-589).
     pub on_ready: Option<fn()>,
 }
 

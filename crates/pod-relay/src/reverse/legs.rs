@@ -1,4 +1,4 @@
-//! The operator's legs with tokens of one leg (T-615), and what a node's
+//! The operator's legs with tokens of one leg (podssh T-615), and what a node's
 //! socket heard of them. A session's first leg opens with the pair's connect
 //! token; each leg after it, a resume, a move or a spare, with the next token
 //! of the session, which the node's verdict gave the seed of
@@ -12,7 +12,7 @@
 //! rotates its node's stop token only where a socket of the process heard
 //! that ([`rotates`]), and the stop token of the next pair that the node
 //! goes on with at an expiry only once a socket heard it after that move
-//! ([`offers`], T-620).
+//! ([`offers`], podssh T-620).
 
 use pod_ws::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite};

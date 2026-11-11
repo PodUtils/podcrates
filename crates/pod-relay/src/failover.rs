@@ -1,4 +1,4 @@
-//! The order in which the relay hosts of one run are tried (T-220). When the
+//! The order in which the relay hosts of one run are tried (podssh T-220). When the
 //! hosts go one at a time, a first host that accepts TCP and then says
 //! nothing costs a whole step, 20 s, before the next one starts. The
 //! default, `staggered`, starts the next host when the attempt before it has
@@ -94,7 +94,7 @@ pub struct Raced<T, E> {
     /// Attempts that opened and were not kept, for the caller to close.
     pub dismissed: Vec<(usize, T)>,
     /// Attempts before the one kept that had neither opened nor failed when
-    /// it was kept: hosts that said nothing while a later one opened (T-059).
+    /// it was kept: hosts that said nothing while a later one opened (podssh T-059).
     pub silent: Vec<usize>,
     /// An error that every host would give ended the round.
     pub stopped: bool,
@@ -286,7 +286,7 @@ fn take<T, E>(
     }
 }
 
-/// One mint at a time for each relay deployment (T-220), keyed as the cache
+/// One mint at a time for each relay deployment (podssh T-220), keyed as the cache
 /// keys its tokens: an attempt waits at most [`STAGGER`] for a mint that
 /// another attempt has in flight, then reads the token that it cached, or
 /// mints at its own host when the mint in flight is the silent one.

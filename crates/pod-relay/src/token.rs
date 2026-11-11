@@ -104,9 +104,9 @@ pub struct MintContext<'a> {
 
 /// The name a token is cached under: one for each relay deployment. The
 /// hosts of the default deployment share the default host's token (a pool
-/// host accepts it, measured 2026-10-08); any other host has its own, with
+/// host accepts it, as measured); any other host has its own, with
 /// its port when that is not 443. So a token never goes to a deployment that
-/// did not mint it (the operator, 2026-10-08).
+/// did not mint it (podssh's operator).
 pub fn token_key(relay: &Relay) -> String {
     if relay.host == default_relay_host() || crate::pool::same_deployment(default_relay_host(), &relay.host) {
         default_relay_host().to_string()

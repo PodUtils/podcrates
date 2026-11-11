@@ -1,0 +1,8 @@
+# podssh's plant t226-spent-skipped, on pod-relay's copy of the file.
+# podssh T-226: the record of a grant's use takes a grant that it holds already, so
+# a replay of one grant lets its key in again; the test of a grant that
+# OpenSSH minted, whose second use must be refused, must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test a_grant_that_openssh_minted_lets_its_key_in_once \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair,grant --test grant -- a_grant_that_openssh_minted_lets_its_key_in_once'

@@ -3,7 +3,7 @@
 //! reads: no string literal of it in podssh's library code, so changing
 //! relays is a one-line edit there.
 
-/// The default relay is compiled in (operator decision 2026-10-08), from
+/// The default relay is compiled in (podssh's operator's decision), from
 /// one place: since podcrates v0.4.0, pod-services' data, which
 /// `relay::default_relay_host` reads. Tests, examples and documentation may
 /// name it freely.

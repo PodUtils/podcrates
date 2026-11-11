@@ -1,4 +1,4 @@
-//! A node's socket gives each session a turn (T-648), offline: `serve` over
+//! A node's socket gives each session a turn (podssh T-648), offline: `serve` over
 //! an in-memory stream, against a scripted relay as in `reverse_node.rs`,
 //! which reads nothing while a session's backlog builds. Four bytes of a
 //! second session then go before the backlog, not after it; with both backed

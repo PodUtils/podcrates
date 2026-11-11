@@ -23,7 +23,9 @@ repo PodUtils/podssh 75a503183f373016dc83592f11a13c88258afb2e
 # pair_code_live.rs: the tests that run an exchange (pod-wormhole has the
 # rest). session_relay_resume.rs, relay_serve_*.rs, reverse_carrier.rs,
 # reverse_restart.rs and http_road.rs run the relay role (serve/): they go
-# with pod-relay-serve.
+# with pod-relay-serve. tests/e2e_harness/mod.rs is pod-e2e's adapted copy
+# of podssh's harness; tests/mailbox_harness/ is pod-wormhole's harness
+# with no peer (podssh's ran the role's mailbox); tests/support/ is new.
 dir crates/podssh-relay/src/pool
 dir crates/podssh-relay/src/forward_layer
 dir crates/podssh-relay/src/pair

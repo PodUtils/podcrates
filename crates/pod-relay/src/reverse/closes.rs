@@ -84,7 +84,7 @@ impl SessionAction {
             SessionAction::Stop => "revocation ran; do not retry this name",
             SessionAction::MintNewPair => "the 72h pair TTL elapsed; create a new pair",
             SessionAction::ReopenSession => "the frame named a stale id; re-open the session",
-            SessionAction::FixCodec => "podssh sent bytes the relay refused; fix the codec",
+            SessionAction::FixCodec => "this client sent bytes the relay refused; fix the codec",
             SessionAction::AnswerReadyFirst => "answer open with ready before sending data",
             SessionAction::DoNotSendText => "the operator leg is binary-only; never send a text frame",
             SessionAction::Reconnect => "no role attachment; reconnect if seen",
@@ -279,7 +279,7 @@ pub fn classify(close: &RelayClose) -> Classified {
 }
 
 /// Whether the resumable layer carries a session on after this close of
-/// its link (T-153). A lost or failed socket, a node that went away or was
+/// its link (podssh T-153). A lost or failed socket, a node that went away or was
 /// slow, and the relay's own limits are resumed: the layer's offsets make a
 /// dropped frame harmless, so `relay backpressure` is resumed too. A stop, an
 /// expired pair, and a fault of podssh's own bytes are not: the same close
@@ -298,8 +298,8 @@ pub fn resumes(close: &RelayClose) -> bool {
         | SessionAction::AlwaysPrefixFullId
         | SessionAction::ChunkTo64K => false,
         // A stale id closed the node's socket, and the relay ended each of
-        // its sessions with it: the node connects again (T-409), and a new
-        // session is the resume that the row asks for (T-410).
+        // its sessions with it: the node connects again (podssh T-409), and a new
+        // session is the resume that the row asks for (podssh T-410).
         SessionAction::ReopenSession
         | SessionAction::Reconnect
         | SessionAction::OpenNewSession

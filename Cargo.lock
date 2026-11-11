@@ -2635,6 +2635,7 @@ dependencies = [
  "pod-oci",
  "pod-proxy",
  "pod-quic",
+ "pod-relay",
  "pod-rootfs",
  "pod-services",
  "pod-session",

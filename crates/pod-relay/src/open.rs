@@ -153,7 +153,7 @@ pub struct Request<'a> {
     pub target: &'a str,
     /// Rounds over the whole list (`ConnectionAttempts`); at least one.
     pub rounds: u32,
-    /// How the hosts of a round are tried (T-220).
+    /// How the hosts of a round are tried (podssh T-220).
     pub failover: Mode,
 }
 
@@ -162,7 +162,7 @@ pub struct Request<'a> {
 pub struct Opened {
     pub session: RelaySession,
     pub relay: Relay,
-    /// Whether the cleartext road carries it, as each hop reads (T-326).
+    /// Whether the cleartext road carries it, as each hop reads (podssh T-326).
     pub cleartext: bool,
 }
 
@@ -204,13 +204,13 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     if ctx.settings.offline {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
-    // No background probe runs beside a race (T-608).
+    // No background probe runs beside a race (podssh T-608).
     let _racing = crate::rank_auto::racing(ctx.races());
-    // The addresses that carried a session, for a resolver that fails (T-344).
+    // The addresses that carried a session, for a resolver that fails (podssh T-344).
     crate::addresses::install(ctx);
-    // A host that failed lately goes last (T-059), and one that opened first (T-563).
+    // A host that failed lately goes last (podssh T-059), and one that opened first (podssh T-563).
     let mut records = Records::load(&ctx.cache);
-    // The lists of the net's relay members, asked first (T-617), join the list that the rank places (T-607).
+    // The lists of the net's relay members, asked first (podssh T-617), join the list that the rank places (podssh T-607).
     let refreshed = crate::pool::members::refreshed(ctx, req.relays, req.trust).await;
     let listed = crate::rank_list::placed_now(ctx, &refreshed);
     let (order, moved) = failures::order(failures::WEBSOCKET, &listed, &records, crate::pool::now_ms());
@@ -242,7 +242,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             let step = if req.failover == Mode::Serial && !last { SERIAL_STEP } else { CONNECT_TIMEOUT };
             attempt(hosts[i].clone(), shared.clone(), gate.clone(), step, !last)
         };
-        // Each host held by the run's gate: the run waits at the last (T-637).
+        // Each host held by the run's gate: the run waits at the last (podssh T-637).
         if let Some(line) = ctx.gates().all_held(hosts) {
             notes(&line);
         }
@@ -265,7 +265,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         }
         // A host that failed after its connection opened, as the relay itself
         // would not (TLS, the upgrade, another's refusal): an address of the
-        // cache that it was reached at is not the relay's (T-344).
+        // cache that it was reached at is not the relay's (podssh T-344).
         for (i, e) in &raced.failed {
             if failures::reason(e).is_some() && after_connection(e) {
                 crate::addresses::failed(ctx, &hosts[*i].host);
@@ -281,8 +281,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             break;
         }
     }
-    // Last, the cleartext road to a host whose TLS failed on the way (T-326,
-    // Q45); its lines are notes, and the failure stays the TLS road's.
+    // Last, the cleartext road to a host whose TLS failed on the way (podssh T-326,
+    // podssh Q45); its lines are notes, and the failure stays the TLS road's.
     if let Some((relay, session)) = crate::cleartext::last(ctx, hosts, &attempts, &shared.path, notes).await {
         return Ok(opened(ctx, session, relay, &shared.primary, true));
     }
@@ -291,7 +291,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
 
 /// A session that opened, under the relay's own limits, as its pool's cache
 /// keeps them: the run's budgets go under them, and the session takes in
-/// frames up to its cap (T-342).
+/// frames up to its cap (podssh T-342).
 fn opened(ctx: &Context, session: RelaySession, relay: Relay, primary: &str, cleartext: bool) -> Opened {
     let limits = crate::pool::cached_limits(&ctx.cache, primary);
     ctx.set_in_use(limits);
@@ -312,13 +312,13 @@ struct Shared {
     explicit: bool,
     /// Whether there is more than one host, so that a failure names its own.
     several: bool,
-    /// The time to open of each attempt that opened (T-607).
+    /// The time to open of each attempt that opened (podssh T-607).
     samples: crate::rank_list::Samples,
 }
 
 /// One host within [`HOST_DEADLINE`], each step within `step`, with its
 /// notes: a host that fails names itself when there are others. First the
-/// run's gate of the host, its wait outside the deadline (T-637); with a
+/// run's gate of the host, its wait outside the deadline (podssh T-637); with a
 /// `successor`, a held host is left for the next at once.
 async fn attempt(
     relay: Relay,

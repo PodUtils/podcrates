@@ -1,4 +1,4 @@
-//! The operator runner (T-080), offline: `exchange` over an in-memory stream,
+//! The operator runner (podssh T-080), offline: `exchange` over an in-memory stream,
 //! against a scripted relay that writes WebSocket frames as the live relay
 //! did (`ready {id}`, data with no id, a text `reject` before a Close; see
 //! `scripts/capture-reverse.py`).
@@ -205,7 +205,7 @@ async fn a_close_that_crosses_the_end_of_input_with_another_code_is_a_failure() 
     assert!(!outcome.is_success());
 }
 
-/// A leg of the resumable layer (T-388): when the input ends, the operator
+/// A leg of the resumable layer (podssh T-388): when the input ends, the operator
 /// sends no Close of its own, takes and drops the node's bytes still on
 /// their way, and ends with the node's close; a Close of its own would cross
 /// those bytes, and the relay ends the node's socket for a frame of an id it

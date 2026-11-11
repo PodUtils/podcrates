@@ -1,4 +1,4 @@
-//! One bidirectional QUIC stream as a byte stream of tokio (T-667), as the
+//! One bidirectional QUIC stream as a byte stream of tokio (podssh T-667), as the
 //! relay role reads a connection of HTTP/1.1 and a client its session. It
 //! holds its connection, so that the connection lives while the stream does,
 //! and a client's holds its endpoint too, whose socket is the connection's

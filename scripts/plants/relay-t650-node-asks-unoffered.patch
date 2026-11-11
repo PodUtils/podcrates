@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/reverse/spares.rs b/crates/pod-relay/src/reverse/spares.rs
+--- a/crates/pod-relay/src/reverse/spares.rs
++++ b/crates/pod-relay/src/reverse/spares.rs
+@@ -56,7 +56,7 @@
+     if node.spares_said(now) != now {
+         node.tell(Event::info(EVENT, line(offered, want)));
+     }
+-    offered.then(|| ask(want))
++    Some(ask(want))
+ }
+ 
+ /// The node's line of its spares, by whether its relay offers them.

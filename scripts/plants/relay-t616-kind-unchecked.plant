@@ -1,0 +1,9 @@
+# podssh's plant t616-kind-unchecked, on pod-relay's copy of the file.
+# podssh T-616: an end of one kind of exchange takes the version phase of another
+# kind, so a code of podssh net invite given to podssh relay join is no
+# longer told apart before a word; the test of a code given to the other
+# kind's command must fail at each mailbox.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test a_code_given_to_the_other_kind_s_command_is_told_apart_before_a_word \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair,code --test pair_code -- a_code_given_to_the_other_kind_s_command_is_told_apart_before_a_word'

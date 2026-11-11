@@ -1,11 +1,11 @@
-//! What two podssh ends say once the code made their key (T-086), each one
+//! What two podssh ends say once the code made their key (podssh T-086), each one
 //! JSON object in a numbered phase, sealed (`super::wormhole`): the giver,
 //! the node's host, offers its label, its node's key and, where it holds a
 //! pair, the operator's part; the taker answers with its own key; the giver
 //! says what it did with that key. The version phase names podssh's
 //! pairing, so that a peer of another application with the same code is
 //! told apart before either says a word of its own; so is an end of the
-//! net's invitation (T-616), another [`Kind`] of exchange over the same
+//! net's invitation (podssh T-616), another [`Kind`] of exchange over the same
 //! code, whose words are the binary's.
 
 use serde::{Deserialize, Serialize};
@@ -52,7 +52,7 @@ pub struct Kind {
     pub taker: &'static str,
 }
 
-/// The pairing of a node's host and an operator (T-086).
+/// The pairing of a node's host and an operator (podssh T-086).
 pub const PAIR: Kind = Kind {
     name: PAIRING,
     version: VERSION,
@@ -60,7 +60,7 @@ pub const PAIR: Kind = Kind {
     giver: "podssh relay pair NAME --code",
     taker: "podssh relay join NAME",
 };
-/// A new device's join of its owner's net (T-616).
+/// A new device's join of its owner's net (podssh T-616).
 pub const NET_INVITE: Kind = Kind {
     name: "podssh-net-invite",
     version: 1,
@@ -135,7 +135,7 @@ impl Offer {
     }
 
     /// The offer of `bytes`, each part checked at `now_ms`: the label as a
-    /// name, the key, and the pair as T-076 and T-078 check one.
+    /// name, the key, and the pair as podssh T-076 and podssh T-078 check one.
     pub fn from_bytes(bytes: &[u8], now_ms: i64) -> Result<Offer, String> {
         let offer: OfferIn =
             serde_json::from_slice(bytes).map_err(|_| "the node's offer is not podssh's".to_string())?;

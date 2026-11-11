@@ -1,4 +1,4 @@
-//! A node's ask for sessions readied ahead (T-650, GitHub #148). A run of
+//! A node's ask for sessions readied ahead (podssh T-650, PodUtils/podssh#148). A run of
 //! short legs to one node (a copy of many files, a loop of commands) paid, at
 //! each leg, a round trip of `open` and `ready` and the node's open of its
 //! local side before its first byte. podssh's relay role keeps a few sessions
@@ -80,7 +80,7 @@ mod tests {
         serde_json::from_str(text).unwrap()
     }
 
-    /// The offer is `true` alone (T-633); a node asks only where it is made,
+    /// The offer is `true` alone (podssh T-633); a node asks only where it is made,
     /// and only when it wants some.
     #[test]
     fn a_node_asks_only_where_the_role_offers_and_it_wants_some() {

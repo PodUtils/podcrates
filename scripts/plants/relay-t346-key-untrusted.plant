@@ -1,0 +1,9 @@
+# podssh's plant t346-key-untrusted, on pod-relay's copy of the file.
+# podssh T-346: a list is taken whatever key signed it, so a relay, or a proxy that
+# re-signs TLS, names hosts with a key of its own; the test of a key that
+# is not trusted must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test pool::signed::tests::an_unknown_key_keeps_the_parent_domain_alone \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib pool'
+LIMIT=1800

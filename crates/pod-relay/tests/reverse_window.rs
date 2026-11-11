@@ -1,4 +1,4 @@
-//! The layer's window on the pair's road (T-443), against a stand-in of the
+//! The layer's window on the pair's road (podssh T-443), against a stand-in of the
 //! relay's bound: the relay of the contract holds at most 1 MiB for a slow
 //! receiver, and past it drops a frame and closes with `1011 relay
 //! backpressure`. Between the node's far end and the operator's client, the

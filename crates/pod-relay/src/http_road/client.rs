@@ -3,7 +3,7 @@
 //! between a pipe in memory, whose other end is the caller's stream, and the
 //! relay host. With no form asked, the split form is tried first: its second
 //! connection must answer a first request within a bound, else the session
-//! goes on in the serial form on the first connection (Q44).
+//! goes on in the serial form on the first connection (podssh Q44).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};

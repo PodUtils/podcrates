@@ -1,5 +1,5 @@
 //! The node's journal line for a session that the relay closed with a reason
-//! (T-701): without it, an operator learns that a cut was the byte cap only
+//! (podssh T-701): without it, an operator learns that a cut was the byte cap only
 //! by reproducing it on the relay.
 
 use std::time::Instant;

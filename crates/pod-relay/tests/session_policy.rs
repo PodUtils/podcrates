@@ -1,5 +1,5 @@
 //! Which closes of a link the resumable layer carries a session past
-//! (T-153): each row of the relay's close table, and closes that match none.
+//! (podssh T-153): each row of the relay's close table, and closes that match none.
 #![cfg(feature = "pair")]
 
 use pod_relay::reverse::RelayClose;

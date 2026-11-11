@@ -1,5 +1,5 @@
 //! The queue of one socket's data, a line for each session, served a turn
-//! each in a round (T-648). A socket carries many sessions, and one queue in
+//! each in a round (podssh T-648). A socket carries many sessions, and one queue in
 //! the order of arrival put each byte of a session behind each byte that
 //! another queued before it: an interactive shell's echo waited for a bulk
 //! copy's backlog, not for the network. Here the writer takes one piece of

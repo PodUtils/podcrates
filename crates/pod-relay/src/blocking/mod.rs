@@ -101,7 +101,7 @@ pub enum Error {
     /// The key of the end-to-end channel could not be read or made.
     Key(String),
     /// The end-to-end channel failed: a refused key, a changed node key, a
-    /// message that failed its check (T-088).
+    /// message that failed its check (podssh T-088).
     Channel(pod_e2e::Error),
 }
 
@@ -110,7 +110,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::InsideRuntime => write!(
                 f,
-                "a blocking call of podssh-relay came from a thread that runs a tokio runtime; use the async functions there"
+                "a blocking call of pod-relay came from a thread that runs a tokio runtime; use the async functions there"
             ),
             Error::Start(why) | Error::BadTarget(why) => write!(f, "{why}"),
             Error::Pair(e) => write!(f, "{e}"),
@@ -391,7 +391,7 @@ impl Client {
     pub fn open_forward(&self, relays: &RelayList, host: &str, port: u16) -> Result<Forward<'_>, Error> {
         let path = forward_path(host, port).map_err(Error::BadTarget)?;
         let target = pod_proxy::host::authority(host, port);
-        // The default order of the hosts, staggered (T-220), as `podssh ssh` has it.
+        // The default order of the hosts, staggered (podssh T-220), as `podssh ssh` has it.
         let failover = crate::failover::Mode::default();
         let (ctx, trust) = (&self.config.ctx, &self.config.trust);
         let request = Request { ctx, relays, path: &path, trust, target: &target, rounds: 1, failover };
@@ -440,7 +440,7 @@ fn blocking_repair(hook: Arc<dyn Fn() -> Option<Pair> + Send + Sync>) -> RepairH
         let hook = hook.clone();
         Box::pin(async move {
             let (tx, rx) = tokio::sync::oneshot::channel();
-            let spawned = std::thread::Builder::new().name("podssh-relay repair".into()).spawn(move || {
+            let spawned = std::thread::Builder::new().name("pod-relay repair".into()).spawn(move || {
                 let _ = tx.send(hook());
             });
             match spawned {

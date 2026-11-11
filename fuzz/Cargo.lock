@@ -1253,6 +1253,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-relay"
+version = "0.23.0"
+dependencies = [
+ "base64",
+ "ed25519-dalek",
+ "hmac 0.13.0",
+ "pod-core",
+ "pod-dns",
+ "pod-e2e",
+ "pod-identity",
+ "pod-proxy",
+ "pod-services",
+ "pod-session",
+ "pod-tls",
+ "pod-ws",
+ "rand",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-services"
 version = "0.24.0"
 dependencies = [
@@ -1358,6 +1383,7 @@ dependencies = [
  "pod-oci",
  "pod-proxy",
  "pod-quic",
+ "pod-relay",
  "pod-session",
  "pod-tls",
  "pod-wg",

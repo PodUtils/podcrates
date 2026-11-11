@@ -1,4 +1,4 @@
-//! The tests of the fair queue (T-648), in a file of their own so that
+//! The tests of the fair queue (podssh T-648), in a file of their own so that
 //! `fair.rs` stays short.
 
 use std::time::Duration;

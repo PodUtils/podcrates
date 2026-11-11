@@ -115,7 +115,7 @@ fn the_file_is_private_and_reads_back() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A file of before T-608 names no source: a rank of `relay rank`, whole.
+/// A file of before podssh T-608 names no source: a rank of `relay rank`, whole.
 #[test]
 fn a_file_of_before_the_background_rank_reads_as_one_of_relay_rank() {
     let old: Rank = serde_json::from_str(r#"{"schema":1,"made_ms":5,"egress":"direct","hosts":[]}"#).unwrap();

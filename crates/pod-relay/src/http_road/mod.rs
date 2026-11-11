@@ -1,10 +1,10 @@
-//! The HTTP road (T-319, GitHub #55): a session of the forward road carried
+//! The HTTP road (podssh T-319, PodUtils/podssh#55): a session of the forward road carried
 //! by plain requests of HTTP/1.1, for a proxy that ends TLS for the relay's
 //! name, refuses the WebSocket upgrade, and still carries requests and their
 //! answers (the proxy of a Claude Code cloud container documents such a
-//! refusal, T-311). Its split form keeps two connections to the relay host,
+//! refusal, podssh T-311). Its split form keeps two connections to the relay host,
 //! one for the bytes down and one for the bytes up, which the operator's
-//! ruling Q44 allows on this road alone, once the upgrade was refused on the
+//! ruling podssh Q44 allows on this road alone, once the upgrade was refused on the
 //! way; the serial form, one request after another on one connection, is its
 //! fallback.
 //!
@@ -66,11 +66,11 @@ pub const BATCH_MAX: usize = 256 * 1024;
 /// The most bytes of one answer down.
 pub const DOWN_MAX: usize = 1 << 20;
 /// The longest wait of an answer down with nothing to send: below the 60 s
-/// of the idle limits that GitHub #54 names (an AWS load balancer, nginx),
+/// of the idle limits that PodUtils/podssh#54 names (an AWS load balancer, nginx),
 /// and of a quick tunnel's node.
 pub const WAIT_MAX: Duration = Duration::from_secs(25);
 
-/// The two forms of the road (Q44).
+/// The two forms of the road (podssh Q44).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Form {
     /// The bytes down on one connection and the bytes up on another, at once.
@@ -174,7 +174,7 @@ pub fn parse_close(value: &str) -> Option<(u16, String)> {
 }
 
 /// How a client of the road sizes its requests: from what `podssh doctor
-/// --stream` measured of a path (T-325) where a caller has it, never past the
+/// --stream` measured of a path (podssh T-325) where a caller has it, never past the
 /// role's own bounds, which its open names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tuning {

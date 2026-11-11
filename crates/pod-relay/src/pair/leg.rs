@@ -1,4 +1,4 @@
-//! A leg to a node of the net at a member's relay role (T-434): `POST
+//! A leg to a node of the net at a member's relay role (podssh T-434): `POST
 //! /v1/leg/<KEY>`, KEY the node's key as the net's document names it, with
 //! the client's key proven when the role asks for it (`crate::keyed`): the
 //! key of its end-to-end channel, the one that the net names for it. The

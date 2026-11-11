@@ -1,0 +1,1 @@
+{"pool":[{"host":"tcp-eu.ssh.relay.ajam.dev"}],"limits":{"idle_timeout_ms":180000,"max_frame_bytes":262144}}

@@ -1,4 +1,4 @@
-//! A handler that offers a UDP service (T-168): each session of the relay
+//! A handler that offers a UDP service (podssh T-168): each session of the relay
 //! is one flow, a UDP socket from the node to TARGET, with each datagram
 //! after its 16-bit length in the session's bytes (`crate::udp`). The
 //! socket is made when the session opens, as a TCP target is dialled then.

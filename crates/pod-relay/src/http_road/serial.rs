@@ -1,4 +1,4 @@
-//! The serial form (Q44), the split form's fallback: one exchange after
+//! The serial form (podssh Q44), the split form's fallback: one exchange after
 //! another on one connection, each a POST that carries a batch up when one
 //! waits, answered whole with the target's bytes from the offset that it
 //! names, as meek carries Tor's bytes. With nothing either way, the pause

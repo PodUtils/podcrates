@@ -1,4 +1,4 @@
-//! The node runner (T-079), offline: `serve` over an in-memory stream, against
+//! The node runner (podssh T-079), offline: `serve` over an in-memory stream, against
 //! a scripted relay that writes WebSocket frames as the live relay did. The
 //! control frames are the ones that `scripts/capture-reverse.py` recorded on
 //! 2026-10-09 (`hello`, `open {id}`, `close {id}`), with test ids.
@@ -240,7 +240,7 @@ async fn a_local_side_that_does_not_read_ends_its_session_and_not_the_others() {
     assert!(matches!(task.await.unwrap(), End::Stopped));
 }
 
-/// A handler with a window of its own (the resumable layer's, T-271): a
+/// A handler with a window of its own (the resumable layer's, podssh T-271): a
 /// local side that reads late, not one that stopped, keeps its session, and
 /// each byte comes.
 #[tokio::test]
@@ -345,7 +345,7 @@ async fn a_close_of_the_relay_ends_the_socket_with_its_code_and_reason() {
     }
 }
 
-/// T-643: a `hello` whose `version` this node does not read ends the socket
+/// podssh T-643: a `hello` whose `version` this node does not read ends the socket
 /// at once, with a Close and no `ready`, and its sentence says whom to
 /// update; one with no `version`, as a relay of before may send it, is the
 /// dialect of before, and the node serves on.
@@ -382,7 +382,7 @@ fn each_close_has_its_action() {
 }
 
 /// A `ready` goes out before the bytes that wait for another session
-/// (T-410): the relay ends a session that the node does not answer within
+/// (podssh T-410): the relay ends a session that the node does not answer within
 /// 15 s, and a `ready` that waited behind megabytes of a busy session's
 /// bytes then ended the whole socket with `1003 unknown session id`, as a
 /// move through a node met on the live relay.

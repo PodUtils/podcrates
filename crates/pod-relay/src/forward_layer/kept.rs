@@ -1,5 +1,5 @@
 //! What each relay host offered of the resumable layer, kept for a day
-//! (T-173), so that a run that did not ask for the layer takes it where its
+//! (podssh T-173), so that a run that did not ask for the layer takes it where its
 //! first host offered it, with no read of `/relays.json` of its own: each
 //! read of a host's offer keeps it (a run that asked, the pool's refresh of
 //! the same document, the once-a-day read of a host that the user named).
@@ -27,7 +27,7 @@ struct KeptOffer {
     /// `forward.host` as the host gave it and as the client took it.
     #[serde(default)]
     at: Option<String>,
-    /// `forward.quic`, the port of the host's QUIC (T-667); none in a file
+    /// `forward.quic`, the port of the host's QUIC (podssh T-667); none in a file
     /// of before it.
     #[serde(default)]
     quic: Option<u16>,
@@ -130,7 +130,7 @@ mod tests {
     }
 
     /// The port of the host's QUIC is kept with the offer, and a file of
-    /// before it reads as none (T-667).
+    /// before it reads as none (podssh T-667).
     #[test]
     fn the_port_of_quic_is_kept_with_the_offer() {
         let asked = relay("relay.example.org", 443);

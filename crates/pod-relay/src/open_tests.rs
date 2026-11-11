@@ -39,7 +39,7 @@ fn errors_of_one_host_move_to_the_next() {
 
 /// A host that failed once its connection opened, as no relay would, is
 /// told from one whose connection never opened, and from the relay's own
-/// refusals, which keep the address of the cache (T-344).
+/// refusals, which keep the address of the cache (podssh T-344).
 #[test]
 fn a_failure_after_the_connection_is_told_from_the_others() {
     let connect = |error| OpenError::Connect { error, origin: Origin::Minted };
@@ -82,7 +82,7 @@ fn a_failure_over_several_hosts_names_each_and_keeps_the_hints() {
 
 /// A host that this process's gate holds goes on to the next host, records
 /// nothing against it and is no answer of the relay's; its line says the
-/// wait (T-637).
+/// wait (podssh T-637).
 #[test]
 fn a_held_host_moves_to_the_next_and_records_nothing() {
     let held = OpenError::Held { left: Some(Duration::from_millis(2500)) };

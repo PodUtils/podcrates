@@ -1,9 +1,9 @@
-//! The runners of the reverse road against the live relay (T-079, T-080), on
+//! The runners of the reverse road against the live relay (podssh T-079, podssh T-080), on
 //! request only: `cargo test -p podssh-relay --features pair --test
 //! reverse_live -- --ignored`. Each test makes a pair, runs a node, opens
 //! operator sessions with the operator runner, and stops the node and the
-//! pair; two of them run the end-to-end channel and its keys (T-087,
-//! T-088). No test prints a token.
+//! pair; two of them run the end-to-end channel and its keys (podssh T-087,
+//! podssh T-088). No test prints a token.
 #![cfg(feature = "pair")]
 
 mod support;
@@ -258,7 +258,7 @@ where
     (back, outcome, channel)
 }
 
-/// One session through the live relay over the end-to-end channel (T-088):
+/// One session through the live relay over the end-to-end channel (podssh T-088):
 /// 1 MiB each way, with the node's key checked by the operator.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "the live relay: run with --ignored"]
@@ -283,7 +283,7 @@ async fn e2e_through_the_live_relay() {
 
 /// A second node with another key under the same pair: the operator that
 /// pinned the first key at its first sight refuses it, with both
-/// fingerprints (T-087).
+/// fingerprints (podssh T-087).
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "the live relay: run with --ignored"]
 async fn a_changed_node_key_is_refused() {

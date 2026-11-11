@@ -1,4 +1,4 @@
-//! The race of QUIC and a TCP road to one relay host (T-667): QUIC alone for
+//! The race of QUIC and a TCP road to one relay host (podssh T-667): QUIC alone for
 //! a head start, then the TCP road beside it, or at once when QUIC failed.
 //! The first session is kept and the other road is dropped where it stands,
 //! which closes its connection at once: two connections to one host for a

@@ -1,4 +1,4 @@
-//! The addresses that carried a session to each relay host (T-344), kept
+//! The addresses that carried a session to each relay host (podssh T-344), kept
 //! across runs: a host whose resolver fails tomorrow still knows where its
 //! relay was. The record is a private file of the cache, [`FILE`], with each
 //! host's last addresses and when each last carried a session through its

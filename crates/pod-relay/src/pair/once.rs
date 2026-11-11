@@ -1,7 +1,7 @@
-//! A pair whose connect token takes one upgrade alone (T-226), which
+//! A pair whose connect token takes one upgrade alone (podssh T-226), which
 //! podssh's relay role makes for `POST /v1/pair?once=1` and offers in its
 //! `/relays.json`: a token that leaks from a log after its use is worth
-//! nothing. The query holds no credential, and the proof of a key (T-448)
+//! nothing. The query holds no credential, and the proof of a key (podssh T-448)
 //! signs the path alone, as the role checks it.
 
 use super::{Pair, PairContext, PairError, now_ms, parse, refused};
@@ -15,7 +15,7 @@ pub async fn create_with(ctx: &PairContext<'_>, once: bool) -> Result<(Pair, boo
 }
 
 /// [`create_with`], proving `identity` where the relay asks for a key, so
-/// that the pair's maker is that key (T-434): a node's pair at a member of
+/// that the pair's maker is that key (podssh T-434): a node's pair at a member of
 /// its net, which another member finds by the node's key.
 pub async fn create_by(
     ctx: &PairContext<'_>,

@@ -1,5 +1,5 @@
-//! The one rule for "this peer is an SSH server" (T-702), and the check of a
-//! roost (T-166): a node in front of a standard sshd. RFC 4253 (section 4.2)
+//! The one rule for "this peer is an SSH server" (podssh T-702), and the check of a
+//! roost (podssh T-166): a node in front of a standard sshd. RFC 4253 (section 4.2)
 //! lets a server send other lines before its version line, and no such line
 //! starts with `SSH-`: the verdict comes from the first line that does,
 //! within [`READ_MAX`] bytes. [`judge`] is that rule for each reader that
@@ -21,7 +21,7 @@ use tokio::net::TcpStream;
 pub const BANNER_LIMIT: Duration = Duration::from_secs(10);
 /// The most bytes that a verdict reads: a version line is 255 bytes at most,
 /// and the lines before it are bounded by these 4 KiB, as the direct road's
-/// one read was (T-363).
+/// one read was (podssh T-363).
 pub const READ_MAX: usize = 4096;
 /// How long a peek that saw part of a line waits before it looks again: the
 /// bytes stay in the stream, so a peek at once would see the same.
@@ -101,7 +101,7 @@ pub async fn check(stream: &TcpStream, limit: Duration) -> Result<String, NotSsh
 /// The roost peeks, where the direct road reads: its stream is the
 /// `TcpStream` that each handler hands on to the session, and a peek leaves
 /// sshd's line in it. A proxy's stream offers no peek, so the readers of
-/// podssh-cli read and give the bytes back (T-363).
+/// podssh-cli read and give the bytes back (podssh T-363).
 async fn version_line(stream: &TcpStream, seen: &mut Vec<u8>) -> Result<String, NotSshd> {
     let mut buf = vec![0u8; READ_MAX];
     loop {
@@ -251,7 +251,7 @@ mod tests {
     }
 
     /// 4 KiB of lines with no version line decide, as the direct road's
-    /// one read of 4 KiB did (T-363).
+    /// one read of 4 KiB did (podssh T-363).
     #[test]
     fn four_kib_with_no_version_line_decide() {
         let mut lines = Vec::new();

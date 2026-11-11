@@ -1,4 +1,4 @@
-//! A node's ask for sessions readied ahead (T-650), offline: `serve` over an
+//! A node's ask for sessions readied ahead (podssh T-650), offline: `serve` over an
 //! in-memory stream against a scripted relay, as `reverse_node` runs it. A
 //! node of `--spares N` asks once a `hello` offers them, `true` alone, and
 //! never otherwise; a spare's `open` is readied as each other.

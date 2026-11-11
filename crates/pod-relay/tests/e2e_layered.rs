@@ -1,4 +1,4 @@
-//! The end-to-end channel above the resumable layer (T-088): one handshake
+//! The end-to-end channel above the resumable layer (podssh T-088): one handshake
 //! for a session, which each resume on a new link carries on, with one
 //! connection to the target; and the channel with no layer, as `podssh node
 //! --plain` serves a session.
@@ -196,7 +196,7 @@ async fn channel_over(
 }
 
 /// Visitors with no key that finish the layer's handshake and leave take
-/// nothing of the node's budget (T-300): a node whose budget holds two
+/// nothing of the node's budget (podssh T-300): a node whose budget holds two
 /// sessions lets two clients with a key in after three such visitors, and
 /// still refuses a third client, by its budget.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

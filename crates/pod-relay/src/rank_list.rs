@@ -1,4 +1,4 @@
-//! The default list of relay hosts takes the rank (T-607): the pool's hosts
+//! The default list of relay hosts takes the rank (podssh T-607): the pool's hosts
 //! in the order that a rank measured from this host gives, the default host
 //! at its own place among them, and samples of each session's own race,
 //! which order the pool where no rank holds. A list that the user named

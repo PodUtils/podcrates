@@ -19,17 +19,17 @@ use crate::context::Context;
 use crate::relay::{Relay, check_node_name, parse_relay};
 use crate::token::relay_name;
 
-/// A pair that its owner halts and resumes in podssh's relay role (T-647).
+/// A pair that its owner halts and resumes in podssh's relay role (podssh T-647).
 pub mod halt;
-/// A leg to a member's node at a member's relay role, by its key (T-434).
+/// A leg to a member's node at a member's relay role, by its key (podssh T-434).
 pub mod leg;
-/// A pair whose connect token takes one upgrade alone (T-226).
+/// A pair whose connect token takes one upgrade alone (podssh T-226).
 pub mod once;
-/// The operator's part kept under a label on an operator's host (T-086).
+/// The operator's part kept under a label on an operator's host (podssh T-086).
 pub mod part;
-/// A pair that its owner renews in podssh's relay role, and its end (T-592).
+/// A pair that its owner renews in podssh's relay role, and its end (podssh T-592).
 pub mod renew;
-/// A pair's stop token, rotated in podssh's relay role (T-615).
+/// A pair's stop token, rotated in podssh's relay role (podssh T-615).
 pub mod rotate;
 
 /// A pair, as `POST /v1/pair` gives it.
@@ -103,13 +103,13 @@ pub struct PairContext<'a> {
 pub enum PairError {
     Connect(ConnectError),
     /// `429`: the brake that pairs share with mints, or a key past its share
-    /// of podssh's relay role (T-630), with what it said.
+    /// of podssh's relay role (podssh T-630), with what it said.
     RateLimited {
         retry_after: Option<String>,
         detail: String,
     },
     /// `503`: the relay makes no pairs, with what it said (an answer that is
-    /// not a 2xx holds no token). Seen once on 2026-10-09 and gone at the
+    /// not a 2xx holds no token). Seen once, and gone at the
     /// next request.
     NotIssued {
         detail: String,
@@ -148,7 +148,7 @@ impl std::fmt::Display for PairError {
                 write!(f, "the relay refused the token (403 reverse: forbidden): the pair is stopped or has expired")
             }
             PairError::ShortLived { left_ms } => {
-                write!(f, "the pair has {} min left, under the 10 min that podssh needs", left_ms / 60_000)
+                write!(f, "the pair has {} min left, under the 10 min that a node needs", left_ms / 60_000)
             }
             PairError::BadAnswer(what) => write!(f, "the relay's answer is not a usable pair: {what}"),
             PairError::BadLabel(why) | PairError::Store(why) => write!(f, "{why}"),
@@ -169,7 +169,7 @@ struct PairAnswer {
     expires: i64,
 }
 
-/// A pair from the body of a 2xx answer of `/v1/pair`: the name as T-076
+/// A pair from the body of a 2xx answer of `/v1/pair`: the name as podssh T-076
 /// checks names, each token's shape, and at least 10 minutes left.
 pub fn parse(relay: &Relay, body: &[u8], now_ms: i64) -> Result<Pair, PairError> {
     let answer: PairAnswer = serde_json::from_slice(body).map_err(|_| PairError::BadAnswer("not the expected JSON"))?;
@@ -188,7 +188,7 @@ pub fn parse(relay: &Relay, body: &[u8], now_ms: i64) -> Result<Pair, PairError>
 }
 
 /// `POST /v1/pair` with `{}`, and once more with this client's key when the
-/// relay asks for it (T-448). A `409` means "pair again", which is done once.
+/// relay asks for it (podssh T-448). A `409` means "pair again", which is done once.
 pub async fn create(ctx: &PairContext<'_>) -> Result<Pair, PairError> {
     once::create_with(ctx, false).await.map(|(pair, _)| pair)
 }
@@ -201,8 +201,8 @@ pub struct Presence {
 }
 
 /// `GET /v1/status/<name>`, with `connect_token`: the one token that the relay
-/// accepts there (measured 2026-10-09; the other two get `403`). The
-/// operator's part holds it, so an operator's host asks too (T-591).
+/// accepts there (as measured; the other two get `403`). The
+/// operator's part holds it, so an operator's host asks too (podssh T-591).
 pub async fn status(ctx: &PairContext<'_>, part: &OperatorPart) -> Result<Presence, PairError> {
     let path = format!("/v1/status/{}", checked(&part.name)?);
     let response = with_token(ctx, "GET", &path, part.connect_token()).await?;
@@ -279,7 +279,7 @@ fn refused(status: u16, response: &pod_proxy::http::Response) -> PairError {
     let detail = if body.is_empty() { String::new() } else { format!(": {body}") };
     match status {
         403 => PairError::Forbidden,
-        // The brake's words, or a key's share of podssh's relay role (T-630).
+        // The brake's words, or a key's share of podssh's relay role (podssh T-630).
         429 => PairError::RateLimited { retry_after: response.header_text("retry-after", 64), detail },
         503 => PairError::NotIssued { detail },
         _ => PairError::Failed { status, detail },
@@ -390,8 +390,8 @@ pub fn read_operator_file(path: &Path) -> Result<OperatorPart, PairError> {
     Ok(OperatorPart { relay, name, connect_token, expires_ms: expires })
 }
 
-/// `pair-<label>.json`. A label is the user's name for a pair (T-083); it must
-/// be a name that T-076 accepts, so it cannot leave the cache directory.
+/// `pair-<label>.json`. A label is the user's name for a pair (podssh T-083); it must
+/// be a name that podssh T-076 accepts, so it cannot leave the cache directory.
 pub fn file_name(label: &str) -> Result<String, PairError> {
     check_node_name(label).map_err(|why| PairError::BadLabel(format!("the label {why}")))?;
     Ok(format!("pair-{label}.json"))
@@ -418,7 +418,7 @@ pub fn store_in_first(dirs: &[PathBuf], label: &str, pair: &Pair) -> Result<Path
     cache::store_file_in_first(dirs, &name, &body).map_err(PairError::Store)
 }
 
-/// The pair kept under `label`, if any, also in a place passed over (T-593).
+/// The pair kept under `label`, if any, also in a place passed over (podssh T-593).
 /// Its expiry is not checked here: a caller says so with the remedy.
 pub fn load(cache: &Cache, label: &str) -> Result<Option<Pair>, PairError> {
     load_from(&cache.read_dirs(), label)

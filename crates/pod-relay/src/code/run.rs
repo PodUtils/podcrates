@@ -1,4 +1,4 @@
-//! The two runs of a pairing by code (T-086). The giver allocates a
+//! The two runs of a pairing by code (podssh T-086). The giver allocates a
 //! nameplate at the first mailbox that answers, makes the code, and waits
 //! for one taker within the code's life. The taker looks for its giver at
 //! each mailbox in order: one that lists the code's nameplate has it, one
@@ -11,7 +11,7 @@
 //! The runs are one for each [`Kind`] of exchange: [`give_with`] and
 //! [`take_with`] move an offer, an answer and the giver's last words, as
 //! bytes, and the kind's own words are its caller's. The pairing's
-//! ([`give`], [`take`]) is one; the net's invitation (T-616), whose words
+//! ([`give`], [`take`]) is one; the net's invitation (podssh T-616), whose words
 //! the binary reads, another.
 
 use std::time::Duration;

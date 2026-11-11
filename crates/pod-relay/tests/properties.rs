@@ -1,4 +1,4 @@
-//! Properties of relay lists and paths (T-202), each checked on the inputs
+//! Properties of relay lists and paths (podssh T-202), each checked on the inputs
 //! that proptest makes, 256 by default, and shrunk to the smallest that
 //! fails: a list keeps its order and drops its duplicates however each host
 //! is spelled, each host that it gives passes `check_host`, and the forward

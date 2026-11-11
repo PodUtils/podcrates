@@ -1,0 +1,14 @@
+diff --git a/crates/pod-relay/src/gate.rs b/crates/pod-relay/src/gate.rs
+--- a/crates/pod-relay/src/gate.rs
++++ b/crates/pod-relay/src/gate.rs
+@@ -302,9 +302,7 @@
+ 
+ impl Drop for Lease {
+     fn drop(&mut self) {
+-        if !self.settled {
+-            self.gates.settle(&self.key, self.epoch, self.probe, None);
+-        }
++        let _ = self.settled;
+     }
+ }
+ 

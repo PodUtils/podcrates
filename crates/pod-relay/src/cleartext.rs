@@ -1,9 +1,9 @@
-//! The cleartext road on the relay's port (T-326, the operator's ruling
-//! Q45), tried last by [`crate::open`]: once each relay host failed, one host
+//! The cleartext road on the relay's port (podssh T-326, the operator's ruling
+//! podssh Q45), tried last by [`crate::open`]: once each relay host failed, one host
 //! of each deployment whose TLS failed on the way
 //! ([`pod_ws::cleartext::tls_failed`]) is asked in cleartext, through the
 //! same proxy, for a token of one session (`POST /v1/mint?once=1`, signed by
-//! this client's key where the relay asks, T-448), and the upgrade goes with
+//! this client's key where the relay asks, podssh T-448), and the upgrade goes with
 //! it, in cleartext too. No other token goes on this road: not the cache's,
 //! not the one that the user gave. The token of one session is never cached,
 //! and a relay whose answer does not say `"once": true`, with an end within

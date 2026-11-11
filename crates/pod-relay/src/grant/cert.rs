@@ -3,7 +3,7 @@
 //! type, a nonce, the key, a serial, user or host, a key id, the
 //! principals, a window, the critical options and the extensions, a field
 //! reserved, the issuer's key, then the issuer's signature of each field
-//! before it. Only this kind: the keys of podssh's ends are Ed25519 (T-087),
+//! before it. Only this kind: the keys of podssh's ends are Ed25519 (podssh T-087),
 //! and so are the issuers that a node names. Pure Rust, with the crates of
 //! `crate::identity`.
 

@@ -76,6 +76,8 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `udp_frame` | `pod-session` | `udp::{Decoder, framed}`: the stream in pieces of 1 to 64 bytes; each datagram frames back to its bytes | new in `pod-session` (T-020); its seeds are two datagrams, a DNS query, and a length over the limit |
 | `wg_response` | `pod-wg` | `fuzzing::finish` (feature `fuzzing`; `Initiation::finish` on fixed keys): a response is taken only when it is the responder's, but for the reserved bytes and mac2 | new in `pod-wg` (T-024); its seeds are the response of the fixed keys, the same with other reserved bytes and another mac2, one with a changed mac1, and one byte short, written here |
 | `wg_cookie` | `pod-wg` | `fuzzing::cookie` (`Cookie::open` on fixed keys): a cookie reply opens only when it is the responder's reply to the initiation, but for the reserved bytes | new in `pod-wg` (T-024); its seeds are the reply, the same with other reserved bytes, one with a changed cookie, and one to another initiation, written here |
+| `relay_list` | `pod-relay` | `relay::{parse_relay_list, forward_path}`: a path is always `/connect/HOST/PORT`, three segments, with nothing that adds a segment, a query or a line | podssh `relay_list`; its seeds are a host, a list with a port, an IPv6 literal and a list that is no list, written here |
+| `relay_pool` | `pod-relay` | `pool::parse_pool`: each host is kept once, in lower case, of the primary's deployment and not the primary | podssh `relay_pool`; its seeds are a pool with a host of another deployment and one twice, a pool with limits and an empty pool, written here |
 | `wg_transport` | `pod-wg` | `fuzzing::open` (`Session::open`, twice): a message that opens has the type, the index, the header and the tag around its packet, and its second read is a replay | new in `pod-wg` (T-024); its seeds are an IPv4 and an IPv6 packet, a keepalive, an IPv4 length past the packet, a message to another session, and a header with no tag, written here |
 
 Where both sources test the same parser, one target holds the checks and
@@ -104,7 +106,7 @@ Cloudflare's JSON form.
 
 | Target | Source | Parser | Crate |
 | --- | --- | --- | --- |
-| `relay_list`, `relay_pool` | podssh | `podssh_relay::relay::parse_relay_list`, `pool::parse_pool` | `pod-relay` (T-025) |
+
 | `vnet_frame` | podnet | `vnet::framing::read_frame` | `pod-netstack` (T-023) |
 | `warp_capsule` | podssh | `podssh_warp::capsule` | `pod-warp` (T-028), one target with podnet's `capsule` |
 | `capsule` | podnet | `warp::capsule::CapsuleDecoder` | `pod-warp` (T-028) |

@@ -1,4 +1,4 @@
-//! A pair's stop token, rotated in podssh's relay role (T-615), beside the
+//! A pair's stop token, rotated in podssh's relay role (podssh T-615), beside the
 //! contract, which rotates none. `POST /v1/rotate/<name>` with the stop
 //! token and `{"digest": HEX}`, the SHA-256 of a token that the pair's owner
 //! drew, makes that one the token to come; its first use, of any request
@@ -60,7 +60,7 @@ fn digest_hex(token: &str) -> String {
 }
 
 /// A new stop token: 64 characters of `[0-9a-z]`, the shape of the relay's
-/// own (measured 2026-10-09); a byte of 252 or more is drawn again, so that
+/// own (as measured); a byte of 252 or more is drawn again, so that
 /// each character is as likely.
 pub fn draw() -> Result<Zeroizing<String>, String> {
     use rand::TryRng;

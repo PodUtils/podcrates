@@ -1,5 +1,5 @@
 //! The scratch directories of a test, removed when the test ends, so that
-//! runs of the tests do not fill the temporary directory (T-272).
+//! runs of the tests do not fill the temporary directory (podssh T-272).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]

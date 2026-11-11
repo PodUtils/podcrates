@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/quic_road/race.rs b/crates/pod-relay/src/quic_road/race.rs
+--- a/crates/pod-relay/src/quic_road/race.rs
++++ b/crates/pod-relay/src/quic_road/race.rs
+@@ -33,7 +33,8 @@
+     tokio::pin!(quic);
+     tokio::pin!(tcp);
+     let start_at = tokio::time::Instant::now() + head;
+-    let mut tcp_on = false;
++    // Planted: the TCP road starts with QUIC, with no head start.
++    let mut tcp_on = true;
+     let mut quic_failed: Option<E> = None;
+     let mut tcp_failed: Option<E> = None;
+     loop {

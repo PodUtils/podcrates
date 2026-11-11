@@ -1,10 +1,10 @@
-//! The rank of the relay hosts as measured from this host (T-606): each
+//! The rank of the relay hosts as measured from this host (podssh T-606): each
 //! host's probes, its figures, the order of the hosts, and the private file
 //! of the cache that keeps a rank for a day, for the egress that measured it.
 //! The probes come from the caller, which measures one host at a time, so
 //! that a run makes one outbound connection at a time (rule 2 of AGENTS.md).
 //!
-//! The order is the one of `scripts/relay-measure.py` (T-605), so that the
+//! The order is the one of `scripts/relay-measure.py` (podssh T-605), so that the
 //! harness can check podssh's own: the share of probes that failed first,
 //! then the median time to open, then its p95; two medians closer than
 //! [`TIE_MS`] or [`TIE_SHARE`] of the larger are a tie, which keeps the order
@@ -31,9 +31,9 @@ pub const TIE_SHARE: f64 = 0.10;
 /// The egress of a host with no proxy.
 pub const DIRECT: &str = "direct";
 /// The source of a rank that `podssh relay rank` made, and of each file of
-/// before T-608, which names none.
+/// before podssh T-608, which names none.
 pub const ON_DEMAND: &str = "relay rank";
-/// The source of a rank that a session made in its background (T-608).
+/// The source of a rank that a session made in its background (podssh T-608).
 pub const BACKGROUND: &str = "background";
 
 /// One probe of one host: the time to open a session (the dial, TLS and the
@@ -169,15 +169,15 @@ pub struct Rank {
     pub named: bool,
     /// The hosts, in the order to try them.
     pub hosts: Vec<Figures>,
-    /// The samples of the sessions' own races (T-607), by host: kept with
+    /// The samples of the sessions' own races (podssh T-607), by host: kept with
     /// or without a rank, and read where none holds.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub samples: std::collections::BTreeMap<String, Vec<crate::rank_list::Sample>>,
     /// Who made it: [`ON_DEMAND`] or [`BACKGROUND`]; empty in a file of
-    /// before T-608, which `relay rank` made.
+    /// before podssh T-608, which `relay rank` made.
     pub source: String,
     /// A background rank that its session left before each host of its
-    /// plan: a later session of the same day goes on with it (T-608).
+    /// plan: a later session of the same day goes on with it (podssh T-608).
     pub partial: bool,
     /// When the last background rank was made, in ms since the epoch; kept
     /// across ranks, as the samples are, for `status` and `doctor`.
@@ -185,7 +185,7 @@ pub struct Rank {
 }
 
 impl Rank {
-    /// Whether a session made it in its background (T-608).
+    /// Whether a session made it in its background (podssh T-608).
     pub fn background(&self) -> bool {
         self.source == BACKGROUND
     }

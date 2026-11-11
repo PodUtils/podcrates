@@ -1,4 +1,4 @@
-//! The signed lists kept in the cache (T-346): the newest list of each key
+//! The signed lists kept in the cache (podssh T-346): the newest list of each key
 //! that this binary trusts, with its signature, so that a binary keeps the
 //! other deployments when the default's domain is gone. Each read checks
 //! each list again, as the trust and the time may have moved since it was

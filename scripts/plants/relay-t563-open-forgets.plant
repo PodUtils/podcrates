@@ -1,0 +1,8 @@
+# podssh's plant t563-open-forgets, on pod-relay's copy of the file.
+# podssh T-563: an open removes its host from the record again, as before T-563,
+# so a host that opened lately is not tried first; the test of the order
+# must fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test failures::tests::a_host_that_opened_lately_is_tried_first \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib failures'

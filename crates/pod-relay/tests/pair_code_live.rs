@@ -1,6 +1,6 @@
 //! Pairing by a short code (podssh T-086) through each public mailbox (the
 //! services of the kind `mailbox` of `pod-services`), by podssh's ruling
-//! Q65: a short run, from a GitHub runner or a session's own host, through
+//! podssh Q65: a short run, from a GitHub runner or a session's own host, through
 //! `HTTPS_PROXY` when it is set. Two ends of one code meet at
 //! magic-wormhole's mailbox, `wss://relay.magic-wormhole.io/v1`, then at Least
 //! Authority's, and move each part. The pair is a test's: no credential goes

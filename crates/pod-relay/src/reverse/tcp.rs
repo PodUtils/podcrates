@@ -19,7 +19,7 @@ pub struct TcpHandler {
     pub port: u16,
     /// Bound on each dial, under the node's limit for opening a session.
     pub timeout: Duration,
-    /// A roost (T-166): TARGET is a standard sshd, whose version line comes
+    /// A roost (podssh T-166): TARGET is a standard sshd, whose version line comes
     /// first on each connection, or the session is refused.
     pub sshd: bool,
     /// The dial of each connection.

@@ -127,7 +127,7 @@ fn the_switch_turns_the_order_off() {
 }
 
 /// The variable wins over the settings file, as the manual says; an empty
-/// one is none (T-608).
+/// one is none (podssh T-608).
 #[test]
 fn the_variable_is_above_the_settings_file() {
     assert!(!enabled_from(Some("no"), true));

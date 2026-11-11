@@ -1,5 +1,5 @@
 //! podssh's own node and operator in the run of `reverse_drops_live.rs`
-//! (T-255): a node of the resumable layer in front of an echo, and one
+//! (podssh T-255): a node of the resumable layer in front of an echo, and one
 //! session of the layer through it that echoes a byte each 10 s for the
 //! whole run, on a pair of their own. Each end of the node's socket and each
 //! loss of the session's leg is printed with its UTC time, with what it

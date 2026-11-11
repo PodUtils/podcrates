@@ -1,4 +1,4 @@
-//! QUIC on UDP to podssh's relay role (T-667), raced with the TCP roads to
+//! QUIC on UDP to podssh's relay role (podssh T-667), raced with the TCP roads to
 //! the same host. The role serves QUIC beside its TCP listener, on the same
 //! port of UDP, with an ALPN of podssh's own ([`ALPN`]): each bidirectional
 //! stream is one connection of HTTP/1.1 to the role's routes, so a session is
@@ -16,7 +16,7 @@
 //! configuration, which the crate cannot give QUIC's ALPN.
 //!
 //! The race ([`race`]): QUIC first, after the quick tunnel's probe of UDP
-//! (T-400), which a server of QUIC answers in one round trip; the TCP road
+//! (podssh T-400), which a server of QUIC answers in one round trip; the TCP road
 //! after a head start of [`HEAD_START`], or at once when QUIC failed. The
 //! first session kept, the loser dropped at once; an answer of the relay
 //! itself (a refusal of the token or the target) on either road ends the

@@ -1,0 +1,9 @@
+# podssh's plant t617-asked-each-run, on pod-relay's copy of the file.
+# podssh T-617: each run asks each relay member again, whatever the last ask, so a
+# role that is down costs each run a wait; the test of the asks of a day must
+# fail.
+ENTRY=T-025
+GROUP=relay
+EXPECT='test pool::members::tests::each_member_is_asked_once_a_day_whatever_it_answered \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib pool::members'
+LIMIT=1800

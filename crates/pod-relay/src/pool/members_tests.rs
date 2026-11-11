@@ -1,4 +1,4 @@
-//! The tests of the net's relay members (T-617), with test keys made here and
+//! The tests of the net's relay members (podssh T-617), with test keys made here and
 //! a request that a test answers: a list at the member's host is taken by
 //! the member's key alone, and each member is asked once a day, whatever it
 //! answered.

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/quic_road/mod.rs b/crates/pod-relay/src/quic_road/mod.rs
+--- a/crates/pod-relay/src/quic_road/mod.rs
++++ b/crates/pod-relay/src/quic_road/mod.rs
+@@ -82,7 +82,8 @@
+     /// `own` is the host's port of TCP. `None`: no QUIC.
+     pub fn port(self, explicit: bool, offered: Option<u16>, own: u16) -> Option<u16> {
+         match self {
+-            Choice::Auto if explicit => offered,
++            // Planted: a named host races QUIC whether it offered it or not.
++            Choice::Auto if explicit => Some(offered.unwrap_or(own)),
+             Choice::Auto | Choice::No => None,
+             Choice::Yes => Some(offered.unwrap_or(own)),
+         }

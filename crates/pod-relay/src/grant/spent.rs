@@ -1,4 +1,4 @@
-//! The record of each grant that a node let in (T-226): one private file for
+//! The record of each grant that a node let in (podssh T-226): one private file for
 //! each, made create-new, so that of two sessions with one grant at once
 //! one alone makes it, also in two processes; written, synced, and its
 //! directory synced, before the node lets the operator in, so that a crash

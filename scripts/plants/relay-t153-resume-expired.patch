@@ -1,0 +1,19 @@
+diff --git a/crates/pod-relay/src/reverse/closes.rs b/crates/pod-relay/src/reverse/closes.rs
+--- a/crates/pod-relay/src/reverse/closes.rs
++++ b/crates/pod-relay/src/reverse/closes.rs
+@@ -289,7 +289,6 @@
+ pub fn resumes(close: &RelayClose) -> bool {
+     match classify(close).session {
+         SessionAction::Stop
+-        | SessionAction::MintNewPair
+         | SessionAction::FixCodec
+         | SessionAction::AnswerReadyFirst
+         | SessionAction::DoNotSendText
+@@ -301,6 +300,7 @@
+         // its sessions with it: the node connects again (podssh T-409), and a new
+         // session is the resume that the row asks for (podssh T-410).
+         SessionAction::ReopenSession
++        | SessionAction::MintNewPair
+         | SessionAction::Reconnect
+         | SessionAction::OpenNewSession
+         | SessionAction::SlowDown

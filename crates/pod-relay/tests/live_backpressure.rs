@@ -1,6 +1,6 @@
-//! T-062: whether the live relay closes a slow forward client with 1013
+//! podssh T-062: whether the live relay closes a slow forward client with 1013
 //! (`client receive backlog`), through the relay's own loop (the operator's
-//! ruling of Q42, 2026-10-31). A pair's node sends a target's bytes fast; the
+//! ruling of podssh Q42, 2026-10-31). A pair's node sends a target's bytes fast; the
 //! operator's leg of the pair goes to the relay through a CONNECT proxy of
 //! this test whose upstream is a forward session to the relay's own host and
 //! port 443, read at 16 KiB/s. An outer 1013 means that the forward road's

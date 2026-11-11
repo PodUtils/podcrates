@@ -1,8 +1,8 @@
-//! The node's far end of the resumable layer (T-153). Each session that the
+//! The node's far end of the resumable layer (podssh T-153). Each session that the
 //! relay opens is one link: the node answers `ready` at once, greets, and
 //! the layer's handshake tells a new session from a resume. Only a new
 //! session dials the target, after its handshake, so a link that never
-//! completes one costs no connection to sshd (T-164); a resume goes on with
+//! completes one costs no connection to sshd (podssh T-164); a resume goes on with
 //! the target that the session kept.
 
 use std::sync::Arc;
@@ -24,7 +24,7 @@ const PIPE: usize = 256 * 1024;
 /// deadline.
 const SWEEP_EVERY: Duration = Duration::from_secs(10);
 /// The replay memory of the whole node: the relay lets a node carry 64
-/// sessions, and 4 MiB of each would be 256 MiB in a cage (T-153).
+/// sessions, and 4 MiB of each would be 256 MiB in a cage (podssh T-153).
 pub const NODE_BUDGET: usize = 64 << 20;
 
 /// A handler whose sessions run the resumable layer over the sessions of
@@ -50,7 +50,7 @@ impl<H: Handler> Layered<H> {
     }
 
     /// With `keeper`, which another road's far end may share: a session
-    /// then resumes on either road (T-164).
+    /// then resumes on either road (podssh T-164).
     pub fn with_keeper(inner: H, settings: Settings, budget: usize, keeper: Arc<Keeper<H::Stream>>) -> Layered<H> {
         Layered { inner: Arc::new(inner), keeper, settings, budget, sweeping: AtomicBool::new(false) }
     }
@@ -61,7 +61,7 @@ impl<H: Handler> Layered<H> {
     }
 
     /// The sessions that ended and keep their id alone, charged nothing,
-    /// for a resume that lost their `CLOSE` (T-586).
+    /// for a resume that lost their `CLOSE` (podssh T-586).
     pub fn closed(&self) -> usize {
         self.keeper.closed()
     }
@@ -92,7 +92,7 @@ impl<H: Handler> Handler for Layered<H> {
         let (inner, keeper, settings, budget) = (self.inner.clone(), self.keeper.clone(), self.settings, self.budget);
         tokio::spawn(async move {
             // The handler lets the client in: the channel, once its key is,
-            // and the keeper counts it against the budget from then (T-300).
+            // and the keeper counts it against the budget from then (podssh T-300).
             let admitted = Arc::new(AtomicBool::new(false));
             let admit: Admit = {
                 let (keeper, admitted) = (keeper.clone(), admitted.clone());
@@ -106,13 +106,13 @@ impl<H: Handler> Handler for Layered<H> {
 
     /// The layer's window, and as much again: the client sends that much
     /// with no acknowledgement, and a far end that reads it slowly is not a
-    /// stopped one (T-271).
+    /// stopped one (podssh T-271).
     fn queue_bytes(&self) -> usize {
         2 * self.settings.replay_capacity
     }
 
     /// A session of the layer has later legs: the channel above it registers
-    /// a token for each (T-615).
+    /// a token for each (podssh T-615).
     fn attach(&self, frames: Option<pod_e2e::legs::Frames>) {
         self.inner.registers(frames);
     }

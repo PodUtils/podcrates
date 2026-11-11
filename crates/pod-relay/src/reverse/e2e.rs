@@ -1,8 +1,8 @@
-//! A node's handler whose sessions run the end-to-end channel (T-088) over
+//! A node's handler whose sessions run the end-to-end channel (podssh T-088) over
 //! the sessions of an inner handler: each session that the relay, or the
 //! resumable layer above it, opens answers the channel's handshake, and
 //! reaches the inner handler's target only once the operator's key is let
-//! in (T-087). Under the layer, a resume carries the same channel on.
+//! in (podssh T-087). Under the layer, a resume carries the same channel on.
 
 use std::sync::Arc;
 
@@ -46,7 +46,7 @@ impl<H: Handler> Handler for E2e<H> {
     fn open_admitted(&self, id: SessionId, admit: Admit) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (inner, node) = (self.inner.clone(), self.node.clone());
-        // A handover finds the channel by the layer's id of its session (T-668).
+        // A handover finds the channel by the layer's id of its session (podssh T-668).
         let holds = node.holds.clone();
         tokio::spawn(holds.holding(async move {
             // As `serve_node`, with the budget's own refusal.
@@ -69,7 +69,7 @@ impl<H: Handler> Handler for E2e<H> {
     }
 
     /// Each session that the channel lets in gets the seed of its tokens of
-    /// one leg, registered in `frames` (T-615).
+    /// one leg, registered in `frames` (podssh T-615).
     fn registers(&self, frames: Option<pod_e2e::legs::Frames>) {
         self.node.leases.attach(frames);
     }

@@ -1,4 +1,4 @@
-//! The split form (Q44): the caller's bytes up in numbered batches, one POST
+//! The split form (podssh Q44): the caller's bytes up in numbered batches, one POST
 //! after another on the session's first connection, and the target's bytes
 //! down, each answer from the offset that came, on its second connection.
 //! Each request goes again, as it was, until an answer comes.

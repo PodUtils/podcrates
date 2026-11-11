@@ -1,6 +1,6 @@
-//! The check of a roost's TARGET (feature `pair`, T-166) against servers on
+//! The check of a roost's TARGET (feature `pair`, podssh T-166) against servers on
 //! the loopback: SSH's version line passes and stays in the stream for the
-//! session, whole, in two pieces, or after a greeting (T-702); another
+//! session, whole, in two pieces, or after a greeting (podssh T-702); another
 //! service, a silence and a close are refused, each with what came back.
 //! Each session's dial of a roost runs the same check.
 #![cfg(feature = "pair")]
@@ -85,7 +85,7 @@ async fn a_silent_target_is_refused_after_the_limit_with_what_came() {
 }
 
 /// The first piece is shorter than `SSH-`; the check waits for the rest,
-/// and leaves both pieces in the stream (T-702).
+/// and leaves both pieces in the stream (podssh T-702).
 #[tokio::test]
 async fn a_version_line_in_two_pieces_passes() {
     let port = target_in_parts(b"SS", Duration::from_millis(200), b"H-2.0-roost-test\r\n").await;
@@ -98,7 +98,7 @@ async fn a_version_line_in_two_pieces_passes() {
 
 /// RFC 4253, section 4.2: a server may greet before its version line, in
 /// one write or a moment before it, and the direct road reaches it; the
-/// roost serves it too, with each byte left for the session (T-702).
+/// roost serves it too, with each byte left for the session (podssh T-702).
 #[tokio::test]
 async fn a_greeting_before_the_version_line_passes() {
     let port = target(b"Welcome to the lab\r\nSSH-2.0-roost-test\r\n", Duration::from_secs(5)).await;

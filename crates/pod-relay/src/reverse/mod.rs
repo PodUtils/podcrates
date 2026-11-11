@@ -1,12 +1,12 @@
 //! The reverse road (feature `pair`): its codecs (the framing of each leg,
 //! the control messages, the close table, the state of each session) and its
-//! runners, the node (T-079) and the operator (T-080); the node's far end of
-//! the resumable layer (T-153); a node's handlers of a TCP target and of a
-//! UDP one (T-168); the check of a roost's sshd (T-166); and an operator's
+//! runners, the node (podssh T-079) and the operator (podssh T-080); the node's far end of
+//! the resumable layer (podssh T-153); a node's handlers of a TCP target and of a
+//! UDP one (podssh T-168); the check of a roost's sshd (podssh T-166); and an operator's
 //! legs with a token of one leg each, where podssh's relay role registers
-//! them (T-615); and the queue of a socket's data, a turn for each session
-//! (T-648), which both ends of a reverse socket use; and a node's ask for
-//! sessions readied ahead, where the role offers them (T-650).
+//! them (podssh T-615); and the queue of a socket's data, a turn for each session
+//! (podssh T-648), which both ends of a reverse socket use; and a node's ask for
+//! sessions readied ahead, where the role offers them (podssh T-650).
 
 pub mod close_say;
 pub mod closes;

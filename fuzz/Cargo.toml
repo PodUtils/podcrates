@@ -42,6 +42,8 @@ pod-session = { path = "../crates/pod-session" }
 # proof public; the identity of a proof's seed is pod-identity's.
 pod-e2e = { path = "../crates/pod-e2e", features = ["fuzzing"] }
 pod-identity = { path = "../crates/pod-identity" }
+# The relay lists and the pools of a relay (podssh relay_list, relay_pool).
+pod-relay = { path = "../crates/pod-relay" }
 # The feature `fuzzing` gives the memfd that stands in for the memory of a
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
@@ -303,6 +305,20 @@ bench = false
 [[bin]]
 name = "wg_transport"
 path = "fuzz_targets/wg_transport.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_list"
+path = "fuzz_targets/relay_list.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_pool"
+path = "fuzz_targets/relay_pool.rs"
 test = false
 doc = false
 bench = false

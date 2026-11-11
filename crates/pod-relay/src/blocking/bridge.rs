@@ -89,7 +89,7 @@ impl<H: BlockingHandler> Handler for Bridged<H> {
             // Its own thread, with no runtime: the handler may block, and may
             // call the client. If it panics, `tx` drops, and the session is
             // refused.
-            spawn("podssh-relay open", move || {
+            spawn("pod-relay open", move || {
                 let _ = tx.send(handler.open(&id));
             })?;
             let local = rx.await.map_err(|_| "the handler of the session failed".to_string())??;
@@ -125,7 +125,7 @@ pub(crate) fn bridge(local: Local, runtime: Handle) -> Result<Bridge, String> {
     let (output, mut output_end) = tokio::io::duplex(PIPE_BYTES);
     let (done, output_done) = mpsc::channel();
     let input_runtime = runtime.clone();
-    spawn("podssh-relay input", move || {
+    spawn("pod-relay input", move || {
         let mut buf = vec![0u8; PIPE_BYTES];
         loop {
             let n = match reader.read(&mut buf) {
@@ -141,7 +141,7 @@ pub(crate) fn bridge(local: Local, runtime: Handle) -> Result<Bridge, String> {
         }
         let _ = input_runtime.block_on(input_end.shutdown());
     })?;
-    spawn("podssh-relay output", move || {
+    spawn("pod-relay output", move || {
         let mut buf = vec![0u8; PIPE_BYTES];
         loop {
             match runtime.block_on(output_end.read(&mut buf)) {

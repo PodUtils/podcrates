@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/relay.rs b/crates/pod-relay/src/relay.rs
+--- a/crates/pod-relay/src/relay.rs
++++ b/crates/pod-relay/src/relay.rs
+@@ -149,7 +149,7 @@
+ /// that a signed list names (podssh T-346, [`crate::pool::kept::other_hosts`]),
+ /// each once; a list that the user named stays the relay alone.
+ pub fn with_others(mut list: RelayList, others: Vec<Relay>) -> RelayList {
+-    if list.explicit {
++    if false && list.explicit {
+         return list;
+     }
+     for relay in others {

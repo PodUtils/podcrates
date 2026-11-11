@@ -1,4 +1,4 @@
-//! Whether the relay cuts a quiet session of the reverse road (T-061), on
+//! Whether the relay cuts a quiet session of the reverse road (podssh T-061), on
 //! request only: `cargo test -p podssh-relay --features pair --test
 //! reverse_idle_live -- --ignored --nocapture --test-threads 1`.
 //!

@@ -6,7 +6,7 @@
 //! cached, the default relay's alternates come from [`seed`]. Only hosts under
 //! the primary relay's own parent domain are accepted, because the token is
 //! sent to them. A host of another deployment comes from a signed list alone
-//! ([`signed`], kept by [`kept`], T-346), and mints a token of its own.
+//! ([`signed`], kept by [`kept`], podssh T-346), and mints a token of its own.
 
 pub mod kept;
 pub mod members;
@@ -34,20 +34,20 @@ pub fn seed() -> Vec<&'static str> {
 pub const STALE_AFTER_MS: i64 = 7 * 24 * 3600 * 1000;
 
 /// The largest `/relays.json` read: the pool is a short list, and a larger
-/// body is refused before it takes more of podssh's memory (T-201).
+/// body is refused before it takes more of podssh's memory (podssh T-201).
 pub const MAX_BODY: usize = 256 * 1024;
 
 #[derive(Serialize, Deserialize)]
 struct CachedPool {
     fetched_ms: i64,
     hosts: Vec<String>,
-    /// The `limits` of the same `/relays.json` (T-342); none in a cache of
+    /// The `limits` of the same `/relays.json` (podssh T-342); none in a cache of
     /// an older podssh.
     #[serde(default)]
     limits: Limits,
 }
 
-/// The relay's `limits`, as its `/relays.json` gives them (T-342): each
+/// The relay's `limits`, as its `/relays.json` gives them (podssh T-342): each
 /// one that is there and a whole number above zero. podssh's budgets go
 /// under them and its cap on a received frame widens to them
 /// (`relay::byte_budget_under`, `relay::time_budget`,
@@ -176,12 +176,12 @@ pub async fn refresh(
         .await
         .map_err(|_| format!("the pool request took more than {} s", timeout.as_secs()))??;
     // The signed list holds by its key, whichever host served it, also one
-    // whose pool names no host of the primary's deployment (T-346).
+    // whose pool names no host of the primary's deployment (podssh T-346).
     if let Some(Ok(list)) = signed::Signed::of_body(&body) {
         let _ = kept::take(&ctx.cache, &list, &signed::Keys::of_settings(&ctx.settings), now_ms());
     }
     // The same document says whether its host offers the resumable layer
-    // (T-173): kept, a run takes it with no read of its own.
+    // (podssh T-173): kept, a run takes it with no read of its own.
     crate::forward_layer::kept::keep(&ctx.cache, relay, &crate::forward_layer::offer::of(&body, relay), now_ms());
     let (hosts, limits) = (parse_pool(&body, primary)?, parse_limits(&body));
     let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone(), limits })
@@ -278,7 +278,7 @@ mod tests {
         assert!(parse_pool(b"not json", default_relay_host()).is_err());
     }
 
-    /// T-342: the limits of the same body, each a whole number above zero;
+    /// podssh T-342: the limits of the same body, each a whole number above zero;
     /// a cache of an older podssh, with none, reads as none.
     #[test]
     fn a_relays_json_limits_are_read_and_cached_with_the_pool() {
@@ -303,7 +303,7 @@ mod tests {
         assert_eq!(serde_json::from_str::<CachedPool>(&kept).unwrap().limits, limits);
     }
 
-    /// T-342: the budgets go under a smaller limit with the same margin, and
+    /// podssh T-342: the budgets go under a smaller limit with the same margin, and
     /// a larger one leaves them as they are.
     #[test]
     fn the_budgets_go_under_the_relays_limits_and_never_above_their_own() {

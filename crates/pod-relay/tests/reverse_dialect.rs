@@ -1,5 +1,5 @@
 //! The node's run loop against a relay of another dialect of the reverse
-//! road (T-643, GitHub #141), on the plain wire to a stand-in on the
+//! road (podssh T-643, PodUtils/podssh#141), on the plain wire to a stand-in on the
 //! loopback: a `hello` whose `version` this node does not read, and a `426`
 //! to its upgrade as podssh's relay role of another dialect writes it, each
 //! end the node as unusable with one sentence that says whom to update, and

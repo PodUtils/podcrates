@@ -1,4 +1,4 @@
-//! The blocking facade (T-081) against a stand-in relay on the loopback, over
+//! The blocking facade (podssh T-081) against a stand-in relay on the loopback, over
 //! plain `ws://` (feature `plain-ws`). Each test is a plain `#[test]`, with no
 //! runtime of its own, as podvm calls the facade. The stand-in writes
 //! WebSocket frames as the live relay did (`scripts/capture-reverse.py`).
@@ -231,7 +231,7 @@ fn a_forward_stream_ends_at_a_close_1000_and_closes_cleanly() {
 }
 
 /// The relay takes the client's Close as the end of the client's bytes, and
-/// still gives the target's, then its own Close (measured 2026-10-09).
+/// still gives the target's, then its own Close (as measured).
 #[test]
 fn a_forward_stream_shuts_its_write_side_and_reads_to_the_end() {
     let (stand_in, relay) = StandIn::new();
@@ -299,9 +299,9 @@ fn in_time_within<T: Send + 'static>(limit: Duration, work: impl FnOnce() -> T +
 const REJOIN_LIMIT: Duration = Duration::from_secs(30);
 
 /// A node that held its socket and lost it with no Close, as the relay's
-/// side drops one (T-255): the relay answers `409` while it still holds the
+/// side drops one (podssh T-255): the relay answers `409` while it still holds the
 /// old socket, and the node connects again until the relay takes the new
-/// one, and serves on it (T-261). A node that exited on `409` would end the
+/// one, and serves on it (podssh T-261). A node that exited on `409` would end the
 /// sessions that the resumable layer keeps on it. The relay's side runs on
 /// a thread of its own, so a node that exits early fails the test.
 #[test]
@@ -339,7 +339,7 @@ fn conflict_after_a_loss_connects_again_and_serves() {
 
 /// A `409` at the first registration for longer than its grace (2 s here,
 /// 30 s by default): another node has the name, and the node exits, after
-/// the grace (T-416).
+/// the grace (podssh T-416).
 #[test]
 fn conflict_at_the_first_registration_exits_after_its_grace() {
     let (stand_in, relay) = StandIn::new();
@@ -363,7 +363,7 @@ fn conflict_at_the_first_registration_exits_after_its_grace() {
 
 /// A `409` at the first registration, as when the relay still holds the
 /// socket of the node that ran just before this one: the node connects
-/// again, and serves once the relay takes it (T-416). A node that exited at
+/// again, and serves once the relay takes it (podssh T-416). A node that exited at
 /// the first `409` would fail here: its predecessor's end would lock the
 /// server out until somebody started it again.
 #[test]

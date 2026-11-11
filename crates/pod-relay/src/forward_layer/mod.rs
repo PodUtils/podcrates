@@ -1,4 +1,4 @@
-//! The forward road with the resumable layer at podssh's relay role (T-173):
+//! The forward road with the resumable layer at podssh's relay role (podssh T-173):
 //! a session to a standard sshd that outlives a drop of the client's link.
 //! The contract's `/connect/` ends the target's connection with its
 //! WebSocket; the role's `/v1/layer/HOST/PORT` (`crate::serve`, feature

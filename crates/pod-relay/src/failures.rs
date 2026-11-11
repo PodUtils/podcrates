@@ -1,4 +1,4 @@
-//! The relay hosts as the runs found them lately (T-059, T-563), kept across
+//! The relay hosts as the runs found them lately (podssh T-059, podssh T-563), kept across
 //! runs, for each road apart. A host that failed with an error that another
 //! host could repair, or that said nothing while a host after it opened, is
 //! tried last for [`WINDOW`]; so is a host whose last [`STRIKES`] sessions
@@ -35,7 +35,7 @@ pub const STRIKES: u32 = 2;
 /// How long a host rests, tried last, from its last strike.
 pub const REST: Duration = Duration::from_secs(300);
 /// The relay's forward road over WebSocket, `open`'s: its hosts are the
-/// file's `hosts`, where each podssh before T-563 reads them.
+/// file's `hosts`, where each podssh before podssh T-563 reads them.
 pub const WEBSOCKET: &str = "websocket";
 
 /// The hosts of each road, by name. Each field defaults, so that the file of
@@ -295,7 +295,7 @@ pub fn reason(e: &OpenError) -> Option<String> {
             ConnectError::Upgrade(_) | ConnectError::Http(_) => "no WebSocket".into(),
             ConnectError::Config(_) => return None,
         },
-        // A host that this process's gate held was not tried (T-637).
+        // A host that this process's gate held was not tried (podssh T-637).
         OpenError::Offline | OpenError::Held { .. } => return None,
     })
 }

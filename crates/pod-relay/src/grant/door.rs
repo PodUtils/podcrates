@@ -1,4 +1,4 @@
-//! The node's check of a grant (T-226), in this order: the form; the key that
+//! The node's check of a grant (podssh T-226), in this order: the form; the key that
 //! the channel proved is the certificate's; the issuer's signature, and an
 //! issuer that the node trusts for what the operator asked; a user
 //! certificate; a principal of this node, and of the route asked; the
@@ -102,7 +102,7 @@ fn window(cert: &Cert, now: u64) -> Result<(), String> {
     Ok(())
 }
 
-/// Each critical option is one that podssh reads, as OpenSSH refuses a
+/// Each critical option is one that this client reads, as OpenSSH refuses a
 /// certificate with one that it does not; `once@podssh`, with no data, must
 /// be there.
 fn options(cert: &Cert) -> Result<(), String> {
@@ -111,7 +111,7 @@ fn options(cert: &Cert) -> Result<(), String> {
         match name.as_str() {
             ONCE if data.is_empty() => once = true,
             ONCE => return Err(format!("its option {ONCE} carries data, which it has none of")),
-            other => return Err(format!("its critical option {other} is not one that podssh reads")),
+            other => return Err(format!("its critical option {other} is not one that this client reads")),
         }
     }
     if !once {

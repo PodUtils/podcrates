@@ -1,4 +1,4 @@
-//! The net's relay members (T-617): a member of the user's net with the role
+//! The net's relay members (podssh T-617): a member of the user's net with the role
 //! `relay` and its host in the net's document, whose role signs its list of
 //! deployments ([`super::signed`]) with the key that the net names for it.
 //! A run that opens a session on the default list asks that host's

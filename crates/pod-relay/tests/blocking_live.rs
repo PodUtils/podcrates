@@ -1,4 +1,4 @@
-//! The blocking facade (T-081) against the live relay, on request only:
+//! The blocking facade (podssh T-081) against the live relay, on request only:
 //! `cargo test -p podssh-relay --features blocking --test blocking_live --
 //! --ignored`. Plain `#[test]`s, with no runtime, as podvm calls the facade.
 //! The forward session mints a relay token (self-service, cached per

@@ -7,10 +7,10 @@
 //! reads no more ends its own session. An opener task per `open` asks the
 //! handler, and only its answer queues `ready` or `reject`. A role that
 //! registers tokens of one leg says so in its `hello`, and the handler sends
-//! its registrations through the writer too (T-615, `pod_e2e::legs`).
-//! The sessions' bytes wait in a line each, a turn each (T-648, `super::fair`).
+//! its registrations through the writer too (podssh T-615, `pod_e2e::legs`).
+//! The sessions' bytes wait in a line each, a turn each (podssh T-648, `super::fair`).
 //! A node that wants sessions readied ahead asks at the `hello` that offers
-//! them (T-650, `super::spares`).
+//! them (podssh T-650, `super::spares`).
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -46,7 +46,7 @@ pub enum End {
     /// Close 1000.
     Stopped,
     /// The relay's `hello` states a dialect of the reverse road that this
-    /// node does not read (T-643): its sentence. The node closed the socket
+    /// node does not read (podssh T-643): its sentence. The node closed the socket
     /// as at a stop; a new one would meet the same.
     Unread(String),
 }
@@ -59,21 +59,21 @@ pub struct Settings {
     /// after which the relay ends the session itself.
     pub open_limit: Duration,
     /// How often to ping the relay, and how many silent intervals mean the
-    /// socket is dead. The relay answers a Ping on a node socket (measured
-    /// 2026-10-09).
+    /// socket is dead. The relay answers a Ping on a node socket (as
+    /// measured).
     pub ping_every: Duration,
     pub pings_allowed: u32,
     /// How long a node that lost its socket connects again when the relay
     /// answers `409`: the relay can still hold the old socket, and the
-    /// sessions that the resumable layer keeps wait as long (T-261).
+    /// sessions that the resumable layer keeps wait as long (podssh T-261).
     pub rejoin: Duration,
     /// How long a node connects again when the relay answers `409` at its
     /// first registration: the relay can still hold the socket of the node
-    /// that ran just before this one, as at a restart (T-416). Zero exits at
+    /// that ran just before this one, as at a restart (podssh T-416). Zero exits at
     /// the first `409`.
     pub first_conflict: Duration,
     /// The sessions that the relay role keeps readied ahead for this node's
-    /// operators, where its `hello` offers them (T-650): none by default, as
+    /// operators, where its `hello` offers them (podssh T-650): none by default, as
     /// each is a session at rest here; `super::spares::MOST` at most.
     pub spares: u8,
     /// What the node keeps across its sockets, and where its lines go.
@@ -103,13 +103,13 @@ enum Out {
     Ready(SessionId),
     Reject(SessionId, String),
     Data(SessionId, Vec<u8>),
-    /// The relay closed the session, with its reason when it gave one (T-701).
+    /// The relay closed the session, with its reason when it gave one (podssh T-701).
     Closed(SessionId, Option<String>),
     /// The local side ended: the relay is told with `close {id}`.
     LocalEnd(SessionId),
     /// The local side reads no more: `close {id}`, with the reason.
     Stalled(SessionId),
-    /// A text frame of the node's own: a token of one leg (T-615).
+    /// A text frame of the node's own: a token of one leg (podssh T-615).
     Text(String),
     Stop,
 }
@@ -121,10 +121,10 @@ const STALLED: &str = "the node's local side does not read";
 /// the relay's close of a session never waits behind megabytes of another
 /// session's bytes, as the relay ends a session that the node does not
 /// answer within 15 s, and a `ready` that comes later ends the whole socket
-/// with `1003 unknown session id` (T-410); the relay's close drops the
+/// with `1003 unknown session id` (podssh T-410); the relay's close drops the
 /// session's queued bytes before they go out for an id that it forgot. A
 /// session's bytes, and the `close` after its last ones, keep their order.
-/// Data waits in a line for each session, a turn each (T-648): an
+/// Data waits in a line for each session, a turn each (podssh T-648): an
 /// interactive session's echo waits for one read of each other session, not
 /// for a bulk copy's backlog.
 #[derive(Clone)]
@@ -195,19 +195,19 @@ where
             Ok(f) if f.opcode == frame::OPCODE_TEXT => match control::parse_inbound(&f.payload) {
                 Ok(NodeInbound::Hello(hello)) => {
                     // A dialect that this node does not read ends it here,
-                    // not at a later frame that one side drops (T-643).
+                    // not at a later frame that one side drops (podssh T-643).
                     if let Err(skew) = control::accept(hello.version.as_ref()) {
                         let _ = tx.send(Out::Stop).await;
                         break End::Unread(skew.sentence("this node", "the relay"));
                     }
                     limits.apply(&hello);
-                    // A role that registers tokens of one leg (T-615): the
+                    // A role that registers tokens of one leg (podssh T-615): the
                     // handler registers them on this socket from now on.
                     super::legs::heard(&settings.node, &hello);
                     if pod_e2e::legs::offered(&hello.extra) {
                         handler.attach(Some(frames(&tx)));
                     }
-                    // Sessions readied ahead, which this node asks for (T-650).
+                    // Sessions readied ahead, which this node asks for (podssh T-650).
                     if let Some(ask) = super::spares::heard(&settings.node, &hello, settings.spares) {
                         let _ = tx.send(Out::Text(ask)).await;
                     }
@@ -238,7 +238,7 @@ where
                     routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
                     let _ = tx.send(Out::Closed(id, reason)).await;
                 }
-                // The role took a token of one leg for an operator (T-615).
+                // The role took a token of one leg for an operator (podssh T-615).
                 Ok(NodeInbound::Spent { digest }) => handler.spent(&digest),
                 // Not a message that a node answers.
                 Ok(NodeInbound::Unknown) | Err(_) => {}
@@ -259,7 +259,7 @@ where
             Err(e) => break End::Failed(e),
         }
     };
-    // The tokens of one leg wait for the next socket (T-615).
+    // The tokens of one leg wait for the next socket (podssh T-615).
     handler.attach(None);
     routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
     // No session's bytes join the queue now; a sender that waits for room
@@ -268,7 +268,7 @@ where
     drop(tx);
     // A stop's last frames (each session's `close`, the Close) go out
     // first. A socket that the relay closed, or that broke, takes nothing
-    // more, so the node goes on at once (T-255).
+    // more, so the node goes on at once (podssh T-255).
     if matches!(end, End::Stopped | End::Unread(_)) {
         let _ = tokio::time::timeout(Duration::from_secs(5), &mut writer.0).await;
     }
@@ -278,7 +278,7 @@ where
 /// The writer's task, which ends with `serve`: a `serve` that is dropped,
 /// as its task's abort drops it, takes the socket with it. The writer holds
 /// the socket, and lived on while a session's tasks held the outbox, so the
-/// far side never saw the node go (T-601).
+/// far side never saw the node go (podssh T-601).
 struct Writer(tokio::task::JoinHandle<Result<(), SessionError>>);
 
 impl Drop for Writer {
@@ -288,7 +288,7 @@ impl Drop for Writer {
 }
 
 /// The text frames of the handler's registrations, from a caller that holds
-/// a lock and cannot wait (T-615): a frame that finds the control queue full
+/// a lock and cannot wait (podssh T-615): a frame that finds the control queue full
 /// is dropped, and a leg that needed it takes the pair's token.
 fn frames(tx: &Outbox) -> pod_e2e::legs::Frames {
     let control = tx.control.clone();

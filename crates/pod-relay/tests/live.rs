@@ -63,12 +63,12 @@ async fn the_relay_answers_websocket_pings() {
     assert!(pongs >= 1, "the relay answered no ping");
 }
 
-/// How the relay takes an IPv6 address (GitHub #2): podssh sends the bare
+/// How the relay takes an IPv6 address (PodUtils/podssh#2): podssh sends the bare
 /// literal, and the upgrade must succeed. Whether bytes then reach the
 /// target depends on the relay's egress, so it is printed, not asserted:
 /// on 2026-10-08 the session closed at once with 1011 "target closed before
 /// sending anything", while IPv4 to the same host worked. Pointed by
-/// `PODSSH_RELAY` at `podssh relay serve` (T-253), a host with IPv6 egress
+/// `PODSSH_RELAY` at `podssh relay serve` (podssh T-253), a host with IPv6 egress
 /// carries the bytes, and a host with none says so before the upgrade.
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "network: the live relay"]

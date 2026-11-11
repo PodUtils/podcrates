@@ -1,4 +1,4 @@
-//! The tests of the gates (T-637), on tokio's paused clock, with attempts
+//! The tests of the gates (podssh T-637), on tokio's paused clock, with attempts
 //! that count their dials: a wave that fails, a wait outside the deadline,
 //! the epochs, the verdict of each error, the ladder, a lease dropped with
 //! no verdict, and the line of a run whose every host is held.

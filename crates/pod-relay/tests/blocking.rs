@@ -1,4 +1,4 @@
-//! The blocking facade (T-081), with no network: each call from a thread that
+//! The blocking facade (podssh T-081), with no network: each call from a thread that
 //! runs a tokio runtime is refused, and nothing panics, also when a client is
 //! made and dropped there; and no token is in a debug text or an error.
 #![cfg(feature = "blocking")]

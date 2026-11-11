@@ -137,7 +137,7 @@ fn files_others_could_read_or_symlinks_are_not_trusted() {
 }
 
 /// One token for each relay deployment: the hosts of the default deployment
-/// share the default host's key, and any other host has its own (GitHub #3).
+/// share the default host's key, and any other host has its own (PodUtils/podssh#3).
 #[test]
 fn token_key_is_one_for_each_deployment() {
     let key = |r: &str| token_key(&parse_relay(r).unwrap());
@@ -183,7 +183,7 @@ fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
     assert!(!usable(default_relay_host(), cached.minted_at.as_deref()));
 }
 
-/// GitHub #3: with `dead.invalid,tcp.ssh.relay.ajam.dev`, the second host
+/// PodUtils/podssh#3: with `dead.invalid,tcp.ssh.relay.ajam.dev`, the second host
 /// mints; the token is filed for its deployment, never under the first host.
 #[test]
 fn a_failover_files_the_token_under_the_host_that_minted_it() {

@@ -2,7 +2,7 @@
 //! a target.
 //!
 //! The default relay is compiled in so podssh works on a host with no setup
-//! (operator decision 2026-10-08). `--relay-host` or the `PODSSH_RELAY`
+//! (podssh's operator's decision). `--relay-host` or the `PODSSH_RELAY`
 //! environment variable replace it with an ordered list of hosts. With no list
 //! given, the default host comes first and alternates from the relay's own
 //! pool follow ([`crate::pool`]), so one unreachable host, or a proxy that
@@ -52,7 +52,7 @@ pub fn session_time_cap() -> std::time::Duration {
 
 /// podssh's own byte budget for one session, under the cap: the relay
 /// counts bytes that podssh has not read yet, and can hold 2 MiB queued, so a
-/// copy opens a new session first (T-137). The IRC transfer keeps the same
+/// copy opens a new session first (podssh T-137). The IRC transfer keeps the same
 /// margin for the same reason.
 pub const SESSION_BYTE_BUDGET: u64 = 60 << 20;
 
@@ -67,7 +67,7 @@ pub fn byte_budget(ctx: &crate::context::Context, env: Option<&str>) -> u64 {
     byte_budget_under(env, &ctx.in_use())
 }
 
-/// The byte budget under a relay's `limits` (T-342): the compiled-in one, or
+/// The byte budget under a relay's `limits` (podssh T-342): the compiled-in one, or
 /// less with the same margin when the relay's `max_session_bytes` is
 /// smaller; a larger one never raises it. Then `env` lowers it.
 pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64 {
@@ -77,7 +77,7 @@ pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64
     env.and_then(|v| v.trim().parse::<u64>().ok()).filter(|n| *n >= 1 << 20).map_or(budget, |n| n.min(budget))
 }
 
-/// The time budget under a relay's `limits` (T-342): the compiled-in one, or
+/// The time budget under a relay's `limits` (podssh T-342): the compiled-in one, or
 /// half an hour under a smaller `max_session_ms`.
 pub fn time_budget(limits: &crate::pool::Limits) -> std::time::Duration {
     let margin = session_time_cap() - SESSION_TIME_BUDGET;
@@ -85,7 +85,7 @@ pub fn time_budget(limits: &crate::pool::Limits) -> std::time::Duration {
     under.filter(|d| !d.is_zero()).map_or(SESSION_TIME_BUDGET, |d| d.min(SESSION_TIME_BUDGET))
 }
 
-/// The relay's idle cut under its `limits` (T-342): the compiled-in one, or
+/// The relay's idle cut under its `limits` (podssh T-342): the compiled-in one, or
 /// a smaller `idle_timeout_ms`.
 pub fn idle_secs(limits: &crate::pool::Limits) -> u64 {
     let given = limits.idle_timeout_ms.map(|ms| ms / 1000).filter(|s| *s > 0);
@@ -146,7 +146,7 @@ pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -
 }
 
 /// The default list followed by `others`, the hosts of other deployments
-/// that a signed list names (T-346, [`crate::pool::kept::other_hosts`]),
+/// that a signed list names (podssh T-346, [`crate::pool::kept::other_hosts`]),
 /// each once; a list that the user named stays the relay alone.
 pub fn with_others(mut list: RelayList, others: Vec<Relay>) -> RelayList {
     if list.explicit {
@@ -201,7 +201,7 @@ pub fn parse_relay(value: &str) -> Result<Relay, String> {
 /// The host is a DNS name, an IPv4 literal or a bare IPv6 literal (see
 /// [`check_target`]), so nothing a user types can add a path segment, a
 /// query string or a header to the request. The relay takes the bare IPv6
-/// literal in the path (measured 2026-10-08), and `:` is valid in a path
+/// literal in the path (as measured), and `:` is valid in a path
 /// segment (RFC 3986), where `[` and `]` are not.
 pub fn forward_path(host: &str, port: u16) -> Result<String, String> {
     check_target(host)?;
@@ -234,16 +234,16 @@ pub fn is_ipv6_literal(host: &str) -> bool {
 }
 
 /// The words of podssh's relay role for an IPv6 target that its host cannot
-/// route out (T-253): its `502` before the upgrade, or its `1011` when a lazy
+/// route out (podssh T-253): its `502` before the upgrade, or its `1011` when a lazy
 /// dial meets it after the upgrade.
 pub const NO_IPV6_ROUTE: &str = "this relay's host has no IPv6 route out";
 
-/// The default relay's reason for each session to an IPv6 target on
-/// 2026-10-08, while IPv4 to the same hosts worked: its egress reached none.
+/// The default relay's reason for each session to an IPv6 target, as
+/// measured while IPv4 to the same hosts worked: its egress reached none.
 const CLOSED_AT_ONCE: &str = "target closed before sending anything";
 
 /// Whether a relay's Close of a session to an IPv6 target says that the
-/// relay reached no IPv6 host (T-253): the default relay's `1011` with
+/// relay reached no IPv6 host (podssh T-253): the default relay's `1011` with
 /// [`CLOSED_AT_ONCE`], or the role's own words.
 pub fn unreached_ipv6(code: Option<u16>, reason: &str) -> bool {
     code == Some(1011) && (reason.contains(CLOSED_AT_ONCE) || reason.contains(NO_IPV6_ROUTE))
@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(alone.hosts, vec![Relay { host: default_relay_host().into(), port: 443 }]);
     }
 
-    /// T-346: the hosts of other deployments follow the default list, each
+    /// podssh T-346: the hosts of other deployments follow the default list, each
     /// once; a list that the user named takes none.
     #[test]
     fn the_pool_then_other_deployments_follow_the_default_host() {
@@ -390,7 +390,7 @@ mod tests {
         }
     }
 
-    /// The relay takes the bare literal (measured 2026-10-08); brackets are
+    /// The relay takes the bare literal (as measured); brackets are
     /// for the command line, never for the path.
     #[test]
     fn ipv6_literals_are_targets_and_zones_are_not() {
@@ -422,12 +422,12 @@ mod tests {
         assert!(ipv6_note(true, "target closed before sending anything").is_some());
         assert!(ipv6_note(false, "target closed before sending anything").is_none());
         assert!(ipv6_note(true, "idle timeout").is_none());
-        // The role's words (T-253), and the roads that the note names.
+        // The role's words (podssh T-253), and the roads that the note names.
         let note = ipv6_note(true, &format!("connect failed: {NO_IPV6_ROUTE}")).unwrap();
         assert!(note.contains("podssh relay serve") && note.contains("node://NAME") && note.contains("warp://"));
     }
 
-    /// The Close of a relay that reached no IPv6 host (T-253): the default
+    /// The Close of a relay that reached no IPv6 host (podssh T-253): the default
     /// relay's, and the role's after a lazy dial; no other.
     #[test]
     fn a_close_that_says_the_relay_reached_no_ipv6_host() {

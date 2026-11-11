@@ -1,10 +1,10 @@
-//! The node's far end of the resumable layer (T-153), called as the node's
+//! The node's far end of the resumable layer (podssh T-153), called as the node's
 //! serve loop calls a handler: each session of the relay is one link. A
 //! session whose links are cut resumes on new ones, with one connection to
 //! the target for the whole session; a target that cannot be reached, and a
 //! node past its budget, end the session with the reason. A session whose
 //! target ended, and whose client went away before it answered the `CLOSE`,
-//! holds nothing of the budget, and a resume of it gets the `CLOSE` (T-586).
+//! holds nothing of the budget, and a resume of it gets the `CLOSE` (podssh T-586).
 #![cfg(feature = "pair")]
 
 use std::sync::Arc;
@@ -150,7 +150,7 @@ async fn session_of<H: Handler<Stream = DuplexStream>>(handler: &H, id: RelayId,
 #[derive(Clone, Copy)]
 enum Lost {
     /// The client's answer to the node's: the client went away, as an
-    /// operator that its OpenSSH hung up did (GitHub #112).
+    /// operator that its OpenSSH hung up did (PodUtils/podssh#112).
     ClientsAnswer,
     /// The node's own: the client never heard it.
     NodesClose,
@@ -289,14 +289,14 @@ async fn a_node_past_its_replay_budget_ends_a_new_session() {
     let outcome = tokio::time::timeout(LIMIT, client.run(app_end)).await.unwrap();
     let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
     let End::Closed(reason) = &ended.end else { panic!("{ended:?}") };
-    // What holds the budget, and what changes it (T-586).
+    // What holds the budget, and what changes it (podssh T-586).
     let head = "this node keeps 2 resumable sessions (8 MiB of replay buffers): 2 with a link, none waiting for its \
                 client; --resume-deadline and PODSSH_REPLAY_BUFFER of the node change its budget";
     assert_eq!(reason, head);
     assert_eq!(node.kept(), 2);
 }
 
-/// GitHub #112 (T-586): a session whose target ended, and whose client had
+/// PodUtils/podssh#112 (podssh T-586): a session whose target ended, and whose client had
 /// each byte but went away before it answered the `CLOSE`, holds nothing of
 /// the budget. With room for 2 sessions, two such sessions, then two that
 /// run at once, are each admitted; a fifth is refused, with the counts.
@@ -346,7 +346,7 @@ async fn a_session_whose_target_ended_holds_only_its_unacknowledged_bytes() {
 /// The node's `CLOSE` is lost with the link, after the client acknowledged
 /// each byte: the node keeps the session's id alone, and the client's resume
 /// gets the `CLOSE`, as a resume of a session that ended on its old link
-/// does, with no new dial of the target (T-586).
+/// does, with no new dial of the target (podssh T-586).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_resume_of_a_closed_session_gets_its_close() {
     let settings = Settings::default();

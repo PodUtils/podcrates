@@ -1,4 +1,4 @@
-//! A grant used once through the live relay (T-226), on request only:
+//! A grant used once through the live relay (podssh T-226), on request only:
 //! `cargo test -p podssh-relay --features pair,grant --test grant_live --
 //! --ignored`. A node of a pair of the live relay, whose allowlist names
 //! nobody, lets in one session of a grant that its own key signed for the

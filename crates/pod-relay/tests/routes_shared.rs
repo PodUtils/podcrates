@@ -1,4 +1,4 @@
-//! The shares of a node (T-433) at its routes, with no relay: a share that
+//! The shares of a node (podssh T-433) at its routes, with no relay: a share that
 //! the node's file names now is reached by its name at the next session,
 //! one that it names no more is refused with the words of a route that the
 //! node does not have, a route of the command line wins over a share of its

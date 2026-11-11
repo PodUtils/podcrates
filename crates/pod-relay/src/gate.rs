@@ -1,4 +1,4 @@
-//! A gate for each relay origin in the process (T-637, GitHub #135): the
+//! A gate for each relay origin in the process (podssh T-637, PodUtils/podssh#135): the
 //! sessions of one process that open against one host share what each
 //! learns of it. While the host gave no failure, up to [`MOST_AT_ONCE`]
 //! attempts run at once. A failure that is the host's closes the gate: none
@@ -40,7 +40,7 @@ pub const FIRST_WAIT: Duration = crate::open::BACKOFF_FIRST;
 /// the resumable layer's new links take too.
 pub const LONGEST_WAIT: Duration = crate::open::BACKOFF_MAX;
 /// The longest that a mint's `Retry-After` holds a gate: the record's rest
-/// of a host (T-563).
+/// of a host (podssh T-563).
 pub const RETRY_AFTER_MOST: Duration = crate::failures::REST;
 
 /// What an attempt's end says of its host.

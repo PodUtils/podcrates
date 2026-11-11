@@ -1,4 +1,4 @@
-//! Grants used once (T-226), offline: certificates that OpenSSH 9.6's
+//! Grants used once (podssh T-226), offline: certificates that OpenSSH 9.6's
 //! `ssh-keygen -s` minted (`tests/fixtures/grant/`) let an operator's key in
 //! once through the end-to-end channel, and each other grant is refused
 //! before the node dials; the grant crosses the stand-in relay encrypted.
@@ -13,7 +13,7 @@
 //! `reusable` (45, no `once@podssh`), `forever` (46, no `-V`), `host` (47,
 //! `-h`), `elsewhere` (48, the node of seed 0x44), and `own` (49, signed by
 //! the node's own key, written as an OpenSSH key). A grant meets the node's
-//! person after its check, as a key of the door does (T-638).
+//! person after its check, as a key of the door does (podssh T-638).
 #![cfg(all(feature = "pair", feature = "grant"))]
 
 mod e2e_harness;
@@ -229,7 +229,7 @@ async fn an_operator_with_no_grant_and_a_node_that_reads_none_go_as_before() {
 }
 
 /// A node's person that gives `answer` to each question, and the count of
-/// the questions (T-638).
+/// the questions (podssh T-638).
 fn person(answer: Result<(), String>) -> (Arc<Gate>, Arc<AtomicUsize>) {
     let asked = Arc::new(AtomicUsize::new(0));
     let count = asked.clone();
@@ -241,7 +241,7 @@ fn person(answer: Result<(), String>) -> (Arc<Gate>, Arc<AtomicUsize>) {
 }
 
 /// A grant meets the node's person after its check, as a key of the door
-/// does (T-638): a no reaches no target although the grant holds, and spends
+/// does (podssh T-638): a no reaches no target although the grant holds, and spends
 /// it; a yes lets the next grant in, and the line says by a grant and a yes.
 #[tokio::test]
 async fn a_grant_meets_the_node_s_person_as_a_key_of_the_door_does() {

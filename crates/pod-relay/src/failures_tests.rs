@@ -49,7 +49,7 @@ fn a_record_holds_for_its_window_and_not_from_the_future() {
 }
 
 /// A round records its failures, keeps the host that opened with its open
-/// and no failure (T-563: before, the open removed it), and drops a stale
+/// and no failure (podssh T-563: before, the open removed it), and drops a stale
 /// entry; a round of nothing writes nothing.
 #[test]
 fn a_round_records_its_failures_and_keeps_the_host_that_opened() {
@@ -204,7 +204,7 @@ fn the_record_is_a_private_file_of_the_cache() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The record of a podssh before T-563, as it wrote it.
+/// The record of a podssh before podssh T-563, as it wrote it.
 #[derive(Debug, serde::Deserialize)]
 struct OldRecords {
     hosts: BTreeMap<String, OldRecord>,

@@ -23,7 +23,7 @@ use crate::pair::Pair;
 pub type Opening<S> = Pin<Box<dyn Future<Output = Result<S, String>> + Send>>;
 
 /// Lets a session's client in, and says whether the node has room for it:
-/// the resumable layer's admission (T-300).
+/// the resumable layer's admission (podssh T-300).
 pub type Admit = Box<dyn FnOnce() -> bool + Send>;
 
 /// Why a client that the node would let in is not: the budget is full.
@@ -52,7 +52,7 @@ pub trait Handler: Send + Sync + 'static {
         QUEUE_BYTES
     }
 
-    /// The node's socket, whose role registers tokens of one leg (T-615), or
+    /// The node's socket, whose role registers tokens of one leg (podssh T-615), or
     /// `None` once it ended; each socket says so at its `hello`. Only the
     /// resumable layer passes it on ([`Handler::registers`]), as a session
     /// with no layer has no later leg.
@@ -104,7 +104,7 @@ pub enum Exit {
     Stopped,
     /// `409`: another node holds the name, at the first registration; or
     /// the relay held the old socket longer than `Settings::rejoin` after a
-    /// loss (T-261).
+    /// loss (podssh T-261).
     NameInUse,
     /// `1001 operator stopped reverse relay`: the pair is over, and its stored
     /// copy is deleted.
@@ -116,7 +116,7 @@ pub enum Exit {
     /// The node cannot connect as it is set up: an unusable proxy setting or
     /// trust store, or a host that plain `ws://` refuses. A reconnection would
     /// repeat it. So would a relay of another dialect of the reverse road, by
-    /// its `hello` or its `426` (T-643): the sentence says whom to update.
+    /// its `hello` or its `426` (podssh T-643): the sentence says whom to update.
     Unusable(String),
 }
 
@@ -141,7 +141,7 @@ pub fn after_close(close: &RelayClose) -> Next {
 }
 
 /// A relay's Close of a planned restart (RFC 6455's "Service Restart"), which
-/// podssh's relay role sends before it stops (T-255).
+/// podssh's relay role sends before it stops (podssh T-255).
 pub const RESTART: u16 = 1012;
 
 /// The words of a stop's `close` of each session: whether `node` stops for
@@ -160,7 +160,7 @@ pub fn stopping_words(node: &super::state::NodeState) -> &'static str {
 /// socket and drops it at once meets the backoff from the second time.
 pub const AT_ONCE_EVERY: Duration = Duration::from_secs(10);
 
-/// Whether a node whose socket ended connects again at once (T-255, T-421):
+/// Whether a node whose socket ended connects again at once (podssh T-255, podssh T-421):
 /// after a socket that served, as a restart (`1012`), a drop with no Close
 /// and a fault of one frame are no overload; and once each [`AT_ONCE_EVERY`]
 /// at most, `last` being when it last went at once.
@@ -196,7 +196,7 @@ pub fn ended_words(end: &End) -> Option<String> {
 const UNSAID_426: &str = "the relay refused this node's upgrade (426) and said no more: it may read another \
                           dialect of the reverse road; update this node or the relay";
 
-/// The words of a `426` to this node's upgrade (T-643): the relay's own
+/// The words of a `426` to this node's upgrade (podssh T-643): the relay's own
 /// sentence, which podssh's relay role makes name both dialects and whom to
 /// update; a relay that gave none gets that said for it.
 pub fn refused_upgrade(body: &str) -> String {
@@ -215,9 +215,9 @@ pub fn refused_upgrade(body: &str) -> String {
 /// A `409` at the first registration means that another node has the name,
 /// or that the relay still holds the socket of the node that ran just before
 /// this one: the node connects again for `Settings::first_conflict`, then
-/// exits (T-416). After a loss it means that the relay still holds the old
+/// exits (podssh T-416). After a loss it means that the relay still holds the old
 /// socket: the node connects again until `Settings::rejoin` after the loss,
-/// as the sessions that the resumable layer keeps wait that long (T-261;
+/// as the sessions that the resumable layer keeps wait that long (podssh T-261;
 /// rule 6 of `docs/reverse.md`).
 pub async fn run<H, F>(config: &mut NodeConfig<'_>, handler: Arc<H>, stop: F) -> Exit
 where
@@ -230,7 +230,7 @@ where
     let mut lost: Option<Instant> = None;
     // When the relay first answered `409` to a node that had held no socket.
     let mut first_conflict: Option<Instant> = None;
-    // When the node last connected again at once (T-255).
+    // When the node last connected again at once (podssh T-255).
     let mut at_once: Option<Instant> = None;
     loop {
         // How the socket ended, when one served this time: the words of the
@@ -267,7 +267,7 @@ where
                     Socket::Tls(session) => serve(session, handler.clone(), config.settings.clone(), &mut stop).await,
                     #[cfg(feature = "plain-ws")]
                     Socket::Plain(session) => serve(session, handler.clone(), config.settings.clone(), &mut stop).await,
-                    // A carrier's role takes no node's path (T-595): never
+                    // A carrier's role takes no node's path (podssh T-595): never
                     // here, but a socket is a socket.
                     Socket::Carrier(session) => {
                         serve(session, handler.clone(), config.settings.clone(), &mut stop).await
@@ -278,13 +278,13 @@ where
                 match end {
                     End::Stopped => return Exit::Stopped,
                     // Never a reconnection: the relay would say the same
-                    // dialect again, for as long as the node ran (T-643).
+                    // dialect again, for as long as the node ran (podssh T-643).
                     End::Unread(why) => return Exit::Unusable(why),
                     End::Failed(_) => Next::Reconnect,
                     End::Closed(close) => match after_close(&close) {
                         Next::Exit("stopped") => {
                             // This node's pair only: one stored under the
-                            // label since is the next pair (T-395).
+                            // label since is the next pair (podssh T-395).
                             if let Some(label) = &config.label {
                                 let cache = &config.ctx.cache;
                                 if matches!(crate::pair::load(cache, label), Ok(Some(kept)) if kept.name == config.pair.name)
@@ -298,7 +298,7 @@ where
                         // sessions of this socket, not the node: a server
                         // that only this node reaches must not be locked out
                         // by one frame, and the layer resumes its sessions on
-                        // the next socket (T-409). The line says so.
+                        // the next socket (podssh T-409). The line says so.
                         Next::Exit(_) => Next::Reconnect,
                         next => next,
                     },
@@ -342,7 +342,7 @@ where
             }
             Next::Reconnect => {
                 // The first try after a socket that served goes at once: its
-                // sessions wait on the layer meanwhile (T-255, T-421).
+                // sessions wait on the layer meanwhile (podssh T-255, podssh T-421).
                 let now = Instant::now();
                 if again_at_once(ended.is_some(), at_once, now) {
                     at_once = Some(now);
@@ -411,7 +411,7 @@ mod tests {
         assert_eq!(ended_words(&End::Unread("why".into())), None, "the node ends with its own words");
     }
 
-    /// T-643: a `426` keeps the relay's sentence on one line, and one with
+    /// podssh T-643: a `426` keeps the relay's sentence on one line, and one with
     /// no words still says what it may be.
     #[test]
     fn a_426_says_the_relay_s_sentence() {

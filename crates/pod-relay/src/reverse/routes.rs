@@ -1,13 +1,13 @@
-//! A node that offers several TCP services, each under its route (T-089).
+//! A node that offers several TCP services, each under its route (podssh T-089).
 //! Each session runs the end-to-end channel, whose operator names a route
 //! in its encrypted proof; once its key is let in, the node checks that the
 //! key may use that route, and only then dials the route's target. A target
 //! with no route is the one that an operator who names none reaches. A
-//! roost's targets are each a standard sshd, checked at each dial (T-166).
-//! An exit node (T-431) dials a target that the operator names too, by the
+//! roost's targets are each a standard sshd, checked at each dial (podssh T-166).
+//! An exit node (podssh T-431) dials a target that the operator names too, by the
 //! binary's [`ExitDial`], which decides who may and which address. A grant
-//! used once (T-226) that named the route stands for the key's own line.
-//! The node's shares (T-433) are routes too, which [`Shared`] reads again
+//! used once (podssh T-226) that named the route stands for the key's own line.
+//! The node's shares (podssh T-433) are routes too, which [`Shared`] reads again
 //! for each session, so that one added while the node runs is reached at
 //! the next session and one removed is refused; a route of the command line
 //! wins over a share of its name.
@@ -42,11 +42,11 @@ pub struct Route {
 /// log.
 pub type Grant = dyn Fn(&PublicKey, &str) -> Result<(), String> + Send + Sync;
 
-/// The node's shares now (T-433), each a route by its name: read again for
+/// The node's shares now (podssh T-433), each a route by its name: read again for
 /// each session that names a route of no other target.
 pub type Shared = dyn Fn() -> Vec<Route> + Send + Sync;
 
-/// An exit's dial of the target that the operator `key` named (T-431): the
+/// An exit's dial of the target that the operator `key` named (podssh T-431): the
 /// connection, or the refusal, whose words the operator gets.
 pub type ExitDial =
     dyn Fn(PublicKey, String, u16) -> Pin<Box<dyn Future<Output = Result<TcpStream, Refusal>> + Send>> + Send + Sync;
@@ -59,9 +59,9 @@ pub struct Routes {
     pub timeout: Duration,
     /// Each target is a standard sshd, whose version line comes first.
     pub sshd: bool,
-    /// The node's egress (T-431): none, and an exit's target is refused.
+    /// The node's egress (podssh T-431): none, and an exit's target is refused.
     pub exit: Option<Arc<ExitDial>>,
-    /// The node's shares (T-433): none, and only the routes above.
+    /// The node's shares (podssh T-433): none, and only the routes above.
     pub shared: Option<Arc<Shared>>,
     /// The dial of each target of a route.
     pub dialer: Arc<pod_proxy::Dialer>,
@@ -99,7 +99,7 @@ impl Routes {
         };
         let refused = || match route {
             Some(name) => Refusal::Other(format!("this key may not use the route {name} of the node")),
-            // An exit with no TARGET of its own (T-431).
+            // An exit with no TARGET of its own (podssh T-431).
             None if self.routes.is_empty() => {
                 Refusal::Other("this node has no target of its own: it is an exit, so name a target through it".into())
             }
@@ -115,7 +115,7 @@ impl Routes {
             _ => return Err(refused()),
         };
         // A grant used once named this route already, and its issuer may use
-        // it (T-226): the key needs no line of its own.
+        // it (podssh T-226): the key needs no line of its own.
         if let (Some(name), false) = (route, pod_e2e::ends::granted()) {
             (self.grant)(key, name).map_err(|_| refused())?;
         }
@@ -145,7 +145,7 @@ impl Handler for Routed {
     fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (routes, node) = (self.routes.clone(), self.node.clone());
-        // A handover finds the channel by the layer's id of its session (T-668).
+        // A handover finds the channel by the layer's id of its session (podssh T-668).
         let holds = node.holds.clone();
         tokio::spawn(holds.holding(async move {
             serve_asked(theirs, &node, move |key, ask: Ask| async move { routes.open(&key, &ask).await }).await;
@@ -157,11 +157,11 @@ impl Handler for Routed {
     /// its key in and its route passed, as [`super::E2e`]'s does: a visitor
     /// with no key, or a route refused, never takes the room of a session,
     /// now that each node of the channel serves its shares through routes
-    /// (T-433).
+    /// (podssh T-433).
     fn open_admitted(&self, _id: SessionId, admit: Admit) -> Opening<DuplexStream> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (routes, node) = (self.routes.clone(), self.node.clone());
-        // A handover finds the channel by the layer's id of its session (T-668).
+        // A handover finds the channel by the layer's id of its session (podssh T-668).
         let holds = node.holds.clone();
         tokio::spawn(holds.holding(async move {
             let open = move |key: PublicKey, ask: Ask| async move { routes.open_with(&key, &ask, admit).await };
@@ -171,7 +171,7 @@ impl Handler for Routed {
     }
 
     /// Each session that the channel lets in gets the seed of its tokens of
-    /// one leg, registered in `frames` (T-615).
+    /// one leg, registered in `frames` (podssh T-615).
     fn registers(&self, frames: Option<pod_e2e::legs::Frames>) {
         self.node.leases.attach(frames);
     }

@@ -1,4 +1,4 @@
-//! A pair that its owner renews in podssh's relay role (T-592), beside the
+//! A pair that its owner renews in podssh's relay role (podssh T-592), beside the
 //! contract, which renews none. `POST /v1/renew/<name>` with the stop token,
 //! which the owner alone holds, extends the pair to 72 h from then with its
 //! three tokens, so that each operator's file keeps working; and the role's
@@ -74,7 +74,7 @@ pub struct Status {
     /// it, a relay of the contract does not.
     #[serde(default)]
     pub expires: Option<i64>,
-    /// Its owner halted it, and why (T-647): podssh's relay role says so, a
+    /// Its owner halted it, and why (podssh T-647): podssh's relay role says so, a
     /// relay of the contract says neither.
     #[serde(default)]
     pub halted: bool,

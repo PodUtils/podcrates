@@ -1,0 +1,17 @@
+diff --git a/crates/pod-relay/src/failures.rs b/crates/pod-relay/src/failures.rs
+--- a/crates/pod-relay/src/failures.rs
++++ b/crates/pod-relay/src/failures.rs
+@@ -170,12 +170,7 @@
+                 entry.reason = reason.clone();
+             }
+             if let Some(host) = opened {
+-                // The host stays: that it works is what the order needs most.
+-                let entry = hosts.entry(host.to_string()).or_default();
+-                entry.at_ms = 0;
+-                entry.reason.clear();
+-                entry.opened_ms = now_ms;
+-                entry.opens = entry.opens.saturating_add(1);
++                hosts.remove(host);
+             }
+         }
+         *self != before

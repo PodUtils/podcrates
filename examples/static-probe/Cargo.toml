@@ -32,6 +32,9 @@ pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
 pod-quic = { workspace = true }
+# `fuzzing` and `plain-ws` are out: they are for the fuzz targets of fuzz/ and
+# the tests of an embedder, and no binary turns them on.
+pod-relay = { workspace = true, features = ["blocking", "code", "grant", "quic"] }
 pod-rootfs = { workspace = true }
 pod-session = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }

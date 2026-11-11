@@ -1,4 +1,4 @@
-//! `GET /health` on one relay host (T-058), over the same proxy-aware,
+//! `GET /health` on one relay host (podssh T-058), over the same proxy-aware,
 //! verified path as a session: the relay's version, the edge that answered,
 //! and how the connection went. A doctor and a status of a consumer read a
 //! host the same way.
@@ -34,7 +34,7 @@ pub struct Health {
     /// The TLS version, as `TLS 1.3`.
     pub tls: String,
     /// `TCP ADDRESS (SOURCE)`, the source of the address as the dialer found
-    /// it (T-344), or `CONNECT HOST:PORT through PROXY`: a reader can then
+    /// it (podssh T-344), or `CONNECT HOST:PORT through PROXY`: a reader can then
     /// tell a proxy's answer from the relay's.
     pub opened: String,
     /// The relay's `Date` header, for a check of this host's clock.
@@ -68,7 +68,7 @@ impl Health {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HealthError {
     /// TCP, the proxy or TLS failed: the error, whose text is the line's and
-    /// whose cut tells a reset from a timeout (T-487).
+    /// whose cut tells a reset from a timeout (podssh T-487).
     Connect(ConnectError),
     /// The connection was made (`opened`), and then the answer did not come
     /// in time, broke, had another status, held no JSON, or named another
@@ -93,7 +93,7 @@ pub async fn fetch(ctx: &Context, relay: &Relay, trust: &Trust, timeout: Duratio
         ctx.way.open_tls(host, relay.port, host, trust, timeout, &[]).await.map_err(HealthError::Connect)?;
     let peer = peer_addr.map(|a| a.to_string()).unwrap_or_else(|| "an address it cannot name".into());
     // Where the address came from: a pin, the system, the cache or DNS over
-    // HTTPS (T-344).
+    // HTTPS (podssh T-344).
     let memory = ctx.resolver.as_ref().map(|r| r.memory());
     let source = peer_addr.and_then(|a| memory.and_then(|m| m.dialed(host, a)));
     let tls_version = tls
