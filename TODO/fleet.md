@@ -642,35 +642,60 @@ new example `invalid-policy-free-object.json`. The README names the rule.
 
 **Source:** the owner reserved `pod-incus` on 2026-11-11 (GitHub #1); the
 ruling "podrunner DR-5" (incus "seems to be best of both microvms &
-dockers"); PodUtils/podvm#243 (PodUtils/podvm@T-1717, PodUtils/podvm@T-1718).
+dockers"); PodUtils/podvm#243; PodUtils/podvm#253 (COORD-034 of podvm, the
+ask after PodUtils/podvm@T-1717; PodUtils/podvm@T-1718).
 **Category:** feature
 **Milestone:** M7
-**Priority:** P3
+**Priority:** P2
 **Effort:** M
 **Status:** open
 
 ## Problem
 
-podvm gets incus as a back end or an adapter (the owner's ask of DR-5).
-podvm studies it first (PodUtils/podvm@T-1717: `incusd` as root of a user
-namespace, the cost against runc, a static `incusd`, the map of the docker
-verbs), then builds a back end over the REST API of incus on its Unix
-socket (PodUtils/podvm@T-1718). If the client of that API is generic, it
-belongs in podcrates as `pod-incus`, and podrunner can use it as a unit
-kind.
+podvm gets incus as a back end (the owner's ask of DR-5). Its study
+(PodUtils/podvm@T-1717, experiment 433) measured an unprivileged user's
+`incusd` (root of the user's own namespace) on the cloud host, incus 6.0.0:
+the REST API on `INCUS_DIR/unix.socket` imports an image, launches, runs
+`exec`, stops, starts and deletes. podvm asks for the client as a crate
+(PodUtils/podvm#253); until a tag, podvm writes its own minimal client in
+PodUtils/podvm@T-1718 and moves to the crate at the take. podrunner can use
+it as a unit kind.
 
 ## Premise
 
-- Read: PodUtils/podvm#243 (no ask of a crate now).
-- Not read: the REST API of incus; the owner's study `errand-box`.
+- Read: PodUtils/podvm#253. The calls that podvm needs:
+  `GET /1.0` (server facts); `POST /1.0/images` with the body as a stream
+  (a unified tarball, or split meta and rootfs), then
+  `GET /1.0/operations/ID/wait`; `POST /1.0/instances` (`source` of type
+  `image` by alias or fingerprint, `config`, `devices`);
+  `PUT /1.0/instances/NAME/state` (start, stop);
+  `POST /1.0/instances/NAME/exec` with `wait-for-websocket` (stdin, stdout,
+  stderr and control websockets) or `record-output`, the exit code in the
+  operation's `metadata.return`; `GET /1.0/instances?recursion=1`;
+  `DELETE /1.0/instances/NAME`; `GET /1.0/instances/NAME/console`;
+  `GET`/`POST /1.0/instances/NAME/files?path=`.
+- The floor is incus 6.0 LTS. podvm keeps the choice of the back end, the
+  conversion of an OCI image to a unified tarball, the `lxc.init.cmd`
+  script and the start of a user's `incusd`.
+- Not read: the REST API of incus at its source (lxc/incus `doc/rest-api`
+  and `shared/api`); read it first, at a pinned commit.
 
 ## Approach
 
-Wait for podvm's COORD issue after PodUtils/podvm@T-1717. Then: a client of the incus
-REST API over a Unix socket (instances, images, exec, files, operations
-and their events), static, with no `lxc` or `incus` binary; a stand-in
-server in `pod-testkit` for the tests; the refusal by name where no incus
-answers.
+1. HTTP/1.1 over a Unix socket with no TLS (the HTTP helpers of
+   `pod-proxy`), and the operation model of incus: a background
+   operation, its wait, its error by name.
+2. The calls above, typed (serde), each with the incus version it needs.
+3. `exec` with `record-output` first (stdout and stderr apart, the exit
+   code); then the websockets of `wait-for-websocket` over the Unix socket
+   (`pod-ws`), stdin too.
+4. A stand-in incus server on a Unix socket for the tests (in the crate's
+   tests or `pod-testkit`), with no `incusd`; the refusal by name where no
+   incus answers.
+5. Static musl, as each crate; no `lxc` or `incus` binary.
+
+The first release holds 1, 2, 4, 5 and `record-output`; the websockets
+come in the same release if they fit.
 
 ## Prove
 
@@ -680,8 +705,8 @@ cargo test -p pod-incus --all-features
 
 ## Start condition
 
-podvm's COORD issue `(to podcrates)` after PodUtils/podvm@T-1717 asks for
-the crate.
+Met: podvm's COORD issue (PodUtils/podvm#253) came after
+PodUtils/podvm@T-1717.
 
 # T-180: `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11)
 
