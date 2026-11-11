@@ -158,7 +158,8 @@ fn a_namespace_gives_its_tun_to_the_parent() {
         return;
     };
     assert_eq!(code, 0);
-    let hold = pod_hold::Hold::netns(pid, userns, "eth0");
+    assert_eq!(netns::Wire::of(tun.as_raw_fd()).expect("fstat"), netns::Wire::Tun);
+    let hold = pod_hold::Hold::netns(pid, userns, netns::Wire::Tun, "eth0");
     assert_eq!(hold.level, Level::Enforced);
     let info = std::fs::read_to_string(format!("/proc/self/fdinfo/{}", tun.as_raw_fd())).expect("fdinfo");
     assert!(info.contains("iff:"), "the descriptor is a TUN: {info}");

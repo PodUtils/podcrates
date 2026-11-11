@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::netns::Wire;
+
 /// How sure the hold is that each connect of the payload goes through it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Level {
@@ -72,14 +74,19 @@ impl Hold {
     }
 
     /// The netns hold of the task `pid`: a new network namespace (in a new
-    /// user namespace when `userns`) whose only route is the TUN `tun`.
-    pub fn netns(pid: i32, userns: bool, tun: &str) -> Hold {
+    /// user namespace when `userns`) whose only route is the interface
+    /// `name` of the wire `wire`.
+    pub fn netns(pid: i32, userns: bool, wire: Wire, name: &str) -> Hold {
         let flags = if userns { "CLONE_NEWUSER|CLONE_NEWNET" } else { "CLONE_NEWNET" };
+        let route = match wire {
+            Wire::Tun => format!("the TUN {name} of the supervisor"),
+            Wire::Veth => {
+                format!("the veth pair of {name}, whose frames only the packet socket of the supervisor reads")
+            }
+        };
         Hold {
             level: Level::Enforced,
-            proof: format!(
-                "network namespace: unshare({flags}) in pid {pid}; the only route is the TUN {tun} of the supervisor"
-            ),
+            proof: format!("network namespace: unshare({flags}) in pid {pid}; the only route is {route}"),
             not_held: NETNS_NOT_HELD.to_vec(),
         }
     }
@@ -98,9 +105,13 @@ mod tests {
         assert_eq!(hold.level, Level::Advisory);
         assert!(hold.proof.contains("21 system calls of pid 42"), "{}", hold.proof);
         assert!(hold.not_held.iter().any(|n| n.contains("inherits")));
-        let hold = Hold::netns(7, true, "eth0");
+        let hold = Hold::netns(7, true, Wire::Tun, "eth0");
         assert_eq!(hold.level, Level::Enforced);
-        assert!(hold.proof.contains("CLONE_NEWUSER|CLONE_NEWNET") && hold.proof.contains("eth0"));
+        assert!(hold.proof.contains("CLONE_NEWUSER|CLONE_NEWNET") && hold.proof.contains("the TUN eth0"));
+        let hold = Hold::netns(7, false, Wire::Veth, "eth0");
+        assert_eq!(hold.level, Level::Enforced);
+        assert!(hold.proof.contains("unshare(CLONE_NEWNET)") && hold.proof.contains("the veth pair of eth0"));
+        assert!(!hold.proof.contains("TUN"), "{}", hold.proof);
         assert_eq!(Hold::none("no seccomp").level, Level::None);
     }
 }

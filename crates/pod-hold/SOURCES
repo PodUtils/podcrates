@@ -49,13 +49,17 @@ file 4a577723be88901b2b4d7f5f0d72b62b6625edfe crates/podnet-netns/src/connect.rs
 repo PodUtils/podnet db34baefcdd907622002e3b2e690b9ab0ac939f1
 # T-201 (PodUtils/podnet#446, #451): the veth wire of the netns hold, for a
 # namespace that cannot open /dev/net/tun. netns/veth.rs: the setup of the
-# pair (RTM_NEWLINK, the address, the route, the offloads), the packet
-# socket, the ARP answer and the frames; the test variable
-# PODNET_NETNS_TEST_VETH stays in podnet. netns/tun.rs: of it only the
-# choice of the wire (Wire, and the fstat of Tun::new); the smoltcp device
+# pair (RTM_NEWLINK, the offloads; the address and the route of the program
+# end are the configure of the TUN of tun.rs), the packet socket, the ARP
+# answer and the frames; open_wire and the test variable
+# PODNET_NETNS_TEST_VETH stay in podnet as glue (WireChoice). netns/tun.rs:
+# of it only the choice of the wire (Wire, the fstat of Tun::new, the read
+# buffer of read_frames, the checksums of capabilities); the smoltcp device
 # stays in podnet. tests/veth.rs: the test veth_wire_carries_a_tcp_flow
-# keeps its name with a stack of pod-netstack in place of the pod.
+# keeps its name, with a stack of pod-netstack in the place of the pod; the
+# tests of netns::veth::tests keep their names. doctor.rs (the probe row
+# "veth wire (no TUN)") stays in podnet with pod doctor (call C48).
 file ce252abace66f65e3cca2400f06cc8092899b155 crates/podnet-netns/src/netns/veth.rs -> crates/pod-hold/src/netns/veth.rs
 file e0efa1285e6df6eac68b9efa1da4aac9e57610ea crates/podnet-netns/src/netns/veth/tests.rs -> crates/pod-hold/src/netns/veth/tests.rs
 file d6699f75197eb6c27215f75a4d05b8da4786367e crates/podnet-netns/src/netns/tun.rs -> crates/pod-hold/src/netns/wire.rs
-file 59f2a649e3f2240637631059615674ec1812c37e crates/podnet-netns/tests/veth.rs -> crates/pod-hold/tests/veth.rs
+file 59f2a649e3f2240637631059615674ec1812c37e crates/podnet-netns/tests/veth.rs -> crates/pod-hold/tests/veth.rs crates/pod-hold/tests/veth/linux.rs

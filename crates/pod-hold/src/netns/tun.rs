@@ -1,6 +1,7 @@
 //! The TUN device of the netns hold: its setup inside the namespace (the
 //! address, the MTU, the default route) with ioctls, not with `ip`:
-//! RTNETLINK can fail inside a user namespace where the ioctls work.
+//! RTNETLINK can fail inside a user namespace where the ioctls work. The
+//! program end of the veth wire takes the same setup (`configure`).
 
 use std::ffi::CString;
 use std::net::Ipv4Addr;
@@ -16,7 +17,7 @@ pub const IFF_NO_PI: libc::c_int = 0x1000;
 
 /// The TUN of a namespace: its name, the address of the namespace side,
 /// the gateway that the supervisor's stack answers for, the prefix and the
-/// MTU.
+/// MTU. The program end of the veth wire takes the same values.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tun {
     pub name: String,
@@ -58,8 +59,21 @@ pub fn ifreq_for(name: &str) -> libc::ifreq {
     ifr
 }
 
+/// Check the name of an interface: not empty, shorter than `IF_NAMESIZE`,
+/// and with no NUL byte. The kernel cuts or refuses another name, so the
+/// check comes before each system call.
+pub(super) fn check_name(name: &str, what: &str) -> Result<(), Failure> {
+    if name.is_empty() || name.len() >= libc::IF_NAMESIZE || name.contains('\0') {
+        return Err(failure::host(
+            Class::Usage,
+            format!("the {what} name {name:?} is empty, too long or has a NUL byte"),
+        ));
+    }
+    Ok(())
+}
+
 /// A datagram socket for the ioctls of the interfaces.
-fn control() -> Result<OwnedFd, Failure> {
+pub(super) fn control() -> Result<OwnedFd, Failure> {
     // SAFETY: socket with constant arguments.
     let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, 0) };
     if sock < 0 {
@@ -69,7 +83,7 @@ fn control() -> Result<OwnedFd, Failure> {
     Ok(unsafe { OwnedFd::from_raw_fd(sock) })
 }
 
-fn set_flags(sock: &OwnedFd, name: &str, what: &str) -> Result<(), Failure> {
+pub(super) fn set_flags(sock: &OwnedFd, name: &str, what: &str) -> Result<(), Failure> {
     let mut ifr = ifreq_for(name);
     ifr.ifr_ifru.ifru_flags = (libc::IFF_UP | libc::IFF_RUNNING) as libc::c_short;
     // SAFETY: a valid ifreq for SIOCSIFFLAGS.
@@ -87,10 +101,7 @@ pub fn bringup_loopback() -> Result<(), Failure> {
 /// Create and configure the TUN `tun` inside the namespace: its address,
 /// its MTU, up, and the default route through its gateway. Return its fd.
 pub fn create_tun(tun: &Tun) -> Result<OwnedFd, Failure> {
-    let name = tun.name.as_str();
-    if name.is_empty() || name.len() >= libc::IF_NAMESIZE {
-        return Err(failure::host(Class::Usage, format!("the TUN name {name:?} is empty or too long")));
-    }
+    check_name(&tun.name, "TUN")?;
     // SAFETY: a valid path; the flags are constants.
     let fd = unsafe { libc::open(c"/dev/net/tun".as_ptr(), libc::O_RDWR | libc::O_CLOEXEC) };
     if fd < 0 {
@@ -98,13 +109,21 @@ pub fn create_tun(tun: &Tun) -> Result<OwnedFd, Failure> {
     }
     // SAFETY: a new descriptor that nothing else owns.
     let owned = unsafe { OwnedFd::from_raw_fd(fd) };
-    let mut ifr = ifreq_for(name);
+    let mut ifr = ifreq_for(&tun.name);
     ifr.ifr_ifru.ifru_flags = (IFF_TUN | IFF_NO_PI) as libc::c_short;
     // SAFETY: a valid ifreq for TUNSETIFF.
     if unsafe { libc::ioctl(owned.as_raw_fd(), TUNSETIFF as _, &mut ifr as *mut libc::ifreq) } < 0 {
         return Err(failure::last_os("ioctl TUNSETIFF"));
     }
-    let sock = control()?;
+    configure(&control()?, tun)?;
+    Ok(owned)
+}
+
+/// Configure the interface `tun.name` as the end of the namespace: its MTU,
+/// its address, up, and the default route through the gateway that the
+/// supervisor's stack answers for.
+pub(super) fn configure(sock: &OwnedFd, tun: &Tun) -> Result<(), Failure> {
+    let name = tun.name.as_str();
     let set_addr = |cmd: libc::c_ulong, addr: Ipv4Addr, what: &str| -> Result<(), Failure> {
         let mut ifr = ifreq_for(name);
         // SAFETY: ifru_addr has the room of a sockaddr_in.
@@ -127,7 +146,7 @@ pub fn create_tun(tun: &Tun) -> Result<OwnedFd, Failure> {
     }
     set_addr(libc::SIOCSIFADDR as _, tun.addr, "ioctl SIOCSIFADDR")?;
     set_addr(libc::SIOCSIFNETMASK as _, tun.netmask(), "ioctl SIOCSIFNETMASK")?;
-    set_flags(&sock, name, "ioctl SIOCSIFFLAGS up")?;
+    set_flags(sock, name, "ioctl SIOCSIFFLAGS up")?;
     // The default route through the gateway that the supervisor's stack
     // answers for.
     // SAFETY: a zeroed rtentry is valid.
@@ -143,11 +162,11 @@ pub fn create_tun(tun: &Tun) -> Result<OwnedFd, Failure> {
         (*mask).sin_family = libc::AF_INET as libc::sa_family_t;
     }
     route.rt_flags = libc::RTF_UP | libc::RTF_GATEWAY;
-    let name_c = CString::new(name).map_err(|_| failure::host(Class::Usage, "the TUN name has a NUL byte"))?;
+    let name_c = CString::new(name).map_err(|_| failure::host(Class::Usage, "the interface name has a NUL byte"))?;
     route.rt_dev = name_c.as_ptr() as *mut libc::c_char;
     // SAFETY: a valid rtentry; `name_c` lives for the call.
     if unsafe { libc::ioctl(sock.as_raw_fd(), libc::SIOCADDRT as _, &route as *const _) } < 0 {
         return Err(failure::last_os("ioctl SIOCADDRT"));
     }
-    Ok(owned)
+    Ok(())
 }

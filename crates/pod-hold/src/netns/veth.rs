@@ -1,65 +1,63 @@
-//! The veth wire of the netns backend (T-174). When the namespace cannot
-//! open `/dev/net/tun`, the child makes a veth pair in the namespace: the
-//! program end has the address and the default route of the TUN, and an
-//! `AF_PACKET` socket on the wire end carries its frames to the stack. The
-//! wire translates between frames and IP packets: the stack keeps its IP
-//! medium, and the wire answers ARP for the gateway.
+//! The veth wire of the netns hold, for a namespace that cannot open
+//! `/dev/net/tun`. The child makes a veth pair in the namespace with one
+//! `RTM_NEWLINK`: the program end gets the address, the MTU and the default
+//! route of the [`Tun`], and a packet socket on the wire end carries its
+//! frames to the parent. The stack of the parent keeps its IP medium:
+//! [`take_frame`] gives the IP packet of a frame and answers ARP for the
+//! gateway, and [`frame_for`] gives the frame of a packet of the stack.
 
-#[allow(unused_imports)]
-use crate::prelude::*;
+use std::ffi::CString;
+use std::net::Ipv4Addr;
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+
+use pod_core::{Class, Failure};
+
+use super::tun::{Tun, check_name, configure, control, set_flags};
+use crate::failure;
 
 /// The MAC address of the program end of the pair.
-pub(crate) const GUEST_MAC: [u8; 6] = [0x02, 0x70, 0x6e, 0, 0, 0x02];
-/// The MAC address that the stack uses for the gateway. It is not the
+pub const GUEST_MAC: [u8; 6] = [0x02, 0x70, 0x6e, 0, 0, 0x02];
+/// The MAC address that the wire answers for the gateway. It is not the
 /// address of the wire end, so the kernel of the namespace drops the frames
 /// to the gateway on the wire end, and only the packet socket reads them.
-pub(crate) const GATEWAY_MAC: [u8; 6] = [0x02, 0x70, 0x6e, 0, 0, 0x01];
-/// The name of the wire end in the namespace.
-pub(crate) const WIRE_NAME: &str = "wire0";
+pub const GATEWAY_MAC: [u8; 6] = [0x02, 0x70, 0x6e, 0, 0, 0x01];
+/// The name of the wire end in the namespace (podnet's).
+pub const WIRE_NAME: &str = "wire0";
 /// The length of an Ethernet header.
-pub(crate) const ETH_HEADER: usize = 14;
+pub const ETH_HEADER: usize = 14;
 
 const ETH_P_IP: u16 = 0x0800;
 const ETH_P_ARP: u16 = 0x0806;
 const ETH_P_IPV6: u16 = 0x86dd;
 
-/// The test hook of the wire: set and not empty, the child makes the veth
-/// wire also when it can open `/dev/net/tun`.
-pub(crate) const TEST_VETH_VARIABLE: &str = "PODNET_NETNS_TEST_VETH";
-
-/// True when [`TEST_VETH_VARIABLE`] is set and not empty.
-pub(crate) fn veth_forced() -> bool {
-    std::env::var_os(TEST_VETH_VARIABLE).is_some_and(|v| !v.is_empty())
-}
-
-/// The wire of the namespace: the TUN, else the veth pair. The program end
-/// of each is `name`. Return the descriptor that the stack reads.
-pub(crate) fn open_wire(name: &str) -> Result<OwnedFd> {
-    if veth_forced() {
-        return create_veth(name, WIRE_NAME);
+/// Make the veth pair of `tun.name` (the program end) and `wire` (the wire
+/// end) in the namespace, after [`super::bringup_loopback`]. Configure the
+/// program end as [`super::create_tun`] configures the TUN (the MTU, the
+/// address, up, the default route through the gateway), bring up the wire
+/// end, and return a packet socket bound to it.
+///
+/// A child that sends the socket to the parent closes its own copy: each
+/// open packet socket of the wire end gets a copy of each frame.
+pub fn create_veth(tun: &Tun, wire: &str) -> Result<OwnedFd, Failure> {
+    check_name(&tun.name, "program end")?;
+    check_name(wire, "wire end")?;
+    if wire == tun.name {
+        return Err(failure::host(Class::Usage, format!("the two ends of the veth pair have the name {wire:?}")));
     }
-    match create_tun(name) {
-        Ok(fd) => Ok(fd),
-        Err(tun) => create_veth(name, WIRE_NAME)
-            .map_err(|veth| anyhow::anyhow!("{tun:#}; the veth wire: {veth:#}")),
-    }
-}
-
-/// Make the veth pair `guest` and `wire` in the namespace. Configure
-/// `guest` as the TUN (address, MTU, up, default route), bring up `wire`,
-/// and return a packet socket bound to `wire`.
-pub(crate) fn create_veth(guest: &str, wire: &str) -> Result<OwnedFd> {
-    new_link(guest, wire, TUN_MTU as u32)?;
+    let mtu =
+        u32::try_from(tun.mtu).map_err(|_| failure::host(Class::Usage, format!("the MTU {} is too large", tun.mtu)))?;
+    new_link(&tun.name, wire, mtu)?;
     let sock = control()?;
-    configure(&sock, guest)?;
+    configure(&sock, tun)?;
     // The frames of the program must have whole checksums and no segment
     // larger than the MTU: turn off the offloads of the program end. A
-    // failure is not fatal: the stack does not check the checksums of this
-    // wire, and a frame larger than the MTU is dropped.
+    // failure is not fatal: a stack on this wire does not check the
+    // checksums (`Wire::checks_checksums`), and `take_frame` drops a frame
+    // larger than the MTU.
     for cmd in [ETHTOOL_STXCSUM, ETHTOOL_STSO, ETHTOOL_SGSO] {
-        let _ = ethtool_off(&sock, guest, cmd);
+        let _ = ethtool_off(&sock, &tun.name, cmd);
     }
-    set_up(&sock, wire)?;
+    set_flags(&sock, wire, "ioctl SIOCSIFFLAGS of the wire end")?;
     packet_socket(wire)
 }
 
@@ -78,6 +76,8 @@ const IFLA_LINKINFO: u16 = 18;
 const IFLA_INFO_KIND: u16 = 1;
 const IFLA_INFO_DATA: u16 = 2;
 const VETH_INFO_PEER: u16 = 1;
+/// The length of `struct nlmsghdr`.
+const NLMSGHDR: usize = 16;
 /// The length of `struct ifinfomsg`.
 const IFINFOMSG: usize = 16;
 
@@ -108,7 +108,7 @@ fn name_bytes(name: &str) -> Vec<u8> {
 /// The `RTM_NEWLINK` request of a veth pair `guest` (with [`GUEST_MAC`])
 /// and `wire`, each with the MTU `mtu`.
 pub(crate) fn newlink_request(guest: &str, wire: &str, mtu: u32) -> Vec<u8> {
-    let mut msg = vec![0u8; 16 + IFINFOMSG];
+    let mut msg = vec![0u8; NLMSGHDR + IFINFOMSG];
     attr(&mut msg, IFLA_IFNAME, &name_bytes(guest));
     attr(&mut msg, IFLA_ADDRESS, &GUEST_MAC);
     attr(&mut msg, IFLA_MTU, &mtu.to_ne_bytes());
@@ -132,17 +132,11 @@ pub(crate) fn newlink_request(guest: &str, wire: &str, mtu: u32) -> Vec<u8> {
 }
 
 /// Make the veth pair with one `RTM_NEWLINK` request, and read its answer.
-fn new_link(guest: &str, wire: &str, mtu: u32) -> Result<()> {
+fn new_link(guest: &str, wire: &str, mtu: u32) -> Result<(), Failure> {
     // SAFETY: socket with constant arguments.
-    let fd = unsafe {
-        libc::socket(
-            libc::AF_NETLINK,
-            libc::SOCK_RAW | libc::SOCK_CLOEXEC,
-            libc::NETLINK_ROUTE,
-        )
-    };
+    let fd = unsafe { libc::socket(libc::AF_NETLINK, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::NETLINK_ROUTE) };
     if fd < 0 {
-        bail!("netlink socket: {}", std::io::Error::last_os_error());
+        return Err(failure::last_os("netlink socket"));
     }
     // SAFETY: a new descriptor that nothing else owns.
     let sock = unsafe { OwnedFd::from_raw_fd(fd) };
@@ -162,42 +156,31 @@ fn new_link(guest: &str, wire: &str, mtu: u32) -> Result<()> {
         )
     };
     if sent < 0 {
-        bail!("RTM_NEWLINK veth: {}", std::io::Error::last_os_error());
+        return Err(failure::last_os("RTM_NEWLINK veth"));
     }
     let mut answer = [0u8; 1024];
     // SAFETY: `answer` has room for the read.
-    let n = unsafe {
-        libc::recv(
-            sock.as_raw_fd(),
-            answer.as_mut_ptr() as *mut libc::c_void,
-            answer.len(),
-            0,
-        )
-    };
+    let n = unsafe { libc::recv(sock.as_raw_fd(), answer.as_mut_ptr() as *mut libc::c_void, answer.len(), 0) };
     if n < 0 {
-        bail!(
-            "RTM_NEWLINK veth answer: {}",
-            std::io::Error::last_os_error()
-        );
+        return Err(failure::last_os("RTM_NEWLINK veth answer"));
     }
     match netlink_error(&answer[..n as usize]) {
         Some(0) => Ok(()),
-        Some(code) => bail!(
-            "RTM_NEWLINK veth: {}",
-            std::io::Error::from_raw_os_error(-code)
-        ),
-        None => bail!("RTM_NEWLINK veth: no acknowledgement"),
+        Some(code) => {
+            let errno = code.saturating_abs();
+            let class = Class::of_io(std::io::Error::from_raw_os_error(errno).kind());
+            Err(failure::errno(class, "RTM_NEWLINK veth", errno))
+        }
+        None => Err(failure::host(Class::Protocol, "RTM_NEWLINK veth: no acknowledgement")),
     }
 }
 
 /// The error code of a netlink acknowledgement (0 is success).
 pub(crate) fn netlink_error(answer: &[u8]) -> Option<i32> {
-    if answer.len() < 20 || u16::from_ne_bytes([answer[4], answer[5]]) != NLMSG_ERROR {
+    if answer.len() < NLMSGHDR + 4 || u16::from_ne_bytes([answer[4], answer[5]]) != NLMSG_ERROR {
         return None;
     }
-    Some(i32::from_ne_bytes([
-        answer[16], answer[17], answer[18], answer[19],
-    ]))
+    Some(i32::from_ne_bytes([answer[16], answer[17], answer[18], answer[19]]))
 }
 
 // ── the ioctls of the interfaces ────────────────────────────────────────────
@@ -206,84 +189,16 @@ const ETHTOOL_STXCSUM: u32 = 0x17;
 const ETHTOOL_STSO: u32 = 0x1f;
 const ETHTOOL_SGSO: u32 = 0x24;
 
-/// A datagram socket for the ioctls of the interfaces.
-fn control() -> Result<OwnedFd> {
-    // SAFETY: socket with constant arguments.
-    let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, 0) };
-    if fd < 0 {
-        bail!(
-            "socket() for the interfaces: {}",
-            std::io::Error::last_os_error()
-        );
-    }
-    // SAFETY: a new descriptor that nothing else owns.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-}
-
-fn ioctl(sock: &OwnedFd, cmd: libc::c_ulong, ifr: &mut libc::ifreq, what: &str) -> Result<()> {
-    // SAFETY: a valid ifreq for the request.
-    if unsafe { libc::ioctl(sock.as_raw_fd(), cmd as _, ifr as *mut libc::ifreq) } < 0 {
-        bail!("ioctl {what}: {}", std::io::Error::last_os_error());
-    }
-    Ok(())
-}
-
-fn set_up(sock: &OwnedFd, name: &str) -> Result<()> {
-    let mut ifr = pod_hold::netns::ifreq_for(name);
-    ifr.ifr_ifru.ifru_flags = (libc::IFF_UP | libc::IFF_RUNNING) as libc::c_short;
-    ioctl(sock, libc::SIOCSIFFLAGS as _, &mut ifr, "SIOCSIFFLAGS up")
-}
-
 /// Turn off one offload of `name` (an `ETHTOOL_S*` command).
-fn ethtool_off(sock: &OwnedFd, name: &str, cmd: u32) -> Result<()> {
+fn ethtool_off(sock: &OwnedFd, name: &str, cmd: u32) -> Result<(), Failure> {
+    // `struct ethtool_value`: the command and its value.
     let mut value = [cmd, 0u32];
-    let mut ifr = pod_hold::netns::ifreq_for(name);
+    let mut ifr = super::ifreq_for(name);
     ifr.ifr_ifru.ifru_data = value.as_mut_ptr() as *mut libc::c_char;
-    ioctl(sock, libc::SIOCETHTOOL as _, &mut ifr, "SIOCETHTOOL")
-}
-
-/// Give `name` the address of the TUN, bring it up, and add the default
-/// route through the gateway.
-fn configure(sock: &OwnedFd, name: &str) -> Result<()> {
-    let tun = pod_hold::netns::Tun {
-        name: name.into(),
-        addr: TUN_ADDR,
-        gateway: TUN_GW,
-        prefix: TUN_PREFIX,
-        mtu: TUN_MTU,
-    };
-    for (cmd, addr, what) in [
-        (libc::SIOCSIFADDR, tun.addr, "SIOCSIFADDR"),
-        (libc::SIOCSIFNETMASK, tun.netmask(), "SIOCSIFNETMASK"),
-    ] {
-        let mut ifr = pod_hold::netns::ifreq_for(name);
-        // SAFETY: ifru_addr has the room of a sockaddr_in.
-        unsafe {
-            let sin = &mut ifr.ifr_ifru.ifru_addr as *mut libc::sockaddr as *mut libc::sockaddr_in;
-            (*sin).sin_family = libc::AF_INET as libc::sa_family_t;
-            (*sin).sin_addr.s_addr = u32::from_ne_bytes(addr.octets());
-        }
-        ioctl(sock, cmd as _, &mut ifr, what)?;
-    }
-    set_up(sock, name)?;
-    // SAFETY: a zeroed rtentry is valid.
-    let mut route: libc::rtentry = unsafe { std::mem::zeroed() };
-    let dst = &mut route.rt_dst as *mut libc::sockaddr as *mut libc::sockaddr_in;
-    let gw = &mut route.rt_gateway as *mut libc::sockaddr as *mut libc::sockaddr_in;
-    let mask = &mut route.rt_genmask as *mut libc::sockaddr as *mut libc::sockaddr_in;
-    // SAFETY: each field has the room of a sockaddr_in.
-    unsafe {
-        (*dst).sin_family = libc::AF_INET as libc::sa_family_t;
-        (*gw).sin_family = libc::AF_INET as libc::sa_family_t;
-        (*gw).sin_addr.s_addr = u32::from_ne_bytes(tun.gateway.octets());
-        (*mask).sin_family = libc::AF_INET as libc::sa_family_t;
-    }
-    route.rt_flags = libc::RTF_UP | libc::RTF_GATEWAY;
-    let dev = CString::new(name)?;
-    route.rt_dev = dev.as_ptr() as *mut libc::c_char;
-    // SAFETY: a valid rtentry; `dev` lives for the call.
-    if unsafe { libc::ioctl(sock.as_raw_fd(), libc::SIOCADDRT as _, &route as *const _) } < 0 {
-        bail!("ioctl SIOCADDRT: {}", std::io::Error::last_os_error());
+    // SAFETY: a valid ifreq whose data points to `value`, which lives for
+    // the call.
+    if unsafe { libc::ioctl(sock.as_raw_fd(), libc::SIOCETHTOOL as _, &mut ifr as *mut libc::ifreq) } < 0 {
+        return Err(failure::last_os("ioctl SIOCETHTOOL"));
     }
     Ok(())
 }
@@ -292,26 +207,20 @@ fn configure(sock: &OwnedFd, name: &str) -> Result<()> {
 const PACKET_IGNORE_OUTGOING: libc::c_int = 23;
 
 /// A packet socket bound to `name`, for all protocols.
-fn packet_socket(name: &str) -> Result<OwnedFd> {
+fn packet_socket(name: &str) -> Result<OwnedFd, Failure> {
     let protocol = (libc::ETH_P_ALL as u16).to_be();
     // SAFETY: socket with constant arguments.
-    let fd = unsafe {
-        libc::socket(
-            libc::AF_PACKET,
-            libc::SOCK_RAW | libc::SOCK_CLOEXEC,
-            libc::c_int::from(protocol),
-        )
-    };
+    let fd = unsafe { libc::socket(libc::AF_PACKET, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::c_int::from(protocol)) };
     if fd < 0 {
-        bail!("AF_PACKET socket: {}", std::io::Error::last_os_error());
+        return Err(failure::last_os("AF_PACKET socket"));
     }
     // SAFETY: a new descriptor that nothing else owns.
     let sock = unsafe { OwnedFd::from_raw_fd(fd) };
-    let c_name = CString::new(name)?;
+    let c_name = CString::new(name).map_err(|_| failure::host(Class::Usage, "the wire end name has a NUL byte"))?;
     // SAFETY: a valid C string.
     let index = unsafe { libc::if_nametoindex(c_name.as_ptr()) };
     if index == 0 {
-        bail!("if_nametoindex {name}: {}", std::io::Error::last_os_error());
+        return Err(failure::last_os("if_nametoindex of the wire end"));
     }
     // SAFETY: a zeroed sockaddr_ll is valid.
     let mut addr: libc::sockaddr_ll = unsafe { std::mem::zeroed() };
@@ -327,11 +236,11 @@ fn packet_socket(name: &str) -> Result<OwnedFd> {
         )
     };
     if r < 0 {
-        bail!("bind AF_PACKET {name}: {}", std::io::Error::last_os_error());
+        return Err(failure::last_os("bind AF_PACKET to the wire end"));
     }
     let on: libc::c_int = 1;
-    // SAFETY: an int option. An old kernel does not know it: the frames of
-    // the gateway MAC are dropped in `take_frame` too.
+    // SAFETY: an int option. An old kernel does not know it: `take_frame`
+    // drops the frames from the gateway MAC too.
     unsafe {
         libc::setsockopt(
             sock.as_raw_fd(),
@@ -344,30 +253,24 @@ fn packet_socket(name: &str) -> Result<OwnedFd> {
     Ok(sock)
 }
 
-/// True when `fd` is a socket (the veth wire), not the TUN.
-pub(crate) fn is_veth(fd: RawFd) -> bool {
-    // SAFETY: a zeroed stat is valid; fstat fills it.
-    let mut st: libc::stat = unsafe { std::mem::zeroed() };
-    // SAFETY: `st` lives for the call.
-    unsafe { libc::fstat(fd, &mut st) == 0 && st.st_mode & libc::S_IFMT == libc::S_IFSOCK }
-}
-
 // ── frames ──────────────────────────────────────────────────────────────────
 
-/// What the wire does with one frame of the program.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Frame {
+/// What the wire does with one frame of the program end.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Frame {
     /// An IP packet for the stack.
     Ip(Vec<u8>),
-    /// A frame to send back at once (the ARP reply of the gateway).
+    /// A frame to send back at once (the ARP reply for the gateway).
     Reply(Vec<u8>),
     /// Not for the stack.
     Drop,
 }
 
-/// Take one frame of the program end.
-pub(crate) fn take_frame(frame: &[u8], mtu: usize) -> Frame {
-    if frame.len() < ETH_HEADER || frame.len() > mtu + ETH_HEADER {
+/// Take one frame that the packet socket read from the program end, on a
+/// wire with the gateway `gateway` and the MTU `mtu`. Only a frame to the
+/// gateway MAC or to each host, of at most the MTU, goes on.
+pub fn take_frame(frame: &[u8], gateway: Ipv4Addr, mtu: usize) -> Frame {
+    if frame.len() < ETH_HEADER || frame.len() > mtu.saturating_add(ETH_HEADER) {
         return Frame::Drop;
     }
     let (dst, src) = (&frame[0..6], &frame[6..12]);
@@ -377,7 +280,7 @@ pub(crate) fn take_frame(frame: &[u8], mtu: usize) -> Frame {
     }
     let payload = &frame[ETH_HEADER..];
     match u16::from_be_bytes([frame[12], frame[13]]) {
-        ETH_P_ARP => arp_reply(src, payload).map_or(Frame::Drop, Frame::Reply),
+        ETH_P_ARP => arp_reply(src, payload, gateway).map_or(Frame::Drop, Frame::Reply),
         ETH_P_IP if payload.len() >= 20 && payload[0] >> 4 == 4 => {
             let total = usize::from(u16::from_be_bytes([payload[2], payload[3]]));
             match total >= 20 && total <= payload.len() {
@@ -398,9 +301,9 @@ pub(crate) fn take_frame(frame: &[u8], mtu: usize) -> Frame {
 }
 
 /// The ARP reply to a request of `sender` for the gateway.
-fn arp_reply(sender: &[u8], arp: &[u8]) -> Option<Vec<u8>> {
+fn arp_reply(sender: &[u8], arp: &[u8], gateway: Ipv4Addr) -> Option<Vec<u8>> {
     // Ethernet and IPv4, a request, for the gateway.
-    if arp.len() < 28 || arp[0..8] != [0, 1, 8, 0, 6, 4, 0, 1] || arp[24..28] != TUN_GW.octets() {
+    if arp.len() < 28 || arp[0..8] != [0, 1, 8, 0, 6, 4, 0, 1] || arp[24..28] != gateway.octets() {
         return None;
     }
     let mut out = Vec::with_capacity(ETH_HEADER + 28);
@@ -409,14 +312,15 @@ fn arp_reply(sender: &[u8], arp: &[u8]) -> Option<Vec<u8>> {
     out.extend_from_slice(&ETH_P_ARP.to_be_bytes());
     out.extend_from_slice(&[0, 1, 8, 0, 6, 4, 0, 2]);
     out.extend_from_slice(&GATEWAY_MAC);
-    out.extend_from_slice(&TUN_GW.octets());
+    out.extend_from_slice(&gateway.octets());
     out.extend_from_slice(&arp[8..14]); // the hardware address of the sender
     out.extend_from_slice(&arp[14..18]); // the address of the sender
     Some(out)
 }
 
-/// The frame of one IP packet of the stack to the program end.
-pub(crate) fn frame_for(packet: &[u8]) -> Option<Vec<u8>> {
+/// The frame of one IP packet of the stack to the program end. `None` for
+/// a packet that is not IPv4 or IPv6.
+pub fn frame_for(packet: &[u8]) -> Option<Vec<u8>> {
     let kind = match packet.first()? >> 4 {
         4 => ETH_P_IP,
         6 => ETH_P_IPV6,

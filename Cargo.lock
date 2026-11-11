@@ -1631,6 +1631,7 @@ dependencies = [
  "libc",
  "pod-core",
  "pod-hostprobe",
+ "pod-netstack",
  "tokio",
 ]
 

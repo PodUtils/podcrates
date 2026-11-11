@@ -63,6 +63,36 @@ fn podnets_tun_is_the_default() {
     assert_eq!(ifr.ifr_name[2], 0);
 }
 
+// The parent reads the wire from the descriptor: a socket is the packet
+// socket of the veth wire; another file is the TUN.
+#[test]
+fn the_wire_of_a_socket_is_the_veth_pair() {
+    let (a, _b) = socketpair().unwrap();
+    assert_eq!(Wire::of(a.as_raw_fd()).unwrap(), Wire::Veth);
+    let (r, _w) = std::io::pipe().unwrap();
+    assert_eq!(Wire::of(r.as_raw_fd()).unwrap(), Wire::Tun);
+    assert!(Wire::of(-1).is_err());
+    assert!(Wire::Tun.checks_checksums() && !Wire::Veth.checks_checksums());
+    assert_eq!((Wire::Tun.word(), Wire::Veth.word()), ("tun", "veth"));
+    assert_eq!(Wire::Tun.read_buffer(1500), 1500);
+    assert!(Wire::Veth.read_buffer(1500) >= 65536 + ETH_HEADER);
+    assert_eq!(WireChoice::default(), WireChoice::Auto);
+}
+
+// With no TUN and no veth wire, the failure names both. The empty name
+// fails each before a system call, so the test makes no interface also as
+// root in the namespace of the host.
+#[test]
+fn a_wire_that_fails_twice_names_both_failures() {
+    let bad = Tun { name: String::new(), ..Tun::default() };
+    let e = open_wire(&bad, WireChoice::Auto).unwrap_err();
+    assert_eq!(e.class, Class::Usage);
+    let chain = e.chain();
+    assert!(chain.contains("no TUN (the TUN name") && chain.contains("no veth wire: the program end name"), "{chain}");
+    assert!(open_wire(&bad, WireChoice::Tun).unwrap_err().text().contains("TUN"));
+    assert!(open_wire(&bad, WireChoice::Veth).unwrap_err().text().contains("program end"));
+}
+
 #[test]
 fn the_handshake_maps_a_user_namespace() {
     let (child, parent) = socketpair().unwrap();

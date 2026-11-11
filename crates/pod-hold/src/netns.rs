@@ -1,12 +1,13 @@
 //! The netns hold: a child enters a new network namespace (in a new user
-//! namespace when it has no privilege), brings up `lo`, makes a TUN as its
-//! only route, and gives the TUN to the parent with `SCM_RIGHTS`. The
+//! namespace when it has no privilege), brings up `lo`, makes its wire as
+//! its only route (a TUN, else a veth pair: [`Wire`], [`open_wire`]), and
+//! gives the descriptor of the wire to the parent with `SCM_RIGHTS`. The
 //! parent writes the id maps of a user namespace. The stack that answers
-//! on the TUN is the caller's.
+//! on the wire is the caller's.
 //!
 //! The handshake on the socket pair: the child writes `u` (a user
 //! namespace) or `n`; after `u` the parent writes the maps and then `a`;
-//! the child then sends the TUN.
+//! the child then sends the descriptor of the wire.
 
 use std::os::fd::{FromRawFd, OwnedFd, RawFd};
 
@@ -17,9 +18,13 @@ use crate::failure;
 
 mod fdpass;
 mod tun;
+mod veth;
+mod wire;
 
 pub use fdpass::{recv_fd, send_fd, send_fd_raw};
 pub use tun::{IFF_NO_PI, IFF_TUN, Tun, bringup_loopback, create_tun, ifreq_for};
+pub use veth::{ETH_HEADER, Frame, GATEWAY_MAC, GUEST_MAC, WIRE_NAME, create_veth, frame_for, take_frame};
+pub use wire::{Wire, WireChoice, open_wire};
 
 /// `CLONE_NEWNET`.
 pub const CLONE_NEWNET: u64 = 0x4000_0000;

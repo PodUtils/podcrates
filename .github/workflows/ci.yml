@@ -100,6 +100,10 @@ jobs:
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
         run: sh scripts/ci/root-confine-tests.sh
+      # The netns tests of pod-hold skip for a user here (no user
+      # namespace): they run as root. A line SKIP: fails the step.
+      - name: Netns tests as root
+        run: sh scripts/root-netns-tests.sh
       # Each fuzz target on its seeds and on their mutations, with no
       # libFuzzer (fuzz/src/tests.rs).
       - name: The stable test of the fuzz targets
