@@ -107,7 +107,14 @@ pub fn wait(s: &Settings, id: &str, timeout_ms: u64) -> std::result::Result<Opti
     writeln!(w, "{CTL_WAIT}").map_err(|e| WaitError::Gone(launcher_io(e)))?;
     let mut line = String::new();
     match BufReader::new(&stream).read_line(&mut line) {
-        Ok(0) => Ok(None),
+        // An end of the stream with no answer: the launcher ended (a kill of
+        // the launcher closes its socket). It is `Gone`, not the bound: read
+        // as the bound, a payload that killed its launcher stayed `Running`
+        // after `wait`, and `stop` reported a SIGKILL that it never sent.
+        Ok(0) => Err(WaitError::Gone(launcher_io(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "the launcher closed the connection with no answer",
+        )))),
         Ok(_) => match line.trim().strip_prefix("exit ") {
             Some(n) => n.parse::<i32>().map(Some).map_err(|_| {
                 WaitError::Failed(failure(Class::Protocol, format!("the launcher answered {:?}", line.trim())))

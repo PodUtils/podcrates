@@ -287,6 +287,11 @@ enum Ended {
 /// shorter.
 pub const KILL_WAIT_MS: u64 = 5_000;
 
+/// After a launcher is gone, the reads of its record until the lock is
+/// free: at most `GONE_READS` reads, `GONE_READ_MS` apart (1 s).
+const GONE_READS: u32 = 50;
+const GONE_READ_MS: u64 = 20;
+
 fn wait_or_gone(s: &Settings, id: &str, timeout_ms: u64) -> Result<Ended> {
     ended(launcher::wait(s, id, timeout_ms))
 }
@@ -317,7 +322,17 @@ where
             // last act writes the exit code into the table, so the answer is
             // there: read it again.
             Ended::LauncherGone => {
-                let c = get::<X>(s, want)?;
+                // The kernel closes the socket and the lock of an ended
+                // launcher one after the other: a read between the two
+                // still sees `Running`, so read again for a short time.
+                let mut c = get::<X>(s, want)?;
+                for _ in 0..GONE_READS {
+                    if c.state != State::Running {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(GONE_READ_MS));
+                    c = get::<X>(s, want)?;
+                }
                 let code = c.exit_code;
                 Ok((c, code))
             }
