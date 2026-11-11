@@ -3127,6 +3127,9 @@ waits (`services.yml`, dispatched on 2026-11-11 and 2026-11-12).
 - `cargo test -p pod-services --all-features` (the rules of
   `tests/public_carriers.rs` hold for the 8 nodes) and
   `cargo test -p pod-services-watch --test watches proxy_banner` pass.
+- Day 1 (2026-11-11): `services.yml` 42999819735 to 42999852055, one
+  run for each node: each of the 8 holds (for example
+  `trojan 70.34.207.14:443 to github.com:22 gave "SSH-2.0-a07fe5ff"`).
 - Next: keep each node that passes `proxy-banner` on both days; remove the
   others; tell podssh (PodUtils/podssh@T-574) the ids that stay; then set
   the entry done.
