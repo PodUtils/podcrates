@@ -123,10 +123,10 @@ default). `src/codes.rs` has the same list; a test compares them.
 | `hold-not-available` | terminal | No kind gives the hold of the tier. |
 | `egress-policy-unsupported` | terminal | The runner cannot apply the policy of the offer under the tier ceiling. |
 | `arch-mismatch` | terminal | No kind of the host runs the architecture of the job. |
-| `payload-not-pinned` | terminal | The payload is not a digest of the pin list. |
-| `repo-scope-refused` | terminal | A repository of a personal account (podrunner's call C3). |
-| `container-not-supported` | terminal | The job needs a container, and no kind has the container route. |
-| `container-option-refused` | terminal | A container option that the kind refuses. |
+| `payload-not-pinned` | terminal | The payload, or the container image of a hook call, is not `NAME@sha256:HEX` of the pin list. |
+| `repo-scope-refused` | terminal | A repository of a personal account (podrunner's call C3), or a repository other than the one of the host's configuration (podrunner's DR-4 mitigation). |
+| `container-not-supported` | terminal | The job needs a container, and no kind has the container route; a hook call before `prepare_job`; services on a unit of the host network. |
+| `container-option-refused` | terminal | A container option that the kind refuses, or that a rule of the hook checks refuses. |
 | `build-not-supported` | terminal | A `docker build` or a Dockerfile action (podrunner's call C2). |
 | `source-revoked` | terminal | The source revoked the credential of the runner. |
 | `credential-unavailable` | wait | The source cannot mint now. |

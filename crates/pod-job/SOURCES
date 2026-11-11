@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podrunner 9ab7fd324109f0707b8e6de8284694b94fe60077
+taken 0457ed0fba46edc7bacd9ab214a6d1d1b3da37d3
 # T-163: the four records of PodUtils/podrunner#17, their schemas and their
 # examples; the table of the refusal codes is a section of the README.
 # src/json_schema.rs and src/schemas/rules.rs are new here.
@@ -22,7 +23,7 @@ file 5ece6a1499cb3d7b9cb4e77849d9fea653d08166 crates/podrunner-schema/src/lib.rs
 file ad47a87c889f072887ccbf51d3029365e431845f crates/podrunner-schema/src/offer.rs -> crates/pod-job/src/offer.rs
 file 7b2d24d5c4b544e33026931fabe3f658fcc78279 crates/podrunner-schema/src/report.rs -> crates/pod-job/src/report.rs
 file def70ae943a15455ee604d8942b866650c673b3a crates/podrunner-schema/src/schemas.rs -> crates/pod-job/src/schemas.rs
-file ce893eb3433e0c8b1207c4b21629df1a0ceeb36d docs/contracts/codes.md -> crates/pod-job/README.md
+file 8d6ce29b438850ca6fee4e3c990c9441f3d238f4 docs/contracts/codes.md -> crates/pod-job/README.md
 file eb6c837c3f0d48017be9ad1672a88ef4a61a0adb schemas/examples/expect.json -> crates/pod-job/tests/examples/expect.json
 file a70d3a269639e53fb9a255e234d26cb68c812a34 schemas/examples/job-offer/invalid-job-id-path.json -> crates/pod-job/tests/examples/job-offer/invalid-job-id-path.json
 file 2cd1e5d93bb9b39f4dd6a3fb4924be872260517e schemas/examples/job-offer/invalid-payload-tag.json -> crates/pod-job/tests/examples/job-offer/invalid-payload-tag.json

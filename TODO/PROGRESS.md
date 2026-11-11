@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 180 entries: 57 open, 3 partial, 0 blocked, 120 done.
+`TODO/INDEX.md` holds 181 entries: 54 open, 3 partial, 0 blocked, 124 done.
 
 ## State
 
@@ -12,11 +12,12 @@
   mutual TLS of `pod-tls`, the limits of `pod-enter`, the hosts of GitHub
   Actions in `pod-services`. The hand-off is GitHub #58 (COORD-033); the
   one of `v0.16.0` is #57.
-- The consumers: podssh is on `v0.15.0` (it took `pod-wormhole` at
-  `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
+- The consumers: podssh is on `v0.16.0` (`fab57923`; it took
+  `pod-wormhole` at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
   took `pod-hold` at `b759937`); podvm is on `v0.17.0` (`522b437`: the
-  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.16.0` for `pod-core`
-  and `pod-todo` (`07cd854`).
+  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.17.0`
+  (`0457ed0`: it took `pod-job`; `pod-job`'s `SOURCES` has the `taken`
+  line, 0 changes).
 - Partial: T-169 and T-170 (the trial
   `adoption/podnet/pod-hold-connect.patch` passes; podnet's take remains;
   T-170 step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
@@ -58,12 +59,11 @@ next entry.
    `adoption/podnet/pod-hold-connect.patch` to podnet, a COORD issue
    `(to podnet)`; T-170 step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
-4. **M6, the crates of podvm:** T-173 (the fuzz targets of
-   PodUtils/podvm#241); T-149; T-142. T-040 (the trials of
+4. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.
-5. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
 6. **M2, the relay:** T-021, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).

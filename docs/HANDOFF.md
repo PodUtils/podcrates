@@ -11,18 +11,22 @@ page current; remove a line when its work is done.
 - The release `v0.17.0` is at `4da8fb3` (`docs/releases/v0.17.0.md`; the
   hand-off GitHub #58). `v0.16.0` is at `60a675c` (#57).
 - The consumers and the tag each takes:
-  - podssh: `v0.15.0` (`pod-wormhole` at `baa00a06`, `pod-session` at
-    `6f78a7c7`). It may move to `v0.16.0` (four nodes of `pod-services`
-    are gone).
+  - podssh: `v0.16.0` (`fab57923`; `pod-wormhole` at `baa00a06`,
+    `pod-session` at `6f78a7c7`). Next: the tag with T-171, T-172 and
+    T-181 (the host key of `ssh-j`, which podssh then pins).
   - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the take of
     `adoption/podnet/pod-hold-connect.patch` (T-169, T-170 step 1; podnet
     `d3fad49`, tag `v0.17.0`; the trial passes). Its hand-off to podnet is
     a COORD issue `(to podnet)`.
   - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
     PodUtils/podvm#245 closed).
-  - podrunner: `v0.16.0` for `pod-core` and `pod-todo` (`07cd854`). Next:
-    `pod-supervise` of `v0.16.0`; `pod-job` and `pod_tls::mutual` of
-    `v0.17.0` (T-163, T-165).
+  - podrunner: `v0.17.0` (`0457ed0`: it took `pod-job`; the `taken` line
+    is in `crates/pod-job/SOURCES`). It uses `pod_tls::mutual` for its
+    remote mint (its T-031) and the pin `github-actions-runner` of
+    `pod-services` for its runner image (its T-030). Next: `v0.18.0`
+    (T-161, T-177, T-178). An open defect of podvm that podrunner found:
+    PodUtils/podrunner#49 (`podvm wait` gives no exit code for a payload
+    that ends at once; to podvm, on break).
 - podrunner and podssh have lead sessions that this session started
   (direct messages); podnet and podvm run in their own sessions (COORD
   issues).
