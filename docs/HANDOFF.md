@@ -8,22 +8,24 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.15.0` is at `27a4ccd` (`docs/releases/v0.15.0.md`). Its
-  hand-off to the consumers is GitHub #54 (COORD-029); its runs are in
-  `TODO/PROGRESS.md`, State.
+- The release `v0.15.0` is at `27a4ccd` (`docs/releases/v0.15.0.md`; the
+  hand-off GitHub #54). `v0.16.0` is in preparation on `main`
+  (`docs/releases/v0.16.0.md`: T-162, T-160, T-169, T-170 step 1, T-157):
+  release it after a green `ci` (`docs/maintenance.md`, "A release"), then
+  tell podrunner, podvm and podnet.
 - The consumers and the tag each takes:
-  - podssh: `v0.14.0` (it took `pod-ws` and `pod-quic`). Next: `pod-wormhole`
-    and `pod-session` of `v0.15.0` (`adoption/podssh/`, made on podssh
-    `9975fe92`; `pod-session.needs` names `pod-wormhole`).
-  - podnet: `v0.14.0` (it took `pod-ws` and `pod-quic`; no quinn is left).
-    Next: `pod-hold` of `v0.15.0` (`adoption/podnet/pod-hold.*`, made on
-    podnet `9e8d177`).
-  - podvm: `v0.12.0` (it took its seven crates). Next: the `pod-enter` change
-    of T-155 in `v0.15.0` (`Maps::new` takes `&Names`; `Names::reserved`);
-    the README of `pod-enter`, "Adoption map", lists podvm's change. No
-    patch: a move of calls.
-- Each session of PodUtils paused on 2026-11-10 by the owner's word (GitHub
-  #53). Each consumer wrote its own `docs/HANDOFF.md`.
+  - podssh: `v0.14.0`. Next: `pod-wormhole` and `pod-session` of `v0.15.0`
+    (`adoption/podssh/`, made on podssh `9975fe92`; podssh's `main` moved,
+    so it applies them with `--3way` and reports each conflict).
+  - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
+    of T-169 and T-170 (not made yet).
+  - podvm: `v0.15.0` (`d9fe511`). Next: the tree kill of T-162 in
+    `v0.16.0` (PodUtils/podvm@T-1655).
+  - podrunner: no tag yet (frame at podrunner `9d2e4dd`; `pod-todo` by
+    `v0.15.0`). Next: `pod-supervise` and `pod-broker` of `v0.16.0`.
+- The owner's word of 2026-11-11 (rows "Sessions online" and after):
+  podrunner and podssh have lead sessions that this session started;
+  podnet and podvm run in their own sessions.
 
 ## In flight
 

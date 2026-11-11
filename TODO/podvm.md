@@ -2226,7 +2226,7 @@ commit of this record.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** done
+**Status:** partial
 
 ## Problem
 
@@ -2292,8 +2292,12 @@ lists `connect.rs` in the block at `5599012` (0 changes).
   tests (`pod_seccomp_nonblock`, `_slow_dial`), which stay in podnet.
 - Shown once: with each `SO_ERROR` given the error,
   `so_error_waits_and_the_first_takes_the_error` fails.
-- Next: podnet (and podvm's PodUtils/podvm@T-1665, podrunner) take it with
-  the next tag; podnet's `connect.rs` takes fixes only from now.
+- Partial: the adoption trial remains (`docs/design.md`, section 8, step
+  7): a patch `pod-hold-connect.patch` under `adoption/podnet/` makes podnet's `connect.rs`
+  glue over `pod_hold::connect` and its `packet.rs` take the three
+  functions of `pod_hold::packet` (T-170), and `adoption.yml` runs it. The
+  crate code is on `main` and goes out with `v0.16.0`; podnet's
+  `connect.rs` takes fixes only from now.
 
 # T-170: `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**174 entries: 59 open, 4 partial, 0 blocked, 111 done.**
+**174 entries: 59 open, 5 partial, 0 blocked, 110 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 36 | 55 |
-| P2 | 27 | 2 | 0 | 56 | 85 |
+| P2 | 27 | 3 | 0 | 55 | 85 |
 | P3 | 15 | 0 | 0 | 17 | 32 |
-| **All** | 59 | 4 | 0 | 111 | 174 |
+| **All** | 59 | 5 | 0 | 110 | 174 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -215,7 +215,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-166](podvm.md) | P2 | L | M1 | feature | done | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |
 | [T-167](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap` |
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |
-| [T-169](podvm.md) | P2 | M | M1 | feature | done | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
+| [T-169](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
 | [T-170](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
 | [T-171](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
 | [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 174 entries: 59 open, 4 partial, 0 blocked, 111 done.
+`TODO/INDEX.md` holds 174 entries: 59 open, 5 partial, 0 blocked, 110 done.
 
 ## State
 
@@ -52,8 +52,8 @@ next entry.
    (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
    needs it); T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-170 (partial:
-   step 2 after podnet's COORD issue), from podnet's answer
+3. **podnet:** T-169 and T-170 (partial: the adoption patch for podnet;
+   T-170 step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-173 (the fuzz targets of
    PodUtils/podvm#241); T-149; T-142. T-040 (the trials of
