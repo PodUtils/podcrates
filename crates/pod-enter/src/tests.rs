@@ -243,7 +243,16 @@ fn a_descriptor_passed_onto_its_own_number_reaches_the_payload() {
     let mut pipe = [0i32; 2];
     sys::pipe2(&mut pipe, sys::O_CLOEXEC).unwrap();
     let (r, w) = (i64::from(pipe[0]), i64::from(pipe[1]));
-    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("echo passed >&{w}")];
+    // A number of two digits on purpose: `>&N` of dash takes one digit
+    // only, and under the load of the workspace's tests the pipe gets such
+    // a number. The path takes each number.
+    let w = {
+        let moved = sys::fcntl(w, sys::F_DUPFD_CLOEXEC, 40).unwrap();
+        let _ = sys::close(w);
+        moved
+    };
+    assert!(w >= 10, "the write end is not on a number of two digits: {w}");
+    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("echo passed >/proc/self/fd/{w}")];
     let plan = Plan {
         argv: argv.clone(),
         env: vec!["PATH=/bin:/usr/bin".to_string()],
