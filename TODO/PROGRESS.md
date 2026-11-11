@@ -55,9 +55,9 @@ next entry.
    the one version rule of `schemas/` and the `policy` of an offer go out
    with the next tag (`docs/HANDOFF.md`). T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-169 and T-170 (partial: the hand-off of
-   `adoption/podnet/pod-hold-connect.patch` to podnet, a COORD issue
-   `(to podnet)`; T-170 step 2 after podnet's COORD issue), from podnet's answer
+3. **podnet:** T-169 and T-170 (partial: podnet's take of
+   `adoption/podnet/pod-hold-connect.patch`, GitHub #59 (COORD-034); T-170
+   step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-149; T-142. T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
