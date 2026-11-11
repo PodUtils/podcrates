@@ -21,8 +21,9 @@ page current; remove a line when its work is done.
     `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.
   - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
     PodUtils/podvm#245 closed).
-  - podrunner: `v0.17.0` (`0457ed0`: it took `pod-job`; the `taken` line
-    is in `crates/pod-job/SOURCES`). It uses `pod_tls::mutual` for its
+  - podrunner: `v0.18.0` (`293b5a6`; `pod-job` at `0457ed0`, its `taken`
+    line is in `crates/pod-job/SOURCES`; its T-048 takes `check_upstream`
+    and `names_upstream`). It uses `pod_tls::mutual` for its
     remote mint (its T-031) and the pin `github-actions-runner` of
     `pod-services` for its runner image (its T-030). Next: `v0.18.0`
     (T-161, T-177, T-178). An open defect of podvm that podrunner found:

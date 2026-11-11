@@ -19,9 +19,9 @@
   (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
   `packet` at `e4d4049`, PodUtils/podnet#426; it released
   `v0.4.0-beta.3`); podvm is on `v0.17.0` (`522b437`: the
-  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.17.0`
-  (`0457ed0`: it took `pod-job`; `pod-job`'s `SOURCES` has the `taken`
-  line, 0 changes).
+  limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.18.0`
+  (`293b5a6`: each broker policy names `schema`; it took `pod-job` at
+  `0457ed0`; its T-048 takes the names mode of `pod-broker`).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
