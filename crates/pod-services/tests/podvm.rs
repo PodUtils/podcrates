@@ -30,7 +30,15 @@ fn each_registry_answers_at_v2_over_https() {
     let ids: Vec<&str> = pod_services::of_kind("oci-registry").map(|s| s.id()).collect();
     assert_eq!(
         ids,
-        ["docker-hub-registry", "ecr-public-registry", "ghcr-registry", "opensuse-registry", "quay-registry"]
+        [
+            "docker-hub-registry",
+            "ecr-public-registry",
+            "gcr-registry",
+            "ghcr-registry",
+            "mirror-gcr-registry",
+            "opensuse-registry",
+            "quay-registry"
+        ]
     );
     for id in ids {
         let registry = service(id).endpoint("registry").unwrap_or_else(|| panic!("{id}: no endpoint registry"));
@@ -112,4 +120,33 @@ fn the_vhdx_extent_lies_inside_the_iso() {
     assert!(start + fact("vhdx-bytes") <= fact("iso-bytes"));
     let dos = service("freedos-image");
     assert_eq!(dos.int("image-bytes"), Some(32 << 20), "FD_IMG_BYTES");
+}
+
+/// podvm's inventory gaps (PodUtils/podvm#263, podvm `1cb2fb1`): the
+/// registry of `distroless-static`, the mirror of the measure workload, and
+/// the sums of `MODULES` in `crates/podvm/src/machine/guest/kernel.rs`.
+#[test]
+fn the_gaps_of_podvm_s_inventory_come_from_the_files() {
+    let gcr = service("gcr-registry");
+    assert_eq!(gcr.endpoint("registry").unwrap().host(), "gcr.io");
+    assert!(gcr.texts("images").unwrap()[0].starts_with("distroless/static-debian12:latest@sha256:"));
+    let mirror = service("mirror-gcr-registry");
+    assert_eq!(mirror.text("mirror-of"), Some("docker-hub-registry"));
+    assert!(pod_services::get(mirror.text("mirror-of").unwrap()).is_some());
+    let pin = format!("{}/{}", mirror.endpoint("registry").unwrap().host(), mirror.texts("images").unwrap()[0]);
+    assert_eq!(
+        pin, "mirror.gcr.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "ALPINE_MIRROR_REF"
+    );
+    let ecr = service("ecr-public-registry").text("guest-userland").unwrap();
+    assert_eq!(pin.split_once('@').unwrap().1, ecr.split_once('@').unwrap().1, "the mirror holds the pin of ecr");
+    let netboot = service("alpine-netboot");
+    assert_eq!(netboot.text("kernel-release"), Some("6.12.110-0-virt"));
+    for (module, sum) in [
+        ("failover", "6abca214c939b70af47d83380251e0ea16a1d8e47490ddb0521e64abcad3e1a1"),
+        ("net-failover", "0ede1d375546f9b177cc1d4250bc71d74e9a8444a83f5da7d1f92b7479b6c036"),
+        ("virtio-net", "fd93a908f5cc37eeb446c7255d614af90ab13dcadd21ddd7bada67a77cb1d177"),
+    ] {
+        assert_eq!(netboot.text(&format!("module-{module}-sha256")), Some(sum), "MODULES {module}");
+    }
 }

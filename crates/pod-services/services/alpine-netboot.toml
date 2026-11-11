@@ -50,6 +50,29 @@ value = 301555932
 unit = "bytes"
 source = { measured = "the length of alpine-netboot-3.22.6-x86_64.tar.gz (PodUtils/podvm#200)", read = 2026-11-06 }
 
+# The release of the kernel: the directory of its modules.
+[[fact]]
+name = "kernel-release"
+value = "6.12.110-0-virt"
+source = { measured = "the directory lib/modules/6.12.110-0-virt/ of boot/initramfs-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-11 }
+
+# The NIC modules that podvm's machine tier loads out of boot/initramfs-virt
+# (a gzip newc cpio): plain .ko files under lib/modules/KERNEL-RELEASE/.
+[[fact]]
+name = "module-failover-sha256"
+value = "6abca214c939b70af47d83380251e0ea16a1d8e47490ddb0521e64abcad3e1a1"
+source = { measured = "sha256sum of kernel/net/core/failover.ko (22,767 bytes) in boot/initramfs-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-11, note = "PodUtils/podvm crates/podvm/src/machine/guest/kernel.rs MODULES, at 1cb2fb1 (PodUtils/podvm#263)" }
+
+[[fact]]
+name = "module-net-failover-sha256"
+value = "0ede1d375546f9b177cc1d4250bc71d74e9a8444a83f5da7d1f92b7479b6c036"
+source = { measured = "sha256sum of kernel/drivers/net/net_failover.ko (43,767 bytes) in boot/initramfs-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-11, note = "PodUtils/podvm crates/podvm/src/machine/guest/kernel.rs MODULES, at 1cb2fb1 (PodUtils/podvm#263)" }
+
+[[fact]]
+name = "module-virtio-net-sha256"
+value = "fd93a908f5cc37eeb446c7255d614af90ab13dcadd21ddd7bada67a77cb1d177"
+source = { measured = "sha256sum of kernel/drivers/net/virtio_net.ko (246,887 bytes) in boot/initramfs-virt of alpine-netboot-3.22.6-x86_64.tar.gz", read = 2026-11-11, note = "PodUtils/podvm crates/podvm/src/machine/guest/kernel.rs MODULES, at 1cb2fb1 (PodUtils/podvm#263)" }
+
 # The archive that podvm fetches; its members have the sums of the facts.
 [[watch]]
 kind = "http-sha256"

@@ -1,0 +1,45 @@
+# mirror.gcr.io: Google's pull-through mirror of Docker Hub. A name of
+# Docker Hub (library/alpine) pulls from it with the same digest. podvm
+# pulls from it where public.ecr.aws answers 429. It is its own service, as
+# Google runs it and its challenge and quota are not those of Docker Hub.
+id = "mirror-gcr-registry"
+kind = "oci-registry"
+party = "Google"
+about = "mirror.gcr.io, Google's mirror of Docker Hub"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "mirror.gcr.io"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm crates/podvm-measure/src/workload.rs ALPINE_MIRROR_REF, at 1cb2fb1 (PodUtils/podvm#263, podvm T-1687)", read = 2026-11-11, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-11" }
+
+# The service whose names the mirror holds.
+[[fact]]
+name = "mirror-of"
+value = "docker-hub-registry"
+source = { ruling = "PodUtils/podvm crates/podvm-measure/src/workload.rs, the comment of ALPINE_MIRROR_REF, at 1cb2fb1", read = 2026-11-11 }
+
+# The challenge names no service.
+[[fact]]
+name = "token-realm"
+value = "https://mirror.gcr.io/v2/token"
+source = { measured = "the realm of the Bearer challenge of GET https://mirror.gcr.io/v2/", read = 2026-11-11 }
+
+# The pin of podvm's measure workload: the digest of guest-userland of
+# ecr-public-registry, from the mirror.
+[[fact]]
+name = "images"
+value = ["library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764"]
+source = { measured = "a HEAD of /v2/library/alpine/manifests/DIGEST with an anonymous token answered 200 with the same digest (an OCI image manifest)", read = 2026-11-11, note = "PodUtils/podvm crates/podvm-measure/src/workload.rs ALPINE_MIRROR_REF, at 1cb2fb1" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]

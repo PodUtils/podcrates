@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**210 entries: 59 open, 3 partial, 0 blocked, 148 done.**
+**211 entries: 59 open, 3 partial, 0 blocked, 149 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 0 | 0 | 44 | 58 |
-| P2 | 28 | 2 | 0 | 70 | 100 |
+| P2 | 28 | 2 | 0 | 71 | 101 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 59 | 3 | 0 | 148 | 210 |
+| **All** | 59 | 3 | 0 | 149 | 211 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -257,3 +257,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
 | [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |
 | [T-210](upkeep.md) | P2 | S | M5 | chore | done | A plant whose file changed goes stale, and only `plants.yml` finds it |
+| [T-211](transport.md) | P2 | S | M1 | feature | done | `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263) |

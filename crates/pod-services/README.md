@@ -237,10 +237,12 @@ let relay = services.of_kind("relay").next();
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |
+| `gcr-registry` | `oci-registry` | `registry` (`gcr.io`) | `token-realm`, `images` (`distroless/static-debian12`) |
+| `mirror-gcr-registry` | `oci-registry` | `registry` (`mirror.gcr.io`) | `mirror-of` (`docker-hub-registry`), `token-realm`, `images` (the pin of `guest-userland`) |
 | `quay-registry` | `oci-registry` | `registry` | `token-realm`, `images` |
 | `opensuse-registry` | `oci-registry` | `registry` | `images` (no token: `/v2/` answers 200) |
 | `pypi-files` | `package-files` | `files` | `probe-path` |
-| `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256` |
+| `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256`, `archive-sha256`, `archive-bytes`, `kernel-release`, `module-failover-sha256`, `module-net-failover-sha256`, `module-virtio-net-sha256` (the NIC modules in `boot/initramfs-virt`) |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
 | `hackerschoice-gsr` | `gsr-relay` | `default` (scheme `tcp`; the shard letter goes in front of the host) | `shard-count`, `addr-key`, `srp-key`, `srp-password-hex-chars`, `srp-user`, `srp-group`, `cipher`, `secret-prefix`, `secret-suffix`, `secret-max-bytes`, `protocol-major`, `protocol-minor`, `ping-interval-ms`, `idle-timeout-ms` (the facts of gsocket, read by `pod-gsr`) |

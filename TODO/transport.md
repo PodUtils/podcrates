@@ -3578,3 +3578,68 @@ test `the_tcp_relay_of_zerotier_is_its_fallback_address` reads the
 endpoint and the fact. `cargo test -p pod-services --all-features` passes.
 podssh needs no watch of a TCP connect (its amended PodUtils/podssh#190).
 
+
+# T-211: `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263)
+
+**Source:** PodUtils/podvm#263 (COORD-044 of podvm, for PodUtils/podvm@T-1679)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm reads its hosts and pins from `pod-services` and keeps no copy. A
+test of podvm compares the hosts of its sources with the hosts of the
+crate. Three gaps stay in a list of podvm that the test reports: the
+registry `gcr.io` (the image of the profile `distroless-static`), the
+mirror `mirror.gcr.io` (the measure workload pulls there where
+public.ecr.aws answers 429), and the SHA-256 of the NIC modules that the
+machine tier loads out of `boot/initramfs-virt` (`failover`,
+`net_failover`, `virtio_net`).
+
+## Premise
+
+- Read: PodUtils/podvm#263; podvm at `1cb2fb1`:
+  `PodUtils/podvm:crates/podvm/src/machine/guest/kernel.rs` (`MODULES`),
+  `PodUtils/podvm:crates/podvm/src/profile/builtin.rs` (`gcr.io/distroless/static-debian12`,
+  no digest), `PodUtils/podvm:crates/podvm-measure/src/workload.rs` (`ALPINE_MIRROR_REF`).
+- Measured on 2026-11-11: the archive `alpine-netboot-3.22.6-x86_64.tar.gz`
+  has the SHA-256 of the fact `archive-sha256`, and its `boot/vmlinuz-virt`
+  the one of `vmlinuz-virt-sha256`. Its `boot/initramfs-virt` (a gzip newc
+  cpio) holds `lib/modules/6.12.110-0-virt/kernel/net/core/failover.ko`,
+  `kernel/drivers/net/net_failover.ko` and
+  `kernel/drivers/net/virtio_net.ko`, plain `.ko` files whose SHA-256 are
+  podvm's values. `GET https://gcr.io/v2/` and `https://mirror.gcr.io/v2/`
+  answer 401 with a Bearer challenge (mirror.gcr.io names no service).
+  The tag `latest` of `distroless/static-debian12` is the index
+  `sha256:d75cdd72…`. mirror.gcr.io serves `library/alpine` at the digest
+  of `guest-userland` of `ecr-public-registry`.
+
+## Approach
+
+A service `gcr-registry` (kind `oci-registry`, endpoint `registry`
+`gcr.io`, facts `token-realm` and `images`). A service
+`mirror-gcr-registry` (`mirror.gcr.io`, facts `mirror-of`, `token-realm`,
+`images`), not an endpoint of `docker-hub-registry`: Google runs it, and
+its challenge and its quota are not those of Docker Hub (call C59). The
+facts `kernel-release`, `module-failover-sha256`,
+`module-net-failover-sha256` and `module-virtio-net-sha256` of
+`alpine-netboot`. A test of each value of podvm.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service gcr-registry --service mirror-gcr-registry
+```
+
+## Done
+
+2026-11-11. The two services and the four facts; the README rows.
+`the_gaps_of_podvm_s_inventory_come_from_the_files` checks each value of
+podvm, and `each_registry_answers_at_v2_over_https` lists seven
+registries. `cargo test -p pod-services --all-features`: each suite
+passes. The live watches: 4 hold (the two `oci-ping`, the two
+`oci-digest`).

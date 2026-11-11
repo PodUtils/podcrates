@@ -1,0 +1,38 @@
+# The Google Container Registry: the registry of the distroless images.
+# podvm's profile `distroless-static` names gcr.io/distroless/static-debian12
+# with no digest; the pin of the fact is the digest of that tag on the day
+# of the read.
+id = "gcr-registry"
+kind = "oci-registry"
+party = "Google"
+about = "The Google Container Registry (gcr.io)"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "gcr.io"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm crates/podvm/src/profile/builtin.rs, the image of the profile distroless-static, at 1cb2fb1 (PodUtils/podvm#263)", read = 2026-11-11, note = "GET /v2/ answered 401 with a Bearer challenge on 2026-11-11" }
+
+[[fact]]
+name = "token-realm"
+value = "https://gcr.io/v2/token"
+source = { measured = "the realm of the Bearer challenge of GET https://gcr.io/v2/ (service gcr.io)", read = 2026-11-11 }
+
+# REPOSITORY:TAG@DIGEST. The tag moves with each rebuild of distroless; the
+# digest stays pullable.
+[[fact]]
+name = "images"
+value = ["distroless/static-debian12:latest@sha256:d75cdd72874d4790092fcb1b058493ecf6bb5bf2b2b897045b00ff01d91843f2"]
+source = { measured = "a HEAD of /v2/distroless/static-debian12/manifests/latest with an anonymous token answered 200 with this digest (an OCI image index)", read = 2026-11-11, note = "PodUtils/podvm crates/podvm/src/profile/builtin.rs, at 1cb2fb1" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+fact = "token-realm"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]
