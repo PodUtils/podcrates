@@ -43,6 +43,13 @@ page current; remove a line when its work is done.
 
 ## In flight
 
+- `pod-e2e` (T-021, done; call C55): the release `v0.22.0` and podssh's
+  take remain. `adoption/podssh/pod-e2e.patch` (podssh `74760e8`) is the
+  hand-off; its checks passed here (the patch applies, `cargo check`,
+  clippy, rustfmt, podssh's record), and `adoption.yml` runs its tests.
+  podssh's `tests/e2e_layered.rs` comes with `pod-relay` (T-025). A
+  trial of a crate with a digit in its name needs `040f3ea` (the pattern of
+  `scripts/adoption.sh`).
 - At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
   the hand-off): add the `taken` line to the crate's `SOURCES`
   (`check-sources.py` with clones must show 0 changes), remove the trial

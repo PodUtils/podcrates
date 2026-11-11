@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 198 entries: 57 open, 2 partial, 0 blocked, 139 done.
+`TODO/INDEX.md` holds 199 entries: 57 open, 2 partial, 0 blocked, 140 done.
 
 ## State
 
@@ -20,6 +20,8 @@
   read by podcrates); podrunner is on `v0.19.0`
   (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
   takes `check_upstream`, `names_upstream` and the flagged rules).
+- `pod-e2e` (T-021) is done: the release `v0.22.0` and podssh's take of
+  `adoption/podssh/pod-e2e.patch` (at podssh `74760e8`) remain.
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -64,13 +66,14 @@ next entry.
 5. **M1, the transport:** T-174 (a Trojan node); T-198 (the Bare form of `openbare-xyz`); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-021, T-024, T-025, T-026; then T-122,
+6. **M2, the relay:** T-024, T-025, T-026; then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197.
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
 9. **M5, the upkeep:** a "port" entry for each change that
-   scripts/check-sources.py finds.
+   scripts/check-sources.py finds; T-199 after a release of snow on
+   `chacha20poly1305` 0.11.
 10. **M7, the widened scope of podvm:** T-062 after M6.
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
@@ -83,7 +86,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C50), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C55), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

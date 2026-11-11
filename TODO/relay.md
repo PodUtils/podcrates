@@ -383,7 +383,7 @@ machine; 55 later runs passed.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -410,6 +410,83 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-020 is done.
+
+## Done
+
+2026-11-11. Commits `772fca0` (the import of
+`PodUtils/podssh:crates/podssh-relay/src/e2e/` and its tests at `74760e8`,
+with `SOURCES`), `625dab4` (the adaptation), `7fe46ba` (the fuzz targets
+and nine plants), `8d06e1d` (the tests of the door and six plants),
+`040f3ea` (`scripts/adoption.sh` and `scripts/agent/togit.sh` take a crate
+name with a digit), `5cc147c` (README, the static probe, the rows of
+`docs/design.md` and `README.md`), `258c08f` (the trial,
+`adoption/podssh/pod-e2e.*`) and the commit of this record. The release
+`v0.22.0` and podssh's take remain.
+
+- Cut (call C55): all of podssh's `e2e/` (15 files). Each file names only
+  the identity (`pod-identity`), the layer, its handover and a peer's
+  answer (`pod-session`), and the names and the safe text (`pod-core`), so
+  `ask.rs` (the word of a proof, which the handshake reads) and
+  `person.rs` (the gate of a node's person; the caller's `Asker` answers)
+  come too. Of the tests: `e2e.rs`, `e2e_faults.rs`, `e2e_net.rs`,
+  `e2e_harness/`, `routes.rs`, `person.rs` and the channel's test of
+  `session_handover.rs`. `tests/e2e_layered.rs` stays in podssh until
+  `pod-relay` (T-025): it runs podssh's `reverse::{Layered, E2e}`. podssh
+  keeps a glue `src/e2e/`: its process documents of the net, its process
+  holds with its `Movable` of the pipe, and its lines of a node's events.
+- API: the handshake (`initiate_with`, `respond_with`, `Offered`,
+  `Asked`), `Channel` and its carry, `Ask`, `ends` (`Node` with `events`,
+  `docs` and `holds`; the three serves; the four operators), `person`,
+  `net`, `legs`, `hold` (`Holds`, `resume`, `ChannelState`), the feature
+  `fuzzing`. Each `Error` converts to a `pod_core::Failure` of the stage
+  `Session` (`failure.rs`); a node's lines are events `e2e.*`. The crate
+  depends on `pod-core`, `pod-identity`, `pod-session` and snow 0.10 with
+  podssh's features (pure Rust); 17 source files and 8 test files, each
+  under 500 lines.
+- Defects and findings: the two process globals of podssh's `e2e/` (the
+  installed documents of the net, the registry of the holds of a
+  handover) are values of the caller now. Three plants of podssh's `e2e/`
+  (t226-route-unmarked, t615-seed-unread, t638-grant-skips-the-person) ran
+  tests that stay in podssh, so no test of the crate caught them:
+  `crates/pod-e2e/tests/door.rs` (3 tests) catches each. `adoption.sh`
+  and `togit.sh` named a crate by `pod-[a-z-]+`, which does not match
+  `pod-e2e`: the trial failed at the resolve of the tag `v0.22.0`; fixed.
+  `TODO/PROGRESS.md` named the calls "C1 to C50" where C54 was the last;
+  fixed. snow 0.10 brings a second ChaCha20-Poly1305 stack (T-199). No
+  defect of the channel's code was found: the readers of the frames, the
+  verdict, the proof and the state of a handover keep their bounds under
+  the fuzz targets, and `pod_identity::PublicKey::signed` refuses a weak
+  key (`verify_strict`), so no other key signs a Noise key. Nothing to
+  tell podssh but the hand-off.
+- Tests: 58 pass (`cargo test -p pod-e2e --all-features`): 54 of podssh
+  with their names (22 unit tests; `e2e` 10, `e2e_faults` 7, `e2e_net` 6,
+  `person` 5, `routes` 3, `session_handover` 1) and 4 new (the classes of
+  the failures; `door` 3). The test that binds starts with
+  `need_loopback!`. The thirteen plants of podssh's `e2e/` (as
+  `e2e-tNNN-*`) and two new (`e2e-proof-signature-skipped`,
+  `e2e-frame-length-trusted`): each caught (`sh scripts/plant-each.sh`,
+  9 and 6, group `e2e`). The fuzz targets `e2e_frame`, `e2e_proof` and
+  `e2e_handover` pass the stable test of `fuzz/` (6 tests, with 2000
+  mutations of each seed).
+- Static: `examples/static-probe` with `pod-e2e` for
+  `x86_64-unknown-linux-musl` (`cargo zigbuild`): `scripts/check-static.sh`
+  passed, and the probe ran a Noise XX handshake. `cargo deny check`:
+  advisories, bans, licences and sources ok (snow adds the warnings of
+  two duplicates).
+- Checks: `sh scripts/agent/check.sh`: fmt, clippy, lint, doc, record,
+  size, paths, static and test each 0 (the workspace: 2,151 passed, 0
+  failed, 16 ignored); `python3 -I scripts/check-sources.py --clone
+  PodUtils/podssh=CLONE pod-e2e`: 22 files, 0 changes.
+- Trial (the hand-off): podssh at its `main` `74760e8`: 96 files, 378
+  lines in, 4,939 out; the tags move to `v0.22.0` and snow leaves podssh's
+  workspace. Checked here with the crates of this tree: the patch applies;
+  `cargo check` of podssh-relay (each feature, with its tests), podssh-cli
+  and podssh-iroh, clippy with the lints of the gate, rustfmt,
+  `podssh-todo check` (706 entries agree, with a `## Correction` on
+  PodUtils/podssh@T-089, PodUtils/podssh@T-643 and PodUtils/podssh@T-668),
+  `check-repo.py`, `check-consumer-tests.py` (16 targets) and
+  `check-consumer-toolchains.py`. Its tests, its release build and the
+  static check of its binary run in `adoption.yml`.
 
 # T-022: `pod-wormhole`: the mailbox client, SPAKE2 and the code words
 
@@ -707,7 +784,11 @@ the base of the relay crate of the three consumers.
 ## Approach
 
 The procedure of `docs/design.md`, section 8, with podssh's files only;
-the blocking facade behind the feature `blocking`.
+the blocking facade behind the feature `blocking`. podssh's tests that
+wait for this crate come with it: `tests/e2e_layered.rs` (the channel of
+`pod-e2e` over `reverse::Layered`, T-021), `tests/session_policy.rs` and
+`tests/session_relay_resume.rs` (T-020). `cache::valid_token` comes with
+the cache; `crates/pod-e2e/src/legs_tests.rs` holds a copy of its rule.
 
 ## Decision
 

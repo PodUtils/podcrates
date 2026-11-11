@@ -331,3 +331,47 @@ TMPDIR=$(mktemp -d /tmp/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 its own copy is gone) take them. `pod-supervise` addresses its socket by
 `/proc/self/fd` and needs no change. With a `TMPDIR` of 74 bytes under
 `/tmp`, `cargo test --workspace --all-features` passes (exit 0).
+
+# T-199: `pod-e2e`: snow on the line of `chacha20poly1305` 0.11
+
+**Source:** T-021 (`cargo deny check bans`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+snow 0.10.0, the newest release on crates.io on 2026-11-11, takes
+`chacha20poly1305` 0.10 and `chacha20` 0.9. The workspace takes 0.11 of
+each (`pod-tls`, `pod-session`). A binary with `pod-e2e` thus carries two
+ChaCha20-Poly1305 stacks, and `cargo deny check bans` gives two warnings
+of a duplicate more. podssh had the same tree before its take.
+
+## Premise
+
+- Measured: `cargo tree -i chacha20poly1305@0.10.1` names snow alone;
+  `cargo search snow` gives 0.10.0 as the newest release.
+- Not measured: the size of the second stack in a release binary.
+
+## Approach
+
+When snow releases a version on the 0.11 line of RustCrypto, take it with
+the same features, then run the tests and the plants of the crate and the
+static probe. Until then, nothing changes: a duplicate is a warning of
+`deny.toml` (`multiple-versions = "warn"`).
+
+## Prove
+
+```sh
+cargo tree -i chacha20poly1305@0.10.1
+cargo test -p pod-e2e --all-features
+sh scripts/plant-each.sh --group e2e
+```
+
+The first command finds no such package.
+
+## Start condition
+
+A release of snow that takes `chacha20poly1305` 0.11.

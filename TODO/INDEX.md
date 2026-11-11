@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**198 entries: 57 open, 2 partial, 0 blocked, 139 done.**
+**199 entries: 57 open, 2 partial, 0 blocked, 140 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 16 | 0 | 0 | 41 | 57 |
+| P1 | 15 | 0 | 0 | 42 | 57 |
 | P2 | 26 | 2 | 0 | 67 | 95 |
-| P3 | 15 | 0 | 0 | 29 | 44 |
-| **All** | 57 | 2 | 0 | 139 | 198 |
+| P3 | 16 | 0 | 0 | 29 | 45 |
+| **All** | 57 | 2 | 0 | 140 | 199 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -67,7 +67,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
 | [T-019](relay.md) | P1 | M | M2 | feature | done | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
 | [T-020](relay.md) | P1 | L | M2 | feature | done | `pod-session`: the resumable layer and UDP in a stream |
-| [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
+| [T-021](relay.md) | P1 | M | M2 | feature | done | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | open | `pod-wg`: the WireGuard initiator |
@@ -245,3 +245,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-196](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: `bind_unix` leaves a window with the mode of the umask (PodUtils/podnet#444) |
 | [T-197](relay.md) | P3 | S | M2 | measurement | open | `pod-netstack`: the reactor gives one ACK for the segments that one poll takes |
 | [T-198](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the form of the connect of `openbare-xyz` (podssh's message, 2026-11-11) |
+| [T-199](upkeep.md) | P3 | S | M5 | chore | open | `pod-e2e`: snow on the line of `chacha20poly1305` 0.11 |
