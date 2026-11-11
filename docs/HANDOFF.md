@@ -38,7 +38,8 @@ page current; remove a line when its work is done.
     for PodUtils/podvm@T-1658, the fix of #261 for PodUtils/podvm@T-1659)
     answer on #72. Its
     PodUtils/podvm@T-1722 may ask for `exec_attached`.
-  - podrunner: `v0.22.0` (`82b7af0`; `pod-job` at `0457ed0`). Its tests
+  - podrunner: `v0.24.0` (`6a01f4e`; its T-042, the `confined` boundary,
+    takes `pod-confine`). Earlier `82b7af0` (`pod-job` at `0457ed0`). Its tests
     25 and 26 pass on the fake unit and on podvm `v0.2.0-beta.3` (run
     43018641300); no code of podrunner uses `pod-enter` or
     `pod-supervise`. No crate ask.

@@ -20,8 +20,8 @@
   `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.22.0` (`c9d5038`,
   PodUtils/podvm#262: its launcher sets `die_with_parent`, experiment 437;
-  its incus tier calls `pod-incus`); podrunner is on `v0.22.0`
-  (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
+  its incus tier calls `pod-incus`); podrunner is on `v0.24.0`
+  (`6a01f4e`, its fuzz lock `13d914d`; its T-042 takes `pod-confine`; earlier `82b7af0`: its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
 - Takes that wait: podvm's take of `pod-confine` for PodUtils/podvm@T-1658 (T-108, #69,
   #72).
