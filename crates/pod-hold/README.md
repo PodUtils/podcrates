@@ -123,9 +123,6 @@ podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
 | tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`, `a_header_shorter_than_20_bytes_is_no_syn`, `a_fragment_past_the_first_is_no_syn` (`lib.rs`) | here, with the same names |
 | each `pod-*` dependency | tag `v0.17.0` |
 
-From the import, `connect.rs` and `netns/packet.rs` of podnet take fixes
-only, until podnet takes the patch.
-
 ### Later consumers
 
 * podvm (`--net`, A-V-02, PodUtils/podvm@T-1665): the netns hold, or the

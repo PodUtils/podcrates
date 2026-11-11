@@ -78,8 +78,8 @@ Against podssh `crates/podssh-relay` at `c5636c9`:
 | `udp/` | [x] `udp`; the resolver is the caller's |
 | `answer.rs` | [x] `answer` |
 | `transit/link.rs` | [x] `ws_link` |
-| `tests/session_*.rs` (19 files), `tests/udp_framing.rs` | [x] the same names; the test of the handover with the channel waits for `pod-e2e` |
-| `tests/session_policy.rs`, `tests/session_relay_resume.rs` | stay in podssh until `pod-relay`: they test the close table of the reverse road, the forward layer and the role |
+| `tests/session_*.rs` (19 files), `tests/udp_framing.rs` | [x] the same names; the test of the handover with the channel is in `pod-e2e` |
+| `tests/session_policy.rs`, `tests/session_relay_resume.rs` | `session_policy.rs` (the close table of the reverse road and the forward layer) is in `pod-relay`; `session_relay_resume.rs` runs the role and waits for `pod-relay-serve` |
 
 Differences, with the choice:
 

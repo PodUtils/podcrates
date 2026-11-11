@@ -114,7 +114,7 @@ Differences from the source, each with a test:
 | podssh | `Mailbox::connect(url, &trust, &proxy, side)` (`doctor/carriers.rs`) | `Mailbox::connect(url, &code::config(&trust, &proxy, say), side)`; `code::config` builds the `Config` with `APPID`, `"podssh"`, `CARGO_PKG_VERSION`, `podssh_ws::client::way(&proxy)`, the trust, `open::CONNECT_TIMEOUT` and the events as lines |
 | podssh | `code::run::Ends { mailboxes, trust, proxy, say }` | the same struct; `Ends::wormhole()` gives `pod_wormhole::Ends` |
 | podssh | `code::run::{opened, joined}` | the same functions over `pod_wormhole::{opened, joined}` (`joined` takes `waits.giver`) |
-| podssh | `code::run::{give, take, give_with, take_with}`, `code/exchange.rs` | stay until `pod-relay` (T-024) |
+| podssh | `code::run::{give, take, give_with, take_with}`, `code/exchange.rs` | `pod_relay::code::{run, exchange}` (T-025) |
 | podssh | `code::{APPID, ENV, LIFETIME, mailboxes, mailboxes_for, public_mailboxes, Say}` | stay |
 | podssh | the dependencies `spake2`, `rand_core` 0.6, `crypto_secretbox` of `podssh-relay`, the feature `code` | `pod-wormhole` (git tag), the feature `code = ["pair", "dep:pod-wormhole"]` |
 | podssh | the plant `t086-version-unchecked` (`code/wormhole.rs`) | `wormhole-version-unchecked` in podcrates; podssh's `pair-code.yml` runs the others |

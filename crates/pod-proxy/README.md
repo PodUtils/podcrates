@@ -123,7 +123,7 @@ registry pays one TCP and TLS handshake, not one for each blob.
 | `Rules::http_port` | the port of `http://` with no port | `HTTP_PORT` (80) | `8080` |
 | `Rules::no_proxy_ports` | an entry `host:port` of `NO_PROXY` excludes that port only | `false` (the port is passed over) | `true` |
 | `Rules::loopback_direct` | a loopback target, and a name pinned to loopback alone, goes directly | `true` | `false` (podnet sends it to the proxy unless `NO_PROXY` names it) |
-| the resolver of `Dialer::new` | the addresses and the pins | `pod-dns` (T-015); until then an implementation of `pod_core::Resolve` over podssh's `resolve` module (`resolve_from`, `pinned`, `note_dialed`) | `pod-dns` (T-015); until then one over podnet's `resolve::resolve` (pins, the system, DoH) |
+| the resolver of `Dialer::new` | the addresses and the pins | `pod-dns` (T-015), or an implementation of `pod_core::Resolve` over podssh's `resolve` module (`resolve_from`, `pinned`, `note_dialed`) | `pod-dns` (T-015), or one over podnet's `resolve::resolve` (pins, the system, DoH) |
 | `Dialer::with_proxy_resolver` | the resolver of the host of a proxy on TCP | none (the dialer's) | one over `resolve::resolve_no_doh` (the pins and the system): a DoH query can go through the proxy |
 | `Dialer::with_observer` | the counter of the decision `egress` | none | an `Observer` that calls `decisions::count(decision, outcome)` |
 | `Client::with_user_agent` | the `User-Agent` of a request that gives none | `podssh/VERSION` | `podnet/VERSION` |
@@ -346,7 +346,7 @@ counters):
 | podssh | `podssh_ws::dial::{authority, split_host_port, check_name}`, `ATTEMPT_DELAY`, `interleave` | `pod_proxy::host::*`, `pod_proxy::{ATTEMPT_DELAY, interleave}` |
 | podssh | `podssh_ws::{DialError, dial::DialError}` | `pod_proxy::DialError`; `Timeout` has a `stage`, `Connect` a `kind` (the kind of the last error of I/O, or `None`); `Failure::from(e)`; from a `Failure`, `e.source().downcast_ref::<DialError>()` |
 | podssh | `podssh_ws::{Proxy, HttpProxy, ProxyKind}`, `podssh_ws::proxy::*` | `pod_proxy::{Proxy, HttpProxy, ProxyKind}`; `proxy::percent_decode` is public; `ProxyKind::Socks5` is `ProxyKind::Socks5 { remote_dns }` (`{ .. }` in a pattern); `format!("{}://{p}", p.kind.scheme())` is `p.label()` |
-| podssh | `podssh_ws::resolve::{set_pins, pinned}` as the dial reads them | the resolver of the dialer: `Resolve::pinned`; `resolve::System::with_pins(pins)` until `pod-dns` |
+| podssh | `podssh_ws::resolve::{set_pins, pinned}` as the dial reads them | the resolver of the dialer: `Resolve::pinned`; `resolve::System::with_pins(pins)`, or the pins of `pod-dns` |
 | podssh | `podssh_ws::resolve::{resolve, resolve_from, Found, SOURCE_WAIT}` as the race reads them | `pod_core::{Resolve, Found, SOURCE_WAIT}`; `Found` has `more` |
 | podssh | `podssh_ws::{Cut, Missed, TlsFailure}`, `podssh_ws::cut::*` | `pod_proxy::{Cut, Missed, TlsFailure}`; `TlsFailure::of(&e, context.words())`, `Missed::tls(&e, context.words())` |
 | podssh | `DialError::cut()`, `ConnectError::cut()` | `DialError::cut()`; `Cut::of_failure(&failure)` |

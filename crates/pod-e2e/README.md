@@ -106,7 +106,7 @@ Against podssh `crates/podssh-relay` at `74760e8`:
 | `e2e/legs.rs`, `legs_tests.rs`, `person.rs`, `person_tests.rs`, `hold/state.rs`, `hold/resume.rs` | [x] |
 | `tests/e2e.rs`, `e2e_faults.rs`, `e2e_net.rs`, `e2e_harness/`, `routes.rs`, `person.rs` | [x] the same names |
 | `tests/session_handover.rs`: the channel across a handover | [x] the same name |
-| `tests/e2e_layered.rs` | stays in podssh until `pod-relay`: it runs podssh's `reverse::{Layered, E2e, Handler}` |
+| `tests/e2e_layered.rs` | in `pod-relay`: it runs `reverse::{Layered, E2e, Handler}` |
 | the plants of `e2e/` (`t226-route-unmarked`, `t429-net-gossip`, `t615-seed-unread`, `t615-window-unmoved`, six of `t638`, `t643-no-net-unsaid`, `t668-nonce-reset`) | [x] `scripts/plants/e2e-*`; the three whose tests stay in podssh (`grant.rs`, `relay_serve_once.rs`) run `tests/door.rs` here |
 
 Differences, with the choice:

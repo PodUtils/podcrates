@@ -70,7 +70,7 @@ Against podssh `crates/podssh-relay` at `af214a6`:
 | `server_name`, `alpn` (data of `pod-services`), `connect_edge`, `EdgeConnection` | stay in podssh until `pod-cloudflare` |
 | `quick/probe.rs`: `packet`, `answers`, `probe`, `RESERVED`, `PADDED`, `WAIT` | [x] `probe`; the words "said nothing within 300 ms" and the refusal of a closed port stay |
 | `probe::edge` (the regions of an edge) | stays in podssh |
-| `serve/quic.rs`: `TokenKey` | [x] `keys::TokenKey`; the role's server stays in podssh until `pod-relay` |
+| `serve/quic.rs`: `TokenKey` | [x] `keys::TokenKey`; the role's server stays in podssh until `pod-relay-serve` |
 
 Against podnet `src/warp/quic.rs` at `2fed3ff`:
 

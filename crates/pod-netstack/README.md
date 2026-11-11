@@ -209,16 +209,12 @@ the `taken` lines of `SOURCES`):
 | the record (`TODO/`): the citations of the removed files | `PodUtils/podcrates:crates/pod-netstack/src/..` |
 | each `pod-*` dependency | tag `v0.20.0`; `podnet-vnet` adds `pod-netstack` |
 
-From the import, the files of the cut take fixes only in podnet, until
-podnet takes the patch.
-
 ### Later consumers
 
 * `pod-warp` (podnet `src/warp/ip.rs`, PodUtils/podnet#427): the TCP and UDP
   of WARP over the link device; it drives smoltcp 0.14 with it now.
 * podnet's netns router (`crates/podnet-netns/src/netns/backend.rs`,
-  `udpflow.rs`): after podnet's T-174 (the veth wire, `medium-ethernet`),
-  with step 2 of T-170.
+  `udpflow.rs`): PodUtils/podnet@T-249, with step 2 of T-170.
 * `pod-netlab` (PodUtils/podvm#178): the network labs of podvm.
 
 ## Tests
