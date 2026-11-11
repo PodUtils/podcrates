@@ -16,6 +16,14 @@ the launcher. Four rules:
    wait has a bound and its own result for the bound.
 4. Nothing on the path that forks, enters and execs starts a thread
    (`PR_SET_PDEATHSIG` fires at the exit of a thread).
+5. The launcher is the child subreaper of the payload's tree: a
+   descendant whose parent ends comes to the launcher, also after a
+   `setsid` or a double fork. At the end of the payload the launcher
+   kills each descendant (`Settings::kill_tree`), then writes the end
+   into the record before a waiter gets the code: the reason, the run
+   time, the use of the tree and the count of the processes that stayed
+   (`residual_processes`: a number, or `unknown`, never 0 when it is not
+   known). The crate sets no `RLIMIT_FSIZE`.
 
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another
 target it is empty. It takes the raw system calls from `pod-hostprobe`
@@ -25,13 +33,16 @@ target it is empty. It takes the raw system calls from `pod-hostprobe`
 
 | Item | What |
 | --- | --- |
-| `Settings` | `root` (the state directory), `table_lock` (the lock of each write of the table), `table_key` (the key of the version in the table file), `name_prefix` (of a generated name), `list_command` (named in the message of a name that is not found), `failed_code` (the exit code of a payload that cannot be reaped; docker's 125). `Settings::new(root)` gives `root/lock`, `pod_supervise`, `pod`, none, 125 |
+| `Settings` | `root` (the state directory), `table_lock` (the lock of each write of the table), `table_key` (the key of the version in the table file), `name_prefix` (of a generated name), `list_command` (named in the message of a name that is not found), `failed_code` (the exit code of a payload that cannot be reaped; docker's 125), `kill_tree` (kill each descendant at the end of the payload), `proc` (the mount of procfs that gives the descendants). `Settings::new(root)` gives `root/lock`, `pod_supervise`, `pod`, none, 125, true, `/proc` |
+| `set_wall(&s, want, wall_ms)` | the wall bound of a container that does not run: at `wall_ms` after the start the launcher kills the payload and its tree, and the end reads `wall` |
+| `end` | `End { reason, run_ms, user_ms, system_ms, max_rss_kib, residual_processes }` in `Container::end`; `Reason` (`exit`, `signal`, `wall`); `Residual` (`Count(n)` or `Unknown`, JSON a number or `"unknown"`). `user_ms`, `system_ms` and `max_rss_kib` are `getrusage(RUSAGE_CHILDREN)` of the launcher after the kill; `max_rss_kib` is the largest one process, not a sum |
 | `create(&s, name, argv, env, working_dir, of) -> Container<X>` | a `created` record with the fields `of` of the caller, and its directory; a name that is in use is refused |
 | `start(&s, want, enter) -> Container<X>` | forks a detached launcher and returns when the payload runs; `enter(&Container<X>, Launch) -> Result<Payload, String>` runs in the launcher and starts the payload |
 | `kill`, `stop`, `wait`, `remove`, `list`, `get`, `matching` | the verbs; `stop(&s, want, ms)` is SIGTERM, a bounded wait, then SIGKILL (a zero bound is SIGKILL at once), and gives `true` when SIGKILL ended it; `wait` gives `None` at the bound, never a guess |
 | `logs`, `follow`, `follow_from`, `follow_tail`, `tail_offset` | the log of the payload's stdout and stderr; a follow polls each 100 ms until a terminal state, with one last read |
 | `new_id`, `generated_name(&s, id)`, `KILL_WAIT_MS` | a random id of 64 hex characters; `PREFIX_` and 12 characters of it |
 | `table` | `Container<X>` (the fields of the crate; `of: X` flattened into the same JSON object, and `Deref` to `X`), `State` (`Created`, `Running`, `Exited`, `Dead`), `Table<X>`, `Any` (each unknown key kept), `read`, `update`, `reconcile`, `find`, `encode`, `decode`, `dir`, `lock_path`, `log_path`, `control_path`, `control_via_fd`, `contained`, `now` |
+| `launcher::tree` | `descendants(proc, pid)` (the `children` files, else a scan of each `stat`), `parent_of(stat)`, `TREE_KILL_MS` (the bound of the kill of the tree after the end of the payload, 5 s) |
 | `launcher` | `Launch { pass, log }` (the descriptors of the payload: 0 on `/dev/null`, 1 and 2 on the log; a writer to the log), `Payload { pid, keep }`, `start`, `signal`, `wait`, `WaitError { Gone, Failed }`, `exit_status`, the control lines `SIG` and `WAIT` |
 | `lock` | `Lock`: `try_exclusive`, `exclusive`, `try_acquire(path, op)`, `try_acquire_noting` (a hook at the refusal), `acquire` (`ATTEMPTS` tries, `PAUSE` between), `fd`, `hand_to_payload`; `O_CLOEXEC`, closed in each child of `clone_fork`, an explicit `LOCK_UN` at the drop |
 
@@ -67,6 +78,7 @@ at `27ae993`:
 | [x] `Lock` of `podvm-image` | `lock::Lock`; the instrument of PodUtils/podvm@T-0215 is the `note` of `try_acquire_noting` |
 | [x] `EXIT_RUNTIME_ERROR` | `Settings::failed_code` |
 | [x] The tests: 13 unit tests of the moved parts, with their names (`a_table_without_the_userland_drive_still_parses` with `X`); the memo and tally tests stay in podvm | yes; 10 new unit tests; `tests/lifecycle.rs` runs 5 steps with real payloads |
+| [ ] The kill of the tree that podvm asks (PodUtils/podvm@T-1655) and podrunner's shim (PodUtils/podrunner#23) | new here (T-162): the subreaper, `kill_tree`, `set_wall`, `end`; podvm's launcher takes it with the tag |
 
 Differences: the status of a dead record says "the launcher was not
 watching" (podvm: "podvm was not watching"); a removal checks its
@@ -98,10 +110,16 @@ gate of podvm's store; the times come from `pod_core::clock::rfc3339`
 ## Tests
 
 `cargo test -p pod-supervise`. The unit tests use a temporary directory
-each. `tests/lifecycle.rs` has no libtest (`harness = false`): the
-launcher forks from the test process, and a fork from a process with more
-than one thread can stop in a lock that another thread held. It skips
-with a line `skipping, REASON` on a host with no `/bin/sh` or `sleep`.
+each. `tests/lifecycle.rs` and `tests/tree.rs` have no libtest
+(`harness = false`): the launcher forks from the test process, and a fork
+from a process with more than one thread can stop in a lock that another
+thread held. Each skips with a line `skipping, REASON` on a host with no
+`/bin/sh` or `sleep` (and `tree` with no `/proc`). `tree` runs a
+grandchild that calls `setsid` and ignores SIGTERM: the kill leaves 0
+processes; with `kill_tree` false the count is 1 or more (the positive
+control); with no `/proc` the count is `unknown`; a wall bound of 800 ms
+ends the tree within the bound and `TREE_KILL_MS`; the payload has the
+`RLIMIT_FSIZE` of its starter.
 
 ## Sources
 

@@ -15,17 +15,20 @@
 //! cannot reach the state directory, which is outside the new root.
 //!
 //! A pidfd addresses one process. It does not hold the descendants and it
-//! is not a PID namespace: a grandchild that goes to another parent is
-//! outside the reach of the launcher.
+//! is not a PID namespace. The launcher is the child subreaper of the tree
+//! instead ([`tree`]): a descendant whose parent ends comes to the
+//! launcher, which reaps it while the payload runs and kills it at the end.
 
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
+use std::time::Instant;
 
 use pod_core::{Class, Failure, Stage};
 use pod_hostprobe::sys;
 use serde::{Serialize, de::DeserializeOwned};
 
+use crate::end::Reason;
 use crate::table::{self, Container, State};
 use crate::{Result, Settings, failure};
 
@@ -240,6 +243,7 @@ where
 }
 
 mod supervise;
+pub mod tree;
 use supervise::supervise;
 
 /// docker's exit code for a `wait4` status: the code of an exit, or 128 and
@@ -260,20 +264,62 @@ fn reap(pid: i64) -> Option<i32> {
     }
 }
 
+/// The end of the payload, as `serve` saw it. The waiters get the code
+/// after the kill of the tree and the write of the record.
+struct Served {
+    code: i32,
+    reason: Reason,
+    waiters: Vec<UnixStream>,
+}
+
+fn reason(walled: bool, signaled: bool) -> Reason {
+    if walled {
+        Reason::Wall
+    } else if signaled {
+        Reason::Signal
+    } else {
+        Reason::Exit
+    }
+}
+
 /// Wait for the payload to end, and answer control messages meanwhile.
 ///
 /// One `ppoll` over both, and no interval. The bound is long, not absent,
 /// and its end is a new poll, not a result: a container that runs for a week
-/// is not a failure.
-fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32) -> i32 {
+/// is not a failure. At each wake the descendants that ended are reaped.
+/// At `wall` the payload gets SIGKILL, and its end comes as any end.
+fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: Option<Instant>) -> Served {
     let mut waiters: Vec<UnixStream> = Vec::new();
+    let mut walled = false;
     // SIGINT and SIGTERM of the launcher are blocked and read from a
     // signalfd beside the pidfd, so a signal to the launcher goes to the
     // payload and does not leave it with no parent. The mask stays blocked
     // until the launcher exits: nothing else waits for those signals.
     let mut old = 0u64;
     let sfd = sys::sigblock_shutdown(&mut old).and_then(|_| sys::signalfd_shutdown()).unwrap_or(-1);
+    let done = |code: i32, signaled: bool, walled: bool, waiters: Vec<UnixStream>| {
+        if sfd >= 0 {
+            let _ = sys::close(sfd);
+        }
+        Served { code, reason: reason(walled, signaled), waiters }
+    };
     loop {
+        // 60 s, or less up to the wall bound; the end of the bound means
+        // that nothing happened.
+        let mut bound_ms = 60_000i64;
+        if let Some(at) = wall
+            && !walled
+        {
+            let left = at.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                // `kill` is safe here, as in `handle`: the parent, before the
+                // reap.
+                let _ = sys::kill(pid, 9);
+                walled = true;
+            } else {
+                bound_ms = bound_ms.min(left.as_millis() as i64 + 1);
+            }
+        }
         let mut fds = [
             sys::PollFd { fd: pidfd as i32, events: sys::POLLIN, revents: 0 },
             sys::PollFd { fd: listener.as_raw_fd(), events: sys::POLLIN, revents: 0 },
@@ -282,18 +328,12 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32) -> i32
             // forward.
             sys::PollFd { fd: sfd as i32, events: if sfd >= 0 { sys::POLLIN } else { 0 }, revents: 0 },
         ];
-        // 60 s; the end of the bound means that nothing happened.
-        match sys::ppoll(&mut fds, 60_000) {
+        match sys::ppoll(&mut fds, bound_ms) {
             Ok(_) => {}
             Err(e) if e == sys::EINTR => continue,
-            Err(_) => {
-                // The poll failed. Reap with a block, not a spin: the payload
-                // is still a child of this process.
-                if sfd >= 0 {
-                    let _ = sys::close(sfd);
-                }
-                return reap(pid).unwrap_or(failed_code);
-            }
+            // The poll failed. Reap with a block, not a spin: the payload
+            // is still a child of this process.
+            Err(_) => return done(reap(pid).unwrap_or(failed_code), false, walled, waiters),
         }
         if sfd >= 0 && fds[2].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
             let mut buf = [0u8; 128];
@@ -302,8 +342,6 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32) -> i32
             {
                 let signo = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64;
                 if signo == sys::SIGINT as i64 || signo == sys::SIGTERM as i64 {
-                    // `kill` is safe here, as in `handle`: the parent, before
-                    // the reap.
                     let _ = sys::kill(pid, signo);
                 }
             }
@@ -313,21 +351,19 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32) -> i32
         {
             handle(stream, pid, &mut waiters);
         }
+        // The reap of the descendants that ended. It can take the payload
+        // too: then its status comes from here.
+        if let Some(status) = tree::sweep(pid).payload {
+            return done(exit_status(status), status & 0x7f != 0, walled, waiters);
+        }
         if fds[0].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
             // The status comes through the pidfd, so a pid used again
             // between the readiness and the reap cannot redirect it.
-            let code = match sys::waitid_pidfd(pidfd, false) {
-                Ok(Some(x)) if x.code == sys::CLD_EXITED => x.status,
-                Ok(Some(x)) => 128 + x.status,
-                _ => reap(pid).unwrap_or(failed_code),
+            return match sys::waitid_pidfd(pidfd, false) {
+                Ok(Some(x)) if x.code == sys::CLD_EXITED => done(x.status, false, walled, waiters),
+                Ok(Some(x)) => done(128 + x.status, true, walled, waiters),
+                _ => done(reap(pid).unwrap_or(failed_code), false, walled, waiters),
             };
-            for mut w in waiters {
-                let _ = writeln!(w, "exit {code}");
-            }
-            if sfd >= 0 {
-                let _ = sys::close(sfd);
-            }
-            return code;
         }
     }
 }

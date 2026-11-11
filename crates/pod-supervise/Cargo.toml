@@ -22,3 +22,9 @@ pod-testkit = { workspace = true }
 [[test]]
 name = "lifecycle"
 harness = false
+
+# The tree of a payload: the kill, the counts, the wall bound. No libtest,
+# for the reason of `lifecycle`.
+[[test]]
+name = "tree"
+harness = false

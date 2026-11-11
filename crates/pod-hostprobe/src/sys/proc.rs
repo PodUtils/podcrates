@@ -387,3 +387,47 @@ pub fn getgroups() -> Result<Vec<i32>, Errno> {
     buf.truncate(got as usize);
     Ok(buf)
 }
+
+/// Make this process the child subreaper of its descendants: a descendant
+/// whose parent ends becomes a child of this process, not of init. A
+/// supervisor then reaches each process of its tree, also one that called
+/// `setsid` or forked twice.
+pub fn set_child_subreaper() -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0, 0]) }
+}
+
+/// `wait4(-1, WNOHANG)`: reap one child of any pid that ended, with no
+/// wait. `Ok(Some(pid))` with its status; `Ok(None)` when each child is
+/// alive. `Err(ECHILD)` when this process has no child at all: that answer
+/// is the only one that says "none is left".
+pub fn reap_any(status: &mut i32) -> Result<Option<i64>, Errno> {
+    match unsafe { sys(SYS_WAIT4, [-1i64 as u64, status as *mut i32 as u64, WNOHANG, 0, 0, 0]) }? {
+        0 => Ok(None),
+        pid => Ok(Some(pid)),
+    }
+}
+
+/// The use of the reaped children of this process and of their reaped
+/// descendants (`getrusage(RUSAGE_CHILDREN)`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub user_us: u64,
+    pub system_us: u64,
+    /// The peak resident set of the largest one process, in KiB. It is not
+    /// a sum over the tree.
+    pub max_rss_kib: u64,
+}
+
+/// `getrusage(RUSAGE_CHILDREN)`. As [`Statfs`]: the kernel's own
+/// `struct rusage` is the buffer, from `linux_raw_sys`, because its words
+/// are 32 bits on a 32-bit target.
+pub fn rusage_children() -> Result<Usage, Errno> {
+    let mut raw = unsafe { core::mem::zeroed::<linux_raw_sys::general::rusage>() };
+    let who = linux_raw_sys::general::RUSAGE_CHILDREN as i64 as u64;
+    unsafe { sys(SYS_GETRUSAGE, [who, &mut raw as *mut linux_raw_sys::general::rusage as u64, 0, 0, 0, 0])? };
+    // As `Stat::from_kernel`: redundant on a 64-bit target.
+    #[allow(clippy::unnecessary_cast)]
+    let us = |t: linux_raw_sys::general::__kernel_old_timeval| (t.tv_sec as u64) * 1_000_000 + t.tv_usec as u64;
+    #[allow(clippy::unnecessary_cast)]
+    Ok(Usage { user_us: us(raw.ru_utime), system_us: us(raw.ru_stime), max_rss_kib: raw.ru_maxrss as u64 })
+}

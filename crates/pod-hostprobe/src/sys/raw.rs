@@ -50,6 +50,8 @@ pub const AT_FDCWD: u64 = -100i64 as u64;
 
 pub const PR_SET_PDEATHSIG: u64 = 1;
 pub const PR_SET_NO_NEW_PRIVS: u64 = 38;
+/// A child subreaper takes each orphan of its descendants in place of init.
+pub const PR_SET_CHILD_SUBREAPER: u64 = 36;
 
 pub const SECCOMP_SET_MODE_FILTER: u64 = 1;
 pub const SECCOMP_FILTER_FLAG_NEW_LISTENER: u64 = 1 << 3;

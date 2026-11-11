@@ -1986,6 +1986,9 @@ and podvm `lib.rs` (`volume_maps`, `NEVER_MAPPED`, `MAX_VOLUMES`) at
 - `Maps::new` takes `&Names` first (API change). The README API section
   and the podvm adoption map are updated: podvm drops `volume_maps`,
   `MAX_VOLUMES` and `NEVER_MAPPED`.
+- 2026-11-11: podvm took `v0.15.0` with this change at `d9fe511`
+  (PodUtils/podvm#242, PodUtils/podvm@T-1716): `cargo test --workspace` 650 tests
+  pass; `NAMES.reserved` is `["/proc", "/.podvm"]`. No defect.
 
 # T-162: `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227)
 
@@ -1994,7 +1997,7 @@ and podvm `lib.rs` (`volume_maps`, `NEVER_MAPPED`, `MAX_VOLUMES`) at
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2002,7 +2005,7 @@ A signal of the launcher reaches one pid. A grandchild of a payload survives `po
 
 ## Premise
 
-- Read: `crates/pod-supervise/src/launcher.rs:351` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: `crates/pod-supervise/src/launcher.rs:387` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
 - Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
 - Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
 - Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
@@ -2018,6 +2021,18 @@ Add to `pod-supervise`:
 - A count of the processes that stay after the kill (`residual_processes`: a number, or `unknown`).
 
 Set no `RLIMIT_FSIZE` by default.
+
+## Decision
+
+The launcher is the child subreaper of the payload's tree
+(`PR_SET_CHILD_SUBREAPER`): no privilege, no cgroup, no PID namespace. The
+count 0 comes from `wait4(-1)` and `ECHILD`, the pids to kill from `/proc`
+(the `children` files, else a scan of each `stat`). The kill happens at
+the end of the payload, as the end of PID 1 of a namespace does; `stop`
+and `kill` still signal the payload. The wall bound is a field of the
+record (`set_wall`), so the launcher reads it at its start. A cgroup kill
+(`cgroup.kill`) where the host gives one is not built: no consumer host
+has a delegated cgroup today.
 
 ## Prove
 
@@ -2038,6 +2053,37 @@ The tests that the issue names:
 None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on no other crate.
+
+## Done
+
+2026-11-11. `pod-hostprobe`: `set_child_subreaper`, `reap_any`
+(`wait4(-1, WNOHANG)`), `rusage_children` with `Usage`, `ECHILD`,
+`SYS_GETRUSAGE`, `PR_SET_CHILD_SUBREAPER`. `pod-supervise`: the module
+`end` (`End`, `Reason`, `Residual`), `launcher::tree` (`descendants`,
+`parent_of`, `TREE_KILL_MS`, the sweep and the kill), `Settings::kill_tree`
+and `Settings::proc`, `Container::wall_ms` and `Container::end`, the verb
+`set_wall`; the launcher reaps each descendant that ends while the payload
+runs, kills the tree at the end, and writes the end before it answers a
+waiter. The crate sets no `RLIMIT_FSIZE`.
+
+- Tests: 30 unit tests (new: `a_residual_is_a_number_or_the_word_unknown`,
+  `an_end_keeps_each_field_through_json`,
+  `the_parent_is_read_after_the_last_parenthesis`,
+  `the_descendants_come_from_the_children_files`,
+  `with_no_children_file_the_descendants_come_from_each_stat`,
+  `with_no_proc_the_descendants_are_not_known`,
+  `the_descendants_of_this_process_are_read_from_the_real_proc`),
+  `tests/lifecycle.rs` (5 steps, unchanged) and the new `tests/tree.rs`
+  (5 steps): the 4 tests of the issue are its steps
+  `a_grandchild_that_left_and_ignores_sigterm_is_killed` (with
+  `with_no_kill_the_grandchild_is_counted` as the positive control),
+  `the_wall_bound_ends_the_tree` (800 ms, within the bound and
+  `TREE_KILL_MS`), `with_no_proc_the_count_is_unknown_never_zero` and
+  `no_limit_of_the_file_size_is_set`.
+- Shown once: with the subreaper off, `tree` fails at the first step
+  (`left: Unknown, right: Count(0)`).
+- Next: podvm's launcher (PodUtils/podvm@T-1655) and podrunner's unit
+  driver (PodUtils/podrunner#23) take it with the next tag.
 
 # T-166: `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422)
 

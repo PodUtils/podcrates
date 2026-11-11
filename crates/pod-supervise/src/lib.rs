@@ -9,14 +9,19 @@
 //! [`table::State::Dead`], with the time that a later call noticed it, not
 //! an exit code that nothing measured.
 //!
-//! A payload is not in a PID namespace: a grandchild that goes to another
-//! parent is outside the reach of the launcher, and `stop` signals the
-//! payload only.
+//! A payload is not in a PID namespace. The launcher is the child
+//! subreaper of the payload's tree: a descendant whose parent ends becomes
+//! a child of the launcher, also after a `setsid`. At the end of the
+//! payload the launcher kills each descendant that stays
+//! ([`Settings::kill_tree`]), and writes the count that stays after the
+//! kill, the use of the tree and the reason of the end into the record
+//! ([`end::End`]). `stop` and `kill` signal the payload only.
 //!
 //! The crate is Linux only. On another target it is empty.
 #![cfg(target_os = "linux")]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+pub mod end;
 pub mod launcher;
 pub mod lock;
 pub mod logs;
@@ -54,6 +59,13 @@ pub struct Settings {
     /// The exit code of a payload that the launcher could not reap. docker
     /// gives 125, its code for a failure of the runtime.
     pub failed_code: i32,
+    /// Kill each descendant that stays at the end of the payload, as the
+    /// end of PID 1 of a namespace does. `false` only counts them: the
+    /// processes then go on with no supervisor.
+    pub kill_tree: bool,
+    /// The mount of procfs that the launcher reads for the descendants of
+    /// the payload.
+    pub proc: PathBuf,
 }
 
 impl Settings {
@@ -67,6 +79,8 @@ impl Settings {
             name_prefix: "pod".to_string(),
             list_command: None,
             failed_code: 125,
+            kill_tree: true,
+            proc: PathBuf::from("/proc"),
         }
     }
 }
@@ -142,6 +156,8 @@ where
         launcher_pid: None,
         exit_code: None,
         noticed: None,
+        wall_ms: None,
+        end: None,
         of,
     };
     table::update(s, |t: &mut table::Table<X>| {
@@ -162,6 +178,26 @@ where
     let dir = table::dir(s, &id);
     std::fs::create_dir_all(&dir).map_err(|e| io_at(&dir, e))?;
     Ok(c)
+}
+
+/// Set the wall bound of a container that does not run: at `wall_ms` after
+/// the start of the payload, the launcher kills the payload and its tree,
+/// and the end reads [`end::Reason::Wall`]. `None` removes the bound.
+pub fn set_wall<X>(s: &Settings, want: &str, wall_ms: Option<u64>) -> Result<Container<X>>
+where
+    X: Clone + Serialize + DeserializeOwned,
+{
+    let c = get::<X>(s, want)?;
+    if c.state == State::Running {
+        return Err(failure(Class::Usage, format!("{} is running: set its wall bound before the start", c.name)));
+    }
+    table::update(s, |t: &mut table::Table<X>| {
+        if let Some(x) = t.containers.iter_mut().find(|x| x.id == c.id) {
+            x.wall_ms = wall_ms;
+        }
+        Ok::<_, Failure>(())
+    })?;
+    get::<X>(s, &c.id)
 }
 
 /// Start a created container, and return when its payload runs. `enter`

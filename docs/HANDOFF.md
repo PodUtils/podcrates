@@ -44,9 +44,10 @@ page current; remove a line when its work is done.
   `ghactions-local` (the ruling "Q11"). Each note goes to
   `docs/research/` and to podrunner.
 
-- T-020 `pod-session`, T-022 `pod-wormhole`, T-155: released in
-  `v0.15.0` (the trials and the cross tests passed); the takes of podssh
-  and podvm remain (#54). podnet took `pod-hold` (T-166 done). podnet
+- T-020 `pod-session`, T-022 `pod-wormhole`: released in `v0.15.0` (the
+  trials and the cross tests passed); podssh's take remains (#54). podnet
+  took `pod-hold` (T-166 done); podvm took `v0.15.0` with T-155
+  (PodUtils/podvm#242). podnet
   answered T-169 yes and T-170 yes in two steps (PodUtils/podnet#424).
   When a consumer writes
   its take as a COORD issue `(to podcrates)`: add the `taken` line to the

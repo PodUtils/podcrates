@@ -83,6 +83,8 @@ impl Errno {
 pub const EPERM: Errno = Errno(1);
 pub const ENOENT: Errno = Errno(2);
 pub const ESRCH: Errno = Errno(3);
+/// `ECHILD`: `wait4` has no child to wait for, alive or ended.
+pub const ECHILD: Errno = Errno(10);
 pub const EINTR: Errno = Errno(4);
 pub const EIO: Errno = Errno(5);
 /// `E2BIG`: `openat2(2)` gives it for a `struct open_how` that the kernel
@@ -188,6 +190,7 @@ pub const SYS_WAIT4: i64 = nr!(wait4, __NR_wait4);
 pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
 pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
 pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
+pub const SYS_GETRUSAGE: i64 = nr!(getrusage, __NR_getrusage);
 
 // The id calls. On x86 and arm the plain `getuid` family is the 16-bit
 // form: an id above 65535 reads as 65534. The 32-bit kernel has the `*32`

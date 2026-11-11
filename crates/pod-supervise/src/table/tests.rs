@@ -17,6 +17,8 @@ fn c(id: &str, name: &str, state: State) -> Container<Fields> {
         launcher_pid: None,
         exit_code: None,
         noticed: None,
+        wall_ms: None,
+        end: None,
         of: Fields { manifest_digest: "sha256:0".into(), userland_exec: Vec::new() },
     }
 }

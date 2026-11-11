@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::end::End;
 use crate::lock::Lock;
 
 /// The launcher. It runs in the forked child and never returns to the code
@@ -16,6 +17,11 @@ where
     // A session of its own, so that the launcher outlives the shell that
     // started it and has no controlling terminal.
     let _ = sys::setsid();
+
+    // The child subreaper of the tree, before the payload exists: each
+    // descendant whose parent ends comes here, not to init. A host that
+    // refuses it gives the count `unknown` at the end.
+    let subreaper = sys::set_child_subreaper().is_ok();
 
     // Its own stdio goes to /dev/null. A `clone` copies each descriptor and
     // this process never execs, so without this it holds the stdin, stdout
@@ -120,6 +126,8 @@ where
     drop(err_sink);
     drop(null);
     let pid = payload.pid;
+    let started = Instant::now();
+    let wall = container.wall_ms.map(|ms| started + std::time::Duration::from_millis(ms));
 
     // A pidfd from the moment the child exists, and each wait below is on
     // it, not on a pid.
@@ -147,6 +155,7 @@ where
         c.pid = Some(pid);
         c.launcher_pid = Some(launcher_pid);
         c.started_at = Some(table::now());
+        c.end = None;
     }) {
         say(&format!("err recording the container as running: {e}"));
         let _ = sys::kill(pid, 9);
@@ -157,11 +166,30 @@ where
     say(&format!("ok {launcher_pid} {pid}"));
     let _ = sys::close(ready_w);
 
-    let exit = serve(&listener, pidfd, pid, s.failed_code);
+    let served = serve(&listener, pidfd, pid, s.failed_code, wall);
     let _ = sys::close(pidfd);
-    let _ = std::fs::remove_file(&ctl_path);
+    let run_ms = started.elapsed().as_millis() as u64;
 
-    let _ = record::<X>(s, &container.id, |c| ended(c, exit));
+    // The tree, then its use: the use counts each process that the kill
+    // reaped. The record holds the end before a waiter gets the code.
+    let residual = tree::end_tree(&s.proc, launcher_pid, subreaper, s.kill_tree);
+    let usage = sys::rusage_children().unwrap_or_default();
+    let end = End {
+        reason: served.reason,
+        run_ms,
+        user_ms: usage.user_us / 1000,
+        system_ms: usage.system_us / 1000,
+        max_rss_kib: usage.max_rss_kib,
+        residual_processes: residual,
+    };
+    let _ = record::<X>(s, &container.id, |c| {
+        ended(c, served.code);
+        c.end = Some(end);
+    });
+    let _ = std::fs::remove_file(&ctl_path);
+    for mut w in served.waiters {
+        let _ = writeln!(w, "exit {}", served.code);
+    }
     drop(payload.keep);
     drop(lock);
     0

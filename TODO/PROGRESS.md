@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 173 entries: 63 open, 3 partial, 0 blocked, 107 done.
+`TODO/INDEX.md` holds 173 entries: 62 open, 3 partial, 0 blocked, 108 done.
 
 ## State
 
@@ -14,10 +14,10 @@
   `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main` (dry run
   42880918874 green).
 - The consumers: podnet is on `v0.15.0` (it took `pod-hold` at
-  `b759937`); podssh is on `v0.14.0` (it took `pod-ws` and `pod-quic`);
-  podvm is on `v0.12.0` (it took its seven crates of M6).
+  `b759937`); podvm is on `v0.15.0` (`d9fe511`, with T-155); podssh is on
+  `v0.14.0` (it took `pod-ws` and `pod-quic`).
 - Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
-  T-155 (podvm's move of calls). Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
+  Open defects: T-131 (`pod-gsr` on Windows ARM64), T-149
   (qemu-user only), T-157 (public Trojan nodes; a second day of the watch).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online", 2026-11-11; C49); they
@@ -48,8 +48,7 @@ next entry.
 1. **The defects of the consumers:** T-157 (four public Trojan nodes of
    podssh fail the live check).
 2. **podrunner** (PodUtils/podrunner#1): T-163 (the schemas, for
-   PodUtils/podrunner#17), T-162 (the tree kill, for PodUtils/podrunner#23),
-   T-160 and T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
+   PodUtils/podrunner#17, after podrunner's types), T-160 and T-161 (`pod-broker`, for PodUtils/podrunner#24), T-164 (the
    Actions hosts, for PodUtils/podrunner#30); T-165 after DR-4
    (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
    needs it); T-146 tracks the plan. Each new ask of the

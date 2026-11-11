@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**173 entries: 63 open, 3 partial, 0 blocked, 107 done.**
+**173 entries: 62 open, 3 partial, 0 blocked, 108 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 36 | 55 |
-| P2 | 32 | 1 | 0 | 52 | 85 |
+| P2 | 31 | 1 | 0 | 53 | 85 |
 | P3 | 14 | 0 | 0 | 17 | 31 |
-| **All** | 63 | 3 | 0 | 107 | 173 |
+| **All** | 62 | 3 | 0 | 108 | 173 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -208,7 +208,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-159](relay.md) | P2 | S | M2 | defect | done | podnet: two QUIC connections on one WARP socket share one waker of the full send queue |
 | [T-160](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: a listener bound to one job, with no token in the unit (PodUtils/podvm#227) |
 | [T-161](fleet.md) | P3 | M | M8 | feature | open | `pod-broker`: send the name to an upstream that takes names only (PodUtils/podvm#227) |
-| [T-162](podvm.md) | P2 | M | M8 | feature | open | `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227) |
+| [T-162](podvm.md) | P2 | M | M8 | feature | done | `pod-supervise`: kill the tree, a wall timeout, rusage and the count of residual processes (PodUtils/podvm#227) |
 | [T-163](fleet.md) | P2 | M | M8 | feature | open | Schemas and types: job offer, unit capability, run report and public report (PodUtils/podvm#227) |
 | [T-164](transport.md) | P3 | S | M8 | feature | open | `pod-services`: the Actions control-plane hosts and the pin of `actions/runner`, with watches (PodUtils/podvm#227) |
 | [T-165](transport.md) | P3 | M | M8 | feature | open | `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227) |

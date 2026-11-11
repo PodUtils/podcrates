@@ -83,6 +83,15 @@ pub struct Container<X> {
     /// The time of the notice, not of the end: this process does not know
     /// the second.
     pub noticed: Option<String>,
+    /// The wall bound of a run, in milliseconds from the start of the
+    /// payload. At the bound the launcher kills the payload and its tree.
+    /// `None`: no bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wall_ms: Option<u64>,
+    /// The end of the last run, as the launcher measured it. A new start
+    /// clears it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end: Option<crate::end::End>,
     #[serde(flatten)]
     pub of: X,
 }
