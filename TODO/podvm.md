@@ -2918,3 +2918,45 @@ podvm, the only consumer of `pod-oci`, or the owner asks for the mode
 (podvm by a COORD issue `(to podcrates)`). podvm reads its two entries on
 `Range` first: they refuse `Range` for a resume, and this mode is a
 different mechanism.
+
+# T-201: `pod-hold`: the veth wire of the netns hold when the namespace has no `/dev/net/tun` (PodUtils/podnet#446)
+
+**Source:** PodUtils/podnet#446 (COORD-028 of podnet; its T-174, commits `295a41d`, `96cd1b7`, `fc97ef9`)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The netns hold of `pod-hold` sets up a TUN device in the namespace
+(`netns/tun.rs`). A namespace that cannot open `/dev/net/tun` has no
+device, so the hold cannot run there. podnet added a second wire: a veth
+pair (`eth0`, `wire0`) made with one `RTM_NEWLINK`; the parent reads
+frames on a packet socket of `wire0`, answers ARP for the gateway, and
+gives the IP packets to smoltcp. `pod-hold`'s `tun.rs` has no wire enum,
+so podnet keeps the wire in its own `veth.rs` and calls it after its take.
+
+## Premise
+
+- Read: PodUtils/podnet#446; `crates/pod-hold/src/netns/tun.rs` and its
+  `SOURCES` block (taken at `b759937`).
+- Not read: `PodUtils/podnet:crates/podnet-netns/src/netns/veth.rs` and its
+  tests; the probe row `veth wire (no TUN)` of its `doctor.rs`.
+
+## Approach
+
+When podnet's tests of the wire pass in its CI (`veth_wire_carries_a_tcp_flow`
+and the three unit tests of `netns::veth::tests`), ask podnet for the cut
+by a COORD issue, take `veth.rs` (the setup, the ARP answer, the packet
+socket) into `pod-hold` with a `Wire::{Tun, Veth}` of the netns hold, keep
+the smoltcp device in the consumer, and port the tests under their names;
+the trial for podnet as for `pod-hold`.
+
+## Prove
+
+```sh
+cargo test -p pod-hold
+```
+

@@ -23,8 +23,9 @@ page current; remove a line when its work is done.
     podnet. `pod-hold` at `b759937`,
     its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
     podnet's T-174 (the netns router).
-  - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (#63,
-    #65), with its PodUtils/podvm@T-1722.
+  - podvm: `v0.21.0` (`1ffe87e`, PodUtils/podvm#257; its incus tier calls
+    `pod-incus`, proved by its experiment 434 against incusd 6.0.0). Its
+    PodUtils/podvm@T-1722 may ask for `exec_attached`.
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
     Its state (head `4ca19f5`): its T-035 is done (a job with a
     `container:` key runs through the hooks of a podvm unit; gate
@@ -55,8 +56,8 @@ page current; remove a line when its work is done.
   (`check-sources.py` with clones must show 0 changes), remove the trial
   files of that consumer, set the entry to done, and close the hand-off
   issue when each consumer took its part.
-- podvm's take of `pod-incus` (#63): add the crate's consumer row and close
-  #63 and #65 when each consumer took its part.
+- #65 (`v0.21.0`): podssh and podvm took it; close it when podnet and
+  podrunner move their tags.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".

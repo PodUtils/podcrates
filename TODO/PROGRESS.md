@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 200 entries: 56 open, 3 partial, 0 blocked, 141 done.
+`TODO/INDEX.md` holds 201 entries: 57 open, 3 partial, 0 blocked, 141 done.
 
 ## State
 
@@ -15,9 +15,9 @@
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
   (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
-  its `connect` and `packet` at `e4d4049`); podvm is on `v0.19.0` (`2c2b8d2`, its
-  `--inhibit-cache` from `LoaderPlan::inhibit_cache`; PodUtils/podvm#249,
-  read by podcrates); podrunner is on `v0.19.0`
+  its `connect` and `packet` at `e4d4049`); podvm is on `v0.21.0` (`1ffe87e`,
+  PodUtils/podvm#257: its incus tier calls `pod-incus`; experiment 434
+  passes against incusd 6.0.0); podrunner is on `v0.19.0`
   (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
   takes `check_upstream`, `names_upstream` and the flagged rules).
 - `pod-e2e` (T-021) is done: the release `v0.22.0` and podssh's take of
@@ -56,10 +56,11 @@ next entry.
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need.
-3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-150, T-121 to T-124 (the asks of
+3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-201
+   (the veth wire into `pod-hold`) after podnet's tests of the wire pass; T-150, T-121 to T-124 (the asks of
    podnet).
-4. **M6, the crates of podvm:** podvm's take of `pod-incus` (`v0.21.0`,
-   GitHub #63 and #65; its PodUtils/podvm@T-1722). T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
+4. **M6, the crates of podvm:** `exec_attached` of `pod-incus` when
+   PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.

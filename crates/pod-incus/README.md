@@ -92,7 +92,10 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
 
 * `record-output`: incus writes stdout and stderr to two logs; the crate
   reads both after the end of the command and deletes them, as the client
-  of incus does.
+  of incus does. Each log path that `metadata.output` names must be a
+  file directly under `/1.0/instances/NAME/logs/exec-output/`, else the
+  call fails with `Protocol`: the crate reads and deletes no other path. A
+  stand-in incus for tests must give paths of that form.
 * `wait-for-websocket`: incus starts the command when the sockets `0`,
   `1` and `2` are connected. Data goes in binary messages; an empty text
   message ends a stream (the barrier of `shared/ws`), as a Close does.
