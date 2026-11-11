@@ -17,8 +17,13 @@ pub const PR_CAP_AMBIENT: u64 = 47;
 pub const PR_CAP_AMBIENT_CLEAR_ALL: u64 = 4;
 /// `CAP_SETPCAP`: a drop from the bounding set needs it.
 pub const CAP_SETPCAP: u32 = 8;
-/// `CAP_SYS_PTRACE`: it passes the ptrace check of a Landlock domain.
+/// `CAP_SYS_PTRACE`.
 pub const CAP_SYS_PTRACE: u32 = 19;
+/// `CAP_SYS_ADMIN`: with it, a confined task reads the environment of its
+/// unconfined ancestors past the Landlock domain (Linux 6.18).
+pub const CAP_SYS_ADMIN: u32 = 21;
+/// `CAP_PERFMON`: as `CAP_SYS_ADMIN` for that read.
+pub const CAP_PERFMON: u32 = 38;
 
 /// The three sets of one thread, as 64-bit masks (bit `n` is capability `n`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

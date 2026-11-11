@@ -3636,7 +3636,7 @@ loop) that fails before the fix.
 cargo test -p pod-enter --all-features --lib
 ```
 
-# T-221: `pod-confine`: a payload that runs as root keeps its capabilities, and `CAP_SYS_PTRACE` passes the Landlock domain
+# T-221: `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain
 
 **Source:** podrunner's T-042 (a direct message of 2026-11-11: as root, a confined payload reads `/proc/PID/environ` of a process outside its domain)
 **Category:** defect
@@ -3647,27 +3647,29 @@ cargo test -p pod-enter --all-features --lib
 
 ## Problem
 
-`pod_confine::apply` sets `no_new_privs`, the Landlock ruleset and the
-seccomp filter, and keeps the capabilities of the payload. Landlock lets a
-task with `CAP_SYS_PTRACE` reach a process outside its domain, so a
-payload that runs as root reads `/proc/PID/environ` (and the other
-ptrace-checked files) of each process of the host. podrunner measured it
-on Linux with Landlock ABI 7; as `nobody` the read is refused. podvm's
-units can run their payload as root.
+`pod_confine::apply` set `no_new_privs`, the Landlock ruleset and the
+seccomp filter, and kept the capabilities of the payload. A confined
+payload that runs as root then reads `/proc/PID/environ` of its
+unconfined ancestors of the same uid (podrunner's shim and podrunner
+itself; for podvm, its launcher and its supervisor) past the Landlock
+domain. podrunner found it (its T-042, a direct message); as `nobody` the
+read is refused. podvm's units can run their payload as root.
 
 ## Premise
 
-- Read: podrunner's report (its conformance test 27 passes as `nobody`).
-- Measured here (Linux 6.18, ABI 7, as root, `/proc` readable by the
-  rules): a confined child refuses `/proc/1/environ` with `EACCES` with no
-  capability, with `CAP_SYS_PTRACE` alone, with each one of the first 41
-  alone, and with each capability kept. So `CAP_SYS_PTRACE` does not pass
-  the Landlock domain on this kernel; podrunner's read needs another cause
-  (a target in the same domain, or a kernel that differs), and podrunner is
-  asked for its case.
-- A confined root that keeps `CAP_SYS_ADMIN`, `CAP_NET_ADMIN`,
-  `CAP_SYS_MODULE` or `CAP_SYS_TIME` holds power that the ruleset and the
-  filter do not cover, so the drop stays worth its cost.
+- Read: podrunner's case (Linux 6.18.44, ABI 7, uid 0 in the first user
+  namespace, `CapEff` with each capability but `CAP_SYS_RESOURCE`): its
+  confined payload reads the environment of the shim and of the test
+  process, its unconfined ancestors, and not of PID 1.
+- Measured here (the same kernel, as root, `/proc` readable by the
+  rules), a child that reads the environment of its parent, the test
+  process: with no confinement it reads; confined with no capability,
+  `EACCES`; confined with each capability kept, it reads; with one
+  capability kept, it reads with `CAP_SYS_ADMIN` (21) or `CAP_PERFMON`
+  (38) alone, and not with `CAP_SYS_PTRACE` (19) or any other one. The
+  parent with `PR_SET_DUMPABLE` 0 changes nothing.
+- PID 1 here refuses `/proc/1/environ` to root with no confinement: a test
+  on it shows nothing of the domain.
 
 ## Approach
 
@@ -3689,23 +3691,26 @@ cargo test -p pod-confine --all-features
 
 ## Done
 
-2026-11-11, `4073d23` and the commit of the plants. `pod_hostprobe::sys`
-has `capget`, `capset`, `capbset_drop`, `ambient_clear` (`sys/caps.rs`).
-`Spec::keep_caps` (0, none, in `Spec::new()`), `keep_cap(n)`,
-`DOCKER_CAPS`; `apply` drops each capability that the mask does not name
-after `no_new_privs` and before the ruleset: the bounding set where the
-thread holds `CAP_SETPCAP`, then `capset` of the three sets, then the
-ambient set (`EINVAL` of an old kernel passes). `Call` has `CapGet`,
-`CapBoundingDrop` (its index is the capability), `CapSet`,
-`CapAmbientClear`. The probe's child drops them too. Test
-`a_confined_root_keeps_only_the_capabilities_of_the_spec` (root only):
-no capability kept gives `EACCES` for `/proc/1/environ` and empty
-effective and permitted sets; `keep_cap(CAP_SYS_PTRACE)` gives that one
-capability alone. `cargo test -p pod-confine --all-features`: 28 unit
-tests and 12 in `tests/apply.rs` pass; `cargo test -p pod-enter
---all-features --test confine`: 7 pass. Plant `confine-capabilities-kept`
-(no drop) is caught; the patches of `confine-absent-runs-unconfined` and
-`confine-scope-unset` were made again after the change of `apply.rs`
-(`plant-each.sh --apply` found them stale) and are caught. Breaking:
-`Spec` has the field `keep_caps`, and a confined root payload keeps no
-capability unless the spec names it (`DOCKER_CAPS` for docker's set).
+2026-11-11. `pod_hostprobe::sys` has `capget`, `capset`, `capbset_drop`,
+`ambient_clear` and the numbers `CAP_SETPCAP`, `CAP_SYS_PTRACE`,
+`CAP_SYS_ADMIN`, `CAP_PERFMON` (`sys/caps.rs`). `Spec::keep_caps` (0,
+none, in `Spec::new()`), `keep_cap(n)`, `DOCKER_CAPS`; `apply` drops each
+capability that the mask does not name after `no_new_privs` and before
+the ruleset: the bounding set where the thread holds `CAP_SETPCAP`, then
+`capset` of the three sets, then the ambient set (`EINVAL` of an old
+kernel passes). `Call` has `CapGet`, `CapBoundingDrop` (its index is the
+capability), `CapSet`, `CapAmbientClear`. The probe's child drops them
+too. Test `a_confined_root_keeps_only_the_capabilities_of_the_spec` (root
+only): the parent's environment reads with no confinement; confined with
+no capability it is `EACCES` and the effective and permitted sets are
+empty; with `DOCKER_CAPS` it is `EACCES` and no capability out of the set
+stays; with `CAP_SYS_ADMIN` kept it reads, and that capability is the one
+kept. `cargo test -p pod-confine --all-features`: 28 unit tests and 12 in
+`tests/apply.rs` pass; `cargo test -p pod-enter --all-features --test
+confine`: 7 pass. Plant `confine-capabilities-kept` (no drop) is caught;
+the patches of `confine-absent-runs-unconfined` and `confine-scope-unset`
+were made again after the change of `apply.rs` (`plant-each.sh --apply`
+found them stale) and are caught. Breaking: `Spec` has the field
+`keep_caps`, and a confined root payload keeps no capability unless the
+spec names it (`DOCKER_CAPS` for docker's set; keep neither
+`CAP_SYS_ADMIN` nor `CAP_PERFMON`).

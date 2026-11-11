@@ -79,8 +79,11 @@ the drop changes nothing for it. A root payload that installs packages
 needs some capabilities: give it `DOCKER_CAPS` (`CHOWN`, `DAC_OVERRIDE`,
 `FOWNER`, `FSETID`, `KILL`, `SETGID`, `SETUID`, `SETPCAP`,
 `NET_BIND_SERVICE`, `NET_RAW`, `SYS_CHROOT`, `MKNOD`, `AUDIT_WRITE`,
-`SETFCAP`). Measured on Linux 6.18 (ABI 7), as root: with each capability
-kept, the Landlock domain still refuses `/proc/1/environ` with `EACCES`.
+`SETFCAP`). Measured on Linux 6.18 (ABI 7), as root: a confined payload
+that keeps `CAP_SYS_ADMIN` or `CAP_PERFMON` reads the environment of its
+unconfined ancestors of the same uid (the supervisor, the caller) past the
+Landlock domain; with no capability, or with `DOCKER_CAPS`, the read
+fails with `EACCES`. Keep neither of the two.
 
 ### The scopes, UDP and MPTCP
 

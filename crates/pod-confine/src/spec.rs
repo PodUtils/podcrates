@@ -179,8 +179,8 @@ pub struct Spec {
     /// the thread holds `CAP_SETPCAP`) and out of the effective, permitted,
     /// inheritable and ambient sets. With `no_new_privs`, an `execve` as
     /// root gives no more than the kept set. 0 (the default) keeps none:
-    /// `CAP_SYS_PTRACE` passes the ptrace check of a Landlock domain, so a
-    /// root that keeps it reads `/proc/PID/environ` of each process.
+    /// a root that keeps `CAP_SYS_ADMIN` or `CAP_PERFMON` reads the
+    /// environment of its unconfined ancestors past the Landlock domain.
     pub keep_caps: u64,
 }
 

@@ -267,4 +267,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-218](roads.md) | P2 | L | M4 | feature | open | `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453) |
 | [T-219](roads.md) | P2 | L | M4 | feature | open | `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453) |
 | [T-220](roads.md) | P2 | M | M4 | feature | open | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
-| [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and `CAP_SYS_PTRACE` passes the Landlock domain |
+| [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain |
