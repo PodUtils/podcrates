@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**184 entries: 52 open, 3 partial, 0 blocked, 129 done.**
+**184 entries: 51 open, 2 partial, 0 blocked, 131 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 0 | 0 | 40 | 57 |
-| P2 | 24 | 3 | 0 | 62 | 89 |
-| P3 | 11 | 0 | 0 | 25 | 36 |
-| **All** | 52 | 3 | 0 | 129 | 184 |
+| P2 | 24 | 2 | 0 | 63 | 89 |
+| P3 | 10 | 0 | 0 | 26 | 36 |
+| **All** | 51 | 2 | 0 | 131 | 184 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -188,7 +188,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-139](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222) |
 | [T-140](podvm.md) | P1 | S | M6 | defect | done | `pod-oci`: the test of the host name fails where Rust and OCI say the same word |
 | [T-141](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: port podvm's fix of the whiteout escape and its tests; remake the patch on podvm's main |
-| [T-142](podvm.md) | P3 | S | M6 | measurement | open | `pod-oci`: a live pull from a public registry |
+| [T-142](podvm.md) | P3 | S | M6 | measurement | done | `pod-oci`: a live pull from a public registry |
 | [T-143](foundation.md) | P1 | S | M5 | defect | done | `plants.yml`: four plants are stale and two miss |
 | [T-144](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: the volume pairs in the maps table; the workdir and the first program through a guest-to-host resolver (PodUtils/podvm#224) |
 | [T-145](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `Statfs::f_flags` (PodUtils/podvm#224) |
@@ -215,7 +215,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-166](podvm.md) | P2 | L | M1 | feature | done | `pod-hold`: the hold of each connect of a payload, from podnet's `podnet-netns` (PodUtils/podnet#422) |
 | [T-167](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap` |
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |
-| [T-169](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
+| [T-169](podvm.md) | P2 | M | M1 | feature | done | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
 | [T-170](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
 | [T-171](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
 | [T-172](transport.md) | P3 | S | M2 | feature | done | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |

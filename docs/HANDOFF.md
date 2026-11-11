@@ -16,10 +16,9 @@ page current; remove a line when its work is done.
   - podssh: `v0.16.0` (`fab57923`; `pod-wormhole` at `baa00a06`,
     `pod-session` at `6f78a7c7`). Next: the tag with T-171, T-172 and
     T-181 (the host key of `ssh-j`, which podssh then pins).
-  - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the take of
-    `adoption/podnet/pod-hold-connect.patch` (T-169, T-170 step 1; podnet
-    `d3fad49`, tag `v0.17.0`; the trial passes). The hand-off is GitHub #59
-    (COORD-034).
+  - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its
+    `connect` and `packet` at `e4d4049`, PodUtils/podnet#426; it released
+    `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.
   - podvm: `v0.17.0` (`522b437`, the limits of `pod-enter`, T-176;
     PodUtils/podvm#245 closed).
   - podrunner: `v0.17.0` (`0457ed0`: it took `pod-job`; the `taken` line

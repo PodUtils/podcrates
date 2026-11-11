@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 184 entries: 52 open, 3 partial, 0 blocked, 129 done.
+`TODO/INDEX.md` holds 184 entries: 51 open, 2 partial, 0 blocked, 131 done.
 
 ## State
 
@@ -14,14 +14,14 @@
   (COORD-035); the one of `v0.17.0` is #58. The fuzz run 42958692411 on
   the candidate found T-183 and T-184, fixed on `main` for `v0.19.0`.
 - The consumers: podssh is on `v0.16.0` (`fab57923`; it took
-  `pod-wormhole` at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
-  took `pod-hold` at `b759937`); podvm is on `v0.17.0` (`522b437`: the
+  `pod-wormhole` at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
+  (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
+  `packet` at `e4d4049`, PodUtils/podnet#426; it released
+  `v0.4.0-beta.3`); podvm is on `v0.17.0` (`522b437`: the
   limits of `pod-enter`, T-176, PodUtils/podvm#245 closed); podrunner is on `v0.17.0`
   (`0457ed0`: it took `pod-job`; `pod-job`'s `SOURCES` has the `taken`
   line, 0 changes).
-- Partial: T-169 and T-170 (the trial
-  `adoption/podnet/pod-hold-connect.patch` passes; podnet's take remains;
-  T-170 step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
+- Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online", 2026-11-11; C49); they
@@ -56,11 +56,9 @@ next entry.
    the one version rule of `schemas/` and the `policy` of an offer go out
    with the next tag (`docs/HANDOFF.md`). T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-169 and T-170 (partial: podnet's take of
-   `adoption/podnet/pod-hold-connect.patch`, GitHub #59 (COORD-034); T-170
-   step 2 after podnet's COORD issue), from podnet's answer
-   PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
-4. **M6, the crates of podvm:** T-142. T-040 (the trials of
+3. **podnet:** T-170 step 2 after podnet's COORD issue; T-150, T-121 to
+   T-124 (the asks of podnet).
+4. **M6, the crates of podvm:** T-040 (the trials of
    podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`.

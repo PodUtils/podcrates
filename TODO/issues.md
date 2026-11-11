@@ -64,5 +64,5 @@ numbers. `TODO/RULES.md` gives the rules.
 | #56 | COORD-031: the owner's DR-5: podrunner waits for PodUtils/podvm@T-1656, and podvm must support incus or have an adapter for it; the answer to COORD-023 (to podvm) | closed | T-173 |
 | #57 | COORD-032: podcrates v0.16.0 is released: podrunner takes pod-supervise and pod-broker; podvm takes the tree kill and the private modes; podnet and podssh may move the tag (to all) | open | T-157, T-160, T-162, T-175 |
 | #58 | COORD-033: podcrates v0.17.0 is released: podrunner takes pod-job and the mutual TLS of pod-tls; podvm takes the limits of pod-enter (to all) | open | T-163, T-164, T-165, T-176 |
-| #59 | COORD-034: the take of pod_hold::connect and pod_hold::packet: adoption/podnet/pod-hold-connect.patch (to podnet) | open | T-169, T-170 |
+| #59 | COORD-034: the take of pod_hold::connect and pod_hold::packet: adoption/podnet/pod-hold-connect.patch (to podnet) | closed | T-169, T-170 |
 | #60 | COORD-035: podcrates v0.18.0 is released: podrunner takes the names mode of pod-broker and the schema rule; podssh takes three tunnels, the key of ssh-j and Rewound::new (to all) | open | T-161, T-171, T-172, T-173, T-177, T-178, T-181 |

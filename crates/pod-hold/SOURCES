@@ -29,6 +29,7 @@ file 139cae4368667309201eb22aa25f0e965edc9791 crates/podnet-netns/src/netns/mod.
 file de93805f6f94595e523395cafb9a7178fdb6c1c8 crates/podnet-netns/src/lib.rs -> crates/pod-hold/src/filter/tests.rs
 
 repo PodUtils/podnet 2efa720822014a38365e1d2b72ac1a0a6b6c7abf
+taken e4d4049a579b90827a84627fd10fa84dbad878da
 # The import read 5599012. The block reads 2efa720: podnet's port of the fix
 # of parse_tcp_syn of this crate (a header under 20 bytes and a later
 # fragment are no SYN; T-234 of podnet). connect.rs is the same at both.

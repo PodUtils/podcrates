@@ -112,8 +112,8 @@ podnet took these rows at `b759937` (tag `v0.15.0`):
 | `crates/podnet-netns/README.md`: "Linux 5.0 or newer" | Linux 5.14 (`SECCOMP_ADDFD_FLAG_SEND`) |
 | `podnet-netns/Cargo.toml`, `Cargo.toml` | add `pod-hold` (tag `v0.15.0`) |
 
-`adoption/podnet/pod-hold-connect.patch` (at podnet `d3fad49`, tag
-`v0.17.0`; T-169, T-170 step 1) is the hand-off of these rows:
+podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
+1, GitHub #59):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
