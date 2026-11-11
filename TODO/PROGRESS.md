@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 228 entries: 61 open, 4 partial, 4 blocked, 159 done.
+`TODO/INDEX.md` holds 230 entries: 63 open, 4 partial, 4 blocked, 159 done.
 
 ## State
 
@@ -23,7 +23,8 @@
   T-207, #70); podnet's take of `v0.26.0` with the veth wire of
   `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; #77);
   podrunner's T-075 (T-226, #77).
-- Partial: T-025 (`pod-relay`: the trial of podssh remains), T-040 (the
+- Partial: T-025 (`pod-relay`: the trial of podssh is written and passed
+  on this host; `adoption.yml` remains), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
@@ -62,7 +63,7 @@ next entry.
    entry here, in the order of its need.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-025 (the
-   trial of podssh), T-026 (podnet's relay client), then T-028 (`pod-warp`
+   run of `adoption.yml` of the trial of podssh), T-026 (podnet's relay client), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    after PodUtils/podnet@T-249 (the router onto `pod-netstack`); T-214 and T-215 (the file
@@ -78,8 +79,8 @@ next entry.
 5. **M1, the transport:** T-174 (a Trojan node); T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-225 (a watch of the banner of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-025 (partial: the trial of podssh, step 1 of its
-   Done section), T-212, T-026; then T-204 (a random failure of
+6. **M2, the relay:** T-025 (partial: `adoption.yml` of the trial of
+   podssh), T-228, T-229, T-212, T-026; then T-204 (a random failure of
    `pod-session`); then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197 and T-223
    (`pod-netstack`).
@@ -100,7 +101,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C66), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C67), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

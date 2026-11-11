@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**228 entries: 61 open, 4 partial, 4 blocked, 159 done.**
+**230 entries: 63 open, 4 partial, 4 blocked, 159 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 46 | 60 |
-| P2 | 30 | 2 | 4 | 78 | 114 |
+| P2 | 32 | 2 | 4 | 78 | 116 |
 | P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 61 | 4 | 4 | 159 | 228 |
+| **All** | 63 | 4 | 4 | 159 | 230 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -274,4 +274,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-225](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |
 | [T-227](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
+| [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |
+| [T-229](relay.md) | P2 | M | M2 | defect | open | `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |

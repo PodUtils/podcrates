@@ -9,10 +9,13 @@ a line when its work is done. Git and the record keep finished work.
 ## In flight
 
 - `pod-relay` (T-025, partial; call C60): imported from podssh `75a5031`
-  and adapted (a `Context` of the caller, `Settings`, no globals); 356
-  tests and 28 plants pass. The next step is the trial of podssh
-  (adoption/podssh/pod-relay.*): its glue gives each call that took a
-  `ProxyChoice` a `Context`. podssh holds the files of the cut from
+  and adapted (a `Context` of the caller, `Settings`, no globals); 357
+  tests and 28 plants pass. The trial of podssh (adoption/podssh/pod-relay.*,
+  call C67) is written and passed on this host: podssh-relay keeps each
+  module as glue over one `Context` of the process. `adoption.yml` must run
+  it (the static build with zig, the build with `iroh,warp`). T-229 (six
+  plants that only podssh's tests caught) and T-228 (the live tests in
+  `live.yml`) come of it. podssh holds the files of the cut from
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.

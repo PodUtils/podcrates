@@ -198,10 +198,16 @@ server.
 The study, then the procedure of `docs/design.md`, section 8. podssh's tests
 that run the role and that `pod-relay` left (T-025) come with it:
 `tests/session_relay_resume.rs`, `relay_serve_*.rs`, `reverse_carrier.rs`,
-`reverse_restart.rs`, `http_road.rs`, and the plants
+`reverse_restart.rs`, `http_road.rs`, `pair_code.rs` with its
+`mailbox_harness/` (the pairing by code at the role's mailbox; `pod-relay`
+runs the same tests at `pod-wormhole`'s stand-in), and the plants
 `t173-resume-to-the-shared-name`, `t255-backoff-back` and
-`t326-cleartext-first`. The role gives `pod-relay`'s
-`reverse::wire::Door` for its carrier.
+`t326-cleartext-first`, which the trial of `pod-relay` removes from podssh,
+as their patches change code of `pod-relay`. The role gives `pod-relay`'s
+`reverse::wire::Door` for its carrier (podssh's trial implements it for
+its `serve::reverse::carrier::Door`). The live run of the drops through the
+role on a runner (podssh's `reverse-drops.yml` with `relay: role`, which
+the trial removes) comes with it.
 
 ## Prove
 

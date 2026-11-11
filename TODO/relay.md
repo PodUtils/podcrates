@@ -996,22 +996,70 @@ commit: podssh's workspace is in edition 2024.
   `pod_testkit::host::socket_dir`. `python3 -I scripts/check-sources.py`
   with a clone of podssh: 127 files, 0 changes on its `main`.
 
+- The trial of podssh (`docs/design.md`, section 8, step 7):
+  `adoption/podssh/pod-relay.patch`, `.commit` (`75a5031`, which podssh
+  holds to fixes) and `.run`. The patch changes 318 files of podssh (7
+  new, 173 removed, 138 changed; 1,325 lines added, 25,812 removed;
+  `Cargo.lock` aside). podssh-relay keeps each module name of the cut as
+  glue over `pod_relay`: `src/context.rs` makes the `Context` of the
+  process (`context::process()`, `context::of(&proxy)`: the way of
+  `podssh_ws::client::way`, the proxy of each host, the places of
+  `PODSSH_CACHE_DIR`, each `PODSSH_*` variable read at each call with
+  `Names::podssh()`, the keys, the members and the rank that the settings
+  file and the net give, the process resolver, one shared state); each
+  free function keeps its old signature over it; `open::Request` and
+  `open` keep podssh's form; `reverse::node_state()` and
+  `reverse::settings()` keep a node's upgrade, rotations and lines the
+  process's (the spares to the sink of `spares::tell`, a relay's close to
+  `session::budget`); `reverse::tcp::handler` gives a node's target
+  podssh's dialer; the role's carrier `Door` implements
+  `reverse::wire::Door`. podssh-cli: 32 struct literals take `ctx` in
+  place of `proxy`, 11 targets `tcp::handler`, 12 nodes
+  `reverse::settings()`, 5 layered handlers `Layered::telling` with the
+  budget's sink, and the ends of a code take their way out again after the
+  pins (an `Ends` made before `--relay-addr` held the resolver of no
+  pins: `podssh-cli --test relay_code_role` failed). Out of podssh: 31
+  test files of the cut and their harnesses, the token tests of
+  `tests/cache.rs`, 37 plants (28 are `relay-*` here; T-036 takes 3, T-229
+  the other 6), the fuzz targets `relay_list` and `relay_pool` with their
+  seeds, and the live steps of the moved tests (T-228). The role's tests,
+  `pair_code.rs` (the role's mailbox, T-036) and the places of the cache
+  stay. The record of podssh: 338 citations of removed code name
+  `PodUtils/podssh:` paths, the citations of each changed file move by its
+  diff, and 16 done entries name in a Correction the test targets that
+  moved.
+- The trial found two defects, repaired: `failover::MODE_ENV` named
+  podssh's variable in the crate, and `Names::failover` was read by no
+  word (`Mode::from_setting(value, name)` now; the test
+  `a_word_that_is_no_mode_is_refused_with_the_name_of_the_caller_s_setting`
+  failed on the code before); and podssh's test of a signed list read
+  "this podssh", where the crate says "this client" (T-212 lists the
+  words that `Names::app` can give back).
+- Local results, podssh `75a5031` with the patch and the crates of this
+  tree: the patch applies to a fresh checkout; `podssh-todo check` (706
+  entries), `PodUtils/podssh:scripts/check-repo.py`,
+  `PodUtils/podssh:scripts/check-scripts.py`, rustfmt,
+  `cargo deny check bans licenses sources`, the consumer checks of
+  toolchains and test targets: each 0; clippy with `-D warnings` on the
+  crates of the gate, on podssh-relay with each feature and with
+  `serve,plain-ws,quick,quic`, and on podssh-cli, podssh-iroh and
+  podssh-warp with `iroh-test` and `warp`: clean; `cargo test -p
+  podssh-relay --all-features`: 611 passed, 18 ignored (51 binaries);
+  podssh-cli, its library and the 20 test targets of the `.run` (a node,
+  an operator, a pair, a code, a token, the pool, the rank, the failover,
+  a forward session, the role): 1,266 passed. The first run of the CLI
+  failed 3 tests: the variable of the failover that podssh's manual names
+  (repaired in the crate and the glue), the words of a signed list (the
+  test takes the crate's words), and the ends of a code made before the
+  pins (repaired in the CLI). The steps of the `.run` on the
+  fresh checkout: each 0, but the three builds that the disk of this host
+  did not take.
+
 What remains, in order:
 
-1. The trial of podssh: adoption/podssh/pod-relay.patch, .run and
-   `.commit` (`75a5031`), checked as the earlier trials were, then
-   `adoption.yml`. 287 files of podssh name a module of the cut (podssh's
-   other modules of podssh-relay among them: `serve/`, `quick/`, `derp/`
-   and the other roads), so the glue keeps podssh's API: podssh-relay's
-   modules of the cut become glue over `pod_relay`, with podssh's process
-   `Context` (its way of `podssh_ws::client::way` for each `ProxyChoice`,
-   its places, `Settings` read from its environment with
-   `Names::podssh()`, its process resolver) and a wrapper of the old
-   signature for each function whose signature changed, as the glue of
-   `pod-e2e` kept `e2e::net::installed`; its `serve/` gives the role's
-   `impl Door`. The CLI changes only where a field of a struct changed
-   (53 struct literals of `PairContext`, `NodeConfig`, `OperatorConfig`,
-   `MintContext` and `Request`).
+1. `adoption.yml` of the trial: the steps that this host did not run (the
+   build of the release's features with zig and podssh's static check,
+   the build with `iroh,warp`, the whole `.run` in one clean checkout).
 2. The release, and the take of podssh (`docs/design.md`, section 8,
    step 8); podvm takes the facade `blocking` (Q103).
 3. T-212: the lines for the user as events, and the words of podssh's
@@ -1742,7 +1790,13 @@ opener of `pod-relay` still gives its notes to a callback of text
 and flags: the kinds of an exchange by code (`podssh relay pair NAME
 --code`, `podssh relay join NAME`, `podssh net invite NAME`), the end of a
 grant (`podssh node --grant-for`), a node's spares (`--spares`), and
-"podssh's" in the refusals of an exchange.
+"podssh's" in the refusals of an exchange. The other way: where podssh's
+words named podssh, the crate says "this client" (an untrusted signed
+list, a list of a newer form, a critical option of a grant, a frame that
+the relay refused, a control frame), "a relay role of a deployment" (a
+member's list with no signed list) and "a node" (a pair under its 10
+minutes), where `Names::app` would give podssh its words back; podssh's
+trial of T-025 takes the words of the crate in its test of a signed list.
 
 ## Premise
 
@@ -2065,4 +2119,95 @@ second socket can stay in `SynReceived` in the pool.
 
 ```sh
 cargo test -p pod-netstack --lib
+```
+
+# T-229: `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh
+
+**Source:** T-025 (the trial of podssh).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Six plants of podssh change code that is `pod-relay`'s now, and only a
+test of podssh catches each: `t059-faults-recorded` (`failures.rs`,
+podssh's interop step `faults`), `t173-no-room-not-taken`
+(`forward_layer/client.rs`, `podssh-cli --test relay_serve`),
+`t421-backoff-after-a-fault` (`reverse/node.rs`, `--test node_cut`),
+`t617-ask-skipped` (`open.rs`) and `t617-member-key-unchecked`
+(`pool/members.rs`), both `--test relay`, and `t620-offers-a-flag`
+(`reverse/legs.rs`, `--lib node_rotate`). The trial of T-025 removes them
+from podssh, as their patches change no file of podssh. Until a test of
+the crate catches each defect, no check guards that code.
+
+## Premise
+
+- Read: `PodUtils/podssh:scripts/plants/` at `75a5031` (the six `.plant`
+  and `.patch` files), `crates/pod-relay/tests/`.
+- Not measured: whether a test of the crate over the stand-ins of
+  `crates/pod-relay/tests/` reaches each defect; T-036 takes the three
+  plants whose tests run the relay role.
+
+## Approach
+
+As T-021 did with `crates/pod-e2e/tests/door.rs`: for each defect, a test
+of `pod-relay` over loopback stand-ins (the record of failures and its
+order, the answer of a role that has no room, the backoff of a node after
+a socket that served, the ask of a net's relay member and the check of its
+key, the count of the sockets that heard the offer of a rotation), and the
+plant as `relay-tNNN-*` of the group `relay`, which the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+sh scripts/plant-each.sh --group relay
+```
+
+# T-228: `pod-relay`: the live tests of the relay client in `live.yml`
+
+**Source:** T-025 (the trial of podssh).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The 19 live tests of `pod-relay` (`#[ignore]`: `live` 2,
+`live_backpressure` 1, `pair_live` 1, `reverse_live` 4,
+`reverse_idle_live` 6, `reverse_drops_live` 1, `blocking_live` 2,
+`grant_live` 1, `pair_code_live` 1) run in no workflow of podcrates.
+podssh ran them by hand: `relay-live.yml` (`live_backpressure`,
+`reverse_live`), `reverse-drops.yml` (the drops of reverse sockets, from
+GitHub's network beside a run from another network) and `pair-code.yml`
+(a short run through each public mailbox). The trial of T-025 removes these
+steps and `reverse-drops.yml` from podssh with the tests.
+
+## Premise
+
+- Read: `PodUtils/podssh:.github/workflows/relay-live.yml`,
+  `PodUtils/podssh:.github/workflows/reverse-drops.yml` and
+  `PodUtils/podssh:.github/workflows/pair-code.yml` at `75a5031`;
+  `.github/workflows/live.yml`.
+- The live tests read the variables of their workflow (call C60):
+  `PODSSH_RELAY`, `PODSSH_LIVE_RELAY_ADDR`, `PODSSH_DROPS_UNTIL` and the
+  proxy.
+
+## Approach
+
+A step of `live.yml` for each test file, chosen by an input of the run by
+hand, with the variables of its podssh workflow; the run of the drops with
+its end time as an input. The run of the drops through podssh's relay role
+on a runner waits for T-036.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features -- --ignored --list
+python3 -I scripts/check-workflows.py
 ```
