@@ -22,6 +22,7 @@
 #![cfg(target_os = "linux")]
 
 pub mod abi;
+pub mod connect;
 mod failure;
 pub mod filter;
 pub mod level;

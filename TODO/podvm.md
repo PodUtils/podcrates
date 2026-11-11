@@ -2226,7 +2226,7 @@ commit of this record.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2268,6 +2268,32 @@ of a dial, keep each test with its name, and test the waits with a
 cargo test -p pod-hold
 sh scripts/adoption.sh podnet pod-hold
 ```
+
+## Done
+
+2026-11-11. `pod_hold::connect` from podnet `connect.rs` at `5599012`
+(podnet's answer PodUtils/podnet#424): `Dials<K>` with `join`, `start`,
+`wait_error`, `finish`, `in_progress`, `nonblocking`; `Finished` with
+`answer` and `taker`; `write_error`, `write_error_to_task`; `Caller`,
+`ErrorCall`, `Joined`, `Started`. The dial is the consumer's: it calls
+`join`, decides, `start`s, dials, and calls `finish` at the end. `SOURCES`
+lists `connect.rs` in the block at `5599012` (0 changes).
+
+- Tests (9): `a_second_blocking_connect_waits_for_the_same_dial`,
+  `a_nonblocking_connect_gets_einprogress_then_ealready`,
+  `a_blocking_dial_with_no_waiting_call_is_dropped`,
+  `a_nonblocking_dial_stays_with_no_waiting_call`,
+  `so_error_waits_and_the_first_takes_the_error`,
+  `a_connect_takes_the_error_before_so_error`,
+  `a_call_that_left_gets_no_answer_and_a_failed_write_gets_efault`,
+  `the_taker_is_the_blocking_connect_or_the_one_so_error`,
+  `a_short_option_length_writes_that_many_bytes`, with a `Recorded` reply
+  and a memfd memory. podnet's own tests of the state are its integration
+  tests (`pod_seccomp_nonblock`, `_slow_dial`), which stay in podnet.
+- Shown once: with each `SO_ERROR` given the error,
+  `so_error_waits_and_the_first_takes_the_error` fails.
+- Next: podnet (and podvm's PodUtils/podvm@T-1665, podrunner) take it with
+  the next tag; podnet's `connect.rs` takes fixes only from now.
 
 # T-170: `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router
 

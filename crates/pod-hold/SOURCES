@@ -35,3 +35,9 @@ repo PodUtils/podnet 5599012cde758d2e2bff7a5fb784cd8dc3d11d21
 # parses_a_tcp_syn and the_rst_reply_answers_the_syn of lib.rs keep their
 # names in packet/tests.rs; lib.rs is in the block above.
 file 3e228a89c83ecaea4846867cb40e7247c47ae51c crates/podnet-netns/src/netns/packet.rs -> crates/pod-hold/src/packet.rs crates/pod-hold/src/packet/tests.rs
+# T-169 (podnet's answer PodUtils/podnet#424): of connect.rs only the state
+# of a dial: Dialed's caller, ErrorCall, Waiting, Dials (in_progress,
+# nonblocking, wait_error), the waits of handle_connect (EALREADY, the join,
+# EINPROGRESS), the answers of finish and answer_error. The dial, the rules,
+# the hand-off, the relay and the loopback stay in podnet.
+file 4a577723be88901b2b4d7f5f0d72b62b6625edfe crates/podnet-netns/src/connect.rs -> crates/pod-hold/src/connect.rs crates/pod-hold/src/connect/tests.rs

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 173 entries: 61 open, 4 partial, 0 blocked, 108 done.
+`TODO/INDEX.md` holds 173 entries: 60 open, 4 partial, 0 blocked, 109 done.
 
 ## State
 
@@ -53,7 +53,7 @@ next entry.
    (PodUtils/podrunner#4: yes, so T-165 comes when PodUtils/podrunner#31
    needs it); T-146 tracks the plan. Each new ask of the
    podrunner session becomes an entry here, in the order of its need.
-3. **podnet:** T-169 (the dial state of `connect.rs`), T-170 (partial:
+3. **podnet:** T-170 (partial:
    step 2 after podnet's COORD issue), from podnet's answer
    PodUtils/podnet#424; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-173 (the fuzz targets of
