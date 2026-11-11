@@ -4,17 +4,23 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podnet 54d7ed475ba83a3e467403c3c23f776719d15d94
-# The cut (GitHub #67, COORD-042; podnet has not answered yet): the
-# WireGuard initiator, sans-IO, and its driver over a socket of the caller.
-# wg.rs: all but Peer::from_exported (it reads the device record of
-# `warp export`, a format of WARP), Sock::Stack and connect_inside (they
-# name the userspace stack of src/warp/ip.rs); the driver takes any
-# pod_core::Datagrams in place of the stack, and podnet gives its stack as
-# one. standin.rs: all but the test wireguard_probe_renews_a_dead_leg (it
-# runs the session, the stack and the liveness of src/warp/). tun/probe.rs:
-# of it only tcp_packet, sum_of and checksum, which the stand-in uses for
-# the SYN-ACK of the TCP probe.
+# The cut of PodUtils/podnet#447 (podnet's answer to GitHub #67,
+# COORD-042): the sans-IO parts. wg.rs: the primitives (BLAKE2s, HMAC, the
+# KDF, X25519, ChaCha20-Poly1305, TAI64N), Keys, Initiation (initiate,
+# initiate_with, finish), mac1, Session with Replay, and the timers of State
+# (rekey, and the keepalive of WgKeepalive::run) as Tunnel on the caller's
+# clock. Peer with from_exported, Sock, connect, connect_inside, connect_on,
+# WgTx, WgRx, WgKeepalive and the lock of State stay in podnet: they own
+# the socket and the tasks, and Peer names the values of WARP. Of the tests
+# of wg.rs, no_answer_is_an_error_that_names_the_door stays in podnet (it
+# runs connect). standin.rs: all but the tests
+# a_tunnel_over_udp_carries_packets_both_ways and
+# wireguard_probe_renews_a_dead_leg (they run podnet's connect, its session
+# and its stack); start gives the keys and the address, and podnet makes its
+# Peer of them. tun/probe.rs: of it only tcp_packet, sum_of and checksum, for
+# the SYN-ACK of the stand-in. The cookie (cookie.rs) is new: the source
+# reads only the type byte of a cookie reply.
 dir src/warp/wg
-file 032e61ce5fea5ffb2887515fbe527468ae4c2e79 src/warp/wg.rs -> crates/pod-wg/src/wg.rs
-file 14ad4c863039540501cfb1b713c9d739547f0bf2 src/warp/wg/standin.rs -> crates/pod-wg/src/wg/standin.rs
-file b30e286027fba7596c26fa00bb9460669a368d2e src/warp/tun/probe.rs -> crates/pod-wg/src/wg/standin.rs
+file 032e61ce5fea5ffb2887515fbe527468ae4c2e79 src/warp/wg.rs -> crates/pod-wg/src/blake2s.rs crates/pod-wg/src/crypto.rs crates/pod-wg/src/handshake.rs crates/pod-wg/src/handshake/tests.rs crates/pod-wg/src/session.rs crates/pod-wg/src/tunnel.rs
+file 14ad4c863039540501cfb1b713c9d739547f0bf2 src/warp/wg/standin.rs -> crates/pod-wg/src/standin.rs
+file b30e286027fba7596c26fa00bb9460669a368d2e src/warp/tun/probe.rs -> crates/pod-wg/src/standin.rs

@@ -48,6 +48,7 @@ pod-supervise = { path = "crates/pod-supervise", version = "0.21.0" }
 pod-term = { path = "crates/pod-term", version = "0.21.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.21.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.21.0" }
+pod-wg = { path = "crates/pod-wg", version = "0.21.0" }
 pod-wormhole = { path = "crates/pod-wormhole", version = "0.21.0" }
 pod-ws = { path = "crates/pod-ws", version = "0.21.0" }
 tokio = { version = "1.53.3", default-features = false }
@@ -145,6 +146,11 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 sha2-rsa = { package = "sha2", version = "0.10", default-features = false, features = ["oid"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
 zeroize = "1"
+# WireGuard (pod-wg): ChaCha20-Poly1305 of ring (call C8: podnet's code
+# stays on ring) and X25519 of curve25519-dalek, with no default feature,
+# as podnet has them.
+ring = "0.17"
+curve25519-dalek = { version = "5", default-features = false }
 # Noise of the end-to-end channel (pod-e2e), with podssh's features: pure
 # Rust (ChaCha20-Poly1305, SHA-256, X25519 of curve25519-dalek, the random
 # bytes of getrandom), and the raw split of the keys, which a handover gives

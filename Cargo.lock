@@ -1866,6 +1866,15 @@ version = "0.21.0"
 [[package]]
 name = "pod-wg"
 version = "0.21.0"
+dependencies = [
+ "chacha20poly1305 0.11.0",
+ "curve25519-dalek 5.0.0",
+ "pod-core",
+ "pod-testkit",
+ "ring",
+ "tokio",
+ "zeroize",
+]
 
 [[package]]
 name = "pod-wormhole"

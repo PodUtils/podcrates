@@ -1,7 +1,34 @@
 [package]
 name = "pod-wg"
+description = "The WireGuard initiator of WARP, sans I/O: the handshake, the cookie of a responder under load, the transport messages with the window of their counters, and the timers of a tunnel on the caller's clock; with a stand-in responder for the tests of a consumer."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+# The responder of the tests (src/standin.rs): in memory, and on the
+# loopback on tokio. For the tests of a consumer; no binary needs it.
+standin = ["dep:tokio"]
+# The readers of the bytes of a peer on fixed keys, public for the fuzz
+# targets of fuzz/. No consumer turns it on.
+fuzzing = ["standin"]
+
+[dependencies]
+# The failure with its stage and class, and the entropy of the keys; no
+# default feature, so no tokio.
+pod-core = { workspace = true }
+# ChaCha20-Poly1305 (call C8: podnet's code stays on ring).
+ring = { workspace = true }
+# X25519.
+curve25519-dalek = { workspace = true }
+# The keys of a handshake and of a session do not stay in freed memory.
+zeroize = { workspace = true }
+tokio = { workspace = true, optional = true, features = ["net", "rt", "time"] }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt", "time", "macros"] }
+# The XChaCha20-Poly1305 of RustCrypto: the check of the one over ring.
+chacha20poly1305 = { workspace = true }
