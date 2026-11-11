@@ -321,13 +321,14 @@ with a study entry, as M4 does.
 | `pod-netlab` | network labs in a guest or a namespace: NAT44, NAT66, NAT64 with DNS64, CGNAT, IPv6 only, firewall policy, impairment: PodUtils/podvm#178 | pod-netstack |
 | `pod-pcap` | packet capture, counters and connection logs with no `CAP_NET_RAW`; a pcap writer: PodUtils/podvm#182 | pod-core |
 | `pod-sandprobe` | the security probe inside a payload, and the compare of two reports against a list of expected differences: PodUtils/podvm#186 | pod-core, pod-hostprobe |
+| `pod-incus` | a client of the REST API of incus on its Unix socket, with no `incus` binary (T-179, PodUtils/podvm#253): the server facts, the import of an image from a stream, the instances and their state, exec with `record-output` or with its websockets, the console log, the files, the operations and their wait; the floor is incus 6.0 LTS. New code from the API of lxc/incus at `63377d9b`. The back end, the conversion of an OCI image and the start of a user's `incusd` stay in podvm | pod-core, pod-proxy, pod-ws |
 
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
 `pod-probe`; for podrunner (T-146): `pod-dockerapi` (phase 3),
 `pod-actions-proto`, `pod-actions-expr`, `pod-actions-exec` and
 `pod-actions-workflow` (the native runner and the local mode, Q11); the
-owner's names of 2026-11-11: `pod-incus` (T-179) and `pod-mask` (T-180).
+owner's name of 2026-11-11: `pod-mask` (T-180).
 
 What stays in the consumers: podnet `src/transport/websocket.rs` (a
 service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,

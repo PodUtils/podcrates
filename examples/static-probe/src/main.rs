@@ -105,6 +105,7 @@ fn main() {
     lines.push(mutual());
     lines.push(session());
     lines.push(job());
+    lines.push(incus());
     for line in lines {
         println!("{line}");
     }
@@ -419,6 +420,17 @@ fn wormhole() -> String {
         },
     );
     format!("pod-wormhole: a code of {} words, {sealed} bytes sealed, taker: {run}", code.words())
+}
+
+/// pod-incus: a call to a socket where no incus answers: the client, the
+/// HTTP reader of pod-proxy and the refusal by name link in.
+fn incus() -> String {
+    let client = pod_incus::Client::new(pod_incus::Settings::new("/nonexistent/incus/unix.socket"));
+    let answer = tokio::runtime::Builder::new_current_thread().enable_all().build().map_or_else(
+        |e| e.to_string(),
+        |runtime| runtime.block_on(client.server()).map_or_else(|e| e.to_string(), |s| s.environment.server_version),
+    );
+    format!("pod-incus: {answer}")
 }
 
 /// pod-job: an offer from JSON, its check, and the public report of a

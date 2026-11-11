@@ -1609,6 +1609,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-incus"
+version = "0.20.0"
+dependencies = [
+ "pod-core",
+ "pod-proxy",
+ "pod-testkit",
+ "pod-ws",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pod-job"
 version = "0.20.0"
 dependencies = [
@@ -2504,6 +2518,7 @@ dependencies = [
  "pod-hold",
  "pod-hostprobe",
  "pod-identity",
+ "pod-incus",
  "pod-job",
  "pod-netstack",
  "pod-oci",

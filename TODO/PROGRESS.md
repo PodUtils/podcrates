@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 196 entries: 57 open, 2 partial, 0 blocked, 137 done.
+`TODO/INDEX.md` holds 196 entries: 56 open, 2 partial, 0 blocked, 138 done.
 
 ## State
 
@@ -60,8 +60,8 @@ next entry.
    podrunner session becomes an entry here, in the order of its need.
 3. **podnet:** T-170 step 2 after podnet's COORD issue; T-150, T-121 to
    T-124 (the asks of podnet).
-4. **M6, the crates of podvm:** T-179 (`pod-incus`, PodUtils/podvm#253); T-040 (the trials of
-   podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
+4. **M6, the crates of podvm:** `pod-incus` (PodUtils/podvm#253) goes out with the
+   next tag; podvm's PodUtils/podvm@T-1718 moves to it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.

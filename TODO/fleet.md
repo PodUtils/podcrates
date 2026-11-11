@@ -648,7 +648,7 @@ ask after PodUtils/podvm@T-1717; PodUtils/podvm@T-1718).
 **Milestone:** M7
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -707,6 +707,61 @@ cargo test -p pod-incus --all-features
 
 Met: podvm's COORD issue (PodUtils/podvm#253) came after
 PodUtils/podvm@T-1717.
+
+## Done
+
+2026-11-11. The crate `pod-incus` (`crates/pod-incus`, 2,235 lines of
+`src/`, 1,477 of tests; no file is over 500), new code from the API of
+lxc/incus at `63377d9bacba35715edf1bcfb4fd155485a6a6fb` (`main`,
+2026-11-10): `doc/rest-api.md`, `doc/rest-api.yaml`,
+`doc/api-extensions.md`, `shared/api/*.go`, the handlers of
+`cmd/incusd/` and `client/incus_*.go`. The 6.0 floor is checked at the
+tag `v6.0.0`: each extension of `NEEDED`, the paths of the logs of exec,
+the wait and the frames of `shared/ws` are the same. 6.0.0 has no
+`image_import_alias`, so the aliases of an import go by
+`POST /1.0/images/aliases`. The commit: `pod-incus: a client of the REST
+API of incus on its Unix socket ... (T-179)`.
+
+- The transport: HTTP/1.1 on the Unix socket, one connection for each
+  call, the reader of answers of `pod-proxy`; a stream body by its length
+  or in chunks; the envelope (`sync`, `async`, `error`; the type decides,
+  as the wait sends 200 before its body); the wait
+  (`GET /1.0/operations/ID/wait?timeout=N`, the limit a setting; at the
+  limit `ErrorKind::Timeout`). `Error` names the call (the path with no
+  query, so no secret) and its kind: `NoServer`, `Incus` (status,
+  `error_code`, `error`), `Operation` (`status_code`, `err`), `Timeout`,
+  `Protocol`, `Unsupported`, `Usage`, `Io`, `WebSocket`; `class()` and
+  `pod_core::Failure::from` (stage `host`).
+- The calls of podvm's table, typed with serde: `server` (and
+  `Server::check` against `NEEDED`), `import_image` (unified, or split as
+  multipart `metadata` and `rootfs` or `rootfs.img`; `X-Incus-public`,
+  `-filename`, `-properties`, `-fingerprint`), `create_alias`,
+  `create_instance`, `set_state`, `start`, `stop` (`force`, `timeout`),
+  `instances` (`recursion=1`), `instance`, `delete_instance`,
+  `console_log`, `exec_recorded` (`record-output`: the two logs read and
+  deleted, the exit code from `metadata.return`), `exec_attached`
+  (`wait-for-websocket`: the sockets `control`, `0`, `1`, `2` on the same
+  Unix socket with the session of `pod-ws`; the empty text message of
+  incus ends a stream; `Control::signal`; `Attached::output` reads both
+  outputs at once), `get_file`, `put_file`, `operation`, `wait`,
+  `wait_success`, `cancel`. The settings: the socket, the project, the
+  user agent, the limits; no variable of the environment.
+- `cargo test -p pod-incus --all-features`: 44 passed (13 unit tests, 31
+  against a stand-in incus on a Unix socket in `tests/common/`, with no
+  `incusd`: the operation model with 202 and the wait, the limit of a
+  wait, a failed and a canceled operation, the error words of incus, a
+  socket with no server and one with no listener refused by name, each
+  call, the websockets with stdin, the barrier and a signal). 60 runs of
+  the tests in a loop passed. A planted defect (no check of a final state
+  after the wait) fails `a_wait_ends_at_its_limit_with_the_operation_running`.
+- `cargo test --workspace --all-features`: 2085 passed, 0 failed, 16
+  ignored. The static probe calls `Client::server` on a socket that does
+  not exist; `cargo zigbuild --release --target x86_64-unknown-linux-musl
+  -p static-probe` and `scripts/check-static.sh` pass, and the probe
+  prints the refusal by name.
+- The first release holds podvm's table with `record-output` and the
+  websockets. Not in it: interactive exec (a PTY) and the console
+  websocket; podvm did not ask for them.
 
 # T-180: `pod-mask`: the confidential execution of pmask as a crate (the owner's name, 2026-11-11)
 

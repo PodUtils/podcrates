@@ -1,0 +1,29 @@
+[package]
+name = "pod-incus"
+description = "A client of the REST API of incus on its Unix socket: the server facts, the import of an image from a stream, the instances and their state, exec with recorded output or with its websockets, the console log, the files, and the background operations with their wait."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The stream of a call (BoxedIo), the typed failure and its class, the text
+# made safe to print, the entropy of the boundary of a multipart body.
+pod-core = { workspace = true, features = ["async"] }
+# The head of an answer and its body (by length, by chunks, to the end).
+pod-proxy = { workspace = true }
+# The frames and the session of the websockets of exec, and the key of the
+# upgrade.
+pod-ws = { workspace = true }
+# The Unix socket, the copy of a stream body, the time limits.
+tokio = { workspace = true, features = ["io-util", "net", "time"] }
+# The JSON of each call.
+serde = { workspace = true }
+serde_json = { workspace = true }
+# The diagnostics: each call and each operation.
+tracing = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
