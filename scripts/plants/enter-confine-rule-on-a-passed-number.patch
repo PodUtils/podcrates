@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/confine.rs
++++ b/crates/pod-enter/src/confine.rs
+@@ -30,7 +30,7 @@
+     // The child duplicates each passed descriptor onto its number before
+     // the confinement: a rule on one of those numbers would lose its file.
+     let taken: Vec<i64> = plan.fds.pass.iter().map(|&(child, _)| child).collect();
+-    compiled.keep_clear_of(&taken)?;
++    let _ = taken;
+     Ok(Some(compiled))
+ }
+ 

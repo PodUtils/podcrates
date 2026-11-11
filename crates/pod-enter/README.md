@@ -75,7 +75,7 @@ each entry takes; the payload owns the standard output.
 | `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`, `reserved` (the guest paths that the interposer of the caller never rewrites; `Maps::new` refuses a volume under one). `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload`, no reserved path |
 | `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot) |
 | `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`) |
-| `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe and the rules of the confinement move clear of each passed number); a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
+| `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe and the rules of the confinement move clear of each passed number; a descriptor passed onto its own number loses its close-on-exec flag, so the payload holds it); a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
 | `check_workdir(&root, ..)` (`root` is a `GuestRoot`: a path or a `Maps`; a missing directory inside a volume names the volume `HOST:GUEST`, and the image otherwise), `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
@@ -183,5 +183,7 @@ fail with `EPERM`. It also checks that a missing path and a host with no
 Landlock (a seccomp filter stands in for it) stop the entry before the
 fork, and that a passed descriptor takes the place of no rule and of no
 readiness pipe. A host with no Landlock skips the runs of a confined
-payload. The plants `enter-confine-not-applied` and
-`enter-pipe-on-a-passed-number` (`scripts/plants/`) prove the checks.
+payload. The plants `enter-confine-not-applied`,
+`enter-confine-rule-on-a-passed-number`, `enter-pipe-on-a-passed-number`,
+`enter-pass-onto-the-root` and `enter-own-number-stays-cloexec`
+(`scripts/plants/`) prove the checks.

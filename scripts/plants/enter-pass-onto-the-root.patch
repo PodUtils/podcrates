@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -131,7 +131,7 @@
+     // The child puts each passed descriptor onto its number first: the
+     // root descriptor and the memfd must hold no such number.
+     for &(child_fd, _) in &plan.fds.pass {
+-        if child_fd == root.fd() || Some(child_fd) == fd_exec {
++        if Some(child_fd) == fd_exec {
+             return Err(Error::runtime(
+                 Class::Usage,
+                 format!("a passed descriptor goes onto {child_fd}, the number of the root file system or of the memfd"),

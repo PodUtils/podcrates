@@ -231,3 +231,43 @@ fn a_missing_workdir_in_a_volume_names_the_volume() {
     assert!(text.contains("for image \"img\" is not a directory in the image"), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A descriptor passed onto its own number reaches the payload, also when
+/// it is close-on-exec: no `dup2` clears the flag for it.
+#[test]
+fn a_descriptor_passed_onto_its_own_number_reaches_the_payload() {
+    pod_testkit::need_tool!("/bin/sh");
+    let dir = std::env::temp_dir().join(format!("pod-enter-same-fd-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut pipe = [0i32; 2];
+    sys::pipe2(&mut pipe, sys::O_CLOEXEC).unwrap();
+    let (r, w) = (i64::from(pipe[0]), i64::from(pipe[1]));
+    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("echo passed >&{w}")];
+    let plan = Plan {
+        argv: argv.clone(),
+        env: vec!["PATH=/bin:/usr/bin".to_string()],
+        working_dir: "/".to_string(),
+        fds: Fds { pass: vec![(w, w)] },
+        banner: String::new(),
+        path_dirs: vec!["/bin".to_string()],
+        names: Names::DEFAULT,
+        limits: Vec::new(),
+        no_new_privs: false,
+        die_with_parent: false,
+        confine: None,
+    };
+    let maps = crate::userland::Maps::of_root(dir.to_str().unwrap());
+    let root = RootDir::open(maps.rootfs()).unwrap();
+    let child = spawn_userland(&root, &plan, &maps, argv, "userland", None, &mut std::io::sink()).unwrap();
+    let _ = sys::close(w);
+    let mut got = Vec::new();
+    let mut buf = [0u8; 64];
+    while let Ok(n @ 1..) = sys::read(r, &mut buf) {
+        got.extend_from_slice(&buf[..n as usize]);
+    }
+    let _ = sys::close(r);
+    assert_eq!(child.wait().unwrap(), 0);
+    assert_eq!(got, b"passed\n", "the payload did not hold descriptor {w}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

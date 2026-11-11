@@ -34,7 +34,7 @@ mod probe;
 pub mod spec;
 
 pub use apply::{Call, Refusal, apply};
-pub use compile::{Compiled, Rule};
+pub use compile::{Compiled, MOST_RULES, Rule};
 pub use deny::Deny;
 pub use probe::{check, probe};
 pub use spec::{Access, PathRule, Spec};

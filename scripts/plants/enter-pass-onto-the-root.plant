@@ -1,0 +1,7 @@
+# A passed descriptor onto the number of the root descriptor is not
+# refused: the child loses the root and fails with no cause (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='fchdir onto the rootfs descriptor failed with ENOTDIR'
+RUN='cargo test -p pod-enter --all-features --test confine'
+LIMIT=1800

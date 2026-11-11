@@ -197,6 +197,10 @@ pub(crate) fn spawn_with(
                 if host_fd != child_fd {
                     let _ = sys::dup2(*host_fd, *child_fd);
                     let _ = sys::close(*host_fd);
+                } else {
+                    // On its own number there is no `dup2` to clear the
+                    // close-on-exec flag: clear it, so the payload holds it.
+                    let _ = sys::fcntl(*child_fd, sys::F_SETFD, 0);
                 }
             }
             // The namespace rung: a mount namespace of its own, `/` private

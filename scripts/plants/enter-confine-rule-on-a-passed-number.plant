@@ -1,0 +1,7 @@
+# A rule of the confinement stays on a number that a passed descriptor
+# takes in the child: the rule loses its file (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test a_passed_descriptor_takes_the_place_of_no_rule \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --test confine'
+LIMIT=1800

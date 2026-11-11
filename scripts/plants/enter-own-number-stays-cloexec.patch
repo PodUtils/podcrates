@@ -1,0 +1,10 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -200,7 +200,6 @@
+                 } else {
+                     // On its own number there is no `dup2` to clear the
+                     // close-on-exec flag: clear it, so the payload holds it.
+-                    let _ = sys::fcntl(*child_fd, sys::F_SETFD, 0);
+                 }
+             }
+             // The namespace rung: a mount namespace of its own, `/` private

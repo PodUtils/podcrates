@@ -1,0 +1,7 @@
+# A descriptor passed onto its own number keeps its close-on-exec flag:
+# the payload never holds it (T-108).
+ENTRY=T-108
+GROUP=confine
+EXPECT='test tests::a_descriptor_passed_onto_its_own_number_reaches_the_payload \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --lib -- tests::a_descriptor_passed_onto_its_own_number_reaches_the_payload'
+LIMIT=1800
