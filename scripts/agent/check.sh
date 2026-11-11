@@ -6,7 +6,8 @@
 # and README.md (scripts/check-design-paths.py), the order of cargo publish
 # (scripts/check-publish-order.py), the rules of the workflows and each
 # workflow that a document names (scripts/check-workflows.py, as ci.yml
-# runs it), and the static probes of
+# runs it), that each planted defect applies (scripts/plant-each.sh
+# --apply), and the static probes of
 # x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
 # code and the first faults; exit 1 on a fault. With the argument notest,
 # the tests are skipped.
@@ -34,7 +35,7 @@ echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
 { python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && python3 -I scripts/check-workflows.py &&
-    python3 -I scripts/check-probe.py; } > "$log/paths.log" 2>&1; p=$?
+    python3 -I scripts/check-probe.py && sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
     t=x86_64-unknown-linux-musl

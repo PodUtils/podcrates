@@ -3,6 +3,7 @@
 # fail on a defect planted for it (docs/development.md).
 #
 #   sh scripts/plant-each.sh --list
+#   sh scripts/plant-each.sh --apply [ID...]
 #   sh scripts/plant-each.sh [--group G] [ID...]
 #
 # Each plant is scripts/plants/ID.plant, a file of shell assignments:
@@ -24,6 +25,8 @@
 # when RUN exits nonzero and printed EXPECT; it is MISSED when RUN passed, or
 # failed without EXPECT, and STALE when its patch does not apply: each is a
 # failure of this script. Commit before a run: a worktree holds HEAD only.
+# --apply only checks that each patch applies to the tree, in seconds, so
+# that a change of a planted file finds its stale plant before a push.
 
 set -u
 cd "$(dirname "$0")/.." || exit 71
@@ -31,10 +34,12 @@ root=$(pwd)
 dir=scripts/plants
 group=
 list=0
+apply=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --group) shift; group=${1:-} ;;
         --list) list=1 ;;
+        --apply) apply=1 ;;
         -*) echo "plant-each: unknown option $1" >&2; exit 64 ;;
         *) break ;;
     esac
@@ -72,6 +77,21 @@ if [ "$list" -eq 1 ]; then
     for id in $ids; do
         (read_plant "$id"; printf '%-28s %-10s %s\n' "$id" "$GROUP" "$ENTRY")
     done
+    exit 0
+fi
+
+if [ "$apply" -eq 1 ]; then
+    stale=0
+    for id in $ids; do
+        read_plant "$id"
+        [ -z "$SWITCH" ] || continue
+        if ! git apply --check "$dir/$id.patch" 2> /dev/null; then
+            echo "STALE $id: the patch does not apply"
+            stale=$((stale + 1))
+        fi
+    done
+    echo "plant-each: $stale stale"
+    [ "$stale" -eq 0 ] || exit 1
     exit 0
 fi
 

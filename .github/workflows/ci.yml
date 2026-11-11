@@ -82,6 +82,8 @@ jobs:
           python3 -I scripts/check-publish-order.py --self-test
       - name: The static probes cover each feature
         run: python3 -I scripts/check-probe.py
+      - name: Each planted defect applies to the tree
+        run: sh scripts/plant-each.sh --apply
 
   test:
     runs-on: ubuntu-24.04

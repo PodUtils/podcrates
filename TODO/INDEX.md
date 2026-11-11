@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**209 entries: 59 open, 3 partial, 0 blocked, 147 done.**
+**210 entries: 59 open, 3 partial, 0 blocked, 148 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 0 | 0 | 44 | 58 |
-| P2 | 28 | 2 | 0 | 69 | 99 |
+| P2 | 28 | 2 | 0 | 70 | 100 |
 | P3 | 17 | 1 | 0 | 32 | 50 |
-| **All** | 59 | 3 | 0 | 147 | 209 |
+| **All** | 59 | 3 | 0 | 148 | 210 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -256,3 +256,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-207](podvm.md) | P3 | L | M6 | feature | open | `pod-netlab`: the network lab of podvm's guest (PodUtils/podvm#260, issue 178) |
 | [T-208](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261) |
 | [T-209](podvm.md) | P2 | S | M7 | feature | open | `pod-confine`: the Landlock scopes (signals, abstract Unix sockets) and UDP stay open to a confined payload |
+| [T-210](upkeep.md) | P2 | S | M5 | chore | done | A plant whose file changed goes stale, and only `plants.yml` finds it |

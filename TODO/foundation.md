@@ -1481,7 +1481,7 @@ contract.
 - Read: `crates/pod-core/src/files/closed_win.rs` (the private files of
   Windows) has no `MoveFileExW`.
 - Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:73` and
-  in `scripts/agent/check.sh:34`. A new check of the repository needs its
+  in `scripts/agent/check.sh:35`. A new check of the repository needs its
   plant in `scripts/plants` (T-003).
 - Found while reading: T-195 (two threads that store one name at once
   share the temporary name of `write_private`).

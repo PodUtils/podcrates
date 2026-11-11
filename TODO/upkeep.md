@@ -375,3 +375,47 @@ The first command finds no such package.
 ## Start condition
 
 A release of snow that takes `chacha20poly1305` 0.11.
+
+# T-210: A plant whose file changed goes stale, and only `plants.yml` finds it
+
+**Source:** the `plants` run 43020335301 (on `e71f813`): `probe-lean-tokio` STALE
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`f105d34` (T-024) added lines to `examples/static-probe-lean/Cargo.toml`.
+The patch of the plant `probe-lean-tokio` held the old context, so it did
+not apply. No check of a push applies a patch: `plants.yml` found it 20
+minutes after the push, and `check.sh` passed.
+
+## Premise
+
+- Read: the log of the run (`STALE probe-lean-tokio: the patch does not
+  apply: error: patch failed: examples/static-probe-lean/Cargo.toml:14`);
+  `scripts/plant-each.sh` (a stale patch fails only in a full run).
+
+## Approach
+
+`plant-each.sh --apply`: `git apply --check` of each patch against the
+tree, in less than one second. `check.sh` (step `paths`) and the lint job
+of `ci.yml` run it. Regenerate the patch of `probe-lean-tokio`. The plant
+`plants-stale` breaks the context of one patch.
+
+## Prove
+
+```sh
+sh scripts/plant-each.sh --apply
+sh scripts/plant-each.sh plants-stale probe-lean-tokio
+```
+
+## Done
+
+2026-11-11. `plant-each.sh --apply`; `check.sh` and `ci.yml` run it. The
+patch of `probe-lean-tokio` is made again against the manifest with
+`pod-wg` and `pod-confine`. The old patch gives `STALE probe-lean-tokio`
+and exit 1; the new one gives 0 stale. `plant-each.sh plants-stale
+probe-lean-tokio`: 2 caught.

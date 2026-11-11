@@ -1,0 +1,8 @@
+# A planted file changed, and its plant no longer applies. RUN breaks the
+# context of one patch in the worktree of the plant.
+ENTRY=T-210
+GROUP=lint
+EXPECT='STALE probe-lean-tokio: the patch does not apply'
+RUN='sed -i "s/^ pod-core = /  pod-core = /" scripts/plants/probe-lean-tokio.patch && sh scripts/plant-each.sh --apply'
+LIMIT=60
+SWITCH=1
