@@ -104,6 +104,12 @@ page current; remove a line when its work is done.
 - An agent works in its own worktree under `.claude/worktrees/`, never in
   the main checkout; the disk is small: remove `target/debug` and the
   copies of the consumers after a trial.
+- Each version bump makes a new copy of each workspace crate in
+  `target/debug` (the version is in the hash of each artifact). Before the
+  check of a bump, remove `target/debug` under the cargo lock
+  (`flock SCRATCHPAD/cargo.lock`) when `df -h /` shows less than 25 GB
+  free. Agents that build in parallel share `target/` and take the same
+  lock for each cargo command.
 
 ## Channels
 
