@@ -1,0 +1,21 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podnet f7ed86b11532c774f070bd864b9bdf88d303a4a4
+# The cut of PodUtils/podnet#427 (COORD-018): the stack of podnet-vnet. The
+# files are the same at da6705f, the commit that the cut names. stack.rs:
+# all but the module proof and its re-exports. stack/tests.rs: the tests of
+# the cut; proof_completes and async_loopback_round_trip stay in podnet with
+# stack/proof.rs. addr.rs: of it only VirtualSubnet (its fields, its
+# default, gateway and contains); the abstract names, VirtAddr, the
+# allocation and the loopback map stay in podnet.
+file ef1055fc64f796337bc3404f202e0b9fd1a069ab crates/podnet-vnet/src/stack.rs -> crates/pod-netstack/src/stack.rs
+file 4e6a892a24514ba0ff5e7486a05c17ba8b43d2d9 crates/podnet-vnet/src/stack/reactor.rs -> crates/pod-netstack/src/stack/reactor.rs
+file ef5ca12ce4cf1b7f762eb2e55235f268a7032bcb crates/podnet-vnet/src/stack/service.rs -> crates/pod-netstack/src/stack/service.rs
+file 57ecd90454ce121303f7cc66af0079f41f43eb6a crates/podnet-vnet/src/stack/socket.rs -> crates/pod-netstack/src/stack/socket.rs
+file 451595939a11ae73aba950e601b2da8cf2bd07e4 crates/podnet-vnet/src/stack/datagrams.rs -> crates/pod-netstack/src/stack/datagrams.rs
+file eb9669e33724a442123b5a047ef164cf97d8dc3d crates/podnet-vnet/src/stack/tests.rs -> crates/pod-netstack/src/stack/tests.rs
+file 68c334bdc49b820052d6f5407740649188203199 crates/podnet-vnet/src/device.rs -> crates/pod-netstack/src/device.rs
+file c5f5ce6f335a11a2554c5dba38f5b3b78a312018 crates/podnet-vnet/src/addr.rs -> crates/pod-netstack/src/subnet.rs
