@@ -1,0 +1,13 @@
+diff --git a/crates/pod-wg/src/tunnel.rs b/crates/pod-wg/src/tunnel.rs
+index e0c71c9..3dbaf7c 100644
+--- a/crates/pod-wg/src/tunnel.rs
++++ b/crates/pod-wg/src/tunnel.rs
+@@ -160,7 +160,7 @@ impl Tunnel {
+                     Err(err) => {
+                         // The rekey waits on with its times: a response
+                         // that fails its check does not move the dead time.
+-                        self.pending = Some(pending);
++                        self.pending = Some(Pending { init: pending.init, first: now, sent: now });
+                         Received::Dropped(err)
+                     }
+                 }

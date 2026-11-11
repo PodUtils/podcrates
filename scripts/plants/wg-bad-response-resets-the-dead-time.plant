@@ -1,0 +1,7 @@
+# A response that fails its check sets the times of the rekey to now (as
+# podnet's WgRx did), so bad responses hold a dead path open; the test of the
+# dead time must fail.
+ENTRY=T-024
+GROUP=wg
+EXPECT='test tunnel::tests::a_bad_response_keeps_the_dead_time \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- tunnel::tests::a_bad_response_keeps_the_dead_time'

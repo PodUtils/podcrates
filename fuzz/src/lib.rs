@@ -46,6 +46,9 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("oci_challenge", targets::oci_challenge),
     ("extract_layer", targets::extract_layer),
     ("elf_header", targets::elf_header),
+    ("wg_response", targets::wg_response),
+    ("wg_cookie", targets::wg_cookie),
+    ("wg_transport", targets::wg_transport),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as

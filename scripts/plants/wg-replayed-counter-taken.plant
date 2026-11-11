@@ -1,0 +1,7 @@
+# A session opens a transport message with a counter that came before, so a
+# replayed message gives its packet again; the test of the handshake and the
+# transport messages must fail.
+ENTRY=T-024
+GROUP=wg
+EXPECT='test handshake::tests::a_handshake_and_transport_messages \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- handshake::tests::a_handshake_and_transport_messages'

@@ -51,6 +51,9 @@ pod-job = { path = "../crates/pod-job" }
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
 pod-extract = { path = "../crates/pod-extract" }
 pod-enter = { path = "../crates/pod-enter" }
+# The feature `fuzzing` gives the readers of a response, a cookie reply and
+# a transport message on fixed keys.
+pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
 # A job offer is JSON.
 serde_json = "1"
 
@@ -264,6 +267,27 @@ bench = false
 [[bin]]
 name = "elf_header"
 path = "fuzz_targets/elf_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wg_response"
+path = "fuzz_targets/wg_response.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wg_cookie"
+path = "fuzz_targets/wg_cookie.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wg_transport"
+path = "fuzz_targets/wg_transport.rs"
 test = false
 doc = false
 bench = false

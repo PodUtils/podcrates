@@ -130,3 +130,24 @@ fn the_seeds_of_the_session_targets_read() {
         assert!(decoder.next().unwrap_or_else(|e| panic!("{name}: {e}")).is_some(), "{name}");
     }
 }
+
+/// The seeds of the targets of pod-wg reach past the first check: the
+/// response, the cookie reply and the transport messages of the fixed keys
+/// are taken, also with other reserved bytes and another mac2.
+#[test]
+fn the_seeds_of_the_wg_targets_read() {
+    use pod_wg::fuzzing::{cookie, finish, open};
+    let dir = here().join("seeds");
+    let read = |target: &str, name: &str| std::fs::read(dir.join(target).join(name)).expect("a seed");
+    for name in ["response", "reserved_and_mac2"] {
+        finish(&read("wg_response", name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    assert!(finish(&read("wg_response", "mac1_changed")).is_err());
+    for name in ["reply", "reserved"] {
+        cookie(&read("wg_cookie", name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    for name in ["ipv4", "ipv6", "keepalive", "length_past_the_packet"] {
+        open(&read("wg_transport", name)).0.unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    assert!(open(&read("wg_transport", "other_session")).0.is_err());
+}

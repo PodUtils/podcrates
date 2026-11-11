@@ -1,0 +1,14 @@
+diff --git a/crates/pod-wg/src/handshake.rs b/crates/pod-wg/src/handshake.rs
+index a120c2d..e8e796f 100644
+--- a/crates/pod-wg/src/handshake.rs
++++ b/crates/pod-wg/src/handshake.rs
+@@ -159,9 +159,6 @@ impl Initiation {
+         if receiver != self.sender {
+             return Err(Error::OtherHandshake);
+         }
+-        if mac1(&keys.public(), &response[..60]) != response[60..76] {
+-            return Err(Error::Mac1);
+-        }
+         let e_pub: [u8; 32] = response[12..44].try_into().expect("32 bytes");
+         let empty = &response[44..60];
+         let mut c = self.chaining;

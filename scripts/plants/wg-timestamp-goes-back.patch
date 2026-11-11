@@ -1,0 +1,16 @@
+diff --git a/crates/pod-wg/src/crypto.rs b/crates/pod-wg/src/crypto.rs
+index 0c1993a..4a30fad 100644
+--- a/crates/pod-wg/src/crypto.rs
++++ b/crates/pod-wg/src/crypto.rs
+@@ -143,11 +143,6 @@ impl Stamps {
+     /// The timestamp of an initiation at `now`.
+     pub fn next(&mut self, now: Instant) -> [u8; 12] {
+         let mut stamp = tai64n(self.wall + now.saturating_duration_since(self.start));
+-        if let Some(last) = self.last
+-            && stamp <= last
+-        {
+-            stamp = after(last);
+-        }
+         self.last = Some(stamp);
+         stamp
+     }

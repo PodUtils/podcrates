@@ -1275,6 +1275,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-wg"
+version = "0.21.0"
+dependencies = [
+ "curve25519-dalek 5.0.0",
+ "pod-core",
+ "ring",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-wormhole"
 version = "0.21.0"
 dependencies = [
@@ -1329,6 +1340,7 @@ dependencies = [
  "pod-quic",
  "pod-session",
  "pod-tls",
+ "pod-wg",
  "pod-wormhole",
  "pod-ws",
  "serde_json",

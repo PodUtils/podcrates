@@ -31,6 +31,17 @@ impl Drop for Session {
     }
 }
 
+impl std::fmt::Debug for Session {
+    /// No byte of a key: a debug line can go to a log.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Session")
+            .field("local", &self.local)
+            .field("remote", &self.remote)
+            .field("send_counter", &self.send_counter)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Session {
     pub(crate) fn new(send_key: [u8; 32], recv_key: [u8; 32], local: u32, remote: u32, created: Instant) -> Session {
         Session { send_key, recv_key, local, remote, send_counter: 0, created, replay: Replay::default() }

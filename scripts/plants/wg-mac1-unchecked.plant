@@ -1,0 +1,6 @@
+# The initiator takes a response with no check of its mac1, so a response
+# with a changed mac1 opens; the test of the mac1 of a response must fail.
+ENTRY=T-024
+GROUP=wg
+EXPECT='test handshake::tests::a_response_with_a_wrong_mac1_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- handshake::tests::a_response_with_a_wrong_mac1_is_refused'

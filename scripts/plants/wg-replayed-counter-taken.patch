@@ -1,0 +1,14 @@
+diff --git a/crates/pod-wg/src/session.rs b/crates/pod-wg/src/session.rs
+index 1758887..2d4ad9e 100644
+--- a/crates/pod-wg/src/session.rs
++++ b/crates/pod-wg/src/session.rs
+@@ -74,9 +74,6 @@ impl Session {
+             return Err(Error::OtherSession);
+         }
+         let counter = u64::from_le_bytes(message[8..16].try_into().expect("8 bytes"));
+-        if !self.replay.check(counter) {
+-            return Err(Error::Replayed(counter));
+-        }
+         let mut plain = open(&self.recv_key, counter, &message[16..], &[]).ok_or(Error::NotAuthentic)?;
+         self.replay.mark(counter);
+         let len = match plain.first().map(|b| b >> 4) {

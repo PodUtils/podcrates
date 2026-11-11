@@ -11,10 +11,12 @@ use crate::{is_one_line, text};
 mod e2e;
 mod job;
 mod podvm;
+mod wg;
 
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof};
 pub use job::job_offer;
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest};
+pub use wg::{wg_cookie, wg_response, wg_transport};
 
 /// Text from a peer made safe for one line (`pod_core::text::one_line`;
 /// podssh `one_line`): no control or bidirectional formatting character

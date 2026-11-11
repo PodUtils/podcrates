@@ -1,0 +1,14 @@
+diff --git a/crates/pod-wg/src/tunnel.rs b/crates/pod-wg/src/tunnel.rs
+index e0c71c9..fb99c55 100644
+--- a/crates/pod-wg/src/tunnel.rs
++++ b/crates/pod-wg/src/tunnel.rs
+@@ -92,9 +92,6 @@ impl Tunnel {
+ 
+     fn initiate(&mut self, now: Instant) -> Result<Initiation, Error> {
+         let mut init = initiate_from(&self.keys, &mut OsEntropy, self.stamps.next(now))?;
+-        if let Some(cookie) = &self.cookie {
+-            init.add_mac2(cookie, now);
+-        }
+         Ok(init)
+     }
+ 

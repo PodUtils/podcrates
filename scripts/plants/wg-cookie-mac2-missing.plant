@@ -1,0 +1,7 @@
+# The resend of a rekey after a cookie reply has no mac2, so a responder
+# under load refuses each initiation; the test of the cookie in the tunnel
+# must fail.
+ENTRY=T-024
+GROUP=wg
+EXPECT='test tunnel::tests::a_cookie_reply_puts_mac2_in_the_resend \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- tunnel::tests::a_cookie_reply_puts_mac2_in_the_resend'

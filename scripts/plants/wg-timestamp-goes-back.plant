@@ -1,0 +1,6 @@
+# A timestamp of an initiation can be equal to the last one or before it,
+# and the responder drops that initiation; the test of the stamps must fail.
+ENTRY=T-024
+GROUP=wg
+EXPECT='test crypto::tests::stamps_only_go_forward \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- crypto::tests::stamps_only_go_forward'
