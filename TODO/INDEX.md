@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**172 entries: 62 open, 3 partial, 0 blocked, 107 done.**
+**173 entries: 63 open, 3 partial, 0 blocked, 107 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 36 | 55 |
-| P2 | 31 | 1 | 0 | 52 | 84 |
+| P2 | 32 | 1 | 0 | 52 | 85 |
 | P3 | 14 | 0 | 0 | 17 | 31 |
-| **All** | 62 | 3 | 0 | 107 | 172 |
+| **All** | 63 | 3 | 0 | 107 | 173 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -219,3 +219,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-170](podvm.md) | P2 | M | M1 | feature | open | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
 | [T-171](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
 | [T-172](transport.md) | P3 | S | M2 | feature | open | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
+| [T-173](podvm.md) | P2 | M | M6 | feature | open | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |

@@ -262,7 +262,9 @@ The plan and GitHub #47 give the phases with their checklists:
   PodUtils/podrunner#1; the ruling "podrunner online", C49). podcrates
   gives its crates (T-160 to T-165). The crate `pod-dockerapi` (a Docker
   Engine API subset over podvm, one socket for each job) comes with phase
-  3; Q9 to Q14 stay open (`TODO/PROGRESS.md`).
+  3 (Q10: decide at phase 3). The owner answered Q9 to Q14 on 2026-11-11
+  (`docs/decisions.md`); Q11 puts a local mode (`podrunner run`) into the
+  plan, with the native runner (`pod-actions-*`) as the way to it.
 - A native Rust runner is a conditional phase 5.
 
 ## Prove

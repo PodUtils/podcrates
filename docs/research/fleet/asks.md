@@ -81,7 +81,7 @@ Rulings that decide a route:
 | A-V-08 | P1 | A microVM from an OCI image through `run`, with KVM | podvm (`PodUtils/podvm@T-1656`); T-062 |
 | A-V-09 | P1 | A JSON report of each run, and real labels | podvm |
 | A-V-10 | P2 | A published JSON schema of `podvm probe --json` | T-107; podvm |
-| A-V-11 | P2 | `--secret src=,target=,mode=0400` with no argv and no env | podvm |
+| A-V-11 | P2 | `--secret src=,target=,mode=0400` with no argv and no env | podrunner (podvm dropped its T-1696, PodUtils/podvm#241: podrunner stages the credential files) |
 
 ## A-C: the Cloudflare One side
 
@@ -140,7 +140,7 @@ Each G ask is for the project podrunner.
 | --- | --- | --- | --- |
 | G-01 | P0 | A job-source contract: GitHub and a forge at once, with a slot quota for each | new project podrunner |
 | G-02 | P0 | A unit kind for each label (`container`, `microvm`, a podvm rung); no fallback | new project podrunner; podvm (A-V-08) |
-| G-03 | P0 | The one-job runner credential reaches only the runner process | new project podrunner; podvm (A-V-11) |
+| G-03 | P0 | The one-job runner credential reaches only the runner process | podrunner (A-V-11; restated in PodUtils/podrunner#6) |
 | G-04 | P0 | A policy for each job: open by default, fixed denies, audit line, placeholder swap | T-099, T-100; new project podrunner delivers the policy |
 | G-05 | P1 | Placement by architecture; no emulation unless a label asks | new project podrunner |
 | G-06 | P1 | One JSON report for each job to its source | new project podrunner; podvm (A-V-07, A-V-09) |

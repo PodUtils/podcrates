@@ -33,8 +33,16 @@ page current; remove a line when its work is done.
   PodUtils/podrunner#1. podcrates builds T-163, T-162, T-160, T-161 and
   T-164 in the order of its need. A new session of podcrates finds the
   session id of podrunner with `list_sessions` (title `(podrunner)`).
-- podssh and podvm are on break; only podnet answers a COORD issue of
-  podcrates.
+- podssh: a lead session that this session started on 2026-11-11 (title
+  `(podssh)`); direct messages. Its next step: the takes of `pod-wormhole`
+  and `pod-session` (#54).
+- podnet and podvm run in their own sessions and answer COORD issues.
+  podvm resumed (PodUtils/podvm#241): it takes `v0.15.0` (T-155) and asked
+  for four fuzz targets (T-173).
+- Two study agents of this session: the note on pmask (the ruling
+  "podrunner DR-6 and pmask") and the note on the owner's archive
+  `ghactions-local` (the ruling "Q11"). Each note goes to
+  `docs/research/` and to podrunner.
 
 - T-020 `pod-session`, T-022 `pod-wormhole`, T-155: released in
   `v0.15.0` (the trials and the cross tests passed); the takes of podssh
@@ -54,8 +62,9 @@ page current; remove a line when its work is done.
 
 ## Waiting for the owner
 
-- T-165 (`pod-tls` mutual TLS) waits for DR-4 (PodUtils/podrunner#4).
-  Q9 to Q14 (`TODO/PROGRESS.md`) are open.
+- None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
+  2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
+  now".
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).

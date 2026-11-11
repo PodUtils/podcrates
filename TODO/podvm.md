@@ -2273,3 +2273,58 @@ the smoltcp version of `pod-netstack` is settled.
 cargo test -p pod-hold
 sh scripts/adoption.sh podnet pod-hold
 ```
+
+# T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
+
+**Source:** PodUtils/podvm#241 (COORD-023 of podvm, 2026-11-11; podvm's
+ruling "Fuzz targets", 2026-11-11; PodUtils/podvm@T-1684)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm asks for one `cargo fuzz` target for each of four parsers that read
+untrusted input, now in podcrates (the tag `v0.12.0`, `393158f`):
+
+- `pod-oci`, `Fetched::parse(bytes, header_media_type)`
+  (`crates/pod-oci/src/spec.rs`): the bytes of a manifest or an index that
+  a registry sends.
+- `pod-oci`, `parse_challenge(challenge)`
+  (`crates/pod-oci/src/registry/wire.rs`): the `WWW-Authenticate` value of a
+  registry.
+- `pod-extract`, `apply_layer(..)` (`crates/pod-extract/src/apply.rs`): a
+  tar layer, plain or compressed, that an image author controls.
+- `pod-enter`, `Elf::parse(path, bytes)` (`crates/pod-enter/src/abi/elf.rs`):
+  the ELF header and the program headers of a payload.
+
+A workflow runs each target for a fixed time on a schedule and on dispatch,
+and uploads a crash input; each crash input becomes a regression test of
+the crate before its fix lands. podvm expects no change of API. podvm keeps
+the targets of its interposer's ELF and shebang reader and the watch of its
+own vendored sources.
+
+## Premise
+
+- Read: the issue; `fuzz/` holds 21 targets and `fuzz/README.md` lists
+  them; `.github/workflows/fuzz.yml` and `scripts/fuzz.sh` run them.
+- Not read: the four functions at the head of `main`; whether
+  `apply_layer` can take a layer from memory with no file system writes.
+
+## Approach
+
+Add the four targets to `fuzz/` with seeds in `fuzz/seeds/` (a real
+manifest and index, three `WWW-Authenticate` values, a small tar layer in
+each compression, a static and a dynamic ELF), a row each in
+`fuzz/README.md`, and each target in the run of `fuzz.yml`. The layer
+target writes into a fresh temporary directory and removes it. Each crash
+input that a run finds goes to the crate's tests first.
+
+## Prove
+
+```sh
+sh scripts/fuzz.sh
+cargo test --manifest-path fuzz/Cargo.toml
+```
