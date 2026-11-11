@@ -667,29 +667,28 @@ index 5c9f46d..f8249f9 100644
      let first_target = crate::node_exit::first(&targets);
      let (host, port) = (first_target.host, first_target.port);
 diff --git a/crates/podssh-cli/src/node_derp.rs b/crates/podssh-cli/src/node_derp.rs
-index 9115326..c2cebba 100644
+index 9115326..218cb51 100644
 --- a/crates/podssh-cli/src/node_derp.rs
 +++ b/crates/podssh-cli/src/node_derp.rs
-@@ -405,8 +405,16 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
+@@ -29,7 +29,6 @@ use std::time::Duration;
+ 
+ use podssh_relay::derp::far::{self, Node, Roam};
+ use podssh_relay::derp::{self, dial, servers, Conn, Secret, Server, Ticket};
+-use podssh_relay::e2e::ends;
+ use podssh_relay::identity::file::{self as key_file, Place};
+ use podssh_relay::identity::Identity;
+ use podssh_relay::pair::Pair;
+@@ -405,8 +404,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
      let (admit, grant) = crate::net::admit::doors(allow, public, true);
      // The person of --ask (T-638), as on the node's other roads.
      let gate = crate::node_ask::gate();
 -    let channel =
 -        ends::Node { identity: identity.clone(), admit, say: say.clone(), redeem, leases: Default::default(), gate };
-+    let channel = ends::Node {
-+        identity: identity.clone(),
-+        admit,
-+        events: podssh_relay::e2e::events(say.clone()),
-+        redeem,
-+        leases: Default::default(),
-+        gate,
-+        docs: podssh_relay::e2e::net::process(),
-+        holds: podssh_relay::e2e::hold::holds(),
-+    };
++    let channel = podssh_relay::e2e::node(identity.clone(), admit, say.clone(), redeem, gate);
      let routes = crate::node::routes_of(&targets, grant, roost, Some(public));
      let first = crate::node_exit::first(&targets);
      let (host, port) = (first.host, first.port);
-@@ -449,9 +457,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
+@@ -449,9 +447,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
      };
      let pair_road = async {
          let Ok((pair, stored)) = pair else { return };
@@ -702,7 +701,7 @@ index 9115326..c2cebba 100644
          let mut config = NodeConfig {
              pair,
              label: stored.then(|| label.clone()),
-@@ -473,7 +482,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
+@@ -473,7 +472,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
          let exit = crate::node_transit::alongside(with_croc, transit, transit_open, keeper.clone()).await;
          expiry.abort();
          if let Some((_, why)) = crate::node::ended(&label, exit) {
@@ -3825,10 +3824,10 @@ index fd60ce5..0000000
 -    assert!(current().is_none());
 -}
 diff --git a/crates/podssh-relay/src/e2e/mod.rs b/crates/podssh-relay/src/e2e/mod.rs
-index e488f5e..8b7abbf 100644
+index e488f5e..9ebb106 100644
 --- a/crates/podssh-relay/src/e2e/mod.rs
 +++ b/crates/podssh-relay/src/e2e/mod.rs
-@@ -1,157 +1,30 @@
+@@ -1,157 +1,43 @@
 -//! The channel between two podssh ends (T-088): Noise XX over the bytes of a
 -//! session, so that the relay sees ciphertext only, and each end proves its
 -//! key of T-087 (`crate::identity`). It runs above the resumable layer: one
@@ -3959,8 +3958,11 @@ index e488f5e..8b7abbf 100644
 -    Timeout(&'static str),
 -    /// A frame or a message that the channel does not have.
 -    Malformed(String),
--}
--
++/// A node's lines, as the crate's events: the text of each to `say`.
++pub fn events(say: Arc<dyn Fn(String) + Send + Sync>) -> Arc<dyn Events> {
++    Arc::new(move |event: Event| say(event.text))
+ }
+ 
 -impl fmt::Display for Error {
 -    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 -        match self {
@@ -3985,9 +3987,17 @@ index e488f5e..8b7abbf 100644
 -            Error::Malformed(why) => write!(f, "the channel carried a message that it does not have: {why}"),
 -        }
 -    }
-+/// A node's lines, as the crate's events: the text of each to `say`.
-+pub fn events(say: Arc<dyn Fn(String) + Send + Sync>) -> Arc<dyn Events> {
-+    Arc::new(move |event: Event| say(event.text))
++/// A node of this process: its lines go to `say`, and it reads the net's
++/// documents and the holds of this process.
++pub fn node(
++    identity: Arc<pod_identity::Identity>,
++    admit: Arc<ends::Admit>,
++    say: Arc<dyn Fn(String) + Send + Sync>,
++    redeem: Option<Arc<ends::Redeem>>,
++    gate: Option<Arc<person::Gate>>,
++) -> ends::Node {
++    let (events, docs, holds) = (events(say), net::process(), hold::holds());
++    ends::Node { identity, admit, events, redeem, leases: Default::default(), gate, docs, holds }
  }
  
 -impl std::error::Error for Error {}
