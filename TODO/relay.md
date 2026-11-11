@@ -639,6 +639,12 @@ of `SMOLTCP_IFACE_MAX_ADDR_COUNT`; `SOURCES` (9 files, 0 changes with
   `check-publish-order.py`, `check-design-paths.py`,
   `check-workflows.py`, `cargo deny check`, and the static probes of
   `x86_64-unknown-linux-musl` (zig). CI runs at the merge to `main`.
+- The take: podnet took the crate at `d23ce4e` (tag `v0.20.0`,
+  PodUtils/podnet#445, the answer to GitHub #64). It keeps
+  `CongestionControl::None` in `tests/tcp_window.rs` (T-188). `SOURCES`
+  has the `taken` lines; `lib.rs` reads the parent of the take, `193bd36`
+  (podnet added `pub mod routes`). `check-sources.py` with a clone: 9
+  files, 0 changes. The trial files are removed.
 
 # T-024: `pod-wg`: the WireGuard initiator
 

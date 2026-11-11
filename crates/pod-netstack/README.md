@@ -141,8 +141,8 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
 
 ### podnet
 
-The trial `adoption/podnet/pod-netstack.{patch,run,commit}` (podnet
-`f7ed86b`, tag `v0.20.0`):
+podnet took the crate at `d23ce4e` (tag `v0.20.0`, PodUtils/podnet#445;
+the `taken` lines of `SOURCES`):
 
 | Old (`crates/podnet-vnet/src/`) | New |
 | --- | --- |

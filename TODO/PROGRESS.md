@@ -12,10 +12,9 @@
   The hand-off is GitHub #64 (COORD-039); the one of `v0.19.0` is #62.
 - The consumers: podssh is on `v0.18.0` (`50ef8922`: the tunnels of
   T-171, `Rewound::new`, the key of `ssh-j` pinned; it took `pod-wormhole`
-  at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
-  (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
-  `packet` at `e4d4049`, PodUtils/podnet#426; it released
-  `v0.4.0-beta.3`); podvm is on `v0.19.0` (`2c2b8d2`, its
+  at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
+  (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
+  its `connect` and `packet` at `e4d4049`); podvm is on `v0.19.0` (`2c2b8d2`, its
   `--inhibit-cache` from `LoaderPlan::inhibit_cache`; PodUtils/podvm#249,
   read by podcrates); podrunner is on `v0.19.0`
   (after its `6f24681`; `pod-job` at `0457ed0`; its T-048 at `6f24681`
@@ -54,8 +53,7 @@ next entry.
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need.
-3. **podnet:** its take of `pod-netstack` (GitHub #64); T-170 step 2
-   after podnet's COORD issue; T-150, T-121 to T-124 (the asks of
+3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-150, T-121 to T-124 (the asks of
    podnet).
 4. **M6, the crates of podvm:** `pod-incus` (PodUtils/podvm#253) goes out with the
    next tag; podvm's PodUtils/podvm@T-1718 moves to it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):

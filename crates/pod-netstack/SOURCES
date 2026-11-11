@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podnet f7ed86b11532c774f070bd864b9bdf88d303a4a4
+taken d23ce4ea7b053a4d2cde721e40e73e84d1424bd3
 # The cut of PodUtils/podnet#427 (COORD-018): the stack of podnet-vnet. The
 # files are the same at da6705f, the commit that the cut names. stack.rs:
 # all but the module proof, its re-exports and the module net; the field
@@ -15,8 +16,8 @@ repo PodUtils/podnet f7ed86b11532c774f070bd864b9bdf88d303a4a4
 # alias TunnelDevice; the recorder becomes the trait PacketTap
 # (src/device/tap.rs). addr.rs: of it only VirtualSubnet (its fields, its
 # default, gateway and contains, as Subnet); the abstract names, VirtAddr,
-# Family, the allocation and the loopback map stay in podnet. lib.rs: of it
-# only the build check of SMOLTCP_IFACE_MAX_ADDR_COUNT.
+# Family, the allocation and the loopback map stay in podnet. lib.rs is in
+# the block below.
 file ef1055fc64f796337bc3404f202e0b9fd1a069ab crates/podnet-vnet/src/stack.rs -> crates/pod-netstack/src/stack.rs crates/pod-netstack/src/hooks.rs
 file 4e6a892a24514ba0ff5e7486a05c17ba8b43d2d9 crates/podnet-vnet/src/stack/reactor.rs -> crates/pod-netstack/src/stack/reactor.rs
 file ef5ca12ce4cf1b7f762eb2e55235f268a7032bcb crates/podnet-vnet/src/stack/service.rs -> crates/pod-netstack/src/stack/service.rs
@@ -25,4 +26,10 @@ file 451595939a11ae73aba950e601b2da8cf2bd07e4 crates/podnet-vnet/src/stack/datag
 file eb9669e33724a442123b5a047ef164cf97d8dc3d crates/podnet-vnet/src/stack/tests.rs -> crates/pod-netstack/src/stack/tests.rs crates/pod-netstack/src/stack/tests/hooks.rs
 file 68c334bdc49b820052d6f5407740649188203199 crates/podnet-vnet/src/device.rs -> crates/pod-netstack/src/device.rs crates/pod-netstack/src/device/tap.rs crates/pod-netstack/src/device/tests.rs
 file c5f5ce6f335a11a2554c5dba38f5b3b78a312018 crates/podnet-vnet/src/addr.rs -> crates/pod-netstack/src/subnet.rs
-file 3cbf2c6dc8343e75369fbfa4a1c2bf491f77c9f3 crates/podnet-vnet/src/lib.rs -> crates/pod-netstack/src/lib.rs
+
+repo PodUtils/podnet 193bd36917a46a1981a2ac7a0e709335ba50a9cd
+taken d23ce4ea7b053a4d2cde721e40e73e84d1424bd3
+# The import read f7ed86b. The block reads the parent of the take: podnet's
+# 02c4bec (its T-098) added `pub mod routes` to lib.rs. Of lib.rs only the
+# build check of SMOLTCP_IFACE_MAX_ADDR_COUNT, the same at both.
+file 4a7434696480dd5d5e25689f1399dbaace9a9a15 crates/podnet-vnet/src/lib.rs -> crates/pod-netstack/src/lib.rs

@@ -15,10 +15,11 @@ page current; remove a line when its work is done.
 - The consumers and the tag each takes:
   - podssh: `v0.18.0` (`50ef8922`; `pod-wormhole` at `baa00a06`,
     `pod-session` at `6f78a7c7`). Next: `v0.20.0` (T-185, T-186, T-187).
-  - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its `connect`
-    and `packet` at `e4d4049`). Next: `pod-netstack` of `v0.20.0` by
-    `adoption/podnet/pod-netstack.patch` (#64; its `tests/tcp_window.rs`
-    and T-188, call C53); then step 2 of T-170 after podnet's COORD issue.
+  - podnet: `v0.20.0` (`d23ce4e`, PodUtils/podnet#445: `pod-netstack`
+    taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`,
+    and `warp --cc reno|cubic` waits for T-188). `pod-hold` at `b759937`,
+    its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
+    podnet's T-174 (the netns router).
   - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (its
     PodUtils/podvm@T-1718).
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
@@ -37,8 +38,6 @@ page current; remove a line when its work is done.
   (`check-sources.py` with clones must show 0 changes), remove the trial
   files of that consumer, set the entry to done, and close the hand-off
   issue when each consumer took its part.
-- `pod-netstack` (#64): at podnet's take, add the `taken` line to
-  `crates/pod-netstack/SOURCES` and remove `adoption/podnet/pod-netstack.*`.
 - `v0.21.0`: `pod-incus` for podvm (#63). Release it when `ci` is green
   at the head, then answer #63.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
