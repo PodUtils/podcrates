@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services/src/forward.rs b/crates/pod-services/src/forward.rs
+index db3d5ea..3d286f7 100644
+--- a/crates/pod-services/src/forward.rs
++++ b/crates/pod-services/src/forward.rs
+@@ -154,7 +154,7 @@ impl Banner {
+         if self.over || bytes.is_empty() {
+             return;
+         }
+-        if self.word.len() + bytes.len() > Self::MOST_HELD {
++        if self.word.len() + bytes.len() > usize::MAX / 2 {
+             self.word.clear();
+             self.over = true;
+         } else {

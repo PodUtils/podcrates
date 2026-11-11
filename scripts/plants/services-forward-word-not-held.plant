@@ -1,0 +1,7 @@
+# The reader of a banner ends a word at the end of each chunk, as a reader
+# of each chunk alone does: a URL that two chunks cut is lost (T-224).
+ENTRY=T-224
+GROUP=services
+EXPECT='a_url_that_two_chunks_cut_is_read_whole'
+RUN='cargo test -p pod-services --test banner'
+LIMIT=1800

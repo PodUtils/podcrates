@@ -3651,7 +3651,7 @@ passes. The live watches: 4 hold (the two `oci-ping`, the two
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3728,6 +3728,67 @@ cargo test -p pod-services --all-features
 cargo clippy -p pod-services -p pod-services-watch --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh services-forward-word-not-held services-forward-held-unbounded
 ```
+
+## Done
+
+2026-11-11, commit `719961a` (the work), and the commit of this section
+(the plants). Each value has its source and its date in its file
+(`crates/pod-services/README.md`, "SSH forward relays"; call C66):
+
+- `pinggy`: plain SSH `ssh` (443); `user` `http` (`/docs/usages/`: the
+  user carries the keywords, and `http` is the type of the tunnel);
+  `url-match` `https://`, `.run.pinggy-free.link` (`/docs/`: the two
+  sample URLs); `url-skip` `dashboard.pinggy.io` (the banner that podnet
+  read on 2026-10-09; it was `dashboard-host`); `keepalive-seconds` 30
+  (`pinggy.io/`: the setting Keep Alive adds `-o ServerAliveInterval=30`);
+  `free-tunnel-minutes` 60 (kept).
+- `serveo`: plain SSH `ssh-443`, `ssh`; `url-match` `https://`,
+  `.serveo.net` (`/docs/`: "A subdomain of serveo.net will be assigned");
+  `keepalive-seconds` 30 (its article on SSH servers).
+- `localhost-run`: plain SSH `ssh` (22); `user` `nokey` (kept);
+  `url-match` `https://`, `.lhr.life` (the sample of the landing page);
+  `keepalive-seconds` 60 (`/docs/faq`).
+- `sandhole`: plain SSH `ssh-443`, then `ssh`; `url-match` `https://`,
+  `.demo.sandhole.com.br` (podssh's runs 42970029119 and 42970697875;
+  `src/ssh/forwarding.rs` of Sandhole).
+- `ssh-j` gives no URL: none of the facts.
+
+Not read, so not in the files: the `user` of `serveo` and of `sandhole`
+(each takes any user); `free-tunnel-minutes` of `serveo` (the 10 minutes
+of its documents are of an anonymous public TCP port), of `localhost-run`
+(its free names change after some hours; no session limit is stated) and
+of `sandhole`; `keepalive-seconds` of `sandhole` (the server sends its
+own, `--ssh-keepalive-interval`; the values of the demo are not known);
+SSH on 443 of `localhost-run`; a `url-skip` of `serveo` (no source shows
+its banner: `console.serveo.net` would hold `.serveo.net`). Not measured:
+a banner with the user `http` of Pinggy. T-225 reads the banners.
+
+The code: `crates/pod-services/src/forward.rs`. `Relay::of(service)`
+(`endpoints`, `user`, `url_rule`, `session_limit`, `keepalive`);
+`UrlRule { matches, skips }` (`accepts`: each text of `matches` and no
+text of `skips`, as podnet's `--url-match` and `--url-skip`; `pick`);
+`Banner` (`new`, `push`, `finish`, `url`, `held`, `MOST_HELD` = 2048). A
+word ends at a space or a control byte; the URL of a word starts at
+`http://` or `https://`. podnet's `UrlRule::pick` takes a token that
+starts with `http`, so it misses the URL of Sandhole, whose escape of a
+color comes first; `Banner` takes it (the test of the banner of Sandhole
+in `crates/pod-services/tests/forward.rs`). The moved fact has two
+readers that change at their next tag: podnet `UrlRule::default()` and
+podssh `pinggy::dashboard()` (the adoption map of the README).
+
+Checks:
+- `cargo test -p pod-services --all-features`: 75 passed (`forward` 5,
+  `banner` 10, `api` 19 with `url-skip`, and the rest as before).
+- `cargo test -p pod-services-watch --all-features`: 35 passed.
+- `cargo clippy -p pod-services -p pod-services-watch --all-targets
+  --all-features -- -D warnings`, `cargo fmt --all --check`,
+  `cargo todo check`, `python3 -I scripts/check-design-paths.py`: 0.
+- The plants (`cargo test -p pod-services --test banner` on each patch):
+  `services-forward-word-not-held` fails 4 tests, with
+  `a_url_that_two_chunks_cut_is_read_whole`;
+  `services-forward-held-unbounded` fails 2, with
+  `a_banner_with_no_end_of_line_holds_at_most_the_bound`.
+  `sh scripts/plant-each.sh --apply`: 0 stale.
 
 # T-225: `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule
 

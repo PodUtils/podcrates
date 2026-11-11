@@ -1,0 +1,7 @@
+# The reader of a banner holds a word with no bound: a banner with no end
+# of line grows the buffer with no end (T-224).
+ENTRY=T-224
+GROUP=services
+EXPECT='a_banner_with_no_end_of_line_holds_at_most_the_bound'
+RUN='cargo test -p pod-services --test banner'
+LIMIT=1800
