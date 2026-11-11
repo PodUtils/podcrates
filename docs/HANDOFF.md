@@ -22,13 +22,12 @@ a line when its work is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.22.0`): its take of `v0.23.0` (GitHub #72: `pod-confine`
-  for PodUtils/podvm@T-1658, #69; the fix of T-208 for
-  PodUtils/podvm@T-1659) and of `v0.24.0` (#73: the modloop reader for
-  PodUtils/podvm@T-1662). PodUtils/podvm@T-1722 may ask for
+- podvm (on `v0.24.0`, `96acfbea`, PodUtils/podvm#264): its PodUtils/podvm@T-1658 sets
+  `Plan.confine` from the profile next (#69 closes at that take); it checks
+  `lambda-al2023` for T-208; its PodUtils/podvm@T-1662 reads the module set of T-206 after
+  `pod-netlab` (T-207, #70). PodUtils/podvm@T-1722 may ask for
   `exec_attached` of `pod-incus`. Its other takes (PodUtils/podvm#194):
-  `pod-relay` (the blocking face, after T-025), `pod-services`,
-  `pod-todo`.
+  `pod-relay` (the blocking face, after T-025), `pod-todo`.
 - podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
   at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
   `pod-netstack`); T-201 starts at the first passing run of

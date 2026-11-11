@@ -77,7 +77,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open (podvm's take of `pod-confine` waits) | T-108 |
 | #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open (T-206 in `v0.24.0`; T-207 waits) | T-206, T-207 |
 | #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | closed | T-021, T-024, T-202, T-205 |
-| #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open (podvm's takes wait) | T-108, T-208 |
+| #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | closed | T-108, T-208 |
 | #73 | COORD-048: v0.24.0: the module set of a guest from its modloop; gcr.io, mirror.gcr.io and the NIC module sums in pod-services (to podvm, to all) | open (podvm and podnet wait) | T-206, T-211 |
 | #74 | COORD-049: the answer to PodUtils/podnet#449, #450 and #451: the freeze is in the record; WARP as a network in T-028; T-214 and T-215 for the file transfer and the mailbox server (to podnet) | open | T-026, T-028, T-029, T-170, T-201, T-214, T-215 |
-| #75 | COORD-050: the answer to PodUtils/podnet#452 and #453: the hint words and the traits are in T-214 and T-028; pod-git is T-217 to T-220 (to podnet) | open | T-028, T-214, T-217, T-218, T-219, T-220 |
+| #75 | COORD-050: the answer to PodUtils/podnet#452 and #453: the hint words and the traits are in T-214 and T-028; pod-git is T-217 to T-220 (to podnet) | closed | T-028, T-214, T-217, T-218, T-219, T-220 |

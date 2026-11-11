@@ -11,14 +11,14 @@
 - The consumers and their tags:
   - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192).
   - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).
-  - podvm: `v0.22.0` (`c9d5038`, PodUtils/podvm#262).
+  - podvm: `v0.24.0` (`96acfbea`, PodUtils/podvm#264; it took `pod-services`).
   - podrunner: `v0.24.0` (`6a01f4e`); its T-042 takes `pod-confine`, its
     T-048 takes `check_upstream`, `names_upstream` and the flagged rules
     of `pod-broker`.
-- Takes that wait: podvm's take of `v0.23.0` (`pod-confine` for
-  PodUtils/podvm@T-1658, T-108, #69 and #72; T-208 for
-  PodUtils/podvm@T-1659) and of `v0.24.0` (T-206 for
-  PodUtils/podvm@T-1662, #73); podnet's move to `v0.24.0` (#73).
+- Takes that wait: podvm's use of `pod-confine` (PodUtils/podvm@T-1658,
+  next in its order, #69), its check of T-208 against `lambda-al2023`, and
+  its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
+  T-207, #70); podnet's move to `v0.24.0` (#73).
 - Partial: T-025 (`pod-relay`: the trial of podssh remains), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131
