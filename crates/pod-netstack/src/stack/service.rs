@@ -1,36 +1,34 @@
 use super::*;
 
 impl Core {
-    /// Move data between smoltcp and the application, adopt inbound
-    /// connections, and reap closed sockets.
+    /// Move data between smoltcp and the app, take the inbound connections,
+    /// and remove the closed sockets.
     pub(super) fn service(&mut self) {
         self.accept_inbound();
         self.service_conns();
         self.service_udp();
-        self.service_dns();
+        self.service_gateway();
     }
 
-    /// Answer datagrams that arrive at the gateway's port 53 from the virtual
-    /// resolver. An unknown name with no upstream is answered `NXDOMAIN` by the
-    /// resolver; a name configured for upstream forwarding is dropped here (the
-    /// host process owns the real forwarding path).
-    pub(super) fn service_dns(&mut self) {
-        let Some(service) = self.dns.as_ref() else {
+    /// Give each datagram to the port of the gateway service and send its
+    /// answer back. A request with no answer gets nothing.
+    pub(super) fn service_gateway(&mut self) {
+        let Some(gateway) = self.gateway.as_ref() else {
             return;
         };
-        let handle = service.handle;
-        let resolver = service.resolver.clone();
+        let handle = gateway.handle;
+        let service = gateway.service.clone();
         loop {
             let socket = self.sockets.get_mut::<udp::Socket>(handle);
             if !socket.can_recv() {
                 break;
             }
-            let mut buffer = [0u8; 1232];
+            let mut buffer = [0u8; GATEWAY_DATAGRAM];
             let (n, metadata) = match socket.recv_slice(&mut buffer) {
                 Ok(received) => received,
                 Err(_) => break,
             };
-            let Some(response) = resolver.handle(&buffer[..n]) else {
+            let Some(response) = service.answer(endpoint_to_socket(metadata.endpoint), &buffer[..n]) else {
                 continue;
             };
             let socket = self.sockets.get_mut::<udp::Socket>(handle);
@@ -39,15 +37,14 @@ impl Core {
     }
 
     pub(super) fn accept_inbound(&mut self) {
-        let events = self.events.clone();
-        let mut adopted: Vec<(usize, SocketHandle, VirtAddr, VirtAddr)> = Vec::new();
+        let mut adopted: Vec<(usize, SocketHandle, SocketAddr, SocketAddr)> = Vec::new();
         for (index, listener) in self.listeners.iter().enumerate() {
             for handle in &listener.handles {
                 let socket = self.sockets.get::<tcp::Socket>(*handle);
-                if socket.may_recv() {
-                    if let Some(remote) = socket.remote_endpoint() {
-                        adopted.push((index, *handle, listener.addr, endpoint_to_virt(remote)));
-                    }
+                if socket.may_recv()
+                    && let Some(remote) = socket.remote_endpoint()
+                {
+                    adopted.push((index, *handle, listener.addr, endpoint_to_socket(remote)));
                 }
             }
         }
@@ -55,71 +52,30 @@ impl Core {
             if let Some(listener) = self.listeners.get_mut(index) {
                 listener.handles.retain(|candidate| *candidate != handle);
             }
-            let (to_app_tx, to_app_rx) = mpsc::channel(64);
-            let (from_app_tx, from_app_rx) = mpsc::channel(64);
-            let (ctl_tx, ctl_rx) = mpsc::channel(16);
-            let write_waker = Arc::new(AtomicWaker::new());
             let id = self.next_id;
             self.next_id += 1;
-            let stream = TcpStream {
-                id,
-                local,
-                remote,
-                read_rx: to_app_rx,
-                write_tx: from_app_tx,
-                write_waker: write_waker.clone(),
-                ctl_tx,
-                kick: self.kick.clone(),
-                read_buf: Vec::new(),
-                read_pos: 0,
-                eof: false,
-                nodelay: false,
-            };
-            self.conns.insert(
-                id,
-                Conn {
-                    handle,
-                    to_app: to_app_tx,
-                    from_app: from_app_rx,
-                    write_waker,
-                    ctl: ctl_rx,
-                    closing: false,
-                    recv_eof_sent: false,
-                    announced: false,
-                    pending: Vec::new(),
-                },
-            );
-            let addr = self
-                .listeners
-                .get(index)
-                .map(|listener| listener.addr)
-                .unwrap_or(local);
-            match self.spawn_listener_socket(addr) {
+            let stream = self.adopt(id, handle, local, remote);
+            match self.spawn_listener_socket(local) {
                 Ok(replacement) => {
                     if let Some(listener) = self.listeners.get_mut(index) {
                         listener.handles.push(replacement);
                     }
                 }
-                Err(err) => tracing::warn!(error = %err, "could not replenish the listener pool"),
+                Err(err) => tracing::warn!(error = %err, "could not fill the listener pool again"),
             }
-            let queued = self
-                .listeners
-                .get_mut(index)
-                .map(|listener| listener.accept_tx.try_send(stream).is_ok());
+            let queued = self.listeners.get_mut(index).map(|listener| listener.accept_tx.try_send(stream).is_ok());
             if queued != Some(true) {
-                tracing::warn!("inbound connection dropped: accept queue is full");
-                // Free the socket too. The connection is already established,
-                // so leaving it in the SocketSet leaks its buffers and holds a
-                // half-open connection from the peer's point of view, since
-                // nothing will ever service it.
+                tracing::warn!("the accept queue is full: the stack drops an inbound connection");
+                // Free the socket too. The connection is established: a
+                // socket left in the set keeps its buffers, and the peer
+                // keeps a half-open connection that nothing serves.
                 if let Some(dropped) = self.conns.remove(&id) {
-                    self.sockets.remove(dropped.handle);
-                    self.socket_count.remove();
+                    self.drop_socket(dropped.handle);
                 }
                 self.stats.dropped.fetch_add(1, Ordering::Relaxed);
                 continue;
             }
-            let _ = events.send(StackEvent::Accepted { id, local, remote });
+            self.emit(StackEvent::Accepted { id, local, remote });
             self.stats.accepted.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -131,174 +87,31 @@ impl Core {
             let Some(conn) = self.conns.get_mut(&id) else {
                 continue;
             };
-            let mut reset_reason: Option<String> = None;
-            let mut closed = false;
-
-            // Control commands.
-            loop {
-                match conn.ctl.try_recv() {
-                    // A close request marks the connection for finishing.
-                    // Whether the socket closes on this pass or waits is
-                    // decided after the queues are drained below, because a
-                    // handle dropped while a reply is still in flight must not
-                    // cut the exchange short.
-                    //
-                    // This is the only path by which a dropped handle is noticed
-                    // at all: `Drop` on `TcpStream` sends this, and the reactor
-                    // watches `to_app.is_closed()`, which runs the other way and
-                    // stays open after the application goes.
-                    Ok(ConnCmd::Close) => {
-                        conn.closing = true;
-                    }
-                    Ok(ConnCmd::Abort) => {
-                        self.sockets.get_mut::<tcp::Socket>(conn.handle).abort();
-                        reset_reason = Some("connection aborted".into());
-                        closed = true;
-                    }
-                    Ok(ConnCmd::SetNodelay(enabled)) => {
-                        self.sockets
-                            .get_mut::<tcp::Socket>(conn.handle)
-                            .set_nagle_enabled(!enabled);
-                    }
-                    Err(_) => break,
-                }
-            }
-            if closed {
-                reap.push((id, reset_reason));
+            if service_ctl(conn, &mut self.sockets) {
+                reap.push((id, Some("connection aborted".into())));
                 continue;
             }
-
-            // App -> stack.
-            let mut wrote = false;
-            loop {
-                let socket = self.sockets.get_mut::<tcp::Socket>(conn.handle);
-                if !socket.may_send() {
-                    break;
-                }
-                if conn.pending.is_empty() {
-                    match conn.from_app.try_recv() {
-                        Ok(data) => conn.pending = data,
-                        Err(_) => break,
-                    }
-                }
-                match socket.send_slice(&conn.pending) {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        conn.pending.drain(..n);
-                        wrote = true;
-                    }
-                    Err(_) => break,
-                }
-            }
-            // stack -> app, but only while the app is reading.
-            let socket = self.sockets.get_mut::<tcp::Socket>(conn.handle);
-            while socket.may_recv() {
-                let mut buffer = [0u8; 4096];
-                match socket.recv_slice(&mut buffer) {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        let packet = buffer[..n].to_vec();
-                        if conn.to_app.try_send(AppEvent::Data(packet)).is_err() {
-                            // Backpressure or a gone reader. A gone reader is
-                            // detected below; a full one just waits.
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-            // A reader that has gone away closes the socket.
-            if conn.to_app.is_closed() {
-                self.sockets.get_mut::<tcp::Socket>(conn.handle).close();
-                conn.closing = true;
-            }
-            let (state, send_queue, recv_queue, open) = {
-                let socket = self.sockets.get::<tcp::Socket>(conn.handle);
-                (
-                    socket.state(),
-                    socket.send_queue(),
-                    socket.recv_queue(),
-                    socket.is_open(),
-                )
-            };
-            if !conn.announced
-                && matches!(
-                    state,
-                    tcp::State::Established
-                        | tcp::State::CloseWait
-                        | tcp::State::FinWait1
-                        | tcp::State::FinWait2
-                )
-            {
-                conn.announced = true;
-                let _ = conn.to_app.try_send(AppEvent::Connected);
-            }
-            // The remote half-closed: tell the app once, but keep the write
-            // side open until the app closes it.
-            if state == tcp::State::CloseWait && recv_queue == 0 && !conn.recv_eof_sent {
-                conn.recv_eof_sent = true;
-                let _ = conn.to_app.try_send(AppEvent::Eof);
-            }
-            // A close request closes the socket only once nothing is still owed in
-            // either direction, so a handle dropped mid-exchange does not
-            // discard the reply that is on its way. This is the decision
-            // `TcpStream::drop` cannot make for itself: it does not know whether
-            // the reactor is holding data it still owes.
-            //
-            // The flag is persistent, not per-poll: a close that arrives while
-            // the send queue still holds the reply is deferred, and the check
-            // runs again on the next pass. A per-poll local forgets the request
-            // after one pass, no FIN is ever sent, and a peer reading until EOF
-            // waits forever.
-            //
-            // Before the handshake completes, a close must wait too: smoltcp
-            // closes a SYN-SENT socket at once, which resets the connection
-            // and loses the data that the app wrote first.
-            let handshake_done = !matches!(
-                state,
-                tcp::State::SynSent | tcp::State::SynReceived | tcp::State::Listen
-            );
-            if conn.closing
-                && handshake_done
-                && send_queue == 0
-                && recv_queue == 0
-                && conn.pending.is_empty()
-                && conn.from_app.is_empty()
-            {
-                self.sockets.get_mut::<tcp::Socket>(conn.handle).close();
-            }
-            // A socket in TIME_WAIT is finished for this stack's purposes: it
-            // holds no buffers of anything and smoltcp will never move it again,
-            // because the segment that ends a TIME_WAIT is sent by the socket
-            // that closes last, which is the peer. Keeping it resident means a
-            // short-lived connection leaves a corpse behind, and a workload that
-            // makes many of them grows without bound. `TimeWait` is therefore
-            // treated as closed here even though it is not `Closed`.
-            let closed_now = !open
-                || matches!(
-                    state,
-                    tcp::State::Closed | tcp::State::TimeWait | tcp::State::Closing
-                );
-            if wrote {
-                // The app had data waiting on a full channel; it can try again.
-                conn.write_waker.wake();
-            }
-            if closed_now {
+            let wrote = move_to_socket(conn, &mut self.sockets);
+            move_to_app(conn, &mut self.sockets);
+            if close_and_check(conn, &mut self.sockets) {
                 reap.push((id, None));
+            }
+            if wrote {
+                // The app had data on a full channel; it can write again.
+                conn.write_waker.wake();
             }
         }
         for (id, reason) in reap {
             if let Some(conn) = self.conns.remove(&id) {
-                if let Some(reason) = reason {
-                    let _ = conn.to_app.try_send(AppEvent::Reset(reason));
-                } else {
-                    let _ = conn.to_app.try_send(AppEvent::Eof);
-                }
-                // Free the smoltcp socket. A SocketSet does not free a slot
-                // itself: without `remove`, each closed connection keeps its two
-                // buffers for the life of the process.
-                self.sockets.remove(conn.handle);
-                self.socket_count.remove();
+                let event = match reason {
+                    Some(reason) => AppEvent::Reset(reason),
+                    None => AppEvent::Eof,
+                };
+                let _ = conn.to_app.try_send(event);
+                // Free the smoltcp socket: with no `remove`, each closed
+                // connection keeps its two buffers for the life of the
+                // process.
+                self.drop_socket(conn.handle);
                 self.emit(StackEvent::Closed { id });
                 self.stats.closed.fetch_add(1, Ordering::Relaxed);
             }
@@ -307,39 +120,24 @@ impl Core {
 
     pub(super) fn service_udp(&mut self) {
         let ids: Vec<u32> = self.udp.keys().copied().collect();
-        let events = self.events.clone();
         for id in ids {
             let Some(conn) = self.udp.get_mut(&id) else {
                 continue;
             };
-            // App -> stack.
+            // App to stack.
             while let Ok((data, remote)) = conn.from_app.try_recv() {
-                let in_subnet = self.config.subnet.contains(&remote.ip);
-                let allowed = self
-                    .config
-                    .acl
-                    .as_ref()
-                    .map(|acl| acl.allows(&remote.ip, remote.port))
-                    .unwrap_or(true);
-                if !in_subnet || !allowed {
+                if !self.config.subnet.contains(remote.ip()) || !self.config.admits(remote) {
                     self.stats.refused.fetch_add(1, Ordering::Relaxed);
                     continue;
                 }
                 let socket = self.sockets.get_mut::<udp::Socket>(conn.handle);
-                if socket
-                    .send_slice(&data, IpEndpoint::new(to_smoltcp(remote.ip), remote.port))
-                    .is_err()
-                {
+                if socket.send_slice(&data, IpEndpoint::new(to_smoltcp(remote.ip()), remote.port())).is_err() {
                     break;
                 }
-                let _ = events.send(StackEvent::Datagram {
-                    from: conn.local,
-                    to: remote,
-                    len: data.len(),
-                });
+                let _ = self.events.send(StackEvent::Datagram { from: conn.local, to: remote, len: data.len() });
                 self.stats.datagrams.fetch_add(1, Ordering::Relaxed);
             }
-            // stack -> app.
+            // Stack to app.
             loop {
                 let socket = self.sockets.get_mut::<udp::Socket>(conn.handle);
                 if !socket.can_recv() {
@@ -348,9 +146,8 @@ impl Core {
                 let mut buffer = [0u8; 65535];
                 match socket.recv_slice(&mut buffer) {
                     Ok((n, metadata)) => {
-                        let from = endpoint_to_virt(metadata.endpoint);
-                        let data = buffer[..n].to_vec();
-                        if conn.to_app.try_send((data, from)).is_err() {
+                        let from = endpoint_to_socket(metadata.endpoint);
+                        if conn.to_app.try_send((buffer[..n].to_vec(), from)).is_err() {
                             break;
                         }
                     }
@@ -359,4 +156,144 @@ impl Core {
             }
         }
     }
+}
+
+/// Run the control commands of `conn`. True when the app aborted the
+/// connection: the caller reaps it with a reset.
+fn service_ctl(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
+    loop {
+        match conn.ctl.try_recv() {
+            // A close marks the connection for its end. The socket closes
+            // after the queues are empty (see `close_and_check`): a handle
+            // dropped while a reply is on its way must not cut the exchange.
+            //
+            // This is the only way that the reactor sees a dropped handle:
+            // `Drop` of `TcpStream` sends it, and `to_app.is_closed()` looks
+            // the other way and stays open after the app goes.
+            Ok(ConnCmd::Close) => conn.closing = true,
+            Ok(ConnCmd::Abort) => {
+                sockets.get_mut::<tcp::Socket>(conn.handle).abort();
+                return true;
+            }
+            Ok(ConnCmd::SetNodelay(enabled)) => {
+                sockets.get_mut::<tcp::Socket>(conn.handle).set_nagle_enabled(!enabled);
+            }
+            Err(_) => return false,
+        }
+    }
+}
+
+/// Move the bytes of the app into the socket. True when the socket took
+/// some.
+fn move_to_socket(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
+    let mut wrote = false;
+    let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+    while socket.may_send() {
+        if conn.pending.is_empty() {
+            match conn.from_app.try_recv() {
+                Ok(data) => conn.pending = data,
+                Err(_) => break,
+            }
+        }
+        match socket.send_slice(&conn.pending) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                conn.pending.drain(..n);
+                wrote = true;
+            }
+        }
+    }
+    wrote
+}
+
+/// Send `event` to the app. False when the channel is full (the app kicks
+/// the reactor at its next read) or closed.
+fn tell_app(conn: &Conn, event: AppEvent) -> bool {
+    match conn.to_app.try_send(event) {
+        Ok(()) => true,
+        Err(mpsc::error::TrySendError::Full(_)) => {
+            conn.read_stalled.store(true, Ordering::Release);
+            false
+        }
+        Err(mpsc::error::TrySendError::Closed(_)) => false,
+    }
+}
+
+/// Move the bytes of the socket to the app, while the app reads.
+fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
+    let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+    while socket.may_recv() {
+        // Take a place in the channel first: bytes taken from the socket with
+        // no place are lost, and the stream has a hole.
+        let permit = match conn.to_app.try_reserve() {
+            Ok(permit) => permit,
+            Err(mpsc::error::TrySendError::Full(())) => {
+                conn.read_stalled.store(true, Ordering::Release);
+                break;
+            }
+            // A gone reader closes below.
+            Err(mpsc::error::TrySendError::Closed(())) => break,
+        };
+        let mut buffer = [0u8; 4096];
+        match socket.recv_slice(&mut buffer) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => permit.send(AppEvent::Data(buffer[..n].to_vec())),
+        }
+    }
+    // A reader that has gone closes the socket.
+    if conn.to_app.is_closed() {
+        socket.close();
+        conn.closing = true;
+    }
+}
+
+/// Tell the app about the handshake and the end of the receive side, close
+/// the socket when the close of the app can go, and return true when the
+/// connection is finished.
+fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
+    let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+    let (state, send_queue, recv_queue, open) =
+        (socket.state(), socket.send_queue(), socket.recv_queue(), socket.is_open());
+    if !conn.announced
+        && matches!(
+            state,
+            tcp::State::Established | tcp::State::CloseWait | tcp::State::FinWait1 | tcp::State::FinWait2
+        )
+    {
+        conn.announced = tell_app(conn, AppEvent::Connected);
+    }
+    // The remote half-closed: tell the app once, and keep the write side
+    // open until the app closes it. A full channel tells it at a later pass.
+    if state == tcp::State::CloseWait && recv_queue == 0 && !conn.recv_eof_sent {
+        conn.recv_eof_sent = tell_app(conn, AppEvent::Eof);
+    }
+    // A close request closes the socket only when nothing is owed in either
+    // direction, so that a handle dropped in an exchange does not lose the
+    // reply on its way. `TcpStream::drop` cannot make this decision: it does
+    // not know what the reactor still holds.
+    //
+    // The flag stays from poll to poll: a close that comes while the send
+    // queue holds the reply waits, and the check runs again at the next
+    // pass. A flag of one poll forgets the request, no FIN goes, and a peer
+    // that reads to the end waits forever.
+    //
+    // Before the handshake ends, a close waits too: smoltcp closes a socket
+    // in SYN-SENT at once, which resets the connection and loses the data
+    // that the app wrote first.
+    let handshake_done = !matches!(state, tcp::State::SynSent | tcp::State::SynReceived | tcp::State::Listen);
+    if conn.closing
+        && handshake_done
+        && send_queue == 0
+        && recv_queue == 0
+        && conn.pending.is_empty()
+        && conn.from_app.is_empty()
+    {
+        socket.close();
+    }
+    // A socket in TIME-WAIT is finished for this stack: it holds no data,
+    // and smoltcp does not move it again, as the peer (the last to close)
+    // sends the segment that ends a TIME-WAIT. A socket kept there leaves a
+    // corpse for each short connection, and a load of many grows with no
+    // limit. So `TimeWait` and `Closing` count as closed here.
+    !open || matches!(state, tcp::State::Closed | tcp::State::TimeWait | tcp::State::Closing)
 }

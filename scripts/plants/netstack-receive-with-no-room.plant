@@ -1,0 +1,9 @@
+# The reactor takes bytes from a TCP socket with no place in the channel to
+# the app, as podnet's stack did: when the app reads slower than the link,
+# the bytes of a receive that finds the channel full are lost, and the
+# stream has a hole. The slow reader must see the hole.
+ENTRY=T-023
+GROUP=netstack
+EXPECT='the stream has a hole'
+RUN='cargo test -p pod-netstack --lib a_slow_reader_gets_each_byte_and_the_end'
+LIMIT=900

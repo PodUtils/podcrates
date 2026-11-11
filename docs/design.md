@@ -186,7 +186,7 @@ crates of podvm) and M8 (the fleet).
 | `pod-session` | podssh-relay `session/` (with `handover/`), `udp/` (the resolver of a flow is the caller's `Resolve`), `answer.rs`, `transit/link.rs` (`ws_link::Link` over a session of `pod-ws`). No environment and no global: the settings, the relay's limits (`Settings::pair_window`, `move_bytes`, `move_age`) and the sink of the budget's lines (`Keeper::with_tell`) are the caller's; a target moves at a handover by `Movable` or by the caller's function (`Keeper::hand_over_with`). The tests of the close table (`session_policy.rs`) and of the role (`session_relay_resume.rs`) go with `pod-relay`; the handover test with the channel goes with `pod-e2e` | 8,400 | pod-core, pod-ws |
 | `pod-e2e` | podssh-relay `e2e/` (Noise XX on snow 0.10) | 3,400 | pod-core, pod-identity, pod-session |
 | `pod-wormhole` | podssh-relay `code/` `mailbox.rs`, `wormhole.rs`, `phrase.rs`, `words.rs`, `mod.rs` (`Failed`, hex), and of `run.rs` the rendezvous (`Ends`, `opened`, `joined`); the mailbox harness (a stand-in in Rust, magic-wormhole's mailbox server and its Python peer). The AppID, the client name, the mailbox URLs and the way out are the caller's (C45). The pairing exchange (`exchange.rs`, the rest of `run.rs`) goes to `pod-relay` | 1,200 | pod-core, pod-ws |
-| `pod-netstack` | podnet `src/warp/ip.rs`, `src/vnet/device.rs` (the recorder of `podnet-vnet` becomes a `PacketTap` trait), `src/vnet/framing.rs`; the TCP of podssh-warp as the smoltcp 0.14 reference | 2,600 | pod-core |
+| `pod-netstack` | the cut of PodUtils/podnet#427: podnet `crates/podnet-vnet/src/stack.rs` and `stack/` without `proof.rs` (the stack, its sockets, its reactor; the `Acl` of `StackConfig` becomes the trait `Admit`, its resolver the trait `GatewayService`), `device.rs` (the recorder becomes the trait `PacketTap`), of `addr.rs` only `VirtualSubnet` (as `Subnet`); on smoltcp 0.14. `framing.rs`, the switch, the proxy, the dialer and the proof stay in podnet; `src/warp/ip.rs` goes to `pod-warp`, over this crate; the router of `podnet-netns` moves onto it after podnet's T-174 | 2,900 | pod-core |
 | `pod-wg` | podnet `src/warp/wg.rs` (sans-IO, on ring) | 1,100 | none |
 | `pod-relay` | podssh-relay `relay.rs`, `open.rs`, `pool.rs`, `pool/`, `failover.rs`, `failures.rs`, `gate.rs`, `rank*.rs`, `token.rs`, `health.rs`, `addresses.rs`, `keyed.rs`, the token and pool parts of `cache.rs` and `cache/`, `forward_layer/`, `pair.rs`, `pair/`, `code/exchange.rs`, `code/run.rs`, `grant/`, `reverse/` (the carrier `Door` of `serve` becomes a trait of `pod-relay`), `http_road/`, `quic_road/`, `h2_road.rs`, `cleartext.rs`, `blocking/` (feature `blocking`, podvm); podnet `src/ws_relay.rs` (`active()` becomes a handle that the caller gives), `src/relay_pool.rs`, `src/relay_reverse.rs`; the relay stand-in. The pool, the rank and the reverse road of podssh are the base; podnet's reverse mode (plain `/v1/node/NAME`, 32-hex ids) is merged last | 19,800 | pod-core, pod-tls, pod-proxy, pod-dns, pod-ws, pod-quic, pod-identity, pod-session, pod-e2e, pod-wormhole |
 
@@ -195,7 +195,7 @@ crates of podvm) and M8 (the fleet).
 | Crate | Source | Lines | Pod deps |
 | --- | --- | --- | --- |
 | `pod-transit` | podssh-relay `transit/` (without `link.rs`); the transit server | 900 | pod-core, pod-ws, pod-session, pod-proxy |
-| `pod-warp` | podnet `src/warp/` without `ip.rs`, `wg.rs`, `quic.rs`, `up.rs`, `export.rs`, `ssh_config.rs` (those stay in podnet), and without the backends of `warp run` (`podnet-netns`, stays in podnet); TUN and routes behind `cfg(target_os = "linux")`; `eprintln!` and `process::exit` become events; podssh `crates/podssh-warp` retires (its endpoint order and API routes are checked against podnet's); its stand-in edge and API into `pod-testkit`. The SOCKS5 datagram path of podnet `podnet-netns/src/upstream.rs` (UDP ASSOCIATE, the command 0x83, the frames) is not here: it is `pod_proxy::udp` (C23, T-083), and `pod-warp` calls it. `pod-session` keeps its own UDP-in-a-stream adapter (T-020) | 10,000 | pod-core, pod-tls, pod-dns, pod-proxy, pod-quic, pod-netstack, pod-wg, pod-relay |
+| `pod-warp` | podnet `src/warp/` without `wg.rs` (`pod-wg`), `quic.rs` (`pod-quic`), `up.rs`, `export.rs`, `ssh_config.rs` (those stay in podnet); its `ip.rs` runs on `pod-netstack` (PodUtils/podnet#427); and without the backends of `warp run` (`podnet-netns`, stays in podnet); TUN and routes behind `cfg(target_os = "linux")`; `eprintln!` and `process::exit` become events; podssh `crates/podssh-warp` retires (its endpoint order and API routes are checked against podnet's); its stand-in edge and API into `pod-testkit`. The SOCKS5 datagram path of podnet `podnet-netns/src/upstream.rs` (UDP ASSOCIATE, the command 0x83, the frames) is not here: it is `pod_proxy::udp` (C23, T-083), and `pod-warp` calls it. `pod-session` keeps its own UDP-in-a-stream adapter (T-020) | 10,000 | pod-core, pod-tls, pod-dns, pod-proxy, pod-quic, pod-netstack, pod-wg, pod-relay |
 | `pod-cloudflare` | podnet `src/cloudflare/`, `src/tunnel.rs`, `src/race.rs` (the race of the legs), `src/edge_h2.rs`, `src/edge_discovery.rs`, `src/quicktunnel.rs`, `src/config.rs`, `src/proxy.rs` (the dispatch of the edge's streams to a `ServiceDispatch` trait that podnet implements), the edge side of `src/ws.rs` (`serve_websocket`, `forward_path`; edges 16 and 17), the HTTP/2 leg through the relay, the edge roots, the pin of cloudflared and its watch; podssh-relay `quick/` moves onto it | 17,900 | pod-core, pod-tls, pod-dns, pod-proxy, pod-ws, pod-quic, pod-relay, pod-warp |
 
 ### M4: wave 4, the other roads
@@ -367,13 +367,14 @@ changes, `session/` 38, `quick/` 36, `reverse/` 34, `e2e/` 27;
   source and the destination of each datagram, several transmits for
   each `poll_send`, several buffers for each `poll_recv`, `local_addr`,
   the maximum size, a writable poll, one segment for each transmit with
-  no GSO. Implementations: the system socket, WARP (`pod-warp`), UDP in
-  a stream of the relay (`pod-session`, an adapter). `pod-iroh` gives
-  iroh the system sockets.
+  no GSO. Implementations: the system socket, a UDP socket of the
+  userspace stack (`pod-netstack`), WARP (`pod-warp`), UDP in a stream of
+  the relay (`pod-session`, an adapter). `pod-iroh` gives iroh the system
+  sockets.
 * `Observer`, `Event`: section 1, rules 8 and 9.
-* `ServiceDispatch` (in `pod-cloudflare`), `PacketTap` (in
-  `pod-netstack`), `Door` (in `pod-relay`): the traits that cut the
-  edges to the code of a consumer.
+* `ServiceDispatch` (in `pod-cloudflare`), `PacketTap`, `Admit` and
+  `GatewayService` (in `pod-netstack`), `Door` (in `pod-relay`): the
+  traits that cut the edges to the code of a consumer.
 
 
 ## 7. Targets and the static check

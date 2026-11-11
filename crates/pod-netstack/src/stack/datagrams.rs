@@ -1,43 +1,39 @@
-//! A virtual UDP socket as the [`Datagrams`] of `podnet_core::network`
-//! (T-056), so that a consumer of a dialer (QUIC, a DNS client) sends UDP
-//! through the virtual network.
+//! A UDP socket of the stack as [`pod_core::Datagrams`], so that a user of
+//! datagrams (QUIC, a DNS client) sends UDP through the stack.
 
 use std::io::{self, IoSliceMut};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
-use podnet_core::network::{Datagrams, RecvMeta, Transmit};
-use tokio::sync::{mpsc, Notify};
+use pod_core::{Datagrams, RecvMeta, Transmit};
+use tokio::sync::{Notify, mpsc};
 
 use super::UdpSocket;
-use crate::addr::VirtAddr;
+use super::socket::udp_closed;
 
-/// The datagrams of one virtual UDP socket.
+/// The datagrams of one UDP socket of the stack.
 ///
 /// A send does not wait: when the queue to the stack is full, the datagram
-/// is dropped, as a full kernel UDP buffer drops it.
-pub struct VnetDatagrams {
+/// is dropped, as a full UDP buffer of the kernel drops it.
+pub struct UdpDatagrams {
     id: u32,
-    local: VirtAddr,
-    recv_rx: Mutex<mpsc::Receiver<(Vec<u8>, VirtAddr)>>,
-    send_tx: mpsc::Sender<(Vec<u8>, VirtAddr)>,
+    local: SocketAddr,
+    recv_rx: Mutex<mpsc::Receiver<(Vec<u8>, SocketAddr)>>,
+    send_tx: mpsc::Sender<(Vec<u8>, SocketAddr)>,
     kick: Arc<Notify>,
 }
 
-impl std::fmt::Debug for VnetDatagrams {
+impl std::fmt::Debug for UdpDatagrams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("VnetDatagrams")
-            .field("id", &self.id)
-            .field("local", &self.local)
-            .finish()
+        f.debug_struct("UdpDatagrams").field("id", &self.id).field("local", &self.local).finish()
     }
 }
 
 impl UdpSocket {
     /// This socket as [`Datagrams`].
-    pub fn into_datagrams(self) -> VnetDatagrams {
-        VnetDatagrams {
+    pub fn into_datagrams(self) -> UdpDatagrams {
+        UdpDatagrams {
             id: self.id,
             local: self.local,
             recv_rx: Mutex::new(self.recv_rx),
@@ -47,24 +43,20 @@ impl UdpSocket {
     }
 }
 
-impl Datagrams for VnetDatagrams {
+impl Datagrams for UdpDatagrams {
     fn poll_writable(&self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         if self.send_tx.is_closed() {
-            return Poll::Ready(Err(closed()));
+            return Poll::Ready(Err(udp_closed()));
         }
         Poll::Ready(Ok(()))
     }
 
     fn try_send(&self, t: &Transmit<'_>) -> io::Result<()> {
-        let to = VirtAddr::new(t.destination.ip(), t.destination.port());
-        let size = t
-            .segment_size
-            .filter(|s| *s > 0)
-            .unwrap_or(t.contents.len().max(1));
+        let size = t.segment_size.filter(|s| *s > 0).unwrap_or(t.contents.len().max(1));
         for chunk in t.contents.chunks(size) {
-            match self.send_tx.try_send((chunk.to_vec(), to)) {
+            match self.send_tx.try_send((chunk.to_vec(), t.destination)) {
                 Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {}
-                Err(mpsc::error::TrySendError::Closed(_)) => return Err(closed()),
+                Err(mpsc::error::TrySendError::Closed(_)) => return Err(udp_closed()),
             }
         }
         self.kick.notify_one();
@@ -85,24 +77,15 @@ impl Datagrams for VnetDatagrams {
             Poll::Ready(Some((data, from))) => {
                 let len = data.len().min(buf.len());
                 buf[..len].copy_from_slice(&data[..len]);
-                *m = RecvMeta {
-                    addr: SocketAddr::new(from.ip, from.port),
-                    len,
-                    stride: len,
-                    dst_ip: Some(self.local.ip),
-                };
+                *m = RecvMeta { addr: from, len, stride: len, dst_ip: Some(self.local.ip()) };
                 Poll::Ready(Ok(1))
             }
-            Poll::Ready(None) => Poll::Ready(Err(closed())),
+            Poll::Ready(None) => Poll::Ready(Err(udp_closed())),
             Poll::Pending => Poll::Pending,
         }
     }
 
     fn local_addr(&self) -> io::Result<SocketAddr> {
-        Ok(SocketAddr::new(self.local.ip, self.local.port))
+        Ok(self.local)
     }
-}
-
-fn closed() -> io::Error {
-    io::Error::new(io::ErrorKind::BrokenPipe, "virtual UDP socket is closed")
 }

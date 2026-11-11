@@ -1,10 +1,11 @@
 use super::*;
 
-// ── connection plumbing ─────────────────────────────────────────────────────
+// The handles of the app: each talks to the reactor by channels, and kicks
+// it after each command.
 
 #[derive(Debug)]
 pub(super) enum AppEvent {
-    /// The handshake completed (sent once, before or after the first data).
+    /// The handshake ended (sent once, before or after the first data).
     Connected,
     Data(Vec<u8>),
     Eof,
@@ -18,15 +19,15 @@ pub(super) enum ConnCmd {
     SetNodelay(bool),
 }
 
-/// A TCP connection in the virtual network. It implements
-/// [`AsyncRead`]/[`AsyncWrite`], so it composes with the rest of the crate.
+/// A TCP connection of the stack, with [`AsyncRead`] and [`AsyncWrite`].
 pub struct TcpStream {
     pub(super) id: u32,
-    pub(super) local: VirtAddr,
-    pub(super) remote: VirtAddr,
+    pub(super) local: SocketAddr,
+    pub(super) remote: SocketAddr,
     pub(super) read_rx: mpsc::Receiver<AppEvent>,
     pub(super) write_tx: mpsc::Sender<Vec<u8>>,
     pub(super) write_waker: Arc<AtomicWaker>,
+    pub(super) read_stalled: Arc<AtomicBool>,
     pub(super) ctl_tx: mpsc::Sender<ConnCmd>,
     pub(super) kick: Arc<Notify>,
     pub(super) read_buf: Vec<u8>,
@@ -50,7 +51,7 @@ impl TcpStream {
     /// Wait for the handshake of a connection that this stack opened. A
     /// refusal (a reset, or the end before the handshake) is an error of
     /// kind `ConnectionRefused` or `ConnectionReset`. Data that comes first
-    /// is kept for the next read.
+    /// stays for the next read.
     pub async fn established(&mut self) -> io::Result<()> {
         if self.eof {
             return Err(io::Error::from(io::ErrorKind::ConnectionRefused));
@@ -58,7 +59,9 @@ impl TcpStream {
         if self.read_pos < self.read_buf.len() {
             return Ok(());
         }
-        match self.read_rx.recv().await {
+        let event = self.read_rx.recv().await;
+        self.took_event();
+        match event {
             Some(AppEvent::Connected) => Ok(()),
             Some(AppEvent::Data(data)) => {
                 self.read_buf = data;
@@ -67,14 +70,9 @@ impl TcpStream {
             }
             Some(AppEvent::Eof) | None => {
                 self.eof = true;
-                Err(io::Error::new(
-                    io::ErrorKind::ConnectionRefused,
-                    "the connection was refused",
-                ))
+                Err(io::Error::new(io::ErrorKind::ConnectionRefused, "the connection was refused"))
             }
-            Some(AppEvent::Reset(message)) => {
-                Err(io::Error::new(io::ErrorKind::ConnectionReset, message))
-            }
+            Some(AppEvent::Reset(message)) => Err(io::Error::new(io::ErrorKind::ConnectionReset, message)),
         }
     }
 
@@ -82,16 +80,16 @@ impl TcpStream {
         self.id
     }
 
-    pub fn local_addr(&self) -> VirtAddr {
+    pub fn local_addr(&self) -> SocketAddr {
         self.local
     }
 
-    pub fn peer_addr(&self) -> VirtAddr {
+    pub fn peer_addr(&self) -> SocketAddr {
         self.remote
     }
 
-    /// Record `TCP_NODELAY`. The reactor applies it to the smoltcp socket,
-    /// which is how the shim's swallowed `setsockopt` reaches the stack.
+    /// Set `TCP_NODELAY`: the reactor turns the Nagle algorithm of the
+    /// smoltcp socket off (true) or on (false).
     pub fn set_nodelay(&mut self, enabled: bool) {
         self.nodelay = enabled;
         let _ = self.ctl_tx.try_send(ConnCmd::SetNodelay(enabled));
@@ -102,110 +100,99 @@ impl TcpStream {
         self.nodelay
     }
 
-    /// Half-close the write side.
+    /// Close the write side (a FIN after the queued data).
     pub fn shutdown(&self) {
         let _ = self.ctl_tx.try_send(ConnCmd::Close);
         self.kick.notify_one();
     }
 
-    /// Abort the connection (RST).
+    /// Abort the connection (a RST).
     pub fn abort(&self) {
         let _ = self.ctl_tx.try_send(ConnCmd::Abort);
         self.kick.notify_one();
     }
 
-    pub(super) fn drain_read_buffer(&mut self, buf: &mut [u8]) -> usize {
-        let available = self.read_buf.len() - self.read_pos;
-        let n = available.min(buf.len());
-        buf[..n].copy_from_slice(&self.read_buf[self.read_pos..self.read_pos + n]);
+    /// The app took an event from the channel: when the reactor found the
+    /// channel full, kick it, so that the data kept in the socket moves now
+    /// and not at the next tick.
+    fn took_event(&self) {
+        if self.read_stalled.swap(false, Ordering::AcqRel) {
+            self.kick.notify_one();
+        }
+    }
+
+    /// Copy the kept bytes into `buf`.
+    fn put_kept(&mut self, buf: &mut ReadBuf<'_>) {
+        let n = buf.remaining().min(self.read_buf.len() - self.read_pos);
+        buf.put_slice(&self.read_buf[self.read_pos..self.read_pos + n]);
         self.read_pos += n;
         if self.read_pos >= self.read_buf.len() {
             self.read_buf.clear();
             self.read_pos = 0;
         }
-        n
     }
 }
 
 impl AsyncRead for TcpStream {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         if buf.remaining() == 0 {
             return Poll::Ready(Ok(()));
         }
         if self.read_pos < self.read_buf.len() {
-            let want = buf.remaining();
-            let mut temp = vec![0u8; want.min(self.read_buf.len() - self.read_pos)];
-            let n = self.drain_read_buffer(&mut temp);
-            buf.put_slice(&temp[..n]);
+            self.put_kept(buf);
             return Poll::Ready(Ok(()));
         }
         if self.eof {
             return Poll::Ready(Ok(()));
         }
-        let event = loop {
-            match self.read_rx.poll_recv(cx) {
+        loop {
+            let event = self.read_rx.poll_recv(cx);
+            if event.is_ready() {
+                self.took_event();
+            }
+            return match event {
                 Poll::Ready(Some(AppEvent::Connected)) => continue,
-                other => break other,
-            }
-        };
-        match event {
-            Poll::Ready(Some(AppEvent::Connected)) => unreachable!(),
-            Poll::Ready(Some(AppEvent::Data(data))) => {
-                self.read_buf = data;
-                self.read_pos = 0;
-                let want = buf.remaining();
-                let mut temp = vec![0u8; want.min(self.read_buf.len())];
-                let n = self.drain_read_buffer(&mut temp);
-                buf.put_slice(&temp[..n]);
-                Poll::Ready(Ok(()))
-            }
-            Poll::Ready(Some(AppEvent::Eof)) => {
-                self.eof = true;
-                Poll::Ready(Ok(()))
-            }
-            Poll::Ready(Some(AppEvent::Reset(message))) => {
-                Poll::Ready(Err(io::Error::new(io::ErrorKind::ConnectionReset, message)))
-            }
-            Poll::Ready(None) => {
-                self.eof = true;
-                Poll::Ready(Ok(()))
-            }
-            Poll::Pending => Poll::Pending,
+                Poll::Ready(Some(AppEvent::Data(data))) => {
+                    self.read_buf = data;
+                    self.read_pos = 0;
+                    self.put_kept(buf);
+                    Poll::Ready(Ok(()))
+                }
+                Poll::Ready(Some(AppEvent::Eof)) | Poll::Ready(None) => {
+                    self.eof = true;
+                    Poll::Ready(Ok(()))
+                }
+                Poll::Ready(Some(AppEvent::Reset(message))) => {
+                    Poll::Ready(Err(io::Error::new(io::ErrorKind::ConnectionReset, message)))
+                }
+                Poll::Pending => Poll::Pending,
+            };
         }
     }
 }
 
 impl AsyncWrite for TcpStream {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         if buf.is_empty() {
             return Poll::Ready(Ok(0));
         }
         match self.write_tx.try_send(buf.to_vec()) {
             Ok(()) => {
-                // The reactor may be parked waiting for link traffic; tell it
-                // there is application data to move now, not on the next tick.
+                // The reactor can wait for the link; tell it that the app has
+                // data to move now, not at the next tick.
                 self.kick.notify_one();
                 Poll::Ready(Ok(buf.len()))
             }
             Err(mpsc::error::TrySendError::Full(_)) => {
-                // The reactor drains the channel each time it services the
-                // connection and wakes this waker; that is the write-side
-                // backpressure path.
+                // The reactor empties the channel each time it serves the
+                // connection, and wakes this waker: the back pressure of a
+                // write.
                 self.write_waker.register(cx.waker());
                 Poll::Pending
             }
-            Err(mpsc::error::TrySendError::Closed(_)) => Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "virtual TCP connection is closed",
-            ))),
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                Poll::Ready(Err(io::Error::new(io::ErrorKind::BrokenPipe, "the TCP connection is closed")))
+            }
         }
     }
 
@@ -222,50 +209,47 @@ impl AsyncWrite for TcpStream {
 
 impl Drop for TcpStream {
     fn drop(&mut self) {
-        // A dropped stream must release its virtual socket, but it must not do
-        // so by closing the connection while data is still in flight.
+        // A dropped stream frees its socket, but it must not close the
+        // connection while data is on its way.
         //
-        // The problem this solves: without any Drop impl, dropping the handle
-        // drops `ctl_tx` and the reactor never learns about it. It watches
-        // `to_app.is_closed()` to notice that the application has gone, but
-        // `to_app` runs the other way and stays open. The socket then sits in
-        // CloseWait until the peer closes, which for two handles dropped by the
-        // same task never happens, and each such connection keeps its smoltcp
-        // socket resident for the life of the process.
+        // With no `Drop`, the drop of the handle drops `ctl_tx`, and the
+        // reactor does not learn of it: `to_app.is_closed()` looks the other
+        // way and stays open. The socket then stays in CloseWait until the
+        // peer closes, which never comes for two handles that one task drops,
+        // and each such connection keeps its smoltcp socket for the life of
+        // the process.
         //
-        // Why not an unconditional graceful close: a program that writes, then
-        // reads to EOF, then drops, has its own `Drop` fire before the peer's
-        // reply arrives, and a graceful close cuts the exchange short. That was
-        // observed as two tests reading an empty response.
+        // No graceful close at once: a program that writes, reads to EOF and
+        // drops has its own `Drop` before the reply of the peer comes, and a
+        // close at once cuts the exchange (two tests read an empty answer).
         //
-        // Why not an unconditional abort: an abort discards queued data, so a
-        // program that wrote and then dropped without reading loses the reply it
-        // had not collected.
+        // No abort at once: an abort discards the queued data, and a program
+        // that wrote and dropped with no read loses the reply.
         //
-        // So the close is deferred to the reactor, which knows whether bytes
-        // were still owed in either direction, and reaped the socket either way.
-        // The handle only asks; the reactor decides.
+        // So the handle asks, and the reactor, which knows whether bytes are
+        // owed in either direction, closes and removes the socket.
         let _ = self.ctl_tx.try_send(ConnCmd::Close);
         self.kick.notify_one();
     }
 }
 
-/// A UDP socket in the virtual network.
+/// A UDP socket of the stack.
 pub struct UdpSocket {
     pub(super) id: u32,
-    pub(super) local: VirtAddr,
-    pub(super) recv_rx: mpsc::Receiver<(Vec<u8>, VirtAddr)>,
-    pub(super) send_tx: mpsc::Sender<(Vec<u8>, VirtAddr)>,
+    pub(super) local: SocketAddr,
+    pub(super) recv_rx: mpsc::Receiver<(Vec<u8>, SocketAddr)>,
+    pub(super) send_tx: mpsc::Sender<(Vec<u8>, SocketAddr)>,
     pub(super) kick: Arc<Notify>,
 }
 
 impl std::fmt::Debug for UdpSocket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UdpSocket")
-            .field("id", &self.id)
-            .field("local", &self.local)
-            .finish()
+        f.debug_struct("UdpSocket").field("id", &self.id).field("local", &self.local).finish()
     }
+}
+
+pub(super) fn udp_closed() -> io::Error {
+    io::Error::new(io::ErrorKind::BrokenPipe, "the UDP socket is closed")
 }
 
 impl UdpSocket {
@@ -273,69 +257,58 @@ impl UdpSocket {
         self.id
     }
 
-    pub fn local_addr(&self) -> VirtAddr {
+    pub fn local_addr(&self) -> SocketAddr {
         self.local
     }
 
-    pub async fn send_to(&self, buf: &[u8], remote: VirtAddr) -> io::Result<usize> {
-        self.send_tx
-            .send((buf.to_vec(), remote))
-            .await
-            .map_err(|_| {
-                io::Error::new(io::ErrorKind::BrokenPipe, "virtual UDP socket is closed")
-            })?;
+    /// Queue one datagram to `remote`; wait while the queue to the reactor
+    /// is full.
+    pub async fn send_to(&self, buf: &[u8], remote: impl Into<SocketAddr>) -> io::Result<usize> {
+        self.send_tx.send((buf.to_vec(), remote.into())).await.map_err(|_| udp_closed())?;
         self.kick.notify_one();
         Ok(buf.len())
     }
 
-    pub async fn recv_from(&mut self, buf: &mut [u8]) -> io::Result<(usize, VirtAddr)> {
+    /// Wait for the next datagram. A datagram longer than `buf` is cut.
+    pub async fn recv_from(&mut self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
         match self.recv_rx.recv().await {
             Some((data, from)) => {
                 let n = data.len().min(buf.len());
                 buf[..n].copy_from_slice(&data[..n]);
                 Ok((n, from))
             }
-            None => Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "virtual UDP socket is closed",
-            )),
+            None => Err(udp_closed()),
         }
     }
 }
 
-/// An accepted-connection queue for one virtual listener.
+/// The queue of accepted connections of one listener.
 pub struct TcpListener {
-    pub(super) local: VirtAddr,
+    pub(super) local: SocketAddr,
     pub(super) rx: mpsc::Receiver<TcpStream>,
 }
 
 impl std::fmt::Debug for TcpListener {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TcpListener")
-            .field("local", &self.local)
-            .finish()
+        f.debug_struct("TcpListener").field("local", &self.local).finish()
     }
 }
 
 impl TcpListener {
-    pub fn local_addr(&self) -> VirtAddr {
+    pub fn local_addr(&self) -> SocketAddr {
         self.local
     }
 
     pub async fn accept(&mut self) -> io::Result<TcpStream> {
-        self.rx
-            .recv()
-            .await
-            .ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "virtual listener is closed"))
+        self.rx.recv().await.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "the listener is closed"))
     }
 }
 
-/// Live and high-water socket counts for one stack.
+/// The live and the highest socket counts of one stack.
 ///
-/// `live` is the number of sockets the reactor currently holds, `peak` the
-/// largest it has ever been. A `peak` that rises with every connection while
-/// `live` returns to its starting value is the signature of a set that is not
-/// being pruned.
+/// `live` is the count of the sockets that the reactor holds now, `peak` the
+/// most at one time. A `peak` that rises with each connection while `live`
+/// goes back to its start shows a set that the reactor does not prune.
 #[derive(Debug, Default)]
 pub struct SocketCount {
     pub(super) live: AtomicU64,
@@ -349,31 +322,16 @@ impl SocketCount {
     }
 
     pub(super) fn remove(&self) {
-        // Saturating: a double remove would otherwise wrap the live count to
-        // u64::MAX and make every later observation meaningless.
-        let mut current = self.live.load(Ordering::Relaxed);
-        loop {
-            if current == 0 {
-                return;
-            }
-            match self.live.compare_exchange_weak(
-                current,
-                current - 1,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => return,
-                Err(actual) => current = actual,
-            }
-        }
+        // Saturating: a second remove must not wrap the count to u64::MAX.
+        let _ = self.live.try_update(Ordering::Relaxed, Ordering::Relaxed, |live| live.checked_sub(1));
     }
 
-    /// Sockets the reactor holds right now.
+    /// The sockets that the reactor holds now.
     pub fn live(&self) -> u64 {
         self.live.load(Ordering::Relaxed)
     }
 
-    /// The largest number of sockets ever held at once.
+    /// The most sockets at one time.
     pub fn peak(&self) -> u64 {
         self.peak.load(Ordering::Relaxed)
     }

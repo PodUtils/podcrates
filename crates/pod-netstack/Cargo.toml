@@ -1,7 +1,23 @@
 [package]
 name = "pod-netstack"
+description = "The userspace TCP and UDP stack on smoltcp 0.14: a private IPv4 and IPv6 subnet with no kernel socket, its link as an in-process packet queue (loopback, or a link that a pump moves), async TCP streams and listeners, UDP sockets and pod-core Datagrams over them, and the hooks of the consumer: the admit of a target, a UDP service at the gateway and a tap of each packet."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[dependencies]
+# The Datagrams trait that a UDP socket of the stack implements.
+pod-core = { workspace = true, features = ["async"] }
+# The stack: the medium ip, IPv4 and IPv6, TCP with its congestion
+# controllers, UDP. The crate re-exports it, so that a consumer names one
+# version.
+smoltcp = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+# The waker of a write that waits for room in the channel to the reactor.
+atomic-waker = "1"
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "io-util"] }

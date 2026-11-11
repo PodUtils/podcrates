@@ -101,6 +101,7 @@ fn main() {
     lines.push(ws());
     lines.push(wormhole());
     lines.push(quic());
+    lines.push(netstack());
     lines.push(mutual());
     lines.push(session());
     lines.push(job());
@@ -365,6 +366,34 @@ fn quic() -> String {
         },
     );
     format!("pod-quic: a probe of {} bytes, {config}, {endpoint}", pod_quic::probe::packet(&[0; 8]).len())
+}
+
+/// pod-netstack: one UDP datagram through a loopback stack in a runtime of
+/// one thread: smoltcp, the reactor and the device link in.
+fn netstack() -> String {
+    let done = tokio::runtime::Builder::new_current_thread().enable_all().build().map_or_else(
+        |e| e.to_string(),
+        |runtime| {
+            runtime.block_on(async {
+                let mut net = pod_netstack::NetStack::loopback();
+                let addr = std::net::SocketAddr::from(([10, 66, 0, 2], 5353));
+                let mut socket = match net.bind_udp(addr).await {
+                    Ok(socket) => socket,
+                    Err(e) => return e.to_string(),
+                };
+                let mut buffer = [0u8; 16];
+                let sent = socket.send_to(b"probe", addr).await;
+                let wait = std::time::Duration::from_secs(2);
+                let got = tokio::time::timeout(wait, socket.recv_from(&mut buffer)).await;
+                net.shutdown().await;
+                match (sent, got) {
+                    (Ok(_), Ok(Ok((n, from)))) => format!("{n} bytes from {from}"),
+                    (sent, got) => format!("no datagram: {sent:?} {got:?}"),
+                }
+            })
+        },
+    );
+    format!("pod-netstack: {done}, at most {} addresses", pod_netstack::MAX_ADDRESSES)
 }
 
 /// pod-wormhole: a code of words, a sealed message of the client protocol,

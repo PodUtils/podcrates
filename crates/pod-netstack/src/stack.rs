@@ -1,44 +1,43 @@
 //! The userspace IP stack.
 //!
-//! A [`NetStack`] owns a private IPv4/IPv6 address space and implements the
+//! A [`NetStack`] owns a private IPv4 and IPv6 address space and runs the
 //! TCP and UDP state machines for it. Its link layer is an in-process packet
-//! queue ([`crate::device::LinkDevice`]), so the stack never issues a
-//! kernel `AF_INET` call. Two modes:
+//! queue ([`crate::device::LinkDevice`]), so the stack makes no `AF_INET`
+//! call of the kernel. Two modes:
 //!
-//! * **loopback** — the link's transmit path feeds its own receive path, so a
-//!   process can open a listener and a client against itself. This is the
-//!   document's §9.1 proof and the basis of deterministic tests.
-//! * **over a link** — an external pump moves framed packets between
-//!   [`NetStack::link_in`] / [`NetStack::link_out`] and a real byte stream: a
-//!   unix socket, a QUIC connection, or a `podnet` WebSocket forward.
+//! * **loopback**: the outbound path of the link feeds its own inbound
+//!   queue, so a process can open a listener and a client to it in one
+//!   stack. The tests use it.
+//! * **over a link**: a pump of the consumer moves the packets between
+//!   [`NetStack::link_in`] and [`NetStack::link_out`] and a real byte
+//!   stream: a unix socket, a QUIC connection, a WebSocket.
 //!
-//! The clock is monotonic and real (`std::time::Instant`), and the reactor
-//! blocks on the device's waker or the interface's next deadline instead of
-//! spinning, which is what §11 asked for.
+//! The clock is monotonic and real (`std::time::Instant`). The reactor waits
+//! for the waker of the device, a command or the next deadline of the
+//! interface; it does not spin.
 
 use std::collections::HashMap;
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use futures::task::AtomicWaker;
+use atomic_waker::AtomicWaker;
 use smoltcp::iface::{Config as IfaceConfig, Interface, SocketHandle, SocketSet};
 use smoltcp::socket::{tcp, udp};
 use smoltcp::time::Instant as SmolInstant;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, IpEndpoint, IpListenEndpoint};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::sync::{mpsc, oneshot, Notify};
+use tokio::sync::{Notify, mpsc, oneshot};
 
-use crate::addr::{VirtAddr, VirtualSubnet};
 use crate::device::{DeviceStats, DeviceStatsSnapshot, LinkDevice, PacketQueue};
-use crate::dns::Resolver;
-use crate::policy::Acl;
+use crate::hooks::{Admit, GATEWAY_DATAGRAM, GatewayService};
+use crate::subnet::Subnet;
 
-/// A monotonic millisecond clock for smoltcp.
+/// A monotonic clock in milliseconds for smoltcp.
 #[derive(Clone, Debug)]
 pub struct Clock {
     start: std::time::Instant,
@@ -53,18 +52,12 @@ impl Default for Clock {
 
 impl Clock {
     pub fn new() -> Self {
-        Self {
-            start: std::time::Instant::now(),
-            base_ms: 0,
-        }
+        Self { start: std::time::Instant::now(), base_ms: 0 }
     }
 
-    /// A clock whose first reading is `base_ms`, for deterministic tests.
+    /// A clock whose first reading is `base_ms`, for tests.
     pub fn starting_at(base_ms: i64) -> Self {
-        Self {
-            start: std::time::Instant::now(),
-            base_ms,
-        }
+        Self { start: std::time::Instant::now(), base_ms }
     }
 
     pub fn now_ms(&self) -> i64 {
@@ -76,50 +69,61 @@ impl Clock {
     }
 }
 
-/// Stack configuration.
+/// The settings of a stack.
 #[derive(Clone)]
 pub struct StackConfig {
-    pub subnet: VirtualSubnet,
-    /// The address this stack owns (and answers for) in the v4 space.
+    pub subnet: Subnet,
+    /// The address that this stack owns (and answers for) in the IPv4 space.
     pub local_v4: Ipv4Addr,
-    /// The address this stack owns in the v6 space.
+    /// The address that this stack owns in the IPv6 space.
     pub local_v6: Ipv6Addr,
     pub mtu: usize,
+    /// The bytes of the send buffer and of the receive buffer of each TCP
+    /// socket.
     pub tcp_buffer: usize,
     pub udp_packets: usize,
     pub udp_payload: usize,
-    /// Listeners keep at most this many listening sockets, which bounds
-    /// simultaneous half-open inbound connections.
+    /// A listener keeps at most this many listening sockets: the limit of
+    /// the half-open inbound connections at one time.
     pub accept_pool: usize,
     pub max_connections: usize,
-    /// Connect-time access policy.
-    pub acl: Option<Arc<Acl>>,
-    /// A resolver served at the gateway's port 53. When set, the stack owns the
-    /// gateway address and answers A/AAAA queries for the names in the table.
-    pub dns: Option<Arc<Resolver>>,
-    /// Seed for smoltcp's port/sequence randomisation.
+    /// The admit of each target, at the bind, the connect and each UDP send.
+    pub admit: Option<Arc<dyn Admit>>,
+    /// A UDP service at the IPv4 gateway. When set, the stack owns the
+    /// gateway address and gives each datagram to the service.
+    pub gateway_service: Option<Arc<dyn GatewayService>>,
+    /// The seed of smoltcp for its ports and sequence numbers.
     pub random_seed: u64,
-    /// Upper bound on the reactor's sleep between polls.
+    /// The longest sleep of the reactor between two polls.
     pub max_poll_interval: Duration,
 }
 
 impl Default for StackConfig {
+    /// The default subnet, `10.66.0.2` and `fd00:66::2`, an MTU of 1280,
+    /// buffers of 64 KiB, no admit and no gateway service.
     fn default() -> Self {
         Self {
-            subnet: VirtualSubnet::default(),
+            subnet: Subnet::default(),
             local_v4: Ipv4Addr::new(10, 66, 0, 2),
-            local_v6: "fd00:66::2".parse().unwrap(),
+            local_v6: Ipv6Addr::new(0xfd00, 0x66, 0, 0, 0, 0, 0, 2),
             mtu: 1280,
             tcp_buffer: 64 * 1024,
             udp_packets: 64,
             udp_payload: 64 * 1024,
             accept_pool: 8,
             max_connections: 4096,
-            acl: None,
-            dns: None,
+            admit: None,
+            gateway_service: None,
             random_seed: seed_from_time(),
             max_poll_interval: Duration::from_millis(100),
         }
+    }
+}
+
+impl StackConfig {
+    /// True when the admit of the consumer (if any) admits `target`.
+    fn admits(&self, target: SocketAddr) -> bool {
+        self.admit.as_ref().is_none_or(|admit| admit.admits(target))
     }
 }
 
@@ -130,37 +134,18 @@ fn seed_from_time() -> u64 {
         .unwrap_or(0x9e37_79b9_7f4a_7c15)
 }
 
-/// Something worth observing happened.
+/// An event of the stack.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StackEvent {
-    ListenerBound {
-        addr: VirtAddr,
-    },
-    Accepted {
-        id: u32,
-        local: VirtAddr,
-        remote: VirtAddr,
-    },
-    Connected {
-        id: u32,
-        local: VirtAddr,
-        remote: VirtAddr,
-    },
-    Refused {
-        remote: VirtAddr,
-        reason: String,
-    },
-    Closed {
-        id: u32,
-    },
-    Datagram {
-        from: VirtAddr,
-        to: VirtAddr,
-        len: usize,
-    },
+    ListenerBound { addr: SocketAddr },
+    Accepted { id: u32, local: SocketAddr, remote: SocketAddr },
+    Connected { id: u32, local: SocketAddr, remote: SocketAddr },
+    Refused { remote: SocketAddr, reason: String },
+    Closed { id: u32 },
+    Datagram { from: SocketAddr, to: SocketAddr, len: usize },
 }
 
-/// Connection counters, readable while the reactor runs.
+/// The counters of the connections, readable while the reactor runs.
 #[derive(Debug, Default)]
 pub struct NetStats {
     pub accepted: AtomicU64,
@@ -168,14 +153,13 @@ pub struct NetStats {
     pub refused: AtomicU64,
     pub closed: AtomicU64,
     pub datagrams: AtomicU64,
-    /// Inbound connections the accept queue could not take. Counted separately
-    /// from `accepted` because a drop is not an acceptance, and a counter that
-    /// silently under-reports is worse than no counter: an operator watching
-    /// `accepted` would see a number lower than the peer's connection count
-    /// with nothing indicating anything was lost.
+    /// The inbound connections that the accept queue could not take. A drop
+    /// is no acceptance: an operator who reads `accepted` sees fewer
+    /// connections than the peer made, and this counter tells why.
     pub dropped: AtomicU64,
 }
 
+/// The values of [`NetStats`] at one time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NetStatsSnapshot {
     pub accepted: u64,
@@ -200,37 +184,27 @@ impl NetStats {
 }
 
 fn to_smoltcp(ip: IpAddr) -> IpAddress {
-    match ip {
-        IpAddr::V4(ip) => IpAddress::Ipv4(ip),
-        IpAddr::V6(ip) => IpAddress::Ipv6(ip),
-    }
+    IpAddress::from(ip)
 }
 
-fn from_smoltcp(ip: IpAddress) -> IpAddr {
-    match ip {
-        IpAddress::Ipv4(ip) => IpAddr::V4(ip),
-        IpAddress::Ipv6(ip) => IpAddr::V6(ip),
-    }
+fn endpoint_to_socket(endpoint: IpEndpoint) -> SocketAddr {
+    SocketAddr::from(endpoint)
 }
 
-fn endpoint_to_virt(endpoint: IpEndpoint) -> VirtAddr {
-    VirtAddr::new(from_smoltcp(endpoint.addr), endpoint.port)
+fn shut_down() -> io::Error {
+    io::Error::new(io::ErrorKind::BrokenPipe, "the stack is shut down")
 }
 
 mod datagrams;
-mod proof;
 mod reactor;
 mod service;
 mod socket;
-pub use datagrams::VnetDatagrams;
-pub use proof::{loopback_proof, loopback_round_trip, ProofReport};
+pub use datagrams::UdpDatagrams;
 use reactor::*;
 use socket::*;
 pub use socket::{SocketCount, TcpListener, TcpStream, UdpSocket};
 
-// ── async facade ────────────────────────────────────────────────────────────
-
-/// The reactor task's runtime handle.
+/// The handle of the reactor task of a stack.
 pub struct NetStack {
     cmd: mpsc::Sender<Command>,
     link_in: PacketQueue,
@@ -245,32 +219,31 @@ pub struct NetStack {
 }
 
 impl NetStack {
-    /// A stack whose link loops back into itself.
+    /// A stack whose link feeds itself, with the default settings. It spawns
+    /// its reactor: call it in a runtime of tokio.
     pub fn loopback() -> Self {
         Self::new(StackConfig::default(), true)
     }
 
-    /// A stack with a configurable loopback link.
+    /// A stack whose link feeds itself.
     pub fn loopback_with(config: StackConfig) -> Self {
         Self::new(config, true)
     }
 
-    /// A stack whose packets leave and enter through a real link.
+    /// A stack whose packets leave and come in through a link that a pump of
+    /// the consumer moves ([`NetStack::link_in`], [`NetStack::link_out`]).
     pub fn over_link(config: StackConfig) -> Self {
         Self::new(config, false)
     }
 
     fn new(config: StackConfig, loopback: bool) -> Self {
-        let device = if loopback {
-            LinkDevice::loopback(config.mtu)
-        } else {
-            LinkDevice::link(config.mtu)
-        };
-        // A packet to an address of this stack stays in it (issue 65).
+        let device = if loopback { LinkDevice::loopback(config.mtu) } else { LinkDevice::link(config.mtu) };
+        // A packet to an address of this stack stays in it
+        // (PodUtils/podnet#65).
         device.add_local(IpAddr::V4(config.local_v4));
         device.add_local(IpAddr::V6(config.local_v6));
-        device.add_local(config.subnet.gateway(crate::addr::Family::V4));
-        device.add_local(config.subnet.gateway(crate::addr::Family::V6));
+        device.add_local(IpAddr::V4(config.subnet.gateway_v4()));
+        device.add_local(IpAddr::V6(config.subnet.gateway_v6()));
         let link_in = device.inbound();
         let link_out = device.outbound();
         let device_stats = device.stats();
@@ -278,13 +251,7 @@ impl NetStack {
         let kick = Arc::new(Notify::new());
         let max_poll_interval = config.max_poll_interval;
         let socket_count = Arc::new(SocketCount::default());
-        let core = Core::new(
-            config,
-            device,
-            events_tx,
-            kick.clone(),
-            socket_count.clone(),
-        );
+        let core = Core::new(config, device, events_tx, kick.clone(), socket_count.clone());
         let stats = core.stats.clone();
         let (cmd_tx, cmd_rx) = mpsc::channel(64);
         let shutdown = Arc::new(Notify::new());
@@ -292,15 +259,7 @@ impl NetStack {
         let shutdown_flag = shutdown.clone();
         let run_kick = kick.clone();
         let task = tokio::spawn(async move {
-            run(
-                core,
-                cmd_rx,
-                inbound_wait,
-                shutdown_flag,
-                run_kick,
-                max_poll_interval,
-            )
-            .await;
+            run(core, cmd_rx, inbound_wait, shutdown_flag, run_kick, max_poll_interval).await;
         });
         Self {
             cmd: cmd_tx,
@@ -317,52 +276,43 @@ impl NetStack {
     }
 
     async fn send(&self, command: Command) -> io::Result<()> {
-        self.cmd
-            .send(command)
-            .await
-            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "virtual stack is shut down"))
+        self.cmd.send(command).await.map_err(|_| shut_down())
     }
 
-    /// Bind a virtual TCP listener.
-    pub async fn listen(&self, addr: VirtAddr) -> io::Result<TcpListener> {
+    /// Bind a TCP listener.
+    pub async fn listen(&self, addr: impl Into<SocketAddr>) -> io::Result<TcpListener> {
         let (reply, rx) = oneshot::channel();
-        self.send(Command::Listen { addr, reply }).await?;
-        rx.await
-            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "virtual stack is shut down"))?
+        self.send(Command::Listen { addr: addr.into(), reply }).await?;
+        rx.await.map_err(|_| shut_down())?
     }
 
-    /// Open a virtual TCP connection.
-    pub async fn connect(&self, remote: VirtAddr) -> io::Result<TcpStream> {
+    /// Open a TCP connection from an ephemeral port.
+    pub async fn connect(&self, remote: impl Into<SocketAddr>) -> io::Result<TcpStream> {
         self.connect_from(remote, 0).await
     }
 
-    pub async fn connect_from(&self, remote: VirtAddr, local_port: u16) -> io::Result<TcpStream> {
+    /// Open a TCP connection from `local_port` (0: an ephemeral port).
+    pub async fn connect_from(&self, remote: impl Into<SocketAddr>, local_port: u16) -> io::Result<TcpStream> {
         let (reply, rx) = oneshot::channel();
-        self.send(Command::Connect {
-            remote,
-            local_port,
-            reply,
-        })
-        .await?;
-        rx.await
-            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "virtual stack is shut down"))?
+        self.send(Command::Connect { remote: remote.into(), local_port, reply }).await?;
+        rx.await.map_err(|_| shut_down())?
     }
 
-    /// Bind a virtual UDP socket.
-    pub async fn bind_udp(&self, addr: VirtAddr) -> io::Result<UdpSocket> {
+    /// Bind a UDP socket.
+    pub async fn bind_udp(&self, addr: impl Into<SocketAddr>) -> io::Result<UdpSocket> {
         let (reply, rx) = oneshot::channel();
-        self.send(Command::BindUdp { addr, reply }).await?;
-        rx.await
-            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "virtual stack is shut down"))?
+        self.send(Command::BindUdp { addr: addr.into(), reply }).await?;
+        rx.await.map_err(|_| shut_down())?
     }
 
-    /// Packets arriving from the external link (written by the pump, read by
-    /// the stack).
+    /// The packets that come from the external link (the pump writes, the
+    /// stack reads).
     pub fn link_in(&self) -> PacketQueue {
         self.link_in.clone()
     }
 
-    /// Packets leaving the stack (read by the pump, written to the link).
+    /// The packets that leave the stack (the pump reads and writes them to
+    /// the link).
     pub fn link_out(&self) -> PacketQueue {
         self.link_out.clone()
     }
@@ -375,23 +325,23 @@ impl NetStack {
         self.device_stats.snapshot()
     }
 
-    /// Sockets the reactor holds right now, and the largest number it has held
-    /// at once.
+    /// The sockets that the reactor holds now, and the most that it held at
+    /// one time.
     ///
-    /// A `SocketSet` reuses a vacant slot on `add` but never reclaims one, so a
-    /// set that is not pruned when a connection closes grows without bound. This
-    /// makes that visible: `live` returns to its resting value after connections
-    /// close if the set is being pruned, and climbs if it is not.
+    /// A `SocketSet` uses a free slot again on `add` but frees no slot
+    /// itself, so a set that the reactor does not prune at the close of a
+    /// connection grows with no limit. With pruning, `live` goes back to its
+    /// resting value after the connections close; with none, it climbs.
     pub fn socket_count(&self) -> (u64, u64) {
         (self.socket_count.live(), self.socket_count.peak())
     }
 
-    /// Take the event stream, at most once.
+    /// Take the stream of events, at most once.
     pub fn take_events(&mut self) -> Option<mpsc::UnboundedReceiver<StackEvent>> {
         self.events_rx.take()
     }
 
-    /// Stop the reactor.
+    /// Stop the reactor, and wait at most 2 s for its task.
     pub async fn shutdown(&mut self) {
         let _ = self.cmd.try_send(Command::Shutdown);
         self.shutdown.notify_one();
@@ -405,7 +355,7 @@ impl NetStack {
 impl Drop for NetStack {
     fn drop(&mut self) {
         // `notify_one`, not `notify_waiters`: it stores a permit, so a notify
-        // that lands while the reactor is between polls is not lost.
+        // while the reactor is between two polls is not lost.
         self.shutdown.notify_one();
         self.kick.notify_one();
     }
@@ -424,11 +374,9 @@ async fn run(
         core.service();
         core.poll_iface();
 
-        // `next_delay` already clamps to the configured maximum, so clamping
-        // again to a hardcoded 100ms would make `max_poll_interval` a no-op for
-        // every value above 100ms: a stack configured to poll every 5s would
-        // still poll every 100ms. The only floor applied here keeps a
-        // zero-valued configuration from turning the loop into a busy spin.
+        // `next_delay` clamps to the configured maximum already; a second
+        // fixed clamp would make each larger `max_poll_interval` do nothing.
+        // The floor only keeps a configuration of zero from a busy spin.
         let floor = Duration::from_micros(200).min(max_poll_interval);
         let delay = core.next_delay().unwrap_or(max_poll_interval).max(floor);
 
@@ -437,10 +385,8 @@ async fn run(
             command = cmd_rx.recv() => {
                 match command {
                     Some(Command::Shutdown) | None => break,
-                    Some(command) => {
-                        core.handle(command);
-                        // The command may have created a socket; poll promptly.
-                    }
+                    // The command can make a socket; the loop polls at once.
+                    Some(command) => core.handle(command),
                 }
             }
             _ = kick.notified() => {}
@@ -449,20 +395,9 @@ async fn run(
             _ = shutdown.notified() => break,
         }
     }
-    // Wake anything still blocked on a channel.
+    // Wake each task that still waits on a channel.
     core.conns.clear();
     core.udp.clear();
-}
-
-// ── the synchronous §9.1 proof ──────────────────────────────────────────────
-
-/// Small helper namespace so the integration helper does not need a public
-/// alias for `Vec<u8>`.
-pub mod net {
-    use std::net::IpAddr;
-
-    /// The default local address this crate uses for loopback tests.
-    pub const LOCAL_IP: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(10, 66, 0, 2));
 }
 
 #[cfg(test)]
