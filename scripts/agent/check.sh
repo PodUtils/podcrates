@@ -1,9 +1,12 @@
 #!/bin/sh
-# The checks of AGENTS.md before each push: fmt, clippy, rustdoc and the tests, the
+# The checks of AGENTS.md before each push, as ci.yml runs them: fmt, clippy (also
+# of the crates with no tokio and of the fuzz workspace), rustdoc and the tests, the
 # check of the record (cargo todo check), the size of the Rust files
 # (scripts/check-size.py, with its self-test), the tables of docs/design.md
 # and README.md (scripts/check-design-paths.py), the order of cargo publish
-# (scripts/check-publish-order.py), and the static probes of
+# (scripts/check-publish-order.py), the rules of the workflows and each
+# workflow that a document names (scripts/check-workflows.py, as ci.yml
+# runs it), and the static probes of
 # x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
 # code and the first faults; exit 1 on a fault. With the argument notest,
 # the tests are skipped.
@@ -18,13 +21,20 @@ cargo fmt --all --check > "$log/fmt.log" 2>&1; f=$?
 echo "fmt $f"; [ "$f" -eq 0 ] || { rc=1; head -20 "$log/fmt.log"; }
 cargo clippy --workspace --all-targets --all-features -- -D warnings > "$log/clippy.log" 2>&1; c=$?
 echo "clippy $c"; [ "$c" -eq 0 ] || { rc=1; grep -E "^(error|warning)" -A6 "$log/clippy.log" | head -40; }
+# The crates with no tokio and the fuzz workspace, as the lint job of
+# ci.yml checks them.
+{ cargo clippy -p pod-core -p pod-tls --no-default-features --features pod-tls/pure,pod-tls/rsa -- -D warnings &&
+    cargo fmt --manifest-path fuzz/Cargo.toml --check &&
+    cargo clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings; } > "$log/lint.log" 2>&1; l=$?
+echo "lint $l"; [ "$l" -eq 0 ] || { rc=1; grep -E "^(error|warning|Diff)" -A6 "$log/lint.log" | head -30; }
 RUSTDOCFLAGS="-D warnings" cargo doc -q --no-deps --workspace --all-features > "$log/doc.log" 2>&1; d=$?
 echo "doc $d"; [ "$d" -eq 0 ] || { rc=1; grep -E "^(error|warning)" -A4 "$log/doc.log" | head -20; }
 cargo run -q -p pod-todo -- check > "$log/record.log" 2>&1; r=$?
 echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
-{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py; } > "$log/paths.log" 2>&1; p=$?
+{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && python3 -I scripts/check-workflows.py &&
+    python3 -I scripts/check-probe.py; } > "$log/paths.log" 2>&1; p=$?
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
     t=x86_64-unknown-linux-musl

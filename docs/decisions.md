@@ -62,7 +62,7 @@ form of the rulings that apply to each session.
 | 2026-11-11 | podrunner DR-7 | Not now: no throwaway GitHub organization or App. "Test accounts" (Q-A9) stays. |
 | 2026-11-11 | podrunner DR-3, DR-8 to DR-17 | Confirmed as PodUtils/podrunner#8 lists them, with `--deny-self-hosted-runners` kept: "confirm (but esure all is pluggable/swappable as always so we can do huge refactor in the future if needed) & also update the issue tracker for crates & repos you need so my local agent may register them". Each seam stays a trait with a conformance harness. GitHub #1 lists the crate names and repositories to register. It answers Q9 (DR-10), Q12 (DR-16), Q13 (DR-8) and Q14 (the names go on #1 now). |
 | 2026-11-11 | Q10 | A Docker Engine API socket for each job: decide at phase 3 of the plan. |
-| 2026-11-11 | Q11 | A local mode (`podrunner run workflow.yml`, as nektos/act): "yes plan it, and send an agent to study the zip". The owner gave an archive of the idea (`ghactions-local`); a study agent reads it. The native runner (`pod-actions-*`) moves into the plan as the way to it. |
+| 2026-11-11 | Q11 | A local mode (`podrunner run` with a workflow file, as nektos/act): "yes plan it, and send an agent to study the zip". The owner gave an archive of the idea (`ghactions-local`); a study agent reads it. The native runner (`pod-actions-*`) moves into the plan as the way to it. |
 | 2026-11-11 | podssh Q105 | Allowed as podssh recommended: a node reads its signed net document again each TTL, only with `--net-url`, at most one GET through `HTTPS_PROXY` each TTL (never under 60 s), the reply at most 64 KiB, the signature checked against `--net-owner`. podssh records it. |
 
 ## Calls made without a ruling
