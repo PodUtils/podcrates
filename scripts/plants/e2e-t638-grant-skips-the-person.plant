@@ -1,0 +1,7 @@
+# podssh T-638: the node's person gates the door's arm alone, so a key that
+# brings a grant passes with no question; the test of a grant at the person
+# must fail.
+ENTRY=T-021
+GROUP=e2e
+EXPECT='test a_grant_meets_the_node_s_person_as_a_key_of_the_door_does \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test door -- a_grant_meets_the_node_s_person_as_a_key_of_the_door_does'

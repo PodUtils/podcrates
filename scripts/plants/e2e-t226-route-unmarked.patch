@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/ends.rs b/crates/pod-e2e/src/ends.rs
+index 5fc485a..7b23afd 100644
+--- a/crates/pod-e2e/src/ends.rs
++++ b/crates/pod-e2e/src/ends.rs
+@@ -255,7 +255,7 @@ where
+             return;
+         }
+     };
+-    let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {
++    let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(false && by_grant, open(peer, ask))).await {
+         Ok(Ok(target)) => target,
+         Ok(Err(refusal)) => {
+             node.say(EVENT_TARGET, format!("the operator key {peer} came in{to}; refused: {refusal}"));

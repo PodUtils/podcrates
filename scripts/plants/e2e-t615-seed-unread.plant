@@ -1,0 +1,7 @@
+# podssh T-615: the operator's end sets aside the seed of the node's verdict,
+# so its later legs take the pair's spent token of once; the test of the
+# taker, which must hold the node's seed, must fail.
+ENTRY=T-021
+GROUP=e2e
+EXPECT='test the_operator_s_end_gives_the_node_s_seed_to_the_taker_of_its_session \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test door -- the_operator_s_end_gives_the_node_s_seed_to_the_taker_of_its_session'

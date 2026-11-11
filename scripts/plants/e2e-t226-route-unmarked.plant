@@ -1,0 +1,7 @@
+# podssh T-226: a session that a grant let in opens its target unmarked, so
+# the route's own check of the key refuses what the grant named; the test of
+# a grant's target, which must open as a grant's, must fail.
+ENTRY=T-021
+GROUP=e2e
+EXPECT='test a_session_that_a_grant_let_in_opens_its_target_marked \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test door -- a_session_that_a_grant_let_in_opens_its_target_marked'

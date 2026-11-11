@@ -1,0 +1,14 @@
+diff --git a/crates/pod-e2e/src/ends.rs b/crates/pod-e2e/src/ends.rs
+index 5fc485a..8b9c889 100644
+--- a/crates/pod-e2e/src/ends.rs
++++ b/crates/pod-e2e/src/ends.rs
+@@ -251,8 +251,7 @@ where
+         Ok(passed) => passed,
+         Err(line) => {
+             node.say(EVENT_REFUSED, line);
+-            asked.refuse(Refusal::NotAllowed).await;
+-            return;
++            (None, "a no".to_string())
+         }
+     };
+     let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/handshake.rs b/crates/pod-e2e/src/handshake.rs
+index 07cdde1..4e8d55f 100644
+--- a/crates/pod-e2e/src/handshake.rs
++++ b/crates/pod-e2e/src/handshake.rs
+@@ -444,7 +444,7 @@ async fn within<R>(step: &'static str, step_future: impl Future<Output = Result<
+ /// The wait for the node's verdict, which a node's person can answer first
+ /// ([`crate::person`]): longer than a step's.
+ async fn verdict_within<R>(step_future: impl Future<Output = Result<R, Error>>) -> Result<R, Error> {
+-    tokio::time::timeout(crate::VERDICT_LIMIT, step_future).await.map_err(|_| Error::Timeout(crate::VERDICT_STEP))?
++    tokio::time::timeout(HANDSHAKE_LIMIT, step_future).await.map_err(|_| Error::Timeout(crate::VERDICT_STEP))?
+ }
+ 
+ fn noise(e: snow::Error) -> Error {
