@@ -13,7 +13,8 @@
 #                     that fails for another reason is not a catch
 #   RUN='command'     the check; it must exit nonzero on the plant
 #   LIMIT=seconds     optional: the time limit of RUN (default 1800)
-#   SWITCH=1          optional: RUN plants the defect itself (a --plant-*
+#   SWITCH=1          optional: RUN plants the defect itself (a change in
+#                     the worktree of the plant, or a --plant-*
 #                     option of the check); there is no patch
 #
 # and, unless SWITCH is set, scripts/plants/ID.patch, a diff that `git apply`

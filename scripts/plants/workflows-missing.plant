@@ -1,6 +1,9 @@
-# AGENTS.md names live.yml, and the file is not there.
+# AGENTS.md names live.yml, and the file is not there. RUN removes the file
+# in the worktree of the plant: a patch that deletes it holds its whole text
+# and goes stale at each change of the workflow.
 ENTRY=T-092
 GROUP=lint
 EXPECT='AGENTS.md:[0-9]+: the workflow live.yml does not exist'
-RUN='python3 scripts/check-workflows.py'
+RUN='rm .github/workflows/live.yml && python3 scripts/check-workflows.py'
 LIMIT=60
+SWITCH=1
