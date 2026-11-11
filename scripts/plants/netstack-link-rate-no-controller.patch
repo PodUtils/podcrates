@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netstack/src/link_rate.rs b/crates/pod-netstack/src/link_rate.rs
+--- a/crates/pod-netstack/src/link_rate.rs
++++ b/crates/pod-netstack/src/link_rate.rs
+@@ -156,7 +156,8 @@
+         });
+         let mut socket =
+             tcp::Socket::new(tcp::SocketBuffer::new(vec![0; BUFFER]), tcp::SocketBuffer::new(vec![0; BUFFER]));
+-        socket.set_congestion_control(controller);
++        // The socket keeps the controller of smoltcp (CUBIC) in each case.
++        let _ = controller;
+         let mut sockets = SocketSet::new(Vec::new());
+         let handle = sockets.add(socket);
+         Self { device, iface, sockets, handle, ingress }

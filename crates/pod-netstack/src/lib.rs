@@ -31,6 +31,8 @@
 
 pub mod device;
 pub mod hooks;
+#[cfg(test)]
+mod link_rate;
 pub mod stack;
 mod subnet;
 

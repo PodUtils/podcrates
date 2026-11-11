@@ -1,0 +1,8 @@
+# The measurement of the rate does not set the controller of the case: each
+# socket keeps the default of smoltcp (CUBIC), and the case of no
+# controller is slow on the burst link. The tests of the rate must see it.
+ENTRY=T-188
+GROUP=netstack
+EXPECT='None on a (burst|serial) link'
+RUN='cargo test -p pod-netstack --lib link_rate'
+LIMIT=900

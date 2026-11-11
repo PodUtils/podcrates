@@ -94,10 +94,51 @@ of each:
   (`netns_backend_moves_a_large_download`) and the tunnel device filled a
   window of 512 KiB at 40 ms (`tests/tcp_window.rs`, 11 MB/s).
 * The stack sets no congestion controller (`CongestionControl::None`), as
-  podnet did. On 0.14, Reno and CUBIC grow by one segment for each ACK, so
-  a link that gives one ACK for each round trip grows by one segment for
-  each round trip: podnet's `tests/tcp_window.rs` gave 1.8 MB/s with them
-  (12.6 MB/s is the limit). T-185 has the measurement.
+  podnet did. The next section gives the rate of each controller.
+
+## The congestion controllers
+
+In slow start, Reno and CUBIC of smoltcp 0.14 add one segment to the
+window for each ACK (RFC 5681; 0.12 added each acknowledged byte). A
+receiver of smoltcp sends its ACK in the pass of egress: `Interface::poll`
+takes each waiting packet first, so one poll gives one ACK for all the
+segments that it takes. The rate thus depends on the link:
+
+* A link that delivers each burst at one time (podnet's
+  `tests/tcp_window.rs`): one ACK for each round trip, so the window grows
+  by one segment for each round trip. Reno and CUBIC stay slow.
+* A link that delivers the packets one by one (a serial link): one ACK
+  for each two segments (the delayed ACK of smoltcp), so the window grows
+  by half for each round trip. After the slow start, the rate is that of
+  no controller.
+
+`link_rate` (T-188) measures it: a download of 8 MiB between two
+interfaces of smoltcp over `LinkDevice::link`, 20 ms in each direction,
+buffers of 512 KiB, on a virtual clock. The burst link has the window as
+its limit (512 KiB in 40 ms); the serial link has 100 Mbit/s. In MB/s
+(`cargo test -p pod-netstack --lib link_rate -- --nocapture`):
+
+| Link | Limit | None | Reno | CUBIC |
+| --- | --- | --- | --- | --- |
+| Burst | 13.11 | 11.34 | 1.80 | 1.80 |
+| Burst, the second half | 13.11 | 10.20 | 2.98 | 2.98 |
+| Serial | 12.50 | 11.00 | 6.72 | 6.72 |
+| Serial, the second half | 12.50 | 10.58 | 10.58 | 10.58 |
+| Serial, receiver with no ACK delay | 12.50 | | 7.90 | 7.90 |
+
+A change of the receiver is the fix that a consumer can use (Reno, burst
+link):
+
+| Receiver | MB/s | ACKs |
+| --- | --- | --- |
+| `Interface::poll`, ACK delay 10 ms (the default) | 1.80 | 118 |
+| `Interface::poll`, `set_ack_delay(None)` | 1.80 | 119 |
+| `poll_ingress_single` and `poll_egress` after each packet | 6.36 | 3,388 |
+| The same, `set_ack_delay(None)` | 8.22 | 6,818 |
+
+No segment is sent again in a case: the server sends 6,769 packets
+(6,766 segments of data). The reactor of `NetStack` runs
+`Interface::poll`; T-197 has its ACKs.
 
 ## Parity
 
@@ -163,7 +204,7 @@ the `taken` lines of `SOURCES`):
 | tests `virtual_dns_answers_at_the_gateway`, `acl_refuses_connections` | here with stand-ins; they stay in podnet too, over its `Resolver` and `Acl` |
 | tests `proof_completes`, `async_loopback_round_trip` | stay in podnet (the proof); `async_loopback_round_trip` is here too, with no proof |
 | `smoltcp = "=0.12.0"` (root, `podnet-netns`, `podnet-vnet`) | `smoltcp = "0.14"`, one version in the tree; `futures` leaves `podnet-vnet` |
-| `tests/tcp_window.rs` | its sockets set `CongestionControl::None`, as podnet's stacks (T-185) |
+| `tests/tcp_window.rs` | its sockets set `CongestionControl::None`, as podnet's stacks (T-188) |
 | `.cargo/config.toml`: `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` | stays: each binary that links `pod-netstack` needs it |
 | the record (`TODO/`): the citations of the removed files | `PodUtils/podcrates:crates/pod-netstack/src/..` |
 | each `pod-*` dependency | tag `v0.20.0`; `podnet-vnet` adds `pod-netstack` |
@@ -186,9 +227,12 @@ podnet takes the patch.
 a listener off the stack's address, a refused connect, the wake of a
 write, the hooks, the close of each socket, a slow reader, a large
 download over two bounded links, the refused binds), the device (the
-loopback, the tunnel, the bounds, the hold, the waker, the tap) and the
-subnet. The plant `netstack-receive-with-no-room` (`scripts/plants/`)
-proves the test of the slow reader.
+loopback, the tunnel, the bounds, the hold, the waker, the tap), the
+subnet, and the rate of each congestion controller over a delay link
+(`link_rate`, on a virtual clock). The plant
+`netstack-receive-with-no-room` (`scripts/plants/`) proves the test of the
+slow reader; the plant `netstack-link-rate-no-controller` proves the tests
+of the rate.
 
 ## Sources
 

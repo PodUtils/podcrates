@@ -18,8 +18,10 @@ page current; remove a line when its work is done.
     PodUtils/podssh@T-740).
     `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
   - podnet: `v0.20.0` (`d23ce4e`, PodUtils/podnet#445: `pod-netstack`
-    taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`,
-    and `warp --cc reno|cubic` waits for T-188). `pod-hold` at `b759937`,
+    taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`).
+    T-188 is done: Reno and CUBIC are slow only on a link that gives one
+    ACK for each round trip; its result for `warp --cc reno|cubic` goes to
+    podnet. `pod-hold` at `b759937`,
     its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
     podnet's T-174 (the netns router).
   - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (its

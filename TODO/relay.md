@@ -1157,7 +1157,7 @@ with it.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1195,6 +1195,186 @@ about one seventh of the rate on such a link.
    setting for the controller with the measured rate of each in its
    README, and report the slow start of 0.14 to smoltcp with the test.
 3. Tell podnet the result for its `--cc` of WARP (a COORD issue).
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib link
+```
+
+## Done
+
+2026-11-11, the commit of this entry. `crates/pod-netstack/src/link_rate.rs`
+(with `crates/pod-netstack/src/link_rate/tests.rs`) measures a download of
+8 MiB between two interfaces of smoltcp 0.14 over `LinkDevice::link`: 20 ms
+in each direction, buffers of 512 KiB, MTU 1280, on a virtual clock (no
+wall time; each run gives the same numbers). The burst link delivers each
+burst that one poll sends at one time, as podnet's `tests/tcp_window.rs`.
+The serial link sends the packets one by one at 100 Mbit/s, then holds
+each for the delay. With the end of podnet's loop (the next event after
+the last byte), the burst link gives the numbers of the trial of T-023:
+11.18 MB/s with no controller, 1.79 with Reno and CUBIC, 6,769 packets
+from the server, 65 and 118 from the client. The tests end at the last
+byte. In MB/s:
+
+| Link | Limit | None | Reno | CUBIC |
+| --- | --- | --- | --- | --- |
+| Burst | 13.11 | 11.34 | 1.80 | 1.80 |
+| Burst, the second half | 13.11 | 10.20 | 2.98 | 2.98 |
+| Serial | 12.50 | 11.00 | 6.72 | 6.72 |
+| Serial, the second half | 12.50 | 10.58 | 10.58 | 10.58 |
+| Serial, receiver with no ACK delay | 12.50 | | 7.90 | 7.90 |
+| Burst, receiver with no ACK delay | 13.11 | | 1.80 | |
+| Burst, receiver with a pass of egress after each packet | 13.11 | | 6.36 | |
+| The same, no ACK delay | 13.11 | | 8.22 | |
+
+The limit of the burst link is the window over the round trip (512 KiB in
+40 ms); the limit of the serial link is its rate. No segment is sent
+again: the server sends 6,769 packets (6,766 segments of data) in each
+case. The client sends 118 ACKs with Reno on the burst link (one for each
+round trip), 3,388 on the serial link (one for each two segments) and
+6,770 with no ACK delay.
+
+- Result: Reno and CUBIC are not slow on a serial link. Their slow start
+  adds half of the window for each round trip, and the second half of the
+  download moves at the rate of no controller. The slow start of 1.8 MB/s
+  is an effect of a link that gives one ACK for each round trip. The stack
+  keeps `CongestionControl::None` and gets no setting of the controller
+  (step 2). The README of the crate has the table.
+- Cause in smoltcp 0.14: in slow start, Reno and CUBIC add `min(len, mss)`
+  to `cwnd` for each ACK (`src/socket/tcp/congestion/reno.rs`, `cubic.rs`,
+  smoltcp-rs/smoltcp#1156 and #1157); 0.12 added `len`, each acknowledged
+  byte. The TCP socket sends its ACK in `dispatch`, the pass of egress.
+  `Interface::poll` takes each waiting packet before the egress, and
+  `immediate_ack_to_transmit` (more than one MSS not acknowledged) only
+  sets the delayed ACK to `Immediate`. One poll thus gives one ACK for all
+  the segments that it takes.
+- Fixes for a consumer: a sender with `CongestionControl::None` (the
+  stacks of podnet); or, in a receiver of smoltcp, a pass of egress after
+  each packet (`poll_ingress_single`, then `poll_egress`): 6.36 MB/s, and
+  8.22 with `set_ack_delay(None)`. `set_ack_delay(None)` alone changes
+  nothing on the burst link (1.80); on the serial link it gives 7.90.
+- The result for podnet's `warp --cc reno|cubic`: the controller acts on
+  the data that the smoltcp of WARP sends (an upload); the receiver is the
+  edge. A receiver that gives an ACK for each second segment (RFC 9293,
+  SHLD-19) gives the result of the serial link: a slow start that adds
+  half of the window for each round trip, then the rate of no controller.
+  A receiver that gives one ACK for each burst (for example after GRO)
+  gives the result of the burst link. In a download, smoltcp sends only
+  ACKs, and the controller of the edge acts. Not measured: WARP over a real
+  edge (a live test of podnet). podnet's `tests/tcp_window.rs` gives
+  1.8 MB/s with Reno and CUBIC because its receiver is smoltcp and its
+  link delivers bursts. It can keep `CongestionControl::None`, or measure
+  Reno and CUBIC on a serial link or with a receiver that takes each
+  packet, as `link_rate` does. Step 3: the session of podcrates sends this
+  item to podnet.
+- Tests: `cargo test -p pod-netstack --lib link`: 8 passed (4 of
+  `link_rate`, 3 of `stack::tests::link`, 1 of `device::tests`), 2.9 s in
+  a debug build. The plant `netstack-link-rate-no-controller` (each socket
+  keeps CUBIC) fails `each_controller_on_a_burst_link` and
+  `each_controller_on_a_serial_link` with "None on a burst link" and "None
+  on a serial link".
+- Findings: the README of the crate named T-185 for this measurement
+  (fixed: T-188). The reactor of `NetStack` gives one ACK for the segments
+  that one poll takes: T-197.
+
+The report to smoltcp (the owner posts it; not posted):
+
+```text
+Title: tcp: in 0.14, Reno and CUBIC grow cwnd by one MSS per round trip
+when the receiver is smoltcp and one poll takes a burst
+
+smoltcp 0.14.0; features std, medium-ip, proto-ipv4, proto-ipv6,
+socket-tcp, socket-tcp-reno, socket-tcp-cubic.
+
+Setup: two Interfaces (Medium::Ip) on a link that holds each packet 20 ms
+in each direction. TCP buffers of 512 KiB, MTU 1280, a download of 8 MiB,
+a virtual clock. The "burst" link delivers each packet that one poll sends
+at one time. The "serial" link sends the packets one by one at
+100 Mbit/s, then holds each for 20 ms. No packet is lost, and no segment
+is sent again.
+
+Rate in MB/s (limit: burst 13.11, the window in 40 ms; serial 12.50):
+
+| Link                         | None  | Reno  | Cubic |
+| burst                        | 11.34 |  1.80 |  1.80 |
+| serial                       | 11.00 |  6.72 |  6.72 |
+| serial, second half          | 10.58 | 10.58 | 10.58 |
+
+With smoltcp 0.12.0, the burst link gave more than 8 MB/s with Cubic.
+
+Cause:
+1. Since 0.14.0 (#1156, #1157), the slow start of Reno and Cubic adds
+   min(len, mss) to cwnd for each ACK (src/socket/tcp/congestion/reno.rs,
+   cubic.rs). 0.12 added len.
+2. The receiver sends its ACK in dispatch (egress). Interface::poll
+   processes each queued packet before the egress, and
+   immediate_ack_to_transmit() only sets the delayed-ACK timer to
+   Immediate. One poll that takes N segments thus sends one ACK. On the
+   burst link, the receiver sends one ACK per round trip (118 ACKs for
+   6,766 segments), and cwnd grows by one MSS per round trip.
+
+On the serial link, the receiver sends one ACK for each two segments
+(3,388 ACKs), and cwnd grows by half per round trip. set_ack_delay(None)
+on the receiver: one ACK per segment, 7.90 MB/s on the serial link, no
+change on the burst link (1.80). A receiver that calls
+poll_ingress_single and then poll_egress for each packet: 6.36 MB/s on
+the burst link (8.22 with set_ack_delay(None)).
+
+Proposals:
+a. In slow start, add the acknowledged bytes, as 0.12 did, or at least
+   use L = 2*SMSS (RFC 3465, section 2.2).
+b. Send an ACK from the ingress path for at least each second full-sized
+   segment (RFC 9293, SHLD-19), so that a poll of N segments sends N/2
+   ACKs.
+
+Reproduce: PodUtils/podcrates, crates/pod-netstack/src/link_rate.rs:
+  cargo test -p pod-netstack --lib link_rate -- --nocapture
+```
+
+# T-197: `pod-netstack`: the reactor gives one ACK for the segments that one poll takes
+
+**Source:** T-188 (the measurement of `link_rate`).
+**Category:** measurement
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The reactor of `NetStack` runs `Interface::poll`
+(`crates/pod-netstack/src/stack/reactor.rs`). smoltcp takes each packet of
+the inbound queue before its pass of egress, and its TCP socket sends the
+ACK in the egress. When the pump puts a burst into the inbound queue
+before the reactor polls, the stack gives one ACK for the burst. RFC 9293
+(SHLD-19) asks for an ACK for at least each second full-sized segment. A
+sender that adds one segment to its window for each ACK in slow start
+(Reno and CUBIC of smoltcp 0.14) then grows by one segment for each round
+trip: 1.80 MB/s, against 6.36 MB/s with a pass of egress after each
+packet (T-188, the burst link of `link_rate`). No consumer has this case
+now: the stacks of podnet set no controller.
+
+## Premise
+
+- Measured (T-188): the numbers above, with the two interfaces of
+  `link_rate`, not with the reactor.
+- Read (T-188): `Interface::poll` and the delayed ACK of `tcp::Socket` of
+  smoltcp 0.14.
+- Not measured: the reactor as a receiver; the cost of a pass of egress
+  after each packet with many sockets (`socket_egress` of smoltcp visits
+  each socket of the set); the senders that count the ACKs and not the
+  acknowledged bytes.
+
+## Approach
+
+1. A test of the reactor as a receiver of a burst: the count of ACKs that
+   one poll gives for a burst of segments. The `Clock` of the stack is
+   real, so the test counts packets, not a rate.
+2. Measure the cost of a pass of egress after each second packet
+   (`poll_ingress_single`) with 4,096 sockets.
+3. When the cost is low, poll so. Else keep `Interface::poll`, and follow
+   the report of T-188 to smoltcp (an ACK from the ingress path).
 
 ## Prove
 
