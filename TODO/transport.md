@@ -3403,3 +3403,41 @@ The tests:
 - Where the host has a controller that is available but not allowed, an
   unprivileged test asks for it. Its result answers the Inferred question
   of the review.
+
+# T-198: `pod-services`: the form of the connect of `openbare-xyz` (podssh's message, 2026-11-11)
+
+**Source:** podssh's message of 2026-11-11 to podcrates (its take of `v0.21.0`, PodUtils/podssh#189)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`openbare.xyz` refuses the connect form of TompHTTP's Bare v3 with 400 and
+wants the header `X-Bare-URL` on the WebSocket upgrade. `openbare-xyz`
+names the kind `bare-node` and the protocol `bare-v3` only, so a consumer
+that reads the service speaks the form that the node refuses. podssh
+found it on its live road and now speaks both forms.
+
+## Premise
+
+- Read: podssh's message; `services/openbare-xyz.toml`; tomphttp/specifications
+  `BareServerV3.md` at `e27d6370b816`.
+- Not read: the commit of podssh that speaks both forms; the source of
+  openbare at `da38032de3a0` for the header (its licence is proprietary:
+  read it, copy nothing).
+
+## Approach
+
+A fact `connect-form` of `openbare-xyz` (`x-bare-url`), with podssh's
+commit as its source, and a watch that sees it each day if a request can
+show it (an upgrade with the header gets 101, one with the connect form
+gets 400); a row of the README; the test of the service.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```

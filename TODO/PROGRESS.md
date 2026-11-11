@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 197 entries: 56 open, 2 partial, 0 blocked, 139 done.
+`TODO/INDEX.md` holds 198 entries: 57 open, 2 partial, 0 blocked, 139 done.
 
 ## State
 
@@ -11,8 +11,8 @@
   one pin at a time in `pod-core` and `pod-identity` (T-195), the socket of
   `pod-broker` with its mode at once (T-196). The hand-off is GitHub #65
   (COORD-040); podvm answers on #63.
-- The consumers: podssh is on `v0.20.0` (`0c40ed3e`: the key of
-  `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
+- The consumers: podssh is on `v0.21.0` (`6de121b2`, PodUtils/podssh#189;
+  the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
   (`d23ce4e`: `pod-netstack`, PodUtils/podnet#445; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.19.0` (`2c2b8d2`, its
@@ -61,7 +61,7 @@ next entry.
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.
-5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-174 (a Trojan node); T-198 (the Bare form of `openbare-xyz`); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-021, T-024, T-025, T-026; then T-122,

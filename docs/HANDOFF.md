@@ -12,7 +12,7 @@ page current; remove a line when its work is done.
   hand-off GitHub #65): `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63),
   T-195, T-196. `v0.20.0` is at `4daf31c` (#64, closed).
 - The consumers and the tag each takes:
-  - podssh: `v0.20.0` (`0c40ed3e`; the key of `localhost-run` pinned;
+  - podssh: `v0.21.0` (`6de121b2`, PodUtils/podssh#189; the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
     PodUtils/podssh@T-740).
     `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
@@ -26,7 +26,9 @@ page current; remove a line when its work is done.
   - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (#63,
     #65), with its PodUtils/podvm@T-1722.
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
-    Its state (head `1db8bc3`): its milestone M-B holds (PodUtils/podrunner#26
+    Its state (head `4ca19f5`): its T-035 is done (a job with a
+    `container:` key runs through the hooks of a podvm unit; gate
+    42991333922). Its milestone M-B holds (PodUtils/podrunner#26
     closed; runner-image run 42987612426): on a hosted runner with no root,
     the podvm driver (podvm `v0.2.0-beta.3`, the supervise rung) ran the
     official runner 2.338.2 on a canned job to Succeeded, and destroy

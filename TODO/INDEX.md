@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**197 entries: 56 open, 2 partial, 0 blocked, 139 done.**
+**198 entries: 57 open, 2 partial, 0 blocked, 139 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 0 | 0 | 41 | 57 |
 | P2 | 26 | 2 | 0 | 67 | 95 |
-| P3 | 14 | 0 | 0 | 29 | 43 |
-| **All** | 56 | 2 | 0 | 139 | 197 |
+| P3 | 15 | 0 | 0 | 29 | 44 |
+| **All** | 57 | 2 | 0 | 139 | 198 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -244,3 +244,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-195](foundation.md) | P2 | S | M1 | defect | done | `pod-core`: two threads that store one private file at once share one temporary name |
 | [T-196](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: `bind_unix` leaves a window with the mode of the umask (PodUtils/podnet#444) |
 | [T-197](relay.md) | P3 | S | M2 | measurement | open | `pod-netstack`: the reactor gives one ACK for the segments that one poll takes |
+| [T-198](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the form of the connect of `openbare-xyz` (podssh's message, 2026-11-11) |
