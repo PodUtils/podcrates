@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**215 entries: 60 open, 4 partial, 0 blocked, 151 done.**
+**216 entries: 61 open, 4 partial, 0 blocked, 151 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 44 | 58 |
-| P2 | 29 | 2 | 0 | 73 | 104 |
+| P2 | 30 | 2 | 0 | 73 | 105 |
 | P3 | 18 | 1 | 0 | 32 | 51 |
-| **All** | 60 | 4 | 0 | 151 | 215 |
+| **All** | 61 | 4 | 0 | 151 | 216 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -262,3 +262,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-213](podvm.md) | P2 | M | M7 | defect | open | `pod-confine`: under a TCP list or a closed UDP, a payload still makes sockets that Landlock and the filter do not see |
 | [T-214](relay.md) | P2 | L | M2 | feature | open | `pod-wormhole`, `pod-transit`: the file transfer of magic-wormhole (PodUtils/podnet#450) |
 | [T-215](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: the mailbox server (PodUtils/podnet#450) |
+| [T-216](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: `a_descriptor_passed_onto_its_own_number_reaches_the_payload` failed one time in a run of the workspace's tests |

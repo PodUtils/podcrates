@@ -3591,3 +3591,47 @@ by a COORD issue: a refusal of a TCP list there, or a deny of
 ```sh
 cargo test -p pod-confine --all-features
 ```
+
+# T-216: `pod-enter`: `a_descriptor_passed_onto_its_own_number_reaches_the_payload` failed one time in a run of the workspace's tests
+
+**Source:** the run of `sh scripts/agent/check.sh` before the push of T-025 and T-209
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In one run of `cargo test --workspace --all-features` (2026-11-11, the
+check of the merge of T-025 and T-209), the test
+`a_descriptor_passed_onto_its_own_number_reaches_the_payload` of
+`crates/pod-enter/src/tests.rs` failed: the payload `sh -c "echo passed
+>&W"` exited 2 (the shell had no descriptor `W`). Ten runs of
+`cargo test -p pod-enter --all-features --lib` after it passed (167
+tests each). The code of the test and of `Fds.pass` did not change in the
+merge.
+
+## Premise
+
+- Read: the test (a pipe with `O_CLOEXEC`, the write end passed onto its
+  own number, the child clears the close-on-exec flag).
+- Not read: which other test of the same process can close the number of
+  the pipe: a second `close` of a descriptor that the test already gave
+  away, or a close of a range in the test process. A number that one
+  thread closes twice can be the pipe of another thread.
+
+## Approach
+
+Search the tests of `pod-enter` (and of `pod-hostprobe` that run in the
+same process) for a `close` of a number after its owner closed it, and
+for each close of a range in the test process. Make each test own its
+descriptors (`OwnedFd`) so that a number is closed once. Prove it with a
+loop of the test under load (`stress`, or the workspace's tests in a
+loop) that fails before the fix.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib
+```

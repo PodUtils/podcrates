@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 215 entries: 60 open, 4 partial, 0 blocked, 151 done.
+`TODO/INDEX.md` holds 216 entries: 61 open, 4 partial, 0 blocked, 151 done.
 
 ## State
 
@@ -83,7 +83,7 @@ next entry.
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-025 (partial: the trial of podssh, step 1 of its
    Done section), T-212, T-026; then T-204 (a random failure of
-   `pod-session`); then T-122,
+   `pod-session`) and T-216 (a random failure of `pod-enter`); then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197.
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
