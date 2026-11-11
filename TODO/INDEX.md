@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**176 entries: 60 open, 5 partial, 0 blocked, 111 done.**
+**176 entries: 60 open, 3 partial, 0 blocked, 113 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 2 | 0 | 37 | 57 |
+| P1 | 18 | 0 | 0 | 39 | 57 |
 | P2 | 27 | 3 | 0 | 55 | 85 |
 | P3 | 15 | 0 | 0 | 17 | 32 |
-| **All** | 60 | 5 | 0 | 111 | 176 |
+| **All** | 60 | 3 | 0 | 113 | 176 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -66,9 +66,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-017](transport.md) | P2 | S | M1 | chore | done | The fuzz workspace and its weekly workflow |
 | [T-018](relay.md) | P1 | M | M2 | research | done | One QUIC stack: quinn against noq, measured |
 | [T-019](relay.md) | P1 | M | M2 | feature | done | `pod-quic`: the QUIC endpoint, the probe and QUIC over datagrams |
-| [T-020](relay.md) | P1 | L | M2 | feature | partial | `pod-session`: the resumable layer and UDP in a stream |
+| [T-020](relay.md) | P1 | L | M2 | feature | done | `pod-session`: the resumable layer and UDP in a stream |
 | [T-021](relay.md) | P1 | M | M2 | feature | open | `pod-e2e`: the end-to-end channel (Noise XX) |
-| [T-022](relay.md) | P1 | S | M2 | feature | partial | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
+| [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | open | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | open | `pod-wg`: the WireGuard initiator |
 | [T-025](relay.md) | P1 | L | M2 | feature | open | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |

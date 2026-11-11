@@ -8,24 +8,21 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.15.0` is at `27a4ccd` (`docs/releases/v0.15.0.md`; the
-  hand-off GitHub #54). `v0.16.0` is in preparation on `main`
-  (`docs/releases/v0.16.0.md`: T-162, T-160, T-169, T-170 step 1, T-157):
-  release it after a green `ci` (`docs/maintenance.md`, "A release"), then
-  tell podrunner, podvm and podnet.
+- The release `v0.16.0` is at `60a675c` (`docs/releases/v0.16.0.md`; the
+  hand-off GitHub #57). `main` after the tag holds T-176 (`pod-enter`
+  limits and `no_new_privs`) for `v0.17.0`.
 - The consumers and the tag each takes:
-  - podssh: `v0.14.0`. Next: `pod-wormhole` and `pod-session` of `v0.15.0`
-    (`adoption/podssh/`, made on podssh `9975fe92`; podssh's `main` moved,
-    so it applies them with `--3way` and reports each conflict).
+  - podssh: `v0.15.0` (`pod-wormhole` at `baa00a06`, `pod-session` at
+    `6f78a7c7`). It may move to `v0.16.0` (four nodes of `pod-services`
+    are gone).
   - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
     of T-169 and T-170 (not made yet).
-  - podvm: `v0.15.0` (`d9fe511`). Next: the tree kill of T-162 in
-    `v0.16.0` (PodUtils/podvm@T-1655).
-  - podrunner: no tag yet (frame at podrunner `9d2e4dd`; `pod-todo` by
-    `v0.15.0`). Next: `pod-supervise` and `pod-broker` of `v0.16.0`.
-- The owner's word of 2026-11-11 (rows "Sessions online" and after):
-  podrunner and podssh have lead sessions that this session started;
-  podnet and podvm run in their own sessions.
+  - podvm: `v0.15.0` (`d9fe511`). Next: `v0.16.0` (T-162, T-175 for
+    PodUtils/podvm@T-1708 and PodUtils/podvm@T-1715), then `v0.17.0` (T-176).
+  - podrunner: its first tag is `v0.16.0` (`pod-supervise`, `pod-broker`).
+- podrunner and podssh have lead sessions that this session started
+  (direct messages); podnet and podvm run in their own sessions (COORD
+  issues).
 
 ## In flight
 

@@ -202,7 +202,7 @@ the commit that gives `connect::tls` rustls's own verifier (the guard
 **Milestone:** M2
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -311,6 +311,12 @@ trial, `adoption/podssh/pod-session.*`) and the commit of this record.
   (podssh, 56 files, 0 changes; a planted change found);
   `python3 -I scripts/check-probe.py`; `cargo test --manifest-path
   fuzz/Cargo.toml --lib` (3 passed).
+- 2026-11-11, done: podssh took the crate at `6f78a7c7` (PodUtils/podssh#187,
+  COORD-020 of podssh): `session/` is glue over the crate; each line of
+  `pod-session.run` and podssh's full suite passed (3,279 passed in a
+  namespace with only the loopback). `crates/pod-session/SOURCES` has
+  `taken 6f78a7c`; `check-sources.py` with a clone reads 56 files, 0
+  changes. The trial files are removed.
 
 # T-167: `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap`
 
@@ -412,7 +418,7 @@ T-020 is done.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -520,7 +526,11 @@ trial), and the commit of this record.
   (the run of the import was put together in parts after the disk filled).
   podssh took `pod-quic` at `525f8907`: the patch is made again on podssh's
   `main` `9975fe92` (no conflict; no `.needs`), and each step passed there.
-
+- 2026-11-11, done: podssh took the crate at `baa00a06` (PodUtils/podssh#187,
+  COORD-020 of podssh): `code/` keeps the exchange and a thin `mod.rs` over
+  the crate; each line of `pod-wormhole.run` passed. `crates/pod-wormhole/SOURCES`
+  has `taken baa00a0`; `check-sources.py` with a clone reads 10 files, 0
+  changes. The trial files are removed.
 
 # T-023: `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14
 

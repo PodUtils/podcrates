@@ -1,23 +1,24 @@
 # Progress
 
-`TODO/INDEX.md` holds 176 entries: 60 open, 5 partial, 0 blocked, 111 done.
+`TODO/INDEX.md` holds 176 entries: 60 open, 3 partial, 0 blocked, 113 done.
 
 ## State
 
 - The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
   `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.15.0` at `27a4ccd` (`docs/releases/v0.15.0.md`; CI
-  42872309453, nightly 42872313856, adoption 42872309501, release
-  42880337688): `pod-session`, `pod-wormhole`, `pod-hold`, the volumes of
-  `pod-enter`. The hand-off is GitHub #54 (COORD-029); the takes of the
-  consumers follow it. The dry run of `publish.yml` fails at the tags
-  `v0.14.0` and `v0.15.0`; `e24f159` fixes it on `main` (dry run
-  42880918874 green).
-- The consumers: podnet is on `v0.15.0` (it took `pod-hold` at
-  `b759937`); podvm is on `v0.15.0` (`d9fe511`, with T-155); podssh is on
-  `v0.14.0` (it took `pod-ws` and `pod-quic`).
-- Partial: T-020 `pod-session` and T-022 `pod-wormhole` (podssh's take),
-  T-170 (step 2 waits for podnet). Open defects: T-131 (`pod-gsr` on
+- Last release: `v0.16.0` at `60a675c` (`docs/releases/v0.16.0.md`; ci
+  42941289807, adoption 42939473252 at `699a107`, plants 42941289959,
+  release 42943522356, the dry run of `publish.yml` 42943571130): the tree
+  kill and the private modes of `pod-supervise`, the bound listener of
+  `pod-broker`, `connect` and `packet` of `pod-hold`, four nodes out of
+  `pod-services`. The hand-off is GitHub #57 (COORD-032). Each consumer
+  took `v0.15.0` (#54 closed).
+- The consumers: podssh is on `v0.15.0` (it took `pod-wormhole` at
+  `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
+  took `pod-hold` at `b759937`); podvm is on `v0.15.0` (`d9fe511`, with
+  T-155); podrunner takes its first tag with `v0.16.0`.
+- Partial: T-169 and T-170 (the adoption patch for podnet; T-170 step 2
+  waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online", 2026-11-11; C49); they
@@ -62,8 +63,7 @@ next entry.
    `pod-todo`.
 5. **M1, the transport:** T-171 (podssh's services, PodUtils/podssh#186); T-151 (the watch scripts that leave podssh and podnet), T-152 (VLESS over XHTTP); T-041 when a crate or a consumer needs
    it.
-6. **M2, the relay:** T-020 (partial: podssh's take, #54), T-021,
-   T-022 (partial: podssh's take, #54), T-023, T-024,
+6. **M2, the relay:** T-021, T-023, T-024,
    T-025, T-026; then T-122, T-123, T-124, T-121, T-150 (the asks of podnet).
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
