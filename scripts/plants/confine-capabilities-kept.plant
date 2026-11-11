@@ -1,6 +1,7 @@
 # apply keeps each capability of a root payload: the drop is not called.
+# The test runs as root (sudo -n on a runner), as it skips as another user.
 ENTRY=T-221
 GROUP=confine
 EXPECT='no capability kept'
-RUN='cargo test -q -p pod-confine --all-features --test apply a_confined_root'
+RUN='sh scripts/ci/root-confine-tests.sh a_confined_root'
 LIMIT=900
