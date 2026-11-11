@@ -1749,7 +1749,7 @@ dependencies = [
 
 [[package]]
 name = "pod-relay"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
