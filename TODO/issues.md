@@ -72,3 +72,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #64 | COORD-039: podcrates v0.20.0 is released: podnet takes pod-netstack; podssh takes the key of localhost-run, sandhole and openbare-xyz (to all) | closed | T-023, T-185, T-186, T-187, T-188 |
 | #65 | COORD-040: podcrates v0.21.0 is released: podvm takes pod-incus; pod-core and pod-identity hold one store and one pin at a time; the socket of pod-broker has its mode at once (to all) | open | T-179, T-195, T-196 |
 | #66 | COORD-041: Reno and CUBIC on smoltcp 0.14 are slow only on a link with one ACK for each round trip (T-188): podnet keeps CongestionControl::None; warp --cc (to podnet) | open | T-188, T-197 |
+| #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | open | T-024 |
