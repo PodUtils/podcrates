@@ -90,6 +90,10 @@ syscalls = { version = "0.8", default-features = false }
 tar = { version = "0.4", default-features = false }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 ruzstd = "0.9"
+# The xz of a squashfs modloop (pod-guest, call C58): a decoder in Rust with
+# no unsafe code. `bcj`: some blocks of a modloop carry the x86 BCJ filter.
+# No crc64 and no sha256: squashfs streams carry crc32.
+xz4rust = { version = "0.2.3", default-features = false, features = ["alloc", "bcj", "no_unsafe"] }
 
 # TLS with SRP (pod-gsr): rustls has no SRP cipher suite. The feature
 # `vendored` builds OpenSSL from source (openssl-src), so each binary links

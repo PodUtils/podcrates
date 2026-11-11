@@ -51,6 +51,8 @@ pod-job = { path = "../crates/pod-job" }
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
 pod-extract = { path = "../crates/pod-extract" }
 pod-enter = { path = "../crates/pod-enter" }
+# The squashfs modloop of a guest kernel (T-206).
+pod-guest = { path = "../crates/pod-guest" }
 # The feature `fuzzing` gives the readers of a response, a cookie reply and
 # a transport message on fixed keys.
 pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
@@ -60,6 +62,12 @@ serde_json = "1"
 # A crash names its line.
 [profile.release]
 debug = 1
+
+# The stable test runs the crypto of pod-wg and pod-e2e on 2000 mutations
+# of each seed. With no optimization of the crates under test, it takes
+# minutes (T-206, Done).
+[profile.dev.package."*"]
+opt-level = 2
 
 [[bin]]
 name = "one_line"
@@ -267,6 +275,13 @@ bench = false
 [[bin]]
 name = "elf_header"
 path = "fuzz_targets/elf_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "squashfs_image"
+path = "fuzz_targets/squashfs_image.rs"
 test = false
 doc = false
 bench = false

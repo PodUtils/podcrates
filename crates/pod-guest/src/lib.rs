@@ -23,6 +23,10 @@
 //! `cmd.exe` agent that a scheduled task starts, [`agent`]) and the DOS
 //! flavour ([`dos`]: SeaBIOS, IDE, a line typed into the console).
 //!
+//! The crate also reads the squashfs modloop of a guest kernel
+//! ([`modloop::modules`], over the reader of [`squashfs`]): the modules that
+//! a guest needs, with their dependencies and a `modules.dep` of the set.
+//!
 //! The crate reads no variable of the environment and prints nothing. The
 //! caller gives the names and the places in [`Settings`]. At run time the
 //! crate starts the emulator and `qemu-img` that the caller names.
@@ -36,8 +40,10 @@ pub mod dos;
 pub mod emulator;
 pub mod fat16;
 pub mod fetch;
+pub mod modloop;
 pub mod plan;
 pub mod qmp;
+pub mod squashfs;
 
 mod provision;
 mod scratch;
@@ -95,6 +101,18 @@ impl Settings {
 /// in the chain.
 pub(crate) fn io_at(path: &Path, e: std::io::Error) -> Failure {
     Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("{}: {e}", path.display()), e)
+}
+
+/// The cause of type `T` in the chain of `f`.
+pub(crate) fn cause_of<T: std::error::Error + 'static>(f: &Failure) -> Option<&T> {
+    let mut next = std::error::Error::source(f);
+    while let Some(e) = next {
+        if let Some(t) = e.downcast_ref::<T>() {
+            return Some(t);
+        }
+        next = e.source();
+    }
+    None
 }
 
 /// A failure of the guest, with no I/O cause.

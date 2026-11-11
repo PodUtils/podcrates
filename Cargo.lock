@@ -1621,6 +1621,7 @@ dependencies = [
  "pod-hostprobe",
  "pod-testkit",
  "sha2 0.11.1",
+ "xz4rust",
 ]
 
 [[package]]
@@ -3190,6 +3191,12 @@ dependencies = [
  "rand_core 0.10.1",
  "zeroize",
 ]
+
+[[package]]
+name = "xz4rust"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "606930b71bad6379f366994e4e6252a3462fa28bfc3695c33b07bef8f967d6d6"
 
 [[package]]
 name = "yoke"

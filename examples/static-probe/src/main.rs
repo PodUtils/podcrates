@@ -189,8 +189,13 @@ fn guest() -> Option<String> {
     let digest =
         pod_guest::fetch::store(std::io::empty(), Some(0), &dest, None, ceiling).unwrap_or_else(|e| e.to_string());
     let _ = std::fs::remove_file(&dest);
+    // An image of 96 zero bytes that the optimizer cannot see: the squashfs
+    // reader and its xz decoder link in.
+    let image = std::io::Cursor::new(std::hint::black_box([0u8; 96]));
+    let modloop = pod_guest::modloop::modules(image, "probe", ["tun"])
+        .map_or_else(|e| e.to_string(), |set| set.size().to_string());
     Some(format!(
-        "pod-guest: a mailbox of {files} files, {} arguments of the UEFI line, sha256 of nothing {digest}",
+        "pod-guest: a mailbox of {files} files, {} arguments of the UEFI line, sha256 of nothing {digest}, {modloop}",
         pod_guest::argv(&pod_guest::Plan {
             emulator: "qemu-system-x86_64".into(),
             accel: pod_guest::accel_for(Some(pod_hostprobe::machine::Profile::Tcg)).unwrap_or(pod_guest::Accel::Tcg),

@@ -1,7 +1,8 @@
-//! The fuzz targets of four parsers of untrusted input that podvm reads
+//! The fuzz targets of the parsers of untrusted input that podvm reads
 //! through podcrates (T-173, PodUtils/podvm#241): the manifest and the
-//! challenge of a registry, a layer of an image, and the ELF header of a
-//! payload.
+//! challenge of a registry, a layer of an image, the ELF header of a
+//! payload, and the squashfs modloop of a guest kernel (T-206,
+//! PodUtils/podvm#260).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -164,6 +165,77 @@ pub fn elf_header(data: &[u8]) {
     }
 }
 
+/// The release and the names of the module set of `squashfs_image`: the
+/// seed `modloop` holds them.
+const RELEASE: &str = "6.1.0-0-test";
+const NAMES: [&str; 3] = ["a", "wire-guard", "code"];
+/// The most inodes of one walk of `squashfs_image`.
+const WALK: usize = 256;
+
+/// A squashfs image (`pod_guest::squashfs::Image`, T-206), as a modloop
+/// that a mirror serves: the superblock and the compressor options, the
+/// inode, directory, fragment, id and export tables, and the blocks (xz
+/// with and without the x86 filter, stored, sparse). Each call gives a
+/// value or a fault: a file that reads has its size, and a second walk of
+/// the same bytes gives the same answer. The module set of the release
+/// holds each module once, with one line of its `modules.dep` for each.
+pub fn squashfs_image(data: &[u8]) {
+    let first = squashfs_walk(data);
+    assert_eq!(first, squashfs_walk(data));
+    if let Ok(set) = pod_guest::modloop::modules(std::io::Cursor::new(data), RELEASE, NAMES) {
+        let mut paths: Vec<&str> = set.modules.iter().map(|m| m.path.as_str()).collect();
+        let n = paths.len();
+        paths.sort_unstable();
+        paths.dedup();
+        assert_eq!(paths.len(), n, "a module twice");
+        assert_eq!(set.dep.lines().count(), n, "{}", set.dep);
+    }
+}
+
+/// Each inode that a walk of `data` reaches, up to [`WALK`]: its path and
+/// the size of its bytes, or the text of its fault.
+fn squashfs_walk(data: &[u8]) -> Vec<String> {
+    use pod_guest::squashfs::{Image, Kind};
+    let mut out = Vec::new();
+    let mut image = match Image::open(std::io::Cursor::new(data)) {
+        Ok(image) => image,
+        Err(e) => return vec![e.to_string()],
+    };
+    out.push(format!("{:?}", image.ids()));
+    let mut todo = match image.root() {
+        Ok(root) => vec![(String::new(), root)],
+        Err(e) => return vec![e.to_string()],
+    };
+    while let Some((path, inode)) = todo.pop() {
+        if out.len() > WALK {
+            break;
+        }
+        match inode.kind {
+            Kind::Directory(d) => match image.entries(&d) {
+                Ok(entries) => {
+                    for e in entries {
+                        let name = format!("{path}/{}", String::from_utf8_lossy(&e.name));
+                        match image.inode(e.inode) {
+                            Ok(i) => todo.push((name, i)),
+                            Err(f) => out.push(format!("{name}: {f}")),
+                        }
+                    }
+                }
+                Err(f) => out.push(format!("{path}: {f}")),
+            },
+            Kind::File(f) => match image.read(&f) {
+                Ok(bytes) => {
+                    assert_eq!(bytes.len() as u64, f.size(), "{path}");
+                    out.push(format!("{path}: {} bytes", bytes.len()));
+                }
+                Err(e) => out.push(format!("{path}: {e}")),
+            },
+            other => out.push(format!("{path}: {other:?}")),
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,5 +290,29 @@ mod tests {
         assert!(parse("static").expect("the static program").interp.is_none());
         assert!(parse("dynamic").expect("the dynamic program").interp.is_some_and(|i| i.contains("ld-")));
         assert!(parse("not-elf").is_err());
+    }
+
+    /// The seeds of `squashfs_image` reach past the superblock: each image
+    /// walks with no fault, and the seed `modloop` gives its module set.
+    #[test]
+    fn the_seeds_of_the_squashfs_target_read() {
+        for name in ["modloop", "tree", "options"] {
+            let walk = squashfs_walk(&seed("squashfs_image", name));
+            assert!(walk.iter().any(|l| l.ends_with(" bytes")), "{name}: {walk:?}");
+            assert!(!walk.iter().any(|l| l.contains("squashfs:")), "{name}: {walk:?}");
+        }
+        let modloop = seed("squashfs_image", "modloop");
+        let set = pod_guest::modloop::modules(std::io::Cursor::new(&modloop), RELEASE, NAMES).expect("the module set");
+        let paths: Vec<&str> = set.modules.iter().map(|m| m.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            [
+                "kernel/lib/c.ko",
+                "kernel/lib/b.ko",
+                "kernel/net/a.ko",
+                "kernel/drivers/net/wire-guard.ko",
+                "kernel/arch/x86/code.ko"
+            ]
+        );
     }
 }

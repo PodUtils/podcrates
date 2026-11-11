@@ -1,6 +1,6 @@
 [package]
 name = "pod-guest"
-description = "A disposable QEMU guest on Linux: the boot plan on KVM or TCG, a per-run overlay, a FAT16 mailbox, a cmd.exe or DOS agent, QMP, a bounded stop, and the store of a base image with its pinned digest."
+description = "A disposable QEMU guest on Linux: the boot plan on KVM or TCG, a per-run overlay, a FAT16 mailbox, a cmd.exe or DOS agent, QMP, a bounded stop, the store of a base image with its pinned digest, and the module set of a guest kernel from its squashfs modloop."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,8 @@ pod-core = { workspace = true }
 pod-hostprobe = { workspace = true }
 # The digest of a stored base image.
 sha2 = { workspace = true }
+# The xz blocks of a squashfs modloop, with the x86 BCJ filter.
+xz4rust = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }

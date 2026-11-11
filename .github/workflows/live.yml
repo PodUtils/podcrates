@@ -1,8 +1,8 @@
 name: live
 
 # The tests with `#[ignore]` that need a live service: the relay of podssh,
-# the public DoH resolvers, a host that offers Multipath TCP and a public
-# registry. They run
+# the public DoH resolvers, a host that offers Multipath TCP, a public
+# registry and Alpine's mirror. They run
 # each day at an off-peak hour and by hand (docs/decisions.md, C24), with
 # egress to the relay and to the resolvers. The checks of each push do not
 # need the network (ci.yml).
@@ -51,3 +51,13 @@ jobs:
       # A rate limit of the registry (429) is a skip that the log names.
       - name: pod-oci, a pull of the pinned guest userland from ECR Public
         run: cargo test --locked -p pod-oci --test live -- --ignored --nocapture
+      # The modloop of the newest Alpine 3.22 (T-206): each xz stream of the
+      # image decodes, some with the x86 BCJ filter, and the module set of
+      # podvm's network lab comes with each dependency.
+      - name: pod-guest, the modloop of Alpine's virt kernel
+        run: |
+          set -eu
+          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/modloop-virt" \
+            https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/x86_64/netboot/modloop-virt
+          POD_GUEST_MODLOOP="$RUNNER_TEMP/modloop-virt" \
+            cargo test --locked -p pod-guest --test modloop_live -- --ignored --nocapture
