@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/apply.rs b/crates/pod-confine/src/apply.rs
+index eba8554..8c552fd 100644
+--- a/crates/pod-confine/src/apply.rs
++++ b/crates/pod-confine/src/apply.rs
+@@ -138,7 +138,7 @@ impl fmt::Display for Refusal {
+ pub fn apply(c: &Compiled) -> Result<(), Refusal> {
+     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
+     k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
+-    drop_caps(c.keep_caps)?;
++    let _ = c.keep_caps;
+     let attr =
+         k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: c.scoped };
+     let ruleset = k::landlock_create_ruleset(&attr).map_err(|e| refuse(Call::CreateRuleset, 0, e))?;

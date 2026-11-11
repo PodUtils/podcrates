@@ -1,10 +1,10 @@
 diff --git a/crates/pod-confine/src/apply.rs b/crates/pod-confine/src/apply.rs
-index a0944af..045abb6 100644
+index eba8554..019175a 100644
 --- a/crates/pod-confine/src/apply.rs
 +++ b/crates/pod-confine/src/apply.rs
-@@ -124,7 +124,7 @@ pub fn apply(c: &Compiled) -> Result<(), Refusal> {
-     let refuse = |call: Call, index: usize, errno: Errno| Refusal { call, index: index as u16, errno };
+@@ -140,7 +140,7 @@ pub fn apply(c: &Compiled) -> Result<(), Refusal> {
      k::set_no_new_privs().map_err(|e| refuse(Call::NoNewPrivs, 0, e))?;
+     drop_caps(c.keep_caps)?;
      let attr =
 -        k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: c.scoped };
 +        k::LandlockRulesetAttr { handled_access_fs: c.handled_fs, handled_access_net: c.handled_net, scoped: 0 };
