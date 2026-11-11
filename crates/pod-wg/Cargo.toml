@@ -1,0 +1,8 @@
+[package]
+name = "pod-wg"
+version.workspace = true
+# The edition of podnet's root crate; the next commit moves it to 2024.
+edition = "2021"
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true

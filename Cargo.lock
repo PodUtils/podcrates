@@ -1864,6 +1864,10 @@ name = "pod-todo"
 version = "0.21.0"
 
 [[package]]
+name = "pod-wg"
+version = "0.21.0"
+
+[[package]]
 name = "pod-wormhole"
 version = "0.21.0"
 dependencies = [

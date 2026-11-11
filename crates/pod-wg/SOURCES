@@ -1,0 +1,20 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podnet 54d7ed475ba83a3e467403c3c23f776719d15d94
+# The cut (GitHub #67, COORD-042; podnet has not answered yet): the
+# WireGuard initiator, sans-IO, and its driver over a socket of the caller.
+# wg.rs: all but Peer::from_exported (it reads the device record of
+# `warp export`, a format of WARP), Sock::Stack and connect_inside (they
+# name the userspace stack of src/warp/ip.rs); the driver takes any
+# pod_core::Datagrams in place of the stack, and podnet gives its stack as
+# one. standin.rs: all but the test wireguard_probe_renews_a_dead_leg (it
+# runs the session, the stack and the liveness of src/warp/). tun/probe.rs:
+# of it only tcp_packet, sum_of and checksum, which the stand-in uses for
+# the SYN-ACK of the TCP probe.
+dir src/warp/wg
+file 032e61ce5fea5ffb2887515fbe527468ae4c2e79 src/warp/wg.rs -> crates/pod-wg/src/wg.rs
+file 14ad4c863039540501cfb1b713c9d739547f0bf2 src/warp/wg/standin.rs -> crates/pod-wg/src/wg/standin.rs
+file b30e286027fba7596c26fa00bb9460669a368d2e src/warp/tun/probe.rs -> crates/pod-wg/src/wg/standin.rs
