@@ -1,7 +1,8 @@
 name: live
 
 # The tests with `#[ignore]` that need a live service: the relay of podssh,
-# the public DoH resolvers and a host that offers Multipath TCP. They run
+# the public DoH resolvers, a host that offers Multipath TCP and a public
+# registry. They run
 # each day at an off-peak hour and by hand (docs/decisions.md, C24), with
 # egress to the relay and to the resolvers. The checks of each push do not
 # need the network (ci.yml).
@@ -47,3 +48,6 @@ jobs:
           cat "$RUNNER_TEMP/names-proxy.log"
       - name: pod-proxy, Multipath TCP to the relay's edge
         run: cargo test --locked -p pod-proxy --test mptcp -- --ignored --nocapture
+      # A rate limit of the registry (429) is a skip that the log names.
+      - name: pod-oci, a pull of the pinned guest userland from ECR Public
+        run: cargo test --locked -p pod-oci --test live -- --ignored --nocapture
