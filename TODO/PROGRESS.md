@@ -6,12 +6,13 @@
 
 - The sessions of PodUtils paused on 2026-11-10 (the owner; GitHub #53).
   `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.17.0` at `4da8fb3` (`docs/releases/v0.17.0.md`; ci
-  42951104681, adoption 42951104743, plants 42951104733, release
-  42952937378, the dry run of `publish.yml` 42952959048 green): `pod-job`, the
-  mutual TLS of `pod-tls`, the limits of `pod-enter`, the hosts of GitHub
-  Actions in `pod-services`. The hand-off is GitHub #58 (COORD-033); the
-  one of `v0.16.0` is #57.
+- Last release: `v0.18.0` at `c284d3a` (`docs/releases/v0.18.0.md`; ci
+  42958662146, release 42962356279, the dry run of `publish.yml`
+  42962890207 green): the names mode of `pod-broker`, one schema rule,
+  the policy of an offer, three tunnels and the key of `ssh-j`,
+  `Rewound::new`, four fuzz targets of podvm. The hand-off is GitHub #60
+  (COORD-035); the one of `v0.17.0` is #58. The fuzz run 42958692411 on
+  the candidate found T-183 and T-184, fixed on `main` for `v0.19.0`.
 - The consumers: podssh is on `v0.16.0` (`fab57923`; it took
   `pod-wormhole` at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
   took `pod-hold` at `b759937`); podvm is on `v0.17.0` (`522b437`: the
