@@ -1,5 +1,5 @@
 //! The cleartext road on the relay's port (podssh T-326, the operator's ruling
-//! podssh Q45), tried last by [`crate::open`]: once each relay host failed, one host
+//! podssh Q45), tried last by [`mod@crate::open`]: once each relay host failed, one host
 //! of each deployment whose TLS failed on the way
 //! ([`pod_ws::cleartext::tls_failed`]) is asked in cleartext, through the
 //! same proxy, for a token of one session (`POST /v1/mint?once=1`, signed by

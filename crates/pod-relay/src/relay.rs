@@ -244,7 +244,7 @@ const CLOSED_AT_ONCE: &str = "target closed before sending anything";
 
 /// Whether a relay's Close of a session to an IPv6 target says that the
 /// relay reached no IPv6 host (podssh T-253): the default relay's `1011` with
-/// [`CLOSED_AT_ONCE`], or the role's own words.
+/// `CLOSED_AT_ONCE`, or the role's own words.
 pub fn unreached_ipv6(code: Option<u16>, reason: &str) -> bool {
     code == Some(1011) && (reason.contains(CLOSED_AT_ONCE) || reason.contains(NO_IPV6_ROUTE))
 }

@@ -5,7 +5,7 @@
 //! not opened within [`STAGGER`], or at once when it failed, and keeps the
 //! first that opens; `parallel` starts each host at once; `serial` goes one
 //! at a time. [`race`] runs any attempt, so that its tests drive attempts
-//! that open, fail or stay silent on a paused clock; [`crate::open`] gives it
+//! that open, fail or stay silent on a paused clock; [`mod@crate::open`] gives it
 //! the relay's.
 
 use std::collections::HashMap;
