@@ -9,8 +9,10 @@ use pod_proxy::{Carrier, NoProxy, Proxy, authority, digest, proxy_auth};
 use crate::{is_one_line, text};
 
 mod job;
+mod podvm;
 
 pub use job::job_offer;
+pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest};
 
 /// Text from a peer made safe for one line (`pod_core::text::one_line`;
 /// podssh `one_line`): no control or bidirectional formatting character

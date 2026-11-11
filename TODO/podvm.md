@@ -2429,7 +2429,7 @@ ruling "Fuzz targets", 2026-11-11; PodUtils/podvm@T-1684)
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2475,6 +2475,41 @@ input that a run finds goes to the crate's tests first.
 sh scripts/fuzz.sh
 cargo test --manifest-path fuzz/Cargo.toml
 ```
+
+## Done
+
+2026-11-11. Four targets in `fuzz/` (`src/targets/podvm.rs`), each with its
+binary, its seeds and a row of `fuzz/README.md`; `fuzz.sh` and `fuzz.yml`
+run each target that `cargo fuzz list` gives, so they need no change.
+
+- `oci_manifest`: `Fetched::parse` with the `Content-Type` that the first
+  byte picks; the document's own `mediaType` decides over the header; the
+  digest of each descriptor reads. Seeds: an OCI index and manifest, a
+  docker list and manifest named by the header only, an index whose header
+  says manifest, a schema 1 document.
+- `oci_challenge`: the parse of a challenge, reached through
+  `pod_oci::registry::fuzz_parse_challenge` (the new feature `fuzzing` of
+  `pod-oci`, or `--cfg fuzzing`; no consumer turns it on). Seeds: Docker
+  Hub, a scope with a comma in quotes, Basic, `Bearer` alone.
+- `extract_layer`: `remove::collect`, `remove::apply` and `apply_layer` in
+  a fresh directory with the root four levels deep; no entry escapes the
+  root; the run removes the directory and follows no symbolic link. Seeds:
+  one layer in tar, gzip and zstd (a frame of raw blocks, written here),
+  and three that climb out (`../../escape`, a link to `../../../..`, an
+  absolute path).
+- `elf_header`: `abi::Elf::parse` gives the same answer twice and no NUL in
+  a name. Seeds: a static and a dynamic program of two lines, built with
+  `cc -Os -s`, and a shell script.
+
+`pod_enter::abi::Elf::parse`, `pod_oci::spec::Fetched::parse` and
+`pod_extract::apply::apply_layer` were public: no change of API.
+
+- Tests: `the_seeds_of_the_podvm_targets_read` (each document parses as
+  its type, each compression applies and writes `etc/hostname`, each
+  program parses) and `a_challenge_keeps_a_comma_in_quotes`;
+  `each_target_survives_mutations` runs 2000 mutations of each seed set.
+- Not run here: libFuzzer (the pinned nightly is not installed in this
+  sandbox). The next run of `fuzz.yml` runs the four targets.
 
 # T-175: `pod-supervise`: private modes for the table, the logs and each container directory (PodUtils/podvm#244)
 

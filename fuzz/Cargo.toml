@@ -42,6 +42,11 @@ pod-session = { path = "../crates/pod-session" }
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
 pod-job = { path = "../crates/pod-job" }
+# The parsers of podvm (T-173). The feature `fuzzing` of pod-oci exposes
+# the parse of a challenge of a registry.
+pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
+pod-extract = { path = "../crates/pod-extract" }
+pod-enter = { path = "../crates/pod-enter" }
 # A job offer is JSON.
 serde_json = "1"
 
@@ -206,6 +211,34 @@ bench = false
 [[bin]]
 name = "job_offer"
 path = "fuzz_targets/job_offer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oci_manifest"
+path = "fuzz_targets/oci_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oci_challenge"
+path = "fuzz_targets/oci_challenge.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "extract_layer"
+path = "fuzz_targets/extract_layer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "elf_header"
+path = "fuzz_targets/elf_header.rs"
 test = false
 doc = false
 bench = false

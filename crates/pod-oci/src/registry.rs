@@ -429,5 +429,13 @@ mod wire;
 use wire::backoff;
 pub use wire::redact;
 
+/// The parameters of a `WWW-Authenticate` challenge of a registry, for the
+/// fuzz target `oci_challenge` (T-173): the parse of the client, private
+/// here.
+#[cfg(any(fuzzing, feature = "fuzzing"))]
+pub fn fuzz_parse_challenge(challenge: &str) -> std::collections::HashMap<String, String> {
+    wire::parse_challenge(challenge)
+}
+
 #[cfg(test)]
 mod tests;

@@ -1,0 +1,1 @@
+Bearer realm="https://x/token",scope="repository:a:pull,push",service="x"

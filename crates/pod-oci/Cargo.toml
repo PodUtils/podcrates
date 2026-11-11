@@ -7,6 +7,12 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# The parse of a challenge of a registry (`fuzz_parse_challenge`), for the
+# fuzz targets of fuzz/ (T-173). The `--cfg fuzzing` of cargo-fuzz also
+# exposes it. No consumer turns this on.
+fuzzing = []
+
 # Linux only: on another target the crate is empty.
 [target.'cfg(target_os = "linux")'.dependencies]
 pod-core = { workspace = true }
@@ -27,3 +33,9 @@ pod-testkit = { workspace = true }
 pod-services = { workspace = true }
 # The tests of TLS run on ring.
 rustls = { workspace = true, features = ["ring"] }
+
+# cargo-fuzz builds with `--cfg fuzzing` (T-173), under which the parse of a
+# challenge, private here, is reachable by the fuzzer, as with the feature
+# `fuzzing`.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
