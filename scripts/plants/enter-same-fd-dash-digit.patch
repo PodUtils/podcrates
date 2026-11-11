@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/tests.rs b/crates/pod-enter/src/tests.rs
+index f6f1a3b..081b7b5 100644
+--- a/crates/pod-enter/src/tests.rs
++++ b/crates/pod-enter/src/tests.rs
+@@ -252,7 +252,7 @@ fn a_descriptor_passed_onto_its_own_number_reaches_the_payload() {
+         moved
+     };
+     assert!(w >= 10, "the write end is not on a number of two digits: {w}");
+-    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("echo passed >/proc/self/fd/{w}")];
++    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("echo passed >&{w}")];
+     let plan = Plan {
+         argv: argv.clone(),
+         env: vec!["PATH=/bin:/usr/bin".to_string()],

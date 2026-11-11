@@ -1,0 +1,7 @@
+# The payload writes to the passed descriptor with `>&N`, which dash takes
+# for one digit only; the test puts the descriptor on two digits.
+ENTRY=T-216
+GROUP=enter
+EXPECT='left: 2'
+RUN='cargo test -q -p pod-enter --all-features --lib a_descriptor_passed_onto_its_own_number'
+LIMIT=900
