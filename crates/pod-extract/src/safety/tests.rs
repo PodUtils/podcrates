@@ -12,6 +12,11 @@ fn absolute_and_dotdot_are_refused_lexically() {
     assert!(is_archive_root("."));
     assert!(is_archive_root("/"));
     assert!(!is_archive_root(""));
+    // With its type: a directory with an empty name is the root; a file is not.
+    assert!(is_root_entry("", true));
+    assert!(!is_root_entry("", false));
+    assert!(is_root_entry("./", false));
+    assert!(!is_root_entry("./etc", true));
     assert!(!is_archive_root("./etc"));
 }
 

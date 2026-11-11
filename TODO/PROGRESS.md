@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 207 entries: 59 open, 3 partial, 0 blocked, 145 done.
+`TODO/INDEX.md` holds 208 entries: 60 open, 3 partial, 0 blocked, 145 done.
 
 ## State
 
@@ -56,7 +56,7 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects of the consumers:** none open.
+1. **The defects of the consumers:** T-208 (`pod-extract`, PodUtils/podvm#261).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need.

@@ -3191,3 +3191,43 @@ of cfb) reuses its cells later.
 cargo test -p pod-netlab
 ```
 
+# T-208: `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261)
+
+**Source:** PodUtils/podvm#261 (COORD-042 of podvm; PodUtils/podvm@T-1659, issue 172)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm run` refuses `public.ecr.aws/lambda/provided:al2023`: its layer
+`sha256:ed646b77...` (gzip, 88128 bytes) has as its first entry the root
+directory of the layer with an empty name (`name '' type 5 mode 0700`).
+`apply_layer` takes `./`, `.` and `/` as the root and refuses each other
+empty name, so the whole layer is refused.
+
+## Premise
+
+- Read: podvm's ask; `crates/pod-extract/src/safety.rs` (`is_archive_root`
+  refuses `""` on purpose) and `crates/pod-extract/src/apply.rs` (the
+  check of the root before `components`).
+- `remove::collect` takes an empty name as `Kind::Normal` and makes no
+  operation of it.
+
+## Approach
+
+`safety::is_root_entry(path, is_dir)`: the archive root, or an empty name
+of the directory type. `apply_layer` skips it, as it skips `./` (the mode
+of `.` is not applied there either). An empty name of each other type
+stays refused. Tests: `is_root_entry` of each case; a layer whose first
+entry is `""` of the directory type applies, and a file with an empty name
+is still refused.
+
+## Prove
+
+```sh
+cargo test -p pod-extract
+```
+

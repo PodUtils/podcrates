@@ -109,9 +109,10 @@ pub fn apply_layer(
         // with a `./` prefix has `./` as its first member, and it names the
         // destination: there is nothing to make and nothing to refuse. The
         // Debian images of `public.ecr.aws` have it; a refusal there refuses
-        // each layer of each Debian image. Only the root: an entry with an
-        // empty name is still refused, as the crate cannot put it anywhere.
-        if safety::is_archive_root(&path) {
+        // each layer of each Debian image. A directory with an empty name is
+        // the root too (PodUtils/podvm#261). Another entry with an empty name
+        // is still refused, as the crate cannot put it anywhere.
+        if safety::is_root_entry(&path, header.entry_type().is_dir()) {
             st.skipped += 1;
             let k = "ArchiveRoot".to_string();
             if !st.skipped_kinds.contains(&k) {

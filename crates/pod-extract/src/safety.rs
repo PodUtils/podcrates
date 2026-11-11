@@ -75,6 +75,15 @@ pub fn is_archive_root(path: &str) -> bool {
     t == "." || t.is_empty() && path.starts_with('/')
 }
 
+/// Is this member the root of the archive, with its type? A tar writer can
+/// name the root of a layer `""` as a directory, as others write `./`
+/// (the layers of `public.ecr.aws/lambda/provided:al2023`, PodUtils/podvm#261).
+/// Of an empty name, only a directory is the root: each other type of
+/// entry with an empty name stays refused.
+pub fn is_root_entry(path: &str, is_dir: bool) -> bool {
+    is_archive_root(path) || path.is_empty() && is_dir
+}
+
 /// The lexical half: the same rule for the path of an entry and for a
 /// rebased symlink target.
 ///

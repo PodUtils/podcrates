@@ -62,6 +62,9 @@ enum E<'a> {
     /// of the reader: the safe API cannot make a hostile layer and **can**
     /// read one. A Rust tar crate does not make the extraction safe alone.
     Raw(&'a str, &'a [u8]),
+    /// A directory whose name is written into the header past the check
+    /// of the writer: `tar::Builder` refuses an empty path.
+    RawDir(&'a str, u32),
 }
 
 /// Build one uncompressed layer.
@@ -116,6 +119,19 @@ fn layer(entries: &[E]) -> Vec<u8> {
                 // conforming reader refuses the member before the crate sees it.
                 h.set_cksum();
                 b.append(&h, Cursor::new(*data)).unwrap();
+            }
+            E::RawDir(p, mode) => {
+                h.set_entry_type(tar::EntryType::Directory);
+                h.set_mode(*mode);
+                h.set_size(0);
+                {
+                    let g = h.as_gnu_mut().expect("a GNU header");
+                    let bytes = p.as_bytes();
+                    assert!(bytes.len() < g.name.len(), "the crafted name must fit");
+                    g.name[..bytes.len()].copy_from_slice(bytes);
+                }
+                h.set_cksum();
+                b.append(&h, std::io::empty()).unwrap();
             }
         }
     }
@@ -377,3 +393,18 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
 
 mod records;
 mod whiteouts;
+
+/// A layer whose first entry is the root as a directory with an empty name
+/// (`public.ecr.aws/lambda/provided:al2023`, PodUtils/podvm#261) applies:
+/// the root entry is skipped, as `./` is, and the next entry is written. A
+/// file with an empty name is still refused.
+#[test]
+fn a_root_directory_with_an_empty_name_is_the_root() {
+    let s = Scratch::new("emptyroot");
+    let l = layer(&[E::RawDir("", 0o700), E::File("THIRD-PARTY-LICENSES.txt", b"text", 0o644)]);
+    run(s.path(), &[l]).expect("the layer applies");
+    assert_eq!(std::fs::read(s.path().join("THIRD-PARTY-LICENSES.txt")).unwrap(), b"text");
+    let r = refusal_of(run(s.path(), &[layer(&[E::Raw("", b"x")])]));
+    assert_eq!(r.entry, "");
+}
+
