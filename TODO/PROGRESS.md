@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 202 entries: 58 open, 3 partial, 0 blocked, 141 done.
+`TODO/INDEX.md` holds 203 entries: 58 open, 3 partial, 0 blocked, 142 done.
 
 ## State
 
@@ -23,6 +23,9 @@
   `names_upstream` and the flagged rules).
 - `pod-e2e` (T-021) is done: the release `v0.22.0` and podssh's take of
   `adoption/podssh/pod-e2e.patch` (at podssh `74760e8`) remain.
+- `pod-wg` (T-024, call C56) is done: the release `v0.22.0` and podnet's take
+  of `adoption/podnet/pod-wg.patch` (at podnet `54d7ed4`; the cut of
+  PodUtils/podnet#447; GitHub #67) remain.
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -70,7 +73,8 @@ next entry.
 5. **M1, the transport:** T-174 (a Trojan node); T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-024, T-025, T-026; then T-122,
+6. **M2, the relay:** T-025, T-026; then T-204 (a random failure of
+   `pod-session`); then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197.
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
@@ -90,7 +94,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C55), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C56), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

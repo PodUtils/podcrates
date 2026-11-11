@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**202 entries: 58 open, 3 partial, 0 blocked, 141 done.**
+**203 entries: 58 open, 3 partial, 0 blocked, 142 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 15 | 0 | 0 | 42 | 57 |
-| P2 | 26 | 2 | 0 | 67 | 95 |
+| P2 | 26 | 2 | 0 | 68 | 96 |
 | P3 | 17 | 1 | 0 | 30 | 48 |
-| **All** | 58 | 3 | 0 | 141 | 202 |
+| **All** | 58 | 3 | 0 | 142 | 203 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -70,7 +70,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-021](relay.md) | P1 | M | M2 | feature | done | `pod-e2e`: the end-to-end channel (Noise XX) |
 | [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
-| [T-024](relay.md) | P2 | S | M2 | feature | open | `pod-wg`: the WireGuard initiator |
+| [T-024](relay.md) | P2 | S | M2 | feature | done | `pod-wg`: the WireGuard initiator |
 | [T-025](relay.md) | P1 | L | M2 | feature | open | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
 | [T-026](relay.md) | P1 | M | M2 | feature | open | `pod-relay`: podnet's relay client and its plain reverse mode |
 | [T-027](adapters.md) | P2 | S | M3 | feature | open | `pod-transit`: the transit relay carrier |
@@ -249,3 +249,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-200](transport.md) | P3 | S | M1 | feature | open | `pod-services`: a public Bare node whose WebSocket passes (PodUtils/podssh@T-740) |
 | [T-201](podvm.md) | P3 | M | M1 | feature | open | `pod-hold`: the veth wire of the netns hold when the namespace has no `/dev/net/tun` (PodUtils/podnet#446) |
 | [T-202](podvm.md) | P3 | S | M1 | measurement | open | `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063) |
+| [T-204](relay.md) | P2 | S | M2 | defect | open | `pod-session`: `a_session_moves_while_both_ends_send_at_full_speed` lost its link one time in a run of the workspace's tests |

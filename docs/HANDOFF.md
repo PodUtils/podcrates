@@ -55,6 +55,14 @@ page current; remove a line when its work is done.
   podssh's `tests/e2e_layered.rs` comes with `pod-relay` (T-025). A
   trial of a crate with a digit in its name needs `040f3ea` (the pattern of
   `scripts/adoption.sh`).
+- `pod-wg` (T-024, done; call C56): the release `v0.22.0` and podnet's take
+  remain. `adoption/podnet/pod-wg.patch` (podnet `54d7ed4`, the commit that
+  PodUtils/podnet#447 holds) is the hand-off; its checks passed here (the
+  patch applies, podnet's record, clippy, rustfmt, cargo-deny,
+  `cargo test -p podnet --lib`: 457 passed), and `adoption.yml` runs the
+  whole `.run`. Tell podnet on GitHub #67: the defects that the crate fixed
+  (the T-024 Done section), the cookie, and that its take moves from
+  `v0.21.0` (`54bd958`). podnet answers on #67 with the commit of its take.
 - At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
   the hand-off): add the `taken` line to the crate's `SOURCES`
   (`check-sources.py` with clones must show 0 changes), remove the trial

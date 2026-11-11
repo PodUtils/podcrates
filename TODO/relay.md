@@ -737,7 +737,7 @@ of `SMOLTCP_IFACE_MAX_ADDR_COUNT`; `SOURCES` (9 files, 0 changes with
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -752,16 +752,108 @@ podnet's WireGuard leg of WARP has its own initiator, sans-IO, on ring.
 
 The procedure of `docs/design.md`, section 8.
 
+## Decision
+
+Call C56: the cut of PodUtils/podnet#447, podnet's answer to GitHub #67
+(COORD-042). The sans-IO parts of `src/warp/wg.rs` come; `Peer`, the
+socket, `connect`, `connect_inside`, `connect_on`, `WgTx`, `WgRx`,
+`WgKeepalive` and their lock stay in podnet; no driver over a trait of
+datagrams is built now.
+
 ## Prove
 
 ```sh
-cargo test -p pod-wg
+cargo test -p pod-wg --all-features
 sh scripts/agent/check.sh
 ```
 
 ## Start condition
 
 T-003 is done.
+
+## Correction
+
+2026-11-11, read at podnet `54d7ed4`: `src/warp/wg.rs` has 965 lines, and
+`src/warp/wg/standin.rs` 240. `wg.rs` imports ring (ChaCha20-Poly1305),
+curve25519-dalek (X25519), getrandom, anyhow, and for its driver tokio,
+tracing, bytes and base64 (`Peer::from_exported`); the stand-in takes
+`tcp_packet` of `src/warp/tun/probe.rs`. It has no cookie code: a cookie
+reply is an error, and no initiation has a mac2.
+
+## Done
+
+2026-11-11. Commits `22adb56` (the import of `src/warp/wg.rs` and
+`src/warp/wg/standin.rs` at podnet `54d7ed4`, with `SOURCES`), `0b91685`
+(edition 2024: `cargo fix --edition` in a scratch crate with stubs changed
+no line; one `tail_expr_drop_order` in `WgRx::recv_packet`, safe),
+`8d4c58a` (the adaptation to the cut of PodUtils/podnet#447), `1f5bf23`
+(the fuzz targets and five plants), `f105d34` (README, the static probes,
+the rows of `docs/design.md` and `README.md`, call C56), `145ff0c` and
+`3f65c98` (the trial, `adoption/podnet/pod-wg.*`), `0bb640e` (the stand-in
+under load) and the commit of this record. The release `v0.22.0` and
+podnet's take remain.
+
+- Cut (PodUtils/podnet#447, call C56): BLAKE2s, HMAC, the KDF, X25519,
+  ChaCha20-Poly1305, TAI64N, `Keys`, `Initiation`, mac1, `Session` with its
+  window of counters, and the timers of `State` and of
+  `WgKeepalive::run` as `Tunnel`, each on the caller's `now`; the
+  stand-in as the feature `standin` (`start` gives the keys and the
+  address; podnet makes its `Peer` of them). podnet keeps `Peer` with
+  `from_exported` (the device record of WARP), `Sock`, `connect`,
+  `connect_inside`, `connect_on`, `WgTx`, `WgRx`, `WgKeepalive` and the
+  lock, and the tests `no_answer_is_an_error_that_names_the_door`,
+  `a_tunnel_over_udp_carries_packets_both_ways` and
+  `wireguard_probe_renews_a_dead_leg` (they run its driver).
+- New: the cookie reply and mac2 (`Cookie`, `Initiation::add_mac2`,
+  `Received::Cookie`; XChaCha20-Poly1305 is HChaCha20 of the crate before
+  ring's AEAD, checked against RustCrypto's), `Stamps`, `initiate_from`
+  (the caller's `Entropy`), `standin::start_under_load`. API: `Keys`,
+  `initiate`, `initiate_from`, `initiate_with`, `Initiation` (`finish`,
+  `mac1`, `add_mac2`, `sender`), `Cookie`, `Session`, `Tunnel` (`rekey`,
+  `send`, `receive`, `tick`), `Outgoing`, `Received`, `Stamps`, the
+  message types, lengths and timers, `Error` (a `Failure` at the stage
+  `Warp`). With no feature the crate has no tokio
+  (`examples/static-probe-lean` links it). 13 source files, each under 500
+  lines.
+- Defects of podnet's `wg.rs` fixed in the crate, each with a test that
+  fails on the old code (run once): a response that failed its check set
+  the times of the waiting rekey to now, so bad responses held a dead path
+  open and delayed each resend (`a_bad_response_keeps_the_dead_time`);
+  `State::rekey` read the age of the session from the system clock, not
+  from the given `now` (`the_timers_of_a_tunnel`); the TAI64N timestamp
+  read the wall clock at each initiation, so a step back of the clock or
+  two initiations at one instant gave a timestamp that the responder drops
+  (`stamps_only_go_forward`); the stand-in read the type byte of an empty
+  datagram, and the panic ended its task
+  (`an_empty_datagram_does_not_stop_the_standin`); no random bytes of the
+  system was a panic (`Error::NoRandom`); a responder under load refused
+  each handshake, as no initiation had a mac2. The keys of an initiation,
+  a session and a cookie are wiped on drop. In podnet's driver (the
+  trial patch): `connect_on` read the type byte of an empty datagram from
+  the buffer of the datagram before; it reads it only when it has one.
+- Tests: `cargo test -p pod-wg --all-features`: 19 passed; the four tests
+  of `wg.rs` keep their names (`blake2s_vectors`, `hmac_and_kdf_vectors`,
+  `a_handshake_and_transport_messages`, `the_replay_window`), 15 are new.
+  The fuzz targets `wg_response`, `wg_cookie` and `wg_transport` with 14
+  seeds: `cargo test --manifest-path fuzz/Cargo.toml --lib`, 7 passed. The
+  plants `wg-mac1-unchecked`, `wg-replayed-counter-taken`,
+  `wg-timestamp-goes-back`, `wg-bad-response-resets-the-dead-time` and
+  `wg-cookie-mac2-missing`: `sh scripts/plant-each.sh`, 5 caught.
+- Static: `examples/static-probe` (feature `standin`) runs one handshake
+  with the stand-in in memory, a packet each way and a rekey; with
+  `static-probe-lean` it is static on `x86_64-unknown-linux-musl`
+  (`cargo zigbuild`, `scripts/check-static.sh`). ring stays (C8).
+- Trial: `adoption/podnet/pod-wg.patch` applies at podnet `54d7ed4`; with
+  the crates of this tree, podnet's record check, `check-size.py`,
+  `check-layers.py`, clippy of the workspace, `cargo fmt --check`,
+  `cargo deny check bans sources`, and `cargo test -p podnet --lib`: 457
+  passed (a front door under load among them). Each podcrates tag of the
+  patch moves from `v0.20.0` to `v0.22.0`; podnet took `v0.21.0` at
+  `54bd958` after `54d7ed4`, so its take moves from there.
+- `check-sources.py --clone PodUtils/podnet=CLONE pod-wg`: 3 files, 0
+  changes. In the run of `sh scripts/agent/check.sh`,
+  `a_session_moves_while_both_ends_send_at_full_speed` of `pod-session`
+  failed one time (T-204).
 
 # T-025: `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh)
 
@@ -1469,3 +1561,50 @@ now: the stacks of podnet set no controller.
 ```sh
 cargo test -p pod-netstack --lib link
 ```
+
+# T-204: `pod-session`: `a_session_moves_while_both_ends_send_at_full_speed` lost its link one time in a run of the workspace's tests
+
+**Source:** T-024 (a run of `sh scripts/agent/check.sh`).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In a run of `cargo test --workspace --all-features` (through
+`sh scripts/agent/check.sh`, 2026-11-11), the test
+`a_session_moves_while_both_ends_send_at_full_speed` of
+`crates/pod-session/tests/session_move.rs` failed:
+`no loss, no failed move: [Lost { why: "the link ended with no word from
+the far end" }, Resumed { resent: 196608, after: 385.325µs }]`. Both ends
+send at full speed and the session moves each 256 KiB; one link ended
+before the far end's word, and the session resumed. A random failure is a
+defect of the test or of the code (`docs/development.md`).
+
+## Premise
+
+- Measured: 0 failures in 20 runs of the test alone, and 0 in 60 runs of
+  its binary six at a time. The failing run had each test binary of the
+  workspace in turn, and another session may have built in the main
+  checkout at that time.
+- Not measured: the order of the end of the old link and the far end's
+  word at a move under load.
+
+## Approach
+
+1. Run the test in a loop under the load of the workspace's tests (or
+   under `stress` with each core busy) until it fails, with the events of
+   the keeper.
+2. Find the race: the old link ends before the word of the far end, or
+   the test's link drops it.
+3. Fix the cause in the code or in the test, and give the loop count in
+   the commit message.
+
+## Prove
+
+```sh
+for i in $(seq 200); do cargo test -q -p pod-session --test session_move -- a_session_moves_while_both_ends_send_at_full_speed || break; done
+```
+
