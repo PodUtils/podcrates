@@ -732,3 +732,46 @@ cargo test -p pod-mask --all-features
 The owner names the time ("later"). pmask is in rapid development; read it
 again at its newest tag first.
 
+
+# T-183: `pod-broker`: a raw byte that is not visible ASCII in a path is read as Latin-1
+
+**Source:** the run 42958692411 of `fuzz.yml` (the target `broker_target`)
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`target::normal_path` pushed each byte of a path that is not `%` as
+`char::from(byte)`. A raw UTF-8 character (`ч`, `0xd1 0x87`) became two
+Latin-1 characters, so the path that the policy checks and the far end
+gets was not the path that the job sent, and a second pass changed it
+again. A raw control byte (a tab) passed, though its escape is refused.
+The input of the run: `http://api.e/ampm/os/xle.com\xd1\x87s/x?page=1`.
+
+## Premise
+
+- Read: `crates/pod-broker/src/target.rs`; RFC 3986 (a request-target
+  holds only visible ASCII; another byte is an escape).
+
+## Approach
+
+Refuse a raw byte outside `0x21..0x7f` in a path, with the escape that it
+needs in the words. Keep the input as a test of the crate and as a seed.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --test target
+cargo test --manifest-path fuzz/Cargo.toml
+```
+
+## Done
+
+2026-11-11. `normal_path` refuses a raw byte outside `0x21..0x7f` ("a raw
+byte 0xd1 in a path: escape it as %D1"); an escape of the byte stays as
+it is. Test: `a_raw_byte_that_is_not_visible_ascii_is_refused_in_a_path`
+(`tests/target.rs`); the seed `raw-utf8-in-path` of `broker_target`. The
+stable test of `fuzz/` passes with it.

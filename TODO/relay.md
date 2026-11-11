@@ -1035,3 +1035,41 @@ has the same fix (`two_senders_on_a_full_way_each_wake`). When `1d556fb`
 reaches podnet's `main` (after podnet's `v0.4.0-beta.2`),
 `check-sources.py` shows `src/warp/quic.rs` as changed: compare the two
 fixes and move the snapshot of `crates/pod-quic/SOURCES` (M5).
+
+# T-184: `pod-wormhole`: the words of a mailbox can end with a space
+
+**Source:** the run 42958692411 of `fuzz.yml` (the target `mailbox_message`)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`message::words` makes the mailbox's words one safe line, then cuts it to
+`WORDS_MOST` characters. A cut on the space between two words left a line
+that ends with a space, which is not the one safe line that the function
+promises.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/message.rs`; the input of the run.
+
+## Approach
+
+Trim the end of the cut. Keep the input as a test and as a seed.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --lib message
+cargo test --manifest-path fuzz/Cargo.toml
+```
+
+## Done
+
+2026-11-11. `words` trims the end of the cut. The test
+`the_mailboxs_words_are_one_short_line` holds a cut on a space; the seed
+`cut-on-a-space` of `mailbox_message`. The stable test of `fuzz/` passes
+with it.

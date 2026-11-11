@@ -45,7 +45,9 @@ pub fn words(value: &Value) -> String {
         Value::String(text) => text.clone(),
         other => other.to_string(),
     };
-    pod_core::text::one_line(&text).chars().take(WORDS_MOST).collect()
+    let cut: String = pod_core::text::one_line(&text).chars().take(WORDS_MOST).collect();
+    // The cut can end on the space between two words (T-184).
+    cut.trim_end().to_string()
 }
 
 /// Lower-case hex, as the mailbox carries a body.
@@ -86,6 +88,10 @@ mod tests {
         assert_eq!(words(&json!("down for\nmaintenance")), "down for maintenance");
         assert_eq!(words(&json!({ "a": 1 })), "{\"a\":1}");
         assert_eq!(words(&json!("x".repeat(500))).len(), WORDS_MOST);
+        // A cut on the space between two words leaves no space at the end:
+        // the input of the fuzz target `mailbox_message` (T-184).
+        let cut = words(&json!(format!("{} {}", "s".repeat(WORDS_MOST - 1), "tail")));
+        assert_eq!(cut, "s".repeat(WORDS_MOST - 1));
     }
 
     #[test]

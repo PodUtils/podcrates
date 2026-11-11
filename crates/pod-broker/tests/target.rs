@@ -82,3 +82,15 @@ fn a_normal_path_keeps_each_safe_escape_in_upper_case() {
     assert_eq!(normal_path("/a%2b%7E"), Ok("/a%2B~".into()));
     assert!(normal_path("a").is_err());
 }
+
+/// A raw byte that is not visible ASCII is refused, not read as Latin-1:
+/// the input of the fuzz target `broker_target` (T-183) changed its path on
+/// each pass. Its escape stays as it is.
+#[test]
+fn a_raw_byte_that_is_not_visible_ascii_is_refused_in_a_path() {
+    for raw in ["/ampm/os/xle.com\u{447}s/x", "/a\tb", "/a\u{7f}", "/\u{e9}"] {
+        assert!(normal_path(raw).is_err(), "{raw:?}");
+    }
+    assert!(parse_absolute("http://api.e/ampm/os/xle.com\u{447}s/x?page=1").is_err());
+    assert_eq!(normal_path("/xle.com%D1%87s"), Ok("/xle.com%D1%87s".into()));
+}

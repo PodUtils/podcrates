@@ -208,7 +208,9 @@ pub fn parse_absolute(text: &str) -> Result<HttpTarget, Bad> {
 /// A path in its normal form: it starts with `/`, has no empty segment, no
 /// dot segment and no backslash; an escape of an unreserved character is
 /// decoded, an escape of a dot, a slash, a backslash or a control byte is
-/// refused, and each other escape is written in upper case.
+/// refused, and each other escape is written in upper case. A raw byte that
+/// is not visible ASCII is refused: a request-target holds none (RFC 3986),
+/// and its escape is the one form (T-183).
 pub fn normal_path(path: &str) -> Result<String, Bad> {
     if !path.starts_with('/') {
         return bad(format!("{path:?}: a path starts with '/'"));
@@ -222,6 +224,9 @@ pub fn normal_path(path: &str) -> Result<String, Bad> {
     while i < bytes.len() {
         let b = bytes[i];
         if b != b'%' {
+            if !(0x21..0x7f).contains(&b) {
+                return bad(format!("a raw byte 0x{b:02x} in a path: escape it as %{b:02X}"));
+            }
             out.push(char::from(b));
             i += 1;
             continue;
