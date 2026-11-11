@@ -1,4 +1,5 @@
-//! The crates of the relay's sessions: pod-session and pod-e2e.
+//! The crates of the relay's sessions and of its tunnels: pod-session,
+//! pod-e2e and pod-wg.
 
 use std::sync::Arc;
 
@@ -61,4 +62,33 @@ pub fn e2e() -> String {
         pod_e2e::Ask::read(Some("probe.example:22")),
         node.holds.len()
     )
+}
+
+/// pod-wg: one handshake with the stand-in in memory, a packet each way,
+/// and the timers of the tunnel: ChaCha20-Poly1305 of ring, X25519 of
+/// curve25519-dalek and the BLAKE2s of the crate link in.
+pub fn wg() -> String {
+    use pod_wg::standin;
+    let now = std::time::Instant::now();
+    let (keys, peer_private) = standin::keys([1, 2, 3]);
+    let shook = pod_wg::initiate(&keys).map_err(|e| e.to_string()).and_then(|init| {
+        let (response, peer_send, peer_recv, _) = standin::respond(&peer_private, &keys.public(), &init.message);
+        let mut session = init.finish(&keys, &response, now).map_err(|e| e.to_string())?;
+        let mut packet = vec![0x45, 0, 0, 20];
+        packet.resize(20, 0);
+        let out = session.seal(&keys.reserved, &packet);
+        let mut peer = standin::session(peer_send);
+        peer.remote = session.local;
+        let back = session.open(&peer.seal(&[0; 3], &packet)).map_err(|e| e.to_string())?;
+        let ok = back == packet && peer_recv == session.send_key;
+        let mut tunnel =
+            pod_wg::Tunnel::new(keys.clone(), session, pod_wg::Stamps::new(std::time::SystemTime::now(), now), now);
+        let rekey = tunnel.rekey(now + pod_wg::REKEY_AFTER * 2).map_err(|e| e.to_string())?;
+        Ok(format!(
+            "a handshake, a message of {} bytes out, a packet back: {ok}, a rekey of {:?} bytes",
+            out.len(),
+            rekey.map(|m| m.len())
+        ))
+    });
+    format!("pod-wg: {}", shook.unwrap_or_else(|e| e))
 }

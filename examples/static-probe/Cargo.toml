@@ -40,6 +40,8 @@ pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
 # `plain-ws` is out: it is for the tests of an embedder, and no binary turns it on.
 pod-ws = { workspace = true, features = ["ech"] }
 pod-wormhole = { workspace = true }
+# `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
+pod-wg = { workspace = true, features = ["standin"] }
 # A runtime of one thread for the endpoint of pod-quic and the stack of
 # pod-netstack, with the timer of its wait.
 tokio = { workspace = true, features = ["rt", "time"] }

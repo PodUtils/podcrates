@@ -2598,6 +2598,7 @@ dependencies = [
  "pod-supervise",
  "pod-term",
  "pod-tls",
+ "pod-wg",
  "pod-wormhole",
  "pod-ws",
  "serde_json",
@@ -2611,6 +2612,7 @@ version = "0.21.0"
 dependencies = [
  "pod-core",
  "pod-tls",
+ "pod-wg",
 ]
 
 [[package]]

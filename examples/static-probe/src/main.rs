@@ -107,6 +107,7 @@ fn main() {
     lines.push(mutual());
     lines.push(relay::session());
     lines.push(relay::e2e());
+    lines.push(relay::wg());
     lines.push(job());
     lines.push(incus());
     for line in lines {
