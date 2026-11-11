@@ -22,7 +22,11 @@ page current; remove a line when its work is done.
     T-182 proved by its experiment 356, clause 32).
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`, its
     `taken` line is in `crates/pod-job/SOURCES`; its T-048 at `6f24681`
-    takes `check_upstream`, `names_upstream` and the flagged rules). It uses `pod_tls::mutual` for its
+    takes `check_upstream`, `names_upstream` and the flagged rules). Its
+    state (head `fa374d7`): the donor proposals of PodUtils/podnet#439 and
+    #440 done as its #54 to #60; the official runner runs the job corpus
+    of `pod-job` on its fake path; no crate ask for podcrates; the rest
+    waits for a release of podvm or DR-7. It uses `pod_tls::mutual` for its
     remote mint (its T-031) and the pin `github-actions-runner` of
     `pod-services` for its runner image (its T-030). Next: `v0.18.0`
     (T-161, T-177, T-178). An open defect of podvm that podrunner found:
