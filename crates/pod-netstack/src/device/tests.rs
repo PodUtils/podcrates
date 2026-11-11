@@ -126,3 +126,18 @@ fn a_recording_device_taps_each_packet() {
         vec![(Direction::Outbound, b"out".to_vec()), (Direction::Inbound, b"out".to_vec())]
     );
 }
+
+/// `with_checksum` sets the checksums of the capabilities; the default
+/// computes and verifies each.
+#[test]
+fn with_checksum_sets_the_capabilities() {
+    let device = LinkDevice::link(1280);
+    let checksum = device.capabilities().checksum;
+    assert!(checksum.tcp.rx() && checksum.tcp.tx() && checksum.udp.rx() && checksum.ipv4.rx());
+    let mut tx_only = ChecksumCapabilities::default();
+    tx_only.ipv4 = smoltcp::phy::Checksum::Tx;
+    tx_only.tcp = smoltcp::phy::Checksum::Tx;
+    let checksum = device.with_checksum(tx_only).capabilities().checksum;
+    assert!(!checksum.tcp.rx() && checksum.tcp.tx() && !checksum.ipv4.rx() && checksum.ipv4.tx());
+    assert!(checksum.udp.rx(), "a field that the caller did not set keeps its default");
+}

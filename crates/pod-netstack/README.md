@@ -30,17 +30,17 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 
 | Item | Contents |
 | --- | --- |
-| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor. |
+| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor. |
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
 | `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound connection that the accept queue could not take). |
 | `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data), `abort` (a RST). A dropped stream asks the reactor to close: the socket closes when nothing is owed in either direction. |
-| `TcpListener` | `accept`, `local_addr`. |
-| `UdpSocket` | `send_to`, `recv_from`, `local_addr`, `into_datagrams`. |
-| `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). |
+| `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address). |
+| `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `into_datagrams`. A remote of the other family than the source is `InvalidInput`. |
+| `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. |
 | `Clock` | The monotonic clock in milliseconds of smoltcp. |
 | `Subnet` | The address plan: `v4`/`v4_prefix`, `v6`/`v6_prefix`, `gateway_v4`, `gateway_v6`, `gateway_for`, `contains`, `prefix_for`. Default `10.66.0.0/24` and `fd00:66::/64`. |
-| `device` | `LinkDevice` (`loopback`, `tunnel`, `tunnel_bounded`, `link`, `with_inbound_limit`, `with_stats`, `with_max_burst`, `add_local`), its tokens `LinkRx`, `LinkTx`; `PacketQueue` (bounded, with a waker); `DeviceStats`, `DeviceStatsSnapshot`; `LINK_OUTBOUND` (512), `LINK_INBOUND` (4096); `RecordingDevice`, `PacketTap`, `Direction`. |
+| `device` | `LinkDevice` (`loopback`, `tunnel`, `tunnel_bounded`, `link`, `with_inbound_limit`, `with_stats`, `with_max_burst`, `with_checksum(ChecksumCapabilities)`, `add_local`), its tokens `LinkRx`, `LinkTx`; `PacketQueue` (bounded, with a waker); `DeviceStats`, `DeviceStatsSnapshot`; `LINK_OUTBOUND` (512), `LINK_INBOUND` (4096); `RecordingDevice`, `PacketTap`, `Direction`. |
 | `hooks` | `Admit`, `GatewayService`, `GATEWAY_DATAGRAM` (1232). |
 | `MAX_ADDRESSES` | `smoltcp::config::IFACE_MAX_ADDR_COUNT` of the build (8 or more). |
 | `smoltcp` | The re-export of smoltcp, so that a consumer names one version. |
@@ -49,7 +49,7 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 
 | Trait | Called | podnet |
 | --- | --- | --- |
-| `Admit::admits(&self, target: SocketAddr) -> bool` | At each listen, connect and UDP bind (a refusal is `PermissionDenied`), and at each UDP send (a refused datagram is dropped and counted in `refused`). No admit: each target in the subnet. A closure `Fn(SocketAddr) -> bool` is an `Admit`. | `Acl` (`Acl::allows`) |
+| `Admit::admits(&self, target: SocketAddr) -> bool` | At each listen, connect and UDP bind (a refusal is `PermissionDenied`; a listen or a bind on each address gives `[::]:port`), and at each UDP send (a refused datagram is dropped and counted in `refused`). No admit: each target in the subnet. A closure `Fn(SocketAddr) -> bool` is an `Admit`. | `Acl` (`Acl::allows`) |
 | `GatewayService::port(&self) -> u16`, `GatewayService::answer(&self, from: SocketAddr, request: &[u8]) -> Option<Vec<u8>>` | The stack owns the IPv4 gateway, binds `port` there and gives each datagram (at most `GATEWAY_DATAGRAM` bytes) to `answer`; `None` sends nothing. It runs in the task of the stack. | `Resolver` (port 53, `Resolver::handle`) |
 | `PacketTap::packet(&self, direction: Direction, packet: &[u8])` | `RecordingDevice<D, T>` wraps a device and calls the tap for each packet, `Inbound` (link to stack) and `Outbound` (stack to link). A closure `Fn(Direction, &[u8])` is a `PacketTap`. | `Recorder` (the pcap and JSON capture stay in podnet) |
 
@@ -70,8 +70,39 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `gateway_service` | none | `Option<Arc<dyn GatewayService>>`. |
 | `random_seed` | the time | The seed of smoltcp for its ports and sequence numbers. |
 | `max_poll_interval` | 100 ms | The longest sleep of the reactor. |
+| `any_ip` | false | Take each packet, also to an address that the stack does not own (`Interface::set_any_ip`). |
+| `checksum` | `Checksum::Both` for each protocol | The checksums that the stack computes and verifies (`LinkDevice::with_checksum`). |
 
 No feature.
+
+## Any IP
+
+A router answers for each destination of a program (podnet's netns
+router, PodUtils/podnet#454; T-222):
+
+* `StackConfig::any_ip` takes each packet, to each address. With it off
+  (the default), a packet to an address that the stack does not own is
+  dropped, as before.
+* `listen_any(port)` listens on each address of both families. The
+  `local_addr` of each accepted stream is the destination of its SYN: the
+  address that the program dialed.
+* `bind_udp_any(port)` binds on each address. `recv_from_to` gives the
+  destination of each datagram, and `send_to_from(buf, remote, source)`
+  answers from it. The source port is the port of the socket.
+* A socket on each address and a socket on one address do not share a
+  port (`AddrInUse`, both ways): smoltcp gives a packet to the first socket
+  of its set that takes it, so the two would race. The gateway service is
+  the first socket of the set for the life of the stack: it keeps its
+  address, and a UDP socket on each address of its port takes the other
+  destinations. A UDP bind at the address and the port of the service is
+  `AddrInUse` (that socket would get no datagram).
+* A listener on one address that the stack does not own makes the stack
+  own it, also with any IP: smoltcp 0.14's `has_ip_addr` is true for each
+  address with any IP, so the stack reads the list of the interface.
+* `StackConfig::checksum` (`LinkDevice::with_checksum`): the end of a veth
+  pair with its offload on sends partial TCP and UDP sums. podnet's veth
+  wire sets `Checksum::Tx` for `ipv4`, `tcp`, `udp` and `icmpv4`: the
+  stack computes each sum and verifies none.
 
 ## smoltcp 0.14
 
@@ -169,6 +200,11 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
     handshake are sent again at the next pass when the channel was full.
   * A listen, a connect or a bind that smoltcp refuses removes the socket
     that it added to the set (`a_refused_bind_frees_its_socket`).
+  * A UDP send to an address of the other family than the source is
+    `InvalidInput` (`UdpSocket` and `UdpDatagrams`), and the reactor drops
+    such a datagram: podnet's reactor gave it to smoltcp, which panicked on
+    a packet of two families, and the stack stopped
+    (`a_datagram_to_the_other_family_is_refused_and_the_stack_runs`).
   * A poisoned lock of a packet queue does not panic.
   * The messages of the errors name the policy and the subnet, not the ACL
     and the virtual subnet.
@@ -214,7 +250,8 @@ the `taken` lines of `SOURCES`):
 * `pod-warp` (podnet `src/warp/ip.rs`, PodUtils/podnet#427): the TCP and UDP
   of WARP over the link device; it drives smoltcp 0.14 with it now.
 * podnet's netns router (`crates/podnet-netns/src/netns/backend.rs`,
-  `udpflow.rs`): PodUtils/podnet@T-249, with step 2 of T-170.
+  `udpflow.rs`): PodUtils/podnet@T-249 moves it onto the stack with the
+  calls of "Any IP" (T-222), then step 2 of T-170.
 * `pod-netlab` (PodUtils/podvm#178): the network labs of podvm.
 
 ## Tests
@@ -222,13 +259,18 @@ the `taken` lines of `SOURCES`):
 `cargo test -p pod-netstack`: the stack (TCP and UDP on the loopback, IPv6,
 a listener off the stack's address, a refused connect, the wake of a
 write, the hooks, the close of each socket, a slow reader, a large
-download over two bounded links, the refused binds), the device (the
-loopback, the tunnel, the bounds, the hold, the waker, the tap), the
-subnet, and the rate of each congestion controller over a delay link
-(`link_rate`, on a virtual clock). The plant
+download over two bounded links, the refused binds, a UDP send of two
+families), any IP between a router and a program over a link (`any.rs`:
+TCP and UDP to each destination, any IP off, a listener off the router's
+address, the ports that a socket on each address shares), the checksums
+(`checksum.rs`: a partial sum with `Checksum::Tx` and with the default),
+the device (the loopback, the tunnel, the bounds, the hold, the waker, the
+tap, the checksums), the subnet, and the rate of each congestion
+controller over a delay link (`link_rate`, on a virtual clock). The plant
 `netstack-receive-with-no-room` (`scripts/plants/`) proves the test of the
 slow reader; the plant `netstack-link-rate-no-controller` proves the tests
-of the rate.
+of the rate; the plants `netstack-any-ip-not-set` and
+`netstack-listener-owns-by-has-ip-addr` prove the tests of any IP.
 
 ## Sources
 

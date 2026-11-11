@@ -237,8 +237,8 @@ impl Drop for TcpStream {
 pub struct UdpSocket {
     pub(super) id: u32,
     pub(super) local: SocketAddr,
-    pub(super) recv_rx: mpsc::Receiver<(Vec<u8>, SocketAddr)>,
-    pub(super) send_tx: mpsc::Sender<(Vec<u8>, SocketAddr)>,
+    pub(super) recv_rx: mpsc::Receiver<Inbound>,
+    pub(super) send_tx: mpsc::Sender<Outbound>,
     pub(super) kick: Arc<Notify>,
 }
 
@@ -252,30 +252,64 @@ pub(super) fn udp_closed() -> io::Error {
     io::Error::new(io::ErrorKind::BrokenPipe, "the UDP socket is closed")
 }
 
+/// Refuse a datagram whose source and destination are of two families:
+/// smoltcp makes no such packet, and its reactor would panic. `source` is
+/// the address of the socket, or the source of the datagram; the
+/// unspecified address of a socket on any address takes both families.
+pub(super) fn one_family(source: IpAddr, remote: SocketAddr) -> io::Result<()> {
+    if source.is_unspecified() || source.is_ipv4() == remote.is_ipv4() {
+        return Ok(());
+    }
+    Err(io::Error::new(io::ErrorKind::InvalidInput, format!("{remote} is not of the family of {source}")))
+}
+
 impl UdpSocket {
     pub fn id(&self) -> u32 {
         self.id
     }
 
+    /// The bound address; `[::]:port` for a socket on any address.
     pub fn local_addr(&self) -> SocketAddr {
         self.local
     }
 
     /// Queue one datagram to `remote`; wait while the queue to the reactor
-    /// is full.
+    /// is full. A `remote` of the other family than the bound address is
+    /// `InvalidInput`.
     pub async fn send_to(&self, buf: &[u8], remote: impl Into<SocketAddr>) -> io::Result<usize> {
-        self.send_tx.send((buf.to_vec(), remote.into())).await.map_err(|_| udp_closed())?;
+        self.queue(buf, remote.into(), None).await
+    }
+
+    /// Queue one datagram to `remote` from `source`, an address that the
+    /// stack need not own (a router answers for the destination that the
+    /// program sent to). The source port is the port of the socket. A
+    /// `source` of the other family than `remote` is `InvalidInput`.
+    pub async fn send_to_from(&self, buf: &[u8], remote: impl Into<SocketAddr>, source: IpAddr) -> io::Result<usize> {
+        self.queue(buf, remote.into(), Some(source)).await
+    }
+
+    async fn queue(&self, buf: &[u8], to: SocketAddr, from: Option<IpAddr>) -> io::Result<usize> {
+        one_family(from.unwrap_or(self.local.ip()), to)?;
+        self.send_tx.send(Outbound { data: buf.to_vec(), to, from }).await.map_err(|_| udp_closed())?;
         self.kick.notify_one();
         Ok(buf.len())
     }
 
     /// Wait for the next datagram. A datagram longer than `buf` is cut.
     pub async fn recv_from(&mut self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
+        let (n, from, _) = self.recv_from_to(buf).await?;
+        Ok((n, from))
+    }
+
+    /// Wait for the next datagram, with its source and its destination: on a
+    /// socket on any address, the address that the peer sent to. A datagram
+    /// longer than `buf` is cut.
+    pub async fn recv_from_to(&mut self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr, SocketAddr)> {
         match self.recv_rx.recv().await {
-            Some((data, from)) => {
+            Some(Inbound { data, from, to }) => {
                 let n = data.len().min(buf.len());
                 buf[..n].copy_from_slice(&data[..n]);
-                Ok((n, from))
+                Ok((n, from, to))
             }
             None => Err(udp_closed()),
         }
@@ -295,6 +329,7 @@ impl std::fmt::Debug for TcpListener {
 }
 
 impl TcpListener {
+    /// The bound address; `[::]:port` for a listener on any address.
     pub fn local_addr(&self) -> SocketAddr {
         self.local
     }

@@ -8,7 +8,7 @@ use super::*;
 /// A stand-in resolver: it answers the name `web` with 10.66.0.2 and gives
 /// no answer to another request. The answer is the query id, then the four
 /// bytes of the address: the stack does not read the bytes.
-struct Names;
+pub(super) struct Names;
 
 impl GatewayService for Names {
     fn port(&self) -> u16 {

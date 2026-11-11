@@ -37,25 +37,29 @@ impl Core {
     }
 
     pub(super) fn accept_inbound(&mut self) {
-        let mut adopted: Vec<(usize, SocketHandle, SocketAddr, SocketAddr)> = Vec::new();
+        let mut adopted: Vec<(usize, SocketHandle, Local, SocketAddr, SocketAddr)> = Vec::new();
         for (index, listener) in self.listeners.iter().enumerate() {
             for handle in &listener.handles {
                 let socket = self.sockets.get::<tcp::Socket>(*handle);
                 if socket.may_recv()
-                    && let Some(remote) = socket.remote_endpoint()
+                    && let (Some(local), Some(remote)) = (socket.local_endpoint(), socket.remote_endpoint())
                 {
-                    adopted.push((index, *handle, listener.addr, endpoint_to_socket(remote)));
+                    // The local end is the destination of the SYN: on a
+                    // listener on any address, the address that the peer
+                    // dialed.
+                    let (local, remote) = (endpoint_to_socket(local), endpoint_to_socket(remote));
+                    adopted.push((index, *handle, listener.local, local, remote));
                 }
             }
         }
-        for (index, handle, local, remote) in adopted {
+        for (index, handle, on, local, remote) in adopted {
             if let Some(listener) = self.listeners.get_mut(index) {
                 listener.handles.retain(|candidate| *candidate != handle);
             }
             let id = self.next_id;
             self.next_id += 1;
             let stream = self.adopt(id, handle, local, remote);
-            match self.spawn_listener_socket(local) {
+            match self.spawn_listener_socket(on) {
                 Ok(replacement) => {
                     if let Some(listener) = self.listeners.get_mut(index) {
                         listener.handles.push(replacement);
@@ -125,16 +129,24 @@ impl Core {
                 continue;
             };
             // App to stack.
-            while let Ok((data, remote)) = conn.from_app.try_recv() {
-                if !self.config.subnet.contains(remote.ip()) || !self.config.admits(remote) {
+            while let Ok(Outbound { data, to: remote, from }) = conn.from_app.try_recv() {
+                // smoltcp panics on a packet whose source and destination
+                // are of two families: the handles refuse it, and this is
+                // the last guard.
+                let source = from.or(conn.local.ip);
+                let mixed = source.is_some_and(|source| source.is_ipv4() != remote.is_ipv4());
+                if mixed || !self.config.subnet.contains(remote.ip()) || !self.config.admits(remote) {
                     self.stats.refused.fetch_add(1, Ordering::Relaxed);
                     continue;
                 }
+                let mut meta = udp::UdpMetadata::from(IpEndpoint::new(to_smoltcp(remote.ip()), remote.port()));
+                meta.local_address = from.map(to_smoltcp);
                 let socket = self.sockets.get_mut::<udp::Socket>(conn.handle);
-                if socket.send_slice(&data, IpEndpoint::new(to_smoltcp(remote.ip()), remote.port())).is_err() {
+                if socket.send_slice(&data, meta).is_err() {
                     break;
                 }
-                let _ = self.events.send(StackEvent::Datagram { from: conn.local, to: remote, len: data.len() });
+                let shown = source.map_or(conn.local.addr(), |ip| SocketAddr::new(ip, conn.local.port));
+                let _ = self.events.send(StackEvent::Datagram { from: shown, to: remote, len: data.len() });
                 self.stats.datagrams.fetch_add(1, Ordering::Relaxed);
             }
             // Stack to app.
@@ -147,7 +159,11 @@ impl Core {
                 match socket.recv_slice(&mut buffer) {
                     Ok((n, metadata)) => {
                         let from = endpoint_to_socket(metadata.endpoint);
-                        if conn.to_app.try_send((buffer[..n].to_vec(), from)).is_err() {
+                        // smoltcp sets the destination of each datagram that
+                        // it takes.
+                        let ip = metadata.local_address.map(IpAddr::from).or(conn.local.ip);
+                        let to = SocketAddr::new(ip.unwrap_or(conn.local.addr().ip()), conn.local.port);
+                        if conn.to_app.try_send(Inbound { data: buffer[..n].to_vec(), from, to }).is_err() {
                             break;
                         }
                     }

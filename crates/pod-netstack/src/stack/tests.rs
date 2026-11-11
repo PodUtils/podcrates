@@ -4,6 +4,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::*;
 
+mod any;
+mod checksum;
 mod hooks;
 mod link;
 
@@ -12,6 +14,24 @@ const LOCAL_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 66, 0, 2));
 
 fn at(ip: IpAddr, port: u16) -> SocketAddr {
     SocketAddr::new(ip, port)
+}
+
+/// Two stacks over one link: a pump moves each packet that one sends into
+/// the inbound queue of the other, and `edit` changes each packet from `b`
+/// to `a` on its way.
+fn pair(a: StackConfig, b: StackConfig, edit: fn(&mut [u8])) -> (NetStack, NetStack, Vec<tokio::task::JoinHandle<()>>) {
+    let (a, b) = (NetStack::over_link(a), NetStack::over_link(b));
+    let pump = |from: PacketQueue, to: PacketQueue, edit: fn(&mut [u8])| {
+        tokio::spawn(async move {
+            loop {
+                let mut packet = from.recv().await;
+                edit(&mut packet);
+                to.push(packet);
+            }
+        })
+    };
+    let pumps = vec![pump(a.link_out(), b.link_in(), |_| {}), pump(b.link_out(), a.link_in(), edit)];
+    (a, b, pumps)
 }
 
 #[test]
@@ -71,6 +91,31 @@ async fn udp_loopback_round_trip() {
         .unwrap();
     assert_eq!(&buffer[..n], b"ping");
     assert_eq!(from, client_addr);
+    net.shutdown().await;
+}
+
+/// A datagram to an address of the other family than the socket's is
+/// `InvalidInput`, and the stack runs on. Before, the reactor took it and
+/// smoltcp panicked on a packet of two families: the stack stopped.
+#[tokio::test]
+async fn a_datagram_to_the_other_family_is_refused_and_the_stack_runs() {
+    let mut net = NetStack::loopback();
+    let client = net.bind_udp(at(LOCAL_IP, 40001)).await.unwrap();
+    let v6 = at("fd00:66::2".parse().unwrap(), 5353);
+    let err = client.send_to(b"mixed", v6).await.unwrap_err();
+    assert_eq!(err.kind(), io::ErrorKind::InvalidInput, "{err}");
+    let mut server = net.bind_udp(at(LOCAL_IP, 5353)).await.expect("the stack stopped");
+    client.send_to(b"ping", at(LOCAL_IP, 5353)).await.unwrap();
+    let mut buffer = [0u8; 16];
+    let (n, _) = tokio::time::timeout(Duration::from_secs(2), server.recv_from(&mut buffer))
+        .await
+        .expect("udp timed out")
+        .unwrap();
+    assert_eq!(&buffer[..n], b"ping");
+    let datagrams = client.into_datagrams();
+    let transmit = pod_core::Transmit { destination: v6, contents: b"mixed", segment_size: None, src_ip: None };
+    let err = pod_core::Datagrams::try_send(&datagrams, &transmit).unwrap_err();
+    assert_eq!(err.kind(), io::ErrorKind::InvalidInput, "{err}");
     net.shutdown().await;
 }
 

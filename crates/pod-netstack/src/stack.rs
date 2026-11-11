@@ -27,6 +27,7 @@ use std::time::Duration;
 
 use atomic_waker::AtomicWaker;
 use smoltcp::iface::{Config as IfaceConfig, Interface, SocketHandle, SocketSet};
+use smoltcp::phy::ChecksumCapabilities;
 use smoltcp::socket::{tcp, udp};
 use smoltcp::time::Instant as SmolInstant;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, IpEndpoint, IpListenEndpoint};
@@ -96,11 +97,22 @@ pub struct StackConfig {
     pub random_seed: u64,
     /// The longest sleep of the reactor between two polls.
     pub max_poll_interval: Duration,
+    /// Take each packet, also to an address that the stack does not own
+    /// (`Interface::set_any_ip`): a router that answers for each
+    /// destination of a program. A listener and a UDP socket on any
+    /// address ([`NetStack::listen_any`], [`NetStack::bind_udp_any`]) then
+    /// take each destination.
+    pub any_ip: bool,
+    /// The checksums that the stack computes and verifies
+    /// ([`LinkDevice::with_checksum`]). The default computes and verifies
+    /// each.
+    pub checksum: ChecksumCapabilities,
 }
 
 impl Default for StackConfig {
     /// The default subnet, `10.66.0.2` and `fd00:66::2`, an MTU of 1280,
-    /// buffers of 64 KiB, no admit and no gateway service.
+    /// buffers of 64 KiB, no admit, no gateway service, no any IP, and each
+    /// checksum computed and verified.
     fn default() -> Self {
         Self {
             subnet: Subnet::default(),
@@ -116,6 +128,8 @@ impl Default for StackConfig {
             gateway_service: None,
             random_seed: seed_from_time(),
             max_poll_interval: Duration::from_millis(100),
+            any_ip: false,
+            checksum: ChecksumCapabilities::default(),
         }
     }
 }
@@ -238,6 +252,7 @@ impl NetStack {
 
     fn new(config: StackConfig, loopback: bool) -> Self {
         let device = if loopback { LinkDevice::loopback(config.mtu) } else { LinkDevice::link(config.mtu) };
+        let device = device.with_checksum(config.checksum.clone());
         // A packet to an address of this stack stays in it
         // (PodUtils/podnet#65).
         device.add_local(IpAddr::V4(config.local_v4));
@@ -281,8 +296,22 @@ impl NetStack {
 
     /// Bind a TCP listener.
     pub async fn listen(&self, addr: impl Into<SocketAddr>) -> io::Result<TcpListener> {
+        self.listen_on(Local::of(addr.into())).await
+    }
+
+    /// Bind a TCP listener on `port` of each address, of both families. With
+    /// [`StackConfig::any_ip`], it takes a connection to each destination,
+    /// and the `local_addr` of each accepted stream is the destination that
+    /// the peer dialed. Its own `local_addr` is `[::]:port`. A listener on
+    /// one address of the same port is `AddrInUse`, both ways: smoltcp gives
+    /// a SYN to the first socket of its set, so the two would race.
+    pub async fn listen_any(&self, port: u16) -> io::Result<TcpListener> {
+        self.listen_on(Local { ip: None, port }).await
+    }
+
+    async fn listen_on(&self, local: Local) -> io::Result<TcpListener> {
         let (reply, rx) = oneshot::channel();
-        self.send(Command::Listen { addr: addr.into(), reply }).await?;
+        self.send(Command::Listen { local, reply }).await?;
         rx.await.map_err(|_| shut_down())?
     }
 
@@ -300,8 +329,23 @@ impl NetStack {
 
     /// Bind a UDP socket.
     pub async fn bind_udp(&self, addr: impl Into<SocketAddr>) -> io::Result<UdpSocket> {
+        self.bind_udp_on(Local::of(addr.into())).await
+    }
+
+    /// Bind a UDP socket on `port` of each address, of both families. With
+    /// [`StackConfig::any_ip`], it takes a datagram to each destination
+    /// ([`UdpSocket::recv_from_to`] gives it), and
+    /// [`UdpSocket::send_to_from`] answers from that destination. Its
+    /// `local_addr` is `[::]:port`. A socket on one address of the same
+    /// port is `AddrInUse`, both ways; the gateway service keeps its
+    /// address, and the socket takes the other destinations of the port.
+    pub async fn bind_udp_any(&self, port: u16) -> io::Result<UdpSocket> {
+        self.bind_udp_on(Local { ip: None, port }).await
+    }
+
+    async fn bind_udp_on(&self, local: Local) -> io::Result<UdpSocket> {
         let (reply, rx) = oneshot::channel();
-        self.send(Command::BindUdp { addr: addr.into(), reply }).await?;
+        self.send(Command::BindUdp { local, reply }).await?;
         rx.await.map_err(|_| shut_down())?
     }
 

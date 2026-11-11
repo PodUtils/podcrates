@@ -21,11 +21,55 @@ pub(super) struct Conn {
     pub(super) pending: Vec<u8>,
 }
 
+/// The local end of a listener or a UDP socket: one address, or each
+/// address (`ip: None`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Local {
+    pub(super) ip: Option<IpAddr>,
+    pub(super) port: u16,
+}
+
+impl Local {
+    pub(super) fn of(addr: SocketAddr) -> Self {
+        Self { ip: Some(addr.ip()), port: addr.port() }
+    }
+
+    /// The address that the app sees: `[::]:port` for each address.
+    pub(super) fn addr(self) -> SocketAddr {
+        SocketAddr::new(self.ip.unwrap_or(IpAddr::V6(Ipv6Addr::UNSPECIFIED)), self.port)
+    }
+
+    pub(super) fn endpoint(self) -> IpListenEndpoint {
+        IpListenEndpoint { addr: self.ip.map(to_smoltcp), port: self.port }
+    }
+
+    /// True when a packet can match both: smoltcp gives it to the first
+    /// socket of its set, so the two would race.
+    pub(super) fn overlaps(self, other: Local) -> bool {
+        self.port == other.port && (self.ip.is_none() || other.ip.is_none() || self.ip == other.ip)
+    }
+}
+
+/// A datagram from the stack to the app: its source and its destination.
+pub(super) struct Inbound {
+    pub(super) data: Vec<u8>,
+    pub(super) from: SocketAddr,
+    pub(super) to: SocketAddr,
+}
+
+/// A datagram from the app: its destination and, as an option, its source
+/// address (the port is the port of the socket).
+pub(super) struct Outbound {
+    pub(super) data: Vec<u8>,
+    pub(super) to: SocketAddr,
+    pub(super) from: Option<IpAddr>,
+}
+
 pub(super) struct UdpConn {
     pub(super) handle: SocketHandle,
-    pub(super) local: SocketAddr,
-    pub(super) to_app: mpsc::Sender<(Vec<u8>, SocketAddr)>,
-    pub(super) from_app: mpsc::Receiver<(Vec<u8>, SocketAddr)>,
+    pub(super) local: Local,
+    pub(super) to_app: mpsc::Sender<Inbound>,
+    pub(super) from_app: mpsc::Receiver<Outbound>,
 }
 
 /// The UDP service of the consumer at the gateway.
@@ -35,15 +79,15 @@ pub(super) struct GatewayUdp {
 }
 
 pub(super) struct Listener {
-    pub(super) addr: SocketAddr,
+    pub(super) local: Local,
     pub(super) handles: Vec<SocketHandle>,
     pub(super) accept_tx: mpsc::Sender<TcpStream>,
 }
 
 pub(super) enum Command {
-    Listen { addr: SocketAddr, reply: oneshot::Sender<io::Result<TcpListener>> },
+    Listen { local: Local, reply: oneshot::Sender<io::Result<TcpListener>> },
     Connect { remote: SocketAddr, local_port: u16, reply: oneshot::Sender<io::Result<TcpStream>> },
-    BindUdp { addr: SocketAddr, reply: oneshot::Sender<io::Result<UdpSocket>> },
+    BindUdp { local: Local, reply: oneshot::Sender<io::Result<UdpSocket>> },
     Shutdown,
 }
 
@@ -100,6 +144,7 @@ impl Core {
         let mut iface_config = IfaceConfig::new(HardwareAddress::Ip);
         iface_config.random_seed = config.random_seed;
         let mut iface = Interface::new(iface_config, &mut device, SmolInstant::ZERO);
+        iface.set_any_ip(config.any_ip);
         let gateway_v4 = config.subnet.gateway_v4();
         let gateway_v6 = config.subnet.gateway_v6();
         iface.update_ip_addrs(|addrs| {
@@ -117,6 +162,9 @@ impl Core {
             }
         });
         let mut sockets: SocketSet<'static> = SocketSet::new(Vec::new());
+        // The first socket of the set, for the life of the stack: smoltcp
+        // gives a datagram to the first socket that takes it, so the service
+        // keeps the gateway from a UDP socket on any address of its port.
         let gateway = config.gateway_service.clone().and_then(|service| {
             let handle = sockets.add(new_udp_socket(&config));
             let socket = sockets.get_mut::<udp::Socket>(handle);
@@ -173,22 +221,24 @@ impl Core {
 
     pub(super) fn handle(&mut self, command: Command) {
         match command {
-            Command::Listen { addr, reply } => {
-                let _ = reply.send(self.listen(addr));
+            Command::Listen { local, reply } => {
+                let _ = reply.send(self.listen(local));
             }
             Command::Connect { remote, local_port, reply } => {
                 let _ = reply.send(self.connect(remote, local_port));
             }
-            Command::BindUdp { addr, reply } => {
-                let _ = reply.send(self.bind_udp(addr));
+            Command::BindUdp { local, reply } => {
+                let _ = reply.send(self.bind_udp(local));
             }
             Command::Shutdown => {}
         }
     }
 
-    /// The checks of a bind: in the subnet, admitted.
-    fn bindable(&self, addr: SocketAddr) -> io::Result<()> {
-        if !self.in_subnet(&addr) {
+    /// The checks of a bind: one address in the subnet, and admitted. The
+    /// admit sees `[::]:port` for each address.
+    fn bindable(&self, local: Local) -> io::Result<()> {
+        let addr = local.addr();
+        if local.ip.is_some() && !self.in_subnet(&addr) {
             return Err(refuse(io::ErrorKind::AddrNotAvailable, format!("{addr} is outside the subnet of the stack")));
         }
         if !self.config.admits(addr) {
@@ -197,20 +247,46 @@ impl Core {
         Ok(())
     }
 
-    pub(super) fn listen(&mut self, addr: SocketAddr) -> io::Result<TcpListener> {
-        self.bindable(addr)?;
-        if self.listeners.iter().any(|listener| listener.addr == addr) {
-            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr} is already bound")));
+    pub(super) fn listen(&mut self, local: Local) -> io::Result<TcpListener> {
+        self.bindable(local)?;
+        let addr = local.addr();
+        if self.listeners.iter().any(|listener| listener.local.overlaps(local)) {
+            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr}: a listener holds port {}", local.port)));
         }
-        // A listener on an address that the stack does not own yet: own it,
-        // so that a SYN to it gets an answer, not the time limit of the
-        // client (PodUtils/podnet#41).
-        let ip = to_smoltcp(addr.ip());
-        if !self.iface.has_ip_addr(ip) && !ip.is_unspecified() {
-            let prefix = self.config.subnet.prefix_for(addr.ip());
+        if let Some(ip) = local.ip {
+            self.own(ip, addr)?;
+        }
+        let pool = self.config.accept_pool.max(1);
+        let (accept_tx, accept_rx) = mpsc::channel(pool * 4);
+        let mut handles = Vec::with_capacity(pool);
+        for _ in 0..pool {
+            match self.spawn_listener_socket(local) {
+                Ok(handle) => handles.push(handle),
+                Err(err) => {
+                    for handle in handles {
+                        self.drop_socket(handle);
+                    }
+                    return Err(err);
+                }
+            }
+        }
+        self.listeners.push(Listener { local, handles, accept_tx });
+        self.emit(StackEvent::ListenerBound { addr });
+        Ok(TcpListener { local: addr, rx: accept_rx })
+    }
+
+    /// Own `ip` for a listener on an address that the stack does not own
+    /// yet, so that a SYN to it gets an answer, not the time limit of the
+    /// client (PodUtils/podnet#41). The list of the interface, not
+    /// `has_ip_addr`: with any IP, that is true for each address, and the
+    /// device would send a packet to `ip` out on the link.
+    fn own(&mut self, ip: IpAddr, addr: SocketAddr) -> io::Result<()> {
+        let smol = to_smoltcp(ip);
+        if !self.iface.ip_addrs().iter().any(|cidr| cidr.address() == smol) && !smol.is_unspecified() {
+            let prefix = self.config.subnet.prefix_for(ip);
             let mut full = false;
             self.iface.update_ip_addrs(|addrs| {
-                full = addrs.push(IpCidr::new(ip, prefix)).is_err();
+                full = addrs.push(IpCidr::new(smol, prefix)).is_err();
             });
             if full {
                 return Err(refuse(
@@ -221,34 +297,18 @@ impl Core {
                     ),
                 ));
             }
-            self.device.add_local(addr.ip());
+            self.device.add_local(ip);
         }
-        let pool = self.config.accept_pool.max(1);
-        let (accept_tx, accept_rx) = mpsc::channel(pool * 4);
-        let mut handles = Vec::with_capacity(pool);
-        for _ in 0..pool {
-            match self.spawn_listener_socket(addr) {
-                Ok(handle) => handles.push(handle),
-                Err(err) => {
-                    for handle in handles {
-                        self.drop_socket(handle);
-                    }
-                    return Err(err);
-                }
-            }
-        }
-        self.listeners.push(Listener { addr, handles, accept_tx });
-        self.emit(StackEvent::ListenerBound { addr });
-        Ok(TcpListener { local: addr, rx: accept_rx })
+        Ok(())
     }
 
-    pub(super) fn spawn_listener_socket(&mut self, addr: SocketAddr) -> io::Result<SocketHandle> {
+    pub(super) fn spawn_listener_socket(&mut self, local: Local) -> io::Result<SocketHandle> {
         let handle = self.sockets.add(self.tcp_socket());
         self.socket_count.add();
         let socket = self.sockets.get_mut::<tcp::Socket>(handle);
-        if let Err(err) = socket.listen(IpListenEndpoint { addr: Some(to_smoltcp(addr.ip())), port: addr.port() }) {
+        if let Err(err) = socket.listen(local.endpoint()) {
             self.drop_socket(handle);
-            return Err(io::Error::new(io::ErrorKind::AddrInUse, format!("{addr}: {err}")));
+            return Err(io::Error::new(io::ErrorKind::AddrInUse, format!("{}: {err}", local.addr())));
         }
         Ok(handle)
     }
@@ -345,15 +405,23 @@ impl Core {
         }
     }
 
-    pub(super) fn bind_udp(&mut self, addr: SocketAddr) -> io::Result<UdpSocket> {
-        self.bindable(addr)?;
-        if self.udp.values().any(|conn| conn.local == addr) {
-            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr} is already bound")));
+    pub(super) fn bind_udp(&mut self, local: Local) -> io::Result<UdpSocket> {
+        self.bindable(local)?;
+        let addr = local.addr();
+        // The gateway service is the first socket of the set, so a socket on
+        // any address of its port does not race it; one on its address
+        // would never get a datagram.
+        let gateway = self.gateway.as_ref().map(|gateway| Local {
+            ip: Some(IpAddr::V4(self.config.subnet.gateway_v4())),
+            port: gateway.service.port(),
+        });
+        if self.udp.values().any(|conn| conn.local.overlaps(local)) || gateway == Some(local) {
+            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr}: a UDP socket holds port {}", local.port)));
         }
         let handle = self.sockets.add(self.udp_socket());
         self.socket_count.add();
         let socket = self.sockets.get_mut::<udp::Socket>(handle);
-        if let Err(err) = socket.bind(IpListenEndpoint { addr: Some(to_smoltcp(addr.ip())), port: addr.port() }) {
+        if let Err(err) = socket.bind(local.endpoint()) {
             self.drop_socket(handle);
             return Err(io::Error::new(io::ErrorKind::AddrInUse, format!("{addr}: {err}")));
         }
@@ -361,7 +429,7 @@ impl Core {
         self.next_id += 1;
         let (to_app_tx, to_app_rx) = mpsc::channel(64);
         let (send_tx, send_rx) = mpsc::channel(64);
-        self.udp.insert(id, UdpConn { handle, local: addr, to_app: to_app_tx, from_app: send_rx });
+        self.udp.insert(id, UdpConn { handle, local, to_app: to_app_tx, from_app: send_rx });
         Ok(UdpSocket { id, local: addr, recv_rx: to_app_rx, send_tx, kick: self.kick.clone() })
     }
 }

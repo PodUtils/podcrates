@@ -10,7 +10,8 @@ use pod_core::{Datagrams, RecvMeta, Transmit};
 use tokio::sync::{Notify, mpsc};
 
 use super::UdpSocket;
-use super::socket::udp_closed;
+use super::reactor::{Inbound, Outbound};
+use super::socket::{one_family, udp_closed};
 
 /// The datagrams of one UDP socket of the stack.
 ///
@@ -19,8 +20,8 @@ use super::socket::udp_closed;
 pub struct UdpDatagrams {
     id: u32,
     local: SocketAddr,
-    recv_rx: Mutex<mpsc::Receiver<(Vec<u8>, SocketAddr)>>,
-    send_tx: mpsc::Sender<(Vec<u8>, SocketAddr)>,
+    recv_rx: Mutex<mpsc::Receiver<Inbound>>,
+    send_tx: mpsc::Sender<Outbound>,
     kick: Arc<Notify>,
 }
 
@@ -52,9 +53,12 @@ impl Datagrams for UdpDatagrams {
     }
 
     fn try_send(&self, t: &Transmit<'_>) -> io::Result<()> {
+        // The source of the transmit is the source of the datagram (a socket
+        // on any address answers from the destination of the peer).
+        one_family(t.src_ip.unwrap_or(self.local.ip()), t.destination)?;
         let size = t.segment_size.filter(|s| *s > 0).unwrap_or(t.contents.len().max(1));
         for chunk in t.contents.chunks(size) {
-            match self.send_tx.try_send((chunk.to_vec(), t.destination)) {
+            match self.send_tx.try_send(Outbound { data: chunk.to_vec(), to: t.destination, from: t.src_ip }) {
                 Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {}
                 Err(mpsc::error::TrySendError::Closed(_)) => return Err(udp_closed()),
             }
@@ -74,10 +78,10 @@ impl Datagrams for UdpDatagrams {
         };
         let mut rx = self.recv_rx.lock().unwrap_or_else(|e| e.into_inner());
         match rx.poll_recv(cx) {
-            Poll::Ready(Some((data, from))) => {
+            Poll::Ready(Some(Inbound { data, from, to })) => {
                 let len = data.len().min(buf.len());
                 buf[..len].copy_from_slice(&data[..len]);
-                *m = RecvMeta { addr: from, len, stride: len, dst_ip: Some(self.local.ip()) };
+                *m = RecvMeta { addr: from, len, stride: len, dst_ip: Some(to.ip()) };
                 Poll::Ready(Ok(1))
             }
             Poll::Ready(None) => Poll::Ready(Err(udp_closed())),

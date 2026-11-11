@@ -8,17 +8,7 @@ use super::*;
 /// the inbound queue of the other.
 fn linked(last_a: u8, last_b: u8) -> (NetStack, NetStack, Vec<tokio::task::JoinHandle<()>>) {
     let config = |last| StackConfig { local_v4: Ipv4Addr::new(10, 66, 0, last), ..StackConfig::default() };
-    let (a, b) = (NetStack::over_link(config(last_a)), NetStack::over_link(config(last_b)));
-    let pump = |from: PacketQueue, to: PacketQueue| {
-        tokio::spawn(async move {
-            loop {
-                let packet = from.recv().await;
-                to.push(packet);
-            }
-        })
-    };
-    let pumps = vec![pump(a.link_out(), b.link_in()), pump(b.link_out(), a.link_in())];
-    (a, b, pumps)
+    pair(config(last_a), config(last_b), |_| {})
 }
 
 /// Each closed connection leaves the socket set. The server drops its

@@ -1866,3 +1866,99 @@ the Python client against it in `live.yml`.
 ```sh
 cargo test -p pod-wormhole --all-features
 ```
+
+# T-222: `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454)
+
+**Source:** PodUtils/podnet#454 (COORD-036 of podnet, for PodUtils/podnet@T-249)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's netns router answers for each destination of the program: the
+real addresses and the fake DNS addresses. PodUtils/podnet@T-249 moves the
+router onto `pod-netstack`, and then starts step 2 of T-170. podnet read
+`crates/pod-netstack/src/stack/reactor.rs` and
+`crates/pod-netstack/src/device.rs` at `v0.22.0` (podnet's record: commit
+`98bc9bb`, PodUtils/podnet@T-249, Correction) and asks for four calls:
+
+1. Any IP. The stack never calls `Interface::set_any_ip(true)`, and
+   `Core::listen` takes only an address that the stack owns. Ask:
+   `StackConfig.any_ip: bool`.
+2. A TCP listener on any destination. Each listen socket has
+   `addr: Some(..)`. The router needs the wildcard (`addr: None`) and the
+   destination of the SYN, the target of the flow. Ask:
+   `NetStack::listen_any(port) -> TcpListener`; the `local_addr()` of each
+   accepted `TcpStream` is the destination that the program dialed.
+3. The checksums of the link device. `LinkDevice::capabilities` keeps the
+   default of smoltcp (`Checksum::Both`). The veth wire
+   (PodUtils/podnet@T-174) needs `Checksum::Tx` for `ipv4`, `tcp`, `udp`
+   and `icmpv4`: the program's end of a veth pair can send partial
+   checksums. Ask: `LinkDevice::with_checksum(ChecksumCapabilities)`.
+4. UDP on any address. The UDP flows of the router need a socket on any
+   address that sends from a source that is not the stack's own address
+   (the answer of a remote host to the program). Ask:
+   `NetStack::bind_udp_any(port)`, and a source address on `send_to`.
+
+The hold of a SYN (`HeldSyn`) and podnet's flow table need no change: the
+pump on the TUN or the veth descriptor sees each SYN before the stack.
+
+## Premise
+
+- Read: PodUtils/podnet#454; podnet `main` (2026-11-11):
+  `PodUtils/podnet:crates/podnet-netns/src/netns/backend.rs` (on smoltcp
+  0.12: `set_any_ip(true)` and a default IPv4 route; for each destination
+  port a listen socket with `addr: None`; the `local_endpoint` of a socket
+  is its target), `PodUtils/podnet:crates/podnet-netns/src/netns/tun.rs`
+  (its device is `Medium::Ip` on both wires; the veth wire sets
+  `Checksum::Tx` for `ipv4`, `tcp`, `udp` and `icmpv4`) and
+  `PodUtils/podnet:crates/podnet-netns/src/netns/udpflow.rs`.
+- Read: smoltcp 0.14. With any IP, `has_ip_addr` of the interface is true
+  for each address (0.12 checked any IP and a route in `process_ipv4`;
+  0.14 needs no route). `Interface::has_ip_addr` gives the same, so the
+  stack must read `Interface::ip_addrs` to own the address of a listener.
+  A TCP socket that listens with `addr: None` takes a SYN to each address
+  of its port, and its `local_endpoint` is the destination of the SYN. A
+  UDP socket bound with `addr: None` takes each address;
+  `UdpMetadata::local_address` is the destination of a received datagram
+  and the source of a sent one. smoltcp gives a packet to the first socket
+  of its set that takes it (`process_tcp`, `process_udp`). `IpRepr::new`
+  panics on a source and a destination of two families. The interface
+  reads `DeviceCapabilities::checksum` once, in `Interface::new`. With
+  `Medium::Ip`, the egress looks up no route.
+- Not measured: podnet's router on the crate (PodUtils/podnet@T-249).
+
+## Approach
+
+1. `StackConfig::any_ip` (default false) calls `Interface::set_any_ip`.
+   The listen of one address owns that address by the list of the
+   interface, not by `has_ip_addr`.
+2. `NetStack::listen_any(port)` and `NetStack::bind_udp_any(port)`: a
+   local end with no address. Their `local_addr` is `[::]:port`, and the
+   admit sees `[::]:port`. A socket on each address and a socket on one
+   address of the same port are `AddrInUse` both ways (they would race in
+   smoltcp). The gateway service is the first socket of the set, so a UDP
+   socket on each address of its port is allowed, and a bind at its
+   address is `AddrInUse`.
+3. An accepted stream takes its local address from
+   `tcp::Socket::local_endpoint`.
+4. `UdpSocket::recv_from_to(buf) -> (n, from, to)` and
+   `UdpSocket::send_to_from(buf, remote, source)`. `UdpDatagrams` gives
+   the destination in `RecvMeta::dst_ip` and takes `Transmit::src_ip` as
+   the source. A remote of the other family than the source is
+   `InvalidInput`.
+5. `LinkDevice::with_checksum(ChecksumCapabilities)`, and
+   `StackConfig::checksum`, which `NetStack` gives to its device.
+6. Tests through two stacks over a link: a router, and a program whose
+   subnet holds each address. Plants for any IP and for the owned address.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack
+sh scripts/plant-each.sh netstack-any-ip-not-set netstack-listener-owns-by-has-ip-addr
+sh scripts/agent/check.sh
+```

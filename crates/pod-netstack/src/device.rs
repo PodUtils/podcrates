@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::task::{Context, Poll, Waker};
 
-use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken};
+use smoltcp::phy::{ChecksumCapabilities, Device, DeviceCapabilities, Medium, RxToken, TxToken};
 use smoltcp::time::Instant;
 
 mod tap;
@@ -238,6 +238,8 @@ pub struct LinkDevice {
     /// Send no new packet while the outbound queue is full
     /// (PodUtils/podnet#134).
     hold_when_full: bool,
+    /// The checksums that smoltcp computes and verifies.
+    checksum: ChecksumCapabilities,
 }
 
 impl std::fmt::Debug for LinkDevice {
@@ -314,12 +316,21 @@ impl LinkDevice {
             local: Arc::new(RwLock::new(Vec::new())),
             max_burst: None,
             hold_when_full: false,
+            checksum: ChecksumCapabilities::default(),
         }
     }
 
     /// Set the burst limit (and so the TCP window) in segments.
     pub fn with_max_burst(mut self, max_burst: Option<usize>) -> Self {
         self.max_burst = max_burst;
+        self
+    }
+
+    /// Set the checksums that smoltcp computes and verifies. A link that
+    /// carries partial checksums (the end of a veth pair with its offload
+    /// on) needs `Checksum::Tx`: compute each sum, verify none.
+    pub fn with_checksum(mut self, checksum: ChecksumCapabilities) -> Self {
+        self.checksum = checksum;
         self
     }
 
@@ -391,6 +402,7 @@ impl Device for LinkDevice {
         // segment (about 10 KB with the window scale): 0.5 MB/s at an RTT of
         // 40 ms. The default is no limit.
         capabilities.max_burst_size = self.max_burst;
+        capabilities.checksum = self.checksum.clone();
         capabilities
     }
 }
