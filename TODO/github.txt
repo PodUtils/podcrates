@@ -57,5 +57,6 @@
 50 issue closed
 51 issue open
 52 issue open
-53 issue open
+53 issue closed
 54 issue open
+55 issue open
