@@ -1,0 +1,7 @@
+# The child sets a death signal of 0: a payload outlives the thread, or
+# the launcher, that forked it (T-205).
+ENTRY=T-205
+GROUP=supervise
+EXPECT='outlived the thread that forked it'
+RUN='cargo test -p pod-enter --all-features --lib a_payload_ends_with_the_thread_that_forked_it'
+LIMIT=1800

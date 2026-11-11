@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -164,7 +164,7 @@
+             // First, the end with the parent (T-205). A parent that ended
+             // before the call sends no signal: the child compares its parent.
+             if plan.die_with_parent {
+-                if let Err(e) = sys::set_pdeathsig(9) {
++                if let Err(e) = sys::set_pdeathsig(0) {
+                     report(14, e);
+                 }
+                 if sys::getppid() != parent {

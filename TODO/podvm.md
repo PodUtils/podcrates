@@ -3054,7 +3054,7 @@ cargo test -p pod-supervise --test tree
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3092,4 +3092,20 @@ issue whether its entry sets it today.
 cargo test -p pod-supervise --test tree
 cargo test -p pod-enter
 ```
+
+## Done
+
+2026-11-11. `pod-hostprobe`: `sys::set_pdeathsig`, `sys::getppid`.
+`pod-enter`: `Plan.die_with_parent` (opt-in: the signal fires at the exit
+of the thread that forked, so a caller that forks from a pool of threads
+keeps it false); the child sets `PR_SET_PDEATHSIG(SIGKILL)` first after
+the fork and compares its parent with the pid of the caller before the
+fork; a refused call is `prctl(PR_SET_PDEATHSIG)` by name.
+`pod-supervise`: rule 4 of the README and the doc of `Launch` name the
+rule; the `enter` of the tree tests sets the signal, and the step of T-202
+asserts that the payload ends with its launcher. Tests:
+`a_payload_ends_with_the_thread_that_forked_it` (pod-enter, 166 tests);
+`tree` 7 steps. Plant `enter-no-death-signal` (a signal of 0) fails the
+test of pod-enter. Breaking: `Plan` has the field `die_with_parent`. Not
+read: whether podvm's entry sets it (the hand-off of the tag asks).
 
