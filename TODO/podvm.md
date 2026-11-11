@@ -2481,7 +2481,9 @@ a new file of mode 0600 (`create_new`, then the rename); the log opens
 with mode 0600. `pod-hostprobe` gives `sys::umask` for the test. The step
 `the_state_is_private_under_umask_022` of `tests/tree.rs` passes; with the
 table written at mode 0644 it fails (`the table`, left 420, right 384).
-Goes out with `v0.16.0`, with T-162 (PodUtils/podvm#244).
+Goes out with `v0.16.0`, with T-162 (PodUtils/podvm#244). podvm took
+`v0.16.0` at `894cf13` (654 tests; its own test of the modes under umask
+022).
 
 # T-176: `pod-enter`: resource limits and `no_new_privs` in the child before the exec (PodUtils/podvm#245)
 

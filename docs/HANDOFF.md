@@ -17,9 +17,11 @@ page current; remove a line when its work is done.
     are gone).
   - podnet: `v0.15.0` (`pod-hold` at `b759937`). Next: the adoption patch
     of T-169 and T-170 (not made yet).
-  - podvm: `v0.15.0` (`d9fe511`). Next: `v0.16.0` (T-162, T-175 for
-    PodUtils/podvm@T-1708 and PodUtils/podvm@T-1715), then `v0.17.0` (T-176).
-  - podrunner: its first tag is `v0.16.0` (`pod-supervise`, `pod-broker`).
+  - podvm: `v0.16.0` (`894cf13`, with T-162 and T-175). Next: `v0.17.0`
+    (T-176).
+  - podrunner: `v0.16.0` for `pod-core` and `pod-todo` (`07cd854`). Next:
+    `pod-broker` and `pod-supervise` of `v0.16.0`, then `pod-job` of
+    `v0.17.0` (T-163).
 - podrunner and podssh have lead sessions that this session started
   (direct messages); podnet and podvm run in their own sessions (COORD
   issues).

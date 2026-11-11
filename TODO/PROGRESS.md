@@ -8,15 +8,16 @@
   `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.16.0` at `60a675c` (`docs/releases/v0.16.0.md`; ci
   42941289807, adoption 42939473252 at `699a107`, plants 42941289959,
-  release 42943522356, the dry run of `publish.yml` 42943571130): the tree
+  release 42943522356, the dry run of `publish.yml` 42943571130 green): the tree
   kill and the private modes of `pod-supervise`, the bound listener of
   `pod-broker`, `connect` and `packet` of `pod-hold`, four nodes out of
   `pod-services`. The hand-off is GitHub #57 (COORD-032). Each consumer
   took `v0.15.0` (#54 closed).
 - The consumers: podssh is on `v0.15.0` (it took `pod-wormhole` at
   `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.15.0` (it
-  took `pod-hold` at `b759937`); podvm is on `v0.15.0` (`d9fe511`, with
-  T-155); podrunner takes its first tag with `v0.16.0`.
+  took `pod-hold` at `b759937`); podvm is on `v0.16.0` (`894cf13`: T-162
+  and T-175, PodUtils/podvm#244); podrunner is on `v0.16.0` for `pod-core`
+  and `pod-todo` (`07cd854`).
 - Partial: T-169 and T-170 (the adoption patch for podnet; T-170 step 2
   waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
