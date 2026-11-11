@@ -10,7 +10,7 @@
 //! `tests/properties.proptest-regressions`, committed with the repair:
 //! proptest tries those inputs first at each run.
 
-use podssh_relay::relay::{check_host, forward_path, parse_relay_list, Relay};
+use pod_relay::relay::{Relay, check_host, forward_path, parse_relay_list};
 use proptest::collection::vec;
 use proptest::prelude::*;
 use proptest::sample::Index;

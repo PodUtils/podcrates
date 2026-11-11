@@ -22,12 +22,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use e2e_harness::{echo, echo_back, holds, identity, stand_in, Fault, LIMIT, PIPE};
-use podssh_relay::e2e::ends::{self, Node, Redeem, GRANT_REFUSED};
-use podssh_relay::e2e::person::{Answer, Asker, Gate, Question};
-use podssh_relay::e2e::{Ask, Error, Refusal};
-use podssh_relay::grant::{self, Cert, Door, Mint, Spent};
-use podssh_relay::identity::PublicKey;
+use e2e_harness::{Fault, LIMIT, PIPE, echo, echo_back, holds, identity, stand_in};
+use pod_e2e::ends::{self, GRANT_REFUSED, Node, Redeem};
+use pod_e2e::person::{Answer, Asker, Gate, Question};
+use pod_e2e::{Ask, Error, Refusal};
+use pod_identity::PublicKey;
+use pod_relay::grant::{self, Cert, Door, Mint, Spent};
 
 /// 2026-11-15, inside the fixtures' window.
 const NOW: u64 = 1_794_700_800;
@@ -277,7 +277,7 @@ async fn a_grant_meets_the_node_s_person_as_a_key_of_the_door_does() {
 #[tokio::test]
 async fn a_revoked_serial_is_refused() {
     let dir = scratch(line!());
-    podssh_relay::cache::private_dir(&dir).unwrap();
+    pod_relay::cache::private_dir(&dir).unwrap();
     let file = dir.join("revoked");
     std::fs::write(&file, "# serials\n42\n").unwrap();
     #[cfg(unix)]

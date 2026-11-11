@@ -8,9 +8,9 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::failover::{race, Attempt, MintGate, Mode, STAGGER};
-use podssh_relay::gate::{self, Gates};
-use podssh_relay::{OpenError, Relay};
+use pod_relay::failover::{Attempt, MintGate, Mode, STAGGER, race};
+use pod_relay::gate::{self, Gates};
+use pod_relay::{OpenError, Relay};
 use tokio::time::Instant;
 
 /// What a host does, after so many milliseconds.

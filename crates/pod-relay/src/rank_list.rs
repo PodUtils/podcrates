@@ -84,10 +84,10 @@ fn by_measure(names: &[&str], kept: Option<&Rank>, egress: &str, now_ms: i64, sa
     if kept.holds(now_ms, egress) && !kept.named {
         let mut taken = Vec::new();
         for host in kept.hosts.iter().filter(|h| h.opened > 0) {
-            if let Some(i) = names.iter().position(|n| n.eq_ignore_ascii_case(bare(&host.host))) {
-                if !taken.contains(&i) {
-                    taken.push(i);
-                }
+            if let Some(i) = names.iter().position(|n| n.eq_ignore_ascii_case(bare(&host.host)))
+                && !taken.contains(&i)
+            {
+                taken.push(i);
             }
         }
         let mut order = taken.clone();

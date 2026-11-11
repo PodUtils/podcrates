@@ -332,10 +332,11 @@ async fn attempt(
     // largest of the opener, and a test's worker of 2 MiB overflowed.
     let tried = Box::pin(try_host(&relay, &shared, &gate, step, &mut notes));
     let result = crate::gate::guarded(shared.ctx.gates(), &relay, successor, HOST_DEADLINE, tried).await;
-    if let Err(e) = &result {
-        if e.another_host_may_help() && shared.several {
-            notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
-        }
+    if let Err(e) = &result
+        && e.another_host_may_help()
+        && shared.several
+    {
+        notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
     }
     Attempt { result, notes }
 }
@@ -380,16 +381,17 @@ async fn try_host(
     let mut result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
     // A cached token the relay no longer accepts: forget it and mint once.
     // Not for a policy refusal, which a new token cannot fix.
-    if let Err(ConnectError::Refused { status: 403, body }) = &result {
-        if token.origin == Origin::Cache && !is_policy_refusal(body) {
-            run.cache.remove(&key);
-            token = {
-                let _turn = gate.hold(&key, STAGGER).await;
-                token::obtain(&ctx, true).await.map_err(OpenError::Token)?
-            };
-            started = std::time::Instant::now();
-            result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
-        }
+    if let Err(ConnectError::Refused { status: 403, body }) = &result
+        && token.origin == Origin::Cache
+        && !is_policy_refusal(body)
+    {
+        run.cache.remove(&key);
+        token = {
+            let _turn = gate.hold(&key, STAGGER).await;
+            token::obtain(&ctx, true).await.map_err(OpenError::Token)?
+        };
+        started = std::time::Instant::now();
+        result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
     }
     if result.is_ok() {
         crate::rank_list::sample(&shared.samples, relay, started.elapsed());

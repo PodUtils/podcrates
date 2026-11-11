@@ -136,10 +136,10 @@ pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -
         if hosts.len() > MAX_ALTERNATES {
             break;
         }
-        if let Ok(relay) = parse_relay(host) {
-            if !hosts.contains(&relay) {
-                hosts.push(relay);
-            }
+        if let Ok(relay) = parse_relay(host)
+            && !hosts.contains(&relay)
+        {
+            hosts.push(relay);
         }
     }
     Ok(RelayList { hosts, explicit: false })

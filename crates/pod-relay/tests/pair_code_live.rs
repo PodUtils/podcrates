@@ -1,21 +1,28 @@
-//! Pairing by a short code (T-086) through each public mailbox, by the
-//! operator's ruling Q65: a short run, from a GitHub runner or a session's
-//! own host, through `HTTPS_PROXY` when it is set. Two podssh ends of one
-//! code meet at magic-wormhole's mailbox, `wss://relay.magic-wormhole.io/v1`,
-//! then at Least Authority's, and move each part. The pair is a test's: no
-//! credential of podssh's goes to a mailbox, and the mailbox sees ciphertext.
+//! Pairing by a short code (podssh T-086) through each public mailbox (the
+//! services of the kind `mailbox` of `pod-services`), by podssh's ruling
+//! Q65: a short run, from a GitHub runner or a session's own host, through
+//! `HTTPS_PROXY` when it is set. Two ends of one code meet at
+//! magic-wormhole's mailbox, `wss://relay.magic-wormhole.io/v1`, then at Least
+//! Authority's, and move each part. The pair is a test's: no credential goes
+//! to a mailbox, and the mailbox sees ciphertext.
 #![cfg(all(feature = "pair", feature = "code"))]
+
+mod support;
 
 use std::sync::{Arc, Mutex};
 
-use podssh_relay::code::exchange::{Done, Offer};
-use podssh_relay::code::run::{self, Ends, Waits};
-use podssh_relay::code::{self, Code};
-use podssh_relay::identity::PublicKey;
-use podssh_relay::pair::OperatorPart;
-use podssh_ws::url::WsUrl;
-use podssh_ws::{ProxyChoice, Trust};
+use pod_identity::PublicKey;
+use pod_relay::code::Code;
+use pod_relay::code::exchange::{Done, Offer};
+use pod_relay::code::run::{self, Ends, Waits};
+use pod_relay::pair::OperatorPart;
+use pod_ws::url::WsUrl;
 use zeroize::Zeroizing;
+
+/// The public mailboxes, in their rank.
+fn public_mailboxes() -> Vec<String> {
+    pod_services::of_kind("mailbox").filter_map(|s| s.endpoint("mailbox")).map(|e| e.url()).collect()
+}
 
 const NAME: &str = "0123456789abcdef0123456789abcdef";
 const TOKEN: &str = "testonlyconnect0000000000000000000000000000000000000000000000000";
@@ -25,13 +32,14 @@ const OPERATOR: PublicKey = PublicKey([0x11; 32]);
 #[tokio::test]
 #[ignore = "live: the public magic-wormhole mailboxes (Q65)"]
 async fn two_ends_pair_through_each_public_mailbox() {
-    for url in code::public_mailboxes() {
+    for url in public_mailboxes() {
         let said = Arc::new(Mutex::new(Vec::<String>::new()));
         let kept = said.clone();
-        let say: code::Say = Arc::new(move |line: String| kept.lock().unwrap().push(line));
         let url = WsUrl::parse(&url).unwrap();
-        let proxy = ProxyChoice::FromEnvironment;
-        let ends = Ends { mailboxes: vec![url.clone()], trust: Trust::Default, proxy, say };
+        let way = support::live().way.clone();
+        let mut config = pod_wormhole::Config::new("example.org/pod-relay/test", "pod-relay-test", "0.0.0", way);
+        config.events = Arc::new(move |event: pod_core::Event| kept.lock().unwrap().push(event.text));
+        let ends = Ends { mailboxes: vec![url.clone()], config };
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
         let token = Zeroizing::new(TOKEN.to_string());
         let part = OperatorPart::checked("relay.example.org", NAME.into(), token, now + 3_600_000, now).unwrap();

@@ -6,15 +6,15 @@
 
 mod e2e_harness;
 
-use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 
-use e2e_harness::{identity, node, LIMIT, PIPE};
-use podssh_relay::e2e::ends;
-use podssh_relay::reverse::{E2e, Handler, Layered, Opening, SessionId as RelayId};
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::resume::{self, Next};
-use podssh_relay::session::{Ask, End, Ended, OsEntropy, Settings};
+use e2e_harness::{LIMIT, PIPE, identity, node};
+use pod_e2e::ends;
+use pod_relay::reverse::{E2e, Handler, Layered, Opening, SessionId as RelayId};
+use pod_session::client::{self, Outcome};
+use pod_session::resume::{self, Next};
+use pod_session::{Ask, End, Ended, OsEntropy, Settings};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 

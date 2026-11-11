@@ -8,10 +8,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::reverse::{after_close, serve, End, Handler, Next, Opening, Settings};
-use podssh_relay::reverse::{RelayClose, SessionId};
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::session::RelaySession;
+use pod_relay::reverse::{End, Handler, Next, Opening, Settings, after_close, serve};
+use pod_relay::reverse::{RelayClose, SessionId};
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::session::RelaySession;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
 
@@ -52,7 +52,7 @@ impl Handler for Local {
     type Stream = DuplexStream;
 
     fn queue_bytes(&self) -> usize {
-        self.queue.unwrap_or(podssh_relay::reverse::QUEUE_BYTES)
+        self.queue.unwrap_or(pod_relay::reverse::QUEUE_BYTES)
     }
 
     fn open(&self, id: SessionId) -> Opening<DuplexStream> {

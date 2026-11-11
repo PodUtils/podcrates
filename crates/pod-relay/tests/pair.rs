@@ -6,8 +6,8 @@
 
 use std::path::PathBuf;
 
-use podssh_relay::pair::{self, PairError};
-use podssh_relay::relay::Relay;
+use pod_relay::pair::{self, PairError};
+use pod_relay::relay::Relay;
 
 const NAME: &str = "podssh-test-pair-0123456789abcdef0";
 const NODE: &str = "testonlynode0000000000000000000000000000000000000000000000000000";
@@ -41,7 +41,7 @@ fn no_token(text: &str) {
 fn scratch(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
     let dir = std::env::temp_dir().join(format!("podssh-pair-{tag}-{}-{nanos}", std::process::id()));
-    podssh_relay::cache::private_dir(&dir).unwrap();
+    pod_relay::cache::private_dir(&dir).unwrap();
     dir
 }
 

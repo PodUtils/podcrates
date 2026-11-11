@@ -3,9 +3,11 @@
 //! made and dropped there; and no token is in a debug text or an error.
 #![cfg(feature = "blocking")]
 
-use podssh_relay::blocking::{Client, Config, Error, Forward, Local, NodeOptions, Operator, Stopper};
-use podssh_relay::pair::{self, Pair, PairError};
-use podssh_relay::relay::{Relay, RelayList};
+mod support;
+
+use pod_relay::blocking::{Client, Config, Error, Forward, Local, NodeOptions, Operator, Stopper};
+use pod_relay::pair::{self, Pair, PairError};
+use pod_relay::relay::{Relay, RelayList};
 
 const NAME: &str = "podssh-test-pair-0123456789abcdef0";
 const NODE: &str = "testonlynode0000000000000000000000000000000000000000000000000000";
@@ -52,14 +54,14 @@ fn each_call_is_refused(client: &Client) {
 fn each_call_from_inside_a_runtime_is_refused_and_nothing_panics() {
     let current = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     current.block_on(async {
-        let client = Client::new(Config::default()).expect("a client may be made here");
+        let client = Client::new(Config::new(support::context())).expect("a client may be made here");
         each_call_is_refused(&client);
         // A drop inside an async context must not panic either.
         drop(client);
     });
     let multi = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
     multi.block_on(async {
-        let client = Client::new(Config::default()).unwrap();
+        let client = Client::new(Config::new(support::context())).unwrap();
         each_call_is_refused(&client);
         let client = tokio::task::spawn_blocking(move || {
             each_call_is_refused(&client);
@@ -92,7 +94,7 @@ fn a_stopper_keeps_a_stop_that_came_first() {
 fn no_token_is_in_a_debug_text_or_an_error() {
     let relay = relay();
     let pair = test_pair(&relay);
-    let client = Client::new(Config::default()).unwrap();
+    let client = Client::new(Config::new(support::context())).unwrap();
     let texts = [
         format!("{:?}", Operator::of(&pair)),
         format!("{client:?}"),
@@ -110,7 +112,7 @@ fn no_token_is_in_a_debug_text_or_an_error() {
 
 #[test]
 fn a_target_that_the_relay_cannot_take_is_refused_before_any_connection() {
-    let client = Client::new(Config::default()).unwrap();
+    let client = Client::new(Config::new(support::context())).unwrap();
     let relays = RelayList { hosts: vec![relay()], explicit: true };
     for (host, port) in [("example.org/../x", 22), ("example.org", 0), ("a b", 22)] {
         let refused = client.open_forward(&relays, host, port);

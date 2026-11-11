@@ -9,18 +9,20 @@
 //! what each socket saw, and no token.
 #![cfg(feature = "pair")]
 
+mod support;
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{node_path, operator_path};
-use podssh_relay::reverse::control::{self, NodeInbound, NodeOutbound};
-use podssh_relay::reverse::framing::legs::{decode_node_frame, encode_node_frame};
-use podssh_relay::reverse::SessionId;
-use podssh_relay::{default_relay_host, Relay};
-use podssh_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE, OPCODE_TEXT};
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{connect, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use pod_relay::pair::{self, Pair, PairContext};
+use pod_relay::relay::{node_path, operator_path};
+use pod_relay::reverse::SessionId;
+use pod_relay::reverse::control::{self, NodeInbound, NodeOutbound};
+use pod_relay::reverse::framing::legs::{decode_node_frame, encode_node_frame};
+use pod_relay::{Relay, default_relay_host};
+use pod_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE, OPCODE_TEXT};
+use pod_ws::session::close_code_and_reason;
+use pod_ws::{Endpoint, RelaySession, Trust, WsClientConfig, connect};
 use tokio::sync::mpsc;
 
 /// How long a run keeps its session quiet: past the 180 s of payload
@@ -196,7 +198,8 @@ fn socket_config(relay: &Relay, path: String) -> WsClientConfig {
         timeout: STEP,
         // The relay's cut is measured, not podssh's.
         idle_timeout: None,
-        proxy: ProxyChoice::FromEnvironment,
+        way: support::live().way.clone(),
+        limits: pod_ws::Limits::RELAY,
     }
 }
 
@@ -396,8 +399,7 @@ async fn session(relay: &Relay, made: &Pair, keep: Keep, label: &'static str) ->
 /// Make a pair, measure one run, and stop the pair whatever happened.
 async fn measure(keep: Keep, label: &'static str) -> Outcome {
     let relay = relay();
-    let ctx =
-        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
+    let ctx = PairContext { relay: &relay, trust: &Trust::Default, ctx: support::live(), timeout: STEP };
     let made = pair::create(&ctx).await.expect("a pair from the live relay");
     let run = tokio::time::timeout(RUN_LIMIT, session(&relay, &made, keep, label)).await;
     let stopped = pair::stop(&ctx, &made).await;
@@ -436,11 +438,11 @@ async fn a_session_with_a_ping_from_the_operator_every_20_s() {
     measure(keep, "(b2) a Ping from the operator every 20 s").await.print();
 }
 
-/// As the node and the operator runners ping (`podssh_ws::LIVENESS_EVERY`).
+/// As the node and the operator runners ping (`pod_ws::LIVENESS_EVERY`).
 #[tokio::test]
 #[ignore = "live: about 5 min against the relay"]
 async fn a_session_with_a_ping_from_each_end_every_10_s_as_the_runners_do() {
-    let keep = Keep::Pings { every: podssh_ws::LIVENESS_EVERY, node: true, operator: true };
+    let keep = Keep::Pings { every: pod_ws::LIVENESS_EVERY, node: true, operator: true };
     measure(keep, "(d) a Ping from each end every 10 s, as the runners do").await.print();
 }
 

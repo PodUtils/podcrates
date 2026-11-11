@@ -6,18 +6,20 @@
 //! T-088). No test prints a token.
 #![cfg(feature = "pair")]
 
+mod support;
+
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_relay::e2e::{self, ends};
-use podssh_relay::identity::{pins, Identity, PublicKey};
-use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{default_relay_host, Relay};
-use podssh_relay::reverse::SessionId;
-use podssh_relay::reverse::{
-    operator, run, E2e, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire,
+use pod_e2e::{self, ends};
+use pod_identity::{Identity, PublicKey, pins};
+use pod_relay::pair::{self, Pair, PairContext};
+use pod_relay::relay::{Relay, default_relay_host};
+use pod_relay::reverse::SessionId;
+use pod_relay::reverse::{
+    E2e, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire, operator, run,
 };
-use podssh_ws::{ProxyChoice, Trust};
+use pod_ws::Trust;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
 
@@ -69,7 +71,7 @@ fn relay() -> Relay {
 
 /// A pair, and a second copy of it for the operator's side.
 async fn paired(relay: &Relay) -> (Pair, Pair) {
-    let ctx = PairContext { relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+    let ctx = PairContext { relay, trust: &Trust::Default, ctx: support::live(), timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");
     let copy = pair::parse(relay, &body_of(&made), now_ms()).expect("the same pair");
     (made, copy)
@@ -84,7 +86,7 @@ fn node<H: Handler>(made: Pair, handler: H) -> (tokio::task::JoinHandle<Exit>, A
             pair: made,
             label: None,
             trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
+            ctx: support::live(),
             timeout: LIMIT,
             settings: Settings::default(),
             repair: None,
@@ -108,7 +110,7 @@ async fn operator_echo(pair: &Pair, payload: Vec<u8>) -> (Vec<u8>, Outcome) {
             name: &name,
             connect_token: &token,
             trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
+            ctx: support::live(),
             timeout: LIMIT,
             limits: OperatorLimits::default(),
             wire: Wire::Tls,
@@ -169,7 +171,7 @@ async fn operator_sees_reject_with_full_reason() {
         name: &copy.name,
         connect_token: copy.connect_token(),
         trust: &Trust::Default,
-        proxy: &ProxyChoice::FromEnvironment,
+        ctx: support::live(),
         timeout: LIMIT,
         limits: OperatorLimits::default(),
         wire: Wire::Tls,
@@ -185,7 +187,7 @@ async fn operator_sees_reject_with_full_reason() {
 }
 
 async fn stop_pair(relay: &Relay, pair: &Pair) {
-    let ctx = PairContext { relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+    let ctx = PairContext { relay, trust: &Trust::Default, ctx: support::live(), timeout: LIMIT };
     let stopped = pair::stop(&ctx, pair).await.expect("the pair stops");
     eprintln!("pair: {stopped:?}");
 }
@@ -211,16 +213,17 @@ fn now_ms() -> i64 {
 fn channel_node(seed: u8) -> (ends::Node, PublicKey) {
     let key = Arc::new(Identity::from_seed(&[seed; 32]));
     let public = key.public();
-    (
-        ends::Node::open_to_all(key, podssh_relay::e2e::events(Arc::new(|line: String| eprintln!("node: {line}")))),
-        public,
-    )
+    (ends::Node::open_to_all(key, Arc::new(|event: pod_core::Event| eprintln!("node: {}", event.text))), public)
 }
 
 /// One operator session over the channel: send `payload`, read as many bytes
 /// back, then end the input. The bytes that came back, the leg's outcome,
 /// and the channel's.
-async fn channel_echo<C>(pair: &Pair, payload: Vec<u8>, check: C) -> (Vec<u8>, Outcome, Result<PublicKey, e2e::Error>)
+async fn channel_echo<C>(
+    pair: &Pair,
+    payload: Vec<u8>,
+    check: C,
+) -> (Vec<u8>, Outcome, Result<PublicKey, pod_e2e::Error>)
 where
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
 {
@@ -235,7 +238,7 @@ where
             name: &name,
             connect_token: &token,
             trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
+            ctx: support::live(),
             timeout: LIMIT,
             limits: OperatorLimits::default(),
             wire: Wire::Tls,
@@ -312,7 +315,7 @@ async fn a_changed_node_key_is_refused() {
     let (back, _, channel) = channel_echo(&copy, pattern(5), pinned(dirs.clone())).await;
     assert!(back.is_empty(), "the refused node got bytes through: {}", back.len());
     let why = match channel {
-        Err(e2e::Error::NodeKey(why)) => why,
+        Err(pod_e2e::Error::NodeKey(why)) => why,
         other => panic!("the changed key was not refused: {other:?}"),
     };
     assert!(why.contains(&first_key.to_string()) && why.contains(&second_key.to_string()), "{why}");

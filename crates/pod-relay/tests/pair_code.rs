@@ -1,17 +1,15 @@
-//! Pairing by a short code (T-086), offline, at each mailbox that this host
-//! runs on the loopback (`mailbox_harness`): podssh's relay role (with the
-//! feature `serve`), and magic-wormhole's own mailbox server. Two podssh
-//! ends of one code agree and move each part; a wrong code fails both ends
-//! and spends the code; a second use, and a code past its life, find
-//! nobody; a third end is refused while two hold the code; no line and no
-//! `Debug` holds the code. A peer of magic-wormhole's own Python library and
-//! podssh's finish the `pake` and `version` phases and a message each way,
-//! either one giving the code, and a wrong code fails both. A code of the
-//! net's invitation (T-616) taken by the pairing's command is told apart at
-//! the version phase, with the command that takes it. Planted
-//! (`scripts/plants/t086-*.patch`): a third side let in, the code said in a
-//! line, a version that does not open taken; (`t616-kind-unchecked`) a
-//! version of another kind taken.
+//! Pairing by a short code (podssh T-086), offline, at each mailbox that this
+//! host runs on the loopback (`mailbox_harness`): the stand-in of
+//! pod-wormhole, and magic-wormhole's own mailbox server. Two ends of one
+//! code agree and move each part; a wrong code fails both ends and spends
+//! the code; a second use, and a code past its life, find nobody; a third
+//! end is refused while two hold the code; no line and no `Debug` holds the
+//! code. A code of the net's invitation (podssh T-616) taken by the
+//! pairing's command is told apart at the version phase, with the command
+//! that takes it. The peer of magic-wormhole's own Python library is
+//! pod-wormhole's test. Planted (`scripts/plants/relay-t086-code-said`):
+//! the code said in a line; (`relay-t616-kind-unchecked`) a version of
+//! another kind taken.
 #![cfg(all(feature = "pair", feature = "code"))]
 
 mod cleanup;
@@ -20,16 +18,16 @@ mod mailbox_harness;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use mailbox_harness::{mailboxes, nobody_there, Peer, LIMIT};
-use podssh_relay::code::exchange::{self, Done, Offer};
-use podssh_relay::code::mailbox::Mood;
-use podssh_relay::code::run::{self, Ends, Given, Taken, Waits};
-use podssh_relay::code::{self, words, Code, Failed};
-use podssh_relay::identity::PublicKey;
-use podssh_relay::pair::OperatorPart;
-use podssh_ws::url::WsUrl;
-use podssh_ws::{ProxyChoice, Trust};
-use serde_json::{json, Value};
+use mailbox_harness::{LIMIT, config, mailboxes, nobody_there};
+use pod_identity::PublicKey;
+use pod_relay::code::exchange::{self, Done, Offer};
+use pod_relay::code::mailbox::Mood;
+use pod_relay::code::run::{self, Ends, Given, Taken, Waits};
+use pod_relay::code::{Code, Failed};
+use pod_relay::pair::OperatorPart;
+use pod_wormhole::{WORDS, words};
+use pod_ws::url::WsUrl;
+use serde_json::json;
 use zeroize::Zeroizing;
 
 const NAME: &str = "0123456789abcdef0123456789abcdef";
@@ -48,8 +46,9 @@ fn waits() -> Waits {
 
 fn ends(mailboxes: Vec<WsUrl>, said: &Said) -> Ends {
     let said = said.clone();
-    let say: code::Say = Arc::new(move |line: String| said.lock().unwrap().push(line));
-    Ends { mailboxes, trust: Trust::Default, proxy: ProxyChoice::Direct, say }
+    let mut config = config();
+    config.events = Arc::new(move |event: pod_core::Event| said.lock().unwrap().push(event.text));
+    Ends { mailboxes, config }
 }
 
 fn offer() -> Offer {
@@ -108,10 +107,6 @@ fn wrong(shown: &str) -> String {
 
 fn same(shown: &str) -> String {
     shown.to_string()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[tokio::test]
@@ -236,67 +231,12 @@ async fn the_code_is_in_no_line_and_no_debug() {
         let lines = said.lock().unwrap().clone();
         assert!(lines.len() >= 2, "{name}: each end said the mailbox that failed: {lines:?}");
         let secret: Vec<&str> = p.code.split('-').skip(1).collect();
-        assert_eq!(secret.len(), code::WORDS);
+        assert_eq!(secret.len(), WORDS);
         let debug = format!("{given:?} {:?} {:?}", Code::parse(&p.code).unwrap(), taken.done);
         for word in secret {
             for line in lines.iter().chain([&debug]) {
                 assert!(!line.contains(word), "{name}: a word of the code in {line:?}");
             }
         }
-    }
-}
-
-#[tokio::test]
-async fn a_peer_of_magic_wormholes_python_library_takes_podssh_s_code() {
-    for (name, url, _server) in mailboxes("py-take").await {
-        let said = Said::default();
-        let ends = ends(vec![url.clone()], &said);
-        let (mut hole, code) = run::opened(&ends, json!({ "podssh-test": 1 })).await.expect("a code");
-        let Some(mut peer) = Peer::start(&url, code::APPID, "take") else { return };
-        peer.type_code(code.for_terminal());
-        assert!(hole.agree(LIMIT).await.unwrap(), "{name}: the peer's pake: {}", peer.said());
-        let theirs = hole.confirm(LIMIT).await.unwrap_or_else(|e| panic!("{name}: {e}: {}", peer.said()));
-        assert_eq!(theirs, json!({ "podssh-test": 1 }), "{name}");
-        hole.send(b"from podssh").await.unwrap();
-        assert_eq!(hole.receive(LIMIT).await.unwrap(), b"from python", "{name}");
-        hole.close(Mood::Happy).await;
-        assert_eq!(peer.after("versions").as_deref(), Some(r#"{"podssh-test": 1}"#), "{name}: {}", peer.said());
-        assert_eq!(peer.after("got"), Some(hex(b"from podssh")), "{name}: {}", peer.said());
-    }
-}
-
-// The test waits on the peer's line with no await; the role, in this
-// process, needs a worker of its own meanwhile.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn podssh_takes_a_code_that_magic_wormholes_python_library_gives() {
-    for (name, url, _server) in mailboxes("py-give").await {
-        let said = Said::default();
-        let ends = ends(vec![url.clone()], &said);
-        let Some(mut peer) = Peer::start(&url, code::APPID, "give") else { return };
-        let typed = peer.after("code").unwrap_or_else(|| panic!("{name}: no code: {}", peer.said()));
-        let code = Code::parse(&typed).expect("magic-wormhole's code is podssh's form");
-        assert_eq!(code.words(), 3, "{name}");
-        let joined = run::joined(&ends, &code, json!({ "podssh-test": 1 }), &waits()).await;
-        let mut hole = joined.unwrap_or_else(|e| panic!("{name}: {e}: {}", peer.said()));
-        let theirs: Value = hole.confirm(LIMIT).await.unwrap();
-        assert_eq!(theirs, json!({ "podssh-test": 1 }), "{name}");
-        hole.send(b"from podssh").await.unwrap();
-        assert_eq!(hole.receive(LIMIT).await.unwrap(), b"from python", "{name}");
-        hole.close(Mood::Happy).await;
-        assert_eq!(peer.after("got"), Some(hex(b"from podssh")), "{name}: {}", peer.said());
-    }
-}
-
-#[tokio::test]
-async fn a_peer_of_magic_wormholes_python_library_with_a_wrong_code_fails_both_ends() {
-    for (name, url, _server) in mailboxes("py-wrong").await {
-        let said = Said::default();
-        let ends = ends(vec![url.clone()], &said);
-        let (mut hole, code) = run::opened(&ends, json!({ "podssh-test": 1 })).await.expect("a code");
-        let Some(mut peer) = Peer::start(&url, code::APPID, "take") else { return };
-        peer.type_code(&wrong(code.for_terminal()));
-        assert!(hole.agree(LIMIT).await.unwrap(), "{name}: the peer's pake: {}", peer.said());
-        assert_eq!(hole.confirm(LIMIT).await.err(), Some(Failed::WrongCode), "{name}");
-        assert_eq!(peer.after("wrong").as_deref(), Some(""), "{name}: {}", peer.said());
     }
 }

@@ -5,13 +5,13 @@
 //! TCP, so a codec tested only through a socket would have no test at all.
 #![cfg(feature = "pair")]
 
-use podssh_relay::reverse::control;
-use podssh_relay::reverse::framing::legs::{
+use pod_relay::reverse::control;
+use pod_relay::reverse::framing::legs::{
     chunk_for_bare, chunk_for_node, decode_node_frame, encode_node_frame, encode_operator_frame,
 };
-use podssh_relay::reverse::framing::{
-    CodecError, SessionId, CONTROL_FRAME_MAX, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX,
-    SESSION_ID_LEN,
+use pod_relay::reverse::framing::{
+    CONTROL_FRAME_MAX, CodecError, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX, SESSION_ID_LEN,
+    SessionId,
 };
 
 /// A session id written out: a repeated digit is the shape of a mistake, and

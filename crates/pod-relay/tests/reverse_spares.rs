@@ -7,10 +7,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_relay::reverse::{serve, End, Handler, Opening, SessionId, Settings};
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::session::RelaySession;
-use serde_json::{json, Value};
+use pod_relay::reverse::{End, Handler, Opening, SessionId, Settings, serve};
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::session::RelaySession;
+use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
 

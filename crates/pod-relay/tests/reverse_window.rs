@@ -19,10 +19,10 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
 
-use podssh_relay::reverse::{Handler, Layered, Opening, SessionId as RelayId};
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::resume::{self, Next};
-use podssh_relay::session::{Ask, End, Ended, OsEntropy, Settings};
+use pod_relay::reverse::{Handler, Layered, Opening, SessionId as RelayId};
+use pod_session::client::{self, Outcome};
+use pod_session::resume::{self, Next};
+use pod_session::{Ask, End, Ended, OsEntropy, Settings};
 
 const MIB: usize = 1 << 20;
 const PIPE: usize = 256 * 1024;

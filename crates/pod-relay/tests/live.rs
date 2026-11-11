@@ -5,18 +5,21 @@
 //! cargo test -p podssh-relay --test live -- --ignored --nocapture
 //! ```
 
+mod support;
+
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_relay::open::Request;
-use podssh_relay::relay;
-use podssh_ws::Trust;
+use pod_relay::open::Request;
+use pod_relay::relay;
+use pod_ws::Trust;
 
-async fn open_github() -> podssh_relay::Opened {
-    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
-    let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap();
+async fn open_github() -> pod_relay::Opened {
+    let pool = pod_relay::pool::alternates(&support::live().cache, relay::default_relay_host());
+    let relays = relay::select_relays(None, std::env::var(RELAY_ENV).ok(), &pool).unwrap();
     let path = relay::forward_path("github.com", 22).unwrap();
     let request = Request {
+        ctx: support::live(),
         relays: &relays,
         path: &path,
         trust: &Trust::Default,
@@ -24,7 +27,7 @@ async fn open_github() -> podssh_relay::Opened {
         rounds: 1,
         failover: Default::default(),
     };
-    match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
+    match pod_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
         Err(failure) => panic!("no session: {:?}", failure.lines("github.com:22")),
     }
@@ -34,6 +37,8 @@ async fn open_github() -> podssh_relay::Opened {
 /// `watch_liveness` can find a dead link in seconds (it never declares a link
 /// dead before a first pong, so a relay that does not answer is safe, only
 /// slower).
+/// The relay hosts of a live run, as the live workflow names them.
+const RELAY_ENV: &str = "PODSSH_RELAY";
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "network: the live relay"]
 async fn the_relay_answers_websocket_pings() {
@@ -68,14 +73,15 @@ async fn the_relay_answers_websocket_pings() {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "network: the live relay"]
 async fn ipv6_the_relay_takes_the_bare_literal() {
-    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
-    let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap();
+    let pool = pod_relay::pool::alternates(&support::live().cache, relay::default_relay_host());
+    let relays = relay::select_relays(None, std::env::var(RELAY_ENV).ok(), &pool).unwrap();
     // Google's DNS over TLS: a public IPv6 address, on a port that is not a
     // web port (the relay's direct road refuses those).
     let target = "[2001:4860:4860::8888]:853";
     let path = relay::forward_path("2001:4860:4860::8888", 853).unwrap();
     assert_eq!(path, "/connect/2001:4860:4860::8888/853");
     let request = Request {
+        ctx: support::live(),
         relays: &relays,
         path: &path,
         trust: &Trust::Default,
@@ -83,7 +89,7 @@ async fn ipv6_the_relay_takes_the_bare_literal() {
         rounds: 1,
         failover: Default::default(),
     };
-    let opened = match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
+    let opened = match pod_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
         // podssh's relay role on a host with no IPv6 route out: its 502.
         Err(failure) if failure.lines(target).iter().any(|l| l.contains(relay::NO_IPV6_ROUTE)) => {
@@ -95,8 +101,8 @@ async fn ipv6_the_relay_takes_the_bare_literal() {
     // A TLS record header with no body: a TLS server answers or closes.
     opened.session.send_binary(&[0x16, 0x03, 0x01, 0x00, 0x00]).await.expect("sent");
     match tokio::time::timeout(Duration::from_secs(15), opened.session.read_frame()).await {
-        Ok(Ok(f)) if f.opcode == podssh_ws::frame::OPCODE_CLOSE => {
-            let (code, reason) = podssh_ws::session::close_code_and_reason(&f.payload);
+        Ok(Ok(f)) if f.opcode == pod_ws::frame::OPCODE_CLOSE => {
+            let (code, reason) = pod_ws::session::close_code_and_reason(&f.payload);
             eprintln!("the relay closed the session ({code:?} {reason}): its egress did not reach the IPv6 host");
         }
         Ok(Ok(f)) => eprintln!("{} bytes came back from the IPv6 host", f.payload.len()),

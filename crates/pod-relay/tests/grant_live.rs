@@ -6,18 +6,20 @@
 //! and sees neither the grant nor a byte. No test prints a token.
 #![cfg(all(feature = "pair", feature = "grant"))]
 
+mod support;
+
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_relay::e2e::ends::{self, GRANT_REFUSED};
-use podssh_relay::e2e::{self, Ask, Refusal};
-use podssh_relay::grant::{self, Door, Mint, Spent};
-use podssh_relay::identity::{Identity, PublicKey};
-use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{default_relay_host, Relay};
-use podssh_relay::reverse::{operator, run, E2e, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
-use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
-use podssh_ws::{ProxyChoice, Trust};
+use pod_e2e::ends::{self, GRANT_REFUSED};
+use pod_e2e::{self, Ask, Refusal};
+use pod_identity::{Identity, PublicKey};
+use pod_relay::grant::{self, Door, Mint, Spent};
+use pod_relay::pair::{self, Pair, PairContext};
+use pod_relay::relay::{Relay, default_relay_host};
+use pod_relay::reverse::{E2e, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, operator, run};
+use pod_relay::reverse::{Outcome, SessionId, Settings, Wire};
+use pod_ws::Trust;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
 
@@ -61,7 +63,7 @@ fn body_of(pair: &Pair) -> Vec<u8> {
 }
 
 /// What came back, the leg's outcome and the channel's.
-type Echoed = (Vec<u8>, Outcome, Result<PublicKey, e2e::Error>);
+type Echoed = (Vec<u8>, Outcome, Result<PublicKey, pod_e2e::Error>);
 
 /// One operator session with `grant`.
 async fn granted_echo(pair: &Pair, operator_key: Arc<Identity>, grant: Vec<u8>) -> Echoed {
@@ -76,7 +78,7 @@ async fn granted_echo(pair: &Pair, operator_key: Arc<Identity>, grant: Vec<u8>) 
             name: &name,
             connect_token: &token,
             trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
+            ctx: support::live(),
             timeout: LIMIT,
             limits: OperatorLimits::default(),
             wire: Wire::Tls,
@@ -101,8 +103,7 @@ async fn granted_echo(pair: &Pair, operator_key: Arc<Identity>, grant: Vec<u8>) 
 #[ignore = "the live relay: run with --ignored"]
 async fn a_grant_is_used_once_through_the_live_relay() {
     let relay = Relay { host: default_relay_host().into(), port: 443 };
-    let ctx =
-        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+    let ctx = PairContext { relay: &relay, trust: &Trust::Default, ctx: support::live(), timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");
     let copy = pair::parse(&relay, &body_of(&made), now_secs() as i64 * 1000).expect("the same pair");
 
@@ -113,7 +114,8 @@ async fn a_grant_is_used_once_through_the_live_relay() {
     let issuers: Arc<grant::Issuers> = Arc::new(|_: &PublicKey, _: &Ask| -> Result<(), String> { Err("none".into()) });
     let door = Door { node: node_key.public(), issuers, spent: Spent::at(spent.clone()), revoked: None };
     let say = Arc::new(|line: String| eprintln!("node: {line}"));
-    let mut node_end = ends::Node::open_to_all(node_key.clone(), podssh_relay::e2e::events(say));
+    let mut node_end =
+        ends::Node::open_to_all(node_key.clone(), Arc::new(move |event: pod_core::Event| say(event.text)));
     node_end.admit = Arc::new(|_: &PublicKey, _: &Ask| -> Result<(), String> { Err("no allowlist".into()) });
     node_end.redeem = Some(Arc::new(move |peer: &PublicKey, ask: &Ask, blob: &[u8]| {
         door.redeem(peer, ask, blob, now_secs()).map(|redeemed| redeemed.to_string())
@@ -125,7 +127,7 @@ async fn a_grant_is_used_once_through_the_live_relay() {
             pair: made,
             label: None,
             trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
+            ctx: support::live(),
             timeout: LIMIT,
             settings: Settings::default(),
             repair: None,
@@ -157,7 +159,7 @@ async fn a_grant_is_used_once_through_the_live_relay() {
     assert_eq!(back, b"one session of a grant", "{first:?} {channel:?}");
     assert_eq!(channel.ok(), Some(node_key.public()));
     let (_, second, channel) = granted_echo(&copy, operator_key, blob).await;
-    let refused = matches!(&channel, Err(e2e::Error::Refused(Refusal::Other(why))) if why == GRANT_REFUSED);
+    let refused = matches!(&channel, Err(pod_e2e::Error::Refused(Refusal::Other(why))) if why == GRANT_REFUSED);
     assert!(refused, "the second use: {second:?} {channel:?}");
 
     stop.notify_one();

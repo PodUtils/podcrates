@@ -369,11 +369,11 @@ impl Client {
                 let (outcome, ended) =
                     runtime.block_on(async { tokio::join!(reverse::operator::run(&config, cipher), session) });
                 // A cut, or a failed stream, is the leg's to tell.
-                if let Err(e) = ended {
-                    if !matches!(e, pod_e2e::Error::Cut | pod_e2e::Error::Io(_)) {
-                        bridged.output_done.wait(to.limits.close_limit);
-                        return Err(Error::Channel(e));
-                    }
+                if let Err(e) = ended
+                    && !matches!(e, pod_e2e::Error::Cut | pod_e2e::Error::Io(_))
+                {
+                    bridged.output_done.wait(to.limits.close_limit);
+                    return Err(Error::Channel(e));
                 }
                 outcome
             }

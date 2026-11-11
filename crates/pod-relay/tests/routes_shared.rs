@@ -8,13 +8,15 @@
 
 #![cfg(feature = "pair")]
 
+mod support;
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::e2e::Ask;
-use podssh_relay::identity::{Identity, PublicKey};
-use podssh_relay::reverse::routes::{Grant, Route, Routes, Shared};
+use pod_e2e::Ask;
+use pod_identity::{Identity, PublicKey};
+use pod_relay::reverse::routes::{Grant, Route, Routes, Shared};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -60,7 +62,8 @@ fn routes(fixed: Vec<Route>, shared: Arc<Shared>) -> Routes {
         "db" => Err("the allowlist does not give it db".to_string()),
         _ => Ok(()),
     });
-    Routes { routes: Arc::new(fixed), grant, timeout: LIMIT, sshd: false, exit: None, shared: Some(shared) }
+    let dialer = support::dialer();
+    Routes { routes: Arc::new(fixed), grant, timeout: LIMIT, sshd: false, exit: None, shared: Some(shared), dialer }
 }
 
 /// What a session that asked `ask` got: the service's word, or the

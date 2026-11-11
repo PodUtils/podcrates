@@ -8,16 +8,18 @@
 #[allow(dead_code)]
 mod stand_in;
 
+mod support;
+
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use podssh_relay::blocking::{Client, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper};
-use podssh_relay::e2e::ends;
-use podssh_relay::identity::{Identity, KeyName};
-use podssh_relay::relay::{default_relay_host, Relay, RelayList};
-use podssh_relay::reverse::{Exit, Outcome};
-use stand_in::{pipe, Shared};
+use pod_e2e::ends;
+use pod_identity::{Identity, KeyName};
+use pod_relay::blocking::{Client, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper};
+use pod_relay::relay::{Relay, RelayList, default_relay_host};
+use pod_relay::reverse::{Exit, Outcome};
+use stand_in::{Shared, pipe};
 
 const MIB: usize = 1024 * 1024;
 const LIMIT: Duration = Duration::from_secs(60);
@@ -52,7 +54,7 @@ fn echo_session(client: &Client, to: &Operator<'_>, payload: Vec<u8>) -> (Vec<u8
 #[test]
 #[ignore = "the live relay: run with --ignored"]
 fn a_node_and_two_operator_sessions_at_once_through_the_facade() {
-    let client = Client::new(Config::default()).expect("a client");
+    let client = Client::new(Config::new(support::live().clone())).expect("a client");
     let relay = relay();
     let mut pair = client.pair(&relay).expect("a pair");
     // The operator's side holds the name and the connect token, as an
@@ -65,7 +67,7 @@ fn a_node_and_two_operator_sessions_at_once_through_the_facade() {
         node: KeyName::Key(node_key.public()),
     });
     let options = NodeOptions {
-        channel: NodeChannel::With(ends::Node::open_to_all(node_key, Arc::new(podssh_relay::e2e::NoEvents))),
+        channel: NodeChannel::With(ends::Node::open_to_all(node_key, Arc::new(pod_core::NoEvents))),
         ..NodeOptions::default()
     };
     let stopper = Stopper::new();
@@ -104,7 +106,7 @@ fn a_node_and_two_operator_sessions_at_once_through_the_facade() {
 #[test]
 #[ignore = "the live relay: run with --ignored"]
 fn a_forward_session_through_the_facade_reads_on_after_a_half_close() {
-    let client = Client::new(Config::default()).expect("a client");
+    let client = Client::new(Config::new(support::live().clone())).expect("a client");
     let relays = RelayList { hosts: vec![relay()], explicit: true };
     let mut forward = client.open_forward(&relays, "github.com", 22).expect("a session");
     let mut banner = Vec::new();

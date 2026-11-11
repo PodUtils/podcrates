@@ -4,22 +4,20 @@
 //! token refused. It prints no token: only the state of the pair.
 #![cfg(feature = "pair")]
 
+mod support;
+
 use std::time::Duration;
 
-use podssh_relay::pair::{self, PairContext, PairError};
-use podssh_relay::relay::{default_relay_host, Relay};
-use podssh_ws::{ProxyChoice, Trust};
+use pod_relay::pair::{self, PairContext, PairError};
+use pod_relay::relay::{Relay, default_relay_host};
+use pod_ws::Trust;
 
 #[tokio::test]
 #[ignore = "the live relay: run with --ignored"]
 async fn a_pair_is_made_asked_about_and_stopped() {
     let relay = Relay { host: default_relay_host().into(), port: 443 };
-    let ctx = PairContext {
-        relay: &relay,
-        trust: &Trust::Default,
-        proxy: &ProxyChoice::FromEnvironment,
-        timeout: Duration::from_secs(20),
-    };
+    let ctx =
+        PairContext { relay: &relay, trust: &Trust::Default, ctx: support::live(), timeout: Duration::from_secs(20) };
     let made = pair::create(&ctx).await.expect("a pair");
     eprintln!("made a pair: {made:?}");
     let left_h = (made.expires_ms - now_ms()) / 3_600_000;

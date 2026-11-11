@@ -19,13 +19,13 @@
 //! ```
 #![cfg(feature = "pair")]
 
-use podssh_relay::reverse::closes::{classify, Leg, Retry, SessionAction};
-use podssh_relay::reverse::framing::legs::{decode_node_frame, encode_node_frame, encode_operator_frame};
-use podssh_relay::reverse::framing::{
-    CodecError, SessionId, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX, SESSION_ID_LEN,
+use pod_relay::reverse::RelayClose;
+use pod_relay::reverse::closes::{Leg, Retry, SessionAction, classify};
+use pod_relay::reverse::framing::legs::{decode_node_frame, encode_node_frame, encode_operator_frame};
+use pod_relay::reverse::framing::{
+    CodecError, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX, SESSION_ID_LEN, SessionId,
 };
-use podssh_relay::reverse::sessions::{Sessions, DATA_BEFORE_READY};
-use podssh_relay::reverse::RelayClose;
+use pod_relay::reverse::sessions::{DATA_BEFORE_READY, Sessions};
 
 const ID_HEX: &str = "0123456789abcdef0123456789abcdef";
 

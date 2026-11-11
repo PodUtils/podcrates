@@ -18,19 +18,21 @@
 
 mod drops_podssh;
 
+mod support;
+
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use podssh_relay::open::Request;
-use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{self, forward_path, node_path, operator_path};
-use podssh_relay::reverse::control::{self, NodeInbound, NodeOutbound};
-use podssh_relay::reverse::framing::legs::encode_node_frame;
-use podssh_relay::reverse::SessionId;
-use podssh_relay::{default_relay_host, Relay};
-use podssh_ws::frame::{OPCODE_CLOSE, OPCODE_TEXT};
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{connect, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use pod_relay::open::Request;
+use pod_relay::pair::{self, Pair, PairContext};
+use pod_relay::relay::{self, forward_path, node_path, operator_path};
+use pod_relay::reverse::SessionId;
+use pod_relay::reverse::control::{self, NodeInbound, NodeOutbound};
+use pod_relay::reverse::framing::legs::encode_node_frame;
+use pod_relay::{Relay, default_relay_host};
+use pod_ws::frame::{OPCODE_CLOSE, OPCODE_TEXT};
+use pod_ws::session::close_code_and_reason;
+use pod_ws::{Endpoint, RelaySession, Trust, WsClientConfig, connect};
 
 const PAIRS: usize = 4;
 const STEP: Duration = Duration::from_secs(15);
@@ -147,7 +149,8 @@ fn socket_config(relay: &Relay, path: String) -> WsClientConfig {
         timeout: STEP,
         // The relay's ends are measured, not podssh's.
         idle_timeout: None,
-        proxy: ProxyChoice::FromEnvironment,
+        way: support::live().way.clone(),
+        limits: pod_ws::Limits::RELAY,
     }
 }
 
@@ -207,10 +210,9 @@ async fn watch(session: Arc<RelaySession>, node_of: Option<SessionId>) -> End {
             Ok(f) if f.opcode == OPCODE_TEXT => {
                 if let (Some(id), Ok(NodeInbound::Close { id: got, reason })) =
                     (node_of, control::parse_inbound(&f.payload))
+                    && got == id.as_str()
                 {
-                    if got == id.as_str() {
-                        return End::SessionClosed(reason.unwrap_or_default());
-                    }
+                    return End::SessionClosed(reason.unwrap_or_default());
                 }
             }
             Ok(_) => {}
@@ -234,7 +236,7 @@ async fn hold(
     let lost = || End::Dropped("the reader stopped".into());
     let mut node_end = tokio::spawn(watch(node.clone(), Some(id)));
     let mut operator_end = tokio::spawn(watch(operator.clone(), None));
-    let every = podssh_ws::LIVENESS_EVERY;
+    let every = pod_ws::LIVENESS_EVERY;
     let mut ticker = tokio::time::interval_at(tokio::time::Instant::now() + every, every);
     // The end that came first, and whether it was the node's.
     let first = loop {
@@ -290,7 +292,7 @@ async fn hold(
 async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
     let who = format!("pair {index}");
     let (relay, trust) = (relay(), trust());
-    let ctx = PairContext { relay: &relay, trust: &trust, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
+    let ctx = PairContext { relay: &relay, trust: &trust, ctx: support::live(), timeout: STEP };
     let mut tally = Tally::default();
     let made = match pair::create(&ctx).await {
         Ok(made) => made,
@@ -348,13 +350,14 @@ async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
 async fn forward_holder(until: Instant) -> Tally {
     let who = "forward";
     let mut tally = Tally::default();
-    let pool = podssh_relay::pool::alternates(relay::default_relay_host());
+    let pool = pod_relay::pool::alternates(&support::live().cache, relay::default_relay_host());
     let relays = relay::select_relays(None, std::env::var(LIVE_RELAY).ok(), &pool).expect("the relay list");
     let path = forward_path("github.com", 22).expect("a forward path");
     let trust = trust();
     while Instant::now() + REOPEN_GAP < until {
         let opened_at = Instant::now();
         let request = Request {
+            ctx: support::live(),
             relays: &relays,
             path: &path,
             trust: &trust,
@@ -362,7 +365,7 @@ async fn forward_holder(until: Instant) -> Tally {
             rounds: 1,
             failover: Default::default(),
         };
-        match podssh_relay::open(&request, &mut |_: &str| {}).await {
+        match pod_relay::open(&request, &mut |_: &str| {}).await {
             Ok(opened) => {
                 tally.sessions += 1;
                 let session = Arc::new(opened.session);
@@ -371,8 +374,8 @@ async fn forward_holder(until: Instant) -> Tally {
                 let _ = session.send_binary(b"SSH-2.0-podssh_t255\r\n").await;
                 let mut end = tokio::spawn(watch(session.clone(), None));
                 let mut ticker = tokio::time::interval_at(
-                    tokio::time::Instant::now() + podssh_ws::LIVENESS_EVERY,
-                    podssh_ws::LIVENESS_EVERY,
+                    tokio::time::Instant::now() + pod_ws::LIVENESS_EVERY,
+                    pod_ws::LIVENESS_EVERY,
                 );
                 let seen = loop {
                     tokio::select! {
@@ -409,11 +412,8 @@ async fn forward_holder(until: Instant) -> Tally {
 #[ignore = "live: 15 minutes or until PODSSH_DROPS_UNTIL, against the relay"]
 async fn the_drops_of_reverse_sockets_and_of_a_forward_session() {
     let until = deadline();
-    // The role's name, as the binary takes `PODSSH_RELAY_ADDR`.
-    let pins = std::env::var("PODSSH_LIVE_RELAY_ADDR").ok().and_then(|p| podssh_ws::resolve::parse_pins(&p).ok());
-    if let Some(pins) = pins {
-        podssh_ws::resolve::set_pins(pins);
-    }
+    // The role's name pinned, as the binary takes `PODSSH_RELAY_ADDR`: the
+    // resolver of `support::live` reads `PODSSH_LIVE_RELAY_ADDR`.
     say(
         "run",
         &format!(

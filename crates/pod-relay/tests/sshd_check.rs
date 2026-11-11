@@ -7,8 +7,10 @@
 
 use std::time::Duration;
 
-use podssh_relay::reverse::sshd::{check, NotSshd};
-use podssh_relay::reverse::tcp::dial_target;
+mod support;
+
+use pod_relay::reverse::sshd::{NotSshd, check};
+use pod_relay::reverse::tcp::dial_target;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -136,12 +138,13 @@ async fn a_target_that_closes_at_once_is_refused() {
 async fn a_roost_s_dial_refuses_what_a_node_s_dial_takes() {
     let port = target(HTTP, Duration::from_secs(5)).await;
     let limit = Duration::from_secs(5);
-    assert!(dial_target("127.0.0.1", port, limit, false).await.is_ok());
-    let why = dial_target("127.0.0.1", port, limit, true).await.unwrap_err();
+    let dialer = support::dialer();
+    assert!(dial_target(&dialer, "127.0.0.1", port, limit, false).await.is_ok());
+    let why = dial_target(&dialer, "127.0.0.1", port, limit, true).await.unwrap_err();
     let said = format!("127.0.0.1:{port} is not an SSH server: it sent \"HTTP/1.1 400 Bad Request\" first");
     assert!(why.starts_with(&said), "{why}");
     let ssh = target(b"SSH-2.0-roost-test\r\n", Duration::from_secs(5)).await;
-    let mut stream = dial_target("127.0.0.1", ssh, limit, true).await.unwrap();
+    let mut stream = dial_target(&dialer, "127.0.0.1", ssh, limit, true).await.unwrap();
     let mut line = vec![0u8; 20];
     stream.read_exact(&mut line).await.unwrap();
     assert_eq!(line, b"SSH-2.0-roost-test\r\n", "the session's client reads sshd's line itself");

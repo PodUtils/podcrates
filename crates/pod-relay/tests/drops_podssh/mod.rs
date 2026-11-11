@@ -10,14 +10,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use podssh_relay::pair::{self, PairContext};
-use podssh_relay::relay::Relay;
-use podssh_relay::reverse::{self, operator, Handler, Layered, NodeConfig, Opening, OperatorConfig, OperatorLimits};
-use podssh_relay::reverse::{Outcome as LegOutcome, SessionId, Wire};
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{Ask, End, Ended, OsEntropy, Settings};
-use podssh_ws::{ProxyChoice, Trust};
+use pod_relay::pair::{self, PairContext};
+use pod_relay::relay::Relay;
+use pod_relay::reverse::{self, Handler, Layered, NodeConfig, Opening, OperatorConfig, OperatorLimits, operator};
+use pod_relay::reverse::{Outcome as LegOutcome, SessionId, Wire};
+use pod_session::client::{self, Outcome};
+use pod_session::resume::{self, Next, Note};
+use pod_session::{Ask, End, Ended, OsEntropy, Settings};
+use pod_ws::Trust;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::task::JoinHandle;
 
@@ -99,13 +99,13 @@ struct Legs {
 
 impl Legs {
     async fn open(&self) -> Result<DuplexStream, String> {
-        let proxy = ProxyChoice::FromEnvironment;
+        let proxy = crate::support::live();
         let config = OperatorConfig {
             relay: &self.relay,
             name: &self.name,
             connect_token: &self.token,
             trust: &self.trust,
-            proxy: &proxy,
+            ctx: proxy,
             timeout: STEP,
             limits: OperatorLimits { node_ends: Some(NODE_ENDS), ..OperatorLimits::default() },
             wire: Wire::Tls,
@@ -119,10 +119,10 @@ impl Legs {
     /// The next link after a loss; how the lost leg ended is said first.
     async fn next(&self, moving: bool) -> Next<DuplexStream> {
         let lost = if moving { None } else { self.current.lock().unwrap().take() };
-        if let Some(handle) = lost {
-            if let Ok(Ok(outcome)) = tokio::time::timeout(LEG_WAIT, handle).await {
-                (self.say)("podssh leg", &format!("the leg ended: {outcome:?}"));
-            }
+        if let Some(handle) = lost
+            && let Ok(Ok(outcome)) = tokio::time::timeout(LEG_WAIT, handle).await
+        {
+            (self.say)("podssh leg", &format!("the leg ended: {outcome:?}"));
         }
         match self.open().await {
             Ok(link) => Next::Link(link),
@@ -133,8 +133,8 @@ impl Legs {
 
 /// podssh's node and one session through it, until `until`.
 pub async fn hold(relay: Relay, trust: Trust, until: Instant, say: Say) -> Costs {
-    let proxy = ProxyChoice::FromEnvironment;
-    let ctx = PairContext { relay: &relay, trust: &trust, proxy: &proxy, timeout: STEP };
+    let proxy = crate::support::live();
+    let ctx = PairContext { relay: &relay, trust: &trust, ctx: proxy, timeout: STEP };
     let made = match pair::create(&ctx).await {
         Ok(made) => made,
         Err(e) => {
@@ -167,7 +167,7 @@ pub async fn hold(relay: Relay, trust: Trust, until: Instant, say: Say) -> Costs
             pair: made,
             label: None,
             trust: &trust,
-            proxy: &proxy,
+            ctx: proxy,
             timeout: STEP,
             settings: reverse::Settings::default(),
             repair: None,

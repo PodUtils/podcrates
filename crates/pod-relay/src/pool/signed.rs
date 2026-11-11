@@ -378,10 +378,10 @@ impl Signer {
     /// clock went back.
     pub fn current(&self, now_s: i64) -> Value {
         let mut made = self.made.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((issued, _, value)) = made.as_ref() {
-            if (0..ROLE_RESIGN_S).contains(&(now_s - issued)) {
-                return value.clone();
-            }
+        if let Some((issued, _, value)) = made.as_ref()
+            && (0..ROLE_RESIGN_S).contains(&(now_s - issued))
+        {
+            return value.clone();
         }
         let after = made.as_ref().map_or(0, |(_, serial, _)| *serial);
         let serial = u64::try_from(now_s).unwrap_or(0).max(after + 1);

@@ -8,9 +8,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use podssh_relay::cache::{load_file_from, load_from, store_file_in_first, store_in_first, MAX_FILE, MIN_REMAINING_MS};
-use podssh_relay::pool::{self, MAX_BODY};
-use podssh_relay::relay::default_relay_host;
+use pod_relay::cache::{MAX_FILE, MIN_REMAINING_MS, load_file_from, load_from, store_file_in_first, store_in_first};
+use pod_relay::pool::{self, MAX_BODY};
+use pod_relay::relay::default_relay_host;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 const LIMIT: Duration = Duration::from_secs(30);
@@ -50,9 +50,12 @@ async fn a_pool_body_past_256_kib_is_refused() {
             let _ = relay.write_all(head.as_bytes()).await;
             let _ = relay.write_all(&doc).await;
         });
-        let got = tokio::time::timeout(LIMIT, pool::request(&mut client, "relay.test", default_relay_host()))
-            .await
-            .expect("the request ends");
+        let got = tokio::time::timeout(
+            LIMIT,
+            pool::request(&mut client, "pod-relay/test", "relay.test", default_relay_host()),
+        )
+        .await
+        .expect("the request ends");
         drop(client);
         server.await.unwrap();
         match (got, fits) {
@@ -83,9 +86,10 @@ async fn an_endless_pool_body_stops_at_256_kib() {
         }
         sent
     });
-    let got = tokio::time::timeout(LIMIT, pool::request(&mut client, "relay.test", default_relay_host()))
-        .await
-        .expect("the request ends");
+    let got =
+        tokio::time::timeout(LIMIT, pool::request(&mut client, "pod-relay/test", "relay.test", default_relay_host()))
+            .await
+            .expect("the request ends");
     drop(client);
     let sent = server.await.unwrap();
     assert!(matches!(&got, Err(why) if why.contains("larger than allowed")), "{got:?}");

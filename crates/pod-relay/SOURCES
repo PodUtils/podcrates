@@ -153,3 +153,14 @@ file a2d333e0436b2188b8cf38aca619f4a979ebd6ef crates/podssh-relay/tests/routes_s
 file d77ecaf7da01fdfe37e3c15a38c30cdbfcf45a21 crates/podssh-relay/tests/session_policy.rs -> crates/pod-relay/tests/session_policy.rs
 file 32494d1881d1c7b6f29bb7ca2779ef3e3ca3fb79 crates/podssh-relay/tests/sshd_check.rs -> crates/pod-relay/tests/sshd_check.rs
 file 051e819703311a9e1db41ba3b7ed405b461a22de crates/podssh-relay/tests/stand_in/mod.rs -> crates/pod-relay/tests/stand_in/mod.rs
+file e8b792fc8ecce6bab2616430475ca43110efb2af crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt -> crates/pod-relay/tests/spec/relay-spec-2026-10-03-r2.txt
+dir crates/podssh-relay/tests/fixtures/grant
+file ea12bfd5fe8b5f044b0826fd666bd1b2f098abc7 crates/podssh-relay/tests/fixtures/grant/elsewhere-cert.pub -> crates/pod-relay/tests/fixtures/grant/elsewhere-cert.pub
+file ba2be1802764f7ca6596b0611fefda93d2691915 crates/podssh-relay/tests/fixtures/grant/forever-cert.pub -> crates/pod-relay/tests/fixtures/grant/forever-cert.pub
+file c4c9b7fcf041f89e0c1f2c72910e9146009b7b84 crates/podssh-relay/tests/fixtures/grant/host-cert.pub -> crates/pod-relay/tests/fixtures/grant/host-cert.pub
+file 8e7162184e12e210d40ad74d16324794a129d9d6 crates/podssh-relay/tests/fixtures/grant/issuer.pub -> crates/pod-relay/tests/fixtures/grant/issuer.pub
+file 6efe89383adeb30a486501cec9e72d9f026974a7 crates/podssh-relay/tests/fixtures/grant/once-cert.pub -> crates/pod-relay/tests/fixtures/grant/once-cert.pub
+file a29b4e9e4fd5ab61d641ce1cfbd670998bd43f52 crates/podssh-relay/tests/fixtures/grant/own-cert.pub -> crates/pod-relay/tests/fixtures/grant/own-cert.pub
+file 8522cae1b950122aeaa028236d467512fcdc6f21 crates/podssh-relay/tests/fixtures/grant/reusable-cert.pub -> crates/pod-relay/tests/fixtures/grant/reusable-cert.pub
+file be705dbb4da018edf84f5536065db80c4abd242b crates/podssh-relay/tests/fixtures/grant/route-cert.pub -> crates/pod-relay/tests/fixtures/grant/route-cert.pub
+file 0ddd69b7a029530c2db85e93b3bf814f47de96cb crates/podssh-relay/tests/fixtures/grant/unknown-cert.pub -> crates/pod-relay/tests/fixtures/grant/unknown-cert.pub

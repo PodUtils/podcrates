@@ -6,10 +6,10 @@
 
 use std::time::Duration;
 
-use podssh_relay::reverse::operator::{exchange, QUEUE_BEFORE_READY};
-use podssh_relay::reverse::{OperatorLimits, Outcome};
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::session::{close_code_and_reason, RelaySession};
+use pod_relay::reverse::operator::{QUEUE_BEFORE_READY, exchange};
+use pod_relay::reverse::{OperatorLimits, Outcome};
+use pod_ws::frame::{self, Frame, Role};
+use pod_ws::session::{RelaySession, close_code_and_reason};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 const ID: &str = "4914e9e009a64fcb88d47bb8bd1a8417";

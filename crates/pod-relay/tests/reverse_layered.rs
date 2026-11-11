@@ -7,17 +7,18 @@
 //! holds nothing of the budget, and a resume of it gets the `CLOSE` (T-586).
 #![cfg(feature = "pair")]
 
-use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 
-use podssh_relay::reverse::{Handler, Layered, Opening, SessionId as RelayId};
-use podssh_relay::session::client::{self, Outcome};
-use podssh_relay::session::resume::{self, Next};
-use podssh_relay::session::{Ask, Decoder, End, Ended, OsEntropy, Record, Settings};
+use pod_relay::reverse::{Handler, Layered, Opening, SessionId as RelayId};
+use pod_session::budget::Tell;
+use pod_session::client::{self, Outcome};
+use pod_session::resume::{self, Next};
+use pod_session::{Ask, Decoder, End, Ended, OsEntropy, Record, Settings};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -264,7 +265,9 @@ async fn a_target_that_cannot_be_reached_ends_the_session_with_the_reason() {
 async fn a_node_past_its_replay_budget_ends_a_new_session() {
     let settings = Settings::default();
     let budget = 2 * settings.replay_capacity;
-    let node = Layered::new(Echo { opened: Arc::default(), refuse: false }, settings, budget);
+    // podssh's words of what changes the budget, which the consumer gives.
+    let tell = Tell::new(Arc::new(pod_core::NoEvents), "--resume-deadline and PODSSH_REPLAY_BUFFER of the node");
+    let node = Layered::telling(Echo { opened: Arc::default(), refuse: false }, settings, budget, tell);
     let mut apps = Vec::new();
     for n in 1..=2 {
         let link = session_of(&node, relay_id(n), None).await;

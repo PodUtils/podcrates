@@ -7,14 +7,16 @@
 //! before. Its upgrade states its own dialect, `X-Podssh-Proto: 1`.
 #![cfg(all(feature = "pair", feature = "plain-ws"))]
 
+mod support;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::pair::{self, Pair};
-use podssh_relay::relay::Relay;
-use podssh_relay::reverse::{self, Exit, Handler, NodeConfig, Opening, SessionId, Settings, Wire};
-use podssh_ws::frame::{self, Frame, Role};
-use podssh_ws::{ProxyChoice, Trust};
+use pod_relay::pair::{self, Pair};
+use pod_relay::relay::Relay;
+use pod_relay::reverse::{self, Exit, Handler, NodeConfig, Opening, SessionId, Settings, Wire};
+use pod_ws::Trust;
+use pod_ws::frame::{self, Frame, Role};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::net::TcpListener;
 
@@ -75,7 +77,7 @@ async fn stand_in(answer: Answer) -> (Relay, Heads) {
                 match answer {
                     Answer::Hello(hello) => {
                         let key = head.lines().find_map(|l| l.strip_prefix("Sec-WebSocket-Key: ")).unwrap_or_default();
-                        let accept = podssh_ws::handshake::accept_key(key.trim());
+                        let accept = pod_ws::handshake::accept_key(key.trim());
                         let switching = format!(
                             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
                              Sec-WebSocket-Accept: {accept}\r\n\r\n"
@@ -87,7 +89,7 @@ async fn stand_in(answer: Answer) -> (Relay, Heads) {
                         while matches!(tcp.read(&mut rest).await, Ok(n) if n > 0) {}
                     }
                     Answer::Refuse => {
-                        let refusal = podssh_ws::http::request::refusal(426, REFUSED, &[("X-Podssh-Proto", "2")]);
+                        let refusal = pod_proxy::http::request::refusal(426, REFUSED, &[("X-Podssh-Proto", "2")]);
                         let _ = tcp.write_all(&refusal).await;
                         let _ = tcp.shutdown().await;
                     }
@@ -111,12 +113,12 @@ fn pair_on(relay: &Relay) -> Pair {
 
 /// podssh's node on `relay`, until it ends, [`ENDS_WITHIN`] at most.
 async fn node_on(relay: &Relay) -> Option<Exit> {
-    let (trust, proxy) = (Trust::Default, ProxyChoice::Direct);
+    let (trust, ctx) = (Trust::Default, support::context());
     let mut config = NodeConfig {
         pair: pair_on(relay),
         label: None,
         trust: &trust,
-        proxy: &proxy,
+        ctx: &ctx,
         timeout: LIMIT,
         settings: Settings::default(),
         repair: None,
@@ -167,12 +169,12 @@ async fn a_426_of_another_dialect_ends_the_node_with_the_relay_s_words() {
 async fn a_hello_of_the_dialect_of_before_keeps_the_node_on_its_socket() {
     for hello in [r#"{"type":"hello","maxSessions":64}"#, r#"{"type":"hello","version":1,"maxSessions":64}"#] {
         let (relay, heads) = stand_in(Answer::Hello(hello)).await;
-        let (trust, proxy) = (Trust::Default, ProxyChoice::Direct);
+        let (trust, ctx) = (Trust::Default, support::context());
         let mut config = NodeConfig {
             pair: pair_on(&relay),
             label: None,
             trust: &trust,
-            proxy: &proxy,
+            ctx: &ctx,
             timeout: LIMIT,
             settings: Settings::default(),
             repair: None,

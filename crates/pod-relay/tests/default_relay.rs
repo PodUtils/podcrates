@@ -14,7 +14,7 @@
 fn the_default_relay_is_named_in_exactly_one_place() {
     let hits = default_relay_literals_in_library_code();
     assert!(hits.is_empty(), "the default relay is pod-services' data, never a literal of podssh: {hits:?}");
-    assert_eq!(podssh_relay::relay::default_relay_host(), NAME, "relay.rs reads it from pod-services");
+    assert_eq!(pod_relay::relay::default_relay_host(), NAME, "relay.rs reads it from pod-services");
 }
 
 /// The default relay's name, as the operator's decision of 2026-10-08 named it.

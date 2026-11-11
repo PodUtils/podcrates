@@ -1,17 +1,17 @@
 //! Each close of the relay's table, and the retry that each one allows. Each
 //! row is checked against the pinned copy of the relay's document
-//! (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`): a line
-//! number that only agrees with itself was once wrong by two for every row.
+//! (`tests/spec/relay-spec-2026-10-03-r2.txt`, podssh-probe's): a line number
+//! that only agrees with itself was once wrong by two for every row.
 #![cfg(feature = "pair")]
 
-use podssh_relay::reverse::closes::{classify, Classified, Leg, Retry, SessionAction, CLOSE_ROWS};
-use podssh_relay::reverse::RelayClose;
+use pod_relay::reverse::RelayClose;
+use pod_relay::reverse::closes::{CLOSE_ROWS, Classified, Leg, Retry, SessionAction, classify};
 
 /// The document that the `spec_line` values are read from, the file that
-/// podssh-probe checks its facts against; included, not copied, so that a
-/// second copy cannot drift. When the relay changes, the pin changes, and this
-/// test goes red rather than stale.
-const SPEC_COPY: &str = include_str!("../../podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt");
+/// podssh-probe checks its facts against; its copy here is in `SOURCES`, so
+/// that a change of podssh's is found. When the relay changes, the pin
+/// changes, and this test goes red rather than stale.
+const SPEC_COPY: &str = include_str!("spec/relay-spec-2026-10-03-r2.txt");
 
 /// A close as the relay sends it.
 fn closed(code: u16, reason: &str) -> RelayClose {

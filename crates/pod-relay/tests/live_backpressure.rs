@@ -21,18 +21,21 @@
 //! its token inside TLS, and never logs them.
 #![cfg(feature = "pair")]
 
+mod support;
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::open::Request;
-use podssh_relay::pair::{self, Pair, PairContext};
-use podssh_relay::relay::{self, default_relay_host, Relay};
-use podssh_relay::reverse::SessionId;
-use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
-use podssh_relay::reverse::{Settings, Wire};
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{Proxy, ProxyChoice, Trust};
+use pod_proxy::Proxy;
+use pod_relay::open::Request;
+use pod_relay::pair::{self, Pair, PairContext};
+use pod_relay::relay::{self, Relay, default_relay_host};
+use pod_relay::reverse::SessionId;
+use pod_relay::reverse::{Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, operator, run};
+use pod_relay::reverse::{Settings, Wire};
+use pod_ws::Trust;
+use pod_ws::session::close_code_and_reason;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
@@ -115,11 +118,12 @@ struct Counts {
 }
 
 /// A forward session through the relay to `host`:443: the relay's own loop.
-async fn forward_to(host: &str) -> podssh_relay::Opened {
+async fn forward_to(host: &str) -> pod_relay::Opened {
     let relays = relay::select_relays(Some(host), None, &[]).expect("the relay");
     let path = relay::forward_path(host, 443).expect("a path");
     let target = format!("{host}:443");
     let request = Request {
+        ctx: support::live(),
         relays: &relays,
         path: &path,
         trust: &Trust::Default,
@@ -127,7 +131,7 @@ async fn forward_to(host: &str) -> podssh_relay::Opened {
         rounds: 1,
         failover: Default::default(),
     };
-    match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
+    match pod_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
         Err(failure) => panic!("no forward session to the relay itself: {:?}", failure.lines(&target)),
     }
@@ -228,13 +232,13 @@ async fn through_the_loop(pair: &Pair, rate: Option<usize>, counts: Counts) -> (
     let relay = pair.relay.clone();
     let (name, token) = (pair.name.clone(), pair.connect_token().to_string());
     let session = tokio::spawn(async move {
-        let proxy = ProxyChoice::Via(proxy);
+        let proxy = support::via(proxy);
         let config = OperatorConfig {
             relay: &relay,
             name: &name,
             connect_token: &token,
             trust: &Trust::Default,
-            proxy: &proxy,
+            ctx: proxy,
             timeout: LIMIT,
             limits: OperatorLimits::default(),
             wire: Wire::Tls,
@@ -271,8 +275,7 @@ async fn through_the_loop(pair: &Pair, rate: Option<usize>, counts: Counts) -> (
 #[ignore = "the live relay: run with --ignored"]
 async fn a_slow_forward_client_through_the_relay_s_own_loop() {
     let relay = Relay { host: default_relay_host().into(), port: 443 };
-    let ctx =
-        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+    let ctx = PairContext { relay: &relay, trust: &Trust::Default, ctx: support::live(), timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");
     let copy = pair::parse(&relay, &body_of(&made), now_ms()).expect("the same pair");
     // The sizes in turn: the control's, then the slow run's.
@@ -286,7 +289,7 @@ async fn a_slow_forward_client_through_the_relay_s_own_loop() {
                 pair: made,
                 label: None,
                 trust: &Trust::Default,
-                proxy: &ProxyChoice::FromEnvironment,
+                ctx: support::live(),
                 timeout: LIMIT,
                 settings: Settings::default(),
                 repair: None,

@@ -7,12 +7,12 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
-use podssh_relay::pair::{self, Pair};
-use podssh_relay::relay::Relay;
-use podssh_ws::frame::{self, Frame, Role};
+use pod_relay::pair::{self, Pair};
+use pod_relay::relay::Relay;
+use pod_ws::frame::{self, Frame, Role};
 
 pub const NAME: &str = "podssh-test-pair-0123456789abcdef0";
 pub const NODE: &str = "testonlynode0000000000000000000000000000000000000000000000000000";
@@ -136,7 +136,7 @@ impl StandIn {
     pub fn accept(&self) -> (String, Peer) {
         let (head, mut tcp) = self.head();
         let key = head.lines().find_map(|l| l.strip_prefix("Sec-WebSocket-Key: ")).expect("a key").trim().to_string();
-        let accept = podssh_ws::handshake::accept_key(&key);
+        let accept = pod_ws::handshake::accept_key(&key);
         write!(
             tcp,
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"

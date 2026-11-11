@@ -2,8 +2,8 @@
 //! (T-153): each row of the relay's close table, and closes that match none.
 #![cfg(feature = "pair")]
 
-use podssh_relay::reverse::closes::{resumes, CLOSE_ROWS};
-use podssh_relay::reverse::RelayClose;
+use pod_relay::reverse::RelayClose;
+use pod_relay::reverse::closes::{CLOSE_ROWS, resumes};
 
 fn close(code: u16, reason: &str) -> RelayClose {
     RelayClose { code, reason: reason.to_string(), clean: true }

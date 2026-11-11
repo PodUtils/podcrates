@@ -18,8 +18,3 @@ pub fn way() -> pod_ws::Way {
 pub fn context() -> Context {
     Context::new(way(), Cache::none())
 }
-
-/// A context with its cache in `dirs`.
-pub fn context_in(dirs: Vec<std::path::PathBuf>) -> Context {
-    Context::new(way(), Cache::in_dirs(dirs))
-}

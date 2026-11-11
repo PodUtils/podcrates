@@ -424,11 +424,11 @@ where
         match out {
             Out::Opened(id) => sessions.opened(id),
             Out::Ready(id) => {
-                if sessions.may_send_ready(&id).is_ok() {
-                    if let Some(text) = json(control::ready(&id)) {
-                        session.send_text(&text).await?;
-                        sessions.readied(id);
-                    }
+                if sessions.may_send_ready(&id).is_ok()
+                    && let Some(text) = json(control::ready(&id))
+                {
+                    session.send_text(&text).await?;
+                    sessions.readied(id);
                 }
             }
             Out::Reject(id, reason) => {

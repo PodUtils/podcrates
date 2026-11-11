@@ -6,17 +6,19 @@
 
 mod stand_in;
 
+mod support;
+
 use std::io::{Cursor, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
-use podssh_relay::blocking::{
+use pod_relay::blocking::{
     Client, Closed, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper,
 };
-use podssh_relay::reverse::{Exit, Outcome, Settings, Wire};
-use podssh_ws::frame;
-use stand_in::{data, open, pipe, ready, test_pair, Shared, StandIn, CONNECT, ID1, ID2, LIMIT, NAME, NODE};
+use pod_relay::reverse::{Exit, Outcome, Settings, Wire};
+use pod_ws::frame;
+use stand_in::{CONNECT, ID1, ID2, LIMIT, NAME, NODE, Shared, StandIn, data, open, pipe, ready, test_pair};
 
 /// The stand-in relay plays each session's far end with bytes in plain, so
 /// the node runs with no end-to-end channel, as one for such operators does.
@@ -25,7 +27,8 @@ fn plain_node() -> NodeOptions {
 }
 
 fn client() -> Client {
-    Client::new(Config { wire: Wire::PlainLoopback, timeout: LIMIT, ..Config::default() }).expect("a client")
+    Client::new(Config { wire: Wire::PlainLoopback, timeout: LIMIT, ..Config::new(support::context()) })
+        .expect("a client")
 }
 
 /// Each session echoes its bytes, through a pipe in memory.
@@ -259,7 +262,7 @@ fn a_forward_stream_shuts_its_write_side_and_reads_to_the_end() {
 fn a_stop_before_the_node_runs_ends_it_at_once() {
     // Nothing listens on this port.
     let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let relay = podssh_relay::relay::Relay { host: "127.0.0.1".into(), port };
+    let relay = pod_relay::relay::Relay { host: "127.0.0.1".into(), port };
     let stopper = Stopper::new();
     stopper.stop();
     let started = Instant::now();
@@ -272,7 +275,7 @@ fn a_stop_before_the_node_runs_ends_it_at_once() {
 /// up so exits, and does not reconnect for ever.
 #[test]
 fn a_node_that_cannot_connect_as_set_up_exits() {
-    let relay = podssh_relay::relay::Relay { host: "relay.example.org".into(), port: 443 };
+    let relay = pod_relay::relay::Relay { host: "relay.example.org".into(), port: 443 };
     let exit =
         in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &Stopper::new()));
     assert!(matches!(&exit, Ok(Exit::Unusable(why)) if why.contains("loopback")), "{exit:?}");
@@ -340,8 +343,10 @@ fn conflict_after_a_loss_connects_again_and_serves() {
 #[test]
 fn conflict_at_the_first_registration_exits_after_its_grace() {
     let (stand_in, relay) = StandIn::new();
-    std::thread::spawn(move || loop {
-        stand_in.refuse(409, "reverse: a node is connected under this name");
+    std::thread::spawn(move || {
+        loop {
+            stand_in.refuse(409, "reverse: a node is connected under this name");
+        }
     });
     let options = NodeOptions {
         settings: Settings { first_conflict: Duration::from_secs(2), ..Settings::default() },
