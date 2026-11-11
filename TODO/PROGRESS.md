@@ -5,11 +5,12 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.20.0` at `4daf31c` (`docs/releases/v0.20.0.md`; ci
-  42974118869, the trial of podnet 42973424539, release 42979977466, the
-  dry run of `publish.yml` 42980135318 green): `pod-netstack` (T-023), the
-  key of `localhost-run`, `sandhole` and `openbare-xyz` in `pod-services`.
-  The hand-off is GitHub #64 (COORD-039); the one of `v0.19.0` is #62.
+- Last release: `v0.21.0` at `ada3699` (`docs/releases/v0.21.0.md`; ci
+  42983162246, plants, adoption, release 42989260695, the dry run of
+  `publish.yml` 42989462396): `pod-incus` for podvm (T-179), one store and
+  one pin at a time in `pod-core` and `pod-identity` (T-195), the socket of
+  `pod-broker` with its mode at once (T-196). The hand-off is GitHub #65
+  (COORD-040); podvm answers on #63.
 - The consumers: podssh is on `v0.20.0` (`0c40ed3e`: the key of
   `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.20.0`
@@ -55,8 +56,8 @@ next entry.
    entry here, in the order of its need.
 3. **podnet:** T-170 step 2 after podnet's T-174 (the netns router); T-150, T-121 to T-124 (the asks of
    podnet).
-4. **M6, the crates of podvm:** `pod-incus` (PodUtils/podvm#253) goes out with the
-   next tag; podvm's PodUtils/podvm@T-1718 moves to it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
+4. **M6, the crates of podvm:** podvm's take of `pod-incus` (`v0.21.0`,
+   GitHub #63 and #65; its PodUtils/podvm@T-1722). T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.

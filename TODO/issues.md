@@ -70,3 +70,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #62 | COORD-037: podcrates v0.19.0 is released: podvm takes the library directories of the image (podvm#247); pod-broker refuses a raw byte in a path (to all) | closed | T-142, T-149, T-152, T-182, T-183, T-184 |
 | #63 | COORD-038: podcrates takes the incus client as pod-incus (T-179), for the tag v0.21.0 (to podvm) | open | T-179 |
 | #64 | COORD-039: podcrates v0.20.0 is released: podnet takes pod-netstack; podssh takes the key of localhost-run, sandhole and openbare-xyz (to all) | closed | T-023, T-185, T-186, T-187, T-188 |
+| #65 | COORD-040: podcrates v0.21.0 is released: podvm takes pod-incus; pod-core and pod-identity hold one store and one pin at a time; the socket of pod-broker has its mode at once (to all) | open | T-179, T-195, T-196 |

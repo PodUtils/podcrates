@@ -8,10 +8,9 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.20.0` is at `4daf31c` (`docs/releases/v0.20.0.md`; the
-  hand-off GitHub #64). `v0.19.0` is at `9a11bbd` (#62). On `main` for
-  `v0.21.0`: `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63), T-195
-  and T-196 (the fix of PodUtils/podnet#444, ported).
+- The release `v0.21.0` is at `ada3699` (`docs/releases/v0.21.0.md`; the
+  hand-off GitHub #65): `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63),
+  T-195, T-196. `v0.20.0` is at `4daf31c` (#64, closed).
 - The consumers and the tag each takes:
   - podssh: `v0.20.0` (`0c40ed3e`; the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
@@ -24,8 +23,8 @@ page current; remove a line when its work is done.
     podnet. `pod-hold` at `b759937`,
     its `connect` and `packet` at `e4d4049`. Next: step 2 of T-170 after
     podnet's T-174 (the netns router).
-  - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (its
-    PodUtils/podvm@T-1718).
+  - podvm: `v0.19.0` (`2c2b8d2`). Next: `pod-incus` of `v0.21.0` (#63,
+    #65), with its PodUtils/podvm@T-1722.
   - podrunner: `v0.19.0` (after its `6f24681`; `pod-job` at `0457ed0`).
     Its state (head `1db8bc3`): its milestone M-B holds (PodUtils/podrunner#26
     closed; runner-image run 42987612426): on a hosted runner with no root,
@@ -47,8 +46,8 @@ page current; remove a line when its work is done.
   (`check-sources.py` with clones must show 0 changes), remove the trial
   files of that consumer, set the entry to done, and close the hand-off
   issue when each consumer took its part.
-- `v0.21.0`: `pod-incus` for podvm (#63). Release it when `ci` is green
-  at the head, then answer #63.
+- podvm's take of `pod-incus` (#63): add the crate's consumer row and close
+  #63 and #65 when each consumer took its part.
 - None of podrunner: the owner answered DR-4 to DR-8 and Q9 to Q14 on
   2026-11-11 (`docs/decisions.md`). DR-7 (a test organization) is "not
   now".
