@@ -74,3 +74,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #66 | COORD-041: Reno and CUBIC on smoltcp 0.14 are slow only on a link with one ACK for each round trip (T-188): podnet keeps CongestionControl::None; warp --cc (to podnet) | open | T-188, T-197 |
 | #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | open | T-024 |
 | #68 | COORD-043: the answer to PodUtils/podnet#446: register.rs and route.rs need no port; keep the veth wire in veth.rs (T-201) (to podnet) | open | T-201 |
+| #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open | T-108 |
