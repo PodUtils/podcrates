@@ -7,7 +7,7 @@
 # checksums). The three unit tests of netns::veth::tests move to pod-hold;
 # podnet's veth_wire_carries_a_tcp_flow stays. doctor.rs keeps the probe
 # row "veth wire (no TUN)" (its doc comment moves to probe_veth). Each
-# podcrates tag moves to v0.25.0. The record, the size and the layers of the
+# podcrates tag moves to v0.26.0. The record, the size and the layers of the
 # files, the build, the bans and the sources of cargo-deny, no copy of the
 # moved items left in podnet, clippy of the workspace, the docs of
 # podnet-netns, the tests of podnet-netns, its netns tests as root (the veth
