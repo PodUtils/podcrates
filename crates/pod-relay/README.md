@@ -116,7 +116,7 @@ default names are neutral).
 | `PODSSH_RELAY_RANK_PACE` | `rank_pace` |
 | `PODSSH_H2`, `PODSSH_QUIC`, `PODSSH_CLEARTEXT` | `h2`, `quic`, `cleartext` |
 | `PODSSH_CACHE_DIR` | `Context::cache` (`Cache::new(places, chosen)`) |
-| `PODSSH_RELAY`, `PODSSH_SESSION_BUDGET` | the caller's own: `select_relays(flag, env, pool)` and `byte_budget(ctx, env)` take their text |
+| `PODSSH_RELAY`, `PODSSH_SESSION_BUDGET`, `PODSSH_RELAY_FAILOVER` | the caller's own: `select_relays(flag, env, pool)`, `byte_budget(ctx, env)` and `failover::Mode::from_setting(value, &names.failover)` take their text |
 | `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` | the caller's dialer in `Context::way`, and `Context::proxy_of` |
 | `PODSSH_RELAY_ADDR` | the pins of the caller's resolver |
 
@@ -181,15 +181,20 @@ Against podssh `crates/podssh-relay` at `75a5031`:
 | `cache::{load, store_noted, remove, chosen}` of a token | `ctx.cache.{load, store_noted, remove, chosen}` |
 | `cache::{load_file, store_file, candidate_dirs, read_dirs}` of the other files | `Cache::{load_file, store_file, dirs, read_dirs}`, or `pod_core::files` |
 | `relay::byte_budget(env)` | `relay::byte_budget(&ctx, env)` |
-| `relay::RELAY_ENV`, `open::OFFLINE_ENV`, `token::TOKEN_ENV`, `cleartext::CLEARTEXT_ENV`, `quic_road::QUIC_ENV`, `h2_road::H2_ENV`, `rank_list::ENV`, `rank_auto::PACE_ENV`, `pool::signed::KEYS_ENV` | podssh's own constants; `Settings` holds their values, `Names::podssh()` their names |
+| `relay::RELAY_ENV`, `open::OFFLINE_ENV`, `token::TOKEN_ENV`, `cleartext::CLEARTEXT_ENV`, `quic_road::QUIC_ENV`, `h2_road::H2_ENV`, `rank_list::ENV`, `rank_auto::PACE_ENV`, `pool::signed::KEYS_ENV`, `failover::MODE_ENV` | podssh's own constants; `Settings` holds their values, `Names::podssh()` their names |
 | `http_road::USER_AGENT` | the way's user agent (`Road::tls(&way, ..)`) |
 | `tls_groups.rs`, `cache/`, `code/mod.rs`, `session/`, `e2e/`, `identity.rs` | stay in podssh as its glue |
 | the tests of the files above | `tests/` here |
 | the plants of these files | scripts/plants/relay-* here, where their test is here |
 
-The trial of podssh (adoption/podssh/pod-relay.patch) is not written: its
-glue replaces each of podssh's call sites of the old API (T-025, Done and
-its next steps).
+The trial of podssh is adoption/podssh/pod-relay.patch, on podssh `75a5031`
+(T-025). podssh-relay keeps each module name of the cut as glue over this
+crate: one `Context` of the process (`podssh_relay::context::{process, of}`),
+each variable read at each call, and a wrapper of the old signature for each
+free function. A struct literal of the CLI takes `ctx` in place of `proxy`;
+a node takes `podssh_relay::reverse::settings()`, whose `NodeState` is the
+process's, so that its upgrade, its rotations and its lines reach podssh: a
+node with `Settings::default()` says no line.
 
 ### podnet
 

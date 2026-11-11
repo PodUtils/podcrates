@@ -25,9 +25,6 @@ pub const STAGGER: Duration = Duration::from_secs(2);
 /// last host has the whole step.
 pub const SERIAL_STEP: Duration = Duration::from_secs(5);
 
-/// The setting of the mode; `--relay-failover` wins over it.
-pub const MODE_ENV: &str = "PODSSH_RELAY_FAILOVER";
-
 /// How the hosts of a run are tried.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Mode {
@@ -67,13 +64,14 @@ impl Mode {
         }
     }
 
-    /// The mode of [`MODE_ENV`] (`env`, its value), or the default when it is
-    /// unset or empty; the refusal of another word.
-    pub fn from_env(env: Option<String>) -> Result<Mode, String> {
-        match env.as_deref().map(str::trim) {
+    /// The mode of the setting `name` (`Names::failover`), whose text is
+    /// `value`, or the default when it is unset or empty; the refusal of
+    /// another word names the setting. The caller reads its setting.
+    pub fn from_setting(value: Option<&str>, name: &str) -> Result<Mode, String> {
+        match value.map(str::trim) {
             None | Some("") => Ok(Mode::default()),
             Some(value) => Mode::parse(value)
-                .ok_or_else(|| format!("{MODE_ENV}: {value:?} is not a mode of failover: give {}", Mode::NAMES)),
+                .ok_or_else(|| format!("{name}: {value:?} is not a mode of failover: give {}", Mode::NAMES)),
         }
     }
 }
@@ -299,5 +297,23 @@ impl MintGate {
     pub async fn hold(&self, key: &str, wait: Duration) -> Option<tokio::sync::OwnedMutexGuard<()>> {
         let lock = self.0.lock().unwrap_or_else(|e| e.into_inner()).entry(key.to_string()).or_default().clone();
         tokio::time::timeout(wait, lock.lock_owned()).await.ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::Names;
+
+    /// A word that names no mode is refused with the name of the caller's
+    /// setting, and names no variable of a consumer.
+    #[test]
+    fn a_word_that_is_no_mode_is_refused_with_the_name_of_the_caller_s_setting() {
+        let name = Names::default().failover;
+        let refused = Mode::from_setting(Some("sometimes"), &name).unwrap_err();
+        assert!(refused.starts_with(&format!("{name}: ")), "{refused}");
+        assert!(!refused.contains("PODSSH"), "{refused}");
+        assert_eq!(Mode::from_setting(Some(" serial "), &name), Ok(Mode::Serial));
+        assert_eq!(Mode::from_setting(Some(""), &name), Ok(Mode::Staggered), "empty is the default");
     }
 }
