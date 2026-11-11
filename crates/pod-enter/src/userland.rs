@@ -54,48 +54,85 @@ pub struct LoaderPlan {
     pub payload_host: String,
     /// The image's library directories, by host path, that exist.
     pub lib_dirs: Vec<String>,
+    /// The loader is glibc 2.16 or later: it takes `--inhibit-cache`, and
+    /// a caller that gives it keeps the host's `/etc/ld.so.cache` out of
+    /// the search (T-182). False where that is not proven: an older loader
+    /// reads the option as the name of a program.
+    pub inhibit_cache: bool,
 }
+
+/// The standard library directories of an image, after the loader's own.
+const STANDARD_DIRS: [&str; 21] = [
+    "/lib",
+    "/lib64",
+    "/usr/lib",
+    "/usr/lib64",
+    "/lib/x86_64-linux-gnu",
+    "/lib/aarch64-linux-gnu",
+    "/lib/riscv64-linux-gnu",
+    "/lib/s390x-linux-gnu",
+    "/lib/ppc64le-linux-gnu",
+    "/usr/lib/x86_64-linux-gnu",
+    "/usr/lib/aarch64-linux-gnu",
+    "/usr/lib/riscv64-linux-gnu",
+    "/usr/lib/s390x-linux-gnu",
+    "/usr/lib/ppc64le-linux-gnu",
+    // musl's own default path holds /usr/local/lib (T-182).
+    "/usr/local/lib",
+    "/usr/local/lib64",
+    "/usr/local/lib/x86_64-linux-gnu",
+    "/usr/local/lib/aarch64-linux-gnu",
+    "/usr/local/lib/riscv64-linux-gnu",
+    "/usr/local/lib/s390x-linux-gnu",
+    "/usr/local/lib/ppc64le-linux-gnu",
+];
 
 /// The image's library directories that exist, by host path.
 ///
 /// The loader's own directory first (it is a library directory wherever
-/// the image keeps its loader; through the table where `root` is one), then
-/// the standard ones of the image. An empty answer is a refusal upstream: a
-/// dynamic payload with nowhere to load from fails inside the loader with
-/// nothing attached to it.
+/// the image keeps its loader), then the standard ones of the image, then
+/// each directory of the image's loader configuration ([`ldconf`]: the
+/// loader on this rung reads the host's, never the image's). Each guest
+/// directory resolves inside the image through the table: a link such as
+/// `/lib -> /usr/lib` stays in the image, and a volume serves its own
+/// directories. An empty answer is a refusal upstream: a dynamic payload
+/// with nowhere to load from fails inside the loader with nothing attached
+/// to it.
 pub fn lib_dirs<G: GuestRoot + ?Sized>(root: &G, interp_guest: &str) -> Vec<String> {
-    let base = root.root().to_string_lossy().trim_end_matches('/').to_string();
     let mut out = Vec::new();
-    let mut push = |dir: String| {
-        if !out.contains(&dir) && std::path::Path::new(&dir).is_dir() {
-            out.push(dir);
+    let mut push = |guest: &str| {
+        if let Ok(host) = crate::abi::resolve_dir_in(root, guest) {
+            let host = host.display().to_string();
+            if !out.contains(&host) {
+                out.push(host);
+            }
         }
     };
     if let Some((d, _)) = interp_guest.rsplit_once('/')
         && !d.is_empty()
     {
-        let parts: Vec<String> = d.split('/').filter(|c| !c.is_empty()).map(str::to_string).collect();
-        push(root.host_of(&parts).0.display().to_string());
+        push(d);
     }
-    for d in [
-        "/lib",
-        "/lib64",
-        "/usr/lib",
-        "/usr/lib64",
-        "/lib/x86_64-linux-gnu",
-        "/lib/aarch64-linux-gnu",
-        "/lib/riscv64-linux-gnu",
-        "/lib/s390x-linux-gnu",
-        "/lib/ppc64le-linux-gnu",
-        "/usr/lib/x86_64-linux-gnu",
-        "/usr/lib/aarch64-linux-gnu",
-        "/usr/lib/riscv64-linux-gnu",
-        "/usr/lib/s390x-linux-gnu",
-        "/usr/lib/ppc64le-linux-gnu",
-    ] {
-        push(format!("{base}{d}"));
-    }
+    STANDARD_DIRS.iter().for_each(|d| push(d));
+    ldconf::configured_dirs(root, interp_guest).iter().for_each(|d| push(d));
     out
+}
+
+/// True where the loader at `interp_guest` is glibc and the libc beside it
+/// declares a version of 2.16 or later, the first glibc whose loader takes
+/// `--inhibit-cache`.
+pub fn takes_inhibit_cache(rootfs: &str, interp_guest: &str, loader_host: &str) -> bool {
+    use crate::abi::{Elf, Flavour};
+    if Flavour::of_libc_name(interp_guest) != Flavour::Glibc {
+        return false;
+    }
+    let Ok(loader) = Elf::read(loader_host) else { return false };
+    let Some(libc) = crate::abi::libc_beside(rootfs, interp_guest, loader.machine) else { return false };
+    let Ok(libc) = Elf::read(&libc) else { return false };
+    libc.declares.iter().any(|v| {
+        let mut parts = v.strip_prefix("GLIBC_").unwrap_or_default().split('.').map(|p| p.parse::<u32>().ok());
+        matches!((parts.next(), parts.next()), (Some(Some(major)), Some(Some(minor))) if (major, minor) >= (2, 16))
+    })
 }
 
 /// The program path the loader opens, keeping the invoked name.
@@ -222,7 +259,8 @@ pub fn loader_plan<G: GuestRoot + ?Sized>(
              loader would fail on the first library it cannot find"
         ));
     }
-    Ok(LoaderPlan { loader_host, payload_host: payload_host.to_string(), lib_dirs: dirs })
+    let inhibit_cache = takes_inhibit_cache(&rootfs, interp_guest, &loader_host);
+    Ok(LoaderPlan { loader_host, payload_host: payload_host.to_string(), lib_dirs: dirs, inhibit_cache })
 }
 
 /// Rewrite the environment for a no-chroot entry.
@@ -289,6 +327,7 @@ pub fn host_env(
     (out, dropped)
 }
 
+pub mod ldconf;
 mod maps;
 pub use maps::*;
 

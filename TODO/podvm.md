@@ -2666,3 +2666,84 @@ detached run (its `Detail`) keeps the two fields.
   call taken out, three of them fail.
 - Goes out with the tag after `v0.16.0` (PodUtils/podvm#245).
 
+
+# T-182: `pod-enter`: `lib_dirs` takes `/usr/local/lib` and the image's loader configuration (PodUtils/podvm#247)
+
+**Source:** PodUtils/podvm#247 (COORD-029 of podvm, PodUtils/podvm@T-1719)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On the userland rung the image's loader runs on the host with the
+library directories of `lib_dirs`. The list has no `/usr/local/lib` and
+reads no loader configuration of the image. A library that the list does
+not hold is then searched in the host's directories: musl reads the
+host's `/etc/ld-musl-ARCH.path` or its built-in path, glibc the host's
+`/etc/ld.so.cache` and system directories. podvm measured it: a library of
+an alpine image in `/usr/local/lib` failed to load (exit 127), and with a
+file of the same name in the host's `/usr/local/lib` the guest loader
+loaded the host's file. Also, each standard directory was a plain join on
+the host: an image whose `/lib` links to the absolute `/usr/lib` gave the
+host's `/usr/lib` to the loader.
+
+## Premise
+
+- Read: the issue; `crates/pod-enter/src/userland.rs` (`lib_dirs`,
+  `loader_plan`). In podcrates the loader plan gives `lib_dirs`; podvm
+  builds the command line of the loader.
+- A directory that no list holds is still searched in the host's default
+  directories by each loader: this rung isolates nothing (the head of
+  `userland.rs`). The list only makes the image's directories come first.
+
+## Approach
+
+1. Add `/usr/local/lib`, `/usr/local/lib64` and their multiarch forms.
+2. Add each directory of the image's `/etc/ld.so.conf` with its `include`
+   globs, and of `/etc/ld-musl-ARCH.path` for a musl loader, read inside
+   the image through the table, with bounds of depth, files, directories
+   and bytes.
+3. Resolve each directory inside the image through the table.
+4. `LoaderPlan::inhibit_cache`: true where the loader is glibc and its
+   libc declares 2.16 or later, so that podvm gives `--inhibit-cache`.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features ldconf
+```
+
+## Done
+
+2026-11-11. `lib_dirs` gives the loader's directory, the standard ones
+with `/usr/local/lib`, `/usr/local/lib64` and their multiarch forms, then
+each directory of the image's loader configuration (`userland::ldconf`):
+`/etc/ld.so.conf` with `include` globs (relative to the file; `*` and `?`
+in the last component; sorted; no dot file unless the pattern has one),
+`hwcap` and comments, an old `DIR=TYPE`; or `/etc/ld-musl-ARCH.path` for
+a musl loader. The bounds: 32 files, a depth of 4, 64 directories, 64 KiB
+for each file. Each file and each directory resolves inside the image
+through the table (`resolve_in`, `resolve_dir_in`), so a link out of the
+image reads the image's side. This also fixes the standard directories,
+which were plain joins on the host. `LoaderPlan::inhibit_cache` and
+`takes_inhibit_cache`: true where the loader is glibc and its libc
+declares a version of 2.16 or later.
+
+- Tests (`src/userland/ldconf/tests.rs`, 7):
+  `the_glibc_configuration_of_the_image_names_its_directories`,
+  `the_musl_path_file_of_the_image_names_its_directories`,
+  `a_configuration_that_links_out_of_the_image_reads_nothing_of_the_host`,
+  `an_include_of_itself_ends_at_the_bound`,
+  `lib_dirs_resolve_in_the_image_and_take_usr_local_and_the_configuration`
+  (an image whose `/lib` links to the absolute `/usr/lib`),
+  `a_glob_matches_as_fnmatch_does_for_star_and_question_mark`,
+  `inhibit_cache_needs_a_glibc_of_2_16_or_later` (a copy of the host's
+  glibc). `cargo test -p pod-enter --all-features` passes.
+- Not run: podvm's experiment 356 (its clause of PodUtils/podvm@T-1719
+  comes with its take). podvm gives `--inhibit-cache` where the plan says
+  so; a library that no directory of the image holds is still searched
+  in the host's default directories, as the head of `userland.rs` says.
+
