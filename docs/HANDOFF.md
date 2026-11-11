@@ -33,7 +33,10 @@ page current; remove a line when its work is done.
   - podvm: `v0.21.0` (`1ffe87e`, PodUtils/podvm#257; its incus tier calls
     `pod-incus`, proved by its experiment 434 against incusd 6.0.0). Its
     PodUtils/podvm@T-1722 may ask for `exec_attached`.
-  - podrunner: `v0.21.0` (`8d65e51`; `pod-job` at `0457ed0`).
+  - podrunner: `v0.22.0` (`82b7af0`; `pod-job` at `0457ed0`). Its tests
+    25 and 26 pass on the fake unit and on podvm `v0.2.0-beta.3` (run
+    43018641300); no code of podrunner uses `pod-enter` or
+    `pod-supervise`. No crate ask.
     Its state (gate green at `995de09`): its T-053 covers each design row
     but a real guest (its T-036); its T-063 kills a `setsid env -i`
     process with a subreaper shim of its own; no crate ask. Earlier

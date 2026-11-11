@@ -18,8 +18,8 @@
   `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.21.0` (`1ffe87e`,
   PodUtils/podvm#257: its incus tier calls `pod-incus`; experiment 434
-  passes against incusd 6.0.0); podrunner is on `v0.21.0`
-  (`8d65e51`; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
+  passes against incusd 6.0.0); podrunner is on `v0.22.0`
+  (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
 - Takes that wait: podssh's take of `adoption/podssh/pod-e2e.patch` (T-021,
   #71); podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
