@@ -13,9 +13,9 @@ page current; remove a line when its work is done.
   T-182 (for podvm, PodUtils/podvm#247), T-183, T-184, T-149, T-142 and
   T-152 for `v0.19.0`.
 - The consumers and the tag each takes:
-  - podssh: `v0.16.0` (`fab57923`; `pod-wormhole` at `baa00a06`,
-    `pod-session` at `6f78a7c7`). Next: the tag with T-171, T-172 and
-    T-181 (the host key of `ssh-j`, which podssh then pins).
+  - podssh: `v0.18.0` (`50ef8922`; T-171, T-172 and T-181 taken, the key
+    of `ssh-j` pinned; PodUtils/podssh#186 closed). `pod-wormhole` at
+    `baa00a06`, `pod-session` at `6f78a7c7`.
   - podnet: `v0.17.0` (`dd04b36`; `pod-hold` at `b759937`, its
     `connect` and `packet` at `e4d4049`, PodUtils/podnet#426; it released
     `v0.4.0-beta.3`). Next: step 2 of T-170 after podnet's COORD issue.

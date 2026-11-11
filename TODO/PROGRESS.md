@@ -13,8 +13,9 @@
   `Rewound::new`, four fuzz targets of podvm. The hand-off is GitHub #60
   (COORD-035); the one of `v0.17.0` is #58. The fuzz run 42958692411 on
   the candidate found T-183 and T-184, fixed on `main` for `v0.19.0`.
-- The consumers: podssh is on `v0.16.0` (`fab57923`; it took
-  `pod-wormhole` at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
+- The consumers: podssh is on `v0.18.0` (`50ef8922`: the tunnels of
+  T-171, `Rewound::new`, the key of `ssh-j` pinned; it took `pod-wormhole`
+  at `baa00a06` and `pod-session` at `6f78a7c7`); podnet is on `v0.17.0`
   (`dd04b36`; it took `pod-hold` at `b759937` and its `connect` and
   `packet` at `e4d4049`, PodUtils/podnet#426; it released
   `v0.4.0-beta.3`); podvm is on `v0.17.0` (`522b437`: the
