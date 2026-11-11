@@ -487,6 +487,13 @@ name with a digit), `5cc147c` (README, the static probe, the rows of
   `check-repo.py`, `check-consumer-tests.py` (16 targets) and
   `check-consumer-toolchains.py`. Its tests, its release build and the
   static check of its binary run in `adoption.yml`.
+- The trial in CI: adoption 43008801789 at `e2752f9` passes for podssh,
+  podnet and podvm. Two fixes of the glue came first: the patch grew
+  `PodUtils/podssh:crates/podssh-cli/src/node_derp.rs` over 500 lines
+  (`67300aa`), then moved three lines that podssh's record cites
+  (`025c9ab`); `podssh_relay::e2e::node` builds a node of the process now.
+- podssh accepts the cut and the words (C55) and holds `e2e/` to fixes
+  until its take of `v0.22.0`.
 
 # T-022: `pod-wormhole`: the mailbox client, SPAKE2 and the code words
 
