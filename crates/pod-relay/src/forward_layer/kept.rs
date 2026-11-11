@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::offer::{self, Offer};
-use crate::cache;
+use crate::cache::{self, Cache};
 use crate::relay::Relay;
 
 /// How long a kept offer stands: a day, as a role's operator who turns the
@@ -40,18 +40,18 @@ pub fn file_name(relay: &Relay) -> String {
 
 /// Keep `offered`, what `relay` offered at `now_ms`; a cache that takes no
 /// file is no failure of the run, which reads the offer again next time.
-pub fn keep(relay: &Relay, offered: &Offer, now_ms: i64) {
-    let at = offered.at.as_ref().map(|at| podssh_ws::dial::authority(&at.host, at.port));
+pub fn keep(cache: &Cache, relay: &Relay, offered: &Offer, now_ms: i64) {
+    let at = offered.at.as_ref().map(|at| pod_proxy::host::authority(&at.host, at.port));
     let kept = KeptOffer { read_ms: now_ms, layer: offered.layer, at, quic: offered.quic };
     if let Ok(body) = serde_json::to_vec(&kept) {
-        let _ = cache::store_file(&file_name(relay), &body);
+        let _ = cache.store_file(&file_name(relay), &body);
     }
 }
 
 /// What `relay` offered within [`FRESH_MS`] of `now_ms`; `None` when nothing
 /// is kept, or what is kept is older, or a clock went back before it.
-pub fn kept(relay: &Relay, now_ms: i64) -> Option<Offer> {
-    let text = cache::load_file(&file_name(relay))?;
+pub fn kept(cache: &Cache, relay: &Relay, now_ms: i64) -> Option<Offer> {
+    let text = cache.load_file(&file_name(relay))?;
     of_text(&text, relay, now_ms)
 }
 
@@ -73,18 +73,18 @@ fn of_text(text: &str, relay: &Relay, now_ms: i64) -> Option<Offer> {
 }
 
 /// [`keep`], now.
-pub fn keep_now(relay: &Relay, offered: &Offer) {
-    keep(relay, offered, crate::pool::now_ms());
+pub fn keep_now(cache: &Cache, relay: &Relay, offered: &Offer) {
+    keep(cache, relay, offered, crate::pool::now_ms());
 }
 
 /// [`kept`], now.
-pub fn kept_now(relay: &Relay) -> Option<Offer> {
-    kept(relay, crate::pool::now_ms())
+pub fn kept_now(cache: &Cache, relay: &Relay) -> Option<Offer> {
+    kept(cache, relay, crate::pool::now_ms())
 }
 
 /// Forget what `relay` offered: its layer path refused a session.
-pub fn forget(relay: &Relay) {
-    cache::remove_named_from(&cache::candidate_dirs(), &file_name(relay));
+pub fn forget(cache: &Cache, relay: &Relay) {
+    cache::remove_named_from(cache.dirs(), &file_name(relay));
 }
 
 #[cfg(test)]

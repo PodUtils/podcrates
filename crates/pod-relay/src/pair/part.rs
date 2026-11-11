@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use super::{OperatorPart, PairError};
-use crate::cache::{self, valid_token, MIN_REMAINING_MS};
+use crate::cache::{self, Cache, MIN_REMAINING_MS, valid_token};
 use crate::relay::{check_node_name, parse_relay};
 use crate::token::relay_name;
 
@@ -84,8 +84,8 @@ pub fn file_name(label: &str) -> Result<String, PairError> {
 
 /// Keep `part` under `label`, in the first cache directory that takes a
 /// private file; a part kept before under it is replaced.
-pub fn store(label: &str, part: &OperatorPart) -> Result<PathBuf, PairError> {
-    store_in_first(&cache::candidate_dirs(), label, part)
+pub fn store(cache: &Cache, label: &str, part: &OperatorPart) -> Result<PathBuf, PairError> {
+    store_in_first(cache.dirs(), label, part)
 }
 
 /// [`store`] over explicit directories (for tests).
@@ -97,8 +97,8 @@ pub fn store_in_first(dirs: &[PathBuf], label: &str, part: &OperatorPart) -> Res
 
 /// The part kept under `label`, if any. Its expiry is not checked here: a
 /// caller says so with the remedy.
-pub fn load(label: &str) -> Result<Option<OperatorPart>, PairError> {
-    load_from(&cache::read_dirs(), label)
+pub fn load(cache: &Cache, label: &str) -> Result<Option<OperatorPart>, PairError> {
+    load_from(&cache.read_dirs(), label)
 }
 
 /// [`load`] over explicit directories (for tests).
@@ -119,8 +119,8 @@ pub fn load_from(dirs: &[PathBuf], label: &str) -> Result<Option<OperatorPart>, 
 }
 
 /// Forget the part kept under `label`, in each directory where it is ours.
-pub fn remove(label: &str) -> Result<(), PairError> {
-    cache::remove_named_from(&cache::read_dirs(), &file_name(label)?);
+pub fn remove(cache: &Cache, label: &str) -> Result<(), PairError> {
+    cache::remove_named_from(&cache.read_dirs(), &file_name(label)?);
     Ok(())
 }
 

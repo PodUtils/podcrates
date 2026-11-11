@@ -4,8 +4,8 @@
 //! parameter that could carry one.
 
 use super::{
-    CodecError, SessionId, CONTROL_FRAME_MAX, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX,
-    SESSION_ID_LEN,
+    CONTROL_FRAME_MAX, CodecError, NODE_FRAME_MAX_WIRE, NODE_PAYLOAD_MAX, OPERATOR_PAYLOAD_MAX, SESSION_ID_LEN,
+    SessionId,
 };
 
 /// A node frame: the id, then the payload, in ONE frame. Sent as two frames,

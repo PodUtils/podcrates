@@ -12,7 +12,7 @@
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use super::{checked, refused, Pair, PairContext, PairError};
+use super::{Pair, PairContext, PairError, checked, refused};
 
 /// The path of a rotation, before the pair's name.
 pub const PATH: &str = "/v1/rotate/";
@@ -33,7 +33,8 @@ pub enum Rotated {
 pub async fn rotate(ctx: &PairContext<'_>, pair: &Pair, next: &str) -> Result<Rotated, PairError> {
     let path = format!("{PATH}{}", checked(&pair.name)?);
     let body = serde_json::json!({ "digest": digest_hex(next) }).to_string();
-    let response = podssh_ws::client::https_with_token(
+    let response = pod_ws::client::https_with_token(
+        &ctx.ctx.way,
         "POST",
         &ctx.relay.host,
         ctx.relay.port,
@@ -42,7 +43,6 @@ pub async fn rotate(ctx: &PairContext<'_>, pair: &Pair, next: &str) -> Result<Ro
         pair.stop_token(),
         16 * 1024,
         ctx.trust,
-        ctx.proxy,
         ctx.timeout,
     )
     .await

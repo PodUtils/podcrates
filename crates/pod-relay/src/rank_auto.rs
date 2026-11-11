@@ -1,21 +1,25 @@
-//! A rank that podssh makes unasked, in the background of a session (T-608):
-//! only when the user asks for it, with `RelayRank auto` or
-//! `PODSSH_RELAY_RANK=auto`, and within the bounds of the operator's ruling
-//! Q89: once a day for each egress, [`MOST`] hosts, one probe each [`GAP`]
-//! at most, after the session ran [`DELAY`], and never while a race of relay
-//! hosts runs. Each probe names a target with `?dial=lazy` and sends no
-//! byte, so the relay dials no target. This module holds the setting, the
-//! count of races, the plan and the rank that each probe adds to; the probes
-//! are the binary's, one at a time.
+//! A rank that the client makes unasked, in the background of a session
+//! (podssh T-608): only when the user asks for it, with the settings file's
+//! `auto` or the word `auto` of the setting of the rank, and within the
+//! bounds of podssh's ruling Q89: once a day for each egress, [`MOST`]
+//! hosts, one probe each [`GAP`] at most, after the session ran [`DELAY`],
+//! and never while a race of relay hosts runs. Each probe names a target
+//! with `?dial=lazy` and sends no byte, so the relay dials no target. This
+//! module holds the setting, the count of races ([`Races`]), the plan and
+//! the rank that each probe adds to; the probes are the binary's, one at a
+//! time.
 
 use std::future::Future;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use tokio::sync::Notify;
 
-use crate::rank::{self, Probe, Rank, BACKGROUND};
+use crate::cache::Cache;
+use crate::rank::{self, BACKGROUND, Probe, Rank};
 use crate::relay::default_relay_host;
+use crate::settings::Settings;
 
 /// How long a session runs before its first probe: a short run, as a
 /// command's, makes none.
@@ -29,30 +33,18 @@ pub const PINGS: usize = 3;
 /// The query of each probe: the relay dials on the client's first byte, and
 /// a probe sends none.
 pub const LAZY: &str = "?dial=lazy";
-/// For tests only, `DELAY_MS,GAP_MS` in place of [`DELAY`] and [`GAP`]: read
-/// by a build with debug assertions alone, so each release binary keeps
-/// Q89's bounds.
-pub const PACE_ENV: &str = "PODSSH_RELAY_RANK_PACE";
 /// How often a probe that waits for the end of a race looks again.
 const CALM_STEP: Duration = Duration::from_millis(250);
 
-/// The settings file's `RelayRank auto`, which the binary sets as it reads it.
-static AUTO_BY_SETTINGS: AtomicBool = AtomicBool::new(false);
-
-/// What the settings file says: `true` for `RelayRank auto`.
-pub fn set_by_settings(auto: bool) {
-    AUTO_BY_SETTINGS.store(auto, Ordering::Relaxed);
-}
-
 /// What asks for a rank in the background, in the words that set it, or
 /// none: never by default (Q89).
-pub fn asked_by() -> Option<&'static str> {
-    asked_from(std::env::var(crate::rank_list::ENV).ok().as_deref(), AUTO_BY_SETTINGS.load(Ordering::Relaxed))
+pub fn asked_by(settings: &Settings) -> Option<&'static str> {
+    asked_from(settings.rank.as_deref(), settings.rank_auto_by_file)
 }
 
 /// Whether a session may rank in its background.
-pub fn asked() -> bool {
-    asked_by().is_some()
+pub fn asked(settings: &Settings) -> bool {
+    asked_by(settings).is_some()
 }
 
 /// [`asked_by`] with the variable and the file's word given: the variable
@@ -71,13 +63,14 @@ pub struct Pace {
     pub gap: Duration,
 }
 
-/// Q89's waits, or in a build with debug assertions those of [`PACE_ENV`].
-pub fn pace() -> Pace {
+/// Q89's waits, or in a build with debug assertions those of
+/// `Settings::rank_pace`, for tests: each release binary keeps Q89's bounds.
+pub fn pace(settings: &Settings) -> Pace {
     let bounds = Pace { delay: DELAY, gap: GAP };
     if !cfg!(debug_assertions) {
         return bounds;
     }
-    std::env::var(PACE_ENV).ok().as_deref().and_then(pace_of).unwrap_or(bounds)
+    settings.rank_pace.as_deref().and_then(pace_of).unwrap_or(bounds)
 }
 
 /// `DELAY_MS,GAP_MS`, two whole numbers of milliseconds; else none.
@@ -87,51 +80,56 @@ pub fn pace_of(text: &str) -> Option<Pace> {
     Some(Pace { delay: ms(delay)?, gap: ms(gap)? })
 }
 
-/// The races of relay hosts in progress in this process, and the signal of
-/// each one's start.
-static RACES: AtomicUsize = AtomicUsize::new(0);
-static RACE: Notify = Notify::const_new();
+/// The races of relay hosts in progress in a run, and the signal of each
+/// one's start: a value of the caller's `Context`.
+#[derive(Debug, Default)]
+pub struct Races {
+    count: AtomicUsize,
+    start: Notify,
+}
 
 /// A race in progress, counted for as long as this lives.
-pub struct Racing(());
+pub struct Racing(Arc<Races>);
 
 /// Count a race that starts: a background probe waits for its end, and one
 /// in flight is dropped, so the probe never runs beside a race.
-pub fn racing() -> Racing {
-    RACES.fetch_add(1, Ordering::SeqCst);
-    RACE.notify_waiters();
-    Racing(())
+pub fn racing(races: &Arc<Races>) -> Racing {
+    races.count.fetch_add(1, Ordering::SeqCst);
+    races.start.notify_waiters();
+    Racing(races.clone())
 }
 
 impl Drop for Racing {
     fn drop(&mut self) {
-        RACES.fetch_sub(1, Ordering::SeqCst);
+        self.0.count.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
-/// Whether a race runs now.
-pub fn a_race_runs() -> bool {
-    RACES.load(Ordering::SeqCst) > 0
-}
-
-/// Wait until no race runs.
-pub async fn calm() {
-    while a_race_runs() {
-        tokio::time::sleep(CALM_STEP).await;
+impl Races {
+    /// Whether a race runs now.
+    pub fn a_race_runs(&self) -> bool {
+        self.count.load(Ordering::SeqCst) > 0
     }
-}
 
-/// `work`, unless a race runs or starts before it ends: then `None`, and
-/// `work` is dropped with its connection.
-pub async fn unless_a_race<F: Future>(work: F) -> Option<F::Output> {
-    // Made before the check, so that a race that starts in between wakes it.
-    let started = RACE.notified();
-    if a_race_runs() {
-        return None;
+    /// Wait until no race runs.
+    pub async fn calm(&self) {
+        while self.a_race_runs() {
+            tokio::time::sleep(CALM_STEP).await;
+        }
     }
-    tokio::select! {
-        out = work => Some(out),
-        () = started => None,
+
+    /// `work`, unless a race runs or starts before it ends: then `None`, and
+    /// `work` is dropped with its connection.
+    pub async fn unless_a_race<F: Future>(&self, work: F) -> Option<F::Output> {
+        // Made before the check, so that a race that starts in between wakes it.
+        let started = self.start.notified();
+        if self.a_race_runs() {
+            return None;
+        }
+        tokio::select! {
+            out = work => Some(out),
+            () = started => None,
+        }
     }
 }
 
@@ -147,8 +145,8 @@ fn same(a: &str, b: &str) -> bool {
 
 /// The hosts of a day's rank, in order: the default host, then its pool as
 /// `/relays.json` gave it, [`MOST`] at most.
-pub fn hosts() -> Vec<String> {
-    let pool = crate::pool::alternates(default_relay_host());
+pub fn hosts(cache: &Cache) -> Vec<String> {
+    let pool = crate::pool::alternates(cache, default_relay_host());
     first_hosts(std::iter::once(default_relay_host().to_string()).chain(pool))
 }
 

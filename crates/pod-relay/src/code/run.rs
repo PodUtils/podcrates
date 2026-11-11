@@ -16,32 +16,28 @@
 
 use std::time::Duration;
 
+use pod_identity::PublicKey;
 use pod_wormhole::meet::or_close;
-use podssh_ws::url::WsUrl;
-use podssh_ws::{ProxyChoice, Trust};
+use pod_ws::url::WsUrl;
 use serde_json::Value;
 
 use super::exchange::{self, Answer, Done, Kind, Offer};
 use super::mailbox::Mood;
 use super::wormhole::Wormhole;
-use super::{Code, Failed, Say, LIFETIME};
-use crate::identity::PublicKey;
+use super::{Code, Failed, LIFETIME};
 
 /// Where the ends meet, and how they are reached.
 pub struct Ends {
     /// The mailboxes, in order.
     pub mailboxes: Vec<WsUrl>,
-    pub trust: Trust,
-    pub proxy: ProxyChoice,
-    pub say: Say,
+    /// The caller's AppID, name, way out, trust and events.
+    pub config: pod_wormhole::Config,
 }
 
 impl Ends {
-    /// The ends as `pod-wormhole` takes them: podssh's AppID and name, the
-    /// way out, and each line of the run as a line of `say`.
+    /// The ends as `pod-wormhole` takes them.
     pub fn wormhole(&self) -> pod_wormhole::Ends {
-        let config = super::config(&self.trust, &self.proxy, self.say.clone());
-        pod_wormhole::Ends { mailboxes: self.mailboxes.clone(), config }
+        pod_wormhole::Ends { mailboxes: self.mailboxes.clone(), config: self.config.clone() }
     }
 }
 

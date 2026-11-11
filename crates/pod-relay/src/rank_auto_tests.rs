@@ -1,5 +1,5 @@
 use super::*;
-use crate::rank::{Figures, DIRECT, HOLDS, ON_DEMAND, SCHEMA};
+use crate::rank::{DIRECT, Figures, HOLDS, ON_DEMAND, SCHEMA};
 
 const NOW: i64 = 1_800_000_000_000;
 
@@ -112,19 +112,21 @@ async fn a_race_drops_a_probe_in_flight_and_holds_the_next() {
         tokio::time::sleep(Duration::from_secs(5)).await;
         "measured"
     };
-    let racer = tokio::spawn(async {
+    let races = std::sync::Arc::new(Races::default());
+    let theirs = races.clone();
+    let racer = tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;
-        let race = racing();
+        let race = racing(&theirs);
         tokio::time::sleep(Duration::from_secs(2)).await;
         drop(race);
     });
     let started = tokio::time::Instant::now();
-    assert_eq!(unless_a_race(probe).await, None, "dropped as the race started");
+    assert_eq!(races.unless_a_race(probe).await, None, "dropped as the race started");
     assert_eq!(started.elapsed(), Duration::from_secs(1));
-    assert_eq!(unless_a_race(async { "measured" }).await, None, "none while it runs");
-    calm().await;
-    assert!(!a_race_runs());
+    assert_eq!(races.unless_a_race(async { "measured" }).await, None, "none while it runs");
+    races.calm().await;
+    assert!(!races.a_race_runs());
     assert!(started.elapsed() >= Duration::from_secs(3), "{:?}", started.elapsed());
-    assert_eq!(unless_a_race(async { "measured" }).await, Some("measured"));
+    assert_eq!(races.unless_a_race(async { "measured" }).await, Some("measured"));
     racer.await.unwrap();
 }

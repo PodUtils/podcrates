@@ -10,9 +10,9 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use super::client::{closed, forgotten, gather_more, retry_after, End, Retry, Shared, LIMIT};
-use super::conn::Conn;
 use super::OFFSET;
+use super::client::{End, LIMIT, Retry, Shared, closed, forgotten, gather_more, retry_after};
+use super::conn::Conn;
 
 /// The first pause after an exchange that carried nothing.
 const PAUSE_FIRST: Duration = Duration::from_millis(50);
@@ -122,11 +122,7 @@ pub(super) async fn run(mut conn: Conn, s: Arc<Shared>, ours: DuplexStream) {
 /// The pause after `now`, in an exchange that carried nothing: 50 ms, then
 /// half as long again each time, up to `most`.
 fn next_pause(now: Duration, most: Duration) -> Duration {
-    if now.is_zero() {
-        PAUSE_FIRST
-    } else {
-        (now * 3 / 2).min(most).max(PAUSE_FIRST)
-    }
+    if now.is_zero() { PAUSE_FIRST } else { (now * 3 / 2).min(most).max(PAUSE_FIRST) }
 }
 
 #[cfg(test)]

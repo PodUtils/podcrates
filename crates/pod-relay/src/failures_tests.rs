@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use podssh_ws::dial::DialError;
-use podssh_ws::ConnectError;
+use pod_proxy::DialError;
+use pod_ws::ConnectError;
 
 use super::*;
 

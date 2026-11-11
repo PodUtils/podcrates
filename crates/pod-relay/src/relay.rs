@@ -26,10 +26,6 @@ pub fn default_relay_host() -> &'static str {
     deployment().endpoint("default").map(|e| e.host()).expect("ajam-relay of pod-services has the endpoint default")
 }
 
-/// Environment variable that replaces the relay: `host`, `host:port`, or an
-/// ordered list of them separated by commas.
-pub const RELAY_ENV: &str = "PODSSH_RELAY";
-
 /// The relay closes a session after this many seconds with no traffic (its
 /// `/relays.json`; the fact `idle-timeout-ms`), so keepalives must come
 /// sooner.
@@ -63,15 +59,12 @@ pub const SESSION_BYTE_BUDGET: u64 = 60 << 20;
 /// podssh's time budget for one session, half an hour under the cap.
 pub const SESSION_TIME_BUDGET: std::time::Duration = std::time::Duration::from_secs(11 * 3600 + 30 * 60);
 
-/// Lowers the byte budget, for a relay with smaller caps or a test; it never
-/// raises it.
-pub const SESSION_BUDGET_ENV: &str = "PODSSH_SESSION_BUDGET";
-
-/// The byte budget, with `env` (the value of [`SESSION_BUDGET_ENV`]) lowering
-/// it: a whole number of bytes, at least 1 MiB. Any other value is ignored.
-/// Under the limits of the relay that the run uses ([`byte_budget_under`]).
-pub fn byte_budget(env: Option<&str>) -> u64 {
-    byte_budget_under(env, &crate::pool::in_use())
+/// The byte budget, with `env` (the consumer's word that lowers it, for a
+/// relay with smaller caps or a test) lowering it: a whole number of bytes,
+/// at least 1 MiB. Any other value is ignored. Under the limits of the relay
+/// that the run of `ctx` uses ([`byte_budget_under`]).
+pub fn byte_budget(ctx: &crate::context::Context, env: Option<&str>) -> u64 {
+    byte_budget_under(env, &ctx.in_use())
 }
 
 /// The byte budget under a relay's `limits` (T-342): the compiled-in one, or
@@ -128,9 +121,10 @@ impl RelayList {
     }
 }
 
-/// The hosts to use: the flag, else `PODSSH_RELAY`, else the default followed
-/// by up to [`MAX_ALTERNATES`] of `pool` (hosts of the default relay's own
-/// pool, best first).
+/// The hosts to use: the flag, else the consumer's variable (`env`), else the
+/// default followed
+/// by up to [`MAX_ALTERNATES`] of `pool` (hosts of the default relay's own pool,
+/// best first).
 pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -> Result<RelayList, String> {
     let chosen = flag.map(str::to_string).or_else(|| env.filter(|v| !v.trim().is_empty()));
     if let Some(value) = chosen {
@@ -232,7 +226,7 @@ pub fn operator_path(name: &str) -> Result<String, String> {
 
 /// The checks of a host, a target and a pair name, defined once in
 /// `podssh-ws` for each crate that builds a relay path.
-pub use podssh_ws::names::{check_host, check_node_name, check_target};
+pub use pod_core::names::{check_host, check_node_name, check_target};
 
 /// Whether `host` is an IPv6 literal (with no brackets).
 pub fn is_ipv6_literal(host: &str) -> bool {
@@ -281,6 +275,8 @@ mod tests {
 
     #[test]
     fn the_budget_variable_lowers_the_budget_and_never_raises_it() {
+        let ctx = crate::testing::context();
+        let byte_budget = |env| byte_budget(&ctx, env);
         assert_eq!(byte_budget(None), SESSION_BYTE_BUDGET);
         assert_eq!(byte_budget(Some("3000000")), 3_000_000);
         assert_eq!(byte_budget(Some(" 4194304 ")), 4 << 20);

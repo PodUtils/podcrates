@@ -6,7 +6,7 @@
 use std::io::{self, Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::pin::Pin;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::task::{Context, Poll};
 use std::time::Duration;
 

@@ -1,23 +1,22 @@
-//! Getting a relay token: `PODSSH_RELAY_TOKEN` if set, else a cached one,
-//! else a fresh one minted with `POST /v1/mint` (self-service, no account;
-//! signed by this client's key where the relay asks, T-448).
+//! Getting a relay token: the one that the user gave (`Settings::token`),
+//! else a cached one, else a fresh one minted with `POST /v1/mint`
+//! (self-service, no account; signed by this client's key where the relay
+//! asks, podssh T-448).
 //! Tokens go into the `X-Relay-Token` header and nowhere else: not into
 //! output, errors, URLs or argv.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use podssh_ws::{ConnectError, ProxyChoice, Trust};
+use pod_ws::{ConnectError, Trust};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use crate::cache as token_cache;
-use crate::relay::{default_relay_host, parse_relay, Relay};
-
-/// Environment variable carrying a token to use instead of minting.
-pub const TOKEN_ENV: &str = "PODSSH_RELAY_TOKEN";
+use crate::cache::{self as token_cache, Chosen};
+use crate::context::Context;
+use crate::relay::{Relay, default_relay_host, parse_relay};
 
 /// Where a token came from. A rejected cached token is replaced once by a
-/// fresh one; a rejected token from the environment is reported instead.
+/// fresh one; a rejected token that the user gave is reported instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Origin {
     Environment,
@@ -29,11 +28,11 @@ pub enum Origin {
 pub struct Token {
     secret: Zeroizing<String>,
     pub origin: Origin,
-    /// Set when a minted token could not be cached (podssh then mints on
-    /// every run), so the caller can say so once.
+    /// Set when a minted token could not be cached (a token is then minted
+    /// on every run), so the caller can say so once.
     pub cache_warning: Option<String>,
-    /// Set when the token was cached, but not where `PODSSH_CACHE_DIR` said
-    /// (T-243), so the caller can say so once.
+    /// Set when the token was cached, but not where the variable of the
+    /// cache said, so the caller can say so once.
     pub cache_note: Option<String>,
     /// The relay that minted it (`host` or `host:port`), when known.
     pub minted_at: Option<String>,
@@ -59,7 +58,7 @@ impl std::fmt::Debug for Token {
 /// Why no token could be had.
 #[derive(Debug)]
 pub enum TokenError {
-    /// `PODSSH_RELAY_TOKEN` is set to something that is not a token.
+    /// The token that the user gave is not a token.
     BadEnvironment,
     /// The mint endpoint could not be reached.
     Connect(ConnectError),
@@ -74,7 +73,7 @@ pub enum TokenError {
 impl std::fmt::Display for TokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenError::BadEnvironment => write!(f, "{TOKEN_ENV} is set but does not look like a relay token"),
+            TokenError::BadEnvironment => write!(f, "the relay token that was given does not look like a relay token"),
             TokenError::Connect(e) => write!(f, "could not mint a relay token: {e}"),
             TokenError::RateLimited { retry_after: Some(s) } => {
                 write!(f, "the relay is rate-limiting token minting; retry in {s} s")
@@ -83,7 +82,10 @@ impl std::fmt::Display for TokenError {
                 write!(f, "the relay is rate-limiting token minting; retry shortly")
             }
             TokenError::NotIssued => {
-                write!(f, "this relay does not issue tokens (HTTP 503); ask its operator for one and set {TOKEN_ENV}")
+                write!(
+                    f,
+                    "this relay does not issue tokens (HTTP 503); ask its operator for one and give it as the relay token"
+                )
             }
             TokenError::Failed { status, detail } => write!(f, "minting a relay token failed: HTTP {status}{detail}"),
         }
@@ -93,9 +95,10 @@ impl std::fmt::Display for TokenError {
 /// What minting needs: the relay host to mint at (and to send the token to),
 /// and how to reach it.
 pub struct MintContext<'a> {
+    /// The way out, the cache and the settings.
+    pub ctx: &'a Context,
     pub relay: &'a Relay,
     pub trust: &'a Trust,
-    pub proxy: &'a ProxyChoice,
     pub timeout: Duration,
 }
 
@@ -114,11 +117,7 @@ pub fn token_key(relay: &Relay) -> String {
 
 /// `host`, or `host:port` when the port is not 443.
 pub fn relay_name(relay: &Relay) -> String {
-    if relay.port == 443 {
-        relay.host.clone()
-    } else {
-        format!("{}:{}", relay.host, relay.port)
-    }
+    if relay.port == 443 { relay.host.clone() } else { format!("{}:{}", relay.host, relay.port) }
 }
 
 /// Whether a cached token may be sent under `key`: only when its entry names
@@ -130,12 +129,14 @@ pub fn usable(key: &str, minted_at: Option<&str>) -> bool {
     minted_at.and_then(|m| parse_relay(m).ok()).is_some_and(|r| token_key(&r) == key)
 }
 
-/// The token to use. With `fresh`, skip the environment and the cache (after
+/// The token to use. With `fresh`, skip the given token and the cache (after
 /// the relay rejected a cached token).
 pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenError> {
     let key = token_key(ctx.relay);
+    let cache = &ctx.ctx.cache;
     if !fresh {
-        if let Some(value) = std::env::var(TOKEN_ENV).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty()) {
+        let given = ctx.ctx.settings.token.as_deref().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+        if let Some(value) = given {
             if !token_cache::valid_token(&value) {
                 return Err(TokenError::BadEnvironment);
             }
@@ -148,7 +149,7 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
                 minted_at: None,
             });
         }
-        if let Some(cached) = token_cache::load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
+        if let Some(cached) = cache.load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
             let secret = Zeroizing::new(cached.token);
             return Ok(Token {
                 secret,
@@ -161,12 +162,11 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
     }
     let (token, expires) = mint(ctx).await?;
     let minted_at = relay_name(ctx.relay);
-    let chosen = token_cache::chosen();
-    let (cache_warning, cache_note) = match chosen {
+    let (cache_warning, cache_note) = match cache.chosen {
         // The user keeps no file: a token is minted on each run, as asked.
-        token_cache::Chosen::Nothing => (None, None),
-        _ => match token_cache::store_noted(&key, &token, expires, &minted_at) {
-            Ok(stored) => (None, token_cache::chosen_note(&chosen, &stored)),
+        Chosen::Nothing => (None, None),
+        _ => match cache.store_noted(&key, &token, expires, &minted_at) {
+            Ok(stored) => (None, cache.chosen_note(&ctx.ctx.settings.names.cache_dir, &stored)),
             Err(why) => (Some(why), None),
         },
     };
@@ -189,7 +189,7 @@ struct MintResponse {
 /// `POST /v1/mint` with `{}`, and once more with this client's key when the
 /// relay asks for it; the relay answers `{token, expires, scope}`.
 async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
-    let response = crate::keyed::post(&ctx.relay.host, ctx.relay.port, "/v1/mint", ctx.trust, ctx.proxy, ctx.timeout)
+    let response = crate::keyed::post(ctx.ctx, &ctx.relay.host, ctx.relay.port, "/v1/mint", ctx.trust, ctx.timeout)
         .await
         .map_err(TokenError::Connect)?;
     match response.status {

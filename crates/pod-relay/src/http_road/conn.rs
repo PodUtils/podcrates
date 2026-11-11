@@ -8,7 +8,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::ConnectError;
+use pod_ws::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use super::answer::{self, Body, Head};
@@ -124,7 +124,7 @@ impl Conn {
     /// so that the connection may go on.
     pub async fn drop_body(&mut self, head: &Head, limit: Duration) -> String {
         match self.whole(head, DROPPED_MAX, limit).await {
-            Ok(bytes) => podssh_ws::text::one_line(&String::from_utf8_lossy(&bytes)),
+            Ok(bytes) => pod_core::text::one_line(&String::from_utf8_lossy(&bytes)),
             Err(_) => String::new(),
         }
     }
@@ -142,13 +142,20 @@ impl Conn {
     }
 }
 
-/// A request's head. `authority`, `path` and each header are the road's own
-/// words or checked by the caller, with no line break.
-pub fn request(method: &str, authority: &str, path: &str, headers: &[(&str, &str)], length: Option<usize>) -> Vec<u8> {
+/// A request's head, as `user_agent` sends it. `authority`, `path` and each
+/// header are the road's own words or checked by the caller, with no line
+/// break.
+pub fn request(
+    method: &str,
+    user_agent: &str,
+    authority: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    length: Option<usize>,
+) -> Vec<u8> {
     let mut head = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {authority}\r\nUser-Agent: {}\r\nAccept-Encoding: identity\r\n\
-         Cache-Control: no-store\r\n",
-        super::USER_AGENT
+        "{method} {path} HTTP/1.1\r\nHost: {authority}\r\nUser-Agent: {user_agent}\r\nAccept-Encoding: identity\r\n\
+         Cache-Control: no-store\r\n"
     );
     for (name, value) in headers {
         head.push_str(&format!("{name}: {value}\r\n"));
@@ -164,13 +171,17 @@ pub fn request(method: &str, authority: &str, path: &str, headers: &[(&str, &str
 mod tests {
     use super::*;
 
+    /// The user agent of the tests.
+    const UA: &str = "pod-relay/test";
+
     #[test]
     fn a_request_names_its_host_its_headers_and_its_length() {
-        let head = String::from_utf8(request("POST", "relay.test", "/v1/http/s/x/up?seq=0", &[("X-A", "b")], Some(3)))
-            .unwrap();
+        let head =
+            String::from_utf8(request("POST", UA, "relay.test", "/v1/http/s/x/up?seq=0", &[("X-A", "b")], Some(3)))
+                .unwrap();
         assert!(head.starts_with("POST /v1/http/s/x/up?seq=0 HTTP/1.1\r\nHost: relay.test\r\n"), "{head}");
         assert!(head.contains("\r\nX-A: b\r\nContent-Length: 3\r\n\r\n") && head.ends_with("\r\n\r\n"), "{head}");
-        let get = String::from_utf8(request("GET", "relay.test", "/", &[], None)).unwrap();
+        let get = String::from_utf8(request("GET", UA, "relay.test", "/", &[], None)).unwrap();
         assert!(!get.to_ascii_lowercase().contains("content-length"), "{get}");
     }
 
@@ -203,7 +214,7 @@ mod tests {
         });
         let mut conn = Conn::new(dial);
         conn.ready(Duration::from_secs(5)).await.unwrap();
-        let head = request("GET", "relay.test", "/", &[], None);
+        let head = request("GET", UA, "relay.test", "/", &[], None);
         let answer = conn.ask(&head, &[], Duration::from_secs(5)).await.unwrap();
         assert_eq!((answer.status, conn.dials), (204, 2));
     }

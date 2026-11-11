@@ -8,9 +8,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde_json::json;
 
-use super::super::signed::{sign, Deployment, Doc};
+use super::super::signed::{Deployment, Doc, sign};
 use super::*;
-use crate::identity::Identity;
+use pod_identity::Identity;
 
 /// 2026-11-02, in seconds and in milliseconds.
 const NOW_S: i64 = 1_793_577_600;
@@ -147,13 +147,7 @@ async fn each_member_is_asked_once_a_day_whatever_it_answered() {
         calls.fetch_add(1, Ordering::SeqCst);
         let up = host.host == "relay-a.example.org";
         let k = key(0x51);
-        async move {
-            if up {
-                Ok(body(&k, 7))
-            } else {
-                Err("connection refused".to_string())
-            }
-        }
+        async move { if up { Ok(body(&k, 7)) } else { Err("connection refused".to_string()) } }
     };
     assert_eq!(ask_due_with(at(&dirs), &members, &keys, NOW_MS, answer).await, 1, "one list newly kept");
     assert_eq!(calls.load(Ordering::SeqCst), 2, "each member asked");

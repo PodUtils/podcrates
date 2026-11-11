@@ -21,11 +21,11 @@ mod spent;
 
 use std::path::Path;
 
-pub use cert::{openssh_public, parse_public, Cert, Mint, CERT_TYPE, HOST, USER};
+pub use cert::{CERT_TYPE, Cert, HOST, Mint, USER, openssh_public, parse_public};
 pub use door::{Door, Issuers, Redeemed};
 pub use spent::{NotRecorded, Spent};
 
-use crate::identity::PublicKey;
+use pod_identity::PublicKey;
 
 /// The critical option of a grant: it is used once.
 pub const ONCE: &str = "once@podssh";
@@ -33,7 +33,7 @@ pub const ONCE: &str = "once@podssh";
 pub const SKEW_SECS: u64 = 5 * 60;
 /// The largest grant that the channel carries; an Ed25519 certificate with a
 /// few principals is about 300 bytes.
-pub const MAX_GRANT: usize = crate::e2e::MAX_GRANT;
+pub const MAX_GRANT: usize = pod_e2e::MAX_GRANT;
 /// The prefix of a grant's principal: `node:` and the node's fingerprint.
 pub const PRINCIPAL_PREFIX: &str = "node:";
 

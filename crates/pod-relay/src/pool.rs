@@ -14,13 +14,14 @@ pub mod signed;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use podssh_ws::client::open_tls;
-use podssh_ws::{dial, http, ProxyChoice, Trust};
+use pod_proxy::http;
+use pod_ws::Trust;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::cache;
-use crate::relay::{check_host, default_relay_host, Relay};
+use crate::cache::{self, Cache};
+use crate::context::Context;
+use crate::relay::{Relay, check_host, default_relay_host};
 
 /// Hosts of the default relay's pool, spread across regions: the endpoints
 /// of the role `seed` of `ajam-relay` (`pod-services`, read from its
@@ -50,7 +51,7 @@ struct CachedPool {
 /// one that is there and a whole number above zero. podssh's budgets go
 /// under them and its cap on a received frame widens to them
 /// (`relay::byte_budget_under`, `relay::time_budget`,
-/// `podssh_ws::frame::receive_cap`); none is fetched for this alone.
+/// `pod_ws::frame::receive_cap`); none is fetched for this alone.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Limits {
     pub idle_timeout_ms: Option<u64>,
@@ -73,30 +74,12 @@ pub fn parse_limits(body: &[u8]) -> Limits {
 }
 
 /// The limits cached with `primary`'s pool; none when nothing is cached.
-pub fn cached_limits(primary: &str) -> Limits {
-    cache::load_file(&file_name(primary))
+pub fn cached_limits(cache: &Cache, primary: &str) -> Limits {
+    cache
+        .load_file(&file_name(primary))
         .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
         .map(|c| c.limits)
         .unwrap_or_default()
-}
-
-/// The limits of the relay that this run's sessions use: those cached with
-/// the primary of the last session that the opener opened.
-static IN_USE: std::sync::RwLock<Limits> = std::sync::RwLock::new(Limits {
-    idle_timeout_ms: None,
-    max_session_ms: None,
-    max_session_bytes: None,
-    max_frame_bytes: None,
-});
-
-/// Keep `limits` as the run's, for the budgets of its sessions.
-pub fn set_in_use(limits: Limits) {
-    *IN_USE.write().unwrap_or_else(|e| e.into_inner()) = limits;
-}
-
-/// The run's limits: none until a session opened.
-pub fn in_use() -> Limits {
-    *IN_USE.read().unwrap_or_else(|e| e.into_inner())
 }
 
 /// The cache file of the pool of `primary`.
@@ -106,8 +89,9 @@ pub fn file_name(primary: &str) -> String {
 
 /// The alternates for `primary`, best first: the cached pool, else (for the
 /// default relay only) [`seed`].
-pub fn alternates(primary: &str) -> Vec<String> {
-    let cached: Vec<String> = cache::load_file(&file_name(primary))
+pub fn alternates(cache: &Cache, primary: &str) -> Vec<String> {
+    let cached: Vec<String> = cache
+        .load_file(&file_name(primary))
         .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
         .map(|c| c.hosts)
         .unwrap_or_default();
@@ -123,16 +107,18 @@ pub fn alternates(primary: &str) -> Vec<String> {
 
 /// The pool cached for `primary`: when it was fetched, and how many hosts
 /// it has.
-pub fn cached(primary: &str) -> Option<(i64, usize)> {
-    cache::load_file(&file_name(primary))
+pub fn cached(cache: &Cache, primary: &str) -> Option<(i64, usize)> {
+    cache
+        .load_file(&file_name(primary))
         .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
         .map(|c| (c.fetched_ms, c.hosts.len()))
 }
 
 /// Whether the pool cached for `primary` is missing or older than
 /// [`STALE_AFTER_MS`] at `now_ms`.
-pub fn needs_refresh(primary: &str, now_ms: i64) -> bool {
-    cache::load_file(&file_name(primary))
+pub fn needs_refresh(cache: &Cache, primary: &str, now_ms: i64) -> bool {
+    cache
+        .load_file(&file_name(primary))
         .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
         .is_none_or(|c| now_ms.saturating_sub(c.fetched_ms) > STALE_AFTER_MS || c.hosts.is_empty())
 }
@@ -176,63 +162,76 @@ pub fn parse_pool(body: &[u8], primary: &str) -> Result<Vec<String>, String> {
 /// Fetch `/relays.json` from `relay` and cache its pool under `primary`.
 /// Returns how many hosts were cached.
 pub async fn refresh(
+    ctx: &Context,
     relay: &Relay,
     primary: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<usize, String> {
-    let mut tls =
-        open_tls(&relay.host, relay.port, &relay.host, trust, proxy, timeout).await.map_err(|e| e.to_string())?;
-    let host_header = if relay.port == 443 { relay.host.clone() } else { dial::authority(&relay.host, relay.port) };
-    let body = tokio::time::timeout(timeout, body_of(&mut tls, &host_header))
+    let (mut tls, _) =
+        ctx.way.open_tls(&relay.host, relay.port, &relay.host, trust, timeout, &[]).await.map_err(|e| e.to_string())?;
+    let host_header = host_header(relay);
+    let user_agent = ctx.way.user_agent.clone();
+    let body = tokio::time::timeout(timeout, body_of(&mut tls, &user_agent, &host_header))
         .await
         .map_err(|_| format!("the pool request took more than {} s", timeout.as_secs()))??;
     // The signed list holds by its key, whichever host served it, also one
     // whose pool names no host of the primary's deployment (T-346).
     if let Some(Ok(list)) = signed::Signed::of_body(&body) {
-        let _ = kept::take(&list, &signed::Keys::of_process(), now_ms());
+        let _ = kept::take(&ctx.cache, &list, &signed::Keys::of_settings(&ctx.settings), now_ms());
     }
     // The same document says whether its host offers the resumable layer
     // (T-173): kept, a run takes it with no read of its own.
-    crate::forward_layer::kept::keep(relay, &crate::forward_layer::offer::of(&body, relay), now_ms());
+    crate::forward_layer::kept::keep(&ctx.cache, relay, &crate::forward_layer::offer::of(&body, relay), now_ms());
     let (hosts, limits) = (parse_pool(&body, primary)?, parse_limits(&body));
     let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone(), limits })
         .map_err(|e| e.to_string())?;
-    cache::store_file(&file_name(primary), &body)?;
+    ctx.cache.store_file(&file_name(primary), &body)?;
     Ok(hosts.len())
+}
+
+/// The `Host` of a request to `relay`: its name, with its port when that is
+/// not 443.
+pub fn host_header(relay: &Relay) -> String {
+    if relay.port == 443 { relay.host.clone() } else { pod_proxy::host::authority(&relay.host, relay.port) }
 }
 
 /// The hosts of `primary`'s deployment that `/relays.json` lists, asked for
 /// over `stream`, with the body read up to [`MAX_BODY`] bytes.
-pub async fn request<S>(stream: &mut S, host_header: &str, primary: &str) -> Result<Vec<String>, String>
+pub async fn request<S>(
+    stream: &mut S,
+    user_agent: &str,
+    host_header: &str,
+    primary: &str,
+) -> Result<Vec<String>, String>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    request_with_limits(stream, host_header, primary).await.map(|(hosts, _)| hosts)
+    request_with_limits(stream, user_agent, host_header, primary).await.map(|(hosts, _)| hosts)
 }
 
 /// [`request`], with the `limits` of the same body.
 pub async fn request_with_limits<S>(
     stream: &mut S,
+    user_agent: &str,
     host_header: &str,
     primary: &str,
 ) -> Result<(Vec<String>, Limits), String>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let body = body_of(stream, host_header).await?;
+    let body = body_of(stream, user_agent, host_header).await?;
     Ok((parse_pool(&body, primary)?, parse_limits(&body)))
 }
 
 /// The body of `/relays.json`, asked for over `stream`, up to [`MAX_BODY`]
 /// bytes: the pool, the limits and the signed list read it.
-pub async fn body_of<S>(stream: &mut S, host_header: &str) -> Result<Vec<u8>, String>
+pub async fn body_of<S>(stream: &mut S, user_agent: &str, host_header: &str) -> Result<Vec<u8>, String>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let accept = [("Accept", "application/json")];
-    let response = http::exchange(stream, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
+    let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
         .await
         .map_err(|e| format!("the pool request failed: {e}"))?;
     if !(200..300).contains(&response.status) {
@@ -308,7 +307,7 @@ mod tests {
     /// a larger one leaves them as they are.
     #[test]
     fn the_budgets_go_under_the_relays_limits_and_never_above_their_own() {
-        use crate::relay::{byte_budget_under, idle_secs, time_budget, SESSION_BYTE_BUDGET, SESSION_TIME_BUDGET};
+        use crate::relay::{SESSION_BYTE_BUDGET, SESSION_TIME_BUDGET, byte_budget_under, idle_secs, time_budget};
         let with_bytes = |n: u64| Limits { max_session_bytes: Some(n), ..Limits::default() };
         assert_eq!(byte_budget_under(None, &with_bytes(32 << 20)), 28 << 20);
         assert_eq!(byte_budget_under(None, &with_bytes(128 << 20)), SESSION_BYTE_BUDGET);

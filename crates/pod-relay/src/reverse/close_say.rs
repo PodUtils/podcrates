@@ -4,13 +4,16 @@
 
 use std::time::Instant;
 
-use crate::session::budget::SAY_EVERY;
+use pod_session::budget::SAY_EVERY;
 
 /// The reason's longest part that the line keeps; the relay cuts its own to
 /// 123 bytes, and a journal line wants less.
 const KEPT: usize = 80;
 /// The characters of a session's id that the line names, no more.
 const ID_CHARS: usize = 8;
+
+/// The kind of the event of the node's line.
+pub const EVENT: &str = "reverse.closed";
 
 /// When the node last said such a line, so that a burst of cuts says one.
 #[derive(Debug, Default)]

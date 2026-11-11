@@ -274,7 +274,7 @@ pub fn classify(close: &RelayClose) -> Classified {
 
     // The reason comes from the network: printed through the one definition
     // of safe text, and cut on a character boundary.
-    let reason = super::control::truncate_reason(&podssh_ws::text::one_line(&close.reason));
+    let reason = super::control::truncate_reason(&pod_core::text::one_line(&close.reason));
     Classified { row: row.copied(), retry, session, code: close.code, reason }
 }
 
@@ -341,14 +341,14 @@ fn is_a_node_refusal(reason: &str) -> bool {
 /// that closes the socket can break the ping's write before the node reads
 /// its Close, and that Close says why. A short read, bounded in frames and
 /// in time, prefers it to the failed ping.
-pub async fn pending<S>(session: &podssh_ws::session::RelaySession<S>) -> Option<RelayClose>
+pub async fn pending<S>(session: &pod_ws::session::RelaySession<S>) -> Option<RelayClose>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + 'static,
 {
     let look = async {
         for _ in 0..8 {
             match session.read_frame().await {
-                Ok(f) if f.opcode == podssh_ws::frame::OPCODE_CLOSE => return Some(f.payload),
+                Ok(f) if f.opcode == pod_ws::frame::OPCODE_CLOSE => return Some(f.payload),
                 Ok(_) => {}
                 Err(_) => return None,
             }
@@ -356,6 +356,6 @@ where
         None
     };
     let payload = tokio::time::timeout(std::time::Duration::from_millis(200), look).await.ok().flatten()?;
-    let (code, reason) = podssh_ws::session::close_code_and_reason(&payload);
+    let (code, reason) = pod_ws::session::close_code_and_reason(&payload);
     Some(RelayClose { code: code.unwrap_or(1005), reason, clean: true })
 }

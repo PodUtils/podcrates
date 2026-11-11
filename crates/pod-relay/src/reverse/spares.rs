@@ -8,18 +8,17 @@
 //! node's owner chooses to pay for.
 //!
 //! The role's `hello` offers them (`"spares": true`, an offer of
-//! `crate::answer`); a node of `--spares N` answers once on each socket that
+//! `pod_session::answer`); a node of `--spares N` answers once on each socket that
 //! heard the offer, `{"type":"spares","want":N}`. The role's `open` of a spare
 //! says `"spare": true`, which this node reads nothing of: a spare is a session
 //! as each other, readied once the handler has its local side. The node's
 //! line says once whether its relay keeps them.
 
-use std::sync::atomic::{AtomicU8, Ordering};
-use std::sync::OnceLock;
-
+use pod_core::Event;
 use serde_json::json;
 
 use super::control::Hello;
+use super::state::NodeState;
 
 /// The field of the role's `hello` that offers them.
 pub const OFFER: &str = "spares";
@@ -29,25 +28,13 @@ pub const ASK: &str = "spares";
 /// a session at rest, inside the node's 64.
 pub const MOST: u8 = 16;
 
-/// Where the node's line of its spares goes.
-type Say = Box<dyn Fn(&str) + Send + Sync>;
-
-static SAY: OnceLock<Say> = OnceLock::new();
-
-/// What the node's line said last: 0 nothing, 1 kept, 2 not offered; a
-/// socket that hears the same says nothing again.
-static SAID: AtomicU8 = AtomicU8::new(0);
-
-/// Send the node's line of its spares to `say` from now on: its stderr, which
-/// a detached node's log keeps. The first call holds.
-pub fn tell(say: impl Fn(&str) + Send + Sync + 'static) {
-    let _ = SAY.set(Box::new(say));
-}
+/// The kind of the event of the node's line of its spares.
+pub const EVENT: &str = "reverse.spares";
 
 /// Whether a role's `hello` offers sessions readied ahead: `true`, and nothing
 /// else.
 pub fn offered(hello: &Hello) -> bool {
-    crate::answer::offers(hello.extra.get(OFFER))
+    pod_session::answer::offers(hello.extra.get(OFFER))
 }
 
 /// The node's frame that asks for `want`, [`MOST`] at most.
@@ -57,17 +44,17 @@ pub fn ask(want: u8) -> String {
 
 /// What a node that wants `want` answers to `hello`: the frame that asks,
 /// where the role offers them; nothing for a node that wants none. The node's
-/// line says whether its relay keeps them, when that changed.
-pub fn heard(hello: &Hello, want: u8) -> Option<String> {
+/// line says whether its relay keeps them, when that changed (what it said
+/// last: 0 nothing, 1 kept, 2 not offered; a socket that hears the same says
+/// nothing again).
+pub fn heard(node: &NodeState, hello: &Hello, want: u8) -> Option<String> {
     if want == 0 {
         return None;
     }
     let offered = offered(hello);
     let now = if offered { 1 } else { 2 };
-    if SAID.swap(now, Ordering::SeqCst) != now {
-        if let Some(say) = SAY.get() {
-            say(&line(offered, want));
-        }
+    if node.spares_said(now) != now {
+        node.tell(Event::info(EVENT, line(offered, want)));
     }
     offered.then(|| ask(want))
 }
@@ -80,7 +67,7 @@ pub fn line(offered: bool, want: u8) -> String {
             want.min(MOST)
         ),
         false => "the relay keeps no session readied ahead (its hello offers none), so --spares does nothing there; \
-                  podssh relay serve keeps them"
+                  a relay role keeps them"
             .to_string(),
     }
 }
@@ -97,13 +84,14 @@ mod tests {
     /// and only when it wants some.
     #[test]
     fn a_node_asks_only_where_the_role_offers_and_it_wants_some() {
+        let node = NodeState::default();
         let offering = hello(r#"{"maxSessions":64,"spares":true}"#);
         assert!(offered(&offering));
-        assert_eq!(heard(&offering, 3).as_deref(), Some(r#"{"type":"spares","want":3}"#));
-        assert_eq!(heard(&offering, 0), None, "a node that wants none says nothing");
+        assert_eq!(heard(&node, &offering, 3).as_deref(), Some(r#"{"type":"spares","want":3}"#));
+        assert_eq!(heard(&node, &offering, 0), None, "a node that wants none says nothing");
         for text in [r#"{"maxSessions":64}"#, r#"{"spares":false}"#, r#"{"spares":"true"}"#, r#"{"spares":1}"#] {
             assert!(!offered(&hello(text)), "{text}");
-            assert_eq!(heard(&hello(text), 3), None, "{text}");
+            assert_eq!(heard(&node, &hello(text), 3), None, "{text}");
         }
     }
 

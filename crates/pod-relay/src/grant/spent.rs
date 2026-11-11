@@ -9,8 +9,8 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use super::cert::Cert;
 use super::SKEW_SECS;
+use super::cert::Cert;
 
 /// The first part of each record's name.
 const PREFIX: &str = "spent-";
@@ -122,7 +122,7 @@ fn sync_dir(_dir: &Path) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::grant::Mint;
-    use crate::identity::Identity;
+    use pod_identity::Identity;
 
     fn grant(nonce: u8, valid_before: u64) -> Cert {
         let principals = vec!["node:x".to_string()];

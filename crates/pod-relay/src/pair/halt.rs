@@ -9,7 +9,7 @@
 
 use serde::Deserialize;
 
-use super::{checked, refused, Pair, PairContext, PairError};
+use super::{Pair, PairContext, PairError, checked, refused};
 
 /// The paths of a halt and of a resume, before the pair's name.
 pub const HALT: &str = "/v1/halt/";
@@ -119,8 +119,9 @@ async fn post(
     path: &str,
     body: &[u8],
     token: &str,
-) -> Result<podssh_ws::http::Response, PairError> {
-    podssh_ws::client::https_with_token(
+) -> Result<pod_proxy::http::Response, PairError> {
+    pod_ws::client::https_with_token(
+        &ctx.ctx.way,
         "POST",
         &ctx.relay.host,
         ctx.relay.port,
@@ -129,7 +130,6 @@ async fn post(
         token,
         16 * 1024,
         ctx.trust,
-        ctx.proxy,
         ctx.timeout,
     )
     .await

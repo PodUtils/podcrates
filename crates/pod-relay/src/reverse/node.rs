@@ -6,14 +6,16 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
-use podssh_ws::{DialError, ProxyChoice, Trust};
+use pod_ws::client::{ConnectError, Endpoint, WsClientConfig};
+use pod_ws::{DialError, Trust};
+
+use crate::context::Context;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::Instant;
 
 use super::closes::RelayClose;
 use super::framing::SessionId;
-use super::serve::{serve, End, Settings};
+use super::serve::{End, Settings, serve};
 use super::wire::{self, Socket, Wire};
 use crate::pair::Pair;
 
@@ -39,11 +41,7 @@ pub trait Handler: Send + Sync + 'static {
     /// no client lets it in at once; one that checks a key, once the key is
     /// let in.
     fn open_admitted(&self, id: SessionId, admit: Admit) -> Opening<Self::Stream> {
-        if admit() {
-            self.open(id)
-        } else {
-            Box::pin(async { Err(NO_ROOM.to_string()) })
-        }
+        if admit() { self.open(id) } else { Box::pin(async { Err(NO_ROOM.to_string()) }) }
     }
 
     /// The bytes that may wait for a session's local side before the node
@@ -58,12 +56,12 @@ pub trait Handler: Send + Sync + 'static {
     /// `None` once it ended; each socket says so at its `hello`. Only the
     /// resumable layer passes it on ([`Handler::registers`]), as a session
     /// with no layer has no later leg.
-    fn attach(&self, _frames: Option<crate::e2e::legs::Frames>) {}
+    fn attach(&self, _frames: Option<pod_e2e::legs::Frames>) {}
 
     /// Where the tokens of one leg of the sessions that this handler lets
     /// in go: a handler of the end-to-end channel above the layer registers
     /// them there.
-    fn registers(&self, _frames: Option<crate::e2e::legs::Frames>) {}
+    fn registers(&self, _frames: Option<pod_e2e::legs::Frames>) {}
 
     /// The role took the token of one leg of `digest` (hex) for an
     /// operator's upgrade: the handler that registered it registers the next.
@@ -84,7 +82,8 @@ pub struct NodeConfig<'a> {
     /// that the pair was stopped, while it holds that pair.
     pub label: Option<String>,
     pub trust: &'a Trust,
-    pub proxy: &'a ProxyChoice,
+    /// The way out, the cache and the settings.
+    pub ctx: &'a Context,
     /// Bound on connecting.
     pub timeout: Duration,
     pub settings: Settings,
@@ -145,20 +144,13 @@ pub fn after_close(close: &RelayClose) -> Next {
 /// podssh's relay role sends before it stops (T-255).
 pub const RESTART: u16 = 1012;
 
-/// Whether this node stops for the binary that takes its place (T-668).
-static UPGRADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// This node's next stop is for the binary that takes its place, or no
-/// longer is: its `close` of each session says which.
-pub fn set_upgrading(on: bool) {
-    UPGRADING.store(on, std::sync::atomic::Ordering::SeqCst);
-}
-
-/// The words of a stop's `close` of each session. Either way a client of
-/// the resumable layer resumes, as a node's `close` is no `CLOSE` of the
-/// layer; the words tell its user which.
-pub fn stopping_words() -> &'static str {
-    match UPGRADING.load(std::sync::atomic::Ordering::SeqCst) {
+/// The words of a stop's `close` of each session: whether `node` stops for
+/// the binary that takes its place (podssh T-668,
+/// `NodeState::set_upgrading`). Either way a client of the resumable layer
+/// resumes, as a node's `close` is no `CLOSE` of the layer; the words tell
+/// its user which.
+pub fn stopping_words(node: &super::state::NodeState) -> &'static str {
+    match node.upgrading() {
         true => "the node is upgrading",
         false => "the node is stopping",
     }
@@ -180,7 +172,7 @@ pub fn again_at_once(served: bool, last: Option<Instant>, now: Instant) -> bool 
 /// relay's restart, a fault of this node's bytes, another Close, or a link
 /// that ended with no Close. `None` for a stop of the caller's.
 pub fn ended_words(end: &End) -> Option<String> {
-    let reason = |text: &str| match podssh_ws::text::one_line(text) {
+    let reason = |text: &str| match pod_core::text::one_line(text) {
         shown if shown.is_empty() => "no reason".to_string(),
         shown => shown,
     };
@@ -208,7 +200,7 @@ const UNSAID_426: &str = "the relay refused this node's upgrade (426) and said n
 /// sentence, which podssh's relay role makes name both dialects and whom to
 /// update; a relay that gave none gets that said for it.
 pub fn refused_upgrade(body: &str) -> String {
-    match podssh_ws::text::one_line(body) {
+    match pod_core::text::one_line(body) {
         said if said.is_empty() => UNSAID_426.to_string(),
         said => format!("the relay refused this node's upgrade (426): {said}"),
     }
@@ -255,7 +247,8 @@ where
             timeout: config.timeout,
             // A node socket can be quiet for long; pings find a dead one.
             idle_timeout: None,
-            proxy: config.proxy.clone(),
+            way: config.ctx.way.clone(),
+            limits: pod_ws::Limits::RELAY,
         };
         let connected = tokio::select! {
             connected = wire::open(config.wire, &ws, config.pair.node_token()) => connected,
@@ -271,13 +264,14 @@ where
                     say(format!("online{again}: the relay takes this pair's sessions"));
                 }
                 let end = match socket {
-                    Socket::Tls(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                    Socket::Tls(session) => serve(session, handler.clone(), config.settings.clone(), &mut stop).await,
                     #[cfg(feature = "plain-ws")]
-                    Socket::Plain(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                    Socket::Plain(session) => serve(session, handler.clone(), config.settings.clone(), &mut stop).await,
                     // A carrier's role takes no node's path (T-595): never
                     // here, but a socket is a socket.
-                    #[cfg(feature = "serve")]
-                    Socket::Carrier(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                    Socket::Carrier(session) => {
+                        serve(session, handler.clone(), config.settings.clone(), &mut stop).await
+                    }
                 };
                 lost = Some(Instant::now());
                 ended = ended_words(&end);
@@ -292,8 +286,10 @@ where
                             // This node's pair only: one stored under the
                             // label since is the next pair (T-395).
                             if let Some(label) = &config.label {
-                                if matches!(crate::pair::load(label), Ok(Some(kept)) if kept.name == config.pair.name) {
-                                    let _ = crate::pair::remove(label);
+                                let cache = &config.ctx.cache;
+                                if matches!(crate::pair::load(cache, label), Ok(Some(kept)) if kept.name == config.pair.name)
+                                {
+                                    let _ = crate::pair::remove(cache, label);
                                 }
                             }
                             return Exit::PairStopped;
@@ -379,7 +375,7 @@ fn expired(pair: &Pair) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use podssh_ws::SessionError;
+    use pod_ws::SessionError;
 
     fn closed(code: u16, reason: &str) -> End {
         End::Closed(RelayClose { code, reason: reason.into(), clean: true })

@@ -10,7 +10,7 @@ use tokio::io::DuplexStream;
 
 use super::framing::SessionId;
 use super::node::{Handler, Opening};
-use crate::udp::flow;
+use pod_session::udp::flow;
 
 /// Each direction of the pipe between a session and its flow.
 const PIPE: usize = 256 * 1024;
@@ -29,12 +29,15 @@ pub struct UdpHandler {
     pub timeout: Duration,
     pub idle: Duration,
     pub say: Say,
+    /// The resolver of the name of the target.
+    pub resolve: Arc<dyn pod_core::Resolve>,
 }
 
 impl UdpHandler {
-    /// A handler with the idle limit of `flow::IDLE`, and no lines.
-    pub fn new(host: String, port: u16, timeout: Duration) -> UdpHandler {
-        UdpHandler { host, port, timeout, idle: flow::IDLE, say: Arc::new(|_: String| {}) }
+    /// A handler with the idle limit of `flow::IDLE`, no lines, and the
+    /// names of `resolve`.
+    pub fn new(host: String, port: u16, timeout: Duration, resolve: Arc<dyn pod_core::Resolve>) -> UdpHandler {
+        UdpHandler { host, port, timeout, idle: flow::IDLE, say: Arc::new(|_: String| {}), resolve }
     }
 }
 
@@ -43,16 +46,14 @@ impl Handler for UdpHandler {
 
     fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
         let (host, port, timeout, idle) = (self.host.clone(), self.port, self.timeout, self.idle);
-        let say = self.say.clone();
+        let (say, resolve) = (self.say.clone(), self.resolve.clone());
         Box::pin(async move {
-            let socket = flow::connect(&*podssh_ws::resolve::resolver(), &host, port, timeout)
-                .await
-                .map_err(|e| e.to_string())?;
+            let socket = flow::connect(&*resolve, &host, port, timeout).await.map_err(|e| e.to_string())?;
             let (ours, theirs) = tokio::io::duplex(PIPE);
             tokio::spawn(async move {
                 let carried = flow::carry(theirs, socket, idle).await;
                 if let Some(note) = carried.note() {
-                    say(format!("a flow to udp:{}: {note}", podssh_ws::dial::authority(&host, port)));
+                    say(format!("a flow to udp:{}: {note}", pod_proxy::host::authority(&host, port)));
                 }
             });
             Ok::<DuplexStream, String>(ours)

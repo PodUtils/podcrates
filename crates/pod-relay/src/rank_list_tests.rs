@@ -119,13 +119,11 @@ fn each_host_keeps_its_last_samples() {
 
 #[test]
 fn the_switch_turns_the_order_off() {
-    // The file's word, where the test's environment sets no variable, which
-    // would win over it.
-    let unset = std::env::var(ENV).is_err();
-    set_by_settings(false);
-    assert!(!unset || !enabled());
-    set_by_settings(true);
-    assert!(!unset || enabled());
+    // The file's word, where no variable is given, which would win over it.
+    let off = Settings { rank_by_file: false, ..Settings::default() };
+    assert!(!enabled(&off));
+    let on = Settings { rank_by_file: true, ..Settings::default() };
+    assert!(enabled(&on));
 }
 
 /// The variable wins over the settings file, as the manual says; an empty

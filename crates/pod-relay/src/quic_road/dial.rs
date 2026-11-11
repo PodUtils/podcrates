@@ -1,27 +1,28 @@
-//! The QUIC arm of the race (T-667): whether a session takes it, and its
-//! session. Its UDP socket is the connection's own, on a port that the
-//! system picks, and nothing listens on it, as the quick tunnel's (T-301);
-//! before it, the quick tunnel's probe (T-400) sends one packet of a version
-//! that no server speaks to the first address of each family, which a server
-//! of QUIC answers with a Version Negotiation within 300 ms, so that QUIC is
-//! tried only where UDP passes (Q82). What a host's UDP did is kept for this
-//! process: a host that failed is not tried again over QUIC, and one that
-//! answered is not probed again, for [`super::REMEMBERED`].
+//! The QUIC arm of the race (podssh T-667): whether a session takes it, and
+//! its session. Its UDP socket is the connection's own, on a port that the
+//! system picks, and nothing listens on it; before it, the probe of
+//! `pod-quic` sends one packet of a version that no server speaks to the
+//! first address of each family, which a server of QUIC answers with a
+//! Version Negotiation within 300 ms, so that QUIC is tried only where UDP
+//! passes. What a host's UDP did is kept for the run of the `Context`: a
+//! host that failed is not tried again over QUIC, and one that answered is
+//! not probed again, for [`super::REMEMBERED`].
 
-use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use noq::crypto::rustls::QuicClientConfig;
 use noq::{ClientConfig, Connection, ConnectionError, Endpoint, IdleTimeout, TransportConfig, VarInt};
-use podssh_ws::dial::DialError;
-use podssh_ws::url::Stream;
-use podssh_ws::{ConnectError, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use pod_core::Resolve;
+use pod_proxy::DialError;
+use pod_quic::probe;
+use pod_ws::url::Stream;
+use pod_ws::{ConnectError, RelaySession, Trust, WsClientConfig};
 
 use super::stream::QuicStream;
-use super::{Choice, ALPN, REMEMBERED, WORDS};
-use crate::quick::{probe, quic};
+use super::{ALPN, Choice, REMEMBERED, WORDS};
+use crate::context::Context;
 use crate::relay::Relay;
 
 /// How long QUIC's handshake may take, as the quick tunnel's.
@@ -34,7 +35,7 @@ pub const KEEPALIVE: Duration = Duration::from_secs(10);
 /// The first packets: 1200 bytes fit a path whose MTU is 1280, IPv6's least.
 pub const FIRST_PACKET: u16 = 1200;
 
-/// What this process learned of a host's UDP.
+/// What a run learned of a host's UDP.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Learned {
     /// QUIC answered at this address.
@@ -43,57 +44,49 @@ pub enum Learned {
     Failed,
 }
 
-fn memory() -> &'static Mutex<HashMap<String, (Instant, Learned)>> {
-    static MEMORY: OnceLock<Mutex<HashMap<String, (Instant, Learned)>>> = OnceLock::new();
-    MEMORY.get_or_init(Default::default)
-}
-
 /// The key of a host's UDP port in the memory.
 fn key(host: &str, port: u16) -> String {
     format!("{}:{port}", host.trim_end_matches('.').to_ascii_lowercase())
 }
 
-/// What this process learned of `host`'s UDP `port` within
+/// What the run of `ctx` learned of `host`'s UDP `port` within
 /// [`REMEMBERED`].
-pub fn learned(host: &str, port: u16) -> Option<Learned> {
-    let memory = memory().lock().unwrap_or_else(|e| e.into_inner());
+pub fn learned(ctx: &Context, host: &str, port: u16) -> Option<Learned> {
+    let memory = ctx.quic_memory().lock().unwrap_or_else(|e| e.into_inner());
     memory.get(&key(host, port)).filter(|(at, _)| at.elapsed() < REMEMBERED).map(|(_, learned)| *learned)
 }
 
 /// Keep `learned` of `host`'s UDP `port`.
-pub fn learn(host: &str, port: u16, learned: Learned) {
-    memory().lock().unwrap_or_else(|e| e.into_inner()).insert(key(host, port), (Instant::now(), learned));
+pub fn learn(ctx: &Context, host: &str, port: u16, learned: Learned) {
+    let mut memory = ctx.quic_memory().lock().unwrap_or_else(|e| e.into_inner());
+    memory.insert(key(host, port), (Instant::now(), learned));
 }
 
 /// The UDP port of QUIC for a session of `config` to a host of a list that
 /// the user named when `explicit`, where [`Choice`] and the host's kept offer
 /// give one; none where a proxy is set for the host, where the caller gave
-/// its own TLS configuration, or where this process saw the host's UDP fail.
-pub fn offered(config: &WsClientConfig, explicit: bool) -> Option<u16> {
-    let choice = Choice::from_env().ok()?;
+/// its own TLS configuration, or where the run saw the host's UDP fail.
+pub fn offered(ctx: &Context, config: &WsClientConfig, explicit: bool) -> Option<u16> {
+    let choice = Choice::of(ctx).ok()?;
     if choice == Choice::No || (choice == Choice::Auto && !explicit) {
         return None;
     }
     let host = &config.endpoint.host;
     // The offer is kept with the resumable layer's, from /relays.json.
     let relay = Relay { host: host.clone(), port: config.endpoint.port };
-    let kept = crate::forward_layer::kept::kept_now(&relay).and_then(|offer| offer.quic);
+    let kept = crate::forward_layer::kept::kept_now(&ctx.cache, &relay).and_then(|offer| offer.quic);
     let port = choice.port(explicit, kept, config.endpoint.port)?;
-    let direct = match &config.proxy {
-        ProxyChoice::Direct => true,
-        ProxyChoice::FromEnvironment => matches!(podssh_ws::dial::proxy_from_env(host), Ok(None)),
-        ProxyChoice::Via(_) => false,
-    };
     let own_tls = matches!(config.trust, Trust::Caller(_));
-    (direct && !own_tls && learned(host, port) != Some(Learned::Failed)).then_some(port)
+    (ctx.direct_to(host) && !own_tls && learned(ctx, host, port) != Some(Learned::Failed)).then_some(port)
 }
 
-/// TLS 1.3 alone, as QUIC needs, with the roots of the session's trust and
-/// the role's ALPN.
-pub fn tls(roots: &podssh_ws::tls::TlsRoots) -> Result<Arc<rustls::ClientConfig>, String> {
-    let mut config = (*quic::tls(roots)?).clone();
-    config.alpn_protocols = vec![ALPN.to_vec()];
-    Ok(Arc::new(config))
+/// TLS 1.3 alone, as QUIC needs, on `provider`, with the roots of the
+/// session's trust and the role's ALPN.
+pub fn tls(
+    provider: Arc<rustls::crypto::CryptoProvider>,
+    roots: &pod_tls::TlsRoots,
+) -> Result<Arc<rustls::ClientConfig>, String> {
+    pod_quic::connect::tls(provider, Arc::new(roots.roots.clone()), &[ALPN]).map_err(|f| f.to_string())
 }
 
 /// The settings of a client's connection: the role opens no stream to it.
@@ -129,11 +122,16 @@ async fn connect(
 }
 
 /// The session of `config` with `token` over QUIC to the host's UDP `port`:
-/// the probe, unless QUIC answered this process there lately; the handshake;
+/// the probe, unless QUIC answered the run there lately; the handshake;
 /// one stream, and the contract's upgrade on it. QUIC's own failure is a
 /// dial's, which ends no race; the relay's refusal on the stream is the
 /// upgrade's, as on TCP.
-pub async fn session(config: &WsClientConfig, token: &str, port: u16) -> Result<RelaySession, ConnectError> {
+pub async fn session(
+    ctx: &Context,
+    config: &WsClientConfig,
+    token: &str,
+    port: u16,
+) -> Result<RelaySession, ConnectError> {
     config.validate().map_err(ConnectError::Config)?;
     if token.contains(['\r', '\n']) {
         return Err(ConnectError::Config("the relay token contains a line break".into()));
@@ -142,11 +140,11 @@ pub async fn session(config: &WsClientConfig, token: &str, port: u16) -> Result<
     let failed = |detail: String| {
         ConnectError::Dial(DialError::Connect { target: format!("UDP {host}:{port}"), detail, cut: None, kind: None })
     };
-    let roots = podssh_ws::tls::roots_for(&config.trust).map_err(|e| failed(e.to_string()))?;
-    let tls = tls(&roots).map_err(failed)?;
+    let roots = config.way.tls.roots_for(&config.trust).map_err(|e| failed(e.to_string()))?;
+    let tls = tls(config.way.tls.provider().clone(), &roots).map_err(failed)?;
     let deadline = tokio::time::Instant::now() + config.timeout;
-    let addrs = podssh_ws::resolve::resolve(host, port, deadline).await.map_err(failed)?;
-    let addr = match learned(host, port) {
+    let addrs = resolve(ctx, host, port, deadline).await.map_err(failed)?;
+    let addr = match learned(ctx, host, port) {
         Some(Learned::Answered(at)) if addrs.contains(&at) => at,
         _ => {
             let firsts = [addrs.iter().find(|a| a.is_ipv4()), addrs.iter().find(|a| a.is_ipv6())];
@@ -154,31 +152,46 @@ pub async fn session(config: &WsClientConfig, token: &str, port: u16) -> Result<
             match probe::probe(&firsts, probe::WAIT).await {
                 Ok((at, _)) => at,
                 Err(why) => {
-                    learn(host, port, Learned::Failed);
-                    return Err(failed(why));
+                    learn(ctx, host, port, Learned::Failed);
+                    return Err(failed(why.to_string()));
                 }
             }
         }
     };
-    let endpoint = quic::endpoint(addr.is_ipv6()).map_err(failed)?;
+    let endpoint = pod_quic::endpoint::system(addr.is_ipv6()).map_err(|f| failed(f.to_string()))?;
     let connection = match connect(&endpoint, addr, &config.server_name, tls).await {
         Ok(connection) => connection,
         Err(why) => {
-            learn(host, port, Learned::Failed);
+            learn(ctx, host, port, Learned::Failed);
             return Err(failed(why));
         }
     };
-    learn(host, port, Learned::Answered(addr));
+    learn(ctx, host, port, Learned::Answered(addr));
     let (send, recv) = connection.open_bi().await.map_err(|e| failed(format!("no stream: {e}")))?;
     let stream = QuicStream::client(send, recv, connection, endpoint);
-    let host_header = podssh_ws::dial::authority(host, config.endpoint.port);
+    let host_header = pod_proxy::host::authority(host, config.endpoint.port);
     let path = &config.endpoint.path;
-    let upgraded = tokio::time::timeout(config.timeout, podssh_ws::client::upgrade(stream, &host_header, path, token));
+    let upgraded = tokio::time::timeout(config.timeout, pod_ws::client::upgrade(stream, &host_header, path, token));
     let late = |_| ConnectError::Timeout { step: "the WebSocket upgrade over QUIC", after: config.timeout };
     let (stream, pending) = upgraded.await.map_err(late)??;
     let carried = Stream::Carried(Box::new(stream));
-    let session = RelaySession::new(carried, pending, config.idle_timeout, podssh_ws::client::WRITE_TIMEOUT);
+    let session = RelaySession::new(carried, pending, config.idle_timeout, pod_ws::client::WRITE_TIMEOUT);
     Ok(session.with_road(WORDS.to_string()))
+}
+
+/// The addresses of `host:port` through the resolver of the way of `ctx`,
+/// where the caller gave one, else the system's, each within `deadline`.
+async fn resolve(
+    ctx: &Context,
+    host: &str,
+    port: u16,
+    deadline: tokio::time::Instant,
+) -> Result<Vec<SocketAddr>, String> {
+    let found = match &ctx.resolver {
+        Some(resolver) => resolver.resolve(host, port, deadline).await,
+        None => pod_proxy::resolve::System::new().resolve(host, port, deadline).await,
+    };
+    found.map_err(|f| f.to_string())
 }
 
 #[cfg(test)]
@@ -189,20 +202,22 @@ mod tests {
     /// word replaces an earlier one.
     #[test]
     fn what_a_host_s_udp_did_is_kept_by_its_name_and_port() {
+        let ctx = crate::testing::context();
         let at: SocketAddr = "192.0.2.7:443".parse().unwrap();
-        assert_eq!(learned("udp-kept.example", 443), None);
-        learn("UDP-Kept.example.", 443, Learned::Failed);
-        assert_eq!(learned("udp-kept.example", 443), Some(Learned::Failed));
-        assert_eq!(learned("udp-kept.example", 8443), None, "another port is another host");
-        learn("udp-kept.example", 443, Learned::Answered(at));
-        assert_eq!(learned("udp-kept.example", 443), Some(Learned::Answered(at)));
+        assert_eq!(learned(&ctx, "udp-kept.example", 443), None);
+        learn(&ctx, "UDP-Kept.example.", 443, Learned::Failed);
+        assert_eq!(learned(&ctx, "udp-kept.example", 443), Some(Learned::Failed));
+        assert_eq!(learned(&ctx, "udp-kept.example", 8443), None, "another port is another host");
+        learn(&ctx, "udp-kept.example", 443, Learned::Answered(at));
+        assert_eq!(learned(&ctx, "udp-kept.example", 443), Some(Learned::Answered(at)));
     }
 
     /// QUIC's TLS offers the role's ALPN alone, over TLS 1.3, which QUIC's
     /// configuration takes.
     #[test]
     fn the_tls_of_quic_offers_the_role_s_alpn_alone() {
-        let tls = tls(&podssh_ws::tls::roots_from_compiled_set()).expect("a configuration");
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let tls = tls(provider, &pod_tls::roots_from_compiled_set()).expect("a configuration");
         assert_eq!(tls.alpn_protocols, vec![ALPN.to_vec()]);
         assert!(QuicClientConfig::try_from(tls).is_ok(), "QUIC takes it");
     }

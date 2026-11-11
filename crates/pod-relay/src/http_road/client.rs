@@ -9,14 +9,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::{ConnectError, ProxyChoice, Trust};
+use pod_ws::{ConnectError, Trust, Way};
 use tokio::io::{AsyncRead, AsyncReadExt, DuplexStream};
 use tokio::time::Instant;
 use zeroize::Zeroizing;
 
 use super::answer::Head;
-use super::conn::{request, BoxIo, Conn, Dial, Dialing};
-use super::{is_id, is_key, Form, Tuning, DOWN_MAX, KEY, OPEN, SESSION, WAIT_MAX};
+use super::conn::{BoxIo, Conn, Dial, Dialing, request};
+use super::{DOWN_MAX, Form, KEY, OPEN, SESSION, Tuning, WAIT_MAX, is_id, is_key};
 use crate::relay::Relay;
 
 /// The bound of each step of the open, and of the split form's first
@@ -39,23 +39,26 @@ const PAUSE_MAX: Duration = Duration::from_secs(2);
 pub struct Road {
     pub dial: Dial,
     pub authority: String,
+    /// The `User-Agent` of each request: the caller's.
+    pub user_agent: String,
 }
 
 impl Road {
-    /// TLS to `relay` through `proxy`, checked with `trust`, as the
-    /// WebSocket road reaches it.
-    pub fn tls(relay: &Relay, trust: &Trust, proxy: &ProxyChoice, limit: Duration) -> Road {
-        let (host, port, trust, proxy) = (relay.host.clone(), relay.port, trust.clone(), proxy.clone());
+    /// TLS to `relay` through `way`, checked with `trust`, as the WebSocket
+    /// road reaches it.
+    pub fn tls(way: &Way, relay: &Relay, trust: &Trust, limit: Duration) -> Road {
+        let (host, port, trust, way) = (relay.host.clone(), relay.port, trust.clone(), way.clone());
+        let user_agent = way.user_agent.clone();
         let dial: Dial = Arc::new(move || -> Dialing {
-            let (host, trust, proxy) = (host.clone(), trust.clone(), proxy.clone());
+            let (host, trust, way) = (host.clone(), trust.clone(), way.clone());
             Box::pin(async move {
-                let tls = podssh_ws::client::open_tls(&host, port, &host, &trust, &proxy, limit).await?;
+                let (tls, _) = way.open_tls(&host, port, &host, &trust, limit, &[]).await?;
                 Ok(Box::new(tls) as BoxIo)
             })
         });
         let authority =
-            if relay.port == 443 { relay.host.clone() } else { podssh_ws::dial::authority(&relay.host, relay.port) };
-        Road { dial, authority }
+            if relay.port == 443 { relay.host.clone() } else { pod_proxy::host::authority(&relay.host, relay.port) };
+        Road { dial, authority, user_agent }
     }
 }
 
@@ -108,6 +111,7 @@ pub(super) struct Shared {
     /// Sent in a header alone, never in a URL.
     pub key: Zeroizing<String>,
     pub authority: String,
+    pub user_agent: String,
     pub batch: usize,
     pub wait: Duration,
     pub down_max: usize,
@@ -125,7 +129,7 @@ impl Shared {
 
     /// A request of this session, with its key.
     pub fn request(&self, method: &str, path: &str, length: Option<usize>) -> Vec<u8> {
-        request(method, &self.authority, path, &[(KEY, self.key.as_str())], length)
+        request(method, &self.user_agent, &self.authority, path, &[(KEY, self.key.as_str())], length)
     }
 
     /// What an answer says of the batches that the target took.
@@ -235,11 +239,11 @@ pub async fn open(
     }
     let path = open_path(target)?;
     let mut first = Conn::new(road.dial.clone());
-    let head = request("POST", &road.authority, &path, &[("X-Relay-Token", token)], Some(0));
+    let head = request("POST", &road.user_agent, &road.authority, &path, &[("X-Relay-Token", token)], Some(0));
     let answer = first.ask(&head, &[], LIMIT).await?;
     let body = first.whole(&answer, OPEN_ANSWER_MAX, LIMIT).await?;
     if answer.status != 200 {
-        let words = podssh_ws::text::one_line(&String::from_utf8_lossy(&body));
+        let words = pod_core::text::one_line(&String::from_utf8_lossy(&body));
         let words: String = words.chars().take(200).collect();
         let body = if words.is_empty() { answer.reason.clone() } else { words };
         return Err(ConnectError::Refused { status: answer.status, body });
@@ -256,6 +260,7 @@ pub async fn open(
         id: id.to_string(),
         key: Zeroizing::new(key.to_string()),
         authority: road.authority.clone(),
+        user_agent: road.user_agent.clone(),
         batch: tuning.batch.min(bound("batch_max", super::BATCH_MAX as u64) as usize).max(1),
         wait: tuning.wait.min(Duration::from_millis(bound("wait_max_ms", WAIT_MAX.as_millis() as u64))),
         down_max: bound("down_max", DOWN_MAX as u64) as usize,

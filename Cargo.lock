@@ -1748,6 +1748,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-relay"
+version = "0.23.0"
+dependencies = [
+ "base64 0.23.1",
+ "ed25519-dalek",
+ "hmac 0.13.0",
+ "noq",
+ "pod-core",
+ "pod-dns",
+ "pod-e2e",
+ "pod-identity",
+ "pod-proxy",
+ "pod-quic",
+ "pod-services",
+ "pod-session",
+ "pod-testkit",
+ "pod-tls",
+ "pod-wormhole",
+ "pod-ws",
+ "proptest",
+ "rand 0.10.3",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-rootfs"
 version = "0.24.0"
 dependencies = [

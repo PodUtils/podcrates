@@ -21,11 +21,11 @@ use tokio::io::DuplexStream;
 use tokio::net::TcpStream;
 
 use super::framing::SessionId;
-use super::node::{Admit, Handler, Opening, NO_ROOM};
+use super::node::{Admit, Handler, NO_ROOM, Opening};
 use super::tcp::dial_target;
-use crate::e2e::ends::{serve_asked, Node, NO_EXIT};
-use crate::e2e::{Ask, Refusal};
-use crate::identity::PublicKey;
+use pod_e2e::ends::{NO_EXIT, Node, serve_asked};
+use pod_e2e::{Ask, Refusal};
+use pod_identity::PublicKey;
 
 /// Each direction of the pipe between a session and its channel.
 const PIPE: usize = 256 * 1024;
@@ -63,6 +63,8 @@ pub struct Routes {
     pub exit: Option<Arc<ExitDial>>,
     /// The node's shares (T-433): none, and only the routes above.
     pub shared: Option<Arc<Shared>>,
+    /// The dial of each target of a route.
+    pub dialer: Arc<pod_proxy::Dialer>,
 }
 
 impl Routes {
@@ -114,13 +116,13 @@ impl Routes {
         };
         // A grant used once named this route already, and its issuer may use
         // it (T-226): the key needs no line of its own.
-        if let (Some(name), false) = (route, crate::e2e::ends::granted()) {
+        if let (Some(name), false) = (route, pod_e2e::ends::granted()) {
             (self.grant)(key, name).map_err(|_| refused())?;
         }
         if !admit() {
             return Err(no_room());
         }
-        dial_target(&target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)
+        dial_target(&self.dialer, &target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)
     }
 }
 
@@ -144,7 +146,8 @@ impl Handler for Routed {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (routes, node) = (self.routes.clone(), self.node.clone());
         // A handover finds the channel by the layer's id of its session (T-668).
-        tokio::spawn(crate::e2e::hold::holding(async move {
+        let holds = node.holds.clone();
+        tokio::spawn(holds.holding(async move {
             serve_asked(theirs, &node, move |key, ask: Ask| async move { routes.open(&key, &ask).await }).await;
         }));
         Box::pin(async move { Ok(ours) })
@@ -159,7 +162,8 @@ impl Handler for Routed {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (routes, node) = (self.routes.clone(), self.node.clone());
         // A handover finds the channel by the layer's id of its session (T-668).
-        tokio::spawn(crate::e2e::hold::holding(async move {
+        let holds = node.holds.clone();
+        tokio::spawn(holds.holding(async move {
             let open = move |key: PublicKey, ask: Ask| async move { routes.open_with(&key, &ask, admit).await };
             serve_asked(theirs, &node, open).await;
         }));
@@ -168,7 +172,7 @@ impl Handler for Routed {
 
     /// Each session that the channel lets in gets the seed of its tokens of
     /// one leg, registered in `frames` (T-615).
-    fn registers(&self, frames: Option<crate::e2e::legs::Frames>) {
+    fn registers(&self, frames: Option<pod_e2e::legs::Frames>) {
         self.node.leases.attach(frames);
     }
 

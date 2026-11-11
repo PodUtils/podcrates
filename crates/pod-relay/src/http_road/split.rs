@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use tokio::io::{AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 
-use super::answer::Head;
-use super::client::{closed, forgotten, gather, retry_after, End, Retry, Shared, LIMIT};
-use super::conn::Conn;
 use super::OFFSET;
+use super::answer::Head;
+use super::client::{End, LIMIT, Retry, Shared, closed, forgotten, gather, retry_after};
+use super::conn::Conn;
 
 /// How much longer than the wait that it asks an answer down may take.
 const SLACK: Duration = Duration::from_secs(15);
@@ -57,7 +57,7 @@ pub(super) async fn batch(conn: &mut Conn, s: &Shared, path: &str, body: &[u8]) 
                 tries.again(&format!("HTTP {} {words}", answer.status), retry_after(&answer)).await?
             }
             status => {
-                return Err(End::Failed(format!("the relay refused a batch of the HTTP road: HTTP {status} {words}")))
+                return Err(End::Failed(format!("the relay refused a batch of the HTTP road: HTTP {status} {words}")));
             }
         }
     }

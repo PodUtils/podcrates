@@ -2,7 +2,7 @@
 //! socket heard of them. A session's first leg opens with the pair's connect
 //! token; each leg after it, a resume, a move or a spare, with the next token
 //! of the session, which the node's verdict gave the seed of
-//! (`crate::e2e::legs`), so that a token that a proxy logged from a leg's
+//! (`pod_e2e::legs`), so that a token that a proxy logged from a leg's
 //! headers is spent already. A role that refuses one is no refusal of the
 //! pair: the leg is tried again, and after twice the window of refusals in a
 //! row the session's legs take the pair's token, as before.
@@ -14,15 +14,15 @@
 //! goes on with at an expiry only once a socket heard it after that move
 //! ([`offers`], T-620).
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
-use podssh_ws::client::ConnectError;
+use pod_ws::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::task::JoinHandle;
 
 use super::control::Hello;
 use super::operator::{self, OperatorConfig, Outcome};
-pub use crate::e2e::legs::{current, during, Pick, Taker, WINDOW};
+pub use pod_e2e::legs::{Pick, Taker, WINDOW, current, during};
+
+use super::state::NodeState;
 
 /// The field of a role's `hello` that says that it rotates a pair's stop
 /// token.
@@ -33,36 +33,34 @@ pub const ROTATION: &str = "stopRotation";
 pub const REFUSED: &str = "the relay refused this session's token of one leg (403 reverse: forbidden): the next leg \
                            takes it again, then the next one, and the pair's token after a run of refusals";
 
-/// The sockets of this process that heard a role that rotates stop tokens:
-/// a count, not a flag, so that a node that moved to its next pair can wait
-/// for that pair's own socket (T-620).
-static ROTATES: AtomicU64 = AtomicU64::new(0);
-
-/// What a node's socket heard in its role's `hello`.
-pub fn heard(hello: &Hello) {
+/// What a node's socket heard in its role's `hello`: the node counts the
+/// sockets that heard a role that rotates stop tokens, a count, not a flag,
+/// so that a node that moved to its next pair can wait for that pair's own
+/// socket (podssh T-620).
+pub fn heard(node: &NodeState, hello: &Hello) {
     if says_rotation(hello) {
-        ROTATES.fetch_add(1, Ordering::SeqCst);
+        node.heard_rotation();
     }
 }
 
 /// Whether a role's `hello` says that it rotates stop tokens: `true`, and
-/// nothing else (`crate::answer`).
+/// nothing else (`pod_session::answer`).
 pub fn says_rotation(hello: &Hello) -> bool {
-    crate::answer::offers(hello.extra.get(ROTATION))
+    pod_session::answer::offers(hello.extra.get(ROTATION))
 }
 
-/// Whether a socket of this process's node heard a role that rotates the
-/// pair's stop token.
-pub fn rotates() -> bool {
-    offers() > 0
+/// Whether a socket of `node` heard a role that rotates the pair's stop
+/// token.
+pub fn rotates(node: &NodeState) -> bool {
+    offers(node) > 0
 }
 
-/// How many sockets of this process's node heard a role that rotates the
-/// pair's stop token. A node takes the count when it begins with a pair, and
-/// rotates that pair's token once the count grew: a socket of the pair heard
-/// it, as a node's sockets are of one pair at a time.
-pub fn offers() -> u64 {
-    ROTATES.load(Ordering::SeqCst)
+/// How many sockets of `node` heard a role that rotates the pair's stop
+/// token. A node takes the count when it begins with a pair, and rotates
+/// that pair's token once the count grew: a socket of the pair heard it, as
+/// a node's sockets are of one pair at a time.
+pub fn offers(node: &NodeState) -> u64 {
+    node.offers()
 }
 
 /// [`operator::start`] for a leg of a session after its first: with the
@@ -82,7 +80,7 @@ where
         name: config.name,
         connect_token: &token,
         trust: config.trust,
-        proxy: config.proxy,
+        ctx: config.ctx,
         timeout: config.timeout,
         limits: config.limits,
         wire: config.wire,
@@ -115,12 +113,13 @@ mod tests {
         {
             assert!(!says_rotation(&read(text)), "{text}");
         }
-        let before = offers();
-        heard(&read(r#"{"stopRotation":true}"#));
-        assert!(rotates(), "once heard, for the process");
-        assert!(offers() > before, "each socket that heard it counts (T-620)");
-        let after = offers();
-        heard(&read(r#"{"maxSessions":64}"#));
-        assert_eq!(offers(), after, "a hello with no offer counts nothing");
+        let node = NodeState::default();
+        let before = offers(&node);
+        heard(&node, &read(r#"{"stopRotation":true}"#));
+        assert!(rotates(&node), "once heard, for the process");
+        assert!(offers(&node) > before, "each socket that heard it counts (T-620)");
+        let after = offers(&node);
+        heard(&node, &read(r#"{"maxSessions":64}"#));
+        assert_eq!(offers(&node), after, "a hello with no offer counts nothing");
     }
 }

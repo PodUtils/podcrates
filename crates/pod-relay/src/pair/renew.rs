@@ -9,7 +9,7 @@
 
 use serde::Deserialize;
 
-use super::{checked, refused, with_token, OperatorPart, Pair, PairContext, PairError, Presence};
+use super::{OperatorPart, Pair, PairContext, PairError, Presence, checked, refused, with_token};
 
 /// The path of a renewal, before the pair's name.
 pub const PATH: &str = "/v1/renew/";

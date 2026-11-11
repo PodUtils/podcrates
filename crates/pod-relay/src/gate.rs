@@ -14,15 +14,16 @@
 //! wait that ends is never read as a host that timed out. An attempt held at
 //! a host with a successor in its list goes on at once ([`OpenError::Held`]);
 //! at its last host it waits, bounded by its caller's own limit. The gates
-//! live in the process and start open, as each new command does; the record
-//! of failures (`failures.rs`) carries what one run learns to the next.
+//! are a value of the caller's `Context` and start open, as each new run
+//! does; the record of failures (`failures.rs`) carries what one run learns
+//! to the next.
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_ws::ConnectError;
+use pod_ws::ConnectError;
 use tokio::sync::watch;
 use tokio::time::Instant;
 
@@ -129,7 +130,9 @@ struct Inner {
     changes: watch::Sender<u64>,
 }
 
-/// The gates of a process, or of a test, by origin.
+/// The gates of a run, or of a test, by origin. A test on a paused clock
+/// takes `Gates` of its own: the times that a gate keeps are its runtime's
+/// clock's.
 #[derive(Clone)]
 pub struct Gates(Arc<Inner>);
 
@@ -137,14 +140,6 @@ impl Default for Gates {
     fn default() -> Self {
         Gates(Arc::new(Inner { states: Mutex::default(), changes: watch::channel(0).0 }))
     }
-}
-
-/// The process's gates, which each run of [`crate::open::open`] shares. A
-/// test on a paused clock takes [`Gates`] of its own: the times that a gate
-/// keeps are its runtime's clock's.
-pub fn process() -> &'static Gates {
-    static GATES: OnceLock<Gates> = OnceLock::new();
-    GATES.get_or_init(Gates::default)
 }
 
 /// The origin of `relay`: its host, of any case, and its port.

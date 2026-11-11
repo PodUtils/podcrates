@@ -10,13 +10,13 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use podssh_ws::dial::ProxyChoice;
-use podssh_ws::{ConnectError, Trust};
+use pod_ws::{ConnectError, Trust};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
-use crate::cache::{self, valid_token, MIN_REMAINING_MS};
-use crate::relay::{check_node_name, parse_relay, Relay};
+use crate::cache::{self, Cache, MIN_REMAINING_MS, valid_token};
+use crate::context::Context;
+use crate::relay::{Relay, check_node_name, parse_relay};
 use crate::token::relay_name;
 
 /// A pair that its owner halts and resumes in podssh's relay role (T-647).
@@ -90,9 +90,10 @@ impl std::fmt::Debug for Pair {
 
 /// Where and how to ask the control host.
 pub struct PairContext<'a> {
+    /// The way out, the cache and the settings.
+    pub ctx: &'a Context,
     pub relay: &'a Relay,
     pub trust: &'a Trust,
-    pub proxy: &'a ProxyChoice,
     pub timeout: Duration,
 }
 
@@ -240,10 +241,11 @@ pub async fn stop(ctx: &PairContext<'_>, pair: &Pair) -> Result<Stopped, PairErr
 /// the copy is kept, because its `stop_token` is the only way to stop the
 /// pair before it expires.
 pub async fn revoke(ctx: &PairContext<'_>, label: &str) -> Result<Stopped, PairError> {
-    let pair = load(label)?.ok_or_else(|| PairError::BadLabel(format!("no pair is stored under {label:?}")))?;
+    let cache = &ctx.ctx.cache;
+    let pair = load(cache, label)?.ok_or_else(|| PairError::BadLabel(format!("no pair is stored under {label:?}")))?;
     let result = stop(ctx, &pair).await;
     if !matches!(result, Err(PairError::Connect(_))) {
-        remove(label)?;
+        remove(cache, label)?;
     }
     result
 }
@@ -253,8 +255,9 @@ async fn with_token(
     method: &str,
     path: &str,
     token: &str,
-) -> Result<podssh_ws::http::Response, PairError> {
-    podssh_ws::client::https_with_token(
+) -> Result<pod_proxy::http::Response, PairError> {
+    pod_ws::client::https_with_token(
+        &ctx.ctx.way,
         method,
         &ctx.relay.host,
         ctx.relay.port,
@@ -263,7 +266,6 @@ async fn with_token(
         token,
         16 * 1024,
         ctx.trust,
-        ctx.proxy,
         ctx.timeout,
     )
     .await
@@ -272,7 +274,7 @@ async fn with_token(
 
 /// An answer that is not a 2xx. Its body is quoted (it holds no token), safe
 /// to print and short.
-fn refused(status: u16, response: &podssh_ws::http::Response) -> PairError {
+fn refused(status: u16, response: &pod_proxy::http::Response) -> PairError {
     let body = response.body_text(200);
     let detail = if body.is_empty() { String::new() } else { format!(": {body}") };
     match status {
@@ -397,8 +399,8 @@ pub fn file_name(label: &str) -> Result<String, PairError> {
 
 /// Keep `pair` under `label`, in the first cache directory that takes a
 /// private file.
-pub fn store(label: &str, pair: &Pair) -> Result<PathBuf, PairError> {
-    store_in_first(&cache::candidate_dirs(), label, pair)
+pub fn store(cache: &Cache, label: &str, pair: &Pair) -> Result<PathBuf, PairError> {
+    store_in_first(cache.dirs(), label, pair)
 }
 
 /// [`store`] over explicit directories (for tests).
@@ -418,8 +420,8 @@ pub fn store_in_first(dirs: &[PathBuf], label: &str, pair: &Pair) -> Result<Path
 
 /// The pair kept under `label`, if any, also in a place passed over (T-593).
 /// Its expiry is not checked here: a caller says so with the remedy.
-pub fn load(label: &str) -> Result<Option<Pair>, PairError> {
-    load_from(&cache::read_dirs(), label)
+pub fn load(cache: &Cache, label: &str) -> Result<Option<Pair>, PairError> {
+    load_from(&cache.read_dirs(), label)
 }
 
 /// [`load`] over explicit directories (for tests).
@@ -456,8 +458,8 @@ fn parse_stored(text: &str, what: &str) -> Result<Pair, PairError> {
 }
 
 /// The labels of the pairs in the store, sorted.
-pub fn labels() -> Vec<String> {
-    labels_from(&cache::read_dirs())
+pub fn labels(cache: &Cache) -> Vec<String> {
+    labels_from(&cache.read_dirs())
 }
 
 /// [`labels`] over explicit directories (for tests).
@@ -471,8 +473,8 @@ pub fn labels_from(dirs: &[PathBuf]) -> Vec<String> {
 
 /// Forget the pair kept under `label`, in each directory where it is ours, a
 /// place passed over too, where it would be read again.
-pub fn remove(label: &str) -> Result<(), PairError> {
-    remove_from(&cache::read_dirs(), label)
+pub fn remove(cache: &Cache, label: &str) -> Result<(), PairError> {
+    remove_from(&cache.read_dirs(), label)
 }
 
 /// [`remove`] over explicit directories (for tests).

@@ -1,35 +1,32 @@
 //! The cleartext road on the relay's port (T-326, the operator's ruling
 //! Q45), tried last by [`crate::open`]: once each relay host failed, one host
 //! of each deployment whose TLS failed on the way
-//! ([`podssh_ws::cleartext::tls_failed`]) is asked in cleartext, through the
+//! ([`pod_ws::cleartext::tls_failed`]) is asked in cleartext, through the
 //! same proxy, for a token of one session (`POST /v1/mint?once=1`, signed by
 //! this client's key where the relay asks, T-448), and the upgrade goes with
 //! it, in cleartext too. No other token goes on this road: not the cache's,
-//! not `PODSSH_RELAY_TOKEN`'s. The token of one session is never cached, and
-//! a relay whose answer does not say `"once": true`, with an end within
+//! not the one that the user gave. The token of one session is never cached,
+//! and a relay whose answer does not say `"once": true`, with an end within
 //! [`ONCE_MAX_MS`], gets no upgrade. Each hop reads the target and that
-//! token; SSH inside stays end to end. podssh's relay role serves the road
-//! (`serve::cleartext`); the default relay's edge serves TLS alone on its
-//! port, so its mint is refused there. `PODSSH_CLEARTEXT=no` turns it off.
+//! token; SSH inside stays end to end. The relay role serves the road; the
+//! default relay's edge serves TLS alone on its port, so its mint is refused
+//! there. The word `no` of `Settings::cleartext` turns it off.
 
 use std::time::Duration;
 
-use podssh_ws::http::Response;
-use podssh_ws::{Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use pod_core::entropy::OsEntropy;
+use pod_identity::file;
+use pod_proxy::http::Response;
+use pod_ws::{Endpoint, RelaySession, Trust, WsClientConfig};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use crate::identity::file;
-use crate::open::{OpenError, CONNECT_TIMEOUT, HOST_DEADLINE};
+use crate::context::Context;
+use crate::open::{CONNECT_TIMEOUT, HOST_DEADLINE, OpenError};
 use crate::relay::Relay;
-use crate::session::OsEntropy;
 use crate::token::{self, TokenError};
 
-/// The variable that turns the cleartext road off, the forwarders' `ws://`
-/// form with it.
-pub const CLEARTEXT_ENV: &str = "PODSSH_CLEARTEXT";
-
-/// The longest life of a token of one session that podssh sends in
+/// The longest life of a token of one session that the client sends in
 /// cleartext: the relay role's live 5 minutes.
 pub const ONCE_MAX_MS: i64 = 10 * 60 * 1000;
 
@@ -41,18 +38,18 @@ const ONCE: &str = "?once=1";
 const MINT_BODY: usize = 64 * 1024;
 
 /// Whether the road is on: unset, empty or yes; no turns it off; another
-/// word is refused, with why.
-pub fn on_from(value: Option<&str>) -> Result<bool, String> {
+/// word is refused, with why, which names the setting `name`.
+pub fn on_from(value: Option<&str>, name: &str) -> Result<bool, String> {
     match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
         None | Some("" | "yes" | "on" | "true" | "1") => Ok(true),
         Some("no" | "off" | "false" | "0") => Ok(false),
-        Some(_) => Err(format!("{CLEARTEXT_ENV}: yes or no")),
+        Some(_) => Err(format!("{name}: yes or no")),
     }
 }
 
-/// [`on_from`] of this process's variable.
-pub fn on() -> Result<bool, String> {
-    on_from(std::env::var(CLEARTEXT_ENV).ok().as_deref())
+/// [`on_from`] of the settings of `ctx`.
+pub fn on(ctx: &Context) -> Result<bool, String> {
+    on_from(ctx.settings.cleartext.as_deref(), &ctx.settings.names.cleartext)
 }
 
 /// Whether a host's failure is one that the cleartext road may pass: TLS
@@ -60,7 +57,7 @@ pub fn on() -> Result<bool, String> {
 pub fn may_help(e: &OpenError) -> bool {
     match e {
         OpenError::Connect { error, .. } | OpenError::Token(TokenError::Connect(error)) => {
-            podssh_ws::cleartext::tls_failed(error)
+            pod_ws::cleartext::tls_failed(error)
         }
         _ => false,
     }
@@ -87,20 +84,26 @@ pub fn hosts_for(hosts: &[Relay], attempts: &[(String, OpenError)]) -> Vec<Relay
 /// first of [`hosts_for`] that opens, each within [`HOST_DEADLINE`], one at a
 /// time; `notes` hears each step.
 pub async fn last(
+    ctx: &Context,
     hosts: &[Relay],
     attempts: &[(String, OpenError)],
     path: &str,
     notes: &mut dyn FnMut(&str),
 ) -> Option<(Relay, RelaySession)> {
-    over(hosts_for(hosts, attempts), path, notes).await
+    over(ctx, hosts_for(hosts, attempts), path, notes).await
 }
 
 /// The road to `tried`, in order, as [`last`] takes it.
-pub async fn over(tried: Vec<Relay>, path: &str, notes: &mut dyn FnMut(&str)) -> Option<(Relay, RelaySession)> {
+pub async fn over(
+    ctx: &Context,
+    tried: Vec<Relay>,
+    path: &str,
+    notes: &mut dyn FnMut(&str),
+) -> Option<(Relay, RelaySession)> {
     if tried.is_empty() {
         return None;
     }
-    match on() {
+    match on(ctx) {
         Ok(true) => {}
         Ok(false) => return None,
         Err(why) => {
@@ -108,15 +111,15 @@ pub async fn over(tried: Vec<Relay>, path: &str, notes: &mut dyn FnMut(&str)) ->
             return None;
         }
     }
-    let proxy = ProxyChoice::FromEnvironment;
+    let (app, name) = (&ctx.settings.names.app, &ctx.settings.names.cleartext);
     for relay in tried {
         let shown = token::relay_name(&relay);
         notes(&format!(
-            "each relay host failed, and the TLS of {shown} failed on the way: podssh asks {shown} in cleartext for a \
+            "each relay host failed, and the TLS of {shown} failed on the way: {app} asks {shown} in cleartext for a \
              token of one session, and opens the session with it; each hop reads the target and that token, and \
-             SSH inside stays end to end ({CLEARTEXT_ENV}=no turns this off)"
+             SSH inside stays end to end ({name}=no turns this off)"
         ));
-        match tokio::time::timeout(HOST_DEADLINE, attempt(&relay, path, &proxy, CONNECT_TIMEOUT)).await {
+        match tokio::time::timeout(HOST_DEADLINE, attempt(ctx, &relay, path, CONNECT_TIMEOUT)).await {
             Ok(Ok(session)) => {
                 notes(&format!("{shown} carries the session in cleartext, with a token of one session"));
                 return Some((relay, session));
@@ -128,38 +131,39 @@ pub async fn over(tried: Vec<Relay>, path: &str, notes: &mut dyn FnMut(&str)) ->
     None
 }
 
-/// One host in cleartext through `proxy`: the mint of a token of one
-/// session, then the upgrade at `path` with it, each step within `step`.
-pub async fn attempt(relay: &Relay, path: &str, proxy: &ProxyChoice, step: Duration) -> Result<RelaySession, String> {
-    let token = mint_once(relay, proxy, step).await?;
+/// One host in cleartext through the way of `ctx`: the mint of a token of
+/// one session, then the upgrade at `path` with it, each step within `step`.
+pub async fn attempt(ctx: &Context, relay: &Relay, path: &str, step: Duration) -> Result<RelaySession, String> {
+    let token = mint_once(ctx, relay, step).await?;
     let config = WsClientConfig {
         endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path: path.to_string() },
         // No TLS on this road: neither is read.
         trust: Trust::Default,
         server_name: relay.host.clone(),
         timeout: step,
-        idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
-        proxy: proxy.clone(),
+        idle_timeout: Some(pod_ws::DEFAULT_IDLE_TIMEOUT),
+        way: ctx.way.clone(),
+        limits: pod_ws::Limits::RELAY,
     };
-    let opened = podssh_ws::cleartext::connect(&config, &token).await;
+    let opened = pod_ws::cleartext::connect(&config, &token).await;
     drop(token);
     opened.map_err(|e| e.to_string())
 }
 
 /// A token of one session, minted at `relay` in cleartext, once more with
 /// this client's key when the relay asks for one.
-async fn mint_once(relay: &Relay, proxy: &ProxyChoice, step: Duration) -> Result<Zeroizing<String>, String> {
+async fn mint_once(ctx: &Context, relay: &Relay, step: Duration) -> Result<Zeroizing<String>, String> {
     let (host, port) = (relay.host.as_str(), relay.port);
     // The `Host` that the request sends, and that a key's proof signs.
     let named = crate::keyed::host_header(host, port);
-    let first = post(host, port, &named, b"{}", proxy, step).await?;
+    let first = post(ctx, host, port, &named, b"{}", step).await?;
     let response = match crate::keyed::challenge_of(&first) {
         None => first,
         Some(challenge) => {
-            let key = file::load(&file::client_place(), &mut OsEntropy)
+            let key = file::load(&ctx.cache.places, &file::client_place(), &mut OsEntropy)
                 .map_err(|why| format!("the relay mints for the keys of its list; this client's key: {why}"))?;
             let body = crate::keyed::proof(&key.identity, &named, MINT, &challenge);
-            post(host, port, &named, &body, proxy, step).await?
+            post(ctx, host, port, &named, &body, step).await?
         }
     };
     once_token(&response, crate::pool::now_ms())
@@ -167,21 +171,22 @@ async fn mint_once(relay: &Relay, proxy: &ProxyChoice, step: Duration) -> Result
 
 /// `POST /v1/mint?once=1` with `body`, in cleartext, within `step`.
 async fn post(
+    ctx: &Context,
     host: &str,
     port: u16,
     named: &str,
     body: &[u8],
-    proxy: &ProxyChoice,
     step: Duration,
 ) -> Result<Response, String> {
-    let mut tcp = podssh_ws::dial::dial(host, port, proxy, step).await.map_err(|e| e.to_string())?;
+    let mut tcp = ctx.way.tcp(host, port, step).await.map_err(|e| e.to_string())?.io;
     let headers = [("Content-Type", "application/json"), ("Accept", "application/json")];
     let target = format!("{MINT}{ONCE}");
-    let asked = podssh_ws::http::exchange(&mut tcp, "POST", named, &target, &headers, body, MINT_BODY);
+    let user_agent = &ctx.way.user_agent;
+    let asked = pod_proxy::http::exchange(&mut tcp, user_agent, "POST", named, &target, &headers, body, MINT_BODY);
     match tokio::time::timeout(step, asked).await {
         Err(_) => Err(format!("the mint gave no answer within {} s", step.as_secs())),
         Ok(Err(e)) => {
-            let cut = podssh_ws::Cut::of(e.kind()).words();
+            let cut = pod_proxy::Cut::of(e.kind()).words();
             Err(format!("the mint gave no answer ({cut}: {e}): a hop may cut cleartext"))
         }
         Ok(Ok(response)) => Ok(response),
@@ -230,10 +235,11 @@ pub fn once_token(response: &Response, now_ms: i64) -> Result<Zeroizing<String>,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use podssh_ws::ConnectError;
+    use pod_ws::ConnectError;
 
     #[test]
     fn the_variable_is_yes_or_no() {
+        let on_from = |value| on_from(value, "PODSSH_CLEARTEXT");
         assert_eq!(on_from(None), Ok(true));
         for yes in ["", " yes ", "On", "1", "true"] {
             assert_eq!(on_from(Some(yes)), Ok(true), "{yes:?}");

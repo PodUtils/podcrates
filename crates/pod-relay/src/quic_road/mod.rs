@@ -7,13 +7,13 @@
 //! over TCP is two, its connection ids outlive a rebinding of the NAT, and a
 //! lost packet holds no other connection's bytes.
 //!
-//! Which sessions race it, by [`QUIC_ENV`]: unset, empty or `auto`, a
+//! Which sessions race it, by `Settings::quic`: unset, empty or `auto`, a
 //! session to a relay host that the user named, whose `/relays.json` offered
 //! QUIC (`forward.quic`, kept with the offer of the resumable layer for a
-//! day, T-173); `yes`, each relay host, at the port that it offered, else at
-//! its own; `no`, none. In each case only where no proxy is set for the host,
-//! as no HTTP proxy carries UDP, and never with a caller's own TLS
-//! configuration, which podssh cannot give QUIC's ALPN.
+//! day, podssh T-173); `yes`, each relay host, at the port that it offered,
+//! else at its own; `no`, none. In each case only where no proxy is set for
+//! the host, as no HTTP proxy carries UDP, and never with a caller's own TLS
+//! configuration, which the crate cannot give QUIC's ALPN.
 //!
 //! The race ([`race`]): QUIC first, after the quick tunnel's probe of UDP
 //! (T-400), which a server of QUIC answers in one round trip; the TCP road
@@ -21,9 +21,10 @@
 //! first session kept, the loser dropped at once; an answer of the relay
 //! itself (a refusal of the token or the target) on either road ends the
 //! race, as the other road would get the same. A host whose UDP failed is
-//! not tried over QUIC again by this process for [`REMEMBERED`], and one
-//! whose QUIC answered is not probed again for as long. The resumable layer
-//! stays above each road, so a session that QUIC loses resumes on any road.
+//! not tried over QUIC again by the run of the `Context` for [`REMEMBERED`],
+//! and one whose QUIC answered is not probed again for as long. The
+//! resumable layer stays above each road, so a session that QUIC loses
+//! resumes on any road.
 
 pub mod race;
 
@@ -34,21 +35,21 @@ pub mod stream;
 
 use std::time::Duration;
 
-use podssh_ws::{ConnectError, RelaySession, WsClientConfig};
+use pod_ws::{ConnectError, RelaySession, WsClientConfig};
 
-/// The variable that says which sessions race QUIC.
-pub const QUIC_ENV: &str = "PODSSH_QUIC";
+use crate::context::Context;
+
 /// The ALPN of the relay role's QUIC: a stream is a connection of HTTP/1.1.
 pub const ALPN: &[u8] = b"podssh-relay/1";
 /// How long QUIC goes alone before the TCP road starts, as osewa's race of
 /// QUIC and its WebSocket gives it.
 pub const HEAD_START: Duration = Duration::from_millis(300);
-/// How long this process keeps what it learned of UDP to a host.
+/// How long a run keeps what it learned of UDP to a host.
 pub const REMEMBERED: Duration = Duration::from_secs(600);
 /// The words of a session on the road, after the relay host's name.
 pub const WORDS: &str = "over QUIC";
 
-/// The words of [`QUIC_ENV`].
+/// The words of `Settings::quic`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Choice {
     /// A relay host that the user named, where it offered QUIC.
@@ -60,19 +61,20 @@ pub enum Choice {
 }
 
 impl Choice {
-    /// The choice of `value`; another word is refused, with why.
-    pub fn parse(value: Option<&str>) -> Result<Choice, String> {
+    /// The choice of `value`; another word is refused, with why, which
+    /// names the setting `name`.
+    pub fn parse(value: Option<&str>, name: &str) -> Result<Choice, String> {
         match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
             None | Some("" | "auto") => Ok(Choice::Auto),
             Some("yes" | "on" | "true" | "1") => Ok(Choice::Yes),
             Some("no" | "off" | "false" | "0") => Ok(Choice::No),
-            Some(_) => Err(format!("{QUIC_ENV}: auto, yes or no")),
+            Some(_) => Err(format!("{name}: auto, yes or no")),
         }
     }
 
-    /// [`Choice::parse`] of this process's variable.
-    pub fn from_env() -> Result<Choice, String> {
-        Choice::parse(std::env::var(QUIC_ENV).ok().as_deref())
+    /// [`Choice::parse`] of the settings of `ctx`.
+    pub fn of(ctx: &Context) -> Result<Choice, String> {
+        Choice::parse(ctx.settings.quic.as_deref(), &ctx.settings.names.quic)
     }
 
     /// The UDP port of QUIC for a session to a host of a list that the user
@@ -97,16 +99,21 @@ pub fn decisive(e: &ConnectError) -> bool {
 /// named when `explicit`: QUIC raced with the TCP road where [`Choice`] and
 /// the host offer it, else the TCP road alone, as
 /// [`crate::h2_road::connect`] makes it.
-pub async fn connect(config: &WsClientConfig, token: &str, explicit: bool) -> Result<RelaySession, ConnectError> {
+pub async fn connect(
+    ctx: &Context,
+    config: &WsClientConfig,
+    token: &str,
+    explicit: bool,
+) -> Result<RelaySession, ConnectError> {
     #[cfg(feature = "quic")]
-    if let Some(port) = dial::offered(config, explicit) {
+    if let Some(port) = dial::offered(ctx, config, explicit) {
         // On the heap: each road's future is large, and both on one task's
         // stack overflowed a worker's in a debug build.
-        let quic = Box::pin(dial::session(config, token, port));
-        let tcp = Box::pin(crate::h2_road::connect(config, token, explicit));
+        let quic = Box::pin(dial::session(ctx, config, token, port));
+        let tcp = Box::pin(crate::h2_road::connect(ctx, config, token, explicit));
         return race::race(quic, tcp, HEAD_START, decisive).await.result;
     }
-    crate::h2_road::connect(config, token, explicit).await
+    crate::h2_road::connect(ctx, config, token, explicit).await
 }
 
 #[cfg(test)]
@@ -118,12 +125,13 @@ mod tests {
     /// is refused.
     #[test]
     fn the_variable_and_the_offer_say_which_sessions_race_quic() {
+        let name = "PODSSH_QUIC";
         for (value, choice) in [(None, Choice::Auto), (Some(" "), Choice::Auto), (Some("AUTO"), Choice::Auto)] {
-            assert_eq!(Choice::parse(value), Ok(choice), "{value:?}");
+            assert_eq!(Choice::parse(value, name), Ok(choice), "{value:?}");
         }
-        assert_eq!(Choice::parse(Some("yes")), Ok(Choice::Yes));
-        assert_eq!(Choice::parse(Some("off")), Ok(Choice::No));
-        assert_eq!(Choice::parse(Some("udp")), Err("PODSSH_QUIC: auto, yes or no".into()));
+        assert_eq!(Choice::parse(Some("yes"), name), Ok(Choice::Yes));
+        assert_eq!(Choice::parse(Some("off"), name), Ok(Choice::No));
+        assert_eq!(Choice::parse(Some("udp"), name), Err("PODSSH_QUIC: auto, yes or no".into()));
         assert_eq!(Choice::Auto.port(true, Some(8443), 443), Some(8443), "named, and offered");
         assert_eq!(Choice::Auto.port(true, None, 443), None, "named, and offered nothing");
         assert_eq!(Choice::Auto.port(false, Some(443), 443), None, "the default relay");

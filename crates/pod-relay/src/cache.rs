@@ -1,50 +1,108 @@
-//! Small private files podssh keeps between runs: a minted relay token, and
-//! the relay's pool of hosts.
+//! The private files that the relay client keeps between runs: a minted
+//! relay token, the relay's pool of hosts, the rank, the addresses that
+//! carried a session, the offers of each host. The files are
+//! `pod_core::files`'s: each is read only when it is a regular file of this
+//! user that nobody else can read, and is written through a private
+//! temporary file and a rename. Nothing here ever prints a token.
 //!
-//! The operator's decisions (2026-10-01, 2026-10-08; T-243): the cache lives
-//! in the first usable of the directory that `PODSSH_CACHE_DIR` names, the
-//! user's cache directory, the user's runtime directory, the temporary
-//! directory, and the working directory; `PODSSH_CACHE_DIR=none` keeps no
-//! file. Each place comes from the environment, but the temporary
-//! directory's fixed places, tried last. Each file is readable by its owner
-//! only. A cached file that is a symlink, belongs to another user, or is
-//! readable by anyone else is ignored rather than trusted. Nothing here ever
-//! prints a token.
-//!
-//! A usual place in another user's tree is passed over, and only read
-//! (T-593).
+//! The places are the caller's ([`Cache`]): the directories of its
+//! `pod_core::files::Places`, and what its variable of the cache says
+//! (`none`: no file is kept).
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
-
-#[cfg(any(windows, test))]
-mod closed;
-#[cfg(windows)]
-mod closed_win;
-mod dirs;
-mod own;
-#[cfg(unix)]
-mod owner;
-mod pod;
-#[cfg(unix)]
-pub use dirs::places_with;
-pub use dirs::{
-    candidate_dirs, candidate_dirs_from, chosen, chosen_from, kept_note, places, places_from, read_dirs, Chosen,
-    Passed, Places, DIR_ENV,
+pub use pod_core::files::{
+    Chosen, MAX_FILE, Others, Places, Stored, closed, create_new_private, load_file_from, names_from, private_dir,
+    read_own, read_private, read_private_up_to, read_trusted, remove_named_from, safe_name, store_file_in_first,
+    store_noting,
 };
-pub use own::{create_file_in_first, create_private, read_own, Others};
-#[cfg(unix)]
-pub use owner::{make_dirs as make_dirs_with, passwd_home, Host};
-pub use pod::{pod_places, POD_APP};
+use serde::{Deserialize, Serialize};
 
 /// A cached token is reused only while it has at least this long left.
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
 
-/// The largest cache file read (a pool of a few hundred host names fits).
-/// A larger one is not read: a cache file is ignored, and made again (T-201).
-pub const MAX_FILE: u64 = 64 * 1024;
+/// The places of the files of the caller.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cache {
+    /// The directories, in order, and the places passed over.
+    pub places: Places,
+    /// What the variable of the cache says.
+    pub chosen: Chosen,
+}
+
+impl Cache {
+    /// The cache of `places`, with what its variable says.
+    pub fn new(places: Places, chosen: Chosen) -> Cache {
+        Cache { places, chosen }
+    }
+
+    /// A cache in the directories `dirs` alone, in order (a test's).
+    pub fn in_dirs(dirs: Vec<PathBuf>) -> Cache {
+        let chosen = if dirs.is_empty() { Chosen::Nothing } else { Chosen::Unset };
+        Cache { places: Places { dirs, ..Places::default() }, chosen }
+    }
+
+    /// No file at all: each run mints its token and keeps no pool.
+    pub fn none() -> Cache {
+        Cache::in_dirs(Vec::new())
+    }
+
+    /// The directories that a new file is tried in, in order.
+    pub fn dirs(&self) -> &[PathBuf] {
+        &self.places.dirs
+    }
+
+    /// Where a kept file is looked for: the directories, then each place
+    /// passed over.
+    pub fn read_dirs(&self) -> Vec<PathBuf> {
+        self.places.read()
+    }
+
+    /// The contents of the private file `name`, from the first directory
+    /// that has a trusted one.
+    pub fn load_file(&self, name: &str) -> Option<String> {
+        load_file_from(self.dirs(), name)
+    }
+
+    /// Save `body` as the private file `name` in the first directory that
+    /// accepts it.
+    pub fn store_file(&self, name: &str, body: &[u8]) -> Result<PathBuf, String> {
+        store_file_in_first(self.dirs(), name, body)
+    }
+
+    /// The cached token for `relay_host` with at least [`MIN_REMAINING_MS`]
+    /// left at `now_ms`, from the first directory that has one, a place
+    /// passed over last.
+    pub fn load(&self, relay_host: &str, now_ms: i64) -> Option<Cached> {
+        load_from(&self.read_dirs(), relay_host, now_ms)
+    }
+
+    /// What the cache holds for `relay_host`, without the token.
+    pub fn peek(&self, relay_host: &str) -> Option<Peek> {
+        peek_from(&self.read_dirs(), relay_host)
+    }
+
+    /// Save a token under `key` (see `token::token_key`), with the relay
+    /// that minted it, with the refusals of the directories that came first.
+    pub fn store_noted(&self, key: &str, token: &str, expires_ms: i64, minted_at: &str) -> Result<Stored, String> {
+        let body = entry_body(token, expires_ms, minted_at)?;
+        store_noting(self.dirs(), &file_name(key), &body)
+    }
+
+    /// Forget the cached token for `relay_host` everywhere it is ours to
+    /// delete, a place passed over too, so that a refused token is not read
+    /// again there.
+    pub fn remove(&self, relay_host: &str) {
+        remove_from(&self.read_dirs(), relay_host);
+    }
+
+    /// What to say of the variable of the cache, named `dir_env`, once a
+    /// file went to `stored`: a relative path that was not used, or the
+    /// named directory's refusal. Nothing when the choice was followed.
+    pub fn chosen_note(&self, dir_env: &str, stored: &Stored) -> Option<String> {
+        pod_core::files::chosen_note(dir_env, &self.chosen, stored)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct Entry {
@@ -52,7 +110,7 @@ struct Entry {
     /// Expiry in milliseconds since the epoch, as the relay reports it.
     expires: i64,
     /// The relay that minted the token: `host`, or `host:port`. An entry
-    /// written before podssh recorded it has none.
+    /// written before the minting relay was recorded has none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     minted_at: Option<String>,
 }
@@ -83,14 +141,7 @@ pub fn valid_token(token: &str) -> bool {
     (8..=4096).contains(&token.len()) && token.bytes().all(|b| b.is_ascii_graphic())
 }
 
-/// The cached token for `relay_host` with at least [`MIN_REMAINING_MS`] left
-/// at `now_ms`, from the first directory that has one, a place passed over
-/// last (T-593).
-pub fn load(relay_host: &str, now_ms: i64) -> Option<Cached> {
-    load_from(&read_dirs(), relay_host, now_ms)
-}
-
-/// [`load`] over explicit directories (for tests).
+/// The cached token for `relay_host` over explicit directories.
 pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cached> {
     let name = file_name(relay_host);
     dirs.iter().find_map(|dir| {
@@ -105,9 +156,9 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
     })
 }
 
-/// What the cache holds for `relay_host`, without the token: when it
+/// What the cache holds for a relay host, without the token: when it
 /// expires, the file, and the relay that minted it. The token field is never
-/// read into memory, so `podssh status` cannot hold or show a token.
+/// read into memory, so a status cannot hold or show a token.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Peek {
     pub expires_ms: i64,
@@ -123,13 +174,7 @@ struct Meta {
     minted_at: Option<String>,
 }
 
-/// The entry for `relay_host` in the first directory that has a trusted one,
-/// expired or not, as a [`Peek`].
-pub fn peek(relay_host: &str) -> Option<Peek> {
-    peek_from(&read_dirs(), relay_host)
-}
-
-/// [`peek`] over explicit directories (for tests).
+/// [`Cache::peek`] over explicit directories.
 pub fn peek_from(dirs: &[PathBuf], relay_host: &str) -> Option<Peek> {
     let name = file_name(relay_host);
     dirs.iter().find_map(|dir| {
@@ -139,61 +184,16 @@ pub fn peek_from(dirs: &[PathBuf], relay_host: &str) -> Option<Peek> {
     })
 }
 
-/// The contents of the private file `name`, from the first directory that has
-/// a trusted one.
-pub fn load_file(name: &str) -> Option<String> {
-    load_file_from(&candidate_dirs(), name)
-}
-
-/// [`load_file`] over explicit directories (for tests).
-pub fn load_file_from(dirs: &[PathBuf], name: &str) -> Option<String> {
-    dirs.iter().find_map(|dir| read_trusted(&dir.join(name)))
-}
-
-/// Save `body` as the private file `name` in the first directory that accepts
-/// it.
-pub fn store_file(name: &str, body: &[u8]) -> Result<PathBuf, String> {
-    store_file_in_first(&candidate_dirs(), name, body)
-}
-
-/// [`store_file`] over explicit directories (for tests).
-pub fn store_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<PathBuf, String> {
-    store_noting(dirs, name, body).map(|stored| stored.path)
-}
-
-/// Where a file went, and why each directory before it refused it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Stored {
-    pub path: PathBuf,
-    /// `DIR: reason`, for each directory that refused the file first.
-    pub refused: Vec<String>,
-}
-
-/// [`store_file_in_first`], with the refusals of the directories that came
-/// first: a directory that the user named and that refused says why
-/// (T-243).
-pub fn store_noting(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<Stored, String> {
-    if dirs.is_empty() {
-        return Err(format!("{DIR_ENV} is none, so podssh keeps no file such as {name}"));
+/// The body of an entry, or the refusal of what is no relay token.
+fn entry_body(token: &str, expires_ms: i64, minted_at: &str) -> Result<Vec<u8>, String> {
+    if !valid_token(token) {
+        return Err("refusing to cache something that is not a relay token".into());
     }
-    let mut refused = Vec::new();
-    for dir in dirs {
-        match write_private(dir, name, body) {
-            Ok(path) => return Ok(Stored { path, refused }),
-            Err(e) => refused.push(format!("{}: {e}", dir.display())),
-        }
-    }
-    Err(format!("no directory would take {name} ({})", refused.join("; ")))
+    let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
+    serde_json::to_vec(&entry).map_err(|e| e.to_string())
 }
 
-/// Save a token under `key` (see `token::token_key`), with the relay that
-/// minted it, in the first directory that accepts it. Returns where it went,
-/// or every directory's reason for refusing.
-pub fn store(key: &str, token: &str, expires_ms: i64, minted_at: &str) -> Result<PathBuf, String> {
-    store_in_first(&candidate_dirs(), key, token, expires_ms, minted_at)
-}
-
-/// [`store`] over explicit directories (for tests).
+/// Save a token under `key` in the first of explicit directories.
 pub fn store_in_first(
     dirs: &[PathBuf],
     key: &str,
@@ -201,110 +201,12 @@ pub fn store_in_first(
     expires_ms: i64,
     minted_at: &str,
 ) -> Result<PathBuf, String> {
-    if !valid_token(token) {
-        return Err("refusing to cache something that is not a relay token".into());
-    }
-    let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
-    let body = serde_json::to_vec(&entry).map_err(|e| e.to_string())?;
-    store_file_in_first(dirs, &file_name(key), &body)
+    store_file_in_first(dirs, &file_name(key), &entry_body(token, expires_ms, minted_at)?)
 }
 
-/// [`store`], with the refusals of the directories that came first.
-pub fn store_noted(key: &str, token: &str, expires_ms: i64, minted_at: &str) -> Result<Stored, String> {
-    if !valid_token(token) {
-        return Err("refusing to cache something that is not a relay token".into());
-    }
-    let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
-    let body = serde_json::to_vec(&entry).map_err(|e| e.to_string())?;
-    store_noting(&candidate_dirs(), &file_name(key), &body)
-}
-
-/// What to say of `PODSSH_CACHE_DIR` once a file went to `stored`: a
-/// relative path that was not used, or the named directory's refusal
-/// (T-243). Nothing when the choice was followed, or there was none.
-pub fn chosen_note(chosen: &Chosen, stored: &Stored) -> Option<String> {
-    match chosen {
-        Chosen::Relative(value) => Some(format!(
-            "{DIR_ENV}={value} is not an absolute path, so it was not used; the file went to {}",
-            stored.path.display()
-        )),
-        Chosen::Dir(dir) if !stored.path.starts_with(dir) => Some(format!(
-            "{DIR_ENV} could not be used ({}); the file went to {}",
-            stored.refused.first().map_or("refused", String::as_str),
-            stored.path.display()
-        )),
-        _ => None,
-    }
-}
-
-/// Forget the cached token for `relay_host` everywhere it is ours to delete,
-/// a place passed over too, so that a refused token is not read again there.
-pub fn remove(relay_host: &str) {
-    remove_from(&read_dirs(), relay_host);
-}
-
-/// [`remove`] over explicit directories (for tests).
+/// [`Cache::remove`] over explicit directories.
 pub fn remove_from(dirs: &[PathBuf], relay_host: &str) {
     remove_named_from(dirs, &file_name(relay_host));
-}
-
-/// The names of the files that start with `prefix` and end with `suffix`, in
-/// each directory, that are ours as [`load_file_from`] takes them; sorted, once
-/// each.
-pub fn names_from(dirs: &[PathBuf], prefix: &str, suffix: &str) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
-    for dir in dirs {
-        let Ok(entries) = std::fs::read_dir(dir) else { continue };
-        for entry in entries.flatten() {
-            let Ok(name) = entry.file_name().into_string() else { continue };
-            let fits = name.len() > prefix.len() + suffix.len() && name.starts_with(prefix) && name.ends_with(suffix);
-            if fits && !names.contains(&name) && read_trusted(&entry.path()).is_some() {
-                names.push(name);
-            }
-        }
-    }
-    names.sort();
-    names
-}
-
-/// A private file that the user names, such as a pair file: read only when it
-/// is a regular file of this user that nobody else can read, as ssh reads a
-/// key. A symbolic link that the user gives is followed.
-pub fn read_private(path: &Path) -> Result<String, String> {
-    read_private_up_to(path, MAX_FILE)
-}
-
-/// [`read_private`] of a file that may hold `most` bytes: a role's own file
-/// of pairs or of counts, which a full role makes larger than a file of the
-/// cache (T-677).
-pub fn read_private_up_to(path: &Path, most: u64) -> Result<String, String> {
-    let shown = path.display();
-    let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {e}"))?;
-    let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
-    if !meta.is_file() {
-        return Err(format!("{shown} is not a regular file"));
-    }
-    if meta.len() > most {
-        return Err(match most {
-            MAX_FILE => format!("{shown} is larger than a file of the cache can be"),
-            _ => format!("{shown} holds more than {} KiB", most >> 10),
-        });
-    }
-    closed(path, &file, Others::NoAccess)?;
-    let mut text = String::new();
-    std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
-    Ok(text)
-}
-
-/// Delete the private file `name` from each directory where it is ours: a
-/// file that another user owns, or that others can read, is not touched.
-pub fn remove_named_from(dirs: &[PathBuf], name: &str) {
-    for dir in dirs {
-        let path = dir.join(name);
-        if read_trusted(&path).is_some() {
-            let _ = std::fs::remove_file(&path);
-        }
-    }
 }
 
 /// `relay-token-<host>.json`, with anything but `[a-z0-9.-]` replaced.
@@ -312,185 +214,7 @@ pub fn file_name(relay_host: &str) -> String {
     format!("relay-token-{}.json", safe_name(relay_host))
 }
 
-/// `host` lower-cased, with anything but `[a-z0-9.-]` replaced, for file names.
-pub fn safe_name(host: &str) -> String {
-    host.to_ascii_lowercase()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
-        .collect()
-}
-
-/// Read a cache file only if it is a regular file of ours that nobody else can
-/// read; anything else is ignored, as a cache file can be made again.
-fn read_trusted(path: &Path) -> Option<String> {
-    read_own(path, Others::NoAccess).ok().flatten()
-}
-
-/// Write `body` to `dir/name` via a private temporary file and a rename, so a
-/// reader never sees a half-written token and the file is never readable by
-/// others, not even for a moment.
-fn write_private(dir: &Path, name: &str, body: &[u8]) -> std::io::Result<PathBuf> {
-    make_private_dir(dir)?;
-    let final_path = dir.join(name);
-    let tmp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
-    let _ = std::fs::remove_file(&tmp);
-    let result = (|| {
-        let mut file = create_new_private(&tmp)?;
-        file.write_all(body)?;
-        file.sync_all()?;
-        drop(file);
-        std::fs::rename(&tmp, &final_path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result.map(|()| final_path)
-}
-
-#[cfg(unix)]
-fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
-    use std::os::unix::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path)
-}
-
-#[cfg(not(unix))]
-fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
-    if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "a symlink"));
-    }
-    std::fs::File::open(path)
-}
-
-#[cfg(unix)]
-/// A new file that only its owner can read (mode 0600), never one that exists
-/// and never through a symlink.
-pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
-    use std::os::unix::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(path)
-}
-
-/// A new file that only its owner, SYSTEM and the Administrators may open
-/// (an access list of its own, T-274), never one that exists.
-#[cfg(windows)]
-pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
-    closed_win::create_new_private(path)
-}
-
-#[cfg(not(any(unix, windows)))]
-pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
-    std::fs::OpenOptions::new().write(true).create_new(true).open(path)
-}
-
-#[cfg(unix)]
-/// A new file that each may read and only its owner may change (mode 0644),
-/// never one that exists and never through a symlink (T-288).
-pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
-    use std::os::unix::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).custom_flags(libc::O_NOFOLLOW).open(path)
-}
-
-/// A new file that each may read and only its owner, SYSTEM and the
-/// Administrators may change, as OpenSSH for Windows makes a `.pub` file
-/// (T-288), never one that exists.
-#[cfg(windows)]
-pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
-    closed_win::create_new_public(path)
-}
-
-#[cfg(not(any(unix, windows)))]
-pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
-    std::fs::OpenOptions::new().write(true).create_new(true).open(path)
-}
-
-/// Make `dir` a private directory of this user, as the cache's are: for the
-/// tests of each crate, whose scratch directories hold files that podssh
-/// checks (T-274).
-pub fn private_dir(dir: &Path) -> std::io::Result<()> {
-    make_private_dir(dir)
-}
-
-/// Make `dir` and each missing directory above it, as the cache makes its
-/// own (on Unix, one above it only in a directory of this user's or root's,
-/// T-593): the directories made, the highest first, for `doctor`, which
-/// removes them again.
-pub fn make_dirs(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
-    #[cfg(unix)]
-    {
-        owner::make_dirs(dir, &owner::Host::this())
-    }
-    #[cfg(not(unix))]
-    {
-        let missing: Vec<PathBuf> = dir.ancestors().take_while(|at| !at.exists()).map(Path::to_path_buf).collect();
-        std::fs::create_dir_all(dir)?;
-        Ok(missing.into_iter().rev().collect())
-    }
-}
-
-/// Create `dir` (mode 0700) if needed and make sure it is a real directory of
-/// ours that nobody else can write to.
-#[cfg(unix)]
-fn make_private_dir(dir: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    owner::make_dirs(dir, &owner::Host::this())?;
-    let meta = std::fs::symlink_metadata(dir)?;
-    if !meta.is_dir() || meta.uid() != euid() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "the directory is a symlink or belongs to another user",
-        ));
-    }
-    if meta.mode() & 0o077 != 0 {
-        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(())
-}
-
-/// `dir` made, and given an access list of its own when its list lets
-/// anyone else in (T-274).
-#[cfg(windows)]
-fn make_private_dir(dir: &Path) -> std::io::Result<()> {
-    closed_win::make_private_dir(dir)
-}
-
-#[cfg(not(any(unix, windows)))]
-fn make_private_dir(dir: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(dir)
-}
-
-/// Whether `file`, opened at `path`, is this user's and closed to the other
-/// users beyond `others`: the refusal, with its remedy, when it is not. On
-/// Unix the owner and the mode say it; on Windows the owner and the access
-/// list, as OpenSSH for Windows reads them (T-274).
-pub fn closed(path: &Path, file: &std::fs::File, others: Others) -> Result<(), String> {
-    let shown = path.display();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
-        let (open, why) = match others {
-            Others::NoAccess => (0o077, "others can read it; make it private (chmod 600)"),
-            Others::Read => (0o022, "others can change it; chmod go-w"),
-        };
-        if meta.uid() != euid() || meta.mode() & open != 0 {
-            return Err(format!("{shown} is another user's, or {why}"));
-        }
-        Ok(())
-    }
-    #[cfg(windows)]
-    {
-        closed_win::closed(file, others).map_err(|why| {
-            format!("{shown}: {why}; make it private: icacls \"{shown}\" /inheritance:r /grant:r \"%USERNAME%:F\"")
-        })
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = (shown, file, others);
-        Ok(())
-    }
-}
-
-#[cfg(unix)]
-fn euid() -> u32 {
-    // SAFETY: geteuid has no preconditions and cannot fail.
-    unsafe { libc::geteuid() }
+/// Whether `path` is a file that the cache would read.
+pub fn trusted(path: &Path) -> bool {
+    read_trusted(path).is_some()
 }

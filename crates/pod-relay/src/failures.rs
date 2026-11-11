@@ -16,8 +16,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use podssh_ws::dial::DialError;
-use podssh_ws::ConnectError;
+use pod_proxy::DialError;
+use pod_ws::ConnectError;
 use serde::{Deserialize, Serialize};
 
 use crate::open::OpenError;
@@ -114,8 +114,8 @@ impl Record {
 impl Records {
     /// The record of the cache; an empty one when there is none, or one that
     /// does not read.
-    pub fn load() -> Records {
-        Self::load_from(&crate::cache::candidate_dirs())
+    pub fn load(cache: &crate::cache::Cache) -> Records {
+        Self::load_from(cache.dirs())
     }
 
     /// [`Records::load`] over explicit directories (for tests).
@@ -125,8 +125,8 @@ impl Records {
 
     /// Keep the record in the cache. A record that cannot be kept costs the
     /// next run its order, nothing else: the failure is ignored.
-    pub fn store(&self) {
-        self.store_in(&crate::cache::candidate_dirs());
+    pub fn store(&self, cache: &crate::cache::Cache) {
+        self.store_in(cache.dirs());
     }
 
     /// [`Records::store`] over explicit directories (for tests).
@@ -138,19 +138,11 @@ impl Records {
 
     /// The hosts of `road`.
     pub fn road(&self, road: &str) -> Option<&BTreeMap<String, Record>> {
-        if road == WEBSOCKET {
-            Some(&self.hosts)
-        } else {
-            self.roads.get(road)
-        }
+        if road == WEBSOCKET { Some(&self.hosts) } else { self.roads.get(road) }
     }
 
     fn road_mut(&mut self, road: &str) -> &mut BTreeMap<String, Record> {
-        if road == WEBSOCKET {
-            &mut self.hosts
-        } else {
-            self.roads.entry(road.to_string()).or_default()
-        }
+        if road == WEBSOCKET { &mut self.hosts } else { self.roads.entry(road.to_string()).or_default() }
     }
 
     /// The entry of `host` on `road`.
@@ -221,10 +213,10 @@ impl Records {
 
 /// [`Records::end`] on the record of the cache, kept when it changed: what a
 /// command calls once a session that `open` gave it is over.
-pub fn ended(road: &str, host: &str, lasted: Duration, cut: bool) {
-    let mut records = Records::load();
+pub fn ended(cache: &crate::cache::Cache, road: &str, host: &str, lasted: Duration, cut: bool) {
+    let mut records = Records::load(cache);
     if records.end(road, host, lasted, cut, crate::pool::now_ms()) {
-        records.store();
+        records.store(cache);
     }
 }
 

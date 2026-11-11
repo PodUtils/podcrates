@@ -1,7 +1,83 @@
 [package]
 name = "pod-relay"
+description = "The client of a WebSocket-to-TCP relay: the relay hosts, their pool, rank and failover, the tokens, the roads to a relay (TLS, HTTP/2, QUIC, plain HTTP, cleartext), the forward layer, the pairs, the grants, the reverse road with its end-to-end channel, and a blocking facade; through the caller's way out."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+# The pairs of the reverse road: `POST /v1/pair`, the status of a pair, its
+# stop; the node and the operator of the reverse road.
+pair = []
+# A synchronous facade over the pairs, the node and the operator, and the
+# forward sessions, for a caller with no async runtime (podvm). It owns a
+# runtime on the current thread.
+blocking = ["pair"]
+# Pairing by a short code: the exchange of a pair's parts over a mailbox of
+# pod-wormhole.
+code = ["pair", "dep:pod-wormhole"]
+# Grants used once: an OpenSSH user certificate of an Ed25519 key, the
+# node's check of one, and its record of each grant used.
+grant = []
+# QUIC on UDP to a relay that offers it, raced with the TCP roads after a
+# probe of UDP (pod-quic, noq).
+quic = ["dep:pod-quic", "dep:noq", "dep:rustls"]
+# Plain ws:// to a stand-in relay on the loopback, for the tests of an
+# embedder. A binary does not turn it on.
+plain-ws = ["pod-ws/plain-ws"]
+# The readers of the wire, public for the fuzz targets of fuzz/. No consumer
+# turns it on.
+fuzzing = ["pair"]
+
+[dependencies]
+# The failure with its stage and class, the events, the files of the cache,
+# the entropy, the names and the text made safe to print, the backoff.
+pod-core = { workspace = true, features = ["async"] }
+# The trust of each connection.
+pod-tls = { workspace = true }
+# The proxy of a host, the HTTP/1.1 heads and exchange, the authority of a
+# host, the dial's error.
+pod-proxy = { workspace = true }
+# The addresses that carried a session, for the caller's resolver.
+pod-dns = { workspace = true }
+# The WebSocket to a relay on each road, through the caller's way out.
+pod-ws = { workspace = true }
+# The key of a client, a node and an operator, and the pins.
+pod-identity = { workspace = true }
+# The resumable layer, UDP in a stream, the link over a WebSocket, a peer's
+# answer.
+pod-session = { workspace = true }
+# The end-to-end channel of the reverse road.
+pod-e2e = { workspace = true }
+# The default deployment of the relay: its host, its limits, its seed.
+pod-services = { workspace = true }
+# The mailbox, SPAKE2 and the code words of a pairing by code.
+pod-wormhole = { workspace = true, optional = true }
+# The QUIC endpoint and the probe of UDP of the QUIC road.
+pod-quic = { workspace = true, optional = true }
+noq = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }
+# The proof of a keyed request, the tokens of a grant: SHA-256 and HMAC.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["zeroize"] }
+base64 = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+# The way of the tests: a direct dial and TLS on ring.
+rustls = { workspace = true, features = ["ring"] }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# Property tests of relay lists and paths (tests/properties.rs).
+proptest = { version = "1", default-features = false, features = ["std"] }
+# The digests of the bytes that the tests carry.
+sha2 = { workspace = true }

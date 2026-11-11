@@ -2,7 +2,7 @@
 //! The node receives `hello`, `open {id}` and `close {id}`, and sends
 //! `ready {id}`, `reject {id, reason}` or `close {id}`; with podssh's relay
 //! role, it sends `token` and receives `spent` too, beside the contract
-//! (T-615, `crate::e2e::legs`). The operator receives
+//! (T-615, `pod_e2e::legs`). The operator receives
 //! `ready`, `reject` and `close` as text, and never sends a text frame: the
 //! relay closes it with `1003` (`docs/reverse.md`). `hello` may never come, so
 //! the limits have a floor of their own. Its `version` is the relay's
@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::framing::{
-    CodecError, SessionId, CLOSE_REASON_MAX_BYTES, CLOSE_REASON_MAX_CHARS, CONTROL_FRAME_MAX, NODE_PAYLOAD_MAX,
+    CLOSE_REASON_MAX_BYTES, CLOSE_REASON_MAX_CHARS, CONTROL_FRAME_MAX, CodecError, NODE_PAYLOAD_MAX, SessionId,
 };
 
 /// The control cap, for a caller to check against what makes the frame.
@@ -99,12 +99,12 @@ impl NodeLimits {
     }
 
     /// Take what `hello` says, clamped: the published cap is the contract, and
-    /// `hello` a hint (`crate::answer::hint`). A zero is ignored, not read as
+    /// `hello` a hint (`pod_session::answer::hint`). A zero is ignored, not read as
     /// "send nothing".
     pub fn apply(&mut self, hello: &Hello) {
-        self.max_sessions = crate::answer::hint(hello.max_sessions, self.max_sessions);
+        self.max_sessions = pod_session::answer::hint(hello.max_sessions, self.max_sessions);
         self.max_frame_bytes =
-            crate::answer::hint(hello.max_frame_bytes, self.max_frame_bytes).min(NODE_PAYLOAD_MAX as u64);
+            pod_session::answer::hint(hello.max_frame_bytes, self.max_frame_bytes).min(NODE_PAYLOAD_MAX as u64);
     }
 }
 
@@ -117,7 +117,7 @@ impl Default for NodeLimits {
 /// The dialect of the reverse road that this podssh speaks: the `version`
 /// of the role's `hello`, and the `X-Podssh-Proto` that the dialer writes on
 /// each node's and operator's upgrade (T-643).
-pub const PROTO: i64 = podssh_ws::handshake::REVERSE_PROTO;
+pub const PROTO: i64 = pod_ws::handshake::REVERSE_PROTO;
 /// The oldest dialect that this podssh reads: [`PROTO`] until the dialect
 /// changes, so that the check refuses nothing before that change.
 pub const PROTO_MIN: i64 = 1;
@@ -125,7 +125,7 @@ pub const PROTO_MIN: i64 = 1;
 /// relay and each podssh of before speak. Never zero, which none speaks.
 pub const UNSTATED: i64 = 1;
 /// The header of an upgrade's dialect.
-pub const PROTO_HEADER: &str = podssh_ws::handshake::PROTO_HEADER;
+pub const PROTO_HEADER: &str = pod_ws::handshake::PROTO_HEADER;
 
 /// A peer's dialect that this end does not read: what the peer stated, as a
 /// line shows it, and whether it is past this end's range (`Some(true)`),
@@ -155,9 +155,9 @@ impl Skew {
 }
 
 /// Whether this end reads the dialect that `version` states, by the rule of
-/// a dialect (`crate::answer::dialect`): none, or null, is [`UNSTATED`].
+/// a dialect (`pod_session::answer::dialect`): none, or null, is [`UNSTATED`].
 pub fn accept(version: Option<&serde_json::Value>) -> Result<i64, Skew> {
-    match crate::answer::dialect(version, UNSTATED) {
+    match pod_session::answer::dialect(version, UNSTATED) {
         Ok(number) if (PROTO_MIN..=PROTO).contains(&number) => Ok(number),
         Ok(number) => Err(Skew { stated: number.to_string(), newer: Some(number > PROTO) }),
         Err(raw) => Err(Skew { stated: shown(&raw), newer: None }),
@@ -177,7 +177,7 @@ pub fn accept_header(value: Option<&str>) -> Result<i64, Skew> {
 /// A peer's value as a line says it: one line, 40 characters at most, as
 /// it reaches a terminal and a refusal's reason.
 fn shown(raw: &str) -> String {
-    podssh_ws::text::one_line(raw).chars().take(40).collect()
+    pod_core::text::one_line(raw).chars().take(40).collect()
 }
 
 /// A `ready`. Only after the local side has accepted: a `ready` sent early

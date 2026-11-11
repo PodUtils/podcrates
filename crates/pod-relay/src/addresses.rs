@@ -3,17 +3,19 @@
 //! relay was. The record is a private file of the cache, [`FILE`], with each
 //! host's last addresses and when each last carried a session through its
 //! `101`. The dialer asks them after the system resolver fails and before DNS
-//! over HTTPS, and an old one last (`podssh_ws::resolve`). TLS checks the
+//! over HTTPS, and an old one last (the memory of `pod_dns::Resolver`, which
+//! the caller gives in `Context::resolver`). TLS checks the
 //! relay's name on each, so a wrong address fails the handshake; an address
 //! of the cache at which a host failed as no relay would is forgotten.
 
 use std::collections::BTreeMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::Once;
 
-use podssh_ws::resolve::{self, Remembered, Source};
+use pod_dns::{Remembered, Source};
 use serde::{Deserialize, Serialize};
+
+use crate::context::Context;
 
 /// The file of the record, in the cache.
 pub const FILE: &str = "relay-addresses.json";
@@ -42,8 +44,8 @@ pub struct Seen {
 impl Addresses {
     /// The record of the cache; an empty one when there is none, or one that
     /// does not read.
-    pub fn load() -> Addresses {
-        Self::load_from(&crate::cache::candidate_dirs())
+    pub fn load(cache: &crate::cache::Cache) -> Addresses {
+        Self::load_from(cache.dirs())
     }
 
     /// [`Addresses::load`] over explicit directories (for tests).
@@ -112,27 +114,28 @@ fn key(host: &str) -> String {
     host.trim_end_matches('.').to_ascii_lowercase()
 }
 
-static INSTALLED: Once = Once::new();
-
-/// Give the dialer the record of the cache, once a run: each command that
-/// reaches the relay does this before it dials, and the opener does too.
-pub fn install() {
-    INSTALLED.call_once(|| resolve::set_remembered(Addresses::load().remembered()));
-    // The TLS groups that servers took, from the same cache (T-664).
-    crate::tls_groups::install();
+/// Give the resolver of `ctx` the record of the cache: the opener does this
+/// before it dials, and a command of the caller that reaches the relay can
+/// too. The file is small, and it is the record: each open reads it again.
+pub fn install(ctx: &Context) {
+    if let Some(resolver) = &ctx.resolver {
+        resolver.memory().set_remembered(Addresses::load(&ctx.cache).remembered());
+    }
 }
 
 /// A session through `host` reached `101` over `peer`: the address is kept
 /// when the dialer reached it straight, for a name that no pin holds, and it
 /// is not this host's own.
-pub fn carried(host: &str, peer: Option<SocketAddr>) {
-    let Some(peer) = peer.filter(|peer| worth_keeping(host, *peer)) else { return };
-    let dirs = crate::cache::candidate_dirs();
-    let mut record = Addresses::load_from(&dirs);
+pub fn carried(ctx: &Context, host: &str, peer: Option<SocketAddr>) {
+    let Some(peer) = peer.filter(|peer| worth_keeping(ctx, host, *peer)) else { return };
+    let dirs = ctx.cache.dirs();
+    let mut record = Addresses::load_from(dirs);
     if record.note(host, peer.ip(), crate::pool::now_ms()) {
-        record.store_in(&dirs);
+        record.store_in(dirs);
     }
-    resolve::set_remembered(record.remembered());
+    if let Some(resolver) = &ctx.resolver {
+        resolver.memory().set_remembered(record.remembered());
+    }
 }
 
 /// An attempt at `host` failed after its connection opened, as the relay
@@ -141,30 +144,35 @@ pub fn carried(host: &str, peer: Option<SocketAddr>) {
 /// of another site of its own, with a valid certificate (its error 1034). The
 /// address that the dialer reached for `host` last goes, when the cache gave
 /// it; one that a resolver gave is not the cache's to judge.
-pub fn failed(host: &str) {
-    let Some((peer, source)) = resolve::last_dialed(host) else { return };
+pub fn failed(ctx: &Context, host: &str) {
+    let Some(resolver) = &ctx.resolver else { return };
+    let Some((peer, source)) = resolver.memory().last_dialed(host) else { return };
     if !matches!(source, Source::Cache | Source::OldCache) {
         return;
     }
-    let dirs = crate::cache::candidate_dirs();
-    let mut record = Addresses::load_from(&dirs);
+    let dirs = ctx.cache.dirs();
+    let mut record = Addresses::load_from(dirs);
     if record.forget(host, peer.ip()) {
-        record.store_in(&dirs);
+        record.store_in(dirs);
     }
-    resolve::set_remembered(record.remembered());
+    resolver.memory().set_remembered(record.remembered());
 }
 
 /// Whether `peer`, which carried a session to `host`, is worth a run whose
 /// resolver fails: through a proxy it is the proxy's, a pin or an address in
 /// place of the name is the user's own, and a relay on this host needs no
 /// DNS.
-pub fn worth_keeping(host: &str, peer: SocketAddr) -> bool {
+pub fn worth_keeping(ctx: &Context, host: &str, peer: SocketAddr) -> bool {
     let bare = host.trim_start_matches('[').trim_end_matches(']');
+    // With no resolver of the caller's, no pin holds a name and no source of
+    // an address is known.
+    let pinned = ctx.resolver.as_ref().is_some_and(|r| !pod_core::Resolve::pinned(&**r, host).is_empty());
+    let dialed = ctx.resolver.as_ref().and_then(|r| r.memory().dialed(host, peer));
     bare.parse::<IpAddr>().is_err()
         && elsewhere(peer.ip())
-        && resolve::pinned(host).is_empty()
-        && matches!(podssh_ws::dial::proxy_from_env(host), Ok(None))
-        && !matches!(resolve::dialed(host, peer), Some(Source::Pin | Source::Literal))
+        && !pinned
+        && ctx.direct_to(host)
+        && !matches!(dialed, Some(Source::Pin | Source::Literal))
 }
 
 /// Whether `ip` is another host's: not the loopback, not unspecified, not a
@@ -243,6 +251,8 @@ mod tests {
     /// addresses, and a group's, are no relay's elsewhere.
     #[test]
     fn only_another_host_s_address_of_a_name_is_kept() {
+        let ctx = crate::testing::context();
+        let worth_keeping = |host: &str, peer: SocketAddr| worth_keeping(&ctx, host, peer);
         let peer = |s: &str| SocketAddr::new(ip(s), 443);
         assert!(!worth_keeping("192.0.2.1", peer("192.0.2.1")));
         assert!(!worth_keeping("[2001:db8::1]", peer("2001:db8::1")));

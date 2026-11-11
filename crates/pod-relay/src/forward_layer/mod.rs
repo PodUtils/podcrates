@@ -22,8 +22,8 @@ pub mod client;
 pub mod kept;
 pub mod offer;
 
-pub use client::{carry, no_room, Dialer, Missed};
-pub use offer::{offered, Offer};
+pub use client::{Dialer, Missed, carry, no_room};
+pub use offer::{Offer, offered};
 
 /// The head of the path; the target follows it as on `/connect/`.
 pub const PATH: &str = "/v1/layer/";

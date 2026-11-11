@@ -10,10 +10,10 @@
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use super::{refused, PairContext, PairError};
+use super::{PairContext, PairError, refused};
 use crate::cache::valid_token;
-use crate::identity::{Identity, PublicKey};
 use crate::relay::check_node_name;
+use pod_identity::{Identity, PublicKey};
 
 /// What the role drew: the pair's name, and a token of one leg of it.
 pub struct Drawn {
@@ -47,7 +47,7 @@ pub fn path(key: &PublicKey) -> String {
 pub async fn ask(ctx: &PairContext<'_>, node: &PublicKey, identity: Option<&Identity>) -> Result<Drawn, PairError> {
     let (host, port) = (&ctx.relay.host, ctx.relay.port);
     let path = path(node);
-    let response = crate::keyed::post_by(identity, host, port, &path, "", ctx.trust, ctx.proxy, ctx.timeout)
+    let response = crate::keyed::post_by(ctx.ctx, identity, host, port, &path, "", ctx.trust, ctx.timeout)
         .await
         .map_err(PairError::Connect)?;
     match response.status {

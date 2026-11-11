@@ -4,36 +4,29 @@
 //! which order the pool where no rank holds. A list that the user named
 //! keeps its order; the record of failures still moves hosts within any
 //! list (`failures::order`). The samples cost no connection: they are the
-//! times of the race's own attempts, so rule 2 of AGENTS.md holds.
+//! times of the race's own attempts: a rank costs no connection that the
+//! user did not ask for.
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use crate::context::Context;
 use crate::rank::{self, Figures, Probe, Rank};
 use crate::relay::{Relay, RelayList};
+use crate::settings::Settings;
 
 /// The samples kept of each host.
 pub const SAMPLES: usize = 8;
-/// `PODSSH_RELAY_RANK=no` leaves the rank and the samples out of the order.
-pub const ENV: &str = "PODSSH_RELAY_RANK";
 
-/// The settings file's `RelayRank no`, which the binary sets as it starts.
-static OFF_BY_SETTINGS: AtomicBool = AtomicBool::new(false);
-
-/// What the settings file says of the rank: `false` for `RelayRank no`.
-pub fn set_by_settings(on: bool) {
-    OFF_BY_SETTINGS.store(!on, Ordering::Relaxed);
-}
-
-/// Whether the rank and the samples order the default list: not with
-/// `PODSSH_RELAY_RANK=no` (or `off`, `0`), nor with `RelayRank no` where
-/// the variable is unset or empty, as the file is below the variable.
-pub fn enabled() -> bool {
-    enabled_from(std::env::var(ENV).ok().as_deref(), !OFF_BY_SETTINGS.load(Ordering::Relaxed))
+/// Whether the rank and the samples order the default list: not with the
+/// word `no` of the setting of the rank (or `off`, `0`), nor with the
+/// settings file's `no` where the variable is unset or empty, as the file is
+/// below the variable.
+pub fn enabled(settings: &Settings) -> bool {
+    enabled_from(settings.rank.as_deref(), settings.rank_by_file)
 }
 
 /// [`enabled`] with the variable and the settings file's word given.
@@ -59,10 +52,10 @@ pub type Samples = Mutex<Vec<(String, f64)>>;
 
 /// The egress of a run to `host`: the proxy that it goes through, by its
 /// digest, or `direct`.
-pub fn egress_for(host: &str) -> String {
-    match podssh_ws::dial::proxy_from_env(host) {
-        Ok(Some(proxy)) => rank::egress(Some((&proxy.host, proxy.port))),
-        _ => rank::egress(None),
+pub fn egress_for(ctx: &Context, host: &str) -> String {
+    match (ctx.proxy_of)(host) {
+        Some(proxy) => rank::egress(Some((&proxy.host, proxy.port))),
+        None => rank::egress(None),
     }
 }
 
@@ -145,12 +138,12 @@ pub fn placed(list: &RelayList, kept: Option<&Rank>, egress: &str, now_ms: i64) 
 
 /// The list of a run, read from the cache: [`placed`] with the rank kept
 /// when the rank is on, else the list as it is.
-pub fn placed_now(list: &RelayList) -> Vec<Relay> {
-    if !enabled() || list.explicit {
+pub fn placed_now(ctx: &Context, list: &RelayList) -> Vec<Relay> {
+    if !enabled(&ctx.settings) || list.explicit {
         return list.hosts.clone();
     }
-    let egress = egress_for(&list.primary().host);
-    placed(list, rank::load().as_ref(), &egress, crate::pool::now_ms())
+    let egress = egress_for(ctx, &list.primary().host);
+    placed(list, rank::load(&ctx.cache).as_ref(), &egress, crate::pool::now_ms())
 }
 
 /// A session of the race that opened, timed; by the host's name, with its
@@ -163,17 +156,17 @@ pub fn sample(samples: &Samples, relay: &Relay, took: Duration) {
 /// Keep the samples of a run in the rank's file, the last [`SAMPLES`] of
 /// each host, with when and the egress; with or without a rank, whether
 /// the rank is on or off, as they cost nothing to keep.
-pub fn keep(samples: &Samples) {
+pub fn keep(ctx: &Context, samples: &Samples) {
     let taken: Vec<(String, f64)> = std::mem::take(&mut *samples.lock().unwrap_or_else(|e| e.into_inner()));
     if taken.is_empty() {
         return;
     }
     let now = crate::pool::now_ms();
-    let mut kept = rank::load().unwrap_or(Rank { schema: rank::SCHEMA, ..Rank::default() });
+    let mut kept = rank::load(&ctx.cache).unwrap_or(Rank { schema: rank::SCHEMA, ..Rank::default() });
     // The egress of each host by its name alone: a port is no proxy's.
-    let egress = |name: &str| egress_for(name.rsplit_once(':').map_or(name, |(host, _)| host));
+    let egress = |name: &str| egress_for(ctx, name.rsplit_once(':').map_or(name, |(host, _)| host));
     add(&mut kept.samples, &taken, &egress, now);
-    let _ = rank::save(&kept);
+    let _ = rank::save(&ctx.cache, &kept);
 }
 
 /// `taken` into `samples`, each with the egress that `egress` names for
@@ -194,21 +187,17 @@ pub fn add(
 
 /// Which order a run of the default list takes now, in a word, for
 /// `status` and `doctor`: `rank`, `samples`, `pool`, or `off`.
-pub fn order_now(primary: &str) -> &'static str {
-    if !enabled() {
+pub fn order_now(ctx: &Context, primary: &str) -> &'static str {
+    if !enabled(&ctx.settings) {
         return "off";
     }
-    let Some(kept) = rank::load() else { return "pool" };
-    let (egress, now) = (egress_for(primary), crate::pool::now_ms());
+    let Some(kept) = rank::load(&ctx.cache) else { return "pool" };
+    let (egress, now) = (egress_for(ctx, primary), crate::pool::now_ms());
     if kept.holds(now, &egress) && !kept.named {
         return "rank";
     }
     let some = kept.samples.iter().any(|(host, s)| sampled(host, s, &egress, now).is_some());
-    if some {
-        "samples"
-    } else {
-        "pool"
-    }
+    if some { "samples" } else { "pool" }
 }
 
 #[cfg(test)]

@@ -6,10 +6,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
-use podssh_ws::frame;
-use podssh_ws::session::{close_code_and_reason, RelaySession};
-use podssh_ws::{ProxyChoice, SessionError, Trust};
+use pod_ws::client::{ConnectError, Endpoint, WsClientConfig};
+use pod_ws::frame;
+use pod_ws::session::{RelaySession, close_code_and_reason};
+use pod_ws::{SessionError, Trust};
+
+use crate::context::Context;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -58,8 +60,8 @@ impl Default for OperatorLimits {
         OperatorLimits {
             ready_limit: Duration::from_secs(20),
             close_limit: Duration::from_secs(10),
-            ping_every: podssh_ws::LIVENESS_EVERY,
-            pings_allowed: podssh_ws::LIVENESS_ALLOWED,
+            ping_every: pod_ws::LIVENESS_EVERY,
+            pings_allowed: pod_ws::LIVENESS_ALLOWED,
             node_ends: None,
             on_ready: None,
         }
@@ -72,7 +74,8 @@ pub struct OperatorConfig<'a> {
     pub name: &'a str,
     pub connect_token: &'a str,
     pub trust: &'a Trust,
-    pub proxy: &'a ProxyChoice,
+    /// The way out, the cache and the settings.
+    pub ctx: &'a Context,
     /// Bound on connecting.
     pub timeout: Duration,
     pub limits: OperatorLimits,
@@ -109,7 +112,6 @@ where
         Socket::Tls(session) => exchange(session, io, config.limits).await,
         #[cfg(feature = "plain-ws")]
         Socket::Plain(session) => exchange(session, io, config.limits).await,
-        #[cfg(feature = "serve")]
         Socket::Carrier(session) => exchange(session, io, config.limits).await,
     })
 }
@@ -126,7 +128,6 @@ where
         Socket::Tls(session) => tokio::spawn(exchange(session, io, limits)),
         #[cfg(feature = "plain-ws")]
         Socket::Plain(session) => tokio::spawn(exchange(session, io, limits)),
-        #[cfg(feature = "serve")]
         Socket::Carrier(session) => tokio::spawn(exchange(session, io, limits)),
     })
 }
@@ -142,7 +143,8 @@ fn socket_config(config: &OperatorConfig<'_>) -> Result<WsClientConfig, ConnectE
         // The relay sends no keepalives on a reverse socket; pings find a
         // dead one instead of an idle read limit.
         idle_timeout: None,
-        proxy: config.proxy.clone(),
+        way: config.ctx.way.clone(),
+        limits: pod_ws::Limits::RELAY,
     })
 }
 

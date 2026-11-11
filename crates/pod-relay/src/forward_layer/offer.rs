@@ -12,11 +12,13 @@
 
 use std::time::Duration;
 
-use podssh_ws::client::open_tls;
-use podssh_ws::{dial, http, ProxyChoice, Trust};
+use pod_proxy::http;
+use pod_ws::Trust;
+
+use crate::context::Context;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::relay::{parse_relay, Relay};
+use crate::relay::{Relay, parse_relay};
 
 /// The longest name of a host that a refusal of it shows.
 const SHOWN_MOST: usize = 80;
@@ -74,7 +76,7 @@ pub fn of(body: &[u8], asked: &Relay) -> Offer {
 /// `asked`'s host with any port, or another host of its deployment; an
 /// address names its own host alone, as an address has no deployment.
 pub fn named(asked: &Relay, text: &str) -> Result<Relay, String> {
-    let shown: String = podssh_ws::text::one_line(text).chars().take(SHOWN_MOST).collect();
+    let shown: String = pod_core::text::one_line(text).chars().take(SHOWN_MOST).collect();
     let relay = parse_relay(text).map_err(|_| format!("{shown:?} is not a host's name"))?;
     let literal = asked.host.parse::<std::net::IpAddr>().is_ok();
     let same = relay.host.eq_ignore_ascii_case(&asked.host);
@@ -84,16 +86,18 @@ pub fn named(asked: &Relay, text: &str) -> Result<Relay, String> {
     Err(format!("{shown:?} is not of {}'s deployment", asked.host))
 }
 
-/// Ask `relay`, over TLS through `proxy`, within `timeout` for each step:
-/// what it offers of the layer. `Err` says why its document was not read.
-pub async fn ask(relay: &Relay, trust: &Trust, proxy: &ProxyChoice, timeout: Duration) -> Result<Offer, String> {
-    if crate::open::offline() {
-        return Err(format!("{} is set, so podssh does not connect anywhere", crate::open::OFFLINE_ENV));
+/// Ask `relay`, over TLS through the way of `ctx`, within `timeout` for each
+/// step: what it offers of the layer. `Err` says why its document was not
+/// read.
+pub async fn ask(ctx: &Context, relay: &Relay, trust: &Trust, timeout: Duration) -> Result<Offer, String> {
+    if ctx.settings.offline {
+        let names = &ctx.settings.names;
+        return Err(format!("{} is set, so {} does not connect anywhere", names.offline, names.app));
     }
-    let mut tls =
-        open_tls(&relay.host, relay.port, &relay.host, trust, proxy, timeout).await.map_err(|e| e.to_string())?;
-    let host_header = if relay.port == 443 { relay.host.clone() } else { dial::authority(&relay.host, relay.port) };
-    tokio::time::timeout(timeout, over(&mut tls, &host_header, relay))
+    let (mut tls, _) =
+        ctx.way.open_tls(&relay.host, relay.port, &relay.host, trust, timeout, &[]).await.map_err(|e| e.to_string())?;
+    let host_header = crate::pool::host_header(relay);
+    tokio::time::timeout(timeout, over(&mut tls, &ctx.way.user_agent, &host_header, relay))
         .await
         .map_err(|_| format!("/relays.json took more than {} s", timeout.as_secs()))?
 }
@@ -101,12 +105,13 @@ pub async fn ask(relay: &Relay, trust: &Trust, proxy: &ProxyChoice, timeout: Dur
 /// Ask over `stream`, a connection to `asked`: its `/relays.json`, read up
 /// to the pool's bound on the body. A status that is not 2xx is a relay with
 /// no such document, which offers nothing.
-pub async fn over<S>(stream: &mut S, host_header: &str, asked: &Relay) -> Result<Offer, String>
+pub async fn over<S>(stream: &mut S, user_agent: &str, host_header: &str, asked: &Relay) -> Result<Offer, String>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let accept = [("Accept", "application/json")];
-    let response = http::exchange(stream, "GET", host_header, "/relays.json", &accept, b"", crate::pool::MAX_BODY)
+    let max = crate::pool::MAX_BODY;
+    let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", max)
         .await
         .map_err(|e| format!("/relays.json: {e}"))?;
     if !(200..300).contains(&response.status) {

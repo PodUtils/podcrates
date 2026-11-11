@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::signed::{self, Checked, Keys, Refused, Signed};
-use crate::cache;
-use crate::identity::PublicKey;
-use crate::relay::{default_relay_host, Relay};
+use crate::cache::{self, Cache};
+use crate::context::Context;
+use crate::relay::{Relay, default_relay_host};
+use pod_identity::PublicKey;
 
 /// The cache file of the lists.
 pub const FILE: &str = "relay-deployments.json";
@@ -51,14 +52,11 @@ impl Taken {
     }
 }
 
-/// The cache's directories: `None` is this process's.
+/// The cache's directories: `None` keeps no file.
 pub type Dirs<'a> = Option<&'a [PathBuf]>;
 
 fn load(dirs: Dirs<'_>) -> Lists {
-    let text = match dirs {
-        Some(dirs) => cache::load_file_from(dirs, FILE),
-        None => cache::load_file(FILE),
-    };
+    let text = cache::load_file_from(dirs.unwrap_or_default(), FILE);
     text.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
 }
 
@@ -70,10 +68,7 @@ fn store(dirs: Dirs<'_>, lists: &mut Lists) -> Result<PathBuf, String> {
         lists.lists.remove(0);
         body = serde_json::to_vec(lists).map_err(|e| e.to_string())?;
     }
-    match dirs {
-        Some(dirs) => cache::store_file_in_first(dirs, FILE, &body),
-        None => cache::store_file(FILE, &body),
-    }
+    cache::store_file_in_first(dirs.unwrap_or_default(), FILE, &body)
 }
 
 /// The serial of a kept list of `key` whose signature still verifies, with
@@ -86,8 +81,8 @@ fn kept_serial(entry: &Entry, key: &PublicKey) -> Option<u64> {
 
 /// Check `signed` and keep it, when it holds and is not older than the list
 /// kept of its key: what was done, or why not.
-pub fn take(signed: &Signed, keys: &Keys, now_ms: i64) -> Result<Taken, Refused> {
-    take_in(None, signed, keys, now_ms)
+pub fn take(cache: &Cache, signed: &Signed, keys: &Keys, now_ms: i64) -> Result<Taken, Refused> {
+    take_in(Some(cache.dirs()), signed, keys, now_ms)
 }
 
 /// [`take`] with the cache's directories given (for tests).
@@ -126,8 +121,8 @@ pub struct Seen {
 }
 
 /// Each list kept, checked again now with `keys`.
-pub fn seen(keys: &Keys, now_ms: i64) -> Vec<Seen> {
-    seen_in(None, keys, now_ms)
+pub fn seen(cache: &Cache, keys: &Keys, now_ms: i64) -> Vec<Seen> {
+    seen_in(Some(cache.dirs()), keys, now_ms)
 }
 
 /// [`seen`] with the cache's directories given (for tests).
@@ -144,8 +139,8 @@ pub fn seen_in(dirs: Dirs<'_>, keys: &Keys, now_ms: i64) -> Vec<Seen> {
 }
 
 /// The lists that hold now, in the order kept.
-pub fn in_force(keys: &Keys, now_ms: i64) -> Vec<Checked> {
-    seen(keys, now_ms).into_iter().filter_map(|s| s.held.ok()).collect()
+pub fn in_force(cache: &Cache, keys: &Keys, now_ms: i64) -> Vec<Checked> {
+    seen(cache, keys, now_ms).into_iter().filter_map(|s| s.held.ok()).collect()
 }
 
 /// Whether `relay` is a host of the default deployment, whose pool needs no
@@ -157,8 +152,8 @@ pub fn of_default(relay: &Relay) -> bool {
 /// The hosts of the other deployments of `lists`, for the default list: the
 /// first host of each deployment, then the second of each, and so on, each
 /// once, none of the default's own, [`MAX_OTHERS`] at most. None when the
-/// run has a token of `PODSSH_RELAY_TOKEN` (`token_given`): that token is
-/// the default deployment's, and goes to no other.
+/// run has a token that the user gave (`token_given`): that token is the
+/// default deployment's, and goes to no other.
 pub fn others_of(lists: &[Checked], token_given: bool) -> Vec<Relay> {
     if token_given {
         return Vec::new();
@@ -176,9 +171,9 @@ pub fn others_of(lists: &[Checked], token_given: bool) -> Vec<Relay> {
     out
 }
 
-/// The hosts of other deployments that follow the default list in this
-/// process, as [`others_of`] gives them.
-pub fn other_hosts(now_ms: i64) -> Vec<Relay> {
-    let given = std::env::var(crate::token::TOKEN_ENV).is_ok_and(|v| !v.trim().is_empty());
-    others_of(&in_force(&Keys::of_process(), now_ms), given)
+/// The hosts of other deployments that follow the default list in the run
+/// of `ctx`, as [`others_of`] gives them.
+pub fn other_hosts(ctx: &Context, now_ms: i64) -> Vec<Relay> {
+    let keys = Keys::of_settings(&ctx.settings);
+    others_of(&in_force(&ctx.cache, &keys, now_ms), ctx.settings.token_given())
 }

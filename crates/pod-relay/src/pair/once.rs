@@ -4,7 +4,7 @@
 //! nothing. The query holds no credential, and the proof of a key (T-448)
 //! signs the path alone, as the role checks it.
 
-use super::{now_ms, parse, refused, Pair, PairContext, PairError};
+use super::{Pair, PairContext, PairError, now_ms, parse, refused};
 
 /// `POST /v1/pair`, asking with `once` for a connect token of one upgrade:
 /// the pair, and whether the relay said that its token is so (`"once":
@@ -20,15 +20,14 @@ pub async fn create_with(ctx: &PairContext<'_>, once: bool) -> Result<(Pair, boo
 pub async fn create_by(
     ctx: &PairContext<'_>,
     once: bool,
-    identity: Option<&crate::identity::Identity>,
+    identity: Option<&pod_identity::Identity>,
 ) -> Result<(Pair, bool), PairError> {
     let query = if once { "?once=1" } else { "" };
     for _ in 0..2 {
         let (host, port) = (&ctx.relay.host, ctx.relay.port);
-        let response =
-            crate::keyed::post_by(identity, host, port, "/v1/pair", query, ctx.trust, ctx.proxy, ctx.timeout)
-                .await
-                .map_err(PairError::Connect)?;
+        let response = crate::keyed::post_by(ctx.ctx, identity, host, port, "/v1/pair", query, ctx.trust, ctx.timeout)
+            .await
+            .map_err(PairError::Connect)?;
         match response.status {
             200..=299 => {
                 let pair = parse(ctx.relay, &response.body, now_ms())?;
@@ -43,10 +42,10 @@ pub async fn create_by(
 
 /// Whether an answer of `/v1/pair` says that its connect token takes one
 /// upgrade: a guarantee that `--once` asks for, which only `true` gives
-/// (`crate::answer`).
+/// (`pod_session::answer`).
 pub fn said_once(body: &[u8]) -> bool {
     let answer = serde_json::from_slice::<serde_json::Value>(body);
-    answer.is_ok_and(|answer| crate::answer::says_true(answer.get("once")))
+    answer.is_ok_and(|answer| pod_session::answer::says_true(answer.get("once")))
 }
 
 #[cfg(test)]

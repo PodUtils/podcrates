@@ -3,53 +3,41 @@
 //! The hosts of a [`RelayList`] are tried in the order of the list, as the
 //! mode of [`crate::failover`] says: by default the next host starts when the
 //! one before it has not opened within 2 s. Each host has one attempt bounded
-//! by [`HOST_DEADLINE`]: a token from the environment, the cache or a fresh
+//! by [`HOST_DEADLINE`]: a token that the user gave, the cache's or a fresh
 //! mint (re-minted once when the relay rejects a cached one), then the
 //! WebSocket upgrade. A failure that another host might not share (a dead
 //! host, a proxy that refuses or cannot reach one name, a relay error) moves
 //! on to the next host; one that every host would repeat (a policy refusal, a
-//! target name that does not resolve, a bad token in the environment) stops at
-//! once. Whole rounds repeat `rounds` times with jittered exponential backoff.
-//! After them, last, the cleartext road (T-326, [`crate::cleartext`]) to a
-//! host whose TLS failed on the way. Shared by `podssh proxy` and `podssh
-//! ssh`, which differ only in how they report a failure. Each attempt passes
-//! the process's gate of its host first ([`crate::gate`], T-637), so that the
-//! sessions of a process that a failing host meets together cost one probe.
+//! target name that does not resolve, a bad token that the user gave) stops
+//! at once. Whole rounds repeat `rounds` times with jittered exponential
+//! backoff. After them, last, the cleartext road (podssh T-326,
+//! [`crate::cleartext`]) to a host whose TLS failed on the way. Each attempt
+//! passes the run's gate of its host first ([`crate::gate`], podssh T-637),
+//! so that the sessions of a run that a failing host meets together cost one
+//! probe.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::dial::DialError;
-use podssh_ws::{ConnectError, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
-use rand::RngExt;
+use pod_proxy::DialError;
+use pod_ws::{ConnectError, Endpoint, RelaySession, Trust, WsClientConfig};
 
+pub use pod_core::backoff::{BACKOFF_FIRST, BACKOFF_MAX, CONNECT_TIMEOUT, backoff};
+
+use crate::context::Context;
 use crate::failover::{self, Attempt, MintGate, Mode, SERIAL_STEP, STAGGER};
 use crate::failures::{self, Records};
 use crate::relay::{Relay, RelayList};
 use crate::token::{self, MintContext, Origin, TokenError};
 
-/// Bound on each step of reaching a relay host: proxy and TCP, TLS, upgrade,
-/// and each minting request.
-pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
-
 /// Bound on one whole host attempt, minting included, so a host that answers
 /// slowly at every step still hands over to the next one.
 pub const HOST_DEADLINE: Duration = Duration::from_secs(45);
 
-/// Environment variable that forbids every network connection. Test suites
-/// set it for the binaries they run, so no test can reach the relay by
-/// accident; it is not meant for users.
-pub const OFFLINE_ENV: &str = "PODSSH_OFFLINE";
-
-/// Whether [`OFFLINE_ENV`] is set (to anything but empty or `0`).
-pub fn offline() -> bool {
-    std::env::var(OFFLINE_ENV).is_ok_and(|v| !v.is_empty() && v != "0")
-}
-
 /// Why one host attempt failed.
 #[derive(Debug)]
 pub enum OpenError {
-    /// [`OFFLINE_ENV`] is set.
+    /// The settings forbid each connection (`Settings::offline`).
     Offline,
     Token(TokenError),
     Connect {
@@ -58,8 +46,8 @@ pub enum OpenError {
     },
     /// The attempt ran past [`HOST_DEADLINE`].
     Deadline,
-    /// This process's gate holds the host after a failure of one of its
-    /// sessions (T-637): the wait left, or `None` while a probe runs. Only
+    /// The run's gate holds the host after a failure of one of its
+    /// sessions (podssh T-637): the wait left, or `None` while a probe runs. Only
     /// where the list has a next host, which the run tries at once.
     Held {
         left: Option<Duration>,
@@ -92,11 +80,11 @@ impl OpenError {
         }
     }
 
-    /// What to print, one message per line, without a `podssh:` prefix.
+    /// What to print, one message per line, with no prefix of a program.
     /// `target` is the `host:port` the session was for.
     pub fn lines(&self, target: &str) -> Vec<String> {
         match self {
-            OpenError::Offline => vec![format!("{OFFLINE_ENV} is set, so podssh does not connect anywhere")],
+            OpenError::Offline => vec!["the offline setting is on, so no connection goes anywhere".to_string()],
             OpenError::Deadline => {
                 vec![format!("the relay host did not answer within {} s", HOST_DEADLINE.as_secs())]
             }
@@ -109,12 +97,11 @@ impl OpenError {
                         Some(format!("the relay's policy does not allow {target}"))
                     }
                     ConnectError::Refused { status: 403, .. } if *origin == Origin::Environment => {
-                        Some(format!("the token in {} was rejected", token::TOKEN_ENV))
+                        Some("the relay token that was given was rejected".to_string())
                     }
                     ConnectError::Refused { status: 502, .. } => Some(format!("the relay could not reach {target}")),
                     ConnectError::Dial(DialError::ProxyRefused { status, .. }) if *status >= 500 => Some(format!(
-                        "the proxy could not reach the relay (it answered {status}); another relay host may \
-                         work: --relay-host or PODSSH_RELAY"
+                        "the proxy could not reach the relay (it answered {status}); another relay host may work"
                     )),
                     ConnectError::Dial(DialError::ProxyRefused { .. }) => {
                         Some("the proxy does not allow connections to the relay".to_string())
@@ -129,8 +116,8 @@ impl OpenError {
 }
 
 /// The relay's wording for a policy refusal (spec: "not in the ALLOW list"),
-/// defined once in `podssh-ws`.
-pub use podssh_ws::client::is_policy_refusal;
+/// defined once in `pod-ws`.
+pub use pod_ws::client::is_policy_refusal;
 
 /// Whether `e` came once a connection to the host had opened, and is no
 /// answer of the relay's own (a rate, a relay that issues no token): then
@@ -156,6 +143,8 @@ fn target_name_fails(body: &str) -> bool {
 
 /// What to open.
 pub struct Request<'a> {
+    /// The way out, the cache, the settings and the run's state.
+    pub ctx: &'a Context,
     pub relays: &'a RelayList,
     /// `/connect/<host>/<port>`, with the relay's connect knobs if any.
     pub path: &'a str,
@@ -211,23 +200,26 @@ impl Failure {
 /// the order of the list.
 pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
     let mut attempts: Vec<(String, OpenError)> = Vec::new();
-    if offline() {
+    let ctx = req.ctx;
+    if ctx.settings.offline {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
     // No background probe runs beside a race (T-608).
-    let _racing = crate::rank_auto::racing();
+    let _racing = crate::rank_auto::racing(ctx.races());
     // The addresses that carried a session, for a resolver that fails (T-344).
-    crate::addresses::install();
+    crate::addresses::install(ctx);
     // A host that failed lately goes last (T-059), and one that opened first (T-563).
-    let mut records = Records::load();
+    let mut records = Records::load(&ctx.cache);
     // The lists of the net's relay members, asked first (T-617), join the list that the rank places (T-607).
-    let listed = crate::rank_list::placed_now(&crate::pool::members::refreshed(req.relays, req.trust).await);
+    let refreshed = crate::pool::members::refreshed(ctx, req.relays, req.trust).await;
+    let listed = crate::rank_list::placed_now(ctx, &refreshed);
     let (order, moved) = failures::order(failures::WEBSOCKET, &listed, &records, crate::pool::now_ms());
     for note in moved {
         notes(&note);
     }
     let hosts: &Vec<Relay> = &order.iter().map(|&i| listed[i].clone()).collect();
     let shared = Arc::new(Shared {
+        ctx: ctx.clone(),
         path: req.path.to_string(),
         trust: req.trust.clone(),
         target: req.target.to_string(),
@@ -250,8 +242,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             let step = if req.failover == Mode::Serial && !last { SERIAL_STEP } else { CONNECT_TIMEOUT };
             attempt(hosts[i].clone(), shared.clone(), gate.clone(), step, !last)
         };
-        // Each host held by this process's gate: the run waits at the last (T-637).
-        if let Some(line) = crate::gate::process().all_held(hosts) {
+        // Each host held by the run's gate: the run waits at the last (T-637).
+        if let Some(line) = ctx.gates().all_held(hosts) {
             notes(&line);
         }
         let stops = |e: &OpenError| !e.another_host_may_help();
@@ -267,23 +259,23 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         let silent = raced.silent.iter().map(|i| (hosts[*i].host.clone(), failures::SILENT.to_string()));
         let failed: Vec<(String, String)> = reasons.chain(silent).collect();
         let opened_host = raced.kept.as_ref().map(|(i, _)| hosts[*i].host.as_str());
-        crate::rank_list::keep(&shared.samples);
+        crate::rank_list::keep(ctx, &shared.samples);
         if records.update(failures::WEBSOCKET, &failed, opened_host, crate::pool::now_ms()) {
-            records.store();
+            records.store(&ctx.cache);
         }
         // A host that failed after its connection opened, as the relay itself
         // would not (TLS, the upgrade, another's refusal): an address of the
         // cache that it was reached at is not the relay's (T-344).
         for (i, e) in &raced.failed {
             if failures::reason(e).is_some() && after_connection(e) {
-                crate::addresses::failed(&hosts[*i].host);
+                crate::addresses::failed(ctx, &hosts[*i].host);
             }
         }
         attempts.extend(raced.failed.into_iter().map(|(i, e)| (hosts[i].host.clone(), e)));
         if let Some((i, session)) = raced.kept {
             // The address that carried it, for a run whose resolver fails.
-            crate::addresses::carried(&hosts[i].host, session.peer());
-            return Ok(opened(session, hosts[i].clone(), &shared.primary, false));
+            crate::addresses::carried(ctx, &hosts[i].host, session.peer());
+            return Ok(opened(ctx, session, hosts[i].clone(), &shared.primary, false));
         }
         if raced.stopped {
             break;
@@ -291,8 +283,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     }
     // Last, the cleartext road to a host whose TLS failed on the way (T-326,
     // Q45); its lines are notes, and the failure stays the TLS road's.
-    if let Some((relay, session)) = crate::cleartext::last(hosts, &attempts, &shared.path, notes).await {
-        return Ok(opened(session, relay, &shared.primary, true));
+    if let Some((relay, session)) = crate::cleartext::last(ctx, hosts, &attempts, &shared.path, notes).await {
+        return Ok(opened(ctx, session, relay, &shared.primary, true));
     }
     Err(Failure { attempts })
 }
@@ -300,15 +292,16 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
 /// A session that opened, under the relay's own limits, as its pool's cache
 /// keeps them: the run's budgets go under them, and the session takes in
 /// frames up to its cap (T-342).
-fn opened(session: RelaySession, relay: Relay, primary: &str, cleartext: bool) -> Opened {
-    let limits = crate::pool::cached_limits(primary);
-    crate::pool::set_in_use(limits);
-    session.set_receive_cap(podssh_ws::frame::receive_cap(limits.max_frame_bytes));
+fn opened(ctx: &Context, session: RelaySession, relay: Relay, primary: &str, cleartext: bool) -> Opened {
+    let limits = crate::pool::cached_limits(&ctx.cache, primary);
+    ctx.set_in_use(limits);
+    session.set_receive_cap(pod_ws::frame::receive_cap(limits.max_frame_bytes));
     Opened { session, relay, cleartext }
 }
 
 /// What the attempts of one run share.
 struct Shared {
+    ctx: Context,
     path: String,
     trust: Trust,
     /// `host:port`, for messages.
@@ -325,7 +318,7 @@ struct Shared {
 
 /// One host within [`HOST_DEADLINE`], each step within `step`, with its
 /// notes: a host that fails names itself when there are others. First the
-/// process's gate of the host, its wait outside the deadline (T-637); with a
+/// run's gate of the host, its wait outside the deadline (T-637); with a
 /// `successor`, a held host is left for the next at once.
 async fn attempt(
     relay: Relay,
@@ -338,7 +331,7 @@ async fn attempt(
     // On the heap: the gate's future would hold the attempt's whole, the
     // largest of the opener, and a test's worker of 2 MiB overflowed.
     let tried = Box::pin(try_host(&relay, &shared, &gate, step, &mut notes));
-    let result = crate::gate::guarded(crate::gate::process(), &relay, successor, HOST_DEADLINE, tried).await;
+    let result = crate::gate::guarded(shared.ctx.gates(), &relay, successor, HOST_DEADLINE, tried).await;
     if let Err(e) = &result {
         if e.another_host_may_help() && shared.several {
             notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
@@ -358,8 +351,8 @@ async fn try_host(
     step: Duration,
     notes: &mut Vec<String>,
 ) -> Result<RelaySession, OpenError> {
-    let proxy = ProxyChoice::FromEnvironment;
-    let ctx = MintContext { relay, trust: &shared.trust, proxy: &proxy, timeout: step };
+    let run = &shared.ctx;
+    let ctx = MintContext { ctx: run, relay, trust: &shared.trust, timeout: step };
     let key = token::token_key(relay);
     let mut token = {
         let _turn = gate.hold(&key, STAGGER).await;
@@ -372,29 +365,30 @@ async fn try_host(
         notes.push(note);
     }
     if token.origin == Origin::Minted && !shared.explicit {
-        spawn_pool_refresh(relay.clone(), shared.primary.clone(), shared.trust.clone());
+        spawn_pool_refresh(run.clone(), relay.clone(), shared.primary.clone(), shared.trust.clone());
     }
     let config = WsClientConfig {
         endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path: shared.path.clone() },
         trust: shared.trust.clone(),
         server_name: relay.host.clone(),
         timeout: step,
-        idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
-        proxy: proxy.clone(),
+        idle_timeout: Some(pod_ws::DEFAULT_IDLE_TIMEOUT),
+        way: run.way.clone(),
+        limits: pod_ws::Limits::RELAY,
     };
     let mut started = std::time::Instant::now();
-    let mut result = crate::quic_road::connect(&config, token.secret(), shared.explicit).await;
+    let mut result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
     // A cached token the relay no longer accepts: forget it and mint once.
     // Not for a policy refusal, which a new token cannot fix.
     if let Err(ConnectError::Refused { status: 403, body }) = &result {
         if token.origin == Origin::Cache && !is_policy_refusal(body) {
-            crate::cache::remove(&key);
+            run.cache.remove(&key);
             token = {
                 let _turn = gate.hold(&key, STAGGER).await;
                 token::obtain(&ctx, true).await.map_err(OpenError::Token)?
             };
             started = std::time::Instant::now();
-            result = crate::quic_road::connect(&config, token.secret(), shared.explicit).await;
+            result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
         }
     }
     if result.is_ok() {
@@ -408,30 +402,13 @@ async fn try_host(
 /// Refresh the cached pool in the background after a mint: a stale or missing
 /// pool only means fewer alternates, so failure is silent and the session
 /// never waits for it.
-fn spawn_pool_refresh(relay: Relay, primary: String, trust: Trust) {
-    if !crate::pool::needs_refresh(&primary, crate::pool::now_ms()) {
+fn spawn_pool_refresh(ctx: Context, relay: Relay, primary: String, trust: Trust) {
+    if !crate::pool::needs_refresh(&ctx.cache, &primary, crate::pool::now_ms()) {
         return;
     }
     tokio::spawn(async move {
-        let proxy = ProxyChoice::FromEnvironment;
-        let _ = crate::pool::refresh(&relay, &primary, &trust, &proxy, CONNECT_TIMEOUT).await;
+        let _ = crate::pool::refresh(&ctx, &relay, &primary, &trust, CONNECT_TIMEOUT).await;
     });
-}
-
-/// The first wait between rounds, before the random factor.
-pub const BACKOFF_FIRST: Duration = Duration::from_secs(1);
-
-/// The longest wait between rounds, before the random factor.
-pub const BACKOFF_MAX: Duration = Duration::from_secs(30);
-
-/// 1 s, 2 s, 4 s … capped at 30 s, each scaled by a random factor in
-/// [0.5, 1.5) so many clients retrying at once do not stay in step.
-pub fn backoff(retry: u32) -> Duration {
-    let first = BACKOFF_FIRST.as_millis() as u64;
-    let max = BACKOFF_MAX.as_millis() as u64;
-    let base = first.saturating_mul(1u64 << retry.saturating_sub(1).min(5)).min(max);
-    let factor: f64 = rand::rng().random_range(0.5..1.5);
-    Duration::from_millis((base as f64 * factor) as u64)
 }
 
 #[cfg(test)]

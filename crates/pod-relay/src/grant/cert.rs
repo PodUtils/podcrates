@@ -10,7 +10,7 @@
 use base64::Engine as _;
 use sha2::{Digest, Sha256};
 
-use crate::identity::{Identity, PublicKey};
+use pod_identity::{Identity, PublicKey};
 
 /// The type of a certificate of an Ed25519 key.
 pub const CERT_TYPE: &str = "ssh-ed25519-cert-v01@openssh.com";

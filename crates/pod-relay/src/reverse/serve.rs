@@ -7,7 +7,7 @@
 //! reads no more ends its own session. An opener task per `open` asks the
 //! handler, and only its answer queues `ready` or `reject`. A role that
 //! registers tokens of one leg says so in its `hello`, and the handler sends
-//! its registrations through the writer too (T-615, `crate::e2e::legs`).
+//! its registrations through the writer too (T-615, `pod_e2e::legs`).
 //! The sessions' bytes wait in a line each, a turn each (T-648, `super::fair`).
 //! A node that wants sessions readied ahead asks at the `hello` that offers
 //! them (T-650, `super::spares`).
@@ -18,9 +18,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use podssh_ws::frame;
-use podssh_ws::session::{close_code_and_reason, RelaySession};
-use podssh_ws::SessionError;
+use pod_ws::SessionError;
+use pod_ws::frame;
+use pod_ws::session::{RelaySession, close_code_and_reason};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -29,10 +29,11 @@ use super::close_say::CloseSay;
 use super::closes::RelayClose;
 use super::control::{self, NodeInbound, NodeLimits};
 use super::fair::Fair;
-use super::framing::legs::{chunk_for_node, decode_node_frame, CHUNK_BYTES};
 use super::framing::SessionId;
+use super::framing::legs::{CHUNK_BYTES, chunk_for_node, decode_node_frame};
 use super::node::Handler;
 use super::sessions::Sessions;
+use super::state::NodeState;
 
 /// How one socket ended.
 #[derive(Debug)]
@@ -52,7 +53,7 @@ pub enum End {
 
 /// What a node needs for one socket, and how long it connects again after
 /// it lost one.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Settings {
     /// How long the handler may take to open the local side: under the 15 s
     /// after which the relay ends the session itself.
@@ -75,6 +76,8 @@ pub struct Settings {
     /// operators, where its `hello` offers them (T-650): none by default, as
     /// each is a session at rest here; `super::spares::MOST` at most.
     pub spares: u8,
+    /// What the node keeps across its sockets, and where its lines go.
+    pub node: Arc<NodeState>,
 }
 
 /// The default of [`Settings::first_conflict`].
@@ -84,11 +87,12 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             open_limit: Duration::from_secs(10),
-            ping_every: podssh_ws::LIVENESS_EVERY,
-            pings_allowed: podssh_ws::LIVENESS_ALLOWED,
-            rejoin: crate::session::resume::RESUME_DEADLINE,
+            ping_every: pod_ws::LIVENESS_EVERY,
+            pings_allowed: pod_ws::LIVENESS_ALLOWED,
+            rejoin: pod_session::resume::RESUME_DEADLINE,
             first_conflict: FIRST_CONFLICT,
             spares: 0,
+            node: Arc::default(),
         }
     }
 }
@@ -169,7 +173,7 @@ where
     let session = Arc::new(session);
     let ((control, control_rx), data) = (mpsc::channel(1024), Fair::new(SESSION_READS, SOCKET_READS));
     let tx = Outbox { control, data: data.clone() };
-    let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data)));
+    let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data, settings.node.clone())));
     let routes: Routes = Arc::default();
     let opening = Arc::new(AtomicUsize::new(0));
     let mut limits = NodeLimits::conservative();
@@ -199,12 +203,12 @@ where
                     limits.apply(&hello);
                     // A role that registers tokens of one leg (T-615): the
                     // handler registers them on this socket from now on.
-                    super::legs::heard(&hello);
-                    if crate::e2e::legs::offered(&hello.extra) {
+                    super::legs::heard(&settings.node, &hello);
+                    if pod_e2e::legs::offered(&hello.extra) {
                         handler.attach(Some(frames(&tx)));
                     }
                     // Sessions readied ahead, which this node asks for (T-650).
-                    if let Some(ask) = super::spares::heard(&hello, settings.spares) {
+                    if let Some(ask) = super::spares::heard(&settings.node, &hello, settings.spares) {
                         let _ = tx.send(Out::Text(ask)).await;
                     }
                 }
@@ -286,7 +290,7 @@ impl Drop for Writer {
 /// The text frames of the handler's registrations, from a caller that holds
 /// a lock and cannot wait (T-615): a frame that finds the control queue full
 /// is dropped, and a leg that needed it takes the pair's token.
-fn frames(tx: &Outbox) -> crate::e2e::legs::Frames {
+fn frames(tx: &Outbox) -> pod_e2e::legs::Frames {
     let control = tx.control.clone();
     Arc::new(move |text: String| {
         let _ = control.try_send(Out::Text(text));
@@ -401,6 +405,7 @@ async fn write<S>(
     session: Arc<RelaySession<S>>,
     mut control: mpsc::Receiver<Out>,
     data: Fair<SessionId, Out>,
+    node: Arc<NodeState>,
 ) -> Result<(), SessionError>
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
@@ -445,7 +450,7 @@ where
             }
             Out::Closed(id, reason) => {
                 if let Some(line) = said.line(Instant::now(), id.as_str(), reason.as_deref()) {
-                    crate::session::budget::say(&line);
+                    node.tell(pod_core::Event::warn(super::close_say::EVENT, line));
                 }
                 sessions.closed(&id);
                 // Its queued bytes are for an id that the relay forgot.
@@ -472,7 +477,7 @@ where
             Out::Stop => {
                 let live: Vec<SessionId> = sessions.live().map(|(id, _)| *id).collect();
                 for id in live {
-                    if let Some(text) = json(control::close(&id, Some(super::node::stopping_words()))) {
+                    if let Some(text) = json(control::close(&id, Some(super::node::stopping_words(&node)))) {
                         let _ = session.send_text(&text).await;
                     }
                 }

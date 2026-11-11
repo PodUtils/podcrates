@@ -1,6 +1,6 @@
 //! The links of one session of the forward road with the layer (T-173): each
 //! a WebSocket to `/v1/layer/HOST/PORT` of the one relay host that holds the
-//! session, with a token from the environment, the cache or a mint, as each
+//! session, with a token that the user gave, the cache's or a mint, as each
 //! forward session gets one (`crate::open`), and the session across them.
 //!
 //! A resume must reach the process that holds the target's connection, so
@@ -15,28 +15,30 @@
 //! handshake, before any byte of the session went ([`no_room`]): its client
 //! takes the contract's road then.
 
-use podssh_ws::{ConnectError, Trust};
+use pod_core::entropy::OsEntropy;
+use pod_session::client::{Client, ClientError, Outcome};
+use pod_session::resume::{self, Next, Note};
+use pod_session::ws_link::Link;
+use pod_session::{Ended, HandshakeError, RefuseCode};
+use pod_ws::{ConnectError, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::offer::Offer;
+use crate::context::Context;
 use crate::failover::Mode;
 use crate::open::{self, Failure, OpenError, Request};
 use crate::relay::{Relay, RelayList};
-use crate::session::client::{Client, ClientError, Outcome};
-use crate::session::resume::{self, Next, Note};
-use crate::session::{Ended, HandshakeError, OsEntropy, RefuseCode};
-use crate::transit::link::Link;
 
 /// Who a link's failure names.
 const WHO: &str = "the relay";
 
 /// How the links of a session reach their host.
 enum Way {
-    /// TLS, through the proxy when one is set, by the forward opener.
-    Tls(Trust),
+    /// TLS, through the way of the context, by the forward opener.
+    Tls(Box<Context>, Trust),
     /// Plain `ws://` to a relay role on the loopback, with this token, for
     /// tests: a token over plain TCP never leaves the host
-    /// (`podssh_ws::plain`). The binary never enables it.
+    /// (`pod_ws::plain`). The binary never enables it.
     #[cfg(feature = "plain-ws")]
     PlainLoopback(String),
 }
@@ -125,15 +127,22 @@ impl Missed {
 impl Dialer {
     /// The links of a session to `host:port` through `relay`, over TLS with
     /// `trust`; `Err` for a target that no path can name.
-    pub fn new(relay: Relay, host: &str, port: u16, trust: Trust) -> Result<Dialer, String> {
-        Dialer::with(relay, host, port, Way::Tls(trust))
+    pub fn new(ctx: &Context, relay: Relay, host: &str, port: u16, trust: Trust) -> Result<Dialer, String> {
+        Dialer::with(relay, host, port, Way::Tls(Box::new(ctx.clone()), trust))
     }
 
     /// The links of a session to `host:port` at the host that holds them,
     /// as `offer`, the `/relays.json` of `asked`, names it: the process that
     /// answered, where it named itself, else `asked`.
-    pub fn for_offer(asked: &Relay, offer: &Offer, host: &str, port: u16, trust: Trust) -> Result<Dialer, String> {
-        Dialer::new(offer.holder(asked), host, port, trust)
+    pub fn for_offer(
+        ctx: &Context,
+        asked: &Relay,
+        offer: &Offer,
+        host: &str,
+        port: u16,
+        trust: Trust,
+    ) -> Result<Dialer, String> {
+        Dialer::new(ctx, offer.holder(asked), host, port, trust)
     }
 
     /// The same over plain `ws://` to a role on the loopback, with `token`.
@@ -150,7 +159,7 @@ impl Dialer {
 
     fn with(relay: Relay, host: &str, port: u16, way: Way) -> Result<Dialer, String> {
         let path = super::path(host, port)?;
-        let target = podssh_ws::dial::authority(host, port);
+        let target = pod_proxy::host::authority(host, port);
         Ok(Dialer { relays: RelayList { hosts: vec![relay], explicit: true }, path, target, way })
     }
 
@@ -182,8 +191,9 @@ impl Dialer {
     /// the opener says on the way (a token that could not be cached).
     pub async fn link(&self, notes: &mut dyn FnMut(&str)) -> Result<Link, Missed> {
         match &self.way {
-            Way::Tls(trust) => {
+            Way::Tls(ctx, trust) => {
                 let request = Request {
+                    ctx,
                     relays: &self.relays,
                     path: &self.path,
                     trust,
@@ -197,12 +207,11 @@ impl Dialer {
             #[cfg(feature = "plain-ws")]
             Way::PlainLoopback(token) => {
                 let relay = self.relays.primary();
-                let idle = Some(podssh_ws::DEFAULT_IDLE_TIMEOUT);
+                let idle = Some(pod_ws::DEFAULT_IDLE_TIMEOUT);
                 let limit = open::CONNECT_TIMEOUT;
-                let session =
-                    podssh_ws::plain::connect_loopback(&relay.host, relay.port, &self.path, token, limit, idle)
-                        .await
-                        .map_err(Missed::Plain)?;
+                let session = pod_ws::plain::connect_loopback(&relay.host, relay.port, &self.path, token, limit, idle)
+                    .await
+                    .map_err(Missed::Plain)?;
                 Ok(Link::start_by(session, Vec::new(), WHO))
             }
         }
@@ -269,15 +278,17 @@ mod tests {
 
     #[test]
     fn a_dialer_names_the_one_host_and_the_path_of_its_target() {
+        let ctx = crate::testing::context();
+        let new = |relay: Relay, host: &str, port: u16, trust: Trust| Dialer::new(&ctx, relay, host, port, trust);
         let relay = Relay { host: "relay.example".into(), port: 8443 };
-        let dialer = Dialer::new(relay.clone(), "2001:db8::1", 22, Trust::Default).unwrap();
+        let dialer = new(relay.clone(), "2001:db8::1", 22, Trust::Default).unwrap();
         assert_eq!((dialer.relay(), dialer.path()), (&relay, "/v1/layer/2001:db8::1/22"));
         assert_eq!(dialer.target(), "[2001:db8::1]:22");
         assert!(dialer.relays.explicit, "the opener tries this host alone");
-        assert!(Dialer::new(relay.clone(), "a/b", 22, Trust::Default).is_err());
-        let six = Dialer::new(relay.clone(), "github.com", 22, Trust::Default).unwrap().with_family(Some(6));
+        assert!(new(relay.clone(), "a/b", 22, Trust::Default).is_err());
+        let six = new(relay.clone(), "github.com", 22, Trust::Default).unwrap().with_family(Some(6));
         assert_eq!(six.path(), "/v1/layer/github.com/22?family=6");
-        let any = Dialer::new(relay, "github.com", 22, Trust::Default).unwrap().with_family(None);
+        let any = new(relay, "github.com", 22, Trust::Default).unwrap().with_family(None);
         assert_eq!(any.path(), "/v1/layer/github.com/22");
     }
 
@@ -286,11 +297,13 @@ mod tests {
     fn a_dialer_for_an_offer_goes_to_the_host_that_it_names() {
         let asked = Relay { host: "relay.example.org".into(), port: 443 };
         let at = Relay { host: "relay-2.relay.example.org".into(), port: 443 };
+        let ctx = crate::testing::context();
         let offer = Offer { layer: true, at: Some(at.clone()), refused: None, quic: None };
-        let dialer = Dialer::for_offer(&asked, &offer, "github.com", 22, Trust::Default).unwrap();
+        let dialer = Dialer::for_offer(&ctx, &asked, &offer, "github.com", 22, Trust::Default).unwrap();
         assert_eq!(dialer.relay(), &at);
         let unnamed = Offer { layer: true, ..Offer::default() };
-        assert_eq!(Dialer::for_offer(&asked, &unnamed, "github.com", 22, Trust::Default).unwrap().relay(), &asked);
+        let named = Dialer::for_offer(&ctx, &asked, &unnamed, "github.com", 22, Trust::Default).unwrap();
+        assert_eq!(named.relay(), &asked);
     }
 
     /// Only the far end's `REFUSE` of a new session for its room is one

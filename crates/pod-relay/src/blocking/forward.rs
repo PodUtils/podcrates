@@ -3,9 +3,9 @@
 use std::io::{self, Read, Write};
 use std::sync::Mutex;
 
-use podssh_ws::frame;
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::SessionError;
+use pod_ws::SessionError;
+use pod_ws::frame;
+use pod_ws::session::close_code_and_reason;
 
 use super::Client;
 use crate::relay::Relay;
@@ -13,7 +13,7 @@ use crate::reverse::wire::Socket;
 
 /// The largest payload of a frame that a forward session sends, as `podssh
 /// proxy` sends them.
-const FRAME_PAYLOAD: usize = podssh_ws::frame::FORWARD_SEND_PAYLOAD;
+const FRAME_PAYLOAD: usize = pod_ws::frame::FORWARD_SEND_PAYLOAD;
 
 /// The relay ended a forward session with a code other than `1000`: the code
 /// and the reason. A read gives it in an `io::Error` of the kind
@@ -129,7 +129,7 @@ impl Read for &Forward<'_> {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "the relay sent a text frame on the forward path",
-                    ))
+                    ));
                 }
                 _ => {}
             }

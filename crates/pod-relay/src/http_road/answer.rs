@@ -60,7 +60,7 @@ pub async fn read_head<R: AsyncRead + Unpin>(io: &mut R, buf: &mut Vec<u8>) -> R
         };
         let text = String::from_utf8_lossy(&buf[..end]).into_owned();
         buf.drain(..end);
-        let (status, reason, headers) = podssh_ws::http::parse_head(&text)?;
+        let (status, reason, headers) = pod_proxy::http::parse_head(&text)?;
         if (100..200).contains(&status) {
             continue;
         }
@@ -202,7 +202,7 @@ impl<'a, R: AsyncRead + Unpin> Body<'a, R> {
 fn size(line: &[u8]) -> Result<u64, String> {
     let text = std::str::from_utf8(line).map_err(|_| "a chunk's size that is not text".to_string())?;
     let digits = text.split(';').next().unwrap_or_default().trim();
-    u64::from_str_radix(digits, 16).map_err(|_| format!("a chunk's size {:?}", podssh_ws::text::one_line(digits)))
+    u64::from_str_radix(digits, 16).map_err(|_| format!("a chunk's size {:?}", pod_core::text::one_line(digits)))
 }
 
 /// Read once more into `buf`; `false` at the end of the stream.

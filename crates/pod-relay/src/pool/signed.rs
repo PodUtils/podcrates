@@ -10,14 +10,14 @@
 //! of another deployment mints a token of its own (`token::token_key`), so a
 //! token goes only to the deployment that minted it (Q49).
 
-use std::sync::{Mutex, RwLock};
+use std::sync::Mutex;
 
 use base64::Engine;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use crate::identity::{Identity, KeyName, PublicKey};
-use crate::relay::{parse_relay, Relay};
+use crate::relay::{Relay, parse_relay};
 use crate::token::relay_name;
+use pod_identity::{Identity, KeyName, PublicKey};
 
 /// The form of the document, its field `podssh-relays`.
 pub const FORM: u64 = 1;
@@ -40,8 +40,9 @@ pub const MAX_HOSTS: usize = 8;
 /// The most bytes of a document: it rides in `/relays.json`, and the cache
 /// keeps a few in one file.
 pub const MAX_DOC: usize = 8 * 1024;
-/// The variable that names more keys to trust, or `none` for no key.
-pub const KEYS_ENV: &str = "PODSSH_RELAY_KEYS";
+/// Where a key of the setting of the keys is trusted from, when the caller
+/// gives no name of its own (`Keys::from_parts`).
+pub const KEYS_ENV: &str = "the setting of the relay keys";
 /// The keys compiled in, by their fingerprints: the default deployment's
 /// operator's (`docs/relay-operator.md`, item 14), the current key and the
 /// next, so that a binary in the field takes the operator's next deployment:
@@ -120,7 +121,9 @@ impl Doc {
         let number = |field: &str| value.get(field).and_then(Value::as_u64).ok_or(format!("the list has no {field}"));
         let form = number("podssh-relays")?;
         if form != FORM {
-            return Err(format!("a list of the form {form}, which this podssh does not read; podssh update"));
+            return Err(format!(
+                "a list of the form {form}, which this client does not read; a newer release reads it"
+            ));
         }
         let serial = number("serial")?;
         let issued = i64::try_from(number("issued")?).map_err(|_| "issued is out of range".to_string())?;
@@ -235,7 +238,7 @@ impl std::fmt::Display for Refused {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Refused::Form(why) => write!(f, "{why}"),
-            Refused::Untrusted(key) => write!(f, "signed by {key}, a key that this podssh does not trust"),
+            Refused::Untrusted(key) => write!(f, "signed by {key}, a key that this client does not trust"),
             Refused::Signature(key) => write!(f, "the signature of {key} does not verify: a byte changed"),
             Refused::Ended { not_after } => write!(f, "it ended at {not_after} (seconds since 1970)"),
             Refused::TooLong => write!(f, "it lives longer than {} days", MAX_LIFE_S / 86_400),
@@ -286,15 +289,6 @@ pub struct Keys {
     keys: Vec<(KeyName, String)>,
 }
 
-/// The keys of the settings file and of the net, which the binary reads.
-static BY_SETTINGS: RwLock<Vec<(KeyName, String)>> = RwLock::new(Vec::new());
-
-/// Trust `keys` too, for this process: the binary gives the settings file's
-/// `RelayKeys` and the relay members of the net that this host holds.
-pub fn set_by_settings(keys: Vec<(KeyName, String)>) {
-    *BY_SETTINGS.write().unwrap_or_else(|e| e.into_inner()) = keys;
-}
-
 /// Keys separated by commas or blanks, each a key in hex or base32, or its
 /// fingerprint `SHA256:...`; `none` is no key at all.
 pub fn parse_keys(text: &str) -> Result<Vec<KeyName>, String> {
@@ -315,26 +309,31 @@ fn is_none(text: &str) -> bool {
 }
 
 impl Keys {
-    /// The keys of this process: those compiled in, those of the settings
-    /// file and the net, and those of [`KEYS_ENV`]; `none` there trusts no
-    /// key at all, the ones compiled in too.
-    pub fn of_process() -> Keys {
-        let env = std::env::var(KEYS_ENV).ok();
-        let settings = BY_SETTINGS.read().unwrap_or_else(|e| e.into_inner()).clone();
-        Keys::from_parts(env.as_deref(), settings)
+    /// The keys of a run: those compiled in, those of the settings file and
+    /// the net (`Settings::keys_by_settings`), and those of the setting of
+    /// the keys (`Settings::keys`); `none` there trusts no key at all, the
+    /// ones compiled in too.
+    pub fn of_settings(settings: &crate::settings::Settings) -> Keys {
+        let given = settings.keys_by_settings.clone();
+        Keys::from_labeled(settings.keys.as_deref(), &settings.names.keys, given)
     }
 
-    /// [`Keys::of_process`] with the variable and the settings given; a word
-    /// of the variable that is no key is passed over (the binary refuses it
-    /// before a run).
+    /// [`Keys::of_settings`] with the setting and the other keys given; a
+    /// word of the setting that is no key is passed over (the binary refuses
+    /// it before a run).
     pub fn from_parts(env: Option<&str>, settings: Vec<(KeyName, String)>) -> Keys {
+        Keys::from_labeled(env, KEYS_ENV, settings)
+    }
+
+    /// [`Keys::from_parts`], each key of the setting trusted from `label`.
+    pub fn from_labeled(env: Option<&str>, label: &str, settings: Vec<(KeyName, String)>) -> Keys {
         if env.is_some_and(is_none) {
             return Keys::default();
         }
         let built = built_in().into_iter().filter_map(KeyName::parse).map(|k| (k, "built in".to_string()));
         let named = env.into_iter().flat_map(|text| {
             let words = text.split([',', ' ', '\t']).filter_map(|w| KeyName::parse(w.trim()));
-            words.map(|k| (k, KEYS_ENV.to_string())).collect::<Vec<_>>()
+            words.map(|k| (k, label.to_string())).collect::<Vec<_>>()
         });
         Keys { keys: built.chain(settings).chain(named).collect() }
     }

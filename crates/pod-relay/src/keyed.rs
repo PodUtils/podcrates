@@ -13,12 +13,15 @@
 use std::time::Duration;
 
 use base64::Engine as _;
-use podssh_ws::http::Response;
-use podssh_ws::{https_post_json, ConnectError, ProxyChoice, Trust};
-use serde_json::{json, Value};
+use pod_proxy::http::Response;
+use pod_ws::client::https_post_json;
+use pod_ws::{ConnectError, Trust};
+use serde_json::{Value, json};
 
-use crate::identity::file;
-use crate::session::OsEntropy;
+use pod_core::entropy::OsEntropy;
+use pod_identity::file;
+
+use crate::context::Context;
 
 /// The first bytes of each signed message: its purpose and its version, so
 /// that no signature of the key serves another proof.
@@ -30,13 +33,9 @@ pub fn message(host: &str, path: &str, challenge: &str) -> Vec<u8> {
     [LABEL, host.as_bytes(), b"\0", path.as_bytes(), b"\0", challenge.as_bytes()].concat()
 }
 
-/// The `Host` of a request to `host:port`, as podssh-ws writes it.
+/// The `Host` of a request to `host:port`, as pod-ws writes it.
 pub fn host_header(host: &str, port: u16) -> String {
-    if port == 443 {
-        host.to_string()
-    } else {
-        podssh_ws::dial::authority(host, port)
-    }
+    if port == 443 { host.to_string() } else { pod_proxy::host::authority(host, port) }
 }
 
 /// The challenge of a relay's `401`, when it gives one.
@@ -52,7 +51,7 @@ pub fn challenge_of(response: &Response) -> Option<String> {
 }
 
 /// The body that proves the key `identity` for `challenge`.
-pub fn proof(identity: &crate::identity::Identity, host: &str, path: &str, challenge: &str) -> Vec<u8> {
+pub fn proof(identity: &pod_identity::Identity, host: &str, path: &str, challenge: &str) -> Vec<u8> {
     let signature = identity.sign(&message(host, path, challenge));
     json!({
         "key": identity.public().hex(),
@@ -66,28 +65,28 @@ pub fn proof(identity: &crate::identity::Identity, host: &str, path: &str, chall
 /// `POST path` with `{}`; when the relay asks for a key, once more with this
 /// client's.
 pub async fn post(
+    ctx: &Context,
     host: &str,
     port: u16,
     path: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<Response, ConnectError> {
-    post_query(host, port, path, "", trust, proxy, timeout).await
+    post_query(ctx, host, port, path, "", trust, timeout).await
 }
 
 /// [`post`] to `path` and `query` (`?once=1`, T-226): the proof of a key
 /// signs the path alone, as the relay checks it.
 pub async fn post_query(
+    ctx: &Context,
     host: &str,
     port: u16,
     path: &str,
     query: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<Response, ConnectError> {
-    post_by(None, host, port, path, query, trust, proxy, timeout).await
+    post_by(ctx, None, host, port, path, query, trust, timeout).await
 }
 
 /// [`post_query`] with the key `identity` when the relay asks for one, else
@@ -95,30 +94,30 @@ pub async fn post_query(
 /// document names, so that a member finds its pair by it (T-434).
 #[allow(clippy::too_many_arguments)]
 pub async fn post_by(
-    identity: Option<&crate::identity::Identity>,
+    ctx: &Context,
+    identity: Option<&pod_identity::Identity>,
     host: &str,
     port: u16,
     path: &str,
     query: &str,
     trust: &Trust,
-    proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<Response, ConnectError> {
     let target = format!("{path}{query}");
-    let first = https_post_json(host, port, &target, b"{}", trust, proxy, timeout).await?;
+    let first = https_post_json(&ctx.way, host, port, &target, b"{}", trust, timeout).await?;
     let Some(challenge) = challenge_of(&first) else { return Ok(first) };
     let loaded;
     let identity = match identity {
         Some(identity) => identity,
         None => {
-            loaded = file::load(&file::client_place(), &mut OsEntropy).map_err(|why| {
+            loaded = file::load(&ctx.cache.places, &file::client_place(), &mut OsEntropy).map_err(|why| {
                 ConnectError::Config(format!("the relay mints for the keys of its list; this client's key: {why}"))
             })?;
             &loaded.identity
         }
     };
     let body = proof(identity, &host_header(host, port), path, &challenge);
-    https_post_json(host, port, &target, &body, trust, proxy, timeout).await
+    https_post_json(&ctx.way, host, port, &target, &body, trust, timeout).await
 }
 
 #[cfg(test)]
@@ -138,14 +137,14 @@ mod tests {
 
     #[test]
     fn a_proof_verifies_under_its_key_alone() {
-        let identity = crate::identity::Identity::from_seed(&[7; 32]);
+        let identity = pod_identity::Identity::from_seed(&[7; 32]);
         let body: Value = serde_json::from_slice(&proof(&identity, "h", "/v1/mint", "c1.x")).unwrap();
-        let key = crate::identity::PublicKey::parse(body["key"].as_str().unwrap()).unwrap();
+        let key = pod_identity::PublicKey::parse(body["key"].as_str().unwrap()).unwrap();
         let signature = base64::engine::general_purpose::STANDARD.decode(body["signature"].as_str().unwrap()).unwrap();
         let signature: [u8; 64] = signature.try_into().unwrap();
         assert!(key.verifies(&message("h", "/v1/mint", "c1.x"), &signature));
         assert!(!key.verifies(&message("h", "/v1/mint", "c1.y"), &signature), "another challenge");
-        let other = crate::identity::Identity::from_seed(&[8; 32]).public();
+        let other = pod_identity::Identity::from_seed(&[8; 32]).public();
         assert!(!other.verifies(&message("h", "/v1/mint", "c1.x"), &signature), "another key");
     }
 

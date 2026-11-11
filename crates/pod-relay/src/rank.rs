@@ -209,8 +209,8 @@ impl Rank {
 }
 
 /// The rank kept in the cache, if one reads.
-pub fn load() -> Option<Rank> {
-    load_from(&cache::read_dirs())
+pub fn load(cache: &cache::Cache) -> Option<Rank> {
+    load_from(&cache.read_dirs())
 }
 
 /// [`load`] over explicit directories (for tests).
@@ -219,8 +219,8 @@ pub fn load_from(dirs: &[PathBuf]) -> Option<Rank> {
 }
 
 /// Keep `rank` in the cache, a private file; where it went.
-pub fn save(rank: &Rank) -> Result<PathBuf, String> {
-    save_in(&cache::candidate_dirs(), rank)
+pub fn save(cache: &cache::Cache, rank: &Rank) -> Result<PathBuf, String> {
+    save_in(cache.dirs(), rank)
 }
 
 /// [`save`] over explicit directories (for tests).
@@ -230,8 +230,8 @@ pub fn save_in(dirs: &[PathBuf], rank: &Rank) -> Result<PathBuf, String> {
 }
 
 /// Forget the rank, wherever it is ours to delete.
-pub fn forget() {
-    cache::remove_named_from(&cache::read_dirs(), FILE);
+pub fn forget(cache: &cache::Cache) {
+    cache::remove_named_from(&cache.read_dirs(), FILE);
 }
 
 #[cfg(test)]

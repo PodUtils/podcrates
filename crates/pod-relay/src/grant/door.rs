@@ -12,10 +12,10 @@ use std::sync::Arc;
 
 use super::cert::{Cert, USER};
 use super::spent::{NotRecorded, Spent};
-use super::{principal, ONCE, SKEW_SECS};
+use super::{ONCE, SKEW_SECS, principal};
 use crate::cache::{self, Others};
-use crate::e2e::Ask;
-use crate::identity::{KeyName, PublicKey};
+use pod_e2e::Ask;
+use pod_identity::{KeyName, PublicKey};
 
 /// Whether `issuer` may grant what an operator asks (`Err` is why not): the
 /// node's own key, and the keys that its door names, each for what it may
@@ -149,7 +149,7 @@ fn revoked(path: &std::path::Path, cert: &Cert) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::grant::Mint;
-    use crate::identity::Identity;
+    use pod_identity::Identity;
 
     #[test]
     fn a_revoked_serial_is_refused_by_any_issuer_or_by_its_own() {

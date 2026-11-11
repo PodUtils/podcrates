@@ -9,13 +9,13 @@
 //! code, whose words are the binary's.
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
-use crate::identity::PublicKey;
-use crate::pair::part::{PartRef, PartStored};
 use crate::pair::OperatorPart;
+use crate::pair::part::{PartRef, PartStored};
 use crate::relay::check_node_name;
+use pod_identity::PublicKey;
 
 /// podssh's pairing, in `app_versions`.
 pub const PAIRING: &str = "podssh-pair";
@@ -185,7 +185,7 @@ impl Done {
     pub fn from_bytes(bytes: &[u8]) -> Result<Done, String> {
         let value: Value = serde_json::from_slice(bytes).map_err(|_| "the node's last word is not podssh's")?;
         let admitted = value["admitted"].as_bool().ok_or("the node's last word says nothing of the key")?;
-        let said = podssh_ws::text::one_line(value["said"].as_str().unwrap_or_default());
+        let said = pod_core::text::one_line(value["said"].as_str().unwrap_or_default());
         Ok(Done { admitted, said: said.chars().take(SAID_MOST).collect() })
     }
 }

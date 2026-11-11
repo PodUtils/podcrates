@@ -1,13 +1,15 @@
-//! The end-to-end channel of the facade's sessions (T-088), as podssh's own
-//! ends run it: on by default, with the keys of the cache (T-087), so that a
-//! node of the facade and an operator of `podssh` meet with it, as two
-//! `podssh` ends do. Off, both ends carry the bytes as they are.
+//! The end-to-end channel of the facade's sessions (podssh T-088), as a
+//! consumer's own ends run it: on by default, with the keys of the cache
+//! (podssh T-087), so that a node of the facade and an operator of the
+//! consumer meet with it, as two of its ends do. Off, both ends carry the
+//! bytes as they are.
 
 use std::sync::Arc;
 
-use crate::e2e::ends;
-use crate::identity::{file, pins, Identity, KeyName, PublicKey};
-use crate::session::OsEntropy;
+use pod_core::entropy::OsEntropy;
+use pod_core::files::Places;
+use pod_e2e::ends;
+use pod_identity::{Identity, KeyName, PublicKey, file, pins};
 
 /// The channel of a node's sessions.
 #[derive(Clone, Default)]
@@ -37,17 +39,13 @@ impl std::fmt::Debug for NodeChannel {
 impl NodeChannel {
     /// The node's end, for the pair of this name and this label; `None` when
     /// off. A key that cannot be read or made is an error.
-    pub(super) fn end(&self, label: Option<&str>, name: &str) -> Result<Option<ends::Node>, String> {
+    pub(super) fn end(&self, places: &Places, label: Option<&str>, name: &str) -> Result<Option<ends::Node>, String> {
         match self {
             NodeChannel::Off => Ok(None),
             NodeChannel::With(node) => Ok(Some(node.clone())),
             NodeChannel::Default => {
-                let key = file::load(&file::node_place(label.unwrap_or(name)), &mut OsEntropy)?;
-                Ok(Some(ends::Node {
-                    docs: crate::e2e::net::process(),
-                    holds: crate::e2e::hold::holds(),
-                    ..ends::Node::open_to_all(Arc::new(key.identity), Arc::new(crate::e2e::NoEvents))
-                }))
+                let key = file::load(places, &file::node_place(label.unwrap_or(name)), &mut OsEntropy)?;
+                Ok(Some(ends::Node::open_to_all(Arc::new(key.identity), Arc::new(pod_core::NoEvents))))
             }
         }
     }
@@ -83,7 +81,7 @@ pub(super) type Check = Box<dyn FnOnce(&PublicKey) -> Result<(), String> + Send>
 impl OperatorChannel {
     /// This client's key and its check of the node's, for the pair `name`;
     /// `None` when off.
-    pub(super) fn end(&self, name: &str) -> Result<Option<(Arc<Identity>, Check)>, String> {
+    pub(super) fn end(&self, places: &Places, name: &str) -> Result<Option<(Arc<Identity>, Check)>, String> {
         match self {
             OperatorChannel::Off => Ok(None),
             OperatorChannel::With { identity, node } => {
@@ -94,9 +92,10 @@ impl OperatorChannel {
                 Ok(Some((identity.clone(), check)))
             }
             OperatorChannel::Default => {
-                let key = file::load(&file::client_place(), &mut OsEntropy)?;
+                let key = file::load(places, &file::client_place(), &mut OsEntropy)?;
                 let name = name.to_string();
-                let check: Check = Box::new(move |key: &PublicKey| match pins::check(&name, key) {
+                let places = places.clone();
+                let check: Check = Box::new(move |key: &PublicKey| match pins::check(&places, &name, key) {
                     Ok(_) => Ok(()),
                     Err(why) => Err(format!("the node {name} has the key {key}, but {why}")),
                 });

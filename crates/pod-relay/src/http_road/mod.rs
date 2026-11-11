@@ -164,7 +164,7 @@ pub fn query(target: &str) -> Query {
 
 /// `X-Close`'s value: the code, then the reason on one line.
 pub fn close_value(code: u16, reason: &str) -> String {
-    format!("{code} {}", podssh_ws::text::one_line(reason))
+    format!("{code} {}", pod_core::text::one_line(reason))
 }
 
 /// The code and the reason of an `X-Close`.
@@ -207,9 +207,6 @@ impl Tuning {
         tuning
     }
 }
-
-/// What podssh says it is, in each request.
-pub const USER_AGENT: &str = concat!("podssh/", env!("CARGO_PKG_VERSION"));
 
 #[cfg(test)]
 mod tests {

@@ -7,22 +7,21 @@
 //! client that holds the net learns its own role's deployments with no
 //! `--relay-host`. The ask is a plain request with no token, and its host
 //! joins no list by it: the role's list names where sessions go. The binary
-//! reads the net and gives the members ([`set_by_net`]), as it gives the
-//! keys, so that no SSH code comes into the library.
+//! reads the net and gives the members (`Settings::members`), as it gives
+//! the keys, so that no SSH code comes into the library.
 
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
-use podssh_ws::client::open_tls;
-use podssh_ws::{dial, ProxyChoice, Trust};
+use pod_identity::KeyName;
+use pod_ws::Trust;
 use serde::{Deserialize, Serialize};
 
 use super::kept::{self, Dirs, Taken};
 use super::signed::{Keys, Signed};
-use crate::cache;
-use crate::identity::KeyName;
+use crate::cache::{self, Cache};
+use crate::context::Context;
 use crate::relay::{Relay, RelayList};
 use crate::token::relay_name;
 
@@ -50,21 +49,6 @@ pub struct Member {
     pub key: KeyName,
     /// Where its role serves `/relays.json`.
     pub host: Relay,
-}
-
-/// The members of the net that the binary read.
-static BY_NET: RwLock<Vec<Member>> = RwLock::new(Vec::new());
-
-/// The relay members of the net that this host holds, for this process: the
-/// first [`MOST`] of them, so that a net of many asks no more.
-pub fn set_by_net(mut members: Vec<Member>) {
-    members.truncate(MOST);
-    *BY_NET.write().unwrap_or_else(|e| e.into_inner()) = members;
-}
-
-/// The members that [`set_by_net`] gave.
-pub fn of_process() -> Vec<Member> {
-    BY_NET.read().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// One ask of a member, as the cache keeps it.
@@ -106,19 +90,13 @@ impl Asks {
 }
 
 fn load(dirs: Dirs<'_>) -> Asks {
-    let text = match dirs {
-        Some(dirs) => cache::load_file_from(dirs, FILE),
-        None => cache::load_file(FILE),
-    };
+    let text = cache::load_file_from(dirs.unwrap_or_default(), FILE);
     text.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
 }
 
 fn store(dirs: Dirs<'_>, asks: &Asks) -> Result<PathBuf, String> {
     let body = serde_json::to_vec(asks).map_err(|e| e.to_string())?;
-    match dirs {
-        Some(dirs) => cache::store_file_in_first(dirs, FILE, &body),
-        None => cache::store_file(FILE, &body),
-    }
+    cache::store_file_in_first(dirs.unwrap_or_default(), FILE, &body)
 }
 
 /// Whether a member whose last ask is `last` is due at `now_ms`: never
@@ -129,18 +107,18 @@ pub fn due(last: Option<&Ask>, now_ms: i64) -> bool {
 }
 
 /// The last ask of `member` that the cache keeps.
-pub fn last_ask(member: &Member) -> Option<Ask> {
-    load(None).of(member).cloned()
+pub fn last_ask(cache: &Cache, member: &Member) -> Option<Ask> {
+    load(Some(cache.dirs())).of(member).cloned()
 }
 
 /// The list of a `/relays.json` body that `member`'s host served, taken by
 /// that member's key alone: a list of another key is not the member's,
 /// whatever else trusts it. Then the rules of [`kept::take`]: a trusted key
-/// (`PODSSH_RELAY_KEYS=none` trusts none), its signature, its life, and a
-/// serial that does not go back.
+/// (the setting of the keys `none` trusts none), its signature, its life,
+/// and a serial that does not go back.
 pub fn take_from(dirs: Dirs<'_>, member: &Member, body: &[u8], keys: &Keys, now_ms: i64) -> Result<Taken, String> {
     let signed = match Signed::of_body(body) {
-        None => return Err("its /relays.json carries no signed list: podssh relay serve --deployment signs one".into()),
+        None => return Err("its /relays.json carries no signed list: a relay role of a deployment signs one".into()),
         Some(read) => read?,
     };
     if !member.key.matches(&signed.key) {
@@ -154,15 +132,14 @@ pub fn take_from(dirs: Dirs<'_>, member: &Member, body: &[u8], keys: &Keys, now_
 }
 
 /// `host`'s `/relays.json` within `step`, as the pool's refresh reads the
-/// default host's: through the proxy of the environment, TLS checked by the
-/// host's own name.
-async fn fetch(host: Relay, trust: &Trust, step: Duration) -> Result<Vec<u8>, String> {
-    let proxy = ProxyChoice::FromEnvironment;
-    let header = if host.port == 443 { host.host.clone() } else { dial::authority(&host.host, host.port) };
+/// default host's: through the way out of `ctx`, TLS checked by the host's
+/// own name.
+async fn fetch(ctx: &Context, host: Relay, trust: &Trust, step: Duration) -> Result<Vec<u8>, String> {
+    let header = super::host_header(&host);
     let asked = async {
-        let mut tls =
-            open_tls(&host.host, host.port, &host.host, trust, &proxy, step).await.map_err(|e| e.to_string())?;
-        super::body_of(&mut tls, &header).await
+        let (mut tls, _) =
+            ctx.way.open_tls(&host.host, host.port, &host.host, trust, step, &[]).await.map_err(|e| e.to_string())?;
+        super::body_of(&mut tls, &ctx.way.user_agent, &header).await
     };
     match tokio::time::timeout(step, asked).await {
         Ok(done) => done,
@@ -170,18 +147,19 @@ async fn fetch(host: Relay, trust: &Trust, step: Duration) -> Result<Vec<u8>, St
     }
 }
 
-/// Ask each member of this process that is due, before a run's race: how
-/// many lists were newly kept. None is asked with `PODSSH_OFFLINE`, with a
-/// token of `PODSSH_RELAY_TOKEN` (the default's, which takes no other
-/// deployment), or with no cache, which could keep no day between two asks.
-pub async fn ask_due(trust: &Trust) -> usize {
-    let members = of_process();
-    let given = std::env::var(crate::token::TOKEN_ENV).is_ok_and(|v| !v.trim().is_empty());
-    if members.is_empty() || crate::open::offline() || given || cache::candidate_dirs().is_empty() {
+/// Ask each member of the settings that is due, before a run's race: how
+/// many lists were newly kept. None is asked offline, with a token that the
+/// user gave (the default's, which takes no other deployment), or with no
+/// cache, which could keep no day between two asks.
+pub async fn ask_due(ctx: &Context, trust: &Trust) -> usize {
+    let mut members = ctx.settings.members.clone();
+    members.truncate(MOST);
+    if members.is_empty() || ctx.settings.offline || ctx.settings.token_given() || ctx.cache.dirs().is_empty() {
         return 0;
     }
-    let keys = Keys::of_process();
-    ask_due_with(None, &members, &keys, super::now_ms(), move |host, step| fetch(host, trust, step)).await
+    let keys = Keys::of_settings(&ctx.settings);
+    let dirs = Some(ctx.cache.dirs());
+    ask_due_with(dirs, &members, &keys, super::now_ms(), move |host, step| fetch(ctx, host, trust, step)).await
 }
 
 /// [`ask_due`] with the cache's directories, the members, the keys, the time
@@ -216,7 +194,7 @@ where
         kept += usize::from(matches!(taken, Ok(Taken::Kept(_))));
         let (serial, why) = match &taken {
             Ok(t) => (Some(t.checked().doc.serial), None),
-            Err(why) => (None, Some(podssh_ws::text::one_line(why))),
+            Err(why) => (None, Some(pod_core::text::one_line(why))),
         };
         let mut asks = load(dirs);
         asks.put(Ask { host, key, asked_ms: now_ms, serial, why });
@@ -228,11 +206,11 @@ where
 /// `list` with the hosts of the lists that this run's asks kept, after the
 /// ones that it had: a list that the user named, or one that took nothing
 /// new, as it is.
-pub async fn refreshed(list: &RelayList, trust: &Trust) -> RelayList {
-    if list.explicit || ask_due(trust).await == 0 {
+pub async fn refreshed(ctx: &Context, list: &RelayList, trust: &Trust) -> RelayList {
+    if list.explicit || ask_due(ctx, trust).await == 0 {
         return list.clone();
     }
-    crate::relay::with_others(list.clone(), kept::other_hosts(super::now_ms()))
+    crate::relay::with_others(list.clone(), kept::other_hosts(ctx, super::now_ms()))
 }
 
 #[cfg(test)]

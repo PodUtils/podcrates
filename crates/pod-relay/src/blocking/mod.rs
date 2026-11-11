@@ -1,7 +1,6 @@
 //! A synchronous facade over this crate, for a caller with no async runtime
-//! (podvm, T-081; `docs/design.md`, section 3). A [`Client`] owns one tokio
-//! runtime on the current thread and blocks on it in each call; no tokio type
-//! is in this API.
+//! (podvm; podssh T-081). A [`Client`] owns one tokio runtime on the current
+//! thread and blocks on it in each call; no tokio type is in this API.
 //!
 //! - [`Client::pair`], [`Client::status`] and [`Client::stop`]: the pairs of
 //!   the reverse road;
@@ -11,8 +10,9 @@
 //!   writer, such as standard input and output;
 //! - [`Client::open_forward`]: a forward session, as a [`Forward`] stream.
 //!
-//! A node's and an operator's sessions run the end-to-end channel of T-088
-//! by default, as podssh's own ends do ([`NodeChannel`], [`OperatorChannel`]).
+//! A node's and an operator's sessions run the end-to-end channel of
+//! `pod-e2e` by default, as a consumer's own ends do ([`NodeChannel`],
+//! [`OperatorChannel`]).
 //!
 //! No call runs on a thread that runs a tokio runtime (an async task, or
 //! `spawn_blocking`): blocking there would stall that runtime, so the call
@@ -29,40 +29,54 @@ pub use forward::{Closed, Forward};
 
 use std::future::Future;
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use podssh_ws::client::ConnectError;
-use podssh_ws::{ProxyChoice, Trust};
+use pod_ws::{ConnectError, Trust};
 use tokio::runtime::Runtime;
 use tokio::sync::Notify;
 
+use crate::context::Context;
 use crate::open::{Failure, Request};
 use crate::pair::{self, Pair, PairContext, PairError, Presence, Stopped};
-use crate::relay::{forward_path, Relay, RelayList};
+use crate::relay::{Relay, RelayList, forward_path};
 use crate::reverse::{self, Exit, NodeConfig, OperatorConfig, OperatorLimits, Outcome, RepairHook, Settings, Wire};
 
 /// The bound on each connection when the caller sets none.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// What a [`Client`] connects with.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
-    /// podssh's own roots and TLS provider by default; `Trust::caller` takes
-    /// the caller's rustls configuration (T-066).
+    /// The roots of the TLS context by default; `Trust::caller` takes the
+    /// caller's rustls configuration (podssh T-066).
     pub trust: Trust,
-    /// `HTTPS_PROXY` and `NO_PROXY` from the environment by default.
-    pub proxy: ProxyChoice,
+    /// The way out, the cache and the settings of each connection.
+    pub ctx: Context,
     /// Bound on each connection: the dial, the proxy, TLS and the upgrade.
     pub timeout: Duration,
     /// TLS, except in the tests of an embedder.
     pub wire: Wire,
+    /// The operator's documents of the net; none by default.
+    pub docs: Option<Arc<dyn pod_e2e::net::Docs>>,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Config { trust: Trust::Default, proxy: ProxyChoice::FromEnvironment, timeout: DEFAULT_TIMEOUT, wire: Wire::Tls }
+impl Config {
+    /// The default trust, [`DEFAULT_TIMEOUT`], TLS, and no documents of the
+    /// net, through `ctx`.
+    pub fn new(ctx: Context) -> Config {
+        Config { trust: Trust::Default, ctx, timeout: DEFAULT_TIMEOUT, wire: Wire::Tls, docs: None }
+    }
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("ctx", &self.ctx)
+            .field("timeout", &self.timeout)
+            .field("wire", &self.wire)
+            .finish_non_exhaustive()
     }
 }
 
@@ -88,7 +102,7 @@ pub enum Error {
     Key(String),
     /// The end-to-end channel failed: a refused key, a changed node key, a
     /// message that failed its check (T-088).
-    Channel(crate::e2e::Error),
+    Channel(pod_e2e::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -260,7 +274,7 @@ impl Client {
     }
 
     fn pair_context<'a>(&'a self, relay: &'a Relay) -> PairContext<'a> {
-        PairContext { relay, trust: &self.config.trust, proxy: &self.config.proxy, timeout: self.config.timeout }
+        PairContext { ctx: &self.config.ctx, relay, trust: &self.config.trust, timeout: self.config.timeout }
     }
 
     /// A new pair, from `relay`'s control host (`POST /v1/pair`).
@@ -297,14 +311,15 @@ impl Client {
             pair: pair.duplicate(),
             label: options.label.clone(),
             trust: &self.config.trust,
-            proxy: &self.config.proxy,
+            ctx: &self.config.ctx,
             timeout: self.config.timeout,
-            settings: options.settings,
+            settings: options.settings.clone(),
             repair: options.repair.clone().map(blocking_repair),
             wire: self.config.wire,
             say: None,
         };
-        let channel = options.channel.end(options.label.as_deref(), &pair.name).map_err(Error::Key)?;
+        let places = &self.config.ctx.cache.places;
+        let channel = options.channel.end(places, options.label.as_deref(), &pair.name).map_err(Error::Key)?;
         let handler = bridge::Bridged(Arc::new(handler));
         let exit = match channel {
             Some(node) => {
@@ -335,27 +350,27 @@ impl Client {
             name: to.name,
             connect_token: to.connect_token,
             trust: &self.config.trust,
-            proxy: &self.config.proxy,
+            ctx: &self.config.ctx,
             timeout: self.config.timeout,
             limits: to.limits,
             wire: self.config.wire,
         };
-        let outcome = match to.channel.end(to.name).map_err(Error::Key)? {
+        let outcome = match to.channel.end(&self.config.ctx.cache.places, to.name).map_err(Error::Key)? {
             Some((identity, check)) => {
-                let (cipher, session) = crate::e2e::ends::operator_told(
+                let (cipher, session) = pod_e2e::ends::operator_told(
                     bridged.stream,
                     identity,
                     check,
                     None,
                     None,
-                    crate::e2e::net::installed(),
+                    self.config.docs.clone(),
                     |_| {},
                 );
                 let (outcome, ended) =
                     runtime.block_on(async { tokio::join!(reverse::operator::run(&config, cipher), session) });
                 // A cut, or a failed stream, is the leg's to tell.
                 if let Err(e) = ended {
-                    if !matches!(e, crate::e2e::Error::Cut | crate::e2e::Error::Io(_)) {
+                    if !matches!(e, pod_e2e::Error::Cut | pod_e2e::Error::Io(_)) {
                         bridged.output_done.wait(to.limits.close_limit);
                         return Err(Error::Channel(e));
                     }
@@ -368,16 +383,18 @@ impl Client {
         outcome.map_err(Error::Connect)
     }
 
-    /// A forward session to `host:port`, failing over across `relays`, as
-    /// `podssh ssh` opens one: the token comes from the environment, the cache
-    /// or a mint, and the proxy from the environment. It is TLS whatever
-    /// `Config::wire` says; the plain form for tests is `forward_on_loopback`.
+    /// A forward session to `host:port`, failing over across `relays`, as a
+    /// consumer's own client opens one: the token comes from the settings,
+    /// the cache or a mint, through the way of the context. It is TLS
+    /// whatever `Config::wire` says; the plain form for tests is
+    /// `forward_on_loopback`.
     pub fn open_forward(&self, relays: &RelayList, host: &str, port: u16) -> Result<Forward<'_>, Error> {
         let path = forward_path(host, port).map_err(Error::BadTarget)?;
-        let target = podssh_ws::dial::authority(host, port);
+        let target = pod_proxy::host::authority(host, port);
         // The default order of the hosts, staggered (T-220), as `podssh ssh` has it.
         let failover = crate::failover::Mode::default();
-        let request = Request { relays, path: &path, trust: &self.config.trust, target: &target, rounds: 1, failover };
+        let (ctx, trust) = (&self.config.ctx, &self.config.trust);
+        let request = Request { ctx, relays, path: &path, trust, target: &target, rounds: 1, failover };
         let mut notes = Vec::new();
         let opened = self.block_on(crate::open::open(&request, &mut |note: &str| notes.push(note.to_string())))?;
         let opened = opened.map_err(|failure| Error::Open { target, failure })?;
@@ -389,15 +406,16 @@ impl Client {
     /// token of the cache.
     #[cfg(feature = "plain-ws")]
     pub fn forward_on_loopback(&self, relay: &Relay, host: &str, port: u16, token: &str) -> Result<Forward<'_>, Error> {
-        use podssh_ws::client::{Endpoint, WsClientConfig};
+        use pod_ws::client::{Endpoint, WsClientConfig};
         let path = forward_path(host, port).map_err(Error::BadTarget)?;
         let config = WsClientConfig {
             endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path },
             trust: self.config.trust.clone(),
             server_name: relay.host.clone(),
             timeout: self.config.timeout,
-            idle_timeout: Some(podssh_ws::client::DEFAULT_IDLE_TIMEOUT),
-            proxy: ProxyChoice::Direct,
+            idle_timeout: Some(pod_ws::client::DEFAULT_IDLE_TIMEOUT),
+            way: self.config.ctx.way.clone(),
+            limits: pod_ws::Limits::RELAY,
         };
         let socket =
             self.block_on(reverse::wire::open(Wire::PlainLoopback, &config, token))?.map_err(Error::Connect)?;

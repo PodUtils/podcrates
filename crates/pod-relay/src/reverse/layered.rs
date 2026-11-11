@@ -5,17 +5,18 @@
 //! completes one costs no connection to sshd (T-164); a resume goes on with
 //! the target that the session kept.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tokio::io::DuplexStream;
 
 use super::framing::SessionId as RelayId;
 use super::node::{Admit, Handler, Opening};
-use crate::session::keep::Keeper;
-use crate::session::record::Role;
-use crate::session::{far, Settings};
+use pod_session::budget::Tell;
+use pod_session::keep::Keeper;
+use pod_session::record::Role;
+use pod_session::{Settings, far};
 
 /// Each direction of the pipe between the node's session and the layer.
 const PIPE: usize = 256 * 1024;
@@ -37,13 +38,15 @@ pub struct Layered<H: Handler> {
 }
 
 impl<H: Handler> Layered<H> {
+    /// The budget's lines of its far end go nowhere: [`Layered::telling`]
+    /// sends them to the caller's sink.
     pub fn new(inner: H, settings: Settings, budget: usize) -> Layered<H> {
-        Layered::with_keeper(
-            inner,
-            settings,
-            budget,
-            Arc::new(Keeper::new(settings.resume_deadline).with_tell(crate::session::budget::told())),
-        )
+        Layered::telling(inner, settings, budget, Tell::default())
+    }
+
+    /// [`Layered::new`], the budget's lines of its far end sent to `tell`.
+    pub fn telling(inner: H, settings: Settings, budget: usize, tell: Tell) -> Layered<H> {
+        Layered::with_keeper(inner, settings, budget, Arc::new(Keeper::new(settings.resume_deadline).with_tell(tell)))
     }
 
     /// With `keeper`, which another road's far end may share: a session
@@ -110,7 +113,7 @@ impl<H: Handler> Handler for Layered<H> {
 
     /// A session of the layer has later legs: the channel above it registers
     /// a token for each (T-615).
-    fn attach(&self, frames: Option<crate::e2e::legs::Frames>) {
+    fn attach(&self, frames: Option<pod_e2e::legs::Frames>) {
         self.inner.registers(frames);
     }
 

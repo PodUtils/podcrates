@@ -175,11 +175,7 @@ pub fn unjudged(bytes: &[u8], end: End) -> NotSshd {
 
 /// The verdict on a whole line that starts with `SSH-`.
 fn version(line: &[u8]) -> Result<String, NotSshd> {
-    if VERSIONS.iter().any(|v| line.starts_with(v)) {
-        Ok(shown(line))
-    } else {
-        Err(NotSshd::Version(shown(line)))
-    }
+    if VERSIONS.iter().any(|v| line.starts_with(v)) { Ok(shown(line)) } else { Err(NotSshd::Version(shown(line))) }
 }
 
 /// Another service, named by its first line.
@@ -201,7 +197,7 @@ fn without_cr(line: &[u8]) -> &[u8] {
 
 /// A line from a peer, safe to print, and short.
 fn shown(line: &[u8]) -> String {
-    podssh_ws::text::one_line(&String::from_utf8_lossy(line)).chars().take(SHOWN).collect()
+    pod_core::text::one_line(&String::from_utf8_lossy(line)).chars().take(SHOWN).collect()
 }
 
 #[cfg(test)]

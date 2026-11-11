@@ -1,13 +1,15 @@
 //! `GET /health` on one relay host (T-058), over the same proxy-aware,
 //! verified path as a session: the relay's version, the edge that answered,
-//! and how the connection went. `podssh doctor` and `podssh relay status`
-//! read a host the same way, and so can podvm.
+//! and how the connection went. A doctor and a status of a consumer read a
+//! host the same way.
 
 use std::time::{Duration, Instant};
 
-use podssh_ws::dial::{self, ProxyChoice};
-use podssh_ws::{http, ConnectError, Trust};
+use pod_proxy::host::authority;
+use pod_proxy::{HttpProxy, http};
+use pod_ws::{ConnectError, Trust};
 
+use crate::context::Context;
 use crate::relay::Relay;
 
 /// The service name that the relay gives in `/health`: with a certificate
@@ -84,36 +86,26 @@ impl std::fmt::Display for HealthError {
 }
 
 /// `GET /health` on `relay`, each wait within `timeout`.
-pub async fn fetch(
-    relay: &Relay,
-    trust: &Trust,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<Health, HealthError> {
+pub async fn fetch(ctx: &Context, relay: &Relay, trust: &Trust, timeout: Duration) -> Result<Health, HealthError> {
     let host = &relay.host;
     let started = Instant::now();
-    let (mut tls, peer_addr) = podssh_ws::client::open_tls_offering(host, relay.port, host, trust, proxy, timeout, &[])
-        .await
-        .map_err(HealthError::Connect)?;
+    let (mut tls, peer_addr) =
+        ctx.way.open_tls(host, relay.port, host, trust, timeout, &[]).await.map_err(HealthError::Connect)?;
     let peer = peer_addr.map(|a| a.to_string()).unwrap_or_else(|| "an address it cannot name".into());
     // Where the address came from: a pin, the system, the cache or DNS over
     // HTTPS (T-344).
-    let source = peer_addr.and_then(|a| podssh_ws::resolve::dialed(host, a));
+    let memory = ctx.resolver.as_ref().map(|r| r.memory());
+    let source = peer_addr.and_then(|a| memory.and_then(|m| m.dialed(host, a)));
     let tls_version = tls
         .get_ref()
         .1
         .protocol_version()
         .map(|v| format!("{v:?}").replace("TLSv1_", "TLS 1."))
         .unwrap_or_else(|| "TLS".into());
-    let through = match proxy {
-        ProxyChoice::FromEnvironment => dial::proxy_from_env(host).ok().flatten(),
-        ProxyChoice::Via(proxy) => Some(proxy.clone()),
-        ProxyChoice::Direct => None,
-    };
-    let opened = match through {
+    let opened = match (ctx.proxy_of)(host) {
         Some(proxy) => {
             let request = proxy.kind.request();
-            format!("{request} {} through {}", dial::authority(host, relay.port), proxy_reached(&proxy, &peer))
+            format!("{request} {} through {}", authority(host, relay.port), proxy_reached(&proxy, &peer))
         }
         None => match source {
             Some(source) => format!("TCP {peer} ({})", source.words()),
@@ -121,9 +113,10 @@ pub async fn fetch(
         },
     };
     let answer = |why: String| HealthError::Answer { opened: opened.clone(), why };
-    let host_header = if relay.port == 443 { host.clone() } else { dial::authority(host, relay.port) };
-    let exchange =
-        http::exchange(&mut tls, "GET", &host_header, "/health", &[("Accept", "application/json")], b"", MAX_BODY);
+    let host_header = crate::pool::host_header(relay);
+    let accept = [("Accept", "application/json")];
+    let user_agent = &ctx.way.user_agent;
+    let exchange = http::exchange(&mut tls, user_agent, "GET", &host_header, "/health", &accept, b"", MAX_BODY);
     let response = tokio::time::timeout(timeout, exchange)
         .await
         .map_err(|_| answer(format!("/health did not answer within {} s", timeout.as_secs())))?
@@ -133,7 +126,7 @@ pub async fn fetch(
     }
     let doc: serde_json::Value =
         serde_json::from_slice(&response.body).map_err(|_| answer("/health did not answer with JSON".into()))?;
-    let text = |v: &serde_json::Value| v.as_str().map(podssh_ws::text::one_line);
+    let text = |v: &serde_json::Value| v.as_str().map(pod_core::text::one_line);
     let service = text(&doc["service"]).unwrap_or_default();
     if service != SERVICE {
         return Err(answer(format!(
@@ -153,13 +146,9 @@ pub async fn fetch(
 }
 
 /// The proxy as named, and the address reached when it differs.
-fn proxy_reached(proxy: &dial::HttpProxy, peer: &str) -> String {
+fn proxy_reached(proxy: &HttpProxy, peer: &str) -> String {
     let named = proxy.to_string();
-    if named == peer {
-        named
-    } else {
-        format!("{named} ({peer})")
-    }
+    if named == peer { named } else { format!("{named} ({peer})") }
 }
 
 #[cfg(test)]

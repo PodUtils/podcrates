@@ -5,7 +5,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use podssh_ws::dial::DialError;
+use pod_proxy::DialError;
 
 use super::*;
 use crate::token::Origin;
