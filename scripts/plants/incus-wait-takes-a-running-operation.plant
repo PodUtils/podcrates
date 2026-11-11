@@ -1,0 +1,7 @@
+# The wait takes an operation that is not final as its end: a wait that
+# ends at its limit gives a running operation as a result (T-179).
+ENTRY=T-179
+GROUP=incus
+EXPECT='a_wait_ends_at_its_limit_with_the_operation_running'
+RUN='cargo test -p pod-incus --all-features --test operations'
+LIMIT=1800

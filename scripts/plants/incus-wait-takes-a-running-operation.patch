@@ -1,0 +1,11 @@
+--- a/crates/pod-incus/src/operation.rs
++++ b/crates/pod-incus/src/operation.rs
+@@ -154,7 +154,7 @@
+         };
+         let operation: Operation = crate::envelope::sync(call, reply)?;
+         tracing::debug!(call, id, status = operation.status_code, "incus operation");
+-        if !operation.is_final() {
++        if false && !operation.is_final() {
+             let status = format!("{} ({})", far_text(&operation.status), operation.status_code);
+             return Err(Error::new(call, ErrorKind::Timeout { id: id.to_string(), status }));
+         }
