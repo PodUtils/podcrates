@@ -3528,3 +3528,42 @@ open.
 ```sh
 cargo test -p pod-services
 ```
+
+# T-203: `pod-services`: the TCP relay of ZeroTier (PodUtils/podssh#190)
+
+**Source:** PodUtils/podssh#190 (COORD-023 of podssh, for PodUtils/podssh@T-733)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's ZeroTier road links the core of ZeroTierOne; the roots come from
+its planet, and the one host that podssh needs is the TCP fallback relay.
+podssh must not write the host in its code, so the live run of its road
+waits for a service of `pod-services`.
+
+## Premise
+
+- Read: PodUtils/podssh#190; ZeroTierOne `service/OneService.cpp` at
+  `899352e38405968516bb12a770f0ac02f6058fa8` (line 164:
+  `#define ZT_TCP_FALLBACK_RELAY "204.80.128.1/443"`) and its
+  `tcp-proxy/README.md` ("an anycast address"); the default branch holds
+  the same line on 2026-11-11.
+- No watch kind does a TCP connect alone.
+
+## Approach
+
+`services/zerotier-tcp-relay.toml`: kind `tcp-relay`, endpoint `tcp`
+(`204.80.128.1:443`), fact `relay`, two `github-file` watches (the
+define and the README); a row of the README; a test. A watch of a TCP
+connect is a later kind if a consumer asks for one.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+```
+

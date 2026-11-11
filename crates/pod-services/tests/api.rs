@@ -302,3 +302,12 @@ fn the_bare_node_of_openbare_is_a_bare_v3_endpoint() {
         assert!(watched, "no watch of {fact}");
     }
 }
+
+#[test]
+fn the_tcp_relay_of_zerotier_is_its_fallback_address() {
+    let relay = pod_services::get("zerotier-tcp-relay").expect("zerotier-tcp-relay");
+    let tcp = relay.endpoint("tcp").expect("the endpoint tcp");
+    assert_eq!((tcp.scheme(), tcp.host(), tcp.port()), ("tcp", "204.80.128.1", 443));
+    // The fact keeps the form of the source, ADDRESS/PORT, and agrees with the endpoint.
+    assert_eq!(relay.text("relay"), Some(format!("{}/{}", tcp.host(), tcp.port()).as_str()));
+}

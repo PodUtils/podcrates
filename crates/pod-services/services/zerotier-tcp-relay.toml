@@ -1,0 +1,34 @@
+# The TCP relay of ZeroTier: the one host that podssh's ZeroTier road
+# needs (PodUtils/podssh@T-733); the roots come from the planet that the
+# core of ZeroTierOne holds. The relay takes ZeroTier's packets over TCP
+# where UDP is refused. Its records only look like TLS (0x17 0x03 0x03,
+# then a 16-bit length); there is no TLS. The source says the relay "will
+# eventually go away".
+id = "zerotier-tcp-relay"
+kind = "tcp-relay"
+party = "ZeroTier, Inc."
+about = "The anycast TCP fallback relay of ZeroTierOne, for a host where UDP is refused"
+
+[[endpoint]]
+name = "tcp"
+scheme = "tcp"
+host = "204.80.128.1"
+port = 443
+source = { url = "https://github.com/zerotier/ZeroTierOne/blob/899352e38405968516bb12a770f0ac02f6058fa8/service/OneService.cpp", read = 2026-11-11, note = "#define ZT_TCP_FALLBACK_RELAY \"204.80.128.1/443\"; tcp-proxy/README.md: The default tcp relay is at 204.80.128.1/443 -an anycast address" }
+
+[[fact]]
+name = "relay"
+value = "204.80.128.1/443"
+source = { url = "https://github.com/zerotier/ZeroTierOne/blob/899352e38405968516bb12a770f0ac02f6058fa8/service/OneService.cpp", read = 2026-11-11, note = "the value of ZT_TCP_FALLBACK_RELAY, ADDRESS/PORT" }
+
+[[watch]]
+kind = "github-file"
+repo = "zerotier/ZeroTierOne"
+path = "service/OneService.cpp"
+facts = ["relay"]
+
+[[watch]]
+kind = "github-file"
+repo = "zerotier/ZeroTierOne"
+path = "tcp-proxy/README.md"
+endpoint = "tcp"
