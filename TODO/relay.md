@@ -1874,7 +1874,7 @@ cargo test -p pod-wormhole --all-features
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1961,4 +1961,108 @@ pump on the TUN or the veth descriptor sees each SYN before the stack.
 cargo test -p pod-netstack
 sh scripts/plant-each.sh netstack-any-ip-not-set netstack-listener-owns-by-has-ip-addr
 sh scripts/agent/check.sh
+```
+
+## Done
+
+2026-11-11. `7c20ad2` (the code, the tests, the README) and the commit of
+this section (the plants, the static step of `scripts/agent/check.sh`).
+
+- The calls: `StackConfig::any_ip: bool` (default false);
+  `StackConfig::checksum: ChecksumCapabilities` (default: each sum
+  computed and verified); `NetStack::listen_any(port: u16) ->
+  io::Result<TcpListener>`; `NetStack::bind_udp_any(port: u16) ->
+  io::Result<UdpSocket>`; `UdpSocket::send_to_from(buf, remote, source:
+  IpAddr) -> io::Result<usize>`; `UdpSocket::recv_from_to(buf) ->
+  io::Result<(usize, SocketAddr, SocketAddr)>` (the length, the source,
+  the destination); `LinkDevice::with_checksum(ChecksumCapabilities) ->
+  LinkDevice`. `UdpDatagrams` gives the destination in `RecvMeta::dst_ip`
+  and takes `Transmit::src_ip` as the source. A listener or a UDP socket
+  on each address has the `local_addr` `[::]:port`, and the admit sees
+  `[::]:port`.
+- Breaking: `StackConfig` has two new fields (a struct literal with no
+  `..StackConfig::default()` does not compile). A socket on each address
+  and a socket on one address of the same port are `AddrInUse`. A UDP
+  bind at the address and the port of the gateway service is `AddrInUse`
+  (that socket got no datagram). A UDP send to the other family than the
+  source is `InvalidInput`.
+- smoltcp 0.14: with any IP, `has_ip_addr` is true for each address, so
+  the listen of one address reads `Interface::ip_addrs` to own it.
+- Defect fixed in place: a UDP send to an address of the other family than
+  the socket's went to smoltcp, which panicked in the reactor
+  (`IP version mismatch`), and the stack stopped (podnet's stack had the
+  same code). `a_datagram_to_the_other_family_is_refused_and_the_stack_runs`
+  fails on the old code and passes now.
+- `cargo test -p pod-netstack`: 38 passed (29 before). New:
+  `a_listener_on_any_address_takes_each_destination` (TCP to 1.1.1.1,
+  10.66.0.77 and 2606:4700::1111 between a router and a program over a
+  link), `with_any_ip_off_a_listener_on_any_address_takes_only_the_own_addresses`,
+  `with_any_ip_a_listener_on_another_address_stays_in_the_stack`,
+  `a_udp_socket_on_any_address_answers_from_each_destination`,
+  `a_socket_on_any_address_shares_no_port_and_the_gateway_service_keeps_its_address`,
+  `a_partial_checksum_passes_with_tx_and_is_dropped_by_default`,
+  `a_tcp_exchange_with_partial_checksums_works_with_tx`,
+  `a_datagram_to_the_other_family_is_refused_and_the_stack_runs`,
+  `with_checksum_sets_the_capabilities`. The new tests passed 30 runs in a
+  loop.
+- `sh scripts/plant-each.sh netstack-any-ip-not-set
+  netstack-listener-owns-by-has-ip-addr`: 2 caught.
+- `sh scripts/agent/check.sh` (its own `CARGO_TARGET_DIR`): fmt 0, clippy 0,
+  lint 0, doc 0, record 0, size 0, paths 0, static 0, test 0 (the
+  workspace: 2,608 passed, 0 failed, 37 ignored).
+- Fixed in place: the static step of `scripts/agent/check.sh` read the
+  probes in `target/`, not in `CARGO_TARGET_DIR`.
+- Found: T-223 (a SYN sent again can reach a newer listen socket of the
+  pool of a listener).
+- PodUtils/podnet@T-249 can start on the first tag with `7c20ad2`.
+
+# T-223: `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener
+
+**Source:** T-222 (a reading of smoltcp 0.14 for the listener on any address).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A listener of `NetStack` keeps a pool of listen sockets (`accept_pool`,
+8 by default). smoltcp gives a TCP segment to the first socket of its set
+that takes it, in the order of the slots, and a socket in `Listen` takes
+each SYN with no ACK on its port: it does not look for a socket that holds
+the 4-tuple. When the reactor adopts a connection, it adds a new listen
+socket into the first free slot. Thus a listen socket can come before a
+socket of the same port in `SynReceived`. When the peer sends its SYN
+again (its SYN-ACK was lost or late), the newer listen socket takes it:
+two sockets hold one 4-tuple with two initial sequence numbers, and the
+first shadows the second. The handshake can then end with a RST, and the
+second socket can stay in `SynReceived` in the pool.
+
+## Premise
+
+- Read: smoltcp 0.14: `process_tcp` (the first socket that takes the
+  segment), `tcp::Socket::accepts` (a socket in `Listen` with no 4-tuple
+  takes each SYN with no ACK on its port), `SocketSet::add` (the first
+  free slot); `crates/pod-netstack/src/stack/service.rs` (`accept_inbound`
+  adds the new listen socket) and `crates/pod-netstack/src/stack/reactor.rs`
+  (`drop_socket` frees a slot).
+- Not measured: a run with a lost SYN-ACK; what the peer and the two
+  sockets do then. A link in the process loses a packet only when a
+  bounded queue is full; a pump over a real link can lose one.
+
+## Approach
+
+1. A test: two stacks over a pump that drops the first SYN-ACK of a
+   connection, with a free slot before the socket of its handshake (a
+   closed connection, then an accept of another connection).
+2. A fix: in smoltcp, `process_tcp` looks for the 4-tuple before the
+   listen sockets (report it with the test); or in the reactor, a SYN
+   whose 4-tuple a socket in `SynReceived` holds does not reach a listen
+   socket of the pool.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib
 ```

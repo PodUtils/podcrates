@@ -1,0 +1,9 @@
+# The listen of one address asks has_ip_addr whether the stack owns it.
+# With any IP, smoltcp 0.14 answers yes for each address, so the stack does
+# not own the address of the listener: its own connect to the listener goes
+# out on the link, and the handshake does not end.
+ENTRY=T-222
+GROUP=netstack
+EXPECT='no handshake in 3 s'
+RUN='cargo test -p pod-netstack --lib with_any_ip_a_listener_on_another_address_stays_in_the_stack'
+LIMIT=900

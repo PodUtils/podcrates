@@ -39,10 +39,12 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
     t=x86_64-unknown-linux-musl
+    # The binaries are in CARGO_TARGET_DIR when a worktree builds in its own.
+    out=${CARGO_TARGET_DIR:-target}/$t/release
     { cargo zigbuild -q --release --target "$t" -p static-probe &&
         cargo zigbuild -q --release --target "$t" -p static-probe-lean &&
         python3 -I scripts/check-probe.py &&
-        sh scripts/check-static.sh "target/$t/release/static-probe" "target/$t/release/static-probe-lean"; } > "$log/static.log" 2>&1; st=$?
+        sh scripts/check-static.sh "$out/static-probe" "$out/static-probe-lean"; } > "$log/static.log" 2>&1; st=$?
     echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 else
     echo "static skipped (no examples/static-probe, or no zig: sh scripts/cloud-setup.sh)"

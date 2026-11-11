@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/reactor.rs b/crates/pod-netstack/src/stack/reactor.rs
+index 59889cc..e016cfe 100644
+--- a/crates/pod-netstack/src/stack/reactor.rs
++++ b/crates/pod-netstack/src/stack/reactor.rs
+@@ -144,7 +144,6 @@ impl Core {
+         let mut iface_config = IfaceConfig::new(HardwareAddress::Ip);
+         iface_config.random_seed = config.random_seed;
+         let mut iface = Interface::new(iface_config, &mut device, SmolInstant::ZERO);
+-        iface.set_any_ip(config.any_ip);
+         let gateway_v4 = config.subnet.gateway_v4();
+         let gateway_v6 = config.subnet.gateway_v6();
+         iface.update_ip_addrs(|addrs| {

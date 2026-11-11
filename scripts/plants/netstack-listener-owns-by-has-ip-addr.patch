@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netstack/src/stack/reactor.rs b/crates/pod-netstack/src/stack/reactor.rs
+index 59889cc..a4a1f92 100644
+--- a/crates/pod-netstack/src/stack/reactor.rs
++++ b/crates/pod-netstack/src/stack/reactor.rs
+@@ -282,7 +282,7 @@ impl Core {
+     /// device would send a packet to `ip` out on the link.
+     fn own(&mut self, ip: IpAddr, addr: SocketAddr) -> io::Result<()> {
+         let smol = to_smoltcp(ip);
+-        if !self.iface.ip_addrs().iter().any(|cidr| cidr.address() == smol) && !smol.is_unspecified() {
++        if !self.iface.has_ip_addr(smol) && !smol.is_unspecified() {
+             let prefix = self.config.subnet.prefix_for(ip);
+             let mut full = false;
+             self.iface.update_ip_addrs(|addrs| {

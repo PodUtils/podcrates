@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**222 entries: 65 open, 4 partial, 0 blocked, 153 done.**
+**223 entries: 65 open, 4 partial, 0 blocked, 154 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 1 | 0 | 44 | 59 |
+| P1 | 13 | 1 | 0 | 45 | 59 |
 | P2 | 33 | 2 | 0 | 75 | 110 |
-| P3 | 18 | 1 | 0 | 32 | 51 |
-| **All** | 65 | 4 | 0 | 153 | 222 |
+| P3 | 19 | 1 | 0 | 32 | 52 |
+| **All** | 65 | 4 | 0 | 154 | 223 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -268,4 +268,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-219](roads.md) | P2 | L | M4 | feature | open | `pod-git`: receive-pack, the policy and the hook (PodUtils/podnet#453) |
 | [T-220](roads.md) | P2 | M | M4 | feature | open | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
 | [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain |
-| [T-222](relay.md) | P1 | M | M2 | feature | open | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
+| [T-222](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
+| [T-223](relay.md) | P3 | S | M2 | defect | open | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |

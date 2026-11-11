@@ -1,0 +1,8 @@
+# The stack does not give StackConfig::any_ip to its interface: a SYN to an
+# address that the router does not own is dropped, and the listener on any
+# address takes no connection of the program.
+ENTRY=T-222
+GROUP=netstack
+EXPECT='no accept in 5 s'
+RUN='cargo test -p pod-netstack --lib a_listener_on_any_address_takes_each_destination'
+LIMIT=900
