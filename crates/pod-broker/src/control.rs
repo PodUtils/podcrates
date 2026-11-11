@@ -110,8 +110,11 @@ impl Broker {
 pub use unix::{bind_unix, serve_control};
 
 #[cfg(unix)]
+mod bind;
+
+#[cfg(unix)]
 mod unix {
-    use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+    use std::os::unix::fs::FileTypeExt;
     use std::path::Path;
     use std::sync::Arc;
 
@@ -123,8 +126,10 @@ mod unix {
 
     /// Bind a Unix socket at `path` with the mode `mode` (0600 for the
     /// control). A socket that is there already is taken away first; another
-    /// kind of file is an error. Put the socket in a directory of mode 0700:
-    /// the mode is set just after the bind.
+    /// kind of file is an error. The socket has `mode` from the first
+    /// instant that the path holds it: it is bound in a directory of mode
+    /// 0700 beside the path and moves there by `link(2)` (T-196), so a
+    /// shared directory gives no window to another user.
     pub fn bind_unix(path: &Path, mode: u32) -> std::io::Result<UnixListener> {
         match std::fs::symlink_metadata(path) {
             Ok(meta) if meta.file_type().is_socket() => std::fs::remove_file(path)?,
@@ -136,9 +141,9 @@ mod unix {
             }
             Err(_) => {}
         }
-        let listener = UnixListener::bind(path)?;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
-        Ok(listener)
+        let listener = super::bind::bind_staged(path, mode)?;
+        listener.set_nonblocking(true)?;
+        UnixListener::from_std(listener)
     }
 
     /// Serve the control on `listener` ([`bind_unix`] with 0600), one task

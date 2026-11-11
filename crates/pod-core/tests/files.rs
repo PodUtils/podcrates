@@ -232,3 +232,27 @@ fn on_windows_a_directory_open_to_others_is_made_private() {
     pod_core::files::private_dir(&dir).unwrap();
     assert_eq!(read_own(&file, Others::NoAccess).unwrap().as_deref(), Some("x"), "closed now");
 }
+
+/// Threads that store one name at once each succeed, and the file is one
+/// whole body: the temporary name is of the call, not of the process
+/// (T-195).
+#[test]
+fn threads_that_store_one_name_at_once_leave_one_whole_body() {
+    let dir = scratch("threads");
+    let dirs = vec![dir.clone()];
+    let bodies: Vec<String> = (0..8).map(|n| format!("{n}").repeat(64 * 1024)).collect();
+    std::thread::scope(|s| {
+        for body in &bodies {
+            let dirs = dirs.clone();
+            s.spawn(move || {
+                for _ in 0..16 {
+                    pod_core::files::store_file_in_first(&dirs, "shared", body.as_bytes()).unwrap();
+                }
+            });
+        }
+    });
+    let text = std::fs::read_to_string(dir.join("shared")).unwrap();
+    assert!(bodies.contains(&text), "a torn file of {} bytes", text.len());
+    let left: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name()).collect();
+    assert_eq!(left, ["shared"], "a temporary file stayed");
+}

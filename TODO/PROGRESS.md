@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 195 entries: 58 open, 2 partial, 0 blocked, 135 done.
+`TODO/INDEX.md` holds 196 entries: 57 open, 2 partial, 0 blocked, 137 done.
 
 ## State
 
@@ -65,7 +65,7 @@ next entry.
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.
-5. **M1, the transport:** T-195 (a defect of `pod-core`); T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-174 (a Trojan node); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-021, T-024, T-025, T-026, T-188; then T-122,

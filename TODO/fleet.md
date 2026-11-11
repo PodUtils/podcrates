@@ -990,7 +990,7 @@ or in spaces get one hash; each change of meaning gets another.
 - Read: `crates/pod-broker/src/control.rs:42-56`: `info`, the JSON of a
   job. The `load` answer is `info` with more keys (`:86-92`), and `list`
   maps `info` (`:101-104`). One new field of `JobInfo` thus reaches both
-  answers. The control socket checks the user of its peer (`:161-168`).
+  answers. The control socket checks the user of its peer (`:166-173`).
 - Read: `crates/pod-broker/src/serve.rs:62-73`: `Note::line` starts both
   connection lines. The deny line sets `decision` and `rule` at `:347`,
   the allow line at `:364`. A refusal before the lease (408 or 407,
@@ -1062,3 +1062,60 @@ The tests:
   `no_audit_line_holds_a_planted_secret` still passes.
 - The plant: a hash of `Mode` only fails the tests "the same rules in
   another order" and "one more rule".
+
+# T-196: `pod-broker`: `bind_unix` leaves a window with the mode of the umask (PodUtils/podnet#444)
+
+**Source:** PodUtils/podnet#444 (COORD-026 of podnet; the donor review, satmux 6, PodUtils/podnet#429; podnet's fix `3c6173f`, PodUtils/podnet@T-238)
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`control::bind_unix` binds the socket at its path and then sets its
+mode. Until the `chmod`, the socket has the mode of the umask (0755, 0775
+or 0777 for 022, 002 and 000). In a shared directory another user can
+connect in that window. The control refuses a peer of another user, but a
+listener of one job (T-160) takes no token: a connection in the window is
+a connection of the job.
+
+## Premise
+
+- Read: `crates/pod-broker/src/control.rs` (`bind_unix`; its doc asked
+  for a directory of mode 0700); podnet's report and fix.
+- Read: the other binds of a Unix listener in podcrates:
+  `pod-supervise` binds in the directory of its container (mode 0700,
+  T-175); `pod-guest` binds in a test only.
+
+## Approach
+
+Bind in a new directory of mode 0700 beside the path (a name that another
+user cannot guess, `mkdir(2)` refuses a name that is there), set the mode
+there, move the socket to the path with `link(2)` (it refuses a path that
+is there: `AddrInUse`), and remove the stage. A path whose stage does not
+fit in `sun_path` binds at the path. The socket keeps the name of its
+bind. Test each umask in a new process.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --test control
+```
+
+## Done
+
+2026-11-11. `control::bind_unix` binds through `control/bind.rs`: the
+socket is bound in a new directory of mode 0700 beside the path (the name
+`.pod-broker-` and 16 hex digits of the random keys of the standard
+hasher; `mkdir(2)` refuses a name that is there, 8 tries), gets its mode
+there, moves to the path by `link(2)` (a path that is there gives
+`AddrInUse`), and the stage goes. A stage that does not fit in `sun_path`
+(103 bytes) binds at the path. The test
+`a_socket_has_its_mode_under_each_umask` runs a worker under the umasks
+000, 002 and 022: a thread reads the mode of the path during 200 binds,
+and no mode other than 0600 shows; no stage stays. The plant
+`broker-bind-at-the-path` (a bind at the path, then a chmod) fails it: the
+thread saw 0777 in each of 3 runs. `cargo test -p pod-broker
+--all-features` passes.

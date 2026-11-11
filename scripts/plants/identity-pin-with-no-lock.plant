@@ -1,0 +1,7 @@
+# A pin with no lock around the read, the add and the store: two pins at
+# once keep one line only (T-195).
+ENTRY=T-195
+GROUP=files
+EXPECT='threads_that_pin_at_once_keep_each_line'
+RUN='cargo test -p pod-identity --all-features --test identity'
+LIMIT=1800

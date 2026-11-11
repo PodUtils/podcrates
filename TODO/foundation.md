@@ -1663,7 +1663,7 @@ The tests:
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1714,3 +1714,15 @@ cargo test -p pod-core --all-features
 cargo test -p pod-identity --all-features
 ```
 
+## Done
+
+2026-11-11. `write_private` names its temporary file `.NAME.PID.N.tmp`
+with a counter of the process and removes no file first. `pins::check_split`
+holds a lock of the process around the read, the add and the store; two
+processes are not held (call C54). Tests:
+`threads_that_store_one_name_at_once_leave_one_whole_body` (8 threads, 16
+stores each of 64 KiB, one whole body and no temporary file stays) and
+`threads_that_pin_at_once_keep_each_line` (16 threads, 16 lines). The
+plants `core-store-shares-one-temp-name` and `identity-pin-with-no-lock`
+fail them in each of 3 runs. `cargo test -p pod-core -p pod-identity
+--all-features` passes.

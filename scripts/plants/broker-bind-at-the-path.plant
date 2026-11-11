@@ -1,0 +1,7 @@
+# A bind at the path, then a chmod: a watcher sees the mode of the umask
+# before the chmod, and another user can connect in that window (T-196).
+ENTRY=T-196
+GROUP=proxy
+EXPECT='a_socket_has_its_mode_under_each_umask'
+RUN='cargo test -p pod-broker --all-features --test control'
+LIMIT=1800

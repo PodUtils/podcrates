@@ -153,3 +153,76 @@ fn a_job_expires_at_a_lookup_with_no_runtime_timer() {
         assert_eq!(status(&broker, &connect("a.example:443")).await, 407);
     });
 }
+
+/// The worker of [`a_socket_has_its_mode_under_each_umask`]: it runs only
+/// in the process that test starts (the variable names the umask). A
+/// thread reads the mode of the path while the worker binds it again and
+/// again: a bind at the path shows the mode of the umask until its chmod.
+/// The worker prints each other mode that the thread saw, the mode of the
+/// last bind and the names that the directory holds.
+#[cfg(unix)]
+#[test]
+fn bind_worker_under_a_umask() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let Some(mask) = std::env::var_os("POD_BROKER_TEST_UMASK") else { return };
+    let dir = std::path::PathBuf::from(std::env::var_os("POD_BROKER_TEST_DIR").unwrap());
+    let mask = u32::from_str_radix(&mask.to_string_lossy(), 8).unwrap();
+    // SAFETY: umask takes a mode and touches no memory.
+    unsafe { libc::umask(mask as libc::mode_t) };
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let _guard = runtime.enter();
+    let path = dir.join("b.sock");
+    let done = AtomicBool::new(false);
+    let odd = std::thread::scope(|s| {
+        let watcher = s.spawn(|| {
+            let mut odd = std::collections::BTreeSet::new();
+            while !done.load(Ordering::Relaxed) {
+                if let Ok(meta) = std::fs::symlink_metadata(&path) {
+                    let mode = meta.permissions().mode() & 0o777;
+                    if mode != 0o600 {
+                        odd.insert(format!("{mode:o}"));
+                    }
+                }
+            }
+            odd
+        });
+        for _ in 0..200 {
+            drop(pod_broker::control::bind_unix(&path, 0o600).unwrap());
+        }
+        done.store(true, Ordering::Relaxed);
+        watcher.join().unwrap()
+    });
+    let _listener = pod_broker::control::bind_unix(&path, 0o600).unwrap();
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    let mut names: Vec<String> =
+        std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    let odd: Vec<String> = odd.into_iter().collect();
+    println!("odd=[{}] mode={mode:o} names={}", odd.join(","), names.join(","));
+}
+
+/// Under the umasks 000, 002 and 022 the socket has the mode of the bind
+/// from the first instant that the path holds it, and no directory of the
+/// stage stays (T-196, PodUtils/podnet#444). Each umask runs in a new
+/// process: the umask is of the process.
+#[cfg(unix)]
+#[test]
+fn a_socket_has_its_mode_under_each_umask() {
+    let me = std::env::current_exe().unwrap();
+    for mask in ["000", "002", "022"] {
+        let dir = pod_testkit::host::socket_dir(&format!("pod-broker-umask-{mask}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = std::process::Command::new(&me)
+            .args(["--exact", "bind_worker_under_a_umask", "--nocapture", "--test-threads", "1"])
+            .env("POD_BROKER_TEST_UMASK", mask)
+            .env("POD_BROKER_TEST_DIR", &dir)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(out.status.success(), "umask {mask}: {text}\n{}", String::from_utf8_lossy(&out.stderr));
+        assert!(text.contains("odd=[] mode=600 names=b.sock\n"), "umask {mask}: {text}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

@@ -165,8 +165,12 @@ pub fn read_trusted(path: &Path) -> Option<String> {
 fn write_private(dir: &Path, name: &str, body: &[u8]) -> std::io::Result<PathBuf> {
     make_private_dir(dir)?;
     let final_path = dir.join(name);
-    let tmp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
-    let _ = std::fs::remove_file(&tmp);
+    // One name for each call, also for two threads of one process (T-195):
+    // a name of the process alone let a second writer remove the first
+    // one's file and tear it.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = dir.join(format!(".{name}.{}.{unique}.tmp", std::process::id()));
     let result = (|| {
         let mut file = create_new_private(&tmp)?;
         file.write_all(body)?;

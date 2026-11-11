@@ -219,3 +219,22 @@ fn a_pin_that_cannot_be_trusted_refuses_and_an_odd_label_is_not_pinned() {
         assert!(matches!(&why, PinError::Unreadable(text) if text.contains("others can change it")), "{why:?}");
     }
 }
+
+/// Threads that pin labels at once keep each line (T-195): the read, the add
+/// and the store are one step.
+#[test]
+fn threads_that_pin_at_once_keep_each_line() {
+    let base = scratch("pins-threads");
+    let dirs = [base.join("a")];
+    let node = key(OPENSSH_KEY);
+    std::thread::scope(|s| {
+        for n in 0..16 {
+            let (dirs, node) = (&dirs, &node);
+            s.spawn(move || assert!(matches!(pins::check_in(dirs, &format!("node{n}"), node), Ok(Seen::Pinned(_)))));
+        }
+    });
+    let text = std::fs::read_to_string(dirs[0].join(pins::FILE)).unwrap();
+    for n in 0..16 {
+        assert!(text.lines().any(|l| l.starts_with(&format!("node{n} "))), "the pin of node{n} is lost:\n{text}");
+    }
+}

@@ -65,6 +65,11 @@ pub fn check_in(dirs: &[PathBuf], label: &str, key: &PublicKey) -> Result<Seen, 
 /// [`check`], with the pins looked for in `kept` and written in `dirs` (for
 /// tests).
 pub fn check_split(kept: &[PathBuf], dirs: &[PathBuf], label: &str, key: &PublicKey) -> Result<Seen, PinError> {
+    // The read, the add and the store are one step for the threads of the
+    // process: two pins at once kept one line only (T-195). Two processes
+    // are not held (call C54).
+    static PINNING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = PINNING.lock().unwrap_or_else(|e| e.into_inner());
     let found = find(kept)?;
     if let Some((path, text)) = &found {
         let mut first: Option<(String, usize)> = None;

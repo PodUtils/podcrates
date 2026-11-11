@@ -1,0 +1,11 @@
+--- a/crates/pod-identity/src/pins.rs
++++ b/crates/pod-identity/src/pins.rs
+@@ -69,7 +69,7 @@
+     // process: two pins at once kept one line only (T-195). Two processes
+     // are not held (call C54).
+     static PINNING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+-    let _held = PINNING.lock().unwrap_or_else(|e| e.into_inner());
++    let _held = (&PINNING, ());
+     let found = find(kept)?;
+     if let Some((path, text)) = &found {
+         let mut first: Option<(String, usize)> = None;

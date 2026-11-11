@@ -1,0 +1,7 @@
+# One temporary name for each process, removed before the create: two
+# threads that store one name at once tear the file or fail (T-195).
+ENTRY=T-195
+GROUP=files
+EXPECT='threads_that_store_one_name_at_once_leave_one_whole_body'
+RUN='cargo test -p pod-core --all-features --test files'
+LIMIT=1800
