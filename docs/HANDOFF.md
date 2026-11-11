@@ -12,15 +12,16 @@ page current; remove a line when its work is done.
   43030479938, release 43038279699; the hand-off GitHub #72, COORD-047):
   `pod-confine` and `Plan.confine` (T-108, call C57; #69), the empty root
   entry of `pod-extract` (T-208, PodUtils/podvm#261), `plant-each.sh
-  --apply` (T-210). `v0.22.0` is at `93de04a` (the hand-off #71: podssh,
-  podvm and podrunner took it; podnet's take of `pod-wg` remains, on #67).
+  --apply` (T-210). `v0.22.0` is at `93de04a` (the hand-off #71: each
+  consumer took it).
 - The consumers and the tag each takes:
   - podssh: `v0.22.0` (`75a50318`, PodUtils/podssh#191; it took `pod-e2e`;
     the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
     PodUtils/podssh@T-740).
     `pod-wormhole` at `baa00a06`, `pod-session` at `6f78a7c7`.
-  - podnet: `v0.21.0` (`54bd958`, PodUtils/podnet#448; `pod-services-watch`
+  - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447: it took `pod-wg`;
+    earlier `54bd958`, PodUtils/podnet#448; `pod-services-watch`
     at `0b945a3`). `pod-netstack` at `d23ce4e` (PodUtils/podnet#445:
     taken; it keeps `CongestionControl::None` in `tests/tcp_window.rs`).
     T-188 is done: Reno and CUBIC are slow only on a link that gives one
@@ -64,14 +65,6 @@ page current; remove a line when its work is done.
   COORD issue with its commit. podssh's `tests/e2e_layered.rs` comes with
   it. A trial of a crate with a digit in its name needs `040f3ea` (the
   pattern of `scripts/adoption.sh`).
-- `pod-wg` (T-024, done; call C56): released in `v0.22.0`; podnet's take
-  remains. `adoption/podnet/pod-wg.patch` (podnet `54d7ed4`, the commit that
-  PodUtils/podnet#447 holds) is the hand-off; its checks passed here (the
-  patch applies, podnet's record, clippy, rustfmt, cargo-deny,
-  `cargo test -p podnet --lib`: 457 passed), and `adoption.yml` runs the
-  whole `.run`. Tell podnet on GitHub #67: the defects that the crate fixed
-  (the T-024 Done section), the cookie, and that its take moves from
-  `v0.21.0` (`54bd958`). podnet answers on #67 with the commit of its take.
 - At a take of a consumer (a COORD issue `(to podcrates)` or an answer on
   the hand-off): add the `taken` line to the crate's `SOURCES`
   (`check-sources.py` with clones must show 0 changes), remove the trial

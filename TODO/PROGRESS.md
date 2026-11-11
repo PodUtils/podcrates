@@ -9,21 +9,19 @@
   43030479938, release 43038279699): `pod-confine` and `Plan.confine` of
   `pod-enter` (T-108), the empty root entry of `pod-extract` (T-208),
   `plant-each.sh --apply` (T-210). The hand-off is GitHub #72 (COORD-047).
-  `v0.22.0` is at `93de04a` (the hand-off #71; podnet's take of `pod-wg`
-  remains).
+  `v0.22.0` is at `93de04a` (the hand-off #71: each consumer took it).
 - The consumers: podssh is on `v0.22.0` (`75a50318`, PodUtils/podssh#191;
   it took `pod-e2e`; earlier `6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
-  `pod-session` at `6f78a7c7`); podnet is on `v0.21.0`
-  (`54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
+  `pod-session` at `6f78a7c7`); podnet is on `v0.22.0`
+  (`089e1c9`, PodUtils/podnet#447: it took `pod-wg`; earlier `54bd958`, PodUtils/podnet#448; `pod-services-watch` at `0b945a3`;
   `pod-netstack` at `d23ce4e`; `pod-hold` at `b759937`,
   its `connect` and `packet` at `e4d4049`); podvm is on `v0.22.0` (`c9d5038`,
   PodUtils/podvm#262: its launcher sets `die_with_parent`, experiment 437;
   its incus tier calls `pod-incus`); podrunner is on `v0.22.0`
   (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
-- Takes that wait: podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
-  podvm's take of `pod-confine` for PodUtils/podvm@T-1658 (T-108, #69,
+- Takes that wait: podvm's take of `pod-confine` for PodUtils/podvm@T-1658 (T-108, #69,
   #72).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).

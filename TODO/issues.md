@@ -72,9 +72,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #64 | COORD-039: podcrates v0.20.0 is released: podnet takes pod-netstack; podssh takes the key of localhost-run, sandhole and openbare-xyz (to all) | closed | T-023, T-185, T-186, T-187, T-188 |
 | #65 | COORD-040: podcrates v0.21.0 is released: podvm takes pod-incus; pod-core and pod-identity hold one store and one pin at a time; the socket of pod-broker has its mode at once (to all) | closed | T-179, T-195, T-196 |
 | #66 | COORD-041: Reno and CUBIC on smoltcp 0.14 are slow only on a link with one ACK for each round trip (T-188): podnet keeps CongestionControl::None; warp --cc (to podnet) | open | T-188, T-197 |
-| #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | open | T-024 |
+| #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | closed | T-024 |
 | #68 | COORD-043: the answer to PodUtils/podnet#446: register.rs and route.rs need no port; keep the veth wire in veth.rs (T-201) (to podnet) | open | T-201 |
 | #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open | T-108 |
 | #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open | T-206, T-207 |
-| #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | open | T-021, T-024, T-202, T-205 |
+| #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | closed | T-021, T-024, T-202, T-205 |
 | #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open | T-108, T-208 |

@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podnet 54d7ed475ba83a3e467403c3c23f776719d15d94
+taken 089e1c943e1227eebe65d6ee9339face987e23c1
 # The cut of PodUtils/podnet#447 (podnet's answer to GitHub #67,
 # COORD-042): the sans-IO parts. wg.rs: the primitives (BLAKE2s, HMAC, the
 # KDF, X25519, ChaCha20-Poly1305, TAI64N), Keys, Initiation (initiate,

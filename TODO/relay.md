@@ -849,7 +849,8 @@ podnet's take remain.
   with the stand-in in memory, a packet each way and a rekey; with
   `static-probe-lean` it is static on `x86_64-unknown-linux-musl`
   (`cargo zigbuild`, `scripts/check-static.sh`). ring stays (C8).
-- Trial: `adoption/podnet/pod-wg.patch` applies at podnet `54d7ed4`; with
+- Trial: the patch `pod-wg.patch` of `adoption/podnet/` (removed after
+  podnet's take) applies at podnet `54d7ed4`; with
   the crates of this tree, podnet's record check, `check-size.py`,
   `check-layers.py`, clippy of the workspace, `cargo fmt --check`,
   `cargo deny check bans sources`, and `cargo test -p podnet --lib`: 457
@@ -860,6 +861,13 @@ podnet's take remain.
   changes. In the run of `sh scripts/agent/check.sh`,
   `a_session_moves_while_both_ends_send_at_full_speed` of `pod-session`
   failed one time (T-204).
+- Released in `v0.22.0` (`93de04a`). podnet took it at `089e1c9`
+  (PodUtils/podnet#447): `git apply --3way`; the manifests conflicted only
+  on the tags; each line of `pod-wg.run` passed there but the zigbuild;
+  `cargo test -p podnet --lib` 492 passed; its `check.sh` 0. The cookie
+  path of `connect_on` and `Peer` whole in podnet are as the patch has
+  them. `check-sources.py` with a clone at `089e1c9`: 3 files, 0 changes.
+  The trial files are removed.
 
 # T-025: `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh)
 
