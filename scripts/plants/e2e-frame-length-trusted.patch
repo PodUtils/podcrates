@@ -1,0 +1,14 @@
+diff --git a/crates/pod-e2e/src/channel/carry.rs b/crates/pod-e2e/src/channel/carry.rs
+index 6e5ccf8..f6a06c7 100644
+--- a/crates/pod-e2e/src/channel/carry.rs
++++ b/crates/pod-e2e/src/channel/carry.rs
+@@ -60,9 +60,6 @@ pub(crate) fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+     if len == 0 {
+         return Err(Error::Malformed("an empty frame".into()));
+     }
+-    if buf.len() < 2 + len {
+-        return Ok(None);
+-    }
+     let message = buf[2..2 + len].to_vec();
+     buf.drain(..2 + len);
+     Ok(Some(message))

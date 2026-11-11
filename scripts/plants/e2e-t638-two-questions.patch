@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/person.rs b/crates/pod-e2e/src/person.rs
+index d131632..77ddf3b 100644
+--- a/crates/pod-e2e/src/person.rs
++++ b/crates/pod-e2e/src/person.rs
+@@ -102,7 +102,7 @@ impl Slot {
+     /// Whether the slot still says something at `now`.
+     fn live(&self, now: Instant) -> bool {
+         match self {
+-            Slot::Asking(_) => true,
++            Slot::Asking(_) => false,
+             Slot::Covered { open, until } => *open > 0 || *until > now,
+             Slot::Refused { until, .. } => *until > now,
+         }

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/handshake.rs b/crates/pod-e2e/src/handshake.rs
+index 07cdde1..51e7da8 100644
+--- a/crates/pod-e2e/src/handshake.rs
++++ b/crates/pod-e2e/src/handshake.rs
+@@ -125,7 +125,7 @@ pub async fn initiate_with<T: AsyncRead + AsyncWrite + Unpin>(
+     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+     // Such a node lets the operator in by its own door; the caller says it
+     // once.
+-    let unanswered = docs.is_some() && read.net.is_none();
++    let unanswered = docs.is_none() && read.net.is_none();
+     let net = match (docs, read.net) {
+         (Some(docs), Some((peer, _))) => Some(Talk { docs, peer }),
+         _ => None,

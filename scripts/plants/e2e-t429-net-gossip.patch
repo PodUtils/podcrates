@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/handshake.rs b/crates/pod-e2e/src/handshake.rs
+index 07cdde1..c8a0058 100644
+--- a/crates/pod-e2e/src/handshake.rs
++++ b/crates/pod-e2e/src/handshake.rs
+@@ -285,7 +285,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
+     pub async fn admit_with(mut self, seed: Option<&[u8; 32]>) -> Result<Channel<T>, Error> {
+         self.channel.send_verdict_with(&Ok(()), seed).await?;
+         if let Some(talk) = self.net {
+-            if let Some(bytes) = talk.gift(&self.peer) {
++            if let Some(bytes) = talk.gift(&self.peer).filter(|_| false) {
+                 self.channel.send_net(&bytes).await?;
+             }
+             self.channel.set_net(talk.docs, self.peer);

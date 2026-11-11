@@ -90,6 +90,28 @@ fn each_target_survives_mutations() {
     }
 }
 
+/// The seeds of the targets of pod-e2e reach past the first check: the
+/// proofs of the identity of the seed read, a proof of another key does not,
+/// and the states of a handover read.
+#[test]
+fn the_seeds_of_the_e2e_targets_read() {
+    use pod_e2e::hold::ChannelState;
+    let dir = here().join("seeds");
+    let identity = pod_identity::Identity::from_seed(&[1; 32]);
+    let read = |name: &str| {
+        let bytes = std::fs::read(dir.join("e2e_proof").join(name)).expect("a seed");
+        pod_e2e::fuzzing::proof(&bytes[1..], Some(identity.dh_public()), bytes[0] & 1 == 1)
+    };
+    for name in ["plain", "routed", "exit", "net_form", "granted"] {
+        read(name).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    assert!(read("other_key").is_err(), "a key that does not sign the Noise key");
+    for name in ["held", "fresh"] {
+        let bytes = std::fs::read(dir.join("e2e_handover").join(name)).expect("a seed");
+        ChannelState::decode(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+}
+
 /// The seeds of the targets of pod-session reach past the first check:
 /// the states of a handover read, and the records decode.
 #[test]

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/handshake.rs b/crates/pod-e2e/src/handshake.rs
+index 07cdde1..0284b4f 100644
+--- a/crates/pod-e2e/src/handshake.rs
++++ b/crates/pod-e2e/src/handshake.rs
+@@ -388,7 +388,7 @@ pub(crate) fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: boo
+     let noise_key: [u8; 32] = remote_static
+         .and_then(|s| s.try_into().ok())
+         .ok_or_else(|| Error::Handshake("the peer sent no Noise static key".into()))?;
+-    if !key.signed(&noise_key, &binding) {
++    if noise_key.is_empty() && !key.signed(&noise_key, &binding) {
+         return Err(Error::Handshake(format!("the key {key} does not sign the peer's Noise key")));
+     }
+     Ok(Proof { key, ask, net, grant })

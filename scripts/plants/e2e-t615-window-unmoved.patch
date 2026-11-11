@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/legs.rs b/crates/pod-e2e/src/legs.rs
+index e4d8e92..3997d33 100644
+--- a/crates/pod-e2e/src/legs.rs
++++ b/crates/pod-e2e/src/legs.rs
+@@ -239,7 +239,7 @@ impl Leases {
+             inner.by_digest.remove(&digest);
+             say(frame(&digest, 0));
+         }
+-        window.low = window.low.max(index + 1);
++        window.low = window.low.max(index);
+         let ends = now_ms() + LIFE_MS;
+         for (digest, leg) in window.digests() {
+             inner.by_digest.insert(digest, (session, leg));

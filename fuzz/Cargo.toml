@@ -38,6 +38,10 @@ pod-ws = { path = "../crates/pod-ws" }
 pod-quic = { path = "../crates/pod-quic" }
 pod-wormhole = { path = "../crates/pod-wormhole" }
 pod-session = { path = "../crates/pod-session" }
+# The feature `fuzzing` makes the readers of the frames, the verdict and the
+# proof public; the identity of a proof's seed is pod-identity's.
+pod-e2e = { path = "../crates/pod-e2e", features = ["fuzzing"] }
+pod-identity = { path = "../crates/pod-identity" }
 # The feature `fuzzing` gives the memfd that stands in for the memory of a
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
@@ -190,6 +194,27 @@ bench = false
 [[bin]]
 name = "udp_frame"
 path = "fuzz_targets/udp_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "e2e_frame"
+path = "fuzz_targets/e2e_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "e2e_proof"
+path = "fuzz_targets/e2e_proof.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "e2e_handover"
+path = "fuzz_targets/e2e_handover.rs"
 test = false
 doc = false
 bench = false

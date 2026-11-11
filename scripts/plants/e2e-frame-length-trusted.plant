@@ -1,0 +1,7 @@
+# The carry takes a frame by its length before the bytes of the frame came,
+# so a frame cut short reads past the bytes that the relay sent; the test of
+# a frame taken whole or kept for later must fail.
+ENTRY=T-021
+GROUP=e2e
+EXPECT='test channel::carry::tests::a_frame_is_taken_whole_or_waits \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- channel::carry::tests::a_frame_is_taken_whole_or_waits'

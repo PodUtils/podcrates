@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/person.rs b/crates/pod-e2e/src/person.rs
+index d131632..e4c5c31 100644
+--- a/crates/pod-e2e/src/person.rs
++++ b/crates/pod-e2e/src/person.rs
+@@ -279,7 +279,7 @@ impl Gate {
+         let now = Instant::now();
+         let slot = match &said {
+             Ok(()) => Slot::Covered { open: 1, until: now + self.times.cover },
+-            Err(why) => Slot::Refused { until: now + self.times.stands, why: why.clone() },
++            Err(why) => Slot::Refused { until: now, why: why.clone() },
+         };
+         self.slots().insert(out.key, slot);
+         out.answered = true;

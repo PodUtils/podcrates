@@ -8,9 +8,11 @@ use pod_proxy::{Carrier, NoProxy, Proxy, authority, digest, proxy_auth};
 
 use crate::{is_one_line, text};
 
+mod e2e;
 mod job;
 mod podvm;
 
+pub use e2e::{e2e_frame, e2e_handover, e2e_proof};
 pub use job::job_offer;
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest};
 

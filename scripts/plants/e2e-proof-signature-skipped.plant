@@ -1,0 +1,7 @@
+# The proof of a key no longer needs the key's signature of the peer's Noise
+# static key, so a node that replays another node's key and binding passes as
+# that node; the test of a replayed proof must fail.
+ENTRY=T-021
+GROUP=e2e
+EXPECT='test a_replayed_proof_of_another_key_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test e2e -- a_replayed_proof_of_another_key_is_refused'
