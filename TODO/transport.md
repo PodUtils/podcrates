@@ -3536,7 +3536,7 @@ cargo test -p pod-services
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3566,4 +3566,15 @@ connect is a later kind if a consumer asks for one.
 ```sh
 cargo test -p pod-services
 ```
+
+## Done
+
+2026-11-11. `services/zerotier-tcp-relay.toml`: kind `tcp-relay`, endpoint
+`tcp` (`204.80.128.1:443`), fact `relay` (`204.80.128.1/443`, the form of
+`ZT_TCP_FALLBACK_RELAY`), the source ZeroTierOne `service/OneService.cpp` at
+`899352e3`, and two `github-file` watches (the define and
+`tcp-proxy/README.md` on the default branch). The README row names it; the
+test `the_tcp_relay_of_zerotier_is_its_fallback_address` reads the
+endpoint and the fact. `cargo test -p pod-services --all-features` passes.
+podssh needs no watch of a TCP connect (its amended PodUtils/podssh#190).
 
