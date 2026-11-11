@@ -1,0 +1,28 @@
+# The release of the official runner of GitHub Actions that the image of a
+# unit holds. GitHub refuses a runner with no automatic update that is not
+# updated within 30 days of a new release, so the watch fails when the pin
+# is older than 30 days: a pin of that age can be past the rule, and a
+# newer pin is not (PodUtils/podvm#227, section 2.5).
+id = "github-actions-runner"
+kind = "runner-release"
+party = "GitHub"
+about = "The pinned release of actions/runner, the official runner of GitHub Actions"
+
+[[endpoint]]
+name = "releases"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/actions/runner/releases"
+source = { url = "https://github.com/actions/runner/releases", read = 2026-11-11 }
+
+[[fact]]
+name = "runner-tag"
+value = "v2.338.2"
+source = { url = "https://api.github.com/repos/actions/runner/releases/latest", read = 2026-11-11, note = "published 2026-10-26; read through the mirror forge.web.pkgforge.dev" }
+
+[[watch]]
+kind = "github-release"
+repo = "actions/runner"
+fact = "runner-tag"
+max-age-days = 30

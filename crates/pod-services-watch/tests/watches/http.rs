@@ -15,7 +15,11 @@ fn answer(request: &Request) -> Answer {
         ),
         "/health" => Answer::new(200, "ok"),
         "/trace" => Answer::new(200, "fl=1\nh=one.one.one.one\n"),
-        "/meta" => Answer::new(200, r#"{"ssh_key_fingerprints":{"SHA256_ED25519":"k1","SHA256_RSA":"k2"}}"#),
+        "/meta" => Answer::new(
+            200,
+            r#"{"ssh_key_fingerprints":{"SHA256_ED25519":"k1","SHA256_RSA":"k2"},
+                "domains":{"actions_inbound":{"full_domains":["github.com","broker.example.test"]}}}"#,
+        ),
         _ => Answer::new(404, "no"),
     }
 }
@@ -104,4 +108,27 @@ async fn github_ssh_keys_are_the_fingerprints_of_the_fact() {
         report.outcome.findings,
         vec![Finding::moved("\"keys\"", "SHA256:k1, SHA256:k3", "SHA256:k1, SHA256:k2")]
     );
+}
+
+/// The list of hosts of a self-hosted runner (T-164): the watch holds while
+/// the list of the document is the fact, and fails on a host that the
+/// document adds or removes.
+#[tokio::test]
+async fn http_json_fails_on_a_host_that_a_list_adds_or_removes() {
+    pod_testkit::need_loopback!();
+    let stand = https(answer);
+    let url = format!("https://{NAME}:{}/meta", stand.port());
+    let w = watch(&format!(
+        "kind = \"http-json\"\nurl = \"{url}\"\npointer = \"/domains/actions_inbound/full_domains\"\nfact = \"hosts\""
+    ));
+    let same = fact("hosts", r#"["github.com", "broker.example.test"]"#) + &w;
+    assert!(one(&file("l1", &same)).await.holds());
+    // The document added a host that the file does not hold.
+    let added = fact("hosts", r#"["github.com"]"#) + &w;
+    let report = one(&file("l2", &added)).await;
+    assert!(!report.holds() && text(&report).contains("MOVED l2 http-json"), "{}", text(&report));
+    // The document removed a host that the file holds.
+    let removed = fact("hosts", r#"["github.com", "broker.example.test", "gone.example.test"]"#) + &w;
+    let report = one(&file("l3", &removed)).await;
+    assert!(!report.holds() && text(&report).contains("gone.example.test"), "{}", text(&report));
 }

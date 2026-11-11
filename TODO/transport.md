@@ -2757,7 +2757,7 @@ wss://getcroc.com:443/ws?relay=0&port=9009 upgraded".
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2792,6 +2792,31 @@ The tests that the issue names:
 None. The owner named podrunner on 2026-11-11 (the ruling "podrunner online"; call C49: DR-1 and DR-2 are yes). Take the entry when podrunner's work needs it (`TODO/PROGRESS.md`, Work order).
 
 Depends on T-050 (done).
+
+## Done
+
+2026-11-11. Read: GitHub's meta API (`/meta`, through the mirror
+forge.web.pkgforge.dev), `domains.actions_inbound`: 218 full domains and 6
+wildcards; `actions/runner` `v2.338.2` (published 2026-10-26).
+
+- `services/github-actions.toml` (kind `ci-service`): 7 endpoints (role
+  `control`: `github.com`, `api.github.com`, the broker, the runner auth,
+  the results receiver; role `download`: `codeload.github.com`,
+  `release-assets.githubusercontent.com`); the facts `full-domains` and
+  `wildcard-domains` (each with an `http-json` watch of the meta API) and
+  `multi-tenant` (`*.core.windows.net`, `*.githubusercontent.com`: the
+  storage of each customer of Azure, the raw files and assets of each user
+  of GitHub). The source of each value is the meta API, read 2026-11-11.
+- `services/github-actions-runner.toml` (kind `runner-release`): the fact
+  `runner-tag` and a `github-release` watch with `max-age-days = 30`: a pin
+  of that age can be past GitHub's rule of 30 days after a new release, so
+  the watch warns early, never late.
+- Tests: `tests/actions.rs` of `pod-services` (3: the source and the date
+  of each list, the endpoints in the list, the flags among the wildcards;
+  the two list watches; the watch of the pin); the watch test
+  `http_json_fails_on_a_host_that_a_list_adds_or_removes` (a host added,
+  a host removed). `cargo test -p pod-services --all-features` and
+  `cargo test -p pod-services-watch --all-features` pass.
 
 # T-165: `pod-tls`: mutual TLS with pinned keys (PodUtils/podvm#227)
 

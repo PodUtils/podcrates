@@ -201,6 +201,8 @@ let relay = services.of_kind("relay").next();
 | `ajam-relay` | `relay` | `default`; `seed-*` (role `seed`, 6) | `connect-timeout-ms`, `idle-timeout-ms`, `max-session-ms`, `max-session-bytes`, `max-frame-bytes`, `measured-version`, `signed-list-keys` |
 | `ajam-ts-relay` | `ts-relay` | `default` | |
 | `github-ssh` | `ssh-host` | `ssh` | `host-key-sha256` |
+| `github-actions` | `ci-service` | `github`, `api`, `broker`, `runner-auth`, `results-receiver` (role `control`), `codeload`, `release-assets` (role `download`) | `full-domains`, `wildcard-domains` (the `actions_inbound` domains of GitHub's meta API, each watched by `http-json`), `multi-tenant` (the wildcards that hold the content of other parties) |
+| `github-actions-runner` | `runner-release` | `releases` | `runner-tag` (the pin of `actions/runner`; `github-release` fails past 30 days, GitHub's rule of updates) |
 | `cloudflare-doh`, `google-doh` | `doh` | `v4-1`, `v4-2` (role `v4`), `v6-1`, `v6-2` (role `v6`) | `json-path`, `wire-path`, `http2-only` |
 | `quad9-doh` | `doh` | `v4-1`, `v4-2` (role `v4`) | `wire-path`, `http2-only` (no `json-path`: no JSON form) |
 | `cloudflare-dns` | `dns` | `udp-1`, `udp-2` (role `udp`), `trace` | `whoami-name`, `check-name` |
