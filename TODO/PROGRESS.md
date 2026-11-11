@@ -5,9 +5,11 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.24.0` at `228e2e3` (`docs/releases/v0.24.0.md`; the
-  hand-off GitHub #73, COORD-048). The next release: `pod-relay` (T-025),
-  T-209 and T-221 (`pod-confine`), T-222 (`pod-netstack`), T-216.
+- Last release: `v0.25.0` at `80f5dc7` (`docs/releases/v0.25.0.md`; ci
+  43069819903, release 43073344800; the hand-off GitHub #76, COORD-051):
+  the `pod-netstack` calls of podnet's router (T-222), `pod-confine`'s
+  scopes, closed UDP, MPTCP, io_uring and root capabilities (T-209,
+  T-221), `pod-relay` (T-025, partial).
 - The consumers and their tags:
   - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192).
   - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).

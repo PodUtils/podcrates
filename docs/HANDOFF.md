@@ -16,9 +16,10 @@ a line when its work is done. Git and the record keep finished work.
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.
-- The next release: `pod-relay` (T-025) and T-209 (`pod-confine`: the
-  scopes, a closed UDP, no MPTCP under a TCP list, no io_uring; calls C61
-  to C63; breaking: `Spec` and `Deny`).
+- The last release: `v0.25.0` at `80f5dc7` (the hand-off #76). In work
+  for the next one: the podssh trial of `pod-relay` (T-025), the veth wire
+  of `pod-hold` (T-201), the SSH relay facts of `pod-services`
+  (PodUtils/podnet#455).
 
 ## What waits
 
@@ -32,7 +33,7 @@ a line when its work is done. Git and the record keep finished work.
   at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
   `pod-netstack`); T-201 starts at the first passing run of
   PodUtils/podnet@T-250 (#74). The pod-netstack APIs of PodUtils/podnet@T-249 are
-  T-222 (done; in the next tag). `pod-git` waits: its own repository,
+  T-222 (in `v0.25.0`, #76). `pod-git` waits: its own repository,
   deferred (the owner; #75).
 - podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
