@@ -5,12 +5,12 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.22.0` at `93de04a` (`docs/releases/v0.22.0.md`; ci
-  43021342956, release 43028589210): `pod-e2e` for podssh (T-021), `pod-wg`
-  for podnet (T-024), `Plan.die_with_parent` (T-205) and a gone launcher in
-  `pod-supervise` (T-202) for podvm and podrunner, `zerotier-tcp-relay`
-  (T-203). The hand-off is GitHub #71 (COORD-046).
-- The next release, `v0.23.0`: T-108 (`pod-confine`), T-208, T-210.
+- Last release: `v0.23.0` at `de770a2` (`docs/releases/v0.23.0.md`; ci
+  43030479938, release 43038279699): `pod-confine` and `Plan.confine` of
+  `pod-enter` (T-108), the empty root entry of `pod-extract` (T-208),
+  `plant-each.sh --apply` (T-210). The hand-off is GitHub #72 (COORD-047).
+  `v0.22.0` is at `93de04a` (the hand-off #71; podnet's take of `pod-wg`
+  remains).
 - The consumers: podssh is on `v0.22.0` (`75a50318`, PodUtils/podssh#191;
   it took `pod-e2e`; earlier `6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
@@ -23,8 +23,8 @@
   (`82b7af0`; its tests 25 and 26 pass on the fake unit and on podvm; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
 - Takes that wait: podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
-  podvm's take of `pod-confine` for PodUtils/podvm@T-1658 after `v0.23.0`
-  (T-108, #69).
+  podvm's take of `pod-confine` for PodUtils/podvm@T-1658 (T-108, #69,
+  #72).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the

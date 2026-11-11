@@ -8,15 +8,12 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.22.0` is at `93de04a` (`docs/releases/v0.22.0.md`; ci
-  43021342956, release 43028589210; the hand-off GitHub #71, COORD-046):
-  `pod-e2e` (T-021), `pod-wg` (T-024), `Plan.die_with_parent` (T-205), a
-  gone launcher in `pod-supervise` (T-202), `zerotier-tcp-relay` (T-203).
-  `v0.21.0` is at `ada3699` (the hand-off #65).
-- The next release, `v0.23.0`: `pod-confine` and `Plan.confine` of
-  `pod-enter` (T-108, call C57; #69), the empty root entry of `pod-extract`
-  (T-208, PodUtils/podvm#261), `plant-each.sh --apply` (T-210). Breaking:
-  `Plan` has the field `confine`.
+- The release `v0.23.0` is at `de770a2` (`docs/releases/v0.23.0.md`; ci
+  43030479938, release 43038279699; the hand-off GitHub #72, COORD-047):
+  `pod-confine` and `Plan.confine` (T-108, call C57; #69), the empty root
+  entry of `pod-extract` (T-208, PodUtils/podvm#261), `plant-each.sh
+  --apply` (T-210). `v0.22.0` is at `93de04a` (the hand-off #71: podssh,
+  podvm and podrunner took it; podnet's take of `pod-wg` remains, on #67).
 - The consumers and the tag each takes:
   - podssh: `v0.22.0` (`75a50318`, PodUtils/podssh#191; it took `pod-e2e`;
     the key of `localhost-run` pinned;
@@ -33,8 +30,9 @@ page current; remove a line when its work is done.
     podnet's T-174 (the netns router).
   - podvm: `v0.22.0` (`c9d5038`, PodUtils/podvm#262; the launcher of
     `podvm-supervise` sets `die_with_parent`, proved by its experiment 437;
-    its incus tier calls `pod-incus`). It waits for `v0.23.0` (`pod-confine`
-    for PodUtils/podvm@T-1658, the fix of #261 for PodUtils/podvm@T-1659). Its
+    its incus tier calls `pod-incus`). Its takes of `v0.23.0` (`pod-confine`
+    for PodUtils/podvm@T-1658, the fix of #261 for PodUtils/podvm@T-1659)
+    answer on #72. Its
     PodUtils/podvm@T-1722 may ask for `exec_attached`.
   - podrunner: `v0.22.0` (`82b7af0`; `pod-job` at `0457ed0`). Its tests
     25 and 26 pass on the fake unit and on podvm `v0.2.0-beta.3` (run

@@ -77,3 +77,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | open | T-108 |
 | #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open | T-206, T-207 |
 | #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | open | T-021, T-024, T-202, T-205 |
+| #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | open | T-108, T-208 |
