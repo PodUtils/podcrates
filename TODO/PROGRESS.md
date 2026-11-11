@@ -5,12 +5,12 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.21.0` at `ada3699` (`docs/releases/v0.21.0.md`; ci
-  42983162246, plants, adoption, release 42989260695, the dry run of
-  `publish.yml` 42989462396): `pod-incus` for podvm (T-179), one store and
-  one pin at a time in `pod-core` and `pod-identity` (T-195), the socket of
-  `pod-broker` with its mode at once (T-196). The hand-off is GitHub #65
-  (COORD-040); podvm answers on #63.
+- Last release: `v0.22.0` at `93de04a` (`docs/releases/v0.22.0.md`; ci
+  43021342956, release 43028589210): `pod-e2e` for podssh (T-021), `pod-wg`
+  for podnet (T-024), `Plan.die_with_parent` (T-205) and a gone launcher in
+  `pod-supervise` (T-202) for podvm and podrunner, `zerotier-tcp-relay`
+  (T-203). The hand-off is GitHub #71 (COORD-046).
+- The next release, `v0.23.0`: T-108 (`pod-confine`), T-208, T-210.
 - The consumers: podssh is on `v0.21.0` (`6de121b2`, PodUtils/podssh#189;
   the key of `localhost-run` pinned; it took `pod-wormhole` at `baa00a06` and
   `pod-session` at `6f78a7c7`); podnet is on `v0.21.0`
@@ -21,14 +21,10 @@
   passes against incusd 6.0.0); podrunner is on `v0.21.0`
   (`8d65e51`; `pod-job` at `0457ed0`; its T-048 takes `check_upstream`,
   `names_upstream` and the flagged rules).
-- `pod-e2e` (T-021) is done: the release `v0.22.0` and podssh's take of
-  `adoption/podssh/pod-e2e.patch` (at podssh `74760e8`) remain.
-- `pod-wg` (T-024, call C56) is done: the release `v0.22.0` and podnet's take
-  of `adoption/podnet/pod-wg.patch` (at podnet `54d7ed4`; the cut of
-  PodUtils/podnet#447; GitHub #67) remain.
-- `pod-confine` and `Plan.confine` of `pod-enter` (T-108, call C57) are
-  done: the release after `v0.22.0` and podvm's take for
-  PodUtils/podvm@T-1658 (GitHub #69) remain.
+- Takes that wait: podssh's take of `adoption/podssh/pod-e2e.patch` (T-021,
+  #71); podnet's take of `adoption/podnet/pod-wg.patch` (T-024, #67);
+  podvm's take of `pod-confine` for PodUtils/podvm@T-1658 after `v0.23.0`
+  (T-108, #69).
 - Partial: T-170 (step 2 waits for podnet), T-040 (the trial of podvm). Open defects: T-131 (`pod-gsr` on
   Windows ARM64), T-149 (qemu-user only).
 - podrunner and podssh have lead sessions that podcrates started (the

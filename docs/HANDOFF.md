@@ -8,9 +8,15 @@ page current; remove a line when its work is done.
 
 ## Where podcrates stands
 
-- The release `v0.21.0` is at `ada3699` (`docs/releases/v0.21.0.md`; the
-  hand-off GitHub #65): `pod-incus` (T-179, PodUtils/podvm#253, GitHub #63),
-  T-195, T-196. `v0.20.0` is at `4daf31c` (#64, closed).
+- The release `v0.22.0` is at `93de04a` (`docs/releases/v0.22.0.md`; ci
+  43021342956, release 43028589210; the hand-off GitHub #71, COORD-046):
+  `pod-e2e` (T-021), `pod-wg` (T-024), `Plan.die_with_parent` (T-205), a
+  gone launcher in `pod-supervise` (T-202), `zerotier-tcp-relay` (T-203).
+  `v0.21.0` is at `ada3699` (the hand-off #65).
+- The next release, `v0.23.0`: `pod-confine` and `Plan.confine` of
+  `pod-enter` (T-108, call C57; #69), the empty root entry of `pod-extract`
+  (T-208, PodUtils/podvm#261), `plant-each.sh --apply` (T-210). Breaking:
+  `Plan` has the field `confine`.
 - The consumers and the tag each takes:
   - podssh: `v0.21.0` (`6de121b2`, PodUtils/podssh#189; the key of `localhost-run` pinned;
     `sandhole` and `openbare-xyz` wait for PodUtils/podssh@T-743 and
@@ -48,15 +54,15 @@ page current; remove a line when its work is done.
 
 ## In flight
 
-- `pod-e2e` (T-021, done; call C55): the release `v0.22.0` and podssh's
-  take remain. `adoption/podssh/pod-e2e.patch` (podssh `74760e8`) is the
+- `pod-e2e` (T-021, done; call C55): released in `v0.22.0`; podssh's
+  take remains (it answers on #71). `adoption/podssh/pod-e2e.patch` (podssh `74760e8`) is the
   hand-off; its checks passed here (the patch applies, `cargo check`,
   clippy, rustfmt, podssh's record), and `adoption.yml` runs its tests.
   podssh's `tests/e2e_layered.rs` comes with `pod-relay` (T-025). A
   trial of a crate with a digit in its name needs `040f3ea` (the pattern of
   `scripts/adoption.sh`).
-- `pod-wg` (T-024, done; call C56): the release `v0.22.0` and podnet's take
-  remain. `adoption/podnet/pod-wg.patch` (podnet `54d7ed4`, the commit that
+- `pod-wg` (T-024, done; call C56): released in `v0.22.0`; podnet's take
+  remains. `adoption/podnet/pod-wg.patch` (podnet `54d7ed4`, the commit that
   PodUtils/podnet#447 holds) is the hand-off; its checks passed here (the
   patch applies, podnet's record, clippy, rustfmt, cargo-deny,
   `cargo test -p podnet --lib`: 457 passed), and `adoption.yml` runs the
@@ -80,7 +86,9 @@ page current; remove a line when its work is done.
 - Gate a commit on the exit code of a check (`cargo todo check >/dev/null
   2>&1 && git commit`), never on a pipe into `tail`.
 - Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
-  head; a push to `main` cancels the runs that wait.
+  head; a push to `main` cancels the runs that wait. A change of a file
+  that a plant patches makes the plant stale: `check.sh` runs
+  `plant-each.sh --apply` (T-210).
 - After a release, read the dry run of `publish.yml` at the tag: it was red
   at `v0.14.0` and `v0.15.0` (a cycle of dev-dependencies) and no session saw it.
 - A new entry id or call number: take it with `cargo todo next` just before
