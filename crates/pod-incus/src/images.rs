@@ -11,7 +11,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::client::Client;
@@ -19,7 +19,8 @@ use crate::error::{Error, Result};
 use crate::upload::{Payload, Upload, system_boundary};
 use crate::wire::{Body, escape};
 
-/// The bytes of an image.
+/// The bytes of an image. incus refuses a `metadata.yaml` whose
+/// `creation_date` is 0 ("Missing creation date").
 #[derive(Debug)]
 pub enum ImageData {
     /// One tarball with `metadata.yaml`, `templates/` and `rootfs/`.
@@ -67,6 +68,19 @@ pub struct ImportedImage {
     pub fingerprint: String,
     /// The bytes that incus read.
     pub size: u64,
+}
+
+/// An alias of an image (`ImageAliasesEntry` of `shared/api/image.go`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ImageAlias {
+    pub name: String,
+    /// The fingerprint of the image.
+    pub target: String,
+    #[serde(default)]
+    pub description: String,
+    /// `container` or `virtual-machine`.
+    #[serde(default, rename = "type")]
+    pub kind: String,
 }
 
 #[derive(Serialize)]
@@ -125,6 +139,16 @@ impl Client {
             self.create_alias(alias, &fingerprint, "").await?;
         }
         Ok(ImportedImage { fingerprint, size })
+    }
+
+    /// `GET /1.0/images/aliases/NAME`: the alias `name`, or `None` when
+    /// incus has no such alias (404).
+    pub async fn alias(&self, name: &str) -> Result<Option<ImageAlias>> {
+        match self.get(&format!("/1.0/images/aliases/{}", escape(name)), &[]).await {
+            Ok(alias) => Ok(Some(alias)),
+            Err(e) if e.status() == Some(404) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     /// `POST /1.0/images/aliases`: the alias `name` of the image

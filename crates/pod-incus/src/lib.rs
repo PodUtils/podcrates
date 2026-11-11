@@ -46,7 +46,7 @@ pub use client::{Client, Settings};
 pub use error::{Error, ErrorKind, Result};
 pub use exec::{Exec, ExecOutput};
 pub use files::{File, FileContent, FileKind, FileMeta, FileWrite};
-pub use images::{ImageData, ImageImport, ImportedImage};
+pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};
 pub use instances::{Action, Devices, Instance, Kind, NewInstance, Source, StateChange};
 pub use operation::{Operation, status};
 pub use server::{Environment, NEEDED, Server};

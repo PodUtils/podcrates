@@ -759,6 +759,13 @@ API of incus on its Unix socket ... (T-179)`.
   not exist; `cargo zigbuild --release --target x86_64-unknown-linux-musl
   -p static-probe` and `scripts/check-static.sh` pass, and the probe
   prints the refusal by name.
+- After podvm's own client (PodUtils/podvm@T-1718 at podvm `3a9d434`)
+  named the calls it uses: `Client::alias` (`GET /1.0/images/aliases/NAME`,
+  a 404 is `None`; an escaped name with `/` and `:`), the one call of that
+  list that the crate did not have. The doc of `ImageData` names podvm's
+  finding of incus 6.0.0: a `metadata.yaml` with `creation_date: 0` is
+  refused. A planted defect (a 404 as an error) fails
+  `a_unified_tarball_is_imported_from_a_stream_of_unknown_length`.
 - The first release holds podvm's table with `record-output` and the
   websockets. Not in it: interactive exec (a PTY) and the console
   websocket; podvm did not ask for them.

@@ -42,9 +42,18 @@ async fn a_unified_tarball_is_imported_from_a_stream_of_unknown_length() {
     assert_eq!(post.header("x-incus-aliases"), None, "incus 6.0 has no image_import_alias");
     assert_eq!(stand.state().images[0][0].2, tarball);
     let aliases = stand.state().aliases.clone();
-    let want =
-        [("podvm/alpine".to_string(), image.fingerprint.clone()), ("podvm/alpine:3.20".into(), image.fingerprint)];
+    let want = [
+        ("podvm/alpine".to_string(), image.fingerprint.clone()),
+        ("podvm/alpine:3.20".into(), image.fingerprint.clone()),
+    ];
     assert_eq!(aliases, want);
+
+    // podvm asks for an alias before it imports: a name with a slash goes
+    // escaped, and an alias that incus does not have is None.
+    let alias = stand.client().alias("podvm/alpine:3.20").await.expect("read").expect("the alias is there");
+    assert_eq!((alias.name.as_str(), alias.target.as_str()), ("podvm/alpine:3.20", image.fingerprint.as_str()));
+    assert!(stand.seen("GET", "/1.0/images/aliases/podvm%2Falpine%3A3.20").len() == 1);
+    assert_eq!(stand.client().alias("podvm/absent").await.expect("a 404 is no error"), None);
 }
 
 #[tokio::test]

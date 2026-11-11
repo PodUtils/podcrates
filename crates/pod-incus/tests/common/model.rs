@@ -170,6 +170,15 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
             sync(json!({}))
         }
         ("POST", ["1.0", "images"]) => super::store::image(shared, &seen),
+        ("GET", ["1.0", "images", "aliases", name]) => {
+            let name = super::decode(name);
+            match shared.state.lock().unwrap().aliases.iter().find(|(n, _)| *n == name) {
+                Some((n, target)) => {
+                    sync(json!({ "name": n, "target": target, "description": "", "type": "container" }))
+                }
+                None => error(404, "Image alias not found"),
+            }
+        }
         ("POST", ["1.0", "images", "aliases"]) => {
             let body: Value = serde_json::from_slice(&seen.body).unwrap_or_default();
             let (name, target) =

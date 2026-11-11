@@ -53,6 +53,7 @@ runs in the background returns after the wait for its operation.
 | `Client::server` | `GET /1.0` | `Server`, `Environment`; `Server::check` against `NEEDED` | 6.0 |
 | `Client::import_image` | `POST /1.0/images`, the body a stream: `application/octet-stream` (unified) or `multipart/form-data` (`metadata`, then `rootfs` or `rootfs.img`); `X-Incus-public`, `X-Incus-filename`, `X-Incus-properties`, `X-Incus-fingerprint`; then the wait; then `POST /1.0/images/aliases` for each alias | `ImageImport`, `ImageData`, `Payload`, `ImportedImage` (`fingerprint`, `size` of the operation's metadata) | 6.0 |
 | `Client::create_alias` | `POST /1.0/images/aliases` | name, fingerprint, description | 6.0 |
+| `Client::alias` | `GET /1.0/images/aliases/NAME`; a 404 is `None` | `ImageAlias` (`name`, `target`, `description`, `kind`) | 6.0 |
 | `Client::create_instance` | `POST /1.0/instances`, then the wait | `NewInstance` (`InstancesPost`: `source` of type `image` by alias or fingerprint, or `none`; `type`; `config`; `devices`; `profiles`; `ephemeral`; `start`) | 6.0, `instances` |
 | `Client::set_state`, `start`, `stop` | `PUT /1.0/instances/NAME/state`, then the wait | `StateChange` (`action`; `timeout` in seconds, -1 for the default of incus; `force`; `stateful`), `Action` | 6.0 |
 | `Client::instances` | `GET /1.0/instances?recursion=1` | `Vec<Instance>` | 6.0 |
@@ -129,9 +130,10 @@ of the user's own namespace) and its `INCUS_DIR`.
 | podvm | the minimal client of PodUtils/podvm@T-1718 (HTTP/1.1 on `INCUS_DIR/unix.socket`) | `pod-incus = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z" }`; `pod_incus::Client` with `Settings::new(INCUS_DIR.join("unix.socket"))` |
 | podvm | its `GET /1.0` | `Client::server`, then `Server::check` |
 | podvm | its upload of a unified tarball and its wait | `Client::import_image` with `ImageData::Unified` |
+| podvm | its read of an alias (404 where absent) and its `POST /1.0/images/aliases` | `Client::alias` (`None` where absent), `Client::create_alias` |
 | podvm | its create, start, stop, delete and list | `create_instance`, `start`, `stop`, `delete_instance`, `instances` |
 | podvm | its exec (`record-output` or the websockets) | `exec_recorded`, or `exec_attached` with `Attached::output` |
-| podvm | its console log and its files | `console_log`, `get_file`, `put_file` |
+| podvm | its console log and its files (`X-Incus-uid`, `-gid`, `-mode`, `-type` of `file` and `directory`) | `console_log`, `get_file`, `put_file` with `FileWrite::file` or `FileWrite::directory` and its `uid`, `gid`, `mode` |
 | podrunner (later) | a unit kind on incus | the same calls |
 
 ## Tests
