@@ -1611,7 +1611,7 @@ sh scripts/adoption.sh podvm pod-extract
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1636,6 +1636,25 @@ pulls a manifest and a blob from a public registry through the crate.
 cargo test -p pod-oci --test live -- --ignored
 ```
 
+## Done
+
+2026-11-11. `crates/pod-oci/tests/live.rs`
+(`a_pinned_index_resolves_for_two_platforms_and_a_pinned_manifest_for_one`)
+reads the service `ecr-public-registry` of `pod-services`: the first
+image of `images` (`docker/library/alpine:3.20`, pinned by the digest of
+its index) resolves for linux/amd64 and linux/arm64, and
+`guest-userland` (pinned by the digest of one manifest) for linux/amd64;
+the client checks each index, manifest and config against its digest,
+and the test checks the pinned digest and the platform of each config. A
+429 is a skip that the log names. `live.yml` runs it.
+
+- Measured here on 2026-11-11: the index gave the amd64 manifest
+  `sha256:c64c687c...` and the arm64 manifest `sha256:45e09956...`, which
+  is the fact `aarch64-image` of the service. An earlier run here got a
+  429 ("Data limit exceeded") and skipped.
+- Found and fixed: the first form of the test took `guest-userland` for an
+  index (the run 42963084618 of `live.yml` failed on it); it is one
+  manifest.
 
 # T-144: `pod-enter`: the volume pairs in the maps table; the workdir and the first program through a guest-to-host resolver (PodUtils/podvm#224)
 
@@ -2250,7 +2269,7 @@ commit of this record.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2351,6 +2370,15 @@ lists `connect.rs` in the block at `5599012` (0 changes).
   `rst_reply_for_syn` of `pod_hold::packet`; `cargo todo remap` of the
   README of `podnet-netns`. The tag `v0.17.0` needs no other change of podnet (the
   "Breaking" of `v0.16.0` and `v0.17.0` names no item that podnet uses).
+- 2026-11-11, the take: podnet took the patch at `e4d4049`
+  (PodUtils/podnet#426, COORD-017 of podnet; `git apply --3way` on
+  `90428ed`, one comment of `podnet-netns/Cargo.toml` merged by hand, one
+  citation remapped; each line of the `.run` passed but the zig build,
+  which podnet's CI does). `crates/pod-hold/SOURCES` has
+  `taken e4d4049` in the block of `connect.rs` and `netns/packet.rs`:
+  `check-sources.py` reads 0 changes. The trial files leave `adoption/`;
+  GitHub #59 is closed. podnet accepts the change under
+  `PODNET_NETNS_TEST_MEM=none`.
 
 # T-170: `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router
 
@@ -2426,7 +2454,7 @@ issue (PodUtils/podnet@T-174 and the smoltcp of `pod-netstack`).
   ACK, a header of IHL 4): `cargo test --manifest-path fuzz/Cargo.toml`
   passes.
 - 2026-11-11, step 1, the adoption trial:
-  `adoption/podnet/pod-hold-connect.patch` (podnet `d3fad49`, tag
+  the patch `pod-hold-connect.patch` of the trial of podnet (removed at the take) (podnet `d3fad49`, tag
   `v0.17.0`; with T-169) passes each step. podnet's
   `netns/packet.rs` takes `parse_tcp_syn`, `rst_reply_for_syn` and
   `ipv4_checksum` of `pod_hold::packet` and keeps `dns_reply_packet`. The
@@ -2444,6 +2472,9 @@ issue (PodUtils/podnet@T-174 and the smoltcp of `pod-netstack`).
   PodUtils/podnet@T-234
   (`cargo test -p podnet-netns --lib no_syn`) runs no test: the two tests
   are in `pod-hold`.
+- Step 1 taken: podnet `e4d4049` (see T-169). Step 2 waits for podnet's
+  COORD issue (its T-174 and the move of its router to the smoltcp of
+  `pod-netstack`).
 
 # T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
 
