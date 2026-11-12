@@ -205,6 +205,15 @@ finding.
 * A `skipped` line is no failure: the watch cannot speak a form of the
   service, and its entry is in the record.
 
+### The live calls
+
+`docs/live-calls.md` lists each call of CI and of the tests that reaches a
+host of another party, with its class and its stand-in (call C150). A new
+live test or a new step that reaches such a host gets a row there in the
+same commit. A step of `ci.yml` reaches only the hosts of the downloads; a
+server of another party in a test runs on the loopback from a pinned
+artifact (call C151).
+
 ## Shared CI scripts
 
 The owner's ruling (2026-11-05): a CI script that podnet and podssh share

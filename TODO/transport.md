@@ -4852,3 +4852,175 @@ Tests (`stun_auth_tests.rs`): the vectors of RFC 5769, 2.1, 2.2 and 2.4
 check, and signing writes each again byte for byte; a changed byte and a
 wrong key fail; the types of TURN. Plant
 `proxy-stun-integrity-length-kept`.
+
+# T-350: `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place
+
+**Source:** `docs/live-calls.md` (row L1); `live.yml` runs 42786042141,
+42987300429 and 43172235777.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`live.yml` runs `crates/pod-dns/tests/live_doh.rs` each day against the
+six fallback resolvers of `pod-dns`. The test fails when one resolver
+gives no TCP connection within 3 s. Quad9 did so from the runners in two
+of the runs read ("9.9.9.9: no connection within 3 s", "149.112.112.112:
+no connection within 3 s"), and a retry hid a third. The failure is the
+network of the runner, not the crate: the runs of the same days of
+`services.yml` hold the watches `doh-answer` of `quad9-doh`. The daily
+test also repeats the watches: the liveness of each resolver is their
+purpose.
+
+## Premise
+
+- Measured (the logs read 2026-11-12): `live.yml` run 42786042141 (job
+  129727363776) failed in `every_resolver_answers_in_the_wire_form` on
+  9.9.9.9; run 42987300429 (job 130411416214) on 149.112.112.112; run
+  43172235777 printed "149.112.112.112 alone, attempt 1: Err(no connection
+  within 3 s)" and passed on attempt 2.
+- Read: the loopback tests of `pod-dns` (`crates/pod-dns/tests/doh_h2.rs`
+  on h2's own server with Quad9's recorded answer, `doh_wire.rs`,
+  `doh_json.rs`, `doh_kept.rs`, `doh_names.rs`) prove the client against
+  servers that this crate wrote or recorded.
+- Read (2026-11-12): https://coredns.io/plugins/tls (the server block
+  `https://.` with `tls cert key` serves DoH);
+  https://github.com/coredns/coredns/releases/tag/v1.15.0 (2026-10-21,
+  Apache-2.0; `coredns_1.15.0_linux_amd64.tgz`, SHA-256
+  `2495c5b8f3fab6d0a336c397f1227b75406d86e6ec7125744a29df9e936ab8cd`);
+  the image `coredns/coredns:1.15.0`, index
+  `sha256:0a9d8c8ddf34347eb59aad9a8784f0710de88d6d112726d11d271f9bc6daca26`.
+- Not measured: CoreDNS's DoH with the client of `pod-dns` (HTTP/2, GET
+  and POST of the wire form, a certificate for 127.0.0.1); CoreDNS has no
+  JSON form, so the JSON form stays with the recorded fixtures.
+
+## Approach
+
+1. A step of the job `test` of `ci.yml`, scripts/ci/coredns-tests.sh
+   (call C151): the image of images/coredns/Dockerfile, pinned to the
+   index digest, through `scripts/pull-image.sh`; a Corefile with a
+   server block `https://.:8443` and a zone file of the test (the plugins
+   `tls` and `file`), a certificate for 127.0.0.1 that the script makes;
+   the port on 127.0.0.1 alone.
+2. A test target `doh_coredns` of `pod-dns`: a `Settings` with the one
+   resolver 127.0.0.1:8443 and the test's root; the wire form by GET and
+   by POST over HTTP/2 and over HTTP/1.1, an answer of the zone, NXDOMAIN
+   at the first answer, and a refused certificate. With no server it
+   skips, unless `POD_DNS_TEST_COREDNS=required`, which the step sets.
+3. `live_doh.rs` runs each week (T-352) and by hand. A resolver that
+   gives no connection is the watch's finding (T-351), not the test's.
+
+## Prove
+
+```sh
+sh scripts/ci/coredns-tests.sh
+cargo test -p pod-dns --all-features
+sh scripts/plant-each.sh doh-coredns-skip-fails
+```
+
+# T-356: `pod-services-watch`: `forward-url` against sish and sandhole on the loopback
+
+**Source:** `docs/live-calls.md` (row L18).
+**Category:** feature
+**Milestone:** M5
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The code of `forward-url` (`crates/pod-services-watch/src/forward.rs`)
+is proven offline only against the stand-in of
+`crates/pod-services-watch/tests/watches/forward.rs`, a server of russh
+that this repository wrote. A second proof comes only from the daily
+sessions with the free relays (Serveo, Pinggy, localhost.run, sandhole's
+demo). When one of them changes (Serveo's console in T-323, Serveo's
+login in run 43162302910), the code and the service are read together.
+A relay that another party wrote, on the loopback, proves the client on
+each push, apart from the services.
+
+## Premise
+
+- Read (2026-11-12): https://github.com/antoniomika/sish/releases/tag/v4.0.0
+  (2026-10-27, MIT; `sish-4.0.0.linux-amd64.tar.gz`, SHA-256
+  `3adb57cc008cb1d95d178a0ec0ceb67cf0d3645c0004d0d789011ce7dc01956f`; the
+  image `antoniomika/sish:v4.0.0`, index
+  `sha256:475a4943def8fdb3f28b5c58fa26ba74009266981e049cd125fdac9916cd8f44`);
+  https://docs.ssi.sh/getting-started (`--ssh-address`, `--http-address`,
+  `--domain`, `--authentication`, `--bind-random-ports`).
+- Read (2026-11-12): https://github.com/EpicEric/sandhole/releases/tag/v0.10.5
+  (AGPL-3.0; the binary `sandhole-linux-amd64`). The job runs it and links
+  nothing of it.
+- Measured: `services.yml` run 43162302910 failed `serveo forward-url` on
+  the login ("it offers: publickey, keyboard-interactive").
+- Not measured: the banner of sish and of sandhole with the rule of a
+  service file; how each names the URL of a forward on the loopback.
+
+## Approach
+
+A step of the job `test` of `ci.yml`, scripts/ci/forward-relays-tests.sh
+(call C151): sish on 127.0.0.1 (SSH 2222, HTTP 8080, the domain
+`sish.test`, no login), and sandhole from its release binary checked by
+its SHA-256. A test of `pod-services-watch`, with a service file of the
+test for each (`url-match` `http://`, `.sish.test`), runs `forward-url`:
+the session, the banner, the URL, and the GET through the tunnel with the
+word of the run (the `Host` set to the name of the URL, the connect to
+the loopback). With no relay it skips, unless
+`POD_SERVICES_TEST_FORWARD=required`.
+
+## Prove
+
+```sh
+sh scripts/ci/forward-relays-tests.sh
+cargo test -p pod-services-watch --all-features
+```
+
+# T-358: `pod-proxy`: the STUN client against coturn on the loopback
+
+**Source:** `docs/live-calls.md` (row L19).
+**Category:** feature
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The STUN client of `pod-proxy` (`crates/pod-proxy/src/stun.rs`) is proven
+offline against the UDP stand-in of `crates/pod-testkit/src/stand.rs` and
+the tests of `crates/pod-proxy/src/stun_tests.rs`. A server of another
+party is reached only by the daily watches `stun-binding` (UDP to
+Cloudflare and Google). A server that another party wrote, on the
+loopback, proves the client on each push (the attributes, the
+XOR-MAPPED-ADDRESS, the transaction).
+
+## Premise
+
+- Read (2026-11-12): https://github.com/coturn/coturn (LICENSE: the three
+  clauses of BSD; release 4.18.0, 2026-09-08); the image
+  `coturn/coturn:4.18.0`, index
+  `sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3`
+  (51 MB for amd64).
+- Measured: the watches `stun-binding` hold in `services.yml` run
+  43195020023: UDP leaves a runner.
+- Not measured: coturn's answer to the Binding request of `pod-proxy`
+  with `--stun-only` on 127.0.0.1.
+
+## Approach
+
+A step of the job `test` of `ci.yml`, scripts/ci/stun-tests.sh (call
+C151): coturn with `--stun-only --listening-ip=127.0.0.1
+--listening-port=3478 --no-cli`, with the host network. A test of
+`pod-proxy` sends a Binding request and checks the mapped address
+127.0.0.1 and the port of its socket. With no server it skips, unless
+`POD_PROXY_TEST_STUN=required`.
+
+## Prove
+
+```sh
+sh scripts/ci/stun-tests.sh
+cargo test -p pod-proxy --all-features stun
+```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**289 entries: 64 open, 2 partial, 5 blocked, 218 done.**
+**301 entries: 76 open, 2 partial, 5 blocked, 218 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 0 | 0 | 61 | 75 |
-| P2 | 26 | 1 | 5 | 110 | 142 |
-| P3 | 24 | 1 | 0 | 45 | 70 |
-| **All** | 64 | 2 | 5 | 218 | 289 |
+| P1 | 16 | 0 | 0 | 61 | 77 |
+| P2 | 32 | 1 | 5 | 110 | 148 |
+| P3 | 28 | 1 | 0 | 45 | 74 |
+| **All** | 76 | 2 | 5 | 218 | 301 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -335,4 +335,16 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-327](relay.md) | P1 | M | M5 | defect | done | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
 | [T-328](podvm.md) | P2 | S | M6 | research | open | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
+| [T-350](transport.md) | P1 | M | M5 | defect | open | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
+| [T-351](upkeep.md) | P1 | M | M5 | defect | open | `services.yml`: a host that gives no answer to one runner fails the daily run |
+| [T-352](upkeep.md) | P2 | S | M5 | chore | open | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
+| [T-353](podvm.md) | P2 | M | M5 | feature | open | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
+| [T-354](relay.md) | P2 | S | M5 | chore | open | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
+| [T-355](upkeep.md) | P2 | M | M5 | chore | open | The downloads of each job come from a cache, and the tools from their release binaries |
+| [T-356](transport.md) | P3 | M | M5 | feature | open | `pod-services-watch`: `forward-url` against sish and sandhole on the loopback |
+| [T-357](roads.md) | P3 | S | M5 | feature | open | `pod-gsr`: gs-netcat as the other end, through the stand-in of the relay |
+| [T-358](transport.md) | P3 | S | M5 | feature | open | `pod-proxy`: the STUN client against coturn on the loopback |
+| [T-359](adapters.md) | P2 | M | M3 | feature | open | `pod-warp`: the stand-ins of each push and one live run each week |
+| [T-360](adapters.md) | P2 | M | M3 | feature | open | `pod-cloudflare`: a stand-in edge of each push and one quick tunnel each week |
+| [T-361](roads.md) | P3 | M | M4 | feature | open | `pod-relay`: its end-to-end tests against the self-hosted relay of `pod-relay-serve`, then against workerd |
 | [T-370](transport.md) | P2 | S | M1 | feature | done | `pod-proxy`: MESSAGE-INTEGRITY, FINGERPRINT and the long-term key in `stun`, for TURN (PodUtils/podssh#214) |

@@ -370,3 +370,108 @@ gh workflow run live.yml
 ## Start condition
 
 T-029 is done, and the owner gives test accounts as CI secrets (not now, 2026-11-09).
+
+# T-359: `pod-warp`: the stand-ins of each push and one live run each week
+
+**Source:** `docs/live-calls.md` ("The crates of the import and of the
+plan"); call C150.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-warp` (T-028) talks to WARP's API (api.cloudflareclient.com), to the
+MASQUE door (consumer-masque.cloudflareclient.com:443) and to the
+WireGuard door (UDP 2408). podnet runs its live WARP checks on each push
+and each day (PodUtils/podnet:.github/workflows/live.yml). The tests of
+the crate must not reach WARP on each push: a fault of WARP or of the
+runner's network makes the gate red.
+
+## Premise
+
+- Read (2026-11-12): podnet's `live.yml` (the job `live` on each push,
+  each day and by hand); podnet's `tests/warp_register.rs` (a fake API on
+  the loopback) and `src/warp/wg/standin.rs` (the responder of
+  `pod-wg`, feature `standin`); `crates/pod-wg/Cargo.toml` (the feature
+  `standin`); T-028 (podssh's stand-in edge and API stand-in go to
+  `pod-testkit`).
+- Not measured: the kernel's WireGuard on a runner (`ip link add type
+  wireguard` as root in a network namespace).
+
+## Approach
+
+1. Each push: the API stand-in (registration, the lock, the resume, the
+   PATCH), the MASQUE stand-in and the responder of `pod-wg`, all on the
+   loopback, in `pod-testkit`.
+2. An independent peer: the kernel's WireGuard in a network namespace as
+   root, in a step as `scripts/root-netns-tests.sh`, so the handshake of
+   `pod-wg` meets code that this repository did not write.
+3. `live.yml`, each week and by hand: one registration of a device of the
+   run, one MASQUE connect, one GET through it, and the device removed at
+   the end. The log masks the device id (as podnet's
+   PodUtils/podnet:scripts/live-run.sh). No live call in `ci.yml` (call C150).
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+sh scripts/root-netns-tests.sh
+gh workflow run live.yml
+```
+
+## Start condition
+
+T-028 is done.
+
+# T-360: `pod-cloudflare`: a stand-in edge of each push and one quick tunnel each week
+
+**Source:** `docs/live-calls.md` ("The crates of the import and of the
+plan"); call C150.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-cloudflare` (T-029) talks to the edge of Cloudflare's tunnels
+(region1 and region2.v2.argotunnel.com:7844, QUIC and HTTP/2, Cap'n Proto
+RPC) and to api.trycloudflare.com. No server of another party speaks the
+edge's side: cloudflared is a client. The tests of the crate must prove
+the RPC, the legs and the race on each push with no edge.
+
+## Premise
+
+- Read (2026-11-12): podnet's `live.yml` (a quick tunnel on QUIC and on
+  HTTP/2 on each push and each day); `scripts/services/edge-facts.sh` (the
+  facts of the edge, each day in `services.yml`);
+  `crates/pod-services/services/cloudflare-tunnel-edge.toml`.
+- Not measured: whether podnet's tests hold recorded RPC exchanges that a
+  stand-in can replay.
+
+## Approach
+
+1. A stand-in edge in `pod-testkit` on the loopback: QUIC (through
+   `pod-quic`) and HTTP/2 over TLS with a test root, the registration RPC
+   answered from exchanges recorded from the real edge (the schemas of
+   cloudflared, Apache-2.0), and the streams of a request to the origin.
+2. Each push: the legs, the race, the ingress and the dispatch against
+   the stand-in.
+3. `live.yml`, each week and by hand: one quick tunnel on each leg, and a
+   GET of its URL; the log masks the host. The edge facts stay in
+   `services.yml` each day.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+gh workflow run live.yml
+```
+
+## Start condition
+
+T-029 is done.

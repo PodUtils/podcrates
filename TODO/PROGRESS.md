@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 289 entries: 64 open, 2 partial, 5 blocked, 218 done.
+`TODO/INDEX.md` holds 301 entries: 76 open, 2 partial, 5 blocked, 218 done.
 
 ## State
 
@@ -104,7 +104,15 @@ next entry.
    T-038, T-039.
 9. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds; T-199 after a release of snow on
-   `chacha20poly1305` 0.11.
+   `chacha20poly1305` 0.11. The live calls of CI (`docs/live-calls.md`,
+   calls C150 to C153), in the order of their gain: T-350 (Quad9's DoH
+   from a runner, red in two daily runs), T-351 (a host that gives no
+   answer to one runner reddens `services.yml`), T-352 (`live.yml` each
+   week; no host of another party in `ci.yml`), T-353 (`pod-oci` against
+   distribution; ECR Public gives 429), T-354 (magic-wormhole's servers on
+   each push), T-355 (the cache of the downloads), T-356 (sish and
+   sandhole), T-357 (gs-netcat), T-358 (coturn). T-359 and T-360 go with
+   T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
@@ -116,7 +124,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C112, C115 to C125; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C112, C115 to C125, C150 to C153; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

@@ -787,3 +787,183 @@ cargo test -p pod-netstack -p pod-quic -p pod-e2e -p pod-relay --all-features
   `pod-netstack/src/stack/tests/link.rs` (with `pod-testkit` as a
   dev-dependency of `pod-netstack`).
 
+# T-351: `services.yml`: a host that gives no answer to one runner fails the daily run
+
+**Source:** `docs/live-calls.md` (row L21); `services.yml` runs
+42803032733, 42806121501, 42933757949, 43145957804.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A watch fails the daily run when its host gives no answer to the runner:
+a connect that times out, no route, or a reset before the first byte.
+The runners of GitHub reach the network from AWS or from Azure, and some
+hosts do not answer the addresses of one cloud. Thus a red run can say
+nothing about the service. Four of the seven red runs of `services.yml`
+that were read hold such a failure: Trojan nodes "timed out after 29s".
+A red run that is not ours hides a finding that is ours.
+
+## Premise
+
+- Read: https://docs.github.com/en/actions/concepts/runners/github-hosted-runners
+  (2026-11-12): Linux runners of 2 and 4 cores run on AWS or Azure.
+- Measured (the logs of the runs, read 2026-11-12): `node-bolab-trs02`
+  and `node-bonds-sg1` timed out in runs 42803032733, 42806121501 and
+  42933757949; `node-trojan-70-34-207-14` in run 43145957804. The Eclipse
+  MQTT sandbox gave no answer to `live.yml` run 43172235777 and each day
+  after, and it left the catalog (call C94): a service that left gives no
+  answer on each run.
+- Not measured: whether the nodes answer from another network on the same
+  day.
+
+## Approach
+
+Call C153. The runner gives each failure a class: `no-answer` (a connect
+timeout, no route, a reset before the first byte) or the others. A
+`no-answer` failure is a finding of a scheduled run only when the last
+scheduled run had a `no-answer` failure of the same watch. The first one
+prints `FAILED (first no answer)` in the summary and does not fail the
+run. A run by hand fails on each finding.
+
+The state is one file, the list of the `no-answer` watches of the run,
+kept in the cache of the job (actions/cache 6.1.0 at
+`55cc8345863c7cc4c66a329aec7e433d2d1c52a9`): the key
+`services-no-answer-RUN_ID`, the restore prefix `services-no-answer-`.
+With no state (the first run, a cache that expired), each `no-answer`
+failure is a first one.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-no-answer-twice
+gh workflow run services.yml
+```
+
+A plant: a watch of a closed port on the loopback with a state that names
+it must fail; with no state it must pass with the line `first no answer`.
+
+# T-352: `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party
+
+**Source:** `docs/live-calls.md` (rows L2, L3, L5); call C150.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`live.yml` runs each day (call C24). Its steps reach the relay's edge
+(TLS and MPTCP), ECR Public, the public DoH resolvers and Alpine's CDN.
+Only the watches of `services.yml` must run each day; the code of each
+client is proven on each push against a stand-in. A daily live run adds
+a chance of a red run for a reason of the network, and proves no new
+fact on most days:
+
+- `pod-proxy`, MPTCP to the edge: the test asserts only the connection.
+  The edge answered plain TCP (run 43172235777). The step measures one
+  fact that does not change, each day.
+- `pod-tls`, the handshake with the relay: the servers of
+  `crates/pod-tls/tests/common` prove the provider on each push.
+- `pod-guest`, the modloop of the newest Alpine 3.22: the watch
+  `http-sha256` of `alpine-netboot` holds the pinned file each day.
+
+No check stops a new step of `ci.yml` that reaches a host of another
+party.
+
+## Premise
+
+- Read: `.github/workflows/live.yml` (the cron "53 1 * * *"; the
+  mailboxes run on Thursdays), `crates/pod-proxy/tests/mptcp.rs`,
+  `scripts/check-workflows.py`.
+- Measured: the log of `live.yml` run 43172235777 (2026-11-12) says
+  "Multipath TCP asked for; the server answered with plain TCP".
+- Not measured: how often the steps of the relay's edge fail; each run
+  read passed them.
+
+## Approach
+
+1. `live.yml`: the cron runs on Thursday only ("53 1 * * 4"). The step of
+   the public mailboxes loses its test of the day. The step of MPTCP runs
+   only by hand (an input `measure: mptcp`).
+2. `scripts/check-workflows.py`: a step of `ci.yml`, `plants.yml` or
+   `adoption.yml` that runs a test with `--ignored`, or that names a host
+   that is not in an allowlist of the downloads (github.com, crates.io,
+   static.rust-lang.org, the registries of `scripts/pull-image.sh`, the
+   zig mirrors, pypi.org and files.pythonhosted.org), fails the check. A
+   plant proves it.
+3. Call C150 replaces the daily cadence of C24 for `live.yml`.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+sh scripts/plant-each.sh ci-step-reaches-a-host
+gh workflow run live.yml
+```
+
+# T-355: The downloads of each job come from a cache, and the tools from their release binaries
+
+**Source:** `docs/live-calls.md` (rows L30 to L32); call C152.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each job downloads the toolchain, the index and the crates of crates.io,
+and on the zig jobs zig and the source of cargo-zigbuild, which it then
+builds (`cargo install`): 8 jobs of `static`, 7 of `cross` and 3 of
+`adoption` for each run. `fuzz.yml` builds cargo-fuzz too. Each download
+is a chance of a red run for a fault of the network (`scripts/retry.sh`
+exists for them), and each build of a tool costs minutes.
+
+## Premise
+
+- Read: `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`,
+  `.github/workflows/adoption.yml`, `scripts/fuzz.sh`
+  (`CARGO_FUZZ_VERSION=0.13.2`), `scripts/fetch-zig.sh`.
+- Read (2026-11-12): https://github.com/actions/cache/releases (v6.1.0,
+  the tag at `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, MIT);
+  https://github.com/rust-cross/cargo-zigbuild/releases/tag/v0.23.4 (the
+  asset `cargo-zigbuild-x86_64-unknown-linux-musl.tar.xz`, SHA-256
+  `9e3cf73485edbd45905c8aadbc0fdf869c7ddc3848f0c898229f2680db52e44b`);
+  https://github.com/rust-fuzz/cargo-fuzz/releases (0.13.2 has
+  `cargo-fuzz-0.13.2-x86_64-unknown-linux-musl.tar.gz` and no checksum
+  file).
+- Not measured: the time of a job with the cache; the size of the cache
+  of the registry (the limit of a repository is 10 GB).
+
+## Approach
+
+Call C152.
+
+1. Each job that runs cargo restores `~/.cargo/registry/index`,
+   `~/.cargo/registry/cache` and `~/.cargo/git/db` with actions/cache at
+   the pinned commit, keyed by the OS and the hash of `Cargo.lock`, with
+   the prefix of the OS as the restore key. `target/` is not cached.
+2. zig: the cache keyed by `ZIG_SHA256`; `scripts/fetch-zig.sh` runs on a
+   miss only.
+3. cargo-zigbuild: the release binary of `ZIGBUILD_VERSION`, checked by
+   its SHA-256 (`ZIGBUILD_SHA256` beside the version, as `deny.yml` does
+   for cargo-deny). cargo-fuzz: the same, with the SHA-256 measured at the
+   first download and written in `scripts/fuzz.sh`.
+4. `scripts/check-workflows.py`: each new `uses:` is pinned by a commit.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+gh workflow run ci.yml
+gh workflow run nightly.yml
+```
+
+The second run of `ci.yml` on the same `Cargo.lock` logs a hit of each
+cache and no `cargo install`.
