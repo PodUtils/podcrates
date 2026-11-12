@@ -23,9 +23,13 @@ is done. Git and the record keep finished work.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338 and T-337 for the next tag.
-- Next: T-406 (the L4 door of `pod-warp`) and T-339 (the live session,
-  TUN and routes, the live step, the adoption trials of podnet and
-  podssh).
+- Agents of this session in worktrees under `.claude/worktrees/`: T-406
+  (the L4 door of `pod-warp`; free ids 410 and 411, calls C210 to C212)
+  and T-339 (the live session, TUN and routes, the live step, the
+  adoption trials of podnet and podssh; free ids 412 to 415, calls C213
+  to C217). Merge each branch after `scripts/agent/check.sh` passes on
+  the merge. T-339 gives the text of the COORD issue of the freeze of
+  `pod-warp` to podnet and podssh: post it with the next tag.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.
