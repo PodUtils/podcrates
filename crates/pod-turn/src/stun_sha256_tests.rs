@@ -54,6 +54,11 @@ fn the_sha256_key_and_integrity_give_the_bytes_computed_apart() {
     let signed = signed_sha256(&unsigned(), &hex(KEY));
     assert_eq!(signed, hex(SIGNED));
     assert_eq!(integrity_sha256(&signed, &hex(KEY)), Ok(()));
+    // A FINGERPRINT after it is out of the HMAC: the length of the header
+    // that the HMAC covers ends at MESSAGE-INTEGRITY-SHA256.
+    let with_fingerprint = crate::stun::fingerprinted(&signed);
+    assert!(crate::stun::fingerprint_ok(&with_fingerprint));
+    assert_eq!(integrity_sha256(&with_fingerprint, &hex(KEY)), Ok(()));
     let read = crate::stun::parse(&signed).unwrap();
     assert_eq!(integrity_of(&read.attributes), Some(PasswordAlgorithm::Sha256));
     let list = password_algorithms(read.attribute(PASSWORD_ALGORITHMS).unwrap()).unwrap();
