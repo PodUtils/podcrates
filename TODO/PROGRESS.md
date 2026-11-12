@@ -12,7 +12,9 @@
   T-355. `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner
   wait.
 - `main` holds T-353 (`pod-oci` against distribution on the loopback; no
-  login over plain HTTP, C187) for the next tag.
+  login over plain HTTP, C187), T-393 and T-395 (the TCP timeout, the
+  keepalive and no Nagle; UDP to a family that the device lacks) for the
+  next tag.
 - The consumers and their tags:
   - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
