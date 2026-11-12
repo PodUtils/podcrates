@@ -1,0 +1,10 @@
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -55,7 +55,6 @@
+         let direct = self.open_on(&settings.way, settings.routes);
+         let through = async {
+             tokio::select! {
+-                () = tokio::time::sleep(delay) => {}
+                 () = go.notified() => {}
+             }
+             // A relay reaches both families.

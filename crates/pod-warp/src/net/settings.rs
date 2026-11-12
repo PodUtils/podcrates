@@ -85,8 +85,9 @@ pub struct NetSettings {
     /// ([`crate::Warp::connect`], PodUtils/podnet issue 120). None: no check
     /// (podnet's `PODNET_WARP_NO_CHECK`).
     pub check: Option<DataPathCheck>,
-    /// The budget of the relay that carries the session, if any
-    /// ([`crate::WarpNet::renew_due`]).
+    /// The budget of the relay that carries the session, for a session with
+    /// no budget of its own ([`crate::MasqueSession::relay_budget`] goes
+    /// first; [`crate::WarpNet::renew_due`]).
     pub renew: Option<Renew>,
 }
 

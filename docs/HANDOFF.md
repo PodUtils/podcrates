@@ -22,11 +22,11 @@ is done. Git and the record keep finished work.
   `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- An agent of this session in a worktree under `.claude/worktrees/`: T-336
-  (the relay leg of `pod-warp` and the race of the two paths, with the
-  leg file), free ids 400 to 402, calls C193 to C196. Merge its branch
+- An agent of this session in a worktree under `.claude/worktrees/`:
+  T-380 and T-358 (`pod-turn` and the STUN client against coturn on the
+  loopback), free ids 403 to 405, calls C197 to C199. Merge its branch
   after `scripts/agent/check.sh` passes on the merge.
-- `main` holds T-353, T-393 and T-395 for the next tag.
+- `main` holds T-353, T-393, T-395 and T-336 for the next tag.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.

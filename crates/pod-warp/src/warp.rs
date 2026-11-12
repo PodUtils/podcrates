@@ -12,6 +12,7 @@ use crate::device::Device;
 use crate::door::{Door, Routes};
 use crate::hints::DeviceHints;
 use crate::identity::Identity;
+use crate::leg::{Leg, Legs, Relay};
 use crate::net::NetSettings;
 use crate::register;
 use crate::session::Way;
@@ -29,6 +30,9 @@ pub struct Settings {
     /// How a session reaches the front door: the dial, the TLS provider,
     /// the TLS name, the `:authority` and the time limit.
     pub way: Way,
+    /// The relay leg: a second dial that races the dial of `way`
+    /// ([`Warp::open_session`]). None: the direct path alone.
+    pub relay: Option<Relay>,
     /// The doors of the record, or one pinned door.
     pub door: Door,
     /// The default routes of the host (podnet: `has_default_route`; both
@@ -44,13 +48,14 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// The settings of `api` and `way`, with the doors of the record, both
-    /// routes, no hints, no report and the stack of
+    /// The settings of `api` and `way`, with no relay, the doors of the
+    /// record, both routes, no hints, no report and the stack of
     /// [`NetSettings::default`] ([`MTU`], the check of the data path).
     pub fn new(api: Api, way: Way) -> Settings {
         Settings {
             api,
             way,
+            relay: None,
             door: Door::Record,
             routes: Routes::default(),
             hints: DeviceHints::default(),
@@ -71,12 +76,15 @@ pub struct Warp {
     /// A front door whose session carried no packet (PodUtils/podnet issue
     /// 133): it goes last.
     pub(crate) bad: Mutex<Option<SocketAddr>>,
+    /// The leg that worked last (PodUtils/podnet issue 126).
+    pub(crate) legs: Mutex<Legs>,
 }
 
 impl Warp {
     /// A client of an enrolled device and its identity.
     pub fn from_parts(settings: Settings, device: Device, identity: Identity) -> Warp {
-        Warp { settings, device, identity, won: Mutex::new(None), bad: Mutex::new(None) }
+        let legs = Mutex::new(Legs::default());
+        Warp { settings, device, identity, won: Mutex::new(None), bad: Mutex::new(None), legs }
     }
 
     /// A client of a stored device.
@@ -187,6 +195,36 @@ impl Warp {
     pub fn mark_door_bad(&self) {
         let won = self.won.lock().unwrap_or_else(|e| e.into_inner()).take();
         *self.bad.lock().unwrap_or_else(|e| e.into_inner()) = won;
+    }
+
+    /// Whether the relay worked last: its delay is then
+    /// [`Relay::delay_known`].
+    pub fn relay_first(&self) -> bool {
+        self.legs.lock().unwrap_or_else(|e| e.into_inner()).relay_first
+    }
+
+    /// Start with the relay first, as the caller kept it (a leg file read
+    /// with [`crate::leg::relay_first_from`]).
+    pub fn with_relay_first(self, relay_first: bool) -> Warp {
+        self.legs.lock().unwrap_or_else(|e| e.into_inner()).relay_first = relay_first;
+        self
+    }
+
+    /// The leg of the last session.
+    pub fn leg(&self) -> Option<Leg> {
+        self.legs.lock().unwrap_or_else(|e| e.into_inner()).last
+    }
+
+    /// The leg to write in the caller's leg file ([`crate::leg::leg_text`]),
+    /// once, after a session that changed [`Warp::relay_first`]: the relay
+    /// opened when the direct path went first, or the direct path opened
+    /// when the relay went first.
+    pub fn take_leg_change(&self) -> Option<Leg> {
+        self.legs.lock().unwrap_or_else(|e| e.into_inner()).change.take()
+    }
+
+    pub(crate) fn note_leg(&self, leg: Leg) {
+        self.legs.lock().unwrap_or_else(|e| e.into_inner()).won(leg);
     }
 
     /// The front door of the last session: the pinned door, else the door
