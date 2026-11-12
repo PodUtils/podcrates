@@ -1,0 +1,43 @@
+# The hosted server of hostc: a client asks the API for a tunnel; each
+# tunnel is a name under the tunnel zone. A last fallback of podssh
+# (PodUtils/podssh@T-742, PodUtils/podssh#213).
+id = "hostc"
+kind = "hostc"
+party = "hostc (akazwz/hostc)"
+about = "The hosted server of hostc, which needs no account"
+
+[[endpoint]]
+name = "api"
+scheme = "https"
+host = "hostc.dev"
+port = 443
+source = { url = "https://github.com/akazwz/hostc/blob/c19ff673f36ee5bf43bfe8e8c6233feb53e922e3/apps/cli/tsdown.config.ts", read = 2026-11-12, note = "__HOSTC_DEFAULT_SERVER__: JSON.stringify(process.env.HOSTC_DEFAULT_SERVER ?? \"https://hostc.dev\")" }
+
+[[fact]]
+name = "tunnel-zone"
+value = "hostc.app"
+source = { url = "https://github.com/akazwz/hostc/blob/c19ff673f36ee5bf43bfe8e8c6233feb53e922e3/README.md", read = 2026-11-12, note = "https://k7m2xq9pa4dn.hostc.app  → http://localhost:3000 (podssh's docs/carriers.md HC1 and HC3)" }
+
+# podssh speaks this version of the protocol, and no other.
+[[fact]]
+name = "protocol-version"
+value = 5
+source = { url = "https://github.com/akazwz/hostc/blob/c19ff673f36ee5bf43bfe8e8c6233feb53e922e3/packages/protocol/src/constants.ts", read = 2026-11-12, note = "export const PROTOCOL_VERSION = 5;" }
+
+# The host of the CLI's default server.
+[[watch]]
+kind = "github-file"
+repo = "akazwz/hostc"
+path = "apps/cli/tsdown.config.ts"
+endpoint = "api"
+
+# The version of the protocol, as the whole statement: the digit alone is
+# in many places of the file.
+[[watch]]
+kind = "http-text"
+url = "https://raw.githubusercontent.com/akazwz/hostc/HEAD/packages/protocol/src/constants.ts"
+contains = "export const PROTOCOL_VERSION = 5;"
+
+[[watch]]
+kind = "rdap"
+domain = "hostc.dev"

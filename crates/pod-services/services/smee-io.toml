@@ -1,0 +1,33 @@
+# The public relay of webhooks of Probot: a POST to /CHANNEL comes out of
+# a GET of /CHANNEL as server-sent events. A last fallback of podssh
+# (PodUtils/podssh@T-741, PodUtils/podssh#213). The README says that the
+# service is for development; no terms were found.
+id = "smee-io"
+kind = "smee"
+party = "Probot (probot/smee.io)"
+about = "A public relay of webhooks: POST /CHANNEL to server-sent events"
+
+[[endpoint]]
+name = "server"
+scheme = "https"
+host = "smee.io"
+port = 443
+source = { url = "https://raw.githubusercontent.com/probot/smee.io/922d925bc241c2e40a1ec86da631b3dbbdd329cb/lib/server.js", read = 2026-11-12, note = "fastify.get('/:channel') answers text/event-stream; fastify.post('/:channel') takes the payload; the host is the one of the README and of podssh's docs/carriers.md SM1 to SM4" }
+
+# The routes of the server.
+[[watch]]
+kind = "github-file"
+repo = "probot/smee.io"
+path = "lib/server.js"
+facts = ["routes"]
+
+[[fact]]
+name = "routes"
+value = ["fastify.get('/:channel'", "fastify.post('/:channel'", "text/event-stream"]
+source = { url = "https://raw.githubusercontent.com/probot/smee.io/922d925bc241c2e40a1ec86da631b3dbbdd329cb/lib/server.js", read = 2026-11-12 }
+
+# The host serves its name. No rdap watch: .io has no RDAP server in
+# IANA's bootstrap.
+[[watch]]
+kind = "tls-name"
+endpoint = "server"

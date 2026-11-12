@@ -314,3 +314,17 @@ fn the_tcp_relay_of_zerotier_is_its_fallback_address() {
     // The fact keeps the form of the source, ADDRESS/PORT, and agrees with the endpoint.
     assert_eq!(relay.text("relay"), Some(format!("{}/{}", tcp.host(), tcp.port()).as_str()));
 }
+
+/// The last fallbacks of podssh of PodUtils/podssh#213: smee.io and hostc.
+#[test]
+fn the_servers_of_smee_io_and_hostc() {
+    let smee = pod_services::get("smee-io").expect("smee-io");
+    let server = smee.endpoint("server").unwrap();
+    assert_eq!((smee.kind(), server.scheme(), server.host(), server.port()), ("smee", "https", "smee.io", 443));
+    assert_eq!(pod_services::of_kind("smee").map(|s| s.id()).collect::<Vec<_>>(), ["smee-io"]);
+    let hostc = pod_services::get("hostc").expect("hostc");
+    let api = hostc.endpoint("api").unwrap();
+    assert_eq!((hostc.kind(), api.scheme(), api.host(), api.port()), ("hostc", "https", "hostc.dev", 443));
+    assert_eq!(hostc.text("tunnel-zone"), Some("hostc.app"));
+    assert_eq!(hostc.int("protocol-version"), Some(5));
+}

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**287 entries: 65 open, 2 partial, 5 blocked, 215 done.**
+**288 entries: 65 open, 2 partial, 5 blocked, 216 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 15 | 0 | 0 | 60 | 75 |
-| P2 | 26 | 1 | 5 | 108 | 140 |
+| P2 | 26 | 1 | 5 | 109 | 141 |
 | P3 | 24 | 1 | 0 | 45 | 70 |
-| **All** | 65 | 2 | 5 | 215 | 287 |
+| **All** | 65 | 2 | 5 | 216 | 288 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -334,3 +334,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | open | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
 | [T-328](podvm.md) | P2 | S | M6 | research | open | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
+| [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |

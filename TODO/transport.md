@@ -4748,3 +4748,54 @@ cargo test -p pod-dns --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-278.
+
+# T-329: `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213)
+
+**Source:** PodUtils/podssh#213 (COORD-039), PodUtils/podssh@T-741 and PodUtils/podssh@T-742.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Two last fallbacks of podssh (smee.io, a relay of webhooks; hostc, a
+tunnel service) read their servers from `pod-services` alone. Until a
+tag has them, each road stays off.
+
+## Premise
+
+- Read: `lib/server.js` of probot/smee.io at `922d925` (2026-11-12):
+  `fastify.get('/:channel')` answers `text/event-stream`;
+  `fastify.post('/:channel')` takes the payload.
+- Read: akazwz/hostc at `c19ff67` (2026-11-12): `apps/cli/tsdown.config.ts`
+  (`HOSTC_DEFAULT_SERVER ?? "https://hostc.dev"`),
+  `packages/protocol/src/constants.ts` (`PROTOCOL_VERSION = 5`), the README
+  (tunnels under `hostc.app`).
+- Measured: IANA's RDAP bootstrap has no row for `io` and a row for `dev`
+  (2026-11-12).
+
+## Approach
+
+`services/smee-io.toml` (kind `smee`, endpoint `server`) and
+`services/hostc.toml` (kind `hostc`, endpoint `api`, facts `tunnel-zone`
+and `protocol-version`), each with watches.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service smee-io --service hostc
+```
+
+## Done
+
+2026-11-12. `smee-io`: the fact `routes` held by a `github-file` watch of
+`lib/server.js`, and `tls-name` of `server` (no `rdap`: `.io` has no RDAP
+server). `hostc`: a `github-file` watch that the CLI's default server is
+`hostc.dev`, an `http-text` watch of the whole statement
+`export const PROTOCOL_VERSION = 5;` (a `github-file` watch of the value 5
+would match any digit 5 of the file), and `rdap` of `hostc.dev`. Test
+`the_servers_of_smee_io_and_hostc` (`tests/api.rs`); rows in the README.
+The run of the watches: 5 hold.

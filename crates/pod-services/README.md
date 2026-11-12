@@ -240,6 +240,8 @@ let relay = services.of_kind("relay").next();
 | `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
+| `smee-io` | `smee` | `server` (`https://smee.io`: a POST to `/CHANNEL` comes out of a GET of `/CHANNEL` as server-sent events) | `routes` (the routes of `lib/server.js`) |
+| `hostc` | `hostc` | `api` (`https://hostc.dev`) | `tunnel-zone` (`hostc.app`), `protocol-version` (5) |
 | `zerotier-tcp-relay` | `tcp-relay` | `tcp` (`204.80.128.1:443`, anycast; records like TLS, no TLS) | `relay` (`ZT_TCP_FALLBACK_RELAY` of ZeroTierOne) |
 | `tox-tcp-relay` | `tcp-relay` | `node-KEY8` (5: each node of the list of Tox with 443 in `tcp_ports` and `status_tcp` true, scheme `tcp`, its IPv4 literal, port 443; the name holds the first eight digits of its key; in the order of the keys, C83) | `public-key-node-KEY8` (the node's public key, 64 hex digits, to which the handshake of the TCP relay boxes) |
 | `syncthing-relay` | `syncthing-relay` | `relay-ID7` (25: each relay of the pool of Syncthing on port 443 with an IP literal that was up 7 days or more at the read, scheme `tls`; the name holds the first seven characters of its device ID; in the order of the device IDs, C104) | `device-id-relay-ID7` (the relay's device ID, as its URL gives it; podssh pins the TLS of the relay to it, PodUtils/podssh@T-571) |
