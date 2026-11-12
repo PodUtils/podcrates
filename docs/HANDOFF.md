@@ -35,16 +35,18 @@ a line when its work is done. Git and the record keep finished work.
   (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
   `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
   blocking face, after T-025), `pod-todo`.
-- podnet (on `v0.22.0`): the take of `v0.26.0` (#77) with
-  `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`); podnet holds
-  `netns/veth.rs` and `netns/tun.rs` to fixes from `db34bae`. Its
+- podnet (on `v0.26.0`, `f107766`, PodUtils/podnet#458): it took the
+  veth wire of `pod-hold`; its `UrlRule::default()` reads `url-skip`. Its
   PodUtils/podnet@T-249 (the router onto `pod-netstack`) waits for the
   three gaps of PodUtils/podnet#457; T-170 step 2 starts at its COORD issue. `pod-git` waits: its own repository,
   deferred (the owner; #75).
 - podssh (on `v0.25.0`, `f029594d`): `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.25.0`, `02a1c0b`): its T-075 takes T-226 of `pod-job`
-  (`v0.26.0`, #77). Its T-042 uses `pod-confine`.
+- podrunner (on `v0.26.0`, `4284967`): its T-075 took T-226 of
+  `pod-job`. Its work order waits for podnet (PodUtils/podrunner#64), the
+  next podvm beta, and later crates (`pod-unit`, `pod-release`, the
+  registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`
+  for its local mode). Its T-042 uses `pod-confine`.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).

@@ -12,17 +12,16 @@
   of `pod-job` (T-226).
 - The consumers and their tags:
   - podssh: `v0.25.0` (`f029594d`, PodUtils/podssh#193).
-  - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).
+  - podnet: `v0.26.0` (`f107766`, PodUtils/podnet#458; the veth wire of
+    `pod-hold`).
   - podvm: `v0.25.0` (`763b7c6a`, PodUtils/podvm#266; `Plan.confine` from
     its profiles, experiment 414 passes).
-  - podrunner: `v0.25.0` (`02a1c0b`); its T-042 takes `pod-confine`, its
+  - podrunner: `v0.26.0` (`4284967`; its T-075); its T-042 takes `pod-confine`, its
     T-048 takes `check_upstream`, `names_upstream` and the flagged rules
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podnet's take of `v0.26.0` with the veth wire of
-  `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; #77);
-  podrunner's T-075 (T-226, #77).
+  T-207, #70); the takes of `v0.26.0` by podssh and podvm (#77).
 - Partial: T-025 (`pod-relay`: the trial of podssh is written and passed
   on this host; `adoption.yml` remains), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174

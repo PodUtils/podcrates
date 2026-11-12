@@ -47,6 +47,7 @@ file 10abcf53a7820c4f929a449335bda8405800eea6 crates/podnet-netns/src/netns/pack
 file 4a577723be88901b2b4d7f5f0d72b62b6625edfe crates/podnet-netns/src/connect.rs -> crates/pod-hold/src/connect.rs crates/pod-hold/src/connect/tests.rs
 
 repo PodUtils/podnet db34baefcdd907622002e3b2e690b9ab0ac939f1
+taken f1077663701afbe6e7c61cd5780592ca5e1788d6
 # T-201 (PodUtils/podnet#446, #451): the veth wire of the netns hold, for a
 # namespace that cannot open /dev/net/tun. netns/veth.rs: the setup of the
 # pair (RTM_NEWLINK, the offloads; the address and the route of the program

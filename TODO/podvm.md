@@ -3155,6 +3155,10 @@ README, the trial).
   of its `doctor.rs` call `create_tun` and `create_veth`, which allocate,
   and the comment of `close_inherited` says that the child calls only
   async-signal-safe functions.
+- podnet took the trial at `f107766` (`v0.26.0`, PodUtils/podnet#458): the
+  `taken` line is in `crates/pod-hold/SOURCES`, and the freeze of the four
+  files ends. Its `doctor.rs` probes run in a new process at `e44575a`
+  (PodUtils/podnet@T-257).
 
 # T-202: `pod-supervise`: a payload that kills its launcher leaves a `Dead` record with no count of 0 (podrunner's T-063)
 
