@@ -20,8 +20,8 @@ use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -204,13 +204,10 @@ fn endpoint_to_socket(endpoint: IpEndpoint) -> SocketAddr {
     SocketAddr::from(endpoint)
 }
 
-fn shut_down() -> io::Error {
-    io::Error::new(io::ErrorKind::BrokenPipe, "the stack is shut down")
-}
-
 mod datagrams;
 mod listen;
 mod reactor;
+mod reset;
 mod service;
 mod socket;
 mod stats;
@@ -218,6 +215,8 @@ mod udp_service;
 pub use datagrams::UdpDatagrams;
 use listen::*;
 use reactor::*;
+pub use reset::StackReset;
+use reset::*;
 use socket::*;
 pub use socket::{SocketCount, TcpListener, TcpStream, UdpSocket};
 pub use stats::{NetStats, NetStatsSnapshot};
@@ -233,6 +232,8 @@ pub struct NetStack {
     socket_count: Arc<SocketCount>,
     shutdown: Arc<Notify>,
     kick: Arc<Notify>,
+    halt: Arc<Halt>,
+    reset: StackReset,
     events_rx: Option<mpsc::UnboundedReceiver<StackEvent>>,
     task: Option<tokio::task::JoinHandle<()>>,
 }
@@ -272,6 +273,8 @@ impl NetStack {
         let socket_count = Arc::new(SocketCount::default());
         let core = Core::new(config, device, events_tx, kick.clone(), socket_count.clone());
         let stats = core.stats.clone();
+        let halt = core.halt.clone();
+        let reset = StackReset { slot: core.reset_slot.clone(), kick: kick.clone() };
         let (cmd_tx, cmd_rx) = mpsc::channel(64);
         let shutdown = Arc::new(Notify::new());
         let inbound_wait = link_in.clone();
@@ -289,13 +292,15 @@ impl NetStack {
             socket_count,
             shutdown,
             kick,
+            halt,
+            reset,
             events_rx: Some(events_rx),
             task: Some(task),
         }
     }
 
     async fn send(&self, command: Command) -> io::Result<()> {
-        self.cmd.send(command).await.map_err(|_| shut_down())
+        self.cmd.send(command).await.map_err(|_| self.shut_down())
     }
 
     /// Bind a TCP listener.
@@ -316,7 +321,7 @@ impl NetStack {
     async fn listen_on(&self, local: Local) -> io::Result<TcpListener> {
         let (reply, rx) = oneshot::channel();
         self.send(Command::Listen { local, reply }).await?;
-        rx.await.map_err(|_| shut_down())?
+        rx.await.map_err(|_| self.shut_down())?
     }
 
     /// Open a TCP connection from an ephemeral port.
@@ -328,7 +333,7 @@ impl NetStack {
     pub async fn connect_from(&self, remote: impl Into<SocketAddr>, local_port: u16) -> io::Result<TcpStream> {
         let (reply, rx) = oneshot::channel();
         self.send(Command::Connect { remote: remote.into(), local_port, reply }).await?;
-        rx.await.map_err(|_| shut_down())?
+        rx.await.map_err(|_| self.shut_down())?
     }
 
     /// Bind a UDP socket.
@@ -350,7 +355,7 @@ impl NetStack {
     async fn bind_udp_on(&self, local: Local) -> io::Result<UdpSocket> {
         let (reply, rx) = oneshot::channel();
         self.send(Command::BindUdp { local, reply }).await?;
-        rx.await.map_err(|_| shut_down())?
+        rx.await.map_err(|_| self.shut_down())?
     }
 
     /// The packets that come from the external link (the pump writes, the
@@ -429,6 +434,7 @@ async fn run(
     max_poll_interval: Duration,
 ) {
     loop {
+        core.take_reset();
         core.poll_iface();
         core.service();
         core.poll_iface();
@@ -445,7 +451,12 @@ async fn run(
                 match command {
                     Some(Command::Shutdown) | None => break,
                     // The command can make a socket; the loop polls at once.
-                    Some(command) => core.handle(command),
+                    // A reset that the consumer asked for before the command
+                    // goes first: it does not end the new socket.
+                    Some(command) => {
+                        core.take_reset();
+                        core.handle(command);
+                    }
                 }
             }
             _ = kick.notified() => {}
@@ -454,9 +465,9 @@ async fn run(
             _ = shutdown.notified() => break,
         }
     }
-    // Wake each task that still waits on a channel.
-    core.conns.clear();
-    core.udp.clear();
+    // The drop of the core gives the cause to each socket, then wakes each
+    // task that still waits on a channel.
+    core.halt.mark("the stack is shut down");
 }
 
 #[cfg(test)]

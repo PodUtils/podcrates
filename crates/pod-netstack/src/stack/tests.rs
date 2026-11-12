@@ -11,6 +11,7 @@ mod close;
 mod hooks;
 mod link;
 mod listener;
+mod reset;
 mod tune;
 mod udp;
 

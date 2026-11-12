@@ -29,6 +29,9 @@ pub(super) struct Conn {
     /// Bytes from the app that the socket did not take yet: `send_slice` can
     /// take part of a chunk when the send buffer is full.
     pub(super) pending: Vec<u8>,
+    /// Why the stack ended the connection (a reset of each socket, the stop
+    /// of the reactor); shared with the stream.
+    pub(super) cause: Cause,
 }
 
 /// The watch of a stream that the app dropped: the last progress, and when.
@@ -104,6 +107,8 @@ pub(super) struct UdpConn {
     pub(super) read_stalled: Arc<AtomicBool>,
     /// When the reactor saw that the app dropped its socket.
     pub(super) gone: Option<SmolInstant>,
+    /// Why the stack ended the socket; shared with the handle.
+    pub(super) cause: Cause,
 }
 
 /// The UDP service of the consumer at the gateway.
@@ -120,6 +125,11 @@ pub(super) enum Command {
 }
 
 pub(super) struct Core {
+    /// The stop of the reactor, shared with the handle (`Drop for Core`).
+    pub(super) halt: Arc<Halt>,
+    /// The reason of a reset that the consumer asked for
+    /// (`NetStack::reset_all`); the reactor takes it at its next pass.
+    pub(super) reset_slot: Arc<Mutex<Option<String>>>,
     pub(super) iface: Interface,
     pub(super) device: LinkDevice,
     pub(super) sockets: SocketSet<'static>,
@@ -208,6 +218,8 @@ impl Core {
         });
         let inbound = device.inbound();
         Self {
+            halt: Arc::default(),
+            reset_slot: Arc::default(),
             iface,
             device,
             sockets,
@@ -366,6 +378,7 @@ impl Core {
         let (ctl_tx, ctl_rx) = mpsc::channel(16);
         let write_waker = Arc::new(AtomicWaker::new());
         let read_stalled = Arc::new(AtomicBool::new(false));
+        let cause = Cause::default();
         self.conns.insert(
             id,
             Conn {
@@ -384,6 +397,7 @@ impl Core {
                 recv_eof_sent: false,
                 announced: false,
                 pending: Vec::new(),
+                cause: cause.clone(),
             },
         );
         TcpStream {
@@ -400,6 +414,7 @@ impl Core {
             read_pos: 0,
             eof: false,
             nodelay: false,
+            cause,
         }
     }
 }

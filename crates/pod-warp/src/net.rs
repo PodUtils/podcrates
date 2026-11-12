@@ -10,6 +10,11 @@
 //! (the host 1 of the prefix, `172.16.0.1` for WARP's IPv4 address) is an
 //! address of the stack, and a packet to it stays in the stack.
 //!
+//! When the session closes (the edge ends it, a pump ends, the reactor of
+//! the stack stops, [`WarpNet::close`]), each open stream and each UDP
+//! socket fails at once with `ConnectionReset` and the first cause, and a
+//! new dial fails with it (PodUtils/podnet issues 112, 125 and 185).
+//!
 //! [`NetSettings`] tunes the stack: the congestion controller, the TCP
 //! burst, the counters of the link, the check of the data path and the
 //! budget of a relay (podnet's `src/warp/ip.rs`).
@@ -20,7 +25,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use pod_core::{BoxFuture, Class, Connected, Datagrams, Dial, Event, Failure, Report, Stage, Target};
-use pod_netstack::NetStack;
+use pod_netstack::{NetStack, StackReset};
 use tokio::task::JoinHandle;
 
 mod settings;
@@ -40,20 +45,39 @@ pub const BATCH_BYTES: usize = 16 * 1024;
 pub const DNS_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The cause of the close of a session: the first cause stays.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct Closed {
     flag: Arc<AtomicBool>,
     reason: Arc<Mutex<Option<String>>>,
+    /// The reset of each socket of the stack at the first cause.
+    reset: StackReset,
 }
 
 impl Closed {
+    fn new(reset: StackReset) -> Closed {
+        Closed { flag: Arc::default(), reason: Arc::default(), reset }
+    }
+
+    /// Mark the session closed for `why`. At the first cause, each open
+    /// stream and UDP socket of the stack fails with it (PodUtils/podnet
+    /// issue 125): before, a read waited for data that could not come.
     fn mark(&self, why: String) {
         let mut slot = self.reason.lock().unwrap_or_else(|e| e.into_inner());
-        if slot.is_none() {
-            *slot = Some(why);
+        let first = slot.is_none();
+        if first {
+            *slot = Some(why.clone());
         }
         self.flag.store(true, Ordering::Relaxed);
+        drop(slot);
+        if first {
+            self.reset.reset(closed_text(&why));
+        }
     }
+}
+
+/// The text of an operation on a closed session.
+fn closed_text(why: &str) -> String {
+    format!("the WARP session is closed: {why}")
 }
 
 /// A WARP session with its stack: a [`Dial`] and a source of [`Datagrams`].
@@ -104,7 +128,7 @@ impl WarpNet {
             "the TCP window and the congestion controller of the WARP stack"
         );
         let stack = NetStack::over_link(config);
-        let closed = Closed::default();
+        let closed = Closed::new(stack.resetter());
         let (tx, rx) = session.split();
         let pumps = pumps(tx, rx, &stack, &closed, report, NetSettings::ours(v4, v6));
         let resolvers = crate::dns::RESOLVERS.to_vec();
@@ -128,6 +152,26 @@ impl WarpNet {
     /// Why the session closed: the first cause.
     pub fn close_reason(&self) -> Option<String> {
         self.inner.closed.reason.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Close the session on purpose for `why` (PodUtils/podnet issue 185:
+    /// the most age of a session), so that the caller opens a new one. Each
+    /// open stream and UDP socket fails with `ConnectionReset` and the
+    /// first cause, a new dial and a new UDP socket fail, and the tasks of
+    /// the session stop. A second close keeps the first cause.
+    pub fn close(&self, why: &str) {
+        self.inner.closed.mark(why.to_string());
+        for pump in &self.inner.pumps {
+            pump.abort();
+        }
+    }
+
+    /// The failure of a new operation on a closed session.
+    fn closed_failure(&self) -> Option<Failure> {
+        self.is_closed().then(|| {
+            let why = self.close_reason().unwrap_or_default();
+            Failure::new(Stage::Warp, Class::Unavailable, closed_text(&why))
+        })
     }
 
     /// The stack, for a listener or a socket that the dial does not give.
@@ -186,9 +230,8 @@ impl WarpNet {
         if let Some(failure) = self.family_failure(addr.ip()) {
             return Err(failure);
         }
-        if self.is_closed() {
-            let why = self.close_reason().unwrap_or_default();
-            return Err(Failure::new(Stage::Warp, Class::Unavailable, format!("the WARP session is closed: {why}")));
+        if let Some(failure) = self.closed_failure() {
+            return Err(failure);
         }
         let open = async {
             let mut stream = self.inner.stack.connect(addr).await?;
@@ -210,6 +253,9 @@ impl WarpNet {
 
     /// A UDP socket of the stack on an ephemeral port of each address.
     pub(crate) async fn bind_udp(&self) -> Result<pod_netstack::UdpSocket, Failure> {
+        if let Some(failure) = self.closed_failure() {
+            return Err(failure);
+        }
         let mut last = None;
         for _ in 0..64 {
             let port = self.inner.next_port.fetch_add(1, Ordering::Relaxed);
@@ -281,8 +327,8 @@ impl Dial for WarpNet {
     }
 }
 
-/// The tasks of a session: the liveness check, the send loop and the
-/// receive loop.
+/// The tasks of a session: the liveness check, the send loop, the receive
+/// loop and the watch of the reactor of the stack.
 fn pumps(
     mut tx: MasqueTx,
     mut rx: MasqueRx,
@@ -292,6 +338,14 @@ fn pumps(
     ours: Vec<IpAddr>,
 ) -> Vec<JoinHandle<()>> {
     let mut tasks = Vec::new();
+    // PodUtils/podnet issue 112: a stack whose reactor stopped, also by a
+    // panic, carries nothing: the session is closed.
+    let stopped = stack.stopped();
+    let stop_closed = closed.clone();
+    tasks.push(tokio::spawn(async move {
+        let why = stopped.await;
+        stop_closed.mark(format!("the stack of the session stopped: {why}"));
+    }));
     // PodUtils/podnet issue 104: a session that gives no pong and no data is
     // closed, so that the caller opens a new one.
     if let Some(keepalive) = tx.keepalive(&rx) {

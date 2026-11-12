@@ -324,6 +324,7 @@ impl Core {
         let (to_app_tx, to_app_rx) = mpsc::channel(64);
         let (send_tx, send_rx) = mpsc::channel(64);
         let read_stalled = Arc::new(AtomicBool::new(false));
+        let cause = Cause::default();
         self.udp.insert(
             id,
             UdpConn {
@@ -336,6 +337,7 @@ impl Core {
                 backlog_bytes: 0,
                 read_stalled: read_stalled.clone(),
                 gone: None,
+                cause: cause.clone(),
             },
         );
         Ok(UdpSocket {
@@ -346,6 +348,7 @@ impl Core {
             read_stalled,
             stats: self.stats.clone(),
             limits: Limits::of(&self.config),
+            cause,
             kick: DropKick(self.kick.clone()),
         })
     }

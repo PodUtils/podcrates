@@ -34,6 +34,9 @@ pub struct TcpStream {
     pub(super) read_pos: usize,
     pub(super) eof: bool,
     pub(super) nodelay: bool,
+    /// Why the stack ended the connection: a closed channel with a cause is
+    /// a reset, not a clean end.
+    pub(super) cause: Cause,
 }
 
 impl std::fmt::Debug for TcpStream {
@@ -50,8 +53,10 @@ impl std::fmt::Debug for TcpStream {
 impl TcpStream {
     /// Wait for the handshake of a connection that this stack opened. A
     /// refusal (a reset, or the end before the handshake) is an error of
-    /// kind `ConnectionRefused` or `ConnectionReset`. Data that comes first
-    /// stays for the next read.
+    /// kind `ConnectionRefused` or `ConnectionReset`; so is the end of the
+    /// connection by the stack ([`NetStack::reset_all`], the stop of the
+    /// reactor), with its cause. Data that comes first stays for the next
+    /// read.
     pub async fn established(&mut self) -> io::Result<()> {
         if self.eof {
             return Err(io::Error::from(io::ErrorKind::ConnectionRefused));
@@ -70,7 +75,7 @@ impl TcpStream {
             }
             Some(AppEvent::Eof) | None => {
                 self.eof = true;
-                Err(io::Error::new(io::ErrorKind::ConnectionRefused, "the connection was refused"))
+                Err(ended(&self.cause, io::Error::new(io::ErrorKind::ConnectionRefused, "the connection was refused")))
             }
             Some(AppEvent::Reset(message)) => Err(io::Error::new(io::ErrorKind::ConnectionReset, message)),
         }
@@ -165,7 +170,16 @@ impl AsyncRead for TcpStream {
                     self.put_kept(buf);
                     Poll::Ready(Ok(()))
                 }
-                Poll::Ready(Some(AppEvent::Eof)) | Poll::Ready(None) => {
+                Poll::Ready(Some(AppEvent::Eof)) => {
+                    self.eof = true;
+                    Poll::Ready(Ok(()))
+                }
+                // The stack ended the connection with a cause: each read
+                // fails with it.
+                Poll::Ready(None) if self.cause.get().is_some() => {
+                    Poll::Ready(Err(ended(&self.cause, io::ErrorKind::ConnectionReset.into())))
+                }
+                Poll::Ready(None) => {
                     self.eof = true;
                     Poll::Ready(Ok(()))
                 }
@@ -197,9 +211,10 @@ impl AsyncWrite for TcpStream {
                 self.write_waker.register(cx.waker());
                 Poll::Pending
             }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                Poll::Ready(Err(io::Error::new(io::ErrorKind::BrokenPipe, "the TCP connection is closed")))
-            }
+            Err(mpsc::error::TrySendError::Closed(_)) => Poll::Ready(Err(ended(
+                &self.cause,
+                io::Error::new(io::ErrorKind::BrokenPipe, "the TCP connection is closed"),
+            ))),
         }
     }
 
@@ -257,6 +272,9 @@ pub struct UdpSocket {
     pub(super) read_stalled: Arc<AtomicBool>,
     pub(super) stats: Arc<NetStats>,
     pub(super) limits: Limits,
+    /// Why the stack ended the socket: a closed channel with a cause is
+    /// `ConnectionReset`.
+    pub(super) cause: Cause,
     /// The last field: its drop kicks the reactor after the channels closed.
     pub(super) kick: DropKick,
 }
@@ -326,7 +344,8 @@ impl UdpSocket {
     async fn queue(&self, buf: &[u8], to: SocketAddr, from: Option<IpAddr>) -> io::Result<usize> {
         one_family(from.unwrap_or(self.local.ip()), to)?;
         self.limits.check(buf.len(), to, &self.stats)?;
-        self.send_tx.send(Outbound { data: buf.to_vec(), to, from }).await.map_err(|_| udp_closed())?;
+        let outbound = Outbound { data: buf.to_vec(), to, from };
+        self.send_tx.send(outbound).await.map_err(|_| ended(&self.cause, udp_closed()))?;
         self.kick.notify();
         Ok(buf.len())
     }
@@ -349,7 +368,7 @@ impl UdpSocket {
                 buf[..n].copy_from_slice(&data[..n]);
                 Ok((n, from, to))
             }
-            None => Err(udp_closed()),
+            None => Err(ended(&self.cause, udp_closed())),
         }
     }
 }

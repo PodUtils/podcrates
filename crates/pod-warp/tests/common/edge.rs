@@ -8,8 +8,9 @@
 //! loopback, as Cloudflare's network carries a connection to its target;
 //! port 53 answers a DNS question over TCP and over UDP with [`NAME_IP`];
 //! UDP port 7 echoes. A test can change the key that it shows, as WARP's
-//! front door showed a new device another key than its record's, and reads
-//! what the far end saw ([`Watch`]).
+//! front door showed a new device another key than its record's, end each
+//! open session ([`Edge::end_sessions`]), and read what the far end saw
+//! ([`Watch`]).
 
 use std::collections::VecDeque;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -164,6 +165,9 @@ pub struct Edge {
     pub seen: Arc<Seen>,
     pub watch: Arc<Watch>,
     shown: Arc<Shown>,
+    /// A second handle of the TCP connection of each session, for
+    /// [`Edge::end_sessions`].
+    sessions: Arc<Mutex<Vec<std::net::TcpStream>>>,
     task: AbortHandle,
 }
 
@@ -193,10 +197,16 @@ impl Edge {
         let seen = Arc::new(Seen::default());
         let watch = Arc::new(Watch::default());
         let (routes, counted, watched) = (Arc::new(routes), seen.clone(), watch.clone());
+        let sessions = Arc::new(Mutex::new(Vec::new()));
+        let served = sessions.clone();
         let task = tokio::spawn(async move {
             while let Ok((tcp, _)) = listener.accept().await {
                 let (acceptor, routes, seen) = (acceptor.clone(), routes.clone(), counted.clone());
                 let watch = watched.clone();
+                let Ok(tcp) = tcp.into_std() else { continue };
+                let Ok(second) = tcp.try_clone() else { continue };
+                served.lock().unwrap_or_else(PoisonError::into_inner).push(second);
+                let Ok(tcp) = tokio::net::TcpStream::from_std(tcp) else { continue };
                 tokio::spawn(async move {
                     let Ok(tls) = acceptor.accept(tcp).await else { return };
                     let (to_far, from_client) = mpsc::channel(256);
@@ -207,7 +217,15 @@ impl Edge {
                 });
             }
         });
-        Edge { addr, seen, watch, shown, task: task.abort_handle() }
+        Edge { addr, seen, watch, shown, sessions, task: task.abort_handle() }
+    }
+
+    /// End each session that the stand-in serves now: its TCP connection
+    /// closes with no TLS alert, as a front door that drops a session.
+    pub fn end_sessions(&self) {
+        for session in self.sessions.lock().unwrap_or_else(PoisonError::into_inner).drain(..) {
+            let _ = session.shutdown(std::net::Shutdown::Both);
+        }
     }
 
     /// The `PUBLIC KEY` PEM of the key that the stand-in shows last.
