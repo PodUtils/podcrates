@@ -1,0 +1,7 @@
+# A refused user token is tried again in a loop. The test of a refused
+# user token in a reconnect must see each get.
+ENTRY=T-378
+GROUP=devtunnel
+EXPECT='a_refused_user_token_ends_the_reconnect_at_once'
+RUN='cargo test -p pod-devtunnel --all-features --test reconnect'
+LIMIT=1800

@@ -1,0 +1,7 @@
+# The end of a session reads as the far end's EOF: a stream that a
+# reconnect ended looks closed by the host. The reconnect test must see it.
+ENTRY=T-378
+GROUP=devtunnel
+EXPECT='a_reconnect_ends_each_open_stream'
+RUN='cargo test -p pod-devtunnel --all-features --test reconnect'
+LIMIT=1800

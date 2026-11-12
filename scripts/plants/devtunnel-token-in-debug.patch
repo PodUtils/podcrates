@@ -1,0 +1,13 @@
+diff --git a/crates/pod-devtunnel/src/token.rs b/crates/pod-devtunnel/src/token.rs
+index 2e09654..1ff3e4d 100644
+--- a/crates/pod-devtunnel/src/token.rs
++++ b/crates/pod-devtunnel/src/token.rs
+@@ -95,7 +95,7 @@ impl UserToken {
+ 
+ impl fmt::Debug for UserToken {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        f.debug_struct("UserToken").field("scheme", &self.scheme).field("secret", &"<hidden>").finish()
++        f.debug_struct("UserToken").field("scheme", &self.scheme).field("secret", &self.secret.as_str()).finish()
+     }
+ }
+ 

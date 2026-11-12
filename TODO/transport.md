@@ -5337,9 +5337,9 @@ cargo test -p pod-devtunnel --all-features
 
 ## Correction
 
-2026-11-12: the first part is in (the commit that adds the crate, and
-the commit of its plants): `crates/pod-devtunnel`, the client side that
-PodUtils/podssh#216 asks for.
+2026-11-12: the first part is in (`7b8c2b7`, the crate; the next commit,
+its plants `devtunnel-*` of `scripts/plants/`): `crates/pod-devtunnel`,
+the client side that PodUtils/podssh#216 asks for.
 
 - The study: the vendor's client microsoft/dev-tunnels (MIT) at
   `37956c63675e3339b42c7f852a5af5da1566c5b9`, its Rust client `rs/`

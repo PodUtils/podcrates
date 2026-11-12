@@ -1,0 +1,15 @@
+diff --git a/crates/pod-devtunnel/src/stream.rs b/crates/pod-devtunnel/src/stream.rs
+index 722e5f1..34df546 100644
+--- a/crates/pod-devtunnel/src/stream.rs
++++ b/crates/pod-devtunnel/src/stream.rs
+@@ -104,8 +104,8 @@ impl AsyncRead for Stream {
+                         Some(_) => this.reading = Reading::Idle(read),
+                         // No close came: the session went with the channel.
+                         None => {
+-                            this.reading = Reading::Aborted;
+-                            return Poll::Ready(Err(aborted()));
++                            this.reading = Reading::Ended;
++                            return Poll::Ready(Ok(()));
+                         }
+                     },
+                 },

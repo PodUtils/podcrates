@@ -1,0 +1,7 @@
+# The upgrade offers no subprotocol: the relay refuses it. The test of a
+# stream through the stand-in must see it.
+ENTRY=T-378
+GROUP=devtunnel
+EXPECT='a_stream_to_a_port_of_the_host_echoes_through_the_relay'
+RUN='cargo test -p pod-devtunnel --all-features --test relay'
+LIMIT=1800
