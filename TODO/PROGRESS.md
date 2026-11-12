@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 286 entries: 64 open, 2 partial, 5 blocked, 215 done.
+`TODO/INDEX.md` holds 287 entries: 65 open, 2 partial, 5 blocked, 215 done.
 
 ## State
 
@@ -21,7 +21,7 @@
   - podvm: `v0.31.0` (`c5b61b45`, PodUtils/podvm#284; its 362 unit
     tests pass; T-320 is its test `import_padded.rs`; T-321 waits for its
     run of `arm.yml`, PodUtils/podvm@T-1742).
-  - podrunner: `v0.30.0` (`528a918`, its T-086; its local mode
+  - podrunner: `v0.31.0` (`98bc496`, PodUtils/podrunner@T-094; its `LocalSource` keeps a `Run<Arc<Workflow>>`); its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes

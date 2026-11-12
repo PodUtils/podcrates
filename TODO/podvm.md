@@ -4527,3 +4527,44 @@ its live wire where a stand-in serves it); `adoption.yml` passes the trial.
 ```sh
 sh scripts/adoption.sh podvm pod-relay
 ```
+
+# T-328: GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note)
+
+**Source:** podrunner's session (its take of `v0.31.0`, PodUtils/podrunner@T-094): podvm `v0.2.0-beta.5` on the GitHub x86_64 host, runner-image run 43205758271 of podrunner.
+**Category:** research
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In a podvm unit, `mkdir -p DIR` then GNU `tar -xz -C DIR` of the runner
+image failed with "Cannot open: No such file or directory". podrunner
+works around it with `cd DIR` and `gzip -dc | tar -xf -`. The case is
+not reduced. `tar -C` opens the members relative to a directory fd
+(`openat`, `mkdirat` with a dirfd), so the cause can be in the path
+layer of `pod-enter` or of podvm, not in tar.
+
+## Premise
+
+- Read: podrunner's note (the message of its session).
+- Not measured: the tier of the unit (rootfs or machine), the syscalls
+  of tar, and which crate translates them.
+
+## Approach
+
+1. Reduce: in a unit of podvm's rootfs tier, `mkdir -p d && tar -xf
+   small.tar -C d` against a tar of one directory and one file; then the
+   same with `-z`.
+2. If it fails: trace the `openat`, `mkdirat` and `fchdir` of tar with
+   their dirfd, and compare with the path layer of `pod-enter`; a test of
+   the crate with the reduced case.
+3. If it does not fail in the crate's layer: a COORD issue `(to podvm)`
+   with the reduced case.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
