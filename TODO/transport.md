@@ -4196,3 +4196,53 @@ README row. `the_archive_of_wasmtime_holds_the_pins_of_podvm`; `cargo
 test -p pod-services --all-features --test podvm`: 10 pass. The live
 watch: `holds wasmtime-release http-sha256: the SHA-256 of ... is the
 fact's; ... is 11577424 bytes`.
+
+# T-256: `pod-services`: the public wss:// peers of Yggdrasil on port 443 (PodUtils/podssh#203)
+
+**Source:** PodUtils/podssh#203 (COORD-029 of podssh, for PodUtils/podssh@T-735)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podssh@T-735, the last fallback of a pair after the road of Tox,
+joins Yggdrasil's network through one WebSocket (`ygg-ws`), also
+through an HTTPS proxy. It needs public peers that listen on `wss://`
+and port 443, from `pod-services`: podssh reads the fact `urls` of the
+service `yggdrasil-wss-peer` and picks one peer by a hash of the pair's
+name.
+
+## Premise
+
+- Read: PodUtils/podssh#203; the list of the network
+  (`yggdrasil-network/public-peers` at `0dc7fe1c`): seven `wss://` peers,
+  six on port 443; the status page `https://publicpeers.neilalexander.dev/`
+  on 2026-11-12: two online (`ygg-evn-1.wgos.org`, 100%;
+  `donotclickthis.link/api/v2/socket`, 95%), four offline for 5 weeks.
+- Measured on 2026-11-12: each of the two answers the WebSocket upgrade
+  (the watch `websocket-upgrade`).
+- Not measured: a join of the network through them from this sandbox.
+
+## Approach
+
+A service `yggdrasil-wss-peer` (kind `mesh-peer`), an endpoint for each
+online peer, the fact `urls` sorted (one order for both ends of a pair),
+a `websocket-upgrade` watch and a `github-file` watch of the list for
+each peer; a test of the form; the README rows.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test yggdrasil
+cargo run -q -p pod-services-watch -- --service yggdrasil-wss-peer
+```
+
+## Done
+
+2026-11-12. `crates/pod-services/services/yggdrasil-wss-peer.toml`,
+`tests/yggdrasil.rs` (2 tests), the README rows. The live watches: 4
+hold (each peer upgraded; each host is in its file of the list). Only
+two peers fit; the offline four stay out.

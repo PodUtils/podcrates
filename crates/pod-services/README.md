@@ -251,6 +251,7 @@ let relay = services.of_kind("relay").next();
 | `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256`, `archive-sha256`, `archive-bytes`, `kernel-release`, `module-failover-sha256`, `module-net-failover-sha256`, `module-virtio-net-sha256` (the NIC modules in `boot/initramfs-virt`) |
 | `cloudflare-workerd-npm` | `tool` | `archive` (`registry.npmjs.org`) | `version`, `archive-sha256`, `archive-bytes`, `archive-integrity`, `bin-member`, `bin-sha256`, `bin-bytes` (the npm package of workerd; podvm's profile `workerd-test`) |
 | `wasmtime-release` | `tool` | `archive` (`github.com`) | `version`, `archive-sha256`, `archive-bytes`, `bin-member`, `bin-sha256`, `bin-bytes` (the release archive of wasmtime; podvm's profile `wasmtime-wasi`) |
+| `yggdrasil-wss-peer` | `mesh-peer` | one for each peer (`wss`, port 443) | `urls` (the peers, sorted; PodUtils/podssh@T-735) |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
 | `hackerschoice-gsr` | `gsr-relay` | `default` (scheme `tcp`; the shard letter goes in front of the host) | `shard-count`, `addr-key`, `srp-key`, `srp-password-hex-chars`, `srp-user`, `srp-group`, `cipher`, `secret-prefix`, `secret-suffix`, `secret-max-bytes`, `protocol-major`, `protocol-minor`, `ping-interval-ms`, `idle-timeout-ms` (the facts of gsocket, read by `pod-gsr`) |
@@ -521,6 +522,8 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
   and marks around a URL, the end of the banner, the first URL kept, bytes
   that are not UTF-8.
 * `tests/public_carriers.rs` (6): the rules of the kinds `wisp-public`, `proxy-list` and `proxy-node`: a source with a date for each value, port 443, no refused suffix, no VMess, the forms of the share links, one `word` for each forwarder.
+* `tests/yggdrasil.rs` (2): the peers of `yggdrasil-wss-peer`: each a
+  `wss://` URL on 443, the list sorted, each URL an endpoint of the file.
 * `tests/tox.rs` (3): the relays of `tox-tcp-relay`: each an IP literal
   on 443 with a key of 64 hex digits whose head is in its name, the
   order of the keys, and the watch that holds each endpoint to the list.

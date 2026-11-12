@@ -1,0 +1,54 @@
+# The public peers of Yggdrasil's network that listen on wss:// on port
+# 443: a node joins the network through one WebSocket, also through an
+# HTTPS proxy (PodUtils/podssh@T-735, the last fallback of a pair). Their
+# operators run them for any node, with no account. The list of the
+# network names them; its status page shows which are online. The fact
+# urls holds them sorted, so that both ends of a pair pick the same one.
+id = "yggdrasil-wss-peer"
+kind = "mesh-peer"
+party = "the operators of Yggdrasil's public peers (volunteers)"
+about = "Public peers of the Yggdrasil network on wss:// and port 443"
+
+[[endpoint]]
+name = "donotclickthis"
+scheme = "wss"
+host = "donotclickthis.link"
+port = 443
+path = "/api/v2/socket"
+source = { url = "https://github.com/yggdrasil-network/public-peers/blob/0dc7fe1c54fe5bef50eb60f530bee0004c5e2bc0/europe/russia.md", read = 2026-11-12, note = "wss://donotclickthis.link:443/api/v2/socket; the status page https://publicpeers.neilalexander.dev/ showed it online 5 days, 95% on 2026-11-12" }
+
+[[endpoint]]
+name = "evn-1"
+scheme = "wss"
+host = "ygg-evn-1.wgos.org"
+port = 443
+path = "/"
+source = { url = "https://github.com/yggdrasil-network/public-peers/blob/0dc7fe1c54fe5bef50eb60f530bee0004c5e2bc0/europe/armenia.md", read = 2026-11-12, note = "wss://ygg-evn-1.wgos.org:443; the status page showed it online 1 week+, 100% on 2026-11-12" }
+
+# The peers as Yggdrasil's Peers take them, sorted. The list's other four
+# wss:// peers on 443 (ygg.mvault.ru.net, ygg.fi.mvault.ru.net,
+# ygg.ch.mvault.ru.net, assets.route172.de) were offline for 5 weeks.
+[[fact]]
+name = "urls"
+value = ["wss://donotclickthis.link:443/api/v2/socket", "wss://ygg-evn-1.wgos.org:443"]
+source = { url = "https://github.com/yggdrasil-network/public-peers/tree/0dc7fe1c54fe5bef50eb60f530bee0004c5e2bc0", read = 2026-11-12, note = "each wss:// peer on port 443 of the list that https://publicpeers.neilalexander.dev/ showed online (PodUtils/podssh#203 asks)" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "donotclickthis"
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "evn-1"
+
+[[watch]]
+kind = "github-file"
+repo = "yggdrasil-network/public-peers"
+path = "europe/russia.md"
+endpoint = "donotclickthis"
+
+[[watch]]
+kind = "github-file"
+repo = "yggdrasil-network/public-peers"
+path = "europe/armenia.md"
+endpoint = "evn-1"
