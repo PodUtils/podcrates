@@ -876,7 +876,7 @@ podnet's take remain.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -922,8 +922,10 @@ T-019, T-021 and T-022 are done.
 
 ## Done
 
-2026-11-11, partial: the trial of podssh (adoption/podssh/pod-relay.*),
-the release and the take remain. Commits `b4dd345` (the import of
+2026-11-12: podssh took the crate at `0872c2c6` (PodUtils/podssh#206),
+from `v0.27.0`, with each line of the `.run` of its trial; the `taken`
+line is in `SOURCES`, and the trial files are gone. The import, on
+2026-11-11: Commits `b4dd345` (the import of
 `PodUtils/podssh:crates/podssh-relay/src/` and its tests at `75a5031`, with
 `SOURCES`: 117 files), `f74b805` (the adaptation of the library), `cb122b3`
 (the tests), `18a73a0` (the README, the plants, the fuzz targets, the
@@ -997,8 +999,8 @@ commit: podssh's workspace is in edition 2024.
   with a clone of podssh: 127 files, 0 changes on its `main`.
 
 - The trial of podssh (`docs/design.md`, section 8, step 7):
-  `adoption/podssh/pod-relay.patch`, `.commit` (`75a5031`, which podssh
-  holds to fixes) and `.run`. The patch changes 318 files of podssh (7
+  the patch `pod-relay` of `adoption/podssh/` (removed after the take),
+  its `.commit` (`75a5031`, which podssh held to fixes) and `.run`. The patch changes 318 files of podssh (7
   new, 173 removed, 138 changed; 1,325 lines added, 25,812 removed;
   `Cargo.lock` aside). podssh-relay keeps each module name of the cut as
   glue over `pod_relay`: `src/context.rs` makes the `Context` of the
@@ -2716,7 +2718,7 @@ and this record (the calls C80 to C82, T-245, T-246).
   uses). A host off the loopback is refused before any connection. With
   the feature, `parse_relay` takes `http://` and `ws://` for a host on the
   loopback (call C82). `open::Request` has no new field: the one literal
-  that `adoption/podssh/pod-relay.patch` adds (`grep -n "Request {"`, in
+  that the podssh trial patch of `pod-relay` adds (`grep -n "Request {"`, in
   podssh-relay's `open`) has no `..`, and stays valid.
 - podnet's tests, with their names: `relay_urls` and
   `an_ipv6_relay_host_keeps_its_port` (`crates/pod-relay/src/relay_tests.rs`),

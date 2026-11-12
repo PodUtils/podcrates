@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 255 entries: 64 open, 4 partial, 4 blocked, 183 done.
+`TODO/INDEX.md` holds 255 entries: 64 open, 3 partial, 4 blocked, 184 done.
 
 ## State
 
@@ -13,8 +13,8 @@
   families of `pod-confine` (T-213), the paths of `Plan.confine` after
   the mounts (T-227), `mcr-registry` (T-233), a busy tmpfs (T-240).
 - The consumers and their tags:
-  - podssh: `v0.26.0` (`ff2f7bac`, PodUtils/podssh#194; `pinggy::skips()`
-    reads the URL rule of `pod_services::forward`).
+  - podssh: `v0.27.0` (`0872c2c6`, PodUtils/podssh#206; it took
+    `pod-relay`: podssh-relay's relay client is glue over the crate).
   - podnet: `v0.27.0` (`28c0e3d`, PodUtils/podnet#465; the close of a
     listener and the SYN bursts of PodUtils/podnet#457 hold in its tests).
   - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
@@ -25,17 +25,16 @@
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podssh's take of `pod-relay` with `v0.27.0` (T-025, #85);
-  podvm's take of T-266 (PodUtils/podvm#277: it runs `kvm.yml` again with
+  T-207, #70); podvm's take of T-266 (PodUtils/podvm#277: it runs `kvm.yml` again with
   the tag) and podnet's take of T-257 to T-259 (PodUtils/podnet#464, for
   its guest-wire router PodUtils/podnet@T-248: the UDP counters,
   `max_datagram`, the feature `ipv4-fragmentation`, the backlog of a UDP
   socket), with the next tag.
-- Partial: T-025 (`pod-relay`: the trial of podssh passed in
-  `adoption.yml`; the release and podssh's take remain), T-026
+- Partial: T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet remains), T-040 (the
-  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249). Open defects: T-131
+  trial of podvm), T-170 (step 2: PodUtils/podnet@T-249 is done at
+  `a7350b2`, PodUtils/podnet#451). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -85,14 +84,13 @@ next entry.
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
-   `pod-relay` (after T-025, the blocking face), `pod-services` and
+   `pod-relay` (the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-225 (a watch of the banner of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-025 (partial: podssh's take of `v0.27.0`),
-   T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
+6. **M2, the relay:** T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
    MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then
    T-245 (the `Host` of an IPv6 relay on port 443), T-246 (the names of the
    cache files); then T-204 (a random failure of

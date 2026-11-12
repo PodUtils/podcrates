@@ -4,6 +4,7 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podssh 75a503183f373016dc83592f11a13c88258afb2e
+taken 0872c2c61df2eb7f948bf4c8ba2755aae86f440b
 # The cut of docs/design.md, section 4: the relay client of
 # crates/podssh-relay/src (the hosts, the pool, the rank, the failover, the
 # tokens, the roads to a relay, the forward layer, the pairs, the exchange

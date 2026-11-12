@@ -259,8 +259,8 @@ in italics has podnet's name.
 | the tests of the files above | `tests/` here |
 | the plants of these files | scripts/plants/relay-* here, where their test is here |
 
-The trial of podssh is adoption/podssh/pod-relay.patch, on podssh `75a5031`
-(T-025). podssh-relay keeps each module name of the cut as glue over this
+podssh took the crate at `0872c2c6` (T-025, PodUtils/podssh#206), from the
+patch of its trial on podssh `75a5031`. podssh-relay keeps each module name of the cut as glue over this
 crate: one `Context` of the process (`podssh_relay::context::{process, of}`),
 each variable read at each call, and a wrapper of the old signature for each
 free function. A struct literal of the CLI takes `ctx` in place of `proxy`;

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**255 entries: 64 open, 4 partial, 4 blocked, 183 done.**
+**255 entries: 64 open, 3 partial, 4 blocked, 184 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 2 | 0 | 51 | 66 |
+| P1 | 13 | 1 | 0 | 52 | 66 |
 | P2 | 31 | 2 | 4 | 93 | 130 |
 | P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 64 | 4 | 4 | 183 | 255 |
+| **All** | 64 | 3 | 4 | 184 | 255 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-022](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: the mailbox client, SPAKE2 and the code words |
 | [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | done | `pod-wg`: the WireGuard initiator |
-| [T-025](relay.md) | P1 | L | M2 | feature | partial | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
+| [T-025](relay.md) | P1 | L | M2 | feature | done | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
 | [T-026](relay.md) | P1 | M | M2 | feature | partial | `pod-relay`: podnet's relay client and its plain reverse mode |
 | [T-027](adapters.md) | P2 | S | M3 | feature | open | `pod-transit`: the transit relay carrier |
 | [T-028](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the WARP adapter |

@@ -8,17 +8,10 @@ a line when its work is done. Git and the record keep finished work.
 
 ## In flight
 
-- `pod-relay` (T-025, partial; call C60): imported from podssh `75a5031`
-  and adapted (a `Context` of the caller, `Settings`, no globals); 357
-  tests and 28 plants pass. The trial of podssh (adoption/podssh/pod-relay.*,
-  call C67) passed in `adoption.yml` (run 43130443273): podssh-relay keeps
-  each module as glue over one `Context` of the process. Its patch names
-  `v0.27.0`. T-229 (six
-  plants that only podssh's tests caught) and T-228 (the live tests in
-  `live.yml`) come of it. podssh holds the files of the cut from
-  `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
-  lines events. A trial of a crate with a digit in its name needs the
-  pattern of `scripts/adoption.sh` from `040f3ea`.
+- `pod-relay` (T-025, done; call C60): podssh took it at `0872c2c6`
+  (PodUtils/podssh#206); podssh-relay keeps each module as glue over one
+  `Context` of the process. T-229 (two of six plants of podssh still need
+  a test of the crate) and T-212 (the lines as events) remain.
 - `pod-relay` and podnet (T-026, partial; calls C73 to C76): podnet's
   relay client is in the crate (`RelayBudget`, `stream::of`, the tokens of
   a run, `reverse::local`, `Settings::half_close` and `drain`,
@@ -47,16 +40,16 @@ a line when its work is done. Git and the record keep finished work.
   PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`
   (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
   `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
-  blocking face, after T-025), `pod-todo`.
+  blocking face), `pod-todo`.
 - podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its
   `UrlRule::default()` reads `url-skip`. Its PodUtils/podnet@T-249 (the
   router onto `pod-netstack`) drops its workarounds; its commit comes in
   PodUtils/podnet#451 and starts T-170 step 2. Its PodUtils/podnet@T-248
   (the guest-wire router) takes T-257 to T-259 with the next tag. `pod-git` waits: its own repository,
   deferred (the owner; #75).
-- podssh (on `v0.26.0`, `ff2f7bac`): its `pinggy::skips()` reads the URL
-  rule of `pod_services::forward`; the trial patch of `pod-relay` changes
-  `pinggy::dashboard()` at `75a5031`, so its take keeps `skips()`. `sandhole` and `openbare-xyz` of `pod-services`
+- podssh (on `v0.27.0`, `0872c2c6`, PodUtils/podssh#206): it took
+  `pod-relay` and kept `pinggy::skips()`. Its asks PodUtils/podssh#196,
+  #203 and #204 are in `v0.28.0`; #205 is T-261. `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.26.0`, `4284967`): its T-075 took T-226 of
   `pod-job`. Its work order waits for podnet (PodUtils/podrunner#64), the
