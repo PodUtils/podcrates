@@ -4106,3 +4106,45 @@ on a 7.4 kernel in CI where a runner has one.
 ```sh
 cargo test -p pod-confine --all-features
 ```
+
+# T-250: `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start
+
+**Source:** the run of `ci.yml` at `30a01f0` (job `test`)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count` of
+`crates/pod-supervise/tests/tree.rs` (T-202) failed in CI at its `start`:
+`the launcher exited and did not say whether the payload started`. The
+payload killed its launcher at once, and a launcher killed before it says
+that the payload started makes `start` fail. The test is of the record
+after the start, not of that case.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/launcher.rs` (the word of the start;
+  `Class::Unavailable` when the launcher exits before it), the test.
+- Not measured: the race on this host (25 runs of the binary passed
+  before and after the fix).
+
+## Approach
+
+The payload waits for a file that the test writes after `start`
+returned, then kills its launcher.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --test tree
+```
+
+## Done
+
+2026-11-12. The payload waits for `orphan.go`, which the test writes
+after `start`; 25 runs of the binary pass. The case of a launcher killed
+before its word stays a refusal of `start` (`Class::Unavailable`).

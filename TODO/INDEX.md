@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**238 entries: 62 open, 5 partial, 4 blocked, 167 done.**
+**239 entries: 62 open, 5 partial, 4 blocked, 168 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 81 | 118 |
+| P2 | 31 | 2 | 4 | 82 | 119 |
 | P3 | 18 | 1 | 0 | 35 | 54 |
-| **All** | 62 | 5 | 4 | 167 | 238 |
+| **All** | 62 | 5 | 4 | 168 | 239 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -285,3 +285,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-241](podvm.md) | P3 | M | M7 | feature | open | `pod-confine`: the permissions and the quiet flags of Landlock ABI 11 and 12 |
 | [T-242](fleet.md) | P2 | S | M8 | chore | done | Docs: the names of the renames of 2026-11-12 (`pods`, `podstat`, `podforge`) and the stale text of `pod-git` and of the podrunner plan (GitHub #78) |
 | [T-243](upkeep.md) | P3 | S | M5 | chore | done | Dependabot of 2026-11-12: trufflehog 3.99.8, toml 1.2.1, and foreign-types 0.5.0 declined (GitHub #79, #80, #81) |
+| [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |

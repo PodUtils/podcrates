@@ -220,11 +220,18 @@ mod steps {
     pub fn a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count(root: &Path) {
         let s = settings(root, "orphan");
         let (pidfile, payfile): (PathBuf, PathBuf) = (root.join("orphan.pid"), root.join("orphan.payload"));
+        let go = root.join("orphan.go");
         std::fs::create_dir_all(root).unwrap();
-        let p = payfile.display();
-        let then = format!("echo $$ > {p}.tmp; mv {p}.tmp {p}; kill -9 $PPID; exec sleep 300");
+        let (p, g) = (payfile.display(), go.display());
+        // The payload kills its launcher only after `start` returned: a
+        // launcher killed before it says that the payload started makes
+        // `start` fail, which is another case.
+        let then = format!(
+            "echo $$ > {p}.tmp; mv {p}.tmp {p}; while [ ! -e {g} ]; do sleep 0.05; done; kill -9 $PPID; exec sleep 300"
+        );
         create(&s, Some("orphan"), vec![leaver(&pidfile, &then)], Vec::new(), "/".into(), Any::new()).expect("create");
         start(&s, "orphan", enter).expect("start");
+        std::fs::write(&go, b"").unwrap();
         let (c, code) = wait::<Any>(&s, "orphan", 30_000).expect("wait");
         let (grandchild, payload) = (pid_in(&pidfile), pid_in(&payfile));
         let at = Instant::now();
