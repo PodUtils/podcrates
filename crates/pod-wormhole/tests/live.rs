@@ -24,7 +24,7 @@ async fn two_ends_meet_at_each_public_mailbox() {
     for url in urls {
         let url = WsUrl::parse(&url).unwrap();
         let shown = url.shown();
-        let config = Config::new(harness::APPID, "pod-wormhole-live", "0.0.0", harness::way());
+        let config = Config::new(harness::APPID, "pod-wormhole-live", "0.0.0", harness::live_way());
         let ends = Ends { mailboxes: vec![url], config };
         let versions = json!({ "live": 1 });
         let (mut giver, code) = opened(&ends, versions.clone()).await.unwrap_or_else(|e| panic!("{shown}: {e}"));
@@ -57,7 +57,7 @@ async fn two_ends_meet_at_each_public_broker() {
         let url = WsUrl::parse(&endpoint.url()).unwrap();
         let login = service.text("user").zip(service.text("password"));
         let login = login.map(|(user, password)| Login { user: user.into(), password: password.into() });
-        let config = Config::new(harness::APPID, "pod-wormhole-live", "0.0.0", harness::way());
+        let config = Config::new(harness::APPID, "pod-wormhole-live", "0.0.0", harness::live_way());
         let ends = Brokers::new(vec![Point { url: url.clone(), login }], config);
         let versions = json!({ "live": 1 });
         let shown = url.shown();

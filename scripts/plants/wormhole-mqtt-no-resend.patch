@@ -1,0 +1,13 @@
+diff --git a/crates/pod-wormhole/src/mqtt/broker.rs b/crates/pod-wormhole/src/mqtt/broker.rs
+index 936a276..641e61f 100644
+--- a/crates/pod-wormhole/src/mqtt/broker.rs
++++ b/crates/pod-wormhole/src/mqtt/broker.rs
+@@ -176,7 +176,7 @@ impl Broker {
+         }
+         let deadline = Instant::now() + wait;
+         loop {
+-            let resending = self.role == Role::Taker && !self.heard && !self.unanswered.is_empty();
++            let resending = false;
+             let mut next = deadline.min(self.last_sent + PING_EVERY);
+             if resending {
+                 next = next.min(self.next_resend);

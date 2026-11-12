@@ -18,7 +18,7 @@ const MOST: usize = 1 << 16;
 /// digits.
 pub fn mqtt_packet(data: &[u8]) {
     if let Ok(Some((packet, used))) = decode(data, MOST) {
-        assert!(used <= data.len() && used >= 2, "{used} of {} bytes", data.len());
+        assert!((2..=data.len()).contains(&used), "{used} of {} bytes", data.len());
         let bytes = encode(&packet).expect("a packet that was read is written");
         assert_eq!(decode(&bytes, MOST), Ok(Some((packet.clone(), bytes.len()))), "{packet:?}");
         assert_eq!(decode(&data[..used - 1], MOST), Ok(None), "a cut of {packet:?}");

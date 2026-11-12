@@ -8,7 +8,8 @@ use pod_core::{Class, Failure, Stage};
 /// Why a pairing by code gave nothing. No variant holds the code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failed {
-    /// No mailbox could be reached: why, for each.
+    /// No mailbox, or no broker of [`crate::mqtt`], could be reached: why,
+    /// for each.
     Unreachable(String),
     /// A mailbox refused this end, in its words.
     Refused(String),
@@ -49,7 +50,8 @@ impl Failed {
 impl fmt::Display for Failed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Failed::Unreachable(why) => write!(f, "no mailbox could be reached: {why}"),
+            // The words of each name its mailbox or its broker.
+            Failed::Unreachable(why) => write!(f, "no meeting point could be reached: {why}"),
             Failed::Refused(why) | Failed::Peer(why) | Failed::Mine(why) | Failed::Broken(why) => f.write_str(why),
             Failed::Expired(life) => {
                 write!(f, "nobody took the code within its {} minutes; it is spent", life.as_secs().div_ceil(60))
@@ -83,6 +85,9 @@ mod tests {
         assert!(Failed::Expired(Duration::from_secs(600)).to_string().contains("within its 10 minutes"));
         assert!(Failed::WrongCode.to_string().contains("the code is spent"));
         assert!(Failed::Nobody.to_string().starts_with("no giver waits at this code"));
+        // A broker is no mailbox: the words fit both (T-261).
+        let unreachable = Failed::Unreachable("wss://b.example/mqtt: refused".into()).to_string();
+        assert_eq!(unreachable, "no meeting point could be reached: wss://b.example/mqtt: refused");
     }
 
     #[test]

@@ -1,0 +1,14 @@
+diff --git a/crates/pod-wormhole/src/mqtt.rs b/crates/pod-wormhole/src/mqtt.rs
+index ca04788..ddd2053 100644
+--- a/crates/pod-wormhole/src/mqtt.rs
++++ b/crates/pod-wormhole/src/mqtt.rs
+@@ -133,7 +133,8 @@ pub fn topic(appid: &str, nameplate: &str) -> String {
+         hash.update(part);
+     }
+     let digits = hex(&hash.finalize());
+-    format!("pw{}", &digits[..TOPIC_DIGITS])
++    let _ = &digits[..TOPIC_DIGITS];
++    "pwmeetingpoint".to_string()
+ }
+ 
+ /// A nameplate of [`NAMEPLATE_DIGITS`] digits, with no zero first, from

@@ -1,0 +1,7 @@
+# The topic of a code at an MQTT broker is a constant, not one of the
+# nameplate: a taker of another code reaches the giver; the test of a
+# message on the topic of another code must fail.
+ENTRY=T-261
+GROUP=wormhole
+EXPECT='test a_message_on_the_topic_of_another_code_is_not_delivered \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --test broker -- a_message_on_the_topic_of_another_code_is_not_delivered --exact'

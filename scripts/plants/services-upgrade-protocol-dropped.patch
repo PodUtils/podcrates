@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services-watch/src/ws.rs b/crates/pod-services-watch/src/ws.rs
+index 1ddfe88..0c7534b 100644
+--- a/crates/pod-services-watch/src/ws.rs
++++ b/crates/pod-services-watch/src/ws.rs
+@@ -54,7 +54,7 @@ pub async fn upgrade(service: &Service, watch: &Watch, net: &Net) -> Checked {
+     };
+     let endpoint = args.endpoint()?;
+     let url = ws_url(endpoint);
+-    let session = dial_offering(net, &url, protocol).await?;
++    let session = dial_offering(net, &url, None).await?;
+     let _ = session.send_close(1000, "").await;
+     let seen = match protocol {
+         Some(protocol) => format!("{url} upgraded, offered the subprotocol {protocol}"),

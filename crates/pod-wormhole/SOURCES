@@ -15,7 +15,10 @@ taken baa00a067f498c2c8f3f9bc400ed90fe6511e122
 # and unhex are message.rs. src/mailbox.rs: Message, words and the reading
 # of a frame are message.rs. src/wormhole.rs: pake_of is message.rs. The
 # tests that this crate adds are in tests/mailbox.rs, tests/faults.rs and
-# the stand-in of tests/harness/stand_in.rs. tests/pair_code_live.rs: its live test runs the
+# the stand-in of tests/harness/stand_in.rs. The MQTT meeting point
+# (src/mqtt.rs, src/mqtt/, src/place.rs, tests/broker.rs,
+# tests/harness/broker.rs) is new in this crate (T-261), with no source in
+# podssh. tests/pair_code_live.rs: its live test runs the
 # exchange; the live test of this crate is a rewrite over the wormhole.
 file 6e12bc69b04221783bc9b6c45766c7cf6e80f4ba crates/podssh-relay/src/code/mod.rs -> crates/pod-wormhole/src/lib.rs
 file 15bf2aa0d4f70d83db6a35866b45ff63079be04b crates/podssh-relay/src/code/mailbox.rs -> crates/pod-wormhole/src/mailbox.rs

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 253 entries: 65 open, 4 partial, 4 blocked, 180 done.
+`TODO/INDEX.md` holds 254 entries: 65 open, 5 partial, 4 blocked, 180 done.
 
 ## State
 
@@ -34,9 +34,13 @@
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet remains), T-040 (the
-  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249). Open defects: T-131
+  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-261
+  (the MQTT meeting point of `pod-wormhole` is in the crate, with its
+  tests; the step of Mosquitto in `ci.yml` and the step of `live.yml`
+  remain). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
-  `pod-session`).
+  `pod-session`), T-263 (no workflow runs the Python server and library of
+  magic-wormhole).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online"; C49); they talk with
   podcrates by direct messages. podnet and podvm run in their own sessions
@@ -91,8 +95,10 @@ next entry.
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-025 (partial: podssh's take of `v0.27.0`),
-   T-228, T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
-   MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then
+   T-228, T-229, T-212, T-026 (partial: the trial of podnet); T-261
+   (partial: the CI steps of the MQTT meeting point of `pod-wormhole`,
+   PodUtils/podssh#205), then T-263 (the Python server and library of
+   magic-wormhole in CI); then
    T-245 (the `Host` of an IPv6 relay on port 443), T-246 (the names of the
    cache files); then T-204 (a random failure of
    `pod-session`); then T-122,
@@ -115,7 +121,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C87; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

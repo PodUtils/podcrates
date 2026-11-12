@@ -98,6 +98,22 @@ pub fn way() -> pod_ws::Way {
     pod_ws::Way::new(tls, Arc::new(dial), "pod-wormhole/test")
 }
 
+/// The way of the live tests: the proxy of the environment (`HTTPS_PROXY`,
+/// `NO_PROXY`), else a direct dial, and TLS on ring.
+pub fn live_way() -> pod_ws::Way {
+    use std::sync::Arc;
+
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let tls = Arc::new(pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("pod-wormhole"))));
+    let var = |name: &str| std::env::var_os(name);
+    let choice = pod_proxy::ProxyChoice::FromEnvironment(pod_proxy::Environment::read(&var));
+    let dial = pod_proxy::Dialer::new(
+        pod_proxy::Settings::new("pod-wormhole", choice),
+        Arc::new(pod_proxy::resolve::System::new()),
+    );
+    pod_ws::Way::new(tls, Arc::new(dial), "pod-wormhole/live")
+}
+
 /// The settings of the tests for `appid`.
 pub fn config_for(appid: &str) -> Config {
     Config::new(appid, "pod-wormhole-test", "0.0.0", way())

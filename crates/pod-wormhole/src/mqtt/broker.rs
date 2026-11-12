@@ -181,7 +181,10 @@ impl Broker {
             if resending {
                 next = next.min(self.next_resend);
             }
+            // A packet that is there goes first: a PINGRESP that came while
+            // the caller did not read answers the ping before its time ends.
             let read = tokio::select! {
+                biased;
                 read = self.read_packet() => Some(read),
                 () = tokio::time::sleep_until(next) => None,
             };
@@ -193,21 +196,22 @@ impl Broker {
                 }
                 Some(Packet::PingResp) => self.ping_waits = false,
                 Some(other) => return Err(self.unexpected(&other)),
-                None => {
-                    let now = Instant::now();
-                    if now >= deadline {
-                        return Ok(None);
-                    }
-                    if resending && now >= self.next_resend {
-                        self.next_resend = now + self.resend;
-                        for payload in self.unanswered.clone() {
-                            self.publish(payload).await?;
-                        }
-                    }
-                    if now >= self.last_sent + PING_EVERY {
-                        self.ping().await?;
-                    }
+                None => {}
+            }
+            // After each packet too: a flood of packets holds neither the
+            // sending again, nor the ping, nor the deadline.
+            let now = Instant::now();
+            if resending && now >= self.next_resend {
+                self.next_resend = now + self.resend;
+                for payload in self.unanswered.clone() {
+                    self.publish(payload).await?;
                 }
+            }
+            if now >= self.last_sent + PING_EVERY {
+                self.ping().await?;
+            }
+            if now >= deadline {
+                return Ok(None);
             }
         }
     }

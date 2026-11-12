@@ -44,7 +44,7 @@ wrong code, a guess or a success spends it.
 
 `mqtt::opened` and `mqtt::joined` are the same two steps at a list of MQTT
 brokers, for a caller whose mailboxes do not answer (PodUtils/podssh#205;
-docs/decisions.md, C92 and C93). The order of the meeting points, and when
+`docs/decisions.md`, C92 and C93). The order of the meeting points, and when
 to take this one, are the caller's.
 
 * The giver draws a nameplate of 4 digits (no mailbox allocates one). The

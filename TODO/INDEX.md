@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**253 entries: 65 open, 4 partial, 4 blocked, 180 done.**
+**254 entries: 65 open, 5 partial, 4 blocked, 180 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 50 | 65 |
-| P2 | 32 | 2 | 4 | 91 | 129 |
-| P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 65 | 4 | 4 | 180 | 253 |
+| P2 | 31 | 3 | 4 | 91 | 129 |
+| P3 | 21 | 0 | 0 | 37 | 58 |
+| **All** | 65 | 5 | 4 | 180 | 254 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -299,4 +299,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-258](relay.md) | P2 | S | M2 | defect | done | `pod-netstack`: a UDP send over what the stack carries is `Ok` and lost; the IPv4 fragmentation of smoltcp as a feature (PodUtils/podnet#464) |
 | [T-259](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: the reactor loses a datagram that comes while the channel to the app is full (PodUtils/podnet#464) |
 | [T-260](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public bootstrap nodes of HyperDHT (PodUtils/podssh#204) |
-| [T-261](relay.md) | P2 | M | M2 | feature | open | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |
+| [T-261](relay.md) | P2 | M | M2 | feature | partial | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |
+| [T-263](relay.md) | P3 | S | M2 | defect | open | `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library |

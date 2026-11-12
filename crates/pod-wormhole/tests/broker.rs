@@ -222,6 +222,78 @@ fn each_public_broker_takes_the_topic_and_the_payload_of_a_meeting_point() {
     }
 }
 
+/// A broker that accepts the `CONNECT` and the `SUBSCRIBE` of a giver of
+/// the topic `pwtest`, then sends `first` in one WebSocket message and,
+/// with `flood`, that packet again for as long as the giver reads.
+async fn publishing(first: Vec<u8>, flood: Option<Vec<u8>>) -> WsUrl {
+    let (url, _task) = scripted(move |session| async move {
+        for answer in [Packet::ConnAck { present: false, code: 0 }, Packet::SubAck { id: 1, codes: vec![0] }] {
+            let _ = session.read_frame().await;
+            let _ = session.send_binary(&packet::encode(&answer).unwrap()).await;
+        }
+        let _ = session.send_binary(&first).await;
+        if let Some(again) = flood {
+            while session.send_binary(&again).await.is_ok() {}
+        }
+        // Read each PINGREQ until the giver ends the connection.
+        while session.read_frame().await.is_ok_and(|f| f.opcode != pod_ws::frame::OPCODE_CLOSE) {}
+    })
+    .await;
+    url
+}
+
+/// A `PUBLISH` to the giver of `pwtest`.
+fn to_pwtest(payload: &[u8]) -> Vec<u8> {
+    packet::encode(&Packet::Publish { topic: "pwtestg".into(), payload: payload.to_vec() }).unwrap()
+}
+
+/// A giver at `url`, subscribed to `pwtest`.
+async fn giver_of_pwtest(url: &WsUrl) -> mqtt::Broker {
+    let ends = ends(vec![point(url)], &Seen::default());
+    let at = mqtt::Broker::connect(&ends.points[0], &ends.config, "0123456789", "pwtest", mqtt::Role::Giver, RESEND);
+    at.await.expect("the giver connects")
+}
+
+const RESEND: Duration = Duration::from_millis(100);
+
+/// A `PINGRESP` that came while the caller did not read answers its ping,
+/// also when the time of the next ping is over: the packet that is there
+/// goes before the timer. The code before the fix took the timer first one
+/// time in two, sent a second PINGREQ with the first unanswered, and ended
+/// a live connection.
+#[tokio::test]
+async fn a_pingresp_that_waited_answers_its_ping() {
+    need_loopback!();
+    const ROUNDS: usize = 30;
+    let message = to_pwtest(br#"{"side":"abcdefabcd","phase":"0","body":"00"}"#);
+    let pingresp = packet::encode(&Packet::PingResp).unwrap();
+    let round = [pingresp, message.clone()].concat();
+    let url = publishing([message, round.repeat(ROUNDS)].concat(), None).await;
+    let mut giver = giver_of_pwtest(&url).await;
+    // The first read takes the whole WebSocket message: the rest waits in
+    // memory, and no read below waits for the network.
+    assert!(giver.message(LIMIT).await.unwrap().is_some());
+    tokio::time::pause();
+    for n in 0..ROUNDS {
+        // The caller did not read for 31 s.
+        tokio::time::advance(Duration::from_secs(31)).await;
+        let read = giver.message(LIMIT).await;
+        assert!(matches!(read, Ok(Some(_))), "round {n}: {read:?}");
+    }
+}
+
+/// A broker that floods the topic with bytes that are no message holds
+/// the wait no longer than its deadline.
+#[tokio::test]
+async fn a_flood_of_packets_does_not_hold_the_deadline() {
+    need_loopback!();
+    let junk = to_pwtest(b"not a message");
+    let url = publishing(junk.clone(), Some(junk)).await;
+    let mut giver = giver_of_pwtest(&url).await;
+    let waited = tokio::time::timeout(LIMIT, giver.message(Duration::from_millis(300))).await;
+    assert_eq!(waited.expect("the deadline held").unwrap(), None);
+}
+
 /// The failure of a giver at a broker that runs `script` after it read the
 /// `CONNECT`.
 async fn giver_at(answer: Vec<u8>, opcode: u8) -> String {

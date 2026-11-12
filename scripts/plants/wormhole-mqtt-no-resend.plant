@@ -1,0 +1,7 @@
+# The taker does not send its first message again: a message at QoS 0 that
+# reached no subscriber is gone, and the giver never hears the taker; the
+# test of a broker that loses the first messages must fail.
+ENTRY=T-261
+GROUP=wormhole
+EXPECT='test the_taker_sends_its_first_message_again_until_the_giver_answers \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --test broker -- the_taker_sends_its_first_message_again_until_the_giver_answers --exact'
