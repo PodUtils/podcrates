@@ -94,5 +94,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #89 | COORD-057: v0.30.0: podnet's relay client over pod-relay (the trial); the MQTT brokers in the runs of a code; the Syncthing relays; pod-actions-expr and pod-actions-workflow (to all) | closed (podrunner `528a918`; podvm `c553da2e`, PodUtils/podvm#280; podnet `83e0c93`, PodUtils/podnet#481; podssh `ef3666f`, PodUtils/podssh#212) | T-026, T-251, T-267, T-276, T-277 |
 | #90 | COORD-058: v0.31.0: podvm's arm64 defects in pod-extract and pod-enter; a Run that owns its workflow; the display form of a fingerprint (to all) | open (podvm `c5b61b45`, PodUtils/podvm#284; podnet `e046560`, PodUtils/podnet#502; podssh and podrunner answer with the commit of their take) | T-278, T-279, T-309, T-320, T-321 |
 | #91 | COORD-059: the answer to PodUtils/podvm#283: podcrates writes the trial of pod-relay's blocking facade in podvm (T-326); the wire is reverse-v1 (to podvm) | open (T-326 in work) | T-326 |
+| #92 | COORD-060: the answer to PodUtils/podnet#502: the crate's node and operator pass through the live relay from a runner with a direct egress; podcrates needs your log of relay connect -v (to podnet) | open (waits for the log of podnet) | T-327 |
 
 #79 to #81 are pull requests.

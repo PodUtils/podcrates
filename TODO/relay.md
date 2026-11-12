@@ -4059,8 +4059,13 @@ setting.
 - Read: podnet's operator glue (the file pod-relay.patch of `adoption/podnet/` at
   `v0.30.0`) calls `reverse::operator::run` with `relay.wire()`;
   `reverse::wire::open` with `Wire::Tls` dials through `pod_ws`.
+- Measured: `live.yml` 43221128869 (`reverse_live`, 4 passed) and
+  43221537246 (5 passed, with `the_node_speaks_first_as_sshd_does`, a
+  server-first session as SSH through `ProxyCommand`), on runners with a
+  direct egress: the crate's node and operator open and carry 1 MiB each
+  way through the live relay.
 - Not read yet: the log of `relay connect -v` that podnet adds to the
-  issue.
+  issue (asked on #92).
 
 ## Approach
 
