@@ -3683,7 +3683,7 @@ and call C115).
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3709,6 +3709,25 @@ cargo test -p pod-session --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-263.
+
+## Done
+
+2026-11-12. No code: what the ask names holds in the crate (call C119).
+
+- The window: `Settings::resume_deadline` (`resume::RESUME_DEADLINE`,
+  600 s); a far end names it in its `GREETING`; `client_deadline` only
+  shortens it. After it the far end answers `REFUSE` `UNKNOWN_SESSION`
+  (`Class::Unavailable`), and the client says that the far end forgot the
+  session and how long it was away (`deadline::forgotten`). Tests:
+  `crates/pod-session/tests/session_deadline.rs` (4).
+- One use: no bearer token exists; a resume is an HMAC over both fresh
+  nonces of the new link, and a replayed proof is refused
+  (`a_replayed_proof_is_refused` in
+  `crates/pod-session/tests/session_handshake.rs`, 12 tests). `cargo test
+  -p pod-session --all-features --test session_deadline --test
+  session_handshake`: 16 passed.
+- podnet maps `UNKNOWN_SESSION` to its `ResumeExpired`; the token of the
+  RESUME record of its record layer is T-301.
 
 # T-290: `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them
 
