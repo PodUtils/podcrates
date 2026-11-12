@@ -11,7 +11,9 @@
   MQTT meeting point of `pod-wormhole` (T-261), `reverse::channel` of
   `pod-relay` (T-150), the `Host` of an IPv6 relay (T-245), one cache file
   for each relay host (T-246), the watches `forward-url` (T-225, T-272).
-- On `main` after the tag: `syncthing-relay` in `pod-services` (T-276).
+- `v0.30.0` is prepared on `main` (the version, `docs/releases/v0.30.0.md`,
+  the text of its hand-off): T-251, T-276, T-277, T-267 and the trial of
+  `pod-relay` in podnet (T-026).
 - The consumers and their tags:
   - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
     changed; it took `pod-relay` at `0872c2c6`).
@@ -88,7 +90,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-026 (partial: the words of `plain-ws`, the release), T-212; T-290 (the layer of
+6. **M2, the relay:** T-026 (partial: the release and podnet's take), T-212; T-290 (the layer of
    `pod-relay` as a feature); then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197

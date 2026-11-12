@@ -9,13 +9,16 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
-   tool) and read the open COORD issues `(to podcrates)` of each
-   repository of PodUtils.
-2. Merge or continue the work of the two agents of this session (see "In
-   flight"), then take the work order of `TODO/PROGRESS.md`. Its head
-   now: T-026, T-212. The next release (`v0.30.0`) carries
-   T-276, T-277, T-267, T-251 and the trial of T-026.
+1. Finish the release of `v0.30.0` (`docs/maintenance.md`, "A release")
+   if it is not tagged: read `ci` and `adoption` at the head (the trial
+   `adoption/podnet/pod-relay.*` runs there), run `release.yml` with no
+   input, then with `version=0.30.0`; read the dry run of `publish.yml`;
+   post `docs/releases/v0.30.0-handoff.md` as COORD-057 `(to all)` (fill
+   `COMMIT` and the run ids), map it, message podrunner and podssh.
+2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+   tool) and read the open COORD issues `(to podcrates)`.
+3. Take the work order of `TODO/PROGRESS.md`. Its head now: T-212, T-290,
+   then the chain to WARP for podnet (T-028, T-029).
 
 ## In flight
 
@@ -28,8 +31,9 @@ is done. Git and the record keep finished work.
   block of `pod-services`, which made `upstream.yml` red), and the gate of
   `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did not build
   it on macOS and Windows; `nightly.yml` was dispatched at `0edd703`).
-- T-251 is merged (`pod-actions-expr`, `pod-actions-workflow`; calls C105
-  to C109; T-280, their live run against GitHub, waits).
+- `v0.30.0` is prepared on `main`: T-251 (`pod-actions-expr`,
+  `pod-actions-workflow`; calls C105 to C109; T-280 waits), T-276, T-277,
+  T-267, and the trial of T-026.
 - T-267 (`forward-url` proves the URL) is on `main`; the next run of
   `services.yml` proves the URLs of the four live relays.
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
