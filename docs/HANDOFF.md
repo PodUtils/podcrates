@@ -67,8 +67,11 @@ is done. Git and the record keep finished work.
   message. A
   session writes only to its own repository: link a consumer's COORD
   issue from the hand-off issue of podcrates.
-- podnet and podvm: their own sessions; COORD issues only
-  (`docs/session-protocol.md`).
+- podnet: its own session; COORD issues only, no direct message (the
+  ruling "Tonight"). Do not start a podnet session.
+- podvm: its own sessions; COORD issues only (`docs/session-protocol.md`).
+  Not available on the evening of 2026-11-12: podrunner's session ends
+  after its housekeeping, and a new one starts with podvm.
 - Workflows: dispatch them with the GitHub MCP tool
   (`docs/maintenance.md`, "A run of a workflow"). `services.yml` with the
   kind `forward-url` reads the banners of the SSH forward relays (no
