@@ -33,6 +33,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("close_reason", targets::close_reason),
     ("quic_probe_answer", targets::quic_probe_answer),
     ("mailbox_message", targets::mailbox_message),
+    ("mqtt_packet", targets::mqtt_packet),
     ("session_record", targets::session_record),
     ("session_handover", targets::session_handover),
     ("udp_frame", targets::udp_frame),

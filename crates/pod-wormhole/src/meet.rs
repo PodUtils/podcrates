@@ -128,14 +128,14 @@ pub async fn or_close<T>(hole: &mut Wormhole, done: Result<T, Failed>) -> Result
 }
 
 /// A side for a run: 10 hex digits, as magic-wormhole's own.
-fn new_side() -> Result<String, Failed> {
+pub(crate) fn new_side() -> Result<String, Failed> {
     let mut bytes = [0u8; 5];
     OsEntropy.fill(&mut bytes).map_err(|_| Failed::NoRandom)?;
     Ok(hex(&bytes))
 }
 
 /// The words of a failure at one mailbox, with no prefix of the whole run.
-fn reason(failed: &Failed) -> String {
+pub(crate) fn reason(failed: &Failed) -> String {
     match failed {
         Failed::Unreachable(why) => why.clone(),
         other => other.to_string(),

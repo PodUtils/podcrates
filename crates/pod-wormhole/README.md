@@ -6,7 +6,9 @@ WebSocket that needs no account) and move what they must with no secret that
 the mailbox sees. The ends run SPAKE2 keyed by the whole code over the
 mailbox, then seal each later message in NaCl's SecretBox under a key of the
 shared key, as magic-wormhole's own client does, so that a peer of its
-Python library and this crate meet.
+Python library and this crate meet. When no mailbox answers, the ends can
+meet at the topic of the code at a public MQTT broker on port 443 instead
+(`mqtt`), with the same messages.
 
 The base is podssh's `crates/podssh-relay/src/code/` (the mailbox client,
 the wormhole, the code and its word list). What the ends say once they hold
@@ -20,8 +22,12 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | --- | --- |
 | `config` | `Config { appid, client_name, client_version, way, trust, connect_timeout, answer_limit, limits, events }`, `Config::new(appid, client_name, client_version, way)`, `CONNECT_TIMEOUT`, `ANSWER_LIMIT`, `LIMITS` |
 | `mailbox` | `Mailbox`: `connect(&url, &config, side)`, `list`, `allocate`, `claim`, `open`, `add`, `release`, `close`, `end`, `message(wait)`, `appid`, `shown`, `motd`; `Mood` (`Happy`, `Lonely`, `Scary`, `Errory`); `Message`; `crowded(&Failed)`; `ANSWER_LIMIT`, `KEPT_MOST` |
-| `wormhole` | `Wormhole`: `open(mailbox, side, nameplate, id, &code, versions)`, `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`; `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST` |
+| `wormhole` | `Wormhole`: `open(place, side, nameplate, id, &code, versions)` (a `Mailbox` or a `mqtt::Broker`), `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`; `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST` |
 | `meet` | `Ends { mailboxes, config }`, `opened(&ends, versions)` (a new code at the first mailbox that answers), `joined(&ends, &code, versions, giver_wait)` (the giver's wormhole, the key made), `or_close` |
+| `mqtt` | `Brokers { points, config, resend }`, `Brokers::new(points, config)`, `Point { url, login }`, `Login { user, password }` (no `Debug` shows the password), `opened(&brokers, versions)` (a new code at the first broker that answers, the giver subscribed), `joined(&brokers, &code, versions, giver_wait)` (the taker's wormhole, the key made), `topic(appid, nameplate)`, `nameplate(&mut dyn Entropy)`, `Role` (`Giver`, `Taker`; `topics`), `PROTOCOL`, `KEEP_ALIVE`, `RESEND`, `NAMEPLATE_DIGITS`, `PAYLOAD_MOST`, `TO_GIVER`, `TO_TAKER` |
+| `mqtt::broker` | `Broker`: `connect(&point, &config, side, topic, role, resend)`, `add`, `message(wait)`, `disconnect`, `end`, `appid`, `inbox`, `shown`; `client_id`, `refusal`, `PING_EVERY`, `KEPT_MOST` |
+| `mqtt::packet` | the pure codec of MQTT 3.1.1: `Packet` (`Connect`, `ConnAck`, `Publish`, `Subscribe`, `SubAck`, `PingReq`, `PingResp`, `Disconnect`), `Connect`, `encode`, `decode(bytes, most)`, `encode_length`, `kind_name`, `Malformed`, `LENGTH_MOST`, `REFUSED` |
+| `place` | `Place` (`Mailbox`, `Broker`; `From` each): `shown`, `noun`, `appid`, and the steps of a wormhole at either |
 | `phrase` | `Code`: `make(nameplate, &mut dyn Entropy)`, `parse(typed)`, `nameplate`, `password`, `for_terminal`, `words`; `nameplate_ok`, `WORDS`, `WORDS_MOST`, `NAMEPLATE_MOST`, `TYPED_MOST` |
 | `words` | the PGP word list (`EVEN`, `ODD`, `list`, `word`, `find`) |
 | `message` | the pure reading of a mailbox's messages: `object`, `message_of`, `pake_of`, `words`, `hex`, `unhex`, `Message`, `WORDS_MOST` |
@@ -33,6 +39,40 @@ types the code, calls `joined` and `confirm`, then receives and sends. Each
 phase is read in order and once, as the mailbox may repeat or reorder them.
 The giver ends the code at the first exchange, whatever its end, so that a
 wrong code, a guess or a success spends it.
+
+## The MQTT meeting point
+
+`mqtt::opened` and `mqtt::joined` are the same two steps at a list of MQTT
+brokers, for a caller whose mailboxes do not answer (PodUtils/podssh#205;
+docs/decisions.md, C92 and C93). The order of the meeting points, and when
+to take this one, are the caller's.
+
+* The giver draws a nameplate of 4 digits (no mailbox allocates one). The
+  topic of the code is `pw` and 40 hex digits of SHA-256 over the AppID and
+  the nameplate, never the words: each client of a public broker reads each
+  topic. Each end reads the topic with the tag of its direction (`g`: to
+  the giver, `t`: to the taker), and writes the other.
+* MQTT 3.1.1 in binary messages of a WebSocket that offers the subprotocol
+  `mqtt`: `CONNECT` (a clean session, a random client id of 22 letters and
+  digits, keep-alive 60 s, the login of the `Point`), one `SUBSCRIBE` at
+  QoS 0, `PUBLISH` at QoS 0 with no retain, `PINGREQ` after 30 s with
+  nothing sent (a second one with no `PINGRESP` ends the connection),
+  `DISCONNECT` at the close. A packet may span messages.
+* Each message is the JSON of a mailbox's message (`side`, `phase`, `body`
+  in hex), so the wormhole reads the same `pake`, `version` and numbered
+  phases at a broker as at a mailbox. A stranger on the topic gets one
+  guess of the words and spends the code; the broker sees ciphertext.
+* A broker keeps no message at QoS 0: one that reaches no subscriber is
+  gone. Each end subscribes before it publishes; the giver holds its
+  messages until it hears the taker; the taker sends its messages again
+  each `Brokers::resend` (2 s) until it hears the giver. So the giver must
+  wait (`agree`) while a taker joins, as two processes do.
+* A message is at most 64,000 bytes (`PAYLOAD_MOST`, the bound of
+  shiftr.io): a phase of about 31 KiB.
+* A broker that is not there, refuses the login (`CONNACK` 1 to 5) or the
+  subscription, or breaks the protocol (a malformed packet, a text frame,
+  a packet that was not asked for) is passed over with the reason, as the
+  event `wormhole.broker`.
 
 ## Features
 
@@ -54,8 +94,10 @@ prints nothing.
 | The bound of each step of a dial (20 s) | `Config::connect_timeout` |
 | The bound of the answer to a command (30 s) | `Config::answer_limit` |
 | The largest frame (256 KiB) and message (1 MiB) of a mailbox | `Config::limits` |
-| The lines for the user | `Config::events` (`pod_core::Events`): `wormhole.mailbox` (warn; a mailbox that failed, why) and `wormhole.motd` (info; the mailbox's words). No event holds the code |
+| The lines for the user | `Config::events` (`pod_core::Events`): `wormhole.mailbox` (warn; a mailbox that failed, why), `wormhole.broker` (warn; a broker that failed, why) and `wormhole.motd` (info; the mailbox's words). No event holds the code or a password |
 | The mailbox URLs, their order, `--pair-mailbox`, `PODSSH_PAIR_MAILBOX`, the public ones | the caller: `Ends::mailboxes` (`pod-services` has the public ones) |
+| The MQTT brokers, their logins, their order, whether to take them (`PODSSH_MQTT`) | the caller: `Brokers::points` (`pod-services` has the public ones: the kind `mqtt-broker`, the endpoint `broker`, the facts `user` and `password`) |
+| How often the taker sends again at a broker (2 s) | `Brokers::resend` |
 | How long a code lives, the bounds of the steps of an exchange | the caller: `Wormhole::agree(wait)`, `confirm`, `receive` |
 
 ## Failures
@@ -119,6 +161,7 @@ Differences from the source, each with a test:
 | podssh | the dependencies `spake2`, `rand_core` 0.6, `crypto_secretbox` of `podssh-relay`, the feature `code` | `pod-wormhole` (git tag), the feature `code = ["pair", "dep:pod-wormhole"]` |
 | podssh | the plant `t086-version-unchecked` (`code/wormhole.rs`) | `wormhole-version-unchecked` in podcrates; podssh's `pair-code.yml` runs the others |
 | podssh | `scripts/wormhole-peer.py`, `tests/mailbox_harness` (the Python server and peer) | the copies in `tests/` of this crate; podssh's `pair_code.rs` keeps its own for the role and the exchange |
+| podssh | none (PodUtils/podssh@T-737, new) | `pod_wormhole::mqtt::{opened, joined}` when no mailbox answers, with `Brokers` of the services of the kind `mqtt-broker` (`endpoint("broker")`, the facts `user` and `password`); `PODSSH_MQTT=no` and the line that names the third party are podssh's |
 | podnet | none: podnet has no wormhole code | its transfer (T-102) takes `pod-wormhole` with its own `Config` (`appid`, `"podnet"`, its `Way`) |
 
 The adoption trial is `adoption/podssh/pod-wormhole.patch` with its `.run`,
@@ -132,18 +175,27 @@ Python has `magic-wormhole-mailbox-server` and `magic-wormhole`, over
 magic-wormhole's own server, with a peer of its own library giving and
 taking the code. `POD_WORMHOLE_TEST_SERVER=required` turns a skip for want
 of Python into a failure; `POD_WORMHOLE_TEST_PYTHON` names the interpreter.
-`tests/faults.rs` scripts a mailbox that goes wrong. `tests/live.rs` is
-`#[ignore]`: two ends meet at each public mailbox of `pod-services`.
+`tests/faults.rs` scripts a mailbox that goes wrong. `tests/broker.rs`
+runs the MQTT meeting point over a stand-in broker in Rust
+(`tests/harness/broker.rs`) and over Eclipse Mosquitto with a `protocol
+websockets` listener: the broker of `POD_WORMHOLE_TEST_BROKER`
+(`ws://127.0.0.1:PORT/mqtt`, as `ci.yml` runs the pinned image of
+`images/mosquitto/`), else `POD_WORMHOLE_TEST_MOSQUITTO`, `mosquitto` or
+`/usr/sbin/mosquitto` on a free port; `POD_WORMHOLE_TEST_SERVER=required`
+makes a skip a failure. `tests/live.rs` is `#[ignore]`: two ends meet at
+each public mailbox and pair at each public broker of `pod-services`
+(`live.yml`).
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install magic-wormhole-mailbox-server magic-wormhole
 POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required cargo test -p pod-wormhole
 ```
 
-The plants `wormhole-version-unchecked` and `wormhole-held-unbounded`
-(`scripts/plants/`) prove two of the tests. The fuzz target
+The plants `wormhole-version-unchecked`, `wormhole-held-unbounded`,
+`wormhole-mqtt-topic-constant` and `wormhole-mqtt-no-resend`
+(`scripts/plants/`) prove four of the tests. The fuzz target
 `mailbox_message` runs the pure reading of a mailbox's messages and the
-parser of a typed code.
+parser of a typed code; `mqtt_packet` runs the codec of MQTT and the topic.
 
 ## Sources
 

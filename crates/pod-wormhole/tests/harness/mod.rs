@@ -4,12 +4,17 @@
 //! magic-wormhole's own Python library (`wormhole-peer.py`). The Python ones
 //! are software that this crate did not write. A host with no Python, or
 //! without the packages, skips them with the reason, unless
-//! `POD_WORMHOLE_TEST_SERVER=required`, which a workflow sets, so that a
-//! skip there is a failure.
+//! `POD_WORMHOLE_TEST_SERVER=required`, so that a skip is a failure. The
+//! step of Mosquitto in `ci.yml` sets it; no workflow runs the Python ones
+//! (T-263).
 //!
 //!   python3 -m pip install magic-wormhole-mailbox-server magic-wormhole
 //!
 //! `POD_WORMHOLE_TEST_PYTHON` names the interpreter (a virtualenv's).
+//!
+//! The MQTT brokers of the tests (a stand-in in Rust, and Eclipse
+//! Mosquitto) are in [`broker`]; `POD_WORMHOLE_TEST_SERVER=required` makes
+//! a skip of Mosquitto a failure too.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -24,6 +29,7 @@ use std::time::{Duration, Instant};
 use pod_wormhole::Config;
 use pod_ws::url::WsUrl;
 
+pub mod broker;
 pub mod stand_in;
 
 /// How long a server may take to listen, and a peer to say a line.

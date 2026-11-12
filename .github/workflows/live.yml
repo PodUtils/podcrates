@@ -1,8 +1,9 @@
 name: live
 
 # The tests with `#[ignore]` that need a live service: the relay of podssh,
-# the public DoH resolvers, a host that offers Multipath TCP, a public
-# registry and Alpine's mirror. They run
+# the public DoH resolvers, the public mailboxes of magic-wormhole and MQTT
+# brokers, a host that offers Multipath TCP, a public registry and Alpine's
+# mirror. They run
 # each day at an off-peak hour and by hand (docs/decisions.md, C24), with
 # egress to the relay and to the resolvers. The checks of each push do not
 # need the network (ci.yml).
@@ -46,6 +47,11 @@ jobs:
           POD_DNS_NAMES_PROXY=http://127.0.0.1:3129 \
             cargo test --locked -p pod-dns --test live_doh -- --ignored --nocapture
           cat "$RUNNER_TEMP/names-proxy.log"
+      # Two ends of a code meet at each public mailbox of magic-wormhole,
+      # and pair through the topic of a code at each public MQTT broker
+      # (T-261): the services of the kinds mailbox and mqtt-broker.
+      - name: pod-wormhole, the public mailboxes and MQTT brokers
+        run: cargo test --locked -p pod-wormhole --test live -- --ignored --nocapture
       - name: pod-proxy, Multipath TCP to the relay's edge
         run: cargo test --locked -p pod-proxy --test mptcp -- --ignored --nocapture
       # A rate limit of the registry (429) is a skip that the log names.

@@ -26,6 +26,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /images/binfmt
+      - /images/mosquitto
       - /images/trufflehog
     schedule:
       interval: weekly

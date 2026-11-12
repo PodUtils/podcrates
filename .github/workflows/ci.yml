@@ -101,6 +101,11 @@ jobs:
       # drops an inbound IPv4 fragment (T-258): its tests run here.
       - name: pod-netstack with no feature
         run: cargo test --locked -p pod-netstack --lib
+      # The MQTT meeting point of pod-wormhole against Eclipse Mosquitto
+      # with a listener of MQTT over a WebSocket (T-261): the image of
+      # images/mosquitto/, pinned to a digest. A skip fails the step.
+      - name: pod-wormhole against Eclipse Mosquitto
+        run: sh scripts/ci/mosquitto-tests.sh
       # The drop of the capabilities of a root payload (T-221) skips as
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
