@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 88 open, 6 partial, 5 blocked, 233 done.
+`TODO/INDEX.md` holds 332 entries: 87 open, 6 partial, 5 blocked, 234 done.
 
 ## State
 
@@ -11,8 +11,9 @@
   `pod-devtunnel` (T-378, partial), `pod-warp` (T-028, partial),
   `pod-netlab` (T-207, partial), T-390, T-391, the data of T-372 to T-376,
   T-350 to T-352, T-354. Each consumer took `v0.32.0` (#93, closed).
-- `main` holds T-335 (podnet's stack of `ip.rs` in `pod-warp`) for the
-  next tag.
+- `main` holds T-335 (podnet's stack of `ip.rs` in `pod-warp`) and T-353
+  (`pod-oci` against distribution on the loopback; no login over plain
+  HTTP, C187) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
