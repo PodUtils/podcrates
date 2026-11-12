@@ -1,0 +1,7 @@
+# A plant of T-277 (the MQTT brokers in the runs of a code of pod-relay): a
+# giver that reaches no mailbox does not try the brokers; the test of the
+# meeting at a broker must fail.
+ENTRY=T-277
+GROUP=relay
+EXPECT='test where_no_mailbox_answers_the_ends_meet_at_a_broker \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair,code,plain-ws --test pair_code -- where_no_mailbox_answers_the_ends_meet_at_a_broker'

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**261 entries: 57 open, 2 partial, 4 blocked, 198 done.**
+**261 entries: 56 open, 2 partial, 4 blocked, 199 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 27 | 1 | 4 | 103 | 135 |
+| P2 | 26 | 1 | 4 | 104 | 135 |
 | P3 | 18 | 0 | 0 | 40 | 58 |
-| **All** | 57 | 2 | 4 | 198 | 261 |
+| **All** | 56 | 2 | 4 | 199 | 261 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -307,4 +307,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-271](transport.md) | P2 | S | M1 | chore | done | `pod-services`: the VLESS node `node-xhttp-78-17-39-129` leaves (PodUtils/podssh#207) |
 | [T-272](transport.md) | P2 | S | M1 | defect | done | `pod-services-watch`: `forward-url` tries keyboard-interactive, which Serveo's anonymous tunnel takes |
 | [T-276](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209) |
-| [T-277](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210) |
+| [T-277](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210) |

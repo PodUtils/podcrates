@@ -9,7 +9,9 @@
 //! that takes it. The peer of magic-wormhole's own Python library is
 //! pod-wormhole's test. Planted (`scripts/plants/relay-t086-code-said`):
 //! the code said in a line; (`relay-t616-kind-unchecked`) a version of
-//! another kind taken.
+//! another kind taken. Where no mailbox answers, the ends meet at an MQTT
+//! broker (T-277), after an event; a taker that finds no giver at a mailbox
+//! looks at the brokers (call C115).
 #![cfg(all(feature = "pair", feature = "code"))]
 
 mod cleanup;
@@ -48,7 +50,7 @@ fn ends(mailboxes: Vec<WsUrl>, said: &Said) -> Ends {
     let said = said.clone();
     let mut config = config();
     config.events = Arc::new(move |event: pod_core::Event| said.lock().unwrap().push(event.text));
-    Ends { mailboxes, config }
+    Ends::new(mailboxes, config)
 }
 
 fn offer() -> Offer {
@@ -70,6 +72,11 @@ struct Pairing {
 /// giver showed.
 async fn pairing(mailboxes: Vec<WsUrl>, said: &Said, typed: fn(&str) -> String) -> Pairing {
     let ends = ends(mailboxes, said);
+    pairing_between(&ends, &ends, typed).await
+}
+
+/// A pairing of a giver at `giver` and a taker at `taker`.
+async fn pairing_between(giver: &Ends, taker: &Ends, typed: fn(&str) -> String) -> Pairing {
     let offer = offer();
     let (shown_tx, shown_rx) = tokio::sync::oneshot::channel::<String>();
     let mut shown_tx = Some(shown_tx);
@@ -80,12 +87,12 @@ async fn pairing(mailboxes: Vec<WsUrl>, said: &Said, typed: fn(&str) -> String) 
     };
     let mut admit = |key: &PublicKey| Done { admitted: *key == OPERATOR, said: "in the test's allowlist".into() };
     let waits = waits();
-    let giving = run::give(&ends, &waits, &offer, &mut show, &mut admit);
+    let giving = run::give(giver, &waits, &offer, &mut show, &mut admit);
     let taking = async {
         let shown = shown_rx.await.expect("the giver showed a code");
         let code = Code::parse(&typed(&shown)).expect("a code");
         let mut check = |offer: &Offer| if offer.node == NODE { Ok(()) } else { Err("another node".to_string()) };
-        (run::take(&ends, &waits, &code, &OPERATOR, &mut check).await, shown)
+        (run::take(taker, &waits, &code, &OPERATOR, &mut check).await, shown)
     };
     let (given, (taken, code)) = tokio::join!(giving, taking);
     Pairing { given, taken, code }
@@ -239,4 +246,57 @@ async fn the_code_is_in_no_line_and_no_debug() {
             }
         }
     }
+}
+
+/// The ends at `mailboxes`, then at the broker `url`.
+#[cfg(feature = "plain-ws")]
+fn ends_with_broker(mailboxes: Vec<WsUrl>, url: &WsUrl, said: &Said) -> Ends {
+    let mut ends = ends(mailboxes, said);
+    ends.brokers = vec![pod_wormhole::mqtt::Point { url: url.clone(), login: None }];
+    ends.resend = Duration::from_millis(200);
+    ends
+}
+
+#[cfg(feature = "plain-ws")]
+#[tokio::test]
+async fn where_no_mailbox_answers_the_ends_meet_at_a_broker() {
+    let broker = mailbox_harness::broker::start().await;
+    let said = Said::default();
+    let ends = ends_with_broker(vec![nobody_there()], &broker.url, &said);
+    let p = pairing_between(&ends, &ends, same).await;
+    let given = p.given.unwrap_or_else(|e| panic!("the giver: {e}"));
+    let taken = p.taken.unwrap_or_else(|e| panic!("the taker: {e}"));
+    assert_eq!((given.operator, given.done.admitted), (OPERATOR, true));
+    assert_eq!(taken.offer.node, NODE);
+    assert_eq!(given.mailbox, broker.url.shown(), "the lines name the broker");
+    assert_eq!(taken.mailbox, broker.url.shown());
+    let said = said.lock().unwrap();
+    let told = said.iter().filter(|line| line.contains(run::BROKER_WORDS)).count();
+    assert_eq!(told, 2, "one event at each end before its first broker: {said:?}");
+    assert!(said.iter().all(|line| !line.contains(&p.code)), "no line holds the code");
+}
+
+#[cfg(feature = "plain-ws")]
+#[tokio::test]
+async fn a_taker_that_finds_no_giver_at_a_mailbox_looks_at_the_brokers() {
+    let broker = mailbox_harness::broker::start().await;
+    let (_, mailbox, _server) = mailboxes("broker").await.into_iter().next().expect("the stand-in mailbox");
+    let said = Said::default();
+    // The giver reaches no mailbox; the taker reaches one, which has no
+    // giver of the code.
+    let giver = ends_with_broker(vec![nobody_there()], &broker.url, &said);
+    let taker = ends_with_broker(vec![mailbox], &broker.url, &said);
+    let p = pairing_between(&giver, &taker, same).await;
+    p.given.unwrap_or_else(|e| panic!("the giver: {e}"));
+    let taken = p.taken.unwrap_or_else(|e| panic!("the taker: {e}"));
+    assert_eq!(taken.mailbox, broker.url.shown());
+    assert!(said.lock().unwrap().iter().any(|l| l.starts_with("no mailbox has the giver")), "{said:?}");
+}
+
+#[tokio::test]
+async fn with_no_broker_a_run_that_reaches_no_mailbox_fails_as_before() {
+    let said = Said::default();
+    let opened = run::opened(&ends(vec![nobody_there()], &said), exchange::PAIR.versions()).await;
+    assert!(matches!(opened, Err(Failed::Unreachable(_))), "{:?}", opened.err());
+    assert!(said.lock().unwrap().iter().all(|line| !line.contains(run::BROKER_WORDS)));
 }

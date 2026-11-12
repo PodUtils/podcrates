@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/code/run.rs b/crates/pod-relay/src/code/run.rs
+index 102fc6c..97acad5 100644
+--- a/crates/pod-relay/src/code/run.rs
++++ b/crates/pod-relay/src/code/run.rs
+@@ -269,7 +269,7 @@ pub async fn take_with<T>(
+ /// Where no mailbox answers, the first broker that answers.
+ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Failed> {
+     match pod_wormhole::opened(&ends.wormhole(), versions.clone()).await {
+-        Err(Failed::Unreachable(why)) if !ends.brokers.is_empty() => {
++        Err(Failed::Unreachable(why)) if !ends.brokers.is_empty() && ends.brokers.is_empty() => {
+             ends.to_brokers("no mailbox answered");
+             mqtt::opened(&ends.brokers(), versions).await.map_err(|e| both(&why, e))
+         }

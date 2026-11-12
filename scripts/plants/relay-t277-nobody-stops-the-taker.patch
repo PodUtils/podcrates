@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/code/run.rs b/crates/pod-relay/src/code/run.rs
+index 102fc6c..c3f07d7 100644
+--- a/crates/pod-relay/src/code/run.rs
++++ b/crates/pod-relay/src/code/run.rs
+@@ -288,7 +288,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, waits: &Waits) ->
+         Err(Failed::Unreachable(why)) if !ends.brokers.is_empty() => why,
+         // A giver that reached no mailbox waits at a broker, which this end
+         // may not reach from a mailbox (call C115).
+-        Err(Failed::Nobody) if !ends.brokers.is_empty() => String::new(),
++        Err(Failed::Nobody) if !ends.brokers.is_empty() && ends.mailboxes.is_empty() => String::new(),
+         other => return other,
+     };
+     ends.to_brokers(if why.is_empty() { "no mailbox has the giver" } else { "no mailbox answered" });

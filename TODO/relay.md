@@ -3514,7 +3514,7 @@ library, none skipped; 7 of `pair_code`.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3561,3 +3561,33 @@ broker keeps `Failed::Unreachable`.
 ```sh
 cargo test -p pod-relay --all-features code::
 ```
+
+## Done
+
+2026-11-12. The commit that names T-277 (the work, the tests, the plants
+and call C115).
+
+- `crates/pod-relay/src/code/run.rs`: `Ends` has `brokers:
+  Vec<pod_wormhole::mqtt::Point>` and `resend` (`mqtt::RESEND`);
+  `Ends::new(mailboxes, config)` gives no broker; `Ends::brokers()` gives
+  the `mqtt::Brokers`. `run::opened`: the mailboxes, then on
+  `Failed::Unreachable` the brokers. `run::joined`: the mailboxes, then on
+  `Failed::Unreachable` or `Failed::Nobody` the brokers, each within
+  `waits.giver` (call C115). Before its first broker each end tells the
+  event `relay.code.broker` (a warning; `run::BROKER_WORDS`). Where the
+  mailboxes and the brokers fail to answer, `Failed::Unreachable` names
+  both. `Given::mailbox` and `Taken::mailbox` name the broker
+  (`Wormhole::shown`). Breaking: a literal of `Ends` needs the two fields,
+  or `Ends::new`.
+- Tests (`crates/pod-relay/tests/pair_code.rs`, with the stand-in broker
+  of pod-wormhole's harness included in `mailbox_harness`):
+  `where_no_mailbox_answers_the_ends_meet_at_a_broker`,
+  `a_taker_that_finds_no_giver_at_a_mailbox_looks_at_the_brokers`,
+  `with_no_broker_a_run_that_reaches_no_mailbox_fails_as_before`. `cargo
+  test -p pod-relay --all-features --test pair_code`: 10 passed. clippy of
+  `pod-relay` with all features and with none: clean.
+- Plants: `relay-t277-brokers-not-tried` (the giver does not try the
+  brokers) and `relay-t277-nobody-stops-the-taker` (the taker stops at
+  "nobody"); each is caught by its test.
+- Not measured: a pairing through Mosquitto or `shiftr-mqtt` from the
+  runs (PodUtils/podssh@T-737 tests them with its glue).

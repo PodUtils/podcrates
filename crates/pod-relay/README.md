@@ -53,7 +53,7 @@ and prints nothing.
 | `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one) |
 | `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `channel` and `ChannelHandler` (each session to a service of the process, T-150), `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
 | `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public` |
-| `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`), `LIFETIME` |
+| `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`; where no mailbox answers, the MQTT brokers of `Ends::brokers`, after the event `relay.code.broker`, T-277), `LIFETIME` |
 | `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
 | `failure` | the stage and the class of each error |
 | `fuzzing` (feature `fuzzing`) | the readers of the wire for `fuzz/` |

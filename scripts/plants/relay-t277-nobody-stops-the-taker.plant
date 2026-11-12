@@ -1,0 +1,6 @@
+# A plant of T-277 and call C115: a taker that finds no giver at a mailbox
+# does not look at the brokers; the test of that taker must fail.
+ENTRY=T-277
+GROUP=relay
+EXPECT='test a_taker_that_finds_no_giver_at_a_mailbox_looks_at_the_brokers \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair,code,plain-ws --test pair_code -- a_taker_that_finds_no_giver_at_a_mailbox_looks_at_the_brokers'

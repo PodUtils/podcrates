@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 261 entries: 57 open, 2 partial, 4 blocked, 198 done.
+`TODO/INDEX.md` holds 261 entries: 56 open, 2 partial, 4 blocked, 199 done.
 
 ## State
 
@@ -18,9 +18,9 @@
   - podnet: `v0.29.0` (`98d8a71`, PodUtils/podnet#478): its netns router
     holds each SYN with `pod_hold::syn_hold` (T-170); it does not turn on
     `ipv4-fragmentation` now (PodUtils/podnet@T-248 decides).
-  - podvm: `v0.28.0` (`94e7ca2a`, PodUtils/podvm#278; `kvm.yml` run
-    43171009630 provisions the ValidationOS guest with `convert_argv`:
-    the image has no backing file, the vendor image keeps its digest).
+  - podvm: `v0.29.0` (`c99bdd8d`, PodUtils/podvm#279; its 350 tests
+    pass; its `podvm run --help` names the rungs that take
+    `--podvm-confine`).
   - podrunner: `v0.28.0` (`bde47c3`; it names no TCP list and builds no
     target with `socketcall(2)`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes
@@ -86,7 +86,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-026 (partial: the trial of podnet), T-277 (the MQTT brokers in the runs of a code, PodUtils/podssh#210), T-212; then T-204 (a random failure of
+6. **M2, the relay:** T-026 (partial: the trial of podnet), T-212; then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).
@@ -107,7 +107,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104 and C115; C78, C79 and C96 to C99 are not used; C105 to C114 are given to two agents), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

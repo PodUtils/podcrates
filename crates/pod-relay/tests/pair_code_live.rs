@@ -39,7 +39,7 @@ async fn two_ends_pair_through_each_public_mailbox() {
         let way = support::live().way.clone();
         let mut config = pod_wormhole::Config::new("example.org/pod-relay/test", "pod-relay-test", "0.0.0", way);
         config.events = Arc::new(move |event: pod_core::Event| kept.lock().unwrap().push(event.text));
-        let ends = Ends { mailboxes: vec![url.clone()], config };
+        let ends = Ends::new(vec![url.clone()], config);
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
         let token = Zeroizing::new(TOKEN.to_string());
         let part = OperatorPart::checked("relay.example.org", NAME.into(), token, now + 3_600_000, now).unwrap();

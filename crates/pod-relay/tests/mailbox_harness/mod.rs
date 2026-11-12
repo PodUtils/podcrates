@@ -23,6 +23,11 @@ use pod_wormhole::Config;
 use pod_ws::url::WsUrl;
 
 pub mod stand_in;
+// The MQTT brokers of pod-wormhole's tests (a stand-in, and Mosquitto),
+// for the runs that meet at a broker (T-277).
+#[cfg(feature = "plain-ws")]
+#[path = "../../../pod-wormhole/tests/harness/broker.rs"]
+pub mod broker;
 
 /// How long a server may take to listen, and a peer to say a line.
 pub const LIMIT: Duration = Duration::from_secs(60);
