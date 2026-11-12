@@ -1060,11 +1060,11 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pod-actions-expr"
-version = "0.31.0"
+version = "0.32.0"
 
 [[package]]
 name = "pod-actions-workflow"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pod-actions-expr",
  "saphyr-parser",
@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "pod-broker"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "libc",
@@ -1089,7 +1089,7 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "libc",
  "rand",
@@ -1107,7 +1107,7 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "bytes",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "pod-e2e"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "hmac 0.13.0",
  "pod-core",
@@ -1142,7 +1142,7 @@ dependencies = [
 
 [[package]]
 name = "pod-enter"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pod-confine",
  "pod-core",
@@ -1151,7 +1151,7 @@ dependencies = [
 
 [[package]]
 name = "pod-extract"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "flate2",
  "pod-core",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "pod-gsr"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "foreign-types",
  "openssl",
@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "pod-guest"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1188,7 +1188,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hold"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "libc",
  "pod-core",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "linux-raw-sys",
  "pod-core",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1221,7 +1221,7 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1229,7 +1229,7 @@ dependencies = [
 
 [[package]]
 name = "pod-link"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "libc",
  "pod-core",
@@ -1239,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "pod-oci"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "pod-core",
@@ -1253,13 +1253,15 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
+ "hmac 0.13.0",
  "libc",
  "pod-core",
  "pod-tls",
  "rustls-pki-types",
+ "sha1",
  "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
@@ -1268,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "pod-quic"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "atomic-waker",
  "hmac 0.13.0",
@@ -1282,7 +1284,7 @@ dependencies = [
 
 [[package]]
 name = "pod-relay"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1307,7 +1309,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pod-core",
  "toml",
@@ -1315,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "pod-session"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -1330,7 +1332,7 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "p256",
@@ -1348,7 +1350,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wg"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "curve25519-dalek 5.0.0",
  "pod-core",
@@ -1359,7 +1361,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wormhole"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "crypto_secretbox",
  "hkdf 0.13.0",
@@ -1375,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "pod-ws"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "base64",
  "bytes",
@@ -1737,6 +1739,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c187e0a369471c550af028cba56d4f4fa2a489ad28151ae95a4d340a2a8b782"
 dependencies = [
  "serde_core",
+]
+
+[[package]]
+name = "sha1"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aacc4cc499359472b4abe1bf11d0b12e688af9a805fa5e3016f9a386dc2d0214"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.1",
+ "digest 0.11.3",
 ]
 
 [[package]]

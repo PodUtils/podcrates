@@ -10,7 +10,9 @@
   43218659006; the hand-off GitHub #90, COORD-058): T-320 and T-321
   (podvm's defects PodUtils/podvm#281, #282), T-309, T-278. Each consumer
   took `v0.30.0` (#89, closed).
-- On `main` after the tag: `pod-link` (T-300, partial), T-322, T-323.
+- `v0.32.0` is prepared on `main` (the version, `docs/releases/v0.32.0.md`,
+  the text of its hand-off): T-327 (podnet's `relay connect`), `pod-link`
+  (T-300, T-311), T-370 and T-329 (podssh's asks), T-322, T-323 to T-325.
 - The consumers and their tags:
   - podssh: `v0.30.0` (`ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
