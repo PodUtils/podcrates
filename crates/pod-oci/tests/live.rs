@@ -7,6 +7,7 @@
 //! document is the pinned one and that each config names its platform. A
 //! rate limit of the registry (429) is a skip, not a failure. `live.yml`
 //! runs it each day; the checks of a push need no network.
+#![cfg(target_os = "linux")]
 
 mod common;
 
