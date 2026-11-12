@@ -21,7 +21,9 @@
   - podvm: `v0.29.0` (`c99bdd8d`, PodUtils/podvm#279; its 350 tests
     pass; its `podvm run --help` names the rungs that take
     `--podvm-confine`).
-  - podrunner: `v0.29.0` (`7cdd0d5`, its T-083; no code change); its T-042
+  - podrunner: `v0.30.0` (`528a918`, its T-086; its local mode
+    PodUtils/podrunner@T-046 takes `pod-actions-expr` and
+    `pod-actions-workflow`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes
     `check_upstream`, `names_upstream` and the flagged rules of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and

@@ -20,8 +20,8 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.30.0` at `613058c` (the hand-off #89): no take
-  yet. Each consumer took `v0.29.0` (#87, closed).
+- The last release: `v0.30.0` at `613058c` (the hand-off #89): podrunner
+  took it at `528a918`. Each consumer took `v0.29.0` (#87, closed).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
   C112): the trial `adoption/podnet/pod-relay.*` on podnet `98d8a71`
   passed in `adoption.yml` 43191076065; podnet's take remains.
@@ -45,8 +45,8 @@ is done. Git and the record keep finished work.
   PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
   with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.29.0`, `7cdd0d5`): its crate ask T-251 is on `main`
-  and goes with `v0.30.0` (PodUtils/podrunner@T-046).
+- podrunner (on `v0.30.0`, `528a918`): its local mode
+  (PodUtils/podrunner@T-046) takes T-251; a defect comes as an ask.
 - podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
   T-300 to T-305 wait for podnet's start of each (the answer #88).
 - `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the
