@@ -22,7 +22,7 @@
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
     `pod_relay::blocking`, T-326; its 362 unit tests pass).
-  - podrunner: `v0.31.0` (`98bc496`, PodUtils/podrunner@T-094; its `LocalSource` keeps a `Run<Arc<Workflow>>`); its local mode
+  - podrunner: `v0.32.0` (`997b001`; its token of `format()` reads `Template::parts`, PodUtils/podrunner@T-097); its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes

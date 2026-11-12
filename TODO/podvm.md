@@ -4687,6 +4687,11 @@ layer of `pod-enter` or of podvm, not in tar.
 ## Premise
 
 - Read: podrunner's note (the message of its session).
+- Measured by podrunner (runner-image run 43230901394, x86_64, podvm
+  `v0.2.0-beta.5`): in `/tmp` of a plain `podvm run` unit each form passed
+  (`-C`, `-C -z`, `cd`, `cd` with `gzip -dc`, `cd -z`). The failure does
+  not come back there. podrunner's next run measures each form under the
+  path of the failed step (the work directory of the runner).
 - Not measured: the tier of the unit (rootfs or machine), the syscalls
   of tar, and which crate translates them.
 
