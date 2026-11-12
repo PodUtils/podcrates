@@ -10,11 +10,11 @@
   release 43236171454; the hand-off GitHub #93, COORD-061): T-327 (the
   flush of the operator, PodUtils/podnet#502), `pod-link` (T-300, T-311),
   T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
-  the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed).
+  the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed) and `v0.32.0` (#93, closed).
 - On `main` after the tag: `pod-netlab` (T-207, partial), `pod-warp`
   (T-028, partial).
 - The consumers and their tags:
-  - podssh: `v0.31.0` (`02650f1`; earlier `v0.30.0` at `ef3666f`, PodUtils/podssh#212): the MQTT brokers
+  - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.32.0` (`fa6b5ba`, PodUtils/podnet#508; `pod-link` is its
     next take); its relay client

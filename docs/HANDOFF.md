@@ -17,8 +17,8 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.32.0` at `032e86f` (the hand-off #93). Each
-  consumer took `v0.31.0` (#90, closed).
+- The last release: `v0.32.0` at `032e86f` (the hand-off #93, closed: each
+  consumer took it).
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - T-028 (`pod-warp`): an agent of this session imports it in a worktree
@@ -61,12 +61,11 @@ is done. Git and the record keep finished work.
 
 ## Channels
 
-- podrunner and podssh: lead sessions that podcrates started; direct
-  messages (`list_sessions`, titles `(podrunner) lead session` and
-  `(podssh) lead session`). A lead session that goes idle wakes on a
-  message. A
-  session writes only to its own repository: link a consumer's COORD
-  issue from the hand-off issue of podcrates.
+- Each session, podssh and podrunner too: COORD issues alone, no direct
+  message (the owner, 2026-11-12, the ruling "Tonight"; podssh states the
+  same on PodUtils/podssh#217). A session writes only to its own
+  repository: link a consumer's COORD issue from the hand-off issue of
+  podcrates.
 - podnet: its own session; COORD issues only, no direct message (the
   ruling "Tonight"). Do not start a podnet session.
 - podvm: its own sessions; COORD issues only (`docs/session-protocol.md`).
