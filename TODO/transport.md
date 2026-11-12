@@ -3371,7 +3371,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
   or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
   (`crates/pod-proxy/src/blocking.rs:55-58`), so it gets the setting too.
-- Read: `crates/pod-proxy/README.md:188` (the parity row of `TCP_NODELAY`
+- Read: `crates/pod-proxy/README.md:189` (the parity row of `TCP_NODELAY`
   and `TCP_NOTSENT_LOWAT`) and `crates/pod-proxy/tests/mptcp.rs:153` (the
   ignored live test of MPTCP). They agree with the review.
 - No crate of this tree sets `TCP_CONGESTION`. The controller of the
@@ -5784,4 +5784,46 @@ static probe links to itself over the carrier.
   stale.
 - Not done here: the release of the tag that podnet takes, and the
   hand-off on PodUtils/podnet#513 (the main session).
+
+# T-407: `pod-proxy`: fuzz targets of the server face of a proxy
+
+**Source:** T-338 (the server face `pod_proxy::serve`, call C200).
+**Category:** chore
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_proxy::serve` (`read_socks5`, `read_http_proxy`) and
+`pod_proxy::udp::unwrap` read the bytes of each client of the WARP proxy,
+and a proxy that listens beyond the loopback takes them from other hosts.
+The fuzz workspace (T-017) has the client face (`socks5_answer`) and the
+HTTP head of a response (`http_head`), but no target reads a request of a
+client.
+
+## Premise
+
+- Read: `fuzz/src/targets.rs` (`socks5_answer` runs the async exchange of
+  the client face on a scripted stream), `fuzz/README.md`, the tests of
+  `crates/pod-proxy/tests/serve.rs`.
+- Not measured: no fuzz run of the server face.
+
+## Approach
+
+Two targets: `socks5_request` (the first byte chooses credentials or none;
+the rest is what the client sends to `read_socks5` on a scripted stream,
+on a current-thread runtime; no panic, a target that reads back) and
+`proxy_udp_datagram` (`udp::unwrap`; a datagram that unwraps wraps back to
+the same bytes with `wrap` or `wrap_name`); a third for
+`read_http_proxy` (no panic; a `Forward` head has no `proxy-` header and
+one `Connection`). Their seeds, the rows of `fuzz/README.md`, and the
+check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+```
 

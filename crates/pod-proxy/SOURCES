@@ -53,3 +53,11 @@ taken 127c09548e2e6f04e2712ce1feeafc131ebe74a3
 # 0x83, the frames and the datagram header: lines 584-775 at this commit).
 # The rest of the file stays in podnet.
 file e3d3e59384b147d02ab024af23d7b3f574062ad7 crates/podnet-netns/src/upstream.rs -> crates/pod-proxy/src/socks5/udp.rs
+
+repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
+# socks.rs of podnet-netns (T-338): only the server face that the WARP proxy
+# takes (socks5_read_command_auth, socks5_reply, socks5_udp_unwrap,
+# http_read_request_auth, looks_like_socks5) comes here, as serve.rs and
+# udp::unwrap; http::request::read_request reads the HTTP request. The rest
+# of the file (the netns proxy) stays in podnet.
+file 5e95094623cea87cb90594e64c0d792e9eed4374 crates/podnet-netns/src/socks.rs -> crates/pod-proxy/src/serve.rs crates/pod-proxy/src/socks5/udp.rs crates/pod-proxy/tests/serve.rs
