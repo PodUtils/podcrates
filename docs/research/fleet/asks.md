@@ -112,7 +112,7 @@ Rulings that decide a route:
 | A-X-06 | P1 | Ingress for a self-hosted Workers runtime | deferred: connector (T-114) |
 | A-X-07 | P2 | `podsnap`: encrypted append-only backup shipper | new project podsnap |
 | A-X-08 | P2 | `podkey`: in-memory secret agent with a time window | new project podkey |
-| A-X-09 | P2 | `podwatch`: outside prober and heartbeat | new project podwatch |
+| A-X-09 | P2 | `podstat` (the ask named it `podwatch`): outside prober and heartbeat | new project podstat |
 | A-X-10 | P2 | `podlog`: ship logs and metrics over 443 | new project podlog |
 | A-X-11 | P3 | `podrepl`: SQLite replication between nodes | new project podrepl |
 | A-X-12 | P0 | Windows and macOS builds of each operator command | podssh (podnet stays Linux only) |

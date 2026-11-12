@@ -83,3 +83,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #75 | COORD-050: the answer to PodUtils/podnet#452 and #453: the hint words and the traits are in T-214 and T-028; pod-git is T-217 to T-220 (to podnet) | closed | T-028, T-214, T-217, T-218, T-219, T-220 |
 | #76 | COORD-051: v0.25.0: the pod-netstack calls of podnet's router; pod-confine closes the scopes, UDP on request, MPTCP, io_uring and the root capabilities (to all) | closed (podrunner `02a1c0b`, podvm `763b7c6a`, podssh `f029594d`; podnet answered with PodUtils/podnet#457) | T-025, T-209, T-221, T-222 |
 | #77 | COORD-052: v0.26.0: the veth wire of the netns hold, the facts of the SSH forward relays, the time to the first step and the job images of pod-job (to all) | closed (podrunner `4284967`, podnet `f107766`, podssh `ff2f7bac`, podvm `483a1957`) | T-201, T-224, T-226, T-227, T-233 |
+| #78 | Docs: stale names and contradictions after the renames of 2026-11-12 (pods, podstat, podforge) | closed | T-242 |

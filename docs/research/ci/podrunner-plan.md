@@ -282,13 +282,18 @@ The tunnel set of cfb (A-N-01 to A-N-03, A-C-01, A-C-02) is not part of this pat
 
 ## 9. Fit to the owner's rulings and questions for the owner
 
-Rulings that apply:
+Superseded. The owner answered Q1 to Q14 on 2026-11-11
+(`docs/decisions.md`), PodUtils/podrunner has code and a lead session,
+and PodUtils/podrunner#1 holds the plan. This section keeps the
+questions as they were asked.
+
+Rulings that applied when this plan was written:
 
 - "Priority" (2026-11-09): podvm, podnet and podssh first; M8 and the asks of cfb and githome wait; podcrates can build a crate for a new project when a consumer needs it. Therefore:
   - Phase 0 and the podvm items P1 to P5 are podvm work. They fit the priority and can start now (also A-V-04 is a podvm task today).
   - T-099 is done. T-100, T-102 to T-106 are M8 and wait, unless a consumer needs one. `podrunner` (P8) would be that consumer; a ruling is needed.
   - `pod-dockerapi` (P6) is a new crate for a new project. It waits for the ruling in Q1.
-- "New projects" (2026-11-09): `podrunner` has its own repository, created by the owner. It stays empty and has no session now.
+- "New projects" (2026-11-09): `podrunner` has its own repository, created by the owner.
 - C27: podcrates gives libraries; commands live in the product.
 - KVM is free (2026-11-09); the cfb tunnel set waits for the first crates.io release; no crates.io release now.
 - Rule 1 of `docs/design.md`: each crate links static on each target. `pod-dockerapi` and `pod-actions-*` are pure Rust.

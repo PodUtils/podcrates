@@ -1234,3 +1234,55 @@ and `run-report/invalid-job-image-tag.json`. The test of the rules covers
 the public report refuses the two private fields. `cargo test -p pod-job
 --all-features`: 17 passed; clippy 0. The schemas of `schemas/` hold the
 new fields and the reason.
+
+# T-242: Docs: the names of the renames of 2026-11-12 (`pods`, `podstat`, `podforge`) and the stale text of `pod-git` and of the podrunner plan (GitHub #78)
+
+**Source:** GitHub #78
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+GitHub #78 lists the places that use the old names after the owner's
+renames of 2026-11-12 (`PodUtils/pod` is `pods`, `podwatch` is
+`podstat`, `podutils` is deleted, `podforge` is new in place of
+`pod-git`), the call C65 that still states the old call after its
+"Superseded", the entries of `pod-git` that do not name `podforge`, and
+the section 9 of the podrunner plan that says that `podrunner` has no
+session.
+
+## Premise
+
+- Read: GitHub #78 and the body of GitHub #1 (the names reserved on
+  crates.io; `pods` and `podstat` wait for their registration).
+- `scripts/check-crates-io-names.py` reads section 4 of `docs/design.md`
+  and takes only the repository of podcrates; no workflow runs it.
+
+## Approach
+
+The ruling "Renames" in `docs/decisions.md`; C65 cut to a pointer; the
+products of the fleet and the names held in `docs/design.md` (each
+project name of GitHub #1); A-X-09 of `docs/research/fleet/asks.md`; the
+blockers of T-217 to T-220 name `PodUtils/podforge`; the check of the
+names takes the repository of each project name; section 9 of
+`docs/research/ci/podrunner-plan.md` marked superseded.
+
+## Prove
+
+```sh
+cargo todo check
+python3 -I scripts/check-design-paths.py
+```
+
+## Done
+
+2026-11-12. Each place of GitHub #78 changed. The milestone of T-217 to
+T-220 stays M4 (the owner decides the wave of `podforge`). Section 4 of
+`docs/design.md` has a paragraph "Project names"; the check reads it, and
+each project name must name the repository of its name under PodUtils
+(`podvm-*`: PodUtils/podvm). `python3 -I scripts/check-crates-io-names.py`:
+84 names, 2 faults: `pods` and `podstat` are missing until the owner's
+job registers them (GitHub #1).

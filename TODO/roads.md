@@ -731,9 +731,10 @@ cargo todo check
 
 ## Blocker
 
-The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
-`pod-git` goes to a repository of its own, with interop across git
-alternatives such as Radicle, and it is deferred. The owner unblocks it
+The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
+"pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
+of git hosts and alternatives such as Radicle behind one interface, and
+it is deferred. The owner unblocks it
 and names the repository; this entry then moves there.
 
 # T-218: `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453)
@@ -775,9 +776,10 @@ cargo test -p pod-git --all-features
 
 ## Blocker
 
-The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
-`pod-git` goes to a repository of its own, with interop across git
-alternatives such as Radicle, and it is deferred. The owner unblocks it
+The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
+"pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
+of git hosts and alternatives such as Radicle behind one interface, and
+it is deferred. The owner unblocks it
 and names the repository; this entry then moves there.
 
 ## Start condition
@@ -828,9 +830,10 @@ cargo test -p pod-git --all-features
 
 ## Blocker
 
-The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
-`pod-git` goes to a repository of its own, with interop across git
-alternatives such as Radicle, and it is deferred. The owner unblocks it
+The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
+"pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
+of git hosts and alternatives such as Radicle behind one interface, and
+it is deferred. The owner unblocks it
 and names the repository; this entry then moves there.
 
 ## Start condition
@@ -878,9 +881,10 @@ cargo test -p pod-git --all-features
 
 ## Blocker
 
-The owner, 2026-11-11 (`docs/decisions.md`, the ruling "pod-git"):
-`pod-git` goes to a repository of its own, with interop across git
-alternatives such as Radicle, and it is deferred. The owner unblocks it
+The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
+"pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
+of git hosts and alternatives such as Radicle behind one interface, and
+it is deferred. The owner unblocks it
 and names the repository; this entry then moves there.
 
 ## Start condition

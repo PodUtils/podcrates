@@ -239,8 +239,8 @@ as programs, T-106) grow in M8; `pod-core` (T-101), `pod-services` (T-112),
 `pod-hostprobe` (T-107), `pod-session` (T-110, T-120), `pod-relay` (T-111)
 and the adapters (T-113 to T-117) take clauses in their own waves. The
 products of the fleet (`podrunner`, `podnode`, `podinit`, `podlog`,
-`podwatch`, `podkey`, `podsnap`, `podrepl`, `podrelay-worker` and the
-installer `podutils`) are repositories of their own.
+`podstat`, `podkey`, `podsnap`, `podrepl`, `podrelay-worker`, `podforge`
+and the installer `pods`) are repositories of their own.
 
 ### `pod-services`: the services of other parties
 
@@ -330,6 +330,16 @@ Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-actions-proto`, `pod-actions-expr`, `pod-actions-exec` and
 `pod-actions-workflow` (the native runner and the local mode, Q11); the
 owner's name of 2026-11-11: `pod-mask` (T-180).
+
+Project names, each with the repository of its name under PodUtils
+(`podvm-*`: PodUtils/podvm; GitHub #1): `pods`, `podstat`, `podforge`,
+`podci`, `podinit`, `podkey`, `podlog`, `podnode`, `podrelay-worker`,
+`podrepl`, `podrunner`, `podsnap`, `podvm-probe`, `podvm-image`,
+`podvm-ssh`, `podvm-interpose`, `podvm-machine`, `podvm-cage`,
+`podvm-notebook`.
+
+The crate `pod-git` is not held: its work goes to PodUtils/podforge
+(the owner, 2026-11-12).
 
 What stays in the consumers: podnet `src/transport/websocket.rs` (a
 service transport, `podnet-serve`); podnet `hop`, `exit`, `state`,
