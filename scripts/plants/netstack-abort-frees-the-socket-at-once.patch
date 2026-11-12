@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
+--- a/crates/pod-netstack/src/stack/service.rs
++++ b/crates/pod-netstack/src/stack/service.rs
+@@ -221,7 +221,7 @@
+     }
+     // An aborted socket stays until smoltcp sent its RST: it forgets the
+     // peer then.
+-    if state == tcp::State::Closed && socket.remote_endpoint().is_some() {
++    if state == tcp::State::Closed && socket.remote_endpoint().is_some() && false {
+         return false;
+     }
+     // A RST of the peer closes a synchronized socket at once; a close passes

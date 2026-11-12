@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/datagrams.rs b/crates/pod-netstack/src/stack/datagrams.rs
+--- a/crates/pod-netstack/src/stack/datagrams.rs
++++ b/crates/pod-netstack/src/stack/datagrams.rs
+@@ -81,7 +81,7 @@
+         for chunk in t.contents.chunks(size) {
+             match self.send_tx.try_send(Outbound { data: chunk.to_vec(), to: t.destination, from: t.src_ip }) {
+                 Ok(()) => {}
+-                Err(mpsc::error::TrySendError::Full(_)) => NetStats::count(&self.stats.udp_tx_dropped),
++                Err(mpsc::error::TrySendError::Full(_)) => {}
+                 Err(mpsc::error::TrySendError::Closed(_)) => return Err(udp_closed()),
+             }
+         }

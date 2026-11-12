@@ -32,8 +32,9 @@ a line when its work is done. Git and the record keep finished work.
   consumer answers on #85 with the commit of its take. For `v0.28.0`:
   T-234 (`pod-relay` for podnet's trial), T-244, T-256 and T-174
   (PodUtils/podssh#196, #203), T-252 and T-253 (PodUtils/podnet#462,
-  #463), T-254 and T-255 (PodUtils/podvm#274, #275), the UDP gaps of
-  `pod-netstack` (PodUtils/podnet#464, a subagent), T-225 (the banner
+  #463), T-254 and T-255 (PodUtils/podvm#274, #275), T-257 to T-259
+  (the UDP of `pod-netstack`, PodUtils/podnet#464; calls C84 to C87),
+  T-260 (`hyperdht-bootstrap`, PodUtils/podssh#204), T-225 (the banner
   watch, a subagent).
 
 ## What waits

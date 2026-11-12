@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/socket.rs b/crates/pod-netstack/src/stack/socket.rs
+--- a/crates/pod-netstack/src/stack/socket.rs
++++ b/crates/pod-netstack/src/stack/socket.rs
+@@ -276,7 +276,7 @@
+ /// not at the next tick.
+ pub(super) fn took_datagram(read_stalled: &AtomicBool, kick: &DropKick) {
+     if read_stalled.swap(false, Ordering::AcqRel) {
+-        kick.notify();
++        let _ = kick;
+     }
+ }
+ 

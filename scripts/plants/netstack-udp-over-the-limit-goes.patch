@@ -1,0 +1,11 @@
+diff --git a/crates/pod-netstack/src/stack/socket.rs b/crates/pod-netstack/src/stack/socket.rs
+--- a/crates/pod-netstack/src/stack/socket.rs
++++ b/crates/pod-netstack/src/stack/socket.rs
+@@ -325,7 +325,6 @@
+ 
+     async fn queue(&self, buf: &[u8], to: SocketAddr, from: Option<IpAddr>) -> io::Result<usize> {
+         one_family(from.unwrap_or(self.local.ip()), to)?;
+-        self.limits.check(buf.len(), to, &self.stats)?;
+         self.send_tx.send(Outbound { data: buf.to_vec(), to, from }).await.map_err(|_| udp_closed())?;
+         self.kick.notify();
+         Ok(buf.len())

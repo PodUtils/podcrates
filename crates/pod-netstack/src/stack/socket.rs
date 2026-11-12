@@ -229,13 +229,36 @@ impl Drop for TcpStream {
     }
 }
 
-/// A UDP socket of the stack.
+/// The kick of the reactor that a UDP handle holds. Its drop kicks too: the
+/// reactor then sends the queued datagrams of the handle and frees its
+/// socket and its port.
+pub(super) struct DropKick(pub(super) Arc<Notify>);
+
+impl DropKick {
+    pub(super) fn notify(&self) {
+        self.0.notify_one();
+    }
+}
+
+impl Drop for DropKick {
+    fn drop(&mut self) {
+        self.0.notify_one();
+    }
+}
+
+/// A UDP socket of the stack. Its drop sends the datagrams that it queued,
+/// then frees its port.
 pub struct UdpSocket {
     pub(super) id: u32,
     pub(super) local: SocketAddr,
     pub(super) recv_rx: mpsc::Receiver<Inbound>,
     pub(super) send_tx: mpsc::Sender<Outbound>,
-    pub(super) kick: Arc<Notify>,
+    /// Set by the reactor when the channel to the app was full.
+    pub(super) read_stalled: Arc<AtomicBool>,
+    pub(super) stats: Arc<NetStats>,
+    pub(super) limits: Limits,
+    /// The last field: its drop kicks the reactor after the channels closed.
+    pub(super) kick: DropKick,
 }
 
 impl std::fmt::Debug for UdpSocket {
@@ -246,6 +269,15 @@ impl std::fmt::Debug for UdpSocket {
 
 pub(super) fn udp_closed() -> io::Error {
     io::Error::new(io::ErrorKind::BrokenPipe, "the UDP socket is closed")
+}
+
+/// The app took a datagram from the channel: when the reactor found the
+/// channel full, kick it, so that the backlog of the socket moves now and
+/// not at the next tick.
+pub(super) fn took_datagram(read_stalled: &AtomicBool, kick: &DropKick) {
+    if read_stalled.swap(false, Ordering::AcqRel) {
+        kick.notify();
+    }
 }
 
 /// Refuse a datagram whose source and destination are of two families:
@@ -269,9 +301,15 @@ impl UdpSocket {
         self.local
     }
 
+    /// The largest datagram that this socket sends to `to`
+    /// ([`StackConfig::max_datagram`]).
+    pub fn max_datagram(&self, to: IpAddr) -> usize {
+        self.limits.to(to)
+    }
+
     /// Queue one datagram to `remote`; wait while the queue to the reactor
-    /// is full. A `remote` of the other family than the bound address is
-    /// `InvalidInput`.
+    /// is full. A `remote` of the other family than the bound address, and a
+    /// datagram over [`UdpSocket::max_datagram`], are `InvalidInput`.
     pub async fn send_to(&self, buf: &[u8], remote: impl Into<SocketAddr>) -> io::Result<usize> {
         self.queue(buf, remote.into(), None).await
     }
@@ -279,15 +317,17 @@ impl UdpSocket {
     /// Queue one datagram to `remote` from `source`, an address that the
     /// stack need not own (a router answers for the destination that the
     /// program sent to). The source port is the port of the socket. A
-    /// `source` of the other family than `remote` is `InvalidInput`.
+    /// `source` of the other family than `remote`, and a datagram over
+    /// [`UdpSocket::max_datagram`], are `InvalidInput`.
     pub async fn send_to_from(&self, buf: &[u8], remote: impl Into<SocketAddr>, source: IpAddr) -> io::Result<usize> {
         self.queue(buf, remote.into(), Some(source)).await
     }
 
     async fn queue(&self, buf: &[u8], to: SocketAddr, from: Option<IpAddr>) -> io::Result<usize> {
         one_family(from.unwrap_or(self.local.ip()), to)?;
+        self.limits.check(buf.len(), to, &self.stats)?;
         self.send_tx.send(Outbound { data: buf.to_vec(), to, from }).await.map_err(|_| udp_closed())?;
-        self.kick.notify_one();
+        self.kick.notify();
         Ok(buf.len())
     }
 
@@ -301,7 +341,9 @@ impl UdpSocket {
     /// socket on any address, the address that the peer sent to. A datagram
     /// longer than `buf` is cut.
     pub async fn recv_from_to(&mut self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr, SocketAddr)> {
-        match self.recv_rx.recv().await {
+        let datagram = self.recv_rx.recv().await;
+        took_datagram(&self.read_stalled, &self.kick);
+        match datagram {
             Some(Inbound { data, from, to }) => {
                 let n = data.len().min(buf.len());
                 buf[..n].copy_from_slice(&data[..n]);

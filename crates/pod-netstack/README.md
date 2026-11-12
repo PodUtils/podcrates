@@ -33,16 +33,17 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor. |
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
-| `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again). |
+| `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again), `udp_rx_dropped`, `udp_tx_dropped`, `udp_oversize` (the section "UDP"). |
 | `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it. |
 | `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address), `close` (the section "Close"). |
-| `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `into_datagrams`. A remote of the other family than the source is `InvalidInput`. |
-| `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. |
+| `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `max_datagram(to)`; `into_datagrams`. A remote of the other family than the source, and a datagram over `max_datagram`, are `InvalidInput`. A drop sends the queued datagrams, then frees the port. |
+| `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. `try_send` does not wait: a full queue to the stack drops the datagram (`udp_tx_dropped`). `max_datagram(to)`; `may_fragment` is `IPV4_FRAGMENTATION`. |
 | `Clock` | The monotonic clock in milliseconds of smoltcp. |
 | `Subnet` | The address plan: `v4`/`v4_prefix`, `v6`/`v6_prefix`, `gateway_v4`, `gateway_v6`, `gateway_for`, `contains`, `prefix_for`. Default `10.66.0.0/24` and `fd00:66::/64`. |
 | `device` | `LinkDevice` (`loopback`, `tunnel`, `tunnel_bounded`, `link`, `with_inbound_limit`, `with_stats`, `with_max_burst`, `with_checksum(ChecksumCapabilities)`, `add_local`), its tokens `LinkRx`, `LinkTx`; `PacketQueue` (bounded, with a waker); `DeviceStats`, `DeviceStatsSnapshot`; `LINK_OUTBOUND` (512), `LINK_INBOUND` (4096); `RecordingDevice`, `PacketTap`, `Direction`. |
 | `hooks` | `Admit`, `GatewayService`, `GATEWAY_DATAGRAM` (1232). |
 | `MAX_ADDRESSES` | `smoltcp::config::IFACE_MAX_ADDR_COUNT` of the build (8 or more). |
+| `IPV4_FRAGMENTATION` | True with the feature `ipv4-fragmentation`. |
 | `smoltcp` | The re-export of smoltcp, so that a consumer names one version. |
 
 ## The hooks
@@ -50,7 +51,7 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | Trait | Called | podnet |
 | --- | --- | --- |
 | `Admit::admits(&self, target: SocketAddr) -> bool` | At each listen, connect and UDP bind (a refusal is `PermissionDenied`; a listen or a bind on each address gives `[::]:port`), and at each UDP send (a refused datagram is dropped and counted in `refused`). No admit: each target in the subnet. A closure `Fn(SocketAddr) -> bool` is an `Admit`. | `Acl` (`Acl::allows`) |
-| `GatewayService::port(&self) -> u16`, `GatewayService::answer(&self, from: SocketAddr, request: &[u8]) -> Option<Vec<u8>>` | The stack owns the IPv4 gateway, binds `port` there and gives each datagram (at most `GATEWAY_DATAGRAM` bytes) to `answer`; `None` sends nothing. It runs in the task of the stack. | `Resolver` (port 53, `Resolver::handle`) |
+| `GatewayService::port(&self) -> u16`, `GatewayService::answer(&self, from: SocketAddr, request: &[u8]) -> Option<Vec<u8>>` | The stack owns the IPv4 gateway, binds `port` there and gives each datagram (at most `GATEWAY_DATAGRAM` bytes; a longer one is dropped and counted in `udp_rx_dropped`) to `answer`, at the packet that brings it; `None` sends nothing. It runs in the task of the stack. An answer that finds the send buffer full (more than `udp_packets` requests in one pass) is dropped and counted in `udp_tx_dropped`. | `Resolver` (port 53, `Resolver::handle`) |
 | `PacketTap::packet(&self, direction: Direction, packet: &[u8])` | `RecordingDevice<D, T>` wraps a device and calls the tap for each packet, `Inbound` (link to stack) and `Outbound` (stack to link). A closure `Fn(Direction, &[u8])` is a `PacketTap`. | `Recorder` (the pcap and JSON capture stay in podnet) |
 
 ## Settings
@@ -61,9 +62,9 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | --- | --- | --- |
 | `subnet` | `10.66.0.0/24`, `fd00:66::/64` | The private address space; a connect or a bind outside it is `AddrNotAvailable`. |
 | `local_v4`, `local_v6` | `10.66.0.2`, `fd00:66::2` | The addresses of the stack. |
-| `mtu` | 1280 | The MTU of the link (at least 576). |
+| `mtu` | 1280 | The MTU of the link (at least 576). `StackConfig::max_datagram(to)` gives the largest UDP payload for it (the section "UDP"). |
 | `tcp_buffer` | 64 KiB | The send and the receive buffer of each TCP socket. |
-| `udp_packets`, `udp_payload` | 64, 64 KiB | The buffers of each UDP socket. |
+| `udp_packets`, `udp_payload` | 64, 64 KiB | The buffers of each UDP socket, and the bound of its backlog (the section "UDP"). |
 | `max_connections` | 4096 | The TCP connections at one time, open and half-open. A connect past it is `WouldBlock`; a SYN past it waits (the section "Listeners"). |
 | `admit` | none | `Option<Arc<dyn Admit>>`. |
 | `gateway_service` | none | `Option<Arc<dyn GatewayService>>`. |
@@ -73,7 +74,47 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `checksum` | `Checksum::Both` for each protocol | The checksums that the stack computes and verifies (`LinkDevice::with_checksum`). |
 | `linger` | 60 s | The longest time that a dropped or closed stream waits for a peer that makes no progress (the section "Close"). |
 
-No feature.
+## Features
+
+| Feature | What |
+| --- | --- |
+| `ipv4-fragmentation` | The IPv4 fragmentation of smoltcp (`proto-ipv4-fragmentation`, `fragmentation-buffer-size-65536`): a UDP datagram to IPv4 holds up to 65507 bytes in both directions over each MTU. Each interface of smoltcp in the binary then holds a buffer of 64 KiB for the fragments that it sends. smoltcp puts together one datagram at a time, and a lost fragment holds that place for 60 s; a binary that needs more sets `SMOLTCP_REASSEMBLY_BUFFER_COUNT` in the `[env]` table of its `.cargo/config.toml`. Off by default (call C85). Turn on this feature, not the feature of smoltcp: the stack reads its own feature for `max_datagram`. |
+
+## UDP
+
+T-257 to T-259 (PodUtils/podnet#464):
+
+* **The bound of a slow reader.** The reactor takes each datagram out of
+  smoltcp at once, at the packet that brings it, into the backlog of its
+  socket; the receive buffer of smoltcp thus never fills and drops a
+  datagram with no count. The backlog goes into the channel to the app (64
+  datagrams) while the channel has room: a place first, then the datagram.
+  A socket whose app reads nothing thus keeps 64 datagrams in the channel
+  and at most `udp_packets` datagrams and `udp_payload` bytes in its
+  backlog, in order; the next read of the app kicks the reactor
+  (`a_burst_with_no_reader_keeps_each_datagram_that_fits`: 128 of 500).
+* **The counters.** `udp_rx_dropped`: an inbound datagram past the
+  backlog, or a request to the gateway service over `GATEWAY_DATAGRAM`.
+  `udp_tx_dropped`: a `UdpDatagrams::try_send` that found the queue to the
+  stack full, or an answer of the gateway service that found its send
+  buffer full. `udp_oversize`: a datagram over what the stack can carry
+  (below). A `UdpSocket::send_to` that finds the send buffer of smoltcp
+  full waits (the queue to the stack fills, and the send waits for room):
+  it loses nothing. `rx_dropped` of the device counts a packet that the
+  inbound queue of the link could not take.
+* **The size.** `StackConfig::max_datagram(to)` (also on `UdpSocket` and
+  `UdpDatagrams`): IPv6 `mtu - 48` (smoltcp does not fragment IPv6); IPv4
+  `mtu - 28`, or 65507 with the feature `ipv4-fragmentation`; each at most
+  `udp_payload`. A send over it is `InvalidInput` and counted in
+  `udp_oversize` (1252 and 1232 bytes at MTU 1280). Before, the send was
+  `Ok` and smoltcp dropped the packet. Inbound: with no reassembly (IPv6;
+  IPv4 with no feature), the stack drops each IPv4 fragment before smoltcp
+  (smoltcp would read it as a whole packet), and counts the first fragment
+  of a datagram to a socket of the stack in `udp_oversize`; smoltcp answers
+  an IPv6 fragment with an ICMPv6 error.
+* **The drop.** The drop of a `UdpSocket` or a `UdpDatagrams` sends the
+  datagrams that it queued, then frees its smoltcp socket and its port. A
+  link that takes nothing for `StackConfig::linger` frees it too.
 
 ## Listeners
 
@@ -241,6 +282,11 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
     handshake are sent again at the next pass when the channel was full.
   * A listen, a connect or a bind that smoltcp refuses removes the socket
     that it added to the set (`a_refused_bind_frees_its_socket`).
+  * UDP (T-257 to T-259; the section "UDP"): podnet's reactor took a
+    datagram from smoltcp with no room in the channel to the app and lost
+    it, counted no lost datagram, sent a datagram over the MTU with `Ok`
+    and lost it, lost a datagram that a full send buffer did not take, and
+    kept the socket and the port of a dropped UDP socket.
   * A UDP send to an address of the other family than the source is
     `InvalidInput` (`UdpSocket` and `UdpDatagrams`), and the reactor drops
     such a datagram: podnet's reactor gave it to smoltcp, which panicked on
@@ -304,14 +350,17 @@ the `taken` lines of `SOURCES`):
 
 ## Tests
 
-`cargo test -p pod-netstack`: the stack (TCP and UDP on the loopback, IPv6,
+`cargo test -p pod-netstack`, also with `--all-features`: the stack (TCP and UDP on the loopback, IPv6,
 a listener off the stack's address, a refused connect, the wake of a
 write, the hooks, the close of each socket, a slow reader, a large
 download over two bounded links, the refused binds, a UDP send of two
 families), the close of a listener (`listener.rs`) and of a stream
-(`close.rs`: the queued bytes, the linger, the abort, a reset after a full
-channel), a burst of SYNs (`burst.rs`: 48 at once, a full accept queue,
-`max_connections`, a SYN sent again), any IP between a router and a
+(`close.rs`: the queued bytes, the linger, the abort and its RST on the
+link, a reset after a full channel), a burst of SYNs (`burst.rs`: 48 at
+once, a full accept queue, `max_connections`, a SYN sent again; no RST on
+the link), UDP over a link (`udp.rs`: a burst with no reader, the counters,
+the size of a datagram for each build, the fragments, the drop of a
+socket), any IP between a router and a
 program over a link (`any.rs`:
 TCP and UDP to each destination, any IP off, a listener off the router's
 address, the ports that a socket on each address shares), the checksums
@@ -328,7 +377,11 @@ plants `netstack-dropped-listener-stays`,
 `netstack-dropped-stream-never-lingers`, `netstack-reset-with-no-room`,
 `netstack-syn-finds-no-listen-socket` and
 `netstack-syn-again-to-a-listen-socket` prove the tests of the close and
-of the listeners.
+of the listeners; `netstack-abort-frees-the-socket-at-once` proves the test
+of the RST on the link. The plants `netstack-udp-backlog-lost-at-a-full-channel`,
+`netstack-udp-backlog-waits-for-the-tick`, `netstack-udp-loss-not-counted`,
+`netstack-udp-send-loss-not-counted`, `netstack-udp-over-the-limit-goes` and
+`netstack-dropped-udp-socket-stays` prove the tests of UDP.
 
 ## Sources
 

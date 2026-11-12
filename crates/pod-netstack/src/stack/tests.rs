@@ -11,6 +11,7 @@ mod close;
 mod hooks;
 mod link;
 mod listener;
+mod udp;
 
 /// The address of the default stack.
 const LOCAL_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 66, 0, 2));
@@ -35,6 +36,12 @@ fn pair(a: StackConfig, b: StackConfig, edit: fn(&mut [u8])) -> (NetStack, NetSt
     };
     let pumps = vec![pump(a.link_out(), b.link_in(), |_| {}), pump(b.link_out(), a.link_in(), edit)];
     (a, b, pumps)
+}
+
+/// True for an IPv4 packet that holds a TCP segment with RST.
+fn is_reset(packet: &[u8]) -> bool {
+    let header = usize::from(packet.first().map_or(0, |b| b & 0x0f)) * 4;
+    packet.len() > header + 13 && packet[0] >> 4 == 4 && packet[9] == 6 && packet[header + 13] & 0x04 != 0
 }
 
 /// Wait at most 5 s until the stack holds `live` sockets; the count then.

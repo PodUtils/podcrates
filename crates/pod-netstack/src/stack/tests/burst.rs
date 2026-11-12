@@ -11,7 +11,7 @@ use super::*;
 /// from the client holds each packet until the gate opens, so that a burst
 /// of SYNs comes in at one time; `drop` drops the packets of the server
 /// that it returns true for.
-fn gated(
+pub(super) fn gated(
     server: StackConfig,
     drop: impl Fn(&[u8]) -> bool + Send + 'static,
 ) -> (NetStack, NetStack, Arc<Notify>, Vec<tokio::task::JoinHandle<()>>) {
@@ -37,12 +37,22 @@ fn gated(
     (server, client, gate, vec![up, down])
 }
 
-async fn stop(mut server: NetStack, mut client: NetStack, pumps: Vec<tokio::task::JoinHandle<()>>) {
+pub(super) async fn stop(mut server: NetStack, mut client: NetStack, pumps: Vec<tokio::task::JoinHandle<()>>) {
     for pump in pumps {
         pump.abort();
     }
     server.shutdown().await;
     client.shutdown().await;
+}
+
+/// A filter of the pump that drops nothing and counts each RST of the server.
+pub(super) fn counting(resets: Arc<AtomicUsize>) -> impl Fn(&[u8]) -> bool + Send + 'static {
+    move |packet| {
+        if is_reset(packet) {
+            resets.fetch_add(1, Ordering::Relaxed);
+        }
+        false
+    }
 }
 
 /// Answer each accepted stream: read one byte, write it back.
@@ -109,11 +119,13 @@ async fn a_burst_of_connects_to_one_port_gets_no_reset() {
 }
 
 /// 100 connects at once, more than the accept queue holds, and an app that
-/// accepts after each handshake: no connection is lost.
+/// accepts after each handshake: no connection is lost, and no RST crosses
+/// the link (PodUtils/podnet#464).
 #[tokio::test]
 async fn a_burst_past_the_accept_queue_loses_no_connection() {
     const COUNT: usize = 100;
-    let (server, client, gate, pumps) = gated(StackConfig::default(), |_| false);
+    let resets = Arc::new(AtomicUsize::new(0));
+    let (server, client, gate, pumps) = gated(StackConfig::default(), counting(resets.clone()));
     let addr = at(LOCAL_IP, 443);
     let listener = server.listen(addr).await.unwrap();
     let mut clients = burst(&client, &gate, addr, COUNT).await;
@@ -122,6 +134,7 @@ async fn a_burst_past_the_accept_queue_loses_no_connection() {
     each_answers(&mut clients, Duration::from_secs(5)).await;
     let _listener = echo.await.unwrap();
     assert_eq!(server.stats().accepted, COUNT as u64);
+    assert_eq!(resets.load(Ordering::Relaxed), 0, "a RST crossed the link");
     stop(server, client, pumps).await;
 }
 
@@ -131,7 +144,8 @@ async fn a_burst_past_the_accept_queue_loses_no_connection() {
 async fn a_syn_past_the_connection_limit_waits() {
     const LIMIT: usize = 4;
     let config = StackConfig { max_connections: LIMIT, ..StackConfig::default() };
-    let (server, client, gate, pumps) = gated(config, |_| false);
+    let resets = Arc::new(AtomicUsize::new(0));
+    let (server, client, gate, pumps) = gated(config, counting(resets.clone()));
     let addr = at(LOCAL_IP, 443);
     let mut listener = server.listen(addr).await.unwrap();
     let mut clients = burst(&client, &gate, addr, 2 * LIMIT).await;
@@ -148,6 +162,7 @@ async fn a_syn_past_the_connection_limit_waits() {
     }
     assert_eq!(waiting.len(), LIMIT, "the server took more than its limit");
     assert_eq!(server.stats().dropped, LIMIT as u64);
+    assert_eq!(resets.load(Ordering::Relaxed), 0, "a RST crossed the link at the limit");
     // Each end of the first connections closes; the SYNs that the clients
     // send again connect.
     drop(first);

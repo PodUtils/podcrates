@@ -2514,6 +2514,13 @@ cargo test -p pod-netstack --lib stack::tests::close
   as `ConnectionReset`, not as an end.
 - Not measured: podnet's 48 MiB download over the router with a drop of
   the stream and no wait (PodUtils/podnet@T-249).
+- PodUtils/podnet#464, ask 1 (2026-11-12, `3de30c7`, `75fe91d`): the abort
+  sends its RST on `586fe83` too.
+  `an_abort_after_the_handshake_sends_a_reset_on_the_link` (podnet's case
+  `guest_wire_abort_after_the_handshake_sends_no_reset`: a router with any
+  IP accepts and aborts) counts the RST on the link; the peer reads
+  `ConnectionReset`, and its next write fails. The plant
+  `netstack-abort-frees-the-socket-at-once` is caught (no RST in 3 s).
 
 # T-232: `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457)
 
@@ -2607,6 +2614,12 @@ cargo test -p pod-netstack --lib stack::tests::burst
   the half-open connections, also at a connect. `NetStats::dropped` counts
   the SYNs that waited at `max_connections`, no longer the connections that
   a full accept queue dropped.
+- PodUtils/podnet#464, ask 2 (2026-11-12, `3de30c7`): the burst tests count
+  the RST segments on the link: 0 past the accept queue (100 connects) and
+  0 at `max_connections`. podnet's ask for `StackConfig::accept_queue`
+  needs no setting: a full queue drops no connection (it waits in the
+  listener, bounded by `max_connections`), so the size of the queue decides
+  no loss.
 
 # T-234: `pod-relay`: a relay host as an IPv6 address in brackets, and plain `ws://` to a loopback relay on the forward road
 
@@ -2816,6 +2829,273 @@ test: `__1` and `[::1]` give two names of each file.
 cargo test -p pod-core
 cargo test -p pod-relay --all-features
 ```
+
+# T-257: `pod-netstack`: UDP counters for a datagram lost at a slow app, at a full queue or buffer, and over the size that the stack carries (PodUtils/podnet#464)
+
+**Source:** PodUtils/podnet#464 (COORD-044 of podnet, for PodUtils/podnet@T-248)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#464, ask 3 (podnet's note
+`PodUtils/podnet:docs/research/podnet/guest-wire-router.md`, section 3):
+"UDP counters in `NetStats`: a datagram lost at the full channel to the
+app, a datagram lost at a full smoltcp send buffer, and a datagram that the
+send path cannot carry (over the MTU)." podnet's T-176 measured on v0.26.0:
+a burst of 500 datagrams with no reader gives 113 to the app, and
+`NetStats::dropped` and `rx_dropped` stay 0, with 500 packets in
+`rx_packets`. "Count in the router. The stack gives no signal."
+
+On `586fe83`, each UDP loss of the stack is silent: `service_udp` loses a
+datagram at a full channel to the app (T-259) and a datagram that
+`send_slice` refuses at a full send buffer; `UdpDatagrams::try_send` drops
+a datagram at a full queue to the stack; the gateway service drops a
+request over `GATEWAY_DATAGRAM` and an answer at a full send buffer;
+smoltcp drops a datagram at a full receive buffer with a trace only.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/service.rs` and
+  `crates/pod-netstack/src/stack/datagrams.rs` at `586fe83`; smoltcp 0.14
+  `udp::Socket::process` (a full receive buffer drops the datagram with
+  `net_trace!` only), `udp::Socket::send_slice` (`BufferFull`).
+- Measured on `586fe83`: the tests of T-259 (the app got 64 of 500).
+- Not measured: the counts under the load of many sockets.
+
+## Approach
+
+1. Three counters in `NetStats` (call C86): `udp_rx_dropped` (an inbound
+   datagram past the bound of its socket, or a request to the gateway
+   service over `GATEWAY_DATAGRAM`), `udp_tx_dropped` (a `try_send` at a
+   full queue to the stack, or an answer of the gateway service at a full
+   send buffer), `udp_oversize` (T-258). `dropped` stays the count of the
+   SYNs at `max_connections`.
+2. A datagram of an app that the send buffer does not take waits for the
+   next pass: a full buffer holds the app, and loses nothing.
+3. The reactor takes each datagram out of smoltcp at the packet that brings
+   it (T-259), so that smoltcp never drops one with no count.
+4. Tests with exact sums: the datagrams that the app got and the count make
+   the burst; the sent and the counted make the sends; the answers and the
+   count make the requests.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::udp
+cargo test -p pod-netstack --lib --all-features stack::tests::udp
+```
+
+## Done
+
+2026-11-12. `3de30c7`, `75fe91d` (with T-258, T-259).
+
+- `NetStats::udp_rx_dropped`, `udp_tx_dropped`, `udp_oversize` (call C86),
+  each in `NetStatsSnapshot`. A datagram of an app that the send buffer of
+  smoltcp does not take waits in `UdpConn::pending` and goes first at the
+  next pass: `send_to` loses nothing at a full buffer. The gateway service
+  counts a request over `GATEWAY_DATAGRAM` (and goes on with the next one;
+  it stopped the pass before) and an answer at a full send buffer.
+- `cargo test -p pod-netstack --lib stack::tests::udp`: 10 passed, with no
+  feature and with `--all-features`. `a_burst_with_no_reader_counts_each_lost_datagram`
+  (500 sent; the app got 128, and 372 are counted: the sum is 500),
+  `a_full_queue_to_the_stack_counts_each_lost_datagram` (200 `try_send`
+  with no pass of the reactor: 64 sent, 136 counted),
+  `a_burst_to_the_gateway_counts_each_lost_answer` (100 requests in one
+  pass: 64 answers, 36 counted), `the_stack_counts_each_datagram_over_its_limit`.
+  The tests do not build on `586fe83` (no counter).
+- The plants `netstack-udp-loss-not-counted` and
+  `netstack-udp-send-loss-not-counted` are caught.
+- Breaking: `NetStats` and `NetStatsSnapshot` have three new fields (a
+  literal of `NetStatsSnapshot` needs them or `..Default::default()`).
+- Not measured: the counters under the load of many sockets.
+
+# T-258: `pod-netstack`: a UDP send over what the stack carries is `Ok` and lost; the IPv4 fragmentation of smoltcp as a feature (PodUtils/podnet#464)
+
+**Source:** PodUtils/podnet#464 (COORD-044 of podnet, for PodUtils/podnet@T-248)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#464, ask 4 (podnet's note
+`PodUtils/podnet:docs/research/podnet/guest-wire-router.md`, section 3):
+"`UdpSocket::send_to` returns an error (`InvalidInput`) for a datagram over
+`mtu - 28` when the stack has no fragmentation, or over `udp_payload`."
+podnet measured on v0.26.0: a datagram over `mtu - 28` bytes is lost, up
+and down: 1252 bytes pass and 1253 fail at MTU 1280, 1472 pass and 1473
+fail at MTU 1500; `send_to` returns `Ok`; the sender counts the datagram as
+sent. With the smoltcp features `proto-ipv4-fragmentation`,
+`reassembly-buffer-size-65536` and `fragmentation-buffer-size-65536`, the
+sizes 1253, 4000 and 65507 pass, up and down, at MTU 1280. The lead asks
+for a call: pod-netstack turns the features on, gives them as its own
+features, or refuses a large datagram; with a look at the memory of each
+stack and at IPv6 (no IPv6 fragmentation in smoltcp: the limit is
+`mtu - 48`).
+
+## Premise
+
+- Read: smoltcp 0.14 `InterfaceInner::dispatch_ip` (an IPv4 packet over the
+  MTU is dropped with no fragmentation feature; an IPv6 packet over the MTU
+  is dropped in each build), `process_ipv4` (with no reassembly, a fragment
+  goes on as a whole packet), `iface/fragmentation.rs` (with `alloc`, the
+  buffer of a reassembly is a `Vec` that grows; the fragmenter holds an
+  array of `FRAGMENTATION_BUFFER_SIZE` bytes in each `Interface`;
+  `REASSEMBLY_BUFFER_COUNT` is 1 and the time limit of a reassembly is
+  60 s), `build.rs` (two values of one size feature in one build stop the
+  build).
+- Measured on `586fe83`: `a_datagram_over_what_the_stack_carries_is_refused`
+  fails: the send of 1253 bytes at MTU 1280 is `Ok`.
+- Not measured: the memory of a stack with the feature in a process of
+  podnet; a lossy link with fragments.
+
+## Approach
+
+1. `StackConfig::max_datagram(to)`: IPv6 `mtu - 48`; IPv4 `mtu - 28`, or
+   65507 with the feature; each at most `udp_payload`. The same on
+   `UdpSocket` and `UdpDatagrams`.
+2. `send_to`, `send_to_from` and `try_send` refuse a datagram over it with
+   `InvalidInput`, and count it in `udp_oversize` (T-257).
+3. The feature `ipv4-fragmentation` of pod-netstack turns on
+   `proto-ipv4-fragmentation` and `fragmentation-buffer-size-65536`. Off by
+   default (call C85).
+4. Inbound: with no reassembly, the reactor drops an IPv4 fragment before
+   smoltcp, and counts the first fragment of a datagram to a socket of the
+   stack in `udp_oversize`; the same count for an IPv6 fragment.
+5. `UdpDatagrams::may_fragment` tells the truth of the build.
+6. CI runs the tests of the crate with no feature too.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::udp
+cargo test -p pod-netstack --lib --all-features stack::tests::udp
+```
+
+## Done
+
+2026-11-12. `3de30c7`, `75fe91d` (with T-257, T-259).
+
+- `StackConfig::max_datagram(to)`, `UdpSocket::max_datagram`,
+  `UdpDatagrams::max_datagram`: IPv4 `mtu - 28`, IPv6 `mtu - 48`, each at
+  most `udp_payload`; IPv4 65507 with the feature `ipv4-fragmentation`
+  (call C85; `pod_netstack::IPV4_FRAGMENTATION`). `send_to`,
+  `send_to_from` and `try_send` refuse a datagram over it with
+  `InvalidInput` and count it in `udp_oversize`. With no reassembly, the
+  reactor drops an inbound IPv4 fragment before smoltcp and counts a first
+  fragment to a socket of the stack; an IPv6 first fragment is counted.
+  `UdpDatagrams::may_fragment` is `IPV4_FRAGMENTATION` (it was true). The
+  static probe turns the feature on and sends 4000 bytes through a loopback
+  stack at MTU 1280. CI runs `cargo test -p pod-netstack --lib` with no
+  feature too.
+- `cargo test -p pod-netstack --lib stack::tests::udp`: 10 passed, with no
+  feature and with `--all-features`. `a_datagram_over_what_the_stack_carries_is_refused`
+  (1252 and 1232 bytes cross at MTU 1280, one more is `InvalidInput`; with
+  the feature, 65507 bytes cross in fragments) fails on `586fe83`: the send
+  of 1253 bytes is `Ok`. `an_inbound_datagram_in_fragments` (3000 bytes in
+  two IPv4 fragments: delivered with the feature, dropped and counted with
+  none; an IPv6 first fragment counted), `the_limits_follow_the_mtu_and_the_buffer`.
+- The plant `netstack-udp-over-the-limit-goes` is caught.
+- Breaking: a UDP send over `max_datagram` is `InvalidInput` (it was `Ok`,
+  and the datagram was lost). `UdpDatagrams::may_fragment` is false with no
+  feature. With no feature, the stack drops each inbound IPv4 fragment
+  (smoltcp took it as a whole packet).
+- Not measured: the memory of a stack with the feature in a process of
+  podnet; fragments over a lossy link (smoltcp puts together one datagram at
+  a time, and a lost fragment holds that place for 60 s).
+
+# T-259: `pod-netstack`: the reactor loses a datagram that comes while the channel to the app is full (PodUtils/podnet#464)
+
+**Source:** PodUtils/podnet#464 (COORD-044 of podnet, for PodUtils/podnet@T-248)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#464, ask 5 (podnet's note
+`PodUtils/podnet:docs/research/podnet/guest-wire-router.md`, section 3):
+"`service_udp` does not take a datagram from the smoltcp socket
+(`peek_slice`, then `recv_slice`) when the channel to the app is full:
+smoltcp then applies its own bound, and no datagram is lost in the
+reactor." podnet's guest-wire router (PodUtils/podnet@T-248) waits for it.
+
+On `586fe83`, `service_udp` takes a datagram from smoltcp (`recv_slice`),
+then gives it to the channel to the app (`try_send`, 64 datagrams); a full
+channel loses it. Also, a read of the app does not kick the reactor: the
+datagrams that stay in smoltcp wait for the next tick
+(`max_poll_interval`).
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/service.rs` at `586fe83`
+  (`service_udp`); smoltcp 0.14 `udp::Socket::process` (a full receive
+  buffer drops a datagram with a trace only), `PacketBuffer::enqueue`,
+  `Interface::poll_ingress_single`.
+- Measured on `586fe83`: `a_burst_with_no_reader_keeps_each_datagram_that_fits`
+  (500 datagrams over a link, `max_poll_interval` 10 s): the app gets 64,
+  the numbers 0 to 63.
+- Not measured: a load of many sockets with slow apps.
+
+## Approach
+
+1. A test: 500 datagrams over a link to a socket whose app reads nothing;
+   the app then reads the first `64 + udp_packets`, in order, at once.
+2. The reactor gives the channel a place first, then the datagram. smoltcp
+   counts no datagram that its full receive buffer drops, so the reactor
+   takes each datagram out of smoltcp at the packet that brings it, into a
+   backlog of the socket with the bound of the buffer of smoltcp
+   (`udp_packets`, `udp_payload`): T-257 counts each datagram past it
+   (call C84).
+3. The next receive of the app after a full channel kicks the reactor.
+4. Plants: the backlog lost at a full channel; no kick.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::udp
+cargo test -p pod-netstack --lib --all-features stack::tests::udp
+```
+
+## Done
+
+2026-11-12. `3de30c7`, `75fe91d` (with T-257, T-258).
+
+- The reactor reads the head of each inbound packet (`Head::parse`) and
+  takes each datagram out of smoltcp at the packet that brings it, into a
+  backlog of its socket: at most `udp_packets` datagrams and `udp_payload`
+  bytes. The backlog goes into the channel to the app with a place first.
+  The next receive of the app after a full channel kicks the reactor
+  (call C84).
+- Fixed in place, with a test: a dropped `UdpSocket` or `UdpDatagrams`
+  kept its smoltcp socket and its port for the life of the stack. Now its
+  drop kicks the reactor, which sends its queued datagrams, then frees both;
+  a link that takes nothing for the linger frees them too (call C87).
+- `cargo test -p pod-netstack --lib stack::tests::udp`: 10 passed, with no
+  feature and with `--all-features`; `cargo test -p pod-netstack --lib`: 61
+  passed in each build; 25 runs of the UDP, close, burst and hooks tests in
+  each build passed. On `586fe83`:
+  `a_burst_with_no_reader_keeps_each_datagram_that_fits` (500 over a link,
+  `max_poll_interval` 10 s) fails: the app got 64 (now 128, the numbers 0
+  to 127, at once); `a_dropped_udp_socket_sends_its_queue_and_frees_its_port`
+  fails: 2 sockets stay.
+- The plants `netstack-udp-backlog-lost-at-a-full-channel`,
+  `netstack-udp-backlog-waits-for-the-tick` and
+  `netstack-dropped-udp-socket-stays` are caught.
+- Breaking: a UDP socket whose app reads slowly keeps 64 + `udp_packets`
+  datagrams, and counts the rest; a dropped UDP socket frees its port after
+  its queue went.
+- Not measured: a load of many sockets with slow apps; the cost of the look
+  at the head of each packet (one lock of the inbound queue for each
+  packet, as T-232 does for a SYN).
 
 # T-261: `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205)
 

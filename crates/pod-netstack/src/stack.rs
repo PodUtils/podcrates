@@ -16,7 +16,7 @@
 //! for the waker of the device, a command or the next deadline of the
 //! interface; it does not spin.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
@@ -82,6 +82,11 @@ pub struct StackConfig {
     /// The bytes of the send buffer and of the receive buffer of each TCP
     /// socket.
     pub tcp_buffer: usize,
+    /// The datagrams and the bytes of each buffer of each UDP socket. The
+    /// datagrams that wait for a slow app: 64 in the channel to the app,
+    /// then at most `udp_packets` datagrams and `udp_payload` bytes in the
+    /// backlog of the socket. The stack counts each datagram past them in
+    /// `NetStats::udp_rx_dropped`.
     pub udp_packets: usize,
     pub udp_payload: usize,
     /// The TCP connections of the stack at one time, open and half-open. A
@@ -146,6 +151,14 @@ impl StackConfig {
     fn admits(&self, target: SocketAddr) -> bool {
         self.admit.as_ref().is_none_or(|admit| admit.admits(target))
     }
+
+    /// The largest UDP payload that a stack with these settings sends to
+    /// `to`; a larger send is `InvalidInput`. IPv6: `mtu - 48` (smoltcp does
+    /// not fragment IPv6). IPv4: `mtu - 28`, or 65507 with the feature
+    /// `ipv4-fragmentation`. Each at most `udp_payload`.
+    pub fn max_datagram(&self, to: IpAddr) -> usize {
+        Limits::of(self).to(to)
+    }
 }
 
 fn seed_from_time() -> u64 {
@@ -166,44 +179,6 @@ pub enum StackEvent {
     Datagram { from: SocketAddr, to: SocketAddr, len: usize },
 }
 
-/// The counters of the connections, readable while the reactor runs.
-#[derive(Debug, Default)]
-pub struct NetStats {
-    pub accepted: AtomicU64,
-    pub connected: AtomicU64,
-    pub refused: AtomicU64,
-    pub closed: AtomicU64,
-    pub datagrams: AtomicU64,
-    /// The inbound SYNs that the stack dropped at `max_connections`; the
-    /// peer sends each again. An operator who reads `accepted` sees fewer
-    /// connections than the peer made, and this counter tells why.
-    pub dropped: AtomicU64,
-}
-
-/// The values of [`NetStats`] at one time.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct NetStatsSnapshot {
-    pub accepted: u64,
-    pub connected: u64,
-    pub refused: u64,
-    pub closed: u64,
-    pub datagrams: u64,
-    pub dropped: u64,
-}
-
-impl NetStats {
-    fn snapshot(&self) -> NetStatsSnapshot {
-        NetStatsSnapshot {
-            accepted: self.accepted.load(Ordering::Relaxed),
-            connected: self.connected.load(Ordering::Relaxed),
-            refused: self.refused.load(Ordering::Relaxed),
-            closed: self.closed.load(Ordering::Relaxed),
-            dropped: self.dropped.load(Ordering::Relaxed),
-            datagrams: self.datagrams.load(Ordering::Relaxed),
-        }
-    }
-}
-
 fn to_smoltcp(ip: IpAddr) -> IpAddress {
     IpAddress::from(ip)
 }
@@ -221,11 +196,15 @@ mod listen;
 mod reactor;
 mod service;
 mod socket;
+mod stats;
+mod udp_service;
 pub use datagrams::UdpDatagrams;
 use listen::*;
 use reactor::*;
 use socket::*;
 pub use socket::{SocketCount, TcpListener, TcpStream, UdpSocket};
+pub use stats::{NetStats, NetStatsSnapshot};
+use udp_service::*;
 
 /// The handle of the reactor task of a stack.
 pub struct NetStack {

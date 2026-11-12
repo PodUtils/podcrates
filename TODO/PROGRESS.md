@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 250 entries: 65 open, 4 partial, 4 blocked, 177 done.
+`TODO/INDEX.md` holds 253 entries: 65 open, 4 partial, 4 blocked, 180 done.
 
 ## State
 
@@ -26,7 +26,10 @@
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70); the takes of `v0.27.0` (#85): podnet's of T-230 to T-232
   (PodUtils/podnet#457; `StackConfig::accept_pool` is gone), podssh's of
-  `pod-relay` (T-025), podvm's of T-227 and T-233.
+  `pod-relay` (T-025), podvm's of T-227 and T-233; podnet's take of T-257
+  to T-259 with the next tag (PodUtils/podnet#464, for its guest-wire
+  router PodUtils/podnet@T-248: the UDP counters, `max_datagram`, the
+  feature `ipv4-fragmentation`, the backlog of a UDP socket).
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
@@ -112,7 +115,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C83; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C87; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

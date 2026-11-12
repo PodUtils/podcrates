@@ -202,13 +202,10 @@ impl Core {
         self.conns.len() + half_open.filter(|handle| !self.sockets.get::<tcp::Socket>(**handle).is_listening()).count()
     }
 
-    /// Before smoltcp takes the next inbound packet: a SYN to the port of a
-    /// listener finds a free listen socket of that listener, or waits at
-    /// `max_connections`. False when the stack dropped the packet.
-    pub(super) fn admit_syn(&mut self) -> bool {
-        let Some(Some(syn)) = self.inbound.peek(Syn::parse) else {
-            return true;
-        };
+    /// Before smoltcp takes the next inbound packet, `syn`: a SYN to the
+    /// port of a listener finds a free listen socket of that listener, or
+    /// waits at `max_connections`. False when the stack dropped the packet.
+    pub(super) fn admit_syn(&mut self, syn: Syn) -> bool {
         let Some(index) = self.listeners.iter().position(|listener| listener.local.takes(syn.to)) else {
             return true;
         };

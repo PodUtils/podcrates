@@ -139,6 +139,28 @@ async fn an_abort_sends_a_reset() {
     net.shutdown().await;
 }
 
+/// A router on any address accepts a connection, and its app aborts the
+/// stream at once (podnet's guest wire, PodUtils/podnet#464): a RST crosses
+/// the link, the peer reads a reset, and its next write fails.
+#[tokio::test]
+async fn an_abort_after_the_handshake_sends_a_reset_on_the_link() {
+    let resets = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let router = StackConfig { any_ip: true, ..StackConfig::default() };
+    let (server, client, gate, pumps) = super::burst::gated(router, super::burst::counting(resets.clone()));
+    gate.notify_one();
+    let mut listener = server.listen_any(443).await.unwrap();
+    let mut stream = client.connect(at("10.66.0.77".parse().unwrap(), 443)).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), stream.established()).await.expect("no handshake").unwrap();
+    let accepted = tokio::time::timeout(Duration::from_secs(3), listener.accept()).await.expect("no accept").unwrap();
+    accepted.abort();
+    let mut byte = [0u8; 1];
+    let read = tokio::time::timeout(Duration::from_secs(3), stream.read(&mut byte)).await.expect("no RST in 3 s");
+    assert_eq!(read.map_err(|err| err.kind()), Err(io::ErrorKind::ConnectionReset));
+    assert!(resets.load(Ordering::Relaxed) >= 1, "no RST crossed the link");
+    assert!(stream.write_all(b"zz").await.is_err(), "the peer writes to a flow that is gone");
+    super::burst::stop(server, client, pumps).await;
+}
+
 /// A RST of the peer while the channel to the app is full: the app reads
 /// each byte that the stack took, then the reset. With no place for the
 /// reset, the app would read a clean end: a cut stream that looks whole.

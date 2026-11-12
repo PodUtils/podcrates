@@ -1,0 +1,7 @@
+# The reactor removes an aborted socket before smoltcp sends its RST: the
+# peer gets no RST (PodUtils/podnet#464, ask 1). The RST must cross the link.
+ENTRY=T-231
+GROUP=netstack
+EXPECT='no RST in 3 s'
+RUN='cargo test -p pod-netstack --lib an_abort_after_the_handshake_sends_a_reset_on_the_link'
+LIMIT=900

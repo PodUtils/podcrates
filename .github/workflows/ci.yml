@@ -96,6 +96,11 @@ jobs:
         run: sh scripts/retry.sh rustup toolchain install
       - name: Test
         run: cargo test --locked --workspace --all-features
+      # The step above turns the feature ipv4-fragmentation of pod-netstack
+      # on. With no feature, the stack refuses a datagram over the MTU and
+      # drops an inbound IPv4 fragment (T-258): its tests run here.
+      - name: pod-netstack with no feature
+        run: cargo test --locked -p pod-netstack --lib
       # The drop of the capabilities of a root payload (T-221) skips as
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
