@@ -41,3 +41,15 @@ source = { url = "https://serveo.net/articles/remote-access-to-ssh-servers-using
 kind = "ssh-host-key"
 endpoint = "ssh"
 fact = "host-key-sha256"
+
+# The banner of a session on the first endpoint to try holds a URL that the
+# rule accepts.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh-443"
+
+# The document that names the zone of the fact url-match.
+[[watch]]
+kind = "http-text"
+url = "https://serveo.net/docs/"
+contains = "A subdomain of serveo.net"

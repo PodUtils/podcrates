@@ -27,8 +27,9 @@ a line when its work is done. Git and the record keep finished work.
   (PodUtils/podssh#196, #203), T-252 and T-253 (PodUtils/podnet#462,
   #463), T-254 and T-255 (PodUtils/podvm#274, #275), T-257 to T-259
   (the UDP of `pod-netstack`, PodUtils/podnet#464; calls C84 to C87),
-  T-260 (`hyperdht-bootstrap`, PodUtils/podssh#204), T-225 (the banner
-  watch, a subagent).
+  T-260 (`hyperdht-bootstrap`, PodUtils/podssh#204), T-262 and T-266
+  (PodUtils/podvm#276, #277), T-228 (`live.yml`). After its head
+  (`4ce3625`): T-025's take, T-225 (the watch `forward-url`).
 
 ## What waits
 
@@ -56,6 +57,11 @@ a line when its work is done. Git and the record keep finished work.
   next podvm beta, and later crates (`pod-unit`, `pod-release`, the
   registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`
   for its local mode). Its T-042 uses `pod-confine`.
+- The banners of the SSH forward relays (T-225, the watch `forward-url`):
+  no session of podcrates has SSH. A run of `services.yml` with the kind
+  `forward-url` (the daily run, or by hand with the kind) gives the host
+  of the URL of each relay; a `MOVED` on `url-match` is a fact that
+  podnet's `ssh-relay` reads. T-267 proves the URL through the tunnel.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).

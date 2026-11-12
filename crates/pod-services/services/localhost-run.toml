@@ -49,6 +49,18 @@ kind = "ssh-host-key"
 endpoint = "ssh"
 fact = "host-key-sha256"
 
+# The banner of a session as the user nokey holds a URL that the rule
+# accepts.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh"
+
+# The document that names the zone of the fact url-match.
+[[watch]]
+kind = "http-text"
+url = "https://localhost.run/"
+contains = ".lhr.life"
+
 [[watch]]
 kind = "rdap"
 domain = "localhost.run"

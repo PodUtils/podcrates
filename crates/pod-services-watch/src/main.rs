@@ -3,8 +3,11 @@
 //! for each, then a count. The workflow `services.yml` of podcrates runs it
 //! each day.
 //!
-//!   pod-services-watch [--service ID]... [--kind KIND]... [--file PATH]...
+//!   pod-services-watch [--service ID]... [--kind KIND]... [--skip-kind KIND]...
+//!                      [--file PATH]...
 //!
+//! `--skip-kind` leaves out the watches of a kind: a run by hand of each
+//! watch opens no second session with a relay on one day (`forward-url`).
 //! `--file` lays a service file of the same schema over the built-in set
 //! (a test of a new file before its commit). The proxy comes from the
 //! variables of the environment (`HTTPS_PROXY`, `NO_PROXY`, ...), and
@@ -29,19 +32,23 @@ const WATCH_LIMIT: Duration = Duration::from_secs(900);
 struct Options {
     services: Vec<String>,
     kinds: Vec<String>,
+    skip_kinds: Vec<String>,
     files: Vec<String>,
 }
 
 fn options() -> Result<Options, String> {
-    let mut out = Options { services: Vec::new(), kinds: Vec::new(), files: Vec::new() };
+    let mut out = Options { services: Vec::new(), kinds: Vec::new(), skip_kinds: Vec::new(), files: Vec::new() };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         let list = match arg.as_str() {
             "--service" => &mut out.services,
             "--kind" => &mut out.kinds,
+            "--skip-kind" => &mut out.skip_kinds,
             "--file" => &mut out.files,
             "-h" | "--help" => {
-                return Err("usage: pod-services-watch [--service ID]... [--kind KIND]... [--file PATH]...".into());
+                return Err("usage: pod-services-watch [--service ID]... [--kind KIND]... [--skip-kind KIND]... \
+                            [--file PATH]..."
+                    .into());
             }
             other => return Err(format!("pod-services-watch: unknown argument {other:?}")),
         };
@@ -111,7 +118,8 @@ fn main() -> ExitCode {
                 continue;
             }
             for watch in service.watches() {
-                if !options.kinds.is_empty() && !options.kinds.iter().any(|k| k == watch.kind()) {
+                let named = options.kinds.is_empty() || options.kinds.iter().any(|k| k == watch.kind());
+                if !named || options.skip_kinds.iter().any(|k| k == watch.kind()) {
                     continue;
                 }
                 let report =

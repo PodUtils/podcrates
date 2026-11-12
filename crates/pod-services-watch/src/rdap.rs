@@ -30,18 +30,20 @@ pub async fn check(service: &Service, watch: &Watch, net: &Net) -> Checked {
         .filter(|u| u.starts_with("https://"))
         .collect();
     bases.push(net.bases.rdap_fallback.clone());
-    let mut last = Finding::failed(format!("no RDAP server has a record of {domain}"));
+    // Each failure, not the last alone: a fault of the registry's own
+    // server must show beside the answer of the fallback.
+    let mut failed = Vec::new();
     for base in bases {
         let url = format!("{}/domain/{domain}", base.trim_end_matches('/'));
         let request = net.request("GET", &url).header("Accept", "application/rdap+json").redirects(5);
         let record = match net.send(request).await {
             Ok(answer) if answer.is_success() => answer,
             Ok(answer) => {
-                last = Finding::failed(format!("{url} answered HTTP {}", answer.status));
+                failed.push(format!("{url} answered HTTP {}", answer.status));
                 continue;
             }
-            Err(finding) => {
-                last = finding;
+            Err(Finding::Failed(why) | Finding::Moved { now: why, .. }) => {
+                failed.push(why);
                 continue;
             }
         };
@@ -69,5 +71,5 @@ pub async fn check(service: &Service, watch: &Watch, net: &Net) -> Checked {
             skipped: None,
         });
     }
-    Err(last)
+    Err(Finding::failed(format!("no RDAP server has a record of {domain}: {}", failed.join("; "))))
 }

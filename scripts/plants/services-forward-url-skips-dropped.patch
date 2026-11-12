@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -127,7 +127,7 @@ impl Session<'_> {
+         self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
+         let mut channel = self.step("the session channel", handle.channel_open_session()).await?;
+         self.step("the shell", channel.request_shell(true)).await?;
+-        let mut read = Read { banner: Banner::new(rule), out: Vec::new(), err: Vec::new(), refused: false };
++        let mut read = Read { banner: Banner::new(UrlRule { skips: Vec::new(), ..rule }), out: Vec::new(), err: Vec::new(), refused: false };
+         loop {
+             let Ok(message) = tokio::time::timeout_at(self.deadline, channel.wait()).await else {
+                 return Err(read.no_url(self, service, &format!("no URL within {:?}", self.limit)));

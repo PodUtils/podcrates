@@ -1,0 +1,6 @@
+# The watch kind forward-url: the rule loses its texts of url-skip, so a dashboard passes as the tunnel; its test must fail.
+ENTRY=T-225
+GROUP=services
+EXPECT='test forward::forward_url_finds_a_banner_with_no_url_that_the_rule_accepts \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- forward::forward_url_finds_a_banner_with_no_url_that_the_rule_accepts --exact'
+LIMIT=1800

@@ -158,6 +158,10 @@ zeroize = "1"
 # stays on ring) and X25519 of curve25519-dalek, with no default feature,
 # as podnet has them.
 ring = "0.17"
+# The SSH client of the watch forward-url (pod-services-watch, call C88):
+# the crate of podnet's and podssh's legs, on ring and pure-Rust RSA (a
+# relay can have an RSA host key alone), with no aws-lc and no zlib.
+russh = { version = "0.65", default-features = false, features = ["ring", "rsa"] }
 curve25519-dalek = { version = "5", default-features = false }
 # Noise of the end-to-end channel (pod-e2e), with podssh's features: pure
 # Rust (ChaCha20-Poly1305, SHA-256, X25519 of curve25519-dalek, the random

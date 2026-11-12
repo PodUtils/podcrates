@@ -31,8 +31,11 @@ yanked = "deny"
 ignore = [
   # rsa 0.9, feature rsa of pod-tls (read 2026-11-05): a timing attack on
   # the operations with a private key. pod-tls verifies signatures with
-  # public keys only (docs/design.md, section 2).
-  { id = "RUSTSEC-2023-0071", reason = "pod-tls verifies with RSA public keys only; the advisory concerns private-key operations" },
+  # public keys only (docs/design.md, section 2). rsa 0.10.0-rc, under
+  # russh of pod-services-watch (call C88), is a pre-release of the patched
+  # 0.10.0: the watch verifies the RSA host key of a relay with its public
+  # key, and its own key is Ed25519.
+  { id = "RUSTSEC-2023-0071", reason = "pod-tls and the russh client of pod-services-watch verify with RSA public keys only; the advisory concerns private-key operations" },
 ]
 
 [licenses]

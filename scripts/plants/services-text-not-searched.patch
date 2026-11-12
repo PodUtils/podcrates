@@ -1,11 +1,11 @@
 --- a/crates/pod-services-watch/src/http.rs
 +++ b/crates/pod-services-watch/src/http.rs
-@@ -126,7 +126,7 @@
-     let (endpoint, contains) = (args.endpoint()?, args.text("contains")?);
-     let url = https_url(endpoint, None);
-     let answer = net.get_ok(&url, "*/*").await?;
+@@ -224,7 +224,7 @@ pub async fn text(service: &Service, watch: &Watch, net: &Net) -> Checked {
+     let args = Args::new(service, watch);
+     let (url, contains) = (args.text("url")?, args.text("contains")?);
+     let answer = net.get_ok(url, "*/*").await?;
 -    if !answer.text().contains(contains) {
 +    if answer.text().is_empty() {
          let shown = answer.body_text(120);
-         return Err(Finding::failed(format!("{} does not hold {contains:?}: {shown}", self::shown(&url))));
+         return Err(Finding::failed(format!("{} does not hold {contains:?}: {shown}", self::shown(url))));
      }

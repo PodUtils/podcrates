@@ -46,7 +46,7 @@ source = { measured = "a query of type A through a new WARP session gets an answ
 
 [[watch]]
 kind = "http-text"
-endpoint = "trace"
+url = "https://one.one.one.one/cdn-cgi/trace"
 contains = "h=one.one.one.one"
 
 [[watch]]

@@ -1,0 +1,6 @@
+# The watch kind forward-url: the user of the fact user is not sent; its test must fail.
+ENTRY=T-225
+GROUP=services
+EXPECT='test forward::forward_url_reads_a_url_that_two_chunks_cut \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- forward::forward_url_reads_a_url_that_two_chunks_cut --exact'
+LIMIT=1800

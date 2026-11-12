@@ -3803,7 +3803,7 @@ Checks:
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3857,6 +3857,124 @@ the zone only), and the user `http` of Pinggy is not measured.
 ```sh
 cargo test -p pod-services-watch --test watches
 cargo run -q -p pod-services-watch -- --service pinggy --service serveo --service localhost-run --service sandhole
+```
+
+## Done
+
+2026-11-12. `52220f9` (the work, the entry T-267, the calls C88 and C89),
+and the commit of this section (the plants and the record).
+
+- `http-text` takes `url` in place of `endpoint`
+  (`crates/pod-services-watch/src/http.rs`); `cloudflare-dns` gives the
+  URL of its trace.
+- The documents of the zones, read on 2026-11-12 through the proxy of the
+  session with the user agent of the watch (each 200): `https://pinggy.io/docs/`
+  holds `.run.pinggy-free.link` (its two sample URLs),
+  `https://localhost.run/` holds `.lhr.life` (`a1b2c3d4e5f6.lhr.life`),
+  `https://serveo.net/docs/` holds "A subdomain of serveo.net". Each is a
+  watch `http-text` of its service.
+- The kind `forward-url` (`crates/pod-services-watch/src/forward.rs`, call
+  C88): russh 0.65 on ring and pure-Rust RSA over the dial of `Net`; an
+  Ed25519 key made for the run, then no key; the fact `user`, else
+  `pod-services-watch`; `tcpip-forward` of `localhost` and the port
+  (`port`, 80 if none); a session channel with a shell and no terminal;
+  `forward::Banner` with the rule of the service, within 45 s (`seconds`);
+  the close. It reports the host of the URL. A banner with other URLs and
+  none that the rule accepts is a `MOVED` on `url-match`; a banner with no
+  URL is a failure. The watches: `pinggy` `ssh` with `port = 0` (its
+  document writes `-R0:localhost:8000`), `serveo` `ssh-443`,
+  `localhost-run` `ssh` (the user `nokey`), `sandhole` `ssh-443`.
+- `services.yml` (call C89): the daily run opens one session with each
+  relay; a run by hand that names no service and no kind gives the new
+  `--skip-kind forward-url` to the runner.
+- Tests: `tests/watches/forward.rs`, a forward relay of russh's server on
+  the loopback that writes its banner in chunks, with six tests (a URL
+  that chunks cut, `MOVED` on `url-match`, no URL, the bound, no key and
+  the port of the watch, a refused forward and a service that is no
+  relay); `http::http_text_wants_the_text` with a URL and a 404;
+  `each_forward_relay_has_a_watch_of_its_banner_and_of_the_document_of_its_zone`
+  in `crates/pod-services/tests/forward.rs`.
+- Plants, each run in place with its patch and caught:
+  `services-text-not-searched` (its patch made again for the URL) and
+  `services-text-any-status` fail `http::http_text_wants_the_text`;
+  `services-forward-url-skips-dropped` fails
+  `forward::forward_url_finds_a_banner_with_no_url_that_the_rule_accepts`
+  (the dashboard passes as the tunnel);
+  `services-forward-url-user-dropped` fails
+  `forward::forward_url_reads_a_url_that_two_chunks_cut`.
+
+- A flaw that the Prove's run showed, fixed in place: `rdap` gave the
+  failure of its last server alone (rdap.org's 429 for `localhost.run`)
+  and dropped the failure of the registry's own server. The finding names
+  each server now (`crates/pod-services-watch/src/rdap.rs`); the new case
+  of `apis::rdap_wants_a_registration_that_does_not_end_soon` fails on the
+  old code, which named the 429 alone.
+
+Not measured: a live banner. The proxy of this session resets each SSH
+connection. The Prove's run gives 5 holds (the three `http-text`, `rdap`
+of `sandhole`, `github-file`) and 13 failures: each `forward-url`
+(`free.pinggy.io:443 as http`, `localhost.run:22 as nokey`,
+`serveo.net:443` and `demo.sandhole.com.br:443` as `pod-services-watch`),
+`ssh-banner` and `ssh-host-key` with "Connection reset by peer", and
+`rdap` of `localhost-run` (rdap.org answered 429; the same watch held in a
+run some minutes earlier). The lead runs `services.yml` with the kind
+`forward-url` on GitHub; its lines give the host of the URL of each
+relay. T-267 proves the URL through the tunnel.
+
+Checks: `cargo fmt --all --check`; `cargo clippy --workspace --all-targets
+--all-features -- -D warnings`; `cargo test -p pod-services -p
+pod-services-watch --all-features` (pod-services 84 passed,
+pod-services-watch 45 passed); `cargo todo check`; `python3 -I
+scripts/check-design-paths.py`; `sh scripts/plant-each.sh --apply` (0
+stale); `cargo deny --all-features --locked check advisories licenses bans
+sources`; the runner links static on `x86_64-unknown-linux-musl` (`cargo
+zigbuild`: no `PT_INTERP`, no `NEEDED`).
+
+# T-267: `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it
+
+**Source:** T-225 (a URL that the rule of a relay accepts is not always the URL of the tunnel)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The watch `forward-url` (T-225) holds when the banner of a relay holds a
+URL that the rule of the service accepts. The rule is a list of texts, so
+a URL of the service that is not the tunnel's can pass it: the fact
+`url-match` of `serveo` holds `.serveo.net`, and a URL of
+`console.serveo.net` holds that text too (T-224; no source shows the
+banner of Serveo). The watch then holds, and reports the host of a page
+of the service. podnet's `ssh-relay` would give that URL to its user.
+
+## Premise
+
+- Read: `crates/pod-services-watch/src/forward.rs` (the remote forward
+  goes to no local server; the client takes no channel `forwarded-tcpip`).
+- Not measured: a banner of a relay, and the answer of a relay to a first
+  request of a client that is no browser (a relay can answer with a page
+  of its own). This sandbox has no SSH.
+
+## Approach
+
+1. The client takes each channel `forwarded-tcpip` of the session, and
+   answers one HTTP request on it with a fixed answer that holds a word
+   made for the run.
+2. After the URL, a GET of the URL through the dial of `Net`, within the
+   bound of the session. An answer with the word holds; another answer is
+   a finding on `url-match` with the host.
+3. The offline test: the stand-in relay opens a channel `forwarded-tcpip`
+   for a request to its own HTTPS front. A plant that drops the compare
+   of the word.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches -- forward::
+cargo run -q -p pod-services-watch -- --kind forward-url
+sh scripts/plant-each.sh --group services
 ```
 
 # T-233: `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269)

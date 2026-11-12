@@ -41,6 +41,9 @@ base64 = { workspace = true }
 # The archive of a crate of crates.io (crate-file).
 flate2 = { workspace = true }
 tar = { workspace = true }
+# The session of an SSH forward relay (forward-url): a key exchange, the
+# authentication, a remote forward and a shell.
+russh = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true, features = ["stand"] }

@@ -7,6 +7,7 @@ mod common;
 mod data;
 mod dns;
 mod files;
+mod forward;
 mod http;
 mod ssh;
 mod ws;

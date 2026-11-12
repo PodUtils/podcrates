@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -76,7 +76,7 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
+             .ok_or_else(|| Finding::failed(format!("the argument \"seconds\" is no time: {s}")))?,
+         None => LIMIT,
+     };
+-    let user = relay.user().unwrap_or(USER);
++    let user = USER;
+     let session = Session {
+         at: format!("{} as {user}", endpoint.authority()),
+         user,

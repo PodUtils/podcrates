@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 255 entries: 64 open, 3 partial, 4 blocked, 184 done.
+`TODO/INDEX.md` holds 256 entries: 64 open, 3 partial, 4 blocked, 185 done.
 
 ## State
 
@@ -87,7 +87,7 @@ next entry.
    `pod-relay` (the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.
-5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-225 (a watch of the banner of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
@@ -114,7 +114,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C87; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C89; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

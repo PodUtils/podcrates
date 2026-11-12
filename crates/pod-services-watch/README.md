@@ -13,10 +13,13 @@ design"; the design: `docs/design.md`, section 4, "`pod-services`".
 ## The runner
 
 ```sh
-cargo run -q -p pod-services-watch -- [--service ID]... [--kind KIND]... [--file PATH]...
+cargo run -q -p pod-services-watch -- [--service ID]... [--kind KIND]... [--skip-kind KIND]... [--file PATH]...
 ```
 
 * `--service ID`, `--kind KIND`: only these services, only these kinds.
+* `--skip-kind KIND`: not this kind. A run of `services.yml` by hand
+  that names no service and no kind skips `forward-url`: the daily run
+  opens the one session with each relay (call C89).
 * `--file PATH`: lay a service file of the same schema over the built-in
   set (`Catalog::lay`), to check a new file before its commit.
 * The proxy comes from the variables of the environment (`HTTPS_PROXY`,
@@ -66,10 +69,11 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 | `stun-binding` | `stun.rs` | a Binding request over UDP (`pod_proxy::stun`), three tries |
 | `websocket-upgrade`, `forward-banner` | `ws.rs` | the upgrade of `pod-ws`; a forwarder's target in the query, in a first text frame (`{"Host":...,"Port":...}`), or in a Wisp CONNECT |
 | `proxy-banner` | `proxy.rs`, `xhttp.rs` | Trojan and VLESS over TCP (`tcp`, `raw`), and VLESS over XHTTP (`xhttp`, `splithttp`) in the mode `packet-up`, with or without TLS. XHTTP follows the client of Xray-core at `c43ee98ec7c5a9d34b32cedf891b4c8707e9c8b0`: a streamed GET of `PATH/SESSION` for the downloads, a POST of `PATH/SESSION/SEQ` for each upload (the VLESS request in the upload of sequence 0), the padding `x_padding` in the query of a `Referer`, a random UUID as the session id; `auto` is `packet-up`. TLS offers the `alpn` of the link, else `h2` and `http/1.1`; the protocol that the server chose gives HTTP/1.1 (a connection for the GET, one for the POST) or HTTP/2 (two streams of one connection); with no choice, the version of Xray's client. Skipped: another transport or security, the XHTTP modes `stream-up` and `stream-one`, HTTP/3, the XHTTP `extra` settings, a VLESS `flow` or `encryption` |
+| `forward-url` | `forward.rs` | an SSH session of russh (call C88) over the dial, within 45 s (`seconds`): the authentication with an Ed25519 key made for the run, then with no key; the user of the fact `user`, else `pod-services-watch`; a remote forward (`tcpip-forward`) of `localhost` and the port (`port`, 80 if none) to no local server; a session channel with a shell, and no terminal, as podnet's `ssh-relay`; the data of the shell through `pod_services::forward::Banner` with the rule of the service. It reports the host of the URL. A banner with other URLs and none that the rule accepts is a fact `url-match` that moved; a banner with no URL is a failure. The close follows the URL, the end of the shell or the bound. It accepts each host key: `ssh-host-key` checks the key, and the session sends no secret |
 | `ssh-banner`, `ssh-host-key` | `ssh.rs` | the banner, after the banner of the client (a server can wait for it); the host key of the reply of curve25519-sha256, one exchange for each kind of key (Ed25519, ECDSA, RSA). The watch reads the key that the server offers; it does not check a signature |
 | `github-release`, `github-files`, `github-file`, `tls-roots` | `github.rs` | GitHub's API (the newest release, the release of a tag) and its raw files (at a tag, or at `HEAD`) |
 | `crate-file` | `crate_file.rs` | the newest stable version on crates.io, its `.crate` archive, the member file |
-| `rdap` | `rdap.rs` | IANA's bootstrap, then the registry's server, else `rdap.org`; the `expiration` event must be 90 days or more away |
+| `rdap` | `rdap.rs` | IANA's bootstrap, then the registry's server, else `rdap.org`; the `expiration` event must be 90 days or more away; with no record, the failure names the answer of each server |
 | `oci-ping`, `oci-digest` | `oci.rs` | `GET /v2/` and its `Bearer` challenge; an anonymous token for each repository; a `HEAD` of each manifest by its digest (404 is a pin that moved; 429 gets one more try after its `Retry-After`, at most 30 s); a tag that moved is reported, and is no failure |
 
 A new kind: one async function `(service, watch, net) -> Checked`, its
@@ -89,7 +93,11 @@ file that it does not match gives its finding. `tests/watches/xhttp.rs`
 has an XHTTP node on HTTP/1.1 (a stand-in of `pod-testkit`) and one on
 HTTP/2 (the server of `h2`). Each node checks each request as the server
 of Xray does: the host, the path and its query, the padding, the session
-id, and the sequence number of each upload.
+id, and the sequence number of each upload. `tests/watches/forward.rs` has
+a forward relay of russh's server: it takes a key or no key, a remote
+forward and a shell, writes its banner in chunks that cut a URL, and tells
+the test what it saw (the user, the key, the forward, the shell, the end
+of the session).
 
 ## Plants
 

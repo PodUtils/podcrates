@@ -59,6 +59,19 @@ source = { url = "https://pinggy.io/", read = 2026-11-11, note = "Configure your
 kind = "ssh-banner"
 endpoint = "ssh"
 
+# The banner of a session holds a URL that the rule accepts. The remote
+# port is 0, as the document writes the forward: -R0:localhost:8000.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh"
+port = 0
+
+# The document that names the zone of the facts url-match.
+[[watch]]
+kind = "http-text"
+url = "https://pinggy.io/docs/"
+contains = ".run.pinggy-free.link"
+
 [[fact]]
 name = "host-key-sha256"
 value = "SHA256:nFd5rfJMGuZXvfeRzJ/BtT3TfksAxTWMajcrHRcI7AM"
