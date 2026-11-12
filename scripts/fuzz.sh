@@ -22,6 +22,10 @@ set -u
 
 NIGHTLY=nightly-2026-11-01
 CARGO_FUZZ_VERSION=0.13.2
+# The SHA-256 of cargo-fuzz-$CARGO_FUZZ_VERSION-x86_64-unknown-linux-musl.tar.gz,
+# the release archive (T-355): GitHub's digest of the asset, measured again
+# at its first download.
+CARGO_FUZZ_SHA256=b5b704018b63e0f151c17a057ac53b5111e1db545d1b9f72fee79f08a545931c
 
 RUN_FOR=${1:-60}
 [ $# -gt 0 ] && shift
@@ -41,8 +45,19 @@ fi
 command -v c++ > /dev/null 2>&1 || { echo "fuzz.sh: libFuzzer needs a C++ compiler (c++)" >&2; exit 69; }
 
 sh scripts/retry.sh rustup toolchain install "$NIGHTLY" --profile minimal > /dev/null || exit 1
+# On Linux x86_64 the release binary (static, musl) is a download of some
+# seconds; elsewhere `cargo install` builds it.
 if ! cargo fuzz --version 2> /dev/null | grep -q " $CARGO_FUZZ_VERSION\$"; then
-    sh scripts/retry.sh cargo install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked || exit 1
+    if [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ]; then
+        tools=${RUNNER_TEMP:-$PWD/target}/tools/bin
+        sh scripts/ci/fetch-tool.sh \
+            "https://github.com/rust-fuzz/cargo-fuzz/releases/download/$CARGO_FUZZ_VERSION/cargo-fuzz-$CARGO_FUZZ_VERSION-x86_64-unknown-linux-musl.tar.gz" \
+            "$CARGO_FUZZ_SHA256" cargo-fuzz "$tools" || exit 1
+        PATH=$tools:$PATH
+        export PATH
+    else
+        sh scripts/retry.sh cargo install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked || exit 1
+    fi
 fi
 # The host's own target: cargo-fuzz builds for the platform that it was
 # built for, and on musl the sanitizer does not work.

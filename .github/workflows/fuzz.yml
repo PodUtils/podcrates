@@ -37,6 +37,17 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
+      # The crates of the lock files from the cache of this job (T-355,
+      # call C152): no download of a crate that a run before took.
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
       # The run must be able to fail: with the plant fuzz-one-line-escape,
       # pod_core::text::one_line keeps ESC, and the target one_line must
       # crash on it.

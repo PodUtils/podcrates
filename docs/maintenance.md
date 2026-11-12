@@ -222,7 +222,12 @@ lives here, and they call it from here, at a pinned commit; they do not
 copy it. Now: `scripts/fetch-zig.sh` with `scripts/zig-mirrors.txt` (zig
 from the community mirrors, checked against its SHA-256). The job
 `mirrors` of `upstream.yml` compares the mirror list with ziglang.org's
-each day (`scripts/check-zig-mirrors.py`).
+each day (`scripts/check-zig-mirrors.py`). `scripts/ci/zig-tools.sh`
+adds cargo-zigbuild as its release binary, checked by `ZIGBUILD_SHA256`,
+and `scripts/ci/fetch-tool.sh` takes one program of a release archive by
+its SHA-256 (T-355): a consumer can call both in place of
+`cargo install`. The workflows of podcrates keep the archives and the
+cargo registry with actions/cache (call C152).
 
 A consumer's workflow takes both files at a commit of podcrates:
 

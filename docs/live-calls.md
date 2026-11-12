@@ -102,8 +102,8 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L27 | the advisory database of RustSec | `deny.yml` | each push, each day | no | keep live | the advisories must be current |
 | L28 | clones of podssh, podnet and podvm at their pinned commits | `adoption.yml` (`scripts/adoption.sh`) | each push that changes a crate | no | keep live | the code of the consumers; their crates come from the cache (T-355) |
 | L29 | crates.io's API: the reserved names | `scripts/check-crates-io-names.py` | by hand | no | keep live | a watch of the names |
-| L30 | rustup: static.rust-lang.org | each job (`rustup toolchain install`) | each run | no | infrastructure | the cache of the toolchain (T-355) |
-| L31 | crates.io: the index and the crates | each cargo step | each run | no | infrastructure | the cache of the registry, keyed by `Cargo.lock` (T-355) |
+| L30 | rustup: static.rust-lang.org | each job (`rustup toolchain install`) | each run | no | infrastructure | a download through `scripts/retry.sh`, not cached (call C185) |
+| L31 | crates.io: the index and the crates | each cargo step | each run | no | infrastructure | the cache of the registry of each job, keyed by the lock files (T-355) |
 | L32 | zig from the mirrors; `cargo install` of cargo-zigbuild and cargo-fuzz | `ci.yml` (static), `nightly.yml` (cross), `adoption.yml`, `fuzz.yml` | each run | the mirrors move (`upstream.yml`, job `mirrors`) | infrastructure | the cache by SHA-256; the release binaries of the tools by SHA-256 (T-355) |
 | L33 | the images of Docker Hub (Mosquitto, TruffleHog, binfmt) | `scripts/pull-image.sh` in `ci.yml`, `secrets.yml`, `nightly.yml` | each run | yes: the limit of Docker Hub | infrastructure | the mirrors of the script hold the same digest |
 | L34 | the Ubuntu archive (qemu) | `guest.yml`, `plants.yml` | each week; on a push to the checks | no | keep live | the packages of the runner's own image; a failure is rare, and `scripts/retry.sh` holds it |

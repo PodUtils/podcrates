@@ -1,9 +1,9 @@
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -47,6 +47,8 @@
-           persist-credentials: false
-       - name: Toolchain
-         run: sh scripts/retry.sh rustup toolchain install
+@@ -59,6 +59,8 @@
+             ~/.cargo/git/db
+           key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+           restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
 +      - name: A live service
 +        run: curl -qfsS https://example.org/
        - name: Format

@@ -36,6 +36,7 @@ env:
   ZIG_VERSION: 0.16.0
   ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
   ZIGBUILD_VERSION: 0.23.4
+  ZIGBUILD_SHA256: 9e3cf73485edbd45905c8aadbc0fdf869c7ddc3848f0c898229f2680db52e44b
 
 jobs:
   lint:
@@ -47,6 +48,17 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
+      # The crates of the lock files from the cache of this job (T-355,
+      # call C152): no download of a crate that a run before took.
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
@@ -94,6 +106,17 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
+      # The crates of the lock files from the cache of this job (T-355,
+      # call C152): no download of a crate that a run before took.
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
       - name: Test
         run: cargo test --locked --workspace --all-features
       # The step above turns the feature ipv4-fragmentation of pod-netstack
@@ -110,6 +133,11 @@ jobs:
       # library on 127.0.0.1 (T-354): the packages of
       # scripts/ci/wormhole-servers.txt, each with its SHA-256, from PyPI. A
       # skip fails the step.
+      - name: The cache of pip
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/ci/wormhole-servers.txt') }}
       - name: pod-wormhole and pod-relay against magic-wormhole's mailbox server
         run: sh scripts/ci/mailbox-tests.sh
       # The DNS over HTTPS of pod-dns against CoreDNS on 127.0.0.1 (T-350):
@@ -145,6 +173,17 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
+      # The crates of the lock files from the cache of this job (T-355,
+      # call C152): no download of a crate that a run before took.
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
       - name: The tests of the checker
         run: cargo test --locked -p pod-todo
       - name: The record agrees
@@ -183,15 +222,30 @@ jobs:
         run: |
           sh scripts/retry.sh rustup toolchain install
           sh scripts/retry.sh rustup target add ${{ matrix.target }}
+      # The crates of the lock files from the cache of this job (T-355,
+      # call C152): no download of a crate that a run before took.
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
+      # The archives of zig and cargo-zigbuild from the cache, each one
+      # checked by its SHA-256 (T-355): no build of cargo-zigbuild.
+      - name: The cache of zig and cargo-zigbuild
+        if: matrix.zig
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ runner.temp }}/tools/*.tar.xz
+            ${{ runner.temp }}/tools/bin/*.tar.xz
+          key: zig-${{ env.ZIG_SHA256 }}-${{ env.ZIGBUILD_SHA256 }}
       - name: zig and cargo-zigbuild
         if: matrix.zig
-        run: |
-          set -eu
-          mkdir -p "$RUNNER_TEMP/zig"
-          sh scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" "$RUNNER_TEMP/zig.tar.xz"
-          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP/zig"
-          echo "$RUNNER_TEMP/zig/zig-x86_64-linux-$ZIG_VERSION" >> "$GITHUB_PATH"
-          sh scripts/retry.sh cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+        run: sh scripts/ci/zig-tools.sh "$RUNNER_TEMP/tools"
       - name: Build the probe (zig)
         if: matrix.zig
         # One build for each probe: a build of both would turn tokio on in
