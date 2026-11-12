@@ -3702,7 +3702,7 @@ podnet starts its PodUtils/podnet@T-298.
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3724,3 +3724,29 @@ Read the contract: a message of a pair or of a session that carries opaque data 
 ```sh
 grep -n -i 'candidate\|signal\|offer' docs/research/*.md
 ```
+
+## Done
+
+2026-11-12. The answer to ask A5 of PodUtils/podnet#479, from a read of
+`https://tcp.ssh.relay.ajam.dev/llms-full.txt` (18359 bytes, the bytes of
+the fact `contract-sha256` of `ajam-relay`). No code.
+
+- Yes, with no change of the contract: two peers of a pair meet in a
+  reverse session (the operator opens `/v1/connect/NAME`, the node answers
+  `ready`), and the relay carries the bytes of a session verbatim in both
+  directions ("The operator leg carries no framing at all"). The node can
+  give such a session to a service of its process (`reverse::channel`,
+  T-150), which reads and writes the candidates in podnet's own form,
+  inside the layer of `pod-e2e`, so that the relay does not read them.
+- The contract has no message for data between the two ends outside a
+  session: the controls of a node are `hello`, `open`, `close`, `ready`
+  and `reject`, and the operator sends binary data alone.
+- The contract gives no reflexive address: `/trace` names the colo, the
+  city, the country and the ASN of the client, and `?egress=1` the
+  address of the relay's egress. The peers learn their public addresses
+  from STUN (the services of the kind `stun` in `pod-services`).
+- The relay carries TCP only, and takes no inbound TCP: a direct path is
+  the peers' own (for example a UDP hole punch with the candidates), and
+  the relay stays the carrier when no direct path opens. A session needs
+  a node online and its `ready` within 15 s; it lasts at most 720 min and
+  64 MiB.

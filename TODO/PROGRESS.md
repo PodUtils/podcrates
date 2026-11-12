@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 269 entries: 64 open, 2 partial, 4 blocked, 199 done.
+`TODO/INDEX.md` holds 269 entries: 63 open, 2 partial, 4 blocked, 200 done.
 
 ## State
 
@@ -78,7 +78,7 @@ next entry.
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    The asks of podnet's link workstream (PodUtils/podnet#479, P3; each
    starts when podnet starts its own entry): T-278, T-279, T-300 (`pod-link`,
-   call C116), T-301, T-302 (after T-035), T-303, T-304, T-305.
+   call C116), T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has);

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**269 entries: 64 open, 2 partial, 4 blocked, 199 done.**
+**269 entries: 63 open, 2 partial, 4 blocked, 200 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
 | P2 | 26 | 1 | 4 | 104 | 135 |
-| P3 | 26 | 0 | 0 | 40 | 66 |
-| **All** | 64 | 2 | 4 | 199 | 269 |
+| P3 | 25 | 0 | 0 | 41 | 66 |
+| **All** | 63 | 2 | 4 | 200 | 269 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -313,6 +313,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-300](relay.md) | P3 | L | M2 | feature | open | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
-| [T-303](relay.md) | P3 | S | M2 | chore | open | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
+| [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
 | [T-304](transport.md) | P3 | S | M1 | feature | open | `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479) |
 | [T-305](transport.md) | P3 | S | M1 | feature | open | `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479) |
