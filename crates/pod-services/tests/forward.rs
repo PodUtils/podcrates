@@ -145,7 +145,7 @@ fn the_facts_of_each_relay_are_the_ones_of_its_sources() {
     assert_eq!((pinggy.user(), pinggy.session_limit(), pinggy.keepalive()), (Some("http"), minutes(60), seconds(30)));
     let serveo = relay("serveo");
     assert_eq!(authorities(&serveo), ["serveo.net:443", "serveo.net:22"]);
-    assert_eq!(serveo.url_rule(), rule(&["https://", ".serveo.net"], &["console.serveo.net"]));
+    assert_eq!(serveo.url_rule(), rule(&["https://", ".serveousercontent.com"], &["console.serveo.net"]));
     assert_eq!((serveo.user(), serveo.session_limit(), serveo.keepalive()), (None, None, seconds(30)));
     let lhr = relay("localhost-run");
     assert_eq!(authorities(&lhr), ["localhost.run:22"]);
@@ -168,9 +168,18 @@ fn the_rule_of_each_relay_picks_the_url_of_the_banner_of_its_source() {
         ("localhost-run", LOCALHOST_RUN, "https://a1b2c3d4e5f6.lhr.life"),
         ("sandhole", SANDHOLE, "https://abcdef.demo.sandhole.com.br"),
         // The URL that the home page of Serveo shows.
-        ("serveo", "https://abc.serveo.net/welcome\r\n", "https://abc.serveo.net/welcome"),
-        // The console of the account comes first in the banner.
-        ("serveo", "https://console.serveo.net/settings\r\nhttps://abc.serveo.net\r\n", "https://abc.serveo.net"),
+        // The banner of an anonymous session (GitHub #98): the tunnel under
+        // serveousercontent.com, and the console, which the rule skips.
+        (
+            "serveo",
+            "Forwarding HTTP traffic from https://c629a466dce8453e-38-25-151-89.serveousercontent.com\r\nhttps://console.serveo.net/settings\r\n",
+            "https://c629a466dce8453e-38-25-151-89.serveousercontent.com",
+        ),
+        (
+            "serveo",
+            "https://console.serveo.net/settings\r\nhttps://abc.serveousercontent.com\r\n",
+            "https://abc.serveousercontent.com",
+        ),
     ];
     for (id, banner, url) in samples {
         let rule = relay(id).url_rule();
@@ -191,6 +200,7 @@ fn the_rule_of_each_relay_refuses_the_other_urls_of_the_service() {
         ("localhost-run", "https://admin.localhost.run/"),
         ("localhost-run", "https://twitter.com/localhost_run"),
         ("serveo", "https://serveo.net/docs/"),
+        ("serveo", "https://console.serveo.net/settings"),
         ("sandhole", "http://abcdef.demo.sandhole.com.br"),
         ("sandhole", "https://demo.sandhole.com.br/"),
     ] {

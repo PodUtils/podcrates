@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**320 entries: 90 open, 5 partial, 5 blocked, 220 done.**
+**320 entries: 89 open, 5 partial, 5 blocked, 221 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 2 | 0 | 63 | 83 |
+| P1 | 17 | 2 | 0 | 64 | 83 |
 | P2 | 38 | 1 | 5 | 110 | 154 |
 | P3 | 34 | 2 | 0 | 45 | 81 |
-| **All** | 90 | 5 | 5 | 220 | 320 |
+| **All** | 89 | 5 | 5 | 221 | 320 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -362,7 +362,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-371](upkeep.md) | P2 | M | M5 | defect | open | `pod-services-watch`: the DNS watches, `stun-binding` and the TLS of the HTTP client give no class "no answer" |
 | [T-372](transport.md) | P2 | S | M1 | feature | open | `pod-services`: `github-ssh` names SSH over port 443 (GitHub #95) |
 | [T-373](transport.md) | P2 | S | M1 | feature | open | `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97) |
-| [T-374](transport.md) | P1 | S | M1 | defect | open | `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98) |
+| [T-374](transport.md) | P1 | S | M1 | defect | done | `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98) |
 | [T-375](transport.md) | P3 | S | M1 | feature | open | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
 | [T-376](transport.md) | P3 | S | M1 | feature | open | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
 | [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |

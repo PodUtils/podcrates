@@ -233,7 +233,7 @@ let relay = services.of_kind("relay").next();
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
 | `node-*` (8) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
-| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match`, `url-skip`, `keepalive-seconds`, `host-key-sha256` (Ed25519) |
+| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match` (`.serveousercontent.com`), `url-skip`, `auth` (`publickey`, `keyboard-interactive`: an anonymous session answers it empty), `note` (the private alias), `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
 | `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `host-key-sha256`, `tunnel-zone` |
@@ -293,7 +293,7 @@ source states is not in the file.
 | Relay | Plain SSH | `user` | `url-match` | `url-skip` | `free-tunnel-minutes` | `keepalive-seconds` |
 | --- | --- | --- | --- | --- | --- | --- |
 | `pinggy` | `ssh` (443) | `http` (the type of the tunnel) | `https://`, `.run.pinggy-free.link` | `dashboard.pinggy.io` | 60 | 30 |
-| `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveo.net` | `console.serveo.net` | | 30 |
+| `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveousercontent.com` | `console.serveo.net` | | 30 |
 | `localhost-run` | `ssh` (22) | `nokey` | `https://`, `.lhr.life` | | | 60 |
 | `sandhole` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.demo.sandhole.com.br` | | | |
 
@@ -313,7 +313,7 @@ the zone is a finding.
 | Relay | `forward-url` | The document of the zone |
 | --- | --- | --- |
 | `pinggy` | `ssh`, port 0 (`-R0:localhost:8000` of its document) | `https://pinggy.io/docs/`: `.run.pinggy-free.link` |
-| `serveo` | `ssh-443` | `https://serveo.net/docs/`: "A subdomain of serveo.net" |
+| `serveo` | `ssh-443` | `https://serveo.net/docs/`: "myapp.serveousercontent.com" (the placeholder of a reserved hostname) |
 | `localhost-run` | `ssh`, the user `nokey` | `https://localhost.run/`: `.lhr.life` |
 | `sandhole` | `ssh-443` | none: the zone comes from podssh's runs |
 

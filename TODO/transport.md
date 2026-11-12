@@ -5138,7 +5138,7 @@ cargo test -p pod-services --all-features
 **Milestone:** M1
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5174,6 +5174,19 @@ cargo run -q -p pod-services-watch -- --service serveo
 ```
 
 The next `services.yml` run holds `serveo forward-url`.
+
+## Done
+
+2026-11-12. `serveo.toml`: `url-match` = (`https://`,
+`.serveousercontent.com`) with a measured source; `url-skip` stays; the
+facts `auth` and `note`; the watch `http-text` holds the documentation's
+placeholder `myapp.serveousercontent.com` (read here, 2026-11-12), so
+`serveo` stays in `ZONE_DOCUMENTS`, against the issue's plan to drop the
+watch. `tests/forward.rs`: the rule of the measured banner, and the
+console refused. The README rows. The run here: the document holds; the
+SSH watches need a direct egress, and the next `services.yml` run proves
+`forward-url`.
+
 
 # T-375: `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99)
 

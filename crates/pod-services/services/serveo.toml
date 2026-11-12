@@ -3,7 +3,7 @@
 id = "serveo"
 kind = "ssh-tunnel"
 party = "Serveo"
-about = "Serveo's SSH tunnels: a private alias of a node with no account"
+about = "Serveo's SSH tunnels with no account: an anonymous HTTPS forward under serveousercontent.com, or a private alias of a node"
 
 [[endpoint]]
 name = "ssh-443"
@@ -25,11 +25,13 @@ value = "SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk"
 source = { url = "https://serveo.net/docs/", read = 2026-11-10, note = "Verify the Ed25519 host-key fingerprint is SHA256:GnmVK+70U6GqbupoV+gg7LnHHUsW1IjrK0cLqvDJxIk" }
 
 # The facts of a forward relay (README, "SSH forward relays"). Any SSH
-# user: the user picks the name of the tunnel, and no account.
+# user: the user picks the name of the tunnel, and no account. An
+# anonymous session gets its tunnel under serveousercontent.com, not under
+# serveo.net (T-374, GitHub #98).
 [[fact]]
 name = "url-match"
-value = ["https://", ".serveo.net"]
-source = { url = "https://serveo.net/docs/", read = 2026-11-11, note = "ssh -R 80:localhost:3000 serveo.net ... A subdomain of serveo.net will be assigned to forward HTTP traffic (https://serveo.net/ shows https://abc.serveo.net/welcome)" }
+value = ["https://", ".serveousercontent.com"]
+source = { measured = "the banner of an anonymous session on serveo.net:443 named https://NAME.serveousercontent.com and https://console.serveo.net/settings (the watch forward-url of GitHub #98; services.yml run 43195020023 named the console)", read = 2026-11-12, note = "https://serveo.net/docs/ gives myapp.serveousercontent.com as the placeholder of a reserved hostname" }
 
 # The console of the account is under the zone too, and the banner names
 # it before the tunnel.
@@ -37,6 +39,20 @@ source = { url = "https://serveo.net/docs/", read = 2026-11-11, note = "ssh -R 8
 name = "url-skip"
 value = ["console.serveo.net"]
 source = { measured = "the banner of serveo.net:443 named https://console.serveo.net/settings, a page of the console and no forward (services.yml run 43195020023, watch forward-url)", read = 2026-11-12, note = "https://serveo.net/docs/ links console.serveo.net/domains and console.serveo.net/ssh/keys: Console gives the connection your Serveo identity" }
+
+# An anonymous session takes keyboard-interactive with an empty answer
+# (T-272); a session with a key of the account takes publickey.
+[[fact]]
+name = "auth"
+value = ["publickey", "keyboard-interactive"]
+source = { measured = "the watch forward-url logged in to serveo.net:443 with an empty keyboard-interactive answer and no account (T-272, the hand-off of v0.29.0)", read = 2026-11-12 }
+
+# A session with a named alias is private TCP and gives no URL: the rule
+# reads the anonymous HTTP forward alone.
+[[fact]]
+name = "note"
+value = "ssh -R ALIAS:22:localhost:22 serveo.net makes a private alias that ssh -J serveo.net reaches; no URL. ssh -R 80:localhost:PORT serveo.net makes an HTTPS URL under serveousercontent.com."
+source = { url = "https://serveo.net/docs/", read = 2026-11-12, note = "ssh -R myalias:22:localhost:22 serveo.net; ssh -J serveo.net user@myalias" }
 
 [[fact]]
 name = "keepalive-seconds"
@@ -55,8 +71,9 @@ fact = "host-key-sha256"
 kind = "forward-url"
 endpoint = "ssh-443"
 
-# The document that names the zone of the fact url-match.
+# The document that names the zone of the fact url-match: the placeholder
+# of a reserved hostname.
 [[watch]]
 kind = "http-text"
 url = "https://serveo.net/docs/"
-contains = "A subdomain of serveo.net"
+contains = "myapp.serveousercontent.com"
