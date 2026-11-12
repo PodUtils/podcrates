@@ -1,0 +1,7 @@
+# A SYN that finds no free listen socket gets none: smoltcp answers it
+# with a RST, and a burst of connects to one port is refused.
+ENTRY=T-232
+GROUP=netstack
+EXPECT='the connection was refused'
+RUN='cargo test -p pod-netstack --lib a_burst_of_connects_to_one_port_gets_no_reset'
+LIMIT=900

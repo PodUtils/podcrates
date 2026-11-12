@@ -100,11 +100,18 @@ impl TcpStream {
         self.nodelay
     }
 
-    /// Close the write side (a FIN after the queued data).
+    /// Close the write side (a FIN after the queued data). The read side
+    /// stays open.
     pub fn shutdown(&self) {
         let _ = self.ctl_tx.try_send(ConnCmd::Close);
         self.kick.notify_one();
     }
+
+    /// Close the connection gracefully, with no wait: the stack sends each
+    /// queued byte, then the FIN, and frees the socket at the end. The bytes
+    /// that come in after it are discarded. A peer that makes no progress
+    /// for `StackConfig::linger` gets a RST. The same as a drop.
+    pub fn close(self) {}
 
     /// Abort the connection (a RST).
     pub fn abort(&self) {
@@ -209,25 +216,14 @@ impl AsyncWrite for TcpStream {
 
 impl Drop for TcpStream {
     fn drop(&mut self) {
-        // A dropped stream frees its socket, but it must not close the
-        // connection while data is on its way.
+        // A drop is a graceful close (`TcpStream::close`). The handle cannot
+        // close the socket itself: the reactor holds the bytes that wait in
+        // the channel from the app and in the socket. The drop of `read_rx`
+        // tells the reactor that the app has gone (`move_to_app`); the
+        // command and the kick make it act now, not at its next tick.
         //
-        // With no `Drop`, the drop of the handle drops `ctl_tx`, and the
-        // reactor does not learn of it: `to_app.is_closed()` looks the other
-        // way and stays open. The socket then stays in CloseWait until the
-        // peer closes, which never comes for two handles that one task drops,
-        // and each such connection keeps its smoltcp socket for the life of
-        // the process.
-        //
-        // No graceful close at once: a program that writes, reads to EOF and
-        // drops has its own `Drop` before the reply of the peer comes, and a
-        // close at once cuts the exchange (two tests read an empty answer).
-        //
-        // No abort at once: an abort discards the queued data, and a program
-        // that wrote and dropped with no read loses the reply.
-        //
-        // So the handle asks, and the reactor, which knows whether bytes are
-        // owed in either direction, closes and removes the socket.
+        // No abort: an abort discards the queued bytes, and a program that
+        // wrote and dropped with no read loses its last bytes.
         let _ = self.ctl_tx.try_send(ConnCmd::Close);
         self.kick.notify_one();
     }
@@ -317,9 +313,17 @@ impl UdpSocket {
 }
 
 /// The queue of accepted connections of one listener.
+///
+/// The close or the drop of a listener frees its listen sockets, its port
+/// and the address that it made the stack own. The streams that it accepted
+/// stay. The streams in its queue, and its connections that the app did not
+/// accept, close as dropped streams do.
 pub struct TcpListener {
     pub(super) local: SocketAddr,
     pub(super) rx: mpsc::Receiver<TcpStream>,
+    /// Set by the reactor when the queue was full: an accept kicks it.
+    pub(super) stalled: Arc<AtomicBool>,
+    pub(super) kick: Arc<Notify>,
 }
 
 impl std::fmt::Debug for TcpListener {
@@ -335,7 +339,25 @@ impl TcpListener {
     }
 
     pub async fn accept(&mut self) -> io::Result<TcpStream> {
-        self.rx.recv().await.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "the listener is closed"))
+        let stream = self.rx.recv().await;
+        // A connection that found the queue full waits in the reactor: it
+        // moves now, not at the next tick.
+        if self.stalled.swap(false, Ordering::AcqRel) {
+            self.kick.notify_one();
+        }
+        stream.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "the listener is closed"))
+    }
+
+    /// Close the listener, with no wait. The same as a drop. A listen on its
+    /// port after it works.
+    pub fn close(self) {}
+}
+
+impl Drop for TcpListener {
+    fn drop(&mut self) {
+        // The reactor sees the closed queue at its next pass, and before each
+        // listen; the kick makes the pass now.
+        self.kick.notify_one();
     }
 }
 

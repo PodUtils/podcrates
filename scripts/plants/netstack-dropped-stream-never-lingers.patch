@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
+--- a/crates/pod-netstack/src/stack/service.rs
++++ b/crates/pod-netstack/src/stack/service.rs
+@@ -246,7 +246,7 @@
+     let seen = (socket.state(), socket.send_queue(), conn.pending.len() + conn.from_app.len());
+     if seen != orphan.seen {
+         *orphan = Orphan { since: now, seen };
+-    } else if now >= orphan.since + linger && conn.reset.is_none() {
++    } else if now >= orphan.since + linger && conn.reset.is_none() && false {
+         socket.abort();
+         conn.reset = Some("the peer made no progress for the linger of the stack".into());
+     }

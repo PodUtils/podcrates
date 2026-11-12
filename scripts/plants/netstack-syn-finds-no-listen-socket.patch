@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/listen.rs b/crates/pod-netstack/src/stack/listen.rs
+--- a/crates/pod-netstack/src/stack/listen.rs
++++ b/crates/pod-netstack/src/stack/listen.rs
+@@ -236,7 +236,7 @@
+             let _ = self.inbound.pop();
+             return false;
+         }
+-        if free {
++        if free || !free {
+             return true;
+         }
+         if self.connections() >= self.config.max_connections {

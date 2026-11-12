@@ -36,89 +36,55 @@ impl Core {
         }
     }
 
-    pub(super) fn accept_inbound(&mut self) {
-        let mut adopted: Vec<(usize, SocketHandle, Local, SocketAddr, SocketAddr)> = Vec::new();
-        for (index, listener) in self.listeners.iter().enumerate() {
-            for handle in &listener.handles {
-                let socket = self.sockets.get::<tcp::Socket>(*handle);
-                if socket.may_recv()
-                    && let (Some(local), Some(remote)) = (socket.local_endpoint(), socket.remote_endpoint())
-                {
-                    // The local end is the destination of the SYN: on a
-                    // listener on any address, the address that the peer
-                    // dialed.
-                    let (local, remote) = (endpoint_to_socket(local), endpoint_to_socket(remote));
-                    adopted.push((index, *handle, listener.local, local, remote));
-                }
-            }
-        }
-        for (index, handle, on, local, remote) in adopted {
-            if let Some(listener) = self.listeners.get_mut(index) {
-                listener.handles.retain(|candidate| *candidate != handle);
-            }
-            let id = self.next_id;
-            self.next_id += 1;
-            let stream = self.adopt(id, handle, local, remote);
-            match self.spawn_listener_socket(on) {
-                Ok(replacement) => {
-                    if let Some(listener) = self.listeners.get_mut(index) {
-                        listener.handles.push(replacement);
-                    }
-                }
-                Err(err) => tracing::warn!(error = %err, "could not fill the listener pool again"),
-            }
-            let queued = self.listeners.get_mut(index).map(|listener| listener.accept_tx.try_send(stream).is_ok());
-            if queued != Some(true) {
-                tracing::warn!("the accept queue is full: the stack drops an inbound connection");
-                // Free the socket too. The connection is established: a
-                // socket left in the set keeps its buffers, and the peer
-                // keeps a half-open connection that nothing serves.
-                if let Some(dropped) = self.conns.remove(&id) {
-                    self.drop_socket(dropped.handle);
-                }
-                self.stats.dropped.fetch_add(1, Ordering::Relaxed);
-                continue;
-            }
-            self.emit(StackEvent::Accepted { id, local, remote });
-            self.stats.accepted.fetch_add(1, Ordering::Relaxed);
-        }
-    }
-
     pub(super) fn service_conns(&mut self) {
+        let now = self.clock.now();
+        let linger = SmolDuration::from_millis(self.config.linger.as_millis().try_into().unwrap_or(u64::MAX));
         let ids: Vec<u32> = self.conns.keys().copied().collect();
-        let mut reap: Vec<(u32, Option<String>)> = Vec::new();
+        let mut reap: Vec<u32> = Vec::new();
         for id in ids {
             let Some(conn) = self.conns.get_mut(&id) else {
                 continue;
             };
-            if service_ctl(conn, &mut self.sockets) {
-                reap.push((id, Some("connection aborted".into())));
-                continue;
-            }
+            service_ctl(conn, &mut self.sockets);
             let wrote = move_to_socket(conn, &mut self.sockets);
-            move_to_app(conn, &mut self.sockets);
+            move_to_app(conn, &mut self.sockets, now);
             if close_and_check(conn, &mut self.sockets) {
-                reap.push((id, None));
+                reap.push(id);
+            } else {
+                linger_orphan(conn, &mut self.sockets, now, linger);
             }
             if wrote {
                 // The app had data on a full channel; it can write again.
                 conn.write_waker.wake();
             }
         }
-        for (id, reason) in reap {
+        let mut reaped = false;
+        for id in reap {
+            let Some(conn) = self.conns.get(&id) else {
+                continue;
+            };
+            let event = match &conn.reset {
+                Some(reason) => AppEvent::Reset(reason.clone()),
+                None => AppEvent::Eof,
+            };
+            // The end waits for a place after the data: with none, the app
+            // would read a reset as a clean end. The next read kicks the
+            // reactor.
+            if !tell_app(conn, event) && !conn.to_app.is_closed() {
+                continue;
+            }
             if let Some(conn) = self.conns.remove(&id) {
-                let event = match reason {
-                    Some(reason) => AppEvent::Reset(reason),
-                    None => AppEvent::Eof,
-                };
-                let _ = conn.to_app.try_send(event);
                 // Free the smoltcp socket: with no `remove`, each closed
                 // connection keeps its two buffers for the life of the
                 // process.
                 self.drop_socket(conn.handle);
                 self.emit(StackEvent::Closed { id });
                 self.stats.closed.fetch_add(1, Ordering::Relaxed);
+                reaped = true;
             }
+        }
+        if reaped && !self.owned.is_empty() {
+            self.release_addresses();
         }
     }
 
@@ -174,27 +140,25 @@ impl Core {
     }
 }
 
-/// Run the control commands of `conn`. True when the app aborted the
-/// connection: the caller reaps it with a reset.
-fn service_ctl(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
+/// Run the control commands of `conn`.
+fn service_ctl(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
     loop {
         match conn.ctl.try_recv() {
             // A close marks the connection for its end. The socket closes
             // after the queues are empty (see `close_and_check`): a handle
             // dropped while a reply is on its way must not cut the exchange.
-            //
-            // This is the only way that the reactor sees a dropped handle:
-            // `Drop` of `TcpStream` sends it, and `to_app.is_closed()` looks
-            // the other way and stays open after the app goes.
+            // A shutdown sends it; a drop sends it too, and the reactor also
+            // sees the closed channel to the app (`move_to_app`).
             Ok(ConnCmd::Close) => conn.closing = true,
             Ok(ConnCmd::Abort) => {
+                // The socket stays until smoltcp sent its RST (`close_and_check`).
                 sockets.get_mut::<tcp::Socket>(conn.handle).abort();
-                return true;
+                conn.reset = Some("connection aborted".into());
             }
             Ok(ConnCmd::SetNodelay(enabled)) => {
                 sockets.get_mut::<tcp::Socket>(conn.handle).set_nagle_enabled(!enabled);
             }
-            Err(_) => return false,
+            Err(_) => return,
         }
     }
 }
@@ -236,8 +200,22 @@ fn tell_app(conn: &Conn, event: AppEvent) -> bool {
 }
 
 /// Move the bytes of the socket to the app, while the app reads.
-fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
+fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>, now: SmolInstant) {
     let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+    // The app dropped its stream. The socket does not close at once: its
+    // close would stop `move_to_socket`, and the bytes that wait in the
+    // channel from the app would be lost. It closes after them
+    // (`close_and_check`). The bytes that come in have no reader: discard
+    // them, so that the window of the peer stays open.
+    if conn.to_app.is_closed() {
+        while socket.recv(|data| (data.len(), data.len())).is_ok_and(|n| n > 0) {}
+        conn.closing = true;
+        if conn.orphan.is_none() {
+            let seen = (socket.state(), socket.send_queue(), conn.pending.len() + conn.from_app.len());
+            conn.orphan = Some(Orphan { since: now, seen });
+        }
+        return;
+    }
     while socket.may_recv() {
         // Take a place in the channel first: bytes taken from the socket with
         // no place are lost, and the stream has a hole.
@@ -247,7 +225,7 @@ fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
                 conn.read_stalled.store(true, Ordering::Release);
                 break;
             }
-            // A gone reader closes below.
+            // The reader went: the next pass discards the bytes.
             Err(mpsc::error::TrySendError::Closed(())) => break,
         };
         let mut buffer = [0u8; 4096];
@@ -256,10 +234,21 @@ fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
             Ok(n) => permit.send(AppEvent::Data(buffer[..n].to_vec())),
         }
     }
-    // A reader that has gone closes the socket.
-    if conn.to_app.is_closed() {
-        socket.close();
-        conn.closing = true;
+}
+
+/// Abort a dropped stream that made no progress for `linger`: a dead peer,
+/// or a peer that never sends its FIN, must not hold the socket for ever.
+fn linger_orphan(conn: &mut Conn, sockets: &mut SocketSet<'static>, now: SmolInstant, linger: SmolDuration) {
+    let Some(orphan) = conn.orphan.as_mut() else {
+        return;
+    };
+    let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+    let seen = (socket.state(), socket.send_queue(), conn.pending.len() + conn.from_app.len());
+    if seen != orphan.seen {
+        *orphan = Orphan { since: now, seen };
+    } else if now >= orphan.since + linger && conn.reset.is_none() {
+        socket.abort();
+        conn.reset = Some("the peer made no progress for the linger of the stack".into());
     }
 }
 
@@ -283,9 +272,10 @@ fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
     if state == tcp::State::CloseWait && recv_queue == 0 && !conn.recv_eof_sent {
         conn.recv_eof_sent = tell_app(conn, AppEvent::Eof);
     }
-    // A close request closes the socket only when nothing is owed in either
-    // direction, so that a handle dropped in an exchange does not lose the
-    // reply on its way. `TcpStream::drop` cannot make this decision: it does
+    // A close request (a shutdown, a close or a drop) closes the socket only
+    // when no byte waits in either direction: after `close`, smoltcp takes
+    // no byte to send, so a byte in the channel from the app or in `pending`
+    // would be lost. `TcpStream::drop` cannot make this decision: it does
     // not know what the reactor still holds.
     //
     // The flag stays from poll to poll: a close that comes while the send
@@ -306,6 +296,21 @@ fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
     {
         socket.close();
     }
+    // An aborted socket stays until smoltcp sent its RST: it forgets the
+    // peer then.
+    if state == tcp::State::Closed && socket.remote_endpoint().is_some() {
+        return false;
+    }
+    // A RST of the peer closes a synchronized socket at once; a close passes
+    // LAST-ACK, CLOSING or TIME-WAIT. The app reads a reset, not an end.
+    let was_open = matches!(
+        conn.state,
+        tcp::State::Established | tcp::State::CloseWait | tcp::State::FinWait1 | tcp::State::FinWait2
+    );
+    if state == tcp::State::Closed && was_open && conn.reset.is_none() {
+        conn.reset = Some("connection reset by the peer".into());
+    }
+    conn.state = socket.state();
     // A socket in TIME-WAIT is finished for this stack: it holds no data,
     // and smoltcp does not move it again, as the peer (the last to close)
     // sends the segment that ends a TIME-WAIT. A socket kept there leaves a

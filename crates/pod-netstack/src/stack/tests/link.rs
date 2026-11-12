@@ -30,6 +30,8 @@ async fn closed_connections_leave_no_socket() {
             // close waits for the send queue.
             stream.write_all(&[7u8; 8000]).await.unwrap();
         }
+        // The listener stays: its drop frees its sockets (T-230).
+        listener
     });
     for _ in 0..20 {
         let mut client = net.connect(addr).await.unwrap();
@@ -41,7 +43,7 @@ async fn closed_connections_leave_no_socket() {
             .unwrap();
         assert_eq!(reply.len(), 8000, "the reply of a dropped handle is cut");
     }
-    server.await.unwrap();
+    let _listener = server.await.unwrap();
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     while net.socket_count().0 != resting && tokio::time::Instant::now() < deadline {
         tokio::time::sleep(Duration::from_millis(10)).await;

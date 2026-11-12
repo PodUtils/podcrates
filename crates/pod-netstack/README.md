@@ -33,9 +33,9 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor. |
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
-| `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound connection that the accept queue could not take). |
-| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data), `abort` (a RST). A dropped stream asks the reactor to close: the socket closes when nothing is owed in either direction. |
-| `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address). |
+| `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again). |
+| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it. |
+| `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address), `close` (the section "Close"). |
 | `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `into_datagrams`. A remote of the other family than the source is `InvalidInput`. |
 | `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. |
 | `Clock` | The monotonic clock in milliseconds of smoltcp. |
@@ -64,16 +64,56 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `mtu` | 1280 | The MTU of the link (at least 576). |
 | `tcp_buffer` | 64 KiB | The send and the receive buffer of each TCP socket. |
 | `udp_packets`, `udp_payload` | 64, 64 KiB | The buffers of each UDP socket. |
-| `accept_pool` | 8 | The listening sockets of a listener (its half-open limit). |
-| `max_connections` | 4096 | The open connections (a connect past it is `WouldBlock`). |
+| `max_connections` | 4096 | The TCP connections at one time, open and half-open. A connect past it is `WouldBlock`; a SYN past it waits (the section "Listeners"). |
 | `admit` | none | `Option<Arc<dyn Admit>>`. |
 | `gateway_service` | none | `Option<Arc<dyn GatewayService>>`. |
 | `random_seed` | the time | The seed of smoltcp for its ports and sequence numbers. |
 | `max_poll_interval` | 100 ms | The longest sleep of the reactor. |
 | `any_ip` | false | Take each packet, also to an address that the stack does not own (`Interface::set_any_ip`). |
 | `checksum` | `Checksum::Both` for each protocol | The checksums that the stack computes and verifies (`LinkDevice::with_checksum`). |
+| `linger` | 60 s | The longest time that a dropped or closed stream waits for a peer that makes no progress (the section "Close"). |
 
 No feature.
+
+## Listeners
+
+* A listener keeps one free listen socket. The reactor takes the inbound
+  packets one at a time (`Interface::poll_ingress_single`) and reads the
+  head of each in the queue: before a SYN goes to smoltcp, the listener of
+  its port gets a free listen socket. Thus a burst of SYNs to one port gets
+  no RST (`a_burst_of_connects_to_one_port_gets_no_reset`: 48 at once).
+* The bound is `max_connections`: the open and the half-open connections
+  of the stack. A SYN past it waits: the stack drops it, counts it in
+  `dropped`, and the peer sends it again (`a_syn_past_the_connection_limit_waits`).
+* The queue of a listener holds 64 accepted streams. When it is full, an
+  established connection waits in the listener, and the next `accept`
+  takes it (`a_burst_past_the_accept_queue_loses_no_connection`: 100).
+* A SYN sent again (its SYN-ACK was lost) whose 4-tuple a socket holds does
+  not reach a listen socket: smoltcp gives a segment to the first socket of
+  its set that takes it, and a newer listen socket in an earlier slot would
+  take it (`a_syn_sent_again_reaches_its_own_socket`).
+
+## Close
+
+* `TcpStream::close` and a drop are one graceful close, with no wait in
+  the caller: the stack sends each queued byte (in the channel from the
+  app and in the socket), then the FIN, and frees the socket at the end.
+  The bytes that come in after it are discarded
+  (`a_dropped_stream_sends_each_queued_byte_then_the_end`: 16 MiB).
+* The bound: a dropped stream that makes no progress (no change of its TCP
+  state, of its send queue and of its queued bytes) for
+  `StackConfig::linger` is aborted (a RST), and its socket is freed: a dead
+  peer, a peer in FIN-WAIT-2 that never sends its FIN, or a peer that reads
+  nothing for that time (`a_dropped_stream_to_a_dead_peer_is_freed_after_the_linger`,
+  `a_dropped_stream_whose_peer_never_closes_is_freed_after_the_linger`).
+* `TcpListener::close` and a drop free the listen sockets, the port and the
+  address that the listener made the stack own (when no listener and no
+  connection uses it). The streams that it accepted stay. The streams in
+  its queue and its established connections close as dropped streams do;
+  its half-open sockets go (`dropped_listeners_free_their_sockets_and_their_ports`:
+  1,000 ports one after the other).
+* `abort` sends a RST: the socket leaves the set after smoltcp sent it
+  (`an_abort_sends_a_reset`).
 
 ## Any IP
 
@@ -168,8 +208,9 @@ link):
 | The same, `set_ack_delay(None)` | 8.22 | 6,818 |
 
 No segment is sent again in a case: the server sends 6,769 packets
-(6,766 segments of data). The reactor of `NetStack` runs
-`Interface::poll`; T-197 has its ACKs.
+(6,766 segments of data). The reactor of `NetStack` takes each waiting
+packet with `Interface::poll_ingress_single`, then runs one pass of egress,
+as `Interface::poll` does; T-197 has its ACKs.
 
 ## Parity
 
@@ -178,7 +219,7 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
 
 * Each item of the cut is here, with its behaviour: the reactor and its
   poll loop (`max_poll_interval`, the kick of a write, the waker of the
-  inbound queue), the listeners with their pool, the owned address of a
+  inbound queue), the listeners, the owned address of a
   listener off the stack's own address, the connect with its family, the
   deferred close of a dropped stream, `TimeWait` as closed, the removal of
   each closed socket and its count, UDP, `VnetDatagrams` (as
@@ -206,6 +247,13 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
     a packet of two families, and the stack stopped
     (`a_datagram_to_the_other_family_is_refused_and_the_stack_runs`).
   * A poisoned lock of a packet queue does not panic.
+  * The close of a stream and of a listener, and the listen sockets of a
+    listener (T-230, T-231, T-232; the sections "Listeners" and "Close"):
+    podnet's listener kept `accept_pool` listen sockets and answered a SYN
+    past them with a RST; a dropped listener kept its sockets and its port;
+    a dropped stream closed its socket at once and lost the bytes in the
+    channel from the app; an abort sent no RST; a RST of the peer read as a
+    clean end.
   * The messages of the errors name the policy and the subnet, not the ACL
     and the virtual subnet.
 * Not here (stays in podnet): the abstract names of the shim (`addr.rs`),
@@ -260,7 +308,11 @@ the `taken` lines of `SOURCES`):
 a listener off the stack's address, a refused connect, the wake of a
 write, the hooks, the close of each socket, a slow reader, a large
 download over two bounded links, the refused binds, a UDP send of two
-families), any IP between a router and a program over a link (`any.rs`:
+families), the close of a listener (`listener.rs`) and of a stream
+(`close.rs`: the queued bytes, the linger, the abort, a reset after a full
+channel), a burst of SYNs (`burst.rs`: 48 at once, a full accept queue,
+`max_connections`, a SYN sent again), any IP between a router and a
+program over a link (`any.rs`:
 TCP and UDP to each destination, any IP off, a listener off the router's
 address, the ports that a socket on each address shares), the checksums
 (`checksum.rs`: a partial sum with `Checksum::Tx` and with the default),
@@ -270,7 +322,13 @@ controller over a delay link (`link_rate`, on a virtual clock). The plant
 `netstack-receive-with-no-room` (`scripts/plants/`) proves the test of the
 slow reader; the plant `netstack-link-rate-no-controller` proves the tests
 of the rate; the plants `netstack-any-ip-not-set` and
-`netstack-listener-owns-by-has-ip-addr` prove the tests of any IP.
+`netstack-listener-owns-by-has-ip-addr` prove the tests of any IP. The
+plants `netstack-dropped-listener-stays`,
+`netstack-dropped-stream-closes-at-once`,
+`netstack-dropped-stream-never-lingers`, `netstack-reset-with-no-room`,
+`netstack-syn-finds-no-listen-socket` and
+`netstack-syn-again-to-a-listen-socket` prove the tests of the close and
+of the listeners.
 
 ## Sources
 

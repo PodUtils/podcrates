@@ -5,6 +5,8 @@ use super::*;
 
 pub(super) struct Conn {
     pub(super) handle: SocketHandle,
+    pub(super) local: SocketAddr,
+    pub(super) remote: SocketAddr,
     pub(super) to_app: mpsc::Sender<AppEvent>,
     pub(super) from_app: mpsc::Receiver<Vec<u8>>,
     pub(super) write_waker: Arc<AtomicWaker>,
@@ -13,12 +15,29 @@ pub(super) struct Conn {
     pub(super) read_stalled: Arc<AtomicBool>,
     pub(super) ctl: mpsc::Receiver<ConnCmd>,
     pub(super) closing: bool,
+    /// Set when the app dropped its stream: the stack ends it alone.
+    pub(super) orphan: Option<Orphan>,
+    /// Set at a reset: the reason that the app reads. After an abort, the
+    /// socket leaves the set when smoltcp sent its RST.
+    pub(super) reset: Option<String>,
+    /// The state of the socket at the end of the last pass: a reset of the
+    /// peer moves a synchronized socket to CLOSED at once.
+    pub(super) state: tcp::State,
     pub(super) recv_eof_sent: bool,
     /// [`AppEvent::Connected`] was sent.
     pub(super) announced: bool,
     /// Bytes from the app that the socket did not take yet: `send_slice` can
     /// take part of a chunk when the send buffer is full.
     pub(super) pending: Vec<u8>,
+}
+
+/// The watch of a stream that the app dropped: the last progress, and when.
+/// No progress for `StackConfig::linger` aborts the connection.
+pub(super) struct Orphan {
+    pub(super) since: SmolInstant,
+    /// The state, the send queue, and the bytes in `pending` with the chunks
+    /// in the channel from the app.
+    pub(super) seen: (tcp::State, usize, usize),
 }
 
 /// The local end of a listener or a UDP socket: one address, or each
@@ -78,12 +97,6 @@ pub(super) struct GatewayUdp {
     pub(super) service: Arc<dyn GatewayService>,
 }
 
-pub(super) struct Listener {
-    pub(super) local: Local,
-    pub(super) handles: Vec<SocketHandle>,
-    pub(super) accept_tx: mpsc::Sender<TcpStream>,
-}
-
 pub(super) enum Command {
     Listen { local: Local, reply: oneshot::Sender<io::Result<TcpListener>> },
     Connect { remote: SocketAddr, local_port: u16, reply: oneshot::Sender<io::Result<TcpStream>> },
@@ -112,6 +125,11 @@ pub(super) struct Core {
     pub(super) stats: Arc<NetStats>,
     pub(super) kick: Arc<Notify>,
     pub(super) gateway: Option<GatewayUdp>,
+    /// The addresses that a listener made the stack own (`Core::own`).
+    pub(super) owned: Vec<IpAddr>,
+    /// The inbound queue of the device: the reactor reads the head of each
+    /// packet before smoltcp takes it (`Core::admit_syn`).
+    pub(super) inbound: PacketQueue,
 }
 
 pub(super) fn new_tcp_socket(config: &StackConfig) -> tcp::Socket<'static> {
@@ -129,7 +147,7 @@ pub(super) fn new_udp_socket(config: &StackConfig) -> udp::Socket<'static> {
     udp::Socket::new(buffer(), buffer())
 }
 
-fn refuse(kind: io::ErrorKind, message: String) -> io::Error {
+pub(super) fn refuse(kind: io::ErrorKind, message: String) -> io::Error {
     io::Error::new(kind, message)
 }
 
@@ -172,6 +190,7 @@ impl Core {
             socket.bind(listen).ok()?;
             Some(GatewayUdp { handle, service })
         });
+        let inbound = device.inbound();
         Self {
             iface,
             device,
@@ -187,12 +206,27 @@ impl Core {
             stats: Arc::new(NetStats::default()),
             kick,
             gateway,
+            owned: Vec::new(),
+            inbound,
         }
     }
 
+    /// `Interface::poll`, one inbound packet at a time: a SYN finds a free
+    /// listen socket of its listener first, so a burst to one port gets no
+    /// RST (`Core::admit_syn`).
     pub(super) fn poll_iface(&mut self) {
         let now = self.clock.now();
-        let _ = self.iface.poll(now, &mut self.device, &mut self.sockets);
+        self.iface.poll_maintenance(now);
+        loop {
+            if !self.listeners.is_empty() && !self.admit_syn() {
+                continue;
+            }
+            let ingress = self.iface.poll_ingress_single(now, &mut self.device, &mut self.sockets);
+            if ingress == PollIngressSingleResult::None {
+                break;
+            }
+        }
+        while self.iface.poll_egress(now, &mut self.device, &mut self.sockets) == PollResult::SocketStateChanged {}
     }
 
     pub(super) fn next_delay(&mut self) -> Option<Duration> {
@@ -236,7 +270,7 @@ impl Core {
 
     /// The checks of a bind: one address in the subnet, and admitted. The
     /// admit sees `[::]:port` for each address.
-    fn bindable(&self, local: Local) -> io::Result<()> {
+    pub(super) fn bindable(&self, local: Local) -> io::Result<()> {
         let addr = local.addr();
         if local.ip.is_some() && !self.in_subnet(&addr) {
             return Err(refuse(io::ErrorKind::AddrNotAvailable, format!("{addr} is outside the subnet of the stack")));
@@ -245,72 +279,6 @@ impl Core {
             return Err(refuse(io::ErrorKind::PermissionDenied, format!("the policy refuses a bind of {addr}")));
         }
         Ok(())
-    }
-
-    pub(super) fn listen(&mut self, local: Local) -> io::Result<TcpListener> {
-        self.bindable(local)?;
-        let addr = local.addr();
-        if self.listeners.iter().any(|listener| listener.local.overlaps(local)) {
-            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr}: a listener holds port {}", local.port)));
-        }
-        if let Some(ip) = local.ip {
-            self.own(ip, addr)?;
-        }
-        let pool = self.config.accept_pool.max(1);
-        let (accept_tx, accept_rx) = mpsc::channel(pool * 4);
-        let mut handles = Vec::with_capacity(pool);
-        for _ in 0..pool {
-            match self.spawn_listener_socket(local) {
-                Ok(handle) => handles.push(handle),
-                Err(err) => {
-                    for handle in handles {
-                        self.drop_socket(handle);
-                    }
-                    return Err(err);
-                }
-            }
-        }
-        self.listeners.push(Listener { local, handles, accept_tx });
-        self.emit(StackEvent::ListenerBound { addr });
-        Ok(TcpListener { local: addr, rx: accept_rx })
-    }
-
-    /// Own `ip` for a listener on an address that the stack does not own
-    /// yet, so that a SYN to it gets an answer, not the time limit of the
-    /// client (PodUtils/podnet#41). The list of the interface, not
-    /// `has_ip_addr`: with any IP, that is true for each address, and the
-    /// device would send a packet to `ip` out on the link.
-    fn own(&mut self, ip: IpAddr, addr: SocketAddr) -> io::Result<()> {
-        let smol = to_smoltcp(ip);
-        if !self.iface.ip_addrs().iter().any(|cidr| cidr.address() == smol) && !smol.is_unspecified() {
-            let prefix = self.config.subnet.prefix_for(ip);
-            let mut full = false;
-            self.iface.update_ip_addrs(|addrs| {
-                full = addrs.push(IpCidr::new(smol, prefix)).is_err();
-            });
-            if full {
-                return Err(refuse(
-                    io::ErrorKind::AddrNotAvailable,
-                    format!(
-                        "{addr}: the stack owns at most {} addresses (its own, the gateways and the listeners)",
-                        crate::MAX_ADDRESSES
-                    ),
-                ));
-            }
-            self.device.add_local(ip);
-        }
-        Ok(())
-    }
-
-    pub(super) fn spawn_listener_socket(&mut self, local: Local) -> io::Result<SocketHandle> {
-        let handle = self.sockets.add(self.tcp_socket());
-        self.socket_count.add();
-        let socket = self.sockets.get_mut::<tcp::Socket>(handle);
-        if let Err(err) = socket.listen(local.endpoint()) {
-            self.drop_socket(handle);
-            return Err(io::Error::new(io::ErrorKind::AddrInUse, format!("{}: {err}", local.addr())));
-        }
-        Ok(handle)
     }
 
     /// Remove a socket from the set: a set frees no slot itself.
@@ -336,7 +304,7 @@ impl Core {
             self.refused(remote, "refused by the policy");
             return Err(refuse(io::ErrorKind::PermissionDenied, format!("the policy refuses a connect to {remote}")));
         }
-        if self.conns.len() >= self.config.max_connections {
+        if self.connections() >= self.config.max_connections {
             return Err(io::Error::new(io::ErrorKind::WouldBlock, "the stack is at its connection limit"));
         }
         let local_port =
@@ -368,6 +336,7 @@ impl Core {
     /// Keep the state of the connection `id` on `handle`, and give its handle
     /// to the app.
     pub(super) fn adopt(&mut self, id: u32, handle: SocketHandle, local: SocketAddr, remote: SocketAddr) -> TcpStream {
+        let state = self.sockets.get::<tcp::Socket>(handle).state();
         let (to_app_tx, to_app_rx) = mpsc::channel(64);
         let (from_app_tx, from_app_rx) = mpsc::channel(64);
         let (ctl_tx, ctl_rx) = mpsc::channel(16);
@@ -377,12 +346,17 @@ impl Core {
             id,
             Conn {
                 handle,
+                local,
+                remote,
                 to_app: to_app_tx,
                 from_app: from_app_rx,
                 write_waker: write_waker.clone(),
                 read_stalled: read_stalled.clone(),
                 ctl: ctl_rx,
                 closing: false,
+                orphan: None,
+                reset: None,
+                state,
                 recv_eof_sent: false,
                 announced: false,
                 pending: Vec::new(),

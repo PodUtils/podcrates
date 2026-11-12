@@ -1,0 +1,8 @@
+# The reactor removes a reset connection when the channel to the app has
+# no place for the reset: the app reads a clean end, a cut stream that
+# looks whole.
+ENTRY=T-231
+GROUP=netstack
+EXPECT='right: Err\(ConnectionReset\)'
+RUN='cargo test -p pod-netstack --lib a_reset_after_a_full_channel_reads_as_a_reset'
+LIMIT=900

@@ -1,9 +1,9 @@
 diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
 --- a/crates/pod-netstack/src/stack/service.rs
 +++ b/crates/pod-netstack/src/stack/service.rs
-@@ -223,21 +223,14 @@
- fn move_to_app(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
-     let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
+@@ -217,21 +217,14 @@
+         return;
+     }
      while socket.may_recv() {
 -        // Take a place in the channel first: bytes taken from the socket with
 -        // no place are lost, and the stream has a hole.
@@ -13,7 +13,7 @@ diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/
 -                conn.read_stalled.store(true, Ordering::Release);
 -                break;
 -            }
--            // A gone reader closes below.
+-            // The reader went: the next pass discards the bytes.
 -            Err(mpsc::error::TrySendError::Closed(())) => break,
 -        };
          let mut buffer = [0u8; 4096];
@@ -27,4 +27,4 @@ diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/
 +            }
          }
      }
-     // A reader that has gone closes the socket.
+ }

@@ -26,10 +26,10 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use atomic_waker::AtomicWaker;
-use smoltcp::iface::{Config as IfaceConfig, Interface, SocketHandle, SocketSet};
+use smoltcp::iface::{Config as IfaceConfig, Interface, PollIngressSingleResult, PollResult, SocketHandle, SocketSet};
 use smoltcp::phy::ChecksumCapabilities;
 use smoltcp::socket::{tcp, udp};
-use smoltcp::time::Instant as SmolInstant;
+use smoltcp::time::{Duration as SmolDuration, Instant as SmolInstant};
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, IpEndpoint, IpListenEndpoint};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::{Notify, mpsc, oneshot};
@@ -84,9 +84,10 @@ pub struct StackConfig {
     pub tcp_buffer: usize,
     pub udp_packets: usize,
     pub udp_payload: usize,
-    /// A listener keeps at most this many listening sockets: the limit of
-    /// the half-open inbound connections at one time.
-    pub accept_pool: usize,
+    /// The TCP connections of the stack at one time, open and half-open. A
+    /// connect past it is `WouldBlock`. A SYN past it waits: the stack drops
+    /// it, and the peer sends it again (no RST). Below it, a listener adds a
+    /// listen socket for each SYN, so a burst to one port gets no RST.
     pub max_connections: usize,
     /// The admit of each target, at the bind, the connect and each UDP send.
     pub admit: Option<Arc<dyn Admit>>,
@@ -107,12 +108,18 @@ pub struct StackConfig {
     /// ([`LinkDevice::with_checksum`]). The default computes and verifies
     /// each.
     pub checksum: ChecksumCapabilities,
+    /// The longest time that a dropped or closed stream waits for its peer
+    /// with no progress: no change of its state and of its send queue. Then
+    /// the stack aborts it (a RST) and frees its socket, so that a dead peer,
+    /// or a peer that never sends its FIN, does not hold the socket for
+    /// ever. 60 s: the FIN-WAIT-2 time of Linux (`tcp_fin_timeout`).
+    pub linger: Duration,
 }
 
 impl Default for StackConfig {
     /// The default subnet, `10.66.0.2` and `fd00:66::2`, an MTU of 1280,
-    /// buffers of 64 KiB, no admit, no gateway service, no any IP, and each
-    /// checksum computed and verified.
+    /// buffers of 64 KiB, no admit, no gateway service, no any IP, each
+    /// checksum computed and verified, and a linger of 60 s.
     fn default() -> Self {
         Self {
             subnet: Subnet::default(),
@@ -122,7 +129,6 @@ impl Default for StackConfig {
             tcp_buffer: 64 * 1024,
             udp_packets: 64,
             udp_payload: 64 * 1024,
-            accept_pool: 8,
             max_connections: 4096,
             admit: None,
             gateway_service: None,
@@ -130,6 +136,7 @@ impl Default for StackConfig {
             max_poll_interval: Duration::from_millis(100),
             any_ip: false,
             checksum: ChecksumCapabilities::default(),
+            linger: Duration::from_secs(60),
         }
     }
 }
@@ -167,8 +174,8 @@ pub struct NetStats {
     pub refused: AtomicU64,
     pub closed: AtomicU64,
     pub datagrams: AtomicU64,
-    /// The inbound connections that the accept queue could not take. A drop
-    /// is no acceptance: an operator who reads `accepted` sees fewer
+    /// The inbound SYNs that the stack dropped at `max_connections`; the
+    /// peer sends each again. An operator who reads `accepted` sees fewer
     /// connections than the peer made, and this counter tells why.
     pub dropped: AtomicU64,
 }
@@ -210,10 +217,12 @@ fn shut_down() -> io::Error {
 }
 
 mod datagrams;
+mod listen;
 mod reactor;
 mod service;
 mod socket;
 pub use datagrams::UdpDatagrams;
+use listen::*;
 use reactor::*;
 use socket::*;
 pub use socket::{SocketCount, TcpListener, TcpStream, UdpSocket};

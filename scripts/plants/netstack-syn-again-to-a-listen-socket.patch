@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/listen.rs b/crates/pod-netstack/src/stack/listen.rs
+--- a/crates/pod-netstack/src/stack/listen.rs
++++ b/crates/pod-netstack/src/stack/listen.rs
+@@ -232,7 +232,7 @@
+                 && conn.remote == syn.from
+                 && self.sockets.get::<tcp::Socket>(conn.handle).state() != tcp::State::SynSent
+         });
+-        if held {
++        if held && false {
+             let _ = self.inbound.pop();
+             return false;
+         }

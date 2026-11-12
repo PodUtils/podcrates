@@ -1,0 +1,8 @@
+# The drop of a stream closes its socket at once, as podnet's stack did:
+# smoltcp then takes no byte to send, and the bytes in the channel from
+# the app are lost. The download must see the cut.
+ENTRY=T-231
+GROUP=netstack
+EXPECT='the end lost'
+RUN='cargo test -p pod-netstack --lib a_dropped_stream_sends_each_queued_byte_then_the_end'
+LIMIT=900

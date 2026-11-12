@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
+--- a/crates/pod-netstack/src/stack/service.rs
++++ b/crates/pod-netstack/src/stack/service.rs
+@@ -70,7 +70,7 @@
+             // The end waits for a place after the data: with none, the app
+             // would read a reset as a clean end. The next read kicks the
+             // reactor.
+-            if !tell_app(conn, event) && !conn.to_app.is_closed() {
++            if !tell_app(conn, event) && false {
+                 continue;
+             }
+             if let Some(conn) = self.conns.remove(&id) {

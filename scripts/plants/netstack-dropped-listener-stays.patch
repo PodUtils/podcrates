@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/listen.rs b/crates/pod-netstack/src/stack/listen.rs
+--- a/crates/pod-netstack/src/stack/listen.rs
++++ b/crates/pod-netstack/src/stack/listen.rs
+@@ -172,7 +172,7 @@
+     /// Its established connections close as dropped streams do: each ends
+     /// with its FIN.
+     pub(super) fn prune_listeners(&mut self) {
+-        if !self.listeners.iter().any(|listener| listener.accept_tx.is_closed()) {
++        if !self.listeners.iter().any(|listener| listener.accept_tx.is_closed()) || true {
+             return;
+         }
+         let (closed, open) =

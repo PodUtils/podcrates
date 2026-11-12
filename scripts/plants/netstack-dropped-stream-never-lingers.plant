@@ -1,0 +1,7 @@
+# A dropped stream waits for its peer for ever: a dead peer holds the
+# socket, and the stack never frees it.
+ENTRY=T-231
+GROUP=netstack
+EXPECT='a dead peer holds the socket'
+RUN='cargo test -p pod-netstack --lib a_dropped_stream_to_a_dead_peer_is_freed_after_the_linger'
+LIMIT=900

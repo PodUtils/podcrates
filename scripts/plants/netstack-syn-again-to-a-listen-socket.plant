@@ -1,0 +1,8 @@
+# A SYN sent again goes to smoltcp: a newer listen socket in an earlier
+# slot of the set takes it, two sockets hold one 4-tuple, and the
+# handshake breaks.
+ENTRY=T-223
+GROUP=netstack
+EXPECT='no accept'
+RUN='cargo test -p pod-netstack --lib a_syn_sent_again_reaches_its_own_socket'
+LIMIT=900

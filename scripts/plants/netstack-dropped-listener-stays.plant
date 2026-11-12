@@ -1,0 +1,7 @@
+# The reactor never removes a dropped listener: its listen sockets, its
+# port and its address stay, and a listen on its port again is AddrInUse.
+ENTRY=T-230
+GROUP=netstack
+EXPECT='is still held'
+RUN='cargo test -p pod-netstack --lib dropped_listeners_free_their_sockets_and_their_ports'
+LIMIT=900

@@ -1,0 +1,11 @@
+diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
+--- a/crates/pod-netstack/src/stack/service.rs
++++ b/crates/pod-netstack/src/stack/service.rs
+@@ -209,6 +209,7 @@
+     // them, so that the window of the peer stays open.
+     if conn.to_app.is_closed() {
+         while socket.recv(|data| (data.len(), data.len())).is_ok_and(|n| n > 0) {}
++        socket.close();
+         conn.closing = true;
+         if conn.orphan.is_none() {
+             let seen = (socket.state(), socket.send_queue(), conn.pending.len() + conn.from_app.len());
