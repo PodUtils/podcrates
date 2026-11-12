@@ -50,11 +50,11 @@ and prints nothing.
 | `rank`, `rank_list`, `rank_auto` | the rank of the hosts, the order of the default list, the rank in a session's background (`Races`) |
 | `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay |
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
-| `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one) |
+| `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one), `Pair::for_node` (a node's part of the name and the node token that its user gives, call C130) |
 | `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `channel` and `ChannelHandler` (each session to a service of the process, T-150), `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
 | `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public` |
 | `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`; where no mailbox answers, the MQTT brokers of `Ends::brokers`, after the event `relay.code.broker`, T-277), `LIFETIME` |
-| `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
+| `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions` (`say`: the node's lines, call C131), `Say`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
 | `failure` | the stage and the class of each error |
 | `fuzzing` (feature `fuzzing`) | the readers of the wire for `fuzz/` |
 
@@ -89,9 +89,12 @@ stage and the class of `pod-ws`; an answer of the relay is at the stage
 | `reverse.spares` | info | a node's relay keeps sessions readied ahead, or not (once for each change) |
 | `reverse.closed` | warn | the relay closed a node's session with a reason (one each `SAY_EVERY`) |
 
-The opener's notes (`open`'s `notes`), a node's lines (`NodeConfig::say`)
-and a UDP handler's lines (`UdpHandler::say`) are callbacks of the caller,
-as in podssh. The opener's notes are `Send`
+The opener's notes (`open`'s `notes`), a node's lines (`NodeConfig::say`,
+and `NodeOptions::say` of the facade) and a UDP handler's lines
+(`UdpHandler::say`) are callbacks of the caller, as in podssh. A node says
+`online` at each socket that the relay took; each other line comes after a
+try that gave no socket (call C132) or after the end of one, with the next
+try. The opener's notes are `Send`
 (`&mut (dyn FnMut(&str) + Send)`, also for
 `forward_layer::client::Dialer::link`), so that an open runs in a spawned
 task of a runtime of more than one thread (podnet's edge leg and its
@@ -300,7 +303,19 @@ process (`ws_relay::context()`), and removes `relay_pool.rs` and
 ### podvm
 
 The blocking facade: `pod_relay::blocking::Client::new(Config::new(ctx))`
-with podvm's `Context` (its way out, its cache, its settings).
+with podvm's `Context` (its way out, its cache, its settings). The trial
+of T-326 (adoption/podvm/pod-relay.patch, at podvm `c5b61b45`) keeps
+podvm's module `mux` as the glue (calls C130 to C134):
+
+| Old | New |
+| --- | --- |
+| `podvm-ssh/src/ws.rs` (the framing and the upgrade), `ws/handshake.rs` | the facade's legs; the fake relay of podvm's tests keeps its own server over `pod_ws::frame` |
+| `podvm-ssh/src/tls.rs` (`TlsConfig`, `Tls::connect`) | a `pod_tls::Context` with podvm's host bundles in the way of `mux::context()` |
+| `mux::dial_ws` (the proxy of the environment, the write bound, TLS, the upgrade) | `pod_ws::Way` over `pod_proxy::Dialer` with `ProxyChoice::FromEnvironment`; `Config { wire, timeout: 10 s }` |
+| `mux::{Control, parse_control, emit_control, read_hello, split_node_frame, backoff_secs}` | the crate's codecs, its `hello` as a hint, and its backoff |
+| `mux::run_node` (one thread, a server for each session) | `Client::run_node` with `Pair::for_node`, a `BlockingHandler` that starts the server on a socketpair (`Local::new` and `on_finish`), `NodeChannel::Off` and `NodeOptions::say` |
+| `mux::run_operator(cfg, &mut dyn Stream)` | `Client::run_operator` with `OperatorLimits { ready_limit, close_limit: 10 s }`, `OperatorChannel::Off`, stdin and stdout |
+| `mux::{validate_name, validate_token}` | `relay::check_node_name`, `cache::valid_token` |
 
 ## Tests
 

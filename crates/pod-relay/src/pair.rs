@@ -19,6 +19,8 @@ use crate::context::Context;
 use crate::relay::{Relay, check_node_name, parse_relay};
 use crate::token::relay_name;
 
+/// A node's pair from the parts that its user gives (podvm).
+pub mod given;
 /// A pair that its owner halts and resumes in podssh's relay role (podssh T-647).
 pub mod halt;
 /// A leg to a member's node at a member's relay role, by its key (podssh T-434).
@@ -127,7 +129,8 @@ pub enum PairError {
     },
     /// A 2xx answer that is not a usable pair, with what is wrong with it.
     BadAnswer(&'static str),
-    /// A label that cannot be a file name, or no pair under a label.
+    /// A label that cannot be a file name, no pair under a label, or a
+    /// name or a token of [`Pair::for_node`] that does not have its shape.
     BadLabel(String),
     /// The pair could not be kept or read in a private file.
     Store(String),

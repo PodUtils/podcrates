@@ -177,7 +177,15 @@ pub struct NodeOptions {
     pub repair: Option<Arc<dyn Fn() -> Option<Pair> + Send + Sync>>,
     /// The end-to-end channel of each session; on by default.
     pub channel: NodeChannel,
+    /// The node's lines for its user, as `reverse::NodeConfig::say` gives
+    /// them: `online` at each socket that the relay took, each `409`, and
+    /// each end of a socket with the next try (call C131). None by default.
+    pub say: Option<Say>,
 }
+
+/// Where a node's lines go: called on the runtime's thread, so it must not
+/// block.
+pub type Say = Arc<dyn Fn(String) + Send + Sync>;
 
 impl std::fmt::Debug for NodeOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -186,6 +194,7 @@ impl std::fmt::Debug for NodeOptions {
             .field("settings", &self.settings)
             .field("repair", &self.repair.is_some())
             .field("channel", &self.channel)
+            .field("say", &self.say.is_some())
             .finish()
     }
 }
@@ -299,6 +308,13 @@ impl Client {
     /// two threads carry it: one reads its reader, one writes its writer. A
     /// node has at most 64 sessions (the relay's `maxSessions`), so at most
     /// 128 such threads.
+    ///
+    /// The runtime of the client runs only inside its calls. A session that
+    /// the relay closed gives its last bytes to its writer for up to
+    /// `Settings::drain`; one whose drain still runs when this call returns
+    /// ends (its writer dropped, its `Local::on_finish` called) at the next
+    /// call, or when the client is dropped. A caller that counts its sessions
+    /// at the end drops the client first.
     pub fn run_node<H: BlockingHandler>(
         &self,
         pair: &mut Pair,
@@ -316,7 +332,7 @@ impl Client {
             settings: options.settings.clone(),
             repair: options.repair.clone().map(blocking_repair),
             wire: self.config.wire,
-            say: None,
+            say: options.say.as_deref(),
         };
         let places = &self.config.ctx.cache.places;
         let channel = options.channel.end(places, options.label.as_deref(), &pair.name).map_err(Error::Key)?;

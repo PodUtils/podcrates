@@ -92,7 +92,10 @@ pub struct NodeConfig<'a> {
     pub repair: Option<RepairHook>,
     /// TLS, except in the tests of an embedder.
     pub wire: Wire,
-    /// Lines for the user: each `409` after a loss, with the time left.
+    /// Lines for the user: `online` at each socket that the relay took,
+    /// each `409` with the time left, and each socket that ended or did not
+    /// open, with the next try. Each line but `online` comes after a try
+    /// that gave no socket, or after the end of one.
     pub say: Option<&'a (dyn Fn(String) + Send + Sync)>,
 }
 
@@ -237,6 +240,9 @@ where
         // How the socket ended, when one served this time: the words of the
         // next try's line.
         let mut ended: Option<String> = None;
+        // Why no socket opened this time, for the line of the next try: a
+        // node that cannot reach its relay says so (call C132).
+        let mut failed: Option<String> = None;
         let path = match crate::relay::node_path(&config.pair.name) {
             Ok(path) => path,
             Err(_) => return Exit::Forbidden,
@@ -335,7 +341,13 @@ where
             // The relay reads another dialect of the reverse road, or takes
             // no upgrade of this node's: the same request gets the same.
             Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
-            Err(_) => Next::Reconnect,
+            Err(e) => {
+                failed = Some(format!(
+                    "the node could not connect to the relay ({})",
+                    pod_core::text::one_line(&e.to_string())
+                ));
+                Next::Reconnect
+            }
         };
         match next {
             Next::Repair => {
@@ -356,8 +368,8 @@ where
                 }
                 retry = retry.saturating_add(1);
                 let wait = crate::open::backoff(retry);
-                if let (Some(say), Some(ended)) = (config.say, &ended) {
-                    say(format!("{ended}; connecting again in {:.1} s", wait.as_secs_f64()));
+                if let (Some(say), Some(why)) = (config.say, ended.as_ref().or(failed.as_ref())) {
+                    say(format!("{why}; connecting again in {:.1} s", wait.as_secs_f64()));
                 }
                 tokio::select! {
                     () = tokio::time::sleep(wait) => {}
