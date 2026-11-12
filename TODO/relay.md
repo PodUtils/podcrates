@@ -1353,7 +1353,7 @@ T-025 or T-026 is done, and the relay server has the renew endpoint.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1379,6 +1379,24 @@ cargo test -p pod-relay --all-features
 ## Start condition
 
 T-025 or T-026 is done.
+
+## Done
+
+2026-11-12. No new code: `crates/pod-relay/src/failures.rs` (the import
+of T-025, PodUtils/podssh@T-059 and PodUtils/podssh@T-563) is the health
+memory. Each run keeps a record for each road and host in the cache
+(`relay-failures.json`): a host that failed with an error that another
+host could repair, or that said nothing while a host after it opened (a
+lost race), is tried last for `WINDOW` (10 minutes); a host whose last
+`STRIKES` (2) sessions were cut within `SHORT` rests for `REST`; a host
+that opened within `WINDOW` goes first; an open clears its failure. No
+host is left out, and the order is stable otherwise; a note names what
+moved a host. The difference from the ask: one failure or lost race
+moves a host, not two; a stalled primary then costs the stagger once in
+10 minutes. podnet takes the rule with `pod-relay` (T-026); a count of
+two comes by a COORD issue. Tests: `failures::tests` (10 of the
+import), the plant `relay-t059-faults-recorded`.
+
 
 # T-123: `pod-relay`: the session budget from the pool document (PodUtils/podnet#413)
 

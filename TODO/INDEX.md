@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**257 entries: 60 open, 3 partial, 4 blocked, 190 done.**
+**257 entries: 59 open, 3 partial, 4 blocked, 191 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 29 | 2 | 4 | 97 | 132 |
+| P2 | 28 | 2 | 4 | 98 | 132 |
 | P3 | 19 | 0 | 0 | 38 | 57 |
-| **All** | 60 | 3 | 4 | 190 | 257 |
+| **All** | 59 | 3 | 4 | 191 | 257 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -168,7 +168,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-119](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: the CI matrix of restricted hosts (GitHub #35) |
 | [T-120](relay.md) | P2 | M | M2 | docs | open | The wire documents of the layer, the reverse dialect and the role's extensions, with test vectors (GitHub #35) |
 | [T-121](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: renew a pair (PodUtils/podnet#413) |
-| [T-122](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
+| [T-122](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
 | [T-123](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the session budget from the pool document (PodUtils/podnet#413) |
 | [T-124](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
 | [T-125](transport.md) | P2 | S | M1 | feature | done | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
