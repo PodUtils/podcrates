@@ -1844,6 +1844,15 @@ defect of the test or of the code (`docs/development.md`).
   its binary six at a time. The failing run had each test binary of the
   workspace in turn, and another session may have built in the main
   checkout at that time.
+- Measured on 2026-11-12, the test's binary alone: 0 failures in 150
+  runs at a load of 3; 1 failure in 200 runs, eight runs at a time beside
+  six busy loops on four cores (`[Lost { why: "the link ended with no
+  word from the far end" }, Resumed { resent: 65536, after: 382µs }]`).
+  With a line printed at each end of a stand-in link and at each end of
+  the far end's resume: 0 failures in 1,120 runs under the same load.
+- Read: the far end stops the old link when a resume of the session
+  comes (`Keeper::take`), with no `RETIRE` and no linger; the client
+  sends the offsets of a move only after its old link stopped.
 - Not measured: the order of the end of the old link and the far end's
   word at a move under load.
 
