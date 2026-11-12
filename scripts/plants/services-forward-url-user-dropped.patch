@@ -1,11 +1,13 @@
+diff --git a/crates/pod-services-watch/src/forward.rs b/crates/pod-services-watch/src/forward.rs
+index 7d328f4..26657c0 100644
 --- a/crates/pod-services-watch/src/forward.rs
 +++ b/crates/pod-services-watch/src/forward.rs
-@@ -76,7 +76,7 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
-             .ok_or_else(|| Finding::failed(format!("the argument \"seconds\" is no time: {s}")))?,
-         None => LIMIT,
+@@ -146,7 +146,7 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
+         None => true,
+         Some(value) => value.as_bool().ok_or_else(|| Finding::failed("the argument \"prove\" is no bool"))?,
      };
 -    let user = relay.user().unwrap_or(USER);
 +    let user = USER;
-     let session = Session {
-         at: format!("{} as {user}", endpoint.authority()),
-         user,
+     let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519)
+         .map_err(|e| Finding::failed(format!("the key of the run: {e}")))?;
+     let word: Arc<str> = word_of(&key).into();
