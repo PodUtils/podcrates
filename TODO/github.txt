@@ -81,4 +81,4 @@
 74 issue open
 75 issue closed
 76 issue closed
-77 issue open
+77 issue closed

@@ -11,17 +11,18 @@
   of the SSH forward relays in `pod-services` (T-224), the report fields
   of `pod-job` (T-226).
 - The consumers and their tags:
-  - podssh: `v0.25.0` (`f029594d`, PodUtils/podssh#193).
+  - podssh: `v0.26.0` (`ff2f7bac`, PodUtils/podssh#194; `pinggy::skips()`
+    reads the URL rule of `pod_services::forward`).
   - podnet: `v0.26.0` (`f107766`, PodUtils/podnet#458; the veth wire of
     `pod-hold`).
-  - podvm: `v0.25.0` (`763b7c6a`, PodUtils/podvm#266; `Plan.confine` from
+  - podvm: `v0.26.0` (`483a1957`, PodUtils/podvm#270; `Plan.confine` from
     its profiles, experiment 414 passes).
   - podrunner: `v0.26.0` (`4284967`; its T-075); its T-042 takes `pod-confine`, its
     T-048 takes `check_upstream`, `names_upstream` and the flagged rules
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); the takes of `v0.26.0` by podssh and podvm (#77).
+  T-207, #70).
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
   `adoption.yml`; the release and podssh's take remain), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174

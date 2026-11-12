@@ -30,7 +30,7 @@ a line when its work is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.25.0`, `763b7c6a`, PodUtils/podvm#266): its
+- podvm (on `v0.26.0`, `483a1957`, PodUtils/podvm#270; it takes T-227 and T-233 at the next tag and closes #267 and #269 then): its
   PodUtils/podvm@T-1658 sets `Plan.confine` (`--podvm-confine=SPEC`, the
   profile key `confine = true`); it checks `lambda-al2023` for T-208; its
   PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`
@@ -42,7 +42,9 @@ a line when its work is done. Git and the record keep finished work.
   PodUtils/podnet@T-249 (the router onto `pod-netstack`) waits for the
   three gaps of PodUtils/podnet#457; T-170 step 2 starts at its COORD issue. `pod-git` waits: its own repository,
   deferred (the owner; #75).
-- podssh (on `v0.25.0`, `f029594d`): `sandhole` and `openbare-xyz` of `pod-services`
+- podssh (on `v0.26.0`, `ff2f7bac`): its `pinggy::skips()` reads the URL
+  rule of `pod_services::forward`; the trial patch of `pod-relay` changes
+  `pinggy::dashboard()` at `75a5031`, so its take keeps `skips()`. `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.26.0`, `4284967`): its T-075 took T-226 of
   `pod-job`. Its work order waits for podnet (PodUtils/podrunner#64), the
