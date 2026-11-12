@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 257 entries: 59 open, 3 partial, 4 blocked, 191 done.
+`TODO/INDEX.md` holds 257 entries: 58 open, 3 partial, 4 blocked, 192 done.
 
 ## State
 
@@ -81,7 +81,7 @@ next entry.
    after PodUtils/podnet@T-249 (the router onto `pod-netstack`; it takes the
    close of a listener and of a stream and the SYN bursts of PodUtils/podnet#457
    with the next tag); T-214 and T-215 (the file
-   transfer and the mailbox server of magic-wormhole) after T-027; T-150, T-121 to T-124 (the asks of podnet).
+   transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has);
@@ -95,7 +95,7 @@ next entry.
 6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261 (an
    MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then T-204 (a random failure of
    `pod-session`); then
-   T-124, T-121, T-150 (the asks of podnet); then T-197
+   T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
 8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,

@@ -1489,7 +1489,7 @@ T-025 or T-026 is done.
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1520,6 +1520,23 @@ cargo todo check
 ## Start condition
 
 T-025 or T-026 is done.
+
+## Done
+
+2026-11-12. `aa919d0`. `reverse::channel(depth)` gives a `ChannelHandler`
+and the receiver of its sessions: each session that the relay opens is
+one end of a pipe (64 KiB each way), and the other end goes with the
+session's id to a service of the process (podnet's file server, a git
+SSH server, a transfer), with no socket file. A session waits for room in
+the channel within the node's limit for opening it; a closed channel
+refuses it ("the service of the process is gone"). A handler, not a
+variant of `Target`: `Target` names a place to dial, and the node takes
+any `Handler`. Test:
+`a_service_of_the_process_answers_each_session_through_a_channel`
+(`tests/reverse_plain.rs`: two sessions answered in turn, then a refusal
+after the service is gone); the plant `relay-t150-channel-drops-the-session`
+is caught.
+
 
 # T-159: podnet: two QUIC connections on one WARP socket share one waker of the full send queue
 

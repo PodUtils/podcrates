@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**257 entries: 59 open, 3 partial, 4 blocked, 191 done.**
+**257 entries: 58 open, 3 partial, 4 blocked, 192 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
 | P2 | 28 | 2 | 4 | 98 | 132 |
-| P3 | 19 | 0 | 0 | 38 | 57 |
-| **All** | 59 | 3 | 4 | 191 | 257 |
+| P3 | 18 | 0 | 0 | 39 | 57 |
+| **All** | 58 | 3 | 4 | 192 | 257 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -196,7 +196,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-147](podvm.md) | P3 | S | M5 | chore | done | `pod-services`: podvm took `pod-oci`: the SOURCES block of podvm reads the take |
 | [T-148](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `fstatat` has no fallback to `statx` (loongarch64 before Linux 6.11) |
 | [T-149](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: three tests fail under qemu-user only |
-| [T-150](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
+| [T-150](relay.md) | P3 | S | M2 | feature | done | `pod-relay`: a handler target for the relay node (PodUtils/podnet#413) |
 | [T-151](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the watch scripts of podssh and podnet that the watches replace leave them |
 | [T-152](transport.md) | P3 | M | M1 | feature | done | `pod-services-watch`: `proxy-banner` speaks no VLESS over XHTTP |
 | [T-153](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `serveo` and `ssh-j` (PodUtils/podssh#182) |
