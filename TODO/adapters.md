@@ -612,7 +612,7 @@ calls C170 to C174.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -644,6 +644,33 @@ to `WarpNet` (T-335). Loopback tests with two dials of the test, one slow.
 cargo test -p pod-warp --all-features
 ```
 
+## Done
+
+2026-11-12. Commit `5358f67` (the work and the plant), and the commit of
+this record; calls C193 to C196.
+
+- `Settings::relay: Option<leg::Relay>` (`dial`, `name`, `meter`,
+  `delay` 3 s, `delay_known` 0.5 s); `Warp::open_session` races the
+  direct path and the relay: the relay starts after its delay, or at once
+  when the direct path failed (C194); the first session that opens wins
+  and the other try is dropped; a failure of both legs names both causes
+  (C196).
+- The leg is a value of the caller (C195): `leg::relay_first_from`,
+  `leg::leg_text` (podnet's `warp-leg.json`), `Warp::with_relay_first`,
+  `Warp::relay_first`, `Warp::leg`, `Warp::take_leg_change`.
+- The budget of a relay session (C193): `session::Meter` in `Relay::meter`
+  and `Way::meter`, `MasqueSession::relay_budget`; `WarpNet::start` takes
+  it before `NetSettings::renew`.
+- Tests: `tests/leg.rs` (`the_direct_path_wins_when_it_is_fast`,
+  `the_relay_wins_when_the_direct_path_hangs`,
+  `the_relay_goes_first_when_the_leg_says_so`,
+  `a_failure_of_both_legs_names_both_causes`) and `leg::tests` (the
+  text of the leg file reads back). Plant
+  `warp-race-relay-waits-for-the-direct-path` (caught by hand: the test
+  of a hung direct path fails after 20 s).
+- Finding, fixed in the record: HTTP/3 and WireGuard take no relay leg;
+  T-337 has it in its Approach.
+
 # T-337: `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device
 
 **Source:** T-028, the first part.
@@ -674,7 +701,9 @@ WireGuard device carried inside the first session (issues 154 and 155,
 `MasqueTx` and `MasqueRx` with the three transports as podnet has them;
 HTTP/3 on `pod-quic` over the caller's datagrams; the WireGuard driver
 (`connect`, `WgTx`, `WgRx`, `WgKeepalive`) on `pod-wg` over a `Datagrams`
-(a system socket, or the datagrams of a `WarpNet`, for the carry). The
+(a system socket, or the datagrams of a `WarpNet`, for the carry). HTTP/3
+and WireGuard take no relay leg (podnet issues 152 and 157: the relay
+carries TCP): `Warp::open_session` skips `Settings::relay` for them. The
 tests `a_session_over_http3_carries_datagrams_and_capsules` and
 `http3_refuses_a_proxy_and_a_wrong_key` of podnet, and a loopback tunnel
 of WireGuard against the stand-in of `pod-wg`.

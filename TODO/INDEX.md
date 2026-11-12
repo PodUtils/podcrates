@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**332 entries: 83 open, 6 partial, 5 blocked, 238 done.**
+**332 entries: 82 open, 6 partial, 5 blocked, 239 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 16 | 2 | 0 | 66 | 84 |
+| P1 | 15 | 2 | 0 | 67 | 84 |
 | P2 | 34 | 2 | 5 | 122 | 163 |
 | P3 | 33 | 2 | 0 | 48 | 83 |
-| **All** | 83 | 6 | 5 | 238 | 332 |
+| **All** | 82 | 6 | 5 | 239 | 332 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -337,7 +337,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
 | [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
 | [T-335](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
-| [T-336](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
+| [T-336](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
 | [T-337](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
 | [T-338](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |
 | [T-339](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh |
