@@ -166,3 +166,19 @@ fn the_registry_of_playwright_holds_the_pin_of_podvm() {
         "the image of playwright-chromium"
     );
 }
+
+/// The npm archive of workerd for podvm's profile `workerd-test`
+/// (PodUtils/podvm#274): the pins of podvm, and the member of the binary.
+#[test]
+fn the_archive_of_workerd_holds_the_pins_of_podvm() {
+    let w = service("cloudflare-workerd-npm");
+    let archive = w.endpoint("archive").unwrap();
+    assert_eq!(archive.host(), "registry.npmjs.org");
+    assert!(archive.path().unwrap().ends_with(&format!("workerd-linux-64-{}.tgz", w.text("version").unwrap())));
+    assert_eq!(w.text("archive-sha256"), Some("771936b71cbc88d01e5cbb2779ebabc91a5b79070b8f41d3d203973afb779c85"));
+    assert_eq!(w.int("archive-bytes"), Some(43_615_013));
+    assert!(w.text("archive-integrity").unwrap().starts_with("sha512-"));
+    assert_eq!(w.text("bin-member"), Some("package/bin/workerd"));
+    assert_eq!(w.text("bin-sha256"), Some("685acc339ac78bf7b605928c1845fef8d8a89e919b079556b571a3404b95db3e"));
+    assert_eq!(w.int("bin-bytes"), Some(148_775_704));
+}

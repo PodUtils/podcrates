@@ -249,6 +249,7 @@ let relay = services.of_kind("relay").next();
 | `opensuse-registry` | `oci-registry` | `registry` | `images` (no token: `/v2/` answers 200) |
 | `pypi-files` | `package-files` | `files` | `probe-path` |
 | `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256`, `archive-sha256`, `archive-bytes`, `kernel-release`, `module-failover-sha256`, `module-net-failover-sha256`, `module-virtio-net-sha256` (the NIC modules in `boot/initramfs-virt`) |
+| `cloudflare-workerd-npm` | `tool` | `archive` (`registry.npmjs.org`) | `version`, `archive-sha256`, `archive-bytes`, `archive-integrity`, `bin-member`, `bin-sha256`, `bin-bytes` (the npm package of workerd; podvm's profile `workerd-test`) |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
 | `hackerschoice-gsr` | `gsr-relay` | `default` (scheme `tcp`; the shard letter goes in front of the host) | `shard-count`, `addr-key`, `srp-key`, `srp-password-hex-chars`, `srp-user`, `srp-group`, `cipher`, `secret-prefix`, `secret-suffix`, `secret-max-bytes`, `protocol-major`, `protocol-minor`, `ping-interval-ms`, `idle-timeout-ms` (the facts of gsocket, read by `pod-gsr`) |
@@ -534,11 +535,12 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
   `the_embedded_edge_roots_are_real_certificates`,
   `quic_alpn_and_sni_are_different_strings`,
   `the_servers_are_ip_addresses_of_two_operators`.
-* `tests/podvm.rs` (8): the constants of podvm come back from the files
+* `tests/podvm.rs` (9): the constants of podvm come back from the files
   (`reference.rs`, `images.rs`, `workload.rs`, `371-validationos-stream.sh`);
   each registry answers at `/v2/`; each image is a repository and a
   SHA-256 digest; each sum of a guest image is a SHA-256; the registry of
-  playwright holds podvm's pin. podvm has no test of these values to move.
+  playwright holds podvm's pin; the npm archive of workerd holds podvm's
+  pins. podvm has no test of these values to move.
 * The plant `scripts/plants/services-no-source` (group `services`): a
   service file whose fact names no source; the build must fail with the
   file and the field.

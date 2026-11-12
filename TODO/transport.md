@@ -4101,3 +4101,51 @@ pod-services -p pod-relay --all-features` passes. The live watch:
 https://tcp.ssh.relay.ajam.dev/llms-full.txt is the fact's; ... is 18359
 bytes` (8 hold for the service). The watch kind has its own tests and
 plants (T-050).
+
+# T-254: `pod-services`: the npm archive of workerd for podvm's profile workerd-test (PodUtils/podvm#274)
+
+**Source:** PodUtils/podvm#274 (COORD-053 of podvm, for PodUtils/podvm@T-1661)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's profile `workerd-test` fetches the npm package
+`@cloudflare/workerd-linux-64` (Cloudflare gives no OCI image of
+workerd). podvm keeps the pins in its code and the host
+`registry.npmjs.org` in its list of reported hosts until the crate lists
+them.
+
+## Premise
+
+- Read: PodUtils/podvm#274 (the facts that podvm measured; podvm
+  `392a1b92` adds the profile).
+- Measured on 2026-11-12: the registry's document of version
+  `1.20261029.1` (licence Apache-2.0) names the tarball; the archive is
+  43,615,013 bytes, SHA-256 `771936b7…`, and its SHA-512 is
+  `dist.integrity`; its member `package/bin/workerd` is 148,775,704
+  bytes, SHA-256 `685acc33…`. Each value is podvm's.
+
+## Approach
+
+A service `cloudflare-workerd-npm` (kind `tool`, endpoint `archive`, the
+facts of the table of podvm), an `http-sha256` watch of the archive, as
+`alpine-netboot`; a test of podvm's pins; the README row.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test podvm
+cargo run -q -p pod-services-watch -- --service cloudflare-workerd-npm
+```
+
+## Done
+
+2026-11-12. `crates/pod-services/services/cloudflare-workerd-npm.toml`
+and the README row. `the_archive_of_workerd_holds_the_pins_of_podvm`;
+`cargo test -p pod-services --all-features --test podvm`: 9 pass. The
+live watch: `holds cloudflare-workerd-npm http-sha256: the SHA-256 of
+... is the fact's; ... is 43615013 bytes`.

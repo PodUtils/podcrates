@@ -1,0 +1,60 @@
+# workerd, the runtime of Cloudflare Workers, as the npm registry
+# publishes it: Cloudflare gives no OCI image of it. podvm's profile
+# workerd-test fetches the archive and runs the member bin/workerd; the
+# pins are the archive of the release of 2026-10-29.
+id = "cloudflare-workerd-npm"
+kind = "tool"
+party = "Cloudflare"
+about = "The npm package @cloudflare/workerd-linux-64, which holds the workerd binary"
+
+[[endpoint]]
+name = "archive"
+scheme = "https"
+host = "registry.npmjs.org"
+port = 443
+path = "/@cloudflare/workerd-linux-64/-/workerd-linux-64-1.20261029.1.tgz"
+source = { url = "https://registry.npmjs.org/@cloudflare%2fworkerd-linux-64/1.20261029.1", read = 2026-11-12, note = "dist.tarball of the version (PodUtils/podvm#274, podvm crates/podvm/src/profile/workerd.rs at 392a1b92)" }
+
+[[fact]]
+name = "version"
+value = "1.20261029.1"
+source = { url = "https://registry.npmjs.org/@cloudflare%2fworkerd-linux-64/1.20261029.1", read = 2026-11-12, note = "the release of 2026-10-29 (workerd --version: workerd 2026-10-29), the newest that is two weeks old or more on 2026-11-12" }
+
+[[fact]]
+name = "archive-sha256"
+value = "771936b71cbc88d01e5cbb2779ebabc91a5b79070b8f41d3d203973afb779c85"
+source = { measured = "the SHA-256 of the archive at the endpoint archive (PodUtils/podvm#274 has the same)", read = 2026-11-12 }
+
+[[fact]]
+name = "archive-bytes"
+value = 43615013
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint archive", read = 2026-11-12 }
+
+# The registry's own check of the archive: the SHA-512 in base64.
+[[fact]]
+name = "archive-integrity"
+value = "sha512-HkZx+YRRhsZ9HTZYqR7/Ivyhb52XtSngL5Dn208PyS9x05thTlIVxQiF3f2gRMSMoWqJ6l1EO1qQTnThQfeHKg=="
+source = { url = "https://registry.npmjs.org/@cloudflare%2fworkerd-linux-64/1.20261029.1", read = 2026-11-12, note = "dist.integrity; the SHA-512 of the archive, measured, is the same" }
+
+[[fact]]
+name = "bin-member"
+value = "package/bin/workerd"
+source = { measured = "the member of the archive that holds the binary", read = 2026-11-12 }
+
+[[fact]]
+name = "bin-sha256"
+value = "685acc339ac78bf7b605928c1845fef8d8a89e919b079556b571a3404b95db3e"
+source = { measured = "the SHA-256 of the member package/bin/workerd of the archive", read = 2026-11-12 }
+
+[[fact]]
+name = "bin-bytes"
+value = 148775704
+unit = "bytes"
+source = { measured = "the length of the member package/bin/workerd of the archive", read = 2026-11-12 }
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "archive"
+fact = "archive-sha256"
+length = "archive-bytes"
