@@ -3053,13 +3053,13 @@ the whole blob closes that gap.
   review cites the method from `:288`; its doc comment starts at `:284`.
 - Read: `crates/pod-oci/src/registry/http.rs:12`: `get` takes an `Accept`
   value only, so a `Range` header needs a new parameter.
-  `crates/pod-oci/src/registry/http.rs:114-116` and
+  `crates/pod-oci/src/registry/http.rs:128-130` and
   `crates/pod-oci/src/net.rs:9-11`: `pod-proxy` follows the redirect of a
   blob and sends no `Authorization` header to another origin. They agree
   with the review.
 - Read: `crates/pod-oci/src/pull.rs:22-26` (`FETCH_WORKERS`: the limit is
   what the registry serves) and `:186-191` (`fetch_parallel` gives the jobs
-  in strides); `crates/pod-oci/README.md:112` (podvm keeps
+  in strides); `crates/pod-oci/README.md:114` (podvm keeps
   `FETCH_WORKERS`). They agree with the review.
 - Found, not in the review: `Client::blob` and `Client::get` take
   `&mut self`, because the client keeps the token cache and the endpoints
@@ -4731,7 +4731,7 @@ podrunner).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4773,12 +4773,41 @@ are proven only by the live pull.
 3. `live.rs` runs each week (T-352). The daily fact is the watch
    `oci-digest` of `ecr-public-registry`.
 
+## Decision
+
+Call C186: the release binary of distribution in place of the image, and
+the token server in the test target in place of `pod-testkit`. Call C187:
+no login and no token goes over plain HTTP. Call C188: the made-up login
+gets a comment in `.github/secrets-allow.txt`, and no line.
+
 ## Prove
 
 ```sh
 sh scripts/ci/registry-tests.sh
 cargo test -p pod-oci --all-features
+sh scripts/plant-each.sh registry-skip-fails
 ```
+
+## Done
+
+2026-11-12, commit `54bb911`. The test target `distribution` of `pod-oci`
+runs against the release of distribution 3.1.2
+(`registry_3.1.2_linux_amd64.tar.gz`, SHA-256
+`40df2224d410f72ae425c3371873b078bbdbda3b8b612be9571f0e6751f3acc8`, the
+digest that GitHub gives for the asset) on 127.0.0.1 over HTTPS. The test
+pushes an index of linux/amd64 and linux/arm64; `pull::resolve` gives the
+index and the manifest of each platform, and the config and the layer come
+by digest with the pushed bytes, under htpasswd and under token auth (one
+token ask, with the login, for `repository:pod-oci/test:pull`). A wrong
+password, a request with no login and a token ask with no login get 401.
+A layer and a manifest changed in the store are `Refusal::Digest`. A
+registry over plain HTTP that asks for a login gets none (C187; a new unit
+test proves it offline too). `sh scripts/ci/registry-tests.sh`: 5 passed,
+each line said; with no registry, `POD_OCI_TEST_REGISTRY=required` fails
+(the plant `registry-skip-fails`). `cargo test -p pod-oci --all-features`:
+90 unit, client 3, distribution 5 (skipped with no registry), proxy_pull 2,
+registry_fixture 1; live 1 ignored. Row L4 of `docs/live-calls.md` names
+the stand-in. Not measured here: the step in a run of `ci.yml` on GitHub.
 
 # T-330: `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives
 

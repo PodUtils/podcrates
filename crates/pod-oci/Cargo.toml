@@ -33,6 +33,9 @@ pod-testkit = { workspace = true }
 pod-services = { workspace = true }
 # The tests of TLS run on ring.
 rustls = { workspace = true, features = ["ring"] }
+# The certificates and the tokens of the target `distribution` (T-353),
+# minted in pure Rust by the encoder of the tests of pod-tls.
+p256 = { workspace = true }
 
 # cargo-fuzz builds with `--cfg fuzzing` (T-173), under which the parse of a
 # challenge, private here, is reachable by the fuzzer, as with the feature

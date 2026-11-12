@@ -19,6 +19,11 @@ pub fn environment(pairs: &[(&str, &str)]) -> Environment {
 /// insecure registry is the default trust: the fixture speaks plain HTTP,
 /// so the TLS try fails and the client goes to HTTP.
 pub fn client(env: Environment, insecure: &[&str]) -> Client {
+    client_trusting(env, insecure, pod_tls::Trust::Default)
+}
+
+/// [`client`], whose checked requests trust `verified`.
+pub fn client_trusting(env: Environment, insecure: &[&str], verified: pod_tls::Trust) -> Client {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let context = Arc::new(pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("pod-oci"))));
     let dialer = pod_proxy::blocking::Dialer::new(
@@ -27,7 +32,5 @@ pub fn client(env: Environment, insecure: &[&str]) -> Client {
     )
     .expect("the runtime of the dialer starts");
     let http = pod_proxy::blocking::Client::new(context, &dialer).with_user_agent("pod-oci-test");
-    Client::new(http, pod_tls::Trust::Default)
-        .with_policy(Policy::with_insecure(insecure))
-        .with_insecure(pod_tls::Trust::Default)
+    Client::new(http, verified).with_policy(Policy::with_insecure(insecure)).with_insecure(pod_tls::Trust::Default)
 }

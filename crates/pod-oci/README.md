@@ -13,7 +13,8 @@ the store of the caller. Four rules:
    for a registry that the caller named insecure (`transport::Policy`),
    and the client says so each time (`Policy::disclosure`, the event
    `oci.plain-http`). On hosts that drop outbound tcp/80, a fallback
-   hangs and does not fail.
+   hangs and does not fail. No login and no token goes over plain HTTP:
+   a 401 there is a refusal (`Policy`).
 2. Each blob is checked while it is written. The bytes get their name in
    the store of the caller only when the digest and the size agree; a cut
    transfer starts again from byte zero, never from an offset.
@@ -59,7 +60,8 @@ The classes: a value of the caller (a reference, a digest, a platform, a
 host) `Usage`; a missing manifest or blob (404) and an index with no
 manifest of the platform `NotFound`; 401 and 403 `Refused`; 429
 `TempFail`; 5xx `Unavailable`; a manifest, a tags listing, a page count
-or a blob past its limit, and a token realm on `http://`, `Policy`; a
+or a blob past its limit, a token realm on `http://` and a 401 over
+plain HTTP, `Policy`; a
 digest or a document that breaks the protocol `Protocol`; schema 1, an
 index in an index or a scheme other than `Bearer` and `Basic`
 `Unsupported`; a registry named insecure with no trust for it `Config`.
@@ -124,6 +126,22 @@ run the registry fixture of `tests/common/registry.rs` (plain HTTP on
 loopback) and a stand-in CONNECT proxy; each test gives its own proxy
 variables to the client, and no test changes the environment of the
 process. No test reaches a registry on the internet.
+
+`tests/distribution.rs` (T-353): the client against the CNCF
+distribution registry on 127.0.0.1, with a configuration, certificates
+and a made-up login that the test makes (`tests/common/distribution/`).
+The test pushes an index of linux/amd64 and linux/arm64 over the
+distribution API; the client resolves it for each platform and fetches
+the config and the layer by digest, under htpasswd (`Basic`) and under
+token auth (`Bearer`, a token server of the test, an ES256 JWT that the
+registry checks against the root of the test). A wrong password and a
+request with no login get 401; a layer and a manifest changed in the
+store are refused by their digests; no login goes over plain HTTP. The
+registry is `POD_OCI_TEST_REGISTRY_BIN`, else `registry` on the path; a
+host with neither skips, unless `POD_OCI_TEST_REGISTRY=required`.
+`scripts/ci/registry-tests.sh` runs it in `ci.yml` with the release of
+distribution 3.1.2, checked by its SHA-256. `tests/live.rs` pulls from
+ECR Public in `live.yml`.
 
 ## Sources
 

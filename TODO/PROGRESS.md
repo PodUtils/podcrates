@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 84 open, 6 partial, 5 blocked, 237 done.
+`TODO/INDEX.md` holds 332 entries: 83 open, 6 partial, 5 blocked, 238 done.
 
 ## State
 
@@ -14,6 +14,8 @@
 - `v0.34.0` is prepared on `main` (the version, `docs/releases/v0.34.0.md`,
   the text of its hand-off): the TCP carrier of `pod-link` and the pin of
   `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394, T-355.
+- `main` holds T-353 (`pod-oci` against distribution on the loopback; no
+  login over plain HTTP, C187) for the tag after `v0.34.0`.
 - The consumers and their tags:
   - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -124,8 +126,7 @@ next entry.
    calls C150 to C153), in the order of their gain: T-351 (a host that
    gives no answer to one runner reddens `services.yml`; partial: the
    scheduled runs after the merge prove it), T-371 (the same class for the
-   DNS watches, `stun-binding` and the HTTP client), T-353 (`pod-oci` against
-   distribution; ECR Public gives 429), T-356 (sish and
+   DNS watches, `stun-binding` and the HTTP client), T-356 (sish and
    sandhole), T-357 (gs-netcat), T-358 (coturn). T-359 and T-360 go with
    T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
@@ -139,7 +140,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C188; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

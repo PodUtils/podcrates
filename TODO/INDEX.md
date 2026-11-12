@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**332 entries: 84 open, 6 partial, 5 blocked, 237 done.**
+**332 entries: 83 open, 6 partial, 5 blocked, 238 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 2 | 0 | 66 | 84 |
-| P2 | 35 | 2 | 5 | 121 | 163 |
+| P2 | 34 | 2 | 5 | 122 | 163 |
 | P3 | 33 | 2 | 0 | 48 | 83 |
-| **All** | 84 | 6 | 5 | 237 | 332 |
+| **All** | 83 | 6 | 5 | 238 | 332 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -349,7 +349,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-350](transport.md) | P1 | M | M5 | defect | done | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
 | [T-351](upkeep.md) | P1 | M | M5 | defect | partial | `services.yml`: a host that gives no answer to one runner fails the daily run |
 | [T-352](upkeep.md) | P2 | S | M5 | chore | done | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
-| [T-353](podvm.md) | P2 | M | M5 | feature | open | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
+| [T-353](podvm.md) | P2 | M | M5 | feature | done | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
 | [T-354](relay.md) | P2 | S | M5 | chore | done | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
 | [T-355](upkeep.md) | P2 | M | M5 | chore | done | The downloads of each job come from a cache, and the tools from their release binaries |
 | [T-356](transport.md) | P3 | M | M5 | feature | open | `pod-services-watch`: `forward-url` against sish and sandhole on the loopback |

@@ -2220,6 +2220,7 @@ name = "pod-oci"
 version = "0.34.0"
 dependencies = [
  "base64 0.23.1",
+ "p256",
  "pod-core",
  "pod-proxy",
  "pod-services",

@@ -1,0 +1,9 @@
+# The tests of pod-oci against the distribution registry: with
+# POD_OCI_TEST_REGISTRY=required, a host with no registry must fail, not
+# skip. RUN names a program that does not exist.
+ENTRY=T-353
+GROUP=oci
+EXPECT='POD_OCI_TEST_REGISTRY=required: no distribution registry here'
+RUN='POD_OCI_TEST_REGISTRY=required POD_OCI_TEST_REGISTRY_BIN=/nonexistent/registry cargo test -p pod-oci --test distribution'
+LIMIT=1800
+SWITCH=1

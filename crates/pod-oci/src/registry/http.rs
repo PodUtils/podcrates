@@ -62,6 +62,20 @@ impl Client {
         match self.send(url, scope, accept, None, verify) {
             Ok(r) => Ok(Attempt::Done(Box::new(r))),
             Err(Refusal::Status(resp)) if resp.status() == 401 => {
+                // No login and no token goes over plain HTTP: a registry
+                // named insecure is one whose certificate is not checked,
+                // not one that may read a password on the wire.
+                if !url.starts_with("https://") {
+                    return Err(http(
+                        Class::Policy,
+                        &format!("GET {}", redact(url)),
+                        format!(
+                            "{endpoint} asked for a login over plain HTTP, and the client sends no login over \
+                             plain HTTP. Serve the registry over HTTPS: with the registry named insecure, its \
+                             certificate is not checked"
+                        ),
+                    ));
+                }
                 // The challenge decides where the token comes from. It is
                 // read from the answer, not from a table of hosts, so a
                 // registry that is not Docker Hub works.
