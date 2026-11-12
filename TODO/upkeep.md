@@ -795,7 +795,7 @@ cargo test -p pod-netstack -p pod-quic -p pod-e2e -p pod-relay --all-features
 **Milestone:** M5
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -846,6 +846,33 @@ gh workflow run services.yml
 
 A plant: a watch of a closed port on the loopback with a state that names
 it must fail; with no state it must pass with the line `first no answer`.
+
+## Done
+
+2026-11-12, commit `ad10864` (call C155 gives the class):
+
+- `Finding::NoAnswer`, given where the failure is made: a dial whose
+  `pod_proxy::DialError` is a connect timeout, no route, or a refused or
+  reset connect (`Net::tcp`, `Net::send`, `Net::streamed`, the WebSocket
+  dial), and a TLS handshake that the network ended before the first byte
+  of the server (`src/heard.rs` notes the first byte). `answer::State` is
+  the rule of call C153; the runner takes `--no-answer-was` and
+  `--no-answer-now`. `services.yml` restores the list of the last
+  scheduled run from the cache of the job (actions/cache 6.1.0 at
+  `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, key
+  `services-no-answer-RUN_ID`, restore prefix `services-no-answer-`), and
+  saves the list of the run.
+- `cargo test -p pod-services-watch --all-features`: 4 unit, 55 in
+  `tests/watches` (5 new in `answer.rs`), each passed.
+- `sh scripts/plant-each.sh services-no-answer-twice
+  services-no-answer-class-dropped services-no-answer-heard-ignored`:
+  3 caught. `services-forward-url-word-not-compared` and
+  `services-tls-names-host-alone` made again: caught.
+- Not run: `gh workflow run services.yml` (the session has no write to
+  GitHub). The first scheduled run after the merge must show each
+  Trojan node that times out as `FAILED (first no answer)`, a green run
+  for that reason alone, and a cache `services-no-answer-RUN_ID`; the
+  second must fail on a node that times out again.
 
 # T-352: `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party
 
@@ -967,3 +994,65 @@ gh workflow run nightly.yml
 
 The second run of `ci.yml` on the same `Cargo.lock` logs a hit of each
 cache and no `cargo install`.
+
+# T-371: `pod-services-watch`: the DNS watches, `stun-binding` and the TLS of the HTTP client give no class "no answer"
+
+**Source:** the work of T-351 (call C155).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Call C153 holds the first "no answer" of a watch on a scheduled run. The
+way out gives the class `Finding::NoAnswer` for a dial (`Net::tcp`,
+`Net::send`, `Net::streamed`, the WebSocket dial) and for the TLS
+handshakes of `Net::tls` and `Net::tls_alpn`. Three paths give no class,
+and a host that does not answer a runner there still fails the run:
+
+- the DNS watches (`dns-srv`, `dns-addresses`, `doh-answer`): `pod-dns`
+  gives a `pod_proxy::Missed` or words, and `src/dns.rs` makes a
+  `Finding::failed` of the words;
+- `stun-binding`: three tries over UDP with no answer is a failure;
+- the TLS handshake inside `pod_proxy::Client` (the HTTP watches): a reset
+  before the first byte of the server is a failure of another kind.
+
+## Premise
+
+- Read (2026-11-12): `crates/pod-services-watch/src/dns.rs` (each error
+  of `Way` becomes `Finding::failed`); `crates/pod-dns/src/get.rs` (a
+  dial's `Missed` keeps its cut, and so does a TLS handshake's, so the
+  cut alone does not tell the dial from the handshake, nor a handshake
+  cut before the first byte from one cut after it);
+  `crates/pod-services-watch/src/stun.rs`.
+- Measured: no red run of `services.yml` read holds such a failure of
+  these kinds (`docs/live-calls.md`, rows L19 and L20).
+- Not measured: whether Quad9's DoH answers a runner of the other cloud.
+
+## Approach
+
+1. `pod-dns`: `Missed` tells where the connection ended (the dial, or the
+   handshake before or after the first byte of the server), as a field
+   that `get.rs` sets where it makes the failure.
+2. `src/dns.rs`: a `Missed` of the dial, or of a handshake before the
+   first byte, is `Finding::NoAnswer`; a lookup of more than one resolver
+   is "no answer" only when each one gave none.
+3. `stun-binding`: three tries with no datagram back is
+   `Finding::NoAnswer`; an answer of another kind stays a failure.
+4. `pod-proxy`: the client keeps the first byte of a handshake in the
+   failure (a stream that notes it, as `src/heard.rs` of
+   `pod-services-watch` does), so that `Net::send` classes it.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features
+cargo test -p pod-services-watch --all-features
+sh scripts/plant-each.sh --group services
+```
+
+A test of each path: a resolver, a STUN server and an HTTPS server on the
+loopback that close before a byte give `NoAnswer`; one that sends a byte
+first gives `Failed`.

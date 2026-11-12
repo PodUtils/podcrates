@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 302 entries: 76 open, 3 partial, 5 blocked, 218 done.
+`TODO/INDEX.md` holds 303 entries: 75 open, 4 partial, 5 blocked, 219 done.
 
 ## State
 
@@ -109,9 +109,10 @@ next entry.
 9. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds; T-199 after a release of snow on
    `chacha20poly1305` 0.11. The live calls of CI (`docs/live-calls.md`,
-   calls C150 to C153), in the order of their gain: T-350 (Quad9's DoH
-   from a runner, red in two daily runs), T-351 (a host that gives no
-   answer to one runner reddens `services.yml`), T-352 (`live.yml` each
+   calls C150 to C153), in the order of their gain: T-351 (a host that
+   gives no answer to one runner reddens `services.yml`; partial: the
+   scheduled runs after the merge prove it), T-371 (the same class for the
+   DNS watches, `stun-binding` and the HTTP client), T-352 (`live.yml` each
    week; no host of another party in `ci.yml`), T-353 (`pod-oci` against
    distribution; ECR Public gives 429), T-354 (magic-wormhole's servers on
    each push), T-355 (the cache of the downloads), T-356 (sish and
