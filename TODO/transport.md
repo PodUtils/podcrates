@@ -5288,10 +5288,10 @@ cargo test -p pod-turn -p pod-proxy -p pod-services-watch --all-features
 
 # T-378: `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94)
 
-**Source:** GitHub #94.
+**Source:** GitHub #94; PodUtils/podssh#216 (COORD-041, PodUtils/podssh@T-755, which PodUtils/podssh#215 of a tester asks for).
 **Category:** feature
 **Milestone:** M1
-**Priority:** P3
+**Priority:** P2
 **Effort:** L
 **Status:** open
 
@@ -5309,8 +5309,15 @@ relay.
   private file (`pod_core::files`), the relay's WebSocket subprotocol
   `tunnel-relay-client`, SSH with the user `tunnel`, `direct-tcpip`
   channels, a bounded reconnect.
-- Not read: the vendor's client (the only form of the protocol); no consumer
-  names a need yet.
+- Read: podssh's ask (PodUtils/podssh#216): the client side alone: find a
+  tunnel by name or id, its connect information and connect token; the
+  relay's WebSocket with its subprotocol through the caller's TLS, proxy
+  and WebSocket client; SSH with `none`; `direct-tcpip` as `AsyncRead +
+  AsyncWrite`; named failures (management, WebSocket, SSH, channel,
+  reconnect); a bounded reconnect with a fresh connect token; no token in a
+  `Debug` or a line; a stand-in relay for the tests. podssh keeps the road,
+  the token file and its doctor.
+- Not read: the vendor's client (the only form of the protocol).
 
 ## Approach
 
@@ -5318,7 +5325,9 @@ A study of the vendor's client first: each value of the data with its
 source in two `pod-services` files. Then the crate: the management client,
 the token store (no token in output, logs or events), the relay client over
 `pod-ws` and an SSH client of the tree, stand-ins of both for the tests.
-It waits for a consumer that asks for it (the owner's ruling "Priority").
+The first part is podssh's client side (PodUtils/podssh#216); the
+creation of tunnels, the device-code flows and the token store of #94
+follow as a second part.
 
 ## Prove
 

@@ -69,8 +69,8 @@ next entry.
    zone, GitHub #98); T-377 (`pod-turn`, GitHub #100, for
    PodUtils/podnet#485 and PodUtils/podssh@T-621, an agent of this
    session); T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
-   #96, data only); T-378 (`pod-devtunnel`, GitHub #94: a study first, and
-   a consumer that asks for it); T-330 (podvm's pair
+   #96, data only); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
+   the client side first, an agent of this session); T-330 (podvm's pair
    commands, after its take of the blocking facade, PodUtils/podvm#285); T-328 (podrunner's note
    of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
