@@ -28,7 +28,7 @@ the dependencies of each crate.
 | M0 | `pod-todo` (exists), `pod-core` (exists), `pod-testkit` (exists) |
 | M1 | `pod-identity` (exists), `pod-term` (exists), `pod-tls` (exists), `pod-proxy` (exists), `pod-dns` (exists), `pod-services` (exists), `pod-services-watch` (exists: the watches and their runner, `publish = false`), `pod-ws` (exists) |
 | M2 | `pod-quic` (exists), `pod-session` (exists), `pod-e2e` (exists), `pod-wormhole` (exists), `pod-netstack` (exists), `pod-wg` (exists), `pod-relay` (exists), `pod-link` (exists) |
-| M3 | `pod-transit`, `pod-warp`, `pod-cloudflare` |
+| M3 | `pod-transit`, `pod-warp` (exists; T-028, partial), `pod-cloudflare` |
 | M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
 | M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci` (exists), `pod-extract` (exists), `pod-rootfs` (exists), `pod-enter` (exists) |
 | M7 | `pod-hold` (exists), `pod-incus` (exists), `pod-microvm`, `pod-sud`, `pod-confine` (exists), `pod-netlab`, `pod-pcap`, `pod-sandprobe` |

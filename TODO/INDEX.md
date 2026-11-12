@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**286 entries: 65 open, 2 partial, 5 blocked, 214 done.**
+**291 entries: 69 open, 3 partial, 5 blocked, 214 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 15 | 0 | 0 | 60 | 75 |
+| P1 | 19 | 1 | 0 | 60 | 80 |
 | P2 | 25 | 1 | 5 | 108 | 139 |
 | P3 | 25 | 1 | 0 | 44 | 70 |
-| **All** | 65 | 2 | 5 | 214 | 286 |
+| **All** | 69 | 3 | 5 | 214 | 291 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-025](relay.md) | P1 | L | M2 | feature | done | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
 | [T-026](relay.md) | P1 | M | M2 | feature | done | `pod-relay`: podnet's relay client and its plain reverse mode |
 | [T-027](adapters.md) | P2 | S | M3 | feature | open | `pod-transit`: the transit relay carrier |
-| [T-028](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the WARP adapter |
+| [T-028](adapters.md) | P1 | L | M3 | feature | partial | `pod-warp`: the WARP adapter |
 | [T-029](adapters.md) | P1 | L | M3 | feature | open | `pod-cloudflare`: the edge client, the tunnel and the quick tunnels (the base of podnet) |
 | [T-030](adapters.md) | P1 | M | M3 | feature | open | `pod-cloudflare`: podssh's quick tunnels onto the edge client |
 | [T-031](roads.md) | P2 | M | M4 | feature | open | `pod-derp`: the DERP client and the DERP carrier of a node |
@@ -333,3 +333,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
 | [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | open | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
+| [T-335](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
+| [T-336](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
+| [T-337](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
+| [T-338](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |
+| [T-339](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh |
