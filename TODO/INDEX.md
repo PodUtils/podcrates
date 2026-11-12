@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**234 entries: 65 open, 4 partial, 4 blocked, 161 done.**
+**234 entries: 61 open, 4 partial, 4 blocked, 165 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 16 | 1 | 0 | 46 | 63 |
+| P1 | 13 | 1 | 0 | 49 | 63 |
 | P2 | 31 | 2 | 4 | 80 | 117 |
-| P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 65 | 4 | 4 | 161 | 234 |
+| P3 | 17 | 1 | 0 | 34 | 52 |
+| **All** | 61 | 4 | 4 | 165 | 234 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -269,15 +269,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-220](roads.md) | P2 | M | M4 | feature | blocked | `pod-git`: stateless smart HTTP, the repository calls, the budgets and podnet's trial (PodUtils/podnet#453) |
 | [T-221](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a payload that runs as root keeps its capabilities, and reads the environment of its unconfined ancestors past the Landlock domain |
 | [T-222](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
-| [T-223](relay.md) | P3 | S | M2 | defect | open | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |
+| [T-223](relay.md) | P3 | S | M2 | defect | done | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |
 | [T-224](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the facts of an SSH forward relay, and a reader of its banner across chunks (PodUtils/podnet#455) |
 | [T-225](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |
 | [T-227](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
 | [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |
 | [T-229](relay.md) | P2 | M | M2 | defect | open | `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh |
-| [T-230](relay.md) | P1 | S | M2 | defect | open | `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457) |
-| [T-231](relay.md) | P1 | S | M2 | defect | open | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |
-| [T-232](relay.md) | P1 | M | M2 | defect | open | `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457) |
+| [T-230](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457) |
+| [T-231](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |
+| [T-232](relay.md) | P1 | M | M2 | defect | done | `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457) |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |
 | [T-240](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store |

@@ -2083,7 +2083,7 @@ this section (the plants, the static step of `scripts/agent/check.sh`).
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2126,6 +2126,25 @@ second socket can stay in `SynReceived` in the pool.
 ```sh
 cargo test -p pod-netstack --lib
 ```
+
+## Done
+
+2026-11-12. `8024c17` (with T-232).
+
+- The look at each inbound SYN of T-232 is the place of the fix: a SYN
+  whose 4-tuple a socket holds (in a state other than SYN-SENT) does not
+  reach smoltcp. smoltcp ignores such a SYN in the socket that holds the
+  4-tuple, and that socket sends its SYN-ACK again at its own time. Call
+  C72. No report to smoltcp: the crate keeps the release of smoltcp 0.14.
+- T-232 adds a listen socket at each SYN that finds none, into the first
+  free slot of the set, while the socket of that SYN is in SYN-RECEIVED:
+  the case of the Problem can come at each SYN. The fix covers it.
+- `cargo test -p pod-netstack --lib`: 51 passed. The test
+  `a_syn_sent_again_reaches_its_own_socket`: a pump drops the first
+  SYN-ACK, and a closed listener frees the first slot of the set before
+  the socket of the handshake. With the check planted out
+  (`netstack-syn-again-to-a-listen-socket`, caught), the newer listen
+  socket takes the SYN, and the server accepts no connection in 5 s.
 
 # T-229: `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh
 
@@ -2225,7 +2244,7 @@ python3 -I scripts/check-workflows.py
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2277,6 +2296,33 @@ added for it (the stack owns at most `MAX_ADDRESSES`).
 cargo test -p pod-netstack --lib stack::tests::listener
 ```
 
+## Done
+
+2026-11-12. `8024c17`.
+
+- `TcpListener::close(self)` and its `Drop`: the reactor removes the
+  listener at its next pass (the drop kicks it) and before each listen.
+  Its listen sockets and its half-open sockets go; its established
+  connections that the app did not accept, and the streams in its queue,
+  close as dropped streams do (T-231); the streams that it accepted stay.
+  The address that `own` added goes when no listener and no connection
+  uses it (`LinkDevice::remove_local` is new). Call C71.
+- `cargo test -p pod-netstack --lib stack::tests::listener`: 3 passed.
+  `dropped_listeners_free_their_sockets_and_their_ports` (1,000 ports one
+  after the other, each listened on two times; the live count stays at
+  one listener and goes back to its rest),
+  `an_accepted_stream_outlives_its_listener` (on 10.66.0.3, which the
+  listener made the stack own; a connect after the drop is refused),
+  `dropped_listeners_free_their_addresses` (20 addresses one after the
+  other). On the code before `8024c17` the three fail: `AddrInUse` at
+  port 1, a connection to the dropped listener, 8 sockets left at
+  10.66.0.10.
+- `closed_connections_leave_no_socket` keeps its listener to the end: its
+  task dropped the listener, and a dropped listener now frees its sockets.
+- The plant `netstack-dropped-listener-stays` is caught.
+- Breaking: none in the signatures. A dropped listener frees its port: a
+  consumer that dropped a listener and kept its port held now loses it.
+
 # T-231: `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457)
 
 **Source:** PodUtils/podnet#457 (COORD-039 of podnet, for PodUtils/podnet@T-249)
@@ -2284,7 +2330,7 @@ cargo test -p pod-netstack --lib stack::tests::listener
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2334,6 +2380,43 @@ dead peer keeps its socket for ever: no time limit ends it.
 cargo test -p pod-netstack --lib stack::tests::close
 ```
 
+## Done
+
+2026-11-12. `8024c17`.
+
+- The cause: `move_to_app` closed the socket at once when the reader had
+  gone, and smoltcp took no byte to send after it. Now the reactor marks
+  the stream, moves each queued byte into the socket, discards the bytes
+  that come in, and closes the socket (a FIN) when no byte waits.
+  `TcpStream::close(self)` is the same close, by name.
+- The bound: `StackConfig::linger` (default 60 s). A dropped stream with
+  no change of its state, its send queue and its queued bytes for that
+  time gets a RST, and its socket goes. Call C69.
+- Fixed in place, with a test each: `abort` sent no RST (the reactor
+  removed the socket before smoltcp sent it; now the socket stays until
+  then); a RST of the peer read as a clean end (now `ConnectionReset`);
+  the end of a connection was lost when the channel to the app was full
+  (now it waits for a place after the data).
+- `cargo test -p pod-netstack --lib stack::tests::close`: 6 passed.
+  `a_dropped_stream_sends_each_queued_byte_then_the_end` and
+  `a_closed_stream_sends_each_queued_byte_then_the_end` (16 MiB between
+  two stacks over a link, the end at once after the last write),
+  `a_dropped_stream_to_a_dead_peer_is_freed_after_the_linger`,
+  `a_dropped_stream_whose_peer_never_closes_is_freed_after_the_linger`
+  (FIN-WAIT-2; linger 300 ms), `an_abort_sends_a_reset`,
+  `a_reset_after_a_full_channel_reads_as_a_reset`. On the code before
+  `8024c17`, the drop lost 4,233,864 of 16,777,216 bytes, and the abort
+  sent no RST in 3 s. With the bound planted out, the two tests of the
+  linger fail; with the wait for a place planted out, the app read
+  255,936 bytes and a clean end.
+- The plants `netstack-dropped-stream-closes-at-once`,
+  `netstack-dropped-stream-never-lingers` and `netstack-reset-with-no-room`
+  are caught.
+- Breaking: `StackConfig::linger` is a new field. A RST of the peer reads
+  as `ConnectionReset`, not as an end.
+- Not measured: podnet's 48 MiB download over the router with a drop of
+  the stream and no wait (PodUtils/podnet@T-249).
+
 # T-232: `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457)
 
 **Source:** PodUtils/podnet#457 (COORD-039 of podnet, for PodUtils/podnet@T-249)
@@ -2341,7 +2424,7 @@ cargo test -p pod-netstack --lib stack::tests::close
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2395,3 +2478,34 @@ completes fills a queue of 32.
 ```sh
 cargo test -p pod-netstack --lib stack::tests::burst
 ```
+
+## Done
+
+2026-11-12. `8024c17`.
+
+- The reactor takes the inbound packets one at a time
+  (`Interface::poll_ingress_single`, then the passes of egress, as
+  `Interface::poll` does) and reads the head of each in the queue
+  (`PacketQueue::peek` is new): a SYN that finds no free listen socket of
+  its listener gets a new one. A listener keeps one free listen socket.
+  The bound is `max_connections`, open and half-open; a SYN past it waits
+  (the stack drops it and counts it in `NetStats::dropped`). A full accept
+  queue (64 streams) drops no connection: the connection waits in the
+  listener, and `accept` kicks the reactor. Call C70.
+- `cargo test -p pod-netstack --lib stack::tests::burst`: 4 passed.
+  `a_burst_of_connects_to_one_port_gets_no_reset` (48 SYNs to one port in
+  one burst with the default settings; each connects and gets its byte
+  back), `a_burst_past_the_accept_queue_loses_no_connection` (100, accepted
+  after each handshake), `a_syn_past_the_connection_limit_waits`
+  (`max_connections` 4: 4 SYNs wait with no RST and connect after the
+  first 4 close), `a_syn_sent_again_reaches_its_own_socket` (T-223). On
+  the code before `8024c17` the four fail: client 8 refused (a pool of 8),
+  no wait at the limit, the counts of the dropped listener.
+- The cost of the look at each packet: `a_large_download_crosses_a_bounded_link`
+  (16 MiB, debug build) took 1.13 s to 1.15 s before and 1.12 s to 1.21 s
+  after, 3 and 5 runs.
+- The plant `netstack-syn-finds-no-listen-socket` is caught.
+- Breaking: `StackConfig::accept_pool` is gone. `max_connections` counts
+  the half-open connections, also at a connect. `NetStats::dropped` counts
+  the SYNs that waited at `max_connections`, no longer the connections that
+  a full accept queue dropped.
