@@ -16,7 +16,7 @@
   keepalive and no Nagle; UDP to a family that the device lacks) and
   T-336 (the relay leg of `pod-warp` and the race) for the next tag.
 - The consumers and their tags:
-  - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
+  - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.33.0` (`797104f`, PodUtils/podnet#514; its A12 maps
     `GiveUp`; `pod-warp` waits for the trial of T-339); its relay client

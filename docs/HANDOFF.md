@@ -22,11 +22,12 @@ is done. Git and the record keep finished work.
   `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- An agent of this session in a worktree under `.claude/worktrees/`:
-  T-380 and T-358 (`pod-turn` and the STUN client against coturn on the
-  loopback), free ids 403 to 405, calls C197 to C199. Merge its branch
+- Agents of this session in worktrees under `.claude/worktrees/`: T-338
+  (the proxy, forward, nc and L4 door of `pod-warp`; free ids 406 to 408,
+  calls C200 to C204) and T-337 (HTTP/3, the WireGuard leg and the carried
+  device; free ids 409 to 411, calls C205 to C209). Merge each branch
   after `scripts/agent/check.sh` passes on the merge.
-- `main` holds T-353, T-393, T-395 and T-336 for the next tag.
+- `main` holds T-353, T-393, T-395, T-336, T-380 and T-358 for the next tag.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.
@@ -49,7 +50,7 @@ is done. Git and the record keep finished work.
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write
   to podnet by COORD issues only.
-- podssh (on `v0.33.0`, `72d6a3d`, PodUtils/podssh#218): the live runs of
+- podssh (on `v0.34.0`, `287e23b`, PodUtils/podssh#219): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.32.0`, `997b001`): its session ended after its
