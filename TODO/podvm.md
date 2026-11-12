@@ -4673,7 +4673,7 @@ the map of `adoption/README.md`.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4711,6 +4711,17 @@ layer of `pod-enter` or of podvm, not in tar.
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-12. Reduced by podrunner (PodUtils/podrunner#70, run 43242367198):
+in a unit of the supervise rung, `tar -xzf x.tgz -C /tmp/d` (an absolute
+`-C`) fails, and each relative form passes. No crate of podcrates holds
+the runtime of the supervise rung (`pod-hostprobe` selects it; `pod-enter`
+enters the namespace, chroot and userland rungs): the cause is in podvm.
+Relayed to podvm, with the case and a guess, on #102 (COORD-063, also to
+podrunner).
+
 
 # T-353: `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**323 entries: 86 open, 5 partial, 5 blocked, 227 done.**
+**323 entries: 85 open, 5 partial, 5 blocked, 228 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 64 | 83 |
-| P2 | 37 | 1 | 5 | 113 | 156 |
+| P2 | 36 | 1 | 5 | 114 | 156 |
 | P3 | 32 | 2 | 0 | 48 | 82 |
-| **All** | 86 | 5 | 5 | 227 | 323 |
+| **All** | 85 | 5 | 5 | 228 | 323 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -333,7 +333,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
 | [T-326](podvm.md) | P1 | L | M6 | feature | done | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | done | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
-| [T-328](podvm.md) | P2 | S | M6 | research | open | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
+| [T-328](podvm.md) | P2 | S | M6 | research | done | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
 | [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
 | [T-335](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
