@@ -4149,3 +4149,50 @@ and the README row. `the_archive_of_workerd_holds_the_pins_of_podvm`;
 `cargo test -p pod-services --all-features --test podvm`: 9 pass. The
 live watch: `holds cloudflare-workerd-npm http-sha256: the SHA-256 of
 ... is the fact's; ... is 43615013 bytes`.
+
+# T-255: `pod-services`: the release archive of wasmtime for podvm's profile wasmtime-wasi (PodUtils/podvm#275)
+
+**Source:** PodUtils/podvm#275 (COORD-054 of podvm, for PodUtils/podvm@T-1661)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's profile `wasmtime-wasi` fetches the release archive of wasmtime.
+podvm keeps its pins (`WASMTIME`) in its code until the crate holds them.
+The Bytecode Alliance publishes no checksum file for the archives.
+
+## Premise
+
+- Read: PodUtils/podvm#275 (the facts that podvm measured; podvm
+  `9817d687` adds the profile).
+- Measured on 2026-11-12: the archive of the release `v50.0.1`
+  (published 2026-10-29) is 11,577,424 bytes, SHA-256 `68546645…`, the
+  digest that the release API gives for the asset; its member
+  `wasmtime-v50.0.1-x86_64-linux/wasmtime` is 67,964,264 bytes, SHA-256
+  `983e5757…`. Each value is podvm's.
+
+## Approach
+
+A service `wasmtime-release` (kind `tool`, endpoint `archive` on
+`github.com`, the facts of podvm's table), an `http-sha256` watch of the
+archive (it follows the redirect of GitHub), as T-254; a test of podvm's
+pins; the README row.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test podvm
+cargo run -q -p pod-services-watch -- --service wasmtime-release
+```
+
+## Done
+
+2026-11-12. `crates/pod-services/services/wasmtime-release.toml` and the
+README row. `the_archive_of_wasmtime_holds_the_pins_of_podvm`; `cargo
+test -p pod-services --all-features --test podvm`: 10 pass. The live
+watch: `holds wasmtime-release http-sha256: the SHA-256 of ... is the
+fact's; ... is 11577424 bytes`.

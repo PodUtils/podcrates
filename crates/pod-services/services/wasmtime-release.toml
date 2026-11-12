@@ -1,0 +1,54 @@
+# wasmtime, the WebAssembly runtime of the Bytecode Alliance, as its
+# GitHub release publishes it. podvm's profile wasmtime-wasi fetches the
+# archive and runs the member wasmtime. The project publishes no checksum
+# file; the release API gives the SHA-256 of each asset.
+id = "wasmtime-release"
+kind = "tool"
+party = "Bytecode Alliance"
+about = "The release archive of wasmtime for x86_64 Linux"
+
+[[endpoint]]
+name = "archive"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz"
+source = { url = "https://github.com/bytecodealliance/wasmtime/releases/tag/v50.0.1", read = 2026-11-12, note = "the asset of the release v50.0.1 (PodUtils/podvm#275, podvm crates/podvm/src/profile/tools.rs WASMTIME at 9817d687)" }
+
+[[fact]]
+name = "version"
+value = "50.0.1"
+source = { url = "https://github.com/bytecodealliance/wasmtime/releases/tag/v50.0.1", read = 2026-11-12, note = "published 2026-10-29 (wasmtime --version: wasmtime 50.0.1 (c307ec81d 2026-10-29)), the newest release that is two weeks old or more on 2026-11-12" }
+
+[[fact]]
+name = "archive-sha256"
+value = "685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"
+source = { measured = "the SHA-256 of the archive at the endpoint archive; the digest of the asset in the release API is the same (PodUtils/podvm#275 has the same)", read = 2026-11-12 }
+
+[[fact]]
+name = "archive-bytes"
+value = 11577424
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint archive", read = 2026-11-12 }
+
+[[fact]]
+name = "bin-member"
+value = "wasmtime-v50.0.1-x86_64-linux/wasmtime"
+source = { measured = "the member of the archive (tar.xz) that holds the binary", read = 2026-11-12 }
+
+[[fact]]
+name = "bin-sha256"
+value = "983e57573a320cf44c93ccaa571a25640cf38b15e8e14160aa7bb919336caae8"
+source = { measured = "the SHA-256 of the member of bin-member", read = 2026-11-12 }
+
+[[fact]]
+name = "bin-bytes"
+value = 67964264
+unit = "bytes"
+source = { measured = "the length of the member of bin-member", read = 2026-11-12 }
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "archive"
+fact = "archive-sha256"
+length = "archive-bytes"

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**246 entries: 64 open, 5 partial, 4 blocked, 173 done.**
+**247 entries: 64 open, 5 partial, 4 blocked, 174 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 86 | 123 |
+| P2 | 31 | 2 | 4 | 87 | 124 |
 | P3 | 20 | 1 | 0 | 36 | 57 |
-| **All** | 64 | 5 | 4 | 173 | 246 |
+| **All** | 64 | 5 | 4 | 174 | 247 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -293,3 +293,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-252](transport.md) | P3 | S | M1 | chore | done | podnet's change of `src/doctor.rs` for the lanes of A-C-10 (PodUtils/podnet#462) |
 | [T-253](transport.md) | P2 | S | M1 | feature | done | `pod-services`: a watch of the relay contract that `pod-relay` implements (PodUtils/podnet#463) |
 | [T-254](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the npm archive of workerd for podvm's profile workerd-test (PodUtils/podvm#274) |
+| [T-255](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the release archive of wasmtime for podvm's profile wasmtime-wasi (PodUtils/podvm#275) |

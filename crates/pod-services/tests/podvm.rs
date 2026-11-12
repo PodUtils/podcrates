@@ -182,3 +182,19 @@ fn the_archive_of_workerd_holds_the_pins_of_podvm() {
     assert_eq!(w.text("bin-sha256"), Some("685acc339ac78bf7b605928c1845fef8d8a89e919b079556b571a3404b95db3e"));
     assert_eq!(w.int("bin-bytes"), Some(148_775_704));
 }
+
+/// The release archive of wasmtime for podvm's profile `wasmtime-wasi`
+/// (PodUtils/podvm#275): the pins of podvm, and the member of the binary.
+#[test]
+fn the_archive_of_wasmtime_holds_the_pins_of_podvm() {
+    let w = service("wasmtime-release");
+    let version = w.text("version").unwrap();
+    let archive = w.endpoint("archive").unwrap();
+    assert_eq!(archive.host(), "github.com");
+    assert!(archive.path().unwrap().ends_with(&format!("/v{version}/wasmtime-v{version}-x86_64-linux.tar.xz")));
+    assert_eq!(w.text("archive-sha256"), Some("685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"));
+    assert_eq!(w.int("archive-bytes"), Some(11_577_424));
+    assert_eq!(w.text("bin-member"), Some(format!("wasmtime-v{version}-x86_64-linux/wasmtime").as_str()));
+    assert_eq!(w.text("bin-sha256"), Some("983e57573a320cf44c93ccaa571a25640cf38b15e8e14160aa7bb919336caae8"));
+    assert_eq!(w.int("bin-bytes"), Some(67_964_264));
+}
