@@ -29,6 +29,10 @@ is done. Git and the record keep finished work.
   under `.claude/worktrees/` (the free ids 335 to 344, calls C135 to
   C144); merge its branch when its checks pass. The agent of T-326 has
   the free ids 330 to 334 and calls C130 to C134.
+- T-207 (`pod-netlab`, the offline part: knobs, layout, scenarios, plan,
+  derivation, judge): an agent of this session in a worktree under
+  `.claude/worktrees/` (the free ids 345 to 349, calls C145 to C149);
+  merge its branch when its checks pass.
 - T-327 waits for podnet's log of `relay connect -v` (#92).
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
