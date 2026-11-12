@@ -155,7 +155,6 @@ the `SOURCES` of the crate has its `taken` line, so
 `scripts/check-sources.py` reads no change for `pod-hostprobe`. `v0.7.0`
 gives podvm's glue `Failure::io_cause` and `Class::NotFound` (T-081).
 
-
 # T-056: `pod-oci`: the OCI registry client of podvm
 
 **Source:** `docs/design.md`, section 4 (M6); the owner, 2026-11-06.
@@ -721,6 +720,7 @@ Remains:
   defences of `Lock` in podvm's source; after the take they are in
   `pod_supervise::lock`. A plant in podcrates for the two defences can
   take that place.
+
 # T-061: `pod-guest`: a disposable QEMU guest
 
 **Source:** `docs/design.md`, section 4 (M6); the owner, 2026-11-06.
@@ -963,7 +963,6 @@ passed, `space_precheck` 2, `namespace` 3, `namespace_base` 5, and
 nightly's job failed as above. clippy is clean for x86_64 and i686. podvm
 has the same fault in its frozen `PodUtils/podvm:crates/podvm-probe/src/sys/raw.rs`.
 
-
 # T-107: `pod-hostprobe`: a JSON report with a published schema (GitHub #35)
 
 **Source:** GitHub #35 (A-V-10, A-X-25)
@@ -1183,7 +1182,6 @@ podnet; PodUtils/podnet@T-232): the terms of PodUtils/podnet#414 are met
 (PodUtils/podnet@T-040 and the seccomp fixes PodUtils/podnet@T-142 to
 PodUtils/podnet@T-158 are done). The decision: one crate, `pod-hold`, with
 the generic core only, as #414 cuts it. The import is T-166.
-
 
 # T-119: `pod-netlab`: the CI matrix of restricted hosts (GitHub #35)
 
@@ -1459,7 +1457,6 @@ tests); `sh scripts/agent/check.sh` exits 0.
   the resolved path.
 - The README has both items in the API table and in the adoption map.
 
-
 # T-138: `pod-guest`: the run of a real guest in CI
 
 **Source:** T-061 (its remaining clause); the owner's ruling KVM of 2026-11-09
@@ -1509,7 +1506,6 @@ thread, and the last step reported that no emulator stays.
   runs where `/dev/kvm` opens; the TCG test shares its helper. The
   ubuntu-24.04 runner of run 42755557589 has `/dev/kvm` (the step KVM
   printed "kvm: /dev/kvm opens"), so the KVM test ran there.
-
 
 # T-139: `pod-enter`: classify and stage a payload over 128 MiB with bounded memory (PodUtils/podvm#222)
 
@@ -2919,7 +2915,6 @@ detached run (its `Detail`) keeps the two fields.
   call taken out, three of them fail.
 - Goes out with the tag after `v0.16.0` (PodUtils/podvm#245).
 
-
 # T-182: `pod-enter`: `lib_dirs` takes `/usr/local/lib` and the image's loader configuration (PodUtils/podvm#247)
 
 **Source:** PodUtils/podvm#247 (COORD-029 of podvm, PodUtils/podvm@T-1719)
@@ -3005,7 +3000,6 @@ declares a version of 2.16 or later.
   program with its library in `/usr/local/lib` and a glibc program with
   its library named only in `/etc/ld.so.conf.d` each load the image's
   library. PodUtils/podvm#247 is closed.
-
 
 # T-190: `pod-oci`: one large blob as parallel ranges, kept only by the digest of the whole blob (PodUtils/podnet#437)
 
@@ -4495,7 +4489,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4527,6 +4521,86 @@ its live wire where a stand-in serves it); `adoption.yml` passes the trial.
 ```sh
 sh scripts/adoption.sh podvm pod-relay
 ```
+
+## Done
+
+2026-11-12, partial: the trial of podvm passed on this host. The commit of
+this record holds adoption/podvm/pod-relay.patch and `.run`, the new
+`adoption/podvm/commit`, and the changes of `pod-relay` (calls C130 to
+C134). What remains: `adoption.yml` at the push, and podvm's take.
+
+- The commit of the trial: podvm's `main` at `c5b61b45`
+  (`c5b61b457aabaaade832198585a83fbfba45511f`, its take of `v0.31.0`). No
+  other trial of podvm is open, so `adoption/podvm/commit` moves to it
+  (call C134). Each podcrates tag of podvm moves to `v0.32.0`.
+- The patch (36 files, 848 lines in, 2,562 out): `PodUtils/podvm:crates/podvm-ssh` takes
+  `pod-relay` (features `blocking` and `plain-ws`) and `pod-ws`; the module
+  `mux` is the glue (`mux.rs`, `mux/node.rs`, `mux/origin.rs`, 505 lines
+  with no test): `context()` (the TLS of `pod-tls` with podvm's host bundles,
+  the proxy of the environment over `pod_proxy::Dialer`, `Cache::none()`),
+  `run_node` over `Client::run_node` with `Pair::for_node`, the server of
+  each session on a socketpair (`server::spawn_socket`, `Local::new` and
+  `on_finish`), `NodeOptions::say` for podvm's lines and `--once`, and
+  `run_operator` over `Client::run_operator` with `--ready-wait` and the
+  10 s goodbye; no end-to-end channel on either leg (call C133). `ws.rs`,
+  `ws/handshake.rs`, `ws/tests.rs`, `tls.rs` and `mux/operator.rs` go, with
+  the unused `base64` pin. The fake relay of `tests/mux_two_client` keeps
+  its own WebSocket server over `pod_ws::frame` and refuses a wrong token
+  (403) and a second node (409) at the upgrade. podvm's record (the
+  citations of the removed files, named at `c5b61b45`), its `SECURITY.md`,
+  `PodUtils/podvm:docs/architecture.md`, `PodUtils/podvm:docs/code-map.md`,
+  `PodUtils/podvm:docs/limits.md` and `PodUtils/podvm:docs/runtime-state.md` (the rows of `pod-relay` and `pod-ws`; `base64`
+  leaves; `sha2` 0.10.9 comes with the crate) follow.
+- `sh scripts/adoption.sh podvm pod-relay`: each of the 17 steps exits 0:
+  the glue's unit tests and the binaries' (83, 2, 3, 6, 2 passed), the fake
+  relay with the real binaries (14 passed), the SSH test of three
+  authenticated sessions through `sshd` (1 passed; OpenSSH was installed on
+  this host for it, and the step says so where a host has no `sshd`),
+  podvm's `remote::` tests (25 passed), clippy of the workspace with `-D
+  warnings`, rustfmt, the features in the tree, the removed files, no copy
+  of the moved items, the build of the helpers, podvm's gate (`check-todo:
+  ok`) after the runtime-state rows, `check-consumer-toolchains.py` (5 pins,
+  0 below 1.99), and `check-static.sh` of `node` and `operator`.
+- The wire stays `reverse-v1` (the `hello` of version 1, the crate's
+  dialect 1); a relay of another dialect ends the node with exit 125.
+- The behaviours that change for podvm's users: (1) a token under 8
+  characters, and a name that starts with `-` or `.`, are usage errors
+  (125); (2) the `hello` is a hint: a frame cap or a session count that
+  podvm refused, an `open` or data before the `hello` no longer end the
+  node; (3) a wrong token (`403`) ends a node at once with 125, where podvm
+  tried again for ever; a `409` at the first registration is tried again for
+  30 s, then 125; (4) the node's lines are the crate's ("registered as NAME
+  via RELAY (node speaks reverse-v1)" with no frame cap and session count;
+  "podvm-ssh: node: ..." for each end of a socket and each failed try with
+  the next one); (5) a session past the `hello`'s `maxSessions` is refused
+  with "the node has its N sessions", not "node is full", and is not in
+  the count of refused sessions; (6) the operator's words: "the session
+  never started: REASON (relay close CODE)", and "the node did not answer
+  ready within N s"; a `bye` before `ready` no longer ends it at once (it
+  waits `--ready-wait`); (7) the redial is the crate's (at once after a
+  socket that served, then the backoff of the opener), with pings on each
+  socket; (8) `--once` with a first try that gives no socket exits 125, as
+  before, through the line of call C132.
+- `pod-relay`: `Pair::for_node` (call C130), `NodeOptions::say` and
+  `blocking::Say` (call C131), the line of each failed try of a node (call
+  C132), and the note that a facade's runtime runs only inside its calls
+  (the drain of a session that the relay closed ends at the drop of the
+  client: the glue drops it before it counts). Tests: `tests/blocking_given.rs`
+  (3) and `pair::given` (2). `cargo test -p pod-relay --all-features`: 394
+  passed, 19 ignored; clippy of the workspace with all features: clean.
+- Plants: 2 new (group `relay`): scripts/plants/relay-t326-silent-failed-try
+  (call C132) and scripts/plants/relay-t326-facade-says-nothing (call C131),
+  each caught on this host by its test of `tests/blocking_given.rs`, which
+  stops its node when an assertion fails, so that a planted defect fails
+  the test in 10 s and does not hold it. relay-t643-426-reconnects was stale
+  after the change of `reverse::run`: its patch is made again on the same
+  line, and it is caught. `sh scripts/plant-each.sh --apply`: 0 stale.
+- Findings: podvm has no pairing code in `PodUtils/podvm:crates/podvm/src/remote/`;
+  its drives pair with curl and give the tokens in the argv of curl (T-330).
+  The take adds the resumable layer and the end-to-end channel to podvm's
+  build, which its plain legs do not use (T-290).
+- Not measured: the trial in `adoption.yml`; the live relay through the
+  glue; the size of podvm's release binaries after the take.
 
 # T-328: GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note)
 
@@ -4624,4 +4698,56 @@ are proven only by the live pull.
 ```sh
 sh scripts/ci/registry-tests.sh
 cargo test -p pod-oci --all-features
+```
+
+# T-330: `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives
+
+**Source:** T-326 (call C134).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+PodUtils/podvm@T-1678 names "a pairing through curl in
+`PodUtils/podvm:crates/podvm/src/remote/`". podvm has no such code: its `remote ssh
+serve` and `connect` take the parts of a pair as flags, and its drives
+make, ask about and stop a pair with curl
+(`PodUtils/podvm:experiments/389-remote-ssh.sh`,
+`PodUtils/podvm:experiments/387-mux-two-client.sh`): `POST /v1/pair`,
+then `GET /v1/status/NAME` and `POST /v1/stop/NAME` with the connect
+token and the stop token in a `-H` argument of curl, which other users of
+the host can read in the list of processes. The trial of T-326 does not
+replace them.
+
+## Premise
+
+- Read: the clause 4 of `PodUtils/podvm:experiments/389-remote-ssh.sh` at
+  podvm `c5b61b45`: the pair's answer goes to a file and `jq` reads each
+  token into a variable of the shell.
+- Read: the facade has `Client::pair`, `Client::status(&Pair)` and
+  `Client::stop(&Pair)`; `pair::store` keeps a pair in a private file under
+  a label, and `pair::load` reads it back with its three tokens.
+- Not measured: a pair of the live relay through the facade (the egress of
+  a session reaches no relay).
+
+## Approach
+
+A patch for podvm (a second trial file of `adoption/podvm/`, after
+pod-relay.patch): `podvm remote ssh pair --relay wss://HOST [--label L]`
+over `Client::pair` and `pair::store` in podvm's state directory, which
+prints the name and the expiry and no token; `status` and `stop` over
+`pair::load` and `Client::status` or `Client::stop`; `serve` and `connect`
+take `--pair L` beside the token flags; each new flag gets its row in
+podvm's parity table. The drives of podvm then call these members. If a
+part of the facade is missing (a label in podvm's own directory, a pair
+with less than 10 minutes left for `stop`), add it here with its test.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test blocking_plain
+sh scripts/adoption.sh podvm pod-relay
 ```

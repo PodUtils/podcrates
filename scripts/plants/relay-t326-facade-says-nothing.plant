@@ -1,0 +1,7 @@
+# A plant of T-326 (the trial of pod-relay's facade in podvm, call C131):
+# the facade gives a node no lines, whatever NodeOptions::say holds; the
+# test of the lines of a node of given parts must fail.
+ENTRY=T-326
+GROUP=relay
+EXPECT='test a_node_of_given_parts_serves_and_says_each_socket \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features blocking,plain-ws --test blocking_given -- a_node_of_given_parts_serves_and_says_each_socket'

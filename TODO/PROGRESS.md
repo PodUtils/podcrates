@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 301 entries: 76 open, 2 partial, 5 blocked, 218 done.
+`TODO/INDEX.md` holds 302 entries: 76 open, 3 partial, 5 blocked, 218 done.
 
 ## State
 
@@ -12,7 +12,8 @@
   took `v0.30.0` (#89, closed).
 - `v0.32.0` is prepared on `main` (the version, `docs/releases/v0.32.0.md`,
   the text of its hand-off): T-327 (podnet's `relay connect`), `pod-link`
-  (T-300, T-311), T-370 and T-329 (podssh's asks), T-322, T-323 to T-325.
+  (T-300, T-311), T-370 and T-329 (podssh's asks), T-322, T-323 to T-325,
+  and the trial of podvm (T-326).
 - The consumers and their tags:
   - podssh: `v0.30.0` (`ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -66,8 +67,9 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-326 (podvm's trial of the
-   blocking facade, PodUtils/podvm#283, an agent of this session); T-328 (podrunner's note
+1. **The defects and asks of the consumers:** T-326 (partial: podvm's
+   trial of the blocking facade passes; `adoption.yml` and podvm's take
+   remain, PodUtils/podvm#283); T-330 (podvm's pair commands); T-328 (podrunner's note
    of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an

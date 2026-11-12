@@ -1,13 +1,13 @@
 diff --git a/crates/pod-relay/src/reverse/node.rs b/crates/pod-relay/src/reverse/node.rs
-index f941ba7..b85c714 100644
+index 1bed00c..682c2df 100644
 --- a/crates/pod-relay/src/reverse/node.rs
 +++ b/crates/pod-relay/src/reverse/node.rs
-@@ -334,7 +334,7 @@ where
+@@ -340,7 +340,7 @@ where
              Err(ConnectError::Refused { status: 401 | 403, .. }) => return Exit::Forbidden,
              // The relay reads another dialect of the reverse road, or takes
              // no upgrade of this node's: the same request gets the same.
 -            Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
 +            Err(ConnectError::Refused { status: 999, body }) => return Exit::Unusable(refused_upgrade(&body)),
-             Err(_) => Next::Reconnect,
-         };
-         match next {
+             Err(e) => {
+                 failed = Some(format!(
+                     "the node could not connect to the relay ({})",

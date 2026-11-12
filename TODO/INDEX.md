@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**301 entries: 76 open, 2 partial, 5 blocked, 218 done.**
+**302 entries: 76 open, 3 partial, 5 blocked, 218 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 16 | 0 | 0 | 61 | 77 |
-| P2 | 32 | 1 | 5 | 110 | 148 |
+| P1 | 15 | 1 | 0 | 61 | 77 |
+| P2 | 33 | 1 | 5 | 110 | 149 |
 | P3 | 28 | 1 | 0 | 45 | 74 |
-| **All** | 76 | 2 | 5 | 218 | 301 |
+| **All** | 76 | 3 | 5 | 218 | 302 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -331,10 +331,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-323](upkeep.md) | P1 | S | M5 | defect | done | `services.yml` at `613058c` is red: Serveo's banner names its console, a text watch of shiftr names an endpoint, no RDAP for `.me`, and openbare.xyz in 66 days |
 | [T-324](upkeep.md) | P2 | M | M5 | defect | done | `pod-services-watch`: no offline test checks the arguments of each watch of the data |
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
-| [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
+| [T-326](podvm.md) | P1 | L | M6 | feature | partial | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | done | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
 | [T-328](podvm.md) | P2 | S | M6 | research | open | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
+| [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
 | [T-350](transport.md) | P1 | M | M5 | defect | open | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
 | [T-351](upkeep.md) | P1 | M | M5 | defect | open | `services.yml`: a host that gives no answer to one runner fails the daily run |
 | [T-352](upkeep.md) | P2 | S | M5 | chore | open | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |

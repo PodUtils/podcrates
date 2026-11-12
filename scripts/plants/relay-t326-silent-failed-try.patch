@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/node.rs b/crates/pod-relay/src/reverse/node.rs
+index 1bed00c..fb1daf0 100644
+--- a/crates/pod-relay/src/reverse/node.rs
++++ b/crates/pod-relay/src/reverse/node.rs
+@@ -368,7 +368,7 @@ where
+                 }
+                 retry = retry.saturating_add(1);
+                 let wait = crate::open::backoff(retry);
+-                if let (Some(say), Some(why)) = (config.say, ended.as_ref().or(failed.as_ref())) {
++                if let (Some(say), Some(why)) = (config.say, ended.as_ref()) {
+                     say(format!("{why}; connecting again in {:.1} s", wait.as_secs_f64()));
+                 }
+                 tokio::select! {

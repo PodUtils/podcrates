@@ -26,9 +26,8 @@ is done. Git and the record keep finished work.
   consumer took `v0.30.0` (#89, closed).
 - T-327 is fixed on `main` (the operator flushes the local side): the next
   tag carries it to podnet (PodUtils/podnet#502, #92).
-- T-326: an agent of this session writes the trial of `pod-relay` in
-  podvm in a worktree under `.claude/worktrees/`; merge its branch when
-  its checks pass, and answer on #91.
+- T-326 (partial): the trial of `pod-relay` in podvm is in `v0.32.0`;
+  `adoption.yml` proves it at the push, and podvm takes it (#91).
 - T-028 (`pod-warp`): an agent of this session imports it in a worktree
   under `.claude/worktrees/` (the free ids 335 to 344, calls C135 to
   C144); merge its branch when its checks pass. The agent of T-326 has
