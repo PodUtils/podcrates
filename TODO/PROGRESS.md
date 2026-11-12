@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 261 entries: 59 open, 3 partial, 4 blocked, 195 done.
+`TODO/INDEX.md` holds 261 entries: 58 open, 3 partial, 4 blocked, 196 done.
 
 ## State
 
@@ -75,9 +75,9 @@ next entry.
 1. **The defects of the consumers:** none open.
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
-   entry here, in the order of its need. T-251 (`pod-actions-expr`,
-   `pod-actions-workflow`) waits for its local mode
-   (PodUtils/podrunner@T-046).
+   entry here, in the order of its need. The next tag releases
+   `pod-actions-expr` and `pod-actions-workflow` (PodUtils/podrunner@T-046);
+   T-280 (their live run against GitHub) waits.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
    (partial: the trial of podnet on `1abfa91`; its Done section lists
