@@ -4,6 +4,7 @@
 //! one line here.
 
 mod actions;
+mod devtunnel;
 mod hold;
 mod link;
 mod netlab;
@@ -125,7 +126,9 @@ fn main() {
         pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),
         std::sync::Arc::new(pod_proxy::resolve::System::new()),
     );
-    lines.push(warp::warp(std::sync::Arc::new(pod_tls::crypto::provider()), std::sync::Arc::new(direct)));
+    let direct: std::sync::Arc<dyn pod_core::Dial> = std::sync::Arc::new(direct);
+    lines.push(warp::warp(std::sync::Arc::new(pod_tls::crypto::provider()), direct.clone()));
+    lines.push(devtunnel::devtunnel(std::sync::Arc::new(pod_tls::crypto::provider()), direct));
     for line in lines {
         println!("{line}");
     }

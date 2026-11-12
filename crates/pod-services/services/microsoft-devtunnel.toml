@@ -1,0 +1,191 @@
+# Microsoft Dev Tunnels: the management API finds a tunnel and gives its
+# connect information (the relay URI of each host and a connect token); a
+# client opens a WebSocket to that URI and runs SSH over it to the host of
+# the tunnel. The protocol has no specification: the source of each value
+# is the vendor's open-source client (microsoft/dev-tunnels, MIT), read at
+# 37956c63675e3339b42c7f852a5af5da1566c5b9. The relay URI is no endpoint
+# and no fact: the connect information gives it for each tunnel. The client
+# of pod-devtunnel reads the facts of this file (T-378, GitHub #94,
+# PodUtils/podssh#216).
+id = "microsoft-devtunnel"
+kind = "devtunnel"
+party = "Microsoft (Dev Tunnels)"
+about = "Dev Tunnels: the management API gives a tunnel's relay URI and connect token; SSH over the relay WebSocket reaches the host's ports"
+
+# The management API of the production service. A tunnel by its id goes to
+# the host of its cluster: the cluster id takes the place of `global`
+# (the fact cluster-host-rule).
+[[endpoint]]
+name = "management"
+scheme = "https"
+host = "global.rel.tunnels.api.visualstudio.com"
+port = 443
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/contracts/tunnel_service_properties.rs", read = 2026-11-12, note = "PROD_DNS_NAME; env_production() of rs/src/contracts/tunnel_environments.rs gives https://PROD_DNS_NAME" }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/contracts/tunnel_service_properties.rs"
+endpoint = "management"
+
+[[watch]]
+kind = "tls-name"
+endpoint = "management"
+
+[[watch]]
+kind = "rdap"
+domain = "visualstudio.com"
+
+# The management API: the version, the path of a tunnel, the scope of the
+# connect token, and the rule of the host of a cluster.
+[[fact]]
+name = "api-version"
+value = "2023-09-27-preview"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/http_client.rs", read = 2026-11-12, note = "API_VERSIONS[0]; add_query appends api-version to each request" }
+
+[[fact]]
+name = "tunnels-path"
+value = "/tunnels"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/http_client.rs", read = 2026-11-12, note = "TUNNELS_API_PATH; build_tunnel_uri gives /tunnels/NAME on the global host, /tunnels/ID on the host of the cluster" }
+
+[[fact]]
+name = "token-scope"
+value = "connect"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/contracts/tunnel_access_scopes.rs", read = 2026-11-12, note = "TUNNEL_ACCESS_SCOPES_CONNECT; the query tokenScopes=connect asks for accessTokens[connect]" }
+
+[[fact]]
+name = "cluster-host-rule"
+value = "global."
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/http_client.rs", read = 2026-11-12, note = "build_uri: CLUSTER. goes in front of the host, and global. goes out" }
+
+# The schemes of Authorization: the user's token to the management API,
+# the connect token to the relay.
+[[fact]]
+name = "user-schemes"
+value = ["github", "aad", "bearer"]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/authorization.rs", read = 2026-11-12, note = "Authorization::as_header" }
+
+[[fact]]
+name = "relay-scheme"
+value = "tunnel"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "RelayTunnelClient::connect sends Authorization: tunnel TOKEN in the upgrade" }
+
+# The relay: the WebSocket subprotocol, then SSH to the host with the user
+# tunnel and no user authentication, and one direct-tcpip channel for each
+# stream to 127.0.0.1:PORT of the host. The host key is one of the
+# endpoint's hostPublicKeys.
+[[fact]]
+name = "subprotocol"
+value = "tunnel-relay-client"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "the only subprotocol of the Rust client; the TypeScript client offers tunnel-relay-client-v2-dev first (ts/src/connections/tunnelRelayTunnelClient.ts)" }
+
+[[fact]]
+name = "ssh-user"
+value = "tunnel"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "session.authenticate_none(\"tunnel\") in RelayTunnelClient::connect; the TypeScript client's credentials name the user tunnel" }
+
+[[fact]]
+name = "ssh-auth"
+value = "none"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "authenticate_none; the relay checked the connect token at the upgrade" }
+
+[[fact]]
+name = "channel-type"
+value = "direct-tcpip"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "ClientRelayHandle::connect_to_port calls channel_open_direct_tcpip; the comment of RelayTunnelClient says a Go host refuses it" }
+
+[[fact]]
+name = "connect-host"
+value = "127.0.0.1"
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12, note = "the host to connect and the originator of each direct-tcpip channel, with the originator port 0" }
+
+# The words of the vendor's client that hold the facts above. A watch of a
+# bare value would pass for the wrong reason: `none` names a compression
+# mode, and `tunnel` is in the subprotocol and in the name of the file.
+[[fact]]
+name = "relay-calls"
+value = [
+    "\"tunnel-relay-client\".to_string()",
+    "format!(\"tunnel {}\", access_token)",
+    ".authenticate_none(\"tunnel\")",
+    "channel_open_direct_tcpip(\"127.0.0.1\", port as u32, \"127.0.0.1\", 0)",
+]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/connections/relay_tunnel_client.rs", read = 2026-11-12 }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/connections/relay_tunnel_client.rs"
+facts = ["subprotocol", "relay-calls"]
+
+[[fact]]
+name = "management-calls"
+value = [
+    "const TUNNELS_API_PATH: &str = \"/tunnels\";",
+    "append_pair(\"tokenScopes\"",
+    ".append_pair(\"api-version\", api_version)",
+    ".replace(\"global.\", \"\")",
+]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/http_client.rs", read = 2026-11-12 }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/management/http_client.rs"
+facts = ["api-version", "management-calls"]
+
+[[fact]]
+name = "user-scheme-calls"
+value = ["format!(\"aad {}\", token)", "format!(\"github {}\", token)", "format!(\"bearer {}\", token)"]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/management/authorization.rs", read = 2026-11-12 }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/management/authorization.rs"
+facts = ["user-scheme-calls"]
+
+# The members of the connect information that the client reads, in the
+# JSON of the API (the fields of the contracts in camelCase).
+[[fact]]
+name = "endpoint-fields"
+value = [
+    "rename_all(serialize = \"camelCase\", deserialize = \"camelCase\")",
+    "pub connection_mode: TunnelConnectionMode,",
+    "pub host_id: String,",
+    "pub host_public_keys: Vec<String>,",
+]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/contracts/tunnel_endpoint.rs", read = 2026-11-12, note = "the relay fields come flattened from rs/src/contracts/tunnel_relay_tunnel_endpoint.rs (clientRelayUri); TunnelRelay is the connection mode of rs/src/contracts/tunnel_connection_mode.rs" }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/contracts/tunnel_endpoint.rs"
+facts = ["endpoint-fields"]
+
+[[fact]]
+name = "relay-endpoint-fields"
+value = ["pub client_relay_uri: Option<String>,"]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/contracts/tunnel_relay_tunnel_endpoint.rs", read = 2026-11-12 }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/contracts/tunnel_relay_tunnel_endpoint.rs"
+facts = ["relay-endpoint-fields"]
+
+[[fact]]
+name = "tunnel-fields"
+value = [
+    "pub cluster_id: Option<String>,",
+    "pub tunnel_id: Option<String>,",
+    "pub access_tokens: Option<HashMap<String, String>>,",
+    "pub endpoints: Vec<TunnelEndpoint>,",
+]
+source = { url = "https://raw.githubusercontent.com/microsoft/dev-tunnels/37956c63675e3339b42c7f852a5af5da1566c5b9/rs/src/contracts/tunnel.rs", read = 2026-11-12 }
+
+[[watch]]
+kind = "github-file"
+repo = "microsoft/dev-tunnels"
+path = "rs/src/contracts/tunnel.rs"
+facts = ["tunnel-fields"]

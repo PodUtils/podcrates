@@ -57,6 +57,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("actions_expr", targets::actions_expr),
     ("actions_workflow", targets::actions_workflow),
     ("link_frame", targets::link_frame),
+    ("devtunnel_connect_info", targets::devtunnel_connect_info),
     ("netlab_counters", targets::netlab_counters),
 ];
 

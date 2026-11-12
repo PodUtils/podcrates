@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 320 entries: 90 open, 5 partial, 5 blocked, 220 done.
+`TODO/INDEX.md` holds 323 entries: 92 open, 6 partial, 5 blocked, 220 done.
 
 ## State
 
@@ -70,7 +70,9 @@ next entry.
    PodUtils/podnet#485 and PodUtils/podssh@T-621, an agent of this
    session); T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
    #96, data only); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
-   the client side first, an agent of this session); T-330 (podvm's pair
+   partial: the client side is in for PodUtils/podssh@T-755; the next tag takes
+   it; the second part is the creation of tunnels, the logins and the
+   token store; then T-386, T-387, T-385); T-330 (podvm's pair
    commands, after its take of the blocking facade, PodUtils/podvm#285); T-328 (podrunner's note
    of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**320 entries: 90 open, 5 partial, 5 blocked, 220 done.**
+**323 entries: 92 open, 6 partial, 5 blocked, 220 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 18 | 2 | 0 | 63 | 83 |
-| P2 | 38 | 1 | 5 | 110 | 154 |
-| P3 | 34 | 2 | 0 | 45 | 81 |
-| **All** | 90 | 5 | 5 | 220 | 320 |
+| P2 | 39 | 2 | 5 | 110 | 156 |
+| P3 | 35 | 2 | 0 | 45 | 82 |
+| **All** | 92 | 6 | 5 | 220 | 323 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -366,4 +366,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-375](transport.md) | P3 | S | M1 | feature | open | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
 | [T-376](transport.md) | P3 | S | M1 | feature | open | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
 | [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
-| [T-378](transport.md) | P2 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
+| [T-378](transport.md) | P2 | L | M1 | feature | partial | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
+| [T-385](transport.md) | P3 | S | M1 | defect | open | `pod-ws`: a client upgrade checks the subprotocol of the answer |
+| [T-386](transport.md) | P2 | S | M1 | measurement | open | `pod-devtunnel`: the live run against the service with the owner's own token |
+| [T-387](transport.md) | P2 | S | M1 | release | open | `pod-devtunnel`: the name on crates.io before the release |

@@ -53,6 +53,8 @@ pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
 # The frames of a link (T-300).
 pod-link = { path = "../crates/pod-link" }
+# The connect information of a Dev Tunnel (T-378).
+pod-devtunnel = { path = "../crates/pod-devtunnel" }
 # The counters of a network lab (T-207).
 pod-netlab = { path = "../crates/pod-netlab" }
 # The parsers of podvm (T-173). The feature `fuzzing` of pod-oci exposes
@@ -357,6 +359,13 @@ bench = false
 [[bin]]
 name = "actions_workflow"
 path = "fuzz_targets/actions_workflow.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "devtunnel_connect_info"
+path = "fuzz_targets/devtunnel_connect_info.rs"
 test = false
 doc = false
 bench = false

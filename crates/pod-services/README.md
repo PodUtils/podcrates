@@ -7,7 +7,8 @@ transit, OpenTunnel, the edge of Cloudflare's tunnels and its quick
 tunnels, WARP, ACME, the public forwarders, Pinggy, GitHub's SSH host
 keys, the OCI registries with the images that podvm pins, the guest
 images of podvm with their sums, the GSRN relay of gsocket, the TCP
-relays of ZeroTier and of Tox, and the public MQTT brokers on port 443.
+relays of ZeroTier and of Tox, the public MQTT brokers on port 443, and
+the management API and the relay protocol of Microsoft Dev Tunnels.
 Each service is one data file, and each value of a file has its source
 and the date when it was read.
 
@@ -264,6 +265,7 @@ let relay = services.of_kind("relay").next();
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
 | `microsoft-validationos` | `guest-image` | `iso` | `iso-bytes`, `vhdx-lba`, `sector-bytes`, `vhdx-bytes`, `vhdx-sha256`, `vhdx-magic` |
 | `hackerschoice-gsr` | `gsr-relay` | `default` (scheme `tcp`; the shard letter goes in front of the host) | `shard-count`, `addr-key`, `srp-key`, `srp-password-hex-chars`, `srp-user`, `srp-group`, `cipher`, `secret-prefix`, `secret-suffix`, `secret-max-bytes`, `protocol-major`, `protocol-minor`, `ping-interval-ms`, `idle-timeout-ms` (the facts of gsocket, read by `pod-gsr`) |
+| `microsoft-devtunnel` | `devtunnel` | `management` (`https://global.rel.tunnels.api.visualstudio.com`; the relay URI of a tunnel is in its connect information) | `api-version`, `tunnels-path`, `token-scope`, `cluster-host-rule`, `user-schemes`, `relay-scheme`, `subprotocol`, `ssh-user`, `ssh-auth`, `channel-type`, `connect-host` (the values of the vendor's client, read by `pod-devtunnel`, T-378); `relay-calls`, `management-calls`, `user-scheme-calls`, `endpoint-fields`, `relay-endpoint-fields`, `tunnel-fields` (the words of the vendor's code that the `github-file` watches check) |
 
 An image fact is `REPOSITORY[:TAG]@sha256:DIGEST`, with no host: the host
 is the endpoint `registry`.

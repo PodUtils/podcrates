@@ -1,0 +1,1 @@
+{"clusterId":"usw2","tunnelId":"bcd123","name":"my-box","accessTokens":{"connect":"made-up-connect-token"},"endpoints":[{"connectionMode":"TunnelRelay","hostId":"h1","hostPublicKeys":["AAAAC3NzaC1lZDI1NTE5AAAAIA=="],"clientRelayUri":"wss://usw2-data.rel.tunnels.api.visualstudio.com/api/v1/Client/Connect/bcd123"}]}

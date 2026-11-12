@@ -1,0 +1,1 @@
+{"name":"a","accessTokens":{"connect":"made-up-connect-token"},"endpoints":[{"connectionMode":"LocalNetwork","hostId":"h0"},{"connectionMode":"TunnelRelay","clientRelayUri":"ws://relay.example/c"},{"connectionMode":"TunnelRelay","clientRelayUri":"ws://127.0.0.1:9/c?x=1"}]}

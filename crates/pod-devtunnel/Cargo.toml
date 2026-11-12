@@ -1,0 +1,57 @@
+[package]
+name = "pod-devtunnel"
+description = "The client side of Microsoft Dev Tunnels: the connect information of a tunnel from the management API, the relay WebSocket through the caller's way out, SSH with no user authentication to the host, and direct-tcpip channels to its ports as byte streams, with a bounded reconnect."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# A stand-in of the management API and of the relay on the loopback
+# (src/standin.rs): for the tests of this crate and of a consumer; no binary
+# needs it.
+standin = []
+
+[dependencies]
+# The failure with its stage and class, the events and the observer.
+pod-core = { workspace = true, features = ["async"] }
+# The HTTP client of the caller for the management API (its dial, its
+# proxy, its roots), and the head of a request for the stand-in.
+pod-proxy = { workspace = true }
+# The trust of the relay's TLS.
+pod-tls = { workspace = true }
+# The relay WebSocket through the caller's way, and its bridge to bytes.
+pod-ws = { workspace = true }
+# The management host and the facts of the protocol.
+pod-services = { workspace = true }
+# SSH to the host of the tunnel: the client, and the server of the stand-in.
+russh = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# A token does not stay in freed memory.
+zeroize = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
+rustls = { workspace = true, features = ["ring"] }
+
+# The tests against the stand-in.
+[[test]]
+name = "relay"
+required-features = ["standin"]
+
+[[test]]
+name = "reconnect"
+required-features = ["standin"]
+
+[[test]]
+name = "management"
+required-features = ["standin"]
+
+[[test]]
+name = "secrets"
+required-features = ["standin"]
