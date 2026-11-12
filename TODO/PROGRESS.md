@@ -18,9 +18,8 @@
   - podnet: `v0.29.0` (`98d8a71`, PodUtils/podnet#478): its netns router
     holds each SYN with `pod_hold::syn_hold` (T-170); it does not turn on
     `ipv4-fragmentation` now (PodUtils/podnet@T-248 decides).
-  - podvm: `v0.29.0` (`c99bdd8d`, PodUtils/podvm#279; its 350 tests
-    pass; its `podvm run --help` names the rungs that take
-    `--podvm-confine`).
+  - podvm: `v0.30.0` (`c553da2e`, PodUtils/podvm#280; no code change,
+    its 350 tests pass).
   - podrunner: `v0.30.0` (`528a918`, its T-086; its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042

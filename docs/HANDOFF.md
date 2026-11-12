@@ -21,7 +21,7 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.30.0` at `613058c` (the hand-off #89): podrunner
-  took it at `528a918`. Each consumer took `v0.29.0` (#87, closed).
+  took it at `528a918`, podvm at `c553da2e` (PodUtils/podvm#280). Each consumer took `v0.29.0` (#87, closed).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
   C112): the trial `adoption/podnet/pod-relay.*` on podnet `98d8a71`
   passed in `adoption.yml` 43191076065; podnet's take remains.
@@ -34,7 +34,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.29.0`, `c99bdd8d`, PodUtils/podvm#279): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+- podvm (on `v0.30.0`, `c553da2e`, PodUtils/podvm#280): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
 - podnet (on `v0.29.0`, `98d8a71`, PodUtils/podnet#478, with
