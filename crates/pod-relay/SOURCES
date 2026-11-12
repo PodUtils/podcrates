@@ -70,7 +70,6 @@ file 32d6c1bffde7b8379d98d77a52affc9d53c1acd1 crates/podssh-relay/src/http_road/
 file a41c296334938e10515f117d9e7c805b77207e9e crates/podssh-relay/src/http_road/serial.rs -> crates/pod-relay/src/http_road/serial.rs
 file 245b39f8ddf2528a5b7e46d713c7563b67b182b6 crates/podssh-relay/src/http_road/split.rs -> crates/pod-relay/src/http_road/split.rs
 file 653349ccef0e9583b75c3b4e3c4ced0896ea751e crates/podssh-relay/src/keyed.rs -> crates/pod-relay/src/keyed.rs
-file d9c30bac60a6be0d2ec7212f8853e753212bf907 crates/podssh-relay/src/lib.rs -> crates/pod-relay/src/lib.rs
 file fdd54ef6a0a569fc48770895534858e106bc504c crates/podssh-relay/src/open.rs -> crates/pod-relay/src/open.rs
 file fb5d0fd03a110ecb04f44aa8aca9be8bda0b7e2a crates/podssh-relay/src/open_tests.rs -> crates/pod-relay/src/open_tests.rs
 file 725d4fd5a05323264b3ed583ebef52b85010db76 crates/podssh-relay/src/pair.rs -> crates/pod-relay/src/pair.rs
@@ -183,3 +182,11 @@ file a071b6e7f32e0e2392c771b1706b9b00e689955f src/relay_reverse/pairfile.rs -> c
 file f086e34e61a1da515bdb7b3854575bae398ba0c9 src/relay_reverse/session.rs -> crates/pod-relay/src/reverse/route.rs crates/pod-relay/src/reverse/serve.rs
 file 40c39fd7bd07557136c54fc9b61bbd3a1a150e70 tests/relay_reverse.rs -> crates/pod-relay/tests/reverse_plain.rs
 file 2f14cd0e86e46f01a604c2fc333edf5bcaf9dbc3 tests/relay_reverse/fake.rs -> crates/pod-relay/tests/reverse_plain.rs
+
+repo PodUtils/podssh a4b21a59cf6b7d3f52aae5b3d4b4cf1b4f207c6c
+taken 0872c2c61df2eb7f948bf4c8ba2755aae86f440b
+# T-308: the block of 75a5031 read lib.rs; before its take podssh added
+# the modules of its own roads (tox, ygg, hyperdht, packet_stream: T-734 to
+# T-736), which are no code of this crate. The block reads the parent of
+# the take.
+file fc7269d157f2d8af4116ea03f268d3735438a57d crates/podssh-relay/src/lib.rs -> crates/pod-relay/src/lib.rs

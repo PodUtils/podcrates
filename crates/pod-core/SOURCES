@@ -4,6 +4,9 @@
 
 repo Azathothas/podssh 600d59edf38e3131439a4600130f34a6634184a8
 taken 8caf2d131ba42581a7ff450d0abfe2832b7f3129 crates/podssh-relay/src/cache.rs crates/podssh-relay/src/session/secret.rs
+# T-308: podssh's take of pod-relay (0872c2c6) took the code of open.rs
+# and tests/cache.rs that this block reads; both were unchanged before it.
+taken 0872c2c61df2eb7f948bf4c8ba2755aae86f440b crates/podssh-relay/src/open.rs crates/podssh-relay/tests/cache.rs
 # podssh's own places for pod-core, after the adoption: no file of this crate.
 skip crates/podssh-relay/src/cache/pod.rs
 dir crates/podssh-relay/src/cache

@@ -571,3 +571,51 @@ cargo test -p pod-confine -p pod-enter -p pod-guest --all-features
 ```
 
 and a dispatch of `nightly.yml`.
+
+# T-308: `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`)
+
+**Source:** `upstream.yml` run 43185447717, job `sources`, at `c553207` (after T-306).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`scripts/check-sources.py` finds three changed podssh files:
+`PodUtils/podssh:crates/podssh-relay/src/open.rs` and
+`PodUtils/podssh:crates/podssh-relay/tests/cache.rs` (the block of
+`600d59e` of `crates/pod-core/SOURCES`), and
+`PodUtils/podssh:crates/podssh-relay/src/lib.rs` (the block of `75a5031`
+of `crates/pod-relay/SOURCES`).
+
+## Premise
+
+- Read: the diffs and the logs of the three files in a clone of podssh.
+
+## Approach
+
+A port where podssh changed code of the crate; else a `taken` line or a
+block at a newer commit.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone Azathothas/podssh=CLONE --clone PodUtils/podssh=CLONE pod-core pod-relay
+```
+
+## Done
+
+2026-11-12. No port.
+
+- `open.rs` and `tests/cache.rs`: podssh's take of `pod-relay`
+  (`0872c2c6`) took the code that the block of `pod-core` reads; both
+  blobs at the parent of the take are the recorded ones. The block gets
+  `taken 0872c2c6` for the two paths.
+- `lib.rs`: before its take podssh added the modules of its own roads
+  (`tox`, `ygg`, `hyperdht`, `packet_stream`; PodUtils/podssh@T-734 to
+  PodUtils/podssh@T-736), which are no code of `pod-relay`. The file moves
+  to a block at `a4b21a5` (the parent of the take) with `taken 0872c2c6`.
+- `check-sources.py` with clones of podssh, podnet, podvm and podrunner,
+  over each crate: exit 0, no change.
