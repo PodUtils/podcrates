@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**248 entries: 64 open, 4 partial, 4 blocked, 176 done.**
+**250 entries: 65 open, 4 partial, 4 blocked, 177 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 88 | 125 |
+| P2 | 32 | 2 | 4 | 89 | 127 |
 | P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 64 | 4 | 4 | 176 | 248 |
+| **All** | 65 | 4 | 4 | 177 | 250 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -295,3 +295,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-254](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the npm archive of workerd for podvm's profile workerd-test (PodUtils/podvm#274) |
 | [T-255](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the release archive of wasmtime for podvm's profile wasmtime-wasi (PodUtils/podvm#275) |
 | [T-256](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public wss:// peers of Yggdrasil on port 443 (PodUtils/podssh#203) |
+| [T-260](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public bootstrap nodes of HyperDHT (PodUtils/podssh#204) |
+| [T-261](relay.md) | P2 | M | M2 | feature | open | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |

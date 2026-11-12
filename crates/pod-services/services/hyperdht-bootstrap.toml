@@ -1,0 +1,60 @@
+# The bootstrap nodes of HyperDHT's public network: a node of a pair
+# announces a topic of a key, and the other end connects by that key; a
+# hole is punched through both NATs over UDP (PodUtils/podssh@T-736, a
+# road where UDP passes). Holepunch runs them for any node, with no
+# account. The fact nodes holds them in the form that HyperDHT takes,
+# IP@NAME:PORT, in the order of its source.
+id = "hyperdht-bootstrap"
+kind = "dht-bootstrap"
+party = "Holepunch (the authors of HyperDHT)"
+about = "The three public bootstrap nodes of HyperDHT, on UDP port 49737"
+
+[[endpoint]]
+name = "node1"
+role = "node"
+scheme = "udp"
+host = "node1.hyperdht.org"
+port = 49737
+addresses = ["88.99.3.86"]
+source = { url = "https://github.com/holepunchto/hyperdht/blob/4fa85cdf8c88271544353ea4e23aeab5d2baebbd/lib/constants.js", read = 2026-11-12, note = "BOOTSTRAP_NODES of hyperdht 6.36.0; the A record of the name holds the address" }
+
+[[endpoint]]
+name = "node2"
+role = "node"
+scheme = "udp"
+host = "node2.hyperdht.org"
+port = 49737
+addresses = ["142.93.90.113"]
+source = { url = "https://github.com/holepunchto/hyperdht/blob/4fa85cdf8c88271544353ea4e23aeab5d2baebbd/lib/constants.js", read = 2026-11-12, note = "BOOTSTRAP_NODES of hyperdht 6.36.0; the A record of the name holds the address" }
+
+[[endpoint]]
+name = "node3"
+role = "node"
+scheme = "udp"
+host = "node3.hyperdht.org"
+port = 49737
+addresses = ["138.68.147.8"]
+source = { url = "https://github.com/holepunchto/hyperdht/blob/4fa85cdf8c88271544353ea4e23aeab5d2baebbd/lib/constants.js", read = 2026-11-12, note = "BOOTSTRAP_NODES of hyperdht 6.36.0; the A record of the name holds the address" }
+
+# podssh reads this fact (PodUtils/podssh:crates/podssh-cli/src/hyperdht.rs,
+# listed()).
+[[fact]]
+name = "nodes"
+value = ["88.99.3.86@node1.hyperdht.org:49737", "142.93.90.113@node2.hyperdht.org:49737", "138.68.147.8@node3.hyperdht.org:49737"]
+source = { url = "https://github.com/holepunchto/hyperdht/blob/4fa85cdf8c88271544353ea4e23aeab5d2baebbd/lib/constants.js", read = 2026-11-12, note = "BOOTSTRAP_NODES of hyperdht 6.36.0 (the npm archive, gitHead 4fa85cdf); peeroxide-dht 1.7.4 names the same three as DEFAULT_BOOTSTRAP (PodUtils/podssh#204)" }
+
+[[fact]]
+name = "addresses"
+value = ["88.99.3.86", "142.93.90.113", "138.68.147.8"]
+source = { measured = "the A record of node1, node2 and node3.hyperdht.org (dns.google)", read = 2026-11-12 }
+
+[[watch]]
+kind = "dns-addresses"
+role = "node"
+facts = ["addresses"]
+
+[[watch]]
+kind = "github-file"
+repo = "holepunchto/hyperdht"
+path = "lib/constants.js"
+facts = ["nodes"]

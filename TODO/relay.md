@@ -2816,3 +2816,62 @@ test: `__1` and `[::1]` give two names of each file.
 cargo test -p pod-core
 cargo test -p pod-relay --all-features
 ```
+
+# T-261: `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205)
+
+**Source:** PodUtils/podssh#205 (COORD-031 of podssh, for PodUtils/podssh@T-737)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The two ends of a code of `pod-wormhole` meet only through the
+mailboxes of magic-wormhole (`meet.rs`, `mailbox.rs`). When no mailbox
+answers, the pairing fails. PodUtils/podssh@T-737 asks for a second
+meeting point: MQTT 3.1.1 over a WebSocket on port 443 (subprotocol
+`mqtt`), through a public broker with no account. podssh took
+`pod-wormhole` at `v0.26.0`, so the work is podcrates'.
+
+## Premise
+
+- Read: PodUtils/podssh#205. The messages: `CONNECT` (a clean session,
+  a random client id, keep-alive 60 s), `SUBSCRIBE`, `PUBLISH` at QoS 0
+  with no retained message, `PINGREQ`, `DISCONNECT`. A topic of letters
+  and digits comes from the code's nameplate; the waiting end
+  subscribes, the other publishes first; the replies use the same topic
+  with a tag of direction; a message that reaches no subscriber is sent
+  again. The PAKE of the pairing holds off a stranger on the topic.
+- The brokers that PodUtils/podssh@T-547 read: the Eclipse sandbox (`/mqtt`;
+  it answered 522 and 504 then) and the public instance of shiftr.io
+  (64 KB payloads, topics of 128 characters, 100 subscriptions). Not
+  read: the WebSocket path of shiftr.io, and the rate limits of each.
+- Not measured: either broker from this sandbox.
+
+## Approach
+
+1. A service of `pod-services` for each public broker (host, path,
+   public credentials, limits), each read from its source, with a
+   `websocket-upgrade` watch (subprotocol `mqtt`).
+2. In `pod-wormhole`, a module of the MQTT meeting point over `pod-ws`:
+   the codec of the five messages, the topic of a nameplate, the tag of
+   direction, the send again of a message with no subscriber, and the
+   same messages of the pairing as the mailbox carries. Each source file
+   stays under 500 lines.
+3. The tests that podssh asks: against Eclipse Mosquitto with a
+   `protocol websockets` listener (in CI), two ends pair through a
+   topic; a message on the topic of another code is not delivered; a
+   planted topic from a constant fails the test. An offline stand-in of
+   the broker for `cargo test`.
+4. One short live pairing through each public broker in `live.yml`.
+5. podssh wires it into its order of the pairing (`PODSSH_MQTT=no`,
+   `PODSSH_LAST_RESORT=no`): podssh's glue.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo run -q -p pod-services-watch -- --service <each broker>
+```

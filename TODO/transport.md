@@ -4252,3 +4252,58 @@ cargo run -q -p pod-services-watch -- --service yggdrasil-wss-peer
 `tests/yggdrasil.rs` (2 tests), the README rows. The live watches: 4
 hold (each peer upgraded; each host is in its file of the list). Only
 two peers fit; the offline four stay out.
+
+# T-260: `pod-services`: the public bootstrap nodes of HyperDHT (PodUtils/podssh#204)
+
+**Source:** PodUtils/podssh#204 (COORD-030 of podssh, for PodUtils/podssh@T-736)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podssh@T-736 is a road of HyperDHT where UDP passes: a node of
+a pair announces a topic of a key, and the client connects by that key
+through a hole that both ends punch. podssh adds no host of another
+party, so the bootstrap nodes of HyperDHT's public network come from
+`pod-services`: podssh reads the fact `nodes` of the service
+`hyperdht-bootstrap` (`PodUtils/podssh:crates/podssh-cli/src/hyperdht.rs`,
+`listed()`).
+Until the list names a node, the road is off unless the user names a
+DHT.
+
+## Premise
+
+- Read: PodUtils/podssh#204; `lib/constants.js` of `hyperdht` 6.36.0
+  (the npm archive, `gitHead` `4fa85cdf`; the newest release on
+  2026-11-12): `BOOTSTRAP_NODES` names three nodes in the form
+  `IP@NAME:PORT`, each on port 49737. podssh read the same three in
+  `peeroxide-dht` 1.7.4 (`DEFAULT_BOOTSTRAP`).
+- Measured on 2026-11-12: the A record of each name holds the address of
+  its text.
+- Not measured: a DHT query to a node over UDP (no UDP from this
+  sandbox).
+
+## Approach
+
+A service `hyperdht-bootstrap` (kind `dht-bootstrap`), an endpoint for
+each node (role `node`, scheme `udp`, its address), the fact `nodes` in
+the order of the source, the fact `addresses`; a `dns-addresses` watch
+of the addresses and a `github-file` watch of `lib/constants.js`; a test
+of the form; the README rows.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test hyperdht
+cargo run -q -p pod-services-watch -- --service hyperdht-bootstrap
+```
+
+## Done
+
+2026-11-12. `crates/pod-services/services/hyperdht-bootstrap.toml`,
+`tests/hyperdht.rs` (2 tests), the README rows. The live watches: 2 hold
+(each address is in the A records; `holepunchto/hyperdht`
+`lib/constants.js` holds each text of `nodes`).
