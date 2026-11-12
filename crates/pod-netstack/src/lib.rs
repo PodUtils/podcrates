@@ -28,6 +28,10 @@
 //! `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in the `[env]` table of its
 //! `.cargo/config.toml`: Cargo does not read the configuration of a
 //! dependency. A build with a lower value fails here.
+//!
+//! **Feature.** `ipv4-fragmentation` turns on the IPv4 fragmentation of
+//! smoltcp: a UDP datagram to IPv4 then holds up to 65507 bytes over each
+//! MTU ([`IPV4_FRAGMENTATION`], [`StackConfig::max_datagram`]).
 
 pub mod device;
 pub mod hooks;
@@ -44,6 +48,12 @@ pub use stack::{
     UdpDatagrams, UdpSocket,
 };
 pub use subnet::Subnet;
+
+/// True when the build fragments and puts together IPv4 datagrams (the
+/// feature `ipv4-fragmentation`): a UDP datagram to IPv4 then holds up to
+/// 65507 bytes over each MTU. With no feature, the stack refuses a datagram
+/// over the MTU (`StackConfig::max_datagram`).
+pub const IPV4_FRAGMENTATION: bool = cfg!(feature = "ipv4-fragmentation");
 
 /// The addresses that the stack can own: its own two, the two gateways and
 /// the address of each listener off its own address.

@@ -10,32 +10,6 @@ impl Core {
         self.service_gateway();
     }
 
-    /// Give each datagram to the port of the gateway service and send its
-    /// answer back. A request with no answer gets nothing.
-    pub(super) fn service_gateway(&mut self) {
-        let Some(gateway) = self.gateway.as_ref() else {
-            return;
-        };
-        let handle = gateway.handle;
-        let service = gateway.service.clone();
-        loop {
-            let socket = self.sockets.get_mut::<udp::Socket>(handle);
-            if !socket.can_recv() {
-                break;
-            }
-            let mut buffer = [0u8; GATEWAY_DATAGRAM];
-            let (n, metadata) = match socket.recv_slice(&mut buffer) {
-                Ok(received) => received,
-                Err(_) => break,
-            };
-            let Some(response) = service.answer(endpoint_to_socket(metadata.endpoint), &buffer[..n]) else {
-                continue;
-            };
-            let socket = self.sockets.get_mut::<udp::Socket>(handle);
-            let _ = socket.send_slice(&response, metadata.endpoint);
-        }
-    }
-
     pub(super) fn service_conns(&mut self) {
         let now = self.clock.now();
         let linger = SmolDuration::from_millis(self.config.linger.as_millis().try_into().unwrap_or(u64::MAX));
@@ -85,57 +59,6 @@ impl Core {
         }
         if reaped && !self.owned.is_empty() {
             self.release_addresses();
-        }
-    }
-
-    pub(super) fn service_udp(&mut self) {
-        let ids: Vec<u32> = self.udp.keys().copied().collect();
-        for id in ids {
-            let Some(conn) = self.udp.get_mut(&id) else {
-                continue;
-            };
-            // App to stack.
-            while let Ok(Outbound { data, to: remote, from }) = conn.from_app.try_recv() {
-                // smoltcp panics on a packet whose source and destination
-                // are of two families: the handles refuse it, and this is
-                // the last guard.
-                let source = from.or(conn.local.ip);
-                let mixed = source.is_some_and(|source| source.is_ipv4() != remote.is_ipv4());
-                if mixed || !self.config.subnet.contains(remote.ip()) || !self.config.admits(remote) {
-                    self.stats.refused.fetch_add(1, Ordering::Relaxed);
-                    continue;
-                }
-                let mut meta = udp::UdpMetadata::from(IpEndpoint::new(to_smoltcp(remote.ip()), remote.port()));
-                meta.local_address = from.map(to_smoltcp);
-                let socket = self.sockets.get_mut::<udp::Socket>(conn.handle);
-                if socket.send_slice(&data, meta).is_err() {
-                    break;
-                }
-                let shown = source.map_or(conn.local.addr(), |ip| SocketAddr::new(ip, conn.local.port));
-                let _ = self.events.send(StackEvent::Datagram { from: shown, to: remote, len: data.len() });
-                self.stats.datagrams.fetch_add(1, Ordering::Relaxed);
-            }
-            // Stack to app.
-            loop {
-                let socket = self.sockets.get_mut::<udp::Socket>(conn.handle);
-                if !socket.can_recv() {
-                    break;
-                }
-                let mut buffer = [0u8; 65535];
-                match socket.recv_slice(&mut buffer) {
-                    Ok((n, metadata)) => {
-                        let from = endpoint_to_socket(metadata.endpoint);
-                        // smoltcp sets the destination of each datagram that
-                        // it takes.
-                        let ip = metadata.local_address.map(IpAddr::from).or(conn.local.ip);
-                        let to = SocketAddr::new(ip.unwrap_or(conn.local.addr().ip()), conn.local.port);
-                        if conn.to_app.try_send(Inbound { data: buffer[..n].to_vec(), from, to }).is_err() {
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
         }
     }
 }

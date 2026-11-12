@@ -89,6 +89,21 @@ pub(super) struct UdpConn {
     pub(super) local: Local,
     pub(super) to_app: mpsc::Sender<Inbound>,
     pub(super) from_app: mpsc::Receiver<Outbound>,
+    /// A datagram of the app that the send buffer of smoltcp did not take:
+    /// it goes first at the next pass. A full buffer holds the app (the
+    /// channel from the app fills), and loses nothing.
+    pub(super) pending: Option<Outbound>,
+    /// The datagrams that came in while the channel to the app was full,
+    /// oldest first: at most `udp_packets` datagrams and `udp_payload`
+    /// bytes. The reactor takes each datagram from smoltcp at once, so the
+    /// receive buffer of smoltcp never fills and drops one with no count.
+    pub(super) backlog: VecDeque<Inbound>,
+    pub(super) backlog_bytes: usize,
+    /// Set when the channel to the app was full: the next receive of the app
+    /// kicks the reactor, so that the backlog moves at once.
+    pub(super) read_stalled: Arc<AtomicBool>,
+    /// When the reactor saw that the app dropped its socket.
+    pub(super) gone: Option<SmolInstant>,
 }
 
 /// The UDP service of the consumer at the gateway.
@@ -211,19 +226,27 @@ impl Core {
         }
     }
 
-    /// `Interface::poll`, one inbound packet at a time: a SYN finds a free
-    /// listen socket of its listener first, so a burst to one port gets no
-    /// RST (`Core::admit_syn`).
+    /// `Interface::poll`, one inbound packet at a time. The reactor reads the
+    /// head of each packet first: a SYN finds a free listen socket of its
+    /// listener, so a burst to one port gets no RST (`Core::admit_syn`); a
+    /// datagram goes from smoltcp to its socket's backlog at once
+    /// (`Core::after_ingress`).
     pub(super) fn poll_iface(&mut self) {
         let now = self.clock.now();
         self.iface.poll_maintenance(now);
         loop {
-            if !self.listeners.is_empty() && !self.admit_syn() {
+            let head = self.inbound.peek(Head::parse);
+            if let Some(head) = head
+                && !self.admit_head(head)
+            {
                 continue;
             }
             let ingress = self.iface.poll_ingress_single(now, &mut self.device, &mut self.sockets);
             if ingress == PollIngressSingleResult::None {
                 break;
+            }
+            if let Some(head) = head {
+                self.after_ingress(head);
             }
         }
         while self.iface.poll_egress(now, &mut self.device, &mut self.sockets) == PollResult::SocketStateChanged {}
@@ -377,34 +400,6 @@ impl Core {
             eof: false,
             nodelay: false,
         }
-    }
-
-    pub(super) fn bind_udp(&mut self, local: Local) -> io::Result<UdpSocket> {
-        self.bindable(local)?;
-        let addr = local.addr();
-        // The gateway service is the first socket of the set, so a socket on
-        // any address of its port does not race it; one on its address
-        // would never get a datagram.
-        let gateway = self.gateway.as_ref().map(|gateway| Local {
-            ip: Some(IpAddr::V4(self.config.subnet.gateway_v4())),
-            port: gateway.service.port(),
-        });
-        if self.udp.values().any(|conn| conn.local.overlaps(local)) || gateway == Some(local) {
-            return Err(refuse(io::ErrorKind::AddrInUse, format!("{addr}: a UDP socket holds port {}", local.port)));
-        }
-        let handle = self.sockets.add(self.udp_socket());
-        self.socket_count.add();
-        let socket = self.sockets.get_mut::<udp::Socket>(handle);
-        if let Err(err) = socket.bind(local.endpoint()) {
-            self.drop_socket(handle);
-            return Err(io::Error::new(io::ErrorKind::AddrInUse, format!("{addr}: {err}")));
-        }
-        let id = self.next_id;
-        self.next_id += 1;
-        let (to_app_tx, to_app_rx) = mpsc::channel(64);
-        let (send_tx, send_rx) = mpsc::channel(64);
-        self.udp.insert(id, UdpConn { handle, local, to_app: to_app_tx, from_app: send_rx });
-        Ok(UdpSocket { id, local: addr, recv_rx: to_app_rx, send_tx, kick: self.kick.clone() })
     }
 }
 

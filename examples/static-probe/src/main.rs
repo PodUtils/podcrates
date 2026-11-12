@@ -397,8 +397,9 @@ fn quic() -> String {
     format!("pod-quic: a probe of {} bytes, {config}, {endpoint}", pod_quic::probe::packet(&[0; 8]).len())
 }
 
-/// pod-netstack: one UDP datagram through a loopback stack in a runtime of
-/// one thread: smoltcp, the reactor and the device link in.
+/// pod-netstack: one UDP datagram of 4000 bytes through a loopback stack in
+/// a runtime of one thread: smoltcp with its IPv4 fragments (MTU 1280), the
+/// reactor and the device link in.
 fn netstack() -> String {
     let done = tokio::runtime::Builder::new_current_thread().enable_all().build().map_or_else(
         |e| e.to_string(),
@@ -410,8 +411,8 @@ fn netstack() -> String {
                     Ok(socket) => socket,
                     Err(e) => return e.to_string(),
                 };
-                let mut buffer = [0u8; 16];
-                let sent = socket.send_to(b"probe", addr).await;
+                let mut buffer = [0u8; 4096];
+                let sent = socket.send_to(&[7u8; 4000], addr).await;
                 let wait = std::time::Duration::from_secs(2);
                 let got = tokio::time::timeout(wait, socket.recv_from(&mut buffer)).await;
                 net.shutdown().await;

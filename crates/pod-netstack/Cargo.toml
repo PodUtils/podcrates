@@ -19,5 +19,13 @@ tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
 atomic-waker = "1"
 tracing = { workspace = true }
 
+[features]
+# The IPv4 fragmentation of smoltcp: a UDP datagram to IPv4 holds up to 65507
+# bytes in both directions over each MTU (call C85). Each interface of
+# smoltcp in the binary then holds a buffer of 64 KiB for the fragments that
+# it sends; smoltcp puts together one datagram at a time unless the binary
+# sets SMOLTCP_REASSEMBLY_BUFFER_COUNT. IPv6 has no fragmentation in smoltcp.
+ipv4-fragmentation = ["smoltcp/proto-ipv4-fragmentation", "smoltcp/fragmentation-buffer-size-65536"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "io-util"] }
