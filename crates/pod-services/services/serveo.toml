@@ -31,6 +31,13 @@ name = "url-match"
 value = ["https://", ".serveo.net"]
 source = { url = "https://serveo.net/docs/", read = 2026-11-11, note = "ssh -R 80:localhost:3000 serveo.net ... A subdomain of serveo.net will be assigned to forward HTTP traffic (https://serveo.net/ shows https://abc.serveo.net/welcome)" }
 
+# The console of the account is under the zone too, and the banner names
+# it before the tunnel.
+[[fact]]
+name = "url-skip"
+value = ["console.serveo.net"]
+source = { measured = "the banner of serveo.net:443 named https://console.serveo.net/settings, a page of the console and no forward (services.yml run 43195020023, watch forward-url)", read = 2026-11-12, note = "https://serveo.net/docs/ links console.serveo.net/domains and console.serveo.net/ssh/keys: Console gives the connection your Serveo identity" }
+
 [[fact]]
 name = "keepalive-seconds"
 value = 30

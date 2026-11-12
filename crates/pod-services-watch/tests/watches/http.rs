@@ -202,8 +202,9 @@ async fn http_status_wants_the_status() {
     assert!(text(&report).contains("answered 404, not 200"), "{}", text(&report));
 }
 
-/// `http-text` reads its URL, not an endpoint: the service of the file has
-/// no endpoint, as a relay of SSH whose document is on another host.
+/// `http-text` reads its URL, where the service of the file has no
+/// endpoint, as a relay of SSH whose document is on another host; or the
+/// URL of an endpoint.
 #[tokio::test]
 async fn http_text_wants_the_text() {
     pod_testkit::need_loopback!();
@@ -221,6 +222,14 @@ async fn http_text_wants_the_text() {
         + &watch(&format!("kind = \"http-text\"\nurl = \"https://{NAME}:{}/gone\"\ncontains = \"no\"", stand.port()));
     let report = one(&file("t3", &gone)).await;
     assert!(!report.holds() && text(&report).contains("answered HTTP 404"), "{}", text(&report));
+    // The URL of an endpoint of the service, as a document of the service.
+    let ep = endpoint("doc", "https", NAME, stand.port(), "path = \"/trace\"\n");
+    let by_endpoint = ep + &watch("kind = \"http-text\"\nendpoint = \"doc\"\ncontains = \"h=one.one.one.one\"");
+    let report = one(&file("t4", &by_endpoint)).await;
+    assert!(report.holds() && text(&report).contains("/trace holds"), "{}", text(&report));
+    let neither = fact("zone", "\"one.one.one.one\"") + &watch("kind = \"http-text\"\ncontains = \"h=\"");
+    let report = one(&file("t5", &neither)).await;
+    assert!(text(&report).contains("no argument \"url\" or \"endpoint\""), "{}", text(&report));
 }
 
 #[tokio::test]

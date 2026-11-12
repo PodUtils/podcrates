@@ -1,8 +1,8 @@
 --- a/crates/pod-services-watch/src/http.rs
 +++ b/crates/pod-services-watch/src/http.rs
-@@ -224,7 +224,7 @@ pub async fn text(service: &Service, watch: &Watch, net: &Net) -> Checked {
-     let args = Args::new(service, watch);
-     let (url, contains) = (args.text("url")?, args.text("contains")?);
+@@ -296,7 +296,7 @@
+     };
+     let url = url.as_str();
      let answer = net.get_ok(url, "*/*").await?;
 -    if !answer.text().contains(contains) {
 +    if answer.text().is_empty() {

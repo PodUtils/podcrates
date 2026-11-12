@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**278 entries: 61 open, 1 partial, 5 blocked, 211 done.**
+**280 entries: 62 open, 1 partial, 5 blocked, 212 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 0 | 0 | 58 | 71 |
-| P2 | 24 | 1 | 5 | 107 | 137 |
+| P1 | 13 | 0 | 0 | 59 | 72 |
+| P2 | 25 | 1 | 5 | 107 | 138 |
 | P3 | 24 | 0 | 0 | 44 | 68 |
-| **All** | 61 | 1 | 5 | 211 | 278 |
+| **All** | 62 | 1 | 5 | 212 | 280 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -325,3 +325,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |
 | [T-321](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282) |
 | [T-322](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-expr`: a public view of the parts of a `Template` (podrunner's ask) |
+| [T-323](upkeep.md) | P1 | S | M5 | defect | done | `services.yml` at `613058c` is red: Serveo's banner names its console, a text watch of shiftr names an endpoint, no RDAP for `.me`, and openbare.xyz in 66 days |
+| [T-324](upkeep.md) | P2 | M | M5 | defect | open | `pod-services-watch`: no offline test checks the arguments of each watch of the data |

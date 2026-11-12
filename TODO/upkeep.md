@@ -619,3 +619,102 @@ python3 -I scripts/check-sources.py --clone Azathothas/podssh=CLONE --clone PodU
   to a block at `a4b21a5` (the parent of the take) with `taken 0872c2c6`.
 - `check-sources.py` with clones of podssh, podnet, podvm and podrunner,
   over each crate: exit 0, no change.
+
+# T-323: `services.yml` at `613058c` is red: Serveo's banner names its console, a text watch of shiftr names an endpoint, no RDAP for `.me`, and openbare.xyz in 66 days
+
+**Source:** `services.yml` run 43195020023 at `613058c`.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Four findings of the daily watch:
+
+- `MOVED serveo forward-url`: the banner of `serveo.net:443` names
+  `https://console.serveo.net/settings` first. The rule (`https://`,
+  `.serveo.net`) accepts it, and the GET of T-267 shows no forward there.
+- `FAILED shiftr-mqtt http-text`: the two text watches of `shiftr-mqtt`
+  name an `endpoint`, and `http-text` reads only `url`.
+- `FAILED localtunnel rdap`: `.me` has no RDAP server in IANA's
+  bootstrap, and `rdap.org` answers 404 for `localtunnel.me`.
+- `FAILED openbare-xyz rdap`: the registration ends on 2027-01-17, in 66
+  days; the bound is 90 days.
+
+## Premise
+
+- Read: https://serveo.net/docs/ (2026-11-12) links
+  `console.serveo.net/domains` and `console.serveo.net/ssh/keys`: the
+  console of the account.
+- Measured: `https://data.iana.org/rdap/dns.json` has no row for `me`;
+  `https://rdap.org/domain/localtunnel.me` answers 404 (2026-11-12).
+
+## Approach
+
+- `serveo`: the fact `url-skip` = `console.serveo.net`.
+- `http-text` takes `url` or `endpoint` (the URL of the endpoint).
+- `localtunnel`: a watch `tls-name` of `api` in place of `rdap`.
+- `rdap`: the argument `ahead-days`, 30 where the watch gives none;
+  `ajam.dev` gives 90 (call C125).
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service serveo --service shiftr-mqtt --service localtunnel --service openbare-xyz
+```
+
+## Done
+
+2026-11-12. The four findings have their fix; the next `services.yml`
+run proves them.
+
+- `serveo.toml`: `url-skip` with the measured banner as its source;
+  `tests/forward.rs` picks the tunnel after the console URL.
+- `http.rs`: `text` reads `url`, else the URL of `endpoint`; a watch with
+  neither fails by name. Test `http_text_wants_the_text`.
+- `localtunnel.toml`: `tls-name` of `api`; `tests/api.rs` holds it.
+- `rdap.rs`: `ahead-days` (`AHEAD_DAYS` 30), a note under `NOTE_DAYS`
+  (90) with no finding; test `rdap_wants_a_registration_that_does_not_end_soon`.
+- The shiftr defect passed each test because no test reads the
+  arguments of each watch of the data: T-324.
+
+# T-324: `pod-services-watch`: no offline test checks the arguments of each watch of the data
+
+**Source:** T-323 (the text watches of `shiftr-mqtt`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A watch of the data with a missing or a misnamed argument passes `cargo
+test`, and fails only in the daily `services.yml` run against the live
+service. `shiftr-mqtt` named `endpoint` for `http-text`, which reads
+`url`; the defect showed one day after the data landed.
+
+## Premise
+
+- Read: `crates/pod-services-watch/tests/watches/data.rs` checks the kind
+  of each watch, not its arguments; `src/args.rs` finds a missing argument
+  only when the watch runs.
+
+## Approach
+
+Each kind declares its arguments: the ones it needs, the optional ones,
+and the groups of which one is needed (`url` or `endpoint`). A test reads
+each watch of `pod_services::all()` against the declaration of its kind:
+a missing argument, an unknown argument and a name of an endpoint or a
+fact that the service does not have fail with the service and the watch.
+The declaration is the one source of the table "The schema" of
+`crates/pod-services/README.md`, or a test compares the two.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches data
+```

@@ -94,7 +94,7 @@ new kind is one implementation there. The kinds that the files name now:
 | --- | --- | --- |
 | `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), or `key` with `fact-prefix`, `member`, `port-member`, `true-members` and `url-member` (the last three if any) and `role`, if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its members of the name `member` hold the host of each endpoint of the role (more hosts in the document are no finding); with `key`, the value is a list, and each endpoint of the role is the item whose member `key` is the text of the fact `fact-prefix` + NAME: a member of `member` (a text or a list) holds its host, the member `port-member` (a number or a list) holds its port, and each member of `true-members` is `true` (more items with the port and the true members are counted, no finding); with `url-member`, the URL in that member of each item (`relay://HOST:PORT/?id=ID` of Syncthing's pool) gives the members `host`, `port` and one for each parameter of its query |
 | `http-status` | `endpoint` or `role`, `path`, `status` | a GET answers with the status |
-| `http-text` | `url`, `contains` | the answer to a GET of the URL holds the text (the document of a fact, also on another host than the service) |
+| `http-text` | `url` or `endpoint`, `contains` | the answer to a GET of the URL, or of the URL of the endpoint, holds the text (the document of a fact, also on another host than the service) |
 | `tls-name` | `endpoint` or `role` | a TLS handshake verifies the name |
 | `tls-names` | `endpoint` or `role` | the certificate at each address names the host and the address |
 | `tls-roots` | `repo`, `path`, `tag`, `fact` | the certificates of the file of the repository at the tag of the fact `tag` are the fact's |
@@ -113,7 +113,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `github-files` | `repo`, `tag`, `fact` | the SHA-256 of each file of the fact at the tag and at the newest release |
 | `github-file` | `repo`, `path`; `endpoint` or `facts` | the file on the default branch holds the values: each value of each fact, or the addresses of the endpoint (its host when it has none) |
 | `crate-file` | `crate`, `path`; `endpoint` or `role` | the file of the newest release of the crate holds the hosts |
-| `rdap` | `domain` | the registration of the domain does not end soon |
+| `rdap` | `domain`, `ahead-days` (30) | the registration of the domain ends `ahead-days` or more after the run (a domain of the owner gives 90) |
 | `oci-ping` | `endpoint`; `fact`, if any | `GET /v2/` answers 200, or 401 with a `Bearer` challenge whose realm is `https://` and equals the fact |
 | `oci-digest` | `endpoint`, `facts` | each `REPOSITORY[:TAG]@sha256:DIGEST` of the facts pulls by its digest; the tag that moved is reported |
 | `http-sha256` | `endpoint`; `fact`, or `files` with `facts`; for a range `start`, `sector`, `bytes` (facts), and `length` (a fact) if any | the SHA-256 of the file (or of each file under the path, or of the range) equals the fact; the length equals `length` |
@@ -231,7 +231,7 @@ let relay = services.of_kind("relay").next();
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
 | `node-*` (8) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
-| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match`, `keepalive-seconds`, `host-key-sha256` (Ed25519) |
+| `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match`, `url-skip`, `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
 | `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `host-key-sha256`, `tunnel-zone` |
@@ -289,7 +289,7 @@ source states is not in the file.
 | Relay | Plain SSH | `user` | `url-match` | `url-skip` | `free-tunnel-minutes` | `keepalive-seconds` |
 | --- | --- | --- | --- | --- | --- | --- |
 | `pinggy` | `ssh` (443) | `http` (the type of the tunnel) | `https://`, `.run.pinggy-free.link` | `dashboard.pinggy.io` | 60 | 30 |
-| `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveo.net` | | | 30 |
+| `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveo.net` | `console.serveo.net` | | 30 |
 | `localhost-run` | `ssh` (22) | `nokey` | `https://`, `.lhr.life` | | | 60 |
 | `sandhole` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.demo.sandhole.com.br` | | | |
 

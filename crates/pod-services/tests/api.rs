@@ -260,9 +260,11 @@ fn the_tunnels_of_localhost_run_localtunnel_and_bore() {
     );
     assert_eq!(bore.int("control-port"), Some(i64::from(control.port())));
     assert_eq!((bore.int("tunnel-hours"), bore.fact("tunnel-hours").unwrap().unit()), (Some(24), Some("h")));
-    for service in [&lhr, &lt, &bore] {
+    for service in [&lhr, &bore] {
         assert!(service.watches().iter().any(|w| w.kind() == "rdap"), "{}", service.id());
     }
+    // .me has no RDAP server: the watch holds the name of the domain.
+    assert!(lt.watches().iter().any(|w| w.kind() == "tls-name"));
 }
 
 /// The demo of Sandhole (T-186, PodUtils/podssh@T-743): SSH on 22 and plain

@@ -26,6 +26,8 @@ repo = "localtunnel/localtunnel"
 path = "lib/Tunnel.js"
 endpoint = "api"
 
+# The domain serves its name. No rdap watch: .me has no RDAP server in
+# IANA's bootstrap, and rdap.org answers 404.
 [[watch]]
-kind = "rdap"
-domain = "localtunnel.me"
+kind = "tls-name"
+endpoint = "api"

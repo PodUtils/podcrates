@@ -8,14 +8,23 @@ use crate::args::Args;
 use crate::github::days_since;
 use crate::{Checked, Finding, Net, Outcome};
 
-/// The days that a registration must have left: time for a renewal that
-/// waits for a person.
-pub const AHEAD_DAYS: i64 = 90;
+/// The days that a registration must have left, where the watch gives no
+/// `ahead-days`. Most domains of the data are of a third party, and a
+/// registrar renews a domain in its last 30 to 45 days: a bound of 90 days
+/// made a red run each day for two months that podcrates cannot change, and
+/// it hid the other findings. A domain of the owner gives `ahead-days = 90`:
+/// time for a renewal that waits for a person.
+pub const AHEAD_DAYS: i64 = 30;
+/// Under this count of days left, the run shows the end of the
+/// registration, but it is no finding.
+pub const NOTE_DAYS: i64 = 90;
 
-/// `rdap`: the `expiration` event of the record of `domain` is
-/// [`AHEAD_DAYS`] or more after the day of the run.
+/// `rdap`: the `expiration` event of the record of `domain` is `ahead-days`
+/// ([`AHEAD_DAYS`]) or more after the day of the run.
 pub async fn check(service: &Service, watch: &Watch, net: &Net) -> Checked {
-    let domain = Args::new(service, watch).text("domain")?.trim_end_matches('.').to_ascii_lowercase();
+    let args = Args::new(service, watch);
+    let domain = args.text("domain")?.trim_end_matches('.').to_ascii_lowercase();
+    let ahead = args.opt_int("ahead-days")?.unwrap_or(AHEAD_DAYS);
     let tld = domain.rsplit('.').next().unwrap_or_default().to_string();
     let bootstrap = net.json(&net.bases.rdap_bootstrap).await?;
     let mut bases: Vec<String> = bootstrap
@@ -60,13 +69,14 @@ pub async fn check(service: &Service, watch: &Watch, net: &Net) -> Checked {
         let left = days_since(ends, net.today).map(|d| -d);
         let left = left.ok_or_else(|| Finding::failed(format!("the expiration {ends:?} of {domain} is no day")))?;
         let day = ends.get(..10).unwrap_or(ends);
-        if left < AHEAD_DAYS {
+        if left < ahead {
             return Err(Finding::failed(format!(
                 "the registration of {domain} ends on {day}, in {left} days: renew it"
             )));
         }
+        let note = if left < NOTE_DAYS { ": the owner has not renewed it yet" } else { "" };
         return Ok(Outcome {
-            seen: vec![format!("{domain} is registered until {day}, {left} days")],
+            seen: vec![format!("{domain} is registered until {day}, {left} days{note}")],
             findings: Vec::new(),
             skipped: None,
         });

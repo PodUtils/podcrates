@@ -145,7 +145,7 @@ fn the_facts_of_each_relay_are_the_ones_of_its_sources() {
     assert_eq!((pinggy.user(), pinggy.session_limit(), pinggy.keepalive()), (Some("http"), minutes(60), seconds(30)));
     let serveo = relay("serveo");
     assert_eq!(authorities(&serveo), ["serveo.net:443", "serveo.net:22"]);
-    assert_eq!(serveo.url_rule(), rule(&["https://", ".serveo.net"], &[]));
+    assert_eq!(serveo.url_rule(), rule(&["https://", ".serveo.net"], &["console.serveo.net"]));
     assert_eq!((serveo.user(), serveo.session_limit(), serveo.keepalive()), (None, None, seconds(30)));
     let lhr = relay("localhost-run");
     assert_eq!(authorities(&lhr), ["localhost.run:22"]);
@@ -169,6 +169,8 @@ fn the_rule_of_each_relay_picks_the_url_of_the_banner_of_its_source() {
         ("sandhole", SANDHOLE, "https://abcdef.demo.sandhole.com.br"),
         // The URL that the home page of Serveo shows.
         ("serveo", "https://abc.serveo.net/welcome\r\n", "https://abc.serveo.net/welcome"),
+        // The console of the account comes first in the banner.
+        ("serveo", "https://console.serveo.net/settings\r\nhttps://abc.serveo.net\r\n", "https://abc.serveo.net"),
     ];
     for (id, banner, url) in samples {
         let rule = relay(id).url_rule();

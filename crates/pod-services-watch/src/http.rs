@@ -282,12 +282,19 @@ pub async fn status(service: &Service, watch: &Watch, net: &Net) -> Checked {
     Ok(out)
 }
 
-/// `http-text`: the answer to a GET of `url` holds `contains`. A URL, not
-/// an endpoint: the document that states a fact is often on another host
-/// than the service (the page of a relay of SSH).
+/// `http-text`: the answer to a GET of `url`, or of the URL of the endpoint
+/// `endpoint`, holds `contains`. A URL is accepted: the document that
+/// states a fact is often on another host than the service (the page of a
+/// relay of SSH).
 pub async fn text(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let args = Args::new(service, watch);
-    let (url, contains) = (args.text("url")?, args.text("contains")?);
+    let contains = args.text("contains")?;
+    let url = match args.opt_text("url") {
+        Some(url) => url.to_string(),
+        None if args.opt_text("endpoint").is_some() => args.endpoint()?.url(),
+        None => return Err(Finding::failed("the watch has no argument \"url\" or \"endpoint\" of a text")),
+    };
+    let url = url.as_str();
     let answer = net.get_ok(url, "*/*").await?;
     if !answer.text().contains(contains) {
         let shown = answer.body_text(120);

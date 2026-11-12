@@ -46,6 +46,9 @@ fn answer(request: &Request, origin: &str) -> Answer {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2027-11-10T00:00:00Z"}]}"#)
         }
         "/rdap-any/domain/gone.test" => Answer::new(429, "slow down"),
+        "/registry/domain/later.test" => {
+            json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2027-01-10T00:00:00Z"}]}"#)
+        }
         "/registry/domain/soon.test" => {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2026-12-01T00:00:00Z"}]}"#)
         }
@@ -155,6 +158,14 @@ async fn rdap_wants_a_registration_that_does_not_end_soon() {
     let bad = "[[watch]]\nkind = \"rdap\"\ndomain = \"soon.test\"\n";
     let report = one_in(&mut net, &file("a2", &(fact("x", "1") + bad))).await;
     assert!(text(&report).contains("ends on 2026-12-01, in 21 days"), "{}", text(&report));
+    // Under 90 days and not under 30: shown, but no finding.
+    let later = "[[watch]]\nkind = \"rdap\"\ndomain = \"later.test\"\n";
+    let report = one_in(&mut net, &file("a4", &(fact("x", "1") + later))).await;
+    assert!(report.holds() && text(&report).contains("61 days: the owner has not renewed it yet"), "{}", text(&report));
+    // A domain of the owner wants 90 days.
+    let own = "[[watch]]\nkind = \"rdap\"\ndomain = \"later.test\"\nahead-days = 90\n";
+    let report = one_in(&mut net, &file("a5", &(fact("x", "1") + own))).await;
+    assert!(text(&report).contains("ends on 2027-01-10, in 61 days"), "{}", text(&report));
     // The registry's server answers 404 and the fallback 429: the finding
     // names both, not the last alone.
     let gone = "[[watch]]\nkind = \"rdap\"\ndomain = \"gone.test\"\n";

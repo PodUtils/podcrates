@@ -19,3 +19,5 @@ endpoint = "default"
 [[watch]]
 kind = "rdap"
 domain = "ajam.dev"
+# The domain of the owner: time for a renewal by a person.
+ahead-days = 90
