@@ -190,12 +190,7 @@ mod tests {
     fn an_address_assign_is_kept() {
         let mut value = vec![0x01, 4, 172, 16, 0, 2, 32];
         value.extend([0x02, 6]);
-        value.extend(
-            "2606:4700:110:8a36::2"
-                .parse::<std::net::Ipv6Addr>()
-                .unwrap()
-                .octets(),
-        );
+        value.extend("2606:4700:110:8a36::2".parse::<std::net::Ipv6Addr>().unwrap().octets());
         value.push(128);
         let mut d = CapsuleDecoder::new();
         d.push(&frame(CAPSULE_ADDRESS_ASSIGN, &value));
@@ -251,11 +246,7 @@ mod tests {
         put_capsule(&mut buf, CAPSULE_DATA, packet);
         assert_eq!(buf[0], 0x00, "the type");
         assert_eq!(buf[1] as usize, packet.len(), "the length");
-        assert_eq!(
-            &buf[2..],
-            packet,
-            "the packet starts at once (0x45), no 0x00 context ID"
-        );
+        assert_eq!(&buf[2..], packet, "the packet starts at once (0x45), no 0x00 context ID");
         let mut d = CapsuleDecoder::new();
         d.push(&buf);
         assert_eq!(&d.next_packet().unwrap()[..], packet);

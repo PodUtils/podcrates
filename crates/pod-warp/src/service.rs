@@ -1,188 +1,102 @@
-//! The services of other parties that podnet uses (the relay, the edge of
-//! Cloudflare's tunnels and its roots, the quick tunnels, WARP, 1.1.1.1 and
-//! Pinggy): the data of `pod-services` (PodUtils/podcrates), each value with
-//! its source and the date when it was read. `pod-services` checks its
-//! built-in set when it builds, so a missing service or fact here is a
-//! defect of that set, and panics.
+//! The facts of WARP: the service `cloudflare-warp` of `pod-services` (its
+//! API, its front doors, its versions and its Terms). A caller can give
+//! other values in [`crate::Settings`]; these are the defaults.
 
-pub use pod_services::forward;
-pub use pod_services::{Endpoint, Service};
+use std::net::SocketAddr;
 
-/// The built-in service `id`.
-pub fn get(id: &str) -> &'static Service {
-    pod_services::get(id).unwrap_or_else(|| panic!("pod-services holds no service {id}"))
+use pod_services::{Endpoint, Service};
+
+/// The service `cloudflare-warp`.
+pub fn service() -> &'static Service {
+    pod_services::get("cloudflare-warp").expect("pod-services holds the service cloudflare-warp")
 }
 
-/// The endpoint `name` of the service `id`.
-pub fn endpoint(id: &str, name: &str) -> &'static Endpoint {
-    get(id)
-        .endpoint(name)
-        .unwrap_or_else(|| panic!("{id} of pod-services has no endpoint {name}"))
+fn endpoint(name: &str) -> &'static Endpoint {
+    service().endpoint(name).unwrap_or_else(|| panic!("cloudflare-warp of pod-services has the endpoint {name}"))
 }
 
-/// The endpoints of the role `role` of the service `id`, in order.
-pub fn endpoints_of(id: &str, role: &str) -> Vec<&'static Endpoint> {
-    let all = get(id).endpoints().iter();
-    all.filter(|e| e.role() == Some(role)).collect()
+fn text(name: &str) -> &'static str {
+    service().text(name).unwrap_or_else(|| panic!("cloudflare-warp of pod-services holds the fact {name}"))
 }
 
-/// The addresses of the endpoints of the role `role` of the service `id`.
-/// An endpoint can give its address as its host, with no list of
-/// addresses: `socket_addrs` takes the host then; `ip_addrs` does not.
-pub fn ips_of(id: &str, role: &str) -> Vec<std::net::IpAddr> {
-    let addrs = endpoints_of(id, role)
-        .into_iter()
-        .flat_map(|e| e.socket_addrs());
-    addrs.map(|a| a.ip()).collect()
+/// The API host, on TCP 443: the endpoint `api`.
+pub fn api_base() -> String {
+    endpoint("api").url()
 }
 
-/// The text fact `name` of the service `id`.
-pub fn text(id: &str, name: &str) -> &'static str {
-    get(id)
-        .text(name)
-        .unwrap_or_else(|| panic!("{id} of pod-services holds no text {name}"))
+/// A second name of the same API, tried after a dial, TLS or 5xx failure
+/// of the first: a proxy allowlist can have one name and not the other.
+/// The endpoint `api-second`.
+pub fn api_second() -> String {
+    endpoint("api-second").url()
 }
 
-/// The edge of Cloudflare's tunnels.
-pub const EDGE: &str = "cloudflare-tunnel-edge";
-/// WARP.
-pub const WARP: &str = "cloudflare-warp";
-/// 1.1.1.1: plain DNS and the trace.
-pub const ONE: &str = "cloudflare-dns";
-/// The quick tunnels of Cloudflare.
-pub const QUICK: &str = "trycloudflare";
-
-/// The port of the edge's endpoints of the role `h2` (7844).
-pub fn edge_port() -> u16 {
-    endpoints_of(EDGE, "h2").first().map_or(7844, |e| e.port())
+/// The version segment of the API. It must agree with the build number of
+/// [`client_version`]; the service refuses a pair that does not. The fact
+/// `api-version`.
+pub fn api_version() -> &'static str {
+    text("api-version")
 }
 
-/// The default provisioning endpoint of the quick tunnels, as cloudflared's
-/// flag `quick-service`: `https://` and the host of the endpoint `api`.
-pub fn default_quick_service() -> String {
-    format!("https://{}", endpoint(QUICK, "api").host())
+/// The value of `CF-Client-Version`: the fact `client-version`.
+pub fn client_version() -> &'static str {
+    text("client-version")
 }
 
-/// A name of the edge, for the choice of the proxy (`NO_PROXY` may name it):
-/// the host of the endpoint `h2-region1`.
-pub fn edge_region_name() -> &'static str {
-    endpoint(EDGE, "h2-region1").host()
+/// The `User-Agent` of the Android client, which the service expects: the
+/// fact `user-agent`.
+pub fn user_agent() -> &'static str {
+    text("user-agent")
 }
 
-/// The default targets of `warp probe`: the trace of 1.1.1.1 on its IPv4
-/// address, and the edge at the fact `warp-probe-address` on the port of the
-/// role `h2`.
-pub fn probe_targets() -> Vec<String> {
-    let v4 = endpoint(ONE, "trace")
-        .socket_addrs()
-        .into_iter()
-        .find(|a| a.is_ipv4());
-    let edge = format!("{}:{}", text(EDGE, "warp-probe-address"), edge_port());
-    v4.map(|a| a.to_string())
-        .into_iter()
-        .chain([edge])
-        .collect()
+/// The TLS name of the MASQUE front door (the endpoint `masque-v4`).
+pub fn masque_sni() -> &'static str {
+    endpoint("masque-v4").server_name()
 }
 
-/// The relay of `--transport relay` when no other is given: the URL of the
-/// endpoint `default` of `ajam-relay`.
-pub fn default_relay() -> &'static str {
-    static URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    URL.get_or_init(|| endpoint("ajam-relay", "default").url())
+/// The MASQUE port of the front door: 443. The port of a peer in the
+/// device record is QUIC's or WireGuard's, or 0.
+pub fn masque_port() -> u16 {
+    endpoint("masque-v4").port()
 }
 
-/// The resolver that names go to through the WARP tunnel: the endpoint
-/// `udp-1` of 1.1.1.1.
-pub fn tunnel_resolver() -> std::net::SocketAddr {
-    let addrs = endpoint(ONE, "udp-1").socket_addrs();
-    addrs
-        .first()
-        .copied()
-        .expect("udp-1 of pod-services is an address")
+/// The front doors of the data of `pod-services`: `masque-v4`, then
+/// `masque-v6`. A device record gives its own; these are for a record with
+/// none.
+pub fn masque_doors() -> Vec<SocketAddr> {
+    ["masque-v4", "masque-v6"].iter().flat_map(|name| endpoint(name).socket_addrs()).collect()
 }
 
-/// The name of the DNS query of the check of WARP's data path: the fact
-/// `check-name` of 1.1.1.1.
-pub fn check_name() -> &'static str {
-    text(ONE, "check-name")
+/// The `:authority` of the CONNECT-IP request. Only the host matters:
+/// Cloudflare reads it as a hint of routing. The fact `connect-uri`.
+pub fn connect_uri() -> &'static str {
+    text("connect-uri")
 }
 
-/// The first address of the endpoint `name` of WARP.
-fn warp_address(name: &str) -> &'static str {
-    let first = endpoint(WARP, name).addresses().first();
-    first
-        .map(|a| a.as_ref())
-        .unwrap_or_else(|| panic!("{name} of WARP has no address"))
+/// The Terms that a registration accepts, which the user accepts first:
+/// the fact `terms-url`.
+pub fn terms_url() -> &'static str {
+    text("terms-url")
 }
 
-/// The address of the MASQUE front door: the endpoint `masque-v4` of WARP.
-pub fn masque_address() -> &'static str {
-    warp_address("masque-v4")
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// The IPv6 address of the MASQUE front door (the IPv6-only kit: the doctor
-/// gave "0 of 3 legs" on a host where the tunnel worked over IPv6): the
-/// endpoint `masque-v6` of WARP.
-pub fn masque_address_v6() -> &'static str {
-    warp_address("masque-v6")
-}
-
-/// The values of WARP's API and of its MASQUE front door.
-pub mod warp {
-    use super::{endpoint, text, WARP};
-
-    /// The API host, on TCP 443: the endpoint `api`.
-    pub fn api_base() -> String {
-        endpoint(WARP, "api").url()
+    /// The facts that podnet and podssh read are in the data, and the two
+    /// versions agree in their build number.
+    #[test]
+    fn the_facts_of_warp_are_in_the_data() {
+        assert_eq!(api_base(), "https://api.cloudflareclient.com");
+        assert_eq!(api_second(), "https://api.devices.cloudflare.com");
+        assert_eq!(masque_port(), 443);
+        assert_eq!(masque_sni(), "consumer-masque.cloudflareclient.com");
+        let build = |v: &str| v.rsplit(|c: char| !c.is_ascii_digit()).next().unwrap_or("").to_string();
+        assert_eq!(build(api_version()), build(client_version()));
+        let doors = masque_doors();
+        assert_eq!(doors.len(), 2);
+        assert!(doors[0].is_ipv4() && doors[1].is_ipv6(), "{doors:?}");
+        assert!(connect_uri().starts_with("https://"));
+        assert!(!user_agent().is_empty() && terms_url().starts_with("https://"));
     }
-
-    /// A second name of the same API: podnet tries it after a dial, TLS or
-    /// 5xx failure of the first. A proxy allowlist can have one name and not
-    /// the other. The endpoint `api-second`.
-    pub fn api_second() -> String {
-        endpoint(WARP, "api-second").url()
-    }
-
-    /// The version segment of the API. It must agree with the build number
-    /// of [`client_version`]; the service refuses a pair that does not. The
-    /// fact `api-version`.
-    pub fn api_version() -> &'static str {
-        text(WARP, "api-version")
-    }
-
-    /// The value of `CF-Client-Version`: the fact `client-version`.
-    pub fn client_version() -> &'static str {
-        text(WARP, "client-version")
-    }
-
-    /// The `User-Agent` of the Android client, which the service expects:
-    /// the fact `user-agent`.
-    pub fn user_agent() -> &'static str {
-        text(WARP, "user-agent")
-    }
-
-    /// The SNI of the MASQUE front door (the endpoint `masque-v4`).
-    pub fn masque_sni() -> &'static str {
-        endpoint(WARP, "masque-v4").server_name()
-    }
-
-    /// The MASQUE port of the front door: 443; the API may give others.
-    pub fn masque_port() -> u16 {
-        endpoint(WARP, "masque-v4").port()
-    }
-
-    /// The `:authority` of the CONNECT-IP request. Only the host matters:
-    /// Cloudflare reads it as a hint of routing. The fact `connect-uri`.
-    pub fn connect_uri() -> &'static str {
-        text(WARP, "connect-uri")
-    }
-}
-
-/// The SSH forward relays of the built-in set (the services that
-/// `forward::Relay::of` reads), in the order of the set.
-pub fn forward_relays() -> Vec<forward::Relay<'static>> {
-    pod_services::all()
-        .iter()
-        .filter_map(forward::Relay::of)
-        .collect()
 }

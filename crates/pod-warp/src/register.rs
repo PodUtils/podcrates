@@ -1,227 +1,28 @@
-//! Anonymous Cloudflare WARP registration.
+//! Anonymous WARP registration.
 //!
-//! Two calls, both credential-free on the first one:
+//! Two calls, the first with no credential:
 //!
-//! 1. `POST /{version}/reg` — create a device. The body carries a throwaway
-//!    X25519 public key so the service accepts it; the matching private half is
-//!    discarded because MASQUE does not use it.
-//! 2. `PATCH /{version}/reg/{id}` — enrol a P-256 public key (X.509 SPKI, base64)
-//!    and switch the device from `wireguard` to `masque`. This is what makes the
-//!    returned `config.peers[0].endpoint` point at the MASQUE front door and what
-//!    lets the TLS client certificate authenticate the tunnel.
-//!
-//! Nothing here shells out to `wgcf`, `warp-cli` or `cloudflared`: the two HTTP
-//! calls and the key generation are the whole of it.
+//! 1. `POST /{version}/reg`: create a device. The body carries a throwaway
+//!    X25519 public key so that the service accepts it; the private half is
+//!    dropped, as MASQUE does not use it.
+//! 2. `PATCH /{version}/reg/{id}`: enrol a P-256 public key (X.509 SPKI,
+//!    base64) and switch the device from `wireguard` to `masque`. Then the
+//!    record's `config.peers[0].endpoint` names the MASQUE front door, and
+//!    the TLS client certificate authenticates the tunnel.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
-use serde::{Deserialize, Serialize};
+use pod_core::entropy::{Entropy as _, OsEntropy};
+use pod_core::{Class, Failure, Stage};
+use pod_proxy::client::Request;
+use serde::Serialize;
 
-use crate::egress::Proxy;
-use crate::fetch::{Request, Response};
+use crate::api::{Api, ApiError, success};
+use crate::device::{Device, redact_account};
+use crate::hints::DeviceHints;
 
-pub use crate::services::warp::{
-    api_base, api_second, api_version, client_version, connect_uri, masque_port, masque_sni,
-    user_agent,
-};
-
-/// The environment variable with the one API base to use
-/// (`https://HOST[:PORT]`).
-pub const API_VARIABLE: &str = "PODNET_WARP_API";
-
-/// The API bases to try, in order: [`API_VARIABLE`] alone when it is set,
-/// else [`api_base`] and [`api_second`].
-pub fn api_bases(value: Option<&str>) -> Result<Vec<String>> {
-    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
-        return Ok(vec![api_base(), api_second()]);
-    };
-    let value = value.trim_end_matches('/');
-    let rest = value
-        .strip_prefix("https://")
-        .or_else(|| {
-            value
-                .strip_prefix("http://")
-                .filter(|r| r.starts_with("127.0.0.1:") || r.starts_with("localhost:"))
-        })
-        .with_context(|| {
-            format!("{API_VARIABLE}={value:?}: use https://HOST[:PORT] (http:// for a loopback host only)")
-        })?;
-    if rest.is_empty() || rest.contains(['/', '?', '@', '#']) {
-        bail!("{API_VARIABLE}={value:?}: use https://HOST[:PORT], with no path");
-    }
-    Ok(vec![value.to_string()])
-}
-
-/// Send `request` (made for [`api_base`]) to each API base in turn, until
-/// one answers with a status under 500. The error names each base. The
-/// registration `POST` goes on only after a failure with no answer: any
-/// answer of the service is final (T-241), as it may have made a device.
-async fn send_api(request: Request) -> Result<Response> {
-    let bases = api_bases(std::env::var(API_VARIABLE).ok().as_deref())
-        .map_err(|e| crate::exit::fault(crate::exit::Fault::Config, e))?;
-    send_api_to(request, &bases).await
-}
-
-/// [`send_api`] with the bases `bases`.
-async fn send_api_to(request: Request, bases: &[String]) -> Result<Response> {
-    let path = request
-        .url
-        .strip_prefix(api_base().as_str())
-        .unwrap_or(&request.url)
-        .to_string();
-    let mut failures = Vec::new();
-    let count = bases.len();
-    for (i, base) in bases.iter().enumerate() {
-        let mut attempt = request.clone();
-        attempt.url = format!("{base}{path}");
-        match crate::fetch::send(attempt).await {
-            Ok(response) if response.status < 500 || i + 1 == count || request.method == "POST" => {
-                return Ok(response)
-            }
-            Ok(response) => failures.push(format!("{base}: HTTP {}", response.status)),
-            Err(err) if i + 1 == count => {
-                return Err(err.context(if failures.is_empty() {
-                    format!("the WARP API at {base}")
-                } else {
-                    format!("the WARP API at {base} (before: {})", failures.join("; "))
-                }))
-            }
-            Err(err) => failures.push(format!("{base}: {err:#}")),
-        }
-        tracing::info!(failed = %failures.last().map(String::as_str).unwrap_or(""), "the WARP API: podnet tries the next host");
-    }
-    unreachable!("the last base returns")
-}
-
-/// The device as the API reports it.
-///
-/// `Serialize` is not for the wire (the API only takes the two bodies below);
-/// it exists so a caller can persist a registered device and resume it without
-/// registering a second one. `Debug` hides the token.
-#[derive(Clone, Deserialize, Serialize)]
-pub struct Device {
-    pub id: String,
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub key: String,
-    #[serde(default)]
-    pub key_type: String,
-    #[serde(default)]
-    pub tunnel_type: String,
-    pub account: Account,
-    pub config: DeviceConfig,
-    /// Only present on the `POST /reg` response.
-    #[serde(default)]
-    pub token: String,
-    #[serde(default)]
-    pub warp_enabled: bool,
-    #[serde(default)]
-    pub waitlist_enabled: bool,
-    #[serde(default)]
-    pub policy: Policy,
-}
-
-impl std::fmt::Debug for Device {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Device")
-            .field("id", &self.id)
-            .field("name", &self.name)
-            .field("key", &self.key)
-            .field("key_type", &self.key_type)
-            .field("tunnel_type", &self.tunnel_type)
-            .field("account", &self.account)
-            .field("config", &self.config)
-            .field("token", &"<hidden>")
-            .field("warp_enabled", &self.warp_enabled)
-            .field("waitlist_enabled", &self.waitlist_enabled)
-            .field("policy", &self.policy)
-            .finish()
-    }
-}
-
-/// `Debug` hides the license key.
-#[derive(Clone, Deserialize, Serialize)]
-pub struct Account {
-    pub id: String,
-    #[serde(default)]
-    pub account_type: String,
-    #[serde(default)]
-    pub license: String,
-}
-
-impl std::fmt::Debug for Account {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Account")
-            .field("id", &self.id)
-            .field("account_type", &self.account_type)
-            .field("license", &"<hidden>")
-            .finish()
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DeviceConfig {
-    #[serde(default)]
-    pub client_id: String,
-    #[serde(default)]
-    pub peers: Vec<Peer>,
-    #[serde(default)]
-    pub interface: Interface,
-    #[serde(default)]
-    pub services: Services,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Peer {
-    #[serde(default)]
-    pub public_key: String,
-    #[serde(default)]
-    pub endpoint: Endpoint,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Endpoint {
-    #[serde(default)]
-    pub v4: String,
-    #[serde(default)]
-    pub v6: String,
-    #[serde(default)]
-    pub host: String,
-    #[serde(default)]
-    pub ports: Vec<u16>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Interface {
-    #[serde(default)]
-    pub addresses: Addresses,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Addresses {
-    #[serde(default)]
-    pub v4: String,
-    #[serde(default)]
-    pub v6: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Services {
-    #[serde(default)]
-    pub http_proxy: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Policy {
-    #[serde(default)]
-    pub tunnel_protocol: String,
-    #[serde(default)]
-    pub post_quantum: String,
-}
-
-/// The `POST /reg` body. All values are strings, matching the Android client.
+/// The `POST /reg` body. Each value is a string, as the Android client
+/// sends it.
 #[derive(Debug, Serialize)]
 struct RegistrationRequest {
     key: String,
@@ -242,523 +43,193 @@ struct EnrolRequest {
     key: String,
     key_type: String,
     tunnel_type: String,
-    /// The name of the device in the dashboard (issue 141). Absent by
-    /// default: the body is as before.
+    /// The name of the device in the dashboard (PodUtils/podnet issue 141).
+    /// Absent by default.
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
 }
 
-pub use super::hints::{
-    DeviceHints, DEVICE_LOCALE_VARIABLE, DEVICE_MODEL_VARIABLE, DEVICE_NAME_VARIABLE,
-};
-
-fn now_rfc3339_millis() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = now.as_secs();
-    let millis = now.subsec_millis();
-    let (y, mo, d, h, mi, s) = civil_from_unix(secs);
-    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{millis:03}Z")
+/// The time of now as RFC 3339 with milliseconds, in UTC.
+pub(crate) fn now_rfc3339_millis() -> String {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let (y, mo, d, h, mi, s) = civil_from_unix(now.as_secs());
+    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{:03}Z", now.subsec_millis())
 }
 
-/// The civil UTC date and time of Unix seconds (`pod_core::clock`).
-fn civil_from_unix(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
+/// The civil UTC date and time of Unix seconds.
+fn civil_from_unix(secs: u64) -> (i64, i64, i64, u64, u64, u64) {
     let (y, m, d) = pod_core::clock::civil_from_days((secs / 86_400) as i64);
     let rem = secs % 86_400;
-    let (h, mi, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    (y, m as u32, d as u32, h as u32, mi as u32, s as u32)
+    (y, m, d, rem / 3600, (rem % 3600) / 60, rem % 60)
 }
 
-fn random_bytes<const N: usize>() -> [u8; N] {
+fn random_bytes<const N: usize>() -> Result<[u8; N], Failure> {
     let mut out = [0u8; N];
-    getrandom::fill(&mut out).expect("OS entropy unavailable");
-    out
-}
-
-fn random_hex(n: usize) -> String {
-    let mut out = String::with_capacity(n * 2);
-    let bytes = random_bytes::<32>();
-    for b in bytes.iter().take(n) {
-        out.push_str(&format!("{b:02x}"));
-    }
-    out
+    OsEntropy
+        .fill(&mut out)
+        .map_err(|_| Failure::new(Stage::Warp, Class::Unavailable, "this host's random source gave no bytes"))?;
+    Ok(out)
 }
 
 fn b64(data: &[u8]) -> String {
-    use base64::Engine;
+    use base64::Engine as _;
     base64::engine::general_purpose::STANDARD.encode(data)
 }
 
-/// A request of the WARP API, with the headers of the official client.
-fn request(
-    method: &'static str,
-    path: &str,
-    bearer: Option<&str>,
-    proxy: Option<&Proxy>,
-) -> Request {
-    let mut request = Request::new(method, format!("{}/{}{path}", api_base(), api_version()))
-        .header("User-Agent", user_agent())
-        .header("CF-Client-Version", client_version())
-        .header("Content-Type", "application/json; charset=UTF-8")
-        .timeout(std::time::Duration::from_secs(30))
-        .via(crate::egress::via(proxy));
-    if let Some(token) = bearer {
-        request = request.header("Authorization", format!("Bearer {token}"));
-    }
-    request
+fn with_json<T: Serialize>(request: Request, body: &T) -> Request {
+    let text = serde_json::to_string(body).unwrap_or_default();
+    request.json(text)
 }
 
-/// The send of an API request: see [`send_api`].
-trait SendApi {
-    async fn send_api(self) -> Result<Response>;
-}
-
-impl SendApi for Request {
-    async fn send_api(self) -> Result<Response> {
-        send_api(self).await
-    }
-}
-
-fn with_json<T: Serialize>(request: Request, body: &T) -> Result<Request> {
-    let body = serde_json::to_value(body).context("encoding the WARP API body")?;
-    Ok(request.json(body.to_string()))
-}
-
-/// The device of an answer. A body that cannot be decoded is not shown: the
+/// The device of an answer. A body that does not decode is not shown: the
 /// answer of `POST /reg` holds the token.
-fn check(resp: Response) -> Result<Device> {
-    if !resp.is_success() {
-        let (status, body) = (resp.status, resp.text());
-        return Err(ApiError { status, body }.into());
-    }
-    serde_json::from_slice(&resp.body)
-        .with_context(|| format!("decoding the WARP API answer ({} bytes)", resp.body.len()))
+fn device_of(response: pod_proxy::http::Response, what: &str) -> Result<Device, Failure> {
+    let response = success(response, what)?;
+    serde_json::from_slice(&response.body).map_err(|_| {
+        let text = format!("{what}: the WARP API answer does not decode ({} bytes)", response.body.len());
+        Failure::new(Stage::Warp, Class::Protocol, text)
+    })
 }
 
-/// Create an anonymous device. Returns the device plus its bearer token, which
-/// is needed for the enrolment call and for later account queries.
-pub async fn create_device(proxy: Option<&Proxy>) -> Result<Device> {
-    // A throwaway X25519 public key. The API validates its shape, not that
-    // anybody holds the private half, and MASQUE never uses it.
-    create_device_with_key(&b64(&random_bytes::<32>()), proxy).await
+fn json_of(response: pod_proxy::http::Response, what: &str) -> Result<serde_json::Value, Failure> {
+    let response = success(response, what)?;
+    serde_json::from_slice(&response.body).map_err(|_| {
+        let text = format!("{what}: the WARP API answer does not decode ({} bytes)", response.body.len());
+        Failure::new(Stage::Warp, Class::Protocol, text)
+    })
 }
 
-/// Register a WireGuard device with the X25519 public key `key` (base64).
-/// `warp export` (issue 148) keeps the private half.
-pub async fn create_device_with_key(key: &str, proxy: Option<&Proxy>) -> Result<Device> {
-    let hints = DeviceHints::current();
+/// Create an anonymous device with a throwaway X25519 public key: the API
+/// checks its shape, not that anybody holds the private half.
+pub async fn create_device(api: &Api, hints: &DeviceHints) -> Result<Device, Failure> {
+    create_device_with_key(api, &b64(&random_bytes::<32>()?), hints).await
+}
+
+/// Register a WireGuard device with the X25519 public key `key` (base64);
+/// podnet's `warp export` keeps the private half.
+pub async fn create_device_with_key(api: &Api, key: &str, hints: &DeviceHints) -> Result<Device, Failure> {
     hints.check()?;
+    let serial: String = random_bytes::<8>()?.iter().map(|b| format!("{b:02x}")).collect();
     let body = RegistrationRequest {
         key: key.to_string(),
         install_id: String::new(),
         fcm_token: String::new(),
         tos: now_rfc3339_millis(),
-        model: hints.model.unwrap_or_else(|| "PC".into()),
-        serial_number: random_hex(8),
+        model: hints.model.clone().unwrap_or_else(|| "PC".into()),
+        serial_number: serial,
         os_version: String::new(),
         key_type: "curve25519".into(),
         tunnel_type: "wireguard".into(),
-        locale: hints.locale.unwrap_or_else(|| "en_US".into()),
+        locale: hints.locale.clone().unwrap_or_else(|| "en_US".into()),
     };
-    let resp = with_json(request("POST", "/reg", None, proxy), &body)?
-        .send_api()
-        .await
-        .context("POST /reg")?;
-    if let Some(err) = registration_error(resp.status, resp.header("retry-after"), &resp.text()) {
-        return Err(err);
+    let response = api.send(with_json(api.request("POST", "/reg", None), &body)).await?;
+    if let Some(failure) = registration_error(response.status, response.header("retry-after"), &response.text()) {
+        return Err(failure);
     }
-    check(resp)
+    device_of(response, "POST /reg")
 }
 
-/// The error of a refused registration (issue 187): a 429, or another
-/// error status with the text of error 1015, names the remedy and the
-/// Retry-After. None for another status. A success (2xx) is never this
-/// error: its body is random ids, keys and the token of the device, and
-/// can hold the digits 1015.
-pub fn registration_error(
-    status: u16,
-    retry_after: Option<&str>,
-    body: &str,
-) -> Option<anyhow::Error> {
+/// The wait of a `Retry-After`: seconds, or an HTTP date.
+fn retry_after(value: &str) -> Option<Duration> {
+    let value = value.trim();
+    if let Ok(secs) = value.parse::<u64>() {
+        return Some(Duration::from_secs(secs));
+    }
+    let at = pod_core::clock::parse_http_date(value)?;
+    let now = crate::identity::unix_now();
+    Some(Duration::from_secs(u64::try_from(at - now).unwrap_or(0)))
+}
+
+/// The failure of a refused registration (PodUtils/podnet issue 187): a
+/// 429, or another error status with the text of error 1015, names the
+/// remedy and the Retry-After. None for another status. A success (2xx) is
+/// never this failure: its body is random ids, keys and the token of the
+/// device, and can hold the digits 1015.
+pub fn registration_error(status: u16, retry: Option<&str>, body: &str) -> Option<Failure> {
     let limited = status == 429 || (status >= 400 && body.contains("1015"));
     if !limited {
         return None;
     }
-    let wait = retry_after
-        .and_then(crate::quicktunnel::parse_retry_after)
+    let wait = retry
+        .and_then(retry_after)
         .map(|d| format!("; the service asks to wait {} s", d.as_secs()))
         .unwrap_or_default();
-    Some(
-        anyhow::Error::new(ApiError {
-            status,
-            body: body.chars().take(200).collect(),
-        })
-        .context(format!(
-            "the WARP service limits new devices for each address (HTTP {status}, error 1015){wait}; reuse a saved identity (--identity FILE, the default warp.json) in place of a new device, or wait"
-        )),
-    )
+    let cause = ApiError { status, body: body.chars().take(200).collect() };
+    let text = format!(
+        "the WARP service limits new devices for each address (HTTP {status}, error 1015){wait}; reuse a saved identity in place of a new device, or wait"
+    );
+    Some(Failure::caused(Stage::Warp, Class::TempFail, text, cause))
 }
 
-/// Enrol a MASQUE identity: upload the P-256 public key (X.509 SPKI, base64) and
-/// switch the device to the `masque` tunnel type.
+/// Enrol a MASQUE identity: send the P-256 public key (X.509 SPKI, base64)
+/// and switch the device to the tunnel type `masque`. `name` names the
+/// device in the dashboard.
 pub async fn enrol_masque(
+    api: &Api,
     device_id: &str,
     token: &str,
     spki_b64: &str,
-    proxy: Option<&Proxy>,
-) -> Result<Device> {
-    let body = EnrolRequest {
-        key: spki_b64.to_string(),
-        key_type: "secp256r1".into(),
-        tunnel_type: "masque".into(),
-        name: DeviceHints::current().name,
-    };
-    let resp = with_json(
-        request("PATCH", &format!("/reg/{device_id}"), Some(token), proxy),
-        &body,
-    )?
-    .send_api()
-    .await
-    .context("PATCH /reg/{id}")?;
-    check(resp)
+    name: Option<String>,
+) -> Result<Device, Failure> {
+    let body = EnrolRequest { key: spki_b64.into(), key_type: "secp256r1".into(), tunnel_type: "masque".into(), name };
+    let request = with_json(api.request("PATCH", &format!("/reg/{device_id}"), Some(token)), &body);
+    device_of(api.send(request).await?, "PATCH /reg/{id}")
 }
 
 /// Read the device record again (`GET /reg/{id}`).
-pub async fn get_device(device_id: &str, token: &str, proxy: Option<&Proxy>) -> Result<Device> {
-    let resp = request("GET", &format!("/reg/{device_id}"), Some(token), proxy)
-        .send_api()
-        .await
-        .context("GET /reg/{id}")?;
-    check(resp)
+pub async fn get_device(api: &Api, device_id: &str, token: &str) -> Result<Device, Failure> {
+    let request = api.request("GET", &format!("/reg/{device_id}"), Some(token));
+    device_of(api.send(request).await?, "GET /reg/{id}")
 }
 
-/// Read the account of the device (`GET /reg/{id}/account`). The answer has
-/// the account type, the WARP+ state and the data quota.
-pub async fn get_account(
-    device_id: &str,
-    token: &str,
-    proxy: Option<&Proxy>,
-) -> Result<serde_json::Value> {
-    let resp = request(
-        "GET",
-        &format!("/reg/{device_id}/account"),
-        Some(token),
-        proxy,
-    )
-    .send_api()
-    .await
-    .context("GET /reg/{id}/account")?;
-    json_body(resp)
+/// Read the account of the device (`GET /reg/{id}/account`): the account
+/// type, the WARP+ state and the data quota. The license key is hidden.
+pub async fn get_account(api: &Api, device_id: &str, token: &str) -> Result<serde_json::Value, Failure> {
+    let request = api.request("GET", &format!("/reg/{device_id}/account"), Some(token));
+    let mut account = json_of(api.send(request).await?, "GET /reg/{id}/account")?;
+    redact_account(&mut account);
+    Ok(account)
 }
 
-/// Hide the license key in an account record (`GET /reg/{id}/account`):
-/// each key named `license`, at any depth, with a non-empty string value
-/// becomes `"<hidden>"`. `podnet warp status --json` prints the record.
-pub fn redact_account(value: &mut serde_json::Value) {
-    match value {
-        serde_json::Value::Object(map) => {
-            for (key, item) in map.iter_mut() {
-                if key.eq_ignore_ascii_case("license") {
-                    if item.as_str().is_some_and(|s| !s.is_empty()) {
-                        *item = serde_json::Value::String("<hidden>".into());
-                    }
-                } else {
-                    redact_account(item);
-                }
-            }
-        }
-        serde_json::Value::Array(items) => items.iter_mut().for_each(redact_account),
-        _ => {}
-    }
-}
-
-/// Attach a WARP+ license key to the device (`PUT /reg/{id}/account`).
-pub async fn set_license(
-    device_id: &str,
-    token: &str,
-    license: &str,
-    proxy: Option<&Proxy>,
-) -> Result<serde_json::Value> {
-    let resp = request(
-        "PUT",
-        &format!("/reg/{device_id}/account"),
-        Some(token),
-        proxy,
-    )
-    .json(serde_json::json!({ "license": license }).to_string())
-    .send_api()
-    .await
-    .context("PUT /reg/{id}/account")?;
-    json_body(resp)
+/// Attach a WARP+ license key to the device (`PUT /reg/{id}/account`). The
+/// answer hides the key. A refused key has the class of
+/// [`crate::identity::license_class`].
+pub async fn set_license(api: &Api, device_id: &str, token: &str, license: &str) -> Result<serde_json::Value, Failure> {
+    let body = serde_json::json!({ "license": license }).to_string();
+    let request = api.request("PUT", &format!("/reg/{device_id}/account"), Some(token)).json(body);
+    let mut account = json_of(api.send(request).await?, "PUT /reg/{id}/account").map_err(|f| {
+        let class = crate::identity::license_class(crate::api::api_status(&f));
+        Failure::caused(Stage::Warp, class, "the WARP license", f)
+    })?;
+    redact_account(&mut account);
+    Ok(account)
 }
 
 /// Remove the device from the WARP service (`DELETE /reg/{id}`).
-pub async fn delete_device(device_id: &str, token: &str, proxy: Option<&Proxy>) -> Result<()> {
-    let resp = request("DELETE", &format!("/reg/{device_id}"), Some(token), proxy)
-        .send_api()
-        .await
-        .context("DELETE /reg/{id}")?;
-    if !resp.is_success() {
-        bail!("WARP API answered HTTP {}: {}", resp.status, resp.text());
-    }
-    Ok(())
-}
-
-/// A WARP API answer that is not a success: its HTTP status and body.
-#[derive(Debug)]
-pub struct ApiError {
-    pub status: u16,
-    pub body: String,
-}
-
-impl std::fmt::Display for ApiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "WARP API answered HTTP {}: {}", self.status, self.body)
-    }
-}
-
-impl std::error::Error for ApiError {}
-
-/// The HTTP status of a WARP API answer in the chain of `err`.
-pub fn api_status(err: &anyhow::Error) -> Option<u16> {
-    err.chain()
-        .find_map(|e| e.downcast_ref::<ApiError>())
-        .map(|e| e.status)
-}
-
-fn json_body(resp: Response) -> Result<serde_json::Value> {
-    if !resp.is_success() {
-        return Err(ApiError {
-            status: resp.status,
-            body: resp.text(),
-        }
-        .into());
-    }
-    serde_json::from_slice(&resp.body)
-        .with_context(|| format!("decoding the WARP API answer ({} bytes)", resp.body.len()))
-}
-
-impl Device {
-    /// IPv4 address the tunnel assigned, without any prefix length.
-    pub fn ipv4(&self) -> Option<std::net::Ipv4Addr> {
-        let raw = self.config.interface.addresses.v4.trim();
-        let raw = raw.split('/').next().unwrap_or(raw);
-        raw.parse().ok()
-    }
-
-    /// IPv6 address the tunnel assigned, without any prefix length.
-    pub fn ipv6(&self) -> Option<std::net::Ipv6Addr> {
-        let raw = self.config.interface.addresses.v6.trim();
-        let raw = raw.split('/').next().unwrap_or(raw);
-        raw.parse().ok()
-    }
-
-    /// The MASQUE front door, as an address to dial.
-    pub fn masque_endpoint(&self) -> Option<std::net::SocketAddr> {
-        let peer = self.config.peers.first()?;
-        let v4 = peer.endpoint.v4.split(':').next().unwrap_or("").trim();
-        if let Ok(ip) = v4.parse::<std::net::Ipv4Addr>() {
-            return Some(std::net::SocketAddr::new(ip.into(), masque_port()));
-        }
-        let v6 = peer.endpoint.v6.trim().trim_start_matches('[');
-        let v6 = v6.split(']').next().unwrap_or(v6);
-        if let Ok(ip) = v6.parse::<std::net::Ipv6Addr>() {
-            return Some(std::net::SocketAddr::new(ip.into(), masque_port()));
-        }
-        None
-    }
-
-    /// The addresses of the MASQUE front door to try, in order (issue 124):
-    /// the IPv4 address of the first peer, then its IPv6 address. Both
-    /// have the key of the first peer.
-    pub fn masque_endpoints(&self) -> Vec<std::net::SocketAddr> {
-        let Some(peer) = self.config.peers.first() else {
-            return Vec::new();
-        };
-        if self.config.peers.len() > 1 {
-            // Issue 133: other peers have other keys; only the first is used.
-            tracing::debug!(
-                peers = self.config.peers.len(),
-                "the device record has more than one peer"
-            );
-        }
-        let mut out = Vec::new();
-        let v4 = peer.endpoint.v4.split(':').next().unwrap_or("").trim();
-        if let Ok(ip) = v4.parse::<std::net::Ipv4Addr>() {
-            out.push(std::net::SocketAddr::new(ip.into(), masque_port()));
-        }
-        let v6 = peer.endpoint.v6.trim().trim_start_matches('[');
-        let v6 = v6.split(']').next().unwrap_or(v6);
-        if let Ok(ip) = v6.parse::<std::net::Ipv6Addr>() {
-            out.push(std::net::SocketAddr::new(ip.into(), masque_port()));
-        }
-        out
-    }
-
-    /// The server's pinned public key, PEM (`PUBLIC KEY`).
-    pub fn peer_public_key_pem(&self) -> Option<&str> {
-        self.config
-            .peers
-            .first()
-            .map(|p| p.public_key.as_str())
-            .filter(|k| k.contains("BEGIN PUBLIC KEY"))
-    }
-
-    /// The `client_id`, whose first three base64 bytes are the WireGuard
-    /// "reserved" tag. Kept because the WireGuard mode needs it.
-    pub fn reserved(&self) -> Option<[u8; 3]> {
-        use base64::Engine;
-        let raw = base64::engine::general_purpose::STANDARD
-            .decode(self.config.client_id.as_bytes())
-            .ok()?;
-        if raw.len() < 3 {
-            return None;
-        }
-        Some([raw[0], raw[1], raw[2]])
-    }
+pub async fn delete_device(api: &Api, device_id: &str, token: &str) -> Result<(), Failure> {
+    let request = api.request("DELETE", &format!("/reg/{device_id}"), Some(token));
+    success(api.send(request).await?, "DELETE /reg/{id}").map(drop)
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn the_license_key_is_hidden_in_the_account_record() {
-        let mut account = serde_json::json!({
-            "account_type": "limited",
-            "license": "abcd1234-efgh5678-ijkl9012",
-            "nested": [{"license": "x1y2z3"}],
-            "empty": {"license": ""},
-            "warp_plus": true
-        });
-        redact_account(&mut account);
-        let text = account.to_string();
-        assert!(
-            !text.contains("abcd1234") && !text.contains("x1y2z3"),
-            "{text}"
-        );
-        assert_eq!(account["license"], "<hidden>");
-        assert_eq!(account["nested"][0]["license"], "<hidden>");
-        assert_eq!(account["empty"]["license"], "");
-        assert_eq!(account["account_type"], "limited");
-    }
-
     use super::*;
 
-    #[test]
-    fn the_api_bases() {
-        assert_eq!(api_bases(None).unwrap(), [api_base(), api_second()]);
-        assert_eq!(api_bases(Some(" ")).unwrap(), [api_base(), api_second()]);
-        assert_eq!(
-            api_bases(Some("https://api.devices.cloudflare.com/")).unwrap(),
-            [api_second()]
-        );
-        assert_eq!(
-            api_bases(Some("http://127.0.0.1:8080")).unwrap(),
-            ["http://127.0.0.1:8080"]
-        );
-        for bad in [
-            "http://api.cloudflareclient.com",
-            "api.cloudflareclient.com",
-            "https://api.cloudflareclient.com/v0",
-            "https://",
-        ] {
-            assert!(api_bases(Some(bad)).is_err(), "{bad}");
-        }
-    }
-
-    /// An API on loopback that answers each request with `status`.
-    async fn answering(status: u16) -> String {
-        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
-        tokio::spawn(async move {
-            while let Ok((mut socket, _)) = listener.accept().await {
-                let mut buf = vec![0u8; 4096];
-                let _ = socket.read(&mut buf).await;
-                let text = format!(
-                    "HTTP/1.1 {status} X\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{{}}"
-                );
-                let _ = socket.write_all(text.as_bytes()).await;
-            }
-        });
-        base
-    }
-
-    /// The second base answers after a dial failure or a 5xx of the first;
-    /// a 4xx of the first is its answer.
-    #[tokio::test]
-    async fn the_second_api_host_answers_after_a_failure() {
-        crate::test_host::need_loopback!();
-        let dead = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let dead_base = format!("http://{}", dead.local_addr().unwrap());
-        drop(dead);
-        let good = answering(200).await;
-        let busy = answering(503).await;
-        let refused = answering(403).await;
-        let request = || {
-            Request::new("GET", format!("{}/{}/reg/x", api_base(), api_version()))
-                .timeout(std::time::Duration::from_secs(5))
-                .via(None)
-        };
-        let answer = send_api_to(request(), &[dead_base.clone(), good.clone()])
-            .await
-            .unwrap();
-        assert_eq!(answer.status, 200);
-        let answer = send_api_to(request(), &[busy.clone(), good.clone()])
-            .await
-            .unwrap();
-        assert_eq!(answer.status, 200);
-        let answer = send_api_to(request(), &[refused, good.clone()])
-            .await
-            .unwrap();
-        assert_eq!(answer.status, 403, "a 4xx is an answer");
-        let answer = send_api_to(request(), &[good.clone(), busy.clone()])
-            .await
-            .unwrap();
-        assert_eq!(answer.status, 200);
-        let err = send_api_to(request(), &[busy, dead_base])
-            .await
-            .expect_err("each base failed");
-        assert!(format!("{err:#}").contains("HTTP 503"), "{err:#}");
-    }
-
-    // T-241: the registration POST may have made a device. Any answer is
-    // final; only a failure with no answer goes to the second host.
-    #[tokio::test]
-    async fn a_503_on_the_post_is_not_sent_to_the_second_host() {
-        crate::test_host::need_loopback!();
-        let dead = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let dead_base = format!("http://{}", dead.local_addr().unwrap());
-        drop(dead);
-        let good = answering(200).await;
-        let busy = answering(503).await;
-        let post = || {
-            Request::new("POST", format!("{}/{}/reg", api_base(), api_version()))
-                .timeout(std::time::Duration::from_secs(5))
-                .via(None)
-        };
-        let answer = send_api_to(post(), &[busy.clone(), good.clone()])
-            .await
-            .unwrap();
-        assert_eq!(answer.status, 503, "an answer of the service is final");
-        let answer = send_api_to(post(), &[dead_base, good]).await.unwrap();
-        assert_eq!(answer.status, 200, "no answer: the second host");
-    }
-
-    // Issue 187: a 429 of the registration names the remedy.
+    // PodUtils/podnet issue 187: a 429 of the registration names the remedy.
     #[test]
     fn a_429_on_registration_names_the_remedy() {
         let err = registration_error(429, Some("120"), "error code: 1015").unwrap();
-        let text = format!("{err:#}");
+        let text = err.to_string();
         assert!(text.contains("reuse a saved identity"), "{text}");
         assert!(text.contains("wait 120 s"), "{text}");
-        assert_eq!(api_status(&err), Some(429));
+        assert_eq!(crate::api::api_status(&err), Some(429));
+        assert_eq!(err.class.exit_code(), 75);
         assert!(registration_error(400, None, "bad key").is_none());
         assert!(registration_error(403, None, "error code: 1015").is_some());
     }
 
-    // Live run 41867078670: a 200 whose body holds the digits 1015 is a
-    // registered device, not the limit of error 1015.
+    // A 200 whose body holds the digits 1015 is a registered device, not the
+    // limit of error 1015.
     #[test]
     fn a_success_with_1015_in_the_body_is_not_the_limit() {
         let body = r#"{"id":"a1015b","key":"x","token":"t-1015","account":{"id":"f"}}"#;
@@ -766,43 +237,24 @@ mod tests {
         assert!(registration_error(201, None, body).is_none());
     }
 
-    // Issue 141: the hints are checked; the default body is as before.
+    // PodUtils/podnet issue 141: the hints are checked; the default body is
+    // as before.
     #[test]
     fn the_device_hints() {
         assert!(DeviceHints::default().check().is_ok());
-        let ok = DeviceHints {
-            name: Some("ci-runner-7".into()),
-            model: Some("Linux".into()),
-            locale: Some("de_DE".into()),
-        };
+        let ok =
+            DeviceHints { name: Some("ci-runner-7".into()), model: Some("Linux".into()), locale: Some("de_DE".into()) };
         assert!(ok.check().is_ok());
         for bad in [
-            DeviceHints {
-                name: Some(String::new()),
-                ..Default::default()
-            },
-            DeviceHints {
-                name: Some("x".repeat(65)),
-                ..Default::default()
-            },
-            DeviceHints {
-                name: Some("a\nb".into()),
-                ..Default::default()
-            },
-            DeviceHints {
-                model: Some("m".repeat(33)),
-                ..Default::default()
-            },
-            DeviceHints {
-                locale: Some("english".into()),
-                ..Default::default()
-            },
-            DeviceHints {
-                locale: Some("EN_us".into()),
-                ..Default::default()
-            },
+            DeviceHints { name: Some(String::new()), ..Default::default() },
+            DeviceHints { name: Some("x".repeat(65)), ..Default::default() },
+            DeviceHints { name: Some("a\nb".into()), ..Default::default() },
+            DeviceHints { model: Some("m".repeat(33)), ..Default::default() },
+            DeviceHints { locale: Some("english".into()), ..Default::default() },
+            DeviceHints { locale: Some("EN_us".into()), ..Default::default() },
         ] {
-            assert!(bad.check().is_err(), "{bad:?}");
+            let err = bad.check().unwrap_err();
+            assert_eq!(err.class, Class::Usage, "{bad:?}");
         }
         let body = serde_json::to_value(EnrolRequest {
             key: "k".into(),
@@ -830,26 +282,9 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_parsing_strips_the_zero_port() {
-        let device: Device = serde_json::from_str(
-            r#"{"id":"x","account":{"id":"a"},"config":{"peers":[{"public_key":"k",
-                "endpoint":{"v4":"162.159.198.2:0","v6":"[2606:4700:103::2]:0"}}],
-                "interface":{"addresses":{"v4":"172.16.0.2","v6":"2606:4700:110::1"}}}}"#,
-        )
-        .unwrap();
-        assert_eq!(
-            device.masque_endpoint(),
-            Some("162.159.198.2:443".parse().unwrap())
-        );
-        // Issue 124: both addresses of the peer, IPv4 first.
-        assert_eq!(
-            device.masque_endpoints(),
-            [
-                "162.159.198.2:443".parse().unwrap(),
-                "[2606:4700:103::2]:443".parse().unwrap()
-            ]
-        );
-        assert_eq!(device.ipv4(), Some("172.16.0.2".parse().unwrap()));
-        assert_eq!(device.ipv6(), Some("2606:4700:110::1".parse().unwrap()));
+    fn a_retry_after_is_seconds_or_a_date() {
+        assert_eq!(retry_after(" 30 "), Some(Duration::from_secs(30)));
+        assert_eq!(retry_after("Thu, 01 Jan 1970 00:00:00 GMT"), Some(Duration::ZERO));
+        assert_eq!(retry_after("soon"), None);
     }
 }

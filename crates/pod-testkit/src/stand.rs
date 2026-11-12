@@ -16,6 +16,8 @@
 //! Each stand-in keeps the bytes that each connection sent
 //! ([`Stand::seen`]), so that a test can check what a client asked.
 
+pub mod warp;
+
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{Arc, Mutex};
@@ -37,6 +39,8 @@ pub struct Request {
     pub target: String,
     /// The header names in lower case, the values trimmed, in order.
     pub headers: Vec<(String, String)>,
+    /// The body of `Content-Length` bytes (at most [`MAX_BODY`]).
+    pub body: Vec<u8>,
 }
 
 impl Request {
@@ -91,6 +95,8 @@ impl std::fmt::Debug for Stand {
 
 /// The longest head of a request that the stand-in reads.
 const MAX_HEAD: usize = 64 * 1024;
+/// The longest body of a request that the stand-in reads.
+pub const MAX_BODY: usize = 1024 * 1024;
 /// The bound of each read: a client that stops does not hold a thread.
 const READ_LIMIT: Duration = Duration::from_secs(20);
 
@@ -265,16 +271,20 @@ fn read_request(io: &mut dyn Io, mut buffered: Vec<u8>) -> Option<(Request, Vec<
         .filter_map(|l| l.split_once(':'))
         .map(|(n, v)| (n.trim().to_ascii_lowercase(), v.trim().to_string()))
         .collect();
-    let request = Request { method, target, headers };
-    // A body of the request is read and dropped: no handler reads one.
+    let mut request = Request { method, target, headers, body: Vec::new() };
     let length: usize = request.header("content-length").and_then(|v| v.parse().ok()).unwrap_or(0);
+    if length > MAX_BODY {
+        return None;
+    }
     while rest.len() < length {
         match io.read(&mut chunk) {
             Ok(0) | Err(_) => return None,
             Ok(n) => rest.extend_from_slice(&chunk[..n]),
         }
     }
-    Some((request, rest.split_off(length)))
+    let after = rest.split_off(length);
+    request.body = rest;
+    Some((request, after))
 }
 
 fn reason(status: u16) -> &'static str {

@@ -1,10 +1,13 @@
-//! The little DER that the road needs (X.690), by hand, as podssh reads a
-//! certificate's dates elsewhere: the public key of a certificate, to pin
-//! the endpoint's; a P-256 key as a SubjectPublicKeyInfo, which the API
-//! enrols; and the device's certificate, self-signed, as usque makes it
+//! The little DER that WARP needs (X.690), by hand: the public key of a
+//! certificate, to pin the front door's; a P-256 key as a
+//! SubjectPublicKeyInfo, which the API enrols; the private key as PKCS #8
+//! ([`pkcs8`]), as the identity file keeps it; and the device's
+//! certificate, self-signed, as usque makes it
 //! with Go's `x509.CreateCertificate` and an empty template (its
 //! `internal/utils.go`, `GenerateCert`): version 3, serial 0, an empty
 //! issuer and subject, a day of validity, no extension, ECDSA with SHA-256.
+
+pub mod pkcs8;
 
 /// The tags of the elements written or read here.
 pub const SEQUENCE: u8 = 0x30;
@@ -105,7 +108,7 @@ pub fn spki_p256(point: &[u8]) -> Vec<u8> {
 /// A time as X.509 writes it: UTCTime through 2049, GeneralizedTime after
 /// (RFC 5280, section 4.1.2.5), from seconds since the Unix epoch.
 pub fn time(secs: i64) -> Vec<u8> {
-    let (y, m, d) = podssh_ws::clock::civil_from_days(secs.div_euclid(86_400));
+    let (y, m, d) = pod_core::clock::civil_from_days(secs.div_euclid(86_400));
     let rest = secs.rem_euclid(86_400);
     let clock = format!("{m:02}{d:02}{:02}{:02}{:02}Z", rest / 3600, rest % 3600 / 60, rest % 60);
     if (1950..2050).contains(&y) {
@@ -142,11 +145,7 @@ pub fn self_signed(spki: &[u8], not_before: i64, not_after: i64, sign: impl FnOn
 /// text safe for a terminal; "an unnamed issuer" when it has neither.
 pub fn issuer_words(cert: &[u8]) -> String {
     let words = tbs_fields(cert).map(|[_, _, issuer, ..]| name_words(issuer)).unwrap_or_default();
-    if words.is_empty() {
-        "an unnamed issuer".to_string()
-    } else {
-        podssh_ws::text::one_line(&words)
-    }
+    if words.is_empty() { "an unnamed issuer".to_string() } else { pod_core::text::one_line(&words) }
 }
 
 /// `CN=..., O=...` of a Name: each attribute of the two types, in order.

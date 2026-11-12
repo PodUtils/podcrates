@@ -1,7 +1,48 @@
 [package]
 name = "pod-warp"
+description = "Cloudflare WARP spoken directly: anonymous registration, the P-256 identity and its file, MASQUE CONNECT-IP over HTTP/2 through the caller's dial with the front door's key pinned, and a userspace stack over the session as a pod-core Dial and Datagrams."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[dependencies]
+# The dial, the datagrams, the failure, the events, the entropy, the clock.
+pod-core = { workspace = true, features = ["async"] }
+# The HTTP client of the caller for the API (its dial, its proxy, its roots).
+pod-proxy = { workspace = true }
+# The userspace stack over a session.
+pod-netstack = { workspace = true }
+# The wire form of DNS, for the names inside the tunnel.
+pod-dns = { workspace = true }
+# The facts of WARP: the API, the front doors, the versions.
+pod-services = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "sync", "rt", "io-util", "macros"] }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# CONNECT-IP over HTTP/2, at the versions of pod-dns.
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
+# The key of the device and its signatures: P-256 in pure Rust.
+p256 = { workspace = true }
+base64 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zeroize = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+# geteuid, for the check of the owner of an identity file.
+libc = "0.2"
+
+[dev-dependencies]
+# The stand-in API (feature `stand`) and the HTTP/2 part of the stand-in
+# edge (feature `masque`).
+pod-testkit = { workspace = true, features = ["stand", "masque"] }
+pod-tls = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "sync", "rt", "rt-multi-thread", "io-util", "macros", "test-util"] }
+# The tests run TLS on ring (docs/design.md, section 1, rule 4).
+rustls = { workspace = true, features = ["ring"] }

@@ -1,13 +1,13 @@
 //! The device's key: P-256, as the API enrols it (`key_type` `secp256r1`),
 //! and the self-signed certificate over it that the client presents in
-//! TLS, made for each connection, as usque makes one for a day.
+//! TLS, valid for a day, as usque makes one. Pure Rust: no C compiler.
 
 use std::fmt;
 use std::sync::Arc;
 
 use p256::ecdsa::signature::Signer as _;
 use p256::ecdsa::{Signature, SigningKey};
-use rustls::crypto::SecureRandom as _;
+use pod_core::entropy::{Entropy as _, OsEntropy};
 use rustls::{SignatureAlgorithm, SignatureScheme};
 use zeroize::Zeroizing;
 
@@ -29,14 +29,11 @@ impl fmt::Debug for DeviceKey {
 
 impl DeviceKey {
     /// A new key from this host's random source. A draw that is zero or not
-    /// below the group's order is drawn again, eight times at most, as
-    /// podssh-ws draws its P-256 secrets.
+    /// below the group's order is drawn again, eight times at most.
     pub fn generate() -> Result<DeviceKey, String> {
         for _ in 0..8 {
             let mut bytes = Zeroizing::new([0u8; 32]);
-            podssh_ws::crypto::random::OsRandom
-                .fill(&mut bytes[..])
-                .map_err(|_| "this host's random source gave no bytes".to_string())?;
+            OsEntropy.fill(&mut bytes[..]).map_err(|_| "this host's random source gave no bytes".to_string())?;
             if let Ok(key) = DeviceKey::from_scalar(&bytes[..]) {
                 return Ok(key);
             }
@@ -53,9 +50,21 @@ impl DeviceKey {
         Ok(DeviceKey { signing: Arc::new(signing) })
     }
 
-    /// The 32 bytes of its scalar, for the device's private file.
+    /// The key of a PKCS #8 (`-----BEGIN PRIVATE KEY-----`, the form of
+    /// podnet's identity file).
+    pub fn from_pkcs8(der: &[u8]) -> Result<DeviceKey, String> {
+        let scalar = crate::der::pkcs8::read(der).ok_or("not the PKCS #8 of a P-256 key")?;
+        DeviceKey::from_scalar(scalar)
+    }
+
+    /// The 32 bytes of its scalar.
     pub fn scalar(&self) -> Zeroizing<Vec<u8>> {
         Zeroizing::new(self.signing.to_bytes().to_vec())
+    }
+
+    /// The key as PKCS #8, in a buffer that is wiped when it is dropped.
+    pub fn pkcs8(&self) -> Zeroizing<Vec<u8>> {
+        Zeroizing::new(crate::der::pkcs8::write(&self.scalar(), &self.point()))
     }
 
     /// Its public point, uncompressed (SEC1).
@@ -140,29 +149,49 @@ mod tests {
         assert_eq!(format!("{key:?}"), "DeviceKey(P-256)");
     }
 
-    /// The certificate as a reader that podssh did not write reads it:
-    /// version 3, serial 0, empty names, a day, no extension, the key's
-    /// SPKI, ECDSA with SHA-256, and a signature of the key over the TBS.
+    /// The PKCS #8 of a key reads back as the same key.
+    #[test]
+    fn a_key_reads_back_from_its_pkcs8() {
+        let key = DeviceKey::generate().unwrap();
+        let again = DeviceKey::from_pkcs8(&key.pkcs8()).unwrap();
+        assert_eq!(key.point(), again.point());
+        assert!(DeviceKey::from_pkcs8(b"not der").is_err());
+    }
+
+    /// The certificate as Go writes usque's: version 3, serial 0, empty
+    /// names, a day, no extension, the key's SPKI, ECDSA with SHA-256, and
+    /// a signature of the key over the TBS. The reader is the crate's own;
+    /// the signature is checked with p256.
     #[test]
     fn the_certificate_reads_as_go_writes_usque_s() {
+        use crate::der::{SEQUENCE, element, whole};
         let key = DeviceKey::generate().unwrap();
         let now = 1_791_440_989;
         let der = key.certificate(now);
-        let (rest, cert) = x509_parser::parse_x509_certificate(&der).expect("x509-parser reads it");
+        let (SEQUENCE, certificate, rest) = element(&der).unwrap() else { panic!("no SEQUENCE") };
         assert!(rest.is_empty());
-        assert_eq!(cert.version(), x509_parser::x509::X509Version::V3);
-        assert_eq!(cert.raw_serial(), [0]);
-        assert_eq!(cert.issuer().iter().count(), 0, "an empty issuer");
-        assert_eq!(cert.subject().iter().count(), 0, "an empty subject");
-        assert_eq!(cert.validity().not_before.timestamp(), now);
-        assert_eq!(cert.validity().not_after.timestamp(), now + VALIDITY);
-        assert!(cert.extensions().is_empty());
-        assert_eq!(cert.signature_algorithm.algorithm.to_id_string(), "1.2.840.10045.4.3.2");
-        assert_eq!(cert.public_key().raw, key.spki().as_slice());
-        let signature = Signature::from_der(cert.signature_value.data.as_ref()).unwrap();
+        let (tbs, rest) = whole(certificate).unwrap();
+        let (_, algorithm, rest) = element(rest).unwrap();
+        assert_eq!(algorithm, crate::der::ECDSA_SHA256_ALG);
+        let (_, bits, _) = element(rest).unwrap();
+        let signature = Signature::from_der(&bits[1..]).unwrap();
         let verifying = p256::ecdsa::VerifyingKey::from_sec1_bytes(&key.point()).unwrap();
-        verifying.verify(cert.tbs_certificate.as_ref(), &signature).expect("signed by the key");
-        // podssh's own reader finds the same key, as the stand-in's check does.
+        verifying.verify(tbs, &signature).expect("signed by the key");
+        let (_, fields, _) = element(tbs).unwrap();
+        let (version, fields) = whole(fields).unwrap();
+        assert_eq!(version, [0xa0, 3, 2, 1, 2], "version 3");
+        let (serial, fields) = whole(fields).unwrap();
+        assert_eq!(serial, [2, 1, 0], "serial 0");
+        let (_, fields) = whole(fields).unwrap();
+        let (issuer, fields) = whole(fields).unwrap();
+        assert_eq!(issuer, [0x30, 0], "an empty issuer");
+        let (validity, fields) = whole(fields).unwrap();
+        assert_eq!(
+            validity,
+            crate::der::tlv(SEQUENCE, &[crate::der::time(now), crate::der::time(now + VALIDITY)].concat())
+        );
+        let (subject, _) = whole(fields).unwrap();
+        assert_eq!(subject, [0x30, 0], "an empty subject");
         assert_eq!(crate::der::spki_of_certificate(&der), Some(key.spki().as_slice()));
         assert_eq!(crate::der::p256_point(&key.spki()), Some(key.point().as_slice()));
     }

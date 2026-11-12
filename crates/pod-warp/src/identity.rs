@@ -1,184 +1,133 @@
-//! The MASQUE identity: a P-256 keypair and the self-signed certificate that
+//! The MASQUE identity: a P-256 key and the self-signed certificate that
 //! presents it.
 //!
-//! Cloudflare's MASQUE front door authenticates the client by mutual TLS. The
-//! public half of the key is uploaded at enrolment (see [`super::register`]),
-//! and the private half signs a short-lived self-signed certificate that goes in
-//! the TLS `Certificate` message. There is no bearer token on the tunnel: the
-//! certificate *is* the credential.
+//! The MASQUE front door authenticates the client by mutual TLS. The public
+//! half of the key is enrolled at the registration ([`crate::register`]),
+//! and the private half signs a self-signed certificate that goes in the
+//! TLS `Certificate` message. No bearer token goes on the tunnel: the
+//! certificate is the credential.
+//!
+//! The key is podssh's pure-Rust key ([`DeviceKey`]); the API and the file
+//! form are podnet's: a certificate PEM and a PKCS #8 key PEM. Each TLS
+//! handshake presents a certificate made for it, valid for a day
+//! ([`crate::key::VALIDITY`]), as podssh does: a kept certificate never
+//! expires under a long-lived identity.
 
-use anyhow::{Context, Result};
-use rcgen::{CertificateParams, KeyPair, PublicKeyData, PKCS_ECDSA_P256_SHA256};
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use base64::Engine as _;
+use pod_core::{Class, Failure, Stage};
+use zeroize::Zeroizing;
 
-/// A freshly generated MASQUE identity.
+use crate::der;
+use crate::key::DeviceKey;
+
+/// The MASQUE identity of a device.
+#[derive(Clone, Debug)]
 pub struct Identity {
-    key_pair: KeyPair,
-    cert_der: CertificateDer<'static>,
-    key_der: PrivateKeyDer<'static>,
-    /// X.509 SubjectPublicKeyInfo DER, base64 — the form the API expects.
-    spki_b64: String,
-    /// The same SPKI, raw, for pinning comparisons.
+    key: DeviceKey,
+    /// The SubjectPublicKeyInfo DER of the key.
     spki_der: Vec<u8>,
 }
 
+fn bad(text: impl Into<String>) -> Failure {
+    Failure::new(Stage::Warp, Class::Config, text)
+}
+
+/// Seconds since the Unix epoch.
+pub(crate) fn unix_now() -> i64 {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    i64::try_from(now.as_secs()).unwrap_or(i64::MAX)
+}
+
 impl Identity {
-    /// Generate a P-256 keypair and a self-signed certificate over it.
-    ///
-    /// The certificate is deliberately bare: serial 0, no SAN, no CN, one day of
-    /// validity. That is what the Android client presents and what the front
-    /// door accepts; a certificate with a subject or SANs is not rejected, but
-    /// nothing uses them.
-    pub fn generate() -> Result<Self> {
-        use base64::Engine;
-
-        let key_pair =
-            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("generating a P-256 keypair")?;
-
-        let params = CertificateParams::new(Vec::<String>::new())
-            .context("building certificate parameters")?;
-        let cert = params
-            .self_signed(&key_pair)
-            .context("self-signing the MASQUE certificate")?;
-
-        let cert_der = cert.der().clone();
-        let spki_der = key_pair.subject_public_key_info();
-        let spki_b64 = base64::engine::general_purpose::STANDARD.encode(&spki_der);
-        let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_pair.serialize_der()));
-
-        Ok(Self {
-            key_pair,
-            cert_der,
-            key_der,
-            spki_b64,
-            spki_der,
-        })
+    /// A new P-256 key from the random source of the host.
+    pub fn generate() -> Result<Identity, Failure> {
+        let key = DeviceKey::generate().map_err(|e| Failure::new(Stage::Warp, Class::Unavailable, e))?;
+        Ok(Identity::of(key))
     }
 
-    /// The base64 X.509 SPKI to upload at enrolment.
-    pub fn spki_b64(&self) -> &str {
-        &self.spki_b64
+    /// The identity of `key`.
+    pub fn of(key: DeviceKey) -> Identity {
+        let spki_der = key.spki();
+        Identity { key, spki_der }
     }
 
-    /// The raw SPKI DER.
+    /// The key.
+    pub fn key(&self) -> &DeviceKey {
+        &self.key
+    }
+
+    /// The base64 X.509 SubjectPublicKeyInfo to enrol.
+    pub fn spki_b64(&self) -> String {
+        base64::engine::general_purpose::STANDARD.encode(&self.spki_der)
+    }
+
+    /// The raw SubjectPublicKeyInfo DER.
     pub fn spki_der(&self) -> &[u8] {
         &self.spki_der
     }
 
-    /// The chain to present, as one self-signed certificate.
-    pub fn cert_chain(&self) -> Vec<CertificateDer<'static>> {
-        vec![self.cert_der.clone()]
+    /// The certificate and the key as rustls presents them: a certificate
+    /// valid from a minute before `now` (seconds since the epoch), so that a
+    /// clock a little ahead of the front door's does not refuse it.
+    pub fn certified(&self, now: i64) -> rustls::sign::CertifiedKey {
+        self.key.certified(now - 60)
     }
 
-    /// The private key, cloned so it can be moved into a TLS config.
-    pub fn private_key(&self) -> PrivateKeyDer<'static> {
-        self.key_der.clone_key()
+    /// The certificate and the private key as PEM, so that a caller keeps
+    /// the identity and resumes it with no second device. The key is the
+    /// credential: whoever holds it opens the tunnel of the device.
+    pub fn to_pem(&self) -> (String, Zeroizing<String>) {
+        let cert = der::pem(&self.key.certificate(unix_now() - 60), "CERTIFICATE");
+        let key = Zeroizing::new(der::pem(&self.key.pkcs8(), "PRIVATE KEY"));
+        (cert, key)
     }
 
-    /// The keypair, for callers that want to re-derive or persist it.
-    pub fn key_pair(&self) -> &KeyPair {
-        &self.key_pair
-    }
-
-    /// The certificate and private key as PEM, so a caller can persist the
-    /// identity and resume it instead of registering a second device.
-    ///
-    /// The private key is the credential: whoever holds it can open the tunnel
-    /// for this device. Store it the way any other private key is stored.
-    pub fn to_pem(&self) -> Result<(String, String)> {
-        let cert_pem = pem_encode("CERTIFICATE", self.cert_der.as_ref());
-        let key_pem = self.key_pair.serialize_pem();
-        Ok((cert_pem, key_pem))
-    }
-
-    /// Rebuild an identity from [`Identity::to_pem`] output.
-    pub fn from_pem(cert_pem: &str, key_pem: &str) -> Result<Self> {
-        let key_pair = KeyPair::from_pem(key_pem).context("parsing the MASQUE private key")?;
-        use rustls::pki_types::pem::PemObject;
-        let cert_der = CertificateDer::pem_slice_iter(cert_pem.as_bytes())
-            .next()
-            .context("the certificate PEM is empty")?
-            .context("parsing the certificate PEM")?;
-        let spki_der = key_pair.subject_public_key_info();
-        let spki_b64 = {
-            use base64::Engine;
-            base64::engine::general_purpose::STANDARD.encode(&spki_der)
-        };
-        let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_pair.serialize_der()));
-        Ok(Self {
-            key_pair,
-            cert_der,
-            key_der,
-            spki_b64,
-            spki_der,
-        })
+    /// The identity of [`Identity::to_pem`], or of podnet's identity file
+    /// (rcgen's PEM). The certificate must carry the key of the private key.
+    pub fn from_pem(cert_pem: &str, key_pem: &str) -> Result<Identity, Failure> {
+        let pkcs8 = Zeroizing::new(
+            der::from_pem(key_pem, "PRIVATE KEY").ok_or_else(|| bad("the MASQUE key PEM is not a PRIVATE KEY"))?,
+        );
+        let key = DeviceKey::from_pkcs8(&pkcs8).map_err(|e| bad(format!("the MASQUE key: {e}")))?;
+        let cert = der::from_pem(cert_pem, "CERTIFICATE").ok_or_else(|| bad("the certificate PEM is empty"))?;
+        let identity = Identity::of(key);
+        match spki_from_cert(&cert) {
+            Some(spki) if spki == identity.spki_der => Ok(identity),
+            Some(_) => Err(bad("the MASQUE certificate carries another key than the private key")),
+            None => Err(bad("the MASQUE certificate does not parse")),
+        }
     }
 }
 
-/// Wrap DER in PEM armour at 64 columns, which is what every reader expects.
-fn pem_encode(label: &str, der: &[u8]) -> String {
-    use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(der);
-    let mut out = format!("-----BEGIN {label}-----\n");
-    for chunk in b64.as_bytes().chunks(64) {
-        out.push_str(std::str::from_utf8(chunk).unwrap_or_default());
-        out.push('\n');
-    }
-    out.push_str(&format!("-----END {label}-----\n"));
-    out
+/// The SubjectPublicKeyInfo DER of a PEM `PUBLIC KEY` block: the API gives
+/// the key of the front door so, and the pin compares DER with DER.
+pub fn spki_from_pem(pem: &str) -> Result<Vec<u8>, Failure> {
+    der::from_pem(pem, "PUBLIC KEY").ok_or_else(|| {
+        Failure::new(Stage::Warp, Class::Protocol, "the peer key of the device record is not a PUBLIC KEY PEM")
+    })
 }
 
-/// Extract the SubjectPublicKeyInfo DER from a PEM `PUBLIC KEY` block.
-///
-/// The API returns the peer's key as PEM; the pin is compared against the
-/// certificate the front door presents, so both sides must be reduced to the
-/// same DER form.
-pub fn spki_from_pem(pem: &str) -> Result<Vec<u8>> {
-    let body: String = pem
-        .lines()
-        .filter(|line| !line.starts_with("-----"))
-        .collect::<Vec<_>>()
-        .join("");
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(body.trim())
-        .context("decoding the peer public key PEM")
+/// The SubjectPublicKeyInfo DER of a DER certificate.
+pub fn spki_from_cert(cert_der: &[u8]) -> Option<Vec<u8>> {
+    der::spki_of_certificate(cert_der).map(<[u8]>::to_vec)
 }
 
-/// Extract the SubjectPublicKeyInfo DER from a DER-encoded certificate.
-pub fn spki_from_cert(cert_der: &[u8]) -> Result<Vec<u8>> {
-    let (_, cert) =
-        x509_parser::parse_x509_certificate(cert_der).context("parsing the peer certificate")?;
-    Ok(cert.tbs_certificate.subject_pki.raw.to_vec())
-}
-
-/// `yes` when the account of `warp status` has WARP+ (a paid account
-/// type, or premium data), else `no`.
+/// `yes` when the account of `warp status` has WARP+ (a paid account type,
+/// or premium data), else `no`.
 pub fn warp_plus_label(account: &serde_json::Value) -> &'static str {
-    let kind = account
-        .get("account_type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let premium = account
-        .get("premium_data")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-    if premium > 0 || !(kind.is_empty() || kind == "free") {
-        "yes"
-    } else {
-        "no"
-    }
+    let kind = account.get("account_type").and_then(|v| v.as_str()).unwrap_or("");
+    let premium = account.get("premium_data").and_then(|v| v.as_u64()).unwrap_or(0);
+    if premium > 0 || !(kind.is_empty() || kind == "free") { "yes" } else { "no" }
 }
 
-/// The class of a failed `warp license` (issue 173): the API refused the
-/// key (HTTP 4xx, other than 401, 403 and 429) is a usage error; else the
-/// service is not available.
-pub fn license_fault(err: &anyhow::Error) -> crate::exit::Fault {
-    use crate::exit::Fault;
-    match super::register::api_status(err) {
-        Some(401 | 403 | 429) => Fault::Unavailable,
-        Some(400..=499) => Fault::Usage,
-        _ => Fault::Unavailable,
+/// The class of a failed license (PodUtils/podnet issue 173): a key that
+/// the API refused (HTTP 4xx, other than 401, 403 and 429) is a usage
+/// error; else the service is not available.
+pub fn license_class(status: Option<u16>) -> Class {
+    match status {
+        Some(401 | 403 | 429) => Class::Unavailable,
+        Some(400..=499) => Class::Usage,
+        _ => Class::Unavailable,
     }
 }
 
@@ -193,65 +142,67 @@ mod tests {
         // id-ecPublicKey AlgorithmIdentifier.
         assert_eq!(id.spki_der().len(), 91);
         assert_eq!(&id.spki_der()[..3], &[0x30, 0x59, 0x30]);
-        assert_eq!(id.cert_chain().len(), 1);
+        assert_eq!(id.certified(1_800_000_000).cert.len(), 1);
         assert!(!id.spki_b64().is_empty());
     }
 
     #[test]
     fn the_certificate_carries_the_same_key_as_the_spki() {
         let id = Identity::generate().unwrap();
-        let from_cert = spki_from_cert(id.cert_chain()[0].as_ref()).unwrap();
+        let from_cert = spki_from_cert(id.certified(1_800_000_000).cert[0].as_ref()).unwrap();
         assert_eq!(from_cert, id.spki_der());
     }
 
     #[test]
     fn the_identity_survives_a_pem_round_trip() {
         let id = Identity::generate().unwrap();
-        let (cert_pem, key_pem) = id.to_pem().unwrap();
+        let (cert_pem, key_pem) = id.to_pem();
         assert!(cert_pem.starts_with("-----BEGIN CERTIFICATE-----"));
         assert!(key_pem.contains("PRIVATE KEY"));
-
         let back = Identity::from_pem(&cert_pem, &key_pem).unwrap();
         assert_eq!(back.spki_der(), id.spki_der());
         assert_eq!(back.spki_b64(), id.spki_b64());
-        // The rebuilt certificate is the same one, so the TLS identity is too.
-        assert_eq!(back.cert_chain()[0].as_ref(), id.cert_chain()[0].as_ref());
     }
 
     #[test]
     fn a_truncated_certificate_pem_is_an_error_not_a_panic() {
         let id = Identity::generate().unwrap();
-        let (cert_pem, key_pem) = id.to_pem().unwrap();
-        let _ = cert_pem;
-        assert!(Identity::from_pem("-----BEGIN CERTIFICATE-----\n", &key_pem).is_err());
+        let (_, key_pem) = id.to_pem();
+        let err = Identity::from_pem("-----BEGIN CERTIFICATE-----\n", &key_pem).unwrap_err();
+        assert_eq!(err.class, Class::Config);
+    }
+
+    /// A certificate of another key is refused: the file was edited, or two
+    /// files were mixed.
+    #[test]
+    fn a_certificate_of_another_key_is_refused() {
+        let (cert_pem, _) = Identity::generate().unwrap().to_pem();
+        let (_, key_pem) = Identity::generate().unwrap().to_pem();
+        let err = Identity::from_pem(&cert_pem, &key_pem).unwrap_err();
+        assert!(err.to_string().contains("another key"), "{err}");
     }
 
     #[test]
     fn pem_round_trip_matches() {
-        use base64::Engine;
         let id = Identity::generate().unwrap();
         let b64 = base64::engine::general_purpose::STANDARD.encode(id.spki_der());
         let pem = format!("-----BEGIN PUBLIC KEY-----\n{b64}\n-----END PUBLIC KEY-----\n");
         assert_eq!(spki_from_pem(&pem).unwrap(), id.spki_der());
     }
 
-    // Issue 173: the classes of a failed warp license.
+    // PodUtils/podnet issue 173: the classes of warp license.
     #[test]
     fn the_classes_of_warp_license() {
-        use crate::exit::Fault;
-        let api = |status| {
-            anyhow::Error::new(crate::warp::register::ApiError {
-                status,
-                body: String::new(),
-            })
-            .context("PUT /reg/{id}/account")
-        };
-        assert!(matches!(license_fault(&api(400)), Fault::Usage));
-        assert!(matches!(license_fault(&api(403)), Fault::Unavailable));
-        assert!(matches!(license_fault(&api(500)), Fault::Unavailable));
-        assert!(matches!(
-            license_fault(&anyhow::anyhow!("no route")),
-            Fault::Unavailable
-        ));
+        assert_eq!(license_class(Some(400)), Class::Usage);
+        assert_eq!(license_class(Some(403)), Class::Unavailable);
+        assert_eq!(license_class(Some(500)), Class::Unavailable);
+        assert_eq!(license_class(None), Class::Unavailable);
+    }
+
+    #[test]
+    fn warp_plus_is_a_paid_type_or_premium_data() {
+        assert_eq!(warp_plus_label(&serde_json::json!({"account_type": "free"})), "no");
+        assert_eq!(warp_plus_label(&serde_json::json!({"account_type": "limited"})), "yes");
+        assert_eq!(warp_plus_label(&serde_json::json!({"premium_data": 5})), "yes");
     }
 }

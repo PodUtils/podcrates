@@ -12,9 +12,16 @@ repository.workspace = true
 screen = ["dep:vt100"]
 # The stand-ins of the services of other parties (src/stand.rs): std alone.
 stand = []
+# The HTTP/2 part of a stand-in of WARP's MASQUE front door
+# (src/masque.rs): the CONNECT-IP request and its capsules, on tokio.
+masque = ["dep:tokio", "dep:h2", "dep:http", "dep:bytes"]
 
 [dependencies]
 vt100 = { version = "0.18", optional = true }
+tokio = { workspace = true, optional = true, features = ["io-util", "rt", "sync"] }
+h2 = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
 
 # The probe of a user and a mount namespace (need_userns!): fork, unshare,
 # mount.

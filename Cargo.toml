@@ -53,6 +53,7 @@ pod-supervise = { path = "crates/pod-supervise", version = "0.31.0" }
 pod-term = { path = "crates/pod-term", version = "0.31.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.31.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.31.0" }
+pod-warp = { path = "crates/pod-warp", version = "0.31.0" }
 pod-wg = { path = "crates/pod-wg", version = "0.31.0" }
 pod-wormhole = { path = "crates/pod-wormhole", version = "0.31.0" }
 pod-ws = { path = "crates/pod-ws", version = "0.31.0" }
