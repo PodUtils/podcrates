@@ -45,7 +45,7 @@ crates" of 2026-11-05.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -118,6 +118,54 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-019, T-023, T-024 and T-026 are done.
+
+## Done
+
+2026-11-12, partial: the first part. Commits `601571e` (the import of
+PodUtils/podnet:src/warp at `e046560` and
+PodUtils/podssh:crates/podssh-warp at `562751d`), `39cbdde` (the edition), `133f97a` (the adaptation),
+`1f184f3` (the static probe and the fuzz target), `c732690` (the plants);
+calls C135 to C142. The rest is T-335 (podnet's stack of `ip.rs`), T-336
+(the relay leg), T-337 (HTTP/3, WireGuard, the carry), T-338 (the proxy,
+the forward, nc, the L4 door) and T-339 (`Live`, TUN, routes, the live
+step of `live.yml`, the adoption trials and the hand-off of the freeze).
+
+- `crates/pod-warp`: the registration through the caller's
+  `pod_proxy::Client` (each base in turn, a `POST` final), the account
+  calls, the device hints; podssh's pure-Rust P-256 identity in podnet's
+  file form; the identity file with its lock, its record `created`, the
+  check of the owner and the mode, and the consent of the caller for a
+  file of another uid (ask 9); the doors in order on the caller's routes,
+  or a pinned `HOST:PORT` (ask 10); MASQUE over HTTP/2 through the
+  caller's `Dial` and provider, with the key of the front door pinned and
+  the record read again on a new key; `WarpNet`, the stack of
+  `pod-netstack` over a session as a `Dial` (names inside the tunnel) and
+  as `Datagrams`; the rules of the proxy with the lint as a function of
+  the caller. The README has the API, the settings, the parity list with
+  podnet and podssh, and the adoption map.
+- `pod-testkit`: `stand::warp` (the stand-in API) and the feature `masque`
+  (the HTTP/2 and capsule part of the stand-in edge).
+- `cargo test -p pod-warp --all-features`: 57 unit tests, 6 of
+  `tests/net.rs`, 8 of `tests/register.rs` (as root, with the foreign
+  owner of a real `chown`), 1 live test ignored; `net` and `register`
+  passed 5 runs in a loop. Each item of the Approach and its test is in
+  the table "The tests" of `crates/pod-warp/README.md`.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all --check`, `python3 -I scripts/check-size.py`,
+  `scripts/check-probe.py`, `scripts/check-design-paths.py`: pass. The
+  static probe for `x86_64-unknown-linux-musl` builds and
+  `scripts/check-static.sh` passes; its line reads "pod-warp: an SPKI of
+  124 characters, a packet of 6 bytes, 1 rules, a session unavailable".
+- Plants: `warp-pin-unchecked`, `warp-foreign-owner-taken`,
+  `warp-pinned-door-ordered`, `warp-post-retried`; each failed its test
+  here.
+- The fuzz target `warp_capsule` with 4 seeds:
+  `cargo test --manifest-path fuzz/Cargo.toml --lib`, 9 passed (each
+  target on its seeds and their mutations).
+- Not run here: the live test (the egress of this sandbox reaches no WARP
+  endpoint; T-339 adds its step), the CI of the push, the adoption trials.
+- Before the release: the main session reserves the name `pod-warp` on
+  crates.io if it is not reserved.
 
 # T-029: `pod-cloudflare`: the edge client, the tunnel and the quick tunnels (the base of podnet)
 
@@ -475,3 +523,203 @@ gh workflow run live.yml
 ## Start condition
 
 T-029 is done.
+
+# T-335: `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path)
+
+**Source:** T-028, the first part (`docs/decisions.md`, C138).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The `WarpNet` of `pod-warp` runs the default stack of `pod-netstack` over a
+session. podnet's `src/warp/ip.rs` (1,680 lines) has more: the congestion
+control of `--cc` (`parse_cc`, `set_cc`, `check_cc`), the TCP burst of
+`PODNET_WARP_TCP_BURST`, the counters of the link (`link_stats`), the
+budget of a relay that renews the session (`renew_due`), and the check
+that a packet crossed the session (`proxy::check_data_path`, issue 120)
+with the door that carried nothing marked bad (issue 133). podnet's
+registry needs each of them before it drops its own stack.
+
+## Premise
+
+- Read: `PodUtils/podnet:src/warp/ip.rs` at `e046560`; `pod-netstack` sets
+  `CongestionControl::None` on each socket (`crates/pod-netstack/src/stack/reactor.rs`).
+- Read: `Warp::mark_door_bad` exists; nothing calls it after a failed check.
+- Not measured: the speed of the stack of `pod-netstack` over a session.
+
+## Approach
+
+A setting of `pod-netstack` for the congestion control and the burst of a
+stack (a field of `StackConfig`, with a test there); `WarpNet` settings for
+them, the counters of the link, and the check of the data path (a DNS
+question to 1.1.1.1 through the stack, with its time) that marks the door
+bad on a failure. The tests of `ip.rs` that read these values move with
+them.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --all-features
+cargo test -p pod-warp --all-features
+```
+
+# T-336: `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file
+
+**Source:** T-028, the first part (`docs/decisions.md`, C137).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet opens a MASQUE session on the direct path first and, after a delay
+(3 s, or 0.5 s when the relay worked last), through its WebSocket relay;
+the first that opens wins, and the leg that worked goes into
+`warp-leg.json` (issues 76 and 126). A session through the relay has a
+budget of bytes and time, and is renewed before the relay ends it.
+`pod-warp` takes one dial and has no race.
+
+## Premise
+
+- Read: `PodUtils/podnet:src/warp/mod.rs` (`open_session`, `read_leg`,
+  `write_leg`, `relay_first_from`) and `session.rs` (`relay_budget`) at
+  `e046560`; the meter of `pod-relay` (podnet 83e0c93).
+- Not measured: a live session through the relay.
+
+## Approach
+
+`Settings` takes a second dial (the relay of `pod-relay`) and the delays;
+`Warp::open_session` races the two as podnet does; the leg is a value that
+the caller reads and writes (`relay_first_from` and the text of a leg file
+as pure functions, as `door_from`). The budget of a relay session is given
+to `WarpNet` (T-335). Loopback tests with two dials of the test, one slow.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+# T-337: `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device
+
+**Source:** T-028, the first part.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet's session has three transports: HTTP/2 (in `pod-warp`), HTTP/3 on
+UDP 443 (`src/warp/h3.rs`, 622 lines, issue 157) and WireGuard on UDP
+(the driver of `src/warp/wg.rs` over `pod-wg`, issue 152), and a second
+WireGuard device carried inside the first session (issues 154 and 155,
+`CARRY_MTU`). `pod-warp` has HTTP/2 alone.
+
+## Premise
+
+- Read: `PodUtils/podnet:src/warp/h3.rs`, `session.rs` (`connect_h3`,
+  `connect_wg`, `connect_wg_inside`) and `mod.rs` (`connect_carried`) at
+  `e046560`; the endpoint of `pod-quic` over any `Datagrams`; the sans-IO
+  initiator of `pod-wg`.
+- Not measured: none of them here.
+
+## Approach
+
+`MasqueTx` and `MasqueRx` with the three transports as podnet has them;
+HTTP/3 on `pod-quic` over the caller's datagrams; the WireGuard driver
+(`connect`, `WgTx`, `WgRx`, `WgKeepalive`) on `pod-wg` over a `Datagrams`
+(a system socket, or the datagrams of a `WarpNet`, for the carry). The
+tests `a_session_over_http3_carries_datagrams_and_capsules` and
+`http3_refuses_a_proxy_and_a_wrong_key` of podnet, and a loopback tunnel
+of WireGuard against the stand-in of `pod-wg`.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+# T-338: `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests
+
+**Source:** T-028, its Approach (the stand-ins give loopback tests of the
+proxy, the forward and nc).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet's `warp proxy` (SOCKS5 and HTTP, the rules, the names, the bound of
+DNS: `src/warp/proxy.rs`, `proxy/names.rs`, `proxy/dns_bound.rs`, 2,130
+lines), `warp forward` (`forward.rs`), `warp nc` (`nc.rs`) and the L4 door
+of `--l4` (`l4.rs`) are not in `pod-warp`. The rules of the proxy are
+(`rules.rs`, with the lint of the caller); the reload of a rules file is
+the caller's (C141).
+
+## Premise
+
+- Read: those files at `e046560`. They use podnet's `decisions` (the
+  observer of `pod-core` takes its place), `net`, `services` and
+  `test_host`; the SOCKS5 datagram path is `pod_proxy::udp` (C23).
+- Not measured: none of them here.
+
+## Approach
+
+Each module over `WarpNet` (a `Dial`), with the counters of
+`rules::Rules`; the loopback tests of podnet's files against the stand-in
+edge of `crates/pod-warp/tests/common/edge.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+# T-339: `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh
+
+**Source:** T-028, the first part.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet's `Live` (a session replaced when it closes, `live.rs`,
+`live/instance.rs`), `pod.rs`, `find.rs`, the TUN device and its routes
+(`tun.rs`, `tun/`, `route.rs`, `route/resolv.rs`, Linux only) and the map
+of `exit.rs` are not in `pod-warp`. The live test
+`live_register_connect_and_trace` of `crates/pod-warp/tests/live.rs` is
+not a step of `live.yml`. No trial patch of podnet or podssh exists
+(`docs/design.md`, section 8, step 7).
+
+## Premise
+
+- Read: those files at `e046560`; `.github/workflows/live.yml`.
+- Not measured: the live test (the egress of a session reaches no WARP
+  endpoint).
+
+## Approach
+
+The modules behind `cfg(target_os = "linux")` where they need it; a step
+of `live.yml` that runs `cargo test -p pod-warp --test live -- --ignored`;
+adoption/podnet/pod-warp.patch and adoption/podssh/pod-warp.patch
+with their runs; then the COORD issue of the freeze to podnet and podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+cargo test -p pod-warp --test live -- --ignored
+```

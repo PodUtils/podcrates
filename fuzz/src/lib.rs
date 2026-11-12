@@ -51,6 +51,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("wg_response", targets::wg_response),
     ("wg_cookie", targets::wg_cookie),
     ("wg_transport", targets::wg_transport),
+    ("warp_capsule", targets::warp_capsule),
     ("relay_list", targets::relay_list),
     ("relay_pool", targets::relay_pool),
     ("actions_expr", targets::actions_expr),

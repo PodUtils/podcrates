@@ -1,0 +1,6 @@
+# The verifier of the front door takes each key, not only the pinned key of
+# the device record; the test of a new key of the front door must fail.
+ENTRY=T-028
+GROUP=warp
+EXPECT='test a_new_key_of_the_front_door_reads_the_record_again \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test net -- a_new_key_of_the_front_door_reads_the_record_again'

@@ -1,0 +1,47 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
+# The first part of T-028: the registration, the identity, the door order,
+# the MASQUE session over HTTP/2 and the rules. podnet holds src/warp/ to
+# fixes from 7c5f87e (PodUtils/podnet#449); the one change after it
+# (83e0c93, session.rs) names the meter of pod-relay, and the relay leg is
+# not in this part. The other files of src/warp/ come with the entries of
+# the rest of T-028 (TODO/adapters.md): ip.rs, h3.rs, proxy.rs, forward.rs,
+# nc.rs, l4.rs, live.rs, pod.rs, find.rs, route.rs, tun.rs, exit.rs.
+# mod.rs: WarpClient becomes Warp (warp.rs, open.rs); the leg file, the
+# relay, WireGuard, the carry and the scan stay with their entries.
+# services.rs of podnet-core: only its module `warp` (service.rs).
+# rules.rs of podnet-netns: only Net, domain_matches, in_cidr and load_nets
+# (rules/matcher.rs); the lint (rules/shadow.rs) stays in podnet and comes
+# in as a function of the caller (PodUtils/podnet#452).
+file 43fd24f477ed7afe48f4aaa135cc9ba5a4b99805 src/warp/capsule.rs -> crates/pod-warp/src/capsule.rs
+file aaf410e59ce1b9bd00709b95e873d181dc5a1f2c src/warp/door.rs -> crates/pod-warp/src/door.rs
+file 86dc4989accc76f45813730ba99e48307b17d6a8 src/warp/enrol.rs -> crates/pod-warp/src/store.rs
+file f01da740334db4481f22a8806f13d4d2dc7e30ff src/warp/hints.rs -> crates/pod-warp/src/hints.rs
+file 6fb6e7f065ee73880787f915ade3a95e228d4a33 src/warp/identity.rs -> crates/pod-warp/src/identity.rs
+file ce8ab2f3b0ad82d2165490c44a4635d3bddc9c98 src/warp/mod.rs -> crates/pod-warp/src/warp.rs crates/pod-warp/src/open.rs crates/pod-warp/src/net.rs crates/pod-warp/src/files.rs crates/pod-warp/src/door.rs
+file 658a06c3d7eae54816cecc895d157a575fca1b05 src/warp/private.rs -> crates/pod-warp/src/files.rs
+file df062e8c84b63df257a8587060914ac73c74edee src/warp/private_file_tests/foreign.rs -> crates/pod-warp/src/files/tests.rs
+file c3c41fda29be50b999b2d5949c1aaa879962e5b4 src/warp/register.rs -> crates/pod-warp/src/api.rs crates/pod-warp/src/device.rs crates/pod-warp/src/register.rs
+file 44d5a727ef4232dc56c087f393fc1281d97f8c95 src/warp/rules.rs -> crates/pod-warp/src/rules.rs crates/pod-warp/src/rules/tests.rs
+file 6a098243d21f8ad57f4b11d6799bf13be65ba1ba src/warp/session.rs -> crates/pod-warp/src/session.rs crates/pod-warp/src/session/tx.rs crates/pod-warp/src/session/rx.rs crates/pod-warp/src/session/keepalive.rs crates/pod-warp/src/session/tests.rs crates/pod-warp/src/tls.rs
+file 405d54fe218d5110279ec2324ed9b979e5088f2e crates/podnet-core/src/services.rs -> crates/pod-warp/src/service.rs
+file 6d1341eb1878e825b3072b0e33fe26f557992a05 crates/podnet-netns/src/rules.rs -> crates/pod-warp/src/rules/matcher.rs
+
+repo PodUtils/podssh 562751d16cab8bf3a0b9d32e917c9a0c6ed89cdb
+# podssh-warp retires onto this crate (docs/design.md, section 4). Its
+# pure-Rust key and certificate (key.rs, der.rs) carry podnet's identity;
+# its names inside the tunnel (dns.rs) give the dial of a name; its stand-in
+# edge (stand_in.rs) becomes the edge of the tests: the HTTP/2 and capsule
+# part in pod-testkit (feature `masque`), its TLS and its far end in
+# tests/common/edge.rs. Its registration test (tests/api.rs) gives the
+# stand-in API of pod-testkit (feature `stand`, stand::warp). routes.rs and
+# endpoints.rs are read for the parity list of the README.
+file 4cf1909c84852d2aaef6d58da6b32048500ab599 crates/podssh-warp/src/der.rs -> crates/pod-warp/src/der.rs crates/pod-warp/src/der/pkcs8.rs
+file 9dd7d1f549762ee2ec3e1c85e406391df05938df crates/podssh-warp/src/key.rs -> crates/pod-warp/src/key.rs
+file 98a479f95b03bfb0a24448cafb1eb70ffd97ed85 crates/podssh-warp/src/dns.rs -> crates/pod-warp/src/dns.rs
+file 65ad83080a5ef81757f8aa9355c3bedd5bf4e8f1 crates/podssh-warp/src/stand_in.rs -> crates/pod-warp/tests/common/edge.rs crates/pod-testkit/src/masque.rs
+file 7796bc3f2676771855b0eeb86a11c07a635c3674 crates/podssh-warp/src/tests/api.rs -> crates/pod-testkit/src/stand/warp.rs crates/pod-warp/tests/register.rs

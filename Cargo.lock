@@ -2365,8 +2365,12 @@ dependencies = [
 name = "pod-testkit"
 version = "0.32.0"
 dependencies = [
+ "bytes",
+ "h2",
+ "http",
  "libc",
  "pod-hostprobe",
+ "tokio",
  "vt100",
 ]
 
@@ -2404,6 +2408,33 @@ dependencies = [
 [[package]]
 name = "pod-todo"
 version = "0.32.0"
+
+[[package]]
+name = "pod-warp"
+version = "0.32.0"
+dependencies = [
+ "base64 0.23.1",
+ "bytes",
+ "h2",
+ "http",
+ "libc",
+ "p256",
+ "pod-core",
+ "pod-dns",
+ "pod-netstack",
+ "pod-proxy",
+ "pod-services",
+ "pod-testkit",
+ "pod-tls",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "zeroize",
+]
 
 [[package]]
 name = "pod-wg"
@@ -3383,6 +3414,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "static-probe"
 version = "0.32.0"
 dependencies = [
+ "bytes",
  "pod-actions-expr",
  "pod-actions-workflow",
  "pod-broker",
@@ -3412,9 +3444,11 @@ dependencies = [
  "pod-supervise",
  "pod-term",
  "pod-tls",
+ "pod-warp",
  "pod-wg",
  "pod-wormhole",
  "pod-ws",
+ "rustls",
  "serde_json",
  "tokio",
  "zeroize",

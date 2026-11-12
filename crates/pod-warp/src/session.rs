@@ -1,0 +1,193 @@
+//! A MASQUE CONNECT-IP session over HTTP/2 on TCP 443.
+//!
+//! This transport works where only 443 and 80 are open: the MASQUE front
+//! door speaks HTTP/2 as well as HTTP/3, and the CONNECT-IP request is a
+//! `CONNECT` with a `cf-connect-proto` header in place of an extended
+//! connect with a `:protocol` pseudo-header. IP packets go as capsules in
+//! the request body, in both directions.
+//!
+//! The credential is mutual TLS ([`crate::tls`]). The TCP connection is the
+//! caller's: its [`Dial`] (a direct socket, a proxy, a relay) carries the
+//! bytes of TLS and sees nothing more.
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use bytes::Bytes;
+use http::{Method, Request, StatusCode};
+use pod_core::{Class, Dial, Failure, Stage, Target};
+use rustls::crypto::CryptoProvider;
+use rustls_pki_types::ServerName;
+use tokio_rustls::TlsConnector;
+
+use crate::capsule::CapsuleDecoder;
+use crate::identity::Identity;
+use crate::service;
+
+mod keepalive;
+mod rx;
+mod tx;
+
+pub use keepalive::{Keepalive, MAX_MISSED_PONGS};
+pub use rx::MasqueRx;
+pub use tx::{MasqueTx, SEND_RESERVE, SEND_STALL};
+
+/// The HTTP/2 receive window of the MASQUE stream, and of the connection.
+pub const STREAM_WINDOW: u32 = 4 << 20;
+pub const CONNECTION_WINDOW: u32 = 8 << 20;
+
+/// The smallest DATA frame that the front door sends: a capsule header (2
+/// bytes) and an IPv4 header (20 bytes).
+pub const MIN_DATA_FRAME: usize = 22;
+
+/// The budget of h2 for the framing overhead of small DATA frames. Each
+/// frame under 256 bytes takes 256 bytes less its size until it is read.
+/// The front door sends one DATA frame for each IP packet, and most are
+/// small (QUIC and TCP ACKs). The receive task can fall behind during a
+/// large transfer; then a full stream window of small frames waits in h2.
+/// The budget holds that worst case. A smaller budget closes the connection
+/// with ENHANCE_YOUR_CALM (too_many_data_frames, PodUtils/podnet issue 32).
+/// There is one stream, so the stream window is the bound.
+pub const DATA_FRAME_BUDGET: usize = STREAM_WINDOW as usize / MIN_DATA_FRAME * (256 - MIN_DATA_FRAME);
+
+/// The time limit of the TCP connect, the TLS handshake and the CONNECT
+/// response.
+pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// The HTTP/2 client settings of the MASQUE session.
+pub fn h2_builder() -> h2::client::Builder {
+    let mut builder = h2::client::Builder::new();
+    builder
+        .initial_window_size(STREAM_WINDOW)
+        .initial_connection_window_size(CONNECTION_WINDOW)
+        .data_frame_budget(DATA_FRAME_BUDGET);
+    builder
+}
+
+/// How a session reaches the front door: the caller's dial and TLS
+/// provider, the TLS name, the `:authority` and the time limit.
+#[derive(Clone)]
+pub struct Way {
+    pub dial: Arc<dyn Dial>,
+    pub provider: Arc<CryptoProvider>,
+    /// The TLS name in place of [`service::masque_sni`].
+    pub sni: Option<String>,
+    /// The `:authority` of the CONNECT-IP request: [`service::connect_uri`].
+    pub authority: String,
+    pub timeout: Duration,
+}
+
+impl Way {
+    /// The way through `dial` on `provider`, with the facts of
+    /// `pod-services`.
+    pub fn new(dial: Arc<dyn Dial>, provider: Arc<CryptoProvider>) -> Way {
+        Way { dial, provider, sni: None, authority: service::connect_uri().into(), timeout: CONNECT_TIMEOUT }
+    }
+}
+
+impl std::fmt::Debug for Way {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Way").field("dial", &self.dial.label()).field("sni", &self.sni).finish_non_exhaustive()
+    }
+}
+
+/// An established CONNECT-IP session.
+pub struct MasqueSession {
+    tx: MasqueTx,
+    rx: MasqueRx,
+}
+
+fn failure(class: Class, text: impl Into<String>) -> Failure {
+    Failure::new(Stage::Warp, class, text)
+}
+
+impl MasqueSession {
+    /// Dial the front door `door` through the way `way`, and open the
+    /// CONNECT-IP tunnel with the certificate of `identity` and the pinned
+    /// key `pinned_spki`.
+    pub async fn connect(
+        door: &Target,
+        identity: &Identity,
+        pinned_spki: Vec<u8>,
+        way: &Way,
+    ) -> Result<MasqueSession, Failure> {
+        let limit = way.timeout;
+        tokio::time::timeout(limit, Self::connect_inner(door, identity, pinned_spki, way)).await.map_err(|_| {
+            failure(Class::Timeout, format!("MASQUE connect to {door} timed out after {} s", limit.as_secs()))
+        })?
+    }
+
+    async fn connect_inner(
+        door: &Target,
+        identity: &Identity,
+        pinned_spki: Vec<u8>,
+        way: &Way,
+    ) -> Result<MasqueSession, Failure> {
+        let deadline = tokio::time::Instant::now() + way.timeout;
+        let tcp = way.dial.dial(door, deadline).await.map_err(|e| {
+            let text = format!("TCP to the MASQUE front door {door} through {}", way.dial.label());
+            Failure::caused(e.stage, e.class, text, e)
+        })?;
+        let config = crate::tls::client_config(way.provider.clone(), identity, pinned_spki, crate::tls::ALPN_H2)?;
+        let sni = way.sni.as_deref().unwrap_or(service::masque_sni()).to_string();
+        let server_name = ServerName::try_from(sni.clone())
+            .map_err(|_| failure(Class::Usage, format!("{sni:?} is not a TLS name of the MASQUE front door")))?;
+        let tls = TlsConnector::from(config)
+            .connect(server_name, tcp.io)
+            .await
+            .map_err(|e| crate::tls::handshake_failure(&door.to_string(), e))?;
+        let (client, mut connection) = h2_builder().handshake(tls).await.map_err(|e| {
+            Failure::caused(Stage::Warp, Class::Protocol, "HTTP/2 handshake with the MASQUE front door", e)
+        })?;
+        // The PING handle is taken before the connection moves to its task:
+        // the edge ends a MASQUE tunnel that stays idle for too long.
+        let ping = connection.ping_pong();
+        tokio::spawn(async move {
+            if let Err(err) = connection.await {
+                tracing::warn!(%err, "the MASQUE HTTP/2 connection closed");
+            }
+        });
+        let mut client = client
+            .ready()
+            .await
+            .map_err(|e| Failure::caused(Stage::Warp, Class::Protocol, "the HTTP/2 client is not ready", e))?;
+        let request = Request::builder()
+            .method(Method::CONNECT)
+            .uri(way.authority.as_str())
+            .header("cf-connect-proto", "cf-connect-ip")
+            .header("capsule-protocol", "?1")
+            .header("pq-enabled", "false")
+            .header("user-agent", "")
+            .body(())
+            .map_err(|e| Failure::caused(Stage::Warp, Class::Usage, "the CONNECT-IP request", e))?;
+        let (response, send) = client
+            .send_request(request, false)
+            .map_err(|e| Failure::caused(Stage::Warp, Class::Protocol, "sending the CONNECT-IP request", e))?;
+        let response = response
+            .await
+            .map_err(|e| Failure::caused(Stage::Warp, Class::Protocol, "awaiting the CONNECT-IP response", e))?;
+        let status = response.status();
+        if status != StatusCode::OK {
+            let (class, why) = match status.as_u16() {
+                403 => (Class::Refused, " (the enrolled certificate was not accepted)"),
+                _ => (Class::Protocol, ""),
+            };
+            return Err(failure(class, format!("CONNECT-IP refused with {status}{why}")));
+        }
+        Ok(Self::from_h2(ping, send, response.into_body()))
+    }
+
+    /// A session over the streams of an HTTP/2 request.
+    pub(crate) fn from_h2(ping: Option<h2::PingPong>, send: h2::SendStream<Bytes>, recv: h2::RecvStream) -> Self {
+        MasqueSession { tx: MasqueTx::new(ping, send), rx: MasqueRx::new(recv, CapsuleDecoder::new()) }
+    }
+
+    /// Split into a write half and a read half, so that two tasks pump the
+    /// two directions.
+    pub fn split(self) -> (MasqueTx, MasqueRx) {
+        (self.tx, self.rx)
+    }
+}
+
+#[cfg(test)]
+mod tests;

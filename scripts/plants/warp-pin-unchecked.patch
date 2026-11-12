@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/tls.rs b/crates/pod-warp/src/tls.rs
+index eaad3a2..4fcf9b9 100644
+--- a/crates/pod-warp/src/tls.rs
++++ b/crates/pod-warp/src/tls.rs
+@@ -43,7 +43,7 @@ impl ServerCertVerifier for PinnedKey {
+     ) -> Result<ServerCertVerified, rustls::Error> {
+         let got = crate::identity::spki_from_cert(end_entity.as_ref())
+             .ok_or_else(|| rustls::Error::General("unparsable peer certificate".into()))?;
+-        if got != self.expected {
++        if got != self.expected && got.is_empty() {
+             return Err(rustls::Error::General(PIN_MISMATCH.into()));
+         }
+         Ok(ServerCertVerified::assertion())

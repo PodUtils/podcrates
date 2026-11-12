@@ -65,6 +65,9 @@ pod-guest = { path = "../crates/pod-guest" }
 # The feature `fuzzing` gives the readers of a response, a cookie reply and
 # a transport message on fixed keys.
 pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
+# The capsules of a CONNECT-IP body (T-028).
+pod-warp = { path = "../crates/pod-warp" }
+bytes = "1"
 # A job offer is JSON.
 serde_json = "1"
 
@@ -319,6 +322,13 @@ bench = false
 [[bin]]
 name = "wg_transport"
 path = "fuzz_targets/wg_transport.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "warp_capsule"
+path = "fuzz_targets/warp_capsule.rs"
 test = false
 doc = false
 bench = false

@@ -1,0 +1,318 @@
+//! A stand-in of WARP's edge on the loopback, from podssh's stand-in edge:
+//! TLS 1.3 with ALPN `h2`, a certificate of its own key, which a device
+//! pins, and a client's certificate required, whose key must be one that
+//! the stand-in API enrolled, else the alert `access_denied`, as the edge
+//! refuses a key that it does not know. The HTTP/2 and capsule part is
+//! `pod_testkit::masque`. Inside, a userspace stack of its own answers at
+//! each address (any IP): each route's port is carried to a service of the
+//! loopback, as Cloudflare's network carries a connection to its target;
+//! port 53 answers a DNS question over TCP with [`NAME_IP`]; UDP port 7
+//! echoes. A test can change the key that it shows, as WARP's front door
+//! showed a new device another key than its record's.
+
+use std::collections::VecDeque;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
+
+use base64::Engine as _;
+use pod_netstack::{NetStack, StackConfig, Subnet};
+use pod_testkit::masque::{Far, Seen};
+use pod_testkit::stand::warp::Api as ApiStandIn;
+use pod_warp::key::DeviceKey;
+use rustls::crypto::WebPkiSupportedAlgorithms;
+use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
+use rustls::server::{ClientHello, ResolvesServerCert};
+use rustls::sign::CertifiedKey;
+use rustls::{CertificateError, DigitallySignedStruct, DistinguishedName, Error, SignatureScheme};
+use rustls_pki_types::{CertificateDer, UnixTime};
+use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+use tokio::net::TcpListener;
+use tokio::sync::mpsc;
+use tokio::task::AbortHandle;
+
+/// The address that the DNS of the far end gives each name.
+pub const NAME_IP: Ipv4Addr = Ipv4Addr::new(198, 51, 100, 7);
+/// The UDP echo port of the far end.
+pub const ECHO_PORT: u16 = 7;
+
+/// A connection inside the tunnel to each address on `port`, carried to
+/// `outside` on the loopback.
+#[derive(Debug, Clone, Copy)]
+pub struct Route {
+    pub port: u16,
+    pub outside: SocketAddr,
+}
+
+/// The keys that the stand-in shows, one for each TLS handshake in turn,
+/// the last one kept for each after it.
+#[derive(Debug)]
+struct Shown {
+    keys: Mutex<VecDeque<(DeviceKey, Arc<CertifiedKey>)>>,
+    hellos: AtomicUsize,
+}
+
+impl Shown {
+    fn set(&self, keys: Vec<DeviceKey>) {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+        let certified = keys.into_iter().map(|key| {
+            let certified = Arc::new(key.certified(now - 60));
+            (key, certified)
+        });
+        *self.keys.lock().unwrap_or_else(PoisonError::into_inner) = certified.collect();
+    }
+
+    fn last(&self) -> DeviceKey {
+        self.keys.lock().unwrap_or_else(PoisonError::into_inner).back().map(|(key, _)| key.clone()).unwrap()
+    }
+}
+
+impl ResolvesServerCert for Shown {
+    fn resolve(&self, _hello: ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
+        self.hellos.fetch_add(1, Ordering::SeqCst);
+        let mut keys = self.keys.lock().unwrap_or_else(PoisonError::into_inner);
+        if keys.len() > 1 {
+            keys.pop_front().map(|(_, certified)| certified)
+        } else {
+            keys.front().map(|(_, certified)| certified.clone())
+        }
+    }
+}
+
+/// The check of a client's key: one that the stand-in API enrolled.
+#[derive(Debug)]
+struct Enrolled {
+    api: ApiStandIn,
+    algorithms: WebPkiSupportedAlgorithms,
+}
+
+impl ClientCertVerifier for Enrolled {
+    fn root_hint_subjects(&self) -> &[DistinguishedName] {
+        &[]
+    }
+
+    fn verify_client_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _now: UnixTime,
+    ) -> Result<ClientCertVerified, Error> {
+        let spki = pod_warp::der::spki_of_certificate(end_entity);
+        let spki = spki.map(|s| base64::engine::general_purpose::STANDARD.encode(s));
+        match spki {
+            Some(spki) if self.api.enrolled().contains(&spki) => Ok(ClientCertVerified::assertion()),
+            // rustls answers this with the alert access_denied.
+            _ => Err(Error::InvalidCertificate(CertificateError::ApplicationVerificationFailure)),
+        }
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, Error> {
+        rustls::crypto::verify_tls12_signature(message, cert, dss, &self.algorithms)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, Error> {
+        rustls::crypto::verify_tls13_signature(message, cert, dss, &self.algorithms)
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.algorithms.supported_schemes()
+    }
+}
+
+/// The stand-in, which serves until it is dropped.
+pub struct Edge {
+    pub addr: SocketAddr,
+    pub seen: Arc<Seen>,
+    shown: Arc<Shown>,
+    task: AbortHandle,
+}
+
+impl Drop for Edge {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+impl Edge {
+    /// A stand-in on 127.0.0.1 that takes the keys that `api` enrolled,
+    /// with `routes` inside.
+    pub async fn start(api: ApiStandIn, routes: Vec<Route>) -> Edge {
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let verifier = Arc::new(Enrolled { api, algorithms: provider.signature_verification_algorithms });
+        let shown = Arc::new(Shown { keys: Mutex::new(VecDeque::new()), hellos: AtomicUsize::new(0) });
+        shown.set(vec![DeviceKey::generate().unwrap()]);
+        let mut config = rustls::ServerConfig::builder_with_provider(provider)
+            .with_protocol_versions(&[&rustls::version::TLS13])
+            .unwrap()
+            .with_client_cert_verifier(verifier)
+            .with_cert_resolver(shown.clone());
+        config.alpn_protocols = vec![b"h2".to_vec()];
+        let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let seen = Arc::new(Seen::default());
+        let (routes, counted) = (Arc::new(routes), seen.clone());
+        let task = tokio::spawn(async move {
+            while let Ok((tcp, _)) = listener.accept().await {
+                let (acceptor, routes, seen) = (acceptor.clone(), routes.clone(), counted.clone());
+                tokio::spawn(async move {
+                    let Ok(tls) = acceptor.accept(tcp).await else { return };
+                    let (to_far, from_client) = mpsc::channel(256);
+                    let (to_client, from_far) = mpsc::channel(256);
+                    let far = tokio::spawn(far_end(from_client, to_client, routes));
+                    pod_testkit::masque::serve(tls, Far { to_far, from_far }, seen).await;
+                    far.abort();
+                });
+            }
+        });
+        Edge { addr, seen, shown, task: task.abort_handle() }
+    }
+
+    /// The `PUBLIC KEY` PEM of the key that the stand-in shows last.
+    pub fn pem(&self) -> String {
+        pod_warp::der::pem(&self.shown.last().spki(), "PUBLIC KEY")
+    }
+
+    /// Show `keys` from now on, one for each TLS handshake in turn, the last
+    /// one for each after it.
+    pub fn show(&self, keys: Vec<DeviceKey>) {
+        self.shown.set(keys);
+    }
+
+    /// The TLS handshakes that asked for the stand-in's certificate.
+    pub fn hellos(&self) -> usize {
+        self.shown.hellos.load(Ordering::SeqCst)
+    }
+
+    pub fn tunnels(&self) -> usize {
+        self.seen.tunnels.load(Ordering::SeqCst)
+    }
+}
+
+/// The far end of one tunnel: a stack that takes each address.
+async fn far_end(mut from_client: mpsc::Receiver<Vec<u8>>, to_client: mpsc::Sender<Vec<u8>>, routes: Arc<Vec<Route>>) {
+    let config = StackConfig {
+        subnet: Subnet {
+            v4: Ipv4Addr::new(198, 18, 0, 0),
+            v4_prefix: 0,
+            v6: Ipv6Addr::new(0xfd00, 0x66, 0, 0, 0, 0, 0, 0),
+            v6_prefix: 0,
+        },
+        local_v4: Ipv4Addr::new(198, 18, 0, 1),
+        local_v6: Ipv6Addr::new(0xfd00, 0x66, 0, 0, 0, 0, 0, 1),
+        any_ip: true,
+        ..StackConfig::default()
+    };
+    let stack = NetStack::over_link(config);
+    let (link_in, link_out) = (stack.link_in(), stack.link_out());
+    let up = tokio::spawn(async move {
+        loop {
+            let packet = link_out.recv().await;
+            if to_client.send(packet).await.is_err() {
+                return;
+            }
+        }
+    });
+    let mut tasks = vec![up];
+    for route in routes.iter().copied() {
+        let mut listener = stack.listen_any(route.port).await.unwrap();
+        tasks.push(tokio::spawn(async move {
+            while let Ok(mut inside) = listener.accept().await {
+                tokio::spawn(async move {
+                    let Ok(mut outside) = tokio::net::TcpStream::connect(route.outside).await else { return };
+                    let _ = tokio::io::copy_bidirectional(&mut inside, &mut outside).await;
+                });
+            }
+        }));
+    }
+    let mut dns = stack.listen_any(53).await.unwrap();
+    tasks.push(tokio::spawn(async move {
+        while let Ok(mut stream) = dns.accept().await {
+            tokio::spawn(async move {
+                let mut len = [0u8; 2];
+                if stream.read_exact(&mut len).await.is_err() {
+                    return;
+                }
+                let mut query = vec![0u8; usize::from(u16::from_be_bytes(len))];
+                if stream.read_exact(&mut query).await.is_err() {
+                    return;
+                }
+                let answer = dns_answer(&query);
+                let mut framed = (answer.len() as u16).to_be_bytes().to_vec();
+                framed.extend_from_slice(&answer);
+                let _ = stream.write_all(&framed).await;
+            });
+        }
+    }));
+    let mut echo = stack.bind_udp_any(ECHO_PORT).await.unwrap();
+    tasks.push(tokio::spawn(async move {
+        let mut buf = vec![0u8; 2048];
+        while let Ok((n, from, to)) = echo.recv_from_to(&mut buf).await {
+            let _ = echo.send_to_from(&buf[..n], from, to.ip()).await;
+        }
+    }));
+    while let Some(packet) = from_client.recv().await {
+        link_in.push(packet);
+    }
+    for task in tasks {
+        task.abort();
+    }
+}
+
+/// The answer to a DNS question: [`NAME_IP`] for an A question, no address
+/// for another.
+fn dns_answer(query: &[u8]) -> Vec<u8> {
+    // The question ends after the name (labels to a zero byte) and the type
+    // and the class.
+    let mut end = 12;
+    while end < query.len() && query[end] != 0 {
+        end += 1 + usize::from(query[end]);
+    }
+    let qtype = u16::from_be_bytes([query[end + 1], query[end + 2]]);
+    let end = end + 5;
+    let a = qtype == 1;
+    let mut out = query[..2].to_vec();
+    out.extend_from_slice(&[0x81, 0x80, 0, 1, 0, u8::from(a), 0, 0, 0, 0]);
+    out.extend_from_slice(&query[12..end]);
+    if a {
+        out.extend_from_slice(&[0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4]);
+        out.extend_from_slice(&NAME_IP.octets());
+    }
+    out
+}
+
+/// An echo server on the loopback: the address of a route.
+pub async fn echo_server() -> SocketAddr {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        while let Ok((mut tcp, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                let (mut read, mut write) = tcp.split();
+                let _ = tokio::io::copy(&mut read, &mut write).await;
+            });
+        }
+    });
+    addr
+}
+
+/// The address of the record's IPv6 door, which the moved dial carries to
+/// the edge.
+pub fn door_v6() -> SocketAddr {
+    SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)), 443)
+}
+
+/// The address of the record's IPv4 door.
+pub fn door_v4() -> SocketAddr {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)), 443)
+}

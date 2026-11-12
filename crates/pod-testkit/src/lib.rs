@@ -10,12 +10,17 @@
 //! * [`screen`] (feature `screen`): the terminal oracle, a model of a VT
 //!   terminal that tells what a person sees after a stream of bytes.
 //! * [`stand`] (feature `stand`): the stand-ins of the services of other
-//!   parties on the loopback: HTTP, raw TCP and UDP, TLS from the caller.
+//!   parties on the loopback: HTTP, raw TCP and UDP, TLS from the caller;
+//!   `stand::warp`, the API of WARP.
+//! * [`masque`] (feature `masque`): the HTTP/2 part of a stand-in of WARP's
+//!   MASQUE front door, over a stream of the caller.
 //!
 //! A stand-in of this kit speaks bytes and HTTP only, and takes no type of
 //! a pod crate, so that each crate can dev-depend on the kit.
 
 pub mod host;
+#[cfg(feature = "masque")]
+pub mod masque;
 #[cfg(feature = "screen")]
 pub mod screen;
 #[cfg(feature = "stand")]

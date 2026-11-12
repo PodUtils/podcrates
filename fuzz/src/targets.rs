@@ -15,18 +15,19 @@ mod link;
 mod netlab;
 mod podvm;
 mod relay;
+mod warp;
 mod wg;
 mod wormhole;
 
 pub use actions::{actions_expr, actions_workflow};
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof};
 pub use job::job_offer;
-pub use link::link_frame;
-pub use netlab::netlab_counters;
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs_image};
 pub use relay::{relay_list, relay_pool};
+pub use warp::warp_capsule;
 pub use wg::{wg_cookie, wg_response, wg_transport};
 pub use wormhole::mqtt_packet;
+pub use {link::link_frame, netlab::netlab_counters};
 
 /// Text from a peer made safe for one line (`pod_core::text::one_line`;
 /// podssh `one_line`): no control or bidirectional formatting character

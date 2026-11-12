@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/door.rs b/crates/pod-warp/src/door.rs
+index a6b4078..90828a3 100644
+--- a/crates/pod-warp/src/door.rs
++++ b/crates/pod-warp/src/door.rs
+@@ -73,7 +73,7 @@ pub fn doors(
+     routes: Routes,
+ ) -> Vec<Target> {
+     match door {
+-        Door::Pinned(target) => vec![target.clone()],
++        Door::Pinned(target) => std::iter::once(target.clone()).chain(record.into_iter().map(Target::Addr)).collect(),
+         Door::Record => {
+             let first = record.first().copied();
+             let order = endpoint_order(record, won, bad, routes);
