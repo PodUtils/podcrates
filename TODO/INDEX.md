@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**313 entries: 83 open, 5 partial, 5 blocked, 220 done.**
+**320 entries: 90 open, 5 partial, 5 blocked, 220 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 2 | 0 | 63 | 82 |
-| P2 | 34 | 1 | 5 | 110 | 150 |
-| P3 | 32 | 2 | 0 | 45 | 79 |
-| **All** | 83 | 5 | 5 | 220 | 313 |
+| P1 | 18 | 2 | 0 | 63 | 83 |
+| P2 | 37 | 1 | 5 | 110 | 153 |
+| P3 | 35 | 2 | 0 | 45 | 82 |
+| **All** | 90 | 5 | 5 | 220 | 320 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -360,3 +360,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-361](roads.md) | P3 | M | M4 | feature | open | `pod-relay`: its end-to-end tests against the self-hosted relay of `pod-relay-serve`, then against workerd |
 | [T-370](transport.md) | P2 | S | M1 | feature | done | `pod-proxy`: MESSAGE-INTEGRITY, FINGERPRINT and the long-term key in `stun`, for TURN (PodUtils/podssh#214) |
 | [T-371](upkeep.md) | P2 | M | M5 | defect | open | `pod-services-watch`: the DNS watches, `stun-binding` and the TLS of the HTTP client give no class "no answer" |
+| [T-372](transport.md) | P2 | S | M1 | feature | open | `pod-services`: `github-ssh` names SSH over port 443 (GitHub #95) |
+| [T-373](transport.md) | P2 | S | M1 | feature | open | `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97) |
+| [T-374](transport.md) | P1 | S | M1 | defect | open | `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98) |
+| [T-375](transport.md) | P3 | S | M1 | feature | open | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
+| [T-376](transport.md) | P3 | S | M1 | feature | open | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
+| [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
+| [T-378](transport.md) | P3 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |

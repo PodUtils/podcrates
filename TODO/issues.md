@@ -95,6 +95,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #90 | COORD-058: v0.31.0: podvm's arm64 defects in pod-extract and pod-enter; a Run that owns its workflow; the display form of a fingerprint (to all) | closed (podvm `c5b61b45`, PodUtils/podvm#284; podnet `e046560`, PodUtils/podnet#502; podrunner `98bc496`; podssh `02650f1`) | T-278, T-279, T-309, T-320, T-321 |
 | #91 | COORD-059: the answer to PodUtils/podvm#283: podcrates writes the trial of pod-relay's blocking facade in podvm (T-326); the wire is reverse-v1 (to podvm) | closed (podvm took the trial at `15485d1b`, PodUtils/podvm#285) | T-326 |
 | #92 | COORD-060: the answer to PodUtils/podnet#502: the crate's node and operator pass through the live relay from a runner with a direct egress; podcrates needs your log of relay connect -v (to podnet) | open (the cause and the fix sent; `v0.32.0` carries the fix) | T-327 |
-| #93 | COORD-061: v0.32.0: the flush of pod-relay's operator; pod-link; TURN's integrity in pod-proxy; smee-io and hostc; podvm's trial of the blocking facade (to all) | open (podvm `15485d1b`, PodUtils/podvm#285; podrunner `997b001`; podnet and podssh answer with the commit of their take) | T-300, T-311, T-322, T-323, T-324, T-325, T-326, T-327, T-329, T-370 |
+| #93 | COORD-061: v0.32.0: the flush of pod-relay's operator; pod-link; TURN's integrity in pod-proxy; smee-io and hostc; podvm's trial of the blocking facade (to all) | open (podvm `15485d1b`, PodUtils/podvm#285; podrunner `997b001`; podnet `fa6b5ba`, PodUtils/podnet#508; podssh answers with the commit of its take) | T-300, T-311, T-322, T-323, T-324, T-325, T-326, T-327, T-329, T-370 |
+| #94 | pod-devtunnel: add a Dev Tunnels management and relay client | open | T-378 |
+| #95 | pod-services: add SSH over 443 to the github-ssh service | open | T-372 |
+| #96 | pod-services: add QSocket and Portal candidate relay entries with their measured limits | open | T-376 |
+| #97 | pod-services: record Sandhole's required remote port | open | T-373 |
+| #98 | pod-services: verify Serveo's URL rule and record anonymous authentication | open | T-374 |
+| #99 | pod-services: add tuns.sh as an SSH tunnel entry | open | T-375 |
+| #100 | pod-turn: add a TURN client on the existing STUN codec | open | T-377 |
 
 #79 to #81 are pull requests.

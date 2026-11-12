@@ -5063,3 +5063,265 @@ C151): coturn with `--stun-only --listening-ip=127.0.0.1
 sh scripts/ci/stun-tests.sh
 cargo test -p pod-proxy --all-features stun
 ```
+
+# T-372: `pod-services`: `github-ssh` names SSH over port 443 (GitHub #95)
+
+**Source:** GitHub #95.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`github-ssh.toml` has one endpoint, `github.com:22`. GitHub also serves
+SSH at `ssh.github.com:443` with the same host keys. A host whose egress
+permits only TCP 443 cannot select that endpoint from the data.
+
+## Premise
+
+- Read: the issue (GitHub's pages "Using SSH over the HTTPS port" and
+  "GitHub's SSH key fingerprints", as the issue cites them).
+- Not read here: the two pages themselves.
+
+## Approach
+
+An endpoint `ssh-443` (`ssh.github.com:443`) after `ssh`, with its source;
+a watch `ssh-host-key` of `ssh-443` with the fact `host-key-sha256`; `about`
+names both ports. The order of the endpoints stays.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service github-ssh
+```
+
+# T-373: `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97)
+
+**Source:** GitHub #97.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The Sandhole demo refuses a remote forward of port 0 and takes port 80. A
+consumer that asks for port 0 (podnet's `ssh-relay`) fails, and the data
+does not say why: `sandhole.toml` has no fact of the remote port, and
+`forward::Relay` gives none.
+
+## Premise
+
+- Read: the issue, with the reporter's two runs of the watch
+  `forward-url` (port 0 refused; port 80 holds).
+
+## Approach
+
+A fact `remote-port` = 80 in `sandhole.toml` with its source;
+`forward::Relay::remote_port() -> Option<u16>`; a test for `sandhole`
+(`Some(80)`) and for a relay with no fact (`None`); the README rows.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```
+
+# T-374: `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98)
+
+**Source:** GitHub #98; T-323 (the console URL).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The banner of an anonymous Serveo session names its tunnel as
+`https://NAME.serveousercontent.com`, and the console
+`https://console.serveo.net/settings`. The rule `url-match` =
+(`https://`, `.serveo.net`) accepts neither: T-323 skipped the console URL,
+but the tunnel URL stays refused, and the watch `forward-url` moves. A
+consumer that reads the banner finds no URL.
+
+## Premise
+
+- Read: the issue, with the reporter's run of `forward-url` on `ssh-443`
+  (the banner held both URLs) and the documentation's placeholder
+  `myapp.serveousercontent.com`.
+- Read: `services.yml` run 43195020023 (T-323): the console URL first.
+
+## Approach
+
+`url-match` = (`https://`, `.serveousercontent.com`), with a measured
+source; `url-skip` stays. The watch `http-text` of the prose "A subdomain
+of serveo.net" goes, and `serveo` leaves `ZONE_DOCUMENTS` of
+`tests/forward.rs`; the samples of the tests take the measured banner. A
+fact `auth` (`publickey`, `keyboard-interactive`) with a note: an anonymous
+session answers keyboard-interactive with an empty answer. A note of the
+form with a named alias (private TCP, no URL).
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service serveo
+```
+
+The next `services.yml` run holds `serveo forward-url`.
+
+# T-375: `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99)
+
+**Source:** GitHub #99.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The catalog has no entry for `tuns.sh` (pico.sh, on sish). A consumer
+cannot name it, its endpoint or its host key.
+
+## Premise
+
+- Read: the issue (pico.sh's pages of the host keys and of tuns).
+- Not measured: the URL in the banner of a session (a session needs an
+  account).
+
+## Approach
+
+`services/tuns-sh.toml`: kind `ssh-tunnel`, endpoint `ssh` (`tuns.sh:22`),
+facts `host-key-sha256`, `account-required`, `note` (the URL form
+`https://{user}-NAME.tuns.sh`); watches `ssh-host-key` and `http-text` of
+`https://pico.sh/tuns`. No `url-match`: `Relay::of` gives `None`, and
+`tuns-sh` joins `NOT_FORWARD` of `tests/forward.rs` with the reason.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service tuns-sh
+```
+
+# T-376: `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96)
+
+**Source:** GitHub #96.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The catalog has no entry for QSocket's relay (`relay.qsocket.io:443`) or
+for Portal's public relays (`gosunuts.xyz`, `portal.dawnfullstack.com`).
+Neither has a proven path both ways: the reporter's QSocket client sent
+bytes to the server and got no output back; Portal registered a lease, and
+the public URL of the lease failed TLS.
+
+## Premise
+
+- Read: the issue (the reporter's measurements).
+
+## Approach
+
+`services/qsocket-qsrn.toml` (kind `qsr-relay`) and
+`services/gosuda-portal.toml` (kind `portal-relay`), each with its
+endpoints, facts and watches as the issue gives them, a `note` that states
+the measured limit, and no `[rank]`. No consumer selects either kind.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service qsocket-qsrn --service gosuda-portal
+```
+
+# T-377: `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100)
+
+**Source:** GitHub #100; PodUtils/podnet#485 (TURN-1 to TURN-7); PodUtils/podssh@T-621.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The tree has the STUN codec in `pod-proxy` (`stun`, with the integrity of
+T-370) and no TURN client. A host that reaches a TURN server on TCP 443
+cannot allocate a relayed address. The codec has no SHA-256 credentials
+(`PASSWORD-ALGORITHM`, `MESSAGE-INTEGRITY-SHA256`).
+
+## Premise
+
+- Read: the issue: the interface (`Settings`, `Client::{allocate, refresh,
+  create_permission, bind_channel, send, recv, close}`, `Event`), the
+  features `stun` and `turn`, the scope (no plain TCP, no DTLS, no
+  RFC 6062), and the tests (a mock server with 401, 438 and 441).
+- Read: `crates/pod-proxy/src/stun.rs`, `stun_auth.rs` and their tests.
+
+## Approach
+
+A new crate `pod-turn`: the codec moves there (feature `stun`, no async),
+with its own MD5; `pod-proxy` depends on it with `stun` alone and keeps
+`pod_proxy::stun` as a re-export. SHA-256 credentials with a fixed vector.
+The client (feature `turn`) over the caller's dialer, TLS provider, clock
+and UDP source; 401 and 438 answered with the fresh nonce; a changed user
+refused (441). A mock TURN server on the loopback for the tests; a live
+test that skips with no server of the caller (T-358: coturn on the
+loopback). The static probe, a fuzz target of the codec, plants.
+
+## Prove
+
+```sh
+cargo test -p pod-turn -p pod-proxy -p pod-services-watch --all-features
+```
+
+# T-378: `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94)
+
+**Source:** GitHub #94.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+No PodUtils binary can use Microsoft Dev Tunnels: create or list a tunnel,
+get its connect information, open the relay WebSocket and a TCP channel to
+a port of the tunnel host. A host that permits only TCP 443 can reach the
+relay.
+
+## Premise
+
+- Read: the issue: the management host and API version, the device-code
+  flows of GitHub and AAD (each identity a setting), a token store in a
+  private file (`pod_core::files`), the relay's WebSocket subprotocol
+  `tunnel-relay-client`, SSH with the user `tunnel`, `direct-tcpip`
+  channels, a bounded reconnect.
+- Not read: the vendor's client (the only form of the protocol); no consumer
+  names a need yet.
+
+## Approach
+
+A study of the vendor's client first: each value of the data with its
+source in two `pod-services` files. Then the crate: the management client,
+the token store (no token in output, logs or events), the relay client over
+`pod-ws` and an SSH client of the tree, stand-ins of both for the tests.
+It waits for a consumer that asks for it (the owner's ruling "Priority").
+
+## Prove
+
+```sh
+cargo test -p pod-devtunnel --all-features
+```

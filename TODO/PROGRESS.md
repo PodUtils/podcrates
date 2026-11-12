@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 313 entries: 83 open, 5 partial, 5 blocked, 220 done.
+`TODO/INDEX.md` holds 320 entries: 90 open, 5 partial, 5 blocked, 220 done.
 
 ## State
 
@@ -16,8 +16,8 @@
 - The consumers and their tags:
   - podssh: `v0.31.0` (`02650f1`; earlier `v0.30.0` at `ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
-  - podnet: `v0.31.0` (`e046560`, PodUtils/podnet#502; its `relay
-    connect` hangs on a runner with a direct egress: T-327); its relay client
+  - podnet: `v0.32.0` (`fa6b5ba`, PodUtils/podnet#508; `pod-link` is its
+    next take); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
@@ -65,7 +65,12 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-330 (podvm's pair
+1. **The defects and asks of the consumers:** T-374 (Serveo's tunnel
+   zone, GitHub #98); T-377 (`pod-turn`, GitHub #100, for
+   PodUtils/podnet#485 and PodUtils/podssh@T-621, an agent of this
+   session); T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
+   #96, data only); T-378 (`pod-devtunnel`, GitHub #94: a study first, and
+   a consumer that asks for it); T-330 (podvm's pair
    commands, after its take of the blocking facade, PodUtils/podvm#285); T-328 (podrunner's note
    of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
