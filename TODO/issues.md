@@ -104,6 +104,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #99 | pod-services: add tuns.sh as an SSH tunnel entry | closed (on `main` at the parent of `b61f54a`; the next tag) | T-375 |
 | #100 | pod-turn: add a TURN client on the existing STUN codec | open | T-377 |
 | #101 | COORD-062: the answer to PodUtils/podnet#510 and #512: pod-devtunnel and pod-turn in work; remote-port and Serveo's rule done; A11 and A12 in work, A13 stands as C119 (to podnet) | open (T-377, T-378, T-390 and T-391 in work) | T-373, T-374, T-377, T-378, T-390, T-391, T-392 |
-| #102 | COORD-063: GNU tar with an absolute -C fails in a unit of the supervise rung; a relative -C passes (PodUtils/podrunner#70, podcrates T-328) (to podvm) (to podrunner) | open (waits for podvm) | T-328 |
+| #102 | COORD-063: GNU tar with an absolute -C fails in a unit of the supervise rung; a relative -C passes (PodUtils/podrunner#70, podcrates T-328) (to podvm) (to podrunner) | open (waits for podvm; podrunner read it, PodUtils/podrunner#71) | T-328 |
 
 #79 to #81 are pull requests.

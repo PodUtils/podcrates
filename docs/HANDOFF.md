@@ -51,8 +51,12 @@ is done. Git and the record keep finished work.
 - podssh (on `v0.30.0`, `ef3666f`, PodUtils/podssh#212): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.30.0`, `528a918`): its local mode
-  (PodUtils/podrunner@T-046) takes T-251; a defect comes as an ask.
+- podrunner (on `v0.32.0`, `997b001`): its session ended after its
+  housekeeping at `d56b579` (PodUtils/podrunner#71); a new one starts with
+  podvm. Its open items: T-077 (a held run hung with podnet
+  `v0.4.0-beta.6`; podnet fixes it in `v0.4.0-beta.7`, PodUtils/podnet#509),
+  T-096 (the absolute `tar -C`, #102), Q4 for the owner. Write to it by an
+  issue with `(to podrunner)` in the title.
 - podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
   T-300 to T-305 wait for podnet's start of each (the answer #88).
 - `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the
