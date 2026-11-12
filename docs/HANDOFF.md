@@ -31,10 +31,10 @@ a line when its work is done. Git and the record keep finished work.
   `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269), T-213
   (`pod-confine`: the families that Landlock does not check, the rights
   of ABI 9 and 10), T-240 (a busy tmpfs at its release), on `main`;
-  the podssh trial of `pod-relay` (T-025; the patch names `v0.27.0`),
-  the three gaps
-  of `pod-netstack` of PodUtils/podnet#457 (P1; a subagent writes their
-  entries and fixes on a local branch).
+  the podssh trial of `pod-relay` (T-025; the patch names `v0.27.0`);
+  T-230 to T-232 and T-223 (`pod-netstack`, PodUtils/podnet#457;
+  breaking: `StackConfig::accept_pool` is gone, `StackConfig::linger` is
+  new); T-026 (partial: podnet's relay client in `pod-relay`).
 
 ## What waits
 

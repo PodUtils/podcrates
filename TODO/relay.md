@@ -1126,7 +1126,7 @@ started while T-025 was partial: its import and its adaptation are done.
 ## Done
 
 2026-11-12, partial: T-234 and the trial of podnet remain. Commits
-`cc1bf2c` (the capabilities and their tests) and this record (the plants,
+`d012f20` (the capabilities and their tests) and this record (the plants,
 the README, `SOURCES`, the calls C73 to C76).
 
 - The parity list is in `crates/pod-relay/README.md` ("Parity", "podnet"):
@@ -2218,7 +2218,7 @@ cargo test -p pod-netstack --lib
 
 ## Done
 
-2026-11-12. `8024c17` (with T-232).
+2026-11-12. `dc0e807` (with T-232).
 
 - The look at each inbound SYN of T-232 is the place of the fix: a SYN
   whose 4-tuple a socket holds (in a state other than SYN-SENT) does not
@@ -2387,7 +2387,7 @@ cargo test -p pod-netstack --lib stack::tests::listener
 
 ## Done
 
-2026-11-12. `8024c17`.
+2026-11-12. `dc0e807`.
 
 - `TcpListener::close(self)` and its `Drop`: the reactor removes the
   listener at its next pass (the drop kicks it) and before each listen.
@@ -2403,7 +2403,7 @@ cargo test -p pod-netstack --lib stack::tests::listener
   `an_accepted_stream_outlives_its_listener` (on 10.66.0.3, which the
   listener made the stack own; a connect after the drop is refused),
   `dropped_listeners_free_their_addresses` (20 addresses one after the
-  other). On the code before `8024c17` the three fail: `AddrInUse` at
+  other). On the code before `dc0e807` the three fail: `AddrInUse` at
   port 1, a connection to the dropped listener, 8 sockets left at
   10.66.0.10.
 - `closed_connections_leave_no_socket` keeps its listener to the end: its
@@ -2471,7 +2471,7 @@ cargo test -p pod-netstack --lib stack::tests::close
 
 ## Done
 
-2026-11-12. `8024c17`.
+2026-11-12. `dc0e807`.
 
 - The cause: `move_to_app` closed the socket at once when the reader had
   gone, and smoltcp took no byte to send after it. Now the reactor marks
@@ -2494,7 +2494,7 @@ cargo test -p pod-netstack --lib stack::tests::close
   `a_dropped_stream_whose_peer_never_closes_is_freed_after_the_linger`
   (FIN-WAIT-2; linger 300 ms), `an_abort_sends_a_reset`,
   `a_reset_after_a_full_channel_reads_as_a_reset`. On the code before
-  `8024c17`, the drop lost 4,233,864 of 16,777,216 bytes, and the abort
+  `dc0e807`, the drop lost 4,233,864 of 16,777,216 bytes, and the abort
   sent no RST in 3 s. With the bound planted out, the two tests of the
   linger fail; with the wait for a place planted out, the app read
   255,936 bytes and a clean end.
@@ -2570,7 +2570,7 @@ cargo test -p pod-netstack --lib stack::tests::burst
 
 ## Done
 
-2026-11-12. `8024c17`.
+2026-11-12. `dc0e807`.
 
 - The reactor takes the inbound packets one at a time
   (`Interface::poll_ingress_single`, then the passes of egress, as
@@ -2588,7 +2588,7 @@ cargo test -p pod-netstack --lib stack::tests::burst
   after each handshake), `a_syn_past_the_connection_limit_waits`
   (`max_connections` 4: 4 SYNs wait with no RST and connect after the
   first 4 close), `a_syn_sent_again_reaches_its_own_socket` (T-223). On
-  the code before `8024c17` the four fail: client 8 refused (a pool of 8),
+  the code before `dc0e807` the four fail: client 8 refused (a pool of 8),
   no wait at the limit, the counts of the dropped listener.
 - The cost of the look at each packet: `a_large_download_crosses_a_bounded_link`
   (16 MiB, debug build) took 1.13 s to 1.15 s before and 1.12 s to 1.21 s

@@ -4061,3 +4061,47 @@ cargo test -p pod-enter --lib -- stage::tests
 test `a_release_frees_a_tmpfs_that_a_descriptor_holds` failed on the old
 release and passes; `cargo test -p pod-enter -p pod-hostprobe --lib`:
 168 and 111 pass.
+
+# T-241: `pod-confine`: the permissions and the quiet flags of Landlock ABI 11 and 12
+
+**Source:** T-213 (a reading of `include/uapi/linux/landlock.h` of Linux 7.4-rc2)
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The seccomp list of `pod-confine` denies the namespace and mount calls by
+number, and `apply` drops the capabilities that a spec does not keep. A
+filter sees no call behind io_uring or `socketcall(2)`, and reads no
+argument behind a pointer (`clone3`). Linux 7.4 (Landlock ABI 12) has
+`LANDLOCK_PERMISSION_NAMESPACE_USE` and
+`LANDLOCK_PERMISSION_CAPABILITY_USE` with `LANDLOCK_RULE_NAMESPACE` and
+`LANDLOCK_RULE_CAPABILITY`: the LSM denies each namespace type and each
+capability that no rule allows, on each kernel path. The ruleset of ABI
+10 and later also has `quiet_access_fs`, `quiet_access_net` and
+`quiet_scoped` (no audit record for a denial).
+
+## Premise
+
+- Read: `include/uapi/linux/landlock.h` and
+  `security/landlock/syscalls.c` of Linux 7.4-rc2 (`landlock_abi_version
+  = 12`; `struct landlock_ruleset_attr` has `handled_permissions`).
+- Not measured: a kernel with ABI 11 or 12; this host has ABI 7.
+
+## Approach
+
+From ABI 12, `Spec::compile` handles both permissions: a namespace rule
+for no type (the default deny list denies them all), and a capability
+rule for each bit of `keep_caps`. The seccomp rules and the capability
+drop stay for the older kernels. `pod_hostprobe::sys` gets the rule
+types and the larger `LandlockRulesetAttr`. A test of the compile; a run
+on a 7.4 kernel in CI where a runner has one.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features
+```

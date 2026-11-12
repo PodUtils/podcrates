@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 235 entries: 61 open, 5 partial, 4 blocked, 165 done.
+`TODO/INDEX.md` holds 236 entries: 62 open, 5 partial, 4 blocked, 165 done.
 
 ## State
 
@@ -95,7 +95,7 @@ next entry.
 9. **M5, the upkeep:** a "port" entry for each change that
    scripts/check-sources.py finds; T-199 after a release of snow on
    `chacha20poly1305` 0.11.
-10. **M7, the widened scope of podvm:** T-062 after M6.
+10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-107 with M6). T-113 to T-116 wait for the first release on crates.io.
@@ -106,7 +106,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C76), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C77), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
