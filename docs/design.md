@@ -273,7 +273,7 @@ agnostic". So the crate knows no provider in its code:
   kind is one implementation of a `Watch` trait in the member crate
   `pod-services-watch` (`crates/pod-services-watch`: a library and its
   runner binary, `publish = false`, which use `pod-proxy`, `pod-dns`,
-  `pod-tls` and `pod-ws`; call C42). A new watch kind is one
+  `pod-tls`, `pod-ws` and russh; calls C42, C88). A new watch kind is one
   implementation, its offline test against a stand-in of `pod-testkit`
   (feature `stand`) and its plant.
 * **Workflows of podcrates** run the watches (`services.yml`, each day)
@@ -514,7 +514,7 @@ pushes. No worktree branch is pushed.
 | `ci.yml` | each push | fmt, clippy, tests (Linux x86_64; the netns tests of `pod-hold` also as root, `scripts/root-netns-tests.sh`), `cargo todo check`, size, the static probes on each target, `cargo doc`, `scripts/check-probe.py`, `scripts/check-workflows.py` |
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
 | `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy`, `live` of `pod-oci`, `modloop_live` of `pod-guest` (the modloop of Alpine 3.22) |
-| `services.yml` | each day (02:17 UTC), by hand (a service, a kind, or a measurement) | `pod-services-watch`: each `[[watch]]` of the data of `pod-services`; a fact that moved fails the run with the file, the value, the new value and the source. The measurements of `scripts/services/` (`edge-facts.sh`) |
+| `services.yml` | each day (02:17 UTC), by hand (a service, a kind, or a measurement; with neither, no `forward-url`: call C89) | `pod-services-watch`: each `[[watch]]` of the data of `pod-services`; a fact that moved fails the run with the file, the value, the new value and the source. The measurements of `scripts/services/` (`edge-facts.sh`) |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |
 | `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |

@@ -58,6 +58,12 @@ kind = "ssh-host-key"
 endpoint = "ssh-443"
 fact = "host-key-sha256"
 
+# The banner of a session on the first endpoint to try holds a URL that the
+# rule accepts.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh-443"
+
 [[watch]]
 kind = "github-file"
 repo = "EpicEric/sandhole"

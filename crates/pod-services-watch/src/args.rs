@@ -33,6 +33,15 @@ impl<'a> Args<'a> {
         self.watch.arg(name).and_then(Value::as_int).ok_or_else(|| missing(name, "an integer"))
     }
 
+    /// The integer of the argument `name`, if the watch has the argument;
+    /// an argument of another type is a failure.
+    pub fn opt_int(&self, name: &str) -> Result<Option<i64>, Finding> {
+        match self.watch.arg(name) {
+            Some(_) => self.int(name).map(Some),
+            None => Ok(None),
+        }
+    }
+
     /// The texts of the argument `name`: a list, or one text.
     pub fn texts(&self, name: &str) -> Result<Vec<&'a str>, Finding> {
         match self.watch.arg(name) {

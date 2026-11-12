@@ -93,7 +93,7 @@ new kind is one implementation there. The kinds that the files name now:
 | --- | --- | --- |
 | `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), or `key` with `fact-prefix`, `member`, `port-member` and `true-members` (the last two if any) and `role`, if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its members of the name `member` hold the host of each endpoint of the role (more hosts in the document are no finding); with `key`, the value is a list, and each endpoint of the role is the item whose member `key` is the text of the fact `fact-prefix` + NAME: a member of `member` (a text or a list) holds its host, the member `port-member` (a number or a list) holds its port, and each member of `true-members` is `true` (more items with the port and the true members are counted, no finding) |
 | `http-status` | `endpoint` or `role`, `path`, `status` | a GET answers with the status |
-| `http-text` | `endpoint`, `contains` | the answer to a GET holds the text |
+| `http-text` | `url`, `contains` | the answer to a GET of the URL holds the text (the document of a fact, also on another host than the service) |
 | `tls-name` | `endpoint` or `role` | a TLS handshake verifies the name |
 | `tls-names` | `endpoint` or `role` | the certificate at each address names the host and the address |
 | `tls-roots` | `repo`, `path`, `tag`, `fact` | the certificates of the file of the repository at the tag of the fact `tag` are the fact's |
@@ -105,6 +105,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
 | `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
+| `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port, a shell) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays") |
 | `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
 | `github-release` | `repo`, `fact`, `max-age-days` | the newest release; the age of the pinned tag |
@@ -291,6 +292,20 @@ source states is not in the file.
 `ssh-j` is of the kind `ssh-tunnel` too, but it gives no URL (a jump and
 a forward by name): it has none of these facts. `tests/forward.rs` holds
 each service of the kind to one of the two lists.
+
+Each relay has a watch `forward-url` on its first endpoint to try: a
+session as podnet opens one, and its banner through `forward::Banner`
+with the rule of the file. A banner with no URL that the rule accepts is a
+finding on `url-match`. A watch `http-text` holds the document of the zone
+of `url-match` (`pinggy`, `serveo`, `localhost-run`): a document that moves
+the zone is a finding.
+
+| Relay | `forward-url` | The document of the zone |
+| --- | --- | --- |
+| `pinggy` | `ssh`, port 0 (`-R0:localhost:8000` of its document) | `https://pinggy.io/docs/`: `.run.pinggy-free.link` |
+| `serveo` | `ssh-443` | `https://serveo.net/docs/`: "A subdomain of serveo.net" |
+| `localhost-run` | `ssh`, the user `nokey` | `https://localhost.run/`: `.lhr.life` |
+| `sandhole` | `ssh-443` | none: the zone comes from podssh's runs |
 
 The rule is the one of podnet's flags `--url-match` and `--url-skip`: a
 URL is the tunnel's when it holds each text of `url-match` and no text of

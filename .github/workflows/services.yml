@@ -49,16 +49,23 @@ jobs:
         run: cargo build --locked --release -q -p pod-services-watch
       # The token raises the limit of GitHub's API for the GitHub watches;
       # the runner sends it to api.github.com alone and never prints it.
+      # A watch forward-url opens a tunnel on a free SSH relay: the daily
+      # run opens one session for each relay. A run by hand opens one only
+      # when it names the kind or the service (call C89).
       - name: Each watch
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SERVICE: ${{ inputs.service }}
           KIND: ${{ inputs.kind }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -u
           set --
           [ -n "${SERVICE:-}" ] && set -- "$@" --service "$SERVICE"
           [ -n "${KIND:-}" ] && set -- "$@" --kind "$KIND"
+          if [ "$EVENT" != schedule ] && [ -z "${SERVICE:-}" ] && [ -z "${KIND:-}" ]; then
+            set -- "$@" --skip-kind forward-url
+          fi
           rc=0
           ./target/release/pod-services-watch "$@" > watch.txt || rc=$?
           cat watch.txt

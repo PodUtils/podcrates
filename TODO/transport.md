@@ -3803,7 +3803,7 @@ Checks:
 **Milestone:** M1
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3857,6 +3857,53 @@ the zone only), and the user `http` of Pinggy is not measured.
 ```sh
 cargo test -p pod-services-watch --test watches
 cargo run -q -p pod-services-watch -- --service pinggy --service serveo --service localhost-run --service sandhole
+```
+
+# T-267: `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it
+
+**Source:** T-225 (a URL that the rule of a relay accepts is not always the URL of the tunnel)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The watch `forward-url` (T-225) holds when the banner of a relay holds a
+URL that the rule of the service accepts. The rule is a list of texts, so
+a URL of the service that is not the tunnel's can pass it: the fact
+`url-match` of `serveo` holds `.serveo.net`, and a URL of
+`console.serveo.net` holds that text too (T-224; no source shows the
+banner of Serveo). The watch then holds, and reports the host of a page
+of the service. podnet's `ssh-relay` would give that URL to its user.
+
+## Premise
+
+- Read: `crates/pod-services-watch/src/forward.rs` (the remote forward
+  goes to no local server; the client takes no channel `forwarded-tcpip`).
+- Not measured: a banner of a relay, and the answer of a relay to a first
+  request of a client that is no browser (a relay can answer with a page
+  of its own). This sandbox has no SSH.
+
+## Approach
+
+1. The client takes each channel `forwarded-tcpip` of the session, and
+   answers one HTTP request on it with a fixed answer that holds a word
+   made for the run.
+2. After the URL, a GET of the URL through the dial of `Net`, within the
+   bound of the session. An answer with the word holds; another answer is
+   a finding on `url-match` with the host.
+3. The offline test: the stand-in relay opens a channel `forwarded-tcpip`
+   for a request to its own HTTPS front. A plant that drops the compare
+   of the word.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --test watches -- forward::
+cargo run -q -p pod-services-watch -- --kind forward-url
+sh scripts/plant-each.sh --group services
 ```
 
 # T-233: `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269)

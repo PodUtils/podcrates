@@ -13,6 +13,7 @@
 pub mod args;
 mod crate_file;
 mod dns;
+mod forward;
 mod github;
 mod http;
 mod net;
@@ -138,6 +139,7 @@ kind!(DohAnswer, "doh-answer", dns::doh_answer);
 kind!(StunBinding, "stun-binding", stun::binding);
 kind!(WebsocketUpgrade, "websocket-upgrade", ws::upgrade);
 kind!(ForwardBanner, "forward-banner", ws::forward_banner);
+kind!(ForwardUrl, "forward-url", forward::url);
 kind!(ProxyBanner, "proxy-banner", proxy::banner);
 kind!(SshBanner, "ssh-banner", ssh::banner);
 kind!(SshHostKey, "ssh-host-key", ssh::host_key);
@@ -166,6 +168,7 @@ pub fn kinds() -> &'static [&'static dyn Watch] {
         &StunBinding,
         &WebsocketUpgrade,
         &ForwardBanner,
+        &ForwardUrl,
         &ProxyBanner,
         &SshBanner,
         &SshHostKey,

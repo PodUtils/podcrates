@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use pod_services::forward::{Banner, Relay, UrlRule};
-use pod_services::{Origin, Service};
+use pod_services::{Origin, Service, Value};
 
 /// The forward relays.
 const FORWARD: [&str; 4] = ["localhost-run", "pinggy", "sandhole", "serveo"];
@@ -100,6 +100,38 @@ fn each_forward_relay_has_the_facts_that_its_reader_needs() {
         let unit = |name| relay.service().fact(name).map(|f| f.unit());
         assert!(unit("keepalive-seconds").is_none_or(|u| u == Some("s")), "{id}");
         assert!(unit("free-tunnel-minutes").is_none_or(|u| u == Some("min")), "{id}");
+    }
+}
+
+/// The relays whose document names the zone of `url-match` (T-225).
+const ZONE_DOCUMENTS: [&str; 3] = ["localhost-run", "pinggy", "serveo"];
+
+/// One watch `forward-url` for each relay, on its first endpoint to try: a
+/// run of each watch opens one session with each relay. A watch `http-text`
+/// holds the document of the zone of the rule.
+#[test]
+fn each_forward_relay_has_a_watch_of_its_banner_and_of_the_document_of_its_zone() {
+    for id in FORWARD {
+        let relay = relay(id);
+        let watches = relay.service().watches();
+        let banners: Vec<_> = watches.iter().filter(|w| w.kind() == "forward-url").collect();
+        assert_eq!(banners.len(), 1, "{id}: one session for each run");
+        let first = relay.endpoints().next().map(|e| e.name());
+        assert_eq!(banners[0].arg("endpoint").and_then(Value::as_text), first, "{id}");
+        let documents: Vec<&str> = watches
+            .iter()
+            .filter(|w| w.kind() == "http-text")
+            .filter_map(|w| w.arg("contains").and_then(Value::as_text))
+            .collect();
+        if !ZONE_DOCUMENTS.contains(&id) {
+            assert!(documents.is_empty(), "{id}: a document of its zone goes into ZONE_DOCUMENTS");
+            continue;
+        }
+        let rule = relay.url_rule();
+        let zones: Vec<&str> =
+            rule.matches.iter().filter(|m| !m.starts_with("http")).map(|m| m.trim_start_matches('.')).collect();
+        assert_eq!(documents.len(), 1, "{id}: one document of its zone");
+        assert!(zones.iter().any(|z| documents[0].contains(z)), "{id}: {:?} names none of {zones:?}", documents[0]);
     }
 }
 

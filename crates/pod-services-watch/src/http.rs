@@ -217,17 +217,18 @@ pub async fn status(service: &Service, watch: &Watch, net: &Net) -> Checked {
     Ok(out)
 }
 
-/// `http-text`: the answer to a GET of the endpoint holds `contains`.
+/// `http-text`: the answer to a GET of `url` holds `contains`. A URL, not
+/// an endpoint: the document that states a fact is often on another host
+/// than the service (the page of a relay of SSH).
 pub async fn text(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let args = Args::new(service, watch);
-    let (endpoint, contains) = (args.endpoint()?, args.text("contains")?);
-    let url = https_url(endpoint, None);
-    let answer = net.get_ok(&url, "*/*").await?;
+    let (url, contains) = (args.text("url")?, args.text("contains")?);
+    let answer = net.get_ok(url, "*/*").await?;
     if !answer.text().contains(contains) {
         let shown = answer.body_text(120);
-        return Err(Finding::failed(format!("{} does not hold {contains:?}: {shown}", self::shown(&url))));
+        return Err(Finding::failed(format!("{} does not hold {contains:?}: {shown}", self::shown(url))));
     }
-    Ok(Outcome { seen: vec![format!("{} holds {contains:?}", shown(&url))], findings: Vec::new(), skipped: None })
+    Ok(Outcome { seen: vec![format!("{} holds {contains:?}", shown(url))], findings: Vec::new(), skipped: None })
 }
 
 /// `github-ssh-keys`: the fingerprints at `pointer` of the document at

@@ -151,16 +151,25 @@ async fn http_status_wants_the_status() {
     assert!(text(&report).contains("answered 404, not 200"), "{}", text(&report));
 }
 
+/// `http-text` reads its URL, not an endpoint: the service of the file has
+/// no endpoint, as a relay of SSH whose document is on another host.
 #[tokio::test]
 async fn http_text_wants_the_text() {
     pod_testkit::need_loopback!();
     let stand = https(answer);
-    let ep = endpoint("trace", "https", NAME, stand.port(), "path = \"/trace\"");
-    let good = ep.clone() + &watch("kind = \"http-text\"\nendpoint = \"trace\"\ncontains = \"h=one.one.one.one\"");
-    assert!(one(&file("t1", &good)).await.holds());
-    let bad = ep + &watch("kind = \"http-text\"\nendpoint = \"trace\"\ncontains = \"h=two\"");
+    let url = format!("https://{NAME}:{}/trace", stand.port());
+    let w = |contains: &str| watch(&format!("kind = \"http-text\"\nurl = \"{url}\"\ncontains = \"{contains}\""));
+    let good = fact("zone", "\"one.one.one.one\"") + &w("h=one.one.one.one");
+    let report = one(&file("t1", &good)).await;
+    assert!(report.holds() && text(&report).contains("/trace holds \"h=one.one.one.one\""), "{}", text(&report));
+    let bad = fact("zone", "\"one.one.one.one\"") + &w("h=two");
     let report = one(&file("t2", &bad)).await;
-    assert!(!report.holds() && text(&report).contains("does not hold"), "{}", text(&report));
+    assert!(!report.holds() && text(&report).contains("/trace does not hold \"h=two\""), "{}", text(&report));
+    // A URL with no answer of 2xx is a failure, not a pass.
+    let gone = fact("zone", "\"one.one.one.one\"")
+        + &watch(&format!("kind = \"http-text\"\nurl = \"https://{NAME}:{}/gone\"\ncontains = \"no\"", stand.port()));
+    let report = one(&file("t3", &gone)).await;
+    assert!(!report.holds() && text(&report).contains("answered HTTP 404"), "{}", text(&report));
 }
 
 #[tokio::test]
