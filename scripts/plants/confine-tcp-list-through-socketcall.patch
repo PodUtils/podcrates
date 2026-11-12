@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/compile.rs b/crates/pod-confine/src/compile.rs
+index 0c987db..21633ec 100644
+--- a/crates/pod-confine/src/compile.rs
++++ b/crates/pod-confine/src/compile.rs
+@@ -293,7 +293,7 @@ impl Spec {
+     pub(crate) fn deny_rules_on(&self, socketcall: bool) -> Result<Vec<Deny>, Failure> {
+         let mut rules = self.deny.clone();
+         let tcp = self.connect.is_some() || self.bind.is_some();
+-        if tcp && socketcall {
++        if tcp && socketcall && false {
+             return Err(failure(
+                 Class::Unsupported,
+                 "the spec holds a TCP list, and the kernel of this target has socketcall(2): a filter cannot read \

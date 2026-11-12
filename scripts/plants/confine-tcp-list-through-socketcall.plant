@@ -1,0 +1,7 @@
+# A TCP list is taken on a target with socketcall(2): the MPTCP rule and the
+# rules of the families do not see a socket made through it (T-262).
+ENTRY=T-262
+GROUP=confine
+EXPECT='test compile::tests::a_tcp_list_is_refused_where_the_kernel_has_socketcall \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --lib -- compile::tests::a_tcp_list_is_refused_where_the_kernel_has_socketcall'
+LIMIT=1800
