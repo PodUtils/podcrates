@@ -35,8 +35,9 @@
 - Partial: T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet remains), T-040 (the
-  trial of podvm), T-170 (step 2: PodUtils/podnet@T-249 is done at
-  `a7350b2`, PodUtils/podnet#451), T-261 (the MQTT meeting point of
+  trial of podvm), T-170 (step 2: `pod_hold::syn_hold` from podnet
+  `a7350b2`; the trial `pod-hold-syn` in `adoption.yml`, the release and
+  podnet's take remain), T-261 (the MQTT meeting point of
   `pod-wormhole` is in the crate, with its tests; the step of Mosquitto in
   `ci.yml` and the step of `live.yml` remain). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
@@ -80,9 +81,9 @@ next entry.
    (partial: the trial of podnet), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
-   after PodUtils/podnet@T-249 (the router onto `pod-netstack`; it takes the
-   close of a listener and of a stream and the SYN bursts of PodUtils/podnet#457
-   with the next tag); T-214 and T-215 (the file
+   (partial): the run of the trial `pod-hold-syn` in `adoption.yml`, the tag,
+   and the COORD answer to PodUtils/podnet#451 with podnet's defects of the
+   Done section of T-170; T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
@@ -117,7 +118,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

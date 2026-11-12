@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hold/src/syn_hold.rs b/crates/pod-hold/src/syn_hold.rs
+index 1d93452..cb84859 100644
+--- a/crates/pod-hold/src/syn_hold.rs
++++ b/crates/pod-hold/src/syn_hold.rs
+@@ -336,6 +336,7 @@ where
+             } else if self.held.len() + self.dialed.len() + self.open.len() >= self.settings.max_flows {
+                 // No room: the payload sends the SYN again (call C91).
+                 self.stats.over_budget += 1;
++                kept.push_back(packet);
+             } else {
+                 let task = self.spawn_dial(dial, syn);
+                 self.held.insert(syn, Held { packet, task });

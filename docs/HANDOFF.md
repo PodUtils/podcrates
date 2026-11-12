@@ -42,7 +42,8 @@ a line when its work is done. Git and the record keep finished work.
 - podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its
   `UrlRule::default()` reads `url-skip`. Its PodUtils/podnet@T-249 (the
   router onto `pod-netstack`) drops its workarounds; its commit comes in
-  PodUtils/podnet#451 and starts T-170 step 2. Its PodUtils/podnet@T-248
+  PodUtils/podnet#451 (`a7350b2`); T-170 step 2 (partial) imported its
+  hold of a SYN as `pod_hold::syn_hold`. Its PodUtils/podnet@T-248
   (the guest-wire router) takes T-257 to T-259 with the next tag. `pod-git` waits: its own repository,
   deferred (the owner; #75).
 - podssh (on `v0.27.0`, `0872c2c6`, PodUtils/podssh#206): it took

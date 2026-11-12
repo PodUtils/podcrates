@@ -3,6 +3,7 @@
 //! binary on each target (docs/design.md, section 7). Each new crate adds
 //! one line here.
 
+mod hold;
 mod relay;
 mod relay_client;
 
@@ -95,7 +96,7 @@ fn main() {
     lines.push(format!("pod-gsr blocking: {}", blocking.map_or_else(|e| e.to_string(), |s| format!("{s:?}"))));
     lines.extend(hostprobe());
     lines.extend(supervise());
-    lines.extend(hold());
+    lines.extend(hold::hold());
     lines.extend(guest());
     lines.extend(enter());
     lines.extend(confine());
@@ -132,28 +133,6 @@ fn hostprobe() -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 fn hostprobe() -> Option<String> {
-    None
-}
-
-/// pod-hold is Linux only: on another target the crate is empty.
-#[cfg(target_os = "linux")]
-fn hold() -> Option<String> {
-    let calls = pod_hold::filter::Calls::sockets();
-    let budget = pod_hold::table::derived_ceiling(pod_hold::table::nofile().1);
-    let gateway = pod_hold::netns::Tun::default().gateway;
-    // AF_INET of Linux.
-    let address = pod_hold::sockaddr::encode(2, gateway.into(), 53);
-    Some(format!(
-        "pod-hold: {} BPF instructions for {} calls, a flow budget of {budget}, the gateway {:?}, level {}",
-        calls.program().len(),
-        calls.numbers().len(),
-        pod_hold::sockaddr::parse(&address).map(|a| a.ip),
-        pod_hold::Hold::none("the probe starts no payload").level
-    ))
-}
-
-#[cfg(not(target_os = "linux"))]
-fn hold() -> Option<String> {
     None
 }
 

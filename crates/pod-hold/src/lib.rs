@@ -12,7 +12,9 @@
 //! * The netns hold (`enforced`): the payload runs in a new network
 //!   namespace whose only route is a wire that the supervisor holds: a
 //!   TUN, else a veth pair and its packet socket ([`netns`],
-//!   [`netns::Wire`]).
+//!   [`netns::Wire`]). With the feature `syn-hold`, `syn_hold` holds each
+//!   SYN of the payload on the stack of `pod-netstack` until the consumer
+//!   dialed its upstream, then accepts it or answers a RST ([`packet`]).
 //!
 //! The decisions (where a connect goes, the rules, the relays, the stack
 //! on the wire) are the consumer's. The crate reads no environment
@@ -34,6 +36,8 @@ pub mod packet;
 pub mod reply;
 pub mod sockaddr;
 pub mod spawn;
+#[cfg(feature = "syn-hold")]
+pub mod syn_hold;
 pub mod table;
 
 pub use level::{Hold, Level};

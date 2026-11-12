@@ -344,8 +344,9 @@ the `taken` lines of `SOURCES`):
 * `pod-warp` (podnet `src/warp/ip.rs`, PodUtils/podnet#427): the TCP and UDP
   of WARP over the link device; it drives smoltcp 0.14 with it now.
 * podnet's netns router (`crates/podnet-netns/src/netns/backend.rs`,
-  `udpflow.rs`): PodUtils/podnet@T-249 moves it onto the stack with the
-  calls of "Any IP" (T-222), then step 2 of T-170.
+  `udpflow.rs`): PodUtils/podnet@T-249 moved it onto the stack with the
+  calls of "Any IP" (T-222) at podnet `a7350b2`; its hold of a SYN is
+  `pod_hold::syn_hold` on this stack (T-170, step 2).
 * `pod-netlab` (PodUtils/podvm#178): the network labs of podvm.
 
 ## Tests

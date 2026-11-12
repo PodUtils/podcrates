@@ -2545,8 +2545,9 @@ the smoltcp version of `pod-netstack` is settled.
 ## Prove
 
 ```sh
-cargo test -p pod-hold
-sh scripts/adoption.sh podnet pod-hold
+cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-syn-accepted-before-the-dial hold-syn-past-the-budget-to-the-stack
+sh scripts/adoption.sh podnet pod-hold-syn
 ```
 
 ## Done
@@ -2593,6 +2594,91 @@ issue (PodUtils/podnet@T-174 and the smoltcp of `pod-netstack`).
 - Step 1 taken: podnet `e4d4049` (see T-169). Step 2 waits for podnet's
   COORD issue (its T-174 and the move of its router to the smoltcp of
   `pod-netstack`).
+
+2026-11-12, step 2, partial: the import, its tests, its plants and the
+trial patch are done. The run of the trial in `adoption.yml` (the lead,
+after the push), the tag `v0.29.0` and podnet's take remain.
+
+- `pod_hold::syn_hold` (the feature `syn-hold`; calls C90, C91, C100)
+  from `PodUtils/podnet:crates/podnet-netns/src/netns/backend.rs` at
+  `a7350b2` (podnet's PodUtils/podnet@T-249, PodUtils/podnet#451):
+  `SynHold<U, E>` on a stack of `pod-netstack` (`new`, `pump`,
+  `activity`, `next_flow`, `shutdown`), the dial of the consumer (`Dial`;
+  a closure is one), `Syn`, `Flow` with its `Open`, `Refused`,
+  `Settings`, `Stats`. The hold of each SYN, the release or the RST, the
+  listeners of the ports, the match of an accepted stream to its upstream
+  and the late dial came; the dial, the rules, the flow log, the copy of a
+  flow, the DNS, the UDP flows and the device of the wire stay in podnet.
+  `SOURCES` has a fourth block (podnet `a7350b2`: `backend.rs` and the
+  tests `tcp.rs` and `netns_tcp.rs` of `PodUtils/podnet:tests/pod_seccomp`);
+  `check-sources.py` with a clone of podnet reads 0 changes in each of
+  the four blocks. Commits `818f581` (the import), `d02c0ce` (the plants),
+  `671358e` (the trial) and the commit of this section.
+- Tests (8, `crates/pod-hold/src/syn_hold/tests.rs` and
+  `crates/pod-hold/src/syn_hold/tests/many.rs`), over a link to a payload
+  stack of `pod-netstack`: podnet's
+  `netns_backend_refuses_connect_when_the_upstream_is_dead` (one RST on
+  the link, `ECONNREFUSED` in less than 3 s, no SYN for the stack),
+  `netns_backend_takes_a_burst_of_connects_to_one_port` (48, no RST) and
+  `netns_backend_has_no_cap_on_destination_ports` (300 ports, then six
+  again) keep their names;
+  `a_syn_whose_dial_succeeds_is_accepted_and_carries_bytes_both_ways` (256
+  KiB both ways, a closure as the dial),
+  `the_stack_answers_a_syn_only_after_its_dial`,
+  `a_syn_sent_again_while_its_dial_waits_is_held_once`,
+  `a_syn_past_the_budget_waits_for_room`,
+  `a_syn_of_a_packet_names_its_addresses`. Each passes in 20 of 20 runs.
+- Plants: `hold-syn-accepted-before-the-dial` (the hold gives a new SYN to
+  the stack at once) fails `the_stack_answers_a_syn_only_after_its_dial`
+  in 20 of 20 runs; `hold-syn-past-the-budget-to-the-stack` (podnet's
+  behaviour past the budget) fails `a_syn_past_the_budget_waits_for_room`
+  in 10 of 10 runs (held 1, late 1, flows 2).
+- Defects of podnet's router at `a7350b2`, for the COORD answer to
+  PodUtils/podnet#451 (the crate does not have them):
+  1. Past the budget (`held + open >= MAX_TRACKED_FDS`), `hold_syns` gave
+     a new SYN to the stack. The limit of the stack counts its own sockets
+     only, so the stack accepted the connection with no dial, and the dial
+     started after the accept: the `connect` of the program succeeded
+     before its dial, and a failed dial then reset it. The comment "The
+     table is full: the stack drops the SYN" does not hold. The budget also
+     did not count the upstreams of the released SYNs (call C91).
+  2. `accept_flows` dialed a late connection (`Source::Dial`) with
+     `spawn_dial` also when its target is the gateway: the rules and the
+     proxies, not `spawn_gateway_dial` and `--host-gateway` (call C100).
+  3. The map of the open flows kept one entry for each address tuple: a
+     connection that the stack accepted again while its first flow lived
+     left the map at the end of the first flow.
+  4. podnet's record: the Premise of PodUtils/podnet@T-176
+     (`PodUtils/podnet:TODO/later.md`) cites `HeldSyn` and `reap_closed`
+     at lines of `backend.rs` that hold other code at `a7350b2`
+     (`reap_closed` is gone); the remap of the patch moves one of its
+     citations and names one for a read.
+- The trial (`adoption/podnet/pod-hold-syn.patch`, its `.commit` and its
+  `.run`): podnet's `backend.rs` takes `SynHold` (666 to 452 lines);
+  `TcpRoute` implements `Dial`; `netns/packet.rs` keeps `ipv4_checksum`;
+  each tag moves to `v0.29.0`. Run here on the patch, with the crates of
+  this tree: `podnet-todo check`, `check-size.py`, `check-layers.py`,
+  clippy of `podnet-netns`, its tests (116, `raw` 1, `veth` 1), the 41
+  tests of `pod_seccomp` (the 14 netns tests among them, also the 48 MiB
+  download in 1.76 s), `docs`, `api_surface`, `doctor`, `pod_backend_line`,
+  rustfmt of the changed files, the grep for a copy of the moved items;
+  each passes, as root with no skip. Not run here (the disk): the build of
+  the workspace, `cargo deny`, the clippy of the workspace, the docs, the
+  other test targets, `root-netns-tests.sh`, the fuzz targets, the
+  toolchains, the static musl binary. The lead runs the trial in
+  `adoption.yml`.
+- Checks: `cargo fmt --all --check`, `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`,
+  `cargo test -p pod-hold -p pod-netstack --all-features` (`pod-hold` 59,
+  `tests/hold.rs` 3 and `tests/veth.rs` 1 as root with no skip;
+  `pod-netstack` 61), `cargo todo check`, `check-design-paths.py`,
+  `check-size.py`, `check-probe.py`, `plant-each.sh --apply`: each exits 0.
+  The static probe turns `syn-hold` on and runs one refused SYN
+  (`examples/static-probe/src/hold.rs`): clippy compiles it; it did not
+  run here.
+- Not measured: the hold under a real payload with a namespace in this
+  tree (podnet's pod tests above measure it through the trial), the rate
+  of a flow through the hold, and the time limits of `Settings`.
 
 # T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
 

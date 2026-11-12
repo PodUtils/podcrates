@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hold/src/syn_hold.rs b/crates/pod-hold/src/syn_hold.rs
+index 1d93452..5110fc1 100644
+--- a/crates/pod-hold/src/syn_hold.rs
++++ b/crates/pod-hold/src/syn_hold.rs
+@@ -338,6 +338,7 @@ where
+                 self.stats.over_budget += 1;
+             } else {
+                 let task = self.spawn_dial(dial, syn);
++                kept.push_back(packet.clone());
+                 self.held.insert(syn, Held { packet, task });
+                 self.stats.held += 1;
+             }
