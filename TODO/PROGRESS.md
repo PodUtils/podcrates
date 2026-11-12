@@ -13,8 +13,8 @@
   for each relay host (T-246), the watches `forward-url` (T-225, T-272).
 - On `main` after the tag: `syncthing-relay` in `pod-services` (T-276).
 - The consumers and their tags:
-  - podssh: `v0.28.0` (`12473a10`, PodUtils/podssh#208; it took `pod-relay`
-    at `0872c2c6`).
+  - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
+    changed; it took `pod-relay` at `0872c2c6`).
   - podnet: `v0.29.0` (`98d8a71`, PodUtils/podnet#478): its netns router
     holds each SYN with `pod_hold::syn_hold` (T-170); it does not turn on
     `ipv4-fragmentation` now (PodUtils/podnet@T-248 decides).

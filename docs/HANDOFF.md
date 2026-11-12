@@ -21,7 +21,8 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
   took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`), podvm at
-  `c99bdd8d` (PodUtils/podvm#279). Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
+  `c99bdd8d` (PodUtils/podvm#279), podssh at `5b56c4d`
+  (PodUtils/podssh#211); podrunner has not answered. Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
   podssh `12473a10`, podnet `b08e06f` (PodUtils/podnet#477), podvm
   `94e7ca2a` (PodUtils/podvm#278).
 - On `main` after the tag: T-276 (`syncthing-relay`, call C104) and the
@@ -50,9 +51,9 @@ is done. Git and the record keep finished work.
   `syn_hold`): T-026's trial, then T-028 (`pod-warp`) and
   T-029 (`pod-cloudflare`) on the chain to WARP (the owner's order). Write
   to podnet by COORD issues only.
-- podssh (on `v0.28.0`, `12473a10`, PodUtils/podssh#208): its
-  PodUtils/podssh@T-737 wires the MQTT meeting point (T-261);
-  PodUtils/podssh#209 is T-276; `sandhole` and `openbare-xyz` wait for
+- podssh (on `v0.29.0`, `5b56c4d`, PodUtils/podssh#211): its
+  PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
+  with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.28.0`, `bde47c3`): T-251 (`pod-actions-workflow`,
   `pod-actions-expr` and the expansion of jobs, for its local mode

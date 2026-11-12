@@ -156,6 +156,10 @@ the Access client of Cloudflare.
   `forwarder/`, `meek.rs`, `meek/`, `webtunnel.rs`, `pt.rs`, `eice/`,
   `iap/`, `cloudflare.rs` (about 10,000 lines), and podssh's interop
   workflows of `via`, `vless` and `wstunnel`.
+- podssh's take of `v0.29.0` (PodUtils/podssh#211): podssh-ws has
+  `vmess/` too (PodUtils/podssh@T-739, VMess's AEAD form, `e475a63`;
+  `vmess-interop.yml` run 43178390705 passed against Xray-core
+  v26.10.21). The import takes `vmess/` with `vless/` and `trojan/`.
 
 ## Approach
 
