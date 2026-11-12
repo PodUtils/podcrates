@@ -57,6 +57,8 @@ pod-link = { path = "../crates/pod-link" }
 pod-devtunnel = { path = "../crates/pod-devtunnel" }
 # The counters of a network lab (T-207).
 pod-netlab = { path = "../crates/pod-netlab" }
+# The codec of STUN (T-377), with no TURN client.
+pod-turn = { path = "../crates/pod-turn", default-features = false, features = ["stun"] }
 # The parsers of podvm (T-173). The feature `fuzzing` of pod-oci exposes
 # the parse of a challenge of a registry.
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
@@ -380,6 +382,13 @@ bench = false
 [[bin]]
 name = "netlab_counters"
 path = "fuzz_targets/netlab_counters.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "stun_message"
+path = "fuzz_targets/stun_message.rs"
 test = false
 doc = false
 bench = false

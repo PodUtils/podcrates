@@ -1,7 +1,7 @@
-//! A binary that links pod-core, pod-tls, pod-wg and pod-confine with no
-//! default feature, so that no tokio is in it. `scripts/check-static.sh`
-//! checks the binary on each target, and `scripts/check-probe.py` checks
-//! the tree (docs/design.md, section 7).
+//! A binary that links pod-core, pod-tls, pod-wg, pod-confine and the STUN
+//! codec of pod-turn with no default feature, so that no tokio is in it.
+//! `scripts/check-static.sh` checks the binary on each target, and
+//! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
 fn main() {
     let provider = std::sync::Arc::new(pod_tls::crypto::provider());
@@ -13,6 +13,9 @@ fn main() {
     let keys = pod_wg::Keys { private: [1; 32], peer_public: [2; 32], reserved: [0; 3] };
     let init = pod_wg::initiate(&keys).map_or_else(|e| e.to_string(), |i| format!("{} bytes", i.message.len()));
     println!("pod-wg: an initiation of {init}");
+    let key = pod_turn::stun::long_term_key("probe", "probe.example", "probe");
+    let signed = pod_turn::stun::signed(&pod_turn::stun::binding_request(&[7; 12]), &key);
+    println!("pod-turn: a signed Binding request of {} bytes", signed.len());
     confine();
 }
 

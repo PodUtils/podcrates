@@ -55,6 +55,9 @@ pod-supervise = { path = "crates/pod-supervise", version = "0.32.0" }
 pod-term = { path = "crates/pod-term", version = "0.32.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.32.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.32.0" }
+# No default feature here: pod-proxy takes the codec of STUN alone (feature
+# `stun`); a crate that needs the TURN client names the feature `turn`.
+pod-turn = { path = "crates/pod-turn", version = "0.32.0", default-features = false }
 pod-warp = { path = "crates/pod-warp", version = "0.32.0" }
 pod-wg = { path = "crates/pod-wg", version = "0.32.0" }
 pod-wormhole = { path = "crates/pod-wormhole", version = "0.32.0" }
@@ -150,7 +153,7 @@ webpki-roots = "1"
 # cipher when it is dropped.
 sha2 = { version = "0.11", default-features = false, features = ["oid", "zeroize"] }
 hmac = { version = "0.13", default-features = false, features = ["zeroize"] }
-# HMAC-SHA1 of the MESSAGE-INTEGRITY of STUN (pod-proxy).
+# HMAC-SHA1 of the MESSAGE-INTEGRITY of STUN (pod-turn).
 sha1 = { version = "0.11", default-features = false }
 hkdf = { version = "0.13", default-features = false }
 aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc", "zeroize"] }

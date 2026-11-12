@@ -1,7 +1,7 @@
 //! The integrity of a STUN message (RFC 8489, 9 and 14.5 to 14.7) and the
-//! methods and attributes of TURN (RFC 8656, RFC 6062): a TURN road signs
+//! methods and attributes of TURN (RFC 8656, RFC 6062): a TURN client signs
 //! each request with its key, and checks each answer. Pure Rust: HMAC-SHA1
-//! of `hmac` and `sha1`, the MD5 of [`crate::digest`], and the CRC-32 here.
+//! of `hmac` and `sha1`, the MD5 of [`crate::md5`], and the CRC-32 here.
 
 use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
@@ -38,6 +38,12 @@ pub const REQUESTED_TRANSPORT: u16 = 0x0019;
 pub const DONT_FRAGMENT: u16 = 0x001a;
 pub const RESERVATION_TOKEN: u16 = 0x0022;
 pub const CONNECTION_ID: u16 = 0x002a;
+pub const ADDITIONAL_ADDRESS_FAMILY: u16 = 0x8000;
+pub const ADDRESS_ERROR_CODE: u16 = 0x8001;
+pub const ICMP: u16 = 0x8004;
+
+/// The protocol number of UDP in REQUESTED-TRANSPORT (RFC 8656, 18.6).
+pub const TRANSPORT_UDP: u8 = 17;
 
 /// The classes of a message (RFC 8489, 5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +67,22 @@ pub fn message_type(method: u16, class: Class) -> u16 {
     (m & 0x000f) | ((m & 0x0070) << 1) | ((m & 0x0f80) << 2) | ((c & 1) << 4) | ((c & 2) << 7)
 }
 
+/// The class of a message's type: the bits 4 and 8 of [`message_type`].
+pub fn class_of(kind: u16) -> Class {
+    match ((kind >> 4) & 1) | ((kind >> 7) & 2) {
+        0b00 => Class::Request,
+        0b01 => Class::Indication,
+        0b10 => Class::Success,
+        _ => Class::Error,
+    }
+}
+
+/// The method of a message's type: the bits of [`message_type`] without the
+/// class.
+pub fn method_of(kind: u16) -> u16 {
+    (kind & 0x000f) | ((kind >> 1) & 0x0070) | ((kind >> 2) & 0x0f80)
+}
+
 /// The XOR of the CRC-32 of a FINGERPRINT (RFC 8489, 14.7).
 const FINGERPRINT_XOR: u32 = 0x5354_554e;
 /// The bytes of a MESSAGE-INTEGRITY attribute and of a FINGERPRINT one.
@@ -71,7 +93,7 @@ const FINGERPRINT_BYTES: usize = 4 + 4;
 /// `user:realm:password`. The caller gives each text after SASLprep (or
 /// OpaqueString); this function does no preparation.
 pub fn long_term_key(user: &str, realm: &str, password: &str) -> [u8; 16] {
-    crate::digest::md5(format!("{user}:{realm}:{password}").as_bytes())
+    crate::md5::md5(format!("{user}:{realm}:{password}").as_bytes())
 }
 
 /// `message` (a header and its attributes, as [`super::message`] writes
@@ -151,7 +173,7 @@ pub fn fingerprint_ok(bytes: &[u8]) -> bool {
 
 /// Each attribute of a whole message: its type, the offset of its header,
 /// and its length; the checks of [`super::parse`].
-fn offsets(bytes: &[u8]) -> Result<Vec<(u16, usize, usize)>, String> {
+pub(super) fn offsets(bytes: &[u8]) -> Result<Vec<(u16, usize, usize)>, String> {
     super::parse(bytes)?;
     let mut out = Vec::new();
     let mut at = HEADER;
@@ -166,7 +188,7 @@ fn offsets(bytes: &[u8]) -> Result<Vec<(u16, usize, usize)>, String> {
 
 /// `message` with the length of its header set to the bytes after the
 /// header plus `more`.
-fn with_length(message: &[u8], more: usize) -> Vec<u8> {
+pub(super) fn with_length(message: &[u8], more: usize) -> Vec<u8> {
     let mut out = message.to_vec();
     if out.len() >= HEADER {
         let len = (out.len() - HEADER + more).min(usize::from(u16::MAX)) as u16;

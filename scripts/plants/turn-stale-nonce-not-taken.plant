@@ -1,0 +1,7 @@
+# The client answers a 438 with the old nonce, not the fresh one; the
+# test of the stale nonce must fail.
+ENTRY=T-377
+GROUP=turn
+EXPECT='test a_stale_nonce_is_answered_with_the_fresh_nonce_and_the_same_user \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --test turn_udp -- a_stale_nonce_is_answered_with_the_fresh_nonce_and_the_same_user --exact'
+LIMIT=1800

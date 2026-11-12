@@ -22,8 +22,8 @@ file 01edf9bbe9826e04767241fa051d1f0af92a8bf2 crates/podssh-ws/src/proxy.rs -> c
 file 9c36033393f90188237ea1803edc9df2c56a77ea crates/podssh-ws/src/proxy_auth.rs -> crates/pod-proxy/src/proxy_auth.rs
 file 0e0f1549216dbc741c1edb4e4fadc93abba8ccab crates/podssh-ws/src/race.rs -> crates/pod-proxy/src/race.rs
 file 0c3931d19f493c0a926a3561beff5e2ab35546b5 crates/podssh-ws/src/socks5.rs -> crates/pod-proxy/src/socks5.rs
-file 0206eef1a77eae227bf4b48ea502641399a66451 crates/podssh-ws/src/stun.rs -> crates/pod-proxy/src/stun.rs
-file 62cee4c95596ab8a1196325ddd4003cf2d7e4d2f crates/podssh-ws/src/stun_tests.rs -> crates/pod-proxy/src/stun_tests.rs
+file 0206eef1a77eae227bf4b48ea502641399a66451 crates/podssh-ws/src/stun.rs -> crates/pod-turn/src/stun.rs
+file 62cee4c95596ab8a1196325ddd4003cf2d7e4d2f crates/podssh-ws/src/stun_tests.rs -> crates/pod-turn/src/stun_tests.rs
 file d248b4a494f08d7b3cf4d52600d3ac72622b9bb4 crates/podssh-ws/src/write_limit.rs -> crates/pod-proxy/src/write_limit.rs
 file 5dd6a151de5492023c34dfef8079f9799a72a89d crates/podssh-ws/tests/dial.rs -> crates/pod-proxy/tests/dial.rs
 file 260a81db10def4a3128a508026c7597d25f21fed crates/podssh-ws/tests/dial_pinned.rs -> crates/pod-proxy/tests/dial_pinned.rs

@@ -1,0 +1,7 @@
+# The client takes an answer whose integrity does not hold; the test of a
+# forged Allocate success must fail.
+ENTRY=T-377
+GROUP=turn
+EXPECT='test an_answer_with_a_wrong_integrity_or_none_fails \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --test turn_udp -- an_answer_with_a_wrong_integrity_or_none_fails --exact'
+LIMIT=1800

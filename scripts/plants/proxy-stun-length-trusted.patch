@@ -1,14 +1,14 @@
-diff --git a/crates/pod-proxy/src/stun.rs b/crates/pod-proxy/src/stun.rs
-index 234d086..bc6e589 100644
---- a/crates/pod-proxy/src/stun.rs
-+++ b/crates/pod-proxy/src/stun.rs
-@@ -117,11 +117,8 @@ pub fn parse(bytes: &[u8]) -> Result<Message<'_>, String> {
+diff --git a/crates/pod-turn/src/stun.rs b/crates/pod-turn/src/stun.rs
+index 3e8f550..fbc4ce2 100644
+--- a/crates/pod-turn/src/stun.rs
++++ b/crates/pod-turn/src/stun.rs
+@@ -155,11 +155,8 @@ pub fn decode(bytes: &[u8]) -> Result<Message<'_>, DecodeError> {
          }
          let attribute = u16::from_be_bytes([rest[0], rest[1]]);
          let len = usize::from(u16::from_be_bytes([rest[2], rest[3]]));
 -        let whole = 4 + len + padding(len);
 -        if whole > rest.len() {
--            return Err(format!("the attribute 0x{attribute:04x} says {len} bytes, past the message"));
+-            return Err(fail(at, format!("the attribute 0x{attribute:04x} says {len} bytes, past the message")));
 -        }
 -        attributes.push((attribute, &rest[4..4 + len]));
 +        let whole = (4 + len + padding(len)).min(rest.len());

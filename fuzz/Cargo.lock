@@ -1921,12 +1921,11 @@ name = "pod-proxy"
 version = "0.32.0"
 dependencies = [
  "base64",
- "hmac 0.13.0",
  "libc",
  "pod-core",
  "pod-tls",
+ "pod-turn",
  "rustls-pki-types",
- "sha1",
  "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
@@ -2011,6 +2010,15 @@ dependencies = [
  "tracing",
  "webpki-roots",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "pod-turn"
+version = "0.32.0"
+dependencies = [
+ "hmac 0.13.0",
+ "sha1",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -2112,6 +2120,7 @@ dependencies = [
  "pod-relay",
  "pod-session",
  "pod-tls",
+ "pod-turn",
  "pod-warp",
  "pod-wg",
  "pod-wormhole",

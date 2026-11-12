@@ -1,8 +1,9 @@
 # STUN's codec trusts an attribute's length and cuts it at the end of the
 # message, so an attribute that runs past the message reads as one; the
-# test of what is no message must fail.
+# test of what is no message must fail. The codec is pod-turn's (T-377);
+# the plant keeps its name.
 ENTRY=T-013
-GROUP=proxy
+GROUP=turn
 EXPECT='test stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read \.\.\. FAILED'
-RUN='cargo test -p pod-proxy --all-features --lib -- stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read'
+RUN='cargo test -p pod-turn --all-features --lib -- stun::tests::what_is_no_message_is_refused_before_a_byte_past_it_is_read'
 LIMIT=1800

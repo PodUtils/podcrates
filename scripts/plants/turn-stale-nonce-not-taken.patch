@@ -1,0 +1,16 @@
+diff --git a/crates/pod-turn/src/client/exchange.rs b/crates/pod-turn/src/client/exchange.rs
+index 73ed85e..d62e474 100644
+--- a/crates/pod-turn/src/client/exchange.rs
++++ b/crates/pod-turn/src/client/exchange.rs
+@@ -148,7 +148,10 @@ impl Client {
+     fn challenge(&mut self, read: &Message<'_>, stale: bool) -> Result<(), Error> {
+         let kind = read.kind;
+         let protocol = |why: &str| Error::Protocol { kind, why: why.to_string() };
+-        let nonce = read.attribute(NONCE).ok_or_else(|| protocol("a challenge with no NONCE"))?.to_vec();
++        let mut nonce = read.attribute(NONCE).ok_or_else(|| protocol("a challenge with no NONCE"))?.to_vec();
++        if let (true, Some(auth)) = (stale, &self.auth) {
++            nonce = auth.nonce.clone();
++        }
+         let realm = match (read.attribute(REALM), &self.auth) {
+             (Some(value), _) => String::from_utf8(value.to_vec()).map_err(|_| protocol("a REALM that is no UTF-8"))?,
+             (None, Some(auth)) if stale => auth.realm.clone(),

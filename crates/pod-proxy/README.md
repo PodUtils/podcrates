@@ -10,7 +10,8 @@ proxy of a tool's configuration; how a connection ended; the HTTP/1.1
 heads; an HTTP client (a GET over HTTPS, and a request of any method to
 an `http://` or `https://` URL); the credentials that a client of a
 served proxy gives; the unsent bytes of a socket, a limit of a write that
-makes no progress, and the codec of STUN.
+makes no progress, and the codec of STUN (the one of `pod-turn`, at its
+old path).
 
 The crate reads no variable and no file unless the caller asks, keeps no
 process state and prints nothing. The consumer makes one `Dialer` from its
@@ -35,7 +36,7 @@ to each crate that opens a connection.
 | `detect::{detect, sources, read_file, proxy_in_gitconfig, proxy_in_npmrc, proxy_in_pipconf, proxy_in_environment_file}` | the proxy of git, npm, pip and `/etc/environment`, through the caller's reader of files |
 | `Proxy` (`parse`, `parse_trusted`, `parse_with(spec, commands, http_port)`, `secret_parts`, `url`, `url_at`, `label`, `kind()`, `carrier()`, `address()`, `has_credentials()`, `scheme()`, `kind_text()`, `outcome()`, `host`, `port`, `kind`), `ProxyKind` (`Http`, `Socks5 { remote_dns }`; `scheme`, `name`, `request`), `Carrier` (`Tcp`, `Unix`, `Exec`), `HttpProxy`, `proxy::{percent_decode, HTTP_PORT, SOCKS_PORT}` | the proxy that a URL names; its credentials never show in `Display`, `label` or `Debug`, nor more than the first word of a command |
 | `Stream` (`Tcp`, `Unix`, `Exec`; `tcp`, `into_tcp`, `peer_addr`, `local_addr`), `ChildIo` (`spawn`, `exited`) | the stream of a dial; a command's stdin and stdout as one stream |
-| `digest::{parse_challenge, challenge_in, authorization, cnonce, md5, Challenge, ALGORITHMS}` | HTTP Digest (RFC 7616) for a `CONNECT` |
+| `digest::{parse_challenge, challenge_in, authorization, cnonce, md5, Challenge, ALGORITHMS}` | HTTP Digest (RFC 7616) for a `CONNECT`; `md5` is `pod_turn::md5::md5` (T-377, call C160) |
 | `proxy_auth::schemes(head)` | the schemes of each `Proxy-Authenticate` of a `407`, in order, once each: for a caller that speaks to a proxy of its own |
 | `Credentials` (`new`, `load`, `user`, `basic_header`, `check`, `check_basic`) | the user and the password that a client of a served proxy gives |
 | `dial_addrs(&addrs, timeout)`, `group_errors(&errors)`, `hint::open_files(&err)` | a race of given addresses with no proxy, and the index of the one that won; the errors of many addresses, one entry for each text; the words of too many open files |
@@ -53,7 +54,7 @@ to each crate that opens a connection.
 | `mptcp::{probe, enabled, connect, connect_with, socket, Multipath, ENABLED_FILE}` | Multipath TCP (Linux) |
 | `lowat::{set, LOWAT}`, `write_limit::WriteLimit` | `TCP_NOTSENT_LOWAT` (Linux, macOS); a stream whose write fails when it makes no progress |
 | `udp::{open_in_stream, associate, write_frame, read_frame, wrap, wrap_name}` | the SOCKS5 datagram path on a stream that the caller dials: the command 0x83 (UDP in the stream: a frame of a 2-byte length and a datagram of RFC 1928 each way), `UDP ASSOCIATE`, and the datagram header. The reply 0x07 to 0x83 is `DialError::UdpRefused` |
-| `stun` | STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message; MESSAGE-INTEGRITY (`signed`, `integrity`), FINGERPRINT (`fingerprinted`, `fingerprint_ok`), the long-term key (`long_term_key`), the methods and attributes of TURN (RFC 8656, RFC 6062) and `message_type` (T-370; the vectors of RFC 5769, 2.1, 2.2 and 2.4) |
+| `stun` | `pod_turn::stun`, the codec of `pod-turn` with its feature `stun` alone (T-377, call C161): STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message (`parse`, and `decode` with a typed error); MESSAGE-INTEGRITY (`signed`, `integrity`), MESSAGE-INTEGRITY-SHA256 (`signed_sha256`, `integrity_sha256`), FINGERPRINT (`fingerprinted`, `fingerprint_ok`), the long-term keys (`long_term_key`, `sha256_key`, `PasswordAlgorithm`), the methods and attributes of TURN (RFC 8656, RFC 6062), `message_type`, `class_of`, `method_of`. Its tests, its plants and its README are `pod-turn`'s |
 | `resolve::System` (`new`, `with_pins`), `resolve::{LITERAL, PIN, SYSTEM}` | the system resolver after the IP literals and the caller's pins, for a consumer with no DNS over HTTPS and for the tests |
 
 ## Keep-alive
@@ -188,7 +189,7 @@ The bypass of a name pinned to loopback addresses alone is the caller's:
 | A write that makes no progress fails at its limit | [x] `WriteLimit`; `Settings::write_limit` for the streams of `Dial::dial` |
 | How a dial or a handshake ended, by the kind of its error | [x] `Cut`, `Cut::of_failure` (in place of `ConnectError::cut`), `TlsFailure`, `Missed` |
 | The errors and their words | [x] `DialError`, the same texts; a timeout has its stage |
-| STUN's codec | [x] `stun` |
+| STUN's codec | [x] `stun`, in `pod-turn` since T-377 |
 | The integrity of TURN of podssh (PodUtils/podssh@T-621: `signed`, `integrity`, `fingerprint_ok`, `long_term_key` of `PodUtils/podssh:crates/podssh-ws/src/turn/msg.rs`) | [x] `stun` (T-370) |
 | HTTP/1.1: a request and its response, `Content-Length`, chunks, the close, the bounds, a body and a header made safe text, a server's request head, its refusals and answers | [x] `http`, `http::request` |
 | The GET client: the configuration and the name checked first, the dial, the handshake (sealed with ECH where asked), the exchange, each bounded | [x] `Client` (ECH with the feature `ech`) |
@@ -197,7 +198,7 @@ The bypass of a name pinned to loopback addresses alone is the caller's:
 | `tests/limits.rs`: the tests of the upgrade and of the frames | `pod-ws` (T-016) |
 | `doh_wire.rs` `the_dialer_hands_a_cached_address_that_does_not_connect_to_the_next_source` (the cache of podssh's resolver) | `pod-dns` (T-015); the race's part is `dial_race` `a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next` |
 | The fuzz targets `http_head`, `http_chunked`, `socks5_answer`, `proxy_url`, `no_proxy`, `connect_status` | [x] `fuzz/` (T-017), with their names and their checks; `fuzz_exchange` behind the feature `fuzzing` or `cfg(fuzzing)` |
-| The plants `t172-no-fallback`, `t639-reason-of-429`, `t641-length-trusted` | [x] `scripts/plants/proxy-mptcp-no-fallback`, `proxy-reason-of-429`, `proxy-stun-length-trusted`: the same defects, caught by the same tests |
+| The plants `t172-no-fallback`, `t639-reason-of-429`, `t641-length-trusted` | [x] `scripts/plants/proxy-mptcp-no-fallback`, `proxy-reason-of-429`, `proxy-stun-length-trusted` (the last on the codec in `crates/pod-turn`, T-377): the same defects, caught by the same tests |
 
 New tests: `env` (3), `error` (1), `resolve` (2), `dial_race`
 `a_source_whose_addresses_do_not_connect_hands_the_dial_to_the_next`,
@@ -407,7 +408,7 @@ counters):
 `dial.rs` (now `dial.rs`, `env.rs`, `connect.rs`, `error.rs`, `host.rs`),
 `proxy.rs`, `proxy_auth.rs`, `socks5.rs`, `mptcp.rs`, `race.rs`, `cut.rs`
 (and `cut_tests.rs`), `lowat.rs`, `write_limit.rs`, `stun.rs`,
-`stun_tests.rs`, `http.rs`, `http/`, the GET client of `client.rs`, and
+`stun_tests.rs` (both now in `crates/pod-turn`, T-377), `http.rs`, `http/`, the GET client of `client.rs`, and
 the tests `tests/{dial,dial_pinned,dial_race,socks5,mptcp,http,limits}.rs`
 at `6ece2ff`; podnet `src/egress.rs` (now `proxy.rs`, `proxy/`, `env.rs`,
 `env/`, `stream.rs`, `connect.rs`, `socks5.rs`, `proxy_auth.rs`,

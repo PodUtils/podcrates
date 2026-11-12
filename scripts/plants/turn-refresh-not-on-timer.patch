@@ -1,0 +1,13 @@
+diff --git a/crates/pod-turn/src/client.rs b/crates/pod-turn/src/client.rs
+index 119e0cb..de600c6 100644
+--- a/crates/pod-turn/src/client.rs
++++ b/crates/pod-turn/src/client.rs
+@@ -212,7 +212,7 @@ impl Client {
+             }
+             self.live()?;
+             let (due, kept) = self.next_refresh();
+-            if self.clock.now() >= due {
++            if self.clock.now() >= due && false {
+                 match self.keep(kept).await {
+                     Ok(()) => continue,
+                     Err(error @ (Error::Io(_) | Error::Closed | Error::Frame { .. })) => return Err(error),

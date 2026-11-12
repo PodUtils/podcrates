@@ -304,6 +304,7 @@ T-005 and T-012 are done.
 the builds of the features of its gate, clippy, rustfmt, and 2,237 tests
 of podssh-ws (342), podssh-relay (669) and podssh-cli (1,226), 0 failed.
 CI: the adoption run 42108955836 at `1ca1c6e`, the ci run 42089986177.
+
 # T-014: `pod-proxy`: podnet's proxy chain, Digest and fetch
 
 **Source:** `docs/design.md`, section 8, step 5.
@@ -385,6 +386,7 @@ clippy, the fuzz workspace, rustfmt, `cargo test --lib` (687) and the
 targets `api_surface`, `cli`, `connect`, `docs`, `doctor`, `egress`,
 `relay_reverse`, `tls`, `update_umask` (97), 0 failed. CI: the adoption run
 42108955836 at `1ca1c6e`.
+
 # T-015: `pod-dns`: the resolver: system, DoH in both forms, pins, HTTPS records
 
 **Source:** `docs/design.md`, section 4 (M1).
@@ -611,7 +613,6 @@ in `ci.yml`; `fuzz.yml` runs each target each week; the plant
 IPv6 address (`a_host_with_a_colon_is_an_ipv6_address` fails on the code
 before). `fuzz/README.md` names each target that waits, with its crate.
 
-
 # T-041: `pod-testkit`: the SSH test server of podssh (the feature `ssh`)
 
 **Source:** `docs/design.md`, section 4 (M0); T-006, Decision.
@@ -648,7 +649,6 @@ cargo test -p pod-testkit --features ssh
 ## Start condition
 
 A crate of podcrates or a consumer needs an SSH server in its tests.
-
 
 # T-044: The tests of the system stores of `pod-tls` with a root in the store, on Windows and macOS
 
@@ -1044,6 +1044,7 @@ cargo test -p pod-proxy --all-features --test egress --test dial --test fetch --
 2026-11-05, commit `df023da`. The binary of `tests/egress.rs` failed 26 of
 300 runs before and 0 of 300 after; the binaries of `dial`, `fetch`, `get`
 and `dialer` 0 of 100 each.
+
 # T-054: `pod-services`: the inventory of podvm
 
 **Source:** PodUtils/podvm#194; the owner, 2026-11-05 (`docs/decisions.md`, Services crate).
@@ -1143,7 +1144,6 @@ rustls with ring and webpki-roots 1,310,800 bytes; with `pod-tls` and no
 tokio 1,376,128 (+64 KiB); with `pod-proxy`'s `blocking` (tokio, the
 proxies, the client) 1,710,144 (+390 KiB). The I/O-free state machines of
 C20 wait for a measurement of podvm that asks for no tokio.
-
 
 # T-065: A vectored write through `pod_proxy::Stream` sends only its first buffer
 
@@ -1418,7 +1418,6 @@ change the new tests do not compile (no `send_streamed`, no `Streamed`).
 `cargo test -p pod-proxy --all-features` passes (each test target), clippy
 and fmt too.
 
-
 # T-070: `pod-proxy`: the drop of a `blocking::Dialer` waits for a name lookup that the dial left
 
 **Source:** the trial of `pod-proxy` in podvm (T-040, `27f8688`).
@@ -1462,7 +1461,6 @@ now bounds each call of the resolver by the deadline (the async face too).
 without the change of `blocking.rs` the drop waited 29.8 s; with both
 changes the test ends in 0.2 s. `cargo test -p pod-proxy --all-features`
 passes, clippy too.
-
 
 # T-071: `pod-proxy`: a read limit for `blocking::Stream::Exec`
 
@@ -1582,7 +1580,6 @@ failed on the old code (`could not connect to 127.0.0.1:50891:
 127.0.0.1:50891: Connection refused`) and passes; `cargo test -p pod-proxy
 --all-features` and clippy pass. A dial of a name keeps the address of each
 attempt after the name.
-
 
 # T-075: `pod-proxy`: `HTTP_PROXY` for a target of `http://`
 
@@ -1711,7 +1708,6 @@ keeps the old behaviour. `cargo test -p pod-proxy --all-features` (178),
 `-D warnings`, `cargo todo check` and `check-size.py` pass. podvm's
 redirect glue goes with `Request::redirects(5)` (`crates/pod-proxy/README.md`,
 adoption map).
-
 
 # T-077: `pod-proxy`: keep-alive connections in the client
 
@@ -1864,7 +1860,6 @@ cargo test -p pod-services --all-features
 2026-11-06. `the_derp_fleets_come_in_their_order` passes (tailcat first;
 the first server `derp1f.tailscale.com` of `nyc`; 28 regions), with each test
 of `pod-services`. podssh reads it from the release after v0.6.0.
-
 
 # T-082: `pod-proxy`: the `Host` header of an IPv6 literal on port 443 (GitHub #20)
 
@@ -3148,7 +3143,6 @@ left.
   row counts 9 nodes. podssh (PodUtils/podssh@T-574) gets the ids with the
   next hand-off.
 
-
 # T-181: `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11)
 
 **Source:** podssh's message of 2026-11-11 to podcrates (PodUtils/podssh@T-570, the run 42954754303 of `ssh-j-live.yml`)
@@ -3377,7 +3371,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
   or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
   (`crates/pod-proxy/src/blocking.rs:55-58`), so it gets the setting too.
-- Read: `crates/pod-proxy/README.md:187` (the parity row of `TCP_NODELAY`
+- Read: `crates/pod-proxy/README.md:188` (the parity row of `TCP_NODELAY`
   and `TCP_NOTSENT_LOWAT`) and `crates/pod-proxy/tests/mptcp.rs:153` (the
   ignored live test of MPTCP). They agree with the review.
 - No crate of this tree sets `TCP_CONGESTION`. The controller of the
@@ -3583,7 +3577,6 @@ cargo test -p pod-services
 test `the_tcp_relay_of_zerotier_is_its_fallback_address` reads the
 endpoint and the fact. `cargo test -p pod-services --all-features` passes.
 podssh needs no watch of a TCP connect (its amended PodUtils/podssh#190).
-
 
 # T-211: `pod-services`: gcr.io, mirror.gcr.io and the NIC modules of podvm's guest (PodUtils/podvm#263)
 
@@ -3938,7 +3931,6 @@ zigbuild`: no `PT_INTERP`, no `NEEDED`).
   `publickey, keyboard-interactive`, and the watch tried a key and no key
   alone (T-272). The kind `http-text` (run 43162306650): each holds.
 
-
 # T-267: `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it
 
 **Source:** T-225 (a URL that the rule of a relay accepts is not always the URL of the tunnel)
@@ -4060,7 +4052,6 @@ cargo run -q -p pod-services-watch -- --service mcr-registry
 and the absence of a token realm; `each_registry_answers_at_v2_over_https`
 lists eight registries. `cargo test -p pod-services --all-features`: each
 suite passes. The live watches: 2 hold (`oci-ping`, `oci-digest`).
-
 
 # T-244: `pod-services`: the public TCP relays of Tox on port 443, with the key of each node and a watch of the list (PodUtils/podssh#196)
 
@@ -4821,7 +4812,7 @@ FINGERPRINT (CRC-32 XOR `0x5354554e`), and the long-term key
 
 ## Premise
 
-- Read: `crates/pod-proxy/src/stun.rs` (the codec, no I/O);
+- Read: crates/pod-proxy/src/stun.rs at `a40b04f` (the codec, no I/O);
   `crates/pod-proxy/src/digest.rs` has an MD5.
 - Read: podssh's ask: its functions pass RFC 5769's vectors 2.1, 2.2 and
   2.4.
@@ -4842,7 +4833,8 @@ cargo test -p pod-proxy --all-features stun
 
 ## Done
 
-2026-11-12. `crates/pod-proxy/src/stun_auth.rs` (in `stun`):
+2026-11-12. crates/pod-proxy/src/stun_auth.rs at `a40b04f` (in `stun`; in
+`crates/pod-turn/src/stun_auth.rs` since T-377):
 `signed`, `integrity` (with `IntegrityError`; the compare of `hmac`
 takes the same time for each value), `fingerprinted`, `fingerprint_ok`,
 `long_term_key` (no SASLprep: the caller gives the prepared texts),
@@ -5028,9 +5020,9 @@ cargo test -p pod-services-watch --all-features
 
 ## Problem
 
-The STUN client of `pod-proxy` (`crates/pod-proxy/src/stun.rs`) is proven
+The STUN client of `pod-proxy` (`crates/pod-turn/src/stun.rs` since T-377) is proven
 offline against the UDP stand-in of `crates/pod-testkit/src/stand.rs` and
-the tests of `crates/pod-proxy/src/stun_tests.rs`. A server of another
+the tests of `crates/pod-turn/src/stun_tests.rs`. A server of another
 party is reached only by the daily watches `stun-binding` (UDP to
 Cloudflare and Google). A server that another party wrote, on the
 loopback, proves the client on each push (the attributes, the
@@ -5108,7 +5100,6 @@ after `ssh`, its source GitHub's page (read here: it names
 check of T-324 holds the new watch). The next `services.yml` run reads the
 keys on port 443.
 
-
 # T-373: `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97)
 
 **Source:** GitHub #97.
@@ -5148,7 +5139,6 @@ cargo test -p pod-services --all-features
 reporter's measure as its source; `forward::Relay::remote_port()`; test
 `the_remote_port_is_the_relay_s_fact` (`Some(80)` for Sandhole, `None` for
 the others); the README rows of the fact and of Sandhole.
-
 
 # T-374: `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98)
 
@@ -5206,7 +5196,6 @@ console refused. The README rows. The run here: the document holds; the
 SSH watches need a direct egress, and the next `services.yml` run proves
 `forward-url`.
 
-
 # T-375: `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99)
 
 **Source:** GitHub #99.
@@ -5250,7 +5239,6 @@ https://pico.sh/host-keys; it equals the issue's), `account-required`,
 `note`; watches `ssh-host-key` and `http-text` of https://pico.sh/tuns
 (holds here). No URL rule: `tuns-sh` joins `NOT_FORWARD` of
 `tests/forward.rs` with its reason; the README rows.
-
 
 # T-376: `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96)
 
@@ -5299,7 +5287,6 @@ project's `registry.json` at `88d6457`; facts `identity`, `note`; watches
 takes no `role`), `rdap` of `gosunuts.xyz`). No rank. The run here: 7 hold.
 The README rows.
 
-
 # T-377: `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100)
 
 **Source:** GitHub #100; PodUtils/podnet#485 (TURN-1 to TURN-7); PodUtils/podssh@T-621.
@@ -5307,7 +5294,7 @@ The README rows.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5322,7 +5309,7 @@ cannot allocate a relayed address. The codec has no SHA-256 credentials
   create_permission, bind_channel, send, recv, close}`, `Event`), the
   features `stun` and `turn`, the scope (no plain TCP, no DTLS, no
   RFC 6062), and the tests (a mock server with 401, 438 and 441).
-- Read: `crates/pod-proxy/src/stun.rs`, `stun_auth.rs` and their tests.
+- Read: crates/pod-proxy/src/stun.rs at `a40b04f`, `stun_auth.rs` and their tests.
 
 ## Approach
 
@@ -5340,6 +5327,42 @@ loopback). The static probe, a fuzz target of the codec, plants.
 ```sh
 cargo test -p pod-turn -p pod-proxy -p pod-services-watch --all-features
 ```
+
+## Done
+
+2026-11-12, commits `0a848e1`, `b7e059f`, `49b270b`, `74cec6f` and the
+commit that closes this entry (on a local branch; the main session
+merges). `crates/pod-turn`: the codec of STUN (moved with its tests, its
+two plants under their names, and the one MD5 of the tree; calls C160,
+C161), the SHA-256 credentials against a vector computed apart with
+Python's `hashlib` and `hmac`, and the TURN client over UDP and TLS on
+TCP (calls C162 to C164). `pod_proxy::stun` and `pod_proxy::digest::md5`
+are re-exports; no copy of the codec stays in `pod-proxy`.
+
+- The Prove (in `cargo test --workspace --all-features`: 3075 passed, 0
+  failed, 43 ignored): `pod-turn` 35 passed (19 unit, `turn_udp` 12,
+  `turn_tls` 4), 1 ignored (`live`, no server of the caller);
+  `pod-proxy` 150 passed, 1 ignored; `pod-services-watch` 59 passed.
+- `cargo test -p pod-turn --no-default-features --features stun`: 16
+  passed (the codec alone, with no tokio and no TLS).
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all --check`, the docs with `-D warnings`,
+  `scripts/check-size.py`, `scripts/check-design-paths.py`,
+  `scripts/check-probe.py` (`pod-turn` with `stun` in
+  `static-probe-lean`, with `turn` in `static-probe`),
+  `scripts/check-publish-order.py`: clean.
+- `fuzz/`: the target `stun_message` with 10 seeds; `cargo test
+  --manifest-path fuzz/Cargo.toml --lib` 9 passed; fmt and clippy clean.
+- `sh scripts/plant-each.sh --apply`: 0 stale. The 7 plants of the crate
+  are caught: `proxy-stun-integrity-length-kept`,
+  `proxy-stun-length-trusted`, `turn-sha256-integrity-length-kept`,
+  `turn-stale-nonce-not-taken`, `turn-channel-data-not-padded`,
+  `turn-answer-integrity-unchecked`, `turn-refresh-not-on-timer`.
+- Not run here: the static build on the targets of CI (the probes build
+  in CI), the CI of a push, a live TURN server (T-380 runs coturn on the
+  loopback). Before the release: the owner reserves `pod-turn` (and
+  `pod-link`) on crates.io. GitHub #100 closes after the release, with
+  the commits and the CI runs.
 
 # T-378: `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94)
 
@@ -5556,3 +5579,96 @@ python3 -I scripts/check-crates-io-names.py
 ## Start condition
 
 The owner reserves the name on crates.io.
+
+# T-380: `pod-turn`: the client against coturn on the loopback, over UDP and TLS
+
+**Source:** T-377 (the live test has no server in CI).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The TURN client of `pod-turn` is proven against the mock server of its
+tests (`crates/pod-turn/tests/common/mock.rs`), which is the reading of
+RFC 8656 of the same author as the client, on the same codec. The live
+test (`crates/pod-turn/tests/live.rs`) takes a server of the caller and
+skips with none: no workflow names one. A server that another party
+wrote proves the client on each push: its challenge, its nonces, its
+lifetimes, its padding of ChannelData on TLS, its 441, its 437.
+
+## Premise
+
+- Read: T-358 (coturn 4.18.0 for the STUN client, the image
+  `coturn/coturn:4.18.0` pinned by its index digest, call C151).
+- Not measured: coturn's answers to the client of `pod-turn`: the
+  long-term credentials of a static user (`--user`, `--realm`), TLS on a
+  port of the loopback with a certificate that the test makes, the
+  SHA-256 algorithm (coturn's `--pa` options), the relay of a peer on the
+  loopback (`--allow-loopback-peers`).
+
+## Approach
+
+A script of the job `test` of `ci.yml` (with T-358, the same image and
+call C151): coturn on 127.0.0.1 with a made-up user, a realm, a TLS port
+and its certificate, and `--allow-loopback-peers`; then
+`tests/live.rs` with `POD_TURN_LIVE_SERVER` (`udp://` and `tls://`),
+`POD_TURN_LIVE_PEER` (a UDP echo on the loopback), and a variable that
+makes a skip a failure. A row in `docs/live-calls.md`. A plant that turns
+the TLS padding off must fail it.
+
+## Prove
+
+```sh
+sh scripts/ci/turn-tests.sh
+```
+
+# T-381: `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use
+
+**Source:** T-377 (the parity list of `crates/pod-turn/README.md`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The TURN client of T-377 leaves these options out:
+
+- The security features of a nonce (RFC 8489, 9.2): a nonce that starts
+  with `obMatJos2` says whether the server sent PASSWORD-ALGORITHMS; a
+  client that sees the bit and no attribute fails (a downgrade). The
+  order of the 24 bits is not clear: the nonce of the example of RFC 8489,
+  B.1 (`AAAB`) fits neither order. The client reads the attribute alone.
+- USERHASH (RFC 8489, 14.4): the user's hash in place of the user.
+- ALTERNATE-SERVER (300 Try Alternate, RFC 8489, 10): a 300 fails the
+  request.
+- The ALPN `stun.turn` of TURN over TLS (RFC 7443): the client offers no
+  ALPN.
+- EVEN-PORT, RESERVATION-TOKEN, DONT-FRAGMENT, ADDITIONAL-ADDRESS-FAMILY
+  and REQUESTED-ADDRESS-FAMILY (RFC 8656): an allocation of the server's
+  family, with no reservation.
+
+## Premise
+
+- Read: RFC 8489, sections 9.2, 10, 14.4 and appendix B.1; RFC 8656,
+  sections 7 and 18; RFC 7443.
+- Not measured: what coturn sends and takes (T-380 starts it); no
+  consumer asks for an option now.
+
+## Approach
+
+Take each option when a consumer needs it, or when T-380 shows a server
+that needs it: the order of the feature bits from coturn's source and its
+answer, with a test against the mock and against coturn; ALTERNATE-SERVER
+as a new allocation on the named server (with the same credentials, and a
+check of the realm); the ALPN as a setting of `Transport::Tls`.
+
+## Prove
+
+```sh
+cargo test -p pod-turn --all-features
+```

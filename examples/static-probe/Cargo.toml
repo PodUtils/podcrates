@@ -49,6 +49,8 @@ pod-services = { workspace = true, features = ["overlay"] }
 pod-supervise = { workspace = true }
 pod-term = { workspace = true }
 pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
+# The TURN client turns on the codec of STUN (feature `stun`).
+pod-turn = { workspace = true, features = ["turn"] }
 # `plain-ws` is out: it is for the tests of an embedder, and no binary turns it on.
 pod-ws = { workspace = true, features = ["ech"] }
 pod-wormhole = { workspace = true }
@@ -57,7 +59,8 @@ pod-warp = { workspace = true }
 pod-wg = { workspace = true, features = ["standin"] }
 # A runtime of one thread for the endpoint of pod-quic, the stack of
 # pod-netstack, the hold of a SYN of pod-hold, with the timer of its wait,
-# and a link of pod-link with the reads and writes of its stream.
+# a link of pod-link with the reads and writes of its stream, and an
+# allocation of pod-turn.
 tokio = { workspace = true, features = ["rt", "time", "io-util"] }
 # The reader and the writer of the records of pod-job.
 serde_json = { workspace = true }

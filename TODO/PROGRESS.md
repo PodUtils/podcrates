@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 326 entries: 84 open, 6 partial, 5 blocked, 231 done.
+`TODO/INDEX.md` holds 328 entries: 85 open, 6 partial, 5 blocked, 232 done.
 
 ## State
 
@@ -12,7 +12,9 @@
   T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
   the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed) and `v0.32.0` (#93, closed).
 - On `main` after the tag: `pod-netlab` (T-207, partial), `pod-warp`
-  (T-028, partial).
+  (T-028, partial), `pod-turn` (T-377: the STUN codec moved out of
+  `pod-proxy`, and a TURN client; for PodUtils/podnet#485 and
+  PodUtils/podssh@T-621).
 - The consumers and their tags:
   - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -42,8 +44,9 @@
   podcrates by direct messages. podnet and podvm run in their own sessions
   and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
-  2026-11-09).
+  (`check-crates-io-names.py`) but `pod-link` and `pod-turn`: crates.io
+  answers 404 for both (2026-11-12); the owner reserves them before a
+  publish. No crate goes to crates.io now (the owner, 2026-11-09).
 - Blocked: T-217 to T-220 (`pod-git`): the owner's ruling "pod-git" (its
   own repository, deferred).
 - Keep this section short. Write the current state only; git keeps the
@@ -65,9 +68,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-377 (`pod-turn`, GitHub #100, for
-   PodUtils/podnet#485 and PodUtils/podssh@T-621, an agent of this
-   session); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
+1. **The defects and asks of the consumers:** T-380, T-381 (`pod-turn` against coturn, and
+   the options of RFC 8489 and RFC 8656 that it leaves out); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
    partial: the client side is in for PodUtils/podssh@T-755; the next tag takes
    it; the second part is the creation of tunnels, the logins and the
    token store; then T-386, T-387, T-385); T-330 (podvm's pair

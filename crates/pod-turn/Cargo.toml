@@ -1,0 +1,57 @@
+[package]
+name = "pod-turn"
+description = "STUN's codec (RFC 8489) with the MD5 and SHA-256 credentials, and a TURN client (RFC 8656) over UDP and over TLS on TCP, on the caller's dialer, TLS provider, clock and UDP socket source."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["turn"]
+# The codec of STUN alone (`pod_turn::stun`, `pod_turn::md5`): pure Rust, no
+# async, no TLS. pod-proxy takes this feature alone.
+stun = ["dep:hmac", "dep:sha1", "dep:sha2"]
+# The TURN client (`pod_turn::Client`) on tokio, with TLS through pod-tls.
+turn = ["stun", "dep:pod-core", "dep:pod-tls", "dep:tokio", "dep:tracing", "dep:zeroize"]
+
+[dependencies]
+# HMAC-SHA1 of MESSAGE-INTEGRITY and HMAC-SHA256 of
+# MESSAGE-INTEGRITY-SHA256 (RFC 8489, 14.5 and 14.6), and the SHA-256 key;
+# pure Rust. MD5 is in src/md5.rs.
+hmac = { workspace = true, optional = true }
+sha1 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+# The dial, the datagrams, the resolver, the entropy and the failure.
+pod-core = { workspace = true, features = ["async"], optional = true }
+# The TLS of TURN over TLS: the caller's context (its provider and its
+# roots) and the handshake over the caller's dial.
+pod-tls = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "macros", "sync"], optional = true }
+tracing = { workspace = true, optional = true }
+# The password and the key are wiped when the client ends.
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# The mock server's TLS runs on ring; the certificates of the tests of
+# pod-tls (tests/common/cert_for_test.rs) are minted in pure Rust.
+rustls = { workspace = true, features = ["ring"] }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+p256 = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+
+[[test]]
+name = "turn_udp"
+required-features = ["turn"]
+
+[[test]]
+name = "turn_tls"
+required-features = ["turn"]
+
+[[test]]
+name = "live"
+required-features = ["turn"]

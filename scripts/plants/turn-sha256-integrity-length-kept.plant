@@ -1,0 +1,8 @@
+# The check of MESSAGE-INTEGRITY-SHA256 hashes the header with the length
+# of the whole message, not the length that ends at the attribute; the
+# vector computed apart with Python must fail.
+ENTRY=T-377
+GROUP=turn
+EXPECT='test stun::sha256::tests::the_sha256_key_and_integrity_give_the_bytes_computed_apart \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --lib -- stun::sha256::tests::the_sha256_key_and_integrity_give_the_bytes_computed_apart --exact'
+LIMIT=1800

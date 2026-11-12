@@ -21,7 +21,8 @@
 //! * [`Credentials`]: the user and the password that a client of a served
 //!   proxy gives.
 //! * [`lowat`], [`write_limit`]: the unsent bytes of a socket, and a limit
-//!   of a write that makes no progress; [`stun`]: the codec of STUN.
+//!   of a write that makes no progress; [`stun`]: the codec of STUN, the one
+//!   of `pod-turn` (feature `stun`), at its old path.
 //! * [`resolve::System`]: the system resolver with the caller's pins.
 //!
 //! **No process state, no output.** The settings are a value that the
@@ -54,7 +55,7 @@ mod race;
 pub mod resolve;
 mod socks5;
 pub mod stream;
-pub mod stun;
+pub use pod_turn::stun;
 pub mod write_limit;
 
 pub use client::Client;

@@ -1,0 +1,8 @@
+# The client sends ChannelData with no padding on a TLS stream; the
+# server cuts the stream at the padded length, and the echo over TLS must
+# fail.
+ENTRY=T-377
+GROUP=turn
+EXPECT='test a_send_echo_and_a_channel_data_echo_over_tls \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --test turn_tls -- a_send_echo_and_a_channel_data_echo_over_tls --exact'
+LIMIT=1800
