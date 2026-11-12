@@ -1,0 +1,14 @@
+diff --git a/crates/pod-tls/src/peer.rs b/crates/pod-tls/src/peer.rs
+index 340543f..f57913e 100644
+--- a/crates/pod-tls/src/peer.rs
++++ b/crates/pod-tls/src/peer.rs
+@@ -267,7 +267,8 @@ impl ServerCertVerifier for Pinned {
+         _ocsp: &[u8],
+         _now: UnixTime,
+     ) -> Result<ServerCertVerified, rustls::Error> {
+-        self.check(leaf).map(|()| ServerCertVerified::assertion())
++        let _ = self.check(leaf);
++        Ok(ServerCertVerified::assertion())
+     }
+ 
+     fn verify_tls12_signature(

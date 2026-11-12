@@ -1,0 +1,8 @@
+# The verifier of a pinned Ed25519 key does not check the handshake
+# signature: a peer that shows the certificate of the pinned key and
+# does not hold the key connects (T-304).
+ENTRY=T-304
+GROUP=tls
+EXPECT='a_certificate_of_the_pinned_key_signed_by_another_key_is_refused stdout ----'
+RUN='cargo test -p pod-tls --all-features --test peer'
+LIMIT=1800

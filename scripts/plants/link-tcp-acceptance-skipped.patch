@@ -1,0 +1,16 @@
+diff --git a/crates/pod-link/src/tcp.rs b/crates/pod-link/src/tcp.rs
+index deb3687..6331d80 100644
+--- a/crates/pod-link/src/tcp.rs
++++ b/crates/pod-link/src/tcp.rs
+@@ -169,7 +169,10 @@ impl Tcp {
+             check_alpn(conn.alpn_protocol(), target)?;
+             let key = proved(conn.peer_certificates(), target)?;
+             let mut word = [0u8];
+-            match tls.read_exact(&mut word).await {
++            match Ok::<usize, io::Error>(1).map(|n| {
++                word[0] = ACCEPTED;
++                n
++            }) {
+                 Ok(_) if word[0] == ACCEPTED => Ok((Box::new(tls) as BoxIo, key)),
+                 Ok(_) => Err(err(
+                     CarrierErrorKind::Io(io::ErrorKind::InvalidData),

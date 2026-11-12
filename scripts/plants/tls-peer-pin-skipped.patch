@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/peer.rs b/crates/pod-tls/src/peer.rs
+index 340543f..8540361 100644
+--- a/crates/pod-tls/src/peer.rs
++++ b/crates/pod-tls/src/peer.rs
+@@ -197,7 +197,7 @@ impl Pinned {
+ 
+     fn check(&self, leaf: &CertificateDer<'_>) -> Result<(), rustls::Error> {
+         let key = cert::key_of(leaf).ok_or(Refusal::NotEd25519)?;
+-        if self.keys.admits(&key) { Ok(()) } else { Err(Refusal::Unpinned(key).into()) }
++        if self.keys.admits(&key) || key == key { Ok(()) } else { Err(Refusal::Unpinned(key).into()) }
+     }
+ 
+     /// The signature of the handshake, checked with the key of the leaf in

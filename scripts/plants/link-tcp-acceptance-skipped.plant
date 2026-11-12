@@ -1,0 +1,8 @@
+# The dial of the tcp carrier does not wait for the acceptance of the
+# listener: a dialer of a refused key learns of it only at its first
+# read (T-396).
+ENTRY=T-396
+GROUP=link
+EXPECT='a client of another key dialed'
+RUN='cargo test -p pod-link --all-features --test tcp_refused'
+LIMIT=1800
