@@ -4,6 +4,9 @@
 
 #![allow(dead_code)]
 
+#[cfg(feature = "tcp")]
+pub mod tcp;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

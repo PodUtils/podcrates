@@ -1,0 +1,7 @@
+# The listener of the tcp carrier skips the pin of the client keys: a
+# client of another key is accepted (T-396).
+ENTRY=T-396
+GROUP=link
+EXPECT='the_listener_refuses_a_client_of_another_key_and_stays_open stdout ----'
+RUN='cargo test -p pod-link --all-features --test tcp_refused'
+LIMIT=1800

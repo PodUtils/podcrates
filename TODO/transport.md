@@ -4679,7 +4679,7 @@ podnet starts its PodUtils/podnet@T-261 (it writes a COORD issue).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4705,6 +4705,38 @@ cargo test -p pod-tls --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-268: met on 2026-11-12 (PodUtils/podnet#513).
+
+## Done
+
+2026-11-12, commits `f22be7c`, `89f3ed0` and the commit that closes this
+entry (on a local branch; the main session merges). The module `peer` of
+`pod-tls` (`crates/pod-tls/src/peer.rs`, `crates/pod-tls/src/peer/cert.rs`;
+calls C175, C176): a client configuration that takes one server key and a
+server configuration that requires a client key of a shared set, each
+named as `pod_identity::KeyName` names a key; each side presents the
+self-signed Ed25519 certificate of its `pod-identity` key, signed by the
+identity itself; TLS 1.3, the scheme Ed25519, no resumption; the handshake
+signature checked with the pinned key; a refused key is `Refusal` with
+the key seen. Of the two kinds of the Approach, the self-signed
+certificate is the one (C175): a raw public key of RFC 7250 is not
+offered, and a certificate of another form with the pinned key passes.
+
+- The Prove: `cargo test -p pod-tls --all-features` passes: `tests/peer.rs`
+  9 passed (each on the pure provider and on ring: the pinned key on each
+  side, another key refused on each side with the key named, a
+  certificate of another form, no Ed25519 key, a certificate signed by
+  another key, no client certificate, the names by fingerprint and by
+  display form with a rotation, a provider with no Ed25519), the unit
+  tests 66 passed (2 of the certificate),
+  `tests/no_permissive_verifier.rs` 2 passed with `peer.rs` in `PINNED`
+  and `DANGEROUS`.
+- `cargo test --workspace --all-features`: 3150 passed, 0 failed, 44
+  ignored. `cargo clippy --workspace --all-targets --all-features -- -D
+  warnings`, `cargo fmt --all --check`, `cargo doc --workspace --no-deps
+  --all-features` with `-D warnings`, `scripts/check-size.py`,
+  `scripts/check-design-paths.py`, `scripts/check-probe.py`: clean.
+- The plants `tls-peer-pin-skipped` and `tls-peer-signature-unchecked`
+  are caught; `sh scripts/plant-each.sh --apply`: 0 stale.
 
 # T-305: `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479)
 
@@ -5680,7 +5712,7 @@ cargo test -p pod-turn --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5714,4 +5746,42 @@ side, TLS 1.2 is refused), plants.
 ```sh
 cargo test -p pod-link -p pod-tls --all-features
 ```
+
+## Done
+
+2026-11-12, commits `1ed645b`, `89f3ed0` and the commit that closes this
+entry (on a local branch; the main session merges). `tcp::Tcp` of
+`pod-link`, behind the feature `tcp` (`crates/pod-link/src/tcp.rs`,
+`crates/pod-link/src/tcp/listen.rs`; calls C177 to C179): the dial of
+`KEY@HOST:PORT` through the caller's `Arc<dyn pod_core::Dial>`, TLS 1.3
+with `pod_tls::peer` (T-304) and the ALPN `podlink/1`, the byte of
+acceptance of the listener; the listener of `IP:PORT` with the shared set
+of client keys, at most 64 handshakes at once, and the key of each client
+at its accept (`accept_key`, and `accept_peer` of the trait `Listener`,
+which the unix and the memory carriers give with no key); `available()`
+names a provider or a host that cannot use it; the facts of a stream. The
+README of `pod-link` has the API, the features and the parity list of
+PodUtils/podnet#513; the README of `pod-tls` has the module `peer`. The
+static probe links to itself over the carrier.
+
+- The Prove: `cargo test -p pod-link -p pod-tls --all-features` passes:
+  `tests/tcp.rs` 8 passed (a link of 3 streams of 256 KiB over TLS on the
+  loopback, the dial through the way of the caller, the keys of each
+  side, each form of a key name, `available()`, the usage errors, the
+  class of a failure of the way, a silent peer that holds no other
+  handshake and its time limit), `tests/tcp_refused.rs` 4 passed (another
+  key refused on each side with the key named and the listener open
+  after it, TLS 1.2 refused on each side); each other target of the crate
+  passes as before.
+- `cargo test --workspace --all-features`: 3150 passed, 0 failed, 44
+  ignored. Clippy, fmt, the docs with `-D warnings`,
+  `scripts/check-size.py`, `scripts/check-design-paths.py`,
+  `scripts/check-probe.py` (`tcp` in `static-probe`): clean.
+- The 6 plants are caught: `link-tcp-server-key-unchecked`,
+  `link-tcp-client-key-unchecked`, `link-tcp-acceptance-skipped`,
+  `link-tcp-tls12-listener`, `link-tcp-tls12-dialer`,
+  `link-tcp-handshake-inline`; `sh scripts/plant-each.sh --apply`: 0
+  stale.
+- Not done here: the release of the tag that podnet takes, and the
+  hand-off on PodUtils/podnet#513 (the main session).
 

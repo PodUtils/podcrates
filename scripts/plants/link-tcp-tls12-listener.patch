@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/peer.rs b/crates/pod-tls/src/peer.rs
+index 340543f..60a501b 100644
+--- a/crates/pod-tls/src/peer.rs
++++ b/crates/pod-tls/src/peer.rs
+@@ -169,7 +169,7 @@ pub fn server_config(
+ ) -> Result<Arc<rustls::ServerConfig>, Error> {
+     let verifier = Arc::new(Pinned::new(clients, &provider)?);
+     let mut config = rustls::ServerConfig::builder_with_provider(provider)
+-        .with_protocol_versions(&[&rustls::version::TLS13])
++        .with_protocol_versions(&[&rustls::version::TLS12, &rustls::version::TLS13])
+         .map_err(|e| Error::Config(format!("the TLS versions: {e}")))?
+         .with_client_cert_verifier(verifier)
+         .with_cert_resolver(Served::new(Some(certified_key(identity))));

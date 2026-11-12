@@ -8,6 +8,7 @@ use std::io;
 use std::pin::Pin;
 
 use pod_core::{Class, Failure, Stage};
+use pod_identity::PublicKey;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 /// A byte stream that a carrier gives: the link runs over it.
@@ -41,7 +42,8 @@ impl Facts {
 }
 
 /// A way to reach a peer. The address is the carrier's own text (a path
-/// for the unix carrier, a name for the memory carrier).
+/// for the unix carrier, a name for the memory carrier, `KEY@HOST:PORT` to
+/// dial and `IP:PORT` to listen for the tcp carrier).
 pub trait Carrier: Send + Sync {
     /// The name of the carrier: one word, for the consumer's lists.
     fn name(&self) -> &'static str;
@@ -60,6 +62,19 @@ pub trait Carrier: Send + Sync {
     fn listen<'a>(&'a self, address: &'a str) -> Pending<'a, Box<dyn Listener>>;
 }
 
+/// A byte stream that a listener accepted, and the Ed25519 key that its
+/// peer proved, when the carrier proves one (the tcp carrier).
+pub struct Accepted {
+    pub io: BoxIo,
+    pub peer: Option<PublicKey>,
+}
+
+impl fmt::Debug for Accepted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Accepted").field("peer", &self.peer).finish_non_exhaustive()
+    }
+}
+
 /// The accept side of a carrier.
 pub trait Listener: Send {
     /// The address where peers dial, in the carrier's form.
@@ -68,6 +83,12 @@ pub trait Listener: Send {
     /// The next peer. An error of one peer (it was refused) leaves the
     /// listener open: the caller can accept again.
     fn accept(&mut self) -> Pending<'_, BoxIo>;
+
+    /// The next peer and the key that it proved. A carrier that proves no
+    /// key gives `None`, as the unix and the memory carriers do.
+    fn accept_peer(&mut self) -> Pending<'_, Accepted> {
+        Box::pin(async move { Ok(Accepted { io: self.accept().await?, peer: None }) })
+    }
 }
 
 /// The kind of a carrier's failure.
@@ -100,6 +121,16 @@ pub struct CarrierError {
 impl CarrierError {
     pub fn new(carrier: &'static str, kind: CarrierErrorKind, text: impl Into<String>) -> CarrierError {
         CarrierError { carrier, kind, text: text.into(), source: None }
+    }
+
+    /// An error of `kind` caused by `e`: a failed handshake, a refused key.
+    pub fn with_source(
+        carrier: &'static str,
+        kind: CarrierErrorKind,
+        text: impl Into<String>,
+        e: io::Error,
+    ) -> CarrierError {
+        CarrierError { carrier, kind, text: text.into(), source: Some(e) }
     }
 
     /// An I/O error, with the kind of its errno where a kind fits.

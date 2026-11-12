@@ -3,7 +3,8 @@
 //! context in podnet's order), the rustls configuration of a client over
 //! them, with the provider that the caller gives ([`Context`]), the words
 //! of a failed handshake ([`Words`]), a TLS server with a P-256 key
-//! ([`server`]), the split of a ClientHello into records ([`fragment`]),
+//! ([`server`]), TLS between peers that pin each other's Ed25519 key of
+//! `pod-identity` ([`peer`]), the split of a ClientHello into records ([`fragment`]),
 //! and, behind features, the pure-Rust crypto provider
 //! ([`crypto`], feature `pure`) and Encrypted Client Hello ([`ech`],
 //! feature `ech`).
@@ -15,11 +16,12 @@
 //! the choice from the binary that embeds it.
 //!
 //! **There is no `--insecure`, and there is no parameter that would become
-//! one.** The only verifier that the crate builds is rustls's
+//! one.** The verifier of a name that the crate builds is rustls's
 //! `WebPkiServerVerifier`, whose `verify_server_cert` calls
-//! `verify_server_name` each time. A caller that wants another verifier
-//! brings its whole configuration ([`Trust::caller`]), and it is used as it
-//! is.
+//! `verify_server_name` each time. The other verifiers of the crate take
+//! only the keys that their caller pins ([`mutual`], [`peer`]). A caller
+//! that wants another verifier brings its whole configuration
+//! ([`Trust::caller`]), and it is used as it is.
 //!
 //! **No process state.** The configurations kept for each trust, the roots
 //! of the context, the groups that servers took and the state of ECH are
@@ -40,6 +42,7 @@ pub mod groups;
 mod hint;
 mod kept;
 pub mod mutual;
+pub mod peer;
 pub mod roots;
 pub mod server;
 mod store;

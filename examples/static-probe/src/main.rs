@@ -121,7 +121,6 @@ fn main() {
     lines.push(job());
     lines.push(incus());
     lines.push(actions::actions());
-    lines.push(link::link());
     lines.push(netlab::netlab());
     lines.push(turn::turn());
     let direct = pod_proxy::Dialer::new(
@@ -129,6 +128,7 @@ fn main() {
         std::sync::Arc::new(pod_proxy::resolve::System::new()),
     );
     let direct: std::sync::Arc<dyn pod_core::Dial> = std::sync::Arc::new(direct);
+    lines.push(link::link(direct.clone()));
     lines.push(warp::warp(std::sync::Arc::new(pod_tls::crypto::provider()), direct.clone()));
     lines.push(devtunnel::devtunnel(std::sync::Arc::new(pod_tls::crypto::provider()), direct));
     for line in lines {

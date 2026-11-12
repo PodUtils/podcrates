@@ -1,0 +1,7 @@
+# The verifier of a pinned Ed25519 key takes each key: a server and a
+# client of another key connect (T-304).
+ENTRY=T-304
+GROUP=tls
+EXPECT='the_client_refuses_a_server_of_another_key_and_names_it stdout ----'
+RUN='cargo test -p pod-tls --all-features --test peer'
+LIMIT=1800
