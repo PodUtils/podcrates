@@ -5,6 +5,7 @@
 
 mod actions;
 mod hold;
+mod link;
 mod relay;
 mod relay_client;
 
@@ -116,6 +117,7 @@ fn main() {
     lines.push(job());
     lines.push(incus());
     lines.push(actions::actions());
+    lines.push(link::link());
     for line in lines {
         println!("{line}");
     }

@@ -1,0 +1,24 @@
+[package]
+name = "pod-link"
+description = "A link between two peers: many streams over one carrier byte stream, with a credit window for each stream and for the link, a keepalive, and the carriers (a unix socket, a memory pair) behind one trait."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The failure and its stage and class.
+pod-core = { workspace = true }
+# The driver of a link, the streams, the carriers and the keepalive's clock.
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+tracing = { workspace = true }
+
+# The uid of this process (the peer check of the unix carrier) and the move
+# of a bound socket with no replace. libc compiles no C.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+# `test-util` gives the keepalive's tests a paused clock.
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }

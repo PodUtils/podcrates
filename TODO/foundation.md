@@ -1746,3 +1746,33 @@ stores each of 64 KiB, one whole body and no temporary file stays) and
 plants `core-store-shares-one-temp-name` and `identity-pin-with-no-lock`
 fail them in each of 3 runs. `cargo test -p pod-core -p pod-identity
 --all-features` passes.
+
+# T-312: `pod-todo`: a code fence that is not closed in a file of the record is an error by name
+
+**Source:** T-300 (a finding of its record work)
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The last entry of `TODO/relay.md` (T-303) ended with three command lines and a fence that opened a code block and never closed it: a copy of the Prove of T-290. Each entry added after it was inside the block. `cargo todo check` passed while the block held nothing, and after the next entry it said "T-310 has a row and no entry in TODO/relay.md": the right line, but not the cause. T-300 removed the stray lines.
+
+## Premise
+
+- Read: `crates/pod-todo/src/claims.rs` (`fenced` flips at each line that starts with a fence) and `crates/pod-todo/src/check.rs` (`parse::lines_with_fences`).
+- Not read: each other reader of fences in `crates/pod-todo/src`.
+
+## Approach
+
+1. A check of each file of the record (`TODO/`, the documents of `TODO/todo.toml`): a fence that opens and does not close before the end of the file is an error at the line of the fence.
+2. A test with a file that ends in an open fence, and a plant that removes the check.
+
+## Prove
+
+```sh
+cargo test -p pod-todo
+cargo todo check
+```

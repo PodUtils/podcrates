@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**280 entries: 62 open, 1 partial, 5 blocked, 212 done.**
+**283 entries: 64 open, 2 partial, 5 blocked, 212 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 0 | 0 | 59 | 72 |
-| P2 | 25 | 1 | 5 | 107 | 138 |
-| P3 | 24 | 0 | 0 | 44 | 68 |
-| **All** | 62 | 1 | 5 | 212 | 280 |
+| P2 | 26 | 1 | 5 | 107 | 139 |
+| P3 | 25 | 1 | 0 | 44 | 70 |
+| **All** | 64 | 2 | 5 | 212 | 283 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -312,7 +312,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-279](relay.md) | P3 | S | M2 | feature | done | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
-| [T-300](relay.md) | P3 | L | M2 | feature | open | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
+| [T-300](relay.md) | P3 | L | M2 | feature | partial | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
@@ -322,6 +322,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
+| [T-310](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
+| [T-311](relay.md) | P3 | M | M2 | feature | open | `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480) |
+| [T-312](foundation.md) | P2 | S | M0 | defect | open | `pod-todo`: a code fence that is not closed in a file of the record is an error by name |
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |
 | [T-321](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282) |
 | [T-322](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-expr`: a public view of the parts of a `Template` (podrunner's ask) |

@@ -40,6 +40,7 @@ pod-hostprobe = { path = "crates/pod-hostprobe", version = "0.31.0" }
 pod-identity = { path = "crates/pod-identity", version = "0.31.0" }
 pod-incus = { path = "crates/pod-incus", version = "0.31.0" }
 pod-job = { path = "crates/pod-job", version = "0.31.0" }
+pod-link = { path = "crates/pod-link", version = "0.31.0" }
 pod-netstack = { path = "crates/pod-netstack", version = "0.31.0" }
 pod-oci = { path = "crates/pod-oci", version = "0.31.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.31.0" }
