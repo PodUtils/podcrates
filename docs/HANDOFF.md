@@ -21,8 +21,8 @@ a line when its work is done. Git and the record keep finished work.
   `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
   of podnet (adoption/podnet/pod-relay.*) is next. podnet's binary needs
   the feature `plain-ws` for a relay at `http://` on the loopback (C82).
-- The last release: `v0.28.0` at `4ce3625` (the hand-off #86; #85 for
-  `v0.27.0` waits for podrunner). Each consumer answers on #86 with the
+- The last release: `v0.28.0` at `4ce3625` (the hand-off #86; #85 is
+  closed: each consumer took `v0.27.0`). Each consumer answers on #86 with the
   commit of its take. For the next tag: T-025's take (the `taken` line),
   T-225 (the watch `forward-url`), T-229 (the six plants of podssh), T-245
   and T-246 (the `Host` of an IPv6 relay, the names of the cache files),
@@ -49,8 +49,8 @@ a line when its work is done. Git and the record keep finished work.
   `pod-relay` and kept `pinggy::skips()`. Its asks PodUtils/podssh#196,
   #203 and #204 are in `v0.28.0`; #205 is T-261. `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.26.0`, `4284967`): its T-075 took T-226 of
-  `pod-job`. Its work order waits for podnet (PodUtils/podrunner#64), the
+- podrunner (on `v0.27.0`, `3ef4db9`): its T-042 confines a unit
+  through podvm's `--podvm-confine`. Its work order waits for podnet (PodUtils/podrunner#64), the
   next podvm beta, and later crates (`pod-unit`, `pod-release`, the
   registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`
   for its local mode). Its T-042 uses `pod-confine`.
