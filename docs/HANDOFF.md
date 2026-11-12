@@ -50,7 +50,7 @@ a line when its work is done. Git and the record keep finished work.
   `pod-relay` and kept `pinggy::skips()`. Its asks PodUtils/podssh#196,
   #203 and #204 are in `v0.28.0`; #205 is T-261. `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.27.0`, `3ef4db9`): its T-042 confines a unit
+- podrunner (on `v0.28.0`, `bde47c3`): its T-042 confines a unit
   through podvm's `--podvm-confine`. Its work order waits for podnet (PodUtils/podrunner#64), the
   next podvm beta, and later crates (`pod-unit`, `pod-release`, the
   registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`

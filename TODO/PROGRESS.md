@@ -21,8 +21,8 @@
   - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
     of experiment 414 passes; `mcr.microsoft.com` leaves its list of
     reported hosts).
-  - podrunner: `v0.27.0` (`3ef4db9`; `for_unit` gives the socket
-    directory of a unit a rule with write, for Landlock ABI 9); its T-042
+  - podrunner: `v0.28.0` (`bde47c3`; it names no TCP list and builds no
+    target with `socketcall(2)`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes
     `check_upstream`, `names_upstream` and the flagged rules of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
