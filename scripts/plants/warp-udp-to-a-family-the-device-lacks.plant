@@ -1,0 +1,9 @@
+# The UDP socket of a WarpNet takes a datagram to a family that the device
+# lacks: it leaves with a documentation address as its source and gets no
+# answer (PodUtils/podnet issue 112, T-395). The test of the refusal must
+# fail.
+ENTRY=T-395
+GROUP=warp
+EXPECT='test udp_to_ipv6_on_an_ipv4_tunnel_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test net -- udp_to_ipv6_on_an_ipv4_tunnel_is_refused'
+LIMIT=900

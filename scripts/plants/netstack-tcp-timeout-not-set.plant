@@ -1,0 +1,8 @@
+# The TCP sockets of a stack do not take StackConfig::tcp_timeout: a
+# connect to a peer that never answers waits for ever (podnet's WARP stack,
+# issue 125, T-393). The test of the connect must fail.
+ENTRY=T-393
+GROUP=netstack
+EXPECT='the connect waits for ever'
+RUN='cargo test -p pod-netstack --lib -- stack::tests::timeout::a_connect_with_no_answer_ends_at_the_timeout'
+LIMIT=900

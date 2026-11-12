@@ -12,7 +12,8 @@ impl Core {
 
     pub(super) fn service_conns(&mut self) {
         let now = self.clock.now();
-        let linger = SmolDuration::from_millis(self.config.linger.as_millis().try_into().unwrap_or(u64::MAX));
+        let linger = smol_duration(self.config.linger);
+        let timeout = self.config.tcp_timeout;
         let ids: Vec<u32> = self.conns.keys().copied().collect();
         let mut reap: Vec<u32> = Vec::new();
         for id in ids {
@@ -22,7 +23,7 @@ impl Core {
             service_ctl(conn, &mut self.sockets);
             let wrote = move_to_socket(conn, &mut self.sockets);
             move_to_app(conn, &mut self.sockets, now);
-            if close_and_check(conn, &mut self.sockets) {
+            if close_and_check(conn, &mut self.sockets, timeout) {
                 reap.push(id);
             } else {
                 linger_orphan(conn, &mut self.sockets, now, linger);
@@ -38,7 +39,7 @@ impl Core {
                 continue;
             };
             let event = match &conn.reset {
-                Some(reason) => AppEvent::Reset(reason.clone()),
+                Some(ended) => AppEvent::Failed(ended.clone()),
                 None => AppEvent::Eof,
             };
             // The end waits for a place after the data: with none, the app
@@ -76,7 +77,7 @@ fn service_ctl(conn: &mut Conn, sockets: &mut SocketSet<'static>) {
             Ok(ConnCmd::Abort) => {
                 // The socket stays until smoltcp sent its RST (`close_and_check`).
                 sockets.get_mut::<tcp::Socket>(conn.handle).abort();
-                conn.reset = Some("connection aborted".into());
+                conn.reset = Some(Ended::reset("connection aborted"));
             }
             Ok(ConnCmd::SetNodelay(enabled)) => {
                 sockets.get_mut::<tcp::Socket>(conn.handle).set_nagle_enabled(!enabled);
@@ -171,14 +172,14 @@ fn linger_orphan(conn: &mut Conn, sockets: &mut SocketSet<'static>, now: SmolIns
         *orphan = Orphan { since: now, seen };
     } else if now >= orphan.since + linger && conn.reset.is_none() {
         socket.abort();
-        conn.reset = Some("the peer made no progress for the linger of the stack".into());
+        conn.reset = Some(Ended::reset("the peer made no progress for the linger of the stack"));
     }
 }
 
 /// Tell the app about the handshake and the end of the receive side, close
 /// the socket when the close of the app can go, and return true when the
-/// connection is finished.
-fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
+/// connection is finished. `timeout`: the TCP timeout of the stack.
+fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>, timeout: Option<Duration>) -> bool {
     let socket = sockets.get_mut::<tcp::Socket>(conn.handle);
     let (state, send_queue, recv_queue, open) =
         (socket.state(), socket.send_queue(), socket.recv_queue(), socket.is_open());
@@ -226,12 +227,22 @@ fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>) -> bool {
     }
     // A RST of the peer closes a synchronized socket at once; a close passes
     // LAST-ACK, CLOSING or TIME-WAIT. The app reads a reset, not an end.
+    // With no RST and no abort of the stack, the TCP timeout of smoltcp
+    // closed it, also in SYN-SENT: the app reads `TimedOut`, not a refusal.
     let was_open = matches!(
         conn.state,
         tcp::State::Established | tcp::State::CloseWait | tcp::State::FinWait1 | tcp::State::FinWait2
     );
-    if state == tcp::State::Closed && was_open && conn.reset.is_none() {
-        conn.reset = Some("connection reset by the peer".into());
+    if state == tcp::State::Closed && conn.reset.is_none() {
+        let opening = conn.state == tcp::State::SynSent;
+        match timeout {
+            Some(limit) if !conn.peer_reset && (was_open || opening) => {
+                let text = format!("no answer of the peer in the TCP timeout of {} ms", limit.as_millis());
+                conn.reset = Some(Ended { kind: io::ErrorKind::TimedOut, text });
+            }
+            _ if was_open => conn.reset = Some(Ended::reset("connection reset by the peer")),
+            _ => {}
+        }
     }
     conn.state = socket.state();
     // A socket in TIME-WAIT is finished for this stack: it holds no data,

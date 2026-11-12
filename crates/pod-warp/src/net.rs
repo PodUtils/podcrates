@@ -10,14 +10,19 @@
 //! (the host 1 of the prefix, `172.16.0.1` for WARP's IPv4 address) is an
 //! address of the stack, and a packet to it stays in the stack.
 //!
+//! A UDP datagram to a family that the device lacks is `InvalidInput` (the
+//! tunnel has no address of that family), not a datagram with no answer
+//! (PodUtils/podnet issue 112).
+//!
 //! When the session closes (the edge ends it, a pump ends, the reactor of
 //! the stack stops, [`WarpNet::close`]), each open stream and each UDP
 //! socket fails at once with `ConnectionReset` and the first cause, and a
 //! new dial fails with it (PodUtils/podnet issues 112, 125 and 185).
 //!
 //! [`NetSettings`] tunes the stack: the congestion controller, the TCP
-//! burst, the counters of the link, the check of the data path and the
-//! budget of a relay (podnet's `src/warp/ip.rs`).
+//! burst, the TCP timeout, keepalive, linger and Nagle, the counters of the
+//! link, the check of the data path and the budget of a relay (podnet's
+//! `src/warp/ip.rs`).
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
@@ -28,10 +33,15 @@ use pod_core::{BoxFuture, Class, Connected, Datagrams, Dial, Event, Failure, Rep
 use pod_netstack::{NetStack, StackReset};
 use tokio::task::JoinHandle;
 
+mod datagrams;
 mod settings;
+use datagrams::{Families, WarpDatagrams};
 pub use pod_netstack::device::{DeviceStats, DeviceStatsSnapshot};
 pub use pod_netstack::smoltcp::socket::tcp::CongestionControl;
-pub use settings::{NetSettings, Renew, TCP_BUFFER, TCP_BURST_MAX, parse_cc, parse_tcp_burst, tcp_burst_max};
+pub use settings::{
+    NetSettings, Renew, TCP_BUFFER, TCP_BURST_MAX, TCP_KEEPALIVE, TCP_LINGER, TCP_TIMEOUT, parse_cc, parse_tcp_burst,
+    tcp_burst_max,
+};
 
 use crate::session::{MasqueRx, MasqueSession, MasqueTx};
 use crate::warp::Warp;
@@ -214,6 +224,11 @@ impl WarpNet {
         }
     }
 
+    /// The families of the addresses of the device.
+    pub(crate) fn families(&self) -> Families {
+        Families { v4: self.inner.v4.is_some(), v6: self.inner.v6.is_some() }
+    }
+
     fn family_failure(&self, ip: IpAddr) -> Option<Failure> {
         let has = if ip.is_ipv4() { self.inner.v4.is_some() } else { self.inner.v6.is_some() };
         let family = if ip.is_ipv4() { "IPv4" } else { "IPv6" };
@@ -321,8 +336,8 @@ impl Dial for WarpNet {
 
     fn datagrams<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn Datagrams>, Failure>> {
         Box::pin(async move {
-            let socket = self.bind_udp().await?;
-            Ok(Arc::new(socket.into_datagrams()) as Arc<dyn Datagrams>)
+            let inner = self.bind_udp().await?.into_datagrams();
+            Ok(Arc::new(WarpDatagrams { inner, families: self.families() }) as Arc<dyn Datagrams>)
         })
     }
 }

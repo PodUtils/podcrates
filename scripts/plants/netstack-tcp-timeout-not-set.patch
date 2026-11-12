@@ -1,0 +1,11 @@
+--- a/crates/pod-netstack/src/stack/reactor.rs
++++ b/crates/pod-netstack/src/stack/reactor.rs
+@@ -167,7 +167,7 @@
+     // sets the controller of its settings, none by default
+     // (PodUtils/podnet#134).
+     socket.set_congestion_control(config.congestion_control);
+-    socket.set_timeout(config.tcp_timeout.map(smol_duration));
++    socket.set_timeout(None);
+     socket.set_keep_alive(config.tcp_keepalive.map(smol_duration));
+     socket.set_nagle_enabled(!config.nodelay);
+     socket

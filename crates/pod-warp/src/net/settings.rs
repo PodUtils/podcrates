@@ -1,12 +1,14 @@
 //! The settings of the stack over a session: the MTU, the TCP buffers, the
 //! congestion controller (podnet's `--cc` and `PODNET_WARP_CC`), the TCP
-//! burst (`PODNET_WARP_TCP_BURST`), the counters of the links, the check of
-//! the data path and the budget of a relay. The consumer keeps its flags and
+//! burst (`PODNET_WARP_TCP_BURST`), the TCP timeout, keepalive, linger and
+//! Nagle, the counters of the links, the check of the data path and the
+//! budget of a relay. The consumer keeps its flags and
 //! its variables, parses them with [`parse_cc`] and [`parse_tcp_burst`], and
 //! fills the fields.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
 use pod_netstack::device::DeviceStats;
@@ -19,6 +21,18 @@ use crate::warp::MTU;
 /// The send and the receive buffer of each TCP connection (PodUtils/podnet
 /// issue 93: 128 KiB gave at most 2.8 MB/s at an RTT of 46 ms).
 pub const TCP_BUFFER: usize = 512 * 1024;
+
+/// The time limit of each TCP connection with no packet of the peer: a
+/// connect, data with no ACK, or a keepalive with no answer (PodUtils/podnet
+/// issue 125).
+pub const TCP_TIMEOUT: Duration = Duration::from_secs(60);
+/// The interval of the keepalive of an idle TCP connection (PodUtils/podnet
+/// issue 125); shorter than [`TCP_TIMEOUT`], so that an idle connection to a
+/// live peer stays.
+pub const TCP_KEEPALIVE: Duration = Duration::from_secs(20);
+/// The time that a closed TCP connection with no progress keeps its socket;
+/// then the stack aborts it (PodUtils/podnet issue 125).
+pub const TCP_LINGER: Duration = Duration::from_secs(30);
 
 /// The largest TCP burst of [`TCP_BUFFER`] at [`MTU`]: more segments do not
 /// fit in the receive buffer.
@@ -51,6 +65,18 @@ pub struct NetSettings {
     /// [`tcp_burst_max`] (PodUtils/podnet issue 100). None: no limit, the
     /// default (with smoltcp 0.12 and later no window stalls).
     pub tcp_burst: Option<usize>,
+    /// The time limit of each TCP connection with no packet of the peer
+    /// ([`pod_netstack::StackConfig::tcp_timeout`]).
+    pub tcp_timeout: Option<Duration>,
+    /// The interval of the TCP keepalive of an idle connection.
+    pub tcp_keepalive: Option<Duration>,
+    /// The time that a closed TCP connection with no progress keeps its
+    /// socket ([`pod_netstack::StackConfig::linger`]).
+    pub tcp_linger: Duration,
+    /// No Nagle on each TCP connection (podssh: a keystroke of SSH goes at
+    /// once, with no wait of one round trip through WARP for the ACK of
+    /// the data before it).
+    pub nodelay: bool,
     /// The counters of the link, shared with the other sessions of the
     /// caller (podnet adds each session of a process, issue 134). None: the
     /// counters of this session only.
@@ -66,6 +92,7 @@ pub struct NetSettings {
 
 impl Default for NetSettings {
     /// [`MTU`], [`TCP_BUFFER`], no congestion controller, no burst limit,
+    /// [`TCP_TIMEOUT`], [`TCP_KEEPALIVE`], [`TCP_LINGER`], no Nagle,
     /// counters of the session, the check of [`DataPathCheck::default`], and
     /// no relay.
     fn default() -> NetSettings {
@@ -74,6 +101,10 @@ impl Default for NetSettings {
             tcp_buffer: TCP_BUFFER,
             congestion_control: CongestionControl::None,
             tcp_burst: None,
+            tcp_timeout: Some(TCP_TIMEOUT),
+            tcp_keepalive: Some(TCP_KEEPALIVE),
+            tcp_linger: TCP_LINGER,
+            nodelay: true,
             link_stats: None,
             check: Some(DataPathCheck::default()),
             renew: None,
@@ -111,6 +142,10 @@ impl NetSettings {
             tcp_buffer: self.tcp_buffer,
             congestion_control: self.congestion_control,
             max_burst: self.tcp_burst,
+            tcp_timeout: self.tcp_timeout,
+            tcp_keepalive: self.tcp_keepalive,
+            linger: self.tcp_linger,
+            nodelay: self.nodelay,
             link_stats: self.link_stats.clone(),
             ..StackConfig::default()
         })
@@ -210,5 +245,17 @@ mod tests {
         let small = NetSettings { tcp_buffer: 64 * 1024, tcp_burst: Some(60), ..NetSettings::default() };
         assert!(small.stack_config(v4, None).is_err(), "60 segments do not fit in 64 KiB");
         assert!(NetSettings::default().stack_config(None, None).is_err(), "no address");
+    }
+
+    /// PodUtils/podnet issue 125 and podssh: the stack of a session has
+    /// podnet's TCP timeout, keepalive and linger, and no Nagle.
+    #[test]
+    fn the_stack_has_the_tcp_timeout_the_keepalive_and_no_nagle_of_podnet() {
+        let stack = NetSettings::default().stack_config(Some(Ipv4Addr::new(172, 16, 0, 2)), None).unwrap();
+        assert_eq!(stack.tcp_timeout, Some(Duration::from_secs(60)));
+        assert_eq!(stack.tcp_keepalive, Some(Duration::from_secs(20)));
+        assert_eq!(stack.linger, Duration::from_secs(30));
+        assert!(stack.nodelay);
+        assert!(TCP_KEEPALIVE < TCP_TIMEOUT, "an idle connection to a live peer must stay");
     }
 }

@@ -9,7 +9,25 @@ pub(super) enum AppEvent {
     Connected,
     Data(Vec<u8>),
     Eof,
-    Reset(String),
+    Failed(Ended),
+}
+
+/// The error that ends a connection for the app: a reset, or the TCP
+/// timeout.
+#[derive(Clone, Debug)]
+pub(super) struct Ended {
+    pub(super) kind: io::ErrorKind,
+    pub(super) text: String,
+}
+
+impl Ended {
+    pub(super) fn reset(text: impl Into<String>) -> Self {
+        Self { kind: io::ErrorKind::ConnectionReset, text: text.into() }
+    }
+
+    pub(super) fn error(self) -> io::Error {
+        io::Error::new(self.kind, self.text)
+    }
 }
 
 #[derive(Debug)]
@@ -55,8 +73,8 @@ impl TcpStream {
     /// refusal (a reset, or the end before the handshake) is an error of
     /// kind `ConnectionRefused` or `ConnectionReset`; so is the end of the
     /// connection by the stack ([`NetStack::reset_all`], the stop of the
-    /// reactor), with its cause. Data that comes first stays for the next
-    /// read.
+    /// reactor), with its cause. No answer in [`StackConfig::tcp_timeout`]
+    /// is `TimedOut`. Data that comes first stays for the next read.
     pub async fn established(&mut self) -> io::Result<()> {
         if self.eof {
             return Err(io::Error::from(io::ErrorKind::ConnectionRefused));
@@ -77,7 +95,7 @@ impl TcpStream {
                 self.eof = true;
                 Err(ended(&self.cause, io::Error::new(io::ErrorKind::ConnectionRefused, "the connection was refused")))
             }
-            Some(AppEvent::Reset(message)) => Err(io::Error::new(io::ErrorKind::ConnectionReset, message)),
+            Some(AppEvent::Failed(ended)) => Err(ended.error()),
         }
     }
 
@@ -183,9 +201,7 @@ impl AsyncRead for TcpStream {
                     self.eof = true;
                     Poll::Ready(Ok(()))
                 }
-                Poll::Ready(Some(AppEvent::Reset(message))) => {
-                    Poll::Ready(Err(io::Error::new(io::ErrorKind::ConnectionReset, message)))
-                }
+                Poll::Ready(Some(AppEvent::Failed(ended))) => Poll::Ready(Err(ended.error())),
                 Poll::Pending => Poll::Pending,
             };
         }

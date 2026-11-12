@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/net.rs
++++ b/crates/pod-warp/src/net.rs
+@@ -337,7 +337,7 @@
+     fn datagrams<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn Datagrams>, Failure>> {
+         Box::pin(async move {
+             let inner = self.bind_udp().await?.into_datagrams();
+-            Ok(Arc::new(WarpDatagrams { inner, families: self.families() }) as Arc<dyn Datagrams>)
++            Ok(Arc::new(inner) as Arc<dyn Datagrams>)
+         })
+     }
+ }

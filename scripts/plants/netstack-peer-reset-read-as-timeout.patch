@@ -1,0 +1,11 @@
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -189,7 +189,7 @@
+         if let Some(conn) = conn
+             && self.sockets.get::<tcp::Socket>(conn.handle).state() == tcp::State::Closed
+         {
+-            conn.peer_reset = true;
++            conn.peer_reset = false;
+         }
+     }
+ 

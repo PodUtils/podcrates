@@ -32,8 +32,8 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | --- | --- |
 | `Settings` | `api: Api`, `way: Way`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `net: NetSettings`; `Settings::new(api, way)`. |
 | `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession`, `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`. |
-| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `close(why)` (podnet's `close_session`), `stack`, `with_resolvers`, `link_stats`, `renew_due`, `check_data_path(&DataPathCheck) -> Duration`, `checked`. When the session closes (the edge ends it, a pump ends, the reactor of the stack stops, also by a panic, or `close`), each open stream and UDP socket fails at once with `ConnectionReset` and the first cause, and a new dial and a new UDP socket fail with it. |
-| `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
+| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `close(why)` (podnet's `close_session`), `stack`, `with_resolvers`, `link_stats`, `renew_due`, `check_data_path(&DataPathCheck) -> Duration`, `checked`. When the session closes (the edge ends it, a pump ends, the reactor of the stack stops, also by a panic, or `close`), each open stream and UDP socket fails at once with `ConnectionReset` and the first cause, and a new dial and a new UDP socket fail with it. A UDP datagram to a family that the device lacks is `InvalidInput` ("the tunnel has no IPv6 address for ..."), and no packet leaves. |
+| `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, tcp_timeout, tcp_keepalive, tcp_linger, nodelay, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, `TCP_TIMEOUT` 60 s, `TCP_KEEPALIVE` 20 s, `TCP_LINGER` 30 s, no Nagle, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
 | `check` | `DataPathCheck { servers, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device, `cloudflare.com`, 5 s, 1.2 s), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`). |
 | `api` | `Api::new(pod_proxy::Client)`, `with_base(url)` (podnet's `PODNET_WARP_API`, podssh's `PODSSH_WARP_API`), `with_bases`, `bases`, `request`, `send` (each base in turn; a `POST` goes on only after no answer); `ApiError`, `api_status`, `bases(value)`, `API_TIMEOUT`. |
 | `register` | `create_device`, `create_device_with_key`, `enrol_masque`, `get_device`, `get_account` (license hidden), `set_license`, `delete_device`, `registration_error` (error 1015). |
@@ -98,16 +98,21 @@ and far end in `tests/common/edge.rs` (call C135).
 | The counters of the link | `tests/stack.rs`: `the_counters_of_the_link_count_each_session`; in `pod-netstack`: `stacks_with_shared_counters_add_to_one_count`, `shared_counters_take_the_inbound_drops_of_each_link` |
 | The check of the data path, and the door that carried nothing | `check::tests::the_servers_of_the_check_follow_the_families_of_the_device`; `tests/stack.rs`: `the_check_of_the_data_path_needs_an_answer`, `a_door_that_carries_nothing_goes_last`, `a_lost_check_question_is_sent_again`, `no_check_takes_a_session_that_carries_nothing` |
 | The budget of a relay | `tests/stack.rs`: `the_budget_of_a_relay_says_when_to_renew` |
+| The TCP timeout, the keepalive, the linger and no Nagle (T-393) | `net::settings::tests::the_stack_has_the_tcp_timeout_the_keepalive_and_no_nagle_of_podnet`; in `pod-netstack`: the tests of `stack/tests/timeout.rs` (`a_tcp_socket_has_a_timeout_and_a_keepalive`, `the_tcp_sockets_have_no_nagle`, a connect and a stream to a peer that is gone) |
+| UDP to a family that the device lacks is refused (T-395) | `net::datagrams::tests::a_family_that_the_device_lacks_is_refused`; `tests/net.rs`: `udp_to_ipv6_on_an_ipv4_tunnel_is_refused` (the check with a server of each family asks no IPv6 server), `udp_on_a_dual_stack_tunnel_takes_the_source_of_each_family`, `udp_to_ipv4_on_an_ipv6_tunnel_is_refused` |
 | The flows of a closed session fail at once (T-394) | `tests/net.rs`: `the_flows_of_a_session_that_the_edge_ends_fail_at_once` (`Edge::end_sessions`), `a_close_by_the_caller_fails_the_flows_of_the_session`; in `pod-netstack`: the tests of `reset.rs` (a panic of the reactor) |
 
 The stand-in edge answers a DNS question on UDP port 53 too, notes the
-largest TCP window of the client and drops the first questions that a test
-names (`Watch` of `tests/common/edge.rs`); `Seen::silent` of
+largest TCP window of the client, the ends of each UDP datagram and the
+packets of each family, and drops the first questions that a test names
+(`Watch` of `tests/common/edge.rs`); `Seen::silent` of
 `pod_testkit::masque` makes a front door that takes the handshake and
 carries nothing. Plants: `warp-check-without-answer`,
 `warp-check-door-kept`, `warp-burst-not-passed`,
 `netstack-controller-not-set`, `netstack-burst-not-set`,
-`netstack-shared-counters-lose-the-drops`, `warp-close-resets-nothing`.
+`netstack-shared-counters-lose-the-drops`, `warp-close-resets-nothing`,
+`netstack-tcp-timeout-not-set`, `netstack-peer-reset-read-as-timeout`,
+`warp-udp-to-a-family-the-device-lacks`.
 
 ## The parity list
 
@@ -128,9 +133,9 @@ carries nothing. Plants: `warp-check-without-answer`,
 | MASQUE over HTTP/3; WireGuard; the carried device | yes | | T-337 |
 | The relay leg and the race | yes | | T-336 |
 | The stack (congestion control, burst, counters, the check of the data path) | yes | smoltcp of its own | yes (`NetSettings` over the stack of `pod-netstack`; the check in `Warp::connect`) |
-| The TCP timeout and keepalive, no Nagle (podnet issue 125, podssh) | yes | no Nagle | T-393 |
+| The TCP timeout and keepalive, no Nagle (podnet issue 125, podssh) | yes | no Nagle | yes (`NetSettings`; a timeout reads as `TimedOut`) |
 | The streams of a closed session fail at once; a close by the caller (podnet issues 125, 185) | yes | | T-394 |
-| UDP to a family that the device lacks is refused (podnet issue 112) | yes | | T-395 |
+| UDP to a family that the device lacks is refused (podnet issue 112) | yes | | yes |
 | The budget of a relay session | yes | | yes (`NetSettings::renew`; the relay leg is T-336) |
 | Names inside the tunnel | through the proxy's resolver | yes | yes |
 | UDP | yes | | yes (`Datagrams`) |
@@ -155,6 +160,8 @@ carries nothing. Plants: `warp-check-without-answer`,
 | `warp::rules` (global `TABLE`, `COUNTERS`, `watch`) | `rules::Rules` (a value), `Table::build(.., &lint, allow)`; podnet passes `shadow::check` and keeps the reload of the file |
 | `warp::ip::{parse_cc, set_cc, check_cc}`, `CC_VARIABLE` | `net::parse_cc` into `NetSettings::congestion_control`; podnet keeps the flag and the variable |
 | `warp::ip::check_tcp_burst`, `TCP_BURST_VARIABLE` | `net::parse_tcp_burst` into `NetSettings::tcp_burst` |
+| `warp::ip::{TCP_TIMEOUT, TCP_KEEPALIVE, TCP_LINGER}`, no Nagle in `Driver::tcp_socket` | `net::{TCP_TIMEOUT, TCP_KEEPALIVE, TCP_LINGER}`, the defaults of `NetSettings::{tcp_timeout, tcp_keepalive, tcp_linger, nodelay}` |
+| `Command::UdpSend` refused when `!has_family(to)` | the `Datagrams` of `WarpNet::datagrams` (`InvalidInput`, the same words) |
 | `warp::ip::link_stats()` (a global) | one `Arc<DeviceStats>` of podnet in `NetSettings::link_stats`; its `snapshot()` |
 | `WarpStack::renew_due`, `StackConfig::renew` | `WarpNet::renew_due`, `NetSettings::renew = Some(Arc::new(move \|\| budget.spent()))` |
 | `WarpStack::close_session(why)`, `Driver::fail_all`, `supervise` | `WarpNet::close(why)`; `NetStack::reset_all` at the first cause; the watch of `NetStack::stopped()` |
