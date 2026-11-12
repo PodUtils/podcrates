@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**260 entries: 58 open, 3 partial, 4 blocked, 195 done.**
+**261 entries: 57 open, 2 partial, 4 blocked, 198 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 28 | 2 | 4 | 100 | 134 |
+| P2 | 27 | 1 | 4 | 103 | 135 |
 | P3 | 18 | 0 | 0 | 40 | 58 |
-| **All** | 58 | 3 | 4 | 195 | 260 |
+| **All** | 57 | 2 | 4 | 198 | 261 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-044](transport.md) | P2 | S | M1 | chore | done | The tests of the system stores of `pod-tls` with a root in the store, on Windows and macOS |
 | [T-045](transport.md) | P2 | M | M1 | chore | done | The adoption trials check the static binaries of the consumer and build each feature |
 | [T-046](foundation.md) | P2 | S | M0 | chore | done | The shared CI scripts: the zig fetch, its mirrors and their weekly check |
-| [T-047](foundation.md) | P2 | S | M2 | chore | open | The weekly watch of the relay contract, in `pod-relay` |
+| [T-047](foundation.md) | P2 | S | M2 | chore | done | The weekly watch of the relay contract, in `pod-relay` |
 | [T-048](transport.md) | P1 | S | M1 | research | done | `pod-services`: the inventory of the relays and services of other parties in podssh and podnet |
 | [T-049](transport.md) | P1 | L | M1 | feature | done | `pod-services`: the schema, the data of each service and the library |
 | [T-050](transport.md) | P1 | L | M1 | feature | done | `pod-services`: the watches, their workflows and the measurement scripts |
@@ -216,7 +216,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-167](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a link meets its cap under qemu-user in `a_session_moves_before_each_cap` |
 | [T-168](upkeep.md) | P3 | S | M5 | defect | done | Tests that bind a Unix socket under the temporary directory fail when its path is long |
 | [T-169](podvm.md) | P2 | M | M1 | feature | done | `pod-hold`: the dial state of a held `connect` of the seccomp hold, from podnet's `connect.rs` |
-| [T-170](podvm.md) | P2 | M | M1 | feature | partial | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
+| [T-170](podvm.md) | P2 | M | M1 | feature | done | `pod-hold`: the netns hold of a SYN (dial first, then accept or RST), from podnet's netns router |
 | [T-171](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `localhost-run`, `localtunnel` and `bore` (PodUtils/podssh#186) |
 | [T-172](transport.md) | P3 | S | M2 | feature | done | `pod-session`: `Rewound::new`, a public constructor (PodUtils/podssh#186) |
 | [T-173](podvm.md) | P2 | M | M6 | feature | done | Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241) |
@@ -306,4 +306,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-267](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it |
 | [T-271](transport.md) | P2 | S | M1 | chore | done | `pod-services`: the VLESS node `node-xhttp-78-17-39-129` leaves (PodUtils/podssh#207) |
 | [T-272](transport.md) | P2 | S | M1 | defect | done | `pod-services-watch`: `forward-url` tries keyboard-interactive, which Serveo's anonymous tunnel takes |
-| [T-276](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209) |
+| [T-276](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209) |
+| [T-277](relay.md) | P2 | S | M2 | feature | open | `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210) |

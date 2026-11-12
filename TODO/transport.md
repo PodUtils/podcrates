@@ -4534,7 +4534,7 @@ is caught. The live run follows the push.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4566,3 +4566,37 @@ cargo test -p pod-services --all-features
 cargo run -q -p pod-services-watch -- --service syncthing-relay
 ```
 
+## Done
+
+2026-11-12. `c71f9a5` (the work and call C104).
+
+- `crates/pod-services/services/syncthing-relay.toml`: kind
+  `syncthing-relay`, 25 endpoints `relay-ID7` (scheme `tls`, port 443,
+  each an IPv4 literal), each with the fact `device-id-relay-ID7` (the
+  device ID of the URL of the relay); the order of the device IDs. The
+  rule (call C104): each relay of `/endpoint/full` on 443 with an IP
+  literal and 7 days or more of uptime at the read. On 2026-11-12 the pool
+  had 1036 relays, 68 of them on 443. `/endpoint` gives 100 relays at
+  random: the 8 relays of PodUtils/podssh#209 were one sample; 2 of them
+  are in the file, 5 were up for 1 to 2 days (one operator has 32 relays
+  on 443, 30 of them up for less than 3 days), and 1 for 6.6 days.
+- `http-json` takes `url-member` (`crates/pod-services-watch/src/http.rs`,
+  `url_members`): the URL of an item gives the members `host` (an IPv6
+  address with no brackets), `port` and each parameter of its query,
+  decoded. The READMEs of both crates name the form, the service and
+  `crates/pod-services/tests/syncthing.rs`.
+- Tests: `crates/pod-services/tests/syncthing.rs` (3: each relay an IP
+  literal on 443 with a device ID of eight groups of seven whose head is
+  in its name; the order; the watch).
+  `http_json_items_read_the_host_the_port_and_the_query_of_a_url` in
+  `crates/pod-services-watch/tests/watches/http.rs` failed with the code
+  before (no item has the key of its fact) and passes. `cargo test -p
+  pod-services -p pod-services-watch --all-features`: each suite passes.
+- The plant `services-json-url-query-dropped` (the query gives no member)
+  is caught by that test.
+- The live watch, `cargo run -q -p pod-services-watch -- --service
+  syncthing-relay`: `holds syncthing-relay http-json: 25 endpoints at
+  /relays of https://relays.syncthing.net/endpoint/full; 68 of 1036 items
+  with port 443, 43 of them not in the file`.
+- Not measured: a session through a relay (podssh's
+  `strelay-interop.yml` runs it after its take).

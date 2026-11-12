@@ -66,6 +66,7 @@ file d6699f75197eb6c27215f75a4d05b8da4786367e crates/podnet-netns/src/netns/tun.
 file 59f2a649e3f2240637631059615674ec1812c37e crates/podnet-netns/tests/veth.rs -> crates/pod-hold/tests/veth.rs crates/pod-hold/tests/veth/linux.rs
 
 repo PodUtils/podnet a7350b27695dfc22ea52cf64dfe52536ee7c347d
+taken 98d8a7126c1ca1d448ab35e4a485c690adb82b3e
 # T-170, step 2 (PodUtils/podnet#424, #451; podnet's PodUtils/podnet@T-249):
 # the hold of a SYN of the router of the netns backend, on the stack of
 # pod-netstack. netns/backend.rs: of it only the hold (HeldSyn, the held,

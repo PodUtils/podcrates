@@ -9,29 +9,23 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Finish the release of `v0.29.0` (`docs/maintenance.md`, "A release"):
-   the version and the notes (`docs/releases/v0.29.0.md`) are on `main`
-   at `52e461a`, and its full local check passed. Read `ci` and
-   `adoption` at the head of `main` (`live.yml` run 43174276510 passed at
-   `52e461a`); then run `release.yml` with no input, then with
-   `version=0.29.0`; read the dry run of `publish.yml` at the tag; post
-   `docs/releases/v0.29.0-handoff.md` as the hand-off issue (title
-   "COORD-055: v0.29.0: ... (to all)"; fill `COMMIT` and the run ids);
-   map it in `TODO/issues.md` and `TODO/github.txt`; message podrunner and
-   podssh.
-2. Read the hand-off issue #86 (`v0.28.0`) and record each new take.
-3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+1. Read the hand-off issue #87 (`v0.29.0`) and record each new take.
+2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)` of each
    repository of PodUtils.
-4. Take the work order of `TODO/PROGRESS.md`. Its head now: T-026 (the
+3. Take the work order of `TODO/PROGRESS.md`. Its head now: T-026 (the
    trial of `pod-relay` in podnet), T-251 (podrunner's ask), T-276
    (PodUtils/podssh#209), T-212, T-267.
 
 ## In flight
 
-- The last release: `v0.28.0` at `4ce3625` (the hand-off #86, closed):
-  podrunner `bde47c3`, podssh `12473a10`, podnet `b08e06f`
-  (PodUtils/podnet#477) and podvm `94e7ca2a` (PodUtils/podvm#278) took it. `v0.29.0` is prepared, not tagged (step 1 above).
+- The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
+  took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`). Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
+  podssh `12473a10`, podnet `b08e06f` (PodUtils/podnet#477), podvm
+  `94e7ca2a` (PodUtils/podvm#278).
+- On `main` after the tag: T-276 (`syncthing-relay`, call C104) and the
+  gate of `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did
+  not build it on macOS and Windows).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
   relay client is in `pod-relay`. The trial of podnet
   (`adoption/podnet/pod-relay.patch`, `.commit`, `.run`) on podnet
@@ -44,11 +38,6 @@ is done. Git and the record keep finished work.
   allowlists, podnet's citations of `src/relay_pool.rs`). After the trial,
   the words "a binary does not turn it on" of `plain-ws` change (C101).
   podnet holds the three files to fixes from `7c5f87e`.
-- T-170 (partial): step 2 is `pod_hold::syn_hold` (feature `syn-hold`;
-  calls C90, C91, C100); the trial `adoption/podnet/pod-hold-syn.*` at
-  podnet `a7350b2` passed in `adoption.yml` (run 43164667092). podnet's
-  take remains; four defects of podnet's router are in the Done section
-  and in the hand-off of `v0.29.0`.
 - T-040 (partial): the trials of podvm, with each import for podvm.
 
 ## What waits
@@ -56,8 +45,8 @@ is done. Git and the record keep finished work.
 - podvm (on `v0.28.0`, `94e7ca2a`, PodUtils/podvm#278): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.28.0`, `b08e06f`, PodUtils/podnet#477; #462 to #464 are
-  closed): its take of `syn_hold` (T-170); then T-026's trial, then T-028 (`pod-warp`) and
+- podnet (on `v0.29.0`, `98d8a71`, PodUtils/podnet#478, with
+  `syn_hold`): T-026's trial, then T-028 (`pod-warp`) and
   T-029 (`pod-cloudflare`) on the chain to WARP (the owner's order). Write
   to podnet by COORD issues only.
 - podssh (on `v0.28.0`, `12473a10`, PodUtils/podssh#208): its

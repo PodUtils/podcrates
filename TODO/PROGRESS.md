@@ -1,27 +1,23 @@
 # Progress
 
-`TODO/INDEX.md` holds 260 entries: 58 open, 3 partial, 4 blocked, 195 done.
+`TODO/INDEX.md` holds 261 entries: 57 open, 2 partial, 4 blocked, 198 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.28.0` at `4ce3625` (`docs/releases/v0.28.0.md`; ci
-  43156370247, adoption 43154349743 at `1af4f7c`, release 43159035841;
-  the hand-off GitHub #86, COORD-054): `qemu-img convert` in `pod-guest`
-  (T-266), a TCP list refused with `socketcall(2)` (T-262), the UDP of
-  `pod-netstack` (T-257 to T-259), the IPv6 relay host and the plain
-  loopback opener of `pod-relay` (T-234), Tox, Yggdrasil, HyperDHT,
-  workerd and wasmtime in `pod-services` (T-244, T-256, T-260, T-254,
-  T-255), the relay contract (T-253), `live.yml` (T-228).
-- `v0.29.0` is prepared on `main` (`52e461a`: the version, the notes, a
-  full local check); its CI, its tag and its hand-off are the first step
-  of `docs/HANDOFF.md`.
+- Last release: `v0.29.0` at `a4d3630` (`docs/releases/v0.29.0.md`; ci
+  43175571035, adoption 43174261180 at `52e461a`, release 43177712730;
+  the hand-off GitHub #87, COORD-055): `pod_hold::syn_hold` (T-170), the
+  MQTT meeting point of `pod-wormhole` (T-261), `reverse::channel` of
+  `pod-relay` (T-150), the `Host` of an IPv6 relay (T-245), one cache file
+  for each relay host (T-246), the watches `forward-url` (T-225, T-272).
+- On `main` after the tag: `syncthing-relay` in `pod-services` (T-276).
 - The consumers and their tags:
   - podssh: `v0.28.0` (`12473a10`, PodUtils/podssh#208; it took `pod-relay`
     at `0872c2c6`).
-  - podnet: `v0.28.0` (`b08e06f`, PodUtils/podnet#477; its test pins
-    `InvalidInput` and `udp_oversize` over `mtu - 28`; it does not turn on
-    `ipv4-fragmentation` now: PodUtils/podnet@T-248 decides).
+  - podnet: `v0.29.0` (`98d8a71`, PodUtils/podnet#478): its netns router
+    holds each SYN with `pod_hold::syn_hold` (T-170); it does not turn on
+    `ipv4-fragmentation` now (PodUtils/podnet@T-248 decides).
   - podvm: `v0.28.0` (`94e7ca2a`, PodUtils/podvm#278; `kvm.yml` run
     43171009630 provisions the ValidationOS guest with `convert_argv`:
     the image has no backing file, the vendor image keeps its digest).
@@ -36,9 +32,7 @@
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet on its `1abfa91` remains: no fix
   to port, the glue is not written, calls C101 to C103), T-040 (the
-  trial of podvm), T-170 (step 2: `pod_hold::syn_hold` from podnet
-  `a7350b2`; the trial `pod-hold-syn` passed in `adoption.yml` run
-  43164667092; the release and podnet's take remain). Open defects: T-131
+  trial of podvm). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -80,10 +74,7 @@ next entry.
    (partial: the trial of podnet on `1abfa91`; its Done section lists
    what the patch changes), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
-   holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
-   (partial): the run of the trial `pod-hold-syn` in `adoption.yml`, the tag,
-   and the COORD answer to PodUtils/podnet#451 with podnet's defects of the
-   Done section of T-170; T-214 and T-215 (the file
+   holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
@@ -95,7 +86,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-026 (partial: the trial of podnet), T-212; then T-204 (a random failure of
+6. **M2, the relay:** T-026 (partial: the trial of podnet), T-277 (the MQTT brokers in the runs of a code, PodUtils/podssh#210), T-212; then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).

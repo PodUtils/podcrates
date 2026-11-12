@@ -3506,3 +3506,58 @@ in a virtualenv and runs the tests of `pod-wormhole` and `pair_code` of
 `pod-relay` with `POD_WORMHOLE_TEST_SERVER=required`, each day. Run
 43153607165: 14 tests of `tests/mailbox.rs` against the server and the
 library, none skipped; 7 of `pair_code`.
+
+# T-277: `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210)
+
+**Source:** PodUtils/podssh#210 (COORD-036 of podssh, for PodUtils/podssh@T-737)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh pairs through `pod_relay::code::run::{give, take, give_with,
+take_with}`. They meet only through `run::opened` and `run::joined`, which
+call `pod_wormhole::opened` and `pod_wormhole::joined` over
+`Ends.mailboxes` alone. `run::Ends` has no field for brokers, so podssh
+cannot use `pod_wormhole::mqtt` (T-261) from its glue. podssh took
+`pod-relay`, so the change is podcrates' (the ruling Q3). podssh's ask:
+
+1. `run::Ends` takes the brokers too (for example `brokers:
+   Vec<pod_wormhole::mqtt::Point>`; empty: no MQTT), with the default of
+   `Brokers::resend`.
+2. `run::opened`: the mailboxes in order; when each failed
+   (`Failed::Unreachable`), `mqtt::opened` at the brokers. `run::joined`:
+   the same order for the taker, with `waits.giver` for each broker.
+3. The shown name of the meeting point stays in `Given::mailbox` and
+   `Taken::mailbox` (a `Place::shown()`), so that podssh's lines name the
+   broker.
+4. One event (a `pod_core::Event`) before the first broker: a third party
+   that nobody vouches for carries the messages, and the proof of the
+   pairing keeps the secret. podssh shows the events of `Config::events`
+   as lines.
+
+## Premise
+
+- Read: `crates/pod-relay/src/code/run.rs` at `a4d3630` (`Ends`,
+  `opened`, `joined`); `pod_wormhole::mqtt::{opened, joined, Brokers,
+  Point}` (T-261, calls C92 to C95).
+- Not measured: a pairing of the runs through a broker.
+
+## Approach
+
+`Ends` gets `brokers` and the resend of `Brokers`. `opened` and `joined`
+try the mailboxes, then, on `Failed::Unreachable` alone, send the event
+and try `mqtt::opened` or `mqtt::joined` with `Brokers { points, config,
+resend }`. The shown name of a broker goes where the mailbox's goes. A
+test against Eclipse Mosquitto (`POD_WORMHOLE_TEST_MQTT=required` in
+`ci.yml`) pairs two runs with no mailbox that answers, and a test with no
+broker keeps `Failed::Unreachable`.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features code::
+```

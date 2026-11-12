@@ -281,8 +281,8 @@ podnet took these rows at `f107766` (tag `v0.26.0`; the trial patch
 | `crates/podnet-netns/README.md` | names `pod_hold::netns` for the wire |
 | each `pod-*` dependency | tag `v0.25.0` |
 
-The trial patch `pod-hold-syn` (`adoption/podnet/`, at podnet `a7350b2`)
-gives these rows:
+podnet took these rows at `98d8a71` (tag `v0.29.0`; the trial patch
+`pod-hold-syn` of T-170 step 2, at podnet `a7350b2`):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |

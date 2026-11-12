@@ -670,7 +670,7 @@ the jobs `sources` and `mirrors` green.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -698,6 +698,26 @@ gh workflow run relay-contract.yml
 ## Start condition
 
 T-025 is done.
+
+## Done
+
+2026-11-12. The work of T-253 (PodUtils/podnet#463) does this entry; no
+new commit of code.
+
+- The daily job of `services.yml` (cron `17 2 * * *`, more often than
+  each week) runs the watches of `crates/pod-services/services/ajam-relay.toml`:
+  `http-sha256` of the endpoint `contract` (`/llms-full.txt`) against the
+  facts `contract-sha256` and `contract-bytes` (any change of the
+  contract is a `MOVED` line); `http-json` of `/relays.json` at `/limits`
+  against the five facts of the limits; `http-json` of `/health` at
+  `/version`.
+- The limits that `pod-relay` holds are the facts of `ajam-relay`:
+  `the_compiled_limits_are_the_facts_of_the_relays_limits` in
+  `crates/pod-services/tests/moved.rs`.
+- A planted change fails: the plant `services-sha256-not-compared` (the
+  watch kind, T-050) is caught by its test.
+- Not done as a separate `relay-contract.yml`: the daily job of
+  `services.yml` holds the same documents.
 
 # T-051: The fallback channel between the sessions, tested (GitHub #2)
 

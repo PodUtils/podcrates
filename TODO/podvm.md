@@ -2499,7 +2499,7 @@ lists `connect.rs` in the block at `5599012` (0 changes).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2653,7 +2653,7 @@ after the push), the tag `v0.29.0` and podnet's take remain.
      at lines of `backend.rs` that hold other code at `a7350b2`
      (`reap_closed` is gone); the remap of the patch moves one of its
      citations and names one for a read.
-- The trial (`adoption/podnet/pod-hold-syn.patch`, its `.commit` and its
+- The trial (adoption/podnet/pod-hold-syn.patch, its `.commit` and its
   `.run`): podnet's `backend.rs` takes `SynHold` (666 to 452 lines);
   `TcpRoute` implements `Dial`; `netns/packet.rs` keeps `ipv4_checksum`;
   each tag moves to `v0.29.0`. Run here on the patch, with the crates of
@@ -2679,6 +2679,24 @@ after the push), the tag `v0.29.0` and podnet's take remain.
 - Not measured: the hold under a real payload with a namespace in this
   tree (podnet's pod tests above measure it through the trial), the rate
   of a flow through the hold, and the time limits of `Settings`.
+
+2026-11-12, step 2 done: podnet took it. `adoption.yml` run 43164667092
+passed the trial at podnet `a7350b2`; `v0.29.0` is at `a4d3630`
+(GitHub #87).
+
+- podnet `98d8a71` (PodUtils/podnet#478) takes `tag = "v0.29.0"` with
+  adoption/podnet/pod-hold-syn.patch of the tag (a three-way apply on its `main`;
+  the conflicts were the tag lines alone) and `podnet-netns` on the
+  feature `syn-hold`. podnet ran the steps of the `.run` but
+  `check-consumer-toolchains.py` and the musl build (its CI builds the
+  static binaries); `root-netns-tests.sh` as root and `cargo test
+  --workspace --no-fail-fast` had 0 failures. The four defects of the
+  router at `a7350b2` are gone with the crate (podnet's answer).
+- The `taken` line of the block of `a7350b2` in `crates/pod-hold/SOURCES`:
+  `python3 -I scripts/check-sources.py --clone PodUtils/podnet=CLONE
+  pod-hold` gives 3 files, 0 changes. The trial files
+  `adoption/podnet/pod-hold-syn.*` are gone; the adoption map of
+  `crates/pod-hold/README.md` names the take.
 
 # T-173: Fuzz targets of four parsers of untrusted input: `pod-oci` (two), `pod-extract`, `pod-enter` (PodUtils/podvm#241)
 
