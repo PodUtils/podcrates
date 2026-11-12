@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 251 entries: 67 open, 5 partial, 4 blocked, 175 done.
+`TODO/INDEX.md` holds 251 entries: 64 open, 5 partial, 4 blocked, 178 done.
 
 ## State
 
@@ -23,7 +23,10 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70); podnet's take of T-230 to T-232 (PodUtils/podnet#457; the
-  next tag; `StackConfig::accept_pool` is gone).
+  next tag; `StackConfig::accept_pool` is gone) and of T-257 to T-259
+  (PodUtils/podnet#464, for its guest-wire router PodUtils/podnet@T-248: the
+  UDP counters, `max_datagram`, the feature `ipv4-fragmentation`, the
+  backlog of a UDP socket).
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
@@ -66,9 +69,7 @@ next entry.
    entry here, in the order of its need. T-251 (`pod-actions-expr`,
    `pod-actions-workflow`) waits for its local mode
    (PodUtils/podrunner@T-046).
-3. **podnet:** T-259, T-257, T-258 (the UDP of `pod-netstack`,
-   PodUtils/podnet#464; podnet's guest-wire router PodUtils/podnet@T-248
-   waits for T-259). The chain to WARP as a network of podnet
+3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
    (partial: the trial of podnet), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
