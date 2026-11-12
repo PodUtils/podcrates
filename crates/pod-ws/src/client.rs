@@ -346,12 +346,12 @@ pub async fn https_with_token(
     https_request(way, method, host, port, path, &headers, body, max_body, trust, timeout).await
 }
 
-#[allow(clippy::too_many_arguments)]
 /// The `Host` of an HTTPS request: an IPv6 address in brackets, on 443 too.
 pub(crate) fn https_host(host: &str, port: u16) -> String {
     pod_proxy::host::host_header(host, port)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn https_request(
     way: &Way,
     method: &str,
