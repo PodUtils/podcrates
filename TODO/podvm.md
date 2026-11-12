@@ -3534,7 +3534,7 @@ call C58). The decoder is `xz4rust` (C58).
 **Milestone:** M6
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3573,7 +3573,7 @@ and of the issue). The crate needs no `pod-netstack` for a lab in a guest
 that is root (call C148); the variant on a user-space stack is T-349.
 
 Done in this step (the part that needs no guest and no root; calls C145
-to C149; the commits name T-207):
+to C149; commits `3d5c771` and `8400a01`):
 
 - `Knobs`: each knob of issue 178 with its range and its flag
   (`parse_flags`, `flags`); `check` refuses the three contradictions of
@@ -3594,8 +3594,12 @@ to C149; the commits name T-207):
   ruleset of the 27 scenarios loads into nftables 1.0.9 under
   `unshare -rn`, and its nine counters read back).
 - The plants `netlab-judge-ignores-counters` and
-  `netlab-dnat-after-new-drop`; the fuzz target `netlab_counters`; the
-  static probe calls the crate.
+  `netlab-dnat-after-new-drop`: each caught
+  (`sh scripts/plant-each.sh ID`). The fuzz target `netlab_counters`
+  (its seeds: the output of nftables 1.0.9 for the nine counters, two
+  tables, a counter two times, a counter with no packets); the stable
+  test of `fuzz/` passes. The static probe calls the crate: the musl
+  build passes `scripts/check-static.sh` and `scripts/check-probe.py`.
 
 What remains: the probe program (T-345), the world's services (T-346),
 each scenario on a real kernel with the planted flush (T-347), the VPN
