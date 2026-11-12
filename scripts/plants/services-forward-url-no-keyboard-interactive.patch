@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services-watch/src/forward.rs b/crates/pod-services-watch/src/forward.rs
+index 1c15501..141d2fc 100644
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -177,7 +177,7 @@ impl Session<'_> {
+                 remaining_methods.iter().map(<&str>::from).collect::<Vec<_>>().join(", ")
+             }
+         };
+-        if methods.split(", ").any(|m| m == "keyboard-interactive") && self.keyboard_interactive(handle).await? {
++        if methods.is_empty() && self.keyboard_interactive(handle).await? {
+             return Ok("keyboard-interactive, no answer");
+         }
+         Err(Finding::failed(format!(

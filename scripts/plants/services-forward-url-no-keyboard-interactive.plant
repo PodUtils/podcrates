@@ -1,0 +1,6 @@
+# forward-url tries a key and no key alone: a relay that lets anyone in
+# through keyboard-interactive (Serveo) reads as a failure (T-272).
+ENTRY=T-272
+GROUP=services
+EXPECT='test forward::forward_url_takes_an_empty_keyboard_interactive_login \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --all-features --test watches -- forward::forward_url_takes_an_empty_keyboard_interactive_login'
