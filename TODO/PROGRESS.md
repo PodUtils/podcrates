@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 285 entries: 65 open, 2 partial, 5 blocked, 213 done.
+`TODO/INDEX.md` holds 285 entries: 64 open, 2 partial, 5 blocked, 214 done.
 
 ## State
 
@@ -17,8 +17,9 @@
   - podnet: `v0.30.0` (`83e0c93`, PodUtils/podnet#481): its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
-  - podvm: `v0.30.0` (`c553da2e`, PodUtils/podvm#280; no code change,
-    its 350 tests pass).
+  - podvm: `v0.31.0` (`c5b61b45`, PodUtils/podvm#284; its 362 unit
+    tests pass; T-320 is its test `import_padded.rs`; T-321 waits for its
+    run of `arm.yml`, PodUtils/podvm@T-1742).
   - podrunner: `v0.30.0` (`528a918`, its T-086; its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042

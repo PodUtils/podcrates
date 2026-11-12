@@ -1,0 +1,7 @@
+# The check of the arguments lets an unknown argument pass: a misnamed
+# argument of the data shows only in the daily run (T-324).
+ENTRY=T-324
+GROUP=services
+EXPECT='test http::http_text_wants_the_text \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- http::http_text_wants_the_text --exact'
+LIMIT=1800

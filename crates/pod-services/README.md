@@ -88,7 +88,9 @@ build, and is not a value that nobody reads.
 `[[watch]]`: `kind` (a word) and its arguments (words, with a text, an
 integer, a bool or a list as their value). The build checks only these
 words: a watch kind is a plugin of `pod-services-watch` (T-050), and a
-new kind is one implementation there. The kinds that the files name now:
+new kind is one implementation there. The tests of `pod-services-watch`
+check the arguments of each watch against this table (`schema.rs`,
+T-324). The kinds that the files name now:
 
 | Kind | Arguments | What it checks |
 | --- | --- | --- |

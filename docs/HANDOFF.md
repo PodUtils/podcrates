@@ -13,7 +13,7 @@ is done. Git and the record keep finished work.
 2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-4. Take the work order of `TODO/PROGRESS.md`: T-311, T-212, T-290, T-324.
+4. Take the work order of `TODO/PROGRESS.md`: T-311, T-212, T-290.
 
 ## In flight
 
@@ -30,7 +30,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.30.0`, `c553da2e`, PodUtils/podvm#280): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+- podvm (on `v0.31.0`, `c5b61b45`, PodUtils/podvm#284): T-326 (the trial of `pod-relay`, an agent of this session, PodUtils/podvm#283, #91); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
 - podnet (on `v0.30.0`, `83e0c93`, PodUtils/podnet#481, with

@@ -229,7 +229,13 @@ async fn http_text_wants_the_text() {
     assert!(report.holds() && text(&report).contains("/trace holds"), "{}", text(&report));
     let neither = fact("zone", "\"one.one.one.one\"") + &watch("kind = \"http-text\"\ncontains = \"h=\"");
     let report = one(&file("t5", &neither)).await;
-    assert!(text(&report).contains("no argument \"url\" or \"endpoint\""), "{}", text(&report));
+    assert!(text(&report).contains("the arguments: no argument of url or endpoint"), "{}", text(&report));
+    // The arguments are checked before the network: an unknown argument and
+    // a name of no endpoint fail by name (T-324).
+    let bad = fact("zone", "\"one.one.one.one\"")
+        + &watch("kind = \"http-text\"\nendpoint = \"nope\"\ncontains = \"h=\"\nurl-of = \"x\"");
+    let all = text(&one(&file("t6", &bad)).await);
+    assert!(all.contains("an unknown argument \"url-of\"") && all.contains("no endpoint \"nope\""), "{all}");
 }
 
 #[tokio::test]

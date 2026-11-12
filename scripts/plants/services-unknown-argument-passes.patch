@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/schema.rs
++++ b/crates/pod-services-watch/src/schema.rs
+@@ -97,7 +97,7 @@
+     let known = |name: &str| {
+         spec.need.contains(&name) || spec.optional.contains(&name) || spec.any.iter().any(|g| g.contains(&name))
+     };
+-    for arg in watch.args().iter().filter(|a| !known(a.name())) {
++    for arg in watch.args().iter().filter(|a| !known(a.name()) && false) {
+         out.push(format!("an unknown argument {:?}", arg.name()));
+     }
+     let texts = |name: &str| watch.arg(name).map(crate::args::value_texts).unwrap_or_default();

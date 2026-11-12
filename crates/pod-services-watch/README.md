@@ -78,11 +78,15 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 
 A new kind: one async function `(service, watch, net) -> Checked`, its
 line `kind!(Name, "word", module::function)` and its place in `kinds()`
-in `src/lib.rs`, its test in `tests/watches/`, its plant in
-`scripts/plants/` (group `services`), and its row in the README of
-`pod-services`. The test `data::each_watch_of_the_data_has_its_kind`
-fails when the data names a kind with no implementation, or when a kind
-has no watch in the data.
+in `src/lib.rs`, its arguments in `src/schema.rs`, its test in
+`tests/watches/`, its plant in `scripts/plants/` (group `services`), and
+its row in the README of `pod-services`. The test
+`data::each_watch_of_the_data_has_its_kind` fails when the data names a
+kind with no implementation, or when a kind has no watch in the data.
+`data::each_watch_of_the_data_has_the_arguments_of_its_kind` fails on a
+missing or an unknown argument, and on a name of an endpoint, a role, a
+fact or a service that the data does not have (`schema::faults`). A run
+checks the same before the network.
 
 ## Tests
 

@@ -21,6 +21,7 @@ mod oci;
 mod proxy;
 mod rdap;
 mod report;
+pub mod schema;
 mod sha;
 mod ssh;
 mod stun;
@@ -191,7 +192,9 @@ pub fn find(word: &str) -> Option<&'static dyn Watch> {
 /// Check `watch` of `service`: a kind that this crate does not know is a
 /// failure, never a pass.
 pub async fn run(service: &Service, watch: &pod_services::Watch, net: &Net) -> Report {
+    let faults = schema::faults(service, watch, |id| net.services.get(id).is_some());
     let outcome = match find(watch.kind()) {
+        Some(_) if !faults.is_empty() => Finding::failed(format!("the arguments: {}", faults.join("; "))).into(),
         Some(kind) => kind.check(service, watch, net).await,
         None => Finding::failed(format!("pod-services-watch has no watch kind {:?}", watch.kind())).into(),
     };

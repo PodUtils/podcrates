@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**285 entries: 65 open, 2 partial, 5 blocked, 213 done.**
+**285 entries: 64 open, 2 partial, 5 blocked, 214 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 0 | 0 | 60 | 74 |
-| P2 | 26 | 1 | 5 | 107 | 139 |
+| P2 | 25 | 1 | 5 | 108 | 139 |
 | P3 | 25 | 1 | 0 | 44 | 70 |
-| **All** | 65 | 2 | 5 | 213 | 285 |
+| **All** | 64 | 2 | 5 | 214 | 285 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -329,6 +329,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-321](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282) |
 | [T-322](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-expr`: a public view of the parts of a `Template` (podrunner's ask) |
 | [T-323](upkeep.md) | P1 | S | M5 | defect | done | `services.yml` at `613058c` is red: Serveo's banner names its console, a text watch of shiftr names an endpoint, no RDAP for `.me`, and openbare.xyz in 66 days |
-| [T-324](upkeep.md) | P2 | M | M5 | defect | open | `pod-services-watch`: no offline test checks the arguments of each watch of the data |
+| [T-324](upkeep.md) | P2 | M | M5 | defect | done | `pod-services-watch`: no offline test checks the arguments of each watch of the data |
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
 | [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |

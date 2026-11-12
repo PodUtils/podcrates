@@ -688,7 +688,7 @@ run proves them.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -718,6 +718,17 @@ The declaration is the one source of the table "The schema" of
 ```sh
 cargo test -p pod-services-watch --test watches data
 ```
+
+## Done
+
+2026-11-12. `src/schema.rs`: `arguments(kind)` (the needed arguments, the
+groups of which one is needed, the optional ones) and `faults(service,
+watch, is_service)` (a missing or an unknown argument; a name of no
+endpoint, no role, no fact, no service). `run` checks the arguments
+before the network. Tests `data::each_watch_of_the_data_has_the_arguments_of_its_kind`,
+`data::each_kind_has_a_table_of_arguments`, and the cases `t5` and `t6`
+of `http::http_text_wants_the_text`. Plant
+`services-unknown-argument-passes`. Each watch of the data passes.
 
 # T-325: The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled
 
@@ -775,3 +786,4 @@ cargo test -p pod-netstack -p pod-quic -p pod-e2e -p pod-relay --all-features
   `pod-quic/tests/datagrams.rs`, `pod-e2e/tests/e2e_harness/mod.rs` and
   `pod-netstack/src/stack/tests/link.rs` (with `pod-testkit` as a
   dev-dependency of `pod-netstack`).
+
