@@ -171,6 +171,8 @@ pub const DOCKER_CAPS: u64 = (1 << 0)
 /// A TCP list or a closed UDP also closes the sockets that Landlock does
 /// not check ([`Deny::families`]). From ABI 9 a connect to a Unix socket of
 /// a path that a process outside the domain made needs a rule with write.
+/// The compile refuses a TCP list and a closed UDP on a target with
+/// `socketcall(2)` (i686, s390x, powerpc64).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Spec {
     pub paths: Vec<PathRule>,

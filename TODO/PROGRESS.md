@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 253 entries: 65 open, 4 partial, 4 blocked, 180 done.
+`TODO/INDEX.md` holds 254 entries: 65 open, 4 partial, 4 blocked, 181 done.
 
 ## State
 
@@ -17,8 +17,9 @@
     reads the URL rule of `pod_services::forward`).
   - podnet: `v0.26.0` (`f107766`, PodUtils/podnet#458; the veth wire of
     `pod-hold`).
-  - podvm: `v0.26.0` (`483a1957`, PodUtils/podvm#270; `Plan.confine` from
-    its profiles, experiment 414 passes).
+  - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
+    of experiment 414 passes; `mcr.microsoft.com` leaves its list of
+    reported hosts).
   - podrunner: `v0.26.0` (`4284967`; its T-075); its T-042 takes `pod-confine`, its
     T-048 takes `check_upstream`, `names_upstream` and the flagged rules
     of `pod-broker`.
@@ -26,7 +27,7 @@
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70); the takes of `v0.27.0` (#85): podnet's of T-230 to T-232
   (PodUtils/podnet#457; `StackConfig::accept_pool` is gone), podssh's of
-  `pod-relay` (T-025), podvm's of T-227 and T-233; podnet's take of T-257
+  `pod-relay` (T-025); podnet's take of T-257
   to T-259 with the next tag (PodUtils/podnet#464, for its guest-wire
   router PodUtils/podnet@T-248: the UDP counters, `max_datagram`, the
   feature `ipv4-fragmentation`, the backlog of a UDP socket).

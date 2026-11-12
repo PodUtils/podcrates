@@ -279,14 +279,13 @@ impl Spec {
     /// UDP ([`Deny::udp`]), of a TCP list ([`Deny::mptcp`]), and where the
     /// spec closes a socket the families that Landlock does not check
     /// ([`Deny::families`]) and the io_uring calls ([`Deny::io_uring`]).
-    /// On a target with `socketcall(2)` the rules of a TCP list do not see
-    /// a socket made through it.
     ///
-    /// A closed UDP is refused on a target with `socketcall(2)` (i686,
-    /// s390x, powerpc64): a payload makes a UDP socket through it, and a
-    /// deny of each `socketcall` stops each socket of a payload that makes
-    /// its sockets only through it (Go on 386 and s390x; glibc on i386 for
-    /// a kernel under 4.3).
+    /// A closed UDP and a TCP list are refused on a target with
+    /// `socketcall(2)` (i686, s390x, powerpc64): a payload makes a UDP, an
+    /// MPTCP or a packet socket through it, which the filter does not see,
+    /// and a deny of each `socketcall` stops each socket of a payload that
+    /// makes its sockets only through it (Go on 386 and s390x; glibc on
+    /// i386 for a kernel under 4.3).
     pub fn deny_rules(&self) -> Result<Vec<Deny>, Failure> {
         self.deny_rules_on(SOCKETCALL)
     }
@@ -294,6 +293,14 @@ impl Spec {
     pub(crate) fn deny_rules_on(&self, socketcall: bool) -> Result<Vec<Deny>, Failure> {
         let mut rules = self.deny.clone();
         let tcp = self.connect.is_some() || self.bind.is_some();
+        if tcp && socketcall {
+            return Err(failure(
+                Class::Unsupported,
+                "the spec holds a TCP list, and the kernel of this target has socketcall(2): a filter cannot read \
+                 the family and the protocol of a socket made through it, so MPTCP and the other families would \
+                 stay open",
+            ));
+        }
         if !self.udp {
             if socketcall {
                 return Err(failure(

@@ -3384,6 +3384,9 @@ call C58). The decoder is `xz4rust` (C58).
   nft_nat sch_netem wireguard tun veth nf_nat` for `6.12.115-0-virt`: 20
   modules, 2,194,724 bytes, each sha256 the same as with Python's lzma.
   `live.yml` runs the test each day on the newest Alpine 3.22.
+- podvm measured `xz4rust` in its binary (PodUtils/podvm#276, at
+  `a714e99f`): 19.4 KiB of `.text` (0.7 %); the static binary is
+  5,613,176 bytes, under its ceiling of 8,000,000 bytes.
 - The fuzz target `squashfs_image` with 3 seeds:
   `cargo test --manifest-path fuzz/Cargo.toml --lib`, 9 passed. Its walk
   has a bound of 256 inodes: a listing can name its own directory. The
@@ -4148,3 +4151,56 @@ cargo test -p pod-supervise --test tree
 2026-11-12. The payload waits for `orphan.go`, which the test writes
 after `start`; 25 runs of the binary pass. The case of a launcher killed
 before its word stays a refusal of `start` (`Class::Unavailable`).
+
+# T-262: `pod-confine`: a TCP list is refused on a target with `socketcall(2)` (PodUtils/podvm#276)
+
+**Source:** PodUtils/podvm#276 (COORD-055 of podvm, the answer to GitHub #85)
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On a target whose kernel has `socketcall(2)` (i686, s390x, powerpc64),
+the filter does not see a socket made through it: the MPTCP rule and the
+rules of the families of a TCP list do not hold there (T-213). A closed
+UDP is refused there by name; a TCP list was taken. podvm releases i686
+and powerpc64le builds, and a profile with `net.ports` gives a TCP list
+on each target. podvm asks for the same refusal of a TCP list, in
+`pod-confine`, so that each consumer gets the same answer.
+
+## Premise
+
+- Read: PodUtils/podvm#276; `crates/pod-confine/src/compile.rs`
+  (`deny_rules_on`, `SOCKETCALL`).
+- Not measured: a payload on i686 that makes an MPTCP socket through
+  `socketcall` under a TCP list (no i686 kernel here).
+
+## Approach
+
+`Spec::deny_rules_on` refuses a spec with a TCP list (`connect` or
+`bind`) where the target has `socketcall(2)`, with `Class::Unsupported`
+and a reason that names the gap; the test of the refusal for each list;
+a plant that takes the list there.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features --lib -- a_tcp_list_is_refused_where_the_kernel_has_socketcall
+sh scripts/plant-each.sh confine-tcp-list-through-socketcall
+```
+
+## Done
+
+2026-11-12. `crates/pod-confine/src/compile.rs`: a TCP list on a target
+with `socketcall(2)` is `Class::Unsupported` ("the spec holds a TCP list,
+and the kernel of this target has socketcall(2)"). The test
+`a_tcp_list_is_refused_where_the_kernel_has_socketcall` (a `connect` list
+and a `bind` list; the compile on the build target agrees with
+`SOCKETCALL`); `the_switches_of_the_spec_add_their_rules` reads the rules
+of a TCP list with no `socketcall`. `cargo test -p pod-confine
+--all-features`: 33 + 12 + 1 passed. The plant
+`confine-tcp-list-through-socketcall` is caught. Breaking: a consumer that
+compiles a TCP list on i686, s390x or powerpc64 gets a refusal.

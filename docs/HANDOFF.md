@@ -39,7 +39,9 @@ a line when its work is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.26.0`, `483a1957`, PodUtils/podvm#270; it takes T-227 and T-233 with `v0.27.0` (#85) and closes #267 and #269 then): its
+- podvm (on `v0.27.0`, `a714e99f`, PodUtils/podvm#276; #267 and #269
+  are closed; it waits for T-254 for its last reported host and for T-262,
+  the refusal of a TCP list on i686 and powerpc64le): its
   PodUtils/podvm@T-1658 sets `Plan.confine` (`--podvm-confine=SPEC`, the
   profile key `confine = true`); it checks `lambda-al2023` for T-208; its
   PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`

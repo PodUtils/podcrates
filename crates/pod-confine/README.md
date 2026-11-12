@@ -131,10 +131,12 @@ socket of a payload that makes its sockets only through it (Go on 386 and
 s390x; glibc on i386 for a kernel under 4.3; musl since 1.2.2 tries the
 direct call first). So a compile of a spec with `udp: false` there is a
 refusal by name (`Class::Unsupported`). The MPTCP rule and the rules of
-the families there have the same gap: a TCP list there does not stop a
-socket that a payload makes through `socketcall` (a question to podvm,
-with the release of T-213). From ABI 10 the UDP rights of Landlock close
-UDP there too, and a later version can take a closed UDP there.
+the families there have the same gap, so a compile of a spec with a TCP
+list (`connect` or `bind`) there is a refusal by name too (T-262,
+PodUtils/podvm#276: each consumer gets the same answer, and a payload that
+asks for the layer does not run without it). From ABI 10 the UDP rights
+of Landlock close UDP there too, and a later version can take a closed
+UDP there.
 
 Not covered: under ABI 10, a UDP socket that the payload gets from
 another process (a passed descriptor, `SCM_RIGHTS`); under ABI 9, a

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**253 entries: 65 open, 4 partial, 4 blocked, 180 done.**
+**254 entries: 65 open, 4 partial, 4 blocked, 181 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 50 | 65 |
-| P2 | 32 | 2 | 4 | 91 | 129 |
+| P2 | 32 | 2 | 4 | 92 | 130 |
 | P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 65 | 4 | 4 | 180 | 253 |
+| **All** | 65 | 4 | 4 | 181 | 254 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -300,3 +300,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-259](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: the reactor loses a datagram that comes while the channel to the app is full (PodUtils/podnet#464) |
 | [T-260](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public bootstrap nodes of HyperDHT (PodUtils/podssh#204) |
 | [T-261](relay.md) | P2 | M | M2 | feature | open | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |
+| [T-262](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a TCP list is refused on a target with `socketcall(2)` (PodUtils/podvm#276) |

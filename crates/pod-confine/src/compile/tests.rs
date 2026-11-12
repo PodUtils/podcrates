@@ -286,7 +286,7 @@ fn the_switches_of_the_spec_add_their_rules() {
     assert!(has(&rules, "socket(AF_INET, SOCK_DGRAM)") && has(&rules, "socket(AF_INET6, SOCK_DGRAM)"), "{rules:?}");
     assert!(has(&rules, "io_uring_setup") && has(&rules, "io_uring_enter"), "{rules:?}");
     assert!(!has(&rules, "socket(AF_INET, IPPROTO_MPTCP)"), "{rules:?}");
-    let rules = empty.clone().bind_to(80).deny_rules_on(true).unwrap();
+    let rules = empty.clone().bind_to(80).deny_rules_on(false).unwrap();
     assert!(has(&rules, "socket(AF_INET6, IPPROTO_MPTCP)") && has(&rules, "io_uring_setup"), "{rules:?}");
     assert!(!has(&rules, "socket(AF_INET, SOCK_DGRAM)"), "{rules:?}");
     let families = ["socket(another family)", "socketpair(another family)", "socket(AF_INET6, another type)"];
@@ -311,6 +311,22 @@ fn a_closed_udp_is_refused_where_the_kernel_has_socketcall() {
     assert!(e.to_string().contains("socketcall(2)") && e.to_string().contains("UDP"), "{e}");
     assert!(Spec::new().deny_rules_on(true).is_ok(), "a free UDP is no refusal");
     let here = Spec::new().close_udp().compile(ABI);
+    let socketcall = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
+    assert_eq!(here.is_err(), socketcall, "{here:?}");
+}
+
+/// On a target with socketcall(2) a TCP list is a refusal by name too: the
+/// MPTCP rule and the rules of the families do not see a socket made
+/// through it (PodUtils/podvm#276).
+#[test]
+fn a_tcp_list_is_refused_where_the_kernel_has_socketcall() {
+    for spec in [Spec::new().connect_to(443), Spec::new().bind_to(8080)] {
+        let e = spec.deny_rules_on(true).unwrap_err();
+        assert_eq!(e.class, Class::Unsupported);
+        assert!(e.to_string().contains("socketcall(2)") && e.to_string().contains("TCP list"), "{e}");
+        assert!(spec.deny_rules_on(false).is_ok(), "no socketcall: the rules");
+    }
+    let here = Spec::new().connect_to(443).compile(ABI);
     let socketcall = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
     assert_eq!(here.is_err(), socketcall, "{here:?}");
 }
