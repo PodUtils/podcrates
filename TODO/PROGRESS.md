@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 248 entries: 64 open, 5 partial, 4 blocked, 175 done.
+`TODO/INDEX.md` holds 248 entries: 64 open, 4 partial, 4 blocked, 176 done.
 
 ## State
 
@@ -28,8 +28,7 @@
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet remains), T-040 (the
-  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
-  (a Trojan node that passes the live check). Open defects: T-131
+  trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -82,7 +81,7 @@ next entry.
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
    after podvm asks for it.
-5. **M1, the transport:** T-174 (a Trojan node); T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-225 (a watch of the banner of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
+5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-225 (a watch of the banner of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-025 (partial: the release and podssh's take),

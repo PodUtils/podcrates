@@ -3083,7 +3083,7 @@ tag.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3114,8 +3114,8 @@ cargo run -q -p pod-services-watch -- --kind proxy-banner
 
 ## Done
 
-2026-11-11, partial: the candidates are in; the live check of two days
-waits (`services.yml`, dispatched on 2026-11-11 and 2026-11-12).
+2026-11-12. Seven Trojan nodes held the live check on both days; one
+left.
 
 - Read: the three lists on 2026-11-11 (`mahdibland-list` 759 Trojan
   links, `barry-far-list` 716, `v2go-list` 108). 541 links pass the static
@@ -3138,9 +3138,15 @@ waits (`services.yml`, dispatched on 2026-11-11 and 2026-11-12).
 - Day 1 (2026-11-11): `services.yml` 42999819735 to 42999852055, one
   run for each node: each of the 8 holds (for example
   `trojan 70.34.207.14:443 to github.com:22 gave "SSH-2.0-a07fe5ff"`).
-- Next: keep each node that passes `proxy-banner` on both days; remove the
-  others; tell podssh (PodUtils/podssh@T-574) the ids that stay; then set
-  the entry done.
+- Day 2 (2026-11-12): `services.yml` 43145931146 to 43145957804, one run
+  for each node (the scheduled run of the day had not started): seven
+  hold; `node-trojan-70-34-207-14` timed out on the TCP connect (29 s) and
+  left. The seven that stay: `node-trojan-149-28-130-108`,
+  `node-trojan-167-88-61-175`, `node-trojan-169-197-140-218`,
+  `node-trojan-216-238-104-154`, `node-trojan-45-63-30-142`,
+  `node-trojan-64-176-7-205`, `node-trojan-66-163-112-121`. The README
+  row counts 9 nodes. podssh (PodUtils/podssh@T-574) gets the ids with the
+  next hand-off.
 
 
 # T-181: `pod-services`: the host key of `ssh-j` as a fact (podssh's message, 2026-11-11)
