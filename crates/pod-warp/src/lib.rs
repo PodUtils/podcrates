@@ -18,6 +18,8 @@
 //!   dial.
 //! * [`Warp`]: a registered device; [`Warp::open_session`] and
 //!   [`Warp::connect`].
+//! * [`leg`]: the relay leg of the caller, the race of the direct path and
+//!   the relay, and the text of the caller's leg file.
 //! * [`net`], [`dns`]: [`WarpNet`], the stack of `pod-netstack` over a
 //!   session as a dial (names resolved inside the tunnel) and as datagrams;
 //!   [`NetSettings`]: its congestion controller, its TCP burst, its counters
@@ -47,6 +49,7 @@ pub mod files;
 pub mod hints;
 pub mod identity;
 pub mod key;
+pub mod leg;
 pub mod net;
 mod open;
 pub mod register;
@@ -64,8 +67,9 @@ pub use door::{Door, Routes};
 pub use files::Foreign;
 pub use hints::DeviceHints;
 pub use identity::Identity;
+pub use leg::{Leg, Relay};
 pub use net::{NetSettings, WarpNet};
-pub use session::{MasqueRx, MasqueSession, MasqueTx, Way};
+pub use session::{MasqueRx, MasqueSession, MasqueTx, Meter, Way};
 pub use store::{IdentityFile, Stored};
 pub use warp::{MTU, Settings, Warp};
 

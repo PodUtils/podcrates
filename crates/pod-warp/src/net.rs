@@ -129,11 +129,12 @@ impl WarpNet {
         );
         let stack = NetStack::over_link(config);
         let closed = Closed::new(stack.resetter());
+        let budget = session.relay_budget();
         let (tx, rx) = session.split();
         let pumps = pumps(tx, rx, &stack, &closed, report, NetSettings::ours(v4, v6));
         let resolvers = crate::dns::RESOLVERS.to_vec();
         let next_port = AtomicU16::new(49152);
-        let renew = settings.renew.clone();
+        let renew = budget.or_else(|| settings.renew.clone());
         let checked = OnceLock::new();
         let inner = Inner { stack, v4, v6, closed, pumps, next_port, resolvers, renew, checked };
         Ok(WarpNet { inner: Arc::new(inner) })
@@ -187,8 +188,9 @@ impl WarpNet {
         self.inner.stack.device_stats()
     }
 
-    /// Whether the budget of the relay of this session is spent
-    /// ([`NetSettings::renew`]): a new session must take the new flows.
+    /// Whether the budget of the relay of this session is spent (the
+    /// budget of the session, [`MasqueSession::relay_budget`], else
+    /// [`NetSettings::renew`]): a new session must take the new flows.
     pub fn renew_due(&self) -> bool {
         self.inner.renew.as_ref().is_some_and(|spent| spent())
     }

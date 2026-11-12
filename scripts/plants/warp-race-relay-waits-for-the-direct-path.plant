@@ -1,0 +1,8 @@
+# The relay leg of a WARP session starts only when the direct path failed:
+# no race, and a direct path that hangs holds the session for the time
+# limit of its connect (podnet issues 76 and 126, T-336). The test of a
+# hung direct path must fail.
+ENTRY=T-336
+GROUP=warp
+EXPECT='test the_relay_wins_when_the_direct_path_hangs \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test leg -- the_relay_wins_when_the_direct_path_hangs'
