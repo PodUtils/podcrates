@@ -104,7 +104,7 @@ openssl-sys = { version = "0.9", default-features = false }
 tokio-openssl = { version = "0.6", default-features = false }
 # The raw pointer of an OpenSSL object (the trait of the openssl crate's
 # types), for the calls that the openssl crate does not wrap.
-foreign-types = "0.3"
+foreign-types = "0.5"
 
 # TLS (pod-tls). No crypto provider feature: the binary gives the provider
 # (docs/design.md, section 1, rule 4). The default of tokio-rustls is
