@@ -12,7 +12,7 @@ use std::time::Duration;
 use pod_core::text::one_line;
 use pod_services::forward::{Banner, Relay, UrlRule};
 use pod_services::{Service, Watch};
-use russh::client::{self, AuthResult, Handle};
+use russh::client::{self, AuthResult, Handle, KeyboardInteractiveAuthResponse};
 use russh::keys::{Algorithm, PrivateKey, PrivateKeyWithHashAlg, PublicKeyOrCertificate};
 use russh::{ChannelMsg, Disconnect, Preferred, SshId};
 use tokio::time::Instant;
@@ -160,7 +160,9 @@ impl Session<'_> {
     }
 
     /// A key made for the run first, as podnet's leg; then no key, as
-    /// OpenSSH tries first. The key goes with the session.
+    /// OpenSSH tries first; then keyboard-interactive with an empty answer,
+    /// as OpenSSH's anonymous login to Serveo goes. The key goes with the
+    /// session.
     async fn authenticate(&self, handle: &mut Handle<Client>) -> Result<&'static str, Finding> {
         let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519)
             .map_err(|e| Finding::failed(format!("the key of the run: {e}")))?;
@@ -175,10 +177,33 @@ impl Session<'_> {
                 remaining_methods.iter().map(<&str>::from).collect::<Vec<_>>().join(", ")
             }
         };
+        if methods.split(", ").any(|m| m == "keyboard-interactive") && self.keyboard_interactive(handle).await? {
+            return Ok("keyboard-interactive, no answer");
+        }
         Err(Finding::failed(format!(
-            "{}: the relay takes neither a key of the run nor no key; it offers: {methods}",
+            "{}: the relay takes neither a key of the run, nor no key, nor an empty keyboard-interactive; it offers: \
+             {methods}",
             self.at
         )))
+    }
+
+    /// An empty answer to each prompt, for a few rounds: a relay that lets
+    /// anyone in asks nothing that a user must know.
+    async fn keyboard_interactive(&self, handle: &mut Handle<Client>) -> Result<bool, Finding> {
+        let what = "the authentication";
+        let mut reply =
+            self.step(what, handle.authenticate_keyboard_interactive_start(self.user, None::<String>)).await?;
+        for _ in 0..4 {
+            match reply {
+                KeyboardInteractiveAuthResponse::Success => return Ok(true),
+                KeyboardInteractiveAuthResponse::Failure { .. } => return Ok(false),
+                KeyboardInteractiveAuthResponse::InfoRequest { prompts, .. } => {
+                    let answers = vec![String::new(); prompts.len()];
+                    reply = self.step(what, handle.authenticate_keyboard_interactive_respond(answers)).await?;
+                }
+            }
+        }
+        Ok(false)
     }
 }
 

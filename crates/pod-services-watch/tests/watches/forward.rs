@@ -23,6 +23,10 @@ struct Script {
     close: bool,
     /// The stand-in refuses a key and takes no key.
     no_key: bool,
+    /// The stand-in refuses a key and no key, and takes keyboard-interactive
+    /// after one round with a prompt and an empty answer (Serveo's
+    /// anonymous login).
+    interactive: bool,
     /// The stand-in refuses the remote forward.
     no_forward: bool,
 }
@@ -52,11 +56,37 @@ impl server::Handler for Relay {
         Ok(if self.script.no_key { Auth::Accept } else { Auth::reject() })
     }
 
+    async fn auth_keyboard_interactive<'a>(
+        &'a mut self,
+        user: &str,
+        _: &str,
+        response: Option<server::Response<'a>>,
+    ) -> Result<Auth, Self::Error> {
+        self.seen.lock().unwrap().users.push(user.to_string());
+        if !self.script.interactive {
+            return Ok(Auth::reject());
+        }
+        Ok(match response {
+            None => Auth::Partial {
+                name: "".into(),
+                instructions: "an anonymous tunnel".into(),
+                prompts: vec![("Press Enter: ".into(), true)].into(),
+            },
+            Some(mut answers) => {
+                if answers.next().is_some_and(|a| a.is_empty()) {
+                    Auth::Accept
+                } else {
+                    Auth::reject()
+                }
+            }
+        })
+    }
+
     async fn auth_publickey(&mut self, user: &str, key: VerifiedPublicKey<'_>) -> Result<Auth, Self::Error> {
         let mut seen = self.seen.lock().unwrap();
         seen.users.push(user.to_string());
         seen.key = Some(key.algorithm.to_string());
-        Ok(if self.script.no_key { Auth::reject() } else { Auth::Accept })
+        Ok(if self.script.no_key || self.script.interactive { Auth::reject() } else { Auth::Accept })
     }
 
     async fn tcpip_forward(&mut self, address: &str, port: &mut u32, _: &mut Session) -> Result<bool, Self::Error> {
@@ -97,7 +127,7 @@ async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>)
     let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519).expect("a key");
     let config = Arc::new(server::Config {
         keys: vec![key],
-        methods: MethodSet::from(&[MethodKind::PublicKey, MethodKind::None][..]),
+        methods: MethodSet::from(&[MethodKind::PublicKey, MethodKind::None, MethodKind::KeyboardInteractive][..]),
         auth_rejection_time: Duration::ZERO,
         auth_rejection_time_initial: Some(Duration::ZERO),
         ..server::Config::default()
@@ -223,6 +253,24 @@ async fn forward_url_takes_no_key_and_the_port_of_the_watch() {
     let seen = seen.lock().unwrap();
     assert_eq!(seen.users, vec!["nokey", "nokey"]);
     assert_eq!(seen.forward, Some(("localhost".to_string(), 0)));
+}
+
+/// A relay that takes neither a key nor no key, and lets anyone in through
+/// keyboard-interactive (Serveo): the client answers each prompt empty.
+#[tokio::test]
+async fn forward_url_takes_an_empty_keyboard_interactive_login() {
+    pod_testkit::need_loopback!();
+    let chunks: Vec<&'static [u8]> = vec![b"Forwarding HTTP traffic from https://y.tunnel.test\r\n"];
+    let (port, seen, end) = relay(Script { chunks, interactive: true, ..Script::default() }).await;
+    let report = one(&relay_file("f8", port, "", "")).await;
+    let all = text(&report);
+    assert!(
+        report.holds()
+            && all.contains("(keyboard-interactive, no answer): the banner names the tunnel on the host y.tunnel.test"),
+        "{all}"
+    );
+    ended(end).await;
+    assert_eq!(seen.lock().unwrap().users.len(), 4, "a key, no key, and keyboard-interactive in two rounds");
 }
 
 #[tokio::test]

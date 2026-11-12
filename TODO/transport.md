@@ -3929,6 +3929,15 @@ scripts/check-design-paths.py`; `sh scripts/plant-each.sh --apply` (0
 stale); `cargo deny --all-features --locked check advisories licenses bans
 sources`; the runner links static on `x86_64-unknown-linux-musl` (`cargo
 zigbuild`: no `PT_INTERP`, no `NEEDED`).
+- The live run on GitHub (`services.yml`, kind `forward-url`, run
+  43162302910 at `cb228fa`): 3 hold. `pinggy` (`free.pinggy.io:443`, the
+  user `http`, a key of the run): `hxwaw-64-236-177-98.run.pinggy-free.link`
+  (the zone of the fact holds; PodUtils/podnet#460). `localhost-run`
+  (`nokey`, no key): `4b9581eb802ee3.lhr.life`. `sandhole` (a key of the
+  run): `bc4urp.demo.sandhole.com.br`. `serveo` failed: it offers
+  `publickey, keyboard-interactive`, and the watch tried a key and no key
+  alone (T-272). The kind `http-text` (run 43162306650): each holds.
+
 
 # T-267: `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it
 
@@ -4469,3 +4478,51 @@ cargo test -p pod-services -p pod-services-watch --all-features
 VLESS, seven Trojan), the ones that carried the session in podssh's run.
 A comment of `crates/pod-services-watch/tests/watches/xhttp.rs` no longer
 names the node.
+
+# T-272: `pod-services-watch`: `forward-url` tries keyboard-interactive, which Serveo's anonymous tunnel takes
+
+**Source:** T-225 (its live run)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The live run of `forward-url` (`services.yml` run 43162302910) failed on
+`serveo`: "the relay takes neither a key of the run nor no key; it
+offers: publickey, keyboard-interactive". `https://serveo.net/docs/`
+says that an anonymous tunnel needs no account and no key. OpenSSH tries
+keyboard-interactive after a key and no key; the watch did not, so it
+found a failure that a user does not see.
+
+## Premise
+
+- Read: `https://serveo.net/docs/` ("You can try an anonymous tunnel
+  without creating an account or key"); russh 0.65
+  `authenticate_keyboard_interactive_start` and `_respond`.
+- Not measured: the prompts of Serveo (no SSH from this sandbox); the
+  next live run reads them.
+
+## Approach
+
+After a key of the run and no key, where the relay offers
+`keyboard-interactive`: an empty answer to each prompt, for four rounds
+at most. A test with a stand-in that takes only that login; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --all-features --test watches -- forward
+```
+
+## Done
+
+2026-11-12. `crates/pod-services-watch/src/forward.rs`
+(`Session::keyboard_interactive`): the method of a session that it lets
+in reads "keyboard-interactive, no answer". Test:
+`forward_url_takes_an_empty_keyboard_interactive_login` (a stand-in that
+refuses a key and no key and asks one prompt); the 10 tests of
+`forward` pass. The plant `services-forward-url-no-keyboard-interactive`
+is caught. The live run follows the push.
