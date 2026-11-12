@@ -1,0 +1,11 @@
+--- a/crates/pod-relay/src/reverse/operator.rs
++++ b/crates/pod-relay/src/reverse/operator.rs
+@@ -328,7 +328,7 @@
+ /// Write `bytes` to the local side and flush it.
+ async fn write_now<W: AsyncWrite + Unpin>(local: &mut W, bytes: &[u8]) -> std::io::Result<()> {
+     local.write_all(bytes).await?;
+-    local.flush().await
++    Ok(())
+ }
+ 
+ /// How long a send that failed waits for the relay's Close that may have

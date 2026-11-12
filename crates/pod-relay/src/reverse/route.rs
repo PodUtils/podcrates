@@ -234,7 +234,9 @@ async fn to_local<W: AsyncWrite + Unpin>(
             },
         };
         let Some(bytes) = bytes else { break };
-        if write.write_all(&bytes).await.is_err() {
+        // A flush after each frame: a handler's stream with a buffer holds
+        // bytes until a flush (T-327).
+        if write.write_all(&bytes).await.is_err() || write.flush().await.is_err() {
             break;
         }
         // Written: the bytes wait no more.

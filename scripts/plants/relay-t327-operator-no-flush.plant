@@ -1,0 +1,8 @@
+# A plant of T-327 (PodUtils/podnet#502): the operator writes each frame of
+# the node to the local side with no flush; a local side with a buffer
+# (a process's stdout) holds the bytes, and SSH waits for its KEXINIT.
+ENTRY=T-327
+GROUP=relay
+EXPECT='test the_node_bytes_reach_a_buffered_local_side_at_once \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_operator -- the_node_bytes_reach_a_buffered_local_side_at_once'
+LIMIT=1800

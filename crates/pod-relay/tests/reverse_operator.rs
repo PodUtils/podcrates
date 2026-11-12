@@ -240,3 +240,77 @@ async fn with_the_layer_a_node_that_does_not_close_gets_a_close_after_the_wait()
     relay.close(1000, "").await;
     assert_eq!(outcome(task).await, Outcome::LocalEnd);
 }
+
+/// A local side that holds each write until a flush, as the line buffer of
+/// a process's stdout holds the bytes after its last newline.
+struct HeldUntilFlush {
+    inner: DuplexStream,
+    held: Vec<u8>,
+}
+
+impl tokio::io::AsyncRead for HeldUntilFlush {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
+impl tokio::io::AsyncWrite for HeldUntilFlush {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        self.held.extend_from_slice(buf);
+        std::task::Poll::Ready(Ok(buf.len()))
+    }
+
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = &mut *self;
+        while !this.held.is_empty() {
+            match std::pin::Pin::new(&mut this.inner).poll_write(cx, &this.held) {
+                std::task::Poll::Ready(Ok(n)) => {
+                    this.held.drain(..n);
+                }
+                other => return other.map(|r| r.map(|_| ())),
+            }
+        }
+        std::pin::Pin::new(&mut this.inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        self.poll_flush(cx)
+    }
+}
+
+/// The node's bytes reach a local side that buffers its writes, before the
+/// end of the session: SSH through `ProxyCommand` on a process's stdout
+/// waits for the server's binary KEXINIT, which has no newline
+/// (PodUtils/podnet#502, T-327).
+#[tokio::test]
+async fn the_node_bytes_reach_a_buffered_local_side_at_once() {
+    let (client, peer) = tokio::io::duplex(4 * 1024 * 1024);
+    let (io, mut local) = tokio::io::duplex(4 * 1024 * 1024);
+    let held = HeldUntilFlush { inner: io, held: Vec::new() };
+    let _task = tokio::spawn(async move {
+        let session = RelaySession::new(client, Vec::new(), None, LIMIT);
+        exchange(session, held, limits()).await
+    });
+    let mut relay = Relay { peer, buf: Vec::new() };
+    relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
+    relay.send(frame::OPCODE_BINARY, b"SSH-2.0-sshd\r\n").await;
+    relay.send(frame::OPCODE_BINARY, b"\x00\x00\x01\x14\x0a\x14kexinit-with-no-newline").await;
+    let want = b"SSH-2.0-sshd\r\n\x00\x00\x01\x14\x0a\x14kexinit-with-no-newline";
+    let mut got = vec![0u8; want.len()];
+    tokio::time::timeout(LIMIT, local.read_exact(&mut got)).await.expect("the bytes before the end").unwrap();
+    assert_eq!(&got[..], &want[..]);
+}

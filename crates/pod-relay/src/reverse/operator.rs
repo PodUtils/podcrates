@@ -268,7 +268,10 @@ where
                     if let Some(since) = quiet_since.as_mut() {
                         *since = Instant::now();
                     }
-                    if !draining && !f.payload.is_empty() && local_write.write_all(&f.payload).await.is_err() {
+                    // A flush after each frame: a local side with a buffer
+                    // (a process's stdout) holds bytes after its last newline,
+                    // and SSH waits for the server's binary KEXINIT.
+                    if !draining && !f.payload.is_empty() && write_now(local_write, &f.payload).await.is_err() {
                         // The local side is gone: there is nobody to give bytes to.
                         let deadline = end_of_input(session, limits, &mut draining).await;
                         closing.get_or_insert(deadline);
@@ -320,6 +323,12 @@ where
             dead = &mut liveness => return Outcome::Ended { code: 1006, reason: dead.to_string() },
         }
     }
+}
+
+/// Write `bytes` to the local side and flush it.
+async fn write_now<W: AsyncWrite + Unpin>(local: &mut W, bytes: &[u8]) -> std::io::Result<()> {
+    local.write_all(bytes).await?;
+    local.flush().await
 }
 
 /// How long a send that failed waits for the relay's Close that may have
