@@ -10,8 +10,8 @@ a line when its work is done. Git and the record keep finished work.
 
 - `pod-relay` (T-025, done; call C60): podssh took it at `0872c2c6`
   (PodUtils/podssh#206); podssh-relay keeps each module as glue over one
-  `Context` of the process. T-229 (two of six plants of podssh still need
-  a test of the crate) and T-212 (the lines as events) remain.
+  `Context` of the process. T-212 (the lines as events) remains; T-229
+  put the six plants of podssh on the crate.
 - `pod-relay` and podnet (T-026, partial; calls C73 to C76): podnet's
   relay client is in the crate (`RelayBudget`, `stream::of`, the tokens of
   a run, `reverse::local`, `Settings::half_close` and `drain`,

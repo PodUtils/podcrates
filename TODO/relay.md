@@ -2253,7 +2253,7 @@ cargo test -p pod-netstack --lib
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2291,6 +2291,26 @@ plant as `relay-tNNN-*` of the group `relay`, which the test catches.
 cargo test -p pod-relay --all-features
 sh scripts/plant-each.sh --group relay
 ```
+
+## Done
+
+2026-11-12. `9e774f2`. Each of the six patches of podssh, moved to the
+code of the crate, is a plant of the group `relay`:
+`relay-t059-faults-recorded`, `relay-t173-no-room-not-taken`,
+`relay-t421-backoff-after-a-fault` and `relay-t617-member-key-unchecked`
+are caught by the unit tests that came with the import
+(`failures::tests`, `forward_layer::client::tests::only_a_busy_refusal_in_the_handshake_is_no_room`,
+`reverse::node::tests::a_socket_that_served_is_taken_again_at_once_once_each_10_s`,
+`pool::members::tests::a_list_of_another_key_is_not_the_member_s_even_when_trusted`).
+Two needed a test: `tests/members_ask.rs`
+(`a_run_with_the_default_list_asks_the_net_s_relay_member_first`: a run
+with the default list connects to the role of its net's member on the
+loopback before its race, through `open_on_loopback`) for
+`relay-t617-ask-skipped`, and
+`reverse::legs::tests::the_next_pair_s_socket_that_heard_the_offer_raises_the_count`
+for `relay-t620-offers-a-flag`. `sh scripts/plant-each.sh` on the six: 6
+caught.
+
 
 # T-228: `pod-relay`: the live tests of the relay client in `live.yml`
 

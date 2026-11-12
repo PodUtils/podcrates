@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 256 entries: 64 open, 3 partial, 4 blocked, 185 done.
+`TODO/INDEX.md` holds 256 entries: 63 open, 3 partial, 4 blocked, 186 done.
 
 ## State
 
@@ -90,7 +90,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
+6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261 (an
    MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then
    T-245 (the `Host` of an IPv6 relay on port 443), T-246 (the names of the
    cache files); then T-204 (a random failure of
