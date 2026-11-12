@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 259 entries: 57 open, 4 partial, 4 blocked, 194 done.
+`TODO/INDEX.md` holds 260 entries: 58 open, 4 partial, 4 blocked, 194 done.
 
 ## State
 
@@ -14,8 +14,8 @@
   workerd and wasmtime in `pod-services` (T-244, T-256, T-260, T-254,
   T-255), the relay contract (T-253), `live.yml` (T-228).
 - The consumers and their tags:
-  - podssh: `v0.27.0` (`0872c2c6`, PodUtils/podssh#206; it took
-    `pod-relay`: podssh-relay's relay client is glue over the crate).
+  - podssh: `v0.28.0` (`12473a10`, PodUtils/podssh#208; it took `pod-relay`
+    at `0872c2c6`).
   - podnet: `v0.27.0` (`28c0e3d`, PodUtils/podnet#465; the close of a
     listener and the SYN bursts of PodUtils/podnet#457 hold in its tests).
   - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause

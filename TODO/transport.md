@@ -4526,3 +4526,43 @@ in reads "keyboard-interactive, no answer". Test:
 refuses a key and no key and asks one prompt); the 10 tests of
 `forward` pass. The plant `services-forward-url-no-keyboard-interactive`
 is caught. The live run follows the push.
+
+# T-276: `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209)
+
+**Source:** PodUtils/podssh#209 (COORD-035 of podssh, for PodUtils/podssh@T-571)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podssh@T-571 adds Syncthing's relay road (podssh's feature
+`strelay`) as a last fallback of the reverse road. It reads the service
+`syncthing-relay` of `pod-services` and has no relays until it exists.
+podssh pins each relay to its device ID in TLS.
+
+## Premise
+
+- Read: PodUtils/podssh#209: 8 of the 100 relays of
+  `https://relays.syncthing.net/endpoint` listen on 443 (2026-11-12), with
+  their device IDs in the issue.
+- Not measured here: the pool, the relays.
+
+## Approach
+
+A service `syncthing-relay` (kind `relay`, or a kind that the README
+names for it): an endpoint for each relay on 443 (its IP literal), a fact
+`device-id-NAME` for each (as `public-key-node-KEY8` of `tox-tcp-relay`,
+call C83), each value read from the pool endpoint with a date; an
+`http-json` watch of the pool (form `key`, as T-244) that holds each
+endpoint to the pool; a test of the form; the README rows.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service syncthing-relay
+```
+

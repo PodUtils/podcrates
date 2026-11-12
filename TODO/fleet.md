@@ -1315,10 +1315,30 @@ operators, the functions `contains`, `startsWith`, `endsWith`, `format`,
   PodUtils/podrunner@T-046 (P3, later).
 - Not measured: the conformance of an expression evaluator against the
   official runner.
+- podrunner's ask (a direct message of its session, 2026-11-12, for
+  PodUtils/podrunner@T-046): (1) `pod-actions-workflow`: a workflow file
+  into a typed model, no forge, no network: `on` (data), `env`,
+  `defaults.run`, `permissions`, `concurrency`; each job (`id`, `name`,
+  `runs-on`, `needs`, `if`, `strategy` with `matrix` include and exclude,
+  `fail-fast`, `max-parallel`, `env`, `defaults`, `timeout-minutes`,
+  `continue-on-error`, `container`, `services`, `outputs`); each step
+  (`id`, `name`, `if`, `run` or `uses` with `with`, `env`, `shell`,
+  `working-directory`, `continue-on-error`, `timeout-minutes`); an
+  unknown key kept as raw data and named; a reusable workflow (`uses:` of
+  a job) named, not expanded. (2) `pod-actions-expr` at job level only
+  (the runner evaluates the steps): the job `if`, `strategy.matrix` with
+  `fromJSON`, `runs-on`, `needs.<id>.outputs` and `.result`; the contexts
+  github (a local stand-in), env, vars, inputs, matrix, needs, strategy;
+  the functions contains, startsWith, endsWith, format, join, toJSON,
+  fromJSON, success, failure, always, cancelled; a missing context or
+  function is an error by name; no I/O (no `hashFiles`). (3) An expansion
+  helper: the ordered concrete jobs (one for each matrix cell), the edges
+  of `needs`, and each skipped job with its reason. Static, no C; tests
+  from the examples of the Actions documents.
 
 ## Approach
 
-When podrunner asks for its local mode (its T-046 leaves `later`):
+The start condition holds: podrunner asked (above).
 `pod-actions-expr` (a parser and an evaluator with the loose equality and
 the case rules of GitHub, a fuzz target, a conformance list with test
 vectors), then `pod-actions-workflow` (the model, the matrix expansion,
@@ -1332,4 +1352,5 @@ cargo test -p pod-actions-expr -p pod-actions-workflow
 
 ## Start condition
 
-podrunner asks for its local mode (PodUtils/podrunner@T-046).
+podrunner asks for its local mode (PodUtils/podrunner@T-046): it asked on
+2026-11-12.
