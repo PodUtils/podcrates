@@ -124,12 +124,9 @@ A consumer writes the commit of its take as a COORD issue
 
 ## Talk between sessions
 
-The lead sessions of podssh and podrunner, which this session starts,
-take direct messages (`send_message` of the remote sessions; the rulings
-"podrunner online" and "Sessions online"). podnet and podvm run in their
-own sessions and take no direct message: the channel to them is a GitHub
-issue, one mailbox for each writer. Each session uses the same issues
-when a message cannot go:
+Each session talks with the others by GitHub issues alone, one mailbox
+for each writer; no session sends a direct message (the ruling
+"Tonight"):
 
 * Each session writes only to issues of its own repository: the GitHub
   access of a consumer session covers its own repository, and this
@@ -261,7 +258,7 @@ fourth argument of the script names the list when it is elsewhere.
    the release.
 6. Write the hand-off: a COORD issue `(to all)` of this repository (the
    crates, the tag, the adoption map of each README, the step of each
-   consumer), and a direct message to each lead session. Amend its body
+   consumer). Amend its body
    at each take; close it when each consumer took its part.
 
 ## This sandbox

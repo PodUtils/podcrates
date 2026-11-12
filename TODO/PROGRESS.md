@@ -5,16 +5,14 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.32.0` at `032e86f` (`docs/releases/v0.32.0.md`; ci
-  43231610374, adoption 43231610238 with podvm's trial of `pod-relay`,
-  release 43236171454; the hand-off GitHub #93, COORD-061): T-327 (the
-  flush of the operator, PodUtils/podnet#502), `pod-link` (T-300, T-311),
-  T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
-  the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed) and `v0.32.0` (#93, closed).
-- `v0.33.0` is prepared on `main` (the version, `docs/releases/v0.33.0.md`,
-  the text of its hand-off): `pod-turn` (T-377), `pod-devtunnel` (T-378,
-  partial), `pod-warp` (T-028, partial), `pod-netlab` (T-207, partial),
-  T-390, T-391, the data of T-372 to T-376, T-350, T-351, T-352, T-354.
+- Last release: `v0.33.0` at `8edf8af` (`docs/releases/v0.33.0.md`; ci
+  43282635313, adoption 43280201145 of its parent, release 43286033909;
+  the hand-off #103, COORD-064, open): `pod-turn` (T-377, #100 closed),
+  `pod-devtunnel` (T-378, partial), `pod-warp` (T-028, partial),
+  `pod-netlab` (T-207, partial), T-390, T-391, the data of T-372 to T-376,
+  T-350 to T-352, T-354. Each consumer took `v0.32.0` (#93, closed).
+- `main` holds T-335 (podnet's stack of `ip.rs` in `pod-warp`) for the
+  next tag.
 - The consumers and their tags:
   - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -39,10 +37,8 @@
   trial of podvm). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
-- podrunner and podssh have lead sessions that podcrates started (the
-  rulings "podrunner online" and "Sessions online"; C49); they talk with
-  podcrates by direct messages. podnet and podvm run in their own sessions
-  and answer COORD issues. M8 waits (the ruling "Priority").
+- Each session talks with podcrates by COORD issues alone, no direct
+  message (the ruling "Tonight"). podrunner's session waits for podvm. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
   (`check-crates-io-names.py`) but `pod-link` and `pod-turn`: crates.io
   answers 404 for both (2026-11-12); the owner reserves them before a
@@ -144,8 +140,7 @@ next entry.
 
 ## Owner actions
 
-None. The hand-off of each release is a COORD issue `(to all)` and a
-direct message to each lead session (`docs/maintenance.md`, "A release").
+None. The hand-off of each release is a COORD issue `(to all)` (`docs/maintenance.md`, "A release").
 
 ## Questions for the owner
 
