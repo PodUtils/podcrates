@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# a run does not take its own token again, and mints for each session where
+# the cache keeps no file; the test of the run's token must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test token::tests::a_token_of_the_run_is_taken_again_with_no_file_of_the_cache \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib -- token::tests::a_token_of_the_run_is_taken_again_with_no_file_of_the_cache'

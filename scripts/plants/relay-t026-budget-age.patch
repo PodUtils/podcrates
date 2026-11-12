@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/budget.rs b/crates/pod-relay/src/budget.rs
+index de6752b..6ccf06f 100644
+--- a/crates/pod-relay/src/budget.rs
++++ b/crates/pod-relay/src/budget.rs
+@@ -41,7 +41,7 @@ impl RelayBudget {
+ 
+     /// Whether the bytes or the time of the stream are spent.
+     pub fn spent(&self) -> bool {
+-        self.spent.load(Ordering::Relaxed) || self.opened.elapsed() >= self.age
++        self.spent.load(Ordering::Relaxed) || self.opened.elapsed() >= self.age.max(Duration::MAX)
+     }
+ }
+ 

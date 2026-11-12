@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/serve.rs b/crates/pod-relay/src/reverse/serve.rs
+index b094038..1df9a8e 100644
+--- a/crates/pod-relay/src/reverse/serve.rs
++++ b/crates/pod-relay/src/reverse/serve.rs
+@@ -219,7 +219,7 @@ where
+                 }
+                 Ok(NodeInbound::Open { id }) => {
+                     let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
+-                    if route::known(&routes, &pending, &id) {
++                    if route::known(&routes, &pending, &id) && id.as_str().is_empty() {
+                         tracing::debug!("the relay opened a session that is open");
+                         continue;
+                     }

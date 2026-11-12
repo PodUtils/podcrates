@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/operator.rs b/crates/pod-relay/src/reverse/operator.rs
+index 4bd5866..a861a89 100644
+--- a/crates/pod-relay/src/reverse/operator.rs
++++ b/crates/pod-relay/src/reverse/operator.rs
+@@ -358,7 +358,7 @@ async fn input_ended<S>(
+ ) where
+     S: AsyncRead + AsyncWrite + Send + 'static,
+ {
+-    match limits.eof_idle {
++    match limits.eof_idle.filter(|_| false) {
+         Some(_) => *quiet_since = Some(Instant::now()),
+         None => *closing = Some(end_of_input(session, limits, draining).await),
+     }

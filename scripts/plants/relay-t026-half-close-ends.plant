@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# the end of a local side's writes ends its session at once also with a half
+# close (podnet T-196); the test of the half close must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test a_half_closing_target_gets_the_whole_input \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_plain -- a_half_closing_target_gets_the_whole_input'

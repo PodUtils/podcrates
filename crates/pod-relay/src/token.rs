@@ -138,7 +138,7 @@ pub fn usable(key: &str, minted_at: Option<&str>) -> bool {
 /// token's life and not for each session (podnet). A refused token is
 /// forgotten ([`forget`]).
 #[derive(Default)]
-pub struct RunTokens(Mutex<HashMap<String, Kept>>);
+pub(crate) struct RunTokens(Mutex<HashMap<String, Kept>>);
 
 /// A token of the run, wiped on drop.
 struct Kept {

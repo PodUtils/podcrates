@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# after the relay's close, the copy to a local side that does not read stays
+# in its write (podnet T-194); the test of the relay's close must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test a_relay_close_ends_a_session_whose_target_does_not_read \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_plain -- a_relay_close_ends_a_session_whose_target_does_not_read'

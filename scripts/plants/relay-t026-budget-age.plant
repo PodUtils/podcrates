@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# a RelayBudget is not spent at its age; podnet's test of the budget must
+# fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test budget::tests::a_relay_budget_is_spent_at_its_bytes_or_its_age \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib -- budget::tests::a_relay_budget_is_spent_at_its_bytes_or_its_age'

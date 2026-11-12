@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 234 entries: 61 open, 4 partial, 4 blocked, 165 done.
+`TODO/INDEX.md` holds 235 entries: 61 open, 5 partial, 4 blocked, 165 done.
 
 ## State
 
@@ -25,7 +25,9 @@
   T-207, #70); podnet's take of T-230 to T-232 (PodUtils/podnet#457; the
   next tag; `StackConfig::accept_pool` is gone).
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
-  `adoption.yml`; the release and podssh's take remain), T-040 (the
+  `adoption.yml`; the release and podssh's take remain), T-026
+  (`pod-relay`: podnet's capabilities and the plain mode are in the
+  crate; T-234 and the trial of podnet remain), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
@@ -64,7 +66,7 @@ next entry.
    entry here, in the order of its need.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
-   (podnet's relay client), then T-028 (`pod-warp`
+   (partial: T-234, then the trial of podnet), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    after PodUtils/podnet@T-249 (the router onto `pod-netstack`; it takes the
@@ -82,7 +84,8 @@ next entry.
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-025 (partial: the release and podssh's take),
-   T-228, T-229, T-212, T-026; then T-204 (a random failure of
+   T-228, T-229, T-212, T-026 (partial: T-234, then the trial of
+   podnet); then T-204 (a random failure of
    `pod-session`); then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197
    (`pod-netstack`).
@@ -103,7 +106,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C72), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C76), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

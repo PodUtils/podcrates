@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# a host of a deployment may have an empty label again
+# (a..ssh.relay.ajam.dev); podnet's test of a deployment must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test pool::tests::hosts_of_one_deployment \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib -- pool::tests::hosts_of_one_deployment'

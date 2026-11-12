@@ -1079,7 +1079,7 @@ What remains, in order:
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1111,7 +1111,93 @@ sh scripts/agent/check.sh
 
 ## Start condition
 
-T-025 is done.
+The trial of podnet (What remains, step 2) starts after T-234.
+
+## Correction
+
+2026-11-12: at `7c5f87e`, `PodUtils/podnet:src/ws_relay.rs` has 994
+lines, `PodUtils/podnet:src/relay_pool.rs` 406, and
+`PodUtils/podnet:src/relay_reverse.rs` 891 with
+`PodUtils/podnet:src/relay_reverse/pairfile.rs` (183) and
+`PodUtils/podnet:src/relay_reverse/session.rs` (232). podnet's `main`
+(`3657539`) holds the same blobs: no fix came after `7c5f87e`. The work
+started while T-025 was partial: its import and its adaptation are done.
+
+## Done
+
+2026-11-12, partial: T-234 and the trial of podnet remain. Commits
+`cc1bf2c` (the capabilities and their tests) and this record (the plants,
+the README, `SOURCES`, the calls C73 to C76).
+
+- The parity list is in `crates/pod-relay/README.md` ("Parity", "podnet"):
+  each item of podnet, its item here or the place where it stays, and its
+  test. `SOURCES` has a block of podnet at `7c5f87e` (7 files):
+  `python3 -I scripts/check-sources.py --clone PodUtils/podnet=CLONE
+  --clone PodUtils/podssh=CLONE pod-relay`: 127 and 7 files, 0 changes.
+- Added, with tests: `RelayBudget` (`budget`, call C73); `stream::of` (a
+  forward session as a byte stream); the tokens of a run in the `Context`
+  (`token::remember`, `forget`): a run mints once for each token's life,
+  also with no file of the cache; `reverse::local` (podnet's targets:
+  `host:port`, `tcp://`, `[IPv6]:port`, `unix:/path`, and `LocalHandler`,
+  whose refusal names the target); `reverse::Settings::half_close` and
+  `HALF_CLOSE_IDLE` (podnet T-196); `OperatorLimits::eof_idle` and
+  `EOF_IDLE` (podnet issue 109); `pair::newest` (the stored pair with the
+  most time left, and the next one). The plain mode is these settings,
+  with podssh's behaviour by default (call C74). `reverse/serve.rs` keeps
+  the loop and the writer; the local side of a session is
+  `crates/pod-relay/src/reverse/route.rs`. The labels of the store moved to
+  `crates/pod-relay/src/pair/stored.rs` (the same paths, re-exported).
+- Defects of the base, repaired (call C75); each test fails on its plant,
+  which puts the code before back: after the relay's `close`, the copy to
+  a local side that does not read stayed in its write while the node ran
+  (`Settings::drain`, `DRAIN`; `a_relay_close_ends_a_session_whose_target_does_not_read`);
+  a second `open` of a live id opened a second local side
+  (`a_second_open_of_a_live_session_is_no_new_session`); a `401` made a
+  node connect again for ever (`a_node_whose_token_is_refused_with_401_stops`);
+  `pool::same_deployment` took a host under an IP address of the primary,
+  and a host with an empty label (podnet's `hosts_of_one_deployment`).
+- The differences that stay as the base has them: call C76. What stays in
+  podnet (its lines of an expiry, its ready document, its instances, its
+  variables): call C74.
+- Tests: `cargo test -p pod-relay --all-features`: 374 passed, 19 ignored
+  (191 unit tests; `tests/reverse_plain.rs` 7). clippy with `-D warnings`,
+  with all features and with none: clean. `python3 -I
+  scripts/check-size.py`: 0 faults.
+- Plants: 9 new (group `relay`, scripts/plants/relay-t026-*), each caught
+  on this host by its test. Two plants of T-025 were stale after the split
+  of `serve.rs` and the `401` (relay-t643-426-reconnects,
+  relay-t648-one-queue-node): their patches are made again on the same
+  lines, and each is caught. `sh scripts/plant-each.sh --apply`: 0 stale.
+- The trial of podssh (T-025) names no public item that changed: its
+  literals of `reverse::Settings` and `OperatorLimits` end with `..`. It
+  was not run again here.
+- Not measured: the mint path that keeps its token in the run (the mint is
+  HTTPS, and no test has a TLS stand-in of the mint); the drain and the
+  half close against the live relay; podnet's own tests on the crate.
+
+What remains, in order:
+
+1. T-234: a relay host as an IPv6 address in brackets, and plain `ws://`
+   to a loopback relay on the forward road, which podnet's tests of its
+   forward road need.
+2. The trial of podnet: adoption/podnet/pod-relay.patch, `.commit` and
+   `.run`, on podnet `7c5f87e` or a later commit with the same files.
+   `PodUtils/podnet:src/ws_relay.rs`, `PodUtils/podnet:src/relay_pool.rs`
+   and `PodUtils/podnet:src/relay_reverse.rs` become glue over `pod_relay`
+   as the adoption map of the crate README says: one `Context` of the
+   process (the way of its egress and its trust, its state directory as a
+   `Cache`, `PODNET_RELAY_TOKEN` as `Settings::token`), no `set` and no
+   `active` (its callers in `PodUtils/podnet:src/edge_h2.rs`,
+   `PodUtils/podnet:src/warp/mod.rs`, `PodUtils/podnet:src/dialers/relay.rs`,
+   `PodUtils/podnet:src/preflight.rs` and the CLI take the handle),
+   `Relay::connect` as `open` and `stream::of`, the node over
+   `reverse::run` with `LocalHandler` and `half_close`, its next pair over
+   `pair::newest`, a stop at the pair's end, the operator over
+   `operator::run` with `eof_idle`. The `.run`: the tests of these modules,
+   `PodUtils/podnet:tests/relay_reverse.rs`, the exit codes of
+   `PodUtils/podnet:tests/cli.rs`, the static check.
+3. The release, and the take of podnet; the next trial of podssh (T-025)
+   and podvm's take of the facade see the changes of call C75.
 
 # T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)
 
@@ -1795,8 +1881,10 @@ opener of `pod-relay` still gives its notes to a callback of text
 (`UdpHandler::say`). Some words of the crate still name podssh's commands
 and flags: the kinds of an exchange by code (`podssh relay pair NAME
 --code`, `podssh relay join NAME`, `podssh net invite NAME`), the end of a
-grant (`podssh node --grant-for`), a node's spares (`--spares`), and
-"podssh's" in the refusals of an exchange. The other way: where podssh's
+grant (`podssh node --grant-for`), a node's spares (`--spares`),
+"podssh's" in the refusals of an exchange, and the note of an IPv6 target
+that the relay closed at once (`relay::ipv6_note`: `podssh relay serve`,
+`--relay-host`, `-J node://NAME`; found by T-026). The other way: where podssh's
 words named podssh, the crate says "this client" (an untrusted signed
 list, a list of a newer form, a critical option of a grant, a frame that
 the relay refused, a control frame), "a relay role of a deployment" (a
@@ -1808,7 +1896,8 @@ trial of T-025 takes the words of the crate in its test of a signed list.
 
 - Read: `crates/pod-relay/src/open.rs`, `crates/pod-relay/src/reverse/node.rs`,
   `crates/pod-relay/src/reverse/udp.rs`, `crates/pod-relay/src/code/exchange.rs`,
-  `crates/pod-relay/src/grant/door.rs`, `crates/pod-relay/src/reverse/spares.rs`.
+  `crates/pod-relay/src/grant/door.rs`, `crates/pod-relay/src/reverse/spares.rs`,
+  `crates/pod-relay/src/relay.rs`.
 - Not measured: the words that podssh's tests read.
 
 ## Approach
@@ -2509,3 +2598,57 @@ cargo test -p pod-netstack --lib stack::tests::burst
   the half-open connections, also at a connect. `NetStats::dropped` counts
   the SYNs that waited at `max_connections`, no longer the connections that
   a full accept queue dropped.
+
+# T-234: `pod-relay`: a relay host as an IPv6 address in brackets, and plain `ws://` to a loopback relay on the forward road
+
+**Source:** T-026 (the parity of podnet's relay client).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's `Relay::new` takes `https://[IPv6]:port` (its issue 273: the host
+keeps its port) and `http://` or `ws://` to a relay on the loopback (its
+tests). `pod_relay::relay::parse_relay` refuses both: a relay host is a TLS
+name with no IPv6 literal (`ipv6_literals_are_targets_and_zones_are_not`
+asserts it), and the forward opener (`open::open`) has no plain road; the
+feature `plain-ws` serves the reverse road (`reverse::Wire::PlainLoopback`)
+and the forward session of the blocking facade only. podnet's tests of its
+forward road over a loopback relay (`bytes_go_through_a_local_relay` of
+`PodUtils/podnet:src/ws_relay.rs`, `PodUtils/podnet:src/dialers/tests.rs`)
+cannot run on the crate in the trial of T-026.
+
+## Premise
+
+- Read: `PodUtils/podnet:src/ws_relay.rs` at `7c5f87e` (`Host::parse`,
+  `Host::url`, `authority_host`, the tests `relay_urls` and
+  `an_ipv6_relay_host_keeps_its_port`); `crates/pod-relay/src/relay.rs`
+  (`parse_relay`); `crates/pod-relay/src/open.rs` (`try_host`);
+  `crates/pod-relay/src/reverse/wire.rs`.
+- Not measured: a relay at an IPv6 address with a certificate for it; the
+  file names of the cache for such a host (`pod_core::files::safe_name`
+  maps `:` to `_`).
+
+## Approach
+
+1. `Relay` takes an IPv6 literal from `[ADDR]` or `[ADDR]:PORT` (with
+   `https://` or `wss://`), and keeps the bare address; the URL, the `Host`
+   header (`pool::host_header`), `token::relay_name` and the paths of the
+   cache write it in brackets. A bare IPv6 literal stays refused: an
+   address and a port cannot be told apart.
+2. Under the feature `plain-ws`, `open::Request` takes a `reverse::Wire`
+   (or the forward opener takes `Wire::PlainLoopback`), so that a forward
+   session goes to a stand-in relay on the loopback over `ws://`, with the
+   checks of `pod_ws::plain` (a host that is not the loopback is refused
+   before any connection).
+3. podnet's tests `relay_urls`, `an_ipv6_relay_host_keeps_its_port` and
+   `bytes_go_through_a_local_relay` come with their names.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```

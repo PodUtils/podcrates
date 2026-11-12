@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# pod_relay::pool::same_deployment takes a host under an IP address of the
+# primary again; podnet's test of a deployment must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test pool::tests::hosts_of_one_deployment \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib -- pool::tests::hosts_of_one_deployment'

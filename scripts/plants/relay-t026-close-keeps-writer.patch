@@ -1,0 +1,18 @@
+diff --git a/crates/pod-relay/src/reverse/route.rs b/crates/pod-relay/src/reverse/route.rs
+index ac5616c..78084c7 100644
+--- a/crates/pod-relay/src/reverse/route.rs
++++ b/crates/pod-relay/src/reverse/route.rs
+@@ -92,12 +92,7 @@ pub(super) fn offer(routes: &Routes, id: SessionId, payload: &[u8]) -> bool {
+ pub(super) fn closed_by_relay(routes: &Routes, id: &SessionId, drain: Duration) {
+     let Some(route) = lock(routes).remove(id) else { return };
+     let Route { copies: [to_local, from_local], .. } = route;
+-    from_local.abort();
+-    // The route's sender is dropped here: the copy ends once its bytes went.
+-    tokio::spawn(async move {
+-        tokio::time::sleep(drain).await;
+-        to_local.abort();
+-    });
++    let _ = (from_local, to_local, drain);
+ }
+ 
+ /// The end of a session that the node makes: its route goes, and the relay

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/route.rs b/crates/pod-relay/src/reverse/route.rs
+index ac5616c..463c5d3 100644
+--- a/crates/pod-relay/src/reverse/route.rs
++++ b/crates/pod-relay/src/reverse/route.rs
+@@ -195,7 +195,7 @@ pub(super) async fn open<H: Handler>(
+             };
+             // A half close: the operator's last bytes may still come, and
+             // the copy to the local side ends the session, unless it ended.
+-            if let Some((_, ends)) = ends.filter(|_| read_end)
++            if let Some((_, ends)) = ends.filter(|_| read_end && false)
+                 && !ends.set(READ_END)
+             {
+                 ends.read_end.notify_one();

@@ -14,6 +14,10 @@ blocking facade for a caller with no async runtime (podvm).
 The source is podssh's `crates/podssh-relay/src/` at `75a5031`
 (`SOURCES`). podssh's `docs/relay.md`, `docs/reverse.md` and its
 `SECURITY.md` give the contract and what the client defends against.
+podnet's relay client (`src/ws_relay.rs`, `src/relay_pool.rs`,
+`src/relay_reverse.rs` at `7c5f87e`) adds the capabilities that podssh's
+did not have (T-026): the budget of a stream, a session as a byte stream,
+the tokens of a run, and the plain mode of the reverse road.
 
 ## The context of the caller
 
@@ -27,7 +31,7 @@ Each call that reaches a relay takes a `Context`:
 | `cache` | the places of the private files (`Cache`: `pod_core::files::Places` and what the variable of the cache says) |
 | `settings` | the `Settings` that the consumer read from its environment and its settings file |
 | `events` | where the lines for the user go |
-| (shared) | the gates of each origin, the limits of the relay in use, the races of the rank, the pool of HTTP/2 connections, what the QUIC road learned of each host: one run's, shared by each clone |
+| (shared) | the gates of each origin, the limits of the relay in use, the races of the rank, the pool of HTTP/2 connections, what the QUIC road learned of each host, the tokens that the run minted or read: one run's, shared by each clone |
 
 The crate reads no variable of the environment, keeps no process state,
 and prints nothing.
@@ -36,16 +40,18 @@ and prints nothing.
 
 | Module | What |
 | --- | --- |
-| (root) | `Context`, `Settings`, `Names`, `open`, `Request`, `Opened`, `OpenError`, `Failure`, `Relay`, `default_relay_host` |
+| (root) | `Context`, `Settings`, `Names`, `open`, `Request`, `Opened`, `OpenError`, `Failure`, `Relay`, `default_relay_host`, `RelayBudget` |
+| `budget` | `RelayBudget`: `meter` (bytes and an age), `meter_for` (the budgets of the run's relay), `spent` |
+| `stream` | `of`: a forward session as a byte stream (`pod_core::BoxedIo`) |
 | `relay` | `Relay`, `RelayList`, `select_relays`, `parse_relay_list`, `forward_path`, `node_path`, `operator_path`, the budgets (`byte_budget`, `byte_budget_under`, `time_budget`, `idle_secs`), the limits of the default deployment |
 | `pool` | `alternates`, `refresh`, `parse_pool`, `parse_limits`, `Limits`, `same_deployment`; `signed` (the signed lists, `Keys`), `kept` (the lists kept), `members` (the relay members of a net) |
-| `token`, `cache` | `obtain`, `MintContext`, `Token`, `TokenError`, `token_key`; `Cache`, `Cached`, `valid_token` |
+| `token`, `cache` | `obtain`, `MintContext`, `Token`, `TokenError`, `token_key`, `remember`, `forget` (the tokens of a run); `Cache`, `Cached`, `valid_token` |
 | `open`, `failover`, `failures`, `gate` | the opener, the modes of a failover, the record of each host's faults, the gate of each origin |
 | `rank`, `rank_list`, `rank_auto` | the rank of the hosts, the order of the default list, the rank in a session's background (`Races`) |
 | `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay |
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
-| `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part |
-| `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `Layered`, `E2e`, `routes::Routes`, `operator`, `serve`, `Settings`, `wire::{Wire, Door, Carrier}`, the codecs |
+| `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one) |
+| `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
 | `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public` |
 | `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`), `LIFETIME` |
 | `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
@@ -87,6 +93,25 @@ The opener's notes (`open`'s `notes`), a node's lines (`NodeConfig::say`)
 and a UDP handler's lines (`UdpHandler::say`) are callbacks of the caller,
 as in podssh.
 
+### The plain mode of the reverse road
+
+podnet's reverse mode is the same wire as podssh's (`/v1/node/NAME`, ids
+of 32 lowercase hex characters, the JSON control frames), with no
+resumable layer and no end-to-end channel. It is a mode of the same API,
+set by the caller, with podssh's behaviour by default:
+
+| Part | podssh (the default) | podnet's plain mode |
+| --- | --- | --- |
+| a node's handler | `TcpHandler`, `Layered`, `E2e` | `LocalHandler` of a `local::Target` (`host:port`, `tcp://host:port`, `[IPv6]:port`, `unix:/path`) |
+| the end of a local side's writes | `Settings::half_close: None`: the session ends at once | `Some(HALF_CLOSE_IDLE)`: the operator's last bytes still go; the session ends after 2 s with none |
+| the end of an operator's input | `OperatorLimits::eof_idle: None`: a Close at once (or as `node_ends` says) | `Some(EOF_IDLE)`: no Close; the node's bytes still come; the Close after 15 s with none |
+| the next pair at the expiry | the caller's `RepairHook` | a `RepairHook` over `pair::newest(cache, Some(&ending))` |
+
+For each caller: the relay's close of a session gives the bytes that wait
+for its local side `Settings::drain` (`DRAIN`, 10 s), then the node drops
+them and the local side; a second `open` of a live id is no new session;
+a `401` to a node's upgrade ends the node as a `403` does.
+
 ## Features
 
 | Feature | What |
@@ -122,6 +147,8 @@ default names are neutral).
 
 ## Parity
 
+### podssh
+
 Against podssh `crates/podssh-relay` at `75a5031`:
 
 | Capability of podssh | Here |
@@ -148,7 +175,51 @@ Against podssh `crates/podssh-relay` at `75a5031`:
 | `tls_groups.rs` | stays in podssh: it gives `pod-tls` the file of its cache |
 | the tests of these files | [x] 370 of 380 with their names; 7 of the cache's places are `pod-core`'s, 3 of magic-wormhole's Python peer `pod-wormhole`'s |
 | `tests/session_relay_resume.rs`, `relay_serve_*.rs`, `reverse_carrier.rs`, `reverse_restart.rs`, `http_road.rs` | wait for `pod-relay-serve`: they run the relay role |
-| podnet's `src/ws_relay.rs`, `src/relay_pool.rs`, `src/relay_reverse.rs` | T-026 |
+
+### podnet
+
+Against podnet `src/ws_relay.rs`, `src/relay_pool.rs`, `src/relay_reverse.rs`
+(with `relay_reverse/pairfile.rs` and `relay_reverse/session.rs`) and
+`tests/relay_reverse.rs` at `7c5f87e`, which podnet holds to fixes
+(PodUtils/podnet#449); its `main` has no change of them after it. A test
+in italics has podnet's name.
+
+| podnet | Here | Test |
+| --- | --- | --- |
+| `RELAY_VARIABLE`, `TOKEN_VARIABLE`, `CONNECT_TOKEN_VARIABLE`, `Relay::from_env` | podnet's own: `Settings::token`, `select_relays(flag, env, pool)` | `the_flag_beats_the_environment_and_lists_are_kept_as_given` |
+| `RELAY`, `set`, `active` (a process global) | none: the caller holds its `RelayList` and its `Context` | |
+| `SESSION_BYTES`, `SESSION_AGE`, `MINT_MARGIN`, `MAX_MESSAGE` | `relay::SESSION_BYTE_BUDGET`, `SESSION_TIME_BUDGET`, `cache::MIN_REMAINING_MS`, `pod_ws::Limits::RELAY` | `each_budget_is_under_its_cap` |
+| `RelayBudget::{meter, meter_with, spent}` | [x] `RelayBudget::{meter_for, meter, spent}` | *`a_relay_budget_is_spent_at_its_bytes_or_its_age`*, `the_budget_of_a_run_goes_under_the_limits_of_its_relay` |
+| `Host::parse`, `Relay::new` of a list, `Relay::single`, `urls`, `host`, `port`, `url` | `relay::parse_relay`, `parse_relay_list`, `RelayList` | `relay_spellings_from_the_relays_documents_are_accepted` |
+| `Host::parse` of `https://[IPv6]:port` (podnet issue 273) and of `http://` to a loopback relay | missing: T-234 | |
+| a list of hosts of one deployment only, as one token goes to each | a token for each deployment (`token::token_key`): a list may name more than one (call C76) | `token_key_is_one_for_each_deployment` |
+| the alternates of one host (`relay_pool::alternates_of`): the cached pool, else the seed | `pool::alternates`; the default host with them is `select_relays(None, ..)`; a named host of another deployment takes none (call C76) | *`the_alternates_come_from_the_cache_else_the_seed`*, `the_default_relay_comes_first_then_pool_alternates` |
+| `Relay::token`: the fixed token, the minted one in memory, the cache file, a new mint; a refused one minted again once | [x] `token::obtain` with the tokens of the run (`remember`, `forget`), and `open`'s mint after a `403` | `a_token_of_the_run_is_taken_again_with_no_file_of_the_cache`, `a_refused_token_of_the_run_is_forgotten`, `a_token_of_the_run_with_little_time_left_is_not_taken` |
+| `Relay::mint`, `mint_at`: each host in turn; `429` and `503` stop | `token::mint` at each host's attempt, one deployment at a time (`MintGate`); a `429` moves to the next host (call C76) | `one_mint_at_a_time_for_each_deployment` |
+| `Relay::refresh_pool` after a mint | `open`'s refresh of the pool after a mint (`pool::refresh`) | `a_relays_json_pool_is_read_in_order_and_filtered` |
+| `Relay::connect`: the race of the hosts (`HOST_STAGGER`), the stop of the hosts after a refusal of the deployment | `open::open` with `failover::Mode` (`STAGGER`) and `OpenError::another_host_may_help` | `tests/failover.rs`, `errors_every_host_would_repeat_stop_the_failover` |
+| `Relay::connect` of an IPv6 target: refused (the relay has no IPv6 egress) | podnet's own; the crate gives the relay's words (`relay::ipv6_note`) | `ipv6_note_only_for_an_ipv6_target_that_the_relay_closed_at_once` |
+| `Relay::connect` as a byte stream (`ws::bridge` over a pipe, `PIPE_BUFFER`) | [x] `stream::of(opened.session)`, `stream::PIPE` | `a_session_carries_a_byte_stream_both_ways` |
+| `refusal`, `Refusal`, `HostError`, `MintError` | `OpenError::{another_host_may_help, lines}`, `is_policy_refusal`, `TokenError` | `errors_every_host_would_repeat_stop_the_failover` |
+| `websocket`, `post_json`, `websocket_at` | `pod_ws::client::{connect, https_with_token}`, `keyed::post`, `reverse::wire` | |
+| `same_deployment`, `valid_host` | [x] `pool::same_deployment`: an IP address of the primary, and a host with an empty label, are no host of its deployment now | *`hosts_of_one_deployment`* |
+| `parse_pool`, `seed`, `default_host`, `MAX_ALTERNATES`, `STALE_AFTER`, `MAX_BODY` | `pool::parse_pool`, `seed`, `relay::default_relay_host`, `MAX_ALTERNATES`, `STALE_AFTER_MS`, `MAX_BODY` | `a_relays_json_pool_is_read_in_order_and_filtered` |
+| `read_private_checked`, `read_private`, `write_private`, `safe_name`, `MAX_FILE`, the files of the pool and of a token in the state directory | `pod_core::files` and the caller's `Cache` (`Cache::none()` keeps no file); the forms of the files are pod-relay's | `tests/cache.rs` |
+| `Pair`, `check_name`, `pair`, `stop`, `pairs_dir` | `pair::Pair`, `relay::check_node_name`, `pair::create` (a `409` asked again once), `pair::stop`, the caller's `Cache` | `tests/pair.rs`, `node_names_cannot_bend_the_path` |
+| `Target`, its `parse`, `connect` and `Display` | [x] `reverse::local::{Target, LocalHandler, connect}`; a refusal names the target | *`targets_and_names`*, *`a_session_to_a_closed_port_is_refused_with_the_reason`* |
+| `node`: a lost socket again with a backoff; `node_close`; `401` and `403` stop | `reverse::run`, `after_close`; [x] a `401` ends the node as a `403` | `a_socket_that_served_is_taken_again_at_once_once_each_10_s`, `a_node_whose_token_is_refused_with_401_stops` |
+| `node_once`: the gate of each session (`Gate`), an `open` of an open id ignored | `serve` and `sessions::Sessions`; [x] a second `open` of a live id is ignored | `a_second_open_of_a_live_session_is_no_new_session` |
+| `session`: a local side that does not read ends its own session | `serve`'s queue of each session (`Handler::queue_bytes`) | `a_local_side_that_does_not_read_ends_its_session_and_not_the_others` |
+| `session` after the relay's `close`: the task stops, also in a write (podnet T-194) | [x] `Settings::drain` | *`a_relay_close_ends_a_session_whose_target_does_not_read`* |
+| `session`'s half close (`HALF_CLOSE_IDLE`, podnet T-196) | [x] `Settings::half_close`, `HALF_CLOSE_IDLE` | *`a_half_closing_target_gets_the_whole_input`* |
+| `connect` (the operator), `EOF_IDLE` (podnet issue 109); a close other than 1000 after the input is a failure | [x] `operator::run` with `OperatorLimits::eof_idle`, `EOF_IDLE`; `Outcome::is_success` | *`the_answer_comes_back_after_the_input_ends`*, *`a_close_with_an_error_code_after_the_input_ends_is_an_error`* |
+| `load` with no name (the pair with the most time left), `next_pair`, `run_node`'s next stored pair | [x] `pair::newest`, the caller's `RepairHook` over it | `the_newest_pair_and_the_next_one` |
+| `save`, `load`, `read` of `NAME.json` in a private directory, with the reason of a refused file | `pair::store`, `load` (`pair-LABEL.json`), `read_file` (the reason) | `tests/pair.rs` |
+| `WARN_BEFORE`, `left_words`, `expiry_line`, `warn_expiry`, `node_ready`, `instances_of_pair` | stay in podnet: its lines and its instances, as podssh's `node_expiry.rs` stays in podssh-cli (call C74) | |
+| `close_hint` | `pod_ws::close_hint` | |
+| `tests/relay_reverse/fake.rs`, a fake relay of the reverse road (tokio-tungstenite) | the relays that the tests here script over a pipe, and podssh's `tests/stand_in/` over the loopback; podnet's own tests keep its fake until the trial | `tests/reverse_plain.rs` |
+| *`two_sessions_at_the_same_time_through_one_node`*, *`a_dropped_node_socket_is_opened_again`*, *`a_local_side_that_does_not_read_stops_no_other_session`*, *`a_session_ends_after_the_idle_time_when_the_input_ended`* | the tests of `serve`, of `run` and of the operator here | `two_sessions_carry_their_own_bytes_both_ways`, `a_local_side_that_does_not_read_ends_its_session_and_not_the_others`, `the_answer_comes_back_after_the_input_ends` |
+| *`a_wrong_connect_token_is_a_config_error`*, *`a_named_node_ends_at_the_expiry`*, *`a_node_takes_the_next_pair_at_the_expiry`*, `relay_stop_checks_the_pair_before_it_stops_an_instance`, `serve_via_relay_answers_through_the_relay`, `git_serve_via_relay_gives_the_ssh_server` | stay in podnet: its exit codes, its CLI and its glue (the trial) | |
 
 ## Adoption map
 
@@ -198,9 +269,25 @@ node with `Settings::default()` says no line.
 
 ### podnet
 
-podnet's relay client (`src/ws_relay.rs`, `src/relay_pool.rs`,
-`src/relay_reverse.rs`) moves onto this crate with T-026: its plain reverse
-mode becomes a mode of the API of the reverse road.
+podnet's relay client moves onto this crate with T-026; its trial
+(adoption/podnet/pod-relay.*) remains (T-026, partial).
+
+| Old | New |
+| --- | --- |
+| `ws_relay::{set, active}` (a process global) | a `RelayList` and a `Context` that podnet holds and gives each call |
+| `ws_relay::Relay::new(url, token)`, `from_env`, `single` | `relay::select_relays(Some(url), env, &[])` (the default host alone: `select_relays(None, None, &pool::alternates(&ctx.cache, host))`), `Settings::token` from `PODNET_RELAY_TOKEN` |
+| `Relay::connect(target, timeout)` | `open(&Request { ctx, relays, path: &relay::forward_path(host, port)?, .. }, notes)`, then `stream::of(opened.session)`; an IPv6 target stays refused in podnet |
+| `ws_relay::RelayBudget::{meter, meter_with}`, `SESSION_BYTES`, `SESSION_AGE` | `RelayBudget::{meter_for, meter}`, `relay::SESSION_BYTE_BUDGET`, `SESSION_TIME_BUDGET` |
+| `relay_pool::{load_token, store_token, load_pool, store_pool}` and the state directory (`PODNET_STATE_DIR`, `none`) | the caller's `Cache` (`Cache::in_dirs`, `Cache::none()`): the token and the pool files of this crate; podnet's old files are not read (one more mint and one read of the pool) |
+| `relay_pool::{same_deployment, parse_pool, alternates_of, seed, default_host}` | `pool::{same_deployment, parse_pool, alternates, seed}`, `relay::default_relay_host` |
+| `relay_pool::{read_private_checked, read_private, write_private}` | `pod_core::files` |
+| `relay_reverse::Pair` | `pair::Pair` (its tokens are read by `node_token()`, `connect_token()`, `stop_token()`; `expires_ms`; `relay` is a `Relay`) |
+| `relay_reverse::{pair, stop}` | `pair::{create, stop}` with a `PairContext` |
+| `relay_reverse::{save, load}`, `pairs_dir` | `pair::{store, load, newest}` over a `Cache` of podnet's `relay` directory; `pair::read_file` gives the reason of a refused file |
+| `relay_reverse::Target`, `node(relay, pair, target)` | `reverse::local::Target`, `reverse::run(&mut NodeConfig { .. settings: Settings { half_close: Some(HALF_CLOSE_IDLE), ..Settings::default() } }, Arc::new(LocalHandler { .. }), stop)` |
+| `relay_reverse::run_node(follow, pair, target)` | `reverse::run` with a `RepairHook` over `pair::newest(cache, Some(&ending))`, and a `stop` at the pair's end; the expiry lines stay in podnet |
+| `relay_reverse::connect(relay, name, token, input, output)`, `EOF_IDLE` | `reverse::operator::run(&OperatorConfig { limits: OperatorLimits { eof_idle: Some(EOF_IDLE), .. }, .. }, io)`; `Outcome::is_success` |
+| `relay_reverse::{node_ready, instances_of_pair, WARN_BEFORE, expiry_line}`, `CONNECT_TOKEN_VARIABLE` | stay in podnet |
 
 ### podvm
 
@@ -213,10 +300,13 @@ with podvm's `Context` (its way out, its cache, its settings).
 (the hosts and their order, the pool and its signed lists, the gates on a
 paused clock, the record of failures, the rank, the tokens and their keys,
 the roads' choices, the codecs and the close table of the reverse road, the
-grants, the exchange of a code, the classes of the failures), and the
+grants, the exchange of a code, the classes of the failures, the budget of
+a stream, a session as a byte stream, the tokens of a run, podnet's
+targets, the newest pair of the store), and the
 integration tests over loopback stand-ins: the blocking facade with a
 stand-in relay, the reverse road (its node, its operator, its framing, its
-fair queue, its layer, its spares, its window, its dialect), the
+fair queue, its layer, its spares, its window, its dialect, podnet's plain
+mode), the
 end-to-end channel over the layered road, a node's routes and shares, the
 grants, the pairing by code at a stand-in mailbox, the limits of a pool's
 body, the failover. The tests that reach the live relay or the public

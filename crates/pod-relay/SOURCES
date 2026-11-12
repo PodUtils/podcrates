@@ -166,3 +166,19 @@ file a29b4e9e4fd5ab61d641ce1cfbd670998bd43f52 crates/podssh-relay/tests/fixtures
 file 8522cae1b950122aeaa028236d467512fcdc6f21 crates/podssh-relay/tests/fixtures/grant/reusable-cert.pub -> crates/pod-relay/tests/fixtures/grant/reusable-cert.pub
 file be705dbb4da018edf84f5536065db80c4abd242b crates/podssh-relay/tests/fixtures/grant/route-cert.pub -> crates/pod-relay/tests/fixtures/grant/route-cert.pub
 file 0ddd69b7a029530c2db85e93b3bf814f47de96cb crates/podssh-relay/tests/fixtures/grant/unknown-cert.pub -> crates/pod-relay/tests/fixtures/grant/unknown-cert.pub
+
+repo PodUtils/podnet 7c5f87eb2765a2136f88c8310e41785204b78939
+# T-026: podnet's relay client, which podnet holds to fixes from this
+# commit (PodUtils/podnet#449). No file is copied: each capability that the
+# base of podssh did not have is written here, with podnet's tests where
+# they test the code of this crate (the crate README, "Parity"). A change
+# of one of these files in podnet is a port.
+dir src/relay_reverse
+dir tests/relay_reverse
+file 2777a70ede7e4d77a66b98992045c6db1e82f74a src/ws_relay.rs -> crates/pod-relay/src/budget.rs crates/pod-relay/src/stream.rs crates/pod-relay/src/token.rs
+file 69765eb8fb71386befc4d375c1d37dfc0222aa9c src/relay_pool.rs -> crates/pod-relay/src/pool.rs
+file b902e1c2d2dc1749d100b84a06d189b77485f416 src/relay_reverse.rs -> crates/pod-relay/src/reverse/local.rs crates/pod-relay/src/reverse/operator.rs crates/pod-relay/src/reverse/node.rs
+file a071b6e7f32e0e2392c771b1706b9b00e689955f src/relay_reverse/pairfile.rs -> crates/pod-relay/src/pair/stored.rs
+file f086e34e61a1da515bdb7b3854575bae398ba0c9 src/relay_reverse/session.rs -> crates/pod-relay/src/reverse/route.rs crates/pod-relay/src/reverse/serve.rs
+file 40c39fd7bd07557136c54fc9b61bbd3a1a150e70 tests/relay_reverse.rs -> crates/pod-relay/tests/reverse_plain.rs
+file 2f14cd0e86e46f01a604c2fc333edf5bcaf9dbc3 tests/relay_reverse/fake.rs -> crates/pod-relay/tests/reverse_plain.rs

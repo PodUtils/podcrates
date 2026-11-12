@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**234 entries: 61 open, 4 partial, 4 blocked, 165 done.**
+**235 entries: 61 open, 5 partial, 4 blocked, 165 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 1 | 0 | 49 | 63 |
-| P2 | 31 | 2 | 4 | 80 | 117 |
+| P1 | 12 | 2 | 0 | 49 | 63 |
+| P2 | 32 | 2 | 4 | 80 | 118 |
 | P3 | 17 | 1 | 0 | 34 | 52 |
-| **All** | 61 | 4 | 4 | 165 | 234 |
+| **All** | 61 | 5 | 4 | 165 | 235 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-023](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: the userspace TCP and UDP stack on smoltcp 0.14 |
 | [T-024](relay.md) | P2 | S | M2 | feature | done | `pod-wg`: the WireGuard initiator |
 | [T-025](relay.md) | P1 | L | M2 | feature | partial | `pod-relay`: the relay client, the pool, the roads and the reverse road (the base of podssh) |
-| [T-026](relay.md) | P1 | M | M2 | feature | open | `pod-relay`: podnet's relay client and its plain reverse mode |
+| [T-026](relay.md) | P1 | M | M2 | feature | partial | `pod-relay`: podnet's relay client and its plain reverse mode |
 | [T-027](adapters.md) | P2 | S | M3 | feature | open | `pod-transit`: the transit relay carrier |
 | [T-028](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the WARP adapter |
 | [T-029](adapters.md) | P1 | L | M3 | feature | open | `pod-cloudflare`: the edge client, the tunnel and the quick tunnels (the base of podnet) |
@@ -280,4 +280,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-231](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |
 | [T-232](relay.md) | P1 | M | M2 | defect | done | `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457) |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |
+| [T-234](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: a relay host as an IPv6 address in brackets, and plain `ws://` to a loopback relay on the forward road |
 | [T-240](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store |

@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# a second open of a live session opens a second local side and readies it
+# again; the test of podnet's gate must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test a_second_open_of_a_live_session_is_no_new_session \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_plain -- a_second_open_of_a_live_session_is_no_new_session'

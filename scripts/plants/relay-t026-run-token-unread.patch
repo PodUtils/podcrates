@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/token.rs b/crates/pod-relay/src/token.rs
+index 83a8043..a5f01b9 100644
+--- a/crates/pod-relay/src/token.rs
++++ b/crates/pod-relay/src/token.rs
+@@ -151,7 +151,7 @@ impl RunTokens {
+     /// The token of `key` with at least `MIN_REMAINING_MS` left at `now_ms`.
+     fn recall(&self, key: &str, now_ms: i64) -> Option<(Zeroizing<String>, Option<String>)> {
+         let kept = self.0.lock().unwrap_or_else(|e| e.into_inner());
+-        let token = kept.get(key).filter(|t| t.expires_ms.saturating_sub(now_ms) >= MIN_REMAINING_MS)?;
++        let token = kept.get(key).filter(|t| t.expires_ms.saturating_sub(now_ms) >= i64::MAX)?;
+         Some((token.secret.clone(), token.minted_at.clone()))
+     }
+ 

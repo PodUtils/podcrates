@@ -1,0 +1,14 @@
+diff --git a/crates/pod-relay/src/pool.rs b/crates/pod-relay/src/pool.rs
+index 9664526..2bf96b2 100644
+--- a/crates/pod-relay/src/pool.rs
++++ b/crates/pod-relay/src/pool.rs
+@@ -130,9 +130,6 @@ pub fn needs_refresh(cache: &Cache, primary: &str, now_ms: i64) -> bool {
+ pub fn same_deployment(primary: &str, host: &str) -> bool {
+     let primary = primary.to_ascii_lowercase();
+     let host = host.to_ascii_lowercase();
+-    if primary.parse::<std::net::IpAddr>().is_ok() {
+-        return false;
+-    }
+     let Some((_, parent)) = primary.split_once('.') else { return false };
+     parent.contains('.') && host != primary && dns_name(&host) && host.ends_with(&format!(".{parent}"))
+ }

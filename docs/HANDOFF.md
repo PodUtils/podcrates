@@ -19,6 +19,14 @@ a line when its work is done. Git and the record keep finished work.
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.
+- `pod-relay` and podnet (T-026, partial; calls C73 to C76): podnet's
+  relay client is in the crate (`RelayBudget`, `stream::of`, the tokens of
+  a run, `reverse::local`, `Settings::half_close` and `drain`,
+  `OperatorLimits::eof_idle`, `pair::newest`), with the parity list in the
+  crate README and a block of podnet in `SOURCES`; 374 tests and 9 new
+  plants pass. T-234 (an IPv6 relay host in brackets, plain `ws://` on the
+  forward road) comes before the trial of podnet
+  (adoption/podnet/pod-relay.*), which is not written.
 - The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For
   `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269), T-213
   (`pod-confine`: the families that Landlock does not check, the rights

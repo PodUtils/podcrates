@@ -289,6 +289,31 @@ mod tests {
         assert!(!same_deployment("192.0.2.1", "relay.0.2.1"), "an IP address");
     }
 
+    /// podnet's test: the alternates come from the pool cached for the
+    /// primary, else, for the default relay alone, from the seed; a host of
+    /// another deployment is left out.
+    #[test]
+    fn the_alternates_come_from_the_cache_else_the_seed() {
+        let none = Cache::none();
+        let seeded = alternates(&none, default_relay_host());
+        assert!(seed().len() >= crate::relay::MAX_ALTERNATES);
+        assert_eq!(seeded, seed(), "the seed, in its order");
+        assert!(alternates(&none, "relay.example.org").is_empty(), "another relay has no seed");
+        let dir = std::env::temp_dir().join(format!("pod-relay-alternates-{}", std::process::id()));
+        cache::private_dir(&dir).unwrap();
+        let kept = Cache::in_dirs(vec![dir.clone()]);
+        let keep = |primary: &str, hosts: &[&str]| {
+            let hosts = hosts.iter().map(|h| h.to_string()).collect();
+            let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts, limits: Limits::default() });
+            kept.store_file(&file_name(primary), &body.unwrap()).unwrap();
+        };
+        keep(default_relay_host(), &["tcp-x.ssh.relay.ajam.dev"]);
+        assert_eq!(alternates(&kept, default_relay_host()), ["tcp-x.ssh.relay.ajam.dev"]);
+        keep("relay.example.org", &["b.example.org", "evil.example"]);
+        assert_eq!(alternates(&kept, "relay.example.org"), ["b.example.org"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn a_relays_json_pool_is_read_in_order_and_filtered() {
         let body = br#"{"service":"tcp-ssh-relay","pool":[

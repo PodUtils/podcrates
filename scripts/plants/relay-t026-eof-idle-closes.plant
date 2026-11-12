@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# the operator sends its Close at the end of the input also with eof_idle
+# (podnet issue 109); the test of the answer after the input must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test the_answer_comes_back_after_the_input_ends \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_plain -- the_answer_comes_back_after_the_input_ends'

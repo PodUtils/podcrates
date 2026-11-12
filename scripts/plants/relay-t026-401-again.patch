@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/node.rs b/crates/pod-relay/src/reverse/node.rs
+index f941ba7..495e2e1 100644
+--- a/crates/pod-relay/src/reverse/node.rs
++++ b/crates/pod-relay/src/reverse/node.rs
+@@ -331,7 +331,7 @@ where
+             // A refused token: `403` by the contract, `401` by another relay;
+             // a new socket would hear the same (podnet).
+             Err(ConnectError::Refused { status: 401 | 403, .. }) if expired(&config.pair) => Next::Repair,
+-            Err(ConnectError::Refused { status: 401 | 403, .. }) => return Exit::Forbidden,
++            Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
+             // The relay reads another dialect of the reverse road, or takes
+             // no upgrade of this node's: the same request gets the same.
+             Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),

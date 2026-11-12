@@ -32,9 +32,9 @@ pub mod renew;
 /// A pair's stop token, rotated in podssh's relay role (podssh T-615).
 pub mod rotate;
 /// The labels of the store, and the pair with the most time left (podnet).
-pub mod store;
+pub mod stored;
 
-pub use store::{labels, labels_from, newest, newest_from};
+pub use stored::{labels, labels_from, newest, newest_from};
 
 /// A pair, as `POST /v1/pair` gives it.
 pub struct Pair {

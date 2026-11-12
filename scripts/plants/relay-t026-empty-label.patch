@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/pool.rs b/crates/pod-relay/src/pool.rs
+index 9664526..d6650f9 100644
+--- a/crates/pod-relay/src/pool.rs
++++ b/crates/pod-relay/src/pool.rs
+@@ -140,7 +140,7 @@ pub fn same_deployment(primary: &str, host: &str) -> bool {
+ /// A host of a deployment, as podnet checks one: a host name of
+ /// `check_host`, with no empty label and no label over 63 characters.
+ fn dns_name(host: &str) -> bool {
+-    check_host(host).is_ok() && host.split('.').all(|label| !label.is_empty() && label.len() <= 63)
++    check_host(host).is_ok()
+ }
+ 
+ /// The `pool[].host` names of a `/relays.json` body, in its order, kept only

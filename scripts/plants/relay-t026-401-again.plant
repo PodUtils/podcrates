@@ -1,0 +1,7 @@
+# A plant of T-026 (podnet's relay client in pod-relay):
+# a node whose token the relay refuses with 401 connects again for ever; the
+# test of its stop must fail.
+ENTRY=T-026
+GROUP=relay
+EXPECT='test a_node_whose_token_is_refused_with_401_stops \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair,plain-ws --test reverse_plain -- a_node_whose_token_is_refused_with_401_stops'
