@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**270 entries: 63 open, 2 partial, 4 blocked, 201 done.**
+**270 entries: 62 open, 2 partial, 4 blocked, 202 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 54 | 67 |
-| P2 | 26 | 1 | 4 | 104 | 135 |
+| P2 | 25 | 1 | 4 | 105 | 135 |
 | P3 | 25 | 0 | 0 | 41 | 66 |
-| **All** | 63 | 2 | 4 | 201 | 270 |
+| **All** | 62 | 2 | 4 | 202 | 270 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -303,7 +303,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-262](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a TCP list is refused on a target with `socketcall(2)` (PodUtils/podvm#276) |
 | [T-263](relay.md) | P3 | S | M2 | defect | done | `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library |
 | [T-266](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: the provision writes its image with `qemu-img convert`; `qemu-img commit` takes no output file (PodUtils/podvm#277) |
-| [T-267](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it |
+| [T-267](transport.md) | P2 | M | M1 | feature | done | `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it |
 | [T-271](transport.md) | P2 | S | M1 | chore | done | `pod-services`: the VLESS node `node-xhttp-78-17-39-129` leaves (PodUtils/podssh#207) |
 | [T-272](transport.md) | P2 | S | M1 | defect | done | `pod-services-watch`: `forward-url` tries keyboard-interactive, which Serveo's anonymous tunnel takes |
 | [T-276](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209) |

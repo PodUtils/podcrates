@@ -14,8 +14,8 @@ is done. Git and the record keep finished work.
    repository of PodUtils.
 2. Merge or continue the work of the two agents of this session (see "In
    flight"), then take the work order of `TODO/PROGRESS.md`. Its head
-   now: T-026, T-251, T-267, T-212. The next release (`v0.30.0`) carries
-   T-276, T-277, T-251 and the trial of T-026.
+   now: T-026, T-251, T-212. The next release (`v0.30.0`) carries
+   T-276, T-277, T-267, T-251 and the trial of T-026.
 
 ## In flight
 
@@ -35,8 +35,8 @@ is done. Git and the record keep finished work.
   C114). A new
   session finds their branches with `git worktree list`; it merges a
   branch whose checks pass, or takes the work up from its commits.
-- T-267 (`forward-url` proves the URL): the source and the tests are in
-  work in the tree of the lead (not committed at the time of this line).
+- T-267 (`forward-url` proves the URL) is on `main`; the next run of
+  `services.yml` proves the URLs of the four live relays.
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
   relay client is in `pod-relay`. The trial of podnet
   (adoption/podnet/pod-relay.patch, `.commit`, `.run`) on podnet

@@ -2,19 +2,22 @@
 //! `ssh-relay` opens one: a key made for the run, the user of the service,
 //! a remote forward, a shell, and the banner of the shell read with the
 //! rule of the URL of the service (`pod_services::forward`). A banner with
-//! no URL that the rule accepts is a finding. The forward goes to no local
-//! server, and the session ends when the URL comes.
+//! no URL that the rule accepts is a finding. Then a GET of the URL proves
+//! it: the client answers each request that the relay forwards with a word
+//! of the run, and an answer with no word is a finding (the URL is a page
+//! of the relay, not the tunnel). The session ends after the proof.
 
 use std::future::Future;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use pod_core::text::one_line;
 use pod_services::forward::{Banner, Relay, UrlRule};
 use pod_services::{Service, Watch};
-use russh::client::{self, AuthResult, Handle, KeyboardInteractiveAuthResponse};
-use russh::keys::{Algorithm, PrivateKey, PrivateKeyWithHashAlg, PublicKeyOrCertificate};
-use russh::{ChannelMsg, Disconnect, Preferred, SshId};
+use russh::client::{self, AuthResult, ChannelOpenHandle, Handle, KeyboardInteractiveAuthResponse};
+use russh::keys::{Algorithm, HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKeyOrCertificate};
+use russh::{Channel, ChannelMsg, Disconnect, Preferred, SshId};
 use tokio::time::Instant;
 
 use crate::args::{Args, named};
@@ -38,10 +41,19 @@ const ADDRESS: &str = "localhost";
 const KEPT: usize = 8192;
 /// The most characters of a banner with no URL in a finding.
 const SHOWN: usize = 200;
+/// The bound of the proof, from the URL to the answer of its GET.
+pub const PROOF_LIMIT: Duration = Duration::from_secs(20);
+/// The most bytes of the head of a forwarded request that the client reads.
+const REQUEST_MOST: usize = 16 * 1024;
 
 /// The client of the session. It takes the host key of each relay: the
 /// watch `ssh-host-key` checks the key, and this session sends no secret.
-struct Client;
+/// It answers each request that the relay forwards with the word of the
+/// run.
+struct Client {
+    word: Arc<str>,
+    answered: Arc<AtomicUsize>,
+}
 
 impl client::Handler for Client {
     type Error = russh::Error;
@@ -49,11 +61,65 @@ impl client::Handler for Client {
     async fn check_server_key(&mut self, _key: &PublicKeyOrCertificate) -> Result<bool, Self::Error> {
         Ok(true)
     }
+
+    async fn server_channel_open_forwarded_tcpip(
+        &mut self,
+        channel: Channel<client::Msg>,
+        _: &str,
+        _: u32,
+        _: &str,
+        _: u32,
+        reply: ChannelOpenHandle,
+        _: &mut client::Session,
+    ) -> Result<(), Self::Error> {
+        reply.accept().await;
+        let (word, answered) = (self.word.clone(), self.answered.clone());
+        tokio::spawn(async move { answer(channel, &word, &answered).await });
+        Ok(())
+    }
+}
+
+/// Read the head of one forwarded request, then answer it with `word` and
+/// close the channel.
+async fn answer(mut channel: Channel<client::Msg>, word: &str, answered: &AtomicUsize) {
+    let mut head = Vec::new();
+    let read = async {
+        while !head.windows(4).any(|w| w == b"\r\n\r\n") && head.len() < REQUEST_MOST {
+            match channel.wait().await {
+                Some(ChannelMsg::Data { data }) => head.extend_from_slice(&data),
+                Some(ChannelMsg::Eof | ChannelMsg::Close) | None => break,
+                Some(_) => {}
+            }
+        }
+    };
+    if tokio::time::timeout(PROOF_LIMIT, read).await.is_ok() {
+        let body = format!("{word}\n");
+        let text = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nCache-Control: no-store\r\n\
+             Connection: close\r\n\r\n{body}",
+            body.len()
+        );
+        if channel.data_bytes(text.into_bytes()).await.is_ok() {
+            answered.fetch_add(1, Ordering::Relaxed);
+        }
+        let _ = channel.eof().await;
+    }
+    let _ = channel.close().await;
+}
+
+/// The word of the run: the fingerprint of the key made for the run, which
+/// no page of a relay holds.
+fn word_of(key: &PrivateKey) -> String {
+    let print = key.public_key().fingerprint(HashAlg::Sha256);
+    let hex: String = print.as_bytes().iter().take(16).map(|b| format!("{b:02x}")).collect();
+    format!("pod-services-watch-{hex}")
 }
 
 /// `forward-url`: the banner of a session with `endpoint` holds a URL that
-/// the rule of the service accepts. The arguments `port` (the remote
-/// forward, 80 if none) and `seconds` (the bound, 45 if none) are optional.
+/// the rule of the service accepts, and a GET of the URL reaches the
+/// forward of the session. The arguments `port` (the remote forward, 80 if
+/// none), `seconds` (the bound, 45 if none) and `prove` (the GET, true if
+/// none) are optional.
 pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let args = Args::new(service, watch);
     let endpoint = args.endpoint()?;
@@ -76,13 +142,23 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
             .ok_or_else(|| Finding::failed(format!("the argument \"seconds\" is no time: {s}")))?,
         None => LIMIT,
     };
+    let prove = match watch.arg("prove") {
+        None => true,
+        Some(value) => value.as_bool().ok_or_else(|| Finding::failed("the argument \"prove\" is no bool"))?,
+    };
     let user = relay.user().unwrap_or(USER);
+    let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519)
+        .map_err(|e| Finding::failed(format!("the key of the run: {e}")))?;
+    let word: Arc<str> = word_of(&key).into();
+    let answered = Arc::new(AtomicUsize::new(0));
     let session = Session {
         at: format!("{} as {user}", endpoint.authority()),
         user,
         port,
         limit,
         deadline: Instant::now() + limit,
+        key: Arc::new(key),
+        prove: prove.then(|| (word.clone(), answered.clone())),
     };
     let io = session
         .step("the connection", async { Ok::<_, russh::Error>(net.tcp(endpoint.host(), endpoint.port()).await) })
@@ -92,8 +168,9 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
         preferred: Preferred::DEFAULT,
         ..client::Config::default()
     };
-    let mut handle = session.step("the SSH handshake", client::connect_stream(Arc::new(config), io, Client)).await?;
-    let result = session.run(&mut handle, service, relay.url_rule()).await;
+    let client = Client { word, answered };
+    let mut handle = session.step("the SSH handshake", client::connect_stream(Arc::new(config), io, client)).await?;
+    let result = session.run(&mut handle, service, relay.url_rule(), net).await;
     // The close: the relay ends the tunnel with the session.
     let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
     let _ = tokio::time::timeout(net.limit, handle).await;
@@ -108,6 +185,11 @@ struct Session<'a> {
     port: u32,
     limit: Duration,
     deadline: Instant,
+    /// The key made for the run.
+    key: Arc<PrivateKey>,
+    /// The word of the run and the count of the requests that the client
+    /// answered, when the watch proves the URL.
+    prove: Option<(Arc<str>, Arc<AtomicUsize>)>,
 }
 
 impl Session<'_> {
@@ -120,8 +202,9 @@ impl Session<'_> {
         }
     }
 
-    /// The authentication, the forward, the shell and its banner.
-    async fn run(&self, handle: &mut Handle<Client>, service: &Service, rule: UrlRule) -> Checked {
+    /// The authentication, the forward, the shell and its banner, then the
+    /// proof of the URL.
+    async fn run(&self, handle: &mut Handle<Client>, service: &Service, rule: UrlRule, net: &Net) -> Checked {
         let method = self.authenticate(handle).await?;
         let what = format!("the remote forward of port {}", self.port);
         self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
@@ -154,9 +237,47 @@ impl Session<'_> {
             if let Some(url) = url {
                 let mut out = Outcome::default();
                 out.saw(format!("{} ({method}): the banner names the tunnel on the host {}", self.at, host_of(&url)));
+                if let Some((word, answered)) = &self.prove {
+                    out.saw(self.proof(net, service, &url, word, answered).await?);
+                }
                 return Ok(out);
             }
         }
+    }
+
+    /// A GET of `url` through the dial, while the session holds the
+    /// forward: an answer of the client holds the word of the run. Another
+    /// answer moves the rule of the URL: the URL is not the tunnel's.
+    async fn proof(
+        &self,
+        net: &Net,
+        service: &Service,
+        url: &str,
+        word: &str,
+        answered: &AtomicUsize,
+    ) -> Result<String, Finding> {
+        let request = net.request("GET", url).header("Accept", "text/plain").redirects(3);
+        let why = match tokio::time::timeout(PROOF_LIMIT, net.send(request)).await {
+            Err(_) => format!("no answer within {PROOF_LIMIT:?}"),
+            Ok(Err(Finding::Failed(why) | Finding::Moved { now: why, .. })) => why,
+            Ok(Ok(answer)) if answer.is_success() && contains(&answer.body, word.as_bytes()) => {
+                let count = answered.load(Ordering::Relaxed);
+                return Ok(format!(
+                    "{}: a GET of {} gave the word of the run through the forward ({count} answered)",
+                    self.at,
+                    shown(url)
+                ));
+            }
+            Ok(Ok(answer)) => {
+                let text: String = one_line(&String::from_utf8_lossy(&answer.body)).chars().take(SHOWN).collect();
+                format!("HTTP {} with no word of the run: {text:?}", answer.status)
+            }
+        };
+        let now = format!("a GET of {} does not reach the forward of the session ({why})", shown(url));
+        Err(match service.fact("url-match").or_else(|| service.fact("url-skip")) {
+            Some(fact) => Finding::moved(named(fact), fact.value().to_string(), now),
+            None => Finding::failed(format!("{}: {now}", self.at)),
+        })
     }
 
     /// A key made for the run first, as podnet's leg; then no key, as
@@ -164,9 +285,7 @@ impl Session<'_> {
     /// as OpenSSH's anonymous login to Serveo goes. The key goes with the
     /// session.
     async fn authenticate(&self, handle: &mut Handle<Client>) -> Result<&'static str, Finding> {
-        let key = PrivateKey::random(&mut russh::keys::key::safe_rng(), Algorithm::Ed25519)
-            .map_err(|e| Finding::failed(format!("the key of the run: {e}")))?;
-        let key = PrivateKeyWithHashAlg::new(Arc::new(key), None);
+        let key = PrivateKeyWithHashAlg::new(self.key.clone(), None);
         if self.step("the authentication", handle.authenticate_publickey(self.user, key)).await?.success() {
             return Ok("a key of the run");
         }
@@ -244,6 +363,11 @@ impl Read {
             }
         }
     }
+}
+
+/// True when `body` holds `word`.
+fn contains(body: &[u8], word: &[u8]) -> bool {
+    !word.is_empty() && body.windows(word.len()).any(|w| w == word)
 }
 
 /// Keep `data` up to [`KEPT`] bytes.

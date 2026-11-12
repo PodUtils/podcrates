@@ -3946,7 +3946,7 @@ zigbuild`: no `PT_INTERP`, no `NEEDED`).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3985,6 +3985,33 @@ cargo test -p pod-services-watch --test watches -- forward::
 cargo run -q -p pod-services-watch -- --kind forward-url
 sh scripts/plant-each.sh --group services
 ```
+
+## Done
+
+2026-11-12. The commit that names T-267.
+
+- `crates/pod-services-watch/src/forward.rs`: the client takes each
+  channel `forwarded-tcpip` and answers the head of its request with
+  `200` and a word of the run (`pod-services-watch-` and 32 hex digits
+  of the SHA-256 fingerprint of the key made for the run). After the URL,
+  a GET of it through the dial (three redirects at most) within 20 s
+  (`PROOF_LIMIT`): an answer of 2xx with the word holds; another answer,
+  or none, is a finding on `url-match` (else `url-skip`) with the URL.
+  The argument `prove` (true if none) turns the proof off.
+- Tests (`crates/pod-services-watch/tests/watches/forward.rs`): the
+  stand-in relay has an HTTPS front for `stand.test` that gives each
+  request to the client through a channel `forwarded-tcpip`
+  (`forward_url_proves_the_url_with_a_get_through_the_forward`) or answers
+  with a page of its own (`forward_url_finds_a_url_that_is_a_page_of_the_relay`).
+  The three tests of a banner whose host is no stand-in take `prove =
+  false`. `cargo test -p pod-services-watch --all-features --test watches
+  forward`: 12 passed.
+- The plant `services-forward-url-word-not-compared` (any answer of 2xx
+  holds) is caught by the test of a page of the relay.
+- The READMEs of both crates name `prove` and the front of the stand-in.
+- Not measured: the four live relays. The next run of `services.yml`
+  (`--kind forward-url`) proves each URL from GitHub; a relay that
+  answers a first request with a page of its own is a finding there.
 
 # T-233: `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269)
 

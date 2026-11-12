@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services-watch/src/forward.rs b/crates/pod-services-watch/src/forward.rs
+index 7d328f4..0e47636 100644
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -260,7 +260,7 @@ impl Session<'_> {
+         let why = match tokio::time::timeout(PROOF_LIMIT, net.send(request)).await {
+             Err(_) => format!("no answer within {PROOF_LIMIT:?}"),
+             Ok(Err(Finding::Failed(why) | Finding::Moved { now: why, .. })) => why,
+-            Ok(Ok(answer)) if answer.is_success() && contains(&answer.body, word.as_bytes()) => {
++            Ok(Ok(answer)) if answer.is_success() || contains(&answer.body, word.as_bytes()) => {
+                 let count = answered.load(Ordering::Relaxed);
+                 return Ok(format!(
+                     "{}: a GET of {} gave the word of the run through the forward ({count} answered)",

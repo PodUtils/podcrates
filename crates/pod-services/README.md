@@ -106,7 +106,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
 | `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
-| `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port, a shell) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays") |
+| `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none), `prove` (true if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port, a shell) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays"); with `prove`, a GET of the URL reaches the forward of the session: the client answers it with a word of the run |
 | `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
 | `github-release` | `repo`, `fact`, `max-age-days` | the newest release; the age of the pinned tag |
@@ -300,7 +300,9 @@ each service of the kind to one of the two lists.
 Each relay has a watch `forward-url` on its first endpoint to try: a
 session as podnet opens one, and its banner through `forward::Banner`
 with the rule of the file. A banner with no URL that the rule accepts is a
-finding on `url-match`. A watch `http-text` holds the document of the zone
+finding on `url-match`. Then a GET of the URL proves it (T-267): an answer
+with no word of the run (a page of the relay) is a finding on `url-match`
+too. A watch `http-text` holds the document of the zone
 of `url-match` (`pinggy`, `serveo`, `localhost-run`): a document that moves
 the zone is a finding.
 
