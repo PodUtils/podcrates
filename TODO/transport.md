@@ -3900,3 +3900,72 @@ cargo run -q -p pod-services-watch -- --service mcr-registry
 and the absence of a token realm; `each_registry_answers_at_v2_over_https`
 lists eight registries. `cargo test -p pod-services --all-features`: each
 suite passes. The live watches: 2 hold (`oci-ping`, `oci-digest`).
+
+
+# T-244: `pod-services`: the public TCP relays of Tox on port 443, with the key of each node and a watch of the list (PodUtils/podssh#196)
+
+**Source:** PodUtils/podssh#196 (COORD-028 of podssh, for PodUtils/podssh@T-734)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podssh@T-734 adds Tox's public TCP relays as a last road of a
+pair. podssh writes no host of another party, so it needs the relays from
+`pod-services`. The ask:
+
+- A service `tox-tcp-relay`: each node of `https://nodes.tox.chat/json`
+  whose `tcp_ports` holds 443 and whose `status_tcp` is true, as an IP
+  literal and port 443.
+- For each endpoint, the node's `public_key` (64 hex digits): the TCP
+  relay's handshake boxes to that key.
+- A watch: the list moves, so a watch of that JSON keeps the file current.
+- podssh picks a relay by the SHA-256 of the pair's name among the
+  endpoints in the file's order. A stable order helps both ends of a pair
+  agree.
+- The third party: the Tox project's public nodes, run by volunteers, no
+  account. Each relay sees the keys of the two ends, the times and the
+  sizes. podssh's end-to-end channel keeps the bytes from it.
+
+## Premise
+
+- Read: PodUtils/podssh#196; `crates/pod-services/services/zerotier-tcp-relay.toml`
+  (the kind `tcp-relay`); `crates/pod-services-watch/src/http.rs` (the
+  watch `http-json` and its form `member`, which finds the hosts of the
+  endpoints anywhere in a document, but no port, no key and no condition
+  of one item).
+- Measured on 2026-11-12: `GET https://nodes.tox.chat/json` (its
+  `last_scan` is 02:29 UTC) gives 28 nodes. Five list 443 in `tcp_ports`
+  with `status_tcp` true: 119.59.101.63, 205.185.115.131, 188.245.84.166,
+  172.104.215.182, 139.162.110.188. Each has `status_udp` true. The list
+  writes `-` for a node with no IPv6.
+- Not measured: a TCP connect or a handshake to a relay from here. The
+  egress of the sandbox is an HTTPS proxy. The watch trusts the list's
+  own `status_tcp`.
+
+## Approach
+
+1. `services/tox-tcp-relay.toml`: kind `tcp-relay`, one endpoint for each
+   node (scheme `tcp`, the IPv4 literal, port 443, the name `node-` and
+   the first eight digits of its key in lower case), and a fact
+   `public-key-NAME` for each endpoint (the key as the list gives it).
+   The endpoints come in the order of their keys (C83).
+2. A general form of `http-json` (`key`): the list at the pointer holds
+   one item for each endpoint, found by its member `key`, which equals
+   the fact `fact-prefix` + NAME. The item holds the endpoint's host in a
+   member of `member`, its port in `port-member` (a number or a list),
+   and `true` in each member of `true-members`. An item with the port and
+   the true members that the file does not have is counted, not found.
+   A test against a stand-in document; a plant.
+3. A test of the service in `crates/pod-services/tests/`; the README rows.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service tox-tcp-relay
+sh scripts/plant-each.sh --apply
+```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**242 entries: 64 open, 5 partial, 4 blocked, 169 done.**
+**243 entries: 65 open, 5 partial, 4 blocked, 169 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 83 | 120 |
+| P2 | 32 | 2 | 4 | 83 | 121 |
 | P3 | 20 | 1 | 0 | 35 | 56 |
-| **All** | 64 | 5 | 4 | 169 | 242 |
+| **All** | 65 | 5 | 4 | 169 | 243 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -285,6 +285,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-241](podvm.md) | P3 | M | M7 | feature | open | `pod-confine`: the permissions and the quiet flags of Landlock ABI 11 and 12 |
 | [T-242](fleet.md) | P2 | S | M8 | chore | done | Docs: the names of the renames of 2026-11-12 (`pods`, `podstat`, `podforge`) and the stale text of `pod-git` and of the podrunner plan (GitHub #78) |
 | [T-243](upkeep.md) | P3 | S | M5 | chore | done | Dependabot of 2026-11-12: trufflehog 3.99.8, toml 1.2.1, and foreign-types 0.5.0 declined (GitHub #79, #80, #81) |
+| [T-244](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the public TCP relays of Tox on port 443, with the key of each node and a watch of the list (PodUtils/podssh#196) |
 | [T-245](relay.md) | P2 | S | M2 | defect | open | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
 | [T-246](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |
