@@ -127,7 +127,12 @@ impl fmt::Display for Error {
             Error::Integrity { kind, error } => write!(f, "TURN: the answer of type 0x{kind:04x}: {error}"),
             Error::Server { method, code, reason } => {
                 write!(f, "TURN: the server answered the {} request with {code}", method_name(*method))?;
-                if reason.is_empty() { Ok(()) } else { write!(f, " ({})", pod_core::text::one_line(reason)) }
+                // coturn sends no reason phrase by default: the RFC's name says what the code is.
+                match (reason.is_empty(), code_name(*code)) {
+                    (false, _) => write!(f, " ({})", pod_core::text::one_line(reason)),
+                    (true, Some(name)) => write!(f, " ({name})"),
+                    (true, None) => Ok(()),
+                }
             }
             Error::StaleNonce { method, tries } => {
                 write!(
@@ -174,6 +179,28 @@ impl From<Error> for Failure {
     }
 }
 
+/// The name of an error code of RFC 8489 (14.8) and RFC 8656 (18), for an
+/// answer with no reason phrase.
+fn code_name(code: u16) -> Option<&'static str> {
+    Some(match code {
+        300 => "Try Alternate",
+        400 => "Bad Request",
+        401 => "Unauthenticated",
+        403 => "Forbidden",
+        420 => "Unknown Attribute",
+        437 => "Allocation Mismatch",
+        438 => "Stale Nonce",
+        440 => "Address Family not Supported",
+        441 => "Wrong Credentials",
+        442 => "Unsupported Transport Protocol",
+        443 => "Peer Address Family Mismatch",
+        486 => "Allocation Quota Reached",
+        500 => "Server Error",
+        508 => "Insufficient Capacity",
+        _ => return None,
+    })
+}
+
 /// What the client keeps alive with a refresh.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kept {
@@ -198,4 +225,19 @@ pub enum Event {
     /// An error answer of the server that no request of this client waits
     /// for.
     ServerError { method: u16, code: u16, reason: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_server_error_with_no_reason_names_its_code() {
+        let e = |code: u16, reason: &str| Error::Server { method: ALLOCATE, code, reason: reason.into() }.to_string();
+        assert_eq!(e(437, ""), "TURN: the server answered the Allocate request with 437 (Allocation Mismatch)");
+        assert_eq!(e(437, "In use"), "TURN: the server answered the Allocate request with 437 (In use)");
+        assert_eq!(e(499, ""), "TURN: the server answered the Allocate request with 499");
+        let refresh = Error::Server { method: REFRESH, code: 441, reason: String::new() };
+        assert!(refresh.to_string().ends_with("with 441 (Wrong Credentials)"), "{refresh}");
+    }
 }

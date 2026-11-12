@@ -1,0 +1,13 @@
+--- a/crates/pod-turn/src/client/wire.rs
++++ b/crates/pod-turn/src/client/wire.rs
+@@ -110,9 +110,7 @@
+     out.extend_from_slice(&number.to_be_bytes());
+     out.extend_from_slice(&len.to_be_bytes());
+     out.extend_from_slice(data);
+-    if padded {
+-        out.resize(out.len() + (4 - data.len() % 4) % 4, 0);
+-    }
++    let _ = padded;
+     Ok(out)
+ }
+ 

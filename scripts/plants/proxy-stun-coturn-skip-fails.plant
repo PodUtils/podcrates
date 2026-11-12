@@ -1,0 +1,9 @@
+# The tests of pod-proxy's STUN codec against coturn: with
+# POD_PROXY_TEST_STUN=required, a host with no STUN server must fail, not
+# skip. RUN names no server.
+ENTRY=T-358
+GROUP=turn
+EXPECT='POD_PROXY_TEST_STUN=required: no STUN server here'
+RUN='POD_PROXY_TEST_STUN=required POD_PROXY_TEST_STUN_SERVER= cargo test -p pod-proxy --all-features --test stun_coturn'
+LIMIT=1800
+SWITCH=1

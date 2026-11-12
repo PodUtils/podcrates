@@ -55,3 +55,7 @@ required-features = ["turn"]
 [[test]]
 name = "live"
 required-features = ["turn"]
+
+[[test]]
+name = "coturn"
+required-features = ["turn"]

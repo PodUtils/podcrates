@@ -1,0 +1,8 @@
+# The tests of pod-turn against coturn: with POD_TURN_TEST_COTURN=required,
+# a host with no coturn must fail, not skip. RUN names no coturn.
+ENTRY=T-380
+GROUP=turn
+EXPECT='POD_TURN_TEST_COTURN=required: no coturn here'
+RUN='POD_TURN_TEST_COTURN=required POD_TURN_TEST_COTURN_UDP= cargo test -p pod-turn --all-features --test coturn'
+LIMIT=1800
+SWITCH=1

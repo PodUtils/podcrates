@@ -203,7 +203,7 @@ pub fn tls_settings(running: &Running, user: &str, password: &str) -> Settings {
 }
 
 /// A dial of TCP to an address of the loopback, with no proxy.
-struct Loopback;
+pub struct Loopback;
 
 impl pod_core::Dial for Loopback {
     fn label(&self) -> String {

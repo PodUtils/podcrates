@@ -151,6 +151,12 @@ jobs:
       # test pushes. A skip fails the step.
       - name: pod-oci against the distribution registry
         run: sh scripts/ci/registry-tests.sh
+      # The TURN client of pod-turn over UDP and over TLS, and the STUN codec
+      # of pod-proxy, against coturn on 127.0.0.1 (T-380, T-358): the image
+      # of images/coturn/, pinned to a digest, with a made-up user and a
+      # certificate that the script makes. A skip fails the step.
+      - name: pod-turn and pod-proxy against coturn
+        run: sh scripts/ci/turn-tests.sh
       # The drop of the capabilities of a root payload (T-221) skips as
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
