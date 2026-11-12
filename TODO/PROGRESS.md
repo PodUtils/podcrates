@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 88 open, 6 partial, 5 blocked, 233 done.
+`TODO/INDEX.md` holds 332 entries: 87 open, 6 partial, 5 blocked, 234 done.
 
 ## State
 
@@ -82,8 +82,9 @@ next entry.
    (PodUtils/podnet#449; about twenty podnet entries wait): T-028 (`pod-warp`
    with its `Dial` and `Datagrams`; partial: the registration, the identity,
    the doors, the session over HTTP/2, the network and the rules are in;
-   the settings of podnet's stack of `ip.rs` and the check of the data path
-   are in), then T-394, T-393 and T-395 (the rest of `ip.rs`),
+   the settings of podnet's stack of `ip.rs`, the check of the data path
+   and the end of the flows of a closed session are in), then T-393 and
+   T-395 (the rest of `ip.rs`),
    T-336, T-337, T-338 and T-339 (the rest of `pod-warp`), then
    T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file

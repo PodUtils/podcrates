@@ -1,0 +1,7 @@
+# The close of a WARP session does not reset its stack: a read of an open
+# stream waits for ever after the edge ends the session or the caller
+# closes it (podnet issues 125 and 185, T-394).
+ENTRY=T-394
+GROUP=warp
+EXPECT='test a_close_by_the_caller_fails_the_flows_of_the_session \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test net -- a_close_by_the_caller_fails_the_flows_of_the_session'

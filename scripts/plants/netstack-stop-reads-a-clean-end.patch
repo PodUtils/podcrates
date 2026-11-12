@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netstack/src/stack/reset.rs b/crates/pod-netstack/src/stack/reset.rs
+index 286464c..e21550a 100644
+--- a/crates/pod-netstack/src/stack/reset.rs
++++ b/crates/pod-netstack/src/stack/reset.rs
+@@ -161,7 +161,7 @@ impl Drop for Core {
+     fn drop(&mut self) {
+         self.halt.mark("the reactor of the stack stopped: a panic, or the end of its runtime");
+         let why = self.halt.reason().unwrap_or_default();
+-        for conn in self.conns.values() {
++        for conn in self.conns.values().take(0) {
+             let _ = conn.cause.set(why.clone());
+         }
+         for conn in self.udp.values() {

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/reset.rs b/crates/pod-netstack/src/stack/reset.rs
+index 286464c..8294b0d 100644
+--- a/crates/pod-netstack/src/stack/reset.rs
++++ b/crates/pod-netstack/src/stack/reset.rs
+@@ -176,6 +176,6 @@ impl Drop for Conn {
+     /// between the wake and the drop does not wait again.
+     fn drop(&mut self) {
+         self.from_app.close();
+-        self.write_waker.wake();
++        let _ = &self.write_waker;
+     }
+ }

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**332 entries: 88 open, 6 partial, 5 blocked, 233 done.**
+**332 entries: 87 open, 6 partial, 5 blocked, 234 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 2 | 0 | 65 | 84 |
+| P1 | 16 | 2 | 0 | 66 | 84 |
 | P2 | 38 | 2 | 5 | 118 | 163 |
 | P3 | 33 | 2 | 0 | 48 | 83 |
-| **All** | 88 | 6 | 5 | 233 | 332 |
+| **All** | 87 | 6 | 5 | 234 | 332 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -376,6 +376,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-391](relay.md) | P2 | S | M2 | feature | done | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
 | [T-392](relay.md) | P3 | S | M2 | research | done | `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13) |
 | [T-393](adapters.md) | P2 | S | M3 | feature | open | `pod-netstack`: the TCP timeout, the keepalive and no Nagle of each socket as settings, for `WarpNet` (podnet issue 125, podssh) |
-| [T-394](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the streams of a `WarpNet` fail at once when its session closes, and a close by the caller (podnet issues 125, 112, 185) |
+| [T-394](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: the streams of a `WarpNet` fail at once when its session closes, and a close by the caller (podnet issues 125, 112, 185) |
 | [T-395](adapters.md) | P2 | S | M3 | defect | open | `pod-warp`: a UDP datagram of `WarpNet` to a family that the device lacks is refused (podnet issue 112) |
 | [T-396](transport.md) | P2 | M | M2 | feature | open | `pod-link`: a TCP carrier with TLS 1.3 that pins the Ed25519 key of the peer, and its accept side (PodUtils/podnet#513) |

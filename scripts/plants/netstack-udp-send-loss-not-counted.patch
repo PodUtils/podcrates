@@ -1,12 +1,13 @@
 diff --git a/crates/pod-netstack/src/stack/datagrams.rs b/crates/pod-netstack/src/stack/datagrams.rs
+index 1c0987a..f4eced2 100644
 --- a/crates/pod-netstack/src/stack/datagrams.rs
 +++ b/crates/pod-netstack/src/stack/datagrams.rs
-@@ -81,7 +81,7 @@
+@@ -84,7 +84,7 @@ impl Datagrams for UdpDatagrams {
          for chunk in t.contents.chunks(size) {
              match self.send_tx.try_send(Outbound { data: chunk.to_vec(), to: t.destination, from: t.src_ip }) {
                  Ok(()) => {}
 -                Err(mpsc::error::TrySendError::Full(_)) => NetStats::count(&self.stats.udp_tx_dropped),
 +                Err(mpsc::error::TrySendError::Full(_)) => {}
-                 Err(mpsc::error::TrySendError::Closed(_)) => return Err(udp_closed()),
+                 Err(mpsc::error::TrySendError::Closed(_)) => return Err(ended(&self.cause, udp_closed())),
              }
          }
