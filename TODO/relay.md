@@ -4033,3 +4033,48 @@ cargo test -p pod-link --all-features
 ## Start condition
 
 T-279 is done (the resume window and the single use of a token as settings), or podnet starts PodUtils/podnet@T-263.
+
+# T-327: `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502)
+
+**Source:** PodUtils/podnet#502 (COORD-052), PodUtils/podnet@T-315.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In podnet's `live.yml` (run 43203358263, at podnet `59c0313`, after its
+take of `pod-relay`), `podnet relay node NAME --to 127.0.0.1:22` connects,
+then `ssh -o ProxyCommand="podnet relay connect NAME"` waits about 2
+minutes and gets "Connection closed by UNKNOWN port 65535". The step
+passed at podnet `64f1ed0`, before the take. In podnet's sandbox (an HTTP
+proxy) the same three commands pass against the live relay. The runner
+has a direct egress and open UDP; podnet gives no `h2` and no `quic`
+setting.
+
+## Premise
+
+- Read: podnet's operator glue (the file pod-relay.patch of `adoption/podnet/` at
+  `v0.30.0`) calls `reverse::operator::run` with `relay.wire()`;
+  `reverse::wire::open` with `Wire::Tls` dials through `pod_ws`.
+- Not read yet: the log of `relay connect -v` that podnet adds to the
+  issue.
+
+## Approach
+
+1. Run `reverse_live` of `live.yml` (the node and the operator of the
+   crate through the live relay, from a runner with a direct egress).
+2. Compare the dial of the operator with and without a proxy: the road
+   (HTTP/1.1, HTTP/2, QUIC), the upgrade, and the first frames.
+3. A test over a stand-in that reproduces the hang; the fix; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+`live.yml` with `relay = reverse_live`; podnet's `live.yml` at its next
+tag.

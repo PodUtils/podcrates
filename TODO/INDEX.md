@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**285 entries: 64 open, 2 partial, 5 blocked, 214 done.**
+**286 entries: 65 open, 2 partial, 5 blocked, 214 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 0 | 0 | 60 | 74 |
+| P1 | 15 | 0 | 0 | 60 | 75 |
 | P2 | 25 | 1 | 5 | 108 | 139 |
 | P3 | 25 | 1 | 0 | 44 | 70 |
-| **All** | 64 | 2 | 5 | 214 | 285 |
+| **All** | 65 | 2 | 5 | 214 | 286 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -332,3 +332,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-324](upkeep.md) | P2 | M | M5 | defect | done | `pod-services-watch`: no offline test checks the arguments of each watch of the data |
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
 | [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
+| [T-327](relay.md) | P1 | M | M5 | defect | open | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |

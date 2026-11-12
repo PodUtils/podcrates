@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 285 entries: 64 open, 2 partial, 5 blocked, 214 done.
+`TODO/INDEX.md` holds 286 entries: 65 open, 2 partial, 5 blocked, 214 done.
 
 ## State
 
@@ -14,7 +14,8 @@
 - The consumers and their tags:
   - podssh: `v0.30.0` (`ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
-  - podnet: `v0.30.0` (`83e0c93`, PodUtils/podnet#481): its relay client
+  - podnet: `v0.31.0` (`e046560`, PodUtils/podnet#502; its `relay
+    connect` hangs on a runner with a direct egress: T-327); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.31.0` (`c5b61b45`, PodUtils/podvm#284; its 362 unit
@@ -63,7 +64,9 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects of the consumers:** none open.
+1. **The defects of the consumers:** T-327 (podnet's `relay connect` on a
+   direct egress, PodUtils/podnet#502); T-326 (podvm's trial of the
+   blocking facade, PodUtils/podvm#283, an agent of this session).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need. The next tag releases

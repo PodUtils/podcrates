@@ -19,6 +19,12 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.31.0` at `45b145a` (the hand-off #90). Each
   consumer took `v0.30.0` (#89, closed).
+- T-327 (P1): podnet's `relay connect` hangs on a runner with a direct
+  egress (PodUtils/podnet#502). `live.yml` with `relay = reverse_live`
+  runs the crate's node and operator from such a runner.
+- T-326: an agent of this session writes the trial of `pod-relay` in
+  podvm in a worktree under `.claude/worktrees/`; merge its branch when
+  its checks pass, and answer on #91.
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
