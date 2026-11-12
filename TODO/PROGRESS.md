@@ -15,7 +15,7 @@
   (T-300, T-311), T-370 and T-329 (podssh's asks), T-322, T-323 to T-325,
   and the trial of podvm (T-326).
 - The consumers and their tags:
-  - podssh: `v0.30.0` (`ef3666f`, PodUtils/podssh#212): the MQTT brokers
+  - podssh: `v0.31.0` (`02650f1`; earlier `v0.30.0` at `ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.31.0` (`e046560`, PodUtils/podnet#502; its `relay
     connect` hangs on a runner with a direct egress: T-327); its relay client
