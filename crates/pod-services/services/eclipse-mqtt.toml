@@ -1,0 +1,47 @@
+# The MQTT sandbox of Eclipse IoT: Eclipse Mosquitto, which takes MQTT
+# over a WebSocket on port 443 at the path /mqtt with no account. A
+# meeting point of the pairing by code when no mailbox answers
+# (pod-wormhole's mqtt; PodUtils/podssh#205, PodUtils/podssh@T-737). It is
+# for evaluation and tests: each message is public, and its operators can
+# block a user. The endpoint broker is the one to dial; the endpoint page
+# is its document, which a watch reads.
+id = "eclipse-mqtt"
+kind = "mqtt-broker"
+party = "the Eclipse Foundation (the sandbox of Eclipse IoT)"
+about = "The public MQTT sandbox of Eclipse IoT (Mosquitto), MQTT over a WebSocket on port 443"
+
+[rank]
+value = 2
+source = { measured = "the TLS handshake with mqtt.eclipseprojects.io:443 was reset three times through the HTTPS proxy of a cloud session; PodUtils/podssh@T-547 read 522 and 504; shiftr.io answered (docs/decisions.md, C94)", read = 2026-11-12 }
+
+[[endpoint]]
+name = "broker"
+scheme = "wss"
+host = "mqtt.eclipseprojects.io"
+port = 443
+path = "/mqtt"
+source = { url = "https://web.archive.org/web/20250315152050/https://mqtt.eclipseprojects.io/", read = 2026-11-12, note = "443: MQTT over encrypted WebSockets (note: URL must be /mqtt); the Wayback Machine's capture of the sandbox's own page, of the same digest as each capture from 2020-12-09; the live page reset the TLS handshake from a cloud session on 2026-11-12" }
+
+[[endpoint]]
+name = "page"
+role = "document"
+scheme = "https"
+host = "mqtt.eclipseprojects.io"
+port = 443
+path = "/"
+source = { url = "https://web.archive.org/web/20250315152050/https://mqtt.eclipseprojects.io/", read = 2026-11-12 }
+
+[[fact]]
+name = "note"
+value = "a sandbox of Eclipse IoT for the evaluation of MQTT clients and servers: no commercial use, each message is public, and its operators can block a user; it runs the newest release of Mosquitto"
+source = { url = "https://iot.eclipse.org/projects/sandboxes/", read = 2026-11-12, note = "the page names port 1883 and 8883; the ports of the WebSockets are on the sandbox's own page; no limit of a payload, a topic or a rate is stated" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "broker"
+protocol = "mqtt"
+
+[[watch]]
+kind = "http-text"
+endpoint = "page"
+contains = "443 : MQTT over encrypted WebSockets"

@@ -1,7 +1,8 @@
 //! The client protocol of magic-wormhole over a mailbox
 //! (magic-wormhole/magic-wormhole-protocols:client-protocol.md, as its
 //! Python library's `_key.py` speaks it), so that a peer of that library and
-//! the caller's meet. Each end adds its `pake` phase, `{"pake_v1": HEX}` of
+//! the caller's meet; the same messages go over the topic of an MQTT broker
+//! ([`crate::place`]). Each end adds its `pake` phase, `{"pake_v1": HEX}` of
 //! SPAKE2's symmetric message keyed by the whole code, with the AppID as its
 //! identity; the two give a key of 32 bytes. Each later phase is sealed in
 //! NaCl's SecretBox, a random nonce before it, under the key of
@@ -25,8 +26,9 @@ use spake2::{Ed25519Group, Identity as SpakeIdentity, Password, Spake2};
 use tokio::time::Instant;
 use zeroize::Zeroizing;
 
-use crate::mailbox::{Mailbox, Message, Mood};
+use crate::mailbox::{Message, Mood};
 use crate::message::{hex, pake_of};
+use crate::place::Place;
 use crate::{Code, Failed};
 
 /// The bytes of SecretBox's nonce, before each sealed message.
@@ -40,11 +42,11 @@ pub const HELD_MOST: usize = 256;
 /// The label of the key of each phase.
 const PHASE_LABEL: &[u8] = b"wormhole:phase:";
 
-/// Two ends of one code in one mailbox, from the key on.
+/// Two ends of one code at one meeting point, from the key on.
 pub struct Wormhole {
-    mailbox: Mailbox,
+    place: Place,
     side: String,
-    /// The mailbox's id.
+    /// The mailbox's id, or the broker's topic.
     id: String,
     /// The nameplate while this side holds it.
     nameplate: Option<String>,
@@ -64,29 +66,31 @@ pub struct Wormhole {
 }
 
 impl Wormhole {
-    /// Open the mailbox `id`, which this side reached by `nameplate`, and add
-    /// this end's `pake` of `code`. `versions` goes in its `version` later.
+    /// Open the mailbox `id`, which this side reached by `nameplate`, or the
+    /// topic `id` of a broker, and add this end's `pake` of `code`.
+    /// `versions` goes in its `version` later.
     pub async fn open(
-        mut mailbox: Mailbox,
+        place: impl Into<Place>,
         side: String,
         nameplate: String,
         id: String,
         code: &Code,
         versions: Value,
     ) -> Result<Wormhole, Failed> {
+        let mut place = place.into();
         let mut entropy = OsEntropy;
         let mut rng = Drawn { entropy: &mut entropy, failed: false };
-        let (password, identity) = (Password::new(code.password()), SpakeIdentity::new(mailbox.appid().as_bytes()));
+        let (password, identity) = (Password::new(code.password()), SpakeIdentity::new(place.appid().as_bytes()));
         let (spake, outbound) = Spake2::<Ed25519Group>::start_symmetric_with_rng(&password, &identity, &mut rng);
         if rng.failed {
-            mailbox.end().await;
+            place.end().await;
             return Err(Failed::NoRandom);
         }
-        mailbox.open(&id).await?;
+        place.open(&id).await?;
         let body = json!({ "pake_v1": hex(&outbound) }).to_string();
-        mailbox.add("pake", body.as_bytes()).await?;
+        place.add("pake", body.as_bytes()).await?;
         Ok(Wormhole {
-            mailbox,
+            place,
             side,
             id,
             nameplate: Some(nameplate),
@@ -102,9 +106,9 @@ impl Wormhole {
         })
     }
 
-    /// The mailbox's URL, as lines show it.
+    /// The URL of the mailbox or the broker, as lines show it.
     pub fn shown(&self) -> &str {
-        &self.mailbox.shown
+        self.place.shown()
     }
 
     /// Wait at most `wait` for another side's `pake`, and make the key with
@@ -115,7 +119,7 @@ impl Wormhole {
         let deadline = Instant::now() + wait;
         let body = loop {
             let left = deadline.saturating_duration_since(Instant::now());
-            let Some(message) = self.mailbox.message(left).await? else { return Ok(false) };
+            let Some(message) = self.place.message(left).await? else { return Ok(false) };
             if message.side == self.side {
                 continue;
             }
@@ -138,7 +142,7 @@ impl Wormhole {
         key.copy_from_slice(&made);
         self.key = Some(key);
         if let Some(nameplate) = self.nameplate.take() {
-            self.mailbox.release(&nameplate).await?;
+            self.place.release(&nameplate).await?;
         }
         let versions = json!({ "abilities": [], "app_versions": self.versions }).to_string();
         self.add_sealed("version", versions.as_bytes()).await?;
@@ -178,7 +182,8 @@ impl Wormhole {
             return Err(self.fail(Mood::Errory, Failed::Peer(why)).await);
         };
         let Some(plain) = self.unseal(&phase, &body) else {
-            let why = format!("message {phase} of the other end did not open: the mailbox changed it");
+            let noun = self.place.noun();
+            let why = format!("message {phase} of the other end did not open: the {noun} changed it");
             return Err(self.fail(Mood::Scary, Failed::Peer(why)).await);
         };
         self.read += 1;
@@ -193,10 +198,10 @@ impl Wormhole {
         }
         self.closed = true;
         if let Some(nameplate) = self.nameplate.take() {
-            let _ = self.mailbox.release(&nameplate).await;
+            let _ = self.place.release(&nameplate).await;
         }
-        let _ = self.mailbox.close(&self.id, mood).await;
-        self.mailbox.end().await;
+        let _ = self.place.close(&self.id, mood).await;
+        self.place.end().await;
     }
 
     /// Close with `mood`, then give `failed` back.
@@ -205,17 +210,18 @@ impl Wormhole {
         failed
     }
 
-    /// The mailbox sent more than [`HELD_MOST`] messages that no phase asked
-    /// for: the exchange ends.
+    /// The mailbox or the broker sent more than [`HELD_MOST`] messages that
+    /// no phase asked for: the exchange ends.
     async fn overfull(&mut self) -> Failed {
-        let why = format!("the mailbox {} sent more than {HELD_MOST} messages that were not asked for", self.shown());
+        let (noun, shown) = (self.place.noun(), self.shown());
+        let why = format!("the {noun} {shown} sent more than {HELD_MOST} messages that were not asked for");
         self.fail(Mood::Errory, Failed::Broken(why)).await
     }
 
     async fn add_sealed(&mut self, phase: &str, plain: &[u8]) -> Result<(), Failed> {
         let Some(key) = self.key.as_ref() else { return Err(Failed::Broken("no key was agreed".into())) };
         let sealed = seal(&phase_key(key, &self.side, phase), plain)?;
-        self.mailbox.add(phase, &sealed).await
+        self.place.add(phase, &sealed).await
     }
 
     fn unseal(&self, phase: &str, body: &[u8]) -> Option<Vec<u8>> {
@@ -234,7 +240,7 @@ impl Wormhole {
         let deadline = Instant::now() + wait;
         loop {
             let left = deadline.saturating_duration_since(Instant::now());
-            let Some(message) = self.mailbox.message(left).await? else { return Ok(None) };
+            let Some(message) = self.place.message(left).await? else { return Ok(None) };
             if message.side != peer || self.seen.contains(&message.phase) {
                 continue;
             }

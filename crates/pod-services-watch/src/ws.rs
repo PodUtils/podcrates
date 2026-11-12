@@ -22,9 +22,14 @@ const WISP_CLOSE: u8 = 0x04;
 const WISP_STREAM: u32 = 1;
 
 async fn dial(net: &Net, text: &str) -> Result<RelaySession<Stream>, Finding> {
+    dial_offering(net, text, None).await
+}
+
+/// [`dial`], the upgrade offering the subprotocol `protocol`, if any.
+async fn dial_offering(net: &Net, text: &str, protocol: Option<&str>) -> Result<RelaySession<Stream>, Finding> {
     let url = WsUrl::parse(text).map_err(|e| Finding::failed(format!("the URL of the WebSocket: {e}")))?;
     let way = pod_ws::way::Way::new(net.context.clone(), net.dial.clone(), net.user_agent.clone());
-    pod_ws::url::dial(&url, &way, &net.trust, net.limit, Some(net.limit))
+    pod_ws::url::dial_offering(&url, protocol, &way, &net.trust, net.limit, Some(net.limit))
         .await
         .map_err(|e| Finding::failed(pod_ws::url::failure(&url, &e)))
 }
@@ -38,13 +43,24 @@ fn ws_url(endpoint: &Endpoint) -> String {
     format!("{scheme}://{host}:{}{}", endpoint.port(), endpoint.path().unwrap_or("/"))
 }
 
-/// `websocket-upgrade`: the endpoint answers the upgrade with 101.
+/// `websocket-upgrade`: the endpoint answers the upgrade with 101; with
+/// `protocol`, an upgrade that offers that subprotocol (`mqtt` for a
+/// broker, which may refuse an upgrade with none).
 pub async fn upgrade(service: &Service, watch: &Watch, net: &Net) -> Checked {
-    let endpoint = Args::new(service, watch).endpoint()?;
+    let args = Args::new(service, watch);
+    let protocol = match watch.arg("protocol") {
+        Some(_) => Some(args.text("protocol")?),
+        None => None,
+    };
+    let endpoint = args.endpoint()?;
     let url = ws_url(endpoint);
-    let session = dial(net, &url).await?;
+    let session = dial_offering(net, &url, protocol).await?;
     let _ = session.send_close(1000, "").await;
-    Ok(Outcome { seen: vec![format!("{} upgraded", url)], findings: Vec::new(), skipped: None })
+    let seen = match protocol {
+        Some(protocol) => format!("{url} upgraded, offered the subprotocol {protocol}"),
+        None => format!("{url} upgraded"),
+    };
+    Ok(Outcome { seen: vec![seen], findings: Vec::new(), skipped: None })
 }
 
 /// `forward-banner`: through the template of the fact that `template`

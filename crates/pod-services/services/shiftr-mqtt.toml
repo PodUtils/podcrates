@@ -1,0 +1,99 @@
+# The public instance of shiftr.io: an MQTT broker that takes MQTT 3.1.1
+# over a WebSocket on port 443 with a public login and no account. A
+# meeting point of the pairing by code when no mailbox answers
+# (pod-wormhole's mqtt; PodUtils/podssh#205, PodUtils/podssh@T-737). Each
+# client of the instance can read each topic: the ends send ciphertext
+# alone. The endpoint broker is the one to dial; the endpoints try and
+# limits are its documents, which the watches read.
+id = "shiftr-mqtt"
+kind = "mqtt-broker"
+party = "shiftr.io (its public instance)"
+about = "The public instance of the shiftr.io MQTT broker, MQTT 3.1.1 over a WebSocket on port 443"
+
+[rank]
+value = 1
+source = { measured = "the upgrade of wss://public.cloud.shiftr.io/ offering the subprotocol mqtt answered 101 with Sec-WebSocket-Protocol mqtt, through the HTTPS proxy of a cloud session; the Eclipse sandbox reset the TLS handshake (docs/decisions.md, C94)", read = 2026-11-12 }
+
+[[endpoint]]
+name = "broker"
+scheme = "wss"
+host = "public.cloud.shiftr.io"
+port = 443
+path = "/"
+source = { url = "https://www.shiftr.io/docs/manuals/javascript", read = 2026-11-12, note = "the browser example dials wss:// with the public login at public.cloud.shiftr.io and no path (MQTT.js takes /); docs/broker/mqtt-interface names the secure WebSocket port 443; measured: / and /mqtt both upgrade" }
+
+[[endpoint]]
+name = "try"
+role = "document"
+scheme = "https"
+host = "www.shiftr.io"
+port = 443
+path = "/try"
+source = { url = "https://www.shiftr.io/try", read = 2026-11-12 }
+
+[[endpoint]]
+name = "limits"
+role = "document"
+scheme = "https"
+host = "www.shiftr.io"
+port = 443
+path = "/docs/broker/mqtt-interface"
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12 }
+
+# The public login: the instance gives it to each client, so it is a fact,
+# not a secret.
+[[fact]]
+name = "user"
+value = "public"
+source = { url = "https://www.shiftr.io/try", read = 2026-11-12, note = "the URL mqtt:// of the public instance, with the user public and the password public" }
+
+[[fact]]
+name = "password"
+value = "public"
+source = { url = "https://www.shiftr.io/try", read = 2026-11-12, note = "the URL mqtt:// of the public instance, with the user public and the password public" }
+
+[[fact]]
+name = "payload-bytes-most"
+value = 64000
+unit = "bytes"
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12, note = "The payload size of publish messages is limited to 64 KB (64000 taken, the lower of 64000 and 65536)" }
+
+[[fact]]
+name = "topic-chars-most"
+value = 128
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12, note = "The topic length is limited to 128 characters; letters, numbers and .,:;-_$/+#" }
+
+[[fact]]
+name = "client-id-chars-most"
+value = 64
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12, note = "The client identifier length is limited to 64 characters" }
+
+[[fact]]
+name = "subscriptions-most"
+value = 100
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12, note = "The active subscriptions per connection are limited to 100" }
+
+[[fact]]
+name = "keep-alive-seconds-most"
+value = 300
+unit = "s"
+source = { url = "https://www.shiftr.io/docs/broker/mqtt-interface", read = 2026-11-12, note = "The minimum keep alive interval is 1 second while the maximum is 5 minutes; docs/broker/error-codes: a grace of half the keep-alive, then read-timeout" }
+
+# docs/broker/error-codes names a rate limit for each user and for each
+# connection (dynamic-rate-limit, static-rate-limit) with no value: no fact
+# holds one.
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "broker"
+protocol = "mqtt"
+
+[[watch]]
+kind = "http-text"
+endpoint = "try"
+contains = "public:public@public.cloud.shiftr.io"
+
+[[watch]]
+kind = "http-text"
+endpoint = "limits"
+contains = "payload size of publish messages is limited to 64 KB"

@@ -6,9 +6,10 @@ map, iroh's relays and pkarr, Piping, the magic-wormhole mailboxes and
 transit, OpenTunnel, the edge of Cloudflare's tunnels and its quick
 tunnels, WARP, ACME, the public forwarders, Pinggy, GitHub's SSH host
 keys, the OCI registries with the images that podvm pins, the guest
-images of podvm with their sums, the GSRN relay of gsocket, and the TCP
-relays of ZeroTier and of Tox. Each service is one data file, and each
-value of a file has its source and the date when it was read.
+images of podvm with their sums, the GSRN relay of gsocket, the TCP
+relays of ZeroTier and of Tox, and the public MQTT brokers on port 443.
+Each service is one data file, and each value of a file has its source
+and the date when it was read.
 
 The crate knows no provider in its code. A new relay or service is a new
 file, with no change of code. `build.rs` checks each file against the
@@ -101,7 +102,7 @@ new kind is one implementation there. The kinds that the files name now:
 | `dns-addresses` | `role`, `facts` | the address records of the hosts of the role hold each address of the facts |
 | `doh-answer` | `form`, `name`, `type` | each endpoint answers a query in the form |
 | `stun-binding` | `endpoint` | a Binding request gets a Binding response |
-| `websocket-upgrade` | `endpoint` | the upgrade answers 101 |
+| `websocket-upgrade` | `endpoint`; `protocol`, if any | the upgrade answers 101; with `protocol`, the upgrade offers that subprotocol (`mqtt` for an MQTT broker) |
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
 | `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
@@ -252,6 +253,7 @@ let relay = services.of_kind("relay").next();
 | `alpine-netboot` | `guest-image` | `netboot`, `archive` | `release`, `vmlinuz-virt-sha256`, `modloop-virt-sha256`, `archive-sha256`, `archive-bytes`, `kernel-release`, `module-failover-sha256`, `module-net-failover-sha256`, `module-virtio-net-sha256` (the NIC modules in `boot/initramfs-virt`) |
 | `cloudflare-workerd-npm` | `tool` | `archive` (`registry.npmjs.org`) | `version`, `archive-sha256`, `archive-bytes`, `archive-integrity`, `bin-member`, `bin-sha256`, `bin-bytes` (the npm package of workerd; podvm's profile `workerd-test`) |
 | `wasmtime-release` | `tool` | `archive` (`github.com`) | `version`, `archive-sha256`, `archive-bytes`, `bin-member`, `bin-sha256`, `bin-bytes` (the release archive of wasmtime; podvm's profile `wasmtime-wasi`) |
+| `shiftr-mqtt`, `eclipse-mqtt` | `mqtt-broker` | `broker` (`wss`, port 443: `public.cloud.shiftr.io` at `/`, `mqtt.eclipseprojects.io` at `/mqtt`); the documents that the watches read (role `document`: `try`, `limits`; `page`) | shiftr.io: `user`, `password` (its public login, `public` and `public`), `payload-bytes-most`, `topic-chars-most`, `client-id-chars-most`, `subscriptions-most`, `keep-alive-seconds-most`; Eclipse: `note` (the terms of the sandbox); the meeting points of `pod_wormhole::mqtt` (PodUtils/podssh@T-737) |
 | `yggdrasil-wss-peer` | `mesh-peer` | one for each peer (`wss`, port 443) | `urls` (the peers, sorted; PodUtils/podssh@T-735) |
 | `hyperdht-bootstrap` | `dht-bootstrap` | `node1` to `node3` (role `node`, scheme `udp`, port 49737, each with its address) | `nodes` (`IP@NAME:PORT`, as HyperDHT takes them; PodUtils/podssh@T-736), `addresses` |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |

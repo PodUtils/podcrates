@@ -3225,7 +3225,7 @@ cargo test -p pod-netstack --lib --all-features stack::tests::udp
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3274,5 +3274,148 @@ meeting point: MQTT 3.1.1 over a WebSocket on port 443 (subprotocol
 
 ```sh
 cargo test -p pod-wormhole --all-features
-cargo run -q -p pod-services-watch -- --service <each broker>
+cargo test -p pod-services --test mqtt
+cargo test -p pod-services-watch --test watches -- ws::
+sh scripts/ci/mosquitto-tests.sh
+cargo run -q -p pod-services-watch -- --service shiftr-mqtt
+cargo run -q -p pod-services-watch -- --service eclipse-mqtt
+cargo test -p pod-wormhole --test live -- --ignored
 ```
+
+## Correction
+
+2026-11-12, read and measured from a cloud session, through its HTTPS
+proxy. The WebSocket path of shiftr.io: its JavaScript manual dials
+`wss://` at `public.cloud.shiftr.io` with no path, so `/`; the upgrade of
+`/` and of `/mqtt` answered 101 with `Sec-WebSocket-Protocol: mqtt`, and
+two ends paired through `/`. The rate limits of shiftr.io: its error codes
+name a limit for each user and for each connection, with no value. The
+Eclipse sandbox reset each TLS handshake (three tries, and each watch);
+the Wayback Machine's capture of its page (2025-03-15) names port 443 and
+the path `/mqtt`; its page of the sandboxes of Eclipse IoT states no limit.
+
+## Done
+
+2026-11-12, partial. `f73cd93` (the code, the tests, the services, the
+fuzz target, CI), and the commit of the plants and this record.
+
+- `pod_wormhole::mqtt`: `opened(&Brokers, versions)` and
+  `joined(&Brokers, &code, versions, giver_wait)`, the steps of `meet` at
+  a list of brokers (`Brokers { points, config, resend }`,
+  `Point { url, login }`, `Login`), for a caller whose mailboxes do not
+  answer; `mqtt::broker::Broker`, MQTT 3.1.1 over `pod-ws` with the
+  subprotocol `mqtt` (call C92); `mqtt::packet`, the codec of the eight
+  packets; `mqtt::topic(appid, nameplate)` and a nameplate of 4 digits
+  that the giver draws (call C93); `place::Place`, so that a `Wormhole`
+  opens at a `Mailbox` or a `Broker`. Each source file has less than 400
+  lines.
+- `pod-services`: `shiftr-mqtt` and `eclipse-mqtt`, of the kind
+  `mqtt-broker`, each value with its source and the date (call C94).
+  `pod-services-watch`: `websocket-upgrade` takes the argument `protocol`.
+- `cargo test -p pod-wormhole -p pod-services -p pod-services-watch
+  --all-features`: each passed. `pod-wormhole`: 33 unit tests (13 new),
+  10 of `tests/broker.rs` over the stand-in broker and the Eclipse
+  Mosquitto 2.0.18 of this host (two ends pair through a topic; a message
+  on the topic of another code is not delivered; a stranger on the topic
+  fails the PAKE and spends the code; the taker sends again until the
+  giver answers; a refused login, a broker that is not there, a broker
+  that breaks the protocol; the bounds of the public brokers; a
+  `PINGRESP` that waited answers its ping; a flood of packets does not
+  hold the deadline), 11 of
+  `tests/faults.rs`, 14 of `tests/mailbox.rs` (Python skipped).
+  `pod-services`: 2 new (`tests/mqtt.rs`). `pod-services-watch`: 38, 1
+  new.
+- `sh scripts/ci/mosquitto-tests.sh`, with a stand-in of `docker` that
+  starts the Mosquitto 2.0.18 of this host with
+  `images/mosquitto/mosquitto.conf`: passed, and said
+  `Eclipse Mosquitto: two ends paired`.
+- Live, through the session's proxy: `two_ends_meet_at_each_public_broker`
+  paired two ends at shiftr.io; the Eclipse sandbox reset the TLS
+  handshake. `two_ends_meet_at_each_public_mailbox` passed at both
+  mailboxes. `pod-services-watch -- --service shiftr-mqtt`: 3 hold;
+  `--service eclipse-mqtt`: 2 failed (the TLS reset).
+- Plants: `wormhole-mqtt-topic-constant`, `wormhole-mqtt-no-resend` and
+  `services-upgrade-protocol-dropped` are caught (each run by hand: the
+  test FAILED); `services-upgrade-refusal-dropped` is made again for the
+  new `ws.rs`, and is caught. `sh scripts/plant-each.sh --apply`: 0 stale.
+- Fixed in place: no workflow ran the live test of the public mailboxes
+  (`live.yml` runs it now, with the brokers); the live tests take the
+  proxy of the environment; `Failed::Unreachable` said "no mailbox" for a
+  broker; at `f73cd93` the wait of `Broker::message` took its timer or a
+  packet that was there by chance, so a `PINGRESP` that came while the
+  caller did not read could end a live connection (the read goes first
+  now, and the deadline holds after each packet;
+  `a_pingresp_that_waited_answers_its_ping` fails 10 runs of 10 there,
+  and passed 50 of 50 with `a_flood_of_packets_does_not_hold_the_deadline`).
+  Found: no workflow runs the tests against magic-wormhole's Python server
+  and library (T-263).
+- Fuzz: the target `mqtt_packet` with 10 seeds. `cargo clippy
+  --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings`: clean;
+  `cargo test --manifest-path fuzz/Cargo.toml --lib`: 9 passed.
+- Checks: `cargo fmt --all --check`, `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`, `cargo todo check`,
+  `python3 -I scripts/check-design-paths.py`, `python3 -I
+  scripts/check-workflows.py`, `python3 -I scripts/check-size.py`, `sh
+  scripts/plant-each.sh --apply`: each exit 0.
+- Breaking: `Wormhole::open` takes `impl Into<Place>` (each caller of a
+  `Mailbox` compiles unchanged); the words of `Failed::Unreachable`.
+- Remains, for the lead: the step `pod-wormhole against Eclipse
+  Mosquitto` of `ci.yml` (the pinned image, Mosquitto 2.1.2: this host has
+  no docker daemon) and the step of `live.yml`; then `done`.
+  podssh wires the meeting point into its order of the pairing
+  (PodUtils/podssh@T-737).
+- Not measured: the Eclipse sandbox (no answer from here); Mosquitto 2.1;
+  a rate limit of either broker; a pairing while other clients load a
+  public topic.
+
+# T-263: `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library
+
+**Source:** T-261 (a finding)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`tests/mailbox.rs` runs the wormhole against magic-wormhole's own mailbox
+server and a peer of its Python library where Python has
+`magic-wormhole-mailbox-server` and `magic-wormhole`; else the tests skip.
+`POD_WORMHOLE_TEST_SERVER=required` turns a skip into a failure. The
+harness said that a workflow sets it: no workflow sets it, and no runner
+has the packages. So no check of CI proves that this crate and the Python
+implementation meet (T-022 ran it by hand).
+
+## Premise
+
+- Read: `.github/workflows/` at `f73cd93`: no step names
+  `POD_WORMHOLE_TEST_SERVER` or installs the two packages;
+  `crates/pod-wormhole/tests/harness/mod.rs` (the skip and the variable).
+- Not measured: the time and the size of the packages on a runner
+  (Twisted, Autobahn, PyNaCl, spake2 and their dependencies).
+
+## Approach
+
+1. A file of requirements with each package, its version and its hash,
+   for `pip install --require-hashes` in a virtualenv of the job.
+2. A step of `ci.yml` that makes the virtualenv and runs
+   `cargo test -p pod-wormhole --test mailbox` with
+   `POD_WORMHOLE_TEST_PYTHON` and `POD_WORMHOLE_TEST_SERVER=required`.
+3. Dependabot (`pip`) keeps the file new.
+
+## Prove
+
+```sh
+POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required cargo test -p pod-wormhole --test mailbox
+python3 -I scripts/check-workflows.py
+```
+
+## Done
+
+2026-11-12. T-228 did it (`b3dfc88`): the job `live` of `live.yml`
+installs `magic-wormhole-mailbox-server` 0.8.0 and `magic-wormhole` 0.24.0
+in a virtualenv and runs the tests of `pod-wormhole` and `pair_code` of
+`pod-relay` with `POD_WORMHOLE_TEST_SERVER=required`, each day. Run
+43153607165: 14 tests of `tests/mailbox.rs` against the server and the
+library, none skipped; 7 of `pair_code`.

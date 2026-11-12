@@ -30,7 +30,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib     # the stable test
 
 | Path | What |
 | --- | --- |
-| `src/targets.rs`, `src/targets/` | the body of each target: the parser that it runs and what it checks (`targets/job.rs`: the records of `pod-job`; `targets/podvm.rs`: the parsers of podvm) |
+| `src/targets.rs`, `src/targets/` | the body of each target: the parser that it runs and what it checks (`targets/job.rs`: the records of `pod-job`; `targets/podvm.rs`: the parsers of podvm; `targets/wormhole.rs`: the packets of an MQTT broker) |
 | `src/lib.rs` | `TARGETS`, and the checks that more than one target uses |
 | `src/tests.rs` | each target on its seeds and on 2000 mutations of them, on stable Rust; each target has its binary and its seeds |
 | `fuzz_targets/NAME.rs` | the binary of a target: it calls `targets::NAME` |
@@ -68,6 +68,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `elf_header` | `pod-enter` | `abi::Elf::parse`: the same answer twice, and no NUL in a name that it gives | podvm `podvm-enter` (T-173); its seeds are a static and a dynamic program of two lines each, built here with `cc -Os -s`, and a shell script |
 | `squashfs_image` | `pod-guest` | `squashfs::Image` (the superblock, the xz options, the inode, directory, fragment, id and export tables, the blocks: a walk of up to 256 inodes, twice, with the same answer; a file that reads has its size) and `modloop::modules` (each module once, one line of `modules.dep` for each) | new in `pod-guest` (T-206, PodUtils/podvm#260); its seeds are images of the test writer of `pod-guest` (`write_the_fuzz_seeds`): a modloop with an x86 BCJ block, each kind of inode with metadata blocks of 64 bytes and an xz fragment, and an image with compressor options |
 | `mailbox_message` | `pod-wormhole` | `message::{object, message_of, pake_of, words, hex, unhex}`, `Code::parse` | new in `pod-wormhole` (T-022); its seeds are the messages of a mailbox and the codes of the tests written here, and `cut-on-a-space`, a crash that `fuzz.yml` found (T-184) |
+| `mqtt_packet` | `pod-wormhole` | `mqtt::packet::{decode, encode}`, `mqtt::topic` | new in `pod-wormhole` (T-261); its seeds are the packets of MQTT 3.1.1 that a meeting point reads, written here |
 | `session_record` | `pod-session` | `decode::Decoder`, `Record::encode`: the bytes of a link in pieces of 1 to 64 bytes; each record encodes again to itself; an error stays | new in `pod-session` (T-020); its seeds are records of podssh's `tests/session_codec.rs` (a `GREETING`, an `OPEN`, a `REFUSE`, a `DATA` and an `ACK`) and an unknown type |
 | `session_handover` | `pod-session` | `handover::LayerState::{decode, encode}` | new in `pod-session` (T-020); its seeds are a closed session, a carried session with a replay buffer, and a state of another version, written here |
 | `e2e_frame` | `pod-e2e` | `fuzzing::{take_frames, verdict, net_part}` (feature `fuzzing`): each frame has its length, and the frames and the rest are the input; an empty frame is refused; a reason is safe on one line; a seed comes only with a verdict that lets in; a verdict and a net's part write back to the same answer and bytes | new in `pod-e2e` (T-021); its seeds are two frames, an empty frame, verdicts with a seed, with a refusal and with an item of a later kind, and the net's part of a proof, written here |

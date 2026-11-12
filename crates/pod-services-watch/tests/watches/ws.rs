@@ -60,6 +60,36 @@ async fn websocket_upgrade_wants_101() {
     assert!(text(&report).contains("refused the upgrade: HTTP 403"), "{}", text(&report));
 }
 
+/// An MQTT broker upgrades only an upgrade that offers the subprotocol
+/// `mqtt`: the watch with `protocol` offers it, and one with no
+/// `protocol` is refused.
+#[tokio::test]
+async fn websocket_upgrade_offers_the_subprotocol_of_its_argument() {
+    pod_testkit::need_loopback!();
+    let broker = https(|request: &Request| {
+        match (request.header("sec-websocket-key"), request.header("sec-websocket-protocol")) {
+            (Some(key), Some("mqtt")) => Answer::new(101, Vec::new())
+                .header("Upgrade", "websocket")
+                .header("Connection", "Upgrade")
+                .header("Sec-WebSocket-Protocol", "mqtt")
+                .header("Sec-WebSocket-Accept", pod_ws::handshake::accept_key(key)),
+            _ => Answer::new(400, "no subprotocol mqtt"),
+        }
+    });
+    let at = endpoint("broker", "wss", NAME, broker.port(), "path = \"/mqtt\"");
+    let offering = at.clone() + "[[watch]]\nkind = \"websocket-upgrade\"\nendpoint = \"broker\"\nprotocol = \"mqtt\"\n";
+    let report = one(&file("w3", &offering)).await;
+    assert!(report.holds() && text(&report).contains("offered the subprotocol mqtt"), "{}", text(&report));
+    let (head, _) = sent(&broker);
+    assert_eq!(head.matches("Sec-WebSocket-Protocol: mqtt\r\n").count(), 1, "{head}");
+    let bare = at.clone() + "[[watch]]\nkind = \"websocket-upgrade\"\nendpoint = \"broker\"\n";
+    let report = one(&file("w4", &bare)).await;
+    assert!(text(&report).contains("refused the upgrade: HTTP 400"), "{}", text(&report));
+    let listed = at + "[[watch]]\nkind = \"websocket-upgrade\"\nendpoint = \"broker\"\nprotocol = [\"mqtt\"]\n";
+    let report = one(&file("w5", &listed)).await;
+    assert!(text(&report).contains("no argument \"protocol\" of a text"), "{}", text(&report));
+}
+
 const BANNER: &[u8] = b"SSH-2.0-stand\r\n";
 
 fn forwarder(template: &str) -> String {

@@ -191,6 +191,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "mqtt_packet"
+path = "fuzz_targets/mqtt_packet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "session_record"
 path = "fuzz_targets/session_record.rs"
 test = false

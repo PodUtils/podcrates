@@ -4,12 +4,17 @@
 //! magic-wormhole's own Python library (`wormhole-peer.py`). The Python ones
 //! are software that this crate did not write. A host with no Python, or
 //! without the packages, skips them with the reason, unless
-//! `POD_WORMHOLE_TEST_SERVER=required`, which a workflow sets, so that a
-//! skip there is a failure.
+//! `POD_WORMHOLE_TEST_SERVER=required`, so that a skip is a failure. The
+//! step of Mosquitto in `ci.yml` sets it; no workflow runs the Python ones
+//! (T-263).
 //!
 //!   python3 -m pip install magic-wormhole-mailbox-server magic-wormhole
 //!
 //! `POD_WORMHOLE_TEST_PYTHON` names the interpreter (a virtualenv's).
+//!
+//! The MQTT brokers of the tests (a stand-in in Rust, and Eclipse
+//! Mosquitto) are in [`broker`]; `POD_WORMHOLE_TEST_SERVER=required` makes
+//! a skip of Mosquitto a failure too.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -24,6 +29,7 @@ use std::time::{Duration, Instant};
 use pod_wormhole::Config;
 use pod_ws::url::WsUrl;
 
+pub mod broker;
 pub mod stand_in;
 
 /// How long a server may take to listen, and a peer to say a line.
@@ -90,6 +96,22 @@ pub fn way() -> pod_ws::Way {
     let settings = pod_proxy::Settings::new("pod-wormhole", pod_proxy::ProxyChoice::Direct);
     let dial = pod_proxy::Dialer::new(settings, Arc::new(pod_proxy::resolve::System::new()));
     pod_ws::Way::new(tls, Arc::new(dial), "pod-wormhole/test")
+}
+
+/// The way of the live tests: the proxy of the environment (`HTTPS_PROXY`,
+/// `NO_PROXY`), else a direct dial, and TLS on ring.
+pub fn live_way() -> pod_ws::Way {
+    use std::sync::Arc;
+
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let tls = Arc::new(pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("pod-wormhole"))));
+    let var = |name: &str| std::env::var_os(name);
+    let choice = pod_proxy::ProxyChoice::FromEnvironment(pod_proxy::Environment::read(&var));
+    let dial = pod_proxy::Dialer::new(
+        pod_proxy::Settings::new("pod-wormhole", choice),
+        Arc::new(pod_proxy::resolve::System::new()),
+    );
+    pod_ws::Way::new(tls, Arc::new(dial), "pod-wormhole/live")
 }
 
 /// The settings of the tests for `appid`.

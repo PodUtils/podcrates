@@ -16,6 +16,10 @@
 //!   bits: the giver ends the code at the first exchange, whatever its end.
 //! * [`meet`]: the giver's new code and the taker's search for its giver,
 //!   over a list of mailboxes.
+//! * [`mqtt`]: a second meeting point for a caller whose mailboxes do not
+//!   answer: the topic of the code at a public MQTT broker, MQTT 3.1.1 over
+//!   a WebSocket, with the same messages as a mailbox carries; [`place`]:
+//!   the mailbox or the broker under a [`Wormhole`].
 //! * [`phrase`] and [`words`]: the code, the nameplate and the words of the
 //!   PGP list; [`message`]: the pure reading of a mailbox's messages.
 //!
@@ -24,7 +28,8 @@
 //! mailbox URLs and the way out are a [`Config`] and a list of URLs: the
 //! crate reads no variable of the environment, keeps no process state, and
 //! prints nothing. The lines for the user are `pod_core::Event`s of the
-//! kinds `wormhole.mailbox` and `wormhole.motd`; none holds the code.
+//! kinds `wormhole.mailbox`, `wormhole.broker` and `wormhole.motd`; none
+//! holds the code.
 //!
 //! **Typed failures.** [`Failed`] keeps its variants, which a caller
 //! matches, and is also a `pod_core::Failure` with its stage and its class.
@@ -37,7 +42,9 @@ pub mod failed;
 pub mod mailbox;
 pub mod meet;
 pub mod message;
+pub mod mqtt;
 pub mod phrase;
+pub mod place;
 pub mod words;
 pub mod wormhole;
 

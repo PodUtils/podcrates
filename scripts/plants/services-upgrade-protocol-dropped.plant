@@ -1,0 +1,8 @@
+# The watch kind websocket-upgrade does not offer the subprotocol of its
+# argument protocol: an MQTT broker that wants mqtt refuses the upgrade;
+# its test must fail.
+ENTRY=T-261
+GROUP=services
+EXPECT='test ws::websocket_upgrade_offers_the_subprotocol_of_its_argument \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- ws::websocket_upgrade_offers_the_subprotocol_of_its_argument --exact'
+LIMIT=1800

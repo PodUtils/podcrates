@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 258 entries: 58 open, 3 partial, 4 blocked, 193 done.
+`TODO/INDEX.md` holds 259 entries: 57 open, 4 partial, 4 blocked, 194 done.
 
 ## State
 
@@ -36,7 +36,9 @@
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet remains), T-040 (the
   trial of podvm), T-170 (step 2: PodUtils/podnet@T-249 is done at
-  `a7350b2`, PodUtils/podnet#451). Open defects: T-131
+  `a7350b2`, PodUtils/podnet#451), T-261 (the MQTT meeting point of
+  `pod-wormhole` is in the crate, with its tests; the step of Mosquitto in
+  `ci.yml` and the step of `live.yml` remain). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -92,8 +94,9 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261 (an
-   MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then T-204 (a random failure of
+6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261
+   (partial: the CI steps of the MQTT meeting point of `pod-wormhole`,
+   PodUtils/podssh#205); then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).
@@ -114,7 +117,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C89; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
