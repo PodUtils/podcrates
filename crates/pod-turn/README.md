@@ -112,6 +112,11 @@ changes the roots or the name to check.
   refresh that fails is an event: a permission or a channel is then
   dropped; the allocation is tried again at half of its time left, and it
   is gone at its end or at a 437.
+- **A new allocation.** `Client::allocate` with `SystemUdp` binds a new
+  socket, so each allocation has its own 5-tuple. A caller that gives the
+  same socket again (its own `UdpSource`) can get 437 for an Allocate up
+  to 1 s after a close: coturn frees a deleted allocation at its next tick
+  (RFC 8656, 7.4: take another port).
 - **The wire.** Over UDP, a datagram of another sender is dropped. Over
   TLS, each message is cut by its own length; ChannelData is padded to a
   multiple of 4 each way (RFC 8656, 12.5). Bytes that are neither STUN nor
@@ -159,8 +164,17 @@ this crate, and the tests that hold them:
 - [x] A live test with a server of the caller, which skips with no server:
   `tests/live.rs` (`POD_TURN_LIVE_SERVER`, `POD_TURN_LIVE_USER`,
   `POD_TURN_LIVE_PASSWORD`, `POD_TURN_LIVE_PEER`); no public server is
-  written here. A workflow that runs it against coturn on the loopback is
-  T-380.
+  written here.
+- [x] A server of another party on each push: coturn 4.18.0 on 127.0.0.1
+  in `ci.yml` (`scripts/ci/turn-tests.sh`, `tests/coturn.rs`, T-380): over
+  UDP and over TLS, the 401 of a static user with MD5 (coturn offers no
+  PASSWORD-ALGORITHMS), a Send and a ChannelData echo with its padding,
+  the maximum lifetime, a 438 after the life of a nonce, a 437 and a 441
+  of another user, a wrong password, a root that the client does not
+  trust; the plants `turn-coturn-channel-data-not-padded` and
+  `turn-coturn-skip-fails`.
+- [ ] The SHA-256 credentials against a server of another party: coturn
+  4.18.0 keys with SHA-1 alone; the mock and the vector prove them (T-403).
 - [x] The fuzz target `stun_message` (`fuzz/`), and the static probe line.
 - [ ] Plain TURN over TCP (RFC 8656, 3.1, with no TLS): not in this crate;
   GitHub #100 puts it out of this change.
@@ -187,9 +201,12 @@ this crate, and the tests that hold them:
 
 ## Tests
 
-`cargo test -p pod-turn --all-features`: the codec (19 unit tests), the
+`cargo test -p pod-turn --all-features`: the codec and the errors (20 unit tests), the
 mock over UDP (`tests/turn_udp.rs`) and over TLS (`tests/turn_tls.rs`);
-`tests/live.rs` is `#[ignore]`. The mock (`tests/common/mock.rs`) is its
+`tests/live.rs` is `#[ignore]`. `tests/coturn.rs` (7 tests) skips with no
+coturn; `sh scripts/ci/turn-tests.sh` starts coturn 4.18.0 on the loopback
+(docker, or `POD_TURN_TEST_COTURN_BIN`, a `turnserver` of the host) and
+fails on a skip. The mock (`tests/common/mock.rs`) is its
 own reading of RFC 8656: a session for each UDP 5-tuple or TLS
 connection, a relay socket on the loopback for each allocation, the 401,
 the 438 on request of a test, a 441 for a user who is not the owner, and

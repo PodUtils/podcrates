@@ -5705,6 +5705,17 @@ check of the realm); the ALPN as a setting of `Transport::Tls`.
 cargo test -p pod-turn --all-features
 ```
 
+## Correction
+
+2026-11-12, measured by T-380 against coturn 4.18.0 on the loopback: its
+401 holds ERROR-CODE, NONCE, REALM and FINGERPRINT alone. The nonce is 24
+hex digits with no `obMatJos2` cookie, and no PASSWORD-ALGORITHMS comes,
+so coturn needs none of the options of this entry. The client's Allocate
+with no EVEN-PORT, no DONT-FRAGMENT and no address family holds. coturn
+logs "TURN/STUN ALPN supported" and has the options `--alternate-server`
+and `--tls-alternate-server`: a test of ALTERNATE-SERVER and of the ALPN
+against coturn can use them.
+
 # T-396: `pod-link`: a TCP carrier with TLS 1.3 that pins the Ed25519 key of the peer, and its accept side (PodUtils/podnet#513)
 
 **Source:** PodUtils/podnet#513 (COORD-057), for PodUtils/podnet@T-268; call C117 (the carriers are in `pod-link`).
@@ -5785,3 +5796,49 @@ static probe links to itself over the carrier.
 - Not done here: the release of the tag that podnet takes, and the
   hand-off on PodUtils/podnet#513 (the main session).
 
+
+# T-403: `pod-turn`: the SHA-256 credentials against a TURN server of another party
+
+**Source:** T-380 (coturn 4.18.0 keys with SHA-1 alone).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The SHA-256 credentials of `pod-turn` (PASSWORD-ALGORITHMS,
+PASSWORD-ALGORITHM, MESSAGE-INTEGRITY-SHA256; RFC 8489, 9.2) are proven
+by the vector of `crates/pod-turn/src/stun_sha256_tests.rs` and by the
+mock of `crates/pod-turn/tests/common/mock.rs`, both of the same author
+as the client. coturn 4.18.0 on the loopback (T-380) proves the MD5 path
+alone: its 401 has no PASSWORD-ALGORITHMS. A server of another party with
+SHA-256 does not prove the client on any push.
+
+## Premise
+
+- Read: coturn at `1986df21e4b4152b5e0216989f649e20ff76aced` (the
+  revision of the image `coturn/coturn:4.18.0`):
+  `src/server/ns_turn_server.c` signs each answer with `SHATYPE_DEFAULT`
+  (SHA-1) and has no PASSWORD-ALGORITHMS; `turnserver -h` has no option of
+  a password algorithm.
+- Measured (T-380): coturn's 401 holds ERROR-CODE, NONCE (24 hex digits,
+  with no `obMatJos2` cookie), REALM and FINGERPRINT.
+- Not read: the TURN servers of other parties that can offer SHA-256
+  (eturnal, Pion's `turn`, STUNner, and others) and their licences.
+
+## Approach
+
+Read the candidates: which one sends PASSWORD-ALGORITHMS and checks
+MESSAGE-INTEGRITY-SHA256, its licence, and a pinned static artifact or
+image. Run the chosen one on the loopback in `scripts/ci/turn-tests.sh`
+(call C151) with a test of `tests/coturn.rs`'s form that needs SHA-256 and
+fails on a skip, and a plant that signs with MD5. With no such server,
+keep the entry open with what the reading found.
+
+## Prove
+
+```sh
+sh scripts/ci/turn-tests.sh
+```

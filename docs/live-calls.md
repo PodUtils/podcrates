@@ -48,9 +48,9 @@ hides a red run that is ours.
 
 ## The inventory
 
-The rows count 34 calls: 2 replace, 3 stub + weekly, 24 keep live, and
-5 infrastructure. Of the 24 that stay live, 3 get a server on the loopback
-that proves the code of the client (L10, L18, L19). "Each day" is the cron
+The rows count 35 calls: 2 replace, 3 stub + weekly, 25 keep live, and
+5 infrastructure. Of the 25 that stay live, 4 get a server on the loopback
+that proves the code of the client (L10, L18, L19, L35). "Each day" is the cron
 of the workflow.
 
 ### Tests and live steps
@@ -68,6 +68,7 @@ of the workflow.
 | L9 | the owner's relay and its pool (tcp.ssh.relay.ajam.dev) | `crates/pod-relay/tests/live.rs` and the other `*_live.rs` of `pod-relay`, job `relay` of `live.yml` | the contract of the live relay: mint, pair, reverse, idle, drops, grants | by hand | unknown: T-327 | keep live | the stand-ins of `crates/pod-relay/tests/stand_in` and `crates/pod-relay/tests/e2e_harness` prove the client; the self-hosted relay of T-036 later (T-361) |
 | L10 | the GSRN relay gs.thc.org | `crates/pod-gsr/tests/live.rs` | 1 MiB crosses the real relay | by hand, in no workflow | unknown | keep live | the stand-in of `crates/pod-gsr/tests/loopback.rs`; gs-netcat 1.4.43 as the other end (T-357) |
 | L11 | GitHub's evaluator of expressions | T-280 (open) | the conformance of `pod-actions-expr` and `pod-actions-workflow` | planned | no | keep live | only GitHub's runner evaluates as GitHub does |
+| L35 | a TURN server of the caller (UDP or TLS on TCP) | `crates/pod-turn/tests/live.rs` (ignored; `POD_TURN_LIVE_SERVER`) | an allocation, a Refresh, a permission and a channel on a server of the caller | by hand, in no workflow | unknown | keep live | coturn 4.18.0 on the loopback in `ci.yml` (`scripts/ci/turn-tests.sh`, `crates/pod-turn/tests/coturn.rs`) proves the client over UDP and over TLS on each push: the 401, the 438, the 437 and the 441, the maximum lifetime, a Send and a ChannelData echo with its padding (T-380, call C197) |
 
 ### `services.yml`
 
@@ -86,7 +87,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L16 | `oci-ping`, `oci-digest` | 8 registries | yes: 429 of ECR Public (run 42803032733) | keep live | one more try after `Retry-After` |
 | L17 | `github-file`, `github-files`, `github-release`, `github-ssh-keys` | api.github.com, raw files | no | keep live | `GITHUB_TOKEN` of the job |
 | L18 | `ssh-banner`, `ssh-host-key`, `forward-url` | serveo, pinggy, localhost.run, sandhole, ssh-j on 22 and 443 | no | keep live | sish on the loopback proves the code of `forward-url` (T-356) |
-| L19 | `stun-binding` | stun.cloudflare.com:3478, stun.l.google.com:19302 (UDP) | no: each run read holds them | keep live | coturn on the loopback proves the STUN client (T-358) |
+| L19 | `stun-binding` | stun.cloudflare.com:3478, stun.l.google.com:19302 (UDP) | no: each run read holds them | keep live | coturn 4.18.0 on the loopback in `ci.yml` proves the STUN codec of `pod_proxy::stun` (`scripts/ci/turn-tests.sh`, `crates/pod-proxy/tests/stun_coturn.rs`: the mapped address, FINGERPRINT, a 420; T-358) |
 | L20 | `doh`, `doh-answer`, `dns-addresses`, `dns-srv` | Cloudflare, Google, Quad9, argotunnel.com | IPv6: yes, skipped by the route probe | keep live | these watches take the liveness of L1 |
 | L21 | `proxy-banner`, `proxy-list` | 8 Trojan and VLESS nodes; 3 lists on raw.githubusercontent.com | unknown: timeouts in 4 runs | keep live | a "no answer" is a finding on the second run in a row (T-351, call C153) |
 | L22 | `scripts/services/edge-facts.sh` (job `measure`) | region1 and region2.v2.argotunnel.com on 7844, 443, 8443, 80 | no | keep live | the facts of the edge that `pod-cloudflare` needs |
@@ -105,7 +106,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L30 | rustup: static.rust-lang.org | each job (`rustup toolchain install`) | each run | no | infrastructure | a download through `scripts/retry.sh`, not cached (call C185) |
 | L31 | crates.io: the index and the crates | each cargo step | each run | no | infrastructure | the cache of the registry of each job, keyed by the lock files (T-355, done) |
 | L32 | zig from the mirrors; `cargo install` of cargo-zigbuild and cargo-fuzz | `ci.yml` (static), `nightly.yml` (cross), `adoption.yml`, `fuzz.yml` | each run | the mirrors move (`upstream.yml`, job `mirrors`) | infrastructure | the cache by SHA-256; the release binaries of the tools by SHA-256 (T-355, done) |
-| L33 | the images of Docker Hub (Mosquitto, TruffleHog, binfmt) | `scripts/pull-image.sh` in `ci.yml`, `secrets.yml`, `nightly.yml` | each run | yes: the limit of Docker Hub | infrastructure | the mirrors of the script hold the same digest |
+| L33 | the images of Docker Hub (Mosquitto, coturn, TruffleHog, binfmt) | `scripts/pull-image.sh` in `ci.yml`, `secrets.yml`, `nightly.yml` | each run | yes: the limit of Docker Hub | infrastructure | the mirrors of the script hold the same digest |
 | L34 | the Ubuntu archive (qemu) | `guest.yml`, `plants.yml` | each week; on a push to the checks | no | keep live | the packages of the runner's own image; a failure is rare, and `scripts/retry.sh` holds it |
 
 ### The crates of the import and of the plan
@@ -134,7 +135,7 @@ script of `scripts/ci/` that fails on a skip, as
 | magic-wormhole 0.24.0 | MIT | wheel SHA-256 `312d7d55cba76fe443fd207b1e006d12b7c56699961ed6dce46bed765945e712` | the peer of the library (in place) | S7 |
 | sish 4.0.0 | MIT | image `antoniomika/sish:v4.0.0`, index `sha256:475a4943def8fdb3f28b5c58fa26ba74009266981e049cd125fdac9916cd8f44`; `sish-4.0.0.linux-amd64.tar.gz`, SHA-256 `3adb57cc008cb1d95d178a0ec0ceb67cf0d3645c0004d0d789011ce7dc01956f` | an SSH forward relay | S8 |
 | sandhole 0.10.5 | AGPL-3.0 (run, not linked) | `sandhole-linux-amd64` of its release | a second SSH forward relay | S9 |
-| coturn 4.18.0 | BSD-3-Clause | image `coturn/coturn:4.18.0`, index `sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3` | STUN Binding on UDP | S10 |
+| coturn 4.18.0 | BSD-3-Clause | `images/coturn/Dockerfile` (image `coturn/coturn:4.18.0`, index `sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3`, the same on Docker Hub's API and in its registry) | TURN over UDP and over TLS on TCP, and STUN Binding on UDP: `scripts/ci/turn-tests.sh` runs the image with the host's network and the options of call C197 | S10 |
 | gs-netcat 1.4.43 | BSD-2-Clause | `gs-netcat_linux-x86_64`, SHA-256 `55d141bb2f62c527c3fea3413b8429fed7d52633d0b123b5e611bfa42165229f` (measured through the fetch proxy; check it at the first download) | the other end of `pod-gsr` | S11 |
 | workerd v1.20261112.1 | Apache-2.0 | its release `workerd-linux-64.gz` | the Worker of the relay, when one exists | S12 |
 | actions/cache 6.1.0 | MIT | commit `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` | the cache of the downloads | S13 |
@@ -189,7 +190,12 @@ web.pkgforge.dev (forge, read, search, fetch).
   (2026-10-31, AGPL-3.0).
 - S10: https://github.com/coturn/coturn (LICENSE: the three clauses of BSD;
   release 4.18.0, 2026-09-08);
-  https://hub.docker.com/v2/repositories/coturn/coturn/tags/4.18.0.
+  https://hub.docker.com/v2/repositories/coturn/coturn/tags/4.18.0 and the
+  manifest list of `registry-1.docker.io` (the same index digest); the
+  image's `turnserver -h`, and `src/server/ns_turn_server.c` at
+  `1986df21e4b4152b5e0216989f649e20ff76aced` (the revision label of the
+  image: the answers are keyed with SHA-1 alone, 437 and 441 for another
+  user, the padding of ChannelData on a stream).
 - S11: https://github.com/hackerschoice/gsocket (BSD-2-Clause; release
   v1.4.43; `lib/gsocket-engine.c` reads `GSOCKET_IP` and `GSOCKET_PORT`);
   https://github.com/hackerschoice/gsocket-relay (LICENSE: no permission).

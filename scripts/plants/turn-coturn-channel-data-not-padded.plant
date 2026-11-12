@@ -1,0 +1,8 @@
+# The client sends ChannelData with no padding on a TLS stream; coturn
+# cuts the stream at the padded length, and the echo over TLS against
+# coturn must fail. It needs docker and openssl.
+ENTRY=T-380
+GROUP=turn
+EXPECT='test an_allocation_over_tls_relays_both_ways \.\.\. FAILED'
+RUN='sh scripts/ci/turn-tests.sh'
+LIMIT=1800
