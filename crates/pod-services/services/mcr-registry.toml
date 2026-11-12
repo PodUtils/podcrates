@@ -1,0 +1,30 @@
+# The Microsoft Artifact Registry (mcr.microsoft.com): the registry of the
+# Playwright images. podvm's profile `playwright-chromium` names the tag
+# and its digest.
+id = "mcr-registry"
+kind = "oci-registry"
+party = "Microsoft"
+about = "The Microsoft Artifact Registry (mcr.microsoft.com)"
+
+[[endpoint]]
+name = "registry"
+scheme = "https"
+host = "mcr.microsoft.com"
+port = 443
+path = "/v2/"
+source = { ruling = "PodUtils/podvm#269: the image of podvm's profile playwright-chromium (PodUtils/podvm@T-1694)", read = 2026-11-12, note = "GET /v2/ answered 200 with no challenge on 2026-11-12" }
+
+# REPOSITORY:TAG@DIGEST. No token: the registry answers anonymous pulls.
+[[fact]]
+name = "images"
+value = ["playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe"]
+source = { measured = "a HEAD of /v2/playwright/manifests/v1.65.0-noble with no token answered 200 with this digest (an OCI image index)", read = 2026-11-12, note = "PodUtils/podvm#269" }
+
+[[watch]]
+kind = "oci-ping"
+endpoint = "registry"
+
+[[watch]]
+kind = "oci-digest"
+endpoint = "registry"
+facts = ["images"]

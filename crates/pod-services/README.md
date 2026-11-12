@@ -241,6 +241,7 @@ let relay = services.of_kind("relay").next();
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
 | `ghcr-registry` | `oci-registry` | `registry` | `token-realm`, `anonymous-quota`, `images` |
 | `gcr-registry` | `oci-registry` | `registry` (`gcr.io`) | `token-realm`, `images` (`distroless/static-debian12`) |
+| `mcr-registry` | `oci-registry` | `registry` (`mcr.microsoft.com`) | `images` (`playwright`; no token: `/v2/` answers 200) |
 | `mirror-gcr-registry` | `oci-registry` | `registry` (`mirror.gcr.io`) | `mirror-of` (`docker-hub-registry`), `token-realm`, `images` (the pin of `guest-userland`) |
 | `quay-registry` | `oci-registry` | `registry` | `token-realm`, `images` |
 | `opensuse-registry` | `oci-registry` | `registry` | `images` (no token: `/v2/` answers 200) |

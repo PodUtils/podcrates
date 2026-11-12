@@ -35,6 +35,7 @@ fn each_registry_answers_at_v2_over_https() {
             "ecr-public-registry",
             "gcr-registry",
             "ghcr-registry",
+            "mcr-registry",
             "mirror-gcr-registry",
             "opensuse-registry",
             "quay-registry"
@@ -149,4 +150,19 @@ fn the_gaps_of_podvm_s_inventory_come_from_the_files() {
     ] {
         assert_eq!(netboot.text(&format!("module-{module}-sha256")), Some(sum), "MODULES {module}");
     }
+}
+
+/// The registry of podvm's profile `playwright-chromium`
+/// (PodUtils/podvm#269): the pin of the profile, and no token.
+#[test]
+fn the_registry_of_playwright_holds_the_pin_of_podvm() {
+    let mcr = service("mcr-registry");
+    assert_eq!(mcr.endpoint("registry").unwrap().host(), "mcr.microsoft.com");
+    assert!(mcr.fact("token-realm").is_none(), "/v2/ answers 200 with no challenge");
+    let pin = format!("{}/{}", mcr.endpoint("registry").unwrap().host(), mcr.texts("images").unwrap()[0]);
+    assert_eq!(
+        pin,
+        "mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+        "the image of playwright-chromium"
+    );
 }

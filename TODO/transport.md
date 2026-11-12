@@ -3847,3 +3847,51 @@ the zone only), and the user `http` of Pinggy is not measured.
 cargo test -p pod-services-watch --test watches
 cargo run -q -p pod-services-watch -- --service pinggy --service serveo --service localhost-run --service sandhole
 ```
+
+# T-233: `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269)
+
+**Source:** PodUtils/podvm#269 (COORD-050 of podvm, for PodUtils/podvm@T-1694)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's profile `playwright-chromium` names
+`mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb5460…`. The host
+test of podvm finds `mcr.microsoft.com`, which `pod-services` does not
+list, and podvm keeps the host in its list of reported hosts until the
+crate lists it.
+
+## Premise
+
+- Read: PodUtils/podvm#269. The profile is not on podvm's `main` at
+  `65e0c59` yet (PodUtils/podvm@T-1694 is open there).
+- Measured on 2026-11-12: `GET https://mcr.microsoft.com/v2/` answers 200
+  with no challenge. A HEAD of `/v2/playwright/manifests/v1.65.0-noble`
+  with no token answers 200 with the digest of podvm's pin (an OCI image
+  index).
+
+## Approach
+
+A service `mcr-registry` (kind `oci-registry`, endpoint `registry`
+`mcr.microsoft.com`, fact `images`, no `token-realm`), the watches
+`oci-ping` and `oci-digest`, as `opensuse-registry`. A test of podvm's
+pin; the README row.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test podvm
+cargo run -q -p pod-services-watch -- --service mcr-registry
+```
+
+## Done
+
+2026-11-12. The service `mcr-registry` and its README row.
+`the_registry_of_playwright_holds_the_pin_of_podvm` checks podvm's pin
+and the absence of a token realm; `each_registry_answers_at_v2_over_https`
+lists eight registries. `cargo test -p pod-services --all-features`: each
+suite passes. The live watches: 2 hold (`oci-ping`, `oci-digest`).
