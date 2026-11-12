@@ -228,7 +228,7 @@ let relay = services.of_kind("relay").next();
 | `letsencrypt-acme` | `acme` | `directory` | |
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
-| `node-*` (9) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
+| `node-*` (8) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match`, `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |

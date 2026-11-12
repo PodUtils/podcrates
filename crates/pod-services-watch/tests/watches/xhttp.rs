@@ -363,7 +363,7 @@ async fn proxy_banner_speaks_xhttp_packet_up_over_http1() {
 async fn proxy_banner_speaks_xhttp_packet_up_over_http2() {
     pod_testkit::need_loopback!();
     // `auto` and no ALPN, as the link of node-xhttp-193-160-208-240; then
-    // `packet-up` and two ALPN protocols, as node-xhttp-78-17-39-129.
+    // `packet-up` and two ALPN protocols, as a link of a public list.
     for (id, more) in [("x3", "mode=auto&path=/xh/"), ("x4", "mode=packet-up&alpn=h2,http/1.1&path=%2Fxh%2F")] {
         let port = h2_node(Node::new(None));
         let report = one(&file(id, &node(&link(port, more)))).await;

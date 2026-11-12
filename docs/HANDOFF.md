@@ -21,15 +21,12 @@ a line when its work is done. Git and the record keep finished work.
   `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
   of podnet (adoption/podnet/pod-relay.*) is next. podnet's binary needs
   the feature `plain-ws` for a relay at `http://` on the loopback (C82).
-- The last release: `v0.27.0` at `547c6ee` (the hand-off #85). Each
-  consumer answers on #85 with the commit of its take. For `v0.28.0`:
-  T-234 (`pod-relay` for podnet's trial), T-244, T-256 and T-174
-  (PodUtils/podssh#196, #203), T-252 and T-253 (PodUtils/podnet#462,
-  #463), T-254 and T-255 (PodUtils/podvm#274, #275), T-257 to T-259
-  (the UDP of `pod-netstack`, PodUtils/podnet#464; calls C84 to C87),
-  T-260 (`hyperdht-bootstrap`, PodUtils/podssh#204), T-262 and T-266
-  (PodUtils/podvm#276, #277), T-228 (`live.yml`). After its head
-  (`4ce3625`): T-025's take, T-225 (the watch `forward-url`).
+- The last release: `v0.28.0` at `4ce3625` (the hand-off #86; #85 for
+  `v0.27.0` waits for podrunner). Each consumer answers on #86 with the
+  commit of its take. For the next tag: T-025's take (the `taken` line),
+  T-225 (the watch `forward-url`), T-229 (the six plants of podssh), T-245
+  and T-246 (the `Host` of an IPv6 relay, the names of the cache files),
+  T-271 (PodUtils/podssh#207); in work: T-170 step 2 and T-261.
 
 ## What waits
 

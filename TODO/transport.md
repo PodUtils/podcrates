@@ -4425,3 +4425,47 @@ cargo run -q -p pod-services-watch -- --service hyperdht-bootstrap
 `tests/hyperdht.rs` (2 tests), the README rows. The live watches: 2 hold
 (each address is in the A records; `holepunchto/hyperdht`
 `lib/constants.js` holds each text of `nodes`).
+
+# T-271: `pod-services`: the VLESS node `node-xhttp-78-17-39-129` leaves (PodUtils/podssh#207)
+
+**Source:** PodUtils/podssh#207 (COORD-033 of podssh, the live check of Q90 in PodUtils/podssh@T-574)
+**Category:** chore
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh's live check of the public proxy nodes (its workflow
+`proxy-nodes-live.yml`, run 43157171177 at podssh `0872c2c6`, on
+`v0.27.0`): each node alone carries a session to `github.com:22`. Two of
+the ten failed: the VLESS node `78.17.39.129:443` (path
+`/assets/finvip02/`: connection refused) and the Trojan node
+`70.34.207.14:443` (a timeout after 7 s). Q90 of podssh says a node that
+fails leaves the catalog.
+
+## Premise
+
+- Read: PodUtils/podssh#207.
+- `node-trojan-70-34-207-14` left with T-174 (`v0.28.0`).
+- Not measured here: the nodes (no egress to them from this sandbox).
+
+## Approach
+
+Remove the file of the service `node-xhttp-78-17-39-129` from
+`crates/pod-services/services/`; the README count of the kind
+`proxy-node`.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+```
+
+## Done
+
+2026-11-12. The file is gone; 8 nodes of the kind `proxy-node` stay (one
+VLESS, seven Trojan), the ones that carried the session in podssh's run.
+A comment of `crates/pod-services-watch/tests/watches/xhttp.rs` no longer
+names the node.

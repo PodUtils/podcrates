@@ -1,17 +1,18 @@
 # Progress
 
-`TODO/INDEX.md` holds 256 entries: 61 open, 3 partial, 4 blocked, 188 done.
+`TODO/INDEX.md` holds 257 entries: 61 open, 3 partial, 4 blocked, 189 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.27.0` at `547c6ee` (`docs/releases/v0.27.0.md`; ci
-  43142574051, adoption 43142574101, release 43152297526; the hand-off
-  GitHub #85, COORD-053): the close of a listener and no RST for a burst
-  in `pod-netstack` (T-230 to T-232, T-223), podnet's relay client in
-  `pod-relay` (T-026, partial), the trial of podssh (T-025), the socket
-  families of `pod-confine` (T-213), the paths of `Plan.confine` after
-  the mounts (T-227), `mcr-registry` (T-233), a busy tmpfs (T-240).
+- Last release: `v0.28.0` at `4ce3625` (`docs/releases/v0.28.0.md`; ci
+  43156370247, adoption 43154349743 at `1af4f7c`, release 43159035841;
+  the hand-off GitHub #86, COORD-054): `qemu-img convert` in `pod-guest`
+  (T-266), a TCP list refused with `socketcall(2)` (T-262), the UDP of
+  `pod-netstack` (T-257 to T-259), the IPv6 relay host and the plain
+  loopback opener of `pod-relay` (T-234), Tox, Yggdrasil, HyperDHT,
+  workerd and wasmtime in `pod-services` (T-244, T-256, T-260, T-254,
+  T-255), the relay contract (T-253), `live.yml` (T-228).
 - The consumers and their tags:
   - podssh: `v0.27.0` (`0872c2c6`, PodUtils/podssh#206; it took
     `pod-relay`: podssh-relay's relay client is glue over the crate).

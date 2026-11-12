@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**256 entries: 61 open, 3 partial, 4 blocked, 188 done.**
+**257 entries: 61 open, 3 partial, 4 blocked, 189 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 30 | 2 | 4 | 95 | 131 |
+| P2 | 30 | 2 | 4 | 96 | 132 |
 | P3 | 19 | 0 | 0 | 38 | 57 |
-| **All** | 61 | 3 | 4 | 188 | 256 |
+| **All** | 61 | 3 | 4 | 189 | 257 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -303,3 +303,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-262](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a TCP list is refused on a target with `socketcall(2)` (PodUtils/podvm#276) |
 | [T-266](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: the provision writes its image with `qemu-img convert`; `qemu-img commit` takes no output file (PodUtils/podvm#277) |
 | [T-267](transport.md) | P2 | M | M1 | feature | open | `pod-services-watch`: `forward-url` proves the URL of the tunnel with a request through it |
+| [T-271](transport.md) | P2 | S | M1 | chore | done | `pod-services`: the VLESS node `node-xhttp-78-17-39-129` leaves (PodUtils/podssh#207) |
