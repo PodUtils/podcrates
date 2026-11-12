@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**286 entries: 64 open, 2 partial, 5 blocked, 215 done.**
+**291 entries: 69 open, 2 partial, 5 blocked, 215 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 15 | 0 | 0 | 60 | 75 |
 | P2 | 25 | 1 | 5 | 108 | 139 |
-| P3 | 24 | 1 | 0 | 45 | 70 |
-| **All** | 64 | 2 | 5 | 215 | 286 |
+| P3 | 29 | 1 | 0 | 45 | 75 |
+| **All** | 69 | 2 | 5 | 215 | 291 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -333,3 +333,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
 | [T-326](podvm.md) | P1 | L | M6 | feature | open | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | open | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
+| [T-345](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the probe program of the guest, which measures each probe of issue 178 |
+| [T-346](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the world's services (`world.py`) over `pod-dns` and `pod-proxy` |
+| [T-347](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: each offline scenario on a real kernel as root, with the planted flush |
+| [T-348](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the VPN and the live scenarios of issue 178 (12 of 39) |
+| [T-349](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: a lab on a user-space stack, and a lab with more than one guest |

@@ -30,6 +30,7 @@ pod-incus = { workspace = true }
 # `schema` is out: it is for the tests that generate the JSON Schemas, and no binary turns it on.
 pod-job = { workspace = true }
 pod-link = { workspace = true }
+pod-netlab = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
 # smoltcp links in.
 pod-netstack = { workspace = true, features = ["ipv4-fragmentation"] }

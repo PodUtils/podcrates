@@ -1,0 +1,14 @@
+[package]
+name = "pod-netlab"
+description = "Network labs inside a guest that is root: the knobs and the layout of sand-net, the commands that build and remove a lab, the expected verdict of each probe, and the check of the nftables counters."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The failure and its stage and class. No default feature: no tokio.
+pod-core = { workspace = true }
+# The counters of `nft -j list counters`, read as a value, with no derive.
+serde_json = { workspace = true }

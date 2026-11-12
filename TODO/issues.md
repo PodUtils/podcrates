@@ -75,7 +75,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #67 | COORD-042: podcrates cuts pod-wg from src/warp/wg.rs at 54d7ed4 (T-024): hold wg.rs to fixes until your take (to podnet) | closed | T-024 |
 | #68 | COORD-043: the answer to PodUtils/podnet#446: register.rs and route.rs need no port; keep the veth wire in veth.rs (T-201) (to podnet) | closed (no step remains; T-201 waits, #74) | T-201 |
 | #69 | COORD-044: the answer to PodUtils/podvm#259: podcrates writes pod-confine and Plan.confine of pod-enter (T-108) (to podvm) | closed | T-108 |
-| #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open (T-206 in `v0.24.0`; T-207 waits) | T-206, T-207 |
+| #70 | COORD-045: the answer to PodUtils/podvm#260: podcrates reads the modloop (T-206) and writes pod-netlab (T-207), after pod-confine (to podvm) | open (T-206 in `v0.24.0`; T-207 partial) | T-206, T-207 |
 | #71 | COORD-046: v0.22.0: pod-e2e for podssh, pod-wg for podnet, the death signal of a payload for podvm and podrunner (to all) | closed | T-021, T-024, T-202, T-205 |
 | #72 | COORD-047: v0.23.0: pod-confine and Plan.confine; the empty root entry of a layer (to podvm, to all) | closed | T-108, T-208 |
 | #73 | COORD-048: v0.24.0: the module set of a guest from its modloop; gcr.io, mirror.gcr.io and the NIC module sums in pod-services (to podvm, to all) | closed (podssh `2f4f292b`, podrunner `6a01f4e`, podvm `96acfbea`, podnet with `v0.26.0` at `f107766`) | T-206, T-211 |
