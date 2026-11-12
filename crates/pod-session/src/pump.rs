@@ -93,10 +93,37 @@ pub enum End {
     /// gives its caller when it asks for a new link beside the one that
     /// goes on; no link ends so.
     Moving,
-    /// No new link carried the session on, for this reason: the far end did
-    /// not resume it, the transport said not to come back, or the deadline
-    /// passed.
-    GaveUp(String),
+    /// No new link carried the session on: its cause, typed, and the words.
+    GaveUp(GaveUp),
+}
+
+/// Why no new link carried a session on (PodUtils/podnet#512, A12): a caller
+/// maps the cause, not the words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GiveUp {
+    /// The far end does not know the session (`REFUSE` `UNKNOWN_SESSION`):
+    /// it ended there, or its window passed while this side was away.
+    UnknownSession,
+    /// No new link resumed the session within the window.
+    WindowEnded,
+    /// The caller's `connect` said not to come back (`Next::Stop`).
+    Stopped,
+    /// The far end refused the resume for another reason.
+    Refused,
+}
+
+/// The end of a session that no new link carried on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GaveUp {
+    pub cause: GiveUp,
+    /// The words for the user.
+    pub reason: String,
+}
+
+impl std::fmt::Display for GaveUp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason)
+    }
 }
 
 impl End {

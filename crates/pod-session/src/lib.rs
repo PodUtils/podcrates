@@ -78,7 +78,7 @@ pub use handshake::{Ask, ClientHandshake, Established, FarHandshake, HandshakeEr
 pub use hearing::Hearing;
 pub use link::{Event, Link, LinkError};
 pub use offset::{Inbound, OffsetError, Outbound};
-pub use pump::{Carry, End, Ended};
+pub use pump::{Carry, End, Ended, GaveUp, GiveUp};
 pub use record::{Acceptance, Hello, Opening, Record, RefuseCode, Role};
 pub use replay::{NotKept, Replay};
 pub use secret::{Entropy, NoRandom, Nonce, OsEntropy, Proof, Secret, SessionId};

@@ -33,7 +33,7 @@ use super::deadline::{away, client_wait, forgotten};
 use super::decode::Decoder;
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError};
 use super::link::Link;
-use super::pump::{self, Carry, End, Ended, Watch};
+use super::pump::{self, Carry, End, Ended, GaveUp, GiveUp, Watch};
 use super::record::{RefuseCode, kind};
 use super::secret::{Entropy, Secret};
 
@@ -102,6 +102,15 @@ impl Failed {
     pub(super) fn reason(self) -> String {
         match self {
             Failed::Again(why) | Failed::Final(why) | Failed::Forgotten(why) => why,
+        }
+    }
+
+    /// The cause of a failure that ends the session: `Forgotten` is the far
+    /// end that does not know it, each other one a refusal.
+    fn cause(&self) -> GiveUp {
+        match self {
+            Failed::Forgotten(_) => GiveUp::UnknownSession,
+            Failed::Again(_) | Failed::Final(_) => GiveUp::Refused,
         }
     }
 }
@@ -254,7 +263,8 @@ where
                     return Outcome::Layer(Ended { end, received: ended.received, sent: ended.sent });
                 }
                 Ok(Err(failed @ (Failed::Final(_) | Failed::Forgotten(_)))) => {
-                    return gave_up(&mut app, failed.reason(), &ended).await;
+                    let cause = failed.cause();
+                    return gave_up(&mut app, GaveUp { cause, reason: failed.reason() }, &ended).await;
                 }
                 // The old link is gone: the session goes on as after a
                 // loss.
@@ -300,9 +310,9 @@ fn after_stop(why: Beside, why_not: String) -> Note {
     }
 }
 
-async fn gave_up<A: AsyncWrite + Unpin>(app: &mut A, reason: String, ended: &Ended) -> Outcome {
+async fn gave_up<A: AsyncWrite + Unpin>(app: &mut A, why: GaveUp, ended: &Ended) -> Outcome {
     let _ = app.shutdown().await;
-    Outcome::Layer(Ended { end: End::GaveUp(reason), received: ended.received, sent: ended.sent })
+    Outcome::Layer(Ended { end: End::GaveUp(why), received: ended.received, sent: ended.sent })
 }
 
 /// New links after a loss, with the backoff, until one resumes the session or
@@ -336,12 +346,12 @@ where
     let deadline = lost + wait;
     let say_at = lost + LOSS_GRACE;
     let mut attempt = 0u32;
-    let reason = loop {
+    let (cause, reason) = loop {
         attempt += 1;
         let next = tokio::time::timeout_at(deadline, connect(ended));
         let why = match waiting(next, say_at, &mut unsaid, note).await {
-            Err(_) => break format!("no new link within {} s", wait.as_secs()),
-            Ok(Next::Stop(reason)) => break reason,
+            Err(_) => break (GiveUp::WindowEnded, format!("no new link within {} s", wait.as_secs())),
+            Ok(Next::Stop(reason)) => break (GiveUp::Stopped, reason),
             Ok(Next::Retry(why)) => why,
             Ok(Next::Link(new)) => {
                 let limit = client::HANDSHAKE_LIMIT.min(deadline.saturating_duration_since(Instant::now()));
@@ -364,9 +374,9 @@ where
                     Ok(Err(Failed::Forgotten(why))) => {
                         let kept = established.peer_deadline.unwrap_or(settings.resume_deadline);
                         let gone = away(lost_wall, (settings.wall_clock)(), lost.elapsed());
-                        break forgotten(&why, kept, &gone);
+                        break (GiveUp::UnknownSession, forgotten(&why, kept, &gone));
                     }
-                    Ok(Err(failed @ Failed::Final(_))) => break failed.reason(),
+                    Ok(Err(failed @ Failed::Final(_))) => break (GiveUp::Refused, failed.reason()),
                     Ok(Err(Failed::Again(why))) => why,
                     Err(_) => format!("the handshake took more than {} s", limit.as_secs()),
                 }
@@ -374,7 +384,7 @@ where
         };
         let pause = pod_core::backoff::backoff(attempt);
         if Instant::now() + pause >= deadline {
-            break format!("no new link within {} s: {why}", wait.as_secs());
+            break (GiveUp::WindowEnded, format!("no new link within {} s: {why}", wait.as_secs()));
         }
         say_lost(&mut unsaid, note);
         note(Note::Retry { why, wait: pause });
@@ -382,7 +392,7 @@ where
     };
     // The loss, then the end that it came to.
     say_lost(&mut unsaid, note);
-    Resumed::Over(End::GaveUp(reason))
+    Resumed::Over(End::GaveUp(GaveUp { cause, reason }))
 }
 
 /// Say the loss that waits, if one does.

@@ -4219,7 +4219,7 @@ cargo test -p pod-identity --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4246,6 +4246,19 @@ cause.
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+## Done
+
+2026-11-12. `pod_session::End::GaveUp(GaveUp)`, `GaveUp { cause: GiveUp,
+reason: String }` (Display: the reason), `GiveUp::{UnknownSession,
+WindowEnded, Stopped, Refused}`: `Failed::Forgotten` gives `UnknownSession`,
+`Failed::Final` `Refused`, `Next::Stop` `Stopped`, the timeout and the
+backoff past the window `WindowEnded`. The four tests of a give-up assert
+the cause; a new test `a_stop_of_the_caller_ends_the_session_with_its_cause`.
+No other crate of the workspace matches `GaveUp`. Breaking: a caller that
+matched `GaveUp(text)` reads `.reason`, and podnet maps `.cause` to its
+`ResumeExpired`.
+
 
 # T-392: `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13)
 

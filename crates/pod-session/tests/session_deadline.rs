@@ -17,7 +17,7 @@ use tokio::time::Instant;
 use pod_session::client::{self, Outcome};
 use pod_session::keep::Keeper;
 use pod_session::resume::{self, Next, Note};
-use pod_session::{Ask, End, Ended, OsEntropy, Role, Settings, deadline, far};
+use pod_session::{Ask, End, Ended, GiveUp, OsEntropy, Role, Settings, deadline, far};
 
 const PIPE: usize = 256 * 1024;
 const HOUR: Duration = Duration::from_secs(3600);
@@ -208,7 +208,9 @@ async fn a_client_whose_clock_stood_still_is_refused_and_says_how_long_it_was_aw
 
     let outcome = tokio::time::timeout(Duration::from_secs(120), session).await.unwrap().unwrap();
     let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
-    let End::GaveUp(reason) = &ended.end else { panic!("{ended:?}") };
+    let End::GaveUp(gave_up) = &ended.end else { panic!("{ended:?}") };
+    let reason = &gave_up.reason;
+    assert_eq!(gave_up.cause, GiveUp::UnknownSession, "{reason}");
     assert!(reason.contains("did not resume") && reason.contains("no such session"), "{reason}");
     assert!(reason.contains("the far end forgot the session: it keeps one 3 h after a loss"), "{reason}");
     assert!(reason.contains("this side was away for 4 h by the wall clock"), "{reason}");
@@ -237,7 +239,9 @@ async fn a_client_deadline_shortens_the_far_ends() {
 
     let outcome = tokio::time::timeout(3 * HOUR, session).await.unwrap().unwrap();
     let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
-    let End::GaveUp(reason) = &ended.end else { panic!("{ended:?}") };
+    let End::GaveUp(gave_up) = &ended.end else { panic!("{ended:?}") };
+    let reason = &gave_up.reason;
+    assert_eq!(gave_up.cause, GiveUp::WindowEnded, "{reason}");
     assert!(reason.contains("no new link within 3600 s"), "{reason}");
     assert!(lost_at.elapsed() <= HOUR + Duration::from_secs(60), "{:?}", lost_at.elapsed());
 }

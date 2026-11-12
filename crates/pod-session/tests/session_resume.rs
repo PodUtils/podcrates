@@ -16,7 +16,7 @@ use tokio::sync::{mpsc, oneshot};
 use pod_session::client::{self, Outcome};
 use pod_session::keep::Keeper;
 use pod_session::resume::{self, Next, Note};
-use pod_session::{Ask, End, OsEntropy, Role, Settings, far};
+use pod_session::{Ask, End, GiveUp, OsEntropy, Role, Settings, far};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -249,7 +249,9 @@ async fn after_the_deadline_the_far_end_refuses_and_the_session_ends() {
 
     let outcome = tokio::time::timeout(LIMIT, session).await.unwrap().unwrap();
     let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
-    let End::GaveUp(reason) = &ended.end else { panic!("{ended:?}") };
+    let End::GaveUp(gave_up) = &ended.end else { panic!("{ended:?}") };
+    let reason = &gave_up.reason;
+    assert_eq!(gave_up.cause, GiveUp::UnknownSession, "{reason}");
     assert!(reason.contains("did not resume") && reason.contains("no such session"), "{reason}");
     assert!(drained.await.unwrap() > 0, "bytes came before the cut");
 }
@@ -282,9 +284,38 @@ async fn with_no_new_link_the_client_stops_at_its_deadline() {
     let outcome = tokio::time::timeout(LIMIT, session).await.unwrap().unwrap();
     let elapsed = started.elapsed();
     let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
-    let End::GaveUp(reason) = &ended.end else { panic!("{ended:?}") };
+    let End::GaveUp(gave_up) = &ended.end else { panic!("{ended:?}") };
+    let reason = &gave_up.reason;
+    assert_eq!(gave_up.cause, GiveUp::WindowEnded, "{reason}");
     assert!(reason.contains("no new link within 3 s"), "{reason}");
     assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
     let notes = notes.lock().unwrap().clone();
     assert!(notes.iter().any(|n| matches!(n, Note::Retry { why, .. } if why.contains("host is down"))), "{notes:?}");
+}
+
+/// The caller's `connect` says not to come back: the session ends with the
+/// cause `Stopped` and the caller's words (PodUtils/podnet#512, A12).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_stop_of_the_caller_ends_the_session_with_its_cause() {
+    let settings = Settings { resume_deadline: Duration::from_secs(30), ..Settings::default() };
+    let keeper = Arc::new(Keeper::new(Duration::from_secs(30)));
+    let (links_tx, links_rx) = mpsc::unbounded_channel();
+    let (targets_tx, mut targets_rx) = mpsc::unbounded_channel();
+    far_end(keeper, settings, links_rx, targets_tx);
+    let (client_link, far_link) = relayed(Some(10_000));
+    links_tx.send(far_link).unwrap();
+    let client = client::start(client_link, Ask::New, settings, &mut OsEntropy).await.unwrap();
+    let connect = |_: &pod_session::Ended| async { Next::<DuplexStream>::Stop("the user ended the road".into()) };
+    let (app, app_end) = tokio::io::duplex(PIPE);
+    let session = tokio::spawn(async move { resume::run(client, app_end, connect, |_| {}, &mut OsEntropy).await });
+    let target = tokio::time::timeout(LIMIT, targets_rx.recv()).await.unwrap().unwrap();
+    let (_target_r, mut target_w) = tokio::io::split(target);
+    let _ = tokio::time::timeout(Duration::from_secs(5), target_w.write_all(&vec![1; MIB])).await;
+    drop(app);
+
+    let outcome = tokio::time::timeout(LIMIT, session).await.unwrap().unwrap();
+    let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
+    let End::GaveUp(gave_up) = &ended.end else { panic!("{ended:?}") };
+    assert_eq!(gave_up.cause, GiveUp::Stopped, "{gave_up}");
+    assert_eq!(gave_up.reason, "the user ended the road");
 }

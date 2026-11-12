@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**323 entries: 87 open, 5 partial, 5 blocked, 226 done.**
+**323 entries: 86 open, 5 partial, 5 blocked, 227 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 64 | 83 |
-| P2 | 38 | 1 | 5 | 112 | 156 |
+| P2 | 37 | 1 | 5 | 113 | 156 |
 | P3 | 32 | 2 | 0 | 48 | 82 |
-| **All** | 87 | 5 | 5 | 226 | 323 |
+| **All** | 86 | 5 | 5 | 227 | 323 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -368,5 +368,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
 | [T-378](transport.md) | P2 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
 | [T-390](relay.md) | P2 | S | M2 | feature | open | `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11) |
-| [T-391](relay.md) | P2 | S | M2 | feature | open | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
+| [T-391](relay.md) | P2 | S | M2 | feature | done | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
 | [T-392](relay.md) | P3 | S | M2 | research | done | `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13) |
