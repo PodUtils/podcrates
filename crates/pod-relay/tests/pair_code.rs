@@ -80,14 +80,21 @@ async fn pairing_between(giver: &Ends, taker: &Ends, typed: fn(&str) -> String) 
     let offer = offer();
     let (shown_tx, shown_rx) = tokio::sync::oneshot::channel::<String>();
     let mut shown_tx = Some(shown_tx);
-    let mut show = move |made: &Code, _: &str| {
+    let show = move |made: &Code, _: &str| {
         if let Some(tx) = shown_tx.take() {
             let _ = tx.send(made.for_terminal().to_string());
         }
     };
     let mut admit = |key: &PublicKey| Done { admitted: *key == OPERATOR, said: "in the test's allowlist".into() };
     let waits = waits();
-    let giving = run::give(giver, &waits, &offer, &mut show, &mut admit);
+    // The giving owns `show`: a giver that fails before it shows a code
+    // drops it, and the taker ends at once.
+    let giving = async {
+        let mut show = show;
+        let given = run::give(giver, &waits, &offer, &mut show, &mut admit).await;
+        drop(show);
+        given
+    };
     let taking = async {
         let shown = shown_rx.await.expect("the giver showed a code");
         let code = Code::parse(&typed(&shown)).expect("a code");
