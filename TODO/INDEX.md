@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**312 entries: 84 open, 5 partial, 5 blocked, 218 done.**
+**312 entries: 84 open, 4 partial, 5 blocked, 219 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 19 | 2 | 0 | 61 | 82 |
+| P1 | 19 | 1 | 0 | 62 | 82 |
 | P2 | 33 | 1 | 5 | 110 | 149 |
 | P3 | 32 | 2 | 0 | 45 | 79 |
-| **All** | 84 | 5 | 5 | 218 | 312 |
+| **All** | 84 | 4 | 5 | 219 | 312 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -331,7 +331,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-323](upkeep.md) | P1 | S | M5 | defect | done | `services.yml` at `613058c` is red: Serveo's banner names its console, a text watch of shiftr names an endpoint, no RDAP for `.me`, and openbare.xyz in 66 days |
 | [T-324](upkeep.md) | P2 | M | M5 | defect | done | `pod-services-watch`: no offline test checks the arguments of each watch of the data |
 | [T-325](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled |
-| [T-326](podvm.md) | P1 | L | M6 | feature | partial | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
+| [T-326](podvm.md) | P1 | L | M6 | feature | done | `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283) |
 | [T-327](relay.md) | P1 | M | M5 | defect | done | `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502) |
 | [T-328](podvm.md) | P2 | S | M6 | research | open | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 312 entries: 84 open, 5 partial, 5 blocked, 218 done.
+`TODO/INDEX.md` holds 312 entries: 84 open, 4 partial, 5 blocked, 219 done.
 
 ## State
 
@@ -20,9 +20,8 @@
     connect` hangs on a runner with a direct egress: T-327); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
-  - podvm: `v0.31.0` (`c5b61b45`, PodUtils/podvm#284; its 362 unit
-    tests pass; T-320 is its test `import_padded.rs`; T-321 waits for its
-    run of `arm.yml`, PodUtils/podvm@T-1742).
+  - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
+    `pod_relay::blocking`, T-326; its 362 unit tests pass).
   - podrunner: `v0.31.0` (`98bc496`, PodUtils/podrunner@T-094; its `LocalSource` keeps a `Run<Arc<Workflow>>`); its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042
@@ -66,9 +65,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-326 (partial: podvm's
-   trial of the blocking facade passes; `adoption.yml` and podvm's take
-   remain, PodUtils/podvm#283); T-330 (podvm's pair commands); T-328 (podrunner's note
+1. **The defects and asks of the consumers:** T-330 (podvm's pair
+   commands, after its take of the blocking facade, PodUtils/podvm#285); T-328 (podrunner's note
    of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an

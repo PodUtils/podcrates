@@ -21,8 +21,6 @@ is done. Git and the record keep finished work.
   consumer took `v0.31.0` (#90, closed).
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- T-326 (partial): the trial of `pod-relay` in podvm is in `v0.32.0`;
-  `adoption.yml` proves it at the push, and podvm takes it (#91).
 - T-028 (`pod-warp`): an agent of this session imports it in a worktree
   under `.claude/worktrees/` (the free ids 335 to 344, calls C135 to
   C144); merge its branch when its checks pass. The agent of T-326 has
@@ -42,7 +40,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.31.0`, `c5b61b45`, PodUtils/podvm#284): T-326 (the trial of `pod-relay`, an agent of this session, PodUtils/podvm#283, #91); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+- podvm (on `v0.32.0`, `15485d1b`, PodUtils/podvm#285, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
 - podnet (on `v0.30.0`, `83e0c93`, PodUtils/podnet#481, with

@@ -303,9 +303,10 @@ process (`ws_relay::context()`), and removes `relay_pool.rs` and
 ### podvm
 
 The blocking facade: `pod_relay::blocking::Client::new(Config::new(ctx))`
-with podvm's `Context` (its way out, its cache, its settings). The trial
-of T-326 (adoption/podvm/pod-relay.patch, at podvm `c5b61b45`) keeps
-podvm's module `mux` as the glue (calls C130 to C134):
+with podvm's `Context` (its way out, its cache, its settings). podvm took
+it at `15485d1b` (T-326, PodUtils/podvm#285; the trial at podvm
+`c5b61b45`, in the tag `v0.32.0`). podvm's module `mux` is the glue (calls
+C130 to C134):
 
 | Old | New |
 | --- | --- |

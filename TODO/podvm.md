@@ -4545,7 +4545,7 @@ podvm confirmed it on arm64: `arm.yml` run 43228497851 of podvm (`d4ed988e`, pod
 **Milestone:** M6
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4657,6 +4657,14 @@ C134). What remains: `adoption.yml` at the push, and podvm's take.
   build, which its plain legs do not use (T-290).
 - Not measured: the trial in `adoption.yml`; the live relay through the
   glue; the size of podvm's release binaries after the take.
+
+podvm took the trial with `v0.32.0` at `15485d1b` (PodUtils/podvm#285,
+2026-11-12): the patch applied on podvm's `main` (`git apply --3way`), and
+each step of `pod-relay.run` passed there; PodUtils/podvm@T-1678 is done. No
+`taken` line: `crates/pod-relay/SOURCES` has no block of podvm (the crate
+came from podssh). The trial files left `adoption/podvm/`; the take is in
+the map of `adoption/README.md`.
+
 
 # T-328: GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note)
 

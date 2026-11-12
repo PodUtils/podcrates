@@ -43,7 +43,8 @@ and `pod-tls` (podnet `a5894fe`, `a2af228`) and `pod-proxy` (podnet
 `b917f97`) and `pod-proxy` with `blocking` (podvm `b1138c2`) and its streamed
 client for the registry (podvm `06f2427`) and `pod-hostprobe` (podvm `8899c2e`);
 podnet `pod-hold` (podnet `b759937`) and its `connect` and `packet` (podnet
-`e4d4049`); podssh `pod-relay` (podssh `0872c2c6`).
+`e4d4049`); podssh `pod-relay` (podssh `0872c2c6`); podvm `pod-relay` with
+`blocking` (podvm `15485d1b`, PodUtils/podvm#285).
 
 A `.run` of podssh that moves a value of a service names the test
 `cargo test -p podssh-relay --test default_relay` too: the take of v0.4.0
