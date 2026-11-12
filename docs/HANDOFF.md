@@ -9,13 +9,8 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Finish the release of `v0.34.0` if it is not tagged (`docs/maintenance.md`,
-   "A release"): `ci` at the head, `release.yml` with no input, then with
-   `version=0.34.0`; the dry run of `publish.yml`; post
-   `docs/releases/v0.34.0-handoff.md` as COORD-065 `(to all)` (fill
-   `COMMIT`, the run ids and the time), map it, and link it from a COORD
-   answer to PodUtils/podnet#513. Record the takes of `v0.33.0` (#103) and
-   of `v0.34.0`.
+1. Record the takes of `v0.33.0` (#103: podvm, podrunner) and of `v0.34.0`
+   (#104); close each hand-off when each consumer took it.
 2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
@@ -23,14 +18,14 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.33.0` at `8edf8af` (the hand-off #103, open:
-  podnet and podssh took it; podvm and podrunner wait).
+- The last release: `v0.34.0` at `ee514e7` (the hand-off #104, open).
+  `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- An agent of this session in a worktree under `.claude/worktrees/`: T-353
-  (`pod-oci` against CNCF distribution on the loopback), free ids 400
-  to 402, calls C186 to C189. Merge its branch after
-  `scripts/agent/check.sh` passes on the merge.
+- An agent of this session in a worktree under `.claude/worktrees/`: T-393
+  and T-395 (the rest of podnet's `ip.rs` in `pod-netstack` and
+  `pod-warp`), free ids 400 to 402, calls C189 to C192. Merge its branch
+  after `scripts/agent/check.sh` passes on the merge.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.

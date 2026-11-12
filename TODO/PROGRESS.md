@@ -5,17 +5,14 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.33.0` at `8edf8af` (`docs/releases/v0.33.0.md`; ci
-  43282635313, adoption 43280201145 of its parent, release 43286033909;
-  the hand-off #103, COORD-064, open): `pod-turn` (T-377, #100 closed),
-  `pod-devtunnel` (T-378, partial), `pod-warp` (T-028, partial),
-  `pod-netlab` (T-207, partial), T-390, T-391, the data of T-372 to T-376,
-  T-350 to T-352, T-354. Each consumer took `v0.32.0` (#93, closed).
-- `v0.34.0` is prepared on `main` (the version, `docs/releases/v0.34.0.md`,
-  the text of its hand-off): the TCP carrier of `pod-link` and the pin of
-  `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394, T-355.
+- Last release: `v0.34.0` at `ee514e7` (`docs/releases/v0.34.0.md`; ci
+  43296178785, adoption 43293590861 of its parent, release 43299070040;
+  the hand-off #104, COORD-065, open): the TCP carrier of `pod-link` and
+  the pin of `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394,
+  T-355. `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner
+  wait.
 - `main` holds T-353 (`pod-oci` against distribution on the loopback; no
-  login over plain HTTP, C187) for the tag after `v0.34.0`.
+  login over plain HTTP, C187) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
