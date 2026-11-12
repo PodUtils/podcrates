@@ -30,7 +30,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib     # the stable test
 
 | Path | What |
 | --- | --- |
-| `src/targets.rs`, `src/targets/` | the body of each target: the parser that it runs and what it checks (`targets/job.rs`: the records of `pod-job`; `targets/podvm.rs`: the parsers of podvm; `targets/wormhole.rs`: the packets of an MQTT broker) |
+| `src/targets.rs`, `src/targets/` | the body of each target: the parser that it runs and what it checks (`targets/actions.rs`: the expressions and the workflow files of `pod-actions-expr` and `pod-actions-workflow`; `targets/job.rs`: the records of `pod-job`; `targets/podvm.rs`: the parsers of podvm; `targets/wormhole.rs`: the packets of an MQTT broker) |
 | `src/lib.rs` | `TARGETS`, and the checks that more than one target uses |
 | `src/tests.rs` | each target on its seeds and on 2000 mutations of them, on stable Rust; each target has its binary and its seeds |
 | `fuzz_targets/NAME.rs` | the binary of a target: it calls `targets::NAME` |
@@ -79,6 +79,8 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `wg_cookie` | `pod-wg` | `fuzzing::cookie` (`Cookie::open` on fixed keys): a cookie reply opens only when it is the responder's reply to the initiation, but for the reserved bytes | new in `pod-wg` (T-024); its seeds are the reply, the same with other reserved bytes, one with a changed cookie, and one to another initiation, written here |
 | `relay_list` | `pod-relay` | `relay::{parse_relay_list, forward_path}`: a path is always `/connect/HOST/PORT`, three segments, with nothing that adds a segment, a query or a line | podssh `relay_list`; its seeds are a host, a list with a port, an IPv6 literal and a list that is no list, written here |
 | `relay_pool` | `pod-relay` | `pool::parse_pool`: each host is kept once, in lower case, of the primary's deployment and not the primary | podssh `relay_pool`; its seeds are a pool with a host of another deployment and one twice, a pool with limits and an empty pool, written here |
+| `actions_expr` | `pod-actions-expr` | `Expr::parse` and `evaluate` (twice: the same value), `Template`, `Condition` (an implicit condition starts with `success()`), `Value::from_json` (its `toJSON` reads back to the same value) | new in `pod-actions-expr` (T-251); its seeds are expressions of the GitHub documents (a filter, a format with escapes, the ternary, the coercion, `fromJSON` with an index), a template, a JSON document, nested groups and an open string, written here |
+| `actions_workflow` | `pod-actions-workflow` | `parse`, `Run::new` and `plan`: the order holds each job once, and the dry run gives the jobs in that order | new in `pod-actions-workflow` (T-251); its seeds are a matrix with `include` and `exclude`, needs with a condition and a reusable workflow, an anchor, and a cycle, written here |
 | `wg_transport` | `pod-wg` | `fuzzing::open` (`Session::open`, twice): a message that opens has the type, the index, the header and the tag around its packet, and its second read is a replay | new in `pod-wg` (T-024); its seeds are an IPv4 and an IPv6 packet, a keepalive, an IPv4 length past the packet, a message to another session, and a header with no tag, written here |
 
 Where both sources test the same parser, one target holds the checks and

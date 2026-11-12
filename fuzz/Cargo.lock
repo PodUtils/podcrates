@@ -50,6 +50,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed"
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1053,6 +1059,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "pod-actions-expr"
+version = "0.29.0"
+
+[[package]]
+name = "pod-actions-workflow"
+version = "0.29.0"
+dependencies = [
+ "pod-actions-expr",
+ "saphyr-parser",
+]
+
+[[package]]
 name = "pod-broker"
 version = "0.29.0"
 dependencies = [
@@ -1369,6 +1387,8 @@ name = "podcrates-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
+ "pod-actions-expr",
+ "pod-actions-workflow",
  "pod-broker",
  "pod-core",
  "pod-dns",
@@ -1601,6 +1621,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97a22f5af31f73a954c10289c93e8a50cc23d971e80ee446f1f6f7137a088213"
 dependencies = [
  "cipher",
+]
+
+[[package]]
+name = "saphyr-parser"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c98d2738e44a25e6ba2e6d83d91805648df204768abc96f4f1278cb3d5c90bbe"
+dependencies = [
+ "arraydeque",
+ "thiserror",
 ]
 
 [[package]]

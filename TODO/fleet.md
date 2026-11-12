@@ -1354,3 +1354,43 @@ cargo test -p pod-actions-expr -p pod-actions-workflow
 
 podrunner asks for its local mode (PodUtils/podrunner@T-046): it asked on
 2026-11-12.
+
+# T-280: `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors
+
+**Source:** T-251 (its Premise: the conformance against the official runner is not measured); calls C107 and C108
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The two crates follow the documents of GitHub and the code of
+`actions/runner`, but no run on GitHub compared their answers. The README
+of `pod-actions-expr` lists the known differences (strict JSON in
+`fromJSON`, the fold of a character with a two-character upper case, the
+sum of the memory limit, the escapes of `toJSON`). Calls C107 and C108
+are not measured: the status functions of a job over its ancestors, the
+match of a matrix value with case, the default `max-parallel`, the name of
+a matrix job whose `name` does not read `matrix`.
+
+## Premise
+
+- Read: the conformance table of `crates/pod-actions-expr/README.md`, the
+  rules of `crates/pod-actions-workflow/README.md`, calls C107 to C109.
+- Not measured: each line of the tables against GitHub.
+
+## Approach
+
+A workflow of `live.yml` (or its own, by hand) that runs the expression
+vectors of the tests of `pod-actions-expr` in a job (`echo` of
+`toJSON(...)` of each one) and a set of matrix and needs examples; a step
+then runs a test binary of podcrates on the same vectors and compares. A
+difference becomes a defect entry or a line of the known differences.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-expr -p pod-actions-workflow
+```

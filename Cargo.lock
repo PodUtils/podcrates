@@ -139,6 +139,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1954,6 +1960,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "pod-actions-expr"
+version = "0.29.0"
+
+[[package]]
+name = "pod-actions-workflow"
+version = "0.29.0"
+dependencies = [
+ "pod-actions-expr",
+ "saphyr-parser",
+]
+
+[[package]]
 name = "pod-broker"
 version = "0.29.0"
 dependencies = [
@@ -2914,6 +2932,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "saphyr-parser"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c98d2738e44a25e6ba2e6d83d91805648df204768abc96f4f1278cb3d5c90bbe"
+dependencies = [
+ "arraydeque",
+ "thiserror",
+]
+
+[[package]]
 name = "schemars"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3332,6 +3360,8 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "static-probe"
 version = "0.29.0"
 dependencies = [
+ "pod-actions-expr",
+ "pod-actions-workflow",
  "pod-broker",
  "pod-confine",
  "pod-core",

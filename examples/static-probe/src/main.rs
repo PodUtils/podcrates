@@ -3,6 +3,7 @@
 //! binary on each target (docs/design.md, section 7). Each new crate adds
 //! one line here.
 
+mod actions;
 mod hold;
 mod relay;
 mod relay_client;
@@ -114,6 +115,7 @@ fn main() {
     lines.push(relay_client::relay());
     lines.push(job());
     lines.push(incus());
+    lines.push(actions::actions());
     for line in lines {
         println!("{line}");
     }

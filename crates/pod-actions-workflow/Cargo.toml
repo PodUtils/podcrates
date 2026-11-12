@@ -1,0 +1,15 @@
+[package]
+name = "pod-actions-workflow"
+description = "A GitHub Actions workflow file into a typed model with no forge and no network, and its expansion: the concrete jobs of each matrix, the order of needs, and each skipped job with its reason."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The expressions of the job level: if, strategy, runs-on, name, the
+# templates of the file.
+pod-actions-expr = { workspace = true }
+# The YAML 1.2 events (call C105).
+saphyr-parser = { workspace = true }

@@ -1,0 +1,22 @@
+on: [push]
+jobs:
+  a:
+    runs-on: x
+    outputs:
+      m: ${{ steps.s.outputs.m }}
+    steps:
+      - id: s
+        run: echo
+  b:
+    needs: a
+    if: ${{ failure() || needs.a.result == 'success' }}
+    runs-on: x
+    strategy:
+      matrix: ${{ fromJSON('{"n":[1,2]}') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+  c:
+    needs: [a, b]
+    uses: ./.github/workflows/reusable.yml
