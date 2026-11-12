@@ -1,0 +1,46 @@
+# The trial of the hold of a SYN of pod_hold::syn_hold in podnet (T-170,
+# step 2; PodUtils/podnet#451, podnet's T-249 at a7350b2). netns/backend.rs
+# of podnet-netns takes SynHold of pod-hold (the feature syn-hold): the hold
+# of each new SYN with its dial, the release to the stack or the RST, the
+# listeners of the ports, the match of an accepted stream to its upstream
+# and the late dial. podnet keeps the dial (TcpRoute implements Dial: the
+# rules, the proxies, the fake DNS, --host-gateway; refused prints the line
+# of -v), the flow log, the copy of a flow, the DNS, the UDP flows and the
+# device of the wire. netns/packet.rs keeps ipv4_checksum only. Each
+# podcrates tag moves to v0.29.0. The record (the citations of backend.rs
+# and of the README of podnet-netns are remapped), the size and the layers
+# of the files, the build, the bans and the sources of cargo-deny, the
+# feature syn-hold in the tree, no copy of the moved items left in podnet,
+# clippy of the workspace, the docs of podnet-netns, the tests of
+# podnet-netns, its netns tests as root (the veth wire of the pod, and the
+# kernel mode of the router; a skip fails), the tests of each crate whose
+# podcrates tag moved, the integration tests of the pod (seccomp and netns:
+# netns_backend_refuses_connect_when_the_upstream_is_dead, the burst, the
+# ports, the large download, the host gateway), doctor, docs and the API,
+# the fuzz targets with their lock, rustfmt, each Rust toolchain of the
+# workflows and build images against the rust-version of podcrates, and the
+# binary for x86_64 musl, built with zig (a debug build: the release profile
+# takes LTO), with podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet-netns -i pod-hold > /dev/null
+cargo tree -q -p podnet-netns -e features -i pod-hold | grep -q 'pod-hold feature "syn-hold"'
+! git grep -n -E "struct HeldSyn|fn hold_syns|fn close_idle_ports|PREDIALED_TTL|HANDSHAKE_TTL|type SynKey|fn has_connection|fn open_count|enum Source \{" -- crates src
+cargo clippy -q --workspace --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -q --no-deps -p podnet-netns
+cargo test -q -p podnet-netns
+sh scripts/ci/root-netns-tests.sh
+cargo test -q -p podnet-core -p podnet-serve -p podnet-vnet --lib
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test pod_seccomp --test pod_seccomp_tcp --test pod_seccomp_dgram --test pod_seccomp_fds --test pod_seccomp_handoff --test pod_seccomp_nonblock --test pod_seccomp_rules --test pod_seccomp_slow_dial --test pod_seccomp_diff --test pod_backend_line --test pod_usage --test af_inet_kernel --test doctor --test docs --test api_surface
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"
