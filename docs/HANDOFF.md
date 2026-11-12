@@ -25,6 +25,11 @@ is done. Git and the record keep finished work.
 - T-326: an agent of this session writes the trial of `pod-relay` in
   podvm in a worktree under `.claude/worktrees/`; merge its branch when
   its checks pass, and answer on #91.
+- T-028 (`pod-warp`): an agent of this session imports it in a worktree
+  under `.claude/worktrees/` (the free ids 335 to 344, calls C135 to
+  C144); merge its branch when its checks pass. The agent of T-326 has
+  the free ids 330 to 334 and calls C130 to C134.
+- T-327 waits for podnet's log of `relay connect -v` (#92).
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
