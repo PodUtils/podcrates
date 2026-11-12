@@ -39,7 +39,7 @@ pub use e2e::E2e;
 pub use framing::SessionId;
 pub use layered::Layered;
 
-pub use local::{LocalHandler, Target};
+pub use local::{ChannelHandler, LocalHandler, Target, channel};
 pub use node::{Exit, Handler, Next, NodeConfig, Opening, QUEUE_BYTES, RepairHook, after_close, run};
 pub use operator::{EOF_IDLE, OperatorConfig, OperatorLimits, Outcome};
 pub use serve::{DRAIN, End, HALF_CLOSE_IDLE, Settings, serve};

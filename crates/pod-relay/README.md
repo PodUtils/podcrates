@@ -51,7 +51,7 @@ and prints nothing.
 | `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay |
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
 | `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one) |
-| `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
+| `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `channel` and `ChannelHandler` (each session to a service of the process, T-150), `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
 | `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public` |
 | `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`), `LIFETIME` |
 | `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
@@ -102,7 +102,7 @@ set by the caller, with podssh's behaviour by default:
 
 | Part | podssh (the default) | podnet's plain mode |
 | --- | --- | --- |
-| a node's handler | `TcpHandler`, `Layered`, `E2e` | `LocalHandler` of a `local::Target` (`host:port`, `tcp://host:port`, `[IPv6]:port`, `unix:/path`) |
+| a node's handler | `TcpHandler`, `Layered`, `E2e` | `LocalHandler` of a `local::Target` (`host:port`, `tcp://host:port`, `[IPv6]:port`, `unix:/path`); `ChannelHandler` of `reverse::channel(depth)`: a pipe for each session, its other end with the session's id to a service of the process (PodUtils/podnet@T-083) |
 | the end of a local side's writes | `Settings::half_close: None`: the session ends at once | `Some(HALF_CLOSE_IDLE)`: the operator's last bytes still go; the session ends after 2 s with none |
 | the end of an operator's input | `OperatorLimits::eof_idle: None`: a Close at once (or as `node_ends` says) | `Some(EOF_IDLE)`: no Close; the node's bytes still come; the Close after 15 s with none |
 | the next pair at the expiry | the caller's `RepairHook` | a `RepairHook` over `pair::newest(cache, Some(&ending))` |

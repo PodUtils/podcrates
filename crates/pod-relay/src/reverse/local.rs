@@ -78,6 +78,39 @@ impl Handler for LocalHandler {
     }
 }
 
+/// The bytes that each pipe of a [`ChannelHandler`] holds each way.
+const PIPE_BYTES: usize = 64 * 1024;
+
+/// Each session is one end of a pipe; a service of the caller's process
+/// takes the other end, with the session's id, from the channel of
+/// [`channel`] (podnet's file server or a transfer reached through the
+/// relay with no socket file). A session waits for room in the channel
+/// within the node's limit for opening it; a closed channel refuses it.
+#[derive(Clone)]
+pub struct ChannelHandler {
+    sessions: tokio::sync::mpsc::Sender<(SessionId, tokio::io::DuplexStream)>,
+}
+
+/// A [`ChannelHandler`] and the receiver of its sessions, which holds at most
+/// `depth` sessions that the service did not take yet.
+pub fn channel(depth: usize) -> (ChannelHandler, tokio::sync::mpsc::Receiver<(SessionId, tokio::io::DuplexStream)>) {
+    let (sessions, taken) = tokio::sync::mpsc::channel(depth.max(1));
+    (ChannelHandler { sessions }, taken)
+}
+
+impl Handler for ChannelHandler {
+    type Stream = tokio::io::DuplexStream;
+
+    fn open(&self, id: SessionId) -> Opening<tokio::io::DuplexStream> {
+        let sessions = self.sessions.clone();
+        Box::pin(async move {
+            let (node_end, service_end) = tokio::io::duplex(PIPE_BYTES);
+            sessions.send((id, service_end)).await.map_err(|_| "the service of the process is gone".to_string())?;
+            Ok(node_end)
+        })
+    }
+}
+
 /// One connection to `target`, within `timeout`.
 pub async fn connect(target: &Target, dialer: &Dialer, timeout: Duration) -> Result<BoxedIo, String> {
     match target {

@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use pod_relay::reverse::operator::exchange;
 use pod_relay::reverse::{
-    End, Handler, LocalHandler, Opening, OperatorLimits, Outcome, SessionId, Settings, Target, serve,
+    End, Handler, LocalHandler, Opening, OperatorLimits, Outcome, SessionId, Settings, Target, channel, serve,
 };
 use pod_ws::frame::{self, Frame, Role};
 use pod_ws::session::RelaySession;
@@ -361,4 +361,40 @@ async fn a_node_whose_token_is_refused_with_401_stops() {
     let exit = tokio::time::timeout(Duration::from_secs(20), running).await.expect("the node stops");
     assert!(matches!(exit, Exit::Forbidden), "{exit:?}");
     refusals.join().unwrap();
+}
+
+/// podnet T-083: a service of the node's process answers each session that
+/// the relay opens, with no socket file (`reverse::channel`); a session
+/// after the service is gone is refused.
+#[tokio::test]
+async fn a_service_of_the_process_answers_each_session_through_a_channel() {
+    const B: &str = "8f0e7c2a9b1d4e6f8a0b2c4d6e8f0a1b";
+    let (handler, mut sessions) = channel(4);
+    let (mut relay, _stop, _task) = node(handler, Settings::default());
+    let service = tokio::spawn(async move {
+        for _ in 0..2 {
+            let (id, mut stream) = sessions.recv().await.expect("a session");
+            let mut asked = [0u8; 4];
+            stream.read_exact(&mut asked).await.unwrap();
+            stream.write_all(format!("{}:{}", String::from_utf8_lossy(&asked), id.as_str()).as_bytes()).await.unwrap();
+        }
+    });
+    relay.text(HELLO).await;
+    for id in [A, B] {
+        relay.text(&open(id)).await;
+        assert!(relay.expect_text().await.contains(r#""type":"ready""#), "{id}");
+        relay.data(id, b"ping").await;
+        let f = relay.next(LIMIT).await.expect("the answer of the service");
+        assert_eq!(&f.payload[..32], id.as_bytes());
+        assert_eq!(f.payload[32..].to_vec(), format!("ping:{id}").into_bytes());
+        // The service drops its end after its answer: the session ends.
+        let closed = relay.expect_text().await;
+        assert!(closed.contains(r#""type":"close""#) && closed.contains(id), "{closed}");
+    }
+    service.await.unwrap();
+    // The service is gone: the channel is closed, and a new session is refused.
+    const C: &str = "0c1d2e3f405162738495a6b7c8d9eafb";
+    relay.text(&open(C)).await;
+    let refused = relay.expect_text().await;
+    assert!(refused.contains(C) && refused.contains("the service of the process is gone"), "{refused}");
 }
