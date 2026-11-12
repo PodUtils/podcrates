@@ -4527,3 +4527,60 @@ its live wire where a stand-in serves it); `adoption.yml` passes the trial.
 ```sh
 sh scripts/adoption.sh podvm pod-relay
 ```
+
+# T-353: `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week
+
+**Source:** `docs/live-calls.md` (row L4); `services.yml` run 42803032733
+(ECR Public gave 429).
+**Category:** feature
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`crates/pod-oci/tests/live.rs` pulls the pinned guest userland from ECR
+Public each day. ECR Public limits the shared addresses of the runners
+(429, "Data limit exceeded"), so the test skips on a 429 and proves
+nothing on that day. The offline fixture
+(`crates/pod-oci/tests/common/registry.rs`) is a small server that this
+crate wrote: one manifest, plain HTTP, no index, no token. The bearer
+token flow, an index of two platforms and the answers of a real registry
+are proven only by the live pull.
+
+## Premise
+
+- Measured: `services.yml` run 42803032733 failed `ecr-public-registry
+  oci-digest` with HTTP 429 (the log read 2026-11-12); T-142 met "Data
+  limit exceeded" once.
+- Read (2026-11-12): https://github.com/distribution/distribution/releases
+  (v3.1.2, 2026-09-24, Apache-2.0); the image `registry:3.1.2`, index
+  `sha256:82f6ff4a7f982960c8aa51617fea3aabc485df6e55cce80d22deb1de36f1bc3c`
+  (20 MB for amd64).
+- Not measured: the token auth of distribution (`auth: token` needs a
+  token server that signs a JWT) with the client of `pod-oci`; a push of
+  an index of two platforms by `docker buildx` with no emulator (each
+  image `FROM scratch`).
+
+## Approach
+
+1. scripts/ci/registry-tests.sh (call C151): `registry:3.1.2` through
+   `scripts/pull-image.sh` on 127.0.0.1:5000, with htpasswd auth, then the
+   token auth against a token stand-in of the test (an HTTP stand-in of
+   `pod-testkit` that signs with a key of the test). The script pushes an
+   image of the test: an index of linux/amd64 and linux/arm64, each
+   `FROM scratch` with one file.
+2. A test target `distribution` of `pod-oci`: `pull::resolve` of the
+   index for each platform, the config and the layer by digest, the
+   refusal of a digest that does not match, and a 401 with no login. With
+   no registry it skips, unless `POD_OCI_TEST_REGISTRY=required`.
+3. `live.rs` runs each week (T-352). The daily fact is the watch
+   `oci-digest` of `ecr-public-registry`.
+
+## Prove
+
+```sh
+sh scripts/ci/registry-tests.sh
+cargo test -p pod-oci --all-features
+```

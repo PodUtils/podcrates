@@ -928,3 +928,104 @@ cargo test -p pod-egress --all-features
 ## Start condition
 
 T-035 is done, and podnet starts its PodUtils/podnet@T-294.
+
+# T-357: `pod-gsr`: gs-netcat as the other end, through the stand-in of the relay
+
+**Source:** `docs/live-calls.md` (row L10).
+**Category:** feature
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Both ends of each offline test of `pod-gsr` are `pod-gsr`
+(`crates/pod-gsr/tests/loopback.rs`, `crates/pod-gsr/tests/blocking.rs`).
+A defect that both ends share passes. Only the live test
+(`crates/pod-gsr/tests/live.rs`, by hand, in no workflow) meets the relay
+of THC, and there the other end is `pod-gsr` too. No test meets the
+client of gsocket itself (the SRP and TLS of the ends, the address of a
+secret).
+
+## Premise
+
+- Read (2026-11-12): https://github.com/hackerschoice/gsocket (BSD-2-Clause;
+  release v1.4.43 with the static `gs-netcat_linux-x86_64`;
+  `lib/gsocket-engine.c` reads `GSOCKET_IP`, `GSOCKET_PORT` and
+  `GSOCKET_HOST`, so the client takes a relay on the loopback).
+- Measured: the SHA-256 of `gs-netcat_linux-x86_64` of v1.4.43,
+  `55d141bb2f62c527c3fea3413b8429fed7d52633d0b123b5e611bfa42165229f`
+  (2,846,128 bytes, static-pie), downloaded through fetch.web.pkgforge.dev
+  on 2026-11-12. The release publishes no checksum.
+- Read (2026-11-12): https://github.com/hackerschoice/gsocket-relay: its
+  LICENSE gives no permission to use the code. The relay of THC cannot
+  run in a job; the stand-in of `loopback.rs` stays the relay.
+- Not measured: gs-netcat against the stand-in (the stand-in may lack a
+  message that the real client sends).
+
+## Approach
+
+scripts/ci/gsocket-tests.sh: gs-netcat of v1.4.43 from its release,
+checked by the SHA-256 above. A test of `pod-gsr` starts the stand-in
+relay, then gs-netcat with `GSOCKET_IP=127.0.0.1` and the port of the
+stand-in, in each role (`-l` and the connect), and `pod-gsr` in the other
+role with the same secret; 1 MiB crosses in each direction. A message
+that the stand-in does not speak is added to the stand-in, with the
+source of its form. With no gs-netcat the test skips, unless
+`POD_GSR_TEST_GSNETCAT=required`.
+
+## Prove
+
+```sh
+sh scripts/ci/gsocket-tests.sh
+cargo test -p pod-gsr --all-features
+```
+
+# T-361: `pod-relay`: its end-to-end tests against the self-hosted relay of `pod-relay-serve`, then against workerd
+
+**Source:** `docs/live-calls.md` (row L9).
+**Category:** feature
+**Milestone:** M4
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The client of `pod-relay` is proven offline against the stand-ins of
+`crates/pod-relay/tests/stand_in` and `crates/pod-relay/tests/e2e_harness`,
+which replay the frames of the live relay. The live relay is reached only
+by hand (the job `relay` of `live.yml`), and a run on a runner meets the
+network of the runner (T-327). The relay role of T-036 is a real server
+of the contract: on the loopback it proves the client on each push. The
+relay Worker (`podrelay-worker`, the ruling of Q-A7) can run in workerd
+on the loopback.
+
+## Premise
+
+- Read: T-036 (the relay role and its mailbox, open); the ruling "The
+  relay Worker (Q-A7)" of `docs/decisions.md`.
+- Read (2026-11-12): https://github.com/cloudflare/workerd/releases
+  (v1.20261112.1, Apache-2.0; `workerd-linux-64.gz`).
+- Not measured: the start of the role and of workerd in a job.
+
+## Approach
+
+1. After T-036: the end-to-end tests of `pod-relay` (mint, pair, reverse,
+   idle, drops, grants) run on each push against the role on 127.0.0.1,
+   with the same cases as the `*_live.rs` tests.
+2. After the first release of `podrelay-worker`: the same cases against
+   its Worker in workerd on 127.0.0.1, workerd from its release checked by
+   its SHA-256 (call C151).
+3. The live tests stay by hand: their purpose is the owner's relay.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test e2e_layered
+```
+
+## Start condition
+
+T-036 is done.

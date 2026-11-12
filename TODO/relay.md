@@ -4097,3 +4097,61 @@ cargo test -p pod-relay --all-features
 
 `live.yml` with `relay = reverse_live`; podnet's `live.yml` at its next
 tag.
+
+# T-354: `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push
+
+**Source:** `docs/live-calls.md` (row L6); `live.yml` run 43164673537.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `pod-wormhole` and of `pair_code` of `pod-relay` against
+magic-wormhole's own mailbox server and library run only in the daily
+`live.yml`. They reach no service: the server runs on the loopback. Only
+its install reaches PyPI (pip with pinned versions and no hashes). A
+defect of the pairing waits for the next day, not the push. The step also
+runs the broker tests of `pod-wormhole` with no Mosquitto: they print
+"did not run: no Mosquitto here" (run 43172235777), and in run
+43164673537 they failed on `POD_WORMHOLE_TEST_SERVER=required`. The
+transit relay of T-027 needs a server of the same kind.
+
+## Premise
+
+- Read: `.github/workflows/live.yml` (the steps of the virtualenv and of
+  the pairing by a code), `crates/pod-relay/tests/mailbox_harness/mod.rs`,
+  `crates/pod-wormhole/tests/harness/mod.rs`.
+- Read (2026-11-12): https://pypi.org/pypi/magic-wormhole-mailbox-server/json
+  (0.8.0, MIT, wheel SHA-256
+  `e03f6a60284c6174baf4d94ee880f90071c1d01afe7f65380fa5f20ff0f01ad4`),
+  .../magic-wormhole-transit-relay/json (0.5.0, MIT, wheel SHA-256
+  `e2a378a84e6bdb3e317d1e0dfaf02e9f4a92e30aa5686c5e4ef27209c3ac0b57`),
+  .../magic-wormhole/json (0.24.0, MIT, wheel SHA-256
+  `312d7d55cba76fe443fd207b1e006d12b7c56699961ed6dce46bed765945e712`).
+  No official image of the servers exists (search of 2026-11-12).
+- Measured: the logs of `live.yml` runs 43164673537 and 43172235777.
+- Not measured: the time of the install with the cache of pip.
+
+## Approach
+
+1. A requirements file of the test servers with the hash of each package
+   and of each dependency (made with `pip-compile --generate-hashes`),
+   installed with `pip install --require-hashes`, with the cache of pip in
+   actions/cache keyed by the hash of the file (call C152).
+2. scripts/ci/mailbox-tests.sh: the step of the job `test` of `ci.yml`
+   with `POD_WORMHOLE_TEST_SERVER=required`; it runs the mailbox tests of
+   `pod-wormhole` and the target `pair_code` of `pod-relay`, not the
+   broker tests (Mosquitto has its own step, C95). The two steps leave
+   `live.yml`.
+3. magic-wormhole-transit-relay 0.5.0 is in the same file, for the tests
+   of `pod-transit` (T-027).
+
+## Prove
+
+```sh
+sh scripts/ci/mailbox-tests.sh
+gh workflow run ci.yml
+```
