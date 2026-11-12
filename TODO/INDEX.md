@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**239 entries: 62 open, 5 partial, 4 blocked, 168 done.**
+**241 entries: 63 open, 5 partial, 4 blocked, 169 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 82 | 119 |
-| P3 | 18 | 1 | 0 | 35 | 54 |
-| **All** | 62 | 5 | 4 | 168 | 239 |
+| P2 | 31 | 2 | 4 | 83 | 120 |
+| P3 | 19 | 1 | 0 | 35 | 55 |
+| **All** | 63 | 5 | 4 | 169 | 241 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -280,9 +280,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-231](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |
 | [T-232](relay.md) | P1 | M | M2 | defect | done | `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457) |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |
-| [T-234](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: a relay host as an IPv6 address in brackets, and plain `ws://` to a loopback relay on the forward road |
+| [T-234](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: a relay host as an IPv6 address in brackets, and plain `ws://` to a loopback relay on the forward road |
 | [T-240](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store |
 | [T-241](podvm.md) | P3 | M | M7 | feature | open | `pod-confine`: the permissions and the quiet flags of Landlock ABI 11 and 12 |
 | [T-242](fleet.md) | P2 | S | M8 | chore | done | Docs: the names of the renames of 2026-11-12 (`pods`, `podstat`, `podforge`) and the stale text of `pod-git` and of the podrunner plan (GitHub #78) |
 | [T-243](upkeep.md) | P3 | S | M5 | chore | done | Dependabot of 2026-11-12: trufflehog 3.99.8, toml 1.2.1, and foreign-types 0.5.0 declined (GitHub #79, #80, #81) |
+| [T-245](relay.md) | P2 | S | M2 | defect | open | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
+| [T-246](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |

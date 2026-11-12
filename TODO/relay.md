@@ -1111,7 +1111,8 @@ sh scripts/agent/check.sh
 
 ## Start condition
 
-The trial of podnet (What remains, step 2) starts after T-234.
+The trial of podnet (What remains, step 1) starts after T-234, which is
+done.
 
 ## Correction
 
@@ -1125,7 +1126,7 @@ started while T-025 was partial: its import and its adaptation are done.
 
 ## Done
 
-2026-11-12, partial: T-234 and the trial of podnet remain. Commits
+2026-11-12, partial: the trial of podnet remains (T-234 is done). Commits
 `d012f20` (the capabilities and their tests) and this record (the plants,
 the README, `SOURCES`, the calls C73 to C76).
 
@@ -1177,11 +1178,10 @@ the README, `SOURCES`, the calls C73 to C76).
 
 What remains, in order:
 
-1. T-234: a relay host as an IPv6 address in brackets, and plain `ws://`
-   to a loopback relay on the forward road, which podnet's tests of its
-   forward road need.
-2. The trial of podnet: adoption/podnet/pod-relay.patch, `.commit` and
-   `.run`, on podnet `7c5f87e` or a later commit with the same files.
+1. The trial of podnet (T-234, which its tests of the forward road need,
+   is done: `open::open_on_loopback`, an IPv6 relay host in brackets):
+   adoption/podnet/pod-relay.patch, `.commit` and `.run`, on podnet
+   `7c5f87e` or a later commit with the same files.
    `PodUtils/podnet:src/ws_relay.rs`, `PodUtils/podnet:src/relay_pool.rs`
    and `PodUtils/podnet:src/relay_reverse.rs` become glue over `pod_relay`
    as the adoption map of the crate README says: one `Context` of the
@@ -1196,8 +1196,8 @@ What remains, in order:
    `operator::run` with `eof_idle`. The `.run`: the tests of these modules,
    `PodUtils/podnet:tests/relay_reverse.rs`, the exit codes of
    `PodUtils/podnet:tests/cli.rs`, the static check.
-3. The release, and the take of podnet; the next trial of podssh (T-025)
-   and podvm's take of the facade see the changes of call C75.
+2. The release, and the take of podnet; the next trial of podssh (T-025)
+   and podvm's take of the facade see the changes of calls C75 and C80.
 
 # T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)
 
@@ -2615,7 +2615,7 @@ cargo test -p pod-netstack --lib stack::tests::burst
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2659,5 +2659,160 @@ cannot run on the crate in the trial of T-026.
 ## Prove
 
 ```sh
+cargo test -p pod-relay --all-features
+```
+
+## Done
+
+2026-11-12: commits `7ad2263` (the code, the tests, the plants, the README)
+and this record (the calls C80 to C82, T-245, T-246).
+
+- `relay::parse_relay` takes `[ADDR]` and `[ADDR]:PORT` with `https://`,
+  `wss://` or no scheme, and keeps the address with no brackets in its
+  canonical form (RFC 5952); a bare address and a zone stay refused (call
+  C80). `Relay::name` and `Relay::url` write it in brackets;
+  `token::relay_name`, `pool::host_header` and the `Host` of the HTTP road
+  are `Relay::name`; the lines of the opener, the gate, the record of
+  failures, a kept offer and the QUIC road write a host in brackets. The
+  cache files of `[2001:db8::1]:8443` are `relay-token-_2001_db8__1__8443.json`
+  and `relay-pool-2001_db8__1.json`, for each spelling of the address.
+- `open::open_on_loopback` (feature `plain-ws`, call C81) is the forward
+  opener on plain `ws://` to stand-in relays on the loopback
+  (`crates/pod-relay/src/open_plain.rs`): the order of the hosts, the
+  failover and the notes of `open`, no other road, and no mint: the token
+  of the settings, the run or the cache (`token::kept`, which `obtain`
+  uses). A host off the loopback is refused before any connection. With
+  the feature, `parse_relay` takes `http://` and `ws://` for a host on the
+  loopback (call C82). `open::Request` has no new field: the one literal
+  that `adoption/podssh/pod-relay.patch` adds (`grep -n "Request {"`, in
+  podssh-relay's `open`) has no `..`, and stays valid.
+- podnet's tests, with their names: `relay_urls` and
+  `an_ipv6_relay_host_keeps_its_port` (`crates/pod-relay/src/relay_tests.rs`),
+  `bytes_go_through_a_local_relay` (`crates/pod-relay/tests/forward_plain.rs`,
+  with a stand-in relay of `pod_ws::server` in place of podnet's
+  tungstenite). A host with no scheme stays a relay of TLS (podnet refused
+  it). New tests: `an_ipv6_relay_has_one_name_in_brackets`,
+  `a_failure_names_an_ipv6_host_in_brackets`,
+  `a_relay_off_the_loopback_is_refused_before_any_connection`,
+  `the_plain_wire_takes_a_given_token_and_mints_none`. The test
+  `ipv6_literals_are_targets_and_zones_are_not` and the properties
+  `a_list_keeps_its_order_and_drops_its_duplicates` (IPv6 items in brackets)
+  and `any_text_parses_only_to_hosts_that_pass_the_check` take the new rule.
+  On the code before, with stubs of `Relay::url`, `url_host` and
+  `open_on_loopback` (as `open`), each new test fails: 5 unit tests, the 3
+  of `forward_plain.rs`, and `a_list_keeps_its_order_and_drops_its_duplicates`.
+- The tests of `relay.rs` moved to `crates/pod-relay/src/relay_tests.rs`
+  (the file came near 500 lines). Defect found and repaired: the sweep
+  `the_default_relay_is_named_in_exactly_one_place`
+  (`crates/pod-relay/tests/default_relay.rs`) knew a test module by
+  `mod NAME;` only, so it read `relay_tests.rs` as library code and failed;
+  it takes a module that `#[path]` names under `#[cfg(test)]` too.
+- Tests: `cargo test -p pod-relay --all-features`: 381 passed, 0 failed, 19
+  ignored (195 unit tests; `tests/forward_plain.rs` 3), each test target in
+  turn, as the disk of this host held one at a time. clippy with
+  `-D warnings`, all targets, with all features and with none: clean.
+  `python3 -I scripts/check-size.py`: 0 faults.
+- Plants: 6 new (group `relay`, scripts/plants/relay-t234-*), each caught
+  on this host by its test with the command of its RUN: `http://` to a host
+  off the loopback, a name with no brackets, an address kept as spelled,
+  a mint on the plain wire, a plain dial of any host, and a literal of the
+  default relay in `relay.rs` (the sweep). relay-t173-foreign-name-taken is
+  made again on its line (its context changed), and caught.
+  `sh scripts/plant-each.sh --apply`: 0 stale.
+- Not measured: a relay at an IPv6 address (a certificate for an address,
+  the relay's answer to a `Host` in brackets); a mint or a pair at an IPv6
+  relay on port 443, whose `Host` has no brackets (T-245); podnet's own
+  tests on the crate, and `PodUtils/podnet:src/dialers/tests.rs` (the trial
+  of T-026).
+- Found: T-245 (the `Host` of an HTTPS request to an IPv6 address on port
+  443), T-246 (two hosts with one name of a cache file).
+
+# T-245: `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets
+
+**Source:** T-234 (found in the work).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-ws/src/client.rs:363` says "if port == 443 { host.to_string() }"
+for the `Host`: an HTTPS request of
+`pod-ws` (`https_post_json`, `https_with_token`) to an IPv6 address on
+port 443 sends `Host: 2001:db8::1`, with no brackets (RFC 9110, section
+7.2, takes the `host` of RFC 3986: an IPv6 address in brackets).
+`keyed::host_header` of `crates/pod-relay/src/keyed.rs` copies the rule, as
+the proof of a key signs the `Host` that goes, and the cleartext road
+(`crates/pod-relay/src/cleartext.rs`, `mint_once`) sends it. Since T-234 a
+relay host can be an IPv6 address: a mint and a pair at `[ADDR]` on port
+443 send a `Host` that a strict server refuses. The upgrade of a session
+(`pod_ws::client::connect`) writes the `Host` with its port, in brackets.
+
+## Premise
+
+- Read: the files above, and `pod_proxy::host::host_header`, which writes
+  the address in brackets.
+- Not measured: a relay at an IPv6 address on port 443, and what the relay
+  and podssh's relay role answer to `Host: 2001:db8::1`.
+
+## Approach
+
+In one change: `pod_proxy::host::host_header(host, port)` in `https_request`
+of `pod-ws` and in `keyed::host_header`. A test of `pod-ws` reads the `Host`
+of an HTTPS request to an IPv6 address on port 443: a stand-in proxy on the
+loopback answers the `CONNECT`, then serves TLS with a certificate of the
+address (as `crates/pod-ws/tests/h2_road.rs` serves TLS). A test of
+`keyed::host_header("::1", 443)`. Each fails on the code before.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features
+cargo test -p pod-relay --all-features
+```
+
+# T-246: `pod-relay`: two relay hosts can have one name of a cache file
+
+**Source:** T-234 (found in the work).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_core::files::safe_name` (`crates/pod-core/src/files.rs:149`) writes
+each character other than `[a-z0-9.-]` as `_`, and `check_host` takes `_`
+in a name. Thus a name with `_` and an IPv6 address, or a name with a port,
+can give one file name: the host `__1` and the address `::1` share
+`relay-pool-__1.json` (`pool::file_name`) and `relay-offer-__1-PORT.json`
+(`crates/pod-relay/src/forward_layer/kept.rs`). The token files of
+`___1__8443` and `[::1]:8443` share one name too, but `token::usable`
+refuses an entry whose minting relay has another key. The cached pool, its
+limits or a kept offer of one host can go to the other.
+
+## Premise
+
+- Read: `crates/pod-core/src/files.rs`, `crates/pod-relay/src/pool.rs`,
+  `crates/pod-relay/src/forward_layer/kept.rs`, `crates/pod-relay/src/cache.rs`.
+- Not measured: a run with two such hosts. A public certificate carries
+  no name with `_`.
+
+## Approach
+
+A file name that is one to one with the host: each character outside
+`[a-z0-9.-]` as `_` and its two hex digits (`_3a` for `:`, `_5f` for `_`),
+in a new function of `pod_core::files`, for the files of the token, the
+pool and the offers of `pod-relay`. The old names are not read: one more
+mint and one more read of a pool (no compatibility, the owner's rule). A
+test: `__1` and `[::1]` give two names of each file.
+
+## Prove
+
+```sh
+cargo test -p pod-core
 cargo test -p pod-relay --all-features
 ```
