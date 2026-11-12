@@ -83,6 +83,25 @@ pub const SOCK_DGRAM: u64 = linux_raw_sys::net::SOCK_DGRAM as u64;
 pub const SOCK_TYPE_MASK: u64 = 0xf;
 /// `IPPROTO_MPTCP`: a TCP stream over subflows that Landlock does not see.
 pub const IPPROTO_MPTCP: u64 = linux_raw_sys::net::IPPROTO_MPTCP as u64;
+pub const AF_NETLINK: u64 = linux_raw_sys::net::AF_NETLINK as u64;
+pub const AF_PACKET: u64 = linux_raw_sys::net::AF_PACKET as u64;
+pub const SOCK_RAW: u64 = linux_raw_sys::net::SOCK_RAW as u64;
+pub const SOCK_SEQPACKET: u64 = linux_raw_sys::net::SOCK_SEQPACKET as u64;
+pub const IPPROTO_TCP: u64 = linux_raw_sys::net::IPPROTO_TCP as u64;
+pub const IPPROTO_SCTP: u64 = linux_raw_sys::net::IPPROTO_SCTP as u64;
+pub const SYS_SOCKETPAIR: i64 = nr!(socketpair, __NR_socketpair);
+
+// The rights of newer ABIs, from `include/uapi/linux/landlock.h` of Linux
+// 7.4: `linux-raw-sys` 0.12.1 does not have them.
+/// `LANDLOCK_ACCESS_FS_RESOLVE_UNIX` (ABI 9): a connect, or a send to an
+/// address, to a Unix socket of a path that a process outside the domain
+/// made. A right of a file too.
+pub const LANDLOCK_ACCESS_FS_RESOLVE_UNIX: u32 = 1 << 16;
+/// `LANDLOCK_ACCESS_NET_BIND_UDP` (ABI 10).
+pub const LANDLOCK_ACCESS_NET_BIND_UDP: u32 = 1 << 2;
+/// `LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP` (ABI 10): set the remote port of
+/// a UDP socket, or send a datagram to a port.
+pub const LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP: u32 = 1 << 3;
 
 /// The `struct sockaddr_in` of an IPv4 address and port: the family in the
 /// byte order of the target, the port and the address in network order.
@@ -118,6 +137,16 @@ mod tests {
         assert_eq!((SOCK_STREAM, SOCK_DGRAM, SOCK_TYPE_MASK), (1, 2, 0xf));
         assert_eq!(SOCK_CLOEXEC & SOCK_TYPE_MASK, 0);
         assert_eq!(IPPROTO_MPTCP, 262);
+        assert_eq!((AF_NETLINK, AF_PACKET, SOCK_RAW, SOCK_SEQPACKET), (16, 17, 3, 5));
+        assert_eq!((IPPROTO_TCP, IPPROTO_SCTP), (6, 132));
+    }
+
+    // The new rights follow the last right of `linux-raw-sys`.
+    #[test]
+    fn the_rights_of_newer_abis_follow_the_known_ones() {
+        assert_eq!(LANDLOCK_ACCESS_FS_RESOLVE_UNIX, LANDLOCK_ACCESS_FS_IOCTL_DEV << 1);
+        assert_eq!(LANDLOCK_ACCESS_NET_BIND_UDP, LANDLOCK_ACCESS_NET_CONNECT_TCP << 1);
+        assert_eq!(LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP, LANDLOCK_ACCESS_NET_BIND_UDP << 1);
     }
 
     #[test]

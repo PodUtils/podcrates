@@ -265,6 +265,52 @@ fn the_socket_rules_give_their_errno_for_their_sockets_only() {
     }
 }
 
+/// A "not equal" condition holds where the argument differs, and a rule of
+/// two such conditions holds where the argument is neither value.
+#[test]
+fn a_not_equal_condition_holds_where_the_argument_differs() {
+    let filter =
+        program(&[Deny::call("socket", k::SYS_SOCKET, 5).when_not_equal(0, u32::MAX, 1).when_not_equal(0, 0xf, 2)])
+            .unwrap();
+    let socket = |family: u64| run(&filter, &call(k::SYS_SOCKET, [family, 0, 0, 0, 0, 0]));
+    assert_eq!((socket(1), socket(2), socket(0x12)), (ALLOW, ALLOW, ALLOW));
+    assert_eq!((socket(3), socket(17)), (errno(5), errno(5)));
+    let e = program(&[Deny::call("socket", k::SYS_SOCKET, 1).when_not_equal(0, 0xf, 0x10)]).unwrap_err();
+    assert!(e.to_string().contains("always holds"), "{e}");
+}
+
+/// The families that Landlock does not check: another family, a raw or
+/// SCTP socket of IP, and a stream of IP with another protocol fail with
+/// the answer of a kernel with none; TCP, UDP, Unix and netlink pass, and
+/// an MPTCP rule before them keeps its errno.
+#[test]
+fn the_family_rules_close_each_socket_that_landlock_does_not_check() {
+    let mut list = Deny::mptcp();
+    list.extend(Deny::families());
+    let filter = program(&list).unwrap();
+    let socket =
+        |family: u64, kind: u64, protocol: u64| run(&filter, &call(k::SYS_SOCKET, [family, kind, protocol, 0, 0, 0]));
+    let pair = |family: u64| run(&filter, &call(k::SYS_SOCKETPAIR, [family, k::SOCK_STREAM, 0, 0, 0, 0]));
+    let (cloexec, vsock, smc, tipc) = (k::SOCK_CLOEXEC, 40, 43, 30);
+    for family in [k::AF_PACKET, vsock, smc, tipc] {
+        assert_eq!(socket(family, k::SOCK_STREAM, 0), errno(EAFNOSUPPORT), "family {family}");
+        assert_eq!(pair(family), errno(EAFNOSUPPORT), "socketpair of family {family}");
+    }
+    for family in [k::AF_INET, k::AF_INET6] {
+        assert_eq!(socket(family, k::SOCK_RAW | cloexec, 1), errno(ESOCKTNOSUPPORT));
+        assert_eq!(socket(family, k::SOCK_SEQPACKET, 0), errno(ESOCKTNOSUPPORT));
+        assert_eq!(socket(family, k::SOCK_STREAM, k::IPPROTO_SCTP), errno(EPROTONOSUPPORT));
+        assert_eq!(socket(family, k::SOCK_STREAM, 256), errno(EPROTONOSUPPORT), "IPPROTO_SMC");
+        assert_eq!(socket(family, k::SOCK_STREAM | cloexec, k::IPPROTO_MPTCP), errno(ENOPROTOOPT));
+        assert_eq!(socket(family, k::SOCK_STREAM | cloexec, 0), ALLOW);
+        assert_eq!(socket(family, k::SOCK_STREAM, k::IPPROTO_TCP), ALLOW);
+        assert_eq!(socket(family, k::SOCK_DGRAM | cloexec, 0), ALLOW);
+    }
+    assert_eq!(socket(k::AF_UNIX, k::SOCK_SEQPACKET, 0), ALLOW);
+    assert_eq!(socket(k::AF_NETLINK, k::SOCK_RAW, 0), ALLOW);
+    assert_eq!(pair(k::AF_UNIX), ALLOW);
+}
+
 #[test]
 fn a_rule_that_the_kernel_cannot_take_is_refused_by_name() {
     let e = program(&[Deny::call("getpid", k::SYS_GETPID, 0)]).unwrap_err();

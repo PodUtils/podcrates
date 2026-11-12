@@ -80,7 +80,8 @@ const WRITE_RIGHTS: u64 = (k::LANDLOCK_ACCESS_FS_WRITE_FILE
     | k::LANDLOCK_ACCESS_FS_MAKE_SYM
     | k::LANDLOCK_ACCESS_FS_REFER
     | k::LANDLOCK_ACCESS_FS_TRUNCATE
-    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV) as u64;
+    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV
+    | k::LANDLOCK_ACCESS_FS_RESOLVE_UNIX) as u64;
 
 /// The rights that a rule on a file (not a directory) can hold; the kernel
 /// refuses each other right on a file with `EINVAL`.
@@ -88,11 +89,14 @@ pub const FILE_RIGHTS: u64 = (k::LANDLOCK_ACCESS_FS_EXECUTE
     | k::LANDLOCK_ACCESS_FS_WRITE_FILE
     | k::LANDLOCK_ACCESS_FS_READ_FILE
     | k::LANDLOCK_ACCESS_FS_TRUNCATE
-    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV) as u64;
+    | k::LANDLOCK_ACCESS_FS_IOCTL_DEV
+    | k::LANDLOCK_ACCESS_FS_RESOLVE_UNIX) as u64;
 
 /// The file rights that the kernel of `abi` knows: the ruleset handles each
 /// of them, so a right that no rule gives is denied. ABI 1 has the first
-/// thirteen, ABI 2 adds `REFER`, ABI 3 `TRUNCATE`, ABI 5 `IOCTL_DEV`.
+/// thirteen, ABI 2 adds `REFER`, ABI 3 `TRUNCATE`, ABI 5 `IOCTL_DEV`, ABI 9
+/// `RESOLVE_UNIX` (a connect to a Unix socket of a path that a process
+/// outside the domain made: a rule with write gives it).
 pub fn handled_fs(abi: u32) -> u64 {
     if abi == 0 {
         return 0;
@@ -107,12 +111,21 @@ pub fn handled_fs(abi: u32) -> u64 {
     if abi >= 5 {
         r |= u64::from(k::LANDLOCK_ACCESS_FS_IOCTL_DEV);
     }
+    if abi >= crate::UNIX_ABI {
+        r |= u64::from(k::LANDLOCK_ACCESS_FS_RESOLVE_UNIX);
+    }
     r
 }
 
 /// The right of a TCP `connect` and of a TCP `bind` (ABI 4).
 pub const CONNECT_TCP: u64 = k::LANDLOCK_ACCESS_NET_CONNECT_TCP as u64;
 pub const BIND_TCP: u64 = k::LANDLOCK_ACCESS_NET_BIND_TCP as u64;
+
+/// The UDP rights (ABI 10): a bind, and a connect or a send to a port. A
+/// closed UDP handles both with no rule, so the kernel denies a UDP socket
+/// that the filter does not see (one of io_uring, of `socketcall(2)`, or
+/// one that the payload got from outside).
+pub const UDP_RIGHTS: u64 = (k::LANDLOCK_ACCESS_NET_BIND_UDP | k::LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP) as u64;
 
 /// The scopes of [`Spec::scope`] (ABI 6): a signal to a process outside
 /// the domain, and a connect or a send to an abstract Unix socket made
@@ -154,8 +167,10 @@ pub const DOCKER_CAPS: u64 = (1 << 0)
 /// each access (the ruleset handles each file right of the ABI). A rule on
 /// a directory covers the tree under it. A TCP list that is `None` leaves
 /// that call free; `Some` allows only its ports (an empty list denies each
-/// port), and an MPTCP socket fails ([`Deny::mptcp`]). Landlock does not
-/// restrict UDP or a Unix socket of a path: `udp` closes UDP.
+/// port), and an MPTCP socket fails ([`Deny::mptcp`]). `udp` closes UDP.
+/// A TCP list or a closed UDP also closes the sockets that Landlock does
+/// not check ([`Deny::families`]). From ABI 9 a connect to a Unix socket of
+/// a path that a process outside the domain made needs a rule with write.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Spec {
     pub paths: Vec<PathRule>,

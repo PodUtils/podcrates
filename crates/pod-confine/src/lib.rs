@@ -60,6 +60,13 @@ pub const NET_ABI: u32 = 4;
 /// (`LANDLOCK_SCOPE_*`, Linux 6.12).
 pub const SCOPE_ABI: u32 = 6;
 
+/// The lowest ABI that checks a connect to a Unix socket of a path
+/// (`LANDLOCK_ACCESS_FS_RESOLVE_UNIX`).
+pub const UNIX_ABI: u32 = 9;
+
+/// The lowest ABI with UDP rights ([`spec::UDP_RIGHTS`]).
+pub const UDP_ABI: u32 = 10;
+
 /// A failure of the host.
 pub(crate) fn failure(class: Class, text: impl Into<String>) -> Failure {
     Failure::new(Stage::Host, class, text)

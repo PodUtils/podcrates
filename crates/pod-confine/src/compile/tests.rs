@@ -243,13 +243,41 @@ fn the_scopes_need_abi_6() {
     assert_eq!(Spec::new().no_scope().compile(ABI).unwrap().scoped(), 0);
 }
 
+/// ABI 9 handles the lookup of a Unix socket of a path, and a rule with
+/// write gives it, on a directory and on a file; a rule with read only does
+/// not. ABI 10 handles the UDP rights where the spec closes UDP, with no
+/// port rule for them; a free UDP leaves them free.
+#[test]
+fn the_rights_of_abi_9_and_10_follow_write_and_a_closed_udp() {
+    let unix = u64::from(k::LANDLOCK_ACCESS_FS_RESOLVE_UNIX);
+    assert_eq!(handled_fs(crate::UNIX_ABI - 1) & unix, 0);
+    assert_eq!(handled_fs(crate::UNIX_ABI) & unix, unix);
+    let d = dir("abi9");
+    let f = d.join("sock");
+    std::fs::write(&f, b"").unwrap();
+    let spec = Spec::new().allow(text(&d), Access::WRITE).allow(text(&f), Access::WRITE).allow("/", Access::READ);
+    let c = spec.clone().compile(crate::UNIX_ABI).unwrap();
+    let allowed: Vec<u64> = c.rules().iter().map(|r| r.allowed() & unix).collect();
+    assert_eq!(allowed, [unix, unix, 0], "write on a directory, write on a file, read");
+    assert_eq!(spec.compile(ABI).unwrap().rules()[0].allowed() & unix, 0, "no right of ABI 9 at ABI {ABI}");
+    let udp = crate::spec::UDP_RIGHTS;
+    assert_eq!(udp, 0b1100);
+    assert_eq!(Spec::new().close_udp().compile(crate::UDP_ABI).unwrap().handled_net(), udp);
+    assert_eq!(Spec::new().close_udp().compile(crate::UDP_ABI - 1).unwrap().handled_net(), 0);
+    let c = Spec::new().close_udp().connect_to(443).compile(crate::UDP_ABI).unwrap();
+    assert_eq!(c.handled_net(), udp | CONNECT_TCP);
+    assert_eq!(c.ports(), [(443, CONNECT_TCP)], "no port rule gives a UDP right");
+    assert_eq!(Spec::new().connect_to(443).compile(crate::UDP_ABI).unwrap().handled_net(), CONNECT_TCP);
+    let _ = std::fs::remove_dir_all(d);
+}
+
 fn has(rules: &[Deny], name: &str) -> bool {
     rules.iter().any(|d| d.name == name)
 }
 
 /// A closed UDP adds the UDP rules and the io_uring calls, also to an empty
-/// deny list; a TCP list adds the MPTCP rules and the io_uring calls; a
-/// free spec adds nothing.
+/// deny list; a TCP list adds the MPTCP rules and the io_uring calls; each
+/// adds the family rules; a free spec adds nothing.
 #[test]
 fn the_switches_of_the_spec_add_their_rules() {
     let empty = Spec { deny: Vec::new(), ..Spec::new() };
@@ -261,6 +289,12 @@ fn the_switches_of_the_spec_add_their_rules() {
     let rules = empty.clone().bind_to(80).deny_rules_on(true).unwrap();
     assert!(has(&rules, "socket(AF_INET6, IPPROTO_MPTCP)") && has(&rules, "io_uring_setup"), "{rules:?}");
     assert!(!has(&rules, "socket(AF_INET, SOCK_DGRAM)"), "{rules:?}");
+    let families = ["socket(another family)", "socketpair(another family)", "socket(AF_INET6, another type)"];
+    assert!(families.iter().all(|name| has(&rules, name)), "{rules:?}");
+    let mptcp = rules.iter().position(|d| d.name == "socket(AF_INET, IPPROTO_MPTCP)").unwrap();
+    let stream = rules.iter().position(|d| d.name == "socket(AF_INET, SOCK_STREAM, another protocol)").unwrap();
+    assert!(mptcp < stream, "the MPTCP rule keeps its errno: {rules:?}");
+    assert!(!has(&Spec::new().deny_rules_on(false).unwrap(), "socket(another family)"), "a free spec");
     // The list of the spec comes first: its rules win.
     let rules = Spec::new().close_udp().deny_rules_on(false).unwrap();
     assert_eq!(rules[..Deny::defaults().len()], Deny::defaults()[..]);

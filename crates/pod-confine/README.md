@@ -3,7 +3,8 @@
 The confinement of a payload with no privilege on Linux: Landlock rules
 for the paths and the TCP ports, the Landlock scopes (signals and abstract
 Unix sockets), a seccomp filter that denies a list of system calls (and
-UDP where the spec closes it), and `no_new_privs`, from one `Spec`. New
+UDP and the sockets that Landlock does not check where the spec closes a
+socket), and `no_new_privs`, from one `Spec`. New
 code for the ask of podvm (PodUtils/podvm#259, A-V-01 of GitHub #35).
 Linux only: on another target the crate is empty.
 
@@ -66,21 +67,28 @@ the host.
 | --- | --- |
 | `Spec { paths, connect, bind, scope, udp, deny, keep_caps }` | `paths`: `PathRule { path, access }`; `connect`, `bind`: `None` leaves the TCP call free, `Some(ports)` allows those ports only; `scope`: the Landlock scopes; `udp`: `false` closes UDP; `deny`: the calls that fail. `Spec::new()` (no path, TCP and UDP free, the scopes on, `Deny::defaults()`), `allow(path, access)`, `connect_to(port)`, `bind_to(port)`, `close_udp()`, `no_scope()`, `no_caps()`, `keep_cap(n)`; `keep_caps`: the mask of the capabilities that the payload keeps (`DOCKER_CAPS`, docker's default set, in `Spec::new()`; `no_caps()` keeps none); `deny_rules()` (the rules of the filter: `deny`, then the rules of the switches) |
 | `Access` | `READ` (read a file, list a directory), `WRITE` (write, truncate, make, remove, rename, link; an `ioctl` on a device), `EXECUTE`, `NONE`, and their union (`READ \| EXECUTE`); `rights()` gives the Landlock rights |
-| `Deny` | `{ name, nr, errno, when }`: `Deny::call(name, SYS_*, errno)`; each condition of `when` is an `Arg` on the low 32 bits of one argument, and all must hold: `when_flags(index, mask)` (a bit of the mask is set), `when_equal(index, mask, value)` (the argument masked is the value); `Deny::defaults()`, `Deny::io_uring()`, `Deny::udp()`, `Deny::mptcp()` |
+| `Deny` | `{ name, nr, errno, when }`: `Deny::call(name, SYS_*, errno)`; each condition of `when` is an `Arg` on the low 32 bits of one argument, and all must hold: `when_flags(index, mask)` (a bit of the mask is set), `when_equal(index, mask, value)` (the argument masked is the value), `when_not_equal(index, mask, value)`; `Deny::defaults()`, `Deny::io_uring()`, `Deny::udp()`, `Deny::mptcp()`, `Deny::families()` |
 | `deny::program(&[Deny])` | the BPF program: the audit arch (a foreign ABI and x32 get `ENOSYS`), one block for each rule, `ALLOW`. The first rule of a number that holds gives its errno: a rule with conditions that do not hold gives the call to the next rule of its number, and a rule after a rule of its number with no condition is left out. A rule with no condition takes two instructions, one with one flag condition five. `NAMESPACE_FLAGS`, `CLONE_NEWTIME` |
 | `Spec::compile(abi)`, `Spec::compile_in(abi, root_fd)` | a `Compiled` (`abi`, `handled_fs`, `handled_net`, `scoped`, `rules` with `fd`, `allowed`, `path`, `ports`, `filter`; it closes its descriptors when it drops); `keep_clear_of(&numbers)` moves each rule off a number that the child takes for a `dup2`; `close_paths()` closes the descriptor of each rule (`fd` is then -1) and keeps its path; `open_paths()` opens the path of each rule with no descriptor in the view of the caller (in the child, after its mounts and its root change), with no allocation, or gives `Err(Refusal)` of `OpenPath` |
 | `apply(&Compiled)` | the confinement of this thread and of each process that it makes later; `Err(Refusal { call, index, errno })` |
 | `Call`, `Refusal` | the call (`NoNewPrivs`, `CreateRuleset`, `AddPathRule`, `AddPortRule`, `RestrictSelf`, `Seccomp`, `CapGet`, `CapBoundingDrop`, `CapSet`, `CapAmbientClear`, `OpenPath`; `name`, `code` 1 to 11, `from_code`); `Refusal::to_bytes` and `from_bytes` (five bytes for a pipe from a child), `describe(&compiled)` (the call, the path or the port of the rule, the errno), `failure(&compiled)` |
 | `check()`, `probe()` | the ABI where a confinement loads here; `check` names the call and the errno of a refusal |
-| `MIN_ABI` (3), `NET_ABI` (4), `SCOPE_ABI` (6), `spec::handled_fs(abi)`, `spec::FILE_RIGHTS`, `spec::CONNECT_TCP`, `spec::BIND_TCP`, `spec::SCOPES`, `MOST_RULES` | the bounds, the rights and the scopes of each ABI |
+| `MIN_ABI` (3), `NET_ABI` (4), `SCOPE_ABI` (6), `UNIX_ABI` (9), `UDP_ABI` (10), `spec::handled_fs(abi)`, `spec::FILE_RIGHTS`, `spec::CONNECT_TCP`, `spec::BIND_TCP`, `spec::UDP_RIGHTS`, `spec::SCOPES`, `MOST_RULES` | the bounds, the rights and the scopes of each ABI |
 
 The ruleset handles each file right that the ABI of the kernel knows (ABI
-1: thirteen; ABI 2 adds `REFER`, ABI 3 `TRUNCATE`, ABI 5 `IOCTL_DEV`), so a
-right that no rule gives is denied for each path. A rule on a file keeps
-the rights of a file (`EXECUTE`, `WRITE_FILE`, `READ_FILE`, `TRUNCATE`,
-`IOCTL_DEV`). Under ABI 10 Landlock does not restrict UDP, and under ABI 9
-it does not restrict a connect to a Unix socket of a path; the ruleset of
-this crate handles neither right yet (T-213).
+1: thirteen; ABI 2 adds `REFER`, ABI 3 `TRUNCATE`, ABI 5 `IOCTL_DEV`, ABI
+9 `RESOLVE_UNIX`), so a right that no rule gives is denied for each path.
+A rule on a file keeps the rights of a file (`EXECUTE`, `WRITE_FILE`,
+`READ_FILE`, `TRUNCATE`, `IOCTL_DEV`, `RESOLVE_UNIX`). From ABI 9 a
+connect, or a send to an address, to a Unix socket of a path that a
+process outside the domain made (a system bus, the socket of a container
+engine) needs a rule with write on the socket or on a directory above it
+(`EACCES` else); a socket that the payload makes stays free to it. From
+ABI 10 a closed UDP also handles the UDP rights of Landlock with no port
+rule, so the kernel denies a bind, a connect and a send of each UDP
+socket, also one that the filter does not see. The values of the rights
+of ABI 9 and 10 come from `linux/landlock.h` of Linux 7.4; this host has
+ABI 7, so only the compile is tested for them.
 
 ### The capabilities
 
@@ -107,6 +115,7 @@ fails with `EACCES`. Keep neither of the two.
 | `scope` (on in `Spec::new()`) | `LANDLOCK_SCOPE_SIGNAL` and `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`: a signal to a process outside the domain of the payload (its parent, each other process of its user) and a connect or a send to an abstract Unix socket made outside it (a session bus, an X server) fail with `EPERM`. A process that the payload starts stays in its domain. `Compiled::scoped()` is 0 where the field gives nothing. | ABI 6 (Linux 6.12) |
 | `udp: false` (`close_udp()`) | `socket(2)` of `AF_INET` and `AF_INET6` with the type `SOCK_DGRAM` fails with `EACCES` (`Deny::udp()`; the type is masked with `SOCK_TYPE_MASK`, as `SOCK_NONBLOCK` and `SOCK_CLOEXEC` are bits of it; a ping socket is a datagram socket too), and the io_uring calls fail with `EPERM`. TCP and Unix sockets stay free. | none: it is a seccomp rule |
 | `connect` or `bind` set | `socket(2)` of `AF_INET` and `AF_INET6` with `IPPROTO_MPTCP` fails with `ENOPROTOOPT` (`Deny::mptcp()`), the answer of a kernel with MPTCP off, so a payload falls back to TCP; and the io_uring calls fail with `EPERM`. Landlock checks TCP sockets only: an MPTCP connect passes each port rule (measured on Linux 6.18, ABI 7). | none |
+| `connect` or `bind` set, or `udp: false` | the sockets that Landlock does not check (`Deny::families()`): `socket(2)` and `socketpair(2)` of a family other than `AF_UNIX`, `AF_INET`, `AF_INET6` and `AF_NETLINK` fail with `EAFNOSUPPORT` (packet, VSOCK, SMC, RDS, RxRPC); `socket(2)` of `AF_INET` and `AF_INET6` of a type other than `SOCK_STREAM` and `SOCK_DGRAM` fails with `ESOCKTNOSUPPORT` (raw, SCTP over `SOCK_SEQPACKET`); a `SOCK_STREAM` of a protocol other than 0 and `IPPROTO_TCP` fails with `EPROTONOSUPPORT` (SCTP, SMC). Each answer is the one of a kernel with no such family, type or protocol. | none |
 
 Why io_uring: a ring makes a socket (`IORING_OP_SOCKET`, Linux 5.19) with
 no `socket(2)` call, so a seccomp rule on `socket` is void while a ring is
@@ -121,13 +130,16 @@ make a UDP socket through it. A deny of each `socketcall` would stop each
 socket of a payload that makes its sockets only through it (Go on 386 and
 s390x; glibc on i386 for a kernel under 4.3; musl since 1.2.2 tries the
 direct call first). So a compile of a spec with `udp: false` there is a
-refusal by name (`Class::Unsupported`). The MPTCP rule there has the same
-gap, and T-213 tracks it.
+refusal by name (`Class::Unsupported`). The MPTCP rule and the rules of
+the families there have the same gap: a TCP list there does not stop a
+socket that a payload makes through `socketcall` (a question to podvm,
+with the release of T-213). From ABI 10 the UDP rights of Landlock close
+UDP there too, and a later version can take a closed UDP there.
 
-Not covered: a UDP socket that the payload gets from another process (a
-passed descriptor, `SCM_RIGHTS`), a connect to a Unix socket of a path,
-and the sockets that Landlock does not see past TCP (SCTP, SMC, and the
-other families; T-213).
+Not covered: under ABI 10, a UDP socket that the payload gets from
+another process (a passed descriptor, `SCM_RIGHTS`); under ABI 9, a
+connect to a Unix socket of a path; a socket of another family that the
+payload gets from another process.
 
 ### The default deny list
 
@@ -176,8 +188,12 @@ number, the close of the descriptors and the open of the paths again (a
 path that went away is a refusal of `OpenPath` with its index), a refusal
 and its bytes, a run of the BPF program over each call
 of the list, a foreign ABI, the namespace flags, the fall-through of a
-rule that does not hold, the AND of two conditions, the masked type of a
-socket), and `tests/apply.rs`: a child applies a compiled spec and makes
+rule that does not hold, the AND of two conditions, a "not equal"
+condition, the masked type of a socket, the rules of the families, the
+rights of ABI 9 and 10), `tests/sockets.rs` (under a TCP list a packet,
+VSOCK, raw IP, SCTP and SCTP stream socket fail with the answer of a
+kernel with none, and TCP, UDP, Unix and netlink sockets open), and
+`tests/apply.rs`: a child applies a compiled spec and makes
 the checks of podvm's experiment 414 with no allocation (a read and a
 write outside their lists fail with `EACCES`, a TCP connect and a bind
 outside their lists fail with `EACCES` and a connect inside passes,

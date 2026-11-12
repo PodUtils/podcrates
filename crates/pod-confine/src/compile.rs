@@ -10,8 +10,8 @@ use pod_core::{Class, Failure};
 use pod_hostprobe::sys::{self as k, CBuf, Errno, SockFilter};
 
 use crate::deny::Deny;
-use crate::spec::{BIND_TCP, CONNECT_TCP, FILE_RIGHTS, SCOPES, handled_fs};
-use crate::{Access, Call, MIN_ABI, NET_ABI, Refusal, SCOPE_ABI, Spec, errno_class, errno_text, failure};
+use crate::spec::{BIND_TCP, CONNECT_TCP, FILE_RIGHTS, SCOPES, UDP_RIGHTS, handled_fs};
+use crate::{Access, Call, MIN_ABI, NET_ABI, Refusal, SCOPE_ABI, Spec, UDP_ABI, errno_class, errno_text, failure};
 
 /// The most path rules, and the most port rules, of one spec: a refusal of
 /// [`crate::apply`] names a rule by its index in 16 bits.
@@ -230,6 +230,9 @@ impl Spec {
         if self.bind.is_some() {
             handled_net |= BIND_TCP;
         }
+        if !self.udp && abi >= UDP_ABI {
+            handled_net |= UDP_RIGHTS;
+        }
         let scoped = if self.scope && abi >= SCOPE_ABI { SCOPES } else { 0 };
         let filter = crate::deny::program(&self.deny_rules()?)?;
         let mut out = Compiled {
@@ -273,8 +276,11 @@ impl Spec {
 
 impl Spec {
     /// The rules of the filter: [`Spec::deny`], then the rules of a closed
-    /// UDP ([`Deny::udp`]), of a TCP list ([`Deny::mptcp`]), and the
-    /// io_uring calls where the spec closes a socket ([`Deny::io_uring`]).
+    /// UDP ([`Deny::udp`]), of a TCP list ([`Deny::mptcp`]), and where the
+    /// spec closes a socket the families that Landlock does not check
+    /// ([`Deny::families`]) and the io_uring calls ([`Deny::io_uring`]).
+    /// On a target with `socketcall(2)` the rules of a TCP list do not see
+    /// a socket made through it.
     ///
     /// A closed UDP is refused on a target with `socketcall(2)` (i686,
     /// s390x, powerpc64): a payload makes a UDP socket through it, and a
@@ -302,6 +308,7 @@ impl Spec {
             rules.extend(Deny::mptcp());
         }
         if !self.udp || tcp {
+            rules.extend(Deny::families());
             rules.extend(Deny::io_uring());
         }
         Ok(rules)

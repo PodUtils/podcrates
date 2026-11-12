@@ -25,6 +25,9 @@ const EPERM: u16 = 1;
 const EACCES: u16 = 13;
 const ENOSYS: u16 = 38;
 const ENOPROTOOPT: u16 = 92;
+const EPROTONOSUPPORT: u16 = 93;
+const ESOCKTNOSUPPORT: u16 = 94;
+const EAFNOSUPPORT: u16 = 97;
 
 /// One condition of a rule, on the low 32 bits of one argument of the
 /// call (`index` 0 to 5).
@@ -34,13 +37,15 @@ pub enum Arg {
     AnyBit { index: u8, mask: u32 },
     /// The argument, masked with `mask`, is `value`.
     Equal { index: u8, mask: u32, value: u32 },
+    /// The argument, masked with `mask`, is not `value`.
+    NotEqual { index: u8, mask: u32, value: u32 },
 }
 
 impl Arg {
     /// The index of the argument.
     pub fn index(self) -> u8 {
         match self {
-            Arg::AnyBit { index, .. } | Arg::Equal { index, .. } => index,
+            Arg::AnyBit { index, .. } | Arg::Equal { index, .. } | Arg::NotEqual { index, .. } => index,
         }
     }
 }
@@ -76,6 +81,13 @@ impl Deny {
     /// Add a condition: argument `index`, masked with `mask`, is `value`.
     pub fn when_equal(mut self, index: u8, mask: u32, value: u32) -> Deny {
         self.when.push(Arg::Equal { index, mask, value });
+        self
+    }
+
+    /// Add a condition: argument `index`, masked with `mask`, is not
+    /// `value`.
+    pub fn when_not_equal(mut self, index: u8, mask: u32, value: u32) -> Deny {
+        self.when.push(Arg::NotEqual { index, mask, value });
         self
     }
 
@@ -172,6 +184,46 @@ impl Deny {
             })
             .collect()
     }
+
+    /// The rules of a closed socket (a TCP list or a closed UDP) for the
+    /// sockets that Landlock does not check. `socket(2)` and
+    /// `socketpair(2)` of a family other than `AF_UNIX`, `AF_INET`,
+    /// `AF_INET6` and `AF_NETLINK` fail with `EAFNOSUPPORT` (packet, VSOCK,
+    /// SMC, RDS, RxRPC). `socket(2)` of `AF_INET` and `AF_INET6` of a type
+    /// other than `SOCK_STREAM` and `SOCK_DGRAM` fails with
+    /// `ESOCKTNOSUPPORT` (raw, SCTP over `SOCK_SEQPACKET`), and a
+    /// `SOCK_STREAM` of a protocol other than 0 and `IPPROTO_TCP` fails
+    /// with `EPROTONOSUPPORT` (SCTP, SMC). Each answer is the one of a
+    /// kernel with no such family, type or protocol. Put [`Deny::mptcp`]
+    /// first: the first rule of a number that holds gives the errno.
+    pub fn families() -> Vec<Deny> {
+        let kept = [k::AF_UNIX, k::AF_INET, k::AF_INET6, k::AF_NETLINK];
+        let mut v: Vec<Deny> = [("socket", k::SYS_SOCKET), ("socketpair", k::SYS_SOCKETPAIR)]
+            .into_iter()
+            .map(|(name, nr)| {
+                kept.iter().fold(Deny::call(format!("{name}(another family)"), nr, EAFNOSUPPORT), |d, &family| {
+                    d.when_not_equal(0, u32::MAX, family as u32)
+                })
+            })
+            .collect();
+        let mask = k::SOCK_TYPE_MASK as u32;
+        for (family, value) in [("AF_INET", k::AF_INET), ("AF_INET6", k::AF_INET6)] {
+            v.push(
+                Deny::call(format!("socket({family}, another type)"), k::SYS_SOCKET, ESOCKTNOSUPPORT)
+                    .when_equal(0, u32::MAX, value as u32)
+                    .when_not_equal(1, mask, k::SOCK_STREAM as u32)
+                    .when_not_equal(1, mask, k::SOCK_DGRAM as u32),
+            );
+            v.push(
+                Deny::call(format!("socket({family}, SOCK_STREAM, another protocol)"), k::SYS_SOCKET, EPROTONOSUPPORT)
+                    .when_equal(0, u32::MAX, value as u32)
+                    .when_equal(1, mask, k::SOCK_STREAM as u32)
+                    .when_not_equal(2, u32::MAX, 0)
+                    .when_not_equal(2, u32::MAX, k::IPPROTO_TCP as u32),
+            );
+        }
+        v
+    }
 }
 
 /// The BPF program of `deny`: the check of the arch, then one block for
@@ -232,8 +284,9 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
     use pod_hostprobe::sys::{bpf_jump as jump, bpf_stmt as stmt};
     let usage = |text: String| failure(Class::Usage, format!("the deny rule of {}: {text}", d.name));
     let mut body = Vec::new();
-    // The index in `body` of each jump to the last instruction.
-    let mut misses = Vec::new();
+    // The index in `body` of each jump to the last instruction, and true
+    // where the jump is taken on a match (a "not equal").
+    let mut misses: Vec<(usize, bool)> = Vec::new();
     for a in &d.when {
         let index = a.index();
         if index > 5 {
@@ -242,19 +295,19 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
         body.push(stmt(k::BPF_LD_W_ABS, k::seccomp_arg_low(u32::from(index))));
         match *a {
             Arg::AnyBit { mask, .. } => {
-                misses.push(body.len());
+                misses.push((body.len(), false));
                 body.push(jump(k::BPF_JSET_K, mask, 0, 0));
             }
-            Arg::Equal { mask, value, .. } => {
+            Arg::Equal { mask, value, .. } | Arg::NotEqual { mask, value, .. } => {
+                let equal = matches!(a, Arg::Equal { .. });
                 if value & !mask != 0 {
-                    return Err(usage(format!(
-                        "argument {index} masked with {mask:#x} is never {value:#x}; the rule never holds"
-                    )));
+                    let never = if equal { "the rule never holds" } else { "the condition always holds" };
+                    return Err(usage(format!("argument {index} masked with {mask:#x} is never {value:#x}; {never}")));
                 }
                 if mask != u32::MAX {
                     body.push(stmt(k::BPF_ALU_AND_K, mask));
                 }
-                misses.push(body.len());
+                misses.push((body.len(), !equal));
                 body.push(jump(k::BPF_JEQ_K, value, 0, 0));
             }
         }
@@ -263,8 +316,13 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
     let reload = body.len();
     body.push(stmt(k::BPF_LD_W_ABS, k::SECCOMP_DATA_NR));
     let too_long = || usage(format!("its {} conditions make a jump over 255 instructions", d.when.len()));
-    for at in misses {
-        body[at].jf = u8::try_from(reload - at - 1).map_err(|_| too_long())?;
+    for (at, on_match) in misses {
+        let to_reload = u8::try_from(reload - at - 1).map_err(|_| too_long())?;
+        if on_match {
+            body[at].jt = to_reload;
+        } else {
+            body[at].jf = to_reload;
+        }
     }
     let past = u8::try_from(body.len()).map_err(|_| too_long())?;
     let mut block = Vec::with_capacity(body.len() + 1);

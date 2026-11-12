@@ -34,11 +34,15 @@ fn each_abi_handles_the_file_rights_that_it_knows() {
     assert_eq!(handled_fs(3), 0x7FFF);
     assert_eq!(handled_fs(4), handled_fs(3), "ABI 4 adds TCP rights only");
     assert_eq!(handled_fs(5), 0xFFFF);
-    assert_eq!(handled_fs(7), handled_fs(5));
-    // Each right of a full access set is handled from ABI 5.
+    assert_eq!(handled_fs(8), handled_fs(5));
+    assert_eq!(handled_fs(9), 0x1FFFF, "ABI 9 adds RESOLVE_UNIX");
+    assert_eq!(handled_fs(12), handled_fs(9));
+    // Each right of a full access set is handled from ABI 9; up to ABI 8
+    // the compile masks off RESOLVE_UNIX.
     let all = (Access::READ | Access::WRITE | Access::EXECUTE).rights();
-    assert_eq!(all & !handled_fs(5), 0);
-    assert_eq!(FILE_RIGHTS & !handled_fs(5), 0);
+    assert_eq!(all & !handled_fs(9), 0);
+    assert_eq!(FILE_RIGHTS & !handled_fs(9), 0);
+    assert_eq!(all & !handled_fs(5), u64::from(k::LANDLOCK_ACCESS_FS_RESOLVE_UNIX));
 }
 
 #[test]
