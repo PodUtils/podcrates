@@ -1,0 +1,6 @@
+# pod-enter: the search of the C library skips the multiarch places and walks depth-first from the end, so the bound is spent in the large trees of a merged usr; its test must fail.
+ENTRY=T-321
+GROUP=enter
+EXPECT='test abi::tests::the_multiarch_libc_is_found_beside_large_trees_of_a_merged_usr \.\.\. FAILED'
+RUN='cargo test -p pod-enter --lib -- abi::tests::the_multiarch_libc_is_found_beside_large_trees_of_a_merged_usr --exact'
+LIMIT=1800

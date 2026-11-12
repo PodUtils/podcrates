@@ -1,0 +1,21 @@
+diff --git a/crates/pod-enter/src/abi/search.rs b/crates/pod-enter/src/abi/search.rs
+index 7658d1d..685b36e 100644
+--- a/crates/pod-enter/src/abi/search.rs
++++ b/crates/pod-enter/src/abi/search.rs
+@@ -89,14 +89,14 @@ fn search_file(root: &str, name: &str, machine: Option<u16>) -> Option<String> {
+             }
+         }
+     }
+-    if let Some(hit) = first_match(root, &found, machine) {
++    if let Some(hit) = first_match(root, &found, machine).filter(|_| false) {
+         return Some(hit);
+     }
+     let mut found = Vec::new();
+     let mut visited = 0usize;
+     for base in bases {
+         let mut queue = std::collections::VecDeque::from([(base.display().to_string(), 0usize)]);
+-        while let Some((dir, depth)) = queue.pop_front() {
++        while let Some((dir, depth)) = queue.pop_back() {
+             if depth > 3 || visited > 512 {
+                 return first_match(root, &found, machine);
+             }

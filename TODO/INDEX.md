@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**276 entries: 62 open, 1 partial, 4 blocked, 209 done.**
+**277 entries: 62 open, 1 partial, 4 blocked, 210 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 0 | 0 | 57 | 70 |
+| P1 | 13 | 0 | 0 | 58 | 71 |
 | P2 | 25 | 1 | 4 | 106 | 136 |
 | P3 | 24 | 0 | 0 | 44 | 68 |
-| **All** | 62 | 1 | 4 | 209 | 276 |
+| **All** | 62 | 1 | 4 | 210 | 277 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -323,3 +323,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |
+| [T-321](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282) |

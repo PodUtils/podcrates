@@ -52,18 +52,51 @@ pub fn libc_beside(rootfs: &str, interp: &str, machine: u16) -> Option<String> {
 
 /// A file called `name` under the conventional library roots.
 ///
-/// Two bounds: three directories deep and 512 entries, so a large tree
-/// cannot make the check a long walk. The candidates come in the order of
-/// their paths. `machine` filters multilib doubles where given; `None` takes
-/// the first name match, which is exact for arch-named loaders.
+/// Each root is resolved inside the root file system and walked one time:
+/// on a merged-usr image `lib` is a link to `usr/lib`. First the places of
+/// a multiarch layout, with no bound: `name` in a root and one directory
+/// under it (`usr/lib/aarch64-linux-gnu/libc.so.6`), one look for each
+/// directory. Then a walk, breadth-first, with two bounds: three directories
+/// deep and 512 entries, so a large tree cannot make the check a long walk;
+/// a depth-first walk spent the bound in the large trees beside the
+/// multiarch directory, as `aarch64-linux-gnu` sorts before them
+/// (PodUtils/podvm#282). The candidates come in the order of their paths.
+/// `machine` filters multilib doubles where given; `None` takes the first
+/// name match, which is exact for arch-named loaders.
 fn search_file(root: &str, name: &str, machine: Option<u16>) -> Option<String> {
     const ROOTS: [&str; 4] = ["lib", "lib64", "usr/lib", "usr/lib64"];
+    let mut bases: Vec<PathBuf> = Vec::new();
+    for r in ROOTS {
+        if let Ok(dir) = resolve_dir_in(Path::new(root), &format!("/{r}"))
+            && !bases.contains(&dir)
+        {
+            bases.push(dir);
+        }
+    }
+    let mut found = Vec::new();
+    for base in &bases {
+        let mut look = |path: PathBuf| {
+            if std::fs::symlink_metadata(&path).is_ok_and(|m| !m.is_dir()) {
+                found.push(path.display().to_string());
+            }
+        };
+        look(base.join(name));
+        let Ok(entries) = std::fs::read_dir(base) else { continue };
+        for e in entries.filter_map(|e| e.ok()) {
+            // No link is followed, as in the walk below.
+            if e.file_type().is_ok_and(|t| t.is_dir()) {
+                look(e.path().join(name));
+            }
+        }
+    }
+    if let Some(hit) = first_match(root, &found, machine) {
+        return Some(hit);
+    }
     let mut found = Vec::new();
     let mut visited = 0usize;
-    for r in ROOTS {
-        let base = format!("{root}/{r}");
-        let mut stack = vec![(base, 0usize)];
-        while let Some((dir, depth)) = stack.pop() {
+    for base in bases {
+        let mut queue = std::collections::VecDeque::from([(base.display().to_string(), 0usize)]);
+        while let Some((dir, depth)) = queue.pop_front() {
             if depth > 3 || visited > 512 {
                 return first_match(root, &found, machine);
             }
@@ -86,7 +119,7 @@ fn search_file(root: &str, name: &str, machine: Option<u16>) -> Option<String> {
                 // search loop, and the read of the machine below follows a
                 // link where it must.
                 if ft.is_dir() {
-                    stack.push((e.path().display().to_string(), depth + 1));
+                    queue.push_back((e.path().display().to_string(), depth + 1));
                 } else if e.file_name().to_string_lossy().as_ref() == name {
                     found.push(e.path().display().to_string());
                 }

@@ -438,3 +438,33 @@ pub(super) fn fake_import(path: &str, needed: &[&str], imported: &[(&str, Option
 fn ver(name: &str, version: Option<&str>) -> Versioned {
     Versioned { name: name.to_string(), version: version.map(str::to_string), weak: false, file: None }
 }
+
+/// PodUtils/podvm#282: a merged-usr image (`lib` a link to `usr/lib`) with
+/// the C library in `usr/lib/<triplet>/` and large trees beside it. The
+/// depth-first walk spent its bound in the trees that sort after
+/// `aarch64-linux-gnu` and found no library on arm64.
+#[test]
+fn the_multiarch_libc_is_found_beside_large_trees_of_a_merged_usr() {
+    for (triplet, machine) in [("aarch64-linux-gnu", 183u16), ("x86_64-linux-gnu", 62)] {
+        let d = std::env::temp_dir().join(format!("pod-enter-abi-usrmerge-{machine}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("usr/lib").join(triplet)).unwrap();
+        std::os::unix::fs::symlink("usr/lib", d.join("lib")).unwrap();
+        for dir in ["apt", "dpkg", "gcc", "git-core", "python3.11", "ssl", "udev", "valgrind"] {
+            let dir = d.join("usr/lib").join(dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            for n in 0..1000 {
+                std::fs::write(dir.join(format!("f{n}")), b"").unwrap();
+            }
+        }
+        std::fs::write(d.join("usr/lib").join(triplet).join("libc.so.6"), tiny_elf(machine)).unwrap();
+        let root = d.to_string_lossy().to_string();
+        let loader = if machine == 183 { "/lib/ld-linux-aarch64.so.1" } else { "/lib64/ld-linux-x86-64.so.2" };
+        assert_eq!(
+            libc_beside(&root, loader, machine),
+            Some(format!("{root}/usr/lib/{triplet}/libc.so.6")),
+            "{triplet}"
+        );
+        let _ = std::fs::remove_dir_all(&d);
+    }
+}

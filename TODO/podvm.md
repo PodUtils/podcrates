@@ -4428,3 +4428,62 @@ cargo test -p pod-extract --all-features
   passed; clippy is clean.
 - The plant `extract-hash-stops-at-the-end-marker` (the call of `finish`
   dropped) is caught by that test.
+
+# T-321: `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282)
+
+**Source:** PodUtils/podvm#282 (COORD-061 of podvm, for PodUtils/podvm@T-1721).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod_enter::abi::libc_beside` at `v0.30.0` gives `None` for a Debian
+bookworm image on arm64: `PT_INTERP` is `/lib/ld-linux-aarch64.so.1`, `/lib`
+is a link to `usr/lib`, and the library is in `/usr/lib/aarch64-linux-gnu/`.
+`search_file` walked with a stack, the last name first, and stopped after
+512 entries; `aarch64-linux-gnu` sorts before `apt`, `dpkg`, `gcc` and the
+others, so the bound was spent first (on x86_64 `x86_64-linux-gnu` sorts
+last and was found). The tree of `lib` and of `usr/lib` was walked two
+times. podvm then declines the loader family for a dynamic glibc program
+of a Debian or Ubuntu image on arm64.
+
+## Premise
+
+- Read: `crates/pod-enter/src/abi/search.rs` (`libc_beside`,
+  `search_file`, `first_match`) and its tests.
+
+## Approach
+
+Each root resolved inside the root file system and walked once; first the
+places of a multiarch layout (the name in a root and one directory under
+it), with no bound; then the bounded walk, breadth-first. podvm's
+reproduction as a test, for aarch64 and for x86_64.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+## Done
+
+2026-11-12. The commit that names T-321.
+
+- `search_file`: the roots `lib`, `lib64`, `usr/lib`, `usr/lib64`
+  resolve inside the root (`resolve_dir_in`), and a real directory is
+  walked once. First `NAME` in each root and in each directory one level
+  under it (one look for each directory, no bound): the multiarch place.
+  Then the walk of before, breadth-first (`VecDeque`), with its bounds of
+  three levels and 512 entries. A breadth-first walk alone spends the
+  bound in the directories that sort before `x86_64-linux-gnu`, so the
+  multiarch look comes first.
+- Test `the_multiarch_libc_is_found_beside_large_trees_of_a_merged_usr`
+  (podvm's tree: `lib` a link to `usr/lib`, eight directories of 1 000
+  files beside the triplet), for aarch64 (183) and x86_64 (62): the old
+  search gave `None` on aarch64; now each gives its library. `cargo test -p
+  pod-enter --all-features`: 169 passed; clippy is clean.
+- The plant `enter-libc-search-misses-the-multiarch-dir` (no multiarch
+  look, the walk from the end again) is caught by that test.
