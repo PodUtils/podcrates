@@ -56,6 +56,13 @@ impl<'a> Relay<'a> {
         minutes.checked_mul(60).map(Duration::from_secs)
     }
 
+    /// The port of the remote forward that the relay takes (the fact
+    /// `remote-port`): a relay that refuses port 0 names it. None: the
+    /// relay states none, and the consumer's own choice stands.
+    pub fn remote_port(&self) -> Option<u16> {
+        u16::try_from(self.service.int("remote-port")?).ok()
+    }
+
     /// The interval of the keepalive of the relay's own command (the fact
     /// `keepalive-seconds`). None: no source states one.
     pub fn keepalive(&self) -> Option<Duration> {

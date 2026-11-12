@@ -24,6 +24,13 @@ host = "demo.sandhole.com.br"
 port = 22
 source = { url = "https://github.com/EpicEric/sandhole/blob/6a57467237f4/README.md", read = 2026-11-11, note = "ssh -R 80:localhost:4321 demo.sandhole.com.br" }
 
+# The port of the remote forward that the demo takes: it refuses port 0,
+# so a consumer that asks for 0 gets no tunnel (T-373, GitHub #97).
+[[fact]]
+name = "remote-port"
+value = 80
+source = { measured = "the watch forward-url with port = 0: the remote forward of port 0 was rejected; with port 80 the watch held (GitHub #97)", read = 2026-11-12, note = "https://github.com/EpicEric/sandhole/blob/6a57467237f4/README.md: ssh -R 80:localhost:4321 demo.sandhole.com.br" }
+
 # The Ed25519 key of the server, the same on both ports.
 [[fact]]
 name = "host-key-sha256"

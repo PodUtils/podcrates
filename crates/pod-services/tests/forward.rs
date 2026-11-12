@@ -207,3 +207,13 @@ fn the_rule_of_each_relay_refuses_the_other_urls_of_the_service() {
         assert!(!relay(id).url_rule().accepts(url), "{id} takes {url}");
     }
 }
+
+/// The port of the remote forward: Sandhole's demo refuses port 0 and
+/// names 80 (T-373, GitHub #97); a relay with no fact gives none.
+#[test]
+fn the_remote_port_is_the_relay_s_fact() {
+    assert_eq!(relay("sandhole").remote_port(), Some(80));
+    for id in ["pinggy", "serveo", "localhost-run"] {
+        assert_eq!(relay(id).remote_port(), None, "{id}");
+    }
+}

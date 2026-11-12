@@ -5071,7 +5071,7 @@ cargo test -p pod-proxy --all-features stun
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5098,6 +5098,17 @@ cargo test -p pod-services --all-features
 cargo run -q -p pod-services-watch -- --service github-ssh
 ```
 
+## Done
+
+2026-11-12. `github-ssh.toml`: the endpoint `ssh-443` (`ssh.github.com:443`)
+after `ssh`, its source GitHub's page (read here: it names
+`ssh.github.com:443` and the Ed25519 fingerprint of the file); a watch
+`ssh-host-key` of `ssh-443`; `about` names both ports. The README row.
+`cargo test -p pod-services -p pod-services-watch` passes (the argument
+check of T-324 holds the new watch). The next `services.yml` run reads the
+keys on port 443.
+
+
 # T-373: `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97)
 
 **Source:** GitHub #97.
@@ -5105,7 +5116,7 @@ cargo run -q -p pod-services-watch -- --service github-ssh
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5130,6 +5141,14 @@ A fact `remote-port` = 80 in `sandhole.toml` with its source;
 ```sh
 cargo test -p pod-services --all-features
 ```
+
+## Done
+
+2026-11-12. `sandhole.toml`: the fact `remote-port` = 80 with the
+reporter's measure as its source; `forward::Relay::remote_port()`; test
+`the_remote_port_is_the_relay_s_fact` (`Some(80)` for Sandhole, `None` for
+the others); the README rows of the fact and of Sandhole.
+
 
 # T-374: `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98)
 

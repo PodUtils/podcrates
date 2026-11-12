@@ -208,7 +208,7 @@ let relay = services.of_kind("relay").next();
 | --- | --- | --- | --- |
 | `ajam-relay` | `relay` | `default`; `seed-*` (role `seed`, 6) | `connect-timeout-ms`, `idle-timeout-ms`, `max-session-ms`, `max-session-bytes`, `max-frame-bytes`, `measured-version`, `signed-list-keys` |
 | `ajam-ts-relay` | `ts-relay` | `default` | |
-| `github-ssh` | `ssh-host` | `ssh` | `host-key-sha256` |
+| `github-ssh` | `ssh-host` | `ssh`, `ssh-443` (`ssh.github.com:443`) | `host-key-sha256` (the same keys on both ports) |
 | `github-actions` | `ci-service` | `github`, `api`, `broker`, `runner-auth`, `results-receiver` (role `control`), `codeload`, `release-assets` (role `download`) | `full-domains`, `wildcard-domains` (the `actions_inbound` domains of GitHub's meta API, each watched by `http-json`), `multi-tenant` (the wildcards that hold the content of other parties) |
 | `github-actions-runner` | `runner-release` | `releases` | `runner-tag` (the pin of `actions/runner`; `github-release` fails past 30 days, GitHub's rule of updates) |
 | `cloudflare-doh`, `google-doh` | `doh` | `v4-1`, `v4-2` (role `v4`), `v6-1`, `v6-2` (role `v6`) | `json-path`, `wire-path`, `http2-only` |
@@ -236,7 +236,7 @@ let relay = services.of_kind("relay").next();
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match` (`.serveousercontent.com`), `url-skip`, `auth` (`publickey`, `keyboard-interactive`: an anonymous session answers it empty), `note` (the private alias), `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
-| `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `host-key-sha256`, `tunnel-zone` |
+| `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `remote-port` (80: port 0 is refused), `host-key-sha256`, `tunnel-zone` |
 | `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
@@ -284,6 +284,7 @@ relay, and an overlay file of the same facts is a relay of the user's own.
 | `user` | text | the SSH user of a free tunnel; none: the relay takes any user | `user()` |
 | `free-tunnel-minutes` | int, `min` | the relay ends a free tunnel after this time; none: no source states a limit | `session_limit()` |
 | `keepalive-seconds` | int, `s` | the keepalive of the relay's own command; none: no source states one | `keepalive()` |
+| `remote-port` | int | the port of the remote forward that the relay takes (a relay that refuses port 0); none: the consumer's choice | `remote_port()` |
 
 The endpoints of the scheme `ssh` are plain SSH on TCP, in the order to
 try (`endpoints()`): an endpoint on port 443 comes first. An endpoint of

@@ -4,7 +4,7 @@
 id = "github-ssh"
 kind = "ssh-host"
 party = "GitHub"
-about = "github.com on port 22, identified by the host keys that GitHub publishes"
+about = "github.com on port 22 and ssh.github.com on port 443, identified by the host keys that GitHub publishes"
 
 [[endpoint]]
 name = "ssh"
@@ -12,6 +12,16 @@ scheme = "ssh"
 host = "github.com"
 port = 22
 source = { ruling = "PodUtils/podcrates docs/decisions.md, 2026-11-05, Services: the facts of probes", read = 2026-11-05 }
+
+# SSH over the HTTPS port, for a host whose egress permits TCP 443 alone
+# (T-372, GitHub #95). After `ssh`: a consumer that takes the first
+# endpoint keeps it.
+[[endpoint]]
+name = "ssh-443"
+scheme = "ssh"
+host = "ssh.github.com"
+port = 443
+source = { url = "https://docs.github.com/en/authentication/troubleshooting-ssh/using-ssh-over-the-https-port", read = 2026-11-12, note = "ssh -T -p 443 git@ssh.github.com; git@ssh.github.com:443/YOUR-USERNAME/YOUR-REPOSITORY.git; the ED25519 fingerprint of [ssh.github.com]:443 is the first one of host-key-sha256" }
 
 # Ed25519, ECDSA, RSA, as OpenSSH writes a fingerprint.
 [[fact]]
@@ -27,4 +37,10 @@ source = { url = "https://api.github.com/meta", read = 2026-11-06, note = "ssh_k
 kind = "github-ssh-keys"
 url = "https://api.github.com/meta"
 pointer = "/ssh_key_fingerprints"
+fact = "host-key-sha256"
+
+# The port 443 offers the same three host keys.
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh-443"
 fact = "host-key-sha256"
