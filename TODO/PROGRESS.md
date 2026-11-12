@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 88 open, 6 partial, 5 blocked, 233 done.
+`TODO/INDEX.md` holds 332 entries: 86 open, 6 partial, 5 blocked, 235 done.
 
 ## State
 
@@ -68,9 +68,10 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-304 and T-396 (the TCP
-   carrier of `pod-link` with TLS 1.3 and the pin of an Ed25519 key, for
-   PodUtils/podnet@T-268, PodUtils/podnet#513, an agent of this session); T-380, T-381 (`pod-turn` against coturn, and
+1. **The defects and asks of the consumers:** the release of the tcp
+   carrier of `pod-link` (feature `tcp`, TLS 1.3 with the pin of an
+   Ed25519 key) in the next tag, with the hand-off on
+   PodUtils/podnet#513 for PodUtils/podnet@T-268; T-380, T-381 (`pod-turn` against coturn, and
    the options of RFC 8489 and RFC 8656 that it leaves out); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
    partial: the client side is in for PodUtils/podssh@T-755; the next tag takes
    it; the second part is the creation of tunnels, the logins and the
@@ -98,7 +99,7 @@ next entry.
    name on crates.io remain; a link across a resume of `pod-session` is
    proven); T-310 (the ARQ) when podnet names a lossy carrier.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
-   T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
+   T-301, T-302 (after T-035), T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
    the layout, the scenarios, the plan, the derivation and the judge are
    in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260
