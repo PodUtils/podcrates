@@ -1,0 +1,7 @@
+# A TCP list or a closed UDP adds no rule of the families: a packet socket,
+# a raw socket of IP and an SCTP socket open past Landlock (T-213).
+ENTRY=T-213
+GROUP=confine
+EXPECT='test a_tcp_list_closes_the_sockets_that_landlock_does_not_check \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --test sockets'
+LIMIT=1800

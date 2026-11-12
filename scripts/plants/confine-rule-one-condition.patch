@@ -1,11 +1,11 @@
 diff --git a/crates/pod-confine/src/deny.rs b/crates/pod-confine/src/deny.rs
-index afa0a46..058424e 100644
+index b8b7bf2..3235de4 100644
 --- a/crates/pod-confine/src/deny.rs
 +++ b/crates/pod-confine/src/deny.rs
-@@ -234,7 +234,7 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
-     let mut body = Vec::new();
-     // The index in `body` of each jump to the last instruction.
-     let mut misses = Vec::new();
+@@ -287,7 +287,7 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
+     // The index in `body` of each jump to the last instruction, and true
+     // where the jump is taken on a match (a "not equal").
+     let mut misses: Vec<(usize, bool)> = Vec::new();
 -    for a in &d.when {
 +    for a in d.when.iter().take(1) {
          let index = a.index();

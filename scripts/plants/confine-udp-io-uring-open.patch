@@ -1,12 +1,12 @@
 diff --git a/crates/pod-confine/src/compile.rs b/crates/pod-confine/src/compile.rs
-index a0adbe5..aa7ef84 100644
+index 1c23857..f1ba178 100644
 --- a/crates/pod-confine/src/compile.rs
 +++ b/crates/pod-confine/src/compile.rs
-@@ -250,7 +250,7 @@ impl Spec {
-         if tcp {
-             rules.extend(Deny::mptcp());
+@@ -309,6 +309,8 @@ impl Spec {
          }
--        if !self.udp || tcp {
+         if !self.udp || tcp {
+             rules.extend(Deny::families());
++        }
 +        if tcp {
              rules.extend(Deny::io_uring());
          }

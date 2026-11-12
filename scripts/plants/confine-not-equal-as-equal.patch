@@ -1,0 +1,13 @@
+diff --git a/crates/pod-confine/src/deny.rs b/crates/pod-confine/src/deny.rs
+index b8b7bf2..6800c2d 100644
+--- a/crates/pod-confine/src/deny.rs
++++ b/crates/pod-confine/src/deny.rs
+@@ -307,7 +307,7 @@ fn conditional(d: &Deny) -> Result<Vec<SockFilter>, Failure> {
+                 if mask != u32::MAX {
+                     body.push(stmt(k::BPF_ALU_AND_K, mask));
+                 }
+-                misses.push((body.len(), !equal));
++                misses.push((body.len(), false));
+                 body.push(jump(k::BPF_JEQ_K, value, 0, 0));
+             }
+         }

@@ -1,0 +1,7 @@
+# A "not equal" condition jumps as an "equal" one: the rule of the
+# families denies the kept families and passes the others (T-213).
+ENTRY=T-213
+GROUP=confine
+EXPECT='test deny::tests::a_not_equal_condition_holds_where_the_argument_differs \.\.\. FAILED'
+RUN='cargo test -p pod-confine --all-features --lib -- deny::tests'
+LIMIT=1800
