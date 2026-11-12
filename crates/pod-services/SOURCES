@@ -74,10 +74,10 @@ file 231a0fd5892a18b18a3f3cf06a6746158e720125 src/ws_relay.rs -> crates/pod-serv
 # here.
 repo PodUtils/podvm 2be31b2a1cc254123e71a7e0e44ce3fbd5a69976
 taken 20ea7813457544bd98568f411d3ba5566fd4f4f1 crates/podvm-image/src/reference.rs
+taken b0a3e05a6914a934ab9619d87dac54fb28a96b05 crates/podvm/src/images/list.rs crates/podvm/src/images/login_extract.rs
 file 5c9e1e095e6905c744b3a8445195980fb14b0d66 crates/podvm-image/src/reference.rs -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/tests/podvm.rs
 file 4f7352e225526be911cd24ad61f718a81206056e crates/podvm/src/images/list.rs -> crates/pod-services/services/docker-hub-registry.toml
 file 5fc46667825952ec83ef20b95112f9e06ad165f6 crates/podvm/src/images/login_extract.rs -> crates/pod-services/services/docker-hub-registry.toml
-file 83ff974a5ffcb1baf63bd923dfe85c9627c5810c crates/podvm-measure/src/workload.rs -> crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/alpine-netboot.toml crates/pod-services/tests/podvm.rs
 file af9c09dc0c3bd42fa68e2d1c0cd7b4d14560baaa scripts/common/distro-matrix.sh -> crates/pod-services/services/docker-hub-registry.toml crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/ghcr-registry.toml crates/pod-services/services/quay-registry.toml crates/pod-services/services/opensuse-registry.toml
 file 5438dd9f680697216193b8210529f6aba4e4935a experiments/70-whiteout-contract.sh -> crates/pod-services/services/docker-hub-registry.toml
 file eb09ea5995f07aef9d67a131811d9f471c6ca33c experiments/80-interposer-abi.sh -> crates/pod-services/services/docker-hub-registry.toml
@@ -87,7 +87,9 @@ file 27cdb878be4c5056101d65cd06b0396a4dd0e715 experiments/106-interpose-identity
 file 8f95b25b6d339a3e9dac18f520c39d1dec2f1b3e experiments/146-podvm-initramfs.sh -> crates/pod-services/services/alpine-netboot.toml crates/pod-services/services/ecr-public-registry.toml
 file 8c00189b70aac2a450b0dec62f4d4d4aa72a73f2 experiments/147-podvm-exec.sh -> crates/pod-services/services/alpine-netboot.toml crates/pod-services/services/ecr-public-registry.toml
 file 7a79a054a56f91fd8aefabc002f6791fd6b48b94 experiments/150-image-acquisition.sh -> crates/pod-services/services/ghcr-registry.toml
-file fa2dd4705d3303b79938efe14e39f67d5790a62f experiments/220-extract-path-safety.sh -> crates/pod-services/services/docker-hub-registry.toml
+# T-306: podvm retired experiments/220-extract-path-safety.sh at 323a4a8
+# (its T-1734): its checks are tests of pod-extract. The fact
+# experiment-images of docker-hub-registry stays for 70, 80 and 90.
 file 9d64f19227492dec71b4e5e2804f46eefea63f39 experiments/250-negative-tests.sh -> crates/pod-services/services/opensuse-registry.toml
 file 039ef89344f0268966756d8395ec84b71642ebe3 experiments/270-multiarch-image.sh -> crates/pod-services/services/ghcr-registry.toml
 file ffe85a6ab62b508ca4fc05d60b5021d5cebb538f experiments/280-insecure-registry.sh -> crates/pod-services/services/ecr-public-registry.toml
@@ -96,6 +98,22 @@ file a5579bd48b2a6b75db0f30de780accd5556bd1a9 experiments/361-guest-usernet.sh -
 file 2de1f8c5246ade2225d05258d4438412b5da43c8 experiments/367-qemu-user-aarch64.sh -> crates/pod-services/services/ecr-public-registry.toml
 file 1131852550546d2d5a8dd4b5feffba3c5c50d86b experiments/369-windows-tcg-dos.sh -> crates/pod-services/services/freedos-image.toml
 file 464361ed4b9740f28942620a3e7f5bd7ea09fb26 experiments/371-validationos-stream.sh -> crates/pod-services/services/microsoft-validationos.toml crates/pod-services/tests/podvm.rs
-file 7eadec5793694954bf2d9b9f4ba4809a7f46b906 experiments/390-machine-ssh.sh -> crates/pod-services/services/alpine-netboot.toml crates/pod-services/services/ecr-public-registry.toml
-file 0d1d41bf29167109664c666e6892c35288245f94 experiments/lib/kvm-guest-base.sh -> crates/pod-services/services/microsoft-validationos.toml
 file ea72cfae81ee2300e20484884280c29687b55f02 experiments/lib/alpine-netboot.sh -> crates/pod-services/services/alpine-netboot.toml
+
+repo PodUtils/podvm fff880585ca1749b76edf537b6e3b6f378eb1699
+taken b0a3e05a6914a934ab9619d87dac54fb28a96b05
+# T-306: the block of 2be31b2 read workload.rs; podvm's 60d11c5 (the pin
+# from mirror.gcr.io, which mirror-gcr-registry holds) and 36b15ec (the
+# guest's init and console) changed no value of this crate. podvm's
+# b0a3e05 (its T-1679) took the values: the pins of workload/pins.rs read
+# ecr-public-registry and alpine-netboot.
+file 913df2cd7c72c143edd1cc06537b1702b790bc95 crates/podvm-measure/src/workload.rs -> crates/pod-services/services/ecr-public-registry.toml crates/pod-services/services/alpine-netboot.toml crates/pod-services/tests/podvm.rs
+
+repo PodUtils/podvm 7af63a0deaca51540ef4e242feef5e37814fd3b3
+# T-306: the block of 2be31b2 read these scripts; podvm's commits since
+# (82bf33d, 8caf47c, 8e73994: experiment 390 on a hosted runner;
+# c6bac36, b56e336, c781afb: the ValidationOS guest under KVM, which
+# checks the digest of the vendor image after the setup) changed no value
+# of this crate.
+file 019ae27d615b56e45393b4c29b73dc48436793a3 experiments/390-machine-ssh.sh -> crates/pod-services/services/alpine-netboot.toml crates/pod-services/services/ecr-public-registry.toml
+file 8ae1083e25f1d04e3dfa0bedaf796e2fa8804c9a experiments/lib/kvm-guest-base.sh -> crates/pod-services/services/microsoft-validationos.toml

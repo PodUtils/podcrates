@@ -461,3 +461,63 @@ cargo test --workspace --all-features
 2026-11-12. `e738466` (trufflehog 3.99.8 by its digest) and `60903e7`
 (`toml` 1.2.1, `toml_datetime` 1.1.3, `serde_spanned` 1.1.3, in both
 locks). #81 declined: `openssl` 0.10 takes `foreign-types` 0.3.
+
+# T-306: `pod-services`: six podvm files of its block changed after `2be31b2` (`upstream.yml` red since 2026-11-10)
+
+**Source:** `upstream.yml`, job `sources`, runs 42820129877 and 43017701535 (red on schedule since 2026-11-10; no entry knew it).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`scripts/check-sources.py` finds changes of podvm files of the block of
+`2be31b2` in `crates/pod-services/SOURCES`:
+`PodUtils/podvm:crates/podvm-measure/src/workload.rs`,
+`PodUtils/podvm:crates/podvm/src/images/list.rs`,
+`PodUtils/podvm:crates/podvm/src/images/login_extract.rs`,
+`PodUtils/podvm:experiments/390-machine-ssh.sh`,
+`PodUtils/podvm:experiments/lib/kvm-guest-base.sh`, and the removal of
+`PodUtils/podvm:experiments/220-extract-path-safety.sh`. Each change is a
+port of a value of `pod-services` or a re-record of the block.
+
+## Premise
+
+- Read: the diff of each file from `2be31b2` to podvm's `7af63a0`
+  (`main`), with a local clone.
+
+## Approach
+
+For each file: a value of `pod-services` that moved is a port; a file
+whose values podvm now reads from `pod-services` is a take (`taken`); a
+change of no value moves the file to a block at a newer commit.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=CLONE --clone PodUtils/podnet=CLONE --clone PodUtils/podssh=CLONE pod-services
+```
+
+## Done
+
+2026-11-12. No value of `pod-services` changed; no port.
+
+- `workload.rs`, `list.rs`, `login_extract.rs`: podvm's `b0a3e05` (its
+  PodUtils/podvm@T-1679) reads the pinned image, the kernel's archive and SHA-256, and
+  the default server of login from `pod-services`: a take. `list.rs` and
+  `login_extract.rs` keep their blobs at the parent of the take and get
+  `taken b0a3e05` in the block of `2be31b2`. `workload.rs` changed before
+  the take (`60d11c5`: the pin from `mirror.gcr.io`, which
+  `mirror-gcr-registry` holds; `36b15ec`: the guest's init and console):
+  a block at `fff8805` (the parent of the take) with `taken b0a3e05`.
+- `390-machine-ssh.sh` and `kvm-guest-base.sh`: podvm's runs of the guests
+  on a hosted runner and the check of the digest of the vendor image after
+  the setup; no value moved: a block at `7af63a0`.
+- `220-extract-path-safety.sh`: podvm retired it at `323a4a8` (its
+  PodUtils/podvm@T-1734; its checks are tests of `pod-extract`). It leaves the block; the
+  fact `experiment-images` of `docker-hub-registry` stays for the
+  experiments 70, 80 and 90.
+- The Prove command with the three clones: each block of `pod-services`
+  has 0 changes.
