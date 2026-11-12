@@ -36,7 +36,8 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
   `Way::with_records` gives (`pod-dns` has one, its feature `ech`). It
   turns on the feature `ech` of `pod-tls`.
 * `plain-ws`: a session over plain TCP to the loopback, for the tests of
-  an embedder. No binary turns it on.
+  an embedder; podnet's binary turns it on through `pod-relay` for a
+  relay on the loopback (call C101).
 
 ## Settings
 

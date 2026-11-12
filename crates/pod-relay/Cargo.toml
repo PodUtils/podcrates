@@ -26,7 +26,8 @@ grant = []
 # probe of UDP (pod-quic, noq).
 quic = ["dep:pod-quic", "dep:noq", "dep:rustls"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an
-# embedder. A binary does not turn it on.
+# embedder; podnet's binary turns it on for a relay on the loopback (call
+# C101). A host off the loopback stays refused.
 plain-ws = ["pod-ws/plain-ws"]
 # The readers of the wire, public for the fuzz targets of fuzz/. No consumer
 # turns it on.

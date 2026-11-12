@@ -1339,12 +1339,16 @@ and `.run`.
   operator at `tcp.ssh.relay.ajam.dev`); the size of podnet's release
   binary after the take.
 
-What remains, in order:
+2026-11-12, partial: the words of `plain-ws` follow call C101 in
+`crates/pod-relay/src/open.rs`, `crates/pod-relay/src/reverse/wire.rs`,
+`crates/pod-relay/Cargo.toml`, `crates/pod-relay/README.md`,
+`crates/pod-ws/Cargo.toml` and `crates/pod-ws/README.md`: podnet's binary
+turns the feature on for a relay on the loopback; a host off the loopback
+stays refused.
 
-1. After the trial: the words "a binary does not turn it on" of the
-   feature `plain-ws` (the README, `crates/pod-relay/Cargo.toml`,
-   `open.rs`, `reverse/wire.rs`) follow call C101.
-2. The release, and the take of podnet (the hand-off gives the findings
+What remains:
+
+1. The release, and the take of podnet (the hand-off gives the findings
    above, the new pair file and the calls C110 to C112); the next trial of
    podssh (T-025) and podvm's take of the facade see the changes of calls
    C75, C80 and C112.

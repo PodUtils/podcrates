@@ -125,7 +125,7 @@ a `401` to a node's upgrade ends the node as a `403` does.
 | `code` | the exchange of a pairing by code (with `pair`; `pod-wormhole`) |
 | `grant` | the grants used once |
 | `quic` | the QUIC road (`pod-quic`, noq) |
-| `plain-ws` | plain `ws://` to a stand-in relay on the loopback, for the tests of an embedder: `http://` and `ws://` in `parse_relay`, the forward opener's `open_on_loopback`, the reverse road's `Wire::PlainLoopback`, the facade's `forward_on_loopback`; a binary does not turn it on |
+| `plain-ws` | plain `ws://` to a stand-in relay on the loopback, for the tests of an embedder: `http://` and `ws://` in `parse_relay`, the forward opener's `open_on_loopback`, the reverse road's `Wire::PlainLoopback`, the facade's `forward_on_loopback`; a binary that takes a relay on the loopback turns it on, as podnet does (call C101); a host off the loopback stays refused |
 | `fuzzing` | the readers of the wire for `fuzz/`; no consumer turns it on |
 
 ## Settings

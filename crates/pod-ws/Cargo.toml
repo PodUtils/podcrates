@@ -14,8 +14,8 @@ default = []
 # pod-tls, with its pure provider.
 ech = ["pod-tls/ech"]
 # A plain WebSocket over TCP to the loopback, for the tests of an embedder
-# (podvm) and a stand-in relay. Off by default; a binary does not turn it
-# on.
+# (podvm) and a stand-in relay. Off by default; podnet's binary turns it
+# on through pod-relay for a relay on the loopback (call C101).
 plain-ws = []
 
 [dependencies]

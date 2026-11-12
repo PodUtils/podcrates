@@ -205,7 +205,8 @@ pub async fn open(req: &Request<'_>, notes: &mut (dyn FnMut(&str) + Send)) -> Re
 }
 
 /// [`open`] over plain `ws://` to stand-in relays on the loopback, for the
-/// tests of an embedder (feature `plain-ws`; a binary does not turn it on):
+/// tests of an embedder and a relay on the loopback (feature `plain-ws`;
+/// podnet's binary turns it on, call C101):
 /// the same order of the hosts, failover, tokens and notes, with no other
 /// road. A host that is not the loopback is refused before any connection,
 /// as `pod_ws::plain` refuses one, so a token never leaves this host in

@@ -1,6 +1,7 @@
 //! How a runner reaches the relay: TLS for each real use, or plain `ws://` to
 //! a stand-in relay on the loopback, for the tests of an embedder (feature
-//! `plain-ws`, podssh T-068). A binary does not enable the feature. An
+//! `plain-ws`, podssh T-068) and for podnet's binary with a relay on the
+//! loopback (call C101). An
 //! operator's leg of a carrier (podssh T-595) is a pipe to the relay role's
 //! side in its own process, through the role's [`Door`].
 
