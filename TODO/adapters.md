@@ -164,6 +164,12 @@ podcrates.
   PodUtils/podnet@T-244) captures each exchange beside the copy helpers of
   `forward_http` in `src/proxy.rs`: a ring, redaction by default, a replay
   over a socket of mode 0600.
+- PodUtils/podnet#482 (after podnet's take of `pod-relay`): podnet's
+  `ws_relay::meter` takes the limits of the pool document; the edge leg of
+  the tunnel (`PodUtils/podnet:src/edge_h2.rs`, frozen for this crate)
+  still counts the constants. The import takes the limits of the relay
+  (`RelayBudget::meter_for` of `pod-relay`) for the edge leg; podnet sends
+  no fix of the frozen file for it.
 
 ## Approach
 

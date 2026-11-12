@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**278 entries: 62 open, 1 partial, 4 blocked, 211 done.**
+**278 entries: 61 open, 1 partial, 5 blocked, 211 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 0 | 0 | 58 | 71 |
-| P2 | 25 | 1 | 4 | 107 | 137 |
+| P2 | 24 | 1 | 5 | 107 | 137 |
 | P3 | 24 | 0 | 0 | 44 | 68 |
-| **All** | 62 | 1 | 4 | 211 | 278 |
+| **All** | 61 | 1 | 5 | 211 | 278 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -170,7 +170,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-121](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: renew a pair (PodUtils/podnet#413) |
 | [T-122](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
 | [T-123](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the session budget from the pool document (PodUtils/podnet#413) |
-| [T-124](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
+| [T-124](relay.md) | P2 | M | M2 | feature | blocked | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
 | [T-125](transport.md) | P2 | S | M1 | feature | done | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
 | [T-126](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
 | [T-127](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |

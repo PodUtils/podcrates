@@ -1494,12 +1494,25 @@ extends it, so a node cannot stay paired for months.
 
 - Read: the ask of podnet; the relay contract of `pod-relay` (T-025, T-047).
 - Not read: a renew endpoint on the relay server; the owner of the relay adds it.
+- Read on 2026-11-12 (PodUtils/podnet#482, after podnet's take of `v0.30.0`):
+  the relay contract (`llms-full.txt`, the fact `contract-sha256` of
+  `ajam-relay`) has no renew path. The crate has
+  `pair::renew::renew`: `POST /v1/renew/NAME` with the stop token, which
+  podssh's relay role serves (PodUtils/podssh@T-592) and a relay of the contract
+  answers with 404 or 405 (no refusal, no renewal). `reverse::run` renews
+  nothing. podnet's T-161 asks for `POST /v1/pair/NAME/renew` with the node
+  token.
 
 ## Approach
 
-A call `POST /v1/pair/NAME/renew`, authorized by the node token only, that extends the TTL and
-keeps the pair id. The node renews at half the TTL and again in the first warning band. A test
-with the stand-in relay of `pod-testkit`.
+A setting of `reverse::run` that renews the pair before its end with the
+call of the crate (`POST /v1/renew/NAME`, the stop token, where the pair
+file of the node holds it): at half the TTL, and again in the first
+warning band; a relay that answers 404 or 405 renews nothing, and the node
+says so once. A test with the stand-in relay of `pod-testkit`. The call of
+the public relay (a path, the node token as podnet's T-161 asks) waits for
+the owner of the relay: it adds the path to the contract, and the crate
+then takes it beside the call of podssh's role.
 
 ## Prove
 
@@ -1622,7 +1635,7 @@ the budgets of the relay in use. Tests:
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -1632,6 +1645,9 @@ the budgets of the relay in use. Tests:
 
 - Read: the ask of podnet.
 - Not measured: a node socket on host B that serves a pair minted on host A.
+- Read on 2026-11-12 (PodUtils/podnet#482): the relay contract makes a pair
+  on the control host only ("Agent-created pairs need no admission
+  (control host only)"), and names no move of a pair to another host.
 
 ## Approach
 
@@ -1643,6 +1659,13 @@ of the reverse road, with the health memory of T-122.
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+## Blocker
+
+The relay contract (`ajam-relay`, `llms-full.txt`) makes a pair on the
+control host only and moves none. The owner of the relay adds a pair on
+(or a move to) another host of the pool; the daily watch of the contract
+(`services.yml`) shows the change, and this entry then starts.
 
 ## Start condition
 
