@@ -91,6 +91,29 @@ a `PONG` do not wait behind a long run of bytes. A peer that sends more
 than 8192 frames that wait for an answer, and does not read, ends the
 link.
 
+## A link that survives the loss of its carrier
+
+A link does not resume: a lost carrier ends it (call C120). For a link
+that lives across the loss of its carrier, run the link over the
+application side of a session of `pod-session`:
+
+1. The dialer starts a session (`pod_session::client::start`) on a
+   carrier, then `pod_session::resume::run(client, app_end, connect, ...)`,
+   where `connect` gives a new carrier after each loss.
+2. The listener accepts the session (`pod_session::far::accept`) and runs
+   it with a `Keeper`, which keeps it across each resume.
+3. Each end gives its application side of the session (a
+   `tokio::io::duplex` pair: one half to the session, one to the link) to
+   `Link::new`.
+
+The link sees no loss while the session resumes. Its own clock goes on:
+a resume that takes longer than `dead_after` (30 s) ends the link with
+`Error::Dead`, though the session would resume until its
+`resume_deadline` (600 s by default). To keep a link across a resume as
+long as the session allows, give `dead_after` a value of the
+`resume_deadline` or more, or keep the default and accept that a link
+dies after 30 s with no carrier.
+
 ## The parity list
 
 The rules of PodUtils/podnet#466 (E0-2) and #467 (E1-7, E1-8), and the
@@ -122,7 +145,10 @@ tests that hold them:
 - [x] The memory carrier: a ring of 64 KiB to 64 MiB (1 MiB by default), a
   full ring makes the writer wait and drops nothing, the end of one side
   is the end of stream of the other: `tests/carriers.rs`.
-- [ ] The resume of a link over `pod-session` (podnet T-263): T-311.
+- [x] The resume of a link over `pod-session` (podnet T-263): the carrier
+  of the session is cut twice while two streams move 1 MiB each way, and
+  the SHA-256 of each stream is equal at both ends: `tests/resume.rs`
+  (`two_streams_cross_two_resumes_of_the_session_whole`).
 - [ ] The ARQ for a carrier that loses frames, with 3 % of the frames
   lost (podnet T-277): T-310.
 

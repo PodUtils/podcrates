@@ -13,7 +13,7 @@ is done. Git and the record keep finished work.
 2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-4. Take the work order of `TODO/PROGRESS.md`: T-311, T-212, T-290.
+4. Take the work order of `TODO/PROGRESS.md`: T-212, T-290.
 
 ## In flight
 

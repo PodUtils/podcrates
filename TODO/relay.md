@@ -4006,7 +4006,7 @@ podnet starts PodUtils/podnet@T-277 or names a lossy carrier (a COORD issue).
 **Milestone:** M2
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4033,6 +4033,20 @@ cargo test -p pod-link --all-features
 ## Start condition
 
 T-279 is done (the resume window and the single use of a token as settings), or podnet starts PodUtils/podnet@T-263.
+
+## Done
+
+2026-11-12. `crates/pod-link/tests/resume.rs`
+(`two_streams_cross_two_resumes_of_the_session_whole`): a session of
+`pod-session` over a carrier that a stand-in cuts twice with no word
+(after 700 000 and 1 300 000 bytes), two streams of a link over the
+application side move 1 MiB each way, and the SHA-256 of each stream is
+equal at both ends; two `Note::Lost` and two `Note::Resumed`; the link
+lives across each resume. 20 runs passed. `pod-session` and `sha2` are
+dev-dependencies of `pod-link`. `crates/pod-link/README.md`, "A link that
+survives the loss of its carrier": the composition and the bound between
+`dead_after` and `resume_deadline`.
+
 
 # T-327: `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502)
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 286 entries: 65 open, 2 partial, 5 blocked, 214 done.
+`TODO/INDEX.md` holds 286 entries: 64 open, 2 partial, 5 blocked, 215 done.
 
 ## State
 
@@ -80,9 +80,8 @@ next entry.
    podnet started its link workstream (PodUtils/podnet#480): T-300
    (partial: `pod-link` with the streams, the windows, the keepalive, the
    unix and the memory carriers is in; the release and the reserve of its
-   name on crates.io remain), then T-311 (a link across a
-   resume of `pod-session`); T-310 (the ARQ) when podnet names a lossy
-   carrier.
+   name on crates.io remain; a link across a resume of `pod-session` is
+   proven); T-310 (the ARQ) when podnet names a lossy carrier.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
    T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260

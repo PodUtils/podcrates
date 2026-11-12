@@ -20,5 +20,8 @@ tracing = { workspace = true }
 libc = "0.2"
 
 [dev-dependencies]
+# A link over a resumable session (T-311).
+pod-session = { workspace = true }
+sha2 = { workspace = true }
 # `test-util` gives the keepalive's tests a paused clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
