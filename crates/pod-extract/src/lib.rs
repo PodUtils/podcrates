@@ -281,6 +281,9 @@ fn short(digest: &str) -> String {
 /// A mismatch names the blob, the digest of the manifest and the computed
 /// one.
 fn verified(hash: &layer::HashedStream, want: &str, blob: &Path) -> Result<()> {
+    // The extraction stops at the end of the archive: the rest of the blob
+    // goes into the hash first (PodUtils/podvm#281).
+    hash.finish()?;
     let got = hash.digest();
     if got == want {
         return Ok(());

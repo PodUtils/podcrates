@@ -7,7 +7,9 @@
 //! A zstd layer is legal OCI and a registry can serve one, so `ruzstd` reads
 //! it. Its size in a binary is about one page more than the gzip pair.
 
+use std::cell::RefCell;
 use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::rc::Rc;
 
 use sha2::{Digest as _, Sha256};
 
@@ -50,30 +52,51 @@ impl Compression {
 /// the pull: each layer is hashed while it goes into the decompressor, and
 /// the hash is compared before an entry is applied. No more I/O: the
 /// extraction reads the bytes, and the handle gives the digest of them after.
+/// The extraction stops at the end of the archive, so
+/// [`HashedStream::finish`] reads the rest of the raw blob into the hash
+/// before the digest counts (PodUtils/podvm#281).
 pub struct HashedStream {
-    state: std::rc::Rc<std::cell::RefCell<Sha256>>,
+    state: Rc<RefCell<Sha256>>,
+    raw: Rc<RefCell<Raw>>,
+}
+
+/// The raw blob: the file, each byte hashed as it comes, behind one buffer.
+type Raw = BufReader<Hashing<std::fs::File>>;
+
+/// A reader that hashes each byte that comes through it.
+struct Hashing<R> {
+    inner: R,
+    state: Rc<RefCell<Sha256>>,
+}
+
+impl<R: Read> Read for Hashing<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        // Hash the bytes that came, not the whole buffer: a short read
+        // that hashed the buffer would verify bytes that nobody saw.
+        self.state.borrow_mut().update(&buf[..n]);
+        Ok(n)
+    }
+}
+
+/// The raw blob as the decompressor reads it; [`HashedStream`] holds it too.
+struct Shared(Rc<RefCell<Raw>>);
+
+impl Read for Shared {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.0.borrow_mut().read(buf)
+    }
 }
 
 /// Open `path` for decompression per `c`, hashing every raw byte on the way.
-/// The returned handle reports the digest of what the stream actually
-/// delivered once it has been read to the end.
+/// The returned handle reports the digest of the whole blob after
+/// [`HashedStream::finish`].
 pub fn open_hashed(path: &std::path::Path, c: Compression) -> Result<(Box<dyn Read>, HashedStream)> {
-    struct Hashing<R> {
-        inner: R,
-        state: std::rc::Rc<std::cell::RefCell<Sha256>>,
-    }
-    impl<R: Read> Read for Hashing<R> {
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-            let n = self.inner.read(buf)?;
-            // Hash the bytes that came, not the whole buffer: a short read
-            // that hashed the buffer would verify bytes that nobody saw.
-            self.state.borrow_mut().update(&buf[..n]);
-            Ok(n)
-        }
-    }
-    let state = std::rc::Rc::new(std::cell::RefCell::new(Sha256::new()));
+    let state = Rc::new(RefCell::new(Sha256::new()));
     let f = std::fs::File::open(path).map_err(error::io)?;
-    let r = BufReader::with_capacity(64 * 1024, Hashing { inner: f, state: std::rc::Rc::clone(&state) });
+    let raw =
+        Rc::new(RefCell::new(BufReader::with_capacity(64 * 1024, Hashing { inner: f, state: Rc::clone(&state) })));
+    let r = Shared(Rc::clone(&raw));
     let stream: Box<dyn Read> = match c {
         Compression::None => Box::new(r),
         Compression::Gzip => Box::new(flate2::read::GzDecoder::new(r)),
@@ -82,13 +105,21 @@ pub fn open_hashed(path: &std::path::Path, c: Compression) -> Result<(Box<dyn Re
                 .map_err(|e| error::unsupported(format!("this zstd layer cannot be read: {e}")))?,
         ),
     };
-    Ok((stream, HashedStream { state }))
+    Ok((stream, HashedStream { state, raw }))
 }
 
 impl HashedStream {
+    /// Read the rest of the raw blob into the hash: the bytes after the end
+    /// of the archive that no read of the extraction took (the padding of
+    /// tar to its record of 10 240 bytes, bytes after a compressed frame).
+    /// The bytes in the buffer were hashed when they came from the file.
+    pub fn finish(&self) -> Result<()> {
+        std::io::copy(&mut *self.raw.borrow_mut(), &mut std::io::sink()).map_err(error::io)?;
+        Ok(())
+    }
+
     /// The `sha256:<hex>` of each byte that the stream gave until now. It has a
-    /// meaning only after a read to the end, and both passes of an extraction
-    /// read each entry.
+    /// meaning only after [`HashedStream::finish`].
     pub fn digest(&self) -> String {
         let h = self.state.borrow().clone().finalize();
         let mut s = String::with_capacity(71);

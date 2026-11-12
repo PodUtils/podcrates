@@ -239,3 +239,23 @@ fn a_blob_edited_after_pull_is_refused_and_never_written() {
     assert_eq!(crate::mismatch(&e).map(|m| m.want.as_str()), Some(want.as_str()));
     assert!(std::fs::read(p.rootfs.join("greeting")).is_err(), "the tampered bytes reached the rootfs");
 }
+
+/// PodUtils/podvm#281: GNU tar pads an archive to a record of 10 240 bytes
+/// after its end marker. One file of 60 000 bytes ends the marker at 61 952,
+/// inside the first read of 64 KiB, and the padding goes to 71 680: the
+/// extraction stopped at the marker and the hash missed the padding, so a
+/// correct blob was refused as a mismatch.
+#[test]
+fn a_tar_padded_to_its_record_after_the_end_marker_is_no_mismatch() {
+    static DATA: [u8; 60_000] = [7; 60_000];
+    let s = Scratch::new("tarrecord");
+    let mut bytes = layer(&[E::File("f", &DATA, 0o644)]);
+    assert_eq!(bytes.len(), 61_952, "the end marker ends inside the first read");
+    bytes.resize(bytes.len().next_multiple_of(10_240), 0);
+    assert_eq!(bytes.len(), 71_680);
+    let l = stored(&s, &bytes, "application/vnd.oci.image.layer.v1.tar");
+    let digest = format!("sha256:{}", "8".repeat(64));
+    let p = place(&s, &digest);
+    let done = crate::extract(&crate::Settings::default(), &digest, &[l], &p).unwrap();
+    assert_eq!(std::fs::read(done.rootfs.join("f")).unwrap(), DATA);
+}

@@ -4370,3 +4370,61 @@ installs `qemu-utils`. The plant `guest-commit-has-no-output-file` (the
 argv of `commit` again) is caught: "Expecting one image file name".
 `cargo test -p pod-guest --all-features --lib`: 89 passed. `guest.yml`
 run 43154363052 (with `POD_GUEST_TEST_QEMU=required`): passed.
+
+# T-320: `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281)
+
+**Source:** PodUtils/podvm#281 (COORD-060 of podvm, for PodUtils/podvm@T-1721).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod-extract` at `v0.30.0` refuses a correct uncompressed tar layer with
+"digest mismatch". `layer::open_hashed` hashes the raw bytes that the
+decompressor pulls through its `BufReader` of 64 KiB; both passes of
+`extract_layers` stop at the end marker of tar, drop the stream and call
+`verified`. GNU tar pads an archive to a record of 10 240 bytes after the
+marker: when the marker is in one read of 64 KiB and the padding goes past
+it, no read takes the padding, and the hash covers less than the blob.
+The failure depends on where the marker falls, so `podvm import` of a GNU
+tar fails at random (podvm's experiment 356 on arm64). podvm's
+reproduction: one file of 60 000 bytes, `tar -cf` (71 680 bytes; the marker
+ends at 61 952).
+
+## Premise
+
+- Read: `crates/pod-extract/src/layer.rs` (`open_hashed`, `HashedStream`)
+  and `crates/pod-extract/src/lib.rs` (`extract_layers`, `verified`).
+
+## Approach
+
+Before each `verified`, read the rest of the raw blob into the hash: the
+padding of tar, and the bytes after a compressed frame (a decoder can stop
+at the end of its frame).
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+## Done
+
+2026-11-12. The commit that names T-320.
+
+- `HashedStream` holds the raw reader (the file, hashed as each byte
+  comes, behind its buffer of 64 KiB), which the decompressor reads too;
+  `HashedStream::finish` reads it to its end into the hash. `verified`
+  calls it before the digest counts, after each of the two passes. The
+  bytes in the buffer were hashed as they came from the file, so the hash
+  covers each byte once, for each compression.
+- Test `a_tar_padded_to_its_record_after_the_end_marker_is_no_mismatch`
+  (podvm's reproduction: one file of 60 000 bytes, the end marker at
+  61 952, the padding to 71 680): it failed with the code before (the
+  mismatch) and passes. `cargo test -p pod-extract --all-features`: 56
+  passed; clippy is clean.
+- The plant `extract-hash-stops-at-the-end-marker` (the call of `finish`
+  dropped) is caught by that test.

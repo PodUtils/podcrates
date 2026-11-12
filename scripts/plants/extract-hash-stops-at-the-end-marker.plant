@@ -1,0 +1,6 @@
+# pod-extract: the hash of a layer stops where the extraction stops (the end marker of tar), so the padding of a GNU tar is not hashed and a correct blob is refused; its test must fail.
+ENTRY=T-320
+GROUP=extract
+EXPECT='test drive::records::a_tar_padded_to_its_record_after_the_end_marker_is_no_mismatch \.\.\. FAILED'
+RUN='cargo test -p pod-extract --lib -- drive::records::a_tar_padded_to_its_record_after_the_end_marker_is_no_mismatch --exact'
+LIMIT=1800
