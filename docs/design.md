@@ -513,7 +513,7 @@ pushes. No worktree branch is pushed.
 | --- | --- | --- |
 | `ci.yml` | each push | fmt, clippy, tests (Linux x86_64; the netns tests of `pod-hold` also as root, `scripts/root-netns-tests.sh`), `cargo todo check`, size, the static probes on each target, `cargo doc`, `scripts/check-probe.py`, `scripts/check-workflows.py` |
 | `nightly.yml` | each night, before a release | tests on macOS, Windows and the other Linux targets (QEMU) |
-| `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy`, `live` of `pod-oci`, `modloop_live` of `pod-guest` (the modloop of Alpine 3.22) |
+| `live.yml` | each day (01:53 UTC), by hand | the ignored live tests: `live_handshake` of `pod-tls`, `live_doh` of `pod-dns` (with `scripts/names-proxy.py`), `mptcp` of `pod-proxy`, `live` of `pod-oci`, `modloop_live` of `pod-guest` (the modloop of Alpine 3.22); the tests of `pod-wormhole` and `pair_code` of `pod-relay` against magic-wormhole's own mailbox server; on Thursdays and by hand, `live` of `pod-wormhole` and `pair_code_live` of `pod-relay` (the public mailboxes); by hand (the job `relay`, its input `relay`), one live test of the relay client of `pod-relay` |
 | `services.yml` | each day (02:17 UTC), by hand (a service, a kind, or a measurement) | `pod-services-watch`: each `[[watch]]` of the data of `pod-services`; a fact that moved fails the run with the file, the value, the new value and the source. The measurements of `scripts/services/` (`edge-facts.sh`) |
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh` |

@@ -2,15 +2,39 @@ name: live
 
 # The tests with `#[ignore]` that need a live service: the relay of podssh,
 # the public DoH resolvers, a host that offers Multipath TCP, a public
-# registry and Alpine's mirror. They run
-# each day at an off-peak hour and by hand (docs/decisions.md, C24), with
-# egress to the relay and to the resolvers. The checks of each push do not
-# need the network (ci.yml).
+# registry, Alpine's mirror, magic-wormhole's mailbox server and library,
+# and the public mailboxes. They run each day at an off-peak hour and by
+# hand (docs/decisions.md, C24), with egress to the relay and to the
+# resolvers. The checks of each push do not need the network (ci.yml).
+#
+# The job relay runs one live test of the relay client of pod-relay, by
+# hand only (T-228): each test mints its own tokens and pairs on the live
+# relay, stops its pairs at the end, and prints no token.
 
 on:
   schedule:
     - cron: "53 1 * * *"
   workflow_dispatch:
+    inputs:
+      relay:
+        description: "One live test of pod-relay on the default relay (none: the job live)"
+        required: true
+        type: choice
+        default: none
+        options:
+          - none
+          - live
+          - live_backpressure
+          - pair_live
+          - reverse_live
+          - reverse_idle_live
+          - reverse_drops_live
+          - blocking_live
+          - grant_live
+      until:
+        description: "The end of reverse_drops_live, in Unix seconds (at most an hour ahead; empty: 15 minutes)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -20,8 +44,9 @@ env:
 
 jobs:
   live:
+    if: github.event_name == 'schedule' || inputs.relay == 'none'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,3 +86,70 @@ jobs:
             https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/x86_64/netboot/modloop-virt
           POD_GUEST_MODLOOP="$RUNNER_TEMP/modloop-virt" \
             cargo test --locked -p pod-guest --test modloop_live -- --ignored --nocapture
+      # magic-wormhole's own mailbox server and library on the loopback: a
+      # skip for want of Python is a failure here, so these tests of
+      # pod-wormhole and of pod-relay run each day, not only on a host with
+      # Python.
+      - name: magic-wormhole's mailbox server and library, in a virtualenv
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/mailbox-venv"
+          sh scripts/retry.sh "$RUNNER_TEMP/mailbox-venv/bin/python" -m pip install --quiet \
+            magic-wormhole-mailbox-server==0.8.0 magic-wormhole==0.24.0
+      - name: pod-wormhole and pod-relay, the pairing by a code against magic-wormhole's server
+        env:
+          POD_WORMHOLE_TEST_SERVER: required
+        run: |
+          set -eu
+          export POD_WORMHOLE_TEST_PYTHON="$RUNNER_TEMP/mailbox-venv/bin/python"
+          timeout 900 cargo test --locked -p pod-wormhole --all-features -- --nocapture
+          timeout 900 cargo test --locked -p pod-relay --all-features --test pair_code -- --nocapture
+      # One short pairing through each public mailbox (podssh's ruling Q65):
+      # each Thursday and by hand, as a watch of services that publish no
+      # promise.
+      - name: pod-wormhole and pod-relay, one short pairing through each public mailbox
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          if [ "$EVENT" = schedule ] && [ "$(date -u +%u)" != 4 ]; then
+            echo "the public mailboxes run on Thursdays and by hand"
+            exit 0
+          fi
+          timeout 300 cargo test --locked -p pod-wormhole --all-features --test live -- --ignored --nocapture
+          timeout 300 cargo test --locked -p pod-relay --all-features --test pair_code_live -- --ignored --nocapture
+
+  relay:
+    if: github.event_name == 'workflow_dispatch' && inputs.relay != 'none'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      # The inputs reach the shell through the environment, and only a name
+      # of the list runs.
+      - name: build the test
+        env:
+          TEST: ${{ inputs.relay }}
+        run: |
+          case "$TEST" in
+            live|live_backpressure|pair_live|reverse_live|reverse_idle_live|reverse_drops_live|blocking_live|grant_live) ;;
+            *) echo "not a live test of the list: $TEST" >&2; exit 2 ;;
+          esac
+          cargo test --locked -p pod-relay --all-features --test "$TEST" --no-run
+      # reverse_drops_live holds its pairs until the input until; start it at
+      # the same time as a run from another network, with the same end, to
+      # compare the drops by time.
+      - name: the live test
+        env:
+          TEST: ${{ inputs.relay }}
+          UNTIL: ${{ inputs.until }}
+        run: |
+          set -eu
+          if [ "$TEST" = reverse_drops_live ] && [ -n "$UNTIL" ]; then
+            export PODSSH_DROPS_UNTIL="$UNTIL"
+          fi
+          cargo test --locked -p pod-relay --all-features --test "$TEST" -- --ignored --nocapture

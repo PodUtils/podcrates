@@ -312,7 +312,10 @@ end-to-end channel over the layered road, a node's routes and shares, the
 grants, the pairing by code at a stand-in mailbox, the limits of a pool's
 body, the failover, the forward opener over plain `ws://` to a stand-in
 relay (podnet's `bytes_go_through_a_local_relay`). The tests that reach the live relay or the public
-mailboxes are `#[ignore]` (19).
+mailboxes are `#[ignore]` (19). `live.yml` runs `pair_code_live` each
+Thursday, and one of the others by hand (its input `relay`; `until` for
+`reverse_drops_live`). It runs `pair_code` each day against
+magic-wormhole's own mailbox server (`POD_WORMHOLE_TEST_SERVER=required`).
 
 ## Sources
 
