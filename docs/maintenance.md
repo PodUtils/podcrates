@@ -204,6 +204,10 @@ finding.
   `service`; a failure that stays needs an entry.
 * A `skipped` line is no failure: the watch cannot speak a form of the
   service, and its entry is in the record.
+* A `FAILED (first no answer)` line is no failure of the run: the host
+  gave no answer to the runner (call C153). A second scheduled run in a
+  row with no answer of the same watch fails: then read the service as
+  for a `FAILED` line.
 
 ### The live calls
 

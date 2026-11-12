@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/net.rs
++++ b/crates/pod-services-watch/src/net.rs
+@@ -225,7 +225,7 @@
+ /// limit) before the first byte of the server; `heard` says whether a byte
+ /// came. A refusal of rustls (a certificate, a protocol) is an answer.
+ fn handshake_finding(why: String, failure: &Failure, heard: bool) -> Finding {
+-    let silent = !heard && matches!(Cut::of_failure(failure), Some(Cut::Reset | Cut::Closed | Cut::TimedOut));
++    let silent = matches!(Cut::of_failure(failure), Some(Cut::Reset | Cut::Closed | Cut::TimedOut));
+     if silent { Finding::NoAnswer(why) } else { finding(why, failure) }
+ }
+ 

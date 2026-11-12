@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/answer.rs
++++ b/crates/pod-services-watch/src/answer.rs
+@@ -53,7 +53,7 @@
+         if !report.outcome.no_answer() {
+             return;
+         }
+-        if !self.was.contains(&key) {
++        if !self.now.contains(&key) {
+             report.mark_first();
+         }
+         self.now.push(key);

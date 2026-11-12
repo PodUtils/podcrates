@@ -8,6 +8,12 @@ name: services
 # kind (docs/decisions.md, C24, C42). The checks of each push do not need
 # the network (ci.yml). Each day the measurements of scripts/services/ run
 # too; by hand, the input measure runs one in place of the watches.
+#
+# A watch whose host gives no answer (a connect timeout, no route, a reset
+# before the first byte) fails a scheduled run only when the last scheduled
+# run had no answer of the same watch too (call C153): the first one prints
+# "FAILED (first no answer)". The list of such watches of each scheduled
+# run is in the cache of the job. A run by hand fails on each finding.
 
 on:
   schedule:
@@ -47,12 +53,23 @@ jobs:
         run: sh scripts/retry.sh rustup toolchain install
       - name: Build the runner
         run: cargo build --locked --release -q -p pod-services-watch
+      # The watches with no answer of the last scheduled run: the newest
+      # cache of the prefix. None (the first run, a cache that expired):
+      # each watch with no answer is a first one.
+      - name: The watches with no answer of the last scheduled run
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: no-answer.txt
+          key: services-no-answer-${{ github.run_id }}
+          restore-keys: services-no-answer-
       # The token raises the limit of GitHub's API for the GitHub watches;
       # the runner sends it to api.github.com alone and never prints it.
       # A watch forward-url opens a tunnel on a free SSH relay: the daily
       # run opens one session for each relay. A run by hand opens one only
       # when it names the kind or the service (call C89).
       - name: Each watch
+        id: watch
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SERVICE: ${{ inputs.service }}
@@ -66,6 +83,12 @@ jobs:
           if [ "$EVENT" != schedule ] && [ -z "${SERVICE:-}" ] && [ -z "${KIND:-}" ]; then
             set -- "$@" --skip-kind forward-url
           fi
+          # The runner reads the list of the last scheduled run and writes
+          # the list of this run, which the next step keeps.
+          if [ "$EVENT" = schedule ]; then
+            if [ -f no-answer.txt ]; then mv no-answer.txt no-answer-was.txt; fi
+            set -- "$@" --no-answer-was no-answer-was.txt --no-answer-now no-answer.txt
+          fi
           rc=0
           ./target/release/pod-services-watch "$@" > watch.txt || rc=$?
           cat watch.txt
@@ -78,6 +101,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
+      # The list of this run, also when a watch failed. A runner that wrote
+      # no list keeps no state.
+      - name: Keep the watches with no answer for the next scheduled run
+        if: always() && github.event_name == 'schedule' && steps.watch.outcome != 'skipped' && hashFiles('no-answer.txt') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: no-answer.txt
+          key: services-no-answer-${{ github.run_id }}
 
   # The measurements (scripts/services/), each day and by hand: each prints
   # one line for each fact, and fails on a fact that a crate needs.

@@ -1,0 +1,12 @@
+--- a/crates/pod-services-watch/src/net.rs
++++ b/crates/pod-services-watch/src/net.rs
+@@ -217,7 +217,8 @@
+ /// failed: [`Finding::NoAnswer`] when the dial says that the far host gave
+ /// no answer ([`dial_no_answer`]), else [`Finding::Failed`].
+ fn finding(why: String, failure: &Failure) -> Finding {
+-    if dial_no_answer(failure) { Finding::NoAnswer(why) } else { Finding::Failed(why) }
++    let _ = dial_no_answer(failure);
++    Finding::Failed(why)
+ }
+ 
+ /// The finding of a TLS handshake that failed: no answer when the dial gave

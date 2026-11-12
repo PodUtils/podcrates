@@ -42,9 +42,9 @@ hides a red run that is ours.
   3 s in `live.yml` runs 42786042141 and 42987300429 (each failed), and
   once more in run 43172235777 (a retry passed).
 - Three Trojan nodes timed out after 29 s in `services.yml` runs
-  42803032733, 42806121501, 42933757949 and 43145957804. The record does
-  not tell a node that left from a node that does not answer a runner
-  (T-351).
+  42803032733, 42806121501, 42933757949 and 43145957804. A scheduled run
+  holds the first "no answer" of a watch, and fails on the second in a
+  row (T-351, calls C153 and C155).
 
 ## The inventory
 

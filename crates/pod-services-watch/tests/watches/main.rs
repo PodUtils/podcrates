@@ -2,6 +2,7 @@
 //! `pod-testkit` on the loopback: a file that the live service matches
 //! holds, and a file that it does not match gives a finding.
 
+mod answer;
 mod apis;
 mod common;
 mod data;

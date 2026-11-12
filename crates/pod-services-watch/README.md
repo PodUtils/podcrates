@@ -14,6 +14,7 @@ design"; the design: `docs/design.md`, section 4, "`pod-services`".
 
 ```sh
 cargo run -q -p pod-services-watch -- [--service ID]... [--kind KIND]... [--skip-kind KIND]... [--file PATH]...
+    [--no-answer-was PATH] [--no-answer-now PATH]
 ```
 
 * `--service ID`, `--kind KIND`: only these services, only these kinds.
@@ -27,6 +28,15 @@ cargo run -q -p pod-services-watch -- [--service ID]... [--kind KIND]... [--skip
   `GITHUB_TOKEN`, when set, goes to GitHub's API alone, never to another
   host and never to the output.
 * UDP (`stun-binding`) goes direct: a proxy carries TCP alone.
+* `--no-answer-was PATH`: the list of the watches with no answer of the
+  last scheduled run (call C153); a missing file is no state. A watch
+  whose findings are each "no answer" and that the list does not name is
+  the first one: its lines say `FAILED (first no answer)`, and it does not
+  fail the run. `--no-answer-now PATH` writes the list of this run, one
+  watch on each line (`SERVICE KIND N`, N the place of the watch in its
+  service, from 1); it needs `--no-answer-was`. `services.yml` gives both
+  on a scheduled run and keeps the list in the cache of its job. A run by
+  hand gives neither, and each finding fails it.
 
 One line for each watch, then a count:
 
@@ -35,10 +45,19 @@ One line for each watch, then a count:
 | `holds SERVICE KIND: what it saw` | the live service is as the file says |
 | `MOVED SERVICE KIND: services/SERVICE.toml FACT is WAS; the service gives NOW (source: ..., read DATE)` | a fact of the file moved: read the source, then change the file with a new `read` date |
 | `FAILED SERVICE KIND: why` | the check could not hold: no answer, or an answer of another kind |
+| `FAILED (first no answer) SERVICE KIND: why` | the host gave no answer, and the last scheduled run had an answer (or no state); no failure of the run |
 | `skipped SERVICE KIND: why` | the watch cannot speak a form of the service (a transport of a proxy link); no pass and no failure |
 
-Exit 0: each watch holds or is skipped. Exit 1: a watch found a fact that
-moved, or failed. Exit 2: a fault of the command line or of a file.
+Exit 0: each watch holds, is skipped, or is the first with no answer.
+Exit 1: a watch found a fact that moved, or failed. Exit 2: a fault of the
+command line or of a file.
+
+"No answer" is a class that the way out gives where the failure is made,
+never a parse of words: the dial's error (a connect that timed out, no
+route, a connect refused or reset), or a TLS handshake that the network
+ended (a reset, a close, a time limit) before the first byte of the
+server. Through a proxy, the proxy answers: its refusal is a failure of
+another kind.
 
 ## The library
 
@@ -47,8 +66,9 @@ moved, or failed. Exit 2: a fault of the command line or of a file.
 | `Watch` (`kind`, `check`) | one watch kind |
 | `kinds()`, `find(word)` | each watch kind; the kind of a word |
 | `run(service, watch, net)` | one check, as a `Report`; a kind that the crate does not know is a failure |
-| `Outcome` (`seen`, `findings`, `skipped`), `Finding` (`Moved`, `Failed`) | the result of one check |
-| `Report` (`lines`, `holds`) | the lines of one watch |
+| `Outcome` (`seen`, `findings`, `skipped`, `no_answer`), `Finding` (`Moved`, `Failed`, `NoAnswer`; `prefixed`) | the result of one check |
+| `Report` (`lines`, `holds`, `mark_first`, `is_first`) | the lines of one watch |
+| `answer::State` (`parse`, `key`, `note`, `now`, `text`) | the rule of call C153: the list of the watches with no answer of the last scheduled run, and of this run |
 | `Net` (`context`, `dial`, `trust`, `client`, `dns`, `services`, `bases`, `github_token`, `today`, `limit`), `Bases` (`public`, `at`) | the way out of each check: the runner fills it, a test gives its stand-ins |
 | `args::Args` | the arguments of a watch and the values that they name |
 
@@ -89,6 +109,12 @@ fact or a service that the data does not have (`schema::faults`). A run
 checks the same before the network.
 
 ## Tests
+
+`tests/watches/answer.rs`: a refused connect and a handshake that ends
+before a byte are no answer, a handshake after a byte of the server is a
+failure of another kind, and the runner on a closed port of the loopback
+passes with no state (`first no answer`) and fails with the state that
+names the watch.
 
 `tests/watches/` (one binary): each kind against a stand-in of
 `pod-testkit` (feature `stand`) on the loopback, over TLS with the test

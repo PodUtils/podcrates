@@ -4,7 +4,7 @@
 //! each day.
 //!
 //!   pod-services-watch [--service ID]... [--kind KIND]... [--skip-kind KIND]...
-//!                      [--file PATH]...
+//!                      [--file PATH]... [--no-answer-was PATH] [--no-answer-now PATH]
 //!
 //! `--skip-kind` leaves out the watches of a kind: a run by hand of each
 //! watch opens no second session with a relay on one day (`forward-url`).
@@ -13,8 +13,17 @@
 //! variables of the environment (`HTTPS_PROXY`, `NO_PROXY`, ...), and
 //! `GITHUB_TOKEN`, when set, goes to GitHub's API alone.
 //!
-//! Exit 0: each watch holds or is skipped. Exit 1: a watch found a fact
-//! that moved or failed. Exit 2: a fault of the command line or of a file.
+//! `--no-answer-was` names the list of the watches with no answer of the
+//! last scheduled run (call C153, `pod_services_watch::answer`); a missing
+//! file is no state. With it, a watch with no answer that the list does not
+//! name is the first one: its lines say `FAILED (first no answer)`, and it
+//! does not fail the run. `--no-answer-now` writes the list of this run;
+//! it needs `--no-answer-was`.
+//! A run by hand gives neither, and each finding fails it.
+//!
+//! Exit 0: each watch holds, is skipped, or is the first with no answer.
+//! Exit 1: a watch found a fact that moved or failed. Exit 2: a fault of
+//! the command line or of a file.
 
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -24,6 +33,7 @@ use pod_proxy::resolve::System;
 use pod_proxy::{Dialer, Environment, ProxyChoice, Settings};
 use pod_services::{Catalog, Date};
 use pod_services_watch::Net;
+use pod_services_watch::answer::State;
 use pod_tls::{Context, Trust, Words};
 
 /// The bound of one watch, the largest download in it too.
@@ -34,10 +44,19 @@ struct Options {
     kinds: Vec<String>,
     skip_kinds: Vec<String>,
     files: Vec<String>,
+    no_answer_was: Vec<String>,
+    no_answer_now: Vec<String>,
 }
 
 fn options() -> Result<Options, String> {
-    let mut out = Options { services: Vec::new(), kinds: Vec::new(), skip_kinds: Vec::new(), files: Vec::new() };
+    let mut out = Options {
+        services: Vec::new(),
+        kinds: Vec::new(),
+        skip_kinds: Vec::new(),
+        files: Vec::new(),
+        no_answer_was: Vec::new(),
+        no_answer_now: Vec::new(),
+    };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         let list = match arg.as_str() {
@@ -45,16 +64,32 @@ fn options() -> Result<Options, String> {
             "--kind" => &mut out.kinds,
             "--skip-kind" => &mut out.skip_kinds,
             "--file" => &mut out.files,
+            "--no-answer-was" if out.no_answer_was.is_empty() => &mut out.no_answer_was,
+            "--no-answer-now" if out.no_answer_now.is_empty() => &mut out.no_answer_now,
+            "--no-answer-was" | "--no-answer-now" => return Err(format!("pod-services-watch: {arg} comes once")),
             "-h" | "--help" => {
                 return Err("usage: pod-services-watch [--service ID]... [--kind KIND]... [--skip-kind KIND]... \
-                            [--file PATH]..."
+                            [--file PATH]... [--no-answer-was PATH] [--no-answer-now PATH]"
                     .into());
             }
             other => return Err(format!("pod-services-watch: unknown argument {other:?}")),
         };
         list.push(args.next().ok_or_else(|| format!("pod-services-watch: {arg} takes a value"))?);
     }
+    if !out.no_answer_now.is_empty() && out.no_answer_was.is_empty() {
+        return Err("pod-services-watch: --no-answer-now needs --no-answer-was".into());
+    }
     Ok(out)
+}
+
+/// The state of the last scheduled run from `path`: a missing file is no
+/// state, so each watch with no answer is a first one.
+fn last_state(path: &str) -> Result<State, String> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(State::parse(&text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(State::default()),
+        Err(e) => Err(format!("pod-services-watch: {path}: {e}")),
+    }
 }
 
 /// The day of the run, in UTC.
@@ -89,6 +124,13 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     }
+    let mut state = match options.no_answer_was.first().map(|path| last_state(path)).transpose() {
+        Ok(state) => state,
+        Err(why) => {
+            eprintln!("{why}");
+            return ExitCode::from(2);
+        }
+    };
     for id in &options.services {
         if services.get(id).is_none() {
             eprintln!("pod-services-watch: no service has the id {id:?}");
@@ -106,7 +148,7 @@ fn main() -> ExitCode {
     let settings = Settings::new("pod-services-watch", ProxyChoice::FromEnvironment(Environment::read(&var)));
     let provider = Arc::new(pod_tls::crypto::provider());
     let context = Arc::new(Context::new(provider, pod_tls::Settings::new(Words::new("pod-services-watch"))));
-    let (mut holds, mut skipped, mut found) = (0, 0, 0);
+    let (mut holds, mut skipped, mut first, mut found) = (0, 0, 0, 0);
     runtime.block_on(async {
         let dialer = Dialer::new(settings, Arc::new(System::new()));
         let mut net = Net::new(context, Arc::new(dialer), Trust::Default, today());
@@ -117,12 +159,12 @@ fn main() -> ExitCode {
             if !options.services.is_empty() && !options.services.iter().any(|id| id == service.id()) {
                 continue;
             }
-            for watch in service.watches() {
+            for (index, watch) in service.watches().iter().enumerate() {
                 let named = options.kinds.is_empty() || options.kinds.iter().any(|k| k == watch.kind());
                 if !named || options.skip_kinds.iter().any(|k| k == watch.kind()) {
                     continue;
                 }
-                let report =
+                let mut report =
                     match tokio::time::timeout(WATCH_LIMIT, pod_services_watch::run(service, watch, &net)).await {
                         Ok(report) => report,
                         Err(_) => {
@@ -130,17 +172,30 @@ fn main() -> ExitCode {
                             pod_services_watch::Report::new(service, watch, outcome.into())
                         }
                     };
+                let key = State::key(service.id(), watch.kind(), index);
+                if let Some(state) = state.as_mut() {
+                    state.note(key, &mut report);
+                }
                 for line in report.lines() {
                     println!("{line}");
                 }
                 match (report.holds(), report.outcome.skipped.is_some()) {
                     (true, true) => skipped += 1,
                     (true, false) => holds += 1,
+                    (false, _) if report.is_first() => first += 1,
                     (false, _) => found += 1,
                 }
             }
         }
     });
-    println!("pod-services-watch: {holds} hold, {skipped} skipped, {found} moved or failed");
+    if let (Some(path), Some(state)) = (options.no_answer_now.first(), &state)
+        && let Err(e) = std::fs::write(path, state.text())
+    {
+        eprintln!("pod-services-watch: {path}: {e}");
+        return ExitCode::from(2);
+    }
+    println!(
+        "pod-services-watch: {holds} hold, {skipped} skipped, {first} first with no answer, {found} moved or failed"
+    );
     if found > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS }
 }

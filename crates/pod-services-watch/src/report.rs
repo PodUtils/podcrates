@@ -16,6 +16,9 @@ pub struct Report {
     /// The source of each moved fact, in the order of the findings; none
     /// for a finding that is no moved fact of the file.
     sources: Vec<Option<String>>,
+    /// The first run with no answer of this watch (call C153): its lines
+    /// say so, and the runner does not count it.
+    first: bool,
 }
 
 impl Report {
@@ -25,15 +28,26 @@ impl Report {
             .iter()
             .map(|f| match f {
                 Finding::Moved { fact, .. } => source_of(service, fact),
-                Finding::Failed(_) => None,
+                Finding::Failed(_) | Finding::NoAnswer(_) => None,
             })
             .collect();
-        Report { service: service.id().to_string(), kind: watch.kind().to_string(), outcome, sources }
+        Report { service: service.id().to_string(), kind: watch.kind().to_string(), outcome, sources, first: false }
     }
 
     /// True when the watch found nothing.
     pub fn holds(&self) -> bool {
         self.outcome.holds()
+    }
+
+    /// Mark the watch as the first one with no answer: each finding is
+    /// [`Finding::NoAnswer`], and the last scheduled run had none for it.
+    pub fn mark_first(&mut self) {
+        self.first = self.outcome.no_answer();
+    }
+
+    /// True for the first run with no answer of this watch.
+    pub fn is_first(&self) -> bool {
+        self.first
     }
 
     /// The lines of the watch, each on one line of text:
@@ -42,6 +56,7 @@ impl Report {
     /// * `skipped SERVICE KIND: why`
     /// * `MOVED SERVICE KIND: services/SERVICE.toml FACT is WAS; the service gives NOW (source: ...)`
     /// * `FAILED SERVICE KIND: why`
+    /// * `FAILED (first no answer) SERVICE KIND: why`
     pub fn lines(&self) -> Vec<String> {
         let head = format!("{} {}", self.service, self.kind);
         if let (true, Some(why)) = (self.holds(), &self.outcome.skipped) {
@@ -63,6 +78,8 @@ impl Report {
                     one_line(&format!("MOVED {head}: {file} {fact} is {was}; the service gives {now}{source}"))
                 }
                 Finding::Failed(why) => one_line(&format!("FAILED {head}: {why}")),
+                Finding::NoAnswer(why) if self.first => one_line(&format!("FAILED (first no answer) {head}: {why}")),
+                Finding::NoAnswer(why) => one_line(&format!("FAILED {head}: {why}")),
             })
             .collect()
     }

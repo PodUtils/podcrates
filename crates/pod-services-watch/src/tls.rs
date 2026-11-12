@@ -40,8 +40,7 @@ pub async fn names(service: &Service, watch: &Watch, net: &Net) -> Checked {
             for name in [host.to_string(), at.clone()] {
                 match net.tls(&at, endpoint.port(), &name).await {
                     Ok(_) => named += 1,
-                    Err(Finding::Failed(why)) => out.found(Finding::failed(format!("no handshake for {name}: {why}"))),
-                    Err(other) => out.found(other),
+                    Err(finding) => out.found(finding.prefixed(&format!("no handshake for {name}: "))),
                 }
             }
             if named == 2 {

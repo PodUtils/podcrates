@@ -8,4 +8,4 @@
 +            for name in [host.to_string()] {
                  match net.tls(&at, endpoint.port(), &name).await {
                      Ok(_) => named += 1,
-                     Err(Finding::Failed(why)) => out.found(Finding::failed(format!("no handshake for {name}: {why}"))),
+                     Err(finding) => out.found(finding.prefixed(&format!("no handshake for {name}: "))),

@@ -10,11 +10,13 @@
 //! library reads no variable and no file and prints nothing: the runner
 //! (`src/main.rs`) builds the [`Net`] and prints one line for each watch.
 
+pub mod answer;
 pub mod args;
 mod crate_file;
 mod dns;
 mod forward;
 mod github;
+mod heard;
 mod http;
 mod net;
 mod oci;
@@ -56,8 +58,16 @@ pub enum Finding {
     /// The value of `fact` (a fact, or an endpoint as `endpoint NAME`) is
     /// `was` in the file, and the live service gives `now`.
     Moved { fact: String, was: String, now: String },
-    /// The check could not hold: no answer, or an answer of another kind.
+    /// The check could not hold: an answer of another kind, or a fault
+    /// after the first byte of the far end.
     Failed(String),
+    /// The far host gave no answer: a connect that timed out, no route, a
+    /// connect that it refused or reset, or a TLS handshake that ended
+    /// before its first byte. The way out ([`Net`]) gives this class where
+    /// the failure is made. A scheduled run holds the first one (call C153,
+    /// [`answer`]): a host that does not answer the addresses of one cloud
+    /// can answer the next day from another.
+    NoAnswer(String),
 }
 
 impl Finding {
@@ -67,6 +77,20 @@ impl Finding {
 
     pub fn failed(why: impl Into<String>) -> Finding {
         Finding::Failed(why.into())
+    }
+
+    pub fn no_answer(why: impl Into<String>) -> Finding {
+        Finding::NoAnswer(why.into())
+    }
+
+    /// The same finding with `prefix` before its words: a failure stays of
+    /// its class.
+    pub fn prefixed(self, prefix: &str) -> Finding {
+        match self {
+            Finding::Failed(why) => Finding::Failed(format!("{prefix}{why}")),
+            Finding::NoAnswer(why) => Finding::NoAnswer(format!("{prefix}{why}")),
+            moved => moved,
+        }
     }
 }
 
@@ -85,6 +109,12 @@ impl Outcome {
     /// True when the check found nothing.
     pub fn holds(&self) -> bool {
         self.findings.is_empty()
+    }
+
+    /// True when the check found something, and each finding is
+    /// [`Finding::NoAnswer`].
+    pub fn no_answer(&self) -> bool {
+        !self.findings.is_empty() && self.findings.iter().all(|f| matches!(f, Finding::NoAnswer(_)))
     }
 
     /// One more line of what the check saw.

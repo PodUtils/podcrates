@@ -1,0 +1,6 @@
+# The class of call C153: a TLS handshake that the network cut after a byte of the server is no answer; its test must fail.
+ENTRY=T-351
+GROUP=services
+EXPECT='test answer::a_handshake_cut_after_a_byte_of_the_server_is_an_answer \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- answer::a_handshake_cut_after_a_byte_of_the_server_is_an_answer --exact'
+LIMIT=1800

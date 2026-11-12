@@ -259,7 +259,7 @@ impl Session<'_> {
         let request = net.request("GET", url).header("Accept", "text/plain").redirects(3);
         let why = match tokio::time::timeout(PROOF_LIMIT, net.send(request)).await {
             Err(_) => format!("no answer within {PROOF_LIMIT:?}"),
-            Ok(Err(Finding::Failed(why) | Finding::Moved { now: why, .. })) => why,
+            Ok(Err(Finding::Failed(why) | Finding::NoAnswer(why) | Finding::Moved { now: why, .. })) => why,
             Ok(Ok(answer)) if answer.is_success() && contains(&answer.body, word.as_bytes()) => {
                 let count = answered.load(Ordering::Relaxed);
                 return Ok(format!(

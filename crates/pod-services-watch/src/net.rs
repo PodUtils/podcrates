@@ -7,16 +7,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use pod_core::{BoxedIo, Dial, Target};
-use pod_proxy::Client;
+use pod_core::{BoxedIo, Dial, Failure, Stage, Target};
 use pod_proxy::client::{Request, Streamed};
 use pod_proxy::http::Response;
+use pod_proxy::{Client, Cut, DialError};
 use pod_services::{Catalog, Date};
 use pod_tls::{Context, Trust};
 use tokio::time::Instant;
 use tokio_rustls::client::TlsStream;
 
 use crate::Finding;
+use crate::heard::Heard;
 
 /// The bases of the public APIs that some watch kinds read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,7 +140,7 @@ impl Net {
     /// The answer to `request`, any status.
     pub async fn send(&self, request: Request) -> Result<Response, Finding> {
         let url = request.url.clone();
-        self.client.send(request).await.map_err(|e| Finding::failed(format!("{}: {e}", shown(&url))))
+        self.client.send(request).await.map_err(|e| finding(format!("{}: {e}", shown(&url)), &e))
     }
 
     /// The answer to a GET of `url` that follows up to five redirects; a
@@ -161,25 +162,24 @@ impl Net {
     /// The head of the answer to `request` and its body as a reader.
     pub async fn streamed(&self, request: Request) -> Result<Streamed, Finding> {
         let url = request.url.clone();
-        self.client.send_streamed(request).await.map_err(|e| Finding::failed(format!("{}: {e}", shown(&url))))
+        self.client.send_streamed(request).await.map_err(|e| finding(format!("{}: {e}", shown(&url)), &e))
     }
 
     /// A connection to `host:port` (a name or an address) through the dial.
     pub async fn tcp(&self, host: &str, port: u16) -> Result<BoxedIo, Finding> {
         let target = Target::new(host, port);
         let deadline = Instant::now() + self.limit;
-        let connected =
-            self.dial.dial(&target, deadline).await.map_err(|e| Finding::failed(format!("{target}: {e}")))?;
+        let connected = self.dial.dial(&target, deadline).await.map_err(|e| finding(format!("{target}: {e}"), &e))?;
         Ok(connected.io)
     }
 
     /// A TLS connection to `host:port` that verifies `server_name`.
     pub async fn tls(&self, host: &str, port: u16, server_name: &str) -> Result<TlsStream<BoxedIo>, Finding> {
-        let io = self.tcp(host, port).await?;
-        self.context
-            .tls_over(io, server_name, &self.trust, self.limit)
-            .await
-            .map_err(|e| Finding::failed(format!("TLS for {server_name} at {}: {e}", Target::new(host, port))))
+        let (io, heard) = Heard::wrap(self.tcp(host, port).await?);
+        self.context.tls_over(io, server_name, &self.trust, self.limit).await.map_err(|e| {
+            let why = format!("TLS for {server_name} at {}: {e}", Target::new(host, port));
+            handshake_finding(why, &e, heard.any())
+        })
     }
 
     /// [`Net::tls`] that offers `alpn`; the stream tells the protocol that
@@ -195,10 +195,10 @@ impl Net {
         let mut config =
             (*self.context.config_for(&self.trust).map_err(|e| Finding::failed(format!("{}: {e}", at())))?).clone();
         config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-        let io = self.tcp(host, port).await?;
+        let (io, heard) = Heard::wrap(self.tcp(host, port).await?);
         pod_tls::tls_over(io, server_name, Arc::new(config), self.limit, self.context.words())
             .await
-            .map_err(|e| Finding::failed(format!("{}: {e}", at())))
+            .map_err(|e| handshake_finding(format!("{}: {e}", at()), &e, heard.any()))
     }
 
     /// The way of the DNS watches: the resolvers of [`Net::dns`] through the
@@ -211,6 +211,49 @@ impl Net {
     pub fn deadline(&self) -> Instant {
         Instant::now() + self.limit
     }
+}
+
+/// The finding of a failure of the dial, or of a request whose dial
+/// failed: [`Finding::NoAnswer`] when the dial says that the far host gave
+/// no answer ([`dial_no_answer`]), else [`Finding::Failed`].
+fn finding(why: String, failure: &Failure) -> Finding {
+    if dial_no_answer(failure) { Finding::NoAnswer(why) } else { Finding::Failed(why) }
+}
+
+/// The finding of a TLS handshake that failed: no answer when the dial gave
+/// none, or when the network ended the handshake (a reset, a close, a time
+/// limit) before the first byte of the server; `heard` says whether a byte
+/// came. A refusal of rustls (a certificate, a protocol) is an answer.
+fn handshake_finding(why: String, failure: &Failure, heard: bool) -> Finding {
+    let silent = !heard && matches!(Cut::of_failure(failure), Some(Cut::Reset | Cut::Closed | Cut::TimedOut));
+    if silent { Finding::NoAnswer(why) } else { finding(why, failure) }
+}
+
+/// True when a failure holds the error of a dial that the far host did not
+/// answer ([`silent`]).
+pub(crate) fn dial_no_answer(failure: &Failure) -> bool {
+    let mut next: Option<&(dyn std::error::Error + 'static)> = Some(failure);
+    while let Some(e) = next {
+        if let Some(dial) = e.downcast_ref::<DialError>() {
+            return silent(dial);
+        }
+        next = e.source();
+    }
+    false
+}
+
+/// True when the far host did not answer a dial: the connect timed out,
+/// found no route, or was refused or reset. The error of the dial says it,
+/// not its words. A failure of the proxy of this host, or of a name, is an
+/// answer of another kind: through a proxy, the proxy answers.
+pub(crate) fn silent(dial: &DialError) -> bool {
+    use std::io::ErrorKind as K;
+    matches!(
+        dial,
+        DialError::Timeout { stage: Stage::Connect, .. }
+            | DialError::Connect { cut: Some(Cut::TimedOut | Cut::Refused | Cut::Reset), .. }
+            | DialError::Connect { kind: Some(K::NetworkUnreachable | K::HostUnreachable), .. }
+    )
 }
 
 /// A URL with no query, for a line: a query may hold a token.
