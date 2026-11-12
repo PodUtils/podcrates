@@ -4,8 +4,9 @@ TLS for the crates of podcrates and their binaries: where the trust
 anchors come from (a trust for each connection, or the roots of a
 context in podnet's order), the rustls configuration of a client over
 them with the provider that the binary gives, the words of a failed
-handshake, a TLS server with a P-256 key, the split of a ClientHello
-into records, and, behind features, the pure-Rust crypto provider and
+handshake, a TLS server with a P-256 key, TLS between two peers that
+pin each other's Ed25519 key of `pod-identity`, the split of a
+ClientHello into records, and, behind features, the pure-Rust crypto provider and
 Encrypted Client Hello (ECH).
 
 The crate installs no process default provider, reads no variable, keeps
@@ -32,6 +33,7 @@ shares it.
 | `stores` | `read`, `summary`, `Store`: the roots of the stores of Windows (crypt32) and macOS (Security framework) |
 | `fragment` | `Split` (`mode`, `min`, `max`), `Split::parse(mode, size)`, `Mode` (`Record`, `Sni`), `Part` (`accepted`, `what`), `DEFAULT_SIZE`, `wrap(io, split)`, `fragment_with`, `Fragmenting`: the first ClientHello of a stream in records of a random size, or cut in the server name |
 | `mutual` | mutual TLS with pinned keys (T-165): `server_config(provider, served, clients, alpn)` requires a client whose key `clients` pins; `client_config(provider, key, server, alpn)` presents `key` and takes only a server that `server` pins; no CA and no name are read: `Pin` (the SHA-256 of a SubjectPublicKeyInfo, written `sha256/BASE64`: `of_spki`, `of_certificate`, `parse`), `Pins` (a shared set: `set` changes it while a server runs, for a rotation), `peer_pin` (the key that the peer proved, for an audit line). TLS 1.3 only, and no resumption: a resumed session would keep a key that a rotation removed |
+| `peer` | TLS between two peers that each pin the Ed25519 key of the other (T-304; PodUtils/podnet#479, ask A7): `client_config(provider, identity, server, alpn)` presents the self-signed certificate of `identity` (a `pod_identity::Identity`) and takes only the server key that `server` (a `pod_identity::KeyName`: the key, its fingerprint or its display form) names; `server_config(provider, identity, clients, alpn)` presents `identity` and requires a client whose key `clients` names; `Keys` (a shared set of `KeyName`s: `new`, `set` for a rotation, `list`, `admits`); `Refusal` (`Unpinned(key)`, which names the fingerprint and the display form of the key that the peer proved, or `NotEd25519`) in the error of the refused handshake, found by `refusal(&error)`; `peer_key` (the key that the peer proved); `certificate(identity)`, `signing_key(identity)`, `certified_key(identity)` (the certificate: X.509 v3, self-signed, no extension, the same bytes each time; the signing key signs with the identity, so any provider takes it); `supports(provider)` (TLS 1.3 and the verification of Ed25519). No CA and no name are read. TLS 1.3 only, the scheme Ed25519 only, no resumption; the handshake signature is checked with the pinned key itself |
 | `server` | `acceptor(provider, cert, key, alpn)`, `acceptor_for(provider, served, alpn)` (feature `async`), `server_config`, `server_config_for` (their configurations, with no tokio), `certified`, `certified_key(chain, key)`, `signing_key`, `certificates`, `Served` (the pair changed while the server runs, the challenges of TLS-ALPN-01), `ACME_TLS_1`, `HTTP1` |
 | `crypto` (feature `pure`) | `provider()`, `suites::self_check`, `aead`, `hash`, `hkdf`, `hmac`, `kx`, `quic`, `random`, `sign`, `tls12`, `hpke`, `rsa_sig` (feature `rsa`) |
 | `ech` (feature `ech`) | `Ech` (`set_mode`, `mode`, `wanted`, `outcome`, `cache`), `Mode` (`parse`, `word`), `chosen`, `open(&context, &route)`, `open_with`, `Route`, `Records`, `NoRecords`, `Published`, `Outcome`, `Cache`, `Clock`, `Lookup`, `Why`, `READ_WITHIN`, `SEALED_WAIT` |
@@ -173,6 +175,16 @@ shares it.
 | podvm | `podvm-image` `tls::client_config_unverified()`, `AcceptAny` (a registry named insecure) | podvm keeps them: pod-tls builds no permissive verifier, and ureq takes the configuration as it is |
 | podvm | `podvm-ssh` `tls::TlsConfig::load()`: each of `HOST_BUNDLES`, else `webpki-roots`; `ClientConfig::builder()` | a `Context` over ring with `Settings::system_bundles = HOST_BUNDLES` and `Words::replace_roots` = the first host bundle; `Trust::Default` (the first usable host bundle and the compiled-in roots) |
 | podvm | `podvm-ssh` `tls::Tls::connect(base, host, &cfg)`: `ServerName::try_from`, `StreamOwned::new` (the handshake at the first frame) | `context.tls_over_blocking(base, host, &Trust::Default)` (the handshake before the WebSocket upgrade; the write bound of `mux.rs` is set before TLS); a bad name gives `"…" is not a valid server name` |
+
+## The pins of podnet's link
+
+| Ask of podnet (PodUtils/podnet#479, A7; PodUtils/podnet#513) | Here |
+| --- | --- |
+| A verifier of each side that pins an Ed25519 key of the peer, the key of `pod-identity`, with no CA | [x] `peer::client_config` (one key), `peer::server_config` (a set, required), `tests/peer.rs` |
+| A key that is not pinned fails the handshake, with the key seen named | [x] `peer::Refusal::Unpinned`, `peer::refusal`: `the_client_refuses_a_server_of_another_key_and_names_it`, `the_server_refuses_a_client_of_another_key_and_names_it` |
+| The certificate of the local identity: self-signed, Ed25519, any provider | [x] `peer::certificate`, `peer::certified_key`; a certificate of another form with the pinned key passes (`a_certificate_of_another_form_passes_when_its_key_is_pinned`) |
+| The pin cannot be skipped unseen | [x] `tests/no_permissive_verifier.rs` holds the comparison of `peer.rs`; the plants `tls-peer-pin-skipped` and `tls-peer-signature-unchecked` |
+| The carrier over TCP that uses it (PodUtils/podnet@T-268) | `pod_link::tcp` (feature `tcp` of `pod-link`, T-396) |
 
 ## Sources
 

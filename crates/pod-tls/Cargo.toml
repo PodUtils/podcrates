@@ -39,6 +39,8 @@ ech = ["pure", "async"]
 
 [dependencies]
 pod-core = { workspace = true }
+# The Ed25519 identity that each side of `peer` presents and pins.
+pod-identity = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["io-util", "net", "time", "sync"] }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true, optional = true }

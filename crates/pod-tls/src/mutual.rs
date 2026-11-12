@@ -134,7 +134,7 @@ pub fn client_config(
 
 /// The client's key, presented at each request of the server.
 #[derive(Debug)]
-struct Presents(Arc<CertifiedKey>);
+pub(crate) struct Presents(pub(crate) Arc<CertifiedKey>);
 
 impl rustls::client::ResolvesClientCert for Presents {
     fn resolve(&self, _hints: &[&[u8]], _schemes: &[SignatureScheme]) -> Option<Arc<CertifiedKey>> {
