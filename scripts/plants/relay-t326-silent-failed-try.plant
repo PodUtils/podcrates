@@ -1,0 +1,7 @@
+# A plant of T-326 (the trial of pod-relay's facade in podvm, call C132):
+# a node that cannot reach its relay says nothing while it tries again; the
+# test of its line must fail.
+ENTRY=T-326
+GROUP=relay
+EXPECT='test a_node_says_each_try_that_does_not_connect \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features blocking,plain-ws --test blocking_given -- a_node_says_each_try_that_does_not_connect'

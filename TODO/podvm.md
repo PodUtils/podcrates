@@ -4594,6 +4594,13 @@ C134). What remains: `adoption.yml` at the push, and podvm's take.
   client: the glue drops it before it counts). Tests: `tests/blocking_given.rs`
   (3) and `pair::given` (2). `cargo test -p pod-relay --all-features`: 394
   passed, 19 ignored; clippy of the workspace with all features: clean.
+- Plants: 2 new (group `relay`): scripts/plants/relay-t326-silent-failed-try
+  (call C132) and scripts/plants/relay-t326-facade-says-nothing (call C131),
+  each caught on this host by its test of `tests/blocking_given.rs`, which
+  stops its node when an assertion fails, so that a planted defect fails
+  the test in 10 s and does not hold it. relay-t643-426-reconnects was stale
+  after the change of `reverse::run`: its patch is made again on the same
+  line, and it is caught. `sh scripts/plant-each.sh --apply`: 0 stale.
 - Findings: podvm has no pairing code in `PodUtils/podvm:crates/podvm/src/remote/`;
   its drives pair with curl and give the tokens in the argv of curl (T-330).
   The take adds the resumable layer and the end-to-end channel to podvm's

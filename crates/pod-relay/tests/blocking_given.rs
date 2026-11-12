@@ -43,6 +43,7 @@ fn a_node_of_given_parts_serves_and_says_each_socket() {
     };
     std::thread::scope(|s| {
         let node = s.spawn(|| client.run_node(&mut pair, echo, &options, &stopper));
+        let _guard = StopOnPanic(&stopper);
         let (head, mut peer) = stand_in.accept();
         assert!(head.starts_with(&format!("GET /v1/node/{NAME} HTTP/1.1\r\n")), "{head}");
         assert!(head.contains(&format!("X-Relay-Token: {NODE}\r\n")), "the given node token, in its header");
@@ -94,6 +95,7 @@ fn a_node_says_each_try_that_does_not_connect() {
     let refuse = |_: &str| -> Result<Local, String> { Err("no session".into()) };
     std::thread::scope(|s| {
         let node = s.spawn(|| client.run_node(&mut pair, refuse, &options, &stopper));
+        let _guard = StopOnPanic(&stopper);
         let line = lines.recv_timeout(LIMIT).expect("a line");
         assert!(line.starts_with("the node could not connect to the relay ("), "{line}");
         assert!(line.contains("; connecting again in "), "{line}");
@@ -119,4 +121,16 @@ fn a_refused_node_token_ends_a_node_of_given_parts() {
         let exit = node.join().unwrap();
         assert!(matches!(exit, Ok(Exit::Forbidden)), "{exit:?}");
     });
+}
+
+/// Stops the node when an assertion fails, so that the scope's join ends and
+/// the test fails rather than waits for ever.
+struct StopOnPanic<'a>(&'a Stopper);
+
+impl Drop for StopOnPanic<'_> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.0.stop();
+        }
+    }
 }
