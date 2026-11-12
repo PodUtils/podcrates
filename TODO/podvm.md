@@ -3923,7 +3923,7 @@ sh scripts/plant-each.sh enter-confine-rule-under-a-mount
 
 ## Done
 
-2026-11-11, `7295552` (the fix and the tests), `0b99ce2` (the plants),
+2026-11-11, `ec31d6c` (the fix and the tests), `785ced7` (the plants),
 and the commit of this section (the documents and call C68).
 
 `pod-confine`: each `Rule` keeps its path as a C string from the compile.
