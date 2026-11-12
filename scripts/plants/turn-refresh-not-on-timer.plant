@@ -1,0 +1,7 @@
+# The client refreshes nothing while recv waits (PodUtils/podnet#485,
+# TURN-2); the test of the refresh on the timer must fail.
+ENTRY=T-377
+GROUP=turn
+EXPECT='test the_client_refreshes_on_its_timer \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --test turn_udp -- the_client_refreshes_on_its_timer --exact'
+LIMIT=1800

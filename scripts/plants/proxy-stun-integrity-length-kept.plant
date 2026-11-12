@@ -1,8 +1,9 @@
 # A plant of T-370: the check of MESSAGE-INTEGRITY hashes the header with
 # the length of the whole message, not the length that ends at the
-# attribute; the vectors of RFC 5769 must fail.
+# attribute; the vectors of RFC 5769 must fail. The codec is pod-turn's
+# (T-377); the plant keeps its name.
 ENTRY=T-370
-GROUP=proxy
+GROUP=turn
 EXPECT='test stun::auth::tests::the_vectors_of_rfc_5769_check \.\.\. FAILED'
-RUN='cargo test -p pod-proxy --all-features --lib -- stun::auth::tests::the_vectors_of_rfc_5769_check --exact'
+RUN='cargo test -p pod-turn --all-features --lib -- stun::auth::tests::the_vectors_of_rfc_5769_check --exact'
 LIMIT=1800

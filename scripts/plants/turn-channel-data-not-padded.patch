@@ -1,0 +1,15 @@
+diff --git a/crates/pod-turn/src/client/wire.rs b/crates/pod-turn/src/client/wire.rs
+index c740d88..35ba49a 100644
+--- a/crates/pod-turn/src/client/wire.rs
++++ b/crates/pod-turn/src/client/wire.rs
+@@ -110,9 +110,7 @@ pub fn channel_data(number: u16, data: &[u8], padded: bool) -> Result<Vec<u8>, E
+     out.extend_from_slice(&number.to_be_bytes());
+     out.extend_from_slice(&len.to_be_bytes());
+     out.extend_from_slice(data);
+-    if padded {
+-        out.resize(out.len() + (4 - data.len() % 4) % 4, 0);
+-    }
++    let _ = padded;
+     Ok(out)
+ }
+ 
