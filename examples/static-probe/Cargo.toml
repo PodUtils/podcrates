@@ -50,6 +50,7 @@ pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
 pod-ws = { workspace = true, features = ["ech"] }
 pod-wormhole = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
+pod-warp = { workspace = true }
 pod-wg = { workspace = true, features = ["standin"] }
 # A runtime of one thread for the endpoint of pod-quic, the stack of
 # pod-netstack, the hold of a SYN of pod-hold, with the timer of its wait,
@@ -59,3 +60,6 @@ tokio = { workspace = true, features = ["rt", "time", "io-util"] }
 serde_json = { workspace = true }
 # The keys of a held channel of pod-e2e.
 zeroize = { workspace = true }
+# The provider of a MASQUE session and a capsule of pod-warp.
+rustls = { workspace = true }
+bytes = { workspace = true }

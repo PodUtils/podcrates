@@ -8,6 +8,7 @@ mod hold;
 mod link;
 mod relay;
 mod relay_client;
+mod warp;
 
 fn main() {
     let target: pod_core::Target = "probe.example:443".parse().expect("a target");
@@ -118,6 +119,11 @@ fn main() {
     lines.push(incus());
     lines.push(actions::actions());
     lines.push(link::link());
+    let direct = pod_proxy::Dialer::new(
+        pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),
+        std::sync::Arc::new(pod_proxy::resolve::System::new()),
+    );
+    lines.push(warp::warp(std::sync::Arc::new(pod_tls::crypto::provider()), std::sync::Arc::new(direct)));
     for line in lines {
         println!("{line}");
     }

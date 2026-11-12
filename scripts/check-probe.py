@@ -33,6 +33,7 @@ ALLOWED = {
                            "a consumer turns it on in [dev-dependencies] only, and no binary carries schemars",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",
+    ("pod-testkit", "masque"): "a crate of tests; it is not in a released binary",
     ("pod-ws", "plain-ws"): "for the tests of an embedder over plain TCP to the loopback; no binary turns it on",
 }
 LEAN = "static-probe-lean"
