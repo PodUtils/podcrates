@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use pod_core::Class;
 
-use crate::{Fat16, Plan, Result, Settings, Stop, agent, commit_argv, emulator, failure, io_at, overlay_argv, qmp};
+use crate::{Fat16, Plan, Result, Settings, Stop, agent, convert_argv, emulator, failure, io_at, overlay_argv, qmp};
 
 /// Provision a new image: boot it one time and type the installer into its
 /// console, as the agent must exist before a task can start it. Returns the
@@ -19,7 +19,7 @@ use crate::{Fat16, Plan, Result, Settings, Stop, agent, commit_argv, emulator, f
 ///
 /// The base is not written. The installer writes to [`Plan::root`], an
 /// overlay over `base` ([`overlay_argv`]), and the overlay is never `base`.
-/// After the guest powers off, [`commit_argv`] writes the overlay into
+/// After the guest powers off, [`convert_argv`] writes the overlay into
 /// `out`, a new standalone image with no backing file, so that the caller
 /// can move or remove `base`.
 pub fn provision(
@@ -67,10 +67,10 @@ pub fn provision(
     // `try_wait` above reaped a child that exited, and the kernel can give
     // its pid to another process.
     let _stop = if exited { Stop::Confirmed { pid: child.id() } } else { emulator::stop_emulator(plan, &mut child) };
-    // The commit comes after the emulator is gone and before the report. A
-    // commit that fails is a failure that names the program and its
+    // The convert comes after the emulator is gone and before the report. A
+    // convert that fails is a failure that names the program and its
     // stderr, so that no half-written `out` reads as a provisioned image.
-    emulator::run_steps(&commit_argv(qemu_img, &plan.root, out))?;
+    emulator::run_steps(&convert_argv(qemu_img, &plan.root, out))?;
     // The installer writes SETUP.TXT to the mailbox: the evidence that the
     // provision ran.
     let bytes = std::fs::read(&plan.mailbox).map_err(|e| io_at(&plan.mailbox, e))?;

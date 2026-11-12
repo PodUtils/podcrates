@@ -43,8 +43,11 @@ jobs:
           else
             echo "kvm: no /dev/kvm, the KVM test skips"
           fi
+      # qemu-utils is installed: the test of the steps of qemu-img must run.
       - name: Test pod-guest
         timeout-minutes: 15
+        env:
+          POD_GUEST_TEST_QEMU: required
         run: timeout --kill-after=30 600 cargo test --locked -p pod-guest --all-features -- --test-threads=1 --nocapture
       - name: No emulator stays
         if: always()

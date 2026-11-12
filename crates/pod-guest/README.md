@@ -9,7 +9,7 @@ rules:
    `kvm` where the `full` profile holds, `tcg` where only `tcg` holds, and
    a refusal where neither holds. TCG is slower; it is not a refusal.
 2. The base image is never written. A run writes to an overlay; a
-   provision commits the overlay into a new standalone image with no
+   provision converts the overlay into a new standalone image with no
    backing file.
 3. The mailbox is the only channel. The guest has no network
    (`-nic none`). The host writes the command and a random token before the
@@ -48,10 +48,10 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 | --- | --- |
 | `Settings` | `scratch_root` (the directory of the per-run directories), `scratch_prefix`, `keep` (keep each per-run directory), `marker` (the content of `WQMARK.TXT`), `oem` (the OEM name of the volume, 8 characters at most). `Settings::new(root)` gives `pod-guest-`, no keep, `pod-guest`, `PODGUEST` |
 | `Plan`, `Accel`, `accel_for(Option<Profile>)` | the description of one run (emulator, accelerator, firmware, overlay, mailbox, serial log, QMP socket, memory, CPUs, more arguments); `Accel::{word, cpu}` (`kvm`/`host`, `tcg`/`max`) |
-| `argv(&plan)`, `overlay_argv`, `commit_argv`, `plan::base_format` | the UEFI machine line with no program; `qemu-img create -f qcow2 -F FMT -b BASE`; `qemu-img commit -f qcow2 OVERLAY OUT` |
+| `argv(&plan)`, `overlay_argv`, `convert_argv`, `plan::base_format` | the UEFI machine line with no program; `qemu-img create -f qcow2 -F FMT -b BASE`; `qemu-img convert -f qcow2 -O qcow2 OVERLAY OUT` (a new image with no backing file; `qemu-img commit` has no output file, PodUtils/podvm#277) |
 | `Request`, `Outcome`, `mailbox(&s, agent, &request)`, `outcome(&fat16, token)` | the command, the token and the limit; the code, the token and the streams; the mailbox of a run; the result of a mailbox (`None`: the guest wrote no result) |
 | `stage(&s, qemu_img, base, &plan, agent, &request)`, `run(&s, &plan, &request)`, `stop(&plan)` | the mailbox file and the overlay; the boot to the power-off and the result, with the error stream of the emulator in the per-run directory; QMP `quit` |
-| `provision(&s, qemu_img, base, &plan, out, wait)` | one boot that types the installer into the console, then the commit into `out`; returns `SETUP.TXT` |
+| `provision(&s, qemu_img, base, &plan, out, wait)` | one boot that types the installer into the console, then the convert into `out`; returns `SETUP.TXT` |
 | `scratch_dir(&s, tag)`, `scratch_of(&plan)`, `cleanup(&s, &plan)`, `RunGuard::arm(&s, &plan)` | the per-run directory `PREFIX` + pid + `-TAG`, mode 0700; the directory of the mailbox; its removal (only a directory with the prefix, not with `keep`); the removal on drop |
 | `Stop`, `Timeout { after, stop }`, `timeout_of(&failure)` | the end of a stopped emulator; the cause of a run at its limit |
 | `emulator` | `run_steps(argv)` (a tool to its end; a failure names the program and its stderr), `spawn_emulator(&plan, args, stderr)` (a process group of its own), `stop_emulator`, `stop_with` (QMP `quit`, `SIGKILL` to the group, a bounded reap), `QUIT_WAIT`, `STOP_WAIT` |
@@ -131,7 +131,7 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 
 | Capability of podvm | Here |
 | --- | --- |
-| [x] `Plan`, `Accel`, `accel_for`, `argv`, `base_format`, `overlay_argv`, `commit_argv` | `plan`, the same |
+| [x] `Plan`, `Accel`, `accel_for`, `argv`, `base_format`, `overlay_argv`, `commit_argv` | `plan`, the same; `commit_argv` is `convert_argv` (T-266) |
 | [x] `Request`, `Outcome`, `mailbox`, `outcome`, `stage`, `run`, `stop`, `provision` | the same, with `&Settings` first where a name or a place is used |
 | [x] `Stop` and its text; `Error::Timeout(d, stop)` | `Timeout { after, stop }` in the chain of a `Failure` (`timeout_of`); the text is the same |
 | [x] `Error::{NoEmulator, Io, BadResult}` | `Failure` with the same text (`NoAcceleration` was not used) |
@@ -152,7 +152,7 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 
 | Old path | New path |
 | --- | --- |
-| `podvm_windows::{Plan, Accel, accel_for, argv, commit_argv, overlay_argv, Request, Outcome, Stop, Fat16, Ceiling, Code, outcome, stop, scratch_of}` | `pod_guest::*`, re-exported by `podvm_windows` |
+| `podvm_windows::{Plan, Accel, accel_for, argv, commit_argv (now convert_argv), overlay_argv, Request, Outcome, Stop, Fat16, Ceiling, Code, outcome, stop, scratch_of}` | `pod_guest::*`, re-exported by `podvm_windows` |
 | `podvm_windows::{agent, fat16, fetch, plan, qmp}` | `pod_guest::{agent, fat16, fetch, plan, qmp}`, re-exported |
 | `podvm_windows::{stage, run, provision, cleanup, scratch_dir, mailbox}(...)` | `pod_guest::*(&settings, ...)`; podvm keeps its functions as calls with `podvm_windows::settings()` |
 | `podvm_windows::RunGuard::arm(&plan)` | `pod_guest::RunGuard::arm(&settings, &plan)`; podvm keeps `RunGuard::arm(&plan)` |

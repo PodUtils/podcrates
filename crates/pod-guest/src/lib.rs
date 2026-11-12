@@ -9,7 +9,7 @@
 //!    and a refusal where neither holds ([`plan::accel_for`]). TCG is
 //!    slower, and it is not a refusal.
 //! 2. The base image is never written. A run writes to a qcow2 overlay
-//!    with the base as its read-only backing file; a provision commits the
+//!    with the base as its read-only backing file; a provision converts the
 //!    overlay into a new standalone image ([`provision`]).
 //! 3. The mailbox is the only channel. The guest has no network
 //!    (`-nic none`). The host writes the command and a token before the
@@ -57,7 +57,7 @@ use pod_core::{Class, Failure, Stage};
 pub use agent::Code;
 pub use fat16::Fat16;
 pub use fetch::{Ceiling, Refusal};
-pub use plan::{Accel, Plan, accel_for, argv, commit_argv, overlay_argv};
+pub use plan::{Accel, Plan, accel_for, argv, convert_argv, overlay_argv};
 pub use provision::provision;
 pub use scratch::{RunGuard, cleanup, scratch_dir, scratch_of};
 

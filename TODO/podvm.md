@@ -4204,3 +4204,64 @@ of a TCP list with no `socketcall`. `cargo test -p pod-confine
 --all-features`: 33 + 12 + 1 passed. The plant
 `confine-tcp-list-through-socketcall` is caught. Breaking: a consumer that
 compiles a TCP list on i686, s390x or powerpc64 gets a refusal.
+
+# T-266: `pod-guest`: the provision writes its image with `qemu-img convert`; `qemu-img commit` takes no output file (PodUtils/podvm#277)
+
+**Source:** PodUtils/podvm#277 (COORD-056 of podvm, for PodUtils/podvm@T-1641)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`podvm windows setup` booted and provisioned the ValidationOS guest under
+KVM, then failed: `qemu-img commit -f qcow2 run.qcow2 base.podvm.qcow2`
+answers "Expecting one image file name" (podvm's run 43148947380, QEMU
+10.2.1). `commit_argv` of `crates/pod-guest/src/plan.rs` read the synopsis
+as `commit [-b BASE] [-F FMT] FILENAME [OUTFILE]`. `qemu-img commit` has
+no output file: it writes an overlay into its backing file, in place. The
+unit test checked the argv alone, so it passed.
+
+## Premise
+
+- Read: PodUtils/podvm#277; `qemu-img --help` (8.2.2): `commit [...]
+  filename`, one file; `convert [...] [-O output_fmt] filename
+  output_filename`.
+- Measured here (qemu-img 8.2.2): a qcow2 overlay over a VHDX base;
+  `qemu-img commit -f qcow2 run.qcow2 out.qcow2` exits 1 with "Expecting
+  one image file name"; `qemu-img convert -f qcow2 -O qcow2 run.qcow2
+  out.qcow2` exits 0, and `qemu-img info` of `out.qcow2` names no backing
+  file.
+- Not measured: the provision of ValidationOS with the fix (podvm runs
+  `kvm.yml` again with the tag).
+
+## Approach
+
+`convert_argv` in place of `commit_argv`: `qemu-img convert -f qcow2 -O
+qcow2 OVERLAY OUT` reads the chain and writes a new image with no
+backing file; the base is not written. A test that runs `qemu-img` and
+`qemu-io` of the host: a raw base, an overlay, a write into the overlay,
+the convert; the image stands alone and holds the base and the write, and
+the base keeps each byte. `guest.yml` and the plant require the tools.
+
+## Prove
+
+```sh
+POD_GUEST_TEST_QEMU=required cargo test -p pod-guest --all-features --test convert
+sh scripts/plant-each.sh guest-commit-has-no-output-file
+```
+
+## Done
+
+2026-11-12. `crates/pod-guest/src/plan.rs`: `convert_argv` (`qemu-img
+convert -f qcow2 -O qcow2 OVERLAY OUT`); `provision` runs it. Breaking:
+`commit_argv` is `convert_argv` (podvm re-exports it from
+`podvm_windows`). `tests/convert.rs`
+(`the_convert_writes_a_standalone_image_and_leaves_the_base`): passes
+with qemu-img 8.2.2 here; with `POD_GUEST_TEST_QEMU=required` a host with
+no `qemu-img` fails it. `guest.yml` sets the variable; `plants.yml`
+installs `qemu-utils`. The plant `guest-commit-has-no-output-file` (the
+argv of `commit` again) is caught: "Expecting one image file name".
+`cargo test -p pod-guest --all-features --lib`: 89 passed.

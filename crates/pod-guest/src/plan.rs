@@ -1,5 +1,5 @@
 //! The emulator invocation of the UEFI flavour, the accelerator, and the
-//! `qemu-img` steps of the overlay and the commit.
+//! `qemu-img` steps of the overlay and the convert.
 //!
 //! The accelerator comes from the machine profile of `pod-hostprobe`, and
 //! the crate names it: `kvm` where the `full` profile holds, `tcg` where
@@ -74,7 +74,7 @@ pub struct Plan {
     /// [`overlay_argv`] makes, with the read-only base image as `-b`.
     ///
     /// On the run path, nothing that the run writes lives after it. On the
-    /// provision path, [`commit_argv`] writes the overlay into a new
+    /// provision path, [`convert_argv`] writes the overlay into a new
     /// standalone image with no backing file, and the overlay goes. It is
     /// never the base image.
     pub root: PathBuf,
@@ -188,22 +188,25 @@ pub fn overlay_argv(qemu_img: &Path, base: &Path, overlay: &Path) -> Vec<String>
     ]
 }
 
-/// The `qemu-img commit` argv: write the overlay into a new standalone
-/// qcow2 at `out`.
+/// The `qemu-img convert` argv: write the chain of the overlay (the
+/// overlay over its base) into a new standalone qcow2 at `out`.
 ///
-/// `qemu-img commit [-b BASE] [-F FMT] FILENAME [OUTFILE]` writes the
-/// overlay into `OUTFILE` when it is named, and makes `OUTFILE` as a new
-/// image. The argv names no `-b`, so `OUTFILE` has no backing file: the
-/// caller can move or remove the base, and the result still boots.
+/// `qemu-img commit` has no output file: it writes an overlay into its
+/// backing file, in place, and so would write the base. `convert` reads
+/// the whole chain and writes a new image with no backing file: the base
+/// stays as it was, and the caller can move or remove it.
 ///
-/// `-f qcow2` is stated, as the caller chooses the name of `out`. The
-/// output follows the overlay, so a qcow2 overlay over a VHDX base gives a
-/// qcow2 image of the full size of the VHDX.
-pub fn commit_argv(qemu_img: &Path, overlay: &Path, out: &Path) -> Vec<String> {
+/// `-f qcow2` names the format of the overlay ([`overlay_argv`] makes a
+/// qcow2), and `-O qcow2` the format of `out`, as the caller chooses its
+/// name. A qcow2 overlay over a VHDX base gives a qcow2 image of the
+/// virtual size of the VHDX.
+pub fn convert_argv(qemu_img: &Path, overlay: &Path, out: &Path) -> Vec<String> {
     vec![
         qemu_img.to_string_lossy().to_string(),
-        "commit".to_string(),
+        "convert".to_string(),
         "-f".to_string(),
+        "qcow2".to_string(),
+        "-O".to_string(),
         "qcow2".to_string(),
         overlay.to_string_lossy().to_string(),
         out.to_string_lossy().to_string(),
@@ -334,27 +337,26 @@ mod tests {
         assert_eq!(a.last().unwrap(), "run.qcow2");
     }
 
-    /// The commit names a second file and no backing file, so the image
-    /// that it writes stands alone. A commit of the overlay in place leaves
-    /// an image whose backing file is the base.
+    /// The convert names the overlay, then a second file, and no backing
+    /// file, so the image that it writes stands alone. `qemu-img commit`
+    /// takes one file name and writes the overlay into the base, in place
+    /// (PodUtils/podvm#277); `tests/convert.rs` runs `qemu-img`.
     #[test]
-    fn the_commit_writes_a_separate_standalone_image() {
-        let a = commit_argv(
+    fn the_convert_writes_a_separate_standalone_image() {
+        let a = convert_argv(
             Path::new("qemu-img"),
             Path::new("/run/pod-guest-1-run/run.qcow2"),
             Path::new("/images/ValidationOS.guest.qcow2"),
         );
-        assert_eq!(a[0], "qemu-img");
-        assert_eq!(a[1], "commit");
-        assert!(!has(&a, "-b"), "a -b here would give the provisioned image a backing pointer: {a:?}");
-        assert!(!a.iter().any(|x| x.contains("ValidationOS.vhdx")), "the commit does not name the base image: {a:?}");
-        // `commit [-b BASE] [-F FMT] FILENAME [OUTFILE]`: the overlay is
-        // FILENAME and the new image is OUTFILE, in that order.
+        assert_eq!(a[..2], ["qemu-img", "convert"]);
+        assert!(!has(&a, "-b") && !has(&a, "-B"), "a backing file here would give the image a backing pointer: {a:?}");
+        assert!(!a.iter().any(|x| x.contains("ValidationOS.vhdx")), "the convert does not name the base image: {a:?}");
+        let o = a.iter().position(|x| x == "-O").expect("-O is stated");
+        assert_eq!(a[o + 1], "qcow2");
         assert_eq!(
             &a[a.len() - 2..],
             &["/run/pod-guest-1-run/run.qcow2".to_string(), "/images/ValidationOS.guest.qcow2".to_string()]
         );
-        assert_eq!(a.last().unwrap(), "/images/ValidationOS.guest.qcow2");
     }
 
     /// The overlay and the provisioned image are two files, and the
@@ -366,13 +368,13 @@ mod tests {
         let out = Path::new("/images/ValidationOS.guest.qcow2");
         assert_ne!(overlay, out);
         let create = overlay_argv(Path::new("qemu-img"), Path::new("/images/ValidationOS.vhdx"), overlay);
-        let commit = commit_argv(Path::new("qemu-img"), overlay, out);
+        let convert = convert_argv(Path::new("qemu-img"), overlay, out);
         assert_eq!(
             create.last().unwrap(),
-            &commit[commit.len() - 2],
-            "the boot writes the overlay that the commit reads"
+            &convert[convert.len() - 2],
+            "the boot writes the overlay that the convert reads"
         );
         assert!(create.iter().any(|x| x.contains("ValidationOS.vhdx")));
-        assert!(!commit.iter().any(|x| x.contains("ValidationOS.vhdx")));
+        assert!(!convert.iter().any(|x| x.contains("ValidationOS.vhdx")));
     }
 }
