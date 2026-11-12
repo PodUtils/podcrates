@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**230 entries: 62 open, 4 partial, 4 blocked, 160 done.**
+**231 entries: 62 open, 4 partial, 4 blocked, 161 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 46 | 60 |
-| P2 | 31 | 2 | 4 | 79 | 116 |
+| P2 | 31 | 2 | 4 | 80 | 117 |
 | P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 62 | 4 | 4 | 160 | 230 |
+| **All** | 62 | 4 | 4 | 161 | 231 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -277,3 +277,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |
 | [T-229](relay.md) | P2 | M | M2 | defect | open | `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |
+| [T-240](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store |

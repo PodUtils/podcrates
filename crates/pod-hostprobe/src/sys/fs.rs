@@ -20,6 +20,16 @@ pub fn umount(target: &CBuf) -> Sysres {
     unsafe { sys(SYS_UMOUNT2, [target.ptr(), 0, 0, 0, 0, 0]) }
 }
 
+/// `MNT_DETACH` of `umount2(2)`.
+pub const MNT_DETACH: u64 = 2;
+
+/// `umount2(target, MNT_DETACH)`: the mount leaves the tree at once, also
+/// while a process holds a descriptor or a directory in it (where a plain
+/// unmount gives `EBUSY`); the kernel frees it when the last one goes.
+pub fn umount_detach(target: &CBuf) -> Sysres {
+    unsafe { sys(SYS_UMOUNT2, [target.ptr(), MNT_DETACH, 0, 0, 0, 0]) }
+}
+
 /// `unshare(2)` with one flag word. The probes call the raw number
 /// beside their rows (`probes.rs`: the `unshare(CLONE_NEWNS)` row), and
 /// this is the half of the same call for an entry of a payload, so the two cannot drift

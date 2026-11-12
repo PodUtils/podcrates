@@ -4008,3 +4008,52 @@ covers each mount that a child makes on the path of a rule. Breaking:
 `Call` has the variant `OpenPath`; `Rule` is no longer `derive(Debug)`
 but has its own `Debug`; a `Compiled` of `pod-enter` holds no rule
 descriptor before the fork.
+
+# T-240: `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store
+
+**Source:** the run of `sh scripts/agent/check.sh` before the push of T-213 (`tmpfs_stages_onto_a_mount_or_refuses_naming_it` failed one time)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`release_tmpfs` unmounted with `umount2(dir, 0)`. A process that holds a
+descriptor or a directory in the tmpfs (a child of the payload that runs
+on, or a fork of another thread of the caller) makes that unmount fail
+with `EBUSY`; the removal then empties the tmpfs and cannot remove its
+mount point. The pages stay, and the next run meets the directory. In a
+run of the workspace's tests, the test
+`tmpfs_stages_onto_a_mount_or_refuses_naming_it` failed at
+`assert!(!dir.exists())`: another test of the binary forked while the
+stage held a descriptor in the mount.
+
+## Premise
+
+- Read: `crates/pod-enter/src/stage.rs` (`stage_tmpfs`, `release_tmpfs`)
+  and `pod_hostprobe::sys::umount`.
+- Measured: a descriptor held open in the tmpfs makes the old release
+  leave the directory (the new test fails on the old code).
+
+## Approach
+
+`pod_hostprobe::sys::umount_detach` (`MNT_DETACH`): the mount leaves the
+tree at once, and the kernel frees it when the last holder goes. The
+release and each cleanup path of `stage_tmpfs` use it. A test holds a
+descriptor in the tmpfs across the release.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --lib -- stage::tests
+```
+
+## Done
+
+2026-11-12. `umount_detach` and `MNT_DETACH` in `pod-hostprobe`;
+`release_tmpfs` and the two cleanup paths of `stage_tmpfs` detach. The
+test `a_release_frees_a_tmpfs_that_a_descriptor_holds` failed on the old
+release and passes; `cargo test -p pod-enter -p pod-hostprobe --lib`:
+168 and 111 pass.

@@ -121,7 +121,7 @@ fn copy_contents(src: &Path, dst: &Path) -> Result<usize, Refusal> {
 /// [`release_tmpfs`] when the payload exits, on success and on failure
 /// alike.
 pub fn stage_tmpfs(store_root: &Path, rootfs: &Path) -> Result<PathBuf, Refusal> {
-    use pod_hostprobe::sys::{CBuf, mount, umount};
+    use pod_hostprobe::sys::{CBuf, mount, umount_detach};
     if !rootfs.is_dir() {
         return Err(Refusal { path: rootfs.to_path_buf(), why: "not a directory to stage from".to_string() });
     }
@@ -161,7 +161,7 @@ pub fn stage_tmpfs(store_root: &Path, rootfs: &Path) -> Result<PathBuf, Refusal>
     let empty = std::fs::read_dir(&dir)
         .map_err(|e| Refusal { path: dir.clone(), why: format!("the fresh mount could not be read: {e}") })?;
     if empty.count() != 0 {
-        let _ = umount(&target);
+        let _ = umount_detach(&target);
         let _ = std::fs::remove_dir_all(&dir);
         return Err(Refusal {
             path: dir,
@@ -170,7 +170,7 @@ pub fn stage_tmpfs(store_root: &Path, rootfs: &Path) -> Result<PathBuf, Refusal>
         });
     }
     if let Err(r) = copy_contents(rootfs, &dir) {
-        let _ = umount(&target);
+        let _ = umount_detach(&target);
         let _ = std::fs::remove_dir_all(&dir);
         return Err(r);
     }
@@ -181,11 +181,14 @@ pub fn stage_tmpfs(store_root: &Path, rootfs: &Path) -> Result<PathBuf, Refusal>
 ///
 /// Best-effort both halves: the unmount is what frees the pages, and the
 /// removal is what keeps the next run from meeting this one. A directory
-/// that was never mounted removes like any other.
+/// that was never mounted removes like any other. The unmount detaches:
+/// a process that still holds a descriptor in the tmpfs (a child of the
+/// payload, or a fork of another thread of the caller) makes a plain
+/// unmount fail with `EBUSY`, and the mount and its directory would stay.
 pub fn release_tmpfs(dir: &Path) {
-    use pod_hostprobe::sys::{CBuf, umount};
+    use pod_hostprobe::sys::{CBuf, umount_detach};
     if let Some(target) = CBuf::new(&dir.to_string_lossy()) {
-        let _ = umount(&target);
+        let _ = umount_detach(&target);
     }
     let _ = std::fs::remove_dir_all(dir);
 }

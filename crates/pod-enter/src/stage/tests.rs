@@ -142,6 +142,24 @@ fn tmpfs_stages_onto_a_mount_or_refuses_naming_it() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// A release frees a tmpfs that a descriptor still holds: the mount
+/// detaches, and its directory goes. A host that refuses the mount skips.
+#[test]
+fn a_release_frees_a_tmpfs_that_a_descriptor_holds() {
+    let d = tree("busy");
+    std::fs::write(d.join("src/bin/prog"), b"\x7fELF").unwrap();
+    let Ok(dir) = stage_tmpfs(&d.join("store"), &d.join("src")) else {
+        pod_testkit::host::skip_line("this host refuses a tmpfs mount");
+        let _ = std::fs::remove_dir_all(&d);
+        return;
+    };
+    let held = std::fs::File::open(dir.join("bin/prog")).unwrap();
+    release_tmpfs(&dir);
+    assert!(!dir.exists(), "a busy tmpfs stays mounted, and its directory stays");
+    drop(held);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 /// Releasing an unmounted directory removes it: the removal half of
 /// the release does not depend on the unmount half.
 #[test]
