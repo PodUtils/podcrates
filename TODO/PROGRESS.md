@@ -5,13 +5,13 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.25.0` at `80f5dc7` (`docs/releases/v0.25.0.md`; ci
-  43069819903, release 43073344800; the hand-off GitHub #76, COORD-051):
-  the `pod-netstack` calls of podnet's router (T-222), `pod-confine`'s
-  scopes, closed UDP, MPTCP, io_uring and root capabilities (T-209,
-  T-221), `pod-relay` (T-025, partial).
+- Last release: `v0.26.0` at `fdb08f6` (`docs/releases/v0.26.0.md`; ci
+  43127380043, adoption 43127398394, release 43129426150; the hand-off
+  GitHub #77, COORD-052): the veth wire of `pod-hold` (T-201), the facts
+  of the SSH forward relays in `pod-services` (T-224), the report fields
+  of `pod-job` (T-226).
 - The consumers and their tags:
-  - podssh: `v0.24.0` (`2f4f292b`, PodUtils/podssh#192).
+  - podssh: `v0.25.0` (`f029594d`, PodUtils/podssh#193).
   - podnet: `v0.22.0` (`089e1c9`, PodUtils/podnet#447).
   - podvm: `v0.25.0` (`763b7c6a`, PodUtils/podvm#266; `Plan.confine` from
     its profiles, experiment 414 passes).
@@ -20,9 +20,9 @@
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podnet's move to `v0.24.0` (#73); podnet's take of the veth
-  wire of `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; the
-  next tag).
+  T-207, #70); podnet's take of `v0.26.0` with the veth wire of
+  `pod-hold` (`adoption/podnet/pod-hold-veth.patch`, T-201; #77);
+  podrunner's T-075 (T-226, #77).
 - Partial: T-025 (`pod-relay`: the trial of podssh remains), T-040 (the
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131

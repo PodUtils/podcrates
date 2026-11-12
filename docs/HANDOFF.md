@@ -16,10 +16,12 @@ a line when its work is done. Git and the record keep finished work.
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.
-- The last release: `v0.25.0` at `80f5dc7` (the hand-off #76). In work
-  for the next one: the podssh trial of `pod-relay` (T-025), the veth wire
-  of `pod-hold` (T-201), the SSH relay facts of `pod-services`
-  (PodUtils/podnet#455).
+- The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For the
+  next one: T-227 and T-233 (podvm#267, podvm#269; done on the branch
+  that lands after the tag), the podssh trial of `pod-relay` (T-025;
+  `adoption/podssh/pod-relay.patch` names the next tag), the three gaps
+  of `pod-netstack` of PodUtils/podnet#457 (P1; a subagent writes their
+  entries and fixes on a local branch).
 
 ## What waits
 
@@ -30,18 +32,16 @@ a line when its work is done. Git and the record keep finished work.
   (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
   `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
   blocking face, after T-025), `pod-todo`.
-- podnet (on `v0.22.0`): the move to `v0.24.0` (#73). T-170 step 2 starts
-  at podnet's COORD issue of PodUtils/podnet@T-249 (the router onto
-  `pod-netstack`); T-201 is done: podnet takes the veth wire with
-  `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`, tag `v0.26.0`)
-  and holds `netns/veth.rs` and `netns/tun.rs` to fixes from `db34bae`.
-  The pod-netstack APIs of PodUtils/podnet@T-249 are
-  T-222 (in `v0.25.0`, #76). `pod-git` waits: its own repository,
+- podnet (on `v0.22.0`): the take of `v0.26.0` (#77) with
+  `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`); podnet holds
+  `netns/veth.rs` and `netns/tun.rs` to fixes from `db34bae`. Its
+  PodUtils/podnet@T-249 (the router onto `pod-netstack`) waits for the
+  three gaps of PodUtils/podnet#457; T-170 step 2 starts at its COORD issue. `pod-git` waits: its own repository,
   deferred (the owner; #75).
-- podssh (on `v0.24.0`): `sandhole` and `openbare-xyz` of `pod-services`
+- podssh (on `v0.25.0`, `f029594d`): `sandhole` and `openbare-xyz` of `pod-services`
   wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.25.0`, `02a1c0b`): its T-075 takes T-226 of `pod-job`
-  in the next tag. Its T-042 uses `pod-confine`.
+  (`v0.26.0`, #77). Its T-042 uses `pod-confine`.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).
