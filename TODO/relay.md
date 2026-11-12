@@ -4055,7 +4055,7 @@ survives the loss of its carrier": the composition and the bound between
 **Milestone:** M5
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4078,8 +4078,18 @@ setting.
   server-first session as SSH through `ProxyCommand`), on runners with a
   direct egress: the crate's node and operator open and carry 1 MiB each
   way through the live relay.
-- Not read yet: the log of `relay connect -v` that podnet adds to the
-  issue (asked on #92).
+- Read: podnet's answers on PodUtils/podnet#502 (live 43220567832): a
+  pipe that writes before it reads gets sshd's banner and KEXINIT; the
+  `ssh` after it fails as before. podnet's glue gives
+  `tokio::io::join(tokio::io::stdin(), tokio::io::stdout())` and
+  `eof_idle`; the way is direct.
+- Read: `reverse::operator::carry` writes each frame of the node with
+  `write_all` and flushes only at the end. `tokio::io::stdout()` wraps the
+  line buffer of the process's stdout: sshd's banner ends in a newline,
+  its binary KEXINIT does not, so it stays in the buffer; `ssh` waits for
+  it, and sshd ends the session after `LoginGraceTime` (120 s). In the
+  pipe test the exit of the process flushed it. The live tests of the
+  crate use a duplex, which holds nothing.
 
 ## Approach
 
@@ -4097,3 +4107,14 @@ cargo test -p pod-relay --all-features
 
 `live.yml` with `relay = reverse_live`; podnet's `live.yml` at its next
 tag.
+
+## Done
+
+2026-11-12. `reverse/operator.rs`: `write_now` writes each frame of the
+node to the local side and flushes it. `reverse/route.rs`: the node's
+writer to a session's stream flushes after each frame too (a handler's
+stream can have a buffer). Test `the_node_bytes_reach_a_buffered_local_side_at_once`
+(`tests/reverse_operator.rs`: a local side that holds each write until a
+flush; the old code timed out); plant `relay-t327-operator-no-flush`.
+The live test `the_node_speaks_first_as_sshd_does` stays. podnet proves
+the fix with its `live.yml` at the next tag.

@@ -4799,3 +4799,43 @@ server). `hostc`: a `github-file` watch that the CLI's default server is
 would match any digit 5 of the file), and `rdap` of `hostc.dev`. Test
 `the_servers_of_smee_io_and_hostc` (`tests/api.rs`); rows in the README.
 The run of the watches: 5 hold.
+
+# T-370: `pod-proxy`: MESSAGE-INTEGRITY, FINGERPRINT and the long-term key in `stun`, for TURN (PodUtils/podssh#214)
+
+**Source:** PodUtils/podssh#214 (COORD-040), PodUtils/podssh@T-621 (TURN with RFC 6062).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_proxy::stun` reads and writes the attributes of a message, but it
+does not sign or check them. podssh's TURN road needs MESSAGE-INTEGRITY
+(HMAC-SHA1 over the message, with the header's length set to cover the
+attribute), its check (a later FINGERPRINT outside the length), the
+FINGERPRINT (CRC-32 XOR `0x5354554e`), and the long-term key
+(MD5 of `user:realm:password`). podssh holds copies in
+`PodUtils/podssh:crates/podssh-ws/src/turn/msg.rs`.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/stun.rs` (the codec, no I/O);
+  `crates/pod-proxy/src/digest.rs` has an MD5.
+- Read: podssh's ask: its functions pass RFC 5769's vectors 2.1, 2.2 and
+  2.4.
+
+## Approach
+
+`stun::signed`, `stun::integrity`, `stun::fingerprint` and
+`stun::fingerprint_ok`, `stun::long_term_key`, with TURN's methods and
+attributes (RFC 8656, RFC 6062) as constants. HMAC-SHA1 through `hmac`
+and `sha1` (pure Rust); the CRC-32 of the IEEE in the module. The tests
+of RFC 5769, 2.1, 2.2 and 2.4, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features stun
+```

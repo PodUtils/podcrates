@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 288 entries: 65 open, 2 partial, 5 blocked, 216 done.
+`TODO/INDEX.md` holds 289 entries: 65 open, 2 partial, 5 blocked, 217 done.
 
 ## State
 
@@ -64,9 +64,10 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects of the consumers:** T-327 (podnet's `relay connect` on a
-   direct egress, PodUtils/podnet#502); T-326 (podvm's trial of the
-   blocking facade, PodUtils/podvm#283, an agent of this session).
+1. **The defects and asks of the consumers:** T-326 (podvm's trial of the
+   blocking facade, PodUtils/podvm#283, an agent of this session); T-370
+   (podssh's TURN signing, PodUtils/podssh#214); T-328 (podrunner's note
+   of `tar -C` in a podvm unit).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need. The next tag releases
