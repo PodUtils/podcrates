@@ -3618,7 +3618,7 @@ release that carries this work.
 **Milestone:** M7
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3672,6 +3672,41 @@ by a COORD issue: a refusal of a TCP list there, or a deny of
 ```sh
 cargo test -p pod-confine --all-features
 ```
+
+## Done
+
+2026-11-12, `4b5d13a` (the code and the tests), `6766940` (the plants).
+
+- `Deny::when_not_equal` (`Arg::NotEqual`): a jump on a match to the
+  next rule of the number. `Deny::families()`: `socket(2)` and
+  `socketpair(2)` of a family other than `AF_UNIX`, `AF_INET`, `AF_INET6`
+  and `AF_NETLINK` get `EAFNOSUPPORT`; `socket(2)` of IP of a type other
+  than `SOCK_STREAM` and `SOCK_DGRAM` gets `ESOCKTNOSUPPORT`; a
+  `SOCK_STREAM` of IP of a protocol other than 0 and `IPPROTO_TCP` gets
+  `EPROTONOSUPPORT`. `Spec::deny_rules` adds them where the spec closes a
+  socket, after the MPTCP rule, so MPTCP keeps `ENOPROTOOPT`.
+- ABI 9: `handled_fs` handles `RESOLVE_UNIX`; `Access::WRITE` gives it,
+  and it is a right of a file. ABI 10: a closed UDP handles
+  `BIND_UDP` and `CONNECT_SEND_UDP` with no port rule. The values come
+  from `include/uapi/linux/landlock.h` of Linux 7.4-rc2 (bits 16, 2 and 3;
+  `pod_hostprobe::sys`), which has ABI 12. This host has ABI 7: only the
+  compile of ABI 9 and 10 is tested.
+- On a target with `socketcall(2)` the rules of a TCP list stay void for
+  a socket made through it, as before; the question goes to podvm with
+  the release.
+- Tests: `a_not_equal_condition_holds_where_the_argument_differs`,
+  `the_family_rules_close_each_socket_that_landlock_does_not_check`,
+  `the_rights_of_abi_9_and_10_follow_write_and_a_closed_udp`, the switches
+  test, the ABI test of `spec`, and `tests/sockets.rs`
+  (`a_tcp_list_closes_the_sockets_that_landlock_does_not_check`: confined,
+  `[EAFNOSUPPORT, EAFNOSUPPORT, ESOCKTNOSUPPORT, ESOCKTNOSUPPORT,
+  EPROTONOSUPPORT, 0, 0, 0, 0]` for packet, VSOCK, raw IP, SCTP over
+  `SOCK_SEQPACKET`, an SCTP stream, TCP, UDP, Unix and netlink; with no
+  family rule the first two and the raw socket open). `cargo test -p
+  pod-confine --all-features`: 32 unit tests, 12 of `apply`, 1 of
+  `sockets` pass. Plants: `confine-families-open` and
+  `confine-not-equal-as-equal` are caught; four plants of T-209 follow the
+  code and are caught.
 
 # T-216: `pod-enter`: `a_descriptor_passed_onto_its_own_number_reaches_the_payload` failed one time in a run of the workspace's tests
 

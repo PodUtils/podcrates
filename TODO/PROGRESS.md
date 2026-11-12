@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 230 entries: 63 open, 4 partial, 4 blocked, 159 done.
+`TODO/INDEX.md` holds 230 entries: 62 open, 4 partial, 4 blocked, 160 done.
 
 ## State
 
@@ -28,7 +28,7 @@
   trial of podvm), T-170 (step 2 waits for PodUtils/podnet@T-249), T-174
   (a Trojan node that passes the live check). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
-  `pod-session`), T-213 (`pod-confine`).
+  `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
   rulings "podrunner online" and "Sessions online"; C49); they talk with
   podcrates by direct messages. podnet and podvm run in their own sessions
@@ -70,8 +70,7 @@ next entry.
    transfer and the mailbox server of magic-wormhole) after T-027; T-150, T-121 to T-124 (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has); T-213 (the sockets that Landlock and
-   the filter of `pod-confine` do not see);
+   modloop, which `pod-guest` has);
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (after T-025, the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)
