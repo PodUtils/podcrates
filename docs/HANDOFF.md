@@ -44,7 +44,7 @@ is done. Git and the record keep finished work.
 - podvm (on `v0.32.0`, `15485d1b`, PodUtils/podvm#285, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.32.0`, `fa6b5ba`, PodUtils/podnet#508, with
+- podnet (on `v0.33.0`, `797104f`, PodUtils/podnet#514, with
   `pod-relay`): its link workstream (T-300, PodUtils/podnet#480), then T-028
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write

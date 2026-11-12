@@ -16,8 +16,8 @@
 - The consumers and their tags:
   - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
-  - podnet: `v0.32.0` (`fa6b5ba`, PodUtils/podnet#508; `pod-link` is its
-    next take); its relay client
+  - podnet: `v0.33.0` (`797104f`, PodUtils/podnet#514; its A12 maps
+    `GiveUp`; `pod-warp` waits for the trial of T-339); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over

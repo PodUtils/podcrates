@@ -105,6 +105,6 @@
 98 issue closed
 99 issue closed
 100 issue closed
-101 issue open
+101 issue closed
 102 issue open
 103 issue open
