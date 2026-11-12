@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 276 entries: 62 open, 2 partial, 4 blocked, 208 done.
+`TODO/INDEX.md` holds 276 entries: 62 open, 1 partial, 4 blocked, 209 done.
 
 ## State
 
@@ -15,9 +15,9 @@
 - The consumers and their tags:
   - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
     changed; it took `pod-relay` at `0872c2c6`).
-  - podnet: `v0.29.0` (`98d8a71`, PodUtils/podnet#478): its netns router
-    holds each SYN with `pod_hold::syn_hold` (T-170); it does not turn on
-    `ipv4-fragmentation` now (PodUtils/podnet@T-248 decides).
+  - podnet: `v0.30.0` (`83e0c93`, PodUtils/podnet#481): its relay client
+    is glue over `pod-relay` (T-026); its netns router holds each SYN with
+    `pod_hold::syn_hold` (T-170).
   - podvm: `v0.30.0` (`c553da2e`, PodUtils/podvm#280; no code change,
     its 350 tests pass).
   - podrunner: `v0.30.0` (`528a918`, its T-086; its local mode
@@ -70,9 +70,7 @@ next entry.
    `pod-actions-expr` and `pod-actions-workflow` (PodUtils/podrunner@T-046);
    T-280 (their live run against GitHub) waits.
 3. **podnet:** the chain to WARP as a network of podnet
-   (PodUtils/podnet#449; about twenty podnet entries wait): T-026
-   (partial: the trial of podnet on `98d8a71` passed here; the words of
-   `plain-ws`, the release and podnet's take remain), then T-028 (`pod-warp`
+   (PodUtils/podnet#449; about twenty podnet entries wait): T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
@@ -91,7 +89,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-026 (partial: the release and podnet's take), T-212; T-290 (the layer of
+6. **M2, the relay:** T-212; T-290 (the layer of
    `pod-relay` as a feature); then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197

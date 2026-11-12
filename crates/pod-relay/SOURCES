@@ -168,6 +168,7 @@ file be705dbb4da018edf84f5536065db80c4abd242b crates/podssh-relay/tests/fixtures
 file 0ddd69b7a029530c2db85e93b3bf814f47de96cb crates/podssh-relay/tests/fixtures/grant/unknown-cert.pub -> crates/pod-relay/tests/fixtures/grant/unknown-cert.pub
 
 repo PodUtils/podnet 7c5f87eb2765a2136f88c8310e41785204b78939
+taken 83e0c93c4d2f93b6d8426a7a6eb80c913949f096
 # T-026: podnet's relay client, which podnet holds to fixes from this
 # commit (PodUtils/podnet#449). No file is copied: each capability that the
 # base of podssh did not have is written here, with podnet's tests where

@@ -1081,7 +1081,7 @@ What remains, in order:
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1346,12 +1346,26 @@ and `.run`.
 turns the feature on for a relay on the loopback; a host off the loopback
 stays refused.
 
-What remains:
+2026-11-12, done: podnet took it. `adoption.yml` run 43191076065 passed
+the trial at podnet `98d8a71`; `v0.30.0` is at `613058c` (GitHub #89).
 
-1. The release, and the take of podnet (the hand-off gives the findings
-   above, the new pair file and the calls C110 to C112); the next trial of
-   podssh (T-025) and podvm's take of the facade see the changes of calls
-   C75, C80 and C112.
+- podnet `83e0c93` (PodUtils/podnet#481) takes `tag = "v0.30.0"` with
+  adoption/podnet/pod-relay.patch (a three-way apply on its `main`; the
+  conflicts were the tag lines and the feature `ipv4-fragmentation` of
+  `pod-netstack` of PodUtils/podnet@T-248, kept); `pod-relay` with `pair`
+  and `plain-ws`. podnet ran the steps of the `.run` but
+  `check-consumer-toolchains.py` and the zig build (its CI builds the
+  static binaries); `cargo test --workspace --no-fail-fast` had 0
+  failures.
+- The `taken` line of the block of `7c5f87e` in `crates/pod-relay/SOURCES`:
+  `python3 -I scripts/check-sources.py --clone PodUtils/podnet=CLONE
+  --clone PodUtils/podssh=CLONE pod-relay` gives 0 changes in each block.
+  The trial files adoption/podnet/pod-relay.* are gone; the adoption map
+  of `crates/pod-relay/README.md` names the take. The freeze of podnet's
+  `src/ws_relay.rs`, `src/relay_pool.rs` and `src/relay_reverse.rs` ends.
+- The next trial of podssh (T-025) and podvm's take of the facade see the
+  changes of calls C75, C80 and C112; T-290 (the layer and the channel as
+  a feature) is open.
 
 # T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)
 

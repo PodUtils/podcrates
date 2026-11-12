@@ -9,9 +9,7 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Read the hand-off issue #89 (`v0.30.0`) and record each new take;
-   podnet's take of `pod-relay` ends T-026 (the `taken` line, the trial
-   files go).
+1. Read the hand-off issue #89 (`v0.30.0`) and record each new take.
 2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
 3. Take the work order of `TODO/PROGRESS.md`: T-300 (`pod-link`, podnet
@@ -21,10 +19,10 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.30.0` at `613058c` (the hand-off #89): podrunner
-  took it at `528a918`, podvm at `c553da2e` (PodUtils/podvm#280). Each consumer took `v0.29.0` (#87, closed).
-- T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
-  C112): the trial `adoption/podnet/pod-relay.*` on podnet `98d8a71`
-  passed in `adoption.yml` 43191076065; podnet's take remains.
+  took it at `528a918`, podvm at `c553da2e` (PodUtils/podvm#280), podnet
+  at `83e0c93` (PodUtils/podnet#481, with `pod-relay`); podssh has not
+  answered. Each consumer took `v0.29.0` (#87, closed).
+- T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
   riscv64). `upstream.yml` is green at `a3ee89d` (T-306, T-308).
@@ -37,9 +35,10 @@ is done. Git and the record keep finished work.
 - podvm (on `v0.30.0`, `c553da2e`, PodUtils/podvm#280): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.29.0`, `98d8a71`, PodUtils/podnet#478, with
-  `syn_hold`): T-026's trial, then T-028 (`pod-warp`) and
-  T-029 (`pod-cloudflare`) on the chain to WARP (the owner's order). Write
+- podnet (on `v0.30.0`, `83e0c93`, PodUtils/podnet#481, with
+  `pod-relay`): its link workstream (T-300, PodUtils/podnet#480), then T-028
+  (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
+  owner's order). Write
   to podnet by COORD issues only.
 - podssh (on `v0.29.0`, `5b56c4d`, PodUtils/podssh#211): its
   PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277

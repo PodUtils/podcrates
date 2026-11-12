@@ -274,8 +274,8 @@ node with `Settings::default()` says no line.
 
 ### podnet
 
-podnet's relay client moves onto this crate with T-026: the trial
-(adoption/podnet/pod-relay.*, on podnet `98d8a71`) keeps podnet's module
+podnet took these rows at `83e0c93` (tag `v0.30.0`; the trial patch
+`pod-relay` of T-026, at podnet `98d8a71`). The glue keeps podnet's module
 names as glue (`ws_relay`, `relay_reverse`) with one `Context` of the
 process (`ws_relay::context()`), and removes `relay_pool.rs` and
 `relay_reverse/session.rs`.
