@@ -4423,6 +4423,9 @@ cargo test -p pod-extract --all-features
 - The plant `extract-hash-stops-at-the-end-marker` (the call of `finish`
   dropped) is caught by that test.
 
+podvm confirmed it on arm64: `arm.yml` run 43228497851 of podvm (`d4ed988e`, podcrates `v0.31.0`, `ubuntu-24.04-arm`); podvm closed PodUtils/podvm#281 and #282.
+
+
 # T-321: `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282)
 
 **Source:** PodUtils/podvm#282 (COORD-061 of podvm, for PodUtils/podvm@T-1721).
@@ -4481,6 +4484,9 @@ cargo test -p pod-enter --all-features
   pod-enter --all-features`: 169 passed; clippy is clean.
 - The plant `enter-libc-search-misses-the-multiarch-dir` (no multiarch
   look, the walk from the end again) is caught by that test.
+
+podvm confirmed it on arm64: `arm.yml` run 43228497851 of podvm (`d4ed988e`, podcrates `v0.31.0`, `ubuntu-24.04-arm`); podvm closed PodUtils/podvm#281 and #282.
+
 
 # T-326: `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283)
 
