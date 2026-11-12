@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**274 entries: 64 open, 2 partial, 4 blocked, 204 done.**
+**277 entries: 67 open, 2 partial, 4 blocked, 204 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 55 | 69 |
-| P2 | 25 | 1 | 4 | 105 | 135 |
-| P3 | 26 | 0 | 0 | 42 | 68 |
-| **All** | 64 | 2 | 4 | 204 | 274 |
+| P2 | 26 | 1 | 4 | 105 | 136 |
+| P3 | 28 | 0 | 0 | 42 | 70 |
+| **All** | 67 | 2 | 4 | 204 | 277 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -321,3 +321,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-306](upkeep.md) | P1 | S | M5 | chore | done | `pod-services`: six podvm files of its block changed after `2be31b2` (`upstream.yml` red since 2026-11-10) |
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
+| [T-310](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
+| [T-311](relay.md) | P3 | M | M2 | feature | open | `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480) |
+| [T-312](foundation.md) | P2 | S | M0 | defect | open | `pod-todo`: a code fence that is not closed in a file of the record is an error by name |

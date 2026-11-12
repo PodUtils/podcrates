@@ -1228,6 +1228,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-link"
+version = "0.30.0"
+dependencies = [
+ "libc",
+ "pod-core",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pod-oci"
 version = "0.30.0"
 dependencies = [
@@ -1400,6 +1410,7 @@ dependencies = [
  "pod-hold",
  "pod-identity",
  "pod-job",
+ "pod-link",
  "pod-oci",
  "pod-proxy",
  "pod-quic",

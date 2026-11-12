@@ -3888,7 +3888,79 @@ the fact `contract-sha256` of `ajam-relay`). No code.
   a node online and its `ready` within 15 s; it lasts at most 720 min and
   64 MiB.
 
-cargo test -p pod-relay --no-default-features --features pair,plain-ws
-cargo test -p pod-relay --all-features
-! cargo tree -p pod-relay --no-default-features --features pair -e normal -i snow
+# T-310: `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480)
+
+**Source:** T-300 (the ARQ part of its Approach); PodUtils/podnet#468, row E2-2 (PodUtils/podnet@T-277)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+T-300 asks for an ARQ for a carrier that loses frames, and a test with 3 % of the frames lost. The first step of `pod-link` has the reliable carriers only (the unix socket and the memory pair). podnet's rules for the ARQ (row E2-2 of PodUtils/podnet#468):
+
+- A frame carries a 32-bit sequence, a 16-bit fragment index and a fragment count.
+- SACK is a 32-byte bitmap (256 bits) for a window of 256 frames. Retransmission is for each fragment.
+- The RTO floor is 200 ms and the ceiling is 8 s. There are 8 retries.
+- A stream that exhausts its retries closes with `arq-timeout`, not the session, unless the control channel is also lost.
+- A 32-bit sequence wraps after 2^32 frames. The wrap forces a rekey and never a silent reuse.
+
+## Premise
+
+- Read: `crates/pod-link/src/link.rs` (the link runs over one ordered byte stream) and `crates/pod-link/src/carrier.rs` (`Facts` says whether a carrier is `reliable` and its unit, `mtu`).
+- Read: `PodUtils/podnet:TODO/link.md` (T-276, T-277): the first lossy carrier is UDP with KCP; the rekey is the job of podnet's record layer (PodUtils/podnet@T-298, which needs T-301 here).
+- Not measured: the loss and the order of a real lossy carrier.
+
+## Approach
+
+1. A sans-IO layer between a datagram carrier and the link: it turns datagrams (the unit of `Facts::mtu`) into an ordered byte stream, so that `Link` stays as it is. The sequence, the fragment index and count, the SACK bitmap of 256 bits, the RTO with its floor, ceiling and retries as settings.
+2. A trait of a datagram carrier beside `Carrier`, and a lossy shim of the memory carrier for the tests (a loss rate and a reorder rate from a seed).
+3. Tests: 8 MiB over 3 % loss and 1 % reorder, whole and in order; the fragment count; the end of the link after the retries; a start sequence near 2^32 asks the caller for a rekey and never reuses a sequence.
+4. The close of one stream on `arq-timeout` needs the ARQ to know the streams: write the choice (a stream-aware ARQ, or the end of the link) as a call.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
 ```
+
+## Start condition
+
+podnet starts PodUtils/podnet@T-277 or names a lossy carrier (a COORD issue).
+
+# T-311: `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480)
+
+**Source:** T-300 (call C120); PodUtils/podnet#466, row E0-2 (PodUtils/podnet@T-263: "1 MiB resume digest equal")
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Call C120 puts the resume of a link in `pod-session`: the link runs over the application side of a session. No test proves that composition: the carrier of a session is lost while streams of the link move, the session resumes on a new carrier, and each stream goes on with no loss. podnet's row E0-2 is done when 1 MiB crosses a resume with an equal digest.
+
+## Premise
+
+- Read: `crates/pod-session/src/resume.rs` (the client's session across links takes an `app` byte stream) and `crates/pod-session/src/far.rs` (`serve`, the far end).
+- Read: `crates/pod-link/src/link.rs`: `Link::new` takes any byte stream.
+- Not measured: the time of a resume under the keepalive of a link (10 s by default): a resume that takes longer than `dead_after` ends the link.
+
+## Approach
+
+1. A test in `crates/pod-link/tests/` with `pod-session` as a dev-dependency: a `tokio::io::duplex` pair at each end, one side to the session's `app`, the other to `Link::new`.
+2. Drop the session's link (its carrier) while 1 MiB moves on two streams; give a new link; compare the SHA-256 of each stream.
+3. Write in `crates/pod-link/README.md` how a consumer composes the two, and the bound between `dead_after` and the resume deadline of `pod-session`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+## Start condition
+
+T-279 is done (the resume window and the single use of a token as settings), or podnet starts PodUtils/podnet@T-263.

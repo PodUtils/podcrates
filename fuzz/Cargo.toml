@@ -51,6 +51,8 @@ pod-job = { path = "../crates/pod-job" }
 # The expressions and the workflow files of GitHub Actions (T-251).
 pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
+# The frames of a link (T-300).
+pod-link = { path = "../crates/pod-link" }
 # The parsers of podvm (T-173). The feature `fuzzing` of pod-oci exposes
 # the parse of a challenge of a registry.
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
@@ -343,6 +345,13 @@ bench = false
 [[bin]]
 name = "actions_workflow"
 path = "fuzz_targets/actions_workflow.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "link_frame"
+path = "fuzz_targets/link_frame.rs"
 test = false
 doc = false
 bench = false

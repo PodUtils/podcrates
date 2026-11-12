@@ -29,6 +29,7 @@ pod-identity = { workspace = true }
 pod-incus = { workspace = true }
 # `schema` is out: it is for the tests that generate the JSON Schemas, and no binary turns it on.
 pod-job = { workspace = true }
+pod-link = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
 # smoltcp links in.
 pod-netstack = { workspace = true, features = ["ipv4-fragmentation"] }
@@ -51,8 +52,9 @@ pod-wormhole = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-wg = { workspace = true, features = ["standin"] }
 # A runtime of one thread for the endpoint of pod-quic, the stack of
-# pod-netstack and the hold of a SYN of pod-hold, with the timer of its wait.
-tokio = { workspace = true, features = ["rt", "time"] }
+# pod-netstack, the hold of a SYN of pod-hold, with the timer of its wait,
+# and a link of pod-link with the reads and writes of its stream.
+tokio = { workspace = true, features = ["rt", "time", "io-util"] }
 # The reader and the writer of the records of pod-job.
 serde_json = { workspace = true }
 # The keys of a held channel of pod-e2e.
