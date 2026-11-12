@@ -5,12 +5,12 @@
 //!   refusal of each contradiction ([`Knobs::check`]).
 //! * [`Layout`]: the namespaces `PREFIX-NAME-g|r|w` (and `-c` for cgnat),
 //!   their veth pairs and their addresses.
-//! * [`scenario`]: the 27 offline scenarios, each a knob set.
+//! * [`scenario()`]: the 27 offline scenarios, each a knob set.
 //! * [`Lab::up`] and [`Lab::down`]: the commands, as argument lists, that
 //!   build and remove the lab in the guest ([`plan`]).
 //! * [`Lab::expect`]: from the knobs alone, the expected verdict of each
 //!   probe and the named counters that must move and must stay.
-//! * [`judge`]: the measured verdicts and the counters of
+//! * [`judge()`]: the measured verdicts and the counters of
 //!   `nft -j list counters` before and after ([`parse_counters`]) against
 //!   the expectations, as PASS and FAIL rows.
 //!
