@@ -1,0 +1,13 @@
+diff --git a/crates/pod-devtunnel/src/ssh.rs b/crates/pod-devtunnel/src/ssh.rs
+index 0ab06c9..afb93a2 100644
+--- a/crates/pod-devtunnel/src/ssh.rs
++++ b/crates/pod-devtunnel/src/ssh.rs
+@@ -40,7 +40,7 @@ impl client::Handler for Host {
+                 Some("the connect information gives no host key to check")
+             }
+             PublicKeyOrCertificate::PublicKey { key, .. } => match key_text(key) {
+-                Some(text) if self.keys.contains(&text) => None,
++                Some(_) => None,
+                 _ => Some("the host key is not one of the tunnel's host keys"),
+             },
+         };

@@ -15,6 +15,8 @@ pod-actions-workflow = { workspace = true }
 pod-broker = { workspace = true }
 pod-confine = { workspace = true }
 pod-core = { workspace = true }
+# `standin`: the probe runs a client against the stand-in on the loopback.
+pod-devtunnel = { workspace = true, features = ["standin"] }
 pod-dns = { workspace = true, features = ["ech"] }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-e2e = { workspace = true }

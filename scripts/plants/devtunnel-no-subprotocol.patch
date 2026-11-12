@@ -1,0 +1,13 @@
+diff --git a/crates/pod-devtunnel/src/live.rs b/crates/pod-devtunnel/src/live.rs
+index 080f609..51ab975 100644
+--- a/crates/pod-devtunnel/src/live.rs
++++ b/crates/pod-devtunnel/src/live.rs
+@@ -77,7 +77,7 @@ async fn open_one(
+     let shown = endpoint.relay.shown();
+     let authorization = info.token().header();
+     let asking = Asking {
+-        protocol: Some(service::subprotocol()),
++        protocol: None,
+         authorization: Some(authorization.as_str()),
+         alpn: ALPN,
+         limits: settings.limits,

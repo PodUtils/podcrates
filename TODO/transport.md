@@ -5348,7 +5348,7 @@ cargo test -p pod-turn -p pod-proxy -p pod-services-watch --all-features
 **Milestone:** M1
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5389,3 +5389,170 @@ follow as a second part.
 ```sh
 cargo test -p pod-devtunnel --all-features
 ```
+
+## Correction
+
+2026-11-12: the first part is in (`7b8c2b7`, the crate; the next commit,
+its plants `devtunnel-*` of `scripts/plants/`): `crates/pod-devtunnel`,
+the client side that PodUtils/podssh#216 asks for.
+
+- The study: the vendor's client microsoft/dev-tunnels (MIT) at
+  `37956c63675e3339b42c7f852a5af5da1566c5b9`, its Rust client `rs/`
+  first. Each value of the protocol is a fact of
+  `crates/pod-services/services/microsoft-devtunnel.toml` with its source:
+  the management host, `api-version`, `/tunnels/NAME` and
+  `/tunnels/ID` on the host of the cluster, `tokenScopes=connect`, the
+  schemes of `Authorization`, the subprotocol `tunnel-relay-client`, the
+  relay's `tunnel TOKEN`, the SSH user `tunnel` with `none`, `direct-tcpip`
+  to `127.0.0.1:PORT`. Its watches: six `github-file` of the vendor's
+  client, `tls-name` of the management host, `rdap` of
+  `visualstudio.com`. The Premise did not read the vendor's client; the
+  host key of a session is one of the endpoint's `hostPublicKeys`, which
+  neither ask names.
+- In: `Management::connect_info` (a tunnel by name or by `ID.CLUSTER`),
+  `ConnectInfo::parse`, `Relay` (the relay WebSocket over the caller's
+  `pod_ws::Way`, SSH of russh with a host key of the tunnel, `open(port)`
+  as a `Stream`, the bounded reconnect with a fresh connect token),
+  `Step` and `step_of`, `UserToken` and `ConnectToken` with no `Debug` of
+  the secret, the feature `standin`, the fuzz target
+  `devtunnel_connect_info`, the static probe, the calls C165 to C169.
+- The tests: `cargo test -p pod-devtunnel --all-features`: 12 unit tests,
+  5 of the management API, 8 of the relay, 5 of the reconnect, 1 of the
+  secrets (each line of `tracing`), and the ignored live test.
+- The second part, open: the creation, the list and the delete of
+  tunnels; the device-code flows of GitHub and AAD with the identities as
+  settings and the refresh of an AAD token; the token store in a private
+  file (`pod_core::files`); their stand-in tests (a create, a list). Then
+  T-386 (the live run) and T-387 (the name on crates.io).
+
+# T-385: `pod-ws`: a client upgrade checks the subprotocol of the answer
+
+**Source:** T-378 (found in the work of `pod-devtunnel`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_ws::url::dial_asking` offers a subprotocol in
+`Sec-WebSocket-Protocol`, and does not read the answer's
+`Sec-WebSocket-Protocol`. RFC 6455 section 4.1 says that a client fails
+the connection when the server names a subprotocol that the client did not
+offer. `pod-devtunnel` (the relay of Dev Tunnels) and the MQTT meeting
+points of `pod-wormhole` offer one subprotocol each, and a server that
+answers with another one goes on as if it took the offer.
+
+## Premise
+
+- Read: `crates/pod-ws/src/url.rs:271` (`dial_asking`) and its call of
+  `client::upgrade_with`, which checks the status, `Upgrade` and the
+  accept key, and gives back no header; `crates/pod-ws/src/handshake.rs:198`
+  (`check_response`). The doc of `dial_offering` says that the server's
+  choice is not checked, for a Wisp server of version 1 that names none.
+- Not measured: a server that names another subprotocol; the stand-in of
+  `pod-devtunnel` names the one offered.
+
+## Approach
+
+Give the head of the answer (or its subprotocol) back from
+`upgrade_with`. In `dial_asking`, refuse an answer that names a
+subprotocol that the request did not offer (`ConnectError::Upgrade`), and
+keep an answer that names none, as a Wisp server of version 1 does. A test
+with a server of the test that names another subprotocol; a plant that
+removes the check.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features
+cargo test -p pod-devtunnel --all-features
+```
+
+# T-386: `pod-devtunnel`: the live run against the service with the owner's own token
+
+**Source:** T-378 (GitHub #94: a live test with a token of the user, never a shared account).
+**Category:** measurement
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The protocol of Dev Tunnels has no specification, and the stand-in of
+`pod-devtunnel` speaks it as the vendor's client reads. No run proves the
+crate against the live service: the management API, the relay's upgrade
+with `tunnel-relay-client`, the host key of a real host, `direct-tcpip`
+to a port of a host of the vendor's CLI, a reconnect with a fresh token,
+and the SSH key re-exchange of russh, which the vendor's Rust client
+turns off (call C168).
+
+## Premise
+
+- Read: `crates/pod-devtunnel/tests/live.rs` (ignored; the variables
+  `POD_DEVTUNNEL_TOKEN`, `POD_DEVTUNNEL_SCHEME`, `POD_DEVTUNNEL_TUNNEL`,
+  `POD_DEVTUNNEL_PORT`); `docs/live-calls.md` (its row).
+- Not measured: the egress of this sandbox does not reach the service, and
+  no token of the owner is a secret of the repository.
+
+## Approach
+
+A job of `live.yml`, by hand only, with the owner's token as a secret of
+the environment of the job and a tunnel of the owner whose host runs the
+vendor's CLI (`devtunnel host -p 22`) for the time of the run. The job
+runs the ignored test. A finding (a value that differs, a refused
+re-exchange) becomes an entry and a change of the facts of
+`microsoft-devtunnel`.
+
+## Prove
+
+```sh
+cargo test -p pod-devtunnel --test live -- --ignored
+```
+
+## Start condition
+
+The owner gives a token of his own account and a tunnel with a host, as
+secrets of the job; the ruling of GitHub #94: never a shared account.
+
+# T-387: `pod-devtunnel`: the name on crates.io before the release
+
+**Source:** T-378 (GitHub #94: the name in the reservation list of GitHub #1).
+**Category:** release
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`docs/design.md`, section 4, names `pod-devtunnel`, and
+`scripts/check-crates-io-names.py` fails for a name that is not on
+crates.io with the repository of podcrates. crates.io answered 404 for
+`pod-devtunnel` on 2026-11-12. A publish needs the reserved name (trusted
+publishing does not work for a name that is not reserved).
+
+## Premise
+
+- Read: `scripts/check-crates-io-names.py`; `docs/design.md`, section 10
+  (the owner reserves each new name before its first publish).
+- Measured: `https://crates.io/api/v1/crates/pod-devtunnel` answered 404
+  on 2026-11-12.
+
+## Approach
+
+The main session asks the owner to reserve `pod-devtunnel` (a 0.0.0
+placeholder with the repository of podcrates) with the next release, as
+for `pod-link`, and adds the name to the list of GitHub #1.
+
+## Prove
+
+```sh
+python3 -I scripts/check-crates-io-names.py
+```
+
+## Start condition
+
+The owner reserves the name on crates.io.

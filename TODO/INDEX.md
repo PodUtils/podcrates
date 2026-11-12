@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**323 entries: 82 open, 5 partial, 5 blocked, 231 done.**
+**326 entries: 84 open, 6 partial, 5 blocked, 231 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 64 | 83 |
-| P2 | 33 | 1 | 5 | 117 | 156 |
-| P3 | 32 | 2 | 0 | 48 | 82 |
-| **All** | 82 | 5 | 5 | 231 | 323 |
+| P2 | 34 | 2 | 5 | 117 | 158 |
+| P3 | 33 | 2 | 0 | 48 | 83 |
+| **All** | 84 | 6 | 5 | 231 | 326 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -366,7 +366,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-375](transport.md) | P3 | S | M1 | feature | done | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
 | [T-376](transport.md) | P3 | S | M1 | feature | done | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
 | [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
-| [T-378](transport.md) | P2 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
+| [T-378](transport.md) | P2 | L | M1 | feature | partial | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
+| [T-385](transport.md) | P3 | S | M1 | defect | open | `pod-ws`: a client upgrade checks the subprotocol of the answer |
+| [T-386](transport.md) | P2 | S | M1 | measurement | open | `pod-devtunnel`: the live run against the service with the owner's own token |
+| [T-387](transport.md) | P2 | S | M1 | release | open | `pod-devtunnel`: the name on crates.io before the release |
 | [T-390](relay.md) | P2 | S | M2 | feature | done | `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11) |
 | [T-391](relay.md) | P2 | S | M2 | feature | done | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
 | [T-392](relay.md) | P3 | S | M2 | research | done | `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13) |

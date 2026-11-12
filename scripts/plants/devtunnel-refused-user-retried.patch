@@ -1,0 +1,15 @@
+diff --git a/crates/pod-devtunnel/src/relay.rs b/crates/pod-devtunnel/src/relay.rs
+index 38f2455..dd61c04 100644
+--- a/crates/pod-devtunnel/src/relay.rs
++++ b/crates/pod-devtunnel/src/relay.rs
+@@ -144,9 +144,7 @@ impl Relay {
+                     let stop = matches!(failure.class, Class::Refused | Class::NotFound | Class::Usage | Class::Config)
+                         && crate::failure::step_of(&failure) == Some(Step::Management);
+                     last = Some(failure);
+-                    if stop {
+-                        break;
+-                    }
++                    let _ = stop;
+                 }
+             }
+         }

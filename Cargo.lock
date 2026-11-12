@@ -2010,6 +2010,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-devtunnel"
+version = "0.32.0"
+dependencies = [
+ "pod-core",
+ "pod-proxy",
+ "pod-services",
+ "pod-testkit",
+ "pod-tls",
+ "pod-ws",
+ "russh",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "pod-dns"
 version = "0.32.0"
 dependencies = [
@@ -3420,6 +3439,7 @@ dependencies = [
  "pod-broker",
  "pod-confine",
  "pod-core",
+ "pod-devtunnel",
  "pod-dns",
  "pod-e2e",
  "pod-enter",

@@ -1,0 +1,7 @@
+# The client takes any host key: a relay that is not the tunnel's host
+# gets the session. The test of a key that is not the tunnel's must see it.
+ENTRY=T-378
+GROUP=devtunnel
+EXPECT='a_host_key_that_is_not_the_tunnels_ends_the_session'
+RUN='cargo test -p pod-devtunnel --all-features --test relay'
+LIMIT=1800
