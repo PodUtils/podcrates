@@ -88,7 +88,7 @@ pub async fn last(
     hosts: &[Relay],
     attempts: &[(String, OpenError)],
     path: &str,
-    notes: &mut dyn FnMut(&str),
+    notes: &mut (dyn FnMut(&str) + Send),
 ) -> Option<(Relay, RelaySession)> {
     over(ctx, hosts_for(hosts, attempts), path, notes).await
 }
@@ -98,7 +98,7 @@ pub async fn over(
     ctx: &Context,
     tried: Vec<Relay>,
     path: &str,
-    notes: &mut dyn FnMut(&str),
+    notes: &mut (dyn FnMut(&str) + Send),
 ) -> Option<(Relay, RelaySession)> {
     if tried.is_empty() {
         return None;

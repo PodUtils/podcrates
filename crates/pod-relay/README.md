@@ -91,7 +91,11 @@ stage and the class of `pod-ws`; an answer of the relay is at the stage
 
 The opener's notes (`open`'s `notes`), a node's lines (`NodeConfig::say`)
 and a UDP handler's lines (`UdpHandler::say`) are callbacks of the caller,
-as in podssh.
+as in podssh. The opener's notes are `Send`
+(`&mut (dyn FnMut(&str) + Send)`, also for
+`forward_layer::client::Dialer::link`), so that an open runs in a spawned
+task of a runtime of more than one thread (podnet's edge leg and its
+dialers).
 
 ### The plain mode of the reverse road
 

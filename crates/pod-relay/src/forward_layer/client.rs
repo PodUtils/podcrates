@@ -189,7 +189,7 @@ impl Dialer {
 
     /// A new link to the host, nothing read from it yet; `notes` hears what
     /// the opener says on the way (a token that could not be cached).
-    pub async fn link(&self, notes: &mut dyn FnMut(&str)) -> Result<Link, Missed> {
+    pub async fn link(&self, notes: &mut (dyn FnMut(&str) + Send)) -> Result<Link, Missed> {
         match &self.way {
             Way::Tls(ctx, trust) => {
                 let request = Request {

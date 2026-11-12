@@ -200,7 +200,7 @@ impl Failure {
 /// `req.failover` says. `notes` receives progress worth a user's attention (a
 /// host failing, a retry, a token that could not be cached), each host's in
 /// the order of the list.
-pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
+pub async fn open(req: &Request<'_>, notes: &mut (dyn FnMut(&str) + Send)) -> Result<Opened, Failure> {
     open_on(req, Wire::Tls, notes).await
 }
 
@@ -212,7 +212,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
 /// clear. A token comes from the settings, the run or the cache: a mint
 /// goes over TLS, which a stand-in does not answer.
 #[cfg(feature = "plain-ws")]
-pub async fn open_on_loopback(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
+pub async fn open_on_loopback(req: &Request<'_>, notes: &mut (dyn FnMut(&str) + Send)) -> Result<Opened, Failure> {
     open_on(req, Wire::PlainLoopback, notes).await
 }
 
@@ -226,7 +226,7 @@ enum Wire {
     PlainLoopback,
 }
 
-async fn open_on(req: &Request<'_>, wire: Wire, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
+async fn open_on(req: &Request<'_>, wire: Wire, notes: &mut (dyn FnMut(&str) + Send)) -> Result<Opened, Failure> {
     let mut attempts: Vec<(String, OpenError)> = Vec::new();
     let ctx = req.ctx;
     if ctx.settings.offline {
