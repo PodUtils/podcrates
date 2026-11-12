@@ -11,6 +11,7 @@ mod close;
 mod hooks;
 mod link;
 mod listener;
+mod tune;
 mod udp;
 
 /// The address of the default stack.

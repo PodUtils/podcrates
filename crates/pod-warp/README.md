@@ -10,8 +10,10 @@ userspace stack over the session, given as a network of the caller: a
 The base is podnet's `src/warp/` (`PodUtils/podnet:src/warp`); podssh's
 `crates/podssh-warp` retires onto it (`docs/design.md`, section 4). This
 is the first part of T-028 (partial): the registration, the identity, the
-doors, the session over HTTP/2, the network and the rules. The rest is
-T-335 to T-339.
+doors, the session over HTTP/2, the network and the rules; and T-335: the
+settings of podnet's stack of `src/warp/ip.rs` (the congestion controller,
+the TCP burst, the counters of the link, the budget of a relay) and the
+check of the data path. The rest is T-336 to T-339.
 
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no global state. Each failure is a
@@ -27,9 +29,11 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 
 | Item | Contents |
 | --- | --- |
-| `Settings` | `api: Api`, `way: Way`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `mtu` (1280); `Settings::new(api, way)`. |
-| `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession`, `connect() -> WarpNet`; `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`. |
-| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, mtu, report)`, `addresses`, `is_closed`, `close_reason`, `stack`, `with_resolvers`. |
+| `Settings` | `api: Api`, `way: Way`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `net: NetSettings`; `Settings::new(api, way)`. |
+| `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession`, `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`. |
+| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `stack`, `with_resolvers`, `link_stats`, `renew_due`, `check_data_path(&DataPathCheck) -> Duration`, `checked`. |
+| `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
+| `check` | `DataPathCheck { servers, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device, `cloudflare.com`, 5 s, 1.2 s), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`). |
 | `api` | `Api::new(pod_proxy::Client)`, `with_base(url)` (podnet's `PODNET_WARP_API`, podssh's `PODSSH_WARP_API`), `with_bases`, `bases`, `request`, `send` (each base in turn; a `POST` goes on only after no answer); `ApiError`, `api_status`, `bases(value)`, `API_TIMEOUT`. |
 | `register` | `create_device`, `create_device_with_key`, `enrol_masque`, `get_device`, `get_account` (license hidden), `set_license`, `delete_device`, `registration_error` (error 1015). |
 | `device` | `Device` (`ipv4`, `ipv6`, `local_address`, `masque_endpoint`, `masque_endpoints`, `peer_public_key_pem`, `reserved`; `Debug` hides the token and the license), `Account`, `DeviceConfig`, `Peer`, `Endpoint`, `Interface`, `Addresses`, `Services`, `Policy`, `redact_account`. |
@@ -44,7 +48,7 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `capsule` | The capsules of RFC 9297 and the types of RFC 9484: `put_varint`, `get_varint`, `put_capsule`, `CapsuleDecoder`, `parse_address_assign`, `MAX_CAPSULE_LEN`. |
 | `dns` | `lookup(net, resolvers, name, limit)` (DNS over TCP inside the tunnel), `RESOLVERS`. |
 | `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide`, `decide_static`), `Host`, `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
-| `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`. |
+| `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`; of `cloudflare-dns`: `tunnel_resolver` (`udp-1`), `check_name`. |
 
 ## Settings
 
@@ -62,6 +66,13 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | `HTTPS_PROXY`, `--transport`, the relay | `HTTPS_PROXY` | `Way::dial`, and the dial of the `pod_proxy::Client` of `Api` |
 | `--allow-shadowed-rules` | | the `allow` of `Table::build` |
 | the state directory (`warp.json`, `warp-door.json`) | the device's private file | `IdentityFile::path`; `door_from` and `door_text` for the caller's door file |
+| `--cc`, `PODNET_WARP_CC` (`ip::set_cc`, `check_cc`) | | `NetSettings::congestion_control`, from `net::parse_cc` |
+| `PODNET_WARP_TCP_BURST` (`ip::check_tcp_burst`) | | `NetSettings::tcp_burst`, from `net::parse_tcp_burst` |
+| the counters of the links of a process (`ip::link_stats`) | | `NetSettings::link_stats` (one `Arc<DeviceStats>` for each session), `WarpNet::link_stats` |
+| `PODNET_WARP_NO_CHECK` | | `NetSettings::check = None` |
+| `--resolver`, `PODNET_WARP_RESOLVERS` (for the check) | | `DataPathCheck::servers` (DNS on UDP; DNS over TLS comes with the resolvers of the proxy, T-338) |
+| the budget of a relay session (`StackConfig::renew`) | | `NetSettings::renew` |
+| `CARRY_MTU` (the carried device) | | `NetSettings::mtu` |
 
 ## The tests
 
@@ -78,6 +89,22 @@ and far end in `tests/common/edge.rs` (call C135).
 | The lint as a function of the caller | `rules::tests::the_lint_of_the_caller_judges_the_table` |
 | The live check | `tests/live.rs`: `live_register_connect_and_trace` (ignored; its step in `live.yml` is T-339) |
 | The proxy, the forward, nc | T-338 |
+
+| Approach of T-335 | Test |
+| --- | --- |
+| The congestion controller (`--cc`) | `net::settings::tests::the_congestion_controller`; `tests/stack.rs`: `a_session_with_each_controller_carries_a_large_echo`; in `pod-netstack`: `each_tcp_socket_takes_the_congestion_controller_of_the_config`, `a_download_with_each_controller_crosses_a_bounded_link` |
+| The TCP burst | `net::settings::tests::the_tcp_burst_variable_is_checked`, `the_stack_takes_the_burst_the_buffer_and_the_counters`; `tests/stack.rs`: `the_tcp_burst_clamps_the_window_that_the_edge_sees`; in `pod-netstack`: `the_burst_limit_clamps_the_window_that_the_stack_advertises` |
+| The counters of the link | `tests/stack.rs`: `the_counters_of_the_link_count_each_session`; in `pod-netstack`: `stacks_with_shared_counters_add_to_one_count`, `shared_counters_take_the_inbound_drops_of_each_link` |
+| The check of the data path, and the door that carried nothing | `check::tests::the_servers_of_the_check_follow_the_families_of_the_device`; `tests/stack.rs`: `the_check_of_the_data_path_needs_an_answer`, `a_door_that_carries_nothing_goes_last`, `a_lost_check_question_is_sent_again`, `no_check_takes_a_session_that_carries_nothing` |
+| The budget of a relay | `tests/stack.rs`: `the_budget_of_a_relay_says_when_to_renew` |
+
+The stand-in edge answers a DNS question on UDP port 53 too, notes the
+largest TCP window of the client and drops the first questions that a test
+names (`Watch` of `tests/common/edge.rs`); `Seen::silent` of
+`pod_testkit::masque` makes a front door that takes the handshake and
+carries nothing. Plants: `warp-check-without-answer`,
+`warp-check-door-kept`, `warp-burst-not-passed`,
+`netstack-controller-not-set`, `netstack-shared-counters-lose-the-drops`.
 
 ## The parity list
 
@@ -97,13 +124,17 @@ and far end in `tests/common/edge.rs` (call C135).
 | MASQUE over HTTP/2, the windows, the batch, the keepalive | yes | yes | yes |
 | MASQUE over HTTP/3; WireGuard; the carried device | yes | | T-337 |
 | The relay leg and the race | yes | | T-336 |
-| The stack (congestion control, burst, counters, the check of the data path) | yes | smoltcp of its own | the stack of `pod-netstack`; the rest T-335 |
+| The stack (congestion control, burst, counters, the check of the data path) | yes | smoltcp of its own | yes (`NetSettings` over the stack of `pod-netstack`; the check in `Warp::connect`) |
+| The TCP timeout and keepalive, no Nagle (podnet issue 125, podssh) | yes | no Nagle | T-393 |
+| The streams of a closed session fail at once; a close by the caller (podnet issues 125, 185) | yes | | T-394 |
+| UDP to a family that the device lacks is refused (podnet issue 112) | yes | | T-395 |
+| The budget of a relay session | yes | | yes (`NetSettings::renew`; the relay leg is T-336) |
 | Names inside the tunnel | through the proxy's resolver | yes | yes |
 | UDP | yes | | yes (`Datagrams`) |
 | The rules with the lint of shadowed rules | yes | | yes (the lint is the caller's) |
 | The proxy, the forward, nc, the L4 door | yes | | T-338 |
 | `Live`, TUN, routes | yes | | T-339 |
-| A tunnel that takes TLS and relays nothing (the probe of podssh, PodUtils/podssh@T-560) | the check of the data path | yes | T-335 |
+| A tunnel that takes TLS and relays nothing (the probe of podssh, PodUtils/podssh@T-560) | the check of the data path | yes | yes (the check of the data path) |
 
 ## The adoption map
 
@@ -119,6 +150,12 @@ and far end in `tests/common/edge.rs` (call C135).
 | `warp::session::{MasqueSession, MasqueTx, MasqueRx, Keepalive}` | `session::*`, with `Way` in place of `session::Dial` |
 | `warp::capsule` | `capsule` |
 | `warp::rules` (global `TABLE`, `COUNTERS`, `watch`) | `rules::Rules` (a value), `Table::build(.., &lint, allow)`; podnet passes `shadow::check` and keeps the reload of the file |
+| `warp::ip::{parse_cc, set_cc, check_cc}`, `CC_VARIABLE` | `net::parse_cc` into `NetSettings::congestion_control`; podnet keeps the flag and the variable |
+| `warp::ip::check_tcp_burst`, `TCP_BURST_VARIABLE` | `net::parse_tcp_burst` into `NetSettings::tcp_burst` |
+| `warp::ip::link_stats()` (a global) | one `Arc<DeviceStats>` of podnet in `NetSettings::link_stats`; its `snapshot()` |
+| `WarpStack::renew_due`, `StackConfig::renew` | `WarpNet::renew_due`, `NetSettings::renew = Some(Arc::new(move \|\| budget.spent()))` |
+| `proxy::check_data_path(&stack, ipv4)` | `WarpNet::check_data_path(&DataPathCheck)`; `Warp::connect` runs it and marks the door bad |
+| `proxy::NO_CHECK_VARIABLE` | `NetSettings::check = None` |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |
 | `decisions::count("masque", ..)` | `Observer::decision("warp.door", ..)` |
 

@@ -33,3 +33,13 @@ taken d23ce4ea7b053a4d2cde721e40e73e84d1424bd3
 # 02c4bec (its T-098) added `pub mod routes` to lib.rs. Of lib.rs only the
 # build check of SMOLTCP_IFACE_MAX_ADDR_COUNT, the same at both.
 file 4a7434696480dd5d5e25689f1399dbaace9a9a15 crates/podnet-vnet/src/lib.rs -> crates/pod-netstack/src/lib.rs
+
+repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
+# T-335: the settings of the stack of podnet's WARP that are of the stack:
+# the congestion controller of each TCP socket (`cc`, `set_cc`), the burst
+# limit of the link (`tcp_burst`, LinkDevice::with_max_burst) and the
+# counters that the links of the sessions share (LINK_STATS,
+# LinkDevice::with_stats) become the fields congestion_control, max_burst
+# and link_stats of StackConfig. The rest of ip.rs is pod-warp's (its
+# SOURCES).
+file 3b9533ed4ebfa9d934d64a7a3dc26a3e162860ae src/warp/ip.rs -> crates/pod-netstack/src/stack.rs crates/pod-netstack/src/stack/reactor.rs

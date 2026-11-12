@@ -141,3 +141,29 @@ fn with_checksum_sets_the_capabilities() {
     assert!(!checksum.tcp.rx() && checksum.tcp.tx() && !checksum.ipv4.rx() && checksum.ipv4.tx());
     assert!(checksum.udp.rx(), "a field that the caller did not set keeps its default");
 }
+
+/// Counters shared by two links: the inbound drops of each link go to the
+/// shared counters, not to the counters that the device had before (T-335:
+/// podnet adds the links of each WARP session of a process).
+#[test]
+fn shared_counters_take_the_inbound_drops_of_each_link() {
+    let shared = Arc::new(DeviceStats::default());
+    let devices =
+        [LinkDevice::link(1280).with_stats(shared.clone()), LinkDevice::link(1280).with_stats(shared.clone())];
+    for device in &devices {
+        let inbound = device.inbound();
+        for _ in 0..LINK_INBOUND + 3 {
+            inbound.push(vec![0x45; 20]);
+        }
+    }
+    assert_eq!(shared.snapshot().rx_dropped, 6);
+    assert_eq!(devices[0].stats().snapshot().rx_dropped, 6, "one set of counters");
+}
+
+/// The burst limit is the `max_burst_size` of the capabilities; none by
+/// default (PodUtils/podnet#100).
+#[test]
+fn with_max_burst_sets_the_capabilities() {
+    assert_eq!(LinkDevice::link(1280).capabilities().max_burst_size, None);
+    assert_eq!(LinkDevice::link(1280).with_max_burst(Some(4)).capabilities().max_burst_size, Some(4));
+}

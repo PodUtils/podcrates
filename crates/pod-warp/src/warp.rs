@@ -12,6 +12,7 @@ use crate::device::Device;
 use crate::door::{Door, Routes};
 use crate::hints::DeviceHints;
 use crate::identity::Identity;
+use crate::net::NetSettings;
 use crate::register;
 use crate::session::Way;
 use crate::store::{self, IdentityFile, Stored};
@@ -37,13 +38,15 @@ pub struct Settings {
     pub hints: DeviceHints,
     /// The events for the user and the observer of decisions.
     pub report: Report,
-    /// The MTU of the stack over the session.
-    pub mtu: usize,
+    /// The stack over a session: the MTU, the TCP settings, the counters,
+    /// the check of the data path and the budget of a relay.
+    pub net: NetSettings,
 }
 
 impl Settings {
     /// The settings of `api` and `way`, with the doors of the record, both
-    /// routes, no hints, no report and [`MTU`].
+    /// routes, no hints, no report and the stack of
+    /// [`NetSettings::default`] ([`MTU`], the check of the data path).
     pub fn new(api: Api, way: Way) -> Settings {
         Settings {
             api,
@@ -52,7 +55,7 @@ impl Settings {
             routes: Routes::default(),
             hints: DeviceHints::default(),
             report: Report::default(),
-            mtu: MTU,
+            net: NetSettings::default(),
         }
     }
 }

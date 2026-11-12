@@ -150,9 +150,10 @@ pub(super) struct Core {
 pub(super) fn new_tcp_socket(config: &StackConfig) -> tcp::Socket<'static> {
     let size = config.tcp_buffer;
     let mut socket = tcp::Socket::new(tcp::SocketBuffer::new(vec![0u8; size]), tcp::SocketBuffer::new(vec![0u8; size]));
-    // No congestion controller, as in smoltcp before 0.12: the link holds
-    // the stack when its queue is full (PodUtils/podnet#134).
-    socket.set_congestion_control(tcp::CongestionControl::None);
+    // smoltcp 0.12 and later take CUBIC when its feature is on: the stack
+    // sets the controller of its settings, none by default
+    // (PodUtils/podnet#134).
+    socket.set_congestion_control(config.congestion_control);
     socket
 }
 
