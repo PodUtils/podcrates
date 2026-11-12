@@ -4176,3 +4176,111 @@ transit relay of T-027 needs a server of the same kind.
 sh scripts/ci/mailbox-tests.sh
 gh workflow run ci.yml
 ```
+
+# T-390: `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11)
+
+**Source:** PodUtils/podnet#512 (COORD-056), ask A11; PodUtils/podnet@T-261.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet keeps a wrapper around `Allowlist` for two things: a limit of the
+entries of a file (4096 in podnet), and a line that names a key in the
+display form of T-278 (`WQC4LSJV-...`), not as its OpenSSH fingerprint or
+iroh's form.
+
+## Premise
+
+- Read: `crates/pod-identity/src/allow.rs` (`Allowlist::parse`,
+  `KeyName::parse`) and `crates/pod-identity/src/display.rs`.
+
+## Approach
+
+`Allowlist::parse_with(text, limit)` (the lines past the limit are named
+as bad lines, so a node does not grow without a bound); `parse` keeps no
+limit. `KeyName` reads the display form (five groups of eight characters
+with its checksum) and matches it to a key by `DisplayFingerprint::matches`.
+Tests for each.
+
+## Prove
+
+```sh
+cargo test -p pod-identity --all-features
+```
+
+# T-391: `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12)
+
+**Source:** PodUtils/podnet#512 (COORD-056), ask A12; PodUtils/podnet@T-263.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`End::GaveUp(String)` holds the reason as text alone. podnet maps the end
+of a resume to its `ResumeExpired` by the words of the text ("no such
+session", "no new link within"), which break when a text changes.
+
+## Premise
+
+- Read: `crates/pod-session/src/pump.rs` (`End`) and
+  `crates/pod-session/src/resume.rs` (the places that give up).
+
+## Approach
+
+`End::GaveUp(GaveUp)` with `GaveUp { cause: GiveUp, reason: String }`;
+`GiveUp` names each cause: the far end does not know the session
+(`REFUSE` `UNKNOWN_SESSION`), the window ended with no new link, the
+transport said not to come back, and the far end refused for another
+reason. Breaking for a caller that matches `GaveUp(text)`. Tests for each
+cause.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+# T-392: `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13)
+
+**Source:** PodUtils/podnet#512 (COORD-056), ask A13; T-279 (call C119).
+**Category:** research
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet asks for the single use of the resume secret as a value of
+`Settings`.
+
+## Premise
+
+- Read: call C119 (T-279): the layer has no resume token to spend; each
+  resume proves the secret with an HMAC over both fresh nonces of the new
+  link, so a proof works once, on its own link, and a replayed one is
+  refused (`BAD_PROOF`).
+
+## Approach
+
+No setting: a proof of one use is the protocol, not a choice. The answer
+on the COORD issue names C119 again; `Settings::resumes = false` ends a
+session with its link, for a caller that wants no resume at all.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+## Done
+
+2026-11-12. No code: C119 stands. The answer is on the COORD issue of
+podcrates to podnet.
