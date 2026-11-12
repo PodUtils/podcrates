@@ -9,11 +9,10 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Read the hand-off issue #87 (`v0.29.0`) and record each new take.
-2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)` of each
    repository of PodUtils.
-3. Merge or continue the work of the two agents of this session (see "In
+2. Merge or continue the work of the two agents of this session (see "In
    flight"), then take the work order of `TODO/PROGRESS.md`. Its head
    now: T-026, T-251, T-267, T-212. The next release (`v0.30.0`) carries
    T-276, T-277, T-251 and the trial of T-026.
@@ -23,7 +22,7 @@ is done. Git and the record keep finished work.
 - The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
   took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`), podvm at
   `c99bdd8d` (PodUtils/podvm#279), podssh at `5b56c4d`
-  (PodUtils/podssh#211); podrunner has not answered.
+  (PodUtils/podssh#211), podrunner at `7cdd0d5`; #87 is closed.
 - On `main` after the tag: T-276 (`syncthing-relay`, call C104), T-277
   (the MQTT brokers in the runs of a code, call C115), T-306 (the podvm
   block of `pod-services`, which made `upstream.yml` red), and the gate of
@@ -65,7 +64,7 @@ is done. Git and the record keep finished work.
   PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
   with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.28.0`, `bde47c3`): its take of `v0.29.0`; T-251
+- podrunner (on `v0.29.0`, `7cdd0d5`): T-251
   (`pod-actions-workflow`, `pod-actions-expr` and the expansion of jobs,
   for its local mode PodUtils/podrunner@T-046) is its one crate ask.
 - podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
