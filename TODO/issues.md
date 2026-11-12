@@ -85,5 +85,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #77 | COORD-052: v0.26.0: the veth wire of the netns hold, the facts of the SSH forward relays, the time to the first step and the job images of pod-job (to all) | closed (podrunner `4284967`, podnet `f107766`, podssh `ff2f7bac`, podvm `483a1957`) | T-201, T-224, T-226, T-227, T-233 |
 | #78 | Docs: stale names and contradictions after the renames of 2026-11-12 (pods, podstat, podforge) | closed | T-242 |
 | #82 | cfb asks: tracker for the 36 asks of cfb owned by podcrates (from podcrates#35) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-113, T-114, T-115, T-116, T-117, T-118, T-119 |
+| #83 | githome asks: tracker for the 2 asks owned by podcrates (from podcrates#36) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-106, T-160 |
+| #84 | CI plan items: tracker for the 8 items owned by podcrates (from podcrates#47) | open (the owner's tracker; phases 3 and 5 stay in T-146) | T-100, T-102, T-103, T-104, T-106, T-146, T-162, T-251 |
 
 #79 to #81 are pull requests.

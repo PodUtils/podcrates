@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**241 entries: 63 open, 5 partial, 4 blocked, 169 done.**
+**242 entries: 64 open, 5 partial, 4 blocked, 169 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
 | P2 | 31 | 2 | 4 | 83 | 120 |
-| P3 | 19 | 1 | 0 | 35 | 55 |
-| **All** | 63 | 5 | 4 | 169 | 241 |
+| P3 | 20 | 1 | 0 | 35 | 56 |
+| **All** | 64 | 5 | 4 | 169 | 242 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -288,3 +288,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-245](relay.md) | P2 | S | M2 | defect | open | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
 | [T-246](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |
+| [T-251](fleet.md) | P3 | L | M8 | feature | open | `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84) |

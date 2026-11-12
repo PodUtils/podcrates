@@ -1286,3 +1286,50 @@ each project name must name the repository of its name under PodUtils
 (`podvm-*`: PodUtils/podvm). `python3 -I scripts/check-crates-io-names.py`:
 84 names, 2 faults: `pods` and `podstat` are missing until the owner's
 job registers them (GitHub #1).
+
+# T-251: `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84)
+
+**Source:** GitHub #84 (item P5-3 of GitHub #47); PodUtils/podrunner@T-046 (blocked on these crates); the owner's answer to Q11 (2026-11-11: "yes plan it")
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podrunner's local mode (`podrunner run workflow.yml`, PodUtils/podrunner#48)
+compiles a workflow file into job offers with no forge. It needs the
+expression language of GitHub Actions (`${{ }}`: the literals, the
+operators, the functions `contains`, `startsWith`, `endsWith`, `format`,
+`join`, `toJSON`, `fromJSON`, `hashFiles`, `success`, `failure`,
+`always`, `cancelled`, and the contexts) and the model of a workflow file
+(`on`, `jobs`, `needs`, `strategy.matrix`, `if`, `env`, `defaults`,
+`steps`). The names are reserved on crates.io (GitHub #1); no crate exists.
+
+## Premise
+
+- Read: GitHub #84 and #47; `docs/research/ci/podrunner-plan.md`
+  (phase 5, the optional `pod-actions-workflow`);
+  `docs/research/ci/ghactions-local.md` (the study of the owner's archive);
+  PodUtils/podrunner@T-046 (P3, later).
+- Not measured: the conformance of an expression evaluator against the
+  official runner.
+
+## Approach
+
+When podrunner asks for its local mode (its T-046 leaves `later`):
+`pod-actions-expr` (a parser and an evaluator with the loose equality and
+the case rules of GitHub, a fuzz target, a conformance list with test
+vectors), then `pod-actions-workflow` (the model, the matrix expansion,
+the order of `needs`), each pure Rust and static.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-expr -p pod-actions-workflow
+```
+
+## Start condition
+
+podrunner asks for its local mode (PodUtils/podrunner@T-046).
