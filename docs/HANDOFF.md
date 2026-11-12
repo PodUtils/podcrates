@@ -11,16 +11,18 @@ a line when its work is done. Git and the record keep finished work.
 - `pod-relay` (T-025, partial; call C60): imported from podssh `75a5031`
   and adapted (a `Context` of the caller, `Settings`, no globals); 357
   tests and 28 plants pass. The trial of podssh (adoption/podssh/pod-relay.*,
-  call C67) is written and passed on this host: podssh-relay keeps each
-  module as glue over one `Context` of the process. `adoption.yml` must run
-  it (the static build with zig, the build with `iroh,warp`). T-229 (six
+  call C67) passed in `adoption.yml` (run 43130443273): podssh-relay keeps
+  each module as glue over one `Context` of the process. Its patch names
+  `v0.27.0`. T-229 (six
   plants that only podssh's tests caught) and T-228 (the live tests in
   `live.yml`) come of it. podssh holds the files of the cut from
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.
 - The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For
-  `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269; on `main`),
+  `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269), T-213
+  (`pod-confine`: the families that Landlock does not check, the rights
+  of ABI 9 and 10), T-240 (a busy tmpfs at its release), on `main`;
   the podssh trial of `pod-relay` (T-025; the patch names `v0.27.0`),
   the three gaps
   of `pod-netstack` of PodUtils/podnet#457 (P1; a subagent writes their

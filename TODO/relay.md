@@ -1054,6 +1054,10 @@ commit: podssh's workspace is in edition 2024.
   pins (repaired in the CLI). The steps of the `.run` on the
   fresh checkout: each 0, but the three builds that the disk of this host
   did not take.
+- `adoption.yml` ran the whole `.run` of the trial in a clean checkout
+  (run 43130443273, `main` at `99099e4`): it passed, with the build of the
+  release's features with zig, podssh's static check and the build with
+  `iroh,warp`.
 - The patch names the tag `v0.27.0` (the fix of `Mode::from_setting` is
   not in `v0.26.0`). T-224 moved `dashboard-host` of `pinggy` into
   `url-skip`: the patch changes `pinggy::dashboard()` of podssh-relay to
@@ -1062,12 +1066,9 @@ commit: podssh's workspace is in edition 2024.
 
 What remains, in order:
 
-1. `adoption.yml` of the trial: the steps that this host did not run (the
-   build of the release's features with zig and podssh's static check,
-   the build with `iroh,warp`, the whole `.run` in one clean checkout).
-2. The release, and the take of podssh (`docs/design.md`, section 8,
+1. The release, and the take of podssh (`docs/design.md`, section 8,
    step 8); podvm takes the facade `blocking` (Q103).
-3. T-212: the lines for the user as events, and the words of podssh's
+2. T-212: the lines for the user as events, and the words of podssh's
    commands as the caller's.
 
 
