@@ -99,9 +99,9 @@
 92 issue open
 93 issue open
 94 issue open
-95 issue open
-96 issue open
-97 issue open
-98 issue open
-99 issue open
+95 issue closed
+96 issue closed
+97 issue closed
+98 issue closed
+99 issue closed
 100 issue open
