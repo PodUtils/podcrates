@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 277 entries: 67 open, 2 partial, 4 blocked, 204 done.
+`TODO/INDEX.md` holds 277 entries: 66 open, 3 partial, 4 blocked, 204 done.
 
 ## State
 
@@ -76,8 +76,11 @@ next entry.
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300
-   (`pod-link`, calls C116 and C117: the unix and the memory carriers
-   first), T-278, T-279, in this order.
+   (partial: `pod-link` with the streams, the windows, the keepalive, the
+   unix and the memory carriers is in; the release and the reserve of its
+   name on crates.io remain), T-278, T-279, then T-311 (a link across a
+   resume of `pod-session`); T-310 (the ARQ) when podnet names a lossy
+   carrier.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
    T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260

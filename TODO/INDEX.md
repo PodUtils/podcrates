@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**277 entries: 67 open, 2 partial, 4 blocked, 204 done.**
+**277 entries: 66 open, 3 partial, 4 blocked, 204 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 55 | 69 |
 | P2 | 26 | 1 | 4 | 105 | 136 |
-| P3 | 28 | 0 | 0 | 42 | 70 |
-| **All** | 67 | 2 | 4 | 204 | 277 |
+| P3 | 27 | 1 | 0 | 42 | 70 |
+| **All** | 66 | 3 | 4 | 204 | 277 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -312,7 +312,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-279](relay.md) | P3 | S | M2 | feature | open | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
-| [T-300](relay.md) | P3 | L | M2 | feature | open | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
+| [T-300](relay.md) | P3 | L | M2 | feature | partial | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |

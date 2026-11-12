@@ -3770,7 +3770,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3797,6 +3797,19 @@ cargo test -p pod-link --all-features
 ## Start condition
 
 podnet starts its link workstream and names its first carrier (a COORD issue).
+
+## Correction
+
+2026-11-12: read `PodUtils/podnet:TODO/link.md` at `main` (PodUtils/podnet@T-262 to PodUtils/podnet@T-277), PodUtils/podnet#466 and PodUtils/podnet#480. podnet's rules: a window of 16 KiB at the start and 8 MiB at most; a record of 1 MiB before the carrier splits it; the unix carrier with a path of 1 to 107 bytes, the mode 0600, the peer's uid unless `--allow-other-uid`, a regular file refused (64), a live socket in use (69), a stale socket replaced; the memory carrier with a ring of 1 MiB (64 KiB to 64 MiB) that makes the writer wait. The ARQ has its own rules and start in podnet (PodUtils/podnet@T-277): T-310. The crate runs over any byte stream and does not depend on `pod-session` (call C120): T-311 tests the resume.
+
+## Done
+
+2026-11-12, partial: the ARQ (T-310) and the test of a resume over `pod-session` (T-311) remain. Commit `b7aac60`; calls C120 to C124.
+
+- `crates/pod-link`: the frame codec (`frame`), `Link` and `Stream` with the windows of each stream and of the link, the limits of streams and of a frame, the half close, the reset, the `GOAWAY` and the keepalive; the trait `Carrier` with `available()`, the unix carrier and the memory carrier. The README has the API, the wire, the settings, the parity list against PodUtils/podnet#466 and #467, and the adoption map of podnet's entries.
+- `cargo test -p pod-link --all-features`: 49 passed (`frames` 6, `carriers` 8, `keepalive` 4, `limits` 13, `streams` 12, `windows` 6); each test binary passed 60 runs in a loop. Clippy of `pod-link` with all features and with none, rustdoc with `-D warnings`, `check-size.py`, `check-design-paths.py` and `check-probe.py` pass.
+- The fuzz target `link_frame` with 6 seeds; its body ran on the seeds and on 600,000 mutations with no panic.
+- Before the release: the main session reserves the name `pod-link` on crates.io (`check-crates-io-names.py` reads it from `docs/design.md`; crates.io answered 404 for it on 2026-11-12).
 
 # T-301: `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479)
 
