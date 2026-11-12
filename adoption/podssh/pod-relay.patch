@@ -3034,7 +3034,7 @@ index 9182aac..85eca65 100644
  ## Approach
  
 diff --git a/crates/podssh-cli/Cargo.toml b/crates/podssh-cli/Cargo.toml
-index d069324..6c04bb4 100644
+index d069324..a4014ea 100644
 --- a/crates/podssh-cli/Cargo.toml
 +++ b/crates/podssh-cli/Cargo.toml
 @@ -57,7 +57,7 @@ podssh-ws = { path = "../podssh-ws" }
@@ -3042,7 +3042,7 @@ index d069324..6c04bb4 100644
  # DERP map, the zone of OpenTunnel, the ACME directory, the relay of
  # `podssh ts`.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  # The leaf of a release's Sigstore bundle, read (T-375): no C, as its
  # feature `verify` (ring) is off; the signatures are podssh-ws's own.
  x509-parser = { version = "0.18", default-features = false }
@@ -3051,7 +3051,7 @@ index d069324..6c04bb4 100644
  # `podssh session` (T-186): where a kept stream of output may start, and its
  # ring (the grammar of T-221), and when the output has stopped.
 -pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-term = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  # `podssh session capture`: the screen that a terminal shows after the
  # session's output. The model of the terminal oracle (T-200), pure Rust over
  # vte, with no build script that compiles C; the lock has it already.
@@ -3060,7 +3060,7 @@ index d069324..6c04bb4 100644
  
  [dev-dependencies]
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["screen"] }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["screen"] }
  # `test-util` gives the tests a paused clock: the limit of a stuck write is
  # 60 s (tests/direct_write_limit.rs).
  tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
@@ -4462,7 +4462,7 @@ index 72ec301..8f71f53 100644
      assert!(!listed(&elsewhere, None, "relay-b.test", port_b), "an untrusted list adds no host");
      let _ = std::fs::remove_dir_all(&elsewhere);
 diff --git a/crates/podssh-iroh/Cargo.toml b/crates/podssh-iroh/Cargo.toml
-index dcbeb1c..8b94bcc 100644
+index dcbeb1c..3e06037 100644
 --- a/crates/podssh-iroh/Cargo.toml
 +++ b/crates/podssh-iroh/Cargo.toml
 @@ -31,7 +31,7 @@ podssh-relay = { path = "../podssh-relay", features = ["derp", "pinggy"] }
@@ -4470,12 +4470,12 @@ index dcbeb1c..8b94bcc 100644
  # The services of other parties: n0's relays and pkarr, the zone of the
  # quick tunnel.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  tokio = { workspace = true }
  # The types of iroh's interfaces: the relay's certificate verifier (rustls),
  # the proxy's URL (url), and the resolver's errors (n0-error), at the
 diff --git a/crates/podssh-relay/Cargo.toml b/crates/podssh-relay/Cargo.toml
-index 37fd0eb..f178eef 100644
+index 37fd0eb..ecc4e77 100644
 --- a/crates/podssh-relay/Cargo.toml
 +++ b/crates/podssh-relay/Cargo.toml
 @@ -10,12 +10,19 @@ publish.workspace = true
@@ -4484,20 +4484,20 @@ index 37fd0eb..f178eef 100644
  [dependencies]
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
 -pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
-+pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
++pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
 +# The relay client: the hosts, the pool, the rank, the failover, the tokens,
 +# the roads to a relay, the pairs, the grants, the reverse road and the
 +# blocking facade (PodUtils/podcrates@T-025): pod-relay, over podssh's
 +# process context (src/context.rs). The dialer of a node's targets is
 +# pod-proxy's, with podssh's settings (podssh-ws's dial.rs).
-+pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  # The services of other parties: the relay's host, limits and seed, the
  # DERP servers, Piping, the mailboxes and transit, OpenTunnel, the edge of
  # the quick tunnel and its roots.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  podssh-ws = { path = "../podssh-ws" }
  tokio = { workspace = true }
  serde = { workspace = true }
@@ -4506,7 +4506,7 @@ index 37fd0eb..f178eef 100644
  # over a WebSocket (src/transit/link.rs) and the rule of a peer's answer
  # (src/answer.rs): pod-session of PodUtils/podcrates (T-020 there).
 -pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  # SHA-256, HMAC-SHA-256 and HKDF of the tokens, the mailbox and croc, and
  # X25519 of the key of DERP. Pure Rust, as in podssh-ws.
  sha2 = { workspace = true }
@@ -4515,7 +4515,7 @@ index 37fd0eb..f178eef 100644
  # The channel between two podssh ends (src/e2e/, T-088): Noise XX on snow,
  # pure Rust: pod-e2e of PodUtils/podcrates (T-021 there).
 -pod-e2e = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-e2e = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-e2e = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  # A quick tunnel's connection to Cloudflare's edge (src/quick/serve.rs, T-300):
  # the edge is the client of HTTP/2 on the connection that podssh dialed. Pure
  # Rust, in the lock already through hyper; only with the features `quick`,
@@ -4524,7 +4524,7 @@ index 37fd0eb..f178eef 100644
  # handshakes and the probe of UDP (PodUtils/podcrates, T-019): pod-quic, on
  # the same noq.
 -pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", optional = true }
-+pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", optional = true }
++pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", optional = true }
  # DERP's handshake (src/derp/, T-349): the client's info sealed to the
  # server's key with NaCl's crypto_box (X25519, XSalsa20, Poly1305). Pure
  # Rust, RustCrypto's, in the lock already through the vendored tailscale-rs;
@@ -4533,7 +4533,7 @@ index 37fd0eb..f178eef 100644
  # sealed phases and the words of a code, which podssh gives its AppID, its
  # name and its way out; only with the feature `code`.
 -pod-wormhole = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", optional = true }
-+pod-wormhole = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", optional = true }
++pod-wormhole = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", optional = true }
  # croc's relay road (src/croc/, T-694): the curve SIEC of croc's relay
  # handshake, which no crate implements, on num-bigint's integers (0.4, in
  # the lock already), and AES-256-GCM of croc's crypt, the workspace's.
@@ -14031,6 +14031,22 @@ index 06f1ad2..0000000
 -        assert_eq!(digest_hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 -    }
 -}
+diff --git a/crates/podssh-relay/src/pinggy/mod.rs b/crates/podssh-relay/src/pinggy/mod.rs
+index 2b987d6..d2bb847 100644
+--- a/crates/podssh-relay/src/pinggy/mod.rs
++++ b/crates/podssh-relay/src/pinggy/mod.rs
+@@ -62,9 +62,9 @@ fn catalog() -> &'static pod_services::Service {
+ }
+ 
+ /// The host of Pinggy's dashboard, which its text names beside a tunnel's
+-/// address: never a tunnel's name.
++/// address: never a tunnel's name. It is the first text of `url-skip`.
+ pub fn dashboard() -> Option<&'static str> {
+-    catalog().text("dashboard-host")
++    catalog().texts("url-skip").and_then(|skip| skip.first()).map(|host| host.as_ref())
+ }
+ 
+ /// A server of Pinggy's protocol: SSH on `host`:`port`, raw or inside TLS,
 diff --git a/crates/podssh-relay/src/pool.rs b/crates/podssh-relay/src/pool.rs
 index f03dab1..458f7f7 100644
 --- a/crates/podssh-relay/src/pool.rs
@@ -30953,7 +30969,7 @@ index 051e819..0000000
 -    }
 -}
 diff --git a/crates/podssh-ssh/Cargo.toml b/crates/podssh-ssh/Cargo.toml
-index 22282dd..683805e 100644
+index 22282dd..f4b1115 100644
 --- a/crates/podssh-ssh/Cargo.toml
 +++ b/crates/podssh-ssh/Cargo.toml
 @@ -88,7 +88,7 @@ windows-sys = { version = "0.61", features = [
@@ -30961,12 +30977,12 @@ index 22282dd..683805e 100644
  
  [dev-dependencies]
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["screen"] }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["screen"] }
  # `test-util` gives the tests a paused clock: a hop's 10 s of silence (T-462)
  # and the relay's idle cut at 180 s (T-463) pass at once.
  tokio = { workspace = true, features = ["macros", "rt", "signal", "process", "test-util"] }
 diff --git a/crates/podssh-todo/Cargo.toml b/crates/podssh-todo/Cargo.toml
-index 858aa5a..a010fe4 100644
+index 858aa5a..75fc481 100644
 --- a/crates/podssh-todo/Cargo.toml
 +++ b/crates/podssh-todo/Cargo.toml
 @@ -10,4 +10,4 @@ publish.workspace = true
@@ -30974,9 +30990,9 @@ index 858aa5a..a010fe4 100644
  # podssh are in TODO/todo.toml.
  [dependencies]
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
 diff --git a/crates/podssh-ts/Cargo.toml b/crates/podssh-ts/Cargo.toml
-index 14d333f..43fd888 100644
+index 14d333f..84fa0d8 100644
 --- a/crates/podssh-ts/Cargo.toml
 +++ b/crates/podssh-ts/Cargo.toml
 @@ -11,7 +11,7 @@ publish.workspace = true
@@ -30984,12 +31000,12 @@ index 14d333f..43fd888 100644
  podssh-ws = { path = "../podssh-ws" }
  # The services of other parties: the default relay of Tailscale's road.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  tokio.workspace = true
  zeroize.workspace = true
  tailscale = { path = "../../vendor/tailscale-rs" }
 diff --git a/crates/podssh-warp/Cargo.toml b/crates/podssh-warp/Cargo.toml
-index c29b5f5..66530f7 100644
+index c29b5f5..843a12e 100644
 --- a/crates/podssh-warp/Cargo.toml
 +++ b/crates/podssh-warp/Cargo.toml
 @@ -15,7 +15,7 @@ publish.workspace = true
@@ -30997,12 +31013,12 @@ index c29b5f5..66530f7 100644
  # The services of other parties: WARP's API, its front door and its
  # versions, the trace of 1.1.1.1.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  tokio = { workspace = true }
  rustls = { workspace = true }
  tokio-rustls = { workspace = true }
 diff --git a/crates/podssh-ws/Cargo.toml b/crates/podssh-ws/Cargo.toml
-index a8158ee..3119dea 100644
+index a8158ee..eb7c04a 100644
 --- a/crates/podssh-ws/Cargo.toml
 +++ b/crates/podssh-ws/Cargo.toml
 @@ -10,22 +10,22 @@ publish.workspace = true
@@ -31011,26 +31027,26 @@ index a8158ee..3119dea 100644
  # server's side and Encrypted Client Hello, with podssh's settings (tls.rs).
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["pure", "rsa", "ech"] }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["pure", "rsa", "ech"] }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["pure", "rsa", "ech"] }
  # The dial, the proxies, the race of addresses, Multipath TCP, the HTTP/1.1
  # heads, the GET client (sealed with ECH where asked) and STUN's codec, with
  # podssh's settings (dial.rs).
 -pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["ech"] }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["ech"] }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["ech"] }
  # The resolver: an IP literal, the pins, the system, the cache of addresses
  # and DNS over HTTPS, the SRV and HTTPS records (resolve.rs), with its reader
  # of ECH lists for pod-tls.
 -pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["ech"] }
-+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["ech"] }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["ech"] }
  # The WebSocket: the frames, the session, the client of the relay on each
  # road (TLS, HTTP/2, cleartext), a URL's WebSocket and the server's side,
  # over podssh's way out (client.rs), with ECH.
 -pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["ech"] }
-+pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["ech"] }
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["ech"] }
  # The services of other parties: the forwarders of `--via` (forwarder/builtin.rs).
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
  tokio = { workspace = true }
  rustls = { workspace = true }
  tokio-rustls = { workspace = true }
@@ -31039,12 +31055,12 @@ index a8158ee..3119dea 100644
  
  [dev-dependencies]
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["screen"] }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0", features = ["screen"] }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0", features = ["screen"] }
  # The doctor is async because it may be asked to perform a handshake, and
  # the plants that assert `????` rather than `ok` have to drive it as a caller
  # would. `macros` is what makes `#[tokio::test]` exist.
 diff --git a/crates/podssh-zerotier/Cargo.toml b/crates/podssh-zerotier/Cargo.toml
-index 5823685..a720614 100644
+index 5823685..ef90430 100644
 --- a/crates/podssh-zerotier/Cargo.toml
 +++ b/crates/podssh-zerotier/Cargo.toml
 @@ -22,4 +22,4 @@ cc = "1.2"
@@ -31052,7 +31068,7 @@ index 5823685..a720614 100644
  tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
  # The relay of the live run, as podssh names no host of a third party.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.25.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.27.0" }
 diff --git a/docs/architecture.md b/docs/architecture.md
 index 54dbe07..7af2d96 100644
 --- a/docs/architecture.md

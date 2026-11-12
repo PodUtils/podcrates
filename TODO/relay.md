@@ -1054,6 +1054,11 @@ commit: podssh's workspace is in edition 2024.
   pins (repaired in the CLI). The steps of the `.run` on the
   fresh checkout: each 0, but the three builds that the disk of this host
   did not take.
+- The patch names the tag `v0.27.0` (the fix of `Mode::from_setting` is
+  not in `v0.26.0`). T-224 moved `dashboard-host` of `pinggy` into
+  `url-skip`: the patch changes `pinggy::dashboard()` of podssh-relay to
+  the first text of `url-skip` (the same line count, so no citation
+  moves).
 
 What remains, in order:
 

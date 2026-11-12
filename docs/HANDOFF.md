@@ -19,10 +19,10 @@ a line when its work is done. Git and the record keep finished work.
   `75a5031` to fixes (its fixes come as COORD issues). T-212 makes the
   lines events. A trial of a crate with a digit in its name needs the
   pattern of `scripts/adoption.sh` from `040f3ea`.
-- The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For the
-  next one: T-227 and T-233 (podvm#267, podvm#269; done on the branch
-  that lands after the tag), the podssh trial of `pod-relay` (T-025;
-  `adoption/podssh/pod-relay.patch` names the next tag), the three gaps
+- The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For
+  `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269; on `main`),
+  the podssh trial of `pod-relay` (T-025; the patch names `v0.27.0`),
+  the three gaps
   of `pod-netstack` of PodUtils/podnet#457 (P1; a subagent writes their
   entries and fixes on a local branch).
 
