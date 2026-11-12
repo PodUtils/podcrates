@@ -53,6 +53,30 @@ impl Handler for Echo {
     }
 }
 
+/// The first bytes of each session, written by the node before it reads,
+/// as an SSH server writes its banner.
+const BANNER: &[u8] = b"SSH-2.0-pod-relay-live\r\n";
+
+/// Each session writes [`BANNER`] first, then echoes its bytes.
+struct SpeaksFirst;
+
+impl Handler for SpeaksFirst {
+    type Stream = DuplexStream;
+
+    fn open(&self, id: SessionId) -> Opening<DuplexStream> {
+        Box::pin(async move {
+            let (node_end, mut server) = tokio::io::duplex(256 * 1024);
+            server.write_all(BANNER).await.map_err(|e| e.to_string())?;
+            let echo = Echo.open(id).await?;
+            let (mut from_echo, mut to_echo) = tokio::io::split(echo);
+            let (mut from_server, mut to_server) = tokio::io::split(server);
+            tokio::spawn(async move { tokio::io::copy(&mut from_server, &mut to_echo).await });
+            tokio::spawn(async move { tokio::io::copy(&mut from_echo, &mut to_server).await });
+            Ok(node_end)
+        })
+    }
+}
+
 /// Each session is refused with this reason.
 struct Refuse(String);
 
@@ -151,6 +175,50 @@ async fn node_serves_two_sessions_at_once() {
     stop.notify_one();
     let exit = tokio::time::timeout(LIMIT, task).await.expect("the node stops").unwrap();
     assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+    stop_pair(&relay, &copy).await;
+}
+
+/// The node writes first and the operator writes nothing until it reads:
+/// the order of SSH through `ProxyCommand` (PodUtils/podnet#502, T-327).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "the live relay: run with --ignored"]
+async fn the_node_speaks_first_as_sshd_does() {
+    let relay = relay();
+    let (made, copy) = paired(&relay).await;
+    let (task, stop) = node(made, SpeaksFirst);
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let (io, mut user) = tokio::io::duplex(4 * MIB);
+    let (name, token) = (copy.name.clone(), copy.connect_token().to_string());
+    let session = tokio::spawn(async move {
+        let config = OperatorConfig {
+            relay: &relay,
+            name: &name,
+            connect_token: &token,
+            trust: &Trust::Default,
+            ctx: support::live(),
+            timeout: LIMIT,
+            limits: OperatorLimits::default(),
+            wire: Wire::Tls,
+        };
+        operator::run(&config, io).await.expect("the operator's socket")
+    });
+    let mut banner = vec![0u8; BANNER.len()];
+    tokio::time::timeout(LIMIT, user.read_exact(&mut banner)).await.expect("the banner in time").unwrap();
+    assert_eq!(banner, BANNER);
+    let payload = pattern(3);
+    user.write_all(&payload).await.unwrap();
+    let mut back = vec![0u8; payload.len()];
+    tokio::time::timeout(LIMIT, user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
+    assert!(back == payload, "the bytes came back changed");
+    user.shutdown().await.unwrap();
+    let outcome = tokio::time::timeout(LIMIT, session).await.expect("an outcome").unwrap();
+    eprintln!("the banner, then 1 MiB each way: {outcome:?}");
+
+    stop.notify_one();
+    let exit = tokio::time::timeout(LIMIT, task).await.expect("the node stops").unwrap();
+    assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+    let relay = self::relay();
     stop_pair(&relay, &copy).await;
 }
 
