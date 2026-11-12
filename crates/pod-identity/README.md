@@ -11,7 +11,8 @@ identity.
 
 | Module | What |
 | --- | --- |
-| crate root | `Identity` (`from_seed`, `public`, `sign`, `dh_public`, `binding`), `PublicKey` (`parse`, `fingerprint`, `hex`, `verifies`, `signed`), `KeyName` |
+| crate root | `Identity` (`from_seed`, `public`, `sign`, `dh_public`, `binding`), `PublicKey` (`parse`, `fingerprint`, `display_fingerprint`, `hex`, `verifies`, `signed`), `KeyName` |
+| `display` | `DisplayFingerprint` (`of`, `parse`, `matches`): the display form of a fingerprint, five groups of eight characters of base32 with a checksum of 4 bytes, for a person (T-278, call C118); `DisplayError` |
 | `file` | `Place` (`Cache`, `File`, `Ephemeral`), `node_place`, `client_place`, `load(places, place, entropy)`, `existing(places, place)`, `load_in`, `load_split`, `existing_in` |
 | `pins` | `check(places, label, key)`, `check_in`, `check_split`, `Seen`, `PinError` |
 | `allow` | `Allowlist` (`parse`, `read`, `admits`, `grants`), `admits(path, key)`, `grants(path, key, route)` |

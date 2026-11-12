@@ -4635,7 +4635,7 @@ cargo run -q -p pod-services-watch -- --service syncthing-relay
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4661,6 +4661,25 @@ cargo test -p pod-identity --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-261 (it writes a COORD issue).
+
+## Done
+
+2026-11-12. The commit that names T-278 (call C118).
+
+- `crates/pod-identity/src/display.rs`: `DisplayFingerprint::{of, parse,
+  matches}`, its `Display` (`XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX`),
+  `DisplayError` (`Length`, `Character`, `Checksum`), and
+  `PublicKey::display_fingerprint`. `PublicKey::fingerprint` and the form
+  share one digest (`PublicKey::digest`).
+- Tests (5): the form and its parse (either case, `-` or spaces or none);
+  the form holds the head of the digest of the OpenSSH fingerprint; each
+  change of one character (40 times 31) and each swap of two neighbours
+  that differ fails the checksum; another length or alphabet is refused; a
+  known vector, the key of the zero seed, computed apart with Python's
+  `cryptography`: `SHA256:tAXFyTXI8xtDaujAEcwJslAYc9/6FKcUkd2Lw0xDhPo` and
+  `WQC4LSJV-ZDZRWQ3K-5DABDTAJ-WJIBQ467-7KYVQCOL`. `cargo test -p
+  pod-identity --all-features`: each suite passes; clippy is clean.
+- Not done: the form in an allowlist file (`KeyName` keeps its forms, C118).
 
 # T-304: `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479)
 

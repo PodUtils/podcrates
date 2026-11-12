@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**274 entries: 64 open, 2 partial, 4 blocked, 204 done.**
+**274 entries: 63 open, 2 partial, 4 blocked, 205 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 55 | 69 |
 | P2 | 25 | 1 | 4 | 105 | 135 |
-| P3 | 26 | 0 | 0 | 42 | 68 |
-| **All** | 64 | 2 | 4 | 204 | 274 |
+| P3 | 25 | 0 | 0 | 43 | 68 |
+| **All** | 63 | 2 | 4 | 205 | 274 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -308,7 +308,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-272](transport.md) | P2 | S | M1 | defect | done | `pod-services-watch`: `forward-url` tries keyboard-interactive, which Serveo's anonymous tunnel takes |
 | [T-276](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public Syncthing relays on port 443, with their device IDs (PodUtils/podssh#209) |
 | [T-277](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210) |
-| [T-278](transport.md) | P3 | S | M1 | feature | open | `pod-identity`: a display form of a fingerprint: base32 in five groups with a checksum of 4 bytes (PodUtils/podnet#479) |
+| [T-278](transport.md) | P3 | S | M1 | feature | done | `pod-identity`: a display form of a fingerprint: base32 in five groups with a checksum of 4 bytes (PodUtils/podnet#479) |
 | [T-279](relay.md) | P3 | S | M2 | feature | open | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |

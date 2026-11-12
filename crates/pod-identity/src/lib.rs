@@ -11,8 +11,11 @@
 //! the derived key agrees keys.
 
 pub mod allow;
+pub mod display;
 pub mod file;
 pub mod pins;
+
+pub use display::{DisplayError, DisplayFingerprint};
 
 use std::fmt;
 
@@ -104,13 +107,18 @@ impl PublicKey {
     /// the key's SSH encoding (`ssh-ed25519` and the key, each with its
     /// length), in base64 with no padding.
     pub fn fingerprint(&self) -> String {
+        format!("{FINGERPRINT_PREFIX}{}", base64::engine::general_purpose::STANDARD_NO_PAD.encode(self.digest()))
+    }
+
+    /// The SHA-256 digest of the key's SSH encoding: the bytes of
+    /// [`PublicKey::fingerprint`] and of [`PublicKey::display_fingerprint`].
+    fn digest(&self) -> [u8; 32] {
         let mut blob = Vec::with_capacity(51);
         for part in [&b"ssh-ed25519"[..], &self.0[..]] {
             blob.extend_from_slice(&(part.len() as u32).to_be_bytes());
             blob.extend_from_slice(part);
         }
-        let digest = Sha256::digest(&blob);
-        format!("{FINGERPRINT_PREFIX}{}", base64::engine::general_purpose::STANDARD_NO_PAD.encode(digest))
+        Sha256::digest(&blob).into()
     }
 
     /// The key in lower-case hex, as iroh shows it.

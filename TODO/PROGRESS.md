@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 274 entries: 64 open, 2 partial, 4 blocked, 204 done.
+`TODO/INDEX.md` holds 274 entries: 63 open, 2 partial, 4 blocked, 205 done.
 
 ## State
 
@@ -77,7 +77,7 @@ next entry.
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300
    (`pod-link`, calls C116 and C117: the unix and the memory carriers
-   first), T-278, T-279, in this order.
+   first), then T-279.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
    T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
@@ -112,7 +112,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C112, C115 to C117; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C112, C115 to C118; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
