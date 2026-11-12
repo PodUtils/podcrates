@@ -1,0 +1,7 @@
+# A session whose check of the data path fails does not mark its door
+# bad: the door that carried nothing stays first (podnet issue 133,
+# T-335). The test of the order after such a door must fail.
+ENTRY=T-335
+GROUP=warp
+EXPECT='test a_door_that_carries_nothing_goes_last \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test stack -- a_door_that_carries_nothing_goes_last'

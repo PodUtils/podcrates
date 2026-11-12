@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/device.rs b/crates/pod-netstack/src/device.rs
+index ae1550a..7905502 100644
+--- a/crates/pod-netstack/src/device.rs
++++ b/crates/pod-netstack/src/device.rs
+@@ -149,7 +149,6 @@ impl LinkDevice {
+     /// device only. The drops of an inbound queue that counts them
+     /// ([`LinkDevice::link`]) go to `stats` too.
+     pub fn with_stats(mut self, stats: Arc<DeviceStats>) -> Self {
+-        self.rx.move_count_to(&stats);
+         self.stats = stats;
+         self
+     }

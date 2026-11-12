@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/net/settings.rs b/crates/pod-warp/src/net/settings.rs
+index 8248ca7..307a767 100644
+--- a/crates/pod-warp/src/net/settings.rs
++++ b/crates/pod-warp/src/net/settings.rs
+@@ -110,7 +110,7 @@ impl NetSettings {
+             mtu: self.mtu,
+             tcp_buffer: self.tcp_buffer,
+             congestion_control: self.congestion_control,
+-            max_burst: self.tcp_burst,
++            max_burst: None,
+             link_stats: self.link_stats.clone(),
+             ..StackConfig::default()
+         })

@@ -1,0 +1,6 @@
+# The TCP burst of NetSettings does not reach the stack of a session
+# (T-335). The test of the window that the stand-in edge sees must fail.
+ENTRY=T-335
+GROUP=warp
+EXPECT='test the_tcp_burst_clamps_the_window_that_the_edge_sees \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test stack -- the_tcp_burst_clamps_the_window_that_the_edge_sees'

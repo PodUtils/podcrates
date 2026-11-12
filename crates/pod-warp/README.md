@@ -104,7 +104,8 @@ names (`Watch` of `tests/common/edge.rs`); `Seen::silent` of
 `pod_testkit::masque` makes a front door that takes the handshake and
 carries nothing. Plants: `warp-check-without-answer`,
 `warp-check-door-kept`, `warp-burst-not-passed`,
-`netstack-controller-not-set`, `netstack-shared-counters-lose-the-drops`.
+`netstack-controller-not-set`, `netstack-burst-not-set`,
+`netstack-shared-counters-lose-the-drops`.
 
 ## The parity list
 

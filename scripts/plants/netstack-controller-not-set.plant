@@ -1,0 +1,7 @@
+# Each TCP socket keeps no congestion controller, whatever the settings
+# say (podnet's --cc, T-335). The test of the controller of each socket
+# must fail.
+ENTRY=T-335
+GROUP=netstack
+EXPECT='test stack::tests::tune::each_tcp_socket_takes_the_congestion_controller_of_the_config \.\.\. FAILED'
+RUN='cargo test -p pod-netstack --lib -- stack::tests::tune::each_tcp_socket_takes_the_congestion_controller_of_the_config'

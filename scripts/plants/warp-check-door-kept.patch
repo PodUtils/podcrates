@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/net.rs b/crates/pod-warp/src/net.rs
+index cc7feac..881e451 100644
+--- a/crates/pod-warp/src/net.rs
++++ b/crates/pod-warp/src/net.rs
+@@ -375,7 +375,6 @@ impl Warp {
+                 Ok(net)
+             }
+             Err(failure) => {
+-                self.mark_door_bad();
+                 settings.report.decision("warp.check", "silent");
+                 Err(failure)
+             }
