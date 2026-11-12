@@ -1054,7 +1054,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pod-broker"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "libc",
@@ -1071,7 +1071,7 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1079,7 +1079,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "libc",
  "rand",
@@ -1089,7 +1089,7 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "bytes",
@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "pod-e2e"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "hmac 0.13.0",
  "pod-core",
@@ -1124,7 +1124,7 @@ dependencies = [
 
 [[package]]
 name = "pod-enter"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "pod-confine",
  "pod-core",
@@ -1133,7 +1133,7 @@ dependencies = [
 
 [[package]]
 name = "pod-extract"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "flate2",
  "pod-core",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "pod-gsr"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "foreign-types",
  "openssl",
@@ -1160,7 +1160,7 @@ dependencies = [
 
 [[package]]
 name = "pod-guest"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hold"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "libc",
  "pod-core",
@@ -1180,7 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "linux-raw-sys",
  "pod-core",
@@ -1189,7 +1189,7 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "pod-oci"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "pod-core",
@@ -1225,7 +1225,7 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "libc",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "pod-quic"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "atomic-waker",
  "hmac 0.13.0",
@@ -1254,7 +1254,7 @@ dependencies = [
 
 [[package]]
 name = "pod-relay"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1279,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "pod-core",
  "toml",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "pod-session"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "p256",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wg"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "curve25519-dalek 5.0.0",
  "pod-core",
@@ -1331,7 +1331,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wormhole"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "crypto_secretbox",
  "hkdf 0.13.0",
@@ -1347,7 +1347,7 @@ dependencies = [
 
 [[package]]
 name = "pod-ws"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64",
  "bytes",

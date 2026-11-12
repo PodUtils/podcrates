@@ -4264,4 +4264,5 @@ with qemu-img 8.2.2 here; with `POD_GUEST_TEST_QEMU=required` a host with
 no `qemu-img` fails it. `guest.yml` sets the variable; `plants.yml`
 installs `qemu-utils`. The plant `guest-commit-has-no-output-file` (the
 argv of `commit` again) is caught: "Expecting one image file name".
-`cargo test -p pod-guest --all-features --lib`: 89 passed.
+`cargo test -p pod-guest --all-features --lib`: 89 passed. `guest.yml`
+run 43154363052 (with `POD_GUEST_TEST_QEMU=required`): passed.
