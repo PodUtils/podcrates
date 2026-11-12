@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/open.rs b/crates/pod-relay/src/open.rs
+index 5c2059f..cb4d4ba 100644
+--- a/crates/pod-relay/src/open.rs
++++ b/crates/pod-relay/src/open.rs
+@@ -239,7 +239,7 @@ async fn open_on(req: &Request<'_>, wire: Wire, notes: &mut dyn FnMut(&str)) ->
+     // A host that failed lately goes last (podssh T-059), and one that opened first (podssh T-563).
+     let mut records = Records::load(&ctx.cache);
+     // The lists of the net's relay members, asked first (podssh T-617), join the list that the rank places (podssh T-607).
+-    let refreshed = crate::pool::members::refreshed(ctx, req.relays, req.trust).await;
++    let refreshed = req.relays.clone();
+     let listed = crate::rank_list::placed_now(ctx, &refreshed);
+     let (order, moved) = failures::order(failures::WEBSOCKET, &listed, &records, crate::pool::now_ms());
+     for note in moved {

@@ -1,0 +1,7 @@
+# podssh's plant t617-member-key-unchecked: the list at a member's host is
+# taken whatever trusted key signed it, not only by the member's key
+# (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test pool::members::tests::a_list_of_another_key_is_not_the_member_s_even_when_trusted \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- pool::members::tests'

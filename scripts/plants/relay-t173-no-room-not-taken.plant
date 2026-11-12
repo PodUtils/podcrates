@@ -1,0 +1,7 @@
+# podssh's plant t173-no-room-not-taken: the client does not know the
+# role's refusal of a new session for its budget, so a session past it
+# fails where the contract's road would carry it (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test forward_layer::client::tests::only_a_busy_refusal_in_the_handshake_is_no_room \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- forward_layer::client::tests'

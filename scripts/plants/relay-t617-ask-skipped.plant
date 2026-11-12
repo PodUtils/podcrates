@@ -1,0 +1,6 @@
+# podssh's plant t617-ask-skipped: a run with the default list asks no
+# relay member of its net, so it never learns its role's list (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test a_run_with_the_default_list_asks_the_net_s_relay_member_first \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test members_ask'

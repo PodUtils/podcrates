@@ -122,4 +122,21 @@ mod tests {
         heard(&node, &read(r#"{"maxSessions":64}"#));
         assert_eq!(offers(&node), after, "a hello with no offer counts nothing");
     }
+
+    /// A node that moved to its next pair takes the count, and rotates that
+    /// pair's token once a socket of that pair heard the offer: a flag of
+    /// "heard once" cannot tell that socket from the first pair's (podssh
+    /// T-620; podssh's plant `t620-offers-a-flag`).
+    #[test]
+    fn the_next_pair_s_socket_that_heard_the_offer_raises_the_count() {
+        let hello: Hello = serde_json::from_str(r#"{"stopRotation":true}"#).unwrap();
+        let node = NodeState::default();
+        heard(&node, &hello);
+        let at_move = offers(&node);
+        assert_eq!(at_move, 1);
+        heard(&node, &hello);
+        assert_eq!(offers(&node), at_move + 1, "the next pair's socket that heard the offer counts");
+        heard(&node, &hello);
+        assert_eq!(offers(&node), 3, "each socket counts once");
+    }
 }

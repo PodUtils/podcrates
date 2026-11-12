@@ -1,0 +1,7 @@
+# podssh's plant t421-backoff-after-a-fault: a node waits the backoff
+# again after a socket that served, closed by the relay for a fault of one
+# frame (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test reverse::node::tests::a_socket_that_served_is_taken_again_at_once_once_each_10_s \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- reverse::node::tests'

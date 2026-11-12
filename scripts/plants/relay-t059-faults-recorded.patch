@@ -1,0 +1,16 @@
+diff --git a/crates/pod-relay/src/failures.rs b/crates/pod-relay/src/failures.rs
+index 7920775..8867e75 100644
+--- a/crates/pod-relay/src/failures.rs
++++ b/crates/pod-relay/src/failures.rs
+@@ -241,9 +241,8 @@ pub fn order(road: &str, hosts: &[Relay], records: &Records, now_ms: i64) -> (Ve
+             None => middle.push(i),
+         }
+     }
+-    first.extend(middle);
+-    first.extend(last);
+-    (first, notes)
++    let _ = (first, middle, last, notes);
++    ((0..hosts.len()).collect(), Vec::new())
+ }
+ 
+ /// What the record says of one host on one road now.

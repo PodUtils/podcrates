@@ -1,0 +1,8 @@
+# podssh's plant t620-offers-a-flag: the sockets that heard the role's
+# offer of the rotation are a flag, not a count, so a node that moved to
+# its next pair cannot tell that pair's socket from the first pair's
+# (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test reverse::legs::tests::the_next_pair_s_socket_that_heard_the_offer_raises_the_count \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- reverse::legs::tests'

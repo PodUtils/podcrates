@@ -1,0 +1,6 @@
+# podssh's plant t059-faults-recorded, on the code that pod-relay holds
+# now: the order of the relay hosts ignores the record of failures (T-229).
+ENTRY=T-229
+GROUP=relay
+EXPECT='test failures::tests::a_host_that_failed_lately_is_tried_last_and_says_so \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- failures::tests'

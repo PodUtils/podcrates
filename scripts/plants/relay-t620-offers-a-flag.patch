@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/state.rs b/crates/pod-relay/src/reverse/state.rs
+index 91ae982..c29cf83 100644
+--- a/crates/pod-relay/src/reverse/state.rs
++++ b/crates/pod-relay/src/reverse/state.rs
+@@ -63,7 +63,7 @@ impl NodeState {
+ 
+     /// A socket heard a role that rotates stop tokens.
+     pub(crate) fn heard_rotation(&self) {
+-        self.rotates.fetch_add(1, Ordering::SeqCst);
++        self.rotates.store(1, Ordering::SeqCst);
+     }
+ 
+     /// How many sockets of this node heard a role that rotates the pair's
