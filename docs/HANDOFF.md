@@ -21,14 +21,14 @@ is done. Git and the record keep finished work.
   consumer took it).
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- T-028 (`pod-warp`): an agent of this session imports it in a worktree
-  under `.claude/worktrees/` (the free ids 335 to 344, calls C135 to
-  C144); merge its branch when its checks pass. The agent of T-326 has
-  the free ids 330 to 334 and calls C130 to C134.
-- T-207 (`pod-netlab`, the offline part: knobs, layout, scenarios, plan,
-  derivation, judge): an agent of this session in a worktree under
-  `.claude/worktrees/` (the free ids 345 to 349, calls C145 to C149);
-  merge its branch when its checks pass.
+- Agents of this session in worktrees under `.claude/worktrees/`; merge
+  each branch after `scripts/agent/check.sh` passes on the merge (a guard
+  test of one crate can scan another crate's files):
+  - T-377 (`pod-turn`, GitHub #100): free ids 380 to 384, calls C160 to C164.
+  - T-378 (`pod-devtunnel`, client side, PodUtils/podssh#216): free ids 385
+    to 389, calls C165 to C169.
+  - T-335 (`pod-warp`, podnet's stack): free ids 393 to 397, calls C170 to
+    C174.
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
