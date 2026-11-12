@@ -1433,3 +1433,51 @@ difference becomes a defect entry or a line of the known differences.
 ```sh
 cargo test -p pod-actions-expr -p pod-actions-workflow
 ```
+
+# T-309: `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask)
+
+**Source:** a direct message of the podrunner session, 2026-11-12, for PodUtils/podrunner@T-087 (its `LocalSource` at `5dd3251`).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Run<'w>` borrowed its `Workflow`. A job source of podrunner owns its run
+and must be `Send + 'static`, so it cannot keep the workflow and the run
+together; podrunner leaks one `Workflow` for each source
+(`Box::leak`). The ask: a `Run` that owns its workflow, with the same
+`ready`, `expand`, `finish`, `result` and `is_finished`. podrunner found
+no defect of the crate: its `LocalSource` passes its conformance suite.
+
+## Premise
+
+- Read: `crates/pod-actions-workflow/src/expand.rs` (`Run`, `plan`) and its
+  uses in the crate, its tests and `fuzz/src/targets/actions.rs`.
+
+## Approach
+
+`Run<W: Borrow<Workflow>>`: `&Workflow` as before, `Workflow` or
+`Arc<Workflow>` to own it. `ready` gives owned ids, so that a caller
+expands each one while it holds the list.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+```
+
+## Done
+
+2026-11-12. The commit that names T-309.
+
+- `Run<W: Borrow<Workflow>>` with `Run::new(workflow: W, base)` and
+  `Run::workflow()`; `ready()` gives `Vec<String>`. Breaking: a type
+  `Run<'w>` is `Run<&'w Workflow>`; a caller passes `&id` to `expand` and
+  `finish`. `Run::new(&workflow, ...)` and `plan` are as before.
+- Test `a_run_can_own_its_workflow`: a run over `&Workflow`, over
+  `Workflow` and over `Arc<Workflow>` (each of the last two
+  `Send + 'static`) gives the same jobs. `cargo test -p
+  pod-actions-workflow --all-features`: 42 passed; clippy is clean.

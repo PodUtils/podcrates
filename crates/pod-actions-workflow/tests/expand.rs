@@ -128,11 +128,11 @@ fn outcomes(build: JobResult) -> Vec<(String, String)> {
     let w = workflow(STATUS);
     let mut run = Run::new(&w, Base::default()).unwrap();
     let mut out = Vec::new();
-    while let Some(id) = run.ready().first().copied() {
-        let text = match run.expand(id).unwrap() {
+    while let Some(id) = run.ready().into_iter().next() {
+        let text = match run.expand(&id).unwrap() {
             Outcome::Run(_) => {
                 let result = if id == "build" { build } else { JobResult::Success };
-                run.finish(id, Done::of(result)).unwrap();
+                run.finish(&id, Done::of(result)).unwrap();
                 "run".to_string()
             }
             Outcome::Skipped(skip) => skip.to_string(),
@@ -340,4 +340,31 @@ fn the_contexts_of_the_job_level() {
         ..Base::default()
     };
     assert!(matches!(plan(&workflow(text), base, JobResult::Success).unwrap()[0].1, Outcome::Run(_)));
+}
+
+/// A run that owns its workflow, as a source that is `'static` keeps one
+/// (PodUtils/podrunner@T-087): `Workflow` and `Arc<Workflow>` give the same
+/// jobs as a borrow.
+#[test]
+fn a_run_can_own_its_workflow() {
+    fn order<W: std::borrow::Borrow<Workflow>>(mut run: Run<W>) -> Vec<String> {
+        let mut out = Vec::new();
+        while let Some(id) = run.ready().into_iter().next() {
+            if matches!(run.expand(&id).unwrap(), Outcome::Run(_)) {
+                run.finish(&id, Done::of(JobResult::Success)).unwrap();
+            }
+            out.push(id);
+        }
+        assert!(run.is_finished());
+        out
+    }
+    fn is_static<T: Send + 'static>(t: T) -> T {
+        t
+    }
+    let w = workflow(STATUS);
+    let borrowed = order(Run::new(&w, Base::default()).unwrap());
+    let owned = order(is_static(Run::new(w.clone(), Base::default()).unwrap()));
+    let shared = order(is_static(Run::new(std::sync::Arc::new(w), Base::default()).unwrap()));
+    assert!(!borrowed.is_empty());
+    assert_eq!((&owned, &shared), (&borrowed, &borrowed));
 }

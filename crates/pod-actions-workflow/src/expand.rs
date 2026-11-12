@@ -6,6 +6,8 @@
 //! `timeout-minutes` and `continue-on-error` also with `strategy` and
 //! `matrix`.
 
+use std::borrow::Borrow;
+
 use pod_actions_expr::{Condition, Contexts, Object, Status, Template, Value};
 
 use crate::error::{Error, ErrorKind};
@@ -23,10 +25,12 @@ enum State {
 }
 
 /// The state of one run of a workflow: which jobs are done, with their
-/// results and outputs.
+/// results and outputs. `W` is the workflow or a borrow of it: `&Workflow`,
+/// or `Workflow` and `Arc<Workflow>` for a run that owns it (a source that
+/// must be `'static`; PodUtils/podrunner@T-087).
 #[derive(Clone, Debug)]
-pub struct Run<'w> {
-    workflow: &'w Workflow,
+pub struct Run<W: Borrow<Workflow>> {
+    workflow: W,
     graph: Graph,
     base: Base,
     cancelled: bool,
@@ -41,12 +45,17 @@ fn value_error(path: String, node: &Node, why: String) -> Error {
     Error::new(path, Some(node.mark), ErrorKind::Value(why))
 }
 
-impl<'w> Run<'w> {
+impl<W: Borrow<Workflow>> Run<W> {
     /// A run of `workflow`: the graph of its needs must hold.
-    pub fn new(workflow: &'w Workflow, base: Base) -> Result<Run<'w>, Error> {
-        let graph = Graph::new(workflow)?;
-        let state = vec![State::Waiting; workflow.jobs.len()];
+    pub fn new(workflow: W, base: Base) -> Result<Run<W>, Error> {
+        let graph = Graph::new(workflow.borrow())?;
+        let state = vec![State::Waiting; workflow.borrow().jobs.len()];
         Ok(Run { workflow, graph, base, cancelled: false, state })
+    }
+
+    /// The workflow of the run.
+    pub fn workflow(&self) -> &Workflow {
+        self.workflow.borrow()
     }
 
     pub fn graph(&self) -> &Graph {
@@ -60,14 +69,14 @@ impl<'w> Run<'w> {
     }
 
     /// The jobs that wait and whose needs are done, in the topological
-    /// order.
-    pub fn ready(&self) -> Vec<&'w str> {
-        let workflow = self.workflow;
+    /// order. The ids are owned, so that the caller can expand each one.
+    pub fn ready(&self) -> Vec<String> {
+        let workflow = self.workflow.borrow();
         self.graph
             .order()
             .filter_map(|id| self.graph.index(id))
             .filter(|&j| matches!(self.state[j], State::Waiting) && self.needs_done(j))
-            .map(|j| workflow.jobs[j].id.as_str())
+            .map(|j| workflow.jobs[j].id.clone())
             .collect()
     }
 
@@ -85,7 +94,7 @@ impl<'w> Run<'w> {
     }
 
     fn needs_done(&self, j: usize) -> bool {
-        self.graph.needs(&self.workflow.jobs[j].id).iter().all(|n| self.result(n).is_some())
+        self.graph.needs(&self.workflow.borrow().jobs[j].id).iter().all(|n| self.result(n).is_some())
     }
 
     fn done(&self, job: &str) -> Option<&Done> {
@@ -116,7 +125,7 @@ impl<'w> Run<'w> {
         if !self.needs_done(j) {
             return Err(usage(format!("the needs of the job `{job}` are not done")));
         }
-        let job = &self.workflow.jobs[j];
+        let job = &self.workflow.borrow().jobs[j];
         let ancestors: Vec<(String, JobResult)> = self
             .graph
             .ancestors(&job.id)

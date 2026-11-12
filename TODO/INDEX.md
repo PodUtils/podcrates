@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**274 entries: 62 open, 2 partial, 4 blocked, 206 done.**
+**275 entries: 62 open, 2 partial, 4 blocked, 207 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 55 | 69 |
-| P2 | 25 | 1 | 4 | 105 | 135 |
+| P2 | 25 | 1 | 4 | 106 | 136 |
 | P3 | 24 | 0 | 0 | 44 | 68 |
-| **All** | 62 | 2 | 4 | 206 | 274 |
+| **All** | 62 | 2 | 4 | 207 | 275 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -321,3 +321,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-306](upkeep.md) | P1 | S | M5 | chore | done | `pod-services`: six podvm files of its block changed after `2be31b2` (`upstream.yml` red since 2026-11-10) |
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
+| [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |

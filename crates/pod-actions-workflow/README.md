@@ -23,7 +23,7 @@ let base = Base { github, vars, inputs, ..Base::default() };
 let mut run = Run::new(&parsed.workflow, base)?;      // needs: missing, cycle
 while !run.is_finished() {
     for id in run.ready() {                           // needs done, topological order
-        match run.expand(id)? {
+        match run.expand(&id)? {
             Outcome::Skipped(skip) => { /* `skip` says why; the job is done as skipped */ }
             Outcome::Run(cells) => { /* one job offer for each cell */ }
         }
@@ -48,7 +48,7 @@ order, each job that runs ends with the given result and no output.
 | `Node`, `Kind`, `Key`, `Mark` | a value of the file with its line and column: `to_value` (as written), `evaluate` (each `${{ }}` evaluated), `text`, `get`, `entries` |
 | `Warning` | an unknown key: its path, its name, its place |
 | `Graph` | `new` (a missing need and a cycle are errors by name), `order`, `edges`, `needs`, `ancestors` |
-| `Run` | `new`, `ready`, `expand`, `finish`, `cancel`, `result`, `is_finished`, `graph` |
+| `Run<W>` | `new`, `ready` (owned ids), `expand`, `finish`, `cancel`, `result`, `is_finished`, `graph`, `workflow`; `W` is `&Workflow`, or `Workflow` or `Arc<Workflow>` for a run that owns its workflow (T-309) |
 | `Base` | the contexts that do not change: `github` (a local stand-in of the caller), `vars`, `inputs`; the limits of an expression |
 | `Outcome`, `Instance`, `RunsOn`, `Skip` | the concrete jobs (`name`, `matrix`, `strategy`, `needs`, `runs_on`, `uses`, `timeout_minutes`, `continue_on_error`), or the skip (`condition` with its implicit `success() &&`, the results of the jobs before it, `cancelled`) |
 | `JobResult`, `Done` | `success`, `failure`, `cancelled`, `skipped` (`combine` of the cells of a matrix); a result with its outputs |
