@@ -7,7 +7,7 @@
 #[test]
 fn each_broker_is_a_wss_endpoint_on_443_in_the_order_of_its_rank() {
     let ids: Vec<&str> = pod_services::of_kind("mqtt-broker").map(|s| s.id()).collect();
-    assert_eq!(ids, ["shiftr-mqtt", "eclipse-mqtt"]);
+    assert_eq!(ids, ["shiftr-mqtt"]);
     for s in pod_services::of_kind("mqtt-broker") {
         let e = s.endpoint("broker").unwrap_or_else(|| panic!("{}: no endpoint broker", s.id()));
         assert_eq!((e.scheme(), e.port()), ("wss", 443), "{}", s.id());
@@ -24,5 +24,4 @@ fn the_public_instance_of_shiftr_has_its_public_login() {
     let s = pod_services::get("shiftr-mqtt").expect("the service shiftr-mqtt");
     assert_eq!((s.text("user"), s.text("password")), (Some("public"), Some("public")));
     assert_eq!(s.int("payload-bytes-most"), Some(64_000));
-    assert_eq!(pod_services::get("eclipse-mqtt").and_then(|s| s.text("user")), None, "no login");
 }

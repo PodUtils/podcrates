@@ -3293,7 +3293,7 @@ cargo test -p pod-netstack --lib --all-features stack::tests::udp
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3346,7 +3346,6 @@ cargo test -p pod-services --test mqtt
 cargo test -p pod-services-watch --test watches -- ws::
 sh scripts/ci/mosquitto-tests.sh
 cargo run -q -p pod-services-watch -- --service shiftr-mqtt
-cargo run -q -p pod-services-watch -- --service eclipse-mqtt
 cargo test -p pod-wormhole --test live -- --ignored
 ```
 
@@ -3435,6 +3434,16 @@ fuzz target, CI), and the commit of the plants and this record.
 - Not measured: the Eclipse sandbox (no answer from here); Mosquitto 2.1;
   a rate limit of either broker; a pairing while other clients load a
   public topic.
+- The runs of the lead: `ci.yml` at `1c9b738` (run of the push; the step
+  against Eclipse Mosquitto 2.1.2 of `images/mosquitto/` passed); `live.yml`
+  run 43172235777 at `cc51bee`: shiftr.io paired two ends through a topic
+  from GitHub; `mqtt.eclipseprojects.io:443` timed out after 19 s (here its
+  TLS handshake reset). A public broker that answers from neither network
+  leaves: `eclipse-mqtt` is gone, and `shiftr-mqtt` is the one broker.
+  The tests against magic-wormhole's server ran in the same job (none
+  skipped) once `POD_WORMHOLE_TEST_MQTT=required` named the need of
+  Mosquitto apart from `POD_WORMHOLE_TEST_SERVER`.
+
 
 # T-263: `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**260 entries: 58 open, 4 partial, 4 blocked, 194 done.**
+**260 entries: 58 open, 3 partial, 4 blocked, 195 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 28 | 3 | 4 | 99 | 134 |
+| P2 | 28 | 2 | 4 | 100 | 134 |
 | P3 | 18 | 0 | 0 | 40 | 58 |
-| **All** | 58 | 4 | 4 | 194 | 260 |
+| **All** | 58 | 3 | 4 | 195 | 260 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -299,7 +299,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-258](relay.md) | P2 | S | M2 | defect | done | `pod-netstack`: a UDP send over what the stack carries is `Ok` and lost; the IPv4 fragmentation of smoltcp as a feature (PodUtils/podnet#464) |
 | [T-259](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: the reactor loses a datagram that comes while the channel to the app is full (PodUtils/podnet#464) |
 | [T-260](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public bootstrap nodes of HyperDHT (PodUtils/podssh#204) |
-| [T-261](relay.md) | P2 | M | M2 | feature | partial | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |
+| [T-261](relay.md) | P2 | M | M2 | feature | done | `pod-wormhole`: a meeting point of the pairing over public MQTT brokers on 443 (PodUtils/podssh#205) |
 | [T-262](podvm.md) | P2 | S | M7 | defect | done | `pod-confine`: a TCP list is refused on a target with `socketcall(2)` (PodUtils/podvm#276) |
 | [T-263](relay.md) | P3 | S | M2 | defect | done | `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library |
 | [T-266](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: the provision writes its image with `qemu-img convert`; `qemu-img commit` takes no output file (PodUtils/podvm#277) |

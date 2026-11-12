@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 260 entries: 58 open, 4 partial, 4 blocked, 194 done.
+`TODO/INDEX.md` holds 260 entries: 58 open, 3 partial, 4 blocked, 195 done.
 
 ## State
 
@@ -37,10 +37,8 @@
   crate, with T-234; the trial of podnet on its `1abfa91` remains: no fix
   to port, the glue is not written, calls C101 to C103), T-040 (the
   trial of podvm), T-170 (step 2: `pod_hold::syn_hold` from podnet
-  `a7350b2`; the trial `pod-hold-syn` in `adoption.yml`, the release and
-  podnet's take remain), T-261 (the MQTT meeting point of
-  `pod-wormhole` is in the crate, with its tests; the step of Mosquitto in
-  `ci.yml` and the step of `live.yml` remain). Open defects: T-131
+  `a7350b2`; the trial `pod-hold-syn` passed in `adoption.yml` run
+  43164667092; the release and podnet's take remain). Open defects: T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of
   `pod-session`).
 - podrunner and podssh have lead sessions that podcrates started (the
@@ -97,9 +95,7 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261
-   (partial: the CI steps of the MQTT meeting point of `pod-wormhole`,
-   PodUtils/podssh#205); then T-204 (a random failure of
+6. **M2, the relay:** T-026 (partial: the trial of podnet), T-212; then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).
