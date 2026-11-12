@@ -5,15 +5,13 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.29.0` at `a4d3630` (`docs/releases/v0.29.0.md`; ci
-  43175571035, adoption 43174261180 at `52e461a`, release 43177712730;
-  the hand-off GitHub #87, COORD-055): `pod_hold::syn_hold` (T-170), the
-  MQTT meeting point of `pod-wormhole` (T-261), `reverse::channel` of
-  `pod-relay` (T-150), the `Host` of an IPv6 relay (T-245), one cache file
-  for each relay host (T-246), the watches `forward-url` (T-225, T-272).
-- `v0.30.0` is prepared on `main` (the version, `docs/releases/v0.30.0.md`,
-  the text of its hand-off): T-251, T-276, T-277, T-267 and the trial of
-  `pod-relay` in podnet (T-026).
+- Last release: `v0.30.0` at `613058c` (`docs/releases/v0.30.0.md`; ci
+  43191076106, adoption 43191076065 with the trial of `pod-relay` in
+  podnet, release 43197313787; the hand-off GitHub #89, COORD-057):
+  `pod-actions-expr` and `pod-actions-workflow` (T-251), the MQTT brokers
+  of `code::run` (T-277), `syncthing-relay` (T-276), the proof of
+  `forward-url` (T-267), the trial of `pod-relay` in podnet and `Send`
+  notes (T-026).
 - The consumers and their tags:
   - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
     changed; it took `pod-relay` at `0872c2c6`).
@@ -79,7 +77,7 @@ next entry.
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300
    (`pod-link`, calls C116 and C117: the unix and the memory carriers
-   first), T-278, T-279, in this order, after the release of `v0.30.0`.
+   first), T-278, T-279, in this order.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
    T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260

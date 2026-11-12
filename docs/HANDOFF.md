@@ -9,43 +9,27 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Finish the release of `v0.30.0` (`docs/maintenance.md`, "A release")
-   if it is not tagged: read `ci` and `adoption` at the head (the trial
-   `adoption/podnet/pod-relay.*` runs there), run `release.yml` with no
-   input, then with `version=0.30.0`; read the dry run of `publish.yml`;
-   post `docs/releases/v0.30.0-handoff.md` as COORD-057 `(to all)` (fill
-   `COMMIT` and the run ids), map it, message podrunner and podssh.
+1. Read the hand-off issue #89 (`v0.30.0`) and record each new take;
+   podnet's take of `pod-relay` ends T-026 (the `taken` line, the trial
+   files go).
 2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-3. Take the work order of `TODO/PROGRESS.md`. Its head now: T-212, T-290,
-   then the chain to WARP for podnet (T-028, T-029).
+3. Take the work order of `TODO/PROGRESS.md`: T-300 (`pod-link`, podnet
+   started its link workstream, PodUtils/podnet#480), T-278, T-279, T-212,
+   T-290.
 
 ## In flight
 
-- The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
-  took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`), podvm at
-  `c99bdd8d` (PodUtils/podvm#279), podssh at `5b56c4d`
-  (PodUtils/podssh#211), podrunner at `7cdd0d5`; #87 is closed.
-- On `main` after the tag: T-276 (`syncthing-relay`, call C104), T-277
-  (the MQTT brokers in the runs of a code, call C115), T-306 (the podvm
-  block of `pod-services`, which made `upstream.yml` red), and the gate of
-  `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did not build
-  it on macOS and Windows; `nightly.yml` was dispatched at `0edd703`).
-- `v0.30.0` is prepared on `main`: T-251 (`pod-actions-expr`,
-  `pod-actions-workflow`; calls C105 to C109; T-280 waits), T-276, T-277,
-  T-267, and the trial of T-026.
-- T-267 (`forward-url` proves the URL) is on `main`; the next run of
-  `services.yml` proves the URLs of the four live relays.
+- The last release: `v0.30.0` at `613058c` (the hand-off #89): no take
+  yet. Each consumer took `v0.29.0` (#87, closed).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
-  C112): the trial of podnet (`adoption/podnet/pod-relay.patch`,
-  `.commit`, `.run`) on podnet `98d8a71` passed each of its 22 steps on
-  this host; `adoption.yml` runs it at the push. `a176a93` makes the notes
-  of the opener `Send` (podssh and podvm pass `Send` closures at their
-  next take). The findings for the hand-off are in the Done section (the
-  fake relay's `ready`, the behaviours of the base, the new pair file, 9
-  packages more: T-290). Remains: the words "a binary does not turn it on"
-  of `plain-ws` (C101), then the release and podnet's take. podnet holds
-  the three files to fixes from `7c5f87e`.
+  C112): the trial `adoption/podnet/pod-relay.*` on podnet `98d8a71`
+  passed in `adoption.yml` 43191076065; podnet's take remains.
+- The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
+  the TCP-list tests on the targets with `socketcall(2)`, the bound under
+  riscv64). `upstream.yml` is green at `a3ee89d` (T-306, T-308).
+- T-267: the next run of `services.yml` proves the URLs of the four live
+  relays.
 - T-040 (partial): the trials of podvm, with each import for podvm.
 
 ## What waits
