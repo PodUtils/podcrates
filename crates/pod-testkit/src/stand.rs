@@ -1,7 +1,7 @@
 //! Stand-ins of the services of other parties, on the loopback, for the
 //! offline tests of a watch or a client (feature `stand`).
 //!
-//! * [`http`]: an HTTP/1.1 server that answers each request with what the
+//! * [`http()`]: an HTTP/1.1 server that answers each request with what the
 //!   caller's handler gives; a `101` answer keeps the connection and writes
 //!   the bytes of the answer's body after the head (a WebSocket's frames).
 //! * [`raw`]: a TCP server that gives each connection to the caller's

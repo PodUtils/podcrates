@@ -115,8 +115,15 @@ fn value(code: &mut String, dir: &Path, name: &str, v: &ValueSpec) -> String {
             format!("Value::Ints({})", list(code, name, "i64", &items))
         }
         ValueSpec::File(path) => {
-            let full = dir.join(path);
-            format!("Value::Text(Cow::Borrowed(include_str!({:?})))", full.display().to_string())
+            // The path from the manifest of the build that compiles the
+            // code, not the absolute path of this run: worktrees that share a
+            // target directory share this output (cargo hashes a member by
+            // its path in the workspace), and an absolute path names the
+            // tree of another build.
+            let name = dir.file_name().and_then(|n| n.to_str()).expect("the directory of the data has a name");
+            let rel = format!("/{name}/{path}");
+            debug_assert!(dir.join(path).is_file(), "{}", dir.join(path).display());
+            format!("Value::Text(Cow::Borrowed(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {rel:?}))))")
         }
     }
 }
