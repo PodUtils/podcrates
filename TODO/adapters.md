@@ -156,6 +156,10 @@ podcrates.
   `src/config.rs`, `src/proxy.rs` and the edge side of `src/ws.rs`
   (`serve_websocket`, `forward_path`) to fixes from `7c5f87e`
   (PodUtils/podnet#449). podnet accepts the cut of `docs/design.md`.
+- A fix in the frozen files to port at the import (PodUtils/podnet#460,
+  podnet `28da113`): a comment of a test in `mod tests` of
+  `src/tunnel.rs`, near the assert of `limit(LegKind::QuicDirect)`, names
+  `PodUtils/podnet:docs/tunnels.md` in place of `README.md`.
 - podnet's `tunnel --inspect` (PodUtils/podnet#435,
   PodUtils/podnet@T-244) captures each exchange beside the copy helpers of
   `forward_http` in `src/proxy.rs`: a ring, redaction by default, a replay

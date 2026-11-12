@@ -3795,7 +3795,7 @@ Checks:
 **Source:** T-224 (the facts of the SSH forward relays come from documents, and no watch reads a banner)
 **Category:** feature
 **Milestone:** M1
-**Priority:** P2
+**Priority:** P1
 **Effort:** M
 **Status:** open
 
@@ -3823,6 +3823,11 @@ the zone only), and the user `http` of Pinggy is not measured.
   `http-text` takes an endpoint, not a URL, and these relays have no
   HTTPS endpoint.
 - Not measured: a banner, from this sandbox (no SSH).
+- PodUtils/podnet#460: a banner of Pinggy of 2026-10-09 held URLs in
+  `*.free.pinggy.net`; the fact `url-match` of `pinggy` holds
+  `.run.pinggy-free.link`. If the live banner has only the other zone,
+  `podnet ssh-relay --service pinggy` finds no URL. podnet took
+  `pod_services::forward` at `6aa41b3` and holds no relay host now.
 
 ## Approach
 
