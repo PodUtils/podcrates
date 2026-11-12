@@ -4600,3 +4600,105 @@ cargo run -q -p pod-services-watch -- --service syncthing-relay
   with port 443, 43 of them not in the file`.
 - Not measured: a session through a relay (podssh's
   `strelay-interop.yml` runs it after its take).
+
+# T-278: `pod-identity`: a display form of a fingerprint: base32 in five groups with a checksum of 4 bytes (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A1, for PodUtils/podnet@T-261)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's link workstream shows the identity of a peer to a person. It asks for a display form of a fingerprint beside the OpenSSH form `SHA256:`: base32 in five groups, with a checksum of 4 bytes, so that a person can read it aloud and a typing error fails.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- `pod_identity` gives the OpenSSH form only. Find the alphabet, the group size and the checksum (a CRC-32 or the head of a SHA-256) in a published form first; record the choice as a call.
+
+## Approach
+
+`pod_identity::fingerprint::display(&key)` and its parse, which refuses a wrong checksum; tests of a known key, of each one-character change and of a swap of two characters.
+
+## Prove
+
+```sh
+cargo test -p pod-identity --all-features
+```
+
+## Start condition
+
+podnet starts its PodUtils/podnet@T-261 (it writes a COORD issue).
+
+# T-304: `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A7, for PodUtils/podnet@T-268 and PodUtils/podnet@T-273)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's link authenticates a peer by its Ed25519 identity in TLS. The `mutual` module of `pod-tls` pins P-256 keys only.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- Read `crates/pod-tls/src/mutual*` before the change: the pin of a P-256 key and the certificate it takes; rustls takes Ed25519 certificates with ring.
+
+## Approach
+
+A verifier of each side that takes a certificate whose key is the pinned Ed25519 key (a raw public key or a self-signed certificate), and refuses another key; tests with a minted certificate of each kind.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features
+```
+
+## Start condition
+
+podnet starts its PodUtils/podnet@T-268.
+
+# T-305: `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A10, for PodUtils/podnet@T-278 and PodUtils/podnet@T-281)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's DNS carriers move bytes in TXT and CNAME answers. They need a reader of these answers that sends EDNS0 with a size and sees the TC bit (a cut answer).
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- Read `crates/pod-dns/src` before the change: which record types the parser reads, and whether a query sends an OPT record.
+
+## Approach
+
+The parse of TXT (the strings of each record) and CNAME; a query with EDNS0 and a size; the TC bit in the answer; tests against a stand-in server and the fuzz target of the parser.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features
+```
+
+## Start condition
+
+podnet starts its PodUtils/podnet@T-278.

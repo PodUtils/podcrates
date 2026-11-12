@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 261 entries: 56 open, 2 partial, 4 blocked, 199 done.
+`TODO/INDEX.md` holds 269 entries: 64 open, 2 partial, 4 blocked, 199 done.
 
 ## State
 
@@ -76,6 +76,9 @@ next entry.
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
+   The asks of podnet's link workstream (PodUtils/podnet#479, P3; each
+   starts when podnet starts its own entry): T-278, T-279, T-300 (`pod-link`,
+   call C116), T-301, T-302 (after T-035), T-303, T-304, T-305.
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has);
@@ -107,7 +110,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104 and C115; C78, C79 and C96 to C99 are not used; C105 to C114 are given to two agents), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104, C115 and C116; C78, C79 and C96 to C99 are not used; C105 to C114 are given to two agents), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

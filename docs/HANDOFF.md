@@ -20,7 +20,8 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
-  took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`). Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
+  took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`), podvm at
+  `c99bdd8d` (PodUtils/podvm#279). Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
   podssh `12473a10`, podnet `b08e06f` (PodUtils/podnet#477), podvm
   `94e7ca2a` (PodUtils/podvm#278).
 - On `main` after the tag: T-276 (`syncthing-relay`, call C104) and the
@@ -42,7 +43,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.28.0`, `94e7ca2a`, PodUtils/podvm#278): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+- podvm (on `v0.29.0`, `c99bdd8d`, PodUtils/podvm#279): T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
 - podnet (on `v0.29.0`, `98d8a71`, PodUtils/podnet#478, with

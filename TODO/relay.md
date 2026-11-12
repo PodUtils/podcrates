@@ -3591,3 +3591,136 @@ and call C115).
   "nobody"); each is caught by its test.
 - Not measured: a pairing through Mosquitto or `shiftr-mqtt` from the
   runs (PodUtils/podssh@T-737 tests them with its glue).
+
+# T-279: `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A2, part 1, for PodUtils/podnet@T-263)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's link resumes a session within 10 minutes with a token that works once. `pod-session` holds its resume window and its token rule as constants of the crate; podnet asks for both as settings.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- Read `crates/pod-session/src` for the window of a resume and for the reuse of a resume token before the change.
+
+## Approach
+
+A field of the settings of a session for the window (default the value of today) and one for a token of one use (default the rule of today); tests that a resume after the window fails, and that a second use of a token of one use fails.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+## Start condition
+
+podnet starts its PodUtils/podnet@T-263.
+
+# T-300: `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A2, part 2, for PodUtils/podnet@T-263)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet asks whether podcrates wants a shared crate for the stream multiplexer of its link with credit flow control, the carriers and an ARQ. `pod-session` has no multiplexer and no credits. Until an answer, podnet plans them in a local crate crates/podnet-link.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- `pod-session` holds one stream of a session, its resume and its layer; `pod-relay` and `pod-e2e` take it.
+- Not read: podnet's design of the link (`PodUtils/podnet:TODO/link.md` at `060da00`).
+
+## Approach
+
+Call C116: the crate is `pod-link` in podcrates, not `podnet-link`. podcrates writes it when podnet starts the workstream: the frame of a stream (open, data, credit, close, reset), the credit window of each stream and of the link, the ARQ for a carrier that loses frames, and the carriers as a trait over `pod-session`. A fuzz target of the frame, and a test with 3 % of the frames lost.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+## Start condition
+
+podnet starts its link workstream and names its first carrier (a COORD issue).
+
+# T-301: `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A3, for PodUtils/podnet@T-298)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A record layer of several hops in podnet's link takes its keys from the end-to-end handshake of `pod-e2e`, not from the TLS exporter of one hop. podnet asks for the handshake hash and the transport keys as an interface.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- Read `crates/pod-e2e/src` (the Noise handshake of snow) before the change: which values snow exposes after the handshake, and which the crate keeps.
+
+## Approach
+
+A method of the finished handshake that gives the handshake hash, and an exporter that derives a key for a label from it (no raw transport key leaves the crate); tests that both ends derive the same key, and another label another key.
+
+## Prove
+
+```sh
+cargo test -p pod-e2e --all-features
+```
+
+## Start condition
+
+podnet starts its PodUtils/podnet@T-298.
+
+# T-303: `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A5, for PodUtils/podnet@T-284)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet asks whether the relay contract can carry the exchange of NAT traversal candidates (addresses and ports) between two peers, so that they try a direct path before the relay carries their bytes.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- The contract is `https://tcp.ssh.relay.ajam.dev/llms-full.txt` (watched daily, T-253). Not read for this question.
+
+## Approach
+
+Read the contract: a message of a pair or of a session that carries opaque data between the two ends before the stream. Write the answer in this entry (yes with the message, or no with what the contract needs), and the answer to podnet.
+
+## Prove
+
+```sh
+grep -n -i 'candidate\|signal\|offer' docs/research/*.md
+```

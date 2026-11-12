@@ -890,3 +890,37 @@ and names the repository; this entry then moves there.
 ## Start condition
 
 T-219 is done.
+
+# T-302: `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479)
+
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A4, for PodUtils/podnet@T-294 and PodUtils/podnet@T-295)
+**Category:** feature
+**Milestone:** M4
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's link serves Shadowsocks AEAD (SIP004) and Trojan at a peer, so it needs the accept side of both codecs, tested with the published test vectors of SIP004.
+
+## Premise
+
+- Read: PodUtils/podnet#479 and its ruling "The link workstream" (podnet's
+  `docs/decisions.md`, 2026-11-12); the workstream is P3 in podnet.
+- Not measured: podnet's use of it; podnet writes no code for it now.
+- `pod-egress` (T-035) is not written: the client side comes first.
+
+## Approach
+
+With T-035: the server side of each codec (the salt and the key of SIP004 with HKDF-SHA1, the chunks; the Trojan header with the SHA-224 of the password); the test vectors of SIP004; a test of a client of the crate against its server.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features
+```
+
+## Start condition
+
+T-035 is done, and podnet starts its PodUtils/podnet@T-294.
