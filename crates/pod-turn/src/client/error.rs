@@ -185,7 +185,7 @@ pub enum Kept {
     Channel(u16),
 }
 
-/// What [`super::Client::recv`] gives.
+/// What [`crate::Client::recv`] gives.
 #[derive(Debug)]
 pub enum Event {
     /// Data of a peer: in a Data indication (`channel` is `None`) or in

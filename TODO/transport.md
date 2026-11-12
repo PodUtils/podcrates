@@ -5253,7 +5253,7 @@ cargo run -q -p pod-services-watch -- --service qsocket-qsrn --service gosuda-po
 **Milestone:** M1
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5286,6 +5286,42 @@ loopback). The static probe, a fuzz target of the codec, plants.
 ```sh
 cargo test -p pod-turn -p pod-proxy -p pod-services-watch --all-features
 ```
+
+## Done
+
+2026-11-12, commits `0a848e1`, `b7e059f`, `49b270b`, `74cec6f` and the
+commit that closes this entry (on a local branch; the main session
+merges). `crates/pod-turn`: the codec of STUN (moved with its tests, its
+two plants under their names, and the one MD5 of the tree; calls C160,
+C161), the SHA-256 credentials against a vector computed apart with
+Python's `hashlib` and `hmac`, and the TURN client over UDP and TLS on
+TCP (calls C162 to C164). `pod_proxy::stun` and `pod_proxy::digest::md5`
+are re-exports; no copy of the codec stays in `pod-proxy`.
+
+- The Prove (in `cargo test --workspace --all-features`: 3075 passed, 0
+  failed, 43 ignored): `pod-turn` 35 passed (19 unit, `turn_udp` 12,
+  `turn_tls` 4), 1 ignored (`live`, no server of the caller);
+  `pod-proxy` 150 passed, 1 ignored; `pod-services-watch` 59 passed.
+- `cargo test -p pod-turn --no-default-features --features stun`: 16
+  passed (the codec alone, with no tokio and no TLS).
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all --check`, the docs with `-D warnings`,
+  `scripts/check-size.py`, `scripts/check-design-paths.py`,
+  `scripts/check-probe.py` (`pod-turn` with `stun` in
+  `static-probe-lean`, with `turn` in `static-probe`),
+  `scripts/check-publish-order.py`: clean.
+- `fuzz/`: the target `stun_message` with 10 seeds; `cargo test
+  --manifest-path fuzz/Cargo.toml --lib` 9 passed; fmt and clippy clean.
+- `sh scripts/plant-each.sh --apply`: 0 stale. The 7 plants of the crate
+  are caught: `proxy-stun-integrity-length-kept`,
+  `proxy-stun-length-trusted`, `turn-sha256-integrity-length-kept`,
+  `turn-stale-nonce-not-taken`, `turn-channel-data-not-padded`,
+  `turn-answer-integrity-unchecked`, `turn-refresh-not-on-timer`.
+- Not run here: the static build on the targets of CI (the probes build
+  in CI), the CI of a push, a live TURN server (T-380 runs coturn on the
+  loopback). Before the release: the owner reserves `pod-turn` (and
+  `pod-link`) on crates.io. GitHub #100 closes after the release, with
+  the commits and the CI runs.
 
 # T-378: `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94)
 

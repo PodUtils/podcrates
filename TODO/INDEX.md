@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**322 entries: 92 open, 5 partial, 5 blocked, 220 done.**
+**322 entries: 91 open, 5 partial, 5 blocked, 221 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 18 | 2 | 0 | 63 | 83 |
-| P2 | 38 | 1 | 5 | 110 | 154 |
+| P2 | 37 | 1 | 5 | 111 | 154 |
 | P3 | 36 | 2 | 0 | 45 | 83 |
-| **All** | 92 | 5 | 5 | 220 | 322 |
+| **All** | 91 | 5 | 5 | 221 | 322 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -365,7 +365,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-374](transport.md) | P1 | S | M1 | defect | open | `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98) |
 | [T-375](transport.md) | P3 | S | M1 | feature | open | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
 | [T-376](transport.md) | P3 | S | M1 | feature | open | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
-| [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
+| [T-377](transport.md) | P2 | L | M1 | feature | done | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
 | [T-378](transport.md) | P3 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
 | [T-380](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the client against coturn on the loopback, over UDP and TLS |
 | [T-381](transport.md) | P3 | M | M1 | feature | open | `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use |

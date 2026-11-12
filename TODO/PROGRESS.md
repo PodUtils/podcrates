@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 322 entries: 92 open, 5 partial, 5 blocked, 220 done.
+`TODO/INDEX.md` holds 322 entries: 91 open, 5 partial, 5 blocked, 221 done.
 
 ## State
 
@@ -70,7 +70,7 @@ next entry.
 
 1. **The defects and asks of the consumers:** T-374 (Serveo's tunnel
    zone, GitHub #98); T-380, T-381 (`pod-turn` against coturn, and the
-   options of RFC 8489 and RFC 8656 that it leaves out; T-377 is done);
+   options of RFC 8489 and RFC 8656 that it leaves out);
    T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
    #96, data only); T-378 (`pod-devtunnel`, GitHub #94: a study first, and
    a consumer that asks for it); T-330 (podvm's pair
