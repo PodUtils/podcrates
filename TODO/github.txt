@@ -90,4 +90,4 @@
 83 issue open
 84 issue open
 85 issue closed
-86 issue open
+86 issue closed

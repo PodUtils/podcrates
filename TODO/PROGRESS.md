@@ -22,17 +22,16 @@
   - podnet: `v0.28.0` (`b08e06f`, PodUtils/podnet#477; its test pins
     `InvalidInput` and `udp_oversize` over `mtu - 28`; it does not turn on
     `ipv4-fragmentation` now: PodUtils/podnet@T-248 decides).
-  - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
-    of experiment 414 passes; `mcr.microsoft.com` leaves its list of
-    reported hosts).
+  - podvm: `v0.28.0` (`94e7ca2a`, PodUtils/podvm#278; `kvm.yml` run
+    43171009630 provisions the ValidationOS guest with `convert_argv`:
+    the image has no backing file, the vendor image keeps its digest).
   - podrunner: `v0.28.0` (`bde47c3`; it names no TCP list and builds no
     target with `socketcall(2)`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes
     `check_upstream`, `names_upstream` and the flagged rules of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podvm's take of T-266 (PodUtils/podvm#277: it runs `kvm.yml` again with
-  the tag).
+  T-207, #70).
 - Partial: T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet on its `1abfa91` remains: no fix
