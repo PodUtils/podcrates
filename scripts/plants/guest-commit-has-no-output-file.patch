@@ -1,0 +1,17 @@
+diff --git a/crates/pod-guest/src/plan.rs b/crates/pod-guest/src/plan.rs
+index e3867c3..c502273 100644
+--- a/crates/pod-guest/src/plan.rs
++++ b/crates/pod-guest/src/plan.rs
+@@ -203,11 +203,9 @@ pub fn overlay_argv(qemu_img: &Path, base: &Path, overlay: &Path) -> Vec<String>
+ pub fn convert_argv(qemu_img: &Path, overlay: &Path, out: &Path) -> Vec<String> {
+     vec![
+         qemu_img.to_string_lossy().to_string(),
+-        "convert".to_string(),
++        "commit".to_string(),
+         "-f".to_string(),
+         "qcow2".to_string(),
+-        "-O".to_string(),
+-        "qcow2".to_string(),
+         overlay.to_string_lossy().to_string(),
+         out.to_string_lossy().to_string(),
+     ]

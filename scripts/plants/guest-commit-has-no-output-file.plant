@@ -1,0 +1,9 @@
+# The provision writes its image with qemu-img commit and a second file
+# name: qemu-img commit takes one file and writes the overlay into its
+# base, so the step fails (T-266, PodUtils/podvm#277). The test runs the
+# qemu-img of the host; plants.yml installs qemu-utils.
+ENTRY=T-266
+GROUP=guest
+EXPECT='Expecting one image file name'
+RUN='POD_GUEST_TEST_QEMU=required cargo test -p pod-guest --all-features --test convert'
+LIMIT=1800
