@@ -1,0 +1,8 @@
+# The reactor loses the backlog of a UDP socket when the channel to the app
+# is full, as podnet's reactor lost a datagram that it took from smoltcp
+# with no room. A burst with no reader must keep each datagram that fits.
+ENTRY=T-259
+GROUP=netstack
+EXPECT='the app got [0-9]+ datagrams'
+RUN='cargo test -p pod-netstack --lib a_burst_with_no_reader_keeps_each_datagram_that_fits'
+LIMIT=900

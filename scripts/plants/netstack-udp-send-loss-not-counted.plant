@@ -1,0 +1,7 @@
+# UdpDatagrams::try_send drops a datagram at a full queue to the stack with
+# no count. The sent and the counted datagrams must be the sends.
+ENTRY=T-257
+GROUP=netstack
+EXPECT='udp_tx_dropped: 0'
+RUN='cargo test -p pod-netstack --lib a_full_queue_to_the_stack_counts_each_lost_datagram'
+LIMIT=900

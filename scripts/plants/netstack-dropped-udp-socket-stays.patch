@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/udp_service.rs b/crates/pod-netstack/src/stack/udp_service.rs
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -410,7 +410,7 @@
+ /// datagram of the app went, or a link that takes nothing held them for
+ /// the linger.
+ fn finished(conn: &mut UdpConn, sockets: &SocketSet<'static>, now: SmolInstant, linger: SmolDuration) -> bool {
+-    if !conn.to_app.is_closed() {
++    if !conn.to_app.is_closed() || true {
+         return false;
+     }
+     let since = *conn.gone.get_or_insert(now);

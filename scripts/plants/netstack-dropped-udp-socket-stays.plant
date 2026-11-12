@@ -1,0 +1,7 @@
+# The reactor keeps the socket and the port of a dropped UDP socket, as on
+# 586fe83. A bind of the port after the drop must work.
+ENTRY=T-259
+GROUP=netstack
+EXPECT='the socket of the dropped UDP socket stays'
+RUN='cargo test -p pod-netstack --lib a_dropped_udp_socket_sends_its_queue_and_frees_its_port'
+LIMIT=900

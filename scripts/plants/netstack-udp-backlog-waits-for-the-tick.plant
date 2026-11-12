@@ -1,0 +1,8 @@
+# A receive of the app after a full channel does not kick the reactor: the
+# backlog of the socket waits for the tick of the reactor (10 s in the
+# test). The app must get the backlog at once.
+ENTRY=T-259
+GROUP=netstack
+EXPECT='the app got 64 datagrams'
+RUN='cargo test -p pod-netstack --lib a_burst_with_no_reader_keeps_each_datagram_that_fits'
+LIMIT=900

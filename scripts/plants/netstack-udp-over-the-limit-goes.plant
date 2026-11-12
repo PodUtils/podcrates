@@ -1,0 +1,7 @@
+# UdpSocket::send_to takes a datagram over what the stack can carry, as on
+# 586fe83: the send is Ok and the datagram is lost. It must be InvalidInput.
+ENTRY=T-258
+GROUP=netstack
+EXPECT='on an `Ok` value'
+RUN='cargo test -p pod-netstack --lib a_datagram_over_what_the_stack_carries_is_refused'
+LIMIT=900

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/udp_service.rs b/crates/pod-netstack/src/stack/udp_service.rs
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -368,7 +368,7 @@
+         if full(conn) {
+             flush(conn);
+             if full(conn) {
+-                NetStats::count(&stats.udp_rx_dropped);
++                let _ = stats;
+                 continue;
+             }
+         }

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/udp_service.rs b/crates/pod-netstack/src/stack/udp_service.rs
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -394,6 +394,8 @@
+                 }
+             }
+             Err(mpsc::error::TrySendError::Full(())) => {
++                conn.backlog.clear();
++                conn.backlog_bytes = 0;
+                 conn.read_stalled.store(true, Ordering::Release);
+                 return;
+             }

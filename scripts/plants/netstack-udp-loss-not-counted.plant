@@ -1,0 +1,8 @@
+# The reactor drops a datagram past the backlog of its socket with no
+# count. The sum of the datagrams that the app got and of the count must
+# be the burst.
+ENTRY=T-257
+GROUP=netstack
+EXPECT='reached the app, 0 counted'
+RUN='cargo test -p pod-netstack --lib a_burst_with_no_reader_counts_each_lost_datagram'
+LIMIT=900
