@@ -1,0 +1,8 @@
+# A new SYN past the budget goes to the stack, as in podnet's router: the
+# stack accepts it with no upstream, and its dial starts after the accept (a
+# late dial), so the payload has a connection whose dial can still fail. The
+# test of the budget must count no late dial (call C91).
+ENTRY=T-170
+GROUP=hold
+EXPECT='test syn_hold::tests::many::a_syn_past_the_budget_waits_for_room \.\.\. FAILED'
+RUN='cargo test -p pod-hold --features syn-hold --lib -- syn_hold::tests::many::a_syn_past_the_budget_waits_for_room'

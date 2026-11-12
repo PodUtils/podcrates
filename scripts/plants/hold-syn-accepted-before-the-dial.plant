@@ -1,0 +1,8 @@
+# The hold gives a new SYN to the stack at once, as well as to the dial: the
+# stack accepts the connection before the dial ends, and a failed dial then
+# resets a connection that the payload already has. The test of the order on
+# the link must find the SYN-ACK of the held port before the end of its dial.
+ENTRY=T-170
+GROUP=hold
+EXPECT='test syn_hold::tests::the_stack_answers_a_syn_only_after_its_dial \.\.\. FAILED'
+RUN='cargo test -p pod-hold --features syn-hold --lib -- syn_hold::tests::the_stack_answers_a_syn_only_after_its_dial'
