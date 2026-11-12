@@ -18,10 +18,14 @@
 //! - `OPEN`, `DATA`, `WINDOW`, `CLOSE` (a half close), `RESET` and
 //!   `GOAWAY` ([`frame`]).
 //!
-//! The carriers: [`unix::Unix`] (a stream over `AF_UNIX`) and
-//! [`memory::Memory`] (two ends in one process). Each carrier says with
-//! [`Carrier::available`] why the host cannot use it. The registry of the
-//! carriers, their order and their flags are the consumer's (call C117).
+//! The carriers: [`unix::Unix`] (a stream over `AF_UNIX`),
+//! [`memory::Memory`] (two ends in one process) and, with the feature
+//! `tcp`, `tcp::Tcp` (TLS 1.3 over TCP through the caller's way out, each
+//! side pinning the Ed25519 key of the other). Each carrier says with
+//! [`Carrier::available`] why the host cannot use it, and a listener gives
+//! the key that its peer proved with [`Listener::accept_peer`]. The
+//! registry of the carriers, their order and their flags are the
+//! consumer's (call C117).
 //!
 //! The resume of a link after the loss of its carrier is `pod-session`'s:
 //! a consumer runs the link over the application side of a resumable
@@ -40,10 +44,12 @@ pub mod memory;
 mod settings;
 mod state;
 mod stream;
+#[cfg(feature = "tcp")]
+pub mod tcp;
 #[cfg(unix)]
 pub mod unix;
 
-pub use carrier::{BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Io, Listener, Pending};
+pub use carrier::{Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Io, Listener, Pending};
 pub use error::{Error, GoAwayCode, ResetCode};
 pub use frame::{Decoder, Frame, FrameError, MAX_RECORD};
 pub use link::Link;
