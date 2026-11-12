@@ -12,6 +12,9 @@
   of `code::run` (T-277), `syncthing-relay` (T-276), the proof of
   `forward-url` (T-267), the trial of `pod-relay` in podnet and `Send`
   notes (T-026).
+- `v0.31.0` is prepared on `main` (the version, `docs/releases/v0.31.0.md`,
+  the text of its hand-off): T-320 and T-321 (podvm's defects
+  PodUtils/podvm#281, #282), T-309, T-278.
 - The consumers and their tags:
   - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
     changed; it took `pod-relay` at `0872c2c6`).

@@ -9,12 +9,19 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Read the hand-off issue #89 (`v0.30.0`) and record each new take.
-2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+1. Finish the release of `v0.31.0` if it is not tagged (`docs/maintenance.md`,
+   "A release"): read `ci` and `adoption` at the head, run `release.yml`
+   with no input, then with `version=0.31.0`; read the dry run of
+   `publish.yml`; post `docs/releases/v0.31.0-handoff.md` as COORD-058
+   `(to all)` (fill `COMMIT` and the run ids), map it, message podrunner
+   and podssh.
+2. Read the hand-off issues #89 (`v0.30.0`, podssh's take is open) and the
+   one of `v0.31.0`, and record each new take.
+3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-3. Take the work order of `TODO/PROGRESS.md`: T-300 (`pod-link`, podnet
-   started its link workstream, PodUtils/podnet#480), T-278, T-279, T-212,
-   T-290.
+4. Take the work order of `TODO/PROGRESS.md`: T-300 (`pod-link`, an agent
+   of this session in a worktree under `.claude/worktrees/`: merge its
+   branch when its checks pass), T-212, T-290.
 
 ## In flight
 
