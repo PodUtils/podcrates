@@ -69,6 +69,19 @@ port = 443
 source = { url = "https://tcp.ssh.relay.ajam.dev/relays.json", read = 2026-11-06, note = "in the member pool" }
 
 # The limits of /relays.json (podssh crates/podssh-probe/facts/relay-limits.toml).
+# The contract that pod-relay implements (the frames, the paths, the
+# limits of a session), as the relay publishes it for agents. Each edit of
+# the document is a finding of the watch below; the session reads the
+# change against pod-relay (PodUtils/podnet#463).
+[[endpoint]]
+name = "contract"
+role = "contract"
+scheme = "https"
+host = "tcp.ssh.relay.ajam.dev"
+port = 443
+path = "/llms-full.txt"
+source = { url = "https://tcp.ssh.relay.ajam.dev/llms-full.txt", read = 2026-11-12, note = "the full raw Markdown for agents, in the table Exact addresses of the document" }
+
 [[fact]]
 name = "connect-timeout-ms"
 value = 10000
@@ -113,6 +126,17 @@ type = "texts"
 value = []
 source = { ruling = "PodUtils/podssh docs/relay-operator.md, item 14: a signed /relays.json is optional for the operator, who published no key", read = 2026-11-05 }
 
+[[fact]]
+name = "contract-sha256"
+value = "88eb1b0b8571b829daab17614ea2e27966ba5611951ea28db84660fc41cfa5a8"
+source = { measured = "the SHA-256 of GET https://tcp.ssh.relay.ajam.dev/llms-full.txt; two reads gave the same", read = 2026-11-12 }
+
+[[fact]]
+name = "contract-bytes"
+value = 18359
+unit = "bytes"
+source = { measured = "the length of GET https://tcp.ssh.relay.ajam.dev/llms-full.txt", read = 2026-11-12 }
+
 [[watch]]
 kind = "http-json"
 url = "https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22"
@@ -150,3 +174,11 @@ status = 200
 [[watch]]
 kind = "rdap"
 domain = "ajam.dev"
+
+# A change of the contract (PodUtils/podnet#463): services.yml runs it each
+# day.
+[[watch]]
+kind = "http-sha256"
+endpoint = "contract"
+fact = "contract-sha256"
+length = "contract-bytes"

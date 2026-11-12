@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**243 entries: 64 open, 5 partial, 4 blocked, 170 done.**
+**245 entries: 64 open, 5 partial, 4 blocked, 172 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 49 | 64 |
-| P2 | 31 | 2 | 4 | 84 | 121 |
-| P3 | 20 | 1 | 0 | 35 | 56 |
-| **All** | 64 | 5 | 4 | 170 | 243 |
+| P2 | 31 | 2 | 4 | 85 | 122 |
+| P3 | 20 | 1 | 0 | 36 | 57 |
+| **All** | 64 | 5 | 4 | 172 | 245 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -290,3 +290,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-246](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |
 | [T-251](fleet.md) | P3 | L | M8 | feature | open | `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84) |
+| [T-252](transport.md) | P3 | S | M1 | chore | done | podnet's change of `src/doctor.rs` for the lanes of A-C-10 (PodUtils/podnet#462) |
+| [T-253](transport.md) | P2 | S | M1 | feature | done | `pod-services`: a watch of the relay contract that `pod-relay` implements (PodUtils/podnet#463) |

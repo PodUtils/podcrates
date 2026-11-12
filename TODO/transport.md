@@ -4006,3 +4006,98 @@ sh scripts/plant-each.sh --apply
   `sh scripts/plant-each.sh --apply`: 0 stale.
 - Not measured: a TCP connect or a handshake to a relay. The watch trusts
   the list's `status_tcp`.
+
+# T-252: podnet's change of `src/doctor.rs` for the lanes of A-C-10 (PodUtils/podnet#462)
+
+**Source:** PodUtils/podnet#462 (COORD-042 of podnet; PodUtils/podnet@T-260, commit `9814f2d`)
+**Category:** chore
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podnet@T-260 gives a probe to the lanes `masque_udp443` and
+`ws_upgrade` of `doctor --json`. It changed `src/doctor.rs`, a file of the
+podnet block of `crates/pod-services/SOURCES`: a field `probes` of
+`Report`, the calls of `lane_probes::start` and `finish`, the module
+`lane_probes`. podnet asks whether `pod-services` takes the same lines.
+
+## Premise
+
+- Read: PodUtils/podnet#462; `crates/pod-services/SOURCES` (the podnet
+  block: only the values of other parties moved; the code stays in
+  podnet; the block has `taken bf0c7ca`, so the check compares its files
+  with the parent of that commit).
+- The changed lines hold no value of another party: no host, no port, no
+  key.
+
+## Approach
+
+No port: the probes are podnet's code. Answer podnet in the next
+hand-off: a new value of another party that a probe needs (a host, a
+port) comes to `pod-services` by a COORD issue.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py pod-services
+```
+
+## Done
+
+2026-11-12. No change of `pod-services`: the lines are code, and the
+block's take at `bf0c7ca` ended the freeze of its code. The answer goes
+in the hand-off of the next tag.
+
+# T-253: `pod-services`: a watch of the relay contract that `pod-relay` implements (PodUtils/podnet#463)
+
+**Source:** PodUtils/podnet#463 (COORD-043 of podnet; the owner's ruling in podnet, "Relay contract watch"; PodUtils/podnet@T-134)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The owner ruled in podnet that the watch of the relay contract belongs to
+`pod-relay` in podcrates: a scheduled job that reads
+`https://tcp.ssh.relay.ajam.dev/llms-full.txt` and fails when the
+contract that `pod-relay` implements changes (the frame format, the
+paths, the limits of a session). No workflow of podcrates reads it.
+
+## Premise
+
+- Measured on 2026-11-12: `GET https://tcp.ssh.relay.ajam.dev/llms-full.txt`
+  answers 200, `text/plain`, 18,359 bytes, SHA-256 `88eb1b0b…`, the same
+  on two reads.
+- `services.yml` runs the watches of `pod-services` each day; the watch
+  kind `http-sha256` compares the SHA-256 and the length of a file at an
+  endpoint with facts.
+
+## Approach
+
+An endpoint `contract` (role `contract`, path `/llms-full.txt`) of the
+service `ajam-relay`, the facts `contract-sha256` and `contract-bytes`,
+and an `http-sha256` watch of them. Each edit of the document is a
+finding; the session reads the change against `pod-relay`, moves the
+facts, and changes the crate where the contract changed.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo run -q -p pod-services-watch -- --service ajam-relay
+```
+
+## Done
+
+2026-11-12. The endpoint, the two facts and the watch in
+`crates/pod-services/services/ajam-relay.toml`. `cargo test -p
+pod-services -p pod-relay --all-features` passes. The live watch:
+`holds ajam-relay http-sha256: the SHA-256 of
+https://tcp.ssh.relay.ajam.dev/llms-full.txt is the fact's; ... is 18359
+bytes` (8 hold for the service). The watch kind has its own tests and
+plants (T-050).
