@@ -185,8 +185,8 @@ podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
 | tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`, `a_header_shorter_than_20_bytes_is_no_syn`, `a_fragment_past_the_first_is_no_syn` (`lib.rs`) | here, with the same names |
 | each `pod-*` dependency | tag `v0.17.0` |
 
-The patch `adoption/podnet/pod-hold-veth.patch` (podnet `db34bae`, tag
-`v0.25.0`; T-201) takes these rows; podnet has not taken it:
+podnet took these rows at `f107766` (tag `v0.26.0`; the trial patch
+`pod-hold-veth` of T-201, at podnet `db34bae`):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
