@@ -13,7 +13,8 @@ is the first part of T-028 (partial): the registration, the identity, the
 doors, the session over HTTP/2, the network and the rules; and T-335: the
 settings of podnet's stack of `src/warp/ip.rs` (the congestion controller,
 the TCP burst, the counters of the link, the budget of a relay) and the
-check of the data path. The rest is T-336 to T-339.
+check of the data path. The rest is T-336 to T-339, and T-393 to T-395
+(the rest of `ip.rs`).
 
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no global state. Each failure is a

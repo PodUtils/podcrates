@@ -531,7 +531,7 @@ T-029 is done.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -566,6 +566,44 @@ them.
 cargo test -p pod-netstack --all-features
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commits `1e5d154` (the work) and `7796b38` (the plants);
+calls C170 to C174.
+
+- `pod-netstack`: `StackConfig::congestion_control`, `max_burst` and
+  `link_stats` (C170). Fix in place: `LinkDevice::with_stats` after
+  `LinkDevice::link` moves the count of the inbound drops to the new
+  counters (the test failed on the code before: 0 of 6 drops).
+- `pod-warp`: `NetSettings` (`Settings::net`; C171): the MTU, the TCP buffer
+  of 512 KiB (`WarpNet` had 64 KiB), `congestion_control` (`parse_cc`),
+  `tcp_burst` (`parse_tcp_burst`, 1 to 430), `link_stats`, `check`,
+  `renew` (C173); `WarpNet::link_stats`, `renew_due`, `check_data_path`,
+  `checked`. `Warp::connect` checks the data path and marks a door that
+  carried nothing bad (C172). The test edge answers DNS on UDP port 53,
+  notes the largest TCP window of the client and drops the questions that a
+  test names. The README has the API, the settings, the tests of T-335, the
+  parity rows and the adoption rows.
+- Sources: `PodUtils/podnet:src/warp/ip.rs`,
+  `PodUtils/podnet:src/warp/proxy.rs` (`check_data_path`, `query_at`) and
+  `PodUtils/podnet:crates/podnet-core/src/services.rs` at `e046560`; the blobs are the same at podnet's `main` (`27f2b41`), so no
+  fix to port. `SOURCES` of both crates names `ip.rs`; no import commit
+  (C174).
+- `cargo test -p pod-netstack --all-features`: 67 passed (6 new).
+  `cargo test -p pod-warp --all-features`: 61 unit tests (4 new), 8 of
+  `tests/stack.rs` (new), 6 of `tests/net.rs`, 8 of `tests/register.rs`, 1
+  live test ignored; `tests/stack.rs` passed 8 runs in a loop.
+- Plants: `netstack-shared-counters-lose-the-drops`,
+  `netstack-controller-not-set`, `netstack-burst-not-set`,
+  `warp-burst-not-passed`, `warp-check-without-answer`,
+  `warp-check-door-kept`: each caught (`sh scripts/plant-each.sh`).
+- New entries for the rest of `ip.rs`: T-393 (the TCP timeout, the
+  keepalive, no Nagle), T-394 (the streams of a closed session fail; a
+  close by the caller), T-395 (UDP to a family that the device lacks). The
+  DNS over TLS of the servers of the check is in the Approach of T-338.
+- Not run here: the live test (no WARP endpoint from this sandbox), the CI
+  of a push, the adoption trial of podnet (T-339).
 
 # T-336: `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file
 

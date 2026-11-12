@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**326 entries: 87 open, 5 partial, 5 blocked, 229 done.**
+**326 entries: 86 open, 5 partial, 5 blocked, 230 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 2 | 0 | 64 | 84 |
+| P1 | 17 | 2 | 0 | 65 | 84 |
 | P2 | 37 | 1 | 5 | 115 | 158 |
 | P3 | 32 | 2 | 0 | 48 | 82 |
-| **All** | 87 | 5 | 5 | 229 | 326 |
+| **All** | 86 | 5 | 5 | 230 | 326 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -336,7 +336,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-328](podvm.md) | P2 | S | M6 | research | done | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
 | [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
-| [T-335](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
+| [T-335](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
 | [T-336](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
 | [T-337](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
 | [T-338](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |

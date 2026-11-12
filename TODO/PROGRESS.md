@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 326 entries: 87 open, 5 partial, 5 blocked, 229 done.
+`TODO/INDEX.md` holds 326 entries: 86 open, 5 partial, 5 blocked, 230 done.
 
 ## State
 
@@ -79,8 +79,10 @@ next entry.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-028 (`pod-warp`
    with its `Dial` and `Datagrams`; partial: the registration, the identity,
-   the doors, the session over HTTP/2, the network and the rules are in),
-   then T-335, T-336, T-337, T-338 and T-339 (the rest of `pod-warp`), then
+   the doors, the session over HTTP/2, the network and the rules are in;
+   the settings of podnet's stack of `ip.rs` and the check of the data path
+   are in), then T-394, T-393 and T-395 (the rest of `ip.rs`),
+   T-336, T-337, T-338 and T-339 (the rest of `pod-warp`), then
    T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
