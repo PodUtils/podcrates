@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 85 open, 6 partial, 5 blocked, 236 done.
+`TODO/INDEX.md` holds 332 entries: 84 open, 6 partial, 5 blocked, 237 done.
 
 ## State
 
@@ -124,7 +124,7 @@ next entry.
    gives no answer to one runner reddens `services.yml`; partial: the
    scheduled runs after the merge prove it), T-371 (the same class for the
    DNS watches, `stun-binding` and the HTTP client), T-353 (`pod-oci` against
-   distribution; ECR Public gives 429), T-355 (the cache of the downloads), T-356 (sish and
+   distribution; ECR Public gives 429), T-356 (sish and
    sandhole), T-357 (gs-netcat), T-358 (coturn). T-359 and T-360 go with
    T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).

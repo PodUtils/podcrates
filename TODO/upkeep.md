@@ -953,7 +953,7 @@ not a host of the downloads (`DOWNLOADS` and the mirrors of
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1006,6 +1006,25 @@ gh workflow run nightly.yml
 
 The second run of `ci.yml` on the same `Cargo.lock` logs a hit of each
 cache and no `cargo install`.
+
+## Done
+
+2026-11-12, commit `cd8a4a2`; calls C152 and C185. `scripts/ci/fetch-tool.sh`
+takes one program of a release archive by its SHA-256;
+`scripts/ci/zig-tools.sh` gives zig (from the cache, else
+`scripts/fetch-zig.sh`) and cargo-zigbuild 0.23.4 (its release binary,
+`ZIGBUILD_SHA256`); `scripts/fuzz.sh` takes cargo-fuzz 0.13.2 the same way
+on Linux x86_64; `scripts/cloud-setup.sh` too. actions/cache 6.1.0 at
+`55cc834` keeps the registry of each job (`ci.yml`, `nightly.yml`,
+`adoption.yml`, `fuzz.yml`; keyed by the OS, the job and the lock files),
+the archives of zig and cargo-zigbuild (keyed by both SHA-256 values) and
+the cache of pip (keyed by `scripts/ci/wormhole-servers.txt`). The toolchain
+stays a download (C185). The plant `ci-step-reaches-a-host` is made again.
+Proof: `ci` run 43289686281 of `bb330bb` passed; its log reads a hit on
+the primary key of the zig cache and of the registry cache, and the step
+"zig and cargo-zigbuild" takes 3 to 4 s in each job of zig (a build of
+cargo-zigbuild took minutes); `adoption` run 43287309397 passed with the
+same step.
 
 # T-371: `pod-services-watch`: the DNS watches, `stun-binding` and the TLS of the HTTP client give no class "no answer"
 
