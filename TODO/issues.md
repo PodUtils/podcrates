@@ -87,5 +87,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #82 | cfb asks: tracker for the 36 asks of cfb owned by podcrates (from podcrates#35) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-113, T-114, T-115, T-116, T-117, T-118, T-119 |
 | #83 | githome asks: tracker for the 2 asks owned by podcrates (from podcrates#36) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-106, T-160 |
 | #84 | CI plan items: tracker for the 8 items owned by podcrates (from podcrates#47) | open (the owner's tracker; phases 3 and 5 stay in T-146) | T-100, T-102, T-103, T-104, T-106, T-146, T-162, T-251 |
+| #85 | COORD-053: v0.27.0: the close of a listener and no RST for a burst in pod-netstack; podnet's relay client and the podssh trial of pod-relay; the socket families of pod-confine (to all) | open (each consumer answers with the commit of its take) | T-025, T-026, T-213, T-223, T-227, T-230, T-231, T-232, T-233, T-240 |
 
 #79 to #81 are pull requests.

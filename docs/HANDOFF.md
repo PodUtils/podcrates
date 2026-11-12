@@ -28,18 +28,17 @@ a line when its work is done. Git and the record keep finished work.
   `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
   of podnet (adoption/podnet/pod-relay.*) is next. podnet's binary needs
   the feature `plain-ws` for a relay at `http://` on the loopback (C82).
-- The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For
-  `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269), T-213
-  (`pod-confine`: the families that Landlock does not check, the rights
-  of ABI 9 and 10), T-240 (a busy tmpfs at its release), on `main`;
-  the podssh trial of `pod-relay` (T-025; the patch names `v0.27.0`);
-  T-230 to T-232 and T-223 (`pod-netstack`, PodUtils/podnet#457;
-  breaking: `StackConfig::accept_pool` is gone, `StackConfig::linger` is
-  new); T-026 (partial: podnet's relay client in `pod-relay`).
+- The last release: `v0.27.0` at `547c6ee` (the hand-off #85). Each
+  consumer answers on #85 with the commit of its take. For `v0.28.0`:
+  T-234 (`pod-relay` for podnet's trial), T-244, T-256 and T-174
+  (PodUtils/podssh#196, #203), T-252 and T-253 (PodUtils/podnet#462,
+  #463), T-254 and T-255 (PodUtils/podvm#274, #275), the UDP gaps of
+  `pod-netstack` (PodUtils/podnet#464, a subagent), T-225 (the banner
+  watch, a subagent).
 
 ## What waits
 
-- podvm (on `v0.26.0`, `483a1957`, PodUtils/podvm#270; it takes T-227 and T-233 at the next tag and closes #267 and #269 then): its
+- podvm (on `v0.26.0`, `483a1957`, PodUtils/podvm#270; it takes T-227 and T-233 with `v0.27.0` (#85) and closes #267 and #269 then): its
   PodUtils/podvm@T-1658 sets `Plan.confine` (`--podvm-confine=SPEC`, the
   profile key `confine = true`); it checks `lambda-al2023` for T-208; its
   PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`

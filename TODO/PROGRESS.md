@@ -5,11 +5,13 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.26.0` at `fdb08f6` (`docs/releases/v0.26.0.md`; ci
-  43127380043, adoption 43127398394, release 43129426150; the hand-off
-  GitHub #77, COORD-052): the veth wire of `pod-hold` (T-201), the facts
-  of the SSH forward relays in `pod-services` (T-224), the report fields
-  of `pod-job` (T-226).
+- Last release: `v0.27.0` at `547c6ee` (`docs/releases/v0.27.0.md`; ci
+  43142574051, adoption 43142574101, release 43152297526; the hand-off
+  GitHub #85, COORD-053): the close of a listener and no RST for a burst
+  in `pod-netstack` (T-230 to T-232, T-223), podnet's relay client in
+  `pod-relay` (T-026, partial), the trial of podssh (T-025), the socket
+  families of `pod-confine` (T-213), the paths of `Plan.confine` after
+  the mounts (T-227), `mcr-registry` (T-233), a busy tmpfs (T-240).
 - The consumers and their tags:
   - podssh: `v0.26.0` (`ff2f7bac`, PodUtils/podssh#194; `pinggy::skips()`
     reads the URL rule of `pod_services::forward`).
@@ -22,8 +24,9 @@
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); podnet's take of T-230 to T-232 (PodUtils/podnet#457; the
-  next tag; `StackConfig::accept_pool` is gone).
+  T-207, #70); the takes of `v0.27.0` (#85): podnet's of T-230 to T-232
+  (PodUtils/podnet#457; `StackConfig::accept_pool` is gone), podssh's of
+  `pod-relay` (T-025), podvm's of T-227 and T-233.
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
