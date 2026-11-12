@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 256 entries: 63 open, 3 partial, 4 blocked, 186 done.
+`TODO/INDEX.md` holds 256 entries: 61 open, 3 partial, 4 blocked, 188 done.
 
 ## State
 
@@ -91,9 +91,7 @@ next entry.
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-212, T-026 (partial: the trial of podnet); T-261 (an
-   MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then
-   T-245 (the `Host` of an IPv6 relay on port 443), T-246 (the names of the
-   cache files); then T-204 (a random failure of
+   MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then T-204 (a random failure of
    `pod-session`); then T-122,
    T-123, T-124, T-121, T-150 (the asks of podnet); then T-197
    (`pod-netstack`).

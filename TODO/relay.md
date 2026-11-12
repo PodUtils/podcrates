@@ -2788,11 +2788,11 @@ and this record (the calls C80 to C82, T-245, T-246).
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
-`crates/pod-ws/src/client.rs:363` says "if port == 443 { host.to_string() }"
+`https_request` of `crates/pod-ws/src/client.rs` took the host alone
 for the `Host`: an HTTPS request of
 `pod-ws` (`https_post_json`, `https_with_token`) to an IPv6 address on
 port 443 sends `Host: 2001:db8::1`, with no brackets (RFC 9110, section
@@ -2827,6 +2827,21 @@ cargo test -p pod-ws --all-features
 cargo test -p pod-relay --all-features
 ```
 
+## Done
+
+2026-11-12. `30ba101`. `https_request` of `pod-ws` takes its `Host` from
+`client::https_host`, which is `pod_proxy::host::host_header`: an IPv6
+address in brackets, also on port 443; `keyed::host_header` is the same.
+The tests `the_host_of_an_https_request_to_an_ipv6_address_is_in_brackets`
+(`pod-ws`, `client::cut_tests`) and
+`the_host_of_an_ipv6_relay_on_443_is_in_brackets` (`pod-relay`,
+`keyed::tests`); the plants `ws-https-host-no-brackets` and
+`relay-t245-key-host-no-brackets` are caught. A unit test of the rule in
+place of a stand-in proxy with TLS at an IPv6 address: a runner cannot
+bind port 443, and the request reads its `Host` from the one function.
+Not measured: a relay at an IPv6 address on port 443.
+
+
 # T-246: `pod-relay`: two relay hosts can have one name of a cache file
 
 **Source:** T-234 (found in the work).
@@ -2834,7 +2849,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2870,6 +2885,20 @@ test: `__1` and `[::1]` give two names of each file.
 cargo test -p pod-core
 cargo test -p pod-relay --all-features
 ```
+
+## Done
+
+2026-11-12. `30ba101`. `pod_core::files::exact_name`: each byte outside
+`[a-z0-9.-]` as `_` and its two hex digits. The files of the token
+(`cache::file_name`), the pool (`pool::file_name`) and the offers
+(`forward_layer::kept::file_name`) take it: `__1` is `_5f_5f1`, `::1` is
+`_3a_3a1`, `[2001:db8::1]:8443` is `_5b2001_3adb8_3a_3a1_5d_3a8443`. The
+old names are not read (one more mint, one more read of a pool). Tests:
+`exact_name_is_one_to_one` (`pod-core`), `each_host_and_port_has_a_file_of_its_own`
+(`pod-relay`); the plant `core-exact-name-not-one-to-one` is caught.
+`cargo test -p pod-relay -p pod-ws -p pod-core -p pod-identity
+--all-features` passes.
+
 
 # T-257: `pod-netstack`: UDP counters for a datagram lost at a slow app, at a full queue or buffer, and over the size that the stack carries (PodUtils/podnet#464)
 

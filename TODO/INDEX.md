@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**256 entries: 63 open, 3 partial, 4 blocked, 186 done.**
+**256 entries: 61 open, 3 partial, 4 blocked, 188 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 53 | 66 |
-| P2 | 31 | 2 | 4 | 94 | 131 |
-| P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 63 | 3 | 4 | 186 | 256 |
+| P2 | 30 | 2 | 4 | 95 | 131 |
+| P3 | 19 | 0 | 0 | 38 | 57 |
+| **All** | 61 | 3 | 4 | 188 | 256 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -286,8 +286,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-242](fleet.md) | P2 | S | M8 | chore | done | Docs: the names of the renames of 2026-11-12 (`pods`, `podstat`, `podforge`) and the stale text of `pod-git` and of the podrunner plan (GitHub #78) |
 | [T-243](upkeep.md) | P3 | S | M5 | chore | done | Dependabot of 2026-11-12: trufflehog 3.99.8, toml 1.2.1, and foreign-types 0.5.0 declined (GitHub #79, #80, #81) |
 | [T-244](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the public TCP relays of Tox on port 443, with the key of each node and a watch of the list (PodUtils/podssh#196) |
-| [T-245](relay.md) | P2 | S | M2 | defect | open | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
-| [T-246](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: two relay hosts can have one name of a cache file |
+| [T-245](relay.md) | P2 | S | M2 | defect | done | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
+| [T-246](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |
 | [T-251](fleet.md) | P3 | L | M8 | feature | open | `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84) |
 | [T-252](transport.md) | P3 | S | M1 | chore | done | podnet's change of `src/doctor.rs` for the lanes of A-C-10 (PodUtils/podnet#462) |
