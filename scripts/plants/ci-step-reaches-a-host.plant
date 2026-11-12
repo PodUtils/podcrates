@@ -1,0 +1,7 @@
+# A plant of T-352: a step of ci.yml that reaches a host of another party;
+# the check of the workflows must refuse it (call C150).
+ENTRY=T-352
+GROUP=workflows
+EXPECT='ci.yml reaches the host example.org'
+RUN='python3 -I scripts/check-workflows.py'
+LIMIT=300

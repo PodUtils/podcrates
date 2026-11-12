@@ -348,7 +348,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-349](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: a lab on a user-space stack, and a lab with more than one guest |
 | [T-350](transport.md) | P1 | M | M5 | defect | done | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
 | [T-351](upkeep.md) | P1 | M | M5 | defect | partial | `services.yml`: a host that gives no answer to one runner fails the daily run |
-| [T-352](upkeep.md) | P2 | S | M5 | chore | open | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
+| [T-352](upkeep.md) | P2 | S | M5 | chore | done | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
 | [T-353](podvm.md) | P2 | M | M5 | feature | open | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
 | [T-354](relay.md) | P2 | S | M5 | chore | open | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
 | [T-355](upkeep.md) | P2 | M | M5 | chore | open | The downloads of each job come from a cache, and the tools from their release binaries |

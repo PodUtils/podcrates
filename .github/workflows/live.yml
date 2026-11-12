@@ -6,9 +6,13 @@ name: live
 # Multipath TCP, a public
 # registry, Alpine's mirror, magic-wormhole's mailbox server and library,
 # and the public mailboxes of magic-wormhole and the public MQTT brokers.
-# They run each day at an off-peak hour and by hand (docs/decisions.md,
-# C24), with egress to the relay and to the resolvers. The checks of each
-# push do not need the network (ci.yml).
+# They run on Thursdays at an off-peak hour and by hand (docs/decisions.md,
+# C150, which replaces the daily runs of C24: the code of each client is
+# proven on each push against a stand-in, T-352), with egress to the relay
+# and to the resolvers. The checks of each push do not need the network
+# (ci.yml; scripts/check-workflows.py holds it). Multipath TCP runs by hand
+# alone (the input measure): the edge answers plain TCP, a fact that does
+# not change from day to day.
 #
 # The job relay runs one live test of the relay client of pod-relay, by
 # hand only (T-228): each test mints its own tokens and pairs on the live
@@ -16,7 +20,7 @@ name: live
 
 on:
   schedule:
-    - cron: "53 1 * * *"
+    - cron: "53 1 * * 4"
   workflow_dispatch:
     inputs:
       relay:
@@ -38,6 +42,14 @@ on:
         description: "The end of reverse_drops_live, in Unix seconds (at most an hour ahead; empty: 15 minutes)"
         required: false
         default: ""
+      measure:
+        description: "A measure that runs by hand alone (none: no measure)"
+        required: false
+        type: choice
+        default: none
+        options:
+          - none
+          - mptcp
 
 permissions:
   contents: read
@@ -83,6 +95,7 @@ jobs:
             cargo test --locked -p pod-dns --test live_doh -- --ignored --nocapture
           cat "$RUNNER_TEMP/names-proxy.log"
       - name: pod-proxy, Multipath TCP to the relay's edge
+        if: github.event_name == 'workflow_dispatch' && inputs.measure == 'mptcp'
         run: cargo test --locked -p pod-proxy --test mptcp -- --ignored --nocapture
       # A rate limit of the registry (429) is a skip that the log names.
       - name: pod-oci, a pull of the pinned guest userland from ECR Public
@@ -99,8 +112,8 @@ jobs:
             cargo test --locked -p pod-guest --test modloop_live -- --ignored --nocapture
       # magic-wormhole's own mailbox server and library on the loopback: a
       # skip for want of Python is a failure here, so these tests of
-      # pod-wormhole and of pod-relay run each day, not only on a host with
-      # Python.
+      # pod-wormhole and of pod-relay run in each run of this workflow, not
+      # only on a host with Python (T-354 moves them to each push).
       - name: magic-wormhole's mailbox server and library, in a virtualenv
         run: |
           set -eu

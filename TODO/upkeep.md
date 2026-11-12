@@ -881,7 +881,7 @@ it must fail; with no state it must pass with the line `first no answer`.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -933,6 +933,18 @@ python3 -I scripts/check-workflows.py
 sh scripts/plant-each.sh ci-step-reaches-a-host
 gh workflow run live.yml
 ```
+
+## Done
+
+2026-11-12. `live.yml`: the cron "53 1 * * 4" (Thursday); the step of
+MPTCP runs by hand alone (the input `measure: mptcp`); its comments name
+call C150. `scripts/check-workflows.py`: a workflow of each push
+(`ci.yml`, `plants.yml`, `adoption.yml`) refuses a test with `--ignored`,
+and a host in its text, or in a script of `scripts/` that it runs, that is
+not a host of the downloads (`DOWNLOADS` and the mirrors of
+`scripts/zig-mirrors.txt`). Today's workflows: 0 faults. Plant
+`ci-step-reaches-a-host` (group `workflows`): caught.
+
 
 # T-355: The downloads of each job come from a cache, and the tools from their release binaries
 

@@ -1,0 +1,11 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -47,6 +47,8 @@
+           persist-credentials: false
+       - name: Toolchain
+         run: sh scripts/retry.sh rustup toolchain install
++      - name: A live service
++        run: curl -qfsS https://example.org/
+       - name: Format
+         run: cargo fmt --all --check
+       - name: Clippy

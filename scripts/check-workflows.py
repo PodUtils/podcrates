@@ -12,6 +12,11 @@ DIR is .github/workflows when it is not given. The rules:
   and no other right, or no right (`permissions: {}`).
 * Each job has `timeout-minutes`.
 * A job named in READ_ONLY has no right to write.
+* A workflow of each push (NO_NETWORK) runs no test with `--ignored` and
+  names no host of another party: each `http://` or `https://` host in its
+  text, and in each script of `scripts/` that it runs, is a host of the
+  downloads (DOWNLOADS and the mirrors of `scripts/zig-mirrors.txt`; call
+  C150, T-352). A live service belongs to `live.yml` or `services.yml`.
 * Each workflow that AGENTS.md or a page of docs/ names (`NAME.yml`, in
   backticks or in a path) is a file of DIR. The pages in docs/research/,
   docs/releases/ and docs/reports/ are readings at a time, and they name
@@ -34,6 +39,17 @@ READ_ONLY = {
 # A file of .github that is not a workflow.
 NOT_WORKFLOWS = {"dependabot.yml"}
 NAME = re.compile(r"(?<![\w./-])([a-z][a-z0-9-]*\.ya?ml)\b")
+# The workflows of each push, which reach no host of another party.
+NO_NETWORK = {"ci.yml", "plants.yml", "adoption.yml"}
+# The hosts of the downloads of a job: the sources, the toolchains, the
+# packages.
+DOWNLOADS = {
+    "github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com",
+    "raw.githubusercontent.com", "crates.io", "static.crates.io", "index.crates.io", "static.rust-lang.org",
+    "pypi.org", "files.pythonhosted.org", "ziglang.org",
+}
+HOST = re.compile(r"https?://([A-Za-z0-9.-]+)")
+SCRIPT = re.compile(r"(scripts/[A-Za-z0-9/_.-]+\.(?:sh|py))")
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 
@@ -73,6 +89,32 @@ def check(path: Path) -> list[str]:
     return faults
 
 
+def network(root: Path, path: Path) -> list[str]:
+    """The faults of a workflow of NO_NETWORK: a test with `--ignored`, and
+    a host that is not a host of the downloads, in its text or in a script
+    of `scripts/` that it runs."""
+    allowed = set(DOWNLOADS)
+    mirrors = root / "scripts" / "zig-mirrors.txt"
+    if mirrors.is_file():
+        allowed |= set(HOST.findall(mirrors.read_text(encoding="utf-8")))
+    text = path.read_text(encoding="utf-8")
+    faults = [f"{path}:{n}: a test with --ignored needs a live service"
+              for n, line in enumerate(text.splitlines(), 1) if "--ignored" in line and not line.lstrip().startswith("#")]
+    sources = [(path, text)]
+    for script in sorted(set(SCRIPT.findall(text))):
+        file = root / script
+        if file.is_file():
+            sources.append((file.relative_to(root), file.read_text(encoding="utf-8")))
+    for where, body in sources:
+        for n, line in enumerate(body.splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for host in HOST.findall(line):
+                if host not in allowed:
+                    faults.append(f"{where}:{n}: {path.name} reaches the host {host}, not a host of the downloads")
+    return faults
+
+
 def named(root: Path, files: list[Path]) -> list[str]:
     """The workflows that the rule pages name, and that DIR does not hold."""
     have = {f.name for f in files}
@@ -101,7 +143,11 @@ def main(argv: list[str]) -> int:
         except (OSError, yaml.YAMLError) as e:
             print(f"check-workflows: {f}: {e}", file=sys.stderr)
             return 2
-    faults += named(root.resolve().parent.parent, files)
+    top = root.resolve().parent.parent
+    for f in files:
+        if f.name in NO_NETWORK:
+            faults += network(top, f)
+    faults += named(top, files)
     for fault in faults:
         print(fault)
     print(f"check-workflows: {len(files)} files, {len(faults)} faults")
