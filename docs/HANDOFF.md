@@ -9,8 +9,13 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Record the takes of `v0.33.0` on its hand-off #103 (COORD-064); close it
-   when each consumer took it.
+1. Finish the release of `v0.34.0` if it is not tagged (`docs/maintenance.md`,
+   "A release"): `ci` at the head, `release.yml` with no input, then with
+   `version=0.34.0`; the dry run of `publish.yml`; post
+   `docs/releases/v0.34.0-handoff.md` as COORD-065 `(to all)` (fill
+   `COMMIT`, the run ids and the time), map it, and link it from a COORD
+   answer to PodUtils/podnet#513. Record the takes of `v0.33.0` (#103) and
+   of `v0.34.0`.
 2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
@@ -19,17 +24,16 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.33.0` at `8edf8af` (the hand-off #103, open:
-  it waits for the take of each consumer). `main` holds T-335 (podnet's
-  stack of `ip.rs` in `pod-warp`) for the next tag.
+  podnet and podssh took it; podvm and podrunner wait).
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- An agent of this session in a worktree under `.claude/worktrees/`, with
-  its own target directory: T-304 and T-396 (the TCP carrier of
-  `pod-link` with TLS 1.3 and the pin of an Ed25519 key, PodUtils/podnet#513),
-  free ids 397 to 399, calls C175 to C179. Merge its branch after
-  `scripts/agent/check.sh` passes on the merge (a guard test of one crate
-  can scan another crate's files), then answer PodUtils/podnet#513 by a
-  COORD issue.
+- An agent of this session in a worktree under `.claude/worktrees/`: T-353
+  (`pod-oci` against CNCF distribution on the loopback), free ids 400
+  to 402, calls C186 to C189. Merge its branch after
+  `scripts/agent/check.sh` passes on the merge.
+- The disk of a cloud session is small: `target/debug/incremental` grows
+  to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
+  disk is short.
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
@@ -49,7 +53,7 @@ is done. Git and the record keep finished work.
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write
   to podnet by COORD issues only.
-- podssh (on `v0.32.0`, `555fddc`, PodUtils/podssh#217): the live runs of
+- podssh (on `v0.33.0`, `72d6a3d`, PodUtils/podssh#218): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.32.0`, `997b001`): its session ended after its

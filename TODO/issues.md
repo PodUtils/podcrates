@@ -105,6 +105,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #100 | pod-turn: add a TURN client on the existing STUN codec | closed (`v0.33.0`, #103) | T-377 |
 | #101 | COORD-062: the answer to PodUtils/podnet#510 and #512: pod-devtunnel and pod-turn in work; remote-port and Serveo's rule done; A11 and A12 in work, A13 stands as C119 (to podnet) | closed (`v0.33.0`, #103; podnet took it and closed its PodUtils/podnet#510 and #512, PodUtils/podnet#514) | T-373, T-374, T-377, T-378, T-390, T-391, T-392 |
 | #102 | COORD-063: GNU tar with an absolute -C fails in a unit of the supervise rung; a relative -C passes (PodUtils/podrunner#70, podcrates T-328) (to podvm) (to podrunner) | open (waits for podvm; podrunner read it, PodUtils/podrunner#71) | T-328 |
-| #103 | COORD-064: v0.33.0: pod-turn, pod-devtunnel, pod-warp (first part), pod-netlab (offline part), A11 and A12 (to all) | open (podnet `797104f`, PodUtils/podnet#514; podssh, podvm and podrunner wait) | T-028, T-207, T-372, T-373, T-374, T-375, T-376, T-377, T-378, T-390, T-391 |
+| #103 | COORD-064: v0.33.0: pod-turn, pod-devtunnel, pod-warp (first part), pod-netlab (offline part), A11 and A12 (to all) | open (podnet `797104f`, PodUtils/podnet#514; podssh `72d6a3d`, PodUtils/podssh#218; podvm and podrunner wait) | T-028, T-207, T-372, T-373, T-374, T-375, T-376, T-377, T-378, T-390, T-391 |
 
 #79 to #81 are pull requests.

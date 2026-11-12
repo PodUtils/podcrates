@@ -11,10 +11,11 @@
   `pod-devtunnel` (T-378, partial), `pod-warp` (T-028, partial),
   `pod-netlab` (T-207, partial), T-390, T-391, the data of T-372 to T-376,
   T-350 to T-352, T-354. Each consumer took `v0.32.0` (#93, closed).
-- `main` holds T-335 (podnet's stack of `ip.rs` in `pod-warp`) for the
-  next tag.
+- `v0.34.0` is prepared on `main` (the version, `docs/releases/v0.34.0.md`,
+  the text of its hand-off): the TCP carrier of `pod-link` and the pin of
+  `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394, T-355.
 - The consumers and their tags:
-  - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
+  - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.33.0` (`797104f`, PodUtils/podnet#514; its A12 maps
     `GiveUp`; `pod-warp` waits for the trial of T-339); its relay client
