@@ -11,6 +11,11 @@ repository.workspace = true
 # The memory of a child as a memfd and the recorded replies, public for the
 # fuzz targets of fuzz/ and for the tests of a consumer.
 fuzzing = []
+# The hold of each SYN on the wire of the netns hold, on the stack of
+# pod-netstack (call C90): a binary that turns it on sets
+# SMOLTCP_IFACE_MAX_ADDR_COUNT = "8" in its .cargo/config.toml, as
+# pod-netstack asks.
+syn-hold = ["dep:pod-netstack", "tokio/sync", "tokio/macros"]
 
 # Linux only: on another target the crate is empty.
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -21,9 +26,11 @@ pod-hostprobe = { workspace = true }
 libc = "0.2"
 # The receive of a notification waits on the reactor.
 tokio = { workspace = true, features = ["net", "rt"] }
+# The stack of the hold of a SYN (the feature `syn-hold`).
+pod-netstack = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
-tokio = { workspace = true, features = ["net", "rt", "macros", "time", "io-util"] }
+tokio = { workspace = true, features = ["net", "rt", "macros", "time", "io-util", "sync"] }
 # The stack that answers on the veth wire of tests/veth.rs, as podnet's
 # stack answers on it.
 pod-netstack = { workspace = true }

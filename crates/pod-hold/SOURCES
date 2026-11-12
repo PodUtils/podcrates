@@ -64,3 +64,23 @@ file ce252abace66f65e3cca2400f06cc8092899b155 crates/podnet-netns/src/netns/veth
 file e0efa1285e6df6eac68b9efa1da4aac9e57610ea crates/podnet-netns/src/netns/veth/tests.rs -> crates/pod-hold/src/netns/veth/tests.rs
 file d6699f75197eb6c27215f75a4d05b8da4786367e crates/podnet-netns/src/netns/tun.rs -> crates/pod-hold/src/netns/wire.rs
 file 59f2a649e3f2240637631059615674ec1812c37e crates/podnet-netns/tests/veth.rs -> crates/pod-hold/tests/veth.rs crates/pod-hold/tests/veth/linux.rs
+
+repo PodUtils/podnet a7350b27695dfc22ea52cf64dfe52536ee7c347d
+# T-170, step 2 (PodUtils/podnet#424, #451; podnet's PodUtils/podnet@T-249):
+# the hold of a SYN of the router of the netns backend, on the stack of
+# pod-netstack. netns/backend.rs: of it only the hold (HeldSyn, the held,
+# predialed and handshakes tables, the keys of the open flows, the listeners
+# of the ports, hold_syns, feed, listen_on, close_idle_ports, collect,
+# activity, the match of an accepted stream to its upstream in accept_flows,
+# the late dial of Source::Dial, PREDIALED_TTL, HANDSHAKE_TTL and the budget
+# MAX_TRACKED_FDS). The dial (spawn_dial, spawn_gateway_dial, target_of), the
+# rules, the flow log (FlowRecord), the copy of a flow (Flow, relay), the
+# DNS, the UDP flows and the device of the wire stay in podnet.
+# tests/pod_seccomp/tcp.rs: netns_backend_refuses_connect_when_the_upstream_is_dead;
+# tests/pod_seccomp/netns_tcp.rs: netns_backend_takes_a_burst_of_connects_to_one_port
+# and netns_backend_has_no_cap_on_destination_ports. Each keeps its name, with
+# a stack of pod-netstack over a link in the place of the program in a
+# namespace; the other tests of tcp.rs stay in podnet.
+file 317632e22dc2ac782f0bb15b6bff777a29fd00db crates/podnet-netns/src/netns/backend.rs -> crates/pod-hold/src/syn_hold.rs crates/pod-hold/src/syn_hold/flows.rs
+file 88b3801db17718c922241300f07a60dc492b2776 tests/pod_seccomp/tcp.rs -> crates/pod-hold/src/syn_hold/tests.rs
+file 09508c47d29d3874764fe935c4e59a8b46742499 tests/pod_seccomp/netns_tcp.rs -> crates/pod-hold/src/syn_hold/tests/many.rs
