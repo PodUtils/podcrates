@@ -1,6 +1,7 @@
 //! The facts of WARP: the service `cloudflare-warp` of `pod-services` (its
-//! API, its front doors, its versions and its Terms). A caller can give
-//! other values in [`crate::Settings`]; these are the defaults.
+//! API, its front doors, its versions and its Terms), and the resolver in
+//! the tunnel of the service `cloudflare-dns`. A caller can give other
+//! values in [`crate::Settings`]; these are the defaults.
 
 use std::net::SocketAddr;
 
@@ -79,6 +80,24 @@ pub fn terms_url() -> &'static str {
     text("terms-url")
 }
 
+/// The service `cloudflare-dns`: the resolver inside the tunnel.
+fn dns() -> &'static Service {
+    pod_services::get("cloudflare-dns").expect("pod-services holds the service cloudflare-dns")
+}
+
+/// The resolver that the check of the data path asks through the tunnel:
+/// the endpoint `udp-1` of `cloudflare-dns` (1.1.1.1, port 53).
+pub fn tunnel_resolver() -> SocketAddr {
+    let endpoint = dns().endpoint("udp-1").expect("cloudflare-dns of pod-services has the endpoint udp-1");
+    *endpoint.socket_addrs().first().expect("udp-1 of pod-services is an address")
+}
+
+/// The name of the question of the check of the data path: the fact
+/// `check-name` of `cloudflare-dns`.
+pub fn check_name() -> &'static str {
+    dns().text("check-name").expect("cloudflare-dns of pod-services holds the fact check-name")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +117,7 @@ mod tests {
         assert!(doors[0].is_ipv4() && doors[1].is_ipv6(), "{doors:?}");
         assert!(connect_uri().starts_with("https://"));
         assert!(!user_agent().is_empty() && terms_url().starts_with("https://"));
+        assert_eq!(tunnel_resolver(), "1.1.1.1:53".parse().unwrap());
+        assert_eq!(check_name(), "cloudflare.com");
     }
 }

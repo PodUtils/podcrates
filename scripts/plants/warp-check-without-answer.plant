@@ -1,0 +1,7 @@
+# The check of the data path takes the end of the wait for an answer as
+# an answer (podnet issue 120, T-335). The test of the check against a
+# front door that carries nothing must fail.
+ENTRY=T-335
+GROUP=warp
+EXPECT='test the_check_of_the_data_path_needs_an_answer \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test stack -- the_check_of_the_data_path_needs_an_answer'

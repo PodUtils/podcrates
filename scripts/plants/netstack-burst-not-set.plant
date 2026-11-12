@@ -1,0 +1,7 @@
+# The device of a stack takes no burst limit, whatever the settings say
+# (podnet's PODNET_WARP_TCP_BURST, T-335). The test of the window that the
+# stack advertises must fail.
+ENTRY=T-335
+GROUP=netstack
+EXPECT='test stack::tests::tune::the_burst_limit_clamps_the_window_that_the_stack_advertises \.\.\. FAILED'
+RUN='cargo test -p pod-netstack --lib -- stack::tests::tune::the_burst_limit_clamps_the_window_that_the_stack_advertises'

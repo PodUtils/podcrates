@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**328 entries: 85 open, 6 partial, 5 blocked, 232 done.**
+**331 entries: 87 open, 6 partial, 5 blocked, 233 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 2 | 0 | 64 | 83 |
-| P2 | 34 | 2 | 5 | 118 | 159 |
+| P1 | 17 | 2 | 0 | 65 | 84 |
+| P2 | 36 | 2 | 5 | 118 | 161 |
 | P3 | 34 | 2 | 0 | 48 | 84 |
-| **All** | 85 | 6 | 5 | 232 | 328 |
+| **All** | 87 | 6 | 5 | 233 | 331 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -336,7 +336,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-328](podvm.md) | P2 | S | M6 | research | done | GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note) |
 | [T-329](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213) |
 | [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
-| [T-335](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
+| [T-335](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
 | [T-336](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
 | [T-337](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
 | [T-338](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |
@@ -375,3 +375,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-390](relay.md) | P2 | S | M2 | feature | done | `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11) |
 | [T-391](relay.md) | P2 | S | M2 | feature | done | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
 | [T-392](relay.md) | P3 | S | M2 | research | done | `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13) |
+| [T-393](adapters.md) | P2 | S | M3 | feature | open | `pod-netstack`: the TCP timeout, the keepalive and no Nagle of each socket as settings, for `WarpNet` (podnet issue 125, podssh) |
+| [T-394](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the streams of a `WarpNet` fail at once when its session closes, and a close by the caller (podnet issues 125, 112, 185) |
+| [T-395](adapters.md) | P2 | S | M3 | defect | open | `pod-warp`: a UDP datagram of `WarpNet` to a family that the device lacks is refused (podnet issue 112) |

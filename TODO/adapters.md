@@ -531,7 +531,7 @@ T-029 is done.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -566,6 +566,44 @@ them.
 cargo test -p pod-netstack --all-features
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commits `1e5d154` (the work) and `7796b38` (the plants);
+calls C170 to C174.
+
+- `pod-netstack`: `StackConfig::congestion_control`, `max_burst` and
+  `link_stats` (C170). Fix in place: `LinkDevice::with_stats` after
+  `LinkDevice::link` moves the count of the inbound drops to the new
+  counters (the test failed on the code before: 0 of 6 drops).
+- `pod-warp`: `NetSettings` (`Settings::net`; C171): the MTU, the TCP buffer
+  of 512 KiB (`WarpNet` had 64 KiB), `congestion_control` (`parse_cc`),
+  `tcp_burst` (`parse_tcp_burst`, 1 to 430), `link_stats`, `check`,
+  `renew` (C173); `WarpNet::link_stats`, `renew_due`, `check_data_path`,
+  `checked`. `Warp::connect` checks the data path and marks a door that
+  carried nothing bad (C172). The test edge answers DNS on UDP port 53,
+  notes the largest TCP window of the client and drops the questions that a
+  test names. The README has the API, the settings, the tests of T-335, the
+  parity rows and the adoption rows.
+- Sources: `PodUtils/podnet:src/warp/ip.rs`,
+  `PodUtils/podnet:src/warp/proxy.rs` (`check_data_path`, `query_at`) and
+  `PodUtils/podnet:crates/podnet-core/src/services.rs` at `e046560`; the blobs are the same at podnet's `main` (`27f2b41`), so no
+  fix to port. `SOURCES` of both crates names `ip.rs`; no import commit
+  (C174).
+- `cargo test -p pod-netstack --all-features`: 67 passed (6 new).
+  `cargo test -p pod-warp --all-features`: 61 unit tests (4 new), 8 of
+  `tests/stack.rs` (new), 6 of `tests/net.rs`, 8 of `tests/register.rs`, 1
+  live test ignored; `tests/stack.rs` passed 8 runs in a loop.
+- Plants: `netstack-shared-counters-lose-the-drops`,
+  `netstack-controller-not-set`, `netstack-burst-not-set`,
+  `warp-burst-not-passed`, `warp-check-without-answer`,
+  `warp-check-door-kept`: each caught (`sh scripts/plant-each.sh`).
+- New entries for the rest of `ip.rs`: T-393 (the TCP timeout, the
+  keepalive, no Nagle), T-394 (the streams of a closed session fail; a
+  close by the caller), T-395 (UDP to a family that the device lacks). The
+  DNS over TLS of the servers of the check is in the Approach of T-338.
+- Not run here: the live test (no WARP endpoint from this sandbox), the CI
+  of a push, the adoption trial of podnet (T-339).
 
 # T-336: `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file
 
@@ -677,7 +715,10 @@ the caller's (C141).
 
 Each module over `WarpNet` (a `Dial`), with the counters of
 `rules::Rules`; the loopback tests of podnet's files against the stand-in
-edge of `crates/pod-warp/tests/common/edge.rs`.
+edge of `crates/pod-warp/tests/common/edge.rs`. The resolvers of the proxy
+(`Resolver`, UDP and DNS over TLS) are also the servers of the check of the
+data path: `DataPathCheck` of T-335 takes UDP servers alone, and podnet's
+`check_data_path` asks a resolver of `--resolver` over TLS too.
 
 ## Prove
 
@@ -722,4 +763,140 @@ with their runs; then the COORD issue of the freeze to podnet and podssh.
 ```sh
 cargo test -p pod-warp --all-features
 cargo test -p pod-warp --test live -- --ignored
+```
+
+# T-393: `pod-netstack`: the TCP timeout, the keepalive and no Nagle of each socket as settings, for `WarpNet` (podnet issue 125, podssh)
+
+**Source:** T-335 (the parts of podnet's `ip.rs` that the stack of
+`pod-netstack` lacks).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's WARP stack (`PodUtils/podnet:src/warp/ip.rs`, `Driver::tcp_socket`)
+gives each TCP socket a timeout of 60 s (a connect, data with no ACK, or a
+keepalive with no answer aborts it), a keepalive each 20 s (issue 125), and
+no Nagle (podssh: a keystroke of SSH goes at once, with no wait for the ACK
+of the data before it, one round trip through WARP). The sockets of
+`pod-netstack` have no timeout and no keepalive, and Nagle is on until the
+app calls `TcpStream::set_nodelay`. `WarpNet` sets none of them: a stream
+to a peer that went away waits for ever, and a small write waits for an
+ACK.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/reactor.rs` (`new_tcp_socket`
+  sets the buffers and the controller only), `crates/pod-warp/src/net.rs`
+  (`connect_addr`); podnet's tests `a_tcp_socket_has_a_timeout_and_a_keepalive`
+  and `the_tcp_sockets_have_no_nagle` at `e046560`.
+- Not measured: what the reactor gives the app when smoltcp aborts a socket
+  at its timeout (a reset is the expectation).
+
+## Approach
+
+`StackConfig` fields `tcp_timeout`, `tcp_keepalive` (both `Option<Duration>`,
+none by default) and `nodelay` (false by default), set in `new_tcp_socket`
+for each connect and each accepted socket. `NetSettings` of `pod-warp` sets
+60 s, 20 s and true, as podnet. Tests: the settings on a socket (podnet's two
+tests keep their names); a connect to a peer that never answers ends with an
+error after a timeout of 1 s; a stream whose peer is gone ends after the
+keepalive and the timeout. A plant for the timeout.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --all-features
+cargo test -p pod-warp --all-features
+```
+
+# T-394: `pod-warp`: the streams of a `WarpNet` fail at once when its session closes, and a close by the caller (podnet issues 125, 112, 185)
+
+**Source:** T-335 (the parts of podnet's `ip.rs` that `WarpNet` lacks).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's driver (`PodUtils/podnet:src/warp/ip.rs`, `Driver::run`) fails
+each pending operation and aborts each connection when its session closes
+(issue 125: "the operations of a dead session fail now. Before, a read
+waited for data that could not come"); its supervisor marks the stack
+closed when the driver stops, also by a panic (issue 112); and
+`WarpStack::close_session(why)` closes a session on purpose (issue 185:
+`--session-max-age`), so that `Live` opens a new one. `WarpNet` marks
+itself closed when a pump ends, and refuses a new dial, but its stack runs
+on: an open stream reads nothing and waits for ever, and the caller has no
+close.
+
+## Premise
+
+- Read: `crates/pod-warp/src/net.rs` (`Closed::mark`, `pumps`), the
+  reactor of `pod-netstack` (`run` clears its connections at a shutdown:
+  the app reads the end of the stream, not an error); podnet's tests
+  `a_dead_session_fails_the_pending_operations` and
+  `a_panic_of_the_driver_closes_the_stack` at `e046560`.
+- Not measured: a stream of a `WarpNet` after the edge ends its session.
+
+## Approach
+
+A command of `NetStack` that resets each connection and each UDP socket
+with a reason (the app reads `ConnectionReset` with it, not a clean end),
+called by `WarpNet` when the first cause of the close is marked;
+`WarpNet::close(why)`; the stack of a closed session marks the cause of a
+stopped reactor. Loopback tests: the edge ends a session, and a read of an
+open stream fails with the cause; a close by the caller does the same.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --all-features
+cargo test -p pod-warp --all-features
+```
+
+# T-395: `pod-warp`: a UDP datagram of `WarpNet` to a family that the device lacks is refused (podnet issue 112)
+
+**Source:** T-335 (the tests of podnet's `ip.rs` that `WarpNet` lacks).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's stack refuses a datagram to IPv6 on a tunnel with IPv4 alone,
+and to IPv4 on a tunnel with IPv6 alone ("the tunnel has no IPv6 address";
+issue 112). `WarpNet` gives the family that the device lacks a
+documentation address (`192.0.2.2`, `2001:db8::2`, C138) and refuses a TCP
+dial to it, but `WarpNet::datagrams` binds a UDP socket on each address:
+a datagram to the other family leaves into the session with the
+documentation address as its source, and no answer comes.
+
+## Premise
+
+- Read: `crates/pod-warp/src/net.rs` (`family_failure` is called by the
+  dial only; `datagrams` and `bind_udp`); podnet's tests
+  `udp_to_ipv6_on_an_ipv4_tunnel_is_refused`,
+  `udp_on_a_dual_stack_tunnel_takes_the_source_of_each_family` and
+  `udp_to_ipv4_on_an_ipv6_tunnel_is_refused` at `e046560`.
+- Not measured: the packet that leaves (read from the code).
+
+## Approach
+
+The `Datagrams` of `WarpNet` refuse a send to a family that the device
+lacks (`InvalidInput`, with podnet's words), and the check of the data path
+never asks such a server. podnet's three tests keep their names, over the
+stand-in edge.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
 ```

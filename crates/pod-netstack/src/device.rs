@@ -146,8 +146,10 @@ impl LinkDevice {
     }
 
     /// Count in `stats`, shared with other devices, not in counters of this
-    /// device only.
+    /// device only. The drops of an inbound queue that counts them
+    /// ([`LinkDevice::link`]) go to `stats` too.
     pub fn with_stats(mut self, stats: Arc<DeviceStats>) -> Self {
+        self.rx.move_count_to(&stats);
         self.stats = stats;
         self
     }

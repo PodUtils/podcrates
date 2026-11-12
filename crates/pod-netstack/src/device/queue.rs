@@ -66,6 +66,14 @@ impl PacketQueue {
         self
     }
 
+    /// Count the drops of a queue that counts them in `stats` from now on.
+    pub(super) fn move_count_to(&self, stats: &Arc<DeviceStats>) {
+        let mut inner = self.lock();
+        if inner.sink.is_some() {
+            inner.sink = Some(stats.clone());
+        }
+    }
+
     /// Push a packet and wake a reader. False when the queue was full and
     /// dropped the packet.
     pub fn push(&self, packet: Vec<u8>) -> bool {

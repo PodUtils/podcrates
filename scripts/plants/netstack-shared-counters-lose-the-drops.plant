@@ -1,0 +1,7 @@
+# The drops of the inbound queue of a link stay on the counters that the
+# device had before `with_stats`: shared counters miss them (T-335). The
+# test of the shared counters must fail.
+ENTRY=T-335
+GROUP=netstack
+EXPECT='test device::tests::shared_counters_take_the_inbound_drops_of_each_link \.\.\. FAILED'
+RUN='cargo test -p pod-netstack --lib -- device::tests::shared_counters_take_the_inbound_drops_of_each_link'

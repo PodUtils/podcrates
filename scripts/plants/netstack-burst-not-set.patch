@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netstack/src/stack.rs b/crates/pod-netstack/src/stack.rs
+index 4fc06d6..f2bddb7 100644
+--- a/crates/pod-netstack/src/stack.rs
++++ b/crates/pod-netstack/src/stack.rs
+@@ -413,7 +413,7 @@ impl Drop for NetStack {
+ /// burst limit and its counters.
+ fn link_device(config: &StackConfig, loopback: bool) -> LinkDevice {
+     let device = if loopback { LinkDevice::loopback(config.mtu) } else { LinkDevice::link(config.mtu) };
+-    let device = device.with_checksum(config.checksum.clone()).with_max_burst(config.max_burst);
++    let device = device.with_checksum(config.checksum.clone());
+     match &config.link_stats {
+         Some(stats) => device.with_stats(stats.clone()),
+         None => device,

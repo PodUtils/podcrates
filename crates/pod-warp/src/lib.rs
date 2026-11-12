@@ -19,7 +19,10 @@
 //! * [`Warp`]: a registered device; [`Warp::open_session`] and
 //!   [`Warp::connect`].
 //! * [`net`], [`dns`]: [`WarpNet`], the stack of `pod-netstack` over a
-//!   session as a dial (names resolved inside the tunnel) and as datagrams.
+//!   session as a dial (names resolved inside the tunnel) and as datagrams;
+//!   [`NetSettings`]: its congestion controller, its TCP burst, its counters
+//!   of the link and the budget of a relay.
+//! * [`check`]: the check that a packet crosses a new session.
 //! * [`rules`]: the rules of a WARP proxy, with the lint of the caller.
 //! * [`service`]: the facts of WARP of `pod-services`.
 //!
@@ -35,6 +38,7 @@
 
 pub mod api;
 pub mod capsule;
+pub mod check;
 pub mod der;
 pub mod device;
 pub mod dns;
@@ -54,12 +58,13 @@ pub mod tls;
 mod warp;
 
 pub use api::Api;
+pub use check::DataPathCheck;
 pub use device::Device;
 pub use door::{Door, Routes};
 pub use files::Foreign;
 pub use hints::DeviceHints;
 pub use identity::Identity;
-pub use net::WarpNet;
+pub use net::{NetSettings, WarpNet};
 pub use session::{MasqueRx, MasqueSession, MasqueTx, Way};
 pub use store::{IdentityFile, Stored};
 pub use warp::{MTU, Settings, Warp};

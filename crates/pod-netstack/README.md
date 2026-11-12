@@ -73,6 +73,9 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `any_ip` | false | Take each packet, also to an address that the stack does not own (`Interface::set_any_ip`). |
 | `checksum` | `Checksum::Both` for each protocol | The checksums that the stack computes and verifies (`LinkDevice::with_checksum`). |
 | `linger` | 60 s | The longest time that a dropped or closed stream waits for a peer that makes no progress (the section "Close"). |
+| `congestion_control` | `CongestionControl::None` | The congestion controller of each TCP socket: none, Reno or CUBIC (the section "The congestion controllers"; podnet's `--cc`). |
+| `max_burst` | none | The burst limit of the link in segments (`LinkDevice::with_max_burst`); smoltcp clamps the TCP window that the stack advertises to it (PodUtils/podnet#100; podnet's `PODNET_WARP_TCP_BURST`). |
+| `link_stats` | none | `Option<Arc<DeviceStats>>`: the counters of the link, shared with other stacks (`LinkDevice::with_stats`); `device_stats` reads them. None: the counters of this stack. |
 
 ## Features
 
@@ -205,8 +208,10 @@ of each:
   1 s in a debug build). In podnet, the netns backend moved 48 MiB in 2 s
   (`netns_backend_moves_a_large_download`) and the tunnel device filled a
   window of 512 KiB at 40 ms (`tests/tcp_window.rs`, 11 MB/s).
-* The stack sets no congestion controller (`CongestionControl::None`), as
-  podnet did. The next section gives the rate of each controller.
+* The stack sets no congestion controller (`CongestionControl::None`) by
+  default, as podnet did; `StackConfig::congestion_control` sets Reno or
+  CUBIC (`a_download_with_each_controller_crosses_a_bounded_link`). The
+  next section gives the rate of each controller.
 
 ## The congestion controllers
 
@@ -302,6 +307,15 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
     clean end.
   * The messages of the errors name the policy and the subnet, not the ACL
     and the virtual subnet.
+  * `LinkDevice::with_stats` after `LinkDevice::link` moves the count of
+    the drops of the inbound queue to the new counters; the queue counted
+    them in the counters that the device had before
+    (`shared_counters_take_the_inbound_drops_of_each_link`; the plant
+    `netstack-shared-counters-lose-the-drops`, T-335).
+  * The congestion controller, the burst limit and the shared counters of
+    podnet's WARP stack (`src/warp/ip.rs`) are settings of each stack
+    (`congestion_control`, `max_burst`, `link_stats`; T-335, the section
+    "Settings").
 * Not here (stays in podnet): the abstract names of the shim (`addr.rs`),
   the ACL, the resolver, the recorder and its pcap, the switch and its
   framing, the proxy, the shim, the control protocol, the dialers, the
@@ -335,6 +349,7 @@ the `taken` lines of `SOURCES`):
 | tests `proof_completes`, `async_loopback_round_trip` | stay in podnet (the proof); `async_loopback_round_trip` is here too, with no proof |
 | `smoltcp = "=0.12.0"` (root, `podnet-netns`, `podnet-vnet`) | `smoltcp = "0.14"`, one version in the tree; `futures` leaves `podnet-vnet` |
 | `tests/tcp_window.rs` | its sockets set `CongestionControl::None`, as podnet's stacks (T-188) |
+| `src/warp/ip.rs`: `set_cc` and `cc`, `tcp_burst` (`LinkDevice::with_max_burst`), `LINK_STATS` (`LinkDevice::with_stats`) | `StackConfig::congestion_control`, `max_burst`, `link_stats`; `pod_warp::NetSettings` sets them (T-335) |
 | `.cargo/config.toml`: `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` | stays: each binary that links `pod-netstack` needs it |
 | the record (`TODO/`): the citations of the removed files | `PodUtils/podcrates:crates/pod-netstack/src/..` |
 | each `pod-*` dependency | tag `v0.20.0`; `podnet-vnet` adds `pod-netstack` |

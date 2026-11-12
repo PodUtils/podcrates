@@ -119,12 +119,26 @@ pub struct StackConfig {
     /// or a peer that never sends its FIN, does not hold the socket for
     /// ever. 60 s: the FIN-WAIT-2 time of Linux (`tcp_fin_timeout`).
     pub linger: Duration,
+    /// The congestion controller of each TCP socket. None by default, as
+    /// smoltcp before 0.12: the link holds the stack when its queue is full
+    /// (PodUtils/podnet#134). Reno and CUBIC grow by one segment for each
+    /// ACK in slow start (the section "The congestion controllers", T-197).
+    pub congestion_control: tcp::CongestionControl,
+    /// The burst limit of the link in segments; smoltcp also clamps the TCP
+    /// window that the stack advertises to it (PodUtils/podnet#100). None:
+    /// no limit.
+    pub max_burst: Option<usize>,
+    /// The counters of the link, shared with other stacks of the consumer
+    /// (podnet adds the links of each WARP session of a process). None: the
+    /// counters of this stack only.
+    pub link_stats: Option<Arc<DeviceStats>>,
 }
 
 impl Default for StackConfig {
     /// The default subnet, `10.66.0.2` and `fd00:66::2`, an MTU of 1280,
     /// buffers of 64 KiB, no admit, no gateway service, no any IP, each
-    /// checksum computed and verified, and a linger of 60 s.
+    /// checksum computed and verified, a linger of 60 s, no congestion
+    /// controller, no burst limit and counters of its own.
     fn default() -> Self {
         Self {
             subnet: Subnet::default(),
@@ -142,6 +156,9 @@ impl Default for StackConfig {
             any_ip: false,
             checksum: ChecksumCapabilities::default(),
             linger: Duration::from_secs(60),
+            congestion_control: tcp::CongestionControl::None,
+            max_burst: None,
+            link_stats: None,
         }
     }
 }
@@ -239,8 +256,7 @@ impl NetStack {
     }
 
     fn new(config: StackConfig, loopback: bool) -> Self {
-        let device = if loopback { LinkDevice::loopback(config.mtu) } else { LinkDevice::link(config.mtu) };
-        let device = device.with_checksum(config.checksum.clone());
+        let device = link_device(&config, loopback);
         // A packet to an address of this stack stays in it
         // (PodUtils/podnet#65).
         device.add_local(IpAddr::V4(config.local_v4));
@@ -390,6 +406,17 @@ impl Drop for NetStack {
         // while the reactor is between two polls is not lost.
         self.shutdown.notify_one();
         self.kick.notify_one();
+    }
+}
+
+/// The device of a stack with the settings of `config`: its checksums, its
+/// burst limit and its counters.
+fn link_device(config: &StackConfig, loopback: bool) -> LinkDevice {
+    let device = if loopback { LinkDevice::loopback(config.mtu) } else { LinkDevice::link(config.mtu) };
+    let device = device.with_checksum(config.checksum.clone()).with_max_burst(config.max_burst);
+    match &config.link_stats {
+        Some(stats) => device.with_stats(stats.clone()),
+        None => device,
     }
 }
 

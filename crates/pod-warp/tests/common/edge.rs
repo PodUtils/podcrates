@@ -6,9 +6,10 @@
 //! `pod_testkit::masque`. Inside, a userspace stack of its own answers at
 //! each address (any IP): each route's port is carried to a service of the
 //! loopback, as Cloudflare's network carries a connection to its target;
-//! port 53 answers a DNS question over TCP with [`NAME_IP`]; UDP port 7
-//! echoes. A test can change the key that it shows, as WARP's front door
-//! showed a new device another key than its record's.
+//! port 53 answers a DNS question over TCP and over UDP with [`NAME_IP`];
+//! UDP port 7 echoes. A test can change the key that it shows, as WARP's
+//! front door showed a new device another key than its record's, and reads
+//! what the far end saw ([`Watch`]).
 
 use std::collections::VecDeque;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -42,6 +43,34 @@ pub const ECHO_PORT: u16 = 7;
 pub struct Route {
     pub port: u16,
     pub outside: SocketAddr,
+}
+
+/// What the far end of each tunnel saw, and the questions that it drops.
+#[derive(Debug, Default)]
+pub struct Watch {
+    /// The DNS questions on UDP port 53.
+    pub dns_questions: AtomicUsize,
+    /// The DNS questions on UDP to drop first, with no answer.
+    pub dns_drop: AtomicUsize,
+    /// The largest TCP window field of a packet of the client.
+    pub window_max: AtomicUsize,
+}
+
+impl Watch {
+    /// Note the TCP window of an IPv4 packet of the client.
+    fn note(&self, packet: &[u8]) {
+        let header = usize::from(packet.first().map_or(0, |b| b & 0x0f)) * 4;
+        if packet.first().map(|b| b >> 4) == Some(4) && packet.get(9) == Some(&6) && packet.len() >= header + 20 {
+            let window = u16::from_be_bytes([packet[header + 14], packet[header + 15]]);
+            self.window_max.fetch_max(usize::from(window), Ordering::SeqCst);
+        }
+    }
+
+    /// True when the next DNS question on UDP gets no answer.
+    fn drops_question(&self) -> bool {
+        self.dns_questions.fetch_add(1, Ordering::SeqCst);
+        self.dns_drop.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok()
+    }
 }
 
 /// The keys that the stand-in shows, one for each TLS handshake in turn,
@@ -133,6 +162,7 @@ impl ClientCertVerifier for Enrolled {
 pub struct Edge {
     pub addr: SocketAddr,
     pub seen: Arc<Seen>,
+    pub watch: Arc<Watch>,
     shown: Arc<Shown>,
     task: AbortHandle,
 }
@@ -161,21 +191,23 @@ impl Edge {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let addr = listener.local_addr().unwrap();
         let seen = Arc::new(Seen::default());
-        let (routes, counted) = (Arc::new(routes), seen.clone());
+        let watch = Arc::new(Watch::default());
+        let (routes, counted, watched) = (Arc::new(routes), seen.clone(), watch.clone());
         let task = tokio::spawn(async move {
             while let Ok((tcp, _)) = listener.accept().await {
                 let (acceptor, routes, seen) = (acceptor.clone(), routes.clone(), counted.clone());
+                let watch = watched.clone();
                 tokio::spawn(async move {
                     let Ok(tls) = acceptor.accept(tcp).await else { return };
                     let (to_far, from_client) = mpsc::channel(256);
                     let (to_client, from_far) = mpsc::channel(256);
-                    let far = tokio::spawn(far_end(from_client, to_client, routes));
+                    let far = tokio::spawn(far_end(Ends { from_client, to_client }, routes, watch));
                     pod_testkit::masque::serve(tls, Far { to_far, from_far }, seen).await;
                     far.abort();
                 });
             }
         });
-        Edge { addr, seen, shown, task: task.abort_handle() }
+        Edge { addr, seen, watch, shown, task: task.abort_handle() }
     }
 
     /// The `PUBLIC KEY` PEM of the key that the stand-in shows last.
@@ -199,8 +231,15 @@ impl Edge {
     }
 }
 
+/// The packets of one tunnel, each way.
+struct Ends {
+    from_client: mpsc::Receiver<Vec<u8>>,
+    to_client: mpsc::Sender<Vec<u8>>,
+}
+
 /// The far end of one tunnel: a stack that takes each address.
-async fn far_end(mut from_client: mpsc::Receiver<Vec<u8>>, to_client: mpsc::Sender<Vec<u8>>, routes: Arc<Vec<Route>>) {
+async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
+    let Ends { mut from_client, to_client } = ends;
     let config = StackConfig {
         subnet: Subnet {
             v4: Ipv4Addr::new(198, 18, 0, 0),
@@ -254,6 +293,16 @@ async fn far_end(mut from_client: mpsc::Receiver<Vec<u8>>, to_client: mpsc::Send
             });
         }
     }));
+    let mut udp_dns = stack.bind_udp_any(53).await.unwrap();
+    let asked = watch.clone();
+    tasks.push(tokio::spawn(async move {
+        let mut buf = vec![0u8; 2048];
+        while let Ok((n, from, to)) = udp_dns.recv_from_to(&mut buf).await {
+            if !asked.drops_question() {
+                let _ = udp_dns.send_to_from(&dns_answer(&buf[..n]), from, to.ip()).await;
+            }
+        }
+    }));
     let mut echo = stack.bind_udp_any(ECHO_PORT).await.unwrap();
     tasks.push(tokio::spawn(async move {
         let mut buf = vec![0u8; 2048];
@@ -262,6 +311,7 @@ async fn far_end(mut from_client: mpsc::Receiver<Vec<u8>>, to_client: mpsc::Send
         }
     }));
     while let Some(packet) = from_client.recv().await {
+        watch.note(&packet);
         link_in.push(packet);
     }
     for task in tasks {

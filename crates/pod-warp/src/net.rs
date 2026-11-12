@@ -9,15 +9,24 @@
 //! to the session: its subnet has the prefix 0. The gateway of each family
 //! (the host 1 of the prefix, `172.16.0.1` for WARP's IPv4 address) is an
 //! address of the stack, and a packet to it stays in the stack.
+//!
+//! [`NetSettings`] tunes the stack: the congestion controller, the TCP
+//! burst, the counters of the link, the check of the data path and the
+//! budget of a relay (podnet's `src/warp/ip.rs`).
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use pod_core::{BoxFuture, Class, Connected, Datagrams, Dial, Event, Failure, Report, Stage, Target};
-use pod_netstack::{NetStack, StackConfig, Subnet};
+use pod_netstack::NetStack;
 use tokio::task::JoinHandle;
+
+mod settings;
+pub use pod_netstack::device::{DeviceStats, DeviceStatsSnapshot};
+pub use pod_netstack::smoltcp::socket::tcp::CongestionControl;
+pub use settings::{NetSettings, Renew, TCP_BUFFER, TCP_BURST_MAX, parse_cc, parse_tcp_burst, tcp_burst_max};
 
 use crate::session::{MasqueRx, MasqueSession, MasqueTx};
 use crate::warp::Warp;
@@ -63,6 +72,9 @@ struct Inner {
     pumps: Vec<JoinHandle<()>>,
     next_port: AtomicU16,
     resolvers: Vec<IpAddr>,
+    renew: Option<Renew>,
+    /// The time of the answer of the check of the data path, after one.
+    checked: OnceLock<Duration>,
 }
 
 impl Drop for Inner {
@@ -73,41 +85,33 @@ impl Drop for Inner {
     }
 }
 
-/// The address of a family that the device lacks: the documentation
-/// addresses, which the stack owns and never reaches.
-const NO_V4: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 2);
-const NO_V6: Ipv6Addr = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 2);
-
 impl WarpNet {
     /// The stack over `session` with the addresses `v4` and `v6` of the
-    /// device (one at least) and the MTU `mtu`. It spawns its tasks: call it
-    /// in a runtime of tokio.
+    /// device (one at least) and the settings `settings` (the check of the
+    /// data path is [`Warp::connect`]'s). It spawns its tasks: call it in a
+    /// runtime of tokio.
     pub fn start(
         session: MasqueSession,
         v4: Option<Ipv4Addr>,
         v6: Option<Ipv6Addr>,
-        mtu: usize,
+        settings: &NetSettings,
         report: Report,
     ) -> Result<WarpNet, Failure> {
-        if v4.is_none() && v6.is_none() {
-            return Err(Failure::new(Stage::Warp, Class::Protocol, "the tunnel assigned no address"));
-        }
-        let local_v4 = v4.unwrap_or(NO_V4);
-        let local_v6 = v6.unwrap_or(NO_V6);
-        let config = StackConfig {
-            subnet: Subnet { v4: local_v4, v4_prefix: 0, v6: local_v6, v6_prefix: 0 },
-            local_v4,
-            local_v6,
-            mtu,
-            ..StackConfig::default()
-        };
+        let config = settings.stack_config(v4, v6)?;
+        tracing::debug!(
+            segments = ?settings.tcp_burst,
+            cc = ?settings.congestion_control,
+            "the TCP window and the congestion controller of the WARP stack"
+        );
         let stack = NetStack::over_link(config);
         let closed = Closed::default();
         let (tx, rx) = session.split();
-        let pumps = pumps(tx, rx, &stack, &closed, report, [v4.map(IpAddr::V4), v6.map(IpAddr::V6)]);
+        let pumps = pumps(tx, rx, &stack, &closed, report, NetSettings::ours(v4, v6));
         let resolvers = crate::dns::RESOLVERS.to_vec();
         let next_port = AtomicU16::new(49152);
-        let inner = Inner { stack, v4, v6, closed, pumps, next_port, resolvers };
+        let renew = settings.renew.clone();
+        let checked = OnceLock::new();
+        let inner = Inner { stack, v4, v6, closed, pumps, next_port, resolvers, renew, checked };
         Ok(WarpNet { inner: Arc::new(inner) })
     }
 
@@ -129,6 +133,30 @@ impl WarpNet {
     /// The stack, for a listener or a socket that the dial does not give.
     pub fn stack(&self) -> &NetStack {
         &self.inner.stack
+    }
+
+    /// The counters of the link of the session (PodUtils/podnet issue 134):
+    /// the packets and the bytes each way, the drops, and `tx_held`, the
+    /// times that the stack kept its packets for a full queue to the
+    /// session. With [`NetSettings::link_stats`], the shared counters.
+    pub fn link_stats(&self) -> DeviceStatsSnapshot {
+        self.inner.stack.device_stats()
+    }
+
+    /// Whether the budget of the relay of this session is spent
+    /// ([`NetSettings::renew`]): a new session must take the new flows.
+    pub fn renew_due(&self) -> bool {
+        self.inner.renew.as_ref().is_some_and(|spent| spent())
+    }
+
+    /// The time of the answer of the check of the data path, after a check
+    /// that passed.
+    pub fn checked(&self) -> Option<Duration> {
+        self.inner.checked.get().copied()
+    }
+
+    pub(crate) fn note_checked(&self, took: Duration) {
+        let _ = self.inner.checked.set(took);
     }
 
     /// The resolvers that a name asks inside the tunnel ([`crate::dns`]).
@@ -181,7 +209,7 @@ impl WarpNet {
     }
 
     /// A UDP socket of the stack on an ephemeral port of each address.
-    async fn bind_udp(&self) -> Result<pod_netstack::UdpSocket, Failure> {
+    pub(crate) async fn bind_udp(&self) -> Result<pod_netstack::UdpSocket, Failure> {
         let mut last = None;
         for _ in 0..64 {
             let port = self.inner.next_port.fetch_add(1, Ordering::Relaxed);
@@ -261,7 +289,7 @@ fn pumps(
     stack: &NetStack,
     closed: &Closed,
     report: Report,
-    ours: [Option<IpAddr>; 2],
+    ours: Vec<IpAddr>,
 ) -> Vec<JoinHandle<()>> {
     let mut tasks = Vec::new();
     // PodUtils/podnet issue 104: a session that gives no pong and no data is
@@ -293,7 +321,6 @@ fn pumps(
     }));
     let inbound = stack.link_in();
     let recv_closed = closed.clone();
-    let ours: Vec<IpAddr> = ours.into_iter().flatten().collect();
     tasks.push(tokio::spawn(async move {
         let why = loop {
             let packet = rx.recv_packet().await;
@@ -328,10 +355,30 @@ fn note_assigned(report: &Report, assigned: &[(IpAddr, u8)], ours: &[IpAddr]) {
 }
 
 impl Warp {
-    /// Open a session ([`Warp::open_session`]) and start the stack over it.
+    /// Open a session ([`Warp::open_session`]), start the stack over it, and
+    /// check that a packet crosses it ([`NetSettings::check`],
+    /// PodUtils/podnet issue 120). A session that carries no packet is a
+    /// failure, and its door goes last for the next session
+    /// ([`Warp::mark_door_bad`], issue 133).
     pub async fn connect(&self) -> Result<WarpNet, Failure> {
         let session = self.open_session().await?;
-        let device = &self.device;
-        WarpNet::start(session, device.ipv4(), device.ipv6(), self.settings.mtu, self.settings.report.clone())
+        let (device, settings) = (&self.device, &self.settings);
+        let net = WarpNet::start(session, device.ipv4(), device.ipv6(), &settings.net, settings.report.clone())?;
+        let Some(check) = &settings.net.check else {
+            tracing::debug!("no check of the data path");
+            return Ok(net);
+        };
+        match net.check_data_path(check).await {
+            Ok(took) => {
+                tracing::info!(ms = took.as_millis() as u64, "a packet crossed the MASQUE session");
+                settings.report.decision("warp.check", "answered");
+                Ok(net)
+            }
+            Err(failure) => {
+                self.mark_door_bad();
+                settings.report.decision("warp.check", "silent");
+                Err(failure)
+            }
+        }
     }
 }
