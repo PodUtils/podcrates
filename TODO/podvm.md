@@ -4487,3 +4487,43 @@ cargo test -p pod-enter --all-features
   pod-enter --all-features`: 169 passed; clippy is clean.
 - The plant `enter-libc-search-misses-the-multiarch-dir` (no multiarch
   look, the walk from the end again) is caught by that test.
+
+# T-326: `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283)
+
+**Source:** PodUtils/podvm#283 (COORD-062).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+PodUtils/podvm@T-1678 replaces `PodUtils/podvm:crates/podvm-ssh/src/mux.rs`,
+`PodUtils/podvm:crates/podvm-ssh/src/ws.rs` and the curl pairing of
+`PodUtils/podvm:crates/podvm/src/remote/` with `pod_relay::blocking`.
+`adoption/podvm/` holds no `pod-relay.patch` and no `pod-relay.run`, so
+podvm's entry is blocked.
+
+## Premise
+
+- Read: `PodUtils/podvm:crates/podvm-ssh/src/mux.rs` names its wire
+  `reverse-v1`: the relay's `hello` with `version` 1. `pod-relay` speaks
+  the dialect 1 (`reverse::control::PROTO`, `pod_ws::handshake::REVERSE_PROTO`)
+  and reads a peer that states none as 1 (`UNSTATED`).
+- Read: `crates/pod-relay/README.md`, section "podvm": `blocking::Client::new(Config::new(ctx))`.
+
+## Approach
+
+The procedure of a trial, as T-026 for podnet: a clone of podvm at the
+commit of `adoption/podvm/commit`; podvm's relay glue over
+`pod_relay::blocking` with podvm's `Context`; the files that go; each
+behaviour that changes for podvm's users; the files pod-relay.patch
+and pod-relay.run in `adoption/podvm/` (podvm's own tests of its relay, and
+its live wire where a stand-in serves it); `adoption.yml` passes the trial.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podvm pod-relay
+```

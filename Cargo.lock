@@ -2175,6 +2175,7 @@ version = "0.31.0"
 dependencies = [
  "atomic-waker",
  "pod-core",
+ "pod-testkit",
  "smoltcp",
  "tokio",
  "tracing",

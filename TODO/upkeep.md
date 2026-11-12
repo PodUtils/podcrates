@@ -718,3 +718,60 @@ The declaration is the one source of the table "The schema" of
 ```sh
 cargo test -p pod-services-watch --test watches data
 ```
+
+# T-325: The nightly at `613058c` is red: the stage of a socket does not fit on macOS, and four bounds under riscv64 are not scaled
+
+**Source:** `nightly.yml` run 43195242737 at `613058c` (jobs 131104397543, macOS arm64; 131104398223, the cross test of riscv64 under qemu-user).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+- macOS: `a_socket_has_its_mode_under_each_umask` (`pod-broker`) saw the
+  socket with mode 777 under the umask 000.
+- riscv64: `the_channel_rides_the_layer_through_cut_links_with_one_handshake`
+  (`pod-relay`), `a_large_download_crosses_a_bounded_link` (`pod-netstack`),
+  three tests of `pod-quic/tests/datagrams.rs` and
+  `a_session_carries_bytes_that_the_relay_never_sees_in_plain`
+  (`pod-e2e`) went past their bounds.
+
+## Premise
+
+- Read: `crates/pod-broker/src/control/bind.rs`. The stage path is the
+  parent, `/.pod-broker-` and 16 hex digits, and `/s`: 31 bytes more than
+  the parent. macOS gives `sun_path` 104 bytes, and its temporary
+  directory with the name of the test is about 75. A stage that does not
+  fit is skipped: a bind at the path, then a `chmod`, the window of T-196.
+- Read: the four bounds of the riscv64 failures do not use
+  `pod_testkit::host::scaled`; the download ran at 578 kB/s for 29 s
+  under qemu-user.
+
+## Approach
+
+- The name of the stage is `.pb-` and 16 hex digits (20 bytes): each
+  socket directory of a test (80 bytes at most, `pod_testkit`) takes the
+  stage. A unit test holds the bound.
+- `scaled` on the bounds of the four tests; the floor of the rate of the
+  download is a fifth under an emulator.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features
+cargo test -p pod-netstack -p pod-quic -p pod-e2e -p pod-relay --all-features
+```
+
+## Done
+
+2026-11-12. The next nightly proves both platforms.
+
+- `bind.rs`: `random_name` gives `.pb-` and 16 hex digits; `stage_fits`;
+  test `a_parent_of_80_bytes_takes_the_stage`. The plant
+  `broker-bind-at-the-path` is regenerated.
+- `scaled` in `pod-relay/tests/e2e_layered.rs`,
+  `pod-quic/tests/datagrams.rs`, `pod-e2e/tests/e2e_harness/mod.rs` and
+  `pod-netstack/src/stack/tests/link.rs` (with `pod-testkit` as a
+  dev-dependency of `pod-netstack`).

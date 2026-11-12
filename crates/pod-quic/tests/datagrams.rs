@@ -6,6 +6,7 @@
 
 mod common;
 
+use pod_testkit::host::scaled;
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -81,11 +82,11 @@ async fn exchange(client: Endpoint) {
         echo(connection.clone());
         (server, connection)
     });
-    let connection = timeout(LIMIT, connect::connect(&client, addr, NAME, tls(&roots), &Settings::default()))
+    let connection = timeout(scaled(LIMIT), connect::connect(&client, addr, NAME, tls(&roots), &Settings::default()))
         .await
         .unwrap()
         .expect("a connection over the datagrams");
-    let _server = timeout(LIMIT, accepted).await.unwrap().unwrap();
+    let _server = timeout(scaled(LIMIT), accepted).await.unwrap().unwrap();
 
     let payload: Vec<u8> = (0..STREAM as u32).map(|i| (i.wrapping_mul(7) % 251) as u8).collect();
     let (mut send, mut recv) = connection.open_bi().await.unwrap();
@@ -94,7 +95,7 @@ async fn exchange(client: Endpoint) {
         send.write_all(&sent).await.unwrap();
         send.finish().unwrap();
     });
-    let back = timeout(LIMIT, recv.read_to_end(STREAM * 2)).await.unwrap().expect("the echo");
+    let back = timeout(scaled(LIMIT), recv.read_to_end(STREAM * 2)).await.unwrap().expect("the echo");
     writer.await.unwrap();
     assert_eq!(back.len(), STREAM);
     assert_eq!(Sha256::digest(&back), Sha256::digest(&payload), "each byte back, in order");

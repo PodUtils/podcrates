@@ -1,11 +1,11 @@
 --- a/crates/pod-broker/src/control/bind.rs
 +++ b/crates/pod-broker/src/control/bind.rs
-@@ -35,7 +35,7 @@
+@@ -44,7 +44,7 @@
          Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
          _ => PathBuf::from("."),
      };
--    let fits = parent.as_os_str().len() + 1 + random_name().len() + 2 <= SUN_PATH_MOST;
-+    let fits = false && parent.as_os_str().len() + 1 + random_name().len() + 2 <= SUN_PATH_MOST;
-     if !fits {
+-    if !stage_fits(&parent) {
++    if true || !stage_fits(&parent) {
          let listener = std::os::unix::net::UnixListener::bind(path)?;
          std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
+         return Ok(listener);

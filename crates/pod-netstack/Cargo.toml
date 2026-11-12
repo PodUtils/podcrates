@@ -28,4 +28,5 @@ tracing = { workspace = true }
 ipv4-fragmentation = ["smoltcp/proto-ipv4-fragmentation", "smoltcp/fragmentation-buffer-size-65536"]
 
 [dev-dependencies]
+pod-testkit = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "io-util"] }

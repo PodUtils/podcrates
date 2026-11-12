@@ -201,7 +201,9 @@ pub async fn echo_back(app: &mut DuplexStream, chunk: &[u8]) -> std::io::Result<
     let mut back = vec![0u8; chunk.len()];
     let (mut r, mut w) = tokio::io::split(&mut *app);
     let both = async { tokio::try_join!(w.write_all(chunk), r.read_exact(&mut back)) };
-    tokio::time::timeout(LIMIT, both).await.map_err(|_| std::io::Error::other("no echo within the limit"))??;
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), both)
+        .await
+        .map_err(|_| std::io::Error::other("no echo within the limit"))??;
     Ok(back)
 }
 

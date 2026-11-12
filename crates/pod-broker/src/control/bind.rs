@@ -20,11 +20,20 @@ const SUN_PATH_MOST: usize = 103;
 const NAMES: usize = 8;
 
 /// A name that another user cannot guess: the random keys of the standard
-/// hasher, which the operating system seeds.
+/// hasher, which the operating system seeds. The name is short: each byte
+/// of it is a byte less for the parent in `sun_path`, and a parent that
+/// does not fit loses the stage (macOS gives 104 bytes, and its temporary
+/// directory takes about 50).
 fn random_name() -> String {
     let mut h = std::collections::hash_map::RandomState::new().build_hasher();
     h.write_u32(std::process::id());
-    format!(".pod-broker-{:016x}", h.finish())
+    format!(".pb-{:016x}", h.finish())
+}
+
+/// True when the stage of a socket in `parent` fits in `sun_path`: the
+/// parent, the name of the stage, and the leaf `s`.
+fn stage_fits(parent: &Path) -> bool {
+    parent.as_os_str().len() + 1 + random_name().len() + 2 <= SUN_PATH_MOST
 }
 
 /// The listener at `path` with `mode`, bound through a stage of mode 0700.
@@ -35,8 +44,7 @@ pub(super) fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::un
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
     };
-    let fits = parent.as_os_str().len() + 1 + random_name().len() + 2 <= SUN_PATH_MOST;
-    if !fits {
+    if !stage_fits(&parent) {
         let listener = std::os::unix::net::UnixListener::bind(path)?;
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
         return Ok(listener);
@@ -77,4 +85,19 @@ fn make_stage(parent: &Path) -> std::io::Result<PathBuf> {
         }
     }
     Err(last.unwrap_or_else(|| std::io::Error::other("no name for the stage of the bind")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Each socket directory of a test (at most 80 bytes, `pod_testkit`)
+    /// takes the stage under the 104 bytes of macOS.
+    #[test]
+    fn a_parent_of_80_bytes_takes_the_stage() {
+        let parent = PathBuf::from(format!("/{}", "d".repeat(79)));
+        assert!(stage_fits(&parent));
+        let longer = PathBuf::from(format!("/{}", "d".repeat(80)));
+        assert!(!stage_fits(&longer));
+    }
 }

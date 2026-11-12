@@ -6,6 +6,7 @@
 
 mod e2e_harness;
 
+use pod_testkit::host::scaled;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 
@@ -109,17 +110,17 @@ async fn the_channel_rides_the_layer_through_cut_links_with_one_handshake() {
         })
     };
     let mut back = vec![0u8; sent.len()];
-    tokio::time::timeout(2 * LIMIT, r.read_exact(&mut back)).await.unwrap().unwrap();
+    tokio::time::timeout(scaled(2 * LIMIT), r.read_exact(&mut back)).await.unwrap().unwrap();
     assert_eq!(Sha256::digest(&back), Sha256::digest(&sent), "the echo came back whole across the cuts");
     let mut w = writer.await.unwrap();
     w.shutdown().await.unwrap();
     let mut rest = Vec::new();
-    tokio::time::timeout(LIMIT, r.read_to_end(&mut rest)).await.unwrap().unwrap();
+    tokio::time::timeout(scaled(LIMIT), r.read_to_end(&mut rest)).await.unwrap().unwrap();
     assert!(rest.is_empty());
 
-    let reached = tokio::time::timeout(LIMIT, e2e).await.unwrap().unwrap().unwrap();
+    let reached = tokio::time::timeout(scaled(LIMIT), e2e).await.unwrap().unwrap().unwrap();
     assert_eq!(reached, identity(2).public());
-    let outcome = tokio::time::timeout(LIMIT, layer).await.unwrap().unwrap();
+    let outcome = tokio::time::timeout(scaled(LIMIT), layer).await.unwrap().unwrap();
     assert!(
         matches!(&outcome, Outcome::Layer(ended) if matches!(ended.end, End::LocalEnd | End::Closed(_))),
         "{outcome:?}"
@@ -146,7 +147,7 @@ async fn the_channel_runs_with_no_layer_as_the_plain_mode_serves_it() {
     let sent: Vec<u8> = (0..MIB).map(|i| (i % 253) as u8).collect();
     assert_eq!(e2e_harness::echo_back(&mut app, &sent).await.unwrap(), sent);
     app.shutdown().await.unwrap();
-    assert!(tokio::time::timeout(LIMIT, e2e).await.unwrap().unwrap().is_ok());
+    assert!(tokio::time::timeout(scaled(LIMIT), e2e).await.unwrap().unwrap().is_ok());
     assert_eq!(opened.load(Ordering::SeqCst), 1);
 }
 
@@ -168,7 +169,7 @@ async fn layer_of(
     settings: Settings,
 ) -> Result<client::Client<DuplexStream>, String> {
     let link = session_of(handler, id, None).await;
-    tokio::time::timeout(LIMIT, client::start(link, Ask::New, settings, &mut OsEntropy))
+    tokio::time::timeout(scaled(LIMIT), client::start(link, Ask::New, settings, &mut OsEntropy))
         .await
         .map_err(|_| "no layer within the limit".to_string())?
         .map_err(|e| format!("{e:?}"))
@@ -184,12 +185,14 @@ async fn channel_over(
     let connect = |_: &Ended| async { Next::<DuplexStream>::Stop("one link in this test".into()) };
     let layer = tokio::spawn(async move { resume::run(client, cipher, connect, |_| {}, &mut OsEntropy).await });
     let sent = b"through the budget".to_vec();
-    match tokio::time::timeout(LIMIT, e2e_harness::echo_back(&mut app, &sent)).await {
+    match tokio::time::timeout(scaled(LIMIT), e2e_harness::echo_back(&mut app, &sent)).await {
         Ok(Ok(back)) if back == sent => Ok((app, vec![layer])),
         // Refused by the layer, or by the channel: each one's word.
         _ => {
-            let layer = tokio::time::timeout(LIMIT, layer).await.map_err(|_| "no end of the layer".to_string())?;
-            let channel = tokio::time::timeout(LIMIT, e2e).await.map_err(|_| "no end of the channel".to_string())?;
+            let layer =
+                tokio::time::timeout(scaled(LIMIT), layer).await.map_err(|_| "no end of the layer".to_string())?;
+            let channel =
+                tokio::time::timeout(scaled(LIMIT), e2e).await.map_err(|_| "no end of the channel".to_string())?;
             Err(format!("the layer: {layer:?}; the channel: {:?}", channel.map(|c| c.map_err(|e| e.to_string()))))
         }
     }
@@ -208,7 +211,8 @@ async fn visitors_with_no_key_take_nothing_of_the_budget() {
     let handler = Layered::new(E2e::new(Echo { opened: opened.clone() }, node_end), settings, budget);
     for n in 1..=3 {
         let link = session_of(&handler, relay_id(n), None).await;
-        let visitor = tokio::time::timeout(LIMIT, client::start(link, Ask::New, settings, &mut OsEntropy)).await;
+        let visitor =
+            tokio::time::timeout(scaled(LIMIT), client::start(link, Ask::New, settings, &mut OsEntropy)).await;
         assert!(matches!(visitor, Ok(Ok(_))), "visitor {n} finished the layer's handshake");
         drop(visitor);
     }

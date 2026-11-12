@@ -1,23 +1,19 @@
 # Progress
 
-`TODO/INDEX.md` holds 283 entries: 64 open, 2 partial, 5 blocked, 212 done.
+`TODO/INDEX.md` holds 285 entries: 65 open, 2 partial, 5 blocked, 213 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.30.0` at `613058c` (`docs/releases/v0.30.0.md`; ci
-  43191076106, adoption 43191076065 with the trial of `pod-relay` in
-  podnet, release 43197313787; the hand-off GitHub #89, COORD-057):
-  `pod-actions-expr` and `pod-actions-workflow` (T-251), the MQTT brokers
-  of `code::run` (T-277), `syncthing-relay` (T-276), the proof of
-  `forward-url` (T-267), the trial of `pod-relay` in podnet and `Send`
-  notes (T-026).
-- `v0.31.0` is prepared on `main` (the version, `docs/releases/v0.31.0.md`,
-  the text of its hand-off): T-320 and T-321 (podvm's defects
-  PodUtils/podvm#281, #282), T-309, T-278.
+- Last release: `v0.31.0` at `45b145a` (`docs/releases/v0.31.0.md`; ci
+  43203503718, adoption 43200562250 at its parent `1976b18`, release
+  43218659006; the hand-off GitHub #90, COORD-058): T-320 and T-321
+  (podvm's defects PodUtils/podvm#281, #282), T-309, T-278. Each consumer
+  took `v0.30.0` (#89, closed).
+- On `main` after the tag: `pod-link` (T-300, partial), T-322, T-323.
 - The consumers and their tags:
-  - podssh: `v0.29.0` (`5b56c4d`, PodUtils/podssh#211; no code of podssh
-    changed; it took `pod-relay` at `0872c2c6`).
+  - podssh: `v0.30.0` (`ef3666f`, PodUtils/podssh#212): the MQTT brokers
+    of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.30.0` (`83e0c93`, PodUtils/podnet#481): its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).

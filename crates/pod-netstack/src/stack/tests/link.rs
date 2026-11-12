@@ -79,7 +79,7 @@ async fn a_large_download_crosses_a_bounded_link() {
     let start = std::time::Instant::now();
     let mut received = 0usize;
     let mut buffer = vec![0u8; 64 * 1024];
-    let read = tokio::time::timeout(Duration::from_secs(60), async {
+    let read = tokio::time::timeout(pod_testkit::host::scaled(Duration::from_secs(60)), async {
         loop {
             let n = client.read(&mut buffer).await.unwrap();
             if n == 0 {
@@ -92,14 +92,16 @@ async fn a_large_download_crosses_a_bounded_link() {
         }
     })
     .await;
-    assert!(read.is_ok(), "{received} of {SIZE} bytes in 60 s");
+    assert!(read.is_ok(), "{received} of {SIZE} bytes in the bound");
     assert_eq!(received, SIZE);
     let elapsed = start.elapsed();
     let _server = server.await.unwrap();
     // A floor far below the rate of a debug build on one core, so that only
-    // a stall (a retransmit timeout for each window) fails it.
+    // a stall (a retransmit timeout for each window) fails it; a fifth of it
+    // under an emulator, as `scaled` gives five times a bound.
     let rate = SIZE as f64 / elapsed.as_secs_f64();
-    assert!(rate > 1_000_000.0, "{rate:.0} B/s over {elapsed:?}");
+    let floor = if pod_testkit::host::emulated() { 200_000.0 } else { 1_000_000.0 };
+    assert!(rate > floor, "{rate:.0} B/s over {elapsed:?}");
     let stats = client_net.device_stats();
     assert!(stats.rx_packets > (SIZE / 1280) as u64, "{stats:?}");
     for pump in pumps {

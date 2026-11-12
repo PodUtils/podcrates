@@ -9,32 +9,23 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Finish the release of `v0.31.0` if it is not tagged (`docs/maintenance.md`,
-   "A release"): read `ci` and `adoption` at the head, run `release.yml`
-   with no input, then with `version=0.31.0`; read the dry run of
-   `publish.yml`; post `docs/releases/v0.31.0-handoff.md` as COORD-058
-   `(to all)` (fill `COMMIT` and the run ids), map it, message podrunner
-   and podssh.
-2. Read the hand-off issues #89 (`v0.30.0`, podssh's take is open) and the
-   one of `v0.31.0`, and record each new take.
+1. Read the hand-off issue #90 (`v0.31.0`) and record each new take.
+2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-4. Take the work order of `TODO/PROGRESS.md`: T-300 (`pod-link`, an agent
-   of this session in a worktree under `.claude/worktrees/`: merge its
-   branch when its checks pass), T-212, T-290.
+4. Take the work order of `TODO/PROGRESS.md`: T-311, T-212, T-290, T-324.
 
 ## In flight
 
-- The last release: `v0.30.0` at `613058c` (the hand-off #89): podrunner
-  took it at `528a918`, podvm at `c553da2e` (PodUtils/podvm#280), podnet
-  at `83e0c93` (PodUtils/podnet#481, with `pod-relay`); podssh has not
-  answered. Each consumer took `v0.29.0` (#87, closed).
+- The last release: `v0.31.0` at `45b145a` (the hand-off #90). Each
+  consumer took `v0.30.0` (#89, closed).
 - T-026 is done: podnet took `pod-relay` at `83e0c93` (PodUtils/podnet#481).
 - The nightly at `613058c` runs: it proves T-307 (the gate of `pod-guest`,
   the TCP-list tests on the targets with `socketcall(2)`, the bound under
   riscv64). `upstream.yml` is green at `a3ee89d` (T-306, T-308).
-- T-267: the next run of `services.yml` proves the URLs of the four live
-  relays.
+- T-267, T-323: the next run of `services.yml` proves the URLs of the four
+  live relays and the fixes of T-323 (Serveo's console, shiftr's text
+  watches, localtunnel, the bound of `rdap`).
 - T-040 (partial): the trials of podvm, with each import for podvm.
 
 ## What waits
@@ -47,9 +38,8 @@ is done. Git and the record keep finished work.
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write
   to podnet by COORD issues only.
-- podssh (on `v0.29.0`, `5b56c4d`, PodUtils/podssh#211): its
-  PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
-  with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
+- podssh (on `v0.30.0`, `ef3666f`, PodUtils/podssh#212): the live runs of
+  its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.30.0`, `528a918`): its local mode
   (PodUtils/podrunner@T-046) takes T-251; a defect comes as an ask.
