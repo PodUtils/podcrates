@@ -9,12 +9,7 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Finish the release of `v0.32.0` if it is not tagged (`docs/maintenance.md`,
-   "A release"): `ci` and `adoption` at the head, `release.yml` with no
-   input, then with `version=0.32.0`; the dry run of `publish.yml`; post
-   `docs/releases/v0.32.0-handoff.md` as COORD-061 `(to all)` (fill
-   `COMMIT` and the run ids), map it, message podssh and podrunner.
-   Read #90 (`v0.31.0`: podssh has not answered) and record each take.
+1. Read the hand-off issue #93 (`v0.32.0`) and record each new take.
 2. Read the nightly at `613058c`: T-325 has its failures.
 3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
@@ -22,10 +17,10 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.31.0` at `45b145a` (the hand-off #90). Each
-  consumer took `v0.30.0` (#89, closed).
-- T-327 is fixed on `main` (the operator flushes the local side): the next
-  tag carries it to podnet (PodUtils/podnet#502, #92).
+- The last release: `v0.32.0` at `032e86f` (the hand-off #93). Each
+  consumer took `v0.31.0` (#90, closed).
+- T-327: `v0.32.0` carries the flush of the operator to podnet
+  (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - T-326 (partial): the trial of `pod-relay` in podvm is in `v0.32.0`;
   `adoption.yml` proves it at the push, and podvm takes it (#91).
 - T-028 (`pod-warp`): an agent of this session imports it in a worktree

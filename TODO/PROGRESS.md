@@ -5,15 +5,14 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.31.0` at `45b145a` (`docs/releases/v0.31.0.md`; ci
-  43203503718, adoption 43200562250 at its parent `1976b18`, release
-  43218659006; the hand-off GitHub #90, COORD-058): T-320 and T-321
-  (podvm's defects PodUtils/podvm#281, #282), T-309, T-278. Each consumer
-  took `v0.30.0` (#89, closed).
-- `v0.32.0` is prepared on `main` (the version, `docs/releases/v0.32.0.md`,
-  the text of its hand-off): T-327 (podnet's `relay connect`), `pod-link`
-  (T-300, T-311), T-370 and T-329 (podssh's asks), T-322, T-323 to T-325,
-  and the trial of podvm (T-326).
+- Last release: `v0.32.0` at `032e86f` (`docs/releases/v0.32.0.md`; ci
+  43231610374, adoption 43231610238 with podvm's trial of `pod-relay`,
+  release 43236171454; the hand-off GitHub #93, COORD-061): T-327 (the
+  flush of the operator, PodUtils/podnet#502), `pod-link` (T-300, T-311),
+  T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
+  the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed).
+- On `main` after the tag: `pod-netlab` (T-207, partial), `pod-warp`
+  (T-028, partial).
 - The consumers and their tags:
   - podssh: `v0.31.0` (`02650f1`; earlier `v0.30.0` at `ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
