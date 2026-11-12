@@ -1387,7 +1387,7 @@ T-025 or T-026 is done.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1414,6 +1414,22 @@ cargo test -p pod-relay --all-features
 ## Start condition
 
 T-025 or T-026 is done.
+
+## Done
+
+2026-11-12. No new code: the import of T-025 (PodUtils/podssh@T-342) and T-026
+hold it. `pool::parse_limits` reads `limits` of `/relays.json`
+(`idle_timeout_ms`, `max_session_ms`, `max_session_bytes`,
+`max_frame_bytes`; a value that is missing, not a whole number or 0 is
+left out); the cached pool keeps them (`pool::cached_limits`).
+`relay::byte_budget_under` and `relay::time_budget` keep the margins
+(64 - 60 MiB, 12 - 11.5 h): a smaller cap of the relay lowers the budget
+by the same margin, and a larger one never raises it.
+`budget::RelayBudget::meter_for` gives podnet's meter (`pod_core::Metered`)
+the budgets of the relay in use. Tests:
+`pool::tests::a_relays_json_limits_are_read_and_cached_with_the_pool`,
+`budget::tests::the_budget_of_a_run_goes_under_the_limits_of_its_relay`.
+
 
 # T-124: `pod-relay`: failover on the reverse road (PodUtils/podnet#413)
 
