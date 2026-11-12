@@ -30,8 +30,8 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.28.0` at `4ce3625` (the hand-off #86): podrunner
-  `bde47c3` and podssh `12473a10` took it; podvm and podnet have not
-  answered. `v0.29.0` is prepared, not tagged (step 1 above).
+  `bde47c3`, podssh `12473a10` and podnet `b08e06f` (PodUtils/podnet#477)
+  took it; podvm has not answered. `v0.29.0` is prepared, not tagged (step 1 above).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
   relay client is in `pod-relay`. The trial of podnet
   (`adoption/podnet/pod-relay.patch`, `.commit`, `.run`) on podnet
@@ -58,9 +58,8 @@ is done. Git and the record keep finished work.
   again; T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its take of
-  T-257 to T-259 (PodUtils/podnet#464, for PodUtils/podnet@T-248) and of
-  `syn_hold` (T-170); then T-026's trial, then T-028 (`pod-warp`) and
+- podnet (on `v0.28.0`, `b08e06f`, PodUtils/podnet#477; #462 to #464 are
+  closed): its take of `syn_hold` (T-170); then T-026's trial, then T-028 (`pod-warp`) and
   T-029 (`pod-cloudflare`) on the chain to WARP (the owner's order). Write
   to podnet by COORD issues only.
 - podssh (on `v0.28.0`, `12473a10`, PodUtils/podssh#208): its

@@ -19,8 +19,9 @@
 - The consumers and their tags:
   - podssh: `v0.28.0` (`12473a10`, PodUtils/podssh#208; it took `pod-relay`
     at `0872c2c6`).
-  - podnet: `v0.27.0` (`28c0e3d`, PodUtils/podnet#465; the close of a
-    listener and the SYN bursts of PodUtils/podnet#457 hold in its tests).
+  - podnet: `v0.28.0` (`b08e06f`, PodUtils/podnet#477; its test pins
+    `InvalidInput` and `udp_oversize` over `mtu - 28`; it does not turn on
+    `ipv4-fragmentation` now: PodUtils/podnet@T-248 decides).
   - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
     of experiment 414 passes; `mcr.microsoft.com` leaves its list of
     reported hosts).
@@ -31,10 +32,7 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70); podvm's take of T-266 (PodUtils/podvm#277: it runs `kvm.yml` again with
-  the tag) and podnet's take of T-257 to T-259 (PodUtils/podnet#464, for
-  its guest-wire router PodUtils/podnet@T-248: the UDP counters,
-  `max_datagram`, the feature `ipv4-fragmentation`, the backlog of a UDP
-  socket), with the next tag.
+  the tag).
 - Partial: T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
   crate, with T-234; the trial of podnet on its `1abfa91` remains: no fix
