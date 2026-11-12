@@ -19,6 +19,10 @@ device. The crate reads no environment variable, prints nothing, keeps no
 global state, and each failure is a `pod_core::Failure` at the stage
 `host`.
 
+With the feature `syn-hold`, the netns hold also holds each SYN of the
+payload on the stack of `pod-netstack` until the consumer dialed its
+upstream (the section "The hold of a SYN").
+
 Needs: Linux 5.14 for the seccomp hold (`SECCOMP_ADDFD_FLAG_SEND`; the
 user notification itself is 5.0); unprivileged user namespaces, and
 `/dev/net/tun` or a veth pair (the `veth` module, packet sockets) in the
@@ -55,6 +59,45 @@ open packet socket of the wire end gets a copy of each frame. A child
 keeps its copy of a TUN. `create_tun`, `create_veth` and `open_wire`
 allocate: call them in a child that forked from a process with one thread.
 
+## The hold of a SYN
+
+`syn_hold::SynHold` (the feature `syn-hold`; call C90) is the hold of
+each `connect` of the payload on the wire of the netns hold: podnet's
+router (PodUtils/podnet#424, #451). A stack of `pod-netstack` answers for
+each destination of the payload (`any_ip`), and it accepts a connection
+only after the consumer dialed its upstream:
+
+1. The consumer reads the IP packets of the payload from the wire, takes
+   its DNS and its UDP flows, and gives the rest to
+   `pump(&mut from_payload, &mut to_payload, &dial)`.
+2. The pump holds each new TCP SYN of IPv4 and starts `dial.dial(syn)` in
+   a task. A SYN again while its dial runs is dropped. A new SYN past
+   `Settings::max_flows` (held, dialed and open) is dropped with no RST:
+   the payload sends it again (call C91).
+3. When the dial succeeds, the pump gives the SYN to the stack: a listener
+   on any address of the port (one for each port, closed when its last
+   handshake and its last flow end) accepts it, and `next_flow()` gives a
+   `Flow { syn, stream, upstream, open }`. The `local_addr` of the stream
+   is the target. The consumer copies the flow; the drop of `open` ends it
+   in the hold.
+4. When the dial fails, the pump puts the RST of the SYN
+   (`packet::rst_reply_for_syn`) into `to_payload`: the `connect` of the
+   payload fails with `ECONNREFUSED` at once, the stack never sees the
+   SYN, and `dial.refused(syn, Refused::Reset, error)` gets the failure.
+5. The consumer writes `to_payload` (the RSTs and the packets of the
+   stack) to the wire, and waits for the wire, `activity()` (a packet of
+   the stack, an accepted stream, the end of a dial or of a flow) or a
+   timer (the time limits of `Settings`).
+
+A stream that the stack accepted with no upstream (its upstream waited
+past `dialed_ttl`) gets a late dial: it waits in the hold, then becomes a
+flow, or it is aborted (`Refused::Aborted`; call C100).
+
+The dial, the rules, the names of the targets, the copy of a flow, the
+flow log, the DNS and the UDP flows are the consumer's. A binary that
+turns the feature on sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in its
+`.cargo/config.toml` (`pod-netstack`).
+
 ## API
 
 | Module | Contents |
@@ -69,11 +112,14 @@ allocate: call them in a child that forked from a process with one thread.
 | `table` | `Table<T>` of the sockets of the payload, keyed by the inode of the socket (a copy finds its entry; a sweep removes the sockets that closed with no `close`); `has_room` at the ceiling (the flow budget); `handle_close`; `derived_ceiling(RLIMIT_NOFILE)`, `nofile`, `raise_nofile`; `Refusal` and `Refusals` (a `const fn new` for a static of the consumer). |
 | `connect` | The state of a held `connect` while the consumer dials: `Dials<K>` (keyed by the consumer's key of a socket): `join` (a dial in progress: a blocking call waits, a nonblocking one gets `EALREADY`), `start` (`EINPROGRESS` for a nonblocking call), `wait_error` (a `getsockopt(SO_ERROR)` waits), `finish` (`None`: a blocking dial with no waiting call; drop it); `Finished::answer` (a `connect` takes the error, else the first `SO_ERROR`), `Finished::taker` (the call that can take the upstream socket); `write_error`, `write_error_to_task`; `Caller`, `ErrorCall`. The dial, the rules, the hand-off and the relay are the consumer's. |
 | `netns` | `enter()` (`CLONE_NEWNET`, else `CLONE_NEWUSER\|CLONE_NEWNET`), the handshake `announce` (child) and `answer` (parent, the id maps), `write_id_maps`, `bringup_loopback`, `Tun` (podnet's defaults) and `create_tun`; the wire (the section above): `Wire` (`Tun`, `Veth`; `of(fd)`, `word`, `checks_checksums`, `read_buffer`), `WireChoice` (`Auto`, `Tun`, `Veth`), `open_wire`, `create_veth`, `take_frame`, `Frame` (`Ip`, `Reply`, `Drop`), `frame_for`, `GUEST_MAC`, `GATEWAY_MAC`, `WIRE_NAME`, `ETH_HEADER`; `send_fd`, `send_fd_raw` (no allocation, for a child after `fork`), `recv_fd` (one descriptor, else a refusal), `socketpair`, `read_exact_fd`, `write_all_fd`. |
-| `packet` | The netns hold of a SYN: `parse_tcp_syn` (a bare IPv4 TCP SYN; a header under 20 bytes or a later fragment is none), `rst_reply_for_syn` (the RST\|ACK that fails the `connect` of the payload with `ECONNREFUSED`), `ipv4_checksum`. The hold of each SYN on the TUN (dial first, then accept or RST) stays the consumer's until T-170, step 2. |
+| `packet` | The netns hold of a SYN: `parse_tcp_syn` (a bare IPv4 TCP SYN; a header under 20 bytes or a later fragment is none), `rst_reply_for_syn` (the RST\|ACK that fails the `connect` of the payload with `ECONNREFUSED`), `ipv4_checksum`. `syn_hold` uses them. |
+| `syn_hold` | The feature `syn-hold` (the section "The hold of a SYN"): `SynHold<U, E>` (`new(StackConfig, Settings)`, `pump`, `activity`, `next_flow`, `shutdown`, `stack`, `stats`, `held_count`, `flow_count`, `listening_ports`); `Dial` (`type Upstream`, `type Error: From<JoinError>`, `dial(syn)`, `refused(syn, Refused, error)`; a closure `Fn(Syn) -> Future` is one); `Syn` (`source`, `target`; `Syn::of(packet)`); `Flow<U>` (`syn`, `stream`, `upstream`, `open`); `Open`; `Refused` (`Reset`, `Aborted`); `Settings`; `Stats` (`held`, `released`, `reset`, `again`, `over_budget`, `no_listener`, `late`, `aborted`, `flows`). |
 | `level` | `Level` (`enforced`, `advisory`, `none`) and `Hold { level, proof, not_held }`: `Hold::seccomp`, `Hold::netns(pid, userns, wire, name)` (the proof names the TUN or the veth pair), `Hold::none`. |
 
 ## Features
 
+* `syn-hold`: the module `syn_hold`, on `pod-netstack` (call C90). The
+  binary sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"`.
 * `fuzzing`: `mem::memfd`, for the fuzz target `hold_sockaddr` of `fuzz/`.
   No consumer turns it on.
 
@@ -87,6 +133,10 @@ allocate: call them in a child that forked from a process with one thread.
 | `netns::Tun` | `eth0`, 10.66.255.255/31, gateway 10.66.255.254, MTU 1500 | the same |
 | `netns::WireChoice` | `Auto`: the TUN, else the veth pair | `Auto`; `Veth` when the test variable `PODNET_NETNS_TEST_VETH` (podnet's) is set and not empty |
 | the `PATH` of `spawn::resolve` | `/usr/local/bin:/usr/bin:/bin` | the `PATH` of podnet's process |
+| `syn_hold::Settings::max_flows` | 4096 | `MAX_TRACKED_FDS` |
+| `syn_hold::Settings::dialed_ttl` | 30 s | `PREDIALED_TTL` |
+| `syn_hold::Settings::handshake_ttl` | 10 s | `HANDSHAKE_TTL` |
+| the `StackConfig` of `SynHold::new` | the caller gives it; `any_ip` is always on | the gateway `10.66.255.254/31`, MTU 1500, buffers of 64 KiB, `Checksum::Tx` on the veth wire |
 
 ## Parity
 
@@ -121,7 +171,8 @@ With podnet `crates/podnet-netns` at `9e8d177`:
   `listen`, `accept`, ICMP), the dials and the hand-off, the relays, the
   rules, the upstreams, the fake DNS, the flow log, `--learn`, the
   inbound listeners, the sessions, the router of the netns backend (its
-  smoltcp stack, its device on both wires and its UDP flows), the reaper
+  device on both wires, its DNS and its UDP flows; its hold of a SYN is
+  `syn_hold`, with the parity of `a7350b2` below), the reaper
   and the outlive of the pod, `pod doctor` (with its row `veth wire (no
   TUN)`) and the CLI.
 
@@ -151,6 +202,39 @@ PodUtils/podnet#446 and #451; podnet's PodUtils/podnet@T-174):
     `...; the veth wire: ...`).
   * `Hold::netns` takes the wire: the proof of a veth hold names the veth
     pair, not a TUN.
+
+With podnet `crates/podnet-netns` at `a7350b2`, the hold of a SYN of the
+router of the netns backend on `pod-netstack` (T-170, step 2;
+PodUtils/podnet#451, podnet's PodUtils/podnet@T-249):
+
+* Each item is here, with its behaviour: the hold of each new SYN with
+  its dial in a task, the drop of a SYN again while its dial runs, the
+  release of the SYN to the stack after a dial that succeeded (first in
+  the queue of the pass), the RST of a failed dial, the upstreams of the
+  released SYNs (30 s) and the handshakes (10 s), a listener on any address
+  for each port with its task of accepts, the close of the listener of an
+  idle port, the match of an accepted stream to its upstream, the late
+  dial, the abort of a stream of IPv6, the budget of 4096.
+* Changes:
+  * The dial is the consumer's `Dial`, given to each pass (call C90);
+    podnet called `spawn_dial` (its rules, its flow log, its proxies) and
+    `spawn_gateway_dial`, and printed a refusal with `-v` (now `refused`).
+  * A new SYN past the budget is dropped and counted (`over_budget`); the
+    payload sends it again. podnet gave it to the stack, which accepted it
+    with no upstream, and the dial ran after the accept (call C91). The
+    budget counts the dialed upstreams too (podnet: held and open).
+  * A late dial waits in the hold, and its failure aborts the stream with
+    `Refused::Aborted` (call C100); podnet's flow task waited for it. The
+    late dial is the one `dial` of the consumer (podnet: `spawn_dial` also
+    for a connection to the gateway).
+  * The end of a dial and the end of a flow wake `activity` (call C100);
+    podnet found a finished dial at its next pass (a timer of 5 ms).
+  * The table of the open flows counts each accept of a connection: a
+    connection that the stack accepts again while its first flow lives
+    stays until both flows end (podnet's map kept one entry, and the end of
+    the first flow removed it).
+  * A listener that the stack refuses is counted (`no_listener`); podnet
+    printed it with `-v`.
 
 ## Adoption map
 
@@ -197,10 +281,23 @@ podnet took these rows at `f107766` (tag `v0.26.0`; the trial patch
 | `crates/podnet-netns/README.md` | names `pod_hold::netns` for the wire |
 | each `pod-*` dependency | tag `v0.25.0` |
 
+The trial patch `pod-hold-syn` (`adoption/podnet/`, at podnet `a7350b2`)
+gives these rows:
+
+| Old (`crates/podnet-netns/src/`) | New |
+| --- | --- |
+| `netns/backend.rs`: `SynKey`, `HeldSyn`, `DialTask`, `PREDIALED_TTL`, `HANDSHAKE_TTL`, `Accepted`, `Source`, the fields `stack`, `link_in`, `link_out`, `ports`, `accepted_tx`, `accepted_rx`, `accepted`, `handshakes`, `held` and `predialed` of `Backend`, `activity`, `has_connection`, `open_count`, `hold_syns`, `feed`, `listen_on`, `close_idle_ports`, `collect`, the match of a stream to its upstream in `accept_flows`, the wait of `Source::Dial` in `Flow::run`, `MAX_TRACKED_FDS` in `hold_syns` | `pod_hold::syn_hold`: the field `hold: SynHold<Dialed, anyhow::Error>` (`SynHold::new(config, Settings { max_flows: MAX_TRACKED_FDS, .. })`), `pump(&mut device.rx, &mut device.tx, &tcp)` in `tick`, `activity`, `next_flow` in `accept_flows`, `Syn` for `SynKey` |
+| `spawn_dial`, `spawn_gateway_dial`, `target_of` | a `TcpRoute` (the rules, the proxies, the fake DNS, `--host-gateway`, `-v`) implements `Dial`: `dial` is `spawn_dial` with no spawn (the gateway for `TUN_GW`), `refused` prints the line of `-v`; `Dialed` carries the upstream, the target and the number of the flow log |
+| `FlowRecord`, `Flow`, `relay`, the close lines of `Drop` | stay; `OpenFlows` keeps the records only, and `Flow` holds the `Open` of the hold |
+| `netns/packet.rs`: the uses of `parse_tcp_syn` and `rst_reply_for_syn` | gone (`syn_hold` calls them); `ipv4_checksum` and `dns_reply_packet` stay |
+| `crates/podnet-netns/README.md`; the citations of `backend.rs` and of that README in `TODO/` | names `pod_hold::syn_hold` and the budget; remapped |
+| `podnet-netns/Cargo.toml`, `Cargo.toml` | `pod-hold` with the feature `syn-hold`; each `pod-*` dependency at the tag of the release |
+
 ### Later consumers
 
-* podvm (`--net`, A-V-02, PodUtils/podvm@T-1665): the netns hold, or the
-  seccomp hold with its own handler of `connect`.
+* podvm (`--net`, A-V-02, PodUtils/podvm@T-1665): the netns hold with the
+  hold of a SYN (`syn_hold`, its own `Dial`), or the seccomp hold with its
+  own handler of `connect`.
 * podrunner (G-04, T-160): the level and the proof of the hold of each
   unit, for its run report.
 
@@ -224,10 +321,36 @@ no frame is larger than the MTU. A host that refuses a hold, a namespace,
 a user has no user namespace, so `scripts/root-netns-tests.sh` (the step
 "Netns tests as root" of `ci.yml`) runs both binaries as root, and a line
 `SKIP:` fails it. The fuzz target `hold_sockaddr` reads an address from a
-memfd. The plants `hold-reply-errno-positive`,
-`hold-address-read-past-length`, `hold-filter-foreign-abi-passes`,
-`hold-veth-arp-any-address` and `hold-veth-offloads-on` (`scripts/plants/`)
-prove the core checks.
+memfd.
+
+`cargo test -p pod-hold --features syn-hold`: the hold of a SYN
+(`src/syn_hold/tests.rs`, `src/syn_hold/tests/many.rs`) over a link in the
+process: a stack of `pod-netstack` stands in for the payload behind its
+wire, a pump moves its packets as podnet's loop moves the packets of the
+TUN, and the dial gives an upstream in memory whose target greets and
+echoes. A dial that succeeds gives a flow that carries 256 KiB both ways
+(`a_syn_whose_dial_succeeds_is_accepted_and_carries_bytes_both_ways`, a
+closure as the dial); a dead upstream gets one RST on the link and
+`ECONNREFUSED` in less than 3 s, and the stack sees no SYN
+(`netns_backend_refuses_connect_when_the_upstream_is_dead`); the SYN-ACK
+of a held port comes after the SYN-ACK of a later port
+(`the_stack_answers_a_syn_only_after_its_dial`); a SYN sent two times has
+one dial (`a_syn_sent_again_while_its_dial_waits_is_held_once`); 48
+connects at once to one port get 48 greetings and no RST
+(`netns_backend_takes_a_burst_of_connects_to_one_port`); 300 ports at one
+time, then each listener closes and six ports work again
+(`netns_backend_has_no_cap_on_destination_ports`); a SYN past a budget of
+one waits for room with no late dial
+(`a_syn_past_the_budget_waits_for_room`). The tests of podnet keep their
+names. The pump of the tests has no timer: a wake that the hold misses
+stops a test at its time limit.
+
+The plants `hold-reply-errno-positive`, `hold-address-read-past-length`,
+`hold-filter-foreign-abi-passes`, `hold-veth-arp-any-address` and
+`hold-veth-offloads-on` (`scripts/plants/`) prove the core checks;
+`hold-syn-accepted-before-the-dial` and
+`hold-syn-past-the-budget-to-the-stack` prove the tests of the hold of a
+SYN.
 
 ## Sources
 
