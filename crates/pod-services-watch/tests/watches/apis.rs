@@ -45,6 +45,7 @@ fn answer(request: &Request, origin: &str) -> Answer {
         "/registry/domain/ok.test" => {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2027-11-10T00:00:00Z"}]}"#)
         }
+        "/rdap-any/domain/gone.test" => Answer::new(429, "slow down"),
         "/registry/domain/soon.test" => {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2026-12-01T00:00:00Z"}]}"#)
         }
@@ -154,6 +155,14 @@ async fn rdap_wants_a_registration_that_does_not_end_soon() {
     let bad = "[[watch]]\nkind = \"rdap\"\ndomain = \"soon.test\"\n";
     let report = one_in(&mut net, &file("a2", &(fact("x", "1") + bad))).await;
     assert!(text(&report).contains("ends on 2026-12-01, in 21 days"), "{}", text(&report));
+    // The registry's server answers 404 and the fallback 429: the finding
+    // names both, not the last alone.
+    let gone = "[[watch]]\nkind = \"rdap\"\ndomain = \"gone.test\"\n";
+    let report = one_in(&mut net, &file("a3", &(fact("x", "1") + gone))).await;
+    let all = text(&report);
+    assert!(all.contains("no RDAP server has a record of gone.test: https://"), "{all}");
+    assert!(all.contains("/registry/domain/gone.test answered HTTP 404; https://"), "{all}");
+    assert!(all.contains("/rdap-any/domain/gone.test answered HTTP 429"), "{all}");
 }
 
 #[tokio::test]

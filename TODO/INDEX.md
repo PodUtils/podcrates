@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**249 entries: 64 open, 5 partial, 4 blocked, 176 done.**
+**249 entries: 64 open, 4 partial, 4 blocked, 177 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 49 | 64 |
+| P1 | 12 | 2 | 0 | 50 | 64 |
 | P2 | 32 | 2 | 4 | 88 | 126 |
 | P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 64 | 5 | 4 | 176 | 249 |
+| **All** | 64 | 4 | 4 | 177 | 249 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -271,7 +271,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-222](relay.md) | P1 | M | M2 | feature | done | `pod-netstack`: any IP, a TCP listener and a UDP socket on any address, and the checksums of a link device (PodUtils/podnet#454) |
 | [T-223](relay.md) | P3 | S | M2 | defect | done | `pod-netstack`: a SYN sent again can reach a newer listen socket of the pool of a listener |
 | [T-224](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the facts of an SSH forward relay, and a reader of its banner across chunks (PodUtils/podnet#455) |
-| [T-225](transport.md) | P1 | M | M1 | feature | partial | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
+| [T-225](transport.md) | P1 | M | M1 | feature | done | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |
 | [T-227](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
 | [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |

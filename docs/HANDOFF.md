@@ -60,6 +60,11 @@ a line when its work is done. Git and the record keep finished work.
   next podvm beta, and later crates (`pod-unit`, `pod-release`, the
   registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`
   for its local mode). Its T-042 uses `pod-confine`.
+- The banners of the SSH forward relays (T-225, the watch `forward-url`):
+  no session of podcrates has SSH. A run of `services.yml` with the kind
+  `forward-url` (the daily run, or by hand with the kind) gives the host
+  of the URL of each relay; a `MOVED` on `url-match` is a fact that
+  podnet's `ssh-relay` reads. T-267 proves the URL through the tunnel.
 - M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
 - The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
   make it public (podnet's record).

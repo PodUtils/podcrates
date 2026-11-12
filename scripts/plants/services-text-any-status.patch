@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -223,7 +223,7 @@ pub async fn status(service: &Service, watch: &Watch, net: &Net) -> Checked {
+ pub async fn text(service: &Service, watch: &Watch, net: &Net) -> Checked {
+     let args = Args::new(service, watch);
+     let (url, contains) = (args.text("url")?, args.text("contains")?);
+-    let answer = net.get_ok(url, "*/*").await?;
++    let answer = net.send(net.request("GET", url)).await?;
+     if !answer.text().contains(contains) {
+         let shown = answer.body_text(120);
+         return Err(Finding::failed(format!("{} does not hold {contains:?}: {shown}", self::shown(url))));
