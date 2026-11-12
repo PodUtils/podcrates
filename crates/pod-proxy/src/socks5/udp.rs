@@ -202,3 +202,33 @@ pub fn wrap_name(payload: &[u8], name: &str, port: u16) -> Result<Vec<u8>, DialE
     out.extend_from_slice(payload);
     Ok(out)
 }
+
+/// The destination and the payload of a datagram of RFC 1928, section 7:
+/// the reverse of [`wrap`] and [`wrap_name`], for a server of a UDP
+/// association. `None` for a fragment (FRAG not 0), a datagram shorter than
+/// its header, an empty name, a name that is not UTF-8 and an unknown
+/// address type: a server drops such a datagram.
+#[must_use]
+pub fn unwrap(datagram: &[u8]) -> Option<(pod_core::Target, &[u8])> {
+    if datagram.len() < 4 || datagram[2] != 0 {
+        return None;
+    }
+    let (host, rest) = match datagram[3] {
+        IPV4 => {
+            let ip: [u8; 4] = datagram.get(4..8)?.try_into().ok()?;
+            (IpAddr::from(ip).to_string(), &datagram[8..])
+        }
+        IPV6 => {
+            let ip: [u8; 16] = datagram.get(4..20)?.try_into().ok()?;
+            (IpAddr::from(ip).to_string(), &datagram[20..])
+        }
+        NAME => {
+            let len = usize::from(*datagram.get(4)?);
+            let name = std::str::from_utf8(datagram.get(5..5 + len)?).ok().filter(|n| !n.is_empty())?;
+            (name.to_string(), &datagram[5 + len..])
+        }
+        _ => return None,
+    };
+    let port = u16::from_be_bytes(rest.get(..2)?.try_into().ok()?);
+    Some((pod_core::Target::new(&host, port), &rest[2..]))
+}

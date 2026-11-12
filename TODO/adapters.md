@@ -722,7 +722,7 @@ proxy, the forward and nc).
 **Milestone:** M3
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -754,6 +754,39 @@ data path: `DataPathCheck` of T-335 takes UDP servers alone, and podnet's
 ```sh
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12, commit `e114433` (the code) and the commit of the record
+after it (calls C200 to C204). The L4 door goes to T-406 (call C204: it
+needs the HTTP/3 of T-337).
+
+- `pod-proxy`: `serve` (the server face of a SOCKS5 or HTTP proxy) and
+  `udp::unwrap`, from the server half of podnet-netns's `socks.rs`
+  (C200); `tests/serve.rs` 10 passed.
+- `pod-warp`: `resolver` (UDP and DNS over TLS inside the tunnel), `proxy`
+  (`Proxy`, `Tunnel`, `serve_client`, the rules with their counters, the
+  names and the pins, the UDP associations, the DNS forwarder with its
+  bound, the limit of clients, `health`), `forward`, `nc`, each over a
+  `Dial` (C201 to C203). `DataPathCheck` takes resolvers on UDP or over
+  TLS, with the TLS client of the caller (C202). The loopback tests of
+  podnet's files keep their names; the tests of the bind of a listener
+  and of the SSH configuration stay in podnet with that code.
+- The Prove: `cargo test -p pod-warp --all-features` passes: the unit
+  tests 93 passed (the dispatch, the credentials, the limit, the UDP
+  client, the resolvers, the DNS bound, the names and the pins, the
+  forward, nc), `tests/proxy.rs` 11 passed (the resolvers against the
+  stand-in edge, a lost question sent again, the check over TLS against a
+  server of RFC 7858 behind a route of the edge, the DNS forwarder, the
+  UDP associations, the rules of the proxy over the session, the forward
+  and the UDP pipe of nc), and each other target as before;
+  `cargo test -p pod-proxy --all-features` passes. Clippy, fmt and the
+  docs with `-D warnings` of both crates: clean.
+- Plants: `warp-proxy-rule-not-applied` and `warp-dns-bound-not-held` are
+  caught; `warp-check-without-answer` now patches the UDP loop of
+  `resolver.rs` and is caught; `sh scripts/plant-each.sh --apply`: 0
+  stale.
+- T-407: the fuzz targets of the server face.
 
 # T-339: `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh
 
@@ -1031,3 +1064,49 @@ record; call C192.
   `tests/net.rs`, 8 of `tests/stack.rs`, 8 of `tests/register.rs`, 1 live
   test ignored.
 - Plant: `warp-udp-to-a-family-the-device-lacks`: caught (run by hand).
+
+# T-406: `pod-warp`: the L4 door of `--l4` and its proxy, after HTTP/3
+
+**Source:** T-338 (call C204: the L4 door needs the HTTP/3 of T-337).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's `warp proxy --l4` (issue 140: `src/warp/l4.rs`, 272 lines, and
+`proxy::run_l4`) is not in `pod-warp`. Each TCP client of the proxy is one
+HTTP/3 CONNECT stream (RFC 9114, section 4.4) to the L4 door of WARP, on
+one QUIC connection with the client certificate and the pinned key of the
+device; UDP is not carried. The rules apply with no lookup of a name
+(`Table::decide_static`). The door needs the QUIC connection and the
+frames of `h3.rs`, which come with T-337.
+
+## Premise
+
+- Read: `PodUtils/podnet:src/warp/l4.rs` and `proxy.rs` (`run_l4`) at
+  `e046560`; `l4_sni` reads the endpoint `masque-l4` of `pod-services`.
+- Not measured: the L4 door of WARP.
+
+## Approach
+
+`l4::L4` (the door, its QUIC connection made again when it closes, `dial`
+of a `Target`) over the HTTP/3 of T-337 and the `Datagrams` of the
+caller; `connect_headers_form` with podnet's `PODNET_WARP_L4_FORM` as a
+setting (`plain`, `extended`, `header`); `L4` as a `pod_core::Dial`, so
+that `Proxy` serves it with its `direct` dial, and the rules of
+`decide_static` for a proxy with no resolver in the tunnel. The tests
+`a_flow_through_an_l4_door_on_the_loopback` and `the_connect_request` of
+podnet; the line of `SOURCES`.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+## Start condition
+
+T-337 is done (the HTTP/3 of `h3.rs` is in `pod-warp`).

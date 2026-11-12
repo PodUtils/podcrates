@@ -259,4 +259,17 @@ mod tests {
         assert!(stack.nodelay);
         assert!(TCP_KEEPALIVE < TCP_TIMEOUT, "an idle connection to a live peer must stay");
     }
+
+    /// podnet's `proxy/names.rs`: the stack of an IPv4 tunnel takes the
+    /// IPv6 address of the device too; an IPv6 tunnel has no IPv4 address
+    /// of its own (the documentation address, whose dials are refused).
+    #[test]
+    fn the_stack_takes_the_ipv6_address_of_an_ipv4_tunnel() {
+        let v4 = Ipv4Addr::new(172, 16, 0, 2);
+        let v6: Ipv6Addr = "2606:4700:110:8a1::2".parse().unwrap();
+        let stack = NetSettings::default().stack_config(Some(v4), Some(v6)).unwrap();
+        assert_eq!((stack.local_v4, stack.local_v6), (v4, v6));
+        let only_v6 = NetSettings::default().stack_config(None, Some(v6)).unwrap();
+        assert_eq!((only_v6.local_v4, only_v6.local_v6), (NO_V4, v6), "no second address for an IPv6 tunnel");
+    }
 }

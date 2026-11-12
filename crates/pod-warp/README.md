@@ -15,8 +15,11 @@ settings of podnet's stack of `src/warp/ip.rs` (the congestion controller,
 the TCP burst, the counters of the link, the budget of a relay) and the
 check of the data path; and T-336: the relay leg of the caller, the race
 of the direct path and the relay, the leg file and the budget of a relay
-session. The rest is T-337 to T-339, and T-393 to T-395 (the rest of
-`ip.rs`).
+session; and T-338: the local SOCKS5 and HTTP proxy with its rules, its
+names, its UDP and its DNS forwarder, the resolvers inside the tunnel (on
+UDP or over TLS), the local forwards and the pipe of `warp nc`. The rest
+is T-337, T-339 and T-406 (the L4 door, after HTTP/3), and T-393 to T-395
+(the rest of `ip.rs`).
 
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no global state. Each failure is a
@@ -36,7 +39,11 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession` (with a relay: the race of the two legs), `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`; `relay_first`, `with_relay_first`, `leg`, `take_leg_change`. |
 | `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `close(why)` (podnet's `close_session`), `stack`, `with_resolvers`, `link_stats`, `renew_due` (the budget of the session, else `NetSettings::renew`), `check_data_path(&DataPathCheck) -> Duration`, `checked`. When the session closes (the edge ends it, a pump ends, the reactor of the stack stops, also by a panic, or `close`), each open stream and UDP socket fails at once with `ConnectionReset` and the first cause, and a new dial and a new UDP socket fail with it. A UDP datagram to a family that the device lacks is `InvalidInput` ("the tunnel has no IPv6 address for ..."), and no packet leaves. |
 | `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, tcp_timeout, tcp_keepalive, tcp_linger, nodelay, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, `TCP_TIMEOUT` 60 s, `TCP_KEEPALIVE` 20 s, `TCP_LINGER` 30 s, no Nagle, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
-| `check` | `DataPathCheck { servers, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device, `cloudflare.com`, 5 s, 1.2 s), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`). |
+| `check` | `DataPathCheck { servers, tls, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device on UDP, no TLS client, `cloudflare.com`, 5 s, 1.2 s), `of(&Resolvers)` (the resolvers of a proxy, on UDP or over TLS), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`); a server over TLS with no TLS client of the caller is no answer. |
+| `resolver` | `Resolver` (`Udp(addr)`, `Tls { addr, name }`; `parse`: `IP[:PORT]`, `udp://`, `tls://IP[:PORT][#NAME]`; `addr`; `Display`), `parse_resolvers(specs)` (comma lists), `Resolvers { list, tls, limit, resend, connect_timeout }` (`new`, `in_use`: the list, else 1.1.1.1:53 on UDP; `exchange(net, query)`: each in turn, the first answer with the id; `exchange_with`; `query(net, name, kind)`), `question(name, kind)` (a random id), `udp_exchange` (resent each 1.2 s), `dot_exchange` (RFC 7858), `DNS_TIMEOUT`, `DNS_RESEND`, `CONNECT_TIMEOUT`, `DNS_PORT`, `DOT_PORT`, `DNS_HEADER`. Each takes the session as a `Dial`. |
+| `proxy` | `Proxy { tunnel, direct, rules, names, credentials, max_connections, stats, report, connect_timeout, request_limit }` (`new(tunnel, direct)`: the rules route each destination through the tunnel, no credentials, no limit), `run_tcp(listener)`, `run_unix(listener)`, `client(stream, control) -> bool` (false at the limit), `route(net, target)`, `serve_dns(socket)` (the DNS forwarder, at most `MAX_DNS_TASKS` in flight), `admit`, `health() -> Health`; `Tunnel` (`session()`: the session of now; `Fixed(dial)`, `WarpNet`), `Stats`, `Health`, `Admitted`; `serve_client(stream, dial, udp, &Opening)` (one client with the dial of the caller: SOCKS5 CONNECT, `UDP ASSOCIATE`, 0x83, HTTP `CONNECT`, an `http://` URL; a SOCKS4 client, a TLS client and another first byte are refused at once), `Opening { credentials, limit, report, control }`, `Udp { net, names }`, `relay_bind_ip`, `DnsGate`; `names` (`Names { resolvers, pins }`: `resolve_all`, `resolve`, `connect`; `Pins`, `order`); `CONNECT_TIMEOUT`, `REQUEST_LIMIT` (30 s), `HEALTH_EVERY` (600 s), `MAX_DNS_TASKS` (256). The decisions `warp.dispatch` and `warp.rule`; the events `warp.proxy.open` and `warp.proxy.limit`. |
+| `forward` | `Listen` (`Tcp`, `Unix`; `parse`, `Display`), `Rule { listen, target }` (`parse("LISTEN=HOST:PORT")`; a loopback target is `Usage`), `Forward { rule, tunnel, names, connect_timeout, report }` (`new(rule, tunnel, names, max)`, `run_tcp`, `run_unix`, `connection(stream) -> bool`); the event `warp.forward.open`. |
+| `nc` | `target(host, port)`, `PipeEnd { shutdown, idle }` (default: no FIN at the end of the input, `TCP_IDLE` 5 s), `pipe_with(io, input, output, end)`, `udp_pipe_with(out, back, input, output, idle)`, `udp_via_net(net, &names, host, port)`, `udp_via_stream(stream, host, port)` (an association in the stream of a running proxy), `UdpEnds`. |
 | `api` | `Api::new(pod_proxy::Client)`, `with_base(url)` (podnet's `PODNET_WARP_API`, podssh's `PODSSH_WARP_API`), `with_bases`, `bases`, `request`, `send` (each base in turn; a `POST` goes on only after no answer); `ApiError`, `api_status`, `bases(value)`, `API_TIMEOUT`. |
 | `register` | `create_device`, `create_device_with_key`, `enrol_masque`, `get_device`, `get_account` (license hidden), `set_license`, `delete_device`, `registration_error` (error 1015). |
 | `device` | `Device` (`ipv4`, `ipv6`, `local_address`, `masque_endpoint`, `masque_endpoints`, `peer_public_key_pem`, `reserved`; `Debug` hides the token and the license), `Account`, `DeviceConfig`, `Peer`, `Endpoint`, `Interface`, `Addresses`, `Services`, `Policy`, `redact_account`. |
@@ -51,7 +58,7 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `session` | `Way { dial, meter, provider, sni, authority, timeout }`, `Meter` (a function of the caller: a stream in, the metered stream and its `Renew` out), `MasqueSession` (`connect`, `split`, `relay_budget`), `MasqueTx` (`send_packet`, `send_packets`, `waits`, `keepalive`, `close`), `MasqueRx` (`recv_packet`, `take_assigned`, `progress`, `is_closed`), `Keepalive`, `h2_builder`; the windows, the budget of DATA frames, `SEND_RESERVE`, `SEND_STALL`, `CONNECT_TIMEOUT`, `MAX_MISSED_PONGS`. |
 | `capsule` | The capsules of RFC 9297 and the types of RFC 9484: `put_varint`, `get_varint`, `put_capsule`, `CapsuleDecoder`, `parse_address_assign`, `MAX_CAPSULE_LEN`. |
 | `dns` | `lookup(net, resolvers, name, limit)` (DNS over TCP inside the tunnel), `RESOLVERS`. |
-| `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide`, `decide_static`), `Host`, `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
+| `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide(&lookup, host)`, `decide_static`), `Host` (`of(target)`, `Display`), `Lookup` (the names of a proxy, or the DNS over TCP of a `WarpNet`), `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
 | `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`; of `cloudflare-dns`: `tunnel_resolver` (`udp-1`), `check_name`. |
 
 ## Settings
@@ -77,7 +84,14 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | `PODNET_WARP_TCP_BURST` (`ip::check_tcp_burst`) | | `NetSettings::tcp_burst`, from `net::parse_tcp_burst` |
 | the counters of the links of a process (`ip::link_stats`) | | `NetSettings::link_stats` (one `Arc<DeviceStats>` for each session), `WarpNet::link_stats` |
 | `PODNET_WARP_NO_CHECK` | | `NetSettings::check = None` |
-| `--resolver`, `PODNET_WARP_RESOLVERS` (for the check) | | `DataPathCheck::servers` (DNS on UDP; DNS over TLS comes with the resolvers of the proxy, T-338) |
+| `--resolver`, `PODNET_WARP_RESOLVERS` (`set_resolvers`) | | `resolver::parse_resolvers` into `Proxy::names.resolvers.list`, and `DataPathCheck::of(&resolvers)` for the check; the TLS client of DNS over TLS (`trust::context()`) is `Resolvers::tls` |
+| `--resolve`, `PODNET_RESOLVE` (`resolve::pinned`) | | `Names::pins` |
+| `--max-connections` (`set_max_connections`) | | `Proxy::max_connections`; `Forward::new(.., max)` |
+| `--proxy-user`, `--proxy-password-file` (`set_credentials`) | | `Proxy::credentials` |
+| `warp proxy --dns` (`serve_dns`) | | `Proxy::serve_dns(socket)` |
+| `warp forward -L` | | `forward::Rule::parse`, `Forward` |
+| the bind of a listener (`proxy::bind`, `bind_all`, the private Unix socket) | | the caller's; `Proxy::run_tcp`, `run_unix` take the listener |
+| `warp nc` (`via_running`, `via_relay`, `pipe`, `ssh_config`) | | the caller's; `nc::pipe_with` and the UDP pipes take the stream |
 | the budget of a relay session (`ws_relay::meter`, `StackConfig::renew`) | | `Relay::meter` (or `Way::meter`); `NetSettings::renew` for a session with no meter |
 | `CARRY_MTU` (the carried device) | | `NetSettings::mtu` |
 
@@ -95,7 +109,25 @@ and far end in `tests/common/edge.rs` (call C135).
 | A session as a `Dial` and `Datagrams` | `tests/net.rs`: `a_session_carries_tcp_to_an_address_and_to_a_name`, `a_session_carries_udp_as_datagrams`, `a_new_key_of_the_front_door_reads_the_record_again`, `a_key_that_the_edge_did_not_enroll_is_refused` |
 | The lint as a function of the caller | `rules::tests::the_lint_of_the_caller_judges_the_table` |
 | The live check | `tests/live.rs`: `live_register_connect_and_trace` (ignored; its step in `live.yml` is T-339) |
-| The proxy, the forward, nc | T-338 |
+| The proxy, the forward, nc | T-338 (below) |
+
+| Approach of T-338 | Test |
+| --- | --- |
+| The dispatch of a client: SOCKS5, HTTP `CONNECT`, an `http://` URL, SOCKS4, a silent client, the credentials, the refusal of a rule, the limit | `proxy::tests`: `a_socks4_client_is_refused_at_once`, `a_socks5_client_reaches_the_dialed_target`, `a_refused_destination_gets_its_own_reply`, `a_socks5_client_gives_its_credentials`, `an_http_client_gives_its_credentials`, `a_silent_client_is_closed`, `an_http_connect_client_reaches_the_dialed_target`, `an_http_url_request_reaches_the_origin_in_origin_form`, `the_connection_limit`; in `pod-proxy`: `tests/serve.rs` |
+| The client of a UDP association | `proxy::tests`: `the_udp_client_is_fixed_by_the_first_sender`, `the_udp_relay_binds_the_address_of_the_control_connection`; `tests/proxy.rs`: `another_local_sender_can_not_take_the_udp_association`, `a_udp_association_survives_a_datagram_to_ipv6`, `a_udp_association_in_the_stream_reaches_the_echo` |
+| The rules of the proxy over the session | `tests/proxy.rs`: `the_rules_of_the_proxy_route_each_destination`, `an_http_connect_goes_through_the_tunnel` |
+| The names and the pins | `proxy::names::tests`: `the_dial_order`, `warp_resolve_takes_the_pin_first`; `net::settings::tests::the_stack_takes_the_ipv6_address_of_an_ipv4_tunnel` |
+| The resolvers on UDP and over TLS; the check of the data path over TLS | `resolver::tests`: `the_resolver_specs`, `dns_over_tls_frames_each_message`; `tests/proxy.rs`: `the_first_resolver_that_answers_wins`, `a_lost_dns_query_is_sent_again`, `the_check_of_the_data_path_asks_a_resolver_over_tls` |
+| The DNS forwarder and its bound | `proxy::dns_bound::tests`: `a_burst_gives_at_most_the_bound_in_flight`, `a_short_datagram_starts_nothing`; `tests/proxy.rs`: `the_dns_forwarder_gives_the_answer` |
+| The forward | `forward::tests::the_rules_of_a_local_forward`; `tests/proxy.rs`: `a_forward_carries_each_connection_through_the_tunnel` |
+| nc | `nc::tests`: `targets`, `a_udp_pipe_sends_each_read_and_prints_each_answer`, `the_pipe_ends_when_the_far_end_closes`, `the_reply_survives_an_input_that_ends_at_once`, `with_n_the_far_end_sees_the_eof`, `the_pipe_ends_after_idle_with_no_reply`, `a_udp_pipe_through_a_stream_frames_each_datagram`; `tests/proxy.rs`: `a_udp_pipe_of_nc_reaches_the_echo` |
+| The L4 door (`l4.rs`, `proxy::run_l4`) | T-406, after T-337 |
+
+The tests of the bind of a listener (`a_unix_socket_that_answers_is_not_taken`,
+`a_refused_tcp_listener_does_not_stop_the_unix_socket`) and of the SSH
+configuration of nc (`the_ssh_config_uses_warp_nc`,
+`the_printed_block_quotes_the_path_as_the_written_block`) stay in podnet
+with that code (call C201, call C203).
 
 | Approach of T-335 | Test |
 | --- | --- |
@@ -121,13 +153,16 @@ largest TCP window of the client, the ends of each UDP datagram and the
 packets of each family, and drops the first questions that a test names
 (`Watch` of `tests/common/edge.rs`); `Seen::silent` of
 `pod_testkit::masque` makes a front door that takes the handshake and
-carries nothing. Plants: `warp-check-without-answer`,
+carries nothing. `tests/proxy.rs` adds a route of DNS over TLS (port 853)
+to a server of RFC 7858 on the loopback with a key that the TLS client of
+the test pins. Plants: `warp-check-without-answer`,
 `warp-check-door-kept`, `warp-burst-not-passed`,
 `netstack-controller-not-set`, `netstack-burst-not-set`,
 `netstack-shared-counters-lose-the-drops`, `warp-close-resets-nothing`,
 `netstack-tcp-timeout-not-set`, `netstack-peer-reset-read-as-timeout`,
 `warp-udp-to-a-family-the-device-lacks`,
-`warp-race-relay-waits-for-the-direct-path`.
+`warp-race-relay-waits-for-the-direct-path`,
+`warp-proxy-rule-not-applied`, `warp-dns-bound-not-held`.
 
 ## The parity list
 
@@ -155,7 +190,9 @@ carries nothing. Plants: `warp-check-without-answer`,
 | Names inside the tunnel | through the proxy's resolver | yes | yes |
 | UDP | yes | | yes (`Datagrams`) |
 | The rules with the lint of shadowed rules | yes | | yes (the lint is the caller's) |
-| The proxy, the forward, nc, the L4 door | yes | | T-338 |
+| The proxy (SOCKS5, HTTP, UDP, the rules, the DNS forwarder), the forward, nc | yes | | yes (over a `Dial`; the listeners and the SSH configuration are the caller's) |
+| Resolvers inside the tunnel over TLS (podnet issue 144), also for the check | yes | | yes (the TLS client is the caller's) |
+| The L4 door (`--l4`) | yes | | T-406 (after T-337) |
 | `Live`, TUN, routes | yes | | T-339 |
 | A tunnel that takes TLS and relays nothing (the probe of podssh, PodUtils/podssh@T-560) | the check of the data path | yes | yes (the check of the data path) |
 
@@ -186,6 +223,16 @@ carries nothing. Plants: `warp-check-without-answer`,
 | `WarpStack::close_session(why)`, `Driver::fail_all`, `supervise` | `WarpNet::close(why)`; `NetStack::reset_all` at the first cause; the watch of `NetStack::stopped()` |
 | `proxy::check_data_path(&stack, ipv4)` | `WarpNet::check_data_path(&DataPathCheck)`; `Warp::connect` runs it and marks the door bad |
 | `proxy::NO_CHECK_VARIABLE` | `NetSettings::check = None` |
+| `proxy::run(live, bound)`, `serve` | `Arc<Proxy>::run_tcp(listener)` or `run_unix(listener)`, with `Proxy::tunnel` (the `Live` of T-339 as a `Tunnel`) |
+| `proxy::handle_client_auth(stream, dial, udp, auth)` | `proxy::serve_client(stream, dial, udp, &Opening)`; the dial gives a `BoxedIo`, a refusal is a failure of the class `Policy` |
+| `proxy::route`, `proxy::dial`, `proxy::resolve`, `resolve_all`, `order` | `Proxy::route`, `Names::connect`, `Names::resolve`, `Names::resolve_all`, `proxy::order` |
+| `proxy::STATS`, `set_max_connections`, `set_credentials`, `health_log` | `Proxy::stats`, `max_connections`, `credentials`; `Proxy::health()` each `HEALTH_EVERY` for the caller's line |
+| `proxy::Resolver`, `parse_resolvers`, `set_resolvers`, `resolvers()`, `forward_dns` | `resolver::Resolver`, `parse_resolvers`, `Proxy::names.resolvers`, `Resolvers::in_use`, `Resolvers::exchange` |
+| `rules::decide(&stack, &table, &host)`, `rules::is_refused(&err)` | `Table::decide(&lookup, &host)`; `failure.class == Class::Policy` |
+| `podnet_netns::socks` (`socks5_read_command_auth`, `socks5_reply`, `socks5_udp_unwrap`, `http_read_request_auth`) | `pod_proxy::serve` (`read_socks5`, `socks5_reply`, `reply_for`, `read_http_proxy`), `pod_proxy::udp::unwrap` |
+| `decisions::count("dispatch", ..)`, `count("rule", ..)` | `Observer::decision("warp.dispatch", ..)`, `("warp.rule", ..)` |
+| `forward::{Rule, run}`, `ProxyListen` | `forward::{Rule, Forward}`, `forward::Listen` |
+| `nc::{target, PipeEnd, TCP_IDLE, pipe_with, udp_pipe_with, udp_via_stack, udp_via_running}` | `nc::{target, PipeEnd, TCP_IDLE, pipe_with, udp_pipe_with, udp_via_net, udp_via_stream}` (the caller finds its running proxy and opens the stream with `pod_proxy::udp::open_in_stream`) |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |
 | `decisions::count("masque", ..)` | `Observer::decision("warp.door", ..)` |
 

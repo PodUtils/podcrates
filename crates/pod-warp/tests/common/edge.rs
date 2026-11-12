@@ -373,7 +373,7 @@ async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
 /// The answer to a DNS question: [`NAME_IP`] for an A question, no address
 /// for another. A datagram that holds no question gets an empty answer, so
 /// that the far end does not stop.
-fn dns_answer(query: &[u8]) -> Vec<u8> {
+pub fn dns_answer(query: &[u8]) -> Vec<u8> {
     question_answer(query).unwrap_or_default()
 }
 

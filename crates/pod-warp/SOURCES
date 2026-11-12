@@ -9,9 +9,8 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # fixes from 7c5f87e (PodUtils/podnet#449); the one change after it
 # (83e0c93, session.rs) names the meter of pod-relay; the relay leg comes
 # with T-336. The other files of src/warp/ come with the entries of
-# the rest of T-028 (TODO/adapters.md): h3.rs, the rest of proxy.rs,
-# forward.rs, nc.rs, l4.rs, live.rs, pod.rs, find.rs, route.rs, tun.rs,
-# exit.rs.
+# the rest of T-028 (TODO/adapters.md): h3.rs, l4.rs (T-406), live.rs,
+# pod.rs, find.rs, route.rs, tun.rs, exit.rs.
 # mod.rs: WarpClient becomes Warp (warp.rs, open.rs); the race of the
 # direct path and the relay, and the leg file (T-336): open_session in
 # open.rs, relay_first_from and the text of write_leg in leg.rs, the relay a
@@ -26,8 +25,24 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # the_congestion_controller and the_tcp_burst_variable_is_checked; the
 # controller, the burst and the shared counters are fields of StackConfig of
 # pod-netstack (its SOURCES).
-# proxy.rs (T-335): only check_data_path and query_at, the check of the
-# data path (check.rs); the rest comes with T-338.
+# proxy.rs (T-335, T-338): check_data_path and query_at are check.rs; the
+# resolvers (Resolver, exchange_any, dot_exchange, forward_dns_to, query)
+# are resolver.rs; handle_client_auth is proxy/client.rs; route and direct
+# are proxy/route.rs; the UDP associations are proxy/udp.rs; the rest of
+# run, client_on, STATS and admit are proxy.rs (values of the caller, no
+# global); the unit tests are proxy/tests.rs, resolver.rs and
+# tests/proxy.rs. bind, bind_all, health_log (a task of the caller over
+# Proxy::health) and run_l4 (T-406) stay in podnet; so do the tests
+# a_unix_socket_that_answers_is_not_taken and
+# a_refused_tcp_listener_does_not_stop_the_unix_socket (C201).
+# proxy/names.rs (T-338): order, resolve and resolve_all are Names
+# (proxy/names.rs), the pins a function of the caller; the test
+# the_stack_takes_the_ipv6_address_of_an_ipv4_tunnel is of
+# net/settings.rs.
+# nc.rs (T-338): via_running, via_relay, pipe, git_ssh_command and
+# ssh_config stay in podnet, with the tests the_ssh_config_uses_warp_nc and
+# the_printed_block_quotes_the_path_as_the_written_block (C203);
+# udp_via_running is udp_via_stream on a stream that the caller opens.
 # services.rs of podnet-core: its module `warp`, tunnel_resolver and
 # check_name (service.rs).
 # rules.rs of podnet-netns: only Net, domain_matches, in_cidr and load_nets
@@ -44,7 +59,11 @@ file df062e8c84b63df257a8587060914ac73c74edee src/warp/private_file_tests/foreig
 file c3c41fda29be50b999b2d5949c1aaa879962e5b4 src/warp/register.rs -> crates/pod-warp/src/api.rs crates/pod-warp/src/device.rs crates/pod-warp/src/register.rs
 file 44d5a727ef4232dc56c087f393fc1281d97f8c95 src/warp/rules.rs -> crates/pod-warp/src/rules.rs crates/pod-warp/src/rules/tests.rs
 file 3b9533ed4ebfa9d934d64a7a3dc26a3e162860ae src/warp/ip.rs -> crates/pod-warp/src/net.rs crates/pod-warp/src/net/settings.rs
-file daf2991d4ffaa7f2e650c1ef97bb37f84be72855 src/warp/proxy.rs -> crates/pod-warp/src/check.rs
+file daf2991d4ffaa7f2e650c1ef97bb37f84be72855 src/warp/proxy.rs -> crates/pod-warp/src/check.rs crates/pod-warp/src/resolver.rs crates/pod-warp/src/proxy.rs crates/pod-warp/src/proxy/client.rs crates/pod-warp/src/proxy/route.rs crates/pod-warp/src/proxy/udp.rs crates/pod-warp/src/proxy/tests.rs crates/pod-warp/tests/proxy.rs
+file 5454b0244c4a74893522ebe942030d062d01da6a src/warp/proxy/names.rs -> crates/pod-warp/src/proxy/names.rs crates/pod-warp/src/net/settings.rs
+file 0dc4ecb598fd2356bb2e6c54f7abc64d7fe3e0c7 src/warp/proxy/dns_bound.rs -> crates/pod-warp/src/proxy/dns_bound.rs
+file 8c3af159c79854b4eed97308e45e4671380f122b src/warp/forward.rs -> crates/pod-warp/src/forward.rs
+file 14c50326f9ee705d23a7fb69b8791c9bb4a0b00e src/warp/nc.rs -> crates/pod-warp/src/nc.rs crates/pod-warp/src/nc/tests.rs
 file 6a098243d21f8ad57f4b11d6799bf13be65ba1ba src/warp/session.rs -> crates/pod-warp/src/session.rs crates/pod-warp/src/session/tx.rs crates/pod-warp/src/session/rx.rs crates/pod-warp/src/session/keepalive.rs crates/pod-warp/src/session/tests.rs crates/pod-warp/src/tls.rs
 file 405d54fe218d5110279ec2324ed9b979e5088f2e crates/podnet-core/src/services.rs -> crates/pod-warp/src/service.rs
 file 6d1341eb1878e825b3072b0e33fe26f557992a05 crates/podnet-netns/src/rules.rs -> crates/pod-warp/src/rules/matcher.rs

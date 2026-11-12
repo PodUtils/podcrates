@@ -1,0 +1,9 @@
+# The proxy takes the decision of its rules and then sends each
+# destination through the tunnel: a `reject` rule and a `direct` rule do
+# nothing (PodUtils/podnet issues 132 and 136, T-338). The test of the
+# rules of the proxy must fail.
+ENTRY=T-338
+GROUP=warp
+EXPECT='test the_rules_of_the_proxy_route_each_destination \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test proxy -- the_rules_of_the_proxy_route_each_destination'
+LIMIT=900

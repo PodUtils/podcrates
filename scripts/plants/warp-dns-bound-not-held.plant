@@ -1,0 +1,8 @@
+# The DNS forwarder of the proxy gives each datagram a new place: no
+# bound holds the questions in flight (PodUtils/podnet@T-215, T-338). The
+# test of a burst must fail.
+ENTRY=T-338
+GROUP=warp
+EXPECT='test proxy::dns_bound::tests::a_burst_gives_at_most_the_bound_in_flight \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- a_burst_gives_at_most_the_bound_in_flight'
+LIMIT=900

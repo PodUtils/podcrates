@@ -219,25 +219,53 @@ impl Table {
         }
     }
 
-    /// The action for `host`, with the addresses that were resolved through
-    /// `net` to decide it (for the tunnel to use them).
-    pub async fn decide(
-        &self,
-        net: &crate::net::WarpNet,
-        host: &Host,
-    ) -> Result<(Action, Option<Vec<IpAddr>>), Failure> {
+    /// The action for `host`, with the addresses that `names` gave to
+    /// decide it (for the tunnel to use them). A name is resolved only when
+    /// no domain rule decides it and an address rule can.
+    pub async fn decide(&self, names: &dyn Lookup, host: &Host) -> Result<(Action, Option<Vec<IpAddr>>), Failure> {
         Ok(match host {
             Host::Ip(ip) => (self.for_ip(*ip), None),
             Host::Domain(name) => match self.for_name(name) {
                 Some(action) => (action, None),
                 None if self.has_cidr() => {
-                    let addresses =
-                        crate::dns::lookup(net, &crate::dns::RESOLVERS, name, crate::net::DNS_TIMEOUT).await?;
+                    let addresses = names.lookup(name).await?;
                     (self.for_addresses(&addresses), Some(addresses))
                 }
                 None => (self.default, None),
             },
         })
+    }
+}
+
+/// The addresses of a name inside the tunnel, for the address rules of
+/// [`Table::decide`]: the names of a proxy ([`crate::proxy::Names`] over a
+/// dial), or the DNS over TCP of a [`crate::WarpNet`].
+pub trait Lookup: Send + Sync {
+    fn lookup<'a>(&'a self, name: &'a str) -> pod_core::BoxFuture<'a, Result<Vec<IpAddr>, Failure>>;
+}
+
+impl Lookup for crate::net::WarpNet {
+    fn lookup<'a>(&'a self, name: &'a str) -> pod_core::BoxFuture<'a, Result<Vec<IpAddr>, Failure>> {
+        Box::pin(crate::dns::lookup(self, &crate::dns::RESOLVERS, name, crate::net::DNS_TIMEOUT))
+    }
+}
+
+impl Host {
+    /// The host of a target: its address, or its name.
+    pub fn of(target: &pod_core::Target) -> Host {
+        match target {
+            pod_core::Target::Addr(addr) => Host::Ip(addr.ip()),
+            pod_core::Target::Name { host, .. } => Host::Domain(host.clone()),
+        }
+    }
+}
+
+impl std::fmt::Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Host::Ip(ip) => write!(f, "{ip}"),
+            Host::Domain(name) => f.write_str(name),
+        }
     }
 }
 

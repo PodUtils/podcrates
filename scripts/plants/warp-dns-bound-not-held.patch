@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/proxy/dns_bound.rs
++++ b/crates/pod-warp/src/proxy/dns_bound.rs
+@@ -37,7 +37,7 @@
+             tracing::debug!(len, "a DNS datagram is too short; dropped");
+             return None;
+         }
+-        match self.places.clone().try_acquire_owned() {
++        match Arc::new(Semaphore::new(1)).try_acquire_owned() {
+             Ok(permit) => Some(permit),
+             Err(_) => {
+                 self.stats.dns_dropped.fetch_add(1, Relaxed);

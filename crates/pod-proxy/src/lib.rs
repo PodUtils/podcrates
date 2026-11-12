@@ -19,7 +19,8 @@
 //!   and a server's reading of a request; [`Client`]: a GET over HTTPS, and
 //!   a request of any method to an `http://` or `https://` URL.
 //! * [`Credentials`]: the user and the password that a client of a served
-//!   proxy gives.
+//!   proxy gives; [`serve`]: the server face of a SOCKS5 or HTTP proxy that
+//!   a consumer serves (the greeting, the request, the reply).
 //! * [`lowat`], [`write_limit`]: the unsent bytes of a socket, and a limit
 //!   of a write that makes no progress; [`stun`]: the codec of STUN, the one
 //!   of `pod-turn` (feature `stun`), at its old path.
@@ -53,6 +54,7 @@ pub mod proxy;
 pub mod proxy_auth;
 mod race;
 pub mod resolve;
+pub mod serve;
 mod socks5;
 pub mod stream;
 pub use pod_turn::stun;

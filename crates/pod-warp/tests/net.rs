@@ -260,7 +260,7 @@ async fn a_close_by_the_caller_fails_the_flows_of_the_session() {
 async fn one_family(families: (bool, bool)) -> (Edge, pod_warp::WarpNet, Arc<dyn pod_core::Datagrams>, Vec<IpAddr>) {
     let (_api, served, edge, moved) = world(dead()).await;
     let (mut settings, _) = common::settings(&format!("http://{}", served.addr()), moved);
-    let servers = vec!["[2606:4700:4700::1111]:53".parse().unwrap(), "1.1.1.1:53".parse().unwrap()];
+    let servers = pod_warp::resolver::parse_resolvers(&["[2606:4700:4700::1111]:53,1.1.1.1:53".into()]).unwrap();
     settings.net.check = Some(pod_warp::DataPathCheck { servers, ..pod_warp::DataPathCheck::default() });
     let warp = Warp::register(settings.clone()).await.unwrap();
     let mut device = warp.device().clone();

@@ -25,7 +25,11 @@
 //!   [`NetSettings`]: its congestion controller, its TCP burst, its counters
 //!   of the link and the budget of a relay.
 //! * [`check`]: the check that a packet crosses a new session.
+//! * [`resolver`]: the resolvers inside the tunnel, on UDP or over TLS.
 //! * [`rules`]: the rules of a WARP proxy, with the lint of the caller.
+//! * [`proxy`]: the local SOCKS5 and HTTP proxy into WARP, with its rules,
+//!   its names, its UDP and its DNS forwarder; [`forward`]: the local
+//!   forwards; [`nc`]: the byte pipe of `warp nc`.
 //! * [`service`]: the facts of WARP of `pod-services`.
 //!
 //! The crate reads no environment variable and no file that the caller
@@ -46,13 +50,17 @@ pub mod device;
 pub mod dns;
 pub mod door;
 pub mod files;
+pub mod forward;
 pub mod hints;
 pub mod identity;
 pub mod key;
 pub mod leg;
+pub mod nc;
 pub mod net;
 mod open;
+pub mod proxy;
 pub mod register;
+pub mod resolver;
 pub mod rules;
 pub mod service;
 pub mod session;

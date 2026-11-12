@@ -1,13 +1,11 @@
-diff --git a/crates/pod-warp/src/check.rs b/crates/pod-warp/src/check.rs
-index d8305e0..9aba11d 100644
---- a/crates/pod-warp/src/check.rs
-+++ b/crates/pod-warp/src/check.rs
-@@ -113,7 +113,7 @@ impl WarpNet {
-                     Ok(Ok((n, from))) if from == server && n >= 2 && buf[..2] == id => return Ok(()),
-                     Ok(Ok(_)) => {}
-                     Ok(Err(e)) => return Err(e.to_string()),
--                    Err(_) => break,
-+                    Err(_) => return Ok(()),
+--- a/crates/pod-warp/src/resolver.rs
++++ b/crates/pod-warp/src/resolver.rs
+@@ -228,7 +228,7 @@
                  }
+                 Ok(Ok(_)) => {}
+                 Ok(Err(e)) => return Err(e.to_string()),
+-                Err(_) => break,
++                Err(_) => return Ok(Vec::new()),
              }
-             if tokio::time::Instant::now() >= deadline {
+         }
+         if tokio::time::Instant::now() >= deadline {
