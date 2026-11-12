@@ -211,7 +211,7 @@ pub fn remove_from(dirs: &[PathBuf], relay_host: &str) {
 
 /// `relay-token-<host>.json`, with anything but `[a-z0-9.-]` replaced.
 pub fn file_name(relay_host: &str) -> String {
-    format!("relay-token-{}.json", safe_name(relay_host))
+    format!("relay-token-{}.json", pod_core::files::exact_name(relay_host))
 }
 
 /// Whether `path` is a file that the cache would read.

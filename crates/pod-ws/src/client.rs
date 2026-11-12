@@ -347,6 +347,11 @@ pub async fn https_with_token(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// The `Host` of an HTTPS request: an IPv6 address in brackets, on 443 too.
+pub(crate) fn https_host(host: &str, port: u16) -> String {
+    pod_proxy::host::host_header(host, port)
+}
+
 async fn https_request(
     way: &Way,
     method: &str,
@@ -360,7 +365,7 @@ async fn https_request(
     timeout: Duration,
 ) -> Result<http::Response, ConnectError> {
     let mut tls = open_tls(way, host, port, host, trust, timeout).await?;
-    let host_header = if port == 443 { host.to_string() } else { authority(host, port) };
+    let host_header = https_host(host, port);
     let ua = &way.user_agent;
     tokio::time::timeout(timeout, http::exchange(&mut tls, ua, method, &host_header, path, headers, body, max_body))
         .await

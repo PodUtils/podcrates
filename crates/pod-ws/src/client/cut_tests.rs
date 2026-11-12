@@ -80,3 +80,13 @@ async fn the_handshake_keeps_a_reset_a_close_and_a_timeout_apart() {
     assert!(matches!(silent, ConnectError::Timeout { .. }), "{silent:?}");
     assert_eq!(silent.cut(), Some(Cut::TimedOut));
 }
+
+/// The `Host` of an HTTPS request to an IPv6 address has the address in
+/// brackets, also on port 443, where it has no port (T-245).
+#[test]
+fn the_host_of_an_https_request_to_an_ipv6_address_is_in_brackets() {
+    assert_eq!(super::https_host("2001:db8::1", 443), "[2001:db8::1]");
+    assert_eq!(super::https_host("2001:db8::1", 8443), "[2001:db8::1]:8443");
+    assert_eq!(super::https_host("relay.example.org", 443), "relay.example.org");
+    assert_eq!(super::https_host("relay.example.org", 8443), "relay.example.org:8443");
+}

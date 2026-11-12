@@ -35,7 +35,7 @@ pub fn message(host: &str, path: &str, challenge: &str) -> Vec<u8> {
 
 /// The `Host` of a request to `host:port`, as pod-ws writes it.
 pub fn host_header(host: &str, port: u16) -> String {
-    if port == 443 { host.to_string() } else { pod_proxy::host::authority(host, port) }
+    pod_proxy::host::host_header(host, port)
 }
 
 /// The challenge of a relay's `401`, when it gives one.
@@ -133,6 +133,15 @@ mod tests {
         assert_ne!(message("h", "/v1/pair", "c"), message("h", "/v1/mint", "c"));
         assert_eq!(host_header("relay-a.test", 443), "relay-a.test");
         assert_eq!(host_header("::1", 8443), "[::1]:8443");
+    }
+
+    /// The proof signs the `Host` that goes: an IPv6 relay on port 443 has
+    /// it in brackets, as pod-ws sends it (T-245).
+    #[test]
+    fn the_host_of_an_ipv6_relay_on_443_is_in_brackets() {
+        assert_eq!(host_header("::1", 443), "[::1]");
+        assert_eq!(host_header("2001:db8::1", 443), "[2001:db8::1]");
+        assert_eq!(host_header("[2001:db8::1]", 443), "[2001:db8::1]", "no second brackets");
     }
 
     #[test]

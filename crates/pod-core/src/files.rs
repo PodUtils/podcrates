@@ -153,6 +153,21 @@ pub fn safe_name(host: &str) -> String {
         .collect()
 }
 
+/// `text` lower-cased, with each byte outside `[a-z0-9.-]` written as `_`
+/// and its two hex digits: one name for each text, so that two hosts never
+/// share a cache file (`::1` is `_3a_3a1`, `__1` is `_5f_5f1`).
+pub fn exact_name(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for b in text.to_ascii_lowercase().bytes() {
+        if b.is_ascii_alphanumeric() || b == b'.' || b == b'-' {
+            out.push(char::from(b));
+        } else {
+            out.push_str(&format!("_{b:02x}"));
+        }
+    }
+    out
+}
+
 /// Read a cache file only if it is a regular file of ours that nobody else can
 /// read; anything else is ignored, as a cache file can be made again.
 pub fn read_trusted(path: &Path) -> Option<String> {

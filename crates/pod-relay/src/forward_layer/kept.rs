@@ -35,7 +35,7 @@ struct KeptOffer {
 
 /// The cache file of `relay`'s offer.
 pub fn file_name(relay: &Relay) -> String {
-    format!("relay-offer-{}-{}.json", cache::safe_name(&relay.host), relay.port)
+    format!("relay-offer-{}-{}.json", pod_core::files::exact_name(&relay.host), relay.port)
 }
 
 /// Keep `offered`, what `relay` offered at `now_ms`; a cache that takes no
@@ -127,6 +127,10 @@ mod tests {
     fn each_host_and_port_has_a_file_of_its_own() {
         assert_eq!(file_name(&relay("Relay.Example.org", 443)), "relay-offer-relay.example.org-443.json");
         assert_ne!(file_name(&relay("a.test", 443)), file_name(&relay("a.test", 8443)));
+        // A name with `_` and an IPv6 address have files of their own (T-246).
+        assert_ne!(file_name(&relay("__1", 443)), file_name(&relay("::1", 443)));
+        assert_ne!(crate::pool::file_name("__1"), crate::pool::file_name("::1"));
+        assert_ne!(crate::cache::file_name("___1__8443"), crate::cache::file_name("[::1]:8443"));
     }
 
     /// The port of the host's QUIC is kept with the offer, and a file of

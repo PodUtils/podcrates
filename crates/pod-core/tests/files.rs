@@ -256,3 +256,16 @@ fn threads_that_store_one_name_at_once_leave_one_whole_body() {
     let left: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name()).collect();
     assert_eq!(left, ["shared"], "a temporary file stayed");
 }
+
+/// One name for each host: an IPv6 address and a name with `_` do not share
+/// a cache file (T-246).
+#[test]
+fn exact_name_is_one_to_one() {
+    use pod_core::files::exact_name;
+    assert_eq!(exact_name("Relay.Example.org"), "relay.example.org");
+    assert_eq!(exact_name("::1"), "_3a_3a1");
+    assert_eq!(exact_name("__1"), "_5f_5f1");
+    assert_ne!(exact_name("::1"), exact_name("__1"));
+    assert_ne!(exact_name("[::1]:8443"), exact_name("___1__8443"));
+    assert_eq!(exact_name("../x"), ".._2fx", "no path separator");
+}

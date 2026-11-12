@@ -105,7 +105,7 @@ fn only_header_safe_strings_count_as_tokens() {
 #[test]
 fn cache_file_names_cannot_escape_the_directory() {
     assert_eq!(file_name("Relay.Example"), "relay-token-relay.example.json");
-    assert_eq!(file_name("../../etc/passwd"), "relay-token-.._.._etc_passwd.json");
+    assert_eq!(file_name("../../etc/passwd"), "relay-token-.._2f.._2fetc_2fpasswd.json");
 }
 
 #[cfg(unix)]

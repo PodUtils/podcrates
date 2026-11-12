@@ -218,8 +218,11 @@ fn an_ipv6_relay_has_one_name_in_brackets() {
         assert_eq!(crate::token::relay_name(&relay), "[2001:db8::1]:8443");
         assert_eq!(crate::pool::host_header(&relay), "[2001:db8::1]:8443");
         assert_eq!(crate::token::token_key(&relay), "[2001:db8::1]:8443");
-        assert_eq!(crate::cache::file_name(&crate::token::token_key(&relay)), "relay-token-_2001_db8__1__8443.json");
-        assert_eq!(crate::pool::file_name(&relay.host), "relay-pool-2001_db8__1.json");
+        assert_eq!(
+            crate::cache::file_name(&crate::token::token_key(&relay)),
+            "relay-token-_5b2001_3adb8_3a_3a1_5d_3a8443.json"
+        );
+        assert_eq!(crate::pool::file_name(&relay.host), "relay-pool-2001_3adb8_3a_3a1.json");
         assert_eq!(parse_relay(&relay.name()), Ok(relay.clone()), "the name parses back");
         let key = crate::token::token_key(&relay);
         assert!(crate::token::usable(&key, Some(&relay.name())), "the cached token of the relay is sent to it");

@@ -84,7 +84,7 @@ pub fn cached_limits(cache: &Cache, primary: &str) -> Limits {
 
 /// The cache file of the pool of `primary`.
 pub fn file_name(primary: &str) -> String {
-    format!("relay-pool-{}.json", cache::safe_name(primary))
+    format!("relay-pool-{}.json", pod_core::files::exact_name(primary))
 }
 
 /// The alternates for `primary`, best first: the cached pool, else (for the
