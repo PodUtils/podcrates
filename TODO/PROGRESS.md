@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 332 entries: 80 open, 6 partial, 5 blocked, 241 done.
+`TODO/INDEX.md` holds 333 entries: 80 open, 6 partial, 5 blocked, 242 done.
 
 ## State
 
@@ -14,7 +14,8 @@
 - `main` holds T-353 (`pod-oci` against distribution on the loopback; no
   login over plain HTTP, C187), T-393 and T-395 (the TCP timeout, the
   keepalive and no Nagle; UDP to a family that the device lacks) and
-  T-336 (the relay leg of `pod-warp` and the race) for the next tag.
+  T-336 (the relay leg of `pod-warp` and the race) and T-337 (HTTP/3,
+  WireGuard and the carried device of `pod-warp`) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.33.0` (`72d6a3d`, PodUtils/podssh#218; its PodUtils/podssh@T-755 drafts over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -88,8 +89,9 @@ next entry.
    the settings of podnet's stack of `ip.rs` with its TCP timeout,
    keepalive and Nagle, the check of the data path, the end of the flows
    of a closed session, the refusal of UDP to a family that the device
-   lacks, the relay leg, the race and the leg file are in), then
-   T-337, T-338 and T-339 (the rest of `pod-warp`), then
+   lacks, the relay leg, the race and the leg file, MASQUE over HTTP/3,
+   the WireGuard tunnel and the carried device are in), then
+   T-338 and T-339 (the rest of `pod-warp`), then
    T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
@@ -140,7 +142,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C196; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C196 and C205 to C209; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

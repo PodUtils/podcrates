@@ -678,7 +678,7 @@ this record; calls C193 to C196.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -713,6 +713,48 @@ of WireGuard against the stand-in of `pod-wg`.
 ```sh
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commit `5ca80ca` (the work, the tests and the plants), and the
+commit of this record; calls C205 to C209.
+
+- HTTP/3 (`h3.rs`, `h3/wire.rs`: podnet's 622 lines split): the endpoint
+  of `pod-quic` over the `Datagrams` of `Way::udp` (`UdpWay`; `SystemUdp`,
+  or a `WarpNet`), podnet's transport, the TLS of `tls::client_config` with
+  the ALPN `h3`. `Way::h3` selects it in `MasqueSession::connect`. A way
+  with no UDP is `Usage` (C205); a door that is a name is `Usage` (C206).
+- WireGuard (`wg.rs`): `Peer`, `connect(peer, datagrams)`,
+  `connect_inside(peer, &WarpNet)`, `WgTx`, `WgRx`, `WgKeepalive` on the
+  sans-IO initiator of `pod-wg`; `MasqueSession::connect_wg`,
+  `connect_wg_inside`; `Settings::wireguard` (C207).
+- `MasqueTx`, `MasqueRx` and `Keepalive` carry the three transports
+  (`Keepalive::h2`, `h3`, `wg`); the capsules of HTTP/2 and HTTP/3 go to
+  the decoder with no copy.
+- The carried device (`carry.rs`): `Settings::carry`, `CARRY_MTU`; the
+  WireGuard socket holds the outer `WarpNet`, and the carried stack takes
+  its budget (C208).
+- `Warp::open_session` skips `Settings::relay` for HTTP/3 and WireGuard
+  (the decision `warp.leg`: `no-relay`, `wireguard`).
+- Fixes in place of podnet's code: `response_status` read index 24 twice,
+  and `get_string` could overflow on a long length (a test,
+  `a_literal_past_the_end_is_refused`).
+- Tests: `tests/h3.rs` (3, podnet's names and
+  `a_session_over_http3_takes_no_relay`), `tests/wg.rs` (5: a loopback
+  tunnel against the stand-in of `pod-wg` with the reserved bytes, a way
+  with no UDP, no answer, `Warp::connect` over WireGuard, and
+  `a_carried_device_gives_a_network_inside_the_session` over a UDP route of
+  the stand-in edge, `Edge::start_with_udp`, C209), `h3::tests` (5).
+  `cargo test -p pod-warp --all-features`: 72 unit tests, 3 of
+  `tests/h3.rs`, 4 of `tests/leg.rs`, 11 of `tests/net.rs`, 8 of
+  `tests/register.rs`, 8 of `tests/stack.rs`, 5 of `tests/wg.rs`, 1 live
+  test ignored.
+- Plants: `warp-h3-udp-past-the-way` (HTTP/3 takes a system socket on a
+  way with no UDP) and `warp-h3-takes-the-relay` (HTTP/3 races the relay):
+  both caught (run by hand).
+- Found: HTTP/3 on a system socket goes through the `Datagrams` wrapper
+  of `pod-quic`, with no GSO and no GRO, where podnet binds noq's own
+  socket: T-409.
 
 # T-338: `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests
 
@@ -1031,3 +1073,43 @@ record; call C192.
   `tests/net.rs`, 8 of `tests/stack.rs`, 8 of `tests/register.rs`, 1 live
   test ignored.
 - Plant: `warp-udp-to-a-family-the-device-lacks`: caught (run by hand).
+
+# T-409: `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO)
+
+**Source:** T-337, a finding of the port.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's HTTP/3 binds its endpoint with `pod_quic::endpoint::bind`, so noq
+sends and receives with its own UDP socket (GSO and GRO where the kernel
+has them). `pod-warp` runs each endpoint over the `Datagrams` of
+`Way::udp` (`pod_quic::endpoint::over`): `SystemUdp` gives a
+`SystemDatagrams`, which sends one datagram for each call and has no GRO.
+A download over HTTP/3 makes more system calls than podnet's.
+
+## Premise
+
+- Read: `crates/pod-warp/src/h3.rs` (`open`), `crates/pod-warp/src/udp.rs`,
+  `crates/pod-quic/src/endpoint.rs` (`on_socket`, `over`),
+  `crates/pod-core/src/datagrams.rs` (`SystemDatagrams`).
+- Not measured: the throughput of the two paths.
+
+## Approach
+
+`UdpWay` gets a method that gives a bound `std::net::UdpSocket` when the
+way is the socket of the system (`SystemUdp`), and `h3::open` takes
+`pod_quic::endpoint::on_socket` for it, else `over`. A loopback test
+proves both paths; a measurement of a bulk transfer over each path goes
+into the Done section.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --test h3
+```
+
