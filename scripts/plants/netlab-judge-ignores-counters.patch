@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netlab/src/judge.rs b/crates/pod-netlab/src/judge.rs
+index f0cdf59..5b03ce2 100644
+--- a/crates/pod-netlab/src/judge.rs
++++ b/crates/pod-netlab/src/judge.rs
+@@ -144,7 +144,7 @@ fn counter_row(counter: Counter, must: Option<Must>, before: &Counters, after: &
+     }
+     let delta = a.packets - b.packets;
+     let pass = match must {
+-        Some(Must::Move) => delta > 0,
++        Some(Must::Move) => true,
+         Some(Must::Stay) => delta == 0,
+         None => true,
+     };

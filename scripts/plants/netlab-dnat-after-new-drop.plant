@@ -1,0 +1,8 @@
+# The rule `ct status dnat` after the drop of a new inbound flow: a
+# forwarded DNAT flow is new and is dropped (L5 of PodUtils/podvm issue
+# 178), so the test of the order of the rules must fail.
+ENTRY=T-207
+GROUP=netlab
+EXPECT='test dnat_passes_first_and_nat_drops_new_inbound_flows \.\.\. FAILED'
+RUN='cargo test -p pod-netlab --test plan -- dnat_passes_first_and_nat_drops_new_inbound_flows'
+LIMIT=1800
