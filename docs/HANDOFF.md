@@ -13,26 +13,36 @@ is done. Git and the record keep finished work.
 2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)` of each
    repository of PodUtils.
-3. Take the work order of `TODO/PROGRESS.md`. Its head now: T-026 (the
-   trial of `pod-relay` in podnet), T-251 (podrunner's ask), T-276
-   (PodUtils/podssh#209), T-212, T-267.
+3. Merge or continue the work of the two agents of this session (see "In
+   flight"), then take the work order of `TODO/PROGRESS.md`. Its head
+   now: T-026, T-251, T-267, T-212. The next release (`v0.30.0`) carries
+   T-276, T-277, T-251 and the trial of T-026.
 
 ## In flight
 
 - The last release: `v0.29.0` at `a4d3630` (the hand-off #87): podnet
   took it at `98d8a71` (PodUtils/podnet#478, with `syn_hold`), podvm at
   `c99bdd8d` (PodUtils/podvm#279), podssh at `5b56c4d`
-  (PodUtils/podssh#211); podrunner has not answered. Each consumer took `v0.28.0` (#86, closed): podrunner `bde47c3`,
-  podssh `12473a10`, podnet `b08e06f` (PodUtils/podnet#477), podvm
-  `94e7ca2a` (PodUtils/podvm#278).
-- On `main` after the tag: T-276 (`syncthing-relay`, call C104) and the
-  gate of `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did
-  not build it on macOS and Windows).
+  (PodUtils/podssh#211); podrunner has not answered.
+- On `main` after the tag: T-276 (`syncthing-relay`, call C104), T-277
+  (the MQTT brokers in the runs of a code, call C115), T-306 (the podvm
+  block of `pod-services`, which made `upstream.yml` red), and the gate of
+  `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did not build
+  it on macOS and Windows; `nightly.yml` was dispatched at `0edd703`).
+- Two agents of this session work in worktrees under `.claude/worktrees/`
+  on local branches: T-251 (`pod-actions-expr`, `pod-actions-workflow`;
+  the ids 280 to 289 and the calls C105 to C109 are its own) and the trial
+  of T-026 on podnet `98d8a71` (the ids 290 to 299 and the calls C110 to
+  C114). A new
+  session finds their branches with `git worktree list`; it merges a
+  branch whose checks pass, or takes the work up from its commits.
+- T-267 (`forward-url` proves the URL): the source and the tests are in
+  work in the tree of the lead (not committed at the time of this line).
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
   relay client is in `pod-relay`. The trial of podnet
-  (`adoption/podnet/pod-relay.patch`, `.commit`, `.run`) on podnet
-  `1abfa91` is not written: no fix of podnet's three frozen files needs a
-  port; the Done section of T-026 lists what the patch changes (the
+  (adoption/podnet/pod-relay.patch, `.commit`, `.run`) on podnet
+  `98d8a71` is in work (an agent, above): no fix of podnet's three frozen
+  files needs a port; the Done section of T-026 lists what the patch changes (the
   manifests, the glue of `ws_relay.rs` and `relay_reverse.rs`, the removal
   of `relay_pool.rs`, the callers, podnet's tests and checks) and the
   findings for it (a test token under 8 characters, no public constructor
@@ -55,9 +65,11 @@ is done. Git and the record keep finished work.
   PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
   with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.28.0`, `bde47c3`): T-251 (`pod-actions-workflow`,
-  `pod-actions-expr` and the expansion of jobs, for its local mode
-  PodUtils/podrunner@T-046) is its one crate ask.
+- podrunner (on `v0.28.0`, `bde47c3`): its take of `v0.29.0`; T-251
+  (`pod-actions-workflow`, `pod-actions-expr` and the expansion of jobs,
+  for its local mode PodUtils/podrunner@T-046) is its one crate ask.
+- podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
+  T-300 to T-305 wait for podnet's start of each (the answer #88).
 - `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the
   owner; #75). M8 (cfb and githome, #35 and #36) waits (the ruling
   "Priority").
@@ -65,7 +77,9 @@ is done. Git and the record keep finished work.
 ## Channels
 
 - podrunner and podssh: lead sessions that podcrates started; direct
-  messages (`list_sessions`, titles `(podrunner)` and `(podssh)`). A
+  messages (`list_sessions`, titles `(podrunner) lead session` and
+  `(podssh) lead session`). A lead session that goes idle wakes on a
+  message. A
   session writes only to its own repository: link a consumer's COORD
   issue from the hand-off issue of podcrates.
 - podnet and podvm: their own sessions; COORD issues only
