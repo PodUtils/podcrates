@@ -1,0 +1,6 @@
+# The handler of reverse::channel gives no session to the service of the
+# process: a session opens and nobody answers it (T-150).
+ENTRY=T-150
+GROUP=relay
+EXPECT='test a_service_of_the_process_answers_each_session_through_a_channel \\.\\.\\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test reverse_plain -- a_service_of_the_process'

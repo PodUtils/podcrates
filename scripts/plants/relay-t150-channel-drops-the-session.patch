@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/local.rs b/crates/pod-relay/src/reverse/local.rs
+index 2f309a3..8af0359 100644
+--- a/crates/pod-relay/src/reverse/local.rs
++++ b/crates/pod-relay/src/reverse/local.rs
+@@ -105,7 +105,7 @@ impl Handler for ChannelHandler {
+         let sessions = self.sessions.clone();
+         Box::pin(async move {
+             let (node_end, service_end) = tokio::io::duplex(PIPE_BYTES);
+-            sessions.send((id, service_end)).await.map_err(|_| "the service of the process is gone".to_string())?;
++            let _ = (id, service_end, &sessions);
+             Ok(node_end)
+         })
+     }
