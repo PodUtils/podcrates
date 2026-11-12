@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 7da4967..c482fd8 100644
+index 7da4967..fbabdc9 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -68,37 +68,37 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.4" }
@@ -80,8 +80,55 @@ index b5bfe35..1386abc 100644
  
  ## Premise
  
+diff --git a/TODO/later.md b/TODO/later.md
+index 5378dfc..bc86cce 100644
+--- a/TODO/later.md
++++ b/TODO/later.md
+@@ -940,16 +940,16 @@ T-152 gives a pass on the target hosts, and the lead decides from the result (se
+ 
+ ## Problem
+ 
+-`relay::run` (`crates/podnet-serve/src/relay.rs:432`) dials the relay, requests one remote forward, reads the URL from the
++`relay::run` (`crates/podnet-serve/src/relay.rs:435`) dials the relay, requests one remote forward, reads the URL from the
+ banner and returns `(TunnelHandle, Handle<Client>)`. Nothing watches the session after that. When the
+ relay ends the connection or the forward, the URL is dead and the caller is not told. The default
+-relay's free tier ends the tunnel after 60 minutes (the banner text of the test at `crates/podnet-serve/src/relay.rs:569`).
++relay's free tier ends the tunnel after 60 minutes (the banner text of the test at `crates/podnet-serve/src/relay.rs:572`).
+ A reconnect gives a new port and a new URL. The reverse road (`relay node`, `src/relay_reverse.rs`)
+ reconnects with a 1 s to 30 s backoff; this leg does not.
+ 
+ ## Premise
+ 
+-- `inactivity_timeout` is 3600 s (`crates/podnet-serve/src/relay.rs:444`); the forward is requested once (`:474-477`).
++- `inactivity_timeout` is 3600 s (`crates/podnet-serve/src/relay.rs:447`); the forward is requested once (`:477-480`).
+ - `grep -rn "relay::run\|RelayConfig" src tests examples` finds no caller outside `crates/podnet-serve/src/relay.rs`.
+   `ShareLink::from_relay` (`crates/podnet-serve/src/feature/share_link.rs:118`) has no caller outside a test. No CLI uses the leg.
+ - Not measured: the 60 minute expiry on a live relay; the `Handle::is_closed` behaviour of russh 0.64.1.
+@@ -993,17 +993,17 @@ relay, the user and the URL rule as flags.
+ ## Problem
+ 
+ `RelayConfig::default()` has one relay (`crates/podnet-serve/src/relay.rs:42`), the user `podnet` (`:66`), and one URL rule
+-(`pick_tunnel_url`, `:399-412`): the first token that starts with `http(s)://` and does not hold the
+-dashboard host of that one relay. Another relay that prints a bare host, a URL split over two data
++(`pick_tunnel_url`, `:399-415`): the first token that starts with `http(s)://` and holds no text of
++`url-skip` of that one relay. Another relay that prints a bare host, a URL split over two data
+ frames, or its own dashboard URL fails or gives the wrong URL.
+ 
+ ## Premise
+ 
+ - The fields of `RelayConfig` are `pub`; no flag sets them (no caller, see T-165). `--relay` is the
+   flag of the WebSocket relay.
+-- `pick_tunnel_url` runs on each `ChannelMsg::Data` chunk (`crates/podnet-serve/src/relay.rs:504`), so a URL that
+-  crosses two chunks is lost. The pinned tests are at `crates/podnet-serve/src/relay.rs:566-598`.
+-- The dashboard host is already a fact of `pod-services` (`crates/podnet-serve/src/relay.rs:407`).
++- `pick_tunnel_url` runs on each `ChannelMsg::Data` chunk (`crates/podnet-serve/src/relay.rs:507`), so a URL that
++  crosses two chunks is lost. The pinned tests are at `crates/podnet-serve/src/relay.rs:569-601`.
++- The texts to skip are a fact of `pod-services` (`url-skip` of `pinggy`, `crates/podnet-serve/src/relay.rs:406-408`).
+ - Not measured: the other relays of the survey (local artefacts of the issue).
+ 
+ ## Approach
 diff --git a/crates/podnet-core/Cargo.toml b/crates/podnet-core/Cargo.toml
-index 8ed35eb..6d48435 100644
+index 8ed35eb..2c1d1f4 100644
 --- a/crates/podnet-core/Cargo.toml
 +++ b/crates/podnet-core/Cargo.toml
 @@ -22,9 +22,9 @@ path = "src/lib.rs"
@@ -104,7 +151,7 @@ index 8ed35eb..6d48435 100644
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", version = "0.22.0" }
 +pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.26.0", version = "0.26.0" }
 diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
-index 294164a..93fed1d 100644
+index 294164a..bbcae97 100644
 --- a/crates/podnet-netns/Cargo.toml
 +++ b/crates/podnet-netns/Cargo.toml
 @@ -24,12 +24,12 @@ anyhow = "1"
@@ -752,7 +799,7 @@ index e0efa12..0000000
 -    assert_eq!(netlink_error(&ack), Some(-libc::EPERM));
 -}
 diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
-index 5b0cf7d..7c77b75 100644
+index 5b0cf7d..4e98b45 100644
 --- a/crates/podnet-serve/Cargo.toml
 +++ b/crates/podnet-serve/Cargo.toml
 @@ -22,11 +22,11 @@ path = "src/lib.rs"
@@ -778,8 +825,25 @@ index 5b0cf7d..7c77b75 100644
 +pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.26.0", version = "0.26.0" }
  tempfile = "3"
  tokio = { version = "1", features = ["test-util"] }
+diff --git a/crates/podnet-serve/src/relay.rs b/crates/podnet-serve/src/relay.rs
+index 743f9fc..d0be692 100644
+--- a/crates/podnet-serve/src/relay.rs
++++ b/crates/podnet-serve/src/relay.rs
+@@ -403,8 +403,11 @@ fn pick_tunnel_url(text: &str) -> Option<String> {
+         .map(|t| t.trim_end_matches([',', '.', ')', '"']))
+         .collect();
+ 
++    let skips = podnet_core::services::get("pinggy")
++        .texts("url-skip")
++        .unwrap_or_default();
+     for url in &candidates {
+-        if !url.contains(podnet_core::services::text("pinggy", "dashboard-host")) {
++        if !skips.iter().any(|s| url.contains(s.as_ref())) {
+             return Some((*url).to_string());
+         }
+     }
 diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
-index e97742d..2a7447e 100644
+index e97742d..f8df54f 100644
 --- a/crates/podnet-todo/Cargo.toml
 +++ b/crates/podnet-todo/Cargo.toml
 @@ -9,4 +9,4 @@ license = "0BSD"
@@ -789,7 +853,7 @@ index e97742d..2a7447e 100644
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
 +pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.26.0" }
 diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
-index 6c761b6..c33657f 100644
+index 6c761b6..5ed8a1e 100644
 --- a/crates/podnet-vnet/Cargo.toml
 +++ b/crates/podnet-vnet/Cargo.toml
 @@ -30,7 +30,7 @@ serde = { version = "1", features = ["derive"] }

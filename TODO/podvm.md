@@ -3123,7 +3123,7 @@ README, the trial).
   `veth` binaries as root and fail on a line `SKIP:` (as
   PodUtils/podnet@T-250). Locally as root: exit 0. No CI run covers it yet.
 - Trial: `adoption/podnet/pod-hold-veth.patch`, `.run` and `.commit`
-  (podnet `db34bae`; each `pod-*` dependency at tag `v0.25.0`). podnet's
+  (podnet `db34bae`; each `pod-*` dependency at tag `v0.26.0`). podnet's
   `netns/veth.rs` is glue over `pod_hold::netns`; its `netns/tun.rs` takes
   `Wire`, the read buffer and the checksums of the crate; the three unit
   tests leave podnet; `doctor.rs` gets its doc comment of `probe_veth` back
@@ -3135,6 +3135,10 @@ README, the trial).
   `cargo fmt -p podnet-netns --check` clean; podnet's record agrees after a
   remap of its README (2 citations); its size and layer checks 0 faults; no
   copy of the moved items. `adoption.yml` runs the rest of the `.run`.
+- The trial of `v0.26.0` failed at the build of `podnet-serve`: its
+  `pick_tunnel_url` read `dashboard-host` of `pinggy`, which T-224 moved
+  to `url-skip`. The patch changes that reader to `url-skip` and remaps
+  podnet's record (`PodUtils/podnet:TODO/later.md`, 9 citations).
 - podnet holds `PodUtils/podnet:crates/podnet-netns/src/netns/veth.rs`,
   its `veth/tests.rs`, `PodUtils/podnet:crates/podnet-netns/src/netns/tun.rs`
   and `PodUtils/podnet:crates/podnet-netns/tests/veth.rs` to fixes from
