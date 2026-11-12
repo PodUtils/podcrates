@@ -24,9 +24,10 @@ a line when its work is done. Git and the record keep finished work.
   a run, `reverse::local`, `Settings::half_close` and `drain`,
   `OperatorLimits::eof_idle`, `pair::newest`), with the parity list in the
   crate README and a block of podnet in `SOURCES`; 374 tests and 9 new
-  plants pass. T-234 (an IPv6 relay host in brackets, plain `ws://` on the
-  forward road) comes before the trial of podnet
-  (adoption/podnet/pod-relay.*), which is not written.
+  plants pass. T-234 is done (an IPv6 relay host in brackets;
+  `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
+  of podnet (adoption/podnet/pod-relay.*) is next. podnet's binary needs
+  the feature `plain-ws` for a relay at `http://` on the loopback (C82).
 - The last release: `v0.26.0` at `fdb08f6` (the hand-off #77). For
   `v0.27.0`: T-227 and T-233 (PodUtils/podvm#267 and #269), T-213
   (`pod-confine`: the families that Landlock does not check, the rights

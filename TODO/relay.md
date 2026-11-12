@@ -2664,7 +2664,7 @@ cargo test -p pod-relay --all-features
 
 ## Done
 
-2026-11-12: commits `7ad2263` (the code, the tests, the plants, the README)
+2026-11-12: commits `7e5a270` (the code, the tests, the plants, the README)
 and this record (the calls C80 to C82, T-245, T-246).
 
 - `relay::parse_relay` takes `[ADDR]` and `[ADDR]:PORT` with `https://`,
