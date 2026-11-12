@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 331 entries: 87 open, 6 partial, 5 blocked, 233 done.
+`TODO/INDEX.md` holds 332 entries: 88 open, 6 partial, 5 blocked, 233 done.
 
 ## State
 
@@ -68,7 +68,9 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-380, T-381 (`pod-turn` against coturn, and
+1. **The defects and asks of the consumers:** T-304 and T-396 (the TCP
+   carrier of `pod-link` with TLS 1.3 and the pin of an Ed25519 key, for
+   PodUtils/podnet@T-268, PodUtils/podnet#513, an agent of this session); T-380, T-381 (`pod-turn` against coturn, and
    the options of RFC 8489 and RFC 8656 that it leaves out); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
    partial: the client side is in for PodUtils/podssh@T-755; the next tag takes
    it; the second part is the creation of tunnels, the logins and the

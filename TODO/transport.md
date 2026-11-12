@@ -4677,7 +4677,7 @@ podnet starts its PodUtils/podnet@T-261 (it writes a COORD issue).
 **Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A7, for PodUtils/podnet@T-268 and PodUtils/podnet@T-273)
 **Category:** feature
 **Milestone:** M1
-**Priority:** P3
+**Priority:** P2
 **Effort:** S
 **Status:** open
 
@@ -4704,7 +4704,7 @@ cargo test -p pod-tls --all-features
 
 ## Start condition
 
-podnet starts its PodUtils/podnet@T-268.
+podnet starts its PodUtils/podnet@T-268: met on 2026-11-12 (PodUtils/podnet#513).
 
 # T-305: `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479)
 
@@ -5672,3 +5672,46 @@ check of the realm); the ALPN as a setting of `Transport::Tls`.
 ```sh
 cargo test -p pod-turn --all-features
 ```
+
+# T-396: `pod-link`: a TCP carrier with TLS 1.3 that pins the Ed25519 key of the peer, and its accept side (PodUtils/podnet#513)
+
+**Source:** PodUtils/podnet#513 (COORD-057), for PodUtils/podnet@T-268; call C117 (the carriers are in `pod-link`).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-link` has the unix and the memory carriers. A link that crosses a
+network needs a carrier over TCP. podnet's hello proves the keys on the
+local carriers only: on a network the key of the peer belongs in the TLS
+handshake of the carrier.
+
+## Premise
+
+- Read: PodUtils/podnet#513: TLS 1.3, the pin of the peer's Ed25519 key
+  of `pod-identity` on each side (T-304), the accept side, a dial through
+  the caller's dialer (proxy, egress) as the relay roads take one; podnet
+  does not offer its hello on a network carrier; the keys of a multi-hop
+  link come from `pod-e2e` (T-301).
+- Read: `crates/pod-link/src/carrier.rs` (`Carrier`, `Listener`,
+  `available()`), `crates/pod-link/src/unix.rs`.
+
+## Approach
+
+`tcp::Tcp` (the dial through the caller's `pod_core::Dial` or
+`pod_proxy` dialer, TLS 1.3 alone, the client certificate of the local
+identity, the pin of the peer's key by T-304) and its `Listener` (a bound
+address, the server certificate of the local identity, the pin of each
+allowed client key); `available()` with a reason; tests on the loopback
+(a pinned key passes, another key is refused at the handshake on each
+side, TLS 1.2 is refused), plants.
+
+## Prove
+
+```sh
+cargo test -p pod-link -p pod-tls --all-features
+```
+
