@@ -2021,6 +2021,13 @@ the relay refused, a control frame), "a relay role of a deployment" (a
 member's list with no signed list) and "a node" (a pair under its 10
 minutes), where `Names::app` would give podssh its words back; podssh's
 trial of T-025 takes the words of the crate in its test of a signed list.
+podssh's take of `v0.28.0` (PodUtils/podssh#208) found two lines of
+`OpenError::lines` that do not read `Settings::names`, although `Names`
+has `offline` and `token`: an offline run ("the offline setting is on, so
+no connection goes anywhere") and a token of the environment that the
+relay rejected ("the relay token that was given was rejected"). podssh's
+glue `podssh_relay::open::words` replaces the two texts with
+`PODSSH_OFFLINE` and `PODSSH_RELAY_TOKEN`.
 
 ## Premise
 
@@ -2036,7 +2043,9 @@ The notes, the lines of a node and of a UDP handler become events
 (`relay.note`, `reverse.online`, `reverse.udp`) of the caller's sink, with
 the text of podssh. The commands of a kind of exchange become a value of
 the caller (`exchange::Kind` takes them), and the flags in the words go to
-`Settings::names`. podssh's trial keeps its words through its glue.
+`Settings::names`. `OpenError::lines` takes the `Names` (as
+`forward_layer::offer` does), so podssh's `open::words` can go. podssh's
+trial keeps its words through its glue.
 
 ## Prove
 
