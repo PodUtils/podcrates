@@ -2213,15 +2213,14 @@ name = "pod-proxy"
 version = "0.32.0"
 dependencies = [
  "base64 0.23.1",
- "hmac 0.13.0",
  "libc",
  "p256",
  "pod-core",
  "pod-testkit",
  "pod-tls",
+ "pod-turn",
  "rustls",
  "rustls-pki-types",
- "sha1",
  "sha2 0.11.1",
  "tokio",
  "tokio-rustls",
@@ -2408,6 +2407,25 @@ dependencies = [
 [[package]]
 name = "pod-todo"
 version = "0.32.0"
+
+[[package]]
+name = "pod-turn"
+version = "0.32.0"
+dependencies = [
+ "hmac 0.13.0",
+ "p256",
+ "pod-core",
+ "pod-testkit",
+ "pod-tls",
+ "rustls",
+ "rustls-pki-types",
+ "sha1",
+ "sha2 0.11.1",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "zeroize",
+]
 
 [[package]]
 name = "pod-warp"
@@ -3444,6 +3462,7 @@ dependencies = [
  "pod-supervise",
  "pod-term",
  "pod-tls",
+ "pod-turn",
  "pod-warp",
  "pod-wg",
  "pod-wormhole",
@@ -3461,6 +3480,7 @@ dependencies = [
  "pod-confine",
  "pod-core",
  "pod-tls",
+ "pod-turn",
  "pod-wg",
 ]
 

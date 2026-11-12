@@ -19,3 +19,5 @@ pod-tls = { path = "../../crates/pod-tls", default-features = false, features = 
 pod-wg = { workspace = true }
 # The confinement of a payload: no feature, no tokio.
 pod-confine = { workspace = true }
+# The codec of STUN alone, as pod-proxy takes it: no tokio, no TLS.
+pod-turn = { workspace = true, features = ["stun"] }

@@ -93,3 +93,16 @@ fn the_types_of_turn_put_the_class_between_the_bits_of_the_method() {
     assert_eq!(message_type(CONNECTION_ATTEMPT, Class::Indication), 0x001c);
     assert_eq!(message_type(super::super::BINDING_REQUEST, Class::Success), super::super::BINDING_SUCCESS);
 }
+
+/// Each type reads back to its method and its class, for each method of 12
+/// bits and each class.
+#[test]
+fn a_type_reads_back_to_its_method_and_class() {
+    for method in 0..0x1000u16 {
+        for class in [Class::Request, Class::Indication, Class::Success, Class::Error] {
+            let kind = message_type(method, class);
+            assert_eq!((method_of(kind), class_of(kind)), (method, class), "0x{kind:04x}");
+        }
+    }
+    assert_eq!(class_of(super::super::BINDING_ERROR), Class::Error);
+}

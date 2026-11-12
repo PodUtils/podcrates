@@ -1,15 +1,20 @@
 //! STUN's messages (RFC 8489), the codec alone: a Binding Request, a Binding
 //! response as a server writes it, and the reading of any message, each
 //! attribute's length checked before its value is read. A doctor's line of
-//! the NAT asks two servers with it; a TURN road builds its attributes and
-//! MESSAGE-INTEGRITY on the same reader. Pure Rust, no I/O: the caller owns
-//! the socket.
+//! the NAT asks two servers with it; the TURN client of this crate (feature
+//! `turn`) builds its attributes and its integrity on the same reader. Pure
+//! Rust, no I/O, no async: the caller owns the socket. `pod_proxy::stun` is
+//! this module.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[path = "stun_auth.rs"]
 mod auth;
 pub use auth::*;
+
+#[path = "stun_sha256.rs"]
+mod sha256;
+pub use sha256::*;
 
 /// The magic cookie of each message of RFC 5389 and later (RFC 8489, 5).
 pub const MAGIC: u32 = 0x2112_a442;
@@ -91,39 +96,68 @@ fn padding(len: usize) -> usize {
 /// The message in `bytes`, a whole datagram: the first two bits zero, the
 /// magic cookie, a length that is the rest of the datagram and a multiple of
 /// 4, and each attribute with its padding inside that length. Anything else
-/// is no STUN message (RFC 8489, 6.3), and why.
+/// is no STUN message (RFC 8489, 6.3), and why, with the offset and the type
+/// of [`decode`].
 pub fn parse(bytes: &[u8]) -> Result<Message<'_>, String> {
+    decode(bytes).map_err(|e| e.to_string())
+}
+
+/// Why bytes are no STUN message: the type of the message when the header
+/// holds one, the offset of the byte where the reading stopped, and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodeError {
+    pub kind: Option<u16>,
+    pub offset: usize,
+    pub why: String,
+}
+
+impl std::fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            Some(kind) => write!(f, "{} (at byte {} of a message of type 0x{kind:04x})", self.why, self.offset),
+            None => write!(f, "{} (at byte {})", self.why, self.offset),
+        }
+    }
+}
+
+impl std::error::Error for DecodeError {}
+
+/// [`parse`], with a typed error.
+pub fn decode(bytes: &[u8]) -> Result<Message<'_>, DecodeError> {
+    let kind = (bytes.len() >= 2).then(|| u16::from_be_bytes([bytes[0], bytes[1]]));
+    let fail = |offset: usize, why: String| DecodeError { kind, offset, why };
     if bytes.len() < HEADER {
-        return Err(format!("{} bytes, fewer than a header's 20", bytes.len()));
+        return Err(fail(bytes.len(), format!("{} bytes, fewer than a header's 20", bytes.len())));
     }
     let kind = u16::from_be_bytes([bytes[0], bytes[1]]);
     if kind & 0xc000 != 0 {
-        return Err("the first two bits are not zero".to_string());
+        return Err(fail(0, "the first two bits are not zero".to_string()));
     }
     let length = usize::from(u16::from_be_bytes([bytes[2], bytes[3]]));
     if u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) != MAGIC {
-        return Err("no magic cookie".to_string());
+        return Err(fail(4, "no magic cookie".to_string()));
     }
     if length % 4 != 0 {
-        return Err(format!("a length of {length}, not a multiple of 4"));
+        return Err(fail(2, format!("a length of {length}, not a multiple of 4")));
     }
     if HEADER + length != bytes.len() {
-        return Err(format!("a length of {length} for {} bytes after the header", bytes.len() - HEADER));
+        return Err(fail(2, format!("a length of {length} for {} bytes after the header", bytes.len() - HEADER)));
     }
     let mut id = [0u8; 12];
     id.copy_from_slice(&bytes[8..HEADER]);
     let mut attributes = Vec::new();
     let mut rest = &bytes[HEADER..];
     while !rest.is_empty() {
+        let at = bytes.len() - rest.len();
         // The length goes with its header: neither is read past the message.
         if rest.len() < 4 {
-            return Err(format!("an attribute's header cut at {} bytes", rest.len()));
+            return Err(fail(at, format!("an attribute's header cut at {} bytes", rest.len())));
         }
         let attribute = u16::from_be_bytes([rest[0], rest[1]]);
         let len = usize::from(u16::from_be_bytes([rest[2], rest[3]]));
         let whole = 4 + len + padding(len);
         if whole > rest.len() {
-            return Err(format!("the attribute 0x{attribute:04x} says {len} bytes, past the message"));
+            return Err(fail(at, format!("the attribute 0x{attribute:04x} says {len} bytes, past the message")));
         }
         attributes.push((attribute, &rest[4..4 + len]));
         rest = &rest[whole..];
