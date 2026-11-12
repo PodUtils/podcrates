@@ -773,7 +773,7 @@ cargo test -p pod-warp --test live -- --ignored
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -812,6 +812,43 @@ keepalive and the timeout. A plant for the timeout.
 cargo test -p pod-netstack --all-features
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commit `d32dd06` (the work, the plants) and the commit of
+this record; calls C189, C190 and C191.
+
+- `pod-netstack`: `StackConfig::tcp_timeout`, `tcp_keepalive` (each
+  `Option<Duration>`, none by default) and `nodelay` (false by default).
+  `new_tcp_socket` sets them on each socket, so each connect and each
+  listen socket (and so each accepted stream) takes them;
+  `TcpStream::nodelay` says the setting (C189). `StackConfig` moves to
+  `stack/config.rs` (`stack.rs` had 474 lines).
+- Measured (the premise): smoltcp closes a socket at its timeout and sends
+  a RST; before, the app read "connection reset by the peer" on an open
+  stream and `ConnectionRefused` on a connect. Now it reads `TimedOut`
+  ("no answer of the peer in the TCP timeout of N ms"). The reactor reads
+  the head of each inbound RST (`Head::Rst`, `Core::note_reset`): a RST of
+  the peer that closed the socket stays `ConnectionReset`, or
+  `ConnectionRefused` before the handshake (C190).
+- `pod-warp`: `NetSettings::tcp_timeout` (`TCP_TIMEOUT`, 60 s),
+  `tcp_keepalive` (`TCP_KEEPALIVE`, 20 s), `nodelay` (true), as podnet's
+  `ip.rs`. Fix in place: `NetSettings::tcp_linger` (`TCP_LINGER`, 30 s,
+  podnet's linger of issue 125); the stack of a session had the default of
+  60 s (C191).
+- Tests: `pod-netstack` `stack/tests/timeout.rs` (6 new:
+  `a_tcp_socket_has_a_timeout_and_a_keepalive` and
+  `the_tcp_sockets_have_no_nagle` with podnet's names; a connect with no
+  answer ends with `TimedOut` after a timeout of 1 s; a stream whose peer
+  is gone ends at each end; the keepalive holds an idle stream to a live
+  peer past the timeout; a RST of the peer stays a reset).
+  `cargo test -p pod-netstack --all-features`: 77 passed. `pod-warp`
+  `net::settings::tests::the_stack_has_the_tcp_timeout_the_keepalive_and_no_nagle_of_podnet`.
+- Plants: `netstack-tcp-timeout-not-set` and
+  `netstack-peer-reset-read-as-timeout`: each caught (run by hand in the
+  tree with the shared target). The patches of
+  `netstack-controller-not-set`, `netstack-dropped-stream-never-lingers`
+  and `warp-burst-not-passed` are made again on the changed files.
 
 # T-394: `pod-warp`: the streams of a `WarpNet` fail at once when its session closes, and a close by the caller (podnet issues 125, 112, 185)
 
@@ -905,7 +942,7 @@ and of this record (this commit); calls C180 and C181.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -938,3 +975,30 @@ stand-in edge.
 ```sh
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commit `d32dd06` (the work, the plant) and the commit of this
+record; call C192.
+
+- `pod-warp`: `WarpNet::datagrams` gives a `WarpDatagrams`
+  (`net/datagrams.rs`): a send to a family that the device lacks is
+  `InvalidInput`, "the tunnel has no IPv6 address for TO" (podnet's
+  words), and no packet leaves. The check of the data path refuses such a
+  server before it binds a socket; `DataPathCheck::servers_for` already
+  left it out.
+- The stand-in edge notes the source and the destination of each UDP
+  datagram and the count of the packets of each family (`Watch::udp`,
+  `Watch::families`). Fix in place: its DNS answered a UDP datagram that
+  holds no question with a panic of its task (an index out of range), and
+  so stopped the far end; it now sends an empty answer.
+- Tests: `tests/net.rs` (3 new, podnet's names):
+  `udp_to_ipv6_on_an_ipv4_tunnel_is_refused` (with a check that names an
+  IPv6 server first: no IPv6 packet leaves),
+  `udp_on_a_dual_stack_tunnel_takes_the_source_of_each_family`,
+  `udp_to_ipv4_on_an_ipv6_tunnel_is_refused`; the unit test
+  `net::datagrams::tests::a_family_that_the_device_lacks_is_refused`.
+  `cargo test -p pod-warp --all-features`: 63 unit tests, 11 of
+  `tests/net.rs`, 8 of `tests/stack.rs`, 8 of `tests/register.rs`, 1 live
+  test ignored.
+- Plant: `warp-udp-to-a-family-the-device-lacks`: caught (run by hand).
