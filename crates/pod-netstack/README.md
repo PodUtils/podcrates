@@ -34,7 +34,7 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
 | `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again), `udp_rx_dropped`, `udp_tx_dropped`, `udp_oversize` (the section "UDP"). |
-| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it; so does the end of the stream by the stack (`reset_all`, the stop of the reactor), with its cause. |
+| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`, `TimedOut`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it; so does the end of the stream by the stack (`reset_all`, the stop of the reactor), with its cause. |
 | `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address), `close` (the section "Close"). |
 | `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `max_datagram(to)`; `into_datagrams`. A remote of the other family than the source, and a datagram over `max_datagram`, are `InvalidInput`. A drop sends the queued datagrams, then frees the port. |
 | `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. `try_send` does not wait: a full queue to the stack drops the datagram (`udp_tx_dropped`). `max_datagram(to)`; `may_fragment` is `IPV4_FRAGMENTATION`. |
@@ -76,6 +76,9 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 | `congestion_control` | `CongestionControl::None` | The congestion controller of each TCP socket: none, Reno or CUBIC (the section "The congestion controllers"; podnet's `--cc`). |
 | `max_burst` | none | The burst limit of the link in segments (`LinkDevice::with_max_burst`); smoltcp clamps the TCP window that the stack advertises to it (PodUtils/podnet#100; podnet's `PODNET_WARP_TCP_BURST`). |
 | `link_stats` | none | `Option<Arc<DeviceStats>>`: the counters of the link, shared with other stacks (`LinkDevice::with_stats`); `device_stats` reads them. None: the counters of this stack. |
+| `tcp_timeout` | none | The time limit of each TCP socket with no packet of its peer: a connect, data with no ACK, a keepalive with no answer (smoltcp's `set_timeout`). Then smoltcp aborts the socket, and the app reads `TimedOut` (the section "Close"). smoltcp counts it on an idle connection too: give a shorter `tcp_keepalive`. |
+| `tcp_keepalive` | none | The interval of the TCP keepalive of an idle connection (smoltcp's `set_keep_alive`). |
+| `nodelay` | false | No Nagle on each TCP socket (`TCP_NODELAY`); `TcpStream::nodelay` says it, and `set_nodelay` changes it for one stream. |
 
 ## Features
 
@@ -158,6 +161,17 @@ T-257 to T-259 (PodUtils/podnet#464):
   1,000 ports one after the other).
 * `abort` sends a RST: the socket leaves the set after smoltcp sent it
   (`an_abort_sends_a_reset`).
+* The TCP timeout (`StackConfig::tcp_timeout`): a connect with no answer,
+  and a stream whose peer gives no answer to its data or its keepalive,
+  end with `TimedOut` after the timeout; smoltcp sends a RST, and the stack
+  frees the socket. The reactor reads the head of each inbound RST: a RST
+  of the peer that closed the socket stays `ConnectionReset` (or
+  `ConnectionRefused` before the handshake), and a close with no RST and no
+  abort is the timeout. With the keepalive, an idle stream to a live peer
+  stays (`a_connect_with_no_answer_ends_at_the_timeout`,
+  `a_stream_whose_peer_is_gone_ends_at_the_timeout`,
+  `an_idle_stream_to_a_live_peer_outlives_the_timeout`,
+  `a_reset_of_the_peer_is_no_timeout`).
 * `NetStack::reset_all(reason)` (and `StackReset::reset`, a handle that a
   task keeps) ends each open stream and each UDP socket at once: the link
   is dead, or the consumer closes it. Each RST goes out when the link takes
@@ -364,6 +378,7 @@ the `taken` lines of `SOURCES`):
 | `smoltcp = "=0.12.0"` (root, `podnet-netns`, `podnet-vnet`) | `smoltcp = "0.14"`, one version in the tree; `futures` leaves `podnet-vnet` |
 | `tests/tcp_window.rs` | its sockets set `CongestionControl::None`, as podnet's stacks (T-188) |
 | `src/warp/ip.rs`: `set_cc` and `cc`, `tcp_burst` (`LinkDevice::with_max_burst`), `LINK_STATS` (`LinkDevice::with_stats`) | `StackConfig::congestion_control`, `max_burst`, `link_stats`; `pod_warp::NetSettings` sets them (T-335) |
+| `src/warp/ip.rs`: `TCP_TIMEOUT`, `TCP_KEEPALIVE`, `set_nagle_enabled(false)` of `Driver::tcp_socket`; tests `a_tcp_socket_has_a_timeout_and_a_keepalive`, `the_tcp_sockets_have_no_nagle` | `StackConfig::tcp_timeout`, `tcp_keepalive`, `nodelay`; `pod_warp::NetSettings` sets them (T-393); the two tests here, with the same names (`stack/tests/timeout.rs`) |
 | `.cargo/config.toml`: `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` | stays: each binary that links `pod-netstack` needs it |
 | the record (`TODO/`): the citations of the removed files | `PodUtils/podcrates:crates/pod-netstack/src/..` |
 | each `pod-*` dependency | tag `v0.20.0`; `podnet-vnet` adds `pod-netstack` |
@@ -388,7 +403,9 @@ families), the close of a listener (`listener.rs`) and of a stream
 (`close.rs`: the queued bytes, the linger, the abort and its RST on the
 link, a reset after a full channel), the end of each socket by the stack
 (`reset.rs`: a reset of the consumer, a write that waits, a shutdown, a
-panic of the reactor), a burst of SYNs (`burst.rs`: 48 at
+panic of the reactor), the TCP timeout, the keepalive and no Nagle
+(`timeout.rs`: the settings of a socket, a connect and a stream to a peer
+that is gone, an idle stream to a live peer, a reset of the peer), a burst of SYNs (`burst.rs`: 48 at
 once, a full accept queue, `max_connections`, a SYN sent again; no RST on
 the link), UDP over a link (`udp.rs`: a burst with no reader, the counters,
 the size of a datagram for each build, the fragments, the drop of a
@@ -415,7 +432,9 @@ of the RST on the link. The plants `netstack-udp-backlog-lost-at-a-full-channel`
 `netstack-udp-send-loss-not-counted`, `netstack-udp-over-the-limit-goes` and
 `netstack-dropped-udp-socket-stays` prove the tests of UDP. The plants
 `netstack-reset-wakes-no-write` and `netstack-stop-reads-a-clean-end`
-prove the tests of `reset.rs`.
+prove the tests of `reset.rs`. The plants `netstack-tcp-timeout-not-set`
+and `netstack-peer-reset-read-as-timeout` prove the tests of
+`timeout.rs`.
 
 ## Sources
 

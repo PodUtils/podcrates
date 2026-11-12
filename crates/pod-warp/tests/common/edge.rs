@@ -55,11 +55,23 @@ pub struct Watch {
     pub dns_drop: AtomicUsize,
     /// The largest TCP window field of a packet of the client.
     pub window_max: AtomicUsize,
+    /// The source and the destination of each UDP datagram of the client.
+    pub udp: Mutex<Vec<(IpAddr, SocketAddr)>>,
+    /// The packets of the client of each family: IPv4, IPv6.
+    pub families: [AtomicUsize; 2],
 }
 
 impl Watch {
-    /// Note the TCP window of an IPv4 packet of the client.
+    /// Note the family of a packet of the client, the ends of a UDP
+    /// datagram, and the TCP window of an IPv4 packet.
     fn note(&self, packet: &[u8]) {
+        match packet.first().map(|b| b >> 4) {
+            Some(4) => self.families[0].fetch_add(1, Ordering::SeqCst),
+            _ => self.families[1].fetch_add(1, Ordering::SeqCst),
+        };
+        if let Some(ends) = udp_ends(packet) {
+            self.udp.lock().unwrap_or_else(PoisonError::into_inner).push(ends);
+        }
         let header = usize::from(packet.first().map_or(0, |b| b & 0x0f)) * 4;
         if packet.first().map(|b| b >> 4) == Some(4) && packet.get(9) == Some(&6) && packet.len() >= header + 20 {
             let window = u16::from_be_bytes([packet[header + 14], packet[header + 15]]);
@@ -72,6 +84,27 @@ impl Watch {
         self.dns_questions.fetch_add(1, Ordering::SeqCst);
         self.dns_drop.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok()
     }
+}
+
+/// The source and the destination of the UDP datagram of an IPv4 or an
+/// IPv6 packet with no extension header.
+fn udp_ends(packet: &[u8]) -> Option<(IpAddr, SocketAddr)> {
+    let (from, to, udp): (IpAddr, IpAddr, &[u8]) = match packet.first()? >> 4 {
+        4 if *packet.get(9)? == 17 => {
+            let header = usize::from(packet[0] & 0x0f) * 4;
+            let from: [u8; 4] = packet.get(12..16)?.try_into().ok()?;
+            let to: [u8; 4] = packet.get(16..20)?.try_into().ok()?;
+            (from.into(), to.into(), packet.get(header..)?)
+        }
+        6 if *packet.get(6)? == 17 => {
+            let from: [u8; 16] = packet.get(8..24)?.try_into().ok()?;
+            let to: [u8; 16] = packet.get(24..40)?.try_into().ok()?;
+            (from.into(), to.into(), packet.get(40..)?)
+        }
+        _ => return None,
+    };
+    let port = u16::from_be_bytes([*udp.get(2)?, *udp.get(3)?]);
+    Some((from, SocketAddr::new(to, port)))
 }
 
 /// The keys that the stand-in shows, one for each TLS handshake in turn,
@@ -338,25 +371,30 @@ async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
 }
 
 /// The answer to a DNS question: [`NAME_IP`] for an A question, no address
-/// for another.
+/// for another. A datagram that holds no question gets an empty answer, so
+/// that the far end does not stop.
 fn dns_answer(query: &[u8]) -> Vec<u8> {
+    question_answer(query).unwrap_or_default()
+}
+
+fn question_answer(query: &[u8]) -> Option<Vec<u8>> {
     // The question ends after the name (labels to a zero byte) and the type
     // and the class.
     let mut end = 12;
-    while end < query.len() && query[end] != 0 {
+    while *query.get(end)? != 0 {
         end += 1 + usize::from(query[end]);
     }
-    let qtype = u16::from_be_bytes([query[end + 1], query[end + 2]]);
+    let qtype = u16::from_be_bytes([*query.get(end + 1)?, *query.get(end + 2)?]);
     let end = end + 5;
     let a = qtype == 1;
     let mut out = query[..2].to_vec();
     out.extend_from_slice(&[0x81, 0x80, 0, 1, 0, u8::from(a), 0, 0, 0, 0]);
-    out.extend_from_slice(&query[12..end]);
+    out.extend_from_slice(query.get(12..end)?);
     if a {
         out.extend_from_slice(&[0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4]);
         out.extend_from_slice(&NAME_IP.octets());
     }
-    out
+    Some(out)
 }
 
 /// An echo server on the loopback: the address of a route.

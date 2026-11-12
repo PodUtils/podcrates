@@ -17,9 +17,12 @@ pub(super) struct Conn {
     pub(super) closing: bool,
     /// Set when the app dropped its stream: the stack ends it alone.
     pub(super) orphan: Option<Orphan>,
-    /// Set at a reset: the reason that the app reads. After an abort, the
-    /// socket leaves the set when smoltcp sent its RST.
-    pub(super) reset: Option<String>,
+    /// Set at a reset or a timeout: the error that the app reads. After an
+    /// abort, the socket leaves the set when smoltcp sent its RST.
+    pub(super) reset: Option<Ended>,
+    /// A RST of the peer closed the socket (`Core::after_ingress`): a close
+    /// with none is the TCP timeout of smoltcp.
+    pub(super) peer_reset: bool,
     /// The state of the socket at the end of the last pass: a reset of the
     /// peer moves a synchronized socket to CLOSED at once.
     pub(super) state: tcp::State,
@@ -164,7 +167,14 @@ pub(super) fn new_tcp_socket(config: &StackConfig) -> tcp::Socket<'static> {
     // sets the controller of its settings, none by default
     // (PodUtils/podnet#134).
     socket.set_congestion_control(config.congestion_control);
+    socket.set_timeout(config.tcp_timeout.map(smol_duration));
+    socket.set_keep_alive(config.tcp_keepalive.map(smol_duration));
+    socket.set_nagle_enabled(!config.nodelay);
     socket
+}
+
+pub(super) fn smol_duration(duration: Duration) -> SmolDuration {
+    SmolDuration::from_micros(duration.as_micros().try_into().unwrap_or(u64::MAX))
 }
 
 pub(super) fn new_udp_socket(config: &StackConfig) -> udp::Socket<'static> {
@@ -393,6 +403,7 @@ impl Core {
                 closing: false,
                 orphan: None,
                 reset: None,
+                peer_reset: false,
                 state,
                 recv_eof_sent: false,
                 announced: false,
@@ -413,7 +424,7 @@ impl Core {
             read_buf: Vec::new(),
             read_pos: 0,
             eof: false,
-            nodelay: false,
+            nodelay: self.config.nodelay,
             cause,
         }
     }

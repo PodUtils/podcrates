@@ -57,6 +57,11 @@ impl Limits {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Head {
     Syn(Syn),
+    /// A TCP segment with RST: its source and its destination.
+    Rst {
+        from: SocketAddr,
+        to: SocketAddr,
+    },
     /// A whole UDP datagram: its destination and the bytes of its payload.
     Udp {
         to: SocketAddr,
@@ -75,6 +80,11 @@ impl Head {
     pub(super) fn parse(packet: &[u8]) -> Head {
         if let Some(syn) = Syn::parse(packet) {
             return Head::Syn(syn);
+        }
+        if let Some((from, to, flags)) = tcp_head(packet)
+            && flags & 0x04 != 0
+        {
+            return Head::Rst { from, to };
         }
         Self::datagram(packet).unwrap_or(Head::Other)
     }
@@ -167,7 +177,19 @@ impl Core {
         match head {
             Head::Udp { to, .. } => self.take_datagrams(Some(to)),
             Head::Fragment { v4: true, .. } if crate::IPV4_FRAGMENTATION => self.take_datagrams(None),
+            Head::Rst { from, to } => self.note_reset(from, to),
             _ => {}
+        }
+    }
+
+    /// A RST from `from` to `to` closed the socket of its connection: the
+    /// app reads a reset, not the TCP timeout (`close_and_check`).
+    fn note_reset(&mut self, from: SocketAddr, to: SocketAddr) {
+        let conn = self.conns.values_mut().find(|conn| conn.remote == from && conn.local == to);
+        if let Some(conn) = conn
+            && self.sockets.get::<tcp::Socket>(conn.handle).state() == tcp::State::Closed
+        {
+            conn.peer_reset = true;
         }
     }
 

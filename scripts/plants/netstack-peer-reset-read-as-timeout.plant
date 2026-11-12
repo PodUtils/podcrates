@@ -1,0 +1,8 @@
+# The reactor does not note the RST of the peer: with a TCP timeout, a
+# reset and a refused connect read as TimedOut (T-393). The test of the
+# reset must fail.
+ENTRY=T-393
+GROUP=netstack
+EXPECT='test stack::tests::timeout::a_reset_of_the_peer_is_no_timeout \.\.\. FAILED'
+RUN='cargo test -p pod-netstack --lib -- stack::tests::timeout::a_reset_of_the_peer_is_no_timeout'
+LIMIT=900

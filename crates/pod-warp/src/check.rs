@@ -98,6 +98,8 @@ impl WarpNet {
     /// `check.limit`. Each answer counts: the check is of the path, not of
     /// the name.
     async fn ask_once(&self, server: SocketAddr, check: &DataPathCheck) -> Result<(), String> {
+        // A server of a family that the device lacks gets no question.
+        self.families().check(server).map_err(|e| e.to_string())?;
         let mut socket = self.bind_udp().await.map_err(|e| e.chain())?;
         let mut id = [0x5a, 0x5a];
         let _ = OsEntropy.fill(&mut id);

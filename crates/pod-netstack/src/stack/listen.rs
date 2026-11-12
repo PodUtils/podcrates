@@ -31,36 +31,42 @@ impl Syn {
     /// Read an IPv4 or IPv6 packet. A packet with IPv6 extension headers is
     /// not read: smoltcp gives it to the free listen socket.
     pub(super) fn parse(packet: &[u8]) -> Option<Syn> {
-        let (from, to, tcp): (IpAddr, IpAddr, &[u8]) = match packet.first()? >> 4 {
-            4 => {
-                let header = usize::from(packet[0] & 0x0f) * 4;
-                // Only a first fragment holds the TCP header.
-                let offset = u16::from_be_bytes([*packet.get(6)?, *packet.get(7)?]) & 0x1fff;
-                if *packet.get(9)? != 6 || header < 20 || offset != 0 {
-                    return None;
-                }
-                let from: [u8; 4] = packet.get(12..16)?.try_into().ok()?;
-                let to: [u8; 4] = packet.get(16..20)?.try_into().ok()?;
-                (from.into(), to.into(), packet.get(header..)?)
-            }
-            6 => {
-                if *packet.get(6)? != 6 {
-                    return None;
-                }
-                let from: [u8; 16] = packet.get(8..24)?.try_into().ok()?;
-                let to: [u8; 16] = packet.get(24..40)?.try_into().ok()?;
-                (from.into(), to.into(), packet.get(40..)?)
-            }
-            _ => return None,
-        };
-        let flags = *tcp.get(13)?;
+        let (from, to, flags) = tcp_head(packet)?;
         // SYN set; ACK and RST clear.
         if flags & 0x02 == 0 || flags & 0x14 != 0 {
             return None;
         }
-        let port = |at: usize| Some(u16::from_be_bytes([*tcp.get(at)?, *tcp.get(at + 1)?]));
-        Some(Syn { from: SocketAddr::new(from, port(0)?), to: SocketAddr::new(to, port(2)?) })
+        Some(Syn { from, to })
     }
+}
+
+/// The source, the destination and the flags of the TCP segment of an IPv4
+/// or an IPv6 packet. A packet with IPv6 extension headers is not read.
+pub(super) fn tcp_head(packet: &[u8]) -> Option<(SocketAddr, SocketAddr, u8)> {
+    let (from, to, tcp): (IpAddr, IpAddr, &[u8]) = match packet.first()? >> 4 {
+        4 => {
+            let header = usize::from(packet[0] & 0x0f) * 4;
+            // Only a first fragment holds the TCP header.
+            let offset = u16::from_be_bytes([*packet.get(6)?, *packet.get(7)?]) & 0x1fff;
+            if *packet.get(9)? != 6 || header < 20 || offset != 0 {
+                return None;
+            }
+            let from: [u8; 4] = packet.get(12..16)?.try_into().ok()?;
+            let to: [u8; 4] = packet.get(16..20)?.try_into().ok()?;
+            (from.into(), to.into(), packet.get(header..)?)
+        }
+        6 => {
+            if *packet.get(6)? != 6 {
+                return None;
+            }
+            let from: [u8; 16] = packet.get(8..24)?.try_into().ok()?;
+            let to: [u8; 16] = packet.get(24..40)?.try_into().ok()?;
+            (from.into(), to.into(), packet.get(40..)?)
+        }
+        _ => return None,
+    };
+    let port = |at: usize| Some(u16::from_be_bytes([*tcp.get(at)?, *tcp.get(at + 1)?]));
+    Some((SocketAddr::new(from, port(0)?), SocketAddr::new(to, port(2)?), *tcp.get(13)?))
 }
 
 impl Local {

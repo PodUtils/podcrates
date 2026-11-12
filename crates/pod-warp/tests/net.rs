@@ -2,8 +2,9 @@
 //! edge on the loopback: TCP to an address and to a name through the
 //! `Dial`, UDP through the `Datagrams`, the order of the doors and the
 //! pinned door, a key of the front door that the record does not pin, a
-//! key that the edge did not enroll, and the end of the open streams and UDP
-//! sockets when the session closes.
+//! key that the edge did not enroll, the end of the open streams and UDP
+//! sockets when the session closes, and the refusal of a UDP datagram to a
+//! family that the device lacks.
 
 mod common;
 
@@ -251,4 +252,94 @@ async fn a_close_by_the_caller_fails_the_flows_of_the_session() {
     fails_with(read, "the WARP session is closed: the session is too old").await;
     fails_with(receive, "the session is too old").await;
     refuses_new_flows(&net, "the session is too old").await;
+}
+
+/// A device of the stand-in whose record keeps the addresses of
+/// `families` (IPv4, IPv6), a session with a check that asks a server of
+/// each family, and a UDP socket of the session.
+async fn one_family(families: (bool, bool)) -> (Edge, pod_warp::WarpNet, Arc<dyn pod_core::Datagrams>, Vec<IpAddr>) {
+    let (_api, served, edge, moved) = world(dead()).await;
+    let (mut settings, _) = common::settings(&format!("http://{}", served.addr()), moved);
+    let servers = vec!["[2606:4700:4700::1111]:53".parse().unwrap(), "1.1.1.1:53".parse().unwrap()];
+    settings.net.check = Some(pod_warp::DataPathCheck { servers, ..pod_warp::DataPathCheck::default() });
+    let warp = Warp::register(settings.clone()).await.unwrap();
+    let mut device = warp.device().clone();
+    if !families.0 {
+        device.config.interface.addresses.v4.clear();
+    }
+    if !families.1 {
+        device.config.interface.addresses.v6.clear();
+    }
+    let warp = Warp::from_parts(settings, device, warp.identity().clone());
+    let net = warp.connect().await.unwrap();
+    let datagrams = net.datagrams().await.unwrap();
+    let ours = net.addresses();
+    (edge, net, datagrams, ours)
+}
+
+/// A datagram to the echo port of `to` comes back from `to`, and the edge
+/// saw it come from `source`.
+async fn echoes(edge: &Edge, datagrams: &dyn pod_core::Datagrams, to: SocketAddr, source: IpAddr) {
+    pod_core::datagrams::send_to(datagrams, b"query", to).await.unwrap();
+    let mut buf = [0u8; 64];
+    let (n, from) = tokio::time::timeout(LIMIT, pod_core::datagrams::recv_from(datagrams, &mut buf))
+        .await
+        .expect("an echo")
+        .unwrap();
+    assert_eq!((&buf[..n], from), (&b"query"[..], to));
+    let seen = edge.watch.udp.lock().unwrap().clone();
+    assert!(seen.contains(&(source, to)), "{to} from {source}: {seen:?}");
+}
+
+/// A send to `to` is refused with `InvalidInput` and `words`, and no packet
+/// leaves into the session.
+async fn refused(net: &pod_warp::WarpNet, datagrams: &dyn pod_core::Datagrams, to: SocketAddr, words: &str) {
+    let before = net.link_stats().tx_packets;
+    let err = pod_core::datagrams::send_to(datagrams, b"query", to).await.unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput, "{err}");
+    assert!(err.to_string().contains(words), "{err}");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(net.link_stats().tx_packets, before, "a packet left");
+}
+
+fn echo_v4() -> SocketAddr {
+    format!("198.51.100.20:{}", edge::ECHO_PORT).parse().unwrap()
+}
+
+fn echo_v6() -> SocketAddr {
+    format!("[2001:db8:7::20]:{}", edge::ECHO_PORT).parse().unwrap()
+}
+
+/// PodUtils/podnet issue 112: a datagram to IPv6 on a tunnel with an IPv4
+/// address only is refused, and the check of the data path asks no IPv6
+/// server: no IPv6 packet leaves. IPv4 still works, from the address of the
+/// device.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn udp_to_ipv6_on_an_ipv4_tunnel_is_refused() {
+    pod_testkit::need_loopback!();
+    let (edge, net, datagrams, ours) = one_family((true, false)).await;
+    refused(&net, &*datagrams, "[2606:4700:4700::1111]:53".parse().unwrap(), "no IPv6 address").await;
+    echoes(&edge, &*datagrams, echo_v4(), ours[0]).await;
+    assert_eq!(edge.watch.families[1].load(Ordering::SeqCst), 0, "an IPv6 packet left");
+}
+
+/// PodUtils/podnet issue 112: on a tunnel with both families, each datagram
+/// has the source of the family of its destination.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn udp_on_a_dual_stack_tunnel_takes_the_source_of_each_family() {
+    pod_testkit::need_loopback!();
+    let (edge, _net, datagrams, ours) = one_family((true, true)).await;
+    echoes(&edge, &*datagrams, echo_v6(), ours[1]).await;
+    echoes(&edge, &*datagrams, echo_v4(), ours[0]).await;
+}
+
+/// PodUtils/podnet issue 112: a datagram to IPv4 on a tunnel with an IPv6
+/// address only is refused, and no IPv4 packet leaves.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn udp_to_ipv4_on_an_ipv6_tunnel_is_refused() {
+    pod_testkit::need_loopback!();
+    let (edge, net, datagrams, ours) = one_family((false, true)).await;
+    refused(&net, &*datagrams, "1.1.1.1:53".parse().unwrap(), "no IPv4 address").await;
+    echoes(&edge, &*datagrams, echo_v6(), ours[0]).await;
+    assert_eq!(edge.watch.families[0].load(Ordering::SeqCst), 0, "an IPv4 packet left");
 }
