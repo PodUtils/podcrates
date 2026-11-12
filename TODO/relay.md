@@ -2297,7 +2297,7 @@ sh scripts/plant-each.sh --group relay
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2334,6 +2334,25 @@ on a runner waits for T-036.
 cargo test -p pod-relay --all-features -- --ignored --list
 python3 -I scripts/check-workflows.py
 ```
+
+## Done
+
+2026-11-12. `b3dfc88`: `live.yml` has the job `relay` (by hand; the
+input `relay` names one of `live`, `live_backpressure`, `pair_live`,
+`reverse_live`, `reverse_idle_live`, `reverse_drops_live`,
+`blocking_live`, `grant_live`; the input `until` gives
+`PODSSH_DROPS_UNTIL`). The job `live` runs the tests of `pod-wormhole` and
+`pair_code` of `pod-relay` against magic-wormhole's own mailbox server and
+library each day (`POD_WORMHOLE_TEST_SERVER=required`; magic-wormhole
+0.24.0, magic-wormhole-mailbox-server 0.8.0), and `live` of `pod-wormhole`
+and `pair_code_live` of `pod-relay` on Thursdays and by hand. Fixed on the
+way: no workflow set `POD_WORMHOLE_TEST_SERVER=required`, so the tests
+against magic-wormhole's server skipped in CI. Run 43153607165 (job
+`live`): 20 + 11 + 14 tests of `pod-wormhole` (none skipped), 7 of
+`pair_code`, both public mailboxes met and paired. Run 43153611375 (job
+`relay`, `live`): passed. The run of the drops through podssh's relay
+role on a runner waits for T-036.
+
 
 # T-230: `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457)
 

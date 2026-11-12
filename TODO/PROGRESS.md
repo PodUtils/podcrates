@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 255 entries: 65 open, 4 partial, 4 blocked, 182 done.
+`TODO/INDEX.md` holds 255 entries: 64 open, 4 partial, 4 blocked, 183 done.
 
 ## State
 
@@ -15,8 +15,8 @@
 - The consumers and their tags:
   - podssh: `v0.26.0` (`ff2f7bac`, PodUtils/podssh#194; `pinggy::skips()`
     reads the URL rule of `pod_services::forward`).
-  - podnet: `v0.26.0` (`f107766`, PodUtils/podnet#458; the veth wire of
-    `pod-hold`).
+  - podnet: `v0.27.0` (`28c0e3d`, PodUtils/podnet#465; the close of a
+    listener and the SYN bursts of PodUtils/podnet#457 hold in its tests).
   - podvm: `v0.27.0` (`a714e99f`, PodUtils/podvm#276; the `/tmp` clause
     of experiment 414 passes; `mcr.microsoft.com` leaves its list of
     reported hosts).
@@ -25,12 +25,12 @@
     of `pod-broker`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70); the takes of `v0.27.0` (#85): podnet's of T-230 to T-232
-  (PodUtils/podnet#457; `StackConfig::accept_pool` is gone), podssh's of
-  `pod-relay` (T-025); podnet's take of T-257
-  to T-259 with the next tag (PodUtils/podnet#464, for its guest-wire
-  router PodUtils/podnet@T-248: the UDP counters, `max_datagram`, the
-  feature `ipv4-fragmentation`, the backlog of a UDP socket).
+  T-207, #70); podssh's take of `pod-relay` with `v0.27.0` (T-025, #85);
+  podvm's take of T-266 (PodUtils/podvm#277: it runs `kvm.yml` again with
+  the tag) and podnet's take of T-257 to T-259 (PodUtils/podnet#464, for
+  its guest-wire router PodUtils/podnet@T-248: the UDP counters,
+  `max_datagram`, the feature `ipv4-fragmentation`, the backlog of a UDP
+  socket), with the next tag.
 - Partial: T-025 (`pod-relay`: the trial of podssh passed in
   `adoption.yml`; the release and podssh's take remain), T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
@@ -92,7 +92,7 @@ next entry.
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
 6. **M2, the relay:** T-025 (partial: podssh's take of `v0.27.0`),
-   T-228, T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
+   T-229, T-212, T-026 (partial: the trial of podnet); T-261 (an
    MQTT meeting point of `pod-wormhole`, PodUtils/podssh#205); then
    T-245 (the `Host` of an IPv6 relay on port 443), T-246 (the names of the
    cache files); then T-204 (a random failure of

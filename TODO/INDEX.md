@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**255 entries: 65 open, 4 partial, 4 blocked, 182 done.**
+**255 entries: 64 open, 4 partial, 4 blocked, 183 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 51 | 66 |
-| P2 | 32 | 2 | 4 | 92 | 130 |
+| P2 | 31 | 2 | 4 | 93 | 130 |
 | P3 | 20 | 0 | 0 | 37 | 57 |
-| **All** | 65 | 4 | 4 | 182 | 255 |
+| **All** | 64 | 4 | 4 | 183 | 255 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -274,7 +274,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-225](transport.md) | P1 | M | M1 | feature | open | `pod-services-watch`: a watch that reads the banner of each SSH forward relay and holds its URL rule |
 | [T-226](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the time to the first step, the job images and the exit reason `limit` in a report (podrunner's T-075) |
 | [T-227](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
-| [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |
+| [T-228](relay.md) | P2 | S | M2 | chore | done | `pod-relay`: the live tests of the relay client in `live.yml` |
 | [T-229](relay.md) | P2 | M | M2 | defect | open | `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh |
 | [T-230](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457) |
 | [T-231](relay.md) | P1 | S | M2 | defect | done | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |

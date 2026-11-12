@@ -48,10 +48,11 @@ a line when its work is done. Git and the record keep finished work.
   (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
   `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
   blocking face, after T-025), `pod-todo`.
-- podnet (on `v0.26.0`, `f107766`, PodUtils/podnet#458): it took the
-  veth wire of `pod-hold`; its `UrlRule::default()` reads `url-skip`. Its
-  PodUtils/podnet@T-249 (the router onto `pod-netstack`) waits for the
-  three gaps of PodUtils/podnet#457; T-170 step 2 starts at its COORD issue. `pod-git` waits: its own repository,
+- podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its
+  `UrlRule::default()` reads `url-skip`. Its PodUtils/podnet@T-249 (the
+  router onto `pod-netstack`) drops its workarounds; its commit comes in
+  PodUtils/podnet#451 and starts T-170 step 2. Its PodUtils/podnet@T-248
+  (the guest-wire router) takes T-257 to T-259 with the next tag. `pod-git` waits: its own repository,
   deferred (the owner; #75).
 - podssh (on `v0.26.0`, `ff2f7bac`): its `pinggy::skips()` reads the URL
   rule of `pod_services::forward`; the trial patch of `pod-relay` changes
