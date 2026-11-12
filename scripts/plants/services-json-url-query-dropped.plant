@@ -1,0 +1,6 @@
+# The watch kind http-json, form key with url-member: the query of the URL of an item gives no member, so no item has the key of its fact; its test must fail.
+ENTRY=T-276
+GROUP=services
+EXPECT='test http::http_json_items_read_the_host_the_port_and_the_query_of_a_url \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- http::http_json_items_read_the_host_the_port_and_the_query_of_a_url --exact'
+LIMIT=1800

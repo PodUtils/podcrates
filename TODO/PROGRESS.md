@@ -119,7 +119,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C103; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

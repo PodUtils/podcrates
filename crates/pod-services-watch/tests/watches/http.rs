@@ -14,6 +14,7 @@ fn answer(request: &Request) -> Answer {
                 "Regions":{"1":{"Nodes":[{"HostName":"a.test"},{"HostName":"b.test"}]}}}"#,
         ),
         "/nodes.json" => Answer::new(200, NODES),
+        "/relays.json" => Answer::new(200, RELAYS),
         "/health" => Answer::new(200, "ok"),
         "/trace" => Answer::new(200, "fl=1\nh=one.one.one.one\n"),
         "/meta" => Answer::new(
@@ -75,6 +76,56 @@ async fn http_json_items_find_each_endpoint_by_its_key() {
     let no_fact = endpoint("c", "tcp", "192.0.2.1", 443, "") + &items_watch(stand.port());
     let report = one(&file("i3", &no_fact)).await;
     assert!(text(&report).contains("FAILED i3 http-json: the service has no fact \"key-c\""), "{}", text(&report));
+}
+
+/// A pool in the form of Syncthing's: each relay is a URL whose query holds
+/// its device ID. R2 is on another port, R3 an IPv6 address, R4 has an
+/// escape in its query.
+const RELAYS: &str = r#"{"relays":[
+    {"url":"relay://192.0.2.1:443/?id=R1&pingInterval=1m0s"},
+    {"url":"relay://192.0.2.2:22067/?id=R2"},
+    {"url":"relay://[2001:DB8::3]:443/?id=R3"},
+    {"url":"relay://192.0.2.4:443/?providedBy=a%20b+c&id=R4"},
+    {"url":"relay://192.0.2.5:443/?id=R5"},
+    {"stats":{}}]}"#;
+
+/// The watch of the form `key` with `url-member` on [`RELAYS`].
+fn relays_watch(port: u16) -> String {
+    let url = format!("https://{NAME}:{port}/relays.json");
+    watch(&format!(
+        "kind = \"http-json\"\nurl = \"{url}\"\npointer = \"/relays\"\nurl-member = \"url\"\n\
+         key = \"id\"\nfact-prefix = \"id-\"\nmember = \"host\"\nport-member = \"port\""
+    ))
+}
+
+/// An endpoint on 443 and its fact `id-NAME`.
+fn relay(name: &str, host: &str, id: &str) -> String {
+    endpoint(name, "tcp", host, 443, "") + &fact(&format!("id-{name}"), &format!("\"{id}\""))
+}
+
+#[tokio::test]
+async fn http_json_items_read_the_host_the_port_and_the_query_of_a_url() {
+    pod_testkit::need_loopback!();
+    let stand = https(answer);
+    let good = relay("a", "192.0.2.1", "R1")
+        + &relay("c", "2001:db8::3", "R3")
+        + &relay("d", "192.0.2.4", "R4")
+        + &relays_watch(stand.port());
+    let report = one(&file("u1", &good)).await;
+    let all = text(&report);
+    assert!(report.holds(), "{all}");
+    // R5 is on 443 too, and the file does not have it: counted, not found.
+    assert!(all.contains("4 of 6 items with port 443, 1 of them not in the file"), "{all}");
+
+    let moved = relay("b", "192.0.2.2", "R2") + &relay("e", "192.0.2.50", "R5") + &relays_watch(stand.port());
+    let report = one(&file("u2", &moved)).await;
+    assert_eq!(
+        report.outcome.findings,
+        vec![
+            Finding::moved("endpoint b", "port 443", "port 22067"),
+            Finding::moved("endpoint e", "192.0.2.50", "host \"192.0.2.5\""),
+        ]
+    );
 }
 
 #[tokio::test]

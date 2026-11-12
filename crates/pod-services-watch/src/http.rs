@@ -64,12 +64,22 @@ pub async fn json(service: &Service, watch: &Watch, net: &Net) -> Checked {
 /// (of `role`, or each endpoint) is the item whose member `key` is the text
 /// of the fact `fact-prefix` + NAME. The item holds the endpoint's host in
 /// a member of `member`, its port in the member `port-member` (a number or
-/// a list), and `true` in each member of `true-members`.
+/// a list), and `true` in each member of `true-members`. With `url-member`,
+/// the URL in that member of each item adds the members `host`, `port` and
+/// one for each parameter of its query (`url_members`).
 fn items(out: &mut Outcome, args: &Args, value: &Json, url: &str, pointer: &str) -> Result<(), Finding> {
     let (key, prefix, hosts) = (args.text("key")?, args.text("fact-prefix")?, args.texts("member")?);
     let (port, flags) = (args.opt_text("port-member"), args.opt_texts("true-members")?);
     let Json::Array(list) = value else {
         return Err(Finding::failed(format!("{} has no list at {pointer}", shown(url))));
+    };
+    let expanded: Vec<Json>;
+    let list = match args.opt_text("url-member") {
+        Some(member) => {
+            expanded = list.iter().map(|item| url_members(item, member)).collect();
+            &expanded
+        }
+        None => list,
     };
     let endpoints = args.endpoints()?;
     let mut keys = BTreeSet::new();
@@ -126,6 +136,61 @@ fn items(out: &mut Outcome, args: &Args, value: &Json, url: &str, pointer: &str)
         list.len()
     ));
     Ok(())
+}
+
+/// `item` with the members of the URL in its member `member`
+/// (`relay://HOST:PORT/?id=ID&...` of Syncthing's pool): `host` (an IPv6
+/// address with no brackets), `port` (a number), and each parameter of the
+/// query as a text, decoded. The members of the URL replace members of the
+/// same name. An item with no such URL stays as it is.
+fn url_members(item: &Json, member: &str) -> Json {
+    let (Json::Object(map), Some(url)) = (item, member_str(item, member)) else {
+        return item.clone();
+    };
+    let mut map = map.clone();
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let (authority, tail) = rest.split_at(rest.find(['/', '?', '#']).unwrap_or(rest.len()));
+    let (host, port) = match authority.strip_prefix('[') {
+        Some(v6) => v6.split_once(']').map_or((v6, ""), |(h, p)| (h, p.trim_start_matches(':'))),
+        None => authority.rsplit_once(':').unwrap_or((authority, "")),
+    };
+    map.insert("host".into(), Json::String(host.into()));
+    if let Ok(port) = port.parse::<u16>() {
+        map.insert("port".into(), Json::from(port));
+    }
+    let query = tail.split_once('?').map_or("", |(_, q)| q);
+    for pair in query.split('#').next().unwrap_or("").split('&').filter(|p| !p.is_empty()) {
+        let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+        map.insert(decoded(name), Json::String(decoded(value)));
+    }
+    Json::Object(map)
+}
+
+/// The text of a part of a query, with `+` and each `%XX` decoded; a bad
+/// escape stays as it is.
+fn decoded(part: &str) -> String {
+    let bytes = part.as_bytes();
+    let hex = |b: Option<&u8>| b.and_then(|b| (*b as char).to_digit(16));
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match (bytes[i], hex(bytes.get(i + 1)), hex(bytes.get(i + 2))) {
+            (b'%', Some(high), Some(low)) => {
+                // Two hex digits make one byte: the value is under 256.
+                out.push(u8::try_from(high * 16 + low).unwrap_or(b'%'));
+                i += 3;
+            }
+            (b'+', _, _) => {
+                out.push(b' ');
+                i += 1;
+            }
+            (b, _, _) => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// True when `value` is the port, or a list that holds it.

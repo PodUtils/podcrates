@@ -1,0 +1,330 @@
+# The public relays of Syncthing on port 443 (PodUtils/podssh@T-571,
+# PodUtils/podssh#209): each relay of the pool of the Syncthing project
+# whose URL has port 443 and an IP literal, and that was up 7 days or more
+# when the pool was read (call C104). The fact device-id-NAME of each
+# endpoint is the relay's device ID, from the id of its URL: the TLS of the
+# relay protocol shows the certificate of that device. The name of an
+# endpoint is relay- and the first seven characters of its device ID. The
+# endpoints come in the order of their device IDs (as C83 orders the Tox
+# relays): a consumer that picks a relay by a hash over this order picks
+# the same one at both ends. Volunteers run the relays, with no account. A
+# relay sees the device IDs of the two ends, the times and the sizes; the
+# two ends encrypt their data end to end. The pool gives 100 relays at
+# random at /endpoint; /endpoint/full gives each relay, with its stats.
+id = "syncthing-relay"
+kind = "syncthing-relay"
+party = "the Syncthing project (public relays run by volunteers)"
+about = "The public relays of Syncthing on port 443 that were up 7 days or more, each with its device ID"
+
+[[endpoint]]
+name = "relay-24uxj6o"
+scheme = "tls"
+host = "45.157.177.104"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://45.157.177.104:443 of the device 24UXJ6O: up 23 days, no rate limit, location DE" }
+
+[[fact]]
+name = "device-id-relay-24uxj6o"
+value = "24UXJ6O-TXBJG7C-7G6B5BN-COL2KDQ-PTXGXSH-V56W7DH-BSGAA6U-KLCZPQZ"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 45.157.177.104" }
+
+[[endpoint]]
+name = "relay-33vtykn"
+scheme = "tls"
+host = "141.98.138.221"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://141.98.138.221:443 of the device 33VTYKN: up 23 days, no rate limit, location DE" }
+
+[[fact]]
+name = "device-id-relay-33vtykn"
+value = "33VTYKN-JB6JMBH-D65F7PF-PONTALT-CJR2ODW-BX5GMP3-35EH3AL-J77KEQA"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 141.98.138.221" }
+
+[[endpoint]]
+name = "relay-3yvgwfw"
+scheme = "tls"
+host = "141.14.27.108"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://141.14.27.108:443 of the device 3YVGWFW: up 8 days, no rate limit, location DE" }
+
+[[fact]]
+name = "device-id-relay-3yvgwfw"
+value = "3YVGWFW-AL3E7JP-KJ7CRUG-2SU75CV-UA2L2LS-XZ3TIZ7-KFCKDAC-Z3IRTQL"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 141.14.27.108" }
+
+[[endpoint]]
+name = "relay-53smkmz"
+scheme = "tls"
+host = "185.126.255.48"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://185.126.255.48:443 of the device 53SMKMZ: up 20 days, per-session-rate 0, global-rate 15000000 (bytes/s), location UA" }
+
+[[fact]]
+name = "device-id-relay-53smkmz"
+value = "53SMKMZ-MPLDN3S-PMENM5J-TO65HKE-VPQWLKF-AWLL7SE-P5MEIJD-XGA5AAT"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 185.126.255.48" }
+
+[[endpoint]]
+name = "relay-7gtr3xk"
+scheme = "tls"
+host = "14.102.99.222"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://14.102.99.222:443 of the device 7GTR3XK: up 19 days, no rate limit, location NZ" }
+
+[[fact]]
+name = "device-id-relay-7gtr3xk"
+value = "7GTR3XK-64ILE6R-DYHWJCN-TGIH3AD-OHW6KZX-OZZ3NLV-ZTEPIDV-MCLQXQ4"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 14.102.99.222" }
+
+[[endpoint]]
+name = "relay-apwveye"
+scheme = "tls"
+host = "195.219.124.44"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://195.219.124.44:443 of the device APWVEYE: up 92 days, no rate limit, location GB" }
+
+[[fact]]
+name = "device-id-relay-apwveye"
+value = "APWVEYE-E7ZE5R6-YPZT4WO-JRYK3D3-QUYFPF2-PC532VS-G3UIH2N-CLRDTQK"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 195.219.124.44" }
+
+[[endpoint]]
+name = "relay-c7dl52h"
+scheme = "tls"
+host = "195.219.227.72"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://195.219.227.72:443 of the device C7DL52H: up 30 days, no rate limit, location ES" }
+
+[[fact]]
+name = "device-id-relay-c7dl52h"
+value = "C7DL52H-RDTA2ID-W6IPEEH-RY5U4GL-UIORQDI-2LXX7BH-5YELCJH-V4KOJQS"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 195.219.227.72" }
+
+[[endpoint]]
+name = "relay-c7ykbqx"
+scheme = "tls"
+host = "89.162.10.70"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://89.162.10.70:443 of the device C7YKBQX: up 160 days, no rate limit, location NO" }
+
+[[fact]]
+name = "device-id-relay-c7ykbqx"
+value = "C7YKBQX-2ZU5WSH-CF33V6R-CYONMI2-AZPQCKA-ULNMHF2-B74MI5X-6KODVAB"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 89.162.10.70" }
+
+[[endpoint]]
+name = "relay-dfexz73"
+scheme = "tls"
+host = "212.5.154.218"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://212.5.154.218:443 of the device DFEXZ73: up 8 days, no rate limit, location BG" }
+
+[[fact]]
+name = "device-id-relay-dfexz73"
+value = "DFEXZ73-SMSWQTN-PV64E33-MKMDIYU-OFCNPRT-32TBWG3-X2A5PJG-3P7DTAD"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 212.5.154.218" }
+
+[[endpoint]]
+name = "relay-duni3ai"
+scheme = "tls"
+host = "94.228.253.13"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://94.228.253.13:443 of the device DUNI3AI: up 19 days, per-session-rate 0, global-rate 10000000 (bytes/s), location RU" }
+
+[[fact]]
+name = "device-id-relay-duni3ai"
+value = "DUNI3AI-J7IG46W-TIBHN4D-4GPRO47-TO5QOAQ-KWTQT4R-I65BKI3-JUMYHQT"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 94.228.253.13" }
+
+[[endpoint]]
+name = "relay-dvwou27"
+scheme = "tls"
+host = "1.168.114.174"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://1.168.114.174:443 of the device DVWOU27: up 23 days, per-session-rate 0, global-rate 3000000 (bytes/s), location TW" }
+
+[[fact]]
+name = "device-id-relay-dvwou27"
+value = "DVWOU27-FLWTZ6S-3VP2OCD-M26EHKW-3O4K3D3-ZUOK372-3YAUMM6-LAD2AQD"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 1.168.114.174" }
+
+[[endpoint]]
+name = "relay-gexmi7x"
+scheme = "tls"
+host = "66.198.70.78"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://66.198.70.78:443 of the device GEXMI7X: up 85 days, no rate limit, location US" }
+
+[[fact]]
+name = "device-id-relay-gexmi7x"
+value = "GEXMI7X-AMOCWS4-SP26JA3-YDBQRR3-HI5N52H-YPSVBC3-XVSMRUO-PFHZ4QZ"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 66.198.70.78" }
+
+[[endpoint]]
+name = "relay-gqvr4dg"
+scheme = "tls"
+host = "45.138.55.71"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://45.138.55.71:443 of the device GQVR4DG: up 8 days, per-session-rate 60000000, global-rate 60000000 (bytes/s), location NL" }
+
+[[fact]]
+name = "device-id-relay-gqvr4dg"
+value = "GQVR4DG-ETUELFW-T3TCV4U-EAG76T2-YKMW5O7-OTEDOO7-CWSGT56-U4GAVAL"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 45.138.55.71" }
+
+[[endpoint]]
+name = "relay-jjuwnxj"
+scheme = "tls"
+host = "216.238.41.78"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://216.238.41.78:443 of the device JJUWNXJ: up 7 days, per-session-rate 10000000, global-rate 0 (bytes/s), location US" }
+
+[[fact]]
+name = "device-id-relay-jjuwnxj"
+value = "JJUWNXJ-DTBFTKO-G2T5I7H-WMMVMTY-RYJZUIR-ORCD4IY-HLNMQ5L-DFWFHA5"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 216.238.41.78" }
+
+[[endpoint]]
+name = "relay-l3bslsl"
+scheme = "tls"
+host = "192.99.59.139"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://192.99.59.139:443 of the device L3BSLSL: up 60 days, no rate limit, location CA" }
+
+[[fact]]
+name = "device-id-relay-l3bslsl"
+value = "L3BSLSL-VZAJFBF-ETK6RFW-EFUG3EG-5TOZTZ2-XRLFBLT-LUS7EQZ-CS5MWQD"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 192.99.59.139" }
+
+[[endpoint]]
+name = "relay-mvtea7v"
+scheme = "tls"
+host = "80.231.63.246"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://80.231.63.246:443 of the device MVTEA7V: up 19 days, no rate limit, location FR" }
+
+[[fact]]
+name = "device-id-relay-mvtea7v"
+value = "MVTEA7V-LCZVJL5-DIKD6EW-3L4YA3T-H2YXA2P-XGFWXAV-OASGSJP-4COBBAH"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 80.231.63.246" }
+
+[[endpoint]]
+name = "relay-ncfmecx"
+scheme = "tls"
+host = "194.117.224.98"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://194.117.224.98:443 of the device NCFMECX: up 9 days, no rate limit, location DE" }
+
+[[fact]]
+name = "device-id-relay-ncfmecx"
+value = "NCFMECX-2EHWEEK-KTN3QKG-6LNN2ZE-UBKFFVZ-UBVEN37-3G5EIFR-7CJYDQQ"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 194.117.224.98" }
+
+[[endpoint]]
+name = "relay-ts7znkh"
+scheme = "tls"
+host = "195.37.209.183"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://195.37.209.183:443 of the device TS7ZNKH: up 22 days, per-session-rate 0, global-rate 4250000 (bytes/s), location DE" }
+
+[[fact]]
+name = "device-id-relay-ts7znkh"
+value = "TS7ZNKH-AUXS3SQ-M4AB3RZ-NSE6S7M-ZSRVF7T-LEAPYIN-242XD7V-RMBEFQ6"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 195.37.209.183" }
+
+[[endpoint]]
+name = "relay-vuzbk4m"
+scheme = "tls"
+host = "57.129.131.81"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://57.129.131.81:443 of the device VUZBK4M: up 11 days, per-session-rate 0, global-rate 62500000 (bytes/s), location GB" }
+
+[[fact]]
+name = "device-id-relay-vuzbk4m"
+value = "VUZBK4M-GHOVAPF-5DO3GG3-3JUPPMJ-XE4IXDP-LJWUQXR-VF4FXR4-RRVWYQP"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 57.129.131.81" }
+
+[[endpoint]]
+name = "relay-wflrrqp"
+scheme = "tls"
+host = "85.121.50.155"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://85.121.50.155:443 of the device WFLRRQP: up 31 days, per-session-rate 2000000, global-rate 5000000 (bytes/s), location JP" }
+
+[[fact]]
+name = "device-id-relay-wflrrqp"
+value = "WFLRRQP-KD334GJ-2GQP3MV-F3SKUAH-4WCUI7P-5J5Q44S-XS7K6TX-R5MYSQQ"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 85.121.50.155" }
+
+[[endpoint]]
+name = "relay-wk6chrx"
+scheme = "tls"
+host = "95.128.168.119"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://95.128.168.119:443 of the device WK6CHRX: up 43 days, no rate limit, location RO" }
+
+[[fact]]
+name = "device-id-relay-wk6chrx"
+value = "WK6CHRX-K2IJ3SD-TAE76QR-4PZKF5O-GAPV3UE-3WOOXNF-TRYUKF4-XNIPBQM"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 95.128.168.119" }
+
+[[endpoint]]
+name = "relay-wmymarb"
+scheme = "tls"
+host = "189.146.18.236"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://189.146.18.236:443 of the device WMYMARB: up 49 days, no rate limit, location MX" }
+
+[[fact]]
+name = "device-id-relay-wmymarb"
+value = "WMYMARB-ZPYORNN-AIIH6ZO-KCXO3AR-HECRLY7-7SKSSNI-XOKLXYH-CNOXOA6"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 189.146.18.236" }
+
+[[endpoint]]
+name = "relay-yd5lhxn"
+scheme = "tls"
+host = "136.53.210.148"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://136.53.210.148:443 of the device YD5LHXN: up 10 days, no rate limit, location US" }
+
+[[fact]]
+name = "device-id-relay-yd5lhxn"
+value = "YD5LHXN-FSCA6WZ-4V3WPJS-U4EYCER-UXSLWOX-U2DLGZT-7TGOFIU-QDZXKAN"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 136.53.210.148" }
+
+[[endpoint]]
+name = "relay-yirrkod"
+scheme = "tls"
+host = "85.121.51.152"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://85.121.51.152:443 of the device YIRRKOD: up 50 days, per-session-rate 2000000, global-rate 5000000 (bytes/s), location HK" }
+
+[[fact]]
+name = "device-id-relay-yirrkod"
+value = "YIRRKOD-RC6K7EM-5QVUJW5-FHS5OTP-364FNWH-FT6B2YZ-YXLMHSI-F2XXEAQ"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 85.121.51.152" }
+
+[[endpoint]]
+name = "relay-ze6keeo"
+scheme = "tls"
+host = "159.195.42.77"
+port = 443
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://159.195.42.77:443 of the device ZE6KEEO: up 11 days, per-session-rate 0, global-rate 125000000 (bytes/s), location DE" }
+
+[[fact]]
+name = "device-id-relay-ze6keeo"
+value = "ZE6KEEO-X3CMKOX-7MARDVG-LNDQXQ2-XW4TM6W-7OPHATV-JFZ4MTK-JLB2CQR"
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 159.195.42.77" }
+
+# Each endpoint is the relay of the pool whose device ID is its fact, with
+# its host and port 443 in its URL. A relay on 443 that the file does not
+# have is counted: the pool holds each relay, the file the ones up 7 days.
+[[watch]]
+kind = "http-json"
+url = "https://relays.syncthing.net/endpoint/full"
+pointer = "/relays"
+url-member = "url"
+key = "id"
+fact-prefix = "device-id-"
+member = "host"
+port-member = "port"

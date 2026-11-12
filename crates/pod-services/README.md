@@ -92,7 +92,7 @@ new kind is one implementation there. The kinds that the files name now:
 
 | Kind | Arguments | What it checks |
 | --- | --- | --- |
-| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), or `key` with `fact-prefix`, `member`, `port-member` and `true-members` (the last two if any) and `role`, if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its members of the name `member` hold the host of each endpoint of the role (more hosts in the document are no finding); with `key`, the value is a list, and each endpoint of the role is the item whose member `key` is the text of the fact `fact-prefix` + NAME: a member of `member` (a text or a list) holds its host, the member `port-member` (a number or a list) holds its port, and each member of `true-members` is `true` (more items with the port and the true members are counted, no finding) |
+| `http-json` | `url`, `pointer`; `fact`, or `facts` with `members`, or `member` with `role` (with no `role`: each endpoint), or `key` with `fact-prefix`, `member`, `port-member`, `true-members` and `url-member` (the last three if any) and `role`, if any | the document has a JSON value at the pointer; it equals the fact, its members equal the facts, or its members of the name `member` hold the host of each endpoint of the role (more hosts in the document are no finding); with `key`, the value is a list, and each endpoint of the role is the item whose member `key` is the text of the fact `fact-prefix` + NAME: a member of `member` (a text or a list) holds its host, the member `port-member` (a number or a list) holds its port, and each member of `true-members` is `true` (more items with the port and the true members are counted, no finding); with `url-member`, the URL in that member of each item (`relay://HOST:PORT/?id=ID` of Syncthing's pool) gives the members `host`, `port` and one for each parameter of its query |
 | `http-status` | `endpoint` or `role`, `path`, `status` | a GET answers with the status |
 | `http-text` | `url`, `contains` | the answer to a GET of the URL holds the text (the document of a fact, also on another host than the service) |
 | `tls-name` | `endpoint` or `role` | a TLS handshake verifies the name |
@@ -240,6 +240,7 @@ let relay = services.of_kind("relay").next();
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
 | `zerotier-tcp-relay` | `tcp-relay` | `tcp` (`204.80.128.1:443`, anycast; records like TLS, no TLS) | `relay` (`ZT_TCP_FALLBACK_RELAY` of ZeroTierOne) |
 | `tox-tcp-relay` | `tcp-relay` | `node-KEY8` (5: each node of the list of Tox with 443 in `tcp_ports` and `status_tcp` true, scheme `tcp`, its IPv4 literal, port 443; the name holds the first eight digits of its key; in the order of the keys, C83) | `public-key-node-KEY8` (the node's public key, 64 hex digits, to which the handshake of the TCP relay boxes) |
+| `syncthing-relay` | `syncthing-relay` | `relay-ID7` (25: each relay of the pool of Syncthing on port 443 with an IP literal that was up 7 days or more at the read, scheme `tls`; the name holds the first seven characters of its device ID; in the order of the device IDs, C104) | `device-id-relay-ID7` (the relay's device ID, as its URL gives it; podssh pins the TLS of the relay to it, PodUtils/podssh@T-571) |
 | `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
@@ -548,6 +549,10 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 * `tests/tox.rs` (3): the relays of `tox-tcp-relay`: each an IP literal
   on 443 with a key of 64 hex digits whose head is in its name, the
   order of the keys, and the watch that holds each endpoint to the list.
+* `tests/syncthing.rs` (3): the relays of `syncthing-relay`: each an IP
+  literal on 443 with a device ID of eight groups of seven whose head is in
+  its name, the order of the device IDs, and the watch that holds each
+  endpoint to the pool.
 * `tests/overlay.rs` (5, feature `overlay`): a file adds a service or
   replaces one, an error of the settings, one id once, no file.
 * `tests/moved.rs` (8): the tests of the consumers that test these values,

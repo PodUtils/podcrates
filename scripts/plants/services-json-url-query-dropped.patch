@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services-watch/src/http.rs b/crates/pod-services-watch/src/http.rs
+index 585c03b..8a1711a 100644
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -158,7 +158,7 @@ fn url_members(item: &Json, member: &str) -> Json {
+     if let Ok(port) = port.parse::<u16>() {
+         map.insert("port".into(), Json::from(port));
+     }
+-    let query = tail.split_once('?').map_or("", |(_, q)| q);
++    let query = tail.split_once('?').map_or("", |(_, q)| q).get(..0).unwrap_or("");
+     for pair in query.split('#').next().unwrap_or("").split('&').filter(|p| !p.is_empty()) {
+         let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+         map.insert(decoded(name), Json::String(decoded(value)));
