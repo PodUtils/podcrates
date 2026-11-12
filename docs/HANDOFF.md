@@ -2,104 +2,87 @@
 
 The state of unfinished work, for a session with no memory of the last
 one. Read this page first, then `AGENTS.md`, `TODO/PROGRESS.md` (the
-state, the work order, the questions), `docs/maintenance.md`,
-`docs/design.md` and `docs/decisions.md`. Keep this page current: remove
-a line when its work is done. Git and the record keep finished work.
+state, the work order, the questions), `docs/maintenance.md` (the
+procedures, the tools and the rules of the work), `docs/design.md` and
+`docs/decisions.md`. Keep this page current: remove a line when its work
+is done. Git and the record keep finished work.
+
+## The first steps of the next session
+
+1. Finish the release of `v0.29.0` (`docs/maintenance.md`, "A release"):
+   the version and the notes (`docs/releases/v0.29.0.md`) are on `main`
+   at `52e461a`, and its full local check passed. Read `ci` and
+   `adoption` at the head of `main` (`live.yml` run 43174276510 passed at
+   `52e461a`); then run `release.yml` with no input, then with
+   `version=0.29.0`; read the dry run of `publish.yml` at the tag; post
+   `docs/releases/v0.29.0-handoff.md` as the hand-off issue (title
+   "COORD-055: v0.29.0: ... (to all)"; fill `COMMIT` and the run ids);
+   map it in `TODO/issues.md` and `TODO/github.txt`; message podrunner and
+   podssh.
+2. Read the hand-off issue #86 (`v0.28.0`) and record each new take.
+3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+   tool) and read the open COORD issues `(to podcrates)` of each
+   repository of PodUtils.
+4. Take the work order of `TODO/PROGRESS.md`. Its head now: T-026 (the
+   trial of `pod-relay` in podnet), T-251 (podrunner's ask), T-276
+   (PodUtils/podssh#209), T-212, T-267.
 
 ## In flight
 
-- `pod-relay` (T-025, done; call C60): podssh took it at `0872c2c6`
-  (PodUtils/podssh#206); podssh-relay keeps each module as glue over one
-  `Context` of the process. T-212 (the lines as events) remains; T-229
-  put the six plants of podssh on the crate.
-- `pod-relay` and podnet (T-026, partial; calls C73 to C76): podnet's
-  relay client is in the crate (`RelayBudget`, `stream::of`, the tokens of
-  a run, `reverse::local`, `Settings::half_close` and `drain`,
-  `OperatorLimits::eof_idle`, `pair::newest`), with the parity list in the
-  crate README and a block of podnet in `SOURCES`; 374 tests and 9 new
-  plants pass. T-234 is done (an IPv6 relay host in brackets;
-  `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
-  of podnet (adoption/podnet/pod-relay.*) on podnet `1abfa91` is next. It
-  started: no fix to port; the glue is not written, and no file of the
-  trial is committed. The Done section of T-026 lists what the patch
-  changes, and calls C101 to C103 give its design (podnet turns on
-  `plain-ws`; podnet keeps the relay of its process; the wire of a stored
-  pair by the scheme of its file).
-- The last release: `v0.28.0` at `4ce3625` (the hand-off #86; #85 is
-  closed: each consumer took `v0.27.0`). Each consumer answers on #86 with the
-  commit of its take. For the next tag: T-025's take (the `taken` line),
-  T-225 (the watch `forward-url`), T-229 (the six plants of podssh), T-245
-  and T-246 (the `Host` of an IPv6 relay, the names of the cache files),
-  T-271 (PodUtils/podssh#207); in work: T-170 step 2 and T-261.
+- The last release: `v0.28.0` at `4ce3625` (the hand-off #86): podrunner
+  `bde47c3` and podssh `12473a10` took it; podvm and podnet have not
+  answered. `v0.29.0` is prepared, not tagged (step 1 above).
+- T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
+  relay client is in `pod-relay`. The trial of podnet
+  (`adoption/podnet/pod-relay.patch`, `.commit`, `.run`) on podnet
+  `1abfa91` is not written: no fix of podnet's three frozen files needs a
+  port; the Done section of T-026 lists what the patch changes (the
+  manifests, the glue of `ws_relay.rs` and `relay_reverse.rs`, the removal
+  of `relay_pool.rs`, the callers, podnet's tests and checks) and the
+  findings for it (a test token under 8 characters, no public constructor
+  of `pair::Pair`, the mode of a pair directory, podnet's layer and size
+  allowlists, podnet's citations of `src/relay_pool.rs`). After the trial,
+  the words "a binary does not turn it on" of `plain-ws` change (C101).
+  podnet holds the three files to fixes from `7c5f87e`.
+- T-170 (partial): step 2 is `pod_hold::syn_hold` (feature `syn-hold`;
+  calls C90, C91, C100); the trial `adoption/podnet/pod-hold-syn.*` at
+  podnet `a7350b2` passed in `adoption.yml` (run 43164667092). podnet's
+  take remains; four defects of podnet's router are in the Done section
+  and in the hand-off of `v0.29.0`.
+- T-040 (partial): the trials of podvm, with each import for podvm.
 
 ## What waits
 
-- podvm (on `v0.27.0`, `a714e99f`, PodUtils/podvm#276; #267 and #269
-  are closed; it waits for T-254 for its last reported host and for T-262,
-  the refusal of a TCP list on i686 and powerpc64le): its
-  PodUtils/podvm@T-1658 sets `Plan.confine` (`--podvm-confine=SPEC`, the
-  profile key `confine = true`); it checks `lambda-al2023` for T-208; its
-  PodUtils/podvm@T-1662 reads the module set of T-206 after `pod-netlab`
-  (T-207, #70). PodUtils/podvm@T-1722 may ask for `exec_attached` of
-  `pod-incus`. Its other takes (PodUtils/podvm#194): `pod-relay` (the
-  blocking face), `pod-todo`.
-- podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its
-  `UrlRule::default()` reads `url-skip`. Its PodUtils/podnet@T-249 (the
-  router onto `pod-netstack`) drops its workarounds; its commit comes in
-  PodUtils/podnet#451 (`a7350b2`); T-170 step 2 (partial) imported its
-  hold of a SYN as `pod_hold::syn_hold`. Its PodUtils/podnet@T-248
-  (the guest-wire router) takes T-257 to T-259 with the next tag. `pod-git` waits: its own repository,
-  deferred (the owner; #75).
-- podssh (on `v0.27.0`, `0872c2c6`, PodUtils/podssh#206): it took
-  `pod-relay` and kept `pinggy::skips()`. Its asks PodUtils/podssh#196,
-  #203 and #204 are in `v0.28.0`; #205 is T-261. `sandhole` and `openbare-xyz` of `pod-services`
-  wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.28.0`, `bde47c3`): its T-042 confines a unit
-  through podvm's `--podvm-confine`. Its work order waits for podnet (PodUtils/podrunner#64), the
-  next podvm beta, and later crates (`pod-unit`, `pod-release`, the
-  registry of `pod-todo`; `pod-actions-workflow` and `pod-actions-expr`
-  for its local mode). Its T-042 uses `pod-confine`.
-- The banners of the SSH forward relays (T-225, the watch `forward-url`):
-  no session of podcrates has SSH. A run of `services.yml` with the kind
-  `forward-url` (the daily run, or by hand with the kind) gives the host
-  of the URL of each relay; a `MOVED` on `url-match` is a fact that
-  podnet's `ssh-relay` reads. T-267 proves the URL through the tunnel.
-- M8 (cfb and githome, #35 and #36) waits (the ruling "Priority").
-- The image `ghcr.io/podutils/podnet` is private; podnet asked the owner to
-  make it public (podnet's record).
-
-## Rules learned
-
-- Gate a commit on the exit code of a check (`cargo todo check >/dev/null
-  2>&1 && git commit`), never on a pipe into `tail`.
-- Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
-  head; a push to `main` cancels the runs that wait. A change of a file
-  that a plant patches makes the plant stale: `check.sh` runs
-  `plant-each.sh --apply` (T-210).
-- After a release, read the dry run of `publish.yml` at the tag: a cycle
-  of dev-dependencies makes it red, and no other check sees it.
-- Take a new entry id or call number with `cargo todo next` just before
-  the commit; sessions and agents add entries in parallel.
-- Each version bump makes a new copy of each workspace crate in
-  `target/debug` (the version is in the hash of each artifact). Before the
-  check of a bump, remove `target/debug` under the cargo lock
-  (`flock SCRATCHPAD/cargo.lock`) when `df -h /` shows less than 25 GB
-  free. Agents that build in parallel take the same lock for each cargo
-  command.
-- Do not share `target/` between worktrees: an artifact built in a
-  worktree holds its absolute paths (`include_str!` of `pod-services`,
-  `CARGO_MANIFEST_DIR` of `pod-job`), and cargo reuses it in the main
-  checkout, so the doc and the tests fail there after the worktree goes.
-  After a merge of an agent's work that shared `target/`, remove
-  `target/debug` before the check.
+- podvm (on `v0.27.0`, `a714e99f`, PodUtils/podvm#276; #277 is closed):
+  its take of `v0.28.0` (`convert_argv`, T-266) and its run of its KVM workflow
+  again; T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+  `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
+  podvm by COORD issues only.
+- podnet (on `v0.27.0`, `28c0e3d`, PodUtils/podnet#465): its take of
+  T-257 to T-259 (PodUtils/podnet#464, for PodUtils/podnet@T-248) and of
+  `syn_hold` (T-170); then T-026's trial, then T-028 (`pod-warp`) and
+  T-029 (`pod-cloudflare`) on the chain to WARP (the owner's order). Write
+  to podnet by COORD issues only.
+- podssh (on `v0.28.0`, `12473a10`, PodUtils/podssh#208): its
+  PodUtils/podssh@T-737 wires the MQTT meeting point (T-261);
+  PodUtils/podssh#209 is T-276; `sandhole` and `openbare-xyz` wait for
+  PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
+- podrunner (on `v0.28.0`, `bde47c3`): T-251 (`pod-actions-workflow`,
+  `pod-actions-expr` and the expansion of jobs, for its local mode
+  PodUtils/podrunner@T-046) is its one crate ask.
+- `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the
+  owner; #75). M8 (cfb and githome, #35 and #36) waits (the ruling
+  "Priority").
 
 ## Channels
 
 - podrunner and podssh: lead sessions that podcrates started; direct
-  messages (`list_sessions`, titles `(podrunner)` and `(podssh)`).
+  messages (`list_sessions`, titles `(podrunner)` and `(podssh)`). A
+  session writes only to its own repository: link a consumer's COORD
+  issue from the hand-off issue of podcrates.
 - podnet and podvm: their own sessions; COORD issues only
-  (`docs/session-protocol.md`; the ruling "podvm online"). Run
-  `sh scripts/agent/watch-org.sh` under the Monitor tool.
+  (`docs/session-protocol.md`).
 - Workflows: dispatch them with the GitHub MCP tool
-  (`docs/maintenance.md`, "A run of a workflow").
-- The take of a consumer: `docs/maintenance.md`, "The take of a consumer".
+  (`docs/maintenance.md`, "A run of a workflow"). `services.yml` with the
+  kind `forward-url` reads the banners of the SSH forward relays (no
+  session has SSH).

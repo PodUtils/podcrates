@@ -13,6 +13,9 @@
   loopback opener of `pod-relay` (T-234), Tox, Yggdrasil, HyperDHT,
   workerd and wasmtime in `pod-services` (T-244, T-256, T-260, T-254,
   T-255), the relay contract (T-253), `live.yml` (T-228).
+- `v0.29.0` is prepared on `main` (`52e461a`: the version, the notes, a
+  full local check); its CI, its tag and its hand-off are the first step
+  of `docs/HANDOFF.md`.
 - The consumers and their tags:
   - podssh: `v0.28.0` (`12473a10`, PodUtils/podssh#208; it took `pod-relay`
     at `0872c2c6`).

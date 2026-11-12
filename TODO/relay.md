@@ -3442,7 +3442,8 @@ fuzz target, CI), and the commit of the plants and this record.
   leaves: `eclipse-mqtt` is gone, and `shiftr-mqtt` is the one broker.
   The tests against magic-wormhole's server ran in the same job (none
   skipped) once `POD_WORMHOLE_TEST_MQTT=required` named the need of
-  Mosquitto apart from `POD_WORMHOLE_TEST_SERVER`.
+  Mosquitto apart from `POD_WORMHOLE_TEST_SERVER`. `live.yml` run
+  43174276510 at `52e461a`, with `shiftr-mqtt` alone: passed.
 
 
 # T-263: `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library
