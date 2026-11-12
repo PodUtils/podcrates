@@ -69,8 +69,8 @@ next entry.
    blocking facade, PodUtils/podvm#283, an agent of this session).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
-   entry here, in the order of its need. The next tag releases T-322
-   (`Template::parts`, PodUtils/podrunner@T-089); T-280 (the live run of
+   entry here, in the order of its need. The next tag releases
+   `Template::parts` (PodUtils/podrunner@T-089); T-280 (the live run of
    `pod-actions-expr` and `pod-actions-workflow` against GitHub) waits.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-028 (`pod-warp`
