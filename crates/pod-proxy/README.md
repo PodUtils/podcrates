@@ -53,7 +53,7 @@ to each crate that opens a connection.
 | `mptcp::{probe, enabled, connect, connect_with, socket, Multipath, ENABLED_FILE}` | Multipath TCP (Linux) |
 | `lowat::{set, LOWAT}`, `write_limit::WriteLimit` | `TCP_NOTSENT_LOWAT` (Linux, macOS); a stream whose write fails when it makes no progress |
 | `udp::{open_in_stream, associate, write_frame, read_frame, wrap, wrap_name}` | the SOCKS5 datagram path on a stream that the caller dials: the command 0x83 (UDP in the stream: a frame of a 2-byte length and a datagram of RFC 1928 each way), `UDP ASSOCIATE`, and the datagram header. The reply 0x07 to 0x83 is `DialError::UdpRefused` |
-| `stun` | STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message |
+| `stun` | STUN's messages (RFC 8489): a Binding Request, a Binding response, the reading of any message; MESSAGE-INTEGRITY (`signed`, `integrity`), FINGERPRINT (`fingerprinted`, `fingerprint_ok`), the long-term key (`long_term_key`), the methods and attributes of TURN (RFC 8656, RFC 6062) and `message_type` (T-370; the vectors of RFC 5769, 2.1, 2.2 and 2.4) |
 | `resolve::System` (`new`, `with_pins`), `resolve::{LITERAL, PIN, SYSTEM}` | the system resolver after the IP literals and the caller's pins, for a consumer with no DNS over HTTPS and for the tests |
 
 ## Keep-alive
@@ -189,6 +189,7 @@ The bypass of a name pinned to loopback addresses alone is the caller's:
 | How a dial or a handshake ended, by the kind of its error | [x] `Cut`, `Cut::of_failure` (in place of `ConnectError::cut`), `TlsFailure`, `Missed` |
 | The errors and their words | [x] `DialError`, the same texts; a timeout has its stage |
 | STUN's codec | [x] `stun` |
+| The integrity of TURN of podssh (PodUtils/podssh@T-621: `signed`, `integrity`, `fingerprint_ok`, `long_term_key` of `PodUtils/podssh:crates/podssh-ws/src/turn/msg.rs`) | [x] `stun` (T-370) |
 | HTTP/1.1: a request and its response, `Content-Length`, chunks, the close, the bounds, a body and a header made safe text, a server's request head, its refusals and answers | [x] `http`, `http::request` |
 | The GET client: the configuration and the name checked first, the dial, the handshake (sealed with ECH where asked), the exchange, each bounded | [x] `Client` (ECH with the feature `ech`) |
 | The rest of `client.rs`: the WebSocket client, `https_post_json`, `https_with_token`, `doctor`, the frames | `pod-ws` (T-016) |

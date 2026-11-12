@@ -34,6 +34,9 @@ rustls-pki-types = { workspace = true }
 base64 = { workspace = true }
 # SHA-256 of a Digest answer (pure Rust; MD5 is in src/digest.rs).
 sha2 = { workspace = true }
+# HMAC-SHA1 of STUN's MESSAGE-INTEGRITY (RFC 8489, 14.5); pure Rust.
+hmac = { workspace = true }
+sha1 = { workspace = true }
 # The diagnostics: how a connection was made, an option that a socket refused.
 tracing = { workspace = true }
 

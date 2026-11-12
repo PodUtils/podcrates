@@ -1,0 +1,11 @@
+--- a/crates/pod-proxy/src/stun_auth.rs
++++ b/crates/pod-proxy/src/stun_auth.rs
+@@ -131,7 +131,7 @@
+     if len != 20 {
+         return Err(IntegrityError::Missing(format!("an attribute of {len} bytes, not 20")));
+     }
+-    let covered = with_length(&bytes[..start], INTEGRITY_BYTES);
++    let covered = bytes[..start].to_vec();
+     let mut mac = <Hmac<Sha1> as KeyInit>::new_from_slice(key).map_err(|_| IntegrityError::Mismatch)?;
+     mac.update(&covered);
+     mac.verify_slice(&bytes[start + 4..start + 24]).map_err(|_| IntegrityError::Mismatch)

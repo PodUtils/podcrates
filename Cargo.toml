@@ -147,6 +147,8 @@ webpki-roots = "1"
 # cipher when it is dropped.
 sha2 = { version = "0.11", default-features = false, features = ["oid", "zeroize"] }
 hmac = { version = "0.13", default-features = false, features = ["zeroize"] }
+# HMAC-SHA1 of the MESSAGE-INTEGRITY of STUN (pod-proxy).
+sha1 = { version = "0.11", default-features = false }
 hkdf = { version = "0.13", default-features = false }
 aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc", "zeroize"] }
 aes = { version = "0.9", default-features = false, features = ["zeroize"] }

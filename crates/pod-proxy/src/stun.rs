@@ -7,6 +7,10 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
+#[path = "stun_auth.rs"]
+mod auth;
+pub use auth::*;
+
 /// The magic cookie of each message of RFC 5389 and later (RFC 8489, 5).
 pub const MAGIC: u32 = 0x2112_a442;
 /// The header: the type, the length, the cookie and the transaction's id.

@@ -4807,7 +4807,7 @@ The run of the watches: 5 hold.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4839,3 +4839,16 @@ of RFC 5769, 2.1, 2.2 and 2.4, and a plant.
 ```sh
 cargo test -p pod-proxy --all-features stun
 ```
+
+## Done
+
+2026-11-12. `crates/pod-proxy/src/stun_auth.rs` (in `stun`):
+`signed`, `integrity` (with `IntegrityError`; the compare of `hmac`
+takes the same time for each value), `fingerprinted`, `fingerprint_ok`,
+`long_term_key` (no SASLprep: the caller gives the prepared texts),
+`message_type` with `Class`, and the methods and attributes of TURN.
+HMAC-SHA1 through `hmac` 0.13 and `sha1` 0.11; the CRC-32 in the module.
+Tests (`stun_auth_tests.rs`): the vectors of RFC 5769, 2.1, 2.2 and 2.4
+check, and signing writes each again byte for byte; a changed byte and a
+wrong key fail; the types of TURN. Plant
+`proxy-stun-integrity-length-kept`.
