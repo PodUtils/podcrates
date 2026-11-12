@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 248 entries: 64 open, 5 partial, 4 blocked, 175 done.
+`TODO/INDEX.md` holds 251 entries: 67 open, 5 partial, 4 blocked, 175 done.
 
 ## State
 
@@ -66,7 +66,9 @@ next entry.
    entry here, in the order of its need. T-251 (`pod-actions-expr`,
    `pod-actions-workflow`) waits for its local mode
    (PodUtils/podrunner@T-046).
-3. **podnet:** the chain to WARP as a network of podnet
+3. **podnet:** T-259, T-257, T-258 (the UDP of `pod-netstack`,
+   PodUtils/podnet#464; podnet's guest-wire router PodUtils/podnet@T-248
+   waits for T-259). The chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
    (partial: the trial of podnet), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
@@ -109,7 +111,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C83; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C87; C78 and C79 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
