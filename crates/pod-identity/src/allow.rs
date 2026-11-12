@@ -30,8 +30,17 @@ struct Entry {
 }
 
 impl Allowlist {
-    /// The keys of `text`.
+    /// The keys of `text`, with no limit of entries.
     pub fn parse(text: &str) -> Allowlist {
+        Allowlist::parse_with(text, usize::MAX)
+    }
+
+    /// The keys of `text`, at most `limit` of them (PodUtils/podnet#512,
+    /// A11): a line of a new key past the limit is a bad line, so a node
+    /// that reads a file of another hand does not grow without a bound. A
+    /// key on a later line that is already in the list still adds its
+    /// routes.
+    pub fn parse_with(text: &str, limit: usize) -> Allowlist {
         let mut list = Allowlist::default();
         for (n, line) in text.lines().enumerate() {
             let line = line.trim();
@@ -49,14 +58,18 @@ impl Allowlist {
                 }
             };
             match (name, routes) {
-                (Some(name), Some((routes, all))) => match list.keys.iter_mut().find(|e| e.name == name) {
-                    // A key on two lines has the routes of both.
-                    Some(entry) => {
-                        entry.routes.extend(routes);
-                        entry.all |= all;
+                (Some(name), Some((routes, all))) => {
+                    let full = list.keys.len() >= limit;
+                    match list.keys.iter_mut().find(|e| e.name == name) {
+                        // A key on two lines has the routes of both.
+                        Some(entry) => {
+                            entry.routes.extend(routes);
+                            entry.all |= all;
+                        }
+                        None if full => list.bad.push(n + 1),
+                        None => list.keys.push(Entry { name, routes, all }),
                     }
-                    None => list.keys.push(Entry { name, routes, all }),
-                },
+                }
                 _ => list.bad.push(n + 1),
             }
         }
@@ -68,8 +81,13 @@ impl Allowlist {
     /// it holds public keys only. A missing file is an error, so the node
     /// says that nobody can get in.
     pub fn read(path: &Path) -> Result<Allowlist, String> {
+        Allowlist::read_with(path, usize::MAX)
+    }
+
+    /// [`Allowlist::read`] with at most `limit` keys ([`Allowlist::parse_with`]).
+    pub fn read_with(path: &Path, limit: usize) -> Result<Allowlist, String> {
         match cache::read_own(path, Others::Read)? {
-            Some(text) => Ok(Allowlist::parse(&text)),
+            Some(text) => Ok(Allowlist::parse_with(&text, limit)),
             None => Err(format!("{}: no such file", path.display())),
         }
     }

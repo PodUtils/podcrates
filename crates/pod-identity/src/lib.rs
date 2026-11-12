@@ -195,39 +195,51 @@ fn from_base32(word: &str) -> Option<[u8; 32]> {
     (at == 32 && acc == 0).then_some(out)
 }
 
-/// A key as a person names it: the key itself, or its fingerprint.
+/// A key as a person names it: the key itself, its fingerprint, or the
+/// display form of its fingerprint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyName {
     Key(PublicKey),
     /// `SHA256:` and 43 characters of base64, as [`PublicKey::fingerprint`]
     /// writes them.
     Fingerprint(String),
+    /// Five groups of eight characters of base32 with a checksum, as
+    /// [`PublicKey::display_fingerprint`] writes them (PodUtils/podnet#512,
+    /// A11).
+    Display(DisplayFingerprint),
 }
 
 impl KeyName {
-    /// A fingerprint (with or without its padding), or a key as
-    /// [`PublicKey::parse`] reads one.
+    /// A fingerprint (with or without its padding), a key as
+    /// [`PublicKey::parse`] reads one, or the display form, whose checksum
+    /// must match.
     pub fn parse(word: &str) -> Option<KeyName> {
         if let Some(rest) = word.strip_prefix(FINGERPRINT_PREFIX) {
             let rest = rest.strip_suffix('=').unwrap_or(rest);
             let digest = base64::engine::general_purpose::STANDARD_NO_PAD.decode(rest).ok()?;
             return (digest.len() == 32).then(|| KeyName::Fingerprint(format!("{FINGERPRINT_PREFIX}{rest}")));
         }
-        PublicKey::parse(word).map(KeyName::Key)
+        if let Some(key) = PublicKey::parse(word) {
+            return Some(KeyName::Key(key));
+        }
+        DisplayFingerprint::parse(word).ok().map(KeyName::Display)
     }
 
     pub fn matches(&self, key: &PublicKey) -> bool {
         match self {
             KeyName::Key(named) => named == key,
             KeyName::Fingerprint(named) => *named == key.fingerprint(),
+            KeyName::Display(named) => named.matches(key),
         }
     }
 
-    /// The fingerprint that the name gives.
+    /// The fingerprint that the name gives: the display form for a name in
+    /// that form, which holds no whole digest.
     pub fn fingerprint(&self) -> String {
         match self {
             KeyName::Key(key) => key.fingerprint(),
             KeyName::Fingerprint(named) => named.clone(),
+            KeyName::Display(named) => named.to_string(),
         }
     }
 }

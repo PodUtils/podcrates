@@ -238,3 +238,34 @@ fn threads_that_pin_at_once_keep_each_line() {
         assert!(text.lines().any(|l| l.starts_with(&format!("node{n} "))), "the pin of node{n} is lost:\n{text}");
     }
 }
+
+/// A line in the display form of a fingerprint lets its key in; a line past
+/// the limit of entries is a bad line, but a key already listed still adds
+/// its routes (PodUtils/podnet#512, A11).
+#[test]
+fn an_allowlist_reads_the_display_form_and_holds_a_limit() {
+    let keys: Vec<PublicKey> = (1..=3u8).map(|n| Identity::from_seed(&[n; 32]).public()).collect();
+    let text = format!(
+        "{} first\n{} routes=web second\n{} third\n{} routes=db\n",
+        keys[0].display_fingerprint(),
+        keys[1].fingerprint(),
+        keys[2].display_fingerprint().to_lowercase(),
+        keys[0].display_fingerprint(),
+    );
+    let whole = Allowlist::parse(&text);
+    assert!(keys.iter().all(|k| whole.admits(k)), "{text}");
+    assert_eq!(whole.len(), 3);
+    assert!(whole.bad_lines().is_empty(), "{:?}", whole.bad_lines());
+    assert!(whole.grants(&keys[0], "db"));
+    let held = Allowlist::parse_with(&text, 2);
+    assert_eq!(held.len(), 2);
+    assert!(held.admits(&keys[0]) && held.admits(&keys[1]) && !held.admits(&keys[2]));
+    assert_eq!(held.bad_lines(), [3], "the third key is past the limit");
+    assert!(held.grants(&keys[0], "db"), "a listed key on a later line adds its routes");
+    // A changed character fails the checksum: the line is a bad line.
+    let mut wrong = keys[0].display_fingerprint();
+    let last = wrong.pop().unwrap();
+    wrong.push(if last == 'A' { 'B' } else { 'A' });
+    assert_eq!(Allowlist::parse(&wrong).bad_lines(), [1]);
+    assert!(matches!(KeyName::parse(&keys[0].display_fingerprint()), Some(KeyName::Display(_))));
+}

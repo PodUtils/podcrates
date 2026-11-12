@@ -4184,7 +4184,7 @@ gh workflow run ci.yml
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4211,6 +4211,17 @@ Tests for each.
 ```sh
 cargo test -p pod-identity --all-features
 ```
+
+## Done
+
+2026-11-12. `Allowlist::parse_with(text, limit)` and `read_with(path,
+limit)` (`parse` and `read` keep no limit): a line of a new key past the
+limit is a bad line; a key already listed still adds its routes.
+`KeyName::Display(DisplayFingerprint)`: `KeyName::parse` reads the display
+form after a fingerprint and a key (the checksum must match; case is
+free) and matches it by `DisplayFingerprint::matches`; its `fingerprint()`
+is the display form. Test `an_allowlist_reads_the_display_form_and_holds_a_limit`.
+
 
 # T-391: `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12)
 
