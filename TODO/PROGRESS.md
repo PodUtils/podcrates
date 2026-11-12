@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 302 entries: 76 open, 3 partial, 5 blocked, 218 done.
+`TODO/INDEX.md` holds 307 entries: 80 open, 4 partial, 5 blocked, 218 done.
 
 ## State
 
@@ -88,9 +88,11 @@ next entry.
    proven); T-310 (the ARQ) when podnet names a lossy carrier.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
    T-301, T-302 (after T-035), T-304, T-305; the answer of ask A5 is in #88.
-4. **M6, the crates of podvm:** T-207 (`pod-netlab`), PodUtils/podvm#260
+4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
+   the layout, the scenarios, the plan, the derivation and the judge are
+   in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has);
+   modloop, which `pod-guest` has); T-347 after both;
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it. T-040 (the trials of podvm) goes with each import. podvm's open takes (PodUtils/podvm#194):
    `pod-relay` (the blocking face), `pod-services` and
    `pod-todo`. T-190 (a large blob as parallel ranges, PodUtils/podnet#437)

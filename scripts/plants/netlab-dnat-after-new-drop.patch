@@ -1,0 +1,21 @@
+diff --git a/crates/pod-netlab/src/plan/ruleset.rs b/crates/pod-netlab/src/plan/ruleset.rs
+index 36982c9..bf315aa 100644
+--- a/crates/pod-netlab/src/plan/ruleset.rs
++++ b/crates/pod-netlab/src/plan/ruleset.rs
+@@ -122,8 +122,6 @@ pub fn forward_rules(lab: &Lab) -> Vec<String> {
+         let verdict = if broken.rejects() { "reject with icmpx type port-unreachable" } else { "drop" };
+         rules.push(format!("meta nfproto {} {} {verdict}", broken.family().nfproto(), count(Counter::Broken)));
+     }
+-    // Before any drop of a new flow: a forwarded DNAT flow is new too (L5).
+-    rules.push(format!("ct status dnat {} accept", count(Counter::Inbound)));
+     if knobs.nat64 {
+         // tayga's IPv4 side: its IPv6 side passed the rules below.
+         rules.push(format!("iifname \"{NAT64_DEVICE}\" accept"));
+@@ -138,6 +136,7 @@ pub fn forward_rules(lab: &Lab) -> Vec<String> {
+             count(Counter::Inbound)
+         ));
+     }
++    rules.push(format!("ct status dnat {} accept", count(Counter::Inbound)));
+     let ping = if knobs.ping_passes() { "accept" } else { "drop" };
+     rules.push(format!("iifname \"rg\" icmp type echo-request {} {ping}", count(Counter::Ping)));
+     rules.push(format!("iifname \"rg\" icmpv6 type echo-request {} {ping}", count(Counter::Ping)));

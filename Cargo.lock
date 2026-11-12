@@ -2172,6 +2172,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-netlab"
+version = "0.32.0"
+dependencies = [
+ "pod-core",
+ "serde_json",
+]
+
+[[package]]
 name = "pod-netstack"
 version = "0.32.0"
 dependencies = [
@@ -3392,6 +3400,7 @@ dependencies = [
  "pod-incus",
  "pod-job",
  "pod-link",
+ "pod-netlab",
  "pod-netstack",
  "pod-oci",
  "pod-proxy",

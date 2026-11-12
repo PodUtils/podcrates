@@ -1,0 +1,1 @@
+{"nftables": [{"counter": {"family": "inet", "name": "return", "table": "lab", "handle": 1, "packets": 3, "bytes": 180}}, {"counter": {"family": "inet", "name": "return", "table": "cgn", "handle": 1, "packets": 1, "bytes": 60}}, {"counter": {"family": "ip", "name": "tcp", "table": "lab", "handle": 2, "packets": 1, "bytes": 60}}]}

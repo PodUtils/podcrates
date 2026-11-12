@@ -879,6 +879,10 @@ The crates of M6 are released.
 2026-11-11: the study of `pod-confine` went into T-108 with the crate, as
 its Problem says; T-108 is done. The other five studies stay here.
 
+2026-11-12: the study of `pod-netlab` went into T-207 with the crate
+(calls C145 to C149); its rest is T-345 to T-349. The other four studies
+stay here.
+
 # T-072: `pod-hostprobe`: `sys::statfs` gives wrong values on 32-bit targets
 
 **Source:** the import of `pod-hostprobe` (T-055, `cbb0525`).
@@ -1214,7 +1218,13 @@ cargo test -p pod-netlab --all-features
 
 ## Start condition
 
-The study of `pod-netlab` in T-062 is done.
+T-347 is done: a lab of `pod-netlab` runs on a kernel.
+
+## Correction
+
+2026-11-12: the study of `pod-netlab` went into T-207 (the crate's knobs,
+plan, derivation and judge); a cell of this entry needs a lab that runs,
+so the start condition is T-347.
 
 # T-128: `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target
 
@@ -3518,7 +3528,7 @@ call C58). The decoder is `xz4rust` (C58).
 **Milestone:** M6
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3546,7 +3556,49 @@ of cfb) reuses its cells later.
 
 ```sh
 cargo test -p pod-netlab
+cargo test -p pod-netlab --test nft -- --ignored
+sh scripts/plant-each.sh netlab-judge-ignores-counters netlab-dnat-after-new-drop
 ```
+
+## Correction
+
+2026-11-12: issue 178 of podvm is read now (the text of PodUtils/podvm#260
+and of the issue). The crate needs no `pod-netstack` for a lab in a guest
+that is root (call C148); the variant on a user-space stack is T-349.
+
+Done in this step (the part that needs no guest and no root; calls C145
+to C149; commits `3d5c771` and `8400a01`):
+
+- `Knobs`: each knob of issue 178 with its range and its flag
+  (`parse_flags`, `flags`); `check` refuses the three contradictions of
+  sand-net and six more, each by type.
+- The layout: the namespaces `PREFIX-NAME-g|r|w` and `-c` for cgnat, the
+  veths and the addresses; NAT64's prefix 2001:db8:64::/96 and its pool.
+- The 27 offline scenarios as knob sets; 25 come from their names (C145).
+- The plan: `Lab::up` and `Lab::down` as argument lists, with the lessons
+  L1, L3, L5, L6, F9, F18, F20; the counters through nft's JSON, as nft
+  1.0.9 refuses a counter named `return` in its text (C148).
+- The derivation (`Lab::expect`) of each probe's verdict, what it must
+  see, its bound, and each counter that must move or stay (C149).
+- The judge: the counters of `nft -j list counters` before and after, and
+  the measurements, as PASS and FAIL rows; a flushed chain fails.
+- `cargo test -p pod-netlab --all-features`: 47 passed (counters 3,
+  expect 12, judge 8, knobs 9, plan 15), 2 ignored.
+  `cargo test -p pod-netlab --test nft -- --ignored`: 2 passed (each
+  ruleset of the 27 scenarios loads into nftables 1.0.9 under
+  `unshare -rn`, and its nine counters read back).
+- The plants `netlab-judge-ignores-counters` and
+  `netlab-dnat-after-new-drop`: each caught
+  (`sh scripts/plant-each.sh ID`). The fuzz target `netlab_counters`
+  (its seeds: the output of nftables 1.0.9 for the nine counters, two
+  tables, a counter two times, a counter with no packets); the stable
+  test of `fuzz/` passes. The static probe calls the crate: the musl
+  build passes `scripts/check-static.sh` and `scripts/check-probe.py`.
+
+What remains: the probe program (T-345), the world's services (T-346),
+each scenario on a real kernel with the planted flush (T-347), the VPN
+and live scenarios (T-348), the user-space variant and a second guest
+(T-349). `crates/pod-netlab/README.md` gives the parity with issue 178.
 
 # T-208: `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261)
 
@@ -4425,7 +4477,6 @@ cargo test -p pod-extract --all-features
 
 podvm confirmed it on arm64: `arm.yml` run 43228497851 of podvm (`d4ed988e`, podcrates `v0.31.0`, `ubuntu-24.04-arm`); podvm closed PodUtils/podvm#281 and #282.
 
-
 # T-321: `pod-enter`: `libc_beside` misses the aarch64 glibc of a Debian image: the search is depth-first from the end (PodUtils/podvm#282)
 
 **Source:** PodUtils/podvm#282 (COORD-061 of podvm, for PodUtils/podvm@T-1721).
@@ -4486,7 +4537,6 @@ cargo test -p pod-enter --all-features
   look, the walk from the end again) is caught by that test.
 
 podvm confirmed it on arm64: `arm.yml` run 43228497851 of podvm (`d4ed988e`, podcrates `v0.31.0`, `ubuntu-24.04-arm`); podvm closed PodUtils/podvm#281 and #282.
-
 
 # T-326: `pod-relay`: the trial of the blocking facade in podvm, for PodUtils/podvm@T-1678 (PodUtils/podvm#283)
 
@@ -4756,4 +4806,231 @@ with less than 10 minutes left for `stop`), add it here with its test.
 ```sh
 cargo test -p pod-relay --all-features --test blocking_plain
 sh scripts/adoption.sh podvm pod-relay
+```
+
+# T-345: `pod-netlab`: the probe program of the guest, which measures each probe of issue 178
+
+**Source:** T-207 (the rest of its work; PodUtils/podvm#260, issue 178)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue 178: "`sand net check` runs `guest_check.py` in the guest. It only
+measures." The probes: "tcp4/6 per port, udp, dns-udp, whoami, srcport
+(bound to 40001), proxy, rtt (best of three), bulk, udp-burst (100
+datagrams, bounds at 4 sigma), icmp over a ping socket, hairpin,
+resolve, nat64-*, dns64, isp-whoami, inbound from the world". The
+verdicts: "ALLOW, DROPPED (no answer), REFUSED (reset or
+port-unreachable), DENY (local errno), UNRESOLVED, TIMEOUT (connected,
+then stalled)". L2: "An unconnected UDP socket never sees
+port-unreachable; probes connect first." F20: the ping socket needs the
+probing gid in `ping_group_range`. T-207 gives `pod_netlab::probes`, the
+target of each probe (`Probe::target`), its expectation and `Measured`;
+nothing measures.
+
+## Premise
+
+- Read: issue 178; `crates/pod-netlab/src/probe.rs` (the names, the
+  ports, `TRIES`, `SRCPORT`, `BURST`, `BULK_BYTES`) and
+  `crates/pod-netlab/src/judge.rs` (`Measured`).
+- Not measured: the errno of each verdict on the guest's kernel (Alpine
+  3.22, `6.12.110-0-virt`); the time limits under TCG.
+
+## Approach
+
+A module `measure` of `pod-netlab` behind a feature `measure` (std
+sockets and libc, no tokio), and a small static binary for the guest
+that podvm ships: each probe of `Probe`, with a connected UDP socket
+(L2), a ping socket (`SOCK_DGRAM`, `IPPROTO_ICMP` and `ICMPV6`), the bind
+of 40001 for `srcport`, the best of three connects for `rtt`, the time to
+the last byte of `GET /bulk`, 100 datagrams for `udp-burst`, the guest's
+listener on 2200 for `hairpin` and the inbound probes, and the map of
+each errno and ICMP error to a verdict. One line of output for each probe
+(`NAME VERDICT [addr=A] [port=P] [n=N]`), its reader into `Measured`
+with a fuzz target, and loopback tests of each verdict (ALLOW, REFUSED,
+DROPPED with a silent listener, TIMEOUT with a stalled one, DENY with a
+family that has no route).
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+# T-346: `pod-netlab`: the world's services (`world.py`) over `pod-dns` and `pod-proxy`
+
+**Source:** T-207 (the rest of its work; issue 178, acceptance item 5)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue 178: "The world (`net/world.py`, stdlib) replies `you=ADDR
+port=PORT` on TCP 22, 25, 443, 7844, 8443 and HTTP 80 (`GET /bulk` is
+256 KiB), runs an open CONNECT proxy on 3128, echoes UDP 9999, and serves
+DNS on 53 (`*.world.test` A+AAAA, `v4only.` A, `v6only.` AAAA, DNS64
+synthesis with `--dns64`)." F21: "A wildcard-bound UDP server answers
+from the route's preferred address; the world replies with
+`IPV6_PKTINFO`." Acceptance item 5: "The world's DNS and proxy come from
+podcrates crates, or the reason is recorded." With `--cgnat`, the probe
+`isp-whoami` asks the carrier's 100.64.0.1 port 80 (call C147).
+
+## Premise
+
+- Read: issue 178; `crates/pod-netlab/src/probe.rs` (`WORLD_TCP`,
+  `ECHO_PORT`, `NAME_BOTH`, `NAME_V4_ONLY`, `NAME_V6_ONLY`,
+  `dns64_answer`).
+- Not read: whether `pod-dns` has a DNS server or only the wire codec of
+  its client; whether `pod-proxy` or `pod-broker` serves an open CONNECT
+  proxy with no policy.
+
+## Approach
+
+A module `world` of `pod-netlab` behind a feature `world` (or a binary
+of the guest image): the TCP replies, the HTTP server with `/bulk`, the
+UDP echo that answers from the address of the request (`IPV6_PKTINFO`,
+`IP_PKTINFO`), the DNS server over the wire codec of `pod-dns` (A, AAAA,
+DNS64 in 2001:db8:64::/96), and the CONNECT proxy of `pod-broker` in its
+open mode or of `pod-proxy`. A crate that lacks a server records why in
+the README. Loopback tests of each service.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+# T-347: `pod-netlab`: each offline scenario on a real kernel as root, with the planted flush
+
+**Source:** T-207 (the rest of its work; issue 178, acceptance items 2 and 3)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-207 derives each verdict and each counter from the knobs (call C149),
+and loads each ruleset into nft 1.0.9 (test `each_ruleset_loads_into_nft`).
+No lab ran on a kernel: the routes with an MTU, tayga, netem, the carrier,
+the strict rule that each counter that no probe moves stays. Issue 178:
+"`sand net matrix` brings every offline scenario up, checks it, and
+tears it down", "Flushing the policy inside the guest makes the check
+fail (planted)", F19 ("`apt-get install tayga` starts a host service and
+a `nat64` tun; disable it"), and "A cage can be the guest ... bailey's
+port list joins the expectation".
+
+## Premise
+
+- Read: issue 178; `crates/pod-netlab/src/plan.rs`.
+- A GitHub runner is root and has network namespaces, nftables and
+  `sch_netem` (`scripts/root-netns-tests.sh` runs the netns tests of
+  `pod-hold` there). Not measured: tayga and `sch_netem` on
+  `ubuntu-24.04`.
+
+## Approach
+
+A runner of `Step` (in the tests, or a module of the crate), the probes
+of T-345 and the world of T-346; a new script in `scripts/ci/` that
+`ci.yml` runs as root: each offline scenario up, checked, down, with
+its time; the same run with `nft flush chain inet lab forward_policy`
+before the probes must fail (the plant in a kernel). tayga from the
+package with its service stopped (F19). A guest that is a cage: the
+expectation of a lab takes the port list of the cage. The image and the
+modules of podvm's guest stay with PodUtils/podvm@T-1662.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+## Start condition
+
+T-345 and T-346 are done.
+
+# T-348: `pod-netlab`: the VPN and the live scenarios of issue 178 (12 of 39)
+
+**Source:** T-207 (the rest of its work; issue 178; PodUtils/podvm@T-1663, issue 180)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Issue 178: "39 scenarios (`sand net scenarios`), each a knob set" and,
+after the 27 offline ones, "plus the VPN and live ones". The issue gives
+no name and no knob of those 12. "Tunnels and live uplinks are a
+separate issue" (podvm's issue 180, PodUtils/podvm@T-1663: the tunnels
+run in the same guest).
+
+## Premise
+
+- Read: issue 178 and podvm's ask PodUtils/podvm#260.
+- Not read: issue 180 of podvm.
+
+## Approach
+
+Read issue 180 when podvm starts PodUtils/podvm@T-1663; add the knobs of
+a tunnel (WireGuard in the lab) and of a live uplink, and the 12
+scenarios by name, with their derivation; ask podvm through a COORD issue
+for each fact that the issue does not give.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+## Start condition
+
+podvm starts PodUtils/podvm@T-1663, or gives the 12 names and knobs.
+
+# T-349: `pod-netlab`: a lab on a user-space stack, and a lab with more than one guest
+
+**Source:** T-207 (the rest of its work; issue 178, "podvm without root")
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Issue 178: "Lighter variant for policy-only labs: no kernel, a
+user-space network stack. podnet already has one (`podnet net`: shim and
+userspace stack) and `podnet pod` forces a program's traffic through a
+proxy without root". And: "Not covered: more than one guest per lab, so
+no client isolation test." The row of `pod-netlab` in `docs/design.md`
+named `pod-netstack`; T-207 needs no user-space stack (call C148).
+
+## Premise
+
+- Read: issue 178; `crates/pod-netstack/README.md` (the stack and its
+  `Admit` trait).
+- Not measured: which knobs a user-space stack can hold (a policy, a
+  broken family, DNS) and which need a kernel (NAT, PMTU, netem).
+
+## Approach
+
+A lab whose router is a `pod-netstack` stack with an `Admit` of the
+policy, for the knobs of a policy alone, with the same expectations and
+the same judge (the counters come from the stack); a refusal by name of
+each knob that needs a kernel. A second guest namespace on the router's
+inside link, and a probe of isolation between the guests.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
 ```

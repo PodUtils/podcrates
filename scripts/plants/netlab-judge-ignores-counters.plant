@@ -1,0 +1,8 @@
+# The judge takes a counter that must move as moved, also when it stayed:
+# a flushed policy chain (its counters still) then passes the check, so the
+# test of the flushed chain must fail.
+ENTRY=T-207
+GROUP=netlab
+EXPECT='test a_flushed_chain_fails_the_check \.\.\. FAILED'
+RUN='cargo test -p pod-netlab --test judge -- a_flushed_chain_fails_the_check'
+LIMIT=1800

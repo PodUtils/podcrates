@@ -56,6 +56,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("actions_expr", targets::actions_expr),
     ("actions_workflow", targets::actions_workflow),
     ("link_frame", targets::link_frame),
+    ("netlab_counters", targets::netlab_counters),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as

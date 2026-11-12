@@ -1,0 +1,1 @@
+{"nftables": [{"metainfo": {"version": "1.0.9"}}, {"counter": {"family": "inet", "name": "udp", "table": "lab", "handle": 1, "bytes": 60}}]}
