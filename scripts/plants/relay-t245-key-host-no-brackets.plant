@@ -1,0 +1,6 @@
+# The proof of a relay key signs a Host of an IPv6 relay on port 443 with
+# no brackets, which is not the Host that goes (T-245).
+ENTRY=T-245
+GROUP=relay
+EXPECT='test keyed::tests::the_host_of_an_ipv6_relay_on_443_is_in_brackets \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- keyed::tests'

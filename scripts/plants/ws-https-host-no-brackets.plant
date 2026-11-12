@@ -1,0 +1,6 @@
+# The Host of an HTTPS request to an IPv6 address on port 443 has no
+# brackets, which a strict server refuses (T-245).
+ENTRY=T-245
+GROUP=ws
+EXPECT='test client::cut_tests::the_host_of_an_https_request_to_an_ipv6_address_is_in_brackets \.\.\. FAILED'
+RUN='cargo test -p pod-ws --all-features --lib -- client::cut_tests'

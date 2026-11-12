@@ -1,0 +1,6 @@
+# Each byte outside [a-z0-9.-] is one `_`, so two relay hosts share a
+# cache file (T-246).
+ENTRY=T-246
+GROUP=core
+EXPECT='test exact_name_is_one_to_one \.\.\. FAILED'
+RUN='cargo test -p pod-core --test files'

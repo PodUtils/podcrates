@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/files.rs b/crates/pod-core/src/files.rs
+index f0422af..48dc9eb 100644
+--- a/crates/pod-core/src/files.rs
++++ b/crates/pod-core/src/files.rs
+@@ -162,7 +162,7 @@ pub fn exact_name(text: &str) -> String {
+         if b.is_ascii_alphanumeric() || b == b'.' || b == b'-' {
+             out.push(char::from(b));
+         } else {
+-            out.push_str(&format!("_{b:02x}"));
++            out.push('_');
+         }
+     }
+     out
