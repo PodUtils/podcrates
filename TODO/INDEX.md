@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**333 entries: 82 open, 6 partial, 5 blocked, 240 done.**
+**333 entries: 80 open, 6 partial, 5 blocked, 242 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 2 | 0 | 66 | 84 |
-| P2 | 32 | 2 | 5 | 124 | 163 |
-| P3 | 34 | 2 | 0 | 48 | 84 |
-| **All** | 82 | 6 | 5 | 240 | 333 |
+| P2 | 31 | 2 | 5 | 125 | 163 |
+| P3 | 33 | 2 | 0 | 49 | 84 |
+| **All** | 80 | 6 | 5 | 242 | 333 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -354,7 +354,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-355](upkeep.md) | P2 | M | M5 | chore | done | The downloads of each job come from a cache, and the tools from their release binaries |
 | [T-356](transport.md) | P3 | M | M5 | feature | open | `pod-services-watch`: `forward-url` against sish and sandhole on the loopback |
 | [T-357](roads.md) | P3 | S | M5 | feature | open | `pod-gsr`: gs-netcat as the other end, through the stand-in of the relay |
-| [T-358](transport.md) | P3 | S | M5 | feature | open | `pod-proxy`: the STUN client against coturn on the loopback |
+| [T-358](transport.md) | P3 | S | M5 | feature | done | `pod-proxy`: the STUN client against coturn on the loopback |
 | [T-359](adapters.md) | P2 | M | M3 | feature | open | `pod-warp`: the stand-ins of each push and one live run each week |
 | [T-360](adapters.md) | P2 | M | M3 | feature | open | `pod-cloudflare`: a stand-in edge of each push and one quick tunnel each week |
 | [T-361](roads.md) | P3 | M | M4 | feature | open | `pod-relay`: its end-to-end tests against the self-hosted relay of `pod-relay-serve`, then against workerd |
@@ -367,7 +367,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-376](transport.md) | P3 | S | M1 | feature | done | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
 | [T-377](transport.md) | P2 | L | M1 | feature | done | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
 | [T-378](transport.md) | P2 | L | M1 | feature | partial | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |
-| [T-380](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the client against coturn on the loopback, over UDP and TLS |
+| [T-380](transport.md) | P2 | M | M1 | feature | done | `pod-turn`: the client against coturn on the loopback, over UDP and TLS |
 | [T-381](transport.md) | P3 | M | M1 | feature | open | `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use |
 | [T-385](transport.md) | P3 | S | M1 | defect | open | `pod-ws`: a client upgrade checks the subprotocol of the answer |
 | [T-386](transport.md) | P2 | S | M1 | measurement | open | `pod-devtunnel`: the live run against the service with the owner's own token |

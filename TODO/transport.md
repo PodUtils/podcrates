@@ -5048,7 +5048,7 @@ cargo test -p pod-services-watch --all-features
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5084,9 +5084,39 @@ C151): coturn with `--stun-only --listening-ip=127.0.0.1
 ## Prove
 
 ```sh
-sh scripts/ci/stun-tests.sh
+sh scripts/ci/turn-tests.sh
 cargo test -p pod-proxy --all-features stun
 ```
+
+## Done
+
+2026-11-12, commit `d96eb0b` and the commit that closes this entry (on a
+local branch; the main session merges). One script for T-358 and T-380
+(call C197): `scripts/ci/turn-tests.sh`, in place of the planned
+`stun-tests.sh` of the Prove, runs coturn 4.18.0 of
+`images/coturn/Dockerfile` (the index digest of the Premise, read again
+from Docker Hub's API and from its registry) on 127.0.0.1 with TURN and
+STUN on port 3478, not with `--stun-only`: coturn answers Binding on the
+port of TURN. The test target `crates/pod-proxy/tests/stun_coturn.rs`
+(call C198) goes through `pod_proxy::stun`, and skips with no server
+unless `POD_PROXY_TEST_STUN=required`; the script needs its two lines.
+The step "pod-turn and pod-proxy against coturn" of the job `test` of
+`ci.yml`; the row L19 of `docs/live-calls.md` names it.
+
+- Measured (the "Not measured" of the Premise): a Binding request from a
+  UDP socket on 127.0.0.1 gets a Binding success of the same transaction
+  with XOR-MAPPED-ADDRESS, which maps the address and the port of the
+  socket, and a FINGERPRINT that holds (`--fingerprint`). A request with
+  the attribute 0x7f01 (one that a server must understand, not assigned)
+  gets 420 with UNKNOWN-ATTRIBUTES 0x7f01. The same holds with Ubuntu's
+  coturn 4.6.1.
+- The run here: `sh scripts/ci/turn-tests.sh` passed 4 times in a row
+  against the pinned image (docker ran in this sandbox); `cargo test -p
+  pod-proxy --all-features stun` passes (the target skips with no
+  server). The plant `proxy-stun-coturn-skip-fails` is caught (checked by
+  hand); `sh scripts/plant-each.sh --apply`: 0 stale.
+- CI proves at its first run: the pull of the pinned image on a runner,
+  the step of `ci.yml`, and the plant in `plants.yml`.
 
 # T-372: `pod-services`: `github-ssh` names SSH over port 443 (GitHub #95)
 
@@ -5619,7 +5649,7 @@ The owner reserves the name on crates.io.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5656,6 +5686,76 @@ the TLS padding off must fail it.
 ```sh
 sh scripts/ci/turn-tests.sh
 ```
+
+## Correction
+
+2026-11-12: coturn 4.18.0 has no `--pa` option and no other option of a
+password algorithm (`turnserver -h` of the image). Its source at
+`1986df21e4b4152b5e0216989f649e20ff76aced` signs each answer with SHA-1
+and sends no PASSWORD-ALGORITHMS. coturn proves the MD5 path alone; T-403
+takes SHA-256 against a server of another party.
+
+## Done
+
+2026-11-12, commit `d96eb0b` and the commit that closes this entry (on a
+local branch; the main session merges). One script for T-380 and T-358
+(call C197): `scripts/ci/turn-tests.sh` runs coturn 4.18.0 of
+`images/coturn/Dockerfile` (index
+`sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3`,
+read from Docker Hub's API and from the manifest list of
+`registry-1.docker.io`, the same digest; the pull by digest checked it
+again) with the host's network on 127.0.0.1, and the step "pod-turn and
+pod-proxy against coturn" of the job `test` of `ci.yml` runs it. The test
+target `crates/pod-turn/tests/coturn.rs` (7 tests) skips with no coturn
+unless `POD_TURN_TEST_COTURN=required`; the script needs a line of each
+test. The row L35 and the rows of coturn in `docs/live-calls.md`; the
+README of `pod-turn`.
+
+- The run here: dockerd started in this sandbox, so the pinned image ran:
+  `sh scripts/ci/turn-tests.sh` passed 4 times in a row (7 of
+  `tests/coturn.rs`, 2 of `stun_coturn`; the coturn target takes 3.5 s).
+  With `POD_TURN_TEST_COTURN_BIN=/usr/bin/turnserver` (Ubuntu's coturn
+  4.6.1) it passes too; 4.6.1 needs `--no-cli` beside
+  `--allow-loopback-peers` and sends reason phrases.
+- Measured (the "Not measured" of the Premise): the static user gets a
+  401 with ERROR-CODE, NONCE (24 hex digits, no `obMatJos2` cookie), REALM
+  and FINGERPRINT, and no PASSWORD-ALGORITHMS: the client keys with MD5,
+  and the integrity of each answer holds with FINGERPRINT after it. TLS on
+  127.0.0.1:5349 with the certificate of the script: TLS 1.3
+  (`openssl s_client`: `TLS_AES_256_GCM_SHA384`); the client with the
+  script's root holds, with the default roots it fails at the stage
+  `Tls`. The relay of a UDP echo on 127.0.0.1 holds with
+  `--allow-loopback-peers`: a Send echo, and ChannelData of 3, 0, 4 and
+  1001 bytes each way, padded on TLS. The lifetime: 600 s asked gives
+  600 s; 7200 s asked gives the maximum 1800 s at the Allocate and at a
+  Refresh. The 438 of a nonce of 2 s comes 2.3 s to 3.5 s after it
+  (coturn's clock of each thread ticks each second); a client with no
+  answer to 438 fails with `StaleNonce`, the default client sends again
+  and holds. An Allocate of another user on the same 5-tuple gets 437; a
+  Refresh of another user gets 441, an event of the client; a wrong
+  password gets the second 401. An Allocate on the same 5-tuple up to 1 s
+  after a close gets 437 (coturn frees the allocation at its next tick;
+  the README says so). SHA-256: see the Correction.
+- Findings, fixed here: coturn 4.18.0 sends no reason phrase, so a server
+  error named the code alone: `Error::Server` names the code of the RFC
+  (call C199; a unit test). The entrypoint of the image passes each
+  argument through `eval echo`, which dropped `-n`: the script runs
+  `turnserver` as the entrypoint (call C197). Written as an entry: T-403
+  (SHA-256 against a server of another party). The measured answers go
+  to T-381 as its Correction.
+- The plants, each checked by hand: `turn-coturn-channel-data-not-padded`
+  (the TLS test fails at its bound: coturn waits for the padding, and the
+  stream is cut wrong), `turn-coturn-skip-fails`,
+  `proxy-stun-coturn-skip-fails`; `sh scripts/plant-each.sh --apply`: 0
+  stale.
+- `cargo test -p pod-turn -p pod-proxy --all-features`: 240 passed, 0
+  failed, 2 ignored (the coturn targets skip with no coturn); clippy of
+  both crates, `cargo fmt --all --check`, `scripts/check-workflows.py`,
+  `scripts/check-size.py`, `scripts/check-design-paths.py`: clean.
+  TruffleHog 3.99.8 (the pinned image) finds nothing in the new files.
+- CI proves at its first run: the pull of the pinned image on a runner
+  (Docker Hub gave 429 here once, and `mirror.gcr.io` served the same
+  digest), the step of `ci.yml`, and the three plants in `plants.yml`.
 
 # T-381: `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use
 
