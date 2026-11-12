@@ -111,7 +111,8 @@ pub enum Exit {
     PairStopped,
     /// `1001 pair expired`, or a `403` after the expiry, with no new pair.
     PairExpired,
-    /// A `403` before the expiry: a stopped pair or a wrong token.
+    /// A `403` (or a `401`) before the expiry: a stopped pair or a wrong
+    /// token.
     Forbidden,
     /// The node cannot connect as it is set up: an unusable proxy setting or
     /// trust store, or a host that plain `ws://` refuses. A reconnection would
@@ -327,8 +328,10 @@ where
                 }
                 Next::Reconnect
             }
-            Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,
-            Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
+            // A refused token: `403` by the contract, `401` by another relay;
+            // a new socket would hear the same (podnet).
+            Err(ConnectError::Refused { status: 401 | 403, .. }) if expired(&config.pair) => Next::Repair,
+            Err(ConnectError::Refused { status: 401 | 403, .. }) => return Exit::Forbidden,
             // The relay reads another dialect of the reverse road, or takes
             // no upgrade of this node's: the same request gets the same.
             Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),

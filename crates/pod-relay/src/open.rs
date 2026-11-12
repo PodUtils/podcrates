@@ -385,7 +385,7 @@ async fn try_host(
         && token.origin == Origin::Cache
         && !is_policy_refusal(body)
     {
-        run.cache.remove(&key);
+        token::forget(run, &key);
         token = {
             let _turn = gate.hold(&key, STAGGER).await;
             token::obtain(&ctx, true).await.map_err(OpenError::Token)?

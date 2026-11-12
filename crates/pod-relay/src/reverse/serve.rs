@@ -12,26 +12,24 @@
 //! A node that wants sessions readied ahead asks at the `hello` that offers
 //! them (podssh T-650, `super::spares`).
 
-use std::collections::HashMap;
 use std::future::Future;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use pod_ws::SessionError;
 use pod_ws::frame;
 use pod_ws::session::{RelaySession, close_code_and_reason};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc;
-use tokio::sync::oneshot;
 
 use super::close_say::CloseSay;
 use super::closes::RelayClose;
 use super::control::{self, NodeInbound, NodeLimits};
 use super::fair::Fair;
 use super::framing::SessionId;
-use super::framing::legs::{CHUNK_BYTES, chunk_for_node, decode_node_frame};
+use super::framing::legs::{chunk_for_node, decode_node_frame};
 use super::node::Handler;
+use super::route::{self, Copies, Pending, Routes};
 use super::sessions::Sessions;
 use super::state::NodeState;
 
@@ -78,10 +76,28 @@ pub struct Settings {
     pub spares: u8,
     /// What the node keeps across its sockets, and where its lines go.
     pub node: Arc<NodeState>,
+    /// The plain mode's half close (podnet T-196): the end of a local side's
+    /// writes does not end its session, as the relay has no half close and
+    /// the operator's last bytes may still come; the session ends when none
+    /// came for this long ([`HALF_CLOSE_IDLE`] in podnet). `None`: the end of
+    /// the local side's writes ends the session at once.
+    pub half_close: Option<Duration>,
+    /// How long the bytes that wait for a session's local side may take to
+    /// go after the relay closed the session; then the node drops them and
+    /// the local side, which may never read (podnet T-194).
+    pub drain: Duration,
 }
 
 /// The default of [`Settings::first_conflict`].
 pub const FIRST_CONFLICT: Duration = Duration::from_secs(30);
+
+/// The wait for an operator's last bytes after a local side's half close,
+/// in podnet's plain mode ([`Settings::half_close`]).
+pub const HALF_CLOSE_IDLE: Duration = Duration::from_secs(2);
+
+/// The default of [`Settings::drain`]: the time that a local side has to
+/// open (`open_limit`), as a local side is on this host.
+pub const DRAIN: Duration = Duration::from_secs(10);
 
 impl Default for Settings {
     fn default() -> Self {
@@ -93,12 +109,14 @@ impl Default for Settings {
             first_conflict: FIRST_CONFLICT,
             spares: 0,
             node: Arc::default(),
+            half_close: None,
+            drain: DRAIN,
         }
     }
 }
 
 /// A request to the writer, the only task that writes to the socket.
-enum Out {
+pub(super) enum Out {
     Opened(SessionId),
     Ready(SessionId),
     Reject(SessionId, String),
@@ -128,7 +146,7 @@ const STALLED: &str = "the node's local side does not read";
 /// interactive session's echo waits for one read of each other session, not
 /// for a bulk copy's backlog.
 #[derive(Clone)]
-struct Outbox {
+pub(super) struct Outbox {
     control: mpsc::Sender<Out>,
     data: Fair<SessionId, Out>,
 }
@@ -140,7 +158,7 @@ const SESSION_READS: usize = 4;
 const SOCKET_READS: usize = 256;
 
 impl Outbox {
-    async fn send(&self, out: Out) -> Result<(), ()> {
+    pub(super) async fn send(&self, out: Out) -> Result<(), ()> {
         match out {
             Out::Data(id, _) => self.data.push(id, out, 1).await.map_err(|_| ()),
             // After the session's last bytes, with no wait for their room.
@@ -149,19 +167,6 @@ impl Outbox {
         }
     }
 }
-
-/// The local side of a session: where its data goes, the bytes that wait for
-/// it and how many may, and its two copies, which stop at once when it
-/// stalls.
-struct Route {
-    data: mpsc::UnboundedSender<Vec<u8>>,
-    waiting: Arc<AtomicUsize>,
-    limit: usize,
-    copies: [tokio::task::AbortHandle; 2],
-}
-
-/// The local side of each session that has one, by id.
-type Routes = Arc<Mutex<HashMap<SessionId, Route>>>;
 
 /// Serve the sessions of `session` until the socket ends or `stop` fires.
 pub async fn serve<S, H, F>(session: RelaySession<S>, handler: Arc<H>, settings: Settings, stop: &mut F) -> End
@@ -174,8 +179,8 @@ where
     let ((control, control_rx), data) = (mpsc::channel(1024), Fair::new(SESSION_READS, SOCKET_READS));
     let tx = Outbox { control, data: data.clone() };
     let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data, settings.node.clone())));
-    let routes: Routes = Arc::default();
-    let opening = Arc::new(AtomicUsize::new(0));
+    let (routes, pending): (Routes, Pending) = Default::default();
+    let copies = Copies { open_limit: settings.open_limit, half_close: settings.half_close };
     let mut limits = NodeLimits::conservative();
     let liveness = session.watch_liveness(settings.ping_every, settings.pings_allowed);
     tokio::pin!(liveness);
@@ -214,28 +219,25 @@ where
                 }
                 Ok(NodeInbound::Open { id }) => {
                     let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
-                    let live = routes_len(&routes) + opening.load(Ordering::SeqCst);
-                    if live >= limits.max_sessions as usize {
+                    if route::known(&routes, &pending, &id) {
+                        tracing::debug!("the relay opened a session that is open");
+                        continue;
+                    }
+                    if route::live(&routes, &pending) >= limits.max_sessions as usize {
                         let reason = format!("the node has its {} sessions", limits.max_sessions);
                         let _ = tx.send(Out::Reject(id, reason)).await;
                         continue;
                     }
                     let _ = tx.send(Out::Opened(id)).await;
-                    opening.fetch_add(1, Ordering::SeqCst);
-                    tokio::spawn(open(
-                        id,
-                        handler.clone(),
-                        settings.open_limit,
-                        tx.clone(),
-                        routes.clone(),
-                        opening.clone(),
-                    ));
+                    route::lock(&pending).insert(id);
+                    tokio::spawn(route::open(id, handler.clone(), copies, tx.clone(), routes.clone(), pending.clone()));
                 }
                 Ok(NodeInbound::Close { id, reason }) => {
                     let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
-                    // Dropping the route ends the local writer, which shuts the
-                    // local side; its late bytes find no session and are dropped.
-                    routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+                    // Dropping the route ends the local writer once its bytes
+                    // went, within `drain`; the local side's late bytes find
+                    // no session and are dropped.
+                    route::closed_by_relay(&routes, &id, settings.drain);
                     let _ = tx.send(Out::Closed(id, reason)).await;
                 }
                 // The role took a token of one leg for an operator (podssh T-615).
@@ -247,7 +249,7 @@ where
                 let Ok((id, payload)) = decode_node_frame(&f.payload) else { continue };
                 // Data for no live session (a late frame of a closed one) is
                 // dropped; the socket and the other sessions go on.
-                if offer(&routes, id, payload) {
+                if route::offer(&routes, id, payload) {
                     let _ = tx.send(Out::Stalled(id)).await;
                 }
             }
@@ -261,7 +263,7 @@ where
     };
     // The tokens of one leg wait for the next socket (podssh T-615).
     handler.attach(None);
-    routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    route::lock(&routes).clear();
     // No session's bytes join the queue now; a sender that waits for room
     // hears it, as it heard the end of the one queue before.
     tx.data.shut();
@@ -295,107 +297,6 @@ fn frames(tx: &Outbox) -> pod_e2e::legs::Frames {
     Arc::new(move |text: String| {
         let _ = control.try_send(Out::Text(text));
     })
-}
-
-fn routes_len(routes: &Routes) -> usize {
-    routes.lock().unwrap_or_else(|e| e.into_inner()).len()
-}
-
-/// Give a frame's payload to its session without waiting. A queue that holds
-/// its handler's bytes already means that the local side reads no more;
-/// waiting for it would stop every session of the socket, as the relay has
-/// no flow control for one session. So that session ends here: true when it
-/// did.
-fn offer(routes: &Routes, id: SessionId, payload: &[u8]) -> bool {
-    let mut routes = routes.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(route) = routes.get(&id) else { return false };
-    if route.waiting.load(Ordering::SeqCst) + payload.len() > route.limit {
-        if let Some(route) = routes.remove(&id) {
-            for copy in route.copies {
-                copy.abort();
-            }
-        }
-        return true;
-    }
-    route.waiting.fetch_add(payload.len(), Ordering::SeqCst);
-    // Sent; or the local writer is gone, and the session's own end tells the
-    // relay.
-    let _ = route.data.send(payload.to_vec());
-    false
-}
-
-/// Open the local side of `id`, and only then queue `ready`; on a refusal or
-/// after `limit`, `reject` with the reason. Then copy between the local side
-/// and the socket until either ends.
-async fn open<H: Handler>(
-    id: SessionId,
-    handler: Arc<H>,
-    limit: Duration,
-    tx: Outbox,
-    routes: Routes,
-    opening: Arc<AtomicUsize>,
-) {
-    let opened = tokio::time::timeout(limit, handler.open(id)).await;
-    let stream = match opened {
-        Ok(Ok(stream)) => stream,
-        Ok(Err(reason)) => {
-            opening.fetch_sub(1, Ordering::SeqCst);
-            let _ = tx.send(Out::Reject(id, reason)).await;
-            return;
-        }
-        Err(_) => {
-            opening.fetch_sub(1, Ordering::SeqCst);
-            let reason = format!("the local side did not open within {} s", limit.as_secs());
-            let _ = tx.send(Out::Reject(id, reason)).await;
-            return;
-        }
-    };
-    let (mut local_read, mut local_write) = tokio::io::split(stream);
-    let (in_tx, mut in_rx) = mpsc::unbounded_channel::<Vec<u8>>();
-    let (waiting, limit) = (Arc::new(AtomicUsize::new(0)), handler.queue_bytes());
-    let to_local = tokio::spawn({
-        let waiting = waiting.clone();
-        async move {
-            while let Some(bytes) = in_rx.recv().await {
-                if local_write.write_all(&bytes).await.is_err() {
-                    break;
-                }
-                // Written: the bytes wait no more.
-                waiting.fetch_sub(bytes.len(), Ordering::SeqCst);
-            }
-            let _ = local_write.shutdown().await;
-        }
-    });
-    // The local reader starts once `ready` is queued: the writer drops data
-    // of a session that is not readied.
-    let (go, readied) = oneshot::channel::<()>();
-    let from_local = tokio::spawn({
-        let (tx, routes) = (tx.clone(), routes.clone());
-        async move {
-            if readied.await.is_err() {
-                return;
-            }
-            let mut buf = vec![0u8; CHUNK_BYTES];
-            loop {
-                match local_read.read(&mut buf).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(n) => {
-                        if tx.send(Out::Data(id, buf[..n].to_vec())).await.is_err() {
-                            break;
-                        }
-                    }
-                }
-            }
-            routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
-            let _ = tx.send(Out::LocalEnd(id)).await;
-        }
-    });
-    // The route exists before `ready`, so the first bytes after it find it.
-    let route = Route { data: in_tx, waiting, limit, copies: [to_local.abort_handle(), from_local.abort_handle()] };
-    routes.lock().unwrap_or_else(|e| e.into_inner()).insert(id, route);
-    opening.fetch_sub(1, Ordering::SeqCst);
-    let _ = tx.send(Out::Ready(id)).await;
-    let _ = go.send(());
 }
 
 /// The writer: the one task that writes to the socket. It owns the state of

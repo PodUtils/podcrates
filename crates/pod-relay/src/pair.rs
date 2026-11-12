@@ -31,6 +31,10 @@ pub mod part;
 pub mod renew;
 /// A pair's stop token, rotated in podssh's relay role (podssh T-615).
 pub mod rotate;
+/// The labels of the store, and the pair with the most time left (podnet).
+pub mod store;
+
+pub use store::{labels, labels_from, newest, newest_from};
 
 /// A pair, as `POST /v1/pair` gives it.
 pub struct Pair {
@@ -455,20 +459,6 @@ fn parse_stored(text: &str, what: &str) -> Result<Pair, PairError> {
         (Zeroizing::new(node_token), Zeroizing::new(connect_token), Zeroizing::new(stop_token));
     let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
     Ok(Pair { relay, name, node_token, connect_token, stop_token, expires_ms: expires })
-}
-
-/// The labels of the pairs in the store, sorted.
-pub fn labels(cache: &Cache) -> Vec<String> {
-    labels_from(&cache.read_dirs())
-}
-
-/// [`labels`] over explicit directories (for tests).
-pub fn labels_from(dirs: &[PathBuf]) -> Vec<String> {
-    cache::names_from(dirs, "pair-", ".json")
-        .into_iter()
-        .filter_map(|name| Some(name.strip_prefix("pair-")?.strip_suffix(".json")?.to_string()))
-        .filter(|label| file_name(label).is_ok())
-        .collect()
 }
 
 /// Forget the pair kept under `label`, in each directory where it is ours, a

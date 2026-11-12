@@ -53,7 +53,19 @@ pub struct OperatorLimits {
     /// Called as `ready` comes, before any byte: a caller's bound on the
     /// open learns its step (podssh T-589).
     pub on_ready: Option<fn()>,
+    /// The plain mode of podnet (its issue 109): the end of the input sends
+    /// no Close, as the road has no half close and a Close loses the
+    /// target's answer that is still on its way. The session ends at the
+    /// relay's Close, or once no byte of the node came for this long
+    /// ([`EOF_IDLE`] in podnet); then this side's Close goes. `None`: the
+    /// Close goes at the end of the input, or as `node_ends` says.
+    pub eof_idle: Option<Duration>,
 }
+
+/// The wait of podnet's plain mode for the node's last bytes after the end
+/// of the input ([`OperatorLimits::eof_idle`]): the idle time of the
+/// default relay's reverse sockets, so that a slow answer still comes.
+pub const EOF_IDLE: Duration = Duration::from_secs(15);
 
 impl Default for OperatorLimits {
     fn default() -> Self {
@@ -64,6 +76,7 @@ impl Default for OperatorLimits {
             pings_allowed: pod_ws::LIVENESS_ALLOWED,
             node_ends: None,
             on_ready: None,
+            eof_idle: None,
         }
     }
 }
@@ -240,8 +253,10 @@ where
     // Bytes of the node's that nobody takes: the input ended, and the node
     // ends the session (`node_ends`).
     let mut draining = false;
+    // The input ended with `eof_idle`: when the node's last byte came.
+    let mut quiet_since: Option<Instant> = None;
     if !input_open {
-        closing = Some(end_of_input(session, limits, &mut draining).await);
+        input_ended(session, limits, &mut closing, &mut quiet_since, &mut draining).await;
     }
     let mut text_reason: Option<String> = None;
     loop {
@@ -250,6 +265,9 @@ where
             frame = frames.recv() => match frame {
                 Some(Ok(f)) if f.opcode == frame::OPCODE_BINARY => {
                     // An empty frame carries nothing.
+                    if let Some(since) = quiet_since.as_mut() {
+                        *since = Instant::now();
+                    }
                     if !draining && !f.payload.is_empty() && local_write.write_all(&f.payload).await.is_err() {
                         // The local side is gone: there is nobody to give bytes to.
                         let deadline = end_of_input(session, limits, &mut draining).await;
@@ -274,14 +292,21 @@ where
                 Some(Err(e)) => return Outcome::Ended { code: 1006, reason: e.to_string() },
                 None => return Outcome::Ended { code: 1006, reason: "the relay ended the session with no Close".into() },
             },
-            bytes = input.recv(), if closing.is_none() => match bytes {
+            bytes = input.recv(), if closing.is_none() && quiet_since.is_none() => match bytes {
                 Some(bytes) => {
                     if send_bytes(session, &bytes).await.is_err() {
                         return broken(&mut frames, text_reason).await;
                     }
                 }
-                None => closing = Some(end_of_input(session, limits, &mut draining).await),
+                None => input_ended(session, limits, &mut closing, &mut quiet_since, &mut draining).await,
             },
+            // No byte of the node's for `eof_idle` after the end of the
+            // input: this side's Close, and its answer.
+            () = tokio::time::sleep_until(quiet_since.unwrap_or_else(Instant::now) + limits.eof_idle.unwrap_or_default()),
+                if closing.is_none() && quiet_since.is_some() => {
+                let _ = session.send_close(1000, "").await;
+                closing = Some(Instant::now() + limits.close_limit);
+            }
             () = tokio::time::sleep_until(close_deadline), if closing.is_some() => {
                 // The node did not end the session in its time: this side's
                 // Close, and its answer.
@@ -320,6 +345,23 @@ async fn broken(
         }
     }
     Outcome::Ended { code: 1006, reason: "the relay connection broke".into() }
+}
+
+/// The input ended: with `eof_idle`, the node's bytes go on, and the wait
+/// for its last starts (`quiet_since`); else as [`end_of_input`] says.
+async fn input_ended<S>(
+    session: &RelaySession<S>,
+    limits: OperatorLimits,
+    closing: &mut Option<Instant>,
+    quiet_since: &mut Option<Instant>,
+    draining: &mut bool,
+) where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    match limits.eof_idle {
+        Some(_) => *quiet_since = Some(Instant::now()),
+        None => *closing = Some(end_of_input(session, limits, draining).await),
+    }
 }
 
 /// The input ended: with the layer, the node's close is awaited until the

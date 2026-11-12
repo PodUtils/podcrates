@@ -66,6 +66,7 @@ fn limits() -> OperatorLimits {
         pings_allowed: 3,
         node_ends: None,
         on_ready: None,
+        eof_idle: None,
     }
 }
 

@@ -1,17 +1,20 @@
 //! Getting a relay token: the one that the user gave (`Settings::token`),
-//! else a cached one, else a fresh one minted with `POST /v1/mint`
+//! else the run's, else a cached one, else a fresh one minted with
+//! `POST /v1/mint`
 //! (self-service, no account; signed by this client's key where the relay
 //! asks, podssh T-448).
 //! Tokens go into the `X-Relay-Token` header and nowhere else: not into
 //! output, errors, URLs or argv.
 
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use pod_ws::{ConnectError, Trust};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use crate::cache::{self as token_cache, Chosen};
+use crate::cache::{self as token_cache, Chosen, MIN_REMAINING_MS};
 use crate::context::Context;
 use crate::relay::{Relay, default_relay_host, parse_relay};
 
@@ -129,8 +132,54 @@ pub fn usable(key: &str, minted_at: Option<&str>) -> bool {
     minted_at.and_then(|m| parse_relay(m).ok()).is_some_and(|r| token_key(&r) == key)
 }
 
-/// The token to use. With `fresh`, skip the given token and the cache (after
-/// the relay rejected a cached token).
+/// The tokens of a run, by the key of their deployment ([`token_key`]): the
+/// sessions of a run take the token that one of them minted or read, also
+/// where the cache keeps no file, so that a long run mints once for each
+/// token's life and not for each session (podnet). A refused token is
+/// forgotten ([`forget`]).
+#[derive(Default)]
+pub struct RunTokens(Mutex<HashMap<String, Kept>>);
+
+/// A token of the run, wiped on drop.
+struct Kept {
+    secret: Zeroizing<String>,
+    expires_ms: i64,
+    minted_at: Option<String>,
+}
+
+impl RunTokens {
+    /// The token of `key` with at least `MIN_REMAINING_MS` left at `now_ms`.
+    fn recall(&self, key: &str, now_ms: i64) -> Option<(Zeroizing<String>, Option<String>)> {
+        let kept = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let token = kept.get(key).filter(|t| t.expires_ms.saturating_sub(now_ms) >= MIN_REMAINING_MS)?;
+        Some((token.secret.clone(), token.minted_at.clone()))
+    }
+
+    fn keep(&self, key: &str, secret: &str, expires_ms: i64, minted_at: Option<String>) {
+        let token = Kept { secret: Zeroizing::new(secret.to_string()), expires_ms, minted_at };
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).insert(key.to_string(), token);
+    }
+
+    fn forget(&self, key: &str) {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).remove(key);
+    }
+}
+
+/// Keep `token` as the run's token of `key` until `expires_ms`: the next
+/// sessions of the run take it.
+pub fn remember(ctx: &Context, key: &str, token: &str, expires_ms: i64, minted_at: Option<&str>) {
+    ctx.run_tokens().keep(key, token, expires_ms, minted_at.map(str::to_string));
+}
+
+/// Forget the token of `key`, the run's and the cache's: the relay refused
+/// it, so no session reads it again.
+pub fn forget(ctx: &Context, key: &str) {
+    ctx.run_tokens().forget(key);
+    ctx.cache.remove(key);
+}
+
+/// The token to use. With `fresh`, skip the given token, the run's and the
+/// cache (after the relay rejected a cached token).
 pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenError> {
     let key = token_key(ctx.relay);
     let cache = &ctx.ctx.cache;
@@ -149,7 +198,11 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
                 minted_at: None,
             });
         }
+        if let Some((secret, minted_at)) = ctx.ctx.run_tokens().recall(&key, now_ms()) {
+            return Ok(Token { secret, origin: Origin::Cache, cache_warning: None, cache_note: None, minted_at });
+        }
         if let Some(cached) = cache.load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
+            remember(ctx.ctx, &key, &cached.token, cached.expires_ms, cached.minted_at.as_deref());
             let secret = Zeroizing::new(cached.token);
             return Ok(Token {
                 secret,
@@ -162,6 +215,7 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
     }
     let (token, expires) = mint(ctx).await?;
     let minted_at = relay_name(ctx.relay);
+    remember(ctx.ctx, &key, &token, expires, Some(&minted_at));
     let (cache_warning, cache_note) = match cache.chosen {
         // The user keeps no file: a token is minted on each run, as asked.
         Chosen::Nothing => (None, None),
@@ -222,3 +276,7 @@ async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
 fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
+
+#[cfg(test)]
+#[path = "token_tests.rs"]
+mod tests;

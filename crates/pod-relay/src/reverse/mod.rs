@@ -6,7 +6,11 @@
 //! legs with a token of one leg each, where podssh's relay role registers
 //! them (podssh T-615); and the queue of a socket's data, a turn for each session
 //! (podssh T-648), which both ends of a reverse socket use; and a node's ask for
-//! sessions readied ahead, where the role offers them (podssh T-650).
+//! sessions readied ahead, where the role offers them (podssh T-650). The
+//! plain mode of podnet is the same API with no layer and no channel: a
+//! handler of a TCP or Unix target ([`local`]), the half close of a node's
+//! session (`Settings::half_close`) and the wait of an operator for the
+//! node's last bytes (`OperatorLimits::eof_idle`).
 
 pub mod close_say;
 pub mod closes;
@@ -16,8 +20,10 @@ pub mod fair;
 pub mod framing;
 pub mod layered;
 pub mod legs;
+pub mod local;
 pub mod node;
 pub mod operator;
+mod route;
 pub mod routes;
 pub mod serve;
 pub mod sessions;
@@ -33,9 +39,10 @@ pub use e2e::E2e;
 pub use framing::SessionId;
 pub use layered::Layered;
 
+pub use local::{LocalHandler, Target};
 pub use node::{Exit, Handler, Next, NodeConfig, Opening, QUEUE_BYTES, RepairHook, after_close, run};
-pub use operator::{OperatorConfig, OperatorLimits, Outcome};
-pub use serve::{End, Settings, serve};
+pub use operator::{EOF_IDLE, OperatorConfig, OperatorLimits, Outcome};
+pub use serve::{DRAIN, End, HALF_CLOSE_IDLE, Settings, serve};
 pub use state::NodeState;
 pub use tcp::TcpHandler;
 pub use udp::UdpHandler;

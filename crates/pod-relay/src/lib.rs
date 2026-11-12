@@ -1,6 +1,9 @@
 //! The client of a WebSocket-to-TCP relay of the podssh contract, for the
 //! crates of podcrates and their binaries:
 //!
+//! - [`budget`]: the bytes and the age of one stream through the relay,
+//!   after which a caller replaces it (podnet's `RelayBudget`);
+//! - [`stream`]: a forward session as a byte stream;
 //! - [`relay`]: which relay hosts to use, in what order (an explicit list,
 //!   or the default host followed by alternates from the relay's own pool);
 //! - [`pool`]: the pool, as the relay publishes it, cached between runs,
@@ -56,6 +59,7 @@
 pub mod addresses;
 #[cfg(feature = "blocking")]
 pub mod blocking;
+pub mod budget;
 pub mod cache;
 pub mod cleartext;
 #[cfg(feature = "code")]
@@ -86,10 +90,12 @@ pub mod relay;
 #[cfg(feature = "pair")]
 pub mod reverse;
 pub mod settings;
+pub mod stream;
 #[cfg(test)]
 mod testing;
 pub mod token;
 
+pub use budget::RelayBudget;
 pub use context::Context;
 pub use open::{Failure, OpenError, Opened, Request, open};
 pub use relay::{Relay, default_relay_host};

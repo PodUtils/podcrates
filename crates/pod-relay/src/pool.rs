@@ -126,12 +126,21 @@ pub fn needs_refresh(cache: &Cache, primary: &str, now_ms: i64) -> bool {
 /// Whether `host` belongs to `primary`'s deployment: another host under its
 /// parent domain (for `tcp.ssh.relay.ajam.dev`, anything under
 /// `ssh.relay.ajam.dev`). A parent with no dot (a bare top-level domain) never
-/// matches.
+/// matches, nor does an IP address: it has no parent domain (podnet).
 pub fn same_deployment(primary: &str, host: &str) -> bool {
     let primary = primary.to_ascii_lowercase();
     let host = host.to_ascii_lowercase();
+    if primary.parse::<std::net::IpAddr>().is_ok() {
+        return false;
+    }
     let Some((_, parent)) = primary.split_once('.') else { return false };
-    parent.contains('.') && host != primary && check_host(&host).is_ok() && host.ends_with(&format!(".{parent}"))
+    parent.contains('.') && host != primary && dns_name(&host) && host.ends_with(&format!(".{parent}"))
+}
+
+/// A host of a deployment, as podnet checks one: a host name of
+/// `check_host`, with no empty label and no label over 63 characters.
+fn dns_name(host: &str) -> bool {
+    check_host(host).is_ok() && host.split('.').all(|label| !label.is_empty() && label.len() <= 63)
 }
 
 /// The `pool[].host` names of a `/relays.json` body, in its order, kept only
@@ -260,6 +269,24 @@ mod tests {
         assert!(!same_deployment(p, "x.ssh.relay.ajam.dev/path"));
         assert!(!same_deployment("relay.example", "x.example"), "a bare TLD parent never matches");
         assert!(!same_deployment("localhost", "x.localhost"));
+    }
+
+    /// podnet's test of a deployment: an IP address is none, whatever names
+    /// end like it.
+    #[test]
+    fn hosts_of_one_deployment() {
+        let p = default_relay_host();
+        assert!(same_deployment(p, "tcp-us-east-1.ssh.relay.ajam.dev"));
+        assert!(same_deployment(p, "TCP-EU-WEST-3.ssh.relay.ajam.dev"));
+        assert!(!same_deployment(p, p), "not the primary itself");
+        assert!(!same_deployment(p, "evil.example"));
+        assert!(!same_deployment(p, "ssh.relay.ajam.dev.evil.example"));
+        assert!(!same_deployment(p, "xssh.relay.ajam.dev"));
+        assert!(!same_deployment(p, "a..ssh.relay.ajam.dev"));
+        assert!(!same_deployment(p, "a b.ssh.relay.ajam.dev"));
+        assert!(!same_deployment("relay.dev", "other.dev"), "a top-level parent");
+        assert!(!same_deployment("127.0.0.1", "x.0.0.1"), "an IP address");
+        assert!(!same_deployment("192.0.2.1", "relay.0.2.1"), "an IP address");
     }
 
     #[test]
