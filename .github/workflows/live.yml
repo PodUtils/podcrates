@@ -4,8 +4,9 @@ name: live
 # the public DoH resolvers (on Thursdays and by hand: CoreDNS on the
 # loopback proves the client on each push, T-350), a host that offers
 # Multipath TCP, a public
-# registry, Alpine's mirror, magic-wormhole's mailbox server and library,
-# and the public mailboxes of magic-wormhole and the public MQTT brokers.
+# registry, Alpine's mirror, and the public mailboxes of magic-wormhole and
+# the public MQTT brokers (magic-wormhole's own servers run on each push in
+# ci.yml, T-354).
 # They run on Thursdays at an off-peak hour and by hand (docs/decisions.md,
 # C150, which replaces the daily runs of C24: the code of each client is
 # proven on each push against a stand-in, T-352), with egress to the relay
@@ -110,24 +111,6 @@ jobs:
             https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/x86_64/netboot/modloop-virt
           POD_GUEST_MODLOOP="$RUNNER_TEMP/modloop-virt" \
             cargo test --locked -p pod-guest --test modloop_live -- --ignored --nocapture
-      # magic-wormhole's own mailbox server and library on the loopback: a
-      # skip for want of Python is a failure here, so these tests of
-      # pod-wormhole and of pod-relay run in each run of this workflow, not
-      # only on a host with Python (T-354 moves them to each push).
-      - name: magic-wormhole's mailbox server and library, in a virtualenv
-        run: |
-          set -eu
-          python3 -m venv "$RUNNER_TEMP/mailbox-venv"
-          sh scripts/retry.sh "$RUNNER_TEMP/mailbox-venv/bin/python" -m pip install --quiet \
-            magic-wormhole-mailbox-server==0.8.0 magic-wormhole==0.24.0
-      - name: pod-wormhole and pod-relay, the pairing by a code against magic-wormhole's server
-        env:
-          POD_WORMHOLE_TEST_SERVER: required
-        run: |
-          set -eu
-          export POD_WORMHOLE_TEST_PYTHON="$RUNNER_TEMP/mailbox-venv/bin/python"
-          timeout 900 cargo test --locked -p pod-wormhole --all-features -- --nocapture
-          timeout 900 cargo test --locked -p pod-relay --all-features --test pair_code -- --nocapture
       # One short pairing through each public mailbox of magic-wormhole and
       # each public MQTT broker (T-261: the services of the kinds mailbox and
       # mqtt-broker), as podssh's ruling Q65 says: each Thursday and by hand,

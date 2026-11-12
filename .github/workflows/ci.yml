@@ -106,6 +106,12 @@ jobs:
       # images/mosquitto/, pinned to a digest. A skip fails the step.
       - name: pod-wormhole against Eclipse Mosquitto
         run: sh scripts/ci/mosquitto-tests.sh
+      # The pairing by a code against magic-wormhole's own mailbox server and
+      # library on 127.0.0.1 (T-354): the packages of
+      # scripts/ci/wormhole-servers.txt, each with its SHA-256, from PyPI. A
+      # skip fails the step.
+      - name: pod-wormhole and pod-relay against magic-wormhole's mailbox server
+        run: sh scripts/ci/mailbox-tests.sh
       # The DNS over HTTPS of pod-dns against CoreDNS on 127.0.0.1 (T-350):
       # the release of CoreDNS 1.15.0, checked by its SHA-256. A skip fails
       # the step.

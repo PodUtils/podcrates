@@ -4126,7 +4126,7 @@ the fix with its `live.yml` at the next tag.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4176,6 +4176,20 @@ transit relay of T-027 needs a server of the same kind.
 sh scripts/ci/mailbox-tests.sh
 gh workflow run ci.yml
 ```
+
+## Done
+
+2026-11-12. `scripts/ci/wormhole-servers.txt`: the mailbox server 0.8.0,
+the transit relay 0.5.0 and the library 0.24.0 with each dependency and
+its SHA-256 (33 packages, `uv pip compile` for Python 3.12 on
+x86_64-unknown-linux-gnu; the three top wheels have the hashes of the
+Premise). `scripts/ci/mailbox-tests.sh`: a virtualenv, `pip install
+--require-hashes`, then the targets `mailbox` and `faults` of
+`pod-wormhole` and `pair_code` of `pod-relay` with
+`POD_WORMHOLE_TEST_SERVER=required`. A step of the job `test` of
+`ci.yml`; the two steps leave `live.yml`. The run here: 11, 14 and 10
+passed, no skip. The cache of pip (actions/cache) is T-355's.
+
 
 # T-390: `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11)
 

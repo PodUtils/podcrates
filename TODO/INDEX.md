@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**323 entries: 83 open, 5 partial, 5 blocked, 230 done.**
+**323 entries: 82 open, 5 partial, 5 blocked, 231 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 64 | 83 |
-| P2 | 34 | 1 | 5 | 116 | 156 |
+| P2 | 33 | 1 | 5 | 117 | 156 |
 | P3 | 32 | 2 | 0 | 48 | 82 |
-| **All** | 83 | 5 | 5 | 230 | 323 |
+| **All** | 82 | 5 | 5 | 231 | 323 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -350,7 +350,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-351](upkeep.md) | P1 | M | M5 | defect | partial | `services.yml`: a host that gives no answer to one runner fails the daily run |
 | [T-352](upkeep.md) | P2 | S | M5 | chore | done | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
 | [T-353](podvm.md) | P2 | M | M5 | feature | open | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
-| [T-354](relay.md) | P2 | S | M5 | chore | open | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
+| [T-354](relay.md) | P2 | S | M5 | chore | done | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
 | [T-355](upkeep.md) | P2 | M | M5 | chore | open | The downloads of each job come from a cache, and the tools from their release binaries |
 | [T-356](transport.md) | P3 | M | M5 | feature | open | `pod-services-watch`: `forward-url` against sish and sandhole on the loopback |
 | [T-357](roads.md) | P3 | S | M5 | feature | open | `pod-gsr`: gs-netcat as the other end, through the stand-in of the relay |
