@@ -3377,7 +3377,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
   or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
   (`crates/pod-proxy/src/blocking.rs:55-58`), so it gets the setting too.
-- Read: `crates/pod-proxy/README.md:187` (the parity row of `TCP_NODELAY`
+- Read: `crates/pod-proxy/README.md:188` (the parity row of `TCP_NODELAY`
   and `TCP_NOTSENT_LOWAT`) and `crates/pod-proxy/tests/mptcp.rs:153` (the
   ignored live test of MPTCP). They agree with the review.
 - No crate of this tree sets `TCP_CONGESTION`. The controller of the
@@ -4821,7 +4821,7 @@ FINGERPRINT (CRC-32 XOR `0x5354554e`), and the long-term key
 
 ## Premise
 
-- Read: `crates/pod-proxy/src/stun.rs` (the codec, no I/O);
+- Read: crates/pod-proxy/src/stun.rs at `a40b04f` (the codec, no I/O);
   `crates/pod-proxy/src/digest.rs` has an MD5.
 - Read: podssh's ask: its functions pass RFC 5769's vectors 2.1, 2.2 and
   2.4.
@@ -4842,7 +4842,8 @@ cargo test -p pod-proxy --all-features stun
 
 ## Done
 
-2026-11-12. `crates/pod-proxy/src/stun_auth.rs` (in `stun`):
+2026-11-12. crates/pod-proxy/src/stun_auth.rs at `a40b04f` (in `stun`; in
+`crates/pod-turn/src/stun_auth.rs` since T-377):
 `signed`, `integrity` (with `IntegrityError`; the compare of `hmac`
 takes the same time for each value), `fingerprinted`, `fingerprint_ok`,
 `long_term_key` (no SASLprep: the caller gives the prepared texts),
@@ -5028,9 +5029,9 @@ cargo test -p pod-services-watch --all-features
 
 ## Problem
 
-The STUN client of `pod-proxy` (`crates/pod-proxy/src/stun.rs`) is proven
+The STUN client of `pod-proxy` (`crates/pod-turn/src/stun.rs` since T-377) is proven
 offline against the UDP stand-in of `crates/pod-testkit/src/stand.rs` and
-the tests of `crates/pod-proxy/src/stun_tests.rs`. A server of another
+the tests of `crates/pod-turn/src/stun_tests.rs`. A server of another
 party is reached only by the daily watches `stun-binding` (UDP to
 Cloudflare and Google). A server that another party wrote, on the
 loopback, proves the client on each push (the attributes, the
@@ -5267,7 +5268,7 @@ cannot allocate a relayed address. The codec has no SHA-256 credentials
   create_permission, bind_channel, send, recv, close}`, `Event`), the
   features `stun` and `turn`, the scope (no plain TCP, no DTLS, no
   RFC 6062), and the tests (a mock server with 401, 438 and 441).
-- Read: `crates/pod-proxy/src/stun.rs`, `stun_auth.rs` and their tests.
+- Read: crates/pod-proxy/src/stun.rs at `a40b04f`, `stun_auth.rs` and their tests.
 
 ## Approach
 
@@ -5324,4 +5325,97 @@ It waits for a consumer that asks for it (the owner's ruling "Priority").
 
 ```sh
 cargo test -p pod-devtunnel --all-features
+```
+
+# T-380: `pod-turn`: the client against coturn on the loopback, over UDP and TLS
+
+**Source:** T-377 (the live test has no server in CI).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The TURN client of `pod-turn` is proven against the mock server of its
+tests (`crates/pod-turn/tests/common/mock.rs`), which is the reading of
+RFC 8656 of the same author as the client, on the same codec. The live
+test (`crates/pod-turn/tests/live.rs`) takes a server of the caller and
+skips with none: no workflow names one. A server that another party
+wrote proves the client on each push: its challenge, its nonces, its
+lifetimes, its padding of ChannelData on TLS, its 441, its 437.
+
+## Premise
+
+- Read: T-358 (coturn 4.18.0 for the STUN client, the image
+  `coturn/coturn:4.18.0` pinned by its index digest, call C151).
+- Not measured: coturn's answers to the client of `pod-turn`: the
+  long-term credentials of a static user (`--user`, `--realm`), TLS on a
+  port of the loopback with a certificate that the test makes, the
+  SHA-256 algorithm (coturn's `--pa` options), the relay of a peer on the
+  loopback (`--allow-loopback-peers`).
+
+## Approach
+
+A script of the job `test` of `ci.yml` (with T-358, the same image and
+call C151): coturn on 127.0.0.1 with a made-up user, a realm, a TLS port
+and its certificate, and `--allow-loopback-peers`; then
+`tests/live.rs` with `POD_TURN_LIVE_SERVER` (`udp://` and `tls://`),
+`POD_TURN_LIVE_PEER` (a UDP echo on the loopback), and a variable that
+makes a skip a failure. A row in `docs/live-calls.md`. A plant that turns
+the TLS padding off must fail it.
+
+## Prove
+
+```sh
+sh scripts/ci/turn-tests.sh
+```
+
+# T-381: `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use
+
+**Source:** T-377 (the parity list of `crates/pod-turn/README.md`).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The TURN client of T-377 leaves these options out:
+
+- The security features of a nonce (RFC 8489, 9.2): a nonce that starts
+  with `obMatJos2` says whether the server sent PASSWORD-ALGORITHMS; a
+  client that sees the bit and no attribute fails (a downgrade). The
+  order of the 24 bits is not clear: the nonce of the example of RFC 8489,
+  B.1 (`AAAB`) fits neither order. The client reads the attribute alone.
+- USERHASH (RFC 8489, 14.4): the user's hash in place of the user.
+- ALTERNATE-SERVER (300 Try Alternate, RFC 8489, 10): a 300 fails the
+  request.
+- The ALPN `stun.turn` of TURN over TLS (RFC 7443): the client offers no
+  ALPN.
+- EVEN-PORT, RESERVATION-TOKEN, DONT-FRAGMENT, ADDITIONAL-ADDRESS-FAMILY
+  and REQUESTED-ADDRESS-FAMILY (RFC 8656): an allocation of the server's
+  family, with no reservation.
+
+## Premise
+
+- Read: RFC 8489, sections 9.2, 10, 14.4 and appendix B.1; RFC 8656,
+  sections 7 and 18; RFC 7443.
+- Not measured: what coturn sends and takes (T-380 starts it); no
+  consumer asks for an option now.
+
+## Approach
+
+Take each option when a consumer needs it, or when T-380 shows a server
+that needs it: the order of the feature bits from coturn's source and its
+answer, with a test against the mock and against coturn; ALTERNATE-SERVER
+as a new allocation on the named server (with the same credentials, and a
+check of the realm); the ALPN as a setting of `Transport::Tls`.
+
+## Prove
+
+```sh
+cargo test -p pod-turn --all-features
 ```

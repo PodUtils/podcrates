@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 320 entries: 90 open, 5 partial, 5 blocked, 220 done.
+`TODO/INDEX.md` holds 322 entries: 92 open, 5 partial, 5 blocked, 220 done.
 
 ## State
 
@@ -12,7 +12,9 @@
   T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
   the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed).
 - On `main` after the tag: `pod-netlab` (T-207, partial), `pod-warp`
-  (T-028, partial).
+  (T-028, partial), `pod-turn` (T-377: the STUN codec moved out of
+  `pod-proxy`, and a TURN client; for PodUtils/podnet#485 and
+  PodUtils/podssh@T-621).
 - The consumers and their tags:
   - podssh: `v0.31.0` (`02650f1`; earlier `v0.30.0` at `ef3666f`, PodUtils/podssh#212): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -42,8 +44,9 @@
   podcrates by direct messages. podnet and podvm run in their own sessions
   and answer COORD issues. M8 waits (the ruling "Priority").
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`); no crate goes to crates.io now (the owner,
-  2026-11-09).
+  (`check-crates-io-names.py`) but `pod-link` and `pod-turn`: crates.io
+  answers 404 for both (2026-11-12); the owner reserves them before a
+  publish. No crate goes to crates.io now (the owner, 2026-11-09).
 - Blocked: T-217 to T-220 (`pod-git`): the owner's ruling "pod-git" (its
   own repository, deferred).
 - Keep this section short. Write the current state only; git keeps the
@@ -66,9 +69,9 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects and asks of the consumers:** T-374 (Serveo's tunnel
-   zone, GitHub #98); T-377 (`pod-turn`, GitHub #100, for
-   PodUtils/podnet#485 and PodUtils/podssh@T-621, an agent of this
-   session); T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
+   zone, GitHub #98); T-380, T-381 (`pod-turn` against coturn, and the
+   options of RFC 8489 and RFC 8656 that it leaves out; T-377 is done);
+   T-372, T-373 (GitHub #95, #97); T-375, T-376 (GitHub #99,
    #96, data only); T-378 (`pod-devtunnel`, GitHub #94: a study first, and
    a consumer that asks for it); T-330 (podvm's pair
    commands, after its take of the blocking facade, PodUtils/podvm#285); T-328 (podrunner's note
