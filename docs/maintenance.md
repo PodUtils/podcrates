@@ -257,6 +257,48 @@ fourth argument of the script names the list when it is elsewhere.
   mirrors of zig and a few more. WARP, the edge of Cloudflare and the
   relay are not reachable from here. Test them in the live workflows.
 * The disk is limited. `target/` grows past 20 GB: remove `target/debug`
-  when a build fails with "No space left on device".
+  when a build fails with "No space left on device". A full check and two
+  agents that build at the same time fill the disk: run at most one agent
+  build beside a check, and read `df -h /` before each large build (keep
+  10 GB free).
 * A cloud session starts with a shallow clone. Run
   `git fetch --unshallow origin main` before a `git log` over a range.
+
+## Rules of the work
+
+* Run one cargo build at a time, also with agents: each cargo command
+  takes the lock `flock SCRATCHPAD/cargo.lock`. An agent builds in its own
+  `CARGO_TARGET_DIR` in the scratchpad: an artifact of a worktree holds
+  its absolute paths (`include_str!` of `pod-services`,
+  `CARGO_MANIFEST_DIR` of `pod-job`), and a shared `target/` fails in the
+  main checkout after the worktree goes.
+* Each version bump makes a new copy of each workspace crate in
+  `target/debug`. Before the check of a bump, remove `target/debug` when
+  `df -h /` shows less than 25 GB free.
+* Gate a commit and a push on the exit code of each check (`cmd && git
+  commit`), never on a pipe into `tail`. After a change of code, run
+  clippy of the crate too, not only its tests.
+* Make the patch of a plant from the changed source file alone (`git diff
+  -- FILE > SCRATCH; cp SCRATCH scripts/plants/ID.patch`): a redirect into
+  a tracked patch file puts that file into its own diff. A change of a
+  file that a plant patches makes the plant stale: `check.sh` runs
+  `plant-each.sh --apply`.
+* Take a new entry id or call number with `cargo todo next` just before
+  the commit; sessions and agents add entries in parallel. Give each agent
+  its own range of ids and calls in its brief, and the rule of findings
+  of `AGENTS.md` (each finding becomes work, never a card).
+* A merge of an agent's branch conflicts in `TODO/INDEX.md` (the counts
+  and the rows), `TODO/PROGRESS.md` and `docs/decisions.md`: keep both
+  sides of the rows in id order, then take the counts that `cargo todo
+  check` reports.
+* Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
+  head; a push to `main` cancels the runs that wait. `adoption.yml` runs
+  only on a change of `crates/`, `adoption/` or its scripts: a commit of
+  the version alone has the adoption run of its parent. After a release,
+  read the dry run of `publish.yml` at the tag: a cycle of
+  dev-dependencies makes it red, and no other check sees it.
+* After a consumer takes a crate: write the `taken` line in `SOURCES`,
+  remove the trial files of `adoption/CONSUMER/CRATE.*` (a later tag
+  breaks a trial that the consumer already took), and record the take on
+  the hand-off issue (amend its body; close it when each consumer took
+  its part).
