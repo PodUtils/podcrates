@@ -2,8 +2,9 @@
 
 Cloudflare WARP, spoken directly: anonymous registration, the P-256
 identity of the device and its file, MASQUE CONNECT-IP over HTTP/2 on TCP
-443 through the caller's dial with the key of the front door pinned, and a
-userspace stack over the session, given as a network of the caller: a
+443 through the caller's dial or over HTTP/3 on the caller's UDP, with the
+key of the front door pinned, the WireGuard tunnel of WARP and a device
+carried inside a session, and a userspace stack over the session, given as a network of the caller: a
 `pod_core::Dial` (TCP streams, names resolved inside the tunnel) and
 `pod_core::Datagrams` (UDP).
 
@@ -15,7 +16,8 @@ settings of podnet's stack of `src/warp/ip.rs` (the congestion controller,
 the TCP burst, the counters of the link, the budget of a relay) and the
 check of the data path; and T-336: the relay leg of the caller, the race
 of the direct path and the relay, the leg file and the budget of a relay
-session. The rest is T-337 to T-339, and T-393 to T-395 (the rest of
+session; and T-337: MASQUE over HTTP/3, the WireGuard tunnel and the
+carried device. The rest is T-338 and T-339, and T-393 to T-395 (the rest of
 `ip.rs`).
 
 The crate reads no environment variable and no file that the caller does
@@ -32,8 +34,8 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 
 | Item | Contents |
 | --- | --- |
-| `Settings` | `api: Api`, `way: Way`, `relay: Option<Relay>`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `net: NetSettings`; `Settings::new(api, way)` (no relay). |
-| `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession` (with a relay: the race of the two legs), `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`; `relay_first`, `with_relay_first`, `leg`, `take_leg_change`. |
+| `Settings` | `api: Api`, `way: Way`, `relay: Option<Relay>`, `wireguard: Option<wg::Peer>`, `carry: Option<wg::Peer>`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `net: NetSettings`; `Settings::new(api, way)` (no relay). |
+| `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession` (with a relay: the race of the two legs), `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad; with `carry`, the stack of the carried device inside the session, `CARRY_MTU` 1200, IPv4 only, the budget of the outer session); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`; `relay_first`, `with_relay_first`, `leg`, `take_leg_change`. |
 | `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `close(why)` (podnet's `close_session`), `stack`, `with_resolvers`, `link_stats`, `renew_due` (the budget of the session, else `NetSettings::renew`), `check_data_path(&DataPathCheck) -> Duration`, `checked`. When the session closes (the edge ends it, a pump ends, the reactor of the stack stops, also by a panic, or `close`), each open stream and UDP socket fails at once with `ConnectionReset` and the first cause, and a new dial and a new UDP socket fail with it. A UDP datagram to a family that the device lacks is `InvalidInput` ("the tunnel has no IPv6 address for ..."), and no packet leaves. |
 | `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, tcp_timeout, tcp_keepalive, tcp_linger, nodelay, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, `TCP_TIMEOUT` 60 s, `TCP_KEEPALIVE` 20 s, `TCP_LINGER` 30 s, no Nagle, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
 | `check` | `DataPathCheck { servers, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device, `cloudflare.com`, 5 s, 1.2 s), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`). |
@@ -48,7 +50,10 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `door` | `Door` (`Record`, `Pinned(Target)`), `Routes`, `endpoint_order`, `doors`, `door_from`, `door_text`, `DOOR_TTL`. |
 | `leg` | `Relay { dial, name, meter, delay, delay_known }` (`Relay::new(dial, name)`: no meter, `RELAY_DELAY` 3 s, `RELAY_DELAY_KNOWN` 0.5 s; `delay_for`), `Leg` (`Direct`, `Relay`; `as_str`), `relay_first_from(text, now, relay)`, `leg_text(leg, now, relay)`, `LEG_TTL` (6 h). The direct path starts first; the relay starts after its delay, or at once when the direct path failed; the first session that opens wins and the other try is dropped; a failure of both names both causes. A relay reaches both families (`Routes::default()`). The decision `warp.leg`: `direct`, `relay`, `relay-first`, `no-relay`. |
 | `tls` | `client_config(provider, identity, pinned_spki, alpn)`, `handshake_failure`, `is_pin_mismatch`, `PIN_MISMATCH`, `ALPN_H2`. |
-| `session` | `Way { dial, meter, provider, sni, authority, timeout }`, `Meter` (a function of the caller: a stream in, the metered stream and its `Renew` out), `MasqueSession` (`connect`, `split`, `relay_budget`), `MasqueTx` (`send_packet`, `send_packets`, `waits`, `keepalive`, `close`), `MasqueRx` (`recv_packet`, `take_assigned`, `progress`, `is_closed`), `Keepalive`, `h2_builder`; the windows, the budget of DATA frames, `SEND_RESERVE`, `SEND_STALL`, `CONNECT_TIMEOUT`, `MAX_MISSED_PONGS`. |
+| `session` | `Way { dial, udp, h3, meter, provider, sni, authority, timeout }`, `Meter` (a function of the caller: a stream in, the metered stream and its `Renew` out), `MasqueSession` (`connect`: HTTP/3 with `Way::h3`; `connect_wg(peer, way)`, `connect_wg_inside(peer, outer)`, `is_h3`, `is_wg`, `split`, `relay_budget`), `MasqueTx` (`send_packet`, `send_packets`, `waits`, `keepalive`, `close`), `MasqueRx` (`recv_packet`, `take_assigned`, `progress`, `is_closed`), `Keepalive` (`h2`, `h3`, `wg`, `run`), `h2_builder`; the windows, the budget of DATA frames, `SEND_RESERVE`, `SEND_STALL`, `CONNECT_TIMEOUT`, `MAX_MISSED_PONGS`. |
+| `h3` | MASQUE over HTTP/3 on `pod-quic` over `Datagrams`: `connect`, `open`, `request`, `H3Tx`, `H3Rx`, `Incoming`, `closed`, `quic_settings`, `ALPN`, `SETTINGS`, `IDLE_TIMEOUT` 30 s, `KEEP_ALIVE` 10 s, `INITIAL_MTU` 1242, `DATAGRAM_BUFFER`; `h3::wire`: `Frames`, `frame`, `connect_ip_headers`, `response_status` (QPACK with the static table only). A packet larger than a datagram goes as a DATA capsule on the stream. |
+| `wg` | The WireGuard tunnel on `pod-wg`: `Peer { keys, endpoint, v4, v6 }`, `connect(peer, datagrams)`, `connect_inside(peer, &WarpNet)`, `WgTx`, `WgRx`, `WgKeepalive`, `HANDSHAKE_TRIES`. Only a datagram from the door is read. |
+| `udp` | `UdpWay` (`label`, `datagrams(door)`), `SystemUdp` (a socket of the system of the family of the door); `WarpNet` is one. A way with no UDP refuses HTTP/3 and WireGuard (`Usage`). |
 | `capsule` | The capsules of RFC 9297 and the types of RFC 9484: `put_varint`, `get_varint`, `put_capsule`, `CapsuleDecoder`, `parse_address_assign`, `MAX_CAPSULE_LEN`. |
 | `dns` | `lookup(net, resolvers, name, limit)` (DNS over TCP inside the tunnel), `RESOLVERS`. |
 | `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide`, `decide_static`), `Host`, `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
@@ -69,7 +74,10 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | `has_default_route` | | `Settings::routes` |
 | `HTTPS_PROXY`, `--transport` | `HTTPS_PROXY` | `Way::dial`, and the dial of the `pod_proxy::Client` of `Api` |
 | the WebSocket relay (`PODNET_RELAY`, `ws_relay::Relay`) | | `Settings::relay = Some(Relay::new(dial, url))`, the dial of the relay of `pod-relay` |
-| `--no-relay`, HTTP/3 | | `Settings::relay = None` |
+| `--no-relay` | | `Settings::relay = None` |
+| HTTP/3 (`MasqueOptions::h3`; no relay, no proxy) | | `Way::h3 = true` with `Way::udp = Some(Arc::new(SystemUdp))`; `Warp::open_session` skips `Settings::relay` |
+| WireGuard (`with_wireguard`, the peer of `warp export`) | | `Settings::wireguard = Some(wg::Peer { .. })` with `Way::udp` |
+| the carried device (`with_carry`) | | `Settings::carry = Some(wg::Peer { .. })` |
 | `warp-leg.json` (`read_leg`, `write_leg`) | | `leg::relay_first_from` into `Warp::with_relay_first`; `Warp::take_leg_change` and `leg::leg_text` for the caller's file |
 | `--allow-shadowed-rules` | | the `allow` of `Table::build` |
 | the state directory (`warp.json`, `warp-door.json`) | the device's private file | `IdentityFile::path`; `door_from` and `door_text` for the caller's door file |
@@ -79,7 +87,7 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | `PODNET_WARP_NO_CHECK` | | `NetSettings::check = None` |
 | `--resolver`, `PODNET_WARP_RESOLVERS` (for the check) | | `DataPathCheck::servers` (DNS on UDP; DNS over TLS comes with the resolvers of the proxy, T-338) |
 | the budget of a relay session (`ws_relay::meter`, `StackConfig::renew`) | | `Relay::meter` (or `Way::meter`); `NetSettings::renew` for a session with no meter |
-| `CARRY_MTU` (the carried device) | | `NetSettings::mtu` |
+| `CARRY_MTU` (the carried device) | | `CARRY_MTU`; the stack of the carry takes it in place of `NetSettings::mtu` |
 
 ## The tests
 
@@ -116,6 +124,14 @@ and far end in `tests/common/edge.rs` (call C135).
 | A failure of both legs names both causes; the relay starts at once after a failure of the direct path | `tests/leg.rs`: `a_failure_of_both_legs_names_both_causes` |
 | The text of the leg file | `leg::tests`: `the_leg_file_puts_a_recent_relay_first`, `the_leg_text_reads_back`, `a_change_of_the_order_is_kept_for_the_leg_file` |
 
+| Approach of T-337 | Test |
+| --- | --- |
+| A session over HTTP/3 carries datagrams and capsules | `tests/h3.rs`: `a_session_over_http3_carries_datagrams_and_capsules`; `h3::tests` (the frames, QPACK) |
+| HTTP/3 refuses a proxy and a wrong key | `tests/h3.rs`: `http3_refuses_a_proxy_and_a_wrong_key` |
+| HTTP/3 takes no relay | `tests/h3.rs`: `a_session_over_http3_takes_no_relay` |
+| A loopback tunnel of WireGuard against the stand-in of `pod-wg` | `tests/wg.rs`: `a_wireguard_tunnel_carries_packets_both_ways`, `wireguard_refuses_a_way_with_no_udp`, `no_answer_is_a_failure_that_names_the_door`, `warp_connect_over_wireguard_gives_a_network` |
+| The carried device over a `WarpNet` of the stand-in edge | `tests/wg.rs`: `a_carried_device_gives_a_network_inside_the_session` (a UDP route of `Edge::start_with_udp`) |
+
 The stand-in edge answers a DNS question on UDP port 53 too, notes the
 largest TCP window of the client, the ends of each UDP datagram and the
 packets of each family, and drops the first questions that a test names
@@ -127,7 +143,8 @@ carries nothing. Plants: `warp-check-without-answer`,
 `netstack-shared-counters-lose-the-drops`, `warp-close-resets-nothing`,
 `netstack-tcp-timeout-not-set`, `netstack-peer-reset-read-as-timeout`,
 `warp-udp-to-a-family-the-device-lacks`,
-`warp-race-relay-waits-for-the-direct-path`.
+`warp-race-relay-waits-for-the-direct-path`, `warp-h3-udp-past-the-way`,
+`warp-h3-takes-the-relay`.
 
 ## The parity list
 
@@ -145,7 +162,7 @@ carries nothing. Plants: `warp-check-without-answer`,
 | The order of the doors; the door that worked first; a door with no packet last | yes | the endpoints in turn (PodUtils/podssh@T-561) | yes |
 | A pinned door | address | | `HOST:PORT` |
 | MASQUE over HTTP/2, the windows, the batch, the keepalive | yes | yes | yes |
-| MASQUE over HTTP/3; WireGuard; the carried device | yes | | T-337 |
+| MASQUE over HTTP/3; WireGuard; the carried device | yes | | yes (on the UDP of the caller, `UdpWay`) |
 | The relay leg and the race, the leg file | yes | | yes (the relay is a dial of the caller) |
 | The stack (congestion control, burst, counters, the check of the data path) | yes | smoltcp of its own | yes (`NetSettings` over the stack of `pod-netstack`; the check in `Warp::connect`) |
 | The TCP timeout and keepalive, no Nagle (podnet issue 125, podssh) | yes | no Nagle | yes (`NetSettings`; a timeout reads as `TimedOut`) |
@@ -186,6 +203,10 @@ carries nothing. Plants: `warp-check-without-answer`,
 | `WarpStack::close_session(why)`, `Driver::fail_all`, `supervise` | `WarpNet::close(why)`; `NetStack::reset_all` at the first cause; the watch of `NetStack::stopped()` |
 | `proxy::check_data_path(&stack, ipv4)` | `WarpNet::check_data_path(&DataPathCheck)`; `Warp::connect` runs it and marks the door bad |
 | `proxy::NO_CHECK_VARIABLE` | `NetSettings::check = None` |
+| `MasqueSession::connect` with `Dial { h3: true, .. }`, `h3::*` | `MasqueSession::connect` with `Way { h3: true, udp, .. }`, `h3::*` |
+| `wg::Peer` (`from_exported` stays with `export.rs`), `MasqueSession::connect_wg(peer)` | `wg::Peer`, `MasqueSession::connect_wg(peer, way)` |
+| `MasqueSession::connect_wg_inside(peer, &stack)`, `connect_carried`, `CARRY_MTU` | `MasqueSession::connect_wg_inside(peer, &net)`, `Settings::carry`, `CARRY_MTU` |
+| `decisions::count("masque", "wireguard" \| "carry")` | `Observer::decision("warp.leg", "wireguard")`, `("warp.carry", "carried")` |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |
 | `decisions::count("masque", ..)` | `Observer::decision("warp.door", ..)` |
 

@@ -7,12 +7,14 @@
 //! each address (any IP): each route's port is carried to a service of the
 //! loopback, as Cloudflare's network carries a connection to its target;
 //! port 53 answers a DNS question over TCP and over UDP with [`NAME_IP`];
-//! UDP port 7 echoes. A test can change the key that it shows, as WARP's
+//! UDP port 7 echoes; a UDP route carries a port to a UDP service of the
+//! loopback ([`Edge::start_with_udp`]). A test can change the key that it shows, as WARP's
 //! front door showed a new device another key than its record's, end each
 //! open session ([`Edge::end_sessions`]), and read what the far end saw
 //! ([`Watch`]).
 
-use std::collections::VecDeque;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -214,6 +216,11 @@ impl Edge {
     /// A stand-in on 127.0.0.1 that takes the keys that `api` enrolled,
     /// with `routes` inside.
     pub async fn start(api: ApiStandIn, routes: Vec<Route>) -> Edge {
+        Edge::start_with_udp(api, routes, vec![]).await
+    }
+
+    /// [`Edge::start`] with the UDP routes `udp` inside.
+    pub async fn start_with_udp(api: ApiStandIn, routes: Vec<Route>, udp: Vec<Route>) -> Edge {
         let provider = Arc::new(rustls::crypto::ring::default_provider());
         let verifier = Arc::new(Enrolled { api, algorithms: provider.signature_verification_algorithms });
         let shown = Arc::new(Shown { keys: Mutex::new(VecDeque::new()), hellos: AtomicUsize::new(0) });
@@ -229,7 +236,7 @@ impl Edge {
         let addr = listener.local_addr().unwrap();
         let seen = Arc::new(Seen::default());
         let watch = Arc::new(Watch::default());
-        let (routes, counted, watched) = (Arc::new(routes), seen.clone(), watch.clone());
+        let (routes, counted, watched) = (Arc::new((routes, udp)), seen.clone(), watch.clone());
         let sessions = Arc::new(Mutex::new(Vec::new()));
         let served = sessions.clone();
         let task = tokio::spawn(async move {
@@ -289,7 +296,7 @@ struct Ends {
 }
 
 /// The far end of one tunnel: a stack that takes each address.
-async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
+async fn far_end(ends: Ends, routes: Arc<(Vec<Route>, Vec<Route>)>, watch: Arc<Watch>) {
     let Ends { mut from_client, to_client } = ends;
     let config = StackConfig {
         subnet: Subnet {
@@ -314,7 +321,11 @@ async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
         }
     });
     let mut tasks = vec![up];
-    for route in routes.iter().copied() {
+    for route in routes.1.iter().copied() {
+        let socket = stack.bind_udp_any(route.port).await.unwrap();
+        tasks.push(tokio::spawn(udp_route(socket, route.outside)));
+    }
+    for route in routes.0.iter().copied() {
         let mut listener = stack.listen_any(route.port).await.unwrap();
         tasks.push(tokio::spawn(async move {
             while let Ok(mut inside) = listener.accept().await {
@@ -367,6 +378,58 @@ async fn far_end(ends: Ends, routes: Arc<Vec<Route>>, watch: Arc<Watch>) {
     }
     for task in tasks {
         task.abort();
+    }
+}
+
+/// The tasks of a UDP route, aborted with it.
+#[derive(Default)]
+struct Readers(Vec<AbortHandle>);
+
+impl Drop for Readers {
+    fn drop(&mut self) {
+        for reader in &self.0 {
+            reader.abort();
+        }
+    }
+}
+
+/// Carry each datagram to the port of `inside` to `outside`, from a socket
+/// of the loopback for each sender, and each answer back from the address
+/// that the sender asked.
+async fn udp_route(mut inside: pod_netstack::UdpSocket, outside: SocketAddr) {
+    let (answers, mut back) = mpsc::channel::<(Vec<u8>, SocketAddr, IpAddr)>(256);
+    let mut out: HashMap<(SocketAddr, IpAddr), Arc<tokio::net::UdpSocket>> = HashMap::new();
+    let mut readers = Readers::default();
+    let mut buf = vec![0u8; 2048];
+    loop {
+        tokio::select! {
+            got = inside.recv_from_to(&mut buf) => {
+                let Ok((n, from, to)) = got else { return };
+                let key = (from, to.ip());
+                if let Entry::Vacant(slot) = out.entry(key) {
+                    let Ok(socket) = tokio::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await else { continue };
+                    if socket.connect(outside).await.is_err() {
+                        continue;
+                    }
+                    let socket = Arc::new(socket);
+                    let (reader, answers) = (socket.clone(), answers.clone());
+                    let task = tokio::spawn(async move {
+                        let mut buf = vec![0u8; 2048];
+                        while let Ok(n) = reader.recv(&mut buf).await {
+                            if answers.send((buf[..n].to_vec(), key.0, key.1)).await.is_err() {
+                                return;
+                            }
+                        }
+                    });
+                    readers.0.push(task.abort_handle());
+                    slot.insert(socket);
+                }
+                let _ = out[&key].send(&buf[..n]).await;
+            }
+            Some((data, to, source)) = back.recv() => {
+                let _ = inside.send_to_from(&data, to, source).await;
+            }
+        }
     }
 }
 

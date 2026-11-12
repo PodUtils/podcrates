@@ -28,8 +28,10 @@ pub(crate) fn pin_of(device: &Device) -> Result<Vec<u8>, Failure> {
 }
 
 impl Warp {
-    /// Open a MASQUE session. With no [`crate::Settings::relay`], on the
-    /// direct path alone. With a relay, the direct path starts first and
+    /// Open a session. With [`crate::Settings::wireguard`], the WireGuard
+    /// tunnel on the UDP of the way. Else a MASQUE session; with no
+    /// [`crate::Settings::relay`], or over HTTP/3 ([`Way::h3`]: the relay
+    /// carries TCP), on the direct path alone. With a relay, the direct path starts first and
     /// the relay starts after its delay ([`crate::leg::Relay::delay_for`]),
     /// or at once when the direct path failed; the first session that
     /// opens wins and the other try is dropped (PodUtils/podnet issues 76
@@ -41,7 +43,12 @@ impl Warp {
     /// key that the API did not give is never taken.
     pub async fn open_session(&self) -> Result<MasqueSession, Failure> {
         let settings = &self.settings;
-        let Some(relay) = &settings.relay else {
+        if let Some(peer) = &settings.wireguard {
+            let session = MasqueSession::connect_wg(peer, &settings.way).await?;
+            settings.report.decision("warp.leg", "wireguard");
+            return Ok(session);
+        }
+        let Some(relay) = settings.relay.as_ref().filter(|_| !settings.way.h3) else {
             let session = self.open_on(&settings.way, settings.routes).await?;
             settings.report.decision("warp.leg", "no-relay");
             self.note_leg(Leg::Direct);

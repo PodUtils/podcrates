@@ -1,0 +1,7 @@
+# A session over HTTP/3 on a way with no UDP (a proxy, a relay) takes a
+# UDP socket of the system: the session leaves the host past the way of
+# the caller. The test of a proxy must fail.
+ENTRY=T-337
+GROUP=warp
+EXPECT='test http3_refuses_a_proxy_and_a_wrong_key \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test h3 -- http3_refuses_a_proxy_and_a_wrong_key'

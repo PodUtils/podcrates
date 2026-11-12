@@ -1,4 +1,4 @@
-//! The read half of a session.
+//! The read half of a session, over each transport.
 
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -8,19 +8,28 @@ use bytes::Bytes;
 use pod_core::{Class, Failure, Stage};
 
 use crate::capsule::CapsuleDecoder;
+use crate::h3::{H3Rx, Incoming};
+use crate::wg::WgRx;
 
 /// The read half of a session, for the task that pumps inbound packets.
 pub struct MasqueRx {
-    recv: h2::RecvStream,
+    inner: RxInner,
     decoder: CapsuleDecoder,
     closed: bool,
-    /// The count of DATA frames received: proof that the peer is alive.
+    /// The count of DATA frames or datagrams received: proof that the peer
+    /// is alive.
     progress: Arc<AtomicU64>,
 }
 
+pub(super) enum RxInner {
+    H2(h2::RecvStream),
+    H3(Box<H3Rx>),
+    Wg(Box<WgRx>),
+}
+
 impl MasqueRx {
-    pub(super) fn new(recv: h2::RecvStream, decoder: CapsuleDecoder) -> MasqueRx {
-        MasqueRx { recv, decoder, closed: false, progress: Arc::default() }
+    pub(super) fn new(inner: RxInner) -> MasqueRx {
+        MasqueRx { inner, decoder: CapsuleDecoder::new(), closed: false, progress: Arc::default() }
     }
 
     /// The counter of the frames that came in.
@@ -34,8 +43,12 @@ impl MasqueRx {
         self.decoder.take_assigned()
     }
 
-    /// Receive one IP packet, and wait for more body bytes when needed.
-    /// `None` when the front door ended the body.
+    fn tick(&self) {
+        self.progress.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Receive one IP packet, and wait for more bytes when needed. `None`
+    /// when the front door ended the session.
     pub async fn recv_packet(&mut self) -> Result<Option<Bytes>, Failure> {
         loop {
             if let Some(packet) = self.decoder.next_packet() {
@@ -49,19 +62,36 @@ impl MasqueRx {
             if self.closed {
                 return Ok(None);
             }
-            match self.recv.data().await {
-                Some(Ok(data)) => {
-                    let _ = self.recv.flow_control().release_capacity(data.len());
+            let came = match &mut self.inner {
+                RxInner::H2(recv) => match recv.data().await {
+                    Some(Ok(data)) => {
+                        let _ = recv.flow_control().release_capacity(data.len());
+                        Ok(Some(Incoming::Capsules(data)))
+                    }
+                    Some(Err(err)) => {
+                        Err(Failure::caused(Stage::Warp, Class::Unavailable, "reading the CONNECT-IP body", err))
+                    }
+                    None => Ok(None),
+                },
+                RxInner::H3(rx) => rx.next().await,
+                RxInner::Wg(rx) => rx.recv_packet().await.map(|p| p.map(Incoming::Packet)),
+            };
+            match came {
+                Ok(Some(Incoming::Packet(packet))) => {
+                    self.tick();
+                    return Ok(Some(packet));
+                }
+                Ok(Some(Incoming::Capsules(data))) => {
                     self.decoder.push(&data);
-                    self.progress.fetch_add(1, Ordering::Relaxed);
+                    self.tick();
                 }
-                Some(Err(err)) => {
-                    self.closed = true;
-                    return Err(Failure::caused(Stage::Warp, Class::Unavailable, "reading the CONNECT-IP body", err));
-                }
-                None => {
+                Ok(None) => {
                     self.closed = true;
                     return Ok(None);
+                }
+                Err(err) => {
+                    self.closed = true;
+                    return Err(err);
                 }
             }
         }

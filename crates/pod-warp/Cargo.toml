@@ -1,6 +1,6 @@
 [package]
 name = "pod-warp"
-description = "Cloudflare WARP spoken directly: anonymous registration, the P-256 identity and its file, MASQUE CONNECT-IP over HTTP/2 through the caller's dial with the front door's key pinned, and a userspace stack over the session as a pod-core Dial and Datagrams."
+description = "Cloudflare WARP spoken directly: anonymous registration, the P-256 identity and its file, MASQUE CONNECT-IP over HTTP/2 through the caller's dial or over HTTP/3 on the caller's UDP with the front door's key pinned, the WireGuard tunnel and a carried device, and a userspace stack over the session as a pod-core Dial and Datagrams."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,6 +18,10 @@ pod-netstack = { workspace = true }
 pod-dns = { workspace = true }
 # The facts of WARP: the API, the front doors, the versions.
 pod-services = { workspace = true }
+# QUIC for MASQUE over HTTP/3, over the datagrams of the caller.
+pod-quic = { workspace = true }
+# The WireGuard initiator, sans I/O.
+pod-wg = { workspace = true }
 tokio = { workspace = true, features = ["net", "time", "sync", "rt", "io-util", "macros"] }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
@@ -43,6 +47,8 @@ libc = "0.2"
 # edge (feature `masque`).
 pod-testkit = { workspace = true, features = ["stand", "masque"] }
 pod-tls = { workspace = true }
+# The stand-in WireGuard front door of the tests.
+pod-wg = { workspace = true, features = ["standin"] }
 tokio = { workspace = true, features = ["net", "time", "sync", "rt", "rt-multi-thread", "io-util", "macros", "test-util"] }
 # The tests run TLS on ring (docs/design.md, section 1, rule 4).
 rustls = { workspace = true, features = ["ring"] }

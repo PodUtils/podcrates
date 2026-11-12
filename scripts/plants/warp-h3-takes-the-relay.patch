@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -48,7 +48,7 @@
+             settings.report.decision("warp.leg", "wireguard");
+             return Ok(session);
+         }
+-        let Some(relay) = settings.relay.as_ref().filter(|_| !settings.way.h3) else {
++        let Some(relay) = settings.relay.as_ref() else {
+             let session = self.open_on(&settings.way, settings.routes).await?;
+             settings.report.decision("warp.leg", "no-relay");
+             self.note_leg(Leg::Direct);
