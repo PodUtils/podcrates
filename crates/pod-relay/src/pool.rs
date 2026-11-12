@@ -19,7 +19,7 @@ use pod_ws::Trust;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::cache::{self, Cache};
+use crate::cache::Cache;
 use crate::context::Context;
 use crate::relay::{Relay, check_host, default_relay_host};
 
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(seeded, seed(), "the seed, in its order");
         assert!(alternates(&none, "relay.example.org").is_empty(), "another relay has no seed");
         let dir = std::env::temp_dir().join(format!("pod-relay-alternates-{}", std::process::id()));
-        cache::private_dir(&dir).unwrap();
+        crate::cache::private_dir(&dir).unwrap();
         let kept = Cache::in_dirs(vec![dir.clone()]);
         let keep = |primary: &str, hosts: &[&str]| {
             let hosts = hosts.iter().map(|h| h.to_string()).collect();
