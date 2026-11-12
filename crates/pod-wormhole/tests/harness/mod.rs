@@ -13,8 +13,8 @@
 //! `POD_WORMHOLE_TEST_PYTHON` names the interpreter (a virtualenv's).
 //!
 //! The MQTT brokers of the tests (a stand-in in Rust, and Eclipse
-//! Mosquitto) are in [`broker`]; `POD_WORMHOLE_TEST_SERVER=required` makes
-//! a skip of Mosquitto a failure too.
+//! Mosquitto) are in [`broker`]; `POD_WORMHOLE_TEST_MQTT=required` makes a
+//! skip of Mosquitto a failure.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]

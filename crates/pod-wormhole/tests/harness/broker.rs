@@ -14,7 +14,8 @@
 //! (`ws://127.0.0.1:PORT/mqtt`, as CI runs it), else the program
 //! `POD_WORMHOLE_TEST_MOSQUITTO`, `mosquitto` or `/usr/sbin/mosquitto`
 //! started on a free port. A host with neither skips it with the reason,
-//! unless `POD_WORMHOLE_TEST_SERVER=required`.
+//! unless `POD_WORMHOLE_TEST_MQTT=required`: a run that needs magic-wormhole's
+//! server does not need Mosquitto too.
 
 use std::net::{Ipv4Addr, SocketAddr, TcpStream as StdTcp};
 use std::path::PathBuf;
@@ -31,7 +32,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use tokio::task::JoinHandle;
 
-use super::{LIMIT, free_port, required};
+use super::{LIMIT, free_port};
 
 #[derive(Default)]
 struct State {
@@ -187,6 +188,11 @@ pub struct Mosquitto {
     dir: Option<PathBuf>,
 }
 
+/// `POD_WORMHOLE_TEST_MQTT=required`: a skip of Mosquitto is a failure.
+fn mosquitto_required() -> bool {
+    std::env::var("POD_WORMHOLE_TEST_MQTT").is_ok_and(|v| v == "required")
+}
+
 impl Mosquitto {
     /// The broker; `None` when this host has none.
     pub fn start(tag: &str) -> Option<Mosquitto> {
@@ -198,7 +204,7 @@ impl Mosquitto {
         }
         let Some(program) = program() else {
             let why = "no Mosquitto here (install mosquitto, or set POD_WORMHOLE_TEST_BROKER)";
-            assert!(!required(), "POD_WORMHOLE_TEST_SERVER=required: {why}");
+            assert!(!mosquitto_required(), "POD_WORMHOLE_TEST_MQTT=required: {why}");
             eprintln!("did not run: {why}");
             return None;
         };

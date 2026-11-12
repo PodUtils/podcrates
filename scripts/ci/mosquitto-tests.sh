@@ -2,7 +2,7 @@
 # The MQTT meeting point of pod-wormhole against Eclipse Mosquitto (T-261):
 # the image that images/mosquitto/Dockerfile pins to a digest, with the
 # listener of images/mosquitto/mosquitto.conf (MQTT over a WebSocket),
-# published on 127.0.0.1 alone. POD_WORMHOLE_TEST_SERVER=required makes a
+# published on 127.0.0.1 alone. POD_WORMHOLE_TEST_MQTT=required makes a
 # skip a failure, and the run must say that Mosquitto paired two ends, so
 # the check cannot pass by a skip. It needs docker.
 set -eu
@@ -31,7 +31,7 @@ while True:
             sys.exit("mosquitto-tests: Mosquitto did not listen within 60 s")
         time.sleep(0.5)
 EOF
-out=$(POD_WORMHOLE_TEST_SERVER=required POD_WORMHOLE_TEST_BROKER="ws://127.0.0.1:$port/mqtt" \
+out=$(POD_WORMHOLE_TEST_MQTT=required POD_WORMHOLE_TEST_BROKER="ws://127.0.0.1:$port/mqtt" \
     cargo test --locked -p pod-wormhole --test broker -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
 printf '%s\n' "$out"
 if ! printf '%s\n' "$out" | grep -q '^Eclipse Mosquitto: two ends paired'; then

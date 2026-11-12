@@ -181,7 +181,7 @@ runs the MQTT meeting point over a stand-in broker in Rust
 websockets` listener: the broker of `POD_WORMHOLE_TEST_BROKER`
 (`ws://127.0.0.1:PORT/mqtt`, as `ci.yml` runs the pinned image of
 `images/mosquitto/`), else `POD_WORMHOLE_TEST_MOSQUITTO`, `mosquitto` or
-`/usr/sbin/mosquitto` on a free port; `POD_WORMHOLE_TEST_SERVER=required`
+`/usr/sbin/mosquitto` on a free port; `POD_WORMHOLE_TEST_MQTT=required`
 makes a skip a failure. `tests/live.rs` is `#[ignore]`: two ends meet at
 each public mailbox and pair at each public broker of `pod-services`
 (`live.yml`).
