@@ -24,6 +24,18 @@ enum Part {
     Expr(Expr, usize),
 }
 
+/// One part of a [`Template`], in the order of the text: what a caller
+/// needs to write the template in another form (the runner's `format`
+/// token; PodUtils/podrunner@T-089).
+#[derive(Clone, Copy, Debug)]
+pub enum TemplatePart<'a> {
+    /// A literal text.
+    Text(&'a str),
+    /// An expression ([`Expr::text`] gives its text), and the index of its
+    /// first character in the text of the template.
+    Expr(&'a Expr, usize),
+}
+
 /// A text with `${{ }}` parts.
 #[derive(Clone, Debug)]
 pub struct Template {
@@ -87,6 +99,15 @@ impl Template {
             [Part::Expr(e, _)] => Some(e),
             _ => None,
         }
+    }
+
+    /// Each part, the literal texts and the expressions, in the order of
+    /// the text. Two literal texts are never next to each other.
+    pub fn parts(&self) -> impl Iterator<Item = TemplatePart<'_>> {
+        self.parts.iter().map(|p| match p {
+            Part::Text(t) => TemplatePart::Text(t),
+            Part::Expr(e, at) => TemplatePart::Expr(e, *at),
+        })
     }
 
     /// Each expression part.

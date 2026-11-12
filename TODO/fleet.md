@@ -1481,3 +1481,45 @@ cargo test -p pod-actions-workflow --all-features
   `Workflow` and over `Arc<Workflow>` (each of the last two
   `Send + 'static`) gives the same jobs. `cargo test -p
   pod-actions-workflow --all-features`: 42 passed; clippy is clean.
+
+# T-322: `pod-actions-expr`: a public view of the parts of a `Template` (podrunner's ask)
+
+**Source:** a direct message of the podrunner session, 2026-11-12, for PodUtils/podrunner@T-089 (`podrunner run FILE`).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner writes the runner's `format()` token of a template (the literal
+text with `{0}`, `{1}` and the expressions in order). `Template` keeps its
+parts private, so podrunner would need its own copy of the scan of
+`${{ }}`.
+
+## Premise
+
+- Read: `crates/pod-actions-expr/src/template.rs` (`Part`, `Template`).
+
+## Approach
+
+A public `TemplatePart` (`Text(&str)`, `Expr(&Expr, index)`) and
+`Template::parts()`, in the order of the text.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-expr --all-features
+```
+
+## Done
+
+2026-11-12. The commit that names T-322.
+
+- `TemplatePart::{Text, Expr}` and `Template::parts()`; two literal texts
+  are never next to each other; the index of an expression points at its
+  text (`Expr::text`) in the template.
+- Test `a_template_gives_its_parts_in_order` (an expression with `}}` in a
+  string literal among them). `cargo test -p pod-actions-expr
+  --all-features`: 46 passed; clippy is clean.

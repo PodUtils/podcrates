@@ -1,7 +1,7 @@
 //! Templates (`${{ }}` in a text) and the condition of an `if:`, as the
 //! runner's template reader makes them.
 
-use pod_actions_expr::{Condition, Contexts, ErrorKind, Status, Template, Value};
+use pod_actions_expr::{Condition, Contexts, ErrorKind, Status, Template, TemplatePart, Value};
 
 fn contexts() -> Contexts {
     let mut c = Contexts::new();
@@ -144,4 +144,36 @@ fn a_condition_names_its_contexts() {
     c.status = FAILED;
     let e = Condition::parse("inputs.y").unwrap().evaluate(&c).unwrap_err();
     assert_eq!(e.kind, ErrorKind::UnknownContext("inputs".into()));
+}
+
+/// The parts of a template in the order of the text, for a caller that
+/// writes it in another form (podrunner's `format` token).
+#[test]
+fn a_template_gives_its_parts_in_order() {
+    let text = "a ${{ github.ref }} b ${{ format('{0}}', 'x') }}";
+    let t = Template::parse(text).unwrap();
+    let parts: Vec<String> = t
+        .parts()
+        .map(|p| match p {
+            TemplatePart::Text(s) => format!("text {s:?}"),
+            TemplatePart::Expr(e, at) => format!("expr {:?} at {at}", e.text().trim()),
+        })
+        .collect();
+    assert_eq!(
+        parts,
+        [
+            "text \"a \"".to_string(),
+            "expr \"github.ref\" at 5".to_string(),
+            "text \" b \"".to_string(),
+            format!("expr {:?} at 25", "format('{0}}', 'x')"),
+        ]
+    );
+    // Each index points at the text of its expression.
+    for p in t.parts() {
+        if let TemplatePart::Expr(e, at) = p {
+            assert!(text[at..].starts_with(e.text()), "{at}");
+        }
+    }
+    assert_eq!(Template::parse("plain").unwrap().parts().count(), 1);
+    assert_eq!(Template::parse("").unwrap().parts().count(), 0);
 }

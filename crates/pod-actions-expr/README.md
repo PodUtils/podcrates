@@ -38,7 +38,7 @@ expr.contexts();                 // ["github"]
 | --- | --- |
 | `Value`, `Object` | null, boolean, number (a double), string, array, object; an object keeps the order of its keys and reads a key with no regard to case. `is_truthy`, `to_number`, `to_text`, `loose_eq`, `loose_lt`, `loose_gt`, `to_json` (the form of `toJSON`), `to_json_line`, `from_json` (the reader of `fromJSON`) |
 | `Expr` | `parse`, `evaluate`, `contexts` (each named value), `functions`, `has_status_function`, `check_contexts`, `as_string` |
-| `Template`, `has_expression`, `OPEN` | a text with `${{ }}` parts: `parse`, `evaluate`, `as_expression`, `expressions`, `is_literal`, `check_contexts` |
+| `Template`, `TemplatePart`, `has_expression`, `OPEN` | a text with `${{ }}` parts: `parse`, `evaluate`, `as_expression`, `expressions`, `parts` (each literal text and each expression with its index, in order; T-322), `is_literal`, `check_contexts` |
 | `Condition` | an `if:`: `parse`, `evaluate`, `text` (with the implicit `success() &&`), `is_implicit`, `contexts` |
 | `Contexts` | the named values of the caller (`insert`, `get`, `remove`, `names`), with `status` and `limits` |
 | `Status` | the answers of `success()`, `failure()` and `cancelled()`; `always()` is true |

@@ -43,7 +43,7 @@ pub use eval::{Contexts, Limits, Status};
 pub use expr::Expr;
 pub use json::MAX_JSON_DEPTH;
 pub use parse::{MAX_DEPTH, MAX_LENGTH};
-pub use template::{Condition, OPEN, Template, has_expression};
+pub use template::{Condition, OPEN, Template, TemplatePart, has_expression};
 pub use value::{Object, Value};
 
 /// Parse `text` as one expression and evaluate it.
