@@ -1,0 +1,17 @@
+on: push
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [14, 16]
+        include:
+          - os: windows-latest
+            node: 16
+            npm: 6
+        exclude:
+          - os: ubuntu-latest
+            node: 14
+    steps:
+      - run: npm test

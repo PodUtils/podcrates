@@ -24,6 +24,8 @@ crates-io = false
 [workspace.dependencies]
 # No default feature here: a crate that needs the async parts of pod-core
 # (its feature `async`) names it, so that pod-tls builds with no tokio.
+pod-actions-expr = { path = "crates/pod-actions-expr", version = "0.29.0" }
+pod-actions-workflow = { path = "crates/pod-actions-workflow", version = "0.29.0" }
 pod-broker = { path = "crates/pod-broker", version = "0.29.0" }
 pod-confine = { path = "crates/pod-confine", version = "0.29.0" }
 pod-core = { path = "crates/pod-core", version = "0.29.0", default-features = false }
@@ -59,6 +61,10 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 # The data files of pod-services (its build.rs, and its overlay): a TOML
 # table and its values, with no writer.
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
+# The YAML 1.2 events of a workflow file (pod-actions-workflow, call C105):
+# pure Rust with no unsafe code; the crate builds its own tree with the
+# lines, the order of the keys and the limits.
+saphyr-parser = "0.3.4"
 # The JSON form of DNS over HTTPS (pod-dns): a document read as a value,
 # with no derive.
 serde_json = "1"

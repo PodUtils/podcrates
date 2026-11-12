@@ -1,0 +1,1 @@
+fromJSON(env.list)[1] >= 2 || join(fromJSON('[1, true, null]'), '-')

@@ -48,6 +48,9 @@ pod-relay = { path = "../crates/pod-relay" }
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
 pod-job = { path = "../crates/pod-job" }
+# The expressions and the workflow files of GitHub Actions (T-251).
+pod-actions-expr = { path = "../crates/pod-actions-expr" }
+pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
 # The parsers of podvm (T-173). The feature `fuzzing` of pod-oci exposes
 # the parse of a challenge of a registry.
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
@@ -326,6 +329,20 @@ bench = false
 [[bin]]
 name = "relay_pool"
 path = "fuzz_targets/relay_pool.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "actions_expr"
+path = "fuzz_targets/actions_expr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "actions_workflow"
+path = "fuzz_targets/actions_workflow.rs"
 test = false
 doc = false
 bench = false

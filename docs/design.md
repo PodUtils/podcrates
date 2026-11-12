@@ -232,6 +232,8 @@ the egress broker is `pod-broker` (call C25).
 | `pod-unit` | hardened service units: systemd system and user units, launchd agents, Windows services; no secret in a unit; podssh `crates/podssh-cli/src/node_install/` (base), podnet `src/autostart.rs` | (T-102) | pod-core |
 | `pod-control` | one versioned JSON control API on a Unix socket or a Windows named pipe (`version`, `status`, `metrics`, `reload`, `drain`, `stop`), its client, its JSON Schema and a conformance test; new code, with the JSON of podnet `src/status.rs` and podssh `status` | (T-103) | pod-core |
 | `pod-job` | the records of the job of a CI runner (PodUtils/podrunner#17): the job offer, the unit capability, the run report and the public report, their ids and refusal codes, the `check` of each record, and their JSON Schemas in `schemas/`, generated from the types (Q-A8; call C50). Source: podrunner `crates/podrunner-schema` and `schemas/` at `9ab7fd3`; the credential (`secret.rs`) stays in podrunner | 1,500 | none |
+| `pod-actions-expr` | the expression language of GitHub Actions (`${{ }}`) for podrunner's local mode (T-251, PodUtils/podrunner@T-046, Q11): the lexer and the parser of the runner's grammar, the evaluator with GitHub's loose equality, coercion and case rules and the object filter, the functions, the templates and the implicit `success()` of an `if:`; the contexts and the status are the caller's; no I/O (`hashFiles` fails by name). New code from the documents of GitHub | 3,000 | none |
+| `pod-actions-workflow` | a workflow file into a typed model (T-251): the YAML of saphyr-parser into a tree with lines (call C105), the keys of the workflow schema, an unknown key kept as data with a warning, a reusable workflow named and not expanded; the expansion: the graph of `needs` (a missing need and a cycle by name), the matrix with `include` and `exclude`, the concrete jobs, each skip with its reason. New code from the documents of GitHub | 2,600 | pod-actions-expr |
 | `pod-release` | the release index: the schema, the writer for CI, the verifier (SHA-256, the Sigstore bundle of `SHA256SUMS`, minisign), the rollback data of an installer; podnet `src/update.rs` (the verify part), podssh `crates/podssh-cli/src/update/sigstore.rs` | (T-104) | pod-core, pod-proxy, pod-tls |
 
 `pod-todo` (an acceptance registry, T-105) and `pod-testkit` (the stand-ins
@@ -327,8 +329,7 @@ with a study entry, as M4 does.
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
 `pod-probe`; for podrunner (T-146): `pod-dockerapi` (phase 3),
-`pod-actions-proto`, `pod-actions-expr`, `pod-actions-exec` and
-`pod-actions-workflow` (the native runner and the local mode, Q11); the
+`pod-actions-proto` and `pod-actions-exec` (the native runner, Q11); the
 owner's name of 2026-11-11: `pod-mask` (T-180).
 
 Project names, each with the repository of its name under PodUtils

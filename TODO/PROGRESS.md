@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 270 entries: 62 open, 2 partial, 4 blocked, 202 done.
+`TODO/INDEX.md` holds 271 entries: 62 open, 2 partial, 4 blocked, 203 done.
 
 ## State
 
@@ -65,9 +65,9 @@ next entry.
 1. **The defects of the consumers:** none open.
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
    tracks the plan. Each new ask of the podrunner session becomes an
-   entry here, in the order of its need. T-251 (`pod-actions-expr`,
-   `pod-actions-workflow`) waits for its local mode
-   (PodUtils/podrunner@T-046).
+   entry here, in the order of its need. The next tag releases
+   `pod-actions-expr` and `pod-actions-workflow` (PodUtils/podrunner@T-046);
+   T-280 (their live run against GitHub) waits.
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
    (partial: the trial of podnet on `1abfa91`; its Done section lists
@@ -109,7 +109,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C104, C115 and C116; C78, C79 and C96 to C99 are not used; C105 to C114 are given to two agents), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C109, C115 and C116; C78, C79 and C96 to C99 are not used; C110 to C114 are given to the agent of the trial of T-026), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

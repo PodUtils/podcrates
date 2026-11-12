@@ -14,7 +14,7 @@ is done. Git and the record keep finished work.
    repository of PodUtils.
 2. Merge or continue the work of the two agents of this session (see "In
    flight"), then take the work order of `TODO/PROGRESS.md`. Its head
-   now: T-026, T-251, T-212. The next release (`v0.30.0`) carries
+   now: T-026, T-212. The next release (`v0.30.0`) carries
    T-276, T-277, T-267, T-251 and the trial of T-026.
 
 ## In flight
@@ -28,13 +28,13 @@ is done. Git and the record keep finished work.
   block of `pod-services`, which made `upstream.yml` red), and the gate of
   `crates/pod-oci/tests/live.rs` (the nightly at `66d7e96` did not build
   it on macOS and Windows; `nightly.yml` was dispatched at `0edd703`).
-- Two agents of this session work in worktrees under `.claude/worktrees/`
-  on local branches: T-251 (`pod-actions-expr`, `pod-actions-workflow`;
-  the ids 280 to 289 and the calls C105 to C109 are its own) and the trial
-  of T-026 on podnet `98d8a71` (the ids 290 to 299 and the calls C110 to
-  C114). A new
-  session finds their branches with `git worktree list`; it merges a
-  branch whose checks pass, or takes the work up from its commits.
+- T-251 is merged (`pod-actions-expr`, `pod-actions-workflow`; calls C105
+  to C109; T-280, their live run against GitHub, waits).
+- An agent of this session works in a worktree under `.claude/worktrees/`
+  on a local branch: the trial of T-026 on podnet `98d8a71` (the ids 290
+  to 299 and the calls C110 to C114). A new session finds its branch with
+  `git worktree list`; it merges the branch when its checks pass, or takes
+  the work up from its commits.
 - T-267 (`forward-url` proves the URL) is on `main`; the next run of
   `services.yml` proves the URLs of the four live relays.
 - T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
@@ -64,9 +64,8 @@ is done. Git and the record keep finished work.
   PodUtils/podssh@T-737 wires the MQTT meeting point (T-261, and T-277
   with the next tag); PodUtils/podssh#209 is T-276 (with the next tag); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.29.0`, `7cdd0d5`): T-251
-  (`pod-actions-workflow`, `pod-actions-expr` and the expansion of jobs,
-  for its local mode PodUtils/podrunner@T-046) is its one crate ask.
+- podrunner (on `v0.29.0`, `7cdd0d5`): its crate ask T-251 is on `main`
+  and goes with `v0.30.0` (PodUtils/podrunner@T-046).
 - podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
   T-300 to T-305 wait for podnet's start of each (the answer #88).
 - `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the

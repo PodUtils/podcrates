@@ -1,0 +1,9 @@
+on: push
+x-env: &env
+  A: 1
+jobs:
+  a:
+    runs-on: x
+    env: *env
+    steps:
+      - run: echo

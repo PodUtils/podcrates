@@ -1294,7 +1294,7 @@ job registers them (GitHub #1).
 **Milestone:** M8
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1354,3 +1354,82 @@ cargo test -p pod-actions-expr -p pod-actions-workflow
 
 podrunner asks for its local mode (PodUtils/podrunner@T-046): it asked on
 2026-11-12.
+
+## Done
+
+2026-11-12, commit `e555d0b` (the two crates, the fuzz targets, the
+static probe, calls C105 to C109, T-280) and the commit of this section.
+
+- `crates/pod-actions-expr`, no dependency: `Expr` (`parse`, `evaluate`,
+  `contexts`, `functions`, `has_status_function`), `Template` (a text with
+  `${{ }}` parts: one expression keeps its kind, text around gives a
+  string), `Condition` (an `if:` with its implicit `success() &&`, and the
+  `${{ }}` pitfall), `Value` and `Object` (the coercion, the loose
+  equality and order, `toJSON` and `fromJSON`), `Contexts` with `Status`
+  and `Limits`, `Error` by name. The README has the conformance list: each
+  rule of GitHub with its tests.
+- `crates/pod-actions-workflow` on saphyr-parser 0.3.4 (C105): `parse`
+  (the model of the ask; an unknown key in `extra` with a `Warning`; a
+  reusable workflow named, not expanded; each template and `if:` must
+  parse), `Graph` (order, edges, needs, ancestors; a missing need and a
+  cycle by name), `Run` (`ready`, `expand`, `finish`, `cancel`) and `plan`
+  (a dry run): the concrete jobs of each matrix with `include` and
+  `exclude` (also from `fromJSON` of an output), `runs-on`, the name,
+  `timeout-minutes`, `continue-on-error`, the `strategy` context, and each
+  skip with its condition and the results before it (C107, C108).
+- `cargo test -p pod-actions-expr -p pod-actions-workflow --all-features`:
+  86 passed (45 and 41; each test file of the operator, coercion,
+  function, filter and matrix examples of the documents). clippy of the
+  two crates with `-D warnings`: 0. `cargo todo check`: 0.
+  `scripts/check-size.py`, `scripts/check-design-paths.py`,
+  `scripts/check-probe.py --no-tree`: 0 faults.
+- The fuzz targets `actions_expr` and `actions_workflow` (`fuzz/`): their
+  bodies ran on their seeds and on 300,000 mutations each, with no panic,
+  in a scratch crate; the probe function of `examples/static-probe` ran
+  there too. The build of the fuzz workspace and of the static probe
+  waits for CI: the disk of the session had less than 10 GB free.
+- Not covered: the expansion of a reusable workflow and its
+  `workflow_call` inputs, the evaluation of `env`, `container`,
+  `services`, `concurrency` and `environment` of a job (kept as nodes for
+  the runner), the step level (the runner's), a run against GitHub
+  (T-280).
+
+# T-280: `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors
+
+**Source:** T-251 (its Premise: the conformance against the official runner is not measured); calls C107 and C108
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The two crates follow the documents of GitHub and the code of
+`actions/runner`, but no run on GitHub compared their answers. The README
+of `pod-actions-expr` lists the known differences (strict JSON in
+`fromJSON`, the fold of a character with a two-character upper case, the
+sum of the memory limit, the escapes of `toJSON`). Calls C107 and C108
+are not measured: the status functions of a job over its ancestors, the
+match of a matrix value with case, the default `max-parallel`, the name of
+a matrix job whose `name` does not read `matrix`.
+
+## Premise
+
+- Read: the conformance table of `crates/pod-actions-expr/README.md`, the
+  rules of `crates/pod-actions-workflow/README.md`, calls C107 to C109.
+- Not measured: each line of the tables against GitHub.
+
+## Approach
+
+A workflow of `live.yml` (or its own, by hand) that runs the expression
+vectors of the tests of `pod-actions-expr` in a job (`echo` of
+`toJSON(...)` of each one) and a set of matrix and needs examples; a step
+then runs a test binary of podcrates on the same vectors and compares. A
+difference becomes a defect entry or a line of the known differences.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-expr -p pod-actions-workflow
+```

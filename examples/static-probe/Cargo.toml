@@ -10,6 +10,8 @@ publish = false
 
 # Each crate of the workspace, with each feature (docs/design.md, section 7).
 [dependencies]
+pod-actions-expr = { workspace = true }
+pod-actions-workflow = { workspace = true }
 pod-broker = { workspace = true }
 pod-confine = { workspace = true }
 pod-core = { workspace = true }

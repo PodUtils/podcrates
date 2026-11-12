@@ -32,7 +32,7 @@ the dependencies of each crate.
 | M4 | `pod-derp`, `pod-piping`, `pod-opentunnel`, `pod-acme`, `pod-egress`, `pod-relay-serve`, `pod-iroh`, `pod-tor`, `pod-ts`, `pod-gsr` (exists) |
 | M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci` (exists), `pod-extract` (exists), `pod-rootfs` (exists), `pod-enter` (exists) |
 | M7 | `pod-hold` (exists), `pod-incus` (exists), `pod-microvm`, `pod-sud`, `pod-confine` (exists), `pod-netlab`, `pod-pcap`, `pod-sandprobe` |
-| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-unit`, `pod-control`, `pod-release` |
+| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-actions-expr` (exists), `pod-actions-workflow` (exists), `pod-unit`, `pod-control`, `pod-release` |
 
 ## Documents
 

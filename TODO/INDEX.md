@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**270 entries: 62 open, 2 partial, 4 blocked, 202 done.**
+**271 entries: 62 open, 2 partial, 4 blocked, 203 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 1 | 0 | 54 | 67 |
 | P2 | 25 | 1 | 4 | 105 | 135 |
-| P3 | 25 | 0 | 0 | 41 | 66 |
-| **All** | 62 | 2 | 4 | 202 | 270 |
+| P3 | 25 | 0 | 0 | 42 | 67 |
+| **All** | 62 | 2 | 4 | 203 | 271 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -289,7 +289,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-245](relay.md) | P2 | S | M2 | defect | done | `pod-ws`, `pod-relay`: the `Host` of an HTTPS request to an IPv6 relay on port 443 has no brackets |
 | [T-246](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: two relay hosts can have one name of a cache file |
 | [T-250](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: the test of a payload that kills its launcher raced the launcher's word of the start |
-| [T-251](fleet.md) | P3 | L | M8 | feature | open | `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84) |
+| [T-251](fleet.md) | P3 | L | M8 | feature | done | `pod-actions-expr` and `pod-actions-workflow`: the expressions and the workflow files of GitHub Actions, for podrunner's local mode (GitHub #84) |
 | [T-252](transport.md) | P3 | S | M1 | chore | done | podnet's change of `src/doctor.rs` for the lanes of A-C-10 (PodUtils/podnet#462) |
 | [T-253](transport.md) | P2 | S | M1 | feature | done | `pod-services`: a watch of the relay contract that `pod-relay` implements (PodUtils/podnet#463) |
 | [T-254](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the npm archive of workerd for podvm's profile workerd-test (PodUtils/podvm#274) |
@@ -310,6 +310,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-277](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the runs of a code meet at the MQTT brokers after the mailboxes (PodUtils/podssh#210) |
 | [T-278](transport.md) | P3 | S | M1 | feature | open | `pod-identity`: a display form of a fingerprint: base32 in five groups with a checksum of 4 bytes (PodUtils/podnet#479) |
 | [T-279](relay.md) | P3 | S | M2 | feature | open | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
+| [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-300](relay.md) | P3 | L | M2 | feature | open | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |

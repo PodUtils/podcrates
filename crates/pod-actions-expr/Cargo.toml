@@ -1,0 +1,12 @@
+[package]
+name = "pod-actions-expr"
+description = "The expression language of GitHub Actions: a parser and an evaluator of ${{ }} with the coercion and the case rules of GitHub, its functions, the templates and the implicit success() of an if, with no I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# No dependency: the lexer, the parser, the evaluator and the JSON of
+# toJSON and fromJSON are in the crate.
+[dependencies]
