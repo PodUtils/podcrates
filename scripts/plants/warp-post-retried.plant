@@ -1,0 +1,7 @@
+# A POST /reg that the service answered with a 5xx goes to the second base
+# of the API, and may make a second device (PodUtils/podnet@T-241); the
+# test of the final answer must fail.
+ENTRY=T-028
+GROUP=warp
+EXPECT='test a_503_on_the_post_is_not_sent_to_the_second_host \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test register -- a_503_on_the_post_is_not_sent_to_the_second_host'

@@ -1,0 +1,6 @@
+# An identity file of another user is read with no consent of the caller
+# (PodUtils/podnet#413, ask 9); the test of the foreign owner must fail.
+ENTRY=T-028
+GROUP=warp
+EXPECT='test files::tests::a_foreign_owner_is_a_config_error \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- files::tests::a_foreign_owner_is_a_config_error'

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/files.rs b/crates/pod-warp/src/files.rs
+index 5570b35..c2b5005 100644
+--- a/crates/pod-warp/src/files.rs
++++ b/crates/pod-warp/src/files.rs
+@@ -68,7 +68,7 @@ pub(crate) fn check_private_as(path: &Path, uid: u32, foreign: Foreign) -> Resul
+         return Err(directory(path));
+     }
+     let other = meta.uid() != uid;
+-    if other && foreign == Foreign::Refuse {
++    if other && foreign == Foreign::Allow {
+         let text = format!(
+             "{} belongs to user {}, not to this user ({uid}); it is not used. Run as that user, or give an identity file of this user",
+             path.display(),

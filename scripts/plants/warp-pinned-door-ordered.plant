@@ -1,0 +1,6 @@
+# A pinned door goes before the doors of the record in place of alone
+# (PodUtils/podnet#413, ask 10); the test of the pinned door must fail.
+ENTRY=T-028
+GROUP=warp
+EXPECT='test door::tests::a_pinned_door_skips_the_order \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- door::tests::a_pinned_door_skips_the_order'

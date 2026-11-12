@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/api.rs b/crates/pod-warp/src/api.rs
+index a49fc73..0bdc499 100644
+--- a/crates/pod-warp/src/api.rs
++++ b/crates/pod-warp/src/api.rs
+@@ -125,7 +125,7 @@ impl Api {
+             attempt.url = format!("{base}{path}");
+             let last = i + 1 == count;
+             match self.client.send(attempt).await {
+-                Ok(response) if response.status < 500 || last || request.method == "POST" => return Ok(response),
++                Ok(response) if response.status < 500 || last => return Ok(response),
+                 Ok(response) => failures.push(format!("{base}: HTTP {}", response.status)),
+                 Err(err) if last => {
+                     let text = if failures.is_empty() {
