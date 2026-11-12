@@ -3909,7 +3909,7 @@ suite passes. The live watches: 2 hold (`oci-ping`, `oci-digest`).
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3969,3 +3969,40 @@ cargo test -p pod-services -p pod-services-watch --all-features
 cargo run -q -p pod-services-watch -- --service tox-tcp-relay
 sh scripts/plant-each.sh --apply
 ```
+
+## Done
+
+2026-11-12. `f49e0c0` (the entry) and `09eb44c` (the work).
+
+- `crates/pod-services/services/tox-tcp-relay.toml`: kind `tcp-relay`,
+  five endpoints in the order of their keys (C83): `node-197f7466`
+  (119.59.101.63), `node-3091c6be` (205.185.115.131), `node-96b66d30`
+  (188.245.84.166), `node-da2bd927` (172.104.215.182), `node-f76a1128`
+  (139.162.110.188), each scheme `tcp`, port 443; five facts
+  `public-key-node-KEY8` (64 hex digits). Each source is the list, read on
+  2026-11-12.
+- `http-json` takes the form `key` (`key`, `fact-prefix`, `member`,
+  `port-member`, `true-members`) in
+  `crates/pod-services-watch/src/http.rs`; a host compares as an IP
+  address in its one text form; `args::Args::opt_texts` is new. The
+  READMEs of both crates name the form, the service and
+  `crates/pod-services/tests/tox.rs`.
+- `cargo test -p pod-services -p pod-services-watch --all-features`:
+  each suite passes (`tests/tox.rs` 3, `tests/watches` 37 with the two
+  new tests of the form). `cargo clippy -p pod-services -p
+  pod-services-watch --all-targets --all-features -- -D warnings` and
+  `cargo fmt --all --check` pass.
+- The live watch, `cargo run -q -p pod-services-watch -- --service
+  tox-tcp-relay`: `holds tox-tcp-relay http-json: 5 endpoints at /nodes of
+  https://nodes.tox.chat/json; 5 of 28 items with tcp_ports 443 and
+  status_tcp true, 0 of them not in the file`. With `--file` of a copy
+  whose first key and second host are changed, it gives two `MOVED`
+  lines (no item with the key; the host is `ipv4 "205.185.115.131"`) and
+  exits 1.
+- The plants `scripts/plants/services-json-items-key-not-compared.plant`
+  and `scripts/plants/services-json-items-flag-dropped.plant` are caught
+  (exit 101: their tests fail), each run as `scripts/plant-each.sh` runs
+  it, with the target directory of the session.
+  `sh scripts/plant-each.sh --apply`: 0 stale.
+- Not measured: a TCP connect or a handshake to a relay. The watch trusts
+  the list's `status_tcp`.
