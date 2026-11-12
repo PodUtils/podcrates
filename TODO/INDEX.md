@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**320 entries: 87 open, 5 partial, 5 blocked, 223 done.**
+**320 entries: 85 open, 5 partial, 5 blocked, 225 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 2 | 0 | 64 | 83 |
 | P2 | 36 | 1 | 5 | 112 | 154 |
-| P3 | 34 | 2 | 0 | 45 | 81 |
-| **All** | 87 | 5 | 5 | 223 | 320 |
+| P3 | 32 | 2 | 0 | 47 | 81 |
+| **All** | 85 | 5 | 5 | 225 | 320 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -363,7 +363,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-372](transport.md) | P2 | S | M1 | feature | done | `pod-services`: `github-ssh` names SSH over port 443 (GitHub #95) |
 | [T-373](transport.md) | P2 | S | M1 | feature | done | `pod-services`: Sandhole's remote port as a fact, and `Relay::remote_port` (GitHub #97) |
 | [T-374](transport.md) | P1 | S | M1 | defect | done | `pod-services`: Serveo's tunnels are under `serveousercontent.com`; the anonymous login (GitHub #98) |
-| [T-375](transport.md) | P3 | S | M1 | feature | open | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
-| [T-376](transport.md) | P3 | S | M1 | feature | open | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
+| [T-375](transport.md) | P3 | S | M1 | feature | done | `pod-services`: `tuns-sh`, the hosted SSH tunnel of pico.sh, as data (GitHub #99) |
+| [T-376](transport.md) | P3 | S | M1 | feature | done | `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96) |
 | [T-377](transport.md) | P2 | L | M1 | feature | open | `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100) |
 | [T-378](transport.md) | P2 | L | M1 | feature | open | `pod-devtunnel`: a client of Microsoft Dev Tunnels: the management API and the relay (GitHub #94) |

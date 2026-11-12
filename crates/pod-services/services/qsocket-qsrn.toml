@@ -1,0 +1,41 @@
+# The QSRN relay of QSocket: two ends meet by a secret qs://NAME (T-376,
+# GitHub #96). A candidate: no path both ways is proven, and no consumer
+# reads the kind. No rank.
+id = "qsocket-qsrn"
+kind = "qsr-relay"
+party = "QSocket (qsocket/qsocket)"
+about = "The QSRN relay of QSocket: two ends meet by a secret, over TLS on 443; a candidate with no proven path both ways"
+
+[[endpoint]]
+name = "relay"
+scheme = "tls"
+host = "relay.qsocket.io"
+port = 443
+source = { url = "https://github.com/qsocket/qsocket/blob/f0dbbf7ed78dc6c59917e492b29c69d2106cd1f4/README.md", read = 2026-11-12, note = "--relay-server=IP:PORT  Custom QSRN relay server address. (default:relay.qsocket.io); --[no-]tls (default:true); port 443 measured by the reporter of GitHub #96" }
+
+[[fact]]
+name = "secret-scheme"
+value = "qs://"
+source = { url = "https://github.com/qsocket/qsocket/blob/f0dbbf7ed78dc6c59917e492b29c69d2106cd1f4/README.md", read = 2026-11-12, note = "The qs:// scheme is mandatory for every secret" }
+
+[[fact]]
+name = "cipher"
+value = "TLS + SRP-AES-GCM-256-E2E (Prime: 4096)"
+source = { measured = "the banner of the client of QSocket (GitHub #96)", read = 2026-11-12 }
+
+[[fact]]
+name = "note"
+value = "Measured by the reporter of GitHub #96: the bytes of the client reached the server, and the output of the server's command did not come back to the client; the cause was not found. Treat the relay as no working path until a test both ways passes."
+source = { measured = "GitHub #96", read = 2026-11-12 }
+
+[[watch]]
+kind = "tls-name"
+endpoint = "relay"
+
+# The client's default relay is the endpoint. No rdap watch: .io has no
+# RDAP server in IANA's bootstrap.
+[[watch]]
+kind = "github-file"
+repo = "qsocket/qsocket"
+path = "README.md"
+endpoint = "relay"

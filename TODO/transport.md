@@ -5214,7 +5214,7 @@ SSH watches need a direct egress, and the next `services.yml` run proves
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5242,6 +5242,16 @@ cargo test -p pod-services --all-features
 cargo run -q -p pod-services-watch -- --service tuns-sh
 ```
 
+## Done
+
+2026-11-12. `services/tuns-sh.toml`: endpoint `ssh` (`tuns.sh:22`), facts
+`host-key-sha256` (computed here from the Ed25519 key of
+https://pico.sh/host-keys; it equals the issue's), `account-required`,
+`note`; watches `ssh-host-key` and `http-text` of https://pico.sh/tuns
+(holds here). No URL rule: `tuns-sh` joins `NOT_FORWARD` of
+`tests/forward.rs` with its reason; the README rows.
+
+
 # T-376: `pod-services`: QSocket's relay and Portal's public relays as candidates, with their measured limits (GitHub #96)
 
 **Source:** GitHub #96.
@@ -5249,7 +5259,7 @@ cargo run -q -p pod-services-watch -- --service tuns-sh
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5276,6 +5286,19 @@ the measured limit, and no `[rank]`. No consumer selects either kind.
 cargo test -p pod-services --all-features
 cargo run -q -p pod-services-watch -- --service qsocket-qsrn --service gosuda-portal
 ```
+
+## Done
+
+2026-11-12. `services/qsocket-qsrn.toml` (kind `qsr-relay`; endpoint `relay`
+from QSocket's README at `f0dbbf7`, MIT; facts `secret-scheme`, `cipher`,
+`note`; watches `tls-name` and `github-file`; no `rdap`, against the
+issue's plan: `.io` has no RDAP server) and `services/gosuda-portal.toml`
+(kind `portal-relay`; endpoints `gosunuts` and `dawnfullstack` from the
+project's `registry.json` at `88d6457`; facts `identity`, `note`; watches
+`http-status` of each root, one `github-file` for each endpoint (the kind
+takes no `role`), `rdap` of `gosunuts.xyz`). No rank. The run here: 7 hold.
+The README rows.
+
 
 # T-377: `pod-turn`: a TURN client (RFC 8656) over UDP and TLS, on the STUN codec moved out of `pod-proxy` (GitHub #100)
 

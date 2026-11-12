@@ -235,6 +235,9 @@ let relay = services.of_kind("relay").next();
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match` (`.serveousercontent.com`), `url-skip`, `auth` (`publickey`, `keyboard-interactive`: an anonymous session answers it empty), `note` (the private alias), `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
+| `tuns-sh` | `ssh-tunnel` | `ssh` (`tuns.sh:22`) | `host-key-sha256`, `account-required` (true), `note` (the URL form `{user}-NAME.tuns.sh`); no URL rule: data alone (T-375) |
+| `qsocket-qsrn` | `qsr-relay` | `relay` (`relay.qsocket.io:443`, TLS) | `secret-scheme` (`qs://`), `cipher`, `note` (a candidate: no path both ways proven); no rank (T-376) |
+| `gosuda-portal` | `portal-relay` | `gosunuts`, `dawnfullstack` (role `relay`) | `identity`, `note` (a candidate: the public URL of a lease failed TLS); no rank (T-376) |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
 | `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `remote-port` (80: port 0 is refused), `host-key-sha256`, `tunnel-zone` |
 | `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
@@ -299,8 +302,10 @@ source states is not in the file.
 | `sandhole` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.demo.sandhole.com.br` | | | |
 
 `ssh-j` is of the kind `ssh-tunnel` too, but it gives no URL (a jump and
-a forward by name): it has none of these facts. `tests/forward.rs` holds
-each service of the kind to one of the two lists.
+a forward by name): it has none of these facts. `tuns-sh` gives a URL, but
+no banner of it was read and a session needs an account: it has no URL
+rule either (T-375). `tests/forward.rs` holds each service of the kind to
+one of the two lists.
 
 Each relay has a watch `forward-url` on its first endpoint to try: a
 session as podnet opens one, and its banner through `forward::Banner`

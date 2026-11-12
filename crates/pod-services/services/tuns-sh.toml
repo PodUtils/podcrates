@@ -1,0 +1,39 @@
+# The hosted SSH tunnel of pico.sh on the sish server (T-375, GitHub #99):
+# data alone. A session needs a pico.sh account, and no URL of a banner was
+# read: no url-match, so no consumer takes it as a forward relay.
+id = "tuns-sh"
+kind = "ssh-tunnel"
+party = "pico.sh"
+about = "The hosted SSH tunnel of pico.sh (sish): HTTPS, WSS and TCP tunnels for a pico.sh account"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "tuns.sh"
+port = 22
+source = { url = "https://pico.sh/tuns", read = 2026-11-12, note = "ssh -R dev:80:localhost:3000 tuns.sh gives https://{user}-dev.tuns.sh" }
+
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:DCOhxF0YDQoIsNONS164OHPrKzJTpEdiRr57YCyuxio"
+source = { url = "https://pico.sh/host-keys", read = 2026-11-12, note = "tuns.sh ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMiaQvp2pHxvQFzYYkv4+MIsP2Kh47gL00IZD/tLOMqy; the fingerprint is SHA-256 of that key, computed here" }
+
+[[fact]]
+name = "account-required"
+value = true
+source = { url = "https://pico.sh/tuns", read = 2026-11-12, note = "the name of a tunnel takes the pico.sh user name as its prefix: {user}-{name}.tuns.sh" }
+
+[[fact]]
+name = "note"
+value = "The URL of a tunnel is https://{user}-NAME.tuns.sh, with the pico.sh user name, not the SSH login, as its prefix. The regions ash.tuns.sh and nue.tuns.sh are not recorded: their host keys were not read."
+source = { url = "https://pico.sh/tuns", read = 2026-11-12 }
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"
+
+[[watch]]
+kind = "http-text"
+url = "https://pico.sh/tuns"
+contains = "https://{user}-dev.tuns.sh"

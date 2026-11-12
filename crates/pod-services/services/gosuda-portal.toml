@@ -1,0 +1,62 @@
+# The public relays of Portal (gosuda/portal-tunnel) (T-376, GitHub #96).
+# A candidate: a lease registered, and its public URL failed TLS from two
+# places. No consumer reads the kind. No rank.
+id = "gosuda-portal"
+kind = "portal-relay"
+party = "gosuda (gosuda/portal-tunnel)"
+about = "The public relays of Portal; a candidate whose public lease URL failed TLS"
+
+[[endpoint]]
+name = "gosunuts"
+role = "relay"
+scheme = "https"
+host = "gosunuts.xyz"
+port = 443
+source = { url = "https://github.com/gosuda/portal-tunnel/blob/88d645739fdb59c7f19ce583db42d27b9ca6a3be/registry.json", read = 2026-11-12, note = "relays: https://gosunuts.xyz/, ...; the root answered HTTP 200 here" }
+
+[[endpoint]]
+name = "dawnfullstack"
+role = "relay"
+scheme = "https"
+host = "portal.dawnfullstack.com"
+port = 443
+source = { url = "https://github.com/gosuda/portal-tunnel/blob/88d645739fdb59c7f19ce583db42d27b9ca6a3be/registry.json", read = 2026-11-12, note = "relays: ..., https://portal.dawnfullstack.com/, ...; the root answered HTTP 200 here" }
+
+[[fact]]
+name = "identity"
+value = "secp256k1 key and SIWE challenge"
+source = { measured = "the reporter's lease of GitHub #96", read = 2026-11-12 }
+
+[[fact]]
+name = "note"
+value = "Measured by the reporter of GitHub #96: a lease registered and two relays reported ready; the public URL of the lease failed TLS from two places. Treat the relays as no working path until a lease serves."
+source = { measured = "GitHub #96", read = 2026-11-12 }
+
+[[watch]]
+kind = "http-status"
+endpoint = "gosunuts"
+path = "/"
+status = 200
+
+[[watch]]
+kind = "http-status"
+endpoint = "dawnfullstack"
+path = "/"
+status = 200
+
+# The registry of the project names both relays.
+[[watch]]
+kind = "github-file"
+repo = "gosuda/portal-tunnel"
+path = "registry.json"
+endpoint = "gosunuts"
+
+[[watch]]
+kind = "github-file"
+repo = "gosuda/portal-tunnel"
+path = "registry.json"
+endpoint = "dawnfullstack"
+
+[[watch]]
+kind = "rdap"
+domain = "gosunuts.xyz"

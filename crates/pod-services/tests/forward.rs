@@ -10,9 +10,11 @@ use pod_services::{Origin, Service, Value};
 
 /// The forward relays.
 const FORWARD: [&str; 4] = ["localhost-run", "pinggy", "sandhole", "serveo"];
-/// The services of the kind `ssh-tunnel` that publish no URL: `ssh-j` is a
-/// jump and a forward by name.
-const NOT_FORWARD: [&str; 1] = ["ssh-j"];
+/// The services of the kind `ssh-tunnel` that are no forward relay of the
+/// data: `ssh-j` publishes no URL (a jump and a forward by name); `tuns-sh`
+/// publishes one, but no banner of it was read, and a session needs an
+/// account (T-375).
+const NOT_FORWARD: [&str; 2] = ["ssh-j", "tuns-sh"];
 /// Each fact that `Relay` reads, and its type.
 const FACTS: [(&str, &str); 5] = [
     ("url-match", "texts"),
