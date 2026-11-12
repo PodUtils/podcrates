@@ -419,3 +419,45 @@ patch of `probe-lean-tokio` is made again against the manifest with
 `pod-wg` and `pod-confine`. The old patch gives `STALE probe-lean-tokio`
 and exit 1; the new one gives 0 stale. `plant-each.sh plants-stale
 probe-lean-tokio`: 2 caught.
+
+# T-243: Dependabot of 2026-11-12: trufflehog 3.99.8, toml 1.2.1, and foreign-types 0.5.0 declined (GitHub #79, #80, #81)
+
+**Source:** GitHub #79, #80, #81 (pull requests of Dependabot)
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Dependabot opened three pull requests against `14719eb`: the image of
+TruffleHog (`images/trufflehog/Dockerfile`, 3.99.7 to 3.99.8), `toml`
+(1.2.0 to 1.2.1, with `toml_datetime` and `serde_spanned`), and
+`foreign-types` (0.3.2 to 0.5.0). The ruling "Dependabot" applies each
+judged update as an own commit on `main` and closes the pull request.
+
+## Premise
+
+- Read: the diff of each pull request. Measured on 2026-11-12: the tag
+  `3.99.8` of `trufflesecurity/trufflehog` at Docker Hub is the index
+  `sha256:674b2f18…`, the digest of the pull request.
+- `foreign-types` 0.3.2 comes only from `openssl` 0.10.82 (`pod-gsr`),
+  which takes `foreign-types` 0.3: a 0.5.0 cannot replace it in the lock.
+
+## Approach
+
+Apply #79 and #80 as own commits; decline #81 with its reason; close the
+three pull requests with a link to the commit or the reason.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+## Done
+
+2026-11-12. `e738466` (trufflehog 3.99.8 by its digest) and `60903e7`
+(`toml` 1.2.1, `toml_datetime` 1.1.3, `serde_spanned` 1.1.3, in both
+locks). #81 declined: `openssl` 0.10 takes `foreign-types` 0.3.

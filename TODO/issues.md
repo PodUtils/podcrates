@@ -84,3 +84,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #76 | COORD-051: v0.25.0: the pod-netstack calls of podnet's router; pod-confine closes the scopes, UDP on request, MPTCP, io_uring and the root capabilities (to all) | closed (podrunner `02a1c0b`, podvm `763b7c6a`, podssh `f029594d`; podnet answered with PodUtils/podnet#457) | T-025, T-209, T-221, T-222 |
 | #77 | COORD-052: v0.26.0: the veth wire of the netns hold, the facts of the SSH forward relays, the time to the first step and the job images of pod-job (to all) | closed (podrunner `4284967`, podnet `f107766`, podssh `ff2f7bac`, podvm `483a1957`) | T-201, T-224, T-226, T-227, T-233 |
 | #78 | Docs: stale names and contradictions after the renames of 2026-11-12 (pods, podstat, podforge) | closed | T-242 |
+| #82 | cfb asks: tracker for the 36 asks of cfb owned by podcrates (from podcrates#35) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-113, T-114, T-115, T-116, T-117, T-118, T-119 |
+
+#79 to #81 are pull requests.

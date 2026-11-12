@@ -83,3 +83,7 @@
 76 issue closed
 77 issue closed
 78 issue closed
+79 pull closed
+80 pull closed
+81 pull closed
+82 issue open
