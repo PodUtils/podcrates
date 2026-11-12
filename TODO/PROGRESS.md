@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 260 entries: 58 open, 3 partial, 4 blocked, 195 done.
+`TODO/INDEX.md` holds 261 entries: 59 open, 3 partial, 4 blocked, 195 done.
 
 ## State
 
@@ -80,8 +80,8 @@ next entry.
    (PodUtils/podrunner@T-046).
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
-   (partial: the trial of podnet on `1abfa91`; its Done section lists
-   what the patch changes), then T-028 (`pod-warp`
+   (partial: the trial of podnet on `98d8a71` passed here; the words of
+   `plain-ws`, the release and podnet's take remain), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    (partial): the run of the trial `pod-hold-syn` in `adoption.yml`, the tag,
@@ -98,7 +98,8 @@ next entry.
 5. **M1, the transport:** T-200 (a Bare node whose WebSocket passes, for PodUtils/podssh@T-740); T-267 (a request through the tunnel proves the URL of each SSH forward relay); T-151 (the watch scripts that leave podssh and podnet); T-041 when a crate or a consumer needs
    it; then T-189, T-192, T-193 (the proposals of PodUtils/podnet#437 for
    `pod-proxy` and `pod-core`).
-6. **M2, the relay:** T-026 (partial: the trial of podnet), T-212; then T-204 (a random failure of
+6. **M2, the relay:** T-026 (partial: the words of `plain-ws`, the release), T-212; T-290 (the layer of
+   `pod-relay` as a feature); then T-204 (a random failure of
    `pod-session`); then
    T-124, T-121 (the asks of podnet); then T-197
    (`pod-netstack`).

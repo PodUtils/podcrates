@@ -1250,24 +1250,104 @@ committed, and no line of a `.run` ran.
 - Not measured: each step above; podnet's build on the crates of this
   tree.
 
+2026-11-12, partial: the trial of podnet passed on this host (step 1 of
+the list before). Commits `a176a93` (`pod-relay`: the notes of the opener
+are `Send`) and this record with adoption/podnet/pod-relay.patch, `.commit`
+and `.run`.
+
+- The commit of the trial: podnet's `main` at `98d8a71`
+  (`98d8a7126c1ca1d448ab35e4a485c690adb82b3e`, its take of `v0.29.0`).
+  `git diff 1abfa91 98d8a71` changes no file of the block of podnet in
+  `SOURCES` and no caller. The patch moves each tag from `v0.29.0` to
+  `v0.30.0`, as `pod-hold-syn.patch` moved them to the next release.
+- The patch (32 files): the 6 manifests, and `pod-relay` with `pair` and
+  `plain-ws` (C101); `PodUtils/podnet:src/ws_relay.rs` (353 lines, was 994) as the glue:
+  one `Context` of the process (`ws_relay::context()`: the way of
+  `trust::context()` and `egress::egress(None)`, the state directory as
+  the cache, `PODNET_RELAY_TOKEN` as `Settings::token` by `from_env`,
+  podnet's `Names`), `set` and `active` kept (C102), `Relay::{new, single,
+  from_env, url, urls, host, port, connect}` over `open` or
+  `open_on_loopback` and `stream::of`, `meter` over
+  `RelayBudget::meter_for`, `SESSION_BYTES` and `SESSION_AGE` of the
+  crate; `PodUtils/podnet:src/relay_pool.rs` and `PodUtils/podnet:src/relay_reverse/session.rs` removed;
+  `PodUtils/podnet:src/relay_reverse.rs` (532 lines, was 891) over `pair::{create, stop}`,
+  `reverse::run` with `LocalHandler` (a direct `pod_proxy::Dialer` over
+  `resolve::plain()`), `half_close: Some(HALF_CLOSE_IDLE)`, a stop at the
+  end of the pair, `detach::ready` at the line `online`, and a fault for
+  each `Exit`, and `operator::run` with `eof_idle: Some(EOF_IDLE)`; the
+  pair file `relay/pair-NAME.json` of the store (`PodUtils/podnet:src/relay_reverse/pairfile.rs`:
+  the checks and the exit codes 64, 69 and 78, the next pair over
+  `pair::newest`, the relay text of the file for the wire, C103); the
+  callers; the tests (`PodUtils/podnet:tests/relay_reverse.rs` keeps its six tests and its
+  fake relay, which now forwards the node's `ready` with its id; the
+  pairfile tests keep the exit codes; the dialer test takes a token of 8
+  characters or more); `PodUtils/podnet:scripts/layers-allow.txt` (two rows less),
+  `PodUtils/podnet:scripts/size-allow.txt` (two rows less), `PodUtils/podnet:scripts/check-layers.py`
+  (`relay_pool` out); `PodUtils/podnet:SECURITY.md`, `PodUtils/podnet:docs/protocol.md`, `PodUtils/podnet:docs/relay.md`,
+  `PodUtils/podnet:llms-full.txt` (`PodUtils/podnet:scripts/gen-llms.py`); the record of podnet (the remap
+  of the edited files, and each citation of a line of a removed or
+  rewritten file as "lines N at `COMMIT`" of the tree that it read).
+- The `.run` (22 steps), each run here in a working copy that equals the
+  patched checkout of `98d8a71` (`diff -r` with no difference but the
+  locks), with the manifests on the crates of this tree as
+  `scripts/adoption.sh` makes them: the remap and `podnet-todo check` (the
+  record agrees), `check-size.py` (0 faults), `check-layers.py` (0 faults),
+  the build, `cargo deny --locked check bans sources` (exit 0; warnings
+  only), the features `pair` and `plain-ws` in the tree, the removed files,
+  a grep for no definition of the moved items, clippy of the workspace with
+  `-D warnings`, `cargo test -p podnet --lib` (513 passed), the tests
+  `relay_reverse` (6) and `relay_listen` (2), the tests `exit_codes` and
+  `llms` of `cli` (17), `docs` and `api_surface` (16), the lock and the
+  build of `fuzz/`, rustfmt, `check-consumer-toolchains.py`, `cargo
+  zigbuild` for x86_64 musl, and `check-static.sh`: each passed.
+  `scripts/adoption.sh` itself and `adoption.yml` did not run here: the
+  disk of the session had no room for a second checkout and its build
+  (`adoption.yml` runs it at the push). No step needs root or the
+  network beyond crates.io.
+- `pod-relay` (`a176a93`): the future of `open`, `open_on_loopback` and
+  `forward_layer::client::Dialer::link` was not `Send`, as its notes were
+  `&mut dyn FnMut(&str)`; podnet's edge leg, its warp client and its relay
+  dialer spawn an open. The notes are `&mut (dyn FnMut(&str) + Send)`
+  (call C112). Test `the_open_of_a_session_can_run_in_a_spawned_task`: it
+  does not compile with the old type. `cargo test -p pod-relay
+  --all-features`: 386 passed, 19 ignored; clippy with all features:
+  clean.
+- Calls: C110 (the bound of `Relay::connect`), C111 (podnet's old pair
+  files are not read), C112 (the notes are `Send`).
+- Findings. (1) The defect of the crate above, repaired. (2) podnet's fake
+  relay gave the operator `{"type":"ready"}` with no id; the crate's
+  operator reads a `ready` with its id (`NodeOutbound::Ready`), as the
+  relay forwards the node's own text, so the session waited 20 s; the
+  patch repairs the fake. (3) podnet's behaviour that changes with the
+  base (C76): a node whose name another node holds exits 69 after 30 s
+  (`Settings::first_conflict`; podnet connected again for ever); a Close
+  `1008` with "token" no longer stops the node (the crate connects again;
+  a `401` or `403` to its upgrade stops it); a lost socket that served is
+  opened again at once, then with the crate's backoff; a forward session
+  takes the crate's roads (HTTP/2, the cleartext road last), its rank and
+  its record of failures, whose files go to podnet's state directory; a
+  bad pair name of `relay connect` exits 64. (4) The take adds 9 packages
+  to podnet's lock (`pod-relay`, `pod-session`, `pod-e2e`,
+  `pod-identity`, `snow`, `chacha20poly1305`, `x25519-dalek`, `wasip2`,
+  `wit-bindgen`): `pod-relay` needs the resumable layer and the
+  end-to-end channel, which podnet's plain mode does not use (T-290).
+  (5) podnet's T-200 (the reverse road on the alternate hosts) stays
+  blocked: `pair` asks the control host only, as no pool host was
+  measured to serve `/v1/*`.
+- Not measured: the trial in `adoption.yml`; the live relay through the
+  glue (the mint, the pool, a pair of `podnet relay pair`, a node and an
+  operator at `tcp.ssh.relay.ajam.dev`); the size of podnet's release
+  binary after the take.
+
 What remains, in order:
 
-1. The trial of podnet on `1abfa91` (T-234 is done:
-   `open::open_on_loopback`, an IPv6 relay host in brackets):
-   adoption/podnet/pod-relay.patch, `.commit` and `.run`, as the list
-   above says, with calls C101 to C103. The `.run`, as for
-   `pod-hold-syn`: the remap and the check of podnet's record,
-   `check-size.py`, `check-layers.py`, the build, `cargo deny --locked
-   check bans sources`, a grep for no definition of the moved items,
-   clippy of the workspace, `cargo test -p podnet --lib`, the tests
-   `relay_reverse`, `relay_listen` and the exit codes of `cli`, `docs`,
-   the lock of `fuzz/`, rustfmt, `check-consumer-toolchains.py`, the musl
-   build with `cargo zigbuild` and podnet's `check-static.sh`.
-2. After the trial: the words "a binary does not turn it on" of the
+1. After the trial: the words "a binary does not turn it on" of the
    feature `plain-ws` (the README, `crates/pod-relay/Cargo.toml`,
    `open.rs`, `reverse/wire.rs`) follow call C101.
-3. The release, and the take of podnet; the next trial of podssh (T-025)
-   and podvm's take of the facade see the changes of calls C75 and C80.
+2. The release, and the take of podnet (the hand-off gives the findings
+   above, the new pair file and the calls C110 to C112); the next trial of
+   podssh (T-025) and podvm's take of the facade see the changes of calls
+   C75, C80 and C112.
 
 # T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)
 
@@ -3497,3 +3577,56 @@ in a virtualenv and runs the tests of `pod-wormhole` and `pair_code` of
 `pod-relay` with `POD_WORMHOLE_TEST_SERVER=required`, each day. Run
 43153607165: 14 tests of `tests/mailbox.rs` against the server and the
 library, none skipped; 7 of `pair_code`.
+
+# T-290: `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them
+
+**Source:** T-026 (a finding of the trial of podnet)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-relay` depends on `pod-session` (the resumable layer), `pod-e2e`
+(the end-to-end channel, with `snow`) and `pod-identity` with no feature.
+podnet's relay client uses the forward road and the plain mode of the
+reverse road: no layer and no channel. Its take adds 9 packages to its
+lock (`pod-relay`, `pod-session`, `pod-e2e`, `pod-identity`, `snow`,
+`chacha20poly1305`, `x25519-dalek`, `wasip2`, `wit-bindgen`) and their
+code to its static binary.
+
+## Premise
+
+- Read: `crates/pod-relay/Cargo.toml`; the modules that name `pod_e2e`,
+  `pod_session` or `pod_identity`: `forward_layer/client.rs`,
+  `reverse/{e2e, layered, legs, spares, control, node, serve, routes, udp,
+  close_say}.rs`, `pair/{leg, once}.rs`, `pool/{signed, members, kept}.rs`,
+  `keyed.rs`, `cleartext.rs`, `settings.rs`, `grant/`, `code/`,
+  `blocking/`.
+- Measured in the trial of T-026: the lock of podnet with and without
+  the take (9 packages).
+- Not measured: the size of podnet's release binary with and without
+  them; which of the uses of `pod-identity` (the keys of a signed pool,
+  `keyed`) a plain client needs.
+
+## Approach
+
+1. Measure the size of the release binary of podnet with the take, and
+   with the code of the layer and the channel cut out by hand.
+2. When the gain is worth it: a feature `layer` (the resumable layer, the
+   end-to-end channel, the legs of one token, the spares), on in podssh's
+   and podvm's dependency, off in podnet's; the node's handlers and the
+   control frames of the layer behind it, the plain mode and the forward
+   road outside it.
+3. CI builds and tests the crate with `pair,plain-ws` alone, and with all
+   features.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --no-default-features --features pair,plain-ws
+cargo test -p pod-relay --all-features
+! cargo tree -p pod-relay --no-default-features --features pair -e normal -i snow
+```

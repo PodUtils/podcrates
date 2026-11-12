@@ -1,0 +1,42 @@
+# The trial of pod-relay in podnet (T-026; calls C101 to C103, C110 to C112). The
+# relay client of podnet goes over pod-relay with the features pair and
+# plain-ws: src/ws_relay.rs is the glue of the forward road (one Context of
+# the process, the relay of --transport relay as ws_relay::{set, active},
+# the budget of a stream), src/relay_pool.rs goes, and src/relay_reverse.rs
+# runs the node and the operator of the reverse road in its plain mode
+# (reverse::run with LocalHandler and the half close, operator::run with
+# eof_idle), with podnet's pair files (relay/pair-NAME.json), its exit codes
+# and its expiry lines. Each podcrates tag moves to v0.30.0. The record of
+# podnet, the size and the layers of the files, the build, the bans and the
+# sources of cargo-deny, the features of pod-relay in the tree, no copy of
+# the moved items left in podnet, clippy of the workspace, the tests of the
+# library (the glue, the pair files, the relay dialer through a stand-in
+# relay), the tests of the reverse road against podnet's fake relay (the
+# exit codes, the next pair at the expiry, relay stop, serve and git serve
+# through a node), relay connect --listen, the exit codes of the CLI, docs,
+# the fuzz targets with their lock, rustfmt, each Rust toolchain of the
+# workflows and build images against the rust-version of podcrates, and the
+# binary for x86_64 musl, built with zig (a debug build: the release profile
+# takes LTO), with podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet -e features -i pod-relay | grep -q 'pod-relay feature "pair"'
+cargo tree -q -p podnet -e features -i pod-relay | grep -q 'pod-relay feature "plain-ws"'
+test ! -e src/relay_pool.rs && test ! -e src/relay_reverse/session.rs
+! git grep -n -E "struct Minted|fn mint_at|fn websocket_at|enum Refusal|struct HostError|fn same_deployment|fn parse_pool|fn alternates_of|fn read_private_checked|fn valid_id|fn end_session|const SESSION_QUEUE|fn node_close|fn next_pair|const MINT_MARGIN" -- src crates
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test relay_reverse --test relay_listen
+cargo test -q -p podnet --test cli -- exit_codes llms
+cargo test -q -p podnet --test docs --test api_surface
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"
