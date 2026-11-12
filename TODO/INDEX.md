@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**231 entries: 62 open, 4 partial, 4 blocked, 161 done.**
+**234 entries: 65 open, 4 partial, 4 blocked, 161 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 1 | 0 | 46 | 60 |
+| P1 | 16 | 1 | 0 | 46 | 63 |
 | P2 | 31 | 2 | 4 | 80 | 117 |
 | P3 | 18 | 1 | 0 | 33 | 52 |
-| **All** | 62 | 4 | 4 | 161 | 231 |
+| **All** | 65 | 4 | 4 | 161 | 234 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -276,5 +276,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-227](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: a rule of `Plan.confine` misses a path that the child mounts after the compile (PodUtils/podvm#267) |
 | [T-228](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: the live tests of the relay client in `live.yml` |
 | [T-229](relay.md) | P2 | M | M2 | defect | open | `pod-relay`: a test of the crate for each of six plants of podssh whose tests stay in podssh |
+| [T-230](relay.md) | P1 | S | M2 | defect | open | `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457) |
+| [T-231](relay.md) | P1 | S | M2 | defect | open | `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457) |
+| [T-232](relay.md) | P1 | M | M2 | defect | open | `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457) |
 | [T-233](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the registry mcr.microsoft.com of podvm's profile playwright-chromium (PodUtils/podvm#269) |
 | [T-240](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `release_tmpfs` leaves a busy tmpfs mounted and its directory in the store |

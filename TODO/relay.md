@@ -2217,3 +2217,181 @@ on a runner waits for T-036.
 cargo test -p pod-relay --all-features -- --ignored --list
 python3 -I scripts/check-workflows.py
 ```
+
+# T-230: `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457)
+
+**Source:** PodUtils/podnet#457 (COORD-039 of podnet, for PodUtils/podnet@T-249)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's netns router opens one `listen_any(port)` for each destination
+port that the program dials. PodUtils/podnet#457, item 1: "A `TcpListener`
+has no close. With no close (and a drop that does not free the listen
+sockets), the router must keep each listener for the life of the pod.
+podnet caps them at 256 destination ports, and a SYN to a 257th port is
+dropped. The old loop had no such cap (4096 sockets at one time). Ask:
+`TcpListener::close()`, or a drop that frees its listen sockets, so the
+router opens a listener for a port while a flow to it lives, and frees it
+after."
+
+The drop of a `TcpListener` drops only the receiver of its queue of
+accepted streams. The reactor keeps the `Listener` with its `accept_pool`
+listen sockets (each with two buffers of `tcp_buffer`), keeps its port (a
+new listen on it is `AddrInUse`), and keeps the address that `Core::own`
+added for it (the stack owns at most `MAX_ADDRESSES`).
+
+## Premise
+
+- Read: PodUtils/podnet#457; `crates/pod-netstack/src/stack/socket.rs`
+  (`TcpListener` holds the receiver of its queue and has no `Drop`);
+  `crates/pod-netstack/src/stack/reactor.rs` (`Core::listen`, `Core::own`:
+  no call removes a listener, a listen socket or an owned address).
+- Read: smoltcp 0.14 `tcp::Socket::dispatch` resets a socket whose local
+  address the interface does not have. Thus the stack can drop an owned
+  address only when no connection uses it.
+- Not measured: the memory of the 256 listeners of podnet.
+
+## Approach
+
+1. The reactor removes a listener whose queue receiver is gone (the drop
+   of `TcpListener`), at each pass and before each listen. It removes each
+   socket of the listener that it did not adopt. `TcpListener::close(self)`
+   drops the listener and kicks the reactor.
+2. The streams that the listener accepted stay. The streams in its queue
+   close as dropped streams do (T-231).
+3. The stack drops the address that `own` added for the listener when no
+   listener and no connection uses it.
+4. Tests: open and close listeners on 1,000 ports in turn, and read
+   `socket_count`; a listen on the port after its close; an accepted
+   stream after the close of its listener; listeners on more addresses
+   than the stack can own, one after the other.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::listener
+```
+
+# T-231: `pod-netstack`: a dropped or closed stream sends its queued bytes, then the FIN, and frees its socket (PodUtils/podnet#457)
+
+**Source:** PodUtils/podnet#457 (COORD-039 of podnet, for PodUtils/podnet@T-249)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podnet#457, item 2: "A drop of a `TcpStream` loses the bytes that
+wait in its channel. A drop closes the socket at once. The test of a
+48 MiB download lost about 1 MB until the router waited for
+`StackEvent::Closed` (up to 30 s) before the drop. Ask: a graceful close:
+`TcpStream::close()` (or `shutdown(Write)` and a drop) that sends each
+queued byte, then the FIN, and frees the socket at the end, with no wait in
+the caller."
+
+The drop of a `TcpStream` drops the receiver of the channel to the app.
+`move_to_app` (`crates/pod-netstack/src/stack/service.rs`) then sees a
+closed channel and calls `tcp::Socket::close` at once. The socket goes to
+FIN-WAIT-1, `may_send` is false, and `move_to_socket` moves no more bytes:
+the chunks in the channel from the app (at most 64) and the part of a
+chunk that the socket did not take are lost. Also, a dropped stream to a
+dead peer keeps its socket for ever: no time limit ends it.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/socket.rs` (`Drop` of `TcpStream`
+  sends `ConnCmd::Close`); `crates/pod-netstack/src/stack/service.rs`
+  (`move_to_app`, `close_and_check`); smoltcp 0.14 `tcp::Socket::close`,
+  `may_send` and `set_timeout`. The timeout of smoltcp counts from the
+  last packet of the peer, also on an idle connection: a timeout set at
+  the drop of a stream that was idle for longer aborts it at once.
+- Not measured before the test: the bytes that the drop loses.
+
+## Approach
+
+1. A test that fails: one stack writes 16 MiB and drops the stream at
+   once; the peer reads each byte, then the end. The same with `close()`.
+2. A reader that has gone does not close the socket at once. The reactor
+   marks the stream as dropped, moves each queued byte into the socket,
+   discards the bytes that come in, and closes the socket (a FIN) when no
+   byte waits to go.
+3. `TcpStream::close(self)`: the same close, by name.
+4. A bound: a dropped stream that makes no progress (no change of its
+   state and of its send queue) for `StackConfig::linger` (default 60 s,
+   the FIN-WAIT-2 time of Linux) is aborted (a RST), and its socket is
+   freed. A test with a dead peer and a short linger.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::close
+```
+
+# T-232: `pod-netstack`: a burst of SYNs to one port gets no RST: a listener adds a listen socket for each SYN (PodUtils/podnet#457)
+
+**Source:** PodUtils/podnet#457 (COORD-039 of podnet, for PodUtils/podnet@T-249)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+PodUtils/podnet#457, item 3: "The accept pool answers a SYN with a RST when
+each listen socket is busy. A listener has `accept_pool` listen sockets; a
+SYN with no free one gets a RST. podnet sets the pool to 8 and lets at most
+8 SYNs of one port wait for their handshake (the test
+`netns_backend_takes_a_burst_of_connects_to_one_port`: 48 connects at once
+to one port; with no limit only 8 of 48 got through). Ask: a pool that
+grows on demand, or a SYN that waits (no RST) until a listen socket is
+free, or a size of the pool in `StackConfig`."
+
+`StackConfig::accept_pool` exists. A larger pool costs two buffers for
+each listen socket of each listener, also with no connection. The need is
+that a burst of SYNs to one port gets no RST.
+
+Also: when the accept queue of a listener (`accept_pool * 4` streams) is
+full, `accept_inbound` drops an established connection
+(`NetStats::dropped`). A burst of 48 connects that one pass of the reactor
+completes fills a queue of 32.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/service.rs` (`accept_inbound` puts
+  a new listen socket in the pool after it adopts one; a full queue drops
+  the connection). smoltcp 0.14: `Interface::poll` takes each inbound
+  packet before the pass of egress, and `Interface::poll_ingress_single`
+  takes one; `process_tcp` gives a segment to the first socket that
+  `accepts` it, and answers a SYN that no socket takes with a RST; a
+  socket in LISTEN takes each SYN with no ACK on its port.
+- Not measured: the cost of a look at the head of each inbound packet.
+
+## Approach
+
+1. A test: 48 connects at once to one port with the default settings;
+   each connects, and each gets its answer.
+2. The reactor takes the inbound packets one at a time
+   (`poll_ingress_single`) and reads the head of each in the queue: before
+   a SYN goes to smoltcp, the listener of its port gets a free listen
+   socket. A listener keeps one free listen socket.
+3. The bound: the stack holds at most `max_connections` connections, open
+   and half-open. A SYN past it waits: the stack drops it, the peer sends
+   it again, and `NetStats::dropped` counts it.
+4. A full accept queue drops no connection: its socket waits in the
+   listener, and `accept` kicks the reactor.
+5. `StackConfig::accept_pool` goes: its pool and its limit are gone.
+6. T-223 uses the same look at a SYN.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib stack::tests::burst
+```
