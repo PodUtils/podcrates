@@ -43,10 +43,10 @@ and prints nothing.
 | (root) | `Context`, `Settings`, `Names`, `open`, `Request`, `Opened`, `OpenError`, `Failure`, `Relay`, `default_relay_host`, `RelayBudget` |
 | `budget` | `RelayBudget`: `meter` (bytes and an age), `meter_for` (the budgets of the run's relay), `spent` |
 | `stream` | `of`: a forward session as a byte stream (`pod_core::BoxedIo`) |
-| `relay` | `Relay`, `RelayList`, `select_relays`, `parse_relay_list`, `forward_path`, `node_path`, `operator_path`, the budgets (`byte_budget`, `byte_budget_under`, `time_budget`, `idle_secs`), the limits of the default deployment |
+| `relay` | `Relay` (`name`, `url`: an IPv6 address in brackets), `RelayList`, `parse_relay` (`[ADDR]:PORT`), `select_relays`, `parse_relay_list`, `url_host`, `forward_path`, `node_path`, `operator_path`, the budgets (`byte_budget`, `byte_budget_under`, `time_budget`, `idle_secs`), the limits of the default deployment |
 | `pool` | `alternates`, `refresh`, `parse_pool`, `parse_limits`, `Limits`, `same_deployment`; `signed` (the signed lists, `Keys`), `kept` (the lists kept), `members` (the relay members of a net) |
-| `token`, `cache` | `obtain`, `MintContext`, `Token`, `TokenError`, `token_key`, `remember`, `forget` (the tokens of a run); `Cache`, `Cached`, `valid_token` |
-| `open`, `failover`, `failures`, `gate` | the opener, the modes of a failover, the record of each host's faults, the gate of each origin |
+| `token`, `cache` | `obtain`, `kept` (the token of the settings, the run or the cache, with no mint), `MintContext`, `Token`, `TokenError`, `token_key`, `remember`, `forget` (the tokens of a run); `Cache`, `Cached`, `valid_token` |
+| `open`, `failover`, `failures`, `gate` | the opener (`open`; `open_on_loopback` with the feature `plain-ws`), the modes of a failover, the record of each host's faults, the gate of each origin |
 | `rank`, `rank_list`, `rank_auto` | the rank of the hosts, the order of the default list, the rank in a session's background (`Races`) |
 | `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay |
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
@@ -121,7 +121,7 @@ a `401` to a node's upgrade ends the node as a `403` does.
 | `code` | the exchange of a pairing by code (with `pair`; `pod-wormhole`) |
 | `grant` | the grants used once |
 | `quic` | the QUIC road (`pod-quic`, noq) |
-| `plain-ws` | plain `ws://` to a stand-in relay on the loopback, for the tests of an embedder; a binary does not turn it on |
+| `plain-ws` | plain `ws://` to a stand-in relay on the loopback, for the tests of an embedder: `http://` and `ws://` in `parse_relay`, the forward opener's `open_on_loopback`, the reverse road's `Wire::PlainLoopback`, the facade's `forward_on_loopback`; a binary does not turn it on |
 | `fuzzing` | the readers of the wire for `fuzz/`; no consumer turns it on |
 
 ## Settings
@@ -191,7 +191,8 @@ in italics has podnet's name.
 | `SESSION_BYTES`, `SESSION_AGE`, `MINT_MARGIN`, `MAX_MESSAGE` | `relay::SESSION_BYTE_BUDGET`, `SESSION_TIME_BUDGET`, `cache::MIN_REMAINING_MS`, `pod_ws::Limits::RELAY` | `each_budget_is_under_its_cap` |
 | `RelayBudget::{meter, meter_with, spent}` | [x] `RelayBudget::{meter_for, meter, spent}` | *`a_relay_budget_is_spent_at_its_bytes_or_its_age`*, `the_budget_of_a_run_goes_under_the_limits_of_its_relay` |
 | `Host::parse`, `Relay::new` of a list, `Relay::single`, `urls`, `host`, `port`, `url` | `relay::parse_relay`, `parse_relay_list`, `RelayList` | `relay_spellings_from_the_relays_documents_are_accepted` |
-| `Host::parse` of `https://[IPv6]:port` (podnet issue 273) and of `http://` to a loopback relay | missing: T-234 | |
+| `Host::parse` of `https://[IPv6]:port` (podnet issue 273), `Host::url`, `authority_host` | [x] `relay::parse_relay`: `[ADDR]` and `[ADDR]:PORT`, the address kept in its canonical form; `Relay::name`, `Relay::url` and the cache write it in brackets; a bare address stays refused (call C80) | *`relay_urls`*, *`an_ipv6_relay_host_keeps_its_port`*, `an_ipv6_relay_has_one_name_in_brackets` |
+| `Host::parse` of `http://` or `ws://` to a loopback relay, and `Relay::connect` over it (podnet's tests) | [x] with the feature `plain-ws`: `parse_relay` takes it for a host on the loopback, and `open::open_on_loopback` opens the session, with the failover and the token of the settings, and no mint (calls C81, C82) | *`bytes_go_through_a_local_relay`*, `a_relay_off_the_loopback_is_refused_before_any_connection`, `the_plain_wire_takes_a_given_token_and_mints_none` |
 | a list of hosts of one deployment only, as one token goes to each | a token for each deployment (`token::token_key`): a list may name more than one (call C76) | `token_key_is_one_for_each_deployment` |
 | the alternates of one host (`relay_pool::alternates_of`): the cached pool, else the seed | `pool::alternates`; the default host with them is `select_relays(None, ..)`; a named host of another deployment takes none (call C76) | *`the_alternates_come_from_the_cache_else_the_seed`*, `the_default_relay_comes_first_then_pool_alternates` |
 | `Relay::token`: the fixed token, the minted one in memory, the cache file, a new mint; a refused one minted again once | [x] `token::obtain` with the tokens of the run (`remember`, `forget`), and `open`'s mint after a `403` | `a_token_of_the_run_is_taken_again_with_no_file_of_the_cache`, `a_refused_token_of_the_run_is_forgotten`, `a_token_of_the_run_with_little_time_left_is_not_taken` |
@@ -275,8 +276,8 @@ podnet's relay client moves onto this crate with T-026; its trial
 | Old | New |
 | --- | --- |
 | `ws_relay::{set, active}` (a process global) | a `RelayList` and a `Context` that podnet holds and gives each call |
-| `ws_relay::Relay::new(url, token)`, `from_env`, `single` | `relay::select_relays(Some(url), env, &[])` (the default host alone: `select_relays(None, None, &pool::alternates(&ctx.cache, host))`), `Settings::token` from `PODNET_RELAY_TOKEN` |
-| `Relay::connect(target, timeout)` | `open(&Request { ctx, relays, path: &relay::forward_path(host, port)?, .. }, notes)`, then `stream::of(opened.session)`; an IPv6 target stays refused in podnet |
+| `ws_relay::Relay::new(url, token)`, `from_env`, `single` | `relay::select_relays(Some(url), env, &[])` (the default host alone: `select_relays(None, None, &pool::alternates(&ctx.cache, host))`), `Settings::token` from `PODNET_RELAY_TOKEN`; `https://[ADDR]:PORT` too, and `http://127.0.0.1:PORT` of a test with the feature `plain-ws` |
+| `Relay::connect(target, timeout)` | `open(&Request { ctx, relays, path: &relay::forward_path(host, port)?, .. }, notes)`, then `stream::of(opened.session)`; for an `http://` relay of a test, `open::open_on_loopback` with the same `Request`; an IPv6 target stays refused in podnet |
 | `ws_relay::RelayBudget::{meter, meter_with}`, `SESSION_BYTES`, `SESSION_AGE` | `RelayBudget::{meter_for, meter}`, `relay::SESSION_BYTE_BUDGET`, `SESSION_TIME_BUDGET` |
 | `relay_pool::{load_token, store_token, load_pool, store_pool}` and the state directory (`PODNET_STATE_DIR`, `none`) | the caller's `Cache` (`Cache::in_dirs`, `Cache::none()`): the token and the pool files of this crate; podnet's old files are not read (one more mint and one read of the pool) |
 | `relay_pool::{same_deployment, parse_pool, alternates_of, seed, default_host}` | `pool::{same_deployment, parse_pool, alternates, seed}`, `relay::default_relay_host` |
@@ -309,7 +310,8 @@ fair queue, its layer, its spares, its window, its dialect, podnet's plain
 mode), the
 end-to-end channel over the layered road, a node's routes and shares, the
 grants, the pairing by code at a stand-in mailbox, the limits of a pool's
-body, the failover. The tests that reach the live relay or the public
+body, the failover, the forward opener over plain `ws://` to a stand-in
+relay (podnet's `bytes_go_through_a_local_relay`). The tests that reach the live relay or the public
 mailboxes are `#[ignore]` (19).
 
 ## Sources

@@ -80,6 +80,18 @@ fn a_failure_over_several_hosts_names_each_and_keeps_the_hints() {
     assert!(lines.iter().any(|l| l.contains("policy does not allow x:25")), "{lines:?}");
 }
 
+/// The lines of a failure name an IPv6 relay host in brackets, as its URL
+/// does (T-234), so that its last group is not read as a port.
+#[test]
+fn a_failure_names_an_ipv6_host_in_brackets() {
+    let f = Failure {
+        attempts: vec![("2001:db8::1".into(), OpenError::Deadline), ("b.example".into(), OpenError::Deadline)],
+    };
+    let lines = f.lines("x:22");
+    assert!(lines[0].starts_with("[2001:db8::1]: "), "{lines:?}");
+    assert!(lines[1].starts_with("b.example: "), "{lines:?}");
+}
+
 /// A host that this process's gate holds goes on to the next host, records
 /// nothing against it and is no answer of the relay's; its line says the
 /// wait (podssh T-637).

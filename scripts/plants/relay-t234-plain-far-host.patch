@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/relay.rs b/crates/pod-relay/src/relay.rs
+--- a/crates/pod-relay/src/relay.rs
++++ b/crates/pod-relay/src/relay.rs
+@@ -223,7 +223,7 @@
+     };
+     let (host, port) = host_and_port(rest.trim_end_matches('/'), if plain { 80 } else { 443 }).map_err(bad)?;
+     // A token goes in clear on this wire: never to another host.
+-    if plain && !pod_proxy::env::is_loopback(&host) {
++    if plain && host.is_empty() {
+         return Err(bad("plain http:// and ws:// go only to a relay on the loopback".into()));
+     }
+     Ok(Relay { host, port })

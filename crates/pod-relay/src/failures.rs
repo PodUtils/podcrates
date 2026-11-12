@@ -21,7 +21,7 @@ use pod_ws::ConnectError;
 use serde::{Deserialize, Serialize};
 
 use crate::open::OpenError;
-use crate::relay::Relay;
+use crate::relay::{Relay, url_host};
 
 /// The file of the record, in the cache.
 pub const FILE: &str = "relay-failures.json";
@@ -232,8 +232,8 @@ pub fn order(road: &str, hosts: &[Relay], records: &Records, now_ms: i64) -> (Ve
             Some((at_ms, why, failure)) => {
                 let ago = (now_ms - at_ms) / 1000;
                 notes.push(match failure {
-                    true => format!("trying {} last: it failed {ago} s ago ({why})", relay.host),
-                    false => format!("trying {} last: {why}, the last {ago} s ago", relay.host),
+                    true => format!("trying {} last: it failed {ago} s ago ({why})", url_host(&relay.host)),
+                    false => format!("trying {} last: {why}, the last {ago} s ago", url_host(&relay.host)),
                 });
                 last.push(i);
             }

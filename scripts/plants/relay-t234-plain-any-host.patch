@@ -1,0 +1,14 @@
+diff --git a/crates/pod-relay/src/open_plain.rs b/crates/pod-relay/src/open_plain.rs
+--- a/crates/pod-relay/src/open_plain.rs
++++ b/crates/pod-relay/src/open_plain.rs
+@@ -31,7 +31,9 @@
+             return Err(ConnectError::Config("the relay token contains a line break".into()));
+         }
+     }
+-    let tcp = pod_ws::plain::loopback_tcp(&at.host, at.port, config.timeout).await?;
++    let tcp = tokio::net::TcpStream::connect((at.host.as_str(), at.port))
++        .await
++        .map_err(|e| ConnectError::Config(e.to_string()))?;
+     let (peer, local) = (tcp.peer_addr().ok(), tcp.local_addr().ok());
+     let host_header = pod_proxy::host::authority(&at.host, at.port);
+     let (tcp, pending) = tokio::time::timeout(config.timeout, upgrade(tcp, &host_header, &at.path, token))

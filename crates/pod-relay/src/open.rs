@@ -14,7 +14,9 @@
 //! [`crate::cleartext`]) to a host whose TLS failed on the way. Each attempt
 //! passes the run's gate of its host first ([`crate::gate`], podssh T-637),
 //! so that the sessions of a run that a failing host meets together cost one
-//! probe.
+//! probe. With the feature `plain-ws`, [`open_on_loopback`] does the same
+//! over plain `ws://` to stand-in relays on the loopback, for the tests of an
+//! embedder.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +29,7 @@ pub use pod_core::backoff::{BACKOFF_FIRST, BACKOFF_MAX, CONNECT_TIMEOUT, backoff
 use crate::context::Context;
 use crate::failover::{self, Attempt, MintGate, Mode, SERIAL_STEP, STAGGER};
 use crate::failures::{self, Records};
-use crate::relay::{Relay, RelayList};
+use crate::relay::{Relay, RelayList, url_host};
 use crate::token::{self, MintContext, Origin, TokenError};
 
 /// Bound on one whole host attempt, minting included, so a host that answers
@@ -187,7 +189,7 @@ impl Failure {
         let mut out: Vec<String> = self
             .attempts
             .iter()
-            .map(|(host, e)| format!("{host}: {}", e.lines(target).first().cloned().unwrap_or_default()))
+            .map(|(host, e)| format!("{}: {}", url_host(host), e.lines(target).first().cloned().unwrap_or_default()))
             .collect();
         out.extend(self.last().lines(target).into_iter().skip(1));
         out
@@ -199,6 +201,32 @@ impl Failure {
 /// host failing, a retry, a token that could not be cached), each host's in
 /// the order of the list.
 pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
+    open_on(req, Wire::Tls, notes).await
+}
+
+/// [`open`] over plain `ws://` to stand-in relays on the loopback, for the
+/// tests of an embedder (feature `plain-ws`; a binary does not turn it on):
+/// the same order of the hosts, failover, tokens and notes, with no other
+/// road. A host that is not the loopback is refused before any connection,
+/// as `pod_ws::plain` refuses one, so a token never leaves this host in
+/// clear. A token comes from the settings, the run or the cache: a mint
+/// goes over TLS, which a stand-in does not answer.
+#[cfg(feature = "plain-ws")]
+pub async fn open_on_loopback(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
+    open_on(req, Wire::PlainLoopback, notes).await
+}
+
+/// The wire of each attempt of a run.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Wire {
+    /// The roads of TLS: QUIC where it is offered, HTTP/2, HTTP/1.1.
+    Tls,
+    /// Plain `ws://` to the loopback.
+    #[cfg(feature = "plain-ws")]
+    PlainLoopback,
+}
+
+async fn open_on(req: &Request<'_>, wire: Wire, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
     let mut attempts: Vec<(String, OpenError)> = Vec::new();
     let ctx = req.ctx;
     if ctx.settings.offline {
@@ -227,6 +255,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         explicit: req.relays.explicit,
         several: hosts.len() > 1,
         samples: Default::default(),
+        wire,
     });
     let gate = MintGate::default();
     let rounds = req.rounds.max(1);
@@ -283,7 +312,9 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     }
     // Last, the cleartext road to a host whose TLS failed on the way (podssh T-326,
     // podssh Q45); its lines are notes, and the failure stays the TLS road's.
-    if let Some((relay, session)) = crate::cleartext::last(ctx, hosts, &attempts, &shared.path, notes).await {
+    if wire == Wire::Tls
+        && let Some((relay, session)) = crate::cleartext::last(ctx, hosts, &attempts, &shared.path, notes).await
+    {
         return Ok(opened(ctx, session, relay, &shared.primary, true));
     }
     Err(Failure { attempts })
@@ -314,6 +345,7 @@ struct Shared {
     several: bool,
     /// The time to open of each attempt that opened (podssh T-607).
     samples: crate::rank_list::Samples,
+    wire: Wire,
 }
 
 /// One host within [`HOST_DEADLINE`], each step within `step`, with its
@@ -336,7 +368,8 @@ async fn attempt(
         && e.another_host_may_help()
         && shared.several
     {
-        notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
+        let first = e.lines(&shared.target).first().cloned().unwrap_or_default();
+        notes.push(format!("{}: {first}", url_host(&relay.host)));
     }
     Attempt { result, notes }
 }
@@ -357,7 +390,7 @@ async fn try_host(
     let key = token::token_key(relay);
     let mut token = {
         let _turn = gate.hold(&key, STAGGER).await;
-        token::obtain(&ctx, false).await.map_err(OpenError::Token)?
+        token_for(shared, &ctx).await.map_err(OpenError::Token)?
     };
     if let Some(why) = token.cache_warning.take() {
         notes.push(format!("the relay token could not be cached, so one is minted per run: {why}"));
@@ -378,12 +411,13 @@ async fn try_host(
         limits: pod_ws::Limits::RELAY,
     };
     let mut started = std::time::Instant::now();
-    let mut result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
+    let mut result = connect(shared, &config, token.secret()).await;
     // A cached token the relay no longer accepts: forget it and mint once.
     // Not for a policy refusal, which a new token cannot fix.
     if let Err(ConnectError::Refused { status: 403, body }) = &result
         && token.origin == Origin::Cache
         && !is_policy_refusal(body)
+        && shared.wire == Wire::Tls
     {
         token::forget(run, &key);
         token = {
@@ -391,7 +425,7 @@ async fn try_host(
             token::obtain(&ctx, true).await.map_err(OpenError::Token)?
         };
         started = std::time::Instant::now();
-        result = crate::quic_road::connect(run, &config, token.secret(), shared.explicit).await;
+        result = connect(shared, &config, token.secret()).await;
     }
     if result.is_ok() {
         crate::rank_list::sample(&shared.samples, relay, started.elapsed());
@@ -399,6 +433,25 @@ async fn try_host(
     let origin = token.origin;
     drop(token);
     result.map_err(|error| OpenError::Connect { error, origin })
+}
+
+/// The token of one attempt: on the plain wire, one that the run holds, as
+/// a stand-in relay mints none.
+async fn token_for(shared: &Shared, ctx: &MintContext<'_>) -> Result<token::Token, TokenError> {
+    match shared.wire {
+        Wire::Tls => token::obtain(ctx, false).await,
+        #[cfg(feature = "plain-ws")]
+        Wire::PlainLoopback => plain::token(ctx),
+    }
+}
+
+/// The upgrade at one host on the wire of the run.
+async fn connect(shared: &Shared, config: &WsClientConfig, token: &str) -> Result<RelaySession, ConnectError> {
+    match shared.wire {
+        Wire::Tls => crate::quic_road::connect(&shared.ctx, config, token, shared.explicit).await,
+        #[cfg(feature = "plain-ws")]
+        Wire::PlainLoopback => plain::connect(config, token).await,
+    }
 }
 
 /// Refresh the cached pool in the background after a mint: a stale or missing
@@ -412,6 +465,10 @@ fn spawn_pool_refresh(ctx: Context, relay: Relay, primary: String, trust: Trust)
         let _ = crate::pool::refresh(&ctx, &relay, &primary, &trust, CONNECT_TIMEOUT).await;
     });
 }
+
+#[cfg(feature = "plain-ws")]
+#[path = "open_plain.rs"]
+mod plain;
 
 #[cfg(test)]
 #[path = "open_tests.rs"]

@@ -200,9 +200,9 @@ pub async fn refresh(
 }
 
 /// The `Host` of a request to `relay`: its name, with its port when that is
-/// not 443.
+/// not 443, and an IPv6 address in brackets.
 pub fn host_header(relay: &Relay) -> String {
-    if relay.port == 443 { relay.host.clone() } else { pod_proxy::host::authority(&relay.host, relay.port) }
+    relay.name()
 }
 
 /// The hosts of `primary`'s deployment that `/relays.json` lists, asked for

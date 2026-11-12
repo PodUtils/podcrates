@@ -138,7 +138,8 @@ pub async fn session(
     }
     let host = config.endpoint.host.as_str();
     let failed = |detail: String| {
-        ConnectError::Dial(DialError::Connect { target: format!("UDP {host}:{port}"), detail, cut: None, kind: None })
+        let target = format!("UDP {}", pod_proxy::host::authority(host, port));
+        ConnectError::Dial(DialError::Connect { target, detail, cut: None, kind: None })
     };
     let roots = config.way.tls.roots_for(&config.trust).map_err(|e| failed(e.to_string()))?;
     let tls = tls(config.way.tls.provider().clone(), &roots).map_err(failed)?;

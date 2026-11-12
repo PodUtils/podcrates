@@ -1,16 +1,19 @@
 //! Properties of relay lists and paths (podssh T-202), each checked on the inputs
 //! that proptest makes, 256 by default, and shrunk to the smallest that
 //! fails: a list keeps its order and drops its duplicates however each host
-//! is spelled, each host that it gives passes `check_host`, and the forward
-//! path of each is `/connect/HOST/PORT`; for any text, what parses is such a
-//! list, and a forward path that is made has three segments and nothing
-//! that could add a query, a fragment or another request.
+//! is spelled, each host that it gives passes `check_host` or is an IPv6
+//! address in its canonical form (T-234), and the forward path of each is
+//! `/connect/HOST/PORT`; for any text, what parses is such a list, and a
+//! forward path that is made has three segments and nothing that could add
+//! a query, a fragment or another request.
 //!
 //! A property that fails writes its input to
 //! `tests/properties.proptest-regressions`, committed with the repair:
 //! proptest tries those inputs first at each run.
 
-use pod_relay::relay::{Relay, check_host, forward_path, parse_relay_list};
+use std::net::Ipv6Addr;
+
+use pod_relay::relay::{Relay, check_host, forward_path, parse_relay_list, url_host};
 use proptest::collection::vec;
 use proptest::prelude::*;
 use proptest::sample::Index;
@@ -31,29 +34,53 @@ fn host() -> impl Strategy<Value = String> {
     "[a-zA-Z0-9_][a-zA-Z0-9._-]{0,30}"
 }
 
+/// A host as a list spells it, and as the relay keeps it: a name in either
+/// case, kept in lower case; or an IPv6 address in brackets, in capitals or
+/// not, compressed or with its eight groups, kept with no brackets in its
+/// canonical form (T-234).
+fn spelled_host() -> impl Strategy<Value = (String, String)> {
+    let address = (any::<Ipv6Addr>(), any::<bool>(), any::<bool>()).prop_map(|(a, upper, groups)| {
+        let text = match groups {
+            true => a.segments().iter().map(|s| format!("{s:x}")).collect::<Vec<_>>().join(":"),
+            false => a.to_string(),
+        };
+        let text = if upper { text.to_ascii_uppercase() } else { text };
+        (format!("[{text}]"), a.to_string())
+    });
+    prop_oneof![host().prop_map(|h| (h.clone(), h.to_ascii_lowercase())), address]
+}
+
 /// One item of a list, as a user or the relay's documents spell it, with
 /// the relay that podssh must read from it: a scheme or none, a port or
 /// none, a trailing `/` or none, and spaces around it.
 fn item() -> impl Strategy<Value = (String, Relay)> {
     let scheme = prop::sample::select(vec!["", "https://", "wss://"]);
     let pad = prop::sample::select(vec!["", " ", "  "]);
-    (host(), prop::option::of(1u16..), scheme, any::<bool>(), pad).prop_map(|(host, port, scheme, slash, pad)| {
-        let mut text = format!("{pad}{scheme}{host}");
-        if let Some(port) = port {
-            text.push_str(&format!(":{port}"));
-        }
-        if slash {
-            text.push('/');
-        }
-        text.push_str(pad);
-        (text, Relay { host: host.to_ascii_lowercase(), port: port.unwrap_or(443) })
-    })
+    (spelled_host(), prop::option::of(1u16..), scheme, any::<bool>(), pad).prop_map(
+        |((text_host, host), port, scheme, slash, pad)| {
+            let mut text = format!("{pad}{scheme}{text_host}");
+            if let Some(port) = port {
+                text.push_str(&format!(":{port}"));
+            }
+            if slash {
+                text.push('/');
+            }
+            text.push_str(pad);
+            (text, Relay { host, port: port.unwrap_or(443) })
+        },
+    )
 }
 
 /// The same relay spelled another way: in capitals, with a scheme, its port
 /// and a trailing `/`.
 fn respelled(relay: &Relay) -> String {
-    format!("wss://{}:{}/", relay.host.to_ascii_uppercase(), relay.port)
+    format!("wss://{}:{}/", url_host(&relay.host).to_ascii_uppercase(), relay.port)
+}
+
+/// Whether `host` is as a relay keeps it: a name that passes the check, or
+/// an IPv6 address with no brackets in its canonical form.
+fn kept(host: &str) -> bool {
+    check_host(host).is_ok() || host.parse::<Ipv6Addr>().is_ok_and(|a| a.to_string() == host)
 }
 
 proptest! {
@@ -83,14 +110,15 @@ proptest! {
         }
         prop_assert_eq!(&hosts, &want, "{}", list);
         for relay in &hosts {
-            prop_assert!(check_host(&relay.host).is_ok(), "{:?}", relay);
+            prop_assert!(kept(&relay.host), "{:?}", relay);
             let path = forward_path(&relay.host, relay.port).map_err(TestCaseError::fail)?;
             prop_assert_eq!(path, format!("/connect/{}/{}", relay.host, relay.port));
         }
     }
 
     /// For any text, a list that parses is not empty, and each of its hosts
-    /// is in lower case, passes the check, and has a port that is not 0.
+    /// is in lower case, passes the check or is an IPv6 address in its
+    /// canonical form, and has a port that is not 0.
     #[test]
     fn any_text_parses_only_to_hosts_that_pass_the_check(
         text in prop_oneof![any::<String>(), "[a-zA-Z0-9.:/_@?#%\\[\\] ,-]{0,40}"],
@@ -98,7 +126,7 @@ proptest! {
         if let Ok(hosts) = parse_relay_list(&text) {
             prop_assert!(!hosts.is_empty(), "{:?}", text);
             for relay in &hosts {
-                prop_assert!(check_host(&relay.host).is_ok(), "{:?} gave {:?}", text, relay);
+                prop_assert!(kept(&relay.host), "{:?} gave {:?}", text, relay);
                 prop_assert_eq!(relay.host.to_ascii_lowercase(), relay.host.clone());
                 prop_assert!(relay.port != 0, "{:?} gave {:?}", text, relay);
             }

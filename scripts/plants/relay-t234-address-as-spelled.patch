@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/relay.rs b/crates/pod-relay/src/relay.rs
+--- a/crates/pod-relay/src/relay.rs
++++ b/crates/pod-relay/src/relay.rs
+@@ -254,7 +254,7 @@
+                 "" => None,
+                 _ => Some(after.strip_prefix(':').ok_or_else(|| format!("{after:?} after ']'"))?),
+             };
+-            (address.to_string(), port)
++            (inside.to_ascii_lowercase(), port)
+         }
+         None => {
+             let (host, port) = match text.rsplit_once(':') {

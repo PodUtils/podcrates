@@ -9,4 +9,4 @@ diff --git a/crates/pod-relay/src/forward_layer/offer.rs b/crates/pod-relay/src/
 +    if same || !literal || crate::pool::same_deployment(&asked.host, &relay.host) {
          return Ok(relay);
      }
-     Err(format!("{shown:?} is not of {}'s deployment", asked.host))
+     Err(format!("{shown:?} is not of {}'s deployment", crate::relay::url_host(&asked.host)))

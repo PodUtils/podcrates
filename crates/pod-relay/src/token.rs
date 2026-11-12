@@ -118,9 +118,10 @@ pub fn token_key(relay: &Relay) -> String {
     }
 }
 
-/// `host`, or `host:port` when the port is not 443.
+/// `host`, or `host:port` when the port is not 443, with an IPv6 address
+/// in brackets ([`Relay::name`]).
 pub fn relay_name(relay: &Relay) -> String {
-    if relay.port == 443 { relay.host.clone() } else { format!("{}:{}", relay.host, relay.port) }
+    relay.name()
 }
 
 /// Whether a cached token may be sent under `key`: only when its entry names
@@ -181,38 +182,11 @@ pub fn forget(ctx: &Context, key: &str) {
 /// The token to use. With `fresh`, skip the given token, the run's and the
 /// cache (after the relay rejected a cached token).
 pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenError> {
+    if !fresh && let Some(token) = kept(ctx)? {
+        return Ok(token);
+    }
     let key = token_key(ctx.relay);
     let cache = &ctx.ctx.cache;
-    if !fresh {
-        let given = ctx.ctx.settings.token.as_deref().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
-        if let Some(value) = given {
-            if !token_cache::valid_token(&value) {
-                return Err(TokenError::BadEnvironment);
-            }
-            let secret = Zeroizing::new(value);
-            return Ok(Token {
-                secret,
-                origin: Origin::Environment,
-                cache_warning: None,
-                cache_note: None,
-                minted_at: None,
-            });
-        }
-        if let Some((secret, minted_at)) = ctx.ctx.run_tokens().recall(&key, now_ms()) {
-            return Ok(Token { secret, origin: Origin::Cache, cache_warning: None, cache_note: None, minted_at });
-        }
-        if let Some(cached) = cache.load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
-            remember(ctx.ctx, &key, &cached.token, cached.expires_ms, cached.minted_at.as_deref());
-            let secret = Zeroizing::new(cached.token);
-            return Ok(Token {
-                secret,
-                origin: Origin::Cache,
-                cache_warning: None,
-                cache_note: None,
-                minted_at: cached.minted_at,
-            });
-        }
-    }
     let (token, expires) = mint(ctx).await?;
     let minted_at = relay_name(ctx.relay);
     remember(ctx.ctx, &key, &token, expires, Some(&minted_at));
@@ -231,6 +205,42 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
         cache_note,
         minted_at: Some(minted_at),
     })
+}
+
+/// The token that the settings give, or that the run or the cache keep for
+/// the relay of `ctx`, with no mint: `None` when there is none.
+pub fn kept(ctx: &MintContext<'_>) -> Result<Option<Token>, TokenError> {
+    let key = token_key(ctx.relay);
+    let given = ctx.ctx.settings.token.as_deref().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    if let Some(value) = given {
+        if !token_cache::valid_token(&value) {
+            return Err(TokenError::BadEnvironment);
+        }
+        let secret = Zeroizing::new(value);
+        return Ok(Some(Token {
+            secret,
+            origin: Origin::Environment,
+            cache_warning: None,
+            cache_note: None,
+            minted_at: None,
+        }));
+    }
+    if let Some((secret, minted_at)) = ctx.ctx.run_tokens().recall(&key, now_ms()) {
+        return Ok(Some(Token { secret, origin: Origin::Cache, cache_warning: None, cache_note: None, minted_at }));
+    }
+    let cache = &ctx.ctx.cache;
+    if let Some(cached) = cache.load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
+        remember(ctx.ctx, &key, &cached.token, cached.expires_ms, cached.minted_at.as_deref());
+        let secret = Zeroizing::new(cached.token);
+        return Ok(Some(Token {
+            secret,
+            origin: Origin::Cache,
+            cache_warning: None,
+            cache_note: None,
+            minted_at: cached.minted_at,
+        }));
+    }
+    Ok(None)
 }
 
 #[derive(Deserialize)]

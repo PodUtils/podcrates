@@ -1,0 +1,8 @@
+# A plant of T-234 (pod-relay: a relay host as an IPv6 address in brackets,
+# and plain ws:// to a loopback relay on the forward road):
+# the name of an IPv6 relay has no brackets; the test of its one name must
+# fail.
+ENTRY=T-234
+GROUP=relay
+EXPECT='test relay::tests::an_ipv6_relay_has_one_name_in_brackets \.\.\. FAILED'
+RUN='cargo test -p pod-relay --lib -- relay::tests::an_ipv6_relay_has_one_name_in_brackets'

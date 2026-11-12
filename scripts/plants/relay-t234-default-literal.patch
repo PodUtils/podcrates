@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/relay.rs b/crates/pod-relay/src/relay.rs
+--- a/crates/pod-relay/src/relay.rs
++++ b/crates/pod-relay/src/relay.rs
+@@ -23,7 +23,7 @@
+ 
+ /// The relay podssh uses when nothing else is configured.
+ pub fn default_relay_host() -> &'static str {
+-    deployment().endpoint("default").map(|e| e.host()).expect("ajam-relay of pod-services has the endpoint default")
++    "tcp.ssh.relay.ajam.dev"
+ }
+ 
+ /// The relay closes a session after this many seconds with no traffic (its

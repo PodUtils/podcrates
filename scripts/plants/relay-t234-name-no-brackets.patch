@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/relay.rs b/crates/pod-relay/src/relay.rs
+--- a/crates/pod-relay/src/relay.rs
++++ b/crates/pod-relay/src/relay.rs
+@@ -112,7 +112,7 @@
+     /// in brackets: the relay's name in a line, in the cache and in the
+     /// `Host` of a request. [`parse_relay`] reads it back.
+     pub fn name(&self) -> String {
+-        pod_proxy::host::host_header(&self.host, self.port)
++        if self.port == 443 { self.host.clone() } else { format!("{}:{}", self.host, self.port) }
+     }
+ 
+     /// `https://` and [`Relay::name`].

@@ -84,5 +84,18 @@ fn is_test_file(path: &std::path::Path) -> bool {
     parents.iter().filter_map(|p| std::fs::read_to_string(p).ok()).any(|text| {
         let lines: Vec<&str> = text.lines().map(str::trim).collect();
         lines.windows(2).any(|w| w[0] == "#[cfg(test)]" && w[1].trim_start_matches("pub ") == declared)
+    }) || declared_by_path(path)
+}
+
+/// Whether a file beside `path` declares it as a test module by its path,
+/// `#[path = "FILE"]` under `#[cfg(test)]`, as `relay.rs` declares
+/// `relay_tests.rs`.
+fn declared_by_path(path: &std::path::Path) -> bool {
+    let (Some(dir), Some(file)) = (path.parent(), path.file_name()) else { return false };
+    let attribute = format!("#[path = \"{}\"]", file.to_string_lossy());
+    let Ok(entries) = std::fs::read_dir(dir) else { return false };
+    entries.filter_map(|e| e.ok()).filter_map(|e| std::fs::read_to_string(e.path()).ok()).any(|text| {
+        let lines: Vec<&str> = text.lines().map(str::trim).collect();
+        lines.windows(2).any(|w| w[0] == "#[cfg(test)]" && w[1] == attribute)
     })
 }

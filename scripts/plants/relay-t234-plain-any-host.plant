@@ -1,0 +1,8 @@
+# A plant of T-234 (pod-relay: a relay host as an IPv6 address in brackets,
+# and plain ws:// to a loopback relay on the forward road):
+# the plain wire dials a host off the loopback; the test of its refusal
+# before any connection must fail.
+ENTRY=T-234
+GROUP=relay
+EXPECT='test a_relay_off_the_loopback_is_refused_before_any_connection \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features plain-ws --test forward_plain -- a_relay_off_the_loopback_is_refused_before_any_connection'

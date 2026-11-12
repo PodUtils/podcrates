@@ -1,0 +1,8 @@
+# A plant of T-234 (pod-relay: a relay host as an IPv6 address in brackets,
+# and plain ws:// to a loopback relay on the forward road):
+# the default relay is a literal of the library code of relay.rs again; the
+# sweep, which now skips a test file that a #[path] names, must still fail.
+ENTRY=T-234
+GROUP=relay
+EXPECT='test the_default_relay_is_named_in_exactly_one_place \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test default_relay -- the_default_relay_is_named_in_exactly_one_place'

@@ -83,7 +83,7 @@ pub fn named(asked: &Relay, text: &str) -> Result<Relay, String> {
     if same || (!literal && crate::pool::same_deployment(&asked.host, &relay.host)) {
         return Ok(relay);
     }
-    Err(format!("{shown:?} is not of {}'s deployment", asked.host))
+    Err(format!("{shown:?} is not of {}'s deployment", crate::relay::url_host(&asked.host)))
 }
 
 /// Ask `relay`, over TLS through the way of `ctx`, within `timeout` for each

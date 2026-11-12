@@ -1,0 +1,8 @@
+# A plant of T-234 (pod-relay: a relay host as an IPv6 address in brackets,
+# and plain ws:// to a loopback relay on the forward road):
+# http:// names a relay off the loopback again; podnet's test of the relay
+# URLs must fail.
+ENTRY=T-234
+GROUP=relay
+EXPECT='test relay::tests::relay_urls \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features plain-ws --lib -- relay::tests::relay_urls'

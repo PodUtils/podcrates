@@ -56,9 +56,7 @@ impl Road {
                 Ok(Box::new(tls) as BoxIo)
             })
         });
-        let authority =
-            if relay.port == 443 { relay.host.clone() } else { pod_proxy::host::authority(&relay.host, relay.port) };
-        Road { dial, authority, user_agent }
+        Road { dial, authority: relay.name(), user_agent }
     }
 }
 

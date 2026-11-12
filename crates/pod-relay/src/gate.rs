@@ -251,7 +251,7 @@ impl Gates {
             last = Some((relay, (!left.is_zero()).then_some(left)));
         }
         let (relay, left) = last?;
-        Some(format!("{}: {}", relay.host, words(left)))
+        Some(format!("{}: {}", crate::relay::url_host(&relay.host), words(left)))
     }
 }
 

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/open.rs b/crates/pod-relay/src/open.rs
+--- a/crates/pod-relay/src/open.rs
++++ b/crates/pod-relay/src/open.rs
+@@ -441,7 +441,7 @@
+     match shared.wire {
+         Wire::Tls => token::obtain(ctx, false).await,
+         #[cfg(feature = "plain-ws")]
+-        Wire::PlainLoopback => plain::token(ctx),
++        Wire::PlainLoopback => token::obtain(ctx, false).await,
+     }
+ }
+ 

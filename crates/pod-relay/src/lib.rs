@@ -97,6 +97,8 @@ pub mod token;
 
 pub use budget::RelayBudget;
 pub use context::Context;
+#[cfg(feature = "plain-ws")]
+pub use open::open_on_loopback;
 pub use open::{Failure, OpenError, Opened, Request, open};
 pub use relay::{Relay, default_relay_host};
 pub use settings::{Names, Settings};

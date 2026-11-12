@@ -1,0 +1,8 @@
+# A plant of T-234 (pod-relay: a relay host as an IPv6 address in brackets,
+# and plain ws:// to a loopback relay on the forward road):
+# the plain wire mints a token as the TLS wire does; the test of its given
+# token must fail.
+ENTRY=T-234
+GROUP=relay
+EXPECT='test the_plain_wire_takes_a_given_token_and_mints_none \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features plain-ws --test forward_plain -- the_plain_wire_takes_a_given_token_and_mints_none'
