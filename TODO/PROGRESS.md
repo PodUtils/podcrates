@@ -11,10 +11,10 @@
   flush of the operator, PodUtils/podnet#502), `pod-link` (T-300, T-311),
   T-370 and T-329 (PodUtils/podssh#214, #213), T-322, T-323 to T-325, and
   the trial of podvm (T-326). Each consumer took `v0.31.0` (#90, closed) and `v0.32.0` (#93, closed).
-- On `main` after the tag: `pod-netlab` (T-207, partial), `pod-warp`
-  (T-028, partial), `pod-turn` (T-377: the STUN codec moved out of
-  `pod-proxy`, and a TURN client; for PodUtils/podnet#485 and
-  PodUtils/podssh@T-621).
+- `v0.33.0` is prepared on `main` (the version, `docs/releases/v0.33.0.md`,
+  the text of its hand-off): `pod-turn` (T-377), `pod-devtunnel` (T-378,
+  partial), `pod-warp` (T-028, partial), `pod-netlab` (T-207, partial),
+  T-390, T-391, the data of T-372 to T-376, T-350, T-351, T-352, T-354.
 - The consumers and their tags:
   - podssh: `v0.32.0` (`555fddc`, PodUtils/podssh#217; its TURN road over `pod_proxy::stun`, smee.io on by default): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
