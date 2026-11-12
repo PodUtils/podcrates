@@ -1,0 +1,6 @@
+# The watch kind http-json, form key: the item of an endpoint is the first item with a key, the key is not compared with the fact; its test must fail.
+ENTRY=T-244
+GROUP=services
+EXPECT='test http::http_json_items_find_each_endpoint_by_its_key \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- http::http_json_items_find_each_endpoint_by_its_key --exact'
+LIMIT=1800

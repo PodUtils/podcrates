@@ -59,7 +59,7 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 
 | Kind | Module | How |
 | --- | --- | --- |
-| `http-json`, `http-status`, `http-text`, `github-ssh-keys` | `http.rs` | a GET; a JSON pointer; with `member`, each host of the role is in the document, and more hosts there are counted, not found |
+| `http-json`, `http-status`, `http-text`, `github-ssh-keys` | `http.rs` | a GET; a JSON pointer; with `member`, each host of the role is in the document, and more hosts there are counted, not found; with `key`, each endpoint is the item of the list whose member `key` is its fact `fact-prefix` + NAME, with its host in a member of `member`, its port in `port-member` and `true` in each member of `true-members`; more items with the port and the true members are counted, not found. A host compares in lower case, an IP address in its one text form |
 | `http-sha256` | `sha.rs` | a streamed GET (a `Range` for a range of sectors); the length is the `Content-Length` or the total of `Content-Range` |
 | `tls-name`, `tls-names` | `tls.rs` | a verified handshake; for `tls-names`, one for the host and one for the address, at each address; an IPv6 address is not checked on a host with no route for IPv6 (`Net::ipv6`, which the runner probes) |
 | `dns-srv`, `dns-addresses`, `doh-answer` | `dns.rs` | DNS over HTTPS (`pod_dns::Way`); `doh-answer` asks each resolver of the service in the one form, each IPv6 one only with a route for IPv6 |

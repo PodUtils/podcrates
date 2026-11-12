@@ -42,6 +42,15 @@ impl<'a> Args<'a> {
         }
     }
 
+    /// The texts of the argument `name`, if the watch has the argument;
+    /// else none.
+    pub fn opt_texts(&self, name: &str) -> Result<Vec<&'a str>, Finding> {
+        match self.watch.arg(name) {
+            Some(_) => self.texts(name),
+            None => Ok(Vec::new()),
+        }
+    }
+
     /// The fact that the argument `name` names.
     pub fn fact(&self, name: &str) -> Result<&'a Fact, Finding> {
         let fact = self.text(name)?;

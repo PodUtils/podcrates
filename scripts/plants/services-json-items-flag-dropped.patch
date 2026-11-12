@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -96,7 +96,7 @@
+             let now = format!("{member} {}", member_text(item, member));
+             out.found(Finding::moved(&at, format!("port {}", endpoint.port()), now));
+         }
+-        for flag in &flags {
++        for flag in flags.iter().take(0) {
+             if item.get(*flag) != Some(&Json::Bool(true)) {
+                 out.found(Finding::moved(&at, format!("{flag} true"), format!("{flag} {}", member_text(item, flag))));
+             }

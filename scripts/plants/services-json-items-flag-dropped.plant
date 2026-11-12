@@ -1,0 +1,6 @@
+# The watch kind http-json, form key: the members of true-members are not read, so a node whose status_tcp is false holds; its test must fail.
+ENTRY=T-244
+GROUP=services
+EXPECT='test http::http_json_items_hold_the_host_the_port_and_the_true_members \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- http::http_json_items_hold_the_host_the_port_and_the_true_members --exact'
+LIMIT=1800

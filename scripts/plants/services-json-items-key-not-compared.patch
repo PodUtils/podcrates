@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/http.rs
++++ b/crates/pod-services-watch/src/http.rs
+@@ -79,7 +79,7 @@
+             args.service.fact(&name).ok_or_else(|| Finding::failed(format!("the service has no fact {name:?}")))?;
+         let want = fact.value().as_text().ok_or_else(|| Finding::failed(format!("the fact {name:?} is no text")))?;
+         keys.insert(want);
+-        let Some(item) = list.iter().find(|i| member_str(i, key) == Some(want)) else {
++        let Some(item) = list.iter().find(|i| member_str(i, key).is_some()) else {
+             out.found(Finding::moved(named(fact), want, format!("no item with the {key} {want} at {pointer}")));
+             continue;
+         };

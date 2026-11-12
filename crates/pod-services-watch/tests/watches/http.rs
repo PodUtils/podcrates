@@ -1,5 +1,5 @@
-//! `http-json`, `http-status`, `http-text` and `github-ssh-keys` against an
-//! HTTPS stand-in.
+//! `http-json` (each form), `http-status`, `http-text` and `github-ssh-keys`
+//! against an HTTPS stand-in.
 
 use pod_services_watch::Finding;
 use pod_testkit::stand::{Answer, Request};
@@ -13,6 +13,7 @@ fn answer(request: &Request) -> Answer {
             r#"{"version":"r2","limits":{"idle_ms":5,"name":"x"},
                 "Regions":{"1":{"Nodes":[{"HostName":"a.test"},{"HostName":"b.test"}]}}}"#,
         ),
+        "/nodes.json" => Answer::new(200, NODES),
         "/health" => Answer::new(200, "ok"),
         "/trace" => Answer::new(200, "fl=1\nh=one.one.one.one\n"),
         "/meta" => Answer::new(
@@ -26,6 +27,76 @@ fn answer(request: &Request) -> Answer {
 
 fn watch(lines: &str) -> String {
     format!("[[watch]]\n{lines}\n")
+}
+
+/// A list of nodes in the form of the list of Tox: K1, K2 and K5 have 443
+/// and `status_tcp`; K2 writes its IPv6 address in a long form, K4 its
+/// port as a number.
+const NODES: &str = r#"{"nodes":[
+    {"ipv4":"192.0.2.1","ipv6":"-","tcp_ports":[33445,443],"public_key":"K1","status_tcp":true},
+    {"ipv4":"192.0.2.2","ipv6":"2001:DB8:0:0::2","tcp_ports":[443],"public_key":"K2","status_tcp":true},
+    {"ipv4":"192.0.2.3","ipv6":"-","tcp_ports":[3389],"public_key":"K3","status_tcp":true},
+    {"ipv4":"192.0.2.4","ipv6":"-","tcp_ports":443,"public_key":"K4","status_tcp":false},
+    {"ipv4":"192.0.2.5","ipv6":"-","tcp_ports":[443],"public_key":"K5","status_tcp":true}]}"#;
+
+/// The watch of the form `key` on [`NODES`].
+fn items_watch(port: u16) -> String {
+    let url = format!("https://{NAME}:{port}/nodes.json");
+    watch(&format!(
+        "kind = \"http-json\"\nurl = \"{url}\"\npointer = \"/nodes\"\nkey = \"public_key\"\n\
+         fact-prefix = \"key-\"\nmember = [\"ipv4\", \"ipv6\"]\nport-member = \"tcp_ports\"\n\
+         true-members = [\"status_tcp\"]"
+    ))
+}
+
+/// An endpoint on 443 and its fact `key-NAME`.
+fn node(name: &str, host: &str, key: &str) -> String {
+    endpoint(name, "tcp", host, 443, "") + &fact(&format!("key-{name}"), &format!("\"{key}\""))
+}
+
+#[tokio::test]
+async fn http_json_items_find_each_endpoint_by_its_key() {
+    pod_testkit::need_loopback!();
+    let stand = https(answer);
+    let good = node("a", "192.0.2.1", "K1") + &node("b", "2001:db8::2", "K2") + &items_watch(stand.port());
+    let report = one(&file("i1", &good)).await;
+    let all = text(&report);
+    assert!(report.holds(), "{all}");
+    // K5 fits too, and the file does not have it: counted, not found.
+    assert!(all.contains("3 of 5 items with tcp_ports 443 and status_tcp true, 1 of them not in the file"), "{all}");
+
+    let moved = node("a", "192.0.2.1", "K1") + &node("b", "192.0.2.2", "K9") + &items_watch(stand.port());
+    let report = one(&file("i2", &moved)).await;
+    assert_eq!(
+        report.outcome.findings,
+        vec![Finding::moved("\"key-b\"", "K9", "no item with the public_key K9 at /nodes")]
+    );
+
+    let no_fact = endpoint("c", "tcp", "192.0.2.1", 443, "") + &items_watch(stand.port());
+    let report = one(&file("i3", &no_fact)).await;
+    assert!(text(&report).contains("FAILED i3 http-json: the service has no fact \"key-c\""), "{}", text(&report));
+}
+
+#[tokio::test]
+async fn http_json_items_hold_the_host_the_port_and_the_true_members() {
+    pod_testkit::need_loopback!();
+    let stand = https(answer);
+    let body = node("c", "192.0.2.3", "K3")
+        + &node("d", "192.0.2.4", "K4")
+        + &node("e", "192.0.2.50", "K5")
+        + &items_watch(stand.port());
+    let report = one(&file("i4", &body)).await;
+    assert_eq!(
+        report.outcome.findings,
+        vec![
+            Finding::moved("endpoint c", "port 443", "tcp_ports [3389]"),
+            Finding::moved("endpoint d", "status_tcp true", "status_tcp false"),
+            Finding::moved("endpoint e", "192.0.2.50", "ipv4 \"192.0.2.5\", ipv6 \"-\""),
+        ]
+    );
+    let all = text(&report);
+    assert!(all.contains("MOVED i4 http-json: services/i4.toml endpoint d is status_tcp true"), "{all}");
+    assert!(all.contains("(source: measured: a test, read 2026-11-10)"), "{all}");
 }
 
 #[tokio::test]
