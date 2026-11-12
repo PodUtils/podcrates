@@ -1,0 +1,9 @@
+# The tests of pod-dns against CoreDNS: with POD_DNS_TEST_COREDNS=required, a
+# host with no CoreDNS must fail, not skip. RUN names a program that does
+# not exist.
+ENTRY=T-350
+GROUP=dns
+EXPECT='POD_DNS_TEST_COREDNS=required: no CoreDNS here'
+RUN='POD_DNS_TEST_COREDNS=required POD_DNS_TEST_COREDNS_BIN=/nonexistent/coredns cargo test -p pod-dns --test doh_coredns'
+LIMIT=1800
+SWITCH=1

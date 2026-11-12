@@ -4921,6 +4921,26 @@ cargo test -p pod-dns --all-features
 sh scripts/plant-each.sh doh-coredns-skip-fails
 ```
 
+## Correction
+
+2026-11-12 (call C156):
+
+- The release archive of CoreDNS 1.15.0 is the artifact, not the image of
+  `images/coredns/Dockerfile`: the archive, read through the proxy of a
+  session on 2026-11-12, has the SHA-256 of the Premise, and its program
+  is static. The test target starts CoreDNS itself, on a free port of
+  127.0.0.1, with a Corefile, a zone and a certificate that it makes for
+  each test; `scripts/ci/coredns-tests.sh` downloads and checks the
+  archive, and names the program in `POD_DNS_TEST_COREDNS_BIN`. A
+  container cannot read files that a test makes unless the script makes
+  them too.
+- `pod-dns` asks by GET alone: it sends no POST. The test asks by GET over
+  HTTP/1.1 and over HTTP/2.
+- The test certificate of `pod-tls` (`crates/pod-tls/tests/common/cert_encoding.rs`)
+  had a `dNSName` alone; a client that asks a resolver by its address
+  verifies an `iPAddress`. The helper now writes an `iPAddress` for an IP
+  literal.
+
 # T-356: `pod-services-watch`: `forward-url` against sish and sandhole on the loopback
 
 **Source:** `docs/live-calls.md` (row L18).

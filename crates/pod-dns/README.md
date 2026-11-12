@@ -159,6 +159,16 @@ the first merge). New plants: `dns-nxdomain-ends-the-lookup`,
 `cargo test -p pod-dns --all-features`: 42 unit, doh_h2 3, doh_json 3,
 doh_names 2, doh_wire 8; live_doh 4 ignored.
 
+`tests/doh_coredns.rs` (T-350): the wire form against CoreDNS on
+127.0.0.1, over HTTP/1.1 and over HTTP/2: the addresses of a name, AAAA
+when A gave none, the SRV records, NXDOMAIN at the first answer, and a
+certificate of another root refused. CoreDNS is the program
+`POD_DNS_TEST_COREDNS_BIN`, else `coredns` on the path; a host with
+neither skips, unless `POD_DNS_TEST_COREDNS=required`.
+`scripts/ci/coredns-tests.sh` runs it in `ci.yml` with the release of
+CoreDNS 1.15.0, checked by its SHA-256. `live_doh` runs on Thursdays and
+by hand (`live.yml`).
+
 ## Changes for podssh
 
 * The failure of the system resolver says `system resolver: ...` (podnet's

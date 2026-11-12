@@ -1,7 +1,9 @@
 name: live
 
 # The tests with `#[ignore]` that need a live service: the relay of podssh,
-# the public DoH resolvers, a host that offers Multipath TCP, a public
+# the public DoH resolvers (on Thursdays and by hand: CoreDNS on the
+# loopback proves the client on each push, T-350), a host that offers
+# Multipath TCP, a public
 # registry, Alpine's mirror, magic-wormhole's mailbox server and library,
 # and the public mailboxes of magic-wormhole and the public MQTT brokers.
 # They run each day at an off-peak hour and by hand (docs/decisions.md,
@@ -57,10 +59,18 @@ jobs:
       - name: pod-tls, the handshake with the live relay
         run: cargo test --locked -p pod-tls --all-features --test live_handshake -- --ignored --nocapture
       # The proxy of names alone is a process of the job. The step that
-      # needs it waits for its port.
+      # needs it waits for its port. On Thursdays and by hand: the watches
+      # doh-answer of services.yml hold the liveness of each resolver each
+      # day, and CoreDNS in ci.yml proves the client on each push (T-350).
       - name: pod-dns, DoH with the public resolvers
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
           set -eu
+          if [ "$EVENT" = schedule ] && [ "$(date -u +%u)" != 4 ]; then
+            echo "the public DoH resolvers run on Thursdays and by hand"
+            exit 0
+          fi
           python3 -I scripts/names-proxy.py --listen 127.0.0.1:3129 > "$RUNNER_TEMP/names-proxy.log" 2>&1 &
           proxy=$!
           trap 'kill "$proxy" 2> /dev/null || true' EXIT
