@@ -1178,27 +1178,95 @@ the README, `SOURCES`, the calls C73 to C76).
   HTTPS, and no test has a TLS stand-in of the mint); the drain and the
   half close against the live relay; podnet's own tests on the crate.
 
+2026-11-12, partial: the trial of podnet started; no file of the trial is
+committed, and no line of a `.run` ran.
+
+- The commit of the trial: podnet's `main` at `1abfa91`
+  (`1abfa9150c72c1c073ba951ebfdd1d0728313859`). It holds the same blob of
+  each of the 7 files of the block of podnet in `SOURCES` as `7c5f87e`;
+  `git diff 7c5f87e 1abfa91` of these files is empty, and no file of them
+  moved. No fix of podnet to port.
+- The calls of the glue: C101 (podnet turns on `plain-ws` in its
+  dependency), C102 (podnet keeps the relay of its process), C103 (the
+  wire of a stored pair, and the next pair in podnet's loop).
+- What the patch must change, from a reading of podnet at `1abfa91`:
+  - The manifests: each podcrates tag of the 6 manifests with one
+    (`PodUtils/podnet:Cargo.toml` and the 5 crates) to `v0.29.0`;
+    `pod-relay` with `pair` and `plain-ws`; the lock of
+    `PodUtils/podnet:fuzz/Cargo.lock`.
+  - `PodUtils/podnet:src/ws_relay.rs`: a `Relay` of a `RelayList`, the
+    wire and a `Context` (`new`, `single`, `from_env`, `url` with the
+    scheme, `urls`, `host`, `port`, `connect` over `open` or
+    `open_on_loopback` and `stream::of`; an IPv6 target stays refused);
+    one `Context` of the process: the way of `crate::trust::context()` and
+    `crate::egress::egress(None)`, `Trust::Default` (as podnet's
+    `ws::dial`), its state directory as `Cache::in_dirs` (`Cache::none()`
+    with `PODNET_STATE_DIR=none`), `PODNET_RELAY_TOKEN` as
+    `Settings::token`; `RelayBudget` and a `meter(io)` over
+    `RelayBudget::meter_for` for `PodUtils/podnet:src/warp/session.rs`;
+    `SESSION_BYTES` and `SESSION_AGE` as the crate's budgets for
+    `PodUtils/podnet:src/edge_h2.rs`.
+  - `PodUtils/podnet:src/relay_pool.rs` goes; its users are
+    `PodUtils/podnet:src/ws_relay.rs` and
+    `PodUtils/podnet:src/relay_reverse/pairfile.rs` alone.
+  - `PodUtils/podnet:src/relay_reverse.rs`: the pairs as `pair-NAME.json`
+    of the store in the directory `relay` of the state directory; podnet's
+    `load` keeps its exit codes (64, 69, 78) and its refusal of a directory
+    that others can write (the store of `pod-core` makes it 0700); a named
+    pair is read with `pair::read_file` after a check for a symbolic link;
+    with no name, `pair::newest`; `run_node` over `reverse::run` with
+    `LocalHandler` (a direct `pod_proxy::Dialer` over podnet's
+    `resolve::plain()`, as podnet dialed its target with no proxy),
+    `half_close: Some(HALF_CLOSE_IDLE)`, a stop at the pair's end, the
+    expiry lines, `detach::ready` at the line `online` of
+    `NodeConfig::say`, and a fault of podnet for each `Exit`; `connect`
+    over `operator::run` with `eof_idle: Some(EOF_IDLE)` and
+    `tokio::io::join(input, output)`; `pair` and `stop` over
+    `pair::create` and `pair::stop`. Its callers
+    (`PodUtils/podnet:src/cli/cmd/relay.rs`,
+    `PodUtils/podnet:src/cli/cmd/serve_relay.rs`,
+    `PodUtils/podnet:src/cli/cmd/git_serve.rs`,
+    `PodUtils/podnet:src/roads.rs`) read the tokens of a pair by its
+    methods.
+  - The tests: those that the crate holds leave (the README, "Parity",
+    "podnet"); the six of its last row, `the_instances_of_a_pair`,
+    `the_node_ready_document_names_the_pair`, `the_expiry_words_and_parts`
+    and the exit codes of a pair file stay. A test writes its pair as a
+    file of the store's form: `pair::Pair` has no public constructor, and
+    `pair::parse` asks for 10 min left and tokens of 8 characters or more.
+    The fake relay of `PodUtils/podnet:src/dialers/tests.rs` takes the
+    token `good`: `token::kept` refuses a given token of fewer than 8
+    characters (`TokenError::BadEnvironment`), so the test needs a longer
+    one.
+  - podnet's checks: `PodUtils/podnet:scripts/layers-allow.txt` loses
+    `ws_relay -> edge_h2` and `ws_relay -> ws` (a row with no reference is
+    a fault); `PodUtils/podnet:scripts/size-allow.txt` lowers or removes
+    the counts of `ws_relay.rs` (994) and `relay_reverse.rs` (891); the
+    citations of `relay_pool.rs` with a line in its record
+    (`PodUtils/podnet:TODO/fixes.md`, `PodUtils/podnet:TODO/crates.md`,
+    `PodUtils/podnet:docs/protocol.md`, `PodUtils/podnet:SECURITY.md`)
+    name their commit or leave the backticks, and its documents name the
+    files of a token and of a pool as the crate keeps them.
+- Not measured: each step above; podnet's build on the crates of this
+  tree.
+
 What remains, in order:
 
-1. The trial of podnet (T-234, which its tests of the forward road need,
-   is done: `open::open_on_loopback`, an IPv6 relay host in brackets):
-   adoption/podnet/pod-relay.patch, `.commit` and `.run`, on podnet
-   `7c5f87e` or a later commit with the same files.
-   `PodUtils/podnet:src/ws_relay.rs`, `PodUtils/podnet:src/relay_pool.rs`
-   and `PodUtils/podnet:src/relay_reverse.rs` become glue over `pod_relay`
-   as the adoption map of the crate README says: one `Context` of the
-   process (the way of its egress and its trust, its state directory as a
-   `Cache`, `PODNET_RELAY_TOKEN` as `Settings::token`), no `set` and no
-   `active` (its callers in `PodUtils/podnet:src/edge_h2.rs`,
-   `PodUtils/podnet:src/warp/mod.rs`, `PodUtils/podnet:src/dialers/relay.rs`,
-   `PodUtils/podnet:src/preflight.rs` and the CLI take the handle),
-   `Relay::connect` as `open` and `stream::of`, the node over
-   `reverse::run` with `LocalHandler` and `half_close`, its next pair over
-   `pair::newest`, a stop at the pair's end, the operator over
-   `operator::run` with `eof_idle`. The `.run`: the tests of these modules,
-   `PodUtils/podnet:tests/relay_reverse.rs`, the exit codes of
-   `PodUtils/podnet:tests/cli.rs`, the static check.
-2. The release, and the take of podnet; the next trial of podssh (T-025)
+1. The trial of podnet on `1abfa91` (T-234 is done:
+   `open::open_on_loopback`, an IPv6 relay host in brackets):
+   adoption/podnet/pod-relay.patch, `.commit` and `.run`, as the list
+   above says, with calls C101 to C103. The `.run`, as for
+   `pod-hold-syn`: the remap and the check of podnet's record,
+   `check-size.py`, `check-layers.py`, the build, `cargo deny --locked
+   check bans sources`, a grep for no definition of the moved items,
+   clippy of the workspace, `cargo test -p podnet --lib`, the tests
+   `relay_reverse`, `relay_listen` and the exit codes of `cli`, `docs`,
+   the lock of `fuzz/`, rustfmt, `check-consumer-toolchains.py`, the musl
+   build with `cargo zigbuild` and podnet's `check-static.sh`.
+2. After the trial: the words "a binary does not turn it on" of the
+   feature `plain-ws` (the README, `crates/pod-relay/Cargo.toml`,
+   `open.rs`, `reverse/wire.rs`) follow call C101.
+3. The release, and the take of podnet; the next trial of podssh (T-025)
    and podvm's take of the facade see the changes of calls C75 and C80.
 
 # T-110: `pod-session`: the held link to a server that is not a podssh relay (GitHub #35)

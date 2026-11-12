@@ -19,8 +19,12 @@ a line when its work is done. Git and the record keep finished work.
   crate README and a block of podnet in `SOURCES`; 374 tests and 9 new
   plants pass. T-234 is done (an IPv6 relay host in brackets;
   `open::open_on_loopback` under `plain-ws`; calls C80 to C82): the trial
-  of podnet (adoption/podnet/pod-relay.*) is next. podnet's binary needs
-  the feature `plain-ws` for a relay at `http://` on the loopback (C82).
+  of podnet (adoption/podnet/pod-relay.*) on podnet `1abfa91` is next. It
+  started: no fix to port; the glue is not written, and no file of the
+  trial is committed. The Done section of T-026 lists what the patch
+  changes, and calls C101 to C103 give its design (podnet turns on
+  `plain-ws`; podnet keeps the relay of its process; the wire of a stored
+  pair by the scheme of its file).
 - The last release: `v0.28.0` at `4ce3625` (the hand-off #86; #85 is
   closed: each consumer took `v0.27.0`). Each consumer answers on #86 with the
   commit of its take. For the next tag: T-025's take (the `taken` line),
