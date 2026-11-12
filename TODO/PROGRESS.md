@@ -34,7 +34,8 @@
   socket), with the next tag.
 - Partial: T-026
   (`pod-relay`: podnet's capabilities and the plain mode are in the
-  crate, with T-234; the trial of podnet remains), T-040 (the
+  crate, with T-234; the trial of podnet on its `1abfa91` remains: no fix
+  to port, the glue is not written, calls C101 to C103), T-040 (the
   trial of podvm), T-170 (step 2: `pod_hold::syn_hold` from podnet
   `a7350b2`; the trial `pod-hold-syn` in `adoption.yml`, the release and
   podnet's take remain), T-261 (the MQTT meeting point of
@@ -78,7 +79,8 @@ next entry.
    (PodUtils/podrunner@T-046).
 3. **podnet:** the chain to WARP as a network of podnet
    (PodUtils/podnet#449; about twenty podnet entries wait): T-026
-   (partial: the trial of podnet), then T-028 (`pod-warp`
+   (partial: the trial of podnet on `1abfa91`; its Done section lists
+   what the patch changes), then T-028 (`pod-warp`
    with its `Dial` and `Datagrams`), then T-029 (`pod-cloudflare`). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-170 step 2
    (partial): the run of the trial `pod-hold-syn` in `adoption.yml`, the tag,
@@ -118,7 +120,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, and C100 to C103; C78, C79 and C96 to C99 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
