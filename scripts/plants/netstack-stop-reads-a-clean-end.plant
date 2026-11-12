@@ -1,0 +1,7 @@
+# The stop of the reactor gives no cause to the open streams: a read after
+# a shutdown is a clean end, not ConnectionReset (T-394).
+ENTRY=T-394
+GROUP=netstack
+EXPECT='on an `Ok` value'
+RUN='cargo test -p pod-netstack --lib a_shutdown_fails_each_socket_with_its_cause'
+LIMIT=900

@@ -44,8 +44,8 @@ pub use device::{DeviceStats, DeviceStatsSnapshot, Direction, LinkDevice, Packet
 pub use hooks::{Admit, GatewayService};
 pub use smoltcp;
 pub use stack::{
-    Clock, NetStack, NetStats, NetStatsSnapshot, SocketCount, StackConfig, StackEvent, TcpListener, TcpStream,
-    UdpDatagrams, UdpSocket,
+    Clock, NetStack, NetStats, NetStatsSnapshot, SocketCount, StackConfig, StackEvent, StackReset, TcpListener,
+    TcpStream, UdpDatagrams, UdpSocket,
 };
 pub use subnet::Subnet;
 

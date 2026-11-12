@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/net.rs b/crates/pod-warp/src/net.rs
+index cefd54d..39a2687 100644
+--- a/crates/pod-warp/src/net.rs
++++ b/crates/pod-warp/src/net.rs
+@@ -69,7 +69,7 @@ impl Closed {
+         }
+         self.flag.store(true, Ordering::Relaxed);
+         drop(slot);
+-        if first {
++        if first && why.is_empty() {
+             self.reset.reset(closed_text(&why));
+         }
+     }

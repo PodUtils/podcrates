@@ -11,6 +11,7 @@ use pod_core::{Datagrams, RecvMeta, Transmit};
 use tokio::sync::mpsc;
 
 use super::reactor::{Inbound, Outbound};
+use super::reset::{Cause, ended};
 use super::socket::{DropKick, one_family, took_datagram, udp_closed};
 use super::udp_service::Limits;
 use super::{NetStats, UdpSocket};
@@ -29,6 +30,7 @@ pub struct UdpDatagrams {
     read_stalled: Arc<AtomicBool>,
     stats: Arc<NetStats>,
     limits: Limits,
+    cause: Cause,
     /// The last field: its drop kicks the reactor after the channels closed.
     kick: DropKick,
 }
@@ -50,6 +52,7 @@ impl UdpSocket {
             read_stalled: self.read_stalled,
             stats: self.stats,
             limits: self.limits,
+            cause: self.cause,
             kick: self.kick,
         }
     }
@@ -66,7 +69,7 @@ impl UdpDatagrams {
 impl Datagrams for UdpDatagrams {
     fn poll_writable(&self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         if self.send_tx.is_closed() {
-            return Poll::Ready(Err(udp_closed()));
+            return Poll::Ready(Err(ended(&self.cause, udp_closed())));
         }
         Poll::Ready(Ok(()))
     }
@@ -82,7 +85,7 @@ impl Datagrams for UdpDatagrams {
             match self.send_tx.try_send(Outbound { data: chunk.to_vec(), to: t.destination, from: t.src_ip }) {
                 Ok(()) => {}
                 Err(mpsc::error::TrySendError::Full(_)) => NetStats::count(&self.stats.udp_tx_dropped),
-                Err(mpsc::error::TrySendError::Closed(_)) => return Err(udp_closed()),
+                Err(mpsc::error::TrySendError::Closed(_)) => return Err(ended(&self.cause, udp_closed())),
             }
         }
         self.kick.notify();
@@ -110,7 +113,7 @@ impl Datagrams for UdpDatagrams {
                 *m = RecvMeta { addr: from, len, stride: len, dst_ip: Some(to.ip()) };
                 Poll::Ready(Ok(1))
             }
-            Poll::Ready(None) => Poll::Ready(Err(udp_closed())),
+            Poll::Ready(None) => Poll::Ready(Err(ended(&self.cause, udp_closed()))),
             Poll::Pending => Poll::Pending,
         }
     }

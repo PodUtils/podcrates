@@ -32,7 +32,7 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | --- | --- |
 | `Settings` | `api: Api`, `way: Way`, `door: Door`, `routes: Routes`, `hints: DeviceHints`, `report: Report`, `net: NetSettings`; `Settings::new(api, way)`. |
 | `Warp` | `register(settings)`, `register_or_load(settings, &IdentityFile)`, `from_parts`, `from_stored`, `save(path)`; `device`, `identity`, `settings`; `refresh`, `account`, `set_license`, `rotate_key`, `delete`; `open_session() -> MasqueSession`, `connect() -> WarpNet` (with the check of the data path; a session that carries nothing marks its door bad); `won_door`, `with_won_door`, `mark_door_bad`, `endpoint_in_use`. |
-| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `stack`, `with_resolvers`, `link_stats`, `renew_due`, `check_data_path(&DataPathCheck) -> Duration`, `checked`. |
+| `WarpNet` | `Dial` (`label` `WARP`, `dial`, `dial_addrs`, `names_inside` true, `datagrams`); `start(session, v4, v6, &NetSettings, report)`, `addresses`, `is_closed`, `close_reason`, `close(why)` (podnet's `close_session`), `stack`, `with_resolvers`, `link_stats`, `renew_due`, `check_data_path(&DataPathCheck) -> Duration`, `checked`. When the session closes (the edge ends it, a pump ends, the reactor of the stack stops, also by a panic, or `close`), each open stream and UDP socket fails at once with `ConnectionReset` and the first cause, and a new dial and a new UDP socket fail with it. |
 | `net` | `NetSettings { mtu, tcp_buffer, congestion_control, tcp_burst, link_stats, check, renew }` (default: 1280, `TCP_BUFFER` 512 KiB, none, no limit, the counters of the session, `DataPathCheck::default()`, no relay), `stack_config(v4, v6)`; `parse_cc` (`none`, `reno`, `cubic`), `parse_tcp_burst` (1 to `TCP_BURST_MAX`, 430, or `none`), `tcp_burst_max(buffer, mtu)`; `Renew` (a function of the caller); `CongestionControl`, `DeviceStats`, `DeviceStatsSnapshot`. A bad value is `Config` (exit 78). |
 | `check` | `DataPathCheck { servers, name, limit, resend }` (default: the resolver of the tunnel of the first family of the device, `cloudflare.com`, 5 s, 1.2 s), `servers_for`, `CHECK_LIMIT`, `CHECK_RESEND`. A session with no answer is `Unavailable` (stage `Warp`). |
 | `api` | `Api::new(pod_proxy::Client)`, `with_base(url)` (podnet's `PODNET_WARP_API`, podssh's `PODSSH_WARP_API`), `with_bases`, `bases`, `request`, `send` (each base in turn; a `POST` goes on only after no answer); `ApiError`, `api_status`, `bases(value)`, `API_TIMEOUT`. |
@@ -98,6 +98,7 @@ and far end in `tests/common/edge.rs` (call C135).
 | The counters of the link | `tests/stack.rs`: `the_counters_of_the_link_count_each_session`; in `pod-netstack`: `stacks_with_shared_counters_add_to_one_count`, `shared_counters_take_the_inbound_drops_of_each_link` |
 | The check of the data path, and the door that carried nothing | `check::tests::the_servers_of_the_check_follow_the_families_of_the_device`; `tests/stack.rs`: `the_check_of_the_data_path_needs_an_answer`, `a_door_that_carries_nothing_goes_last`, `a_lost_check_question_is_sent_again`, `no_check_takes_a_session_that_carries_nothing` |
 | The budget of a relay | `tests/stack.rs`: `the_budget_of_a_relay_says_when_to_renew` |
+| The flows of a closed session fail at once (T-394) | `tests/net.rs`: `the_flows_of_a_session_that_the_edge_ends_fail_at_once` (`Edge::end_sessions`), `a_close_by_the_caller_fails_the_flows_of_the_session`; in `pod-netstack`: the tests of `reset.rs` (a panic of the reactor) |
 
 The stand-in edge answers a DNS question on UDP port 53 too, notes the
 largest TCP window of the client and drops the first questions that a test
@@ -106,7 +107,7 @@ names (`Watch` of `tests/common/edge.rs`); `Seen::silent` of
 carries nothing. Plants: `warp-check-without-answer`,
 `warp-check-door-kept`, `warp-burst-not-passed`,
 `netstack-controller-not-set`, `netstack-burst-not-set`,
-`netstack-shared-counters-lose-the-drops`.
+`netstack-shared-counters-lose-the-drops`, `warp-close-resets-nothing`.
 
 ## The parity list
 
@@ -156,6 +157,7 @@ carries nothing. Plants: `warp-check-without-answer`,
 | `warp::ip::check_tcp_burst`, `TCP_BURST_VARIABLE` | `net::parse_tcp_burst` into `NetSettings::tcp_burst` |
 | `warp::ip::link_stats()` (a global) | one `Arc<DeviceStats>` of podnet in `NetSettings::link_stats`; its `snapshot()` |
 | `WarpStack::renew_due`, `StackConfig::renew` | `WarpNet::renew_due`, `NetSettings::renew = Some(Arc::new(move \|\| budget.spent()))` |
+| `WarpStack::close_session(why)`, `Driver::fail_all`, `supervise` | `WarpNet::close(why)`; `NetStack::reset_all` at the first cause; the watch of `NetStack::stopped()` |
 | `proxy::check_data_path(&stack, ipv4)` | `WarpNet::check_data_path(&DataPathCheck)`; `Warp::connect` runs it and marks the door bad |
 | `proxy::NO_CHECK_VARIABLE` | `NetSettings::check = None` |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |

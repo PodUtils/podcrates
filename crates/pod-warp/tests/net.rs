@@ -1,8 +1,9 @@
 //! A WARP session as a network, against the stand-in API and the stand-in
 //! edge on the loopback: TCP to an address and to a name through the
 //! `Dial`, UDP through the `Datagrams`, the order of the doors and the
-//! pinned door, a key of the front door that the record does not pin, and
-//! a key that the edge did not enroll.
+//! pinned door, a key of the front door that the record does not pin, a
+//! key that the edge did not enroll, and the end of the open streams and UDP
+//! sockets when the session closes.
 
 mod common;
 
@@ -177,4 +178,77 @@ async fn a_key_that_the_edge_did_not_enroll_is_refused() {
     let err = other.open_session().await.err().unwrap();
     assert!(matches!(err.stage, Stage::Tls | Stage::Warp), "{:?}: {}", err.stage, err.chain());
     assert_eq!(edge.tunnels(), 0);
+}
+
+/// An open session with a stream to the echo route after one exchange, and
+/// a UDP socket: a read of each waits in a task.
+async fn open_flows(
+    net: &pod_warp::WarpNet,
+) -> (tokio::task::JoinHandle<std::io::Result<usize>>, tokio::task::JoinHandle<std::io::Result<usize>>) {
+    let target = Target::Addr("203.0.113.9:80".parse().unwrap());
+    let mut connected = net.dial(&target, tokio::time::Instant::now() + LIMIT).await.unwrap();
+    connected.io.write_all(b"ping").await.unwrap();
+    let mut got = [0u8; 4];
+    tokio::time::timeout(LIMIT, connected.io.read_exact(&mut got)).await.expect("an echo").unwrap();
+    let datagrams = net.datagrams().await.unwrap();
+    let read = tokio::spawn(async move { connected.io.read(&mut [0u8; 16]).await });
+    let receive = tokio::spawn(async move {
+        let mut buf = [0u8; 16];
+        pod_core::datagrams::recv_from(&*datagrams, &mut buf).await.map(|(n, _)| n)
+    });
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!read.is_finished() && !receive.is_finished(), "the reads wait");
+    (read, receive)
+}
+
+/// The read in `task` fails at once with `ConnectionReset` and `why`.
+async fn fails_with(task: tokio::task::JoinHandle<std::io::Result<usize>>, why: &str) {
+    let err = tokio::time::timeout(LIMIT, task).await.expect("the read waits for ever").unwrap().unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::ConnectionReset, "{err}");
+    assert!(err.to_string().contains(why), "{err}");
+}
+
+/// A new dial and a new UDP socket of a closed session fail with the cause.
+async fn refuses_new_flows(net: &pod_warp::WarpNet, why: &str) {
+    let target = Target::Addr("203.0.113.9:80".parse().unwrap());
+    let err = net.dial(&target, tokio::time::Instant::now() + LIMIT).await.err().unwrap();
+    assert!(err.chain().contains(why), "{}", err.chain());
+    let err = net.datagrams().await.err().unwrap();
+    assert!(err.chain().contains(why), "{}", err.chain());
+}
+
+/// PodUtils/podnet issue 125: the edge ends a session. The read of an open
+/// stream and a UDP receive fail at once with the cause, not a wait for
+/// ever, and a new flow fails with it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_flows_of_a_session_that_the_edge_ends_fail_at_once() {
+    pod_testkit::need_loopback!();
+    let (_api, served, edge, moved) = world(dead()).await;
+    let (settings, _) = common::settings(&format!("http://{}", served.addr()), moved);
+    let net = Warp::register(settings).await.unwrap().connect().await.unwrap();
+    let (read, receive) = open_flows(&net).await;
+    edge.end_sessions();
+    fails_with(read, "the WARP session is closed").await;
+    assert!(net.is_closed());
+    let why = net.close_reason().unwrap();
+    fails_with(receive, &why).await;
+    refuses_new_flows(&net, &why).await;
+}
+
+/// PodUtils/podnet issue 185: the caller closes a session. Its flows fail
+/// at once with the cause, a new flow fails, and a second close keeps the
+/// first cause.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_close_by_the_caller_fails_the_flows_of_the_session() {
+    pod_testkit::need_loopback!();
+    let (_api, served, _edge, moved) = world(dead()).await;
+    let (settings, _) = common::settings(&format!("http://{}", served.addr()), moved);
+    let net = Warp::register(settings).await.unwrap().connect().await.unwrap();
+    let (read, receive) = open_flows(&net).await;
+    net.close("the session is too old");
+    net.close("a later cause");
+    assert_eq!(net.close_reason().as_deref(), Some("the session is too old"));
+    fails_with(read, "the WARP session is closed: the session is too old").await;
+    fails_with(receive, "the session is too old").await;
+    refuses_new_flows(&net, "the session is too old").await;
 }

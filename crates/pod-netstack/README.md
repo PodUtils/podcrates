@@ -30,11 +30,11 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 
 | Item | Contents |
 | --- | --- |
-| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor. |
+| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor; `reset_all(reason)` and `resetter() -> StackReset` (the section "Close"); `stop_reason`, `stopped()` (a future of the cause of the stop of the reactor, also a panic). |
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
 | `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again), `udp_rx_dropped`, `udp_tx_dropped`, `udp_oversize` (the section "UDP"). |
-| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it. |
+| `TcpStream` | `AsyncRead`, `AsyncWrite`; `established()` (the handshake, or `ConnectionRefused`, `ConnectionReset`), `local_addr`, `peer_addr`, `set_nodelay`, `shutdown` (a FIN after the queued data; the read side stays open), `close` (the section "Close"), `abort` (a RST). A RST of the peer reads as `ConnectionReset` after the bytes that came before it; so does the end of the stream by the stack (`reset_all`, the stop of the reactor), with its cause. |
 | `TcpListener` | `accept`, `local_addr` (`[::]:port` on each address), `close` (the section "Close"). |
 | `UdpSocket` | `send_to(buf, remote)`; `send_to_from(buf, remote, source: IpAddr)` (from an address that the stack need not own; the port of the socket); `recv_from(buf) -> (n, from)`; `recv_from_to(buf) -> (n, from, to)` (`to`: the destination of the datagram); `local_addr` (`[::]:port` on each address); `max_datagram(to)`; `into_datagrams`. A remote of the other family than the source, and a datagram over `max_datagram`, are `InvalidInput`. A drop sends the queued datagrams, then frees the port. |
 | `UdpDatagrams` | A UDP socket as `pod_core::Datagrams` (QUIC, a DNS client over the stack). `Transmit::src_ip` is the source of the datagram; `RecvMeta::dst_ip` is its destination. `try_send` does not wait: a full queue to the stack drops the datagram (`udp_tx_dropped`). `max_datagram(to)`; `may_fragment` is `IPV4_FRAGMENTATION`. |
@@ -158,6 +158,20 @@ T-257 to T-259 (PodUtils/podnet#464):
   1,000 ports one after the other).
 * `abort` sends a RST: the socket leaves the set after smoltcp sent it
   (`an_abort_sends_a_reset`).
+* `NetStack::reset_all(reason)` (and `StackReset::reset`, a handle that a
+  task keeps) ends each open stream and each UDP socket at once: the link
+  is dead, or the consumer closes it. Each RST goes out when the link takes
+  it; the stack does not wait for it and frees each socket. The app reads
+  the bytes that it had, then `ConnectionReset` with `reason`; a write that
+  waits, a UDP receive and a UDP send fail the same way. A listener stays,
+  and a socket after the reset works
+  (`a_reset_fails_each_stream_and_each_udp_socket`,
+  `a_write_that_waits_fails_at_a_reset`).
+* The stop of the reactor (a shutdown, the drop of the stack, a panic)
+  ends each open socket the same way, with its cause: "the stack is shut
+  down", or a panic. `stop_reason` and `stopped()` give the cause, and a
+  new command fails with it (`a_shutdown_fails_each_socket_with_its_cause`,
+  `a_panic_of_the_reactor_fails_each_socket`).
 
 ## Any IP
 
@@ -372,7 +386,9 @@ write, the hooks, the close of each socket, a slow reader, a large
 download over two bounded links, the refused binds, a UDP send of two
 families), the close of a listener (`listener.rs`) and of a stream
 (`close.rs`: the queued bytes, the linger, the abort and its RST on the
-link, a reset after a full channel), a burst of SYNs (`burst.rs`: 48 at
+link, a reset after a full channel), the end of each socket by the stack
+(`reset.rs`: a reset of the consumer, a write that waits, a shutdown, a
+panic of the reactor), a burst of SYNs (`burst.rs`: 48 at
 once, a full accept queue, `max_connections`, a SYN sent again; no RST on
 the link), UDP over a link (`udp.rs`: a burst with no reader, the counters,
 the size of a datagram for each build, the fragments, the drop of a
@@ -397,7 +413,9 @@ of the listeners; `netstack-abort-frees-the-socket-at-once` proves the test
 of the RST on the link. The plants `netstack-udp-backlog-lost-at-a-full-channel`,
 `netstack-udp-backlog-waits-for-the-tick`, `netstack-udp-loss-not-counted`,
 `netstack-udp-send-loss-not-counted`, `netstack-udp-over-the-limit-goes` and
-`netstack-dropped-udp-socket-stays` prove the tests of UDP.
+`netstack-dropped-udp-socket-stays` prove the tests of UDP. The plants
+`netstack-reset-wakes-no-write` and `netstack-stop-reads-a-clean-end`
+prove the tests of `reset.rs`.
 
 ## Sources
 

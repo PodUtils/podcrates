@@ -820,7 +820,7 @@ cargo test -p pod-warp --all-features
 **Milestone:** M3
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -859,6 +859,44 @@ open stream fails with the cause; a close by the caller does the same.
 cargo test -p pod-netstack --all-features
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-12. Commits `428db75` (the work) and the commit of the plants
+and of this record (this commit); calls C180 and C181.
+
+- `pod-netstack`: `NetStack::reset_all(reason)` and `resetter() ->
+  StackReset` (a handle that a task keeps) end each open stream and each
+  UDP socket at once: the app reads its bytes, then `ConnectionReset` with
+  the reason; a write, a UDP receive and a UDP send fail the same way. A
+  listener stays (C180). The stop of the reactor (a shutdown, a drop, a
+  panic) ends each open socket with its cause, not a clean end;
+  `stop_reason` and `stopped()` give the cause, and a new command fails
+  with it. Module `stack/reset.rs`.
+- Fix in place: the drop of a connection did not wake a write that waited
+  for room in the channel from the app. After a reap, a shutdown or a
+  reset, the write waited for ever (the test failed on the code before).
+- `pod-warp`: the first cause of the close of a `WarpNet` resets its stack
+  (`the WARP session is closed: CAUSE`); a task watches
+  `NetStack::stopped()` (podnet's `supervise`); `WarpNet::close(why)`
+  (podnet's `close_session`) stops the tasks of the session; a new UDP
+  socket of a closed session fails as a new dial does (C181). The test
+  edge has `Edge::end_sessions` (a shutdown of the TCP connection of each
+  session).
+- Tests: `pod-netstack` `stack/tests/reset.rs` (4 new: a reset of each
+  socket, a write that waits, a shutdown, a panic of the reactor through
+  a `GatewayService`); `pod-warp` `tests/net.rs` (2 new: the edge ends a
+  session, the caller closes it; each with a read of a stream and a UDP
+  receive that wait). `cargo test -p pod-netstack --all-features`: 71
+  passed. `cargo test -p pod-warp --all-features`: 61 unit tests, 8 of
+  `tests/net.rs`, 8 of `tests/stack.rs`, 8 of `tests/register.rs`, 1 live
+  test ignored. `cargo test -p pod-hold --all-features` (a consumer of
+  the stack): 59 passed.
+- Plants: `netstack-reset-wakes-no-write`, `netstack-stop-reads-a-clean-end`
+  and `warp-close-resets-nothing`: each caught (run by hand in the tree
+  with the shared target). The patches of `netstack-udp-over-the-limit-goes`
+  and `netstack-udp-send-loss-not-counted` are made again on the changed
+  files; each still catches.
 
 # T-395: `pod-warp`: a UDP datagram of `WarpNet` to a family that the device lacks is refused (podnet issue 112)
 

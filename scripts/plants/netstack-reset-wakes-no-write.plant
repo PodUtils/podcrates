@@ -1,0 +1,7 @@
+# The drop of a connection does not wake a write that waits for room in the
+# channel from the app: after a reset, the write waits for ever (T-394).
+ENTRY=T-394
+GROUP=netstack
+EXPECT='the write waits for ever'
+RUN='cargo test -p pod-netstack --lib a_write_that_waits_fails_at_a_reset'
+LIMIT=900
