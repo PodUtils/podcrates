@@ -8,7 +8,7 @@
 //! that pins a single key accepts no other certificate (podssh's for WARP's
 //! endpoint, whose chain no public root signs, comes with `pod-warp`): such
 //! a file is allowed in [`PINNED`] while it still compares the key, and its
-//! own tests fail when the pin is skipped.
+//! own tests fail when the pin is skipped. `pod-warp` holds that verifier.
 //!
 //! `dangerous()` of rustls opens `with_custom_certificate_verifier`. Only the
 //! files of [`DANGEROUS`] call it, and each must still build the WebPKI
@@ -26,8 +26,10 @@ const FORBIDDEN: [&str; 3] = ["ServerCertVerifier for", "set_certificate_verifie
 /// Each pinning verifier's file, and the comparison with the pinned key that
 /// the file must hold for the allowance to stand: the mutual TLS of pinned
 /// keys (T-165), whose `tests/mutual.rs` fails when the pin is skipped.
-/// podssh's of WARP (`== Some(self.point.as_slice())`) joins with `pod-warp`.
-const PINNED: &[(&str, &str)] = &[("pod-tls/src/mutual.rs", "self.pins.holds(&pin)")];
+/// The pin of WARP's front door in `pod-warp` (T-028): its `tests/net.rs`
+/// fails when the pin is skipped (plant `warp-pin-unchecked`).
+const PINNED: &[(&str, &str)] =
+    &[("pod-tls/src/mutual.rs", "self.pins.holds(&pin)"), ("pod-warp/src/tls.rs", "if got != self.expected")];
 
 /// Each file that calls `dangerous()`, and the build of the WebPKI verifier
 /// (or, for a file of [`PINNED`], the comparison with the pin) that the
@@ -36,6 +38,7 @@ const DANGEROUS: &[(&str, &str)] = &[
     ("pod-tls/src/context.rs", "WebPkiServerVerifier::builder_with_provider"),
     ("pod-tls/src/ech/config.rs", "WebPkiServerVerifier::builder_with_provider"),
     ("pod-tls/src/mutual.rs", "self.pins.holds(&pin)"),
+    ("pod-warp/src/tls.rs", "if got != self.expected"),
 ];
 
 /// What the scan read and found.

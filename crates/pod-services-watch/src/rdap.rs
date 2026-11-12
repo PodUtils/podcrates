@@ -51,7 +51,7 @@ pub async fn check(service: &Service, watch: &Watch, net: &Net) -> Checked {
                 failed.push(format!("{url} answered HTTP {}", answer.status));
                 continue;
             }
-            Err(Finding::Failed(why) | Finding::Moved { now: why, .. }) => {
+            Err(Finding::Failed(why) | Finding::NoAnswer(why) | Finding::Moved { now: why, .. }) => {
                 failed.push(why);
                 continue;
             }

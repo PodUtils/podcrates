@@ -29,9 +29,13 @@ async fn dial(net: &Net, text: &str) -> Result<RelaySession<Stream>, Finding> {
 async fn dial_offering(net: &Net, text: &str, protocol: Option<&str>) -> Result<RelaySession<Stream>, Finding> {
     let url = WsUrl::parse(text).map_err(|e| Finding::failed(format!("the URL of the WebSocket: {e}")))?;
     let way = pod_ws::way::Way::new(net.context.clone(), net.dial.clone(), net.user_agent.clone());
-    pod_ws::url::dial_offering(&url, protocol, &way, &net.trust, net.limit, Some(net.limit))
-        .await
-        .map_err(|e| Finding::failed(pod_ws::url::failure(&url, &e)))
+    pod_ws::url::dial_offering(&url, protocol, &way, &net.trust, net.limit, Some(net.limit)).await.map_err(|e| {
+        let why = pod_ws::url::failure(&url, &e);
+        match &e {
+            pod_ws::ConnectError::Dial(dial) if crate::net::silent(dial) => Finding::NoAnswer(why),
+            _ => Finding::Failed(why),
+        }
+    })
 }
 
 /// The WebSocket URL of an endpoint: `wss://` or `ws://`, its host, its

@@ -89,7 +89,8 @@ pub(crate) struct TestCert {
     pub key_der: Vec<u8>,
 }
 
-/// Mint a self-signed end-entity certificate whose SAN carries `dns_name`.
+/// Mint a self-signed end-entity certificate whose SAN carries `dns_name`
+/// (an `iPAddress` when it is an IP literal).
 pub fn self_signed(dns_name: &str) -> TestCert {
     self_signed_inner(dns_name, false)
 }
@@ -150,7 +151,14 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     // (`dNSName`, context-specific primitive 2) is
     // `InvalidCertificate(BadEncoding)`. RFC 5280 §4.2.1.6 spells
     // `GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName`.
-    let san = seq(&[oid(&[2, 5, 29, 17]), tlv(0x04, &seq(&[tlv(0x82, dns_name.as_bytes())]))]);
+    // An IP literal is an `iPAddress` (`0x87`, the octets of the address):
+    // a client that verifies an address reads no `dNSName`.
+    let general_name = match dns_name.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(ip)) => tlv(0x87, &ip.octets()),
+        Ok(std::net::IpAddr::V6(ip)) => tlv(0x87, &ip.octets()),
+        Err(_) => tlv(0x82, dns_name.as_bytes()),
+    };
+    let san = seq(&[oid(&[2, 5, 29, 17]), tlv(0x04, &seq(&[general_name]))]);
     // **`basicConstraints: CA:TRUE`, critical, on the anchor.** The anchor is
     // its own trust anchor, and a v3 anchor with no `basicConstraints` is a
     // leaf by RFC 5280's rules (webpki: `BadEncoding`).

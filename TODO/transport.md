@@ -4861,7 +4861,7 @@ wrong key fail; the types of TURN. Plant
 **Milestone:** M5
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4920,6 +4920,45 @@ sh scripts/ci/coredns-tests.sh
 cargo test -p pod-dns --all-features
 sh scripts/plant-each.sh doh-coredns-skip-fails
 ```
+
+## Correction
+
+2026-11-12 (call C156):
+
+- The release archive of CoreDNS 1.15.0 is the artifact, not the image of a
+  Dockerfile in images/coredns/: the archive, read through the proxy of a
+  session on 2026-11-12, has the SHA-256 of the Premise, and its program
+  is static. The test target starts CoreDNS itself, on a free port of
+  127.0.0.1, with a Corefile, a zone and a certificate that it makes for
+  each test; `scripts/ci/coredns-tests.sh` downloads and checks the
+  archive, and names the program in `POD_DNS_TEST_COREDNS_BIN`. A
+  container cannot read files that a test makes unless the script makes
+  them too.
+- `pod-dns` asks by GET alone: it sends no POST. The test asks by GET over
+  HTTP/1.1 and over HTTP/2.
+- The test certificate of `pod-tls` (`crates/pod-tls/tests/common/cert_encoding.rs`)
+  had a `dNSName` alone; a client that asks a resolver by its address
+  verifies an `iPAddress`. The helper now writes an `iPAddress` for an IP
+  literal.
+
+## Done
+
+2026-11-12, commit `4accab4` (call C156):
+
+- `crates/pod-dns/tests/doh_coredns.rs`: 3 tests, each over HTTP/1.1 and
+  HTTP/2 (the wire form of a name with two addresses, AAAA when A gave
+  none, the SRV records; NXDOMAIN at the first answer with no connection
+  to the second resolver; a certificate of another root refused).
+- `sh scripts/ci/coredns-tests.sh` (the archive downloaded through the
+  proxy of the session, its SHA-256 checked): exit 0, 3 passed, each line
+  said. The test binary passed 30 runs in a loop.
+- `cargo test -p pod-dns --all-features`: each target passed (with no
+  CoreDNS on the path, `doh_coredns` skips).
+- `sh scripts/plant-each.sh doh-coredns-skip-fails`: caught.
+- `ci.yml` runs the script in the job `test`; `live.yml` runs `live_doh`
+  on Thursdays and by hand. Not run here: the first run of `ci.yml` after
+  the merge must show the step "pod-dns against CoreDNS" green, with the
+  four lines `CoreDNS: ...`.
 
 # T-356: `pod-services-watch`: `forward-url` against sish and sandhole on the loopback
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**312 entries: 84 open, 4 partial, 5 blocked, 219 done.**
+**313 entries: 83 open, 5 partial, 5 blocked, 220 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 19 | 1 | 0 | 62 | 82 |
-| P2 | 33 | 1 | 5 | 110 | 149 |
+| P1 | 17 | 2 | 0 | 63 | 82 |
+| P2 | 34 | 1 | 5 | 110 | 150 |
 | P3 | 32 | 2 | 0 | 45 | 79 |
-| **All** | 84 | 4 | 5 | 219 | 312 |
+| **All** | 83 | 5 | 5 | 220 | 313 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -346,8 +346,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-347](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: each offline scenario on a real kernel as root, with the planted flush |
 | [T-348](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the VPN and the live scenarios of issue 178 (12 of 39) |
 | [T-349](podvm.md) | P3 | L | M7 | feature | open | `pod-netlab`: a lab on a user-space stack, and a lab with more than one guest |
-| [T-350](transport.md) | P1 | M | M5 | defect | open | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
-| [T-351](upkeep.md) | P1 | M | M5 | defect | open | `services.yml`: a host that gives no answer to one runner fails the daily run |
+| [T-350](transport.md) | P1 | M | M5 | defect | done | `pod-dns`: the daily DoH test to the public resolvers fails on Quad9's connect from a runner; CoreDNS on the loopback takes its place |
+| [T-351](upkeep.md) | P1 | M | M5 | defect | partial | `services.yml`: a host that gives no answer to one runner fails the daily run |
 | [T-352](upkeep.md) | P2 | S | M5 | chore | open | `live.yml` runs each week, and no step of `ci.yml` reaches a host of another party |
 | [T-353](podvm.md) | P2 | M | M5 | feature | open | `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week |
 | [T-354](relay.md) | P2 | S | M5 | chore | open | `pod-wormhole`, `pod-relay`: magic-wormhole's mailbox server and transit relay from a hashed requirements file, on each push |
@@ -359,3 +359,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-360](adapters.md) | P2 | M | M3 | feature | open | `pod-cloudflare`: a stand-in edge of each push and one quick tunnel each week |
 | [T-361](roads.md) | P3 | M | M4 | feature | open | `pod-relay`: its end-to-end tests against the self-hosted relay of `pod-relay-serve`, then against workerd |
 | [T-370](transport.md) | P2 | S | M1 | feature | done | `pod-proxy`: MESSAGE-INTEGRITY, FINGERPRINT and the long-term key in `stun`, for TURN (PodUtils/podssh#214) |
+| [T-371](upkeep.md) | P2 | M | M5 | defect | open | `pod-services-watch`: the DNS watches, `stun-binding` and the TLS of the HTTP client give no class "no answer" |

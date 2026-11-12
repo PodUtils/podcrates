@@ -1,0 +1,6 @@
+# The class of call C153: a dial that the far host did not answer is a failure of another kind; its test must fail.
+ENTRY=T-351
+GROUP=services
+EXPECT='test answer::a_refused_connect_is_no_answer \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- answer::a_refused_connect_is_no_answer --exact'
+LIMIT=1800

@@ -106,6 +106,11 @@ jobs:
       # images/mosquitto/, pinned to a digest. A skip fails the step.
       - name: pod-wormhole against Eclipse Mosquitto
         run: sh scripts/ci/mosquitto-tests.sh
+      # The DNS over HTTPS of pod-dns against CoreDNS on 127.0.0.1 (T-350):
+      # the release of CoreDNS 1.15.0, checked by its SHA-256. A skip fails
+      # the step.
+      - name: pod-dns against CoreDNS
+        run: sh scripts/ci/coredns-tests.sh
       # The drop of the capabilities of a root payload (T-221) skips as
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root

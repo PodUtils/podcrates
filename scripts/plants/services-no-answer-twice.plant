@@ -1,0 +1,6 @@
+# The rule of call C153: the runner takes each watch with no answer as the first one, also when the state of the last scheduled run names it; its test must fail.
+ENTRY=T-351
+GROUP=services
+EXPECT='test answer::a_second_scheduled_run_with_no_answer_fails \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- answer::a_second_scheduled_run_with_no_answer_fails --exact'
+LIMIT=1800
