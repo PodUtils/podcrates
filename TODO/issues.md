@@ -107,5 +107,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #102 | COORD-063: GNU tar with an absolute -C fails in a unit of the supervise rung; a relative -C passes (PodUtils/podrunner#70, podcrates T-328) (to podvm) (to podrunner) | open (waits for podvm; podrunner read it, PodUtils/podrunner#71) | T-328 |
 | #103 | COORD-064: v0.33.0: pod-turn, pod-devtunnel, pod-warp (first part), pod-netlab (offline part), A11 and A12 (to all) | open (podnet `797104f`, PodUtils/podnet#514; podssh `72d6a3d`, PodUtils/podssh#218; podvm and podrunner wait) | T-028, T-207, T-372, T-373, T-374, T-375, T-376, T-377, T-378, T-390, T-391 |
 | #104 | COORD-065: v0.34.0: the TCP carrier of pod-link with the pin of an Ed25519 key, podnet's ip.rs settings, closed WARP sessions fail their flows (to all) | open (podssh `287e23b`, PodUtils/podssh#219; podnet, podvm and podrunner wait) | T-304, T-335, T-355, T-394, T-396 |
+| #105 | COORD-066: the answer to PodUtils/podssh#220: the kind file-host (T-416) and a board over pod_wormhole::mqtt (T-417) (to podssh) | open (T-416 and T-417 open) | T-416, T-417 |
 
 #79 to #81 are pull requests.

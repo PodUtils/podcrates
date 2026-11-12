@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**336 entries: 80 open, 6 partial, 5 blocked, 245 done.**
+**338 entries: 82 open, 6 partial, 5 blocked, 245 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 2 | 0 | 69 | 85 |
-| P2 | 33 | 2 | 5 | 125 | 165 |
+| P2 | 35 | 2 | 5 | 125 | 167 |
 | P3 | 33 | 2 | 0 | 49 | 84 |
-| **All** | 80 | 6 | 5 | 245 | 336 |
+| **All** | 82 | 6 | 5 | 245 | 338 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -383,3 +383,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-406](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the L4 door of `--l4` and its proxy, after HTTP/3 |
 | [T-407](transport.md) | P2 | S | M3 | chore | open | `pod-proxy`: fuzz targets of the server face of a proxy |
 | [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
+| [T-416](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
+| [T-417](relay.md) | P2 | S | M2 | feature | open | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |

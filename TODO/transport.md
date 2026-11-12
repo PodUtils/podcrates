@@ -5983,3 +5983,48 @@ check of the fuzz workspace.
 ```sh
 cargo check --manifest-path fuzz/Cargo.toml --bins
 ```
+
+# T-416: `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220)
+
+**Source:** PodUtils/podssh#220 (COORD-045), ask 1.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+PodUtils/podssh@T-738 carries the resumable layer as one sealed upload to
+a public file host for each piece, the last of the last fallbacks. The
+catalog of `pod-services` has no kind for a file host, so podssh cannot
+name a host, its upload form, its answer, its limits or its watch.
+
+## Premise
+
+- Read: PodUtils/podssh#220 (the four hosts as podssh read them on
+  2026-11-12; its sources in the file docs/carriers.md of podssh, "the second
+  reading of the file hosts").
+- Not measured: an upload to each host from here and from a runner; the
+  answer of 0x0.st (its page answered 500 to podssh on 2026-11-12).
+
+## Approach
+
+A kind `file-host` in the schema of `pod-services` (and its check in
+`pod-services-watch`): an endpoint `upload` (https, 443, path) and the
+facts `file-field`, `fields` (name=value, the shortest life), `answer`
+(`text`, or `json` with a path), `serves` (the hosts of the answer's
+URLs), `fetch-segment`, `fetch-method`, `delete` (`none`, or `token-form`
+with its header and fields), `upload-bytes-most`, `uploads-per-hour`
+(where published) and `one-person`; a watch `http-text` of each upload
+page. Four services in podssh's order: `tmpfiles-org`, `litterbox`,
+`temp-sh`, `0x0-st` (the last, with its terms against automated mass
+uploads in a `note`). Each fact read again from the host's page with its
+date; a test that each `file-host` service has each fact of its kind.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo test -p pod-services-watch --all-features
+```

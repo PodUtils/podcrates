@@ -4322,3 +4322,48 @@ cargo test -p pod-session --all-features
 
 2026-11-12. No code: C119 stands. The answer is on the COORD issue of
 podcrates to podnet.
+
+# T-417: `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220)
+
+**Source:** PodUtils/podssh#220 (COORD-045), ask 2.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podssh@T-738 keeps the URL of each piece as a sealed note on a
+board. A caller that holds one connection at a time needs to put a
+retained message at a topic, take the retained message of one topic, and
+clear a topic. `pod_wormhole::mqtt` pairs two ends over a broker, and has
+no board of retained messages.
+
+## Premise
+
+- Read: PodUtils/podssh#220; `crates/pod-wormhole/src/mqtt*`; the test
+  of the crate against Eclipse Mosquitto (`scripts/ci/mosquitto-tests.sh`,
+  T-261).
+- Not measured: whether shiftr.io's public instance clears a retained
+  message on an empty retained `PUBLISH` (its docs say that it keeps
+  retained messages in memory).
+
+## Approach
+
+`mqtt::Board` over `mqtt::Point`, each call on a connection of its own:
+`put(topic, payload)` (`PUBLISH` with RETAIN, QoS 0), `take(topic, wait)`
+(`SUBSCRIBE`, the first `PUBLISH` within the wait, `DISCONNECT`; none
+within the wait is `Ok(None)`), `clear(topic)` (an empty retained
+`PUBLISH`). A topic is letters and digits, at most 42 characters; a
+payload is under 64 KB; others are refused before a connection. Tests
+against the stand-in of the crate and against Mosquitto in
+`scripts/ci/mosquitto-tests.sh` (put, take, clear, take after a clear);
+one short live run against shiftr.io in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/ci/mosquitto-tests.sh
+```
