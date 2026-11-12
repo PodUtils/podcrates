@@ -145,6 +145,12 @@ jobs:
       # the step.
       - name: pod-dns against CoreDNS
         run: sh scripts/ci/coredns-tests.sh
+      # The client of pod-oci against the CNCF distribution registry on
+      # 127.0.0.1 (T-353): the release of distribution 3.1.2, checked by its
+      # SHA-256; htpasswd and token auth, an index of two platforms that the
+      # test pushes. A skip fails the step.
+      - name: pod-oci against the distribution registry
+        run: sh scripts/ci/registry-tests.sh
       # The drop of the capabilities of a root payload (T-221) skips as
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root

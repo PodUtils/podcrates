@@ -273,3 +273,36 @@ fn a_wrong_digest_stops_and_is_not_tried_again() {
         Ok(()) => panic!("a wrong digest was accepted"),
     }
 }
+
+/// A registry over plain HTTP that asks for a login gets none: the client
+/// refuses before it reads a login, and says why.
+#[test]
+fn no_login_goes_to_a_registry_over_plain_http() {
+    use std::net::TcpListener;
+    pod_testkit::need_loopback!();
+    struct Never;
+    impl crate::credentials::Logins for Never {
+        fn lookup(&self, host: &str) -> Result<Option<crate::credentials::Credential>> {
+            panic!("a login of {host} was read for a request over plain HTTP");
+        }
+    }
+    let listener = TcpListener::bind("127.0.0.1:0").expect("loopback binds where tests run");
+    let endpoint = listener.local_addr().unwrap().to_string();
+    std::thread::spawn(move || {
+        let (mut s, _) = listener.accept().unwrap();
+        let _ = s.read(&mut [0u8; 4096]);
+        let head = "HTTP/1.0 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"test\"\r\nContent-Length: 0\r\n\r\n";
+        s.write_all(head.as_bytes()).unwrap();
+    });
+    let mut client = client()
+        .with_policy(Policy::with_insecure(&[&endpoint]))
+        .with_insecure(Trust::Default)
+        .with_logins(Arc::new(Never));
+    client.http_endpoints.insert(endpoint.clone());
+    let err = match client.get("/v2/x/manifests/t", &endpoint, "repository:x:pull", None) {
+        Ok(_) => panic!("a 401 gave a body"),
+        Err(e) => e,
+    };
+    assert_eq!((err.stage, err.class), (Stage::Registry, Class::Policy), "{err}");
+    assert!(err.to_string().contains("sends no login over plain HTTP"), "{err}");
+}

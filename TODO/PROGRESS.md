@@ -121,10 +121,10 @@ next entry.
    calls C150 to C153), in the order of their gain: T-351 (a host that
    gives no answer to one runner reddens `services.yml`; partial: the
    scheduled runs after the merge prove it), T-371 (the same class for the
-   DNS watches, `stun-binding` and the HTTP client), T-353 (`pod-oci` against
-   distribution; ECR Public gives 429), T-355 (the cache of the downloads), T-356 (sish and
-   sandhole), T-357 (gs-netcat), T-358 (coturn). T-359 and T-360 go with
-   T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
+   DNS watches, `stun-binding` and the HTTP client), T-355 (the cache of
+   the downloads), T-356 (sish and sandhole), T-357 (gs-netcat), T-358
+   (coturn). T-359 and T-360 go with T-028 and T-029 (item 3); T-361 goes
+   with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
@@ -136,7 +136,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C174 and C185; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C174 and C185 to C188; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

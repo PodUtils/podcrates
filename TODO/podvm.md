@@ -3053,13 +3053,13 @@ the whole blob closes that gap.
   review cites the method from `:288`; its doc comment starts at `:284`.
 - Read: `crates/pod-oci/src/registry/http.rs:12`: `get` takes an `Accept`
   value only, so a `Range` header needs a new parameter.
-  `crates/pod-oci/src/registry/http.rs:114-116` and
+  `crates/pod-oci/src/registry/http.rs:128-130` and
   `crates/pod-oci/src/net.rs:9-11`: `pod-proxy` follows the redirect of a
   blob and sends no `Authorization` header to another origin. They agree
   with the review.
 - Read: `crates/pod-oci/src/pull.rs:22-26` (`FETCH_WORKERS`: the limit is
   what the registry serves) and `:186-191` (`fetch_parallel` gives the jobs
-  in strides); `crates/pod-oci/README.md:112` (podvm keeps
+  in strides); `crates/pod-oci/README.md:114` (podvm keeps
   `FETCH_WORKERS`). They agree with the review.
 - Found, not in the review: `Client::blob` and `Client::get` take
   `&mut self`, because the client keeps the token cache and the endpoints
@@ -4773,11 +4773,19 @@ are proven only by the live pull.
 3. `live.rs` runs each week (T-352). The daily fact is the watch
    `oci-digest` of `ecr-public-registry`.
 
+## Decision
+
+Call C186: the release binary of distribution in place of the image, and
+the token server in the test target in place of `pod-testkit`. Call C187:
+no login and no token goes over plain HTTP. Call C188: the made-up login
+gets a comment in `.github/secrets-allow.txt`, and no line.
+
 ## Prove
 
 ```sh
 sh scripts/ci/registry-tests.sh
 cargo test -p pod-oci --all-features
+sh scripts/plant-each.sh registry-skip-fails
 ```
 
 # T-330: `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives

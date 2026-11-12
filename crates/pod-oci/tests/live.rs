@@ -6,7 +6,8 @@
 //! against its digest while it reads them; the test checks that the top
 //! document is the pinned one and that each config names its platform. A
 //! rate limit of the registry (429) is a skip, not a failure. `live.yml`
-//! runs it each day; the checks of a push need no network.
+//! runs it on Thursdays and by hand; on each push, `tests/distribution.rs`
+//! proves the same client against a registry on the loopback.
 #![cfg(target_os = "linux")]
 
 mod common;
