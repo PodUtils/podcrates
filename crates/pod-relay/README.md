@@ -91,7 +91,11 @@ stage and the class of `pod-ws`; an answer of the relay is at the stage
 
 The opener's notes (`open`'s `notes`), a node's lines (`NodeConfig::say`)
 and a UDP handler's lines (`UdpHandler::say`) are callbacks of the caller,
-as in podssh.
+as in podssh. The opener's notes are `Send`
+(`&mut (dyn FnMut(&str) + Send)`, also for
+`forward_layer::client::Dialer::link`), so that an open runs in a spawned
+task of a runtime of more than one thread (podnet's edge leg and its
+dialers).
 
 ### The plain mode of the reverse road
 
@@ -105,7 +109,7 @@ set by the caller, with podssh's behaviour by default:
 | a node's handler | `TcpHandler`, `Layered`, `E2e` | `LocalHandler` of a `local::Target` (`host:port`, `tcp://host:port`, `[IPv6]:port`, `unix:/path`); `ChannelHandler` of `reverse::channel(depth)`: a pipe for each session, its other end with the session's id to a service of the process (PodUtils/podnet@T-083) |
 | the end of a local side's writes | `Settings::half_close: None`: the session ends at once | `Some(HALF_CLOSE_IDLE)`: the operator's last bytes still go; the session ends after 2 s with none |
 | the end of an operator's input | `OperatorLimits::eof_idle: None`: a Close at once (or as `node_ends` says) | `Some(EOF_IDLE)`: no Close; the node's bytes still come; the Close after 15 s with none |
-| the next pair at the expiry | the caller's `RepairHook` | a `RepairHook` over `pair::newest(cache, Some(&ending))` |
+| the next pair at the expiry | the caller's `RepairHook` | the caller's loop over `pair::newest(cache, Some(&ending))` after a `stop` at the end of the pair (call C103) |
 
 For each caller: the relay's close of a session gives the bytes that wait
 for its local side `Settings::drain` (`DRAIN`, 10 s), then the node drops
@@ -214,7 +218,7 @@ in italics has podnet's name.
 | `session` after the relay's `close`: the task stops, also in a write (podnet T-194) | [x] `Settings::drain` | *`a_relay_close_ends_a_session_whose_target_does_not_read`* |
 | `session`'s half close (`HALF_CLOSE_IDLE`, podnet T-196) | [x] `Settings::half_close`, `HALF_CLOSE_IDLE` | *`a_half_closing_target_gets_the_whole_input`* |
 | `connect` (the operator), `EOF_IDLE` (podnet issue 109); a close other than 1000 after the input is a failure | [x] `operator::run` with `OperatorLimits::eof_idle`, `EOF_IDLE`; `Outcome::is_success` | *`the_answer_comes_back_after_the_input_ends`*, *`a_close_with_an_error_code_after_the_input_ends_is_an_error`* |
-| `load` with no name (the pair with the most time left), `next_pair`, `run_node`'s next stored pair | [x] `pair::newest`, the caller's `RepairHook` over it | `the_newest_pair_and_the_next_one` |
+| `load` with no name (the pair with the most time left), `next_pair`, `run_node`'s next stored pair | [x] `pair::newest`, and podnet's loop over it (call C103) | `the_newest_pair_and_the_next_one` |
 | `save`, `load`, `read` of `NAME.json` in a private directory, with the reason of a refused file | `pair::store`, `load` (`pair-LABEL.json`), `read_file` (the reason) | `tests/pair.rs` |
 | `WARN_BEFORE`, `left_words`, `expiry_line`, `warn_expiry`, `node_ready`, `instances_of_pair` | stay in podnet: its lines and its instances, as podssh's `node_expiry.rs` stays in podssh-cli (call C74) | |
 | `close_hint` | `pod_ws::close_hint` | |
@@ -270,12 +274,15 @@ node with `Settings::default()` says no line.
 
 ### podnet
 
-podnet's relay client moves onto this crate with T-026; its trial
-(adoption/podnet/pod-relay.*) remains (T-026, partial).
+podnet's relay client moves onto this crate with T-026: the trial
+(adoption/podnet/pod-relay.*, on podnet `98d8a71`) keeps podnet's module
+names as glue (`ws_relay`, `relay_reverse`) with one `Context` of the
+process (`ws_relay::context()`), and removes `relay_pool.rs` and
+`relay_reverse/session.rs`.
 
 | Old | New |
 | --- | --- |
-| `ws_relay::{set, active}` (a process global) | a `RelayList` and a `Context` that podnet holds and gives each call |
+| `ws_relay::{set, active}` (a process global) | kept in podnet (call C102); its `Relay` holds a `RelayList`, its wire and the `Context` of the process |
 | `ws_relay::Relay::new(url, token)`, `from_env`, `single` | `relay::select_relays(Some(url), env, &[])` (the default host alone: `select_relays(None, None, &pool::alternates(&ctx.cache, host))`), `Settings::token` from `PODNET_RELAY_TOKEN`; `https://[ADDR]:PORT` too, and `http://127.0.0.1:PORT` of a test with the feature `plain-ws` |
 | `Relay::connect(target, timeout)` | `open(&Request { ctx, relays, path: &relay::forward_path(host, port)?, .. }, notes)`, then `stream::of(opened.session)`; for an `http://` relay of a test, `open::open_on_loopback` with the same `Request`; an IPv6 target stays refused in podnet |
 | `ws_relay::RelayBudget::{meter, meter_with}`, `SESSION_BYTES`, `SESSION_AGE` | `RelayBudget::{meter_for, meter}`, `relay::SESSION_BYTE_BUDGET`, `SESSION_TIME_BUDGET` |
@@ -284,9 +291,9 @@ podnet's relay client moves onto this crate with T-026; its trial
 | `relay_pool::{read_private_checked, read_private, write_private}` | `pod_core::files` |
 | `relay_reverse::Pair` | `pair::Pair` (its tokens are read by `node_token()`, `connect_token()`, `stop_token()`; `expires_ms`; `relay` is a `Relay`) |
 | `relay_reverse::{pair, stop}` | `pair::{create, stop}` with a `PairContext` |
-| `relay_reverse::{save, load}`, `pairs_dir` | `pair::{store, load, newest}` over a `Cache` of podnet's `relay` directory; `pair::read_file` gives the reason of a refused file |
+| `relay_reverse::{save, load}`, `pairs_dir` | `pair::{store, newest, remove}` over a `Cache` of podnet's `relay` directory (`pair-NAME.json`; the old `NAME.json` is not read, call C111); `pair::read_file` gives the reason of a refused file, and podnet reads the `relay` text of the file for the wire (call C103) |
 | `relay_reverse::Target`, `node(relay, pair, target)` | `reverse::local::Target`, `reverse::run(&mut NodeConfig { .. settings: Settings { half_close: Some(HALF_CLOSE_IDLE), ..Settings::default() } }, Arc::new(LocalHandler { .. }), stop)` |
-| `relay_reverse::run_node(follow, pair, target)` | `reverse::run` with a `RepairHook` over `pair::newest(cache, Some(&ending))`, and a `stop` at the pair's end; the expiry lines stay in podnet |
+| `relay_reverse::run_node(follow, pair, target)` | `reverse::run` with a `stop` at the pair's end, then podnet's loop over `pair::newest(cache, Some(&ending))` (call C103); the expiry lines stay in podnet |
 | `relay_reverse::connect(relay, name, token, input, output)`, `EOF_IDLE` | `reverse::operator::run(&OperatorConfig { limits: OperatorLimits { eof_idle: Some(EOF_IDLE), .. }, .. }, io)`; `Outcome::is_success` |
 | `relay_reverse::{node_ready, instances_of_pair, WARN_BEFORE, expiry_line}`, `CONNECT_TOKEN_VARIABLE` | stay in podnet |
 

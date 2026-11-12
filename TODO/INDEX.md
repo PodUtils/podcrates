@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**273 entries: 63 open, 2 partial, 4 blocked, 204 done.**
+**274 entries: 64 open, 2 partial, 4 blocked, 204 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 1 | 0 | 55 | 69 |
 | P2 | 25 | 1 | 4 | 105 | 135 |
-| P3 | 25 | 0 | 0 | 42 | 67 |
-| **All** | 63 | 2 | 4 | 204 | 273 |
+| P3 | 26 | 0 | 0 | 42 | 68 |
+| **All** | 64 | 2 | 4 | 204 | 274 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -311,6 +311,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-278](transport.md) | P3 | S | M1 | feature | open | `pod-identity`: a display form of a fingerprint: base32 in five groups with a checksum of 4 bytes (PodUtils/podnet#479) |
 | [T-279](relay.md) | P3 | S | M2 | feature | open | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
+| [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
 | [T-300](relay.md) | P3 | L | M2 | feature | open | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |

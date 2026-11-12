@@ -1,7 +1,7 @@
 //! The pairs that the store keeps, by label: their labels, and the pair with
 //! the most time left. podnet's node with no pair name takes that one, and
-//! at its pair's expiry the next one that the store got since: a caller's
-//! `reverse::RepairHook` over [`newest`].
+//! at its pair's expiry the next one that the store got since: podnet's
+//! loop over [`newest`] after the node stops at the end of the pair.
 
 use std::path::PathBuf;
 

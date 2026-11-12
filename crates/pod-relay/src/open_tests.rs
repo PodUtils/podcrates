@@ -105,3 +105,28 @@ fn a_held_host_moves_to_the_next_and_records_nothing() {
     let probing = OpenError::Held { left: None };
     assert_eq!(probing.lines("x:22"), ["waits for the probe of this process after a failure; trying the next host"]);
 }
+
+/// A forward session opens in a task of a runtime of more than one thread
+/// (podnet's edge leg and its dialers spawn it): the future of the opener,
+/// with the notes of its caller, is `Send`.
+#[test]
+fn the_open_of_a_session_can_run_in_a_spawned_task() {
+    fn spawnable<F: std::future::Future + Send>(_: &F) {}
+    let ctx = crate::testing::context();
+    let relays = RelayList { hosts: vec![Relay { host: "relay.example".into(), port: 443 }], explicit: true };
+    let trust = Trust::Default;
+    let request = Request {
+        ctx: &ctx,
+        relays: &relays,
+        path: "/connect/192.0.2.1/22",
+        trust: &trust,
+        target: "192.0.2.1:22",
+        rounds: 1,
+        failover: Mode::default(),
+    };
+    let mut said = Vec::new();
+    let mut notes = |note: &str| said.push(note.to_string());
+    spawnable(&open(&request, &mut notes));
+    #[cfg(feature = "plain-ws")]
+    spawnable(&open_on_loopback(&request, &mut notes));
+}

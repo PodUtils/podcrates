@@ -30,25 +30,18 @@ is done. Git and the record keep finished work.
   it on macOS and Windows; `nightly.yml` was dispatched at `0edd703`).
 - T-251 is merged (`pod-actions-expr`, `pod-actions-workflow`; calls C105
   to C109; T-280, their live run against GitHub, waits).
-- An agent of this session works in a worktree under `.claude/worktrees/`
-  on a local branch: the trial of T-026 on podnet `98d8a71` (the ids 290
-  to 299 and the calls C110 to C114). A new session finds its branch with
-  `git worktree list`; it merges the branch when its checks pass, or takes
-  the work up from its commits.
 - T-267 (`forward-url` proves the URL) is on `main`; the next run of
   `services.yml` proves the URLs of the four live relays.
-- T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103): podnet's
-  relay client is in `pod-relay`. The trial of podnet
-  (adoption/podnet/pod-relay.patch, `.commit`, `.run`) on podnet
-  `98d8a71` is in work (an agent, above): no fix of podnet's three frozen
-  files needs a port; the Done section of T-026 lists what the patch changes (the
-  manifests, the glue of `ws_relay.rs` and `relay_reverse.rs`, the removal
-  of `relay_pool.rs`, the callers, podnet's tests and checks) and the
-  findings for it (a test token under 8 characters, no public constructor
-  of `pair::Pair`, the mode of a pair directory, podnet's layer and size
-  allowlists, podnet's citations of `src/relay_pool.rs`). After the trial,
-  the words "a binary does not turn it on" of `plain-ws` change (C101).
-  podnet holds the three files to fixes from `7c5f87e`.
+- T-026 (partial; calls C73 to C76, C80 to C82, C101 to C103, C110 to
+  C112): the trial of podnet (`adoption/podnet/pod-relay.patch`,
+  `.commit`, `.run`) on podnet `98d8a71` passed each of its 22 steps on
+  this host; `adoption.yml` runs it at the push. `a176a93` makes the notes
+  of the opener `Send` (podssh and podvm pass `Send` closures at their
+  next take). The findings for the hand-off are in the Done section (the
+  fake relay's `ready`, the behaviours of the base, the new pair file, 9
+  packages more: T-290). Remains: the words "a binary does not turn it on"
+  of `plain-ws` (C101), then the release and podnet's take. podnet holds
+  the three files to fixes from `7c5f87e`.
 - T-040 (partial): the trials of podvm, with each import for podvm.
 
 ## What waits

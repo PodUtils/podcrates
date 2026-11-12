@@ -101,7 +101,7 @@ pub struct Raced<T, E> {
 /// The notes of each attempt, given in the order of the list: those of an
 /// attempt as soon as each attempt before it has ended.
 struct Notes<'a> {
-    out: &'a mut dyn FnMut(&str),
+    out: &'a mut (dyn FnMut(&str) + Send),
     ended: Vec<Option<Vec<String>>>,
     next: usize,
 }
@@ -137,7 +137,7 @@ pub async fn race<T, E, S, F>(
     mode: Mode,
     mut start: S,
     stops: impl Fn(&E) -> bool,
-    notes: &mut dyn FnMut(&str),
+    notes: &mut (dyn FnMut(&str) + Send),
 ) -> Raced<T, E>
 where
     S: FnMut(usize) -> F,
