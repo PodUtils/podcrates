@@ -93,13 +93,13 @@ fn no_landlock_and_an_abi_under_3_are_refused() {
 #[test]
 fn tcp_rules_need_abi_4() {
     let spec = Spec::new().connect_to(443).bind_to(8080);
-    let e = spec.compile(3).unwrap_err();
+    let e = spec.compile_on(3, false).unwrap_err();
     assert!(e.to_string().contains("ABI 4"), "{e}");
-    let c = spec.compile(4).unwrap();
+    let c = spec.compile_on(4, false).unwrap();
     assert_eq!(c.handled_net(), CONNECT_TCP | BIND_TCP);
     assert_eq!(c.ports(), &[(443, CONNECT_TCP), (8080, BIND_TCP)]);
     // An empty list handles the call and allows no port.
-    let c = Spec { connect: Some(Vec::new()), ..Spec::new() }.compile(4).unwrap();
+    let c = Spec { connect: Some(Vec::new()), ..Spec::new() }.compile_on(4, false).unwrap();
     assert_eq!(c.handled_net(), CONNECT_TCP);
     assert!(c.ports().is_empty());
 }
@@ -172,7 +172,7 @@ fn a_rule_moves_off_a_taken_number_and_keeps_its_file() {
 #[test]
 fn a_refusal_names_the_call_the_rule_and_the_errno() {
     let d = dir("refusal");
-    let c = Spec::new().allow(text(&d), Access::READ).connect_to(443).compile(ABI).unwrap();
+    let c = Spec::new().allow(text(&d), Access::READ).connect_to(443).compile_on(ABI, false).unwrap();
     let r = Refusal { call: Call::AddPathRule, index: 0, errno: k::EINVAL };
     assert_eq!(Refusal::from_bytes(r.to_bytes()), Some(r));
     let t = r.describe(&c);
@@ -256,18 +256,18 @@ fn the_rights_of_abi_9_and_10_follow_write_and_a_closed_udp() {
     let f = d.join("sock");
     std::fs::write(&f, b"").unwrap();
     let spec = Spec::new().allow(text(&d), Access::WRITE).allow(text(&f), Access::WRITE).allow("/", Access::READ);
-    let c = spec.clone().compile(crate::UNIX_ABI).unwrap();
+    let c = spec.clone().compile_on(crate::UNIX_ABI, false).unwrap();
     let allowed: Vec<u64> = c.rules().iter().map(|r| r.allowed() & unix).collect();
     assert_eq!(allowed, [unix, unix, 0], "write on a directory, write on a file, read");
-    assert_eq!(spec.compile(ABI).unwrap().rules()[0].allowed() & unix, 0, "no right of ABI 9 at ABI {ABI}");
+    assert_eq!(spec.compile_on(ABI, false).unwrap().rules()[0].allowed() & unix, 0, "no right of ABI 9 at ABI {ABI}");
     let udp = crate::spec::UDP_RIGHTS;
     assert_eq!(udp, 0b1100);
-    assert_eq!(Spec::new().close_udp().compile(crate::UDP_ABI).unwrap().handled_net(), udp);
-    assert_eq!(Spec::new().close_udp().compile(crate::UDP_ABI - 1).unwrap().handled_net(), 0);
-    let c = Spec::new().close_udp().connect_to(443).compile(crate::UDP_ABI).unwrap();
+    assert_eq!(Spec::new().close_udp().compile_on(crate::UDP_ABI, false).unwrap().handled_net(), udp);
+    assert_eq!(Spec::new().close_udp().compile_on(crate::UDP_ABI - 1, false).unwrap().handled_net(), 0);
+    let c = Spec::new().close_udp().connect_to(443).compile_on(crate::UDP_ABI, false).unwrap();
     assert_eq!(c.handled_net(), udp | CONNECT_TCP);
     assert_eq!(c.ports(), [(443, CONNECT_TCP)], "no port rule gives a UDP right");
-    assert_eq!(Spec::new().connect_to(443).compile(crate::UDP_ABI).unwrap().handled_net(), CONNECT_TCP);
+    assert_eq!(Spec::new().connect_to(443).compile_on(crate::UDP_ABI, false).unwrap().handled_net(), CONNECT_TCP);
     let _ = std::fs::remove_dir_all(d);
 }
 
@@ -298,8 +298,8 @@ fn the_switches_of_the_spec_add_their_rules() {
     // The list of the spec comes first: its rules win.
     let rules = Spec::new().close_udp().deny_rules_on(false).unwrap();
     assert_eq!(rules[..Deny::defaults().len()], Deny::defaults()[..]);
-    let c = Spec::new().close_udp().connect_to(443).compile(ABI).unwrap();
-    assert!(c.filter().len() > Spec::new().compile(ABI).unwrap().filter().len());
+    let c = Spec::new().close_udp().connect_to(443).compile_on(ABI, false).unwrap();
+    assert!(c.filter().len() > Spec::new().compile_on(ABI, false).unwrap().filter().len());
 }
 
 /// On a target with socketcall(2) a closed UDP is a refusal by name, not a

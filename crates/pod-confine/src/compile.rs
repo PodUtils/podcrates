@@ -180,7 +180,14 @@ impl Spec {
     /// Compile with host paths: each path opens from the root of this
     /// process. `abi` is the answer of [`crate::check`].
     pub fn compile(&self, abi: u32) -> Result<Compiled, Failure> {
-        self.compile_with(abi, |c| k::open(c, k::O_PATH | k::O_CLOEXEC, 0))
+        self.compile_with(abi, SOCKETCALL, |c| k::open(c, k::O_PATH | k::O_CLOEXEC, 0))
+    }
+
+    /// Compile with host paths as for a target with or with no
+    /// `socketcall(2)`: the tests of the rules run on each target.
+    #[cfg(test)]
+    pub(crate) fn compile_on(&self, abi: u32, socketcall: bool) -> Result<Compiled, Failure> {
+        self.compile_with(abi, socketcall, |c| k::open(c, k::O_PATH | k::O_CLOEXEC, 0))
     }
 
     /// Compile with the paths of a guest root: each path resolves under the
@@ -192,10 +199,15 @@ impl Spec {
     /// and [`Compiled::open_paths`].
     pub fn compile_in(&self, abi: u32, root: i64) -> Result<Compiled, Failure> {
         let how = k::OpenHow { flags: k::O_PATH | k::O_CLOEXEC, mode: 0, resolve: k::RESOLVE_IN_ROOT };
-        self.compile_with(abi, |c| k::openat2(root, c, &how))
+        self.compile_with(abi, SOCKETCALL, |c| k::openat2(root, c, &how))
     }
 
-    fn compile_with(&self, abi: u32, open: impl Fn(&CBuf) -> Result<i64, Errno>) -> Result<Compiled, Failure> {
+    fn compile_with(
+        &self,
+        abi: u32,
+        socketcall: bool,
+        open: impl Fn(&CBuf) -> Result<i64, Errno>,
+    ) -> Result<Compiled, Failure> {
         if abi == 0 {
             return Err(failure(Class::Unsupported, "Landlock is absent: the payload does not run unconfined"));
         }
@@ -234,7 +246,7 @@ impl Spec {
             handled_net |= UDP_RIGHTS;
         }
         let scoped = if self.scope && abi >= SCOPE_ABI { SCOPES } else { 0 };
-        let filter = crate::deny::program(&self.deny_rules()?)?;
+        let filter = crate::deny::program(&self.deny_rules_on(socketcall)?)?;
         let mut out = Compiled {
             abi,
             handled_fs: handled,

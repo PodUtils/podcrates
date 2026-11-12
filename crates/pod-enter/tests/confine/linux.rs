@@ -135,7 +135,8 @@ fn the_entry_with_no_chroot_confines_with_host_paths() {
     let mut p = plan(argv.clone(), Some(spec));
     let m = Maps::of_root(&text(&d));
     let root = RootDir::open(m.rootfs()).unwrap();
-    let r = run(&mut p, 0, |p| spawn_userland(&root, p, &m, argv, "userland", None, &mut std::io::sink())).unwrap();
+    let r = run(&mut p, 0, |p| spawn_userland(&root, p, &m, argv, "userland", None, &mut std::io::sink()));
+    let Some(r) = refused_where_socketcall(r) else { return };
     assert_confined("userland", &r);
     let _ = std::fs::remove_dir_all(d);
 }
@@ -166,7 +167,8 @@ fn a_passed_descriptor_takes_the_place_of_no_rule() {
     let m = Maps::of_root(&text(&d));
     let root = RootDir::open(m.rootfs()).unwrap();
     let r = run(&mut p, rules, |p| spawn_userland(&root, p, &m, argv, "userland", None, &mut std::io::sink()));
-    assert_confined("userland, each rule number passed", &r.unwrap());
+    let Some(r) = refused_where_socketcall(r) else { return };
+    assert_confined("userland, each rule number passed", &r);
     let _ = std::fs::remove_dir_all(d);
 }
 
@@ -342,3 +344,21 @@ fn a_plan_with_no_confinement_runs_free() {
     assert_eq!(r.code, 0);
     let _ = std::fs::remove_dir_all(d);
 }
+
+/// The run of a spec with a TCP list. On a target whose kernel has
+/// `socketcall(2)` pod-confine refuses such a spec (T-262): the test checks
+/// the refusal and ends there.
+fn refused_where_socketcall<T, E: std::fmt::Display>(r: Result<T, E>) -> Option<T> {
+    match r {
+        Err(e) if SOCKETCALL => {
+            assert!(e.to_string().contains("socketcall(2)"), "{e}");
+            None
+        }
+        Err(e) => panic!("{e}"),
+        Ok(_) if SOCKETCALL => panic!("no refusal of a TCP list where the kernel has socketcall(2)"),
+        Ok(r) => Some(r),
+    }
+}
+
+/// The targets whose kernel has `socketcall(2)`.
+const SOCKETCALL: bool = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));

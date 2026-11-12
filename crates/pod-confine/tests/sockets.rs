@@ -11,6 +11,24 @@ use child::{code, in_child};
 use pod_confine::{NET_ABI, Spec, apply};
 use pod_hostprobe::sys as k;
 
+/// The compile of a spec with a TCP list. On a target whose kernel has
+/// `socketcall(2)` the crate refuses such a spec (T-262): the test checks
+/// the refusal and ends there.
+fn with_tcp_list<E: std::fmt::Display>(compiled: Result<pod_confine::Compiled, E>) -> Option<pod_confine::Compiled> {
+    match compiled {
+        Err(e) if SOCKETCALL => {
+            assert!(e.to_string().contains("socketcall(2)"), "{e}");
+            None
+        }
+        Err(e) => panic!("{e}"),
+        Ok(_) if SOCKETCALL => panic!("no refusal of a TCP list where the kernel has socketcall(2)"),
+        Ok(c) => Some(c),
+    }
+}
+
+/// The targets whose kernel has `socketcall(2)`.
+const SOCKETCALL: bool = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
+
 const EPROTONOSUPPORT: i64 = -93;
 const ESOCKTNOSUPPORT: i64 = -94;
 const EAFNOSUPPORT: i64 = -97;
@@ -25,7 +43,7 @@ fn a_tcp_list_closes_the_sockets_that_landlock_does_not_check() {
         Ok(abi) => return pod_testkit::host::skip_line(&format!("Landlock ABI {abi} has no TCP rules")),
         Err(e) => return pod_testkit::host::skip_line(&e.to_string()),
     };
-    let compiled = Spec::new().connect_to(443).compile(abi).unwrap();
+    let Some(compiled) = with_tcp_list(Spec::new().connect_to(443).compile(abi)) else { return };
     let calls = || {
         let socket =
             |family: u64, kind: u64, protocol: u64| code(k::socket(family, kind | k::SOCK_CLOEXEC, protocol)).min(0);

@@ -18,6 +18,24 @@ use pod_confine::{Access, Call, Compiled, Deny, MIN_ABI, NET_ABI, Refusal, SCOPE
 use pod_core::Class;
 use pod_hostprobe::sys::{self as k, CBuf};
 
+/// The compile of a spec with a TCP list. On a target whose kernel has
+/// `socketcall(2)` the crate refuses such a spec (T-262): the test checks
+/// the refusal and ends there.
+fn with_tcp_list<E: std::fmt::Display>(compiled: Result<pod_confine::Compiled, E>) -> Option<pod_confine::Compiled> {
+    match compiled {
+        Err(e) if SOCKETCALL => {
+            assert!(e.to_string().contains("socketcall(2)"), "{e}");
+            None
+        }
+        Err(e) => panic!("{e}"),
+        Ok(_) if SOCKETCALL => panic!("no refusal of a TCP list where the kernel has socketcall(2)"),
+        Ok(c) => Some(c),
+    }
+}
+
+/// The targets whose kernel has `socketcall(2)`.
+const SOCKETCALL: bool = cfg!(any(target_arch = "x86", target_arch = "s390x", target_arch = "powerpc64"));
+
 const EACCES: i64 = -13;
 const EPERM: i64 = -1;
 const ENOPROTOOPT: i64 = -92;
@@ -146,7 +164,7 @@ fn a_tcp_connect_or_bind_outside_the_list_is_eacces() {
     let allowed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let other = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let (ok_port, other_port) = (allowed.local_addr().unwrap().port(), other.local_addr().unwrap().port());
-    let compiled = Spec::new().connect_to(ok_port).bind_to(ok_port).compile(abi).unwrap();
+    let Some(compiled) = with_tcp_list(Spec::new().connect_to(ok_port).bind_to(ok_port).compile(abi)) else { return };
     let (to_ok, to_other) = (k::sockaddr_in([127, 0, 0, 1], ok_port), k::sockaddr_in([127, 0, 0, 1], other_port));
     let got = in_child(|| {
         if let Err(e) = confined(&compiled) {
@@ -368,7 +386,7 @@ fn an_mptcp_socket_fails_where_tcp_has_a_list() {
     let allowed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let other = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let (ok_port, other_port) = (allowed.local_addr().unwrap().port(), other.local_addr().unwrap().port());
-    let compiled = Spec::new().connect_to(ok_port).compile(abi).unwrap();
+    let Some(compiled) = with_tcp_list(Spec::new().connect_to(ok_port).compile(abi)) else { return };
     let (to_ok, to_other) = (k::sockaddr_in([127, 0, 0, 1], ok_port), k::sockaddr_in([127, 0, 0, 1], other_port));
     let calls = || {
         let mptcp = k::socket(k::AF_INET, k::SOCK_STREAM | k::SOCK_CLOEXEC, k::IPPROTO_MPTCP);

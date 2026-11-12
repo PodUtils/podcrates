@@ -5,6 +5,7 @@
 //! The test needs `qemu-img` and `qemu-io` (`qemu-utils`). With no
 //! `qemu-img` it says so and passes, unless `POD_GUEST_TEST_QEMU=required`,
 //! which `guest.yml` and the plant set: then the absence is a failure.
+#![cfg(target_os = "linux")]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

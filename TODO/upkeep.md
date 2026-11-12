@@ -521,3 +521,53 @@ python3 -I scripts/check-sources.py --clone PodUtils/podvm=CLONE --clone PodUtil
   experiments 70, 80 and 90.
 - The Prove command with the three clones: each block of `pod-services`
   has 0 changes.
+
+# T-307: The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64
+
+**Source:** `nightly.yml` run 43179371651 at `0edd703` (dispatched to prove the gate of `crates/pod-oci/tests/live.rs`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three causes make the nightly red:
+
+1. macOS and Windows: `crates/pod-guest/tests/convert.rs` has no
+   `#![cfg(target_os = "linux")]`; the crate is empty on another target,
+   so the test does not build (`unresolved imports pod_guest::convert_argv`).
+2. i686 and powerpc64le: since T-262 a spec with a TCP list is refused on
+   a target with `socketcall(2)`. Nine tests compiled or ran such a spec
+   and unwrapped the result: four rule tests of
+   `crates/pod-confine/src/compile/tests.rs`, two of
+   `crates/pod-confine/tests/apply.rs`, one of
+   `crates/pod-confine/tests/sockets.rs`, two of
+   `crates/pod-enter/tests/confine/linux.rs`.
+3. riscv64 (emulated): `forward_url_ends_at_its_bound` of
+   `crates/pod-services-watch/tests/watches/forward.rs` had a bound of
+   1 s, and the authentication alone took longer.
+
+## Premise
+
+- Read: the logs of the jobs of run 43179371651.
+- Not measured here: the macOS, Windows, powerpc64le and riscv64 jobs (the
+  next nightly).
+
+## Approach
+
+1. The Linux gate of the test.
+2. `Spec::compile_on(abi, socketcall)` (for the tests): the rule tests
+   compile as for a target with no `socketcall(2)`, so they check the
+   rules on each target; the refusal keeps its own test. The kernel tests
+   check the refusal on a target with `socketcall(2)` and end there.
+3. A bound of 5 s.
+
+## Prove
+
+```sh
+cargo test -p pod-confine -p pod-enter -p pod-guest --all-features
+```
+
+and a dispatch of `nightly.yml`.

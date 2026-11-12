@@ -313,13 +313,15 @@ async fn forward_url_fails_on_a_banner_with_no_url() {
 }
 
 /// A relay that writes no banner: the check ends at its bound, and closes.
+/// The bound of 5 s leaves room for the handshake under the emulation of
+/// the nightly (riscv64 took more than 1 s).
 #[tokio::test]
 async fn forward_url_ends_at_its_bound() {
     pod_testkit::need_loopback!();
     let (port, _, end) = relay(Script::default()).await;
-    let report = one(&relay_file("f4", port, "", "seconds = 1\n")).await;
+    let report = one(&relay_file("f4", port, "", "seconds = 5\n")).await;
     let all = text(&report);
-    assert!(all.contains("no URL within 1s, and the banner holds no URL"), "{all}");
+    assert!(all.contains("no URL within 5s, and the banner holds no URL"), "{all}");
     ended(end).await;
 }
 
