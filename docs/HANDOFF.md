@@ -22,15 +22,10 @@ is done. Git and the record keep finished work.
   `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- An agent of this session in a worktree under `.claude/worktrees/`: T-337
-  (HTTP/3, the WireGuard leg and the carried device of `pod-warp`; free
-  ids 409 to 411, calls C205 to C209). Merge its branch after
-  `scripts/agent/check.sh` passes on the merge; then T-406 (the L4 door)
-  and T-339.
-- The new lines of `crates/pod-warp/SOURCES` from T-338 are not checked
-  by `scripts/check-sources.py` (the mirror answered 403 on 2026-11-12):
-  run it.
-- `main` holds T-353, T-393, T-395, T-336, T-380, T-358 and T-338 for the next tag.
+- `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338 and T-337 for the next tag.
+- Next: T-406 (the L4 door of `pod-warp`) and T-339 (the live session,
+  TUN and routes, the live step, the adoption trials of podnet and
+  podssh).
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.

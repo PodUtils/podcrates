@@ -16,6 +16,10 @@
 //! * [`tls`], [`session`], [`capsule`]: TLS with the key of the front door
 //!   pinned, and the CONNECT-IP session over HTTP/2 through the caller's
 //!   dial.
+//! * [`h3`]: the session over HTTP/3 on `pod-quic`; [`wg`]: the WireGuard
+//!   tunnel on `pod-wg`; [`udp`]: the UDP of the caller for both
+//!   ([`Way::udp`]); a carried device ([`Settings::carry`],
+//!   [`CARRY_MTU`]).
 //! * [`Warp`]: a registered device; [`Warp::open_session`] and
 //!   [`Warp::connect`].
 //! * [`leg`]: the relay leg of the caller, the race of the direct path and
@@ -44,6 +48,7 @@
 
 pub mod api;
 pub mod capsule;
+mod carry;
 pub mod check;
 pub mod der;
 pub mod device;
@@ -51,6 +56,7 @@ pub mod dns;
 pub mod door;
 pub mod files;
 pub mod forward;
+pub mod h3;
 pub mod hints;
 pub mod identity;
 pub mod key;
@@ -66,7 +72,9 @@ pub mod service;
 pub mod session;
 pub mod store;
 pub mod tls;
+pub mod udp;
 mod warp;
+pub mod wg;
 
 pub use api::Api;
 pub use check::DataPathCheck;
@@ -79,7 +87,8 @@ pub use leg::{Leg, Relay};
 pub use net::{NetSettings, WarpNet};
 pub use session::{MasqueRx, MasqueSession, MasqueTx, Meter, Way};
 pub use store::{IdentityFile, Stored};
-pub use warp::{MTU, Settings, Warp};
+pub use udp::{SystemUdp, UdpWay};
+pub use warp::{CARRY_MTU, MTU, Settings, Warp};
 
 /// A scratch directory of a test, new and empty.
 #[cfg(test)]

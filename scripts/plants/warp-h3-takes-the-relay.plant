@@ -1,0 +1,6 @@
+# A session over HTTP/3 races the relay leg, which carries TCP only; the
+# test of HTTP/3 with a relay must fail.
+ENTRY=T-337
+GROUP=warp
+EXPECT='test a_session_over_http3_takes_no_relay \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test h3 -- a_session_over_http3_takes_no_relay'

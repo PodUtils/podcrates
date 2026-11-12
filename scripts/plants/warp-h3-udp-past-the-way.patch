@@ -1,0 +1,14 @@
+--- a/crates/pod-warp/src/session.rs
++++ b/crates/pod-warp/src/session.rs
+@@ -175,9 +175,8 @@
+         pinned_spki: Vec<u8>,
+         way: &Way,
+     ) -> Result<MasqueSession, Failure> {
+-        let Some(udp) = &way.udp else {
+-            return Err(no_udp("MASQUE over HTTP/3", &way.dial.label()));
+-        };
++        let system: Arc<dyn UdpWay> = Arc::new(crate::udp::SystemUdp);
++        let udp = way.udp.as_ref().unwrap_or(&system);
+         let Target::Addr(addr) = door else {
+             return Err(failure(Class::Usage, format!("MASQUE over HTTP/3 takes the address of a door, not {door}")));
+         };

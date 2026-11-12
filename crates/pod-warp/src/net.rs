@@ -431,10 +431,22 @@ impl Warp {
     /// PodUtils/podnet issue 120). A session that carries no packet is a
     /// failure, and its door goes last for the next session
     /// ([`Warp::mark_door_bad`], issue 133).
+    ///
+    /// With [`crate::Settings::carry`], the stack of the carried device
+    /// inside this one ([`crate::CARRY_MTU`]).
     pub async fn connect(&self) -> Result<WarpNet, Failure> {
+        let outer = self.connect_outer().await?;
+        match &self.settings.carry {
+            None => Ok(outer),
+            Some(peer) => self.connect_carried(outer, peer).await,
+        }
+    }
+
+    async fn connect_outer(&self) -> Result<WarpNet, Failure> {
         let session = self.open_session().await?;
-        let (device, settings) = (&self.device, &self.settings);
-        let net = WarpNet::start(session, device.ipv4(), device.ipv6(), &settings.net, settings.report.clone())?;
+        let settings = &self.settings;
+        let (v4, v6) = self.session_addresses();
+        let net = WarpNet::start(session, v4, v6, &settings.net, settings.report.clone())?;
         let Some(check) = &settings.net.check else {
             tracing::debug!("no check of the data path");
             return Ok(net);

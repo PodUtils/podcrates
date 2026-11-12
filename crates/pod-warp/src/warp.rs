@@ -17,9 +17,15 @@ use crate::net::NetSettings;
 use crate::register;
 use crate::session::Way;
 use crate::store::{self, IdentityFile, Stored};
+use crate::wg::Peer;
 
 /// The MTU of the tunnel: usque's default, and the minimum of IPv6.
 pub const MTU: usize = 1280;
+
+/// The MTU of the stack of a carried device (PodUtils/podnet issues 154 and
+/// 155): [`MTU`] of the outer stack, less the IPv4 and the UDP header (28),
+/// the header and the tag of WireGuard (32), and its padding (at most 15).
+pub const CARRY_MTU: usize = 1200;
 
 /// The settings of a caller. The crate reads no variable and no file that
 /// these do not name.
@@ -31,8 +37,16 @@ pub struct Settings {
     /// the TLS name, the `:authority` and the time limit.
     pub way: Way,
     /// The relay leg: a second dial that races the dial of `way`
-    /// ([`Warp::open_session`]). None: the direct path alone.
+    /// ([`Warp::open_session`]). None: the direct path alone. HTTP/3 and
+    /// WireGuard take no relay: the relay carries TCP.
     pub relay: Option<Relay>,
+    /// WireGuard on the UDP of `way` in place of MASQUE (PodUtils/podnet
+    /// issue 152): the peer of a WireGuard device of WARP.
+    pub wireguard: Option<Peer>,
+    /// A second WireGuard device carried inside the first session
+    /// (PodUtils/podnet issues 154 and 155): [`Warp::connect`] gives the
+    /// stack of this one, with [`CARRY_MTU`].
+    pub carry: Option<Peer>,
     /// The doors of the record, or one pinned door.
     pub door: Door,
     /// The default routes of the host (podnet: `has_default_route`; both
@@ -48,14 +62,17 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// The settings of `api` and `way`, with no relay, the doors of the
-    /// record, both routes, no hints, no report and the stack of
-    /// [`NetSettings::default`] ([`MTU`], the check of the data path).
+    /// The settings of `api` and `way`, with no relay, MASQUE with no carry,
+    /// the doors of the record, both routes, no hints, no report and the
+    /// stack of [`NetSettings::default`] ([`MTU`], the check of the data
+    /// path).
     pub fn new(api: Api, way: Way) -> Settings {
         Settings {
             api,
             way,
             relay: None,
+            wireguard: None,
+            carry: None,
             door: Door::Record,
             routes: Routes::default(),
             hints: DeviceHints::default(),
@@ -227,9 +244,13 @@ impl Warp {
         self.legs.lock().unwrap_or_else(|e| e.into_inner()).won(leg);
     }
 
-    /// The front door of the last session: the pinned door, else the door
-    /// that worked, else the first of the device record.
+    /// The front door of the last session: the door of the WireGuard peer,
+    /// the pinned door, else the door that worked, else the first of the
+    /// device record.
     pub fn endpoint_in_use(&self) -> Option<Target> {
+        if let Some(peer) = &self.settings.wireguard {
+            return Some(Target::Addr(peer.endpoint));
+        }
         match &self.settings.door {
             Door::Pinned(target) => Some(target.clone()),
             Door::Record => self.won_door().or_else(|| self.device.masque_endpoint()).map(Target::Addr),

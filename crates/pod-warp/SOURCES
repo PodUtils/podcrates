@@ -9,13 +9,21 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # fixes from 7c5f87e (PodUtils/podnet#449); the one change after it
 # (83e0c93, session.rs) names the meter of pod-relay; the relay leg comes
 # with T-336. The other files of src/warp/ come with the entries of
-# the rest of T-028 (TODO/adapters.md): h3.rs, l4.rs (T-406), live.rs,
-# pod.rs, find.rs, route.rs, tun.rs, exit.rs.
+# the rest of T-028 (TODO/adapters.md): l4.rs (T-406), live.rs, pod.rs,
+# find.rs, route.rs, tun.rs, exit.rs.
 # mod.rs: WarpClient becomes Warp (warp.rs, open.rs); the race of the
 # direct path and the relay, and the leg file (T-336): open_session in
 # open.rs, relay_first_from and the text of write_leg in leg.rs, the relay a
 # dial of the caller (C137). WireGuard, the carry and the scan stay with
 # their entries.
+# h3.rs, wg.rs, session.rs and mod.rs (T-337): MASQUE over HTTP/3 on the
+# endpoint of pod-quic over the caller's Datagrams (Way::h3, Way::udp); the
+# driver of WireGuard over a Datagrams (wg.rs; Peer::from_exported stays
+# with export.rs); connect_h3, connect_wg, connect_wg_inside and the
+# halves of each transport (session.rs, session/); connect_carried and
+# CARRY_MTU (carry.rs, warp.rs); HTTP/3 and WireGuard take no relay
+# (open.rs). The tests of h3.rs and of session.rs go to src/h3/tests.rs
+# and tests/h3.rs; the stand-in of wg/standin.rs is pod-wg's.
 # session.rs (T-336): relay_budget; the meter of the relay is a function of
 # the caller (Way::meter), as C173 decided for the budget.
 # connect_outer: the check of the data path and the bad door (net.rs).
@@ -53,7 +61,7 @@ file aaf410e59ce1b9bd00709b95e873d181dc5a1f2c src/warp/door.rs -> crates/pod-war
 file 86dc4989accc76f45813730ba99e48307b17d6a8 src/warp/enrol.rs -> crates/pod-warp/src/store.rs
 file f01da740334db4481f22a8806f13d4d2dc7e30ff src/warp/hints.rs -> crates/pod-warp/src/hints.rs
 file 6fb6e7f065ee73880787f915ade3a95e228d4a33 src/warp/identity.rs -> crates/pod-warp/src/identity.rs
-file ce8ab2f3b0ad82d2165490c44a4635d3bddc9c98 src/warp/mod.rs -> crates/pod-warp/src/warp.rs crates/pod-warp/src/open.rs crates/pod-warp/src/net.rs crates/pod-warp/src/files.rs crates/pod-warp/src/door.rs crates/pod-warp/src/leg.rs
+file ce8ab2f3b0ad82d2165490c44a4635d3bddc9c98 src/warp/mod.rs -> crates/pod-warp/src/warp.rs crates/pod-warp/src/open.rs crates/pod-warp/src/net.rs crates/pod-warp/src/files.rs crates/pod-warp/src/door.rs crates/pod-warp/src/leg.rs crates/pod-warp/src/carry.rs
 file 658a06c3d7eae54816cecc895d157a575fca1b05 src/warp/private.rs -> crates/pod-warp/src/files.rs
 file df062e8c84b63df257a8587060914ac73c74edee src/warp/private_file_tests/foreign.rs -> crates/pod-warp/src/files/tests.rs
 file c3c41fda29be50b999b2d5949c1aaa879962e5b4 src/warp/register.rs -> crates/pod-warp/src/api.rs crates/pod-warp/src/device.rs crates/pod-warp/src/register.rs
@@ -64,7 +72,9 @@ file 5454b0244c4a74893522ebe942030d062d01da6a src/warp/proxy/names.rs -> crates/
 file 0dc4ecb598fd2356bb2e6c54f7abc64d7fe3e0c7 src/warp/proxy/dns_bound.rs -> crates/pod-warp/src/proxy/dns_bound.rs
 file 8c3af159c79854b4eed97308e45e4671380f122b src/warp/forward.rs -> crates/pod-warp/src/forward.rs
 file 14c50326f9ee705d23a7fb69b8791c9bb4a0b00e src/warp/nc.rs -> crates/pod-warp/src/nc.rs crates/pod-warp/src/nc/tests.rs
-file 6a098243d21f8ad57f4b11d6799bf13be65ba1ba src/warp/session.rs -> crates/pod-warp/src/session.rs crates/pod-warp/src/session/tx.rs crates/pod-warp/src/session/rx.rs crates/pod-warp/src/session/keepalive.rs crates/pod-warp/src/session/tests.rs crates/pod-warp/src/tls.rs
+file 6a098243d21f8ad57f4b11d6799bf13be65ba1ba src/warp/session.rs -> crates/pod-warp/src/session.rs crates/pod-warp/src/session/tx.rs crates/pod-warp/src/session/rx.rs crates/pod-warp/src/session/keepalive.rs crates/pod-warp/src/session/tests.rs crates/pod-warp/src/tls.rs crates/pod-warp/tests/h3.rs
+file 4afafe877ccbe5003ecadc35528e992caf14abc0 src/warp/h3.rs -> crates/pod-warp/src/h3.rs crates/pod-warp/src/h3/wire.rs crates/pod-warp/src/h3/tests.rs
+file 1733854b4df4ea4c17ee686dfa37d5f63e84a3dd src/warp/wg.rs -> crates/pod-warp/src/wg.rs crates/pod-warp/tests/wg.rs
 file 405d54fe218d5110279ec2324ed9b979e5088f2e crates/podnet-core/src/services.rs -> crates/pod-warp/src/service.rs
 file 6d1341eb1878e825b3072b0e33fe26f557992a05 crates/podnet-netns/src/rules.rs -> crates/pod-warp/src/rules/matcher.rs
 

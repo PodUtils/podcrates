@@ -1,4 +1,7 @@
-//! A MASQUE CONNECT-IP session over HTTP/2 on TCP 443.
+//! A MASQUE CONNECT-IP session over HTTP/2 on TCP 443, over HTTP/3 on UDP
+//! 443 ([`crate::h3`], [`Way::h3`]), or a WireGuard tunnel on UDP
+//! ([`crate::wg`], [`MasqueSession::connect_wg`]); the halves of each are
+//! [`MasqueTx`] and [`MasqueRx`].
 //!
 //! This transport works where only 443 and 80 are open: the MASQUE front
 //! door speaks HTTP/2 as well as HTTP/3, and the CONNECT-IP request is a
@@ -20,10 +23,11 @@ use rustls::crypto::CryptoProvider;
 use rustls_pki_types::ServerName;
 use tokio_rustls::TlsConnector;
 
-use crate::capsule::CapsuleDecoder;
 use crate::identity::Identity;
-use crate::net::Renew;
+use crate::net::{Renew, WarpNet};
 use crate::service;
+use crate::udp::{UdpWay, no_udp};
+use crate::wg::{self, Peer};
 
 mod keepalive;
 mod rx;
@@ -31,6 +35,8 @@ mod tx;
 
 pub use keepalive::{Keepalive, MAX_MISSED_PONGS};
 pub use rx::MasqueRx;
+use rx::RxInner;
+use tx::TxInner;
 pub use tx::{MasqueTx, SEND_RESERVE, SEND_STALL};
 
 /// The HTTP/2 receive window of the MASQUE stream, and of the connection.
@@ -72,11 +78,17 @@ pub fn h2_builder() -> h2::client::Builder {
 pub type Meter = Arc<dyn Fn(BoxedIo) -> (BoxedIo, Renew) + Send + Sync>;
 
 /// How a session reaches the front door: the caller's dial and TLS
-/// provider, the meter of a relay, the TLS name, the `:authority` and the
-/// time limit.
+/// provider, the meter of a relay, the TLS name, the `:authority`, the time
+/// limit, and HTTP/3 on the caller's UDP.
 #[derive(Clone)]
 pub struct Way {
     pub dial: Arc<dyn Dial>,
+    /// The UDP of the caller, for HTTP/3 and WireGuard. None: the way
+    /// carries TCP only (a proxy, a relay), and HTTP/3 and WireGuard fail.
+    pub udp: Option<Arc<dyn UdpWay>>,
+    /// HTTP/3 on UDP 443 over [`Way::udp`] in place of HTTP/2 on TCP 443
+    /// (PodUtils/podnet issue 157). It takes no relay.
+    pub h3: bool,
     /// The meter of a dial through a relay; None: no budget.
     pub meter: Option<Meter>,
     pub provider: Arc<CryptoProvider>,
@@ -93,6 +105,8 @@ impl Way {
     pub fn new(dial: Arc<dyn Dial>, provider: Arc<CryptoProvider>) -> Way {
         Way {
             dial,
+            udp: None,
+            h3: false,
             meter: None,
             provider,
             sni: None,
@@ -106,6 +120,8 @@ impl std::fmt::Debug for Way {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Way")
             .field("dial", &self.dial.label())
+            .field("udp", &self.udp.as_ref().map(|u| u.label()))
+            .field("h3", &self.h3)
             .field("meter", &self.meter.is_some())
             .field("sni", &self.sni)
             .finish_non_exhaustive()
@@ -127,7 +143,8 @@ fn failure(class: Class, text: impl Into<String>) -> Failure {
 impl MasqueSession {
     /// Dial the front door `door` through the way `way`, and open the
     /// CONNECT-IP tunnel with the certificate of `identity` and the pinned
-    /// key `pinned_spki`.
+    /// key `pinned_spki`: over HTTP/3 on [`Way::udp`] with [`Way::h3`], else
+    /// over HTTP/2 on [`Way::dial`].
     pub async fn connect(
         door: &Target,
         identity: &Identity,
@@ -135,9 +152,78 @@ impl MasqueSession {
         way: &Way,
     ) -> Result<MasqueSession, Failure> {
         let limit = way.timeout;
+        if way.h3 {
+            return tokio::time::timeout(limit, Self::connect_h3(door, identity, pinned_spki, way)).await.map_err(
+                |_| {
+                    let text = format!("MASQUE connect over HTTP/3 to {door} timed out after {} s", limit.as_secs());
+                    failure(Class::Timeout, format!("{text} (is UDP 443 open?)"))
+                },
+            )?;
+        }
         tokio::time::timeout(limit, Self::connect_inner(door, identity, pinned_spki, way)).await.map_err(|_| {
             failure(Class::Timeout, format!("MASQUE connect to {door} timed out after {} s", limit.as_secs()))
         })?
+    }
+
+    /// Open the session over HTTP/3 (PodUtils/podnet issue 157): QUIC to
+    /// the front door on the UDP of the way, with the client certificate and
+    /// the pinned key. A door must be an address: the crate resolves no
+    /// name.
+    async fn connect_h3(
+        door: &Target,
+        identity: &Identity,
+        pinned_spki: Vec<u8>,
+        way: &Way,
+    ) -> Result<MasqueSession, Failure> {
+        let Some(udp) = &way.udp else {
+            return Err(no_udp("MASQUE over HTTP/3", &way.dial.label()));
+        };
+        let Target::Addr(addr) = door else {
+            return Err(failure(Class::Usage, format!("MASQUE over HTTP/3 takes the address of a door, not {door}")));
+        };
+        let tls = crate::tls::client_config(way.provider.clone(), identity, pinned_spki, crate::h3::ALPN)?;
+        let datagrams = udp.datagrams(*addr).await?;
+        let sni = way.sni.as_deref().unwrap_or(service::masque_sni());
+        let authority = way.authority.trim_start_matches("https://");
+        let (tx, rx) = crate::h3::connect(*addr, datagrams, tls, sni, authority, way.timeout).await?;
+        Ok(Self::of(TxInner::H3 { tx: Box::new(tx), keepalive_taken: false }, RxInner::H3(Box::new(rx))))
+    }
+
+    /// A session over WireGuard (PodUtils/podnet issue 152): the handshake
+    /// with `peer` on the UDP of `way`.
+    pub async fn connect_wg(peer: &Peer, way: &Way) -> Result<MasqueSession, Failure> {
+        let Some(udp) = &way.udp else {
+            return Err(no_udp("WireGuard", &way.dial.label()));
+        };
+        let datagrams = udp.datagrams(peer.endpoint).await?;
+        let (tx, rx, keepalive) = wg::connect(peer, datagrams).await?;
+        Ok(Self::of_wg(tx, rx, keepalive))
+    }
+
+    /// A session over WireGuard on a UDP socket of `outer`: a tunnel in a
+    /// tunnel (PodUtils/podnet issues 154 and 155). The session holds
+    /// `outer`.
+    pub async fn connect_wg_inside(peer: &Peer, outer: &WarpNet) -> Result<MasqueSession, Failure> {
+        let (tx, rx, keepalive) = wg::connect_inside(peer, outer).await?;
+        Ok(Self::of_wg(tx, rx, keepalive))
+    }
+
+    fn of_wg(tx: wg::WgTx, rx: wg::WgRx, keepalive: wg::WgKeepalive) -> MasqueSession {
+        Self::of(TxInner::Wg { tx: Box::new(tx), keepalive: Some(keepalive) }, RxInner::Wg(Box::new(rx)))
+    }
+
+    fn of(tx: TxInner, rx: RxInner) -> MasqueSession {
+        MasqueSession { tx: MasqueTx::new(tx), rx: MasqueRx::new(rx), budget: None }
+    }
+
+    /// True for a session over HTTP/3.
+    pub fn is_h3(&self) -> bool {
+        self.tx.is_h3()
+    }
+
+    /// True for a session over WireGuard.
+    pub fn is_wg(&self) -> bool {
+        self.tx.is_wg()
     }
 
     async fn connect_inner(
@@ -213,7 +299,7 @@ impl MasqueSession {
 
     /// A session over the streams of an HTTP/2 request.
     pub(crate) fn from_h2(ping: Option<h2::PingPong>, send: h2::SendStream<Bytes>, recv: h2::RecvStream) -> Self {
-        MasqueSession { tx: MasqueTx::new(ping, send), rx: MasqueRx::new(recv, CapsuleDecoder::new()), budget: None }
+        Self::of(TxInner::H2 { ping, send }, RxInner::H2(recv))
     }
 
     /// The budget of the relay that carries the session: true when it is

@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 
 use super::*;
-use crate::capsule;
+use crate::capsule::{self, CapsuleDecoder};
 
 /// A CONNECT on `client`, for the tests of a session over an h2 server of
 /// the test.

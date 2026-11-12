@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**335 entries: 80 open, 6 partial, 5 blocked, 244 done.**
+**336 entries: 80 open, 6 partial, 5 blocked, 245 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 15 | 2 | 0 | 68 | 85 |
-| P2 | 32 | 2 | 5 | 125 | 164 |
+| P1 | 14 | 2 | 0 | 69 | 85 |
+| P2 | 33 | 2 | 5 | 125 | 165 |
 | P3 | 33 | 2 | 0 | 49 | 84 |
-| **All** | 80 | 6 | 5 | 244 | 335 |
+| **All** | 80 | 6 | 5 | 245 | 336 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -338,7 +338,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-330](podvm.md) | P2 | M | M6 | feature | open | `pod-relay`: podvm's members that make, ask about and stop a pair, in place of the curl of its drives |
 | [T-335](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: podnet's stack of `ip.rs` onto `pod-netstack` (congestion control, TCP burst, link counters, the check of the data path) |
 | [T-336](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
-| [T-337](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
+| [T-337](adapters.md) | P1 | L | M3 | feature | done | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
 | [T-338](adapters.md) | P1 | L | M3 | feature | done | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |
 | [T-339](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh |
 | [T-345](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the probe program of the guest, which measures each probe of issue 178 |
@@ -382,3 +382,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-403](transport.md) | P3 | M | M1 | feature | open | `pod-turn`: the SHA-256 credentials against a TURN server of another party |
 | [T-406](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the L4 door of `--l4` and its proxy, after HTTP/3 |
 | [T-407](transport.md) | P2 | S | M3 | chore | open | `pod-proxy`: fuzz targets of the server face of a proxy |
+| [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
