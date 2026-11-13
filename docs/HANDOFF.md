@@ -11,14 +11,13 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Record the takes of `v0.38.0` (#136).
+2. Record the takes of `v0.39.0` (#137).
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The last release: `v0.38.0` at `370ab45` (the hand-off #136, open).
-  Each consumer took `v0.37.0` (#134) and podnet and podssh took
-  `pod-warp` (#135); both are closed.
+- The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, open).
+  Each consumer took `v0.38.0` (#136, closed).
 - The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
   (T-488, done); three tests of `pod-services-watch` fail there (T-507:
   the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
@@ -46,11 +45,11 @@ is done. Git and the record keep finished work.
   commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.37.0`, `f6abdc3`, PodUtils/podnet#522; `pod-warp` taken): its link
+- podnet (on `v0.38.0`, PodUtils/podnet#525; `pod-warp` taken): its link
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
-- podssh (on `v0.37.0`, `812c61c`, PodUtils/podssh#227; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
+- podssh (on `v0.38.0`, `e47d508`, PodUtils/podssh#228; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.38.0`, `28ce3b5`, PodUtils/podrunner#82): its session

@@ -5,26 +5,22 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.38.0` at `370ab45` (`docs/releases/v0.38.0.md`; ci
-  43390244261, adoption 43390244391, release 43393232151; the hand-off
-  #136, COORD-076, open): T-475, T-305, T-301, T-439, T-420, T-421
-  (podnet), T-503, T-504 (podvm), T-505 (podrunner), T-488, T-507. Each
-  consumer took `v0.37.0` (#134, closed) and podnet and podssh took
-  `pod-warp` (#135, closed).
-  The release `v0.39.0` is in work (`docs/releases/v0.39.0.md`): T-508
-  (PodUtils/podnet#524), T-506, T-510, T-310.
+- Last release: `v0.39.0` at `4c2d17c` (`docs/releases/v0.39.0.md`; ci
+  43399257316, adoption 43399257385, release 43405496549; the hand-off
+  #137, COORD-077, open): T-508 (PodUtils/podnet#524), T-506, T-510,
+  T-310. Each consumer took `v0.38.0` (#136, closed).
 - The consumers and their tags:
-  - podssh: `v0.37.0` (`812c61c`, PodUtils/podssh#227; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
+  - podssh: `v0.38.0` (`e47d508`, PodUtils/podssh#228; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
     (T-413; its glue needs T-480, in the tag after `v0.36.0`).
-  - podnet: `v0.37.0` (`f6abdc3`, PodUtils/podnet#522; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
+  - podnet: `v0.38.0` (PodUtils/podnet#525; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
     `9c1fc4b` (T-412); the take waits for the freeze.
-  - podvm: `v0.37.0` (`b12ba476`, PodUtils/podvm#299; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
+  - podvm: `v0.38.0` (`34936958`, PodUtils/podvm#304; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
   - podrunner: `v0.38.0` (`28ce3b5`, PodUtils/podrunner#82; its live gates start on a test organization, its DR-7): its local
@@ -97,11 +93,11 @@ next entry.
       (`f6abdc3`) and podssh (`812c61c`) took the crate; their WARP code
       holds fixes only.
    b. `v0.38.0` holds the port rules of `pod-warp`, the TXT and CNAME of
-      `pod-dns`, the exporter and the record layer of `pod-e2e` (call
-      C246), the accept loop `pod_ws::serve`, and the carriers `ws` and
-      `h2` of `pod-link`. On `main` for the next tag: the rules of
-      podnet's WebSocket carrier, the fuzz target of the records, and the
-      selective-repeat ARQ of `pod-link` (calls C262 to C265).
+      `pod-dns`, the exporter and the record layer of `pod-e2e`, the
+      accept loop `pod_ws::serve`, and the carriers `ws` and `h2` of
+      `pod-link`; `v0.39.0` holds the rules of podnet's WebSocket
+      carrier, the fuzz target of the records, the ARQ of `pod-link` and
+      the fix of PodUtils/podnet#524.
    c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
       T-422 (long-poll, SSE, chunked),
       T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
