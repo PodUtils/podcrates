@@ -1411,3 +1411,47 @@ of its own.
 ```sh
 sh scripts/adoption.sh podssh pod-warp
 ```
+
+# T-475: `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518)
+
+**Source:** PodUtils/podnet#518 (COORD-061; podnet's T-328, ask N-2 of podswarm, #125).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The reader of the rules of a door and of a pod is `RuleMatch::parse`
+(`crates/pod-warp/src/rules.rs` and its matcher). It reads `domain:`,
+`cidr:` and `reject`. podswarm asks podnet for rules by port, and the
+reader is podcrates' (podnet's file crates/podnet-netns/src/rules.rs is in
+the `SOURCES` of `pod-warp`, so podnet takes fixes only): `port:N=WAY`
+(one port or a range `N-M`, 1 to 65535, of any host) and
+`tcp:HOST:PORT=WAY` (a name, an IPv4 address or a bracketed IPv6
+address), also on the loopback.
+
+## Premise
+
+- Read: PodUtils/podnet#518 (2026-11-13); `crates/pod-warp/src/rules.rs`
+  (`RuleMatch::parse`, `Table::decide`, `decide_static`).
+- Not measured: none here.
+
+## Approach
+
+`RuleMatch::Port(lo, hi)` and `RuleMatch::Tcp(host, port)` with their
+parse, their match on a TCP CONNECT (the port of the target, and the host
+of the target as a name or an address), and no match for a UDP
+association (it goes over `via`, as now). The order of the rules stays
+the first match. Tests: with `tcp:127.0.0.1:5432=home`, a CONNECT to
+`127.0.0.1:5432` takes `home` and one to another port of the loopback
+does not; a range; a bracketed IPv6 address; a bad port is a `Usage`
+failure. podnet changes its shadow check (`shadow.rs`, not frozen) when
+the variants exist.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```

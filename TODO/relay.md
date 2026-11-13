@@ -4603,3 +4603,45 @@ that `Settings::check` refuses gives an error.
 ## Start condition
 
 The owner answers Q15.
+
+# T-476: `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221)
+
+**Source:** PodUtils/podssh#221 (COORD-046; from PodUtils/podnet#438, the owner's review of 2026-11-11, beside the five invariants of PodUtils/podssh#55).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+PodUtils/podssh@T-319 takes `pod_relay::http_road`, so the protocol of the HTTP
+road is podcrates' work. Five invariants of the review are not in the
+record: (6) a stored `seq` received again is answered with the same
+acknowledgement, never dropped in silence; (7) an acknowledgement goes
+only after the chunk is stored, and a full window is a refusal; (8) a
+refusal is a frame with its reason (`full`, `unknown session`, `not
+allowed`); (9) the close of a direction carries its count, and a
+mismatch fails the session; (10) a retry log on disk is keyed by
+(session, `seq`).
+
+## Premise
+
+- Read: PodUtils/podssh#221 (2026-11-13); `crates/pod-relay/src/http_road/`
+  and the server of the role that podssh hosts.
+- Not measured: how the code answers a `seq` received again today.
+
+## Approach
+
+Each invariant in the client and in the server of `http_road`, each with
+its test. The test of the ask: a stand-in that drops every third
+acknowledgement ends a 20 MiB session with equal digests, with at most
+one resend for each lost acknowledgement; with (6) removed it fails (a
+plant). podssh's tests `http_road` and `http_road_quick` run again at its
+take.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```

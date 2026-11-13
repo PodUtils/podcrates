@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 370 entries: 109 open, 7 partial, 5 blocked, 249 done.
+`TODO/INDEX.md` holds 372 entries: 110 open, 7 partial, 5 blocked, 250 done.
 
 ## State
 
@@ -69,8 +69,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-418 (tell podssh the
-   terms of the new file hosts, on PodUtils/podcrates#105); T-381 (the options of
+1. **The defects and asks of the consumers:** T-476 (the invariants 6 to
+   10 of the HTTP road of `pod-relay`, PodUtils/podssh#221); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
@@ -103,7 +103,8 @@ next entry.
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
    T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
-   T-424 (UDP with KCP) and T-310 (the ARQ). podnet
+   T-424 (UDP with KCP) and T-310 (the ARQ); T-475 (the port rules of
+   the reader of the rules, PodUtils/podnet#518). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300

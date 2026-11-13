@@ -107,7 +107,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #102 | COORD-063: GNU tar with an absolute -C fails in a unit of the supervise rung; a relative -C passes (PodUtils/podrunner#70, podcrates T-328) (to podvm) (to podrunner) | open (waits for podvm; podrunner read it, PodUtils/podrunner#71) | T-328 |
 | #103 | COORD-064: v0.33.0: pod-turn, pod-devtunnel, pod-warp (first part), pod-netlab (offline part), A11 and A12 (to all) | open (podnet `797104f`, PodUtils/podnet#514; podssh `72d6a3d`, PodUtils/podssh#218; podvm and podrunner wait) | T-028, T-207, T-372, T-373, T-374, T-375, T-376, T-377, T-378, T-390, T-391 |
 | #104 | COORD-065: v0.34.0: the TCP carrier of pod-link with the pin of an Ed25519 key, podnet's ip.rs settings, closed WARP sessions fail their flows (to all) | open (podssh `287e23b`, PodUtils/podssh#219; podnet `ef8c901`, PodUtils/podnet#515; podvm and podrunner wait) | T-304, T-335, T-355, T-394, T-396 |
-| #105 | COORD-066: the answer to PodUtils/podssh#220: the kind file-host (T-416) and a board over pod_wormhole::mqtt (T-417) (to podssh) | open (T-416 and T-417 open) | T-416, T-417 |
+| #105 | COORD-066: the answer to PodUtils/podssh#220: the kind file-host (T-416) and a board over pod_wormhole::mqtt (T-417) (to podssh) | open (T-416 and T-417 done on `main`, `ba24e5d`; the terms on its comments, T-418) | T-416, T-417, T-418 |
 | #106 | COORD-067: the answer to PodUtils/podnet#515: the next carriers of pod-link in your order (T-420 to T-424, T-310) (to podnet) | open (the entries are open) | T-310, T-420, T-421, T-422, T-423, T-424 |
 | #107 | podswarm: meta tracker of the spec and of the asks of podswarm to PodUtils (crates, repository, consumers) | open (its index is complete; 21 entries of podcrates wait for Q15; the asks to podvm and podnet are #124 and #125) | T-425, T-430, T-431, T-432, T-433, T-434, T-435, T-436, T-437, T-438, T-439, T-440, T-441, T-442, T-443, T-444, T-445, T-446, T-447, T-448, T-449, T-450 |
 | #108 | podswarm: the text of the spec (one comment for each file) | open (the text of the spec; read in its archive, files 21, 22 and 26) | T-425 |
@@ -128,5 +128,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #123 | pod-enter: correct the text of fuse.rs: mount(2) of FUSE works in a user namespace since Linux 4.18 (podswarm P-20) | open (an ask of podswarm; it waits for Q15) | T-448 |
 | #124 | podswarm asks podvm: a library call for run, the probe cache, cgroup limits, payload death, a copy-free root, warm exec, the guest plan and versioned schemas (to podvm) | open (an ask to podvm; podcrates does not own it) | T-425 |
 | #125 | podswarm asks podnet: live doors, port rules, an exit on stdio, a decision on one-flow aggregation and a report of podnet pod (to podnet) | open (an ask to podnet; podcrates does not own it) | T-425 |
+| #126 | COORD-068: the answer to PodUtils/podnet#518 (T-475, port rules) and PodUtils/podssh#221 (T-476, invariants 6 to 10 of the HTTP road) (to podnet) (to podssh) | open (both entries open) | T-475, T-476 |
 
 #79 to #81 are pull requests.

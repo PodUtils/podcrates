@@ -6240,7 +6240,7 @@ The owner answers Q15.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6272,6 +6272,17 @@ choice to take 0x0.st stays podssh's.
 ```sh
 cargo test -p pod-services --test file_host
 ```
+
+## Done
+
+2026-11-13, the comments 6840697609 and the next one on
+PodUtils/podcrates#105: the ids of the four services, the terms of
+0x0.st (automated mass uploads refused, consent and a User-Agent that
+names the program, 500 to automated reads; no rank, the facts
+`automated-uploads-refused` and `user-agent-names-program`), of
+tmpfiles.org (commercial automation needs permission), of Catbox
+(commercial use needs approval), of temp.sh (one person), the source of
+each fact (C219) and T-419.
 
 # T-419: `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run
 
