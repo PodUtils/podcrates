@@ -28,8 +28,10 @@
 //! same TLS under requests of HTTP/1.1: the long poll, SSE, a chunked
 //! stream and the simplex poll), with the feature `quic`, `quic::Quic` (the
 //! same TLS under one stream of QUIC, over UDP or the caller's datagrams),
-//! and with the feature `udp`, `udp::Udp` (the same TLS over KCP over UDP).
-//! Each carrier says with
+//! with the feature `udp`, `udp::Udp` (the same TLS over KCP over UDP), with
+//! the feature `dns`, `dns::Dns` (the same TLS over the ARQ over DNS queries
+//! and TXT answers), and with the feature `icmp`, `icmp::Icmp` (the same TLS
+//! over the ARQ over ICMP echo messages). Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
 //! registry of the carriers, their order and their flags are the
@@ -52,10 +54,16 @@
 pub mod arq;
 mod carrier;
 pub mod datagram;
+#[cfg(any(feature = "dns", feature = "icmp"))]
+mod dgram_tls;
+#[cfg(feature = "dns")]
+pub mod dns;
 mod error;
 pub mod frame;
 #[cfg(feature = "h2")]
 pub mod h2;
+#[cfg(feature = "icmp")]
+pub mod icmp;
 mod inbound;
 mod link;
 pub mod memory;

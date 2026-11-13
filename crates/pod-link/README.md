@@ -14,7 +14,11 @@ calls C262 to C265), T-423 the quic carrier (feature `quic`;
 PodUtils/podnet#515; call C270), T-424 the udp carrier with KCP (feature
 `udp`; PodUtils/podnet#515; calls C271 and C272), T-422 and T-495 the poll carriers over requests of
 HTTP/1.1: the long poll, SSE, a chunked stream and the simplex poll
-(feature `poll`; PodUtils/podnet#515 and #521; calls C266 to C269). The crate reads no environment, keeps no global
+(feature `poll`; PodUtils/podnet#515 and #521; calls C266 to C269),
+T-493 the DNS simplex carrier over the ARQ (feature `dns`;
+PodUtils/podnet#468 row E2-3; calls C274 and C275) and T-497 the ICMP echo
+carrier over the ARQ (feature `icmp`; PodUtils/podnet#469 row E3-2; calls
+C276 and C277). The crate reads no environment, keeps no global
 state and prints nothing.
 
 ## Use
@@ -126,6 +130,32 @@ let sse = poll.clone().with_form(Form::Sse);                         // or Chunk
 let io = sse.dial("SHA256:...@https://relay.example/link").await?;
 ```
 
+The dns carrier takes the ARQ over DNS queries and TXT answers, for a host
+where the only egress is a resolver: the frames go up in base32 labels of a
+name under the zone and come down in TXT records:
+
+```rust
+use pod_link::dns::Dns;
+
+let dns = Dns::new(provider, identity).with_clients(keys).zone("link.example");
+let mut door = dns.bind("0.0.0.0:53".parse()?).await?;              // an authoritative server
+let dialing = Dns::new(provider, identity).to(resolver_addr);       // KEY@ZONE, queries to the resolver
+let io = dialing.dial("SHA256:...@link.example").await?;
+```
+
+The icmp carrier takes the ARQ over ICMP echo messages; the real path needs
+a raw socket (`CAP_NET_RAW` or uid 0), and the same framing runs over any
+datagrams of a test:
+
+```rust
+use pod_link::icmp::Icmp;
+
+let icmp = Icmp::new(provider, identity).with_clients(keys);
+icmp.available()?;                                                   // a reason when the host has no raw socket
+let mut door = icmp.bind("0.0.0.0".parse()?).await?;
+let io = Icmp::new(provider, identity).dial("SHA256:...@198.51.100.7").await?;
+```
+
 ## API
 
 | Item | What |
@@ -158,11 +188,20 @@ let io = sse.dial("SHA256:...@https://relay.example/link").await?;
 | `udp::KcpSettings`, `udp::KcpSettingsError` | `mtu` (1200), `segment` (1 KiB), `window` (256; 32 to 1024), `nodelay` (off: KCP's congestion window), `interval` (10 ms), `resend` (2), `idle` (20 s); `check` |
 | `udp::KcpStream` | KCP in stream mode over a `datagram::Datagrams` as one byte stream: `new(datagrams, conv, settings)` (`None` takes the conversation of the first datagram), `conv`. No end of its own; a shutdown returns when the peer acknowledged each byte; after a drop the task sends the bytes in flight |
 | `udp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, MTU, SEGMENT, MIN_WINDOW, MAX_WINDOW, IDLE, KCP_HEADER}` | the constants of the udp carrier |
+| `dns::Dns` (feature `dns`) | the DNS simplex carrier: `new(provider, identity)`, `with_clients(keys)`, `to(server)` (the UDP address a dial sends its queries to), `zone(name)` (a listener's zone), `with_way(way)`, `clients`; the fields `server`, `zone`, `alpn` (`podlink/1`), `arq` (`arq::ArqSettings`), `dns` (`DnsSettings`), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the zone of `KEY@ZONE`); `connect(&zone, &key)`; `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(addr)`, `bind_over(socket)`; as a `Carrier`: `dial("KEY@ZONE")`, `listen("IP:PORT")`, the cost `Highest` |
+| `dns::DnsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session; the sessions that it gave live on |
+| `dns::DnsSettings`, `dns::DnsSettingsError` | `queries_per_second` (20), `in_flight` (8), `query_timeout` (2 s), `poll_min` (5 ms), `poll_max` (2 s), `answer` (1232), `depth` (256); `check` |
+| `dns::{NAME, ALPN, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, settings::EDNS_SIZE}` | the constants of the dns carrier |
+| `icmp::Icmp` (feature `icmp`) | the ICMP echo carrier: `new(provider, identity)`, `with_clients(keys)`, `with_resolver(resolver)`, `clients`; the fields `alpn` (`podlink/1`), `arq`, `icmp` (`IcmpSettings`), `connect_timeout` (20 s), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST`); `connect(&target, &key)` (unix); `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(ip)` (unix); as a `Carrier`: `dial("KEY@HOST")`, `listen("IPv4")`, the cost `High` |
+| `icmp::IcmpListener` (unix) | `local_ip`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session |
+| `icmp::EchoFrames` | frames each datagram of the ARQ as an ICMP echo message over an inner carrier of whole ICMP messages (the raw socket, or a memory pair in a test): `new(inner, kind, session, id)`; a `datagram::Datagrams` |
+| `icmp::IcmpSettings`, `icmp::wire` | `payload` (1400); the echo codec (`REQUEST`, `REPLY`, `HEADER`, `SESSION`, `Echo`, `checksum`, `encode`, `decode`) |
+| `icmp::{NAME, ALPN, PAYLOAD, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the constants of the icmp carrier |
 | `poll::Poll` (feature `poll`) | the poll carriers: `new(provider, identity, way)` (the long poll), `with_form(form)`, `with_clients(keys)`, `clients`; the fields `form`, `connect_timeout` (20 s), `handshake_timeout` (10 s: the TLS of each connection, and the open), `answer_timeout` (30 s), `hold` (25 s, 1 s to 60 s), `idle` (60 s: a session with no request ends on the listener, a lane that fails ends on the dialer), `max_handshakes` (64), `max_sessions` (256), `max_bytes` (64 MiB: the bytes down that the sessions keep for their dialers; a session waits for room, an open with no room for one batch gets 429; each session holds two pipes of 256 KiB and a buffer of 64 KiB besides), `push` (a listener answers a push; else 406 and the dialer takes the long poll); `check`; `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`, no query); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")`; the name and the cost of its form |
 | `poll::Form` | `LongPoll` (`poll`), `Sse` (`sse`), `Chunked` (`chunked`), `Simplex` (`httppoll`); `name`, `batch` (256 KiB; 64 KiB for `Simplex`) |
 | `poll::PollListener`, `poll::Stats` | `local_addr`, `accept_key`, `stats` (sessions, 429s, requests, bytes up that came twice, bytes down sent again, long polls, simplex polls, pushes, pushes refused, the bytes down kept now); a `Listener`; a drop ends its connections and each session that it holds |
 | `poll::{ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, ANSWER_TIMEOUT, HOLD, MIN_HOLD, MAX_HOLD, IDLE, MAX_HANDSHAKES, MAX_SESSIONS, MAX_BYTES, MIN_BYTES, BATCH, SIMPLEX_BATCH, WINDOW, ACK_EVERY, PING_EVERY, BACKOFF_FIRST, BACKOFF_MAX, BUSY_LIMIT}` | the constants of the poll carriers |
-| `Cost` | the overhead class of a carrier in `Facts::cost`: `Low` (unix, memory, tcp, ws, h2), `Medium` (the long poll, a chunked stream), `High` (SSE), `Highest` (the simplex poll) |
+| `Cost` | the overhead class of a carrier in `Facts::cost`: `Low` (unix, memory, tcp, ws, h2), `Medium` (the long poll, a chunked stream), `High` (SSE, icmp), `Highest` (the simplex poll, dns) |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
 | `arq::ArqStream` | the ARQ over a datagram carrier as one ordered byte stream (`AsyncRead` and `AsyncWrite`): `new(datagrams, settings)` starts its task on the current tokio runtime; `handle`. A write is one record; a shutdown sends the `FIN` and returns at its acknowledgement; a drop sends the `FIN`; when its frames are acknowledged, the task answers the peer until the peer is silent for two RTO ceilings (at most 64 s), then ends; an error also ends it |
@@ -187,6 +226,8 @@ let io = sse.dial("SHA256:...@https://relay.example/link").await?;
 | `udp` | the udp carrier (`udp`): `tcp`, and `kcp` (KCP in pure Rust, with no feature) |
 | `quic` | the quic carrier (`quic`): `tcp`, and `pod-quic` (noq with no `ring` and no `aws-lc`; the TLS provider is the caller's) |
 | `poll` | the poll carriers (`poll`): `tcp`, `pod-ws` for the URL, and base64 for the events of SSE |
+| `dns` | the dns carrier (`dns`): `tcp`, and `pod-dns` for the DNS query and the TXT answer |
+| `icmp` | the icmp carrier (`icmp`): `tcp`, and libc on unix for the raw socket |
 | `fuzzing` | `poll`, and the reader of HTTP/1.1 and of SSE of the poll carriers in `poll::fuzzing`, for the fuzz target `link_poll_wire`; no API, and no consumer turns it on |
 
 ## The wire
@@ -637,6 +678,8 @@ simplex poll (PodUtils/podnet@T-280), and the tests that hold them
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
 | PodUtils/podnet@T-273: the QUIC carrier | `quic::Quic` (feature `quic`): one row of the registry holds `Box::new(Quic::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"`, and `with_way(way)` when podnet's way carries UDP; the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")` on UDP |
 | PodUtils/podnet@T-276: the UDP carrier with KCP | `udp::Udp` (feature `udp`): one row of the registry holds `Box::new(Udp::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"` and podnet's `KcpSettings` (`--kcp-nodelay 1` is `nodelay: true`); the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")`; podnet's shim tests take `connect_over` and `accept_over` over `datagram::lossy::Lossy` |
+| PodUtils/podnet@T-278: the DNS simplex carrier | `dns::Dns` (feature `dns`): one row of the registry holds `Box::new(Dns::new(provider, identity).with_clients(keys).zone(zone))` with `alpn = b"podnet/1"`; a dialer sets `to(resolver)` or `with_way(way)`; the dial address is `KEY@ZONE`; the listener is `listen("IP:PORT")`. The frames go up in base32 labels of a query name and come down in TXT records; the ARQ of T-310 recovers the loss (calls C274, C275) |
+| PodUtils/podnet@T-282: the ICMP echo carrier | `icmp::Icmp` (feature `icmp`): one row of the registry holds `Box::new(Icmp::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"`; the dial address is `KEY@HOST`; the listener is `listen("IPv4")`. The real path needs `CAP_NET_RAW` (`available()` says so, and the test skips); `connect_over` and `accept_over` over `datagram::lossy::Lossy` run the same framing with no privilege (calls C276, C277) |
 | PodUtils/podnet@T-271, PodUtils/podnet@T-272: the HTTP/1.1 long poll, the SSE and chunked stream | `poll::Poll` (feature `poll`): a row of the registry for each form holds `Box::new(Poll::new(provider, identity, way).with_form(form).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; one listener (`listen("IP:PORT")`) serves each form. podnet's `server_push=false` is a listener with `push` false: the dialer of `sse` or `chunked` then takes the long poll. The lanes are `POST PATH/up` and `POST PATH/down?since=N` (podnet's), with `PATH/open` first |
 | PodUtils/podnet@T-280: the HTTP poll simplex carrier | `poll::Poll` with `Form::Simplex` (`httppoll`): `POST PATH/up` (202 and `Pod-Ack`), `GET PATH/out?since=N` (204 when empty), 64 KiB, a backoff of 100 ms to 5 s; `facts().cost` is `Cost::Highest`. Each lane is a request of its own, and the answer of each POST acknowledges it, so the split of PodUtils/podnet@T-302 can take one lane |
 | PodUtils/podnet@T-277: the selective-repeat ARQ for any lossy carrier | `arq::ArqStream` over a `datagram::Datagrams` (each lossy carrier of podnet gives one), then `Link::new` over the stream; `arq::ArqHandle::rekey_wanted` is the ask of the record layer (PodUtils/podnet@T-298) for a rekey; podnet's `tests/link_arq.rs` takes `datagram::lossy::Lossy` over `datagram::memory::pair` as its shim |

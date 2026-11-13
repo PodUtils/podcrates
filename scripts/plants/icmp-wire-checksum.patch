@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/icmp/wire.rs b/crates/pod-link/src/icmp/wire.rs
+--- a/crates/pod-link/src/icmp/wire.rs
++++ b/crates/pod-link/src/icmp/wire.rs
+@@ -53,7 +53,7 @@
+     while sum >> 16 != 0 {
+         sum = (sum & 0xffff) + (sum >> 16);
+     }
+-    !(sum as u16)
++    sum as u16
+ }
+ 
+ /// The bytes of an echo message of `kind` with `id`, `seq`, `session`,

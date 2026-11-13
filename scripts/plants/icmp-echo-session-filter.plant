@@ -1,0 +1,8 @@
+# EchoFrames of the icmp carrier must drop an echo of another session or the
+# wrong mark (a self echo or the kernel's reply to a request on a shared
+# socket); without the filter a stranger's echo reaches the ARQ (T-497).
+ENTRY=T-497
+GROUP=link
+EXPECT='the wrong session is dropped'
+RUN='cargo test -p pod-link --all-features --test icmp an_echo_of_the_wrong_session_or_mark_is_dropped'
+LIMIT=1800

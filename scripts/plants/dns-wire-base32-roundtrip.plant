@@ -1,0 +1,7 @@
+# The base32 of the dns carrier's query name must round trip: a shift off by
+# one in the encoder breaks the frames up and the server reads none (T-493).
+ENTRY=T-493
+GROUP=link
+EXPECT='a_query_round_trips_under_its_zone'
+RUN='cargo test -p pod-link --all-features --lib dns::wire::tests::a_query_round_trips_under_its_zone'
+LIMIT=1800

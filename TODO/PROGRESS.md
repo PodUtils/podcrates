@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 415 entries: 116 open, 8 partial, 4 blocked, 287 done.
+`TODO/INDEX.md` holds 415 entries: 114 open, 8 partial, 4 blocked, 289 done.
 
 ## State
 
@@ -100,8 +100,8 @@ next entry.
    c. The tag after: the poll carriers, the quic carrier and the udp
       carrier with KCP of `pod-link` (done); T-526 (the fix of `kcp` upstream,
       partial), T-529 (the first live run of the file hosts,
-      then podssh's forms), T-493 (DNS simplex), T-494 (S3
-      simplex), T-497 (ICMP echo), T-500 (an up and a down carrier).
+      then podssh's forms), T-494 (S3
+      simplex), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
       traversal with the relay), T-525 (the bytes of a poll listener
       outside the cap of `max_bytes`), T-515 (the congestion window of the ARQ,

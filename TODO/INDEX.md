@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**415 entries: 116 open, 8 partial, 4 blocked, 287 done.**
+**415 entries: 114 open, 8 partial, 4 blocked, 289 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 77 | 92 |
-| P2 | 57 | 3 | 4 | 152 | 216 |
+| P2 | 55 | 3 | 4 | 154 | 216 |
 | P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 116 | 8 | 4 | 287 | 415 |
+| **All** | 114 | 8 | 4 | 289 | 415 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -432,11 +432,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
 | [T-491](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-492](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297) |
-| [T-493](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the DNS simplex carrier (PodUtils/podnet#521) |
+| [T-493](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the DNS simplex carrier (PodUtils/podnet#521) |
 | [T-494](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the object-storage (S3) simplex carrier (PodUtils/podnet#521) |
 | [T-495](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the HTTP poll simplex carrier (PodUtils/podnet#521) |
 | [T-496](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the DNS stream carrier with a pipelined window of queries (PodUtils/podnet#521) |
-| [T-497](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the ICMP echo carrier (PodUtils/podnet#521) |
+| [T-497](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the ICMP echo carrier (PodUtils/podnet#521) |
 | [T-498](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521) |
 | [T-499](relay.md) | P2 | L | M2 | feature | open | `pod-link`: NAT traversal with a fall back to the relay (PodUtils/podnet#521) |
 | [T-500](relay.md) | P2 | M | M2 | feature | open | `pod-link`: one session over an up carrier and a down carrier (PodUtils/podnet#521) |

@@ -34,7 +34,7 @@ pod-incus = { workspace = true }
 pod-job = { workspace = true }
 # `tcp`: the probe links to itself over TLS on the loopback; `quic` over
 # QUIC; `udp` over KCP; `poll` over requests of HTTP/1.1.
-pod-link = { workspace = true, features = ["tcp", "ws", "h2", "poll", "quic", "udp"] }
+pod-link = { workspace = true, features = ["tcp", "ws", "h2", "poll", "quic", "udp", "dns", "icmp"] }
 pod-netlab = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
 # smoltcp links in.

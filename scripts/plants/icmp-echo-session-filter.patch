@@ -1,0 +1,15 @@
+diff --git a/crates/pod-link/src/icmp/echo.rs b/crates/pod-link/src/icmp/echo.rs
+--- a/crates/pod-link/src/icmp/echo.rs
++++ b/crates/pod-link/src/icmp/echo.rs
+@@ -62,10 +62,7 @@
+         Box::pin(async move {
+             loop {
+                 let message = self.inner.recv().await?;
+-                if let Some(echo) = wire::decode(&message)
+-                    && echo.session == self.session
+-                    && echo.from == self.take
+-                {
++                if let Some(echo) = wire::decode(&message) {
+                     return Ok(echo.payload);
+                 }
+             }

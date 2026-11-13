@@ -5094,7 +5094,7 @@ passed. Plants, each caught by hand: `link-ws-text-message-carried`,
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5120,6 +5120,27 @@ cargo test --workspace --all-features
 ## Start condition
 
 After T-305 (the reader of TXT and CNAME with EDNS0 and the TC bit).
+
+## Done
+
+2026-11-13, commit 5a78d3c. The dns carrier (feature `dns`,
+`crates/pod-link/src/dns.rs` and `crates/pod-link/src/dns/`): one datagram
+of the ARQ goes up as `session || counter || payload`, base32 of RFC 4648
+in the labels of a query name under the zone (`crates/pod-link/src/dns/wire.rs`),
+and the datagrams down ride in TXT records; the ARQ of T-310 recovers the
+loss and the TLS of the tcp carrier runs over it (`crates/pod-link/src/dgram_tls.rs`,
+shared with icmp; calls C274, C275). It takes `pod_dns::txt` (T-305), with
+the new server halves `question` and `answer` in
+`crates/pod-dns/src/txt.rs`, with a roundtrip test. The dialer
+(`crates/pod-link/src/dns/client.rs`) starts a query for each datagram and
+polls when idle; the listener
+(`crates/pod-link/src/dns/server.rs`) is an authoritative server on a UDP
+socket. `cargo clippy -p pod-link --features dns,icmp --all-targets --
+-D warnings`: clean; `cargo test -p pod-link --features dns,icmp`: the
+dns suite (`crates/pod-link/tests/dns.rs`, 7), the loss suite
+(`crates/pod-link/tests/dns_loss.rs`, 3) and the wire unit tests passed;
+`cargo test -p pod-dns --lib`: 51 passed. Plants
+`dns-wire-base32-roundtrip` and `dns-down-needs-the-txt`, each caught.
 
 # T-494: `pod-link`: the object-storage (S3) simplex carrier (PodUtils/podnet#521)
 
@@ -5243,7 +5264,7 @@ After T-305 and T-493.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5265,6 +5286,32 @@ no such part.
 ```sh
 cargo test --workspace --all-features
 ```
+
+## Done
+
+2026-11-13, commit 5a78d3c. The icmp carrier (feature `icmp`,
+`crates/pod-link/src/icmp.rs` and `crates/pod-link/src/icmp/`): each
+datagram of the ARQ rides in the data of an ICMP echo message with a
+session (`crates/pod-link/src/icmp/wire.rs`,
+`crates/pod-link/src/icmp/echo.rs`); the ARQ of T-310 recovers the loss and
+the TLS of the tcp carrier runs over it
+(`crates/pod-link/src/dgram_tls.rs`; calls C276, C277). The real path is a
+raw ICMPv4 socket (`crates/pod-link/src/icmp/socket.rs`,
+`crates/pod-link/src/icmp/listen.rs`) that needs `CAP_NET_RAW`; a server
+needs a raw socket, since an unprivileged ping socket takes no echo
+request, so `available()` checks for the raw socket and gives a typed
+`Unavailable`, and the real test (`crates/pod-link/tests/icmp_raw.rs`, unix
+only) prints a skip line and returns where the host refuses it. The echo
+data holds `session || from || payload`: the `from` mark drops the kernel's
+own reply to an echo request, which echoes the data verbatim and would
+otherwise poison the ARQ (commit 86ff088). `EchoFrames` runs the same
+framing over a memory pair with no privilege, so the framing, the ARQ, TLS,
+the keys, a refused key and a silent peer run in
+`crates/pod-link/tests/icmp.rs` on every host. `cargo clippy -p pod-link
+--features dns,icmp --all-targets -- -D warnings`: clean; `cargo test
+-p pod-link --features icmp --test icmp --test icmp_raw`: 8 and 1 passed
+(the raw-socket link ran: the host allows `CAP_NET_RAW`). Plants
+`icmp-wire-checksum` and `icmp-echo-session-filter`, each caught.
 
 # T-498: `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521)
 

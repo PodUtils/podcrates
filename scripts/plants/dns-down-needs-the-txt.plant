@@ -1,0 +1,8 @@
+# The dialer of the dns carrier must read the datagrams down from the TXT
+# records of each answer; a dialer that drops them cannot finish the
+# handshake and the dial times out (T-493).
+ENTRY=T-493
+GROUP=link
+EXPECT='the dial'
+RUN='cargo test -p pod-link --all-features --test dns a_link_over_dns_carries_streams'
+LIMIT=1800

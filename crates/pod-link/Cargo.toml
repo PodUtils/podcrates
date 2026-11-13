@@ -26,6 +26,12 @@ udp = ["tcp", "dep:kcp"]
 # The carriers over requests of HTTP/1.1 with the TLS of `tcp`: the long
 # poll, SSE, a chunked stream and the simplex poll (`poll`).
 poll = ["tcp", "dep:pod-ws", "dep:base64"]
+# The DNS simplex carrier: the ARQ under the TLS of `tcp`, its frames in
+# base32 labels of queries and in TXT answers (`dns`).
+dns = ["tcp", "dep:pod-dns"]
+# The ICMP echo carrier: the ARQ under the TLS of `tcp`, its frames in the
+# data of echo messages (`icmp`). The raw socket uses libc on unix.
+icmp = ["tcp"]
 # The reader of HTTP/1.1 and of SSE of the poll carriers is public in
 # `poll::fuzzing`, for the fuzz target `link_poll_wire` of fuzz/. No
 # consumer turns this on.
@@ -56,6 +62,10 @@ pod-quic = { workspace = true, optional = true }
 kcp = { workspace = true, optional = true }
 # The data of the events of SSE (the poll carriers).
 base64 = { workspace = true, optional = true }
+# The DNS query and the TXT answer of the dns carrier: the build of a query
+# with an EDNS0 size, the read of its TXT, the question of a query and the
+# build of an answer (pod_dns::txt).
+pod-dns = { workspace = true, optional = true }
 # The driver of a link, the streams, the carriers and the keepalive's clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
 tracing = { workspace = true }
