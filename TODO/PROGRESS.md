@@ -5,14 +5,12 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.37.0` at `3c5a086` (`docs/releases/v0.37.0.md`; ci
-  43375509872, adoption 43375509895, release 43378948606; the hand-off
-  #134, COORD-074, closed: each consumer took it): T-480 (`pod-warp`), T-488, T-491 and T-492
-  (`pod-enter`, for podvm). The freeze of `pod-warp` (#135, COORD-075) is done: podnet and podssh took the crate.
-  Each consumer took `v0.36.0` (#129, closed).
-  The release `v0.38.0` is in work (`docs/releases/v0.38.0.md`): T-475,
-  T-305, T-301, T-439, T-420, T-421 (podnet), T-503, T-504 (podvm), T-505
-  (podrunner), T-488.
+- Last release: `v0.38.0` at `370ab45` (`docs/releases/v0.38.0.md`; ci
+  43390244261, adoption 43390244391, release 43393232151; the hand-off
+  #136, COORD-076, open): T-475, T-305, T-301, T-439, T-420, T-421
+  (podnet), T-503, T-504 (podvm), T-505 (podrunner), T-488, T-507. Each
+  consumer took `v0.37.0` (#134, closed) and podnet and podssh took
+  `pod-warp` (#135, closed).
 - The consumers and their tags:
   - podssh: `v0.37.0` (`812c61c`, PodUtils/podssh#227; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT

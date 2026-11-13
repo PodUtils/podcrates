@@ -138,5 +138,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #133 | COORD-073: the answer to PodUtils/podnet#521: the plan, the order and the tags for podnet's complete beta (to podnet) | open (the entries are open) | T-027, T-029, T-301, T-305, T-310, T-420, T-421, T-475, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502 |
 | #134 | COORD-074: v0.37.0: pod-warp's team token, pod-enter's /proc and its joined entry for exec, the Windows build of pod-relay's tests (to all) | closed (podnet `f6abdc3`, podrunner `5fc53c4`, podvm `b12ba476`, PodUtils/podvm#299; podssh `812c61c`, PodUtils/podssh#227) | T-480, T-488, T-491, T-492 |
 | #135 | COORD-075: pod-warp: the freeze of src/warp and crates/podssh-warp (to podnet) (to podssh) | closed (podnet took `pod-warp` at `f6abdc3`, PodUtils/podnet#522; podssh at `812c61c`, PodUtils/podssh#227) | T-339, T-412, T-413 |
+| #136 | COORD-076: v0.38.0: pod-warp's port rules, pod-dns TXT, pod-e2e's record layer, pod-ws serve and the ws and h2 carriers; /dev/pts and the knob flags; ActorClass agent and bot (to all) | open (waits for the take of each consumer) | T-301, T-305, T-420, T-421, T-439, T-475, T-488, T-503, T-504, T-505, T-507 |
 
 #79 to #81 are pull requests.

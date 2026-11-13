@@ -11,17 +11,14 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Finish the release `v0.38.0` (`docs/releases/v0.38.0.md`): the tag,
-   the hand-off.
+2. Record the takes of `v0.38.0` (#136).
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The last release: `v0.37.0` at `3c5a086` (#134, closed: each consumer
-  took it). The freeze of `pod-warp` (#135) is done: podnet and podssh
-  took the crate. The release `v0.38.0` is in work (`docs/releases/v0.38.0.md`);
-  agents work on T-506 with T-510 and on T-310 in `.claude/worktrees/x506`
-  and `y310`.
+- The last release: `v0.38.0` at `370ab45` (the hand-off #136, open).
+  Each consumer took `v0.37.0` (#134) and podnet and podssh took
+  `pod-warp` (#135); both are closed.
 - The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
   (T-488, done); three tests of `pod-services-watch` fail there (T-507:
   the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
