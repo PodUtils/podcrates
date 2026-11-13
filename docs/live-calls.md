@@ -48,8 +48,8 @@ hides a red run that is ours.
 
 ## The inventory
 
-The rows count 35 calls: 2 replace, 3 stub + weekly, 25 keep live, and
-5 infrastructure. Of the 25 that stay live, 4 get a server on the loopback
+The rows count 37 calls: 2 replace, 4 stub + weekly, 26 keep live, and
+5 infrastructure. Of the 26 that stay live, 4 get a server on the loopback
 that proves the code of the client (L10, L18, L19, L35). "Each day" is the cron
 of the workflow.
 
@@ -69,10 +69,11 @@ of the workflow.
 | L10 | the GSRN relay gs.thc.org | `crates/pod-gsr/tests/live.rs` | 1 MiB crosses the real relay | by hand, in no workflow | unknown | keep live | the stand-in of `crates/pod-gsr/tests/loopback.rs`; gs-netcat 1.4.43 as the other end (T-357) |
 | L11 | GitHub's evaluator of expressions | T-280 (open) | the conformance of `pod-actions-expr` and `pod-actions-workflow` | planned | no | keep live | only GitHub's runner evaluates as GitHub does |
 | L35 | a TURN server of the caller (UDP or TLS on TCP) | `crates/pod-turn/tests/live.rs` (ignored; `POD_TURN_LIVE_SERVER`) | an allocation, a Refresh, a permission and a channel on a server of the caller | by hand, in no workflow | unknown | keep live | coturn 4.18.0 on the loopback in `ci.yml` (`scripts/ci/turn-tests.sh`, `crates/pod-turn/tests/coturn.rs`) proves the client over UDP and over TLS on each push: the 401, the 438, the 437 and the 441, the maximum lifetime, a Send and a ChannelData echo with its padding (T-380, call C197) |
+| L36 | the public MQTT broker public.cloud.shiftr.io: a board of retained messages | `crates/pod-wormhole/tests/board_live.rs`, step "pod-wormhole, a board of retained messages at each public MQTT broker" of `live.yml` | a retained note is put, taken and cleared at each public broker (PodUtils/podssh@T-738) | Thursday, by hand | unknown: new | stub + weekly | the stand-in of `crates/pod-wormhole/tests/harness/broker.rs` (it keeps retained messages) and Eclipse Mosquitto in `ci.yml` (`scripts/ci/mosquitto-tests.sh`, `crates/pod-wormhole/tests/board.rs`) prove the board on each push (T-417) |
 
 ### `services.yml`
 
-`crates/pod-services-watch` runs 138 watches of 71 service files each day
+`crates/pod-services-watch` runs 176 watches of 81 service files each day
 and by hand. A watch is a check of a fact of another party: each one is
 **keep live** by its purpose. Its offline tests run each watch kind against
 the stand-ins of `crates/pod-testkit/src/stand.rs`
@@ -90,6 +91,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L19 | `stun-binding` | stun.cloudflare.com:3478, stun.l.google.com:19302 (UDP) | no: each run read holds them | keep live | coturn 4.18.0 on the loopback in `ci.yml` proves the STUN codec of `pod_proxy::stun` (`scripts/ci/turn-tests.sh`, `crates/pod-proxy/tests/stun_coturn.rs`: the mapped address, FINGERPRINT, a 420; T-358) |
 | L20 | `doh`, `doh-answer`, `dns-addresses`, `dns-srv` | Cloudflare, Google, Quad9, argotunnel.com | IPv6: yes, skipped by the route probe | keep live | these watches take the liveness of L1 |
 | L21 | `proxy-banner`, `proxy-list` | 8 Trojan and VLESS nodes; 3 lists on raw.githubusercontent.com | unknown: timeouts in 4 runs | keep live | a "no answer" is a finding on the second run in a row (T-351, call C153) |
+| L37 | `http-text`, `http-status`, `tls-name` of the kind `file-host` | tmpfiles.org, litterbox.catbox.moe, temp.sh, 0x0.st | unknown: new; 0x0.st answers 500 to automated reads, so its watch is `tls-name` alone | keep live | the pages of the facts and the status of a GET of each upload form; no upload (T-416) |
 | L22 | `scripts/services/edge-facts.sh` (job `measure`) | region1 and region2.v2.argotunnel.com on 7844, 443, 8443, 80 | no | keep live | the facts of the edge that `pod-cloudflare` needs |
 
 ### Other workflows

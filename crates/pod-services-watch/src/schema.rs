@@ -2,6 +2,8 @@
 //! watch of the data with a missing, an unknown or a misnamed argument
 //! fails `cargo test`, not the daily run against the live service. The
 //! table "The schema" of `crates/pod-services/README.md` states the same.
+//! The facts of a service kind with a table ([`kind_facts`], T-416) are
+//! checked the same way.
 
 use pod_services::{Service, Watch};
 
@@ -110,6 +112,117 @@ pub fn faults(service: &Service, watch: &Watch, is_service: impl Fn(&str) -> boo
     }
     for id in texts("target").iter().filter(|id| !is_service(id)) {
         out.push(format!("the argument \"target\" names no service {id:?}"));
+    }
+    out
+}
+
+/// The facts and the endpoints of one service kind (T-416): a service of
+/// the kind needs each endpoint and each fact of `need`, can have each of
+/// `optional`, and has no other fact. Each fact has its type.
+#[derive(Debug, Clone, Copy)]
+pub struct KindFacts {
+    pub endpoints: &'static [&'static str],
+    pub need: &'static [(&'static str, &'static str)],
+    pub optional: &'static [(&'static str, &'static str)],
+    /// The words that a fact of the type `text` can be.
+    pub words: &'static [(&'static str, &'static [&'static str])],
+    /// The facts that a word of a fact needs: (fact, word, the facts).
+    pub when: &'static [(&'static str, &'static str, &'static [&'static str])],
+}
+
+/// The table of the kind `kind`, or none for a kind with no table: the
+/// files of such a kind are held by the tests of `pod-services`.
+pub fn kind_facts(kind: &str) -> Option<KindFacts> {
+    Some(match kind {
+        // The public file hosts (PodUtils/podssh#220): the upload form,
+        // the answer, where the file is fetched, the delete, the limits.
+        "file-host" => KindFacts {
+            endpoints: &["upload"],
+            need: &[
+                ("file-field", "text"),
+                ("fields", "texts"),
+                ("life-seconds", "int"),
+                ("answer", "text"),
+                ("serves", "texts"),
+                ("fetch-segment", "text"),
+                ("fetch-method", "text"),
+                ("delete", "text"),
+                ("upload-bytes-most", "int"),
+                ("one-person", "bool"),
+                ("automated-uploads-refused", "bool"),
+            ],
+            optional: &[
+                ("answer-pointer", "text"),
+                ("delete-token-header", "text"),
+                ("delete-token-field", "text"),
+                ("delete-fields", "texts"),
+                ("uploads-per-hour", "int"),
+                ("user-agent-names-program", "bool"),
+                ("note", "text"),
+            ],
+            words: &[
+                ("answer", &["text", "json"]),
+                ("fetch-method", &["GET", "POST"]),
+                ("delete", &["none", "token-form"]),
+            ],
+            when: &[
+                ("answer", "json", &["answer-pointer"]),
+                ("delete", "token-form", &["delete-token-header", "delete-token-field", "delete-fields"]),
+            ],
+        },
+        _ => return None,
+    })
+}
+
+/// The type of a value, as the key `type` of a fact names it.
+fn type_of(value: &pod_services::Value) -> &'static str {
+    use pod_services::Value;
+    match value {
+        Value::Text(_) => "text",
+        Value::Int(_) => "int",
+        Value::Bool(_) => "bool",
+        Value::Date(_) => "date",
+        Value::Texts(_) => "texts",
+        Value::Ints(_) => "ints",
+    }
+}
+
+/// Each fault of `service` against the table of its kind: a missing
+/// endpoint, a missing fact, a fact of another type or of a word that the
+/// table does not name, a fact that the table does not name, and a fact
+/// that a word needs. None for a kind with no table.
+pub fn service_faults(service: &Service) -> Vec<String> {
+    let Some(table) = kind_facts(service.kind()) else { return Vec::new() };
+    let mut out = Vec::new();
+    for name in table.endpoints.iter().filter(|n| service.endpoint(n).is_none()) {
+        out.push(format!("no endpoint {name:?} of the kind {:?}", service.kind()));
+    }
+    for (name, kind) in table.need {
+        if service.fact(name).is_none() {
+            out.push(format!("no fact {name:?} ({kind}) of the kind {:?}", service.kind()));
+        }
+    }
+    for fact in service.facts() {
+        let named = table.need.iter().chain(table.optional).find(|(n, _)| *n == fact.name());
+        match named {
+            None => out.push(format!("the fact {:?} is not one of the kind {:?}", fact.name(), service.kind())),
+            Some((_, kind)) if *kind != type_of(fact.value()) => {
+                out.push(format!("the fact {:?} is of the type {}, not {kind}", fact.name(), type_of(fact.value())));
+            }
+            Some(_) => {}
+        }
+    }
+    for (name, words) in table.words {
+        if let Some(word) = service.text(name).filter(|w| !words.contains(w)) {
+            out.push(format!("the fact {name:?} is {word:?}, not one of {}", words.join(", ")));
+        }
+    }
+    for (name, word, needed) in table.when {
+        if service.text(name) == Some(*word) {
+            for missing in needed.iter().filter(|n| service.fact(n).is_none()) {
+                out.push(format!("the fact {name:?} {word:?} needs the fact {missing:?}"));
+            }
+        }
     }
     out
 }

@@ -1,0 +1,6 @@
+# A file host with no fact one-person: the test that each service of the
+# kind file-host has each fact of its kind must fail.
+ENTRY=T-416
+GROUP=services
+EXPECT='test each_file_host_has_each_fact_of_its_kind \.\.\. FAILED'
+RUN='cargo test -p pod-services --test file_host -- each_file_host_has_each_fact_of_its_kind --exact'

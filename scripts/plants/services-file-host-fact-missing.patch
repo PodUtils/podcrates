@@ -1,0 +1,14 @@
+--- a/crates/pod-services/services/temp-sh.toml
++++ b/crates/pod-services/services/temp-sh.toml
+@@ -82,11 +82,6 @@
+ source = { url = "https://temp.sh/", read = 2026-11-13, note = "Current file size limit is 4GB" }
+ 
+ [[fact]]
+-name = "one-person"
+-value = true
+-source = { url = "https://temp.sh/", read = 2026-11-13, note = "About: I just made this for quick and handy file and text sharing." }
+-
+-[[fact]]
+ name = "automated-uploads-refused"
+ value = false
+ source = { url = "https://temp.sh/", read = 2026-11-13, note = "the page has no terms; it gives a curl command and a ShareX setting" }
