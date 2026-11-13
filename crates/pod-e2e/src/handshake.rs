@@ -19,6 +19,7 @@ use snow::{Builder, HandshakeState};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use crate::channel::Channel;
+use crate::exporter::Exporter;
 use crate::frame::{read_frame, read_magic, write_frame};
 use crate::net::{self, Docs, Held};
 use crate::{Ask, Error, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_GRANT, MAX_MESSAGE, PATTERN, PROLOGUE, Refusal};
@@ -171,8 +172,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
         let mut out = vec![0u8; MAX_MESSAGE];
         let n = state.write_message(&payload, &mut out).map_err(noise)?;
         write_frame(&mut transport, &out[..n]).await?;
+        let exporter = exporter_of(&mut state, None);
         let state = state.into_stateless_transport_mode().map_err(noise)?;
-        let mut channel = Channel::new(transport, state);
+        let mut channel = Channel::new(transport, state, exporter);
         if let Some(bytes) = gift {
             channel.send_net(&bytes).await?;
         }
@@ -233,8 +235,9 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
     // The node keeps the keys, which the binary after it takes.
     let keys = crate::hold::state::split(&mut state);
+    let exporter = exporter_of(&mut state, Some(&keys));
     let state = state.into_stateless_transport_mode().map_err(noise)?;
-    let mut channel = Channel::new(transport, state).with_keys(keys);
+    let mut channel = Channel::new(transport, state, exporter).with_keys(keys);
     let net = match (docs, read.net) {
         (Some(docs), Some((peer, follows))) => {
             // The operator's newer document comes before the verdict, so
@@ -298,6 +301,19 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
     pub async fn refuse(mut self, why: Refusal) {
         if self.channel.send_verdict(&Err(why)).await.is_ok() {
             self.channel.close().await;
+        }
+    }
+}
+
+/// The exporter of a finished handshake, from its hash and its split
+/// (`keys`, where this end took them already).
+fn exporter_of(state: &mut HandshakeState, keys: Option<&[u8; 64]>) -> Exporter {
+    let initiator = state.is_initiator();
+    match keys {
+        Some(keys) => Exporter::new(state.get_handshake_hash(), keys, initiator),
+        None => {
+            let keys = crate::hold::state::split(state);
+            Exporter::new(state.get_handshake_hash(), &keys, initiator)
         }
     }
 }

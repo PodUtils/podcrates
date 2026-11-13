@@ -3883,13 +3883,14 @@ crates.io answers `pod-link` at `0.0.0` with the repository of podcrates
 parts have entries of their own: the carriers T-420 to T-424, the ARQ
 T-310, and the first stream of podswarm T-442.
 
-# T-301: `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479)
+# T-301: `pod-e2e`: the handshake hash and an exporter, and the record layer (PodUtils/podnet#479)
 
-**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A3, for PodUtils/podnet@T-298)
+**Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A3, for PodUtils/podnet@T-298);
+PodUtils/podnet#521 (COORD-064 of podnet)
 **Category:** feature
 **Milestone:** M2
-**Priority:** P3
-**Effort:** S
+**Priority:** P2
+**Effort:** M
 **Status:** open
 
 ## Problem
@@ -3916,6 +3917,28 @@ cargo test -p pod-e2e --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-298.
+
+## Correction
+
+2026-11-13, call C246: PodUtils/podnet#521 names PodUtils/podnet@T-298
+the AEAD record layer with a negotiated suite and a rekey, and
+PodUtils/podnet@T-299 to PodUtils/podnet@T-301 build on it. As no raw
+transport key leaves the crate (the answer #88), the record layer goes
+into `pod-e2e` with the exporter: a record of a suite that the two ends
+agree on in the handshake, a rekey by count and by time, padding of a
+record to buckets (PodUtils/podnet@T-300), and a replay window with the
+single-use RESUME record (PodUtils/podnet@T-301). The compression
+(PodUtils/podnet@T-299) stays podnet's: it runs before the seal.
+
+The wire of PodUtils/podnet#472 (the rows E6-1, E6-3, E6-4) applies: the
+header of 24 bytes (`version` u8, `type` u8, `flags` u16, `stream` u32,
+`counter` u64, `length` u32, `pad` u16, `reserved` u16) as the associated
+data, the tag of 16 bytes, the suites `chacha20-poly1305` (the default)
+and `aes-256-gcm`, a nonce of a 4-byte prefix of each direction and the
+counter, a rekey at 2^31 records or 1 GiB, the buckets 0, 128, 512, 1024
+and 2048, a bitmap of 1024 counters, and a RESUME with the token, the next
+counter and a fresh prefix, valid 10 minutes, used once, and three
+failures that end the link. Calls C255 to C258 give the rest.
 
 # T-303: `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479)
 
@@ -4858,4 +4881,46 @@ accepts no connection.
 
 ```sh
 cargo test -p pod-netstack
+```
+
+# T-510: `pod-e2e`: a fuzz target of the opener of the records
+
+**Source:** T-301 (the record layer, a finding of its work).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_e2e::record::Records::open` and `record::record_len` read the bytes
+of each record that a carrier gives: the header, the length, the padding,
+the counter of the replay window, and the RESUME record. A peer of a mesh
+or a relay can send any bytes. The fuzz workspace (T-017) reads the frames
+of the channel (`e2e_frame`), the proofs (`e2e_proof`) and the state of a
+handover (`e2e_handover`), but no target reads a record.
+
+## Premise
+
+- Read: `crates/pod-e2e/src/record/open.rs`,
+  `crates/pod-e2e/src/record/header.rs`, `fuzz/README.md` (the rows of
+  the targets of `pod-e2e`).
+- Not measured: no fuzz run of the opener.
+
+## Approach
+
+A target `e2e_record`: two ends of one exporter (an exporter of fixed keys
+behind the feature `fuzzing`); the input is a list of records, each opened
+at the receiving end. No panic; a record that opens has a payload of its
+`length - pad` bytes; a record that fails leaves the next counter as it
+was. Its seeds are sealed records of each suite (with padding, after a
+rekey, a RESUME), written by a test. The row of `fuzz/README.md` and the
+check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-e2e --all-features
 ```

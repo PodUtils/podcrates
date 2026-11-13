@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**385 entries: 114 open, 7 partial, 4 blocked, 260 done.**
+**386 entries: 115 open, 7 partial, 4 blocked, 260 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 53 | 3 | 4 | 136 | 196 |
-| P3 | 48 | 1 | 0 | 50 | 99 |
-| **All** | 114 | 7 | 4 | 260 | 385 |
+| P2 | 55 | 3 | 4 | 136 | 198 |
+| P3 | 47 | 1 | 0 | 50 | 98 |
+| **All** | 115 | 7 | 4 | 260 | 386 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -313,7 +313,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
 | [T-300](relay.md) | P3 | L | M2 | feature | done | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
-| [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
+| [T-301](relay.md) | P2 | M | M2 | feature | open | `pod-e2e`: the handshake hash and an exporter, and the record layer (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
 | [T-304](transport.md) | P2 | S | M1 | feature | done | `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479) |
@@ -432,3 +432,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
 | [T-491](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-492](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297) |
+| [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 385 entries: 114 open, 7 partial, 4 blocked, 260 done.
+`TODO/INDEX.md` holds 386 entries: 115 open, 7 partial, 4 blocked, 260 done.
 
 ## State
 
@@ -117,7 +117,10 @@ next entry.
    podnet's link workstream (PodUtils/podnet#480) runs on `pod-link`;
    T-310 (the ARQ) when podnet names a lossy carrier.
    The other asks of PodUtils/podnet#479 wait for podnet's start of each:
-   T-301, T-302 (after T-035), T-305; the answer of ask A5 is in #88.
+   T-302 (after T-035), T-305; the answer of ask A5 is in #88. T-301 (the
+   exporter and the record layer of `pod-e2e`, for PodUtils/podnet@T-298,
+   PodUtils/podnet@T-300 and PodUtils/podnet@T-301; PodUtils/podnet#521),
+   then T-510 (its fuzz target).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
    the layout, the scenarios, the plan, the derivation and the judge are
    in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260

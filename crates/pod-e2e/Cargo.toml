@@ -1,6 +1,6 @@
 [package]
 name = "pod-e2e"
-description = "The end-to-end channel: Noise XX over the bytes of a session, so that a relay carries ciphertext only; each end proves its key of pod-identity; the node's verdict, a route or an exit's target, a grant used once, the gate of a node's person, the net's document, the tokens of one leg, and the handover of a node's channel to the binary that takes its place."
+description = "The end-to-end channel: Noise XX over the bytes of a session, so that a relay carries ciphertext only; each end proves its key of pod-identity; the node's verdict, a route or an exit's target, a grant used once, the gate of a node's person, the net's document, the tokens of one leg, the handover of a node's channel to the binary that takes its place; an exporter of the handshake, and records of an agreed suite with a rekey, padding, a replay window and a RESUME used once."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -29,6 +29,11 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 zeroize = { workspace = true }
+# The exporter and the key schedule of the records (HKDF-SHA-256), and the
+# AEAD of each suite of the records, in pure Rust.
+hkdf = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
