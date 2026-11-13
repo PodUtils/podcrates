@@ -1244,3 +1244,33 @@ The next nightly proves riscv64.
 ## Done
 
 2026-11-13. `limit()` with `scaled` in the five test files of `pod-warp`. The next nightly proves riscv64.
+
+# T-533: scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows
+
+**Source:** `ci.yml` run 43454211290 at `b98b432` (the static probes of macOS: `libc::SOCK_CLOEXEC` in the icmp carrier of `pod-link`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The local checks build Linux and Windows only. A Unix path that uses an item of Linux alone (`libc::SOCK_CLOEXEC`, a field of a struct) builds on Linux and fails on macOS. CI finds it after the push: the release commit of `v0.40.0` failed the static probes of macOS so.
+
+## Premise
+
+- Measured: `cargo check -p pod-link --all-features --lib --tests --target x86_64-apple-darwin` with zig as the C compiler (`zig cc -target x86_64-macos`) runs here; ring builds with it.
+- Measured: `openssl-sys` (`pod-gsr`) does not build so; the probe of macOS needs it.
+
+## Approach
+
+Write scripts/agent/check-macos.sh from `check-windows.sh`: the target `x86_64-apple-darwin`, a zig wrapper that drops `--target`, `-arch` and `-mmacosx-version-min`, and `cargo check --tests` of the workspace without the crates whose C does not build so (each one named in the script with the reason). Remove `target/x86_64-apple-darwin` after. Name it in `docs/maintenance.md` beside `check-windows.sh`, and in the merge procedure.
+
+## Prove
+
+```sh
+sh scripts/agent/check-macos.sh  # a new script
+```
+
+and a planted `libc::SOCK_CLOEXEC` in a Unix path of `pod-link` fails it.

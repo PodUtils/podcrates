@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**416 entries: 113 open, 9 partial, 4 blocked, 290 done.**
+**417 entries: 114 open, 9 partial, 4 blocked, 290 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 78 | 93 |
-| P2 | 54 | 4 | 4 | 154 | 216 |
+| P2 | 55 | 4 | 4 | 154 | 217 |
 | P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 113 | 9 | 4 | 290 | 416 |
+| **All** | 114 | 9 | 4 | 290 | 417 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -463,3 +463,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-529](transport.md) | P2 | S | M1 | defect | partial | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
 | [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |
 | [T-532](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled |
+| [T-533](upkeep.md) | P2 | S | M5 | chore | open | scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows |

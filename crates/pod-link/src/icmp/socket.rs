@@ -19,15 +19,30 @@ pub(super) struct RawIcmp {
     mtu: usize,
 }
 
-/// A raw ICMPv4 socket. A host with no privilege for it fails here.
+/// A raw ICMPv4 socket that a child process does not take. A host with no
+/// privilege for it fails here.
 fn raw_socket() -> io::Result<OwnedFd> {
+    // Linux sets close-on-exec in the call; macOS and the BSDs have no
+    // `SOCK_CLOEXEC` and set it after.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let kind = libc::SOCK_RAW | libc::SOCK_CLOEXEC;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let kind = libc::SOCK_RAW;
     // SAFETY: a call of `socket` with constant arguments.
-    let raw = unsafe { libc::socket(libc::AF_INET, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::IPPROTO_ICMP) };
+    let raw = unsafe { libc::socket(libc::AF_INET, kind, libc::IPPROTO_ICMP) };
     if raw < 0 {
         return Err(io::Error::last_os_error());
     }
     // SAFETY: `raw` is a fresh, owned descriptor.
-    Ok(unsafe { OwnedFd::from_raw_fd(raw) })
+    let fd = unsafe { OwnedFd::from_raw_fd(raw) };
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        // SAFETY: `F_SETFD` on a valid descriptor.
+        if unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC) } < 0 {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    Ok(fd)
 }
 
 impl RawIcmp {
@@ -150,6 +165,17 @@ fn strip_ip_header(packet: &[u8]) -> Option<&[u8]> {
 /// A `sockaddr_in` for `addr`.
 fn sockaddr(addr: SocketAddrV4) -> libc::sockaddr_in {
     let mut sa: libc::sockaddr_in = unsafe { std::mem::zeroed() };
+    // The BSDs and macOS give the struct its own length.
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd"
+    ))]
+    {
+        sa.sin_len = std::mem::size_of::<libc::sockaddr_in>() as u8;
+    }
     sa.sin_family = libc::AF_INET as libc::sa_family_t;
     sa.sin_port = addr.port().to_be();
     sa.sin_addr.s_addr = u32::from(*addr.ip()).to_be();
