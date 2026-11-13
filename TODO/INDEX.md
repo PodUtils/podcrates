@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**361 entries: 104 open, 6 partial, 5 blocked, 246 done.**
+**366 entries: 109 open, 6 partial, 5 blocked, 246 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 70 | 85 |
-| P2 | 50 | 2 | 5 | 125 | 182 |
-| P3 | 41 | 2 | 0 | 49 | 92 |
-| **All** | 104 | 6 | 5 | 246 | 361 |
+| P2 | 53 | 2 | 5 | 125 | 185 |
+| P3 | 43 | 2 | 0 | 49 | 94 |
+| **All** | 109 | 6 | 5 | 246 | 366 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -401,6 +401,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-436](fleet.md) | P3 | L | M8 | feature | open | `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115) |
 | [T-437](fleet.md) | P3 | L | M8 | feature | open | `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112) |
 | [T-438](fleet.md) | P2 | S | M8 | release | open | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
+| [T-439](transport.md) | P3 | M | M8 | feature | open | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
+| [T-440](transport.md) | P3 | S | M8 | feature | open | `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117) |
+| [T-441](transport.md) | P2 | S | M8 | feature | open | `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120) |
+| [T-442](relay.md) | P2 | M | M8 | feature | open | `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88) |
 | [T-443](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: a map from the findings to capabilities, and a cache across runs keyed by the kernel, the boot and the probe binary (GitHub #82) |
 | [T-444](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82) |
 | [T-445](podvm.md) | P3 | M | M8 | feature | open | `pod-hold`: the marker, the calls that fail with `ENOSYS`, and the reads of a path and an argv of a stopped task (GitHub #121) |
@@ -408,3 +412,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-447](podvm.md) | P3 | M | M8 | feature | open | `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122) |
 | [T-448](podvm.md) | P3 | S | M8 | docs | open | `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123) |
 | [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
+| [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |

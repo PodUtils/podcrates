@@ -4532,3 +4532,61 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+# T-442: `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88)
+
+**Source:** GitHub #88 (podswarm P-4).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podswarm runs each road on `pod-link`. Its control stream (`hello`, the
+heartbeats, the fence, the signals) must not wait behind a large file on
+a slow road, and its view serves three classes of streams in order. It
+computes the windows from the bandwidth-delay product of the road, which
+changes in a session, so the caps must change on the live link.
+
+## Premise
+
+- Read (2026-11-13): the comment of podswarm on GitHub #88; podswarm
+  spec, file 21, sections 6.9 and 7 (ask P-4, milestone M1); file 04,
+  section 7.2; file 06; file 26 (the unknown "whether `pod-link` can
+  change a window on a live link").
+- In podcrates now: `Settings` (`crates/pod-link/src/settings.rs`) is
+  fixed at `Link::new`; `crates/pod-link/src/link.rs` has `new`, `open`,
+  `accept`, `close`, `rtt` and no priority of a stream and no change of
+  the settings. The writer bounds its queue (`queue_limit` in
+  `crates/pod-link/src/state.rs`).
+- The workstream of the crate is T-300 (partial); T-310 and T-420 to
+  T-424 are podnet's next parts. This ask is new.
+
+## Approach
+
+`Link::open_first()`: the writer sends the frames of that stream before
+the `DATA` of each other stream; a class number for each stream (lower
+first, equal classes in turn) when it costs no more.
+`Link::set_windows(stream_window, link_window)`: the ranges of `Settings::check`; a new cap
+takes effect for the credit that this end grants next; a refused value
+keeps the old values. The wire does not change.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+The tests (the same `Link` and streams throughout): with `frame_size` 4
+KiB, a carrier shaped to 1 Mbit/s and a bulk stream with data, at most 4
+KiB of bulk `DATA` and the headers pass between the write of 64 bytes on
+the first stream and its frame; after `set_windows` from 1 MiB to 64 KiB
+the unread bytes of an unread stream stay at most 64 KiB once the old
+credit is used; after a raise the stream reaches the new window; a value
+that `Settings::check` refuses gives an error.
+
+## Start condition
+
+The owner answers Q15.

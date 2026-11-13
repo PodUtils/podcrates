@@ -6028,3 +6028,167 @@ date; a test that each `file-host` service has each fact of its kind.
 cargo test -p pod-services --all-features
 cargo test -p pod-services-watch --all-features
 ```
+
+# T-439: `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116)
+
+**Source:** GitHub #116 (podswarm P-2).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A coordinator of podswarm (and later its hub) listens for workers over
+`wss` with mutual TLS. The accept loop must survive a flood of
+unauthenticated connections and a reconnect storm: a deadline for each
+stage before the session is ready, caps for each source prefix and in
+total, an eviction by stage, and the socket options on each accepted
+socket. `pod-ws` gives the calls of one handshake; each caller writes its
+own loop. podssh#168 and podnet#384 name the same hazard.
+
+## Premise
+
+- Read (2026-11-13): GitHub #116; podswarm spec, file 21, sections 6.9
+  and 7 (ask P-2, milestone M4); file 16, section 14; file 26, rulings
+  R-01 and R-04.
+- In podcrates now: `crates/pod-ws/src/server.rs` has `check_upgrade`,
+  `check_upgrade_or_raw`, `switching` and `session`; no accept loop, no
+  stage deadline, no cap. `crates/pod-link/src/tcp.rs` has a listener
+  with `handshake_timeout` and `MAX_HANDSHAKES` (64), with no WebSocket
+  and no cap for each address.
+- T-036 (the relay role of podssh) and T-420 (the server half of the
+  WebSocket carrier of `pod-link`) can take the same loop.
+
+## Approach
+
+A module `pod_ws::serve` behind a feature `serve`, with the interface of
+file 21, section 6.9: `Deadlines` (TLS, head, ready, first frame), `Caps`
+(`max_unauth`, `per_prefix` on /32 and /64 with no loopback exemption,
+`preauth_bytes`, the size and lines of the head), `Serve`, `Accepted`
+(the session, the peer address, `pod_tls::peer::peer_key`, a `PreAuth`
+gate) and `serve` over listeners that the caller binds with the caller's
+TLS server config. Eviction of the earliest stage, the oldest in it; an
+accept over `per_prefix` closes. `TCP_NODELAY`, and `TCP_NOTSENT_LOWAT`
+where the system has it, on each socket.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features
+```
+
+The tests: 1,000 upgrades from the loopback with at most 64 pre-auth
+reach the caller; a client that stalls in TLS, in the head or before its
+first frame is cut at that deadline; with 64 pre-auth from 127.0.0.1 the
+next accept from it closes and one from 127.0.0.2 is taken; with
+`max_unauth` full an accept evicts the oldest of the earliest stage;
+`getsockopt` reads both options; a plant that skips a deadline fails.
+
+## Start condition
+
+The owner answers Q15, R-01 and R-04.
+
+# T-440: `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117)
+
+**Source:** GitHub #117 (podswarm P-3).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A new worker of podswarm has a key that the coordinator does not know. It
+proves its key in the TLS handshake and shows an invite after it. The
+server must admit a client of any Ed25519 key whose handshake signature
+verifies, report the key, and let the caller check the invite. Such a
+client fails with `Refusal::Unpinned` today.
+
+## Premise
+
+- Read (2026-11-13): GitHub #117; podswarm spec, file 21, section 7 (ask
+  P-3, milestone M4); file 16.
+- In podcrates now (T-304, done): `crates/pod-tls/src/peer.rs` has
+  `Keys` (a live set), `Refusal::{Unpinned, NotEd25519}`, `peer_key`,
+  `client_config` and `server_config` with a pinned client verifier; TLS
+  1.3 only, no tickets. The rest of the ask exists; the gap is the
+  enrolment mode. `crates/pod-tls/src/mutual.rs` (P-256 pins) has no such
+  mode either.
+- `crates/pod-tls/tests/no_permissive_verifier.rs` guards against a
+  verifier that admits with no check.
+
+## Approach
+
+A client mode of `peer`: `Clients::{Pinned(Keys), AnyEd25519}` for
+`server_config`, or a separate `enrol_server_config` (podcrates chooses
+the form that keeps the guard simplest). In the enrolment mode the
+verifier admits a certificate of any Ed25519 key when its CertificateVerify
+signature verifies with that key, ignores names, dates and extensions,
+and refuses each other key type with `NotEd25519`. `peer_key` reports the
+key. The pinned mode stays the default.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features
+```
+
+The tests: a client of a key outside `Keys` passes in the enrolment mode
+and `peer_key` gives its key; it fails in the pinned mode with
+`Unpinned`; a bad CertificateVerify fails in both modes; a P-256 client
+fails with `NotEd25519`; a plant that skips the signature check in the
+enrolment mode fails the guard.
+
+## Start condition
+
+The owner answers Q15 and R-04.
+
+# T-441: `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120)
+
+**Source:** GitHub #120 (podswarm P-10).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The `ssh` and `exec:` roads of podswarm run a known program as a byte
+stream. A command through `sh -c` needs quoting, and a quoting mistake
+runs another command. The road must read stderr apart (to name the cause
+of a failure) and wait for the exit with no poll loop.
+
+## Premise
+
+- Read (2026-11-13): GitHub #120; podswarm spec, file 21, section 7 (ask
+  P-10, milestone M1); file 04.
+- In podcrates now: `ChildIo` in `crates/pod-proxy/src/stream.rs` has
+  `spawn(command)` (`sh -c`, stdin and stdout piped, stderr inherited, a
+  kill on drop) and `exited()` (`try_wait`). The argv form, the stderr
+  pipe and the wait future are the gap.
+
+## Approach
+
+Add `ChildIo::spawn_args(program, args)` (no shell; stdin, stdout and
+stderr piped; `kill_on_drop`), `ChildIo::take_stderr()` and the async
+`ChildIo::wait()`. Keep `spawn` and `exited` for the `exec:` proxy of
+podnet.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
+The tests: an argument with a space, a `;` and a `$` reaches the program
+as one value; a line on stderr comes from `take_stderr`, apart from
+stdout; `wait` gives the status 0, 7 and 255; a drop kills a running
+child; the tests of `spawn` and `exited` do not change.
+
+## Start condition
+
+The owner answers Q15.

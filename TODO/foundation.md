@@ -1776,3 +1776,53 @@ The last entry of `TODO/relay.md` (T-303) ended with three command lines and a f
 cargo test -p pod-todo
 cargo todo check
 ```
+
+# T-450: `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119)
+
+**Source:** GitHub #119 (podswarm P-9).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A podswarm worker writes each failure as a `pod_core::Failure`. A failure
+of the program of a task (its spawn, its tree, its limits, its output
+capture) has no stage of its own: with `Stage::Host` only, a reader of
+the log cannot tell "the host refused a probe" from "the program of the
+task was not found".
+
+## Premise
+
+- Read (2026-11-13): GitHub #119; podswarm spec, file 21, section 7 (ask
+  P-9, milestone M0); files 05 and 12.
+- In podcrates now: `Stage` in `crates/pod-core/src/failure.rs` has 16
+  values (`Proxy` to `Registry`) and no `#[non_exhaustive]`; `Stage::name`
+  gives the word of `stage` in the JSON log line (schema `log.v1`).
+  `Host` is "the local host: a probe of it, its file systems, its
+  limits".
+
+## Approach
+
+Add `Stage::Task` (`task`), with its text ("a task that the tool runs for
+its user: its spawn, its process tree, its limits, its output"). Give
+each exhaustive `match` of the workspace its arm in the same change, add
+the row to `crates/pod-core/README.md`, and name the new value in the
+release notes.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+```
+
+The tests: `Stage::Task.name()` is `task`; a JSON log line of a failure
+at `Stage::Task` writes `"stage":"task"` and validates against the
+schema `log.v1`.
+
+## Start condition
+
+The owner answers Q15.
