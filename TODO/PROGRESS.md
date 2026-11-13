@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 396 entries: 125 open, 7 partial, 4 blocked, 260 done.
+`TODO/INDEX.md` holds 396 entries: 124 open, 7 partial, 4 blocked, 261 done.
 
 ## State
 
@@ -108,7 +108,7 @@ next entry.
       (`pod-acme`), T-502 (a headscale harness).
    The rest of `pod-warp`: T-482, T-481, T-470, T-410. T-121 and T-124
    (the asks of podnet).
-4. **M6, the crates of podvm:** T-503 (the knob flags of `pod-netlab`, PodUtils/podvm#298); T-207 (`pod-netlab`, partial: the knobs,
+4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
    the layout, the scenarios, the plan, the derivation and the judge are
    in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the

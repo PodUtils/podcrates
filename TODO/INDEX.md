@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**396 entries: 125 open, 7 partial, 4 blocked, 260 done.**
+**396 entries: 124 open, 7 partial, 4 blocked, 261 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
 | P2 | 63 | 3 | 4 | 136 | 206 |
-| P3 | 49 | 1 | 0 | 50 | 100 |
-| **All** | 125 | 7 | 4 | 260 | 396 |
+| P3 | 48 | 1 | 0 | 51 | 100 |
+| **All** | 124 | 7 | 4 | 261 | 396 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -442,4 +442,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-500](relay.md) | P2 | M | M2 | feature | open | `pod-link`: one session over an up carrier and a down carrier (PodUtils/podnet#521) |
 | [T-501](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
 | [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
-| [T-503](podvm.md) | P3 | S | M6 | defect | open | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
+| [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |

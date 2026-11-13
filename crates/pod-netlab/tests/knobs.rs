@@ -124,11 +124,42 @@ fn the_flags_of_sand_net_read() {
     assert!(matches!(Knobs::parse_flags(&["--mtu", "1000"]), Err(KnobError::OutOfRange { .. })));
 }
 
+/// A refused value says why: a number past its type names the range of
+/// the knob, and a bad word lists the words of the flag.
+#[test]
+fn a_refused_value_names_the_range_or_the_words() {
+    let text = |args: &[&str]| Knobs::parse_flags(args).unwrap_err().to_string();
+    assert_eq!(text(&["--mtu", "99999"]), "flag --mtu: the value is out of its range 1280 to 1499");
+    assert_eq!(text(&["--mtu", "99999999999999999999999"]), "flag --mtu: the value is out of its range 1280 to 1499");
+    assert_eq!(text(&["--mtu", "big"]), "flag --mtu: the value is not a whole number");
+    assert_eq!(text(&["--mtu", "-1"]), "flag --mtu: the value is not a whole number");
+    assert_eq!(text(&["--tcp", "22,70000"]), "flag --tcp: the value is out of its range 1 to 65535");
+    assert_eq!(text(&["--nat", "bogus"]), "flag --nat: the value is not one of: none, nat44, nat66, both");
+    assert_eq!(
+        text(&["--policy", "x"]),
+        "flag --policy: the value is not one of: open, web, web-nodns, only443, blackout"
+    );
+    assert_eq!(
+        Knobs::parse_flags(&["--udp", "none", "--tcp", "22"]).unwrap().policy,
+        Policy::Ports { tcp: vec![22], udp: vec![] }
+    );
+}
+
 #[test]
 fn each_scenario_writes_flags_that_read_back() {
     for s in scenarios() {
         let flags = s.knobs.flags();
         assert_eq!(Knobs::parse_flags(&flags).as_ref(), Ok(&s.knobs), "{}: {flags:?}", s.name);
+        // The printed line of a scenario reads back after a shell splits it.
+        let line = flags.join(" ");
+        let split: Vec<&str> = line.split_whitespace().collect();
+        assert_eq!(Knobs::parse_flags(&split).as_ref(), Ok(&s.knobs), "{}: {line:?}", s.name);
+    }
+    for (tcp, udp) in [(vec![], vec![]), (vec![22], vec![]), (vec![], vec![53]), (vec![22], vec![53])] {
+        let k = Knobs { policy: Policy::Ports { tcp, udp }, ..Knobs::default() };
+        let line = k.flags().join(" ");
+        let split: Vec<&str> = line.split_whitespace().collect();
+        assert_eq!(Knobs::parse_flags(&split).as_ref(), Ok(&k), "{line:?}");
     }
     assert!(Knobs::default().flags().is_empty());
 }

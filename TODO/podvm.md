@@ -5714,7 +5714,7 @@ gets ENOENT. The plant `enter-ns-join-skipped` fails the test.
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5726,8 +5726,8 @@ gives "the value is not a word of this flag" and does not list the words.
 
 ## Premise
 
-- Read: PodUtils/podvm#298 (2026-11-13). Not read yet: `flags.rs` and
-  `scenario.rs` at the head.
+- Read: PodUtils/podvm#298 (2026-11-13); `crates/pod-netlab/src/knobs/flags.rs`,
+  `knobs.rs`, `knobs/check.rs`, `scenario.rs`.
 
 ## Approach
 
@@ -5744,3 +5744,21 @@ the flag (`the value is not one of: none, src, dst, both`);
 ```sh
 cargo test -p pod-netlab --all-features
 ```
+
+## Done
+
+2026-11-13, commit `f3d362a`. (1) `Knobs::flags` writes no empty list:
+`--tcp` or `--udp` only where it has ports, and `--tcp none` where both
+are empty; `none` and a missing list read as empty. The test of the
+scenarios also joins the flags with spaces, splits them as a shell does,
+and reads them back, for each scenario and for the four shapes of the
+two lists. (2) `number()` takes the range of the knob: digits past the
+type give `the value is out of its range 1280 to 1499` (`--mtu 99999`),
+a port past `u16` gives `1 to 65535`; a value with a sign or a letter
+stays `not a whole number`. (3) `word()` lists the words of the flag
+(`the value is not one of: none, nat44, nat66, both`); each enum of a
+flag has `WORDS`, and `Policy::WORDS`. `KnobError::BadFlag` carries
+`why: String` (an API change). `cargo test -p pod-netlab --all-features`:
+each passes, with the new `a_refused_value_names_the_range_or_the_words`.
+The plant `netlab-empty-port-list-written` fails the test of the
+scenarios.
