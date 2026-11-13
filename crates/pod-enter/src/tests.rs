@@ -90,6 +90,37 @@ fn the_tmp_mount_point_is_a_real_directory() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The /proc mount point follows the rule of /tmp: a real directory.
+#[test]
+fn the_proc_mount_point_is_a_real_directory() {
+    let dir = std::env::temp_dir().join(format!("pod-enter-proc-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let root = dir.to_str().unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    assert!(ns_proc_target(root).is_none(), "no /proc yet");
+    std::fs::create_dir_all(dir.join("proc")).unwrap();
+    assert_eq!(ns_proc_target(root), Some(format!("{root}/proc")));
+    std::fs::remove_dir(dir.join("proc")).unwrap();
+    std::fs::write(dir.join("proc"), b"x").unwrap();
+    assert!(ns_proc_target(root).is_none(), "a file is no mount point");
+    std::fs::remove_file(dir.join("proc")).unwrap();
+    std::os::unix::fs::symlink("/proc", dir.join("proc")).unwrap();
+    assert!(ns_proc_target(root).is_none(), "a link is no mount point");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A refused proc mount names the product, the step and the errno.
+#[test]
+fn a_refused_proc_mount_names_its_step_and_errno() {
+    let mut line = ns_proc_refused(&Names::DEFAULT).into_bytes();
+    let mut digits = [0u8; 10];
+    line.extend_from_slice(decimal(1, &mut digits));
+    let line = String::from_utf8(line).unwrap();
+    assert_eq!(line, "pod-enter: the namespace rung runs with no /proc: mounting proc on /proc failed with errno 1");
+    assert_eq!(decimal(0, &mut digits), b"0");
+    assert_eq!(decimal(u32::MAX, &mut digits), b"4294967295");
+}
+
 /// The fallback names the cause and the rung that the entry entered.
 #[test]
 fn the_fallback_line_names_the_cause_and_the_rung() {
@@ -113,6 +144,7 @@ fn the_setup_steps_name_themselves() {
     assert_eq!(ns_setup_step(1), None);
     assert_eq!(ns_setup_step(2), None);
     assert_eq!(ns_setup_step(11), None);
+    assert_eq!(ns_setup_step(NS_PROC_STEP), Some("mounting proc on /proc"));
 }
 
 /// The guard compares the device and the inode.

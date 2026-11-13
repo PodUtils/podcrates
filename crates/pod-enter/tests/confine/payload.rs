@@ -64,12 +64,32 @@ pub fn writer(paths: &[String]) -> i32 {
     0
 }
 
+/// The first argument of the binary as the payload that reads.
+pub const READER: &str = "reader";
+
+/// The payload that reads: it opens each file of `paths` and writes
+/// `PATH=RESULT` for each (0, or the negative errno) in one line.
+pub fn reader(paths: &[String]) -> i32 {
+    let mut line = String::new();
+    for p in paths {
+        let opened = k::open(&CBuf::new(p).expect("no NUL"), k::O_RDONLY | k::O_CLOEXEC, 0);
+        line.push_str(&format!("{p}={} ", code(opened)));
+    }
+    let _ = k::write(4, format!("{}\n", line.trim_end()).as_bytes());
+    let _ = k::close(4);
+    let mut b = [0u8; 1];
+    while let Ok(1..) = k::read(3, &mut b) {}
+    0
+}
+
 /// What one run gave: the line of the payload, its `NoNewPrivs` and
-/// `Seccomp` lines, and its exit code.
+/// `Seccomp` lines, the options of its mount on `/proc` (from its
+/// `mountinfo`), and its exit code.
 #[derive(Debug)]
 pub struct Run {
     pub line: String,
     pub status: Vec<String>,
+    pub proc_options: Option<String>,
     pub code: i32,
 }
 
@@ -129,7 +149,14 @@ pub fn run(
     let status = std::fs::read_to_string(format!("/proc/{}/status", child.pid)).unwrap_or_default();
     let status = status.lines().filter(|l| l.starts_with("NoNewPrivs:") || l.starts_with("Seccomp:")).map(String::from);
     let status: Vec<String> = status.collect();
+    // The fields of a line of `mountinfo`: id, parent, device, root, mount
+    // point, options.
+    let mountinfo = std::fs::read_to_string(format!("/proc/{}/mountinfo", child.pid)).unwrap_or_default();
+    let proc_options = mountinfo
+        .lines()
+        .map(|l| l.split(' ').collect::<Vec<_>>())
+        .find_map(|f| (f.get(4) == Some(&"/proc")).then(|| f.get(5).map(|o| o.to_string())).flatten());
     let _ = (k::close(wait_w), k::close(line_r));
     let code = child.wait().map_err(|e| e.to_string())?;
-    Ok(Run { line: String::from_utf8_lossy(&line).into_owned(), status, code })
+    Ok(Run { line: String::from_utf8_lossy(&line).into_owned(), status, proc_options, code })
 }

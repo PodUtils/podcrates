@@ -5580,7 +5580,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5614,6 +5614,77 @@ the `/dev/shm` of the image, with the same rules. Tests: the target rule
 (a directory, a file, a link, no directory); the name of the step; a
 plant that mounts `proc` without `MS_NOEXEC` or stops the rung on a
 refused mount must fail a test.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+## Done
+
+2026-11-13, commit `dcf2fb4`. After the tmpfs on `/tmp` (step 9), the child
+of the namespace rung mounts a fresh `proc` with
+`MS_NOSUID|MS_NODEV|MS_NOEXEC` on the `/proc` of the image
+(`ns_proc_target`: a directory, not a link; with none the step skips).
+A refused mount does not stop the rung: the child writes
+`PRODUCT: the namespace rung runs with no /proc: mounting proc on /proc
+failed with errno N` to the payload's standard error (`ns_proc_refused`,
+made before the fork; the errno in decimal with no allocation), and the
+payload runs as before. `ns_setup_step(NS_PROC_STEP)` (15) names the
+step. No PID namespace. `pod-hostprobe::sys` has `MS_NOSUID`,
+`MS_NODEV` and `MS_NOEXEC`. Tests: the target rule; the line and the
+decimal; the confine binary runs a reader payload as root: on the
+namespace rung `/proc/self/status` opens and the `/proc` of its
+`mountinfo` has `nosuid`, `nodev` and `noexec`, no mount reaches the
+host, and on the chroot sequence the open fails with ENOENT. The plant
+`enter-ns-proc-exec` (no `MS_NOEXEC`) fails the test; a check by hand
+with no proc mount fails it too. The tmpfs on `/dev/shm` (the optional
+part) is not done: podvm makes the directory itself (its PodUtils/podvm@T-1759) and
+does not need it.
+
+# T-492: `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297)
+
+**Source:** PodUtils/podvm#297 (COORD-074 of podvm; PodUtils/podvm@T-1765).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podvm exec NAME CMD` on a container of the namespace rung enters the
+root through `spawn_selected`, as `run` does. The child makes a new
+mount namespace with a new tmpfs on `/tmp` (steps 7 to 9) and, with
+T-491, a new proc. So `exec` does not see the files that the payload of
+`run` wrote to `/tmp`; docker's `exec` sees them (podvm's row
+`life.exec-sees-run-fs.ns`).
+
+## Premise
+
+- Read: PodUtils/podvm#297 (2026-11-13); `crates/pod-enter/src/launch.rs`
+  (the namespace block), `crates/pod-enter/src/entry.rs`
+  (`spawn_namespace`).
+- `setns(2)` takes a pidfd since Linux 5.8. `pod-supervise` holds the
+  pidfd of the payload, and podvm passes it from its record.
+- Not measured: `setns` with a pidfd and `CLONE_NEWNS` on the hosts of
+  CI.
+
+## Approach
+
+`spawn_joined(root, plan, pidfd, err)`: in the child, before the chroot
+sequence, `setns(pidfd, CLONE_NEWNS)` in place of steps 7 to 9 and of
+the proc mount; the entry mounts nothing. Then the chroot by path and
+the device and inode check of the namespace rung (step 10). A refused
+`setns` (an old kernel, EPERM, a payload that ended) is a setup step
+with its own byte and name in `ns_setup_step`: the entry falls back to
+`spawn_namespace` and writes one line that names the step. Tests, as
+root in the confine binary: a payload of `run` on the namespace rung
+writes a file in `/tmp` and waits; a payload of `spawn_joined` with the
+pidfd of the first reads that file; a pidfd of a process that ended
+gives the fallback line. A plant that skips the `setns` must fail the
+read test.
 
 ## Prove
 

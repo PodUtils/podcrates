@@ -10,7 +10,7 @@ use pod_enter::{RootDir, spawn, spawn_namespace, spawn_userland};
 use pod_hostprobe::sys as k;
 use pod_testkit::host::skip_line;
 
-use super::payload::{WRITER, run};
+use super::payload::{READER, WRITER, run};
 use super::{dir, image, landlock, plan, text};
 
 /// The writes of each run: `/tmp` passes, and `/var` and `/` of the image
@@ -136,5 +136,36 @@ pub fn a_write_rule_holds_on_the_entry_with_no_chroot() {
     let root = root_over_the_pipes(m.rootfs());
     let r = run(&mut p, 0, |p| spawn_userland(&root, p, &m, argv, "userland", None, &mut std::io::sink())).unwrap();
     assert_eq!(r.line.trim_end(), format!("{tmp}=0 {var}=-13"), "{r:?}");
+    let _ = std::fs::remove_dir_all(d);
+}
+
+/// The namespace rung mounts a fresh proc on the `/proc` of the image,
+/// with no set-user-ID, no device and no exec; the mount stays in the
+/// namespace of the run. The chroot sequence has no `/proc`.
+pub fn a_fresh_proc_is_on_the_proc_of_the_namespace_rung() {
+    if let Err(why) = pod_testkit::host::root() {
+        skip_line(&format!("the rungs with a chroot need chroot(2): {why}"));
+        return;
+    }
+    let d = dir("proc");
+    image::build(&d);
+    std::fs::create_dir_all(d.join("proc")).unwrap();
+    let argv: Vec<String> = [image::GUEST_EXE, READER, "/proc/self/status"].map(String::from).to_vec();
+    let root = root_over_the_pipes(&text(&d));
+    let mut p = plan(argv, None);
+    let mut banner = Vec::new();
+    let r = run(&mut p, 0, |p| spawn_namespace(&root, p, &mut banner)).unwrap();
+    if !banner.is_empty() {
+        skip_line(&format!("the namespace rung fell back to chroot: {}", String::from_utf8_lossy(&banner).trim_end()));
+        return;
+    }
+    assert_eq!(r.line.trim_end(), "/proc/self/status=0", "namespace: {r:?}");
+    let options = r.proc_options.clone().unwrap_or_default();
+    for flag in ["nosuid", "nodev", "noexec"] {
+        assert!(options.split(',').any(|o| o == flag), "the proc of the rung is not {flag}: {r:?}");
+    }
+    assert!(!d.join("proc/self").exists(), "the proc mount reached the host");
+    let r = run(&mut p, 0, |p| spawn(&root, p, &mut std::io::sink())).unwrap();
+    assert_eq!(r.line.trim_end(), "/proc/self/status=-2", "chroot: {r:?}");
     let _ = std::fs::remove_dir_all(d);
 }
