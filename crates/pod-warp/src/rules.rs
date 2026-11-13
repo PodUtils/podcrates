@@ -3,14 +3,20 @@
 //! refuse.
 //!
 //! A rule is `KIND:VALUE=ACTION`. KIND is `domain` (`NAME`, or `.NAME` for
-//! the name and each name under it) or `cidr` (`ADDR/PREFIX`, IPv4 or IPv6,
-//! or `@FILE` with one prefix on each line). ACTION is `tunnel`, `direct`
-//! or `reject`. The first rule that matches wins. A name matches the domain
-//! rules first; when no domain rule matches and there is a cidr rule, the
-//! name is resolved through the tunnel and its addresses match the cidr
-//! rules. With no match, the built-in rules apply (a loopback, a link-local
-//! or an unspecified address, and `localhost`, are refused: WARP does not
-//! reach them), then the default action.
+//! the name and each name under it), `cidr` (`ADDR/PREFIX`, IPv4 or IPv6,
+//! or `@FILE` with one prefix on each line), `port` (`N` or `N-M`: these
+//! ports of any host) or `tcp` (`HOST:PORT`: a name, an IPv4 address or
+//! `[IPv6]`, and one port). ACTION is `tunnel`, `direct` or `reject`. The
+//! first rule that matches wins. A port rule and a tcp rule match a TCP
+//! connection only: a UDP association has no port for the rules. A name
+//! matches the domain rules, the port rules and the tcp rules of a name
+//! first; when none matches and a rule matches addresses (a cidr rule, a
+//! tcp rule of an address), the name is resolved through the tunnel and its
+//! addresses match the rules. With no match, the built-in rules apply (a
+//! loopback, a link-local or an unspecified address, and `localhost`, are
+//! refused: WARP does not reach them), then the default action. A rule of
+//! the operator comes before the built-in rules: `tcp:127.0.0.1:5432=direct`
+//! sends that port of the loopback to the host.
 //!
 //! The lint of shadowed rules is the caller's ([`Lint`]): podnet passes the
 //! lint of its netns rules (`podnet_netns::rules::shadow::check`,
@@ -26,7 +32,7 @@ use pod_core::{Class, Failure, Stage};
 
 pub mod matcher;
 
-pub use matcher::{Net, RuleMatch};
+pub use matcher::{Net, RuleMatch, TcpHost};
 
 fn usage(text: String) -> Failure {
     Failure::new(Stage::Warp, Class::Usage, text)
@@ -177,59 +183,67 @@ impl Table {
         Ok((Table { rules, default }, warnings))
     }
 
-    /// True when a rule matches addresses.
+    /// True when a rule matches addresses (a cidr rule, a tcp rule of an
+    /// address).
     pub fn has_cidr(&self) -> bool {
-        self.rules.iter().any(|r| matches!(r.matcher, RuleMatch::Cidr(_)))
+        self.rules.iter().any(|r| r.matcher.takes_addresses())
     }
 
-    /// The action of a name, by the domain rules; `None` when no domain
-    /// rule matches and the name is not a built-in one.
-    pub fn for_name(&self, name: &str) -> Option<Action> {
-        if let Some(rule) = self.rules.iter().find(|r| r.matcher.matches(name, None)) {
+    /// The action of a name to `port` (`None`: not a TCP connection), by
+    /// the rules of a name (domain, port, tcp of a name); `None` when no
+    /// such rule matches and the name is not a built-in one.
+    pub fn for_name(&self, name: &str, port: Option<u16>) -> Option<Action> {
+        if let Some(rule) = self.rules.iter().find(|r| r.matcher.matches(name, None, port)) {
             return Some(rule.action);
         }
         let name = name.trim_end_matches('.').to_ascii_lowercase();
         (name == "localhost" || name.ends_with(".localhost")).then_some(Action::Reject)
     }
 
-    /// The action of an address: the rules, the built-in rules, the
-    /// default.
-    pub fn for_ip(&self, ip: IpAddr) -> Action {
-        self.rule_for_ip(ip).or_else(|| builtin(ip)).unwrap_or(self.default)
+    /// The action of an address to `port` (`None`: not a TCP connection):
+    /// the rules, the built-in rules, the default.
+    pub fn for_ip(&self, ip: IpAddr, port: Option<u16>) -> Action {
+        self.rule_for_ip(ip, port).or_else(|| builtin(ip)).unwrap_or(self.default)
     }
 
-    fn rule_for_ip(&self, ip: IpAddr) -> Option<Action> {
+    fn rule_for_ip(&self, ip: IpAddr, port: Option<u16>) -> Option<Action> {
         let text = ip.to_string();
-        self.rules.iter().find(|r| r.matcher.matches(&text, Some(ip))).map(|r| r.action)
+        self.rules.iter().find(|r| r.matcher.matches(&text, Some(ip), port)).map(|r| r.action)
     }
 
-    /// The action of the addresses of a name: the first address that a rule
-    /// or a built-in rule matches, else the default.
-    pub fn for_addresses(&self, addresses: &[IpAddr]) -> Action {
-        addresses.iter().find_map(|ip| self.rule_for_ip(*ip).or_else(|| builtin(*ip))).unwrap_or(self.default)
+    /// The action of the addresses of a name to `port`: the first address
+    /// that a rule or a built-in rule matches, else the default.
+    pub fn for_addresses(&self, addresses: &[IpAddr], port: Option<u16>) -> Action {
+        addresses.iter().find_map(|ip| self.rule_for_ip(*ip, port).or_else(|| builtin(*ip))).unwrap_or(self.default)
     }
 
-    /// The action for `host` with no lookup of a name (a proxy with no
-    /// resolver in the tunnel, PodUtils/podnet issue 140). A name that only
-    /// an address rule can decide gets the default.
-    pub fn decide_static(&self, host: &Host) -> Action {
+    /// The action for `host` and `port` with no lookup of a name (a proxy
+    /// with no resolver in the tunnel, PodUtils/podnet issue 140). A name
+    /// that only an address rule can decide gets the default.
+    pub fn decide_static(&self, host: &Host, port: Option<u16>) -> Action {
         match host {
-            Host::Ip(ip) => self.for_ip(*ip),
-            Host::Domain(name) => self.for_name(name).unwrap_or(self.default),
+            Host::Ip(ip) => self.for_ip(*ip, port),
+            Host::Domain(name) => self.for_name(name, port).unwrap_or(self.default),
         }
     }
 
-    /// The action for `host`, with the addresses that `names` gave to
-    /// decide it (for the tunnel to use them). A name is resolved only when
-    /// no domain rule decides it and an address rule can.
-    pub async fn decide(&self, names: &dyn Lookup, host: &Host) -> Result<(Action, Option<Vec<IpAddr>>), Failure> {
+    /// The action for `host` and `port` (`None`: not a TCP connection),
+    /// with the addresses that `names` gave to decide it (for the tunnel to
+    /// use them). A name is resolved only when no rule of a name decides it
+    /// and an address rule can.
+    pub async fn decide(
+        &self,
+        names: &dyn Lookup,
+        host: &Host,
+        port: Option<u16>,
+    ) -> Result<(Action, Option<Vec<IpAddr>>), Failure> {
         Ok(match host {
-            Host::Ip(ip) => (self.for_ip(*ip), None),
-            Host::Domain(name) => match self.for_name(name) {
+            Host::Ip(ip) => (self.for_ip(*ip, port), None),
+            Host::Domain(name) => match self.for_name(name, port) {
                 Some(action) => (action, None),
                 None if self.has_cidr() => {
                     let addresses = names.lookup(name).await?;
-                    (self.for_addresses(&addresses), Some(addresses))
+                    (self.for_addresses(&addresses, port), Some(addresses))
                 }
                 None => (self.default, None),
             },

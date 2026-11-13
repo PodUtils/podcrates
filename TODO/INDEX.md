@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**396 entries: 124 open, 7 partial, 4 blocked, 261 done.**
+**396 entries: 122 open, 7 partial, 4 blocked, 263 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
 | P2 | 63 | 3 | 4 | 136 | 206 |
-| P3 | 48 | 1 | 0 | 51 | 100 |
-| **All** | 124 | 7 | 4 | 261 | 396 |
+| P3 | 46 | 1 | 0 | 53 | 100 |
+| **All** | 122 | 7 | 4 | 263 | 396 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -317,7 +317,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
 | [T-304](transport.md) | P2 | S | M1 | feature | done | `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479) |
-| [T-305](transport.md) | P3 | S | M1 | feature | open | `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479) |
+| [T-305](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479) |
 | [T-306](upkeep.md) | P1 | S | M5 | chore | done | `pod-services`: six podvm files of its block changed after `2be31b2` (`upstream.yml` red since 2026-11-10) |
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
@@ -418,7 +418,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
 | [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |
 | [T-470](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs |
-| [T-475](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
+| [T-475](adapters.md) | P3 | S | M3 | feature | done | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
 | [T-476](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |
 | [T-477](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
 | [T-478](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the client of the HTTP road never sends `close`, so a caller that drops its stream leaves the session at the role |

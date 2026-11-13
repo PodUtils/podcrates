@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 396 entries: 124 open, 7 partial, 4 blocked, 261 done.
+`TODO/INDEX.md` holds 396 entries: 122 open, 7 partial, 4 blocked, 263 done.
 
 ## State
 
@@ -92,10 +92,10 @@ next entry.
    of `pod-relay`, `pod-warp` and `pod-cloudflare` to fixes from `7c5f87e`.
    a. `v0.37.0` (it holds the team token of `pod-warp`), then the COORD issue of the freeze of `pod-warp`
       (T-339, partial; `docs/releases/pod-warp-freeze.md`).
-   b. The next tag: T-475 (the port rules, PodUtils/podnet#518), T-305
-      (`pod-dns`: TXT and CNAME with EDNS0 and TC), T-301 (`pod-e2e`: the
-      exporter and the record layer, call C246), T-420 (WebSocket), T-421
-      (HTTP/2), T-439 (the accept loop of `pod-ws` for T-420).
+   b. The next tag: T-301 (`pod-e2e`: the exporter and the record layer,
+      call C246), T-420 (WebSocket), T-421 (HTTP/2), T-439 (the accept
+      loop of `pod-ws` for T-420). The port rules of `pod-warp` and the
+      TXT and CNAME of `pod-dns` are done for it.
    c. The tag after: T-310 (the ARQ), T-422 (long-poll, SSE, chunked),
       T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-dns/src/txt.rs b/crates/pod-dns/src/txt.rs
+--- a/crates/pod-dns/src/txt.rs
++++ b/crates/pod-dns/src/txt.rs
+@@ -36,7 +36,7 @@
+ pub fn query(id: u16, name: &str, kind: u16, edns: Option<u16>) -> Result<Vec<u8>, String> {
+     let mut out = wire::query(name, kind)?;
+     out[..2].copy_from_slice(&id.to_be_bytes());
+-    if let Some(size) = edns {
++    if let Some(size) = edns.filter(|_| false) {
+         if size < PLAIN_SIZE {
+             return Err(format!("an EDNS0 size of {size}: give {PLAIN_SIZE} or more"));
+         }

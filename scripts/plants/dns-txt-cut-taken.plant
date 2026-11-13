@@ -1,0 +1,8 @@
+# The reader of TXT and CNAME answers takes a message cut in its records
+# as an answer with no TC bit: a carrier reads part of a batch as all of
+# it (PodUtils/podnet#479, T-305). The test of the cut answers must fail.
+ENTRY=T-305
+GROUP=dns
+EXPECT='test txt::tests::a_cut_answer_needs_the_tc_bit \.\.\. FAILED'
+RUN='cargo test -p pod-dns --lib -- txt::tests::a_cut_answer_needs_the_tc_bit'
+LIMIT=900

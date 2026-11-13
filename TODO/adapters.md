@@ -1495,7 +1495,7 @@ files). Gaps: T-480 (done), T-481, T-482. The COORD issue of the freeze
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1531,6 +1531,23 @@ the variants exist.
 ```sh
 cargo test -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-13, commit 0e3416e. `RuleMatch::Port(lo, hi)` (`port:N`,
+`port:N-M`, 1 to 65535) and `RuleMatch::Tcp(TcpHost, port)`
+(`tcp:HOST:PORT`: a name, an IPv4 address or `[IPv6]`) in
+`crates/pod-warp/src/rules/matcher.rs`; the decisions of `Table` take the
+port of the target, `None` for a UDP association (call C247). With
+`tcp:127.0.0.1:5432=direct`, a CONNECT to `127.0.0.1:5432` takes the
+direct dial and one to `127.0.0.1:5433` gets the built-in refusal
+(`tests/proxy.rs`: `the_port_rules_of_the_proxy_take_the_port_of_the_target`).
+`cargo test -p pod-warp --all-features`: each target passed (145 unit
+tests, 12 in `tests/proxy.rs`). The plants `warp-tcp-rule-port-ignored`
+and `warp-route-port-not-passed` fail their tests; the plants
+`warp-l4-rule-not-applied` and `warp-proxy-rule-not-applied` follow the
+new `route.rs` and still fail theirs. podnet changes its shadow check
+(`shadow.rs`) and takes the rules with the next tag.
 
 # T-470: `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs
 

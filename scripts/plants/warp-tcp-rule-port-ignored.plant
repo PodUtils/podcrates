@@ -1,0 +1,8 @@
+# A tcp rule matches its host on each port: `tcp:127.0.0.1:5432=direct`
+# sends each port of the loopback to the host (PodUtils/podnet#518,
+# T-475). The test of the port rules must fail.
+ENTRY=T-475
+GROUP=warp
+EXPECT='test rules::tests::the_port_rules_and_the_tcp_rules \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- rules::tests::the_port_rules_and_the_tcp_rules'
+LIMIT=900
