@@ -20,7 +20,7 @@ session; T-338: the local SOCKS5 and HTTP proxy with its rules, its
 names, its UDP and its DNS forwarder, the resolvers inside the tunnel (on
 UDP or over TLS), the local forwards and the pipe of `warp nc`; and T-337:
 MASQUE over HTTP/3, the WireGuard tunnel and the carried device. The rest
-is T-339 (partial: the adoption trials T-412, which passes in podnet, and T-413).
+is T-339 (partial: the adoption trials T-412 and T-413, which pass in podnet and in podssh).
 T-406: the L4 door and its proxy. T-339 adds `Live` (a session replaced
 when it closes), the exit of a session, the socket of a running proxy, and
 the TUN with its routes and its resolver (Linux).
@@ -305,8 +305,15 @@ the test pins. Plants: `warp-check-without-answer`,
 | podssh (`crates/podssh-warp`) | `pod-warp` |
 | --- | --- |
 | `key::DeviceKey`, `der` | `key::DeviceKey`, `der` |
-| `register::Api` with `routes::Route` | `Api::with_bases` |
+| `register::Api` with `routes::Route`, the route that answered | `Api::with_bases`, `api::bases`, `Api::answered` |
+| `register::register(api, team, now)` | `Warp::register_or_load` with `Api::with_team` |
 | `road::Warp` (open the tunnel, a stream to `HOST:PORT`) | `Warp::connect` and `WarpNet::dial` |
+| `road::Fault` | `Failure { stage, class }`; a `Stage::Proxy` in the chain is the way out |
+| `endpoints` (the record's endpoints, the one that opened first) | `door::doors`, `Warp::with_won_door`, `door::door_text` |
+| `probe` (a packet through a new tunnel) | `NetSettings::check` (`DataPathCheck`) |
+| `Warp::open_h3` | `Way { h3: true, udp: Some(SystemUdp), .. }` |
+| `Warp::open_server`, `h3::server::Server` (a server of the user's own) | T-481 |
 | `dns::lookup` | `dns::lookup` |
+| `stack`, `stream`, `inside` (ZeroTier's member) | `pod_netstack::NetStack::over_link` |
 | `stand_in::StandIn` | `pod_testkit::masque` and the edge of `tests/common/edge.rs` |
 | `device::Device` (its private file) | `store` (podnet's file form) |

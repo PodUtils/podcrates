@@ -4785,3 +4785,47 @@ stand-in record the close.
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+# T-482: `pod-netstack`: a stream dropped before its handshake ends finishes the handshake later
+
+**Source:** T-413 (the trial of podssh: ZeroTier's member on the stack).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A drop of a `TcpStream` is a graceful close (`ConnCmd::Close`). A caller
+that gives up on a connect (a time limit on `established()`) and drops the
+stream leaves the SYN in the stack: when the SYN-ACK comes later, the
+handshake ends, and the stack then sends the FIN. The far end accepts a
+connection that ends at once, before the one that the caller opens next.
+podssh's ZeroTier road connects in short tries of 4 s: in the trial, the
+first try ran out, the second one opened, and the far end read the end of
+the first one ("early eof"); podssh's glue now aborts a try that runs out.
+The stack of podssh before it closed a socket in `SynSent` with no
+handshake (smoltcp's `close` in that state).
+
+## Premise
+
+- Measured: the trial of T-413, `cargo test -p podssh-zerotier --lib`
+  (`member::tests::a_tcp_connection_over_the_ad_hoc_network_carries_64_kib_each_way`):
+  failed with each try dropped, passed with `TcpStream::abort` on the try
+  that ran out.
+- Read: `crates/pod-netstack/src/stack/socket.rs` (`Drop for TcpStream`).
+
+## Approach
+
+The drop of a stream that is not established (no `Connected` event, no
+data) is an abort: the reactor closes the socket in `SynSent` with no FIN,
+and a SYN-ACK that comes later gets a RST. A test: a connect to a far end
+that answers late, the stream dropped before the answer; the far end
+accepts no connection.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack
+```

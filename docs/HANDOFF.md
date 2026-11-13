@@ -27,9 +27,11 @@ is done. Git and the record keep finished work.
 - Agents of this session work in worktrees under `.claude/worktrees/` on
   T-413. Merge its branch after `scripts/agent/check.sh` passes
   on the merge.
-- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
-  T-413. When both pass and a tag holds them, post the COORD issue of the
-  freeze `(to podnet) (to podssh)`; its text is
+- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh
+  (T-413, at `286e98d3` with `v0.36.0`) passes each of its 24 steps, with
+  T-480 in the crate after `v0.36.0`. When a tag holds T-480, move the
+  tags of `adoption/podssh/pod-warp.patch` to it and post the COORD issue
+  of the freeze `(to podnet) (to podssh)`; its text is
   `docs/releases/pod-warp-freeze.md`.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
