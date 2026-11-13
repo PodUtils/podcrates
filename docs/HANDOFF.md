@@ -25,7 +25,7 @@ is done. Git and the record keep finished work.
 - Agents of this session work in worktrees under `.claude/worktrees/` on
   T-477 and T-413. Merge each branch after `scripts/agent/check.sh` passes
   on the merge.
-- `pod-warp`: the trial of podnet (T-412) passes; the trial of podssh is
+- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
   T-413. When both pass and a tag holds them, post the COORD issue of the
   freeze `(to podnet) (to podssh)`; its text is
   `docs/releases/pod-warp-freeze.md`.

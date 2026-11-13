@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 373 entries: 110 open, 7 partial, 5 blocked, 251 done.
+`TODO/INDEX.md` holds 374 entries: 110 open, 7 partial, 5 blocked, 252 done.
 
 ## State
 
@@ -16,8 +16,8 @@
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.34.0` (`ef8c901`, PodUtils/podnet#515; its PodUtils/podnet@T-268 runs on
-    the `tcp` carrier of `pod-link`; `pod-warp` waits for the trial of
-    T-412); its relay client
+    the `tcp` carrier of `pod-link`; the trial of `pod-warp` passes at
+    `9c1fc4b`, T-412; the take waits for T-413 and the freeze); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.34.0` (`fc1c5d60`, PodUtils/podvm#288; its relay over
@@ -93,9 +93,10 @@ next entry.
    TLS, the forward and nc are in; MASQUE over HTTP/3, the WireGuard
    tunnel and the carried device are in; the L4 door and its proxy are
    in; `Live`, the exit, the search of the socket, the TUN and its routes,
-   and the live step are in), then T-412 (the trial of podnet) and T-413
-   (the trial of podssh) with the COORD issue of the freeze (T-339,
-   partial), T-410 (the L4 door on a new key), then
+   and the live step are in; the trial of podnet passes), then
+   T-413 (the trial of podssh) with the COORD issue of the freeze (T-339,
+   partial), T-470 (a change of the settings of a `Warp`), T-410 (the L4
+   door on a new key), then
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
    T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
@@ -152,7 +153,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221 and C230 to C232; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221, C225 to C229 and C230 to C232; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

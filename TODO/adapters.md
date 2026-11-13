@@ -1310,7 +1310,7 @@ cargo test -p pod-warp --all-features --test l4
 **Milestone:** M3
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1366,6 +1366,38 @@ T-406 is done (the L4 door is in `pod-warp`).
 The text of the COORD issue of the freeze is in
 `docs/releases/pod-warp-freeze.md`: post it when T-412 and T-413 pass and
 a tag holds `pod-warp`.
+
+## Done
+
+2026-11-13. The patch is at podnet's newest `main`, `9c1fc4b`
+(`adoption/podnet/pod-warp.commit`; `src/warp/` has no change after
+`83e0c93`), and names `v0.35.0` (call C225). Commits `b7afb72` (part 1:
+the tags, the capsules, the order of the doors, the door file and the leg
+file, the hints, the parse of the route tables, the private file),
+`d1f3f04` (parts 2 to 4: the session and the network, the proxy, the
+forward, nc, `Live`, the exit, the socket search, the TUN and its routes),
+`ceaf019` (part 5: the 23 steps of the `.run`), and the commit of this
+section (calls C225 to C229, T-470). podnet's `src/warp/` goes from 16 520
+lines in 39 files to 4 406 lines of glue in 30 files; the patch has 15 764
+lines (61 files; 11 762 lines removed). The glue keeps podnet's names
+(`WarpClient`, `WarpStack` = `WarpNet`, the setters of the flags; C226),
+maps the classes of a failure to podnet's exit codes (C227) and the
+decisions to podnet's counters (C228); the record of podnet names the
+moved lines at `9c1fc4b` (C229). Each of the 23 steps of
+`sh scripts/adoption.sh podnet pod-warp` passed: the remap of
+`Cargo.lock`, `podnet-todo check` (330 entries), `check-size.py` (8 files
+on the allow list, 5 fewer), `check-layers.py` (the edge `warp ->
+quicktunnel` goes), `cargo build`, `cargo deny --locked check bans
+sources` (bans ok, sources ok), `pod-warp` in the tree, no moved file, no
+copy of a moved item (`git grep` of 33 definitions), clippy of the
+workspace, the tests of the library (460), `warp_register` (6) and
+`warp_routes`, `api_surface`, `rule_words`, `docs` (14) and `commands`
+(15), the CLI tests `exit_codes llms log warp` (26), the lock and the check
+of the fuzz targets, `cargo fmt --check`, the toolchains (11 pins, 0
+below 1.99, 3 notes), and the static check of the x86_64 musl binary (58
+695 888 bytes, debug). A run takes 179 s and 0.9 GB more of a warm target
+of 2.1 GB (no debug info, no incremental files). Gap: T-470. The COORD
+issue of the freeze waits for T-413 (the start condition).
 
 # T-413: `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate)
 
@@ -1454,4 +1486,41 @@ the variants exist.
 
 ```sh
 cargo test -p pod-warp --all-features
+```
+
+# T-470: `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs
+
+**Source:** T-412 (the trial of podnet).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Warp::settings` is read only. podnet sets its options after it loads a
+device (`with_masque`, `with_wireguard`, `with_carry`, `with_proxy`), so
+its glue makes a new `Warp` with `Warp::from_parts` and carries the door
+that worked and the relay-first flag by hand (`with_won_door`,
+`with_relay_first`). The door with no packet (`bad`) and the last leg
+(`Legs::last`, `Legs::change`) are lost.
+
+## Premise
+
+- Read: `crates/pod-warp/src/warp.rs` (`Settings`, `Warp`, `from_parts`,
+  `with_won_door`, `with_relay_first`); the glue of T-412 (`rebuild` of
+  podnet's `src/warp/mod.rs` in `adoption/podnet/pod-warp.patch`).
+
+## Approach
+
+`Warp::with_settings(self, settings) -> Warp`: the same device, identity,
+doors and legs with new settings. A unit test: a door marked bad and a
+leg change stay after the change. podnet's glue takes it after the next
+tag.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --lib
 ```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**373 entries: 110 open, 7 partial, 5 blocked, 251 done.**
+**374 entries: 110 open, 7 partial, 5 blocked, 252 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 3 | 0 | 70 | 87 |
+| P1 | 13 | 3 | 0 | 71 | 87 |
 | P2 | 51 | 2 | 5 | 130 | 188 |
-| P3 | 45 | 2 | 0 | 49 | 96 |
-| **All** | 110 | 7 | 5 | 251 | 373 |
+| P3 | 46 | 2 | 0 | 49 | 97 |
+| **All** | 110 | 7 | 5 | 252 | 374 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -384,7 +384,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-407](transport.md) | P2 | S | M3 | chore | open | `pod-proxy`: fuzz targets of the server face of a proxy |
 | [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
 | [T-410](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: the L4 door reads the device record again on a new key, and tries the other door |
-| [T-412](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the adoption trial of podnet (its src/warp on the crate) |
+| [T-412](adapters.md) | P1 | L | M3 | feature | done | `pod-warp`: the adoption trial of podnet (its src/warp on the crate) |
 | [T-413](adapters.md) | P2 | L | M3 | feature | open | `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate) |
 | [T-416](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-417](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
@@ -417,6 +417,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-448](podvm.md) | P3 | S | M8 | docs | open | `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123) |
 | [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
 | [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |
+| [T-470](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs |
 | [T-475](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
 | [T-476](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |
 | [T-477](relay.md) | P1 | S | M2 | defect | open | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
