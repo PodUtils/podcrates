@@ -1,4 +1,5 @@
 {
+  "job-offer/invalid-actor-external.json": "unknown variant `external`",
   "job-offer/invalid-job-id-path.json": "a job id has only",
   "job-offer/invalid-payload-tag.json": "the payload is not sha256:HEX",
   "job-offer/invalid-policy-free-object.json": "the policy is not a broker-policy.v1 policy",
