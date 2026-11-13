@@ -119,3 +119,5 @@ impl LocalBytes for Vec<Event> {
 pub fn has(hay: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty() && hay.windows(needle.len()).any(|w| w == needle)
 }
+
+pub mod tty;

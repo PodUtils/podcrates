@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/termios/edit.rs
++++ b/crates/pod-term/src/termios/edit.rs
+@@ -56,7 +56,7 @@
+             }
+             self.end_line(Some(c), sink);
+         } else if s.matches(c, VEOF) {
+-            self.end_line(None, sink);
++            self.end_line(Some(c), sink);
+         } else if s.matches(c, VEOL) || (ext && s.matches(c, VEOL2)) {
+             if echo {
+                 self.mark_canon_column();

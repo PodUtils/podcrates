@@ -1,0 +1,6 @@
+# Output mapping: ONLCR gives a bare newline, and the screen steps down (T-539).
+ENTRY=T-539
+GROUP=term
+EXPECT='test onlcr_makes_a_newline_cr_lf \.\.\. FAILED'
+RUN='cargo test -p pod-term --test termios_modes onlcr_makes_a_newline_cr_lf -- --exact'
+LIMIT=900

@@ -1,0 +1,12 @@
+--- a/crates/pod-term/src/termios.rs
++++ b/crates/pod-term/src/termios.rs
+@@ -315,9 +315,6 @@
+             self.start(sink);
+         }
+         if c == b'\r' {
+-            if s.iflag & IGNCR != 0 {
+-                return;
+-            }
+             if s.iflag & ICRNL != 0 {
+                 c = b'\n';
+             }

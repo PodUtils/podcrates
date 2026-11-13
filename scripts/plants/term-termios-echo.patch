@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/termios/out.rs
++++ b/crates/pod-term/src/termios/out.rs
+@@ -81,7 +81,7 @@
+     /// `OPOST`: `n_tty` writes the pair as it is, and counts two columns.
+     pub fn ctl(&mut self, c: u8, buf: &mut Vec<u8>) {
+         buf.push(b'^');
+-        buf.push(c ^ 0x40);
++        buf.push(c | 0x40);
+         self.column += 2;
+     }
+ 
