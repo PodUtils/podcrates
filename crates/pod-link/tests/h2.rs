@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use common::h2::{Tunnel, at, bound, carrier};
 use common::tcp::{Direct, Fails, id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::{Class, Target};
 use pod_identity::KeyName;
 use pod_link::h2::{self, H2};
@@ -36,7 +36,7 @@ async fn a_link_over_one_post_of_http2_carries_streams() {
     assert_eq!(door.address(), door.local_addr().to_string());
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()), "the accept gives the key of the client");
     assert_eq!(way.dials.load(Ordering::SeqCst), 1, "the dial goes through the way out of the caller");
@@ -61,7 +61,7 @@ async fn a_link_over_one_post_of_http2_carries_streams() {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
 }
@@ -77,7 +77,7 @@ async fn a_dial_through_a_proxy_moves_bytes_both_ways_while_the_post_is_open() {
     // A name, so that the way out sends it to the proxy and resolves nothing.
     let address = format!("{}@https://link.example/link", server.public().hex());
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (mut near, (mut far, key)) = (near.expect("the dial through the proxy"), far.expect("the accept"));
     assert_eq!(key, client.public());
     assert_eq!(proxy.tunnels.load(Ordering::SeqCst), 1, "the dial went through the proxy");
@@ -87,15 +87,15 @@ async fn a_dial_through_a_proxy_moves_bytes_both_ways_while_the_post_is_open() {
         let line = format!("line {n}\n");
         near.write_all(line.as_bytes()).await.unwrap();
         let mut got = vec![0u8; line.len()];
-        timeout(LIMIT, far.read_exact(&mut got)).await.expect("the request body moves before its end").unwrap();
+        timeout(limit(), far.read_exact(&mut got)).await.expect("the request body moves before its end").unwrap();
         far.write_all(&got).await.unwrap();
         let mut back = vec![0u8; line.len()];
-        timeout(LIMIT, near.read_exact(&mut back)).await.expect("the response body moves before its end").unwrap();
+        timeout(limit(), near.read_exact(&mut back)).await.expect("the response body moves before its end").unwrap();
         assert_eq!(back, line.as_bytes());
     }
     near.shutdown().await.unwrap();
     let mut rest = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut rest)).await.expect("the end of the request body").unwrap();
+    timeout(limit(), far.read_to_end(&mut rest)).await.expect("the end of the request body").unwrap();
     assert!(rest.is_empty(), "the shutdown of the dialer is the end of the request body");
 }
 
@@ -122,7 +122,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let address = at(&server.public(), &door);
     let other = carrier(4, Arc::new(Direct::default()), &[]);
     let both = async { tokio::join!(other.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the refusal in time");
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("a client of another key dialed");
     assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
@@ -132,7 +132,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
 
     let good = carrier(2, Arc::new(Direct::default()), &[]);
     let both = async { tokio::join!(good.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     near.expect("the pinned client after a refusal");
     assert_eq!(far.expect("the listener stays open").1, client.public());
 }
@@ -156,7 +156,7 @@ async fn a_request_that_is_not_a_post_is_refused() {
         let (answer, _) = ask.send_request(request, true).unwrap();
         answer.await.unwrap().status()
     };
-    let (status, far) = timeout(LIMIT, async { tokio::join!(get, door.accept_key()) }).await.expect("in time");
+    let (status, far) = timeout(limit(), async { tokio::join!(get, door.accept_key()) }).await.expect("in time");
     assert_eq!(status, http::StatusCode::METHOD_NOT_ALLOWED);
     let e = far.err().expect("the listener took a GET");
     assert!(e.to_string().contains("not POST"), "{e}");
@@ -181,7 +181,7 @@ async fn a_peer_that_sends_nothing_holds_no_other_handshake() {
     quick.handshake_timeout = Duration::from_millis(300);
     let mut door = bound(&quick).await;
     let _silent = tokio::net::TcpStream::connect(door.local_addr()).await.unwrap();
-    let e = timeout(LIMIT, door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
+    let e = timeout(limit(), door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -200,7 +200,7 @@ async fn a_silent_listener_ends_the_dial_at_its_time_limit() {
     let mut dialing = carrier(2, Arc::new(Direct::default()), &[]);
     dialing.handshake_timeout = Duration::from_millis(300);
     let address = format!("{}@https://{local}/link", id(1).public().hex());
-    let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }

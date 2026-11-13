@@ -5644,7 +5644,7 @@ still needs one account to make the tunnel.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5676,6 +5676,15 @@ python3 -I scripts/check-crates-io-names.py
 ## Start condition
 
 The owner reserves the name on crates.io.
+
+## Done
+
+2026-11-13, in the commit of this record (no code). The owner reserved
+`pod-devtunnel` at `0.0.0` with the repository of podcrates (GitHub #1,
+the table "Registered on 2026-11-13"). `python3 -I
+scripts/check-crates-io-names.py`: "94 names, 0 faults". The names
+`pod-link`, `pod-turn`, `pod-warp`, `pod-netlab` and `podswarm` are on
+crates.io too.
 
 # T-380: `pod-turn`: the client against coturn on the loopback, over UDP and TLS
 

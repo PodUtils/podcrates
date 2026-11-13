@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{LIMIT, RawPeer};
+use common::{RawPeer, limit};
 use pod_link::frame::{PREFACE, kind};
 use pod_link::{
     Error, Frame, FrameError, GoAwayCode, INITIAL_WINDOW, Link, MAX_RECORD, ResetCode, Role, Settings, SettingsError,
@@ -33,11 +33,11 @@ async fn the_peer_refuses_an_open_over_its_limit() {
         s.write_all(b"hi").await.unwrap();
     }
     for _ in 0..3 {
-        timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+        timeout(limit(), listener.accept()).await.unwrap().unwrap();
     }
     for s in &mut streams[3..] {
         let id = s.id();
-        let e = timeout(LIMIT, s.read(&mut [0; 4])).await.unwrap().unwrap_err();
+        let e = timeout(limit(), s.read(&mut [0; 4])).await.unwrap().unwrap_err();
         let e = *e.into_inner().unwrap().downcast::<Error>().unwrap();
         assert_eq!(e, Error::Reset { id, code: ResetCode::REFUSED, by_peer: true });
         assert_eq!(e.class(), pod_core::Class::TempFail);
@@ -83,7 +83,7 @@ async fn a_link_with_bad_settings_does_not_start() {
 /// The link ends with `want`, and the raw peer reads a `GOAWAY` with the
 /// code `PROTOCOL`.
 async fn ends_with_protocol_error(link: Link, mut peer: RawPeer, want: impl Fn(&Error) -> bool) {
-    let e = timeout(LIMIT, link.closed()).await.unwrap();
+    let e = timeout(limit(), link.closed()).await.unwrap();
     assert!(want(&e), "{e:?}");
     assert_eq!(e.class(), pod_core::Class::Protocol);
     assert_eq!(peer.until(|f| matches!(f, Frame::GoAway(_))).await, Frame::GoAway(GoAwayCode::PROTOCOL.0));
@@ -145,7 +145,7 @@ async fn data_on_a_stream_never_opened_ends_the_link() {
 async fn frames_of_a_stream_that_is_gone_are_dropped() {
     let (link, mut peer) = RawPeer::start(Role::Listener, Settings::default()).await;
     peer.send(Frame::Open(1)).await;
-    let stream = timeout(LIMIT, link.accept()).await.unwrap().unwrap();
+    let stream = timeout(limit(), link.accept()).await.unwrap().unwrap();
     drop(stream);
     assert_eq!(peer.until(|f| matches!(f, Frame::Reset(..))).await, Frame::Reset(1, ResetCode::CANCEL.0));
     // Bytes, credit and a close that were on the way: dropped, and the
@@ -162,7 +162,7 @@ async fn a_peer_of_another_protocol_ends_the_link() {
     let (near, mut far) = pod_link::memory::pair(1 << 16);
     let link = Link::new(near, Role::Listener, Settings::default()).unwrap();
     far.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
-    assert_eq!(timeout(LIMIT, link.closed()).await.unwrap(), Error::Frame(FrameError::Preface));
+    assert_eq!(timeout(limit(), link.closed()).await.unwrap(), Error::Frame(FrameError::Preface));
     let mut first = [0; 8];
     far.read_exact(&mut first).await.unwrap();
     assert_eq!(&first, PREFACE);
@@ -182,7 +182,7 @@ async fn a_peer_that_does_not_read_its_answers_ends_the_link() {
         let _ = far.write_all(&flood).await;
         far
     });
-    let e = timeout(LIMIT, link.closed()).await.unwrap();
+    let e = timeout(limit(), link.closed()).await.unwrap();
     assert!(matches!(&e, Error::Protocol(t) if t.contains("does not read")), "{e:?}");
     drop(writer.await.unwrap());
 }

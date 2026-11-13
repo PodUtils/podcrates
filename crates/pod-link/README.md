@@ -665,6 +665,49 @@ simplex poll (PodUtils/podnet@T-280), and the tests that hold them
   one read brings it whole (T-518): `a_long_head_and_a_large_chunk_are_refused`;
   the fuzz target `link_poll_wire` reads the bytes of connections.
 
+The asks of PodUtils/podnet#521 for the DNS simplex carrier
+(PodUtils/podnet@T-278, row E2-3 of PodUtils/podnet#468) and the tests
+that hold them (`tests/dns.rs`, `tests/dns_loss.rs`, feature `dns`):
+
+- [x] A link over DNS queries and TXT answers with TLS carries streams:
+  `a_link_over_dns_carries_streams`.
+- [x] The pin of each key; another key is refused on each side, with the
+  key seen named: `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`.
+- [x] A silent server ends the dial: `a_silent_server_ends_the_dial_at_its_time_limit`;
+  junk and a query of a stranger change no link:
+  `a_query_of_a_stranger_changes_nothing`.
+- [x] The address, the settings and the facts:
+  `an_address_or_a_setting_out_of_its_form_is_a_usage_error`,
+  `the_carrier_says_what_it_gives_and_why_it_cannot_run`.
+- [x] Loss, reorder and duplicates on the `Lossy` shim, and the end of a
+  silent peer at the timeout of the ARQ: `tests/dns_loss.rs`.
+- [x] A plant for each check: `dns-down-needs-the-txt`,
+  `dns-wire-base32-roundtrip` (`scripts/plants/`).
+
+The asks of PodUtils/podnet#521 for the ICMP echo carrier
+(PodUtils/podnet@T-282, row E3-2 of PodUtils/podnet#469) and the tests
+that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
+
+- [x] Bytes cross each way over `EchoFrames` on the `Lossy` shim, with no
+  loss and at 3 % loss with reorder and duplicates:
+  `bytes_cross_each_way_with_no_loss`,
+  `bytes_cross_each_way_at_three_percent_loss_with_reorder_and_duplicates`.
+- [x] The keys are proven on each side, and a refused key is named:
+  `the_keys_are_proven_on_each_side`, `a_refused_key_is_named_on_each_side`.
+- [x] A silent peer ends the link: `a_peer_that_goes_silent_ends_the_link`;
+  an echo of another session or of the wrong mark is dropped:
+  `an_echo_of_the_wrong_session_or_mark_is_dropped`.
+- [x] The address, the settings and the facts:
+  `an_address_or_a_setting_out_of_its_form_is_a_usage_error`,
+  `the_carrier_says_what_it_gives`; `available()` needs no tokio runtime:
+  `available_needs_no_runtime`.
+- [x] The raw socket (unix, `CAP_NET_RAW`): a link carries a stream, or the
+  test prints a skip line where the host refuses the socket:
+  `a_link_over_a_raw_socket_carries_a_stream_or_skips`.
+- [x] A plant for each check: `icmp-echo-session-filter`,
+  `icmp-wire-checksum` (`scripts/plants/`).
+
 ## The adoption map
 
 | podnet | pod-link |

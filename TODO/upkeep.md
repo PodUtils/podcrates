@@ -529,7 +529,7 @@ python3 -I scripts/check-sources.py --clone PodUtils/podvm=CLONE --clone PodUtil
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -571,6 +571,16 @@ cargo test -p pod-confine -p pod-enter -p pod-guest --all-features
 ```
 
 and a dispatch of `nightly.yml`.
+
+## Done
+
+2026-11-13. The fixes are `3d9f1f5`. `nightly.yml` run 43417105533 at
+`d8c8ae6` (a descendant of `3d9f1f5`) proves each cause: the jobs
+`test (macos-15)`, `test (macos-15-intel)`, `test (windows-2025)`,
+`test (windows-11-arm)`, `cross (i686-unknown-linux-musl)` and
+`cross (powerpc64le-unknown-linux-musl, ppc64le)` pass; in the job of
+riscv64, `forward::forward_url_ends_at_its_bound` passes, and only two
+bounds of `pod-warp` fail (T-532, done).
 
 # T-308: `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`)
 
@@ -1210,7 +1220,6 @@ steps of 100 ns, so the carry case did not happen. The test makes that
 stamp from its bytes now. The nightly at `d8c8ae6` (run 43417105533)
 passes both Windows jobs.
 
-
 # T-532: The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled
 
 **Source:** `nightly.yml` run 43417105533 at `d8c8ae6` (job 131857666801, the cross test of riscv64 under qemu-user).
@@ -1274,6 +1283,169 @@ sh scripts/agent/check-macos.sh  # a new script
 ```
 
 and a planted `libc::SOCK_CLOEXEC` in a Unix path of `pod-link` fails it.
+
+# T-535: The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator
+
+**Source:** `nightly.yml` run 43451625236 at `72632b2` (the cross tests of riscv64 and armv7 under qemu-user).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Under qemu-user, tests of `pod-link` go past their bounds:
+
+- riscv64: `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_nodelay` (`tests/udp_loss.rs`, "the transfer in time"), `the_bytes_before_a_drop_reach_the_peer` (`tests/quic.rs`, "the bytes and the end in time"), `a_link_over_a_chunked_stream_carries_streams_across_a_lost_answer` and `a_link_over_sse_carries_streams_across_a_lost_answer` (`tests/poll.rs`, "the echo in time").
+- armv7: `a_query_of_a_stranger_changes_nothing` (`tests/dns.rs`): the dial fails with "the listener at l.test:53 closed before it took this end". The listener of the test has a `handshake_timeout` of 500 ms.
+
+The macOS jobs of the same run fail to build `pod-link` (`libc::SOCK_CLOEXEC`); `3d6bbf0` fixes that (T-497, T-533).
+
+## Premise
+
+- Read: the logs of the jobs 131974971067 (riscv64) and 131974970870 (armv7). Each failure on riscv64 is `Elapsed`; no assert of a value failed.
+- Read: `crates/pod-link/tests/common/mod.rs`: `LIMIT` is a fixed 30 s, not `pod_testkit::host::scaled`, the rule of T-325 for a bound that guards a hang. T-532 fixed the same class in `pod-warp`.
+- Not measured: the time of the TLS handshake of the dns carrier under qemu-user for armv7. The 500 ms bound is the likely cause, not a proven one.
+
+## Approach
+
+1. `limit()` in `tests/common/mod.rs` gives `scaled(LIMIT)`; each test of `pod-link` takes it.
+2. A `handshake_timeout` of a test that does not test that bound takes `scaled` too (`tests/dns.rs`).
+3. The gates of E2-1 in `tests/udp_loss.rs` measure a release build: under an emulator, scale their bounds, or skip them by name with `pod_testkit::host::emulated`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+The next nightly proves riscv64 and armv7.
+
+## Done
+
+2026-11-13. `limit()` gives `pod_testkit::host::scaled` of the bound in each test file of `pod-link` that has one (`tests/common/mod.rs` and the files with their own `LIMIT`). The listener of `a_query_of_a_stranger_changes_nothing` takes `scaled(500 ms)`, and the transfer bound of `tests/udp_loss.rs` takes `scaled(120 s)`. The gates of E2-1 run in a release build alone (ignored in a debug build), so the cross jobs do not run them. The next nightly proves riscv64 and armv7.
+
+# T-536: `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection
+
+**Source:** `ci.yml` run 43459943301 at `3d6bbf0` (job `test`, step "pod-oci against the distribution registry").
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`an_index_of_two_platforms_resolves_through_a_bearer_token` (`crates/pod-oci/tests/distribution.rs`) panicked at `tests/common/distribution/push.rs`: "the registry accepts: Connection refused". The four other tests of the file passed in the same run, and the same step passed at the commits before.
+
+## Premise
+
+- Read: the log of job 132003860678; `tests/common/distribution/server.rs` (`Registry::start`, `wait`) and `mod.rs` (`free_port`).
+- `free_port` binds port 0, reads the port and closes the socket; the registry binds the port later. The five tests run in parallel, and the token server of a test binds port 0 too. `wait` takes any listener on the port as the registry.
+- Not measured: the output of the registry of the failed test (the step does not print it).
+
+## Approach
+
+1. `wait` checks that the child is alive (`try_wait`) and reads the line of the registry that names its address, not only a connect to the port.
+2. When the registry fails to bind, start it again on a new port, at most three times, and print `said()` in the message.
+3. Print `said()` when a request of `Pusher` fails to connect.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --test distribution
+```
+
+with the registry of `distribution` on the path, ten times with no failure.
+
+## Done
+
+2026-11-13. T-534 holds items 1 and 2 (`listens`: the line of the registry and a child that runs; a new port, at most three times). The Prove ran ten times with distribution 3.1.2: 10 passed. Item 3 is not needed: after `listens`, a refused connect means the registry ended, and the message of the registry is in `Registry::said`.
+
+# T-537: `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay
+
+**Source:** `services.yml` run 43402100735 at `4c2d17c` (the scheduled run of 2026-11-13).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The daily watch found one fact moved, and the run is red:
+
+```text
+MOVED tox-tcp-relay http-json: services/tox-tcp-relay.toml endpoint node-3091c6be is port 443; the service gives tcp_ports []
+MOVED tox-tcp-relay http-json: services/tox-tcp-relay.toml endpoint node-3091c6be is status_tcp true; the service gives status_tcp false
+```
+
+The other 175 watches hold, and no watch had a first "no answer" (T-351).
+
+## Premise
+
+- Read: the log of job 131807203413 of that run.
+- Read: `crates/pod-services/services/tox-tcp-relay.toml`: the endpoint `node-3091c6be` (205.185.115.131, port 443) and its fact `public-key-node-3091c6be`, read on 2026-11-12.
+- Not measured: whether the node offers TCP again on a later day (a node of the list can stop for a time).
+
+## Approach
+
+Read `https://nodes.tox.chat/json` again. When the node still gives no TCP port, remove the endpoint and its fact, or put in its place another node with 443 in `tcp_ports` and `status_tcp` true (the rule of T-244 for the choice of the nodes). Write the source with the date of the read.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+cargo run -q -p pod-services-watch -- --service tox-tcp-relay
+```
+
+# T-538: The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ
+
+**Source:** a finding of the housekeeping of 2026-11-13 (the comments on the issues of podcrates).
+**Category:** docs
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`AGENTS.md` (section 3), `docs/decisions.md` (the ruling "Git" of
+2026-11-05) and `docs/maintenance.md` ("Tools") say that no comment has an
+agent attribution line. Each comment of a session of podcrates on GitHub
+ends with the line "Generated by Claude Code" of the harness. The
+`AGENTS.md` of PodUtils/podrunner records a later word of the owner
+(2026-11-11): a comment on GitHub can end with that line; a commit
+cannot. The record of podcrates does not have that word.
+
+## Premise
+
+- Read: `AGENTS.md`, `docs/decisions.md`, `docs/maintenance.md` of
+  podcrates; the `AGENTS.md` of PodUtils/podrunner at its commit
+  `1696466` ("a GitHub comment can end with the Generated-by line, a
+  commit cannot (the owner)").
+- Read: the comments of podcrates on #83, #88, #106 and #133: each ends
+  with the line.
+- Not read: the words of the owner themselves (they are in the session of
+  podrunner, not on GitHub).
+
+## Approach
+
+The owner rules Q16. Then write the ruling in `docs/decisions.md`, and
+make `AGENTS.md` and `docs/maintenance.md` agree with it.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+## Blocker
+
+The owner answers Q16 (`TODO/PROGRESS.md`): does the word of 2026-11-11
+in PodUtils/podrunner (a comment on GitHub can end with the "Generated
+by" line of the harness) apply to podcrates too?
 
 # T-534: `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held
 

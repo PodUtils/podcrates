@@ -5660,6 +5660,16 @@ cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features --test udp_loss
 ```
 
+## Correction
+
+2026-11-13: `plants.yml` run 43448941361 at `6b183f6` reports the plant
+`link-udp-fragment-taken` as missed. The test fails, but with "the
+segment, with no stall" ("KCP: the peer was silent for 20s"), a message
+that the `EXPECT` of the plant did not name: since T-526, `kcp` has no
+overflow checks in the test profile, so the fragment of the stranger
+stalls the stream and does not panic. The `EXPECT` of the plant takes
+that message too.
+
 ## Done
 
 2026-11-13, commit `ee6f6bc`. The target `link_kcp`

@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use common::dns::{carrier, fast_arq};
 use common::tcp::id;
-use common::{LIMIT, pattern};
+use common::{limit, pattern};
 use pod_core::Target;
 use pod_identity::KeyName;
 use pod_link::BoxIo;
@@ -38,7 +38,7 @@ async fn ends(faults: Faults, arq: ArqSettings) -> (BoxIo, BoxIo, Shim, Shim) {
     let both = async {
         tokio::join!(dialing.connect_over(a.clone(), &target, &key), listening.accept_over(b.clone(), &"the peer"))
     };
-    let (near, far) = timeout(LIMIT, both).await.expect("the handshake in time");
+    let (near, far) = timeout(limit(), both).await.expect("the handshake in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(near.1, server.public());
     assert_eq!(far.1, client.public());
@@ -102,7 +102,7 @@ async fn a_peer_that_goes_silent_ends_the_link_at_the_arq_timeout() {
     // its retries (the ARQ has no idle timer on a pure receive).
     near.write_all(&vec![7u8; 64 << 10]).await.ok();
     let mut buf = [0u8; 16];
-    let e = timeout(LIMIT, near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
+    let e = timeout(limit(), near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut, "{e}");
     assert!(began.elapsed() >= Duration::from_millis(400), "not before the retries: {:?}", began.elapsed());
 }

@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 use common::icmp::{carrier, fast_arq};
 use common::tcp::{id, ring};
-use common::{LIMIT, pattern};
+use common::{limit, pattern};
 use pod_core::Target;
 use pod_identity::KeyName;
 use pod_link::BoxIo;
@@ -56,7 +56,7 @@ async fn ends(
     let key = KeyName::Key(server.public());
     let both =
         async { tokio::join!(dialing.connect_over(up, &target, &key), listening.accept_over(down, &"the peer")) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the handshake in time");
+    let (near, far) = timeout(limit(), both).await.expect("the handshake in time");
     (near, far, a, b)
 }
 
@@ -127,7 +127,7 @@ async fn a_refused_key_is_named_on_each_side() {
     let key = KeyName::Key(server.public());
     let both =
         async { tokio::join!(dialing.connect_over(up, &target, &key), listening.accept_over(down, &"the peer")) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the refusal in time");
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("the dialer learns of the refusal");
     assert_eq!(near.kind, CarrierErrorKind::Refused, "{near}");
     assert!(near.to_string().contains(&client.public().fingerprint()), "names this key: {near}");
@@ -144,7 +144,7 @@ async fn a_peer_that_goes_silent_ends_the_link() {
     // Frames that the silent peer never acknowledges, so the ARQ ends.
     near.write_all(&vec![7u8; 64 << 10]).await.ok();
     let mut buf = [0u8; 16];
-    let e = timeout(LIMIT, near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
+    let e = timeout(limit(), near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut, "{e}");
     assert!(began.elapsed() >= Duration::from_millis(400), "not before the retries: {:?}", began.elapsed());
 }
@@ -156,7 +156,7 @@ async fn an_echo_of_the_wrong_session_or_mark_is_dropped() {
     let client = EchoFrames::client(a, 1, 1);
     let server = EchoFrames::server(b, 1, 1);
     client.send(b"hello").await.unwrap();
-    assert_eq!(timeout(LIMIT, server.recv()).await.unwrap().unwrap(), b"hello");
+    assert_eq!(timeout(limit(), server.recv()).await.unwrap().unwrap(), b"hello");
     // Another session is dropped.
     let (c, d) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
     let c1 = EchoFrames::client(c, 1, 1);

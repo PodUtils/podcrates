@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**418 entries: 114 open, 9 partial, 4 blocked, 291 done.**
+**422 entries: 113 open, 9 partial, 5 blocked, 295 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 79 | 94 |
-| P2 | 55 | 4 | 4 | 154 | 217 |
-| P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 114 | 9 | 4 | 291 | 418 |
+| P1 | 11 | 3 | 0 | 81 | 95 |
+| P2 | 55 | 4 | 4 | 156 | 219 |
+| P3 | 47 | 2 | 1 | 56 | 106 |
+| **All** | 113 | 9 | 5 | 295 | 422 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -319,7 +319,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-304](transport.md) | P2 | S | M1 | feature | done | `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479) |
 | [T-305](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a reader of TXT and CNAME answers with EDNS0 and the TC bit, for DNS carriers (PodUtils/podnet#479) |
 | [T-306](upkeep.md) | P1 | S | M5 | chore | done | `pod-services`: six podvm files of its block changed after `2be31b2` (`upstream.yml` red since 2026-11-10) |
-| [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
+| [T-307](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
 | [T-310](relay.md) | P2 | L | M2 | feature | done | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
@@ -371,7 +371,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-381](transport.md) | P3 | M | M1 | feature | open | `pod-turn`: the options of RFC 8489 and RFC 8656 that the client does not use |
 | [T-385](transport.md) | P3 | S | M1 | defect | open | `pod-ws`: a client upgrade checks the subprotocol of the answer |
 | [T-386](transport.md) | P2 | S | M1 | measurement | open | `pod-devtunnel`: the live run against the service with the owner's own token |
-| [T-387](transport.md) | P2 | S | M1 | release | open | `pod-devtunnel`: the name on crates.io before the release |
+| [T-387](transport.md) | P2 | S | M1 | release | done | `pod-devtunnel`: the name on crates.io before the release |
 | [T-390](relay.md) | P2 | S | M2 | feature | done | `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11) |
 | [T-391](relay.md) | P2 | S | M2 | feature | done | `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12) |
 | [T-392](relay.md) | P3 | S | M2 | research | done | `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13) |
@@ -465,3 +465,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-532](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled |
 | [T-533](upkeep.md) | P2 | S | M5 | chore | open | scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows |
 | [T-534](upkeep.md) | P1 | S | M5 | defect | done | `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held |
+| [T-535](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator |
+| [T-536](upkeep.md) | P2 | S | M5 | defect | done | `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection |
+| [T-537](upkeep.md) | P2 | S | M5 | defect | open | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
+| [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |

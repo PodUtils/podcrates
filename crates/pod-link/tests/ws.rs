@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common::tcp::{Direct, Fails, id, ring};
 use common::ws::{at, bound, carrier, pumped};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::{Class, Target};
 use pod_identity::KeyName;
 use pod_link::tcp::{Refusal, refusal};
@@ -37,7 +37,7 @@ async fn a_link_over_a_websocket_carries_streams() {
     assert_eq!(door.address(), door.local_addr().to_string());
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()), "the accept gives the key of the client");
     assert_eq!(way.dials.load(Ordering::SeqCst), 1, "the dial goes through the way out of the caller");
@@ -62,7 +62,7 @@ async fn a_link_over_a_websocket_carries_streams() {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
 }
@@ -76,13 +76,13 @@ async fn the_connect_gives_the_key_of_the_listener_and_the_accept_the_key_of_the
     let mut door = bound(&listening).await;
     let (named, url) = Ws::address(&at(&server.public(), &door)).unwrap();
     let both = async { tokio::join!(dialing.connect(&url, &named), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let ((mut near, seen), (mut far, key)) = (near.unwrap(), far.unwrap());
     assert_eq!((seen, key), (server.public(), client.public()));
     near.write_all(b"over a websocket").await.unwrap();
     near.shutdown().await.unwrap();
     let mut got = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), far.read_to_end(&mut got)).await.unwrap().unwrap();
     assert_eq!(got, b"over a websocket");
 }
 
@@ -114,7 +114,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
 
     let good = carrier(2, Arc::new(Direct::default()), &[]);
     let both = async { tokio::join!(good.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     near.expect("the pinned client after a refusal");
     assert_eq!(far.expect("the listener stays open").1, client.public(), "the refused client reached no accept");
 }
@@ -134,7 +134,7 @@ async fn a_peer_that_sends_nothing_holds_no_other_and_is_cut_at_its_deadline() {
     near.unwrap();
     assert_eq!(far.unwrap().1, client.public());
     let mut byte = [0u8; 1];
-    let end = timeout(LIMIT, silent.read(&mut byte)).await.expect("the deadline of TLS cuts a silent peer");
+    let end = timeout(limit(), silent.read(&mut byte)).await.expect("the deadline of TLS cuts a silent peer");
     assert!(matches!(end, Ok(0) | Err(_)), "{end:?}");
 }
 
@@ -152,7 +152,7 @@ async fn a_silent_listener_ends_the_dial_at_its_time_limit() {
     let mut dialing = carrier(2, Arc::new(Direct::default()), &[]);
     dialing.handshake_timeout = Duration::from_millis(300);
     let address = format!("{}@wss://{local}/link", id(1).public().hex());
-    let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -217,11 +217,11 @@ async fn the_subprotocol_of_both_ends_is_offered_and_named() {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (mut near, (mut far, _)) = (near.expect("the dial that offers the subprotocol"), far.unwrap());
     near.write_all(b"podnet/1").await.unwrap();
     let mut got = [0u8; 8];
-    timeout(LIMIT, far.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), far.read_exact(&mut got)).await.unwrap().unwrap();
     assert_eq!(&got, b"podnet/1");
 }
 
@@ -236,7 +236,7 @@ async fn a_dialer_with_no_subprotocol_or_another_gets_426() {
         carrier(2, Arc::new(Direct::default()), &[]),
         carrier(2, Arc::new(Direct::default()), &[]).with_protocol("podnet/2"),
     ] {
-        let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the refusal in time").err().expect("a dial");
+        let e = timeout(limit(), dialing.dial(&address)).await.expect("the refusal in time").err().expect("a dial");
         assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::InvalidData), "{e}");
         assert!(e.to_string().contains("426"), "{:?}: {e}", dialing.protocol);
     }
@@ -246,7 +246,7 @@ async fn a_dialer_with_no_subprotocol_or_another_gets_426() {
     let plain = carrier(1, Arc::new(Direct::default()), &[client.public()]);
     let door = bound(&plain).await;
     let dialing = carrier(2, Arc::new(Direct::default()), &[]).with_protocol("podnet/1");
-    let e = timeout(LIMIT, dialing.dial(&at(&server.public(), &door))).await.unwrap().err().expect("a 101 with none");
+    let e = timeout(limit(), dialing.dial(&at(&server.public(), &door))).await.unwrap().err().expect("a 101 with none");
     assert!(e.to_string().contains("named no subprotocol"), "{e}");
 
     let bad = carrier(2, Arc::new(Direct::default()), &[]).with_protocol("two words");
@@ -264,20 +264,21 @@ async fn a_text_message_ends_the_link_with_an_error_of_protocol() {
     let (mut io, peer) = pumped(Beat::default());
     peer.send_binary(b"binary").await.unwrap();
     let mut got = [0u8; 6];
-    timeout(LIMIT, io.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), io.read_exact(&mut got)).await.unwrap().unwrap();
     assert_eq!(&got, b"binary", "a binary message goes to the link");
     peer.send_text("text").await.unwrap();
-    let e = timeout(LIMIT, io.read(&mut got)).await.expect("the end in time").expect_err("a text message is an error");
+    let e =
+        timeout(limit(), io.read(&mut got)).await.expect("the end in time").expect_err("a text message is an error");
     assert_eq!(e.kind(), std::io::ErrorKind::InvalidData, "{e}");
     assert!(e.to_string().contains("text message"), "{e}");
-    let close = timeout(LIMIT, peer.read_frame()).await.unwrap().unwrap();
+    let close = timeout(limit(), peer.read_frame()).await.unwrap().unwrap();
     assert_eq!(close.opcode, pod_ws::frame::OPCODE_CLOSE);
     assert_eq!(pod_ws::close::close_code_and_reason(&close.payload).0, Some(pod_ws::close::code::UNSUPPORTED));
 
     let (io, peer) = pumped(Beat::default());
     let link = Link::new(io, Role::Dialer, Settings::default()).unwrap();
     peer.send_text("{}").await.unwrap();
-    match timeout(LIMIT, link.closed()).await.expect("the end of the link in time") {
+    match timeout(limit(), link.closed()).await.expect("the end of the link in time") {
         pod_link::Error::Io { kind, text } => {
             assert_eq!(kind, std::io::ErrorKind::InvalidData, "{text}");
             assert!(text.contains("text message"), "{text}");
@@ -317,17 +318,17 @@ async fn a_peer_that_answers_each_ping_keeps_the_session() {
     tokio::time::sleep(Duration::from_secs(95)).await;
     assert_eq!(peer.frames_received(), 4, "a Ping at 20, 40, 60 and 80 s");
     io.write_all(b"up").await.unwrap();
-    assert_eq!(timeout(LIMIT, data.recv()).await.unwrap().unwrap(), b"up");
+    assert_eq!(timeout(limit(), data.recv()).await.unwrap().unwrap(), b"up");
     peer.send_binary(b"down").await.unwrap();
     let mut got = [0u8; 4];
-    timeout(LIMIT, io.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), io.read_exact(&mut got)).await.unwrap().unwrap();
     assert_eq!(&got, b"down");
 
     let (mut io, peer) = pumped(Beat { ping_every: None, ..Beat::default() });
     tokio::time::sleep(Duration::from_secs(95)).await;
     assert_eq!(peer.frames_received(), 0, "no Ping");
     peer.send_binary(b"down").await.unwrap();
-    timeout(LIMIT, io.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), io.read_exact(&mut got)).await.unwrap().unwrap();
 }
 
 #[tokio::test(start_paused = true)]
@@ -341,10 +342,10 @@ async fn a_message_that_waits_for_the_link_keeps_the_session() {
     // The link reads nothing for 45 s: the pump waits on it, not on the peer.
     tokio::time::sleep(Duration::from_secs(45)).await;
     let mut got = vec![0u8; sent.len()];
-    timeout(LIMIT, io.read_exact(&mut got)).await.expect("the bytes in time").expect("no error");
+    timeout(limit(), io.read_exact(&mut got)).await.expect("the bytes in time").expect("no error");
     assert!(got == sent, "the bytes came whole");
     peer.send_binary(b"after").await.unwrap();
     let mut after = [0u8; 5];
-    timeout(LIMIT, io.read_exact(&mut after)).await.unwrap().expect("the session lives");
+    timeout(limit(), io.read_exact(&mut after)).await.unwrap().expect("the session lives");
     assert_eq!(&after, b"after");
 }

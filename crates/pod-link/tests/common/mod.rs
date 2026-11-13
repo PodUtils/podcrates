@@ -125,6 +125,12 @@ pub fn pattern(seed: u32, len: usize) -> Vec<u8> {
 /// A time limit for each wait of a test.
 pub const LIMIT: Duration = Duration::from_secs(30);
 
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-535).
+pub fn limit() -> Duration {
+    pod_testkit::host::scaled(LIMIT)
+}
+
 /// A peer that speaks frames by hand over the memory carrier: the test
 /// writes each frame and reads what the link sent.
 pub struct RawPeer {
@@ -154,7 +160,7 @@ impl RawPeer {
             if let Some(frame) = self.decoder.next().expect("the link sends valid frames") {
                 return Some(frame);
             }
-            let n = tokio::time::timeout(LIMIT, self.io.read(&mut buf)).await.expect("a frame in time").ok()?;
+            let n = tokio::time::timeout(limit(), self.io.read(&mut buf)).await.expect("a frame in time").ok()?;
             if n == 0 {
                 return None;
             }

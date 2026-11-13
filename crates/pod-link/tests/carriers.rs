@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::LIMIT;
+use common::limit;
 #[cfg(unix)]
 use common::scratch;
 use pod_link::memory::{self, Memory};
@@ -54,7 +54,7 @@ async fn a_full_ring_makes_the_writer_wait_and_drops_nothing() {
     tokio::task::yield_now().await;
     assert!(!writer.is_finished());
     let mut got = vec![0; data.len()];
-    timeout(LIMIT, b.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), b.read_exact(&mut got)).await.unwrap().unwrap();
     assert!(got == data);
     drop(writer.await.unwrap());
 }
@@ -157,7 +157,7 @@ mod unix {
         let mut x = dialer.open().unwrap();
         x.write_all(b"pair").await.unwrap();
         x.shutdown().await.unwrap();
-        let mut y = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+        let mut y = timeout(limit(), listener.accept()).await.unwrap().unwrap();
         let mut got = Vec::new();
         y.read_to_end(&mut got).await.unwrap();
         assert_eq!(got, b"pair");

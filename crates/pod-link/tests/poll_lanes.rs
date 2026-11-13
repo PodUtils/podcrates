@@ -13,7 +13,7 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::LIMIT;
+use common::limit;
 use common::poll::{Relay, at, bound, carrier, identity, key, post, raw};
 use common::tcp::Direct;
 use pod_link::poll::{self, Form, PollListener};
@@ -30,7 +30,7 @@ async fn a_session_answers_the_key_that_opened_it_alone() {
     let open = post(&format!("/l/open?s={id}"));
     let server = key(1);
     let (status, accepted) = tokio::join!(raw(&server, identity(2), local, &open), async {
-        timeout(LIMIT, door.accept_key()).await.expect("the accept in time")
+        timeout(limit(), door.accept_key()).await.expect("the accept in time")
     });
     assert_eq!(status, 201);
     let (mut far, opener) = accepted.expect("the session");
@@ -45,7 +45,7 @@ async fn a_session_answers_the_key_that_opened_it_alone() {
     let gap = format!("POST /l/up?s={id}&seq=9&ack=0 HTTP/1.1\r\nHost: t\r\nContent-Length: 1\r\n\r\nx");
     assert_eq!(raw(&key(1), identity(2), local, &gap).await, 409, "a gap in the offsets");
     let mut got = Vec::new();
-    let e = timeout(LIMIT, far.read_to_end(&mut got)).await.expect("the end in time").unwrap_err();
+    let e = timeout(limit(), far.read_to_end(&mut got)).await.expect("the end in time").unwrap_err();
     assert_eq!((got.as_slice(), e.kind()), (&b"hi"[..], std::io::ErrorKind::InvalidData), "{e}");
     assert_eq!(door.stats().duplicate, 2);
 }
@@ -63,16 +63,16 @@ async fn a_session_with_no_request_ends_on_each_side_with_an_error() {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (mut near, (mut far, _)) = (near.expect("the dial"), far.expect("the accept"));
     near.write_all(b"ping").await.unwrap();
     let mut got = [0u8; 4];
     far.read_exact(&mut got).await.unwrap();
     relay.faults.kill();
     let started = Instant::now();
-    let e = timeout(LIMIT, far.read(&mut got)).await.expect("the end on the listener in time").unwrap_err();
+    let e = timeout(limit(), far.read(&mut got)).await.expect("the end on the listener in time").unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut, "{e}");
-    let e = timeout(LIMIT, near.read(&mut got)).await.expect("the end on the dialer in time").unwrap_err();
+    let e = timeout(limit(), near.read(&mut got)).await.expect("the end on the dialer in time").unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut, "{e}");
     assert!(started.elapsed() >= Duration::from_secs(1), "the idle time passed first");
 }
@@ -85,7 +85,7 @@ async fn quiet_polls(form: Form) -> u64 {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (_near, _far) = (near.unwrap(), far.unwrap());
     let before = door.stats();
     tokio::time::sleep(Duration::from_secs(3)).await;
@@ -113,11 +113,11 @@ async fn a_listener_with_no_push_gives_the_long_poll() {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (mut near, (mut far, _)) = (near.unwrap(), far.unwrap());
     far.write_all(b"down").await.unwrap();
     let mut got = [0u8; 4];
-    timeout(LIMIT, near.read_exact(&mut got)).await.expect("the bytes down in time").unwrap();
+    timeout(limit(), near.read_exact(&mut got)).await.expect("the bytes down in time").unwrap();
     assert_eq!(&got, b"down");
     let stats = door.stats();
     assert!(stats.no_push >= 1 && stats.polls >= 1 && stats.pushes == 0, "{stats:?}");
@@ -133,10 +133,10 @@ async fn the_third_answer_429_in_a_row_ends_the_dial() {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (first, _accepted) = timeout(LIMIT, both).await.expect("the first dial in time");
+    let (first, _accepted) = timeout(limit(), both).await.expect("the first dial in time");
     let _first = first.expect("the first session");
     let started = Instant::now();
-    let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the second dial in time").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&address)).await.expect("the second dial in time").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Unavailable, "{e}");
     assert!(e.to_string().contains("429"), "{e}");
     assert!(started.elapsed() >= Duration::from_secs(2), "each 429 waited for its Retry-After");
@@ -153,13 +153,13 @@ async fn a_push_moves_more_than_the_window_with_no_bytes_up() {
         let mut door = bound(&listening).await;
         let address = at(&server.public(), &door);
         let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-        let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+        let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
         let (mut near, (mut far, _)) = (near.unwrap(), far.unwrap());
         // The dialer acknowledges the bytes down in empty POSTs: the
         // listener keeps 1 MiB at most.
         let data = common::pattern(7, 3 * poll::WINDOW);
         let mut back = vec![0u8; data.len()];
-        let (sent, read) = timeout(LIMIT, async { tokio::join!(far.write_all(&data), near.read_exact(&mut back)) })
+        let (sent, read) = timeout(limit(), async { tokio::join!(far.write_all(&data), near.read_exact(&mut back)) })
             .await
             .unwrap_or_else(|_| panic!("{form:?}: 3 MiB down in time"));
         sent.unwrap();
@@ -183,7 +183,7 @@ async fn kept(door: &PollListener, bytes: usize, max: usize) {
         }
     };
     let late = |_| panic!("{bytes} bytes kept in time: {:?}", door.stats());
-    timeout(LIMIT, wait).await.unwrap_or_else(late);
+    timeout(limit(), wait).await.unwrap_or_else(late);
 }
 
 /// The status of `request` of the client 2 to the listener 1 at `local`.
@@ -204,7 +204,7 @@ async fn the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_g
     let open = |n: usize| post(&format!("/l/open?s={}", ids[n]));
     let mut links = Vec::new();
     for (n, after) in [(0, poll::WINDOW), (1, max)] {
-        let (status, accepted) = tokio::join!(ask(local, open(n)), timeout(LIMIT, door.accept_key()));
+        let (status, accepted) = tokio::join!(ask(local, open(n)), timeout(limit(), door.accept_key()));
         assert_eq!(status, 201, "the open of session {n}");
         let (mut far, _) = accepted.expect("the accept in time").expect("the session");
         // No dialer reads: the bytes stay on the listener.
@@ -222,10 +222,10 @@ async fn the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_g
     let ack = format!("GET /l/out?s={}&since={} HTTP/1.1\r\nHost: test\r\n\r\n", ids[0], poll::WINDOW);
     assert_eq!(ask(local, ack).await, 204);
     kept(&door, poll::WINDOW, max).await;
-    let (status, accepted) = tokio::join!(ask(local, open(2)), timeout(LIMIT, door.accept_key()));
+    let (status, accepted) = tokio::join!(ask(local, open(2)), timeout(limit(), door.accept_key()));
     assert_eq!(status, 201, "the third open after the acknowledgement");
     accepted.expect("the accept in time").expect("the third session");
     for link in links {
-        let _far = timeout(LIMIT, link).await.expect("each window went in").unwrap();
+        let _far = timeout(limit(), link).await.expect("each window went in").unwrap();
     }
 }
