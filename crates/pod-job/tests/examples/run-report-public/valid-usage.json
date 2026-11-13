@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "job_id": "j-1001",
+  "source": "fake-1",
+  "tier": "trusted",
+  "unit_kind": "podvm",
+  "boundary": "redirect",
+  "wall_s": 93,
+  "cpu_s": 1832,
+  "peak_rss_mib": 412,
+  "exit_reason": "success"
+}

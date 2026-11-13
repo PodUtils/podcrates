@@ -15,11 +15,29 @@
         }
       ]
     },
+    "cpu_s": {
+      "description": "The CPU time of the processes of the job, user and system, in\nseconds; absent when the host cannot measure it, never 0 for unknown.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
     "exit_reason": {
       "$ref": "#/$defs/ExitReason"
     },
     "job_id": {
       "$ref": "#/$defs/JobId"
+    },
+    "peak_rss_mib": {
+      "description": "The largest resident memory of the processes of the job, in MiB;\nabsent when the host cannot measure it.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
     },
     "refusal_code": {
       "anyOf": [

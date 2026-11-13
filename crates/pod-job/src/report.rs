@@ -86,6 +86,14 @@ pub struct RunReport {
     pub exit_code: Option<i32>,
     /// The time from the claim to the report, in seconds.
     pub wall_s: u64,
+    /// The CPU time of the processes of the job, user and system, in
+    /// seconds; absent when the host cannot measure it, never 0 for unknown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_s: Option<u64>,
+    /// The largest resident memory of the processes of the job, in MiB;
+    /// absent when the host cannot measure it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak_rss_mib: Option<u64>,
     /// The time from the claim to the hook of the job's first step, in
     /// seconds; absent when no step started. Not in the public report.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -119,6 +127,14 @@ pub struct PublicReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boundary: Option<Boundary>,
     pub wall_s: u64,
+    /// The CPU time of the processes of the job, user and system, in
+    /// seconds; absent when the host cannot measure it, never 0 for unknown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_s: Option<u64>,
+    /// The largest resident memory of the processes of the job, in MiB;
+    /// absent when the host cannot measure it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak_rss_mib: Option<u64>,
     pub exit_reason: ExitReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refusal_code: Option<RefusalCode>,
@@ -144,6 +160,8 @@ impl RunReport {
             unit_kind: self.unit.as_ref().map(|u| u.unit_kind.clone()),
             boundary: self.unit.as_ref().map(|u| u.boundary),
             wall_s: self.wall_s,
+            cpu_s: self.cpu_s,
+            peak_rss_mib: self.peak_rss_mib,
             exit_reason: self.exit_reason,
             refusal_code: self.refusal_code,
         }
