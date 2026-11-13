@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**373 entries: 110 open, 7 partial, 5 blocked, 251 done.**
+**374 entries: 110 open, 7 partial, 5 blocked, 252 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 3 | 0 | 70 | 87 |
+| P1 | 13 | 3 | 0 | 71 | 87 |
 | P2 | 51 | 2 | 5 | 130 | 188 |
-| P3 | 45 | 2 | 0 | 49 | 96 |
-| **All** | 110 | 7 | 5 | 251 | 373 |
+| P3 | 46 | 2 | 0 | 49 | 97 |
+| **All** | 110 | 7 | 5 | 252 | 374 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -419,4 +419,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |
 | [T-475](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
 | [T-476](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |
-| [T-477](relay.md) | P1 | S | M2 | defect | open | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
+| [T-477](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
+| [T-478](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the client of the HTTP road never sends `close`, so a caller that drops its stream leaves the session at the role |

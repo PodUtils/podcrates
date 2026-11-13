@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 373 entries: 110 open, 7 partial, 5 blocked, 251 done.
+`TODO/INDEX.md` holds 374 entries: 110 open, 7 partial, 5 blocked, 252 done.
 
 ## State
 
@@ -11,7 +11,8 @@
   (T-336 to T-339, T-406), T-393, T-395, T-353, T-380, T-358, T-416,
   T-417. Each consumer took `v0.34.0` (#104, closed).
 - `main` holds T-476 (the invariants 6 to 10 of the HTTP road; a change
-  of its wire) for the next tag.
+  of its wire) and T-477 (the serial form writes the bytes down from a
+  task of its own, PodUtils/podssh#222) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -65,12 +66,12 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-477 (the deadlock of
-   the serial form of the HTTP road, PodUtils/podssh#222); T-381 (the options of
+1. **The defects and asks of the consumers:** T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
-   another party: coturn keys with SHA-1 alone); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
+   another party: coturn keys with SHA-1 alone); T-478 (the client of
+   the HTTP road never sends `close`); T-378 (`pod-devtunnel`, GitHub #94 and PodUtils/podssh#216:
    partial: the client side is in for PodUtils/podssh@T-755; the next tag takes
    it; the second part is the creation of tunnels, the logins and the
    token store; then T-386, T-387, T-385); T-330 (podvm's pair
@@ -152,7 +153,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221 and C230 to C232; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221 and C230 to C235; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
