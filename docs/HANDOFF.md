@@ -12,21 +12,22 @@ is done. Git and the record keep finished work.
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
 2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
-   takes of `v0.40.0` on its hand-off issue.
-3. Take the work order of `TODO/PROGRESS.md`: the red runs first (T-535,
-   T-536, T-537), then the link carriers after the tag (item 3c).
+   takes of `v0.40.0` on its hand-off issue #140.
+3. Take the work order of `TODO/PROGRESS.md`: the red run first (T-537),
+   then T-539 (the termios mode of `pod-term`, in work on the local branch
+   w-term539) and the link carriers (item 3c).
 
 ## In flight
 
-- The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, closed:
-  each consumer took it). `v0.40.0` is in release at `3d6bbf0`
-  (`docs/releases/v0.40.0.md`): the poll, quic, udp, dns and icmp carriers
-  of `pod-link`, `cpu_s` and `peak_rss_mib` of `pod-job`, the forms of the
-  file hosts.
+- The last release: `v0.40.0` at `1335e9a` (ci 43467923338, adoption
+  43467923371, release 43474412563; the hand-off #140, COORD-080): the
+  poll, quic, udp, dns and icmp carriers of `pod-link`, `cpu_s` and
+  `peak_rss_mib` of `pod-job`, the forms of the file hosts. The takes of
+  `v0.39.0`: each consumer (#137, closed).
 - Each agent of this session is merged into `main`. The open threads of
   this session:
-  - T-529 (partial): the live round trip of the file hosts. It waits for
-    the answer to PodUtils/podssh#230 with the tag `v0.40.0`.
+  - T-539 (open): the termios mode of `pod-term` (PodUtils/podssh#232).
+    An agent works on it in the worktree `.claude/worktrees/term539`.
   - T-533 (open): scripts/agent/check-macos.sh, a local check of the
     build for macOS.
   - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
@@ -68,7 +69,7 @@ is done. Git and the record keep finished work.
   taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
+- podrunner (on `v0.40.0`, `35595a6`, PodUtils/podrunner#89): its session
   runs with podvm. Its T-108 fills `cpu_s` and `peak_rss_mib` with
   `v0.40.0` (PodUtils/podrunner#86). Write to it by an issue with
   `(to podrunner)` in the title.

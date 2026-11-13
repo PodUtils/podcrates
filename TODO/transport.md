@@ -6651,7 +6651,7 @@ session does not dispatch. T-529 takes its result.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6698,7 +6698,7 @@ by hand with the input `relay` `none`).
 ## Done
 
 - Part, 2026-11-13: `live.yml` run 43448958418 at `6b183f6`: tmpfiles.org holds by the signed link of its page (1.5 s), temp.sh holds, litterbox answers HTTP 412 "Invalid uploader" with the fields of its upload form. Two other parties saw the same 412 from cloud networks. litterbox's `on-by-default` is false, with its rank kept (call C285). Open: a run of the step with `file hosts: 2 ran, 0 failed`, and the answer to PodUtils/podssh#230 with the tag.
-
+- 2026-11-13: `live.yml` run 43451618197 at `72632b2`: "file hosts: 2 ran, 0 failed" (tmpfiles.org 1109 ms, temp.sh 763 ms; litterbox skipped). `v0.40.0` at `1335e9a` holds the forms; PodUtils/podssh#230 has the answer with the tag.
 
 # T-539: `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232)
 
@@ -6771,3 +6771,31 @@ its byte), `term-termios-echo` (DEL echoes as `^` and DEL),
 `sh scripts/plant-each.sh --apply`: 0 stale.
 
 The answer to PodUtils/podssh#232 with the tag is the parent session's.
+
+# T-540: `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens
+
+**Source:** T-539 (a finding of its work).
+**Category:** chore
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `termios::Tty` pin the bytes of the line discipline of Linux (`n_tty`). The expected bytes were read from a kernel pty once, by hand. No test compares `Tty` with the kernel, so a later change of either can drift with no failure.
+
+## Premise
+
+- Read: `crates/pod-term/tests/termios.rs` and `tests/termios_modes.rs`; calls C287 to C289.
+- Measured: on a host where `/dev/ptmx` opens, a pty with each state and input gives the echo and the reads that the tests pin.
+
+## Approach
+
+A test, where `/dev/ptmx` opens (else it skips with the reason, as `need_loopback!` does): for each case of a table (the state, the input), give the state and the input to a kernel pty (`openpty`, `tcsetattr`, a write to the master, a read of the slave and of the master) and to `Tty`, and compare the bytes to the child and the echo. The table takes the cases of the two test files. The pty code goes in `pod-testkit` or in the test, behind `cfg(target_os = "linux")`.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features
+```

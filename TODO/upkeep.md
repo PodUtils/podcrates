@@ -1254,14 +1254,14 @@ The next nightly proves riscv64.
 
 2026-11-13. `limit()` with `scaled` in the five test files of `pod-warp`. The next nightly proves riscv64.
 
-# T-533: scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows
+# T-533: `scripts/agent/check-macos.sh`: a local check of the build for macOS, as `check-windows.sh` does for Windows
 
 **Source:** `ci.yml` run 43454211290 at `b98b432` (the static probes of macOS: `libc::SOCK_CLOEXEC` in the icmp carrier of `pod-link`).
 **Category:** chore
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1274,15 +1274,19 @@ The local checks build Linux and Windows only. A Unix path that uses an item of 
 
 ## Approach
 
-Write scripts/agent/check-macos.sh from `check-windows.sh`: the target `x86_64-apple-darwin`, a zig wrapper that drops `--target`, `-arch` and `-mmacosx-version-min`, and `cargo check --tests` of the workspace without the crates whose C does not build so (each one named in the script with the reason). Remove `target/x86_64-apple-darwin` after. Name it in `docs/maintenance.md` beside `check-windows.sh`, and in the merge procedure.
+Write `scripts/agent/check-macos.sh` from `check-windows.sh`: the target `x86_64-apple-darwin`, a zig wrapper that drops `--target`, `-arch` and `-mmacosx-version-min`, and `cargo check --tests` of the workspace without the crates whose C does not build so (each one named in the script with the reason). Remove `target/x86_64-apple-darwin` after. Name it in `docs/maintenance.md` beside `check-windows.sh`, and in the merge procedure.
 
 ## Prove
 
 ```sh
-sh scripts/agent/check-macos.sh  # a new script
+sh scripts/agent/check-macos.sh
 ```
 
 and a planted `libc::SOCK_CLOEXEC` in a Unix path of `pod-link` fails it.
+
+## Done
+
+2026-11-13. `scripts/agent/check-macos.sh`: `cargo check --tests` of the workspace for `x86_64-apple-darwin`, with `zig cc -target x86_64-macos` and without `pod-gsr` and `static-probe`; 0 faults at `d531d20`. A planted `libc::SOCK_CLOEXEC` in the Unix path of the icmp carrier fails it with E0425. `docs/maintenance.md` and the row `scripts/agent/` of `docs/design.md` name it. No plant in `scripts/plants/`: the runners of `plants.yml` have no zig and no target of macOS.
 
 # T-535: The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator
 
@@ -1370,7 +1374,7 @@ with the registry of `distribution` on the path, ten times with no failure.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1399,6 +1403,10 @@ Read `https://nodes.tox.chat/json` again. When the node still gives no TCP port,
 cargo test -p pod-services
 cargo run -q -p pod-services-watch -- --service tox-tcp-relay
 ```
+
+## Done
+
+2026-11-13. The list of 2026-11-13 gives the node at 205.185.115.131 no TCP port and no UDP: it is down. The four other endpoints are the four items with 443 in `tcp_ports` and `status_tcp` true. `tox-tcp-relay.toml` drops `node-3091c6be` and its key; the sources of the other four have the read of 2026-11-13. `pod-services-watch --service tox-tcp-relay`: holds, 4 of 28 items, 0 of them not in the file.
 
 # T-538: The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ
 

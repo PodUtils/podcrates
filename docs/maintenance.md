@@ -313,6 +313,12 @@ fourth argument of the script names the list when it is elsewhere.
   do not build. `sh scripts/agent/check-windows.sh` checks the tests of
   the workspace for Windows here (zig is the C compiler; no code is
   made). Run it after a merge that adds tests, and before a release.
+* A Unix path that uses an item of Linux alone (`libc::SOCK_CLOEXEC`, a
+  field of a struct) does not build on macOS. `sh
+  scripts/agent/check-macos.sh` checks the workspace and its tests for
+  macOS here, with zig, except `pod-gsr` and `static-probe` (OpenSSL).
+  Run it after a merge that adds Unix code, and before a release; then
+  remove `target/x86_64-apple-darwin`.
 * Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
   head; a push to `main` cancels the runs that wait. `adoption.yml` runs
   only on a change of `crates/`, `adoption/` or its scripts: a commit of
