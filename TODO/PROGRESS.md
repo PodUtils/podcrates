@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 384 entries: 115 open, 7 partial, 4 blocked, 258 done.
+`TODO/INDEX.md` holds 385 entries: 115 open, 7 partial, 4 blocked, 259 done.
 
 ## State
 
@@ -70,7 +70,7 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects and asks of the consumers:** T-489 (a client of
-   `pod-devtunnel` with no user token); T-491 (a proc on `/proc` in the namespace rung of `pod-enter`, PodUtils/podvm#296); T-486 (an overlay root in
+   `pod-devtunnel` with no user token); T-492 (`exec` joins the mount namespace of the payload in `pod-enter`, PodUtils/podvm#297); T-486 (an overlay root in
    the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
