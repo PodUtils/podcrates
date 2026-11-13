@@ -6707,7 +6707,7 @@ by hand with the input `relay` `none`).
 **Milestone:** M3
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6736,3 +6736,38 @@ The tests pin each flag against the rules of the Linux line discipline (`n_tty`)
 ```sh
 cargo test -p pod-term --all-features
 ```
+
+## Done
+
+2026-11-13, commit a94ac0d. `pod_term::termios`, the third mode of
+`pod-term`: `Tty` follows a `Termios` (`iflag`, `oflag`, `cflag`,
+`lflag`, `cc`, with the Linux values in `termios::flags`) and the window
+size. `Tty::input` gives `Event::ToChild` (one line for each read in the
+canonical mode; an empty line is `VEOF` on an empty line),
+`Event::ToUser` (the echo, after `OPOST`), `Event::Signal` (SIGINT,
+SIGQUIT, SIGTSTP, with the flush unless `NOFLSH`), and
+`Event::StopOutput`, `Event::StartOutput` (`IXON`, `IXANY`).
+`Tty::output` applies `OPOST`, `ONLCR`, `OCRNL`, `ONOCR`, `ONLRET` to the
+child's output. `Tty::set` takes `When::Now`, `When::Drain` and
+`When::Flush` (`TCSETS`, `TCSETSW`, `TCSETSF`); `Tty::resize` gives
+SIGWINCH when the size changes. The rules are those of Linux `n_tty`;
+the calls C287 (what is applied and what is kept as data), C288 (the
+control bytes are ASCII) and C289 (a discipline of its own, not a
+`session::Mode`).
+
+The expected bytes of the tests were compared with a Linux 6.18 pty
+(`pty.openpty` and `termios` of Python on this host): each case agrees.
+The kernel drops the echo that is not yet written at a signal with a
+flush; the discipline gives the echo before the `Signal` event, and the
+caller drops what it holds.
+
+`cargo test -p pod-term --all-features`: 231 passed (55 new:
+`tests/termios.rs` 25, `tests/termios_modes.rs` 30). Five plants of
+the group `term`, each caught by hand (`git apply`, the test fails with
+the text of `EXPECT`, `git apply -R`): `term-termios-canon` (`VEOF` adds
+its byte), `term-termios-echo` (DEL echoes as `^` and DEL),
+`term-termios-signals` (`NOFLSH` not read), `term-termios-input`
+(`IGNCR` not read), `term-termios-output` (`ONLCR` gives a bare `\n`).
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+The answer to PodUtils/podssh#232 with the tag is the parent session's.

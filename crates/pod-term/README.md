@@ -35,5 +35,5 @@ dials nothing and spawns nothing. It has no pod dependency.
 | --- | --- | --- |
 | podssh | `podssh_terminal::*` | `pod_term::*` |
 | podssh | the test switches `PODSSH_PLANT`, `PODSSH_TEST_TMUX` of the terminal's tests | `POD_TERM_PLANT`, `POD_TERM_TEST_TMUX` |
-| podssh | the tty of `podssh serve` with no `/dev/ptmx` (its T-776, T-111) | `pod_term::termios::Tty`, which reads the state that serve answers to `TCGETS` |
+| podssh | the tty of `podssh serve` with no `/dev/ptmx` (PodUtils/podssh@T-776, PodUtils/podssh@T-111) | `pod_term::termios::Tty`, which reads the state that serve answers to `TCGETS` |
 | podvm | its own discipline of its SSH server | `pod_term::echo::Discipline` (the same rules) |
