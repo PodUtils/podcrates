@@ -18,10 +18,9 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, open).
   Each consumer took `v0.38.0` (#136, closed).
-- The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
-  (T-488, done); three tests of `pod-services-watch` fail there (T-507:
-  the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
-  next nightly proves it and shows the rest of the Windows tests.
+- The nightly at `923309a` (run 43406798368) passes each job but the two
+  Windows jobs, whose one failure was a test of `pod-wg` that a clock of
+  100 ns steps broke (T-507, done). The next nightly proves them green.
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
   builds its side of a live test (#83, 2026-11-13): it waits for T-106
   (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),

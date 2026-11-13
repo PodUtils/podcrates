@@ -192,8 +192,11 @@ mod tests {
         assert_eq!(later[..8], tai64n(UNIX_EPOCH + Duration::from_secs(1_800_000_005))[..8]);
         let earlier = stamps.next(start);
         assert!(earlier > later, "an instant before the last one");
-        // A nanosecond count at its top carries into the seconds.
-        let top = tai64n(UNIX_EPOCH + Duration::new(7, 999_999_999));
+        // A nanosecond count at its top carries into the seconds. The stamp
+        // is made from its bytes: the clock of Windows counts in steps of
+        // 100 ns, so a `SystemTime` cannot hold 999_999_999 ns there.
+        let mut top = tai64n(UNIX_EPOCH + Duration::from_secs(7));
+        top[8..].copy_from_slice(&999_999_999u32.to_be_bytes());
         assert_eq!(after(top), tai64n(UNIX_EPOCH + Duration::from_secs(8)));
     }
 

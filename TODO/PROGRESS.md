@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 405 entries: 119 open, 7 partial, 4 blocked, 275 done.
+`TODO/INDEX.md` holds 405 entries: 118 open, 7 partial, 4 blocked, 276 done.
 
 ## State
 
@@ -34,7 +34,7 @@
   T-207, #70).
 - Partial: T-028 and T-339 (`pod-warp`), T-040 (the trials of podvm),
   T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351 (`services.yml`), T-378 (`pod-devtunnel`).
-  Open defects: T-507 (three tests of `pod-services-watch` fail on Windows), T-307
+  Open defects: T-307
   (the nightly at `0edd703`; the next green nightly proves it), T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of `pod-session`).
 - Each session talks with podcrates by COORD issues alone, no direct
@@ -75,8 +75,7 @@ next entry.
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
    another party: coturn keys with SHA-1 alone); T-478 (the client of
-   the HTTP road never sends `close`); T-507 (three tests of
-   `pod-services-watch` fail on Windows); T-378 (`pod-devtunnel`, GitHub #94 and
+   the HTTP road never sends `close`); T-378 (`pod-devtunnel`, GitHub #94 and
    PodUtils/podssh#216: partial: the client side is in `v0.33.0` for
    PodUtils/podssh@T-755; the second part is the creation of tunnels, the
    logins and the token store; then T-386, T-387, T-385); T-330 (podvm's pair
