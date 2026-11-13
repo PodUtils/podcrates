@@ -96,7 +96,7 @@
 89 issue closed
 90 issue closed
 91 issue closed
-92 issue open
+92 issue closed
 93 issue closed
 94 issue open
 95 issue closed
@@ -109,7 +109,7 @@
 102 issue closed
 103 issue closed
 104 issue closed
-105 issue open
+105 issue closed
 106 issue open
 107 issue open
 108 issue closed
@@ -132,5 +132,5 @@
 125 issue open
 126 issue open
 127 issue closed
-128 issue open
+128 issue closed
 129 issue open

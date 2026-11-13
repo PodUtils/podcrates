@@ -5602,6 +5602,16 @@ cargo test -p pod-devtunnel --test live -- --ignored
 The owner gives a token of his own account and a tunnel with a host, as
 secrets of the job; the ruling of GitHub #94: never a shared account.
 
+## Correction
+
+2026-11-13, the owner's ruling "Open questions": the Problem assumes that
+a live run needs the owner's token on each side. Microsoft's pages
+(read 2026-11-13, updated 2026-02-12) say that a host needs an account
+(or a host access token that an account gives, about 24 h), and that a
+client needs none for a tunnel with anonymous access or with a connect
+token. The client side of the live run waits for T-489; the host side
+still needs one account to make the tunnel.
+
 # T-387: `pod-devtunnel`: the name on crates.io before the release
 
 **Source:** T-378 (GitHub #94: the name in the reservation list of GitHub #1).
@@ -6073,7 +6083,7 @@ place: the counts of `docs/live-calls.md` (176 watches of 81 files) and of
 
 **Source:** GitHub #116 (podswarm P-2).
 **Category:** feature
-**Milestone:** M8
+**Milestone:** M1
 **Priority:** P3
 **Effort:** M
 **Status:** open
@@ -6100,6 +6110,12 @@ own loop. podssh#168 and podnet#384 name the same hazard.
   and no cap for each address.
 - T-036 (the relay role of podssh) and T-420 (the server half of the
   WebSocket carrier of `pod-link`) can take the same loop.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podnet and podssh: the server half of the
+  WebSocket carrier of `pod-link` (T-420, podnet) and the relay role of
+  podssh (T-036) take the same loop, and PodUtils/podssh#168 and
+  PodUtils/podnet#384 name the hazard. It moved from M8 to M1, with T-420
+  in item 3 of the work order.
 
 ## Approach
 
@@ -6128,7 +6144,7 @@ next accept from it closes and one from 127.0.0.2 is taken; with
 
 ## Start condition
 
-The owner answers Q15, R-01 and R-04.
+It goes with T-420 (the server half of the WebSocket carrier).
 
 # T-440: `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117)
 
@@ -6159,6 +6175,9 @@ client fails with `Refusal::Unpinned` today.
   mode either.
 - `crates/pod-tls/tests/no_permissive_verifier.rs` guards against a
   verifier that admits with no check.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone (the enrolment of its workers). It
+  stays in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -6184,7 +6203,8 @@ enrolment mode fails the guard.
 
 ## Start condition
 
-The owner answers Q15 and R-04.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-441: `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120)
 
@@ -6210,6 +6230,10 @@ of a failure) and wait for the exit with no poll loop.
   `spawn(command)` (`sh -c`, stdin and stdout piped, stderr inherited, a
   kill on drop) and `exited()` (`try_wait`). The argv form, the stderr
   pipe and the wait future are the gap.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: each caller of `ChildIo::spawn`
+  gives a command line of its user, for which `sh -c` is right. It stays
+  in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -6231,7 +6255,8 @@ child; the tests of `spawn` and `exited` do not change.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-418: Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220)
 
@@ -6325,3 +6350,55 @@ cargo test -p pod-services --test file_host
 
 podssh reports a live run of PodUtils/podssh@T-738 with an upload and a
 fetch at a file host.
+
+# T-489: `pod-devtunnel`: a client with no user token, for a tunnel with anonymous access or with a connect token
+
+**Source:** the owner's ruling "Open questions" (2026-11-13), the read of Microsoft's pages of Dev Tunnels.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The client of `pod-devtunnel` asks the management API for the connect
+information with a user token (`Scheme::{Github, Aad, Bearer}`) in each
+case. A tunnel can grant access with no account: an access control entry
+that allows anonymous access (`devtunnel host --allow-anonymous`,
+`devtunnel access create --anonymous`), or a connect token that its
+owner gives (`devtunnel token TUNNEL --scopes connect`, about 24 h). The
+client cannot use either, so a user with no account cannot connect.
+
+## Premise
+
+- Read on 2026-11-13: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/security
+  and .../cli-commands (updated 2026-02-12): "By default, hosting and
+  connecting to a tunnel requires authentication with the same ...
+  account that created the tunnel"; an allow-anonymous entry gives access
+  with no authentication; a client access token "allows the bearer to
+  connect to any ports of the tunnel"; a web client sends
+  `X-Tunnel-Authorization: tunnel <TOKEN>`; tokens expire after about
+  24 h and only a user identity refreshes them.
+- Read: `crates/pod-devtunnel/README.md` (`UserToken`, `Scheme`,
+  `Management::connect_info`).
+- Not measured: the answer of the management API to a request with no
+  `Authorization` for a tunnel with anonymous access, and to a request
+  with `Authorization: tunnel TOKEN`.
+
+## Approach
+
+A credential of the caller with three forms: a user token (as now), a
+tunnel access token (`tunnel TOKEN`, used for the API and for the
+relay), and none (a tunnel with anonymous access). The source of each
+header in the vendor's client (`microsoft/dev-tunnels`, `rs/src/`),
+cited as the README cites the others. The stand-in answers each form and
+refuses a missing token where the tunnel has no anonymous entry. A
+refusal names the form that the caller gave. The live test of T-386 can
+then run its client side with no account.
+
+## Prove
+
+```sh
+cargo test -p pod-devtunnel --all-features
+```

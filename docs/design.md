@@ -333,7 +333,9 @@ Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
 `pod-probe`; for podrunner (T-146): `pod-dockerapi` (phase 3),
 `pod-actions-proto` and `pod-actions-exec` (the native runner, Q11); the
-owner's name of 2026-11-11: `pod-mask` (T-180).
+owner's name of 2026-11-11: `pod-mask` (T-180); for the asks of podswarm
+(T-430 to T-437, the owner's ruling "podswarm"): `pod-proc`, `pod-tty`,
+`pod-fuse`, `pod-cas`, `pod-view`, `pod-attest`, `pod-ssh`.
 
 Project names, each with the repository of its name under PodUtils
 (`podvm-*`: PodUtils/podvm; GitHub #1): `pods`, `podstat`, `podforge`,
@@ -364,8 +366,8 @@ podssh changes each day, most in `serve/`, `session/`, `quick/`,
 * From the import to the adoption, the consumer changes the module only
   for fixes, and podcrates ports each fix (Q3). `check-sources.py` finds
   each change (section 9). The import tells the consumer session that
-  the freeze starts (a direct message, or a COORD issue of podcrates
-  `(to CONSUMER)`; `docs/maintenance.md`, "Talk between sessions").
+  the freeze starts by a COORD issue of podcrates `(to CONSUMER)`
+  (`docs/maintenance.md`, "Talk between sessions").
 
 
 ## 6. The shared traits (in `pod-core`)

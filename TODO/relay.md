@@ -1632,7 +1632,7 @@ the budgets of the relay in use. Tests:
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1657,16 +1657,32 @@ of the reverse road, with the health memory of T-122.
 cargo test -p pod-relay --all-features
 ```
 
-## Blocker
-
-The relay contract (`ajam-relay`, `llms-full.txt`) makes a pair on the
-control host only and moves none. The owner of the relay adds a pair on
-(or a move to) another host of the pool; the daily watch of the contract
-(`services.yml`) shows the change, and this entry then starts.
-
 ## Start condition
 
-T-025 or T-026 is done.
+The roads of the relays in the set have their clients: `pod-relay` (the
+owner's relay), `pod-gsr`, and the open entries of M4 for the others
+(T-031 DERP, T-032 Piping, T-033 OpenTunnel). The first part works with
+the roads that exist.
+
+## Correction
+
+2026-11-13, the owner's ruling "Open questions": the Problem names one
+relay (the owner's) and its pool of hosts, so a failover only moves among
+the hosts of one operator, and that relay stays a single point of
+failure. The catalog of `pod-services` holds the relays of many
+operators for a reverse road: `ajam-relay`, `croc`, `n0-iroh-relay`,
+`ajam-ts-relay`, the DERP servers (`tailscale-derp`, `tailcat-derp`), the
+SSH tunnels (`serveo`, `sandhole`, `pinggy`, `localhost-run`, `ssh-j`,
+`tuns-sh`), `bore`, `localtunnel`, `trycloudflare`, `microsoft-devtunnel`,
+`hackerschoice-gsr`, `qsocket-qsrn`, `gosuda-portal`, the Piping servers,
+the mailboxes of magic-wormhole and the TCP relays of Tox and ZeroTier.
+The new Approach: a node of the reverse road holds its place on the
+relays of several operators at once (a set that the caller ranks, from
+the catalog), and the dialer tries them in rank order; the node is named
+by its key on each one (the pairing of each road, or a record under the
+key, as `n0-pkarr` gives), so a lost relay costs a reconnect on the next
+one, and no relay of one operator is needed. Measure first: the time of a
+failover from a lost relay to the next, with two stand-ins of the test.
 
 # T-150: `pod-relay`: a handler target for the relay node (PodUtils/podnet#413)
 
@@ -3817,7 +3833,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3857,6 +3873,15 @@ podnet starts its link workstream and names its first carrier (a COORD issue).
 - `cargo test -p pod-link --all-features`: 49 passed (`frames` 6, `carriers` 8, `keepalive` 4, `limits` 13, `streams` 12, `windows` 6); each test binary passed 60 runs in a loop. Clippy of `pod-link` with all features and with none, rustdoc with `-D warnings`, `check-size.py`, `check-design-paths.py` and `check-probe.py` pass.
 - The fuzz target `link_frame` with 6 seeds; its body ran on the seeds and on 600,000 mutations with no panic.
 - Before the release: the main session reserves the name `pod-link` on crates.io (`check-crates-io-names.py` reads it from `docs/design.md`; crates.io answered 404 for it on 2026-11-12).
+
+2026-11-13. The rest is done: `v0.32.0` released the crate (#93), the
+resume over `pod-session` is T-311 (done), the tcp carrier is T-396
+(done, `v0.34.0`), and podnet took `v0.34.0` at `ef8c901`
+(PodUtils/podnet#515) with its PodUtils/podnet@T-268 on the tcp carrier.
+crates.io answers `pod-link` at `0.0.0` with the repository of podcrates
+(2026-11-13; `python3 -I scripts/check-crates-io-names.py`). The next
+parts have entries of their own: the carriers T-420 to T-424, the ARQ
+T-310, and the first stream of podswarm T-442.
 
 # T-301: `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479)
 
@@ -4576,6 +4601,10 @@ changes in a session, so the caps must change on the live link.
   `crates/pod-link/src/state.rs`).
 - The workstream of the crate is T-300 (partial); T-310 and T-420 to
   T-424 are podnet's next parts. This ask is new.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podnet asked for no priority and
+  no change of the windows. It stays in M8 and waits until the podswarm
+  session starts; an ask of podnet moves it to item 3.
 
 ## Approach
 
@@ -4602,7 +4631,8 @@ that `Settings::check` refuses gives an error.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-476: `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221)
 

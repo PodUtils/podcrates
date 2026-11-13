@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**380 entries: 112 open, 7 partial, 5 blocked, 256 done.**
+**382 entries: 113 open, 7 partial, 4 blocked, 258 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 72 | 87 |
-| P2 | 53 | 2 | 5 | 133 | 193 |
-| P3 | 47 | 2 | 0 | 49 | 98 |
-| **All** | 112 | 7 | 5 | 256 | 380 |
+| P1 | 13 | 3 | 0 | 72 | 88 |
+| P2 | 53 | 3 | 4 | 134 | 194 |
+| P3 | 47 | 1 | 0 | 50 | 98 |
+| **All** | 113 | 7 | 4 | 258 | 382 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -153,7 +153,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-104](fleet.md) | P1 | M | M8 | feature | open | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
-| [T-107](podvm.md) | P2 | S | M6 | feature | open | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
+| [T-107](podvm.md) | P2 | S | M6 | feature | partial | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
 | [T-109](podvm.md) | P2 | S | M7 | research | done | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
 | [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
@@ -170,7 +170,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-121](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: renew a pair (PodUtils/podnet#413) |
 | [T-122](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: a health memory of the relay hosts (PodUtils/podnet#413) |
 | [T-123](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the session budget from the pool document (PodUtils/podnet#413) |
-| [T-124](relay.md) | P2 | M | M2 | feature | blocked | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
+| [T-124](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: failover on the reverse road (PodUtils/podnet#413) |
 | [T-125](transport.md) | P2 | S | M1 | feature | done | `pod-dns`: one kept connection for each DoH server (PodUtils/podnet#413) |
 | [T-126](transport.md) | P3 | S | M1 | feature | done | `pod-dns`: a pin table that the caller can replace (PodUtils/podnet#413) |
 | [T-127](transport.md) | P3 | S | M1 | feature | done | `pod-services`: the file host of PyPI (PodUtils/podnet#413) |
@@ -312,7 +312,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-279](relay.md) | P3 | S | M2 | feature | done | `pod-session`: the resume window and the single use of a resume token as settings (PodUtils/podnet#479) |
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
-| [T-300](relay.md) | P3 | L | M2 | feature | partial | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
+| [T-300](relay.md) | P3 | L | M2 | feature | done | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
 | [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
@@ -404,17 +404,17 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-435](fleet.md) | P3 | L | M8 | feature | open | `pod-view`: a live view of a directory (records, a frame codec, an ordered write-back log) (GitHub #114) |
 | [T-436](fleet.md) | P3 | L | M8 | feature | open | `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115) |
 | [T-437](fleet.md) | P3 | L | M8 | feature | open | `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112) |
-| [T-438](fleet.md) | P2 | S | M8 | release | open | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
-| [T-439](transport.md) | P3 | M | M8 | feature | open | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
+| [T-438](fleet.md) | P2 | S | M8 | release | done | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
+| [T-439](transport.md) | P3 | M | M1 | feature | open | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
 | [T-440](transport.md) | P3 | S | M8 | feature | open | `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117) |
 | [T-441](transport.md) | P2 | S | M8 | feature | open | `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120) |
 | [T-442](relay.md) | P2 | M | M8 | feature | open | `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88) |
 | [T-443](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: a map from the findings to capabilities, and a cache across runs keyed by the kernel, the boot and the probe binary (GitHub #82) |
-| [T-444](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82) |
+| [T-444](podvm.md) | P2 | M | M6 | feature | open | `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82) |
 | [T-445](podvm.md) | P3 | M | M8 | feature | open | `pod-hold`: the marker, the calls that fail with `ENOSYS`, and the reads of a path and an argv of a stopped task (GitHub #121) |
 | [T-446](podvm.md) | P3 | M | M8 | feature | open | `pod-hold`: a plan that the child applies before `execve` (`PreExec` and `Program::with_plan`) (GitHub #121) |
-| [T-447](podvm.md) | P3 | M | M8 | feature | open | `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122) |
-| [T-448](podvm.md) | P3 | S | M8 | docs | open | `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123) |
+| [T-447](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122) |
+| [T-448](podvm.md) | P3 | S | M6 | docs | open | `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123) |
 | [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
 | [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |
 | [T-470](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs |
@@ -427,3 +427,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-482](relay.md) | P2 | S | M2 | defect | open | `pod-netstack`: a stream dropped before its handshake ends finishes the handshake later |
 | [T-485](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291) |
 | [T-486](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294) |
+| [T-488](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)` |
+| [T-489](transport.md) | P2 | S | M1 | feature | open | `pod-devtunnel`: a client with no user token, for a tunnel with anonymous access or with a connect token |

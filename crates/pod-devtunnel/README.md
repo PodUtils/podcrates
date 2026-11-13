@@ -131,7 +131,7 @@ Against GitHub #94:
 | [x] A stand-in relay: the subprotocol, `none`, `direct-tcpip`, an echo, a reconnect | `tests/relay.rs`, `tests/reconnect.rs` |
 | [x] A live test with the user's own token, skipped with none | `tests/live.rs` (ignored; T-386) |
 | [x] The static probe links the crate | `examples/static-probe/src/devtunnel.rs` |
-| [ ] The name in the reservation list of GitHub #1 | the owner reserves the name (T-387) |
+| [ ] The name on crates.io | GitHub #1 lists it; crates.io answers 404 (2026-11-13); the owner reserves it (T-387) |
 
 ## Adoption map
 

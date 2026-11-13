@@ -737,8 +737,8 @@ cargo todo check
 The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
 "pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
 of git hosts and alternatives such as Radicle behind one interface, and
-it is deferred. The owner unblocks it
-and names the repository; this entry then moves there.
+it is deferred. The owner unblocks it; this entry then moves to the
+record of `PodUtils/podforge`.
 
 # T-218: `pod-git`: upload-pack (v0, v1, v2) and the pack writer (PodUtils/podnet#453)
 
@@ -782,8 +782,8 @@ cargo test -p pod-git --all-features
 The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
 "pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
 of git hosts and alternatives such as Radicle behind one interface, and
-it is deferred. The owner unblocks it
-and names the repository; this entry then moves there.
+it is deferred. The owner unblocks it; this entry then moves to the
+record of `PodUtils/podforge`.
 
 ## Start condition
 
@@ -836,8 +836,8 @@ cargo test -p pod-git --all-features
 The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
 "pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
 of git hosts and alternatives such as Radicle behind one interface, and
-it is deferred. The owner unblocks it
-and names the repository; this entry then moves there.
+it is deferred. The owner unblocks it; this entry then moves to the
+record of `PodUtils/podforge`.
 
 ## Start condition
 
@@ -887,8 +887,8 @@ cargo test -p pod-git --all-features
 The owner, 2026-11-11 and 2026-11-12 (`docs/decisions.md`, the rulings
 "pod-git" and "Renames"): the work goes to `PodUtils/podforge`, the home
 of git hosts and alternatives such as Radicle behind one interface, and
-it is deferred. The owner unblocks it
-and names the repository; this entry then moves there.
+it is deferred. The owner unblocks it; this entry then moves to the
+record of `PodUtils/podforge`.
 
 ## Start condition
 

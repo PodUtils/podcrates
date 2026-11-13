@@ -1560,6 +1560,14 @@ answer to Q15; until then they wait, as M8 does.
 cargo todo check
 ```
 
+## Correction
+
+2026-11-13: the owner's ruling "podswarm" (`docs/decisions.md`) settles
+Q15 and the 16 rulings; their list is now in the text of that ruling.
+Call C245 places each entry: T-439, T-444, T-447 and T-448 help a sibling
+and leave M8; the others stay in M8 and wait until the podswarm session
+starts. T-438 is done: the owner reserved the seven names.
+
 ## Done
 
 2026-11-13: 21 entries for the 20 asks of podswarm to podcrates (P-1 has
@@ -1625,6 +1633,10 @@ tree kill of `pod-supervise` and can take the same crate.
   reservation is T-438).
 - Not measured: the rungs `Cgroup`, `Pidns`, `Reaper`, `Job` and
   `Session` on their systems; ConPTY.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone. podvm and podrunner have the tree
+  kill of `pod-supervise` (T-162) and asked for no rung. It stays in M8
+  and waits until the podswarm session starts.
 
 ## Approach
 
@@ -1665,7 +1677,8 @@ adoption trials of podvm and podrunner pass.
 
 ## Start condition
 
-The owner answers Q15 and R-03 (the names of the new crates).
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-431: `pod-proc`: the exec takeover of a new process (`PTRACE_SEIZE`, the stop at the exec, the stub) (GitHub #113)
 
@@ -1695,6 +1708,9 @@ away. The process keeps its pid and the exit status of a local run.
   T-445.
 - Not measured: `PTRACE_SEIZE` under Docker, AppArmor and
   `ptrace_scope` (the spec's risk K-03).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone (its spreading). It stays in M8 and
+  waits until the podswarm session starts.
 
 ## Approach
 
@@ -1717,7 +1733,8 @@ and the exit status of a local run.
 
 ## Start condition
 
-T-430 and T-445 are done. The owner answers Q15.
+T-430 and T-445 are done. The podswarm session starts, or a sibling asks
+for it (the owner's ruling "podswarm", 2026-11-13).
 
 # T-432: `pod-tty`: the guard of the caller's terminal (raw mode, size, restore, escape line) on Unix and Windows (GitHub #111)
 
@@ -1747,6 +1764,10 @@ podssh has this code in its client (`podssh-ssh`, `terminal/` and
 - Not read: the modules of `PodUtils/podssh:crates/podssh-ssh` that the
   cut takes.
 - The name: crates.io answered 404 for `pod-tty` on 2026-11-13 (T-438).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podssh keeps its own terminal
+  code, and the crate has no other consumer. It stays in M8 and waits
+  until the podswarm session starts.
 
 ## Approach
 
@@ -1778,7 +1799,8 @@ One `Resize` for one window change. `~.` after a newline gives
 
 ## Start condition
 
-The owner answers Q15 and R-03.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-433: `pod-fuse`: a FUSE server with no libfuse, with the write opcodes, `READDIRPLUS` and invalidation (GitHub #110)
 
@@ -1808,6 +1830,10 @@ inside `pod-enter`.
   notices, no cloned descriptors, no trait for the tree.
 - The name: crates.io answered 404 for `pod-fuse` on 2026-11-13 (T-438).
 - Not measured: a real mount here (the session has no `/dev/fuse`).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: the read-only rung of `pod-enter`
+  (podvm) gains nothing from a writable server. It stays in M8 and waits
+  until the podswarm session starts.
 
 ## Approach
 
@@ -1841,7 +1867,8 @@ through `pod-enter` passes.
 
 ## Start condition
 
-The owner answers Q15 and R-03.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-434: `pod-cas`: a BLAKE3 content store with resume, placement, sweep and tree manifests (GitHub #109)
 
@@ -1872,6 +1899,10 @@ its code.
 - The name: crates.io answered 404 for `pod-cas` on 2026-11-13 (T-438).
 - Not measured: the `blake3` crate with its C and assembly paths on the 14
   targets.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podssh and podrunner are
+  candidates only. It stays in M8 and waits until the podswarm session
+  starts.
 
 ## Approach
 
@@ -1900,8 +1931,9 @@ a manifest round trip. The static probe builds on the 14 targets.
 
 ## Start condition
 
-The owner answers Q15 and R-03; podswarm shows the API in its code (its
-milestone M6).
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13). podswarm shows the API in its code (its milestone
+M6).
 
 # T-435: `pod-view`: a live view of a directory (records, a frame codec, an ordered write-back log) (GitHub #114)
 
@@ -1930,6 +1962,10 @@ when its four view rungs share one API; the issue states the shape now.
   FUSE server; `pod-link` carries streams with credit windows.
 - It takes T-433 (`pod-fuse`) and T-434 (`pod-cas`).
 - The name: crates.io answered 404 for `pod-view` on 2026-11-13 (T-438).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podssh and podrunner are
+  candidates only. It stays in M8 and waits until the podswarm session
+  starts.
 
 ## Approach
 
@@ -1958,7 +1994,8 @@ planted bad rung.
 ## Start condition
 
 T-433 and T-434 are done. podswarm files the final ask after its M2. The
-owner answers Q15, R-03 and R-16.
+podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-436: `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115)
 
@@ -1987,6 +2024,10 @@ caller computed. podvm can use the same check for confidential guests.
   (T-438).
 - Not measured: the `sev` crate with `crypto_nossl` on x86_64 musl (the
   spec lists it as a gap).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podvm has no confidential guest
+  and asked for no check. It stays in M8 and waits until the podswarm
+  session starts.
 
 ## Approach
 
@@ -2018,7 +2059,8 @@ musl.
 
 ## Start condition
 
-The owner answers Q15, R-03 and R-05.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-437: `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112)
 
@@ -2049,6 +2091,10 @@ signal, over any byte stream. podssh has this code in `podssh-ssh`.
   tests of this entry can use it.
 - The name: crates.io answered 404 for `pod-ssh` on 2026-11-13 (T-438).
 - Not read: `PodUtils/podssh:crates/podssh-ssh`.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podssh keeps its own client, and
+  the crate has no other consumer. It stays in M8 and waits until the
+  podswarm session starts.
 
 ## Approach
 
@@ -2076,7 +2122,8 @@ targets with Windows.
 
 ## Start condition
 
-The owner answers Q15 and R-03.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-438: The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1)
 
@@ -2085,7 +2132,7 @@ The owner answers Q15 and R-03.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2121,6 +2168,21 @@ python3 -I scripts/check-crates-io-names.py
 
 The owner answers R-03 and reserves the names.
 
+## Correction
+
+2026-11-13: crates.io answers each of the seven names at `0.0.0` with the
+repository `https://github.com/PodUtils/podcrates` (created between 01:14
+and 02:17 UTC). The owner's ruling "podswarm" settles R-03 (call C244).
+
+## Done
+
+2026-11-13. Commit `228ea87`: the seven names are in "Names held, with no
+crate" of `docs/design.md`, section 4 (call C244). GitHub #1 lists them in
+its section "Registered on 2026-11-13".
+`python3 -I scripts/check-crates-io-names.py`: 94 names, 1 fault
+(`pod-devtunnel`: missing; T-387); each of the seven gives `0.0.0` and
+the repository of podcrates.
+
 # T-449: `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118)
 
 **Source:** GitHub #118 (podswarm P-8).
@@ -2144,6 +2206,10 @@ consumer must report it as one of the two wrong values today.
 - In podcrates now: `LimitMode` in `crates/pod-job/src/capability.rs` has
   `Enforced`, `Reported` and `None` (kebab case); no crate of the
   workspace matches on it; podrunner reads it.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podrunner reads `LimitMode` and
+  has no keeper that polls. It stays in M8 and waits until the podswarm
+  session starts.
 
 ## Approach
 
@@ -2164,4 +2230,5 @@ the generated schema holds `polled` and the schema check passes.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
