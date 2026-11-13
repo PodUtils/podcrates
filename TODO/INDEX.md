@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**423 entries: 113 open, 8 partial, 5 blocked, 297 done.**
+**423 entries: 112 open, 8 partial, 5 blocked, 298 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 81 | 95 |
-| P2 | 55 | 3 | 4 | 158 | 220 |
+| P2 | 54 | 3 | 4 | 159 | 220 |
 | P3 | 47 | 2 | 1 | 56 | 106 |
-| **All** | 113 | 8 | 5 | 297 | 423 |
+| **All** | 112 | 8 | 5 | 298 | 423 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -463,7 +463,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-529](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
 | [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |
 | [T-532](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled |
-| [T-533](upkeep.md) | P2 | S | M5 | chore | open | scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows |
+| [T-533](upkeep.md) | P2 | S | M5 | chore | done | `scripts/agent/check-macos.sh`: a local check of the build for macOS, as `check-windows.sh` does for Windows |
 | [T-534](upkeep.md) | P1 | S | M5 | defect | done | `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held |
 | [T-535](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator |
 | [T-536](upkeep.md) | P2 | S | M5 | defect | done | `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection |

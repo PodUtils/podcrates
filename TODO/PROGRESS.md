@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 423 entries: 113 open, 8 partial, 5 blocked, 297 done.
+`TODO/INDEX.md` holds 423 entries: 112 open, 8 partial, 5 blocked, 298 done.
 
 ## State
 
@@ -72,9 +72,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: T-539 (item 1, in work). Then, after the
-tag `v0.40.0`, the link carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then T-533 (a local check of the build for
-macOS; a P2 chore of the checks). Then the items below, in order.
+First: T-539 (item 1, in work). Then the link carriers of M2 for podnet
+(item 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
 
 1. **The defects and asks of the consumers:** T-539 (a line discipline
    of `pod-term` that follows a termios state, PodUtils/podssh#232);
