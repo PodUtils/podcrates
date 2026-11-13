@@ -6447,3 +6447,63 @@ cargo test -p pod-tls --all-features
 
 A consumer asks for it, or the owner starts it (the issue is marked
 deferred).
+
+# T-501: `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-321.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-321 is a take of a crate of podcrates: the TCP relay of RFC 6062: a TURN client that opens a TCP connection to a peer through the server (`Connect`, `ConnectionBind`, `ConnectionAttempt`). The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-321 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+in `pod-turn`, the methods and attributes of RFC 6062 and a `Client::connect(peer)` that gives a stream over a second TCP connection bound with `CONNECTION-ID`; tests against coturn with `--tcp-relay` in `scripts/ci/turn-tests.sh` and a mock server.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-502: `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-114.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-114 is a take of a crate of podcrates: a harness that starts headscale (a self-hosted control server of Tailscale) with a pre-auth key, for the tests of a tailnet node, beside the one of podssh. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-114 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+in `pod-testkit`, feature `headscale`: start a pinned headscale binary (fetched by digest in CI, as `scripts/ci/fetch-tool.sh` fetches tools) on loopback with its DERP server, make a user and a pre-auth key, give the URL and the key, stop and clean up; a skip line where the binary is absent; read podssh's harness first.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```

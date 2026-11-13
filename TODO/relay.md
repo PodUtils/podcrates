@@ -3888,8 +3888,8 @@ T-310, and the first stream of podswarm T-442.
 **Source:** PodUtils/podnet#479 (COORD-048 of podnet, ask A3, for PodUtils/podnet@T-298)
 **Category:** feature
 **Milestone:** M2
-**Priority:** P3
-**Effort:** S
+**Priority:** P2
+**Effort:** M
 **Status:** open
 
 ## Problem
@@ -3915,7 +3915,21 @@ cargo test -p pod-e2e --all-features
 
 ## Start condition
 
-podnet starts its PodUtils/podnet@T-298.
+podnet starts its PodUtils/podnet@T-298: it starts now (PodUtils/podnet#521).
+
+## Correction
+
+PodUtils/podnet#521 (2026-11-13) names PodUtils/podnet@T-298 the AEAD
+record layer with a negotiated suite and a rekey, and its
+PodUtils/podnet@T-299 to PodUtils/podnet@T-301 build on it. As no raw
+transport key leaves the crate (the answer #88), the record layer goes
+into `pod-e2e` with the exporter (call C246): a record of a suite that
+the two ends agree on in the handshake, a rekey by count and by time,
+padding of a record to buckets (PodUtils/podnet@T-300), and a replay
+window with the single-use RESUME record (PodUtils/podnet@T-301). The
+compression (PodUtils/podnet@T-299) stays podnet's: it runs before the
+seal. The
+entry is P2 and effort M from now on.
 
 # T-303: `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479)
 
@@ -4859,3 +4873,259 @@ accepts no connection.
 ```sh
 cargo test -p pod-netstack
 ```
+
+# T-493: `pod-link`: the DNS simplex carrier (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-278.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-278 is a take of a crate of podcrates: the DNS simplex carrier: the frames of the link go up in the names of queries and come down in the answers, one way at a time. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-278 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`dns::Simplex` behind a feature `dns`: the frames in base32 labels of queries to the caller's zone, the answers in TXT; a server half for the caller's authoritative listener; the ARQ of T-310 over it, as the carrier loses frames.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+## Start condition
+
+After T-305 (the reader of TXT and CNAME with EDNS0 and the TC bit).
+
+# T-494: `pod-link`: the object-storage (S3) simplex carrier (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-279.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-279 is a take of a crate of podcrates: the object-storage simplex carrier: each side writes its frames as objects of a bucket that both can reach, and reads the objects of the other side. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-279 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`s3::Simplex` behind a feature `s3`: a PUT of each batch of frames as an object with a sequence in its key, a LIST and GET of the keys of the other side, a DELETE after the read; SigV4 signing; tests against a stand-in of the S3 API (the self-hosted stand-ins of `docs/live-calls.md`).
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-495: `pod-link`: the HTTP poll simplex carrier (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-280.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-280 is a take of a crate of podcrates: the HTTP poll simplex carrier: the client posts its frames and polls for the frames of the server, with no long-lived request. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-280 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`poll::Simplex` behind a feature `poll`: a POST of each batch, a GET at an interval that backs off when idle, a server half for the caller's HTTP listener; one shape with T-422 (the long poll) where it fits; loopback tests with a lost answer.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-496: `pod-link`: the DNS stream carrier with a pipelined window of queries (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-281.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-281 is a take of a crate of podcrates: the DNS stream carrier: several queries in flight, with the answers in TXT and CNAME, EDNS0 for the size and a fall back on the TC bit. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-281 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`dns::Stream` beside `dns::Simplex`: a window of queries in flight with their sequence, the size of an answer from EDNS0, a retry over TCP on TC; a test with lost and reordered answers.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+## Start condition
+
+After T-305 and T-493.
+
+# T-497: `pod-link`: the ICMP echo carrier (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-282.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-282 is a take of a crate of podcrates: the ICMP echo carrier: the frames ride in the data of echo requests and replies. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-282 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`icmp::Echo` behind a feature `icmp`: an unprivileged ICMP socket (`SOCK_DGRAM`, `IPPROTO_ICMP`) where `ping_group_range` allows it, a raw socket otherwise; a server half that answers each request with the frames of its side; the ARQ of T-310 over it; a skip line where the host allows neither socket.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-498: `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-283.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-283 is a take of a crate of podcrates: a WireGuard peer as a carrier: the frames of the link go inside the tunnel of a peer. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-283 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`wg::Peer` behind a feature `wg`: a `pod-wg` device with one peer, the frames of the link in UDP datagrams inside the tunnel (the ARQ of T-310 over them), or a TCP stream of the stack of the device; loopback tests with two devices.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-499: `pod-link`: NAT traversal with a fall back to the relay (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-284.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-284 is a take of a crate of podcrates: NAT traversal with a fall back to the relay: the two peers learn their public addresses from STUN, exchange candidates through a reverse session of the relay inside the layer of `pod-e2e`, punch a UDP hole, and keep the relay session where the punch fails (the answer of T-303). The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-284 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`nat::Punch`: the candidates (local, reflexive by `pod-turn`'s `stun`), the exchange over a `pod_relay::reverse::channel`, the checks with a timer, the UDP carrier with the ARQ on success and the relay stream on failure; tests with two loopback peers and a stand-in relay, and a refused punch that falls back.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+## Start condition
+
+After T-301 (`pod-e2e`) and T-310 (the ARQ).
+
+# T-500: `pod-link`: one session over an up carrier and a down carrier (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-302.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-302 is a take of a crate of podcrates: one session split across two carriers: the frames up go on one carrier and the frames down on another (for example DNS up and HTTP poll down). The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-302 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+`split::Pair`: a carrier made of a send half of one carrier and a receive half of another, with the session's acknowledgements on the down half; the two simplex halves of T-493 to T-495 fit it; a test over two memory halves with one lossy.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+## Start condition
+
+After T-493 to T-495 (the simplex carriers).
