@@ -5772,7 +5772,7 @@ cargo test -p pod-link --all-features --test poll_lanes
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5793,3 +5793,7 @@ Set `[profile.dev.package.kcp] overflow-checks = false` in `Cargo.toml` (the tes
 cargo test -p pod-link --all-features --test udp_loss
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+## Done
+
+- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`, and the COORD issue to podnet.

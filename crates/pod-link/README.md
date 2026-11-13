@@ -555,8 +555,10 @@ that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
   `datagrams_of_a_stranger_change_nothing`; the bytes before a drop reach
   the peer: `the_bytes_before_a_drop_reach_the_peer`; a listener over the
   caller's datagrams: `a_listener_runs_over_the_datagrams_of_the_caller`.
-- [x] A datagram that breaks the code of `kcp` ends the stream with an
-  error: `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error`; a
+- [x] A panic of the task of KCP (a broken carrier, or the code of `kcp`
+  with its overflow checks) ends the stream with an error:
+  `a_panic_of_the_task_ends_the_stream_with_an_error`; the workspace builds
+  `kcp` with no overflow checks, as its clock wraps (T-526); a
   fragment of a message (the stream mode sends none) does not go in, and a
   segment larger than one of this end is read whole (T-521, call C280):
   `a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole`;

@@ -90,6 +90,9 @@ debug = 1
 [profile.dev.package."*"]
 opt-level = 2
 
+# The root workspace builds `kcp` with no overflow checks (T-526). This
+# workspace keeps them: `link_kcp` then exercises the guard of the task.
+
 [[bin]]
 name = "one_line"
 path = "fuzz_targets/one_line.rs"

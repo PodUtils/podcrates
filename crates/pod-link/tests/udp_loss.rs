@@ -122,19 +122,29 @@ async fn a_peer_that_goes_silent_ends_the_stream_at_the_idle_limit() {
     assert!(began.elapsed() >= Duration::from_millis(900), "not before the idle limit: {:?}", began.elapsed());
 }
 
-/// An `ACK` whose time stamp is 2^31 ms old overflows the arithmetic of
-/// the crate `kcp`, which panics in a build with overflow checks: the
-/// stream ends with an error and does not wait for ever (T-521).
-#[cfg(debug_assertions)]
+/// A carrier of datagrams that panics in `recv`.
+struct Panics;
+
+impl Datagrams for Panics {
+    fn mtu(&self) -> usize {
+        DEFAULT_MTU
+    }
+
+    fn send<'a>(&'a self, _: &'a [u8]) -> pod_link::datagram::DatagramFuture<'a, ()> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn recv(&self) -> pod_link::datagram::DatagramFuture<'_, Vec<u8>> {
+        Box::pin(async { panic!("a broken carrier") })
+    }
+}
+
+/// A panic of the task of KCP (a broken carrier, or the arithmetic of the
+/// crate `kcp` in a build with its overflow checks) ends the stream with
+/// an error: it does not wait for ever (T-521, T-526).
 #[tokio::test]
-async fn a_datagram_that_breaks_kcp_ends_the_stream_with_an_error() {
-    let (a, b) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let mut stream = KcpStream::new(a, Some(7), KcpSettings::default()).unwrap();
-    let mut ack = [0u8; 24];
-    ack[..4].copy_from_slice(&7u32.to_le_bytes());
-    ack[4] = 82;
-    ack[8..12].copy_from_slice(&0x8000_0000u32.to_le_bytes());
-    b.send(&ack).await.unwrap();
+async fn a_panic_of_the_task_ends_the_stream_with_an_error() {
+    let mut stream = KcpStream::new(Panics, Some(7), KcpSettings::default()).unwrap();
     let mut buf = [0u8; 16];
     let e = timeout(LIMIT, stream.read(&mut buf)).await.expect("the end in time").expect_err("a broken KCP");
     assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}");
