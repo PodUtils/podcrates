@@ -158,10 +158,10 @@ let io = sse.dial("SHA256:...@https://relay.example/link").await?;
 | `udp::KcpSettings`, `udp::KcpSettingsError` | `mtu` (1200), `segment` (1 KiB), `window` (256; 32 to 1024), `nodelay` (off: KCP's congestion window), `interval` (10 ms), `resend` (2), `idle` (20 s); `check` |
 | `udp::KcpStream` | KCP in stream mode over a `datagram::Datagrams` as one byte stream: `new(datagrams, conv, settings)` (`None` takes the conversation of the first datagram), `conv`. No end of its own; a shutdown returns when the peer acknowledged each byte; after a drop the task sends the bytes in flight |
 | `udp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, MTU, SEGMENT, MIN_WINDOW, MAX_WINDOW, IDLE, KCP_HEADER}` | the constants of the udp carrier |
-| `poll::Poll` (feature `poll`) | the poll carriers: `new(provider, identity, way)` (the long poll), `with_form(form)`, `with_clients(keys)`, `clients`; the fields `form`, `connect_timeout` (20 s), `handshake_timeout` (10 s: the TLS of each connection, and the open), `answer_timeout` (30 s), `hold` (25 s, 1 s to 60 s), `idle` (60 s: a session with no request ends on the listener, a lane that fails ends on the dialer), `max_handshakes` (64), `max_sessions` (256), `push` (a listener answers a push; else 406 and the dialer takes the long poll); `check`; `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`, no query); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")`; the name and the cost of its form |
+| `poll::Poll` (feature `poll`) | the poll carriers: `new(provider, identity, way)` (the long poll), `with_form(form)`, `with_clients(keys)`, `clients`; the fields `form`, `connect_timeout` (20 s), `handshake_timeout` (10 s: the TLS of each connection, and the open), `answer_timeout` (30 s), `hold` (25 s, 1 s to 60 s), `idle` (60 s: a session with no request ends on the listener, a lane that fails ends on the dialer), `max_handshakes` (64), `max_sessions` (256), `max_bytes` (64 MiB: the bytes down that the sessions keep for their dialers; a session waits for room, an open with no room for one batch gets 429; each session holds two pipes of 256 KiB and a buffer of 64 KiB besides), `push` (a listener answers a push; else 406 and the dialer takes the long poll); `check`; `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`, no query); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")`; the name and the cost of its form |
 | `poll::Form` | `LongPoll` (`poll`), `Sse` (`sse`), `Chunked` (`chunked`), `Simplex` (`httppoll`); `name`, `batch` (256 KiB; 64 KiB for `Simplex`) |
-| `poll::PollListener`, `poll::Stats` | `local_addr`, `accept_key`, `stats` (sessions, 429s, requests, bytes up that came twice, bytes down sent again, long polls, simplex polls, pushes, pushes refused); a `Listener`; a drop ends its connections and each session that it holds |
-| `poll::{ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, ANSWER_TIMEOUT, HOLD, MIN_HOLD, MAX_HOLD, IDLE, MAX_HANDSHAKES, MAX_SESSIONS, BATCH, SIMPLEX_BATCH, WINDOW, ACK_EVERY, PING_EVERY, BACKOFF_FIRST, BACKOFF_MAX, BUSY_LIMIT}` | the constants of the poll carriers |
+| `poll::PollListener`, `poll::Stats` | `local_addr`, `accept_key`, `stats` (sessions, 429s, requests, bytes up that came twice, bytes down sent again, long polls, simplex polls, pushes, pushes refused, the bytes down kept now); a `Listener`; a drop ends its connections and each session that it holds |
+| `poll::{ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, ANSWER_TIMEOUT, HOLD, MIN_HOLD, MAX_HOLD, IDLE, MAX_HANDSHAKES, MAX_SESSIONS, MAX_BYTES, MIN_BYTES, BATCH, SIMPLEX_BATCH, WINDOW, ACK_EVERY, PING_EVERY, BACKOFF_FIRST, BACKOFF_MAX, BUSY_LIMIT}` | the constants of the poll carriers |
 | `Cost` | the overhead class of a carrier in `Facts::cost`: `Low` (unix, memory, tcp, ws, h2), `Medium` (the long poll, a chunked stream), `High` (SSE), `Highest` (the simplex poll) |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
@@ -557,6 +557,7 @@ that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
 - [x] A plant for each check: `link-udp-handshake-inline`,
   `link-udp-stranger-starts-a-session`, `link-udp-drop-stops-at-once`,
   `link-udp-idle-unchecked` (`scripts/plants/`).
+
 The asks of PodUtils/podnet#515 and #521 for the long poll, SSE and the
 chunked stream (PodUtils/podnet@T-271, PodUtils/podnet@T-272) and the
 simplex poll (PodUtils/podnet@T-280), and the tests that hold them
@@ -589,6 +590,10 @@ simplex poll (PodUtils/podnet@T-280), and the tests that hold them
   `the_third_answer_429_in_a_row_ends_the_dial`,
   `a_push_moves_more_than_the_window_with_no_bytes_up`,
   `a_listener_with_no_push_gives_the_long_poll`.
+- [x] The sessions of a listener keep no more bytes down than
+  `Poll::max_bytes`; an open with no room for one batch gets 429, and an
+  acknowledgement gives the bytes back (T-517):
+  `the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_gets_429`.
 - [x] The name and the cost class of each form (`httppoll` is
   `Cost::Highest`):
   `each_form_has_its_name_and_its_cost_and_a_failure_of_the_way_out_keeps_its_class`.
@@ -597,7 +602,8 @@ simplex poll (PodUtils/podnet@T-280), and the tests that hold them
   `link-poll-session-key-unchecked`, `link-poll-ack-unsent`,
   `link-poll-no-backoff`, `link-poll-no-expiry`,
   `link-poll-first-busy-fatal`, `link-poll-hold-unheld`,
-  `link-poll-handshake-inline`, `link-poll-push-refusal-fatal`
+  `link-poll-handshake-inline`, `link-poll-push-refusal-fatal`,
+  `link-poll-bytes-uncapped`, `link-poll-open-room-unchecked`
   (`scripts/plants/`).
 
 ## The adoption map

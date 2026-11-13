@@ -252,7 +252,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
     assert!(matches!(named, KeyName::Fingerprint(_)) && named.matches(&id(2).public()));
     assert_eq!((url.host.as_str(), url.port, url.path.as_str()), ("::1", 8443, "/l"));
     let mut each = Vec::new();
-    for change in 0..6 {
+    for change in 0..7 {
         let mut p = carrier_.clone();
         match change {
             0 => p.hold = Duration::from_millis(500),
@@ -260,7 +260,8 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
             2 => p.idle = p.hold,
             3 => p.answer_timeout = Duration::ZERO,
             4 => p.max_handshakes = 0,
-            _ => p.max_sessions = 0,
+            5 => p.max_sessions = 0,
+            _ => p.max_bytes = poll::MIN_BYTES - 1,
         }
         each.push(p.check().err().map(|e| e.kind));
         assert_eq!(p.listen("127.0.0.1:0").await.err().unwrap().kind, CarrierErrorKind::Usage);
@@ -290,6 +291,7 @@ async fn each_form_has_its_name_and_its_cost_and_a_failure_of_the_way_out_keeps_
         ]
     );
     assert_eq!((p.hold, p.idle, p.max_sessions, p.push), (poll::HOLD, poll::IDLE, poll::MAX_SESSIONS, true));
+    assert_eq!((p.max_bytes, poll::MIN_BYTES), (poll::MAX_BYTES, poll::BATCH));
     if pod_testkit::host::loopback().is_ok() {
         assert!(p.available().is_ok(), "{:?}", p.available());
     }

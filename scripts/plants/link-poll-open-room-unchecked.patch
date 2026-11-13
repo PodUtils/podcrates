@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/session.rs b/crates/pod-link/src/poll/session.rs
+--- a/crates/pod-link/src/poll/session.rs
++++ b/crates/pod-link/src/poll/session.rs
+@@ -262,7 +262,7 @@
+         if let Some(session) = sessions.get(&id) {
+             return if session.key == key { Opened::Again } else { Opened::Stranger };
+         }
+-        if sessions.len() >= self.max || !self.budget.has_room(self.pipe) {
++        if sessions.len() >= self.max {
+             return Opened::Busy;
+         }
+         let ends = Ends::new();

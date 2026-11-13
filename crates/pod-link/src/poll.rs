@@ -13,8 +13,9 @@
 //! * The dialer opens a session of a random id with `POST PATH/open?s=ID`
 //!   (201). The answer comes after the listener checked the key of the
 //!   dialer, so a refused key is an error of the dial. A listener with
-//!   [`Poll::max_sessions`] sessions answers 429; the third 429 in a row
-//!   ends the dial.
+//!   [`Poll::max_sessions`] sessions answers 429, as one whose sessions
+//!   keep [`Poll::max_bytes`] less one batch; the third 429 in a row ends
+//!   the dial.
 //! * Up: `POST PATH/up?s=ID&seq=N&ack=M` with at most one batch, one in
 //!   flight; 202 with `Pod-Ack`, the next offset that the listener waits
 //!   for. N is the offset of the first byte of the body, so the POST again
@@ -39,6 +40,7 @@
 //! that names the key that the peer proved.
 
 mod answer;
+mod budget;
 mod dial;
 mod down;
 mod lane;
@@ -90,6 +92,13 @@ pub const MAX_HANDSHAKES: usize = 64;
 
 /// The default count of sessions that a listener holds.
 pub const MAX_SESSIONS: usize = 256;
+
+/// The default cap of the bytes down that the sessions of a listener keep
+/// for their dialers: the full window of 64 sessions.
+pub const MAX_BYTES: usize = 64 << 20;
+
+/// The least `max_bytes`: one batch.
+pub const MIN_BYTES: usize = BATCH;
 
 /// The most bytes of one request or one answer of the long poll, SSE and
 /// the chunked stream; the listener takes no larger body.
@@ -182,6 +191,11 @@ pub struct Poll {
     pub max_handshakes: usize,
     /// The most sessions that a listener holds (at least 1).
     pub max_sessions: usize,
+    /// The most bytes down that the sessions of a listener keep for their
+    /// dialers (at least [`MIN_BYTES`]): a session waits for room, and an
+    /// open with no room for one batch answers 429. Each session holds two
+    /// pipes of [`BATCH`] and a buffer of 64 KiB besides.
+    pub max_bytes: usize,
     /// A listener answers a push (SSE, chunked); else 406.
     pub push: bool,
 }
@@ -200,6 +214,7 @@ impl fmt::Debug for Poll {
             .field("idle", &self.idle)
             .field("max_handshakes", &self.max_handshakes)
             .field("max_sessions", &self.max_sessions)
+            .field("max_bytes", &self.max_bytes)
             .field("push", &self.push)
             .finish()
     }
@@ -223,6 +238,7 @@ impl Poll {
             idle: IDLE,
             max_handshakes: MAX_HANDSHAKES,
             max_sessions: MAX_SESSIONS,
+            max_bytes: MAX_BYTES,
             push: true,
         }
     }
@@ -249,7 +265,8 @@ impl Poll {
     }
 
     /// The settings: a hold of 1 s to 60 s, an idle time longer than the
-    /// hold, each time limit and count more than zero.
+    /// hold, each time limit and count more than zero, `max_bytes` at least
+    /// [`MIN_BYTES`].
     pub fn check(&self) -> Result<(), CarrierError> {
         let usage = |text: &str| Err(self.err(CarrierErrorKind::Usage, text));
         if !(MIN_HOLD..=MAX_HOLD).contains(&self.hold) {
@@ -263,6 +280,9 @@ impl Poll {
         }
         if self.max_handshakes == 0 || self.max_sessions == 0 {
             return usage("max_handshakes or max_sessions is 0: give 1 or more");
+        }
+        if self.max_bytes < MIN_BYTES {
+            return usage("max_bytes is less than one batch (256 KiB)");
         }
         Ok(())
     }

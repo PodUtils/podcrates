@@ -1,6 +1,7 @@
 //! The sessions of a listener of the poll carriers: the table by id, the
 //! offset of the bytes up, the bytes down that the dialer did not
-//! acknowledge, and the end of a session with no request.
+//! acknowledge within the cap of the listener, and the end of a session
+//! with no request.
 
 use std::collections::{HashMap, VecDeque};
 use std::io;
@@ -14,6 +15,7 @@ use tokio::sync::{Notify, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
+use super::budget::{Budget, Charge};
 use super::pipes::{Ends, Pipes, State, pipes, until};
 
 fn locked<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -38,6 +40,8 @@ struct Kept {
     sent: u64,
     /// The count of down requests: the last one is the live one.
     turn: u64,
+    /// The bytes of `buf`, taken from the budget of the listener.
+    charge: Charge,
 }
 
 /// The bytes down of a session.
@@ -46,6 +50,7 @@ pub(super) struct Down {
     more: Notify,
     room: Notify,
     window: usize,
+    budget: Arc<Budget>,
 }
 
 /// Some bytes down from an offset.
@@ -84,6 +89,7 @@ impl Down {
         let n = (to - kept.base) as usize;
         kept.buf.drain(..n);
         kept.base = to;
+        kept.charge.release(n);
         drop(kept);
         if n > 0 {
             self.room.notify_one();
@@ -147,7 +153,8 @@ impl Down {
 }
 
 /// Read the bytes of the link into the bytes kept, while they are fewer
-/// than the window.
+/// than the window; wait for the room of the bytes read in the budget of
+/// the listener before they go in.
 async fn pump(down: Arc<Down>, mut from: DuplexStream) {
     let mut buf = vec![0u8; 64 << 10];
     loop {
@@ -163,11 +170,14 @@ async fn pump(down: Arc<Down>, mut from: DuplexStream) {
         };
         let max = room.min(buf.len());
         let n = from.read(&mut buf[..max]).await.unwrap_or(0);
+        let charge = if n == 0 { None } else { Some(down.budget.take(n).await) };
         let mut kept = locked(&down.kept);
-        if n == 0 {
-            kept.fin = true;
-        } else {
-            kept.buf.extend(&buf[..n]);
+        match charge {
+            None => kept.fin = true,
+            Some(charge) => {
+                kept.buf.extend(&buf[..n]);
+                kept.charge.absorb(charge);
+            }
         }
         drop(kept);
         down.more.notify_waiters();
@@ -218,7 +228,8 @@ pub(super) enum Opened {
     /// The session of this id and key exists: an open again after a lost
     /// answer.
     Again,
-    /// The listener holds its most sessions.
+    /// The listener holds its most sessions, or has no room for one batch
+    /// down.
     Busy,
     /// The id is the one of another key.
     Stranger,
@@ -230,11 +241,20 @@ pub(super) struct Table {
     max: usize,
     window: usize,
     pipe: usize,
+    budget: Arc<Budget>,
 }
 
 impl Table {
-    pub fn new(max: usize, window: usize, pipe: usize) -> Table {
-        Table { sessions: Mutex::new(HashMap::new()), max, window, pipe }
+    /// At most `max` sessions, and `max_bytes` bytes down kept for their
+    /// dialers; each session keeps at most `window` bytes down and has two
+    /// pipes of `pipe` bytes.
+    pub fn new(max: usize, max_bytes: usize, window: usize, pipe: usize) -> Table {
+        Table { sessions: Mutex::new(HashMap::new()), max, window, pipe, budget: Budget::new(max_bytes) }
+    }
+
+    /// The bytes down that the sessions keep now.
+    pub fn held(&self) -> usize {
+        self.budget.held()
     }
 
     pub fn open(&self, id: u128, key: PublicKey) -> Opened {
@@ -242,14 +262,20 @@ impl Table {
         if let Some(session) = sessions.get(&id) {
             return if session.key == key { Opened::Again } else { Opened::Stranger };
         }
-        if sessions.len() >= self.max {
+        if sessions.len() >= self.max || !self.budget.has_room(self.pipe) {
             return Opened::Busy;
         }
         let ends = Ends::new();
         let (io, far) = pipes(self.pipe, ends.clone());
-        let kept = Kept { base: 0, buf: VecDeque::new(), fin: false, sent: 0, turn: 0 };
-        let down =
-            Arc::new(Down { kept: Mutex::new(kept), more: Notify::new(), room: Notify::new(), window: self.window });
+        let charge = self.budget.none();
+        let kept = Kept { base: 0, buf: VecDeque::new(), fin: false, sent: 0, turn: 0, charge };
+        let down = Arc::new(Down {
+            kept: Mutex::new(kept),
+            more: Notify::new(),
+            room: Notify::new(),
+            window: self.window,
+            budget: self.budget.clone(),
+        });
         let session = Session {
             key,
             ends,

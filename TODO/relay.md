@@ -5665,3 +5665,31 @@ A target `link_poll_wire`: the input is the bytes of one connection, given to `C
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+# T-525: `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake)
+
+**Source:** T-517 (a finding of its work)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Poll::max_bytes` (T-517, call C278) caps the bytes down that the sessions of a poll listener keep for their dialers. Each session holds more bytes outside the cap: two pipes of `BATCH` (256 KiB each, `tokio::io::duplex` grows its buffer up to that size and keeps it) and the buffer of its pump (64 KiB), so 256 sessions can hold about 144 MiB besides the cap. A connection after its handshake is not counted: `max_handshakes` caps the handshakes alone, and each connection reads a body of up to `BATCH` before it answers. Each session and each connection comes from a pinned key, so a stranger cannot open one.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/session.rs` (the pipes and the pump), `crates/pod-link/src/poll/listen.rs` (the permit of a handshake drops after the handshake), `crates/pod-link/src/poll/answer.rs` (the body of a request).
+- Not measured: the memory of a listener with many sessions or connections.
+
+## Approach
+
+Make the pipes of a session on the listener smaller (the pump drains the pipe down into the bytes kept, so 64 KiB is enough; the pipe up takes a POST in parts), and measure the throughput of `tests/poll.rs` before and after. Add `Poll::max_connections` (1024 by default): a permit for each connection that lasts as long as it does; a connection past the cap closes after its accept. Count the body of a request in `max_bytes`, or give it its own cap. A test with a cap of 2 connections: the third closes, the first two stay.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test poll_lanes
+```
