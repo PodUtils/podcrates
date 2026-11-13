@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**345 entries: 88 open, 6 partial, 5 blocked, 246 done.**
+**347 entries: 89 open, 7 partial, 5 blocked, 246 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 2 | 0 | 70 | 85 |
-| P2 | 43 | 2 | 5 | 125 | 175 |
+| P1 | 13 | 3 | 0 | 70 | 86 |
+| P2 | 44 | 2 | 5 | 125 | 176 |
 | P3 | 32 | 2 | 0 | 49 | 83 |
-| **All** | 88 | 6 | 5 | 246 | 345 |
+| **All** | 89 | 7 | 5 | 246 | 347 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -340,7 +340,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-336](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: the relay leg and the race of the direct path and the relay, with the leg file |
 | [T-337](adapters.md) | P1 | L | M3 | feature | done | `pod-warp`: MASQUE over HTTP/3, the WireGuard leg and the carried device |
 | [T-338](adapters.md) | P1 | L | M3 | feature | done | `pod-warp`: the proxy, the forward, nc and the L4 door, with loopback tests |
-| [T-339](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh |
+| [T-339](adapters.md) | P1 | L | M3 | feature | partial | `pod-warp`: the live session as a value, TUN and routes, the live step in `live.yml`, and the adoption trials of podnet and podssh |
 | [T-345](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the probe program of the guest, which measures each probe of issue 178 |
 | [T-346](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: the world's services (`world.py`) over `pod-dns` and `pod-proxy` |
 | [T-347](podvm.md) | P3 | M | M6 | feature | open | `pod-netlab`: each offline scenario on a real kernel as root, with the planted flush |
@@ -384,6 +384,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-407](transport.md) | P2 | S | M3 | chore | open | `pod-proxy`: fuzz targets of the server face of a proxy |
 | [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
 | [T-410](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: the L4 door reads the device record again on a new key, and tries the other door |
+| [T-412](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the adoption trial of podnet (its src/warp on the crate) |
+| [T-413](adapters.md) | P2 | L | M3 | feature | open | `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate) |
 | [T-416](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-417](relay.md) | P2 | S | M2 | feature | open | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-420](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |

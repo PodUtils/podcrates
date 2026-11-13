@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/tun/probe.rs b/crates/pod-warp/src/tun/probe.rs
+index 1cd629c..4408d7d 100644
+--- a/crates/pod-warp/src/tun/probe.rs
++++ b/crates/pod-warp/src/tun/probe.rs
+@@ -60,8 +60,6 @@ impl TunProbe {
+         {
+             return None;
+         }
+-        self.waiting = false;
+-        self.misses = 0;
+         if tcp.flags & SYN != 0 && tcp.flags & ACK != 0 {
+             return Some(Some(tcp_packet(self.source, tcp.src, PROBE_PORT, tcp.sport, tcp.ack, 0, RST)));
+         }

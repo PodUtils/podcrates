@@ -1,0 +1,7 @@
+# The renewal of a live WARP session closes the old session at once, not
+# after the drain: the open flows of the old session end with the relay
+# budget or the TCP probe (podnet's owner ruling of 2026-11-04, T-339).
+ENTRY=T-339
+GROUP=warp
+EXPECT='test live::tests::a_spent_relay_budget_renews_with_no_gap \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- live::tests::a_spent_relay_budget_renews_with_no_gap'

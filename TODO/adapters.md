@@ -837,7 +837,7 @@ needs the HTTP/3 of T-337).
 **Milestone:** M3
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -868,6 +868,40 @@ with their runs; then the COORD issue of the freeze to podnet and podssh.
 cargo test -p pod-warp --all-features
 cargo test -p pod-warp --test live -- --ignored
 ```
+
+## Done
+
+2026-11-13, partial: the modules, their tests and the live step. Commits
+`086d278` (`live`, `exit`, `find`, `tun`), `dfd0c0f` (`route`, the
+loopback tests, the live test over HTTPS) and the commit of this record
+(`SOURCES`, the README, the step of `live.yml`, row L36 of
+`docs/live-calls.md`, the plants `warp-live-drain-closes-at-once` and
+`warp-tun-probe-answer-not-taken`, each caught by hand); calls C213 to
+C217.
+
+- `live`: `Live` with `LiveSettings`, `Closable` (`WarpNet` is one),
+  `Probe`, `parse_probe`, `publish`; a `Live` of a `Dial` is a
+  `proxy::Tunnel`; `Warp::connect_live`. `exit`: the trace over HTTPS
+  with the caller's TLS client, `egress_v6`. `find` (Unix): the search of
+  the socket of a running proxy with the caller's paths. `tun` (Linux):
+  `Tun`, `run` with `TunSettings`, the probe and the rp_filter. `route`:
+  the parse and the plan on each target; `Routes`, `Tables` and `set_dns`
+  on Linux; `route::resolv` with the marker of the caller. `pod.rs` and
+  the record of an instance stay in podnet (C213, C215).
+- Fixes in place: the live test asked the trace on port 80, where podnet
+  found none; it now reads it over HTTPS through a `Live` (C216). podnet's
+  test of the mode of `replace_file` set the umask of the process that
+  the parallel tests share; the port leaves the umask alone (C214).
+- `cargo test -p pod-warp --all-features`: 140 unit tests, and 3
+  (`h3`), 4 (`leg`), 3 (`live_session`, 20 runs in a loop passed), 11
+  (`net`), 11 (`proxy`), 8 (`register`), 8 (`stack`), 5 (`wg`) passed;
+  `tun::tests::creates_an_interface_with_the_address` made its interface
+  on this host. The live test is ignored here (the egress of the session
+  reaches no WARP endpoint) and runs in `live.yml` (item 3 of T-359).
+  `python3 -I scripts/check-sources.py pod-warp` with the clones: podnet
+  at `e046560`, 30 files, 0 changes.
+- What remains: the adoption trials, T-412 (podnet) and T-413 (podssh),
+  then the COORD issue of the freeze to podnet and podssh.
 
 # T-393: `pod-netstack`: the TCP timeout, the keepalive and no Nagle of each socket as settings, for `WarpNet` (podnet issue 125, podssh)
 
@@ -1267,4 +1301,113 @@ stand-in API that serves the new key.
 
 ```sh
 cargo test -p pod-warp --all-features --test l4
+```
+
+# T-412: `pod-warp`: the adoption trial of podnet (its src/warp on the crate)
+
+**Source:** T-339 (call C217: the trials of T-339 go to their own entries).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+No trial patch of `pod-warp` in podnet exists (`docs/design.md`, section
+8, step 7). podnet's `src/warp/` must go onto the crate as far as the
+crate covers it: the registration, the identity and its file, the doors,
+the sessions over HTTP/2 and HTTP/3, WireGuard and the carry, the relay
+leg, the stack and its settings, the proxy, the resolvers, the forward,
+nc, `Live`, the exit, the search of the socket, the TUN and its routes
+(PodUtils/podnet#449). Until the trial passes, the COORD issue of the
+freeze of podnet's `src/warp/` cannot name a tag.
+
+## Premise
+
+- Read: podnet's `main` at `fb47f09` (2026-11-13): `src/warp/` has 16 520
+  lines in 39 files, with no change after `e046560`; the map of the
+  README of `pod-warp` ("The adoption map") and its `SOURCES`.
+- Read: the parts that stay in podnet (calls C201, C203, C207, C213,
+  C215): `export.rs`, `up.rs` and `up/fish.rs`, `pod.rs`, `ssh_config.rs`,
+  the record of an instance, `bind` and `bind_all` of the proxy, nc's
+  search and its relay leg, the lint of the rules, and `l4.rs` until
+  T-406.
+- Not measured: the size of the glue over podnet's network traits
+  (PodUtils/podnet#452), and the disk and the time of a build of podnet
+  with the patch.
+
+## Approach
+
+adoption/podnet/pod-warp.patch at `fb47f09` (or podnet's newest `main`,
+with `pod-warp.commit`): each `pod-*` dependency of podnet at the next tag
+(with `version` beside `git` and `tag`), `src/warp/` reduced to the glue
+(podnet's flags and variables into `Settings`, `NetSettings`,
+`LiveSettings` and `TunSettings`; its network traits over `WarpNet` and
+`Live`; its events into its log), the moved items gone from podnet. The
+`.run` file in the form of the other trials of podnet: its record, the
+size and the layers of its files, the build, `cargo deny --locked check
+bans sources`, a check that no copy of a moved item stays, clippy, the
+tests of the library and of `tests/warp_register.rs` and
+`tests/warp_routes.rs`, the fuzz lock, rustfmt, the toolchains, and the
+musl binary with podnet's static check. Then the COORD issue of the
+freeze to podnet with the tag. A gap of the crate that the trial finds is
+an entry of its own.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podnet pod-warp
+```
+
+## Start condition
+
+T-406 is done (the L4 door is in `pod-warp`).
+The text of the COORD issue of the freeze is in
+`docs/releases/pod-warp-freeze.md`: post it when T-412 and T-413 pass and
+a tag holds `pod-warp`.
+
+# T-413: `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate)
+
+**Source:** T-339 (call C217: the trials of T-339 go to their own entries).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+No trial patch of `pod-warp` in podssh exists (`docs/design.md`, section
+4: podssh's `PodUtils/podssh:crates/podssh-warp` retires onto `pod-warp`; section 8, step
+7). The COORD issue of the freeze of `PodUtils/podssh:crates/podssh-warp` needs the trial.
+
+## Premise
+
+- Read: podssh's `main` at `79961227` (2026-11-13): `PodUtils/podssh:crates/podssh-warp`
+  has 40 files (about 350 KB), with its own HTTP/3 (`h3/`), its road
+  (`road.rs`, `road_h3.rs`), its smoltcp stack (`stack.rs`, `phy.rs`)
+  and its probe (`probe.rs`); `SOURCES` of `pod-warp` (podssh at
+  `562751d`: `key.rs`, `der.rs`, `dns.rs`, `stand_in.rs`, the API test).
+- Not measured: which callers of podssh use the road and the stack, and
+  the disk and the time of a build of podssh with the patch.
+
+## Approach
+
+adoption/podssh/pod-warp.patch at `79961227` (or podssh's newest
+`main`, with `pod-warp.commit`): `PodUtils/podssh:crates/podssh-warp` becomes glue over
+`pod-warp` (its registration with `Api::with_bases` for its routes, its
+private file as an `IdentityFile`, its road as `WarpNet` as a `Dial`), or
+leaves the workspace where no glue stays; each name of the module that
+leaves goes from podssh's scripts/gate.sh, AGENTS.md, docs/ and scripts/
+(the ask of podssh in `adoption/README.md`). The `.run` file in the form
+of the other trials of podssh, with the musl binary of its release
+features and its static check. Then the COORD issue of the freeze to
+podssh with the tag. A gap of the crate that the trial finds is an entry
+of its own.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podssh pod-warp
 ```

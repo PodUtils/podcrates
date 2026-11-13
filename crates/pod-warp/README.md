@@ -20,8 +20,10 @@ session; T-338: the local SOCKS5 and HTTP proxy with its rules, its
 names, its UDP and its DNS forwarder, the resolvers inside the tunnel (on
 UDP or over TLS), the local forwards and the pipe of `warp nc`; and T-337:
 MASQUE over HTTP/3, the WireGuard tunnel and the carried device. The rest
-is T-339.
-T-406: the L4 door and its proxy.
+is T-339 (partial: the adoption trials T-412 and T-413).
+T-406: the L4 door and its proxy. T-339 adds `Live` (a session replaced
+when it closes), the exit of a session, the socket of a running proxy, and
+the TUN with its routes and its resolver (Linux).
 
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no global state. Each failure is a
@@ -65,6 +67,11 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `capsule` | The capsules of RFC 9297 and the types of RFC 9484: `put_varint`, `get_varint`, `put_capsule`, `CapsuleDecoder`, `parse_address_assign`, `MAX_CAPSULE_LEN`. |
 | `dns` | `lookup(net, resolvers, name, limit)` (DNS over TCP inside the tunnel), `RESOLVERS`. |
 | `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide(&lookup, host)`, `decide_static`), `Host` (`of(target)`, `Display`), `Lookup` (the names of a proxy, or the DNS over TCP of a `WarpNet`), `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
+| `live` | `Live<T: Closable>` (`start(first, connect, &LiveSettings)`, `start_with`, `start_aged`, `probed`, `get` (waits `WAIT_FOR_NEW` 20 s for a new session, else `Unavailable`), `get_within`, `reconnects`, `data_path` (`ok`, `tcp-dead`), `report`), `LiveSettings { base, max, max_age, probe, report }` (default: `BACKOFF_BASE` 1 s, `BACKOFF_MAX` 30 s, no age, `DEFAULT_PROBE`), `Closable` (`WarpNet` is one), `Probe`, `DEFAULT_PROBE` (TCP to 1.1.1.1:443 each 30 s, 5 s, 3 misses), `parse_probe` (`IP:PORT` or `off`; else `Usage`), `Connect`, `Report { data_path, last_probe }`, `publish(live, sink)`, `RENEW_DRAIN` (90 s); `Warp::connect_live(&settings)`; a `Live` of a `Dial` is a `proxy::Tunnel`. A spent relay budget or a dead TCP path gives a new session for the new flows with no gap; the old one closes after the drain. The events `warp.live.closed`, `warp.live.open`, `warp.live.failed`, `warp.live.renew`, `warp.live.probe`; the decision `warp.live` (`closed`, `max-age`, `relay-budget`, `tcp-probe`). |
+| `exit` | `Exit { colo, loc, ip, warp, rtt, ipv6, ipv6_error }` (`to_json`), `parse(body, rtt)`, `trace(net, tls)`, `trace_at`, `egress_v6(net, tls)`, `whoami_query`, `first_txt`, `trace_address`, `trace_address_v6`, `trace_name`, `TRACE_TIMEOUT`: the trace of 1.1.1.1 over HTTPS through the session, with the caller's TLS client. |
+| `find` (Unix) | `Pointer { socket, state_dir }`, `pointer_dir_of(runtime, temp, name)`, `write_pointer`, `read_pointer_at` (mode 0600 and this user only), `remove_pointer`, `candidates_of(given, variable, run_dir, pointer)`, `answers`, `running(tried, pointer)` (none answers: `Unavailable`), `POINTER_FILE`, `SOCKET_FILE`. |
+| `tun` (Linux) | `Tun` (`create(name, address, mtu)`, `from_fd`, `add_ipv6`, `read`, `write`), `run(tun, session, &TunSettings)`, `TunSettings { probe, max_age, rp_filter, keepalive, mtu, report }`, `KEEPALIVE`; `tun::probe::TunProbe` (a SYN from `PROBE_PORT` 61999, its answer taken out of the TUN), `tun::rp_filter::RpFilter` (`system(keep)`, `apply`), `effective`, `SYSTEM_ROOT`; the event `warp.tun.rp-filter`. |
+| `route` | `parse_route_table`, `parse_entries`, `parse_entries6`, `plan_exempt`, `plan_exempt6` (`Exempt`, `Exempt6`), `Gateway`, `Entry`, `Entry6`, `nameservers(&[Resolver])`, `nameservers_of_service`, `resolv_text(marker, servers)`, `mask`, `install_all`; on Linux `Routes` (`setup(tun, required, optional, ipv6, &Tables)`, `set_dns`, `exempted`, `up`, `down`; the drop puts each change back), `Tables` (`system()`), `set_dns`; `route::resolv` (Unix): `Paths { resolv, record, lock, marker }` (`in_dir`), `set_file`, `reconcile`, `undo`, `replace_file`, `Dns`, `MARKER`, `RESOLV`. |
 | `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `l4_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`; of `cloudflare-dns`: `tunnel_resolver` (`udp-1`), `check_name`. |
 
 ## Settings
@@ -104,6 +111,11 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | the bind of a listener (`proxy::bind`, `bind_all`, the private Unix socket) | | the caller's; `Proxy::run_tcp`, `run_unix` take the listener |
 | `warp nc` (`via_running`, `via_relay`, `pipe`, `ssh_config`) | | the caller's; `nc::pipe_with` and the UDP pipes take the stream |
 | the budget of a relay session (`ws_relay::meter`, `StackConfig::renew`) | | `Relay::meter` (or `Way::meter`); `NetSettings::renew` for a session with no meter |
+| `--probe` (`live::set_probe`, `parse_probe`) | | `LiveSettings::probe`, `TunSettings::probe`, from `live::parse_probe` |
+| `--session-max-age` (`live::set_max_age`) | | `LiveSettings::max_age`, `TunSettings::max_age` |
+| `--keep-rp-filter` (`rp_filter::set_keep`) | | `TunSettings::rp_filter = Some(RpFilter::system(keep))` |
+| `PODNET_WARP_SOCKET`, `--socket`, the run directory, `XDG_RUNTIME_DIR` | | `find::candidates_of(given, variable, run_dir, pointer)`, `find::pointer_dir_of(runtime, temp, "podnet")` |
+| `/etc/resolv.conf` and the state directory of `warp tun --default-route` | | `route::resolv::Paths::in_dir(RESOLV, dir)` with podnet's `marker` |
 | `CARRY_MTU` (the carried device) | | `CARRY_MTU`; the stack of the carry takes it in place of `NetSettings::mtu` |
 
 ## The tests
@@ -119,7 +131,7 @@ and far end in `tests/common/edge.rs` (call C135).
 | The pinned door | `door::tests::a_pinned_door_skips_the_order`; `tests/net.rs`: `a_pinned_door_is_the_only_door`, `the_doors_of_the_record_go_in_order` |
 | A session as a `Dial` and `Datagrams` | `tests/net.rs`: `a_session_carries_tcp_to_an_address_and_to_a_name`, `a_session_carries_udp_as_datagrams`, `a_new_key_of_the_front_door_reads_the_record_again`, `a_key_that_the_edge_did_not_enroll_is_refused` |
 | The lint as a function of the caller | `rules::tests::the_lint_of_the_caller_judges_the_table` |
-| The live check | `tests/live.rs`: `live_register_connect_and_trace` (ignored; its step in `live.yml` is T-339) |
+| The live check | `tests/live.rs`: `live_register_connect_and_trace` (ignored; the step "pod-warp, a session at the WARP front door" of `live.yml`, row L36 of `docs/live-calls.md`) |
 | The proxy, the forward, nc | T-338 (below) |
 
 | Approach of T-338 | Test |
@@ -166,6 +178,19 @@ with that code (call C201, call C203).
 | A failure of both legs names both causes; the relay starts at once after a failure of the direct path | `tests/leg.rs`: `a_failure_of_both_legs_names_both_causes` |
 | The text of the leg file | `leg::tests`: `the_leg_file_puts_a_recent_relay_first`, `the_leg_text_reads_back`, `a_change_of_the_order_is_kept_for_the_leg_file` |
 
+| Approach of T-339 | Test |
+| --- | --- |
+| `Live`: a closed session is replaced, the backoff, the age, the relay budget and the TCP probe with no gap, the reports of the data path | `live::tests`: `a_closed_session_is_replaced`, `a_spent_relay_budget_renews_with_no_gap`, `a_session_is_replaced_at_max_age`, `a_caller_gets_an_error_when_no_session_opens`, `warp_probe_renews_a_session_with_no_tcp`, `the_probe_option`, `warp_status_names_the_data_path`, `the_tunnel_of_a_live_session_is_the_session_of_now`, `the_watcher_tells_each_step_to_the_caller`; `tests/live_session.rs`: `a_live_session_comes_back_after_the_edge_ends_it`, `the_tcp_probe_of_a_session_reaches_its_target` |
+| The exit | `exit::tests`: `the_whoami_query_and_its_answer`, `the_json_keeps_ip_and_adds_ipv6`, `the_trace_body_gives_the_exit`; `tests/live_session.rs`: `the_exit_of_a_session_is_read_from_the_trace` |
+| The socket of a running proxy | `find::tests`: `the_lookup_order_of_the_warp_socket`, `the_pointer_dir_does_not_depend_on_the_state_directory`, `a_pointer_file_that_others_can_read_is_refused`, `warp_exec_finds_warp_up_of_another_state_directory` |
+| The TUN, its probe and its rp_filter | `tun::tests::creates_an_interface_with_the_address` (a skip with no `CAP_NET_ADMIN`); `tun::probe::tests`: `the_syn_of_the_probe_is_a_valid_packet`, `warp_tun_probe_takes_its_answer_out`, `warp_tun_probe_ends_a_dead_session`; `tun::rp_filter::tests`: `the_effective_rp_filter_is_the_larger_value`, `warp_tun_writes_0_unless_it_keeps_the_value` |
+| The routes and the resolver | `route::tests`: `a_failed_route_removes_the_routes_before_it`, `the_plan_of_each_ipv6_masque_address`, `the_plan_of_each_masque_address`, `the_default_gateway_of_the_route_table`, `masks`, `a_required_address_with_no_route_is_refused`; `route::resolv::tests`: `the_resolv_conf_is_replaced_and_never_removed_first`, `replace_file_sets_the_mode`, `resolv_backup_survives_a_kill`, `resolv_backup_restores_a_symlink_and_an_absent_file`, `resolv_marker_guards_the_restore`, `resolv_record_of_another_version_is_not_applied`, `a_live_tun_blocks_a_second_one` |
+
+The tests of podnet's record of an instance (`the_instance_line`,
+`warp_status_names_the_tunnel_instance`,
+`the_ready_document_names_the_data_path`), of `pod.rs` and of `up_summary`
+stay in podnet with that code (call C215).
+
 | Approach of T-337 | Test |
 | --- | --- |
 | A session over HTTP/3 carries datagrams and capsules | `tests/h3.rs`: `a_session_over_http3_carries_datagrams_and_capsules`; `h3::tests` (the frames, QPACK) |
@@ -190,7 +215,8 @@ the test pins. Plants: `warp-check-without-answer`,
 `warp-race-relay-waits-for-the-direct-path`,
 `warp-proxy-rule-not-applied`, `warp-dns-bound-not-held`,
 `warp-h3-udp-past-the-way`, `warp-h3-takes-the-relay`,
-`warp-l4-rule-not-applied`, `warp-l4-closed-connection-kept`.
+`warp-l4-rule-not-applied`, `warp-l4-closed-connection-kept`,
+`warp-live-drain-closes-at-once`, `warp-tun-probe-answer-not-taken`.
 
 ## The parity list
 
@@ -221,7 +247,7 @@ the test pins. Plants: `warp-check-without-answer`,
 | The proxy (SOCKS5, HTTP, UDP, the rules, the DNS forwarder), the forward, nc | yes | | yes (over a `Dial`; the listeners and the SSH configuration are the caller's) |
 | Resolvers inside the tunnel over TLS (podnet issue 144), also for the check | yes | | yes (the TLS client is the caller's) |
 | The L4 door (`--l4`) | yes | | yes (`L4` on the UDP of the caller; `Proxy::over_l4`) |
-| `Live`, TUN, routes | yes | | T-339 |
+| `Live`, TUN, routes | yes | | yes (`live`, `tun` and `route`; the files, the paths and the probe are the caller's) |
 | A tunnel that takes TLS and relays nothing (the probe of podssh, PodUtils/podssh@T-560) | the check of the data path | yes | yes (the check of the data path) |
 
 ## The adoption map
@@ -267,6 +293,12 @@ the test pins. Plants: `warp-check-without-answer`,
 | `decisions::count("masque", "wireguard" \| "carry")` | `Observer::decision("warp.leg", "wireguard")`, `("warp.carry", "carried")` |
 | `warp::l4::{L4, l4_sni, connect_headers_form, authority}`, `WarpClient::l4(sni)`, `L4::dial(host, port)` | `l4::{L4, connect_headers_form, authority}`, `service::l4_sni`, `Warp::l4()` with `L4::with_sni`, `L4::open(&target)` or `Dial::dial` |
 | `proxy::run_l4(l4, bound)` | `Arc::new(Proxy::over_l4(l4, direct)).run_tcp(listener)` |
+| `warp::live::{Live, Closable, Probe, DEFAULT_PROBE}`, `WarpClient::connect_live()` | `live::{Live, Closable, Probe, DEFAULT_PROBE}`, `Warp::connect_live(&LiveSettings)`; the closure of `Connect` gives a `Failure` |
+| `live::instance::publish_own(&live)` (the record of the instance) | `live::publish(&live, sink)`; the record of the instance stays podnet's |
+| `warp::exit::{trace, egress_v6}(&stack)` | `exit::{trace, egress_v6}(&net, &tls)` with podnet's TLS client (`trust::context()`) |
+| `warp::find::{running, candidates, write_pointer, read_pointer, remove_pointer}` | `find::running(&find::candidates_of(..), pointer)`, `find::{write_pointer, read_pointer_at, remove_pointer}` with podnet's paths; podnet adds its hint (`podnet warp up`) to the text |
+| `warp::tun::{Tun, run}`, `tun::probe`, `tun::rp_filter` | `tun::{Tun, run}` with `TunSettings`, `tun::probe`, `tun::rp_filter::RpFilter` |
+| `warp::route::{Routes, nameservers, resolv}` | `route::Routes::setup(.., &Tables::system())` and `Routes::set_dns(&route::nameservers(&list), &paths)`, `route::resolv` |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |
 | `decisions::count("masque", ..)` | `Observer::decision("warp.door", ..)` |
 

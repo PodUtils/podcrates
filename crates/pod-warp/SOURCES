@@ -82,6 +82,23 @@ file 1733854b4df4ea4c17ee686dfa37d5f63e84a3dd src/warp/wg.rs -> crates/pod-warp/
 file aef82574998ded92d77e15d5b98b43ac9dfa8525 src/warp/l4.rs -> crates/pod-warp/src/l4.rs crates/pod-warp/src/l4/tests.rs crates/pod-warp/tests/l4.rs
 file 405d54fe218d5110279ec2324ed9b979e5088f2e crates/podnet-core/src/services.rs -> crates/pod-warp/src/service.rs
 file 6d1341eb1878e825b3072b0e33fe26f557992a05 crates/podnet-netns/src/rules.rs -> crates/pod-warp/src/rules/matcher.rs
+# T-339: live.rs is live.rs (the globals --probe and --session-max-age are
+# LiveSettings; parse_split, set_split and probe_arg stay in podnet, as the
+# split of the hello is a dial of the caller, C137); of live/instance.rs only
+# publish (the record of an instance stays in podnet); find.rs is find.rs
+# with the paths and the variable of the caller (up_summary stays); exit.rs
+# takes the caller's dial and TLS client; tun.rs with TunSettings; route.rs
+# is route.rs (pure) and route/host.rs (Linux). pod.rs stays in podnet: it
+# builds the command line of podnet's own pod (call C215).
+file f73938457d708458c01c2baaa8e830e0a89d191e src/warp/live.rs -> crates/pod-warp/src/live.rs crates/pod-warp/src/live/tests.rs
+file 8c098b408bb90ba4b9c61c3f0c7f0b6c14cb8934 src/warp/live/instance.rs -> crates/pod-warp/src/live.rs crates/pod-warp/src/live/tests.rs
+file a39c278ac871350975ff46f4cc859ab88a986f78 src/warp/find.rs -> crates/pod-warp/src/find.rs
+file 29b67c5176ed8b769cf3e5ad76cb9b9a02150659 src/warp/exit.rs -> crates/pod-warp/src/exit.rs
+file da3a23d047a7239486cf471849b1de76d603756b src/warp/tun.rs -> crates/pod-warp/src/tun.rs
+file b30e286027fba7596c26fa00bb9460669a368d2e src/warp/tun/probe.rs -> crates/pod-warp/src/tun/probe.rs
+file 8fd6f8cc7d0d602041617f79a7fdd53217eb93c9 src/warp/tun/rp_filter.rs -> crates/pod-warp/src/tun/rp_filter.rs
+file 91d2223f04855e54f502790426042b52e2ad6ec0 src/warp/route.rs -> crates/pod-warp/src/route.rs crates/pod-warp/src/route/host.rs crates/pod-warp/src/route/tests.rs
+file 638d7405088eed2950cd4a4b6432e0acd232a5d3 src/warp/route/resolv.rs -> crates/pod-warp/src/route/resolv.rs crates/pod-warp/src/route/resolv/tests.rs
 
 repo PodUtils/podssh 562751d16cab8bf3a0b9d32e917c9a0c6ed89cdb
 # podssh-warp retires onto this crate (docs/design.md, section 4). Its

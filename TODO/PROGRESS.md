@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 345 entries: 88 open, 6 partial, 5 blocked, 246 done.
+`TODO/INDEX.md` holds 347 entries: 89 open, 7 partial, 5 blocked, 246 done.
 
 ## State
 
@@ -15,13 +15,14 @@
   login over plain HTTP, C187), T-393 and T-395 (the TCP timeout, the
   keepalive and no Nagle; UDP to a family that the device lacks) and
   T-336 (the relay leg of `pod-warp` and the race) and T-337 (HTTP/3,
-  WireGuard and the carried device of `pod-warp`) for the next tag.
+  WireGuard and the carried device of `pod-warp`) and T-339 (`Live`,
+  the exit, the TUN and its routes of `pod-warp`) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
   - podnet: `v0.34.0` (`ef8c901`, PodUtils/podnet#515; its PodUtils/podnet@T-268 runs on
     the `tcp` carrier of `pod-link`; `pod-warp` waits for the trial of
-    T-339); its relay client
+    T-412); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
@@ -96,8 +97,10 @@ next entry.
    its rules, names, UDP and DNS forwarder, the resolvers on UDP and over
    TLS, the forward and nc are in; MASQUE over HTTP/3, the WireGuard
    tunnel and the carried device are in; the L4 door and its proxy are
-   in), then T-339 (the rest of `pod-warp`), T-410 (the L4 door on a new
-   key), then
+   in; `Live`, the exit, the search of the socket, the TUN and its routes,
+   and the live step are in), then T-412 (the trial of podnet) and T-413
+   (the trial of podssh) with the COORD issue of the freeze (T-339,
+   partial), T-410 (the L4 door on a new key), then
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
    T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
@@ -153,7 +156,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C212; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C217; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
