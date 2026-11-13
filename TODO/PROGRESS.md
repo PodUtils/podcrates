@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 411 entries: 119 open, 7 partial, 4 blocked, 281 done.
+`TODO/INDEX.md` holds 411 entries: 117 open, 7 partial, 4 blocked, 283 done.
 
 ## State
 
@@ -99,13 +99,12 @@ next entry.
       the fix of PodUtils/podnet#524.
    c. The tag after: the poll carriers, the quic carrier and the udp
       carrier with KCP of `pod-link` (done); T-520 (the default of the
-      congestion window of KCP, when podnet answers), T-521 (the fuzz
-      target of the input of KCP), T-493 (DNS simplex), T-494 (S3
-      simplex), T-497 (ICMP echo), T-500 (an up and a down carrier).
+      congestion window of KCP, when podnet answers), T-493 (DNS
+      simplex), T-494 (S3 simplex), T-497 (ICMP echo), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
-      traversal with the relay), T-518 (a fuzz target of the poll
-      carriers), T-525 (the bytes of a poll listener outside its cap), T-515 (the congestion window of the ARQ,
-      with the first carrier over a shared path), T-514 (a stream-aware
+      traversal with the relay), T-525 (the bytes of a poll listener
+      outside its cap), T-526 (no overflow checks for `kcp`), T-515 (the
+      congestion window of the ARQ, with the first carrier over a shared path), T-514 (a stream-aware
       ARQ, when podnet asks), T-501 (`pod-turn` with RFC 6062), T-027,
       T-214 and T-215 (`pod-transit`, `pod-wormhole`).
    e. Then: T-029 and T-030 (`pod-cloudflare`), T-035 and T-302

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**411 entries: 119 open, 7 partial, 4 blocked, 281 done.**
+**411 entries: 117 open, 7 partial, 4 blocked, 283 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 76 | 91 |
-| P2 | 58 | 3 | 4 | 148 | 213 |
-| P3 | 49 | 1 | 0 | 55 | 105 |
-| **All** | 119 | 7 | 4 | 281 | 411 |
+| P2 | 57 | 3 | 4 | 149 | 213 |
+| P3 | 48 | 1 | 0 | 56 | 105 |
+| **All** | 117 | 7 | 4 | 283 | 411 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -453,8 +453,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
 | [T-516](relay.md) | P2 | S | M2 | chore | done | `pod-link`: a fuzz target of the datagrams of the ARQ |
 | [T-517](relay.md) | P3 | S | M2 | feature | done | `pod-link`: a cap of the bytes that the sessions of a poll listener hold |
-| [T-518](relay.md) | P3 | S | M2 | chore | open | `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers |
+| [T-518](relay.md) | P3 | S | M2 | chore | done | `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers |
 | [T-520](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515) |
-| [T-521](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
+| [T-521](relay.md) | P2 | S | M2 | chore | done | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
 | [T-525](relay.md) | P3 | S | M2 | feature | open | `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake) |
 | [T-526](relay.md) | P3 | S | M2 | chore | open | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |

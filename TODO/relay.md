@@ -5587,7 +5587,7 @@ podnet answers the question, or starts its PodUtils/podnet@T-276.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5608,6 +5608,34 @@ A target `link_kcp`: the input is a list of datagrams with a clock that moves by
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features --test udp_loss
 ```
+
+## Done
+
+2026-11-13, commit `ee6f6bc`. The target `link_kcp`
+(`fuzz/src/targets/link.rs`, `fuzz/fuzz_targets/link_kcp.rs`) drives
+`udp::KcpStream` over scripted datagrams on a paused tokio clock: a byte
+of setup (the stream writes `setup * 64` bytes), then datagrams, each a
+step of the clock in tens of milliseconds, a length and its bytes. It
+checks: no panic outside the code of `kcp`; the stream ends with an
+error; no datagram that it sends passes 1200 bytes; after a panic in the
+code of `kcp` (a hook of the target lets it unwind), the guard of the
+carrier ends the stream with `BrokenPipe`, and no panic of `kcp` leaves
+the task of the carrier (call C279). The plant
+`link-udp-panic-hangs-the-stream` makes the fuzz test fail. The target
+found two defects of the carrier, fixed (call C280): a fragment of a
+message of a stranger made the reader of `kcp` overflow in the read of
+the caller, outside the guard (a datagram with a fragment now does not
+go in), and a segment larger than one of this end stopped the reader
+until the silence limit (a read now takes a segment of any size). The
+test `a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole`
+fails before each fix (plants `link-udp-fragment-taken` and
+`link-udp-large-segment-stalls`). The seeds (`fuzz/src/kcp_seeds.rs`): a
+transfer of a peer, an acknowledgement of a time stamp 2^31 ms old (a
+panic of `kcp` with overflow checks; the seed test checks the guard), and
+datagrams of a bad form. `cargo test -p pod-link --all-features --test
+udp_loss`: 6 passed; `cargo test --manifest-path fuzz/Cargo.toml --lib`:
+13 passed; `cargo check --manifest-path fuzz/Cargo.toml --bins` passes.
+The fix of `kcp` and its overflow checks are T-526.
 
 # T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
 
@@ -5665,7 +5693,7 @@ handshake) are T-525.
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5686,6 +5714,28 @@ A target `link_poll_wire`: the input is the bytes of one connection, given to `C
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit `ee6f6bc`. The target `link_poll_wire`
+(`fuzz/src/targets/link.rs`, `fuzz/fuzz_targets/link_poll_wire.rs`) reads
+the bytes of one connection with the reader of the poll carriers, public
+in `poll::fuzzing` under the feature `fuzzing` of `pod-link`: the first
+byte sets the size of each read (1 to 64 bytes, or whole for 0); each
+head, then its body of a Content-Length (at most one batch) or its chunks
+(at most two batches) into the reader of SSE. It checks: no panic; a head
+takes at most 4 KiB with its blank line; a chunk is not empty and has at
+most its limit; a body has its length; an event gives at most 8 KiB. It
+found a defect: a head over 4 KiB that one read brought whole went in.
+The reader now looks for the end of a head in the first 4 KiB alone; the
+new case of `a_long_head_and_a_large_chunk_are_refused` fails before the
+fix (plant `link-poll-long-head-taken`, which also makes the fuzz test
+fail). The seeds (`fuzz/src/poll_seeds.rs`, written by an ignored test):
+the requests of a dialer, the answers of a listener with a push of SSE, a
+chunked answer of raw bytes, and refused forms. `cargo test
+--manifest-path fuzz/Cargo.toml --lib`: 13 passed; `cargo check
+--manifest-path fuzz/Cargo.toml --bins` and clippy of the fuzz workspace
+pass; `cargo test -p pod-link --all-features`: 157 passed.
 
 # T-525: `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake)
 
