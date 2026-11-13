@@ -9,9 +9,19 @@
 # its operator asks a program for the consent of its user (call C220).
 #
 # The host answered 500 to automated reads on 2026-11-12 (podssh) and on
-# 2026-11-13 (through fetch.web.pkgforge.dev), and 418 to the Wayback
-# Machine from 2026-03-23: the facts come from the Wayback Machine's
-# capture of 2026-03-11, and the watch checks the TLS of the host alone.
+# 2026-11-13 (through fetch.web.pkgforge.dev), and to the Wayback Machine
+# 418 "do not pretend to be a web browser" on most days from 2026-03-23:
+# the facts come from the Wayback Machine's capture of 2026-11-03, and the
+# watch checks the TLS of the host alone.
+#
+# Cloud addresses: the page publishes no rule for them; it says that the
+# firewall blocks the exit nodes of Tor. The terms refuse CI build
+# artifacts and other automated mass uploads, and from 2026-11 also "AI
+# slop" ("CLANKERS ARE NOT WELCOME HERE"). An upload from a GitHub runner
+# was busy at once on 2026-11-13 (429 or 503 with no Retry-After,
+# PodUtils/podssh#230), and another party's runner got 503 twice on the
+# same day. So on-by-default is false: a road takes the host only when its
+# user names it (call C282).
 id = "null-pointer-0x0"
 kind = "file-host"
 party = "0x0.st (one person in Germany)"
@@ -23,25 +33,25 @@ scheme = "https"
 host = "0x0.st"
 port = 443
 path = "/"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "Send HTTP POST requests to https://0x0.st with data encoded as multipart/form-data" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "Send HTTP POST requests to https://0x0.st with data encoded as multipart/form-data" }
 
 [[fact]]
 name = "file-field"
 value = "file"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the field file: data" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the field file: data" }
 
 # secret: a longer URL that is hard to guess; expires: the most life, in
 # hours.
 [[fact]]
 name = "fields"
 value = ["secret=", "expires=1"]
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "secret (ignored): If present, a longer, hard-to-guess URL will be generated; expires: maximum file lifetime in hours" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "secret (ignored): If present, a longer, hard-to-guess URL will be generated; expires: maximum file lifetime in hours" }
 
 [[fact]]
 name = "life-seconds"
 value = 3600
 unit = "s"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the life that the field expires=1 gives; with no field, 30 days to a year by the size" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the life that the field expires=1 gives; with no field, 30 days to a year by the size" }
 
 [[fact]]
 name = "answer"
@@ -51,12 +61,12 @@ source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11
 [[fact]]
 name = "serves"
 value = ["0x0.st"]
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the file URLs are on 0x0.st: https://0x0.st/aaa.jpg/image.jpeg" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the file URLs are on 0x0.st: https://0x0.st/aaa.jpg/image.jpeg" }
 
 [[fact]]
 name = "fetch-segment"
 value = ""
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "File URLs are valid for at least 30 days and up to a year" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "File URLs are valid for at least 30 days and up to a year" }
 
 [[fact]]
 name = "fetch-method"
@@ -66,48 +76,53 @@ source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11
 [[fact]]
 name = "delete"
 value = "token-form"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "Delete a file immediately: curl -Ftoken=token_here -Fdelete= https://0x0.st/abc.txt" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "Delete a file immediately: curl -Ftoken=token_here -Fdelete= https://0x0.st/abc.txt" }
 
 [[fact]]
 name = "delete-token-header"
 value = "X-Token"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the HTTP response header includes an X-Token field" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the HTTP response header includes an X-Token field" }
 
 [[fact]]
 name = "delete-token-field"
 value = "token"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the field token: management token, returned after upload in X-Token HTTP header field" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the field token: management token, returned after upload in X-Token HTTP header field" }
 
 [[fact]]
 name = "delete-fields"
 value = ["delete="]
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "the field delete (ignored): Removes the file" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "the field delete (ignored): Removes the file" }
 
 [[fact]]
 name = "upload-bytes-most"
 value = 536870912
 unit = "bytes"
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "Maximum file size: 512.0 MiB" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "Maximum file size: 512.0 MiB" }
 
 [[fact]]
 name = "one-person"
 value = true
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "a public file hoster run by some Internet rando in Germany" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "a public file hoster run by some Internet rando in Germany" }
 
 [[fact]]
 name = "automated-uploads-refused"
 value = true
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "Terms of Service: 0x0.st is NOT a platform for: ... backups, CI build artifacts, other automated mass uploads" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "Terms of Service: 0x0.st is NOT a platform for: ... AI slop ... backups, CI build artifacts, other automated mass uploads" }
 
 [[fact]]
 name = "user-agent-names-program"
 value = true
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13, note = "Use a user agent string that uniquely identifies your program" }
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13, note = "Use a user agent string that uniquely identifies your program" }
+
+[[fact]]
+name = "on-by-default"
+value = false
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173 from a GitHub runner: the upload was busy at once (429 or 503 with no Retry-After); the runs of timerloggedout-spec/termux-monorepo#5254 got 503 twice on 2026-11-13" }
 
 [[fact]]
 name = "note"
-value = "The terms refuse backups, CI build artifacts and other automated mass uploads; the operator asks client software to upload with the consent of its user, to tell the user that the host is public, and to send a User-Agent that names the program. The host answered 500 to automated reads on 2026-11-12 and 2026-11-13. No rank: a candidate after the other file hosts (call C220)."
-source = { url = "https://web.archive.org/web/20260311012721/https://0x0.st/", read = 2026-11-13 }
+value = "The terms refuse backups, CI build artifacts, AI slop and other automated mass uploads; the operator asks client software to upload with the consent of its user, to tell the user that the host is public, and to send a User-Agent that names the program. The page publishes no rule for cloud addresses, but uploads from GitHub runners were refused (429 or 503) on 2026-11-13. The host answered 500 to automated reads on 2026-11-12 and 2026-11-13. No rank and not on by default: a road takes it only when its user names it (calls C220, C282)."
+source = { url = "https://web.archive.org/web/20261103083434/https://0x0.st/", read = 2026-11-13 }
 
 [[watch]]
 kind = "tls-name"

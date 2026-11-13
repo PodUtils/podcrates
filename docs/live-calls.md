@@ -48,7 +48,7 @@ hides a red run that is ours.
 
 ## The inventory
 
-The rows count 38 calls: 2 replace, 5 stub + weekly, 26 keep live, and
+The rows count 39 calls: 2 replace, 6 stub + weekly, 26 keep live, and
 5 infrastructure. Of the 26 that stay live, 4 get a server on the loopback
 that proves the code of the client (L10, L18, L19, L35). "Each day" is the cron
 of the workflow.
@@ -71,6 +71,7 @@ of the workflow.
 | L35 | a TURN server of the caller (UDP or TLS on TCP) | `crates/pod-turn/tests/live.rs` (ignored; `POD_TURN_LIVE_SERVER`) | an allocation, a Refresh, a permission and a channel on a server of the caller | by hand, in no workflow | unknown | keep live | coturn 4.18.0 on the loopback in `ci.yml` (`scripts/ci/turn-tests.sh`, `crates/pod-turn/tests/coturn.rs`) proves the client over UDP and over TLS on each push: the 401, the 438, the 437 and the 441, the maximum lifetime, a Send and a ChannelData echo with its padding (T-380, call C197) |
 | L36 | the WARP API (api.cloudflareclient.com) and its MASQUE front door on TCP 443, then the trace of 1.1.1.1 over HTTPS through the session | `crates/pod-warp/tests/live.rs`, step "pod-warp, a session at the WARP front door" of `live.yml` | a new device registers, a session opens and `Live` holds it, the trace says `warp=on` or `warp=plus`, and the device is removed | Thursday, by hand | unknown | stub + weekly | the stand-in API of `pod_testkit::stand::warp` and the stand-in edge of `crates/pod-warp/tests/common/edge.rs` on the loopback prove the registration, the session, `Live`, the probe and the trace on each push (`tests/register.rs`, `tests/net.rs`, `tests/live_session.rs`; T-339) |
 | L38 | the public MQTT broker public.cloud.shiftr.io: a board of retained messages | `crates/pod-wormhole/tests/board_live.rs`, step "pod-wormhole, a board of retained messages at each public MQTT broker" of `live.yml` | a retained note is put, taken and cleared at each public broker (PodUtils/podssh@T-738) | Thursday, by hand | unknown: new | stub + weekly | the stand-in of `crates/pod-wormhole/tests/harness/broker.rs` (it keeps retained messages) and Eclipse Mosquitto in `ci.yml` (`scripts/ci/mosquitto-tests.sh`, `crates/pod-wormhole/tests/board.rs`) prove the board on each push (T-417) |
+| L39 | an upload, a download and a delete of 32 KiB at the public file hosts tmpfiles.org, litterbox.catbox.moe and temp.sh (0x0.st only when the input `file-hosts` names it) | `crates/pod-services-watch/tests/file_host_live.rs`, step "pod-services, a round trip through each public file host" of `live.yml` | the forms of the facts of the kind `file-host`: the upload form, the URL of the answer, the download (tmpfiles.org: the signed link of the page), the delete by token | Thursday, by hand | yes: litterbox 412 and 0x0.st 429 or 503 to podssh's run (PodUtils/podssh#230); this step had no run on 2026-11-13 | stub + weekly | the stand-ins of each form in `crates/pod-services-watch/tests/watches/file_host.rs` prove the code on each push |
 
 ### `services.yml`
 
@@ -92,7 +93,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L19 | `stun-binding` | stun.cloudflare.com:3478, stun.l.google.com:19302 (UDP) | no: each run read holds them | keep live | coturn 4.18.0 on the loopback in `ci.yml` proves the STUN codec of `pod_proxy::stun` (`scripts/ci/turn-tests.sh`, `crates/pod-proxy/tests/stun_coturn.rs`: the mapped address, FINGERPRINT, a 420; T-358) |
 | L20 | `doh`, `doh-answer`, `dns-addresses`, `dns-srv` | Cloudflare, Google, Quad9, argotunnel.com | IPv6: yes, skipped by the route probe | keep live | these watches take the liveness of L1 |
 | L21 | `proxy-banner`, `proxy-list` | 8 Trojan and VLESS nodes; 3 lists on raw.githubusercontent.com | unknown: timeouts in 4 runs | keep live | a "no answer" is a finding on the second run in a row (T-351, call C153) |
-| L37 | `http-text`, `http-status`, `tls-name` of the kind `file-host` | tmpfiles.org, litterbox.catbox.moe, temp.sh, 0x0.st | unknown: new; 0x0.st answers 500 to automated reads, so its watch is `tls-name` alone | keep live | the pages of the facts and the status of a GET of each upload form; no upload (T-416) |
+| L37 | `http-text`, `http-status`, `tls-name` of the kind `file-host` | tmpfiles.org, litterbox.catbox.moe, temp.sh, 0x0.st | 0x0.st: yes, its upload answered 429 or 503 at once to a GitHub runner (PodUtils/podssh#230); litterbox's upload answered 412; the reads: no; 0x0.st answers 500 to automated reads, so its watch is `tls-name` alone | keep live | the pages of the facts (with the fields of litterbox's upload form) and the status of a GET of each upload form; no upload: the round trip is L39 (T-416, T-528) |
 | L22 | `scripts/services/edge-facts.sh` (job `measure`) | region1 and region2.v2.argotunnel.com on 7844, 443, 8443, 80 | no | keep live | the facts of the edge that `pod-cloudflare` needs |
 
 ### Other workflows

@@ -1,0 +1,7 @@
+# The trip of a file host follows the first link of the page with the
+# prefix, of any file: the stand-in's page links another file first, and
+# the trip by the signed link of this file must fail.
+ENTRY=T-528
+GROUP=services
+EXPECT='test file_host::a_json_answer_and_the_signed_link_of_its_page \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- file_host::a_json_answer_and_the_signed_link_of_its_page --exact'

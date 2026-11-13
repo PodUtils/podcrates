@@ -73,6 +73,7 @@ another kind.
 | `args::Args` | the arguments of a watch and the values that they name |
 | `schema::arguments(kind)`, `schema::faults(service, watch, is_service)` | the arguments of each watch kind, and the faults of one watch |
 | `schema::kind_facts(kind)` (`KindFacts`: `endpoints`, `need`, `optional`, `words`, `when`), `schema::service_faults(service)` | the endpoints and the facts of a service kind with a table (`file-host`, T-416), and the faults of one service: a missing endpoint or fact, a type, a word, a fact that the kind does not name, a fact that a word needs |
+| `file_host::trip(service, net, bytes, boundary)` (`Trip`: `url`, `fetched`, `deleted`, `lines`), `file_host::multipart`, `answer_url`, `fetch_url`, `page_link`, `served` | the round trip of one file host by the facts of its kind (T-528): the upload form, the URL of the answer, the download (by a segment, or by the link of the page at the URL), the compare, the delete by token. A refusal names its status and the start of its text |
 
 The library reads no variable and no file, and prints nothing.
 
@@ -141,6 +142,17 @@ the test what it saw (the user, the key, the forward, the shell, the end
 of the session). With a front, its banner names an HTTPS front for
 `stand.test` that gives each request to the client through a channel
 `forwarded-tcpip`, or answers with a page of its own (T-267).
+
+`tests/watches/file_host.rs`: the round trip of a file host against a
+stand-in of each form of the catalog: a text answer with a delete by token
+(0x0.st), a JSON answer whose page links the signed download (tmpfiles.org),
+the page in place of the file with the form of before T-528, a page with
+no link of this file, and a refusal with its status and its text
+(litterbox's 412).
+
+`tests/file_host_live.rs` (`#[ignore]`): the live round trip of 32 KiB
+through each file host that is on by default, or through the hosts that
+`POD_FILE_HOSTS` names; `live.yml` runs it each Thursday and by hand.
 
 ## Plants
 

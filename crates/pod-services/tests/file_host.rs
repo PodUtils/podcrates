@@ -2,8 +2,8 @@
 //! each service of the kind `file-host` has each fact of its kind, of its
 //! type and form, an endpoint `upload` (https, 443, a path), a source with a
 //! date for each value, and a watch. podssh's order is the order of the
-//! ranks; a host whose terms refuse automated uploads has no rank and a
-//! note that says why.
+//! ranks; a host whose terms refuse automated uploads has no rank, is not
+//! on by default, and has a note that says why (T-528).
 
 use pod_services::{Origin, Service};
 
@@ -51,6 +51,13 @@ fn each_file_host_has_each_fact_of_its_kind() {
         let segment = s.text("fetch-segment").unwrap_or_else(|| panic!("{id}: fetch-segment"));
         assert!(segment.chars().all(|c| c.is_ascii_alphanumeric()), "{id}: the segment {segment:?}");
         assert!(matches!(s.text("fetch-method"), Some("GET" | "POST")), "{id}: fetch-method");
+        if let Some(prefix) = s.text("fetch-link-prefix") {
+            // The page is at the URL of the answer, and its link is a GET
+            // of a URL of a host that the service serves from.
+            let host = prefix.strip_prefix("https://").and_then(|r| r.split_once('/')).map(|(h, _)| h);
+            assert!(host.is_some_and(|h| serves.iter().any(|s| s == h)), "{id}: the prefix {prefix:?}");
+            assert_eq!((segment, s.text("fetch-method")), ("", Some("GET")), "{id}: a page and its link");
+        }
         match s.text("delete") {
             Some("none") => assert!(s.fact("delete-token-header").is_none(), "{id}"),
             Some("token-form") => {
@@ -65,11 +72,16 @@ fn each_file_host_has_each_fact_of_its_kind() {
         assert!(s.fact("uploads-per-hour").is_none_or(|f| f.value().as_int().is_some_and(|n| n > 0)), "{id}");
         assert!(s.bool("one-person").is_some(), "{id}: one-person");
         let refused = s.bool("automated-uploads-refused").unwrap_or_else(|| panic!("{id}: automated-uploads-refused"));
+        let on = s.bool("on-by-default").unwrap_or_else(|| panic!("{id}: on-by-default"));
         if refused {
             assert!(s.rank().is_none(), "{id}: a host that refuses automated uploads has no rank");
             assert!(s.text("note").is_some_and(|n| n.contains("automated")), "{id}: a note says why");
+            assert!(!on, "{id}: a host that refuses automated uploads is not on by default");
         } else {
             assert!(s.rank().is_some(), "{id}: no rank");
+        }
+        if !on {
+            assert!(s.text("note").is_some_and(|n| n.contains("not on by default")), "{id}: a note says why");
         }
         assert!(!s.watches().is_empty(), "{id}: no watch");
     }
@@ -101,9 +113,10 @@ fn the_values_of_the_file_hosts() {
     assert_eq!(tmp.endpoint("upload").unwrap().url(), "https://tmpfiles.org/api/v1/upload");
     assert_eq!(tmp.texts("fields").unwrap(), ["expire=60"]);
     assert_eq!((tmp.int("life-seconds"), tmp.text("answer-pointer")), (Some(60), Some("/data/url")));
-    assert_eq!((tmp.text("fetch-segment"), tmp.int("uploads-per-hour")), (Some("dl"), Some(200)));
+    assert_eq!((tmp.text("fetch-segment"), tmp.int("uploads-per-hour")), (Some(""), Some(200)));
+    assert_eq!(tmp.text("fetch-link-prefix"), Some("https://tmpfiles.org/dl/"));
     let litter = pod_services::get("litterbox").expect("litterbox");
-    assert_eq!(litter.texts("fields").unwrap(), ["reqtype=fileupload", "time=1h"]);
+    assert_eq!(litter.texts("fields").unwrap(), ["time=1h", "fileNameLength=16", "reqtype=fileupload"]);
     assert_eq!(litter.texts("serves").unwrap(), ["litter.catbox.moe"]);
     let temp = pod_services::get("temp-sh").expect("temp-sh");
     assert!(temp.texts("fields").unwrap().is_empty(), "temp.sh takes no field of life");
@@ -114,4 +127,7 @@ fn the_values_of_the_file_hosts() {
     assert_eq!((null.text("delete-token-header"), null.text("delete-token-field")), (Some("X-Token"), Some("token")));
     assert_eq!(null.texts("delete-fields").unwrap(), ["delete="]);
     assert_eq!(null.bool("user-agent-names-program"), Some(true));
+    let on: Vec<&str> =
+        pod_services::of_kind("file-host").filter(|s| s.bool("on-by-default") == Some(true)).map(|s| s.id()).collect();
+    assert_eq!(on, ["tmpfiles-org", "litterbox", "temp-sh"], "0x0.st is not on by default (T-528)");
 }

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-services-watch/src/file_host.rs b/crates/pod-services-watch/src/file_host.rs
+--- a/crates/pod-services-watch/src/file_host.rs
++++ b/crates/pod-services-watch/src/file_host.rs
+@@ -121,7 +121,7 @@
+ /// of its text, which names the fault of many hosts (litterbox: 412 and a
+ /// sentence).
+ fn refused(id: &str, step: &str, answer: &Response) -> Finding {
+-    Finding::failed(format!("{id}: the {step} answered HTTP {}: {}", answer.status, answer.body_text(SHOWN)))
++    Finding::failed(format!("{id}: the {step} answered HTTP {}", answer.status))
+ }
+ 
+ /// The fields of the fact `name` (`name=value`) as pairs.

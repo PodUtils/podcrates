@@ -1,13 +1,17 @@
 # tmpfiles.org: a public host of temporary files with no account. An
 # upload is a multipart POST of one file to the endpoint upload; the
-# answer is JSON with the URL of the file page, and the file itself is
-# under /dl/ after the host. The first of the four file hosts of
-# PodUtils/podssh@T-738 (PodUtils/podssh#220): one sealed piece of the
-# resumable layer for each upload. The documents api and terms are the
-# pages that the watches read. The proxy of a cloud session of podcrates
-# resets tmpfiles.org: the pages were read through
-# fetch.web.pkgforge.dev on 2026-11-13; fetch-segment and fetch-method
-# are podssh's reading of 2026-11-12.
+# answer is JSON with the URL of the file page. The file is a GET of the
+# link under /dl/ that the page holds: a signed link of a short life
+# (/dl/EXPIRY.SIGNATURE/ID/NAME, EXPIRY in Unix seconds). /dl/ID/NAME
+# alone answers 302 to the page (PodUtils/podssh#230). The first of the
+# four file hosts of PodUtils/podssh@T-738 (PodUtils/podssh#220): one
+# sealed piece of the resumable layer for each upload. The documents api
+# and terms are the pages that the watches read. The proxy of a cloud
+# session of podcrates resets tmpfiles.org: the pages were read through
+# fetch.web.pkgforge.dev on 2026-11-13; the form of the download comes
+# from the runs of other parties on GitHub (the sources of the facts
+# fetch-segment and fetch-link-prefix), and the live step of live.yml
+# proves it (T-528).
 id = "tmpfiles-org"
 kind = "file-host"
 party = "TmpFiles.org (its operator is not named)"
@@ -76,15 +80,22 @@ name = "serves"
 value = ["tmpfiles.org"]
 source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the URL of the answer is https://tmpfiles.org/{id}/{name}" }
 
+# The page at the URL of the answer holds the link of the file: no
+# segment goes into the URL of the answer.
 [[fact]]
 name = "fetch-segment"
-value = "dl"
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the file is under /dl/ after the host (https://tmpfiles.org/dl/{id}/{name}); not read here" }
+value = ""
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173: a GET of https://tmpfiles.org/dl/ID/piece.bin gave 2792 bytes of the page (<title>/tmp/files - piece.bin</title>), not the file; run 43418881497 got a 302 to the page" }
+
+[[fact]]
+name = "fetch-link-prefix"
+value = "https://tmpfiles.org/dl/"
+source = { url = "https://github.com/timerloggedout-spec/termux-monorepo/issues/5254", read = 2026-11-13, note = "runs 43367104139 and 43367428428 of another party on GitHub, 2026-11-13: a GET of the page https://tmpfiles.org/ID/NAME, then a GET of the link that matches https://tmpfiles\\.org/dl/[^\"\\s]+ in it, gave the file; a signed link is https://tmpfiles.org/dl/1794413600.b4bfd9d193d255dd/ID/NAME (FreshTomato-Project/freshtomato-arm#344, 2026-11-11)" }
 
 [[fact]]
 name = "fetch-method"
 value = "GET"
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; not read here" }
+source = { url = "https://github.com/timerloggedout-spec/termux-monorepo/issues/5254", read = 2026-11-13, note = "a GET of the page and a GET of its link gave the file from a GitHub runner" }
 
 [[fact]]
 name = "delete"
@@ -113,9 +124,14 @@ value = false
 source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "the terms refuse commercial automation without permission, and an attempt to go around the limits" }
 
 [[fact]]
+name = "on-by-default"
+value = true
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "the terms refuse no upload by a program that is not commercial" }
+
+[[fact]]
 name = "note"
-value = "The terms (effective 2025-12-01) refuse commercial automation without permission and an attempt to go around the usage limits; files may be kept 48 hours at most."
-source = { url = "https://tmpfiles.org/tos", read = 2026-11-13 }
+value = "The terms (effective 2025-12-01) refuse commercial automation without permission and an attempt to go around the usage limits; files may be kept 48 hours at most. The link of the download is signed and has a short life: take it from the page just before each download. A GET of the link with the User-Agent of a library (Python-urllib) answered 403 on 2026-11-13: send a User-Agent that names the program."
+source = { url = "https://github.com/timerloggedout-spec/termux-monorepo/issues/5254", read = 2026-11-13, note = "the 403 to a library-default User-Agent on the dl path (run 43366207635); the terms: https://tmpfiles.org/tos" }
 
 [[watch]]
 kind = "http-text"

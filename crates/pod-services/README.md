@@ -264,7 +264,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-workerd-npm` | `tool` | `archive` (`registry.npmjs.org`) | `version`, `archive-sha256`, `archive-bytes`, `archive-integrity`, `bin-member`, `bin-sha256`, `bin-bytes` (the npm package of workerd; podvm's profile `workerd-test`) |
 | `wasmtime-release` | `tool` | `archive` (`github.com`) | `version`, `archive-sha256`, `archive-bytes`, `bin-member`, `bin-sha256`, `bin-bytes` (the release archive of wasmtime; podvm's profile `wasmtime-wasi`) |
 | `shiftr-mqtt` | `mqtt-broker` | `broker` (`wss`, port 443: `public.cloud.shiftr.io` at `/`); the documents that the watches read (role `document`: `try`, `limits`) | `user`, `password` (its public login, `public` and `public`), `payload-bytes-most`, `topic-chars-most`, `client-id-chars-most`, `subscriptions-most`, `keep-alive-seconds-most`; the meeting points of `pod_wormhole::mqtt` (PodUtils/podssh@T-737) |
-| `tmpfiles-org` (rank 1), `litterbox` (rank 2), `temp-sh` (rank 3), `null-pointer-0x0` (0x0.st; no rank: its terms refuse automated uploads, C220) | `file-host` | `upload` (`https`, port 443, the path of the upload form); the documents that the watches read (role `document`) | `file-field`, `fields` (`name=value`, the shortest life), `life-seconds`, `answer` (`text` or `json`), `answer-pointer` (with `json`: a JSON pointer), `serves` (the hosts of the URLs of the answer), `fetch-segment` (a path segment after the host, or empty), `fetch-method` (`GET` or `POST`), `delete` (`none` or `token-form`; with `token-form`: `delete-token-header`, `delete-token-field`, `delete-fields`), `upload-bytes-most`, `uploads-per-hour` (where published), `one-person`, `automated-uploads-refused`, `user-agent-names-program` (if asked), `note`; the hosts of the pieces of PodUtils/podssh@T-738 ("Public file hosts") |
+| `tmpfiles-org` (rank 1), `litterbox` (rank 2), `temp-sh` (rank 3), `null-pointer-0x0` (0x0.st; no rank and not on by default: its terms refuse automated uploads, and it refused GitHub runners; C220, C282) | `file-host` | `upload` (`https`, port 443, the path of the upload form); the documents that the watches read (role `document`) | `file-field`, `fields` (`name=value`, the shortest life), `life-seconds`, `answer` (`text` or `json`), `answer-pointer` (with `json`: a JSON pointer), `serves` (the hosts of the URLs of the answer), `fetch-segment` (a path segment after the host, or empty), `fetch-link-prefix` (where the page at the URL links the file), `fetch-method` (`GET` or `POST`), `delete` (`none` or `token-form`; with `token-form`: `delete-token-header`, `delete-token-field`, `delete-fields`), `upload-bytes-most`, `uploads-per-hour` (where published), `one-person`, `automated-uploads-refused`, `on-by-default`, `user-agent-names-program` (if asked), `note`; the hosts of the pieces of PodUtils/podssh@T-738 ("Public file hosts") |
 | `yggdrasil-wss-peer` | `mesh-peer` | one for each peer (`wss`, port 443) | `urls` (the peers, sorted; PodUtils/podssh@T-735) |
 | `hyperdht-bootstrap` | `dht-bootstrap` | `node1` to `node3` (role `node`, scheme `udp`, port 49737, each with its address) | `nodes` (`IP@NAME:PORT`, as HyperDHT takes them; PodUtils/podssh@T-736), `addresses` |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
@@ -361,8 +361,11 @@ A service of the kind `file-host` is a public host of temporary files
 with no account: the last of the last fallbacks of podssh's resumable
 layer (PodUtils/podssh@T-738, PodUtils/podssh#220), one sealed piece for
 each upload. podcrates makes no upload: the facts come from each host's
-pages, and from podssh's reading of 2026-11-12 where a page does not show
-them (the source names PodUtils/podssh#220). The table of the kind is
+pages, from podssh's reading of 2026-11-12 where a page does not show
+them (the source names PodUtils/podssh#220), and from the live runs of
+podssh and of other parties on GitHub (PodUtils/podssh#230, T-528). The
+live step of `live.yml` proves each form (`pod_services_watch::file_host`).
+The table of the kind is
 `pod_services_watch::schema::kind_facts("file-host")`: the endpoint and
 the facts that each file needs, the ones it can have, and their types.
 
@@ -373,6 +376,12 @@ the facts that each file needs, the ones it can have, and their types.
   the pointer `answer-pointer` (`json`). Its host is one of `serves`.
 * The file is a request of `fetch-method` to the URL of the answer, with
   `fetch-segment` (when not empty) as the first segment of its path.
+* With `fetch-link-prefix`, the URL of the answer is a page. The file is a
+  GET of the first link in the page that starts with the prefix and ends
+  with the path of the URL of the answer. tmpfiles.org gives a signed link
+  of a short life (`https://tmpfiles.org/dl/EXPIRY.SIGNATURE/ID/NAME`):
+  take it from the page just before each download. Its `/dl/ID/NAME`
+  answers 302 to the page.
 * `delete` `none`: the file lives out its life. `token-form`: a POST to
   the URL of the file with the field `delete-token-field` (the value of
   the header `delete-token-header` of the answer) and `delete-fields`.
@@ -381,12 +390,23 @@ the facts that each file needs, the ones it can have, and their types.
   publishes it.
 * `automated-uploads-refused` is true when the terms refuse uploads by a
   program; such a host has no rank and a `note` (C220).
+* `on-by-default` false: a road takes the host only when its user names
+  it, and the `note` says why (0x0.st: its terms, and the 429 or 503 that
+  it gave to GitHub runners; C282).
   `user-agent-names-program` is true when the host asks for a User-Agent
   that names the program.
 
 The watches read the pages of the facts (`http-text`) and the status of a
 GET of the upload form (`http-status`: 405, 412). 0x0.st answers 500 to
-automated reads: its watch is `tls-name` alone.
+automated reads: its watch is `tls-name` alone. No watch uploads: the
+live step of `live.yml` does, each Thursday and by hand (T-528, L37 of
+`docs/live-calls.md`).
+
+The state on GitHub runners (2026-11-13, PodUtils/podssh#230): temp.sh
+works. tmpfiles.org works with the link of its page. litterbox answered
+412 to an upload with the fields of its API page; the fields of its own
+upload form (`time`, `fileNameLength`, `reqtype`) and the text of a
+refusal come from the live step (call C281). 0x0.st was busy at once.
 
 ## Where the consumers differed
 
@@ -593,8 +613,10 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 * `tests/file_host.rs` (4): the services of the kind `file-host` in
   podssh's order; each fact of the kind, of its type and form; the
   endpoint `upload` on https and 443; a source with a date for each value
-  (a page, or podssh's reading), and no measurement; no rank and a note
-  for a host whose terms refuse automated uploads; the values of each host.
+  (a page, podssh's reading, or a live run), and no measurement; no rank,
+  not on by default and a note for a host whose terms refuse automated
+  uploads; a link prefix of a host that the host serves; the values of
+  each host.
 * `tests/yggdrasil.rs` (2): the peers of `yggdrasil-wss-peer`: each a
   `wss://` URL on 443, the list sorted, each URL an endpoint of the file.
 * `tests/hyperdht.rs` (2): the nodes of `hyperdht-bootstrap`: each text
@@ -657,7 +679,7 @@ podssh:
 | `relay_checks::FORWARD_HOST`, `GITHUB_KEYS` | `get("github-ssh")...endpoint("ssh").host()`, `texts("host-key-sha256")` |
 | `podssh_ws::resolve::DOH_RESOLVERS` | `of_kind("doh")`: for each endpoint of the role `v4`, `Doh { ip: addresses()[0], name: host(), json: text("json-path"), wire: text("wire-path"), http2: bool("http2-only") }`; podssh keeps its order (Cloudflare and Google take turns, then Quad9) |
 | `doctor::nat::DEFAULT` | `of_kind("stun").map(\|s\| s.endpoint("udp").authority())` |
-| the hosts of the file hosts of `podssh-relay`'s `filehost` (PodUtils/podssh@T-738, new) | `of_kind("file-host")`: `endpoint("upload").url()`, `text("file-field")`, `texts("fields")`, `text("answer")`, `text("answer-pointer")`, `texts("serves")`, `text("fetch-segment")`, `text("fetch-method")`, `text("delete")` and its facts, `int("upload-bytes-most")`, `bool("automated-uploads-refused")` ("Public file hosts") |
+| the hosts of the file hosts of `podssh-relay`'s `filehost` (PodUtils/podssh@T-738, new) | `of_kind("file-host")`: `endpoint("upload").url()`, `text("file-field")`, `texts("fields")`, `text("answer")`, `text("answer-pointer")`, `texts("serves")`, `text("fetch-segment")`, `text("fetch-link-prefix")`, `text("fetch-method")`, `text("delete")` and its facts, `int("upload-bytes-most")`, `bool("automated-uploads-refused")`, `bool("on-by-default")` ("Public file hosts") |
 | `derp::servers::TAILCAT`, `PROBE_PATH` | `get("tailcat-derp")...endpoints_of("region").map(Endpoint::host)`, `text("probe-path")` |
 | `ts::probe::DERP_MAP_HOST`, `DERP_MAP_PATH` | `get("tailscale-derp-map")...endpoint("map")`: `host()`, `path()` |
 | `podssh_iroh::relays::DEFAULT` | `get("n0-iroh-relay")...endpoints_of("relay").map(Endpoint::url)`; `tests/relays.rs` compares that list with iroh's |
