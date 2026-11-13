@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -267,7 +267,7 @@
+ /// the peer is quiet. A panic of the code of KCP (a datagram of a stranger)
+ /// ends the stream with an error, as each end does.
+ async fn drive<D: Datagrams>(shared: Arc<Shared>, carrier: D) {
+-    let _ended = Ended(shared.clone());
++    let _ended = ();
+     let receive = async {
+         loop {
+             let datagram = match carrier.recv().await {

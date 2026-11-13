@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/quic.rs b/crates/pod-link/src/quic.rs
+--- a/crates/pod-link/src/quic.rs
++++ b/crates/pod-link/src/quic.rs
+@@ -222,7 +222,7 @@
+     /// The endpoint of one dial toward `addr`.
+     async fn endpoint(&self, target: &Target, addr: SocketAddr) -> Result<noq::Endpoint, CarrierError> {
+         let failed = |label: &str, f| pin::of_failure(NAME, target, label, f);
+-        match &self.way {
++        match &None::<Arc<dyn Dial>> {
+             None => pod_quic::endpoint::system(addr.is_ipv6()).map_err(|f| failed("the system", f)),
+             Some(way) => {
+                 let label = way.label();

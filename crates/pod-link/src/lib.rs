@@ -24,9 +24,12 @@
 //! pinning the Ed25519 key of the other), and with the feature `ws`,
 //! `ws::Ws` (the same TLS under a WebSocket, its listener on the accept
 //! loop of `pod-ws`), with the feature `h2`, `h2::H2` (the same TLS
-//! under one POST of HTTP/2), and with the feature `poll`, `poll::Poll`
-//! (the same TLS under requests of HTTP/1.1: the long poll, SSE, a chunked
-//! stream and the simplex poll). Each carrier says with
+//! under one POST of HTTP/2), with the feature `poll`, `poll::Poll` (the
+//! same TLS under requests of HTTP/1.1: the long poll, SSE, a chunked
+//! stream and the simplex poll), with the feature `quic`, `quic::Quic` (the
+//! same TLS under one stream of QUIC, over UDP or the caller's datagrams),
+//! and with the feature `udp`, `udp::Udp` (the same TLS over KCP over UDP).
+//! Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
 //! registry of the carriers, their order and their flags are the
@@ -62,11 +65,15 @@ mod pin;
 pub mod poll;
 #[cfg(any(feature = "h2", feature = "poll"))]
 mod post_url;
+#[cfg(feature = "quic")]
+pub mod quic;
 mod settings;
 mod state;
 mod stream;
 #[cfg(feature = "tcp")]
 pub mod tcp;
+#[cfg(feature = "udp")]
+pub mod udp;
 #[cfg(unix)]
 pub mod unix;
 #[cfg(feature = "ws")]

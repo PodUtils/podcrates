@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -243,7 +243,7 @@
+ 
+ impl Drop for KcpStream {
+     fn drop(&mut self) {
+-        self.shared.with(|i| i.dropped = Some(now()));
++        self.shared.with(|i| i.fail(io::ErrorKind::BrokenPipe, "dropped".into()));
+         self.shared.sender.notify_one();
+     }
+ }

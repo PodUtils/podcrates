@@ -13,7 +13,8 @@
 //!   [`Tcp::max_handshakes`] handshakes at once, each for at most
 //!   [`Tcp::handshake_timeout`], so a peer that sends nothing holds no other
 //!   peer.
-//! * TLS 1.3 alone, the ALPN [`ALPN`], no resumption. After its handshake
+//! * TLS 1.3 alone, the ALPN [`Tcp::alpn`] ([`ALPN`] by default; podnet
+//!   gives `podnet/1`), no resumption. After its handshake
 //!   the listener writes the byte 1: the dial returns only when the
 //!   listener took the key of this end, so a refused key is an error of the
 //!   dial, not of the first read of the link.
@@ -46,8 +47,8 @@ use crate::pin;
 /// The name of the carrier.
 pub const NAME: &str = "tcp";
 
-/// The ALPN of a link over TLS: both ends offer it, and a peer that takes
-/// another protocol is refused.
+/// The ALPN of a link over TLS by default: both ends offer it, and a peer
+/// that takes another protocol is refused.
 pub const ALPN: &[u8] = b"podlink/1";
 
 /// The byte that a listener writes when it took the key of the dialer.
@@ -78,6 +79,8 @@ pub struct Tcp {
     pub handshake_timeout: Duration,
     /// The most handshakes that a listener runs at once (at least 1).
     pub max_handshakes: usize,
+    /// The ALPN of both ends.
+    pub alpn: &'static [u8],
 }
 
 impl fmt::Debug for Tcp {
@@ -89,6 +92,7 @@ impl fmt::Debug for Tcp {
             .field("connect_timeout", &self.connect_timeout)
             .field("handshake_timeout", &self.handshake_timeout)
             .field("max_handshakes", &self.max_handshakes)
+            .field("alpn", &String::from_utf8_lossy(self.alpn))
             .finish()
     }
 }
@@ -110,6 +114,7 @@ impl Tcp {
             connect_timeout: CONNECT_TIMEOUT,
             handshake_timeout: HANDSHAKE_TIMEOUT,
             max_handshakes: MAX_HANDSHAKES,
+            alpn: ALPN,
         }
     }
 
@@ -127,17 +132,7 @@ impl Tcp {
     /// The key of the listener and its address in a dial address
     /// `KEY@HOST:PORT`.
     pub fn address(address: &str) -> Result<(KeyName, Target), CarrierError> {
-        let (key, target) = address.split_once('@').ok_or_else(|| {
-            err(CarrierErrorKind::Usage, format!("{address:?}: give KEY@HOST:PORT, with the key of the listener"))
-        })?;
-        let key = KeyName::parse(key).ok_or_else(|| {
-            err(
-                CarrierErrorKind::Usage,
-                format!(
-                    "{key:?} is no key: give the key in hex or base32, its SHA256: fingerprint or its display form"
-                ),
-            )
-        })?;
+        let (key, target) = pin::key_at(NAME, address, "KEY@HOST:PORT")?;
         let target = target.parse::<Target>().map_err(|e| err(CarrierErrorKind::Usage, e.text().to_string()))?;
         Ok((key, target))
     }
@@ -146,7 +141,7 @@ impl Tcp {
     /// whose key `peer` names. It gives the stream and the key that the
     /// listener proved.
     pub async fn connect(&self, target: &Target, peer: &KeyName) -> Result<(BoxIo, PublicKey), CarrierError> {
-        let config = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[ALPN])
+        let config = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[self.alpn])
             .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
         let name = server_name(target)?;
         let label = self.way.label();
@@ -167,7 +162,7 @@ impl Tcp {
                 .await
                 .map_err(|e| tls_error(format!("the TLS handshake with {target}"), e))?;
             let conn = tls.get_ref().1;
-            check_alpn(conn.alpn_protocol(), target)?;
+            check_alpn(conn.alpn_protocol(), self.alpn, target)?;
             let key = proved(conn.peer_certificates(), target)?;
             let mut word = [0u8];
             match tls.read_exact(&mut word).await {
@@ -247,9 +242,9 @@ fn answer_error(target: &Target, own: &PublicKey, e: io::Error) -> CarrierError 
     pin::answer_error(NAME, target, own, e)
 }
 
-/// The ALPN of a handshake must be [`ALPN`].
-fn check_alpn(alpn: Option<&[u8]>, peer: &dyn fmt::Display) -> Result<(), CarrierError> {
-    pin::check_alpn(NAME, alpn, ALPN, peer)
+/// The ALPN of a handshake must be `want`.
+fn check_alpn(alpn: Option<&[u8]>, want: &[u8], peer: &dyn fmt::Display) -> Result<(), CarrierError> {
+    pin::check_alpn(NAME, alpn, want, peer)
 }
 
 /// The key that the peer proved ([`pin::proved`]).

@@ -1,9 +1,8 @@
 diff --git a/crates/pod-link/src/tcp.rs b/crates/pod-link/src/tcp.rs
-index deb3687..6331d80 100644
 --- a/crates/pod-link/src/tcp.rs
 +++ b/crates/pod-link/src/tcp.rs
-@@ -169,7 +169,10 @@ impl Tcp {
-             check_alpn(conn.alpn_protocol(), target)?;
+@@ -165,7 +165,10 @@
+             check_alpn(conn.alpn_protocol(), self.alpn, target)?;
              let key = proved(conn.peer_certificates(), target)?;
              let mut word = [0u8];
 -            match tls.read_exact(&mut word).await {

@@ -1,0 +1,8 @@
+# The dial of the quic carrier does not read a close with the alert of a
+# refused certificate as a refusal: a dialer that the listener refused
+# gets an error of I/O with no key named (T-423).
+ENTRY=T-423
+GROUP=link
+EXPECT='the_listener_refuses_a_client_of_another_key_and_stays_open stdout ----'
+RUN='cargo test -p pod-link --all-features --test quic the_listener_refuses_a_client_of_another_key_and_stays_open'
+LIMIT=1800

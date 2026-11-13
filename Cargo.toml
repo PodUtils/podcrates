@@ -168,6 +168,8 @@ p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arith
 rsa = { version = "0.9", default-features = false, features = ["std"] }
 sha2-rsa = { package = "sha2", version = "0.10", default-features = false, features = ["oid"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
+# KCP of the udp carrier of pod-link: pure Rust, no feature (call C271).
+kcp = { version = "0.6", default-features = false }
 zeroize = "1"
 # WireGuard (pod-wg): ChaCha20-Poly1305 of ring (call C8: podnet's code
 # stays on ring) and X25519 of curve25519-dalek, with no default feature,

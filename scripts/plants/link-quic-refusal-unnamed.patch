@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/quic/io.rs b/crates/pod-link/src/quic/io.rs
+--- a/crates/pod-link/src/quic/io.rs
++++ b/crates/pod-link/src/quic/io.rs
+@@ -188,7 +188,7 @@
+                 io::Error::new(io::ErrorKind::InvalidData, e),
+             )
+         }
+-        ConnectionError::ConnectionClosed(close) if refused_by_peer(close.error_code) => CarrierError::with_source(
++        ConnectionError::ConnectionClosed(close) if refused_by_peer(close.error_code) && false => CarrierError::with_source(
+             NAME,
+             CarrierErrorKind::Refused,
+             format!("the peer at {peer} refused the key of this end, {}", own.fingerprint()),

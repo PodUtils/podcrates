@@ -1,0 +1,30 @@
+diff --git a/crates/pod-link/src/udp/listen.rs b/crates/pod-link/src/udp/listen.rs
+--- a/crates/pod-link/src/udp/listen.rs
++++ b/crates/pod-link/src/udp/listen.rs
+@@ -139,7 +139,7 @@
+     mut stop: oneshot::Receiver<()>,
+ ) {
+     let mut sessions: HashMap<(SocketAddr, u32), mpsc::Sender<Vec<u8>>> = HashMap::new();
+-    let mut shakes = JoinSet::new();
++    let mut shakes = JoinSet::<()>::new();
+     let mut stopped = false;
+     let mut buf = vec![0u8; MAX_DATAGRAM];
+     let mut prune = tokio::time::interval(PRUNE);
+@@ -178,14 +178,15 @@
+                 sessions.insert((from, conv), given);
+                 let session = Session { socket: socket.clone(), peer: from, mtu: shake.kcp.mtu, given: Mutex::new(taken) };
+                 let (shake, out) = (shake.clone(), out.clone());
+-                shakes.spawn(async move {
++                let () = async move {
+                     let result = match KcpStream::new(session, Some(conv), shake.kcp) {
+                         Ok(stream) => handshake(shake.acceptor, stream, shake.alpn, &from, shake.within).await,
+                         Err(e) => Err(err(CarrierErrorKind::Usage, format!("KCP: {e}"))),
+                     };
+                     let _ = out.send(result).await;
+                     drop(permit);
+-                });
++                }
++                .await;
+             }
+             _ = &mut stop, if !stopped => {
+                 stopped = true;

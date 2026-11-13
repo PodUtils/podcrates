@@ -1,13 +1,16 @@
 //! The parts that each carrier with the pin of an Ed25519 key shares
-//! (`tcp`, `ws`, `h2`): the name of the ClientHello, the class of a
-//! failure of the way out, a refused key in a failed handshake, the key
-//! that the peer proved, and the dial through the way out.
+//! (`tcp`, `ws`, `h2`, `quic`, `udp`): the name of the ClientHello, the
+//! class of a failure of the way out, a refused key in a failed handshake,
+//! the key that the peer proved, the dial through the way out, and the key
+//! of a dial address.
 
 use std::fmt;
 use std::io;
 
-use pod_core::{Class, Connected, Dial, Failure, Target};
-use pod_identity::PublicKey;
+use std::net::SocketAddr;
+
+use pod_core::{Class, Connected, Dial, Failure, Resolve, Target};
+use pod_identity::{KeyName, PublicKey};
 use pod_tls::peer::{self, refusal};
 use rustls::pki_types::ServerName;
 use tokio::time::{Duration, Instant, timeout_at};
@@ -25,7 +28,72 @@ pub(crate) fn server_name(carrier: &'static str, target: &Target) -> Result<Serv
     }
 }
 
-/// A dial of `target` through `way` within `limit`.
+/// The key of the listener and the rest of a dial address `KEY@REST`;
+/// `form` names the whole form for the error.
+pub(crate) fn key_at<'a>(
+    carrier: &'static str,
+    address: &'a str,
+    form: &str,
+) -> Result<(KeyName, &'a str), CarrierError> {
+    let (key, rest) = address.split_once('@').ok_or_else(|| {
+        CarrierError::new(
+            carrier,
+            CarrierErrorKind::Usage,
+            format!("{address:?}: give {form}, with the key of the listener"),
+        )
+    })?;
+    let key = KeyName::parse(key).ok_or_else(|| {
+        CarrierError::new(
+            carrier,
+            CarrierErrorKind::Usage,
+            format!("{key:?} is no key: give the key in hex or base32, its SHA256: fingerprint or its display form"),
+        )
+    })?;
+    Ok((key, rest))
+}
+
+/// The address of `target` for a carrier of datagrams: the address
+/// itself, or the first address of its name from `resolver`, else from the
+/// system, within `limit`.
+#[cfg_attr(not(any(feature = "quic", feature = "udp")), allow(dead_code))]
+pub(crate) async fn resolve(
+    carrier: &'static str,
+    resolver: Option<&dyn Resolve>,
+    target: &Target,
+    limit: Duration,
+) -> Result<SocketAddr, CarrierError> {
+    let (host, port) = match target {
+        Target::Addr(addr) => return Ok(*addr),
+        Target::Name { host, port } => (host, *port),
+    };
+    let late = || {
+        CarrierError::new(
+            carrier,
+            CarrierErrorKind::Io(io::ErrorKind::TimedOut),
+            format!("the resolution of {host} took more than {limit:?}"),
+        )
+    };
+    let deadline = Instant::now() + limit;
+    let found = match resolver {
+        Some(resolver) => timeout_at(deadline, resolver.resolve(host, port, deadline))
+            .await
+            .map_err(|_| late())?
+            .map_err(|f| of_failure(carrier, target, &resolver.label(), f))?,
+        None => timeout_at(deadline, tokio::net::lookup_host((host.as_str(), port)))
+            .await
+            .map_err(|_| late())?
+            .map_err(|e| CarrierError::io(carrier, format!("the resolution of {host}"), e))?
+            .collect(),
+    };
+    found
+        .first()
+        .copied()
+        .ok_or_else(|| CarrierError::new(carrier, CarrierErrorKind::NotFound, format!("{host} has no address")))
+}
+
+/// A dial of `target` through `way` within `limit`. The tcp carrier has a
+/// dial of its own, so a build of `tcp` alone has no caller.
+#[cfg_attr(not(any(feature = "ws", feature = "h2")), allow(dead_code))]
 pub(crate) async fn dial(
     carrier: &'static str,
     way: &dyn Dial,

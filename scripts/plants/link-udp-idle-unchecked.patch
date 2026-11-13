@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -318,7 +318,7 @@
+     if i.kcp.is_dead_link() {
+         i.fail(io::ErrorKind::TimedOut, "KCP: the peer acknowledged no segment after 20 sends".into());
+     }
+-    if now.duration_since(i.heard) >= i.idle {
++    if now.duration_since(i.heard) >= i.idle && false {
+         i.fail(io::ErrorKind::TimedOut, format!("KCP: the peer was silent for {:?}", i.idle));
+     }
+     let out = i.out.take();

@@ -4620,7 +4620,7 @@ T-518 (a fuzz target of the reader of HTTP/1.1).
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4646,6 +4646,26 @@ memory carriers, and not this one.
 cargo test -p pod-link --all-features
 ```
 
+## Done
+
+2026-11-13, commit 6a5a7d8. `quic::Quic` (feature `quic`, call C270):
+one bidirectional stream of a connection of `pod-quic`, with the TLS of
+`tcp` and the pin of each key. A dial sends from a UDP socket of the
+system or over the datagrams of the caller's way out (`with_way`,
+`pod_core::Dial::datagrams`); a name resolves through the caller's
+resolver (`with_resolver`) or the system. A listener binds `IP:PORT` or
+runs over the caller's datagrams (`bind_over`). The ALPN is the setting
+`Quic::alpn` (`podlink/1` by default; podnet gives `podnet/1`). The
+listener opens the one stream and writes the byte 1 on it, so a refused
+key is an error of the dial (77). A drop waits for the acknowledgement of
+each byte (at most `linger`, 10 s) before the close. `cargo test -p
+pod-link --all-features --test quic`: 11 passed; `cargo test -p pod-link
+--all-features`: 115 passed. Plants, each caught by hand:
+`link-quic-refusal-unnamed`, `link-quic-handshake-inline`,
+`link-quic-drop-closes-at-once`, `link-quic-way-unused`. The static probe
+links to itself over QUIC. The tcp carrier now reads its address with the
+shared `pin::key_at`, and a build of `tcp` alone is clean under clippy.
+
 # T-424: `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515)
 
 **Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
@@ -4653,7 +4673,7 @@ cargo test -p pod-link --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4678,6 +4698,31 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit cd5acb5. `udp::Udp` (feature `udp`, calls C271 and
+C272): the wire of KCP (the crate `kcp` 0.6.0, pure Rust, in stream mode)
+over UDP or the caller's datagrams, with the TLS of `tcp` above it (the
+pin of each key, the byte of acceptance). podnet's rules name KCP (a
+window of 32 to 1024, its congestion window, `--kcp-nodelay`), so the
+carrier does not run the ARQ of T-310. `udp::KcpStream` drives KCP over
+any `datagram::Datagrams`; `Udp::connect_over` and `Udp::accept_over`
+run the handshake over the datagrams of one peer (the `Lossy` shim). A
+listener starts a session at a first segment alone, at most
+`max_handshakes` at once. `cargo test -p pod-link --all-features --test
+udp`: 10 passed; `--test udp_loss`: 5 passed (1 MiB each way at 0 % and
+at 3 % loss with 1 % reorder and 1 % duplicates, 8 MiB each way at 5 %
+loss and 1 % reorder with `nodelay`, a silent peer at the idle limit, a
+datagram that breaks KCP); `cargo test -p pod-link --all-features`: 131
+passed; 10 runs of the new targets in a loop passed. Plants, each caught
+by hand: `link-udp-handshake-inline`,
+`link-udp-stranger-starts-a-session`, `link-udp-drop-stops-at-once`,
+`link-udp-idle-unchecked`, `link-udp-panic-hangs-the-stream`,
+`link-tcp-alpn-unset`. The ALPN of `tcp` is now the setting `Tcp::alpn`
+(call C273). Not held: podnet's run at 20 % loss within 3 times the clean
+time (T-520, a question for podnet); a fuzz target of the input of KCP
+is T-521.
 
 # T-442: `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88)
 
@@ -5450,6 +5495,12 @@ cargo test -p pod-link --all-features
 
 The first carrier over a shared path (T-424, T-498 or T-499) starts.
 
+## Correction
+
+2026-11-13, call C271: the udp carrier of T-424 runs the wire of KCP with
+the congestion window of KCP, not this ARQ. The first carrier of the ARQ
+over a shared path is T-498 or T-499.
+
 # T-516: `pod-link`: a fuzz target of the datagrams of the ARQ
 
 **Source:** T-310 (a finding of its work)
@@ -5496,6 +5547,67 @@ fuzz/Cargo.toml --lib`: 11 passed (the seeds and their mutations);
 `cargo check --manifest-path fuzz/Cargo.toml --bins` and clippy of the fuzz
 workspace pass. No plant: the target is the check, and `fuzz.yml` runs it
 each week.
+
+# T-520: `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515)
+
+**Source:** T-424 (call C272, a finding of its work); PodUtils/podnet#468, row E2-1.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Row E2-1 of PodUtils/podnet#468 says "Congestion control is the KCP default" and "`--kcp-nodelay 1` [...] is not the default", and its gate is "an 8 MiB round trip over a 5% drop and 1% reorder shim; a 20% drop run within 3 times the clean time". The congestion window of KCP falls to one segment at each loss of a retransmission, so at random loss its throughput falls far below the clean one: the two rules disagree. The udp carrier of T-424 keeps the congestion window by default (`KcpSettings::nodelay` off) and runs the gate of 8 MiB with `nodelay`.
+
+## Premise
+
+- Measured (2026-11-13, a debug build, the `Lossy` shim of a memory pair, 2 MiB each way): with the congestion window 0.13 s clean, 3.1 s at 1 % loss, 12.4 s at 5 %, 75 s at 20 %; with `nodelay` 0.11 s clean, 0.16 s at 5 %, 0.44 s at 20 % (4.1 times the clean time).
+- Not measured: a release build; UDP of the system with a real delay.
+
+## Approach
+
+Ask podnet (a COORD issue of podcrates `(to podnet)`) which default it wants: the congestion window of KCP (and a gate of 20 % with `nodelay`), or `nodelay` by default. Then set the default of `KcpSettings`, and add the run at 20 % loss with its bound of time (in a release build, or with a bound that a debug build holds) to `tests/udp_loss.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test udp_loss
+```
+
+## Start condition
+
+podnet answers the question, or starts its PodUtils/podnet@T-276.
+
+# T-521: `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP)
+
+**Source:** T-424 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The udp carrier of T-424 gives each datagram of its peer's address and conversation to `kcp::Kcp::input` (the crate `kcp` 0.6.0) before TLS checks a byte, and a stranger who knows the address and the conversation can send any bytes. The arithmetic of the crate overflows on some values: an `ACK` with an old time stamp gives a round trip near 2^31 ms, and `4 * rx_rttval` in `update_ack` overflows, which panics in a build with overflow checks (a debug build) and wraps in the release profile of the workspace. The task of `udp::KcpStream` ends the stream with an error when it ends by a panic (the test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` gives one such `ACK`), but no fuzz target reads such datagrams.
+
+## Premise
+
+- Read: the source of `kcp` 0.6.0 (`src/kcp.rs`: `input`, `update_ack`, `parse_data`, `recv`); `crates/pod-link/src/udp/stream.rs`; `fuzz/fuzz_targets/link_frame.rs`.
+- Not measured: no fuzz run; no forged datagram in a test.
+
+## Approach
+
+A target `link_kcp`: the input is a list of datagrams with a clock that moves by a byte of the input, each given to `Kcp::input` of one end in stream mode, with `update`, `flush` and `recv` after each. Find each panic; where one comes from the crate, take a datagram that holds it into a test of `crates/pod-link/tests/udp_loss.rs` (the stream ends with an error, no other stream is hurt), and send the fix upstream or keep a check before `input` (the time stamp of an `ACK` within the last minute). The row of `fuzz/README.md` and the check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-link --all-features --test udp_loss
+```
 
 # T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
 

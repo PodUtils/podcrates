@@ -1,0 +1,6 @@
+# KCP of the udp carrier keeps a session whose peer is silent (T-424).
+ENTRY=T-424
+GROUP=link
+EXPECT='the end in time'
+RUN='cargo test -p pod-link --all-features --test udp_loss a_peer_that_goes_silent_ends_the_stream_at_the_idle_limit'
+LIMIT=1800
