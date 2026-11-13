@@ -25,6 +25,10 @@
 //! Client Hello ([`https`], [`Way::https`]) and an answer of the JSON form
 //! ([`Way::query`]).
 //!
+//! [`txt`] builds a query with an ID and an EDNS0 size, and reads the TXT
+//! and CNAME records, the TC bit and the RCODE of its answer, for a carrier
+//! of bytes over DNS whose transport is the caller's.
+//!
 //! **No process state, no output.** The settings, the pins, the cache of
 //! addresses ([`Memory`]) and the way out are values of the [`Resolver`]
 //! that the consumer owns. The crate reads no variable and no file unless
@@ -47,6 +51,7 @@ mod question;
 mod resolver;
 pub mod route;
 mod settings;
+pub mod txt;
 mod way;
 pub mod wire;
 

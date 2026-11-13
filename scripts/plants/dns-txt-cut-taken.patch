@@ -1,0 +1,12 @@
+diff --git a/crates/pod-dns/src/txt.rs b/crates/pod-dns/src/txt.rs
+--- a/crates/pod-dns/src/txt.rs
++++ b/crates/pod-dns/src/txt.rs
+@@ -125,7 +125,7 @@
+         for _ in 0..count {
+             let Some(Raw { rtype, class, ttl, start, len }) = record_at(msg, at)? else {
+                 // A cut answer ends where the server cut it.
+-                return if truncated { Ok(answer) } else { Err(CUT.into()) };
++                return Ok(answer);
+             };
+             let data = &msg[start..start + len];
+             match (section, rtype) {

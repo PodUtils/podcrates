@@ -158,9 +158,11 @@ pub fn connect_status(data: &[u8]) {
 /// nothing else, and a name read from any offset ends within the bytes, at
 /// most 253 characters long. An HTTPS record's list for Encrypted Client
 /// Hello is whole by its own lengths, within its bound, from an answer or
-/// from a record's data alone.
+/// from a record's data alone. A TXT or CNAME answer (`pod_dns::txt`) has
+/// the TC bit of its header, strings of 255 bytes at most and CNAME targets
+/// of a name's length.
 pub fn dns_wire(data: &[u8]) {
-    use pod_dns::{NXDOMAIN, https, wire};
+    use pod_dns::{NXDOMAIN, https, txt, wire};
     const NAME: &str = "tcp.ssh.relay.ajam.dev";
     const SRV_NAME: &str = "_v2-origintunneld._tcp.argotunnel.com";
     let rcode3 = data.len() >= 12 && (data[2] & 0x80) != 0 && (data[3] & 0x0f) == 3;
@@ -188,6 +190,20 @@ pub fn dns_wire(data: &[u8]) {
     }
     if let Ok(Some((_, list))) = https::from_rdata(data) {
         assert!(whole(&list), "{list:?}");
+    }
+    let id = data.get(..2).map_or(0, |b| u16::from_be_bytes([b[0], b[1]]));
+    let tc = data.get(2).is_some_and(|b| b & 0x02 != 0);
+    for kind in [txt::TXT, txt::CNAME] {
+        if let Ok(found) = txt::read(data, id, NAME, kind) {
+            assert_eq!(found.truncated, tc);
+            assert!(found.rcode < 4096, "{found:?}");
+            for r in &found.records {
+                match r {
+                    txt::Record::Txt(strings) => assert!(strings.iter().all(|s| s.len() <= 255), "{r:?}"),
+                    txt::Record::Cname(n) => assert!(!n.is_empty() && n.len() <= 253, "{r:?}"),
+                }
+            }
+        }
     }
     let start = data.first().map_or(0, |&b| usize::from(b) % data.len().max(1));
     if let Ok((name, end)) = wire::read_name(data, start) {
