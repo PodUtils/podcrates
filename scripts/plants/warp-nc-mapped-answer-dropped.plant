@@ -1,0 +1,8 @@
+# nc's UDP through a session keeps an answer only when its source is the
+# target in the same form: the mapped form of an IPv4 answer is dropped
+# (T-508, PodUtils/podnet#524).
+ENTRY=T-508
+GROUP=warp
+EXPECT='test nc::tests::an_answer_in_the_mapped_form_is_the_target \.\.\. FAILED'
+RUN='cargo test -p pod-warp --all-features --lib -- nc::tests::an_answer_in_the_mapped_form_is_the_target'
+LIMIT=1800

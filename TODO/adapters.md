@@ -1751,3 +1751,11 @@ test fails: the edge saw `(2606:4700:110:8000::2,
 [::ffff:198.51.100.30]:4433)`. The plant `warp-datagrams-mapped-kept`
 fails it; the plant `warp-udp-to-a-family-the-device-lacks` moves to
 `WarpDatagrams::new`.
+
+The second path (PodUtils/podnet#524, its update): `nc::udp_via_net`
+kept an answer only when its source equals the IPv4 target in the same
+form, so `warp nc -u 1.1.1.1 53` got no answer live; it compares the
+canonical forms now (`same_peer`, the test
+`an_answer_in_the_mapped_form_is_the_target`, the plant
+`warp-nc-mapped-answer-dropped`).
+

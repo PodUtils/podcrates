@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/nc.rs b/crates/pod-warp/src/nc.rs
+--- a/crates/pod-warp/src/nc.rs
++++ b/crates/pod-warp/src/nc.rs
+@@ -193,7 +193,7 @@
+ /// The same peer in either form: a socket that binds `[::]` can give the
+ /// source of an IPv4 answer as `::ffff:a.b.c.d` (PodUtils/podnet#524).
+ fn same_peer(a: SocketAddr, b: SocketAddr) -> bool {
+-    a.port() == b.port() && a.ip().to_canonical() == b.ip().to_canonical()
++    a == b
+ }
+ 
+ /// The two channels of a UDP pipe to `host:port` through `stream`, a

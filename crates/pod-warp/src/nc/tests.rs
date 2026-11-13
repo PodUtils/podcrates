@@ -126,3 +126,15 @@ async fn a_udp_pipe_through_a_stream_frames_each_datagram() {
     let failure = udp_via_stream(tokio::io::duplex(64).0, &"a".repeat(256), 53).unwrap_err();
     assert_eq!(failure.class, Class::Usage);
 }
+
+/// PodUtils/podnet#524: the answer of an IPv4 target in the mapped form
+/// is an answer of the target.
+#[test]
+fn an_answer_in_the_mapped_form_is_the_target() {
+    let to: SocketAddr = "1.1.1.1:53".parse().unwrap();
+    assert!(same_peer("[::ffff:1.1.1.1]:53".parse().unwrap(), to));
+    assert!(same_peer(to, to));
+    assert!(!same_peer("[::ffff:1.1.1.1]:54".parse().unwrap(), to));
+    assert!(!same_peer("1.0.0.1:53".parse().unwrap(), to));
+    assert!(!same_peer("[2606:4700::1111]:53".parse().unwrap(), to));
+}

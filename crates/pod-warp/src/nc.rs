@@ -182,12 +182,18 @@ pub async fn udp_via_net(net: Arc<dyn Dial>, names: &Names, host: &str, port: u1
     tokio::spawn(async move {
         let mut buf = vec![0u8; 65_536];
         while let Ok((n, from)) = recv_from(socket.as_ref(), &mut buf).await {
-            if from == to && back_tx.send(buf[..n].to_vec()).await.is_err() {
+            if same_peer(from, to) && back_tx.send(buf[..n].to_vec()).await.is_err() {
                 return;
             }
         }
     });
     Ok((out_tx, back_rx))
+}
+
+/// The same peer in either form: a socket that binds `[::]` can give the
+/// source of an IPv4 answer as `::ffff:a.b.c.d` (PodUtils/podnet#524).
+fn same_peer(a: SocketAddr, b: SocketAddr) -> bool {
+    a.port() == b.port() && a.ip().to_canonical() == b.ip().to_canonical()
 }
 
 /// The two channels of a UDP pipe to `host:port` through `stream`, a
