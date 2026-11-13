@@ -23,6 +23,7 @@ from pathlib import Path
 ALLOWED = {
     ("pod-proxy", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-gsr", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
+    ("pod-link", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-hold", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-e2e", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
     ("pod-relay", "fuzzing"): "for the fuzz targets of fuzz/; no consumer turns it on",
