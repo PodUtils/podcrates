@@ -7,13 +7,14 @@
 # are the pages that the watches read. serves and fetch-method are
 # podssh's reading of 2026-11-12; the rest was read on 2026-11-13.
 #
-# The upload answered 412 to podssh's live run from a GitHub runner on
-# 2026-11-13 (PodUtils/podssh#230), with the fields of the API page and a
-# User-Agent that names podssh. The API answers 412 with a text that names
-# the fault ("No request type given." to a GET); the run did not keep the
-# text. A WAF (BunkerWeb) is in front of the API since 2026-10. The live
-# step of live.yml (T-528) sends the fields of the upload form and prints
-# the text of a refusal.
+# The upload answers 412 "Invalid uploader" to a GitHub runner with the
+# fields of the API page (PodUtils/podssh#230) and with those of the upload
+# form (live.yml run 43448958418, T-529). Catbox refuses an anonymous
+# upload from the networks of clouds; a userhash of an account passes, but
+# it makes the owner of the account answerable for each upload. So
+# on-by-default is false: a road takes the host only when its user names it
+# (call C285). The terms refuse no upload by a program, so the host keeps
+# its rank.
 id = "litterbox"
 kind = "file-host"
 party = "Catbox LLC"
@@ -112,12 +113,12 @@ source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "the 
 
 [[fact]]
 name = "on-by-default"
-value = true
-source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "the terms refuse no upload by a program that is not commercial" }
+value = false
+source = { url = "https://github.com/PodUtils/podcrates/actions/runs/43448958418", read = 2026-11-13, note = "the live round trip from a GitHub runner: the upload answered HTTP 412 Invalid uploader; oleksii-latyshev/disalytics#488 (2026-10-03): Catbox rejects anonymous uploads from Cloudflare egress (412 Invalid uploader); yosheloa-stack/Botnovo#19 (2026-10-26) saw the same 412" }
 
 [[fact]]
 name = "note"
-value = "The terms of Catbox refuse commercial use without prior approval; the FAQ refuses .exe, .scr, .cpl, .doc* and .jar files, and Catbox keeps the IP address with each upload. The upload answered 412 to a GitHub runner on 2026-11-13 (PodUtils/podssh#230); the cause is not known."
+value = "The terms of Catbox refuse commercial use without prior approval; the FAQ refuses .exe, .scr, .cpl, .doc* and .jar files, and Catbox keeps the IP address with each upload. An anonymous upload from the network of a cloud (a GitHub runner, Cloudflare) gets 412 Invalid uploader, so the host is not on by default; a user who reaches it from another network names it."
 source = { url = "https://litterbox.catbox.moe/faq.php", read = 2026-11-13 }
 
 [[watch]]

@@ -129,5 +129,5 @@ fn the_values_of_the_file_hosts() {
     assert_eq!(null.bool("user-agent-names-program"), Some(true));
     let on: Vec<&str> =
         pod_services::of_kind("file-host").filter(|s| s.bool("on-by-default") == Some(true)).map(|s| s.id()).collect();
-    assert_eq!(on, ["tmpfiles-org", "litterbox", "temp-sh"], "0x0.st is not on by default (T-528)");
+    assert_eq!(on, ["tmpfiles-org", "temp-sh"], "0x0.st (T-528) and litterbox (T-529) are not on by default");
 }

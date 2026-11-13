@@ -6642,7 +6642,7 @@ session does not dispatch. T-529 takes its result.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6679,10 +6679,14 @@ cargo test -p pod-services --all-features
 cargo test -p pod-services-watch --all-features
 ```
 
-and the log of the live step, with `file hosts: 3 ran, 0 failed`.
+and the log of the live step, with `file hosts: 2 ran, 0 failed` (litterbox is not on by default, C285).
 
 ## Start condition
 
 The merge of T-528 on `main`, and a run of `live.yml` (on a Thursday, or
 by hand with the input `relay` `none`).
+
+## Done
+
+- Part, 2026-11-13: `live.yml` run 43448958418 at `6b183f6`: tmpfiles.org holds by the signed link of its page (1.5 s), temp.sh holds, litterbox answers HTTP 412 "Invalid uploader" with the fields of its upload form. Two other parties saw the same 412 from cloud networks. litterbox's `on-by-default` is false, with its rank kept (call C285). Open: a run of the step with `file hosts: 2 ran, 0 failed`, and the answer to PodUtils/podssh#230 with the tag.
 

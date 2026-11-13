@@ -264,7 +264,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-workerd-npm` | `tool` | `archive` (`registry.npmjs.org`) | `version`, `archive-sha256`, `archive-bytes`, `archive-integrity`, `bin-member`, `bin-sha256`, `bin-bytes` (the npm package of workerd; podvm's profile `workerd-test`) |
 | `wasmtime-release` | `tool` | `archive` (`github.com`) | `version`, `archive-sha256`, `archive-bytes`, `bin-member`, `bin-sha256`, `bin-bytes` (the release archive of wasmtime; podvm's profile `wasmtime-wasi`) |
 | `shiftr-mqtt` | `mqtt-broker` | `broker` (`wss`, port 443: `public.cloud.shiftr.io` at `/`); the documents that the watches read (role `document`: `try`, `limits`) | `user`, `password` (its public login, `public` and `public`), `payload-bytes-most`, `topic-chars-most`, `client-id-chars-most`, `subscriptions-most`, `keep-alive-seconds-most`; the meeting points of `pod_wormhole::mqtt` (PodUtils/podssh@T-737) |
-| `tmpfiles-org` (rank 1), `litterbox` (rank 2), `temp-sh` (rank 3), `null-pointer-0x0` (0x0.st; no rank and not on by default: its terms refuse automated uploads, and it refused GitHub runners; C220, C282) | `file-host` | `upload` (`https`, port 443, the path of the upload form); the documents that the watches read (role `document`) | `file-field`, `fields` (`name=value`, the shortest life), `life-seconds`, `answer` (`text` or `json`), `answer-pointer` (with `json`: a JSON pointer), `serves` (the hosts of the URLs of the answer), `fetch-segment` (a path segment after the host, or empty), `fetch-link-prefix` (where the page at the URL links the file), `fetch-method` (`GET` or `POST`), `delete` (`none` or `token-form`; with `token-form`: `delete-token-header`, `delete-token-field`, `delete-fields`), `upload-bytes-most`, `uploads-per-hour` (where published), `one-person`, `automated-uploads-refused`, `on-by-default`, `user-agent-names-program` (if asked), `note`; the hosts of the pieces of PodUtils/podssh@T-738 ("Public file hosts") |
+| `tmpfiles-org` (rank 1), `litterbox` (rank 2; not on by default: Catbox refuses an anonymous upload from the network of a cloud; C285), `temp-sh` (rank 3), `null-pointer-0x0` (0x0.st; no rank and not on by default: its terms refuse automated uploads, and it refused GitHub runners; C220, C282) | `file-host` | `upload` (`https`, port 443, the path of the upload form); the documents that the watches read (role `document`) | `file-field`, `fields` (`name=value`, the shortest life), `life-seconds`, `answer` (`text` or `json`), `answer-pointer` (with `json`: a JSON pointer), `serves` (the hosts of the URLs of the answer), `fetch-segment` (a path segment after the host, or empty), `fetch-link-prefix` (where the page at the URL links the file), `fetch-method` (`GET` or `POST`), `delete` (`none` or `token-form`; with `token-form`: `delete-token-header`, `delete-token-field`, `delete-fields`), `upload-bytes-most`, `uploads-per-hour` (where published), `one-person`, `automated-uploads-refused`, `on-by-default`, `user-agent-names-program` (if asked), `note`; the hosts of the pieces of PodUtils/podssh@T-738 ("Public file hosts") |
 | `yggdrasil-wss-peer` | `mesh-peer` | one for each peer (`wss`, port 443) | `urls` (the peers, sorted; PodUtils/podssh@T-735) |
 | `hyperdht-bootstrap` | `dht-bootstrap` | `node1` to `node3` (role `node`, scheme `udp`, port 49737, each with its address) | `nodes` (`IP@NAME:PORT`, as HyperDHT takes them; PodUtils/podssh@T-736), `addresses` |
 | `freedos-image` | `guest-image` | `zip` | `sha256`, `zip-bytes`, `image-member`, `image-bytes` |
@@ -403,10 +403,11 @@ live step of `live.yml` does, each Thursday and by hand (T-528, L37 of
 `docs/live-calls.md`).
 
 The state on GitHub runners (2026-11-13, PodUtils/podssh#230): temp.sh
-works. tmpfiles.org works with the link of its page. litterbox answered
-412 to an upload with the fields of its API page; the fields of its own
-upload form (`time`, `fileNameLength`, `reqtype`) and the text of a
-refusal come from the live step (call C281). 0x0.st was busy at once.
+works. tmpfiles.org works with the link of its page (live.yml run
+43448958418). litterbox answers 412 "Invalid uploader" to the fields of
+its API page and to those of its upload form: Catbox refuses an anonymous
+upload from the network of a cloud, so it is not on by default (call
+C285). 0x0.st was busy at once.
 
 ## Where the consumers differed
 
