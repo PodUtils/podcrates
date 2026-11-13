@@ -1,0 +1,41 @@
+# The trial of pod-warp in podnet (T-412; calls C201, C203, C207, C213,
+# C215, C225 to C229). podnet's src/warp/ goes onto pod-warp: WarpClient
+# holds a pod_warp::Warp with podnet's settings (the egress with the split of
+# the ClientHello, the WebSocket relay as the relay leg with its budget, the
+# door file, the leg file, the hints and the stack settings of --cc and the
+# variables); WarpStack is WarpNet; Live, the proxy, the forward, the pipes
+# of nc, the socket search, the exit, the TUN and its routes are the
+# crate's, with podnet's listeners, globals, record of the instance and
+# resolver file. export.rs, up.rs, pod.rs, ssh_config.rs, the record of the
+# instance, bind and bind_all, nc's search and relay leg, and the scan of the
+# doors stay in podnet. Each podcrates tag moves to v0.35.0. The record of
+# podnet, the size and the layers of the files, the build, the bans and the
+# sources of cargo-deny, pod-warp in the tree, no file and no copy of a moved
+# item left in podnet, clippy of the workspace, the tests of the library,
+# of the registration and of the routes, the library surface, the rule
+# words, the docs, the warp commands, the exit codes and the llms files of
+# the CLI, the fuzz targets with their lock, rustfmt, each Rust toolchain of
+# the workflows and build images against the rust-version of podcrates, and
+# the binary for x86_64 musl, built with zig (a debug build: the release
+# profile takes LTO), with podnet's static check of it.
+cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podnet-todo -- check
+python3 scripts/check-size.py
+python3 scripts/check-layers.py
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podnet -i pod-warp | grep -q '^pod-warp v'
+for f in enrol.rs private.rs door.rs h3.rs proxy/names.rs proxy/dns_bound.rs tun/probe.rs tun/rp_filter.rs route/resolv.rs; do test ! -e "src/warp/$f" || exit 1; done
+! git grep -n -E "struct PinnedKey|fn endpoint_order|fn door_from|fn relay_first_from|struct CapsuleDecoder|fn put_varint|struct MasqueSession|struct WarpStack|struct TcpConn|fn check_data_path_at|fn dot_exchange|fn query_at|struct Live<|fn parse_route_table|fn plan_exempt|struct TunProbe|fn apply_in|fn candidates_of|fn handle_client_auth|fn spki_from_pem|fn create_device|fn enrol_masque|struct DeviceHints|fn connect_headers_form|pub struct L4|fn whoami_query|fn first_txt|fn reconcile_held|fn install_all|struct EnrolRequest|fn exchange_any|fn udp_associate_on|fn tls_config_alpn" -- src crates
+cargo clippy -q --workspace --all-targets -- -D warnings
+cargo test -q -p podnet --lib
+cargo test -q -p podnet --test warp_register --test warp_routes
+cargo test -q -p podnet --test api_surface --test rule_words --test docs --test commands
+cargo test -q -p podnet --test cli -- exit_codes llms log warp
+cargo update -q -w --manifest-path fuzz/Cargo.toml
+cargo check -q --manifest-path fuzz/Cargo.toml --bins
+cargo fmt --all --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podnet --bin podnet
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podnet"
