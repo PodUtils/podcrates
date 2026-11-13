@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 376 entries: 110 open, 7 partial, 5 blocked, 254 done.
+`TODO/INDEX.md` holds 377 entries: 111 open, 7 partial, 5 blocked, 254 done.
 
 ## State
 
@@ -66,7 +66,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-381 (the options of
+1. **The defects and asks of the consumers:** T-486 (an overlay root in
+   the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**376 entries: 110 open, 7 partial, 5 blocked, 254 done.**
+**377 entries: 111 open, 7 partial, 5 blocked, 254 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 72 | 87 |
-| P2 | 51 | 2 | 5 | 131 | 189 |
+| P2 | 52 | 2 | 5 | 131 | 190 |
 | P3 | 47 | 2 | 0 | 49 | 98 |
-| **All** | 110 | 7 | 5 | 254 | 376 |
+| **All** | 111 | 7 | 5 | 254 | 377 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -423,3 +423,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-477](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
 | [T-478](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the client of the HTTP road never sends `close`, so a caller that drops its stream leaves the session at the role |
 | [T-485](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291) |
+| [T-486](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294) |

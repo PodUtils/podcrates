@@ -5503,3 +5503,50 @@ an unknown row) fails `a_row_that_probes_does_not_name_is_refused`. The
 static probe turns on `report`. podvm embeds the object under one key of
 its `report::document` and reads that key back (PodUtils/podvm@T-1746).
 The answer on PodUtils/podvm#291 goes with the tag that holds `report`.
+
+# T-486: `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294)
+
+**Source:** PodUtils/podvm#294 (COORD-071 of podvm; PodUtils/podvm@T-1749, the ask V-5 of podswarm, #124).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each `podvm run` fills a new tree from the extracted image before the
+namespace rung of `pod-enter` enters it. On a host with no shared blocks
+the fill is a copy: podvm measured 681 ms of 2861 ms for `ubuntu:24.04`
+and 8377 ms of 12611 ms for `golang:1.24.7-bookworm` (experiment 442,
+the median of 5 runs). `run_namespace` takes a `RootDir` and has no form
+of a root that leaves a shared lower directory unchanged.
+
+## Premise
+
+- Read: PodUtils/podvm#294 (2026-11-13); `crates/pod-enter/src/entry.rs`
+  (`run_namespace`), `crates/pod-enter/src/plan.rs` (`Plan`).
+- Not measured: the time of an overlay mount in a user namespace here;
+  whether the hosts of CI allow it (Linux 5.11 and later mount overlayfs
+  in a user namespace).
+
+## Approach
+
+A form of the root of the namespace rung, for example
+`Root::Tree(RootDir) | Root::Overlay { lower, tmpfs_size }`: in the user
+and mount namespace of the run, a private tmpfs holds the upper and work
+directories, and overlayfs mounts the caller's lower directory under it
+as the root; each write of the payload goes to the tmpfs and goes away
+with the run. Where the mount is refused, the entry refuses with a typed
+error that names `overlay`, before the payload starts; it never runs the
+payload on the lower directory. The tmpfs `/tmp` of the rung and the
+confine layer stay as they are. Tests: a payload that writes and removes
+files under `/` leaves the lower directory with the same digest; a
+refused mount gives the typed error; a plant that mounts the lower
+directory writable must fail the first test.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
