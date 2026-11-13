@@ -11,18 +11,17 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Record the takes of `v0.37.0` (#134) and of the freeze of `pod-warp`
-   (#135).
+2. Finish the release `v0.38.0` (`docs/releases/v0.38.0.md`): the tag,
+   the hand-off.
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The last release: `v0.37.0` at `3c5a086` (the hand-off #134, open).
-  The COORD issue of the freeze of `pod-warp` is #135: podnet took the
-  crate at `f6abdc3`; podssh applies its trial patch and answers there. `main`
-  holds T-475, T-305, T-301 and T-503 for the next tag. The release
-  `v0.38.0` is in work (`docs/releases/v0.38.0.md`); agents work on T-506
-  with T-510 and on T-310 in `.claude/worktrees/x506` and `y310`.
+- The last release: `v0.37.0` at `3c5a086` (#134, closed: each consumer
+  took it). The freeze of `pod-warp` (#135) is done: podnet and podssh
+  took the crate. The release `v0.38.0` is in work (`docs/releases/v0.38.0.md`);
+  agents work on T-506 with T-510 and on T-310 in `.claude/worktrees/x506`
+  and `y310`.
 - The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
   (T-488, done); three tests of `pod-services-watch` fail there (T-507:
   the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
@@ -54,7 +53,7 @@ is done. Git and the record keep finished work.
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
-- podssh (on `v0.36.0`, `99b9642`, PodUtils/podssh#226): the live runs of its PodUtils/podssh@T-737 (the
+- podssh (on `v0.37.0`, `812c61c`, PodUtils/podssh#227; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.37.0`, `5fc53c4`, PodUtils/podrunner#79): its session
