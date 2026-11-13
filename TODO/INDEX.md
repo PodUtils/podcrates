@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**407 entries: 122 open, 7 partial, 4 blocked, 274 done.**
+**407 entries: 120 open, 7 partial, 4 blocked, 276 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 75 | 91 |
-| P2 | 61 | 3 | 4 | 143 | 211 |
+| P2 | 59 | 3 | 4 | 145 | 211 |
 | P3 | 48 | 1 | 0 | 54 | 103 |
-| **All** | 122 | 7 | 4 | 274 | 407 |
+| **All** | 120 | 7 | 4 | 276 | 407 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -392,7 +392,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-419](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run |
 | [T-420](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
 | [T-421](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
-| [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
+| [T-422](relay.md) | P2 | L | M2 | feature | done | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
 | [T-425](fleet.md) | P2 | M | M8 | chore | done | podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete |
@@ -434,7 +434,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-492](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297) |
 | [T-493](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the DNS simplex carrier (PodUtils/podnet#521) |
 | [T-494](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the object-storage (S3) simplex carrier (PodUtils/podnet#521) |
-| [T-495](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP poll simplex carrier (PodUtils/podnet#521) |
+| [T-495](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the HTTP poll simplex carrier (PodUtils/podnet#521) |
 | [T-496](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the DNS stream carrier with a pipelined window of queries (PodUtils/podnet#521) |
 | [T-497](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the ICMP echo carrier (PodUtils/podnet#521) |
 | [T-498](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521) |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 407 entries: 122 open, 7 partial, 4 blocked, 274 done.
+`TODO/INDEX.md` holds 407 entries: 120 open, 7 partial, 4 blocked, 276 done.
 
 ## State
 
@@ -98,11 +98,11 @@ next entry.
       `pod-link`; `v0.39.0` holds the rules of podnet's WebSocket
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
-   c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
-      T-422 (long-poll, SSE, chunked),
-      T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
-      simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
-      up and a down carrier).
+   c. The tag after: the poll carriers of `pod-link` (the long poll,
+      SSE, the chunked stream and the simplex poll, done), T-516 (the
+      fuzz target of the ARQ of `pod-link`), T-423 (QUIC), T-424 (UDP
+      with KCP), T-493 (DNS simplex), T-494 (S3 simplex), T-497 (ICMP
+      echo), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
       traversal with the relay), T-517 and T-518 (a cap of the bytes and
       a fuzz target of the poll carriers), T-515 (the congestion window of the ARQ,
