@@ -15733,10 +15733,9 @@ index fa53816..d743f22 100644
  
  /// T-074: `warp export --check` writes no config, so it refuses `--out`
 diff --git a/tests/rule_words.rs b/tests/rule_words.rs
-index 88ff49a..679b813 100644
 --- a/tests/rule_words.rs
 +++ b/tests/rule_words.rs
-@@ -20,7 +20,7 @@ fn reject_and_block_mean_the_same_in_both_rule_engines() {
+@@ -20,7 +20,7 @@
      }
      // One rule text means the same in both engines.
      for spec in ["cidr:10.0.0.0/8=block", "domain:.ads.example=reject"] {
@@ -15745,6 +15744,15 @@ index 88ff49a..679b813 100644
          let pod = Rule::parse(spec).unwrap();
          assert_eq!(warp.action, Action::Reject);
          assert!(matches!(pod.action, RuleAction::Reject));
+@@ -30,7 +30,7 @@
+             ("example.com", None),
+         ] {
+             assert_eq!(
+-                warp.matcher.matches(host, ip),
++                warp.matcher.matches(host, ip, None),
+                 pod.matcher.matches(host, ip),
+                 "{spec} {host}"
+             );
 diff --git a/tests/warp_register.rs b/tests/warp_register.rs
 index d675b2a..7853101 100644
 --- a/tests/warp_register.rs
