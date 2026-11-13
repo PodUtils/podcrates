@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**336 entries: 80 open, 6 partial, 5 blocked, 245 done.**
+**337 entries: 80 open, 6 partial, 5 blocked, 246 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 2 | 0 | 69 | 85 |
-| P2 | 33 | 2 | 5 | 125 | 165 |
+| P1 | 13 | 2 | 0 | 70 | 85 |
+| P2 | 34 | 2 | 5 | 125 | 166 |
 | P3 | 33 | 2 | 0 | 49 | 84 |
-| **All** | 80 | 6 | 5 | 245 | 336 |
+| **All** | 80 | 6 | 5 | 246 | 337 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -380,6 +380,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-395](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a UDP datagram of `WarpNet` to a family that the device lacks is refused (podnet issue 112) |
 | [T-396](transport.md) | P2 | M | M2 | feature | done | `pod-link`: a TCP carrier with TLS 1.3 that pins the Ed25519 key of the peer, and its accept side (PodUtils/podnet#513) |
 | [T-403](transport.md) | P3 | M | M1 | feature | open | `pod-turn`: the SHA-256 credentials against a TURN server of another party |
-| [T-406](adapters.md) | P1 | M | M3 | feature | open | `pod-warp`: the L4 door of `--l4` and its proxy, after HTTP/3 |
+| [T-406](adapters.md) | P1 | M | M3 | feature | done | `pod-warp`: the L4 door of `--l4` and its proxy, after HTTP/3 |
 | [T-407](transport.md) | P2 | S | M3 | chore | open | `pod-proxy`: fuzz targets of the server face of a proxy |
 | [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
+| [T-410](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: the L4 door reads the device record again on a new key, and tries the other door |
