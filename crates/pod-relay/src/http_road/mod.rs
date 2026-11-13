@@ -39,7 +39,9 @@
 //!   came.
 //! - Serial: `POST /v1/http/s/ID/x?[seq=N&]at=OFFSET&wait=MS[&fin=1]`: a
 //!   batch up when `seq` is given, as `up` takes it, and the bytes down from
-//!   OFFSET in a whole answer, as `down` gives them.
+//!   OFFSET in a whole answer, as `down` gives them. While the caller has
+//!   not read the bytes down that the client holds, the serial form sends
+//!   its batches by `up` alone, on the same connection.
 //! - `POST /v1/http/s/ID/close` ends the session at once.
 //! - Once the session ended, `410` with `X-Close: CODE REASON`, the close
 //!   codes and reasons of the forward road (`docs/relay.md`): `1000 target
