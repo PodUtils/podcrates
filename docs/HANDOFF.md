@@ -13,9 +13,9 @@ is done. Git and the record keep finished work.
    tool) and read the open COORD issues `(to podcrates)`.
 2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
    takes of `v0.40.0` on its hand-off issue #140.
-3. Take the work order of `TODO/PROGRESS.md`: the red run first (T-537),
-   then T-539 (the termios mode of `pod-term`, in work on the local branch
-   w-term539) and the link carriers (item 3c).
+3. Take the work order of `TODO/PROGRESS.md`: the link carriers (item
+   3c), then item 1. T-539 is on `main` for the next tag:
+   answer PodUtils/podssh#232 with that tag.
 
 ## In flight
 
@@ -26,21 +26,17 @@ is done. Git and the record keep finished work.
   `v0.39.0`: each consumer (#137, closed).
 - Each agent of this session is merged into `main`. The open threads of
   this session:
-  - T-539 (open): the termios mode of `pod-term` (PodUtils/podssh#232).
-    An agent works on it in the worktree `.claude/worktrees/term539`.
-  - T-533 (open): scripts/agent/check-macos.sh, a local check of the
-    build for macOS.
+  - T-539 (done, on `main` for the next tag): the termios mode of
+    `pod-term` (PodUtils/podssh#232); T-540 (open) tests it against a
+    kernel pty.
   - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
     `kcp` with its take of the udp carrier (#139, PodUtils/podnet#527).
-- The red runs that the record knows:
-  - `nightly.yml` at `72632b2` (run 43451625236): macOS failed to build
-    the icmp carrier (`3d6bbf0` fixes it); riscv64 and armv7 fail bounds
-    of the tests of `pod-link` (T-535).
-  - `ci.yml` at `3d6bbf0` (run 43459943301): a random failure of the
-    test of `pod-oci` against the distribution registry (T-536).
-  - `services.yml` at `4c2d17c` (run 43402100735): a tox node gives no
-    TCP relay (T-537). The run had no first "no answer", so T-351 still
-    waits for its proof.
+- The red runs of this session have fixes on `main`: T-532 and T-535
+  (the bounds of the tests under an emulator; the nightly at `1335e9a`
+  proves armv7, riscv64 runs), T-534 and T-536 (the port of the registry
+  of `pod-oci`), T-537 (a tox node that is down), T-497 (the build of the
+  icmp carrier on macOS; `scripts/agent/check-macos.sh`, T-533, checks it
+  here). T-351 still waits for the proof of a first "no answer".
   - `plants.yml` at `6b183f6` (run 43448941361): the plant
     `link-udp-fragment-taken` was missed; its `EXPECT` takes the stall
     now (T-521, Correction). The next run of `plants.yml` proves it.
@@ -61,7 +57,7 @@ is done. Git and the record keep finished work.
   out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
   PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
-- podnet (on `v0.39.0`, `306d80b`, PodUtils/podnet#526; `pod-warp`
+- podnet (on `v0.40.0`, `1c88531`, PodUtils/podnet#532; `pod-warp`
   taken): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
