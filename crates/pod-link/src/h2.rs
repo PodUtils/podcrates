@@ -23,21 +23,22 @@ mod primed;
 
 use std::fmt;
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use pod_core::{Dial, Target};
+use pod_core::Dial;
 use pod_identity::{Identity, KeyName, PublicKey};
 use pod_tls::peer::{self, Keys};
 use rustls::crypto::CryptoProvider;
 use tokio::time::timeout;
 
+pub use crate::post_url::PostUrl;
 pub use listen::H2Listener;
 
 use crate::carrier::{BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Listener, Pending};
-use crate::pin;
+use crate::{pin, post_url};
 
 /// The name of the carrier.
 pub const NAME: &str = "h2";
@@ -93,43 +94,6 @@ fn err(kind: CarrierErrorKind, text: impl Into<String>) -> CarrierError {
     CarrierError::new(NAME, kind, text)
 }
 
-/// The URL of the POST: `https://HOST[:PORT]/PATH`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PostUrl {
-    /// A name or an IP address, an IPv6 one with no brackets.
-    pub host: String,
-    pub port: u16,
-    /// The path and its query, from `/`.
-    pub path: String,
-}
-
-impl PostUrl {
-    /// `https://HOST[:PORT]/PATH`: the rules of a WebSocket's URL
-    /// (`pod_ws::url::WsUrl`), with the scheme `https`.
-    pub fn parse(text: &str) -> Result<PostUrl, String> {
-        let rest = match text.get(..8) {
-            Some(scheme) if scheme.eq_ignore_ascii_case("https://") => &text[8..],
-            _ => return Err("not an URL of the h2 carrier, which is https://HOST[:PORT]/PATH".into()),
-        };
-        let url = pod_ws::url::WsUrl::parse(&format!("wss://{rest}"))?;
-        Ok(PostUrl { host: url.host, port: url.port, path: url.target })
-    }
-
-    /// The `:authority` of the request: the port only when it is not 443.
-    pub fn authority(&self) -> String {
-        let host = if self.host.contains(':') { format!("[{}]", self.host) } else { self.host.clone() };
-        if self.port == 443 { host } else { format!("{host}:{}", self.port) }
-    }
-
-    /// The target of the dial.
-    pub fn target(&self) -> Target {
-        match self.host.parse::<IpAddr>() {
-            Ok(ip) => Target::Addr(SocketAddr::new(ip, self.port)),
-            Err(_) => Target::Name { host: self.host.clone(), port: self.port },
-        }
-    }
-}
-
 impl H2 {
     /// A carrier that presents `identity` on TLS of `provider` and dials
     /// through `way`. Its listeners take no client until
@@ -160,20 +124,7 @@ impl H2 {
     /// The key of the listener and its URL in a dial address
     /// `KEY@https://HOST[:PORT]/PATH`.
     pub fn address(address: &str) -> Result<(KeyName, PostUrl), CarrierError> {
-        let (key, url) = address.split_once('@').ok_or_else(|| {
-            let text = format!("{address:?}: give KEY@https://HOST:PORT/PATH, with the key of the listener");
-            err(CarrierErrorKind::Usage, text)
-        })?;
-        let key = KeyName::parse(key).ok_or_else(|| {
-            err(
-                CarrierErrorKind::Usage,
-                format!(
-                    "{key:?} is no key: give the key in hex or base32, its SHA256: fingerprint or its display form"
-                ),
-            )
-        })?;
-        let url = PostUrl::parse(url).map_err(|why| err(CarrierErrorKind::Usage, why))?;
-        Ok((key, url))
+        post_url::address(NAME, address)
     }
 
     /// Connect to `url` through the way out and take only the listener

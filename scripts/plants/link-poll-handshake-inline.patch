@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/listen.rs b/crates/pod-link/src/poll/listen.rs
+--- a/crates/pod-link/src/poll/listen.rs
++++ b/crates/pod-link/src/poll/listen.rs
+@@ -211,7 +211,7 @@
+         while tasks.try_join_next().is_some() {}
+         match listener.accept().await {
+             Ok((tcp, from)) => {
+-                tasks.spawn(connection(acceptor.clone(), tcp, from, within, permit, s.clone()));
++                connection(acceptor.clone(), tcp, from, within, permit, s.clone()).await;
+             }
+             Err(e) => {
+                 drop(permit);

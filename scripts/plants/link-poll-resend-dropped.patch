@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/session.rs b/crates/pod-link/src/poll/session.rs
+--- a/crates/pod-link/src/poll/session.rs
++++ b/crates/pod-link/src/poll/session.rs
+@@ -111,6 +111,8 @@
+         let to = from + n as u64;
+         let resent = kept.sent.min(to).saturating_sub(from);
+         kept.sent = kept.sent.max(to);
++        kept.buf.drain(..at + n);
++        kept.base = to;
+         Slice { bytes, fin: kept.fin && to == end, resent }
+     }
+ 

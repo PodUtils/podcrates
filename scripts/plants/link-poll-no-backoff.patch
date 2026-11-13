@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/down.rs b/crates/pod-link/src/poll/down.rs
+--- a/crates/pod-link/src/poll/down.rs
++++ b/crates/pod-link/src/poll/down.rs
+@@ -54,7 +54,7 @@
+                     // Poll less often while the link is quiet; a POST of the
+                     // link (an ask that waits for its answer) ends the wait.
+                     tokio::select! {
+-                        () = tokio::time::sleep(wait) => wait = (wait * 2).min(BACKOFF_MAX),
++                        () = tokio::time::sleep(wait) => wait = wait.min(BACKOFF_MAX),
+                         () = kick.notified() => wait = BACKOFF_FIRST,
+                     }
+                 }

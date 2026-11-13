@@ -17,6 +17,9 @@ tcp = ["dep:pod-tls", "dep:rustls", "dep:tokio-rustls", "pod-core/async"]
 ws = ["tcp", "dep:pod-ws", "pod-ws/serve"]
 # The h2 carrier: one POST of HTTP/2 over the TLS of `tcp` (`h2`).
 h2 = ["tcp", "dep:h2", "dep:http", "dep:bytes", "dep:pod-ws"]
+# The carriers over requests of HTTP/1.1 with the TLS of `tcp`: the long
+# poll, SSE, a chunked stream and the simplex poll (`poll`).
+poll = ["tcp", "dep:pod-ws", "dep:base64"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.
@@ -35,6 +38,8 @@ pod-ws = { workspace = true, optional = true }
 h2 = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
+# The data of the events of SSE (the poll carriers).
+base64 = { workspace = true, optional = true }
 # The driver of a link, the streams, the carriers and the keepalive's clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
 tracing = { workspace = true }

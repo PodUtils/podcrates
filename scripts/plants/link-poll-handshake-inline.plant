@@ -1,0 +1,7 @@
+# The listener of the poll carriers serves one connection at a time: a
+# peer that sends nothing holds each other peer (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='the good client is not held'
+RUN='cargo test -p pod-link --all-features --test poll a_peer_that_sends_nothing'
+LIMIT=1800

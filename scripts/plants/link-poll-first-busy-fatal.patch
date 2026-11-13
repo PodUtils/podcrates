@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/dial.rs b/crates/pod-link/src/poll/dial.rs
+--- a/crates/pod-link/src/poll/dial.rs
++++ b/crates/pod-link/src/poll/dial.rs
+@@ -71,7 +71,7 @@
+                 return Ok(key);
+             }
+             Err(Failed::Busy(after)) => {
+-                busy += 1;
++                busy += BUSY_LIMIT;
+                 if busy >= BUSY_LIMIT {
+                     let text = format!("the listener at {} answered 429 {BUSY_LIMIT} times in a row", d.target);
+                     return Err(d.err(CarrierErrorKind::Unavailable, text));

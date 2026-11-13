@@ -23,8 +23,10 @@
 //! `tcp::Tcp` (TLS 1.3 over TCP through the caller's way out, each side
 //! pinning the Ed25519 key of the other), and with the feature `ws`,
 //! `ws::Ws` (the same TLS under a WebSocket, its listener on the accept
-//! loop of `pod-ws`), and with the feature `h2`, `h2::H2` (the same TLS
-//! under one POST of HTTP/2). Each carrier says with
+//! loop of `pod-ws`), with the feature `h2`, `h2::H2` (the same TLS
+//! under one POST of HTTP/2), and with the feature `poll`, `poll::Poll`
+//! (the same TLS under requests of HTTP/1.1: the long poll, SSE, a chunked
+//! stream and the simplex poll). Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
 //! registry of the carriers, their order and their flags are the
@@ -56,6 +58,10 @@ mod link;
 pub mod memory;
 #[cfg(feature = "tcp")]
 mod pin;
+#[cfg(feature = "poll")]
+pub mod poll;
+#[cfg(any(feature = "h2", feature = "poll"))]
+mod post_url;
 mod settings;
 mod state;
 mod stream;
@@ -66,7 +72,7 @@ pub mod unix;
 #[cfg(feature = "ws")]
 pub mod ws;
 
-pub use carrier::{Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Io, Listener, Pending};
+pub use carrier::{Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Cost, Facts, Io, Listener, Pending};
 pub use error::{Error, GoAwayCode, ResetCode};
 pub use frame::{Decoder, Frame, FrameError, MAX_RECORD};
 pub use link::Link;

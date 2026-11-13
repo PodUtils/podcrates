@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/down.rs b/crates/pod-link/src/poll/down.rs
+--- a/crates/pod-link/src/poll/down.rs
++++ b/crates/pod-link/src/poll/down.rs
+@@ -61,7 +61,7 @@
+             }
+             Err(Failed::NoPush) => {
+                 tracing::debug!(target = %d.target, "the listener answers no push: the dial takes the long poll");
+-                form = Form::LongPoll;
++                return d.fail(&d.err(CarrierErrorKind::Unavailable, "no push"));
+             }
+             Err(failed) => {
+                 if form == Form::LongPoll && matches!(failed, Failed::Again(_)) {

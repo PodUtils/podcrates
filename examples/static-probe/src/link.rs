@@ -1,12 +1,13 @@
 //! pod-link: two ends of a link over the memory carrier carry one stream,
 //! the unix carrier checks the host, and the tcp, the ws and the h2
-//! carriers dial their own listeners over TLS with the pin of their key, so that the
-//! driver of a link, the frame codec and each carrier link in.
+//! carriers and the poll carriers dial their own listeners over TLS with the pin of
+//! their key, so that the driver of a link, the frame codec and each carrier link in.
 
 use std::sync::Arc;
 
 use pod_identity::{Identity, KeyName};
 use pod_link::h2::H2;
+use pod_link::poll::{Form, Poll};
 use pod_link::tcp::{Keys, Tcp};
 use pod_link::ws::Ws;
 use pod_link::{Carrier, Link, Role, Settings};
@@ -33,9 +34,10 @@ pub fn link(way: Arc<dyn pod_core::Dial>) -> String {
     });
     let tcp = runtime.block_on(tcp(way.clone()));
     let ws = runtime.block_on(ws(way.clone()));
-    let h2 = runtime.block_on(h2(way));
+    let h2 = runtime.block_on(h2(way.clone()));
+    let sse = runtime.block_on(poll(way));
     format!(
-        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}",
+        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the sse carrier {sse}",
         echoed.map_or_else(|e| e.to_string(), |n| n.to_string())
     )
 }
@@ -92,6 +94,29 @@ async fn h2(way: Arc<dyn pod_core::Dial>) -> String {
     let address = format!("{}@https://{}/link", key.hex(), door.local_addr());
     match tokio::join!(carrier.dial(&address), door.accept_key()) {
         (Ok(_), Ok((_, peer))) => format!("linked to {peer} over HTTP/2"),
+        (Err(e), _) | (_, Err(e)) => e.to_string(),
+    }
+}
+
+/// A dial of the sse carrier (a poll carrier) to its own listener, and one
+/// line down its push of SSE.
+async fn poll(way: Arc<dyn pod_core::Dial>) -> String {
+    let identity = Arc::new(Identity::from_seed(&[14; 32]));
+    let key = identity.public();
+    let provider = Arc::new(pod_tls::crypto::provider());
+    let carrier = Poll::new(provider, identity, way).with_form(Form::Sse).with_clients(Keys::new([KeyName::Key(key)]));
+    let mut door = match carrier.bind(([127, 0, 0, 1], 0).into()).await {
+        Ok(door) => door,
+        Err(e) => return e.to_string(),
+    };
+    let address = format!("{}@https://{}/link", key.hex(), door.local_addr());
+    let (mut near, (mut far, peer)) = match tokio::join!(carrier.dial(&address), door.accept_key()) {
+        (Ok(near), Ok(far)) => (near, far),
+        (Err(e), _) | (_, Err(e)) => return e.to_string(),
+    };
+    let mut line = [0u8; 5];
+    match tokio::join!(far.write_all(b"probe"), near.read_exact(&mut line)) {
+        (Ok(()), Ok(_)) => format!("linked to {peer} over requests of HTTP/1.1"),
         (Err(e), _) | (_, Err(e)) => e.to_string(),
     }
 }

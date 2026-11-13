@@ -1,0 +1,7 @@
+# The listener of the poll carriers answers a long poll at once when it
+# has no bytes: the poll does not hold (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='long polls in 3 s'
+RUN='cargo test -p pod-link --all-features --test poll_lanes the_simplex_poll_backs_off'
+LIMIT=1800

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**405 entries: 120 open, 7 partial, 4 blocked, 274 done.**
+**407 entries: 122 open, 7 partial, 4 blocked, 274 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 75 | 91 |
 | P2 | 61 | 3 | 4 | 143 | 211 |
-| P3 | 46 | 1 | 0 | 54 | 101 |
-| **All** | 120 | 7 | 4 | 274 | 405 |
+| P3 | 48 | 1 | 0 | 54 | 103 |
+| **All** | 122 | 7 | 4 | 274 | 407 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -452,3 +452,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-514](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468) |
 | [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
 | [T-516](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the ARQ |
+| [T-517](relay.md) | P3 | S | M2 | feature | open | `pod-link`: a cap of the bytes that the sessions of a poll listener hold |
+| [T-518](relay.md) | P3 | S | M2 | chore | open | `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers |

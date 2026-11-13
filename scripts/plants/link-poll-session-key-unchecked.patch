@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/session.rs b/crates/pod-link/src/poll/session.rs
+--- a/crates/pod-link/src/poll/session.rs
++++ b/crates/pod-link/src/poll/session.rs
+@@ -266,7 +266,7 @@
+     /// A request of the session `id` from `key`: none for an id that is not
+     /// here or that another key opened.
+     pub fn visit(&self, id: u128, key: &PublicKey) -> Option<Visit> {
+-        let session = locked(&self.sessions).get(&id).filter(|s| s.key == *key).cloned()?;
++        let session = locked(&self.sessions).get(&id).cloned()?;
+         session.busy.fetch_add(1, Ordering::SeqCst);
+         Some(Visit(session))
+     }

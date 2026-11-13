@@ -10,7 +10,9 @@ calls C116, C117 and C120 to C124. T-396 added the tcp carrier (feature
 (feature `ws`; PodUtils/podnet#515; call C253), T-421 the h2 carrier
 (feature `h2`; PodUtils/podnet#515; call C254), T-310 the selective-repeat
 ARQ for a carrier that loses datagrams (PodUtils/podnet#468, row E2-2;
-calls C262 to C265). The crate reads no environment, keeps no global
+calls C262 to C265), T-422 and T-495 the poll carriers over requests of
+HTTP/1.1: the long poll, SSE, a chunked stream and the simplex poll
+(feature `poll`; PodUtils/podnet#515 and #521; calls C266 to C269). The crate reads no environment, keeps no global
 state and prints nothing.
 
 ## Use
@@ -82,6 +84,19 @@ let mut door = h2.listen("0.0.0.0:443").await?;
 let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 ```
 
+The poll carriers put the same TLS under requests of HTTP/1.1, for a
+proxy or a front that closes long connections. One form of the bytes down
+is the dialer's; a listener serves each form:
+
+```rust
+use pod_link::poll::{Form, Poll};
+
+let poll = Poll::new(provider, identity, way).with_clients(keys);   // the long poll
+let mut door = poll.listen("0.0.0.0:443").await?;
+let sse = poll.clone().with_form(Form::Sse);                         // or Chunked, Simplex
+let io = sse.dial("SHA256:...@https://relay.example/link").await?;
+```
+
 ## API
 
 | Item | What |
@@ -92,7 +107,7 @@ let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 | `Settings` | the windows, the stream limit, the frame size, the keepalive (below); `check` |
 | `Error` | each failure by name; `class` (for the exit code), `io_kind`; into `std::io::Error` (a stream's error) and into `pod_core::Failure` (the stage `Session`) |
 | `ResetCode`, `GoAwayCode` | `CANCEL`, `REFUSED`, `PROTOCOL`; `NORMAL`, `PROTOCOL`. A caller's own reset codes start at 16 |
-| `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
+| `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit, cost), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
 | `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77), `Io`; into `pod_core::Failure` (the stage `Connect`) |
 | `memory::Memory`, `memory::pair` | the memory carrier: listeners by name in the value (a clone shares them), a ring of 64 KiB to 64 MiB in each direction (1 MiB by default); a full ring makes the writer wait |
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
@@ -106,6 +121,11 @@ let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 | `h2::H2` (feature `h2`) | the h2 carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s: TLS, the prefaces, the POST and its 200), `max_handshakes` (64); `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")` |
 | `h2::H2Listener`, `h2::PostUrl` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way. `PostUrl { host, port, path }`: `parse`, `authority`, `target` |
 | `h2::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, WINDOW}` | the constants of the h2 carrier |
+| `poll::Poll` (feature `poll`) | the poll carriers: `new(provider, identity, way)` (the long poll), `with_form(form)`, `with_clients(keys)`, `clients`; the fields `form`, `connect_timeout` (20 s), `handshake_timeout` (10 s: the TLS of each connection, and the open), `answer_timeout` (30 s), `hold` (25 s, 1 s to 60 s), `idle` (60 s: a session with no request ends on the listener, a lane that fails ends on the dialer), `max_handshakes` (64), `max_sessions` (256), `push` (a listener answers a push; else 406 and the dialer takes the long poll); `check`; `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`, no query); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")`; the name and the cost of its form |
+| `poll::Form` | `LongPoll` (`poll`), `Sse` (`sse`), `Chunked` (`chunked`), `Simplex` (`httppoll`); `name`, `batch` (256 KiB; 64 KiB for `Simplex`) |
+| `poll::PollListener`, `poll::Stats` | `local_addr`, `accept_key`, `stats` (sessions, 429s, requests, bytes up that came twice, bytes down sent again, long polls, simplex polls, pushes, pushes refused); a `Listener`; a drop ends its connections and each session that it holds |
+| `poll::{ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, ANSWER_TIMEOUT, HOLD, MIN_HOLD, MAX_HOLD, IDLE, MAX_HANDSHAKES, MAX_SESSIONS, BATCH, SIMPLEX_BATCH, WINDOW, ACK_EVERY, PING_EVERY, BACKOFF_FIRST, BACKOFF_MAX, BUSY_LIMIT}` | the constants of the poll carriers |
+| `Cost` | the overhead class of a carrier in `Facts::cost`: `Low` (unix, memory, tcp, ws, h2), `Medium` (the long poll, a chunked stream), `High` (SSE), `Highest` (the simplex poll) |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
 | `arq::ArqStream` | the ARQ over a datagram carrier as one ordered byte stream (`AsyncRead` and `AsyncWrite`): `new(datagrams, settings)` starts its task on the current tokio runtime; `handle`. A write is one record; a shutdown sends the `FIN` and returns at its acknowledgement; a drop sends the `FIN`; when its frames are acknowledged, the task answers the peer until the peer is silent for two RTO ceilings (at most 64 s), then ends; an error also ends it |
@@ -127,6 +147,7 @@ let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 | `tcp` | the tcp carrier (`tcp`): `pod-tls`, rustls and tokio-rustls, with the provider of the caller, and the `async` feature of `pod-core` for the way out |
 | `ws` | the ws carrier (`ws`): `tcp`, and `pod-ws` with its feature `serve` |
 | `h2` | the h2 carrier (`h2`): `tcp`, h2, http and bytes, and `pod-ws` for the byte stream of an HTTP/2 stream |
+| `poll` | the poll carriers (`poll`): `tcp`, `pod-ws` for the URL, and base64 for the events of SSE |
 
 ## The wire
 
@@ -437,17 +458,62 @@ feature `h2`):
   `link-h2-request-ended`, `link-h2-handshake-inline`
   (`scripts/plants/`).
 
+The asks of PodUtils/podnet#515 and #521 for the long poll, SSE and the
+chunked stream (PodUtils/podnet@T-271, PodUtils/podnet@T-272) and the
+simplex poll (PodUtils/podnet@T-280), and the tests that hold them
+(`tests/poll.rs`, `tests/poll_lanes.rs`, feature `poll`):
+
+- [x] A link carries streams in each form through a way out that loses
+  the answer of a POST and cuts an answer down; no byte comes twice and
+  none is lost: `a_link_over_the_long_poll_carries_streams_across_a_lost_answer`,
+  `a_link_over_sse_carries_streams_across_a_lost_answer`,
+  `a_link_over_a_chunked_stream_carries_streams_across_a_lost_answer`,
+  `a_link_over_the_simplex_poll_carries_streams_across_a_lost_answer`.
+- [x] A proxy that cuts idle connections holds no link back, and the end
+  of each side reaches the other:
+  `a_proxy_that_cuts_idle_connections_holds_no_long_poll_back`,
+  `a_proxy_that_cuts_idle_connections_holds_no_push_back`.
+- [x] Another key is refused on each side, with the key seen named (77);
+  a session answers the key that opened it alone:
+  `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`,
+  `a_session_answers_the_key_that_opened_it_alone`.
+- [x] A silent peer holds no other handshake; a silent listener ends the
+  dial; a session with no request ends on each side with an error:
+  `a_peer_that_sends_nothing_holds_no_other_handshake`,
+  `a_silent_listener_ends_the_dial_at_its_time_limit`,
+  `a_session_with_no_request_ends_on_each_side_with_an_error`.
+- [x] The hold of the long poll, the backoff of the simplex poll (100 ms
+  to 5 s), 429 with Retry-After up to the third in a row, a push past the
+  window with no bytes up, the long poll where the listener refuses a
+  push: `the_simplex_poll_backs_off_while_the_link_is_quiet_and_the_long_poll_holds`,
+  `the_third_answer_429_in_a_row_ends_the_dial`,
+  `a_push_moves_more_than_the_window_with_no_bytes_up`,
+  `a_listener_with_no_push_gives_the_long_poll`.
+- [x] The name and the cost class of each form (`httppoll` is
+  `Cost::Highest`):
+  `each_form_has_its_name_and_its_cost_and_a_failure_of_the_way_out_keeps_its_class`.
+- [x] A plant for each check: `link-poll-duplicate-taken`,
+  `link-poll-resend-dropped`, `link-poll-refusal-unnamed`,
+  `link-poll-session-key-unchecked`, `link-poll-ack-unsent`,
+  `link-poll-no-backoff`, `link-poll-no-expiry`,
+  `link-poll-first-busy-fatal`, `link-poll-hold-unheld`,
+  `link-poll-handshake-inline`, `link-poll-push-refusal-fatal`
+  (`scripts/plants/`).
+
 ## The adoption map
 
 | podnet | pod-link |
 | --- | --- |
 | PodUtils/podnet@T-262: the session of streams, credits and keepalive | `Link`, `Stream`, `Settings`, `frame` |
-| PodUtils/podnet@T-264: the registry of carriers with an `available()` reason | stays in podnet (call C117); each row holds a `Box<dyn Carrier>` and adds podnet's facts (cost, privilege, build feature) |
+| PodUtils/podnet@T-264: the registry of carriers with an `available()` reason | stays in podnet (call C117); each row holds a `Box<dyn Carrier>` and adds podnet's facts (privilege, build feature); the cost class is `Facts::cost` |
 | PodUtils/podnet@T-274: the unix socket carrier; `bind_private` and `claim_unix_path` of `PodUtils/podnet:crates/podnet-netns/src/listen.rs`; `--allow-other-uid` | `unix::Unix` (`allow_other_uid`), `unix::pair` |
 | PodUtils/podnet@T-275: the memory carrier | `memory::Memory`, `memory::pair` |
 | PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a refused key is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen |
 | PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
+| PodUtils/podnet@T-271, PodUtils/podnet@T-272: the HTTP/1.1 long poll, the SSE and chunked stream | `poll::Poll` (feature `poll`): a row of the registry for each form holds `Box::new(Poll::new(provider, identity, way).with_form(form).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; one listener (`listen("IP:PORT")`) serves each form. podnet's `server_push=false` is a listener with `push` false: the dialer of `sse` or `chunked` then takes the long poll. The lanes are `POST PATH/up` and `POST PATH/down?since=N` (podnet's), with `PATH/open` first |
+| PodUtils/podnet@T-280: the HTTP poll simplex carrier | `poll::Poll` with `Form::Simplex` (`httppoll`): `POST PATH/up` (202 and `Pod-Ack`), `GET PATH/out?since=N` (204 when empty), 64 KiB, a backoff of 100 ms to 5 s; `facts().cost` is `Cost::Highest`. Each lane is a request of its own, and the answer of each POST acknowledges it, so the split of PodUtils/podnet@T-302 can take one lane |
 | PodUtils/podnet@T-277: the selective-repeat ARQ for any lossy carrier | `arq::ArqStream` over a `datagram::Datagrams` (each lossy carrier of podnet gives one), then `Link::new` over the stream; `arq::ArqHandle::rekey_wanted` is the ask of the record layer (PodUtils/podnet@T-298) for a rekey; podnet's `tests/link_arq.rs` takes `datagram::lossy::Lossy` over `datagram::memory::pair` as its shim |
 | exit 64, 69, 77 of a carrier | `CarrierError::class().exit_code()` |
 | exit of a link | `Error::class().exit_code()`: a dead link 75, a broken protocol 76 |

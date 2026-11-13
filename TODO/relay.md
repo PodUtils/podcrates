@@ -5425,3 +5425,60 @@ A target `link_arq`: the input is a list of datagrams, each given to one `Arq` w
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+# T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
+
+**Source:** T-422 (a finding of its work)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A listener of the poll carriers (`crates/pod-link/src/poll/listen.rs`) caps the count of its sessions (`Poll::max_sessions`, 256), not their bytes. Each session keeps up to `WINDOW` (1 MiB) of bytes down that the dialer did not acknowledge, and two pipes of up to 256 KiB, so 256 sessions can hold about 384 MiB. The accept loop of `pod-ws` has a cap of bytes (`Serve::preauth_bytes`, call C251); the poll listener has none. Each session comes from a pinned key, so a stranger cannot open one.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/session.rs` (the window of each session, its pump), `crates/pod-ws/src/serve.rs` (`preauth_bytes`).
+- Not measured: the memory of a listener with many sessions.
+
+## Approach
+
+A field `Poll::max_bytes` (64 MiB by default): a budget of the listener that each pump takes room from before it reads, and gives back at each acknowledgement; an open that cannot get the room of one batch answers 429. A test with a budget of 2 MiB and three sessions that do not read: the third open gets 429, and the bytes held stay within the budget.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test poll_lanes
+```
+
+# T-518: `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers
+
+**Source:** T-422 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The poll carriers read heads of HTTP/1.1, chunked bodies and events of SSE (`crates/pod-link/src/poll/wire.rs`) from each peer whose key is pinned. Their unit tests give some forms by hand; no fuzz target reads them.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/wire.rs`, `fuzz/fuzz_targets/link_frame.rs`.
+- Not measured: no fuzz run of the reader.
+
+## Approach
+
+A target `link_poll_wire`: the input is the bytes of one connection, given to `Conn::head`, `Conn::body` and `Conn::chunk` in turn, and to `Events::push` and `Events::next`. No panic; a head is at most 4 KiB; an event gives at most 8 KiB. The reader becomes public in a hidden module for the target, or the target holds a copy by `#[path]`. The row of `fuzz/README.md` and the check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-link --all-features
+```

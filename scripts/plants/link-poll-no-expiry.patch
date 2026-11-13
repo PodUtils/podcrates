@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/session.rs b/crates/pod-link/src/poll/session.rs
+--- a/crates/pod-link/src/poll/session.rs
++++ b/crates/pod-link/src/poll/session.rs
+@@ -281,7 +281,7 @@
+     /// End each session with no request for `idle`.
+     pub fn expire(&self, idle: Duration) {
+         locked(&self.sessions).retain(|_, s| {
+-            let dead = s.busy.load(Ordering::SeqCst) == 0 && locked(&s.seen).elapsed() >= idle;
++            let dead = s.busy.load(Ordering::SeqCst) == usize::MAX && locked(&s.seen).elapsed() >= idle;
+             if dead {
+                 s.ends.fail(io::ErrorKind::TimedOut, format!("the dialer sent no request for {idle:?}"));
+             }

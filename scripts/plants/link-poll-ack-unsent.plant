@@ -1,0 +1,7 @@
+# The dialer of a push sends no empty POST that acknowledges the bytes
+# down: the window of the listener fills and the push stops (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='3 MiB down in time'
+RUN='cargo test -p pod-link --all-features --test poll_lanes a_push_moves'
+LIMIT=1800
