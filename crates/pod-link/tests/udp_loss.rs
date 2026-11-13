@@ -33,11 +33,12 @@ type Shim = std::sync::Arc<Lossy<MemoryDatagrams>>;
 const GATE_DEFAULTS: Duration = Duration::from_secs(120);
 /// The bytes each way of the run at 20 % drop, and its bound against the
 /// clean run. podnet asks for 3 times. A release build over this shim with
-/// no delay gives 3.7 to 4.0 times with a window of 1024 segments, and 9 to
-/// 17 times with 256: the clean run is bound by the CPU, and the lossy one
-/// by the RTO of 30 ms at least (call C284).
+/// no delay gives 3.7 to 5.3 times with a window of 1024 segments (a GitHub
+/// runner gives the most), and 9 to 17 times with 256: the clean run is
+/// bound by the CPU, and the lossy one by the RTO of 30 ms at least, so the
+/// factor changes with the host (call C284).
 const GATE_SIZE: usize = 8 << 20;
-const GATE_FACTOR: f64 = 5.0;
+const GATE_FACTOR: f64 = 8.0;
 
 /// Two ends of the udp carrier over a memory pair with `faults` in each
 /// direction, and the shims.
