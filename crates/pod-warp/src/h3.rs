@@ -27,7 +27,9 @@ use crate::capsule;
 pub mod wire;
 
 use wire::put_varint;
-pub use wire::{FRAME_DATA, FRAME_HEADERS, FRAME_SETTINGS, Frames, connect_ip_headers, frame, response_status};
+pub use wire::{
+    DataFrames, FRAME_DATA, FRAME_HEADERS, FRAME_SETTINGS, Frames, connect_ip_headers, frame, response_status,
+};
 
 /// The ALPN of HTTP/3.
 pub const ALPN: &[u8] = b"h3";

@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/proxy/route.rs
++++ b/crates/pod-warp/src/proxy/route.rs
+@@ -18,7 +18,7 @@
+     let host = Host::of(&target);
+     let (action, addresses) = if proxy.l4 {
+         // No resolver in the tunnel (PodUtils/podnet issue 140).
+-        (table.decide_static(&host), None)
++        (Action::Tunnel, None)
+     } else {
+         table.decide(&Inside { names: &proxy.names, net: net.as_ref() }, &host).await?
+     };

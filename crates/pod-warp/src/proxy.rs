@@ -121,6 +121,11 @@ pub struct Proxy {
     pub connect_timeout: Duration,
     /// The time limit of the request of a client ([`REQUEST_LIMIT`]).
     pub request_limit: Duration,
+    /// The tunnel has no resolver and carries no UDP (the L4 door,
+    /// [`crate::l4::L4`]): the rules decide with no lookup of a name
+    /// ([`crate::rules::Table::decide_static`]), the tunnel dial takes each
+    /// target as it is, and a UDP command gets the SOCKS5 reply 7.
+    pub l4: bool,
 }
 
 impl Proxy {
@@ -139,7 +144,14 @@ impl Proxy {
             report: Report::default(),
             connect_timeout: CONNECT_TIMEOUT,
             request_limit: REQUEST_LIMIT,
+            l4: false,
         }
+    }
+
+    /// A proxy into the L4 door `door` (podnet's `proxy::run_l4`, issue
+    /// 140), with `direct` for the rule `direct`: see [`Proxy::l4`].
+    pub fn over_l4(door: Arc<crate::l4::L4>, direct: Arc<dyn Dial>) -> Proxy {
+        Proxy { l4: true, ..Proxy::new(Arc::new(Fixed(door)), direct) }
     }
 
     /// The numbers of the health line now.
@@ -236,7 +248,7 @@ impl Proxy {
                 report: &proxy.report,
                 control,
             };
-            let udp = Some(Udp { net, names: &proxy.names });
+            let udp = (!proxy.l4).then_some(Udp { net, names: &proxy.names });
             if let Err(failure) = serve_client(stream, dial, udp, &opening).await {
                 tracing::debug!(error = %failure.chain(), "WARP proxy client failed");
             }

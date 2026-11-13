@@ -60,6 +60,57 @@ impl Frames {
         self.buf.drain(..start + len);
         Ok(Some((kind, payload)))
     }
+
+    /// The bytes that are not yet a whole frame.
+    pub fn into_rest(self) -> Vec<u8> {
+        self.buf
+    }
+}
+
+/// The payload of the DATA frames of a stream, as its bytes come, with no
+/// limit on the size of a frame: a tunnel of CONNECT can carry a DATA frame
+/// of any size (RFC 9114, section 4.4). A frame of another type is skipped.
+#[derive(Debug, Default)]
+pub struct DataFrames {
+    /// The first bytes of a frame header that a chunk cut.
+    head: Vec<u8>,
+    /// The bytes of the payload of this frame still to come.
+    left: u64,
+    data: bool,
+}
+
+impl DataFrames {
+    /// Add the DATA bytes of `input` to `out`, in order.
+    pub fn feed(&mut self, mut input: &[u8], out: &mut Vec<u8>) {
+        loop {
+            if self.left > 0 {
+                let n = usize::try_from(self.left).unwrap_or(usize::MAX).min(input.len());
+                if self.data {
+                    out.extend_from_slice(&input[..n]);
+                }
+                self.left -= n as u64;
+                input = &input[n..];
+            }
+            if input.is_empty() {
+                return;
+            }
+            // Two varints take at most 16 bytes.
+            let had = self.head.len();
+            let take = (16 - had).min(input.len());
+            self.head.extend_from_slice(&input[..take]);
+            let header = get_varint(&self.head)
+                .and_then(|(kind, a)| get_varint(&self.head[a..]).map(|(len, b)| (kind, len, a + b)));
+            match header {
+                Some((kind, len, used)) => {
+                    input = &input[used - had..];
+                    self.head.clear();
+                    self.left = len;
+                    self.data = kind == FRAME_DATA;
+                }
+                None => input = &input[take..],
+            }
+        }
+    }
 }
 
 /// A prefixed integer (RFC 7541, section 5.1) with `bits` bits in the first

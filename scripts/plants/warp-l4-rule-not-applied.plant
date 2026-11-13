@@ -1,0 +1,9 @@
+# The proxy over the L4 door sends each destination to the door and skips
+# its rules: a `reject` rule and a `direct` rule do nothing
+# (PodUtils/podnet issue 140, T-406). The test of the rules of a proxy
+# over the L4 door must fail.
+ENTRY=T-406
+GROUP=warp
+EXPECT='test a_proxy_over_the_l4_door_decides_with_no_lookup \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test l4 -- a_proxy_over_the_l4_door_decides_with_no_lookup'
+LIMIT=900

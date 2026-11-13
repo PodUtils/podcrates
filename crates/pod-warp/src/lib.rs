@@ -29,6 +29,7 @@
 //!   [`NetSettings`]: its congestion controller, its TCP burst, its counters
 //!   of the link and the budget of a relay.
 //! * [`check`]: the check that a packet crosses a new session.
+//! * [`l4`]: the L4 door, one HTTP/3 CONNECT stream for each TCP flow.
 //! * [`resolver`]: the resolvers inside the tunnel, on UDP or over TLS.
 //! * [`rules`]: the rules of a WARP proxy, with the lint of the caller.
 //! * [`proxy`]: the local SOCKS5 and HTTP proxy into WARP, with its rules,
@@ -60,6 +61,7 @@ pub mod h3;
 pub mod hints;
 pub mod identity;
 pub mod key;
+pub mod l4;
 pub mod leg;
 pub mod nc;
 pub mod net;
@@ -83,6 +85,7 @@ pub use door::{Door, Routes};
 pub use files::Foreign;
 pub use hints::DeviceHints;
 pub use identity::Identity;
+pub use l4::L4;
 pub use leg::{Leg, Relay};
 pub use net::{NetSettings, WarpNet};
 pub use session::{MasqueRx, MasqueSession, MasqueTx, Meter, Way};

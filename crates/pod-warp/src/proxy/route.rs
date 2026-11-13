@@ -11,13 +11,20 @@ use super::names::{Inside, connect_ips};
 use crate::rules::{Action, Host, Refused};
 
 /// Connect to `target` by the rules of `proxy` through `net`. Each decision
-/// counts in the counters of the rules and in the decision `warp.rule`.
+/// counts in the counters of the rules and in the decision `warp.rule`
+/// (`l4` for the tunnel of an L4 door, as podnet counts it).
 pub(super) async fn route(proxy: &Proxy, net: Arc<dyn Dial>, target: Target) -> Result<BoxedIo, Failure> {
     let table = proxy.rules.current();
-    let inside = Inside { names: &proxy.names, net: net.as_ref() };
-    let (action, addresses) = table.decide(&inside, &Host::of(&target)).await?;
+    let host = Host::of(&target);
+    let (action, addresses) = if proxy.l4 {
+        // No resolver in the tunnel (PodUtils/podnet issue 140).
+        (table.decide_static(&host), None)
+    } else {
+        table.decide(&Inside { names: &proxy.names, net: net.as_ref() }, &host).await?
+    };
     proxy.rules.counters.count(action);
-    proxy.report.decision("warp.rule", action.name());
+    let outcome = if proxy.l4 && action == Action::Tunnel { "l4" } else { action.name() };
+    proxy.report.decision("warp.rule", outcome);
     match action {
         Action::Reject => {
             tracing::debug!(%target, "WARP proxy: refused by the rules");
@@ -27,6 +34,10 @@ pub(super) async fn route(proxy: &Proxy, net: Arc<dyn Dial>, target: Target) -> 
             tracing::debug!(%target, "WARP proxy: direct by the rules");
             let deadline = tokio::time::Instant::now() + proxy.connect_timeout;
             Ok(proxy.direct.dial(&target, deadline).await?.io)
+        }
+        Action::Tunnel if proxy.l4 => {
+            let deadline = tokio::time::Instant::now() + proxy.connect_timeout;
+            Ok(net.dial(&target, deadline).await?.io)
         }
         Action::Tunnel => {
             let connected = match addresses {

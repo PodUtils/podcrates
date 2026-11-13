@@ -1,0 +1,13 @@
+--- a/crates/pod-warp/src/l4.rs
++++ b/crates/pod-warp/src/l4.rs
+@@ -144,9 +144,7 @@
+     /// The connection of now: a new one when there is none, or it closed.
+     pub async fn connection(&self) -> Result<noq::Connection, Failure> {
+         let mut slot = self.conn.lock().await;
+-        if let Some(open) = slot.as_ref()
+-            && open.conn.close_reason().is_none()
+-        {
++        if let Some(open) = slot.as_ref() {
+             return Ok(open.conn.clone());
+         }
+         let datagrams = self.udp.datagrams(self.door).await?;
