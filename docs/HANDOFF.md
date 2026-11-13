@@ -33,8 +33,9 @@ is done. Git and the record keep finished work.
   and T-417 (podssh's asks; free ids 418 and 419, calls C218 to C221).
   Merge each branch after `scripts/agent/check.sh` passes
   on the merge.
-- Next for `pod-warp`: T-412 and T-413 (the adoption trials of podnet and
-  podssh). When both pass and a tag holds them, post the COORD issue of
+- Next for `pod-warp`: T-413 (the adoption trial of podssh); T-412, the
+  trial of podnet at `9c1fc4b` with `v0.35.0`, passes (each of its 23
+  steps). When both pass and a tag holds them, post the COORD issue of
   the freeze `(to podnet) (to podssh)`; its text is
   `docs/releases/pod-warp-freeze.md`.
 - The disk of a cloud session is small: `target/debug/incremental` grows

@@ -20,7 +20,7 @@ session; T-338: the local SOCKS5 and HTTP proxy with its rules, its
 names, its UDP and its DNS forwarder, the resolvers inside the tunnel (on
 UDP or over TLS), the local forwards and the pipe of `warp nc`; and T-337:
 MASQUE over HTTP/3, the WireGuard tunnel and the carried device. The rest
-is T-339 (partial: the adoption trials T-412 and T-413).
+is T-339 (partial: the adoption trials T-412, which passes in podnet, and T-413).
 T-406: the L4 door and its proxy. T-339 adds `Live` (a session replaced
 when it closes), the exit of a session, the socket of a running proxy, and
 the TUN with its routes and its resolver (Linux).
