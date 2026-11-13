@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**402 entries: 123 open, 7 partial, 4 blocked, 268 done.**
+**402 entries: 122 open, 7 partial, 4 blocked, 269 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 64 | 3 | 4 | 140 | 211 |
+| P2 | 63 | 3 | 4 | 141 | 211 |
 | P3 | 46 | 1 | 0 | 54 | 101 |
-| **All** | 123 | 7 | 4 | 268 | 402 |
+| **All** | 122 | 7 | 4 | 269 | 402 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -322,7 +322,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
-| [T-310](relay.md) | P2 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
+| [T-310](relay.md) | P2 | L | M2 | feature | done | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
 | [T-311](relay.md) | P3 | M | M2 | feature | done | `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480) |
 | [T-312](foundation.md) | P2 | S | M0 | defect | open | `pod-todo`: a code fence that is not closed in a file of the record is an error by name |
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |

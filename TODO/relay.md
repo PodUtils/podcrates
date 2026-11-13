@@ -4020,7 +4020,7 @@ the fact `contract-sha256` of `ajam-relay`). No code.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4054,6 +4054,16 @@ cargo test -p pod-link --all-features
 ## Start condition
 
 podnet starts PodUtils/podnet@T-277 or names a lossy carrier (a COORD issue).
+
+## Done
+
+2026-11-13. Commit `dcdbe01`; calls C262 to C265.
+
+- `crates/pod-link/src/arq.rs` and `crates/pod-link/src/arq/`: the wire (`DATA` with the sequence, the fragment index and the count; `FIN`; `ACK` with the next frame, the window and a bitmap of 256 frames; `PROBE`), `Arq` (the state machine with no I/O), `ArqStream` and `ArqHandle` (the task over a datagram carrier, the byte stream of a `Link`), `ArqSettings` with podnet's values (256 frames, fragments of 1 KiB, an RTO of 200 ms to 8 s, 8 retries), `ArqError::Timeout` (`arq-timeout`). `crates/pod-link/src/datagram.rs`: the trait `Datagrams`, the memory pair and the seeded shim `Lossy`.
+- Approach 4: the ARQ is under the link, so `arq-timeout` ends the link (call C262); the close of one stream is T-514. The congestion control is T-515, a fuzz target of the datagrams T-516.
+- `cargo test -p pod-link --all-features`: 98 passed, with `arq_machine` 11 (the fragment count, the window, the peer's window, each lost frame again, the timer and its 8 retries, the RTO floor and ceiling, the probe of a closed window, the wrap with and without a rekey, the rekey ahead, datagrams of a bad form, a duplicate and the `FIN`) and `arq` 7 (8 MiB and 1 MiB at the same time at 3 % loss, 1 % reorder and 1 % duplicates with an equal SHA-256; a link of two streams of 4 MiB at the same faults; a silent peer ends with `arq-timeout` after 36.6 s; a link over a silent ARQ ends; the bytes wait at the wrap until the rekey; the shutdown and the `FIN`; the answer after a drop). The binary `arq` passed 200 runs in a loop.
+- Eight plants (`link-arq-*`, group `link`): each was applied by hand, and its check failed with its text; `sh scripts/plant-each.sh --apply`: 0 stale.
+- Clippy of `pod-link` with all features and with none, rustdoc with `-D warnings`, `check-size.py`, `check-design-paths.py` and `check-probe.py` pass. The tests of the ARQ use the memory pair alone, with no Unix item.
 
 # T-311: `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480)
 
