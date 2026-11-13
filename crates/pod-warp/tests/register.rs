@@ -51,8 +51,11 @@ async fn the_second_api_host_answers_after_a_failure() {
     pod_testkit::need_loopback!();
     let (good, busy, refused, dead) = (answering(200), answering(503), answering(403), dead_base());
     let api = |bases: &[&String]| common::api("").with_bases(bases.iter().map(|b| b.to_string()).collect());
-    let answer = api(&[&dead, &good]).send(get()).await.unwrap();
+    let first = api(&[&dead, &good]);
+    assert_eq!(first.answered(), None);
+    let answer = first.send(get()).await.unwrap();
     assert_eq!(answer.status, 200);
+    assert_eq!(first.clone().answered().as_ref(), Some(&good), "the base that answered is kept");
     let answer = api(&[&busy, &good]).send(get()).await.unwrap();
     assert_eq!(answer.status, 200);
     let answer = api(&[&refused, &good]).send(get()).await.unwrap();
@@ -213,4 +216,30 @@ async fn the_hints_of_a_device_go_into_the_bodies() {
         assert!(all.contains(part), "{part} is not in {all}");
     }
     assert_eq!(store::LOCK_WAIT.as_secs(), 60);
+}
+
+/// The token of a team goes into the POST of a registration as
+/// `CF-Access-Jwt-Assertion`, and into no other request; the `Debug` form
+/// of the API does not show it.
+#[tokio::test]
+async fn the_token_of_a_team_goes_into_the_post_alone() {
+    pod_testkit::need_loopback!();
+    let api = stand::warp::Api::new("", "192.0.2.1", "");
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (handler, kept) = (api.handler(), seen.clone());
+    let served = stand::http(move |request| {
+        let team = request.header("cf-access-jwt-assertion").map(str::to_string);
+        kept.lock().unwrap().push((request.method.clone(), team));
+        handler(request)
+    })
+    .unwrap();
+    let (mut settings, _) = common::settings(&format!("http://{}", served.addr()), common::Moved::new(Vec::new()));
+    settings.api = settings.api.with_team("team-token-of-the-test");
+    assert!(!format!("{:?}", settings.api).contains("team-token-of-the-test"));
+    settings.report = Report::default();
+    Warp::register(settings).await.unwrap();
+    let seen = seen.lock().unwrap().clone();
+    let post = seen.iter().find(|(method, _)| method == "POST").expect("a POST");
+    assert_eq!(post.1.as_deref(), Some("team-token-of-the-test"));
+    assert!(seen.iter().filter(|(method, _)| method != "POST").all(|(_, team)| team.is_none()), "{seen:?}");
 }
