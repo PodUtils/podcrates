@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**423 entries: 114 open, 9 partial, 5 blocked, 295 done.**
+**423 entries: 114 open, 8 partial, 5 blocked, 296 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 81 | 95 |
-| P2 | 56 | 4 | 4 | 156 | 220 |
+| P2 | 56 | 3 | 4 | 157 | 220 |
 | P3 | 47 | 2 | 1 | 56 | 106 |
-| **All** | 114 | 9 | 5 | 295 | 423 |
+| **All** | 114 | 8 | 5 | 296 | 423 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -460,7 +460,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
 | [T-528](transport.md) | P2 | M | M1 | defect | done | `pod-services`: three of the four file hosts fail live from GitHub: the download URL of tmpfiles.org, the upload form of litterbox, the busy answer of 0x0.st (PodUtils/podssh#230) |
-| [T-529](transport.md) | P2 | S | M1 | defect | partial | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
+| [T-529](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
 | [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |
 | [T-532](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled |
 | [T-533](upkeep.md) | P2 | S | M5 | chore | open | scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows |

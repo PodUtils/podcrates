@@ -6651,7 +6651,7 @@ session does not dispatch. T-529 takes its result.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6698,7 +6698,7 @@ by hand with the input `relay` `none`).
 ## Done
 
 - Part, 2026-11-13: `live.yml` run 43448958418 at `6b183f6`: tmpfiles.org holds by the signed link of its page (1.5 s), temp.sh holds, litterbox answers HTTP 412 "Invalid uploader" with the fields of its upload form. Two other parties saw the same 412 from cloud networks. litterbox's `on-by-default` is false, with its rank kept (call C285). Open: a run of the step with `file hosts: 2 ran, 0 failed`, and the answer to PodUtils/podssh#230 with the tag.
-
+- 2026-11-13: `live.yml` run 43451618197 at `72632b2`: "file hosts: 2 ran, 0 failed" (tmpfiles.org 1109 ms, temp.sh 763 ms; litterbox skipped). `v0.40.0` at `1335e9a` holds the forms; PodUtils/podssh#230 has the answer with the tag.
 
 # T-539: `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232)
 
