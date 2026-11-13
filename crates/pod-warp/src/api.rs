@@ -3,6 +3,7 @@
 //! client of the caller (`pod_proxy::Client`: its dial, its proxy, its
 //! roots).
 
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
@@ -62,19 +63,59 @@ pub fn api_status(failure: &Failure) -> Option<u16> {
     None
 }
 
-/// The API of a caller: its HTTP client and the bases that it tries.
+/// The token of a team (a Cloudflare One organization), which a
+/// registration sends. Its value never goes into a log line.
+#[derive(Clone)]
+struct Team(zeroize::Zeroizing<String>);
+
+impl std::fmt::Debug for Team {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Team(..)")
+    }
+}
+
+/// The API of a caller: its HTTP client, the bases that it tries, the token
+/// of a team, and the base that answered last. A clone shares the base that
+/// answered.
 #[derive(Clone, Debug)]
 pub struct Api {
     client: Client,
     bases: Vec<String>,
     version: String,
+    team: Option<Team>,
+    answered: Arc<Mutex<Option<String>>>,
 }
 
 impl Api {
     /// The API through `client`, at [`service::api_base`] and then
     /// [`service::api_second`].
     pub fn new(client: Client) -> Api {
-        Api { client, bases: vec![service::api_base(), service::api_second()], version: service::api_version().into() }
+        Api {
+            client,
+            bases: vec![service::api_base(), service::api_second()],
+            version: service::api_version().into(),
+            team: None,
+            answered: Arc::default(),
+        }
+    }
+
+    /// The token of a team: a registration sends it as
+    /// `CF-Access-Jwt-Assertion`, and the device is the team's (podssh's
+    /// `PODSSH_WARP_TEAM_TOKEN_FILE`).
+    pub fn with_team(mut self, token: &str) -> Api {
+        self.team = Some(Team(zeroize::Zeroizing::new(token.to_string())));
+        self
+    }
+
+    /// The token of a team, for the registration.
+    pub(crate) fn team(&self) -> Option<&str> {
+        self.team.as_ref().map(|t| t.0.as_str())
+    }
+
+    /// The base that gave the last answer under 500, so that a caller keeps
+    /// it and tries it first next time ([`Api::with_bases`]).
+    pub fn answered(&self) -> Option<String> {
+        self.answered.lock().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
     /// The one base `value` (`https://HOST[:PORT]`; `http://` for a
@@ -125,7 +166,12 @@ impl Api {
             attempt.url = format!("{base}{path}");
             let last = i + 1 == count;
             match self.client.send(attempt).await {
-                Ok(response) if response.status < 500 || last || request.method == "POST" => return Ok(response),
+                Ok(response) if response.status < 500 || last || request.method == "POST" => {
+                    if response.status < 500 {
+                        *self.answered.lock().unwrap_or_else(PoisonError::into_inner) = Some(base.clone());
+                    }
+                    return Ok(response);
+                }
                 Ok(response) => failures.push(format!("{base}: HTTP {}", response.status)),
                 Err(err) if last => {
                     let text = if failures.is_empty() {

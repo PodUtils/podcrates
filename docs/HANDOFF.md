@@ -18,18 +18,19 @@ is done. Git and the record keep finished work.
 
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- The last release: `v0.35.0` at `311c6bb` (the hand-off #127, open).
-  `v0.36.0` is prepared on `main`: finish its release (`docs/maintenance.md`,
-  "A release") and post `docs/releases/v0.36.0-handoff.md` as COORD-071
-  `(to all)` (fill `COMMIT`, the run ids and the time).
-- podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
-  wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
-- Agents of this session work in worktrees under `.claude/worktrees/` on
-  T-413. Merge its branch after `scripts/agent/check.sh` passes
-  on the merge.
-- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
-  T-413. When both pass and a tag holds them, post the COORD issue of the
-  freeze `(to podnet) (to podssh)`; its text is
+- The last release: `v0.36.0` at `408fb13` (the hand-off #129, open).
+  `main` holds T-480 (for the trial of podssh) for the next tag.
+- podswarm (#107 to #125): its asks to podcrates are T-430 to T-450 (the
+  owner's ruling "podswarm" settles Q15; the housekeeping agent applies
+  it).
+- An agent of this session works in a worktree under `.claude/worktrees/`
+  on the housekeeping (docs, record, issues, open questions). Merge its
+  branch after `scripts/agent/check.sh` passes on the merge.
+- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh
+  (T-413, at `286e98d3` with `v0.36.0`) passes each of its 24 steps, with
+  T-480 in the crate after `v0.36.0`. When a tag holds T-480, move the
+  tags of `adoption/podssh/pod-warp.patch` to it and post the COORD issue
+  of the freeze `(to podnet) (to podssh)`; its text is
   `docs/releases/pod-warp-freeze.md`.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
@@ -53,7 +54,7 @@ is done. Git and the record keep finished work.
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write
   to podnet by COORD issues only.
-- podssh (on `v0.34.0`, `287e23b`, PodUtils/podssh#219): the live runs of
+- podssh (on `v0.35.0`, `418e31d`, PodUtils/podssh#223): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.35.0`, `0a400b5`, PodUtils/podrunner#73): its session

@@ -1,0 +1,48 @@
+# The trial of pod-warp in podssh (T-413; calls C236 to C240), at podssh's
+# main 286e98d3 (pod-warp.commit). crates/podssh-warp becomes glue over
+# pod-warp: WARP's API through podssh's HTTP client for a proxy, with the
+# bases of PODSSH_WARP_API and of the door file first and a team's token;
+# the way of a session (podssh's dial, its TLS provider, the system's UDP
+# for HTTP/3), the pinned endpoint and the check of a run; and a stream to
+# HOST:PORT inside the tunnel, a name asked inside it first and of podssh's
+# resolver after. podssh-cli keeps the record (pod-warp's identity file in
+# the cache), the door file, the exit codes, the modes of HTTP/3 and the
+# refusal of a server of the user's own (T-481). podssh-relay's edge inside
+# WARP takes a pod-core Dial; ZeroTier's member takes pod-netstack's stack.
+# The tests, the stand-in, the fuzz target and the interop harness of the
+# moved code leave podssh. Each podcrates tag moves to v0.36.0. The record
+# with its citations, the repository checks; no moved file and no copy of a
+# moved item stays; the build, the bans and the sources of cargo-deny;
+# pod-warp in the tree; the library build of the gate; clippy of the WARP
+# feature and of ZeroTier's crate with the lints that the gate allows; the
+# tests of the glue, of the edge inside WARP, of the CLI with the feature
+# and without it, of ZeroTier's member and road, and of the pinning
+# verifiers; rustfmt of the crates that the patch changes; each Rust
+# toolchain of the workflows and build images against the rust-version of
+# podcrates; each test target that the gate names; the binary of the
+# release's features for x86_64 musl, built with zig (a debug build: the
+# release profile takes LTO), and podssh's static check of it.
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+python3 scripts/check-repo.py
+test "$(ls crates/podssh-warp/src)" = lib.rs && test ! -e crates/podssh-warp/tests && test ! -e scripts/masque-h3 && test ! -e fuzz/fuzz_targets/warp_capsule.rs
+! grep -rnE --include='*.rs' -e '(fn|struct|enum) (DeviceKey|CapsuleReader|registration_body|enrolment_body|open_reading|open_server|endpoint_h2|authority_h3|next_capsule|read_varint|spki_of_certificate|parse_authority|terms_time|p256_point|peer_settings)\b' crates
+! grep -rn --include=Cargo.toml -e '^smoltcp' -e 'podssh-warp/' -e 'warp-stand-in' crates fuzz
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podssh-warp -i pod-warp | grep -q '^pod-warp v'
+cargo build -q -p podssh-ws -p podssh-relay -p podssh-core -p podssh-probe -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/quic,podssh-relay/derp,podssh-relay/piping,podssh-relay/opentunnel,podssh-relay/code,podssh-relay/warp
+cargo clippy -q --all-targets -p podssh-cli -p podssh-warp -p podssh-relay --features podssh-cli/warp,podssh-relay/warp -- -D warnings -A clippy::collapsible_if
+cargo clippy -q --all-targets -p podssh-zerotier -- -D warnings -A clippy::collapsible_if
+cargo test -q -p podssh-warp
+cargo test -q -p podssh-relay --features warp --test quick_edge_warp
+cargo test -q -p podssh-cli --features warp --lib
+cargo test -q -p podssh-cli --test warp_not_built
+cargo test -q -p podssh-zerotier --lib
+cargo test -q -p podssh-ws --test no_permissive_verifier
+cargo fmt -p podssh-warp -p podssh-cli -p podssh-relay -p podssh-zerotier -p podssh-ws --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+python3 -I "$PODCRATES/scripts/check-consumer-tests.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"

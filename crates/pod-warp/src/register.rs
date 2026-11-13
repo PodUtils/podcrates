@@ -122,7 +122,11 @@ pub async fn create_device_with_key(api: &Api, key: &str, hints: &DeviceHints) -
         tunnel_type: "wireguard".into(),
         locale: hints.locale.clone().unwrap_or_else(|| "en_US".into()),
     };
-    let response = api.send(with_json(api.request("POST", "/reg", None), &body)).await?;
+    let mut request = with_json(api.request("POST", "/reg", None), &body);
+    if let Some(team) = api.team() {
+        request = request.header("CF-Access-Jwt-Assertion", team);
+    }
+    let response = api.send(request).await?;
     if let Some(failure) = registration_error(response.status, response.header("retry-after"), &response.text()) {
         return Err(failure);
     }

@@ -1,24 +1,22 @@
 # Progress
 
-`TODO/INDEX.md` holds 377 entries: 111 open, 7 partial, 5 blocked, 254 done.
+`TODO/INDEX.md` holds 380 entries: 112 open, 7 partial, 5 blocked, 256 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.35.0` at `311c6bb` (`docs/releases/v0.35.0.md`; ci
-  43343818563, adoption 43342289219 at `ba24e5d`, release 43346093416,
-  publish 43346161122; the hand-off #127, COORD-069, open): `pod-warp`
-  (T-336 to T-339, T-406), T-393, T-395, T-353, T-380, T-358, T-416,
-  T-417. Each consumer took `v0.34.0` (#104, closed).
-- `v0.36.0` is prepared on `main` (the version, `docs/releases/v0.36.0.md`,
-  the text of its hand-off): T-476, T-477 (the HTTP road, for podssh),
-  T-485 (the report of `pod-hostprobe`, for podvm) and the trial T-412.
+- Last release: `v0.36.0` at `408fb13` (`docs/releases/v0.36.0.md`; ci
+  43351421040, adoption 43351421049, release 43353954264; the hand-off
+  #129, COORD-071, open): T-476, T-477 (the HTTP road, for podssh), T-485
+  (the report of `pod-hostprobe`, for podvm), the trial T-412. Each
+  consumer took `v0.35.0` (#127, closed).
 - The consumers and their tags:
-  - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
-    of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
+  - podssh: `v0.35.0` (`418e31d`, PodUtils/podssh#223; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
+    of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571). The trial of `pod-warp`
+    passes at `286e98d3` (T-413; its glue needs the tag after `v0.36.0`).
   - podnet: `v0.35.0` (`5562f21`, PodUtils/podnet#519; its PodUtils/podnet@T-268 runs on
     the `tcp` carrier of `pod-link`; the trial of `pod-warp` passes at
-    `9c1fc4b`, T-412; the take waits for T-413 and the freeze); its relay client
+    `9c1fc4b`, T-412; the take waits for the freeze); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.35.0` (`7e379a13`, PodUtils/podvm#293; `pod-netlab` in its `podvm lab`; its relay over
@@ -95,9 +93,11 @@ next entry.
    TLS, the forward and nc are in; MASQUE over HTTP/3, the WireGuard
    tunnel and the carried device are in; the L4 door and its proxy are
    in; `Live`, the exit, the search of the socket, the TUN and its routes,
-   and the live step are in; the trial of podnet passes), then
-   T-413 (the trial of podssh) with the COORD issue of the freeze (T-339,
-   partial), T-470 (a change of the settings of a `Warp`), T-410 (the L4
+   and the live step are in; the trials of podnet and of podssh pass),
+   then the next tag (it holds the API's team token and its base, which
+   podssh's glue needs) with the COORD issue of the freeze
+   (T-339, partial), T-482 (a dropped connect of `pod-netstack`), T-481
+   (a connect-ip server of the user's own), T-470 (a change of the settings of a `Warp`), T-410 (the L4
    door on a new key), then
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
@@ -155,7 +155,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221, C225 to C229, C230 to C235 and C241 to C243; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221, C225 to C229, C230 to C243; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

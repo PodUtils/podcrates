@@ -19,7 +19,13 @@ over the crate. The parts that stay in podnet are `export.rs`, `up.rs`,
 listeners, nc's search and relay leg, and the lint of the rules.
 
 podssh: hold `crates/podssh-warp` to fixes from now on. The trial patch
-`adoption/podssh/pod-warp.patch` (T-413) moves it onto the crate.
+`adoption/podssh/pod-warp.patch` (T-413) makes it glue over the crate
+(podssh's way out, its proxy and its resolver), with the record, the door
+file and the exit codes in podssh-cli; ZeroTier's member takes
+`pod-netstack`, and the edge inside WARP takes a `pod_core::Dial`. It
+needs the tag that holds T-480 (a team's token, the base that answered).
+A server of connect-ip of the user's own over HTTP/3 waits for T-481: the
+patch refuses `PODSSH_WARP_SERVER` with exit 70 until then.
 
 Each consumer takes the crate by the tag that the hand-off names
 (`tag = "vX.Y.Z"`), on the day of the release.

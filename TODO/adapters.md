@@ -1409,7 +1409,7 @@ The trial passes on GitHub too: `adoption.yml` run 43347062071 at
 **Milestone:** M3
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1446,6 +1446,47 @@ of its own.
 ```sh
 sh scripts/adoption.sh podssh pod-warp
 ```
+
+## Done
+
+2026-11-13. The patch is at podssh's newest `main`, `286e98d3`
+(`adoption/podssh/pod-warp.commit`), and names `v0.36.0` (call C236); its
+glue takes T-480 (a team's token, the base that answered, commit
+`c241af1`), so the hand-off takes the tag after `v0.36.0`. Commits
+`c241af1` (T-480), `6587118` (the patch, its commit and its 24 steps) and
+the commit of this section (calls C236 to C240, T-480 to T-482).
+PodUtils/podssh:crates/podssh-warp goes from 40 files (7 277 lines) to `src/lib.rs` (262
+lines) of glue over `pod-warp`: the API through podssh's HTTP client for a
+proxy, the way of a session (podssh's dial, its TLS provider, the
+system's UDP for HTTP/3), and a stream inside the tunnel with podssh's
+resolver after the tunnel's. podssh-cli's
+PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/warp/road.rs keeps the record (pod-warp's
+identity file, C237), the door file, the exit codes (C238) and the modes
+of HTTP/3; a server of the user's own is refused until T-481 (C239).
+podssh-relay's edge inside WARP takes a `pod_core::Dial`, and ZeroTier's
+member takes `pod-netstack` (C240); the try of a connect that runs out is
+aborted (the gap T-482). The patch has 12 671 lines (105 files; 8 382
+lines removed, 1 227 added): the tests, the stand-in, the fuzz target
+`warp_capsule` and the interop harness PodUtils/podssh:scripts/masque-h3 leave; the
+names of the module go from podssh's scripts/gate.sh,
+scripts/repo_listeners.py, AGENTS.md, docs/ and workflows; a citation of a file that left
+names `286e98d3`; PodUtils/podssh@T-398, PodUtils/podssh@T-560 and
+PodUtils/podssh@T-582 get a `## Correction`.
+Each of the 24 steps of `sh scripts/adoption.sh podssh pod-warp` passed:
+the remap of `Cargo.lock`, `podssh-todo check` (710 entries),
+`check-repo.py` (12 checks), no moved file, no copy of a moved item (15
+definitions), no `smoltcp`, `podssh-warp/` or `warp-stand-in` in a
+manifest, `cargo build`, `cargo deny --locked check bans sources` (bans
+ok, sources ok), `pod-warp` in the tree, the library build of the gate,
+clippy of the WARP feature and of `podssh-zerotier`, the tests of
+`podssh-warp` (3), `quick_edge_warp` (2), `podssh-cli --features warp
+--lib` (1 144), `warp_not_built` (4), `podssh-zerotier --lib` (14),
+`no_permissive_verifier` (2), rustfmt, the toolchains (7 pins, 0 below
+1.99, 6 notes), the test targets of the gate (16), and the static check
+of the x86_64 musl binary of `iroh,warp,zerotier` (291 341 992 bytes,
+debug). A run takes 633 s on a warm target of 6.7 GB (no incremental
+files). Gaps: T-480 (done), T-481, T-482. The COORD issue of the freeze
+(`docs/releases/pod-warp-freeze.md`) goes with the tag that holds T-480.
 
 # T-475: `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518)
 
@@ -1526,4 +1567,113 @@ tag.
 
 ```sh
 cargo test -p pod-warp --lib
+```
+
+# T-480: `pod-warp`: the API sends a team's token with a registration and names the base that answered
+
+**Source:** T-413 (the trial of podssh).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh registers a device of a Cloudflare One organization with the token
+of its team (`PODSSH_WARP_TEAM_TOKEN_FILE`): the `POST /reg` carries it as
+`CF-Access-Jwt-Assertion`. podssh also keeps the base of the API that
+answered, and tries it first in the next run (PodUtils/podssh@T-562).
+`pod_warp::Api` had neither: `register::create_device_with_key` sent no
+header of a team, and `Api::send` kept no base.
+
+## Premise
+
+- Read: podssh's `main` at `286e98d3`:
+  crates/podssh-warp/src/register.rs (`request`, the header of a team on
+  the `POST`) and crates/podssh-warp/src/routes.rs (the route that
+  answered, kept in the record); `crates/pod-warp/src/api.rs` and
+  `crates/pod-warp/src/register.rs` of this tree.
+
+## Approach
+
+`Api::with_team(token)`: the token, in a type whose `Debug` hides it;
+`create_device_with_key` adds `CF-Access-Jwt-Assertion` to the `POST` of a
+registration alone. `Api::answered()`: the base that gave the last answer
+under 500, shared by the clones of the `Api`. A test of each in
+`tests/register.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --test register
+```
+
+## Done
+
+2026-11-13, commit `c241af1`. `Api::with_team(token)` keeps the token of
+a team in a type whose `Debug` shows `Team(..)`; `create_device_with_key`
+sends it as `CF-Access-Jwt-Assertion` on the `POST /reg` alone.
+`Api::answered()` gives the base that gave the last answer under 500,
+shared by the clones of the `Api`. `cargo test -p pod-warp --test register`:
+9 passed (the base that answered in
+`the_second_api_host_answers_after_a_failure`; the new
+`the_token_of_a_team_goes_into_the_post_alone`). podssh's glue of the
+trial of T-413 takes both.
+
+# T-481: `pod-warp`: a session to a connect-ip server of the user's own over HTTP/3 (RFC 9484)
+
+**Source:** T-413 (the trial of podssh).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh opens WARP's tunnel to a connect-ip server that the user runs
+(`PODSSH_WARP_SERVER`, `PODSSH_WARP_SERVER_PIN`; PodUtils/podssh@T-582):
+HTTP/3 to `https://HOST[:PORT][/PATH]`, an extended CONNECT with
+`:protocol connect-ip` (RFC 9484), the server's certificate checked by the
+roots of the caller or pinned by the SHA-256 of its DER, no device and no
+client certificate, and the addresses inside from the server's
+ADDRESS_ASSIGN. `pod-warp` speaks `cf-connect-ip` to WARP's front door
+alone: `h3::connect` sends no `:protocol` and no path, `MasqueSession::connect`
+needs an `Identity` and the pinned key of a device, and `WarpNet::start`
+takes the addresses of the device before the session opens. The trial of
+podssh refuses the variables with exit 70 until the crate has it, and its
+interop test against connect-ip-go leaves podssh with the code.
+
+## Premise
+
+- Read: podssh's `main` at `286e98d3`: crates/podssh-warp/src/h3/server.rs
+  (the URL, the pin, the authority), crates/podssh-warp/src/h3/open.rs (the
+  extended CONNECT, the wait for ADDRESS_ASSIGN), crates/podssh-warp/src/road_h3.rs
+  (`Warp::open_server`), crates/podssh-warp/tests/connect_ip_h3.rs and
+  scripts/masque-h3/interop.sh (connect-ip-go's proxy at `66cba32`, sshd
+  behind it); `crates/pod-warp/src/h3.rs` and `crates/pod-warp/src/session.rs`
+  of this tree.
+- Not measured: the time of a session to connect-ip-go's proxy through
+  the crate.
+
+## Approach
+
+1. `h3::Server` (the URL, its authority and path, an optional pin of
+   SHA-256) and `h3::connect_server`: the extended CONNECT of RFC 9484
+   (`:protocol connect-ip`, the path of the URL), the server's
+   certificate by the roots of the caller's TLS configuration or by the
+   pin, and the addresses of ADDRESS_ASSIGN within the time limit.
+2. `MasqueSession::connect_server(&Server, &Way)` and `WarpNet::start`
+   with the assigned addresses; the check of the data path as for WARP.
+3. A test against a stand-in server of RFC 9484 in `pod-testkit`; the
+   interop with connect-ip-go in a workflow of podcrates that is started
+   by hand, from podssh's harness at `286e98d3`.
+4. podssh's glue takes it after the next tag: `PODSSH_WARP_SERVER` opens
+   the session again.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --test h3
 ```
