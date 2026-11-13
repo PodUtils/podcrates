@@ -1,0 +1,8 @@
+# The reader of HTTP/1.1 of the poll carriers looks for the end of a head
+# in each byte that one read brought: a head over 4 KiB that comes whole in
+# one read goes in (T-518).
+ENTRY=T-518
+GROUP=link
+EXPECT='a head over 4 KiB in one read'
+RUN='cargo test -p pod-link --all-features --lib a_long_head_and_a_large_chunk_are_refused'
+LIMIT=1800

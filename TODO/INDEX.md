@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**412 entries: 119 open, 7 partial, 4 blocked, 282 done.**
+**415 entries: 116 open, 8 partial, 4 blocked, 287 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 77 | 92 |
-| P2 | 59 | 3 | 4 | 149 | 215 |
-| P3 | 48 | 1 | 0 | 54 | 103 |
-| **All** | 119 | 7 | 4 | 282 | 412 |
+| P2 | 57 | 3 | 4 | 152 | 216 |
+| P3 | 47 | 2 | 0 | 56 | 105 |
+| **All** | 116 | 8 | 4 | 287 | 415 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -452,10 +452,13 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-514](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468) |
 | [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
 | [T-516](relay.md) | P2 | S | M2 | chore | done | `pod-link`: a fuzz target of the datagrams of the ARQ |
-| [T-517](relay.md) | P3 | S | M2 | feature | open | `pod-link`: a cap of the bytes that the sessions of a poll listener hold |
-| [T-518](relay.md) | P3 | S | M2 | chore | open | `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers |
-| [T-520](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515) |
-| [T-521](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
+| [T-517](relay.md) | P3 | S | M2 | feature | done | `pod-link`: a cap of the bytes that the sessions of a poll listener hold |
+| [T-518](relay.md) | P3 | S | M2 | chore | done | `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers |
+| [T-520](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515) |
+| [T-521](relay.md) | P2 | S | M2 | chore | done | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
+| [T-525](relay.md) | P3 | S | M2 | feature | open | `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake) |
+| [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
 | [T-528](transport.md) | P2 | M | M1 | defect | done | `pod-services`: three of the four file hosts fail live from GitHub: the download URL of tmpfiles.org, the upload form of litterbox, the busy answer of 0x0.st (PodUtils/podssh#230) |
 | [T-529](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
+| [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |
