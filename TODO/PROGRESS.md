@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 385 entries: 114 open, 7 partial, 4 blocked, 260 done.
+`TODO/INDEX.md` holds 385 entries: 113 open, 7 partial, 4 blocked, 261 done.
 
 ## State
 
@@ -110,8 +110,7 @@ next entry.
    T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
    T-424 (UDP with KCP) and T-310 (the ARQ); T-439 (the accept loop of
    `pod-ws` for the server half of T-420, and for podssh's relay role
-   T-036); T-475 (the port rules of
-   the reader of the rules, PodUtils/podnet#518). podnet
+   T-036). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet's link workstream (PodUtils/podnet#480) runs on `pod-link`;
