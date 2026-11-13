@@ -5572,3 +5572,51 @@ directory writable must fail the first test.
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+# T-491: `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296)
+
+**Source:** PodUtils/podvm#296 (COORD-073 of podvm; PodUtils/podvm@T-1758).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The namespace rung of `pod-enter` unshares the mount namespace (step 7),
+makes `/` recursively private (step 8) and mounts a tmpfs on the `/tmp`
+of the image (step 9). It mounts nothing on `/proc`. A payload on that
+rung has no `/proc`: `go version` fails on `readlink /proc/self/exe`,
+`head /proc/self/status` fails, and `mount` finds no `/proc/mounts`
+(podvm's rows `imgs.go-version.ns`, `tools.go-mod.ns` and `run.proc.ns`).
+
+## Premise
+
+- Read: PodUtils/podvm#296 (2026-11-13); `crates/pod-enter/src/entry.rs`
+  (`ns_tmp_target`, `ns_setup_step`), `crates/pod-enter/src/launch.rs`
+  (the namespace block).
+- podvm measured on its cloud host, as root: a new proc in a new mount
+  namespace with no PID namespace mounts; in a user namespace with no
+  PID namespace it fails with EPERM. Not measured here.
+
+## Approach
+
+After step 9, a step 11 mounts a fresh `proc` with
+`MS_NOSUID|MS_NODEV|MS_NOEXEC` on the `/proc` of the image. The target
+follows the rule of `ns_tmp_target`: a directory, not a symbolic link;
+with no such directory the step skips. A failed mount does not stop the
+rung: the entry writes one line that names the step and the errno, and
+continues. `ns_setup_step(11)` names the step. No PID namespace (that
+changes the signals and the reaping of the payload; a separate
+decision). Optional, in the same block: a tmpfs of 64 MiB, mode 1777, on
+the `/dev/shm` of the image, with the same rules. Tests: the target rule
+(a directory, a file, a link, no directory); the name of the step; a
+plant that mounts `proc` without `MS_NOEXEC` or stops the rung on a
+refused mount must fail a test.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```

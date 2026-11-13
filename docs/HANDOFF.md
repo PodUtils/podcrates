@@ -23,9 +23,10 @@ is done. Git and the record keep finished work.
   are T-325 (done); the two Windows jobs do not compile
   `crates/pod-relay/tests/reverse_plain.rs` (T-488). The next nightly
   after T-488 proves T-325 and T-307.
-- Open COORD questions of podcrates: #131 (`pod-git` moves to
-  `PodUtils/podforge`; the owner's agent closes it) and #132 (podrunner's
-  Q10). podswarm's tracker is PodUtils/podswarm#1 (moved from #107).
+- podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
+  builds its side of a live test (#83, 2026-11-13): it waits for T-106
+  (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),
+  which stay in M8 under the ruling "Open questions".
 - `services.yml` at `613058c` is red; T-323 (done) has its fixes. The next
   scheduled run proves them, and T-351.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh
@@ -45,14 +46,14 @@ is done. Git and the record keep finished work.
   commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.35.0`, `5562f21`, PodUtils/podnet#519): its link
+- podnet (on `v0.36.0`, `775486f`, PodUtils/podnet#520): its link
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
-- podssh (on `v0.35.0`, `418e31d`, PodUtils/podssh#223): the live runs of its PodUtils/podssh@T-737 (the
+- podssh (on `v0.36.0`, `99b9642`, PodUtils/podssh#226): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.35.0`, `0a400b5`, PodUtils/podrunner#73): its session
+- podrunner (on `v0.36.0`, `f4064f7`, PodUtils/podrunner#76): its session
   runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
   -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
   Write to it by an issue with `(to podrunner)` in the title.

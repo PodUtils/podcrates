@@ -131,9 +131,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #126 | COORD-068: the answer to PodUtils/podnet#518 (T-475, port rules) and PodUtils/podssh#221 (T-476, invariants 6 to 10 of the HTTP road) (to podnet) (to podssh) | open (T-476 done, in `v0.36.0`; T-475 open) | T-475, T-476 |
 | #127 | COORD-069: v0.35.0: pod-warp (relay race, HTTP/3, WireGuard, proxy, L4 door, Live, TUN), the kind file-host, an MQTT board, coturn and distribution on the loopback (to all) | closed (podrunner `0a400b5`, PodUtils/podrunner#73; podnet `5562f21`, PodUtils/podnet#519; podvm `7e379a13`, PodUtils/podvm#293; podssh `418e31d`, PodUtils/podssh#223) | T-336, T-337, T-338, T-339, T-353, T-358, T-380, T-393, T-395, T-406, T-416, T-417 |
 | #128 | COORD-070: the answer to PodUtils/podvm#291: the document of pod-hostprobe's own types, with its reader (T-485) (to podvm) | closed (T-485 done, `5a2b5fd`, calls C241 to C243; in `v0.36.0`) | T-485 |
-| #129 | COORD-071: v0.36.0: the HTTP road's invariants 6 to 10 and its serial deadlock fixed, the report of pod-hostprobe with its reader, the trial of pod-warp in podnet (to all) | open (waits for the take of each consumer) | T-412, T-476, T-477, T-485 |
+| #129 | COORD-071: v0.36.0: the HTTP road's invariants 6 to 10 and its serial deadlock fixed, the report of pod-hostprobe with its reader, the trial of pod-warp in podnet (to all) | closed (podvm `b52b0bbc`, PodUtils/podvm#295; podssh `99b9642`, PodUtils/podssh#226; podrunner `f4064f7`, PodUtils/podrunner#76; podnet `775486f`, PodUtils/podnet#520) | T-412, T-476, T-477, T-485 |
 | #130 | [DEFERRED] Serve ECH, shape the ClientHello, and measure the handshake | open (deferred by its author) | T-490 |
-| #131 | pod-git: T-217 to T-220 move to PodUtils/podforge (deferred) (to podforge) | open (the owner's agent of podforge closes it) | T-217, T-218, T-219, T-220 |
-| #132 | COORD-072: podrunner's Q10 (a Docker Engine API socket for each job): which decision did podrunner record? (to podrunner) | open (waits for podrunner) | T-146 |
+| #131 | pod-git: T-217 to T-220 move to PodUtils/podforge (deferred) (to podforge) | closed (the owner's agent of podforge took it) | T-217, T-218, T-219, T-220 |
+| #132 | COORD-072: podrunner's Q10 (a Docker Engine API socket for each job): which decision did podrunner record? (to podrunner) | closed (podrunner's DR-8: the container hooks, no Docker API socket, no crate now; PodUtils/podrunner#77) | T-146 |
 
 #79 to #81 are pull requests.

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 383 entries: 114 open, 7 partial, 4 blocked, 258 done.
+`TODO/INDEX.md` holds 384 entries: 115 open, 7 partial, 4 blocked, 258 done.
 
 ## State
 
@@ -11,20 +11,20 @@
   (the report of `pod-hostprobe`, for podvm), the trial T-412. Each
   consumer took `v0.35.0` (#127, closed).
 - The consumers and their tags:
-  - podssh: `v0.35.0` (`418e31d`, PodUtils/podssh#223; its
+  - podssh: `v0.36.0` (`99b9642`, PodUtils/podssh#226; its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
     (T-413; its glue needs T-480, in the tag after `v0.36.0`).
-  - podnet: `v0.35.0` (`5562f21`, PodUtils/podnet#519; its
+  - podnet: `v0.36.0` (`775486f`, PodUtils/podnet#520; its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
     `9c1fc4b` (T-412); the take waits for the freeze.
-  - podvm: `v0.35.0` (`7e379a13`, PodUtils/podvm#293; `pod-netlab` in its
+  - podvm: `v0.36.0` (`b52b0bbc`, PodUtils/podvm#295; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
-  - podrunner: `v0.35.0` (`0a400b5`, PodUtils/podrunner#73): its local
+  - podrunner: `v0.36.0` (`f4064f7`, PodUtils/podrunner#76; its live gates start on a test organization, its DR-7): its local
     mode takes `pod-actions-expr` and `pod-actions-workflow`
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
@@ -70,7 +70,7 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 1. **The defects and asks of the consumers:** T-489 (a client of
-   `pod-devtunnel` with no user token); T-486 (an overlay root in
+   `pod-devtunnel` with no user token); T-491 (a proc on `/proc` in the namespace rung of `pod-enter`, PodUtils/podvm#296); T-486 (an overlay root in
    the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes

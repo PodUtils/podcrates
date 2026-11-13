@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**383 entries: 114 open, 7 partial, 4 blocked, 258 done.**
+**384 entries: 115 open, 7 partial, 4 blocked, 258 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 53 | 3 | 4 | 134 | 194 |
+| P2 | 54 | 3 | 4 | 134 | 195 |
 | P3 | 48 | 1 | 0 | 50 | 99 |
-| **All** | 114 | 7 | 4 | 258 | 383 |
+| **All** | 115 | 7 | 4 | 258 | 384 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -430,3 +430,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-488](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)` |
 | [T-489](transport.md) | P2 | S | M1 | feature | open | `pod-devtunnel`: a client with no user token, for a tunnel with anonymous access or with a connect token |
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
+| [T-491](podvm.md) | P2 | S | M6 | feature | open | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
