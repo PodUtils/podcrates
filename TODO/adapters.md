@@ -1694,3 +1694,60 @@ interop test against connect-ip-go leaves podssh with the code.
 ```sh
 cargo test -p pod-warp --test h3
 ```
+
+# T-508: `pod-warp`: QUIC over the datagrams of a session reaches no IPv4 peer: an IPv4-mapped destination leaves as an IPv6 packet (PodUtils/podnet#524)
+
+**Source:** PodUtils/podnet#524 (COORD-066 of podnet, a fix of the frozen `src/warp/`; PodUtils/podnet@T-332).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After podnet took `pod-warp` (`v0.37.0`), its live step "Throughput
+through WARP" fails: the QUIC handshake of its tunnel leg to the
+Cloudflare edge times out at each address. `WarpNet::datagrams` binds
+`[::]`, so noq sends to the IPv4-mapped form of an IPv4 peer, and the
+stack sends an IPv6 packet to `::ffff:a.b.c.d`, which WARP's network
+drops. The family check took the mapped address as IPv6.
+
+## Premise
+
+- Read: PodUtils/podnet#524 (2026-11-13); `crates/pod-warp/src/net.rs`,
+  `src/net/datagrams.rs`.
+- Measured here: the stand-in edge answers at each address, also at
+  `::ffff:198.51.100.20`, so the tests did not see the fault; its
+  `Watch::udp` shows the IPv6 packet.
+
+## Approach
+
+`WarpDatagrams` sends an IPv4-mapped destination as IPv4 (and checks
+its family as IPv4), and gives the answers of that peer back in the
+mapped form; a test of a QUIC handshake over `WarpNet::datagrams()` to
+an IPv4 address inside the tunnel, which checks the family of the
+packets that the edge saw.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --test l4 --test net
+```
+
+## Done
+
+2026-11-13, commit `a07d13c`. `WarpDatagrams::new` keeps the IPv4 peers that
+the caller names in the mapped form; `try_send` sends to the IPv4 form
+(the source too), and `poll_recv` gives the answers of those peers back
+in the mapped form, so noq sees the address that it sent to. A
+datagram to a plain IPv4 address is as before. The new test
+`a_quic_handshake_through_the_datagrams_of_a_session_reaches_an_ipv4_peer`
+(`tests/l4.rs`): a `pod_quic::endpoint::over` endpoint on the datagrams
+of a session completes a handshake with the QUIC server of the loopback,
+which the stand-in edge carries from `198.51.100.30:4433`, and each
+packet that the edge saw goes to that IPv4 address. Before the fix the
+test fails: the edge saw `(2606:4700:110:8000::2,
+[::ffff:198.51.100.30]:4433)`. The plant `warp-datagrams-mapped-kept`
+fails it; the plant `warp-udp-to-a-family-the-device-lacks` moves to
+`WarpDatagrams::new`.

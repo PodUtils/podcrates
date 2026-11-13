@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**404 entries: 120 open, 7 partial, 4 blocked, 273 done.**
+**405 entries: 120 open, 7 partial, 4 blocked, 274 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 3 | 0 | 74 | 90 |
+| P1 | 13 | 3 | 0 | 75 | 91 |
 | P2 | 61 | 3 | 4 | 143 | 211 |
 | P3 | 46 | 1 | 0 | 54 | 101 |
-| **All** | 120 | 7 | 4 | 273 | 404 |
+| **All** | 120 | 7 | 4 | 274 | 405 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -447,6 +447,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-505](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the actor classes `agent` and `bot` in `job-offer.v1` (PodUtils/podrunner#80) |
 | [T-506](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-507](upkeep.md) | P1 | S | M5 | defect | open | The tests of `pod-services-watch` fail on Windows: a reset loses the bytes of a stand-in, and a runner with no `SystemRoot` has no Winsock |
+| [T-508](adapters.md) | P1 | S | M3 | defect | done | `pod-warp`: QUIC over the datagrams of a session reaches no IPv4 peer: an IPv4-mapped destination leaves as an IPv6 packet (PodUtils/podnet#524) |
 | [T-510](relay.md) | P2 | S | M2 | chore | done | `pod-e2e`: a fuzz target of the opener of the records |
 | [T-514](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468) |
 | [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
