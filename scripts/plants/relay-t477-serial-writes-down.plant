@@ -1,0 +1,8 @@
+# A plant of T-477 (the deadlock of the serial form of the HTTP road):
+# the serial form writes the bytes down to the caller in its own task, as
+# before T-477, and reads no bytes up while the caller does not read; the
+# test of a caller as SSH's must fail.
+ENTRY=T-477
+GROUP=relay
+EXPECT='test the_serial_form_carries_20_mib_each_way_for_a_caller_as_ssh_s \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test http_road_flow -- the_serial_form_carries_20_mib_each_way_for_a_caller_as_ssh_s'

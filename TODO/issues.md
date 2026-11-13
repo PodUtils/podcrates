@@ -129,6 +129,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #124 | podswarm asks podvm: a library call for run, the probe cache, cgroup limits, payload death, a copy-free root, warm exec, the guest plan and versioned schemas (to podvm) | open (an ask to podvm; podcrates does not own it; the entries PodUtils/podvm@T-1745 to PodUtils/podvm@T-1752, PodUtils/podvm#290) | T-425 |
 | #125 | podswarm asks podnet: live doors, port rules, an exit on stdio, a decision on one-flow aggregation and a report of podnet pod (to podnet) | open (an ask to podnet; podcrates does not own it) | T-425 |
 | #126 | COORD-068: the answer to PodUtils/podnet#518 (T-475, port rules) and PodUtils/podssh#221 (T-476, invariants 6 to 10 of the HTTP road) (to podnet) (to podssh) | open (both entries open) | T-475, T-476 |
-| #127 | COORD-069: v0.35.0: pod-warp (relay race, HTTP/3, WireGuard, proxy, L4 door, Live, TUN), the kind file-host, an MQTT board, coturn and distribution on the loopback (to all) | open (waits for the take of each consumer) | T-336, T-337, T-338, T-339, T-353, T-358, T-380, T-393, T-395, T-406, T-416, T-417 |
+| #127 | COORD-069: v0.35.0: pod-warp (relay race, HTTP/3, WireGuard, proxy, L4 door, Live, TUN), the kind file-host, an MQTT board, coturn and distribution on the loopback (to all) | open (podrunner `0a400b5`, PodUtils/podrunner#73; podnet `5562f21`, PodUtils/podnet#519; podssh and podvm wait) | T-336, T-337, T-338, T-339, T-353, T-358, T-380, T-393, T-395, T-406, T-416, T-417 |
+| #128 | COORD-070: the answer to PodUtils/podvm#291: the document of pod-hostprobe's own types, with its reader (T-485) (to podvm) | open (T-485 in work) | T-485 |
 
 #79 to #81 are pull requests.

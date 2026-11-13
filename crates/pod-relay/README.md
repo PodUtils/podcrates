@@ -136,7 +136,7 @@ its test:
 | 4 | a `204` is a whole answer | client, the role | `answer`, podssh `http_road` |
 | 5 | the batch and the wait come from the role's open and the measured path | `Tuning` | `http_road` |
 | 6 | a batch stored before, sent again, gets the same acknowledgement (`204`, `X-Seq`), never silence | `window::Up::store`, client | `window`, `http_road_acks` (plant `relay-t476-duplicate-not-acknowledged`) |
-| 7 | the acknowledgement goes after the batch is in the window; a full window is the refusal `full`; the client's offset down names only bytes that the caller's pipe holds | `window::Up::store`, client | `window`, `http_road_acks` |
+| 7 | the acknowledgement goes after the batch is in the window; a full window is the refusal `full`; the client's offset down names only bytes that the caller's pipe holds, or the serial form's channel to it | `window::Up::store`, client | `window`, `http_road_acks` |
 | 8 | a refusal names its reason in `X-Refuse`: `full`, `unknown session`, `not allowed`; the client stops at once for the last two | `window::Refusal`, client | `http_road_acks` |
 | 9 | the last batch up carries `total=BYTES`; the target's end carries `X-Total`; a count that differs fails the session | `window::Up::store`, client | `window`, `http_road_acks` |
 | 10 | each batch is held by (session, `seq`), and a batch sent again carries the key and the body of its first send; the road keeps no retry log on disk | `window::Up`, client | `http_road_acks` |
@@ -158,6 +158,16 @@ stand-in role in memory (`tests/http_road_stand_in/`) on a paused clock: a
 stand-in that drops each third acknowledgement after the batch is stored
 ends a session of 20 MiB each way, in each form, with equal digests and
 one resend at most for each lost acknowledgement.
+
+The serial form writes the bytes down to the caller from a task of its
+own, by a channel of 4 answers (4 MiB at most). While the channel is full,
+no exchange goes, and each batch up goes alone by `up` on the same
+connection: the client never stops reading the caller's bytes up, so a
+caller that reads no more until its bytes up went (SSH's window
+adjustments, PodUtils/podssh#222) does not deadlock. The role's server
+takes `up` and `x` in one session. The test, `tests/http_road_flow.rs`,
+ends a session of 20 MiB each way with such a caller, in each form (plant
+`relay-t477-serial-writes-down`).
 
 ## Features
 

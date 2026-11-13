@@ -50,6 +50,16 @@ fn main() {
             }
         }
     }
+    // The report of the real set reads back to the same text.
+    #[cfg(feature = "report")]
+    {
+        use pod_hostprobe::{report, select::Selection};
+        let text = report::write(&f, &Selection::choose(&f));
+        let (f2, s2) = report::read(&text).unwrap_or_else(|e| panic!("the report of this host: {e}"));
+        assert_eq!(report::write(&f2, &s2), text, "the report of this host does not read back");
+        println!("children: the report of {} bytes reads back to the same text", text.len());
+    }
+
     println!(
         "children: {} rows, {} ok, {} denied, {} skipped; private mount namespace: {}; children from {}",
         f.rows.len(),

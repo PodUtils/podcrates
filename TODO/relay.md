@@ -4686,7 +4686,7 @@ the change. `cargo test -p pod-relay --all-features` passes.
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4714,6 +4714,71 @@ end of the session drops the channel and waits for the writer. A test in
 `pod-relay`: a client whose writer waits for its reader, as SSH's does,
 ends a session of 20 MiB each way over the serial form; a plant that
 writes down in the same task fails it.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Done
+
+2026-11-13, commit c19f2ba. `http_road::serial::run` writes the bytes
+down from a task of its own (`write_down`), by a channel of `HELD` = 4
+answers, each `down_max` bytes at most: 4 MiB at the role's largest bound
+(C233). The run task reserves a place in the channel before each
+exchange. While the channel is full, no exchange goes, and each batch up
+goes alone by `up` on the same connection, with no bytes down (C234), so
+the client never stops reading the caller's bytes up. The offset of the
+next exchange names the bytes that the channel holds; the end of the
+session drops the channel and waits for the writer, so the caller reads
+the end after the last byte (C235). The role's server of podssh takes
+`up` and `x` in one session (`serve::http_road`). `tests/http_road_flow.rs`
+(3 tests, a stand-in role in memory, a paused clock): a caller as SSH's
+(after each 256 KiB down, a window adjustment up on the stream that its
+20 MiB up share, before it reads on) ends a session of 20 MiB each way
+with equal digests in the serial form and in the split form; a caller
+that reads nothing gets each of its 4 MiB up to the target, by `up`, and
+the client acknowledges 5.25 MiB down at most. The plant
+`relay-t477-serial-writes-down` puts back the write in the same task: the
+two tests of the serial form fail (no end in 900 s; no byte up read). The
+6 tests of T-476 (`tests/http_road_acks.rs`) pass. The README of
+`pod-relay` says the flow. A finding goes to T-478 (the client never
+sends `close`). `cargo test -p pod-relay --all-features` passes.
+
+# T-478: `pod-relay`: the client of the HTTP road never sends `close`, so a caller that drops its stream leaves the session at the role
+
+**Source:** T-477 (a finding in `crates/pod-relay/src/http_road/`).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The wire has `POST /v1/http/s/ID/close`, which ends the session at once,
+but `http_road::client` never sends it. When the caller drops its stream
+before the end, the serial form returns at the next exchange with no
+request to the role, and the split form's task down stops with no request
+either (its task up sends the last batch). The role then holds the
+session, its target connection and its windows until its idle limit or
+the target's end.
+
+## Premise
+
+- Read: `crates/pod-relay/src/http_road/serial.rs`, `split.rs`,
+  `client.rs` (2026-11-13); `mod.rs`, the wire of `close`.
+- Not measured: how long podssh's role holds such a session.
+
+## Approach
+
+When the caller is gone and the session has no end, the client sends one
+`POST close` with the session's key, within `LIMIT`, and sets the end
+`Closed { code: 1000, reason: "client closed" }` or a failure that says
+the caller went. Test against the stand-in role of `tests/`: a caller
+that drops its stream in the middle of a session of each form makes the
+stand-in record the close.
 
 ## Prove
 

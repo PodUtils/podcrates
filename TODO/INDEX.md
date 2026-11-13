@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**374 entries: 110 open, 7 partial, 5 blocked, 252 done.**
+**376 entries: 110 open, 7 partial, 5 blocked, 254 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 3 | 0 | 71 | 87 |
-| P2 | 51 | 2 | 5 | 130 | 188 |
-| P3 | 46 | 2 | 0 | 49 | 97 |
-| **All** | 110 | 7 | 5 | 252 | 374 |
+| P1 | 12 | 3 | 0 | 72 | 87 |
+| P2 | 51 | 2 | 5 | 131 | 189 |
+| P3 | 47 | 2 | 0 | 49 | 98 |
+| **All** | 110 | 7 | 5 | 254 | 376 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -420,4 +420,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-470](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: a change of the settings of a `Warp` keeps the state of its doors and legs |
 | [T-475](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
 | [T-476](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |
-| [T-477](relay.md) | P1 | S | M2 | defect | open | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
+| [T-477](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222) |
+| [T-478](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the client of the HTTP road never sends `close`, so a caller that drops its stream leaves the session at the role |
+| [T-485](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291) |

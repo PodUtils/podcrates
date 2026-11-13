@@ -1399,6 +1399,9 @@ below 1.99, 3 notes), and the static check of the x86_64 musl binary (58
 of 2.1 GB (no debug info, no incremental files). Gap: T-470. The COORD
 issue of the freeze waits for T-413 (the start condition).
 
+The trial passes on GitHub too: `adoption.yml` run 43347062071 at
+`2ed0b5f` (2026-11-13).
+
 # T-413: `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate)
 
 **Source:** T-339 (call C217: the trials of T-339 go to their own entries).

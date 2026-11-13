@@ -1,0 +1,18 @@
+--- a/crates/pod-hostprobe/src/report.rs
++++ b/crates/pod-hostprobe/src/report.rs
+@@ -284,11 +284,12 @@
+     let mut rows: Vec<(&'static str, Outcome)> = Vec::with_capacity(wire_rows.len());
+     for WireRow { name, verdict, errno, reason } in wire_rows {
+         // The name of the row is the `&'static str` of its probe.
+-        let probe = probes::find(&name).ok_or_else(|| ReadError::UnknownRow(name.clone()))?;
+-        if rows.iter().any(|(n, _)| *n == probe.name) {
++        let probe_name: &'static str =
++            probes::find(&name).map_or_else(|| &*Box::leak(name.clone().into_boxed_str()), |p| p.name);
++        if rows.iter().any(|(n, _)| *n == probe_name) {
+             return Err(ReadError::DuplicateRow(name));
+         }
+-        rows.push((probe.name, outcome_of(&verdict, errno, reason, &name)?));
++        rows.push((probe_name, outcome_of(&verdict, errno, reason, &name)?));
+     }
+     let writable = writable
+         .into_iter()

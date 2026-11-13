@@ -25,6 +25,8 @@ pub mod interp;
 pub mod machine;
 pub mod mounts;
 pub mod probes;
+#[cfg(feature = "report")]
+pub mod report;
 pub mod select;
 pub mod space;
 pub mod supervise;

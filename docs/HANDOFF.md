@@ -19,11 +19,13 @@ is done. Git and the record keep finished work.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - The last release: `v0.35.0` at `311c6bb` (the hand-off #127, open).
-  `main` holds T-476 for the next tag.
+  `v0.36.0` is prepared on `main`: finish its release (`docs/maintenance.md`,
+  "A release") and post `docs/releases/v0.36.0-handoff.md` as COORD-071
+  `(to all)` (fill `COMMIT`, the run ids and the time).
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
 - Agents of this session work in worktrees under `.claude/worktrees/` on
-  T-477 and T-413. Merge each branch after `scripts/agent/check.sh` passes
+  T-413. Merge its branch after `scripts/agent/check.sh` passes
   on the merge.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
   T-413. When both pass and a tag holds them, post the COORD issue of the
@@ -46,7 +48,7 @@ is done. Git and the record keep finished work.
 - podvm (on `v0.34.0`, `fc1c5d60`, PodUtils/podvm#288, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.34.0`, `ef8c901`, PodUtils/podnet#515, with
+- podnet (on `v0.35.0`, `5562f21`, PodUtils/podnet#519, with
   `pod-relay`): its link workstream (T-300, PodUtils/podnet#480), then T-028
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write
@@ -54,7 +56,7 @@ is done. Git and the record keep finished work.
 - podssh (on `v0.34.0`, `287e23b`, PodUtils/podssh#219): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.34.0`, `2a4f35c`, PodUtils/podrunner#72): its session
+- podrunner (on `v0.35.0`, `0a400b5`, PodUtils/podrunner#73): its session
   runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
   -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
   Write to it by an issue with `(to podrunner)` in the title.

@@ -55,6 +55,22 @@ impl Rung {
         }
     }
 
+    /// What the rung needs, as a [`Rejection`] names it. Empty for a rung
+    /// that [`Selection::choose`] never rejects. It is a constant of the
+    /// rung, so the report does not carry it.
+    pub fn requirement(self) -> &'static str {
+        match self {
+            Rung::Namespace => "namespace creation and mounts and ID maps for what was asked",
+            Rung::Supervise => {
+                "a notification listener, a channel to read the child's syscall \
+                 arguments, and ptrace to make a Continue race-safe"
+            }
+            Rung::Chroot => "CAP_SYS_CHROOT, a prepared rootfs, payload syscalls permitted",
+            Rung::Interpose => "a payload this machine can execute at all",
+            Rung::Userland | Rung::Unsupported => "",
+        }
+    }
+
     /// What the rung must never claim.
     pub fn must_never_claim(self) -> &'static str {
         match self {
@@ -150,7 +166,7 @@ impl Selection {
         }
         rejected.push(Rejection {
             rung: Rung::Namespace,
-            requirement: "namespace creation and mounts and ID maps for what was asked",
+            requirement: Rung::Namespace.requirement(),
             evidence: evidence_of(
                 f,
                 &[
@@ -179,8 +195,7 @@ impl Selection {
         }
         rejected.push(Rejection {
             rung: Rung::Supervise,
-            requirement: "a notification listener, a channel to read the child's syscall \
-                          arguments, and ptrace to make a Continue race-safe",
+            requirement: Rung::Supervise.requirement(),
             evidence: evidence_of(
                 f,
                 &[
@@ -197,7 +212,7 @@ impl Selection {
         }
         rejected.push(Rejection {
             rung: Rung::Chroot,
-            requirement: "CAP_SYS_CHROOT, a prepared rootfs, payload syscalls permitted",
+            requirement: Rung::Chroot.requirement(),
             evidence: evidence_of(f, &["chroot(/tmp)"]),
         });
 
@@ -211,7 +226,7 @@ impl Selection {
         }
         rejected.push(Rejection {
             rung: Rung::Interpose,
-            requirement: "a payload this machine can execute at all",
+            requirement: Rung::Interpose.requirement(),
             evidence: evidence_of(f, &["exec(/tmp/execprobe)", "memfd_create+exec"]),
         });
 
