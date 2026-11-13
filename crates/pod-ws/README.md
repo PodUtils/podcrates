@@ -25,6 +25,7 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
 | `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_raw`, `session` |
+| `serve` | feature `serve`: `serve(listeners, tls, cfg, on)`, the accept loop over the caller's listeners and TLS server configuration; `Serve { deadlines, caps, lowat, limits, idle }` (`reserve`, `check`), `Deadlines { tls, head, first, ready }`, `Caps { max_unauth, per_prefix, preauth_bytes, head_bytes, head_lines }`, `Accepted { session, peer, key, request, options, gate }`, `PreAuth::ready`, `Options { nodelay, notsent_lowat }`, `ServedStream` |
 | `bridge` | `bridge(session, io, &dyn Tally)`, `dial(url, &way, &trust, timeout, authorization)`, `connect_bridge`, `Tally`, `NoTally`, `DIAL_TIMEOUT` |
 | `wake` | `Wake`, `Reading`, `slept`, `TICK`, `LATE` |
 | `plain` | feature `plain-ws`: `connect_loopback` |
@@ -35,6 +36,9 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 * `ech`: Encrypted Client Hello on each TLS road, with the reader that
   `Way::with_records` gives (`pod-dns` has one, its feature `ech`). It
   turns on the feature `ech` of `pod-tls`.
+* `serve`: the accept loop of a server over TLS (GitHub #116, T-439). It
+  adds `pod-identity` (the key of a peer) and `socket2` (the options of a
+  socket, and the cut of a session in the hands of the caller).
 * `plain-ws`: a session over plain TCP to the loopback, for the tests of
   an embedder; podnet's binary turns it on through `pod-relay` for a
   relay on the loopback (call C101).
@@ -52,6 +56,35 @@ state.
 | The frame and the message that a session takes in | `Limits` (`WsClientConfig::limits`, `Asking::limits`, `RelaySession::with_limits`) |
 | The HTTP/2 connections of the relay, and what was found of each host | `h2_road::Pool`, a value of the caller |
 | The name of the client in the words of a Close | `ForwardClose::what(target, app)` |
+
+## The accept loop
+
+`serve::serve` accepts on the caller's listeners, with the caller's TLS
+server configuration (`pod_tls::peer::server_config` for the pin of each
+key). A connection is before `ready` from its accept until the caller
+calls `PreAuth::ready` (calls C250 to C252):
+
+| Stage | Its deadline | Default |
+| --- | --- | --- |
+| TLS | `tls`, from the accept | 5 s |
+| the head of the upgrade (at most `head_bytes`, `head_lines`) | `head`, from the end of TLS | 3 s (4 KiB, 32 lines) |
+| the 101, then the first frame | `first`, from the upgrade | 2 s |
+| in the hands of the caller | `ready`, from the accept; it bounds each stage | 10 s |
+
+* At most `per_prefix` (64) connections before `ready` come from one /32
+  of IPv4 or /64 of IPv6, the loopback too; an accept over it is closed.
+* When `max_unauth` (1,024) connections or `preauth_bytes` (64 MiB) are
+  full, an accept evicts the connection of the earliest stage, the oldest
+  in it. Each connection holds `Serve::reserve` bytes: the largest of
+  `head_bytes`, a frame with its header, and `limits.message`.
+* A deadline that passes, an eviction, or a `PreAuth` dropped with no
+  `ready` cuts the connection, also in the hands of the caller (a
+  shutdown of its socket).
+* Each accepted socket gets `TCP_NODELAY`, and `TCP_NOTSENT_LOWAT` of
+  `lowat` (16 KiB) on Linux and Android; `Accepted::options` reads both
+  back.
+* A refused upgrade gets its status (405, 426, 400, 431, 403) and no
+  session.
 
 ## Parity
 

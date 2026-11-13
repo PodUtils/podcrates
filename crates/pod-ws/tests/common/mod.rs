@@ -3,6 +3,9 @@
 
 #![allow(dead_code)]
 
+#[cfg(feature = "serve")]
+pub mod serve;
+
 use std::net::IpAddr;
 use std::sync::Arc;
 

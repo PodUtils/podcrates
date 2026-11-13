@@ -13,6 +13,8 @@
 //!   subprotocol or an `Authorization` when asked; [`server`]: the server's
 //!   side of the handshake; [`bridge`](mod@bridge): a session and a raw stream, both
 //!   ways;
+//! * `serve` (feature `serve`): the accept loop of a server over TLS, with
+//!   a deadline for each stage and caps for each source;
 //! * [`wake`]: a check for a host that slept;
 //! * [`plain`] (feature `plain-ws`): a session over plain TCP to the
 //!   loopback, for tests.
@@ -43,6 +45,8 @@ pub mod handshake;
 pub mod limits;
 #[cfg(feature = "plain-ws")]
 pub mod plain;
+#[cfg(feature = "serve")]
+pub mod serve;
 pub mod server;
 pub mod session;
 pub mod url;
