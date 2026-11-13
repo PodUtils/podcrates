@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/dns/client.rs b/crates/pod-link/src/dns/client.rs
+--- a/crates/pod-link/src/dns/client.rs
++++ b/crates/pod-link/src/dns/client.rs
+@@ -177,7 +177,7 @@
+     driver.pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
+     let Ok(Ok(message)) = result else { return Ok(Vec::new()) };
+     match txt::read(&message, id, &name, txt::TXT) {
+-        Ok(answer) => Ok(answer.txt()),
++        Ok(_answer) => Ok(Vec::new()),
+         Err(_) => Ok(Vec::new()),
+     }
+ }

@@ -1,0 +1,8 @@
+# The Internet checksum of an ICMP echo message of the icmp carrier must be
+# the ones complement of the sum; without the complement a message does not
+# sum to zero (T-497).
+ENTRY=T-497
+GROUP=link
+EXPECT='an_echo_round_trips_and_its_checksum_is_right'
+RUN='cargo test -p pod-link --all-features --lib icmp::wire::tests::an_echo_round_trips_and_its_checksum_is_right'
+LIMIT=1800
