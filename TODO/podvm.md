@@ -5762,3 +5762,54 @@ flag has `WORDS`, and `Policy::WORDS`. `KnobError::BadFlag` carries
 each passes, with the new `a_refused_value_names_the_range_or_the_words`.
 The plant `netlab-empty-port-list-written` fails the test of the
 scenarios.
+
+# T-504: `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296)
+
+**Source:** PodUtils/podvm#296 (COORD-073 of podvm, its second half, 2026-11-13 06:05; PodUtils/podvm@T-1760).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm gives the payload of `run -t` a pty of the host's `/dev/ptmx`. On
+the namespace rung `test -t 1` passes, but `tty` prints `not a tty`:
+`ttyname` reads `/proc/self/fd/0` (`/dev/pts/N`) and stats that path in
+the root, and the image has no `/dev/pts` (podvm's row
+`run.tty-term.ns`).
+
+## Premise
+
+- Read: PodUtils/podvm#296 and PodUtils/podvm#299 (2026-11-13);
+  `crates/pod-enter/src/launch.rs` (the namespace block, 499 lines).
+
+## Approach
+
+After the proc mount, a bind (`MS_BIND|MS_REC`) of the host's `/dev/pts`
+on the `/dev/pts` of the image, where that target is a directory and not
+a link; a refusal writes one line and the rung goes on, as T-491 does
+for proc. The mounts that do not stop the rung move to a module of
+their own, so `launch.rs` stays under 500 lines.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+## Done
+
+2026-11-13, commit `42306a3`. The module `ns_optional` holds the mounts
+that do not stop the rung: the fresh proc (T-491) and the bind of
+`/dev/pts` (`ns_pts_target`, step `NS_PTS_STEP` 17, named
+`binding /dev/pts on /dev/pts`). Each is built before the fork with its
+line of refusal (`ns_refused_line`), and the child makes them in order
+with `mount_each`, after the tmpfs on `/tmp`. `launch.rs` has 487 lines.
+`pod-hostprobe::sys::MS_BIND`. Tests: the target rule and the line; the
+confine binary as root: on the namespace rung the payload's `mountinfo`
+has `/dev/pts`, `/dev/pts/ptmx` opens, and no bind reaches the host; on
+the chroot sequence the open fails with ENOENT. The plant
+`enter-ns-pts-unbound` fails the test; the plant `enter-ns-proc-exec`
+moves to the new module and still fails its test.
