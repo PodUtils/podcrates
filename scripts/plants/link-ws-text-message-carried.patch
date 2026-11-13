@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws/pump.rs b/crates/pod-link/src/ws/pump.rs
+--- a/crates/pod-link/src/ws/pump.rs
++++ b/crates/pod-link/src/ws/pump.rs
+@@ -167,7 +167,7 @@
+                     tracing::debug!(code, reason = %reason, "the peer of a ws carrier closed");
+                     break;
+                 }
+-                frame::OPCODE_TEXT => {
++                0xff => {
+                     fault.set(
+                         io::ErrorKind::InvalidData,
+                         "the peer of the ws carrier sent a text message: an error of protocol".into(),

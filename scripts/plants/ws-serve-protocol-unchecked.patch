@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/serve/conn.rs b/crates/pod-ws/src/serve/conn.rs
+--- a/crates/pod-ws/src/serve/conn.rs
++++ b/crates/pod-ws/src/serve/conn.rs
+@@ -151,7 +151,7 @@
+         }
+     };
+     let checked = server::check_upgrade(&request)
+-        .and_then(|key_ws| cfg.protocol.map_or(Ok(()), |p| server::check_protocol(&request, p)).map(|()| key_ws));
++        .and_then(|key_ws| cfg.protocol.map_or(Ok(()), |_| Ok(())).map(|()| key_ws));
+     let key_ws = match checked {
+         Ok(key_ws) => key_ws,
+         Err(refused) => {

@@ -1,0 +1,7 @@
+# The opener of pod-e2e keeps the padding in the payload: the fuzz target
+# e2e_record finds it on its seeds (T-510).
+ENTRY=T-510
+GROUP=e2e
+EXPECT='the payload is the length of a record less its padding'
+RUN='cargo test --manifest-path fuzz/Cargo.toml --lib the_seeds_of_e2e_record_are_sealed_records_that_open'
+LIMIT=1800

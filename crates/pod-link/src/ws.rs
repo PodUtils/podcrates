@@ -15,11 +15,18 @@
 //!   the listener checked the key of the dialer, so a refused key is an
 //!   error of the dial. The dialer then sends an empty binary message, the
 //!   first frame that the listener waits for.
+//! * The rules of podnet's carrier (PodUtils/podnet@T-269), as settings: the
+//!   subprotocol of [`Ws::protocol`], which the dial offers and the 101
+//!   names, and which the listener asks for (426); binary messages alone,
+//!   as a text message is an error of protocol (a Close 1003); a Ping each
+//!   20 s, and the end of the session when no frame comes within 10 s
+//!   ([`Beat`]).
 //!
 //! A key that is not pinned is a [`CarrierErrorKind::Refused`] error (77)
 //! that names the key that the peer proved.
 
 mod listen;
+mod pump;
 
 use std::fmt;
 use std::io;
@@ -38,6 +45,7 @@ use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::time::timeout;
 
 pub use listen::WsListener;
+pub use pump::{Beat, PING_EVERY, PONG_WITHIN, carry};
 
 use crate::carrier::{BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Listener, Pending};
 use crate::pin;
@@ -57,10 +65,6 @@ pub const CONNECT_TIMEOUT: Duration = pod_core::backoff::CONNECT_TIMEOUT;
 /// The default time limit of the TLS handshake and the upgrade of a dial.
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// The bytes that wait in each direction between the link and the
-/// messages of its session.
-const BUFFER: usize = 64 << 10;
-
 /// The longest head of the answer to the upgrade.
 const MAX_ANSWER: usize = 16 << 10;
 
@@ -77,8 +81,16 @@ pub struct Ws {
     pub connect_timeout: Duration,
     /// The time limit of the TLS handshake and the upgrade of a dial.
     pub handshake_timeout: Duration,
-    /// The deadlines and the caps of the accept loop of a listener.
+    /// The deadlines and the caps of the accept loop of a listener. Its
+    /// `protocol` is not read: [`Ws::protocol`] goes in its place.
     pub serve: Serve,
+    /// The subprotocol of both ends, a constant of the consumer (podnet's
+    /// is `podnet/1`): the dial offers it and refuses a 101 that does not
+    /// name it; a listener refuses a request that does not offer it (426).
+    /// None offers none, and refuses a 101 that names one.
+    pub protocol: Option<&'static str>,
+    /// The Pings of each session, dialed or accepted.
+    pub beat: Beat,
 }
 
 impl fmt::Debug for Ws {
@@ -90,6 +102,8 @@ impl fmt::Debug for Ws {
             .field("connect_timeout", &self.connect_timeout)
             .field("handshake_timeout", &self.handshake_timeout)
             .field("serve", &self.serve)
+            .field("protocol", &self.protocol)
+            .field("beat", &self.beat)
             .finish()
     }
 }
@@ -111,7 +125,30 @@ impl Ws {
             connect_timeout: CONNECT_TIMEOUT,
             handshake_timeout: HANDSHAKE_TIMEOUT,
             serve: Serve::default(),
+            protocol: None,
+            beat: Beat::default(),
         }
+    }
+
+    /// The subprotocol of both ends ([`Ws::protocol`]).
+    pub fn with_protocol(mut self, protocol: &'static str) -> Ws {
+        self.protocol = Some(protocol);
+        self
+    }
+
+    /// The settings of the carrier: a subprotocol name that
+    /// `pod_ws::server::is_protocol_name` takes, each
+    /// time of [`Ws::beat`] more than zero. The accept loop checks its own.
+    pub fn check(&self) -> Result<(), CarrierError> {
+        if let Some(protocol) = self.protocol
+            && !pod_ws::server::is_protocol_name(protocol)
+        {
+            return Err(err(
+                CarrierErrorKind::Usage,
+                format!("the subprotocol {protocol:?} is not visible ASCII with no comma"),
+            ));
+        }
+        self.beat.check().map_err(|why| err(CarrierErrorKind::Usage, why))
     }
 
     /// The client keys that a listener takes. The set is shared: a change
@@ -153,6 +190,7 @@ impl Ws {
     /// whose key `peer` names. It gives the stream and the key that the
     /// listener proved.
     pub async fn connect(&self, url: &WsUrl, peer: &KeyName) -> Result<(BoxIo, PublicKey), CarrierError> {
+        self.check()?;
         let config = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[ALPN])
             .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
         let target = match url.host.parse::<IpAddr>() {
@@ -170,7 +208,7 @@ impl Ws {
             let conn = tls.get_ref().1;
             pin::check_alpn(NAME, conn.alpn_protocol(), ALPN, &target)?;
             let key = pin::proved(NAME, conn.peer_certificates(), &target)?;
-            let pending = upgrade(&mut tls, url, &target, &own).await?;
+            let pending = upgrade(&mut tls, url, &target, &own, self.protocol).await?;
             let session = RelaySession::new(tls, pending, None, pod_ws::client::WRITE_TIMEOUT).naming("the listener");
             // The first frame, which the accept loop of the listener waits for.
             session.send_binary(&[]).await.map_err(|e| {
@@ -184,7 +222,7 @@ impl Ws {
                 format!("the TLS handshake and the upgrade with {target} took more than {:?}", self.handshake_timeout),
             ))
         })?;
-        Ok((carry(session), key))
+        Ok((carry(session, self.beat), key))
     }
 
     /// A listener at `addr` (port 0 takes a free port).
@@ -193,15 +231,22 @@ impl Ws {
     }
 }
 
-/// The upgrade of a dial: the request, and the 101 that the listener sends
-/// after it took the key of this end. The bytes after the head.
-async fn upgrade<S>(tls: &mut S, url: &WsUrl, target: &Target, own: &PublicKey) -> Result<Vec<u8>, CarrierError>
+/// The upgrade of a dial that offers `protocol`: the request, and the 101
+/// that the listener sends after it took the key of this end, and that
+/// names `protocol`. The bytes after the head.
+async fn upgrade<S>(
+    tls: &mut S,
+    url: &WsUrl,
+    target: &Target,
+    own: &PublicKey,
+    protocol: Option<&str>,
+) -> Result<Vec<u8>, CarrierError>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let key = pod_ws::handshake::generate_key().map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
-    let request =
-        pod_ws::url::request(url, &key, USER_AGENT).map_err(|e| err(CarrierErrorKind::Usage, e.to_string()))?;
+    let request = pod_ws::url::offering(url, &key, USER_AGENT, protocol)
+        .map_err(|e| err(CarrierErrorKind::Usage, e.to_string()))?;
     let answer = |e| pin::answer_error(NAME, target, own, e);
     tls.write_all(&request).await.map_err(answer)?;
     tls.flush().await.map_err(answer)?;
@@ -224,25 +269,12 @@ where
         buf.extend_from_slice(&chunk[..n]);
     };
     let head = String::from_utf8_lossy(&buf[..end]).into_owned();
-    pod_ws::handshake::check_response(&head, &key).map_err(|e| {
-        err(CarrierErrorKind::Io(io::ErrorKind::InvalidData), format!("the upgrade at {}: {e}", url.shown()))
-    })?;
+    pod_ws::handshake::check_response(&head, &key)
+        .and_then(|()| pod_ws::handshake::check_chosen_protocol(&head, protocol))
+        .map_err(|e| {
+            err(CarrierErrorKind::Io(io::ErrorKind::InvalidData), format!("the upgrade at {}: {e}", url.shown()))
+        })?;
     Ok(buf.split_off(end))
-}
-
-/// The byte stream of the link over `session`: a task carries each read of
-/// the link in one binary message, and each message in one write.
-fn carry<S>(session: RelaySession<S>) -> BoxIo
-where
-    S: AsyncRead + AsyncWrite + Send + 'static,
-{
-    let (near, far) = tokio::io::duplex(BUFFER);
-    tokio::spawn(async move {
-        if let Err(e) = pod_ws::bridge(session, far, &pod_ws::NoTally).await {
-            tracing::debug!(error = %e, "the session of a ws carrier ended");
-        }
-    });
-    Box::new(near)
 }
 
 impl Carrier for Ws {

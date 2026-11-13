@@ -4933,7 +4933,7 @@ cargo test -p pod-netstack
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4979,6 +4979,26 @@ each data message), and sends no Ping of WebSocket: the link has its own
 cargo test -p pod-ws --all-features --test serve
 cargo test -p pod-link --all-features --test ws
 ```
+
+## Done
+
+2026-11-13, commit 0ef20aa. `Ws::protocol` (podnet's `podnet/1`): the
+dial offers it and refuses a 101 that names another or none
+(`pod_ws::handshake::check_chosen_protocol`); `pod_ws::serve::Serve`
+got `protocol`, and its loop refuses a request that does not offer it
+(426 with the name) and names it in the 101 (`server::check_protocol`,
+`switching_to`). A name is visible ASCII with no comma, as `podnet/1` is
+no token of RFC 6455 (call C259). The pump `ws::carry` replaces
+`pod_ws::bridge`: a text message sends a Close 1003 and ends the stream
+of the link with an error of `InvalidData`; a Ping each 20 s and no frame
+within 10 s of it, while no message waits for the link, ends it with an
+error of `TimedOut` (`Ws::beat`, call C260). `cargo test -p pod-ws
+--all-features --test serve`: 11 passed; `cargo test -p pod-link
+--all-features --test ws`: 14 passed (6 new); the lib of pod-ws: 36
+passed. Plants, each caught by hand: `link-ws-text-message-carried`,
+`link-ws-silent-peer-kept`, `link-ws-ping-unsent`,
+`link-ws-waiting-message-unseen`, `link-ws-chosen-protocol-unchecked`,
+`ws-serve-protocol-unchecked`, `ws-serve-101-unnamed`.
 
 # T-493: `pod-link`: the DNS simplex carrier (PodUtils/podnet#521)
 
@@ -5243,7 +5263,7 @@ After T-493 to T-495 (the simplex carriers).
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5277,3 +5297,23 @@ check of the fuzz workspace.
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-e2e --all-features
 ```
+
+## Done
+
+2026-11-13, commit 71dc3ca. The target `e2e_record`
+(`fuzz/src/targets/e2e.rs`): a stream of records, each as long as
+`record_len` says, opened at one end of an exporter of fixed keys
+(`pod_e2e::fuzzing::records`); a first byte picks the suite, the time
+between two records, the limit of failed RESUME records and the end that
+opens. A record that opens has the fields of its header and a payload of
+`length - pad` bytes, and moves the next counter to after its own and the
+key at most one epoch on; a record that fails leaves the counters and the
+epochs as they were; after the end of the layer each record fails. The
+seeds (8: each suite, padding, two rekeys with a late record, a repeat, a
+RESUME, a late one, one used twice, the responder's records) come from
+`fuzz/src/record_seeds.rs`, whose test holds them to the files.
+`cargo check --manifest-path fuzz/Cargo.toml --bins`: passes;
+`cargo test --manifest-path fuzz/Cargo.toml --lib`: 10 passed;
+`cargo test -p pod-e2e --all-features`: 0 failed. Plants, each caught by
+hand: `e2e-record-fuzz-pad-kept`, `e2e-record-fuzz-window-before-the-check`.
+No run of libFuzzer here: `fuzz.yml` runs the target each week.

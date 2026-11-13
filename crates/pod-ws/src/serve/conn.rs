@@ -150,7 +150,9 @@ async fn shake(
             return Err(format!("the head: {e}"));
         }
     };
-    let key_ws = match server::check_upgrade(&request) {
+    let checked = server::check_upgrade(&request)
+        .and_then(|key_ws| cfg.protocol.map_or(Ok(()), |p| server::check_protocol(&request, p)).map(|()| key_ws));
+    let key_ws = match checked {
         Ok(key_ws) => key_ws,
         Err(refused) => {
             let _ = timeout_at(at, tls.write_all(&refused.answer())).await;
@@ -163,7 +165,7 @@ async fn shake(
     gate.advance(id, Stage::First);
     let at = (Instant::now() + d.first).min(end);
     let first = async {
-        tls.write_all(&server::switching(&key_ws)).await.map_err(|e| format!("the 101: {e}"))?;
+        tls.write_all(&server::switching_to(&key_ws, cfg.protocol)).await.map_err(|e| format!("the 101: {e}"))?;
         tls.flush().await.map_err(|e| format!("the 101: {e}"))?;
         read_first(&mut tls, rest, cfg.receive_cap()).await
     };

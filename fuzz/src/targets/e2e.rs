@@ -1,10 +1,14 @@
 //! The fuzz targets of the end-to-end channel (`pod-e2e`, feature
 //! `fuzzing`; new in `pod-e2e`, T-021). The bytes come from the relay (a
 //! frame) or from a peer that holds any key (a verdict, a proof, after
-//! Noise opened them), or from the binary before this one (a handover).
+//! Noise opened them, a record), or from the binary before this one (a
+//! handover).
+
+use std::time::{Duration, Instant};
 
 use pod_e2e::fuzzing::{Answer, net_bytes, net_part, proof, take_frames, verdict, verdict_body};
-use pod_e2e::{Ask, MAX_GRANT, Refusal};
+use pod_e2e::record::{Fault, HEADER, Header, Opened, PHASE, RESUME, Settings, Suite, record_len};
+use pod_e2e::{Ask, MAX_GRANT, Refusal, TAG};
 
 use crate::is_one_line;
 
@@ -93,5 +97,73 @@ pub fn e2e_handover(data: &[u8]) {
         let again = ChannelState::decode(&bytes).expect("an encoded state reads");
         assert!(again == state, "{state:?}");
         assert_eq!(*again.encode(), *bytes);
+    }
+}
+
+/// The time between two records of [`e2e_record`], which bits 1 and 2 of
+/// its first byte pick: the last is past the window of a RESUME.
+const STEPS: [u64; 4] = [0, 1, 300, 660];
+
+/// The records that a peer sends (`pod_e2e::record::{record_len, Records::open}`),
+/// as a carrier gives them, at one end of an exporter of fixed keys
+/// (`pod_e2e::fuzzing::records`). The first byte picks the suite (bit 0),
+/// the time between two records (bits 1 and 2, [`STEPS`]), one failed
+/// RESUME as the limit (bit 3) and the end that opens (bit 4: the
+/// initiator's); the rest is the stream of records, each as long as
+/// `record_len` says. A record that opens has the fields of its header and
+/// a payload of its `length - pad` bytes, and moves the next counter to
+/// after its own and the key at most one epoch on. A record that fails
+/// leaves the counters and the epochs as they were, and counts a repeat
+/// only as a repeat. After the end of the layer, each record fails so.
+pub fn e2e_record(data: &[u8]) {
+    let Some((&flags, mut rest)) = data.split_first() else { return };
+    let suite = if flags & 1 == 0 { Suite::ChaCha20Poly1305 } else { Suite::Aes256Gcm };
+    let step = Duration::from_secs(STEPS[usize::from((flags >> 1) & 3)]);
+    let settings = Settings { resume_failures: if flags & 8 == 0 { 3 } else { 1 }, ..Settings::DEFAULT };
+    let mut now = Instant::now();
+    let Ok(mut end) = pod_e2e::fuzzing::records(flags & 16 != 0, suite, settings, now) else { return };
+    let mut ended = false;
+    while !rest.is_empty() {
+        let len = match record_len(rest) {
+            Ok(len) => len,
+            Err(_) => {
+                assert!(Header::parse(rest).is_err(), "record_len refused a header that reads");
+                rest.len()
+            }
+        };
+        let (record, after) = rest.split_at(len.min(rest.len()));
+        rest = after;
+        now += step;
+        let (counters, epochs, replayed) = (end.counters(), end.epochs(), end.replayed());
+        let opened = end.open(now, record);
+        assert!(!ended || opened == Err(Fault::ResumeExpired), "{opened:?} after the end of the layer");
+        assert_eq!(end.counters().0, counters.0, "an open moved the counter of the sealing side");
+        assert_eq!(end.epochs().0, epochs.0, "an open moved the key of the sealing side");
+        match opened {
+            Ok(Opened::Record(r)) => {
+                let header = Header::parse(record).expect("a record that opens has a header");
+                assert_eq!(record.len(), HEADER + header.length as usize + TAG);
+                let unpadded = header.length as usize - usize::from(header.pad);
+                assert_eq!(r.payload.len(), unpadded, "the payload is the length of a record less its padding");
+                let fields = (r.kind, r.flags, r.stream, r.counter);
+                assert_eq!(fields, (header.kind, header.flags & !PHASE, header.stream, header.counter));
+                assert_ne!(r.kind, RESUME, "a RESUME opened as a record of the caller");
+                assert_eq!(end.counters().1, counters.1.max(r.counter.saturating_add(1)));
+                assert!((epochs.1..=epochs.1 + 1).contains(&end.epochs().1), "{epochs:?} to {:?}", end.epochs());
+                assert_eq!(end.replayed(), replayed);
+            }
+            Ok(Opened::Resume { .. }) => {
+                assert_eq!(record.get(1), Some(&RESUME), "a record of the caller opened as a RESUME");
+                assert_eq!(end.counters(), counters, "a RESUME moved the window");
+                assert!(end.epochs().1 >= epochs.1, "a RESUME took the key back");
+                assert_eq!(end.replayed(), replayed);
+            }
+            Err(fault) => {
+                assert_eq!((end.counters(), end.epochs()), (counters, epochs), "{fault}");
+                let repeat = u64::from(matches!(fault, Fault::Replayed(_)));
+                assert_eq!(end.replayed(), replayed + repeat, "{fault}");
+                ended |= fault == Fault::ResumeExpired;
+            }
+        }
     }
 }

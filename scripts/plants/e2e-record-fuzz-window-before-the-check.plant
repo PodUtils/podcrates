@@ -1,0 +1,8 @@
+# The opener of pod-e2e marks the window before the check of the record:
+# a forged record moves the next counter, which the fuzz target e2e_record
+# finds on the mutations of its seeds (T-510).
+ENTRY=T-510
+GROUP=e2e
+EXPECT='failed: a record failed its check'
+RUN='cargo test --manifest-path fuzz/Cargo.toml --lib each_target_survives_mutations'
+LIMIT=1800

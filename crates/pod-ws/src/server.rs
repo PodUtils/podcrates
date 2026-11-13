@@ -1,10 +1,12 @@
 //! The server's side of the opening handshake, for a listener of
 //! WebSockets: the checks of RFC 6455 section 4.2.1 on a request that
 //! `pod_proxy::http::request` read, the 101 of section 4.2.2, and the
-//! session that writes frames as a server does. No subprotocol and no
-//! extension is chosen, so a client that offered one gets none, as the RFC
-//! allows. A request with no key opens raw bytes where the caller asks for
-//! that, for a client of WebTunnel's shape; a relay role never does.
+//! session that writes frames as a server does. No extension is chosen. A
+//! subprotocol is chosen only where the caller names one
+//! ([`check_protocol`], [`switching_to`]); else a client that offered one
+//! gets none, as the RFC allows. A request with no key opens raw bytes
+//! where the caller asks for that, for a client of WebTunnel's shape; a
+//! relay role never does.
 
 use std::time::Duration;
 
@@ -116,9 +118,50 @@ pub fn asks_upgrade(head: &Request) -> bool {
 
 /// The answer that opens the session (RFC 6455 section 4.2.2).
 pub fn switching(key: &str) -> Vec<u8> {
+    switching_to(key, None)
+}
+
+/// [`switching`], naming `protocol` in `Sec-WebSocket-Protocol` when one
+/// is given: the subprotocol that [`check_protocol`] found in the request.
+pub fn switching_to(key: &str, protocol: Option<&str>) -> Vec<u8> {
     let accept = handshake::accept_key(key);
-    let head = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n";
+    let mut head = String::from("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n");
+    if let Some(protocol) = protocol {
+        head.push_str(&format!("Sec-WebSocket-Protocol: {protocol}\r\n"));
+    }
     format!("{head}Sec-WebSocket-Accept: {accept}\r\n\r\n").into_bytes()
+}
+
+/// Whether `name` can be a subprotocol: visible ASCII with no comma, so
+/// that it cannot break a header line or a list of the header. RFC 6455
+/// section 4.1 asks for a token, which has no `/`; podnet's `podnet/1`
+/// has one, and a list of the header still reads it as one item.
+pub fn is_protocol_name(name: &str) -> bool {
+    !name.is_empty() && name.bytes().all(|b| matches!(b, 0x21..=0x7e) && b != b',')
+}
+
+/// Whether the request offers `protocol` in `Sec-WebSocket-Protocol`: in
+/// any of its lists, compared exactly, as a subprotocol name is
+/// case-sensitive.
+pub fn offers(head: &Request, protocol: &str) -> bool {
+    head.headers
+        .iter()
+        .filter(|(name, _)| name == "sec-websocket-protocol")
+        .flat_map(|(_, value)| value.split(','))
+        .any(|item| item.trim() == protocol)
+}
+
+/// A request that does not offer `protocol`, the only subprotocol of this
+/// server, is refused (426), and the refusal names it.
+pub fn check_protocol(head: &Request, protocol: &'static str) -> Result<(), Refused> {
+    if !offers(head, protocol) {
+        return refused(
+            426,
+            "this server speaks one subprotocol, which the request did not offer",
+            vec![("Sec-WebSocket-Protocol", protocol)],
+        );
+    }
+    Ok(())
 }
 
 /// The answer that opens raw bytes: 101 with the two headers and no
@@ -174,6 +217,31 @@ mod tests {
         assert_eq!(status(&format!("GET / HTTP/1.1\r\n{ok}{key}Origin: https://a.example\r\n\r\n")), 403);
         let refused = check_upgrade(&head("Origin: null\r\n")).unwrap_err();
         assert!(String::from_utf8(refused.answer()).unwrap().starts_with("HTTP/1.1 403 Forbidden: "));
+    }
+
+    /// A server of one subprotocol takes a request that offers it in any of
+    /// its lists, exactly, and names it in the 101; it refuses another
+    /// request with 426 and the name.
+    #[test]
+    fn a_server_of_one_subprotocol_takes_only_a_request_that_offers_it() {
+        let p = "podnet/1";
+        assert_eq!(check_protocol(&head("Sec-WebSocket-Protocol: podnet/1\r\n"), p), Ok(()));
+        assert_eq!(check_protocol(&head("Sec-WebSocket-Protocol: chat, podnet/1\r\n"), p), Ok(()));
+        let two = "Sec-WebSocket-Protocol: chat\r\nSec-WebSocket-Protocol: podnet/1\r\n";
+        assert_eq!(check_protocol(&head(two), p), Ok(()), "a list in two headers");
+        for other in ["", "Sec-WebSocket-Protocol: chat\r\n", "Sec-WebSocket-Protocol: PODNET/1\r\n"] {
+            let refused = check_protocol(&head(other), p).unwrap_err();
+            assert_eq!(refused.status, 426, "{other:?}");
+            let answer = String::from_utf8(refused.answer()).unwrap();
+            assert!(answer.contains("\r\nSec-WebSocket-Protocol: podnet/1\r\n"), "{answer}");
+        }
+        let answer = String::from_utf8(switching_to("dGhlIHNhbXBsZSBub25jZQ==", Some(p))).unwrap();
+        assert!(answer.contains("\r\nSec-WebSocket-Protocol: podnet/1\r\n"), "{answer}");
+        assert!(answer.ends_with("Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n"), "{answer}");
+        assert!(is_protocol_name(p) && is_protocol_name("chat"));
+        for bad in ["", "a b", "a,b", "a\r\nX: 1", "a\tb", "é"] {
+            assert!(!is_protocol_name(bad), "{bad:?}");
+        }
     }
 
     /// A visit asks for no upgrade, and neither does a request with one of the

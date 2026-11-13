@@ -1,7 +1,11 @@
 //! The readers of the bytes that a peer or a relay sends, public for the
 //! fuzz targets of `fuzz/` (feature `fuzzing`). No consumer turns it on.
 
+use std::time::Instant;
+
+use crate::exporter::Exporter;
 use crate::net::Held;
+use crate::record::{Records, Settings, Suite};
 use crate::{Ask, Error, Refusal};
 
 /// Each whole frame at the start of `bytes`, as a carry takes them from its
@@ -61,4 +65,11 @@ pub struct Proof {
     pub ask: Ask,
     pub net: Option<(Option<Held>, bool)>,
     pub grant: Option<Vec<u8>>,
+}
+
+/// The records of one end of a channel whose exporter has fixed keys: the
+/// initiator's end, or the responder's. The records that one end seals open
+/// at the other.
+pub fn records(initiator: bool, suite: Suite, settings: Settings, now: Instant) -> Result<Records, Error> {
+    Exporter::new(&[2; 32], &[11; 64], initiator).records(suite, settings, now)
 }

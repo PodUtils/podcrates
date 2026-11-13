@@ -1,0 +1,11 @@
+diff --git a/crates/pod-link/src/ws.rs b/crates/pod-link/src/ws.rs
+--- a/crates/pod-link/src/ws.rs
++++ b/crates/pod-link/src/ws.rs
+@@ -270,7 +270,6 @@
+     };
+     let head = String::from_utf8_lossy(&buf[..end]).into_owned();
+     pod_ws::handshake::check_response(&head, &key)
+-        .and_then(|()| pod_ws::handshake::check_chosen_protocol(&head, protocol))
+         .map_err(|e| {
+             err(CarrierErrorKind::Io(io::ErrorKind::InvalidData), format!("the upgrade at {}: {e}", url.shown()))
+         })?;

@@ -7,6 +7,8 @@
 pub mod targets;
 
 #[cfg(test)]
+mod record_seeds;
+#[cfg(test)]
 mod tests;
 
 /// One fuzz target: it takes untrusted bytes. A parse error is a correct
@@ -40,6 +42,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("e2e_frame", targets::e2e_frame),
     ("e2e_proof", targets::e2e_proof),
     ("e2e_handover", targets::e2e_handover),
+    ("e2e_record", targets::e2e_record),
     ("hold_sockaddr", targets::hold_sockaddr),
     ("hold_syn", targets::hold_syn),
     ("job_offer", targets::job_offer),

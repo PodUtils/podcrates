@@ -39,7 +39,8 @@ pod-quic = { path = "../crates/pod-quic" }
 pod-wormhole = { path = "../crates/pod-wormhole" }
 pod-session = { path = "../crates/pod-session" }
 # The feature `fuzzing` makes the readers of the frames, the verdict and the
-# proof public; the identity of a proof's seed is pod-identity's.
+# proof public, and the records of an exporter of fixed keys; the identity
+# of a proof's seed is pod-identity's.
 pod-e2e = { path = "../crates/pod-e2e", features = ["fuzzing"] }
 pod-identity = { path = "../crates/pod-identity" }
 # The relay lists and the pools of a relay (podssh relay_list, relay_pool).
@@ -249,6 +250,13 @@ bench = false
 [[bin]]
 name = "e2e_handover"
 path = "fuzz_targets/e2e_handover.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "e2e_record"
+path = "fuzz_targets/e2e_record.rs"
 test = false
 doc = false
 bench = false

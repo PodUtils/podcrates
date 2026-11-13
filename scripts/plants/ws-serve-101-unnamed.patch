@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/serve/conn.rs b/crates/pod-ws/src/serve/conn.rs
+--- a/crates/pod-ws/src/serve/conn.rs
++++ b/crates/pod-ws/src/serve/conn.rs
+@@ -165,7 +165,7 @@
+     gate.advance(id, Stage::First);
+     let at = (Instant::now() + d.first).min(end);
+     let first = async {
+-        tls.write_all(&server::switching_to(&key_ws, cfg.protocol)).await.map_err(|e| format!("the 101: {e}"))?;
++        tls.write_all(&server::switching(&key_ws)).await.map_err(|e| format!("the 101: {e}"))?;
+         tls.flush().await.map_err(|e| format!("the 101: {e}"))?;
+         read_first(&mut tls, rest, cfg.receive_cap()).await
+     };

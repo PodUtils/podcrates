@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**401 entries: 120 open, 7 partial, 4 blocked, 270 done.**
+**401 entries: 118 open, 7 partial, 4 blocked, 272 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 74 | 90 |
-| P2 | 62 | 3 | 4 | 140 | 209 |
+| P2 | 60 | 3 | 4 | 142 | 209 |
 | P3 | 45 | 1 | 0 | 54 | 100 |
-| **All** | 120 | 7 | 4 | 270 | 401 |
+| **All** | 118 | 7 | 4 | 272 | 401 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -445,6 +445,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
 | [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-505](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the actor classes `agent` and `bot` in `job-offer.v1` (PodUtils/podrunner#80) |
-| [T-506](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
+| [T-506](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-507](upkeep.md) | P1 | S | M5 | defect | open | The tests of `pod-services-watch` fail on Windows: a reset loses the bytes of a stand-in, and a runner with no `SystemRoot` has no Winsock |
-| [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |
+| [T-510](relay.md) | P2 | S | M2 | chore | done | `pod-e2e`: a fuzz target of the opener of the records |

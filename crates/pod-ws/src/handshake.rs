@@ -242,6 +242,30 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
     }
 }
 
+/// The subprotocol of a 101 against the one that its request offered (RFC
+/// 6455 section 4.1): the 101 names the one offered, or none when none was
+/// offered. A 101 that names none in place of the one offered, another
+/// one, or two, is refused: the two ends would speak two protocols.
+pub fn check_chosen_protocol(head: &str, offered: Option<&str>) -> Result<(), WsError> {
+    let chosen: Vec<&str> = head
+        .split("\r\n")
+        .skip(1)
+        .filter_map(|line| line.split_once(':'))
+        .filter(|(name, _)| name.trim().eq_ignore_ascii_case("sec-websocket-protocol"))
+        .map(|(_, value)| value.trim())
+        .collect();
+    let why = match (offered, chosen.as_slice()) {
+        (None, []) => return Ok(()),
+        (Some(offered), [one]) if *one == offered => return Ok(()),
+        (Some(offered), []) => format!("the 101 named no subprotocol; this end speaks {offered:?} alone"),
+        (_, chosen) => format!(
+            "the 101 named the subprotocol {}, which this end did not offer",
+            pod_core::text::one_line(&chosen.join(", "))
+        ),
+    };
+    Err(WsError::Upgrade { status: 101, why })
+}
+
 /// **Write the request and read the response, in that order.** Split so a
 /// test can drive `check_response` without a socket.
 ///
@@ -304,5 +328,27 @@ mod tests {
         for path in ["/connect/example.org/22", "/v1/status/podssh-p-0123", "/v1/nodes/x", "/x"] {
             assert!(!request(path).to_ascii_lowercase().contains("x-podssh-proto"), "{path}");
         }
+    }
+
+    /// A 101 names the subprotocol that its request offered, or none when
+    /// none was offered; else it is refused.
+    #[test]
+    fn a_101_names_the_subprotocol_that_was_offered_or_none() {
+        let head = |extra: &str| format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n{extra}\r\n");
+        assert!(check_chosen_protocol(&head(""), None).is_ok());
+        assert!(check_chosen_protocol(&head("Sec-WebSocket-Protocol: podnet/1\r\n"), Some("podnet/1")).is_ok());
+        assert!(check_chosen_protocol(&head("sec-websocket-protocol:  podnet/1 \r\n"), Some("podnet/1")).is_ok());
+        for (extra, offered) in [
+            ("", Some("podnet/1")),
+            ("Sec-WebSocket-Protocol: chat\r\n", Some("podnet/1")),
+            ("Sec-WebSocket-Protocol: PODNET/1\r\n", Some("podnet/1")),
+            ("Sec-WebSocket-Protocol: podnet/1\r\n", None),
+            ("Sec-WebSocket-Protocol: podnet/1\r\nSec-WebSocket-Protocol: podnet/1\r\n", Some("podnet/1")),
+        ] {
+            let e = check_chosen_protocol(&head(extra), offered).unwrap_err();
+            assert!(matches!(e, WsError::Upgrade { status: 101, .. }), "{extra:?} {offered:?}: {e}");
+        }
+        let e = check_chosen_protocol(&head("Sec-WebSocket-Protocol: \x1b[2Jx\r\n"), None).unwrap_err();
+        assert!(!e.to_string().contains('\x1b'), "the peer's text is cleaned: {e}");
     }
 }

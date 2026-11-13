@@ -16,16 +16,16 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | --- | --- |
 | `way` | `Way`: the TLS context of the binary (`Arc<pod_tls::Context>`), its dialer (`Arc<dyn pod_core::Dial>`), the reader of HTTPS records for ECH (feature `ech`, `Way::with_records`) and its user agent. `Way::{tcp, open_tls, tls_over}`; `dial_error`, `connect_error` (a `Failure` as a `DialError` or a `ConnectError`) |
 | `frame` | `Frame`, `Role`, `encode`, `decode`, `decode_capped`, `apply_mask`, the opcodes, `FORWARD_MAX_FRAME`, `NODE_MAX_FRAME`, `MAX_RECEIVE_CAP`, `receive_cap`, `FORWARD_SEND_PAYLOAD`, `MAX_CONTROL_PAYLOAD` |
-| `handshake` | `generate_key`, `generate_key_from(&mut dyn Entropy)`, `build_request`, `accept_key`, `sha1`, `check_response`, `read_response`, `handshake`, `masking_key`, `masking_key_from`, `TOKEN_HEADER`, `PROTO_HEADER`, `REVERSE_PROTO`, `reverse_socket` |
+| `handshake` | `generate_key`, `generate_key_from(&mut dyn Entropy)`, `build_request`, `accept_key`, `sha1`, `check_response`, `check_chosen_protocol(head, offered)` (the 101 names the subprotocol offered, or none), `read_response`, `handshake`, `masking_key`, `masking_key_from`, `TOKEN_HEADER`, `PROTO_HEADER`, `REVERSE_PROTO`, `reverse_socket` |
 | `session` | `RelaySession<S>`: `new`, `over_tls`, `over_cleartext`, `over_h2`, `with_limits`, `as_server`, `naming`, `with_zero_mask`, `with_max_message`, `holding_close_answer`, `without_pings`, `with_road`, `set_receive_cap`, `read_frame`, `send_binary`, `send_text`, `send_ping`, `send_pong`, `send_close`, `watch_liveness`, `take_pongs`, `pong_arrived`, `peer`, `road`, `last_heard`; `RelayStream`, `BoxedIo`, `PONGS_KEPT` |
 | `limits` | `Limits { message, frame }`: `RELAY` (the default: 16 MiB and 262144 bytes), `TUNGSTENITE` (64 MiB and 16 MiB); `MAX_MESSAGE` |
-| `close` | `close_payload`, `close_code_and_reason`, `code::{NORMAL, GOING_AWAY, PROTOCOL, TOO_BIG, ERROR, TRY_LATER}`, `close_hint`, `ForwardClose`, `forward_close`, `ForwardClose::what(target, app)` |
+| `close` | `close_payload`, `close_code_and_reason`, `code::{NORMAL, GOING_AWAY, PROTOCOL, UNSUPPORTED, TOO_BIG, ERROR, TRY_LATER}`, `close_hint`, `ForwardClose`, `forward_close`, `ForwardClose::what(target, app)` |
 | `client` | `WsClientConfig { endpoint, trust, server_name, timeout, idle_timeout, way, limits }`, `Endpoint`, `check_path`, `relay_knobs_only`, `connect`, `open_tls`, `upgrade`, `upgrade_with`, `https_post_json`, `https_with_token`, `read_frame_over`, `next_event`, `next_event_capped`, `Event`, `doctor`, `is_policy_refusal`, `request_error`, `ConnectError` (and `cut`, `stage_and_class`), the bounds `DEFAULT_TIMEOUT`, `DEFAULT_IDLE_TIMEOUT`, `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `WRITE_TIMEOUT`, `UPGRADE_HEAD` |
 | `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `probe(&way, ..)`, `Road`, `Fallback`, `Offered`, `Stream`, `duplex`, the windows and bounds |
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
-| `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_raw`, `session` |
-| `serve` | feature `serve`: `serve(listeners, tls, cfg, on)`, the accept loop over the caller's listeners and TLS server configuration; `Serve { deadlines, caps, lowat, limits, idle }` (`reserve`, `check`), `Deadlines { tls, head, first, ready }`, `Caps { max_unauth, per_prefix, preauth_bytes, head_bytes, head_lines }`, `Accepted { session, peer, key, request, options, gate }`, `PreAuth::ready` (false when a deadline or an eviction cut the session first), `Options { nodelay, notsent_lowat }`, `ServedStream` |
+| `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_to(key, protocol)`, `switching_raw`, `session`; the subprotocol: `offers`, `check_protocol` (426 that names it), `is_protocol_name` (visible ASCII with no comma) |
+| `serve` | feature `serve`: `serve(listeners, tls, cfg, on)`, the accept loop over the caller's listeners and TLS server configuration; `Serve { deadlines, caps, lowat, limits, idle, protocol }` (`reserve`, `check`), `Deadlines { tls, head, first, ready }`, `Caps { max_unauth, per_prefix, preauth_bytes, head_bytes, head_lines }`, `Accepted { session, peer, key, request, options, gate }`, `PreAuth::ready` (false when a deadline or an eviction cut the session first), `Options { nodelay, notsent_lowat }`, `ServedStream` |
 | `bridge` | `bridge(session, io, &dyn Tally)`, `dial(url, &way, &trust, timeout, authorization)`, `connect_bridge`, `Tally`, `NoTally`, `DIAL_TIMEOUT` |
 | `wake` | `Wake`, `Reading`, `slept`, `TICK`, `LATE` |
 | `plain` | feature `plain-ws`: `connect_loopback` |
@@ -85,6 +85,10 @@ calls `PreAuth::ready` (calls C250 to C252):
   back.
 * A refused upgrade gets its status (405, 426, 400, 431, 403) and no
   session.
+* `protocol` names the one subprotocol of the server (T-506): a request
+  that does not offer it gets 426 with the name in
+  `Sec-WebSocket-Protocol`, and the 101 names it. The name is compared
+  exactly.
 
 ## Parity
 
