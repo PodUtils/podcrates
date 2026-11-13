@@ -1,0 +1,7 @@
+# The sequence wraps from u32::MAX to 0 with no rekey: a sequence is
+# used again under the same keys (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='the_sequence_does_not_wrap_without_a_rekey stdout ----'
+RUN='cargo test -p pod-link --all-features --test arq_machine the_sequence_does_not_wrap_without_a_rekey'
+LIMIT=1800

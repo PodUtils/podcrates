@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/rto.rs b/crates/pod-link/src/arq/rto.rs
+--- a/crates/pod-link/src/arq/rto.rs
++++ b/crates/pod-link/src/arq/rto.rs
+@@ -37,7 +37,7 @@
+     /// The RTO of a frame after `backoff` timeouts: the RTO doubled each
+     /// time, up to the ceiling.
+     pub(crate) fn backed_off(&self, backoff: u8) -> Duration {
+-        let factor = 1u32 << backoff.min(16);
++        let factor = 1u32 << backoff.min(0);
+         self.rto.saturating_mul(factor).min(self.ceiling)
+     }
+ 

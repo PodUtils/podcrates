@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**401 entries: 118 open, 7 partial, 4 blocked, 272 done.**
+**404 entries: 120 open, 7 partial, 4 blocked, 273 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 74 | 90 |
-| P2 | 60 | 3 | 4 | 142 | 209 |
-| P3 | 45 | 1 | 0 | 54 | 100 |
-| **All** | 118 | 7 | 4 | 272 | 401 |
+| P2 | 61 | 3 | 4 | 143 | 211 |
+| P3 | 46 | 1 | 0 | 54 | 101 |
+| **All** | 120 | 7 | 4 | 273 | 404 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -322,7 +322,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
-| [T-310](relay.md) | P2 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
+| [T-310](relay.md) | P2 | L | M2 | feature | done | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
 | [T-311](relay.md) | P3 | M | M2 | feature | done | `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480) |
 | [T-312](foundation.md) | P2 | S | M0 | defect | open | `pod-todo`: a code fence that is not closed in a file of the record is an error by name |
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |
@@ -448,3 +448,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-506](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-507](upkeep.md) | P1 | S | M5 | defect | open | The tests of `pod-services-watch` fail on Windows: a reset loses the bytes of a stand-in, and a runner with no `SystemRoot` has no Winsock |
 | [T-510](relay.md) | P2 | S | M2 | chore | done | `pod-e2e`: a fuzz target of the opener of the records |
+| [T-514](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468) |
+| [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
+| [T-516](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the ARQ |

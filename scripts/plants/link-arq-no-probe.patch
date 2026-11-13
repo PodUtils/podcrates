@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/send.rs b/crates/pod-link/src/arq/send.rs
+--- a/crates/pod-link/src/arq/send.rs
++++ b/crates/pod-link/src/arq/send.rs
+@@ -267,7 +267,7 @@
+         let body_ready = !self.queue.is_empty() || self.fin == Fin::Queued;
+         let blocked = body_ready && self.flight.is_empty() && !self.can_take();
+         match (&self.probe, blocked) {
+-            (None, true) => self.probe = Some(Probe { since: now, last: now, tries: 0, backoff: 0 }),
++            (None, true) => {}
+             (Some(_), false) => self.probe = None,
+             _ => {}
+         }

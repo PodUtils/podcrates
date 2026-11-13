@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 401 entries: 118 open, 7 partial, 4 blocked, 272 done.
+`TODO/INDEX.md` holds 404 entries: 120 open, 7 partial, 4 blocked, 273 done.
 
 ## State
 
@@ -98,13 +98,17 @@ next entry.
       `pod-dns`, the exporter and the record layer of `pod-e2e` (call
       C246), the accept loop `pod_ws::serve`, and the carriers `ws` and
       `h2` of `pod-link`. On `main` for the next tag: the rules of
-      podnet's WebSocket carrier and the fuzz target of the records.
-   c. The tag after: T-310 (the ARQ), T-422 (long-poll, SSE, chunked),
+      podnet's WebSocket carrier, the fuzz target of the records, and the
+      selective-repeat ARQ of `pod-link` (calls C262 to C265).
+   c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
+      T-422 (long-poll, SSE, chunked),
       T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
       up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
-      traversal with the relay), T-501 (`pod-turn` with RFC 6062), T-027,
+      traversal with the relay), T-515 (the congestion window of the ARQ,
+      with the first carrier over a shared path), T-514 (a stream-aware
+      ARQ, when podnet asks), T-501 (`pod-turn` with RFC 6062), T-027,
       T-214 and T-215 (`pod-transit`, `pod-wormhole`).
    e. Then: T-029 and T-030 (`pod-cloudflare`), T-035 and T-302
       (`pod-egress`), T-031 (`pod-derp`), T-039 (`pod-ts`), T-034

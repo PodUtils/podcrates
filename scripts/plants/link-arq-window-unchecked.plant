@@ -1,0 +1,7 @@
+# The sender does not keep its own window of frames in flight; only the
+# window of the peer bounds it (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='the_window_bounds_the_frames_in_flight stdout ----'
+RUN='cargo test -p pod-link --all-features --test arq_machine the_window_bounds_the_frames_in_flight'
+LIMIT=1800

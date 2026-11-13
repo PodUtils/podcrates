@@ -1,0 +1,8 @@
+# After the drop of a stream, its task ends at once: a FIN of the peer
+# that comes again after a lost ACK gets no answer, and the peer's
+# shutdown ends with arq-timeout (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='the peer answers the .FIN. after its drop'
+RUN='cargo test -p pod-link --all-features --test arq a_dropped_end_answers_the_peer_until_it_is_quiet'
+LIMIT=1800

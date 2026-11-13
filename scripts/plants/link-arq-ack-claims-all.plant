@@ -1,0 +1,8 @@
+# The ACK sets the bit of each frame after the next one, also of a lost
+# frame: the sender never sends that frame again, and the transfer at
+# 3 % loss stops (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='the transfer in time'
+RUN='cargo test -p pod-link --all-features --test arq eight_mib_cross_three_percent_loss_whole_and_in_order'
+LIMIT=1800

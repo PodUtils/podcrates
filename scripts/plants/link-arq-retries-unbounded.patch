@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/send.rs b/crates/pod-link/src/arq/send.rs
+--- a/crates/pod-link/src/arq/send.rs
++++ b/crates/pod-link/src/arq/send.rs
+@@ -356,7 +356,7 @@
+                 continue;
+             }
+             let seq = self.una.wrapping_add(i as u32);
+-            if f.retries >= self.retries {
++            if f.retries >= u8::MAX {
+                 return Err(ArqError::Timeout { seq, retries: f.retries, waited: now.duration_since(f.first) });
+             }
+             f.retries += 1;

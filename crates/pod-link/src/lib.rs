@@ -30,6 +30,12 @@
 //! registry of the carriers, their order and their flags are the
 //! consumer's (call C117).
 //!
+//! A carrier that loses datagrams ([`datagram::Datagrams`]) carries a link
+//! through the selective-repeat ARQ: [`arq::ArqStream`] makes one ordered
+//! byte stream of it. [`datagram::memory::pair`] and
+//! [`datagram::lossy::Lossy`] are a datagram pair in one process and a
+//! shim that loses, reorders and duplicates from a seed.
+//!
 //! The resume of a link after the loss of its carrier is `pod-session`'s:
 //! a consumer runs the link over the application side of a resumable
 //! session, which is a byte stream (call C120).
@@ -38,7 +44,9 @@
 //! prints nothing: each error converts to a [`pod_core::Failure`] (the
 //! stage `Session` for the link, `Connect` for a carrier).
 
+pub mod arq;
 mod carrier;
+pub mod datagram;
 mod error;
 pub mod frame;
 #[cfg(feature = "h2")]

@@ -4020,7 +4020,7 @@ the fact `contract-sha256` of `ajam-relay`). No code.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4054,6 +4054,16 @@ cargo test -p pod-link --all-features
 ## Start condition
 
 podnet starts PodUtils/podnet@T-277 or names a lossy carrier (a COORD issue).
+
+## Done
+
+2026-11-13. Commit `dcdbe01`; calls C262 to C265.
+
+- `crates/pod-link/src/arq.rs` and `crates/pod-link/src/arq/`: the wire (`DATA` with the sequence, the fragment index and the count; `FIN`; `ACK` with the next frame, the window and a bitmap of 256 frames; `PROBE`), `Arq` (the state machine with no I/O), `ArqStream` and `ArqHandle` (the task over a datagram carrier, the byte stream of a `Link`), `ArqSettings` with podnet's values (256 frames, fragments of 1 KiB, an RTO of 200 ms to 8 s, 8 retries), `ArqError::Timeout` (`arq-timeout`). `crates/pod-link/src/datagram.rs`: the trait `Datagrams`, the memory pair and the seeded shim `Lossy`.
+- Approach 4: the ARQ is under the link, so `arq-timeout` ends the link (call C262); the close of one stream is T-514. The congestion control is T-515, a fuzz target of the datagrams T-516.
+- `cargo test -p pod-link --all-features`: 98 passed, with `arq_machine` 11 (the fragment count, the window, the peer's window, each lost frame again, the timer and its 8 retries, the RTO floor and ceiling, the probe of a closed window, the wrap with and without a rekey, the rekey ahead, datagrams of a bad form, a duplicate and the `FIN`) and `arq` 7 (8 MiB and 1 MiB at the same time at 3 % loss, 1 % reorder and 1 % duplicates with an equal SHA-256; a link of two streams of 4 MiB at the same faults; a silent peer ends with `arq-timeout` after 36.6 s; a link over a silent ARQ ends; the bytes wait at the wrap until the rekey; the shutdown and the `FIN`; the answer after a drop). The binary `arq` passed 200 runs in a loop.
+- Eight plants (`link-arq-*`, group `link`): each was applied by hand, and its check failed with its text; `sh scripts/plant-each.sh --apply`: 0 stale.
+- Clippy of `pod-link` with all features and with none, rustdoc with `-D warnings`, `check-size.py`, `check-design-paths.py` and `check-probe.py` pass. The tests of the ARQ use the memory pair alone, with no Unix item.
 
 # T-311: `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480)
 
@@ -5317,3 +5327,101 @@ RESUME, a late one, one used twice, the responder's records) come from
 `cargo test -p pod-e2e --all-features`: 0 failed. Plants, each caught by
 hand: `e2e-record-fuzz-pad-kept`, `e2e-record-fuzz-window-before-the-check`.
 No run of libFuzzer here: `fuzz.yml` runs the target each week.
+
+# T-514: `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468)
+
+**Source:** T-310 (call C262, a finding of its work); PodUtils/podnet#468, row E2-2 (PodUtils/podnet@T-277)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet's row E2-2 says: "A stream that exhausts retries closes with `arq-timeout`, not the session, unless the control channel is also lost." Its gate is `tests/link_arq.rs` with "an isolated stream close". The ARQ of T-310 runs under the link as one sequence for each frame of each stream and of the control (call C262), so a frame with no retry left ends the ARQ and the link with it.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (one sequence for each direction), `crates/pod-link/src/link.rs` and `crates/pod-link/src/state.rs` (the frames of all streams go in one batch to one byte stream).
+- Not measured: a loss that hits the frames of one stream and not the control frames. On one path, a peer that is gone loses each frame; a case is a path whose unit drops the large `DATA` frames and passes the small control frames.
+
+## Approach
+
+1. A channel id in the `DATA` and `ACK` datagrams of the ARQ, and a sequence, a window and a SACK bitmap for each channel: channel 0 carries the control frames of the link, and each stream has its own.
+2. The link gives the frames of a stream to its channel, with a mode of `Link` for a datagram carrier (`Link::over_datagrams`), so that the byte-stream mode stays as it is.
+3. A channel with no retry left resets its stream with a new reset code `ARQ_TIMEOUT`; channel 0 with no retry left ends the link.
+4. Tests: a shim that drops each datagram of one channel; that stream ends with `arq-timeout`, and another stream and the link live.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+## Start condition
+
+podnet starts PodUtils/podnet@T-277 and asks for the close of one stream (a COORD issue), or a carrier of T-493 to T-499 shows the case.
+
+# T-515: `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal)
+
+**Source:** T-310 (call C263, a finding of its work)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ARQ of T-310 sends up to its window of 256 frames (256 KiB with fragments of 1 KiB) as soon as the peer's window lets it, and sends each lost frame again at once. It has no congestion control. On a path that other flows share (the UDP carrier T-424, a WireGuard peer T-498, NAT traversal T-499), a full window at each round trip with no back-off on loss is unfair to other flows, and on a slow path it fills the queues of the routers and adds loss. podnet's row E2-1 keeps the congestion control of KCP by default.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (`can_take`: the window of the settings and the window of the peer only) and PodUtils/podnet#468 (row E2-1: "Congestion control is the KCP default").
+- Not measured: the ARQ over a real path with other flows; the tests use a memory pair with no rate limit.
+
+## Approach
+
+1. A congestion window in frames beside the two windows: NewReno of RFC 9002 (a slow start from 10 frames, a halving at a loss of a round trip, a growth of one frame for each round trip), as a setting with a choice of `none` for a carrier that has its own (the memory pair, a carrier with a rate limit).
+2. Pacing of the frames at the congestion window over the smoothed round trip.
+3. Tests: over a shim with a rate limit and a queue of a fixed size, the loss stays low and the throughput is near the rate; the gate of 3 % random loss still moves 8 MiB.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+## Start condition
+
+The first carrier over a shared path (T-424, T-498 or T-499) starts.
+
+# T-516: `pod-link`: a fuzz target of the datagrams of the ARQ
+
+**Source:** T-310 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_link::arq::wire::Datagram::decode` and `Arq::on_datagram` read the bytes of each datagram that a lossy carrier gives, and a carrier that strangers reach (UDP, DNS, ICMP) can give any bytes. The test `datagrams_that_break_the_form_are_dropped` of `crates/pod-link/tests/arq_machine.rs` gives 20,000 random datagrams from one seed; no fuzz target reads them. The fuzz workspace has `link_frame` for the frames of the link.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/wire.rs`, `crates/pod-link/src/arq/recv.rs`, `fuzz/fuzz_targets/link_frame.rs`.
+- Not measured: no fuzz run of the ARQ.
+
+## Approach
+
+A target `link_arq`: the input is a list of datagrams, each given to one `Arq` with a clock that moves by a byte of the input; after each, `poll_transmit` until `None` and `on_timeout` when its time passed. No panic; each datagram that `poll_transmit` gives decodes, and has at most the unit of the carrier; a `DATA` frame of a sequence keeps one payload. Seeds: the datagrams of a short transfer, written by a test. The row of `fuzz/README.md` and the check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-link --all-features
+```

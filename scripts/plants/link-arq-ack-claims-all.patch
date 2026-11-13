@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/recv.rs b/crates/pod-link/src/arq/recv.rs
+--- a/crates/pod-link/src/arq/recv.rs
++++ b/crates/pod-link/src/arq/recv.rs
+@@ -136,7 +136,7 @@
+     pub(crate) fn ack(&mut self) -> Datagram {
+         let mut bitmap = Bitmap::default();
+         for i in 0..SACK_BITS {
+-            if self.slots[self.next.wrapping_add(i as u32) as usize % SACK_BITS].is_some() {
++            if self.slots[self.next.wrapping_add(i as u32) as usize % SACK_BITS].is_some() || i > 0 {
+                 bitmap.set(i);
+             }
+         }
