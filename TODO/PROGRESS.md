@@ -22,8 +22,9 @@
     T-412); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
-  - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
-    `pod_relay::blocking`, T-326; its 362 unit tests pass).
+  - podvm: `v0.34.0` (`fc1c5d60`, PodUtils/podvm#288; its relay over
+    `pod_relay::blocking`, T-326; its fix of #102 is `655cf941`,
+    PodUtils/podvm#289).
   - podrunner: `v0.32.0` (`997b001`; its token of `format()` reads `Template::parts`, PodUtils/podrunner@T-097); its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042

@@ -51,7 +51,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.32.0`, `15485d1b`, PodUtils/podvm#285, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
+- podvm (on `v0.34.0`, `fc1c5d60`, PodUtils/podvm#288, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
 - podnet (on `v0.34.0`, `ef8c901`, PodUtils/podnet#515, with
