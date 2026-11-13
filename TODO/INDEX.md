@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**385 entries: 113 open, 7 partial, 4 blocked, 261 done.**
+**385 entries: 112 open, 7 partial, 4 blocked, 262 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 53 | 3 | 4 | 136 | 196 |
+| P2 | 52 | 3 | 4 | 137 | 196 |
 | P3 | 47 | 1 | 0 | 51 | 99 |
-| **All** | 113 | 7 | 4 | 261 | 385 |
+| **All** | 112 | 7 | 4 | 262 | 385 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -390,7 +390,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-417](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-418](transport.md) | P2 | S | M1 | docs | done | Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220) |
 | [T-419](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run |
-| [T-420](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
+| [T-420](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
 | [T-421](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |

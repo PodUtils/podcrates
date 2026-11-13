@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws.rs b/crates/pod-link/src/ws.rs
+--- a/crates/pod-link/src/ws.rs
++++ b/crates/pod-link/src/ws.rs
+@@ -217,7 +217,7 @@
+                 format!("the listener at {target} sent no end of its answer in {MAX_ANSWER} bytes"),
+             ));
+         }
+-        let n = tls.read(&mut chunk).await.map_err(answer)?;
++        let n = tls.read(&mut chunk).await.map_err(|e| CarrierError::io(NAME, "read", e))?;
+         if n == 0 {
+             return Err(answer(io::ErrorKind::UnexpectedEof.into()));
+         }

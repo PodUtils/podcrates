@@ -1,0 +1,7 @@
+# The dialer of the ws carrier skips the pin of the key of the listener:
+# a listener of another key takes the link (T-420).
+ENTRY=T-420
+GROUP=link
+EXPECT='the_dialer_refuses_a_listener_of_another_key_and_names_it stdout ----'
+RUN='cargo test -p pod-link --all-features --test ws'
+LIMIT=1800

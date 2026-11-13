@@ -4413,7 +4413,7 @@ message is its first run (`docs/live-calls.md`, L38).
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4438,6 +4438,18 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit 3ee0a13: `ws::Ws` (feature `ws`) and `ws::WsListener`
+on the accept loop of `pod-ws` (T-439); the parts of a pinned carrier in
+`crates/pod-link/src/pin.rs`; call C253. `cargo test -p pod-link
+--all-features`: 0 failed; `tests/ws.rs` 8 passed (a link with 3 streams
+of 256 KiB, the keys of each side, a refused key on each side, a silent
+peer, a silent listener, the address forms, the way out). The plants
+`link-ws-server-key-unchecked`, `link-ws-client-key-unchecked`,
+`link-ws-first-frame-skipped`, `link-ws-refusal-unnamed` and
+`link-ws-handshake-unbounded` are caught.
 
 # T-421: `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515)
 
