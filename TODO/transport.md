@@ -6551,7 +6551,7 @@ cargo test --workspace --all-features
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6598,3 +6598,91 @@ POD_FILE_HOSTS= cargo test -p pod-services-watch --test file_host_live -- --igno
 The last command is the step "pod-services, a round trip through each
 public file host" of `live.yml` (by hand: `gh workflow run live.yml -f
 relay=none -f file-hosts=`); it runs only on GitHub.
+
+## Done
+
+2026-11-13, commit f0c4d30. The readings, each with its source in the
+files of `crates/pod-services/services/`:
+
+- tmpfiles.org: the page at the URL of the answer links a signed
+  download of a short life, `https://tmpfiles.org/dl/EXPIRY.SIGNATURE/ID/NAME`
+  (FreshTomato-Project/freshtomato-arm#344, 2026-11-11;
+  Eber-Rodrigues/BA#1, 2026-10-02). A GET of the page, then of that
+  link, gave the file from a GitHub runner on 2026-11-13
+  (timerloggedout-spec/termux-monorepo#5254, runs 43367104139 and
+  43367428428); its `/dl/ID/NAME` gave the page, and a User-Agent of a
+  library got 403. New fact `fetch-link-prefix`; `fetch-segment` empty
+  (call C283).
+- litterbox: the API page (`tools.php`) and its ShareX setting name
+  `reqtype`, `time` and `fileToUpload`, and no header; the upload form
+  of the front page also sends `fileNameLength=16`. A WAF (BunkerWeb) is
+  in front of the API since 2026-10. The cause of the 412 is not known:
+  podssh's run did not keep its text. The fields are the form's (call
+  C281); the rank stays. T-529 reads the result of the live step.
+- 0x0.st: its page (Wayback capture of 2026-11-03) has no rule for cloud
+  addresses, blocks the exit nodes of Tor, refuses CI build artifacts,
+  automated mass uploads and AI slop; the runners of podssh and of
+  another party got 429 or 503 on 2026-11-13. New fact `on-by-default`,
+  false for 0x0.st (call C282).
+
+The round trip `pod_services_watch::file_host::trip` and its live test
+`crates/pod-services-watch/tests/file_host_live.rs` in the new step of
+`live.yml` (L39 of `docs/live-calls.md`). `cargo test -p pod-services
+--all-features`: 97 passed. `cargo test -p pod-services-watch
+--all-features`: 70 passed, 1 ignored (the live trip). The three plants
+were caught by hand; `sh scripts/plant-each.sh --apply`: 0 stale.
+
+The proof that remains: the live run of the step on GitHub, which this
+session does not dispatch. T-529 takes its result.
+
+# T-529: `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412
+
+**Source:** T-528 (PodUtils/podssh#230).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The forms of T-528 come from pages and from the runs of other parties.
+The live step of `live.yml` proves them. litterbox answered 412 to
+podssh's upload from a GitHub runner on 2026-11-13, and the cause is not
+known: the API answers 412 with a text that names the fault, and
+podssh's run did not keep the text. T-528 changed the fields to those of
+the host's upload form (call C281). A road of podssh reads the new facts
+`on-by-default` and `fetch-link-prefix` only after a tag.
+
+## Premise
+
+- Read: the Done section of T-528, calls C281 to C283.
+- The egress of a cloud session of podcrates does not reach the hosts.
+  Only a run on GitHub measures them.
+
+## Approach
+
+Read the log of the step "pod-services, a round trip through each public
+file host" of the first run of `live.yml` after the merge of T-528. A
+host that holds: write its run into the sources of its facts. litterbox
+with a refusal: read its text, change the form (a field, a header), and
+run the step again; when no form works from a runner, leave litterbox
+out of the rank and set `on-by-default` false, with a note that says
+why. Tell podssh the tag that holds the forms (the answer to
+PodUtils/podssh#230), and that its road must read `on-by-default` and
+`fetch-link-prefix`.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo test -p pod-services-watch --all-features
+```
+
+and the log of the live step, with `file hosts: 3 ran, 0 failed`.
+
+## Start condition
+
+The merge of T-528 on `main`, and a run of `live.yml` (on a Thursday, or
+by hand with the input `relay` `none`).
+
