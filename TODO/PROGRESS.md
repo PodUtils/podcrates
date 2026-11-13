@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 405 entries: 120 open, 7 partial, 4 blocked, 274 done.
+`TODO/INDEX.md` holds 405 entries: 119 open, 7 partial, 4 blocked, 275 done.
 
 ## State
 
@@ -100,7 +100,7 @@ next entry.
       the fix of PodUtils/podnet#524.
    c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
       T-422 (long-poll, SSE, chunked),
-      T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
+      T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
       up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT

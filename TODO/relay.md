@@ -4588,7 +4588,7 @@ cargo test -p pod-link --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4613,6 +4613,26 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit 6a5a7d8. `quic::Quic` (feature `quic`, call C270):
+one bidirectional stream of a connection of `pod-quic`, with the TLS of
+`tcp` and the pin of each key. A dial sends from a UDP socket of the
+system or over the datagrams of the caller's way out (`with_way`,
+`pod_core::Dial::datagrams`); a name resolves through the caller's
+resolver (`with_resolver`) or the system. A listener binds `IP:PORT` or
+runs over the caller's datagrams (`bind_over`). The ALPN is the setting
+`Quic::alpn` (`podlink/1` by default; podnet gives `podnet/1`). The
+listener opens the one stream and writes the byte 1 on it, so a refused
+key is an error of the dial (77). A drop waits for the acknowledgement of
+each byte (at most `linger`, 10 s) before the close. `cargo test -p
+pod-link --all-features --test quic`: 11 passed; `cargo test -p pod-link
+--all-features`: 115 passed. Plants, each caught by hand:
+`link-quic-refusal-unnamed`, `link-quic-handshake-inline`,
+`link-quic-drop-closes-at-once`, `link-quic-way-unused`. The static probe
+links to itself over QUIC. The tcp carrier now reads its address with the
+shared `pin::key_at`, and a build of `tcp` alone is clean under clippy.
 
 # T-424: `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515)
 
