@@ -2281,7 +2281,7 @@ now says 14 and 22. `cargo test -p pod-job --all-features`: each passes.
 
 # T-527: `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83)
 
-**Source:** #83 (githome's comment of 2026-11-13 12:52, G-06).
+**Source:** #83 (githome's comment of 2026-11-13 12:52, G-06); PodUtils/podrunner#86 (COORD-026 of podrunner, for its T-108).
 **Category:** feature
 **Milestone:** M8
 **Priority:** P1
@@ -2303,10 +2303,11 @@ them.
 
 ## Approach
 
-Two optional fields in `RunReport` and `PublicReport`: `cpu_s` (the CPU
-time of the processes of the job, user and system, in seconds) and
-`peak_rss_mib` (their largest resident memory, in MiB); absent when the
-host cannot measure them. The schemas written again; an example of each
+Two fields in `RunReport` and `PublicReport`, in the form of `Residual`
+(a count or the word `unknown`, as PodUtils/podrunner#86 asks): `cpu_s`
+(the CPU time of the processes of the unit, user and system, from its
+start to its destroy, in seconds) and `peak_rss_mib` (their highest
+resident memory, in MiB); absent when no unit ran. The schemas written again; an example of each
 report with them.
 
 ## Prove
@@ -2318,8 +2319,8 @@ cargo test -p pod-job --all-features
 ## Done
 
 2026-11-13, commit `4409dc1`. `RunReport::{cpu_s, peak_rss_mib}` and
-`PublicReport::{cpu_s, peak_rss_mib}` (`Option<u64>`, absent when
-unknown); `RunReport::public` copies them. The two schemas name them. The
+`PublicReport::{cpu_s, peak_rss_mib}` (`Option<Residual>`: a count or
+`unknown`; absent when no unit ran); `RunReport::public` copies them. The two schemas name them. The
 fields of the public report are one list (`PUBLIC`) in the test that holds
 the public report to no host detail: CPU time and memory are facts of the
 job, not of the host. New examples `run-report/valid-usage.json` and

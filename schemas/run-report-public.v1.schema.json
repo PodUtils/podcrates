@@ -16,13 +16,15 @@
       ]
     },
     "cpu_s": {
-      "description": "The CPU time of the processes of the job, user and system, in\nseconds; absent when the host cannot measure it, never 0 for unknown.",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "uint64",
-      "minimum": 0
+      "description": "The CPU time of the processes of the unit, user and system, from its\nstart to its destroy, in seconds: a count, or `unknown` when the host\ncannot measure it (never 0 for unknown). Absent when no unit ran.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "exit_reason": {
       "$ref": "#/$defs/ExitReason"
@@ -31,13 +33,15 @@
       "$ref": "#/$defs/JobId"
     },
     "peak_rss_mib": {
-      "description": "The largest resident memory of the processes of the job, in MiB;\nabsent when the host cannot measure it.",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "uint64",
-      "minimum": 0
+      "description": "The highest resident memory of the processes of the unit during the\nrun, in MiB: a count, or `unknown`. Absent when no unit ran.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "refusal_code": {
       "anyOf": [
@@ -236,6 +240,19 @@
         }
       ]
     },
+    "Residual": {
+      "description": "A count (of `destroy`, or of the use of a unit), or `unknown`.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        {
+          "$ref": "#/$defs/Unknown"
+        }
+      ]
+    },
     "Tier": {
       "description": "The trust tier of a job. It comes from the trust inputs of an offer,\nnever from a label; `local` comes only from the configuration.",
       "oneOf": [
@@ -254,6 +271,13 @@
           "type": "string",
           "const": "local"
         }
+      ]
+    },
+    "Unknown": {
+      "description": "The word `unknown`.",
+      "type": "string",
+      "enum": [
+        "unknown"
       ]
     }
   }

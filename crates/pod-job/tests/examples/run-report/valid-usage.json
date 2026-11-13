@@ -8,7 +8,7 @@
   "exit_code": 0,
   "wall_s": 93,
   "cpu_s": 1832,
-  "peak_rss_mib": 412,
+  "peak_rss_mib": "unknown",
   "unit": {
     "unit_id": "u-7",
     "unit_kind": "podvm",

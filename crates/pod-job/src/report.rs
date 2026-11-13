@@ -48,7 +48,7 @@ pub struct UnitFields {
     pub residual_files: Residual,
 }
 
-/// A count of `destroy`, or `unknown`.
+/// A count (of `destroy`, or of the use of a unit), or `unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(untagged)]
@@ -86,14 +86,15 @@ pub struct RunReport {
     pub exit_code: Option<i32>,
     /// The time from the claim to the report, in seconds.
     pub wall_s: u64,
-    /// The CPU time of the processes of the job, user and system, in
-    /// seconds; absent when the host cannot measure it, never 0 for unknown.
+    /// The CPU time of the processes of the unit, user and system, from its
+    /// start to its destroy, in seconds: a count, or `unknown` when the host
+    /// cannot measure it (never 0 for unknown). Absent when no unit ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cpu_s: Option<u64>,
-    /// The largest resident memory of the processes of the job, in MiB;
-    /// absent when the host cannot measure it.
+    pub cpu_s: Option<Residual>,
+    /// The highest resident memory of the processes of the unit during the
+    /// run, in MiB: a count, or `unknown`. Absent when no unit ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub peak_rss_mib: Option<u64>,
+    pub peak_rss_mib: Option<Residual>,
     /// The time from the claim to the hook of the job's first step, in
     /// seconds; absent when no step started. Not in the public report.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -127,14 +128,15 @@ pub struct PublicReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boundary: Option<Boundary>,
     pub wall_s: u64,
-    /// The CPU time of the processes of the job, user and system, in
-    /// seconds; absent when the host cannot measure it, never 0 for unknown.
+    /// The CPU time of the processes of the unit, user and system, from its
+    /// start to its destroy, in seconds: a count, or `unknown` when the host
+    /// cannot measure it (never 0 for unknown). Absent when no unit ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cpu_s: Option<u64>,
-    /// The largest resident memory of the processes of the job, in MiB;
-    /// absent when the host cannot measure it.
+    pub cpu_s: Option<Residual>,
+    /// The highest resident memory of the processes of the unit during the
+    /// run, in MiB: a count, or `unknown`. Absent when no unit ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub peak_rss_mib: Option<u64>,
+    pub peak_rss_mib: Option<Residual>,
     pub exit_reason: ExitReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refusal_code: Option<RefusalCode>,

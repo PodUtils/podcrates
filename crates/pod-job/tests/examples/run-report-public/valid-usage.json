@@ -7,6 +7,6 @@
   "boundary": "redirect",
   "wall_s": 93,
   "cpu_s": 1832,
-  "peak_rss_mib": 412,
+  "peak_rss_mib": "unknown",
   "exit_reason": "success"
 }
