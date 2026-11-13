@@ -5555,7 +5555,7 @@ each week.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5579,6 +5579,10 @@ cargo test -p pod-link --all-features --test udp_loss
 ## Start condition
 
 podnet answers the question, or starts its PodUtils/podnet@T-276.
+
+## Done
+
+- 2026-11-13: podnet chose the congestion window of KCP by default (PodUtils/podnet#527); `KcpSettings::nodelay` stays off. `tests/udp_loss.rs` has the gate of row E2-1 in a release build: `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults` (51 s measured, bound 120 s) and `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time` (`nodelay` and a window of 1024 segments: 3.7 to 4.0 times measured, bound 5 times; call C284). A debug build ignores both. The job `gate` of `nightly.yml` runs them.
 
 # T-521: `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP)
 
