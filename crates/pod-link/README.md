@@ -8,8 +8,10 @@ the start signal PodUtils/podnet#480). T-300 made it, as new code, by
 calls C116, C117 and C120 to C124. T-396 added the tcp carrier (feature
 `tcp`; PodUtils/podnet#513; calls C177 to C179), T-420 the ws carrier
 (feature `ws`; PodUtils/podnet#515; call C253), T-421 the h2 carrier
-(feature `h2`; PodUtils/podnet#515; call C254). The crate reads no
-environment, keeps no global state and prints nothing.
+(feature `h2`; PodUtils/podnet#515; call C254), T-310 the selective-repeat
+ARQ for a carrier that loses datagrams (PodUtils/podnet#468, row E2-2;
+calls C262 to C265). The crate reads no environment, keeps no global
+state and prints nothing.
 
 ## Use
 
@@ -104,6 +106,16 @@ let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 | `h2::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, WINDOW}` | the constants of the h2 carrier |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
+| `arq::ArqStream` | the ARQ over a datagram carrier as one ordered byte stream (`AsyncRead` and `AsyncWrite`): `new(datagrams, settings)` starts its task on the current tokio runtime; `handle`. A write is one record; a shutdown sends the `FIN` and returns at its acknowledgement; a drop sends the `FIN`; when its frames are acknowledged, the task answers the peer until the peer is silent for two RTO ceilings (at most 64 s), then ends; an error also ends it |
+| `arq::ArqHandle` | stays when the stream moves into a `Link`: `error`, `stats`, `srtt`, `in_flight`, `rekey_due`, `rekey_wanted` (waits for the ask), `rekeyed` |
+| `arq::Arq` | the ARQ as a state machine with no I/O: `new(settings, mtu)`, `on_datagram`, `poll_transmit`, `poll_timeout`, `on_timeout`, `write`, `read`, `send_record`, `recv_record`, `close`, `closed`, `read_finished`, `idle`, `done`, `rekey_due`, `rekeyed`, `in_flight`, `unacknowledged`, `rto`, `srtt`, `fragment`, `stats`, `error` |
+| `arq::ArqSettings`, `arq::ArqSettingsError` | the settings of the ARQ (below); `check` |
+| `arq::ArqError` | `Timeout` (`arq-timeout`, 75), `Protocol` (76), `Carrier`, `WriteClosed`, `Settings`; `class`, `io_kind`; into `std::io::Error` (with the typed error inside) and into `pod_core::Failure` (the stage `Session`) |
+| `arq::Stats` | the counters: sent, retransmitted, timeouts, `ACK`s, probes, received, duplicates, dropped, records, rekeys |
+| `arq::wire` | `Datagram` (`encode`, `decode`, `to_vec`, `wire_len`), `Bitmap`, `WireError`, `kind`, `DATA_HEADER`, `ACK_LEN`, `SACK_BITS`, `MAX_FRAGMENT`, `MIN_FRAGMENT` |
+| `datagram::Datagrams` | the trait of a datagram carrier: `mtu`, `send`, `recv`. A datagram that the carrier cannot take is a loss, not an error |
+| `datagram::memory::pair` | two ends of a datagram carrier in one process (`MemoryDatagrams`): a unit of 1200 bytes and 1024 datagrams waiting by default; a full queue or a gone peer drops the datagram, as UDP does |
+| `datagram::lossy::{Lossy, Faults, LossyStats, SplitMix64}` | a shim that loses, reorders and duplicates the datagrams of a carrier from a seed (`new(inner, faults, seed)`, `set_faults`, `stats`); `Faults::NONE`, `Faults::SILENT` |
 
 ## Features
 
@@ -182,6 +194,68 @@ a `PONG` do not wait behind a long run of bytes. A peer that sends more
 than 8192 frames that wait for an answer, and does not read, ends the
 link.
 
+## The ARQ
+
+A carrier of datagrams that can be lost, come out of order or come two
+times carries a link through `arq::ArqStream`. The link sees one ordered
+byte stream and knows nothing of the ARQ. Each number is big-endian:
+
+| Type | Datagram | Fields |
+| --- | --- | --- |
+| 1 | `DATA` | the sequence (u32), the fragment index (u16), the fragment count (u16), the payload (1 byte to 1 KiB) |
+| 2 | `FIN` | the sequence (u32): the end of the sender's bytes |
+| 3 | `ACK` | the next sequence in order (u32), the window in frames (u16), the bitmap of 32 bytes: bit `i` is the frame `next + i` |
+| 4 | `PROBE` | none: the peer answers with an `ACK` |
+
+- A write is one record: its fragments have one sequence each, the index
+  0 to `count - 1`, and the count. The receiver gives the bytes in order,
+  and a record whole to `recv_record`.
+- At most 256 frames are in flight after the oldest frame with no
+  acknowledgement, and no frame goes past the window of the peer's last
+  `ACK`. A receiver gives a window of the free part of its receive buffer
+  (in fragments of 1 KiB); a sender whose peer gives no window probes it
+  after each RTO, and the answer keeps the ARQ alive.
+- An `ACK` goes after each turn of the receive side that took a frame or
+  a `PROBE`, and after a read that opens the window.
+- The RTO is of RFC 6298 (Karn: a sample only from a frame sent once),
+  1 s before the first sample, within 200 ms and 8 s. Each frame has its
+  own timer; each timeout doubles its RTO up to the ceiling and sends it
+  again. A frame with 3 or more acknowledged frames above it goes again
+  once before its timer. After 8 retransmissions and one more RTO, the ARQ
+  ends with `arq-timeout` (`ArqError::Timeout`, class `Timeout`), and the
+  link above it ends: a read or a write of the stream fails with
+  `TimedOut`.
+- The sequence never passes from `u32::MAX` to 0 under the same keys:
+  `rekey_ahead` frames before the wrap the ARQ asks for a rekey
+  (`ArqHandle::rekey_wanted`), and new frames wait at the wrap until the
+  caller calls `rekeyed`. The frames in flight go on. The two ends must
+  start at the same `start`.
+- A datagram of another form, a frame out of the window, and an `ACK` of a
+  frame not sent are dropped and counted. Fragments in sequence that
+  disagree (an index or a count) end the ARQ with `ArqError::Protocol`.
+  The ARQ authenticates nothing: put a record layer under it on a carrier
+  that strangers can reach.
+- There is no congestion control: the window of 256 frames bounds the
+  flight (T-515).
+
+| Field | Default | Limits | What |
+| --- | --- | --- | --- |
+| `window` | 256 | 1 to 256 | the frames in flight |
+| `fragment` | 1024 | 32 to 1024 | the largest payload of a fragment; also the carrier's unit less 9 bytes |
+| `record` | 64 KiB | 1 KiB to 1 MiB | the largest record (a write); at most 65535 fragments |
+| `send_buffer` | 1 MiB | `record` or more | the bytes of the records with no acknowledgement; a write waits over it |
+| `receive_buffer` | 4 MiB | two records and 256 KiB or more | the bytes in order that the reader did not take |
+| `rto_initial` | 1 s | the floor to the ceiling | the RTO before the first sample |
+| `rto_floor`, `rto_ceiling` | 200 ms, 8 s | more than 0 | the bounds of the RTO, also after the backoff |
+| `retries` | 8 | 1 to 16 | the retransmissions of a frame before `arq-timeout` |
+| `start` | 0 | each | the first sequence of each direction; the same at both ends |
+| `rekey_ahead` | 2^20 | `window` or more | the frames before the wrap at which the ARQ asks for a rekey |
+
+The ARQ is one sequence for the whole link: when one frame has no
+acknowledgement after its retries, the link ends, not one stream (call
+C262). A stream-aware ARQ, in which `arq-timeout` closes one stream while
+the control frames live, is T-514.
+
 ## A link that survives the loss of its carrier
 
 A link does not resume: a lost carrier ends it (call C120). For a link
@@ -240,8 +314,26 @@ tests that hold them:
   of the session is cut twice while two streams move 1 MiB each way, and
   the SHA-256 of each stream is equal at both ends: `tests/resume.rs`
   (`two_streams_cross_two_resumes_of_the_session_whole`).
-- [ ] The ARQ for a carrier that loses frames, with 3 % of the frames
-  lost (podnet T-277): T-310.
+- [x] The ARQ for a carrier that loses frames (podnet T-277, row E2-2 of
+  PodUtils/podnet#468): 8 MiB one way and 1 MiB the other at 3 % loss,
+  1 % reorder and 1 % duplicates, whole and in order
+  (`tests/arq.rs`, `eight_mib_cross_three_percent_loss_whole_and_in_order`),
+  and a link of two streams over it
+  (`a_link_runs_over_the_arq_at_three_percent_loss`); the fragment index
+  and count (`tests/arq_machine.rs`,
+  `a_record_is_cut_into_fragments_with_their_count`); the window of 256
+  frames and the peer's window
+  (`the_window_bounds_the_frames_in_flight`,
+  `the_window_of_the_peer_bounds_the_frames`); the bitmap of the `ACK`
+  and the retransmission of each lost fragment
+  (`each_lost_frame_goes_again_alone`); the RTO of 200 ms to 8 s and 8
+  retries (`the_timer_doubles_and_ends_after_eight_retries`,
+  `the_rto_keeps_its_floor_and_its_ceiling`), and a silent peer
+  (`tests/arq.rs`, `a_silent_peer_ends_with_arq_timeout`); the wrap that
+  asks for a rekey and never uses a sequence again
+  (`the_sequence_does_not_wrap_without_a_rekey`,
+  `the_bytes_wait_at_the_wrap_until_the_rekey`). The close of one stream
+  on `arq-timeout` while the link lives is T-514.
 
 The asks of PodUtils/podnet#513 (PodUtils/podnet@T-268, the TCP carrier
 with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
@@ -333,5 +425,6 @@ feature `h2`):
 | PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a refused key is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen |
 | PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
+| PodUtils/podnet@T-277: the selective-repeat ARQ for any lossy carrier | `arq::ArqStream` over a `datagram::Datagrams` (each lossy carrier of podnet gives one), then `Link::new` over the stream; `arq::ArqHandle::rekey_wanted` is the ask of the record layer (PodUtils/podnet@T-298) for a rekey; podnet's `tests/link_arq.rs` takes `datagram::lossy::Lossy` over `datagram::memory::pair` as its shim |
 | exit 64, 69, 77 of a carrier | `CarrierError::class().exit_code()` |
 | exit of a link | `Error::class().exit_code()`: a dead link 75, a broken protocol 76 |

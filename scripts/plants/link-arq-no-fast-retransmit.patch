@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/send.rs b/crates/pod-link/src/arq/send.rs
+--- a/crates/pod-link/src/arq/send.rs
++++ b/crates/pod-link/src/arq/send.rs
+@@ -316,7 +316,7 @@
+             self.una = self.una.wrapping_add(1);
+         }
+         if let Some(high) = highest {
+-            self.fast_retransmit(high);
++            let _ = high;
+         }
+         self.watch(now);
+         true

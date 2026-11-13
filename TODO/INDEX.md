@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**399 entries: 120 open, 7 partial, 4 blocked, 268 done.**
+**402 entries: 123 open, 7 partial, 4 blocked, 268 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 62 | 3 | 4 | 140 | 209 |
-| P3 | 45 | 1 | 0 | 54 | 100 |
-| **All** | 120 | 7 | 4 | 268 | 399 |
+| P2 | 64 | 3 | 4 | 140 | 211 |
+| P3 | 46 | 1 | 0 | 54 | 101 |
+| **All** | 123 | 7 | 4 | 268 | 402 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -446,3 +446,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-506](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |
+| [T-514](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a stream-aware ARQ, in which `arq-timeout` closes one stream and the link lives (PodUtils/podnet#468) |
+| [T-515](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a congestion window for the ARQ on a shared path (UDP, WireGuard, NAT traversal) |
+| [T-516](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the ARQ |

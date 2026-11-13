@@ -1,0 +1,7 @@
+# An ACK with a gap sends no frame again before its timer: a lost frame
+# with 3 acknowledged frames above it waits for its RTO (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='each_lost_frame_goes_again_alone stdout ----'
+RUN='cargo test -p pod-link --all-features --test arq_machine each_lost_frame_goes_again_alone'
+LIMIT=1800

@@ -1,0 +1,7 @@
+# A sender whose peer gives no window never probes it: the window that
+# opens later stays unknown when its ACK is lost (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='a_closed_window_is_probed_and_opens stdout ----'
+RUN='cargo test -p pod-link --all-features --test arq_machine a_closed_window_is_probed_and_opens'
+LIMIT=1800

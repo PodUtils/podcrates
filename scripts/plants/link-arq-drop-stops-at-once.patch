@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/stream.rs b/crates/pod-link/src/arq/stream.rs
+--- a/crates/pod-link/src/arq/stream.rs
++++ b/crates/pod-link/src/arq/stream.rs
+@@ -330,7 +330,7 @@
+     if i.dropped && i.arq.idle() {
+         // The peer may not have the `ACK` of its last frames: answer its
+         // frames again until it is quiet, as TCP's TIME-WAIT does.
+-        let end = (i.heard + i.quiet).min(*i.idle_since.get_or_insert(now) + i.quiet * LINGER_QUIETS);
++        let end = now.min(*i.idle_since.get_or_insert(now) + i.quiet * LINGER_QUIETS);
+         if now >= end {
+             return (None, true, rekey);
+         }

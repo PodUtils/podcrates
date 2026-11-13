@@ -1,0 +1,7 @@
+# A frame goes again with no bound: the ARQ never ends with arq-timeout
+# after its 8 retries (T-310).
+ENTRY=T-310
+GROUP=link
+EXPECT='the_timer_doubles_and_ends_after_eight_retries stdout ----'
+RUN='cargo test -p pod-link --all-features --test arq_machine the_timer_doubles_and_ends_after_eight_retries'
+LIMIT=1800

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/arq/send.rs b/crates/pod-link/src/arq/send.rs
+--- a/crates/pod-link/src/arq/send.rs
++++ b/crates/pod-link/src/arq/send.rs
+@@ -199,7 +199,7 @@
+ 
+     /// The windows and the wrap let a new frame go.
+     fn can_take(&self) -> bool {
+-        after(self.una, self.next) < self.window && before(self.next, self.limit) && (self.left() > 0 || self.wrap_ok)
++        after(self.una, self.next) < u32::MAX && before(self.next, self.limit) && (self.left() > 0 || self.wrap_ok)
+     }
+ 
+     /// The sequence of a new frame, when the windows and the wrap let one go.
