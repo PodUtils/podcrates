@@ -37,7 +37,8 @@
 //! * [`service`]: the facts of WARP of `pod-services`.
 //! * [`live`]: [`Live`], a session replaced when it closes; [`exit`]: the
 //!   exit of a session; [`find`]: the socket of a running proxy of the
-//!   caller; [`tun`] (Linux): a TUN over a session.
+//!   caller; [`tun`] (Linux): a TUN over a session; [`route`]: its routes
+//!   and its resolver when it takes the host.
 //!
 //! The crate reads no environment variable and no file that the caller
 //! does not name, prints nothing and keeps no global state. A failure is a
@@ -74,6 +75,7 @@ mod open;
 pub mod proxy;
 pub mod register;
 pub mod resolver;
+pub mod route;
 pub mod rules;
 pub mod service;
 pub mod session;

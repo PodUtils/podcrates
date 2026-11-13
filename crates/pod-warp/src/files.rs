@@ -148,7 +148,7 @@ pub async fn lock(path: &Path, wait: Duration) -> Result<Held, Failure> {
     }
 }
 
-fn try_lock(file: &Path) -> Result<Option<Held>, Failure> {
+pub(crate) fn try_lock(file: &Path) -> Result<Option<Held>, Failure> {
     let failure = |e: std::io::Error| {
         let text = format!("the lock {}", file.display());
         Failure::caused(Stage::Warp, Class::of_io(e.kind()), text, e)
