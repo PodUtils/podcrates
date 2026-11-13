@@ -36,8 +36,8 @@
 //!   forwards; [`nc`]: the byte pipe of `warp nc`.
 //! * [`service`]: the facts of WARP of `pod-services`.
 //! * [`live`]: [`Live`], a session replaced when it closes; [`exit`]: the
-//!   exit of a session; [`find`]: the socket of a running proxy of the
-//!   caller; [`tun`] (Linux): a TUN over a session; [`route`]: its routes
+//!   exit of a session; `find` (Unix): the socket of a running proxy of the
+//!   caller; `tun` (Linux): a TUN over a session; [`route`]: its routes
 //!   and its resolver when it takes the host.
 //!
 //! The crate reads no environment variable and no file that the caller

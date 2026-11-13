@@ -1,0 +1,7 @@
+# The answer to the TCP probe of a TUN does not clear the misses: a session
+# that answers each probe ends as a session that carries no TCP
+# (PodUtils/podnet@T-069, T-339).
+ENTRY=T-339
+GROUP=warp
+EXPECT='test tun::probe::tests::warp_tun_probe_ends_a_dead_session \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- tun::probe::tests::warp_tun_probe_ends_a_dead_session'

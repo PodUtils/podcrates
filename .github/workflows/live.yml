@@ -4,7 +4,7 @@ name: live
 # the public DoH resolvers (on Thursdays and by hand: CoreDNS on the
 # loopback proves the client on each push, T-350), a host that offers
 # Multipath TCP, a public
-# registry, Alpine's mirror, and the public mailboxes of magic-wormhole and
+# registry, the WARP API and its front door, Alpine's mirror, and the public mailboxes of magic-wormhole and
 # the public MQTT brokers (magic-wormhole's own servers run on each push in
 # ci.yml, T-354).
 # They run on Thursdays at an off-peak hour and by hand (docs/decisions.md,
@@ -101,6 +101,12 @@ jobs:
       # A rate limit of the registry (429) is a skip that the log names.
       - name: pod-oci, a pull of the pinned guest userland from ECR Public
         run: cargo test --locked -p pod-oci --test live -- --ignored --nocapture
+      # A new device at the WARP API, a session at its front door that Live
+      # holds, the trace of 1.1.1.1 over HTTPS through it, and the removal of
+      # the device (T-339). The stand-in API and edge prove the code on each
+      # push.
+      - name: pod-warp, a session at the WARP front door
+        run: cargo test --locked -p pod-warp --all-features --test live -- --ignored --nocapture
       # The modloop of the newest Alpine 3.22 (T-206): each xz stream of the
       # image decodes, some with the x86 BCJ filter, and the module set of
       # podvm's network lab comes with each dependency.

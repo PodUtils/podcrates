@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/live.rs b/crates/pod-warp/src/live.rs
+index b19e2d4..b94ce02 100644
+--- a/crates/pod-warp/src/live.rs
++++ b/crates/pod-warp/src/live.rs
+@@ -221,7 +221,7 @@ impl<T: Closable> Live<T> {
+                             );
+                             live.events.event(Event::info("warp.live.renew", text));
+                             tokio::spawn(async move {
+-                                tokio::time::sleep(RENEW_DRAIN).await;
++                                tokio::time::sleep(Duration::ZERO).await;
+                                 old.close(&format!("{reason}: the drain ended"));
+                             });
+                             delay = Duration::ZERO;

@@ -48,7 +48,7 @@ hides a red run that is ours.
 
 ## The inventory
 
-The rows count 35 calls: 2 replace, 3 stub + weekly, 25 keep live, and
+The rows count 36 calls: 2 replace, 4 stub + weekly, 25 keep live, and
 5 infrastructure. Of the 25 that stay live, 4 get a server on the loopback
 that proves the code of the client (L10, L18, L19, L35). "Each day" is the cron
 of the workflow.
@@ -69,6 +69,7 @@ of the workflow.
 | L10 | the GSRN relay gs.thc.org | `crates/pod-gsr/tests/live.rs` | 1 MiB crosses the real relay | by hand, in no workflow | unknown | keep live | the stand-in of `crates/pod-gsr/tests/loopback.rs`; gs-netcat 1.4.43 as the other end (T-357) |
 | L11 | GitHub's evaluator of expressions | T-280 (open) | the conformance of `pod-actions-expr` and `pod-actions-workflow` | planned | no | keep live | only GitHub's runner evaluates as GitHub does |
 | L35 | a TURN server of the caller (UDP or TLS on TCP) | `crates/pod-turn/tests/live.rs` (ignored; `POD_TURN_LIVE_SERVER`) | an allocation, a Refresh, a permission and a channel on a server of the caller | by hand, in no workflow | unknown | keep live | coturn 4.18.0 on the loopback in `ci.yml` (`scripts/ci/turn-tests.sh`, `crates/pod-turn/tests/coturn.rs`) proves the client over UDP and over TLS on each push: the 401, the 438, the 437 and the 441, the maximum lifetime, a Send and a ChannelData echo with its padding (T-380, call C197) |
+| L36 | the WARP API (api.cloudflareclient.com) and its MASQUE front door on TCP 443, then the trace of 1.1.1.1 over HTTPS through the session | `crates/pod-warp/tests/live.rs`, step "pod-warp, a session at the WARP front door" of `live.yml` | a new device registers, a session opens and `Live` holds it, the trace says `warp=on` or `warp=plus`, and the device is removed | Thursday, by hand | unknown | stub + weekly | the stand-in API of `pod_testkit::stand::warp` and the stand-in edge of `crates/pod-warp/tests/common/edge.rs` on the loopback prove the registration, the session, `Live`, the probe and the trace on each push (`tests/register.rs`, `tests/net.rs`, `tests/live_session.rs`; T-339) |
 
 ### `services.yml`
 

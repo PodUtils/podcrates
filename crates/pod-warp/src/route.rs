@@ -10,10 +10,10 @@
 //!   They go away while the session is down, so that traffic fails fast.
 //! * DNS: `resolvectl` on the TUN when systemd-resolved runs, else the
 //!   resolver file with the caller's nameservers (a record of the original
-//!   is kept, [`resolv`]).
+//!   is kept, `resolv`).
 //!
 //! The parse of the route tables and the plan of each address are pure and
-//! run on each target. [`Routes`] (Linux) puts each change back when it is
+//! run on each target. `Routes` (Linux) puts each change back when it is
 //! dropped. The calls are ioctls (`SIOCADDRT`, `SIOCDELRT`): no hook script
 //! and no shell runs as root.
 
