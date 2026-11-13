@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**368 entries: 109 open, 7 partial, 5 blocked, 247 done.**
+**370 entries: 109 open, 7 partial, 5 blocked, 249 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 70 | 86 |
-| P2 | 53 | 2 | 5 | 126 | 186 |
-| P3 | 43 | 2 | 0 | 49 | 94 |
-| **All** | 109 | 7 | 5 | 247 | 368 |
+| P2 | 52 | 2 | 5 | 128 | 187 |
+| P3 | 44 | 2 | 0 | 49 | 95 |
+| **All** | 109 | 7 | 5 | 249 | 370 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -386,8 +386,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-410](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: the L4 door reads the device record again on a new key, and tries the other door |
 | [T-412](adapters.md) | P1 | L | M3 | feature | open | `pod-warp`: the adoption trial of podnet (its src/warp on the crate) |
 | [T-413](adapters.md) | P2 | L | M3 | feature | open | `pod-warp`: the adoption trial of podssh (crates/podssh-warp retires onto the crate) |
-| [T-416](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
-| [T-417](relay.md) | P2 | S | M2 | feature | open | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
+| [T-416](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
+| [T-417](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
+| [T-418](transport.md) | P2 | S | M1 | docs | open | Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220) |
+| [T-419](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run |
 | [T-420](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
 | [T-421](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |

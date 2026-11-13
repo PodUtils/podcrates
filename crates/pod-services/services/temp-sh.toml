@@ -1,0 +1,112 @@
+# temp.sh: a public host of temporary files with no account, run by one
+# person. An upload is a multipart POST of one file to the endpoint
+# upload, with no field of life (3 days); the answer is the URL of the
+# file as text, and the download is a POST to that URL. The third of the
+# four file hosts of PodUtils/podssh@T-738 (PodUtils/podssh#220). The
+# document front is the page that the watches read. answer, serves and
+# fetch-method are podssh's reading of 2026-11-12; the rest was read on
+# 2026-11-13.
+id = "temp-sh"
+kind = "file-host"
+party = "temp.sh (one person)"
+about = "A public host of temporary files: a multipart POST of one file, the URL as text, a life of 3 days, a download by POST"
+
+[rank]
+value = 3
+source = { ruling = "podssh's order of the file hosts (PodUtils/podssh#220, PodUtils/podssh@T-738)", read = 2026-11-12 }
+
+[[endpoint]]
+name = "upload"
+scheme = "https"
+host = "temp.sh"
+port = 443
+path = "/upload"
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "To upload: curl -F \"file=@test.txt\" https://temp.sh/upload; a GET answers 405 with Allow: OPTIONS, POST" }
+
+[[endpoint]]
+name = "front"
+role = "document"
+scheme = "https"
+host = "temp.sh"
+port = 443
+path = "/"
+source = { url = "https://temp.sh/", read = 2026-11-13 }
+
+[[fact]]
+name = "file-field"
+value = "file"
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "the form: input type=file name=file; curl -F \"file=@test.txt\"" }
+
+[[fact]]
+name = "fields"
+type = "texts"
+value = []
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "the page names no field of life: Files expire after 3 days" }
+
+[[fact]]
+name = "life-seconds"
+value = 259200
+unit = "s"
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "Files expire after 3 days" }
+
+[[fact]]
+name = "answer"
+value = "text"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the answer is the URL as text; not read here" }
+
+[[fact]]
+name = "serves"
+value = ["temp.sh"]
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; not read here" }
+
+[[fact]]
+name = "fetch-segment"
+value = ""
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the download is a request to the URL of the answer" }
+
+[[fact]]
+name = "fetch-method"
+value = "POST"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the download is a POST to the URL of the answer; not read here" }
+
+[[fact]]
+name = "delete"
+value = "none"
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "the page names no delete" }
+
+# 4GB: the lower of 4 * 10^9 and 4 * 2^30 bytes.
+[[fact]]
+name = "upload-bytes-most"
+value = 4000000000
+unit = "bytes"
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "Current file size limit is 4GB" }
+
+[[fact]]
+name = "one-person"
+value = true
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "About: I just made this for quick and handy file and text sharing." }
+
+[[fact]]
+name = "automated-uploads-refused"
+value = false
+source = { url = "https://temp.sh/", read = 2026-11-13, note = "the page has no terms; it gives a curl command and a ShareX setting" }
+
+[[watch]]
+kind = "http-text"
+endpoint = "front"
+contains = "To upload: curl -F \"file=@test.txt\" https://temp.sh/upload"
+
+[[watch]]
+kind = "http-text"
+endpoint = "front"
+contains = "Files expire after 3 days"
+
+[[watch]]
+kind = "http-text"
+endpoint = "front"
+contains = "Current file size limit is 4GB"
+
+[[watch]]
+kind = "http-status"
+endpoint = "upload"
+status = 405

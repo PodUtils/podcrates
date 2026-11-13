@@ -1,0 +1,12 @@
+--- a/crates/pod-wormhole/src/mqtt/board.rs
++++ b/crates/pod-wormhole/src/mqtt/board.rs
+@@ -164,7 +164,8 @@
+     /// A retained `PUBLISH`, then a `PINGREQ` whose `PINGRESP` shows that
+     /// the broker read it.
+     async fn publish(&mut self, topic: &str, payload: Vec<u8>) -> Result<(), Failed> {
+-        self.write(&Packet::Publish { topic: topic.to_string(), payload, retain: true }).await?;
++        let retain = !payload.is_empty();
++        self.write(&Packet::Publish { topic: topic.to_string(), payload, retain }).await?;
+         self.write(&Packet::PingReq).await?;
+         self.within("PINGRESP", self.answer_limit, |p| matches!(p, Packet::PingResp)).await?;
+         Ok(())

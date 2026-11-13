@@ -1,0 +1,8 @@
+# A clear of the board sends its empty PUBLISH with no RETAIN: the broker
+# passes it on and keeps the note, so a take after the clear finds it; the
+# test of the board must fail, on the stand-in and on Eclipse Mosquitto
+# (scripts/ci/mosquitto-tests.sh).
+ENTRY=T-417
+GROUP=wormhole
+EXPECT='test a_board_puts_takes_and_clears_a_note \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --test board -- a_board_puts_takes_and_clears_a_note --exact'

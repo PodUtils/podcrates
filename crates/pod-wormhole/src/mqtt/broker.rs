@@ -189,7 +189,7 @@ impl Broker {
                 () = tokio::time::sleep_until(next) => None,
             };
             match read.transpose()? {
-                Some(Packet::Publish { topic, payload }) => {
+                Some(Packet::Publish { topic, payload, .. }) => {
                     if let Some(message) = self.take(&topic, &payload).await? {
                         return Ok(Some(message));
                     }
@@ -249,7 +249,7 @@ impl Broker {
     }
 
     async fn publish(&mut self, payload: Vec<u8>) -> Result<(), Failed> {
-        self.write(&Packet::Publish { topic: self.outbox.clone(), payload }).await
+        self.write(&Packet::Publish { topic: self.outbox.clone(), payload, retain: false }).await
     }
 
     /// A `PINGREQ`; one that got no `PINGRESP` since the last ends the
@@ -276,7 +276,7 @@ impl Broker {
     async fn answer_now(&mut self) -> Result<Packet, Failed> {
         loop {
             match self.read_packet().await? {
-                Packet::Publish { topic, payload } => {
+                Packet::Publish { topic, payload, .. } => {
                     let Some(message) = self.take(&topic, &payload).await? else { continue };
                     if self.kept.len() >= KEPT_MOST {
                         let why = format!("the broker {} sent more than {KEPT_MOST} messages at once", self.shown);

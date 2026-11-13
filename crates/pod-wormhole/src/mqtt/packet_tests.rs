@@ -50,7 +50,13 @@ fn each_packet_has_the_bytes_of_the_standard() {
     assert!(with_login.ends_with(b"\x00\x06public\x00\x06public"));
     let mut publish = vec![0x30, 0x05, 0x00, 0x01, b't'];
     publish.extend_from_slice(b"hi");
-    assert_eq!(encode(&Packet::Publish { topic: "t".into(), payload: b"hi".to_vec() }).unwrap(), publish);
+    assert_eq!(
+        encode(&Packet::Publish { topic: "t".into(), payload: b"hi".to_vec(), retain: false }).unwrap(),
+        publish
+    );
+    // The retain flag is bit 0 of the first byte (section 3.3.1.3).
+    let retained = encode(&Packet::Publish { topic: "t".into(), payload: Vec::new(), retain: true }).unwrap();
+    assert_eq!(retained, [0x31, 0x03, 0x00, 0x01, b't']);
     let subscribe = [0x82, 0x06, 0x00, 0x01, 0x00, 0x01, b't', 0x00];
     assert_eq!(encode(&Packet::Subscribe { id: 1, filters: vec![("t".into(), 0)] }).unwrap(), subscribe);
     assert_eq!(encode(&Packet::ConnAck { present: false, code: 0 }).unwrap(), [0x20, 0x02, 0x00, 0x00]);
@@ -67,8 +73,10 @@ fn each_packet_goes_both_ways() {
         connect(Some(("public", b"public"))),
         Packet::ConnAck { present: false, code: 0 },
         Packet::ConnAck { present: true, code: 5 },
-        Packet::Publish { topic: "pwabc0g".into(), payload: Vec::new() },
-        Packet::Publish { topic: "pwabc0t".into(), payload: vec![7; 300] },
+        Packet::Publish { topic: "pwabc0g".into(), payload: Vec::new(), retain: false },
+        Packet::Publish { topic: "pwabc0t".into(), payload: vec![7; 300], retain: false },
+        Packet::Publish { topic: "pwboard".into(), payload: b"note".to_vec(), retain: true },
+        Packet::Publish { topic: "pwboard".into(), payload: Vec::new(), retain: true },
         Packet::Subscribe { id: 1, filters: vec![("pwabc0g".into(), 0), ("a/+/#".into(), 2)] },
         Packet::SubAck { id: 9, codes: vec![0, 1, 2, REFUSED] },
         Packet::PingReq,
@@ -100,11 +108,13 @@ fn a_publish_at_qos_1_gives_its_topic_and_payload() {
     // QoS 1: the flags 0b0010, a packet identifier after the topic.
     let bytes = [0x32, 0x07, 0x00, 0x01, b't', 0x00, 0x2a, b'h', b'i'];
     let (packet, used) = one(&bytes).unwrap().unwrap();
-    assert_eq!((packet, used), (Packet::Publish { topic: "t".into(), payload: b"hi".to_vec() }, 9));
-    // QoS 0 with the retain and the duplicate flags: no identifier, and the
-    // flags change nothing.
+    let hi = Packet::Publish { topic: "t".into(), payload: b"hi".to_vec(), retain: false };
+    assert_eq!((packet, used), (hi, 9));
+    // QoS 0 with the retain and the duplicate flags: no identifier; the
+    // retain flag is read, and the duplicate flag changes nothing.
     let bytes = [0x39, 0x05, 0x00, 0x01, b't', 0x00, 0x2a];
-    assert_eq!(one(&bytes).unwrap().unwrap().0, Packet::Publish { topic: "t".into(), payload: vec![0x00, 0x2a] });
+    let kept = Packet::Publish { topic: "t".into(), payload: vec![0x00, 0x2a], retain: true };
+    assert_eq!(one(&bytes).unwrap().unwrap().0, kept);
 }
 
 #[test]
@@ -166,5 +176,7 @@ fn no_debug_shows_the_password() {
 #[test]
 fn a_string_over_65535_bytes_is_not_written() {
     let topic = "t".repeat(65_536);
-    assert!(encode(&Packet::Publish { topic, payload: Vec::new() }).unwrap_err().0.contains("over 65535"));
+    assert!(
+        encode(&Packet::Publish { topic, payload: Vec::new(), retain: false }).unwrap_err().0.contains("over 65535")
+    );
 }

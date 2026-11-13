@@ -5991,7 +5991,7 @@ cargo check --manifest-path fuzz/Cargo.toml --bins
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6028,6 +6028,46 @@ date; a test that each `file-host` service has each fact of its kind.
 cargo test -p pod-services --all-features
 cargo test -p pod-services-watch --all-features
 ```
+
+## Done
+
+2026-11-13, commit 87085a0. The kind `file-host` with four services in
+podssh's order: `tmpfiles-org` (rank 1), `litterbox` (rank 2), `temp-sh`
+(rank 3) and `null-pointer-0x0` (0x0.st; no rank, C220; the id starts with
+a letter, C221). Each has the endpoint `upload` (https, 443, a path) and
+the facts `file-field`, `fields`, `life-seconds`, `answer` (with
+`answer-pointer` for JSON), `serves`, `fetch-segment`, `fetch-method`,
+`delete` (with `delete-token-header`, `delete-token-field` and
+`delete-fields` for `token-form`), `upload-bytes-most`, `uploads-per-hour`
+(tmpfiles.org alone), `one-person`, `automated-uploads-refused`,
+`user-agent-names-program` (0x0.st) and `note` (C218).
+`pod_services_watch::schema::kind_facts` holds the table of the kind;
+`service_faults` checks a service against it in the data test and before
+the network of a run. The watches: `http-text` of the pages of the facts,
+`http-status` of the upload forms (temp.sh 405, Litterbox 412), and
+`tls-name` alone for 0x0.st, which answers 500 to automated reads (C219).
+No upload was made.
+
+The readings (C219): read here on 2026-11-13, the pages of temp.sh and
+Litterbox through the proxy, the pages of tmpfiles.org and catbox.moe's
+terms through fetch.web.pkgforge.dev (the proxy resets tmpfiles.org and
+0x0.st), and 0x0.st from the Wayback Machine's capture of 2026-03-11.
+From podssh's reading of 2026-11-12 (the source names
+PodUtils/podssh#220): `fetch-segment` and `fetch-method` of tmpfiles.org;
+`answer`, `serves` and `fetch-method` of Litterbox and of temp.sh (a POST);
+`answer` and `fetch-method` of 0x0.st. A run of the watches through the
+proxy: 8 of Litterbox and temp.sh hold; tmpfiles.org and 0x0.st give a
+reset of the proxy. T-418 gives podssh the terms; T-419 reads the facts of
+podssh's reading again from its first live run.
+
+`cargo test -p pod-services --all-features`: 97 passed (`tests/file_host.rs`
+4). `cargo test -p pod-services-watch --all-features`: 61 passed (the data
+tests `each_service_has_the_facts_of_its_kind` and
+`a_file_host_with_faults_is_found_before_the_network`). The plant
+`services-file-host-fact-missing` (no fact `one-person` of temp.sh) fails
+`each_file_host_has_each_fact_of_its_kind`, checked by hand. Fixed in
+place: the counts of `docs/live-calls.md` (176 watches of 81 files) and of
+`tests/api.rs` (20) in the README of `pod-services`.
 
 # T-439: `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116)
 
@@ -6192,3 +6232,85 @@ child; the tests of `spawn` and `exited` do not change.
 ## Start condition
 
 The owner answers Q15.
+
+# T-418: Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220)
+
+**Source:** T-416 (the reading of the terms of the four file hosts).
+**Category:** docs
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The terms of 0x0.st refuse backups, CI build artifacts and other automated
+mass uploads; its operator asks client software for the consent of its
+user and for a User-Agent that names the program, and the host answers 500
+to automated reads. The terms of tmpfiles.org refuse commercial automation
+without permission; the terms of Catbox refuse commercial use without
+approval. podssh asked for the four hosts and does not know these terms.
+
+## Premise
+
+- Read: the pages of the four hosts on 2026-11-13 (T-416, C219, C220);
+  the files `crates/pod-services/services/*.toml` of the kind `file-host`
+  (the facts `automated-uploads-refused`, `user-agent-names-program` and
+  `note`).
+- Not measured: whether 0x0.st answers a runner of GitHub.
+
+## Approach
+
+A comment on PodUtils/podcrates#105 (the answer to PodUtils/podssh#220)
+by the parent session: the ids of the four services, the rank of each,
+the facts `automated-uploads-refused` and `user-agent-names-program`, the
+`note` of each host, and that `null-pointer-0x0` has no rank (C220). The
+choice to take 0x0.st stays podssh's.
+
+## Prove
+
+```sh
+cargo test -p pod-services --test file_host
+```
+
+# T-419: `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run
+
+**Source:** T-416 (the facts that come from podssh's reading).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Some facts of the kind `file-host` are podssh's reading of 2026-11-12, not
+a page that podcrates read or a measurement: `fetch-segment` (`dl`) and
+`fetch-method` of tmpfiles.org; `answer`, `serves` and `fetch-method` of
+Litterbox and of temp.sh (a download by POST); `answer` and
+`fetch-method` of 0x0.st. podcrates makes no upload, so its watches do not
+prove them.
+
+## Premise
+
+- Read: the source of each of these facts names PodUtils/podssh#220 with
+  the date 2026-11-12 (C219).
+- Not measured: an upload and a fetch at each host.
+
+## Approach
+
+When podssh's first live run of PodUtils/podssh@T-738 reports an upload and a fetch at
+a host, change the source of each of these facts of that host to the
+measurement (`measured`, with the run and its date), or change the value
+that the run disproves.
+
+## Prove
+
+```sh
+cargo test -p pod-services --test file_host
+```
+
+## Start condition
+
+podssh reports a live run of PodUtils/podssh@T-738 with an upload and a
+fetch at a file host.

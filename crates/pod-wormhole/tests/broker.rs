@@ -244,7 +244,7 @@ async fn publishing(first: Vec<u8>, flood: Option<Vec<u8>>) -> WsUrl {
 
 /// A `PUBLISH` to the giver of `pwtest`.
 fn to_pwtest(payload: &[u8]) -> Vec<u8> {
-    packet::encode(&Packet::Publish { topic: "pwtestg".into(), payload: payload.to_vec() }).unwrap()
+    packet::encode(&Packet::Publish { topic: "pwtestg".into(), payload: payload.to_vec(), retain: false }).unwrap()
 }
 
 /// A giver at `url`, subscribed to `pwtest`.

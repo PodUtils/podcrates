@@ -1,0 +1,144 @@
+# tmpfiles.org: a public host of temporary files with no account. An
+# upload is a multipart POST of one file to the endpoint upload; the
+# answer is JSON with the URL of the file page, and the file itself is
+# under /dl/ after the host. The first of the four file hosts of
+# PodUtils/podssh@T-738 (PodUtils/podssh#220): one sealed piece of the
+# resumable layer for each upload. The documents api and terms are the
+# pages that the watches read. The proxy of a cloud session of podcrates
+# resets tmpfiles.org: the pages were read through
+# fetch.web.pkgforge.dev on 2026-11-13; fetch-segment and fetch-method
+# are podssh's reading of 2026-11-12.
+id = "tmpfiles-org"
+kind = "file-host"
+party = "TmpFiles.org (its operator is not named)"
+about = "A public host of temporary files: a multipart POST of one file, a JSON answer, a life of 60 s to 48 h"
+
+[rank]
+value = 1
+source = { ruling = "podssh's order of the file hosts (PodUtils/podssh#220, PodUtils/podssh@T-738)", read = 2026-11-12 }
+
+[[endpoint]]
+name = "upload"
+scheme = "https"
+host = "tmpfiles.org"
+port = 443
+path = "/api/v1/upload"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "Endpoint: POST https://tmpfiles.org/api/v1/upload" }
+
+[[endpoint]]
+name = "api"
+role = "document"
+scheme = "https"
+host = "tmpfiles.org"
+port = 443
+path = "/api"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13 }
+
+[[endpoint]]
+name = "terms"
+role = "document"
+scheme = "https"
+host = "tmpfiles.org"
+port = 443
+path = "/tos"
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "the terms of service, effective December 1, 2025" }
+
+[[fact]]
+name = "file-field"
+value = "file"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the parameter file: File to upload, max 100 MB" }
+
+# The shortest life: expire is in seconds, 60 to 172800, 3600 if none. The
+# terms say 1 to 48 hours; the API takes 60 s.
+[[fact]]
+name = "fields"
+value = ["expire=60"]
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the parameter expire: Seconds until deletion (60-172800), default 3600" }
+
+[[fact]]
+name = "life-seconds"
+value = 60
+unit = "s"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the life that the field expire=60 gives" }
+
+[[fact]]
+name = "answer"
+value = "json"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "Response: {\"status\": \"success\", \"data\": {\"url\": \"https://tmpfiles.org/{id}/{name}\"}}" }
+
+[[fact]]
+name = "answer-pointer"
+value = "/data/url"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the member url of the member data, as a JSON pointer (RFC 6901)" }
+
+[[fact]]
+name = "serves"
+value = ["tmpfiles.org"]
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the URL of the answer is https://tmpfiles.org/{id}/{name}" }
+
+[[fact]]
+name = "fetch-segment"
+value = "dl"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the file is under /dl/ after the host (https://tmpfiles.org/dl/{id}/{name}); not read here" }
+
+[[fact]]
+name = "fetch-method"
+value = "GET"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; not read here" }
+
+[[fact]]
+name = "delete"
+value = "none"
+source = { url = "https://tmpfiles.org/api", read = 2026-11-13, note = "the API names one endpoint, the upload; the terms: files are removed after the selected expiration period" }
+
+[[fact]]
+name = "upload-bytes-most"
+value = 104857600
+unit = "bytes"
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "Maximum file size of 100 MiB per upload; the upload page holds MAX_BYTES = 104857600" }
+
+[[fact]]
+name = "uploads-per-hour"
+value = 200
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "Up to 200 uploads per hour for each user" }
+
+[[fact]]
+name = "one-person"
+value = false
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "the terms say we and name no operator; the page about gives a contact address alone" }
+
+[[fact]]
+name = "automated-uploads-refused"
+value = false
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13, note = "the terms refuse commercial automation without permission, and an attempt to go around the limits" }
+
+[[fact]]
+name = "note"
+value = "The terms (effective 2025-12-01) refuse commercial automation without permission and an attempt to go around the usage limits; files may be kept 48 hours at most."
+source = { url = "https://tmpfiles.org/tos", read = 2026-11-13 }
+
+[[watch]]
+kind = "http-text"
+endpoint = "api"
+contains = "POST https://tmpfiles.org/api/v1/upload"
+
+[[watch]]
+kind = "http-text"
+endpoint = "api"
+contains = "Seconds until deletion (60–172800)"
+
+[[watch]]
+kind = "http-text"
+endpoint = "api"
+contains = "\"url\": \"https://tmpfiles.org/{id}/{name}\""
+
+[[watch]]
+kind = "http-text"
+endpoint = "terms"
+contains = "Up to 200 uploads per hour for each user"
+
+[[watch]]
+kind = "http-text"
+endpoint = "terms"
+# The page puts a narrow no-break space (U+202F) between 100 and MiB.
+contains = "Maximum file size of 100 MiB per upload"

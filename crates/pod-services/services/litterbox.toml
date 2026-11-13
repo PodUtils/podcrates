@@ -1,0 +1,125 @@
+# Litterbox: the temporary uploads of Catbox, with no account. An upload
+# is a multipart POST of the fields reqtype and time and one file to the
+# endpoint upload; the answer is the URL of the file as text, served from
+# litter.catbox.moe. The second of the four file hosts of
+# PodUtils/podssh@T-738 (PodUtils/podssh#220). The documents api and front
+# are the pages that the watches read. serves, answer and fetch-method are
+# podssh's reading of 2026-11-12; the rest was read on 2026-11-13.
+id = "litterbox"
+kind = "file-host"
+party = "Catbox LLC"
+about = "Litterbox, the temporary uploads of Catbox: a multipart POST of one file, the URL as text, a life of 1 h to 72 h"
+
+[rank]
+value = 2
+source = { ruling = "podssh's order of the file hosts (PodUtils/podssh#220, PodUtils/podssh@T-738)", read = 2026-11-12 }
+
+[[endpoint]]
+name = "upload"
+scheme = "https"
+host = "litterbox.catbox.moe"
+port = 443
+path = "/resources/internals/api.php"
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "The API is located at https://litterbox.catbox.moe/resources/internals/api.php; a GET answers 412 No request type given." }
+
+[[endpoint]]
+name = "api"
+role = "document"
+scheme = "https"
+host = "litterbox.catbox.moe"
+port = 443
+path = "/tools.php"
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13 }
+
+[[endpoint]]
+name = "front"
+role = "document"
+scheme = "https"
+host = "litterbox.catbox.moe"
+port = 443
+path = "/"
+source = { url = "https://litterbox.catbox.moe/", read = 2026-11-13 }
+
+[[fact]]
+name = "file-field"
+value = "fileToUpload"
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "reqtype=\"fileupload\" time=\"1h/12h/24h/72h\" fileToUpload=(file data here)" }
+
+# The shortest life: time is 1h, 12h, 24h or 72h.
+[[fact]]
+name = "fields"
+value = ["reqtype=fileupload", "time=1h"]
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "Allowed values for \"time\" are 1h, 12h, 24h, and 72h." }
+
+[[fact]]
+name = "life-seconds"
+value = 3600
+unit = "s"
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "the life that the field time=1h gives" }
+
+[[fact]]
+name = "answer"
+value = "text"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the answer is the URL as text; not read here" }
+
+[[fact]]
+name = "serves"
+value = ["litter.catbox.moe"]
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; https://litter.catbox.moe/ answered 403 to a GET of its root on 2026-11-13" }
+
+[[fact]]
+name = "fetch-segment"
+value = ""
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: a GET of the URL of the answer gives the file" }
+
+[[fact]]
+name = "fetch-method"
+value = "GET"
+source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; not read here" }
+
+[[fact]]
+name = "delete"
+value = "none"
+source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "There is only 1 request type for Litterbox - fileupload." }
+
+# 1 GB: the lower of 10^9 and 2^30 bytes.
+[[fact]]
+name = "upload-bytes-most"
+value = 1000000000
+unit = "bytes"
+source = { url = "https://litterbox.catbox.moe/", read = 2026-11-13, note = "Temporary uploads up to 1 GB are allowed." }
+
+[[fact]]
+name = "one-person"
+value = false
+source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "Thank you for choosing Catbox (officially as Catbox LLC)" }
+
+[[fact]]
+name = "automated-uploads-refused"
+value = false
+source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "the terms refuse commercial use without prior approval and damaging items (bots among them), not uploads by a program" }
+
+[[fact]]
+name = "note"
+value = "The terms of Catbox refuse commercial use without prior approval; the FAQ refuses .exe, .scr, .cpl, .doc* and .jar files, and Catbox keeps the IP address with each upload."
+source = { url = "https://litterbox.catbox.moe/faq.php", read = 2026-11-13 }
+
+[[watch]]
+kind = "http-text"
+endpoint = "api"
+contains = "The API is located at https://litterbox.catbox.moe/resources/internals/api.php"
+
+[[watch]]
+kind = "http-text"
+endpoint = "api"
+contains = "Allowed values for \"time\" are 1h, 12h, 24h, and 72h."
+
+[[watch]]
+kind = "http-text"
+endpoint = "front"
+contains = "Temporary uploads up to 1 GB are allowed."
+
+[[watch]]
+kind = "http-status"
+endpoint = "upload"
+status = 412

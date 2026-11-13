@@ -1,0 +1,11 @@
+--- a/crates/pod-wormhole/src/mqtt/board.rs
++++ b/crates/pod-wormhole/src/mqtt/board.rs
+@@ -82,7 +82,7 @@
+     /// keeps no note there.
+     pub async fn clear(&self, topic: &str) -> Result<(), Failed> {
+         check_topic(topic)?;
+-        self.publish(topic, Vec::new()).await
++        self.publish(topic, vec![0]).await
+     }
+ 
+     async fn publish(&self, topic: &str, payload: Vec<u8>) -> Result<(), Failed> {
