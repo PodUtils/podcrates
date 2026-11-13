@@ -18,8 +18,8 @@ is done. Git and the record keep finished work.
 ## In flight
 
 - The last release: `v0.37.0` at `3c5a086` (the hand-off #134, open).
-  The COORD issue of the freeze of `pod-warp` is #135: podnet and podssh
-  apply the trial patches (both name `v0.37.0`) and answer there. `main`
+  The COORD issue of the freeze of `pod-warp` is #135: podnet took the
+  crate at `f6abdc3`; podssh applies its trial patch and answers there. `main`
   holds T-475, T-305, T-301 and T-503 for the next tag.
 - The nightly at `613058c` is red (run 43195242737): macOS and riscv64
   are T-325 (done); the two Windows jobs did not compile
@@ -48,14 +48,14 @@ is done. Git and the record keep finished work.
   commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.36.0`, `775486f`, PodUtils/podnet#520): its link
+- podnet (on `v0.37.0`, `f6abdc3`, PodUtils/podnet#522; `pod-warp` taken): its link
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
 - podssh (on `v0.36.0`, `99b9642`, PodUtils/podssh#226): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.36.0`, `f4064f7`, PodUtils/podrunner#76): its session
+- podrunner (on `v0.37.0`, `5fc53c4`, PodUtils/podrunner#79): its session
   runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
   -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
   Write to it by an issue with `(to podrunner)` in the title.

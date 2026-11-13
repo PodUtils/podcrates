@@ -16,7 +16,7 @@
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
     (T-413; its glue needs T-480, in the tag after `v0.36.0`).
-  - podnet: `v0.36.0` (`775486f`, PodUtils/podnet#520; its
+  - podnet: `v0.37.0` (`f6abdc3`, PodUtils/podnet#522; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
@@ -24,7 +24,7 @@
   - podvm: `v0.36.0` (`b52b0bbc`, PodUtils/podvm#295; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
-  - podrunner: `v0.36.0` (`f4064f7`, PodUtils/podrunner#76; its live gates start on a test organization, its DR-7): its local
+  - podrunner: `v0.37.0` (`5fc53c4`, PodUtils/podrunner#79; its live gates start on a test organization, its DR-7): its local
     mode takes `pod-actions-expr` and `pod-actions-workflow`
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
