@@ -5,7 +5,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_link::{Error, Link, ResetCode, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
@@ -38,7 +38,7 @@ async fn three_hundred_echoes(dialer: Link, listener: Link) {
         }));
     }
     for t in tasks {
-        timeout(LIMIT, t).await.expect("each echo in time").unwrap();
+        timeout(limit(), t).await.expect("each echo in time").unwrap();
     }
     assert!(dialer.ended().is_none());
 }
@@ -61,14 +61,14 @@ async fn half_close(dialer: Link, listener: Link) {
     let mut a = dialer.open().unwrap();
     a.write_all(b"question").await.unwrap();
     a.shutdown().await.unwrap();
-    let mut b = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let mut b = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     let mut got = Vec::new();
     b.read_to_end(&mut got).await.unwrap();
     assert_eq!(got, b"question");
     b.write_all(b"answer after the end of the question").await.unwrap();
     b.shutdown().await.unwrap();
     let mut back = Vec::new();
-    timeout(LIMIT, a.read_to_end(&mut back)).await.unwrap().unwrap();
+    timeout(limit(), a.read_to_end(&mut back)).await.unwrap().unwrap();
     assert_eq!(back, b"answer after the end of the question");
     let e = a.write_all(b"more").await.unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe);
@@ -82,11 +82,11 @@ async fn reset(dialer: Link, listener: Link) {
     let listener = std::sync::Arc::new(listener);
     let mut a = dialer.open().unwrap();
     a.write_all(b"x").await.unwrap();
-    let mut b = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let mut b = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     let mut one = [0; 1];
     b.read_exact(&mut one).await.unwrap();
     b.reset(ResetCode(77));
-    let e = timeout(LIMIT, a.read(&mut one)).await.unwrap().unwrap_err();
+    let e = timeout(limit(), a.read(&mut one)).await.unwrap().unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::ConnectionReset);
     let inner = e.into_inner().unwrap().downcast::<Error>().unwrap();
     assert_eq!(*inner, Error::Reset { id: 1, code: ResetCode(77), by_peer: true });
@@ -99,7 +99,7 @@ async fn reset(dialer: Link, listener: Link) {
     c.write_all(b"still here").await.unwrap();
     c.shutdown().await.unwrap();
     let mut back = Vec::new();
-    timeout(LIMIT, c.read_to_end(&mut back)).await.unwrap().unwrap();
+    timeout(limit(), c.read_to_end(&mut back)).await.unwrap().unwrap();
     assert_eq!(back, b"still here");
 }
 
@@ -124,13 +124,13 @@ async fn drop_closes(dialer: Link, listener: Link) {
     let mut a = dialer.open().unwrap();
     a.write_all(b"last words").await.unwrap();
     drop(a);
-    let mut b = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let mut b = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     let mut got = Vec::new();
-    timeout(LIMIT, b.read_to_end(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), b.read_to_end(&mut got)).await.unwrap().unwrap();
     assert_eq!(got, b"last words");
     assert_eq!(dialer.streams(), 0);
     drop(b);
-    timeout(LIMIT, async {
+    timeout(limit(), async {
         while listener.streams() > 0 {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
@@ -151,16 +151,16 @@ async fn close(dialer: Link, listener: Link) {
         a.write_all(&pattern(1, 100_000)).await.unwrap();
         a
     });
-    let mut b = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let mut b = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     let reader = tokio::spawn(async move {
         let mut got = vec![0; 100_000];
         b.read_exact(&mut got).await.map(|_| got)
     });
-    let a = timeout(LIMIT, writer).await.unwrap().unwrap();
-    timeout(LIMIT, dialer.close()).await.unwrap();
+    let a = timeout(limit(), writer).await.unwrap().unwrap();
+    timeout(limit(), dialer.close()).await.unwrap();
     assert_eq!(dialer.ended(), Some(Error::Closed { by_peer: false }));
-    assert_eq!(timeout(LIMIT, listener.closed()).await.unwrap(), Error::Closed { by_peer: true });
-    assert_eq!(timeout(LIMIT, reader).await.unwrap().unwrap().unwrap(), pattern(1, 100_000));
+    assert_eq!(timeout(limit(), listener.closed()).await.unwrap(), Error::Closed { by_peer: true });
+    assert_eq!(timeout(limit(), reader).await.unwrap().unwrap().unwrap(), pattern(1, 100_000));
     assert!(matches!(dialer.open(), Err(Error::Closed { .. })));
     assert!(matches!(listener.accept().await, Err(Error::Closed { by_peer: true })));
     drop(a);

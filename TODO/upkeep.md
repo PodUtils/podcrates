@@ -1220,7 +1220,6 @@ steps of 100 ns, so the carry case did not happen. The test makes that
 stamp from its bytes now. The nightly at `d8c8ae6` (run 43417105533)
 passes both Windows jobs.
 
-
 # T-532: The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled
 
 **Source:** `nightly.yml` run 43417105533 at `d8c8ae6` (job 131857666801, the cross test of riscv64 under qemu-user).
@@ -1292,7 +1291,7 @@ and a planted `libc::SOCK_CLOEXEC` in a Unix path of `pod-link` fails it.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1323,6 +1322,10 @@ cargo test -p pod-link --all-features
 
 The next nightly proves riscv64 and armv7.
 
+## Done
+
+2026-11-13. `limit()` gives `pod_testkit::host::scaled` of the bound in each test file of `pod-link` that has one (`tests/common/mod.rs` and the files with their own `LIMIT`). The listener of `a_query_of_a_stranger_changes_nothing` takes `scaled(500 ms)`, and the transfer bound of `tests/udp_loss.rs` takes `scaled(120 s)`. The gates of E2-1 run in a release build alone (ignored in a debug build), so the cross jobs do not run them. The next nightly proves riscv64 and armv7.
+
 # T-536: `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection
 
 **Source:** `ci.yml` run 43459943301 at `3d6bbf0` (job `test`, step "pod-oci against the distribution registry").
@@ -1330,7 +1333,7 @@ The next nightly proves riscv64 and armv7.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1355,6 +1358,10 @@ cargo test -p pod-oci --test distribution
 ```
 
 with the registry of `distribution` on the path, ten times with no failure.
+
+## Done
+
+2026-11-13. T-534 holds items 1 and 2 (`listens`: the line of the registry and a child that runs; a new port, at most three times). The Prove ran ten times with distribution 3.1.2: 10 passed. Item 3 is not needed: after `listens`, a refused connect means the registry ended, and the message of the registry is in `Registry::said`.
 
 # T-537: `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay
 
@@ -1439,3 +1446,35 @@ cargo todo check
 The owner answers Q16 (`TODO/PROGRESS.md`): does the word of 2026-11-11
 in PodUtils/podrunner (a comment on GitHub can end with the "Generated
 by" line of the harness) apply to podcrates too?
+
+# T-534: `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held
+
+**Source:** `ci.yml` run 43459943301 at `3d6bbf0` (job 132003860678, step "pod-oci against the distribution registry").
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`an_index_of_two_platforms_resolves_through_a_bearer_token` (`pod-oci/tests/distribution.rs`) failed: "the registry accepts: Connection refused". The start of the registry took a free port, and its wait ended at the first connect. A parallel test can take that port before the registry binds it. The registry then ends, the wait connects to the other server, and the push later finds no server.
+
+## Premise
+
+- Read: `tests/common/distribution/server.rs`: `free_port` binds port 0 and lets it go; `wait` connects in a loop.
+- Measured: distribution 3.1.2 writes "listening on 127.0.0.1:PORT" when it binds.
+
+## Approach
+
+The wait reads the log of the registry for "listening on 127.0.0.1:PORT" while the child runs. When the child ends first, the start takes a new port, at most three times.
+
+## Prove
+
+```sh
+sh scripts/ci/registry-tests.sh
+```
+
+## Done
+
+2026-11-13. `listens` in `tests/common/distribution/server.rs`; `start` takes a new port when the registry ends. `scripts/ci/registry-tests.sh` with the pinned registry: 5 passed.

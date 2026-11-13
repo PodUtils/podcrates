@@ -17,7 +17,7 @@ use std::time::Duration;
 use common::dgram::{OneName, UdpWay};
 use common::quic::{at, bound, carrier};
 use common::tcp::{id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::{Class, Target};
 use pod_identity::KeyName;
 use pod_link::quic::{self, Quic};
@@ -37,7 +37,7 @@ async fn a_link_over_quic_carries_streams() {
     assert_eq!(door.address(), door.local_addr().to_string());
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()), "the accept gives the key of the client");
     assert_eq!(way.sockets.load(Ordering::SeqCst), 1, "the dial goes over the datagrams of the way out");
@@ -61,7 +61,7 @@ async fn a_link_over_quic_carries_streams() {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
 }
@@ -77,7 +77,7 @@ async fn the_connect_gives_the_key_of_the_listener_and_a_name_resolves_through_t
     let target = Target::Name { host: "link.example".into(), port: door.local_addr().port() };
     let named = KeyName::parse(&server.public().display_fingerprint()).unwrap();
     let both = async { tokio::join!(dialing.connect(&target, &named), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     assert_eq!(near.expect("the connect").1, server.public());
     assert_eq!(far.expect("the accept").1, client.public());
     assert_eq!(names.asked.load(Ordering::SeqCst), 1, "the name goes to the resolver of the caller");
@@ -106,7 +106,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let address = at(&server.public(), &door);
     let other = carrier(4, &[]);
     let both = async { tokio::join!(other.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the refusal in time");
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("a client of another key dialed");
     assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
@@ -116,7 +116,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
 
     let good = carrier(2, &[]);
     let both = async { tokio::join!(good.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     near.expect("the pinned client after a refusal");
     assert_eq!(far.expect("the listener stays open").1, client.public());
 }
@@ -131,12 +131,12 @@ async fn both_ends_must_take_the_same_alpn() {
     let address = at(&server.public(), &door);
     let e = carrier(2, &[]).dial(&address).await.err().expect("a dial of another ALPN");
     assert_ne!(e.kind, CarrierErrorKind::Refused, "{e}");
-    let far = timeout(LIMIT, door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
+    let far = timeout(limit(), door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
     assert!(far.to_string().contains("QUIC handshake"), "{far}");
     let mut dialing = carrier(2, &[]);
     dialing.alpn = b"podnet/1";
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     near.expect("the dial of the same ALPN");
     assert_eq!(far.expect("the accept").1, client.public());
 }
@@ -168,7 +168,7 @@ async fn a_peer_that_stops_in_its_handshake_holds_no_other_one() {
     let address = at(&server.public(), &door);
     let mute = carrier(2, &[]).with_way(Arc::new(UdpWay { passes: Some(1), ..UdpWay::default() }));
     let _held = tokio::spawn(async move { mute.dial(&address).await.map(drop) });
-    let e = timeout(LIMIT, door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
+    let e = timeout(limit(), door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -180,7 +180,7 @@ async fn a_silent_listener_ends_the_dial_at_its_time_limit() {
     let mut dialing = carrier(2, &[]);
     dialing.handshake_timeout = Duration::from_millis(300);
     let address = format!("{}@{}", id(1).public().hex(), silent.local_addr().unwrap());
-    let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -192,7 +192,7 @@ async fn the_bytes_before_a_drop_reach_the_peer() {
     let mut door = bound(&carrier(1, &[client.public()])).await;
     let (dialing, address) = (carrier(2, &[]), at(&server.public(), &door));
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     let (mut near, (mut far, _)) = (near.unwrap(), far.unwrap());
     let data = pattern(7, 4 << 20);
     // The dialer writes, ends its side and drops its stream at once; the
@@ -204,8 +204,8 @@ async fn the_bytes_before_a_drop_reach_the_peer() {
     });
     tokio::time::sleep(Duration::from_millis(100)).await;
     let mut got = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut got)).await.expect("the bytes and the end in time").unwrap();
-    timeout(LIMIT, writer).await.unwrap().unwrap();
+    timeout(limit(), far.read_to_end(&mut got)).await.expect("the bytes and the end in time").unwrap();
+    timeout(limit(), writer).await.unwrap().unwrap();
     assert!(got == data, "each byte before the drop came, then the end: {} of {}", got.len(), data.len());
 }
 
@@ -217,12 +217,12 @@ async fn a_listener_runs_over_the_datagrams_of_the_caller() {
     let mut door = carrier(1, &[client.public()]).bind_over(Arc::new(socket)).await.unwrap();
     let (dialing, address) = (carrier(2, &[]), at(&server.public(), &door));
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     let (mut near, (mut far, key)) = (near.unwrap(), far.unwrap());
     assert_eq!(key, client.public());
     near.write_all(b"over the caller's datagrams").await.unwrap();
     let mut got = [0u8; 27];
-    timeout(LIMIT, far.read_exact(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), far.read_exact(&mut got)).await.unwrap().unwrap();
     assert_eq!(&got, b"over the caller's datagrams");
 }
 

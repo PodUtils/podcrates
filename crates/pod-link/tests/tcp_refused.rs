@@ -9,7 +9,7 @@ mod common;
 
 use std::sync::Arc;
 
-use common::LIMIT;
+use common::limit;
 use common::tcp::{Direct, at, bound, carrier, id, ring, rustls_error};
 use pod_link::tcp::{ALPN, Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind};
@@ -161,5 +161,5 @@ async fn a_listener_of_tls_1_2_is_refused_by_the_dialer() {
     let e = dialing.dial(&format!("{}@{local}", server.public().hex())).await.err().expect("a dial took TLS 1.2");
     let cause = rustls_error(&e);
     assert_eq!(cause, Some(rustls::Error::AlertReceived(rustls::AlertDescription::ProtocolVersion)), "{e}");
-    assert!(timeout(LIMIT, serve).await.unwrap().unwrap().is_err(), "the server of TLS 1.2 shook hands");
+    assert!(timeout(limit(), serve).await.unwrap().unwrap().is_err(), "the server of TLS 1.2 shook hands");
 }

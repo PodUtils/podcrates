@@ -5,7 +5,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{LIMIT, RawPeer, echo};
+use common::{RawPeer, echo, limit};
 use pod_link::{Error, Frame, Link, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{Instant, timeout};
@@ -60,7 +60,7 @@ async fn a_quiet_link_lives() {
     s.write_all(b"after an hour").await.unwrap();
     s.shutdown().await.unwrap();
     let mut back = Vec::new();
-    timeout(LIMIT, s.read_to_end(&mut back)).await.unwrap().unwrap();
+    timeout(limit(), s.read_to_end(&mut back)).await.unwrap().unwrap();
     assert_eq!(back, b"after an hour");
 }
 

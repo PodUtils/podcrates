@@ -11,7 +11,7 @@ mod common;
 use std::net::Ipv4Addr;
 
 use common::tcp::{id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_identity::{Identity, KeyName};
 use pod_link::icmp::Icmp;
 use pod_link::tcp::Keys;
@@ -37,7 +37,7 @@ async fn a_link_over_a_raw_socket_carries_a_stream_or_skips() {
     let dialing = carrier(2, &[]);
     let address = format!("{}@127.0.0.1", server.public().hex());
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()));
     let dialer = Link::new(near, Role::Dialer, Settings::default()).unwrap();

@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use common::tcp::id;
 use common::udp::carrier;
-use common::{LIMIT, pattern};
+use common::{limit, pattern};
 use pod_core::Target;
 use pod_identity::KeyName;
 use pod_link::BoxIo;
@@ -53,7 +53,7 @@ async fn ends(faults: Faults, kcp: KcpSettings) -> (BoxIo, BoxIo, Shim, Shim) {
     let both = async {
         tokio::join!(dialing.connect_over(a.clone(), &target, &key), listening.accept_over(b.clone(), &"the peer"))
     };
-    let (near, far) = timeout(LIMIT, both).await.expect("the handshake in time");
+    let (near, far) = timeout(limit(), both).await.expect("the handshake in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(near.1, server.public());
     assert_eq!(far.1, client.public());
@@ -62,7 +62,7 @@ async fn ends(faults: Faults, kcp: KcpSettings) -> (BoxIo, BoxIo, Shim, Shim) {
 
 /// `size` bytes each way at once; the time that it took.
 async fn cross(near: BoxIo, far: BoxIo, size: usize) -> Duration {
-    cross_within(near, far, size, Duration::from_secs(120)).await
+    cross_within(near, far, size, pod_testkit::host::scaled(Duration::from_secs(120))).await
 }
 
 /// `size` bytes each way at once, in at most `limit`; the time that it took.
@@ -166,7 +166,7 @@ async fn a_peer_that_goes_silent_ends_the_stream_at_the_idle_limit() {
     b.set_faults(Faults::SILENT);
     let began = Instant::now();
     let mut buf = [0u8; 16];
-    let e = timeout(LIMIT, near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
+    let e = timeout(limit(), near.read(&mut buf)).await.expect("the end in time").expect_err("a silent peer");
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut, "{e}");
     assert!(began.elapsed() >= Duration::from_millis(900), "not before the idle limit: {:?}", began.elapsed());
 }
@@ -195,7 +195,7 @@ impl Datagrams for Panics {
 async fn a_panic_of_the_task_ends_the_stream_with_an_error() {
     let mut stream = KcpStream::new(Panics, Some(7), KcpSettings::default()).unwrap();
     let mut buf = [0u8; 16];
-    let e = timeout(LIMIT, stream.read(&mut buf)).await.expect("the end in time").expect_err("a broken KCP");
+    let e = timeout(limit(), stream.read(&mut buf)).await.expect("the end in time").expect_err("a broken KCP");
     assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}");
 }
 
@@ -224,7 +224,7 @@ async fn a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole()
     let data = pattern(3, 2000);
     b.send(&segment(81, 0, 0, &data)).await.unwrap();
     let mut got = vec![0u8; data.len()];
-    timeout(LIMIT, stream.read_exact(&mut got))
+    timeout(limit(), stream.read_exact(&mut got))
         .await
         .expect("the segment in time")
         .expect("the segment, with no stall");

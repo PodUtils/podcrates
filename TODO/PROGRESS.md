@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 421 entries: 115 open, 9 partial, 5 blocked, 292 done.
+`TODO/INDEX.md` holds 422 entries: 113 open, 9 partial, 5 blocked, 295 done.
 
 ## State
 
@@ -39,10 +39,7 @@
   T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351
   (`services.yml`), T-378 (`pod-devtunnel`), T-526 (the fix of `kcp`
   upstream), T-529 (the live round trip of the file hosts).
-  Open defects: T-535 (the nightly at `72632b2`: the bounds of `pod-link`
-  under riscv64 and armv7), T-536 (a random failure of the test of
-  `pod-oci` against the distribution registry, `ci.yml` at `3d6bbf0`),
-  T-537 (`services.yml` at `4c2d17c`: a tox node with no TCP), T-131
+  Open defects: T-537 (`services.yml` at `4c2d17c`: a tox node with no TCP), T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of `pod-session`).
 - Each session talks with podcrates by COORD issues alone, no direct
   message (the ruling "Tonight"). podrunner's session runs with podvm. M8
@@ -75,7 +72,7 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: the red runs, T-535 and T-536, then T-537 (item 9). Then, after the
+First: the red run T-537 (item 9). Then, after the
 tag `v0.40.0`, the link carriers of M2 for podnet (item 3c): T-529,
 T-526, T-494, T-500 and T-525. Then T-533 (a local check of the build for
 macOS; a P2 chore of the checks). Then the items below, in order.
@@ -156,9 +153,8 @@ macOS; a P2 chore of the checks). Then the items below, in order.
 8. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-9. **M5, the upkeep:** the red runs first: T-535 (the bounds of
-   `pod-link` under an emulator), T-536 (the test of `pod-oci` against the
-   distribution registry), T-537 (a tox node of `services.yml`). T-312 (a
+9. **M5, the upkeep:** the red run first: T-537 (a tox node of
+   `services.yml`). T-312 (a
    code fence that is not closed in the record). A "port" entry for each
    change that scripts/check-sources.py finds; T-199 after a release of snow on
    `chacha20poly1305` 0.11. The live calls of CI (`docs/live-calls.md`,

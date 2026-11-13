@@ -21,6 +21,12 @@ use tokio::time::{Instant, timeout};
 /// fails the test, and does not hang it.
 const LIMIT: Duration = Duration::from_secs(600);
 
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-535).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(LIMIT)
+}
+
 /// The faults of the gate: 3 % of the datagrams lost, 1 % reordered, 1 %
 /// sent two times.
 const GATE: Faults = Faults { loss: 0.03, reorder: 0.01, duplicate: 0.01 };
@@ -83,7 +89,7 @@ async fn eight_mib_cross_three_percent_loss_whole_and_in_order() {
     let moves = async {
         tokio::join!(send_all(a_write, big.clone()), send_all(b_write, small.clone()), digest(b_read), digest(a_read))
     };
-    let ((), (), (at_b, nb), (at_a, na)) = timeout(LIMIT, moves).await.expect("the transfer in time");
+    let ((), (), (at_b, nb), (at_a, na)) = timeout(limit(), moves).await.expect("the transfer in time");
     assert_eq!((nb, at_b), (big.len(), sha(&big)));
     assert_eq!((na, at_a), (small.len(), sha(&small)));
     let lost = sa.stats().lost + sb.stats().lost;
@@ -114,7 +120,7 @@ async fn a_link_runs_over_the_arq_at_three_percent_loss() {
         got.push((s.id(), tokio::spawn(digest(s))));
     }
     for (id, task) in got {
-        let (hash, n) = timeout(LIMIT, task).await.expect("the transfer in time").unwrap();
+        let (hash, n) = timeout(limit(), task).await.expect("the transfer in time").unwrap();
         let want = &data[(id / 2) as usize];
         assert_eq!((n, hash), (want.len(), sha(want)), "the stream {id}");
     }
@@ -187,15 +193,15 @@ async fn the_bytes_wait_at_the_wrap_until_the_rekey() {
     let writer = tokio::spawn(send_all(a, data.clone()));
     let before = 2 * 40_007;
     let mut got = vec![0; before];
-    timeout(LIMIT, b.read_exact(&mut got)).await.expect("the bytes before the wrap in time").unwrap();
+    timeout(limit(), b.read_exact(&mut got)).await.expect("the bytes before the wrap in time").unwrap();
     assert!(timeout(Duration::from_secs(60), b.read(&mut [0; 1])).await.is_err());
     assert_eq!(handle.stats().rekeys, 0);
     assert_eq!(handle.stats().sent, 100);
     handle.rekeyed();
-    let (hash, n) = timeout(LIMIT, digest(&mut b)).await.expect("the bytes after the wrap in time");
+    let (hash, n) = timeout(limit(), digest(&mut b)).await.expect("the bytes after the wrap in time");
     assert_eq!((before + n, hash), (data.len(), sha(&data[before..])));
     assert_eq!(got, data[..before]);
-    timeout(LIMIT, writer).await.unwrap().unwrap();
+    timeout(limit(), writer).await.unwrap().unwrap();
     assert_eq!(handle.stats().rekeys, 1);
     assert!(!handle.rekey_due());
 }
@@ -263,7 +269,7 @@ async fn a_dropped_end_answers_the_peer_until_it_is_quiet() {
         a.write_all(b"x").await.unwrap();
         a.shutdown().await
     };
-    let (got, shut) = timeout(LIMIT, async { tokio::join!(peer, near) }).await.expect("the ends in time");
+    let (got, shut) = timeout(limit(), async { tokio::join!(peer, near) }).await.expect("the ends in time");
     assert_eq!(got, b"x");
     shut.expect("the peer answers the `FIN` after its drop");
     // The lost `ACK` covered the byte and the `FIN`: each went again.

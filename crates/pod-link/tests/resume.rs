@@ -21,6 +21,12 @@ const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
 const LIMIT: Duration = Duration::from_secs(120);
 
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-535).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(LIMIT)
+}
+
 fn pattern(len: usize, seed: u32) -> Vec<u8> {
     let mut x = seed | 1;
     (0..len)
@@ -148,7 +154,7 @@ async fn two_streams_cross_two_resumes_of_the_session_whole() {
     };
     let (dialer_side, app_end) = tokio::io::duplex(PIPE);
     let session = tokio::spawn(async move { resume::run(client, app_end, connect, note, &mut OsEntropy).await });
-    let listener_side = tokio::time::timeout(LIMIT, apps_rx.recv()).await.unwrap().unwrap();
+    let listener_side = tokio::time::timeout(limit(), apps_rx.recv()).await.unwrap().unwrap();
 
     let dialer = Link::new(dialer_side, Role::Dialer, Settings::default()).unwrap();
     let listener = Link::new(listener_side, Role::Listener, Settings::default()).unwrap();
@@ -170,9 +176,9 @@ async fn two_streams_cross_two_resumes_of_the_session_whole() {
         streams.into_iter().zip(sent.iter().cloned()).map(|(s, out)| tokio::spawn(both_ways(s, out))).collect();
     let mut back = Vec::new();
     for t in tasks {
-        back.push(tokio::time::timeout(LIMIT, t).await.expect("the streams end within the limit").unwrap());
+        back.push(tokio::time::timeout(limit(), t).await.expect("the streams end within the limit").unwrap());
     }
-    let (listener, at_listener) = tokio::time::timeout(LIMIT, served).await.unwrap().unwrap();
+    let (listener, at_listener) = tokio::time::timeout(limit(), served).await.unwrap().unwrap();
 
     // The listener accepts in the order of the frames, so compare as sets.
     let mut sent_digests: Vec<_> = sent.iter().map(|b| digest(b)).collect();
@@ -193,7 +199,7 @@ async fn two_streams_cross_two_resumes_of_the_session_whole() {
     assert!(dialer.ended().is_none() && listener.ended().is_none(), "the link lives across each resume");
 
     dialer.close().await;
-    let _ = tokio::time::timeout(LIMIT, listener.closed()).await.expect("the link ends");
-    let outcome = tokio::time::timeout(LIMIT, session).await.expect("the session ends").unwrap();
+    let _ = tokio::time::timeout(limit(), listener.closed()).await.expect("the link ends");
+    let outcome = tokio::time::timeout(limit(), session).await.expect("the session ends").unwrap();
     assert!(matches!(outcome, Outcome::Layer(_)), "{outcome:?}");
 }

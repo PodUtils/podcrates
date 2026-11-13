@@ -7,7 +7,6 @@
 //! reason, unless `POD_OCI_TEST_REGISTRY=required`, which
 //! `scripts/ci/registry-tests.sh` sets with the pinned release.
 
-use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
@@ -68,61 +67,57 @@ impl Registry {
         write("cert.pem", &pki.leaf_pem());
         write("key.pem", &pki.key_pem());
         write("htpasswd", &format!("{}:{}\n", super::USER, super::PASSWORD_BCRYPT));
-        let port = super::free_port();
-        let path = |name: &str| dir.join(name).display().to_string();
-        let tls_part = if tls {
-            format!("  tls:\n    certificate: {}\n    key: {}\n", path("cert.pem"), path("key.pem"))
-        } else {
-            String::new()
-        };
-        let auth_part = match auth {
-            Auth::Htpasswd => format!("  htpasswd:\n    realm: pod-oci-test\n    path: {}\n", path("htpasswd")),
-            Auth::Token { realm } => format!(
-                "  token:\n    realm: {realm}\n    service: {}\n    issuer: {}\n    rootcertbundle: {}\n",
-                super::SERVICE,
-                super::ISSUER,
-                path("anchor.pem")
-            ),
-        };
-        // No cache of descriptors: a test changes a blob in the store, and
-        // the registry must read the store.
-        let config = format!(
-            "version: 0.1\nlog:\n  level: info\n  accesslog:\n    disabled: true\nstorage:\n  filesystem:\n    \
-             rootdirectory: {store}\nhttp:\n  addr: {at}:{port}\n{tls_part}\
-             auth:\n{auth_part}",
-            store = path("store"),
-            at = super::AT,
-        );
-        write("config.yml", &config);
-        let child = Command::new(&program)
-            .arg("serve")
-            .arg(dir.join("config.yml"))
-            .current_dir(&dir)
-            .env_remove("REGISTRY_HTTP_ADDR")
-            .stdin(Stdio::null())
-            .stdout(std::fs::File::create(dir.join("registry.out")).unwrap())
-            .stderr(std::fs::File::create(dir.join("registry.err")).unwrap())
-            .spawn()
-            .expect("the registry starts");
-        let registry = Registry { port, endpoint: format!("{}:{port}", super::AT), dir, child };
-        registry.wait();
-        Some(registry)
-    }
-
-    /// Wait until the registry listens, at most [`LIMIT`].
-    fn wait(&self) {
-        let at = SocketAddr::from(([127, 0, 0, 1], self.port));
-        let deadline = std::time::Instant::now() + pod_testkit::host::scaled(LIMIT);
-        while TcpStream::connect_timeout(&at, Duration::from_millis(200)).is_err() {
-            assert!(std::time::Instant::now() < deadline, "the registry did not listen: {}", self.said());
-            std::thread::sleep(Duration::from_millis(100));
+        for attempt in 1.. {
+            let port = super::free_port();
+            let path = |name: &str| dir.join(name).display().to_string();
+            let tls_part = if tls {
+                format!("  tls:\n    certificate: {}\n    key: {}\n", path("cert.pem"), path("key.pem"))
+            } else {
+                String::new()
+            };
+            let auth_part = match &auth {
+                Auth::Htpasswd => format!("  htpasswd:\n    realm: pod-oci-test\n    path: {}\n", path("htpasswd")),
+                Auth::Token { realm } => format!(
+                    "  token:\n    realm: {realm}\n    service: {}\n    issuer: {}\n    rootcertbundle: {}\n",
+                    super::SERVICE,
+                    super::ISSUER,
+                    path("anchor.pem")
+                ),
+            };
+            // No cache of descriptors: a test changes a blob in the store, and
+            // the registry must read the store.
+            let config = format!(
+                "version: 0.1\nlog:\n  level: info\n  accesslog:\n    disabled: true\nstorage:\n  filesystem:\n    \
+                 rootdirectory: {store}\nhttp:\n  addr: {at}:{port}\n{tls_part}\
+                 auth:\n{auth_part}",
+                store = path("store"),
+                at = super::AT,
+            );
+            write("config.yml", &config);
+            let child = Command::new(&program)
+                .arg("serve")
+                .arg(dir.join("config.yml"))
+                .current_dir(&dir)
+                .env_remove("REGISTRY_HTTP_ADDR")
+                .stdin(Stdio::null())
+                .stdout(std::fs::File::create(dir.join("registry.out")).unwrap())
+                .stderr(std::fs::File::create(dir.join("registry.err")).unwrap())
+                .spawn()
+                .expect("the registry starts");
+            let mut child = child;
+            // A free port can go to a parallel test before the registry binds
+            // it; the registry then ends, and a new port is taken.
+            if listens(&mut child, port, &dir) {
+                return Some(Registry { port, endpoint: format!("{}:{port}", super::AT), dir, child });
+            }
+            assert!(attempt < 3, "the registry did not listen: {}", said(&dir));
         }
+        unreachable!()
     }
 
     /// What the registry wrote, for a message.
     pub fn said(&self) -> String {
-        let read = |name: &str| std::fs::read_to_string(self.dir.join(name)).unwrap_or_default();
-        format!("{}{}", read("registry.out"), read("registry.err"))
+        said(&self.dir)
     }
 
     /// The file of the store that holds the blob `digest`
@@ -143,5 +138,29 @@ impl Drop for Registry {
         let _ = self.child.kill();
         let _ = self.child.wait();
         let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// What the registry in `dir` wrote.
+fn said(dir: &std::path::Path) -> String {
+    let read = |name: &str| std::fs::read_to_string(dir.join(name)).unwrap_or_default();
+    format!("{}{}", read("registry.out"), read("registry.err"))
+}
+
+/// Wait until the registry says that it listens at `port`, at most
+/// [`LIMIT`]. A connect alone can reach another server of a parallel test
+/// at the same port. `false`: the registry ended, as its port was taken.
+fn listens(child: &mut Child, port: u16, dir: &std::path::Path) -> bool {
+    let line = format!("listening on {}:{port}", super::AT);
+    let deadline = std::time::Instant::now() + pod_testkit::host::scaled(LIMIT);
+    loop {
+        if said(dir).contains(&line) {
+            return true;
+        }
+        if child.try_wait().is_ok_and(|status| status.is_some()) {
+            return false;
+        }
+        assert!(std::time::Instant::now() < deadline, "the registry did not listen: {}", said(dir));
+        std::thread::sleep(Duration::from_millis(100));
     }
 }

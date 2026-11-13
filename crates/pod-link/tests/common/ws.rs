@@ -34,7 +34,7 @@ pub fn at(key: &PublicKey, door: &WsListener) -> String {
 /// in memory, with `beat`, and the session of its peer, a server's.
 pub fn pumped(beat: Beat) -> (BoxIo, Arc<RelaySession<DuplexStream>>) {
     let (near, far) = tokio::io::duplex(4 << 20);
-    let near = RelaySession::new(near, Vec::new(), None, super::LIMIT);
+    let near = RelaySession::new(near, Vec::new(), None, super::limit());
     let peer = pod_ws::server::session(far, Vec::new(), None);
     (pod_link::ws::carry(near, beat), Arc::new(peer))
 }

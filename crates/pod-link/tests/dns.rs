@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use common::dns::{ZONE, at, bound, carrier};
 use common::tcp::{id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::Class;
 use pod_link::dns::{Dns, DnsSettings, EDNS_SIZE};
 use pod_link::tcp::{Refusal, refusal};
@@ -31,7 +31,7 @@ async fn a_link_over_dns_carries_streams() {
     let dialing = carrier(2, &[]).to(door.local_addr());
     let address = at(&server.public());
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()), "the accept gives the key of the client");
 
@@ -54,7 +54,7 @@ async fn a_link_over_dns_carries_streams() {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
 }
@@ -80,7 +80,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let address = at(&server.public());
     let other = carrier(4, &[]).to(door.local_addr());
     let both = async { tokio::join!(other.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the refusal in time");
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("a client of another key dialed");
     assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
@@ -90,7 +90,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
 
     let good = carrier(2, &[]).to(door.local_addr());
     let both = async { tokio::join!(good.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     near.expect("the pinned client after a refusal");
     assert_eq!(far.expect("the listener stays open").1, client.public());
 }
@@ -102,7 +102,7 @@ async fn a_silent_server_ends_the_dial_at_its_time_limit() {
     let silent = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
     let mut dialing = carrier(2, &[]).to(silent.local_addr().unwrap());
     dialing.handshake_timeout = Duration::from_millis(500);
-    let e = timeout(LIMIT, dialing.dial(&at(&id(1).public()))).await.expect("the time limit").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&at(&id(1).public()))).await.expect("the time limit").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -112,13 +112,15 @@ async fn a_query_of_a_stranger_changes_nothing() {
     pod_testkit::need_loopback!();
     let (server, client) = (id(1), id(2));
     let mut listening = carrier(1, &[client.public()]);
-    listening.handshake_timeout = Duration::from_millis(500);
+    // The stranger's session ends at this bound; the key's own handshake
+    // must fit in it, also under an emulator.
+    listening.handshake_timeout = pod_testkit::host::scaled(Duration::from_millis(500));
     let mut door = bound(&listening).await;
     let local = door.local_addr();
     let dialing = carrier(2, &[]).to(local);
     let address = at(&server.public());
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     let (mut near, (mut far, _)) = (near.unwrap(), far.unwrap());
     // Junk and a query of a session that no key opened, from another socket.
     let stranger = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
@@ -133,9 +135,9 @@ async fn a_query_of_a_stranger_changes_nothing() {
         near.shutdown().await.unwrap();
     });
     let mut got = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut got)).await.expect("the bytes in time").unwrap();
+    timeout(limit(), far.read_to_end(&mut got)).await.expect("the bytes in time").unwrap();
     assert!(got == data, "the bytes came whole: {} of {}", got.len(), data.len());
-    timeout(LIMIT, writer).await.unwrap().unwrap();
+    timeout(limit(), writer).await.unwrap().unwrap();
     let e = timeout(Duration::from_secs(1), door.accept_key()).await;
     assert!(e.is_err(), "the stranger started no session");
 }

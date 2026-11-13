@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common::poll::{Relay, at, bound, carrier};
 use common::tcp::{Direct, Fails, id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::Class;
 use pod_identity::KeyName;
 use pod_link::poll::{self, Form, Poll};
@@ -39,7 +39,7 @@ async fn carries(form: Form, size: usize) {
     assert_eq!(door.address(), door.local_addr().to_string());
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_peer()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (near, far) = (near.expect("the dial"), far.expect("the accept"));
     assert_eq!(far.peer, Some(client.public()), "the accept gives the key of the client");
     assert!(relay.dials.load(Ordering::SeqCst) >= 1, "the dial goes through the way out of the caller");
@@ -63,7 +63,7 @@ async fn carries(form: Form, size: usize) {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
     let stats = door.stats();
@@ -109,7 +109,7 @@ async fn across_cuts(form: Form) {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     let (mut near, (mut far, _)) = (near.expect("the dial"), far.expect("the accept"));
     for n in 0..20u32 {
         if n == 10 {
@@ -118,19 +118,19 @@ async fn across_cuts(form: Form) {
         let line = format!("line {n}\n");
         near.write_all(line.as_bytes()).await.unwrap();
         let mut got = vec![0u8; line.len()];
-        timeout(LIMIT, far.read_exact(&mut got)).await.expect("the line up in time").unwrap();
+        timeout(limit(), far.read_exact(&mut got)).await.expect("the line up in time").unwrap();
         far.write_all(&got).await.unwrap();
         let mut back = vec![0u8; line.len()];
-        timeout(LIMIT, near.read_exact(&mut back)).await.expect("the line down in time").unwrap();
+        timeout(limit(), near.read_exact(&mut back)).await.expect("the line down in time").unwrap();
         assert_eq!(back, line.as_bytes());
     }
     assert!(relay.faults.cuts.load(Ordering::SeqCst) >= 1, "the proxy cut an idle connection");
     near.shutdown().await.unwrap();
     let mut rest = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut rest)).await.expect("the end up in time").unwrap();
+    timeout(limit(), far.read_to_end(&mut rest)).await.expect("the end up in time").unwrap();
     assert!(rest.is_empty(), "the shutdown of the dialer is the end of its bytes");
     far.shutdown().await.unwrap();
-    timeout(LIMIT, near.read_to_end(&mut rest)).await.expect("the end down in time").unwrap();
+    timeout(limit(), near.read_to_end(&mut rest)).await.expect("the end down in time").unwrap();
     assert!(rest.is_empty(), "the shutdown of the listener is the end of its bytes");
 }
 
@@ -171,7 +171,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let address = at(&server.public(), &door);
     let other = carrier(4, Arc::new(Direct::default()), &[], Form::Simplex);
     let both = async { tokio::join!(other.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the refusal in time");
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("a client of another key dialed");
     assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
@@ -181,7 +181,7 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
 
     let good = carrier(2, Arc::new(Direct::default()), &[], Form::Simplex);
     let both = async { tokio::join!(good.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("the dial and the accept in time");
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
     near.expect("the pinned client after a refusal");
     assert_eq!(far.expect("the listener stays open").1, client.public());
 }
@@ -205,7 +205,7 @@ async fn a_peer_that_sends_nothing_holds_no_other_handshake() {
     quick.handshake_timeout = Duration::from_millis(300);
     let mut door = bound(&quick).await;
     let _silent = tokio::net::TcpStream::connect(door.local_addr()).await.unwrap();
-    let e = timeout(LIMIT, door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
+    let e = timeout(limit(), door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -224,7 +224,7 @@ async fn a_silent_listener_ends_the_dial_at_its_time_limit() {
     let mut dialing = carrier(2, Arc::new(Direct::default()), &[], Form::Sse);
     dialing.handshake_timeout = Duration::from_millis(300);
     let address = format!("{}@https://{local}/link", id(1).public().hex());
-    let e = timeout(LIMIT, dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
+    let e = timeout(limit(), dialing.dial(&address)).await.expect("the time limit of the dial").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }

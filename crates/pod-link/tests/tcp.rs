@@ -15,7 +15,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use common::tcp::{Direct, Fails, at, bound, carrier, id, ring};
-use common::{LIMIT, echo, pattern};
+use common::{echo, limit, pattern};
 use pod_core::{Class, Target};
 use pod_identity::KeyName;
 use pod_link::tcp::{self, Tcp};
@@ -58,7 +58,7 @@ async fn a_link_over_tcp_with_tls_carries_streams() {
         }));
     }
     for each in moves {
-        timeout(LIMIT, each).await.expect("the echo in time").unwrap();
+        timeout(limit(), each).await.expect("the echo in time").unwrap();
     }
     dialer.close().await;
 }
@@ -78,7 +78,7 @@ async fn the_connect_gives_the_key_of_the_listener_and_the_accept_the_key_of_the
     near.write_all(b"over tls").await.unwrap();
     near.shutdown().await.unwrap();
     let mut got = Vec::new();
-    timeout(LIMIT, far.read_to_end(&mut got)).await.unwrap().unwrap();
+    timeout(limit(), far.read_to_end(&mut got)).await.unwrap().unwrap();
     assert_eq!(got, b"over tls");
 }
 
@@ -183,7 +183,7 @@ async fn a_peer_that_sends_nothing_holds_no_other_handshake() {
     quick.handshake_timeout = Duration::from_millis(300);
     let mut door = bound(&quick).await;
     let _silent = tokio::net::TcpStream::connect(door.local_addr()).await.unwrap();
-    let e = timeout(LIMIT, door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
+    let e = timeout(limit(), door.accept_key()).await.expect("the limit of the handshake").err().unwrap();
     assert_eq!(e.kind, CarrierErrorKind::Io(std::io::ErrorKind::TimedOut), "{e}");
     assert_eq!(e.class(), Class::Timeout);
 }
@@ -211,12 +211,12 @@ async fn both_ends_take_the_alpn_of_the_carrier() {
     let address = at(&server.public(), &door);
     let e = carrier(2, Arc::new(Direct::default()), &[]).dial(&address).await.err().expect("a dial of another ALPN");
     assert_ne!(e.kind, CarrierErrorKind::Refused, "{e}");
-    let far = timeout(LIMIT, door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
+    let far = timeout(limit(), door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
     assert!(far.to_string().contains("TLS handshake"), "{far}");
     let mut dialing = carrier(2, Arc::new(Direct::default()), &[]);
     dialing.alpn = b"podnet/1";
     let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
-    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    let (near, far) = timeout(limit(), both).await.expect("in time");
     near.expect("the dial of the same ALPN");
     assert_eq!(far.expect("the accept").1, client.public());
     assert_eq!(Tcp::new(ring(), id(1), Arc::new(Direct::default())).alpn, tcp::ALPN);

@@ -6,7 +6,7 @@ mod common;
 
 use std::sync::Arc;
 
-use common::{LIMIT, RawPeer, echo, pattern};
+use common::{RawPeer, echo, limit, pattern};
 use pod_link::{Frame, INITIAL_WINDOW, Link, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::timeout;
@@ -36,12 +36,12 @@ async fn a_stalled_reader_starves_no_other(dialer: Link, listener: Link) {
     let listener = Arc::new(listener);
     // A stream whose reader never reads: its window stays at 16 KiB.
     let mut never = dialer.open().unwrap();
-    let held_never = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let held_never = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     assert_eq!(fill(&mut never), INITIAL_WINDOW as usize);
     // A stream whose reader took 200 KiB and then stopped: its window grew
     // to the setting, and it holds no more than that.
     let mut grown = dialer.open().unwrap();
-    let mut held_grown = timeout(LIMIT, listener.accept()).await.unwrap().unwrap();
+    let mut held_grown = timeout(limit(), listener.accept()).await.unwrap().unwrap();
     let writer = tokio::spawn(async move {
         grown.write_all(&pattern(9, 200 << 10)).await.unwrap();
         grown
@@ -83,7 +83,7 @@ async fn a_stalled_reader_starves_no_other(dialer: Link, listener: Link) {
         }));
     }
     for t in tasks {
-        timeout(LIMIT, t).await.expect("the other streams move").unwrap();
+        timeout(limit(), t).await.expect("the other streams move").unwrap();
     }
     assert_eq!(held_never.buffered(), INITIAL_WINDOW as usize, "the stalled bytes wait");
     drop((never, grown, held_never, held_grown));
@@ -110,7 +110,7 @@ async fn four_mebibytes(dialer: Link, listener: Link) {
         w
     });
     let mut back = Vec::new();
-    timeout(LIMIT, r.read_to_end(&mut back)).await.unwrap().unwrap();
+    timeout(limit(), r.read_to_end(&mut back)).await.unwrap().unwrap();
     drop(writer.await.unwrap());
     assert!(back == data, "{} bytes back of {}", back.len(), data.len());
 }
@@ -154,7 +154,7 @@ async fn a_writer_waits_for_credit_and_splits_its_frames() {
         }
     }
     assert!(got == data);
-    drop(timeout(LIMIT, writer).await.unwrap().unwrap());
+    drop(timeout(limit(), writer).await.unwrap().unwrap());
 }
 
 /// A reader that empties its buffer when it gives credit back doubles the
@@ -166,7 +166,7 @@ async fn a_reader_that_keeps_up_grows_its_window() {
     assert_eq!(peer.next().await, Some(Frame::Window(0, (8 << 20) - INITIAL_WINDOW)));
     peer.send(Frame::Open(1)).await;
     peer.send(Frame::Data(1, vec![1; INITIAL_WINDOW as usize])).await;
-    let mut stream = timeout(LIMIT, link.accept()).await.unwrap().unwrap();
+    let mut stream = timeout(limit(), link.accept()).await.unwrap().unwrap();
     let mut buf = vec![0; 64 << 10];
     let mut n = 0;
     while n < INITIAL_WINDOW as usize {
@@ -182,7 +182,7 @@ async fn a_reader_that_keeps_up_grows_its_window() {
     peer.send(Frame::Data(1, vec![2; 2 * INITIAL_WINDOW as usize])).await;
     let mut more = 0;
     while more < 2 * INITIAL_WINDOW as usize {
-        more += timeout(LIMIT, stream.read(&mut buf)).await.unwrap().unwrap();
+        more += timeout(limit(), stream.read(&mut buf)).await.unwrap().unwrap();
     }
     assert!(link.ended().is_none());
 }
