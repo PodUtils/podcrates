@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/net/datagrams.rs b/crates/pod-warp/src/net/datagrams.rs
+--- a/crates/pod-warp/src/net/datagrams.rs
++++ b/crates/pod-warp/src/net/datagrams.rs
+@@ -71,7 +71,7 @@
+     }
+ 
+     fn try_send(&self, transmit: &Transmit<'_>) -> io::Result<()> {
+-        let destination = SocketAddr::new(canonical(transmit.destination.ip()), transmit.destination.port());
++        let destination = transmit.destination;
+         self.families.check(destination)?;
+         if destination == transmit.destination {
+             return self.inner.try_send(transmit);

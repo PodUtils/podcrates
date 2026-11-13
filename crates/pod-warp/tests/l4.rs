@@ -5,6 +5,8 @@
 
 mod common;
 
+use common::edge::{self, Edge, Route};
+
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -272,4 +274,41 @@ async fn the_l4_door_of_a_device_takes_its_door_and_its_key() {
     let err = sealed.l4().unwrap_err();
     assert_eq!(err.class, Class::Usage);
     assert!(err.chain().contains("TCP only"), "{}", err.chain());
+}
+
+/// The UDP port inside the tunnel that the stand-in edge carries to the
+/// QUIC server of the loopback.
+const QUIC_INSIDE: u16 = 4433;
+
+/// PodUtils/podnet#524: a QUIC handshake through the datagrams of a WARP
+/// session reaches an IPv4 peer. The socket of the session binds `[::]`, so
+/// noq sends to the IPv4-mapped form of the peer; the datagrams of the
+/// session take it as IPv4, and give the answers back in the same form.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_quic_handshake_through_the_datagrams_of_a_session_reaches_an_ipv4_peer() {
+    pod_testkit::need_loopback!();
+    let (addr, pin, _seen) = l4_door().await;
+    let api = stand::warp::Api::new("", "192.0.2.1", "2001:db8::1");
+    let udp = vec![Route { port: QUIC_INSIDE, outside: addr }];
+    let edge = Edge::start_with_udp(api.clone(), vec![], udp).await;
+    api.serve_key(&edge.pem());
+    let served = stand::http(api.handler()).unwrap();
+    let moved = common::Moved::new(vec![(edge::door_v4(), edge.addr), (edge::door_v6(), edge.addr)]);
+    let (mut settings, _) = common::settings(&format!("http://{}", served.addr()), moved);
+    settings.net.check = None;
+    let net = Warp::register(settings).await.unwrap().connect().await.unwrap();
+    let endpoint = pod_quic::endpoint::over(net.datagrams().await.unwrap(), None).unwrap();
+    let client_id = Identity::generate().unwrap();
+    let tls = pod_warp::tls::client_config(common::provider(), &client_id, pin, h3::ALPN).unwrap();
+    let crypto = noq::crypto::rustls::QuicClientConfig::try_from(tls).unwrap();
+    let to: SocketAddr = format!("198.51.100.30:{QUIC_INSIDE}").parse().unwrap();
+    let connecting = endpoint.connect_with(noq::ClientConfig::new(Arc::new(crypto)), to, "warp.test").unwrap();
+    let conn = tokio::time::timeout(LIMIT, connecting).await.expect("a QUIC handshake in time").unwrap();
+    conn.close(0u32.into(), b"done");
+    // The packets to the peer are IPv4 packets inside the tunnel: WARP's
+    // network drops an IPv6 packet to `::ffff:a.b.c.d`.
+    let seen = edge.watch.udp.lock().unwrap().clone();
+    let to_peer: Vec<_> = seen.iter().filter(|(_, at)| at.port() == QUIC_INSIDE).collect();
+    assert!(!to_peer.is_empty(), "no packet to the peer: {seen:?}");
+    assert!(to_peer.iter().all(|(_, at)| *at == to), "{to_peer:?}");
 }

@@ -339,7 +339,7 @@ impl Dial for WarpNet {
     fn datagrams<'a>(&'a self) -> BoxFuture<'a, Result<Arc<dyn Datagrams>, Failure>> {
         Box::pin(async move {
             let inner = self.bind_udp().await?.into_datagrams();
-            Ok(Arc::new(WarpDatagrams { inner, families: self.families() }) as Arc<dyn Datagrams>)
+            Ok(Arc::new(WarpDatagrams::new(inner, self.families())) as Arc<dyn Datagrams>)
         })
     }
 }
