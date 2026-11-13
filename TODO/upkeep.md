@@ -1086,3 +1086,51 @@ sh scripts/plant-each.sh --group services
 A test of each path: a resolver, a STUN server and an HTTPS server on the
 loopback that close before a byte give `NoAnswer`; one that sends a byte
 first gives `Failed`.
+
+# T-488: The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)`
+
+**Source:** `nightly.yml` run 43195242737 at `613058c` (jobs 131104397812, `test (windows-2025)`; 131104397800, `test (windows-11-arm)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Both Windows jobs of the nightly stop at the build of the tests:
+
+```text
+error[E0433]: cannot find `UnixListener` in `net`
+   --> crates\pod-relay\tests\reverse_plain.rs:224:32
+error: could not compile `pod-relay` (test "reverse_plain") due to 1 previous error
+```
+
+tokio has `UnixListener` only under `cfg(unix)`. The red build hides
+each other result of the Windows jobs. T-325 (the same run) does not
+name these jobs.
+
+## Premise
+
+- Read (2026-11-13): the logs of jobs 131104397812 and 131104397800
+  through the read-only mirror; the same error in each.
+- Read: `crates/pod-relay/tests/reverse_plain.rs`. The test
+  `a_session_to_a_closed_port_is_refused_with_the_reason` binds
+  `tokio::net::UnixListener` for the `unix:` target and then checks a
+  closed TCP port. The file has no `cfg(unix)` gate; it came with T-026.
+- Not measured: the other tests of the Windows jobs after this build.
+
+## Approach
+
+Gate the `unix:` half of the test with `#[cfg(unix)]`, and keep the half
+of the closed TCP port on each platform (two tests, or one test with a
+gated block). Then dispatch `nightly.yml` and read the Windows jobs; a
+new failure there is a new entry.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test reverse_plain
+```
+
+and a dispatch of `nightly.yml` whose Windows jobs build the tests.

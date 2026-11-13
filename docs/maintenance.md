@@ -151,7 +151,7 @@ commit, with the name of the repository), the COORD issues to a reader or
 
 ### The channel of a consumer session with no messages
 
-For podnet and podvm, the repositories are the channel:
+For each consumer, the repositories are the channel:
 
 * `crates/*/SOURCES`: a block `repo PodUtils/CONSUMER ...` is the list of
   the consumer's frozen files; a `taken` line ends the freeze. Keep the
