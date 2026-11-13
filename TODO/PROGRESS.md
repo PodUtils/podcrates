@@ -15,7 +15,7 @@
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
     (T-413; its glue needs T-480, in the tag after `v0.36.0`).
-  - podnet: `v0.38.0` (PodUtils/podnet#525; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
+  - podnet: `v0.39.0` (`306d80b`, PodUtils/podnet#526; its own fix of #524 dropped; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
