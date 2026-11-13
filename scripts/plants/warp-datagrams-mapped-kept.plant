@@ -1,0 +1,8 @@
+# The datagrams of a WARP session send an IPv4-mapped destination as an
+# IPv6 packet to ::ffff:a.b.c.d, which WARP's network drops: QUIC to an
+# IPv4 edge times out (T-508, PodUtils/podnet#524).
+ENTRY=T-508
+GROUP=warp
+EXPECT='test a_quic_handshake_through_the_datagrams_of_a_session_reaches_an_ipv4_peer \.\.\. FAILED'
+RUN='cargo test -p pod-warp --all-features --test l4 -- a_quic_handshake_through_the_datagrams_of_a_session_reaches_an_ipv4_peer'
+LIMIT=1800
