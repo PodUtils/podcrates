@@ -6,9 +6,11 @@
 //! crate: a `CONNECT` gets a `CONNACK` (code 4 for a login that is not its
 //! own, when it has one), a `SUBSCRIBE` a `SUBACK`, a `PINGREQ` a
 //! `PINGRESP`; a `PUBLISH` goes to each connection subscribed to its topic
-//! (by its name, or `#`). A test can make the next publishes reach no
-//! subscriber, and reads the topic of each publish and the subprotocol of
-//! each upgrade.
+//! (by its name, or `#`). A `PUBLISH` with RETAIN is kept for each later
+//! subscriber, who gets it with RETAIN after its `SUBACK`; an empty one
+//! drops the kept message (section 3.3.1.3). A test can make the next
+//! publishes reach no subscriber, and reads the topic, the length and the
+//! retain flag of each publish and the subprotocol of each upgrade.
 //!
 //! Mosquitto is the broker that `POD_WORMHOLE_TEST_BROKER` names
 //! (`ws://127.0.0.1:PORT/mqtt`, as CI runs it), else the program
@@ -17,6 +19,7 @@
 //! unless `POD_WORMHOLE_TEST_MQTT=required`: a run that needs magic-wormhole's
 //! server does not need Mosquitto too.
 
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr, TcpStream as StdTcp};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -42,6 +45,10 @@ struct State {
     /// The next publishes that reach no subscriber.
     lost: usize,
     published: Vec<String>,
+    /// The topic, the payload's length and the retain flag of each publish.
+    flags: Vec<(String, usize, bool)>,
+    /// The retained message of each topic.
+    retained: BTreeMap<String, Vec<u8>>,
     protocols: Vec<String>,
     connections: u64,
 }
@@ -58,6 +65,16 @@ impl Stand {
     /// The topic of each publish so far, the lost ones too.
     pub fn published(&self) -> Vec<String> {
         self.state.lock().unwrap().published.clone()
+    }
+
+    /// The topic, the payload's length and the retain flag of each publish.
+    pub fn publishes(&self) -> Vec<(String, usize, bool)> {
+        self.state.lock().unwrap().flags.clone()
+    }
+
+    /// The topics with a retained message.
+    pub fn retained(&self) -> Vec<String> {
+        self.state.lock().unwrap().retained.keys().cloned().collect()
     }
 
     /// The subprotocol that each upgrade offered.
@@ -155,18 +172,30 @@ fn handle(state: &Mutex<State>, id: u64, tx: &UnboundedSender<Vec<u8>>, packet: 
         }
         Packet::Subscribe { id: packet_id, filters } => {
             let codes = vec![0; filters.len()];
+            let mut kept = Vec::new();
             for (filter, _) in filters {
+                for (topic, payload) in state.retained.iter().filter(|(t, _)| **t == filter || filter == "#") {
+                    kept.push(Packet::Publish { topic: topic.clone(), payload: payload.clone(), retain: true });
+                }
                 state.subs.push((id, filter, tx.clone()));
             }
-            send(&Packet::SubAck { id: packet_id, codes })
+            send(&Packet::SubAck { id: packet_id, codes }) && kept.iter().all(send)
         }
-        Packet::Publish { topic, payload } => {
+        Packet::Publish { topic, payload, retain } => {
             state.published.push(topic.clone());
+            state.flags.push((topic.clone(), payload.len(), retain));
             if state.lost > 0 {
                 state.lost -= 1;
                 return true;
             }
-            let bytes = packet::encode(&Packet::Publish { topic: topic.clone(), payload }).expect("a packet");
+            if retain && payload.is_empty() {
+                state.retained.remove(&topic);
+            } else if retain {
+                state.retained.insert(topic.clone(), payload.clone());
+            }
+            // A subscriber of before the publish gets it with no RETAIN.
+            let live = Packet::Publish { topic: topic.clone(), payload, retain: false };
+            let bytes = packet::encode(&live).expect("a packet");
             for (_, filter, to) in &state.subs {
                 if *filter == topic || filter == "#" {
                     let _ = to.send(bytes.clone());

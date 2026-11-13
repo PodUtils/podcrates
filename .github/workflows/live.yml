@@ -126,6 +126,20 @@ jobs:
           fi
           timeout 300 cargo test --locked -p pod-wormhole --all-features --test live -- --ignored --nocapture
           timeout 300 cargo test --locked -p pod-relay --all-features --test pair_code_live -- --ignored --nocapture
+      # A board of retained messages at each public MQTT broker (T-417,
+      # PodUtils/podssh@T-738): a put, a take, a clear and a take after the
+      # clear. Mosquitto proves the board on each push (ci.yml); this run
+      # proves that the public broker keeps and clears a retained message.
+      - name: pod-wormhole, a board of retained messages at each public MQTT broker
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          if [ "$EVENT" = schedule ] && [ "$(date -u +%u)" != 4 ]; then
+            echo "the public MQTT brokers run on Thursdays and by hand"
+            exit 0
+          fi
+          timeout 300 cargo test --locked -p pod-wormhole --all-features --test board_live -- --ignored --nocapture
 
   relay:
     if: github.event_name == 'workflow_dispatch' && inputs.relay != 'none'

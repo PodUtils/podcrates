@@ -25,8 +25,9 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | `wormhole` | `Wormhole`: `open(place, side, nameplate, id, &code, versions)` (a `Mailbox` or a `mqtt::Broker`), `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`; `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST` |
 | `meet` | `Ends { mailboxes, config }`, `opened(&ends, versions)` (a new code at the first mailbox that answers), `joined(&ends, &code, versions, giver_wait)` (the giver's wormhole, the key made), `or_close` |
 | `mqtt` | `Brokers { points, config, resend }`, `Brokers::new(points, config)`, `Point { url, login }`, `Login { user, password }` (no `Debug` shows the password), `opened(&brokers, versions)` (a new code at the first broker that answers, the giver subscribed), `joined(&brokers, &code, versions, giver_wait)` (the taker's wormhole, the key made), `topic(appid, nameplate)`, `nameplate(&mut dyn Entropy)`, `Role` (`Giver`, `Taker`; `topics`), `PROTOCOL`, `KEEP_ALIVE`, `RESEND`, `NAMEPLATE_DIGITS`, `PAYLOAD_MOST`, `TO_GIVER`, `TO_TAKER` |
+| `mqtt::board` | `Board { point, config }` (also `mqtt::Board`): `new(point, config)`, `put(topic, payload)`, `take(topic, wait)` (`Ok(None)`: no note within the wait), `clear(topic)`, `shown`; `check_topic`, `check_payload`, `TOPIC_MOST` |
 | `mqtt::broker` | `Broker`: `connect(&point, &config, side, topic, role, resend)`, `add`, `message(wait)`, `disconnect`, `end`, `appid`, `inbox`, `shown`; `client_id`, `refusal`, `PING_EVERY`, `KEPT_MOST` |
-| `mqtt::packet` | the pure codec of MQTT 3.1.1: `Packet` (`Connect`, `ConnAck`, `Publish`, `Subscribe`, `SubAck`, `PingReq`, `PingResp`, `Disconnect`), `Connect`, `encode`, `decode(bytes, most)`, `encode_length`, `kind_name`, `Malformed`, `LENGTH_MOST`, `REFUSED` |
+| `mqtt::packet` | the pure codec of MQTT 3.1.1: `Packet` (`Connect`, `ConnAck`, `Publish` with its `retain` flag, `Subscribe`, `SubAck`, `PingReq`, `PingResp`, `Disconnect`), `Connect`, `encode`, `decode(bytes, most)`, `encode_length`, `kind_name`, `Malformed`, `LENGTH_MOST`, `REFUSED` |
 | `place` | `Place` (`Mailbox`, `Broker`; `From` each): `shown`, `noun`, `appid`, and the steps of a wormhole at either |
 | `phrase` | `Code`: `make(nameplate, &mut dyn Entropy)`, `parse(typed)`, `nameplate`, `password`, `for_terminal`, `words`; `nameplate_ok`, `WORDS`, `WORDS_MOST`, `NAMEPLATE_MOST`, `TYPED_MOST` |
 | `words` | the PGP word list (`EVEN`, `ODD`, `list`, `word`, `find`) |
@@ -73,6 +74,29 @@ to take this one, are the caller's.
   subscription, or breaks the protocol (a malformed packet, a text frame,
   a packet that was not asked for) is passed over with the reason, as the
   event `wormhole.broker`.
+
+## The board of retained messages
+
+`mqtt::Board` keeps a note at a topic of one broker, for a caller that
+holds one connection at a time (PodUtils/podssh#220, for its T-738). Each
+call is a connection of its own: `CONNECT` (a clean session, a random
+client id, the login of the `Point`), then
+
+* `put(topic, payload)`: `PUBLISH` at QoS 0 with RETAIN; the broker keeps
+  the note for each later subscriber, in place of the one before;
+* `take(topic, wait)`: `SUBSCRIBE` at QoS 0, then the first `PUBLISH` of
+  the topic within `wait` (a broker sends the retained note after the
+  `SUBACK`); `Ok(None)` when none comes; an empty `PUBLISH` is no note;
+* `clear(topic)`: `PUBLISH` at QoS 0 with RETAIN and no payload, after
+  which the broker keeps no note (MQTT 3.1.1, section 3.3.1.3);
+
+and `DISCONNECT`. After a `PUBLISH`, a `PINGREQ` and its `PINGRESP` show
+that the broker read it: QoS 0 has no acknowledgement. A topic is 1 to 42
+letters and digits (`TOPIC_MOST`), and a note 1 to 64,000 bytes
+(`PAYLOAD_MOST`); others are refused before a connection, with
+`Failed::Mine`. A take does not use a note up. Each client of a public
+broker reads each topic: the caller seals each note, and draws a topic
+that a stranger cannot guess.
 
 ## Features
 
@@ -162,6 +186,7 @@ Differences from the source, each with a test:
 | podssh | the plant `t086-version-unchecked` (`code/wormhole.rs`) | `wormhole-version-unchecked` in podcrates; podssh's `pair-code.yml` runs the others |
 | podssh | `scripts/wormhole-peer.py`, `tests/mailbox_harness` (the Python server and peer) | the copies in `tests/` of this crate; podssh's `pair_code.rs` keeps its own for the role and the exchange |
 | podssh | none (PodUtils/podssh@T-737, new) | `pod_wormhole::mqtt::{opened, joined}` when no mailbox answers, with `Brokers` of the services of the kind `mqtt-broker` (`endpoint("broker")`, the facts `user` and `password`); `PODSSH_MQTT=no` and the line that names the third party are podssh's |
+| podssh | none (PodUtils/podssh@T-738, new) | `pod_wormhole::mqtt::Board` (`put`, `take`, `clear`) at the brokers of the kind `mqtt-broker`, for the URL of each piece of the resumable layer as a sealed note; the host of each piece is a service of the kind `file-host` of `pod-services` |
 | podnet | none: podnet has no wormhole code | its transfer (T-102) takes `pod-wormhole` with its own `Config` (`appid`, `"podnet"`, its `Way`) |
 
 The adoption trial is `adoption/podssh/pod-wormhole.patch` with its `.run`,
@@ -182,9 +207,14 @@ websockets` listener: the broker of `POD_WORMHOLE_TEST_BROKER`
 (`ws://127.0.0.1:PORT/mqtt`, as `ci.yml` runs the pinned image of
 `images/mosquitto/`), else `POD_WORMHOLE_TEST_MOSQUITTO`, `mosquitto` or
 `/usr/sbin/mosquitto` on a free port; `POD_WORMHOLE_TEST_MQTT=required`
-makes a skip a failure. `tests/live.rs` is `#[ignore]`: two ends meet at
+makes a skip a failure. `tests/board.rs` runs the board on the same
+brokers (the stand-in keeps retained messages): a put, a take, a second
+put, a clear and a take after the clear; a note put while a take waits; a
+topic or a payload out of bounds refused before a connection; a refused
+login. `tests/live.rs` is `#[ignore]`: two ends meet at
 each public mailbox and pair at each public broker of `pod-services`
-(`live.yml`).
+(`live.yml`). `tests/board_live.rs` is `#[ignore]`: a board puts, takes
+and clears a note at each public broker (`live.yml`, each Thursday).
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install magic-wormhole-mailbox-server magic-wormhole
@@ -192,8 +222,9 @@ POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required carg
 ```
 
 The plants `wormhole-version-unchecked`, `wormhole-held-unbounded`,
-`wormhole-mqtt-topic-constant` and `wormhole-mqtt-no-resend`
-(`scripts/plants/`) prove four of the tests. The fuzz target
+`wormhole-mqtt-topic-constant`, `wormhole-mqtt-no-resend`,
+`wormhole-board-clear-not-retained` and `wormhole-board-clear-not-empty`
+(`scripts/plants/`) prove five of the tests. The fuzz target
 `mailbox_message` runs the pure reading of a mailbox's messages and the
 parser of a typed code; `mqtt_packet` runs the codec of MQTT and the topic.
 

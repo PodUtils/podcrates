@@ -1,10 +1,12 @@
 #!/bin/sh
-# The MQTT meeting point of pod-wormhole against Eclipse Mosquitto (T-261):
-# the image that images/mosquitto/Dockerfile pins to a digest, with the
-# listener of images/mosquitto/mosquitto.conf (MQTT over a WebSocket),
-# published on 127.0.0.1 alone. POD_WORMHOLE_TEST_MQTT=required makes a
-# skip a failure, and the run must say that Mosquitto paired two ends, so
-# the check cannot pass by a skip. It needs docker.
+# The MQTT meeting point of pod-wormhole (T-261) and its board of retained
+# messages (T-417) against Eclipse Mosquitto: the image that
+# images/mosquitto/Dockerfile pins to a digest, with the listener of
+# images/mosquitto/mosquitto.conf (MQTT over a WebSocket), published on
+# 127.0.0.1 alone. POD_WORMHOLE_TEST_MQTT=required makes a skip a failure,
+# and the run must say that Mosquitto paired two ends and that a board put,
+# took and cleared a note there, so the check cannot pass by a skip. It
+# needs docker.
 set -eu
 cd "$(dirname "$0")/../.." || exit 71
 port=9001
@@ -32,9 +34,13 @@ while True:
         time.sleep(0.5)
 EOF
 out=$(POD_WORMHOLE_TEST_MQTT=required POD_WORMHOLE_TEST_BROKER="ws://127.0.0.1:$port/mqtt" \
-    cargo test --locked -p pod-wormhole --test broker -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
+    cargo test --locked -p pod-wormhole --test broker --test board -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
 printf '%s\n' "$out"
 if ! printf '%s\n' "$out" | grep -q '^Eclipse Mosquitto: two ends paired'; then
     echo "mosquitto-tests: no test paired two ends through Mosquitto" >&2
+    exit 1
+fi
+if ! printf '%s\n' "$out" | grep -q '^Eclipse Mosquitto: a board put, took and cleared a note'; then
+    echo "mosquitto-tests: no board put, took and cleared a note at Mosquitto" >&2
     exit 1
 fi
