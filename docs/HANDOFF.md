@@ -23,6 +23,9 @@ is done. Git and the record keep finished work.
   are T-325 (done); the two Windows jobs do not compile
   `crates/pod-relay/tests/reverse_plain.rs` (T-488). The next nightly
   after T-488 proves T-325 and T-307.
+- Open COORD questions of podcrates: #131 (`pod-git` moves to
+  `PodUtils/podforge`; the owner's agent closes it) and #132 (podrunner's
+  Q10). podswarm's tracker is PodUtils/podswarm#1 (moved from #107).
 - `services.yml` at `613058c` is red; T-323 (done) has its fixes. The next
   scheduled run proves them, and T-351.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh

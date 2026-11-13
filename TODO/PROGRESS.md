@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 382 entries: 113 open, 7 partial, 4 blocked, 258 done.
+`TODO/INDEX.md` holds 383 entries: 114 open, 7 partial, 4 blocked, 258 done.
 
 ## State
 
@@ -158,7 +158,8 @@ next entry.
    direct boot of a Linux guest for `pod-microvm`); T-241 (the
    permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
-   owner, 2026-11-09). The asks of podswarm that help podswarm alone
+   owner, 2026-11-09; again 2026-11-13). T-490 (the server half of ECH,
+   #130) waits too. The asks of podswarm that help podswarm alone
    (T-430 to T-437, T-440 to T-443, T-445, T-446, T-449, T-450) wait
    until the podswarm session starts (the ruling "podswarm"). T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-107 is in item 4). T-113 to T-116 wait for the first release on crates.io.

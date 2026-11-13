@@ -6402,3 +6402,48 @@ then run its client side with no account.
 ```sh
 cargo test -p pod-devtunnel --all-features
 ```
+
+# T-490: `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred)
+
+**Source:** GitHub #130 (marked deferred by its author).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+`pod-tls` seals a ClientHello with ECH on the client side (`src/ech/`)
+and falls back to a plain hello after 4 s, but no crate publishes an ECH
+config, accepts a sealed hello or returns `retry_configs`. No crate
+shapes a ClientHello as a browser does (the order of the extensions, the
+ciphers, the groups, GREASE at random for each connection), and no test
+measures the time of a handshake or the size of the first record.
+
+## Premise
+
+- Read: GitHub #130 (2026-11-12; its rules ECH-1 to ECH-5, CH-1 to
+  CH-4, TIME-1 to TIME-3 and its gate); `crates/pod-tls/src/ech/`.
+- Not measured: none here.
+- The issue marks the work deferred; no consumer asks for it now.
+
+## Approach
+
+As the issue says, in three parts: the server half of ECH (a config in
+an HTTPS or SVCB record, the accept of a sealed hello on a name of the
+deployment, `retry_configs` on a refusal); profiles of a ClientHello as
+data files taken from captured browser hellos, compared field by field
+and by JA4; the measure of the time to the first byte, the round trips
+and the first record against a recorded baseline in CI.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features
+```
+
+## Start condition
+
+A consumer asks for it, or the owner starts it (the issue is marked
+deferred).
