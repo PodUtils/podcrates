@@ -12672,12 +12672,11 @@ index 01b262f1..892f604f 100644
 diff --git a/crates/podssh-cli/src/channel.rs b/crates/podssh-cli/src/channel.rs
 --- a/crates/podssh-cli/src/channel.rs
 +++ b/crates/podssh-cli/src/channel.rs
-@@ -269,7 +269,8 @@
+@@ -269,7 +269,7 @@
          e2e::Error::Timeout(_) => (Fault::RelayUnreachable, e.to_string()),
          // podssh's hint of the switch at both ends (pod-e2e's words name none).
          e2e::Error::NotChannel(_) => (Fault::SessionFault, format!("{e}; --no-e2e turns it off at this end")),
 -        e2e::Error::Handshake(_) | e2e::Error::Tampered | e2e::Error::Malformed(_) => {
-+        // The two ends share no record suite (pod-e2e's `NoSuite`).
 +        e2e::Error::Handshake(_) | e2e::Error::Tampered | e2e::Error::Malformed(_) | e2e::Error::NoSuite(_) => {
              (Fault::SessionFault, e.to_string())
          }
