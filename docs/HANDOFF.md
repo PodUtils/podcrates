@@ -22,8 +22,8 @@ is done. Git and the record keep finished work.
   `main` holds T-476 and T-477 for the next tag.
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
-- An agent of this session works in a worktree under `.claude/worktrees/` on
-  T-413. Merge its branch after `scripts/agent/check.sh` passes
+- Agents of this session work in worktrees under `.claude/worktrees/` on
+  T-413 and T-485. Merge its branch after `scripts/agent/check.sh` passes
   on the merge.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
   T-413. When both pass and a tag holds them, post the COORD issue of the
