@@ -381,6 +381,8 @@ pub const SFD_CLOEXEC: u64 = 0x080000;
 pub const MS_NOSUID: u64 = 0x2;
 pub const MS_NODEV: u64 = 0x4;
 pub const MS_NOEXEC: u64 = 0x8;
+/// `MS_BIND`, from the headers of the kernel.
+pub const MS_BIND: u64 = 0x1000;
 pub const MS_REC: u64 = 0x4000;
 pub const MS_SLAVE: u64 = 0x0008_0000;
 /// `MS_PRIVATE`, from the headers of the kernel

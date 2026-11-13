@@ -109,6 +109,27 @@ fn the_proc_mount_point_is_a_real_directory() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The /dev/pts mount point follows the rule of /tmp, under `dev/`.
+#[test]
+fn the_pts_mount_point_is_a_real_directory() {
+    let dir = std::env::temp_dir().join(format!("pod-enter-pts-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let root = dir.to_str().unwrap();
+    std::fs::create_dir_all(dir.join("dev")).unwrap();
+    assert!(ns_pts_target(root).is_none(), "no /dev/pts yet");
+    std::fs::create_dir_all(dir.join("dev/pts")).unwrap();
+    assert_eq!(ns_pts_target(root), Some(format!("{root}/dev/pts")));
+    std::fs::remove_dir(dir.join("dev/pts")).unwrap();
+    std::os::unix::fs::symlink("/dev/pts", dir.join("dev/pts")).unwrap();
+    assert!(ns_pts_target(root).is_none(), "a link is no mount point");
+    let line = ns_refused_line(&Names::DEFAULT, "/dev/pts", NS_PTS_STEP);
+    assert_eq!(
+        line,
+        "pod-enter: the namespace rung runs with no /dev/pts: binding /dev/pts on /dev/pts failed with errno "
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// A refused proc mount names the product, the step and the errno.
 #[test]
 fn a_refused_proc_mount_names_its_step_and_errno() {
@@ -146,6 +167,7 @@ fn the_setup_steps_name_themselves() {
     assert_eq!(ns_setup_step(11), None);
     assert_eq!(ns_setup_step(NS_PROC_STEP), Some("mounting proc on /proc"));
     assert_eq!(ns_setup_step(NS_JOIN_STEP), Some("setns(pidfd, CLONE_NEWNS)"));
+    assert_eq!(ns_setup_step(NS_PTS_STEP), Some("binding /dev/pts on /dev/pts"));
     let line = ns_join_fallback_line(&Names::DEFAULT, "setns(pidfd, CLONE_NEWNS) (ESRCH (3))");
     assert!(line.starts_with("pod-enter: the entry does not share the mounts of the payload: setns"), "{line}");
     assert!(line.ends_with("; entered a mount namespace of its own"), "{line}");

@@ -1,12 +1,12 @@
-diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
---- a/crates/pod-enter/src/launch.rs
-+++ b/crates/pod-enter/src/launch.rs
-@@ -14,7 +14,7 @@
+diff --git a/crates/pod-enter/src/ns_optional.rs b/crates/pod-enter/src/ns_optional.rs
+--- a/crates/pod-enter/src/ns_optional.rs
++++ b/crates/pod-enter/src/ns_optional.rs
+@@ -18,7 +18,7 @@
  
  /// The proc of the namespace rung: no set-user-ID, no device and no
  /// program runs from it.
 -const PROC_FLAGS: u64 = sys::MS_NOSUID | sys::MS_NODEV | sys::MS_NOEXEC;
 +const PROC_FLAGS: u64 = sys::MS_NOSUID | sys::MS_NODEV;
  
- /// The exit code of a child that wrote a failed step to the readiness
- /// pipe. The parent reaps that child and reads the step from the pipe, so
+ /// One mount that does not stop the rung, built before the fork: the child
+ /// cannot allocate, so the line of a refusal is made here too.

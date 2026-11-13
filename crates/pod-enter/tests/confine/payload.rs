@@ -83,14 +83,21 @@ pub fn reader(paths: &[String]) -> i32 {
 }
 
 /// What one run gave: the line of the payload, its `NoNewPrivs` and
-/// `Seccomp` lines, the options of its mount on `/proc` (from its
+/// `Seccomp` lines, its mount points with their options (from its
 /// `mountinfo`), and its exit code.
 #[derive(Debug)]
 pub struct Run {
     pub line: String,
     pub status: Vec<String>,
-    pub proc_options: Option<String>,
+    pub mounts: Vec<(String, String)>,
     pub code: i32,
+}
+
+impl Run {
+    /// The options of the mount on `point` in the view of the payload.
+    pub fn options(&self, point: &str) -> Option<&str> {
+        self.mounts.iter().rev().find(|(p, _)| p == point).map(|(_, o)| o.as_str())
+    }
 }
 
 fn pipe() -> (i64, i64) {
@@ -152,11 +159,14 @@ pub fn run(
     // The fields of a line of `mountinfo`: id, parent, device, root, mount
     // point, options.
     let mountinfo = std::fs::read_to_string(format!("/proc/{}/mountinfo", child.pid)).unwrap_or_default();
-    let proc_options = mountinfo
+    let mounts = mountinfo
         .lines()
-        .map(|l| l.split(' ').collect::<Vec<_>>())
-        .find_map(|f| (f.get(4) == Some(&"/proc")).then(|| f.get(5).map(|o| o.to_string())).flatten());
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split(' ').collect();
+            Some((f.get(4)?.to_string(), f.get(5)?.to_string()))
+        })
+        .collect();
     let _ = (k::close(wait_w), k::close(line_r));
     let code = child.wait().map_err(|e| e.to_string())?;
-    Ok(Run { line: String::from_utf8_lossy(&line).into_owned(), status, proc_options, code })
+    Ok(Run { line: String::from_utf8_lossy(&line).into_owned(), status, mounts, code })
 }

@@ -60,6 +60,7 @@ mod confine;
 mod entry;
 mod launch;
 mod names;
+mod ns_optional;
 
 use std::io::Write;
 
@@ -71,6 +72,7 @@ pub use child::Bounded;
 pub use entry::*;
 pub use limits::{Limit, Resource};
 pub use names::Names;
+pub use ns_optional::{NS_PROC_STEP, NS_PTS_STEP, ns_proc_refused, ns_proc_target, ns_pts_target, ns_refused_line};
 pub use plan::{Plan, Program};
 pub use status::exit_status;
 
