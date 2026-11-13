@@ -225,7 +225,10 @@ async fn serve(
                     }
                 };
                 let Some(echo) = wire::decode(&message) else { continue };
-                if echo.kind != wire::REQUEST {
+                // Only the dialer's echo requests start or feed a session; a
+                // reply (the listener's own, or the kernel's to a request) is
+                // dropped by the mark.
+                if echo.kind != wire::REQUEST || echo.from != wire::CLIENT {
                     continue;
                 }
                 let key = (from.ip(), echo.session);
@@ -244,7 +247,7 @@ async fn serve(
                 let _ = given.try_send(message);
                 sessions.insert(key, given);
                 let session = SessionIcmp { raw: raw.clone(), peer: from, given: AsyncMutex::new(taken), mtu: shake.mtu };
-                let frames = EchoFrames::new(session, wire::REPLY, echo.session, echo.session as u16);
+                let frames = EchoFrames::server(session, echo.session, echo.session as u16);
                 let (shake, out) = (shake.clone(), out.clone());
                 shakes.spawn(async move {
                     let _permit = permit;

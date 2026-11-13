@@ -172,7 +172,7 @@ impl Icmp {
         OsEntropy.fill(&mut sid).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
         let session = u32::from_le_bytes(sid);
         let client = listen::ClientIcmp::new(Arc::new(raw), addr);
-        let frames = EchoFrames::new(client, wire::REQUEST, session, session as u16);
+        let frames = EchoFrames::client(client, session, session as u16);
         self.connect_over(frames, target, peer).await
     }
 

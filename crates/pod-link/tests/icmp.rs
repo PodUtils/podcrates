@@ -24,7 +24,6 @@ use pod_link::arq::ArqSettings;
 use pod_link::datagram::Datagrams;
 use pod_link::datagram::lossy::{Faults, Lossy};
 use pod_link::datagram::memory::{DEFAULT_DEPTH, DEFAULT_MTU, MemoryDatagrams, pair};
-use pod_link::icmp::wire::{REPLY, REQUEST};
 use pod_link::icmp::{EchoFrames, Icmp};
 use pod_link::tcp::{Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind, Cost, Facts};
@@ -51,8 +50,8 @@ async fn ends(
     let (server, client) = (id(1), id(2));
     let (mut listening, mut dialing) = (carrier(1, &[client.public()]), carrier(2, &[]));
     (listening.arq, dialing.arq) = (arq, arq);
-    let up = EchoFrames::new(a.clone(), REQUEST, SESSION, SESSION as u16);
-    let down = EchoFrames::new(b.clone(), REPLY, SESSION, SESSION as u16);
+    let up = EchoFrames::client(a.clone(), SESSION, SESSION as u16);
+    let down = EchoFrames::server(b.clone(), SESSION, SESSION as u16);
     let target = Target::Addr("127.0.0.1:0".parse().unwrap());
     let key = KeyName::Key(server.public());
     let both =
@@ -122,8 +121,8 @@ async fn a_refused_key_is_named_on_each_side() {
     // The listener pins another key than the client's.
     let listening = carrier(1, &[stranger.public()]);
     let dialing = carrier(2, &[]);
-    let up = EchoFrames::new(a, REQUEST, SESSION, SESSION as u16);
-    let down = EchoFrames::new(b, REPLY, SESSION, SESSION as u16);
+    let up = EchoFrames::client(a, SESSION, SESSION as u16);
+    let down = EchoFrames::server(b, SESSION, SESSION as u16);
     let target = Target::Addr("127.0.0.1:0".parse().unwrap());
     let key = KeyName::Key(server.public());
     let both =
@@ -151,25 +150,26 @@ async fn a_peer_that_goes_silent_ends_the_link() {
 }
 
 #[tokio::test]
-async fn an_echo_of_the_wrong_session_or_kind_is_dropped() {
-    // The same session and the other kind pass.
+async fn an_echo_of_the_wrong_session_or_mark_is_dropped() {
+    // A client's echo of the same session reaches the server.
     let (a, b) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let sender = EchoFrames::new(a, REQUEST, 1, 1);
-    let taker = EchoFrames::new(b, REPLY, 1, 1);
-    sender.send(b"hello").await.unwrap();
-    assert_eq!(timeout(LIMIT, taker.recv()).await.unwrap().unwrap(), b"hello");
+    let client = EchoFrames::client(a, 1, 1);
+    let server = EchoFrames::server(b, 1, 1);
+    client.send(b"hello").await.unwrap();
+    assert_eq!(timeout(LIMIT, server.recv()).await.unwrap().unwrap(), b"hello");
     // Another session is dropped.
     let (c, d) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let s2 = EchoFrames::new(c, REQUEST, 1, 1);
-    let wrong = EchoFrames::new(d, REPLY, 2, 2);
-    s2.send(b"x").await.unwrap();
+    let c1 = EchoFrames::client(c, 1, 1);
+    let wrong = EchoFrames::server(d, 2, 2);
+    c1.send(b"x").await.unwrap();
     assert!(timeout(Duration::from_millis(200), wrong.recv()).await.is_err(), "the wrong session is dropped");
-    // The same kind (a self-echo on a shared socket) is dropped.
+    // A client's own mark (a self echo or the kernel's reply to a request on
+    // a shared socket) is dropped by another client.
     let (e, f) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let s3 = EchoFrames::new(e, REQUEST, 1, 1);
-    let same = EchoFrames::new(f, REQUEST, 1, 1);
-    s3.send(b"y").await.unwrap();
-    assert!(timeout(Duration::from_millis(200), same.recv()).await.is_err(), "the same kind is dropped");
+    let c2 = EchoFrames::client(e, 1, 1);
+    let also_client = EchoFrames::client(f, 1, 1);
+    c2.send(b"y").await.unwrap();
+    assert!(timeout(Duration::from_millis(200), also_client.recv()).await.is_err(), "the wrong mark is dropped");
 }
 
 #[tokio::test]
