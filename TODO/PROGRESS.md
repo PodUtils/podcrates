@@ -21,7 +21,7 @@
     `9c1fc4b`, T-412; the take waits for T-413 and the freeze); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
-  - podvm: `v0.34.0` (`fc1c5d60`, PodUtils/podvm#288; its relay over
+  - podvm: `v0.35.0` (`7e379a13`, PodUtils/podvm#293; `pod-netlab` in its `podvm lab`; its relay over
     `pod_relay::blocking`, T-326; its fix of #102 is `655cf941`,
     PodUtils/podvm#289).
   - podrunner: `v0.35.0` (`0a400b5`, PodUtils/podrunner#73; its local mode and its egress hold are done; its PodUtils/podrunner@T-096 waits for podvm `v0.2.0-beta.7`); its local mode
