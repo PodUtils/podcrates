@@ -1,0 +1,14 @@
+diff --git a/crates/pod-e2e/src/record/open.rs b/crates/pod-e2e/src/record/open.rs
+--- a/crates/pod-e2e/src/record/open.rs
++++ b/crates/pod-e2e/src/record/open.rs
+@@ -132,10 +132,6 @@
+         if !same(&body[..32], &inn.start.token(index)[..]) {
+             return Err(fail(inn, "a RESUME record with another token"));
+         }
+-        if now.saturating_duration_since(inn.heard) > window {
+-            inn.ended = true;
+-            return Err(Fault::ResumeExpired);
+-        }
+         let word = |at: usize| u64::from_be_bytes(body[at..at + 8].try_into().unwrap_or_default());
+         let (next, epoch) = (word(32), word(44));
+         let ahead = epoch.wrapping_sub(inn.epoch.number);

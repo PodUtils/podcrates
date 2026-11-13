@@ -1,0 +1,12 @@
+diff --git a/crates/pod-e2e/src/exporter.rs b/crates/pod-e2e/src/exporter.rs
+--- a/crates/pod-e2e/src/exporter.rs
++++ b/crates/pod-e2e/src/exporter.rs
+@@ -53,7 +53,7 @@
+         // SHA-256 gives 32 bytes; a shorter hash is set in at the start.
+         let n = hash.len().min(32);
+         salt[..n].copy_from_slice(&hash[..n]);
+-        let (prk, _) = Hkdf::<Sha256>::extract(Some(&salt), &keys[..]);
++        let (prk, _) = Hkdf::<Sha256>::extract(None, &salt);
+         let mut secret = Zeroizing::new([0u8; 32]);
+         secret.copy_from_slice(&prk);
+         Exporter { secret, hash: salt, initiator }

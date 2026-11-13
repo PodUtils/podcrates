@@ -1,0 +1,24 @@
+diff --git a/crates/pod-e2e/src/record/seal.rs b/crates/pod-e2e/src/record/seal.rs
+--- a/crates/pod-e2e/src/record/seal.rs
++++ b/crates/pod-e2e/src/record/seal.rs
+@@ -100,7 +100,7 @@
+     record.extend_from_slice(payload);
+     record.resize(HEADER + length, 0);
+     let (aad, body) = record.split_at_mut(HEADER);
+-    let tag = seal(header.counter, aad, body);
++    let tag = seal(header.counter, &aad[..20], body);
+     record.extend_from_slice(&tag);
+     record
+ }
+diff --git a/crates/pod-e2e/src/record/open.rs b/crates/pod-e2e/src/record/open.rs
+--- a/crates/pod-e2e/src/record/open.rs
++++ b/crates/pod-e2e/src/record/open.rs
+@@ -58,7 +58,7 @@
+         let (aad, rest) = record.split_at(HEADER);
+         let mut body = rest[..length].to_vec();
+         let tag: [u8; TAG] = rest[length..].try_into().map_err(|_| Fault::Tampered)?;
+-        if !epoch.cipher.open(&nonce(inn.prefix, header.counter), aad, &mut body, &tag) {
++        if !epoch.cipher.open(&nonce(inn.prefix, header.counter), &aad[..20], &mut body, &tag) {
+             return Err(Fault::Tampered);
+         }
+         inn.window.mark(header.counter);

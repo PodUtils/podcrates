@@ -1,0 +1,7 @@
+# The associated data of a record stops before the length of its padding,
+# so a hop can change `pad` and cut the payload; the test of each changed
+# byte must fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test record::tests::each_changed_byte_fails_and_leaves_the_layer_as_it_was \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- record::tests::each_changed_byte_fails_and_leaves_the_layer_as_it_was'

@@ -30,6 +30,11 @@
 //! - [`hold`]: a node's channel stops between two messages for the binary
 //!   that takes its place, which carries it on from the same keys and
 //!   nonces.
+//! - [`Exporter`]: keys for a label from the finished handshake, which only
+//!   the two ends hold; no key of the transport leaves the crate.
+//! - [`record`]: the records of a suite that the two ends agree on, with a
+//!   rekey, a padding to buckets, a replay window and a RESUME record used
+//!   once, sealed with keys of the exporter, in place of the carry.
 //!
 //! The crate reads no environment variable and keeps no process state but
 //! task-local values: the caller gives the net's documents
@@ -41,6 +46,7 @@
 mod ask;
 mod channel;
 pub mod ends;
+pub mod exporter;
 mod failure;
 mod frame;
 #[cfg(feature = "fuzzing")]
@@ -50,12 +56,14 @@ pub mod hold;
 pub mod legs;
 pub mod net;
 pub mod person;
+pub mod record;
 
 use std::fmt;
 use std::time::Duration;
 
 pub use ask::{Ask, MAX_WORD, exit_word};
 pub use channel::{Carried, Channel, Held, Start};
+pub use exporter::Exporter;
 pub use handshake::{Asked, Offered, initiate, initiate_with, respond, respond_with};
 
 /// What each end sends first: the channel and its version. An end with no
@@ -133,6 +141,8 @@ pub enum Error {
     Timeout(&'static str),
     /// A frame or a message that the channel does not have.
     Malformed(String),
+    /// The two ends share no suite of records: the offers.
+    NoSuite(String),
 }
 
 impl fmt::Display for Error {
@@ -159,6 +169,7 @@ impl fmt::Display for Error {
                 write!(f, "{step} did not come within {} s", limit.as_secs())
             }
             Error::Malformed(why) => write!(f, "the channel carried a message that it does not have: {why}"),
+            Error::NoSuite(offers) => write!(f, "the two ends share no suite of records: {offers}"),
         }
     }
 }
