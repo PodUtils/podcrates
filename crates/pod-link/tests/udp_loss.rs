@@ -22,11 +22,22 @@ use pod_link::BoxIo;
 use pod_link::datagram::Datagrams;
 use pod_link::datagram::lossy::{Faults, Lossy};
 use pod_link::datagram::memory::{DEFAULT_DEPTH, DEFAULT_MTU, MemoryDatagrams, pair};
-use pod_link::udp::{KcpSettings, KcpStream};
+use pod_link::udp::{KcpSettings, KcpStream, MAX_WINDOW};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
 type Shim = std::sync::Arc<Lossy<MemoryDatagrams>>;
+
+/// The bound of the gate of E2-1 with the defaults, in a release build:
+/// 51 s measured.
+const GATE_DEFAULTS: Duration = Duration::from_secs(120);
+/// The bytes each way of the run at 20 % drop, and its bound against the
+/// clean run. podnet asks for 3 times. A release build over this shim with
+/// no delay gives 3.7 to 4.0 times with a window of 1024 segments, and 9 to
+/// 17 times with 256: the clean run is bound by the CPU, and the lossy one
+/// by the RTO of 30 ms at least (call C284).
+const GATE_SIZE: usize = 8 << 20;
+const GATE_FACTOR: f64 = 5.0;
 
 /// Two ends of the udp carrier over a memory pair with `faults` in each
 /// direction, and the shims.
@@ -50,6 +61,11 @@ async fn ends(faults: Faults, kcp: KcpSettings) -> (BoxIo, BoxIo, Shim, Shim) {
 
 /// `size` bytes each way at once; the time that it took.
 async fn cross(near: BoxIo, far: BoxIo, size: usize) -> Duration {
+    cross_within(near, far, size, Duration::from_secs(120)).await
+}
+
+/// `size` bytes each way at once, in at most `limit`; the time that it took.
+async fn cross_within(near: BoxIo, far: BoxIo, size: usize, limit: Duration) -> Duration {
     let began = Instant::now();
     let (mut near_read, mut near_write) = tokio::io::split(near);
     let (mut far_read, mut far_write) = tokio::io::split(far);
@@ -74,7 +90,7 @@ async fn cross(near: BoxIo, far: BoxIo, size: usize) -> Duration {
         got
     };
     let all = async { tokio::join!(send_up, send_down, read_up, read_down) };
-    let (_, _, got_up, got_down) = timeout(Duration::from_secs(120), all).await.expect("the transfer in time");
+    let (_, _, got_up, got_down) = timeout(limit, all).await.expect("the transfer in time");
     assert!(got_up == up, "up: whole and in order, {} of {}", got_up.len(), up.len());
     assert!(got_down == down, "down: whole and in order, {} of {}", got_down.len(), down.len());
     began.elapsed()
@@ -108,6 +124,38 @@ async fn eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_nodel
     let (near, far, a, b) = ends(faults, kcp).await;
     cross(near, far, 8 << 20).await;
     assert!(a.stats().lost > 0 && b.stats().lost > 0);
+}
+
+/// podnet's gate of row E2-1, with the defaults (the congestion window of
+/// KCP): 8 MiB each way at 5 % drop and 1 % reorder (T-520,
+/// PodUtils/podnet#527). The bound holds in a release build.
+#[cfg_attr(debug_assertions, ignore = "the gate of E2-1 runs in a release build")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults() {
+    let faults = Faults { loss: 0.05, reorder: 0.01, duplicate: 0.0 };
+    let (near, far, a, b) = ends(faults, KcpSettings::default()).await;
+    let took = cross_within(near, far, 8 << 20, GATE_DEFAULTS).await;
+    eprintln!("E2-1, defaults, 8 MiB each way at 5 % drop: {took:?}");
+    assert!(a.stats().lost > 0 && b.stats().lost > 0);
+}
+
+/// podnet's gate of row E2-1 at 20 % drop, with `nodelay` and the full
+/// window: at most `GATE_FACTOR` times the clean time of the same settings
+/// (T-520, PodUtils/podnet#527, call C284). The factor holds in a release
+/// build.
+#[cfg_attr(debug_assertions, ignore = "the gate of E2-1 runs in a release build")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time() {
+    let kcp = KcpSettings { nodelay: true, window: MAX_WINDOW, ..KcpSettings::default() };
+    let (near, far, _, _) = ends(Faults::NONE, kcp).await;
+    let clean = cross(near, far, GATE_SIZE).await;
+    let faults = Faults { loss: 0.20, reorder: 0.0, duplicate: 0.0 };
+    let (near, far, a, b) = ends(faults, kcp).await;
+    let lossy = cross(near, far, GATE_SIZE).await;
+    let factor = lossy.as_secs_f64() / clean.as_secs_f64();
+    eprintln!("E2-1, nodelay, {GATE_SIZE} bytes each way: clean {clean:?}, 20 % drop {lossy:?}, {factor:.2} times");
+    assert!(a.stats().lost > 0 && b.stats().lost > 0);
+    assert!(factor <= GATE_FACTOR, "{factor:.2} times the clean time, above {GATE_FACTOR}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

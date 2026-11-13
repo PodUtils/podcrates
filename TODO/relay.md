@@ -5555,7 +5555,7 @@ each week.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5579,6 +5579,10 @@ cargo test -p pod-link --all-features --test udp_loss
 ## Start condition
 
 podnet answers the question, or starts its PodUtils/podnet@T-276.
+
+## Done
+
+- 2026-11-13: podnet chose the congestion window of KCP by default (PodUtils/podnet#527); `KcpSettings::nodelay` stays off. `tests/udp_loss.rs` has the gate of row E2-1 in a release build: `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults` (51 s measured, bound 120 s) and `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time` (`nodelay` and a window of 1024 segments: 3.7 to 4.0 times measured, bound 5 times; call C284). A debug build ignores both. The job `gate` of `nightly.yml` runs them.
 
 # T-521: `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP)
 
@@ -5796,7 +5800,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 
 ## Done
 
-- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`, and the COORD issue to podnet.
+- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`. #139 (COORD-079) asks podnet to set the same profile; podnet sets it with its take of the udp carrier (PodUtils/podnet#527).
 
 # T-531: `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231)
 

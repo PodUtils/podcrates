@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 413 entries: 116 open, 8 partial, 4 blocked, 285 done.
+`TODO/INDEX.md` holds 413 entries: 115 open, 8 partial, 4 blocked, 286 done.
 
 ## State
 
@@ -98,8 +98,7 @@ next entry.
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
    c. The tag after: the poll carriers, the quic carrier and the udp
-      carrier with KCP of `pod-link` (done); T-520 (the default of the
-      congestion window of KCP, when podnet answers), T-526 (the fix of `kcp` upstream,
+      carrier with KCP of `pod-link` (done); T-526 (the fix of `kcp` upstream,
       partial), T-493 (DNS simplex), T-494 (S3
       simplex), T-497 (ICMP echo), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
