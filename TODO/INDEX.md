@@ -443,6 +443,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-501](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
 | [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
+| [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-506](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |
-| [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
