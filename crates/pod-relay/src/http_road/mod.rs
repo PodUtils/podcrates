@@ -18,13 +18,16 @@
 //! - Each later request names the session by its id in the path, and proves
 //!   it by its key in `X-Session-Key`, never in a URL, as URLs go into logs.
 //!   A wrong key and an id that the role does not know get the same `404`.
-//! - Up: `POST /v1/http/s/ID/up?seq=N[&fin=1]`, one whole batch, numbered
-//!   from 0. `204` once the role stored it. The same number again is the same
-//!   batch, answered alike and stored once, so a client sends a batch again,
+//! - Up: `POST /v1/http/s/ID/up?seq=N[&fin=1&total=BYTES]`, one whole
+//!   batch, numbered from 0. `204` with `X-Seq: N` once the role stored it,
+//!   never before. The same number again is the same batch, answered alike
+//!   (`204`, `X-Seq: N`) and stored once, so a client sends a batch again,
 //!   with the same body, until an answer comes. `X-Ack` is the number of
 //!   batches that the target took; past a bounded window the role holds the
-//!   answer, then says `503` with `Retry-After`. `fin=1` marks the last
-//!   batch, after which the target gets TCP's half-close.
+//!   answer, then refuses `full` (`503` with `Retry-After`). `fin=1` marks
+//!   the last batch, after which the target gets TCP's half-close; `total`
+//!   is the bytes up of the whole session, and a total that differs from
+//!   the bytes stored ends the session `1002 count mismatch`.
 //! - Down: `GET /v1/http/s/ID/down?at=OFFSET&wait=MS`: the target's bytes
 //!   from OFFSET, which also says that each byte before it came, so the role
 //!   forgets them. The role holds a bounded window of bytes that no request
@@ -40,13 +43,22 @@
 //! - `POST /v1/http/s/ID/close` ends the session at once.
 //! - Once the session ended, `410` with `X-Close: CODE REASON`, the close
 //!   codes and reasons of the forward road (`docs/relay.md`): `1000 target
-//!   closed` once the client has each byte of a target that ended.
+//!   closed` once the client has each byte of a target that ended, with
+//!   `X-Total`, the bytes down of the whole session. The client fails a
+//!   `1000` whose total is not its offset, or that names none.
+//! - A refusal of the role names its reason in `X-Refuse`: `full` (`503`,
+//!   the same request again later), `unknown session` (`404`), `not
+//!   allowed` (`403`); the client stops at once for the last two.
+//!
+//! The invariants 1 to 5 of PodUtils/podssh#55 and 6 to 10 of
+//! PodUtils/podssh#221 hold on this wire; [`window`] keeps the role's side.
 
 pub mod answer;
 pub mod client;
 pub mod conn;
 mod serial;
 mod split;
+pub mod window;
 
 use std::time::Duration;
 
@@ -59,6 +71,12 @@ pub const KEY: &str = "X-Session-Key";
 pub const ACK: &str = "X-Ack";
 pub const OFFSET: &str = "X-Offset";
 pub const CLOSE: &str = "X-Close";
+/// The number of the batch that an answer acknowledges.
+pub const SEQ: &str = "X-Seq";
+/// The reason of a refusal ([`window::Refusal`]).
+pub const REFUSE: &str = "X-Refuse";
+/// The bytes down of the whole session, at the end of its target.
+pub const TOTAL: &str = "X-Total";
 
 /// The largest batch that the role takes: a POST of the forward road's
 /// session, which a hop holds whole.
@@ -143,6 +161,8 @@ pub struct Query {
     pub at: Option<u64>,
     pub wait_ms: Option<u64>,
     pub fin: bool,
+    /// The bytes up of the whole session, with `fin`.
+    pub total: Option<u64>,
 }
 
 /// The query of a request-target; a word that does not read is absent.
@@ -156,6 +176,7 @@ pub fn query(target: &str) -> Query {
             "at" => q.at = value.parse().ok(),
             "wait" => q.wait_ms = value.parse().ok(),
             "fin" => q.fin = value == "1",
+            "total" => q.total = value.parse().ok(),
             _ => {}
         }
     }
@@ -228,8 +249,8 @@ mod tests {
 
     #[test]
     fn a_query_reads_its_numbers_and_leaves_what_does_not_read() {
-        let q = query("/v1/http/s/x/x?seq=7&at=1048576&wait=250&fin=1");
-        assert_eq!(q, Query { seq: Some(7), at: Some(1 << 20), wait_ms: Some(250), fin: true });
+        let q = query("/v1/http/s/x/x?seq=7&at=1048576&wait=250&fin=1&total=9");
+        assert_eq!(q, Query { seq: Some(7), at: Some(1 << 20), wait_ms: Some(250), fin: true, total: Some(9) });
         assert_eq!(query("/p"), Query::default());
         let odd = query("/p?seq=-1&at=x&fin=yes&other=2");
         assert_eq!((odd.seq, odd.at, odd.fin), (None, None, false));

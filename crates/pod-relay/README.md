@@ -119,6 +119,46 @@ for its local side `Settings::drain` (`DRAIN`, 10 s), then the node drops
 them and the local side; a second `open` of a live id is no new session;
 a `401` to a node's upgrade ends the node as a `403` does.
 
+### The HTTP road
+
+`http_road` carries a forward session over plain requests of HTTP/1.1
+(the module's documentation gives the wire). `http_road::client` is the
+client; `http_road::window` is the receiver's side of the batches up and
+the refusals, which the role's server takes (podssh's `serve::http_road`
+now, `pod-relay-serve` later). The wire holds these invariants, each with
+its test:
+
+| # | Invariant | Where | Test |
+| --- | --- | --- | --- |
+| 1 | `seq` grows by one in each direction and is never used again | client, `window::Up` | `window` |
+| 2 | the role forgets bytes down only after the client's offset passed them | the role (podssh) | podssh `http_road` |
+| 3 | the role's windows have a bound: 8 batches up, 2 MiB down | `window::Up::new`, the role | `window` |
+| 4 | a `204` is a whole answer | client, the role | `answer`, podssh `http_road` |
+| 5 | the batch and the wait come from the role's open and the measured path | `Tuning` | `http_road` |
+| 6 | a batch stored before, sent again, gets the same acknowledgement (`204`, `X-Seq`), never silence | `window::Up::store`, client | `window`, `http_road_acks` (plant `relay-t476-duplicate-not-acknowledged`) |
+| 7 | the acknowledgement goes after the batch is in the window; a full window is the refusal `full`; the client's offset down names only bytes that the caller's pipe holds | `window::Up::store`, client | `window`, `http_road_acks` |
+| 8 | a refusal names its reason in `X-Refuse`: `full`, `unknown session`, `not allowed`; the client stops at once for the last two | `window::Refusal`, client | `http_road_acks` |
+| 9 | the last batch up carries `total=BYTES`; the target's end carries `X-Total`; a count that differs fails the session | `window::Up::store`, client | `window`, `http_road_acks` |
+| 10 | each batch is held by (session, `seq`), and a batch sent again carries the key and the body of its first send; the road keeps no retry log on disk | `window::Up`, client | `http_road_acks` |
+
+Changes of the wire for T-476 (PodUtils/podssh#221), which the role's
+server must make at the take of this version:
+
+- The answer that stores a batch, first or again, carries `X-Seq: N`. The
+  client fails a session whose acknowledgement names no batch or another.
+- A refusal of the role carries `X-Refuse: REASON`.
+- The last batch carries `total=BYTES` beside `fin=1`; a total that
+  differs from the bytes stored ends the session `1002 count mismatch`.
+- The `410` of `1000` carries `X-Total: BYTES`, the bytes down of the
+  session. The client fails a `1000` with no count, or with a count that
+  differs from its offset.
+
+The test of the ask, `tests/http_road_acks.rs`, runs the client against a
+stand-in role in memory (`tests/http_road_stand_in/`) on a paused clock: a
+stand-in that drops each third acknowledgement after the batch is stored
+ends a session of 20 MiB each way, in each form, with equal digests and
+one resend at most for each lost acknowledgement.
+
 ## Features
 
 | Feature | What |
@@ -334,7 +374,8 @@ mode), the
 end-to-end channel over the layered road, a node's routes and shares, the
 grants, the pairing by code at a stand-in mailbox, the limits of a pool's
 body, the failover, the forward opener over plain `ws://` to a stand-in
-relay (podnet's `bytes_go_through_a_local_relay`). The tests that reach the live relay or the public
+relay (podnet's `bytes_go_through_a_local_relay`), the HTTP road against a
+stand-in role in memory (its invariants 6 to 10). The tests that reach the live relay or the public
 mailboxes are `#[ignore]` (19). `live.yml` runs `pair_code_live` each
 Thursday, and one of the others by hand (its input `relay`; `until` for
 `reverse_drops_live`). It runs `pair_code` each day against

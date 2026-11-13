@@ -14,7 +14,7 @@
 //! [`crate::cleartext`]) to a host whose TLS failed on the way. Each attempt
 //! passes the run's gate of its host first ([`crate::gate`], podssh T-637),
 //! so that the sessions of a run that a failing host meets together cost one
-//! probe. With the feature `plain-ws`, [`open_on_loopback`] does the same
+//! probe. With the feature `plain-ws`, `open_on_loopback` does the same
 //! over plain `ws://` to stand-in relays on the loopback, for the tests of an
 //! embedder.
 

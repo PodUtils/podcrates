@@ -1,0 +1,8 @@
+# A plant of T-476 (the invariants 6 to 10 of the HTTP road):
+# the role's window stores a batch sent again as a new one, and gives no
+# acknowledgement of the batch stored before; the test of the lost
+# acknowledgements must fail.
+ENTRY=T-476
+GROUP=relay
+EXPECT='test the_split_form_carries_20_mib_with_every_third_acknowledgement_lost \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test http_road_acks -- the_split_form_carries_20_mib_with_every_third_acknowledgement_lost'

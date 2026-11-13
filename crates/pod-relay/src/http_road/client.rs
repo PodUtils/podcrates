@@ -16,7 +16,8 @@ use zeroize::Zeroizing;
 
 use super::answer::Head;
 use super::conn::{BoxIo, Conn, Dial, Dialing, request};
-use super::{DOWN_MAX, Form, KEY, OPEN, SESSION, Tuning, WAIT_MAX, is_id, is_key};
+use super::window::Refusal;
+use super::{DOWN_MAX, Form, KEY, OPEN, REFUSE, SESSION, TOTAL, Tuning, WAIT_MAX, is_id, is_key};
 use crate::relay::Relay;
 
 /// The bound of each step of the open, and of the split form's first
@@ -80,18 +81,31 @@ pub enum End {
 
 /// The end of a session, once it came; the first word wins.
 #[derive(Debug, Default)]
-pub struct Ended(Mutex<Option<End>>);
+pub struct Ended(Mutex<Option<End>>, tokio::sync::Notify);
 
 impl Ended {
     pub fn set_once(&self, end: End) {
         let mut slot = self.0.lock().unwrap_or_else(|p| p.into_inner());
         if slot.is_none() {
             *slot = Some(end);
+            self.1.notify_waiters();
         }
     }
 
     pub fn get(&self) -> Option<End> {
         self.0.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
+    /// Wait until the session ended.
+    pub async fn wait(&self) {
+        loop {
+            // Made before the look, so that an end between the two wakes it.
+            let woken = self.1.notified();
+            if self.get().is_some() {
+                return;
+            }
+            woken.await;
+        }
     }
 }
 
@@ -117,6 +131,9 @@ pub(super) struct Shared {
     pub ended: Arc<Ended>,
     /// The role's last `X-Ack`: the batches that the target took.
     pub acked: AtomicU64,
+    /// The bytes down that the caller's pipe holds: the offset of the next
+    /// request down, which the role's count at its end must equal.
+    pub down_at: AtomicU64,
 }
 
 impl Shared {
@@ -140,13 +157,58 @@ impl Shared {
     pub fn end(&self, end: End) {
         self.ended.set_once(end);
     }
+
+    /// The caller's pipe holds each byte down before `at`.
+    pub fn came_down(&self, at: u64) {
+        self.down_at.store(at, Ordering::Release);
+    }
 }
 
-/// The end that a `410` says, or a failure that names it.
-pub(super) fn closed(answer: &Head) -> End {
+/// The end that a `410` says, or a failure that names it. The role's
+/// `1000` comes once the client has each byte down; its count must be the
+/// bytes that came (invariant 9), else the end is a failure, never a clean
+/// one.
+pub(super) fn closed(answer: &Head, s: &Shared) -> End {
     match answer.header(super::CLOSE).and_then(super::parse_close) {
+        Some((1000, reason)) => {
+            let at = s.down_at.load(Ordering::Acquire);
+            match answer.number(TOTAL) {
+                Some(total) if total == at => End::Closed { code: 1000, reason },
+                Some(total) => End::Failed(format!(
+                    "the relay ended the session of the HTTP road after {total} bytes down, where {at} came: \
+                     the counts differ"
+                )),
+                None => {
+                    End::Failed("the relay ended the session of the HTTP road with no count of its bytes down".into())
+                }
+            }
+        }
         Some((code, reason)) => End::Closed { code, reason },
         None => End::Failed("the relay ended the session of the HTTP road, and said no reason".into()),
+    }
+}
+
+/// What a client does after an answer that is no success and no `410`.
+pub(super) enum Then {
+    /// The same request again, after a pause of this length at least.
+    Again(String, Option<Duration>),
+    Stop(End),
+}
+
+/// The next step after `answer`, whose body said `words`, to `what`. The
+/// role's refusal names its reason (invariant 8): `full` asks for the same
+/// request later; `unknown session` and `not allowed` stop the session at
+/// once. With no reason, the status tells a hop's trouble from a refusal.
+pub(super) fn refused(answer: &Head, words: &str, what: &str) -> Then {
+    let reason = answer.header(REFUSE).and_then(Refusal::parse);
+    let said = match reason {
+        Some(reason) => format!("HTTP {} ({}) {words}", answer.status, reason.word()),
+        None => format!("HTTP {} {words}", answer.status),
+    };
+    match (reason, answer.status) {
+        (Some(Refusal::UnknownSession), _) | (None, 404) => Then::Stop(forgotten()),
+        (Some(Refusal::Full), _) | (None, 408 | 429 | 502 | 503 | 504) => Then::Again(said, retry_after(answer)),
+        _ => Then::Stop(End::Failed(format!("the relay refused {what} of the HTTP road: {said}"))),
     }
 }
 
@@ -177,7 +239,9 @@ impl Retry {
     pub async fn again(&mut self, why: &str, at_least: Option<Duration>) -> Result<(), End> {
         if self.since.elapsed() >= RETRY_FOR {
             let secs = RETRY_FOR.as_secs();
-            return Err(End::Failed(format!("the HTTP road had no answer in {secs} s: {why}")));
+            // A refusal `full` is an answer too, but it does not let the
+            // session go on.
+            return Err(End::Failed(format!("the HTTP road made no progress in {secs} s: {why}")));
         }
         tokio::time::sleep(at_least.map_or(self.pause, |asked| asked.max(self.pause))).await;
         self.pause = (self.pause * 2).min(PAUSE_MAX);
@@ -265,6 +329,7 @@ pub async fn open(
         poll_max: tuning.poll_max,
         ended: Arc::default(),
         acked: AtomicU64::new(0),
+        down_at: AtomicU64::new(0),
     });
     let (app, ours) = tokio::io::duplex(PIPE);
     let chosen = match form {
