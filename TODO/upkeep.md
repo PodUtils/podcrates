@@ -1274,3 +1274,35 @@ sh scripts/agent/check-macos.sh  # a new script
 ```
 
 and a planted `libc::SOCK_CLOEXEC` in a Unix path of `pod-link` fails it.
+
+# T-534: `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held
+
+**Source:** `ci.yml` run 43459943301 at `3d6bbf0` (job 132003860678, step "pod-oci against the distribution registry").
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`an_index_of_two_platforms_resolves_through_a_bearer_token` (`pod-oci/tests/distribution.rs`) failed: "the registry accepts: Connection refused". The start of the registry took a free port, and its wait ended at the first connect. A parallel test can take that port before the registry binds it. The registry then ends, the wait connects to the other server, and the push later finds no server.
+
+## Premise
+
+- Read: `tests/common/distribution/server.rs`: `free_port` binds port 0 and lets it go; `wait` connects in a loop.
+- Measured: distribution 3.1.2 writes "listening on 127.0.0.1:PORT" when it binds.
+
+## Approach
+
+The wait reads the log of the registry for "listening on 127.0.0.1:PORT" while the child runs. When the child ends first, the start takes a new port, at most three times.
+
+## Prove
+
+```sh
+sh scripts/ci/registry-tests.sh
+```
+
+## Done
+
+2026-11-13. `listens` in `tests/common/distribution/server.rs`; `start` takes a new port when the registry ends. `scripts/ci/registry-tests.sh` with the pinned registry: 5 passed.

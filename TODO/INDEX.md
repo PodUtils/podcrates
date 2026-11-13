@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**417 entries: 114 open, 9 partial, 4 blocked, 290 done.**
+**418 entries: 114 open, 9 partial, 4 blocked, 291 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 78 | 93 |
+| P1 | 12 | 3 | 0 | 79 | 94 |
 | P2 | 55 | 4 | 4 | 154 | 217 |
 | P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 114 | 9 | 4 | 290 | 417 |
+| **All** | 114 | 9 | 4 | 291 | 418 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -464,3 +464,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |
 | [T-532](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled |
 | [T-533](upkeep.md) | P2 | S | M5 | chore | open | scripts/agent/check-macos.sh: a local check of the build for macOS, as `check-windows.sh` does for Windows |
+| [T-534](upkeep.md) | P1 | S | M5 | defect | done | `ci.yml` at `3d6bbf0` is red: the registry of `pod-oci`'s test took a port that a parallel test held |
