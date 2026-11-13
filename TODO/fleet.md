@@ -2278,3 +2278,51 @@ variants carry plain comments). New examples: `valid-agent-change.json`,
 `unknown variant `external``). The test of the examples counts 14 valid
 and 22 invalid; the README said 11 and 19, which was out of date, and
 now says 14 and 22. `cargo test -p pod-job --all-features`: each passes.
+
+# T-527: `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83)
+
+**Source:** #83 (githome's comment of 2026-11-13 12:52, G-06).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+githome reads `cpu_s` and `peak_rss_mib` of `run-report.v1` for the
+record of a job and its cost view (`unknown` stays null, never 0). The
+report of `pod-job` has `wall_s` only, and `deny_unknown_fields`, so a
+report with the two fields does not parse, and podrunner cannot send
+them.
+
+## Premise
+
+- Read: #83 (2026-11-13); `crates/pod-job/src/report.rs`,
+  `schemas/run-report.v1.schema.json`, `src/schemas/rules.rs`.
+
+## Approach
+
+Two optional fields in `RunReport` and `PublicReport`: `cpu_s` (the CPU
+time of the processes of the job, user and system, in seconds) and
+`peak_rss_mib` (their largest resident memory, in MiB); absent when the
+host cannot measure them. The schemas written again; an example of each
+report with them.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-13, commit `4409dc1`. `RunReport::{cpu_s, peak_rss_mib}` and
+`PublicReport::{cpu_s, peak_rss_mib}` (`Option<u64>`, absent when
+unknown); `RunReport::public` copies them. The two schemas name them. The
+fields of the public report are one list (`PUBLIC`) in the test that holds
+the public report to no host detail: CPU time and memory are facts of the
+job, not of the host. New examples `run-report/valid-usage.json` and
+`run-report-public/valid-usage.json` (16 valid and 22 invalid in all).
+`cargo test -p pod-job --all-features`: each passes. A struct literal of
+`RunReport` or `PublicReport` in a consumer needs the two fields.
