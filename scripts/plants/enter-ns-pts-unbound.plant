@@ -1,0 +1,8 @@
+# The namespace rung binds no /dev/pts: ttyname of a pty fails in the
+# payload (T-504). The test runs as root (sudo -n on a runner), as the
+# rungs with a chroot skip as another user.
+ENTRY=T-504
+GROUP=confine
+EXPECT='test the_pts_of_the_host_are_bound_on_the_namespace_rung \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

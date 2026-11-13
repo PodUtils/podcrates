@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/ns_optional.rs b/crates/pod-enter/src/ns_optional.rs
+--- a/crates/pod-enter/src/ns_optional.rs
++++ b/crates/pod-enter/src/ns_optional.rs
+@@ -65,7 +65,7 @@
+         let refused = ns_proc_refused(names).into_bytes();
+         out.push(Optional { source: lit("proc"), target, fstype: lit("proc"), flags: PROC_FLAGS, refused });
+     }
+-    if let Some(target) = ns_pts_target(root).and_then(|t| CBuf::new(&t)) {
++    if let Some(target) = ns_pts_target(root).and_then(|t| CBuf::new(&t)).filter(|_| false) {
+         let refused = ns_refused_line(names, "/dev/pts", NS_PTS_STEP).into_bytes();
+         let flags = sys::MS_BIND | sys::MS_REC;
+         out.push(Optional { source: lit("/dev/pts"), target, fstype: sys::cempty(), flags, refused });

@@ -12,10 +12,6 @@ use crate::status::{NOT_FOUND, invocable_but_refused};
 use crate::userland::Maps;
 use crate::{Child, Error, Plan, Result, RootDir, errno_failure};
 
-/// The proc of the namespace rung: no set-user-ID, no device and no
-/// program runs from it.
-const PROC_FLAGS: u64 = sys::MS_NOSUID | sys::MS_NODEV | sys::MS_NOEXEC;
-
 /// The exit code of a child that wrote a failed step to the readiness
 /// pipe. The parent reaps that child and reads the step from the pipe, so
 /// no caller sees this code. It is docker's code of a runtime error.
@@ -78,7 +74,6 @@ pub(crate) fn spawn_with(
     let slash = CBuf::new("/").expect("a literal");
     let dot = CBuf::new(".").expect("a literal");
     let tmpfs = CBuf::new("tmpfs").expect("a literal");
-    let proc = CBuf::new("proc").expect("a literal");
     // The empty path through which `execveat` execs a descriptor.
     let empty = sys::cempty();
     // The path by which the namespace rung changes its root. The entry
@@ -230,16 +225,9 @@ pub(crate) fn spawn_with(
                 if let Err(e) = sys::mount(&tmpfs, &m.tmp_target, &tmpfs, 0) {
                     report(9, e);
                 }
-                // A payload with no `/proc` still runs as on the chroot
-                // rung: a refused proc mount writes one line and goes on.
-                if let Some(target) = &m.proc_target
-                    && let Err(e) = sys::mount(&proc, target, &proc, PROC_FLAGS)
-                {
-                    let mut digits = [0u8; 10];
-                    let _ = sys::write(2, &m.proc_refused);
-                    let _ = sys::write(2, crate::entry::decimal(e.0.unsigned_abs(), &mut digits));
-                    let _ = sys::write(2, b"\n");
-                }
+                // `/proc` and `/dev/pts`: a refused one writes one line
+                // and the rung goes on.
+                crate::ns_optional::mount_each(&m.optional);
             }
             // `fchdir` onto the checked descriptor: a path can change after
             // its check, and a descriptor cannot. The working directory is

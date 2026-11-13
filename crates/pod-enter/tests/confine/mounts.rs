@@ -160,7 +160,7 @@ pub fn a_fresh_proc_is_on_the_proc_of_the_namespace_rung() {
         return;
     }
     assert_eq!(r.line.trim_end(), "/proc/self/status=0", "namespace: {r:?}");
-    let options = r.proc_options.clone().unwrap_or_default();
+    let options = r.options("/proc").unwrap_or_default();
     for flag in ["nosuid", "nodev", "noexec"] {
         assert!(options.split(',').any(|o| o == flag), "the proc of the rung is not {flag}: {r:?}");
     }
@@ -219,5 +219,37 @@ pub fn a_joined_entry_sees_the_tmpfs_of_the_running_payload() {
     assert!(fell.contains("setns(pidfd, CLONE_NEWNS) (ESRCH (3))"), "{fell}");
     assert_eq!(r.line.trim_end(), "/tmp/shared=-2", "a namespace of its own: {r:?}");
     let _ = k::close(pidfd);
+    let _ = std::fs::remove_dir_all(d);
+}
+
+/// The namespace rung binds the host's `/dev/pts` on the `/dev/pts` of the
+/// image, so `ttyname` of a pty finds its path; the bind stays in the
+/// namespace of the run. The chroot sequence binds nothing.
+pub fn the_pts_of_the_host_are_bound_on_the_namespace_rung() {
+    if let Err(why) = pod_testkit::host::root() {
+        skip_line(&format!("the rungs with a chroot need chroot(2): {why}"));
+        return;
+    }
+    if !std::path::Path::new("/dev/pts/ptmx").exists() {
+        skip_line("the host has no devpts on /dev/pts");
+        return;
+    }
+    let d = dir("pts");
+    image::build(&d);
+    std::fs::create_dir_all(d.join("dev/pts")).unwrap();
+    let argv: Vec<String> = [image::GUEST_EXE, READER, "/dev/pts/ptmx"].map(String::from).to_vec();
+    let root = root_over_the_pipes(&text(&d));
+    let mut p = plan(argv, None);
+    let mut banner = Vec::new();
+    let r = run(&mut p, 0, |p| spawn_namespace(&root, p, &mut banner)).unwrap();
+    if !banner.is_empty() {
+        skip_line(&format!("the namespace rung fell back to chroot: {}", String::from_utf8_lossy(&banner).trim_end()));
+        return;
+    }
+    assert!(r.options("/dev/pts").is_some(), "no mount on /dev/pts: {r:?}");
+    assert_eq!(r.line.trim_end(), "/dev/pts/ptmx=0", "namespace: {r:?}");
+    assert!(!d.join("dev/pts/ptmx").exists(), "the bind reached the host");
+    let r = run(&mut p, 0, |p| spawn(&root, p, &mut std::io::sink())).unwrap();
+    assert_eq!(r.line.trim_end(), "/dev/pts/ptmx=-2", "chroot: {r:?}");
     let _ = std::fs::remove_dir_all(d);
 }

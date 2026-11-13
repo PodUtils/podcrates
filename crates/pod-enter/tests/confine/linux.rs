@@ -27,7 +27,7 @@ pub fn main() {
         Some(READER) => std::process::exit(payload::reader(&args[2..])),
         _ => {}
     }
-    let tests: [(&str, fn()); 12] = [
+    let tests: [(&str, fn()); 13] = [
         ("the_entry_with_no_chroot_confines_with_host_paths", the_entry_with_no_chroot_confines_with_host_paths),
         ("a_passed_descriptor_takes_the_place_of_no_rule", a_passed_descriptor_takes_the_place_of_no_rule),
         ("a_passed_descriptor_takes_the_place_of_no_pipe", a_passed_descriptor_takes_the_place_of_no_pipe),
@@ -48,6 +48,10 @@ pub fn main() {
         (
             "a_joined_entry_sees_the_tmpfs_of_the_running_payload",
             mounts::a_joined_entry_sees_the_tmpfs_of_the_running_payload,
+        ),
+        (
+            "the_pts_of_the_host_are_bound_on_the_namespace_rung",
+            mounts::the_pts_of_the_host_are_bound_on_the_namespace_rung,
         ),
     ];
     let mut failed = 0;

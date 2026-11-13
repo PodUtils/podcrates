@@ -17,12 +17,14 @@ The entries:
 * The namespace rung (`spawn_namespace`): a mount namespace, `/` private
   and recursive, a private tmpfs on the `/tmp` of the image, a fresh
   `proc` (`nosuid`, `nodev`, `noexec`) on the `/proc` of the image where
-  that directory exists (`ns_proc_target`), a chroot by path with a device
+  that directory exists (`ns_proc_target`), a bind of the host's
+  `/dev/pts` on the `/dev/pts` of the image where that directory exists
+  (`ns_pts_target`, so `ttyname` of a pty finds its path), a chroot by path with a device
   and inode check against the descriptor. A failure of the setup enters
   chroot and names the fallback on the error writer. A refused proc mount
-  does not stop the rung: the child writes one line to the payload's
-  standard error (`ns_proc_refused`), and the payload runs with no
-  `/proc`, as on the chroot rung. The rung has no PID namespace: the
+  or bind of `/dev/pts` does not stop the rung: the child writes one line
+  to the payload's standard error (`ns_refused_line`), and the payload
+  runs with no `/proc` or `/dev/pts`, as on the chroot rung. The rung has no PID namespace: the
   payload's `/proc` shows the host's processes.
 * The joined entry (`spawn_joined`, for an exec): `setns` on the pidfd of
   a running payload of the namespace rung joins its mount namespace, then
@@ -221,6 +223,6 @@ chroot skip as another user, so CI runs the binary as root
 plants `enter-confine-not-applied`,
 `enter-confine-rule-on-a-passed-number`, `enter-confine-rule-under-a-mount`,
 `enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root`,
-`enter-own-number-stays-cloexec`, `enter-ns-proc-exec` and
-`enter-ns-join-skipped`
+`enter-own-number-stays-cloexec`, `enter-ns-proc-exec`,
+`enter-ns-join-skipped` and `enter-ns-pts-unbound`
 (`scripts/plants/`) prove the checks.

@@ -10,6 +10,7 @@ use pod_hostprobe::sys::{self, CBuf};
 
 use crate::abi::{GuestRoot, ResolveKind};
 use crate::launch::spawn_with;
+use crate::ns_optional::{NS_PROC_STEP, NS_PTS_STEP, Optional, optional_mounts};
 use crate::userland::Maps;
 use crate::{Child, ENTERED_RUNG, Error, Names, Plan, Result, RootDir, ladder};
 
@@ -128,16 +129,12 @@ pub fn run_ladder(
 /// What the namespace rung mounts, built before the fork.
 ///
 /// One private tmpfs on the `/tmp` of the image: the mount that a run
-/// keeps apart from the host. A fresh proc on the `/proc` of the image
-/// where the image has that directory. No user, PID or network
-/// namespace: the banner says so.
+/// keeps apart from the host. Then the mounts that do not stop the rung
+/// (`ns_optional`): a fresh proc and a bind of the host's `/dev/pts`. No
+/// user, PID or network namespace: the banner says so.
 pub struct NsMount {
     pub(crate) tmp_target: CBuf,
-    /// The `/proc` of the image, or `None` where it is no mount point.
-    pub(crate) proc_target: Option<CBuf>,
-    /// The line that a refused proc mount writes before its errno: the
-    /// child cannot allocate, so the text is made before the fork.
-    pub(crate) proc_refused: Vec<u8>,
+    pub(crate) optional: Vec<Optional>,
 }
 
 /// The mounts of the namespace rung: its own, or the mount namespace of
@@ -151,10 +148,6 @@ pub(crate) enum NsEntry<'a> {
 /// The step byte of the join of a mount namespace.
 pub const NS_JOIN_STEP: u8 = 16;
 
-/// The step byte of the proc mount. It names its step but never goes to
-/// the readiness pipe: a refused proc mount does not stop the rung.
-pub const NS_PROC_STEP: u8 = 15;
-
 /// The `/tmp` of the image as a mount target, or `None` where it cannot be
 /// one: missing, a file, or a symbolic link. A mount over a link lands on
 /// its target, which is outside the image, so a link is refused as a
@@ -165,25 +158,11 @@ pub fn ns_tmp_target(root: &str) -> Option<String> {
     ns_dir_target(root, "tmp")
 }
 
-/// The `/proc` of the image as a mount target, with the rule of
-/// [`ns_tmp_target`]. `None` skips the proc mount: the rung runs with no
-/// `/proc`, as an image with no such directory asks.
-pub fn ns_proc_target(root: &str) -> Option<String> {
-    ns_dir_target(root, "proc")
-}
-
-fn ns_dir_target(root: &str, name: &str) -> Option<String> {
+pub(crate) fn ns_dir_target(root: &str, name: &str) -> Option<String> {
     let target = format!("{}/{name}", root.trim_end_matches('/'));
     let not_link = std::fs::symlink_metadata(&target).map(|m| !m.is_symlink()).unwrap_or(false);
     let is_dir = std::fs::metadata(&target).map(|m| m.is_dir()).unwrap_or(false);
     (not_link && is_dir).then_some(target)
-}
-
-/// The start of the line of a refused proc mount; the child adds the
-/// number of the errno and a newline.
-pub fn ns_proc_refused(names: &Names) -> String {
-    let step = ns_setup_step(NS_PROC_STEP).unwrap_or("mounting proc on /proc");
-    format!("{}: the namespace rung runs with no /proc: {step} failed with errno ", names.product)
 }
 
 /// `n` in decimal in `buf`, with no allocation: the child of the fork
@@ -290,6 +269,7 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         9 => Some("mounting tmpfs on /tmp"),
         10 => Some("verifying the chroot landed on the opened rootfs"),
         NS_PROC_STEP => Some("mounting proc on /proc"),
+        NS_PTS_STEP => Some("binding /dev/pts on /dev/pts"),
         NS_JOIN_STEP => Some("setns(pidfd, CLONE_NEWNS)"),
         _ => None,
     }
@@ -315,11 +295,7 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
     let Some(target) = CBuf::new(&target) else {
         return chroot(err, "the /tmp mount point contains a NUL byte");
     };
-    // A target with a NUL byte cannot come from `format!` over a path
-    // that `RootDir` holds: such a path has none.
-    let proc_target = ns_proc_target(&root.path).and_then(|t| CBuf::new(&t));
-    let proc_refused = ns_proc_refused(names).into_bytes();
-    let mount = NsMount { tmp_target: target, proc_target, proc_refused };
+    let mount = NsMount { tmp_target: target, optional: optional_mounts(&root.path, names) };
     match spawn_with(root, plan, Rung::Namespace.word(), None, None, None, Some(NsEntry::Own(&mount)), err) {
         Err(Error::NsSetup { step, errno }) => {
             chroot(err, &format!("the namespace rung refused at {step} ({} ({}))", errno.name(), errno.0))
