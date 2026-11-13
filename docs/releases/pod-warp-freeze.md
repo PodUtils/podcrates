@@ -1,8 +1,8 @@
 # The freeze of src/warp and crates/podssh-warp
 
 The text of the COORD issue of podcrates, titled `pod-warp: the freeze of
-src/warp and crates/podssh-warp (to podnet) (to podssh)`. Post it when
-T-412 and T-413 pass and a tag holds `pod-warp`.
+src/warp and crates/podssh-warp (to podnet) (to podssh)`. It is posted with
+`v0.37.0` (T-412 and T-413 pass; the tag holds T-480).
 
 podcrates holds `pod-warp` (T-028, T-335 to T-339, T-406): the
 registration, the identity file, the doors, MASQUE over HTTP/2 and
@@ -23,7 +23,7 @@ podssh: hold `crates/podssh-warp` to fixes from now on. The trial patch
 (podssh's way out, its proxy and its resolver), with the record, the door
 file and the exit codes in podssh-cli; ZeroTier's member takes
 `pod-netstack`, and the edge inside WARP takes a `pod_core::Dial`. It
-needs the tag that holds T-480 (a team's token, the base that answered).
+needs `v0.37.0`, which holds T-480 (a team's token, the base that answered).
 A server of connect-ip of the user's own over HTTP/3 waits for T-481: the
 patch refuses `PODSSH_WARP_SERVER` with exit 70 until then.
 

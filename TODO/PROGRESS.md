@@ -5,11 +5,11 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.36.0` at `408fb13` (`docs/releases/v0.36.0.md`;
-  the hand-off #129, closed: each consumer took it). The release
-  `v0.37.0` is in work (`docs/releases/v0.37.0.md`): T-480 (`pod-warp`,
-  for the trial of podssh), T-488, T-491 and T-492 (`pod-enter`, for
-  podvm).
+- Last release: `v0.37.0` at `3c5a086` (`docs/releases/v0.37.0.md`; ci
+  43375509872, adoption 43375509895, release 43378948606; the hand-off
+  #134, COORD-074, open): T-480 (`pod-warp`), T-488, T-491 and T-492
+  (`pod-enter`, for podvm). The freeze of `pod-warp` is #135 (COORD-075).
+  Each consumer took `v0.36.0` (#129, closed).
 - The consumers and their tags:
   - podssh: `v0.36.0` (`99b9642`, PodUtils/podssh#226; its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
@@ -90,8 +90,9 @@ next entry.
 3. **podnet** (its complete beta, PodUtils/podnet#521, COORD-064; the
    answer names a tag for each group, an estimate). podnet holds the files
    of `pod-relay`, `pod-warp` and `pod-cloudflare` to fixes from `7c5f87e`.
-   a. `v0.37.0` (it holds the team token of `pod-warp`), then the COORD issue of the freeze of `pod-warp`
-      (T-339, partial; `docs/releases/pod-warp-freeze.md`).
+   a. `v0.37.0` (it holds the team token of `pod-warp`) and the COORD
+      issue of the freeze of `pod-warp` (#135; T-339, partial) are out:
+      podnet and podssh take the trial patches.
    b. The next tag: T-420 (WebSocket), T-421 (HTTP/2), T-439 (the accept
       loop of `pod-ws` for T-420), T-510 (a fuzz target of the opener of
       the records of `pod-e2e`). The port rules of `pod-warp`, the TXT
