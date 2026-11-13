@@ -30,13 +30,20 @@ pub enum Event {
     Unknown,
 }
 
-/// The relation of the actor to the organization.
+/// The relation of the actor to the organization: `member` (a person
+/// with write access), `outside` (a person with none), `agent` (a change
+/// that an agent made), `bot` (the forge itself, or an App that acts on
+/// its own), `unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum ActorClass {
+    // Plain comments here: a doc comment on a variant changes the schema
+    // from one `enum` to a `oneOf`.
     Member,
     Outside,
+    Agent,
+    Bot,
     Unknown,
 }
 

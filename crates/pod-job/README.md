@@ -96,7 +96,7 @@ POD_JOB_WRITE_SCHEMAS=1 cargo test -p pod-job schemas
 
 ## The examples
 
-`tests/examples/RECORD/` holds 11 valid and 19 invalid examples (podrunner's
+`tests/examples/RECORD/` holds 14 valid and 22 invalid examples (podrunner's
 draft); `tests/examples/expect.json` gives the reason of each invalid one.
 They are test data of the crate, not schemas: `schemas/` holds the
 `*.schema.json` files only (`docs/design.md`, section 2).
