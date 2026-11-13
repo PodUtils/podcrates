@@ -271,6 +271,9 @@ pub fn loss_text(bp: u16) -> String {
 macro_rules! words {
     ($ty:ty { $($variant:path => $word:literal),+ $(,)? }) => {
         impl $ty {
+            /// The words of sand-net's flag, in the order of the type.
+            pub const WORDS: &'static [&'static str] = &[$($word),+];
+
             /// The word of sand-net's flag.
             pub fn word(&self) -> &'static str {
                 match self { $($variant => $word),+ }
@@ -319,6 +322,9 @@ impl Policy {
             Policy::Ports { .. } => None,
         }
     }
+
+    /// The words of `--policy`.
+    pub const WORDS: &'static [&'static str] = &["open", "web", "web-nodns", "only443", "blackout"];
 
     /// The policy of a word of `--policy`.
     pub fn from_word(word: &str) -> Option<Policy> {

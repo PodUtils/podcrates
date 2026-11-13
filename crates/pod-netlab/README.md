@@ -36,7 +36,7 @@ for step in lab.down(&settings)? { run_in_guest(step).ok(); }
 | Item | What |
 | --- | --- |
 | `Knobs`, `Stack`, `Nat`, `NatFlags`, `Policy`, `Broken`, `Icmp`, `Ping`, `Family`, `Proto` | each knob of sand-net; `Knobs::check` (each range, each contradiction), `Knobs::parse_flags` and `Knobs::flags` (sand-net's flags, both ways), `nat_on`, `ping_passes` |
-| `KnobError`, `Contradiction` | a refused knob set: `OutOfRange`, `BadPort`, `TooManyPorts`, `BadFlag`, and each contradiction by name |
+| `KnobError`, `Contradiction` | a refused knob set: `OutOfRange`, `BadPort`, `TooManyPorts`, `BadFlag` (its text names the range of a number past its type, or the words of the flag; each enum of a flag has `WORDS`), and each contradiction by name |
 | `Lab`, `Settings`, `LabError` | a checked knob set under a prefix and a name (`PREFIX-NAME-g`); `namespace`, `layout`, `files`, `up`, `down`, `expect` |
 | `Layout`, `Role`, `layout::*` | the namespaces, the veth pairs and the addresses; the constants of each address, of the NAT64 prefix and pool, and of the ports 2200 and 2222 |
 | `Step` | `Run` (an argument list, its standard input, and whether it must pass), `Write`, `Remove`, `Stop` (a pid file); `line` for a log |
@@ -136,7 +136,8 @@ a lab is the consumer's.
 
 **Knobs.** `--stack dual|v4|v6` (v6 removes 127.0.0.1), `--nat
 none|nat44|nat66|both`, `--nat-flags persistent|random|fully-random`,
-`--policy open|web|web-nodns|only443|blackout`, `--tcp`, `--udp`,
+`--policy open|web|web-nodns|only443|blackout`, `--tcp`, `--udp` (a
+list of ports; `none` is the empty list, and a missing list is empty),
 `--no-dns`, `--broken v4-drop|v4-reject|v6-drop|v6-reject`, `--mtu
 1280..1499`, `--icmp drop`, `--delay`, `--loss`, `--rate` (netem on the
 router), `--dnat` (2222 to 2200), `--hairpin`, `--ping allow|drop`,

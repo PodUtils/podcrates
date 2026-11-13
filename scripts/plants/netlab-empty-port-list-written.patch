@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netlab/src/knobs/flags.rs b/crates/pod-netlab/src/knobs/flags.rs
+--- a/crates/pod-netlab/src/knobs/flags.rs
++++ b/crates/pod-netlab/src/knobs/flags.rs
+@@ -137,7 +137,7 @@
+                 if !tcp.is_empty() || udp.is_empty() {
+                     pair("--tcp", if tcp.is_empty() { NO_PORTS.into() } else { join(tcp) });
+                 }
+-                if !udp.is_empty() {
++                {
+                     pair("--udp", join(udp));
+                 }
+             }
