@@ -1,0 +1,11 @@
+diff --git a/crates/pod-e2e/src/record/open.rs b/crates/pod-e2e/src/record/open.rs
+--- a/crates/pod-e2e/src/record/open.rs
++++ b/crates/pod-e2e/src/record/open.rs
+@@ -74,7 +74,6 @@
+         if inn.window.highest().is_some_and(|h| h >= inn.first.saturating_add(WINDOW)) {
+             inn.previous = None;
+         }
+-        body.truncate(length - usize::from(header.pad));
+         Ok(Opened::Record(Record {
+             kind: header.kind,
+             flags: header.flags & !PHASE,

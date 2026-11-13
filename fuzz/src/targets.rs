@@ -24,7 +24,7 @@ mod wormhole;
 
 pub use actions::{actions_expr, actions_workflow};
 pub use devtunnel::devtunnel_connect_info;
-pub use e2e::{e2e_frame, e2e_handover, e2e_proof};
+pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs_image};
 pub use relay::{relay_list, relay_pool};
 pub use session::{session_handover, session_record, udp_frame};

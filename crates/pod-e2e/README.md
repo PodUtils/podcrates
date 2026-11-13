@@ -40,7 +40,7 @@ channel defends against.
 | `net` | `Docs` (`held`, `shares_with`, `take`), `Held` (`newer_than`), `OFFER` |
 | `legs` | `token`, `digest`, `hex`, `unhex`, `offered`, `frame`, `Frames`, `WINDOW`, `LIFE_MS`, `OFFER`; `Leases` (`attach`, `issue`, `restore`, `spent`, `held`), `Lease` (`seed`, `hand_over`); `during`, `current`, `Taker` (`give`, `holds`, `pick`, `upgraded`, `refused`, `token_at`), `Pick` |
 | `hold` | `Holds` (`holding`, `move_out`, `len`, `is_empty`), `Hold` (`is_asked`), `held`, `current`, `resume`, `HOLD_LIMIT`; `ChannelState` (`encode`, `decode`), `state::{split, transport_of, VERSION}` |
-| `fuzzing` | feature `fuzzing`: `take_frames`, `verdict`, `verdict_body`, `net_part`, `net_bytes`, `proof`, `Proof`, `Answer` |
+| `fuzzing` | feature `fuzzing`: `take_frames`, `verdict`, `verdict_body`, `net_part`, `net_bytes`, `proof`, `Proof`, `Answer`, `records` (the records of one end of an exporter of fixed keys) |
 
 Each `Error` converts to a `pod_core::Failure` of the stage `Session`,
 with the error as its cause:
@@ -114,7 +114,8 @@ for each step; the text is the line of podssh.
 
 `fuzzing`: the readers of the frames, the verdict, the net's part and the
 proof are public for the fuzz targets of `fuzz/` (`e2e_frame`,
-`e2e_proof`). No consumer turns it on.
+`e2e_proof`), and so are the records of the two ends of an exporter of
+fixed keys (`e2e_record`). No consumer turns it on.
 
 ## Settings
 
@@ -232,8 +233,9 @@ the buckets, a RESUME used once, three failures and a late one, the epoch
 of a RESUME, the agreement of the suites, a document of the net before
 them). The plants are
 `scripts/plants/e2e-*` (group `e2e`). The fuzz targets `e2e_frame`,
-`e2e_proof` and `e2e_handover` read the frames, the verdict, the net's
-part of a proof, a proof, and the state of a handover.
+`e2e_proof`, `e2e_handover` and `e2e_record` read the frames, the verdict,
+the net's part of a proof, a proof, the state of a handover, and the
+records that a peer sends (T-510).
 
 ## Sources
 

@@ -1,0 +1,11 @@
+diff --git a/crates/pod-e2e/src/record/open.rs b/crates/pod-e2e/src/record/open.rs
+--- a/crates/pod-e2e/src/record/open.rs
++++ b/crates/pod-e2e/src/record/open.rs
+@@ -58,6 +58,7 @@
+         let (aad, rest) = record.split_at(HEADER);
+         let mut body = rest[..length].to_vec();
+         let tag: [u8; TAG] = rest[length..].try_into().map_err(|_| Fault::Tampered)?;
++        inn.window.mark(header.counter);
+         if !epoch.cipher.open(&nonce(inn.prefix, header.counter), aad, &mut body, &tag) {
+             return Err(Fault::Tampered);
+         }
