@@ -11,12 +11,9 @@
   the pin of `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394,
   T-355. `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner
   wait.
-- `main` holds T-353 (`pod-oci` against distribution on the loopback; no
-  login over plain HTTP, C187), T-393 and T-395 (the TCP timeout, the
-  keepalive and no Nagle; UDP to a family that the device lacks) and
-  T-336 (the relay leg of `pod-warp` and the race) and T-337 (HTTP/3,
-  WireGuard and the carried device of `pod-warp`) and T-339 (`Live`,
-  the exit, the TUN and its routes of `pod-warp`) for the next tag.
+- `v0.35.0` is prepared on `main` (the version, `docs/releases/v0.35.0.md`,
+  the text of its hand-off): `pod-warp` (T-336 to T-339, T-406), T-393,
+  T-395, T-353, T-380, T-358, T-416, T-417.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).

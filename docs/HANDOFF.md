@@ -22,8 +22,11 @@ is done. Git and the record keep finished work.
   `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338, T-337,
-  T-406 and T-339 (partial) for the next tag.
+- `v0.35.0` is prepared on `main`. Finish its release (`docs/maintenance.md`,
+  "A release"): `ci` and `adoption` at the head, `release.yml` with no
+  input, then with `version=0.35.0`; the dry run of `publish.yml`; post
+  `docs/releases/v0.35.0-handoff.md` as COORD-069 `(to all)` (fill
+  `COMMIT`, the run ids and the time) and map it.
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
 - An agent of this session in a worktree under `.claude/worktrees/`: T-416
