@@ -974,7 +974,7 @@ has the same fault in its frozen `PodUtils/podvm:crates/podvm-probe/src/sys/raw.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5120,6 +5120,10 @@ probe child, to keep the start of a worker in its time budget.
   it is not written again here. This entry is the gap: the map and the
   cache.
 - Not measured: the time of a full probe run on a worker.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podvm keeps its own cache of the
+  report (T-485, call C241). It stays in M8 and waits until the podswarm
+  session starts.
 
 ## Approach
 
@@ -5144,13 +5148,14 @@ its rows.
 
 ## Start condition
 
-T-107 is done. The owner answers Q15.
+T-107 is done. The podswarm session starts, or a sibling asks for it (the
+owner's ruling "podswarm", 2026-11-13).
 
 # T-444: `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82)
 
 **Source:** GitHub #82 (podswarm P-6).
 **Category:** feature
-**Milestone:** M8
+**Milestone:** M6
 **Priority:** P2
 **Effort:** M
 **Status:** open
@@ -5174,6 +5179,13 @@ and its spreading rung from the probe rows. Thirteen rows are absent.
 - The order of podswarm: rows 1 to 4, 6 to 9, 12 and 13 for its M1; row 5
   (`PTRACE_SEIZE`) for its M3; rows 10 and 11 (qemu of each architecture,
   SNP and TDX) for its M8.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podvm: the rows of the user and PID namespace,
+  cgroup2 delegation and FUSE in a user namespace are the facts of the
+  namespace rung and the FUSE rung of `pod-enter`, which podvm picks. It
+  moved from M8 to M6 (item 4 of the work order). The rows that only
+  podswarm reads (`PTRACE_SEIZE`, the qemu of each architecture, SNP and
+  TDX) wait until the podswarm session starts.
 
 ## Approach
 
@@ -5197,10 +5209,6 @@ cargo test -p pod-hostprobe --all-features
 
 The tests: one test for each row with a fake result, and a real run of
 each row on the CI kernel.
-
-## Start condition
-
-The owner answers Q15.
 
 # T-445: `pod-hold`: the marker, the calls that fail with `ENOSYS`, and the reads of a path and an argv of a stopped task (GitHub #121)
 
@@ -5234,6 +5242,10 @@ and the argv of a stopped `execve`.
   descriptor needs no new call (the ask says so). The gap: the marker,
   the `ENOSYS` list, `read_cstr` and `read_argv`.
 - The takeover itself is T-431 (`pod-proc`).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: `podnet pod` holds `io_uring`
+  already (`crates/pod-hold/src/filter.rs`) and needs no marker. It stays
+  in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -5260,7 +5272,8 @@ The tests of `podnet pod` and podnet's adoption trial pass.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-446: `pod-hold`: a plan that the child applies before `execve` (`PreExec` and `Program::with_plan`) (GitHub #121)
 
@@ -5286,6 +5299,9 @@ it podswarm runs a shim process.
   with_env}` and `start(program, &calls)`: the child calls only `execve`.
   `pod-confine` compiles its rules before the fork and applies them in the
   child with no allocation (`docs/design.md`, section 4).
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone (one fork for its hold and its
+  keeper). It stays in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -5311,13 +5327,14 @@ Landlock rule); a failed step is named and no exec runs. The tests of
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-447: `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122)
 
 **Source:** GitHub #122 (podswarm P-18).
 **Category:** feature
-**Milestone:** M8
+**Milestone:** M7
 **Priority:** P3
 **Effort:** M
 **Status:** open
@@ -5341,6 +5358,11 @@ the same plan as an SEV-SNP guest.
   boot, no virtio-serial, no SNP.
 - The boot of this plan by podvm is podswarm's ask V-7 (GitHub #124), for
   the podvm session. The check of the report is T-436.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podvm: the direct boot of a Linux kernel and
+  initramfs is the base of `pod-microvm` (podvm's M7, PodUtils/podvm#168).
+  It moved from M8 to M7 (item 10 of the work order, with T-062). The SNP
+  variant waits until the podswarm session starts.
 
 ## Approach
 
@@ -5368,13 +5390,14 @@ tests do not change.
 
 ## Start condition
 
-The owner answers Q15.
+It goes with T-062 (the studies of the widened scope of podvm). The SNP
+variant waits until the podswarm session starts.
 
 # T-448: `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123)
 
 **Source:** GitHub #123 (podswarm P-20).
 **Category:** docs
-**Milestone:** M8
+**Milestone:** M6
 **Priority:** P3
 **Effort:** S
 **Status:** open
@@ -5394,6 +5417,10 @@ mount it when `/dev/fuse` opens.
   module text says that `mknod` of the node and `mount(2)` are both
   `EPERM` in a user namespace. The part about `mknod` is right; the part
   about `mount(2)` is wrong.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podvm: a wrong fact in a document of `pod-enter`,
+  a crate of podvm, can make a reader skip a rung that works. It moved
+  from M8 to M6 (item 4 of the work order).
 
 ## Approach
 
@@ -5409,11 +5436,6 @@ kernel is T-444.
 cargo test -p pod-enter --all-features
 cargo todo remap crates/pod-enter/src/fuse.rs
 ```
-
-## Start condition
-
-None: text only. It waits behind the work order with the other asks of
-podswarm (Q15).
 
 # T-485: `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291)
 

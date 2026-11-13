@@ -3817,7 +3817,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3857,6 +3857,15 @@ podnet starts its link workstream and names its first carrier (a COORD issue).
 - `cargo test -p pod-link --all-features`: 49 passed (`frames` 6, `carriers` 8, `keepalive` 4, `limits` 13, `streams` 12, `windows` 6); each test binary passed 60 runs in a loop. Clippy of `pod-link` with all features and with none, rustdoc with `-D warnings`, `check-size.py`, `check-design-paths.py` and `check-probe.py` pass.
 - The fuzz target `link_frame` with 6 seeds; its body ran on the seeds and on 600,000 mutations with no panic.
 - Before the release: the main session reserves the name `pod-link` on crates.io (`check-crates-io-names.py` reads it from `docs/design.md`; crates.io answered 404 for it on 2026-11-12).
+
+2026-11-13. The rest is done: `v0.32.0` released the crate (#93), the
+resume over `pod-session` is T-311 (done), the tcp carrier is T-396
+(done, `v0.34.0`), and podnet took `v0.34.0` at `ef8c901`
+(PodUtils/podnet#515) with its PodUtils/podnet@T-268 on the tcp carrier.
+crates.io answers `pod-link` at `0.0.0` with the repository of podcrates
+(2026-11-13; `python3 -I scripts/check-crates-io-names.py`). The next
+parts have entries of their own: the carriers T-420 to T-424, the ARQ
+T-310, and the first stream of podswarm T-442.
 
 # T-301: `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479)
 
@@ -4576,6 +4585,10 @@ changes in a session, so the caps must change on the live link.
   `crates/pod-link/src/state.rs`).
 - The workstream of the crate is T-300 (partial); T-310 and T-420 to
   T-424 are podnet's next parts. This ask is new.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: podnet asked for no priority and
+  no change of the windows. It stays in M8 and waits until the podswarm
+  session starts; an ask of podnet moves it to item 3.
 
 ## Approach
 
@@ -4602,7 +4615,8 @@ that `Settings::check` refuses gives an error.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-476: `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221)
 

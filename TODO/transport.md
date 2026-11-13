@@ -6073,7 +6073,7 @@ place: the counts of `docs/live-calls.md` (176 watches of 81 files) and of
 
 **Source:** GitHub #116 (podswarm P-2).
 **Category:** feature
-**Milestone:** M8
+**Milestone:** M1
 **Priority:** P3
 **Effort:** M
 **Status:** open
@@ -6100,6 +6100,12 @@ own loop. podssh#168 and podnet#384 name the same hazard.
   and no cap for each address.
 - T-036 (the relay role of podssh) and T-420 (the server half of the
   WebSocket carrier of `pod-link`) can take the same loop.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podnet and podssh: the server half of the
+  WebSocket carrier of `pod-link` (T-420, podnet) and the relay role of
+  podssh (T-036) take the same loop, and PodUtils/podssh#168 and
+  PodUtils/podnet#384 name the hazard. It moved from M8 to M1, with T-420
+  in item 3 of the work order.
 
 ## Approach
 
@@ -6128,7 +6134,7 @@ next accept from it closes and one from 127.0.0.2 is taken; with
 
 ## Start condition
 
-The owner answers Q15, R-01 and R-04.
+It goes with T-420 (the server half of the WebSocket carrier).
 
 # T-440: `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117)
 
@@ -6159,6 +6165,9 @@ client fails with `Refusal::Unpinned` today.
   mode either.
 - `crates/pod-tls/tests/no_permissive_verifier.rs` guards against a
   verifier that admits with no check.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone (the enrolment of its workers). It
+  stays in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -6184,7 +6193,8 @@ enrolment mode fails the guard.
 
 ## Start condition
 
-The owner answers Q15 and R-04.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-441: `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120)
 
@@ -6210,6 +6220,10 @@ of a failure) and wait for the exit with no poll loop.
   `spawn(command)` (`sh -c`, stdin and stdout piped, stderr inherited, a
   kill on drop) and `exited()` (`try_wait`). The argv form, the stderr
   pipe and the wait future are the gap.
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone: each caller of `ChildIo::spawn`
+  gives a command line of its user, for which `sh -c` is right. It stays
+  in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -6231,7 +6245,8 @@ child; the tests of `spawn` and `exited` do not change.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
 
 # T-418: Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220)
 

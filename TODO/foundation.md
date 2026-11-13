@@ -1803,6 +1803,9 @@ task was not found".
   gives the word of `stage` in the JSON log line (schema `log.v1`).
   `Host` is "the local host: a probe of it, its file systems, its
   limits".
+- The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
+  C245): this ask helps podswarm alone (the stage of a task of its
+  workers). It stays in M8 and waits until the podswarm session starts.
 
 ## Approach
 
@@ -1825,4 +1828,5 @@ schema `log.v1`.
 
 ## Start condition
 
-The owner answers Q15.
+The podswarm session starts, or a sibling asks for it (the owner's ruling
+"podswarm", 2026-11-13).
