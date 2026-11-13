@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**372 entries: 110 open, 7 partial, 5 blocked, 250 done.**
+**372 entries: 109 open, 7 partial, 5 blocked, 251 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 70 | 86 |
-| P2 | 52 | 2 | 5 | 129 | 188 |
+| P2 | 51 | 2 | 5 | 130 | 188 |
 | P3 | 45 | 2 | 0 | 49 | 96 |
-| **All** | 110 | 7 | 5 | 250 | 372 |
+| **All** | 109 | 7 | 5 | 251 | 372 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -418,4 +418,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
 | [T-450](foundation.md) | P2 | S | M8 | feature | open | `pod-core`: `Stage::Task` for a failure of a task that a tool runs for its user (GitHub #119) |
 | [T-475](adapters.md) | P3 | S | M3 | feature | open | `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518) |
-| [T-476](relay.md) | P2 | M | M2 | feature | open | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |
+| [T-476](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the invariants 6 to 10 of the HTTP road, client and server, with a test of lost acknowledgements (PodUtils/podssh#221) |

@@ -4611,7 +4611,7 @@ The owner answers Q15.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4645,3 +4645,36 @@ take.
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+## Done
+
+2026-11-13, commit 1fb1a7e. podcrates holds the client of the road and,
+for the role's server, `http_road::window` (`Up`, `Refusal`), which
+podssh's `serve::http_road` takes now and `pod-relay-serve` (T-036) takes
+with the role (C230). Each invariant, in the client and in the window:
+(6) a change: a batch stored before gets `Stored::Again`, the same `204`
+with `X-Seq`; the client fails an acknowledgement that names no batch or
+another. Before, podssh's role answered a duplicate `204` already, and
+the client took any `204`. (7) a test of what held: the window stores
+before it acknowledges and refuses `full` with no move; the client's
+offset down names only bytes that the caller's pipe holds. (8) a change:
+`X-Refuse` names `full`, `unknown session` or `not allowed`; the client
+sends the same batch again after `full` and stops at once for the other
+two. (9) a change: the last batch carries `total=BYTES`, and a total that
+differs ends the session `1002 count mismatch`; the `410` of `1000`
+carries `X-Total`, and the client fails a `1000` with no count or another
+count. (10) a test only: each batch is keyed by (session, `seq`), and a
+resend carries the key and the body of its first send; the road keeps no
+retry log on disk (C232). A defect, fixed in place: in the split form,
+the bytes down went on after the bytes up ended the session, so the
+caller's stream did not end. `tests/http_road_acks.rs` (6 tests) runs
+the client against a stand-in role in memory over the window, on a
+paused clock: with each third acknowledgement dropped after the batch is
+stored, 20 MiB each way end with equal digests in each form, and with
+one resend at most for each lost acknowledgement. The plant
+`relay-t476-duplicate-not-acknowledged` removes (6) from the window; the
+test fails (the session ends `1002 count mismatch`). The change of the
+wire (C231): `X-Seq`, `X-Refuse`, `total=` and `X-Total`; the role's
+server must send them at its take of this version, else each session of
+the road fails. The README of `pod-relay` lists the ten invariants and
+the change. `cargo test -p pod-relay --all-features` passes.
