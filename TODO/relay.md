@@ -5616,7 +5616,7 @@ cargo test -p pod-link --all-features --test udp_loss
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5636,6 +5636,27 @@ A field `Poll::max_bytes` (64 MiB by default): a budget of the listener that eac
 ```sh
 cargo test -p pod-link --all-features --test poll_lanes
 ```
+
+## Done
+
+2026-11-13, commit `f1c65fc`. `Poll::max_bytes` (64 MiB by default, at
+least `MIN_BYTES`, one batch) caps the bytes down that the sessions of a
+listener keep for their dialers (`crates/pod-link/src/poll/budget.rs`,
+call C278). A pump reads, then waits for the room of the bytes that it
+read; an acknowledgement and the end of a session give the bytes back; an
+open with no room for one batch gets 429; `Stats::held` gives the bytes
+kept now. The test
+`the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_gets_429`
+has a cap of 1.5 MiB and three sessions that no dialer reads: the first
+keeps its window (1 MiB), the second 512 KiB, the third open gets 429;
+the acknowledgement of the first window gives its bytes back, the second
+session takes the rest of its window, and the third open gets 201; no
+count seen passes the cap. It passed 30 runs in a loop. The plants
+`link-poll-bytes-uncapped` and `link-poll-open-room-unchecked` make it
+fail. `cargo test -p pod-link --all-features --test poll_lanes`: 7
+passed; `cargo test -p pod-link --all-features`: 156 passed. The bytes
+outside the cap (the pipes of each session, the connections after their
+handshake) are T-525.
 
 # T-518: `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers
 
