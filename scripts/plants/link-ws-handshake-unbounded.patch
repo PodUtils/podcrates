@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws.rs b/crates/pod-link/src/ws.rs
+--- a/crates/pod-link/src/ws.rs
++++ b/crates/pod-link/src/ws.rs
+@@ -178,7 +178,7 @@
+             })?;
+             Ok((session, key))
+         };
+-        let (session, key) = timeout(self.handshake_timeout, shake).await.unwrap_or_else(|_| {
++        let (session, key) = timeout(Duration::from_secs(3600), shake).await.unwrap_or_else(|_| {
+             Err(err(
+                 CarrierErrorKind::Io(io::ErrorKind::TimedOut),
+                 format!("the TLS handshake and the upgrade with {target} took more than {:?}", self.handshake_timeout),

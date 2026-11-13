@@ -12,6 +12,11 @@ repository.workspace = true
 # pinning the Ed25519 key of the other (`tcp`). Without it, no TLS crate is
 # in the build.
 tcp = ["dep:pod-tls", "dep:rustls", "dep:tokio-rustls", "pod-core/async"]
+# The ws carrier: a WebSocket over the TLS of `tcp`, its listener on the
+# accept loop of pod-ws (`ws`).
+ws = ["tcp", "dep:pod-ws", "pod-ws/serve"]
+# The h2 carrier: one POST of HTTP/2 over the TLS of `tcp` (`h2`).
+h2 = ["tcp", "dep:h2", "dep:http", "dep:bytes", "dep:pod-ws"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.
@@ -22,6 +27,14 @@ pod-identity = { workspace = true }
 pod-tls = { workspace = true, optional = true }
 rustls = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true }
+# The WebSocket of the ws carrier: the upgrade, the session, the bridge of
+# its messages and the accept loop.
+pod-ws = { workspace = true, optional = true }
+# HTTP/2 of the h2 carrier, pure Rust; its stream as a byte stream is
+# pod-ws's (`h2_road::duplex`).
+h2 = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
 # The driver of a link, the streams, the carriers and the keepalive's clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
 tracing = { workspace = true }
@@ -32,6 +45,12 @@ tracing = { workspace = true }
 libc = "0.2"
 
 [dev-dependencies]
+# The way out through a proxy of the test of the h2 carrier, and a client
+# of HTTP/2 of another form.
+pod-proxy = { workspace = true }
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
 # The tests of the tcp carrier: the loopback guard, ring as the provider,
 # a peer of TLS 1.2 and a client of another form.
 pod-testkit = { workspace = true }

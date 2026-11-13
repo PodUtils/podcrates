@@ -342,7 +342,8 @@ fn rootfs() -> Option<String> {
 }
 
 /// pod-ws: a way through a direct dialer, with ECH and the records of
-/// pod-dns; the frames, the accept value and a pool of HTTP/2 link in.
+/// pod-dns; the frames, the accept value, a pool of HTTP/2 and the
+/// settings of the accept loop link in.
 fn ws() -> String {
     let provider = std::sync::Arc::new(pod_tls::crypto::provider());
     let tls = pod_tls::Context::new(provider, pod_tls::Settings::new(pod_tls::Words::new("static-probe")));
@@ -353,11 +354,12 @@ fn ws() -> String {
     let bytes = pod_ws::frame::encode(&frame, pod_ws::frame::Role::Client, [1, 2, 3, 4]);
     let pool = pod_ws::h2_road::Pool::new();
     format!(
-        "pod-ws: {} bytes for a frame of 5, accept {}, way {}, {pool:?}, limits {:?}",
+        "pod-ws: {} bytes for a frame of 5, accept {}, way {}, {pool:?}, limits {:?}, {} bytes before ready",
         bytes.len(),
         pod_ws::handshake::accept_key("dGhlIHNhbXBsZSBub25jZQ=="),
         way.label(),
-        pod_ws::Limits::default()
+        pod_ws::Limits::default(),
+        pod_ws::serve::Serve::default().reserve()
     )
 }
 

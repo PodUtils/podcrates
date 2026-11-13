@@ -2187,12 +2187,17 @@ dependencies = [
 name = "pod-link"
 version = "0.37.0"
 dependencies = [
+ "bytes",
+ "h2",
+ "http",
  "libc",
  "pod-core",
  "pod-identity",
+ "pod-proxy",
  "pod-session",
  "pod-testkit",
  "pod-tls",
+ "pod-ws",
  "rustls",
  "sha2 0.11.1",
  "tokio",
@@ -2532,6 +2537,7 @@ dependencies = [
  "libc",
  "p256",
  "pod-core",
+ "pod-identity",
  "pod-proxy",
  "pod-testkit",
  "pod-tls",
@@ -2539,6 +2545,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "sha2 0.11.1",
+ "socket2",
  "tokio",
  "tokio-rustls",
  "tracing",

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/serve/conn.rs b/crates/pod-ws/src/serve/conn.rs
+--- a/crates/pod-ws/src/serve/conn.rs
++++ b/crates/pod-ws/src/serve/conn.rs
+@@ -133,7 +133,7 @@
+     let key = pod_tls::peer::peer_key(tls.get_ref().1.peer_certificates());
+     gate.advance(id, Stage::Head);
+ 
+-    let at = (Instant::now() + d.head).min(end);
++    let at = end;
+     let head = timeout_at(at, read_head(&mut tls, cfg.caps.head_bytes, cfg.caps.head_lines)).await;
+     let (request, rest) = match head.map_err(|_| "the deadline of the head".to_string())? {
+         Ok(read) => read,

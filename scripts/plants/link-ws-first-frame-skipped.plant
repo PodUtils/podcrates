@@ -1,0 +1,7 @@
+# The dial of the ws carrier sends no first frame: the accept loop of the
+# listener holds the session until the dialer writes (T-420).
+ENTRY=T-420
+GROUP=link
+EXPECT='the dial and the accept in time'
+RUN='cargo test -p pod-link --all-features --test ws the_connect_gives'
+LIMIT=1800

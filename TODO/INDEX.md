@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**397 entries: 122 open, 7 partial, 4 blocked, 264 done.**
+**398 entries: 120 open, 7 partial, 4 blocked, 267 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 63 | 3 | 4 | 137 | 207 |
-| P3 | 46 | 1 | 0 | 53 | 100 |
-| **All** | 122 | 7 | 4 | 264 | 397 |
+| P2 | 62 | 3 | 4 | 139 | 208 |
+| P3 | 45 | 1 | 0 | 54 | 100 |
+| **All** | 120 | 7 | 4 | 267 | 398 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -390,8 +390,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-417](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-418](transport.md) | P2 | S | M1 | docs | done | Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220) |
 | [T-419](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run |
-| [T-420](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
-| [T-421](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
+| [T-420](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
+| [T-421](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
@@ -405,7 +405,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-436](fleet.md) | P3 | L | M8 | feature | open | `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115) |
 | [T-437](fleet.md) | P3 | L | M8 | feature | open | `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112) |
 | [T-438](fleet.md) | P2 | S | M8 | release | done | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
-| [T-439](transport.md) | P3 | M | M1 | feature | open | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
+| [T-439](transport.md) | P3 | M | M1 | feature | done | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
 | [T-440](transport.md) | P3 | S | M8 | feature | open | `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117) |
 | [T-441](transport.md) | P2 | S | M8 | feature | open | `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120) |
 | [T-442](relay.md) | P2 | M | M8 | feature | open | `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88) |
@@ -443,4 +443,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-501](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
 | [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
+| [T-506](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
 | [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |

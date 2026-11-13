@@ -1,0 +1,7 @@
+# The dial of the ws carrier reads the alert of a refused key as an error
+# of I/O, not as a refusal that names the key (T-420).
+ENTRY=T-420
+GROUP=link
+EXPECT='the dialer learns of the refusal at the dial'
+RUN='cargo test -p pod-link --all-features --test ws the_listener_refuses'
+LIMIT=1800

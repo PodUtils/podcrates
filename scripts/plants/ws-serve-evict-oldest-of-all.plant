@@ -1,0 +1,7 @@
+# A full accept loop of pod-ws evicts the oldest connection of each stage,
+# not the oldest of the earliest stage (T-439).
+ENTRY=T-439
+GROUP=ws
+EXPECT='the oldest of the stage TLS is evicted'
+RUN='cargo test -p pod-ws --all-features --test serve_caps a_full_loop_evicts'
+LIMIT=1800

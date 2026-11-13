@@ -17,6 +17,9 @@ ech = ["pod-tls/ech"]
 # (podvm) and a stand-in relay. Off by default; podnet's binary turns it
 # on through pod-relay for a relay on the loopback (call C101).
 plain-ws = []
+# The accept loop of a server over TLS (`serve`): the deadline of each
+# stage, the caps of the connections before `ready`, the socket options.
+serve = ["dep:pod-identity", "dep:socket2"]
 
 [dependencies]
 # The dial, the failure and its stage and class, the text made safe to
@@ -32,6 +35,11 @@ tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt"] 
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
+# The key that a peer proved in TLS (`serve`).
+pod-identity = { workspace = true, optional = true }
+# The options of an accepted socket and the cut of a session in the hands
+# of the caller (`serve`); pure Rust over libc, as tokio takes it.
+socket2 = { version = "0.6", features = ["all"], optional = true }
 # Sec-WebSocket-Key and Sec-WebSocket-Accept.
 base64 = { workspace = true }
 # HTTP/2's extended CONNECT (h2_road): h2 and its types, pure Rust.
@@ -48,6 +56,8 @@ libc = "0.2"
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
+# The identities of the tests of `serve`.
+pod-identity = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 # The tests of TLS run on ring.
 rustls = { workspace = true, features = ["ring"] }
@@ -61,3 +71,11 @@ proptest = { version = "1", default-features = false, features = ["std"] }
 [[test]]
 name = "plain_loopback"
 required-features = ["plain-ws"]
+
+[[test]]
+name = "serve"
+required-features = ["serve"]
+
+[[test]]
+name = "serve_caps"
+required-features = ["serve"]

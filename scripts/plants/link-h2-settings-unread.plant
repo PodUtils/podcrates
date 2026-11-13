@@ -1,0 +1,8 @@
+# The dial of the h2 carrier does not read the SETTINGS of the listener
+# before HTTP/2 takes the stream: a refused key is no refusal that names
+# the key (T-421).
+ENTRY=T-421
+GROUP=link
+EXPECT='the dialer learns of the refusal at the dial'
+RUN='cargo test -p pod-link --all-features --test h2 the_listener_refuses'
+LIMIT=1800

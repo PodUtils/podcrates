@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/serve/conn.rs b/crates/pod-ws/src/serve/conn.rs
+--- a/crates/pod-ws/src/serve/conn.rs
++++ b/crates/pod-ws/src/serve/conn.rs
+@@ -83,7 +83,7 @@
+     if let Some(why) = cut {
+         tracing::debug!(%from, why, "a session before ready is cut");
+         if let Some(socket) = cutter {
+-            let _ = socket.shutdown(std::net::Shutdown::Both);
++            let _ = &socket;
+         }
+     }
+ }

@@ -1,0 +1,7 @@
+# The listener of the ws carrier skips the pin of the client keys: a
+# client of another key is accepted (T-420).
+ENTRY=T-420
+GROUP=link
+EXPECT='the_listener_refuses_a_client_of_another_key_and_stays_open stdout ----'
+RUN='cargo test -p pod-link --all-features --test ws'
+LIMIT=1800

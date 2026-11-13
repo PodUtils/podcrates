@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 397 entries: 122 open, 7 partial, 4 blocked, 264 done.
+`TODO/INDEX.md` holds 398 entries: 120 open, 7 partial, 4 blocked, 267 done.
 
 ## State
 
@@ -93,11 +93,13 @@ next entry.
    a. `v0.37.0` (it holds the team token of `pod-warp`) and the COORD
       issue of the freeze of `pod-warp` (#135; T-339, partial) are out:
       podnet and podssh take the trial patches.
-   b. The next tag: T-420 (WebSocket), T-421 (HTTP/2), T-439 (the accept
-      loop of `pod-ws` for T-420), T-510 (a fuzz target of the opener of
-      the records of `pod-e2e`). The port rules of `pod-warp`, the TXT
-      and CNAME of `pod-dns`, and the exporter and the record layer of
-      `pod-e2e` (call C246) are done for it.
+   b. The next tag: T-506 (the rules of podnet's WebSocket carrier:
+      the subprotocol, a text frame refused, Ping and Pong), T-510 (a
+      fuzz target of the opener of the records of `pod-e2e`). The port
+      rules of `pod-warp`, the TXT and CNAME of `pod-dns`, the exporter
+      and the record layer of `pod-e2e` (call C246), the accept loop
+      `pod_ws::serve`, and the carriers `ws` and `h2` of `pod-link` are
+      done for it.
    c. The tag after: T-310 (the ARQ), T-422 (long-poll, SSE, chunked),
       T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an

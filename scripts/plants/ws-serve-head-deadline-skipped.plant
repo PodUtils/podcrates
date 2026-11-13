@@ -1,0 +1,7 @@
+# The accept loop of pod-ws waits for the head of the upgrade until the
+# deadline of ready, not the deadline of the head (T-439).
+ENTRY=T-439
+GROUP=ws
+EXPECT='a head that stalls is cut'
+RUN='cargo test -p pod-ws --all-features --test serve a_client_that_stalls_in_the_head'
+LIMIT=1800

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws.rs b/crates/pod-link/src/ws.rs
+--- a/crates/pod-link/src/ws.rs
++++ b/crates/pod-link/src/ws.rs
+@@ -173,7 +173,7 @@
+             let pending = upgrade(&mut tls, url, &target, &own).await?;
+             let session = RelaySession::new(tls, pending, None, pod_ws::client::WRITE_TIMEOUT).naming("the listener");
+             // The first frame, which the accept loop of the listener waits for.
+-            session.send_binary(&[]).await.map_err(|e| {
++            Ok::<(), pod_ws::SessionError>(()).map_err(|e| {
+                 err(CarrierErrorKind::Io(io::ErrorKind::BrokenPipe), format!("the first frame to {target}: {e}"))
+             })?;
+             Ok((session, key))

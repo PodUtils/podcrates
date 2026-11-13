@@ -19,9 +19,12 @@
 //!   `GOAWAY` ([`frame`]).
 //!
 //! The carriers: [`unix::Unix`] (a stream over `AF_UNIX`),
-//! [`memory::Memory`] (two ends in one process) and, with the feature
-//! `tcp`, `tcp::Tcp` (TLS 1.3 over TCP through the caller's way out, each
-//! side pinning the Ed25519 key of the other). Each carrier says with
+//! [`memory::Memory`] (two ends in one process), with the feature `tcp`,
+//! `tcp::Tcp` (TLS 1.3 over TCP through the caller's way out, each side
+//! pinning the Ed25519 key of the other), and with the feature `ws`,
+//! `ws::Ws` (the same TLS under a WebSocket, its listener on the accept
+//! loop of `pod-ws`), and with the feature `h2`, `h2::H2` (the same TLS
+//! under one POST of HTTP/2). Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
 //! registry of the carriers, their order and their flags are the
@@ -38,9 +41,13 @@
 mod carrier;
 mod error;
 pub mod frame;
+#[cfg(feature = "h2")]
+pub mod h2;
 mod inbound;
 mod link;
 pub mod memory;
+#[cfg(feature = "tcp")]
+mod pin;
 mod settings;
 mod state;
 mod stream;
@@ -48,6 +55,8 @@ mod stream;
 pub mod tcp;
 #[cfg(unix)]
 pub mod unix;
+#[cfg(feature = "ws")]
+pub mod ws;
 
 pub use carrier::{Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Io, Listener, Pending};
 pub use error::{Error, GoAwayCode, ResetCode};

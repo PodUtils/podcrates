@@ -1,0 +1,7 @@
+# The dial of the h2 carrier ends the request body with its headers: the
+# bytes of the dialer have no way to the listener (T-421).
+ENTRY=T-421
+GROUP=link
+EXPECT='a_dial_through_a_proxy_moves_bytes_both_ways_while_the_post_is_open stdout ----'
+RUN='cargo test -p pod-link --all-features --test h2 a_dial_through_a_proxy'
+LIMIT=1800

@@ -25,11 +25,11 @@ mod listen;
 
 use std::fmt;
 use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use pod_core::{Class, Dial, Failure, Target};
+use pod_core::{Dial, Failure, Target};
 use pod_identity::{Identity, KeyName, PublicKey};
 use pod_tls::peer;
 use rustls::crypto::CryptoProvider;
@@ -41,6 +41,7 @@ pub use listen::TlsListener;
 pub use pod_tls::peer::{Keys, Refusal, refusal};
 
 use crate::carrier::{BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Listener, Pending};
+use crate::pin;
 
 /// The name of the carrier.
 pub const NAME: &str = "tcp";
@@ -204,11 +205,7 @@ impl Carrier for Tcp {
     /// The provider makes TLS 1.3 and verifies Ed25519, and a TCP socket
     /// binds on the loopback: the host allows the family.
     fn available(&self) -> Result<(), CarrierError> {
-        peer::supports(&self.provider).map_err(|why| err(CarrierErrorKind::Unavailable, why))?;
-        std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
-            .or_else(|_| std::net::TcpListener::bind((Ipv6Addr::LOCALHOST, 0)))
-            .map(drop)
-            .map_err(|e| err(CarrierErrorKind::Unavailable, format!("TCP sockets on the loopback: {e}")))
+        pin::available(NAME, &self.provider)
     }
 
     /// Dial `KEY@HOST:PORT` ([`Tcp::address`]).
@@ -230,84 +227,35 @@ impl Carrier for Tcp {
     }
 }
 
-/// The name of the ClientHello: a DNS name goes as SNI, an address sends
-/// none. No side checks it: the pin names the peer.
+/// The name of the ClientHello ([`pin::server_name`]).
 fn server_name(target: &Target) -> Result<ServerName<'static>, CarrierError> {
-    match target {
-        Target::Addr(addr) => Ok(ServerName::IpAddress(addr.ip().into())),
-        Target::Name { host, .. } => ServerName::try_from(host.clone())
-            .map_err(|_| err(CarrierErrorKind::Usage, format!("{host:?} is no DNS name and no address"))),
-    }
+    pin::server_name(NAME, target)
 }
 
-/// A failure of the way out, as an error of the carrier with its class.
+/// A failure of the way out ([`pin::of_failure`]).
 fn of_failure(target: &Target, label: &str, failure: Failure) -> CarrierError {
-    let kind = match failure.class {
-        Class::Usage => CarrierErrorKind::Usage,
-        Class::NotFound => CarrierErrorKind::NotFound,
-        Class::Refused | Class::Policy | Class::Revoked => CarrierErrorKind::Refused,
-        Class::Timeout => CarrierErrorKind::Io(io::ErrorKind::TimedOut),
-        Class::Protocol => CarrierErrorKind::Io(io::ErrorKind::InvalidData),
-        _ => CarrierErrorKind::Unavailable,
-    };
-    CarrierError::with_source(NAME, kind, format!("connect to {target} through {label}"), io::Error::other(failure))
+    pin::of_failure(NAME, target, label, failure)
 }
 
-/// A failed handshake: `Refused` with the key that the peer proved, when
-/// the pin refused it.
+/// A failed handshake ([`pin::tls_error`]).
 fn tls_error(text: String, e: io::Error) -> CarrierError {
-    match refusal(&e) {
-        Some(found) => CarrierError::with_source(NAME, CarrierErrorKind::Refused, format!("{text}: {found}"), e),
-        None => CarrierError::io(NAME, text, e),
-    }
+    pin::tls_error(NAME, text, e)
 }
 
-/// The error of the wait for the acceptance of the listener: an alert of
-/// a refused certificate is a refusal of the key of this end.
+/// The error of the wait for the acceptance ([`pin::answer_error`]).
 fn answer_error(target: &Target, own: &PublicKey, e: io::Error) -> CarrierError {
-    use rustls::AlertDescription as A;
-    let alert = match e.get_ref().and_then(|inner| inner.downcast_ref::<rustls::Error>()) {
-        Some(rustls::Error::AlertReceived(alert)) => Some(*alert),
-        _ => None,
-    };
-    match alert {
-        Some(
-            alert @ (A::CertificateUnknown
-            | A::BadCertificate
-            | A::AccessDenied
-            | A::UnsupportedCertificate
-            | A::CertificateRequired),
-        ) => CarrierError::with_source(
-            NAME,
-            CarrierErrorKind::Refused,
-            format!("the listener at {target} refused the key of this end, {} ({alert:?})", own.fingerprint()),
-            e,
-        ),
-        _ if e.kind() == io::ErrorKind::UnexpectedEof => {
-            CarrierError::io(NAME, format!("the listener at {target} closed before it took this end"), e)
-        }
-        _ => tls_error(format!("the acceptance of the listener at {target}"), e),
-    }
+    pin::answer_error(NAME, target, own, e)
 }
 
 /// The ALPN of a handshake must be [`ALPN`].
 fn check_alpn(alpn: Option<&[u8]>, peer: &dyn fmt::Display) -> Result<(), CarrierError> {
-    match alpn {
-        Some(ALPN) => Ok(()),
-        _ => Err(err(
-            CarrierErrorKind::Io(io::ErrorKind::InvalidData),
-            format!("the peer at {peer} took no ALPN {}", String::from_utf8_lossy(ALPN)),
-        )),
-    }
+    pin::check_alpn(NAME, alpn, ALPN, peer)
 }
 
-/// The key that the peer proved. The verifier of `pod_tls::peer` let the
-/// handshake end only with one.
+/// The key that the peer proved ([`pin::proved`]).
 fn proved(
     certificates: Option<&[rustls::pki_types::CertificateDer<'_>]>,
     peer: &dyn fmt::Display,
 ) -> Result<PublicKey, CarrierError> {
-    peer::peer_key(certificates).ok_or_else(|| {
-        err(CarrierErrorKind::Io(io::ErrorKind::InvalidData), format!("the peer at {peer} proved no Ed25519 key"))
-    })
+    pin::proved(NAME, certificates, peer)
 }

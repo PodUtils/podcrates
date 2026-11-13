@@ -1,0 +1,7 @@
+# The dial of the ws carrier waits for the TLS and the upgrade of a silent
+# listener with no time limit (T-420).
+ENTRY=T-420
+GROUP=link
+EXPECT='the time limit of the dial'
+RUN='cargo test -p pod-link --all-features --test ws a_silent_listener'
+LIMIT=1800
