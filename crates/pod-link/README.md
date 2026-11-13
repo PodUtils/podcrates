@@ -319,7 +319,7 @@ feature `h2`):
   silent listener ends the dial: `a_silent_listener_ends_the_dial_at_its_time_limit`.
 - [x] A plant for each check: `link-h2-server-key-unchecked`,
   `link-h2-client-key-unchecked`, `link-h2-settings-unread`,
-  `link-h2-answer-at-end`, `link-h2-handshake-inline`
+  `link-h2-request-ended`, `link-h2-handshake-inline`
   (`scripts/plants/`).
 
 ## The adoption map

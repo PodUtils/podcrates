@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/h2.rs b/crates/pod-link/src/h2.rs
+--- a/crates/pod-link/src/h2.rs
++++ b/crates/pod-link/src/h2.rs
+@@ -213,7 +213,7 @@
+                 .body(())
+                 .map_err(|e| err(CarrierErrorKind::Usage, format!("the request: {e}")))?;
+             let (answer, send) =
+-                ask.send_request(request, false).map_err(|e| h2_error(format!("the POST to {target}"), e))?;
++                ask.send_request(request, true).map_err(|e| h2_error(format!("the POST to {target}"), e))?;
+             let answer = answer.await.map_err(|e| h2_error(format!("the answer of {target}"), e))?;
+             if answer.status() != http::StatusCode::OK {
+                 return Err(err(

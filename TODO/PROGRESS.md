@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 385 entries: 112 open, 7 partial, 4 blocked, 262 done.
+`TODO/INDEX.md` holds 386 entries: 112 open, 7 partial, 4 blocked, 263 done.
 
 ## State
 
@@ -108,8 +108,8 @@ next entry.
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order (the WebSocket
    carrier `ws` is in, on the accept loop `pod_ws::serve`, which podssh's
-   relay role T-036 can take too):
-   T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
+   relay role T-036 can take too; the HTTP/2 carrier `h2` is in): T-506
+   (the rules of podnet's WebSocket carrier), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
    T-424 (UDP with KCP) and T-310 (the ARQ); T-475 (the port rules of
    the reader of the rules, PodUtils/podnet#518). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file

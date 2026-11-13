@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/h2.rs b/crates/pod-link/src/h2.rs
+--- a/crates/pod-link/src/h2.rs
++++ b/crates/pod-link/src/h2.rs
+@@ -196,7 +196,7 @@
+             let key = pin::proved(NAME, conn.peer_certificates(), &target)?;
+             // The first bytes of the listener (its SETTINGS) come after it
+             // took the key of this end; an alert comes in their place.
+-            let tls = primed::Primed::read(tls).await.map_err(|e| pin::answer_error(NAME, &target, &own, e))?;
++            let _ = &own;
+             let (mut ask, connection) = ::h2::client::Builder::new()
+                 .initial_window_size(WINDOW)
+                 .initial_connection_window_size(WINDOW)

@@ -1,0 +1,19 @@
+diff --git a/crates/pod-link/src/h2/listen.rs b/crates/pod-link/src/h2/listen.rs
+--- a/crates/pod-link/src/h2/listen.rs
++++ b/crates/pod-link/src/h2/listen.rs
+@@ -116,11 +116,10 @@
+         match listener.accept().await {
+             Ok((tcp, from)) => {
+                 let (acceptor, out) = (acceptor.clone(), out.clone());
+-                shakes.spawn(async move {
+-                    let result = handshake(acceptor, tcp, from, within).await;
+-                    let _ = out.send(result).await;
+-                    drop(permit);
+-                });
++                shakes.spawn(async {});
++                let result = handshake(acceptor, tcp, from, within).await;
++                let _ = out.send(result).await;
++                drop(permit);
+             }
+             Err(e) => {
+                 drop(permit);

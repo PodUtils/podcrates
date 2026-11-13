@@ -4458,7 +4458,7 @@ peer, a silent listener, the address forms, the way out). The plants
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4483,6 +4483,20 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit efa3159: `h2::H2` (feature `h2`), `h2::H2Listener`
+and `h2::PostUrl`; call C254. The stand-in of the Approach is a proxy of
+the way out (a CONNECT tunnel of `pod-proxy`): a front that ends the TLS
+would end the pin. `cargo test -p pod-link --all-features`: 0 failed;
+`tests/h2.rs` 9 passed (a link with 3 streams of 256 KiB, a dial through
+the proxy with 50 lines each answered while the POST is open, a refused
+key on each side, a GET refused with 405, a silent peer, a silent
+listener, the address forms, the way out); `cargo deny check bans
+sources`: ok. The plants `link-h2-server-key-unchecked`,
+`link-h2-client-key-unchecked`, `link-h2-settings-unread`,
+`link-h2-request-ended` and `link-h2-handshake-inline` are caught.
 
 # T-422: `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515)
 
@@ -4870,4 +4884,58 @@ accepts no connection.
 
 ```sh
 cargo test -p pod-netstack
+```
+
+# T-506: `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059) with PodUtils/podnet@T-269 (row E1-2 of PodUtils/podnet#467); found by T-420.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podnet@T-269 gives the rules of its WebSocket carrier (row E1-2
+of PodUtils/podnet#467): "Binary frames only. The subprotocol is
+`podnet/1`. Ping every 20 s, pong within 10 s." and "A text frame is a
+protocol error." The ws carrier of T-420 offers no subprotocol, gives the
+payload of a text message to the link as bytes (`pod_ws::bridge` writes
+each data message), and sends no Ping of WebSocket: the link has its own
+`PING`.
+
+## Premise
+
+- Read (2026-11-13): PodUtils/podnet:TODO/link.md, PodUtils/podnet@T-269
+  and PodUtils/podnet@T-270, through the mirror of the GitHub API.
+  PodUtils/podnet@T-270 names TLS 1.3 and "check the peer fingerprint in
+  the TLS handshake", which the h2 carrier of T-421 does.
+- In podcrates: `crates/pod-link/src/ws.rs` (`carry` on `pod_ws::bridge`);
+  `crates/pod-ws/src/serve/conn.rs` answers with `server::switching`,
+  which names no subprotocol; `crates/pod-ws/src/bridge.rs` takes a text
+  and a binary message alike.
+- Not measured: whether podnet keeps these rules over a carrier whose link
+  has its own keepalive (`Settings::keepalive`, `dead_after`).
+
+## Approach
+
+- A setting `Ws::protocol: Option<String>`: the name is the consumer's,
+  so that no name of a consumer is in the crate. The dial offers it
+  (`pod_ws::url::offering`) and refuses a 101 that does not name it.
+- `pod_ws::serve::Serve` gets an optional subprotocol: the loop refuses a
+  request that does not offer it (426) and names it in the 101.
+- A pump of the carrier in place of `pod_ws::bridge`: a text message
+  sends a Close 1003 and ends the stream of the link with an error of
+  protocol; a Ping each `ping_every` (20 s) and the end of the session when
+  nothing comes within `pong_within` (10 s) after a Ping.
+- Tests: a text message ends the link; a peer that answers no Ping ends
+  the session (a paused clock); a dialer with no subprotocol gets 426; a
+  plant for each.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features --test serve
+cargo test -p pod-link --all-features --test ws
 ```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**385 entries: 112 open, 7 partial, 4 blocked, 262 done.**
+**386 entries: 112 open, 7 partial, 4 blocked, 263 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 52 | 3 | 4 | 137 | 196 |
+| P2 | 52 | 3 | 4 | 138 | 197 |
 | P3 | 47 | 1 | 0 | 51 | 99 |
-| **All** | 112 | 7 | 4 | 262 | 385 |
+| **All** | 112 | 7 | 4 | 263 | 386 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -391,7 +391,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-418](transport.md) | P2 | S | M1 | docs | done | Tell podssh the terms of the file hosts that the catalog records (PodUtils/podssh#220) |
 | [T-419](transport.md) | P3 | S | M1 | feature | open | `pod-services`: the facts of the file hosts that podcrates did not read, from podssh's first live run |
 | [T-420](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
-| [T-421](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
+| [T-421](relay.md) | P2 | M | M2 | feature | done | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
@@ -432,3 +432,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
 | [T-491](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-492](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297) |
+| [T-506](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
