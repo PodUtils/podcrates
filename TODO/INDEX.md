@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**385 entries: 114 open, 7 partial, 4 blocked, 260 done.**
+**396 entries: 125 open, 7 partial, 4 blocked, 260 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 53 | 3 | 4 | 136 | 196 |
-| P3 | 48 | 1 | 0 | 50 | 99 |
-| **All** | 114 | 7 | 4 | 260 | 385 |
+| P2 | 63 | 3 | 4 | 136 | 206 |
+| P3 | 49 | 1 | 0 | 50 | 100 |
+| **All** | 125 | 7 | 4 | 260 | 396 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -313,7 +313,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-280](fleet.md) | P3 | M | M8 | measurement | open | `pod-actions-expr` and `pod-actions-workflow` against GitHub: a live run of the conformance vectors |
 | [T-290](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: the resumable layer and the end-to-end channel as a feature, so that a plain client builds without them |
 | [T-300](relay.md) | P3 | L | M2 | feature | done | `pod-link`: the stream multiplexer with credit flow control, the carriers and the ARQ, as a shared crate (PodUtils/podnet#479) |
-| [T-301](relay.md) | P3 | S | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
+| [T-301](relay.md) | P2 | M | M2 | feature | open | `pod-e2e`: the handshake hash and the transport keys as an interface (PodUtils/podnet#479) |
 | [T-302](roads.md) | P3 | M | M4 | feature | open | `pod-egress`: the accept side of the SIP004 (Shadowsocks AEAD) and Trojan codecs (PodUtils/podnet#479) |
 | [T-303](relay.md) | P3 | S | M2 | chore | done | `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479) |
 | [T-304](transport.md) | P2 | S | M1 | feature | done | `pod-tls`: a verifier that pins an Ed25519 identity of the peer (PodUtils/podnet#479) |
@@ -432,3 +432,14 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
 | [T-491](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-492](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an entry that joins the mount namespace of a running payload, for exec (PodUtils/podvm#297) |
+| [T-493](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the DNS simplex carrier (PodUtils/podnet#521) |
+| [T-494](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the object-storage (S3) simplex carrier (PodUtils/podnet#521) |
+| [T-495](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP poll simplex carrier (PodUtils/podnet#521) |
+| [T-496](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the DNS stream carrier with a pipelined window of queries (PodUtils/podnet#521) |
+| [T-497](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the ICMP echo carrier (PodUtils/podnet#521) |
+| [T-498](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521) |
+| [T-499](relay.md) | P2 | L | M2 | feature | open | `pod-link`: NAT traversal with a fall back to the relay (PodUtils/podnet#521) |
+| [T-500](relay.md) | P2 | M | M2 | feature | open | `pod-link`: one session over an up carrier and a down carrier (PodUtils/podnet#521) |
+| [T-501](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
+| [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
+| [T-503](podvm.md) | P3 | S | M6 | defect | open | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |

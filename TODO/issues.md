@@ -135,5 +135,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #130 | [DEFERRED] Serve ECH, shape the ClientHello, and measure the handshake | open (deferred by its author) | T-490 |
 | #131 | pod-git: T-217 to T-220 move to PodUtils/podforge (deferred) (to podforge) | closed (the owner's agent of podforge took it) | T-217, T-218, T-219, T-220 |
 | #132 | COORD-072: podrunner's Q10 (a Docker Engine API socket for each job): which decision did podrunner record? (to podrunner) | closed (podrunner's DR-8: the container hooks, no Docker API socket, no crate now; PodUtils/podrunner#77) | T-146 |
+| #133 | COORD-073: the answer to PodUtils/podnet#521: the plan, the order and the tags for podnet's complete beta (to podnet) | open (the entries are open) | T-027, T-029, T-301, T-305, T-310, T-420, T-421, T-475, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502 |
 
 #79 to #81 are pull requests.
