@@ -6,8 +6,12 @@
 
 #[cfg(any(feature = "quic", feature = "udp"))]
 pub mod dgram;
+#[cfg(feature = "dns")]
+pub mod dns;
 #[cfg(feature = "h2")]
 pub mod h2;
+#[cfg(feature = "icmp")]
+pub mod icmp;
 #[cfg(feature = "poll")]
 pub mod poll;
 #[cfg(feature = "quic")]

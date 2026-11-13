@@ -52,6 +52,78 @@ pub fn query(id: u16, name: &str, kind: u16, edns: Option<u16>) -> Result<Vec<u8
     Ok(out)
 }
 
+/// The ID, the name and the type of the first question of a query, for a
+/// server that answers [`query`]. The name is in lower case with no final
+/// dot. A message with no question, or one that ends in its question, is
+/// refused.
+pub fn question(msg: &[u8]) -> Result<(u16, String, u16), String> {
+    let header = msg.get(..HEADER).ok_or("not a DNS message: shorter than its header")?;
+    let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
+    if word(4) == 0 {
+        return Err("the query has no question".into());
+    }
+    let (name, end) = read_name(msg, HEADER)?;
+    let fixed = msg.get(end..end + 4).ok_or(CUT)?;
+    let kind = u16::from_be_bytes([fixed[0], fixed[1]]);
+    Ok((word(0), name.to_ascii_lowercase(), kind))
+}
+
+/// An answer to the query `id` for `name` of type `kind`, with one record
+/// for each item of `records` (each cut into strings of 255 bytes for TXT),
+/// recursion available, no error, and an OPT record of `edns` bytes when
+/// given. The owner of each record is a pointer to the question. For a
+/// server that answers [`query`].
+pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u16>) -> Result<Vec<u8>, String> {
+    let mut out = wire::query(name, kind)?;
+    out[..2].copy_from_slice(&id.to_be_bytes());
+    // QR and RA set, RD kept, RCODE 0.
+    out[2] |= 0x80;
+    out[3] |= 0x80;
+    out[6..8].copy_from_slice(&(records.len() as u16).to_be_bytes());
+    if edns.is_some() {
+        out[11] = 1;
+    }
+    for record in records {
+        // The owner points to the question name at offset 12.
+        out.extend_from_slice(&[0xc0, 0x0c]);
+        out.extend_from_slice(&kind.to_be_bytes());
+        // Class IN, TTL 0.
+        out.extend_from_slice(&[0, 1, 0, 0, 0, 0]);
+        let data = if kind == TXT { txt_strings(record) } else { record.to_vec() };
+        if data.len() > u16::MAX as usize {
+            return Err(format!("a record of {} bytes: give {} or less", data.len(), u16::MAX));
+        }
+        out.extend_from_slice(&(data.len() as u16).to_be_bytes());
+        out.extend_from_slice(&data);
+    }
+    if let Some(size) = edns {
+        if size < PLAIN_SIZE {
+            return Err(format!("an EDNS0 size of {size}: give {PLAIN_SIZE} or more"));
+        }
+        out.push(0);
+        out.extend_from_slice(&OPT.to_be_bytes());
+        out.extend_from_slice(&size.to_be_bytes());
+        out.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+    }
+    Ok(out)
+}
+
+/// The data of a TXT record of `bytes`: each 255 bytes as one character
+/// string, with a last string for the rest (and one empty string for no
+/// byte, so an empty record has a length of 1).
+fn txt_strings(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len() + bytes.len() / 255 + 1);
+    let mut chunks = bytes.chunks(255);
+    loop {
+        let chunk = chunks.next().unwrap_or(&[]);
+        out.push(chunk.len() as u8);
+        out.extend_from_slice(chunk);
+        if chunk.len() < 255 {
+            return out;
+        }
+    }
+}
+
 /// One record of the answer section.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Record {

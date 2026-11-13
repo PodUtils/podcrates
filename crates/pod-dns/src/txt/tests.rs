@@ -143,3 +143,20 @@ fn foreign_and_bad_answers_are_refused() {
     let pointer = answer(5, 0x8180, CNAME, &[(CNAME, vec![0xc0, 12])], None);
     assert_eq!(read(&pointer, 5, NAME, CNAME).unwrap().cnames(), vec![NAME]);
 }
+
+/// The server helpers: the question of a query, and an answer whose TXT
+/// records the reader gives back whole, for a carrier of bytes over DNS.
+#[test]
+fn a_server_reads_a_question_and_builds_an_answer() {
+    let q = query(0x4321, "A1B2.T.Example", TXT, Some(EDNS_SIZE)).unwrap();
+    assert_eq!(super::question(&q).unwrap(), (0x4321, "a1b2.t.example".to_string(), TXT));
+    let big = vec![7u8; 600];
+    let records: &[&[u8]] = &[b"up", &[], &big];
+    let msg = super::answer(0x4321, "a1b2.t.example", TXT, records, Some(EDNS_SIZE)).unwrap();
+    let got = read(&msg, 0x4321, "a1b2.t.example", TXT).unwrap();
+    assert_eq!(got.rcode, 0);
+    assert_eq!(got.edns, Some(EDNS_SIZE));
+    assert_eq!(got.txt(), vec![b"up".to_vec(), Vec::new(), big]);
+    // A query with no question is refused.
+    assert!(super::question(&q[..4]).is_err());
+}
