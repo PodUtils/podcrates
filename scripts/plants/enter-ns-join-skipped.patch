@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -201,7 +201,7 @@
+             }
+             // The join comes before the passed descriptors, so a pass onto
+             // the number of the pidfd cannot replace it.
+-            if let Some(NsEntry::Join(pidfd)) = ns
++            if let Some(NsEntry::Join(pidfd)) = ns.filter(|_| false)
+                 && let Err(e) = sys::setns(pidfd, sys::CLONE_NEWNS)
+             {
+                 report(NS_JOIN_STEP, e);

@@ -1,0 +1,9 @@
+# The joined entry skips setns: the payload of an exec runs in the mount
+# namespace of the host and does not see the tmpfs of the running payload
+# (T-492). The test runs as root (sudo -n on a runner), as the rungs with
+# a chroot skip as another user.
+ENTRY=T-492
+GROUP=confine
+EXPECT='test a_joined_entry_sees_the_tmpfs_of_the_running_payload \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800
