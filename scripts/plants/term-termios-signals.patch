@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/termios.rs
++++ b/crates/pod-term/src/termios.rs
+@@ -341,7 +341,7 @@
+     /// A signal character: flush unless `NOFLSH`, then echo with `ECHO`.
+     /// Under `IXON` it also starts the output, so that its echo shows.
+     fn signal(&mut self, sig: Signal, c: u8, sink: &mut Sink) {
+-        let flush = self.state.lflag & NOFLSH == 0;
++        let flush = true;
+         if flush {
+             self.flush();
+         }

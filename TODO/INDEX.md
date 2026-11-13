@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**423 entries: 112 open, 8 partial, 5 blocked, 298 done.**
+**424 entries: 112 open, 8 partial, 5 blocked, 299 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 81 | 95 |
-| P2 | 54 | 3 | 4 | 159 | 220 |
-| P3 | 47 | 2 | 1 | 56 | 106 |
-| **All** | 112 | 8 | 5 | 298 | 423 |
+| P2 | 53 | 3 | 4 | 160 | 220 |
+| P3 | 48 | 2 | 1 | 56 | 107 |
+| **All** | 112 | 8 | 5 | 299 | 424 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -469,4 +469,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-536](upkeep.md) | P2 | S | M5 | defect | done | `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection |
 | [T-537](upkeep.md) | P2 | S | M5 | defect | done | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
 | [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
-| [T-539](transport.md) | P2 | M | M3 | feature | open | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
+| [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
+| [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |

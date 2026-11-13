@@ -1,0 +1,6 @@
+# Echo: ECHOCTL shows DEL as a caret and DEL, not as ^? (T-539).
+ENTRY=T-539
+GROUP=term
+EXPECT='test echoctl_shows_a_control_as_a_caret_and_del_as_caret_question \.\.\. FAILED'
+RUN='cargo test -p pod-term --test termios echoctl_shows_a_control_as_a_caret_and_del_as_caret_question -- --exact'
+LIMIT=900

@@ -6707,7 +6707,7 @@ by hand with the input `relay` `none`).
 **Milestone:** M3
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6730,6 +6730,69 @@ A third mode in `pod-term`, beside `echo` and `passthrough`, that holds a termio
 - A change of the state at any time (`TCSETS`, `TCSETSW`, `TCSETSF`, the flush of `TCSETSF`), and the window size with an event for SIGWINCH.
 
 The tests pin each flag against the rules of the Linux line discipline (`n_tty`), and a plant for each group of flags. Answer PodUtils/podssh#232 with the entry and the tag.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features
+```
+
+## Done
+
+2026-11-13, commit a94ac0d. `pod_term::termios`, the third mode of
+`pod-term`: `Tty` follows a `Termios` (`iflag`, `oflag`, `cflag`,
+`lflag`, `cc`, with the Linux values in `termios::flags`) and the window
+size. `Tty::input` gives `Event::ToChild` (one line for each read in the
+canonical mode; an empty line is `VEOF` on an empty line),
+`Event::ToUser` (the echo, after `OPOST`), `Event::Signal` (SIGINT,
+SIGQUIT, SIGTSTP, with the flush unless `NOFLSH`), and
+`Event::StopOutput`, `Event::StartOutput` (`IXON`, `IXANY`).
+`Tty::output` applies `OPOST`, `ONLCR`, `OCRNL`, `ONOCR`, `ONLRET` to the
+child's output. `Tty::set` takes `When::Now`, `When::Drain` and
+`When::Flush` (`TCSETS`, `TCSETSW`, `TCSETSF`); `Tty::resize` gives
+SIGWINCH when the size changes. The rules are those of Linux `n_tty`;
+the calls C287 (what is applied and what is kept as data), C288 (the
+control bytes are ASCII) and C289 (a discipline of its own, not a
+`session::Mode`).
+
+The expected bytes of the tests were compared with a Linux 6.18 pty
+(`pty.openpty` and `termios` of Python on this host): each case agrees.
+The kernel drops the echo that is not yet written at a signal with a
+flush; the discipline gives the echo before the `Signal` event, and the
+caller drops what it holds.
+
+`cargo test -p pod-term --all-features`: 231 passed (55 new:
+`tests/termios.rs` 25, `tests/termios_modes.rs` 30). Five plants of
+the group `term`, each caught by hand (`git apply`, the test fails with
+the text of `EXPECT`, `git apply -R`): `term-termios-canon` (`VEOF` adds
+its byte), `term-termios-echo` (DEL echoes as `^` and DEL),
+`term-termios-signals` (`NOFLSH` not read), `term-termios-input`
+(`IGNCR` not read), `term-termios-output` (`ONLCR` gives a bare `\n`).
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+The answer to PodUtils/podssh#232 with the tag is the parent session's.
+
+# T-540: `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens
+
+**Source:** T-539 (a finding of its work).
+**Category:** chore
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `termios::Tty` pin the bytes of the line discipline of Linux (`n_tty`). The expected bytes were read from a kernel pty once, by hand. No test compares `Tty` with the kernel, so a later change of either can drift with no failure.
+
+## Premise
+
+- Read: `crates/pod-term/tests/termios.rs` and `tests/termios_modes.rs`; calls C287 to C289.
+- Measured: on a host where `/dev/ptmx` opens, a pty with each state and input gives the echo and the reads that the tests pin.
+
+## Approach
+
+A test, where `/dev/ptmx` opens (else it skips with the reason, as `need_loopback!` does): for each case of a table (the state, the input), give the state and the input to a kernel pty (`openpty`, `tcsetattr`, a write to the master, a read of the slave and of the master) and to `Tty`, and compare the bytes to the child and the echo. The table takes the cases of the two test files. The pty code goes in `pod-testkit` or in the test, behind `cfg(target_os = "linux")`.
 
 ## Prove
 

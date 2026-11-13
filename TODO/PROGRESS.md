@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 423 entries: 112 open, 8 partial, 5 blocked, 298 done.
+`TODO/INDEX.md` holds 424 entries: 112 open, 8 partial, 5 blocked, 299 done.
 
 ## State
 
@@ -72,12 +72,10 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: T-539 (item 1, in work). Then the link carriers of M2 for podnet
-(item 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
+First: the link carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
 
-1. **The defects and asks of the consumers:** T-539 (a line discipline
-   of `pod-term` that follows a termios state, PodUtils/podssh#232);
-   T-489 (a client of
+1. **The defects and asks of the consumers:** T-540 (a test of the
+   termios mode of `pod-term` against a kernel pty); T-489 (a client of
    `pod-devtunnel` with no user token); T-486 (an overlay root in
    the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
