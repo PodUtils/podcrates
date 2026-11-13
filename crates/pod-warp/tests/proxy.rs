@@ -23,7 +23,11 @@ use pod_warp::rules::{Action, NoLint, Rules, Table};
 use pod_warp::{DataPathCheck, Warp, WarpNet};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _, DuplexStream};
 
-const LIMIT: Duration = Duration::from_secs(20);
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-532).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(20))
+}
 /// The port of the echo service inside the tunnel.
 const ECHO_TCP: u16 = 80;
 /// The address of a resolver inside the tunnel: the far end answers DNS at
@@ -181,7 +185,7 @@ async fn the_dns_forwarder_gives_the_answer() {
     client.send_to(b"short", at).await.unwrap();
     client.send_to(&question(0x7777), at).await.unwrap();
     let mut buf = [0u8; 512];
-    let (n, _) = tokio::time::timeout(LIMIT, client.recv_from(&mut buf)).await.expect("an answer").unwrap();
+    let (n, _) = tokio::time::timeout(limit(), client.recv_from(&mut buf)).await.expect("an answer").unwrap();
     assert_eq!(&buf[..2], &[0x77, 0x77]);
     assert_eq!(wire::addrs(&buf[..n], "example.com", wire::A).unwrap(), vec![IpAddr::V4(NAME_IP)]);
     let short = Resolvers::default().exchange_with(&net, &Resolver::Udp(PEER_DNS.parse().unwrap()), b"short").await;
@@ -210,7 +214,7 @@ async fn socks5(proxy: &Arc<Proxy>, command: u8, request: &[u8]) -> (DuplexStrea
     head.extend_from_slice(request);
     client.write_all(&head).await.unwrap();
     let mut reply = [0u8; 10];
-    tokio::time::timeout(LIMIT, client.read_exact(&mut reply)).await.expect("a reply").unwrap();
+    tokio::time::timeout(limit(), client.read_exact(&mut reply)).await.expect("a reply").unwrap();
     (client, reply)
 }
 
@@ -231,7 +235,7 @@ fn by_ip(ip: [u8; 4], port: u16) -> Vec<u8> {
 async fn echoes(client: &mut DuplexStream) {
     client.write_all(b"ping").await.unwrap();
     let mut echo = [0u8; 4];
-    tokio::time::timeout(LIMIT, client.read_exact(&mut echo)).await.expect("the echo").unwrap();
+    tokio::time::timeout(limit(), client.read_exact(&mut echo)).await.expect("the echo").unwrap();
     assert_eq!(&echo, b"ping");
 }
 
@@ -314,7 +318,7 @@ async fn an_http_connect_goes_through_the_tunnel() {
     proxy.client(server, None);
     client.write_all(b"CONNECT 192.0.2.80:80 HTTP/1.1\r\nHost: 192.0.2.80:80\r\n\r\n").await.unwrap();
     let mut head = [0u8; 39];
-    tokio::time::timeout(LIMIT, client.read_exact(&mut head)).await.expect("an answer").unwrap();
+    tokio::time::timeout(limit(), client.read_exact(&mut head)).await.expect("an answer").unwrap();
     assert!(head.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&head));
     echoes(&mut client).await;
 }
@@ -337,7 +341,7 @@ async fn another_local_sender_can_not_take_the_udp_association() {
     let v4 = pod_proxy::udp::wrap(&question(0x4242), "198.51.100.7".parse().unwrap(), 53);
     owner.send_to(&v4, relay).await.unwrap();
     let mut buf = [0u8; 1024];
-    tokio::time::timeout(LIMIT, owner.recv_from(&mut buf)).await.expect("the owner gets its answer").unwrap();
+    tokio::time::timeout(limit(), owner.recv_from(&mut buf)).await.expect("the owner gets its answer").unwrap();
     // The other socket sends: it gets no answer, and the owner keeps the
     // association.
     let v4 = pod_proxy::udp::wrap(&question(0x5151), "198.51.100.7".parse().unwrap(), 53);
@@ -370,7 +374,7 @@ async fn a_udp_association_survives_a_datagram_to_ipv6() {
         let v4 = pod_proxy::udp::wrap_name(&question(0x4242), "dns.example", 53).unwrap();
         udp.send_to(&v4, relay).await.unwrap();
         let mut buf = [0u8; 1024];
-        let (n, _) = tokio::time::timeout(LIMIT, udp.recv_from(&mut buf)).await.expect("an answer").unwrap();
+        let (n, _) = tokio::time::timeout(limit(), udp.recv_from(&mut buf)).await.expect("an answer").unwrap();
         assert_eq!(&buf[..10], &[0, 0, 0, 1, 198, 51, 100, 7, 0, 53], "round {round}: from the address of the name");
         assert_eq!(&buf[10..12], &[0x42, 0x42], "round {round}");
         assert!(n > 12);
@@ -391,7 +395,7 @@ async fn a_udp_association_in_the_stream_reaches_the_echo() {
     assert_eq!(reply[1], 0);
     let datagram = pod_proxy::udp::wrap(b"hello", "203.0.113.7".parse().unwrap(), edge::ECHO_PORT);
     pod_proxy::udp::write_frame(&mut control, &datagram).await.unwrap();
-    let back = tokio::time::timeout(LIMIT, pod_proxy::udp::read_frame(&mut control)).await.expect("the echo");
+    let back = tokio::time::timeout(limit(), pod_proxy::udp::read_frame(&mut control)).await.expect("the echo");
     let back = back.unwrap().unwrap();
     let (from, payload) = pod_proxy::udp::unwrap(&back).unwrap();
     assert_eq!(from.to_string(), format!("203.0.113.7:{}", edge::ECHO_PORT));
@@ -414,7 +418,7 @@ async fn a_forward_carries_each_connection_through_the_tunnel() {
     let mut client = tokio::net::TcpStream::connect(at).await.unwrap();
     client.write_all(b"ping").await.unwrap();
     let mut echo = [0u8; 4];
-    tokio::time::timeout(LIMIT, client.read_exact(&mut echo)).await.expect("the echo").unwrap();
+    tokio::time::timeout(limit(), client.read_exact(&mut echo)).await.expect("the echo").unwrap();
     assert_eq!(&echo, b"ping");
     let (second, _far) = tokio::io::duplex(64);
     assert!(!forward.connection(second), "the limit of 1 is held");

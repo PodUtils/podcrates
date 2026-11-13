@@ -1210,3 +1210,37 @@ steps of 100 ns, so the carry case did not happen. The test makes that
 stamp from its bytes now. The nightly at `d8c8ae6` (run 43417105533)
 passes both Windows jobs.
 
+
+# T-532: The nightly at `d8c8ae6` is red on riscv64: the bounds of the tests of `pod-warp` are not scaled
+
+**Source:** `nightly.yml` run 43417105533 at `d8c8ae6` (job 131857666801, the cross test of riscv64 under qemu-user).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Under qemu-user for riscv64, `a_session_with_each_controller_carries_a_large_echo` (`pod-warp/tests/stack.rs`, "the echo in the limit") and `a_flow_through_an_l4_door_on_the_loopback` (`pod-warp/tests/l4.rs`, "the end of the flow") went past their bounds of 20 s and 10 s. Each other target passed.
+
+## Premise
+
+- Read: the job log. Both failures are `Elapsed`; no assert of a value failed.
+- Read: the tests of `pod-warp` use a fixed `LIMIT`, not `pod_testkit::host::scaled`, the rule of T-325 for a bound that guards a hang.
+
+## Approach
+
+`limit()` gives `scaled` of the old bound in `tests/l4.rs`, `net.rs`, `proxy.rs`, `stack.rs` and `wg.rs`: five times the bound under an emulator, the same bound on a kernel. `live_session.rs` runs live only, not under an emulator.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```
+
+The next nightly proves riscv64.
+
+## Done
+
+2026-11-13. `limit()` with `scaled` in the five test files of `pod-warp`. The next nightly proves riscv64.

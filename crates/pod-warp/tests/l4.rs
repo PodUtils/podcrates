@@ -24,7 +24,11 @@ use rustls::server::{ClientHello, ResolvesServerCert};
 use rustls::sign::CertifiedKey;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _, DuplexStream};
 
-const LIMIT: Duration = Duration::from_secs(10);
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-532).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(10))
+}
 /// The size of the one DATA frame that the door sends to `large.test`:
 /// larger than the limit of a frame of the HTTP/3 client.
 const LARGE: usize = (1 << 20) + 10;
@@ -130,7 +134,7 @@ fn door_at(addr: SocketAddr, pin: Vec<u8>) -> L4 {
 async fn echoes(pipe: &mut DuplexStream, text: &[u8]) {
     pipe.write_all(text).await.unwrap();
     let mut back = vec![0u8; text.len()];
-    tokio::time::timeout(LIMIT, pipe.read_exact(&mut back)).await.expect("an echo").unwrap();
+    tokio::time::timeout(limit(), pipe.read_exact(&mut back)).await.expect("an echo").unwrap();
     assert_eq!(back, text);
 }
 
@@ -143,19 +147,19 @@ async fn a_flow_through_an_l4_door_on_the_loopback() {
     echoes(&mut pipe, b"ping through L4").await;
     assert!(seen.saw("example.com:443"), "the plain CONNECT");
     // The Dial of the door: an IPv6 address goes in brackets.
-    let deadline = tokio::time::Instant::now() + LIMIT;
+    let deadline = tokio::time::Instant::now() + limit();
     let connected = door.dial(&Target::new("2001:db8::1", 22), deadline).await.unwrap();
     let mut io = connected.io;
     io.write_all(b"ssh").await.unwrap();
     let mut back = [0u8; 3];
-    tokio::time::timeout(LIMIT, io.read_exact(&mut back)).await.expect("an echo").unwrap();
+    tokio::time::timeout(limit(), io.read_exact(&mut back)).await.expect("an echo").unwrap();
     assert_eq!(&back, b"ssh");
     assert!(seen.saw("[2001:db8::1]:22"));
     assert_eq!(seen.connections.load(Ordering::SeqCst), 1, "one QUIC connection for each flow");
     // A DATA frame larger than the limit of a frame of the client.
     let mut pipe = door.open(&Target::new("large.test", 443)).await.unwrap();
     let mut all = Vec::new();
-    tokio::time::timeout(LIMIT, pipe.read_to_end(&mut all)).await.expect("the end of the flow").unwrap();
+    tokio::time::timeout(limit(), pipe.read_to_end(&mut all)).await.expect("the end of the flow").unwrap();
     assert!(all.len() == LARGE && all.iter().all(|b| *b == 9), "{} bytes", all.len());
     // A refusal of the door.
     let err = door.open(&Target::new("refused.test", 443)).await.unwrap_err();
@@ -199,7 +203,7 @@ async fn socks5(proxy: &Arc<Proxy>, command: u8, host: &str, port: u16) -> (Dupl
     head.extend_from_slice(&port.to_be_bytes());
     client.write_all(&head).await.unwrap();
     let mut reply = [0u8; 10];
-    tokio::time::timeout(LIMIT, client.read_exact(&mut reply)).await.expect("a reply").unwrap();
+    tokio::time::timeout(limit(), client.read_exact(&mut reply)).await.expect("a reply").unwrap();
     (client, reply)
 }
 
@@ -303,7 +307,7 @@ async fn a_quic_handshake_through_the_datagrams_of_a_session_reaches_an_ipv4_pee
     let crypto = noq::crypto::rustls::QuicClientConfig::try_from(tls).unwrap();
     let to: SocketAddr = format!("198.51.100.30:{QUIC_INSIDE}").parse().unwrap();
     let connecting = endpoint.connect_with(noq::ClientConfig::new(Arc::new(crypto)), to, "warp.test").unwrap();
-    let conn = tokio::time::timeout(LIMIT, connecting).await.expect("a QUIC handshake in time").unwrap();
+    let conn = tokio::time::timeout(limit(), connecting).await.expect("a QUIC handshake in time").unwrap();
     conn.close(0u32.into(), b"done");
     // The packets to the peer are IPv4 packets inside the tunnel: WARP's
     // network drops an IPv6 packet to `::ffff:a.b.c.d`.

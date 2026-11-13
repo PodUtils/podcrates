@@ -17,7 +17,11 @@ use pod_warp::net::{CongestionControl, DeviceStats};
 use pod_warp::{DataPathCheck, Settings, Warp, WarpNet};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
-const LIMIT: Duration = Duration::from_secs(20);
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-532).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(20))
+}
 /// The port of the echo service inside the tunnel.
 const ECHO_TCP: u16 = 80;
 /// The payload of a TCP segment at the MTU of 1280 with no option.
@@ -44,7 +48,7 @@ fn quick_check() -> DataPathCheck {
 /// Send `data` through `net` to the echo route and read it back.
 async fn echo(net: &WarpNet, data: &[u8]) -> Vec<u8> {
     let target = Target::Addr("203.0.113.9:80".parse().unwrap());
-    let connected = net.dial(&target, tokio::time::Instant::now() + LIMIT).await.unwrap();
+    let connected = net.dial(&target, tokio::time::Instant::now() + limit()).await.unwrap();
     let (mut read, mut write) = tokio::io::split(connected.io);
     let sent = data.to_vec();
     let writer = tokio::spawn(async move {
@@ -52,7 +56,7 @@ async fn echo(net: &WarpNet, data: &[u8]) -> Vec<u8> {
         write
     });
     let mut got = vec![0u8; data.len()];
-    tokio::time::timeout(LIMIT, read.read_exact(&mut got)).await.expect("the echo in the limit").unwrap();
+    tokio::time::timeout(limit(), read.read_exact(&mut got)).await.expect("the echo in the limit").unwrap();
     let _write = writer.await.unwrap();
     got
 }
@@ -76,7 +80,7 @@ async fn the_check_of_the_data_path_needs_an_answer() {
     assert!(edge.watch.dns_questions.load(Ordering::SeqCst) >= 1);
     assert!(kept.decisions.lock().unwrap().contains(&("warp.check".into(), "answered".into())));
     let again = net.check_data_path(&DataPathCheck::default()).await.unwrap();
-    assert!(again < LIMIT);
+    assert!(again < limit());
     edge.seen.silent.store(true, Ordering::SeqCst);
     let mut silent = settings;
     silent.net.check = Some(quick_check());

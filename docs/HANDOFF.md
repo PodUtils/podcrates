@@ -21,7 +21,8 @@ is done. Git and the record keep finished work.
   each consumer took it). `main` holds T-516, T-422, T-495, T-423 and
   T-424 for the next tag. #138 asks podnet for the default of KCP (T-520).
 - The nightly at `d8c8ae6` (run 43417105533) passes on Windows (both
-  jobs), macOS and each cross target (T-488, T-507, done).
+  jobs), macOS and each cross target but riscv64 (T-488, T-507, done).
+  riscv64 failed two bounds of `pod-warp` under qemu-user (T-532, done).
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
   builds its side of a live test (#83, 2026-11-13): it waits for T-106
   (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),

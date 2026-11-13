@@ -17,7 +17,11 @@ use pod_warp::wg::Peer;
 use pod_warp::{MasqueSession, Settings, SystemUdp, Warp, WarpNet, Way};
 use pod_wg::standin::{self, DataPath};
 
-const LIMIT: Duration = Duration::from_secs(10);
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-532).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(10))
+}
 /// The address of the device of the stand-in of `pod-wg`.
 const DEVICE: Ipv4Addr = Ipv4Addr::new(172, 16, 0, 2);
 /// The address of the carried front door inside the tunnel of the edge.
@@ -27,7 +31,7 @@ const CARRIED_DOOR: &str = "203.0.113.50:2408";
 fn udp_way() -> Way {
     let mut way = Way::new(common::Moved::new(vec![]), common::provider());
     way.udp = Some(Arc::new(SystemUdp));
-    way.timeout = LIMIT;
+    way.timeout = limit();
     way
 }
 
@@ -62,7 +66,7 @@ async fn a_wireguard_tunnel_carries_packets_both_ways() {
     let packets = [udp_packet(b"one"), udp_packet(b"two")];
     tx.send_packets(&packets).await.unwrap();
     for sent in &packets {
-        let packet = tokio::time::timeout(LIMIT, rx.recv_packet()).await.expect("a packet back").unwrap().unwrap();
+        let packet = tokio::time::timeout(limit(), rx.recv_packet()).await.expect("a packet back").unwrap().unwrap();
         assert_eq!(&packet[..], &sent[..]);
     }
     tx.close().unwrap();
@@ -97,7 +101,7 @@ async fn no_answer_is_a_failure_that_names_the_door() {
 /// network opens.
 async fn opens(net: &WarpNet) {
     let target = Target::Addr("198.51.100.7:80".parse().unwrap());
-    net.dial(&target, tokio::time::Instant::now() + LIMIT).await.unwrap();
+    net.dial(&target, tokio::time::Instant::now() + limit()).await.unwrap();
 }
 
 /// A registered device of the stand-in API, with no check of the data path.

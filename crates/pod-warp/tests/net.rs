@@ -20,7 +20,11 @@ use pod_warp::key::DeviceKey;
 use pod_warp::{Door, Routes, Warp};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
-const LIMIT: Duration = Duration::from_secs(10);
+/// The bound of each wait: a guard of a hang, five times longer under an
+/// emulator (T-532).
+fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(10))
+}
 /// The port of the echo service inside the tunnel.
 const ECHO_TCP: u16 = 80;
 
@@ -44,11 +48,11 @@ fn dead() -> SocketAddr {
 }
 
 async fn echo_through(net: &pod_warp::WarpNet, target: &Target) -> SocketAddr {
-    let deadline = tokio::time::Instant::now() + LIMIT;
+    let deadline = tokio::time::Instant::now() + limit();
     let mut connected = net.dial(target, deadline).await.unwrap();
     connected.io.write_all(b"through warp").await.unwrap();
     let mut got = [0u8; 12];
-    tokio::time::timeout(LIMIT, connected.io.read_exact(&mut got)).await.expect("an echo").unwrap();
+    tokio::time::timeout(limit(), connected.io.read_exact(&mut got)).await.expect("an echo").unwrap();
     assert_eq!(&got, b"through warp");
     connected.peer.unwrap()
 }
@@ -89,7 +93,7 @@ async fn a_session_carries_udp_as_datagrams() {
     let to: SocketAddr = format!("198.51.100.20:{}", edge::ECHO_PORT).parse().unwrap();
     pod_core::datagrams::send_to(&*datagrams, b"a datagram", to).await.unwrap();
     let mut buf = [0u8; 64];
-    let (n, from) = tokio::time::timeout(LIMIT, pod_core::datagrams::recv_from(&*datagrams, &mut buf))
+    let (n, from) = tokio::time::timeout(limit(), pod_core::datagrams::recv_from(&*datagrams, &mut buf))
         .await
         .expect("an echo")
         .unwrap();
@@ -187,10 +191,10 @@ async fn open_flows(
     net: &pod_warp::WarpNet,
 ) -> (tokio::task::JoinHandle<std::io::Result<usize>>, tokio::task::JoinHandle<std::io::Result<usize>>) {
     let target = Target::Addr("203.0.113.9:80".parse().unwrap());
-    let mut connected = net.dial(&target, tokio::time::Instant::now() + LIMIT).await.unwrap();
+    let mut connected = net.dial(&target, tokio::time::Instant::now() + limit()).await.unwrap();
     connected.io.write_all(b"ping").await.unwrap();
     let mut got = [0u8; 4];
-    tokio::time::timeout(LIMIT, connected.io.read_exact(&mut got)).await.expect("an echo").unwrap();
+    tokio::time::timeout(limit(), connected.io.read_exact(&mut got)).await.expect("an echo").unwrap();
     let datagrams = net.datagrams().await.unwrap();
     let read = tokio::spawn(async move { connected.io.read(&mut [0u8; 16]).await });
     let receive = tokio::spawn(async move {
@@ -204,7 +208,7 @@ async fn open_flows(
 
 /// The read in `task` fails at once with `ConnectionReset` and `why`.
 async fn fails_with(task: tokio::task::JoinHandle<std::io::Result<usize>>, why: &str) {
-    let err = tokio::time::timeout(LIMIT, task).await.expect("the read waits for ever").unwrap().unwrap_err();
+    let err = tokio::time::timeout(limit(), task).await.expect("the read waits for ever").unwrap().unwrap_err();
     assert_eq!(err.kind(), std::io::ErrorKind::ConnectionReset, "{err}");
     assert!(err.to_string().contains(why), "{err}");
 }
@@ -212,7 +216,7 @@ async fn fails_with(task: tokio::task::JoinHandle<std::io::Result<usize>>, why: 
 /// A new dial and a new UDP socket of a closed session fail with the cause.
 async fn refuses_new_flows(net: &pod_warp::WarpNet, why: &str) {
     let target = Target::Addr("203.0.113.9:80".parse().unwrap());
-    let err = net.dial(&target, tokio::time::Instant::now() + LIMIT).await.err().unwrap();
+    let err = net.dial(&target, tokio::time::Instant::now() + limit()).await.err().unwrap();
     assert!(err.chain().contains(why), "{}", err.chain());
     let err = net.datagrams().await.err().unwrap();
     assert!(err.chain().contains(why), "{}", err.chain());
@@ -282,7 +286,7 @@ async fn one_family(families: (bool, bool)) -> (Edge, pod_warp::WarpNet, Arc<dyn
 async fn echoes(edge: &Edge, datagrams: &dyn pod_core::Datagrams, to: SocketAddr, source: IpAddr) {
     pod_core::datagrams::send_to(datagrams, b"query", to).await.unwrap();
     let mut buf = [0u8; 64];
-    let (n, from) = tokio::time::timeout(LIMIT, pod_core::datagrams::recv_from(datagrams, &mut buf))
+    let (n, from) = tokio::time::timeout(limit(), pod_core::datagrams::recv_from(datagrams, &mut buf))
         .await
         .expect("an echo")
         .unwrap();
