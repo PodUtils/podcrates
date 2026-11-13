@@ -8,7 +8,7 @@
 //! change it.
 //!
 //! * The dialer sends each datagram up as `session || counter || payload`,
-//!   base32 in the labels of a name under the zone ([`wire`]), and reads the
+//!   base32 in the labels of a name under the zone (`dns::wire`), and reads the
 //!   datagrams down of its session from the TXT records of the answer. It
 //!   starts a query for each datagram up, and polls when it has none, so the
 //!   listener can send its bytes down (call C274).
