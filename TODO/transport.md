@@ -4745,7 +4745,7 @@ offered, and a certificate of another form with the pinned key passes.
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4771,6 +4771,31 @@ cargo test -p pod-dns --all-features
 ## Start condition
 
 podnet starts its PodUtils/podnet@T-278.
+
+## Correction
+
+2026-11-13: PodUtils/podnet:TODO/link.md (read on 2026-11-13) gives
+PodUtils/podnet@T-278 the start condition "Ask A10 is answered". The two
+start conditions wait on each other; the work here ends the cycle (call
+C248). `crates/pod-dns/src` before the change: `wire.rs` reads A, AAAA,
+SRV and HTTPS records, its query has the ID 0 and no OPT record, and a
+cut message is an error.
+
+## Done
+
+2026-11-13, commit 7ae9513. The module `txt` of `pod-dns`
+(`crates/pod-dns/src/txt.rs`): `query(id, name, kind, edns)` with an OPT
+record of the size (512 or more; `EDNS_SIZE` 1232), and `read(msg, id,
+name, kind)`: the strings of each TXT record, each CNAME target, the TC
+bit, the RCODE with its extended bits, the server's size. A cut in the
+records is an answer only with the TC bit. The transport is the caller's
+(call C248). `cargo test -p pod-dns --all-features`: 51 unit tests (4 in
+`txt::tests`), `tests/txt_udp.rs` 2 (a stand-in server on the loopback
+cuts at 512 bytes with no EDNS0 and sends 1232 whole; TCP gives the whole
+answer), the other targets pass. The fuzz target `dns_wire` reads each
+input as a TXT and a CNAME answer, with two new seeds;
+`cargo test --manifest-path fuzz/Cargo.toml --lib` passed (9). The plants
+`dns-txt-cut-taken` and `dns-txt-opt-not-sent` fail their tests.
 
 # T-329: `pod-services`: the services `smee-io` and `hostc` (PodUtils/podssh#213)
 
@@ -6458,3 +6483,63 @@ cargo test -p pod-tls --all-features
 
 A consumer asks for it, or the owner starts it (the issue is marked
 deferred).
+
+# T-501: `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-321.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-321 is a take of a crate of podcrates: the TCP relay of RFC 6062: a TURN client that opens a TCP connection to a peer through the server (`Connect`, `ConnectionBind`, `ConnectionAttempt`). The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-321 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+in `pod-turn`, the methods and attributes of RFC 6062 and a `Client::connect(peer)` that gives a stream over a second TCP connection bound with `CONNECTION-ID`; tests against coturn with `--tcp-relay` in `scripts/ci/turn-tests.sh` and a mock server.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+# T-502: `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521)
+
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-114.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet closes each of its issues before a complete beta, and its entry
+PodUtils/podnet@T-114 is a take of a crate of podcrates: a harness that starts headscale (a self-hosted control server of Tailscale) with a pre-auth key, for the tests of a tailnet node, beside the one of podssh. The crate has
+no such part.
+
+## Premise
+
+- Read: PodUtils/podnet#521 (2026-11-13). Not read yet: the text of
+  PodUtils/podnet@T-114 and its tests; the agent of this entry reads them first.
+
+## Approach
+
+in `pod-testkit`, feature `headscale`: start a pinned headscale binary (fetched by digest in CI, as `scripts/ci/fetch-tool.sh` fetches tools) on loopback with its DERP server, make a user and a pre-auth key, give the URL and the key, stop and clean up; a skip line where the binary is absent; read podssh's harness first.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```

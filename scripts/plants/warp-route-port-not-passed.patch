@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/proxy/route.rs b/crates/pod-warp/src/proxy/route.rs
+--- a/crates/pod-warp/src/proxy/route.rs
++++ b/crates/pod-warp/src/proxy/route.rs
+@@ -17,7 +17,7 @@
+     let table = proxy.rules.current();
+     let host = Host::of(&target);
+     // Each target of a route is a TCP connection: the port rules apply.
+-    let port = Some(target.port());
++    let port = None;
+     let (action, addresses) = if proxy.l4 {
+         // No resolver in the tunnel (PodUtils/podnet issue 140).
+         (table.decide_static(&host, port), None)

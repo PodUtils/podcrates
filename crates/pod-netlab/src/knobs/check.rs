@@ -77,7 +77,7 @@ pub enum KnobError {
     /// value or a bad value.
     BadFlag {
         flag: String,
-        why: &'static str,
+        why: String,
     },
 }
 

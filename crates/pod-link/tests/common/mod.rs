@@ -42,7 +42,8 @@ pub async fn over_memory(dialer: Settings, listener: Settings) -> (Link, Link) {
 }
 
 /// The two ends of a link over the unix carrier, at a path in a scratch
-/// directory.
+/// directory. The unix carrier exists on Unix alone.
+#[cfg(unix)]
 pub async fn over_unix(dialer: Settings, listener: Settings) -> (Link, Link) {
     let dir = scratch("link");
     let path = dir.join("l.sock");
@@ -58,7 +59,7 @@ pub async fn over_unix(dialer: Settings, listener: Settings) -> (Link, Link) {
 }
 
 /// Run `body` on a link over the memory carrier and on one over the unix
-/// carrier, each with these settings at both ends.
+/// carrier (on Unix alone), each with these settings at both ends.
 #[macro_export]
 macro_rules! on_both {
     ($memory:ident, $unix:ident, $settings:expr, $body:path) => {
@@ -68,6 +69,7 @@ macro_rules! on_both {
             $body(a, b).await;
         }
 
+        #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
         async fn $unix() {
             let (a, b) = common::over_unix($settings, $settings).await;

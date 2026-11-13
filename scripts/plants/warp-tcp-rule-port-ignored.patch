@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/rules/matcher.rs b/crates/pod-warp/src/rules/matcher.rs
+--- a/crates/pod-warp/src/rules/matcher.rs
++++ b/crates/pod-warp/src/rules/matcher.rs
+@@ -71,7 +71,7 @@
+             RuleMatch::Cidr(nets) => ip.is_some_and(|ip| nets.iter().any(|n| n.contains(ip))),
+             RuleMatch::Port(lo, hi) => port.is_some_and(|p| (*lo..=*hi).contains(&p)),
+             RuleMatch::Tcp(want, p) => {
+-                port == Some(*p)
++                port.is_some_and(|_| *p != 0)
+                     && match (want, ip) {
+                         (TcpHost::Ip(want), Some(ip)) => want.to_canonical() == ip.to_canonical(),
+                         (TcpHost::Name(want), None) => *want == host.trim_end_matches('.').to_ascii_lowercase(),

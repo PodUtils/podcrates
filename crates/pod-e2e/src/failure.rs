@@ -22,6 +22,8 @@ pub(crate) fn class(e: &Error) -> Class {
         // The identity of the far end failed this end's check (a pin).
         Error::NodeKey(_) => Class::Refused,
         Error::Timeout(_) => Class::Timeout,
+        // The settings of one end must change: no try works as it is.
+        Error::NoSuite(_) => Class::Config,
     }
 }
 
@@ -45,6 +47,7 @@ mod tests {
             (Error::Refused(Refusal::NoTarget("connection refused".into())), Class::Unavailable),
             (Error::NodeKey("a changed key".into()), Class::Refused),
             (Error::Timeout(crate::VERDICT_STEP), Class::Timeout),
+            (Error::NoSuite("this end offers aes-256-gcm; the peer chacha20-poly1305".into()), Class::Config),
             (Error::Io(std::io::Error::from(std::io::ErrorKind::ConnectionReset)), Class::Unavailable),
         ];
         for (e, want) in cases {

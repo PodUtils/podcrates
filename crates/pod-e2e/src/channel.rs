@@ -17,6 +17,11 @@
 //! A node's carry stops between two messages when a handover asks
 //! ([`carry`]), and the next binary goes on from the same nonces, with the
 //! keys that the handshake split.
+//!
+//! In place of the carry, the two ends can agree on a suite of records
+//! ([`Channel::agree`]: one message `SUITES` each way), take the records
+//! from the exporter of the handshake ([`Channel::exporter`],
+//! [`crate::record`]), and take the stream back ([`Channel::into_transport`]).
 
 mod carry;
 
@@ -30,9 +35,11 @@ use zeroize::Zeroizing;
 pub(crate) use carry::take_frame;
 pub use carry::{Carried, Held, Start};
 
-use crate::frame::{self, END, NET, VERDICT};
+use crate::exporter::Exporter;
+use crate::frame::{self, END, NET, SUITES, VERDICT};
 use crate::net::Docs;
-use crate::{Error, MAX_DATA, MAX_MESSAGE, Refusal, TAG};
+use crate::record::Suite;
+use crate::{Error, HANDSHAKE_LIMIT, MAX_DATA, MAX_MESSAGE, Refusal, TAG};
 use pod_identity::PublicKey;
 
 /// The channel over `transport`, after its handshake.
@@ -52,11 +59,15 @@ pub struct Channel<T> {
     /// The keys that the handshake split, the initiator's then the
     /// responder's, at a node's end: what a handover gives the next binary.
     keys: Option<Zeroizing<[u8; 64]>>,
+    /// The exporter of the handshake; none on a channel that a handover
+    /// gave, which only its carry takes.
+    exporter: Option<Exporter>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
-    pub(crate) fn new(transport: T, state: StatelessTransportState) -> Self {
-        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None }
+    pub(crate) fn new(transport: T, state: StatelessTransportState, exporter: Exporter) -> Self {
+        let exporter = Some(exporter);
+        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None, exporter }
     }
 
     /// This channel, with the keys of its handshake.
@@ -74,7 +85,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
         keys: Zeroizing<[u8; 64]>,
     ) -> Self {
         let (sent, received) = nonces;
-        Channel { transport, state, sent, received, net: None, seed: None, keys: Some(keys) }
+        Channel { transport, state, sent, received, net: None, seed: None, keys: Some(keys), exporter: None }
     }
 
     /// Both ends read the net's documents: one from the peer goes to `docs`.
@@ -133,6 +144,65 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// gave, for the legs that resume the session.
     pub fn leg_seed(&self) -> Option<[u8; 32]> {
         self.seed.as_deref().copied()
+    }
+
+    /// The handshake hash of Noise, the binding of this channel: not secret.
+    pub fn handshake_hash(&self) -> Option<[u8; 32]> {
+        self.exporter.as_ref().map(Exporter::handshake_hash)
+    }
+
+    /// The exporter of the handshake: keys that only the two ends hold.
+    pub fn exporter(&self) -> Option<&Exporter> {
+        self.exporter.as_ref()
+    }
+
+    /// Agree with the peer on a suite of records, in place of the carry:
+    /// this end sends `offer` (in its order of preference), reads the
+    /// peer's, and takes the first suite of the initiator's offer that the
+    /// responder offers too. Both ends get the same suite; with none in
+    /// common, [`Error::NoSuite`]. A document of the net that comes first
+    /// goes to the binary's documents.
+    pub async fn agree(&mut self, offer: &[Suite]) -> Result<Suite, Error> {
+        if offer.is_empty() || offer.len() > Suite::ALL.len() {
+            return Err(Error::Malformed(format!("an offer of {} suites", offer.len())));
+        }
+        let ids: Vec<u8> = offer.iter().map(|s| s.id()).collect();
+        send(&self.state, &mut self.sent, &mut self.transport, SUITES, &ids).await?;
+        let theirs = tokio::time::timeout(HANDSHAKE_LIMIT, self.read_suites())
+            .await
+            .map_err(|_| Error::Timeout("the peer's suites of records"))??;
+        let initiator = self.exporter.as_ref().is_some_and(Exporter::is_initiator);
+        let (first, second) = if initiator { (offer, &theirs[..]) } else { (&theirs[..], offer) };
+        crate::record::agree(first, second).ok_or_else(|| {
+            let names = |s: &[Suite]| s.iter().map(|s| s.name()).collect::<Vec<_>>().join(", ");
+            Error::NoSuite(format!("this end offers {}; the peer {}", names(offer), names(&theirs)))
+        })
+    }
+
+    /// The peer's offer of suites; an id that this build does not have is
+    /// set aside, as a later release can add a suite.
+    async fn read_suites(&mut self) -> Result<Vec<Suite>, Error> {
+        let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
+        loop {
+            match receive(&self.state, &mut self.received, &mut self.transport, &mut cipher, &mut plain).await? {
+                None => return Err(Error::Cut),
+                Some((SUITES, n)) => return Ok(plain[1..n].iter().filter_map(|id| Suite::of_id(*id)).collect()),
+                Some((NET, n)) if self.net.is_some() => {
+                    if let Some((docs, peer)) = &self.net {
+                        let _ = docs.take(peer, &plain[1..n]);
+                    }
+                }
+                Some((kind, _)) => {
+                    return Err(Error::Malformed(format!("a message of type {kind} where the peer's suites were")));
+                }
+            }
+        }
+    }
+
+    /// The stream under the channel, for the records that follow
+    /// [`Channel::agree`]. The keys of the channel go with it.
+    pub fn into_transport(self) -> T {
+        self.transport
     }
 
     /// End both directions at once: a refused session.

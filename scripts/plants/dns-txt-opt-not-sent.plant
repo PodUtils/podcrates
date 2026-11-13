@@ -1,0 +1,8 @@
+# A query of the reader of TXT answers sends no OPT record: the server cuts
+# each answer at 512 bytes (PodUtils/podnet#479, T-305). The test against
+# the stand-in server must fail.
+ENTRY=T-305
+GROUP=dns
+EXPECT='test the_size_of_the_query_decides_the_cut_of_the_answer \.\.\. FAILED'
+RUN='cargo test -p pod-dns --test txt_udp -- the_size_of_the_query_decides_the_cut_of_the_answer'
+LIMIT=900

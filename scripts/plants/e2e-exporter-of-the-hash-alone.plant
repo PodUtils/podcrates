@@ -1,0 +1,7 @@
+# The exporter's secret comes from the handshake hash alone, which the relay
+# can compute from the messages it carried; the test of the same hash with
+# other keys of the split must fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test exporter::tests::the_label_and_the_context_and_the_hash_each_give_another_key \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- exporter::tests::the_label_and_the_context_and_the_hash_each_give_another_key'

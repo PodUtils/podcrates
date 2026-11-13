@@ -8,7 +8,7 @@
 # crate's, with podnet's listeners, globals, record of the instance and
 # resolver file. export.rs, up.rs, pod.rs, ssh_config.rs, the record of the
 # instance, bind and bind_all, nc's search and relay leg, and the scan of the
-# doors stay in podnet. Each podcrates tag moves to v0.35.0. The record of
+# doors stay in podnet. Each podcrates tag moves to v0.37.0. The record of
 # podnet, the size and the layers of the files, the build, the bans and the
 # sources of cargo-deny, pod-warp in the tree, no file and no copy of a moved
 # item left in podnet, clippy of the workspace, the tests of the library,

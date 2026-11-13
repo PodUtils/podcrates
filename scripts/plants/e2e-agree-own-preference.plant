@@ -1,0 +1,7 @@
+# Each end takes its own offer first, so two ends with two orders take two
+# suites and no record opens; the test of the initiator's first suite must
+# fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test the_ends_take_the_initiator_s_first_suite_that_both_offer \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test record -- the_ends_take_the_initiator_s_first_suite_that_both_offer'

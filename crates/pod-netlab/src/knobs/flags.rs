@@ -2,15 +2,22 @@
 //! gives them to `Knobs::parse_flags`, and `Knobs::flags` writes a knob
 //! set back as flags (a scenario as its command line).
 
-use super::check::Contradiction;
+use super::check::{Contradiction, DELAY_MS, MTU, RATE_KBIT};
 use super::{Broken, Icmp, KnobError, Knobs, Nat, NatFlags, Ping, Policy, Stack, loss_text};
 
-fn bad(flag: &str, why: &'static str) -> KnobError {
-    KnobError::BadFlag { flag: flag.to_string(), why }
+fn bad(flag: &str, why: impl Into<String>) -> KnobError {
+    KnobError::BadFlag { flag: flag.to_string(), why: why.into() }
 }
 
-fn number<T: std::str::FromStr>(flag: &str, value: &str) -> Result<T, KnobError> {
-    value.parse().map_err(|_| bad(flag, "the value is not a whole number"))
+/// A whole number of type `T`. A number of digits that `T` cannot hold
+/// names the range of the knob (`range`), not a fault of the form.
+fn number<T: TryFrom<u64>>(flag: &str, value: &str, (min, max): (u64, u64)) -> Result<T, KnobError> {
+    let out_of_range = || bad(flag, format!("the value is out of its range {min} to {max}"));
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(bad(flag, "the value is not a whole number"));
+    }
+    let n: u64 = value.parse().map_err(|_| out_of_range())?;
+    T::try_from(n).map_err(|_| out_of_range())
 }
 
 /// A percent with at most two decimals (`5`, `0.25`) in hundredths.
@@ -21,20 +28,31 @@ fn percent(flag: &str, value: &str) -> Result<u16, KnobError> {
     if !digits(whole) || frac.len() > 2 || !(frac.is_empty() || digits(frac)) {
         return Err(bad(flag, "the value is not a percent with at most two decimals"));
     }
-    let whole: u32 = number(flag, whole)?;
-    let frac: u32 = if frac.is_empty() { 0 } else { number::<u32>(flag, frac)? * if frac.len() == 1 { 10 } else { 1 } };
+    // At most five digits: no overflow of `u32`.
+    let whole: u32 = number(flag, whole, (0, u32::MAX.into()))?;
+    let frac: u32 =
+        if frac.is_empty() { 0 } else { number::<u32>(flag, frac, (0, 99))? * if frac.len() == 1 { 10 } else { 1 } };
     u16::try_from(whole * 100 + frac).map_err(|_| bad(flag, "the percent is too large"))
 }
 
+/// The word of an empty list of `--tcp` or `--udp`: an empty value does
+/// not stay a word when a shell splits a command line.
+const NO_PORTS: &str = "none";
+
 fn port_list(flag: &str, value: &str) -> Result<Vec<u16>, KnobError> {
-    if value.is_empty() {
+    if value.is_empty() || value == NO_PORTS {
         return Ok(Vec::new());
     }
-    value.split(',').map(|p| number(flag, p)).collect()
+    value.split(',').map(|p| number(flag, p, (1, u16::MAX.into()))).collect()
 }
 
-fn word<T>(flag: &str, value: &str, read: fn(&str) -> Option<T>) -> Result<T, KnobError> {
-    read(value).ok_or_else(|| bad(flag, "the value is not a word of this flag"))
+fn word<T>(flag: &str, value: &str, read: fn(&str) -> Option<T>, words: &[&str]) -> Result<T, KnobError> {
+    read(value).ok_or_else(|| bad(flag, format!("the value is not one of: {}", words.join(", "))))
+}
+
+/// A range of a knob in `u64`, for the text of a number out of it.
+fn wide<T: Into<u64>>((min, max): (T, T)) -> (u64, u64) {
+    (min.into(), max.into())
 }
 
 impl Knobs {
@@ -62,19 +80,23 @@ impl Knobs {
             }
             let value = args.next().ok_or_else(|| bad(flag, "the flag needs a value"))?;
             match flag {
-                "--stack" => knobs.stack = word(flag, value, Stack::from_word)?,
-                "--nat" => knobs.nat = word(flag, value, Nat::from_word)?,
-                "--nat-flags" => knobs.nat_flags = Some(word(flag, value, NatFlags::from_word)?),
-                "--policy" => policy = Some(word(flag, value, Policy::from_word)?),
+                "--stack" => knobs.stack = word(flag, value, Stack::from_word, Stack::WORDS)?,
+                "--nat" => knobs.nat = word(flag, value, Nat::from_word, Nat::WORDS)?,
+                "--nat-flags" => knobs.nat_flags = Some(word(flag, value, NatFlags::from_word, NatFlags::WORDS)?),
+                "--policy" => policy = Some(word(flag, value, Policy::from_word, Policy::WORDS)?),
                 "--tcp" => lists.get_or_insert_with(Default::default).0 = port_list(flag, value)?,
                 "--udp" => lists.get_or_insert_with(Default::default).1 = port_list(flag, value)?,
-                "--broken" => knobs.broken = Some(word(flag, value, Broken::from_word)?),
-                "--mtu" => knobs.mtu = Some(number(flag, value)?),
-                "--icmp" => knobs.icmp = word(flag, value, Icmp::from_word)?,
-                "--delay" => knobs.delay_ms = Some(number(flag, value.strip_suffix("ms").unwrap_or(value))?),
+                "--broken" => knobs.broken = Some(word(flag, value, Broken::from_word, Broken::WORDS)?),
+                "--mtu" => knobs.mtu = Some(number(flag, value, wide(MTU))?),
+                "--icmp" => knobs.icmp = word(flag, value, Icmp::from_word, Icmp::WORDS)?,
+                "--delay" => {
+                    knobs.delay_ms = Some(number(flag, value.strip_suffix("ms").unwrap_or(value), wide(DELAY_MS))?)
+                }
                 "--loss" => knobs.loss_bp = Some(percent(flag, value)?),
-                "--rate" => knobs.rate_kbit = Some(number(flag, value.strip_suffix("kbit").unwrap_or(value))?),
-                "--ping" => knobs.ping = word(flag, value, Ping::from_word)?,
+                "--rate" => {
+                    knobs.rate_kbit = Some(number(flag, value.strip_suffix("kbit").unwrap_or(value), wide(RATE_KBIT))?)
+                }
+                "--ping" => knobs.ping = word(flag, value, Ping::from_word, Ping::WORDS)?,
                 _ => return Err(bad(flag, "the flag is not a knob")),
             }
         }
@@ -109,9 +131,15 @@ impl Knobs {
         let join = |list: &[u16]| list.iter().map(u16::to_string).collect::<Vec<_>>().join(",");
         match &self.policy {
             Policy::Open => {}
+            // An empty list is not written; a missing list reads as empty.
+            // With both empty, `--tcp none` keeps the policy of ports.
             Policy::Ports { tcp, udp } => {
-                pair("--tcp", join(tcp));
-                pair("--udp", join(udp));
+                if !tcp.is_empty() || udp.is_empty() {
+                    pair("--tcp", if tcp.is_empty() { NO_PORTS.into() } else { join(tcp) });
+                }
+                if !udp.is_empty() {
+                    pair("--udp", join(udp));
+                }
             }
             other => pair("--policy", other.word().unwrap_or("open").into()),
         }

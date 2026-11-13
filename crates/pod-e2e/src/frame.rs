@@ -14,6 +14,9 @@ pub const DATA: u8 = 2;
 pub const END: u8 = 3;
 /// The net's document, between two ends that said they read it.
 pub const NET: u8 = 4;
+/// The suites of records that an end offers, one byte each
+/// ([`crate::record::Suite::id`]), in its order of preference.
+pub const SUITES: u8 = 5;
 
 /// The verdicts: let in, or why not.
 const LET_IN: u8 = 0;

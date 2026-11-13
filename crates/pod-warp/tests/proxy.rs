@@ -1,7 +1,7 @@
 //! The proxy into WARP (podnet's `src/warp/proxy.rs`, T-338) against the
 //! stand-in API and the stand-in edge on the loopback: the resolvers on UDP
 //! and over TLS, the resend of a lost question, the DNS forwarder, the UDP
-//! associations, and the rules of the proxy; the forward and the UDP pipe
+//! associations, and the rules of the proxy (with the port rules); the forward and the UDP pipe
 //! of nc (`src/warp/forward.rs`, `src/warp/nc.rs`).
 
 mod common;
@@ -270,6 +270,38 @@ async fn the_rules_of_the_proxy_route_each_destination() {
     let decisions = kept.decisions.lock().unwrap().clone();
     assert!(decisions.contains(&("warp.rule".into(), "reject".into())), "{decisions:?}");
     assert!(decisions.contains(&("warp.dispatch".into(), "socks_connect".into())), "{decisions:?}");
+}
+
+/// PodUtils/podnet#518: a tcp rule sends one port of the loopback to the
+/// direct dial, and another port of the loopback gets the built-in refusal;
+/// a port rule refuses its ports of a name with no lookup; the rest goes
+/// through the tunnel.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_port_rules_of_the_proxy_take_the_port_of_the_target() {
+    pod_testkit::need_loopback!();
+    let (_edge, net, _, _served) = session(true).await;
+    let echo = edge::echo_server().await;
+    let direct = common::Moved::new(vec![("127.0.0.1:5432".parse().unwrap(), echo)]);
+    let specs: Vec<String> = ["tcp:127.0.0.1:5432=direct", "port:7000-7010=reject", "cidr:198.51.100.0/24=reject"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let (table, _) = Table::build(&specs, None, Action::Tunnel, &NoLint, false).unwrap();
+    let (proxy, _) = proxy_of(&net, direct.clone(), Rules::new(table));
+    let (mut client, reply) = socks5(&proxy, 1, &by_ip([127, 0, 0, 1], 5432)).await;
+    assert_eq!(reply[1], 0, "the tcp rule takes its port of the loopback");
+    echoes(&mut client).await;
+    assert_eq!(direct.dials.load(Ordering::SeqCst), 1, "the direct dial took it");
+    let (_c, reply) = socks5(&proxy, 1, &by_ip([127, 0, 0, 1], 5433)).await;
+    assert_eq!(reply[1], 2, "another port of the loopback: the built-in refusal");
+    let (_c, reply) = socks5(&proxy, 1, &by_name("named.test", 7005)).await;
+    assert_eq!(reply[1], 2, "a port rule refuses its port of a name");
+    let (mut client, reply) = socks5(&proxy, 1, &by_ip([192, 0, 2, 80], ECHO_TCP)).await;
+    assert_eq!(reply[1], 0);
+    echoes(&mut client).await;
+    assert_eq!(direct.dials.load(Ordering::SeqCst), 1, "the tunnel took it");
+    let health = proxy.health();
+    assert_eq!((health.rejected, health.direct, health.tunnel), (2, 1, 1));
 }
 
 /// An HTTP CONNECT client reaches the echo through the tunnel.

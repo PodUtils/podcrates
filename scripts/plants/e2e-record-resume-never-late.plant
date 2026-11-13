@@ -1,0 +1,7 @@
+# A RESUME opens at each time after the last record, so a resume after the
+# 10 minutes goes on; the test of a late RESUME that ends the layer must
+# fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test record::tests::three_failed_resumes_or_a_late_one_end_the_layer \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- record::tests::three_failed_resumes_or_a_late_one_end_the_layer'

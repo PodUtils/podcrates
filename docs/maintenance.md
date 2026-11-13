@@ -306,6 +306,11 @@ fourth argument of the script names the list when it is elsewhere.
   and the rows), `TODO/PROGRESS.md` and `docs/decisions.md`: keep both
   sides of the rows in id order, then take the counts that `cargo todo
   check` reports.
+* A test that uses a Unix item (a Unix socket, a mode of a file, the
+  unix carrier) needs `#[cfg(unix)]`, or the Windows jobs of the nightly
+  do not build. `sh scripts/agent/check-windows.sh` checks the tests of
+  the workspace for Windows here (zig is the C compiler; no code is
+  made). Run it after a merge that adds tests, and before a release.
 * Before a release, read `ci`, `nightly`, `adoption` and `plants` at the
   head; a push to `main` cancels the runs that wait. `adoption.yml` runs
   only on a change of `crates/`, `adoption/` or its scripts: a commit of

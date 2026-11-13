@@ -1,0 +1,6 @@
+# A RESUME that opened does not spend its number, so the same RESUME opens
+# again; the test of a RESUME used once must fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test record::tests::a_resume_opens_once_and_the_records_after_it_take_the_fresh_prefix \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- record::tests::a_resume_opens_once_and_the_records_after_it_take_the_fresh_prefix'

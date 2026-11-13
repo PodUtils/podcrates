@@ -11,15 +11,16 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Finish the release `v0.37.0` (below): the tag, the hand-off, the
-   move of the trial patches and the COORD issue of the freeze.
+2. Record the takes of `v0.37.0` (#134) and of the freeze of `pod-warp`
+   (#135).
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The release `v0.37.0` (T-480, T-488, T-491, T-492) is in work: the
-  notes are `docs/releases/v0.37.0.md`. Each consumer took `v0.36.0`
-  (#129, closed).
+- The last release: `v0.37.0` at `3c5a086` (the hand-off #134, open).
+  The COORD issue of the freeze of `pod-warp` is #135: podnet and podssh
+  apply the trial patches (both name `v0.37.0`) and answer there. `main`
+  holds T-475, T-305, T-301 and T-503 for the next tag.
 - The nightly at `613058c` is red (run 43195242737): macOS and riscv64
   are T-325 (done); the two Windows jobs did not compile
   `crates/pod-relay/tests/reverse_plain.rs`. T-488 has the fix; a

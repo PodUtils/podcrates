@@ -19,7 +19,10 @@ a grant used once that the node checks before it dials, the gate of a
 node's person after its door, the net's document that two ends give each
 other, the tokens of one leg of a session, and the handover of a node's
 channel to the binary that takes its place, from the same keys and
-nonces.
+nonces. In place of the carry, the two ends can agree on a suite and take
+records from the exporter of the handshake: keys for a label that only the
+two ends hold, so that each hop between them (a relay, a peer of a mesh)
+carries ciphertext only ([Records](#records)).
 
 The source is podssh's `crates/podssh-relay/src/e2e/` at `74760e8`.
 podssh `docs/design.md` and `SECURITY.md` give the design and what the
@@ -29,7 +32,9 @@ channel defends against.
 
 | Module | What |
 | --- | --- |
-| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `leg_seed`), `Carried`, `Held`, `Start` |
+| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`), `Carried`, `Held`, `Start`; `Exporter` |
+| `exporter` | `Exporter` (`export`, `handshake_hash`, `is_initiator`, `records`), `RESERVED`, `MAX_EXPORT` |
+| `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
 | `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `NO_NET`; the kinds of the events `EVENT_*` |
 | `person` | `Gate` (`new`, `with_times`, `times`, `standing`, `cross`), `Times` (`DEFAULT`), `Question`, `Answer`, `Asker`, `Pass`, `By` |
 | `net` | `Docs` (`held`, `shares_with`, `take`), `Held` (`newer_than`), `OFFER` |
@@ -49,6 +54,46 @@ with the error as its cause:
 | `Refused(NotAllowed)`, `Refused(Other)`, `NodeKey` (this end refused the node's key) | `Refused` |
 | `Refused(NoTarget)` | `Unavailable` |
 | `Timeout` | `Timeout` |
+| `NoSuite` (the two ends share no suite of records) | `Config` |
+
+A `record::Fault` converts to a `Failure` of the stage `Session`:
+`ResumeExpired` and `Exhausted` (the layer is ended) are `Unavailable`,
+each other is `Protocol`.
+
+## Records
+
+`Channel::agree(offer)` sends one message `SUITES` (type 5: one byte for
+each suite, 1 `chacha20-poly1305`, 2 `aes-256-gcm`, in the sender's order)
+and reads the peer's; the suite is the first of the initiator's offer that
+the responder offers too, and with none `Error::NoSuite`.
+`Channel::exporter()` gives the `Exporter`; `Exporter::records(suite,
+settings, now)` gives the `Records` of this end, and
+`Channel::into_transport()` gives the stream back for them. The layer is
+sans-IO: the caller carries the bytes and gives the time.
+
+A record is a header of 24 bytes (big-endian: `version` u8 (1), `type`
+u8, `flags` u16, `stream` u32, `counter` u64, `length` u32, `pad` u16,
+`reserved` u16 (0)), a body of `length` bytes (the payload, then `pad`
+zero bytes) and a tag of 16 bytes. The header is the associated data. The
+nonce is the 4-byte prefix of the sender's direction, then the counter.
+The format is the one of PodUtils/podnet#472.
+
+| Rule | Value |
+| --- | --- |
+| The keys | from the exporter, with the suite's name and the direction in the context; the key of each epoch and the secret of the next come from the secret of the epoch |
+| The counter | each direction from 0, never back; `Fault::Exhausted` at its end |
+| The rekey | after `rekey_records` (2^31), `rekey_bytes` (1 GiB) or `rekey_age` (1 h); bit 0 of the flags (`PHASE`) is the parity of the epoch; the receiver keeps the key before and the key after |
+| The types and the flags | the type `0xFF` (`RESUME`) and bit 0 of the flags are the layer's; the rest are the caller's |
+| The padding | with `pad` on, to 0, 128, 512, 1024 or 2048 bytes, and above them to the next multiple of 2048; a body is at most 16 MiB |
+| The replay window | 1024 counters behind the highest: below it `Fault::Stale`; a repeat in it `Fault::Replayed`, counted (`replayed`) |
+| RESUME | `Records::resume` after a lost carrier: sealed under the resume key of its direction, with its number as the counter; the body is the token of its number (32 bytes), the counter that the sender waits for next (u64), a fresh prefix (4 bytes) for its records after it, and its epoch (u64). It opens once (a number at or above the lowest not used), within `resume_window` (10 min) after the last record that opened. A late one, or the third that fails, ends the layer (`Fault::ResumeExpired`). |
+
+`Records::open` gives `Opened::Record` or `Opened::Resume { next }`: the
+peer did not get this end's records from `next` on, and the caller sends
+their payloads again in new records. A record that fails leaves the layer
+as it was; the caller drops it or ends the link. A record sealed before a
+RESUME that comes after it does not open. Compression (podnet's) runs
+before the seal, and sets a flag of the caller.
 
 ## Events
 
@@ -86,6 +131,7 @@ task, the mark of a granted target, the taker of an operator's tokens).
 | The holds of a node's channels for a handover | `Node::holds` (one `Holds` for each node, which its roads share); `Holds::holding(task)` where the channel's task starts; `Holds::move_out` to `Keeper::hand_over_with` of `pod-session` |
 | The tokens of one leg | `Node::leases`: `Leases::attach(frames)` with the node's socket to its role |
 | The operator's taker of the tokens | `legs::during(session)` around the session |
+| The records: padding, the rekey, the resume | `record::Settings` (`Settings::DEFAULT`), to `Exporter::records` |
 
 The limits are constants: `HANDSHAKE_LIMIT` (30 s for each step),
 `VERDICT_LIMIT` (130 s: a step and the question of a person),
@@ -157,6 +203,15 @@ no file of podnet is frozen. The take adds `pod-e2e` above `pod-session`
 on its relay road: a `Node` with podnet's key of `pod-identity`, its
 events to podnet's lines, and the operator's end of `ends::operator`.
 
+The record layer of podnet's link (PodUtils/podnet@T-298,
+PodUtils/podnet@T-300, PodUtils/podnet@T-301) is `record` here: the
+handshake between the two ends of the link, `Channel::agree` with the
+suites of podnet's settings, `Exporter::records`, then the records over
+the carrier. A suite that does not match is `Error::NoSuite` (exit 78);
+`Fault::ResumeExpired` is podnet's `ResumeExpired` (exit 69). The
+compression (PodUtils/podnet@T-299) runs before `Records::seal` and sets a
+bit of the flags above bit 0.
+
 ## Tests
 
 `cargo test -p pod-e2e`: the unit tests of each module (the words of a
@@ -169,7 +224,13 @@ plain text at the relay, each fault of a relay an end of the session, the
 half-close, a peer with no channel, a replayed proof, the net's
 documents, a node's routes and an exit's target, a node's person, a grant
 at the door, the operator's seed of its tokens, and a session across a
-handover with a TCP target on the loopback. The plants are
+handover with a TCP target on the loopback; the exporter (the same key
+at both ends, another for another label, another hash or other keys) and
+the records (`tests/record.rs` and `record::tests`: each suite, a changed
+byte, a repeat and a stale counter, a rekey by count, by bytes and by age,
+the buckets, a RESUME used once, three failures and a late one, the epoch
+of a RESUME, the agreement of the suites, a document of the net before
+them). The plants are
 `scripts/plants/e2e-*` (group `e2e`). The fuzz targets `e2e_frame`,
 `e2e_proof` and `e2e_handover` read the frames, the verdict, the net's
 part of a proof, a proof, and the state of a handover.

@@ -133,6 +133,7 @@ async fn unix_connect_echo(path: std::path::PathBuf) {
     });
 }
 
+#[cfg(unix)]
 async fn round_trip(proxy: &Proxy) -> Vec<u8> {
     let mut io = through(proxy, "echo.test", 7).await.unwrap();
     io.write_all(b"ping").await.unwrap();

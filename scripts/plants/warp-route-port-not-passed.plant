@@ -1,0 +1,8 @@
+# The proxy decides its rules with no port: a port rule and a tcp rule
+# never match a CONNECT (PodUtils/podnet#518, T-475). The test of the port
+# rules of the proxy must fail.
+ENTRY=T-475
+GROUP=warp
+EXPECT='test the_port_rules_of_the_proxy_take_the_port_of_the_target \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test proxy -- the_port_rules_of_the_proxy_take_the_port_of_the_target'
+LIMIT=900

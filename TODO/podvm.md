@@ -5706,3 +5706,59 @@ writes `/tmp/shared` and waits, a reader of `spawn_joined` with its
 pidfd opens the file; after the first ends, the same pidfd gives
 `ESRCH (3)` on the fallback line, and the reader in its own namespace
 gets ENOENT. The plant `enter-ns-join-skipped` fails the test.
+
+# T-503: `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298)
+
+**Source:** PodUtils/podvm#298 (COORD-075 of podvm; PodUtils/podvm@T-1770).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's QA pass found three faults in `crates/pod-netlab/src/knobs/flags.rs`:
+(1) `Knobs::flags` writes `--udp` (or `--tcp`) with an empty list, so the
+line does not parse back after a shell splits it; (2) a number above the
+range of its type gives "the value is not a whole number"; (3) a bad word
+gives "the value is not a word of this flag" and does not list the words.
+
+## Premise
+
+- Read: PodUtils/podvm#298 (2026-11-13); `crates/pod-netlab/src/knobs/flags.rs`,
+  `knobs.rs`, `knobs/check.rs`, `scenario.rs`.
+
+## Approach
+
+(1) `flags` writes no `--tcp` or `--udp` for an empty list, and
+`parse_flags` reads a missing list as empty; a test holds
+`Knobs::parse_flags(&k.flags()) == k` for each scenario. (2) `number()`
+names the range on an overflow (`the value is above 65535`), and `check`
+names its own range where it is smaller. (3) `word()` lists the words of
+the flag (`the value is not one of: none, src, dst, both`);
+`KnobError::BadFlag` carries the text as a `String`. A plant for (1).
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+## Done
+
+2026-11-13, commit `f3d362a`. (1) `Knobs::flags` writes no empty list:
+`--tcp` or `--udp` only where it has ports, and `--tcp none` where both
+are empty; `none` and a missing list read as empty. The test of the
+scenarios also joins the flags with spaces, splits them as a shell does,
+and reads them back, for each scenario and for the four shapes of the
+two lists. (2) `number()` takes the range of the knob: digits past the
+type give `the value is out of its range 1280 to 1499` (`--mtu 99999`),
+a port past `u16` gives `1 to 65535`; a value with a sign or a letter
+stays `not a whole number`. (3) `word()` lists the words of the flag
+(`the value is not one of: none, nat44, nat66, both`); each enum of a
+flag has `WORDS`, and `Policy::WORDS`. `KnobError::BadFlag` carries
+`why: String` (an API change). `cargo test -p pod-netlab --all-features`:
+each passes, with the new `a_refused_value_names_the_range_or_the_words`.
+The plant `netlab-empty-port-list-written` fails the test of the
+scenarios.

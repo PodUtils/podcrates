@@ -1134,3 +1134,17 @@ cargo test -p pod-relay --all-features --test reverse_plain
 ```
 
 and a dispatch of `nightly.yml` whose Windows jobs build the tests.
+
+## Correction
+
+2026-11-13: the nightly at `d23a368` (run 43372791771) builds
+`reverse_plain.rs` on Windows; the build then stops at the next fault:
+`crates/pod-link/tests/common/mod.rs` names `pod_link::unix` with no
+`cfg(unix)`, and seven test targets of `pod-link` include it. A red build
+hides each fault after the first, so the fix checks the whole workspace
+at once: `scripts/agent/check-windows.sh` (`cargo check --tests` for
+x86_64-pc-windows-gnu, zig as the C compiler). It found that fault and
+nine warnings of items that only Unix tests use (in `pod-link`,
+`pod-broker`, `pod-proxy`, `pod-relay` and `pod-tls`); each is gated now,
+and the script gives 0 faults. The next nightly proves the Windows jobs.
+

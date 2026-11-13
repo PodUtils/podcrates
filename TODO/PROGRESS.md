@@ -1,15 +1,15 @@
 # Progress
 
-`TODO/INDEX.md` holds 386 entries: 112 open, 7 partial, 4 blocked, 263 done.
+`TODO/INDEX.md` holds 398 entries: 120 open, 7 partial, 4 blocked, 267 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.36.0` at `408fb13` (`docs/releases/v0.36.0.md`;
-  the hand-off #129, closed: each consumer took it). The release
-  `v0.37.0` is in work (`docs/releases/v0.37.0.md`): T-480 (`pod-warp`,
-  for the trial of podssh), T-488, T-491 and T-492 (`pod-enter`, for
-  podvm).
+- Last release: `v0.37.0` at `3c5a086` (`docs/releases/v0.37.0.md`; ci
+  43375509872, adoption 43375509895, release 43378948606; the hand-off
+  #134, COORD-074, open): T-480 (`pod-warp`), T-488, T-491 and T-492
+  (`pod-enter`, for podvm). The freeze of `pod-warp` is #135 (COORD-075).
+  Each consumer took `v0.36.0` (#129, closed).
 - The consumers and their tags:
   - podssh: `v0.36.0` (`99b9642`, PodUtils/podssh#226; its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
@@ -87,37 +87,31 @@ next entry.
    tracks the plan. Each new ask of the podrunner session becomes an
    entry here, in the order of its need. T-280 (the live run of
    `pod-actions-expr` and `pod-actions-workflow` against GitHub) waits.
-3. **podnet:** the chain to WARP as a network of podnet
-   (PodUtils/podnet#449; about twenty podnet entries wait): T-028 (`pod-warp`
-   with its `Dial` and `Datagrams`; partial: the registration, the identity,
-   the doors, the session over HTTP/2, the network and the rules are in;
-   the settings of podnet's stack of `ip.rs` with its TCP timeout,
-   keepalive and Nagle, the check of the data path, the end of the flows
-   of a closed session, the refusal of UDP to a family that the device
-   lacks, the relay leg, the race and the leg file are in; the proxy with
-   its rules, names, UDP and DNS forwarder, the resolvers on UDP and over
-   TLS, the forward and nc are in; MASQUE over HTTP/3, the WireGuard
-   tunnel and the carried device are in; the L4 door and its proxy are
-   in; `Live`, the exit, the search of the socket, the TUN and its routes,
-   and the live step are in; the trials of podnet and of podssh pass),
-   then the next tag (it holds the API's team token and its base, which
-   podssh's glue needs) with the COORD issue of the freeze
-   (T-339, partial), T-482 (a dropped connect of `pod-netstack`), T-481
-   (a connect-ip server of the user's own), T-470 (a change of the settings of a `Warp`), T-410 (the L4
-   door on a new key), then
-   T-029 (`pod-cloudflare`). The next carriers of `pod-link`
-   (PodUtils/podnet#515, COORD-067), in podnet's order (the WebSocket
-   carrier `ws` is in, on the accept loop `pod_ws::serve`, which podssh's
-   relay role T-036 can take too; the HTTP/2 carrier `h2` is in): T-506
-   (the rules of podnet's WebSocket carrier), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
-   T-424 (UDP with KCP) and T-310 (the ARQ); T-475 (the port rules of
-   the reader of the rules, PodUtils/podnet#518). podnet
-   holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
-   transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
-   podnet's link workstream (PodUtils/podnet#480) runs on `pod-link`;
-   T-310 (the ARQ) when podnet names a lossy carrier.
-   The other asks of PodUtils/podnet#479 wait for podnet's start of each:
-   T-301, T-302 (after T-035), T-305; the answer of ask A5 is in #88.
+3. **podnet** (its complete beta, PodUtils/podnet#521, COORD-064; the
+   answer names a tag for each group, an estimate). podnet holds the files
+   of `pod-relay`, `pod-warp` and `pod-cloudflare` to fixes from `7c5f87e`.
+   a. `v0.37.0` (it holds the team token of `pod-warp`) and the COORD
+      issue of the freeze of `pod-warp` (#135; T-339, partial) are out:
+      podnet and podssh take the trial patches.
+   b. The next tag: T-506 (the rules of podnet's WebSocket carrier:
+      the subprotocol, a text frame refused, Ping and Pong), T-510 (a
+      fuzz target of the opener of the records of `pod-e2e`). The port
+      rules of `pod-warp`, the TXT and CNAME of `pod-dns`, the exporter
+      and the record layer of `pod-e2e` (call C246), the accept loop
+      `pod_ws::serve`, and the carriers `ws` and `h2` of `pod-link` are
+      done for it.
+   c. The tag after: T-310 (the ARQ), T-422 (long-poll, SSE, chunked),
+      T-423 (QUIC), T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
+      simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
+      up and a down carrier).
+   d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
+      traversal with the relay), T-501 (`pod-turn` with RFC 6062), T-027,
+      T-214 and T-215 (`pod-transit`, `pod-wormhole`).
+   e. Then: T-029 and T-030 (`pod-cloudflare`), T-035 and T-302
+      (`pod-egress`), T-031 (`pod-derp`), T-039 (`pod-ts`), T-034
+      (`pod-acme`), T-502 (a headscale harness).
+   The rest of `pod-warp`: T-482, T-481, T-470, T-410. T-121 and T-124
+   (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
    the layout, the scenarios, the plan, the derivation and the judge are
    in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260

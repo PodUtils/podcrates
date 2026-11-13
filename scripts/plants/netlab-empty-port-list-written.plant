@@ -1,0 +1,7 @@
+# Knobs::flags writes `--udp` with an empty list: the printed line of a
+# scenario does not read back after a shell splits it (T-503).
+ENTRY=T-503
+GROUP=netlab
+EXPECT='test each_scenario_writes_flags_that_read_back \.\.\. FAILED'
+RUN='cargo test -p pod-netlab --all-features --test knobs -- each_scenario_writes_flags_that_read_back'
+LIMIT=1800
