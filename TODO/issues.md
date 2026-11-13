@@ -136,7 +136,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #131 | pod-git: T-217 to T-220 move to PodUtils/podforge (deferred) (to podforge) | closed (the owner's agent of podforge took it) | T-217, T-218, T-219, T-220 |
 | #132 | COORD-072: podrunner's Q10 (a Docker Engine API socket for each job): which decision did podrunner record? (to podrunner) | closed (podrunner's DR-8: the container hooks, no Docker API socket, no crate now; PodUtils/podrunner#77) | T-146 |
 | #133 | COORD-073: the answer to PodUtils/podnet#521: the plan, the order and the tags for podnet's complete beta (to podnet) | open (the entries are open) | T-027, T-029, T-301, T-305, T-310, T-420, T-421, T-475, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502 |
-| #134 | COORD-074: v0.37.0: pod-warp's team token, pod-enter's /proc and its joined entry for exec, the Windows build of pod-relay's tests (to all) | open (podnet `f6abdc3`, PodUtils/podnet#522; podrunner `5fc53c4`, PodUtils/podrunner#79; podssh and podvm wait) | T-480, T-488, T-491, T-492 |
-| #135 | COORD-075: pod-warp: the freeze of src/warp and crates/podssh-warp (to podnet) (to podssh) | open (podnet took the crate at `f6abdc3`, PodUtils/podnet#522; podssh waits) | T-339, T-412, T-413 |
+| #134 | COORD-074: v0.37.0: pod-warp's team token, pod-enter's /proc and its joined entry for exec, the Windows build of pod-relay's tests (to all) | closed (podnet `f6abdc3`, podrunner `5fc53c4`, podvm `b12ba476`, PodUtils/podvm#299; podssh `812c61c`, PodUtils/podssh#227) | T-480, T-488, T-491, T-492 |
+| #135 | COORD-075: pod-warp: the freeze of src/warp and crates/podssh-warp (to podnet) (to podssh) | closed (podnet took `pod-warp` at `f6abdc3`, PodUtils/podnet#522; podssh at `812c61c`, PodUtils/podssh#227) | T-339, T-412, T-413 |
 
 #79 to #81 are pull requests.

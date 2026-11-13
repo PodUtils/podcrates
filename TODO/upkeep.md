@@ -1094,7 +1094,7 @@ first gives `Failed`.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1148,3 +1148,53 @@ nine warnings of items that only Unix tests use (in `pod-link`,
 `pod-broker`, `pod-proxy`, `pod-relay` and `pod-tls`); each is gated now,
 and the script gives 0 faults. The next nightly proves the Windows jobs.
 
+## Done
+
+2026-11-13, commits `d23a368`, `6924dd1` and `a627ab0`. The Unix half
+of `reverse_plain.rs`, the unix helper of the tests of `pod-link` and
+nine items that only Unix tests use are gated with `cfg(unix)`;
+`scripts/agent/check-windows.sh` checks the tests of the workspace for
+Windows here and gives 0 faults. The nightly at `a627ab0` (run
+43382143089) builds the tests on both Windows jobs; the first failures
+of the tests are T-507.
+
+# T-507: The tests of `pod-services-watch` fail on Windows: a reset loses the bytes of a stand-in, and a runner with no `SystemRoot` has no Winsock
+
+**Source:** `nightly.yml` run 43382143089 at `a627ab0` (job 131742137667, `test (windows-2025)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three tests of `crates/pod-services-watch/tests/watches/answer.rs` fail
+on Windows. (1) and (2): `a_handshake_cut_after_a_byte_of_the_server_is_an_answer`
+and `a_handshake_with_another_protocol_is_an_answer` get `os error
+10053` (`WSAECONNABORTED`): the stand-in writes its bytes and closes
+with the client's hello unread, so Windows sends a reset, and the client
+loses the bytes before it reads them. (3)
+`a_second_scheduled_run_with_no_answer_fails` gets `os error 10106`
+(`WSAEPROVIDERFAILEDINIT`): the runner starts with `env_clear()`, and
+with no `SystemRoot` Winsock does not start. The step `Test` of the
+nightly stops at the first red test binary, so the results of the
+binaries after it are not known.
+
+## Premise
+
+- Read (2026-11-13): the log of job 131742137667 through the GitHub
+  tools; `answer.rs`, `crates/pod-testkit/src/stand.rs` (`raw_over`).
+- Not measured: the tests after `pod-services-watch` on Windows.
+
+## Approach
+
+The two stand-ins read the client's first TLS record whole before they
+answer; the runner keeps `SystemRoot` on Windows. The step `Test` of the
+nightly takes `--no-fail-fast`. Then dispatch the nightly: each new
+failure of a test on Windows is a new entry.
+
+## Prove
+
+A dispatch of `nightly.yml` whose Windows jobs pass the tests of
+`pod-services-watch`.

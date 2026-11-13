@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**399 entries: 118 open, 7 partial, 4 blocked, 270 done.**
+**401 entries: 118 open, 7 partial, 4 blocked, 272 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 3 | 0 | 72 | 88 |
+| P1 | 13 | 3 | 0 | 74 | 90 |
 | P2 | 60 | 3 | 4 | 142 | 209 |
 | P3 | 45 | 1 | 0 | 54 | 100 |
-| **All** | 118 | 7 | 4 | 270 | 399 |
+| **All** | 118 | 7 | 4 | 272 | 401 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -427,7 +427,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-482](relay.md) | P2 | S | M2 | defect | open | `pod-netstack`: a stream dropped before its handshake ends finishes the handshake later |
 | [T-485](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291) |
 | [T-486](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294) |
-| [T-488](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)` |
+| [T-488](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)` |
 | [T-489](transport.md) | P2 | S | M1 | feature | open | `pod-devtunnel`: a client with no user token, for a tunnel with anonymous access or with a connect token |
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |
 | [T-491](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296) |
@@ -444,5 +444,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
 | [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
+| [T-505](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the actor classes `agent` and `bot` in `job-offer.v1` (PodUtils/podrunner#80) |
 | [T-506](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
+| [T-507](upkeep.md) | P1 | S | M5 | defect | open | The tests of `pod-services-watch` fail on Windows: a reset loses the bytes of a stand-in, and a runner with no `SystemRoot` has no Winsock |
 | [T-510](relay.md) | P2 | S | M2 | chore | done | `pod-e2e`: a fuzz target of the opener of the records |
