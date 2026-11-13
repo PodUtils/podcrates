@@ -1,0 +1,7 @@
+# The accept loop of pod-ws takes a request that does not offer the
+# subprotocol of the server (T-506).
+ENTRY=T-506
+GROUP=ws
+EXPECT='None: HTTP/1.1 101'
+RUN='cargo test -p pod-ws --all-features --test serve a_server_of_one_subprotocol_refuses_a_request_that_does_not_offer_it'
+LIMIT=1800

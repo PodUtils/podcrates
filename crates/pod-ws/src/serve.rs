@@ -1,7 +1,8 @@
 //! The accept loop of a WebSocket server over TLS (feature `serve`): the
 //! listeners and the TLS server configuration are the caller's; the loop
-//! accepts, runs TLS, reads and checks the upgrade, answers 101, waits for
-//! the first frame, and gives each session to the caller with its peer, the
+//! accepts, runs TLS, reads and checks the upgrade (and its subprotocol,
+//! where [`Serve::protocol`] names one), answers 101, waits for the first
+//! frame, and gives each session to the caller with its peer, the
 //! key that the peer proved and a [`PreAuth`] gate.
 //!
 //! A connection is before `ready` from its accept until the caller calls
@@ -112,6 +113,10 @@ pub struct Serve {
     /// The bound of each read of a session after the first frame; none
     /// waits for ever.
     pub idle: Option<Duration>,
+    /// The one subprotocol of the server, a constant of the caller: a
+    /// request that does not offer it gets 426, and the 101 names it. None
+    /// chooses no subprotocol and takes each request.
+    pub protocol: Option<&'static str>,
 }
 
 impl Default for Serve {
@@ -125,6 +130,7 @@ impl Default for Serve {
             lowat: Some(16 << 10),
             limits: Limits { message: 64 << 10, frame: 16 << 10 },
             idle: None,
+            protocol: None,
         }
     }
 }
@@ -146,9 +152,15 @@ impl Serve {
         self.limits.frame.clamp(frame::MAX_CONTROL_PAYLOAD, message)
     }
 
-    /// Each deadline more than zero, each cap at least one, and room for
-    /// one connection in `preauth_bytes`.
+    /// Each deadline more than zero, each cap at least one, room for one
+    /// connection in `preauth_bytes`, and a subprotocol name that
+    /// [`crate::server::is_protocol_name`] takes.
     pub fn check(&self) -> Result<(), String> {
+        if let Some(protocol) = self.protocol
+            && !crate::server::is_protocol_name(protocol)
+        {
+            return Err(format!("the subprotocol {protocol:?} is not visible ASCII with no comma"));
+        }
         let d = &self.deadlines;
         if [d.tls, d.head, d.first, d.ready].contains(&Duration::ZERO) {
             return Err("each deadline of the loop is more than zero".into());

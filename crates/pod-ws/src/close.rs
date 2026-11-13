@@ -4,7 +4,8 @@
 
 use crate::frame;
 
-/// The close codes of RFC 6455 section 7.4.1 that a relay sends.
+/// The close codes of RFC 6455 section 7.4.1 that a relay or a carrier
+/// sends.
 pub mod code {
     /// The session ended as asked.
     pub const NORMAL: u16 = 1000;
@@ -12,6 +13,9 @@ pub mod code {
     pub const GOING_AWAY: u16 = 1001;
     /// A frame or a message that RFC 6455 forbids.
     pub const PROTOCOL: u16 = 1002;
+    /// A message of a type that the far end does not take: a text message
+    /// where binary messages alone go.
+    pub const UNSUPPORTED: u16 = 1003;
     /// A message over a limit (the relay: its byte cap or its frame cap).
     pub const TOO_BIG: u16 = 1009;
     /// An error of the far end (the relay: its connection to the target).
@@ -25,6 +29,7 @@ pub mod code {
 pub fn close_hint(code: u16) -> &'static str {
     match code {
         code::GOING_AWAY => " (the relay goes away; open a new session)",
+        code::UNSUPPORTED => " (the far end takes no message of this type)",
         code::TOO_BIG => " (the session passed the byte limit of the relay; open a new session)",
         code::ERROR => " (an error of the relay)",
         code::TRY_LATER => " (the relay is busy; try again later)",
@@ -146,6 +151,7 @@ mod forward_close_tests {
         assert!(close_hint(code::GOING_AWAY).contains("goes away"));
         assert!(close_hint(code::ERROR).contains("error of the relay"));
         assert!(close_hint(code::TRY_LATER).contains("busy"));
+        assert!(close_hint(code::UNSUPPORTED).contains("no message of this type"));
         for none in [code::NORMAL, code::PROTOCOL, 4000] {
             assert_eq!(close_hint(none), "", "{none}");
         }

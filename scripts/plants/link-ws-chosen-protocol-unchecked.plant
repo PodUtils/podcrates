@@ -1,0 +1,7 @@
+# The dial of the ws carrier takes a 101 that does not name the
+# subprotocol that it offered (T-506).
+ENTRY=T-506
+GROUP=link
+EXPECT='a 101 with none'
+RUN='cargo test -p pod-link --all-features --test ws a_dialer_with_no_subprotocol_or_another_gets_426'
+LIMIT=1800

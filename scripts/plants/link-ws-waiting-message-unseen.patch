@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws/pump.rs b/crates/pod-link/src/ws/pump.rs
+--- a/crates/pod-link/src/ws/pump.rs
++++ b/crates/pod-link/src/ws/pump.rs
+@@ -238,7 +238,7 @@
+         let wait = Instant::now() + beat.pong_within;
+         sleep_until(wait).await;
+         next = (next + every).max(wait);
+-        if session.frames_received() == heard && !writing.load(Ordering::SeqCst) {
++        if session.frames_received() == heard {
+             return (
+                 io::ErrorKind::TimedOut,
+                 format!("the ws carrier: no frame from the peer within {:?} of a Ping", beat.pong_within),

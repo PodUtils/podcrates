@@ -3,7 +3,8 @@
 //! TLS, in the head or before its first frame is cut at the deadline of
 //! that stage; a session that the caller does not admit is cut at the
 //! deadline of `ready` or at the drop of its gate; the socket options; a
-//! refused key; a refused upgrade. The caps are in `tests/serve_caps.rs`.
+//! refused key; a refused upgrade; the one subprotocol of a server
+//! (T-506). The caps are in `tests/serve_caps.rs`.
 
 mod common;
 
@@ -193,6 +194,58 @@ async fn a_refused_upgrade_gets_its_status_and_no_session() {
     assert!(rx.try_recv().is_err());
 }
 
+/// The head of the answer to an upgrade that offers `protocol`, read up to
+/// its empty line; after a 101, the session that sent its first frame.
+async fn answer_to(addr: std::net::SocketAddr, protocol: Option<&str>) -> (String, Option<Session>) {
+    let mut tls = tls_over(tcp_from(None, addr).await.unwrap(), 2).await.unwrap();
+    let key = pod_ws::handshake::generate_key().unwrap();
+    let url = pod_ws::url::WsUrl::parse("wss://loop.test/serve").unwrap();
+    tls.write_all(&pod_ws::url::offering(&url, &key, "pod-ws/test", protocol).unwrap()).await.unwrap();
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    while !head.ends_with(b"\r\n\r\n") {
+        match timeout(LIMIT, tls.read(&mut byte)).await.expect("the answer in time") {
+            Ok(1) => head.push(byte[0]),
+            _ => break,
+        }
+    }
+    let head = String::from_utf8_lossy(&head).into_owned();
+    if !head.starts_with("HTTP/1.1 101 ") {
+        return (head, None);
+    }
+    assert!(pod_ws::handshake::check_response(&head, &key).is_ok(), "{head}");
+    let session = pod_ws::RelaySession::new(tls, Vec::new(), None, LIMIT);
+    session.send_binary(b"hello").await.unwrap();
+    (head, Some(session))
+}
+
+type Session = pod_ws::RelaySession<common::serve::ClientTls>;
+
+#[tokio::test]
+async fn a_server_of_one_subprotocol_refuses_a_request_that_does_not_offer_it() {
+    pod_testkit::need_loopback!();
+    let mut cfg = long();
+    cfg.protocol = Some("podnet/1");
+    let (addr, mut rx, _loop) = start(cfg).await;
+    for offered in [None, Some("chat"), Some("PODNET/1")] {
+        let (head, _) = answer_to(addr, offered).await;
+        assert!(head.starts_with("HTTP/1.1 426 "), "{offered:?}: {head}");
+        assert!(head.contains("\r\nSec-WebSocket-Protocol: podnet/1\r\n"), "the refusal names it: {head}");
+    }
+    assert!(rx.try_recv().is_err(), "a refused request reaches no caller");
+    let (head, _session) = answer_to(addr, Some("chat, podnet/1")).await;
+    assert!(head.starts_with("HTTP/1.1 101 "), "{head}");
+    assert!(pod_ws::handshake::check_chosen_protocol(&head, Some("podnet/1")).is_ok(), "the 101 names it: {head}");
+    assert_eq!(next(&mut rx).await.key, Some(id(2).public()));
+
+    let (addr, _rx, _loop) = start(long()).await;
+    let (head, _session) = answer_to(addr, Some("podnet/1")).await;
+    assert!(
+        head.starts_with("HTTP/1.1 101 ") && pod_ws::handshake::check_chosen_protocol(&head, None).is_ok(),
+        "{head}"
+    );
+}
+
 #[tokio::test]
 async fn a_setting_out_of_its_limits_is_a_usage_error() {
     let listener = || async { tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap() };
@@ -209,6 +262,8 @@ async fn a_setting_out_of_its_limits_is_a_usage_error() {
         },
         Serve { caps: pod_ws::serve::Caps { per_prefix: 0, ..Default::default() }, ..Default::default() },
         Serve { caps: pod_ws::serve::Caps { head_bytes: 10, ..Default::default() }, ..Default::default() },
+        Serve { protocol: Some("two words"), ..Default::default() },
+        Serve { protocol: Some(""), ..Default::default() },
     ] {
         assert!(bad.check().is_err(), "{bad:?}");
     }

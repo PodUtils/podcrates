@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/ws/pump.rs b/crates/pod-link/src/ws/pump.rs
+--- a/crates/pod-link/src/ws/pump.rs
++++ b/crates/pod-link/src/ws/pump.rs
+@@ -229,7 +229,7 @@
+     loop {
+         sleep_until(next).await;
+         let heard = session.frames_received();
+-        if !session.close_sent() {
++        if session.close_sent() {
+             sent += 1;
+             if let Err(e) = session.send_ping(&sent.to_be_bytes()).await {
+                 return (io::ErrorKind::BrokenPipe, format!("the ws carrier: a Ping to the peer: {e}"));

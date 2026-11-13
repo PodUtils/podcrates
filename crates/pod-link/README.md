@@ -96,9 +96,11 @@ let io = h2.dial("SHA256:...@https://relay.example/link").await?;
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
 | `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
 | `tcp::TlsListener` | `local_addr`, `accept_key` (the stream and the key of the client); a `Listener` (`accept_peer` gives the key); a drop ends its handshakes under way |
-| `ws::Ws` (feature `ws`) | the ws carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s, the TLS and the upgrade of a dial), `serve` (the deadlines and the caps of the accept loop of a listener, `pod_ws::serve::Serve`); `address(text)` (the key and the URL of `KEY@wss://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial("KEY@wss://HOST[:PORT]/PATH")`, `listen("IP:PORT")` |
+| `ws::Ws` (feature `ws`) | the ws carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s, the TLS and the upgrade of a dial), `serve` (the deadlines and the caps of the accept loop of a listener, `pod_ws::serve::Serve`), `protocol` (the subprotocol of both ends; none by default), `beat` (`Beat`); `with_protocol(name)`; `check`; `address(text)` (the key and the URL of `KEY@wss://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial("KEY@wss://HOST[:PORT]/PATH")`, `listen("IP:PORT")` |
 | `ws::WsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its accept loop |
-| `ws::{NAME, ALPN, USER_AGENT, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT}` | the constants of the ws carrier |
+| `ws::Beat` | `ping_every` (20 s; none sends no Ping), `pong_within` (10 s); `check` |
+| `ws::carry(session, beat)` | the byte stream of a link over a `pod_ws::RelaySession` that the caller opened, under the rules of the carrier |
+| `ws::{NAME, ALPN, USER_AGENT, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, PING_EVERY, PONG_WITHIN}` | the constants of the ws carrier |
 | `h2::H2` (feature `h2`) | the h2 carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s: TLS, the prefaces, the POST and its 200), `max_handshakes` (64); `address(text)` (the key and the `PostUrl` of `KEY@https://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial`, `listen("IP:PORT")` |
 | `h2::H2Listener`, `h2::PostUrl` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way. `PostUrl { host, port, path }`: `parse`, `authority`, `target` |
 | `h2::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, WINDOW}` | the constants of the h2 carrier |
@@ -143,7 +145,14 @@ no resumption and the same certificates. The dialer sends the upgrade
 took the key of the dialer, and takes any path. The dialer then sends an
 empty binary message, the first frame that the accept loop waits for.
 The bytes of the link go in binary messages of at most 16 KiB each way;
-the end of the link sends a Close 1000.
+the end of the link sends a Close 1000. A text message is an error of
+protocol: the carrier sends a Close 1003, and the link ends with an error
+of `InvalidData`. `Ws::protocol` is the subprotocol of both ends
+(podnet's `podnet/1`): the dial offers it and refuses a 101 that does not
+name it, and the listener refuses a request that does not offer it
+(426). Each end sends a Ping each 20 s; when no frame comes within 10 s
+of a Ping, and no message waits for the link, the session ends and the
+link ends with an error of `TimedOut` (`Ws::beat`).
 
 The h2 carrier puts TLS 1.3 with the ALPN `h2` under one stream of
 HTTP/2: the dialer sends `POST https://HOST/PATH` with no end of its
@@ -299,6 +308,20 @@ feature `ws`):
   `link-ws-client-key-unchecked`, `link-ws-first-frame-skipped`,
   `link-ws-refusal-unnamed`, `link-ws-handshake-unbounded`
   (`scripts/plants/`).
+- [x] The subprotocol `podnet/1` (`Ws::protocol`), offered and named:
+  `the_subprotocol_of_both_ends_is_offered_and_named`; a dialer with no
+  subprotocol or another gets 426, and a 101 with none is refused:
+  `a_dialer_with_no_subprotocol_or_another_gets_426` (T-506).
+- [x] A text message is an error of protocol:
+  `a_text_message_ends_the_link_with_an_error_of_protocol` (T-506).
+- [x] A Ping each 20 s, a frame within 10 s:
+  `a_peer_that_answers_no_ping_ends_the_session`,
+  `a_peer_that_answers_each_ping_keeps_the_session`,
+  `a_message_that_waits_for_the_link_keeps_the_session` (T-506).
+- [x] A plant for each: `link-ws-text-message-carried`,
+  `link-ws-silent-peer-kept`, `link-ws-ping-unsent`,
+  `link-ws-waiting-message-unseen`, `link-ws-chosen-protocol-unchecked`,
+  `ws-serve-protocol-unchecked`, `ws-serve-101-unnamed`.
 
 The asks of PodUtils/podnet#515 for the HTTP/2 carrier
 (PodUtils/podnet@T-270) and the tests that hold them (`tests/h2.rs`,

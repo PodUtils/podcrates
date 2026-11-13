@@ -1,0 +1,7 @@
+# The pump of the ws carrier ends a session whose message waits for the
+# link: its reads stop, and the Pong of the peer is not read (T-506).
+ENTRY=T-506
+GROUP=link
+EXPECT='no error: .*no frame from the peer'
+RUN='cargo test -p pod-link --all-features --test ws a_message_that_waits_for_the_link_keeps_the_session'
+LIMIT=1800

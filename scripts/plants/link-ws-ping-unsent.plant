@@ -1,0 +1,6 @@
+# The pump of the ws carrier sends no Ping (T-506).
+ENTRY=T-506
+GROUP=link
+EXPECT='a Ping at 20, 40, 60 and 80 s'
+RUN='cargo test -p pod-link --all-features --test ws a_peer_that_answers_each_ping_keeps_the_session'
+LIMIT=1800

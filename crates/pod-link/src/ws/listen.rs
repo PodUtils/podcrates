@@ -12,7 +12,7 @@ use pod_ws::serve::Accepted as Session;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use super::{ALPN, NAME, Ws, carry, err};
+use super::{ALPN, Beat, NAME, Ws, carry, err};
 use crate::carrier::{Accepted, BoxIo, CarrierError, CarrierErrorKind, Listener, Pending};
 
 /// A listener of the ws carrier. Its drop ends the accept loop and each
@@ -21,6 +21,7 @@ pub struct WsListener {
     local: SocketAddr,
     sessions: mpsc::UnboundedReceiver<Session>,
     task: JoinHandle<()>,
+    beat: Beat,
 }
 
 impl std::fmt::Debug for WsListener {
@@ -30,14 +31,15 @@ impl std::fmt::Debug for WsListener {
 }
 
 pub(super) async fn bind(ws: &Ws, addr: SocketAddr) -> Result<WsListener, CarrierError> {
-    ws.serve.check().map_err(|why| err(CarrierErrorKind::Usage, why))?;
+    ws.check()?;
+    let cfg = pod_ws::serve::Serve { protocol: ws.protocol, ..ws.serve };
+    cfg.check().map_err(|why| err(CarrierErrorKind::Usage, why))?;
     let config = peer::server_config(ws.provider.clone(), ws.identity.clone(), ws.clients.clone(), &[ALPN])
         .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
     let listener =
         tokio::net::TcpListener::bind(addr).await.map_err(|e| CarrierError::io(NAME, format!("bind {addr}"), e))?;
     let local = listener.local_addr().map_err(|e| CarrierError::io(NAME, format!("the address of {addr}"), e))?;
     let (out, sessions) = mpsc::unbounded_channel();
-    let cfg = ws.serve;
     let task = tokio::spawn(async move {
         let on = move |session| {
             let _ = out.send(session);
@@ -46,7 +48,7 @@ pub(super) async fn bind(ws: &Ws, addr: SocketAddr) -> Result<WsListener, Carrie
             tracing::debug!(error = %e, "the accept loop of a ws listener ended");
         }
     });
-    Ok(WsListener { local, sessions, task })
+    Ok(WsListener { local, sessions, task, beat: ws.beat })
 }
 
 impl WsListener {
@@ -73,7 +75,7 @@ impl WsListener {
                 tracing::debug!(peer = %session.peer, "a session of a ws listener was cut before its accept");
                 continue;
             }
-            return Ok((carry(session.session), key));
+            return Ok((carry(session.session, self.beat), key));
         }
     }
 }
