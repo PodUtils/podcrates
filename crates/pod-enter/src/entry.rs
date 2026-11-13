@@ -128,11 +128,21 @@ pub fn run_ladder(
 /// What the namespace rung mounts, built before the fork.
 ///
 /// One private tmpfs on the `/tmp` of the image: the mount that a run
-/// keeps apart from the host. No user, PID or network namespace and no
-/// `/proc`: the banner says so.
+/// keeps apart from the host. A fresh proc on the `/proc` of the image
+/// where the image has that directory. No user, PID or network
+/// namespace: the banner says so.
 pub struct NsMount {
     pub(crate) tmp_target: CBuf,
+    /// The `/proc` of the image, or `None` where it is no mount point.
+    pub(crate) proc_target: Option<CBuf>,
+    /// The line that a refused proc mount writes before its errno: the
+    /// child cannot allocate, so the text is made before the fork.
+    pub(crate) proc_refused: Vec<u8>,
 }
+
+/// The step byte of the proc mount. It names its step but never goes to
+/// the readiness pipe: a refused proc mount does not stop the rung.
+pub const NS_PROC_STEP: u8 = 15;
 
 /// The `/tmp` of the image as a mount target, or `None` where it cannot be
 /// one: missing, a file, or a symbolic link. A mount over a link lands on
@@ -141,10 +151,42 @@ pub struct NsMount {
 /// entry never enters the namespace rung without its mount, because the
 /// banner names the mount as a fixed fact.
 pub fn ns_tmp_target(root: &str) -> Option<String> {
-    let target = format!("{}/tmp", root.trim_end_matches('/'));
+    ns_dir_target(root, "tmp")
+}
+
+/// The `/proc` of the image as a mount target, with the rule of
+/// [`ns_tmp_target`]. `None` skips the proc mount: the rung runs with no
+/// `/proc`, as an image with no such directory asks.
+pub fn ns_proc_target(root: &str) -> Option<String> {
+    ns_dir_target(root, "proc")
+}
+
+fn ns_dir_target(root: &str, name: &str) -> Option<String> {
+    let target = format!("{}/{name}", root.trim_end_matches('/'));
     let not_link = std::fs::symlink_metadata(&target).map(|m| !m.is_symlink()).unwrap_or(false);
     let is_dir = std::fs::metadata(&target).map(|m| m.is_dir()).unwrap_or(false);
     (not_link && is_dir).then_some(target)
+}
+
+/// The start of the line of a refused proc mount; the child adds the
+/// number of the errno and a newline.
+pub fn ns_proc_refused(names: &Names) -> String {
+    let step = ns_setup_step(NS_PROC_STEP).unwrap_or("mounting proc on /proc");
+    format!("{}: the namespace rung runs with no /proc: {step} failed with errno ", names.product)
+}
+
+/// `n` in decimal in `buf`, with no allocation: the child of the fork
+/// writes it.
+pub(crate) fn decimal(mut n: u32, buf: &mut [u8; 10]) -> &[u8] {
+    let mut at = buf.len();
+    loop {
+        at -= 1;
+        buf[at] = b'0' + (n % 10) as u8;
+        n /= 10;
+        if n == 0 {
+            return &buf[at..];
+        }
+    }
 }
 
 /// The fallback line: the cause, then the rung that the entry entered.
@@ -236,6 +278,7 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         8 => Some("remounting / recursively private"),
         9 => Some("mounting tmpfs on /tmp"),
         10 => Some("verifying the chroot landed on the opened rootfs"),
+        NS_PROC_STEP => Some("mounting proc on /proc"),
         _ => None,
     }
 }
@@ -260,7 +303,11 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
     let Some(target) = CBuf::new(&target) else {
         return chroot(err, "the /tmp mount point contains a NUL byte");
     };
-    let mount = NsMount { tmp_target: target };
+    // A target with a NUL byte cannot come from `format!` over a path
+    // that `RootDir` holds: such a path has none.
+    let proc_target = ns_proc_target(&root.path).and_then(|t| CBuf::new(&t));
+    let proc_refused = ns_proc_refused(names).into_bytes();
+    let mount = NsMount { tmp_target: target, proc_target, proc_refused };
     match spawn_with(root, plan, Rung::Namespace.word(), None, None, None, Some(&mount), err) {
         Err(Error::NsSetup { step, errno }) => {
             chroot(err, &format!("the namespace rung refused at {step} ({} ({}))", errno.name(), errno.0))

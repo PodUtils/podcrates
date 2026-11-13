@@ -17,16 +17,17 @@ use pod_enter::{Fds, Limit, Names, Plan, Resource, RootDir, spawn, spawn_namespa
 use pod_hostprobe::sys as k;
 use pod_testkit::host::skip_line;
 
-use payload::{PAYLOAD, Run, WRITER, run};
+use payload::{PAYLOAD, READER, Run, WRITER, run};
 
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some(PAYLOAD) => std::process::exit(payload::payload(&args[2..])),
         Some(WRITER) => std::process::exit(payload::writer(&args[2..])),
+        Some(READER) => std::process::exit(payload::reader(&args[2..])),
         _ => {}
     }
-    let tests: [(&str, fn()); 10] = [
+    let tests: [(&str, fn()); 11] = [
         ("the_entry_with_no_chroot_confines_with_host_paths", the_entry_with_no_chroot_confines_with_host_paths),
         ("a_passed_descriptor_takes_the_place_of_no_rule", a_passed_descriptor_takes_the_place_of_no_rule),
         ("a_passed_descriptor_takes_the_place_of_no_pipe", a_passed_descriptor_takes_the_place_of_no_pipe),
@@ -40,6 +41,10 @@ pub fn main() {
         ("a_rule_covers_the_tmpfs_of_the_namespace_rung", mounts::a_rule_covers_the_tmpfs_of_the_namespace_rung),
         ("a_rule_on_a_path_that_the_tmpfs_hides_is_refused", mounts::a_rule_on_a_path_that_the_tmpfs_hides_is_refused),
         ("a_write_rule_holds_on_the_entry_with_no_chroot", mounts::a_write_rule_holds_on_the_entry_with_no_chroot),
+        (
+            "a_fresh_proc_is_on_the_proc_of_the_namespace_rung",
+            mounts::a_fresh_proc_is_on_the_proc_of_the_namespace_rung,
+        ),
     ];
     let mut failed = 0;
     for (name, test) in tests {

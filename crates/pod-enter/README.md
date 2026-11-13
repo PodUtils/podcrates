@@ -15,9 +15,15 @@ The entries:
   `chdir("/")`, the `WorkingDir`; then the child resolves the program
   inside the new root (`Plan::program_candidates`).
 * The namespace rung (`spawn_namespace`): a mount namespace, `/` private
-  and recursive, a private tmpfs on the `/tmp` of the image, a chroot by
-  path with a device and inode check against the descriptor. A failure of
-  the setup enters chroot and names the fallback on the error writer.
+  and recursive, a private tmpfs on the `/tmp` of the image, a fresh
+  `proc` (`nosuid`, `nodev`, `noexec`) on the `/proc` of the image where
+  that directory exists (`ns_proc_target`), a chroot by path with a device
+  and inode check against the descriptor. A failure of the setup enters
+  chroot and names the fallback on the error writer. A refused proc mount
+  does not stop the rung: the child writes one line to the payload's
+  standard error (`ns_proc_refused`), and the payload runs with no
+  `/proc`, as on the chroot rung. The rung has no PID namespace: the
+  payload's `/proc` shows the host's processes.
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
   table of path maps for the interposer (`userland::Maps`: the root pair
@@ -196,11 +202,14 @@ readiness pipe. On the namespace rung, a write rule on `/tmp` covers its
 tmpfs (the write lands on the tmpfs, not in the image), and a write into
 `/var` or `/` of the image fails with `EACCES`; the chroot sequence gives
 the same; a rule on a path that the tmpfs hides is a refusal by name; a
-write rule holds on the entry with no chroot. A host with no Landlock
+write rule holds on the entry with no chroot. The namespace rung gives a
+payload a `/proc` with `noexec`, and the chroot sequence gives none. A
+host with no Landlock
 skips the runs of a confined payload. The tests of the rungs with a
 chroot skip as another user, so CI runs the binary as root
 (`scripts/ci/root-enter-confine-tests.sh`; a skip line fails it). The
 plants `enter-confine-not-applied`,
 `enter-confine-rule-on-a-passed-number`, `enter-confine-rule-under-a-mount`,
-`enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root` and
-`enter-own-number-stays-cloexec` (`scripts/plants/`) prove the checks.
+`enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root`,
+`enter-own-number-stays-cloexec` and `enter-ns-proc-exec`
+(`scripts/plants/`) prove the checks.

@@ -1,0 +1,8 @@
+# The proc of the namespace rung lets a program run from it: the mount
+# has no MS_NOEXEC (T-491). The test runs as root (sudo -n on a runner),
+# as the rungs with a chroot skip as another user.
+ENTRY=T-491
+GROUP=confine
+EXPECT='test a_fresh_proc_is_on_the_proc_of_the_namespace_rung \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800
