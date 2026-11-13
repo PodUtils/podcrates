@@ -5650,7 +5650,7 @@ does not need it.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5691,3 +5691,18 @@ read test.
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-13, commit `afef6c8`. `spawn_joined(root, plan, pidfd, err)`: the
+child calls `setns(pidfd, CLONE_NEWNS)` before the passed descriptors
+(a pass onto the number of the pidfd cannot replace it), mounts nothing,
+then does the chroot by path and the device and inode check of the
+namespace rung. A refused join (step byte `NS_JOIN_STEP`, 16, named
+`setns(pidfd, CLONE_NEWNS)`) writes `ns_join_fallback_line` and enters
+`spawn_namespace`. `pod-hostprobe::sys::setns`. Tests: the step name and
+the line; the confine binary as root: a payload of `spawn_namespace`
+writes `/tmp/shared` and waits, a reader of `spawn_joined` with its
+pidfd opens the file; after the first ends, the same pidfd gives
+`ESRCH (3)` on the fallback line, and the reader in its own namespace
+gets ENOENT. The plant `enter-ns-join-skipped` fails the test.
