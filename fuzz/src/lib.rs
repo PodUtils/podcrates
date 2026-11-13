@@ -7,6 +7,8 @@
 pub mod targets;
 
 #[cfg(test)]
+mod arq_seeds;
+#[cfg(test)]
 mod record_seeds;
 #[cfg(test)]
 mod tests;
@@ -60,6 +62,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("actions_expr", targets::actions_expr),
     ("actions_workflow", targets::actions_workflow),
     ("link_frame", targets::link_frame),
+    ("link_arq", targets::link_arq),
     ("devtunnel_connect_info", targets::devtunnel_connect_info),
     ("netlab_counters", targets::netlab_counters),
     ("stun_message", targets::stun_message),

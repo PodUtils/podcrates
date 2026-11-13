@@ -388,6 +388,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "link_arq"
+path = "fuzz_targets/link_arq.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "netlab_counters"
 path = "fuzz_targets/netlab_counters.rs"
 test = false
