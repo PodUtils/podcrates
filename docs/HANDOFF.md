@@ -19,11 +19,11 @@ is done. Git and the record keep finished work.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - The last release: `v0.35.0` at `311c6bb` (the hand-off #127, open).
-  `main` holds T-476 for the next tag.
+  `main` holds T-476 and T-477 for the next tag.
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
-- Agents of this session work in worktrees under `.claude/worktrees/` on
-  T-477 and T-413. Merge each branch after `scripts/agent/check.sh` passes
+- An agent of this session works in a worktree under `.claude/worktrees/` on
+  T-413. Merge its branch after `scripts/agent/check.sh` passes
   on the merge.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
   T-413. When both pass and a tag holds them, post the COORD issue of the
@@ -46,7 +46,7 @@ is done. Git and the record keep finished work.
 - podvm (on `v0.34.0`, `fc1c5d60`, PodUtils/podvm#288, with `pod-relay`): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.34.0`, `ef8c901`, PodUtils/podnet#515, with
+- podnet (on `v0.35.0`, `5562f21`, PodUtils/podnet#519, with
   `pod-relay`): its link workstream (T-300, PodUtils/podnet#480), then T-028
   (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP (the
   owner's order). Write

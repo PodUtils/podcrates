@@ -8,7 +8,7 @@ mod http_road_stand_in;
 
 use std::time::Duration;
 
-use http_road_stand_in::{ID, Plan, StandIn};
+use http_road_stand_in::{ID, Plan, StandIn, pattern};
 use pod_relay::http_road::client::{End, Opened, Target, open};
 use pod_relay::http_road::window::Refusal;
 use pod_relay::http_road::{Form, Tuning};
@@ -16,19 +16,6 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const MIB: usize = 1 << 20;
-
-/// `n` bytes of a pattern that `seed` picks.
-fn pattern(n: usize, seed: u64) -> Vec<u8> {
-    let mut x = seed | 1;
-    (0..n)
-        .map(|_| {
-            x ^= x << 13;
-            x ^= x >> 7;
-            x ^= x << 17;
-            x as u8
-        })
-        .collect()
-}
 
 async fn opened(stand_in: &std::sync::Arc<StandIn>, form: Form) -> Opened {
     let target = Target { host: "target.test", port: 22, family: None };

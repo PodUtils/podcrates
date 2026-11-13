@@ -5413,3 +5413,51 @@ cargo todo remap crates/pod-enter/src/fuse.rs
 
 None: text only. It waits behind the work order with the other asks of
 podswarm (Q15).
+
+# T-485: `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291)
+
+**Source:** PodUtils/podvm#291 (COORD-069 of podvm; PodUtils/podvm@T-1746, the ask V-2 of podswarm, #124).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm run` calls `pod_hostprobe::run` each time. podvm's cache holds the
+JSON document of `report::document`, and only `podvm probe --cached`
+reads it back as text: `Findings` has no reader (`rows` holds the names
+of `probes::PROBES` as `&'static str`, and no type of the report derives
+a deserializer). A second serializer in podvm would break podvm's rule of
+one writer. PodUtils/podvm@T-1746 is blocked on this.
+
+## Premise
+
+- Read: PodUtils/podvm#291 (2026-11-13); `crates/pod-hostprobe/src/`
+  (`Findings`, `Selection`, `probes::PROBES`, `verdict::encode` and
+  `decode` of one row); podvm's writer `report::document` is podvm's own
+  code (the file crates/podvm-probe/src/report/document.rs of podvm at `2edace9`,
+  317 lines): it writes the findings and the selection with podvm's own
+  fields (its version, its dispatch, the interpreter that answered).
+  `pod-hostprobe` has no document of its own: that is T-107.
+- Not measured: none here.
+
+## Approach
+
+The crate owns the document of its own types (call C241): `report::write(
+&Findings, &Selection) -> String` (a versioned JSON object) and
+`report::read(document: &str) -> Result<(Findings, Selection), ReadError>`,
+each row name mapped to its `probes::PROBES` entry; `read` refuses a
+document of an unknown version and a row that `PROBES` does not name. A
+round-trip test: `write`, then `read`, then `write` gives the same text.
+podvm's `report::document` embeds this object under one key beside its
+own fields, and its cache reads that key back with `report::read`; so
+podvm keeps one writer. This is the first part of T-107; its published
+schema follows on the same object.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```

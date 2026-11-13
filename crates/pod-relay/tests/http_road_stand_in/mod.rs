@@ -5,6 +5,9 @@
 //! keeps a record of each request, so that a test can count the batches
 //! sent again and the acknowledgements that it dropped.
 
+// Each test file of the road takes a part of the stand-in.
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -20,6 +23,19 @@ pub const ID: &str = "0123456789abcdef0123456789abcdef";
 pub const KEY: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ-_01234";
 /// The largest answer down of the stand-in.
 const DOWN_MAX: usize = 1 << 20;
+
+/// `n` bytes of a pattern that `seed` picks.
+pub fn pattern(n: usize, seed: u64) -> Vec<u8> {
+    let mut x = seed | 1;
+    (0..n)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x as u8
+        })
+        .collect()
+}
 
 /// How the stand-in behaves.
 pub struct Plan {
@@ -62,6 +78,8 @@ pub struct Record {
     pub total: Option<u64>,
     /// The largest offset that a request down named.
     pub most_at: u64,
+    /// The requests `up`: the batches that went with no bytes down.
+    pub ups: u64,
     pub ended: Option<(u16, String)>,
 }
 
@@ -135,7 +153,10 @@ impl StandIn {
                     (true, None) => return Some(answer(400, &[], b"http: a last batch takes total=BYTES")),
                 };
                 match kind {
-                    Kind::Up => self.up(&id, q.seq?, body, total),
+                    Kind::Up => {
+                        self.record(|r| r.ups += 1);
+                        self.up(&id, q.seq?, body, total)
+                    }
                     Kind::Down => Some(self.down(q.at?, q.wait_ms.unwrap_or(0)).await),
                     Kind::Exchange => {
                         if let Some(seq) = q.seq {

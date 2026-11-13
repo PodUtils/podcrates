@@ -131,8 +131,9 @@ pub(super) struct Shared {
     pub ended: Arc<Ended>,
     /// The role's last `X-Ack`: the batches that the target took.
     pub acked: AtomicU64,
-    /// The bytes down that the caller's pipe holds: the offset of the next
-    /// request down, which the role's count at its end must equal.
+    /// The bytes down that the caller's pipe holds, or the serial form's
+    /// channel to it: the offset of the next request down, which the role's
+    /// count at its end must equal.
     pub down_at: AtomicU64,
 }
 
