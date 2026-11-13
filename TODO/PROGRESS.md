@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 417 entries: 114 open, 9 partial, 4 blocked, 290 done.
+`TODO/INDEX.md` holds 420 entries: 115 open, 9 partial, 4 blocked, 292 done.
 
 ## State
 
@@ -9,17 +9,19 @@
   43399257316, adoption 43399257385, release 43405496549; the hand-off
   #137, COORD-077, closed: each consumer took it): T-508
   (PodUtils/podnet#524), T-506, T-510, T-310.
+- In release: `v0.40.0` at `3d6bbf0` (`docs/releases/v0.40.0.md`): the
+  poll, quic, udp, dns and icmp carriers of `pod-link`, `cpu_s` and
+  `peak_rss_mib` of `pod-job`, and the forms of the file hosts.
 - The consumers and their tags:
   - podssh: `v0.39.0` (`5228b65`, PodUtils/podssh#229; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
-    (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
-    (T-413; its glue needs T-480, in the tag after `v0.36.0`).
+    (PodUtils/podssh@T-571).
   - podnet: `v0.39.0` (`306d80b`, PodUtils/podnet#526; its own fix of #524 dropped; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
-    with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
-    `9c1fc4b` (T-412); the take waits for the freeze.
+    with `pod_hold::syn_hold`). It sets the profile of `kcp` with its take
+    of the udp carrier (#139, T-526).
   - podvm: `v0.39.0` (`19892c50`, PodUtils/podvm#309; its channel of a guest runs on `pod-link`; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
@@ -28,27 +30,31 @@
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
     `names_upstream` and the flagged rules of `pod-broker`; its
-    PodUtils/podrunner@T-096 waits for podvm `v0.2.0-beta.7`.
+    PodUtils/podrunner@T-096 takes podvm `v0.2.0-beta.7`; its T-108 fills
+    `cpu_s` and `peak_rss_mib` with `v0.40.0` (PodUtils/podrunner#86).
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
 - Partial: T-028 and T-339 (`pod-warp`), T-040 (the trials of podvm),
-  T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351 (`services.yml`), T-378 (`pod-devtunnel`).
-  Open defects: T-307
-  (the nightly at `0edd703`; the next green nightly proves it), T-131
+  T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351
+  (`services.yml`), T-378 (`pod-devtunnel`), T-526 (the fix of `kcp`
+  upstream), T-529 (the live round trip of the file hosts).
+  Open defects: T-535 (the nightly at `72632b2`: the bounds of `pod-link`
+  under riscv64 and armv7), T-536 (a random failure of the test of
+  `pod-oci` against the distribution registry, `ci.yml` at `3d6bbf0`),
+  T-537 (`services.yml` at `4c2d17c`: a tox node with no TCP), T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of `pod-session`).
 - Each session talks with podcrates by COORD issues alone, no direct
-  message (the ruling "Tonight"). podrunner's session waits for podvm. M8
+  message (the ruling "Tonight"). podrunner's session runs with podvm. M8
   waits (the ruling "Priority"). The asks of podswarm wait until the
   podswarm session starts, but for T-439, T-444, T-447 and T-448 (the
   ruling "podswarm", call C245).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`) but `pod-devtunnel`: crates.io answers 404
-  (2026-11-13; T-387). No crate goes to crates.io now (the owner,
-  2026-11-09).
+  (`check-crates-io-names.py`: 94 names, 0 faults, 2026-11-13; T-387).
+  No crate goes to crates.io now (the owner, 2026-11-09).
 - Blocked: T-217 to T-220 (`pod-git`): the owner's rulings "pod-git" and
-  "Renames" (`PodUtils/podforge`, deferred; an open issue of podcrates
-  names the four entries for the owner's agent of podforge).
+  "Renames" (`PodUtils/podforge`, deferred; #131, closed, gave the four
+  entries to the owner's agent of podforge).
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -68,6 +74,11 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
+First: the red runs, T-535 and T-536, then T-537 (item 9). Then, after the
+tag `v0.40.0`, the link carriers of M2 for podnet (item 3c): T-529,
+T-526, T-494, T-500 and T-525. Then T-533 (a local check of the build for
+macOS; a P2 chore of the checks). Then the items below, in order.
+
 1. **The defects and asks of the consumers:** T-489 (a client of
    `pod-devtunnel` with no user token); T-486 (an overlay root in
    the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
@@ -78,7 +89,7 @@ next entry.
    the HTTP road never sends `close`); T-378 (`pod-devtunnel`, GitHub #94 and
    PodUtils/podssh#216: partial: the client side is in `v0.33.0` for
    PodUtils/podssh@T-755; the second part is the creation of tunnels, the
-   logins and the token store; then T-386, T-387, T-385); T-330 (podvm's pair
+   logins and the token store; then T-386 and T-385); T-330 (podvm's pair
    commands, after its take of the blocking facade, PodUtils/podvm#285;
    it waits for podvm).
 2. **podrunner** (PodUtils/podrunner#1): no crate ask is open. T-146
@@ -97,27 +108,31 @@ next entry.
       `pod-link`; `v0.39.0` holds the rules of podnet's WebSocket
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
-   c. The tag after: the poll carriers, the quic carrier and the udp
-      carrier with KCP of `pod-link` (done); T-526 (the fix of `kcp` upstream,
-      partial), T-529 (the first live run of the file hosts,
-      then podssh's forms), T-494 (S3
-      simplex), T-500 (an up and a down carrier).
+   c. `v0.40.0` holds the poll, quic, udp, dns and icmp carriers of
+      `pod-link` and the gate of E2-1. The tag after: T-529 (partial: the
+      live round trip of the file hosts; the answer to
+      PodUtils/podssh#230 with the tag), then T-419 (the facts of the
+      file hosts from that run); T-526 (partial: the fix of `kcp`
+      upstream); T-494 (S3 simplex); T-500 (an up and a down carrier);
+      T-525 (the bytes of a poll listener outside the cap of
+      `max_bytes`).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
-      traversal with the relay), T-525 (the bytes of a poll listener
-      outside the cap of `max_bytes`), T-515 (the congestion window of the ARQ,
+      traversal with the relay), T-515 (the congestion window of the ARQ,
       with the first carrier over a shared path), T-514 (a stream-aware
       ARQ, when podnet asks), T-501 (`pod-turn` with RFC 6062), T-027,
       T-214 and T-215 (`pod-transit`, `pod-wormhole`).
    e. Then: T-029 and T-030 (`pod-cloudflare`), T-035 and T-302
       (`pod-egress`), T-031 (`pod-derp`), T-039 (`pod-ts`), T-034
       (`pod-acme`), T-502 (a headscale harness).
-   The rest of `pod-warp`: T-482, T-481, T-470, T-410. T-121 and T-124
+   The rest of `pod-warp`: T-339 (partial: the trial patches and the
+   live run), T-482, T-481, T-470, T-410, T-409; T-407 (the fuzz targets
+   of the server face of `pod-proxy`). T-121 and T-124
    (the asks of podnet).
 4. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the knobs,
    the layout, the scenarios, the plan, the derivation and the judge are
    in; then T-345, the probes, and T-346, the world), PodUtils/podvm#260
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
-   modloop, which `pod-guest` has); T-347 after both;
+   modloop, which `pod-guest` has); T-347 after both, then T-348;
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it.
    T-107 (partial: the report of `pod-hostprobe` is in; the JSON Schema in
    `schemas/` for PodUtils/podvm@T-1714 remains); T-448 (a wrong fact of
@@ -137,10 +152,14 @@ next entry.
    podnet); then T-197
    (`pod-netstack`).
 7. **M3, the adapters:** T-027, T-028, T-029, T-030.
-8. **M4, the roads:** T-031, T-034, T-035, T-033, T-032, T-036, T-037,
+8. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
+   first; then T-031, T-034, T-035, T-033, T-032, T-036, T-037,
    T-038, T-039.
-9. **M5, the upkeep:** a "port" entry for each change that
-   scripts/check-sources.py finds; T-199 after a release of snow on
+9. **M5, the upkeep:** the red runs first: T-535 (the bounds of
+   `pod-link` under an emulator), T-536 (the test of `pod-oci` against the
+   distribution registry), T-537 (a tox node of `services.yml`). T-312 (a
+   code fence that is not closed in the record). A "port" entry for each
+   change that scripts/check-sources.py finds; T-199 after a release of snow on
    `chacha20poly1305` 0.11. The live calls of CI (`docs/live-calls.md`,
    calls C150 to C153), in the order of their gain: T-351 (a host that
    gives no answer to one runner reddens `services.yml`; partial: the
@@ -151,7 +170,8 @@ next entry.
    T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6, with T-447 (the
    direct boot of a Linux guest for `pod-microvm`); T-241 (the
-   permissions of Landlock ABI 12).
+   permissions of Landlock ABI 12); T-349 (a lab of `pod-netlab` on a
+   user-space stack and with more than one guest).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
    owner, 2026-11-09; again 2026-11-13). T-490 (the server half of ECH,
    #130) waits too. The asks of podswarm that help podswarm alone
@@ -161,16 +181,17 @@ next entry.
    The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
    T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
    egress of podrunner) wait too; each goes to item 2 when podrunner asks
-   for it.
+   for it. T-180 (`pod-mask`) waits with M8. T-217 to T-220 (`pod-git`)
+   are blocked (the State).
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221, C225 to C229, C230 to C245; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C77, C80 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221, C225 to C248, C250 to C260, C262 to C285; the numbers between are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
-- The owner reserves `pod-devtunnel` and `podswarm` on crates.io (the
-  ruling "Open questions": in work, and no work waits for it).
+- None open. The owner reserved `pod-devtunnel` and `podswarm` on
+  crates.io (T-387).
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").
