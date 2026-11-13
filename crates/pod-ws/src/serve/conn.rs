@@ -71,13 +71,18 @@ pub(super) async fn run(conn: Conn) {
     if out.send(accepted).is_err() {
         return;
     }
-    // The ready comes first: `ready` sends before it frees the slot, which
-    // closes the signal of an eviction.
+    // Of a ready and the deadline, the one that frees the slot acts. A
+    // ready or a drop of the gate frees the slot, which closes the signal
+    // of an eviction: then the gate's own signal tells which.
+    let mut readied = readied;
     let cut = tokio::select! {
         biased;
-        readied = readied => readied.err().map(|_| "dropped with no ready"),
-        evicted = &mut evicted => evicted.ok().map(|()| "evicted"),
-        () = sleep_until(end) => Some("the deadline of ready"),
+        readied = &mut readied => readied.err().map(|_| "dropped with no ready"),
+        evicted = &mut evicted => match evicted {
+            Ok(()) => Some("evicted"),
+            Err(_) => (&mut readied).await.err().map(|_| "dropped with no ready"),
+        },
+        () = sleep_until(end) => gate.release(id).then_some("the deadline of ready"),
     };
     gate.release(id);
     if let Some(why) = cut {

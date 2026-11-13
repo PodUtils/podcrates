@@ -6,6 +6,8 @@
 
 #[cfg(feature = "tcp")]
 pub mod tcp;
+#[cfg(feature = "ws")]
+pub mod ws;
 
 use std::path::PathBuf;
 use std::sync::Arc;

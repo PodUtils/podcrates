@@ -130,10 +130,11 @@ impl Gate {
         }
     }
 
-    /// Free the slot of `id`, when it still holds one.
-    pub(super) fn release(&self, id: u64) {
+    /// Free the slot of `id`: true when it still held one, so that of a
+    /// ready and a deadline at the same time only one acts.
+    pub(super) fn release(&self, id: u64) -> bool {
         let mut book = self.book();
-        Self::remove(&mut book, id, self.reserve);
+        Self::remove(&mut book, id, self.reserve).is_some()
     }
 
     fn remove(book: &mut Book, id: u64, reserve: usize) -> Option<Entry> {
@@ -176,12 +177,14 @@ impl PreAuth {
     }
 
     /// The caller admitted the peer: its slot is free, and its deadlines
-    /// stop. A session that an eviction or a deadline cut stays cut.
-    pub fn ready(mut self) {
-        self.gate.release(self.id);
+    /// stop. False when an eviction or the deadline of `ready` came first:
+    /// the session is cut, and stays cut.
+    pub fn ready(mut self) -> bool {
+        let held = self.gate.release(self.id);
         if let Some(ready) = self.ready.take() {
             let _ = ready.send(());
         }
+        held
     }
 }
 
@@ -230,10 +233,10 @@ mod tests {
         assert!(c.evicted.try_recv().is_err());
         assert!(!gate.advance(b.id, Stage::Head), "an evicted connection does not advance");
         assert_eq!(gate.held(), 3);
-        gate.release(c.id);
-        gate.release(d.id);
-        gate.release(d.id);
-        assert_eq!(gate.held(), 1, "a release is idempotent");
+        assert!(gate.release(c.id));
+        assert!(gate.release(d.id));
+        assert!(!gate.release(d.id), "a release is idempotent");
+        assert_eq!(gate.held(), 1);
         // The prefix of b is free again.
         gate.admit(at("10.0.0.1:4")).unwrap();
     }
@@ -255,7 +258,7 @@ mod tests {
         let gate = Arc::new(Gate::new(caps(10, 10, usize::MAX), 1));
         let slot = gate.admit(at("10.0.0.1:1")).unwrap();
         let (tx, mut rx) = oneshot::channel();
-        PreAuth::new(gate.clone(), slot.id, tx).ready();
+        assert!(PreAuth::new(gate.clone(), slot.id, tx).ready(), "the slot was held");
         assert_eq!(gate.held(), 0);
         assert!(rx.try_recv().is_ok(), "the task hears the ready");
         let slot = gate.admit(at("10.0.0.1:1")).unwrap();
@@ -263,5 +266,10 @@ mod tests {
         drop(PreAuth::new(gate.clone(), slot.id, tx));
         assert_eq!(gate.held(), 0);
         assert!(matches!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed)), "a drop is no ready");
+        let slot = gate.admit(at("10.0.0.1:1")).unwrap();
+        let (tx, _rx) = oneshot::channel();
+        let late = PreAuth::new(gate.clone(), slot.id, tx);
+        assert!(gate.release(slot.id), "the deadline takes the slot");
+        assert!(!late.ready(), "a ready after the deadline finds no slot");
     }
 }

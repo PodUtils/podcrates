@@ -1,12 +1,13 @@
 //! pod-link: two ends of a link over the memory carrier carry one stream,
-//! the unix carrier checks the host, and the tcp carrier dials its own
-//! listener over TLS with the pin of its key, so that the driver of a link,
-//! the frame codec and each carrier link in.
+//! the unix carrier checks the host, and the tcp and the ws carriers dial
+//! their own listeners over TLS with the pin of their key, so that the
+//! driver of a link, the frame codec and each carrier link in.
 
 use std::sync::Arc;
 
 use pod_identity::{Identity, KeyName};
 use pod_link::tcp::{Keys, Tcp};
+use pod_link::ws::Ws;
 use pod_link::{Carrier, Link, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -29,9 +30,10 @@ pub fn link(way: Arc<dyn pod_core::Dial>) -> String {
         dialer.close().await;
         Ok::<_, std::io::Error>(got.len())
     });
-    let tcp = runtime.block_on(tcp(way));
+    let tcp = runtime.block_on(tcp(way.clone()));
+    let ws = runtime.block_on(ws(way));
     format!(
-        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}",
+        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}",
         echoed.map_or_else(|e| e.to_string(), |n| n.to_string())
     )
 }
@@ -53,6 +55,24 @@ async fn tcp(way: Arc<dyn pod_core::Dial>) -> String {
     let address = format!("{}@{}", key.hex(), door.local_addr());
     match tokio::join!(carrier.dial(&address), door.accept_key()) {
         (Ok(_), Ok((_, peer))) => format!("linked to {peer} over TLS"),
+        (Err(e), _) | (_, Err(e)) => e.to_string(),
+    }
+}
+
+/// A dial of the ws carrier to its own listener, over the accept loop of
+/// pod-ws.
+async fn ws(way: Arc<dyn pod_core::Dial>) -> String {
+    let identity = Arc::new(Identity::from_seed(&[12; 32]));
+    let key = identity.public();
+    let provider = Arc::new(pod_tls::crypto::provider());
+    let carrier = Ws::new(provider, identity, way).with_clients(Keys::new([KeyName::Key(key)]));
+    let mut door = match carrier.bind(([127, 0, 0, 1], 0).into()).await {
+        Ok(door) => door,
+        Err(e) => return e.to_string(),
+    };
+    let address = format!("{}@wss://{}/link", key.hex(), door.local_addr());
+    match tokio::join!(carrier.dial(&address), door.accept_key()) {
+        (Ok(_), Ok((_, peer))) => format!("linked to {peer} over a WebSocket"),
         (Err(e), _) | (_, Err(e)) => e.to_string(),
     }
 }

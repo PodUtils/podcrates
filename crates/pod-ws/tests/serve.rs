@@ -34,7 +34,7 @@ async fn a_thousand_upgrades_reach_the_caller_with_at_most_64_before_ready() {
     let caller = tokio::spawn(async move {
         while let Some(accepted) = rx.recv().await {
             assert_eq!(accepted.key, Some(id(2).public()), "the key that the peer proved");
-            accepted.gate.ready();
+            assert!(accepted.gate.ready(), "a session in time holds its slot");
             count.fetch_add(1, Ordering::SeqCst);
             let session = accepted.session;
             tokio::spawn(async move {
@@ -111,10 +111,10 @@ async fn a_session_that_the_caller_does_not_admit_is_cut_at_the_deadline_of_read
     let accepted = next(&mut rx).await;
     let admitted = session_from(None, addr).await;
     let ready = next(&mut rx).await;
-    ready.gate.ready();
+    assert!(ready.gate.ready());
     let cut = timeout(LIMIT, held.read_frame()).await.expect("the deadline of ready cuts");
     assert!(cut.is_err(), "a session with no ready is cut: {cut:?}");
-    drop(accepted);
+    assert!(!accepted.gate.ready(), "a ready after the deadline finds the session cut");
     // The admitted session lives past the deadline of ready.
     tokio::time::sleep(Duration::from_millis(500)).await;
     ready.session.send_binary(b"after the deadline").await.unwrap();

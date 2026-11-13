@@ -68,7 +68,7 @@ async fn a_full_loop_evicts_the_oldest_connection_of_the_earliest_stage() {
         session.send_binary(name.as_bytes()).await.unwrap();
         let accepted = next(&mut rx).await;
         assert_eq!(accepted.session.read_frame().await.unwrap().payload, name.as_bytes());
-        accepted.gate.ready();
+        assert!(accepted.gate.ready());
         kept.push((session, accepted.session));
     }
     assert!(pending.is_empty());

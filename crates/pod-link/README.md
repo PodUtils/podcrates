@@ -6,7 +6,8 @@ carriers behind one trait. podnet asked for it for its link workstream
 (PodUtils/podnet#466, row E0-2; PodUtils/podnet#467, rows E1-7 and E1-8;
 the start signal PodUtils/podnet#480). T-300 made it, as new code, by
 calls C116, C117 and C120 to C124. T-396 added the tcp carrier (feature
-`tcp`; PodUtils/podnet#513; calls C177 to C179). The crate reads no
+`tcp`; PodUtils/podnet#513; calls C177 to C179), T-420 the ws carrier
+(feature `ws`; PodUtils/podnet#515; call C253). The crate reads no
 environment, keeps no global state and prints nothing.
 
 ## Use
@@ -54,6 +55,19 @@ let io = tcp.dial("SHA256:...@relay.example:7000").await?;
 let dialer = Link::new(io, Role::Dialer, Settings::default())?;
 ```
 
+The ws carrier puts the same TLS under a WebSocket, for a network that
+lets only HTTPS out; its listener runs the accept loop of `pod-ws`
+(`pod_ws::serve`):
+
+```rust
+use pod_link::ws::Ws;
+
+let ws = Ws::new(provider, identity, way).with_clients(keys);
+let mut door = ws.listen("0.0.0.0:443").await?;       // any path
+let accepted = door.accept_peer().await?;
+let io = ws.dial("SHA256:...@wss://relay.example/link").await?;
+```
+
 ## API
 
 | Item | What |
@@ -70,6 +84,9 @@ let dialer = Link::new(io, Role::Dialer, Settings::default())?;
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
 | `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
 | `tcp::TlsListener` | `local_addr`, `accept_key` (the stream and the key of the client); a `Listener` (`accept_peer` gives the key); a drop ends its handshakes under way |
+| `ws::Ws` (feature `ws`) | the ws carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s, the TLS and the upgrade of a dial), `serve` (the deadlines and the caps of the accept loop of a listener, `pod_ws::serve::Serve`); `address(text)` (the key and the URL of `KEY@wss://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial("KEY@wss://HOST[:PORT]/PATH")`, `listen("IP:PORT")` |
+| `ws::WsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its accept loop |
+| `ws::{NAME, ALPN, USER_AGENT, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT}` | the constants of the ws carrier |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
 
@@ -79,6 +96,7 @@ let dialer = Link::new(io, Role::Dialer, Settings::default())?;
 | --- | --- |
 | none (the default) | the link, the frames, the unix and the memory carriers; no TLS crate in the build |
 | `tcp` | the tcp carrier (`tcp`): `pod-tls`, rustls and tokio-rustls, with the provider of the caller, and the `async` feature of `pod-core` for the way out |
+| `ws` | the ws carrier (`ws`): `tcp`, and `pod-ws` with its feature `serve` |
 
 ## The wire
 
@@ -102,6 +120,14 @@ The tcp carrier puts TLS 1.3 under these bytes, with the ALPN
 (self-signed, Ed25519). After its handshake the listener writes the byte
 1, its acceptance of the key of the dialer; the dial ends when it reads
 it, and the preface of the link follows.
+
+The ws carrier puts TLS 1.3 under a WebSocket, with the ALPN `http/1.1`,
+no resumption and the same certificates. The dialer sends the upgrade
+`GET PATH` with the `Host` of its URL; the listener answers 101 after it
+took the key of the dialer, and takes any path. The dialer then sends an
+empty binary message, the first frame that the accept loop waits for.
+The bytes of the link go in binary messages of at most 16 KiB each way;
+the end of the link sends a Close 1000.
 
 A frame is the record that the link gives its carrier: at most 1 MiB of
 body. A carrier with a smaller unit splits a record itself. A peer that
@@ -225,6 +251,30 @@ with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
   (PodUtils/podnet#513); the keys of a link of several hops are
   `pod-e2e`'s (T-301).
 
+The asks of PodUtils/podnet#515 for the WebSocket carrier
+(PodUtils/podnet@T-269) and the tests that hold them (`tests/ws.rs`,
+feature `ws`):
+
+- [x] A link over a WebSocket with TLS carries streams, and the dial goes
+  through the caller's way out: `a_link_over_a_websocket_carries_streams`;
+  a failure of the way keeps its class:
+  `a_failure_of_the_way_out_keeps_its_class_and_the_carrier_says_why_it_cannot_run`.
+- [x] The pin of each key, as `tcp` has it; the accept gives the key of
+  the client:
+  `the_connect_gives_the_key_of_the_listener_and_the_accept_the_key_of_the_client`.
+- [x] Another key is refused on each side, with the key seen named (77):
+  `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`.
+- [x] The server half on the accept loop of `pod-ws`: a silent peer holds
+  no other one and is cut at its deadline:
+  `a_peer_that_sends_nothing_holds_no_other_and_is_cut_at_its_deadline`;
+  a silent listener ends the dial at its time limit:
+  `a_silent_listener_ends_the_dial_at_its_time_limit`.
+- [x] A plant for each check: `link-ws-server-key-unchecked`,
+  `link-ws-client-key-unchecked`, `link-ws-first-frame-skipped`,
+  `link-ws-refusal-unnamed`, `link-ws-handshake-unbounded`
+  (`scripts/plants/`).
+
 ## The adoption map
 
 | podnet | pod-link |
@@ -234,5 +284,6 @@ with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
 | PodUtils/podnet@T-274: the unix socket carrier; `bind_private` and `claim_unix_path` of `PodUtils/podnet:crates/podnet-netns/src/listen.rs`; `--allow-other-uid` | `unix::Unix` (`allow_other_uid`), `unix::pair` |
 | PodUtils/podnet@T-275: the memory carrier | `memory::Memory`, `memory::pair` |
 | PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a refused key is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen |
+| PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | exit 64, 69, 77 of a carrier | `CarrierError::class().exit_code()` |
 | exit of a link | `Error::class().exit_code()`: a dead link 75, a broken protocol 76 |
