@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**338 entries: 82 open, 6 partial, 5 blocked, 245 done.**
+**343 entries: 87 open, 6 partial, 5 blocked, 245 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 2 | 0 | 69 | 85 |
-| P2 | 35 | 2 | 5 | 125 | 167 |
-| P3 | 33 | 2 | 0 | 49 | 84 |
-| **All** | 82 | 6 | 5 | 245 | 338 |
+| P2 | 41 | 2 | 5 | 125 | 173 |
+| P3 | 32 | 2 | 0 | 49 | 83 |
+| **All** | 87 | 6 | 5 | 245 | 343 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -322,7 +322,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-307](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `0edd703` is red: a test of `pod-guest` with no Linux gate, the TCP-list tests on targets with `socketcall(2)`, a bound of 1 s under riscv64 |
 | [T-308](upkeep.md) | P1 | S | M5 | chore | done | `pod-core` and `pod-relay`: three podssh files of their blocks changed (`upstream.yml` at `c553207`) |
 | [T-309](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-workflow`: a `Run` that owns its workflow (podrunner's ask) |
-| [T-310](relay.md) | P3 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
+| [T-310](relay.md) | P2 | L | M2 | feature | open | `pod-link`: a selective-repeat ARQ for a carrier that loses frames, with a test at 3 % loss (PodUtils/podnet#480) |
 | [T-311](relay.md) | P3 | M | M2 | feature | done | `pod-link`: a test of a link over a resumable session of `pod-session` across the loss of its carrier (PodUtils/podnet#480) |
 | [T-312](foundation.md) | P2 | S | M0 | defect | open | `pod-todo`: a code fence that is not closed in a file of the record is an error by name |
 | [T-320](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a correct plain-tar layer is refused: the hash stops at the end marker (PodUtils/podvm#281) |
@@ -385,3 +385,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-409](adapters.md) | P2 | S | M3 | feature | open | `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO) |
 | [T-416](transport.md) | P2 | M | M1 | feature | open | `pod-services`: the kind `file-host` and four public file hosts, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
 | [T-417](relay.md) | P2 | S | M2 | feature | open | `pod-wormhole`: a board of retained messages over `mqtt::Point`, for PodUtils/podssh@T-738 (PodUtils/podssh#220) |
+| [T-420](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515) |
+| [T-421](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515) |
+| [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
+| [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
+| [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |

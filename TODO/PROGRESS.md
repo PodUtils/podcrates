@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 338 entries: 82 open, 6 partial, 5 blocked, 245 done.
+`TODO/INDEX.md` holds 343 entries: 87 open, 6 partial, 5 blocked, 245 done.
 
 ## State
 
@@ -19,8 +19,9 @@
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
-  - podnet: `v0.33.0` (`797104f`, PodUtils/podnet#514; its A12 maps
-    `GiveUp`; `pod-warp` waits for the trial of T-339); its relay client
+  - podnet: `v0.34.0` (`ef8c901`, PodUtils/podnet#515; its PodUtils/podnet@T-268 runs on
+    the `tcp` carrier of `pod-link`; `pod-warp` waits for the trial of
+    T-339); its relay client
     is glue over `pod-relay` (T-026); its netns router holds each SYN with
     `pod_hold::syn_hold` (T-170).
   - podvm: `v0.32.0` (`15485d1b`, PodUtils/podvm#285; its relay over
@@ -96,7 +97,10 @@ next entry.
    TLS, the forward and nc are in; MASQUE over HTTP/3, the WireGuard
    tunnel and the carried device are in), then T-406 (the L4 door) and
    T-339 (the rest of `pod-warp`), then
-   T-029 (`pod-cloudflare`). podnet
+   T-029 (`pod-cloudflare`). The next carriers of `pod-link`
+   (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
+   T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
+   T-424 (UDP with KCP) and T-310 (the ARQ). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300

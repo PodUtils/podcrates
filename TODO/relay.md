@@ -3962,7 +3962,7 @@ the fact `contract-sha256` of `ajam-relay`). No code.
 **Source:** T-300 (the ARQ part of its Approach); PodUtils/podnet#468, row E2-2 (PodUtils/podnet@T-277)
 **Category:** feature
 **Milestone:** M2
-**Priority:** P3
+**Priority:** P2
 **Effort:** L
 **Status:** open
 
@@ -4366,4 +4366,169 @@ one short live run against shiftr.io in `live.yml`.
 ```sh
 cargo test -p pod-wormhole --all-features
 sh scripts/ci/mosquitto-tests.sh
+```
+
+# T-420: `pod-link`: the WebSocket carrier with its server half (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet starts its stream carriers of the link in an order, each a take of
+`pod-link` (the ruling of #88). Its PodUtils/podnet@T-269 needs the WebSocket carrier, its server half (podnet uses `pod-ws`). `pod-link` has
+the `tcp` carrier with the pin of an Ed25519 key (T-396) and the unix and
+memory carriers, and not this one.
+
+## Premise
+
+- Read: PodUtils/podnet#515; `crates/pod-link/src/tcp.rs` and
+  `tcp/listen.rs` (the form of a carrier with a pin, T-396);
+  `docs/decisions.md`, C175 to C179.
+- Not measured: none here.
+
+## Approach
+
+`ws::Ws` behind a feature `ws`: the dial of `wss://HOST/PATH` through the caller's way out with `pod-ws`, the accept half on a listener of the caller (the HTTP upgrade), each side with the pin of an Ed25519 key as `tcp` has it (`pod_tls::peer`), the frames of the link in binary messages; loopback tests as `tests/tcp.rs` has them (a refused key on each side, a silent peer).
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-421: `pod-link`: the HTTP/2 carrier, one bidirectional POST (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet starts its stream carriers of the link in an order, each a take of
+`pod-link` (the ruling of #88). Its PodUtils/podnet@T-270 needs the HTTP/2 carrier, one bidirectional POST. `pod-link` has
+the `tcp` carrier with the pin of an Ed25519 key (T-396) and the unix and
+memory carriers, and not this one.
+
+## Premise
+
+- Read: PodUtils/podnet#515; `crates/pod-link/src/tcp.rs` and
+  `tcp/listen.rs` (the form of a carrier with a pin, T-396);
+  `docs/decisions.md`, C175 to C179.
+- Not measured: none here.
+
+## Approach
+
+`h2::H2` behind a feature `h2`: one POST with a request body and a response body that stay open, over TLS 1.3 with the pin of `tcp`, through the caller's way out; the accept half; loopback tests, and a test through an HTTP/2 proxy stand-in that buffers no body.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-422: `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet starts its stream carriers of the link in an order, each a take of
+`pod-link` (the ruling of #88). Its PodUtils/podnet@T-271, PodUtils/podnet@T-272 needs the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier. `pod-link` has
+the `tcp` carrier with the pin of an Ed25519 key (T-396) and the unix and
+memory carriers, and not this one.
+
+## Premise
+
+- Read: PodUtils/podnet#515; `crates/pod-link/src/tcp.rs` and
+  `tcp/listen.rs` (the form of a carrier with a pin, T-396);
+  `docs/decisions.md`, C175 to C179.
+- Not measured: none here.
+
+## Approach
+
+`poll::Poll` and `sse::Sse` behind features: the down path as a chunked or `text/event-stream` answer, the up path as POSTs with a sequence number; each side with the pin of `tcp`; the order of the frames kept across POSTs; loopback tests through a stand-in proxy that closes idle connections.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-423: `pod-link`: the QUIC carrier (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet starts its stream carriers of the link in an order, each a take of
+`pod-link` (the ruling of #88). Its PodUtils/podnet@T-273 needs the QUIC carrier (podnet uses `pod-quic`). `pod-link` has
+the `tcp` carrier with the pin of an Ed25519 key (T-396) and the unix and
+memory carriers, and not this one.
+
+## Premise
+
+- Read: PodUtils/podnet#515; `crates/pod-link/src/tcp.rs` and
+  `tcp/listen.rs` (the form of a carrier with a pin, T-396);
+  `docs/decisions.md`, C175 to C179.
+- Not measured: none here.
+
+## Approach
+
+`quic::Quic` behind a feature `quic`: one bidirectional stream of a `pod-quic` connection over the caller's `Datagrams`, the TLS of QUIC with the pin of `tcp`; the accept half; loopback tests.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-424: `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515)
+
+**Source:** PodUtils/podnet#515 (COORD-059), podnet's next carriers.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podnet starts its stream carriers of the link in an order, each a take of
+`pod-link` (the ruling of #88). Its PodUtils/podnet@T-276 needs the UDP carrier with KCP (the selective-repeat ARQ of a lossy carrier is T-310). `pod-link` has
+the `tcp` carrier with the pin of an Ed25519 key (T-396) and the unix and
+memory carriers, and not this one.
+
+## Premise
+
+- Read: PodUtils/podnet#515; `crates/pod-link/src/tcp.rs` and
+  `tcp/listen.rs` (the form of a carrier with a pin, T-396);
+  `docs/decisions.md`, C175 to C179.
+- Not measured: none here.
+
+## Approach
+
+`udp::Udp` behind a feature `udp`: datagrams over the caller's `Datagrams`, KCP (or the ARQ of T-310) for the order and the loss, a handshake that proves the pinned key; loopback tests at 0 % and 3 % loss.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
 ```
