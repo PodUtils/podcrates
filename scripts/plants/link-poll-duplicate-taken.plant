@@ -1,0 +1,7 @@
+# The listener of the poll carriers takes each body up whole, past its
+# offset: a POST again after a lost answer gives its bytes to the link twice (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='PeerGoAway|came back whole'
+RUN='cargo test -p pod-link --all-features --test poll a_link_over_the_long_poll'
+LIMIT=1800

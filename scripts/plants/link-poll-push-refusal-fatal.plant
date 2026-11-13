@@ -1,0 +1,7 @@
+# A push that the listener refuses (406) ends the dial of the sse carrier:
+# it does not take the long poll (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='no push'
+RUN='cargo test -p pod-link --all-features --test poll_lanes a_listener_with_no_push'
+LIMIT=1800

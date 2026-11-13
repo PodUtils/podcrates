@@ -1,0 +1,7 @@
+# The listener of the poll carriers never ends a session with no
+# request: a dialer that went away holds its link for ever (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='the end on the listener in time'
+RUN='cargo test -p pod-link --all-features --test poll_lanes a_session_with_no_request'
+LIMIT=1800

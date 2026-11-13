@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/answer.rs b/crates/pod-link/src/poll/answer.rs
+--- a/crates/pod-link/src/poll/answer.rs
++++ b/crates/pod-link/src/poll/answer.rs
+@@ -173,7 +173,7 @@
+     let turn = session.down.turn();
+     if let Some(hold) = hold {
+         let mut state = session.ends.watch();
+-        session.down.wait(since, turn, Some(Instant::now() + hold), &mut state).await;
++        let _ = (hold, &mut state, turn);
+     }
+     let max = if hold.is_some() { BATCH } else { super::SIMPLEX_BATCH };
+     let slice = session.down.slice(since, max);
