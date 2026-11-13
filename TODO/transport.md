@@ -6543,3 +6543,53 @@ in `pod-testkit`, feature `headscale`: start a pinned headscale binary (fetched 
 ```sh
 cargo test --workspace --all-features
 ```
+
+# T-528: `pod-services`: three of the four file hosts fail live from GitHub: the download URL of tmpfiles.org, the upload form of litterbox, the busy answer of 0x0.st (PodUtils/podssh#230)
+
+**Source:** PodUtils/podssh#230 (COORD-053 of podssh; its live test `filehost-live.yml`, run 43430909173 at podssh `77fd6f1`, podcrates `v0.39.0`; PodUtils/podssh@T-738).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh's live test sends 32 KiB through each host of the kind `file-host`
+from a GitHub runner, by each host's catalog form: upload, download,
+delete. `temp-sh` works. `tmpfiles-org`: the upload works, but its
+download URL (`/dl/ID/NAME`) gives 2792 bytes of the file's HTML page, not
+the file. `litterbox`: the upload answers HTTP 412. `null-pointer-0x0`:
+busy at once (429 or 503 with no `Retry-After`); 0x0.st may refuse cloud
+addresses.
+
+## Premise
+
+- Read: PodUtils/podssh#230 (2026-11-13); `crates/pod-services/services/`
+  (`tmpfiles-org.toml`, `litterbox.toml`, `null-pointer-0x0.toml`,
+  `temp-sh.toml`), `crates/pod-services/tests/file_host.rs`, row L37 of
+  `docs/live-calls.md`.
+- The egress of a cloud session of podcrates does not reach these hosts:
+  their pages are read through the read-only mirror
+  (`fetch.web.pkgforge.dev`), and a live upload runs only on GitHub.
+
+## Approach
+
+Read the current documents of each host. tmpfiles.org: the URL form
+that gives the file today (a header, a query, another segment). litterbox:
+the fields and headers that its upload takes today (412 is a refused
+precondition, often a missing `User-Agent` or a field). 0x0.st: its policy
+on cloud addresses and automated clients; if it refuses them, mark the
+host with a fact that a road reads to leave it out by default, and say so
+in the note. Fix the facts of each form with their source and date; drop
+a host from the rank only where no form works, with a note that says why.
+A live check on GitHub (a step of a live workflow that uploads, downloads
+and compares a small file for each host) proves each form.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```
+
+and a run of the live step on GitHub.

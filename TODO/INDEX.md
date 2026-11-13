@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**410 entries: 118 open, 7 partial, 4 blocked, 281 done.**
+**411 entries: 119 open, 7 partial, 4 blocked, 281 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 77 | 92 |
-| P2 | 58 | 3 | 4 | 148 | 213 |
+| P2 | 59 | 3 | 4 | 148 | 214 |
 | P3 | 48 | 1 | 0 | 54 | 103 |
-| **All** | 118 | 7 | 4 | 281 | 410 |
+| **All** | 119 | 7 | 4 | 281 | 411 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -457,3 +457,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-520](relay.md) | P2 | S | M2 | feature | open | `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515) |
 | [T-521](relay.md) | P2 | S | M2 | chore | open | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
+| [T-528](transport.md) | P2 | M | M1 | defect | open | `pod-services`: three of the four file hosts fail live from GitHub: the download URL of tmpfiles.org, the upload form of litterbox, the busy answer of 0x0.st (PodUtils/podssh#230) |
