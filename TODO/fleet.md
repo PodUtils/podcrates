@@ -2232,3 +2232,49 @@ the generated schema holds `polled` and the schema check passes.
 
 The podswarm session starts, or a sibling asks for it (the owner's ruling
 "podswarm", 2026-11-13).
+
+# T-505: `pod-job`: the actor classes `agent` and `bot` in `job-offer.v1` (PodUtils/podrunner#80)
+
+**Source:** PodUtils/podrunner#80 (COORD-020 of podrunner, for PodUtils/podrunner@T-106).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+githome states the class of the actor of each job in
+`trust_inputs.actor_class` of `job-offer.v1`: `agent` for a change that
+an agent made, `bot` for the forge itself. `ActorClass` of `pod-job` has
+`member`, `outside` and `unknown` only, so such an offer does not parse
+and podrunner refuses it.
+
+## Premise
+
+- Read: PodUtils/podrunner#80 (2026-11-13); `crates/pod-job/src/offer.rs`,
+  `src/schemas.rs`, `schemas/job-offer.v1.schema.json`.
+
+## Approach
+
+`ActorClass::{Agent, Bot}` (`agent`, `bot`), `outside` kept; the schema
+written again; an example of each, and one with githome's word
+`external`, which stays refused.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-13, commit `0ed9763`. `ActorClass` has `member`, `outside`,
+`agent`, `bot` and `unknown`; the type's doc names each. The schema
+`schemas/job-offer.v1.schema.json` lists the two words in the same
+`enum` (a doc comment on a variant would make it a `oneOf`, so the
+variants carry plain comments). New examples: `valid-agent-change.json`,
+`valid-bot-push.json`, and `invalid-actor-external.json` (refused:
+`unknown variant `external``). The test of the examples counts 14 valid
+and 22 invalid; the README said 11 and 19, which was out of date, and
+now says 14 and 22. `cargo test -p pod-job --all-features`: each passes.

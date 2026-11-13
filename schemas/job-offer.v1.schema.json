@@ -250,11 +250,13 @@
   ],
   "$defs": {
     "ActorClass": {
-      "description": "The relation of the actor to the organization.",
+      "description": "The relation of the actor to the organization: `member` (a person\nwith write access), `outside` (a person with none), `agent` (a change\nthat an agent made), `bot` (the forge itself, or an App that acts on\nits own), `unknown`.",
       "type": "string",
       "enum": [
         "member",
         "outside",
+        "agent",
+        "bot",
         "unknown"
       ]
     },
