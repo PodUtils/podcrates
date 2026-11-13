@@ -43,7 +43,9 @@ the tools.
   consumer.
 * **Writes to GitHub** (a comment, the close of an issue, the dispatch of
   a workflow): the MCP tools of GitHub. No comment has an attribution
-  line (`AGENTS.md`).
+  line (`AGENTS.md`). The comments of the sessions end with the "Generated
+  by" line of the harness: Q16 of `TODO/PROGRESS.md` asks the owner which
+  rule holds (T-538).
 * **Pushes**: `git push origin main`. The identity comes from
   `.claude/session-start.sh`.
 * **The record**: `cargo todo check`, `cargo todo set T-NNN STATUS`,

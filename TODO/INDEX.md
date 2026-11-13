@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**420 entries: 115 open, 9 partial, 4 blocked, 292 done.**
+**421 entries: 115 open, 9 partial, 5 blocked, 292 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 79 | 94 |
 | P2 | 56 | 4 | 4 | 155 | 219 |
-| P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 115 | 9 | 4 | 292 | 420 |
+| P3 | 47 | 2 | 1 | 56 | 106 |
+| **All** | 115 | 9 | 5 | 292 | 421 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -467,3 +467,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-535](upkeep.md) | P1 | S | M5 | defect | open | The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator |
 | [T-536](upkeep.md) | P2 | S | M5 | defect | open | `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection |
 | [T-537](upkeep.md) | P2 | S | M5 | defect | open | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
+| [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
