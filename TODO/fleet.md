@@ -1560,3 +1560,581 @@ answer to Q15; until then they wait, as M8 does.
 ```sh
 cargo todo check
 ```
+
+# T-430: `pod-proc`: a spawner with keepers, the containment rungs, a fence and the tree kill on each target (GitHub #113)
+
+**Source:** GitHub #113 (podswarm P-1).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podswarm starts many short attempts on a worker. It needs one spawner,
+started before any thread, that runs each attempt in a keeper, kills the
+whole tree at its end or at a fence time (also when the caller is
+stopped), and reports the exit, the CPU time, the peak memory and the
+residual count. The parts are in three crates, Linux only, and serve one
+detached payload for each launcher process. podvm and podrunner take the
+tree kill of `pod-supervise` and can take the same crate.
+
+## Premise
+
+- Read (2026-11-13): GitHub #113; podswarm spec, file 21, sections 6.1
+  and 7 (ask P-1, milestone M0); file 22, section 3; file 12.
+- In podcrates now: `crates/pod-supervise/src/launcher/tree.rs` has the
+  walk of the descendants and `TREE_KILL_MS` (5 s);
+  `crates/pod-supervise/src/end.rs` has `Residual`, a copy of `Residual`
+  of `crates/pod-job/src/report.rs` with the same JSON (a number or
+  `"unknown"`); `crates/pod-enter/src/limits.rs` has `Resource` and
+  `Limit`; `crates/pod-hostprobe/src/sys.rs` gives
+  `set_child_subreaper`, `reap_any` and `set_rlimit`. `pod-supervise` and
+  `pod-enter` build on Linux only (`#![cfg(target_os = "linux")]`).
+- The base is T-162 (done): the tree kill, the wall timeout, rusage and
+  the residual count of `pod-supervise`.
+- The name: crates.io answered 404 for `pod-proc` on 2026-11-13 (the
+  reservation is T-438).
+- Not measured: the rungs `Cgroup`, `Pidns`, `Reaper`, `Job` and
+  `Session` on their systems; ConPTY.
+
+## Approach
+
+A new crate `pod-proc` by the procedure of `docs/design.md`, section 8,
+with the interface of file 21, section 6.1: `start(Options)` before any
+thread, `Spawner::{rung, spawn, signal, fence, event_fd, next_event}`,
+`Plan` (argv, environment, cwd, `Stdio` with `Pty`, limits, umask,
+`setns` and a compiled `pod-confine` set on Linux) and `Exit` with
+`pod_job::Residual`. No tokio. The rungs by target: `Cgroup` (a delegated
+cgroup2 leaf, `cgroup.kill`), `Pidns` (the keeper is PID 1), `Subreaper`,
+`Reaper` (FreeBSD `PROC_REAP_KILL`), `Job` (a Windows Job Object),
+`Session` (macOS and the BSDs); a rung that a target cannot give is
+absent there. The terminal of an attempt: `openpty` on Unix, ConPTY on
+Windows. The spawner and each keeper install a panic hook that calls
+`abort`. Move `tree` out of `pod-supervise` (it depends on `pod-proc` and
+keeps its API), remove `pod_supervise::end::Residual` for
+`pod_job::Residual`, and move `Resource` and `Limit` out of `pod-enter`
+(it re-exports them). The crate goes into `examples/static-probe` and
+into `docs/design.md`, section 4. The exec takeover is T-431.
+
+## Prove
+
+```sh
+cargo test -p pod-proc --all-features
+cargo test -p pod-supervise --all-features
+cargo test -p pod-enter --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests: two attempts at once, one leaks a `setsid env -i sleep`
+grandchild (both exits and residual counts are right, only its tree is
+killed); a `SIGKILL` of the caller, of the spawner and of a keeper leaves
+no attempt process after the kill grace plus 2 s; with no `/proc` the
+residual count is `unknown`; a fence time that passes while the caller is
+stopped kills each tree; `Stdio::Pty` gives a terminal and a window
+change reaches it. The static probe builds on the 14 targets; the
+adoption trials of podvm and podrunner pass.
+
+## Start condition
+
+The owner answers Q15 and R-03 (the names of the new crates).
+
+# T-431: `pod-proc`: the exec takeover of a new process (`PTRACE_SEIZE`, the stop at the exec, the stub) (GitHub #113)
+
+**Source:** GitHub #113 (podswarm P-1).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The spreading of podswarm moves a new process of a build to another
+machine. A supervisor seizes the process at its `execve`, decides, and
+lets it run here or replaces it with a stub that runs the program far
+away. The process keeps its pid and the exit status of a local run.
+
+## Premise
+
+- Read (2026-11-13): GitHub #113 (the module `takeover`); podswarm spec,
+  file 21, sections 6.1 and 6.5; file 07, section 3.2; file 22, section 6
+  (M3, spreading).
+- In podcrates now: no code seizes a process. `pod-hold` gives the
+  listener, the memory reads and the replies under it
+  (`crates/pod-hold/src/listen.rs`, `crates/pod-hold/src/mem.rs`,
+  `crates/pod-hold/src/reply.rs`); the marker and the argv reads are
+  T-445.
+- Not measured: `PTRACE_SEIZE` under Docker, AppArmor and
+  `ptrace_scope` (the spec's risk K-03).
+
+## Approach
+
+The module `pod_proc::takeover` on Linux x86_64 and aarch64 (after T-430
+and T-445): `PTRACE_SEIZE`, the stop at the exec, the trampoline, the
+exec of the caller's stub, the detach. It uses the items of `pod-hold`
+for the filter, the notices and the reads of the stopped task.
+
+## Prove
+
+```sh
+cargo test -p pod-proc --all-features
+```
+
+The tests, with a stub of the test: a `fork` plus `execve` that moves; a
+`posix_spawnp` (`CLONE_VM | CLONE_VFORK`) that moves; a local exec that
+stays and runs untouched; a failed exec whose caller sees `ENOENT`; then
+a caller with threads and a `#!` script. A moved process keeps its pid
+and the exit status of a local run.
+
+## Start condition
+
+T-430 and T-445 are done. The owner answers Q15.
+
+# T-432: `pod-tty`: the guard of the caller's terminal (raw mode, size, restore, escape line) on Unix and Windows (GitHub #111)
+
+**Source:** GitHub #111 (podswarm P-11).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podswarm run HOST -- CMD` attaches a far command to the caller's
+terminal: raw mode, the window size and its changes, the escape line
+(`~.`), and a restore at exit, on a panic and on `SIGTERM` or `SIGHUP`.
+podssh has this code in its client (`podssh-ssh`, `terminal/` and
+`escape.rs`); a second copy in podswarm drifts.
+
+## Premise
+
+- Read (2026-11-13): GitHub #111; podswarm spec, file 21, section 6.7;
+  file 18, section 4.1; file 22, section 4 (M1).
+- In podcrates now: `pod-term` serves the far side of a session with no
+  pty (`crates/pod-term/src/echo.rs`, `crates/pod-term/src/escape.rs`,
+  `crates/pod-term/src/window.rs`); it reads and writes bytes only. No
+  crate touches the local terminal.
+- Not read: the modules of `PodUtils/podssh:crates/podssh-ssh` that the
+  cut takes.
+- The name: crates.io answered 404 for `pod-tty` on 2026-11-13 (T-438).
+
+## Approach
+
+A new crate `pod-tty` cut from podssh's `terminal/` and `escape.rs` by
+the procedure of `docs/design.md`, section 8, with the interface of file
+21, section 6.7: `Size` (with `cells()` to `pod_term::window::Size`),
+`is_terminal`, `size`, `RawMode::enter` (termios `cfmakeraw` on Unix; the
+console input and output modes with VT on Windows), `raw_active`, `Watch`
+(tokio: `SIGWINCH`, `SIGTERM`, `SIGHUP`; a 500 ms poll on Windows) and
+`escape`. Its two globals (the saved state and the raw flag, for the
+panic hook and the console handler) are named in its documentation. The
+parts of podssh that need `russh` stay in podssh. The crate goes into
+`examples/static-probe` and `docs/design.md`, section 4; podssh's take is
+its adoption trial.
+
+## Prove
+
+```sh
+cargo test -p pod-tty --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests: a process on a test pty enters raw mode and ends by drop, a
+panic, `SIGTERM`, `SIGHUP` and the end of a session whose command died by
+`SIGKILL`; the termios bytes after each equal the bytes before. Windows:
+the console modes after a drop and after a panic equal the modes before.
+One `Resize` for one window change. `~.` after a newline gives
+`Disconnect`; `~.` inside a line passes; `~~` gives one `~`.
+
+## Start condition
+
+The owner answers Q15 and R-03.
+
+# T-433: `pod-fuse`: a FUSE server with no libfuse, with the write opcodes, `READDIRPLUS` and invalidation (GitHub #110)
+
+**Source:** GitHub #110 (podswarm P-16).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The live view of podswarm shows the caller's directory on the far machine
+at the same path: it reads on demand and writes back. It needs a writable
+FUSE server behind a trait of the caller, with invalidation notices and
+more than one reader. The FUSE server of podcrates is read only and
+inside `pod-enter`.
+
+## Premise
+
+- Read (2026-11-13): GitHub #110; podswarm spec, file 21, section 6.3;
+  file 06, section 8.2; file 22, section 4 (M1).
+- In podcrates now: `crates/pod-enter/src/fuse.rs`,
+  `crates/pod-enter/src/fuse/wire.rs` and `crates/pod-enter/src/fuse/fs.rs`
+  serve a fixed tree from a forked single-thread child with no libfuse.
+  Each opcode of `OP_MUTATING` answers `EROFS`; no `READDIRPLUS`, no
+  notices, no cloned descriptors, no trait for the tree.
+- The name: crates.io answered 404 for `pod-fuse` on 2026-11-13 (T-438).
+- Not measured: a real mount here (the session has no `/dev/fuse`).
+
+## Approach
+
+A new crate `pod-fuse` with the wire and the mount of `pod-enter`, by the
+procedure of `docs/design.md`, section 8, and the interface of file 21,
+section 6.3: `mount` (`mount(2)` with `fd=`, `nosuid`, `nodev`; no
+`fusermount3`), the trait `Fs`, `serve`, and `Session::notifier`
+(`inval_entry`, `inval_inode`). Add the write opcodes (`CREATE`, `MKDIR`,
+`UNLINK`, `RMDIR`, `RENAME`, `SETATTR`, `SYMLINK`, `LINK`, `WRITE`,
+`FSYNC`, `RELEASE`), `READDIRPLUS`, the `INIT` flags of the issue and
+cloned session descriptors. Keep the forked single-thread server. The
+read-only rung of `pod-enter` moves onto the crate with its tests
+unchanged. A fuzz target of the request parser. The text fix of
+`fuse.rs` is T-448.
+
+## Prove
+
+```sh
+cargo test -p pod-fuse --all-features
+cargo test -p pod-enter --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests: one socket-pair test for each write opcode (the reply bytes
+and the call on a test `Fs`); `READDIRPLUS` gives each entry with its
+attributes in one reply; the notices write the bytes of the kernel ABI; a
+real mount of an in-memory `Fs` as root and in a new user namespace where
+`/dev/fuse` opens (else `skipping, REASON`); two readers on cloned
+descriptors. The static probe builds on the 14 targets; podvm's trial
+through `pod-enter` passes.
+
+## Start condition
+
+The owner answers Q15 and R-03.
+
+# T-434: `pod-cas`: a BLAKE3 content store with resume, placement, sweep and tree manifests (GitHub #109)
+
+**Source:** GitHub #109 (podswarm P-12).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podswarm keeps the files of the live view, the staged inputs and outputs
+of queued tasks and the checkpoints in one store keyed by the BLAKE3 of
+their bytes, with a transfer that resumes at an offset and a placement by
+reflink. podssh `run HOST:DIR` and podrunner are candidates, not proven
+consumers. podswarm says that podcrates can wait for a stable API from
+its code.
+
+## Premise
+
+- Read (2026-11-13): GitHub #109; podswarm spec, file 21, section 6.2;
+  file 15, sections 1 and 2; file 22, section 9 (M6); file 26, risk K-34.
+- In podcrates now: no general content store. `pod-oci` writes an OCI
+  image layout with blobs by their SHA-256 digest
+  (`crates/pod-oci/src/layout.rs`); it is not a store keyed by BLAKE3
+  with a resume by offset, a placement by reflink and a sweep.
+- The name: crates.io answered 404 for `pod-cas` on 2026-11-13 (T-438).
+- Not measured: the `blake3` crate with its C and assembly paths on the 14
+  targets.
+
+## Approach
+
+A new crate `pod-cas` with the interface and the formats of file 21,
+section 6.2: `Id` (`b3:` and keyed `b3k:`), the layout
+`<root>/blobs/<2 hex>/<62 hex>` with partial files in
+`<root>/blobs/.partial/`, a writer that hashes while it writes and
+resumes at the size held, `read_range`, `place` (`FICLONE`, else a copy;
+never a hard link), `sweep` with an age guard, `Manifest` and `missing`,
+and `transfer` (the header and the answers `have`, `done`, `err`). The
+`blake3` crate, with the feature `pure` on a target where its C does not
+build. Fuzz targets of the manifest parser and the transfer header.
+
+## Prove
+
+```sh
+cargo test -p pod-cas --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests: a cut write resumes at its offset and gives the id of an uncut
+write; bytes that do not match their id are refused and the partial file
+goes; a chunk at a wrong offset is refused with no sparse file; the sweep
+keeps a young blob; a write to a placed file does not change the object;
+a manifest round trip. The static probe builds on the 14 targets.
+
+## Start condition
+
+The owner answers Q15 and R-03; podswarm shows the API in its code (its
+milestone M6).
+
+# T-435: `pod-view`: a live view of a directory (records, a frame codec, an ordered write-back log) (GitHub #114)
+
+**Source:** GitHub #114 (podswarm P-17).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The far machine of podswarm sees the caller's directory live: records
+with a version, a lazy validation, the frames of the view, a cache, an
+upper layer and a write-back log that the home applies in order, with
+conflict copies and held items. podssh `run HOST:DIR` and podrunner's job
+workspaces are candidates. podswarm files the final ask after its M2,
+when its four view rungs share one API; the issue states the shape now.
+
+## Premise
+
+- Read (2026-11-13): GitHub #114; podswarm spec, file 21, sections 6.4
+  and 9; file 06, sections 5, 6, 9 and 10; file 22, section 5 (M2); file
+  26, risk K-34 and ruling R-16.
+- In podcrates now: no crate of a live view. `pod-enter` has a read-only
+  FUSE server; `pod-link` carries streams with credit windows.
+- It takes T-433 (`pod-fuse`) and T-434 (`pod-cas`).
+- The name: crates.io answered 404 for `pod-view` on 2026-11-13 (T-438).
+
+## Approach
+
+A new crate `pod-view` with the interface of file 21, section 6.4:
+`Index` (`open`, `record`, `apply`), the modules `frame` (a `u32` length,
+a `u8` op with a zstd flag, varint fields; 1 MiB, 4 MiB after inflation)
+and `writeback` (`Log`, `Op`, `Held`, `Conflict`), the trait `ViewRung`
+and its public `conformance` suite, the clock offset of mtimes. No
+transport. Fuzz targets of the frame codec and of the record decoder.
+
+## Prove
+
+```sh
+cargo test -p pod-view --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests (loopback, temporary directories, frames on an in-memory
+pipe): a cut pipe during write-back applies each op once in `seq` order;
+a home file changed after `base_ver` gives a conflict copy; a watcher
+overflow makes the next `record` validate again; a far clock at plus and
+minus 30 s; a held mass unlink; a refused `nid`, symlink write and write
+of `.git/hooks/x`; the `conformance` suite passes a test rung and fails a
+planted bad rung.
+
+## Start condition
+
+T-433 and T-434 are done. podswarm files the final ask after its M2. The
+owner answers Q15, R-03 and R-16.
+
+# T-436: `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115)
+
+**Source:** GitHub #115 (podswarm P-19).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The shield `sealed` of podswarm sends no file or key to a guest before
+the caller checked its SEV-SNP report against a measurement that the
+caller computed. podvm can use the same check for confidential guests.
+
+## Premise
+
+- Read (2026-11-13): GitHub #115; podswarm spec, file 21, section 6.6;
+  file 13, section 8; file 22, section 11 (M8).
+- In podcrates now: `pod-guest` has the plan of a QEMU guest
+  (`crates/pod-guest/src/plan.rs`); no crate checks an attestation or
+  computes a launch measurement. T-180 (`pod-mask`) is confidential
+  execution with no hardware support, not this.
+- The name: crates.io answered 404 for `pod-attest` on 2026-11-13
+  (T-438).
+- Not measured: the `sev` crate with `crypto_nossl` on x86_64 musl (the
+  spec lists it as a gap).
+
+## Approach
+
+A new crate `pod-attest` with the interface of file 21, section 6.6:
+`verify(Platform, report, certs, data, Policy)` and
+`expected_measurement(GuestSet, vcpus)`, on the `sev` crate
+(`default-features = false`, `snp`, `crypto_nossl`) or equal pure Rust
+code, no OpenSSL. The ARK and ASK of each product are embedded; the
+caller gives the VCEK and the CRL; the crate fetches nothing. The checks
+in order, each refusal named by its field: `chain`, `signature`,
+`measurement`, `report_data`, `policy`, `vmpl`, `tcb` (with the
+component), `chip`. TDX later. The licence of the dependency tree goes
+through `deny.toml`; the test vector is public with its source and
+licence beside it. Fuzz targets of the report and certificate parsers.
+
+## Prove
+
+```sh
+cargo test -p pod-attest --all-features
+cargo deny --locked --all-features check licenses sources
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests: a public vector passes; one flipped bit in each checked field
+fails by that field; another `data` fails on `report_data`; a floor above
+the reported TCB fails on `tcb` with the component; the golden
+measurements for 1, 2, 4 and 16 vCPUs. The crate links static on x86_64
+musl.
+
+## Start condition
+
+The owner answers Q15, R-03 and R-05.
+
+# T-437: `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112)
+
+**Source:** GitHub #112 (podswarm P-13).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The `ssh` road of podswarm runs the system `ssh`. A caller with no
+OpenSSH client (Windows) needs an SSH client library: a host key policy
+on the caller's `known_hosts`, an auth chain (agent, key files, a prompt)
+and an exec channel with stdin, stdout, stderr and the exit status or
+signal, over any byte stream. podssh has this code in `podssh-ssh`.
+
+## Premise
+
+- Read (2026-11-13): GitHub #112; podswarm spec, file 21, section 6.8;
+  file 04; file 22, section 13 (M10).
+- In podcrates now: the workspace has `russh` 0.65 (`ring`, `rsa`) in
+  `Cargo.toml`; `crates/pod-devtunnel/src/ssh.rs` runs a client over a
+  stream with the keys of a tunnel, the auth `none` and `direct-tcpip`.
+  No `known_hosts`, no agent, no exec channel.
+- T-041 (open) brings podssh's SSH test server into `pod-testkit`; the
+  tests of this entry can use it.
+- The name: crates.io answered 404 for `pod-ssh` on 2026-11-13 (T-438).
+- Not read: `PodUtils/podssh:crates/podssh-ssh`.
+
+## Approach
+
+A new crate `pod-ssh` cut from `podssh-ssh` on the workspace `russh`,
+with the interface of file 21, section 6.8: `HostPolicy` (the files,
+fixed fingerprints, a callback for an unknown key; a changed or revoked
+key always fails), `Auth` (agent, key file, keyboard-interactive,
+password, after `none`), `Prompt`, `connect` over a `pod_core::BoxedIo`,
+`Client::exec`, `Exec::split`, `Ended::wait`. The crate reads no
+`ssh_config` and no variable. `pod-devtunnel` can move onto it later.
+
+## Prove
+
+```sh
+cargo test -p pod-ssh --all-features
+python3 -I scripts/check-crates-io-names.py
+```
+
+The tests against an OpenSSH `sshd` on the loopback with keys made at
+test time: a 1 GiB stream keeps its BLAKE3 hash; a half close reaches the
+command; exit status 0, 7 and 255 and an exit signal pass; stderr has its
+own stream; a changed host key fails by name; `No` for an unknown key
+ends the connection; the auth order. The static probe builds on the 14
+targets with Windows.
+
+## Start condition
+
+The owner answers Q15 and R-03.
+
+# T-438: The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1)
+
+**Source:** GitHub #1 (podswarm P-21).
+**Category:** release
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podswarm asks the owner to reserve the names of its seven new crates at
+0.0.0 with the trusted publisher of podcrates, so that its fallback code
+uses the final names from the start. A name that is not free gets
+another name from the owner.
+
+## Premise
+
+- Read (2026-11-13): the comment of podswarm on GitHub #1; podswarm spec,
+  file 21, section 7 (ask P-21, milestone M0); file 26, ruling R-03.
+- Measured: `https://crates.io/api/v1/crates/NAME` answered 404 ("does
+  not exist") for each of the seven names on 2026-11-13.
+- `docs/design.md`, section 10: the owner reserves a new name before its
+  first publish; `pod-*` names are of podcrates only. T-387 is the same
+  step for `pod-devtunnel`.
+
+## Approach
+
+When the owner rules R-03: the owner reserves each name; the session adds
+the names to the list of GitHub #1 and to `docs/design.md`, section 4
+(with the crate of each when it exists, else under "Names held"), so that
+`scripts/check-crates-io-names.py` reads them.
+
+## Prove
+
+```sh
+python3 -I scripts/check-crates-io-names.py
+```
+
+## Start condition
+
+The owner answers R-03 and reserves the names.
+
+# T-449: `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118)
+
+**Source:** GitHub #118 (podswarm P-8).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A keeper that sums the use of a tree once a second and kills the tree
+above the limit is stronger than `reported` and weaker than `enforced`.
+On a host with no delegated cgroup2 it is the only hold on memory. A
+consumer must report it as one of the two wrong values today.
+
+## Premise
+
+- Read (2026-11-13): GitHub #118; podswarm spec, file 21, section 7 (ask
+  P-8, milestone M0); file 12.
+- In podcrates now: `LimitMode` in `crates/pod-job/src/capability.rs` has
+  `Enforced`, `Reported` and `None` (kebab case); no crate of the
+  workspace matches on it; podrunner reads it.
+
+## Approach
+
+Add `LimitMode::Polled` (`polled`) between `Enforced` and `Reported`, with
+its text ("measured by the supervisor at a fixed period; the tree is
+killed above the limit; the use can pass the limit for up to one
+period"). Generate the schema `unit-capability.v1` again with the
+feature `schema`. Name the new value in the release notes.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+The tests: `"polled"` decodes to `LimitMode::Polled` and encodes back;
+the generated schema holds `polled` and the schema check passes.
+
+## Start condition
+
+The owner answers Q15.

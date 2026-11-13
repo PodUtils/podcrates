@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**345 entries: 88 open, 6 partial, 5 blocked, 246 done.**
+**361 entries: 104 open, 6 partial, 5 blocked, 246 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 70 | 85 |
-| P2 | 43 | 2 | 5 | 125 | 175 |
-| P3 | 32 | 2 | 0 | 49 | 83 |
-| **All** | 88 | 6 | 5 | 246 | 345 |
+| P2 | 50 | 2 | 5 | 125 | 182 |
+| P3 | 41 | 2 | 0 | 49 | 92 |
+| **All** | 104 | 6 | 5 | 246 | 361 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -392,3 +392,19 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
 | [T-425](fleet.md) | P2 | M | M8 | chore | open | podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete |
+| [T-430](fleet.md) | P2 | L | M8 | feature | open | `pod-proc`: a spawner with keepers, the containment rungs, a fence and the tree kill on each target (GitHub #113) |
+| [T-431](fleet.md) | P3 | M | M8 | feature | open | `pod-proc`: the exec takeover of a new process (`PTRACE_SEIZE`, the stop at the exec, the stub) (GitHub #113) |
+| [T-432](fleet.md) | P2 | M | M8 | feature | open | `pod-tty`: the guard of the caller's terminal (raw mode, size, restore, escape line) on Unix and Windows (GitHub #111) |
+| [T-433](fleet.md) | P2 | L | M8 | feature | open | `pod-fuse`: a FUSE server with no libfuse, with the write opcodes, `READDIRPLUS` and invalidation (GitHub #110) |
+| [T-434](fleet.md) | P3 | L | M8 | feature | open | `pod-cas`: a BLAKE3 content store with resume, placement, sweep and tree manifests (GitHub #109) |
+| [T-435](fleet.md) | P3 | L | M8 | feature | open | `pod-view`: a live view of a directory (records, a frame codec, an ordered write-back log) (GitHub #114) |
+| [T-436](fleet.md) | P3 | L | M8 | feature | open | `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115) |
+| [T-437](fleet.md) | P3 | L | M8 | feature | open | `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112) |
+| [T-438](fleet.md) | P2 | S | M8 | release | open | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
+| [T-443](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: a map from the findings to capabilities, and a cache across runs keyed by the kernel, the boot and the probe binary (GitHub #82) |
+| [T-444](podvm.md) | P2 | M | M8 | feature | open | `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82) |
+| [T-445](podvm.md) | P3 | M | M8 | feature | open | `pod-hold`: the marker, the calls that fail with `ENOSYS`, and the reads of a path and an argv of a stopped task (GitHub #121) |
+| [T-446](podvm.md) | P3 | M | M8 | feature | open | `pod-hold`: a plan that the child applies before `execve` (`PreExec` and `Program::with_plan`) (GitHub #121) |
+| [T-447](podvm.md) | P3 | M | M8 | feature | open | `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122) |
+| [T-448](podvm.md) | P3 | S | M8 | docs | open | `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123) |
+| [T-449](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: `LimitMode::Polled`, a limit that a keeper measures and enforces by a kill (GitHub #118) |
