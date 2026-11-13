@@ -4,7 +4,8 @@ name: nightly
 # night, by hand, and before a release (docs/design.md, section 7): macOS
 # and Windows on their runners; the other Linux targets built with
 # cargo-zigbuild and run under QEMU user mode (scripts/binfmt.sh). Linux
-# x86_64 runs in ci.yml on each push.
+# x86_64 runs in ci.yml on each push. The job gate runs the gates that hold
+# their bounds in a release build only.
 
 on:
   schedule:
@@ -110,6 +111,29 @@ jobs:
           test=a_server_that_the_root_signs_is_trusted_through_the_store_alone
           cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact the_root_is_written
           POD_TLS_TEST_STORE_HOLDS=0 cargo test --locked -p pod-tls --all-features --test system_store -- --ignored --exact --nocapture "$test"
+
+  # podnet's gate of row E2-1 for the udp carrier of pod-link (T-520,
+  # PodUtils/podnet#527): its bounds of time are those of a release build.
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The cache of the registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.job }}-
+      - name: The gate of E2-1 (pod-link, udp)
+        run: cargo test --locked --release -p pod-link --all-features --test udp_loss -- --include-ignored --nocapture --test-threads=1
 
   cross:
     runs-on: ubuntu-24.04
