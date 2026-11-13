@@ -2184,9 +2184,13 @@ dependencies = [
 name = "pod-link"
 version = "0.37.0"
 dependencies = [
+ "bytes",
+ "h2",
+ "http",
  "libc",
  "pod-core",
  "pod-identity",
+ "pod-proxy",
  "pod-session",
  "pod-testkit",
  "pod-tls",
