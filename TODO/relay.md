@@ -4641,7 +4641,7 @@ shared `pin::key_at`, and a build of `tcp` alone is clean under clippy.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4666,6 +4666,31 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit cd5acb5. `udp::Udp` (feature `udp`, calls C271 and
+C272): the wire of KCP (the crate `kcp` 0.6.0, pure Rust, in stream mode)
+over UDP or the caller's datagrams, with the TLS of `tcp` above it (the
+pin of each key, the byte of acceptance). podnet's rules name KCP (a
+window of 32 to 1024, its congestion window, `--kcp-nodelay`), so the
+carrier does not run the ARQ of T-310. `udp::KcpStream` drives KCP over
+any `datagram::Datagrams`; `Udp::connect_over` and `Udp::accept_over`
+run the handshake over the datagrams of one peer (the `Lossy` shim). A
+listener starts a session at a first segment alone, at most
+`max_handshakes` at once. `cargo test -p pod-link --all-features --test
+udp`: 10 passed; `--test udp_loss`: 5 passed (1 MiB each way at 0 % and
+at 3 % loss with 1 % reorder and 1 % duplicates, 8 MiB each way at 5 %
+loss and 1 % reorder with `nodelay`, a silent peer at the idle limit, a
+datagram that breaks KCP); `cargo test -p pod-link --all-features`: 131
+passed; 10 runs of the new targets in a loop passed. Plants, each caught
+by hand: `link-udp-handshake-inline`,
+`link-udp-stranger-starts-a-session`, `link-udp-drop-stops-at-once`,
+`link-udp-idle-unchecked`, `link-udp-panic-hangs-the-stream`,
+`link-tcp-alpn-unset`. The ALPN of `tcp` is now the setting `Tcp::alpn`
+(call C273). Not held: podnet's run at 20 % loss within 3 times the clean
+time (T-520, a question for podnet); a fuzz target of the input of KCP
+is T-521.
 
 # T-442: `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88)
 

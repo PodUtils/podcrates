@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 407 entries: 121 open, 7 partial, 4 blocked, 275 done.
+`TODO/INDEX.md` holds 407 entries: 120 open, 7 partial, 4 blocked, 276 done.
 
 ## State
 
@@ -102,7 +102,7 @@ next entry.
       T-521 (the fuzz target of the input of KCP), T-520 (the default of
       the congestion window of KCP, when podnet answers),
       T-422 (long-poll, SSE, chunked),
-      T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
+      T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
       up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
