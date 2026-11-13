@@ -986,6 +986,7 @@ memfd, SUD, `openat2`, `/dev/kvm`, `/dev/fuse`, `/dev/net/tun`, cgroup).
 - Read: `crates/pod-hostprobe/src/` and the asks.
 - Not measured: the JSON.
 - podrunner is a consumer (PodUtils/podvm#227 section 2.7). The host qualification that the design review (DR-15) gives to `pod doctor` comes from this report, and `podrunner doctor` reads it. The podvm driver reads `podvm probe --json`.
+- podswarm is a consumer (GitHub #82, podswarm P-5, read 2026-11-13): it asks for `report(&Findings) -> serde_json::Value` that validates against the schema of this entry, released with each tag. Its map to capabilities and its cache across runs are T-443; its new rows are T-444.
 
 ## Approach
 
@@ -4665,7 +4666,6 @@ each step of `pod-relay.run` passed there; PodUtils/podvm@T-1678 is done. No
 came from podssh). The trial files left `adoption/podvm/`; the take is in
 the map of `adoption/README.md`.
 
-
 # T-328: GNU `tar -xz -C DIR` fails with "Cannot open" right after `mkdir -p DIR` in a podvm unit (podrunner's note)
 
 **Source:** podrunner's session (its take of `v0.31.0`, PodUtils/podrunner@T-094): podvm `v0.2.0-beta.5` on the GitHub x86_64 host, runner-image run 43205758271 of podrunner.
@@ -4721,7 +4721,6 @@ the runtime of the supervise rung (`pod-hostprobe` selects it; `pod-enter`
 enters the namespace, chroot and userland rungs): the cause is in podvm.
 Relayed to podvm, with the case and a guess, on #102 (COORD-063, also to
 podrunner).
-
 
 # T-353: `pod-oci`: a pull from the CNCF distribution registry on the loopback; the live pull from ECR Public each week
 
@@ -5087,3 +5086,330 @@ inside link, and a probe of isolation between the guests.
 ```sh
 cargo test -p pod-netlab --all-features
 ```
+
+# T-443: `pod-hostprobe`: a map from the findings to capabilities, and a cache across runs keyed by the kernel, the boot and the probe binary (GitHub #82)
+
+**Source:** GitHub #82 (podswarm P-5).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A podswarm worker runs the host probe at each start for its `caps` report
+and for `podswarm doctor`. It needs one answer for each capability (for
+example "FUSE mount in a user namespace: yes, by rows X and Y"), not raw
+rows, and a second start on the same host must read a cache and start no
+probe child, to keep the start of a worker in its time budget.
+
+## Premise
+
+- Read (2026-11-13): the comment of podswarm on GitHub #82 (asks P-5 and
+  P-6); podswarm spec, file 21, sections 6.9 and 7 (ask P-5, milestone
+  M1); file 22, section 4.
+- In podcrates now: `run(&Settings, candidates)` gives `Findings`
+  (`crates/pod-hostprobe/src/lib.rs`); `crates/pod-hostprobe/src/verdict.rs`
+  has the line form; `assess(&Findings)` in
+  `crates/pod-hostprobe/src/machine.rs` maps the findings for the machine
+  rung only. No serde, no JSON, no schema, no cache.
+- The first part of the ask (`report(&Findings)`, a JSON form that
+  validates against a schema in the directory `schemas`) is T-107 (open):
+  it is not written again here. This entry is the gap: the map and the
+  cache.
+- Not measured: the time of a full probe run on a worker.
+
+## Approach
+
+After T-107: `capabilities(&Findings) -> Vec<Capability>` (a name, `yes`,
+`no` or `unknown`, and the rows that decide it), in the JSON of T-107.
+`CacheKey` (the `uname(2)` release, `/proc/sys/kernel/random/boot_id`, the
+BLAKE3 of `/proc/self/exe`) and `run_cached(&Settings, candidates,
+cache)`: the cache is a private file at a path of the caller, written
+with `pod-core`'s private files. A file that does not parse is ignored
+and written again.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```
+
+The tests: a second start with the same key reads the cache and starts
+no probe child; a change of each part of the key runs the probes again; a
+cache file that does not parse is written again; each capability names
+its rows.
+
+## Start condition
+
+T-107 is done. The owner answers Q15.
+
+# T-444: `pod-hostprobe`: the probe rows that `PROBES` lacks (user and PID namespace, cgroup2 delegation, FUSE in a user namespace, and more) (GitHub #82)
+
+**Source:** GitHub #82 (podswarm P-6).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A podswarm worker picks its containment rung, its view rung, its shield
+and its spreading rung from the probe rows. Thirteen rows are absent.
+
+## Premise
+
+- Read (2026-11-13): the comment of podswarm on GitHub #82 (the table of
+  13 rows and their order); podswarm spec, file 21, section 6.9 (ask P-6);
+  files 06, 07, 12 and 13.
+- In podcrates now: `PROBES` in `crates/pod-hostprobe/src/probes.rs` has
+  67 rows (the ask counts 66), with `clone(CLONE_NEWUSER)`,
+  `unshare(CLONE_NEWPID)`, `open(/dev/fuse, O_RDWR)`,
+  `seccomp(NEW_LISTENER)`, `ptrace(PTRACE_TRACEME)` and
+  `qemu-system-x86_64 --version`. The 13 rows of the ask are absent.
+  `Outcome::skip` exists in `crates/pod-hostprobe/src/verdict.rs`.
+- The order of podswarm: rows 1 to 4, 6 to 9, 12 and 13 for its M1; row 5
+  (`PTRACE_SEIZE`) for its M3; rows 10 and 11 (qemu of each architecture,
+  SNP and TDX) for its M8.
+
+## Approach
+
+One row for each probe of the table, each in a probe child as the rows
+of `PROBES` are, or a read of a file: `clone(CLONE_NEWUSER|CLONE_NEWPID)`;
+the write open of `cgroup.subtree_control` of the own cgroup; the FUSE
+mount in new user and mount namespaces; a notified `getppid` answered
+with `SECCOMP_USER_NOTIF_FLAG_CONTINUE`; `PTRACE_SEIZE` of the probe's
+own child; `memfd_secret(0)`; `ramfs` in a user namespace; the write open
+of `memory.swap.max`; the swap state (`/proc/swaps`, zswap);
+`qemu-system-ARCH --version` for each candidate; SNP and TDX from their
+module parameters; `hidepid` from `/proc/self/mountinfo`; the count of
+other root users from `/etc/passwd` and `/etc/group`. A row that cannot
+run gives `Skip`, never "denied". The rows of the M1 of podswarm first.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```
+
+The tests: one test for each row with a fake result, and a real run of
+each row on the CI kernel.
+
+## Start condition
+
+The owner answers Q15.
+
+# T-445: `pod-hold`: the marker, the calls that fail with `ENOSYS`, and the reads of a path and an argv of a stopped task (GitHub #121)
+
+**Source:** GitHub #121 (podswarm P-15).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podswarm uses one seccomp trap in three places: its view rung `trap`
+(fill a file at its first open), the exec rung `seccomp` of spreading
+(decide where a new program runs) and its network hold. The supervisor of
+spreading must let its own stub `execve` pass with no notice, the `trap`
+rung must make `io_uring_setup` fail, and the supervisor reads the path
+and the argv of a stopped `execve`.
+
+## Premise
+
+- Read (2026-11-13): GitHub #121; podswarm spec, file 21, sections 6.5
+  and 7 (ask P-15, milestones M2 and M3); file 06; file 07, sections 3.1
+  and 3.2.
+- In podcrates now: `crates/pod-hold/src/filter.rs` has `Calls::of`,
+  `Calls::program` and `install` (it sets `no_new_privs` and installs on
+  the calling thread); `crates/pod-hold/src/listen.rs` and
+  `crates/pod-hold/src/reply.rs` take and answer the notices;
+  `crates/pod-hold/src/mem.rs` has `Memory::{read, write}` and
+  `read_word`. The single-thread child that installs and sends the
+  descriptor needs no new call (the ask says so). The gap: the marker,
+  the `ENOSYS` list, `read_cstr` and `read_argv`.
+- The takeover itself is T-431 (`pod-proc`).
+
+## Approach
+
+`Calls::with_marker(nr, arg, value)`: no notice for `nr` when the low 32
+bits of `args[arg]` (0 to 5) equal `value`. `Calls::enosys(&[nr])`:
+`ENOSYS` and no notice. `Memory::read_cstr(addr, max)` (`max` counts the
+NUL) and `Memory::read_argv(addr, max)` (a NULL pointer ends it; `max`
+counts all bytes); a string over `max` and an address outside the task
+are refused by name. A fuzz target runs `read_argv` over
+`Memory::of_fd`.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```
+
+The tests: an `execve` with the marker value runs with no notice and with
+another value notifies; a call of the `enosys` list fails with `ENOSYS`
+and gives no notice; a single-thread child installs and sends the
+descriptor, and a `Listener` of the parent reads its notices;
+`read_cstr` and `read_argv` read the path and argv of a stopped `execve`.
+The tests of `podnet pod` and podnet's adoption trial pass.
+
+## Start condition
+
+The owner answers Q15.
+
+# T-446: `pod-hold`: a plan that the child applies before `execve` (`PreExec` and `Program::with_plan`) (GitHub #121)
+
+**Source:** GitHub #121 (podswarm P-14).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The hold and the keeper of podswarm must share one fork: the held child
+applies the keeper's plan (signals, session, umask, namespaces, limits,
+cwd, descriptors, Landlock) after the fork and before `execve`. Without
+it podswarm runs a shim process.
+
+## Premise
+
+- Read (2026-11-13): GitHub #121; podswarm spec, file 21, sections 6.5
+  and 7 (ask P-14, milestone M7); file 14.
+- In podcrates now: `crates/pod-hold/src/spawn.rs` has `Program::{new,
+  with_env}` and `start(program, &calls)`: the child calls only `execve`.
+  `pod-confine` compiles its rules before the fork and applies them in the
+  child with no allocation (`docs/design.md`, section 4).
+
+## Approach
+
+`PreExec` (made before the fork, applied with no allocation): a reset of
+the signal mask and of each handler, `setsid`, the umask, the namespaces
+to enter in order, the resource limits, the cwd, the descriptors to move
+(then each other descriptor from 3 up is closed), and
+`pod_confine::apply` as the last step. `Program::with_plan(plan)`. A step
+that fails writes the step and the errno to a close-on-exec pipe and the
+child exits 127 with no exec; `start` returns a `Failure` that names the
+step.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```
+
+The tests: a held child of `with_plan` sees each step before `execve` (a
+limit, the cwd, the descriptor numbers, a namespace by its inode, a
+Landlock rule); a failed step is named and no exec runs. The tests of
+`podnet pod` and podnet's adoption trial pass.
+
+## Start condition
+
+The owner answers Q15.
+
+# T-447: `pod-guest`: a Linux flavour of the plan (kernel and initramfs, one virtio-serial socket, one raw disk, mem-lock) and an SNP variant (GitHub #122)
+
+**Source:** GitHub #122 (podswarm P-18).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On the shield `guest` of podswarm, no file name, file content, argv value
+or environment value of a run appears in a host file or in the argv of a
+host process. The guest boots a kernel and an initramfs directly, and
+its only channel is one `chardev` Unix socket. The shield `sealed` boots
+the same plan as an SEV-SNP guest.
+
+## Premise
+
+- Read (2026-11-13): GitHub #122; podswarm spec, file 21, sections 6.9
+  and 7 (ask P-18, milestone M8); file 13, sections 7.2 and 8.3.
+- In podcrates now: `plan::argv` in `crates/pod-guest/src/plan.rs` gives
+  the UEFI flavour (OVMF in `pflash`, the root disk and a mailbox disk,
+  `-nic none`, QMP, `Plan::emu_args`); `crates/pod-guest/src/dos.rs` has
+  the DOS flavour. The mailbox disk is a host file. No direct kernel
+  boot, no virtio-serial, no SNP.
+- The boot of this plan by podvm is podswarm's ask V-7 (GitHub #124), for
+  the podvm session. The check of the report is T-436.
+
+## Approach
+
+A module `linux` with `linux::Plan` and `linux::argv` (file 21, section
+6.9): `-kernel`, `-initrd`, the fixed `-append` of the guest set, one
+`virtserialport` on a `chardev` socket and one raw virtio-blk scratch
+disk in the run directory (mode 0700), the QMP socket there,
+`-overcommit mem-lock=on` on request, `-nic none` and `emu_args` as the
+UEFI flavour has them. `Snp { cbitpos, ovmf }` adds
+`confidential-guest-support` and `sev-snp-guest` with
+`policy=0x30000`, `reduced-phys-bits=1` and `kernel-hashes=on`. No 9p,
+virtiofs or `-netdev`.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+The tests: golden argv with and without `mem_lock` and of the SNP
+variant; exactly one `virtserialport` and one raw drive; each path is in
+the allowed set; a canary of the run is absent from the argv; no
+`-fsdev`, `-virtfs`, `virtiofs` or `-netdev`; the UEFI and DOS golden
+tests do not change.
+
+## Start condition
+
+The owner answers Q15.
+
+# T-448: `pod-enter`: the text of `fuse.rs` says that `mount(2)` of FUSE fails in a user namespace; it works since Linux 4.18 (GitHub #123)
+
+**Source:** GitHub #123 (podswarm P-20).
+**Category:** docs
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A wrong fact in a crate document: a reader can skip a FUSE rung that
+works. Since Linux 4.18 FUSE has `FS_USERNS_MOUNT`: a process with
+`CAP_SYS_ADMIN` in a user namespace that owns its mount namespace can
+mount it when `/dev/fuse` opens.
+
+## Premise
+
+- Read (2026-11-13): GitHub #123; podswarm spec, file 06, section 3 (the
+  rung `fuse-userns`); file 21, section 7 (ask P-20).
+- `crates/pod-enter/src/fuse.rs:24` says "namespace, and so is": the
+  module text says that `mknod` of the node and `mount(2)` are both
+  `EPERM` in a user namespace. The part about `mknod` is right; the part
+  about `mount(2)` is wrong.
+
+## Approach
+
+Change the sentence to name the condition: `mknod` of the node is `EPERM`
+in a user namespace; `mount(2)` of FUSE is allowed in a user namespace
+that owns the mount namespace since Linux 4.18, when `/dev/fuse` opens.
+Keep the rest of the paragraph. The row that shows the fact on a CI
+kernel is T-444.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+cargo todo remap crates/pod-enter/src/fuse.rs
+```
+
+## Start condition
+
+None: text only. It waits behind the work order with the other asks of
+podswarm (Q15).

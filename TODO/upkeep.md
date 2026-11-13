@@ -945,7 +945,6 @@ not a host of the downloads (`DOWNLOADS` and the mirrors of
 `scripts/zig-mirrors.txt`). Today's workflows: 0 faults. Plant
 `ci-step-reaches-a-host` (group `workflows`): caught.
 
-
 # T-355: The downloads of each job come from a cache, and the tools from their release binaries
 
 **Source:** `docs/live-calls.md` (rows L30 to L32); call C152.

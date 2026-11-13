@@ -679,7 +679,6 @@ OpenSSL build options. Remove the exclusion with the fix.
 cargo test -p pod-gsr --all-features   # on windows-11-arm
 ```
 
-
 # T-217: Research: the base of `pod-git`, a git server in Rust with no installed git (PodUtils/podnet#453)
 
 **Source:** PodUtils/podnet#453 (COORD-035 of podnet; the owner's ruling of 2026-11-11 in podnet: no native git server in podnet, a crate `pod-git` of our own)

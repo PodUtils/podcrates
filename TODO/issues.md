@@ -6,7 +6,7 @@ numbers. `TODO/RULES.md` gives the rules.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
-| #1 | crates.io: reserved pod-* names and trusted publishing | open (reopened for the names of podvm) | T-042, T-043, T-053 |
+| #1 | crates.io: reserved pod-* names and trusted publishing | open (reopened for the names of podvm) | T-042, T-043, T-053, T-438 |
 | #2 | COORD-001: a test of the fallback channel between the sessions | closed (`d2bab56`) | T-051 |
 | #3 | COORD-002: the answer to podvm's COORD-001 (to podvm) | closed (answered; M6 goes on in T-056 to T-061) | T-040, T-054, T-063 |
 | #4 | COORD-003: podvm can take pod-term now; the synchronous face is on main (to podvm) | closed (podvm `75ed306`) | T-040, T-063, T-066 |
@@ -84,13 +84,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #76 | COORD-051: v0.25.0: the pod-netstack calls of podnet's router; pod-confine closes the scopes, UDP on request, MPTCP, io_uring and the root capabilities (to all) | closed (podrunner `02a1c0b`, podvm `763b7c6a`, podssh `f029594d`; podnet answered with PodUtils/podnet#457) | T-025, T-209, T-221, T-222 |
 | #77 | COORD-052: v0.26.0: the veth wire of the netns hold, the facts of the SSH forward relays, the time to the first step and the job images of pod-job (to all) | closed (podrunner `4284967`, podnet `f107766`, podssh `ff2f7bac`, podvm `483a1957`) | T-201, T-224, T-226, T-227, T-233 |
 | #78 | Docs: stale names and contradictions after the renames of 2026-11-12 (pods, podstat, podforge) | closed | T-242 |
-| #82 | cfb asks: tracker for the 36 asks of cfb owned by podcrates (from podcrates#35) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-113, T-114, T-115, T-116, T-117, T-118, T-119 |
+| #82 | cfb asks: tracker for the 36 asks of cfb owned by podcrates (from podcrates#35) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-443, T-444 |
 | #83 | githome asks: tracker for the 2 asks owned by podcrates (from podcrates#36) | open (the owner's tracker; each ask maps to its entry) | T-099, T-100, T-106, T-160 |
 | #84 | CI plan items: tracker for the 8 items owned by podcrates (from podcrates#47) | open (the owner's tracker; phases 3 and 5 stay in T-146) | T-100, T-102, T-103, T-104, T-106, T-146, T-162, T-251 |
 | #85 | COORD-053: v0.27.0: the close of a listener and no RST for a burst in pod-netstack; podnet's relay client and the podssh trial of pod-relay; the socket families of pod-confine (to all) | closed (podvm `a714e99f`, PodUtils/podvm#276; podnet `28c0e3d`, PodUtils/podnet#465; podssh `0872c2c6`, PodUtils/podssh#206; podrunner `3ef4db9`) | T-025, T-026, T-213, T-223, T-227, T-230, T-231, T-232, T-233, T-240, T-262 |
 | #86 | COORD-054: v0.28.0: qemu-img convert in pod-guest; a TCP list refused with socketcall(2); the UDP of pod-netstack; Tox, Yggdrasil, HyperDHT, workerd and wasmtime in pod-services (to all) | closed (podrunner `bde47c3`; podssh `12473a10`, PodUtils/podssh#208; podnet `b08e06f`, PodUtils/podnet#477; podvm `94e7ca2a`, PodUtils/podvm#278) | T-174, T-228, T-234, T-244, T-252, T-253, T-254, T-255, T-256, T-257, T-258, T-259, T-260, T-262, T-266 |
 | #87 | COORD-055: v0.29.0: the hold of a SYN in pod-hold; an MQTT meeting point in pod-wormhole; a channel handler, the Host of an IPv6 relay and one cache file for each host in pod-relay (to all) | closed (podnet `98d8a71`, PodUtils/podnet#478; podvm `c99bdd8d`, PodUtils/podvm#279; podssh `5b56c4d`, PodUtils/podssh#211; podrunner `7cdd0d5`) | T-150, T-170, T-225, T-229, T-245, T-246, T-261, T-271, T-272 |
-| #88 | COORD-056: the answer to PodUtils/podnet#479: the asks of the link workstream are T-278, T-279 and T-300 to T-305; pod-link is a crate of podcrates (to podnet) | open (podnet starts each entry) | T-278, T-279, T-300, T-301, T-302, T-303, T-304, T-305 |
+| #88 | COORD-056: the answer to PodUtils/podnet#479: the asks of the link workstream are T-278, T-279 and T-300 to T-305; pod-link is a crate of podcrates (to podnet) | open (podnet starts each entry) | T-278, T-279, T-300, T-301, T-302, T-303, T-304, T-305, T-442 |
 | #89 | COORD-057: v0.30.0: podnet's relay client over pod-relay (the trial); the MQTT brokers in the runs of a code; the Syncthing relays; pod-actions-expr and pod-actions-workflow (to all) | closed (podrunner `528a918`; podvm `c553da2e`, PodUtils/podvm#280; podnet `83e0c93`, PodUtils/podnet#481; podssh `ef3666f`, PodUtils/podssh#212) | T-026, T-251, T-267, T-276, T-277 |
 | #90 | COORD-058: v0.31.0: podvm's arm64 defects in pod-extract and pod-enter; a Run that owns its workflow; the display form of a fingerprint (to all) | closed (podvm `c5b61b45`, PodUtils/podvm#284; podnet `e046560`, PodUtils/podnet#502; podrunner `98bc496`; podssh `02650f1`) | T-278, T-279, T-309, T-320, T-321 |
 | #91 | COORD-059: the answer to PodUtils/podvm#283: podcrates writes the trial of pod-relay's blocking facade in podvm (T-326); the wire is reverse-v1 (to podvm) | closed (podvm took the trial at `15485d1b`, PodUtils/podvm#285) | T-326 |
@@ -109,21 +109,24 @@ numbers. `TODO/RULES.md` gives the rules.
 | #104 | COORD-065: v0.34.0: the TCP carrier of pod-link with the pin of an Ed25519 key, podnet's ip.rs settings, closed WARP sessions fail their flows (to all) | open (podssh `287e23b`, PodUtils/podssh#219; podnet `ef8c901`, PodUtils/podnet#515; podvm and podrunner wait) | T-304, T-335, T-355, T-394, T-396 |
 | #105 | COORD-066: the answer to PodUtils/podssh#220: the kind file-host (T-416) and a board over pod_wormhole::mqtt (T-417) (to podssh) | open (T-416 and T-417 open) | T-416, T-417 |
 | #106 | COORD-067: the answer to PodUtils/podnet#515: the next carriers of pod-link in your order (T-420 to T-424, T-310) (to podnet) | open (the entries are open) | T-310, T-420, T-421, T-422, T-423, T-424 |
-| #107 | podswarm: meta tracker of the spec and of the asks of podswarm to PodUtils (crates, repository, consumers) | open (its index is not complete; Q15) | T-425 |
-| #108 | podswarm: the text of the spec (one comment for each file) | open (its index is not complete) | T-425 |
-| #109 | pod-cas: add a BLAKE3 content store with resume, placement, sweep and tree manifests (podswarm P-12) | open (an ask of podswarm; Q15) | T-425 |
-| #110 | pod-fuse: add a FUSE server with no libfuse, with the write opcodes and invalidation (podswarm P-16) | open (an ask of podswarm; Q15) | T-425 |
-| #111 | pod-tty: add a guard of the local terminal with raw mode, restore and the escape line (podswarm P-11) | open (an ask of podswarm; Q15) | T-425 |
-| #112 | pod-ssh: add an SSH client library with a host key policy, an auth chain and an exec channel (podswarm P-13) | open (an ask of podswarm; Q15) | T-425 |
-| #113 | pod-proc: add portable process control with a spawner, a keeper, containment rungs and a tree kill (podswarm P-1) | open (an ask of podswarm; Q15) | T-425 |
-| #114 | pod-view: add a live view of a directory with records, a frame codec and an ordered write-back log (podswarm P-17) | open (an ask of podswarm; Q15) | T-425 |
-| #115 | pod-attest: add the check of an SEV-SNP attestation report and the expected measurement of a guest set (podswarm P-19) | open (an ask of podswarm; Q15) | T-425 |
-| #116 | pod-ws: add a serve module with an accept loop, stage deadlines and caps per address (podswarm P-2) | open (an ask of podswarm; Q15) | T-425 |
-| #117 | pod-tls: add an enrolment mode to the client verifier of peer that admits any Ed25519 key and reports it (podswarm P-3) | open (an ask of podswarm; Q15) | T-425 |
-| #118 | pod-job: add LimitMode::Polled for a limit that a keeper measures and enforces by a kill (podswarm P-8) | open (an ask of podswarm; Q15) | T-425 |
-| #119 | pod-core: add Stage::Task for a failure of a task or its process tree (podswarm P-9) | open (an ask of podswarm; Q15) | T-425 |
-| #120 | pod-proxy: add ChildIo::spawn_args with no shell, a stderr pipe and a wait future (podswarm P-10) | open (an ask of podswarm; Q15) | T-425 |
-| #121 | pod-hold: grow the seccomp hold into a shared trap: a marker, ENOSYS calls, argv reads and a plan before exec (podswarm P-14, P-15) | open (an ask of podswarm; Q15) | T-425 |
-| #122 | pod-guest: add a Linux flavour of plan::argv with one virtio-serial channel, one raw disk, mem-lock and an SNP variant (podswarm P-18) | open (an ask of podswarm; Q15) | T-425 |
+| #107 | podswarm: meta tracker of the spec and of the asks of podswarm to PodUtils (crates, repository, consumers) | open (its index is complete; 21 entries of podcrates wait for Q15; the asks to podvm and podnet are #124 and #125) | T-425, T-430, T-431, T-432, T-433, T-434, T-435, T-436, T-437, T-438, T-439, T-440, T-441, T-442, T-443, T-444, T-445, T-446, T-447, T-448, T-449, T-450 |
+| #108 | podswarm: the text of the spec (one comment for each file) | open (the text of the spec; read in its archive, files 21, 22 and 26) | T-425 |
+| #109 | pod-cas: add a BLAKE3 content store with resume, placement, sweep and tree manifests (podswarm P-12) | open (an ask of podswarm; it waits for Q15) | T-434 |
+| #110 | pod-fuse: add a FUSE server with no libfuse, with the write opcodes and invalidation (podswarm P-16) | open (an ask of podswarm; it waits for Q15) | T-433 |
+| #111 | pod-tty: add a guard of the local terminal with raw mode, restore and the escape line (podswarm P-11) | open (an ask of podswarm; it waits for Q15) | T-432 |
+| #112 | pod-ssh: add an SSH client library with a host key policy, an auth chain and an exec channel (podswarm P-13) | open (an ask of podswarm; it waits for Q15) | T-437 |
+| #113 | pod-proc: add portable process control with a spawner, a keeper, containment rungs and a tree kill (podswarm P-1) | open (an ask of podswarm; it waits for Q15) | T-430, T-431 |
+| #114 | pod-view: add a live view of a directory with records, a frame codec and an ordered write-back log (podswarm P-17) | open (an ask of podswarm; it waits for Q15) | T-435 |
+| #115 | pod-attest: add the check of an SEV-SNP attestation report and the expected measurement of a guest set (podswarm P-19) | open (an ask of podswarm; it waits for Q15) | T-436 |
+| #116 | pod-ws: add a serve module with an accept loop, stage deadlines and caps per address (podswarm P-2) | open (an ask of podswarm; it waits for Q15) | T-439 |
+| #117 | pod-tls: add an enrolment mode to the client verifier of peer that admits any Ed25519 key and reports it (podswarm P-3) | open (an ask of podswarm; it waits for Q15) | T-440 |
+| #118 | pod-job: add LimitMode::Polled for a limit that a keeper measures and enforces by a kill (podswarm P-8) | open (an ask of podswarm; it waits for Q15) | T-449 |
+| #119 | pod-core: add Stage::Task for a failure of a task or its process tree (podswarm P-9) | open (an ask of podswarm; it waits for Q15) | T-450 |
+| #120 | pod-proxy: add ChildIo::spawn_args with no shell, a stderr pipe and a wait future (podswarm P-10) | open (an ask of podswarm; it waits for Q15) | T-441 |
+| #121 | pod-hold: grow the seccomp hold into a shared trap: a marker, ENOSYS calls, argv reads and a plan before exec (podswarm P-14, P-15) | open (an ask of podswarm; it waits for Q15) | T-445, T-446 |
+| #122 | pod-guest: add a Linux flavour of plan::argv with one virtio-serial channel, one raw disk, mem-lock and an SNP variant (podswarm P-18) | open (an ask of podswarm; it waits for Q15) | T-447 |
+| #123 | pod-enter: correct the text of fuse.rs: mount(2) of FUSE works in a user namespace since Linux 4.18 (podswarm P-20) | open (an ask of podswarm; it waits for Q15) | T-448 |
+| #124 | podswarm asks podvm: a library call for run, the probe cache, cgroup limits, payload death, a copy-free root, warm exec, the guest plan and versioned schemas (to podvm) | open (an ask to podvm; podcrates does not own it) | T-425 |
+| #125 | podswarm asks podnet: live doors, port rules, an exit on stdio, a decision on one-flow aggregation and a report of podnet pod (to podnet) | open (an ask to podnet; podcrates does not own it) | T-425 |
 
 #79 to #81 are pull requests.

@@ -24,10 +24,11 @@ is done. Git and the record keep finished work.
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338, T-337,
   T-406 and T-339 (partial) for the next tag.
+- podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
+  wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
 - An agent of this session in a worktree under `.claude/worktrees/`: T-416
   and T-417 (podssh's asks; free ids 418 and 419, calls C218 to C221).
-  Another records the asks of podswarm (T-425; ids 430 to 469, calls
-  C222 to C224). Merge each branch after `scripts/agent/check.sh` passes
+  Merge each branch after `scripts/agent/check.sh` passes
   on the merge.
 - Next for `pod-warp`: T-412 and T-413 (the adoption trials of podnet and
   podssh). When both pass and a tag holds them, post the COORD issue of

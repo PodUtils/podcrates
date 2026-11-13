@@ -1073,7 +1073,6 @@ What remains, in order:
 2. T-212: the lines for the user as events, and the words of podssh's
    commands as the caller's.
 
-
 # T-026: `pod-relay`: podnet's relay client and its plain reverse mode
 
 **Source:** `docs/design.md`, section 8, step 5.
@@ -1576,7 +1575,6 @@ moves a host, not two; a stalled primary then costs the stagger once in
 two comes by a COORD issue. Tests: `failures::tests` (10 of the
 import), the plant `relay-t059-faults-recorded`.
 
-
 # T-123: `pod-relay`: the session budget from the pool document (PodUtils/podnet#413)
 
 **Source:** PodUtils/podnet#413, ask 3 (PodUtils/podnet@T-163, PodUtils/podnet#360)
@@ -1626,7 +1624,6 @@ by the same margin, and a larger one never raises it.
 the budgets of the relay in use. Tests:
 `pool::tests::a_relays_json_limits_are_read_and_cached_with_the_pool`,
 `budget::tests::the_budget_of_a_run_goes_under_the_limits_of_its_relay`.
-
 
 # T-124: `pod-relay`: failover on the reverse road (PodUtils/podnet#413)
 
@@ -1725,7 +1722,6 @@ any `Handler`. Test:
 (`tests/reverse_plain.rs`: two sessions answered in turn, then a refusal
 after the service is gone); the plant `relay-t150-channel-drops-the-session`
 is caught.
-
 
 # T-159: podnet: two QUIC connections on one WARP socket share one waker of the full send queue
 
@@ -2560,7 +2556,6 @@ loopback before its race, through `open_on_loopback`) for
 for `relay-t620-offers-a-flag`. `sh scripts/plant-each.sh` on the six: 6
 caught.
 
-
 # T-228: `pod-relay`: the live tests of the relay client in `live.yml`
 
 **Source:** T-025 (the trial of podssh).
@@ -2623,7 +2618,6 @@ against magic-wormhole's server skipped in CI. Run 43153607165 (job
 `pair_code`, both public mailboxes met and paired. Run 43153611375 (job
 `relay`, `live`): passed. The run of the drops through podssh's relay
 role on a runner waits for T-036.
-
 
 # T-230: `pod-netstack`: a listener frees its listen sockets, its port and its address at its close and at its drop (PodUtils/podnet#457)
 
@@ -3090,7 +3084,6 @@ place of a stand-in proxy with TLS at an IPv6 address: a runner cannot
 bind port 443, and the request reads its `Host` from the one function.
 Not measured: a relay at an IPv6 address on port 443.
 
-
 # T-246: `pod-relay`: two relay hosts can have one name of a cache file
 
 **Source:** T-234 (found in the work).
@@ -3147,7 +3140,6 @@ old names are not read (one more mint, one more read of a pool). Tests:
 (`pod-relay`); the plant `core-exact-name-not-one-to-one` is caught.
 `cargo test -p pod-relay -p pod-ws -p pod-core -p pod-identity
 --all-features` passes.
-
 
 # T-257: `pod-netstack`: UDP counters for a datagram lost at a slow app, at a full queue or buffer, and over the size that the stack carries (PodUtils/podnet#464)
 
@@ -3574,7 +3566,6 @@ fuzz target, CI), and the commit of the plants and this record.
   skipped) once `POD_WORMHOLE_TEST_MQTT=required` named the need of
   Mosquitto apart from `POD_WORMHOLE_TEST_SERVER`. `live.yml` run
   43174276510 at `52e461a`, with `shiftr-mqtt` alone: passed.
-
 
 # T-263: `pod-wormhole`: no workflow runs the tests against magic-wormhole's own mailbox server and Python library
 
@@ -4047,7 +4038,6 @@ dev-dependencies of `pod-link`. `crates/pod-link/README.md`, "A link that
 survives the loss of its carrier": the composition and the bound between
 `dead_after` and `resume_deadline`.
 
-
 # T-327: `pod-relay`: podnet's `relay connect` hangs on a runner with a direct egress after its take (PodUtils/podnet#502)
 
 **Source:** PodUtils/podnet#502 (COORD-052), PodUtils/podnet@T-315.
@@ -4190,7 +4180,6 @@ Premise). `scripts/ci/mailbox-tests.sh`: a virtualenv, `pip install
 `ci.yml`; the two steps leave `live.yml`. The run here: 11, 14 and 10
 passed, no skip. The cache of pip (actions/cache) is T-355's.
 
-
 # T-390: `pod-identity`: a limit of entries for `Allowlist`, and a line in the display form (PodUtils/podnet#512 A11)
 
 **Source:** PodUtils/podnet#512 (COORD-056), ask A11; PodUtils/podnet@T-261.
@@ -4235,7 +4224,6 @@ limit is a bad line; a key already listed still adds its routes.
 form after a fingerprint and a key (the checksum must match; case is
 free) and matches it by `DisplayFingerprint::matches`; its `fingerprint()`
 is the display form. Test `an_allowlist_reads_the_display_form_and_holds_a_limit`.
-
 
 # T-391: `pod-session`: a typed cause in `End::GaveUp` (PodUtils/podnet#512 A12)
 
@@ -4283,7 +4271,6 @@ the cause; a new test `a_stop_of_the_caller_ends_the_session_with_its_cause`.
 No other crate of the workspace matches `GaveUp`. Breaking: a caller that
 matched `GaveUp(text)` reads `.reason`, and podnet maps `.cause` to its
 `ResumeExpired`.
-
 
 # T-392: `pod-session`: the single use of the resume secret as a setting (PodUtils/podnet#512 A13)
 
@@ -4532,3 +4519,61 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+# T-442: `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88)
+
+**Source:** GitHub #88 (podswarm P-4).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podswarm runs each road on `pod-link`. Its control stream (`hello`, the
+heartbeats, the fence, the signals) must not wait behind a large file on
+a slow road, and its view serves three classes of streams in order. It
+computes the windows from the bandwidth-delay product of the road, which
+changes in a session, so the caps must change on the live link.
+
+## Premise
+
+- Read (2026-11-13): the comment of podswarm on GitHub #88; podswarm
+  spec, file 21, sections 6.9 and 7 (ask P-4, milestone M1); file 04,
+  section 7.2; file 06; file 26 (the unknown "whether `pod-link` can
+  change a window on a live link").
+- In podcrates now: `Settings` (`crates/pod-link/src/settings.rs`) is
+  fixed at `Link::new`; `crates/pod-link/src/link.rs` has `new`, `open`,
+  `accept`, `close`, `rtt` and no priority of a stream and no change of
+  the settings. The writer bounds its queue (`queue_limit` in
+  `crates/pod-link/src/state.rs`).
+- The workstream of the crate is T-300 (partial); T-310 and T-420 to
+  T-424 are podnet's next parts. This ask is new.
+
+## Approach
+
+`Link::open_first()`: the writer sends the frames of that stream before
+the `DATA` of each other stream; a class number for each stream (lower
+first, equal classes in turn) when it costs no more.
+`Link::set_windows(stream_window, link_window)`: the ranges of `Settings::check`; a new cap
+takes effect for the credit that this end grants next; a refused value
+keeps the old values. The wire does not change.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+The tests (the same `Link` and streams throughout): with `frame_size` 4
+KiB, a carrier shaped to 1 Mbit/s and a bulk stream with data, at most 4
+KiB of bulk `DATA` and the headers pass between the write of 64 bytes on
+the first stream and its frame; after `set_windows` from 1 MiB to 64 KiB
+the unread bytes of an unread stream stay at most 64 KiB once the old
+credit is used; after a raise the stream reaches the new window; a value
+that `Settings::check` refuses gives an error.
+
+## Start condition
+
+The owner answers Q15.
