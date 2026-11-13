@@ -5457,7 +5457,7 @@ The first carrier over a shared path (T-424, T-498 or T-499) starts.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5478,6 +5478,24 @@ A target `link_arq`: the input is a list of datagrams, each given to one `Arq` w
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit `0bfe4d6`. The target `link_arq` (`fuzz/src/targets/link.rs`,
+`fuzz/fuzz_targets/link_arq.rs`): a byte of setup (the ARQ writes
+`setup * 64` bytes), then datagrams, each a step of the clock in tens of
+milliseconds, a length (u16) and its bytes. After each datagram the ARQ
+sends what it has and fires its timer when its time passed. It checks: no
+panic; each datagram that the ARQ sends decodes and fits the unit (1200
+bytes); a `DATA` frame of one sequence always carries the same fragment,
+also when it goes again; an error stays. The seeds (`fuzz/src/arq_seeds.rs`,
+written by an ignored test and held to the files on disk): the datagrams
+of a peer in a transfer of 3000 bytes, with a `FIN`, with acknowledgements
+alone, a `PROBE`, and datagrams of a bad form. `cargo test --manifest-path
+fuzz/Cargo.toml --lib`: 11 passed (the seeds and their mutations);
+`cargo check --manifest-path fuzz/Cargo.toml --bins` and clippy of the fuzz
+workspace pass. No plant: the target is the check, and `fuzz.yml` runs it
+each week.
 
 # T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
 

@@ -18,10 +18,9 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, open).
   Each consumer took `v0.38.0` (#136, closed).
-- The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
-  (T-488, done); three tests of `pod-services-watch` fail there (T-507:
-  the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
-  next nightly proves it and shows the rest of the Windows tests.
+- The nightly at `923309a` (run 43406798368) passes each job but the two
+  Windows jobs, whose one failure was a test of `pod-wg` that a clock of
+  100 ns steps broke (T-507, done). The next nightly proves them green.
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
   builds its side of a live test (#83, 2026-11-13): it waits for T-106
   (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),
@@ -45,14 +44,14 @@ is done. Git and the record keep finished work.
   commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.
-- podnet (on `v0.38.0`, PodUtils/podnet#525; `pod-warp` taken): its link
+- podnet (on `v0.39.0`, `306d80b`, PodUtils/podnet#526; `pod-warp` taken): its link
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
 - podssh (on `v0.38.0`, `e47d508`, PodUtils/podssh#228; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.38.0`, `28ce3b5`, PodUtils/podrunner#82): its session
+- podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
   runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
   -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
   Write to it by an issue with `(to podrunner)` in the title.

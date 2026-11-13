@@ -1165,7 +1165,7 @@ of the tests are T-507.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1198,3 +1198,15 @@ failure of a test on Windows is a new entry.
 
 A dispatch of `nightly.yml` whose Windows jobs pass the tests of
 `pod-services-watch`.
+
+## Done
+
+2026-11-13, commits `17737c3` and the commit of this section. The nightly
+at `923309a` (run 43406798368, with `--no-fail-fast`) passes the tests of
+`pod-services-watch` on Windows. It shows one more failure there, on both
+jobs: `pod-wg`'s `crypto::tests::stamps_only_go_forward` built a stamp of
+999_999_999 ns from a `SystemTime`, and the clock of Windows counts in
+steps of 100 ns, so the carry case did not happen. The test makes that
+stamp from its bytes now. Each other test of the Windows jobs passes. The
+next nightly proves the jobs green.
+
