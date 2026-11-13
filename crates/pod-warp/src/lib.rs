@@ -35,6 +35,9 @@
 //!   its names, its UDP and its DNS forwarder; [`forward`]: the local
 //!   forwards; [`nc`]: the byte pipe of `warp nc`.
 //! * [`service`]: the facts of WARP of `pod-services`.
+//! * [`live`]: [`Live`], a session replaced when it closes; [`exit`]: the
+//!   exit of a session; [`find`]: the socket of a running proxy of the
+//!   caller; [`tun`] (Linux): a TUN over a session.
 //!
 //! The crate reads no environment variable and no file that the caller
 //! does not name, prints nothing and keeps no global state. A failure is a
@@ -54,13 +57,17 @@ pub mod der;
 pub mod device;
 pub mod dns;
 pub mod door;
+pub mod exit;
 pub mod files;
+#[cfg(unix)]
+pub mod find;
 pub mod forward;
 pub mod h3;
 pub mod hints;
 pub mod identity;
 pub mod key;
 pub mod leg;
+pub mod live;
 pub mod nc;
 pub mod net;
 mod open;
@@ -72,6 +79,8 @@ pub mod service;
 pub mod session;
 pub mod store;
 pub mod tls;
+#[cfg(target_os = "linux")]
+pub mod tun;
 pub mod udp;
 mod warp;
 pub mod wg;
@@ -84,6 +93,7 @@ pub use files::Foreign;
 pub use hints::DeviceHints;
 pub use identity::Identity;
 pub use leg::{Leg, Relay};
+pub use live::{Live, LiveSettings};
 pub use net::{NetSettings, WarpNet};
 pub use session::{MasqueRx, MasqueSession, MasqueTx, Meter, Way};
 pub use store::{IdentityFile, Stored};
