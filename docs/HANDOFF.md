@@ -9,12 +9,10 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Record the takes of `v0.33.0` (#103: podvm, podrunner) and of `v0.34.0`
-   (#104); close each hand-off when each consumer took it.
-2. Read the nightly at `613058c`: T-325 has its failures.
-3. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
+1. Read the nightly at `613058c`: T-325 has its failures.
+2. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-4. Take the work order of `TODO/PROGRESS.md`: T-212, T-290.
+3. Take the work order of `TODO/PROGRESS.md`: T-212, T-290.
 
 ## In flight
 
@@ -62,13 +60,10 @@ is done. Git and the record keep finished work.
 - podssh (on `v0.34.0`, `287e23b`, PodUtils/podssh#219): the live runs of
   its PodUtils/podssh@T-737 (the brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and `openbare-xyz` wait for
   PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.32.0`, `997b001`): its session ended after its
-  housekeeping; its final commit is `ffcd82d` (PodUtils/podrunner#71: its
-  T-095, T-046, T-051 and T-030 done); a new one starts with podvm. Its
-  open items: T-077 (a held run hung with podnet `v0.4.0-beta.6`; podnet
-  fixes it in `v0.4.0-beta.7`, PodUtils/podnet#509), T-096 (an absolute
-  `tar -C`, also with no `-z`, #102), Q4 for the owner. Write to it by an
-  issue with `(to podrunner)` in the title.
+- podrunner (on `v0.34.0`, `2a4f35c`, PodUtils/podrunner#72): its session
+  runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
+  -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
+  Write to it by an issue with `(to podrunner)` in the title.
 - podnet's link workstream (PodUtils/podnet#479, P3): T-278, T-279,
   T-300 to T-305 wait for podnet's start of each (the answer #88).
 - `pod-git` (T-217 to T-220) is blocked: its own repository, deferred (the
