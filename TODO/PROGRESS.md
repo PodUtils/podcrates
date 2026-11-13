@@ -5,11 +5,11 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.36.0` at `408fb13` (`docs/releases/v0.36.0.md`; ci
-  43351421040, adoption 43351421049, release 43353954264; the hand-off
-  #129, COORD-071, open): T-476, T-477 (the HTTP road, for podssh), T-485
-  (the report of `pod-hostprobe`, for podvm), the trial T-412. Each
-  consumer took `v0.35.0` (#127, closed).
+- Last release: `v0.36.0` at `408fb13` (`docs/releases/v0.36.0.md`;
+  the hand-off #129, closed: each consumer took it). The release
+  `v0.37.0` is in work (`docs/releases/v0.37.0.md`): T-480 (`pod-warp`,
+  for the trial of podssh), T-488, T-491 and T-492 (`pod-enter`, for
+  podvm).
 - The consumers and their tags:
   - podssh: `v0.36.0` (`99b9642`, PodUtils/podssh#226; its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT

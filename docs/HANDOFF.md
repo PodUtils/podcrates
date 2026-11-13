@@ -11,18 +11,19 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Finish the release `v0.36.0` (below), then fix T-488 (the nightly
-   fails to compile on Windows).
+2. Finish the release `v0.37.0` (below): the tag, the hand-off, the
+   move of the trial patches and the COORD issue of the freeze.
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The last release: `v0.36.0` at `408fb13` (the hand-off #129, open).
-  `main` holds T-480 (for the trial of podssh) for the next tag.
+- The release `v0.37.0` (T-480, T-488, T-491, T-492) is in work: the
+  notes are `docs/releases/v0.37.0.md`. Each consumer took `v0.36.0`
+  (#129, closed).
 - The nightly at `613058c` is red (run 43195242737): macOS and riscv64
-  are T-325 (done); the two Windows jobs do not compile
-  `crates/pod-relay/tests/reverse_plain.rs` (T-488). The next nightly
-  after T-488 proves T-325 and T-307.
+  are T-325 (done); the two Windows jobs did not compile
+  `crates/pod-relay/tests/reverse_plain.rs`. T-488 has the fix; a
+  dispatched nightly proves it, and T-325 and T-307.
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
   builds its side of a live test (#83, 2026-11-13): it waits for T-106
   (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),
