@@ -32,8 +32,8 @@ is done. Git and the record keep finished work.
   - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
     `kcp` with its take of the udp carrier (#139, PodUtils/podnet#527).
 - The red runs of this session have fixes on `main`: T-532 and T-535
-  (the bounds of the tests under an emulator; the nightly at `1335e9a`
-  proves armv7, riscv64 runs), T-534 and T-536 (the port of the registry
+  (the bounds of the tests under an emulator; the nightly at `1335e9a`,
+  run 43467939399, passes each job, riscv64 and armv7 too), T-534 and T-536 (the port of the registry
   of `pod-oci`), T-537 (a tox node that is down), T-497 (the build of the
   icmp carrier on macOS; `scripts/agent/check-macos.sh`, T-533, checks it
   here). T-351 still waits for the proof of a first "no answer".
@@ -53,7 +53,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.39.0`, `19892c50`, PodUtils/podvm#309; `v0.2.0-beta.8`
+- podvm (on `v0.40.0`, `3d819c19`, PodUtils/podvm#317; `v0.2.0-beta.12`
   out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
   PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
