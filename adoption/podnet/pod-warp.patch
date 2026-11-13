@@ -7,31 +7,31 @@ index 59140b0..622fc25 100644
  # TLS of PodUtils/podcrates: the roots, the client configurations and the
  # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The HTTP date of a time (the log of detach, the tests of the clock); the
  # dial, the resolver and the failures of pod-proxy.
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
  # race of addresses, the proxy of a tool's file), the HTTP client
  # (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
  # with podnet's settings.
 -pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The resolver of each direct dial (src/resolve.rs): an IP address, the pins
  # of --resolve, the system and DNS over HTTPS, with podnet's settings.
 -pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The services of other parties: the relay, the edge of Cloudflare's tunnels
  # and its roots, the quick tunnels, WARP, 1.1.1.1 and Pinggy, as data with
  # their sources.
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The WebSocket of `connect`, of the forward endpoint and their bridge
  # (src/ws.rs), of PodUtils/podcrates, with podnet's dial, TLS context and
  # user agent, and the limits of tokio-tungstenite.
 -pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # QUIC (the edge, QUIC over WARP, MASQUE over HTTP/3) on noq, of
  # PodUtils/podcrates: the endpoints and their keys in pure Rust, and the
 -# socket over the UDP of the userspace stack under WARP (src/warp/quic.rs).
@@ -44,20 +44,20 @@ index 59140b0..622fc25 100644
 -# src/warp/wg.rs, on ring.
 -pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
 +# endpoint over the datagrams of a WARP session (src/warp/quic.rs).
-+pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
 +# The ioctl number of TUNSETIFF for the target and the packets of a held SYN
 +# (src/router/guest/), of the hold of PodUtils/podcrates (podnet-netns has
 +# its core).
-+pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
 +# The WireGuard initiator, sans I/O, of PodUtils/podcrates: the network
 +# wg:// (src/networks/wg.rs), on ring.
-+pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
 +# WARP of PodUtils/podcrates: the registration, the identity and its file,
 +# the doors, MASQUE over HTTP/2 and HTTP/3, WireGuard and the carried device,
 +# the relay leg, the stack and its settings, the proxy, the resolvers, the
 +# forward, nc, the session replaced when it closes, the exit, the socket of a
 +# running proxy, the TUN and its routes. The glue is src/warp/.
-+pod-warp = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-warp = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The client of the WebSocket-to-TCP relay of PodUtils/podcrates
  # (src/ws_relay.rs, src/relay_reverse.rs): the hosts, their pool and their
  # failover, the tokens, the pairs, the node and the operator of the reverse
@@ -65,31 +65,31 @@ index 59140b0..622fc25 100644
  # took them before (a stand-in relay of the tests); a host off the loopback
  # stays refused before any connection.
 -pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["pair", "plain-ws"] }
-+pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["pair", "plain-ws"] }
++pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["pair", "plain-ws"] }
  # The link of the link workstream, of PodUtils/podcrates (call C120 to C124):
  # many streams over one carrier byte stream with credit windows and a
  # keepalive, and the carriers (unix, memory) behind one trait. The glue is
  # src/link.rs, the registry of the carriers src/carriers.rs.
 -pod-link = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-link = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-link = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The key of an install (call C118): the Ed25519 seed in a key file, the
  # fingerprints, the allow list. The glue is src/identity.rs.
 -pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The resumable layer (T-263): offsets that never reset, a 256-bit secret
  # and the 10-minute window. The glue is src/session.rs.
 -pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The TURN client (RFC 8656) over UDP and TLS of PodUtils/podcrates: the
  # network turn://HOST:PORT (src/networks/turn.rs) allocates with it.
 -pod-turn = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-turn = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-turn = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The Dev Tunnels client (management read, relay WebSocket, SSH with no user
  # authentication, direct-tcpip streams, bounded reconnect) of
  # PodUtils/podcrates: the network devtunnel://TUNNEL (src/networks/devtunnel.rs)
  # opens streams with it.
 -pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  anyhow = "1"
  axum ={ version = "0.8", features = ["multipart"] }
  base64 = "0.23"
@@ -100,7 +100,7 @@ index 59140b0..622fc25 100644
 -pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["ipv4-fragmentation"] }
 -# The version of pod-netstack of PodUtils/podcrates: WARP (src/warp/ip.rs)
 -# drives its link device (vnet::device) with it.
-+pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["ipv4-fragmentation"] }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["ipv4-fragmentation"] }
 +# The version of pod-netstack of PodUtils/podcrates, with the features of
 +# the stacks of the binary: the stack of WARP (pod-warp) takes the
 +# congestion controllers of --cc.
@@ -112,11 +112,11 @@ index 59140b0..622fc25 100644
  [dev-dependencies]
  # The responder of the tests of WireGuard (src/warp/wg/standin.rs).
 -pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["standin"] }
-+pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["standin"] }
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["standin"] }
  # The stand-in of the management API and of the relay on the loopback
  # (tests/devtunnel_network.rs, src/networks/devtunnel_tests.rs).
 -pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["standin"] }
-+pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["standin"] }
++pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["standin"] }
  tempfile = "3"
  tokio = { version = "1", features = ["test-util"] }
  
@@ -485,9 +485,9 @@ index cd58364..6ffeefd 100644
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
-+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  anyhow = "1"
  futures = "0.3"
  getrandom = "0.4"
@@ -496,7 +496,7 @@ index cd58364..6ffeefd 100644
  # need_loopback! and need_localhost! of the tests (T-046), from the test kit
  # of PodUtils/podcrates at the git tag of the root.
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
 diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
 index c72aa21..26a6c88 100644
 --- a/crates/podnet-netns/Cargo.toml
@@ -506,24 +506,24 @@ index c72aa21..26a6c88 100644
  libc = "0.2"
  # The dialer and the datagrams of the front door (door.rs).
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The SOCKS5 datagram path (UDP ASSOCIATE, the command 0x83, the frames and
  # the datagram header) of PodUtils/podcrates, at the git tag of the root.
 -pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The generic core of the hold of PodUtils/podcrates: the seccomp filter,
  # the receive of a notification, the memory of the child, the reply, the
  # table of the sockets with the flow budget, the dial state of a connect,
  # the netns entry, the TUN, the veth wire, the SYN packets and (syn-hold)
  # the hold of each SYN of the router on the stack of pod-netstack.
 -pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["syn-hold"] }
-+pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["syn-hold"] }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["syn-hold"] }
  serde_json = "1"
  # The userspace stack of the router (its config, its streams): the TUN or
  # the veth wire, under the hold of pod-hold. A build needs
  # SMOLTCP_IFACE_MAX_ADDR_COUNT = "8" (`.cargo/config.toml` of the workspace).
 -pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  tokio = { version = "1", features = [
      "macros",
      "rt-multi-thread",
@@ -532,7 +532,7 @@ index c72aa21..26a6c88 100644
  [dev-dependencies]
  # need_loopback! of the tests of the door.
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  tempfile = "3"
  tokio = { version = "1", features = ["test-util"] }
 diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
@@ -545,12 +545,12 @@ index 770d6b7..26abfc4 100644
  # PodUtils/podcrates at the git tag of the root.
 -pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
 -pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
-+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  # The check of the owner and the mode of the users file of the file
  # server (T-089); a crate of the workspace, at the git tag of the root.
 -pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  anyhow = "1"
  axum = { version = "0.8", features = ["multipart"] }
  # The Basic credentials of the users of the file server (T-089).
@@ -559,7 +559,7 @@ index 770d6b7..26abfc4 100644
  [dev-dependencies]
  # need_loopback! of the tests; a crate of the workspace.
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
  tempfile = "3"
  tokio = { version = "1", features = ["test-util"] }
 diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
@@ -571,7 +571,7 @@ index c9ee9ac..751cebf 100644
  
  [dependencies]
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0" }
-+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0" }
 diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
 index 0fd9789..3a3a7e2 100644
 --- a/crates/podnet-vnet/Cargo.toml
@@ -581,7 +581,7 @@ index 0fd9789..3a3a7e2 100644
  # of smoltcp in the binary holds a buffer of 64 KiB for the fragments that it
  # sends, and smoltcp puts together one datagram at a time.
 -pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["ipv4-fragmentation"] }
-+pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["ipv4-fragmentation"] }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0", features = ["ipv4-fragmentation"] }
  # The version of pod-netstack and the features of the root crate (Cargo.toml
  # of podnet): the proof of `net doctor` (stack/proof.rs) drives the link
  # device of pod-netstack with it.
@@ -590,7 +590,7 @@ index 0fd9789..3a3a7e2 100644
  # need_loopback! of the tests, from the test kit of PodUtils/podcrates at
  # the git tag of the root.
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
-+pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", version = "0.37.0" }
 diff --git a/docs/library.md b/docs/library.md
 index 928c317..d3b45f4 100644
 --- a/docs/library.md

@@ -10,7 +10,7 @@
 # refusal of a server of the user's own (T-481). podssh-relay's edge inside
 # WARP takes a pod-core Dial; ZeroTier's member takes pod-netstack's stack.
 # The tests, the stand-in, the fuzz target and the interop harness of the
-# moved code leave podssh. Each podcrates tag moves to v0.36.0. The record
+# moved code leave podssh. Each podcrates tag moves to v0.37.0. The record
 # with its citations, the repository checks; no moved file and no copy of a
 # moved item stays; the build, the bans and the sources of cargo-deny;
 # pod-warp in the tree; the library build of the gate; clippy of the WARP
