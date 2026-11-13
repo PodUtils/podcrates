@@ -1,0 +1,9 @@
+# The device of a stack over a link has a bounded outbound queue and no
+# hold: the stack sends into a full queue, and the queue drops the packets
+# (PodUtils/podssh#231, case 2). Each packet that the stack sends while the
+# queue is full must go when it drains.
+ENTRY=T-531
+GROUP=netstack
+EXPECT='packets dropped at the full queue'
+RUN='cargo test -p pod-netstack --lib the_packets_held_at_a_full_link_each_go_when_it_drains'
+LIMIT=900

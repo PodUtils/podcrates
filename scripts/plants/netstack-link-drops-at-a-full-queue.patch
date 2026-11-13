@@ -1,0 +1,13 @@
+diff --git a/crates/pod-netstack/src/device.rs b/crates/pod-netstack/src/device.rs
+--- a/crates/pod-netstack/src/device.rs
++++ b/crates/pod-netstack/src/device.rs
+@@ -132,7 +132,8 @@ impl LinkDevice {
+     /// outbound queue is full. A packet that the pump cannot put in the
+     /// inbound queue is dropped and counted in `rx_dropped`.
+     pub fn link(mtu: usize) -> Self {
+-        let mut device = Self::tunnel_bounded(mtu, LINK_OUTBOUND).with_inbound_limit(LINK_INBOUND);
++        let mut device = Self::new(mtu, false).with_inbound_limit(LINK_INBOUND);
++        device.tx = PacketQueue::bounded(LINK_OUTBOUND);
+         device.rx = device.rx.clone().counting_in(device.stats.clone());
+         device
+     }

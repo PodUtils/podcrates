@@ -459,3 +459,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-525](relay.md) | P3 | S | M2 | feature | open | `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake) |
 | [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
+| [T-531](relay.md) | P2 | S | M2 | chore | open | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |

@@ -5797,3 +5797,39 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 ## Done
 
 - Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`, and the COORD issue to podnet.
+
+# T-531: `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231)
+
+**Source:** PodUtils/podssh#231 (COORD-054 of podssh).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh removed two planted defects of its T-599 (the stack inside WARP's tunnel), and their code is `pod-netstack`'s now. No test of `pod-netstack` holds either case:
+
+1. A far end that closed first: each byte queued toward it must go before the end. The tests of `close.rs` close from this end.
+2. Packets that the stack sends while the outbound queue is full: none must be lost when the queue drains. The tests of `device/tests.rs` check one token of the device, not the stack.
+
+podssh's record (its T-771) must name a test of each case that fails on a planted defect.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/service.rs` (`close_and_check`: a close waits until no byte waits in either direction, also in CLOSE-WAIT), `crates/pod-netstack/src/device.rs` (`LinkDevice::link` holds while the outbound queue is full; `transmit` gives no token then).
+- The code holds both cases. The gap is the tests.
+
+## Approach
+
+1. `close.rs`: the client shuts down its write side, and the server reads that end. Then the server writes 16 MiB and closes at once. The client must read each byte, then the end. The plant `netstack-close-wait-closes-at-once` closes the socket in CLOSE-WAIT with no wait: the bytes in the channel from the app are lost.
+2. `hold.rs`: a pump from the server that stops and starts again. With a window of 2 MiB, the outbound queue of the server fills (`LINK_OUTBOUND` packets) while the pump stands. Then the pump moves again. The device must drop no packet, the stack must hold, the client must read each byte and the end, and each packet that the stack sent must cross the link. The plant `netstack-link-drops-at-a-full-queue` gives the device of a link a bounded queue with no hold: the stack sends into the full queue, and the queue drops the packets.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end
+cargo test -p pod-netstack --lib the_packets_held_at_a_full_link_each_go_when_it_drains
+sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-at-a-full-queue
+```
