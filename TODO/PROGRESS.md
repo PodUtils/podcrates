@@ -10,9 +10,9 @@
   publish 43346161122; the hand-off #127, COORD-069, open): `pod-warp`
   (T-336 to T-339, T-406), T-393, T-395, T-353, T-380, T-358, T-416,
   T-417. Each consumer took `v0.34.0` (#104, closed).
-- `main` holds T-476 (the invariants 6 to 10 of the HTTP road; a change
-  of its wire) and T-477 (the serial form writes the bytes down from a
-  task of its own, PodUtils/podssh#222) for the next tag.
+- `v0.36.0` is prepared on `main` (the version, `docs/releases/v0.36.0.md`,
+  the text of its hand-off): T-476, T-477 (the HTTP road, for podssh),
+  T-485 (the report of `pod-hostprobe`, for podvm) and the trial T-412.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).

@@ -19,11 +19,13 @@ is done. Git and the record keep finished work.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
 - The last release: `v0.35.0` at `311c6bb` (the hand-off #127, open).
-  `main` holds T-476 and T-477 for the next tag.
+  `v0.36.0` is prepared on `main`: finish its release (`docs/maintenance.md`,
+  "A release") and post `docs/releases/v0.36.0-handoff.md` as COORD-071
+  `(to all)` (fill `COMMIT`, the run ids and the time).
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
 - Agents of this session work in worktrees under `.claude/worktrees/` on
-  T-413 and T-485. Merge its branch after `scripts/agent/check.sh` passes
+  T-413. Merge its branch after `scripts/agent/check.sh` passes
   on the merge.
 - `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh is
   T-413. When both pass and a tag holds them, post the COORD issue of the
