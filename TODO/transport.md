@@ -6699,3 +6699,40 @@ by hand with the input `relay` `none`).
 
 - Part, 2026-11-13: `live.yml` run 43448958418 at `6b183f6`: tmpfiles.org holds by the signed link of its page (1.5 s), temp.sh holds, litterbox answers HTTP 412 "Invalid uploader" with the fields of its upload form. Two other parties saw the same 412 from cloud networks. litterbox's `on-by-default` is false, with its rank kept (call C285). Open: a run of the step with `file hosts: 2 ran, 0 failed`, and the answer to PodUtils/podssh#230 with the tag.
 
+
+# T-539: `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232)
+
+**Source:** PodUtils/podssh#232 (COORD-055 of podssh; PodUtils/podssh@T-776, PodUtils/podssh@T-111).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh serve` gives a child a tty in user space where no pty opens: a seccomp filter sends the tty `ioctl`s of the child to serve, which answers them from one termios state. `pod-term` has two modes: the echo discipline with the fixed rules of podvm's server (its own prompt and history), and the passthrough. Neither follows a termios that the child sets with `TCSETS*`.
+
+## Premise
+
+- Read: PodUtils/podssh#232; podssh's research of the serve tty (its recommendation and the design of its T-111).
+- Read: `crates/pod-term/src/lib.rs` (the two modes and `session::Facts`).
+- Not read yet: the probe of podssh that answered the calls.
+
+## Approach
+
+A third mode in `pod-term`, beside `echo` and `passthrough`, that holds a termios state (`c_iflag`, `c_oflag`, `c_lflag`, `c_cc`, the window size) and applies it:
+
+- `ICANON` with `ECHO`, `ECHOE`, `ECHOK`, `ECHOCTL`, `ECHONL` and the characters `VERASE`, `VKILL`, `VWERASE`, `VEOF`, `VLNEXT`, `VREPRINT`; no prompt and no history.
+- `ISIG` with `VINTR`, `VQUIT`, `VSUSP`: an event for the caller (SIGINT, SIGQUIT, SIGTSTP to the foreground group); the input flushed unless `NOFLSH`; `^C` echoed with `ECHOCTL`.
+- `ICRNL`, `INLCR`, `IGNCR` on input; `OPOST` with `ONLCR` on output.
+- With `ICANON` off: each byte straight through; `VMIN` and `VTIME` stay data for the caller.
+- A change of the state at any time (`TCSETS`, `TCSETSW`, `TCSETSF`, the flush of `TCSETSF`), and the window size with an event for SIGWINCH.
+
+The tests pin each flag against the rules of the Linux line discipline (`n_tty`), and a plant for each group of flags. Answer PodUtils/podssh#232 with the entry and the tag.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features
+```
