@@ -217,32 +217,36 @@ async fn a_second_open_of_a_live_session_is_no_new_session() {
 #[tokio::test]
 async fn a_session_to_a_closed_port_is_refused_with_the_reason() {
     pod_testkit::need_loopback!();
-    let dir = pod_testkit::host::socket_dir("pod-relay-plain");
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("echo.sock");
-    let listener = tokio::net::UnixListener::bind(&path).unwrap();
-    tokio::spawn(async move {
-        while let Ok((mut socket, _)) = listener.accept().await {
-            tokio::spawn(async move {
-                let (mut r, mut w) = socket.split();
-                let _ = tokio::io::copy(&mut r, &mut w).await;
-            });
-        }
-    });
     let handler = |target: &str| LocalHandler {
         target: Target::parse(target).unwrap(),
         timeout: LIMIT,
         dialer: support::dialer(),
     };
-    let (mut relay, _stop, _task) = node(handler(&format!("unix:{}", path.display())), Settings::default());
-    relay.text(HELLO).await;
-    relay.text(&open(A)).await;
-    assert!(relay.expect_text().await.contains(r#""type":"ready""#));
-    relay.data(A, b"over a unix socket").await;
-    let f = relay.next(LIMIT).await.expect("the echo");
-    assert_eq!(&f.payload[32..], b"over a unix socket");
-    let _ = std::fs::remove_dir_all(&dir);
+    // Windows has no Unix socket in tokio: the TCP half runs there alone.
+    #[cfg(unix)]
+    {
+        let dir = pod_testkit::host::socket_dir("pod-relay-plain");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("echo.sock");
+        let listener = tokio::net::UnixListener::bind(&path).unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let (mut r, mut w) = socket.split();
+                    let _ = tokio::io::copy(&mut r, &mut w).await;
+                });
+            }
+        });
+        let (mut relay, _stop, _task) = node(handler(&format!("unix:{}", path.display())), Settings::default());
+        relay.text(HELLO).await;
+        relay.text(&open(A)).await;
+        assert!(relay.expect_text().await.contains(r#""type":"ready""#));
+        relay.data(A, b"over a unix socket").await;
+        let f = relay.next(LIMIT).await.expect("the echo");
+        assert_eq!(&f.payload[32..], b"over a unix socket");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().to_string();
     let (mut relay, _stop, _task) = node(handler(&closed), Settings::default());
