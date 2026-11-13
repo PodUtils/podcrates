@@ -9,10 +9,24 @@ use std::process::{Command, Output};
 
 use pod_services_watch::Finding;
 
+use pod_testkit::stand::Io;
+
 use crate::common::{NAME, endpoint, file, one, raw, text};
 
 const SSH_BANNER: &str = "[[watch]]\nkind = \"ssh-banner\"\nendpoint = \"ssh\"\n";
 const TLS_NAME: &str = "[[watch]]\nkind = \"tls-name\"\nendpoint = \"api\"\n";
+
+/// Read the first TLS record of the client (its hello) whole. A stand-in
+/// that closes with unread bytes makes Windows send a reset, and the
+/// client can lose the bytes of the server before it reads them.
+fn read_hello(io: &mut dyn Io) {
+    let mut head = [0u8; 5];
+    if io.read_exact(&mut head).is_err() {
+        return;
+    }
+    let mut body = vec![0u8; usize::from(u16::from_be_bytes([head[3], head[4]]))];
+    let _ = io.read_exact(&mut body);
+}
 
 /// A port of the loopback where nothing listens: the connect is refused.
 fn closed_port() -> u16 {
@@ -46,6 +60,7 @@ async fn a_handshake_that_ends_before_a_byte_is_no_answer() {
 async fn a_handshake_cut_after_a_byte_of_the_server_is_an_answer() {
     pod_testkit::need_loopback!();
     let stand = raw(|io| {
+        read_hello(io);
         let _ = io.write_all(&[0x16, 0x03, 0x03, 0x00, 0x40]);
         let _ = io.flush();
     });
@@ -60,6 +75,7 @@ async fn a_handshake_cut_after_a_byte_of_the_server_is_an_answer() {
 async fn a_handshake_with_another_protocol_is_an_answer() {
     pod_testkit::need_loopback!();
     let stand = raw(|io| {
+        read_hello(io);
         let _ = io.write_all(b"SSH-2.0-not-tls\r\n");
         let _ = io.flush();
     });
@@ -77,13 +93,17 @@ fn scratch(tag: &str) -> PathBuf {
 }
 
 /// The runner with `args`, with no variable of the environment: no proxy,
-/// and no token.
+/// and no token. Windows keeps `SystemRoot`: with no such variable,
+/// Winsock does not start (error 10106).
 fn runner(args: &[&Path]) -> Output {
-    let output = Command::new(env!("CARGO_BIN_EXE_pod-services-watch"))
-        .args(args)
-        .env_clear()
-        .output()
-        .expect("the runner starts");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_pod-services-watch"));
+    command.args(args).env_clear();
+    if cfg!(windows)
+        && let Some(root) = std::env::var_os("SystemRoot")
+    {
+        command.env("SystemRoot", root);
+    }
+    let output = command.output().expect("the runner starts");
     eprintln!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     output
 }
