@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 368 entries: 109 open, 7 partial, 5 blocked, 247 done.
+`TODO/INDEX.md` holds 372 entries: 110 open, 7 partial, 5 blocked, 250 done.
 
 ## State
 
@@ -11,12 +11,9 @@
   the pin of `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394,
   T-355. `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner
   wait.
-- `main` holds T-353 (`pod-oci` against distribution on the loopback; no
-  login over plain HTTP, C187), T-393 and T-395 (the TCP timeout, the
-  keepalive and no Nagle; UDP to a family that the device lacks) and
-  T-336 (the relay leg of `pod-warp` and the race) and T-337 (HTTP/3,
-  WireGuard and the carried device of `pod-warp`) and T-339 (`Live`,
-  the exit, the TUN and its routes of `pod-warp`) for the next tag.
+- `v0.35.0` is prepared on `main` (the version, `docs/releases/v0.35.0.md`,
+  the text of its hand-off): `pod-warp` (T-336 to T-339, T-406), T-393,
+  T-395, T-353, T-380, T-358, T-416, T-417.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -69,9 +66,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-416 and T-417 (the kind
-   `file-host` and a board of retained messages over MQTT, for
-   PodUtils/podssh@T-738, PodUtils/podssh#220, COORD-066); T-381 (the options of
+1. **The defects and asks of the consumers:** T-476 (the invariants 6 to
+   10 of the HTTP road of `pod-relay`, PodUtils/podssh#221); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
@@ -104,7 +100,8 @@ next entry.
    T-029 (`pod-cloudflare`). The next carriers of `pod-link`
    (PodUtils/podnet#515, COORD-067), in podnet's order: T-420 (WebSocket),
    T-421 (HTTP/2), T-422 (long-poll, SSE and chunked), T-423 (QUIC),
-   T-424 (UDP with KCP) and T-310 (the ARQ). podnet
+   T-424 (UDP with KCP) and T-310 (the ARQ); T-475 (the port rules of
+   the reader of the rules, PodUtils/podnet#518). podnet
    holds the files of the three crates to fixes from `7c5f87e`. T-214 and T-215 (the file
    transfer and the mailbox server of magic-wormhole) after T-027; T-121 and T-124 (the asks of podnet).
    podnet started its link workstream (PodUtils/podnet#480): T-300
@@ -156,7 +153,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C217; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C221; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

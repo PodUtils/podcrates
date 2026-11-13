@@ -20,7 +20,12 @@
 //!
 //! The brokers and their public logins are the caller's
 //! (`pod-services` has the public ones, of the kind `mqtt-broker`).
+//!
+//! [`Board`] is a board of retained messages at one broker: put a note at
+//! a topic, take it, clear it, each on a connection of its own
+//! ([`board`]).
 
+pub mod board;
 pub mod broker;
 pub mod packet;
 
@@ -33,6 +38,7 @@ use pod_ws::url::WsUrl;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+pub use board::Board;
 pub use broker::Broker;
 
 use crate::config::Config;

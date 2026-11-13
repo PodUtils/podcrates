@@ -71,6 +71,8 @@ another kind.
 | `answer::State` (`parse`, `key`, `note`, `now`, `text`) | the rule of call C153: the list of the watches with no answer of the last scheduled run, and of this run |
 | `Net` (`context`, `dial`, `trust`, `client`, `dns`, `services`, `bases`, `github_token`, `today`, `limit`), `Bases` (`public`, `at`) | the way out of each check: the runner fills it, a test gives its stand-ins |
 | `args::Args` | the arguments of a watch and the values that they name |
+| `schema::arguments(kind)`, `schema::faults(service, watch, is_service)` | the arguments of each watch kind, and the faults of one watch |
+| `schema::kind_facts(kind)` (`KindFacts`: `endpoints`, `need`, `optional`, `words`, `when`), `schema::service_faults(service)` | the endpoints and the facts of a service kind with a table (`file-host`, T-416), and the faults of one service: a missing endpoint or fact, a type, a word, a fact that the kind does not name, a fact that a word needs |
 
 The library reads no variable and no file, and prints nothing.
 
@@ -107,6 +109,14 @@ kind with no implementation, or when a kind has no watch in the data.
 missing or an unknown argument, and on a name of an endpoint, a role, a
 fact or a service that the data does not have (`schema::faults`). A run
 checks the same before the network.
+
+A service kind can have a table of its facts (`schema::kind_facts`; the
+kind `file-host` has one). `data::each_service_has_the_facts_of_its_kind`
+fails when a built-in service of such a kind misses an endpoint or a fact
+of the table, has a fact of another type or a word that the table does
+not name, or has a fact that the table does not name. A run checks the
+same before the network: the watches of such a service fail with the
+faults, so a file of a consumer (`--file`) is checked too.
 
 ## Tests
 

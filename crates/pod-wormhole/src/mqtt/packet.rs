@@ -17,9 +17,9 @@ pub const LENGTH_MOST: usize = 268_435_455;
 /// A `SUBACK` code of a refused filter (section 3.9.3).
 pub const REFUSED: u8 = 0x80;
 
-/// One packet. A `PUBLISH` is written at QoS 0 with no retain and no
-/// duplicate flag; one read at QoS 1 or 2 gives its topic and payload, its
-/// packet identifier dropped.
+/// One packet. A `PUBLISH` is written at QoS 0 with no duplicate flag,
+/// and with the retain flag of `retain`; one read at QoS 1 or 2 gives its
+/// topic, its payload and its retain flag, its packet identifier dropped.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Packet {
     Connect(Connect),
@@ -28,9 +28,12 @@ pub enum Packet {
         present: bool,
         code: u8,
     },
+    /// `retain`: the broker keeps the message for each later subscriber
+    /// to the topic, and an empty one clears the topic (section 3.3.1.3).
     Publish {
         topic: String,
         payload: Vec<u8>,
+        retain: bool,
     },
     /// The packet identifier and each topic filter with its QoS.
     Subscribe {
@@ -178,10 +181,10 @@ pub fn encode(packet: &Packet) -> Result<Vec<u8>, Malformed> {
             body.extend_from_slice(&[u8::from(*present), *code]);
             0x20
         }
-        Packet::Publish { topic, payload } => {
+        Packet::Publish { topic, payload, retain } => {
             put_bytes(&mut body, topic.as_bytes())?;
             body.extend_from_slice(payload);
-            0x30
+            0x30 | u8::from(*retain)
         }
         Packet::Subscribe { id, filters } => {
             body.extend_from_slice(&id.to_be_bytes());
@@ -312,7 +315,7 @@ fn read(first: u8, bytes: &[u8]) -> Result<Packet, Malformed> {
             if qos > 0 {
                 body.two()?;
             }
-            Packet::Publish { topic, payload: std::mem::take(&mut body.bytes).to_vec() }
+            Packet::Publish { topic, payload: std::mem::take(&mut body.bytes).to_vec(), retain: flags & 1 == 1 }
         }
         8 => {
             let id = body.two()?;
