@@ -18,60 +18,48 @@ name = "node-197f7466"
 scheme = "tcp"
 host = "119.59.101.63"
 port = 443
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "the node of the public key 197F7466: ipv4, 443 in tcp_ports, status_tcp true, location TH" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "the node of the public key 197F7466: ipv4, 443 in tcp_ports, status_tcp true, location TH" }
 
 [[fact]]
 name = "public-key-node-197f7466"
 value = "197F746696062FA3BD07BB3BC0656ABD6692B4DAA27DACF0F474754F2B09B060"
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "public_key of the node at 119.59.101.63" }
-
-[[endpoint]]
-name = "node-3091c6be"
-scheme = "tcp"
-host = "205.185.115.131"
-port = 443
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "the node of the public key 3091C6BE: ipv4, 443 in tcp_ports, status_tcp true, location US" }
-
-[[fact]]
-name = "public-key-node-3091c6be"
-value = "3091C6BEB2A993F1C6300C16549FABA67098FF3D62C6D253828B531470B53D68"
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "public_key of the node at 205.185.115.131" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "public_key of the node at 119.59.101.63" }
 
 [[endpoint]]
 name = "node-96b66d30"
 scheme = "tcp"
 host = "188.245.84.166"
 port = 443
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "the node of the public key 96B66D30: ipv4, 443 in tcp_ports, status_tcp true, location DE" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "the node of the public key 96B66D30: ipv4, 443 in tcp_ports, status_tcp true, location DE" }
 
 [[fact]]
 name = "public-key-node-96b66d30"
 value = "96B66D300BA2B59B98FC42DB1325E7092388F0379593E680ABDBEA03B9C9CE03"
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "public_key of the node at 188.245.84.166" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "public_key of the node at 188.245.84.166" }
 
 [[endpoint]]
 name = "node-da2bd927"
 scheme = "tcp"
 host = "172.104.215.182"
 port = 443
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "the node of the public key DA2BD927: ipv4, 443 in tcp_ports, status_tcp true, location US" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "the node of the public key DA2BD927: ipv4, 443 in tcp_ports, status_tcp true, location US" }
 
 [[fact]]
 name = "public-key-node-da2bd927"
 value = "DA2BD927E01CD05EBCC2574EBE5BEBB10FF59AE0B2105A7D1E2B40E49BB20239"
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "public_key of the node at 172.104.215.182" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "public_key of the node at 172.104.215.182" }
 
 [[endpoint]]
 name = "node-f76a1128"
 scheme = "tcp"
 host = "139.162.110.188"
 port = 443
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "the node of the public key F76A1128: ipv4, 443 in tcp_ports, status_tcp true, location CA" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "the node of the public key F76A1128: ipv4, 443 in tcp_ports, status_tcp true, location CA" }
 
 [[fact]]
 name = "public-key-node-f76a1128"
 value = "F76A11284547163889DDC89A7738CF271797BF5E5E220643E97AD3C7E7903D55"
-source = { url = "https://nodes.tox.chat/json", read = 2026-11-12, note = "public_key of the node at 139.162.110.188" }
+source = { url = "https://nodes.tox.chat/json", read = 2026-11-13, note = "public_key of the node at 139.162.110.188" }
 
 # Each endpoint is the item of /nodes whose public_key is its fact, with
 # its host as ipv4 (or ipv6), 443 in tcp_ports and status_tcp true. A node

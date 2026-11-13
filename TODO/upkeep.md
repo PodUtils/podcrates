@@ -1370,7 +1370,7 @@ with the registry of `distribution` on the path, ten times with no failure.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1399,6 +1399,10 @@ Read `https://nodes.tox.chat/json` again. When the node still gives no TCP port,
 cargo test -p pod-services
 cargo run -q -p pod-services-watch -- --service tox-tcp-relay
 ```
+
+## Done
+
+2026-11-13. The list of 2026-11-13 gives the node at 205.185.115.131 no TCP port and no UDP: it is down. The four other endpoints are the four items with 443 in `tcp_ports` and `status_tcp` true. `tox-tcp-relay.toml` drops `node-3091c6be` and its key; the sources of the other four have the read of 2026-11-13. `pod-services-watch --service tox-tcp-relay`: holds, 4 of 28 items, 0 of them not in the file.
 
 # T-538: The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ
 
