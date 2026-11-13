@@ -4330,7 +4330,7 @@ podcrates to podnet.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4367,3 +4367,29 @@ one short live run against shiftr.io in `live.yml`.
 cargo test -p pod-wormhole --all-features
 sh scripts/ci/mosquitto-tests.sh
 ```
+
+## Done
+
+2026-11-13, commit e65b766. `pod_wormhole::mqtt::Board { point, config }`
+(`mqtt::board`): `put(topic, payload)` (a retained `PUBLISH` at QoS 0),
+`take(topic, wait)` (`SUBSCRIBE`, the first non-empty `PUBLISH` of the
+topic within the wait, else `Ok(None)`), `clear(topic)` (an empty retained
+`PUBLISH`), each on a connection of its own with `DISCONNECT` at the end; a
+`PINGREQ` and its `PINGRESP` after each `PUBLISH`. `check_topic` (1 to
+`TOPIC_MOST` = 42 letters and digits) and `check_payload` (1 to 64,000
+bytes) refuse with `Failed::Mine` before a connection (C221).
+`Packet::Publish` carries `retain` (breaking). The stand-in broker keeps
+retained messages and records the flag of each publish.
+
+`cargo test -p pod-wormhole --all-features`: 74 passed (`tests/board.rs` 4:
+put, take, a second put, clear and a take after the clear; a note put
+while a take waits; the bounds refused before a dial; a refused login).
+`sh scripts/ci/mosquitto-tests.sh` with dockerd of this sandbox: passed,
+with the lines `Eclipse Mosquitto: a board put, took and cleared a note`
+and `Eclipse Mosquitto: two ends paired through the topic of a code`
+(the script now checks both). The plants
+`wormhole-board-clear-not-retained` and `wormhole-board-clear-not-empty`
+fail `a_board_puts_takes_and_clears_a_note` on the stand-in and on
+Mosquitto, checked by hand. `tests/board_live.rs` (`#[ignore]`) runs in the
+new step of `live.yml` each Thursday: whether shiftr.io clears a retained
+message is its first run (`docs/live-calls.md`, L36).

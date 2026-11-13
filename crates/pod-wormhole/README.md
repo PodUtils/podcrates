@@ -78,7 +78,7 @@ to take this one, are the caller's.
 ## The board of retained messages
 
 `mqtt::Board` keeps a note at a topic of one broker, for a caller that
-holds one connection at a time (PodUtils/podssh#220, for its T-738). Each
+holds one connection at a time (PodUtils/podssh#220, for PodUtils/podssh@T-738). Each
 call is a connection of its own: `CONNECT` (a clean session, a random
 client id, the login of the `Point`), then
 

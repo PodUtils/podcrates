@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 338 entries: 82 open, 6 partial, 5 blocked, 245 done.
+`TODO/INDEX.md` holds 340 entries: 82 open, 6 partial, 5 blocked, 247 done.
 
 ## State
 
@@ -67,9 +67,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-416 and T-417 (the kind
-   `file-host` and a board of retained messages over MQTT, for
-   PodUtils/podssh@T-738, PodUtils/podssh#220, COORD-066); T-381 (the options of
+1. **The defects and asks of the consumers:** T-418 (tell podssh the
+   terms of the new file hosts, on PodUtils/podcrates#105); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
@@ -147,7 +146,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C209; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C209 and C218 to C221; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 
