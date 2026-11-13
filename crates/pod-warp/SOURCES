@@ -9,7 +9,7 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # fixes from 7c5f87e (PodUtils/podnet#449); the one change after it
 # (83e0c93, session.rs) names the meter of pod-relay; the relay leg comes
 # with T-336. The other files of src/warp/ come with the entries of
-# the rest of T-028 (TODO/adapters.md): l4.rs (T-406), live.rs, pod.rs,
+# the rest of T-028 (TODO/adapters.md): live.rs, pod.rs,
 # find.rs, route.rs, tun.rs, exit.rs.
 # mod.rs: WarpClient becomes Warp (warp.rs, open.rs); the race of the
 # direct path and the relay, and the leg file (T-336): open_session in
@@ -40,7 +40,7 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # run, client_on, STATS and admit are proxy.rs (values of the caller, no
 # global); the unit tests are proxy/tests.rs, resolver.rs and
 # tests/proxy.rs. bind, bind_all, health_log (a task of the caller over
-# Proxy::health) and run_l4 (T-406) stay in podnet; so do the tests
+# Proxy::health) stay in podnet; so do the tests
 # a_unix_socket_that_answers_is_not_taken and
 # a_refused_tcp_listener_does_not_stop_the_unix_socket (C201).
 # proxy/names.rs (T-338): order, resolve and resolve_all are Names
@@ -56,6 +56,10 @@ repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
 # rules.rs of podnet-netns: only Net, domain_matches, in_cidr and load_nets
 # (rules/matcher.rs); the lint (rules/shadow.rs) stays in podnet and comes
 # in as a function of the caller (PodUtils/podnet#452).
+# l4.rs and proxy.rs run_l4 (T-406): L4 over h3::open and the UdpWay of the
+# caller, Form in place of PODNET_WARP_L4_FORM, Warp::l4 (mod.rs l4);
+# run_l4 is Proxy::over_l4 (proxy.rs, proxy/route.rs). The tests of l4.rs
+# go to src/l4/tests.rs and tests/l4.rs.
 file 43fd24f477ed7afe48f4aaa135cc9ba5a4b99805 src/warp/capsule.rs -> crates/pod-warp/src/capsule.rs
 file aaf410e59ce1b9bd00709b95e873d181dc5a1f2c src/warp/door.rs -> crates/pod-warp/src/door.rs
 file 86dc4989accc76f45813730ba99e48307b17d6a8 src/warp/enrol.rs -> crates/pod-warp/src/store.rs
@@ -75,6 +79,7 @@ file 14c50326f9ee705d23a7fb69b8791c9bb4a0b00e src/warp/nc.rs -> crates/pod-warp/
 file 6a098243d21f8ad57f4b11d6799bf13be65ba1ba src/warp/session.rs -> crates/pod-warp/src/session.rs crates/pod-warp/src/session/tx.rs crates/pod-warp/src/session/rx.rs crates/pod-warp/src/session/keepalive.rs crates/pod-warp/src/session/tests.rs crates/pod-warp/src/tls.rs crates/pod-warp/tests/h3.rs
 file 4afafe877ccbe5003ecadc35528e992caf14abc0 src/warp/h3.rs -> crates/pod-warp/src/h3.rs crates/pod-warp/src/h3/wire.rs crates/pod-warp/src/h3/tests.rs
 file 1733854b4df4ea4c17ee686dfa37d5f63e84a3dd src/warp/wg.rs -> crates/pod-warp/src/wg.rs crates/pod-warp/tests/wg.rs
+file aef82574998ded92d77e15d5b98b43ac9dfa8525 src/warp/l4.rs -> crates/pod-warp/src/l4.rs crates/pod-warp/src/l4/tests.rs crates/pod-warp/tests/l4.rs
 file 405d54fe218d5110279ec2324ed9b979e5088f2e crates/podnet-core/src/services.rs -> crates/pod-warp/src/service.rs
 file 6d1341eb1878e825b3072b0e33fe26f557992a05 crates/podnet-netns/src/rules.rs -> crates/pod-warp/src/rules/matcher.rs
 

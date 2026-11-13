@@ -20,7 +20,8 @@ session; T-338: the local SOCKS5 and HTTP proxy with its rules, its
 names, its UDP and its DNS forwarder, the resolvers inside the tunnel (on
 UDP or over TLS), the local forwards and the pipe of `warp nc`; and T-337:
 MASQUE over HTTP/3, the WireGuard tunnel and the carried device. The rest
-is T-339 and T-406 (the L4 door).
+is T-339.
+T-406: the L4 door and its proxy.
 
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no global state. Each failure is a
@@ -58,12 +59,13 @@ to its `Observer`. The TLS provider and the way out are the caller's.
 | `tls` | `client_config(provider, identity, pinned_spki, alpn)`, `handshake_failure`, `is_pin_mismatch`, `PIN_MISMATCH`, `ALPN_H2`. |
 | `session` | `Way { dial, udp, h3, meter, provider, sni, authority, timeout }`, `Meter` (a function of the caller: a stream in, the metered stream and its `Renew` out), `MasqueSession` (`connect`: HTTP/3 with `Way::h3`; `connect_wg(peer, way)`, `connect_wg_inside(peer, outer)`, `is_h3`, `is_wg`, `split`, `relay_budget`), `MasqueTx` (`send_packet`, `send_packets`, `waits`, `keepalive`, `close`), `MasqueRx` (`recv_packet`, `take_assigned`, `progress`, `is_closed`), `Keepalive` (`h2`, `h3`, `wg`, `run`), `h2_builder`; the windows, the budget of DATA frames, `SEND_RESERVE`, `SEND_STALL`, `CONNECT_TIMEOUT`, `MAX_MISSED_PONGS`. |
 | `h3` | MASQUE over HTTP/3 on `pod-quic` over `Datagrams`: `connect`, `open`, `request`, `H3Tx`, `H3Rx`, `Incoming`, `closed`, `quic_settings`, `ALPN`, `SETTINGS`, `IDLE_TIMEOUT` 30 s, `KEEP_ALIVE` 10 s, `INITIAL_MTU` 1242, `DATAGRAM_BUFFER`; `h3::wire`: `Frames`, `frame`, `connect_ip_headers`, `response_status` (QPACK with the static table only). A packet larger than a datagram goes as a DATA capsule on the stream. |
+| `l4` | The L4 door (podnet issue 140): `L4` (`new(door, udp, tls)`, `with_sni`, `with_form`, `with_wait`, `door`, `connection`, `open(target)`; a `Dial` with `names_inside` true and no UDP), `Warp::l4()`, `Form` (`Plain`, `Extended`, `Header`; `parse`), `connect_headers_form`, `authority`, `OPEN_WAIT` 15 s, `PIPE_BUFFER`; `h3::DataFrames` (DATA frames of any size), `Frames::into_rest`; `service::l4_sni`. `Proxy::over_l4(door, direct)` and `Proxy::l4`: the rules with `decide_static`, the decision `warp.rule` `l4`, no UDP. |
 | `wg` | The WireGuard tunnel on `pod-wg`: `Peer { keys, endpoint, v4, v6 }`, `connect(peer, datagrams)`, `connect_inside(peer, &WarpNet)`, `WgTx`, `WgRx`, `WgKeepalive`, `HANDSHAKE_TRIES`. Only a datagram from the door is read. |
 | `udp` | `UdpWay` (`label`, `datagrams(door)`), `SystemUdp` (a socket of the system of the family of the door); `WarpNet` is one. A way with no UDP refuses HTTP/3 and WireGuard (`Usage`). |
 | `capsule` | The capsules of RFC 9297 and the types of RFC 9484: `put_varint`, `get_varint`, `put_capsule`, `CapsuleDecoder`, `parse_address_assign`, `MAX_CAPSULE_LEN`. |
 | `dns` | `lookup(net, resolvers, name, limit)` (DNS over TCP inside the tunnel), `RESOLVERS`. |
 | `rules` | `Action`, `Rule` (`parse(spec, place)`, `matcher_text`), `Table` (`build(specs, file, default, lint, allow)`, `for_name`, `for_ip`, `for_addresses`, `decide(&lookup, host)`, `decide_static`), `Host` (`of(target)`, `Display`), `Lookup` (the names of a proxy, or the DNS over TCP of a `WarpNet`), `Lint`, `LintItem`, `NoLint`, `Rules` (`set`, `current`, `counters`), `Counters`, `Refused`, `load_file`, `matcher` (`RuleMatch`, `Net`, `load_nets`, `domain_matches`). |
-| `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`; of `cloudflare-dns`: `tunnel_resolver` (`udp-1`), `check_name`. |
+| `service` | The facts of `cloudflare-warp` of `pod-services`: `api_base`, `api_second`, `api_version`, `client_version`, `user_agent`, `masque_sni`, `l4_sni`, `masque_port`, `masque_doors`, `connect_uri`, `terms_url`; of `cloudflare-dns`: `tunnel_resolver` (`udp-1`), `check_name`. |
 
 ## Settings
 
@@ -97,6 +99,8 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | `--proxy-user`, `--proxy-password-file` (`set_credentials`) | | `Proxy::credentials` |
 | `warp proxy --dns` (`serve_dns`) | | `Proxy::serve_dns(socket)` |
 | `warp forward -L` | | `forward::Rule::parse`, `Forward` |
+| `warp proxy --l4`, `--l4-sni` (`WarpClient::l4`, `proxy::run_l4`) | | `Proxy::over_l4(Arc::new(warp.l4()?.with_sni(name)), direct)` |
+| `PODNET_WARP_L4_FORM` | | `L4::with_form(Form::parse(value)?)` (another value is `Config`) |
 | the bind of a listener (`proxy::bind`, `bind_all`, the private Unix socket) | | the caller's; `Proxy::run_tcp`, `run_unix` take the listener |
 | `warp nc` (`via_running`, `via_relay`, `pipe`, `ssh_config`) | | the caller's; `nc::pipe_with` and the UDP pipes take the stream |
 | the budget of a relay session (`ws_relay::meter`, `StackConfig::renew`) | | `Relay::meter` (or `Way::meter`); `NetSettings::renew` for a session with no meter |
@@ -128,13 +132,20 @@ and far end in `tests/common/edge.rs` (call C135).
 | The DNS forwarder and its bound | `proxy::dns_bound::tests`: `a_burst_gives_at_most_the_bound_in_flight`, `a_short_datagram_starts_nothing`; `tests/proxy.rs`: `the_dns_forwarder_gives_the_answer` |
 | The forward | `forward::tests::the_rules_of_a_local_forward`; `tests/proxy.rs`: `a_forward_carries_each_connection_through_the_tunnel` |
 | nc | `nc::tests`: `targets`, `a_udp_pipe_sends_each_read_and_prints_each_answer`, `the_pipe_ends_when_the_far_end_closes`, `the_reply_survives_an_input_that_ends_at_once`, `with_n_the_far_end_sees_the_eof`, `the_pipe_ends_after_idle_with_no_reply`, `a_udp_pipe_through_a_stream_frames_each_datagram`; `tests/proxy.rs`: `a_udp_pipe_of_nc_reaches_the_echo` |
-| The L4 door (`l4.rs`, `proxy::run_l4`) | T-406, after T-337 |
+| The L4 door (`l4.rs`, `proxy::run_l4`) | T-406 (below) |
 
 The tests of the bind of a listener (`a_unix_socket_that_answers_is_not_taken`,
 `a_refused_tcp_listener_does_not_stop_the_unix_socket`) and of the SSH
 configuration of nc (`the_ssh_config_uses_warp_nc`,
 `the_printed_block_quotes_the_path_as_the_written_block`) stay in podnet
 with that code (call C201, call C203).
+
+| Approach of T-406 | Test |
+| --- | --- |
+| A flow is one CONNECT stream on one QUIC connection; a large DATA frame; a refusal | `tests/l4.rs`: `a_flow_through_an_l4_door_on_the_loopback`; `l4::tests`: `the_connect_request`, `the_form_of_the_connect_is_checked`, `the_data_of_a_stream_crosses_each_cut` |
+| A closed connection opens again | `tests/l4.rs`: `the_l4_door_opens_a_new_connection_after_a_close` |
+| The rules of a proxy over the door, with no lookup; no UDP | `tests/l4.rs`: `a_proxy_over_the_l4_door_decides_with_no_lookup` |
+| The door, the UDP and the key of a device | `tests/l4.rs`: `the_l4_door_of_a_device_takes_its_door_and_its_key` |
 
 | Approach of T-335 | Test |
 | --- | --- |
@@ -178,7 +189,8 @@ the test pins. Plants: `warp-check-without-answer`,
 `warp-udp-to-a-family-the-device-lacks`,
 `warp-race-relay-waits-for-the-direct-path`,
 `warp-proxy-rule-not-applied`, `warp-dns-bound-not-held`,
-`warp-h3-udp-past-the-way`, `warp-h3-takes-the-relay`.
+`warp-h3-udp-past-the-way`, `warp-h3-takes-the-relay`,
+`warp-l4-rule-not-applied`, `warp-l4-closed-connection-kept`.
 
 ## The parity list
 
@@ -208,7 +220,7 @@ the test pins. Plants: `warp-check-without-answer`,
 | The rules with the lint of shadowed rules | yes | | yes (the lint is the caller's) |
 | The proxy (SOCKS5, HTTP, UDP, the rules, the DNS forwarder), the forward, nc | yes | | yes (over a `Dial`; the listeners and the SSH configuration are the caller's) |
 | Resolvers inside the tunnel over TLS (podnet issue 144), also for the check | yes | | yes (the TLS client is the caller's) |
-| The L4 door (`--l4`) | yes | | T-406 (after T-337) |
+| The L4 door (`--l4`) | yes | | yes (`L4` on the UDP of the caller; `Proxy::over_l4`) |
 | `Live`, TUN, routes | yes | | T-339 |
 | A tunnel that takes TLS and relays nothing (the probe of podssh, PodUtils/podssh@T-560) | the check of the data path | yes | yes (the check of the data path) |
 
@@ -253,6 +265,8 @@ the test pins. Plants: `warp-check-without-answer`,
 | `wg::Peer` (`from_exported` stays with `export.rs`), `MasqueSession::connect_wg(peer)` | `wg::Peer`, `MasqueSession::connect_wg(peer, way)` |
 | `MasqueSession::connect_wg_inside(peer, &stack)`, `connect_carried`, `CARRY_MTU` | `MasqueSession::connect_wg_inside(peer, &net)`, `Settings::carry`, `CARRY_MTU` |
 | `decisions::count("masque", "wireguard" \| "carry")` | `Observer::decision("warp.leg", "wireguard")`, `("warp.carry", "carried")` |
+| `warp::l4::{L4, l4_sni, connect_headers_form, authority}`, `WarpClient::l4(sni)`, `L4::dial(host, port)` | `l4::{L4, connect_headers_form, authority}`, `service::l4_sni`, `Warp::l4()` with `L4::with_sni`, `L4::open(&target)` or `Dial::dial` |
+| `proxy::run_l4(l4, bound)` | `Arc::new(Proxy::over_l4(l4, direct)).run_tcp(listener)` |
 | `exit::fault(Fault::X, e)` | `Failure { stage, class }`; `Class::exit_code` |
 | `decisions::count("masque", ..)` | `Observer::decision("warp.door", ..)` |
 

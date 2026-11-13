@@ -1114,7 +1114,7 @@ record; call C192.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1153,6 +1153,41 @@ cargo test -p pod-warp --all-features
 
 T-337 is done (the HTTP/3 of `h3.rs` is in `pod-warp`).
 
+## Done
+
+2026-11-13. Commit `3d55f07` (the work, the tests and the plants), and the
+commit of this record; calls C210 to C212.
+
+- `l4.rs` (podnet's 272 lines): `L4` on the `UdpWay` of the caller over
+  `h3::open`; the QUIC connection opens again when it closes; `open`
+  sends one CONNECT in the `Form` of the caller (`connect_headers_form`,
+  `authority`) and gives a pipe that a task fills. `L4` is a
+  `pod_core::Dial` (C210). `Warp::l4` takes the pinned door or the first
+  door of the record, the UDP of the way, the certificate and the pinned
+  key. `service::l4_sni` reads `masque-l4` of `pod-services`.
+- `Proxy::over_l4` and `Proxy::l4` (podnet's `run_l4`): the rules with
+  `Table::decide_static`, the decision `warp.rule` `l4`, no UDP (C211).
+- Fixes in place of podnet's code: a value of `PODNET_WARP_L4_FORM` that
+  is not a form is `Config`; a DATA frame larger than 1 MiB no longer ends
+  a flow (`h3::DataFrames`); the pump stops the receive stream when the
+  local end is gone (C212).
+- Tests: `l4::tests` (3: podnet's `the_connect_request`, the form, the
+  cuts of the DATA frames) and `tests/l4.rs` (4: podnet's
+  `a_flow_through_an_l4_door_on_the_loopback`, a new connection after a
+  close, the rules of a proxy over the door, `Warp::l4`).
+  `cargo test -p pod-warp --all-features`: 101 unit tests, 3 of
+  `tests/h3.rs`, 4 of `tests/l4.rs`, 4 of `tests/leg.rs`, 11 of
+  `tests/net.rs`, 11 of `tests/proxy.rs`, 8 of `tests/register.rs`, 8 of
+  `tests/stack.rs`, 5 of `tests/wg.rs`, 1 live test ignored.
+- Plants: `warp-l4-rule-not-applied` (the proxy over the door skips its
+  rules) and `warp-l4-closed-connection-kept` (a closed connection is
+  kept): both caught (run by hand). The patch of
+  `warp-proxy-rule-not-applied` follows the new `proxy/route.rs` (caught
+  again by hand).
+- Found: the L4 door takes one door and one key; it does not read the
+  device record again on a new key of the door, and it does not try the
+  other door of the record: T-410.
+
 # T-409: `pod-warp`: HTTP/3 on a socket of the system takes the UDP socket of noq (GSO, GRO)
 
 **Source:** T-337, a finding of the port.
@@ -1190,4 +1225,46 @@ into the Done section.
 
 ```sh
 cargo test -p pod-warp --all-features --test h3
+```
+
+# T-410: `pod-warp`: the L4 door reads the device record again on a new key, and tries the other door
+
+**Source:** T-406, a finding of the port.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Warp::l4` gives an `L4` with one door (the pinned door, or the first
+door of the device record) and the pinned key of the record at that time.
+When the front door shows a new key, or the first door (IPv4) does not
+answer, each flow of the proxy fails until the caller builds the door
+again. `Warp::open_session` reads the record again on a key mismatch
+(`open_after_mismatch`) and tries each door of `door::doors` in turn.
+podnet's `l4` has the same limit.
+
+## Premise
+
+- Read: `crates/pod-warp/src/l4.rs` (`L4::connection`, `Warp::l4`),
+  `crates/pod-warp/src/open.rs` (`open_on`, `open_after_mismatch`),
+  `crates/pod-warp/src/door.rs` (`doors`).
+- Not measured: how often the key of the L4 door changes.
+
+## Approach
+
+`L4` takes the doors of `door::doors` and a source of a fresh record (a
+function of the caller, or a `Warp` in an `Arc`). `L4::connection` tries
+each door in turn; on `tls::is_pin_mismatch` it reads the record again
+(`register::get_device`), makes the TLS configuration with the new key,
+and tries the door of the record. A key that the API did not give is
+never taken. A loopback test: a stand-in door with a new key, and the
+stand-in API that serves the new key.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --test l4
 ```

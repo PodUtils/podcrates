@@ -61,6 +61,12 @@ pub fn masque_port() -> u16 {
     endpoint("masque-v4").port()
 }
 
+/// The TLS name of the L4 door (the endpoint `masque-l4`); its address is
+/// the front door of the device record.
+pub fn l4_sni() -> &'static str {
+    endpoint("masque-l4").host()
+}
+
 /// The front doors of the data of `pod-services`: `masque-v4`, then
 /// `masque-v6`. A device record gives its own; these are for a record with
 /// none.
@@ -110,6 +116,7 @@ mod tests {
         assert_eq!(api_second(), "https://api.devices.cloudflare.com");
         assert_eq!(masque_port(), 443);
         assert_eq!(masque_sni(), "consumer-masque.cloudflareclient.com");
+        assert_eq!(l4_sni(), "consumer-masque-proxy.cloudflareclient.com");
         let build = |v: &str| v.rsplit(|c: char| !c.is_ascii_digit()).next().unwrap_or("").to_string();
         assert_eq!(build(api_version()), build(client_version()));
         let doors = masque_doors();

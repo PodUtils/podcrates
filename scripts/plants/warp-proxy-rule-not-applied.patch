@@ -1,12 +1,12 @@
 --- a/crates/pod-warp/src/proxy/route.rs
 +++ b/crates/pod-warp/src/proxy/route.rs
-@@ -15,7 +15,8 @@
- pub(super) async fn route(proxy: &Proxy, net: Arc<dyn Dial>, target: Target) -> Result<BoxedIo, Failure> {
-     let table = proxy.rules.current();
-     let inside = Inside { names: &proxy.names, net: net.as_ref() };
--    let (action, addresses) = table.decide(&inside, &Host::of(&target)).await?;
-+    let (_, addresses) = table.decide(&inside, &Host::of(&target)).await?;
-+    let action = Action::Tunnel;
+@@ -20,7 +20,8 @@
+         // No resolver in the tunnel (PodUtils/podnet issue 140).
+         (table.decide_static(&host), None)
+     } else {
+-        table.decide(&Inside { names: &proxy.names, net: net.as_ref() }, &host).await?
++        let (_, addresses) = table.decide(&Inside { names: &proxy.names, net: net.as_ref() }, &host).await?;
++        (Action::Tunnel, addresses)
+     };
      proxy.rules.counters.count(action);
-     proxy.report.decision("warp.rule", action.name());
-     match action {
+     let outcome = if proxy.l4 && action == Action::Tunnel { "l4" } else { action.name() };

@@ -22,9 +22,9 @@ is done. Git and the record keep finished work.
   `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338 and T-337 for the next tag.
-- Agents of this session in worktrees under `.claude/worktrees/`: T-406
-  (the L4 door of `pod-warp`; free ids 410 and 411, calls C210 to C212)
+- `main` holds T-353, T-393, T-395, T-336, T-380, T-358, T-338, T-337 and T-406 for the next tag.
+- Agents of this session in worktrees under `.claude/worktrees/`: T-416
+  and T-417 (podssh's asks; free ids 418 and 419, calls C218 to C221)
   and T-339 (the live session, TUN and routes, the live step, the
   adoption trials of podnet and podssh; free ids 412 to 415, calls C213
   to C217). Merge each branch after `scripts/agent/check.sh` passes on

@@ -1,0 +1,8 @@
+# The L4 door keeps a QUIC connection that has closed, so each new flow
+# fails until the process starts again (PodUtils/podnet issue 140, T-406).
+# The test of a new connection after a close must fail.
+ENTRY=T-406
+GROUP=warp
+EXPECT='test the_l4_door_opens_a_new_connection_after_a_close \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test l4 -- the_l4_door_opens_a_new_connection_after_a_close'
+LIMIT=900
