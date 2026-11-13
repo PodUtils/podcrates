@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**399 entries: 119 open, 7 partial, 4 blocked, 269 done.**
+**399 entries: 118 open, 7 partial, 4 blocked, 270 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
-| P2 | 61 | 3 | 4 | 141 | 209 |
+| P2 | 60 | 3 | 4 | 142 | 209 |
 | P3 | 45 | 1 | 0 | 54 | 100 |
-| **All** | 119 | 7 | 4 | 269 | 399 |
+| **All** | 118 | 7 | 4 | 270 | 399 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -445,4 +445,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
 | [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |
 | [T-506](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the ws carrier with the rules of podnet's WebSocket carrier: a subprotocol, a text message as a protocol error, a Ping each 20 s with a Pong within 10 s (PodUtils/podnet#515) |
-| [T-510](relay.md) | P2 | S | M2 | chore | open | `pod-e2e`: a fuzz target of the opener of the records |
+| [T-510](relay.md) | P2 | S | M2 | chore | done | `pod-e2e`: a fuzz target of the opener of the records |

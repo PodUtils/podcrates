@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 399 entries: 119 open, 7 partial, 4 blocked, 269 done.
+`TODO/INDEX.md` holds 399 entries: 118 open, 7 partial, 4 blocked, 270 done.
 
 ## State
 
@@ -93,9 +93,9 @@ next entry.
    a. `v0.37.0` (it holds the team token of `pod-warp`) and the COORD
       issue of the freeze of `pod-warp` (#135; T-339, partial) are out:
       podnet and podssh take the trial patches.
-   b. The next tag: T-510 (a fuzz target of the opener of the records
-      of `pod-e2e`). The rules of podnet's WebSocket carrier (the
-      subprotocol, a text frame refused, Ping and Pong), the port
+   b. The next tag: the rules of podnet's WebSocket carrier (the
+      subprotocol, a text frame refused, Ping and Pong), a fuzz target
+      of the opener of the records of `pod-e2e`, the port
       rules of `pod-warp`, the TXT and CNAME of `pod-dns`, the exporter
       and the record layer of `pod-e2e` (call C246), the accept loop
       `pod_ws::serve`, and the carriers `ws` and `h2` of `pod-link` are

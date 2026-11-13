@@ -5263,7 +5263,7 @@ After T-493 to T-495 (the simplex carriers).
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5297,3 +5297,23 @@ check of the fuzz workspace.
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-e2e --all-features
 ```
+
+## Done
+
+2026-11-13, commit 71dc3ca. The target `e2e_record`
+(`fuzz/src/targets/e2e.rs`): a stream of records, each as long as
+`record_len` says, opened at one end of an exporter of fixed keys
+(`pod_e2e::fuzzing::records`); a first byte picks the suite, the time
+between two records, the limit of failed RESUME records and the end that
+opens. A record that opens has the fields of its header and a payload of
+`length - pad` bytes, and moves the next counter to after its own and the
+key at most one epoch on; a record that fails leaves the counters and the
+epochs as they were; after the end of the layer each record fails. The
+seeds (8: each suite, padding, two rekeys with a late record, a repeat, a
+RESUME, a late one, one used twice, the responder's records) come from
+`fuzz/src/record_seeds.rs`, whose test holds them to the files.
+`cargo check --manifest-path fuzz/Cargo.toml --bins`: passes;
+`cargo test --manifest-path fuzz/Cargo.toml --lib`: 10 passed;
+`cargo test -p pod-e2e --all-features`: 0 failed. Plants, each caught by
+hand: `e2e-record-fuzz-pad-kept`, `e2e-record-fuzz-window-before-the-check`.
+No run of libFuzzer here: `fuzz.yml` runs the target each week.
