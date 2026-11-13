@@ -8,6 +8,8 @@
 pub mod dgram;
 #[cfg(feature = "h2")]
 pub mod h2;
+#[cfg(feature = "poll")]
+pub mod poll;
 #[cfg(feature = "quic")]
 pub mod quic;
 #[cfg(feature = "tcp")]

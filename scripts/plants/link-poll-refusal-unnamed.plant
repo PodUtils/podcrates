@@ -1,0 +1,7 @@
+# A cut of a lane of the poll carriers is not read for the alert of a
+# refused key: the dialer does not learn of the refusal at the dial (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='the dialer learns of the refusal at the dial'
+RUN='cargo test -p pod-link --all-features --test poll the_listener_refuses'
+LIMIT=1800

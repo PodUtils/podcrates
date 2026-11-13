@@ -23,6 +23,9 @@ quic = ["tcp", "dep:pod-quic"]
 # The udp carrier: KCP over UDP or the caller's datagrams, with the TLS and
 # the pins of `tcp` above it (`udp`).
 udp = ["tcp", "dep:kcp"]
+# The carriers over requests of HTTP/1.1 with the TLS of `tcp`: the long
+# poll, SSE, a chunked stream and the simplex poll (`poll`).
+poll = ["tcp", "dep:pod-ws", "dep:base64"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.
@@ -46,7 +49,9 @@ bytes = { workspace = true, optional = true }
 pod-quic = { workspace = true, optional = true }
 # KCP of the udp carrier: the ARQ of ikcp in pure Rust, with its wire and
 # its congestion window (call C271). No feature: no tokio of its own.
-kcp = { version = "0.6", default-features = false, optional = true }
+kcp = { workspace = true, optional = true }
+# The data of the events of SSE (the poll carriers).
+base64 = { workspace = true, optional = true }
 # The driver of a link, the streams, the carriers and the keepalive's clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
 tracing = { workspace = true }

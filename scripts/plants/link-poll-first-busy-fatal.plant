@@ -1,0 +1,7 @@
+# The first answer 429 ends the dial of a poll carrier: no wait for its
+# Retry-After, no third answer (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='each 429 waited for its Retry-After'
+RUN='cargo test -p pod-link --all-features --test poll_lanes the_third_answer_429'
+LIMIT=1800

@@ -1,0 +1,15 @@
+diff --git a/crates/pod-link/src/poll/answer.rs b/crates/pod-link/src/poll/answer.rs
+--- a/crates/pod-link/src/poll/answer.rs
++++ b/crates/pod-link/src/poll/answer.rs
+@@ -130,9 +130,9 @@
+     }
+     let skip = (up.next - seq).min(body.len() as u64);
+     Counters::add(&s.stats.duplicate, skip);
+-    if end > up.next {
++    if !body.is_empty() {
+         if let Some(pipe) = up.pipe.as_mut()
+-            && pipe.write_all(&body[skip as usize..]).await.is_err()
++            && pipe.write_all(body).await.is_err()
+         {
+             // The link of this side is gone: its end goes down.
+             up.pipe = None;

@@ -1,0 +1,7 @@
+# The listener of the poll carriers answers a request of a session from
+# any pinned key, not only from the key that opened it (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='a POST of another pinned key'
+RUN='cargo test -p pod-link --all-features --test poll_lanes a_session_answers'
+LIMIT=1800

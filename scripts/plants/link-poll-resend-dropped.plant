@@ -1,0 +1,7 @@
+# The listener of the poll carriers drops the bytes down as it sends
+# them: an answer that a cut lost is not sent again (T-422).
+ENTRY=T-422
+GROUP=link
+EXPECT='Dead|came back whole|the echo in time'
+RUN='cargo test -p pod-link --all-features --test poll a_link_over_the_long_poll'
+LIMIT=1800

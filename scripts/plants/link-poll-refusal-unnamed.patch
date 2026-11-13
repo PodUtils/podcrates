@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/lane.rs b/crates/pod-link/src/poll/lane.rs
+--- a/crates/pod-link/src/poll/lane.rs
++++ b/crates/pod-link/src/poll/lane.rs
+@@ -190,7 +190,7 @@
+     /// A failed exchange: the connection goes; a refused key ends the lane.
+     fn cut(&mut self, e: io::Error) -> Failed {
+         self.conn = None;
+-        again_or_refused(pin::answer_error(self.d.name, &self.d.target, &self.d.own, e))
++        again_or_refused(CarrierError::io(self.d.name, "a cut", e))
+     }
+ 
+     /// A body of `len` bytes of the answer.

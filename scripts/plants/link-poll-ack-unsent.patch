@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/dial.rs b/crates/pod-link/src/poll/dial.rs
+--- a/crates/pod-link/src/poll/dial.rs
++++ b/crates/pod-link/src/poll/dial.rs
+@@ -117,7 +117,7 @@
+                 Ok(0) | Err(_) => (0, true),
+                 Ok(n) => (n, false),
+             },
+-            () = ack_due(&mut received, acked), if push => (0, false),
++            () = ack_due(&mut received, acked), if push && false => (0, false),
+             () = until(&mut state, &[State::Failed]) => return,
+         };
+         let ack = *received.borrow();

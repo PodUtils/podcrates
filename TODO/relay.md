@@ -4555,7 +4555,7 @@ sources`: ok. The plants `link-h2-server-key-unchecked`,
 **Milestone:** M2
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4580,6 +4580,38 @@ memory carriers, and not this one.
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit bbc7cfd (with T-495). The feature `poll` holds one
+carrier type, `poll::Poll`, whose form of the bytes down is a setting
+(`Form::LongPoll` `poll`, `Form::Sse` `sse`, `Form::Chunked` `chunked`),
+in place of the two types of the Approach (call C266); one listener,
+`poll::PollListener`, serves each form. podnet's rules of
+PodUtils/podnet@T-271 and PodUtils/podnet@T-272: the lanes `POST /up` and
+`POST /down?since=N`, a hold of 1 s to 60 s (25 s), a batch of 256 KiB,
+429 with Retry-After up to the third in a row, events of SSE in base64 of
+8 KiB with a `: ping`, one POST up in flight, a raw chunked body; a
+listener with no push answers 406 and the dialer takes the long poll
+(podnet's `server_push=false`, call C269). The bytes are exact across a
+lost answer and a cut by offsets, with no ARQ (call C267); the values
+where podnet gives none are call C268. `Facts` gets `cost` (call C269).
+`cargo test -p pod-link --all-features`: 0 failed; `tests/poll.rs` 12
+passed (a link of 3 streams in each form through a way out that loses the
+answer of a POST and cuts an answer down, a proxy stand-in that cuts each
+idle connection, a refused key on each side, a silent peer, a silent
+listener, the address forms and the settings, the names and the costs),
+`tests/poll_lanes.rs` 6 passed (the key of a session, the end of a session
+with no request on each side, the hold and the backoff, the long poll in
+place of a refused push, 3 MiB of a push with no bytes up, 429), 10 runs
+of both: 0 failed; `cargo deny check bans sources`: ok. The plants
+`link-poll-duplicate-taken`, `link-poll-resend-dropped`,
+`link-poll-refusal-unnamed`, `link-poll-session-key-unchecked`,
+`link-poll-ack-unsent`, `link-poll-no-expiry`,
+`link-poll-first-busy-fatal`, `link-poll-hold-unheld`,
+`link-poll-handshake-inline` and `link-poll-push-refusal-fatal` are
+caught. The findings are T-517 (a cap of the bytes of the sessions) and
+T-518 (a fuzz target of the reader of HTTP/1.1).
 
 # T-423: `pod-link`: the QUIC carrier (PodUtils/podnet#515)
 
@@ -5126,7 +5158,7 @@ cargo test --workspace --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5148,6 +5180,27 @@ no such part.
 ```sh
 cargo test --workspace --all-features
 ```
+
+## Done
+
+2026-11-13, commit bbc7cfd (with T-422). Read: PodUtils/podnet@T-280
+(its rules are the ones of row E2-5 of PodUtils/podnet#468; it has no
+test yet). The simplex poll is `Form::Simplex` (`httppoll`) of
+`poll::Poll` (feature `poll`), one shape with T-422 (call C266), in place
+of a type `poll::Simplex`: `POST /up` with 202 and the offset
+acknowledged (`Pod-Ack`), `GET /out?since=N` with 204 when the listener
+has nothing, 64 KiB for each request, one request in flight for each
+lane, heads of 4 KiB, a backoff of 100 ms to 5 s while the link is quiet
+that a POST up ends; `facts().cost` is `Cost::Highest` (call C269). The
+listener of T-422 serves it; each lane is a request with its own answer,
+so the split of T-500 can take one lane (call C267). `cargo test -p
+pod-link --all-features`: 0 failed; the tests of the simplex poll:
+`a_link_over_the_simplex_poll_carries_streams_across_a_lost_answer`,
+`a_proxy_that_cuts_idle_connections_holds_no_push_back` (with the simplex
+poll), `the_listener_refuses_a_client_of_another_key_and_stays_open`,
+`the_simplex_poll_backs_off_while_the_link_is_quiet_and_the_long_poll_holds`,
+`the_third_answer_429_in_a_row_ends_the_dial`. The plant
+`link-poll-no-backoff` is caught.
 
 # T-496: `pod-link`: the DNS stream carrier with a pipelined window of queries (PodUtils/podnet#521)
 
@@ -5455,7 +5508,7 @@ over a shared path is T-498 or T-499.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5476,6 +5529,24 @@ A target `link_arq`: the input is a list of datagrams, each given to one `Arq` w
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit `0bfe4d6`. The target `link_arq` (`fuzz/src/targets/link.rs`,
+`fuzz/fuzz_targets/link_arq.rs`): a byte of setup (the ARQ writes
+`setup * 64` bytes), then datagrams, each a step of the clock in tens of
+milliseconds, a length (u16) and its bytes. After each datagram the ARQ
+sends what it has and fires its timer when its time passed. It checks: no
+panic; each datagram that the ARQ sends decodes and fits the unit (1200
+bytes); a `DATA` frame of one sequence always carries the same fragment,
+also when it goes again; an error stays. The seeds (`fuzz/src/arq_seeds.rs`,
+written by an ignored test and held to the files on disk): the datagrams
+of a peer in a transfer of 3000 bytes, with a `FIN`, with acknowledgements
+alone, a `PROBE`, and datagrams of a bad form. `cargo test --manifest-path
+fuzz/Cargo.toml --lib`: 11 passed (the seeds and their mutations);
+`cargo check --manifest-path fuzz/Cargo.toml --bins` and clippy of the fuzz
+workspace pass. No plant: the target is the check, and `fuzz.yml` runs it
+each week.
 
 # T-520: `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515)
 
@@ -5536,4 +5607,61 @@ A target `link_kcp`: the input is a list of datagrams with a clock that moves by
 ```sh
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features --test udp_loss
+```
+
+# T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
+
+**Source:** T-422 (a finding of its work)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A listener of the poll carriers (`crates/pod-link/src/poll/listen.rs`) caps the count of its sessions (`Poll::max_sessions`, 256), not their bytes. Each session keeps up to `WINDOW` (1 MiB) of bytes down that the dialer did not acknowledge, and two pipes of up to 256 KiB, so 256 sessions can hold about 384 MiB. The accept loop of `pod-ws` has a cap of bytes (`Serve::preauth_bytes`, call C251); the poll listener has none. Each session comes from a pinned key, so a stranger cannot open one.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/session.rs` (the window of each session, its pump), `crates/pod-ws/src/serve.rs` (`preauth_bytes`).
+- Not measured: the memory of a listener with many sessions.
+
+## Approach
+
+A field `Poll::max_bytes` (64 MiB by default): a budget of the listener that each pump takes room from before it reads, and gives back at each acknowledgement; an open that cannot get the room of one batch answers 429. A test with a budget of 2 MiB and three sessions that do not read: the third open gets 429, and the bytes held stay within the budget.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test poll_lanes
+```
+
+# T-518: `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers
+
+**Source:** T-422 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The poll carriers read heads of HTTP/1.1, chunked bodies and events of SSE (`crates/pod-link/src/poll/wire.rs`) from each peer whose key is pinned. Their unit tests give some forms by hand; no fuzz target reads them.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/wire.rs`, `fuzz/fuzz_targets/link_frame.rs`.
+- Not measured: no fuzz run of the reader.
+
+## Approach
+
+A target `link_poll_wire`: the input is the bytes of one connection, given to `Conn::head`, `Conn::body` and `Conn::chunk` in turn, and to `Events::push` and `Events::next`. No panic; a head is at most 4 KiB; an event gives at most 8 KiB. The reader becomes public in a hidden module for the target, or the target holds a copy by `#[path]`. The row of `fuzz/README.md` and the check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-link --all-features
 ```

@@ -34,11 +34,28 @@ pub struct Facts {
     pub duplex: bool,
     /// The largest unit of the carrier, when it has one (a datagram).
     pub mtu: Option<usize>,
+    /// The bytes that the carrier spends on the wire for each byte of the
+    /// link, for the consumer's order of the carriers.
+    pub cost: Cost,
 }
 
 impl Facts {
-    /// A reliable, ordered, duplex byte stream with no unit.
-    pub const STREAM: Facts = Facts { ordered: true, reliable: true, duplex: true, mtu: None };
+    /// A reliable, ordered, duplex byte stream with no unit and a low cost.
+    pub const STREAM: Facts = Facts { ordered: true, reliable: true, duplex: true, mtu: None, cost: Cost::Low };
+}
+
+/// The overhead class of a carrier, from the least to the most.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Cost {
+    /// A byte stream with a small frame or none: unix, memory, tcp, ws, h2.
+    Low,
+    /// A request of HTTP for each batch: the long poll, a chunked stream.
+    Medium,
+    /// A larger body for each byte: the base64 of the events of SSE.
+    High,
+    /// A request for each small batch and a poll while idle: the simplex
+    /// poll of HTTP.
+    Highest,
 }
 
 /// A way to reach a peer. The address is the carrier's own text (a path

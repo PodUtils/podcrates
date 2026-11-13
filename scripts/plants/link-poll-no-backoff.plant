@@ -1,0 +1,7 @@
+# The simplex poll polls each 100 ms while the link is quiet, with no
+# backoff up to 5 s (T-495).
+ENTRY=T-495
+GROUP=link
+EXPECT='polls in 3 s'
+RUN='cargo test -p pod-link --all-features --test poll_lanes the_simplex_poll_backs_off'
+LIMIT=1800

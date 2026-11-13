@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 407 entries: 120 open, 7 partial, 4 blocked, 276 done.
+`TODO/INDEX.md` holds 409 entries: 118 open, 7 partial, 4 blocked, 280 done.
 
 ## State
 
@@ -10,12 +10,12 @@
   #137, COORD-077, open): T-508 (PodUtils/podnet#524), T-506, T-510,
   T-310. Each consumer took `v0.38.0` (#136, closed).
 - The consumers and their tags:
-  - podssh: `v0.38.0` (`e47d508`, PodUtils/podssh#228; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
+  - podssh: `v0.39.0` (`5228b65`, PodUtils/podssh#229; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`
     (T-413; its glue needs T-480, in the tag after `v0.36.0`).
-  - podnet: `v0.38.0` (PodUtils/podnet#525; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
+  - podnet: `v0.39.0` (`306d80b`, PodUtils/podnet#526; its own fix of #524 dropped; its `src/warp/` is glue over `pod-warp` and holds fixes only (#135); its
     PodUtils/podnet@T-268 runs on the `tcp` carrier of `pod-link`; its
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
@@ -23,7 +23,7 @@
   - podvm: `v0.38.0` (`34936958`, PodUtils/podvm#304; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
-  - podrunner: `v0.38.0` (`28ce3b5`, PodUtils/podrunner#82; its live gates start on a test organization, its DR-7): its local
+  - podrunner: `v0.39.0` (`69d7b14`, PodUtils/podrunner#84; its live gates start on a test organization, its DR-7): its local
     mode takes `pod-actions-expr` and `pod-actions-workflow`
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
@@ -34,7 +34,7 @@
   T-207, #70).
 - Partial: T-028 and T-339 (`pod-warp`), T-040 (the trials of podvm),
   T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351 (`services.yml`), T-378 (`pod-devtunnel`).
-  Open defects: T-507 (three tests of `pod-services-watch` fail on Windows), T-307
+  Open defects: T-307
   (the nightly at `0edd703`; the next green nightly proves it), T-131
   (`pod-gsr` on Windows ARM64), T-204 (a random failure of `pod-session`).
 - Each session talks with podcrates by COORD issues alone, no direct
@@ -75,8 +75,7 @@ next entry.
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
    another party: coturn keys with SHA-1 alone); T-478 (the client of
-   the HTTP road never sends `close`); T-507 (three tests of
-   `pod-services-watch` fail on Windows); T-378 (`pod-devtunnel`, GitHub #94 and
+   the HTTP road never sends `close`); T-378 (`pod-devtunnel`, GitHub #94 and
    PodUtils/podssh#216: partial: the client side is in `v0.33.0` for
    PodUtils/podssh@T-755; the second part is the creation of tunnels, the
    logins and the token store; then T-386, T-387, T-385); T-330 (podvm's pair
@@ -98,15 +97,14 @@ next entry.
       `pod-link`; `v0.39.0` holds the rules of podnet's WebSocket
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
-   c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
-      T-521 (the fuzz target of the input of KCP), T-520 (the default of
-      the congestion window of KCP, when podnet answers),
-      T-422 (long-poll, SSE, chunked),
-      T-493 (DNS simplex), T-494 (S3
-      simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an
-      up and a down carrier).
+   c. The tag after: the poll carriers, the quic carrier and the udp
+      carrier with KCP of `pod-link` (done); T-520 (the default of the
+      congestion window of KCP, when podnet answers), T-521 (the fuzz
+      target of the input of KCP), T-493 (DNS simplex), T-494 (S3
+      simplex), T-497 (ICMP echo), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
-      traversal with the relay), T-515 (the congestion window of the ARQ,
+      traversal with the relay), T-517 and T-518 (a cap of the bytes and
+      a fuzz target of the poll carriers), T-515 (the congestion window of the ARQ,
       with the first carrier over a shared path), T-514 (a stream-aware
       ARQ, when podnet asks), T-501 (`pod-turn` with RFC 6062), T-027,
       T-214 and T-215 (`pod-transit`, `pod-wormhole`).
