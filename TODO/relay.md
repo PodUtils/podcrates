@@ -5805,16 +5805,16 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
-podssh removed two planted defects of its T-599 (the stack inside WARP's tunnel), and their code is `pod-netstack`'s now. No test of `pod-netstack` holds either case:
+podssh removed two planted defects of PodUtils/podssh@T-599 (the stack inside WARP's tunnel), and their code is `pod-netstack`'s now. No test of `pod-netstack` holds either case:
 
 1. A far end that closed first: each byte queued toward it must go before the end. The tests of `close.rs` close from this end.
 2. Packets that the stack sends while the outbound queue is full: none must be lost when the queue drains. The tests of `device/tests.rs` check one token of the device, not the stack.
 
-podssh's record (its T-771) must name a test of each case that fails on a planted defect.
+The record of podssh (PodUtils/podssh@T-771) must name a test of each case that fails on a planted defect.
 
 ## Premise
 
@@ -5833,3 +5833,7 @@ cargo test -p pod-netstack --lib a_stream_whose_peer_closed_first_sends_each_que
 cargo test -p pod-netstack --lib the_packets_held_at_a_full_link_each_go_when_it_drains
 sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-at-a-full-queue
 ```
+
+## Done
+
+2026-11-13, commit `2f643b1`. `cargo test -p pod-netstack --all-features`: 79 passed. `close.rs`: `a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end` (the client shuts down first; the server writes 16 MiB and closes; the client reads each byte, then the end). `hold.rs`: `the_packets_held_at_a_full_link_each_go_when_it_drains` (the outbound queue of the server fills to `LINK_OUTBOUND` while the pump stands; then `tx_dropped` is 0, `tx_held` is more than 0, the client reads 4 MiB and the end, and the pump moved each packet that the device counted in `tx_packets`). The plant `netstack-close-wait-closes-at-once` fails the first test ("the end after the end of the peer lost 4230144 bytes"). The plant `netstack-link-drops-at-a-full-queue` fails the second test ("4714 packets dropped at the full queue"); no other test of the crate catches it, as `a_full_tunnel_queue_holds_the_stack` uses `LinkDevice::tunnel_bounded`, not `LinkDevice::link`.
