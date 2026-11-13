@@ -69,7 +69,7 @@ is done. Git and the record keep finished work.
   taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
+- podrunner (on `v0.40.0`, `35595a6`, PodUtils/podrunner#89): its session
   runs with podvm. Its T-108 fills `cpu_s` and `peak_rss_mib` with
   `v0.40.0` (PodUtils/podrunner#86). Write to it by an issue with
   `(to podrunner)` in the title.
