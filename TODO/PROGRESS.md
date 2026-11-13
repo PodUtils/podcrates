@@ -23,7 +23,7 @@
   - podvm: `v0.34.0` (`fc1c5d60`, PodUtils/podvm#288; its relay over
     `pod_relay::blocking`, T-326; its fix of #102 is `655cf941`,
     PodUtils/podvm#289).
-  - podrunner: `v0.34.0` (`2a4f35c`, PodUtils/podrunner#72; its local mode and its egress hold are done; its PodUtils/podrunner@T-096 waits for podvm `v0.2.0-beta.7`); its local mode
+  - podrunner: `v0.35.0` (`0a400b5`, PodUtils/podrunner#73; its local mode and its egress hold are done; its PodUtils/podrunner@T-096 waits for podvm `v0.2.0-beta.7`); its local mode
     PodUtils/podrunner@T-046 takes `pod-actions-expr` and
     `pod-actions-workflow`); its T-042
     takes `pod-confine` through podvm's `--podvm-confine`, its T-048 takes
